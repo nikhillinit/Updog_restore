@@ -1,5 +1,7 @@
-import { AlertTriangle, Info, Loader2 } from 'lucide-react';
+import { Fragment, useState } from 'react';
+import { AlertTriangle, ChevronRight, Info } from 'lucide-react';
 import { useRoute } from 'wouter';
+import { MoicBasisDisclosure, MoicRankabilityBadge } from '@/components/moic/MoicBasisDisclosure';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -10,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { usePortfolioCompanies } from '@/hooks/use-fund-data';
 import { useFundMoicRankingsV2 } from '@/hooks/use-moic';
 import type { FundMoicRankingsResponseV2 } from '@shared/contracts/fund-moic-v2.contract';
 
@@ -21,6 +24,20 @@ type FundIdParseResult =
 type FundMoicRankingV2 = FundMoicRankingsResponseV2['rankings'][number];
 type LatestReconciliationV2 = FundMoicRankingsResponseV2['latestReconciliation'];
 type ActualsProvenanceSummaryV2 = FundMoicRankingsResponseV2['actualsProvenanceSummary'];
+
+interface PortfolioCompanyReserves {
+  id: number;
+  plannedReservesCents: number;
+  deployedReservesCents: number;
+}
+
+const MOIC_METRIC_LABEL = 'Expected MOIC on planned reserves — assumption-based';
+
+const RANKABILITY_GROUPS = [
+  { key: 'actionable', label: 'Actionable' },
+  { key: 'indicative', label: 'Indicative' },
+  { key: 'not_actionable', label: 'Not actionable' },
+] as const;
 
 const ACTIVATION_BLOCKER_LABELS: Record<string, string> = {
   accepted_reconciliation_required: 'Accepted reconciliation required',
@@ -58,6 +75,21 @@ function parseFundIdParam(rawValue: string | undefined): FundIdParseResult {
 
 function formatMoicValue(value: number | null): string {
   return value === null ? 'Unavailable' : `${value.toFixed(2)}x`;
+}
+
+function formatBaseCurrencyCents(value: number | undefined): string {
+  if (value === undefined || !Number.isSafeInteger(value)) {
+    return 'Unavailable';
+  }
+
+  const signedCents = BigInt(value);
+  const magnitudeInCents = signedCents < 0n ? -signedCents : signedCents;
+  const wholeUnits = magnitudeInCents / 100n;
+  const cents = (magnitudeInCents % 100n).toString().padStart(2, '0');
+  const sign = signedCents < 0n ? '-' : '';
+  const groupedWholeUnits = wholeUnits.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+  return `${sign}${groupedWholeUnits}.${cents}`;
 }
 
 export function formatRankingsSource(
@@ -111,19 +143,47 @@ function StateCard({
 }: {
   title: string;
   description: string;
-  icon?: 'loading' | 'info' | 'warning';
+  icon?: 'info' | 'warning';
 }) {
-  const Icon = icon === 'loading' ? Loader2 : icon === 'info' ? Info : AlertTriangle;
+  const Icon = icon === 'info' ? Info : AlertTriangle;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-pov-charcoal">
-          <Icon className={`h-5 w-5 ${icon === 'loading' ? 'animate-spin' : ''}`} />
+          <Icon className="h-5 w-5" />
           <span>{title}</span>
         </CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
+    </Card>
+  );
+}
+
+function RankingsLoadingSkeleton() {
+  return (
+    <Card aria-label="Loading MOIC rankings">
+      <CardHeader>
+        <CardTitle className="text-pov-charcoal">Loading MOIC rankings</CardTitle>
+        <CardDescription>Fetching the fund-scoped MOIC rankings response.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3" aria-hidden="true">
+        {[0, 1, 2].map((index) => (
+          <div
+            key={index}
+            className="grid grid-cols-[3rem_1fr_auto] items-center gap-4 border-b border-beige-200 py-3 last:border-b-0"
+          >
+            <span className="h-4 animate-pulse bg-pov-gray motion-reduce:animate-none" />
+            <span className="h-4 animate-pulse bg-pov-gray motion-reduce:animate-none" />
+            <span
+              data-testid="moic-loading-number"
+              className="animate-pulse tabular-nums text-transparent motion-reduce:animate-none"
+            >
+              00.00x
+            </span>
+          </div>
+        ))}
+      </CardContent>
     </Card>
   );
 }
@@ -305,35 +365,121 @@ function ProvenanceStrip({ data }: { data: FundMoicRankingsResponseV2 }) {
   );
 }
 
-function RankingsTable({ rankings }: { rankings: FundMoicRankingV2[] }) {
+function rankingGroup(item: FundMoicRankingV2): (typeof RANKABILITY_GROUPS)[number]['key'] {
+  return item.factsBasis?.rankability ?? 'not_actionable';
+}
+
+function RankingsTable({
+  rankings,
+  portfolioCompanies,
+}: {
+  rankings: FundMoicRankingV2[];
+  portfolioCompanies: PortfolioCompanyReserves[];
+}) {
+  const [expandedInvestmentId, setExpandedInvestmentId] = useState<string | null>(null);
+  const reservesByInvestmentId = new Map(
+    portfolioCompanies.map((company) => [String(company.id), company])
+  );
+  const groupedRankings = RANKABILITY_GROUPS.map((group) => ({
+    ...group,
+    rankings: rankings
+      .filter((item) => rankingGroup(item) === group.key)
+      .sort((left, right) => left.rank - right.rank),
+  })).filter((group) => group.rankings.length > 0);
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>MOIC Rankings</CardTitle>
-        <CardDescription>Fund-scoped V2 rankings payload.</CardDescription>
+        <h2 className="text-lg font-inter font-bold leading-none tracking-tight text-charcoal">
+          {MOIC_METRIC_LABEL}
+        </h2>
+        <CardDescription>
+          Companies are grouped by decision use; overall MOIC rank is retained while display order
+          is trust-first. Reserve columns show current portfolio values.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Rank</TableHead>
+              <TableHead>Overall MOIC rank</TableHead>
               <TableHead>Investment</TableHead>
-              <TableHead className="text-right">Reserves MOIC</TableHead>
+              <TableHead>Rankability</TableHead>
+              <TableHead className="text-right">Current planned reserves (base currency)</TableHead>
+              <TableHead className="text-right">
+                Current deployed reserves (base currency)
+              </TableHead>
+              <TableHead className="text-right">Expected MOIC</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
-            {rankings.map((item) => (
-              <TableRow key={item.investmentId}>
-                <TableCell className="font-semibold text-charcoal-600">#{item.rank}</TableCell>
-                <TableCell className="font-medium text-pov-charcoal">
-                  {item.investmentName}
-                </TableCell>
-                <TableCell className="text-right font-bold tabular-nums text-pov-charcoal">
-                  {formatMoicValue(item.reservesMoic.value)}
-                </TableCell>
+          {groupedRankings.map((group) => (
+            <TableBody key={group.key}>
+              <TableRow className="bg-pov-gray/60 hover:bg-pov-gray/60">
+                <TableHead
+                  scope="rowgroup"
+                  colSpan={6}
+                  className="h-auto py-2 text-xs font-semibold uppercase text-charcoal-500"
+                >
+                  {group.label}
+                </TableHead>
               </TableRow>
-            ))}
-          </TableBody>
+              {group.rankings.map((item) => {
+                const isExpanded = expandedInvestmentId === item.investmentId;
+                const disclosureId = `moic-basis-${item.investmentId}`;
+                const reserveData = reservesByInvestmentId.get(item.investmentId);
+
+                return (
+                  <Fragment key={item.investmentId}>
+                    <TableRow>
+                      <TableCell className="font-semibold text-charcoal-600">
+                        #{item.rank}
+                      </TableCell>
+                      <TableCell className="font-medium text-pov-charcoal">
+                        <button
+                          type="button"
+                          aria-expanded={isExpanded}
+                          aria-controls={disclosureId}
+                          aria-label={`${isExpanded ? 'Hide' : 'Show'} facts basis for ${item.investmentName}`}
+                          onClick={() =>
+                            setExpandedInvestmentId(isExpanded ? null : item.investmentId)
+                          }
+                          className="inline-flex min-h-10 items-center gap-2 text-left text-pov-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal-400 focus-visible:ring-offset-2"
+                        >
+                          <ChevronRight
+                            aria-hidden="true"
+                            className={`h-4 w-4 shrink-0 transition-transform motion-reduce:transition-none ${isExpanded ? 'rotate-90' : ''}`}
+                          />
+                          {item.investmentName}
+                        </button>
+                      </TableCell>
+                      <TableCell>
+                        <MoicRankabilityBadge basis={item.factsBasis} />
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-pov-charcoal">
+                        {formatBaseCurrencyCents(reserveData?.plannedReservesCents)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-pov-charcoal">
+                        {formatBaseCurrencyCents(reserveData?.deployedReservesCents)}
+                      </TableCell>
+                      <TableCell className="text-right font-bold tabular-nums text-pov-charcoal">
+                        {formatMoicValue(item.reservesMoic.value)}
+                      </TableCell>
+                    </TableRow>
+                    {isExpanded ? (
+                      <TableRow id={disclosureId}>
+                        <TableCell colSpan={6} className="p-0">
+                          <MoicBasisDisclosure
+                            basis={item.factsBasis}
+                            investmentName={item.investmentName}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ) : null}
+                  </Fragment>
+                );
+              })}
+            </TableBody>
+          ))}
         </Table>
       </CardContent>
     </Card>
@@ -344,6 +490,7 @@ export default function FundModelResultsMoicAnalysisPage() {
   const [, params] = useRoute('/fund-model-results/:fundId/moic-analysis');
   const fundIdResult = parseFundIdParam(params?.fundId);
   const { data, error, isLoading } = useFundMoicRankingsV2(fundIdResult.fundId);
+  const { portfolioCompanies } = usePortfolioCompanies(fundIdResult.fundId ?? undefined);
   const hasParsedResponse = fundIdResult.status === 'valid' && !error && data;
 
   return (
@@ -370,13 +517,7 @@ export default function FundModelResultsMoicAnalysisPage() {
         />
       ) : null}
 
-      {fundIdResult.status === 'valid' && isLoading ? (
-        <StateCard
-          title="Loading MOIC rankings"
-          description="Fetching the fund-scoped MOIC rankings response."
-          icon="loading"
-        />
-      ) : null}
+      {fundIdResult.status === 'valid' && isLoading ? <RankingsLoadingSkeleton /> : null}
 
       {fundIdResult.status === 'valid' && error ? (
         <StateCard
@@ -397,8 +538,8 @@ export default function FundModelResultsMoicAnalysisPage() {
         <>
           <ProvenanceStrip data={data} />
           <StateCard
-            title="No rankings available"
-            description="The V2 response returned zero reserves MOIC ranking rows for this fund."
+            title="No rankings disclosed"
+            description={`As of ${data.generatedAt.slice(0, 10)}. The V2 response returned zero reserves MOIC ranking rows for this fund.`}
             icon="info"
           />
         </>
@@ -407,7 +548,7 @@ export default function FundModelResultsMoicAnalysisPage() {
       {hasParsedResponse && data.rankings.length > 0 ? (
         <>
           <ProvenanceStrip data={data} />
-          <RankingsTable rankings={data.rankings} />
+          <RankingsTable rankings={data.rankings} portfolioCompanies={portfolioCompanies} />
         </>
       ) : null}
     </div>

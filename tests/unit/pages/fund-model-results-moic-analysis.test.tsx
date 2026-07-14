@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createWouterWrapper } from '../../utils/withWouter';
@@ -7,6 +8,10 @@ import {
   FundMoicRankingsResponseV2Schema,
   type FundMoicRankingsResponseV2,
 } from '../../../shared/contracts/fund-moic-v2.contract';
+import {
+  FundMoicFactsBasisV1Schema,
+  type FundMoicFactsBasisV1,
+} from '../../../shared/contracts/fund-moic-v1.contract';
 
 type HookError = { code: string };
 type HookResult = {
@@ -16,9 +21,44 @@ type HookResult = {
 };
 
 const useFundMoicRankingsV2 = vi.fn<(fundId: number | null) => HookResult>();
+const usePortfolioCompanies = vi.fn<
+  (fundId: number | undefined) => {
+    portfolioCompanies: Array<{
+      id: number;
+      plannedReservesCents: number;
+      deployedReservesCents: number;
+    }>;
+  }
+>();
+
+const FACTS_HASH = 'a'.repeat(64);
+
+function makeFactsBasis(overrides: Partial<FundMoicFactsBasisV1> = {}): FundMoicFactsBasisV1 {
+  return FundMoicFactsBasisV1Schema.parse({
+    rankability: 'actionable',
+    reasons: ['planning_fmv_active'],
+    observedInitialInvestment: '1000000',
+    observedFollowOnInvestment: '250000',
+    observedTotalInvestment: '1250000',
+    valuationAnchor: {
+      kind: 'planning_fmv',
+      value: '4000000',
+      asOfDate: '2026-07-12',
+    },
+    planningFmvStatus: 'active',
+    currencyStatus: 'base_currency',
+    factsInputHash: FACTS_HASH,
+    warnings: [],
+    ...overrides,
+  });
+}
 
 vi.mock('../../../client/src/hooks/use-moic', () => ({
   useFundMoicRankingsV2: (fundId: number | null) => useFundMoicRankingsV2(fundId),
+}));
+
+vi.mock('../../../client/src/hooks/use-fund-data', () => ({
+  usePortfolioCompanies: (fundId: number | undefined) => usePortfolioCompanies(fundId),
 }));
 
 const canonicalFixture = {
@@ -29,7 +69,7 @@ const canonicalFixture = {
       rank: 1,
       investmentId: '101',
       investmentName: 'Acme Corp',
-      factsBasis: null,
+      factsBasis: makeFactsBasis(),
       reservesMoic: {
         value: 2.8,
         description: 'Expected return on planned reserves',
@@ -123,6 +163,15 @@ function mockHook(result: HookResult) {
 describe('FundModelResultsMoicAnalysisPage', () => {
   beforeEach(() => {
     useFundMoicRankingsV2.mockReset();
+    usePortfolioCompanies.mockReset();
+    usePortfolioCompanies.mockReturnValue({
+      portfolioCompanies: [
+        { id: 101, plannedReservesCents: 140_000_000, deployedReservesCents: 100_000_000 },
+        { id: 102, plannedReservesCents: 130_000_000, deployedReservesCents: 90_000_000 },
+        { id: 103, plannedReservesCents: 120_000_000, deployedReservesCents: 80_000_000 },
+        { id: 104, plannedReservesCents: 110_000_000, deployedReservesCents: 70_000_000 },
+      ],
+    });
   });
 
   it('renders legacy source, warning banners, mapped codes, blocking counts, and reconciliation indicators', () => {
@@ -176,6 +225,8 @@ describe('FundModelResultsMoicAnalysisPage', () => {
     expect(screen.getByText('5')).toBeInTheDocument();
     expect(screen.queryByText(/marginal next-dollar/i)).not.toBeInTheDocument();
     expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+    expect(screen.getByText('1,400,000.00')).toHaveClass('tabular-nums');
+    expect(screen.getByText('1,000,000.00')).toHaveClass('tabular-nums');
   });
 
   it('renders candidate source copy when candidate rankings are active', () => {
@@ -208,6 +259,105 @@ describe('FundModelResultsMoicAnalysisPage', () => {
     expect(screen.getByText('Inputs match')).toBeInTheDocument();
     expect(screen.getByText('Fingerprint match')).toBeInTheDocument();
     expect(screen.getByText('Inactive')).toBeInTheDocument();
+  });
+
+  it('groups every company by rankability and expands disclosure from the keyboard', async () => {
+    const user = userEvent.setup();
+    const fixture = makeV2();
+    const rankingTemplate = fixture.rankings[0];
+
+    fixture.rankings = [
+      {
+        ...rankingTemplate,
+        rank: 2,
+        investmentId: '104',
+        investmentName: 'Unavailable Co',
+        factsBasis: null,
+        reservesMoic: { ...rankingTemplate.reservesMoic, value: 1.1 },
+      },
+      {
+        ...rankingTemplate,
+        rank: 1,
+        investmentId: '103',
+        investmentName: 'Blocked Co',
+        factsBasis: makeFactsBasis({
+          rankability: 'not_actionable',
+          reasons: ['currency_blocked'],
+          valuationAnchor: { kind: 'none', value: null, asOfDate: null },
+          currencyStatus: 'mismatch_blocked',
+        }),
+        reservesMoic: { ...rankingTemplate.reservesMoic, value: 1.2 },
+      },
+      {
+        ...rankingTemplate,
+        rank: 3,
+        investmentId: '102',
+        investmentName: 'Indicative Co',
+        factsBasis: makeFactsBasis({
+          rankability: 'indicative',
+          reasons: ['planning_fmv_stale'],
+          planningFmvStatus: 'stale',
+        }),
+        reservesMoic: { ...rankingTemplate.reservesMoic, value: 1.3 },
+      },
+      {
+        ...rankingTemplate,
+        rank: 4,
+        investmentId: '101',
+        investmentName: 'Action Co',
+        factsBasis: makeFactsBasis(),
+        reservesMoic: { ...rankingTemplate.reservesMoic, value: 1.4 },
+      },
+    ];
+
+    mockHook({
+      data: FundMoicRankingsResponseV2Schema.parse(fixture),
+      error: null,
+      isLoading: false,
+    });
+
+    const { container } = renderPage();
+
+    expect(
+      screen.getByRole('heading', {
+        name: 'Expected MOIC on planned reserves — assumption-based',
+      })
+    ).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/marginal|opportunity cost/i);
+    expect(screen.getByText('Overall MOIC rank')).toBeInTheDocument();
+    const rankingGroups = screen.getByRole('table').querySelectorAll('tbody');
+    expect(rankingGroups).toHaveLength(3);
+    expect(
+      Array.from(rankingGroups, (group) =>
+        group.querySelector('th[scope="rowgroup"]')?.textContent?.trim()
+      )
+    ).toEqual(['Actionable', 'Indicative', 'Not actionable']);
+    expect(
+      screen
+        .getAllByRole('button', { name: /show facts basis for/i })
+        .map((button) => button.textContent?.trim())
+    ).toEqual(['Action Co', 'Indicative Co', 'Blocked Co', 'Unavailable Co']);
+
+    const actionButton = screen.getByRole('button', { name: 'Show facts basis for Action Co' });
+    expect(actionButton).toHaveAttribute('aria-expanded', 'false');
+    actionButton.focus();
+    await user.keyboard('{Enter}');
+    expect(actionButton).toHaveAttribute('aria-expanded', 'true');
+    expect(actionButton).toHaveAccessibleName('Hide facts basis for Action Co');
+    expect(screen.getByRole('region', { name: 'Action Co MOIC facts basis' })).toBeInTheDocument();
+    await user.keyboard(' ');
+    expect(actionButton).toHaveAttribute('aria-expanded', 'false');
+    expect(actionButton).toHaveAccessibleName('Show facts basis for Action Co');
+
+    expect(screen.getByText('#2')).toBeInTheDocument();
+    expect(screen.getByText('1.10x')).toHaveClass('tabular-nums');
+    expect(screen.getByText('1,100,000.00')).toHaveClass('tabular-nums');
+    expect(screen.getByText('700,000.00')).toHaveClass('tabular-nums');
+    expect(screen.getByText('Facts unavailable')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Show facts basis for Unavailable Co' }));
+    expect(screen.getByText(/supporting facts basis could not be loaded/i)).toBeInTheDocument();
+    expect(useFundMoicRankingsV2).toHaveBeenCalledTimes(1);
+    expect(usePortfolioCompanies).toHaveBeenCalledWith(7);
   });
 
   it('renders zero blocking counts, empty warning groups, and no reconciliation copy', () => {
@@ -291,9 +441,11 @@ describe('FundModelResultsMoicAnalysisPage', () => {
 
     renderPage();
 
-    expect(screen.getByText('No rankings available')).toBeInTheDocument();
+    expect(screen.getByText('No rankings disclosed')).toBeInTheDocument();
     expect(
-      screen.getByText('The V2 response returned zero reserves MOIC ranking rows for this fund.')
+      screen.getByText(
+        'As of 2026-06-24. The V2 response returned zero reserves MOIC ranking rows for this fund.'
+      )
     ).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
@@ -307,6 +459,10 @@ describe('FundModelResultsMoicAnalysisPage', () => {
     expect(
       screen.getByText('Fetching the fund-scoped MOIC rankings response.')
     ).toBeInTheDocument();
+    expect(screen.getAllByTestId('moic-loading-number')).toHaveLength(3);
+    for (const skeleton of screen.getAllByTestId('moic-loading-number')) {
+      expect(skeleton).toHaveClass('tabular-nums', 'motion-reduce:animate-none');
+    }
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 });

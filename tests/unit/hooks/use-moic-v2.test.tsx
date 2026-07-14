@@ -4,6 +4,26 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useFundMoicRankingsV2 } from '../../../client/src/hooks/use-moic';
 import type { FundMoicRankingsResponseV2 } from '../../../shared/contracts/fund-moic-v2.contract';
+import { FundMoicFactsBasisV1Schema } from '../../../shared/contracts/fund-moic-v1.contract';
+
+const FACTS_HASH = 'b'.repeat(64);
+
+const populatedFactsBasis = FundMoicFactsBasisV1Schema.parse({
+  rankability: 'actionable',
+  reasons: ['planning_fmv_active'],
+  observedInitialInvestment: '1000000',
+  observedFollowOnInvestment: '250000',
+  observedTotalInvestment: '1250000',
+  valuationAnchor: {
+    kind: 'planning_fmv',
+    value: '4000000',
+    asOfDate: '2026-07-12',
+  },
+  planningFmvStatus: 'active',
+  currencyStatus: 'base_currency',
+  factsInputHash: FACTS_HASH,
+  warnings: [],
+});
 
 function makeV2Response(fundId: number): FundMoicRankingsResponseV2 {
   return {
@@ -14,7 +34,7 @@ function makeV2Response(fundId: number): FundMoicRankingsResponseV2 {
         rank: 1,
         investmentId: '101',
         investmentName: 'Acme Corp',
-        factsBasis: null,
+        factsBasis: populatedFactsBasis,
         reservesMoic: {
           value: 0,
           description: 'Expected return on planned reserves',
@@ -103,6 +123,7 @@ describe('useFundMoicRankingsV2', () => {
       trustStateCounts: { LIVE: 1, PARTIAL: 0, UNAVAILABLE: 0, FAILED: 0 },
       defaultedEconomicInputCount: 0,
     });
+    expect(result.current.data?.rankings[0]?.factsBasis).toEqual(populatedFactsBasis);
     expect(JSON.stringify(result.current.data)).not.toMatch(/marginal next-dollar/i);
     expect(fetchSpy).toHaveBeenCalledWith('/api/funds/5/moic/rankings?contract=v2', {
       credentials: 'include',
