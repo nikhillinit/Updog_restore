@@ -621,7 +621,7 @@ describe('FundModelResultsPage (server-backed)', () => {
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
-      expect(screen.getByText(/Test Fund/)).toBeInTheDocument();
+      expect(screen.getAllByText(/Test Fund/).length).toBeGreaterThanOrEqual(1);
     });
     expect(screen.getByText('Lifecycle Status')).toBeInTheDocument();
     expect(screen.getByText('Calculating')).toBeInTheDocument();
@@ -636,7 +636,7 @@ describe('FundModelResultsPage (server-backed)', () => {
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
-      expect(screen.getByText(/Test Fund/)).toBeInTheDocument();
+      expect(screen.getAllByText(/Test Fund/).length).toBeGreaterThanOrEqual(1);
     });
 
     // The old fabricated defaults from loadFromWizardData() must not appear as
@@ -656,7 +656,9 @@ describe('FundModelResultsPage (server-backed)', () => {
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
-      expect(screen.getByText('Test Fund')).toBeInTheDocument();
+      // Fund name renders in the identity header and the workspace-row fund
+      // context (Plan 9 Wave 9B1 nav row).
+      expect(screen.getAllByText('Test Fund').length).toBeGreaterThanOrEqual(1);
     });
     expect(screen.getByText(/Vintage 2024/)).toBeInTheDocument();
     // $100M appears in both header and overview card
@@ -1304,14 +1306,14 @@ describe('FundModelResultsPage (server-backed)', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(screen.getByText('Test Fund')).toBeInTheDocument();
+    expect(screen.getAllByText('Test Fund').length).toBeGreaterThanOrEqual(1);
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2000);
     });
 
     expect(countFetches('/api/funds/123/results')).toBe(2);
-    expect(screen.getByText('Test Fund')).toBeInTheDocument();
+    expect(screen.getAllByText('Test Fund').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText(/Error loading results/i)).not.toBeInTheDocument();
 
     await act(async () => {

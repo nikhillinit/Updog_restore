@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/table';
 import { usePortfolioCompanies } from '@/hooks/use-fund-data';
 import { useFundMoicRankingsV2 } from '@/hooks/use-moic';
+import { WorkspaceBasisIndicator, WorkspaceNav } from '@/pages/fund-model-results/workspace-nav';
 import type { FundMoicRankingsResponseV2 } from '@shared/contracts/fund-moic-v2.contract';
 
 type FundIdParseResult =
@@ -501,6 +502,15 @@ export default function FundModelResultsMoicAnalysisPage() {
           {fundIdResult.status === 'valid' ? `Fund ${fundIdResult.fundId}` : 'Fund-scoped results'}
         </p>
       </header>
+
+      {/* Workspace row (D-F.2). Planned MOIC is construction-planning by nature:
+          static indicator only, no basis control (D-E). */}
+      <WorkspaceNav
+        fundId={fundIdResult.status === 'valid' ? String(fundIdResult.fundId) : null}
+        fundLabel={fundIdResult.status === 'valid' ? `Fund ${fundIdResult.fundId}` : 'No fund'}
+        active="reserves"
+        indicator={<WorkspaceBasisIndicator mode="construction" />}
+      />
 
       {fundIdResult.status === 'missing' ? (
         <StateCard

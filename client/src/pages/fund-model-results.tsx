@@ -49,6 +49,7 @@ import {
 } from './fund-model-results/results-hooks';
 import { ScenarioAnalysisCard } from './fund-model-results/scenario-section';
 import { SectionRenderer } from './fund-model-results/SectionRenderer';
+import { WorkspaceBasisIndicator, WorkspaceNav } from './fund-model-results/workspace-nav';
 import { ErrorState, LatestErrorState, LoadingState } from './fund-model-results/states';
 import type { LifecycleStatus } from './fund-model-results/types';
 
@@ -119,6 +120,14 @@ function FundModelResultsPage() {
           {(results.fund.size / 1_000_000).toFixed(0)}M
         </p>
       </div>
+
+      {/* Workspace row (D-F.2): fund context + six destinations + basis indicator */}
+      <WorkspaceNav
+        fundId={fundId}
+        fundLabel={results.fund.name}
+        active="summary"
+        indicator={<WorkspaceBasisIndicator mode="construction" />}
+      />
 
       <FadeInSection>
         <ConfigDiffBanner lifecycle={results.lifecycle} />

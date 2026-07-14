@@ -23,6 +23,7 @@ import {
 } from '@/components/lp-reporting/GpQualificationStrip';
 import LpReportingMetricsPage from '@/pages/lp-reporting/metrics';
 import { useFundContext } from '@/contexts/FundContext';
+import { WorkspaceBasisIndicator, WorkspaceNav } from '@/pages/fund-model-results/workspace-nav';
 
 type FundIdParseResult =
   | { status: 'missing'; fundId: null }
@@ -86,6 +87,19 @@ export default function FundModelResultsReportsPage() {
             : 'Fund-scoped reporting'}
         </p>
       </header>
+
+      {/* Workspace row (D-F.2). Reporting metrics are computed from recorded
+          fund facts: static "Basis: Current" indicator (D-E). */}
+      <WorkspaceNav
+        fundId={fundIdResult.status === 'valid' ? String(fundIdResult.fundId) : null}
+        fundLabel={
+          fundIdResult.status === 'valid'
+            ? (currentFund?.name ?? `Fund ${fundIdResult.fundId}`)
+            : 'No fund'
+        }
+        active="reports"
+        indicator={<WorkspaceBasisIndicator mode="current" />}
+      />
 
       {fundIdResult.status === 'missing' ? (
         <StateCard

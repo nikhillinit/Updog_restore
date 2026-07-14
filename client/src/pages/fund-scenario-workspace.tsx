@@ -10,11 +10,12 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { Link, useRoute } from 'wouter';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { useRoute } from 'wouter';
+import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CreateMethodologyScenarioModal } from '@/components/scenarios/CreateMethodologyScenarioModal';
 import { ScenarioFactsSeedPicker } from '@/components/scenarios/ScenarioFactsSeedPicker';
+import { WorkspaceBasisIndicator, WorkspaceNav } from '@/pages/fund-model-results/workspace-nav';
 import { useFeatureFlag } from '@/core/flags/flagAdapter';
 import {
   type Query,
@@ -617,14 +618,19 @@ function FundScenarioWorkspacePage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-6 py-8">
+      {/* Workspace row (D-F.2/D-F.5): the nav supersedes the removed
+          Back-to-Results button. Scenario sets are built on the published
+          (construction) configuration; the saved-scenario overlay control is
+          deferred until a surface-level scenario selection exists (D-E
+          fallback ordering). */}
+      <WorkspaceNav
+        fundId={fundId}
+        fundLabel={fund ? fund.name : `Fund ${fundId}`}
+        active="scenarios"
+        indicator={<WorkspaceBasisIndicator mode="construction" />}
+      />
       <header className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/fund-model-results/${fundId}`}>
-              <ArrowLeft className="h-4 w-4" />
-              Back to Results
-            </Link>
-          </Button>
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <div className="flex flex-wrap items-center gap-2">
             {seedPickerEnabled && (
               <Button variant="outline" size="sm" onClick={() => setIsSeedPickerOpen(true)}>

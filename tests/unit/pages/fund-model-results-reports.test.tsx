@@ -70,7 +70,17 @@ describe('FundModelResultsReportsPage', () => {
     expect(pipeline).toBeInTheDocument();
     // Strip renders ABOVE the pipeline in document order.
     expect(strip.compareDocumentPosition(pipeline) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText('Fund Forty Two')).toBeInTheDocument();
+    // Fund identity appears in the page header and the workspace-row context.
+    expect(screen.getAllByText('Fund Forty Two').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('mounts the workspace row with Reports active and the current-basis indicator', () => {
+    renderAt('/fund-model-results/42/reports');
+
+    const reportsLink = screen.getByRole('link', { name: 'Reports' });
+    expect(reportsLink).toHaveAttribute('aria-current', 'page');
+    expect(reportsLink).toHaveAttribute('href', '/fund-model-results/42/reports');
+    expect(screen.getByText('Basis: Current')).toBeInTheDocument();
   });
 
   it('rejects a non-numeric fund id with the guard idiom and withholds the pipeline', () => {
