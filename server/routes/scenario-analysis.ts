@@ -33,6 +33,7 @@ import {
 } from '@shared/utils/scenario-math';
 import type { ScenarioCase } from '@shared/types/scenario';
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
+import { FEATURES } from '../config/features.js';
 import { firstString } from '../lib/request-values';
 import { createRouteLogger } from '../lib/route-logger.js';
 import { enforceCompanyFundScope, resolveCompanyFundId } from '../lib/auth/company-fund-scope';
@@ -372,6 +373,10 @@ router['post'](
   async (req: Request, res: Response) => {
     const { fundId } = FundIdParamSchema.parse(req.params);
     const scenarioId = z.string().uuid().parse(req.params['scenarioId']);
+    if (!FEATURES.scenarioSeedPicker) {
+      return res.status(404).json({ error: 'not_found' });
+    }
+
     const parsedBody = CreateScenarioCaseFromSeedRequestSchema.safeParse(req.body);
     if (!parsedBody.success) {
       return res.status(400).json({

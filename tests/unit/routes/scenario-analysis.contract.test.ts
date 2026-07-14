@@ -21,6 +21,8 @@ const fundAccessState = vi.hoisted(() => ({
   requireFundAccess: vi.fn((_req: Request, _res: Response, next: NextFunction) => next()),
 }));
 
+const featureState = vi.hoisted(() => ({ scenarioSeedPicker: false }));
+
 const factsState = vi.hoisted(() => {
   class FundActualsFactsServiceError extends Error {
     readonly status: number;
@@ -104,6 +106,16 @@ vi.mock('../../../server/lib/auth/jwt', () => ({
   requireFundAccess: fundAccessState.requireFundAccess,
 }));
 
+vi.mock('../../../server/config/features', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../server/config/features')>();
+  const features = { ...actual.FEATURES };
+  Object.defineProperty(features, 'scenarioSeedPicker', {
+    enumerable: true,
+    get: () => featureState.scenarioSeedPicker,
+  });
+  return { ...actual, FEATURES: features };
+});
+
 vi.mock('../../../server/services/fund-actuals/fund-company-actuals-facts-service', () => ({
   buildFundCompanyActualsFacts: factsState.buildFundCompanyActualsFacts,
   FundActualsFactsServiceError: factsState.FundActualsFactsServiceError,
@@ -149,6 +161,7 @@ function denyOnce() {
 }
 
 function resetState() {
+  featureState.scenarioSeedPicker = false;
   fundScopeState.enforceCompanyFundScope.mockReset();
   fundScopeState.enforceCompanyFundScope.mockResolvedValue(true);
   fundScopeState.resolveCompanyFundId.mockReset();
@@ -826,7 +839,26 @@ describe('scenario-analysis actuals-backed seed suggestions', () => {
 describe('scenario-analysis from-seed case creation', () => {
   beforeEach(() => {
     resetState();
+    featureState.scenarioSeedPicker = true;
     factsState.buildFundCompanyActualsFacts.mockResolvedValue(factsResponse());
+  });
+
+  it('returns 404 without downstream work when the seed picker is disabled', async () => {
+    featureState.scenarioSeedPicker = false;
+
+    const res = await request(makeApp())
+      .post(`/api/funds/7/scenario-analysis/scenarios/${SCENARIO_ID}/cases/from-seed`)
+      .set('Idempotency-Key', 'seed-create-disabled')
+      .send(validFromSeedBody());
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'not_found' });
+    expect(fundScopeState.resolveCompanyFundId).not.toHaveBeenCalled();
+    expect(dbState.select).not.toHaveBeenCalled();
+    expect(dbState.findFirst).not.toHaveBeenCalled();
+    expect(factsState.buildFundCompanyActualsFacts).not.toHaveBeenCalled();
+    expect(persistenceState.createScenarioCaseFromSeed).not.toHaveBeenCalled();
+    expectNoScenarioWrites();
   });
 
   it('rejects an invalid fund before fund access and persistence', async () => {
