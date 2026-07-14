@@ -194,12 +194,34 @@ describe('FundReadinessRollup', () => {
   it('renders as-of dates in tabular numerals and an em dash when undisclosed', () => {
     const rollup = renderRollup(modelFixture());
 
+    // F6: the surface cell is a row-header th, so data cells are the 4 tds.
     const forecastCells = rollup.getByTestId('readiness-row-forecast').querySelectorAll('td');
-    const asOfCell = forecastCells[3];
+    const asOfCell = forecastCells[2];
     expect(asOfCell?.textContent).toBe('2026-07-01');
     expect(asOfCell?.className).toContain('tabular-nums');
     const reportsCells = rollup.getByTestId('readiness-row-reports').querySelectorAll('td');
-    expect(reportsCells[3]?.textContent).toBe('—');
+    expect(reportsCells[2]?.textContent).toBe('—');
+  });
+
+  it('names each row with its surface as a row header (F6)', () => {
+    const rollup = renderRollup(modelFixture());
+
+    const rowHeaders = rollup.getAllByRole('rowheader');
+    expect(rowHeaders.map((header) => header.textContent)).toEqual([
+      'Forecast',
+      'Portfolio Actuals',
+      'Reserves',
+      'Scenarios',
+      'Reports',
+    ]);
+  });
+
+  it('gives every warnings disclosure a per-surface accessible name (F6)', () => {
+    const rollup = renderRollup(modelFixture());
+
+    expect(rollup.getByRole('button', { name: 'Warnings for Scenarios (2)' })).toBe(
+      rollup.getByTestId('readiness-row-scenarios-disclosure')
+    );
   });
 
   it('links each surface with a fund-carrying underlined text link', () => {

@@ -38,7 +38,6 @@ import {
   FundScenarioCalculationStatusV1Schema,
   FundScenarioReserveCalculationQueuedV1Schema,
   FundScenarioSetDetailV1Schema,
-  FundScenarioSetListResponseV1Schema,
   type FundScenarioCalculationModeV1,
   type FundScenarioCalculationStatusV1,
   type FundScenarioOverrideTypeV1,
@@ -58,7 +57,11 @@ import {
   scenarioSetStatusQueryKey,
   workspaceQueryKey,
 } from '@/lib/fund-scenario-workspace-query-keys';
-import { scenarioApiPath, scenarioSetApiPath } from '@/lib/fund-scenario-workspace-api';
+import {
+  fetchScenarioSetList,
+  scenarioApiPath,
+  scenarioSetApiPath,
+} from '@/lib/fund-scenario-workspace-api';
 
 const FUND_SCENARIO_WORKSPACE_ROUTE = '/fund-model-results/:fundId/scenarios';
 const OVERRIDE_TYPE_LABELS: Record<FundScenarioOverrideTypeV1, string> = {
@@ -78,11 +81,6 @@ export function reserveStatusPollIntervalMs(
   status: FundScenarioCalculationStatusV1['status'] | undefined
 ): number | false {
   return status === 'queued' || status === 'calculating' ? RESERVE_STATUS_POLL_INTERVAL_MS : false;
-}
-
-async function fetchScenarioSetList(fundId: string) {
-  const raw = await apiRequest('GET', scenarioApiPath(fundId, '/scenario-sets'));
-  return FundScenarioSetListResponseV1Schema.parse(raw).scenarioSets;
 }
 
 async function fetchScenarioSetDetail(fundId: string, scenarioSetId: string) {

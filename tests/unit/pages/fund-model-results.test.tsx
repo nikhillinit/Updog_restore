@@ -21,7 +21,21 @@ import type { FundScenarioComparisonV1 } from '../../../shared/contracts/fund-sc
 // Plan 9 Wave 9B2: the readiness rollup's data-source hooks are mocked at the
 // module boundary (this file's fetch mock only covers the page's own reads).
 // Errored queries exercise the fail-closed "Facts unavailable" rows; the
-// Scenarios row still derives from the REAL /results fetch mock below.
+// Scenarios row still derives from the REAL /results fetch mock below. The
+// scenario-set LIST mock (fix round F1) is mutable so the actionable-join
+// test can present a matching inventory.
+const rollupHookMocks = vi.hoisted(() => {
+  const erroredScenarioSetList = () => ({
+    isSuccess: false,
+    isError: true,
+    data: undefined as unknown,
+    error: new Error('scenario set list unavailable') as Error | null,
+  });
+  return { erroredScenarioSetList, scenarioSetList: erroredScenarioSetList() };
+});
+vi.mock('@/hooks/use-scenario-set-list', () => ({
+  useScenarioSetList: () => rollupHookMocks.scenarioSetList,
+}));
 vi.mock('@/hooks/useDualForecast', () => ({
   useDualForecast: () => ({
     isSuccess: false,
@@ -58,6 +72,7 @@ describe('FundModelResultsPage (server-backed)', () => {
     fetchSpy = vi.fn();
     globalThis.fetch = fetchSpy;
     sessionGetSpy = vi.spyOn(Storage.prototype, 'getItem');
+    rollupHookMocks.scenarioSetList = rollupHookMocks.erroredScenarioSetList();
   });
 
   afterEach(() => {
@@ -1524,9 +1539,17 @@ describe('FundModelResultsPage (server-backed)', () => {
     );
   });
 
-  it('reads calculated-current scenario sets as actionable in the rollup', async () => {
+  it('reads calculated-current scenario sets as actionable when the inventory agrees (F1)', async () => {
     const resp = readyResponse();
     resp.sections.scenarios = validScenariosSection();
+    // F1 join: the actionable claim requires the scenario-set LIST to confirm
+    // every active set is calculated.
+    rollupHookMocks.scenarioSetList = {
+      isSuccess: true,
+      isError: false,
+      data: [{ id: '00000000-0000-0000-0000-000000000111', archivedAt: null }],
+      error: null,
+    };
     mockFundPageFetches({ results: resp });
     await renderPage('/fund-model-results/123');
 
@@ -1535,6 +1558,22 @@ describe('FundModelResultsPage (server-backed)', () => {
     const scenariosRow = within(rollup.getByTestId('readiness-row-scenarios'));
     expect(scenariosRow.getByText('Actionable')).toBeInTheDocument();
     expect(scenariosRow.getByText('2026-05-26')).toBeInTheDocument();
+  });
+
+  it('caps calculated-current scenario sets at indicative when the inventory is unavailable (F1)', async () => {
+    const resp = readyResponse();
+    resp.sections.scenarios = validScenariosSection();
+    // Default list mock is errored: completeness unprovable -> never actionable.
+    mockFundPageFetches({ results: resp });
+    await renderPage('/fund-model-results/123');
+
+    await screen.findByRole('heading', { level: 1, name: 'Test Fund' });
+    const rollup = within(screen.getByTestId('fund-readiness-rollup'));
+    const scenariosRow = within(rollup.getByTestId('readiness-row-scenarios'));
+    expect(scenariosRow.queryByText('Actionable')).not.toBeInTheDocument();
+    expect(rollup.getByTestId('readiness-row-scenarios-reason')).toHaveTextContent(
+      'Scenario set inventory unavailable'
+    );
   });
 
   it('keeps the rollup mounted with fallback rows through loading and error states', async () => {

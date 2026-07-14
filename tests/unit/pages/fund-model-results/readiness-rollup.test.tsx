@@ -17,6 +17,10 @@ import {
   type FundMoicRankingsResponseV2,
 } from '../../../../shared/contracts/fund-moic-v2.contract';
 import { ScenariosSectionSchema } from '../../../../shared/contracts/fund-results-v1.contract';
+import {
+  FundScenarioSetSummaryV1Schema,
+  type FundScenarioSetSummaryV1,
+} from '../../../../shared/contracts/fund-scenario-sets-v1.contract';
 import type { AllocationsResponse } from '../../../../client/src/components/portfolio/tabs/types';
 import {
   deriveReadinessRollup,
@@ -136,14 +140,17 @@ function moicFixture(rankings: ReturnType<typeof moicRanking>[]): FundMoicRankin
 }
 
 function allocationsFixture(
-  drift: Partial<AllocationsResponse['metadata']['actuals_drift_summary']> = {}
+  drift: Partial<AllocationsResponse['metadata']['actuals_drift_summary']> = {},
+  // Fix round F4: the default fixture is POPULATED so the actionable branch
+  // is proven against a non-empty payload; the true-empty state is explicit.
+  companiesCount = 3
 ): AllocationsResponse {
   return {
     companies: [],
     metadata: {
       total_planned_cents: 0,
       total_deployed_cents: 0,
-      companies_count: 0,
+      companies_count: companiesCount,
       last_updated_at: null,
       actuals_drift_summary: {
         facts_status: 'available',
@@ -210,6 +217,39 @@ function scenariosUnavailable(
   return ScenariosSectionSchema.parse({ status: 'unavailable', reason, reasonCode });
 }
 
+let listEntrySequence = 0;
+
+function listEntry(overrides: Partial<FundScenarioSetSummaryV1> = {}): FundScenarioSetSummaryV1 {
+  listEntrySequence += 1;
+  const suffix = String(listEntrySequence).padStart(12, '0');
+  return FundScenarioSetSummaryV1Schema.parse({
+    id: `00000000-0000-4000-a000-${suffix}`,
+    fundId: 42,
+    name: `Listed set ${listEntrySequence}`,
+    description: null,
+    sourceConfigId: 1,
+    sourceConfigVersion: 1,
+    variantCount: 1,
+    archivedAt: null,
+    archivedByUserId: null,
+    archivedByLabel: null,
+    createdByUserId: null,
+    createdByLabel: null,
+    updatedByUserId: null,
+    updatedByLabel: null,
+    createdAt: '2026-06-01T00:00:00.000Z',
+    updatedAt: '2026-06-15T12:00:00.000Z',
+    ...overrides,
+  });
+}
+
+/** List entries matching every calculated set in an available section (F1). */
+function listMatchingSection(section: ScenariosSection): FundScenarioSetSummaryV1[] {
+  return section.status === 'available'
+    ? section.payload.sets.map((set) => listEntry({ id: set.scenarioSetId, name: set.name }))
+    : [];
+}
+
 function data<T>(value: T): ReadinessSourceInput<T> {
   return { kind: 'data', data: value };
 }
@@ -221,12 +261,14 @@ function errorInput(message: string | null): ReadinessSourceInput<never> {
 }
 
 function baseInputs(overrides: Partial<ReadinessRollupInputs> = {}): ReadinessRollupInputs {
+  const section = scenariosAvailable([scenarioSet('CURRENT')]);
   return {
     fundId: '42',
     forecast: data(dualForecastFixture()),
     portfolioActuals: data(allocationsFixture()),
     reserves: data(moicFixture([moicRanking(1, 'actionable')])),
-    scenarios: data(scenariosAvailable([scenarioSet('CURRENT')])),
+    scenarios: data(section),
+    scenarioSetList: data(listMatchingSection(section)),
     ...overrides,
   };
 }
@@ -347,7 +389,7 @@ describe('forecast row', () => {
     expect(row.asOfDate).toBe('2026-07-01');
   });
 
-  it('fails closed to Facts unavailable when the facts fetch failed (null blocks)', () => {
+  it('fails closed to Facts unavailable when the facts fetch failed (both blocks null)', () => {
     const inputs = baseInputs({
       forecast: data(
         dualForecastFixture({
@@ -363,6 +405,28 @@ describe('forecast row', () => {
     expect(row.stateLabel).toBe('Facts unavailable');
     expect(row.primaryReason).toBe('actuals facts fetch failed');
     expect(row.details).toEqual(['actuals facts fetch failed', 'second warning']);
+  });
+
+  it('fails closed when ONLY actualsFacts is null (isolated block)', () => {
+    const inputs = baseInputs({
+      forecast: data(dualForecastFixture({ actualsFacts: null })),
+    });
+    const row = rowByKey(inputs, 'forecast');
+
+    expect(row.state).toBe('not_actionable');
+    expect(row.stateLabel).toBe('Facts unavailable');
+    expect(row.primaryReason).toBe('Company facts could not be resolved for this forecast');
+  });
+
+  it('fails closed when ONLY navAnchoring is null (isolated block)', () => {
+    const inputs = baseInputs({
+      forecast: data(dualForecastFixture({ navAnchoring: null })),
+    });
+    const row = rowByKey(inputs, 'forecast');
+
+    expect(row.state).toBe('not_actionable');
+    expect(row.stateLabel).toBe('Facts unavailable');
+    expect(row.primaryReason).toBe('Company facts could not be resolved for this forecast');
   });
 
   it('reads failed company facts as not actionable ahead of any softer signal', () => {
@@ -403,7 +467,22 @@ describe('forecast row', () => {
     expect(row.details).toEqual(['projection warning', 'engine failed']);
   });
 
-  it('pins the empty facts universe as indicative (untrusted, AMENDMENT 8)', () => {
+  it('keeps details unchanged when the projection fallback discloses no reason', () => {
+    const inputs = baseInputs({
+      forecast: data(
+        dualForecastFixture({
+          currentProjection: { status: 'fallback_default', fallbackReason: null },
+          warnings: ['projection warning'],
+        })
+      ),
+    });
+    const row = rowByKey(inputs, 'forecast');
+
+    expect(row.state).toBe('not_actionable');
+    expect(row.details).toEqual(['projection warning']);
+  });
+
+  it('fails the empty facts universe closed (all-zero pinned UNAVAILABLE, AMENDMENT 8; F3)', () => {
     const inputs = baseInputs({
       forecast: data(
         dualForecastFixture({
@@ -417,8 +496,26 @@ describe('forecast row', () => {
     });
     const row = rowByKey(inputs, 'forecast');
 
-    expect(row.state).toBe('indicative');
+    expect(row.state).toBe('not_actionable');
     expect(row.primaryReason).toBe('No company facts disclosed');
+  });
+
+  it('fails closed when NO company is live even without failures (F3 ladder)', () => {
+    const inputs = baseInputs({
+      forecast: data(
+        dualForecastFixture({
+          navAnchoring: {
+            blendedNav: '100.00',
+            countsByTrustState: { LIVE: 0, PARTIAL: 2, UNAVAILABLE: 1, FAILED: 0 },
+            companies: [],
+          },
+        })
+      ),
+    });
+    const row = rowByKey(inputs, 'forecast');
+
+    expect(row.state).toBe('not_actionable');
+    expect(row.primaryReason).toBe('3 of 3 companies below live facts');
   });
 
   it('reads partial or unavailable company facts as indicative with the count', () => {
@@ -507,6 +604,27 @@ describe('portfolio actuals row', () => {
     expect(row.state).toBe('actionable');
     expect(row.blockedSummary).toBe('2 drifted');
   });
+
+  it('renders the D-C empty state when zero companies are disclosed (F4)', () => {
+    const inputs = baseInputs({
+      portfolioActuals: data(allocationsFixture({}, 0)),
+    });
+    const row = rowByKey(inputs, 'portfolio-actuals');
+
+    expect(row.state).toBe('not_actionable');
+    expect(row.primaryReason).toBe('No portfolio actuals disclosed');
+  });
+
+  it('keeps a facts failure ahead of the empty state (fail-closed precedence)', () => {
+    const inputs = baseInputs({
+      portfolioActuals: data(allocationsFixture({ facts_status: 'failed' }, 0)),
+    });
+    const row = rowByKey(inputs, 'portfolio-actuals');
+
+    expect(row.state).toBe('not_actionable');
+    expect(row.stateLabel).toBe('Facts unavailable');
+    expect(row.primaryReason).toBe('Company facts failed to resolve for allocations');
+  });
 });
 
 // ── Reserves ──
@@ -574,19 +692,81 @@ describe('reserves row', () => {
 // ── Scenarios ──
 
 describe('scenarios row', () => {
-  it('is actionable when every set is CURRENT, as-of the max calculatedAt date', () => {
+  it('is actionable ONLY when list and results agree: all active sets calculated + CURRENT', () => {
+    const section = scenariosAvailable([
+      scenarioSet('CURRENT', '2026-06-10T00:00:00.000Z'),
+      scenarioSet('CURRENT', '2026-06-20T00:00:00.000Z'),
+    ]);
     const inputs = baseInputs({
-      scenarios: data(
-        scenariosAvailable([
-          scenarioSet('CURRENT', '2026-06-10T00:00:00.000Z'),
-          scenarioSet('CURRENT', '2026-06-20T00:00:00.000Z'),
-        ])
-      ),
+      scenarios: data(section),
+      scenarioSetList: data(listMatchingSection(section)),
     });
     const row = rowByKey(inputs, 'scenarios');
 
     expect(row.state).toBe('actionable');
     expect(row.asOfDate).toBe('2026-06-20');
+  });
+
+  it('degrades all-CURRENT results when active listed sets have no calculated results (F1)', () => {
+    const section = scenariosAvailable([scenarioSet('CURRENT')]);
+    const inputs = baseInputs({
+      scenarios: data(section),
+      scenarioSetList: data([...listMatchingSection(section), listEntry(), listEntry()]),
+    });
+    const row = rowByKey(inputs, 'scenarios');
+
+    expect(row.state).toBe('indicative');
+    expect(row.primaryReason).toBe('2 of 3 sets have no calculated results');
+  });
+
+  it('ignores ARCHIVED listed sets in the completeness join (F1)', () => {
+    const section = scenariosAvailable([scenarioSet('CURRENT')]);
+    const inputs = baseInputs({
+      scenarios: data(section),
+      scenarioSetList: data([
+        ...listMatchingSection(section),
+        listEntry({ archivedAt: '2026-06-01T00:00:00.000Z' }),
+      ]),
+    });
+    const row = rowByKey(inputs, 'scenarios');
+
+    expect(row.state).toBe('actionable');
+  });
+
+  it('caps at indicative when the set inventory fetch fails (completeness unprovable, F1)', () => {
+    const section = scenariosAvailable([scenarioSet('CURRENT')]);
+    const inputs = baseInputs({
+      scenarios: data(section),
+      scenarioSetList: errorInput('list boom'),
+    });
+    const row = rowByKey(inputs, 'scenarios');
+
+    expect(row.state).toBe('indicative');
+    expect(row.primaryReason).toBe('Scenario set inventory unavailable');
+  });
+
+  it('stays a loading row while the set inventory is still resolving (F1)', () => {
+    const section = scenariosAvailable([scenarioSet('CURRENT')]);
+    const inputs = baseInputs({
+      scenarios: data(section),
+      scenarioSetList: LOADING,
+    });
+    const row = rowByKey(inputs, 'scenarios');
+
+    expect(row.loading).toBe(true);
+    expect(row.state).toBe('not_actionable');
+  });
+
+  it('does not consult the inventory for degraded results (failed beats the join)', () => {
+    const section = scenariosAvailable([scenarioSet('FAILED'), scenarioSet('CURRENT')]);
+    const inputs = baseInputs({
+      scenarios: data(section),
+      scenarioSetList: errorInput('list boom'),
+    });
+    const row = rowByKey(inputs, 'scenarios');
+
+    expect(row.state).toBe('indicative');
+    expect(row.primaryReason).toBe('1 of 2 scenario sets failed');
   });
 
   it('renders the D-C empty copy when no scenario sets exist', () => {

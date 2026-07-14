@@ -22,6 +22,7 @@ import type { AllocationsResponse } from '@/components/portfolio/tabs/types';
 import type { DualForecastResponse } from '@shared/contracts/dual-forecast/dual-forecast-response.contract';
 import type { FundMoicRankingsResponseV2 } from '@shared/contracts/fund-moic-v2.contract';
 import type { FundResultsReadV1 } from '@shared/contracts/fund-results-v1.contract';
+import type { FundScenarioSetSummaryV1 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import { workspaceNavItems, type WorkspaceNavKey } from './workspace-nav';
 
 /** The scenarios section envelope the results page already fetches. */
@@ -61,6 +62,13 @@ export interface ReadinessRollupInputs {
   portfolioActuals: ReadinessSourceInput<AllocationsResponse>;
   reserves: ReadinessSourceInput<FundMoicRankingsResponseV2>;
   scenarios: ReadinessSourceInput<ScenariosSection>;
+  /**
+   * The scenario-set LIST (fix round F1): the results section only carries
+   * sets with calculated snapshots, so the list is the completeness
+   * authority — the Scenarios row may read actionable ONLY when every active
+   * listed set is present and CURRENT in the results section.
+   */
+  scenarioSetList: ReadinessSourceInput<readonly FundScenarioSetSummaryV1[]>;
 }
 
 export interface ReadinessRollupModel {
@@ -153,12 +161,23 @@ function deriveForecastSeed(input: ReadinessSourceInput<DualForecastResponse>): 
     };
   }
 
-  // AMENDMENT 8 pins the all-zero count map as an untrusted empty universe.
-  if (total === 0) {
-    return { state: 'indicative', primaryReason: 'No company facts disclosed', asOfDate, details };
+  const belowLive = counts.PARTIAL + counts.UNAVAILABLE;
+
+  // Fix round F3: zero LIVE companies — including AMENDMENT 8's all-zero
+  // empty universe, pinned UNAVAILABLE — cannot anchor a decision-grade
+  // forecast and fails closed. Mixed trust with some LIVE stays indicative.
+  if (counts.LIVE === 0) {
+    return {
+      state: 'not_actionable',
+      primaryReason:
+        total === 0
+          ? 'No company facts disclosed'
+          : `${belowLive} of ${total} companies below live facts`,
+      asOfDate,
+      details,
+    };
   }
 
-  const belowLive = counts.PARTIAL + counts.UNAVAILABLE;
   if (belowLive > 0) {
     return {
       state: 'indicative',
@@ -196,6 +215,12 @@ function derivePortfolioActualsSeed(input: ReadinessSourceInput<AllocationsRespo
       asOfDate,
       blockedSummary,
     };
+  }
+
+  // Fix round F4: the endpoint pins 200 + companies_count 0 as a true-empty
+  // state — the D-C empty idiom, consistent with reserves/scenarios.
+  if (input.data.metadata.companies_count === 0) {
+    return { state: 'not_actionable', primaryReason: 'No portfolio actuals disclosed', asOfDate };
   }
 
   if (summary.degraded_company_count > 0) {
@@ -259,7 +284,10 @@ function deriveReservesSeed(input: ReadinessSourceInput<FundMoicRankingsResponse
   return { state: 'actionable', asOfDate };
 }
 
-function deriveScenariosSeed(input: ReadinessSourceInput<ScenariosSection>): RowSeed {
+function deriveScenariosSeed(
+  input: ReadinessSourceInput<ScenariosSection>,
+  listInput: ReadinessSourceInput<readonly FundScenarioSetSummaryV1[]>
+): RowSeed {
   if (input.kind === 'loading') return LOADING_SEED;
   if (input.kind === 'error') {
     return factsUnavailableSeed(input.message ?? 'The results read failed');
@@ -314,6 +342,31 @@ function deriveScenariosSeed(input: ReadinessSourceInput<ScenariosSection>): Row
       asOfDate,
     };
   }
+
+  // Fix round F1: every results-section set is CURRENT, but the section only
+  // carries sets with calculated snapshots. The actionable claim additionally
+  // requires the scenario-set LIST to prove completeness; unprovable
+  // completeness NEVER reads actionable.
+  if (listInput.kind === 'loading') {
+    return LOADING_SEED;
+  }
+  if (listInput.kind === 'error') {
+    return {
+      state: 'indicative',
+      primaryReason: 'Scenario set inventory unavailable',
+      asOfDate,
+    };
+  }
+  const activeSets = listInput.data.filter((set) => set.archivedAt === null);
+  const calculatedIds = new Set(sets.map((set) => set.scenarioSetId));
+  const missing = activeSets.filter((set) => !calculatedIds.has(set.id)).length;
+  if (missing > 0) {
+    return {
+      state: 'indicative',
+      primaryReason: `${missing} of ${activeSets.length} sets have no calculated results`,
+      asOfDate,
+    };
+  }
   return { state: 'actionable', asOfDate };
 }
 
@@ -333,7 +386,7 @@ export function deriveReadinessRollup(inputs: ReadinessRollupInputs): ReadinessR
     ['forecast', deriveForecastSeed(inputs.forecast)],
     ['portfolio-actuals', derivePortfolioActualsSeed(inputs.portfolioActuals)],
     ['reserves', deriveReservesSeed(inputs.reserves)],
-    ['scenarios', deriveScenariosSeed(inputs.scenarios)],
+    ['scenarios', deriveScenariosSeed(inputs.scenarios, inputs.scenarioSetList)],
     ['reports', REPORTS_SEED],
   ];
 

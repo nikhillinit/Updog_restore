@@ -39,7 +39,8 @@ function RollupRow({ row, expanded, onToggle }: RollupRowProps) {
   return (
     <Fragment>
       <tr data-testid={`readiness-row-${row.key}`} className="border-b border-beige-100 align-top">
-        <td className="py-2 pr-4">
+        {/* Fix round F6: the surface name is the row header. */}
+        <th scope="row" className="py-2 pr-4 text-left font-normal">
           {row.href !== null ? (
             <Link
               href={row.href}
@@ -60,7 +61,7 @@ function RollupRow({ row, expanded, onToggle }: RollupRowProps) {
               ) : null}
             </span>
           )}
-        </td>
+        </th>
         {row.loading ? (
           <>
             <td className="py-2 pr-4">
@@ -114,6 +115,9 @@ function RollupRow({ row, expanded, onToggle }: RollupRowProps) {
                 <button
                   type="button"
                   aria-expanded={expanded}
+                  // Fix round F6: per-surface accessible name so the five
+                  // disclosures are distinguishable to assistive tech.
+                  aria-label={`Warnings for ${row.label} (${row.details.length})`}
                   {...(expanded ? { 'aria-controls': detailsId } : {})}
                   data-testid={`readiness-row-${row.key}-disclosure`}
                   onClick={onToggle}

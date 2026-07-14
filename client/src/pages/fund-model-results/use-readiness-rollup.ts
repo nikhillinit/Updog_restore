@@ -14,6 +14,7 @@
 import { useFundContext } from '@/contexts/FundContext';
 import { useDualForecast } from '@/hooks/useDualForecast';
 import { useFundMoicRankingsV2 } from '@/hooks/use-moic';
+import { useScenarioSetList } from '@/hooks/use-scenario-set-list';
 import { useLatestAllocations } from '@/components/portfolio/tabs/hooks/useLatestAllocations';
 import type { AllocationsResponse } from '@/components/portfolio/tabs/types';
 import {
@@ -55,6 +56,9 @@ export function useReadinessRollup(
   // while the route fund is unresolved.
   const forecastQuery = useDualForecast(numericFundId);
   const reservesQuery = useFundMoicRankingsV2(numericFundId);
+  // Fix round F1: the scenario-set list (workspace fetcher + query key,
+  // shared cache) is the completeness authority for the Scenarios row.
+  const scenarioSetListQuery = useScenarioSetList(validFundId);
   const allocationsQuery = useLatestAllocations();
   const { fundId: contextFundId, isLoading: fundContextLoading } = useFundContext();
 
@@ -66,6 +70,7 @@ export function useReadinessRollup(
       portfolioActuals: noFund,
       reserves: noFund,
       scenarios: noFund,
+      scenarioSetList: noFund,
     });
   }
 
@@ -82,5 +87,6 @@ export function useReadinessRollup(
     portfolioActuals,
     reserves: queryInput(reservesQuery),
     scenarios,
+    scenarioSetList: queryInput(scenarioSetListQuery),
   });
 }

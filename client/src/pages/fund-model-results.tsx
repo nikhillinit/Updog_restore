@@ -90,9 +90,16 @@ function FundModelResultsPage() {
   // D-H readiness rollup (9B2): the Scenarios row derives from the scenarios
   // section this page already fetches; the other rows consume their existing
   // hooks inside useReadinessRollup. Mounted in ALL page states below.
+  // Fix round F2: an in-place route change renders one frame with the
+  // PREVIOUS fund's results before the fetch-state reset effect runs — gate
+  // the scenarios facts on the payload's own fundId so a stale fund's facts
+  // never render beside the new fund's links.
+  const routeFundNumber = fundId !== null && /^[1-9]\d*$/.test(fundId) ? Number(fundId) : null;
   const scenariosInput: ReadinessSourceInput<ScenariosSection> =
     fetchState.kind === 'data'
-      ? { kind: 'data', data: fetchState.results.sections.scenarios }
+      ? fetchState.results.fundId === routeFundNumber
+        ? { kind: 'data', data: fetchState.results.sections.scenarios }
+        : { kind: 'loading' }
       : fetchState.kind === 'error'
         ? { kind: 'error', message: fetchState.message }
         : { kind: 'loading' };

@@ -102,6 +102,14 @@ vi.mock('@/components/portfolio/tabs/hooks/useLatestAllocations', () => ({
     error: new Error('allocations unavailable'),
   }),
 }));
+vi.mock('@/hooks/use-scenario-set-list', () => ({
+  useScenarioSetList: () => ({
+    isSuccess: false,
+    isError: true,
+    data: undefined,
+    error: new Error('scenario set list unavailable'),
+  }),
+}));
 
 vi.mock('@/stores/useFundSelector', () => ({
   useFundSelector: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),
