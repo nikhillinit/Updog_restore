@@ -806,7 +806,9 @@ describe('scenario-analysis actuals-backed seed suggestions', () => {
       new Error('database unavailable')
     );
 
-    const res = await request(makeApp()).get('/api/funds/7/scenario-analysis/seeds');
+    const res = await request(makeApp()).get(
+      '/api/funds/7/scenario-analysis/seeds?asOfDate=2026-07-13'
+    );
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
