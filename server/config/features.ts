@@ -19,6 +19,7 @@ export const FEATURES = {
   portfolioIntelligence: flag(process.env['ENABLE_PORTFOLIO_INTELLIGENCE'], false),
   // Server-only shadow route; production remains fail-closed unless explicitly enabled.
   marginalReserveMoic: flag(process.env['ENABLE_MARGINAL_RESERVE_MOIC'], false),
+  scenarioSeedPicker: flag(process.env['ENABLE_SCENARIO_SEED_PICKER'], false),
 };
 
 export type FeatureBag = typeof FEATURES;

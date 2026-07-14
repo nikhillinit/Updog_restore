@@ -12,6 +12,7 @@ import { and, eq } from 'drizzle-orm';
 
 import { db } from '../../db';
 import {
+  CURRENT_REPORT_PACKAGE_RENDER_MODEL_VERSION,
   ReportPackageExportContentHashConflictResponseSchema,
   ReportPackageExportNotFoundResponseSchema,
   ReportPackageExportRecordSchema,
@@ -208,6 +209,26 @@ function assertHashMatch(row: LpReportPackageExport, currentContentHash: string)
   }
 }
 
+/**
+ * Version-aware replay comparison. Content hashes are only comparable within
+ * the same render-model version: bumping the render-model shape (for example
+ * adding per-metric provenance in version 2) changes canonical bytes, so a
+ * stored row from an older version replays against its own stored bytes/hash
+ * instead of conflicting with the current renderer output. Rows whose stored
+ * artifact does not parse (legacy pre-stamp rows) keep the existing
+ * hash-conflict path.
+ */
+function assertReplayMatchesStored(row: LpReportPackageExport, currentContentHash: string): void {
+  const parsed = ReportPackageJsonExportArtifactSchema.safeParse(row.artifactPayload);
+  if (
+    parsed.success &&
+    parsed.data.renderModel.renderModelVersion !== CURRENT_REPORT_PACKAGE_RENDER_MODEL_VERSION
+  ) {
+    return;
+  }
+  assertHashMatch(row, currentContentHash);
+}
+
 async function markMetricRunStoredJsonExported(
   database: StoredExportDatabase,
   input: ReportPackageStoredJsonExportInput
@@ -278,7 +299,7 @@ export async function createMetricRunReportPackageStoredJsonExport(
       'Stored report package JSON export could not be created or reloaded.'
     );
   }
-  assertHashMatch(existing, contentHash);
+  assertReplayMatchesStored(existing, contentHash);
   await markMetricRunStoredJsonExported(database, input);
   return ReportPackageJsonStoredExportResponseSchema.parse({
     record: toExportRecord(existing),

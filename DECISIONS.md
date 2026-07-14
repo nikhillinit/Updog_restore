@@ -52,6 +52,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-036: Named Identities, Explicit Fund Grants, and jti Revocation (Plan 2)](#adr-036-named-identities-explicit-fund-grants-and-jti-revocation-plan-2)
 - [ADR-037: Browser HttpOnly JWT Cookie and Signed CSRF Contract (D4)](#adr-037-browser-httponly-jwt-cookie-and-signed-csrf-contract-d4)
 - [ADR-039: Planned-reserve MOIC candidate basis moves to Round/FMV facts (moic-round-fmv-facts-v2)](#adr-039-planned-reserve-moic-candidate-basis-moves-to-roundfmv-facts-moic-round-fmv-facts-v2)
+- [ADR-040: Report Qualification Semantics (Plan 9)](#adr-040-report-qualification-semantics-plan-9)
 
 ---
 
@@ -6082,3 +6083,157 @@ fingerprint before an on-mode candidate can become actionable.
 
 **Implementation:** Plan 6 wave 2, Task 6.4 / PR 6B plus the facts-fingerprint
 unification fix.
+
+---
+
+## ADR-040: Report Qualification Semantics (Plan 9)
+
+**Date:** 2026-07-13 **Status:** [IMPLEMENTED] Implemented **Decision:** Treat
+partner and admin as the authoritative LP report render/export roles, keep H9
+fail-closed at persistence, reuse, and artifact-serving boundaries, and use
+qualification-state disclosure rather than unqualified numeric previews.
+
+### Context
+
+Plan 9 Wave 9D characterized the existing LP-reporting authorization and H9
+boundaries before closing two narrow enforcement gaps. The characterization
+showed that the eight export-perimeter routes already require the partner or
+admin role, fund access, and the export-fund grant posture from ADR-025. It also
+showed that workflow state and H9 qualification reject unqualified values before
+the render model is constructed. CSV creation and idempotent replay were the
+exception: they checked workflow state but did not revalidate H9 until artifact
+retrieval. Wave 9D brought CSV persistence and reuse into the same fail-closed
+posture as stored JSON.
+
+The original Plan 9 language also called for read-only indicative previews. The
+live UI does not render stored, unqualified package values as that preview. It
+consumes metric-run, narrative, package, and error state from read/lifecycle
+surfaces, and renders numeric metric sections only when the fail-closed render
+model succeeds. This makes qualification state, rather than unqualified numeric
+values, the current indicative disclosure.
+
+### Decision
+
+#### Authorization posture
+
+| Surface                                                                          | Current authorization                                                                                | Qualification posture                                                                                                                                           |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Render model, live JSON, and stored JSON/CSV create, status, and artifact routes | Partner with an explicit export fund grant, or admin under the ADR-025 admin scope exemption         | Export perimeter; creation/artifact serving is authoritative, while status GETs are metadata-only                                                               |
+| Viewer, analyst, and operator access to those eight routes                       | Denied with 403, including when the caller otherwise has fund access                                 | No export grant is implied by these roles                                                                                                                       |
+| Read and lifecycle routes                                                        | Authentication plus the existing fund-access middleware; no partner/admin or export-grant middleware | Read access remains available to fund-granted viewer/analyst callers; the current middleware also does not establish a separate operator lifecycle-write policy |
+
+Partner/admin authority in this decision means authority to produce or retrieve
+qualified report outputs. It does not retroactively add role checks to draft,
+approval, lock, narrative, evidence, or package-assembly lifecycle routes.
+
+#### Workflow and H9 gates
+
+- Workflow qualification precedes value construction: only `locked` or
+  `exported` metric runs can reach H9 validation and the render/export value
+  builders.
+- H9 is fail-closed for report persistence, idempotent reuse, live export, and
+  stored artifact serving. Missing metadata, non-actionable stored state, a
+  stale fingerprint, or unavailable revalidation blocks with the existing
+  structured H9 error.
+- Stored JSON and CSV status GETs remain role-and-export-grant-gated readiness
+  metadata. They re-check workflow state but intentionally defer H9 to creation
+  and authoritative artifact serving. The route-policy registry declares them as
+  `not_exportable` readiness metadata without a stale-blocks-export assertion,
+  matching that runtime posture.
+- Read/lifecycle surfaces remain H9-independent under ADR-028's
+  disclose-not-block rule. Qualification-state disclosure does not display
+  unqualified numeric values in the current client: the package record is used
+  for assembly, narrative-reference, and lifecycle state, while numeric sections
+  come only from the H9-gated render model.
+
+#### Exclusions and server flagging
+
+- Marginal MOIC is excluded from every LP-reporting render and export payload.
+  It remains shadow-only and non-actionable until a separate activation and
+  export ADR authorizes its inclusion.
+- `POST /funds/:fundId/scenario-analysis/scenarios/:scenarioId/cases/from-seed`
+  is gated on the server by `ENABLE_SCENARIO_SEED_PICKER`, default off. When
+  disabled, the route returns 404 before body validation, idempotency,
+  provenance lookup, or persistence. The 404 is auth-first: it is only reached
+  after authentication and fund-access middleware succeed, matching the
+  marginal-rankings precedent, so anonymous callers still receive 401 while the
+  flag is off and no idempotency or provenance row is ever written.
+
+### Evidence
+
+- `server/routes/lp-reporting/metric-runs.ts` defines the eight
+  partner/admin-and-export-grant routes and leaves read/lifecycle routes on the
+  existing authenticated fund-scope chain.
+- `server/services/lp-reporting/h9-export-gate.ts`,
+  `report-package-render-model-service.ts`, and the stored JSON/CSV export
+  services enforce the workflow/H9 ordering and stored-artifact boundaries.
+- `tests/unit/lp-reporting/report-qualification-characterization.test.ts` pins
+  the role matrix, H9 failure codes, status-GET exception, and marginal-MOIC
+  exclusion by executing the real H9 gates and services through `makeApp`
+  routes, mocking only the database rows and the actionability resolver.
+- `tests/unit/services/lp-reporting/report-package-render-model-service.test.ts`
+  pins that workflow and H9 failures occur before metric values are built.
+- `client/src/pages/lp-reporting/metrics.tsx` renders numeric sections from the
+  render model and uses the report-package record for lifecycle and reference
+  state rather than rendering its stored payload.
+- `server/config/features.ts`, `server/routes/scenario-analysis.ts`, and
+  `tests/unit/routes/scenario-analysis.contract.test.ts` pin the default-off,
+  server-side from-seed gate and its unchanged enabled behavior.
+
+### Alternatives Considered
+
+- **Serve numeric indicative previews before workflow/H9 qualification:**
+  rejected because it would create a second, less trustworthy output path and
+  contradict the existing fail-closed render-model boundary.
+- **Revalidate H9 on stored-export status GETs:** rejected because those routes
+  report readiness metadata; artifact creation and serving are the authoritative
+  qualification boundaries.
+- **Treat fund access as an export grant for viewer, analyst, or operator:**
+  rejected because ADR-025 and the live middleware require partner/admin plus
+  the explicit export-fund posture.
+- **Include marginal MOIC because its shadow endpoint exists:** rejected because
+  shadow computation is not activation or export authorization.
+- **Rely on the client to hide from-seed creation:** rejected because direct API
+  callers would bypass a client-only flag.
+
+### Consequences
+
+- JSON and CSV stored-export creation, replay, and artifact retrieval now share
+  the same H9 fail-closed contract; status GETs remain the documented metadata
+  exception.
+- A future numeric indicative-preview surface requires its own contract and ADR;
+  it must not weaken the authoritative render/export gates by implication.
+- A future lifecycle role redesign must be explicit. This decision records the
+  current fund-scope-only lifecycle middleware and does not infer export rights
+  for viewer, analyst, or operator.
+- Per-metric provenance bumped the render-model version to 2. Stored-export
+  replay compares content hashes only within the same render-model version: a
+  stored row whose artifact carries an older render-model version replays
+  against its own bytes/hash instead of conflicting with the current renderer
+  output, while same-version drift still fails with
+  `EXPORT_CONTENT_HASH_CONFLICT`.
+
+### Accepted residuals
+
+- The H9 revalidation check and the stored CSV insert/replay run as separate
+  autocommit operations, so H9 can go stale in the window between the check and
+  the write (TOCTOU). This is accepted at the current ~5-user internal scale
+  because the artifact GET re-validates H9 at delivery and fails closed,
+  bounding the worst case to an inert stored metadata row that can never serve
+  artifact bytes. Serializing H9 writers is not warranted for this deployment.
+  The backstop is pinned by the stored-CSV service test that makes H9 stale
+  after CSV creation and asserts the artifact GET still blocks.
+
+### Follow-ups
+
+- Consolidate dual-forecast-dashboard/overview trust components into the shared
+  evidence panel.
+- Retitle the `/reports` page `Variance Reports`.
+- Clean stale LP-reporting `placeholder` comments in Wave 9F.
+- Add request-hash comparison to evidence-record idempotency replay: today it is
+  key-only deduplication, so a different body with a reused Idempotency-Key is
+  silently accepted and returns the stored record; a mismatched request hash
+  should return 409.
+
+**Implementation:** Plan 9 Wave 9D report-qualification characterization and
+named server-side gap fills.

@@ -5,13 +5,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { db } from '../../../../server/db';
 import type { MetricRunCommitError } from '../../../../server/services/lp-reporting/metric-run-commit-service';
-import { ReportPackageJsonExportBlockedError } from '../../../../server/services/lp-reporting/report-package-json-export-service';
+import {
+  ReportPackageJsonExportBlockedError,
+  sha256CanonicalJson,
+} from '../../../../server/services/lp-reporting/report-package-json-export-service';
 import {
   createMetricRunReportPackageStoredJsonExport,
   getMetricRunReportPackageStoredJsonArtifact,
   getMetricRunReportPackageStoredJsonExport,
 } from '../../../../server/services/lp-reporting/report-package-json-stored-export-service';
 import {
+  CURRENT_REPORT_PACKAGE_RENDER_MODEL_VERSION,
   ReportPackageJsonExportArtifactSchema,
   type ReportPackageJsonExportArtifact,
   type ReportPackageJsonExportResponse,
@@ -103,7 +107,7 @@ const artifact: ReportPackageJsonExportArtifact = {
     h9Stamp: H9_STAMP,
   },
   renderModel: {
-    renderModelVersion: 1,
+    renderModelVersion: CURRENT_REPORT_PACKAGE_RENDER_MODEL_VERSION,
     source: {
       reportPackageId: 3000,
       fundId: 1,
@@ -470,6 +474,99 @@ describe('stored report package JSON exports', () => {
       code: 'EXPORT_CONTENT_HASH_CONFLICT',
       storedContentHash: 'b'.repeat(64),
       currentContentHash: 'c'.repeat(64),
+    });
+    expect(state.insertedRows).toHaveLength(0);
+  });
+
+  it('replays a pre-provenance render-model v1 stored export without a hash conflict', async () => {
+    const preProvenanceArtifact: ReportPackageJsonExportArtifact = {
+      ...artifact,
+      renderModel: {
+        ...artifact.renderModel,
+        renderModelVersion: 1,
+        metricSections: [
+          {
+            sectionId: 'performance',
+            title: 'Performance',
+            rows: [
+              {
+                metricId: 'moic',
+                label: 'MOIC',
+                value: '1.700000',
+                valueKind: 'multiple',
+                currency: null,
+              },
+            ],
+          },
+        ],
+      },
+    };
+    const storedHash = sha256CanonicalJson(preProvenanceArtifact);
+    state.exportRows.push({
+      id: 4100,
+      fundId: 1,
+      metricRunId: 500,
+      reportPackageId: 3000,
+      format: 'json',
+      exportVersion: 1,
+      status: 'ready',
+      contentHashAlgorithm: 'sha256',
+      contentHash: storedHash,
+      artifactPayload: preProvenanceArtifact,
+      artifactSizeBytes: 1000,
+      createdBy: 7,
+      readyAt: new Date('2026-05-10T04:00:00Z'),
+      createdAt: new Date('2026-05-10T04:00:00Z'),
+      updatedAt: new Date('2026-05-10T04:00:00Z'),
+    });
+
+    const response = await createMetricRunReportPackageStoredJsonExport(
+      { fundId: 1, metricRunId: 500, userId: 7 },
+      {
+        database: makeDatabase(),
+        // Current renderer output embeds provenance, so its hash differs.
+        jsonExportService: vi.fn(async () => makeResponse('9'.repeat(64))),
+      }
+    );
+
+    expect(response.inserted).toBe(false);
+    expect(response.record.reportPackageExportId).toBe(4100);
+    expect(response.record.contentHash).toBe(storedHash);
+    expect(state.insertedRows).toHaveLength(0);
+  });
+
+  it('still rejects hash drift when the stored artifact is the current render-model version', async () => {
+    state.exportRows.push({
+      id: 4100,
+      fundId: 1,
+      metricRunId: 500,
+      reportPackageId: 3000,
+      format: 'json',
+      exportVersion: 1,
+      status: 'ready',
+      contentHashAlgorithm: 'sha256',
+      contentHash: 'c'.repeat(64),
+      artifactPayload: artifact,
+      artifactSizeBytes: 1000,
+      createdBy: 7,
+      readyAt: new Date('2026-05-10T04:00:00Z'),
+      createdAt: new Date('2026-05-10T04:00:00Z'),
+      updatedAt: new Date('2026-05-10T04:00:00Z'),
+    });
+
+    await expect(
+      createMetricRunReportPackageStoredJsonExport(
+        { fundId: 1, metricRunId: 500, userId: 7 },
+        {
+          database: makeDatabase(),
+          jsonExportService: vi.fn(async () => makeResponse('d'.repeat(64))),
+        }
+      )
+    ).rejects.toMatchObject({
+      status: 409,
+      code: 'EXPORT_CONTENT_HASH_CONFLICT',
+      storedContentHash: 'c'.repeat(64),
+      currentContentHash: 'd'.repeat(64),
     });
     expect(state.insertedRows).toHaveLength(0);
   });

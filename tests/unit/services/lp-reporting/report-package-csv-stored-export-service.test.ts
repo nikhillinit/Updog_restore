@@ -12,6 +12,10 @@ import {
   getMetricRunReportPackageStoredCsvArtifact,
   getMetricRunReportPackageStoredCsvExport,
 } from '../../../../server/services/lp-reporting/report-package-csv-stored-export-service';
+import type {
+  H9ExportBlockerCode,
+  StoredH9,
+} from '../../../../server/services/lp-reporting/h9-export-gate';
 import {
   ReportPackageJsonExportArtifactSchema,
   type ReportPackageJsonExportArtifact,
@@ -40,7 +44,7 @@ const CURRENT_OK = {
   actionability: 'actionable' as const,
   sourceFingerprint: { fingerprintHash: H9_FP, policyVersion: 'h9-policy-v1' },
 };
-const storedPackageRow = {
+const storedPackageRow: StoredH9 = {
   h9MoicSourceInputHash: 'a'.repeat(64),
   h9RoundEvidenceInputHash: 'b'.repeat(64),
   h9RoundEvidenceAssumptionsHash: 'c'.repeat(64),
@@ -59,6 +63,7 @@ interface State {
   metricRuns: MetricRunStatusRow[];
   insertedRows: unknown[];
   statusUpdates: unknown[];
+  insertAttempts: number;
   users: number[];
   nextId: number;
   dropNextInsert: boolean;
@@ -75,6 +80,7 @@ const state: State = {
   metricRuns: [],
   insertedRows: [],
   statusUpdates: [],
+  insertAttempts: 0,
   users: [7],
   nextId: 4101,
   dropNextInsert: false,
@@ -223,7 +229,7 @@ function rowsFor(table: unknown): unknown[] {
   if (table === users) return state.users.map((id) => ({ id }));
   if (table === lpMetricRuns) return [...state.metricRuns];
   if (table === lpReportPackageExports) return [...state.exportRows];
-  if (table === lpReportPackages) return [storedPackageRow];
+  if (table === lpReportPackages) return [storedH9Fixture];
   return [];
 }
 
@@ -244,6 +250,7 @@ function makeDatabase(): typeof db {
       values: (row: Record<string, unknown>) => ({
         onConflictDoNothing: () => ({
           returning: async () => {
+            state.insertAttempts += 1;
             if (table !== lpReportPackageExports || state.dropNextInsert) {
               state.dropNextInsert = false;
               return [];
@@ -313,15 +320,43 @@ function seedStoredJson(overrides: Partial<LpReportPackageExport> = {}): LpRepor
   return row;
 }
 
+const H9_FAILURE_CODES = [
+  'H9_METADATA_MISSING',
+  'H9_NOT_ACTIONABLE',
+  'H9_FINGERPRINT_STALE',
+  'H9_REVALIDATION_UNAVAILABLE',
+] as const satisfies readonly H9ExportBlockerCode[];
+
+let storedH9Fixture: StoredH9 = { ...storedPackageRow };
+
+function configureH9Failure(code: H9ExportBlockerCode): void {
+  storedH9Fixture = { ...storedPackageRow };
+  if (code === 'H9_METADATA_MISSING') {
+    storedH9Fixture.h9ActionabilityStatus = null;
+    storedH9Fixture.h9FingerprintHash = null;
+  } else if (code === 'H9_NOT_ACTIONABLE') {
+    storedH9Fixture.h9ActionabilityStatus = 'non_actionable';
+  } else if (code === 'H9_FINGERPRINT_STALE') {
+    resolveForFund.mockResolvedValue({
+      actionability: 'actionable',
+      sourceFingerprint: { fingerprintHash: 'e'.repeat(64), policyVersion: 'h9-policy-v1' },
+    });
+  } else {
+    resolveForFund.mockRejectedValue(new Error('resolver unavailable'));
+  }
+}
+
 beforeEach(() => {
   ReportPackageJsonExportArtifactSchema.parse(artifact);
   state.exportRows = [];
   state.metricRuns = [{ id: 500, fundId: 1, status: 'locked' }];
   state.insertedRows = [];
   state.statusUpdates = [];
+  state.insertAttempts = 0;
   state.users = [7];
   state.nextId = 4101;
   state.dropNextInsert = false;
+  storedH9Fixture = { ...storedPackageRow };
   resolveForFund.mockResolvedValue(CURRENT_OK);
 });
 
@@ -422,6 +457,60 @@ describe('stored report package CSV exports', () => {
     expect(state.insertedRows).toHaveLength(1);
   });
 
+  it.each(H9_FAILURE_CODES)(
+    'blocks fresh CSV creation for %s before writing an export row',
+    async (code) => {
+      seedStoredJson();
+      configureH9Failure(code);
+
+      await expect(
+        createMetricRunReportPackageStoredCsvExport(
+          { fundId: 1, metricRunId: 500, userId: 7 },
+          { database: makeDatabase() }
+        )
+      ).rejects.toMatchObject<Partial<MetricRunCommitError>>({
+        status: 409,
+        code,
+        surface: 'stored_csv_export',
+      });
+
+      expect(state.insertAttempts).toBe(0);
+      expect(state.insertedRows).toHaveLength(0);
+      expect(state.exportRows).toHaveLength(1);
+      expect(state.exportRows[0]?.format).toBe('json');
+    }
+  );
+
+  it.each(H9_FAILURE_CODES)(
+    'blocks CSV replay for %s before an insert attempt or stored-row reuse',
+    async (code) => {
+      seedStoredJson();
+      const database = makeDatabase();
+      await createMetricRunReportPackageStoredCsvExport(
+        { fundId: 1, metricRunId: 500, userId: 7 },
+        { database }
+      );
+      const storedCsvBeforeFailure = state.exportRows.find((row) => row.format === 'csv');
+      expect(storedCsvBeforeFailure).toBeDefined();
+
+      configureH9Failure(code);
+      await expect(
+        createMetricRunReportPackageStoredCsvExport(
+          { fundId: 1, metricRunId: 500, userId: 7 },
+          { database }
+        )
+      ).rejects.toMatchObject<Partial<MetricRunCommitError>>({
+        status: 409,
+        code,
+        surface: 'stored_csv_export',
+      });
+
+      expect(state.insertAttempts).toBe(1);
+      expect(state.insertedRows).toHaveLength(1);
+      expect(state.exportRows.find((row) => row.format === 'csv')).toBe(storedCsvBeforeFailure);
+    }
+  );
+
   it('rejects hash drift on the same package CSV natural key', async () => {
     seedStoredJson();
     const csv = buildReportPackageCsv(artifact);
@@ -498,6 +587,25 @@ describe('stored report package CSV exports', () => {
     expect(artifactResponse.record.reportPackageExportId).toBe(4101);
     expect(artifactResponse.csv.csv).toBe(buildReportPackageCsv(artifact));
     expect(state.statusUpdates).toHaveLength(0);
+  });
+
+  it('keeps stored CSV status metadata H9-independent', async () => {
+    seedStoredJson();
+    const database = makeDatabase();
+    await createMetricRunReportPackageStoredCsvExport(
+      { fundId: 1, metricRunId: 500, userId: 7 },
+      { database }
+    );
+
+    resolveForFund.mockClear();
+    configureH9Failure('H9_REVALIDATION_UNAVAILABLE');
+    const metadata = await getMetricRunReportPackageStoredCsvExport(
+      { fundId: 1, metricRunId: 500 },
+      { database }
+    );
+
+    expect(metadata.record?.format).toBe('csv');
+    expect(resolveForFund).not.toHaveBeenCalled();
   });
 
   it('re-gates CSV create, metadata, and artifact paths without workflow writes', async () => {
