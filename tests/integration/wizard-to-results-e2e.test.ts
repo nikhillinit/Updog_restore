@@ -198,7 +198,7 @@ describe('wizard to results flow', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText('Test Fund')).toBeTruthy();
+        expect(screen.getByRole('heading', { level: 1, name: 'Test Fund' })).toBeTruthy();
       });
 
       expect(screen.getByText(/Vintage 2026/)).toBeTruthy();
@@ -212,7 +212,7 @@ describe('wizard to results flow', () => {
       renderFlow('/fund-model-results/42');
 
       await waitFor(() => {
-        expect(screen.getByText('Test Fund')).toBeTruthy();
+        expect(screen.getByRole('heading', { level: 1, name: 'Test Fund' })).toBeTruthy();
       });
 
       const sessionCalls = sessionGetSpy.mock.calls

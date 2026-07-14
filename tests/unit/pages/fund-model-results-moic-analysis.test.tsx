@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -229,6 +229,41 @@ describe('FundModelResultsMoicAnalysisPage', () => {
     expect(screen.getByText('1,000,000.00')).toHaveClass('tabular-nums');
   });
 
+  // -- Plan 9 Wave 9B1: workspace row + planned<->marginal cross-reference --
+
+  it('mounts the workspace row with Reserves active and the construction-basis indicator', () => {
+    mockHook({ data: makeV2(), error: null, isLoading: false });
+    renderPage();
+
+    const nav = screen.getByRole('navigation', { name: 'Fund workspace' });
+    const reservesLink = within(nav).getByRole('link', { name: 'Reserves' });
+    expect(reservesLink).toHaveAttribute('aria-current', 'page');
+    expect(reservesLink).toHaveAttribute('href', '/fund-model-results/7/moic-analysis');
+    expect(within(nav).getByText('Basis: Construction')).toBeInTheDocument();
+  });
+
+  it('gates the workspace destinations with reasons when the fund id is invalid', () => {
+    mockHook({ data: null, error: null, isLoading: false });
+    renderPage('/fund-model-results/not-a-fund/moic-analysis');
+
+    expect(screen.getByText('Invalid fund ID')).toBeInTheDocument();
+    const disabled = screen.getByTestId('workspace-nav-reserves-disabled');
+    expect(disabled).toHaveAttribute('aria-disabled', 'true');
+    expect(disabled).toHaveTextContent('Select a fund to open this view');
+  });
+
+  it('discloses the planned/marginal cross-reference adjacent to the Actionable group header', () => {
+    mockHook({ data: makeV2(), error: null, isLoading: false });
+    renderPage();
+
+    const crossref = screen.getByTestId('moic-planned-marginal-crossref');
+    expect(crossref).toHaveTextContent('Rankings above reflect planned reserves.');
+    expect(crossref).toHaveTextContent('Marginal analysis not yet activated.');
+    expect(crossref.querySelector('[aria-disabled="true"]')?.textContent).toBe(
+      'Marginal analysis not yet activated.'
+    );
+  });
+
   it('renders candidate source copy when candidate rankings are active', () => {
     const fixture = makeV2();
     fixture.provenance.mode = 'candidate';
@@ -323,7 +358,15 @@ describe('FundModelResultsMoicAnalysisPage', () => {
         name: 'Expected MOIC on planned reserves — assumption-based',
       })
     ).toBeInTheDocument();
-    expect(container.textContent).not.toMatch(/marginal|opportunity cost/i);
+    // Plan 9 Wave 9B1: the ONLY sanctioned "marginal" copy on this planned-MOIC
+    // surface is the ratified disabled-with-reason cross-reference; everything
+    // else stays free of marginal / opportunity-cost vocabulary.
+    const crossref = screen.getByTestId('moic-planned-marginal-crossref');
+    const textOutsideCrossref = (container.textContent ?? '').replace(
+      crossref.textContent ?? '',
+      ''
+    );
+    expect(textOutsideCrossref).not.toMatch(/marginal|opportunity cost/i);
     expect(screen.getByText('Overall MOIC rank')).toBeInTheDocument();
     const rankingGroups = screen.getByRole('table').querySelectorAll('tbody');
     expect(rankingGroups).toHaveLength(3);

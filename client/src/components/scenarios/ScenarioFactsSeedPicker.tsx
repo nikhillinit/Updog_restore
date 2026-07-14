@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, type UseFormRegisterReturn } from 'react-hook-form';
@@ -109,6 +109,12 @@ export interface ScenarioFactsSeedPickerProps {
   onOpenChange: (open: boolean) => void;
   scenario?: ScenarioFactsSeedPickerScenario;
   createdFromFactsHash?: string;
+  /**
+   * Plan 9 Wave 9B1 (review P2-3) additive: preselect this company's seed
+   * once it is disclosed. Ignored when the company has no disclosed seed;
+   * never overrides a selection the user has already made.
+   */
+  initialSelectedCompanyId?: string;
 }
 
 function unavailableCopy(field: SeedMoneyField): string {
@@ -319,12 +325,14 @@ export function ScenarioFactsSeedPicker({
   onOpenChange,
   scenario,
   createdFromFactsHash,
+  initialSelectedCompanyId,
 }: ScenarioFactsSeedPickerProps) {
   const enabledByFlag = useFeatureFlag('enable_scenario_seed_picker');
   const { seeds, response, isLoading, error } = useFundScenarioSeeds(fundId);
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
   const idempotencyRef = useRef<{ signature: string; key: string } | null>(null);
+  const appliedInitialSelectionRef = useRef(false);
 
   const form = useForm<ScenarioFactsSeedPickerFormValues>({
     resolver: zodResolver(ScenarioFactsSeedPickerFormSchema),
@@ -421,6 +429,27 @@ export function ScenarioFactsSeedPicker({
       }
       setServerError('Case creation failed. Review the inputs and try again.');
     },
+  });
+
+  // Review P2-3: apply the deep-linked preselect once per open cycle, only
+  // when the company's seed is actually disclosed, and never after the user
+  // has interacted (the guard flips on first application or manual choice).
+  useEffect(() => {
+    if (!open) {
+      appliedInitialSelectionRef.current = false;
+      return;
+    }
+    if (appliedInitialSelectionRef.current || initialSelectedCompanyId === undefined) {
+      return;
+    }
+    const seed = seeds.find(
+      (candidate) => String(candidate.companyId) === initialSelectedCompanyId
+    );
+    if (!seed) {
+      return;
+    }
+    appliedInitialSelectionRef.current = true;
+    handleSeedSelect(seed);
   });
 
   if (!enabledByFlag) return null;
@@ -526,7 +555,10 @@ export function ScenarioFactsSeedPicker({
                 key={seed.companyId}
                 seed={seed}
                 selected={selectedCompanyId === String(seed.companyId)}
-                onSelect={() => handleSeedSelect(seed)}
+                onSelect={() => {
+                  appliedInitialSelectionRef.current = true;
+                  handleSeedSelect(seed);
+                }}
               />
             ))}
           </div>

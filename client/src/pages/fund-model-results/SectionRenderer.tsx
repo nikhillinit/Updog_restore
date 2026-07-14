@@ -17,6 +17,8 @@ interface SectionRendererProps {
   renderPayload?: (payload: unknown) => React.ReactNode;
   evidenceLifecycle?: EvidenceHeaderLifecycle | undefined;
   evidenceTestId?: string;
+  /** Plan 9 Wave 9B1 additive: small header affordance (e.g. Evidence link). */
+  headerAction?: React.ReactNode;
 }
 
 export function SectionRenderer({
@@ -25,6 +27,7 @@ export function SectionRenderer({
   renderPayload,
   evidenceLifecycle,
   evidenceTestId,
+  headerAction,
 }: SectionRendererProps) {
   const evidence = sectionEvidence(evidenceLifecycle, section);
 
@@ -32,7 +35,14 @@ export function SectionRenderer({
     return (
       <div className="bg-white rounded-lg border border-beige-200 p-6">
         <div className="mb-4 space-y-2">
-          <h2 className="text-lg font-medium text-charcoal">{title}</h2>
+          {headerAction !== undefined ? (
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-lg font-medium text-charcoal">{title}</h2>
+              {headerAction}
+            </div>
+          ) : (
+            <h2 className="text-lg font-medium text-charcoal">{title}</h2>
+          )}
           {evidence && <EvidenceHeader lifecycle={evidence} testId={evidenceTestId} />}
         </div>
         {section.legacyEvidence && (
@@ -64,7 +74,14 @@ export function SectionRenderer({
   return (
     <div className="bg-beige-50 rounded-lg border border-beige-200 p-6">
       <div className="mb-2 space-y-2">
-        <h2 className="text-lg font-medium text-charcoal-400">{title}</h2>
+        {headerAction !== undefined ? (
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-medium text-charcoal-400">{title}</h2>
+            {headerAction}
+          </div>
+        ) : (
+          <h2 className="text-lg font-medium text-charcoal-400">{title}</h2>
+        )}
         {evidence && <EvidenceHeader lifecycle={evidence} testId={evidenceTestId} />}
       </div>
       <p className="text-sm text-charcoal-500 font-poppins">
