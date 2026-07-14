@@ -20,8 +20,9 @@
  * @module client/pages/lp-reporting/metrics
  */
 
-import { useCallback, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { CheckCircle2, FileJson, FileSpreadsheet, Save } from 'lucide-react';
+import type { QualificationSnapshot } from '@/components/lp-reporting/GpQualificationStrip';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -296,7 +297,20 @@ function saveReportPackageCsvExport(
   URL.revokeObjectURL(url);
 }
 
-export default function LpReportingMetricsPage() {
+export interface LpReportingMetricsPageProps {
+  /**
+   * Plan 9 Wave 9B1 additive: publishes the qualification-relevant slice of
+   * this page's already-fetched state (latest metric run, package, export
+   * blockers) so the fund-scoped reports route can render the GP
+   * qualification summary strip. `/lp-reporting/metrics` passes nothing and
+   * is unchanged.
+   */
+  onQualificationSnapshot?: (snapshot: QualificationSnapshot) => void;
+}
+
+export default function LpReportingMetricsPage({
+  onQualificationSnapshot,
+}: LpReportingMetricsPageProps = {}) {
   const { fundId } = useFundContext();
   const commitMutation = useMetricRunCommit(fundId);
   const [dryRun, setDryRun] = useState<MetricRunDryRunResponse | null>(null);
@@ -812,6 +826,48 @@ export default function LpReportingMetricsPage() {
     (reportPackageQuery.error as LpReportingHookError | null) ??
     reportPackageRenderModelError;
   const reportPackageEnvelope = reportPackageError ? envelopeFor(reportPackageError) : null;
+
+  // Plan 9 Wave 9B1: publish the qualification snapshot for the fund-scoped
+  // reports route strip. Derived exclusively from state this page already
+  // holds; identity-stable so the parent's setState never loops.
+  const qualificationSnapshot = useMemo<QualificationSnapshot>(() => {
+    const blockers = [
+      ...(reportPackageJsonExportError?.blockers ?? []),
+      ...(reportPackageStoredJsonError?.blockers ?? []),
+    ].map((blocker) => ({ code: blocker.code, message: blocker.message }));
+
+    return {
+      metricRun: activeMetricRun
+        ? {
+            metricRunId: activeMetricRun.metricRunId,
+            status: activeMetricRun.status,
+            asOfDate: activeMetricRun.asOfDate,
+            evidenceCount: activeEvidenceCount,
+          }
+        : null,
+      reportPackage: reportPackageRecord
+        ? { status: reportPackageRecord.status, asOfDate: reportPackageRecord.asOfDate }
+        : null,
+      exportBlockers: blockers,
+      exportProven:
+        reportPackageJsonExportHash !== null ||
+        reportPackageStoredJsonRecord !== null ||
+        reportPackageStoredCsvRecord !== null,
+    };
+  }, [
+    activeMetricRun,
+    activeEvidenceCount,
+    reportPackageRecord,
+    reportPackageJsonExportError,
+    reportPackageStoredJsonError,
+    reportPackageJsonExportHash,
+    reportPackageStoredJsonRecord,
+    reportPackageStoredCsvRecord,
+  ]);
+
+  useEffect(() => {
+    onQualificationSnapshot?.(qualificationSnapshot);
+  }, [onQualificationSnapshot, qualificationSnapshot]);
 
   return (
     <div className="p-8 space-y-6">
