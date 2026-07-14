@@ -55,6 +55,9 @@ import {
 import { SectionRenderer } from './fund-model-results/SectionRenderer';
 import { WorkspaceBasisIndicator, WorkspaceNav } from './fund-model-results/workspace-nav';
 import { ErrorState, LatestErrorState, LoadingState } from './fund-model-results/states';
+import { FundReadinessRollup } from './fund-model-results/FundReadinessRollup';
+import type { ReadinessSourceInput, ScenariosSection } from './fund-model-results/readiness-rollup';
+import { useReadinessRollup } from './fund-model-results/use-readiness-rollup';
 import type { LifecycleStatus } from './fund-model-results/types';
 
 // ============================================================================
@@ -83,6 +86,24 @@ function FundModelResultsPage() {
   // section header and focus returns to it on close).
   const [scenarioEvidenceOpen, setScenarioEvidenceOpen] = useState(false);
   const scenarioEvidenceTriggerRef = useRef<HTMLButtonElement | null>(null);
+
+  // D-H readiness rollup (9B2): the Scenarios row derives from the scenarios
+  // section this page already fetches; the other rows consume their existing
+  // hooks inside useReadinessRollup. Mounted in ALL page states below.
+  // Fix round F2: an in-place route change renders one frame with the
+  // PREVIOUS fund's results before the fetch-state reset effect runs — gate
+  // the scenarios facts on the payload's own fundId so a stale fund's facts
+  // never render beside the new fund's links.
+  const routeFundNumber = fundId !== null && /^[1-9]\d*$/.test(fundId) ? Number(fundId) : null;
+  const scenariosInput: ReadinessSourceInput<ScenariosSection> =
+    fetchState.kind === 'data'
+      ? fetchState.results.fundId === routeFundNumber
+        ? { kind: 'data', data: fetchState.results.sections.scenarios }
+        : { kind: 'loading' }
+      : fetchState.kind === 'error'
+        ? { kind: 'error', message: fetchState.message }
+        : { kind: 'loading' };
+  const readinessModel = useReadinessRollup(fundId, scenariosInput);
 
   useEffect(() => {
     if (fetchState.kind !== 'data') return;
@@ -116,11 +137,14 @@ function FundModelResultsPage() {
     />
   );
 
-  // Handle /latest or missing fundId
+  // Handle /latest or missing fundId. The readiness rollup stays mounted
+  // through every state the workspace row survives (P3-7 precedent): rows
+  // render their D-C fallback states, never a blank dominant object.
   if (fundId === 'latest' || !fundId) {
     return (
       <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
         {partialStateNav}
+        <FundReadinessRollup model={readinessModel} />
         <LatestErrorState />
       </div>
     );
@@ -130,6 +154,7 @@ function FundModelResultsPage() {
     return (
       <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
         {partialStateNav}
+        <FundReadinessRollup model={readinessModel} />
         <LoadingState />
       </div>
     );
@@ -139,6 +164,7 @@ function FundModelResultsPage() {
     return (
       <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
         {partialStateNav}
+        <FundReadinessRollup model={readinessModel} />
         <ErrorState message={fetchState.message} />
       </div>
     );
@@ -170,6 +196,10 @@ function FundModelResultsPage() {
         active="summary"
         indicator={<WorkspaceBasisIndicator mode="construction" />}
       />
+
+      {/* Dominant object (D-H): cross-surface readiness rollup, first section
+          under the workspace row; existing sections render below unchanged. */}
+      <FundReadinessRollup model={readinessModel} />
 
       <ConfigDiffBanner lifecycle={results.lifecycle} />
 

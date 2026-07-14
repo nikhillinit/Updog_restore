@@ -73,6 +73,44 @@ vi.mock('@/contexts/FundContext', () => ({
   }),
 }));
 
+// Plan 9 Wave 9B2: the readiness rollup's data-source hooks are react-query
+// hooks; this harness has no QueryClientProvider and its strict fetch mock
+// deliberately rejects unexpected URLs. Mock them at the module boundary
+// (same pattern as the release-owned page suite) so the rollup renders its
+// fail-closed rows while the wizard flow under test stays fetch-strict.
+vi.mock('@/hooks/useDualForecast', () => ({
+  useDualForecast: () => ({
+    isSuccess: false,
+    isError: true,
+    data: undefined,
+    error: new Error('dual forecast unavailable'),
+  }),
+}));
+vi.mock('@/hooks/use-moic', () => ({
+  useFundMoicRankingsV2: () => ({
+    isSuccess: false,
+    isError: true,
+    data: undefined,
+    error: new Error('rankings unavailable'),
+  }),
+}));
+vi.mock('@/components/portfolio/tabs/hooks/useLatestAllocations', () => ({
+  useLatestAllocations: () => ({
+    isSuccess: false,
+    isError: true,
+    data: undefined,
+    error: new Error('allocations unavailable'),
+  }),
+}));
+vi.mock('@/hooks/use-scenario-set-list', () => ({
+  useScenarioSetList: () => ({
+    isSuccess: false,
+    isError: true,
+    data: undefined,
+    error: new Error('scenario set list unavailable'),
+  }),
+}));
+
 vi.mock('@/stores/useFundSelector', () => ({
   useFundSelector: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),
   useFundTuple: (selector: (s: typeof mockFundState) => readonly unknown[]) =>
@@ -205,7 +243,9 @@ describe('wizard to results flow', () => {
       expect(screen.queryByText(/No published configuration yet/i)).toBeNull();
       expect(screen.getAllByText('v1').length).toBeGreaterThan(0);
       expect(screen.getAllByText(/Run 10/i).length).toBeGreaterThan(0);
-      expect(screen.getAllByText('No authoritative source')).toHaveLength(3);
+      // 9B2: 3 unavailable sections + the readiness rollup's Scenarios row,
+      // which honestly repeats the scenarios section's unavailability reason.
+      expect(screen.getAllByText('No authoritative source')).toHaveLength(4);
 
       firstRender.unmount();
 
