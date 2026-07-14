@@ -421,6 +421,12 @@ export async function createMetricRunReportPackageStoredCsvExport(
     metricRunId: input.metricRunId,
     database,
   });
+  await assertH9PackageExportable({
+    surface: 'stored_csv_export',
+    fundId: input.fundId,
+    metricRunId: input.metricRunId,
+    database,
+  });
 
   const sourceJson = await loadStoredExport(database, input, 'json');
   if (sourceJson === null) {

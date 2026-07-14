@@ -87,6 +87,7 @@ const CURRENT_H9_GATED_EXPORT_ROUTES = [
   EXPORT_ROUTES[1],
   EXPORT_ROUTES[2],
   EXPORT_ROUTES[4],
+  EXPORT_ROUTES[5],
   EXPORT_ROUTES[7],
 ] as const;
 
@@ -355,10 +356,13 @@ function configureReportServiceFixtures(): void {
     contentType: csvExport.contentType,
     filename: csvExport.filename,
   } as const;
-  reportServiceState.createStoredCsvExport.mockResolvedValue({
-    record: csvRecord,
-    inserted: false,
-    ...csvMetadata,
+  reportServiceState.createStoredCsvExport.mockImplementation(async () => {
+    await assertFixtureH9('stored_csv_export');
+    return {
+      record: csvRecord,
+      inserted: false,
+      ...csvMetadata,
+    };
   });
   reportServiceState.getStoredCsvExport.mockResolvedValue({
     record: csvRecord,
@@ -685,7 +689,7 @@ describe('H9 export qualification', () => {
     expect(actionabilityState.resolveForFund).not.toHaveBeenCalled();
   });
 
-  it('pins the production service call chain for all five currently H9-gated routes', () => {
+  it('pins the production service call chain for all six H9-gated routes', () => {
     const renderModelBody = productionFunctionBody(
       'server/services/lp-reporting/report-package-render-model-service.ts',
       'getMetricRunReportPackageRenderModel'
@@ -720,6 +724,17 @@ describe('H9 export qualification', () => {
     );
     expect(storedJsonArtifactBody).toContain('await assertH9PackageExportable({');
     expect(storedJsonArtifactBody).toContain("surface: 'stored_json_export'");
+
+    const storedCsvCreateBody = productionFunctionBody(
+      'server/services/lp-reporting/report-package-csv-stored-export-service.ts',
+      'createMetricRunReportPackageStoredCsvExport'
+    );
+    const storedCsvCreateGate = storedCsvCreateBody.indexOf('await assertH9PackageExportable({');
+    const storedCsvFirstPersistence = storedCsvCreateBody.indexOf(
+      '.insert(lpReportPackageExports)'
+    );
+    expect(storedCsvCreateGate).toBeGreaterThanOrEqual(0);
+    expect(storedCsvFirstPersistence).toBeGreaterThan(storedCsvCreateGate);
 
     const storedCsvArtifactBody = productionFunctionBody(
       'server/services/lp-reporting/report-package-csv-stored-export-service.ts',

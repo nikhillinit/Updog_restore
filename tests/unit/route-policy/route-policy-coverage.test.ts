@@ -355,6 +355,35 @@ describe('route policy coverage', () => {
     }
   });
 
+  it('keeps stored CSV creation policy exactly aligned with stored JSON creation posture', () => {
+    const jsonPolicy = expectPolicy(
+      'POST /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json'
+    );
+    const csvPolicy = expectPolicy(
+      'POST /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv'
+    );
+    const postureFields = [
+      'lifecycle',
+      'governanceRef',
+      'surface',
+      'owner',
+      'financialSurface',
+      'apiAuthBoundary',
+      'fundScopeMode',
+      'workflowRequirement',
+      'exportPolicy',
+      'provenanceRequired',
+      'staleBlocksExport',
+      'humanReviewRequired',
+      'performanceBudgetMs',
+      'notes',
+    ] as const satisfies readonly (keyof RoutePolicyEntry)[];
+
+    for (const field of postureFields) {
+      expect(csvPolicy[field], field).toEqual(jsonPolicy[field]);
+    }
+  });
+
   it('covers every LP-reporting metric-run and import route', () => {
     expect(LP_REPORTING_ROUTE_POLICY_KEYS).toHaveLength(28);
 
