@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { FinancialProvenanceSchema } from '../../../shared/contracts/financial-provenance.contract';
@@ -35,6 +38,14 @@ function routeKey(route: { method: string; path: string }): string {
   return `${route.method.toUpperCase()} ${route.path}`;
 }
 
+function declaredRoutePolicyKeys(relativePath: string): string[] {
+  const source = fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8');
+
+  return [...source.matchAll(/router\.(get|post|put|patch|delete)\(\s*['"]([^'"]+)['"]/g)].map(
+    ([, method, routePath]) => `${method?.toUpperCase()} ${routePath}`
+  );
+}
+
 const policyByKey = new Map(
   API_ROUTE_POLICY_REGISTRY.map((entry) => [routePolicyKey(entry), entry])
 );
@@ -49,6 +60,162 @@ const LP_REPORT_PACKAGE_EXPORT_POLICY_KEYS = [
   'GET /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv',
   'GET /api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv/artifact',
 ] as const;
+
+const LP_REPORTING_ROUTE_POLICY_KEYS = [
+  'POST /api/funds/:fundId/metric-runs/dry-run',
+  'POST /api/funds/:fundId/metric-runs/commit',
+  'GET /api/funds/:fundId/metric-runs/latest',
+  'GET /api/funds/:fundId/metric-runs/:metricRunId',
+  'POST /api/funds/:fundId/metric-runs/:metricRunId/approve',
+  'POST /api/funds/:fundId/metric-runs/:metricRunId/lock',
+  'GET /api/funds/:fundId/metric-runs/:metricRunId/report-package',
+  ...LP_REPORT_PACKAGE_EXPORT_POLICY_KEYS,
+  'POST /api/funds/:fundId/metric-runs/:metricRunId/report-package',
+  'GET /api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
+  'POST /api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
+  'GET /api/funds/:fundId/metric-runs/:metricRunId/narrative-runs',
+  'POST /api/funds/:fundId/metric-runs/:metricRunId/narrative-runs',
+  'PATCH /api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId',
+  'POST /api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId/review',
+  'POST /api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId/approve',
+  'GET /api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId',
+  'POST /api/funds/:fundId/imports/ledger/dry-run',
+  'POST /api/funds/:fundId/imports/valuation-marks/dry-run',
+  'POST /api/funds/:fundId/imports/ledger/commit',
+  'POST /api/funds/:fundId/imports/valuation-marks/commit',
+] as const;
+
+type LpReportingPolicyExpectation = Pick<
+  RoutePolicyEntry,
+  'workflowRequirement' | 'exportPolicy' | 'provenanceRequired'
+>;
+
+const LP_REPORTING_ADDITIONAL_POLICY_GROUPS: ReadonlyArray<{
+  keys: readonly string[];
+  expected: LpReportingPolicyExpectation;
+}> = [
+  {
+    keys: ['POST /api/funds/:fundId/metric-runs/dry-run'],
+    expected: {
+      workflowRequirement: 'source_rows_and_preview_hash_generated',
+      exportPolicy: 'preview_only',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: [
+      'POST /api/funds/:fundId/imports/ledger/dry-run',
+      'POST /api/funds/:fundId/imports/valuation-marks/dry-run',
+    ],
+    expected: {
+      workflowRequirement: 'reconciliation_preview_hash_generated',
+      exportPolicy: 'preview_only',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: [
+      'GET /api/funds/:fundId/metric-runs/latest',
+      'GET /api/funds/:fundId/metric-runs/:metricRunId',
+      'GET /api/funds/:fundId/metric-runs/:metricRunId/report-package',
+      'GET /api/funds/:fundId/metric-runs/:metricRunId/evidence-records',
+      'GET /api/funds/:fundId/metric-runs/:metricRunId/narrative-runs',
+      'GET /api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId',
+    ],
+    expected: {
+      workflowRequirement: 'fund_scope_verified',
+      exportPolicy: 'not_exportable',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: ['POST /api/funds/:fundId/metric-runs/commit'],
+    expected: {
+      workflowRequirement: 'preview_hash_source_rows_and_idempotency_verified',
+      exportPolicy: 'not_exportable',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: ['POST /api/funds/:fundId/metric-runs/:metricRunId/approve'],
+    expected: {
+      workflowRequirement: 'draft_metric_run_evidence_and_expected_version_verified',
+      exportPolicy: 'not_exportable',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: ['POST /api/funds/:fundId/metric-runs/:metricRunId/lock'],
+    expected: {
+      workflowRequirement: 'approved_metric_run_and_expected_version_verified',
+      exportPolicy: 'not_exportable',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: ['POST /api/funds/:fundId/metric-runs/:metricRunId/report-package'],
+    expected: {
+      workflowRequirement: 'locked_metric_run_and_approved_narrative_versions_verified',
+      exportPolicy: 'not_exportable',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: ['POST /api/funds/:fundId/metric-runs/:metricRunId/evidence-records'],
+    expected: {
+      workflowRequirement: 'draft_metric_run_and_idempotency_verified',
+      exportPolicy: 'not_exportable',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: ['POST /api/funds/:fundId/metric-runs/:metricRunId/narrative-runs'],
+    expected: {
+      workflowRequirement: 'locked_metric_run_source_contract_verified',
+      exportPolicy: 'not_exportable',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: ['PATCH /api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId'],
+    expected: {
+      workflowRequirement: 'locked_metric_run_draft_and_expected_version_verified',
+      exportPolicy: 'not_exportable',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: [
+      'POST /api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId/review',
+    ],
+    expected: {
+      workflowRequirement: 'locked_metric_run_edited_draft_and_expected_version_verified',
+      exportPolicy: 'not_exportable',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: [
+      'POST /api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId/approve',
+    ],
+    expected: {
+      workflowRequirement: 'locked_metric_run_edited_review_and_expected_version_verified',
+      exportPolicy: 'not_exportable',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: [
+      'POST /api/funds/:fundId/imports/ledger/commit',
+      'POST /api/funds/:fundId/imports/valuation-marks/commit',
+    ],
+    expected: {
+      workflowRequirement: 'clean_preview_hash_fund_references_and_source_hashes_verified',
+      exportPolicy: 'not_exportable',
+      provenanceRequired: true,
+    },
+  },
+];
 
 function expectPolicy(key: string): RoutePolicyEntry {
   const entry = policyByKey.get(key);
@@ -185,6 +352,43 @@ describe('route policy coverage', () => {
       expect(policyEntry.provenanceRequired, key).toBe(true);
       expect(policyEntry.staleBlocksExport, key).toBe(true);
       expect(policyEntry.workflowRequirement, key).toBe('metric_run_locked_or_exported');
+    }
+  });
+
+  it('covers every LP-reporting metric-run and import route', () => {
+    expect(LP_REPORTING_ROUTE_POLICY_KEYS).toHaveLength(28);
+
+    const declaredRoutes = [
+      ...declaredRoutePolicyKeys('server/routes/lp-reporting/metric-runs.ts'),
+      ...declaredRoutePolicyKeys('server/routes/lp-reporting/imports.ts'),
+    ];
+    expect(declaredRoutes).toEqual(LP_REPORTING_ROUTE_POLICY_KEYS);
+
+    for (const key of declaredRoutes) {
+      expectPolicy(key);
+    }
+  });
+
+  it('pins existing LP-reporting preview, provenance, and lifecycle policy gates', () => {
+    const exportKeys = new Set<string>(LP_REPORT_PACKAGE_EXPORT_POLICY_KEYS);
+    const expectedAdditionalKeys = LP_REPORTING_ROUTE_POLICY_KEYS.filter(
+      (key) => !exportKeys.has(key)
+    ).sort();
+    const groupedKeys = LP_REPORTING_ADDITIONAL_POLICY_GROUPS.flatMap((group) => group.keys).sort();
+    expect(groupedKeys).toEqual(expectedAdditionalKeys);
+
+    for (const group of LP_REPORTING_ADDITIONAL_POLICY_GROUPS) {
+      for (const key of group.keys) {
+        const policy = expectPolicy(key);
+
+        expect(policy.financialSurface, key).toBe('lp_reporting');
+        expect(policy.apiAuthBoundary, key).toBe('require_auth_and_fund_access');
+        expect(policy.fundScopeMode, key).toBe('route_param_fund_id');
+        expect(policy.workflowRequirement, key).toBe(group.expected.workflowRequirement);
+        expect(policy.exportPolicy, key).toBe(group.expected.exportPolicy);
+        expect(policy.provenanceRequired, key).toBe(group.expected.provenanceRequired);
+        expect(policy.staleBlocksExport, key).toBe(false);
+      }
     }
   });
 
