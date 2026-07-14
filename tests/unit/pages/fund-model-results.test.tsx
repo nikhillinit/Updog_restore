@@ -18,6 +18,38 @@ import { createWouterWrapper } from '../../utils/withWouter';
 import FundModelResultsPage from '../../../client/src/pages/fund-model-results';
 import type { FundScenarioComparisonV1 } from '../../../shared/contracts/fund-scenario-comparison-v1.contract';
 
+// Plan 9 Wave 9B2: the readiness rollup's data-source hooks are mocked at the
+// module boundary (this file's fetch mock only covers the page's own reads).
+// Errored queries exercise the fail-closed "Facts unavailable" rows; the
+// Scenarios row still derives from the REAL /results fetch mock below.
+vi.mock('@/hooks/useDualForecast', () => ({
+  useDualForecast: () => ({
+    isSuccess: false,
+    isError: true,
+    data: undefined,
+    error: new Error('dual forecast unavailable'),
+  }),
+}));
+vi.mock('@/hooks/use-moic', () => ({
+  useFundMoicRankingsV2: () => ({
+    isSuccess: false,
+    isError: true,
+    data: undefined,
+    error: new Error('rankings unavailable'),
+  }),
+}));
+vi.mock('@/components/portfolio/tabs/hooks/useLatestAllocations', () => ({
+  useLatestAllocations: () => ({
+    isSuccess: false,
+    isError: true,
+    data: undefined,
+    error: new Error('allocations unavailable'),
+  }),
+}));
+vi.mock('@/contexts/FundContext', () => ({
+  useFundContext: () => ({ fundId: 123, isLoading: false }),
+}));
+
 describe('FundModelResultsPage (server-backed)', () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
   let sessionGetSpy: ReturnType<typeof vi.spyOn>;
@@ -584,7 +616,10 @@ describe('FundModelResultsPage (server-backed)', () => {
       await Promise.resolve();
     });
 
-    expect(await screen.findByText(/not found/i)).toBeInTheDocument();
+    // 9B2 narrow re-scope: the readiness rollup honestly repeats the failure
+    // cause in its Scenarios row, so the error-state assertion pins the alert
+    // region semantically instead of a page-global text match.
+    expect(await screen.findByRole('alert')).toHaveTextContent(/not found/i);
   });
 
   it('shows error state on network failure', async () => {
@@ -597,7 +632,8 @@ describe('FundModelResultsPage (server-backed)', () => {
       await Promise.resolve();
     });
 
-    expect(await screen.findByText(/network error/i)).toBeInTheDocument();
+    // 9B2 narrow re-scope: see the 404 test above.
+    expect(await screen.findByRole('alert')).toHaveTextContent(/network error/i);
   });
 
   // -- Pending/calculating --
@@ -1398,7 +1434,9 @@ describe('FundModelResultsPage (server-backed)', () => {
       await Promise.resolve();
     });
 
-    expect(await screen.findByText(/not found/i)).toBeInTheDocument();
+    // 9B2 narrow re-scope: the rollup repeats the failure cause, so pin the
+    // alert region semantically (see the 404 error-state test).
+    expect(await screen.findByRole('alert')).toHaveTextContent(/not found/i);
     nav = screen.getByRole('navigation', { name: 'Fund workspace' });
     expect(within(nav).getByRole('link', { name: 'Reserves' })).toHaveAttribute(
       'href',
@@ -1436,6 +1474,97 @@ describe('FundModelResultsPage (server-backed)', () => {
       '/fund-model-results/123/reports'
     );
     expect(within(nav).getByText('Basis: Construction')).toBeInTheDocument();
+  });
+
+  // -- Plan 9 Wave 9B2: cross-surface readiness rollup (D-H) --
+
+  it('mounts the readiness rollup as the dominant object directly under the workspace row', async () => {
+    mockFundPageFetches();
+    await renderPage('/fund-model-results/123');
+
+    await screen.findByRole('heading', { level: 1, name: 'Test Fund' });
+    const nav = screen.getByTestId('workspace-nav');
+    const rollup = screen.getByTestId('fund-readiness-rollup');
+    expect(nav.nextElementSibling).toBe(rollup);
+
+    const scoped = within(rollup);
+    expect(
+      scoped.getByRole('heading', { level: 2, name: 'Readiness — what is blocked and where' })
+    ).toBeInTheDocument();
+    for (const key of ['forecast', 'portfolio-actuals', 'reserves', 'scenarios', 'reports']) {
+      expect(scoped.getByTestId(`readiness-row-${key}`)).toBeInTheDocument();
+    }
+  });
+
+  it('fails rollup rows closed on data-source errors and keeps the static Reports row honest', async () => {
+    mockFundPageFetches();
+    await renderPage('/fund-model-results/123');
+
+    // Wait for the loaded surface (the Scenarios row is a skeleton until the
+    // page's own /results read resolves).
+    await screen.findByRole('heading', { level: 1, name: 'Test Fund' });
+    const rollup = within(screen.getByTestId('fund-readiness-rollup'));
+    // The mocked hook failures read Facts unavailable with the short cause.
+    expect(rollup.getByTestId('readiness-row-forecast-reason')).toHaveTextContent(
+      'dual forecast unavailable'
+    );
+    expect(
+      within(rollup.getByTestId('readiness-row-forecast')).getByText('Facts unavailable')
+    ).toBeInTheDocument();
+    // The Scenarios row derives from the page's own /results payload
+    // (SCENARIOS_NONE_EXIST in the default fixture -> D-C empty copy).
+    expect(rollup.getByTestId('readiness-row-scenarios-reason')).toHaveTextContent(
+      'No scenario sets disclosed'
+    );
+    // Reports never claims export readiness from the Summary (pre-decision).
+    const reportsRow = within(rollup.getByTestId('readiness-row-reports'));
+    expect(reportsRow.getByText('Not verified')).toBeInTheDocument();
+    expect(rollup.getByTestId('fund-readiness-rollup-blocked-count')).toHaveTextContent(
+      '5 of 5 surfaces not actionable'
+    );
+  });
+
+  it('reads calculated-current scenario sets as actionable in the rollup', async () => {
+    const resp = readyResponse();
+    resp.sections.scenarios = validScenariosSection();
+    mockFundPageFetches({ results: resp });
+    await renderPage('/fund-model-results/123');
+
+    await screen.findByRole('heading', { level: 1, name: 'Test Fund' });
+    const rollup = within(screen.getByTestId('fund-readiness-rollup'));
+    const scenariosRow = within(rollup.getByTestId('readiness-row-scenarios'));
+    expect(scenariosRow.getByText('Actionable')).toBeInTheDocument();
+    expect(scenariosRow.getByText('2026-05-26')).toBeInTheDocument();
+  });
+
+  it('keeps the rollup mounted with fallback rows through loading and error states', async () => {
+    const fetchDeferred = createDeferred<Response>();
+    fetchSpy.mockReturnValue(fetchDeferred.promise);
+    await renderPage('/fund-model-results/123');
+
+    // Loading: the rollup is already the first section under the nav row.
+    expect(screen.getByTestId('workspace-nav').nextElementSibling).toBe(
+      screen.getByTestId('fund-readiness-rollup')
+    );
+
+    await act(async () => {
+      fetchDeferred.resolve(
+        new Response(JSON.stringify({ error: 'Fund not found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/not found/i);
+    const rollup = screen.getByTestId('fund-readiness-rollup');
+    expect(screen.getByTestId('workspace-nav').nextElementSibling).toBe(rollup);
+    // The failing spoke reads Facts unavailable in the Scenarios row, with
+    // the short cause — the page never blanks its dominant object (D-C).
+    expect(within(rollup).getByTestId('readiness-row-scenarios-reason')).toHaveTextContent(
+      'Fund not found'
+    );
   });
 
   it('opens the scenario evidence drawer with comparison evidence and restores focus on close', async () => {
