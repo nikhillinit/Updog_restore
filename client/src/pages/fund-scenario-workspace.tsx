@@ -167,7 +167,8 @@ export function resolveSeedDeepLink(
     return { kind: 'notice', reason: 'the scenario seed picker is not enabled' };
   }
   const seedCompany = params.get('seedCompany');
-  if (seedCompany !== null && !/^\d+$/.test(seedCompany)) {
+  // Review P2-3: strict positive-integer idiom (rejects 0 and leading zeros).
+  if (seedCompany !== null && !/^[1-9]\d*$/.test(seedCompany)) {
     return { kind: 'notice', reason: 'invalid company reference' };
   }
   return { kind: 'open', seedCompanyId: seedCompany };
@@ -537,6 +538,10 @@ function FundScenarioWorkspacePage() {
   useEffect(() => {
     if (seedDeepLink.kind === 'open') {
       setIsSeedPickerOpen(true);
+    } else {
+      // Review P3-6: an in-place transition to an invalid/flag-off deep link
+      // (or away from the deep link) explicitly closes the picker.
+      setIsSeedPickerOpen(false);
     }
   }, [seedDeepLink]);
 
@@ -631,26 +636,49 @@ function FundScenarioWorkspacePage() {
     [comparisonQueries]
   );
 
+  // Review P3-7: the workspace row stays mounted through invalid, loading,
+  // and error states so hub navigation survives a failing spoke (D-C:
+  // partial context renders what is known plus disabled items).
+  const partialStateNav = (
+    <WorkspaceNav
+      fundId={fundId}
+      fundLabel={fundId !== null ? `Fund ${fundId}` : 'No fund'}
+      active="scenarios"
+      indicator={<WorkspaceBasisIndicator mode="construction" />}
+    />
+  );
+
   if (!fundId) {
     return (
-      <WorkspaceErrorState
-        title="Invalid scenario workspace route"
-        message="Use /fund-model-results/:fundId/scenarios with a numeric fund ID."
-      />
+      <div className="mx-auto max-w-6xl space-y-8 px-6 py-8">
+        {partialStateNav}
+        <WorkspaceErrorState
+          title="Invalid scenario workspace route"
+          message="Use /fund-model-results/:fundId/scenarios with a numeric fund ID."
+        />
+      </div>
     );
   }
 
   if (scenarioSetsQuery.isLoading || resultsQuery.isLoading) {
-    return <WorkspaceLoadingState />;
+    return (
+      <div className="mx-auto max-w-6xl space-y-8 px-6 py-8">
+        {partialStateNav}
+        <WorkspaceLoadingState />
+      </div>
+    );
   }
 
   if (scenarioSetsQuery.isError || resultsQuery.isError) {
     return (
-      <WorkspaceErrorState
-        title="Scenario workspace unavailable"
-        message="Scenario workspace data could not be loaded."
-        onRetry={() => queryClient.invalidateQueries({ queryKey: workspaceQueryKey(fundId) })}
-      />
+      <div className="mx-auto max-w-6xl space-y-8 px-6 py-8">
+        {partialStateNav}
+        <WorkspaceErrorState
+          title="Scenario workspace unavailable"
+          message="Scenario workspace data could not be loaded."
+          onRetry={() => queryClient.invalidateQueries({ queryKey: workspaceQueryKey(fundId) })}
+        />
+      </div>
     );
   }
 
@@ -768,6 +796,9 @@ function FundScenarioWorkspacePage() {
           fundId={fundId}
           open={isSeedPickerOpen}
           onOpenChange={setIsSeedPickerOpen}
+          {...(seedDeepLink.kind === 'open' && seedDeepLink.seedCompanyId !== null
+            ? { initialSelectedCompanyId: seedDeepLink.seedCompanyId }
+            : {})}
         />
       )}
     </div>

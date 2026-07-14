@@ -8,7 +8,7 @@
 
 import React, { useEffect } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { createWouterWrapper } from '../../utils/withWouter';
 import FundModelResultsReportsPage from '../../../client/src/pages/fund-model-results-reports';
 import type { LpReportingMetricsPageProps } from '../../../client/src/pages/lp-reporting/metrics';
@@ -27,26 +27,23 @@ vi.mock('@/contexts/FundContext', () => ({
 }));
 
 vi.mock('@/pages/lp-reporting/metrics', () => ({
-  default: ({ onQualificationSnapshot }: LpReportingMetricsPageProps) => {
-    function PipelineStub() {
-      useEffect(() => {
-        if (mocks.pipelineSnapshot !== null && onQualificationSnapshot) {
-          onQualificationSnapshot(
-            mocks.pipelineSnapshot as Parameters<
-              NonNullable<LpReportingMetricsPageProps['onQualificationSnapshot']>
-            >[0]
-          );
-        }
-      }, []);
-      return <div>Metrics Pipeline Stub</div>;
-    }
-    return <PipelineStub />;
+  default: function MetricsPipelineStub({ onQualificationSnapshot }: LpReportingMetricsPageProps) {
+    useEffect(() => {
+      if (mocks.pipelineSnapshot !== null && onQualificationSnapshot) {
+        onQualificationSnapshot(
+          mocks.pipelineSnapshot as Parameters<
+            NonNullable<LpReportingMetricsPageProps['onQualificationSnapshot']>
+          >[0]
+        );
+      }
+    }, [onQualificationSnapshot]);
+    return <div>Metrics Pipeline Stub</div>;
   },
 }));
 
 function renderAt(path: string) {
-  const { Wrapper } = createWouterWrapper(path);
-  return render(<FundModelResultsReportsPage />, { wrapper: Wrapper });
+  const { Wrapper, goto } = createWouterWrapper(path);
+  return { goto, ...render(<FundModelResultsReportsPage />, { wrapper: Wrapper }) };
 }
 
 describe('FundModelResultsReportsPage', () => {
@@ -98,7 +95,7 @@ describe('FundModelResultsReportsPage', () => {
     expect(screen.queryByText('Metrics Pipeline Stub')).not.toBeInTheDocument();
   });
 
-  it('withholds the pipeline while the fund context resolves', () => {
+  it('withholds the pipeline and the strip while the fund context resolves', () => {
     mocks.fundContext.fundId = null;
     mocks.fundContext.currentFund = null;
     mocks.fundContext.isLoading = true;
@@ -107,9 +104,10 @@ describe('FundModelResultsReportsPage', () => {
 
     expect(screen.getByText('Resolving fund scope')).toBeInTheDocument();
     expect(screen.queryByText('Metrics Pipeline Stub')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('gp-qualification-strip')).not.toBeInTheDocument();
   });
 
-  it('never renders the pipeline for a fund outside the resolved scope', () => {
+  it('never renders the pipeline, strip, or prior-fund identity outside the resolved scope', () => {
     mocks.fundContext.fundId = 7;
     mocks.fundContext.currentFund = { id: 7, name: 'Other Fund' };
 
@@ -117,6 +115,59 @@ describe('FundModelResultsReportsPage', () => {
 
     expect(screen.getByText('Fund not available')).toBeInTheDocument();
     expect(screen.queryByText('Metrics Pipeline Stub')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('gp-qualification-strip')).not.toBeInTheDocument();
+    // Review P1-2: the context fund's identity never leaks onto this route.
+    expect(screen.queryByText(/Other Fund/)).not.toBeInTheDocument();
+    // Fund-scoped nav destinations render disabled with reason for the
+    // unavailable fund (D-C).
+    expect(screen.getByTestId('workspace-nav-reports-disabled')).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
+  });
+
+  it('clears fund-42 qualification state before returning to that fund without a new publication', () => {
+    mocks.pipelineSnapshot = {
+      metricRun: { metricRunId: 7, status: 'locked', asOfDate: '2026-06-30', evidenceCount: 2 },
+      reportPackage: { status: 'assembled', asOfDate: '2026-06-30' },
+      exportBlockers: [],
+      exportProven: false,
+      gateErrorReason: null,
+      lastStoredExportAt: null,
+    };
+
+    const { goto } = renderAt('/fund-model-results/42/reports');
+    expect(screen.getByText('Qualified pending export gates')).toBeInTheDocument();
+
+    // Disable subsequent pipeline publications. Returning to fund 42 must
+    // render from cleared state rather than resurrecting its prior snapshot.
+    mocks.pipelineSnapshot = null;
+    act(() => goto('/fund-model-results/999/reports'));
+
+    // Review P1-2: nothing from fund 42 survives — no name, no snapshot-backed
+    // strip, no live fund-scoped links.
+    expect(screen.queryByText(/Fund Forty Two/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Qualified pending export gates')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('gp-qualification-strip')).not.toBeInTheDocument();
+    expect(screen.queryByText('Metrics Pipeline Stub')).not.toBeInTheDocument();
+    expect(screen.getByText('Fund not available')).toBeInTheDocument();
+    for (const key of ['summary', 'reserves', 'scenarios', 'reports']) {
+      expect(screen.getByTestId(`workspace-nav-${key}-disabled`)).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      );
+    }
+
+    act(() => goto('/fund-model-results/42/reports'));
+
+    expect(screen.getByText('Metrics Pipeline Stub')).toBeInTheDocument();
+    expect(screen.getByTestId('gp-qualification-strip')).toBeInTheDocument();
+    expect(screen.getByText('Not export-ready')).toBeInTheDocument();
+    expect(screen.getByTestId('gp-qualification-metric-run')).toHaveTextContent(
+      'No metric run disclosed'
+    );
+    expect(screen.queryByText('Qualified pending export gates')).not.toBeInTheDocument();
+    expect(screen.queryByText('Metric run #7 — locked')).not.toBeInTheDocument();
   });
 
   it('upgrades the strip when the pipeline publishes a qualification snapshot', () => {
@@ -125,6 +176,8 @@ describe('FundModelResultsReportsPage', () => {
       reportPackage: { status: 'assembled', asOfDate: '2026-06-30' },
       exportBlockers: [],
       exportProven: false,
+      gateErrorReason: null,
+      lastStoredExportAt: null,
     };
 
     renderAt('/fund-model-results/42/reports');

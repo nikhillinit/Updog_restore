@@ -20,7 +20,7 @@
  * @module client/pages/lp-reporting/metrics
  */
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { CheckCircle2, FileJson, FileSpreadsheet, Save } from 'lucide-react';
 import type { QualificationSnapshot } from '@/components/lp-reporting/GpQualificationStrip';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -78,6 +78,30 @@ import {
 interface ErrorEnvelope {
   title: string;
   description: string;
+}
+
+interface ReportPackageExportScope {
+  fundId: number;
+  metricRunId: number;
+  reportPackageId: number;
+}
+
+interface ReportPackageJsonExportProof extends ReportPackageExportScope {
+  contentHash: string;
+}
+
+function matchesReportPackageExportScope(
+  identity: ReportPackageExportScope | null | undefined,
+  scope: ReportPackageExportScope | null
+): boolean {
+  return (
+    identity !== null &&
+    identity !== undefined &&
+    scope !== null &&
+    identity.fundId === scope.fundId &&
+    identity.metricRunId === scope.metricRunId &&
+    identity.reportPackageId === scope.reportPackageId
+  );
 }
 
 const XIRR_PANEL_DOM_ID = 'lp-reporting-xirr-diagnostic-panel';
@@ -329,9 +353,11 @@ export default function LpReportingMetricsPage({
   const [narrativeOverrides, setNarrativeOverrides] = useState<Record<number, NarrativeRunRecord>>(
     {}
   );
-  const [reportPackageJsonExportHash, setReportPackageJsonExportHash] = useState<string | null>(
-    null
-  );
+  const [reportPackageJsonExportProof, setReportPackageJsonExportProof] =
+    useState<ReportPackageJsonExportProof | null>(null);
+  const reportPackageStoredJsonCreateScopeRef = useRef<ReportPackageExportScope | null>(null);
+  const reportPackageStoredCsvCreateScopeRef = useRef<ReportPackageExportScope | null>(null);
+  const previousReportPackageExportScopeKeyRef = useRef<string | null>(null);
   const committedMetricRunId = commitResult?.metricRunId ?? null;
   const latestQuery = useLatestMetricRun(
     fundId,
@@ -404,6 +430,48 @@ export default function LpReportingMetricsPage({
     fundId,
     reportPackageRecord === null ? null : lockedMetricRunId
   );
+  const reportPackageExportScope = useMemo<ReportPackageExportScope | null>(() => {
+    if (
+      fundId === null ||
+      lockedMetricRunId === null ||
+      reportPackageRecord === null ||
+      reportPackageRecord.fundId !== fundId ||
+      reportPackageRecord.metricRunId !== lockedMetricRunId
+    ) {
+      return null;
+    }
+
+    return {
+      fundId,
+      metricRunId: lockedMetricRunId,
+      reportPackageId: reportPackageRecord.reportPackageId,
+    };
+  }, [fundId, lockedMetricRunId, reportPackageRecord]);
+  const reportPackageExportScopeKey = reportPackageExportScope
+    ? `${reportPackageExportScope.fundId}:${reportPackageExportScope.metricRunId}:${reportPackageExportScope.reportPackageId}`
+    : null;
+  const reportPackageJsonExportHash =
+    reportPackageJsonExportProof !== null &&
+    matchesReportPackageExportScope(reportPackageJsonExportProof, reportPackageExportScope)
+      ? reportPackageJsonExportProof.contentHash
+      : null;
+
+  useEffect(() => {
+    if (previousReportPackageExportScopeKeyRef.current === reportPackageExportScopeKey) {
+      return;
+    }
+
+    previousReportPackageExportScopeKeyRef.current = reportPackageExportScopeKey;
+    reportPackageStoredJsonCreateScopeRef.current = null;
+    reportPackageStoredCsvCreateScopeRef.current = null;
+    setReportPackageJsonExportProof(null);
+    reportPackageStoredJsonExportCreateMutation.reset();
+    reportPackageStoredCsvExportCreateMutation.reset();
+  }, [
+    reportPackageExportScopeKey,
+    reportPackageStoredCsvExportCreateMutation,
+    reportPackageStoredJsonExportCreateMutation,
+  ]);
 
   const handleSuccess = useCallback(
     (response: MetricRunDryRunResponse, request: MetricRunDryRunRequest) => {
@@ -423,7 +491,7 @@ export default function LpReportingMetricsPage({
       setEvidenceIdempotencyKey(null);
       setNarrativeDraftText({});
       setNarrativeOverrides({});
-      setReportPackageJsonExportHash(null);
+      setReportPackageJsonExportProof(null);
       setEvidenceForm(makeEvidenceFormState(parsedResults.asOfDate));
     },
     []
@@ -438,7 +506,7 @@ export default function LpReportingMetricsPage({
     setEvidenceError(null);
     setNarrativeDraftText({});
     setNarrativeOverrides({});
-    setReportPackageJsonExportHash(null);
+    setReportPackageJsonExportProof(null);
   }, []);
 
   const handleCommit = useCallback(async () => {
@@ -458,7 +526,7 @@ export default function LpReportingMetricsPage({
       setEvidenceIdempotencyKey(createEvidenceIdempotencyKey(result.metricRunId));
       setNarrativeDraftText({});
       setNarrativeOverrides({});
-      setReportPackageJsonExportHash(null);
+      setReportPackageJsonExportProof(null);
       setEvidenceForm(makeEvidenceFormState(dryRun.results.asOfDate));
     } catch (err) {
       if (err && typeof err === 'object') {
@@ -622,28 +690,42 @@ export default function LpReportingMetricsPage({
   );
 
   const handleReportPackageJsonExport = useCallback(async () => {
-    if (fundId === null || lockedMetricRunId === null) {
+    if (reportPackageExportScope === null) {
       return;
     }
 
     const result = await reportPackageJsonExportQuery.refetch();
-    if (result.error) {
-      setReportPackageJsonExportHash(null);
+    if (
+      result.error ||
+      !result.data ||
+      !matchesReportPackageExportScope(result.data.export.source, reportPackageExportScope)
+    ) {
+      setReportPackageJsonExportProof(null);
       return;
     }
-    if (result.data) {
-      saveReportPackageJsonExport(result.data, fundId, lockedMetricRunId);
-      setReportPackageJsonExportHash(result.data.export.contentHash);
-    }
-  }, [fundId, lockedMetricRunId, reportPackageJsonExportQuery]);
+    saveReportPackageJsonExport(
+      result.data,
+      reportPackageExportScope.fundId,
+      reportPackageExportScope.metricRunId
+    );
+    setReportPackageJsonExportProof({
+      ...reportPackageExportScope,
+      contentHash: result.data.export.contentHash,
+    });
+  }, [reportPackageExportScope, reportPackageJsonExportQuery]);
 
   const handleReportPackageStoredJsonCreate = useCallback(async () => {
+    if (reportPackageExportScope === null) {
+      return;
+    }
+
+    reportPackageStoredJsonCreateScopeRef.current = reportPackageExportScope;
     try {
       await reportPackageStoredJsonExportCreateMutation.mutateAsync();
     } catch {
       // The mutation error is rendered from reportPackageStoredJsonExportCreateMutation.error.
     }
-  }, [reportPackageStoredJsonExportCreateMutation]);
+  }, [reportPackageExportScope, reportPackageStoredJsonExportCreateMutation]);
 
   const handleReportPackageStoredJsonExport = useCallback(async () => {
     if (fundId === null || lockedMetricRunId === null) {
@@ -657,12 +739,17 @@ export default function LpReportingMetricsPage({
   }, [fundId, lockedMetricRunId, reportPackageStoredJsonArtifactQuery]);
 
   const handleReportPackageStoredCsvCreate = useCallback(async () => {
+    if (reportPackageExportScope === null) {
+      return;
+    }
+
+    reportPackageStoredCsvCreateScopeRef.current = reportPackageExportScope;
     try {
       await reportPackageStoredCsvExportCreateMutation.mutateAsync();
     } catch {
       // The mutation error is rendered from reportPackageStoredCsvExportCreateMutation.error.
     }
-  }, [reportPackageStoredCsvExportCreateMutation]);
+  }, [reportPackageExportScope, reportPackageStoredCsvExportCreateMutation]);
 
   const handleReportPackageStoredCsvExport = useCallback(async () => {
     if (fundId === null || lockedMetricRunId === null) {
@@ -696,39 +783,92 @@ export default function LpReportingMetricsPage({
     reportPackageRenderModelQuery.error?.code === 'REPORT_PACKAGE_NOT_FOUND'
       ? null
       : (reportPackageRenderModelQuery.error as LpReportingHookError | null);
-  const reportPackageJsonExportError =
-    reportPackageJsonExportQuery.error as LpReportingHookError | null;
+  const reportPackageJsonExportError = reportPackageExportScope
+    ? (reportPackageJsonExportQuery.error as LpReportingHookError | null)
+    : null;
   const reportPackageJsonExportBlockers = reportPackageJsonExportError?.blockers ?? [];
   const reportPackageJsonExportEnvelope =
     reportPackageJsonExportError && reportPackageJsonExportBlockers.length === 0
       ? envelopeFor(reportPackageJsonExportError)
       : null;
+  const reportPackageStoredJsonCreateResult =
+    matchesReportPackageExportScope(
+      reportPackageStoredJsonCreateScopeRef.current,
+      reportPackageExportScope
+    ) &&
+    matchesReportPackageExportScope(
+      reportPackageStoredJsonExportCreateMutation.data?.record,
+      reportPackageExportScope
+    )
+      ? reportPackageStoredJsonExportCreateMutation.data
+      : null;
+  const queriedReportPackageStoredJsonRecord = reportPackageStoredJsonExportQuery.data?.record;
   const reportPackageStoredJsonRecord =
-    reportPackageStoredJsonExportCreateMutation.data?.record ??
-    reportPackageStoredJsonExportQuery.data?.record ??
-    null;
+    reportPackageStoredJsonCreateResult?.record ??
+    (matchesReportPackageExportScope(queriedReportPackageStoredJsonRecord, reportPackageExportScope)
+      ? queriedReportPackageStoredJsonRecord
+      : null);
+  const reportPackageStoredJsonCreateError = matchesReportPackageExportScope(
+    reportPackageStoredJsonCreateScopeRef.current,
+    reportPackageExportScope
+  )
+    ? reportPackageStoredJsonExportCreateMutation.error
+    : null;
   const reportPackageStoredJsonError =
-    reportPackageStoredJsonExportCreateMutation.error ??
-    (reportPackageStoredJsonArtifactQuery.error as LpReportingHookError | null) ??
-    (reportPackageStoredJsonExportQuery.error as LpReportingHookError | null);
+    reportPackageStoredJsonCreateError ??
+    (reportPackageExportScope
+      ? (reportPackageStoredJsonArtifactQuery.error as LpReportingHookError | null)
+      : null) ??
+    (reportPackageExportScope
+      ? (reportPackageStoredJsonExportQuery.error as LpReportingHookError | null)
+      : null);
   const reportPackageStoredJsonBlockers = reportPackageStoredJsonError?.blockers ?? [];
   const reportPackageStoredJsonEnvelope =
     reportPackageStoredJsonError && reportPackageStoredJsonBlockers.length === 0
       ? envelopeFor(reportPackageStoredJsonError)
       : null;
+  const reportPackageStoredCsvCreateResult =
+    matchesReportPackageExportScope(
+      reportPackageStoredCsvCreateScopeRef.current,
+      reportPackageExportScope
+    ) &&
+    matchesReportPackageExportScope(
+      reportPackageStoredCsvExportCreateMutation.data?.record,
+      reportPackageExportScope
+    )
+      ? reportPackageStoredCsvExportCreateMutation.data
+      : null;
+  const queriedReportPackageStoredCsvData = reportPackageStoredCsvExportQuery.data;
+  const reportPackageStoredCsvQueryData =
+    queriedReportPackageStoredCsvData?.record !== null &&
+    queriedReportPackageStoredCsvData?.record !== undefined &&
+    matchesReportPackageExportScope(
+      queriedReportPackageStoredCsvData.record,
+      reportPackageExportScope
+    )
+      ? queriedReportPackageStoredCsvData
+      : null;
   const reportPackageStoredCsvRecord =
-    reportPackageStoredCsvExportCreateMutation.data?.record ??
-    reportPackageStoredCsvExportQuery.data?.record ??
-    null;
-  const reportPackageStoredCsvMetadata =
-    reportPackageStoredCsvExportCreateMutation.data ??
-    (reportPackageStoredCsvExportQuery.data?.record
-      ? reportPackageStoredCsvExportQuery.data
+    reportPackageStoredCsvCreateResult?.record ?? reportPackageStoredCsvQueryData?.record ?? null;
+  const reportPackageStoredCsvSourceJsonExportId =
+    reportPackageStoredCsvCreateResult?.sourceJsonExportId ??
+    (reportPackageStoredCsvQueryData && 'sourceJsonExportId' in reportPackageStoredCsvQueryData
+      ? reportPackageStoredCsvQueryData.sourceJsonExportId
       : null);
+  const reportPackageStoredCsvCreateError = matchesReportPackageExportScope(
+    reportPackageStoredCsvCreateScopeRef.current,
+    reportPackageExportScope
+  )
+    ? reportPackageStoredCsvExportCreateMutation.error
+    : null;
   const reportPackageStoredCsvError =
-    reportPackageStoredCsvExportCreateMutation.error ??
-    (reportPackageStoredCsvArtifactQuery.error as LpReportingHookError | null) ??
-    (reportPackageStoredCsvExportQuery.error as LpReportingHookError | null);
+    reportPackageStoredCsvCreateError ??
+    (reportPackageExportScope
+      ? (reportPackageStoredCsvArtifactQuery.error as LpReportingHookError | null)
+      : null) ??
+    (reportPackageExportScope
+      ? (reportPackageStoredCsvExportQuery.error as LpReportingHookError | null)
+      : null);
   const reportPackageStoredCsvEnvelope = reportPackageStoredCsvError
     ? envelopeFor(reportPackageStoredCsvError)
     : null;
@@ -830,11 +970,29 @@ export default function LpReportingMetricsPage({
   // Plan 9 Wave 9B1: publish the qualification snapshot for the fund-scoped
   // reports route strip. Derived exclusively from state this page already
   // holds; identity-stable so the parent's setState never loops.
+  // Review P1-1 (fail-closed): exportProven reflects ONLY current in-session
+  // gate successes (a fresh deterministic export or a stored-export CREATE
+  // that passed server-side revalidation). Historical stored records are
+  // surfaced as history, and any export-path error WITHOUT structured
+  // blockers is a gate error that blocks readiness presentation.
   const qualificationSnapshot = useMemo<QualificationSnapshot>(() => {
     const blockers = [
       ...(reportPackageJsonExportError?.blockers ?? []),
       ...(reportPackageStoredJsonError?.blockers ?? []),
+      ...(reportPackageStoredCsvError?.blockers ?? []),
     ].map((blocker) => ({ code: blocker.code, message: blocker.message }));
+
+    const gateError =
+      [
+        reportPackageJsonExportError,
+        reportPackageStoredJsonError,
+        reportPackageStoredCsvError,
+      ].find((error) => error != null && (error.blockers?.length ?? 0) === 0) ?? null;
+
+    const storedExportTimes = [
+      reportPackageStoredJsonRecord?.readyAt,
+      reportPackageStoredCsvRecord?.readyAt,
+    ].filter((value): value is string => typeof value === 'string');
 
     return {
       metricRun: activeMetricRun
@@ -851,8 +1009,14 @@ export default function LpReportingMetricsPage({
       exportBlockers: blockers,
       exportProven:
         reportPackageJsonExportHash !== null ||
-        reportPackageStoredJsonRecord !== null ||
-        reportPackageStoredCsvRecord !== null,
+        reportPackageStoredJsonCreateResult !== null ||
+        reportPackageStoredCsvCreateResult !== null,
+      gateErrorReason:
+        gateError === null
+          ? null
+          : gateError.message || 'Export gate verification failed with no disclosed reason.',
+      lastStoredExportAt:
+        storedExportTimes.length > 0 ? (storedExportTimes.sort().at(-1) ?? null) : null,
     };
   }, [
     activeMetricRun,
@@ -860,9 +1024,12 @@ export default function LpReportingMetricsPage({
     reportPackageRecord,
     reportPackageJsonExportError,
     reportPackageStoredJsonError,
+    reportPackageStoredCsvError,
     reportPackageJsonExportHash,
     reportPackageStoredJsonRecord,
     reportPackageStoredCsvRecord,
+    reportPackageStoredJsonCreateResult,
+    reportPackageStoredCsvCreateResult,
   ]);
 
   useEffect(() => {
@@ -1673,13 +1840,14 @@ export default function LpReportingMetricsPage({
                           </Alert>
                         ) : null}
 
-                        {reportPackageStoredCsvRecord && reportPackageStoredCsvMetadata ? (
+                        {reportPackageStoredCsvRecord &&
+                        reportPackageStoredCsvSourceJsonExportId !== null ? (
                           <Alert data-testid="metric-run-report-package-stored-csv-result">
                             <AlertTitle>Stored CSV ready</AlertTitle>
                             <AlertDescription>
                               Status {reportPackageStoredCsvRecord.status}; SHA-256{' '}
                               {reportPackageStoredCsvRecord.contentHash.slice(0, 12)}...; source
-                              JSON #{reportPackageStoredCsvMetadata.sourceJsonExportId}; created{' '}
+                              JSON #{reportPackageStoredCsvSourceJsonExportId}; created{' '}
                               {reportPackageStoredCsvRecord.createdAt} by user #
                               {reportPackageStoredCsvRecord.createdBy}.
                             </AlertDescription>

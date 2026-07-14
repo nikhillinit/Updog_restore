@@ -238,7 +238,9 @@ describe('FundModelResultsPage (server-backed)', () => {
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
-      expect(screen.getByText(/GP economics — projected carry and fees/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/GP economics — projected carry and fees from the published model/)
+      ).toBeInTheDocument();
     });
     expect(screen.getByTestId('economics-results-card')).toBeInTheDocument();
     expect(screen.getByText('Gross IRR')).toBeInTheDocument();
@@ -341,13 +343,15 @@ describe('FundModelResultsPage (server-backed)', () => {
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
-      expect(screen.getByText(/Scenario analysis — compare saved cases/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Scenario analysis — compare saved cases to the published baseline/)
+      ).toBeInTheDocument();
     });
     // a generic lifecycle evidence header is present elsewhere on the page...
     expect(screen.getByTestId('evidence-header-reserve-allocation')).toBeInTheDocument();
     // ...but is not mounted on the scenario section heading group
     const scenarioHeading = screen.getByRole('heading', {
-      name: /Scenario analysis — compare saved cases/,
+      name: /Scenario analysis — compare saved cases to the published baseline/,
     });
     expect(
       scenarioHeading.parentElement?.querySelector('[aria-label="Evidence header"]')
@@ -365,7 +369,9 @@ describe('FundModelResultsPage (server-backed)', () => {
         screen.getByText(/Waterfall setup — published distribution terms/)
       ).toBeInTheDocument();
     });
-    expect(screen.getByText(/GP economics — projected carry and fees/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/GP economics — projected carry and fees from the published model/)
+    ).toBeInTheDocument();
     // default fixture leaves waterfall + economics unavailable: no section
     // evidence header, but the explanatory panel must still render
     const waterfallHeading = screen.getByRole('heading', {
@@ -383,7 +389,9 @@ describe('FundModelResultsPage (server-backed)', () => {
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
-      expect(screen.getByText(/Scenario analysis — compare saved cases/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Scenario analysis — compare saved cases to the published baseline/)
+      ).toBeInTheDocument();
     });
     expect(screen.getByTestId('scenario-sets-summary')).toBeInTheDocument();
     expect(screen.getAllByText('Fee sensitivity').length).toBeGreaterThanOrEqual(1);
@@ -534,6 +542,19 @@ describe('FundModelResultsPage (server-backed)', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
     // Should show error directing user to fund setup
     expect(screen.getByText(/fund setup/i)).toBeInTheDocument();
+
+    const nav = screen.getByRole('navigation', { name: 'Fund workspace' });
+    for (const key of ['summary', 'reserves', 'scenarios', 'reports']) {
+      expect(screen.getByTestId(`workspace-nav-${key}-disabled`)).toHaveAttribute(
+        'aria-disabled',
+        'true'
+      );
+    }
+    expect(within(nav).queryByRole('link', { name: 'Summary' })).not.toBeInTheDocument();
+    expect(within(nav).getByRole('link', { name: 'Forecast' })).toHaveAttribute(
+      'href',
+      '/financial-modeling'
+    );
   });
 
   // -- Loading state --
@@ -654,10 +675,11 @@ describe('FundModelResultsPage (server-backed)', () => {
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
-      // Fund name renders in the identity header and the workspace-row fund
-      // context (Plan 9 Wave 9B1 nav row).
-      expect(screen.getAllByText('Test Fund').length).toBeGreaterThanOrEqual(1);
+      // Strict page-identity pin (review P2-5): the h1 itself must carry the
+      // fund name; the workspace-row repetition is asserted separately.
+      expect(screen.getByRole('heading', { level: 1, name: 'Test Fund' })).toBeInTheDocument();
     });
+    expect(screen.getByTestId('workspace-nav-fund')).toHaveTextContent('Test Fund');
     expect(screen.getByText(/Vintage 2024/)).toBeInTheDocument();
     // $100M appears in both header and overview card
     const sizeMatches = screen.getAllByText(/\$100M/);
@@ -1352,11 +1374,46 @@ describe('FundModelResultsPage (server-backed)', () => {
 
   // -- Plan 9 Wave 9B1: workspace row + scenario evidence drawer --
 
+  it('keeps the workspace row mounted through loading and error states (review P3-7)', async () => {
+    const fetchDeferred = createDeferred<Response>();
+    fetchSpy.mockReturnValue(fetchDeferred.promise);
+    await renderPage('/fund-model-results/123');
+
+    // Loading: hub navigation is already available.
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    let nav = screen.getByRole('navigation', { name: 'Fund workspace' });
+    expect(within(nav).getByRole('link', { name: 'Summary' })).toHaveAttribute(
+      'href',
+      '/fund-model-results/123'
+    );
+
+    // Error: the failing spoke never removes the hub.
+    await act(async () => {
+      fetchDeferred.resolve(
+        new Response(JSON.stringify({ error: 'Fund not found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByText(/not found/i)).toBeInTheDocument();
+    nav = screen.getByRole('navigation', { name: 'Fund workspace' });
+    expect(within(nav).getByRole('link', { name: 'Reserves' })).toHaveAttribute(
+      'href',
+      '/fund-model-results/123/moic-analysis'
+    );
+  });
+
   it('mounts the workspace row with Summary active and the construction-basis indicator', async () => {
     mockFundPageFetches();
     await renderPage('/fund-model-results/123');
 
-    const nav = await screen.findByRole('navigation', { name: 'Fund workspace' });
+    // Wait for the loaded surface (the loading-state row is replaced by the
+    // fund-labeled row once results resolve).
+    await screen.findByRole('heading', { level: 1, name: 'Test Fund' });
+    const nav = screen.getByRole('navigation', { name: 'Fund workspace' });
     const links = within(nav).getAllByRole('link');
     expect(links.map((link) => link.textContent)).toEqual([
       'Summary',

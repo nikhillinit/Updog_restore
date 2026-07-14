@@ -26,6 +26,8 @@ function snapshot(overrides: Partial<QualificationSnapshot> = {}): Qualification
     reportPackage: { status: 'assembled', asOfDate: '2026-06-30' },
     exportBlockers: [],
     exportProven: false,
+    gateErrorReason: null,
+    lastStoredExportAt: null,
     ...overrides,
   };
 }
@@ -98,6 +100,42 @@ describe('deriveQualificationStrip', () => {
     expect(model.state).toBe('actionable');
     expect(model.label).toBe('Export-ready');
   });
+
+  // -- Review fixes (P1-1): fail-closed presentation --
+
+  it('never presents a historical stored export as readiness (fail-closed)', () => {
+    const model = deriveQualificationStrip(
+      snapshot({ lastStoredExportAt: '2026-06-29T10:00:00.000Z', exportProven: false })
+    );
+
+    expect(model.state).toBe('indicative');
+    expect(model.label).toBe('Qualified pending export gates');
+    expect(model.lastStoredExportAt).toBe('2026-06-29T10:00:00.000Z');
+  });
+
+  it('fails closed as qualification unverified on a gate error without structured blockers', () => {
+    const model = deriveQualificationStrip(
+      snapshot({ gateErrorReason: 'Stored export does not match the current artifact.' })
+    );
+
+    expect(model.state).toBe('not_actionable');
+    expect(model.label).toBe('Qualification unverified');
+    expect(model.reason).toContain('Stored export does not match');
+  });
+
+  it('keeps a failing current gate blocked even with a historical record and prior proof', () => {
+    const model = deriveQualificationStrip(
+      snapshot({
+        lastStoredExportAt: '2026-06-29T10:00:00.000Z',
+        exportProven: true,
+        gateErrorReason: 'H9 fingerprint changed since assembly.',
+      })
+    );
+
+    expect(model.state).toBe('not_actionable');
+    expect(model.label).toBe('Qualification unverified');
+    expect(model.label).not.toBe('Export-ready');
+  });
 });
 
 describe('GpQualificationStrip', () => {
@@ -133,6 +171,21 @@ describe('GpQualificationStrip', () => {
     expect(blockers).toHaveTextContent('Evidence requires redaction');
     expect(blockers).toHaveTextContent('Restricted evidence attached');
     expect(screen.getByText('Export blocked')).toBeInTheDocument();
+  });
+
+  it('renders the stored-export history line without upgrading the badge', () => {
+    render(
+      <GpQualificationStrip
+        snapshot={snapshot({ lastStoredExportAt: '2026-06-29T10:00:00.000Z' })}
+      />
+    );
+
+    expect(screen.getByText('Last stored export')).toBeInTheDocument();
+    expect(screen.getByTestId('gp-qualification-last-export')).toHaveTextContent(
+      '2026-06-29T10:00:00.000Z'
+    );
+    expect(screen.queryByText('Export-ready')).not.toBeInTheDocument();
+    expect(screen.getByText('Qualified pending export gates')).toBeInTheDocument();
   });
 
   it('shows the as-of date with tabular numerals when a run is disclosed', () => {

@@ -102,17 +102,46 @@ function FundModelResultsPage() {
     previousCalculationStatusRef.current = status;
   }, [fetchState, refreshComparison, refreshHistory, refreshScenarioComparisons]);
 
+  // Review P3-7: the workspace row stays mounted through invalid, loading,
+  // and error states so hub navigation survives a failing spoke. With only
+  // partial context, fund-scoped links render from a validated route id or
+  // fall back to disabled-with-reason (D-C).
+  const navFundId = fundId !== null && /^[1-9]\d*$/.test(fundId) ? fundId : null;
+  const partialStateNav = (
+    <WorkspaceNav
+      fundId={navFundId}
+      fundLabel={navFundId !== null ? `Fund ${navFundId}` : 'No fund'}
+      active="summary"
+      indicator={<WorkspaceBasisIndicator mode="construction" />}
+    />
+  );
+
   // Handle /latest or missing fundId
   if (fundId === 'latest' || !fundId) {
-    return <LatestErrorState />;
+    return (
+      <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
+        {partialStateNav}
+        <LatestErrorState />
+      </div>
+    );
   }
 
   if (fetchState.kind === 'loading') {
-    return <LoadingState />;
+    return (
+      <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
+        {partialStateNav}
+        <LoadingState />
+      </div>
+    );
   }
 
   if (fetchState.kind === 'error') {
-    return <ErrorState message={fetchState.message} />;
+    return (
+      <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
+        {partialStateNav}
+        <ErrorState message={fetchState.message} />
+      </div>
+    );
   }
 
   const { results } = fetchState;

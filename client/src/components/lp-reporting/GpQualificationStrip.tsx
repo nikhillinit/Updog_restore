@@ -37,8 +37,20 @@ export interface QualificationSnapshot {
   metricRun: QualificationStripMetricRun | null;
   reportPackage: QualificationStripPackage | null;
   exportBlockers: readonly QualificationExportBlocker[];
-  /** True only after this surface produced or verified a deterministic export. */
+  /**
+   * CURRENT successful gate signal from THIS session only (an export was
+   * produced or stored through the server-side gates in this session).
+   * Historical stored-export records must never set this (review P1-1).
+   */
   exportProven: boolean;
+  /**
+   * A gate/consistency failure that carried no structured blockers (H9,
+   * fingerprint, hash conflict, transport). Fail-closed: any such state
+   * renders as "Qualification unverified", never as readiness.
+   */
+  gateErrorReason: string | null;
+  /** Historical stored-export timestamp — rendered as history, never readiness. */
+  lastStoredExportAt: string | null;
 }
 
 export interface QualificationStripModel {
@@ -49,6 +61,7 @@ export interface QualificationStripModel {
   metricRunLabel: string;
   packageLabel: string;
   blockers: readonly QualificationExportBlocker[];
+  lastStoredExportAt: string | null;
 }
 
 function metricRunLabelFor(run: QualificationStripMetricRun): string {
@@ -67,6 +80,7 @@ export function deriveQualificationStrip(
       metricRunLabel: 'No metric run disclosed',
       packageLabel: 'No report package assembled',
       blockers: [],
+      lastStoredExportAt: null,
     };
   }
 
@@ -77,6 +91,7 @@ export function deriveQualificationStrip(
     packageLabel:
       snapshot.reportPackage === null ? 'No report package assembled' : 'Package assembled',
     blockers: snapshot.exportBlockers,
+    lastStoredExportAt: snapshot.lastStoredExportAt,
   };
 
   if (run.status === 'draft') {
@@ -125,6 +140,17 @@ export function deriveQualificationStrip(
       state: 'not_actionable',
       label: 'Export blocked',
       reason: `${count} export ${count === 1 ? 'blocker' : 'blockers'} disclosed for this package.`,
+    };
+  }
+
+  // Fail-closed (review P1-1): any gate failure without structured blockers
+  // means the current qualification state is UNKNOWN — never readiness.
+  if (snapshot.gateErrorReason !== null) {
+    return {
+      ...base,
+      state: 'not_actionable',
+      label: 'Qualification unverified',
+      reason: snapshot.gateErrorReason,
     };
   }
 
@@ -184,6 +210,19 @@ export function GpQualificationStrip({ snapshot }: { snapshot: QualificationSnap
             {model.packageLabel}
           </dd>
         </div>
+        {model.lastStoredExportAt !== null ? (
+          /* History only (review P1-1): a stored export record never reads
+             as readiness. */
+          <div>
+            <dt className="uppercase text-presson-textMuted">Last stored export</dt>
+            <dd
+              className="mt-0.5 tabular-nums text-presson-textMuted"
+              data-testid="gp-qualification-last-export"
+            >
+              {model.lastStoredExportAt}
+            </dd>
+          </div>
+        ) : null}
       </dl>
       {model.blockers.length > 0 ? (
         <ul

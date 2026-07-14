@@ -46,18 +46,23 @@ describe('FundScenarioWorkspacePage', () => {
         mutations: { retry: false },
       },
     });
-    const { Wrapper } = createWouterWrapper(path);
+    const { Wrapper, goto } = createWouterWrapper(path);
 
-    return render(
-      <QueryClientProvider client={queryClient}>
-        <Wrapper>
-          <FundScenarioWorkspacePage />
-        </Wrapper>
-      </QueryClientProvider>
-    );
+    return {
+      goto,
+      ...render(
+        <QueryClientProvider client={queryClient}>
+          <Wrapper>
+            <FundScenarioWorkspacePage />
+          </Wrapper>
+        </QueryClientProvider>
+      ),
+    };
   }
 
-  function mockWorkspaceFetches() {
+  function mockWorkspaceFetches(
+    options: { seedResponse?: ReturnType<typeof disclosedScenarioSeedsResponse> } = {}
+  ) {
     fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.toString();
       const method = init?.method ?? 'GET';
@@ -128,13 +133,15 @@ describe('FundScenarioWorkspacePage', () => {
 
       if (method === 'GET' && url === '/api/funds/123/scenario-analysis/seeds') {
         return Promise.resolve(
-          jsonResponse({
-            fundId: 123,
-            asOfDate: '2026-07-13',
-            factsStatus: 'failed',
-            factsInputHash: null,
-            seeds: [],
-          })
+          jsonResponse(
+            options.seedResponse ?? {
+              fundId: 123,
+              asOfDate: '2026-07-13',
+              factsStatus: 'failed',
+              factsInputHash: null,
+              seeds: [],
+            }
+          )
         );
       }
 
@@ -433,7 +440,11 @@ describe('FundScenarioWorkspacePage', () => {
       }
 
       if (method === 'GET' && url.endsWith('/comparison')) {
-        return Promise.resolve(jsonResponse(scenarioComparisonResponse()));
+        const scenarioSetId = url.match(/scenario-sets\/([^/]+)\/comparison$/)?.[1];
+        if (scenarioSetId === undefined) {
+          return Promise.reject(new Error(`Unexpected comparison URL ${url}`));
+        }
+        return Promise.resolve(jsonResponse(scenarioComparisonResponse(scenarioSetId)));
       }
 
       return Promise.reject(new Error(`Unexpected fetch ${method} ${url}`));
@@ -624,6 +635,22 @@ describe('FundScenarioWorkspacePage', () => {
     expect(screen.queryByRole('link', { name: /back to results/i })).not.toBeInTheDocument();
   });
 
+  it('keeps workspace navigation available while the workspace data is loading', () => {
+    fetchSpy.mockReturnValue(new Promise<Response>(() => {}));
+    renderWorkspace();
+
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    const nav = screen.getByRole('navigation', { name: 'Fund workspace' });
+    expect(within(nav).getByRole('link', { name: 'Scenarios' })).toHaveAttribute(
+      'href',
+      '/fund-model-results/123/scenarios'
+    );
+    expect(within(nav).getByRole('link', { name: 'Scenarios' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+  });
+
   it('opens the seed picker from a valid deep link while the flag is on', async () => {
     vi.stubEnv('VITE_ENABLE_SCENARIO_SEED_PICKER', 'true');
     mockWorkspaceFetches();
@@ -633,6 +660,19 @@ describe('FundScenarioWorkspacePage', () => {
       await screen.findByRole('dialog', { name: /start case from portfolio actuals/i })
     ).toBeInTheDocument();
     expect(screen.queryByTestId('seed-source-unavailable')).not.toBeInTheDocument();
+  });
+
+  it('preselects the seedCompany disclosed by the page-level seed response', async () => {
+    vi.stubEnv('VITE_ENABLE_SCENARIO_SEED_PICKER', 'true');
+    mockWorkspaceFetches({ seedResponse: disclosedScenarioSeedsResponse() });
+    renderWorkspace('/fund-model-results/123/scenarios?seedPicker=1&seedCompany=101');
+
+    expect(
+      await screen.findByRole('dialog', { name: /start case from portfolio actuals/i })
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole('radio', { name: /company 101/i })).toBeChecked();
+    });
   });
 
   it('lands with the picker closed and a muted notice on an invalid seedCompany deep link', async () => {
@@ -660,6 +700,56 @@ describe('FundScenarioWorkspacePage', () => {
       screen.queryByRole('dialog', { name: /start case from portfolio actuals/i })
     ).not.toBeInTheDocument();
   });
+
+  it('closes the open picker on an in-place transition to an invalid deep link (review P3-6)', async () => {
+    vi.stubEnv('VITE_ENABLE_SCENARIO_SEED_PICKER', 'true');
+    mockWorkspaceFetches();
+    const { goto } = renderWorkspace(
+      '/fund-model-results/123/scenarios?seedPicker=1&seedCompany=101'
+    );
+
+    expect(
+      await screen.findByRole('dialog', { name: /start case from portfolio actuals/i })
+    ).toBeInTheDocument();
+
+    act(() => {
+      goto('/fund-model-results/123/scenarios?seedPicker=1&seedCompany=abc');
+    });
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: /start case from portfolio actuals/i })
+      ).not.toBeInTheDocument()
+    );
+    expect(screen.getByTestId('seed-source-unavailable')).toHaveTextContent(
+      'Seed source unavailable: invalid company reference'
+    );
+  });
+
+  it('keeps the workspace row mounted when workspace data fails to load (review P3-7)', async () => {
+    fetchSpy.mockImplementation(() =>
+      Promise.resolve(new Response('server error', { status: 500 }))
+    );
+    renderWorkspace();
+
+    expect(await screen.findByText('Scenario workspace unavailable')).toBeInTheDocument();
+    const nav = screen.getByRole('navigation', { name: 'Fund workspace' });
+    expect(within(nav).getByRole('link', { name: 'Scenarios' })).toHaveAttribute(
+      'href',
+      '/fund-model-results/123/scenarios'
+    );
+  });
+
+  it('keeps the workspace row mounted with disabled items on an invalid route (review P3-7)', async () => {
+    mockWorkspaceFetches();
+    renderWorkspace('/fund-model-results/not-a-fund/scenarios');
+
+    expect(await screen.findByText('Invalid scenario workspace route')).toBeInTheDocument();
+    expect(screen.getByTestId('workspace-nav-scenarios-disabled')).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
+  });
 });
 
 describe('resolveSeedDeepLink', () => {
@@ -668,7 +758,7 @@ describe('resolveSeedDeepLink', () => {
     expect(resolveSeedDeepLink('seedCompany=101', true)).toEqual({ kind: 'none' });
   });
 
-  it('validates seedCompany with the /^\\d+$/ idiom', () => {
+  it('validates seedCompany with the strict /^[1-9]\\d*$/ idiom', () => {
     expect(resolveSeedDeepLink('seedPicker=1&seedCompany=101', true)).toEqual({
       kind: 'open',
       seedCompanyId: '101',
@@ -677,10 +767,12 @@ describe('resolveSeedDeepLink', () => {
       kind: 'open',
       seedCompanyId: null,
     });
-    expect(resolveSeedDeepLink('seedPicker=1&seedCompany=1e3', true)).toEqual({
-      kind: 'notice',
-      reason: 'invalid company reference',
-    });
+    for (const invalid of ['1e3', '0', '007', '-4', 'abc']) {
+      expect(resolveSeedDeepLink(`seedPicker=1&seedCompany=${invalid}`, true)).toEqual({
+        kind: 'notice',
+        reason: 'invalid company reference',
+      });
+    }
   });
 
   it('reports the flag-off reason before inspecting seedCompany', () => {
@@ -696,6 +788,51 @@ function jsonResponse(body: unknown) {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
   });
+}
+
+function disclosedScenarioSeedsResponse() {
+  return {
+    fundId: 123,
+    asOfDate: '2026-07-13',
+    factsStatus: 'available' as const,
+    factsInputHash: '9'.repeat(64),
+    seeds: [
+      {
+        contractVersion: 'scenario-case-seed-v1' as const,
+        fundId: 123,
+        companyId: 101,
+        asOfDate: '2026-07-13',
+        factsInputHash: 'c'.repeat(64),
+        trustState: 'LIVE' as const,
+        currencyStatus: 'base_currency' as const,
+        fields: {
+          investment: {
+            status: 'seeded' as const,
+            value: '500000.000000',
+            source: 'investment_rounds' as const,
+          },
+          followOns: {
+            status: 'seeded' as const,
+            value: '250000.000000',
+            source: 'investment_rounds' as const,
+          },
+          fmv: {
+            status: 'seeded' as const,
+            value: '14000000.000000',
+            source: 'approved_planning_fmv' as const,
+          },
+          exitValuation: {
+            status: 'user_required' as const,
+            value: null,
+            marketReference: '12000000.000000',
+          },
+          probability: { status: 'user_required' as const, value: null },
+          ownershipAtExit: { status: 'user_required' as const, value: null },
+        },
+        warnings: [],
+      },
+    ],
+  };
 }
 
 function scenarioSetSummaries(): FundScenarioSetSummaryV1[] {
