@@ -15,6 +15,8 @@ export function WorkPanel({
   description,
   children,
   className,
+  headerSlot,
+  onCloseAutoFocus,
 }: {
   open: boolean;
   onClose: () => void;
@@ -22,6 +24,10 @@ export function WorkPanel({
   description?: string;
   children: ReactNode;
   className?: string;
+  /** AMENDMENT 8 (Plan 9 Wave 9A) additive: rendered inside the sheet header after the title row. */
+  headerSlot?: ReactNode;
+  /** AMENDMENT 8 (Plan 9 Wave 9A) additive: forwarded to the sheet content. */
+  onCloseAutoFocus?: (event: Event) => void;
 }) {
   return (
     <Sheet
@@ -34,12 +40,14 @@ export function WorkPanel({
         side="right"
         className={cn('w-full overflow-y-auto p-0 sm:max-w-xl md:max-w-2xl', className)}
         {...(description ? {} : { 'aria-describedby': undefined })}
+        {...(onCloseAutoFocus ? { onCloseAutoFocus } : {})}
       >
         <SheetHeader className="border-b border-beige-200 px-6 py-4 text-left">
           <SheetTitle className="text-charcoal-900">{title}</SheetTitle>
           {description ? (
             <SheetDescription className="text-charcoal-600">{description}</SheetDescription>
           ) : null}
+          {headerSlot ?? null}
         </SheetHeader>
         <div className="px-6 py-4">{children}</div>
       </SheetContent>
