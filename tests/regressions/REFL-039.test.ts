@@ -1,3 +1,6 @@
+// REFLECTION_ID: REFL-039
+// This test is linked to: docs/skills/REFL-039-transport-failure-must-not-invert-model-roles.md
+
 import fs from 'fs/promises';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
@@ -14,7 +17,7 @@ describe('REFL-039: DEV_BRAIN.md orchestration guardrails', () => {
     const devBrain = await readDevBrain();
     expect(devBrain).toMatch(/## Plan Review Gate/);
     expect(devBrain).toMatch(/finalized, reviewed plan dispatches to Codex/);
-    expect(devBrain).toMatch(/Transport failures get transport fixes, never\s+role swaps/);
+    expect(devBrain).toMatch(/Transport failures get transport fixes, never\s+role\s+swaps/);
   });
 
   it('retains the Lane Hygiene rules', async () => {
