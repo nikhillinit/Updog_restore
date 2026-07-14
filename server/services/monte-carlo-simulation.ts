@@ -23,6 +23,10 @@ import { PRNG } from '@shared/utils/prng';
 import { isFlagEnabled } from '@shared/flags/getFlag';
 import type { FactsMonteCarloInputV1 } from '@shared/contracts/monte-carlo/facts-input-v1.contract';
 import { logger } from '../lib/logger';
+import {
+  assumptionsProfileHash,
+  defaultMonteCarloAssumptionsProfile,
+} from './monte-carlo/default-assumptions-profile';
 
 const MONTE_CARLO_ACTUALS_CALCULATION_KEY = 'monte_carlo_actuals_inputs';
 
@@ -160,6 +164,8 @@ export interface MonteCarloForecast {
   };
 
   provenance?: {
+    assumptionsHash: string;
+    profileVersion: typeof defaultMonteCarloAssumptionsProfile.profileVersion;
     actualsFacts: MonteCarloActualsFactsProvenance;
   };
 }
@@ -383,7 +389,11 @@ function snapshotMetadata(
     baselineId: forecast.baselineId,
     scenarios: forecast.parameters.scenarios,
     timeHorizon: forecast.parameters.timeHorizonYears,
-    ...(factsMetadata !== undefined && { actualsFacts: factsMetadata }),
+    ...(factsMetadata !== undefined && {
+      assumptionsHash: assumptionsProfileHash,
+      profileVersion: defaultMonteCarloAssumptionsProfile.profileVersion,
+      actualsFacts: factsMetadata,
+    }),
   };
 }
 
@@ -489,7 +499,11 @@ export class MonteCarloSimulationService {
       riskMetrics,
       scenarioAnalysis,
       ...(actualsState !== undefined && {
-        provenance: { actualsFacts: actualsProvenance(actualsState, 'on') },
+        provenance: {
+          assumptionsHash: assumptionsProfileHash,
+          profileVersion: defaultMonteCarloAssumptionsProfile.profileVersion,
+          actualsFacts: actualsProvenance(actualsState, 'on'),
+        },
       }),
     };
 
@@ -506,7 +520,11 @@ export class MonteCarloSimulationService {
       }
       const shadowProvenance = await this.runActualsShadow(forecast, snapshotId);
       if (shadowProvenance !== undefined) {
-        forecast.provenance = { actualsFacts: shadowProvenance };
+        forecast.provenance = {
+          assumptionsHash: assumptionsProfileHash,
+          profileVersion: defaultMonteCarloAssumptionsProfile.profileVersion,
+          actualsFacts: shadowProvenance,
+        };
       }
     }
 
@@ -581,9 +599,9 @@ export class MonteCarloSimulationService {
       // Use default conservative estimates if insufficient data
       return {
         mean: 0,
-        standardDeviation: 0.15, // 15% default volatility
+        standardDeviation: defaultMonteCarloAssumptionsProfile.lowDataVolatility,
         count: 0,
-        confidence: 0.3, // Low confidence due to insufficient data
+        confidence: defaultMonteCarloAssumptionsProfile.lowDataConfidence,
       };
     }
 
@@ -744,23 +762,23 @@ export class MonteCarloSimulationService {
     // Generate power law scenario for realistic VC returns.
     // Use seed profile for aggregate portfolio return distribution calibration.
     const powerLawScenario = this.powerLawDistribution.generateInvestmentScenario(
-      'seed',
+      defaultMonteCarloAssumptionsProfile.aggregateStageProfile,
       timeHorizonYears
     );
 
     // Apply moderate upside compression to reflect 2024-2025 multiple compression.
     // Keep downside behavior intact so failure-rate characteristics are preserved.
-    const upsideCompression = 0.82;
     const adjustedMultiple =
       powerLawScenario.multiple <= 1
         ? powerLawScenario.multiple
-        : 1 + (powerLawScenario.multiple - 1) * upsideCompression;
+        : 1 +
+          (powerLawScenario.multiple - 1) * defaultMonteCarloAssumptionsProfile.upsideCompression;
 
     // Sample from traditional distributions for other metrics
     const totalValueVariance = this.sampleFromDistribution(
       distributions['totalValueVariance'] || {
         mean: 0,
-        standardDeviation: 0.15,
+        standardDeviation: defaultMonteCarloAssumptionsProfile.lowDataVolatility,
         distribution: 'normal',
         historicalCount: 0,
         confidence: 0.5,
@@ -787,9 +805,15 @@ export class MonteCarloSimulationService {
 
     // Calculate baseline values
     const baselineTotalValue = toDecimal(baseline.totalValue.toString());
-    const baselineIrr = toDecimal(baseline.irr?.toString() || '0.12').toNumber();
-    const baselineDpi = toDecimal(baseline.dpi?.toString() || '0.5');
-    const baselineTvpi = toDecimal(baseline.tvpi?.toString() || '1.5');
+    const baselineIrr = toDecimal(
+      baseline.irr?.toString() || defaultMonteCarloAssumptionsProfile.baselineIrrFallback
+    ).toNumber();
+    const baselineDpi = toDecimal(
+      baseline.dpi?.toString() || defaultMonteCarloAssumptionsProfile.baselineDpiFallback
+    );
+    const baselineTvpi = toDecimal(
+      baseline.tvpi?.toString() || defaultMonteCarloAssumptionsProfile.baselineTvpiFallback
+    );
     const totalValueVarianceFactor = toDecimal(totalValueVariance).times(0.1);
     const dpiVarianceFactor = toDecimal(dpiVariance).times(0.5);
     const tvpiVarianceFactor = toDecimal(tvpiVariance).times(0.5);
@@ -838,7 +862,9 @@ export class MonteCarloSimulationService {
         );
       case 'powerlaw': {
         // Use power law distribution for return multiples
-        const powerLawSample = this.powerLawDistribution.sampleReturn('seed');
+        const powerLawSample = this.powerLawDistribution.sampleReturn(
+          defaultMonteCarloAssumptionsProfile.aggregateStageProfile
+        );
         return powerLawSample.multiple - 1; // Convert to variance form
       }
       default:
