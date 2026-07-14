@@ -47,7 +47,7 @@ function sourceBundle(overrides: Partial<FundMoicRankingSources> = {}): FundMoic
       rankings: [],
     },
     moicInputSummary: {
-      sourceVersion: 'moic-exit-probability-v1',
+      sourceVersion: 'moic-round-fmv-facts-v2',
       explicitExitProbabilityCount: 1,
       defaultedExitProbabilityCount: 0,
       activationBlockingDefaultedExitProbabilityCount: 0,
@@ -56,6 +56,16 @@ function sourceBundle(overrides: Partial<FundMoicRankingSources> = {}): FundMoic
       activationBlockingDefaultedReserveExitMultipleCount: 0,
     },
     moicSourceInputHash: 'source-hash-a',
+    factsSource: {
+      status: 'available' as const,
+      response: {
+        fundId: 7,
+        asOfDate: '2026-07-13',
+        facts: [],
+        inputHash: 'f'.repeat(64),
+        generatedAt: '2026-07-13T00:00:00.000Z',
+      },
+    },
     ...overrides,
   };
 }
@@ -219,6 +229,27 @@ describe('fund calculation mode service', () => {
       })
     ).rejects.toMatchObject({
       blockers: ['exit_probability_source_incomplete'],
+    });
+  });
+
+  it('blocks an on transition when the facts source is unavailable', async () => {
+    const { database } = makeDatabase([
+      [{ id: 100 }],
+      [modeRow()],
+      [modeRow({ configured_mode: 'on', version: 2 })],
+      [],
+    ]);
+
+    await expect(
+      updateFundMoicCalculationMode({
+        ...baseUpdate,
+        database: database as never,
+        sources: Object.assign(sourceBundle(), {
+          factsSource: { status: 'absent' as const },
+        }),
+      })
+    ).rejects.toMatchObject({
+      blockers: ['facts_unavailable'],
     });
   });
 

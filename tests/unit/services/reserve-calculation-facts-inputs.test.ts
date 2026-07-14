@@ -10,6 +10,7 @@ const {
   buildReservePortfolioInputWithProvenance,
   eventOrder,
   generateReserveSummary,
+  getFundMoicRankingSources,
   isFlagEnabled,
   loggerInfo,
   modeFindFirst,
@@ -20,6 +21,7 @@ const {
   buildReservePortfolioInputWithProvenance: vi.fn(),
   eventOrder: [] as string[],
   generateReserveSummary: vi.fn(),
+  getFundMoicRankingSources: vi.fn(),
   isFlagEnabled: vi.fn(),
   loggerInfo: vi.fn(),
   modeFindFirst: vi.fn(),
@@ -56,6 +58,12 @@ vi.mock('../../../server/services/fund-calculation-mode-service', async (importO
   const actual =
     await importOriginal<typeof import('../../../server/services/fund-calculation-mode-service')>();
   return { ...actual, resolveMoicActionability };
+});
+
+vi.mock('../../../server/services/fund-moic-ranking-service', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../../server/services/fund-moic-ranking-service')>();
+  return { ...actual, getFundMoicRankingSources };
 });
 
 vi.mock('../../../server/services/reserve-input-builder', () => ({
@@ -125,6 +133,17 @@ const LEGACY_RESERVES: ReserveSummary = {
 };
 
 const FACTS_INPUT_HASH = 'd'.repeat(64);
+const FACTS_SOURCE = {
+  status: 'available' as const,
+  response: {
+    fundId: 7,
+    asOfDate: '2026-07-13',
+    facts: [],
+    inputHash: FACTS_INPUT_HASH,
+    generatedAt: '2026-07-13T00:00:00.000Z',
+  },
+};
+const MOIC_SOURCES = { factsSource: FACTS_SOURCE };
 const FACTS_COMPANY: ReserveCompanyInputWithProvenance = {
   id: 11,
   invested: 125,
@@ -196,6 +215,7 @@ describe('runReserveCalculation facts-sourced inputs', () => {
       reserveInputTrustSummary: LEGACY_TRUST_SUMMARY,
     });
     generateReserveSummary.mockReturnValue(LEGACY_RESERVES);
+    getFundMoicRankingSources.mockResolvedValue(MOIC_SOURCES);
     resolveMoicActionability.mockResolvedValue(actionabilityResult());
     buildFactsReserveCandidates.mockResolvedValue({
       candidates: [
@@ -259,7 +279,9 @@ describe('runReserveCalculation facts-sourced inputs', () => {
       },
     });
     expect(modeFindFirst).not.toHaveBeenCalled();
+    expect(getFundMoicRankingSources).not.toHaveBeenCalled();
     expect(buildFactsReserveCandidates).not.toHaveBeenCalled();
+    expect(resolveMoicActionability).toHaveBeenCalledWith({ fundId: 7 });
     expect(loggerInfo).not.toHaveBeenCalled();
   });
 
@@ -275,7 +297,32 @@ describe('runReserveCalculation facts-sourced inputs', () => {
     expect(generateReserveSummary).toHaveBeenCalledWith(7, LEGACY_PORTFOLIO);
   });
 
-  it('emits aggregate shadow telemetry without changing served values, persistence, or H9', async () => {
+  it('threads one facts snapshot through on-mode reserve inputs and H9', async () => {
+    isFlagEnabled.mockReturnValue(true);
+    modeFindFirst.mockResolvedValue({ configuredMode: 'on', killSwitchActive: false });
+    generateReserveSummary.mockReturnValue(FACTS_RESERVES);
+
+    await runReserveCalculation({ fundId: 7, correlationId: 'corr-on-snapshot' });
+
+    expect(getFundMoicRankingSources).toHaveBeenCalledOnce();
+    expect(buildFactsReserveCandidates).toHaveBeenCalledOnce();
+    expect(buildFactsReserveCandidates).toHaveBeenCalledWith({
+      fundId: 7,
+      asOfDate: expect.any(String),
+      factsSource: FACTS_SOURCE,
+    });
+    expect(resolveMoicActionability).toHaveBeenCalledWith({
+      fundId: 7,
+      sources: MOIC_SOURCES,
+    });
+    expect(persistedSnapshots[0]).toMatchObject({
+      metadata: {
+        factsBasis: { factsInputHash: FACTS_SOURCE.response.inputHash },
+      },
+    });
+  });
+
+  it('threads one facts snapshot through shadow H9 and post-persist telemetry', async () => {
     isFlagEnabled.mockReturnValue(true);
     modeFindFirst.mockResolvedValue({ configuredMode: 'shadow', killSwitchActive: false });
     buildFactsReserveCandidates.mockImplementation(async () => {
@@ -307,6 +354,17 @@ describe('runReserveCalculation facts-sourced inputs', () => {
 
     expect(result.reserves).toEqual(LEGACY_RESERVES);
     expect(eventOrder).toEqual(['persist', 'shadow']);
+    expect(getFundMoicRankingSources).toHaveBeenCalledOnce();
+    expect(buildFactsReserveCandidates).toHaveBeenCalledOnce();
+    expect(buildFactsReserveCandidates).toHaveBeenCalledWith({
+      fundId: 7,
+      asOfDate: expect.any(String),
+      factsSource: FACTS_SOURCE,
+    });
+    expect(resolveMoicActionability).toHaveBeenCalledWith({
+      fundId: 7,
+      sources: MOIC_SOURCES,
+    });
     expect(generateReserveSummary).toHaveBeenNthCalledWith(1, 7, LEGACY_PORTFOLIO);
     expect(generateReserveSummary).toHaveBeenNthCalledWith(2, 7, [FACTS_COMPANY]);
     expect(persistedSnapshots[0]).toMatchObject({

@@ -13,6 +13,7 @@ const authState = vi.hoisted(() => ({
 
 const ranking = vi.hoisted(() => ({ getFundMoicRankingSources: vi.fn() }));
 const evidence = vi.hoisted(() => ({ buildRoundsToModelEvidence: vi.fn() }));
+const actuals = vi.hoisted(() => ({ buildFundCompanyActualsFacts: vi.fn() }));
 
 const dbHolder = vi.hoisted(() => {
   const state = {
@@ -64,6 +65,10 @@ vi.mock('../../../server/services/rounds-to-model-evidence-service', () => ({
   buildRoundsToModelEvidence: evidence.buildRoundsToModelEvidence,
 }));
 
+vi.mock('../../../server/services/fund-actuals/fund-company-actuals-facts-service', () => ({
+  buildFundCompanyActualsFacts: actuals.buildFundCompanyActualsFacts,
+}));
+
 vi.mock('../../../server/services/fund-moic-ranking-service', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('../../../server/services/fund-moic-ranking-service')>();
@@ -93,41 +98,53 @@ const rankingItem = (investmentId: string, value: number) => ({
   reservesMoic: { value, description: 'desc', formula: 'formula' },
 });
 
-const sourceBundle = (overrides: Partial<FundMoicRankingSources> = {}): FundMoicRankingSources => ({
-  legacy: {
-    fundId: 1,
-    provenance: {
-      source: 'portfolio_companies',
-      calculation: 'reserves_moic_rankings',
-      metricBasis: 'planned_reserves',
-      sourceRecordCount: 1,
+const sourceBundle = (overrides: Partial<FundMoicRankingSources> = {}): FundMoicRankingSources => {
+  return {
+    legacy: {
+      fundId: 1,
+      provenance: {
+        source: 'portfolio_companies',
+        calculation: 'reserves_moic_rankings',
+        metricBasis: 'planned_reserves',
+        sourceRecordCount: 1,
+      },
+      generatedAt: '2026-06-24T00:00:00.000Z',
+      rankings: [rankingItem('1', 0)],
     },
-    generatedAt: '2026-06-24T00:00:00.000Z',
-    rankings: [rankingItem('1', 0)],
-  },
-  candidate: {
-    fundId: 1,
-    provenance: {
-      source: 'portfolio_companies',
-      calculation: 'reserves_moic_rankings',
-      metricBasis: 'planned_reserves',
-      sourceRecordCount: 1,
+    candidate: {
+      fundId: 1,
+      provenance: {
+        source: 'portfolio_companies',
+        calculation: 'reserves_moic_rankings',
+        metricBasis: 'planned_reserves',
+        sourceRecordCount: 1,
+      },
+      generatedAt: '2026-06-24T00:00:00.000Z',
+      rankings: [rankingItem('1', 2.8)],
     },
-    generatedAt: '2026-06-24T00:00:00.000Z',
-    rankings: [rankingItem('1', 2.8)],
-  },
-  moicInputSummary: {
-    sourceVersion: 'moic-exit-probability-v1',
-    explicitExitProbabilityCount: 1,
-    defaultedExitProbabilityCount: 0,
-    activationBlockingDefaultedExitProbabilityCount: 0,
-    explicitReserveExitMultipleCount: 1,
-    defaultedReserveExitMultipleCount: 0,
-    activationBlockingDefaultedReserveExitMultipleCount: 0,
-  },
-  moicSourceInputHash: 'source-hash-a',
-  ...overrides,
-});
+    moicInputSummary: {
+      sourceVersion: 'moic-round-fmv-facts-v2',
+      explicitExitProbabilityCount: 1,
+      defaultedExitProbabilityCount: 0,
+      activationBlockingDefaultedExitProbabilityCount: 0,
+      explicitReserveExitMultipleCount: 1,
+      defaultedReserveExitMultipleCount: 0,
+      activationBlockingDefaultedReserveExitMultipleCount: 0,
+    },
+    moicSourceInputHash: 'source-hash-a',
+    factsSource: {
+      status: 'available' as const,
+      response: {
+        fundId: 1,
+        asOfDate: '2026-07-13',
+        facts: [],
+        inputHash: 'f'.repeat(64),
+        generatedAt: '2026-07-13T00:00:00.000Z',
+      },
+    },
+    ...overrides,
+  };
+};
 
 const requestHashFor = (fundId: number, moicSourceInputHash: string): string =>
   canonicalSha256({
@@ -169,12 +186,20 @@ beforeEach(() => {
     inserted: [],
   });
   ranking.getFundMoicRankingSources.mockResolvedValue(sourceBundle());
+  actuals.buildFundCompanyActualsFacts.mockResolvedValue({
+    fundId: 1,
+    asOfDate: '2026-07-13',
+    facts: [],
+    inputHash: 'f'.repeat(64),
+    generatedAt: '2026-07-13T00:00:00.000Z',
+  });
   evidence.buildRoundsToModelEvidence.mockResolvedValue({
     coverage: { activeRoundCount: 0, activeOverrideCount: 0, warningsByCode: {} },
   });
 });
 
 const expectZeroDownstream = () => {
+  expect(actuals.buildFundCompanyActualsFacts).not.toHaveBeenCalled();
   expect(ranking.getFundMoicRankingSources).not.toHaveBeenCalled();
   expect(evidence.buildRoundsToModelEvidence).not.toHaveBeenCalled();
   expect(dbHolder.state.selectCalls).toBe(0);
@@ -232,6 +257,24 @@ describe('fund MOIC reconciliation route - behavioral state machine', () => {
     expect(res.status).toBe(403);
     expect(res.body).toEqual({ error: 'Forbidden', message: 'You do not have access to fund 1' });
     expectZeroDownstream();
+  });
+
+  it('409 with no acceptable run when the v2 facts source is unavailable', async () => {
+    authState.user = ADMIN;
+    ranking.getFundMoicRankingSources.mockResolvedValue(
+      Object.assign(sourceBundle(), { factsSource: { status: 'absent' as const } })
+    );
+
+    const res = await post(1, 'facts-unavailable');
+
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({
+      error: 'facts_unavailable',
+      message: 'Round/FMV facts are unavailable for MOIC reconciliation',
+    });
+    expect(evidence.buildRoundsToModelEvidence).not.toHaveBeenCalled();
+    expect(dbHolder.state.insertAttempts).toBe(0);
+    expect(dbHolder.state.inserted).toHaveLength(0);
   });
 
   it('201 first run: persists requestedBy=101, one ranking, one evidence, one insert', async () => {

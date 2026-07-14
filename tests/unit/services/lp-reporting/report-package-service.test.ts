@@ -22,14 +22,34 @@ import {
 } from '@shared/schema/lp-reporting-evidence';
 import { users } from '@shared/schema/user';
 
-const { resolveForFund } = vi.hoisted(() => ({ resolveForFund: vi.fn() }));
+const { createMoicActionabilityResolver, resolveForFund } = vi.hoisted(() => {
+  const resolveForFund = vi.fn();
+  return {
+    createMoicActionabilityResolver: vi.fn((params: { reuseFactsSource?: boolean }) => {
+      let cachedResult: unknown;
+      return {
+        resolveForFund: vi.fn((fundId: number) => {
+          if (params.reuseFactsSource && cachedResult !== undefined) {
+            return cachedResult;
+          }
+          const result: unknown = resolveForFund(fundId);
+          if (params.reuseFactsSource) {
+            cachedResult = result;
+          }
+          return result;
+        }),
+      };
+    }),
+    resolveForFund,
+  };
+});
 
 vi.mock('../../../../server/services/fund-calculation-mode-service', async (importOriginal) => {
   const actual =
     await importOriginal<
       typeof import('../../../../server/services/fund-calculation-mode-service')
     >();
-  return { ...actual, createMoicActionabilityResolver: () => ({ resolveForFund }) };
+  return { ...actual, createMoicActionabilityResolver };
 });
 
 const H9_RESULT = {
@@ -289,6 +309,7 @@ function makeDatabase(): typeof db {
 }
 
 beforeEach(() => {
+  vi.clearAllMocks();
   state.metricRuns = [metricRunRow()];
   state.narratives = [
     narrativeRow('no_dpi', 100),
@@ -363,10 +384,14 @@ describe('assembleMetricRunReportPackage', () => {
       actionabilityStatus: 'actionable',
       moicSourceInputHash: 'a'.repeat(64),
     });
+    expect(createMoicActionabilityResolver).toHaveBeenCalledWith({
+      database: expect.anything(),
+      reuseFactsSource: false,
+    });
     expect(resolveForFund).toHaveBeenCalledWith(1);
   });
 
-  it('aborts assembly with H9_SOURCE_CHANGED_DURING_ASSEMBLY when the fingerprint drifts mid-assembly', async () => {
+  it('bypasses the facts cache and aborts assembly when the H9 fingerprint drifts mid-assembly', async () => {
     resolveForFund.mockResolvedValueOnce(H9_RESULT).mockResolvedValueOnce({
       ...H9_RESULT,
       sourceFingerprint: { ...H9_RESULT.sourceFingerprint, fingerprintHash: 'f'.repeat(64) },
