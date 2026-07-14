@@ -49,6 +49,7 @@ interface State {
   funds: Fund[];
   metricRuns: LpMetricRun[];
   reportPackages: LpReportPackage[];
+  readCalls: string[];
   writeCalls: string[];
 }
 
@@ -56,6 +57,7 @@ const state: State = {
   funds: [],
   metricRuns: [],
   reportPackages: [],
+  readCalls: [],
   writeCalls: [],
 };
 
@@ -187,9 +189,19 @@ function reportPackageRow(overrides: Partial<LpReportPackage> = {}): LpReportPac
 }
 
 function rowsFor(table: unknown): unknown[] {
-  if (table === funds) return state.funds;
-  if (table === lpMetricRuns) return state.metricRuns;
-  if (table === lpReportPackages) return state.reportPackages;
+  if (table === funds) {
+    state.readCalls.push('funds');
+    return state.funds;
+  }
+  if (table === lpMetricRuns) {
+    state.readCalls.push('metricRuns');
+    return state.metricRuns;
+  }
+  if (table === lpReportPackages) {
+    state.readCalls.push('reportPackages');
+    return state.reportPackages;
+  }
+  state.readCalls.push('unknown');
   return [];
 }
 
@@ -227,6 +239,7 @@ beforeEach(() => {
   state.funds = [fundRow()];
   state.metricRuns = [metricRunRow()];
   state.reportPackages = [reportPackageRow()];
+  state.readCalls = [];
   state.writeCalls = [];
   assertH9ExportActionable.mockReset();
   assertH9ExportActionable.mockResolvedValue(undefined);
@@ -288,6 +301,40 @@ describe('getMetricRunReportPackageRenderModel', () => {
     ).rejects.toMatchObject({ code: 'H9_FINGERPRINT_STALE' });
   });
 
+  it('blocks locked non-actionable H9 before constructing metric values', async () => {
+    const rawPackage = reportPackageRow({ h9ActionabilityStatus: 'non_actionable' });
+    const payloadRead = vi.fn(() => reportPackagePayload());
+    Object.defineProperty(rawPackage, 'payload', {
+      configurable: true,
+      get: payloadRead,
+    });
+    state.reportPackages = [rawPackage];
+    assertH9ExportActionable.mockRejectedValueOnce(
+      Object.assign(new Error('Report package is not actionable.'), {
+        status: 409,
+        code: 'H9_NOT_ACTIONABLE',
+        details: { surface: 'render_model' },
+      })
+    );
+    const database = makeDatabase();
+
+    await expect(
+      getMetricRunReportPackageRenderModel({ fundId: 1, metricRunId: 11 }, { database })
+    ).rejects.toMatchObject<Partial<MetricRunCommitError>>({
+      status: 409,
+      code: 'H9_NOT_ACTIONABLE',
+      details: { surface: 'render_model' },
+    });
+
+    expect(assertH9ExportActionable).toHaveBeenCalledTimes(1);
+    const [gateInput] = assertH9ExportActionable.mock.calls[0] ?? [];
+    expect(gateInput).toMatchObject({ surface: 'render_model', fundId: 1, database });
+    expect(gateInput?.stored).toBe(rawPackage);
+    expect(payloadRead).not.toHaveBeenCalled();
+    expect(state.readCalls).toEqual(['metricRuns', 'reportPackages']);
+    expect(state.writeCalls).toEqual([]);
+  });
+
   it.each(['draft', 'approved', 'superseded'])(
     'blocks %s metric runs before H9 validation and without writes',
     async (status) => {
@@ -308,6 +355,7 @@ describe('getMetricRunReportPackageRenderModel', () => {
         },
       });
       expect(assertH9ExportActionable).not.toHaveBeenCalled();
+      expect(state.readCalls).toEqual(['metricRuns']);
       expect(state.writeCalls).toEqual([]);
     }
   );
