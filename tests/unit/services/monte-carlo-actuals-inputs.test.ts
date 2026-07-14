@@ -3,6 +3,12 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 
 import { FLAG_DEFAULTS, FLAG_DEFINITIONS } from '../../../shared/generated/flag-defaults';
+import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
+import { MonteCarloAssumptionsProfileV1Schema } from '../../../shared/contracts/monte-carlo/assumptions-profile-v1.contract';
+import {
+  assumptionsProfileHash,
+  defaultMonteCarloAssumptionsProfile,
+} from '../../../server/services/monte-carlo/default-assumptions-profile';
 
 const {
   buildFactsMonteCarloInput,
@@ -115,6 +121,8 @@ const LEGACY_COMPANIES = [
 
 const FACTS_INPUT_HASH = 'a'.repeat(64);
 const SOURCE_FACTS_INPUT_HASH = 'b'.repeat(64);
+const EXPECTED_ASSUMPTIONS_PROFILE_HASH =
+  '0ad0b399c6ff13ab0cd398b36ebc70cf48d013823a4cbf0f51507bf4aa2facd9';
 const FACTS_RESPONSE = {
   fundId: 7,
   asOfDate: '2026-07-13',
@@ -160,6 +168,20 @@ function sha256(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
+function withoutAssumptionsProvenance(
+  forecast: Awaited<ReturnType<MonteCarloSimulationService['generateForecast']>>
+): Record<string, unknown> {
+  const normalized = structuredClone(forecast) as Record<string, unknown>;
+  const provenance = normalized['provenance'];
+  if (provenance !== null && typeof provenance === 'object' && !Array.isArray(provenance)) {
+    const existingProvenance = { ...(provenance as Record<string, unknown>) };
+    delete existingProvenance['assumptionsHash'];
+    delete existingProvenance['profileVersion'];
+    normalized['provenance'] = existingProvenance;
+  }
+  return normalized;
+}
+
 async function simulateLegacy(): Promise<
   Awaited<ReturnType<MonteCarloSimulationService['generateForecast']>>
 > {
@@ -173,6 +195,44 @@ async function simulate(input: {
   isFlagEnabled.mockReturnValue(input.flag);
   return new MonteCarloSimulationService().generateForecast(PARAMS);
 }
+
+describe('Monte Carlo assumptions profile v1', () => {
+  it('is strict, schema-valid, and hash-stable', () => {
+    expect(MonteCarloAssumptionsProfileV1Schema.parse(defaultMonteCarloAssumptionsProfile)).toEqual(
+      defaultMonteCarloAssumptionsProfile
+    );
+    expect(
+      MonteCarloAssumptionsProfileV1Schema.safeParse({
+        ...defaultMonteCarloAssumptionsProfile,
+        unexpected: true,
+      }).success
+    ).toBe(false);
+    expect(
+      MonteCarloAssumptionsProfileV1Schema.safeParse({
+        ...defaultMonteCarloAssumptionsProfile,
+        distributionSelectionRules: {
+          ...defaultMonteCarloAssumptionsProfile.distributionSelectionRules,
+          unexpected: true,
+        },
+      }).success
+    ).toBe(false);
+    expect(assumptionsProfileHash).toBe(EXPECTED_ASSUMPTIONS_PROFILE_HASH);
+    expect(assumptionsProfileHash).toBe(canonicalSha256(defaultMonteCarloAssumptionsProfile));
+    expect(Object.isFrozen(defaultMonteCarloAssumptionsProfile)).toBe(true);
+    expect(Object.isFrozen(defaultMonteCarloAssumptionsProfile.distributionSelectionRules)).toBe(
+      true
+    );
+  });
+
+  it('changes the canonical hash when a profile value changes', () => {
+    const modifiedProfile = {
+      ...defaultMonteCarloAssumptionsProfile,
+      lowDataVolatility: defaultMonteCarloAssumptionsProfile.lowDataVolatility + 0.01,
+    };
+
+    expect(canonicalSha256(modifiedProfile)).not.toBe(assumptionsProfileHash);
+  });
+});
 
 describe('MonteCarloSimulationService actuals-backed company inputs', () => {
   beforeEach(() => {
@@ -229,9 +289,27 @@ describe('MonteCarloSimulationService actuals-backed company inputs', () => {
     );
     expect(flagOffForecast).not.toHaveProperty('provenance');
     expect(insertedSnapshots[1]?.metadata).not.toHaveProperty('actualsFacts');
+    expect(insertedSnapshots[1]?.metadata).not.toHaveProperty('assumptionsHash');
+    expect(insertedSnapshots[1]?.metadata).not.toHaveProperty('profileVersion');
     expect(modeFindFirst).not.toHaveBeenCalled();
     expect(buildFundCompanyActualsFacts).not.toHaveBeenCalled();
     expect(buildFactsMonteCarloInput).not.toHaveBeenCalled();
+  });
+
+  it('keeps fixed-seed on and shadow computation identical when assumptions provenance is excluded', async () => {
+    isFlagEnabled.mockReturnValue(true);
+    modeFindFirst.mockResolvedValue({ configuredMode: 'on', killSwitchActive: false });
+    const onForecast = await new MonteCarloSimulationService().generateForecast(PARAMS);
+
+    modeFindFirst.mockResolvedValue({ configuredMode: 'shadow', killSwitchActive: false });
+    const shadowForecast = await new MonteCarloSimulationService().generateForecast(PARAMS);
+
+    expect
+      .soft(sha256(withoutAssumptionsProvenance(onForecast)))
+      .toBe('3ecee4b969b8e5bd423bb322a0cb078e862a4069eb24a2526d63252dc49f70ad');
+    expect
+      .soft(sha256(withoutAssumptionsProvenance(shadowForecast)))
+      .toBe('35736f29571844d463574dcf59c57836e67d9712297c41d90075f108c30f8e1d');
   });
 
   it('registers the server-only actuals-input flag off in every environment', () => {
@@ -325,6 +403,8 @@ describe('MonteCarloSimulationService actuals-backed company inputs', () => {
       'Healthtech',
     ]);
     expect(forecast.provenance).toEqual({
+      assumptionsHash: EXPECTED_ASSUMPTIONS_PROFILE_HASH,
+      profileVersion: 'mc-assumptions-v1',
       actualsFacts: {
         factsInputHash: FACTS_INPUT_HASH,
         sourceFactsInputHash: SOURCE_FACTS_INPUT_HASH,
@@ -340,6 +420,8 @@ describe('MonteCarloSimulationService actuals-backed company inputs', () => {
       },
     });
     expect(insertedSnapshots[0]?.metadata).toMatchObject({
+      assumptionsHash: EXPECTED_ASSUMPTIONS_PROFILE_HASH,
+      profileVersion: 'mc-assumptions-v1',
       actualsFacts: {
         factsInputHash: FACTS_INPUT_HASH,
         sourceFactsInputHash: SOURCE_FACTS_INPUT_HASH,
@@ -361,6 +443,8 @@ describe('MonteCarloSimulationService actuals-backed company inputs', () => {
     expect(insertedSnapshots[1]?.metadata).toEqual(insertedSnapshots[0]?.metadata);
     expect(updatedSnapshotMetadata).toHaveLength(1);
     expect(updatedSnapshotMetadata[0]?.metadata).toMatchObject({
+      assumptionsHash: EXPECTED_ASSUMPTIONS_PROFILE_HASH,
+      profileVersion: 'mc-assumptions-v1',
       actualsFacts: {
         factsInputHash: FACTS_INPUT_HASH,
         sourceFactsInputHash: SOURCE_FACTS_INPUT_HASH,
@@ -368,6 +452,8 @@ describe('MonteCarloSimulationService actuals-backed company inputs', () => {
       },
     });
     expect(shadowForecast.provenance).toEqual({
+      assumptionsHash: EXPECTED_ASSUMPTIONS_PROFILE_HASH,
+      profileVersion: 'mc-assumptions-v1',
       actualsFacts: {
         factsInputHash: FACTS_INPUT_HASH,
         sourceFactsInputHash: SOURCE_FACTS_INPUT_HASH,
@@ -438,22 +524,56 @@ describe('MonteCarloSimulationService actuals-backed company inputs', () => {
     });
   });
 
-  it('pins the legacy distribution rules and calibration constants by value', async () => {
+  it('pins the distribution rules and extracted calibration constants by value', async () => {
     const actualFs = await vi.importActual<typeof import('node:fs')>('node:fs');
     const source = actualFs.readFileSync(
       path.join(process.cwd(), 'server/services/monte-carlo-simulation.ts'),
       'utf8'
     );
 
-    expect(source).toContain('standardDeviation: 0.15, // 15% default volatility');
+    expect(defaultMonteCarloAssumptionsProfile).toEqual({
+      profileVersion: 'mc-assumptions-v1',
+      lowDataVolatility: 0.15,
+      lowDataConfidence: 0.3,
+      aggregateStageProfile: 'seed',
+      upsideCompression: 0.82,
+      baselineIrrFallback: '0.12',
+      baselineDpiFallback: '0.5',
+      baselineTvpiFallback: '1.5',
+      distributionSelectionRules: {
+        multiples: 'power_law',
+        skewedMetrics: 'lognormal_when_skew_gt_1',
+        smallSamples: 'triangular_when_n_lt_10',
+      },
+    });
     expect(source).toContain("distribution = 'powerlaw'");
     expect(source).toContain("distribution = 'lognormal'");
     expect(source).toContain("distribution = 'triangular'");
-    expect(source).toMatch(/generateInvestmentScenario\(\s*'seed',\s*timeHorizonYears\s*\)/);
-    expect(source).toContain('const upsideCompression = 0.82');
-    expect(source).toContain("baseline.irr?.toString() || '0.12'");
-    expect(source).toContain("baseline.dpi?.toString() || '0.5'");
-    expect(source).toContain("baseline.tvpi?.toString() || '1.5'");
+    const multiplesRuleIndex = source.indexOf(
+      "if (metric === 'multipleVariance' || metric.includes('multiple'))"
+    );
+    const skewedMetricsRuleIndex = source.indexOf(
+      'else if (p.skewness !== undefined && Math.abs(p.skewness) > 1.0)'
+    );
+    const smallSamplesRuleIndex = source.indexOf('else if (p.count < 10)');
+    expect(multiplesRuleIndex).toBeGreaterThanOrEqual(0);
+    expect(multiplesRuleIndex).toBeLessThan(skewedMetricsRuleIndex);
+    expect(skewedMetricsRuleIndex).toBeLessThan(smallSamplesRuleIndex);
+    expect(source).toContain('defaultMonteCarloAssumptionsProfile.lowDataVolatility');
+    expect(source).toContain('defaultMonteCarloAssumptionsProfile.lowDataConfidence');
+    expect(source).toContain('defaultMonteCarloAssumptionsProfile.aggregateStageProfile');
+    expect(source).toContain('defaultMonteCarloAssumptionsProfile.upsideCompression');
+    expect(source).toContain('defaultMonteCarloAssumptionsProfile.baselineIrrFallback');
+    expect(source).toContain('defaultMonteCarloAssumptionsProfile.baselineDpiFallback');
+    expect(source).toContain('defaultMonteCarloAssumptionsProfile.baselineTvpiFallback');
+    expect(source).not.toMatch(/standardDeviation:\s*0\.15/);
+    expect(source).not.toContain('confidence: 0.3, // Low confidence due to insufficient data');
+    expect(source).not.toMatch(/generateInvestmentScenario\(\s*'seed'/);
+    expect(source).not.toContain("sampleReturn('seed')");
+    expect(source).not.toContain('const upsideCompression = 0.82');
+    expect(source).not.toContain("baseline.irr?.toString() || '0.12'");
+    expect(source).not.toContain("baseline.dpi?.toString() || '0.5'");
+    expect(source).not.toContain("baseline.tvpi?.toString() || '1.5'");
     expect(source).toContain('eq(fundSnapshots.id, snapshotId)');
     expect(source).toContain('eq(fundSnapshots.metadata, legacyMetadata)');
     expect(source).toContain('.returning({ id: fundSnapshots.id })');
