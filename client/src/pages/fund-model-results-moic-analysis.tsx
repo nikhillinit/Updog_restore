@@ -424,6 +424,21 @@ function RankingsTable({
                   {group.label}
                 </TableHead>
               </TableRow>
+              {group.key === 'actionable' ? (
+                /* Planned<->marginal cross-reference adjacent to the Actionable
+                   group header (D-C gated affordance): disabled with reason
+                   until marginal analysis activates. */
+                <TableRow className="bg-pov-gray/40 hover:bg-pov-gray/40">
+                  <TableCell
+                    colSpan={6}
+                    className="py-1.5 text-xs text-presson-textMuted"
+                    data-testid="moic-planned-marginal-crossref"
+                  >
+                    Rankings above reflect planned reserves.{' '}
+                    <span aria-disabled="true">Marginal analysis not yet activated.</span>
+                  </TableCell>
+                </TableRow>
+              ) : null}
               {group.rankings.map((item) => {
                 const isExpanded = expandedInvestmentId === item.investmentId;
                 const disclosureId = `moic-basis-${item.investmentId}`;

@@ -12,6 +12,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { createWouterWrapper } from '../../utils/withWouter';
 import FundModelResultsPage from '../../../client/src/pages/fund-model-results';
@@ -25,19 +26,6 @@ describe('FundModelResultsPage (server-backed)', () => {
     fetchSpy = vi.fn();
     globalThis.fetch = fetchSpy;
     sessionGetSpy = vi.spyOn(Storage.prototype, 'getItem');
-
-    // jsdom lacks IntersectionObserver -- stub it for FadeInSection
-    globalThis.IntersectionObserver = class MockIntersectionObserver {
-      observe() {
-        /* noop */
-      }
-      unobserve() {
-        /* noop */
-      }
-      disconnect() {
-        /* noop */
-      }
-    } as unknown as typeof IntersectionObserver;
   });
 
   afterEach(() => {
@@ -174,7 +162,7 @@ describe('FundModelResultsPage (server-backed)', () => {
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
-      expect(screen.getByText(/Reserve Allocation/)).toBeInTheDocument();
+      expect(screen.getByText(/Reserve allocation — awaiting current actuals/)).toBeInTheDocument();
     });
     // Check that payload data from the server appears (not fabricated)
     expect(screen.getByText(/Follow-on/)).toBeInTheDocument();
@@ -185,7 +173,9 @@ describe('FundModelResultsPage (server-backed)', () => {
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
-      expect(screen.getByText(/Deployment Pacing/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Deployment pacing — modeled from construction assumptions/)
+      ).toBeInTheDocument();
     });
   });
 
@@ -224,10 +214,12 @@ describe('FundModelResultsPage (server-backed)', () => {
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
-      expect(screen.getByText('Waterfall Setup')).toBeInTheDocument();
+      expect(
+        screen.getByText(/Waterfall setup — published distribution terms/)
+      ).toBeInTheDocument();
     });
     const waterfallSection = screen
-      .getByRole('heading', { name: 'Waterfall Setup' })
+      .getByRole('heading', { name: /Waterfall setup — published distribution terms/ })
       .closest('div');
     expect(waterfallSection).not.toBeNull();
     expect(
@@ -246,7 +238,7 @@ describe('FundModelResultsPage (server-backed)', () => {
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
-      expect(screen.getByText('GP Economics')).toBeInTheDocument();
+      expect(screen.getByText(/GP economics — projected carry and fees/)).toBeInTheDocument();
     });
     expect(screen.getByTestId('economics-results-card')).toBeInTheDocument();
     expect(screen.getByText('Gross IRR')).toBeInTheDocument();
@@ -349,12 +341,14 @@ describe('FundModelResultsPage (server-backed)', () => {
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
-      expect(screen.getByText('Scenario Analysis')).toBeInTheDocument();
+      expect(screen.getByText(/Scenario analysis — compare saved cases/)).toBeInTheDocument();
     });
     // a generic lifecycle evidence header is present elsewhere on the page...
     expect(screen.getByTestId('evidence-header-reserve-allocation')).toBeInTheDocument();
     // ...but is not mounted on the scenario section heading group
-    const scenarioHeading = screen.getByRole('heading', { name: 'Scenario Analysis' });
+    const scenarioHeading = screen.getByRole('heading', {
+      name: /Scenario analysis — compare saved cases/,
+    });
     expect(
       scenarioHeading.parentElement?.querySelector('[aria-label="Evidence header"]')
     ).toBeNull();
@@ -367,12 +361,16 @@ describe('FundModelResultsPage (server-backed)', () => {
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
-      expect(screen.getByText('Waterfall Setup')).toBeInTheDocument();
+      expect(
+        screen.getByText(/Waterfall setup — published distribution terms/)
+      ).toBeInTheDocument();
     });
-    expect(screen.getByText('GP Economics')).toBeInTheDocument();
+    expect(screen.getByText(/GP economics — projected carry and fees/)).toBeInTheDocument();
     // default fixture leaves waterfall + economics unavailable: no section
     // evidence header, but the explanatory panel must still render
-    const waterfallHeading = screen.getByRole('heading', { name: 'Waterfall Setup' });
+    const waterfallHeading = screen.getByRole('heading', {
+      name: /Waterfall setup — published distribution terms/,
+    });
     expect(
       waterfallHeading.parentElement?.querySelector('[aria-label="Evidence header"]')
     ).toBeNull();
@@ -385,7 +383,7 @@ describe('FundModelResultsPage (server-backed)', () => {
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
-      expect(screen.getByText('Scenario Analysis')).toBeInTheDocument();
+      expect(screen.getByText(/Scenario analysis — compare saved cases/)).toBeInTheDocument();
     });
     expect(screen.getByTestId('scenario-sets-summary')).toBeInTheDocument();
     expect(screen.getAllByText('Fee sensitivity').length).toBeGreaterThanOrEqual(1);
@@ -458,7 +456,7 @@ describe('FundModelResultsPage (server-backed)', () => {
     await renderPage('/fund-model-results/123');
 
     await waitFor(() => {
-      expect(screen.getByText('Overview')).toBeInTheDocument();
+      expect(screen.getByText(/Overview — current recorded fund metrics/)).toBeInTheDocument();
     });
     // Typed fact tiles render formatted values
     expect(screen.getAllByText('$100M').length).toBeGreaterThanOrEqual(1);
@@ -1350,6 +1348,96 @@ describe('FundModelResultsPage (server-backed)', () => {
     });
 
     expect(countFetches('/api/funds/123/results')).toBe(1);
+  });
+
+  // -- Plan 9 Wave 9B1: workspace row + scenario evidence drawer --
+
+  it('mounts the workspace row with Summary active and the construction-basis indicator', async () => {
+    mockFundPageFetches();
+    await renderPage('/fund-model-results/123');
+
+    const nav = await screen.findByRole('navigation', { name: 'Fund workspace' });
+    const links = within(nav).getAllByRole('link');
+    expect(links.map((link) => link.textContent)).toEqual([
+      'Summary',
+      'Forecast',
+      'Portfolio Actuals',
+      'Reserves',
+      'Scenarios',
+      'Reports',
+    ]);
+    expect(within(nav).getByRole('link', { name: 'Summary' })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+    expect(within(nav).getByRole('link', { name: 'Portfolio Actuals' })).toHaveAttribute(
+      'href',
+      '/portfolio?tab=reserve-planning&fundId=123'
+    );
+    expect(within(nav).getByRole('link', { name: 'Reports' })).toHaveAttribute(
+      'href',
+      '/fund-model-results/123/reports'
+    );
+    expect(within(nav).getByText('Basis: Construction')).toBeInTheDocument();
+  });
+
+  it('opens the scenario evidence drawer with comparison evidence and restores focus on close', async () => {
+    const user = userEvent.setup();
+    const resp = readyResponse();
+    resp.sections.scenarios = validScenariosSection();
+    mockFundPageFetches({ results: resp });
+    await renderPage('/fund-model-results/123');
+
+    const trigger = await screen.findByTestId('scenario-evidence-trigger');
+    await user.click(trigger);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Fee sensitivity' });
+    await within(dialog).findByText('scenario_comparison');
+    expect(within(dialog).getByText('CURRENT')).toBeInTheDocument();
+    expect(within(dialog).getByText('Decision state')).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Fee sensitivity' })).not.toBeInTheDocument()
+    );
+    expect(trigger).toHaveFocus();
+  });
+
+  it('shows the D-C empty copy in the drawer when no scenario comparisons are disclosed', async () => {
+    const user = userEvent.setup();
+    mockFundPageFetches();
+    await renderPage('/fund-model-results/123');
+
+    const trigger = await screen.findByTestId('scenario-evidence-trigger');
+    await user.click(trigger);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Scenario comparison' });
+    expect(within(dialog).getByText('No scenario comparisons disclosed')).toBeInTheDocument();
+  });
+
+  it('presents a failed comparison fetch as facts unavailable in the drawer, never blank', async () => {
+    const user = userEvent.setup();
+    const resp = readyResponse();
+    resp.sections.scenarios = validScenariosSection();
+    fetchSpy.mockImplementation((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.endsWith('/results')) return Promise.resolve(jsonResponse(resp));
+      if (url.endsWith('/lifecycle-history'))
+        return Promise.resolve(jsonResponse(lifecycleHistoryResponse()));
+      if (url.endsWith('/results-comparison'))
+        return Promise.resolve(jsonResponse(resultsComparisonResponse()));
+      if (url.includes('/scenario-sets/') && url.endsWith('/comparison')) {
+        return Promise.resolve(new Response('server error', { status: 500 }));
+      }
+      return Promise.reject(new Error(`Unexpected fetch URL: ${url}`));
+    });
+    await renderPage('/fund-model-results/123');
+
+    const trigger = await screen.findByTestId('scenario-evidence-trigger');
+    await user.click(trigger);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Scenario comparison' });
+    await within(dialog).findByText('Facts unavailable', { selector: 'p' });
   });
 });
 

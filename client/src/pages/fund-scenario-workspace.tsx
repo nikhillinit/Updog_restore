@@ -9,8 +9,8 @@
  * @module client/pages/fund-scenario-workspace
  */
 
-import React, { useMemo, useState } from 'react';
-import { useRoute } from 'wouter';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useRoute, useSearch } from 'wouter';
 import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CreateMethodologyScenarioModal } from '@/components/scenarios/CreateMethodologyScenarioModal';
@@ -142,6 +142,35 @@ function useWorkspaceFundId() {
   const [, params] = useRoute(FUND_SCENARIO_WORKSPACE_ROUTE);
   const fundId = params?.fundId ?? null;
   return fundId && /^\d+$/.test(fundId) ? fundId : null;
+}
+
+export type SeedDeepLinkResolution =
+  | { kind: 'none' }
+  | { kind: 'open'; seedCompanyId: string | null }
+  | { kind: 'notice'; reason: string };
+
+/**
+ * Plan 9 Wave 9B1 deep link: `?seedPicker=1&seedCompany=<id>` opens the
+ * flag-gated seed picker. Validation mirrors the existing picker entry:
+ * flag-off or an invalid company reference lands with the picker closed and
+ * a muted inline notice (D-C deep-link failure state).
+ */
+export function resolveSeedDeepLink(
+  search: string,
+  seedPickerEnabled: boolean
+): SeedDeepLinkResolution {
+  const params = new URLSearchParams(search);
+  if (params.get('seedPicker') !== '1') {
+    return { kind: 'none' };
+  }
+  if (!seedPickerEnabled) {
+    return { kind: 'notice', reason: 'the scenario seed picker is not enabled' };
+  }
+  const seedCompany = params.get('seedCompany');
+  if (seedCompany !== null && !/^\d+$/.test(seedCompany)) {
+    return { kind: 'notice', reason: 'invalid company reference' };
+  }
+  return { kind: 'open', seedCompanyId: seedCompany };
 }
 
 function scenarioPayloadFromResults(results: FundResultsReadV1 | undefined) {
@@ -499,6 +528,17 @@ function FundScenarioWorkspacePage() {
   const [isSeedPickerOpen, setIsSeedPickerOpen] = useState(false);
   const [highlightedScenarioSetId, setHighlightedScenarioSetId] = useState<string | null>(null);
   const seedPickerEnabled = useFeatureFlag('enable_scenario_seed_picker');
+  const search = useSearch();
+  const seedDeepLink = useMemo(
+    () => resolveSeedDeepLink(search, seedPickerEnabled),
+    [search, seedPickerEnabled]
+  );
+
+  useEffect(() => {
+    if (seedDeepLink.kind === 'open') {
+      setIsSeedPickerOpen(true);
+    }
+  }, [seedDeepLink]);
 
   const scenarioSetsQuery = useQuery({
     queryKey: fundId ? scenarioSetListQueryKey(fundId) : ['fund-scenario-workspace', 'invalid'],
@@ -680,6 +720,11 @@ function FundScenarioWorkspacePage() {
             </span>
           </p>
         </div>
+        {seedDeepLink.kind === 'notice' && (
+          <p className="text-sm text-presson-textMuted" data-testid="seed-source-unavailable">
+            Seed source unavailable: {seedDeepLink.reason}
+          </p>
+        )}
       </header>
 
       <ScenarioActionList

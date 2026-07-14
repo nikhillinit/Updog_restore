@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createWouterWrapper } from '../../utils/withWouter';
 import FundScenarioWorkspacePage, {
   reserveStatusPollIntervalMs,
+  resolveSeedDeepLink,
 } from '../../../client/src/pages/fund-scenario-workspace';
 import type { FundScenarioComparisonV1 } from '../../../shared/contracts/fund-scenario-comparison-v1.contract';
 import type {
@@ -606,6 +607,87 @@ describe('FundScenarioWorkspacePage', () => {
       return url.endsWith('/cases/from-seed') && (init?.method ?? 'GET') === 'POST';
     });
     expect(caseMutations).toHaveLength(0);
+  });
+
+  // -- Plan 9 Wave 9B1: workspace row + seed deep link --
+
+  it('mounts the workspace row with Scenarios active and no Back-to-Results button', async () => {
+    mockWorkspaceFetches();
+    renderWorkspace();
+
+    expect(await screen.findByText('Scenario Workspace')).toBeInTheDocument();
+    const nav = screen.getByRole('navigation', { name: 'Fund workspace' });
+    const scenariosLink = within(nav).getByRole('link', { name: 'Scenarios' });
+    expect(scenariosLink).toHaveAttribute('aria-current', 'page');
+    expect(scenariosLink).toHaveAttribute('href', '/fund-model-results/123/scenarios');
+    expect(within(nav).getByText('Basis: Construction')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /back to results/i })).not.toBeInTheDocument();
+  });
+
+  it('opens the seed picker from a valid deep link while the flag is on', async () => {
+    vi.stubEnv('VITE_ENABLE_SCENARIO_SEED_PICKER', 'true');
+    mockWorkspaceFetches();
+    renderWorkspace('/fund-model-results/123/scenarios?seedPicker=1&seedCompany=101');
+
+    expect(
+      await screen.findByRole('dialog', { name: /start case from portfolio actuals/i })
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('seed-source-unavailable')).not.toBeInTheDocument();
+  });
+
+  it('lands with the picker closed and a muted notice on an invalid seedCompany deep link', async () => {
+    vi.stubEnv('VITE_ENABLE_SCENARIO_SEED_PICKER', 'true');
+    mockWorkspaceFetches();
+    renderWorkspace('/fund-model-results/123/scenarios?seedPicker=1&seedCompany=abc');
+
+    expect(await screen.findByTestId('seed-source-unavailable')).toHaveTextContent(
+      'Seed source unavailable: invalid company reference'
+    );
+    expect(
+      screen.queryByRole('dialog', { name: /start case from portfolio actuals/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('lands with the picker closed and a muted notice on a flag-off deep link', async () => {
+    vi.stubEnv('VITE_ENABLE_SCENARIO_SEED_PICKER', 'false');
+    mockWorkspaceFetches();
+    renderWorkspace('/fund-model-results/123/scenarios?seedPicker=1&seedCompany=101');
+
+    expect(await screen.findByTestId('seed-source-unavailable')).toHaveTextContent(
+      'Seed source unavailable: the scenario seed picker is not enabled'
+    );
+    expect(
+      screen.queryByRole('dialog', { name: /start case from portfolio actuals/i })
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe('resolveSeedDeepLink', () => {
+  it('ignores locations without the seedPicker flag', () => {
+    expect(resolveSeedDeepLink('', true)).toEqual({ kind: 'none' });
+    expect(resolveSeedDeepLink('seedCompany=101', true)).toEqual({ kind: 'none' });
+  });
+
+  it('validates seedCompany with the /^\\d+$/ idiom', () => {
+    expect(resolveSeedDeepLink('seedPicker=1&seedCompany=101', true)).toEqual({
+      kind: 'open',
+      seedCompanyId: '101',
+    });
+    expect(resolveSeedDeepLink('seedPicker=1', true)).toEqual({
+      kind: 'open',
+      seedCompanyId: null,
+    });
+    expect(resolveSeedDeepLink('seedPicker=1&seedCompany=1e3', true)).toEqual({
+      kind: 'notice',
+      reason: 'invalid company reference',
+    });
+  });
+
+  it('reports the flag-off reason before inspecting seedCompany', () => {
+    expect(resolveSeedDeepLink('seedPicker=1&seedCompany=abc', false)).toEqual({
+      kind: 'notice',
+      reason: 'the scenario seed picker is not enabled',
+    });
   });
 });
 
