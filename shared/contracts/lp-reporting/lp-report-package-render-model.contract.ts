@@ -25,6 +25,16 @@ const PositiveIntegerSchema = z.number().int().positive();
 const NonnegativeIntegerSchema = z.number().int().nonnegative();
 const HexSha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
 
+/**
+ * Render-model shape versions. Version 2 added the optional per-metric
+ * provenance fields (inputsHash, inputsHashShort, methodologyVersion,
+ * calculationVersion) to metric sections. Stored export replays compare
+ * content hashes only within the same render-model version; older stored
+ * artifacts replay against their own bytes/hash.
+ */
+export const CURRENT_REPORT_PACKAGE_RENDER_MODEL_VERSION = 2;
+export const ReportPackageRenderModelVersionSchema = z.union([z.literal(1), z.literal(2)]);
+
 export const ReportPackageRenderMetricSectionIdSchema = z.enum([
   'performance',
   'capital',
@@ -100,6 +110,10 @@ export const ReportPackageRenderMetricSectionSchema = z
   .object({
     sectionId: ReportPackageRenderMetricSectionIdSchema,
     title: z.string().min(1),
+    inputsHash: z.string().min(1).max(128).optional(),
+    inputsHashShort: z.string().length(12).optional(),
+    methodologyVersion: z.string().min(1).max(64).optional(),
+    calculationVersion: z.string().min(1).max(64).optional(),
     rows: z.array(ReportPackageRenderMetricRowSchema),
   })
   .strict();
@@ -151,7 +165,7 @@ export const ReportPackageRenderReferencesSchema = z
 
 export const ReportPackageRenderModelSchema = z
   .object({
-    renderModelVersion: z.literal(1),
+    renderModelVersion: ReportPackageRenderModelVersionSchema,
     source: ReportPackageRenderSourceSchema,
     fundDisplay: ReportPackageRenderFundDisplaySchema,
     metricSections: z.array(ReportPackageRenderMetricSectionSchema),

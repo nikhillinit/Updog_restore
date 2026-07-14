@@ -13,6 +13,7 @@ import { z } from 'zod';
 
 import { db } from '../../db';
 import {
+  CURRENT_REPORT_PACKAGE_RENDER_MODEL_VERSION,
   ReportPackagePayloadSchema,
   ReportPackageRecordSchema,
   ReportPackageRenderModelResponseSchema,
@@ -232,12 +233,22 @@ function metricRow(
   return { metricId, label, value, valueKind, currency };
 }
 
-function buildMetricSections(payload: ReportPackagePayload): ReportPackageRenderMetricSection[] {
+function buildMetricSections(
+  payload: ReportPackagePayload,
+  metricRun: LpMetricRun
+): ReportPackageRenderMetricSection[] {
   const { results } = payload;
+  const provenance = {
+    inputsHash: metricRun.inputsHash,
+    inputsHashShort: metricRun.inputsHash.slice(0, 12),
+    methodologyVersion: metricRun.methodologyVersion,
+    calculationVersion: metricRun.calculationVersion,
+  };
   return [
     {
       sectionId: 'performance',
       title: 'Performance',
+      ...provenance,
       rows: [
         metricRow('dpi', 'DPI', results.dpi, 'multiple'),
         metricRow('rvpi', 'RVPI', results.rvpi, 'multiple'),
@@ -250,6 +261,7 @@ function buildMetricSections(payload: ReportPackagePayload): ReportPackageRender
     {
       sectionId: 'capital',
       title: 'Capital',
+      ...provenance,
       rows: [
         metricRow(
           'contributionsTotal',
@@ -271,6 +283,7 @@ function buildMetricSections(payload: ReportPackagePayload): ReportPackageRender
     {
       sectionId: 'mark_confidence',
       title: 'Mark confidence',
+      ...provenance,
       rows: [
         metricRow(
           'markConfidenceHigh',
@@ -378,7 +391,7 @@ export async function getMetricRunReportPackageRenderModel(
 
   return ReportPackageRenderModelResponseSchema.parse({
     renderModel: {
-      renderModelVersion: 1,
+      renderModelVersion: CURRENT_REPORT_PACKAGE_RENDER_MODEL_VERSION,
       source: {
         reportPackageId: reportPackage.reportPackageId,
         fundId: reportPackage.fundId,
@@ -399,7 +412,7 @@ export async function getMetricRunReportPackageRenderModel(
         },
       },
       fundDisplay,
-      metricSections: buildMetricSections(payload),
+      metricSections: buildMetricSections(payload, metricRun),
       narrativeSections: buildNarrativeSections(payload),
       diagnostics: {
         engineVersion: payload.diagnostics.engineVersion,

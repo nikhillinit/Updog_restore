@@ -466,6 +466,159 @@ const PROTOTYPE_ROUTE_NOTE = 'Prototype route must return 501 with non_actionabl
 const LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT = 'metric_run_locked_or_exported';
 const LP_REPORT_PACKAGE_EXPORT_NOTE =
   'PRD #996 AC-1, AC-2, AC-3, D1, D2, and D3: Surface-A report-package export requires partner/admin role, denies empty-fundIds non-admin exports, requires metric-run workflow state locked or exported, and scopes visual watermarking out by ADR-027 because h9Stamp plus contentHash provide JSON/CSV hash attestation.';
+const LP_REPORT_PACKAGE_EXPORT_STATUS_NOTE =
+  'Readiness-metadata status GET (in-code Finding 8, ADR-040): partner/admin role, export-grant, and workflow-state gated, but intentionally H9-independent and non-exportable. It serves stored-export metadata only; the authoritative artifact GET re-validates H9 before any artifact bytes are served.';
+
+type LpReportingRoutePolicyGroup = Pick<
+  RoutePolicyEntry,
+  'workflowRequirement' | 'exportPolicy' | 'provenanceRequired'
+> &
+  Partial<Pick<RoutePolicyEntry, 'notes'>> & {
+    governanceRef: '/lp-reporting/metrics' | '/lp-reporting/imports';
+    routes: ReadonlyArray<readonly [method: string, path: string]>;
+  };
+
+const LP_REPORTING_ADDITIONAL_ROUTE_POLICY_GROUPS = [
+  {
+    governanceRef: '/lp-reporting/metrics',
+    routes: [['POST', '/api/funds/:fundId/metric-runs/dry-run']],
+    workflowRequirement: 'source_rows_and_preview_hash_generated',
+    exportPolicy: 'preview_only',
+    provenanceRequired: true,
+  },
+  {
+    governanceRef: '/lp-reporting/metrics',
+    routes: [['POST', '/api/funds/:fundId/metric-runs/commit']],
+    workflowRequirement: 'preview_hash_source_rows_and_idempotency_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+  },
+  {
+    governanceRef: '/lp-reporting/metrics',
+    routes: [
+      ['GET', '/api/funds/:fundId/metric-runs/latest'],
+      ['GET', '/api/funds/:fundId/metric-runs/:metricRunId'],
+      ['GET', '/api/funds/:fundId/metric-runs/:metricRunId/report-package'],
+      ['GET', '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records'],
+      ['GET', '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs'],
+      ['GET', '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId'],
+    ],
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+  },
+  {
+    governanceRef: '/lp-reporting/metrics',
+    routes: [['POST', '/api/funds/:fundId/metric-runs/:metricRunId/approve']],
+    workflowRequirement: 'draft_metric_run_evidence_and_expected_version_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+  },
+  {
+    governanceRef: '/lp-reporting/metrics',
+    routes: [['POST', '/api/funds/:fundId/metric-runs/:metricRunId/lock']],
+    workflowRequirement: 'approved_metric_run_and_expected_version_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+  },
+  {
+    governanceRef: '/lp-reporting/metrics',
+    routes: [['POST', '/api/funds/:fundId/metric-runs/:metricRunId/report-package']],
+    workflowRequirement: 'locked_metric_run_and_approved_narrative_versions_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+  },
+  {
+    governanceRef: '/lp-reporting/metrics',
+    routes: [['POST', '/api/funds/:fundId/metric-runs/:metricRunId/evidence-records']],
+    workflowRequirement: 'draft_metric_run_and_idempotency_key_dedup',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    notes:
+      'Idempotency on this route is key-only deduplication: a replayed Idempotency-Key returns the stored evidence record without comparing the request body, so a different body with the same key is silently accepted (metric-run-evidence-service). Request-hash comparison returning 409 is an ADR-040 follow-up.',
+  },
+  {
+    governanceRef: '/lp-reporting/metrics',
+    routes: [['POST', '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs']],
+    workflowRequirement: 'locked_metric_run_source_contract_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+  },
+  {
+    governanceRef: '/lp-reporting/metrics',
+    routes: [
+      ['PATCH', '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId'],
+    ],
+    workflowRequirement: 'locked_metric_run_draft_and_expected_version_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+  },
+  {
+    governanceRef: '/lp-reporting/metrics',
+    routes: [
+      ['POST', '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId/review'],
+    ],
+    workflowRequirement: 'locked_metric_run_edited_draft_and_expected_version_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+  },
+  {
+    governanceRef: '/lp-reporting/metrics',
+    routes: [
+      [
+        'POST',
+        '/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId/approve',
+      ],
+    ],
+    workflowRequirement: 'locked_metric_run_edited_review_and_expected_version_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+  },
+  {
+    governanceRef: '/lp-reporting/imports',
+    routes: [
+      ['POST', '/api/funds/:fundId/imports/ledger/dry-run'],
+      ['POST', '/api/funds/:fundId/imports/valuation-marks/dry-run'],
+    ],
+    workflowRequirement: 'reconciliation_preview_hash_generated',
+    exportPolicy: 'preview_only',
+    provenanceRequired: true,
+  },
+  {
+    governanceRef: '/lp-reporting/imports',
+    routes: [
+      ['POST', '/api/funds/:fundId/imports/ledger/commit'],
+      ['POST', '/api/funds/:fundId/imports/valuation-marks/commit'],
+    ],
+    workflowRequirement: 'clean_preview_hash_fund_references_and_source_hashes_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+  },
+] satisfies ReadonlyArray<LpReportingRoutePolicyGroup>;
+
+const LP_REPORTING_ADDITIONAL_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] =
+  LP_REPORTING_ADDITIONAL_ROUTE_POLICY_GROUPS.flatMap(({ routes, governanceRef, ...decision }) =>
+    routes.map(([method, path]) => ({
+      id: `api:${method.toLowerCase()}:${path}`,
+      method,
+      path,
+      lifecycle: 'durable_crud',
+      governanceRef,
+      surface:
+        governanceRef === '/lp-reporting/imports'
+          ? 'lp-reporting-imports-api'
+          : 'lp-reporting-metric-runs-api',
+      owner: ownerForFinancialSurface('lp_reporting'),
+      telemetryKey: telemetryKeyForRoute('api.route', path),
+      financialSurface: 'lp_reporting',
+      apiAuthBoundary: 'require_auth_and_fund_access',
+      fundScopeMode: 'route_param_fund_id',
+      ...decision,
+      staleBlocksExport: false,
+      humanReviewRequired: true,
+      performanceBudgetMs: null,
+    }))
+  );
 
 const PORTFOLIO_INTELLIGENCE_ROUTE_POLICY_DECISIONS: Readonly<PortfolioIntelligenceRouteDecisionMap> =
   {
@@ -796,6 +949,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     notes:
       'Idempotent case creation preserves the selected actuals snapshot and requires optimistic locking on the parent scenario.',
   },
+  ...LP_REPORTING_ADDITIONAL_ROUTE_POLICY_ENTRIES,
   {
     id: 'api:get:/api/funds/:fundId/metric-runs/:metricRunId/report-package/render-model',
     method: 'GET',
@@ -881,12 +1035,12 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     apiAuthBoundary: 'require_auth_fund_access_and_role',
     fundScopeMode: 'route_param_fund_id',
     workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
-    exportPolicy: 'qualified_exportable',
+    exportPolicy: 'not_exportable',
     provenanceRequired: true,
-    staleBlocksExport: true,
+    staleBlocksExport: false,
     humanReviewRequired: true,
     performanceBudgetMs: null,
-    notes: LP_REPORT_PACKAGE_EXPORT_NOTE,
+    notes: LP_REPORT_PACKAGE_EXPORT_STATUS_NOTE,
   },
   {
     id: 'api:get:/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json/artifact',
@@ -950,12 +1104,12 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     apiAuthBoundary: 'require_auth_fund_access_and_role',
     fundScopeMode: 'route_param_fund_id',
     workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
-    exportPolicy: 'qualified_exportable',
+    exportPolicy: 'not_exportable',
     provenanceRequired: true,
-    staleBlocksExport: true,
+    staleBlocksExport: false,
     humanReviewRequired: true,
     performanceBudgetMs: null,
-    notes: LP_REPORT_PACKAGE_EXPORT_NOTE,
+    notes: LP_REPORT_PACKAGE_EXPORT_STATUS_NOTE,
   },
   {
     id: 'api:get:/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv/artifact',
