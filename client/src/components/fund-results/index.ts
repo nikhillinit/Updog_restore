@@ -20,6 +20,7 @@ export { DecisionStateBadge } from './DecisionStateBadge';
 export { FinancialEvidenceDrawer } from './FinancialEvidenceDrawer';
 export { ForecastBasisControl, ScenarioOverlayControl } from './FundForecastModeSelector';
 export {
+  createFundResultsViewState,
   evidenceFromDualForecast,
   evidenceFromMoicBasis,
   evidenceFromScenarioComparison,

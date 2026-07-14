@@ -102,6 +102,19 @@ describe('MoicRankabilityBadge (DecisionStateBadge domain adapter)', () => {
     expect(tooltip).toHaveTextContent(/supporting facts basis could not be loaded/);
   });
 
+  it('keeps the badge focusable and tooltip-bearing when reasons is empty', async () => {
+    // Review P3-4: reasons: [] is schema-valid; the delegated badge must keep
+    // the previously unconditional focusable tooltip trigger.
+    render(<MoicRankabilityBadge basis={buildBasis({ reasons: [] })} />);
+
+    const label = screen.getByText('Actionable');
+    expect(label).toHaveAttribute('tabindex', '0');
+
+    fireEvent.focus(label);
+    const tooltip = await screen.findByRole('tooltip');
+    expect(tooltip.querySelectorAll('li')).toHaveLength(0);
+  });
+
   it('preserves the deterministic basis.reasons order in the remediation tooltip', async () => {
     render(
       <MoicRankabilityBadge

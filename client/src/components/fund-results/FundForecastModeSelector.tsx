@@ -112,7 +112,7 @@ export function ScenarioOverlayControl({ overlay, onClear }: ScenarioOverlayCont
         type="button"
         variant="ghost"
         size="sm"
-        className="h-7 px-2 text-xs text-pov-charcoal"
+        className="h-7 px-2 text-xs text-pov-charcoal motion-reduce:transition-none"
         aria-label={`Clear scenario ${overlay.name}`}
         onClick={onClear}
       >

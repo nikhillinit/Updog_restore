@@ -14,9 +14,11 @@ import {
   type FundMoicFactsBasisV1,
 } from '@shared/contracts/fund-moic-v1.contract';
 import {
+  createFundResultsViewState,
   evidenceFromDualForecast,
   evidenceFromMoicBasis,
   evidenceFromScenarioComparison,
+  type ScenarioOverlay,
 } from '@/components/fund-results/financial-evidence';
 
 const INPUT_HASH = 'b'.repeat(64);
@@ -317,5 +319,37 @@ describe('evidenceFromMoicBasis', () => {
     expect(evidence.trustState).toBe('not_actionable');
     expect(evidence.factsInputHash).toBeNull();
     expect(evidence.warnings).toEqual([]);
+  });
+});
+
+describe('createFundResultsViewState', () => {
+  // Review P2-3: the D-E invariant
+  // (overlay.kind === 'saved' ? basis === overlay.baseBasis : true).
+  const savedOverlay: ScenarioOverlay = {
+    kind: 'saved',
+    scenarioSetId: '00000000-0000-0000-0000-000000000111',
+    variantId: null,
+    name: 'Fee sensitivity',
+    baseBasis: 'construction',
+    baseInputHash: 'd'.repeat(64),
+    baseAsOfDate: '2026-07-01',
+  };
+
+  it('accepts a none overlay with either basis', () => {
+    expect(createFundResultsViewState('current', { kind: 'none' })).toEqual({
+      basis: 'current',
+      overlay: { kind: 'none' },
+    });
+  });
+
+  it('accepts a saved overlay whose baseBasis matches the basis', () => {
+    expect(createFundResultsViewState('construction', savedOverlay)).toEqual({
+      basis: 'construction',
+      overlay: savedOverlay,
+    });
+  });
+
+  it('throws when a saved overlay disagrees with the basis', () => {
+    expect(() => createFundResultsViewState('current', savedOverlay)).toThrow(/baseBasis/);
   });
 });

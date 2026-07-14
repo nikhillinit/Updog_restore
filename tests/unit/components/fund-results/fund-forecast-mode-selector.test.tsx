@@ -80,11 +80,14 @@ describe('ScenarioOverlayControl', () => {
     expect(screen.getByText('2026-07-01')).toHaveClass('tabular-nums');
   });
 
-  it('fires the clear action', () => {
+  it('fires the clear action from a motion-reduce-gated button', () => {
     const onClear = vi.fn();
     render(<ScenarioOverlayControl overlay={SAVED_OVERLAY} onClear={onClear} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clear scenario Fee sensitivity' }));
+    const clear = screen.getByRole('button', { name: 'Clear scenario Fee sensitivity' });
+    // Review P3-5: the Button base carries transition-colors; gate it.
+    expect(clear.className).toContain('motion-reduce:transition-none');
+    fireEvent.click(clear);
     expect(onClear).toHaveBeenCalledTimes(1);
   });
 

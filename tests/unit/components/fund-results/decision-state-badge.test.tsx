@@ -81,6 +81,19 @@ describe('DecisionStateBadge', () => {
     expect(items).toEqual(['Zulu reason.', 'Alpha reason.', 'Mike reason.']);
   });
 
+  it('stays tooltip-bearing when an explicitly supplied details array is empty', async () => {
+    // Review P3-4: presentation parity with the pre-delegation badge, which was
+    // unconditionally focusable even when the reason list was empty.
+    render(<DecisionStateBadge state="actionable" details={[]} />);
+
+    const trigger = screen.getByText('Actionable');
+    expect(trigger).toHaveAttribute('tabindex', '0');
+
+    fireEvent.focus(trigger);
+    const tooltip = await screen.findByRole('tooltip');
+    expect(tooltip.querySelectorAll('li')).toHaveLength(0);
+  });
+
   it('honors label, ariaLabel, and testIdPrefix overrides', () => {
     render(
       <DecisionStateBadge

@@ -34,11 +34,14 @@ export function DecisionStateBadge({
   const resolvedLabel = label ?? CANONICAL_LABELS[state];
   // D-A quiet badge: actionable = full ink; everything else = muted label.
   const labelClass = state === 'actionable' ? 'text-pov-charcoal' : 'text-presson-textMuted';
-  const hasDetails = details !== undefined && details.length > 0;
+  // An explicitly supplied details array (even empty) keeps the badge
+  // tooltip-bearing and focusable (review P3-4: parity with the
+  // pre-delegation MOIC badge, whose trigger was unconditional).
+  const tooltipBearing = details !== undefined;
 
   const badge = (
     <span
-      {...(hasDetails ? { tabIndex: 0 } : {})}
+      {...(tooltipBearing ? { tabIndex: 0 } : {})}
       {...(ariaLabel ? { 'aria-label': ariaLabel } : {})}
       className={`inline-flex items-center gap-1.5 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal-400 focus-visible:ring-offset-2 ${labelClass}`}
     >
@@ -59,7 +62,7 @@ export function DecisionStateBadge({
     </span>
   );
 
-  if (!hasDetails) {
+  if (!tooltipBearing) {
     return badge;
   }
 

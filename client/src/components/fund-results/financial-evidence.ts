@@ -53,6 +53,25 @@ export interface FundResultsViewState {
   overlay: ScenarioOverlay;
 }
 
+/**
+ * Validating factory for FundResultsViewState. Encodes the D-E invariant
+ * `overlay.kind === 'saved' ? basis === overlay.baseBasis : true` at the one
+ * construction point (review P2-3); throws on a mismatched saved overlay.
+ * The plain interface stays exported for backward-compatible 9B use.
+ */
+export function createFundResultsViewState(
+  basis: ForecastBasis,
+  overlay: ScenarioOverlay
+): FundResultsViewState {
+  if (overlay.kind === 'saved' && overlay.baseBasis !== basis) {
+    throw new Error(
+      `FundResultsViewState invariant violated: basis '${basis}' must equal ` +
+        `overlay.baseBasis '${overlay.baseBasis}' while a saved scenario overlay is applied`
+    );
+  }
+  return { basis, overlay };
+}
+
 const TRUST_STATE_WORST_FIRST = ['FAILED', 'UNAVAILABLE', 'PARTIAL', 'LIVE'] as const;
 
 function worstTrustState(counts: DualForecastTrustCounts): string {
@@ -152,7 +171,8 @@ export function evidenceFromScenarioComparison(
  */
 export interface MoicBasisEvidenceSource {
   rankability: 'actionable' | 'indicative' | 'not_actionable';
-  currencyStatus: string;
+  /** FundCompanyActualsCurrencyStatusSchema vocabulary, restated structurally (review P3-7). */
+  currencyStatus: 'base_currency' | 'mismatch_blocked' | 'unknown';
   factsInputHash: string | null;
   warnings: StructuredWarning[];
 }

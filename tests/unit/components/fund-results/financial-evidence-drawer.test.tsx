@@ -161,6 +161,66 @@ describe('FinancialEvidenceDrawer', () => {
     expect(screen.getByRole('button', { name: 'Open evidence' })).toHaveFocus();
   });
 
+  it('falls back to default focus restoration when returnFocusRef is never attached', async () => {
+    // Review P2-2: a null-current ref must NOT preventDefault (which would
+    // cancel Radix restoration and focus nothing).
+    function NullRefHarness() {
+      const [open, setOpen] = useState(false);
+      const detachedRef = useRef<HTMLElement>(null);
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>Open evidence</button>
+          <FinancialEvidenceDrawer
+            open={open}
+            onOpenChange={setOpen}
+            entityLabel="Acme Corp"
+            evidence={evidenceFixture()}
+            decisionState="indicative"
+            returnFocusRef={detachedRef}
+          />
+        </>
+      );
+    }
+    const user = userEvent.setup();
+    render(<NullRefHarness />);
+
+    await user.click(screen.getByRole('button', { name: 'Open evidence' }));
+    await screen.findByRole('dialog', { name: 'Acme Corp' });
+
+    await user.keyboard('{Escape}');
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Acme Corp' })).not.toBeInTheDocument()
+    );
+    // With a null-current ref the drawer must NOT preventDefault, leaving
+    // Radix's own close-autofocus default in charge. For a controlled,
+    // triggerless dialog that default focuses its (absent) Radix trigger and
+    // focus settles on the document body -- the close completes cleanly
+    // instead of throwing or leaving focus on a detached node.
+    await waitFor(() => expect(document.body).toHaveFocus());
+  });
+
+  it('renders version values with tabular-nums and motion-reduce-gated copy buttons', () => {
+    render(
+      <FinancialEvidenceDrawer
+        open
+        onOpenChange={() => {}}
+        entityLabel="Acme Corp"
+        evidence={evidenceFixture({ sourceVersion: '4' })}
+        decisionState="indicative"
+      />
+    );
+
+    // Review P3-6: version values are numeric text.
+    expect(screen.getByText('fund-moic-v1')).toHaveClass('tabular-nums');
+    expect(screen.getByText('4')).toHaveClass('tabular-nums');
+
+    // Review P3-5: the copy button inherits transition-colors and must be gated.
+    fireEvent.click(screen.getByRole('button', { name: 'Provenance' }));
+    expect(
+      screen.getByRole('button', { name: 'Copy full facts input hash for Acme Corp' }).className
+    ).toContain('motion-reduce:transition-none');
+  });
+
   it('renders the loading state as skeleton rows with tabular-nums placeholders', () => {
     render(
       <FinancialEvidenceDrawer
@@ -203,6 +263,23 @@ describe('FinancialEvidenceDrawer', () => {
     expect(container.innerHTML).not.toMatch(
       /success|positive|confidence-|charcoal-500|warning-dark|#10b981|#127E3D/
     );
+  });
+
+  it('never renders a blank failed reason', () => {
+    // Review P2-1: a whitespace-only statusReason falls back to disclosed copy.
+    render(
+      <FinancialEvidenceDrawer
+        open
+        onOpenChange={() => {}}
+        entityLabel="Acme Corp"
+        status="failed"
+        statusReason="   "
+        evidence={null}
+        decisionState="actionable"
+      />
+    );
+
+    expect(screen.getAllByText('No failure reason disclosed.').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders the empty state with the facts domain noun and the as-of date', () => {

@@ -7,16 +7,10 @@ import type { FinancialEvidence } from './financial-evidence';
 
 export type FinancialEvidenceDrawerStatus = 'ready' | 'loading' | 'empty' | 'failed';
 
-export interface FinancialEvidenceDrawerProps {
+interface FinancialEvidenceDrawerBaseProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   entityLabel: string;
-  /** Presentation state (AMENDMENT 6 model). Defaults to 'ready'. */
-  status?: FinancialEvidenceDrawerStatus;
-  /** Reason copy for the failed state; never rendered blank. */
-  statusReason?: string;
-  /** Non-null REQUIRED when status='ready'; may be null otherwise. */
-  evidence: FinancialEvidence | null;
   decisionState: DecisionState;
   /** Inline primary reason rendered next to the decision-state badge. */
   decisionReason?: string;
@@ -27,6 +21,21 @@ export interface FinancialEvidenceDrawerProps {
   /** AMENDMENT 8: focus is restored to this element when the panel closes. */
   returnFocusRef?: RefObject<HTMLElement | null>;
 }
+
+/**
+ * Presentation state (AMENDMENT 6 model), discriminated so the compiler
+ * rejects the blank-drawer combinations (review P2-1): 'ready' (the default)
+ * REQUIRES non-null evidence, and 'failed' REQUIRES a statusReason.
+ */
+export type FinancialEvidenceDrawerProps = FinancialEvidenceDrawerBaseProps &
+  (
+    | { status?: 'ready'; evidence: FinancialEvidence; statusReason?: string }
+    | { status: 'loading' | 'empty'; evidence: FinancialEvidence | null; statusReason?: string }
+    | { status: 'failed'; evidence: FinancialEvidence | null; statusReason: string }
+  );
+
+/** Runtime backstop so the failed state never renders a blank reason (D-C). */
+const FALLBACK_FAILED_REASON = 'No failure reason disclosed.';
 
 /**
  * D-D content-transition cap: drawer-owned classes cap the sheet slide at
@@ -65,7 +74,7 @@ function HashField({
             type="button"
             variant="ghost"
             size="sm"
-            className="h-7 px-2 text-xs text-pov-charcoal"
+            className="h-7 px-2 text-xs text-pov-charcoal motion-reduce:transition-none"
             aria-label={copyLabel}
             onClick={() => {
               if (!navigator.clipboard) {
@@ -120,7 +129,11 @@ export function FinancialEvidenceDrawer({
   const failed = status === 'failed';
   // D-C: facts FAILED presents as not_actionable, never success-colored.
   const badgeState: DecisionState = failed ? 'not_actionable' : decisionState;
-  const inlineReason = failed ? statusReason : decisionReason;
+  const failedReason =
+    statusReason !== undefined && statusReason.trim() !== ''
+      ? statusReason
+      : FALLBACK_FAILED_REASON;
+  const inlineReason = failed ? failedReason : decisionReason;
 
   const headerSlot = (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1">
@@ -148,7 +161,7 @@ export function FinancialEvidenceDrawer({
     body = (
       <div className="space-y-2 text-sm">
         <p className="font-medium text-pov-charcoal">Facts unavailable</p>
-        {statusReason ? <p className="text-presson-textMuted">{statusReason}</p> : null}
+        <p className="text-presson-textMuted">{failedReason}</p>
       </div>
     );
   } else if (status === 'empty') {
@@ -159,9 +172,11 @@ export function FinancialEvidenceDrawer({
       <div className="space-y-4 text-sm">
         <div className="grid gap-3 sm:grid-cols-2">
           <EvidenceField label="Source">{evidence.source}</EvidenceField>
-          <EvidenceField label="Contract version">{evidence.contractVersion}</EvidenceField>
+          <EvidenceField label="Contract version">
+            <span className="tabular-nums">{evidence.contractVersion}</span>
+          </EvidenceField>
           <EvidenceField label="Source version">
-            {evidence.sourceVersion ?? 'Unavailable'}
+            <span className="tabular-nums">{evidence.sourceVersion ?? 'Unavailable'}</span>
           </EvidenceField>
           <EvidenceField label="Trust state">{evidence.trustState}</EvidenceField>
           <EvidenceField label="Currency status">
@@ -227,8 +242,13 @@ export function FinancialEvidenceDrawer({
       {...(returnFocusRef
         ? {
             onCloseAutoFocus: (event: Event) => {
-              event.preventDefault();
-              returnFocusRef.current?.focus();
+              // Review P2-2: only take over restoration when there is a
+              // connected target; otherwise leave Radix's default intact.
+              const target = returnFocusRef.current;
+              if (target && target.isConnected) {
+                event.preventDefault();
+                target.focus();
+              }
             },
           }
         : {})}
