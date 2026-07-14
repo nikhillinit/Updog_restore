@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { DecisionStateBadge } from '@/components/fund-results/DecisionStateBadge';
 import type { FundMoicFactsBasisV1 } from '@shared/contracts/fund-moic-v1.contract';
 
 interface MoicBasisDisclosureProps {
@@ -78,52 +78,29 @@ function reasonCopy(basis: FundMoicFactsBasisV1 | null): string[] {
     : basis.reasons.map((reason) => REASON_COPY[reason]);
 }
 
+/**
+ * Thin domain adapter over the generic DecisionStateBadge (design decision
+ * D-G): `facts_unavailable` is a MOIC domain LABEL mapped onto the
+ * not_actionable presentation, not a fourth generic state. Remediation copy
+ * keeps the deterministic `basis.reasons` order.
+ */
 export function MoicRankabilityBadge({ basis }: MoicRankabilityBadgeProps) {
-  const rankability = basis?.rankability ?? 'facts_unavailable';
-  const copy = reasonCopy(basis);
-  const label =
-    rankability === 'actionable'
-      ? 'Actionable'
-      : rankability === 'indicative'
-        ? 'Indicative'
-        : rankability === 'not_actionable'
-          ? 'Not actionable'
-          : 'Facts unavailable';
-  const labelClass = rankability === 'actionable' ? 'text-pov-charcoal' : 'text-charcoal-500';
-
+  if (basis === null) {
+    return (
+      <DecisionStateBadge
+        state="not_actionable"
+        label="Facts unavailable"
+        details={[FACTS_UNAVAILABLE_COPY]}
+        testIdPrefix="moic-rankability"
+      />
+    );
+  }
   return (
-    <TooltipProvider delayDuration={0}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span
-            tabIndex={0}
-            className={`inline-flex items-center gap-1.5 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal-400 focus-visible:ring-offset-2 ${labelClass}`}
-          >
-            {rankability === 'indicative' ? (
-              <span
-                aria-hidden="true"
-                data-testid="moic-rankability-dot"
-                className="h-2 w-2 rounded-full border border-warning/50 bg-warning/10 text-warning-dark"
-              />
-            ) : rankability === 'not_actionable' || rankability === 'facts_unavailable' ? (
-              <span
-                aria-hidden="true"
-                data-testid="moic-rankability-dot"
-                className="h-2 w-2 rounded-full border border-charcoal-400 bg-transparent"
-              />
-            ) : null}
-            {label}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent className="max-w-sm motion-reduce:animate-none motion-reduce:transition-none">
-          <ul className="space-y-1">
-            {copy.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <DecisionStateBadge
+      state={basis.rankability}
+      details={reasonCopy(basis)}
+      testIdPrefix="moic-rankability"
+    />
   );
 }
 

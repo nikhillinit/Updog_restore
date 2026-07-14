@@ -85,11 +85,10 @@ describe('MoicBasisDisclosure', () => {
     render(<MoicBasisDisclosure basis={basis} investmentName="Beta Labs" />);
 
     const indicative = screen.getByText('Indicative');
-    expect(indicative).toHaveClass('text-charcoal-500');
+    expect(indicative).toHaveClass('text-presson-textMuted');
     expect(screen.getByTestId('moic-rankability-dot')).toHaveClass(
       'border-warning/50',
-      'bg-warning/10',
-      'text-warning-dark'
+      'bg-warning/10'
     );
     expect(
       screen.getByText('Refresh the stale Planning FMV before relying on this ranking.')
@@ -135,7 +134,7 @@ describe('MoicBasisDisclosure', () => {
     });
     const { unmount } = render(<MoicBasisDisclosure basis={basis} investmentName="Gamma Bio" />);
 
-    expect(screen.getByText('Not actionable')).toHaveClass('text-charcoal-500');
+    expect(screen.getByText('Not actionable')).toHaveClass('text-presson-textMuted');
     expect(screen.getByTestId('moic-rankability-dot')).toHaveClass(
       'border-charcoal-400',
       'bg-transparent'
