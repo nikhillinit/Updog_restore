@@ -140,6 +140,7 @@ function finalizeFixture(): FundFinalizeV1 {
     vintageYear: 2026,
     modelVersion: 'lean-release-db-proof',
     establishmentDate: '2026-01-15',
+    modelInputsAsOfDate: '2026-06-30',
     isEvergreen: false,
     fundLife: 10,
     investmentPeriod: 5,
