@@ -145,6 +145,7 @@ jobs:
           METRICS_KEY: ${{ secrets.METRICS_KEY }}
           PROD_SMOKE_USERNAME: ${{ secrets.PROD_SMOKE_USERNAME }}
           PROD_SMOKE_PASSWORD: ${{ secrets.PROD_SMOKE_PASSWORD }}
+          PROD_SMOKE_UNGRANTED_FUND_ID: ${{ secrets.PROD_SMOKE_UNGRANTED_FUND_ID }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           RUM_ALLOWED_ORIGIN: ${{ vars.PRODUCTION_URL }}
         run: |
@@ -153,6 +154,7 @@ jobs:
           : "${METRICS_KEY:?METRICS_KEY is required}"
           : "${PROD_SMOKE_USERNAME:?PROD_SMOKE_USERNAME is required}"
           : "${PROD_SMOKE_PASSWORD:?PROD_SMOKE_PASSWORD is required}"
+          : "${PROD_SMOKE_UNGRANTED_FUND_ID:?PROD_SMOKE_UNGRANTED_FUND_ID is required}"
           : "${VERCEL_AUTOMATION_BYPASS_SECRET:?VERCEL_AUTOMATION_BYPASS_SECRET is required}"
           : "${RUM_ALLOWED_ORIGIN:?RUM_ALLOWED_ORIGIN is required}"
 
@@ -166,6 +168,7 @@ jobs:
           METRICS_KEY: ${{ secrets.METRICS_KEY }}
           PROD_SMOKE_USERNAME: ${{ secrets.PROD_SMOKE_USERNAME }}
           PROD_SMOKE_PASSWORD: ${{ secrets.PROD_SMOKE_PASSWORD }}
+          PROD_SMOKE_UNGRANTED_FUND_ID: ${{ secrets.PROD_SMOKE_UNGRANTED_FUND_ID }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           RUM_ALLOWED_ORIGIN: ${{ vars.PRODUCTION_URL }}
         run: npx playwright test tests/smoke/production-boundaries.spec.ts --project=production --reporter=line
@@ -244,10 +247,12 @@ jobs:
           METRICS_KEY: ${{ secrets.METRICS_KEY }}
           PROD_SMOKE_USERNAME: ${{ secrets.PROD_SMOKE_USERNAME }}
           PROD_SMOKE_PASSWORD: ${{ secrets.PROD_SMOKE_PASSWORD }}
+          PROD_SMOKE_UNGRANTED_FUND_ID: ${{ secrets.PROD_SMOKE_UNGRANTED_FUND_ID }}
         run: |
           : "${PRODUCTION_URL:?PRODUCTION_URL is required}"
           : "${HEALTH_KEY:?HEALTH_KEY is required}"
           : "${METRICS_KEY:?METRICS_KEY is required}"
           : "${PROD_SMOKE_USERNAME:?PROD_SMOKE_USERNAME is required}"
           : "${PROD_SMOKE_PASSWORD:?PROD_SMOKE_PASSWORD is required}"
+          : "${PROD_SMOKE_UNGRANTED_FUND_ID:?PROD_SMOKE_UNGRANTED_FUND_ID is required}"
           npx playwright test tests/smoke/production-boundaries.spec.ts --project=production --reporter=line
