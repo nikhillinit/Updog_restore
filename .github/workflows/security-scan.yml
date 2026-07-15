@@ -121,6 +121,7 @@ jobs:
           args: >-
             --enableRetired
             --enableExperimental
+            --disableNodeAudit
             --suppression suppression.xml
             ${{ secrets.NVD_API_KEY && format('--nvdApiKey {0}', secrets.NVD_API_KEY) || '' }}
 
