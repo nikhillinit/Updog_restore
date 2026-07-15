@@ -36,6 +36,7 @@ export default defineConfig({
       'tests/integration/migrations/investments-id-fund-unique.test.ts',
       'tests/integration/investment-scenario-capability.test.ts',
       'tests/integration/scenarios/scenario-case-seed-persistence.test.ts',
+      'tests/integration/scenarios/company-scenario-create-persistence.test.ts',
       // DISABLED: Pre-existing issues - fix in separate PRs
       // 'tests/integration/ScenarioMatrixCache.integration.test.ts', // bucket allocation validation
       // 'tests/integration/cache-monitoring.integration.test.ts', // server/db.ts imports database-mock

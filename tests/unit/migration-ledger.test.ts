@@ -43,6 +43,7 @@ const expectedJournaledDriftPatchFiles = [
   '0030_allocation_scenarios_reconcile_drift.sql',
   '0031_user_identity_grants_revocation.sql',
   '0032_scenario_case_seed_provenance.sql',
+  '0033_company_scenario_create_requests.sql',
 ].sort();
 
 afterEach(() => {

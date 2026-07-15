@@ -34,6 +34,7 @@ export * from './schema/fund';
 export * from './schema/portfolio';
 export * from './schema/scenario';
 export * from './schema/scenario-case-seed-provenance';
+export * from './schema/company-scenario-create-requests';
 export * from './schema/shares';
 export * from './schema/allocation-scenarios';
 export * from './schema/user';

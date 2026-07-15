@@ -24,7 +24,8 @@ import {
   scenarioCaseSeedProvenance,
 } from '@shared/schema';
 import { FundIdParamSchema } from '@shared/schemas/portfolio-route';
-import { eq, and, inArray } from 'drizzle-orm';
+import { parseFundIdParam } from '@shared/number';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
   calculateWeightedSummary,
   validateProbabilities,
@@ -46,23 +47,16 @@ import {
   createScenarioCaseFromSeed,
   ScenarioCaseSeedPersistenceError,
 } from '../services/scenarios/scenario-case-seed-persistence-service';
+import {
+  CompanyScenarioCreateIdempotencyConflictError,
+  CompanyScenarioCreateInProgressError,
+  CompanyScenarioCreateScopeError,
+  createCompanyScenario,
+} from '../services/scenarios/company-scenario-create-service';
 
 const routeLog = createRouteLogger('scenario-analysis');
 
 const router = Router();
-
-/**
- * Parse a :companyId route param as a positive integer, or null when absent or
- * non-canonical. Parsed once per request and reused for both the fund-scope
- * resolution and the scenario query so the two can never diverge.
- */
-function parseCompanyIdParam(raw: string | undefined): number | null {
-  if (!raw) {
-    return null;
-  }
-  const parsed = Number.parseInt(raw, 10);
-  return Number.isInteger(parsed) && parsed >= 1 ? parsed : null;
-}
 
 // ============================================================================
 // Validation Schemas
@@ -91,6 +85,19 @@ const CreateScenarioSchema = z.object({
   name: z.string().optional(),
   description: z.string().optional(),
 });
+
+const CompanyScenarioSummarySchema = z
+  .object({
+    id: z.string().uuid(),
+    name: z.string(),
+    version: z.number().int(),
+    updatedAt: z.string().datetime(),
+    isLocked: z.boolean(),
+    caseCount: z.number().int().nonnegative(),
+  })
+  .strict();
+
+const CompanyScenarioListResponseSchema = z.array(CompanyScenarioSummarySchema);
 
 const ReserveSuggestionsSchema = z.object({
   scenario_id: z.string(),
@@ -316,6 +323,57 @@ async function auditLog(params: {
 // ============================================================================
 
 router['get'](
+  '/companies/:companyId/scenarios',
+  requireAuth(),
+  async (req: Request, res: Response) => {
+    try {
+      const companyId = firstString(req.params['companyId']);
+      const companyIdNum = parseFundIdParam(companyId);
+      if (companyIdNum === null) {
+        return res.status(400).json({ error: 'Invalid company ID' });
+      }
+      if (!(await enforceCompanyFundScope(req, res, companyIdNum))) {
+        return;
+      }
+
+      const rows = await db
+        .select({
+          id: scenarios.id,
+          name: scenarios.name,
+          version: scenarios.version,
+          updatedAt: scenarios.updatedAt,
+          lockedAt: scenarios.lockedAt,
+          caseCount: sql<number>`count(${scenarioCases.id})::int`,
+        })
+        .from(scenarios)
+        .leftJoin(scenarioCases, eq(scenarioCases.scenarioId, scenarios.id))
+        .where(eq(scenarios.companyId, companyIdNum))
+        .groupBy(scenarios.id)
+        .orderBy(desc(scenarios.updatedAt), asc(scenarios.id));
+
+      return res.json(
+        CompanyScenarioListResponseSchema.parse(
+          rows.map((row) => ({
+            id: row.id,
+            name: row.name,
+            version: row.version,
+            updatedAt: row.updatedAt.toISOString(),
+            isLocked: row.lockedAt !== null,
+            caseCount: Number(row.caseCount),
+          }))
+        )
+      );
+    } catch (error: unknown) {
+      routeLog.error('List company scenarios error:', error);
+      return res.status(500).json({
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+router['get'](
   '/funds/:fundId/scenario-analysis/seeds',
   requireAuth(),
   validateScenarioSeedFundId,
@@ -514,7 +572,7 @@ router['get'](
         return res.status(400).json({ error: 'Missing required parameters' });
       }
 
-      const companyIdNum = parseCompanyIdParam(companyId);
+      const companyIdNum = parseFundIdParam(companyId);
       if (companyIdNum === null) {
         return res.status(400).json({ error: 'Invalid company ID' });
       }
@@ -702,42 +760,57 @@ router['post'](
         return res.status(400).json({ error: 'Missing company ID' });
       }
 
-      const companyIdNum = parseCompanyIdParam(companyId);
+      const companyIdNum = parseFundIdParam(companyId);
       if (companyIdNum === null) {
         return res.status(400).json({ error: 'Invalid company ID' });
       }
+      const fundId = await resolveCompanyFundId(companyIdNum);
       if (!(await enforceCompanyFundScope(req, res, companyIdNum))) {
         return;
       }
+      if (fundId === null || fundId === undefined) {
+        return res.status(404).json({ error: 'Company not found' });
+      }
 
-      // Validate request body before destructuring to preserve types
-      const { name, description } = CreateScenarioSchema.parse(req.body);
-      const userId = (req as ScenarioRequest).userId;
+      const rawIdempotencyKey = req.get('Idempotency-Key');
+      const idempotencyKey = rawIdempotencyKey?.trim() ?? '';
+      if (idempotencyKey.length === 0) {
+        return res.status(400).json({
+          error: 'missing_idempotency_key',
+          message: 'Idempotency-Key header is required',
+        });
+      }
+      if (idempotencyKey.length > 128) {
+        return res.status(400).json({
+          error: 'invalid_idempotency_key',
+          message: 'Idempotency-Key must be 128 characters or fewer',
+        });
+      }
 
-      const scenario = await db
-        .insert(scenarios)
-        .values({
-          companyId: companyIdNum,
-          name: name || 'New Scenario',
-          description,
-          version: 1,
-          isDefault: false,
-          ...(userId && { createdBy: userId }),
-        })
-        .returning();
-
-      // Audit log
-      await auditLog({
-        userId,
-        entityType: 'scenario',
-        entityId: scenario[0]?.id ?? '',
-        action: 'CREATE',
+      const parsed = CreateScenarioSchema.parse(req.body);
+      const actorId = parseFundIdParam((req as ScenarioRequest).userId);
+      const response = await createCompanyScenario({
+        fundId,
+        companyId: companyIdNum,
+        name: parsed.name || 'New Scenario',
+        description: parsed.description ?? null,
+        idempotencyKey,
+        actorId,
       });
 
-      res.status(201).json(scenario[0]);
+      return res.status(201).json(response);
     } catch (error: unknown) {
+      if (error instanceof CompanyScenarioCreateIdempotencyConflictError) {
+        return res.status(409).json({ error: error.code, message: error.message });
+      }
+      if (error instanceof CompanyScenarioCreateInProgressError) {
+        return res.status(409).json({ error: error.code, message: error.message });
+      }
+      if (error instanceof CompanyScenarioCreateScopeError) {
+        return res.status(404).json({ error: 'Company not found' });
+      }
       routeLog.error('Create scenario error:', error);
-      res.status(500).json({
+      return res.status(500).json({
         error: 'Internal server error',
         message: error instanceof Error ? error.message : 'Unknown error',
       });
@@ -763,7 +836,7 @@ router['patch'](
         return res.status(400).json({ error: 'Missing required parameters' });
       }
 
-      const companyIdNum = parseCompanyIdParam(companyId);
+      const companyIdNum = parseFundIdParam(companyId);
       if (companyIdNum === null) {
         return res.status(400).json({ error: 'Invalid company ID' });
       }
@@ -914,7 +987,7 @@ router['delete'](
         return res.status(400).json({ error: 'Missing required parameters' });
       }
 
-      const companyIdNum = parseCompanyIdParam(companyId);
+      const companyIdNum = parseFundIdParam(companyId);
       if (companyIdNum === null) {
         return res.status(400).json({ error: 'Invalid company ID' });
       }
@@ -984,7 +1057,7 @@ router['post'](
         return res.status(400).json({ error: 'Missing company ID' });
       }
 
-      const companyIdNum = parseCompanyIdParam(companyId);
+      const companyIdNum = parseFundIdParam(companyId);
       if (companyIdNum === null) {
         return res.status(400).json({ error: 'Invalid company ID' });
       }
