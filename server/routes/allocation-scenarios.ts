@@ -23,6 +23,10 @@ import { sendBodyValidationError } from '../lib/validation-response.js';
 import { parseFundIdParam } from '@shared/number';
 import { firstString } from '../lib/request-values';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
+import { requireWriteRole } from '../lib/auth/jwt.js';
+
+const WRITE_CONFIG_ROLES = ['partner', 'admin'] as const;
+const WRITE_SCENARIO_ROLES = ['partner', 'admin', 'analyst'] as const;
 
 interface HttpError extends Error {
   statusCode?: number;
@@ -456,6 +460,7 @@ router.get(
 
 router.post(
   '/funds/:fundId/allocation-scenarios',
+  requireWriteRole(WRITE_SCENARIO_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const route = parseFundRoute(req, res);
     if (!route) {
@@ -479,6 +484,7 @@ router.post(
 
 router.post(
   '/funds/:fundId/allocation-scenarios/:scenarioId/decisions',
+  requireWriteRole(WRITE_CONFIG_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const route = parseScenarioRoute(req, res);
     if (!route) {
@@ -506,6 +512,7 @@ router.post(
 
 router.patch(
   '/funds/:fundId/allocation-scenarios/:scenarioId',
+  requireWriteRole(WRITE_SCENARIO_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const route = parseScenarioRoute(req, res);
     if (!route) {
@@ -529,6 +536,7 @@ router.patch(
 
 router.patch(
   '/funds/:fundId/allocation-scenarios/:scenarioId/decisions/:decisionId',
+  requireWriteRole(WRITE_CONFIG_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const route = parseDecisionRoute(req, res);
     if (!route) {
@@ -557,6 +565,7 @@ router.patch(
 
 router.post(
   '/funds/:fundId/allocation-scenarios/:scenarioId/sync',
+  requireWriteRole(WRITE_SCENARIO_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const route = parseScenarioRoute(req, res);
     if (!route) {
@@ -583,6 +592,7 @@ router.post(
 
 router.post(
   '/funds/:fundId/allocation-scenarios/:scenarioId/apply',
+  requireWriteRole(WRITE_CONFIG_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const route = parseScenarioRoute(req, res);
     if (!route) {

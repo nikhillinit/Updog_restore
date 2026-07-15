@@ -45,6 +45,19 @@ const DECISION_ID = '00000000-0000-0000-0000-000000000301';
 function makeApp() {
   const app = express();
   app.use(express.json());
+  app.use((req, _res, next) => {
+    req.user = {
+      id: 'analyst-1',
+      sub: 'analyst-1',
+      email: 'analyst@example.com',
+      role: 'analyst',
+      roles: ['analyst'],
+      fundIds: [1],
+      ip: '127.0.0.1',
+      userAgent: 'vitest',
+    };
+    next();
+  });
   app.use(allocationScenarioRouter);
   app.use((_req, res) => res.status(404).json({ error: 'not_found' }));
   return app;
