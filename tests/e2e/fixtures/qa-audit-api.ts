@@ -3,6 +3,7 @@ import {
   DualForecastResponseSchema,
   type DualForecastResponse,
 } from '../../../shared/contracts/dual-forecast/dual-forecast-response.contract';
+import type { FundMoicRankingsResponseV2 } from '../../../shared/contracts/fund-moic-v2.contract';
 import { makeDashboardSummaryFixture } from './dashboard-summary';
 
 export const MOCK_FUND = {
@@ -51,6 +52,54 @@ export const MOCK_COMPANIES = [
     status: 'active',
   },
 ];
+
+export function makeNeutralFundMoicRankingsResponseV2(fundId: number): FundMoicRankingsResponseV2 {
+  return {
+    contractVersion: '2.1.0',
+    fundId,
+    rankings: [],
+    provenance: { mode: 'legacy', warnings: [] },
+    latestReconciliation: null,
+    materiality: { status: 'not_run', candidateMaterial: false, epsilon: 1e-8 },
+    modePreview: {
+      calculationKey: 'fund_moic_rankings_exit_probability',
+      configuredMode: 'off',
+      effectiveMode: 'off',
+      killSwitchActive: false,
+      shadowStartedAt: null,
+      eligibleAt: null,
+      residencyDaysRequired: 7,
+      residencyStatus: 'not_applicable',
+      currentSourceMatchesAccepted: true,
+      unreconciledEditsPresent: false,
+      blockers: [],
+      version: 0,
+    },
+    moicInputSummary: {
+      sourceVersion: 'moic-round-fmv-facts-v2',
+      explicitExitProbabilityCount: 0,
+      defaultedExitProbabilityCount: 0,
+      activationBlockingDefaultedExitProbabilityCount: 0,
+      explicitReserveExitMultipleCount: 0,
+      defaultedReserveExitMultipleCount: 0,
+      activationBlockingDefaultedReserveExitMultipleCount: 0,
+    },
+    actualsProvenanceSummary: {
+      factsStatus: 'available',
+      factsInputHash: null,
+      companyCount: 0,
+      trustStateCounts: { LIVE: 0, PARTIAL: 0, UNAVAILABLE: 0, FAILED: 0 },
+      defaultedEconomicInputCount: 0,
+      warnings: [],
+    },
+    roundEvidenceSummary: {
+      activeRoundCount: 0,
+      activeOverrideCount: 0,
+      warningCodes: [],
+    },
+    generatedAt: '2026-07-01T00:00:00.000Z',
+  };
+}
 
 const unexpectedApiRequestsByPage = new WeakMap<Page, string[]>();
 
@@ -1108,14 +1157,33 @@ export async function installQaAuditApi(page: Page) {
       return;
     }
 
+    if (
+      request.method() === 'GET' &&
+      url.pathname === '/api/funds/1/moic/rankings' &&
+      url.search === '?contract=v2'
+    ) {
+      await fulfillJson(route, makeNeutralFundMoicRankingsResponseV2(MOCK_FUND.id));
+      return;
+    }
+
     if (url.pathname === '/api/funds/1/allocations/latest') {
       await fulfillJson(route, {
+        fund_id: MOCK_FUND.id,
         companies: [],
         metadata: {
           total_planned_cents: 0,
           total_deployed_cents: 0,
           companies_count: 0,
+          allocation_facts_missing_count: 0,
           last_updated_at: null,
+          actuals_drift_summary: {
+            facts_status: 'available',
+            drifted_company_count: 0,
+            material_company_count: 0,
+            degraded_company_count: 0,
+            facts_input_hash: null,
+            as_of_date: '2026-01-31',
+          },
         },
       });
       return;

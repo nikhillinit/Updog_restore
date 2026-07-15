@@ -1,6 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { makeDashboardSummaryFixture } from './fixtures/dashboard-summary';
-import { makeDualForecastResponse } from './fixtures/qa-audit-api';
+import {
+  makeDualForecastResponse,
+  makeNeutralFundMoicRankingsResponseV2,
+} from './fixtures/qa-audit-api';
 
 const FUND_ONE = {
   id: 1,
@@ -320,6 +323,63 @@ async function installQaApiStubs(page: Page, scenario: FundsScenario) {
           meta: {
             cacheHit: false,
             computeTimeMs: 1,
+          },
+        }),
+      });
+      return;
+    }
+
+    if (
+      request.method() === 'GET' &&
+      url.pathname === '/api/funds/1/moic/rankings' &&
+      url.search === '?contract=v2'
+    ) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(makeNeutralFundMoicRankingsResponseV2(FUND_ONE.id)),
+      });
+      return;
+    }
+
+    if (
+      request.method() === 'GET' &&
+      url.pathname === '/api/funds/1/scenario-sets' &&
+      url.search === ''
+    ) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ scenarioSets: [] }),
+      });
+      return;
+    }
+
+    if (
+      request.method() === 'GET' &&
+      url.pathname === '/api/funds/1/allocations/latest' &&
+      url.search === ''
+    ) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          fund_id: FUND_ONE.id,
+          companies: [],
+          metadata: {
+            total_planned_cents: 0,
+            total_deployed_cents: 0,
+            companies_count: 0,
+            allocation_facts_missing_count: 0,
+            last_updated_at: null,
+            actuals_drift_summary: {
+              facts_status: 'available',
+              drifted_company_count: 0,
+              material_company_count: 0,
+              degraded_company_count: 0,
+              facts_input_hash: null,
+              as_of_date: '2026-01-31',
+            },
           },
         }),
       });
