@@ -1,7 +1,10 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 import { PortfolioOverviewResponseV1Schema } from '../../shared/contracts/portfolio-overview-v1.contract';
 import { makeDashboardSummaryFixture } from './fixtures/dashboard-summary';
-import { makeDualForecastResponse } from './fixtures/qa-audit-api';
+import {
+  makeDualForecastResponse,
+  makeNeutralFundMoicRankingsResponseV2,
+} from './fixtures/qa-audit-api';
 
 const ROUTE_READY_TIMEOUT_MS = 60_000;
 const APP_BASE_URL = process.env.BASE_URL ?? 'http://localhost:4173';
@@ -524,15 +527,43 @@ async function installRouteFidelityApi(page: Page): Promise<RouteFidelityApiTrac
 
     if (
       request.method() === 'GET' &&
+      url.pathname === `/api/funds/${FIDELITY_FUND.id}/moic/rankings` &&
+      url.search === '?contract=v2'
+    ) {
+      await fulfillJson(route, makeNeutralFundMoicRankingsResponseV2(FIDELITY_FUND.id));
+      return;
+    }
+
+    if (
+      request.method() === 'GET' &&
+      url.pathname === `/api/funds/${FIDELITY_FUND.id}/scenario-sets` &&
+      url.search === ''
+    ) {
+      await fulfillJson(route, { scenarioSets: [] });
+      return;
+    }
+
+    if (
+      request.method() === 'GET' &&
       url.pathname === `/api/funds/${FIDELITY_FUND.id}/allocations/latest`
     ) {
       await fulfillJson(route, {
+        fund_id: FIDELITY_FUND.id,
         companies: [],
         metadata: {
           total_planned_cents: 0,
           total_deployed_cents: 0,
           companies_count: 0,
+          allocation_facts_missing_count: 0,
           last_updated_at: null,
+          actuals_drift_summary: {
+            facts_status: 'available',
+            drifted_company_count: 0,
+            material_company_count: 0,
+            degraded_company_count: 0,
+            facts_input_hash: null,
+            as_of_date: '2026-02-01',
+          },
         },
       });
       return;
