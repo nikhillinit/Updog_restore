@@ -165,8 +165,11 @@ export function resolveSeedDeepLink(
     return { kind: 'notice', reason: 'the scenario seed picker is not enabled' };
   }
   const seedCompany = params.get('seedCompany');
-  // Review P2-3: strict positive-integer idiom (rejects 0 and leading zeros).
-  if (seedCompany !== null && !/^[1-9]\d*$/.test(seedCompany)) {
+  // Review P2-3 plus 9C2b-P1: canonical positive safe integer only.
+  if (
+    seedCompany !== null &&
+    (!/^[1-9]\d*$/.test(seedCompany) || !Number.isSafeInteger(Number(seedCompany)))
+  ) {
     return { kind: 'notice', reason: 'invalid company reference' };
   }
   return { kind: 'open', seedCompanyId: seedCompany };

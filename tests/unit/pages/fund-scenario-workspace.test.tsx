@@ -145,6 +145,21 @@ describe('FundScenarioWorkspacePage', () => {
         );
       }
 
+      if (method === 'GET' && url === '/api/companies/101/scenarios') {
+        return Promise.resolve(
+          jsonResponse([
+            {
+              id: '00000000-0000-4000-8000-000000000101',
+              name: 'Base scenario',
+              version: 4,
+              updatedAt: '2026-07-15T10:00:00.000Z',
+              isLocked: false,
+              caseCount: 2,
+            },
+          ])
+        );
+      }
+
       if (method === 'GET' && url.endsWith('/comparison')) {
         const setId = url.split('/scenario-sets/')[1]?.split('/')[0] ?? '';
         return Promise.resolve(jsonResponse(scenarioComparisonResponse(setId)));
@@ -612,7 +627,6 @@ describe('FundScenarioWorkspacePage', () => {
     expect(
       await screen.findByRole('dialog', { name: /start case from portfolio actuals/i })
     ).toBeInTheDocument();
-    expect(screen.getByText(/select a company scenario to create a case/i)).toBeInTheDocument();
     const caseMutations = fetchSpy.mock.calls.filter(([input, init]) => {
       const url = typeof input === 'string' ? input : input.toString();
       return url.endsWith('/cases/from-seed') && (init?.method ?? 'GET') === 'POST';
@@ -767,7 +781,7 @@ describe('resolveSeedDeepLink', () => {
       kind: 'open',
       seedCompanyId: null,
     });
-    for (const invalid of ['1e3', '0', '007', '-4', 'abc']) {
+    for (const invalid of ['1e3', '0', '007', '-4', 'abc', '9007199254740992']) {
       expect(resolveSeedDeepLink(`seedPicker=1&seedCompany=${invalid}`, true)).toEqual({
         kind: 'notice',
         reason: 'invalid company reference',

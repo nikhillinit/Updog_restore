@@ -9,10 +9,16 @@ import { ScenarioFactsSeedPicker } from '../../../../client/src/components/scena
 
 const pickerState = vi.hoisted(() => ({
   flagEnabled: true,
-  hookResult: {
+  seedHookResult: {
     seeds: [] as unknown[],
     response: undefined as unknown,
     isLoading: false,
+    error: null as Error | null,
+  },
+  companyHookResult: {
+    scenarios: [] as unknown[],
+    isLoading: false,
+    isFetching: false,
     error: null as Error | null,
   },
 }));
@@ -22,11 +28,36 @@ vi.mock('@/core/flags/flagAdapter', () => ({
 }));
 
 vi.mock('@/hooks/useFundScenarioSeeds', () => ({
-  useFundScenarioSeeds: () => pickerState.hookResult,
+  useFundScenarioSeeds: () => pickerState.seedHookResult,
+}));
+
+vi.mock('@/hooks/useCompanyScenarios', () => ({
+  useCompanyScenarios: () => pickerState.companyHookResult,
 }));
 
 const SCENARIO_ID = '00000000-0000-4000-8000-000000000101';
 const SCENARIO_CASE_ID = '00000000-0000-4000-8000-000000000201';
+
+function makeScenario(
+  overrides: Partial<{
+    id: string;
+    name: string;
+    version: number;
+    updatedAt: string;
+    isLocked: boolean;
+    caseCount: number;
+  }> = {}
+) {
+  return {
+    id: SCENARIO_ID,
+    name: 'Base scenario',
+    version: 4,
+    updatedAt: '2026-07-15T10:00:00.000Z',
+    isLocked: false,
+    caseCount: 2,
+    ...overrides,
+  };
+}
 
 function makeLiveSeed() {
   return ScenarioCaseSeedV1Schema.parse({
@@ -123,7 +154,6 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 interface RenderPickerOptions {
-  scenario?: { id: string; version: number; locked_at?: string | null } | null;
   createdFromFactsHash?: string;
   initialSelectedCompanyId?: string;
 }
@@ -134,10 +164,6 @@ function renderPicker(options: RenderPickerOptions = {}) {
   });
   const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
   const onOpenChange = vi.fn();
-  const scenario =
-    options.scenario === undefined
-      ? { id: SCENARIO_ID, version: 4, locked_at: null }
-      : options.scenario;
 
   const picker = () => (
     <QueryClientProvider client={queryClient}>
@@ -145,7 +171,6 @@ function renderPicker(options: RenderPickerOptions = {}) {
         fundId="7"
         open
         onOpenChange={onOpenChange}
-        scenario={scenario ?? undefined}
         createdFromFactsHash={options.createdFromFactsHash}
         {...(options.initialSelectedCompanyId !== undefined
           ? { initialSelectedCompanyId: options.initialSelectedCompanyId }
@@ -166,6 +191,7 @@ function renderPicker(options: RenderPickerOptions = {}) {
 
 async function selectLiveSeedAndFillRequiredInputs(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('radio', { name: /company 101/i }));
+  await user.click(screen.getByRole('radio', { name: /base scenario/i }));
   await user.type(screen.getByLabelText(/case name/i), 'Base case');
   await user.type(screen.getByLabelText(/probability/i), '0.4');
   await user.type(screen.getByLabelText(/^exit valuation/i), '20000000');
@@ -177,10 +203,16 @@ describe('ScenarioFactsSeedPicker', () => {
   beforeEach(() => {
     pickerState.flagEnabled = true;
     const response = availableResponse();
-    pickerState.hookResult = {
+    pickerState.seedHookResult = {
       seeds: response.seeds,
       response,
       isLoading: false,
+      error: null,
+    };
+    pickerState.companyHookResult = {
+      scenarios: [makeScenario()],
+      isLoading: false,
+      isFetching: false,
       error: null,
     };
     globalThis.fetch = vi.fn();
@@ -196,7 +228,12 @@ describe('ScenarioFactsSeedPicker', () => {
 
   it('preselects the deep-linked company once its seed is disclosed (review P2-3)', async () => {
     const response = availableResponse([makeLiveSeed(), makePartialSeed()]);
-    pickerState.hookResult = { seeds: response.seeds, response, isLoading: false, error: null };
+    pickerState.seedHookResult = {
+      seeds: response.seeds,
+      response,
+      isLoading: false,
+      error: null,
+    };
     renderPicker({ initialSelectedCompanyId: '102' });
 
     await waitFor(() => {
@@ -207,7 +244,12 @@ describe('ScenarioFactsSeedPicker', () => {
 
   it('ignores a deep-linked company that is not among the disclosed seeds', async () => {
     const response = availableResponse([makeLiveSeed(), makePartialSeed()]);
-    pickerState.hookResult = { seeds: response.seeds, response, isLoading: false, error: null };
+    pickerState.seedHookResult = {
+      seeds: response.seeds,
+      response,
+      isLoading: false,
+      error: null,
+    };
     renderPicker({ initialSelectedCompanyId: '999' });
 
     expect(
@@ -219,7 +261,7 @@ describe('ScenarioFactsSeedPicker', () => {
 
   it('does not override a manual choice when the deep-linked seed arrives after a refetch', async () => {
     const firstResponse = availableResponse([makeLiveSeed()]);
-    pickerState.hookResult = {
+    pickerState.seedHookResult = {
       seeds: firstResponse.seeds,
       response: firstResponse,
       isLoading: false,
@@ -232,7 +274,7 @@ describe('ScenarioFactsSeedPicker', () => {
     expect(screen.getByRole('radio', { name: /company 101/i })).toBeChecked();
 
     const refetchedResponse = availableResponse([makeLiveSeed(), makePartialSeed()]);
-    pickerState.hookResult = {
+    pickerState.seedHookResult = {
       seeds: refetchedResponse.seeds,
       response: refetchedResponse,
       isLoading: false,
@@ -269,7 +311,7 @@ describe('ScenarioFactsSeedPicker', () => {
 
   it('renders PARTIAL unavailable values as facts unavailable and requires their inputs', async () => {
     const response = availableResponse([makePartialSeed()]);
-    pickerState.hookResult = {
+    pickerState.seedHookResult = {
       seeds: response.seeds,
       response,
       isLoading: false,
@@ -288,7 +330,7 @@ describe('ScenarioFactsSeedPicker', () => {
 
   it('renders currency-blocked values as muted text and never as zero', async () => {
     const response = availableResponse([makeCurrencyBlockedSeed()]);
-    pickerState.hookResult = {
+    pickerState.seedHookResult = {
       seeds: response.seeds,
       response,
       isLoading: false,
@@ -304,7 +346,7 @@ describe('ScenarioFactsSeedPicker', () => {
   });
 
   it('renders a failed facts envelope without a selectable seed', () => {
-    pickerState.hookResult = {
+    pickerState.seedHookResult = {
       seeds: [],
       response: failedResponse(),
       isLoading: false,
@@ -333,20 +375,25 @@ describe('ScenarioFactsSeedPicker', () => {
     const user = userEvent.setup();
     renderPicker();
     await user.click(screen.getByRole('radio', { name: /company 101/i }));
+    await user.click(screen.getByRole('radio', { name: /base scenario/i }));
     await user.click(screen.getByRole('button', { name: /create case/i }));
 
     expect(globalThis.fetch).not.toHaveBeenCalled();
     expect(await screen.findAllByText('Required')).toHaveLength(5);
   });
 
-  it('hides mutation for locked scenarios', () => {
-    renderPicker({
-      scenario: {
-        id: SCENARIO_ID,
-        version: 4,
-        locked_at: '2026-07-13T18:00:00.000Z',
-      },
-    });
+  it('hides mutation for a selected locked scenario', async () => {
+    pickerState.companyHookResult = {
+      scenarios: [makeScenario({ name: 'Locked scenario', isLocked: true })],
+      isLoading: false,
+      isFetching: false,
+      error: null,
+    };
+    const user = userEvent.setup();
+    renderPicker();
+
+    await user.click(screen.getByRole('radio', { name: /company 101/i }));
+    await user.click(screen.getByRole('radio', { name: /locked scenario/i }));
 
     expect(screen.getByText('Scenario is locked')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /create case/i })).not.toBeInTheDocument();
@@ -407,6 +454,9 @@ describe('ScenarioFactsSeedPicker', () => {
       expect(invalidateSpy).toHaveBeenCalledWith({
         queryKey: ['fund-scenario-analysis', '7', 'seeds'],
       });
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: ['company-scenarios', '101'],
+      });
     });
   });
 
@@ -416,13 +466,16 @@ describe('ScenarioFactsSeedPicker', () => {
       .fn()
       .mockResolvedValue(jsonResponse({ error: 'version_conflict', message: 'stale' }, 409));
     globalThis.fetch = fetchSpy;
-    renderPicker();
+    const { invalidateSpy } = renderPicker();
 
     await selectLiveSeedAndFillRequiredInputs(user);
     await user.click(screen.getByRole('button', { name: /create case/i }));
 
     expect(await screen.findByText(/scenario changed.*try again/i)).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('radio', { name: /base scenario/i })).not.toBeChecked();
+    expect(screen.queryByRole('button', { name: /create case/i })).not.toBeInTheDocument();
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['company-scenarios', '101'] });
   });
 
   it('refreshes disclosed seeds when the server rejects a stale seed', async () => {
@@ -450,12 +503,141 @@ describe('ScenarioFactsSeedPicker', () => {
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
-  it('opens in discovery-only mode without issuing a mutation when no scenario is supplied', () => {
-    renderPicker({ scenario: null });
+  it('requires an explicit scenario selection and never creates one implicitly', async () => {
+    const user = userEvent.setup();
+    renderPicker();
 
+    await user.click(screen.getByRole('radio', { name: /company 101/i }));
     expect(screen.getByText(/select a company scenario to create a case/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /create case/i })).not.toBeInTheDocument();
     expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it('keeps loading, error, and empty scenario states nonactionable', async () => {
+    const user = userEvent.setup();
+    pickerState.companyHookResult = {
+      scenarios: [],
+      isLoading: true,
+      isFetching: true,
+      error: null,
+    };
+    const { rerenderPicker } = renderPicker();
+
+    await user.click(screen.getByRole('radio', { name: /company 101/i }));
+    expect(screen.getByText(/loading company scenarios/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /create case/i })).not.toBeInTheDocument();
+
+    pickerState.companyHookResult = {
+      scenarios: [],
+      isLoading: false,
+      isFetching: false,
+      error: new Error('bad response'),
+    };
+    rerenderPicker();
+    expect(screen.getByText(/company scenarios could not be loaded/i)).toBeInTheDocument();
+
+    pickerState.companyHookResult = {
+      scenarios: [],
+      isLoading: false,
+      isFetching: false,
+      error: null,
+    };
+    rerenderPicker();
+    expect(screen.getByText(/no company scenarios yet/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /create new scenario/i })).toBeEnabled();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+
+  it('makes retained scenario rows nonactionable during refetch and refetch error', async () => {
+    const user = userEvent.setup();
+    const { rerenderPicker } = renderPicker();
+
+    await user.click(screen.getByRole('radio', { name: /company 101/i }));
+    await user.click(screen.getByRole('radio', { name: /base scenario/i }));
+    expect(screen.getByRole('button', { name: /create case/i })).toBeEnabled();
+
+    pickerState.companyHookResult = {
+      scenarios: [makeScenario()],
+      isLoading: false,
+      isFetching: true,
+      error: null,
+    };
+    rerenderPicker();
+    expect(screen.getByText(/loading company scenarios/i)).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /base scenario/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /create case/i })).not.toBeInTheDocument();
+
+    pickerState.companyHookResult = {
+      scenarios: [makeScenario()],
+      isLoading: false,
+      isFetching: false,
+      error: new Error('refetch failed'),
+    };
+    rerenderPicker();
+    expect(screen.getByText(/company scenarios could not be loaded/i)).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /base scenario/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /create case/i })).not.toBeInTheDocument();
+  });
+
+  it('creates a scenario only on explicit action and binds the returned scenario', async () => {
+    const user = userEvent.setup();
+    pickerState.companyHookResult = {
+      scenarios: [],
+      isLoading: false,
+      isFetching: false,
+      error: null,
+    };
+    const createdScenario = makeScenario({ name: 'New Scenario', caseCount: 0 });
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ scenario: createdScenario, replay: false }, 201));
+    globalThis.fetch = fetchSpy;
+    const { invalidateSpy } = renderPicker();
+
+    await user.click(screen.getByRole('radio', { name: /company 101/i }));
+    expect(fetchSpy).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: /create new scenario/i }));
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/api/companies/101/scenarios');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(String(init.body))).toEqual({});
+    expect((init.headers as Record<string, string>)['Idempotency-Key']).toEqual(expect.any(String));
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['company-scenarios', '101'] });
+    expect(screen.getByRole('radio', { name: /new scenario/i })).toBeChecked();
+  });
+
+  it('reuses the create-new idempotency key when the user retries an uncertain failure', async () => {
+    const user = userEvent.setup();
+    pickerState.companyHookResult = {
+      scenarios: [],
+      isLoading: false,
+      isFetching: false,
+      error: null,
+    };
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ error: 'temporary_failure' }, 500))
+      .mockResolvedValueOnce(
+        jsonResponse(
+          { scenario: makeScenario({ name: 'New Scenario', caseCount: 0 }), replay: true },
+          201
+        )
+      );
+    globalThis.fetch = fetchSpy;
+    renderPicker();
+
+    await user.click(screen.getByRole('radio', { name: /company 101/i }));
+    await user.click(screen.getByRole('button', { name: /create new scenario/i }));
+    expect(await screen.findByText(/scenario creation failed/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /create new scenario/i }));
+
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
+    const firstHeaders = fetchSpy.mock.calls[0]?.[1]?.headers as Record<string, string>;
+    const secondHeaders = fetchSpy.mock.calls[1]?.[1]?.headers as Record<string, string>;
+    expect(firstHeaders['Idempotency-Key']).toBe(secondHeaders['Idempotency-Key']);
+    expect(screen.getByRole('radio', { name: /new scenario/i })).toBeChecked();
   });
 
   it('closes on Escape through the dialog focus trap', async () => {

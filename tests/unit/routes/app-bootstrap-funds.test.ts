@@ -140,6 +140,17 @@ describe('makeApp bootstrap surface', () => {
     expect(res.body).toHaveProperty('error', 'Invalid fund ID');
   });
 
+  it('surfaces the company scenario list on the bootstrap app', async () => {
+    const app = await loadApp();
+
+    const res = await request(app)
+      .get('/api/companies/01/scenarios')
+      .set('Authorization', await authorizationHeader());
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Invalid company ID' });
+  });
+
   it('surfaces unified fund metrics on the bootstrap app', async () => {
     const app = await loadApp();
 
