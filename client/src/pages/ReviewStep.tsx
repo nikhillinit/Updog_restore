@@ -78,6 +78,7 @@ export default function ReviewStep() {
   const vintageYear = useFundSelector((s) => s.vintageYear);
   const fundLife = useFundSelector((s) => s.fundLife);
   const establishmentDate = useFundSelector((s) => s.establishmentDate);
+  const modelInputsAsOfDate = useFundSelector((s) => s.modelInputsAsOfDate);
   const stages = useFundSelector((s) => s.stages);
   const waterfallType = useFundSelector((s) => s.waterfallType);
   const recyclingEnabled = useFundSelector((s) => s.recyclingEnabled);
@@ -134,6 +135,12 @@ export default function ReviewStep() {
             label: 'Fund Life',
             value: fundLife ? `${fundLife} years` : 'Not set',
             status: fundLife ? 'ok' : 'warning',
+            stepNumber: 1,
+          },
+          {
+            label: 'Model Inputs As-Of',
+            value: modelInputsAsOfDate ?? 'Required before publish',
+            status: modelInputsAsOfDate ? 'ok' : 'missing',
             stepNumber: 1,
           },
         ],
@@ -196,6 +203,7 @@ export default function ReviewStep() {
     waterfallType,
     recyclingEnabled,
     establishmentDate,
+    modelInputsAsOfDate,
   ]);
 
   // Validation summary

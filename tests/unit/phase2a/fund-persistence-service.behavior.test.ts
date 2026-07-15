@@ -42,7 +42,10 @@ vi.mock('../../../server/services/economics-calculation-service', () => ({
   runEconomicsCalculation: mockRunEconomicsCalculation,
 }));
 
-import { FundPersistenceService } from '../../../server/services/fund-persistence-service';
+import {
+  FundPersistenceService,
+  ModelInputsAsOfDateRequiredError,
+} from '../../../server/services/fund-persistence-service';
 
 function whereResolved(value: unknown) {
   const where = vi.fn().mockResolvedValue(value);
@@ -84,19 +87,46 @@ describe('FundPersistenceService publishDraft behavior', () => {
     delete process.env['ENABLE_GP_ECONOMICS_ENGINE'];
   });
 
+  it('rejects a direct publish before mutation when the owner date is absent', async () => {
+    const service = new FundPersistenceService();
+    const tx = {
+      query: {
+        fundConfigs: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: 10,
+            fundId: 1,
+            version: 2,
+            config: { fundSize: 50_000_000 },
+          }),
+        },
+      },
+      update: vi.fn(),
+      insert: vi.fn(),
+    };
+    mockDb.transaction.mockImplementation(async (callback: (tx: typeof tx) => Promise<unknown>) =>
+      callback(tx)
+    );
+
+    await expect(
+      service.publishDraft(1, { reserve: null, pacing: null, cohort: null }, 99)
+    ).rejects.toBeInstanceOf(ModelInputsAsOfDateRequiredError);
+    expect(tx.update).not.toHaveBeenCalled();
+    expect(tx.insert).not.toHaveBeenCalled();
+  });
+
   it('runs authoritative calculations inline when no producer queues are available', async () => {
     const service = new FundPersistenceService();
     const draft = {
       id: 11,
       fundId: 1,
       version: 3,
-      config: { fundSize: 125_000_000 },
+      config: { fundSize: 125_000_000, modelInputsAsOfDate: '2026-06-30' },
     };
     const published = {
       id: 11,
       fundId: 1,
       version: 3,
-      config: { fundSize: 125_000_000 },
+      config: { fundSize: 125_000_000, modelInputsAsOfDate: '2026-06-30' },
       isDraft: false,
       isPublished: true,
     };
@@ -146,6 +176,11 @@ describe('FundPersistenceService publishDraft behavior', () => {
     expect(result.run.lastError).toBeNull();
     expect(mockRunReserveCalculation).toHaveBeenCalledTimes(1);
     expect(mockRunPacingCalculation).toHaveBeenCalledTimes(1);
+    const runValues = tx.insert.mock.results[0]?.value.values.mock.calls[0]?.[0];
+    expect(runValues).toMatchObject({
+      modelInputsAsOfDate: '2026-06-30',
+      comparisonLineageVersion: 'comparison-lineage-v1',
+    });
   });
 
   it('runs experimental economics inline when the flag and assumptions are present', async () => {
@@ -154,6 +189,7 @@ describe('FundPersistenceService publishDraft behavior', () => {
     const config = {
       fundName: 'Economics Fund',
       fundSize: 125_000_000,
+      modelInputsAsOfDate: '2026-06-30',
       economicsAssumptions: { version: 'v1' },
     };
     const draft = {
@@ -236,7 +272,7 @@ describe('FundPersistenceService publishDraft behavior', () => {
       id: 21,
       fundId: 1,
       version: 4,
-      config: { fundSize: 90_000_000 },
+      config: { fundSize: 90_000_000, modelInputsAsOfDate: '2026-06-30' },
       isDraft: false,
       isPublished: true,
     };
@@ -308,13 +344,13 @@ describe('FundPersistenceService publishDraft behavior', () => {
       id: 31,
       fundId: 1,
       version: 5,
-      config: { fundSize: 110_000_000 },
+      config: { fundSize: 110_000_000, modelInputsAsOfDate: '2026-06-30' },
     };
     const published = {
       id: 31,
       fundId: 1,
       version: 5,
-      config: { fundSize: 110_000_000 },
+      config: { fundSize: 110_000_000, modelInputsAsOfDate: '2026-06-30' },
       isDraft: false,
       isPublished: true,
     };

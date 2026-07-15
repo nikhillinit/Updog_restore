@@ -5,6 +5,7 @@ import {
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import type { PoolClient } from 'pg';
 import { getReserveScenarioCalculationIdentity } from './fund-scenario-reserve-calculation-service.js';
+import { findCompletedScenarioRun } from './fund-scenario-calculation-run-service.js';
 
 interface SnapshotStatusRow {
   id: number;
@@ -51,23 +52,24 @@ function eventStatus(
   }
 }
 
-async function findLatestScenarioSnapshot(
+async function findCompletedRunSnapshot(
   client: PoolClient,
   fundId: number,
   scenarioSetId: string,
+  snapshotId: number,
   inputHash: string
 ): Promise<SnapshotStatusRow | null> {
   const result = await client.query<SnapshotStatusRow>(
     `SELECT id, correlation_id, created_at
        FROM fund_snapshots
       WHERE fund_id = $1
-        AND scenario_set_id = $2
+        AND id = $2
+        AND scenario_set_id = $3
         AND type = 'SCENARIOS'
-        AND metadata ->> 'input_hash' = $3
+        AND state_hash = $4
         AND metadata ->> 'calculation_mode' = 'async_reserve_allocation'
-      ORDER BY created_at DESC
       LIMIT 1`,
-    [fundId, scenarioSetId, inputHash]
+    [fundId, snapshotId, scenarioSetId, inputHash]
   );
 
   return result.rows[0] ?? null;
@@ -77,7 +79,8 @@ async function findLatestScenarioEvent(
   client: PoolClient,
   fundId: number,
   scenarioSetId: string,
-  inputHash: string
+  inputHash: string,
+  hashKind: 'scenario-input-hash-v1' | 'scenario-input-hash-v2'
 ): Promise<EventStatusRow | null> {
   const result = await client.query<EventStatusRow>(
     `SELECT event_type, change_summary_json, created_at
@@ -91,9 +94,13 @@ async function findLatestScenarioEvent(
           'calculated'
         )
         AND change_summary_json ->> 'input_hash' = $3
+        AND COALESCE(
+          change_summary_json ->> 'hash_kind',
+          'scenario-input-hash-v1'
+        ) = $4
       ORDER BY created_at DESC, id DESC
       LIMIT 1`,
-    [fundId, scenarioSetId, inputHash]
+    [fundId, scenarioSetId, inputHash, hashKind]
   );
 
   return result.rows[0] ?? null;
@@ -193,13 +200,35 @@ export async function getFundScenarioCalculationStatus(
   const identity = await getReserveScenarioCalculationIdentity(fundId, scenarioSetId);
 
   return transaction(async (client) => {
-    const snapshot = await findLatestScenarioSnapshot(
+    const completedRun = await findCompletedScenarioRun(client, {
+      fundId,
+      scenarioSetId,
+      sourceConfigId: identity.sourceConfigId,
+      sourceConfigVersion: identity.sourceConfigVersion,
+      calculationMode: 'async_reserve_allocation',
+      overrideType: 'reserve_allocation',
+      inputHash: identity.inputHash,
+      hashKind: identity.inputLineage.hashKind,
+      modelInputsAsOfDate: identity.inputLineage.modelInputsAsOfDate,
+      comparisonLineageVersion: identity.inputLineage.comparisonLineageVersion,
+    });
+    const snapshot =
+      completedRun?.snapshotId == null
+        ? null
+        : await findCompletedRunSnapshot(
+            client,
+            fundId,
+            scenarioSetId,
+            completedRun.snapshotId,
+            identity.inputHash
+          );
+    const event = await findLatestScenarioEvent(
       client,
       fundId,
       scenarioSetId,
-      identity.inputHash
+      identity.inputHash,
+      identity.inputLineage.hashKind
     );
-    const event = await findLatestScenarioEvent(client, fundId, scenarioSetId, identity.inputHash);
 
     return buildCalculationStatus({
       fundId,

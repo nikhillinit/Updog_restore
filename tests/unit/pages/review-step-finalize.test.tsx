@@ -51,6 +51,7 @@ const mockFundState = {
   vintageYear: 2026,
   fundLife: 10,
   establishmentDate: '2026-03-01',
+  modelInputsAsOfDate: '2026-06-30' as string | undefined,
   stages: [{ id: 'stg-1', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
   waterfallType: 'american' as const,
   recyclingEnabled: false,
@@ -129,6 +130,7 @@ describe('ReviewStep single-submit via finalize', () => {
     mockUseFlag.mockReset().mockReturnValue(true);
     mockFundState.draftFundId = 77;
     mockFundState.draftServerReady = true;
+    mockFundState.modelInputsAsOfDate = '2026-06-30';
 
     // Default: finalizeFund succeeds
     mockFinalizeFund.mockReset().mockResolvedValue({
@@ -154,6 +156,7 @@ describe('ReviewStep single-submit via finalize', () => {
       recyclingEnabled: false,
       followOnChecks: { A: 1, B: 2, C: 3 },
       establishmentDate: '2026-03-01',
+      modelInputsAsOfDate: '2026-06-30',
       isEvergreen: false,
       fundLife: 10,
       investmentPeriod: 5,
@@ -186,6 +189,16 @@ describe('ReviewStep single-submit via finalize', () => {
     expect(screen.getByText('Economics')).toBeInTheDocument();
     expect(screen.getByText('Strategy')).toBeInTheDocument();
     expect(screen.getByText('Finalize Test Fund')).toBeInTheDocument();
+  });
+
+  it('renders the owner date and blocks publication when it is absent', () => {
+    mockFundState.modelInputsAsOfDate = undefined;
+
+    render(<ReviewStep />);
+
+    expect(screen.getByText('Model Inputs As-Of')).toBeInTheDocument();
+    expect(screen.getByText('Required before publish')).toBeInTheDocument();
+    expect(screen.getByTestId('create-fund-button')).toBeDisabled();
   });
 
   it('calls finalizeFund with correct payload on submit', async () => {
