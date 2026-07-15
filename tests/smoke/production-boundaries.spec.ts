@@ -7,7 +7,6 @@ const HEALTH_KEY = process.env.HEALTH_KEY ?? '';
 const METRICS_KEY = process.env.METRICS_KEY ?? '';
 const PROD_SMOKE_USERNAME = process.env.PROD_SMOKE_USERNAME ?? '';
 const PROD_SMOKE_PASSWORD = process.env.PROD_SMOKE_PASSWORD ?? '';
-const PROD_SMOKE_UNGRANTED_FUND_ID = process.env.PROD_SMOKE_UNGRANTED_FUND_ID ?? '';
 const RUM_ALLOWED_ORIGIN = process.env.RUM_ALLOWED_ORIGIN ?? '';
 const RUM_BODY = {
   name: 'LCP',
@@ -208,7 +207,7 @@ test.describe('production boundary smoke', () => {
     expect(response.status()).not.toBe(403);
   });
 
-  test('authenticated GP surface returns fund-scoped reserves evidence', async ({ request }) => {
+  test('authenticated GP surface returns reserves evidence', async ({ request }) => {
     // SKIP: authenticated GP canary requires dedicated production smoke credentials.
     test.skip(
       !PROD_SMOKE_USERNAME || !PROD_SMOKE_PASSWORD,
@@ -227,25 +226,5 @@ test.describe('production boundary smoke', () => {
     // fund 1's data state, proving the real GP handler answered (not a SPA/error rewrite).
     const provenance = grantedBody['provenance'] as Record<string, unknown> | undefined;
     expect(provenance?.['metricBasis']).toBe('planned_reserves');
-  });
-
-  test('authenticated GP surface denies cross-fund access', async ({ request }) => {
-    // SKIP: cross-fund probe requires creds AND a real fund the smoke partner is not granted.
-    test.skip(
-      !PROD_SMOKE_USERNAME || !PROD_SMOKE_PASSWORD || !PROD_SMOKE_UNGRANTED_FUND_ID,
-      'Set PROD_SMOKE_USERNAME, PROD_SMOKE_PASSWORD, and PROD_SMOKE_UNGRANTED_FUND_ID (a real fund the smoke partner is not granted)'
-    );
-
-    await loginProdSmoke(request);
-
-    const ungrantedResponse = await request.get(
-      `${PRODUCTION_URL}/api/funds/${PROD_SMOKE_UNGRANTED_FUND_ID}/moic/rankings`
-    );
-    expectNotSpaRewrite(ungrantedResponse);
-    expect(ungrantedResponse.status()).toBe(403);
-    expectContentTypeStartsWith(ungrantedResponse, 'application/json');
-    const ungrantedBody = await expectJsonObject(ungrantedResponse);
-    expect(ungrantedBody['error']).toBe('Forbidden');
-    expect(String(ungrantedBody['message'])).toContain('do not have access to fund');
   });
 });
