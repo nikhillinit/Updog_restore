@@ -57,6 +57,11 @@ export default defineConfig({
       testMatch: '**/cookie-session-csrf.spec.ts',
       use: { ...devices['Desktop Chrome'] },
     },
+    {
+      name: 'gp-spine',
+      testMatch: '**/gp-decision-spine.spec.ts',
+      use: { ...devices['Desktop Chrome'] },
+    },
 
     // Smoke tests - fastest, run first
     {
