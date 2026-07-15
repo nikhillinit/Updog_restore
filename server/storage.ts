@@ -189,6 +189,7 @@ export class MemStorage implements IStorage {
   } as const satisfies StorageCapabilities;
 
   private users: Map<number, User>;
+  private userFundGrants: Map<number, number[]>;
   private funds: Map<number, Fund>;
   private portfolioCompanies: Map<number, PortfolioCompany>;
   private investments: Map<number, Investment>;
@@ -203,6 +204,7 @@ export class MemStorage implements IStorage {
 
   constructor() {
     this.users = new Map();
+    this.userFundGrants = new Map();
     this.funds = new Map();
     this.portfolioCompanies = new Map();
     this.investments = new Map();
@@ -370,6 +372,9 @@ export class MemStorage implements IStorage {
     seedUsers.forEach((seedUser, index) => {
       const id = index + 1;
       this.users.set(id, materializeMemoryUser(seedUser, id));
+      if (seedUser.username === 'partner') {
+        this.userFundGrants.set(id, [1]);
+      }
     });
     this.currentUserId = seedUsers.length + 1;
   }
@@ -383,8 +388,8 @@ export class MemStorage implements IStorage {
     return Array.from(this.users.values()).find((user) => user.username === username);
   }
 
-  async getUserFundGrants(_userId: number): Promise<number[]> {
-    return [];
+  async getUserFundGrants(userId: number): Promise<number[]> {
+    return [...(this.userFundGrants.get(userId) ?? [])];
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {

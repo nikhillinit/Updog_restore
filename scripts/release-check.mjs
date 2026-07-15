@@ -51,12 +51,14 @@ const releaseOwnedPaths = [
   'shared/migrations',
   'scripts/prod-schema-manifests',
   'scripts/release-check.mjs',
+  'scripts/run-gp-spine-e2e.mjs',
   'scripts/db-push.mjs',
   'scripts/db-push-core.mjs',
   'server/lib/auth/csrf.ts',
   'server/lib/auth/request-credentials.ts',
   'tests/helpers/browser-auth.ts',
   'tests/e2e/cookie-session-csrf.spec.ts',
+  'tests/e2e/gp-decision-spine.spec.ts',
   'tests/integration/cookie-session-auth-runtime.test.ts',
   'tests/integration/fund-lifecycle-db.test.ts',
   'tests/integration/migration-drift.test.ts',
@@ -122,6 +124,10 @@ const steps = [
     name: 'Cookie-session browser lifecycle',
     command:
       'cross-env CI=1 TZ=UTC PORT=4199 playwright test tests/e2e/cookie-session-csrf.spec.ts --project=d4-auth',
+  },
+  {
+    name: 'GP decision spine (E2E)',
+    command: 'cross-env CI=1 TZ=UTC node scripts/run-gp-spine-e2e.mjs',
   },
   {
     name: 'Lean release server and CI surface lock',
