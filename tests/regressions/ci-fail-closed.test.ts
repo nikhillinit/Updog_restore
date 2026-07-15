@@ -88,6 +88,27 @@ describe('required CI fails closed', () => {
     expect(normalizedNeeds).toContain('pr-light-security');
   });
 
+  it('keeps npm audit blocking without coupling OWASP to its upstream availability', async () => {
+    const ciWorkflow = await readWorkflow('ci-unified.yml');
+    const requiredSecurityJob = ciWorkflow.jobs?.['pr-light-security'];
+    const productionAudit = requiredSecurityJob?.steps?.find(
+      (step) => step.name === 'Production dependency audit'
+    );
+
+    expect(productionAudit?.run).toContain('npm audit --omit=dev --audit-level=high');
+
+    const deepScanWorkflow = await readWorkflow('security-scan.yml');
+    const dependencyCheck = deepScanWorkflow.jobs?.['dependency-check']?.steps?.find(
+      (step) => step.name === 'OWASP Dependency-Check'
+    );
+    expect(String(dependencyCheck?.with?.args)).toContain('--disableNodeAudit');
+
+    const deepScanNeeds = deepScanWorkflow.jobs?.['security-scan']?.needs;
+    const normalizedDeepScanNeeds =
+      typeof deepScanNeeds === 'string' ? [deepScanNeeds] : (deepScanNeeds ?? []);
+    expect(normalizedDeepScanNeeds).toContain('dependency-check');
+  });
+
   it('runs secret scanning inside the required CI aggregator', async () => {
     const secretWorkflowPath = path.join(workflowsDir, 'secret-scan.yml');
     await expect(access(secretWorkflowPath)).resolves.toBeUndefined();
