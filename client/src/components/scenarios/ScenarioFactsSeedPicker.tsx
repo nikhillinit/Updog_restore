@@ -19,9 +19,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFeatureFlag } from '@/core/flags/flagAdapter';
+import { useCompanyScenarios } from '@/hooks/useCompanyScenarios';
 import { useFundScenarioSeeds } from '@/hooks/useFundScenarioSeeds';
-import { scenarioApiPath } from '@/lib/fund-scenario-workspace-api';
 import {
+  createCompanyScenario,
+  scenarioApiPath,
+  type CompanyScenarioSummary,
+} from '@/lib/fund-scenario-workspace-api';
+import {
+  companyScenarioListQueryKey,
   fundScenarioSeedsQueryKey,
   workspaceQueryKey,
 } from '@/lib/fund-scenario-workspace-query-keys';
@@ -97,17 +103,10 @@ const CreateScenarioCaseFromSeedResponseSchema = z
 type SeedMoneyField =
   ScenarioCaseSeedV1['fields']['investment'] | ScenarioCaseSeedV1['fields']['fmv'];
 
-export interface ScenarioFactsSeedPickerScenario {
-  id: string;
-  version: number;
-  locked_at?: string | Date | null;
-}
-
 export interface ScenarioFactsSeedPickerProps {
   fundId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  scenario?: ScenarioFactsSeedPickerScenario;
   createdFromFactsHash?: string;
   /**
    * Plan 9 Wave 9B1 (review P2-3) additive: preselect this company's seed
@@ -323,7 +322,6 @@ export function ScenarioFactsSeedPicker({
   fundId,
   open,
   onOpenChange,
-  scenario,
   createdFromFactsHash,
   initialSelectedCompanyId,
 }: ScenarioFactsSeedPickerProps) {
@@ -332,6 +330,12 @@ export function ScenarioFactsSeedPicker({
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
   const idempotencyRef = useRef<{ signature: string; key: string } | null>(null);
+  const createScenarioIdempotencyRef = useRef<{ companyId: string; key: string } | null>(null);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
+  const [newlyCreatedScenario, setNewlyCreatedScenario] = useState<{
+    companyId: string;
+    scenario: CompanyScenarioSummary;
+  } | null>(null);
   const appliedInitialSelectionRef = useRef(false);
 
   const form = useForm<ScenarioFactsSeedPickerFormValues>({
@@ -357,7 +361,21 @@ export function ScenarioFactsSeedPicker({
   const useSeedFollowOns = form.watch('useSeedFollowOns');
   const useSeedFmv = form.watch('useSeedFmv');
   const selectedSeed = seeds.find((seed) => String(seed.companyId) === selectedCompanyId);
-  const isLocked = scenario?.locked_at != null;
+  const companyScenariosQuery = useCompanyScenarios(selectedSeed ? selectedCompanyId : null);
+  const scenarioListPending =
+    companyScenariosQuery.isLoading || companyScenariosQuery.isFetching;
+  const scenarioListActionable = !scenarioListPending && !companyScenariosQuery.error;
+  const scenarios =
+    newlyCreatedScenario?.companyId === selectedCompanyId &&
+    !companyScenariosQuery.scenarios.some(
+      (scenario) => scenario.id === newlyCreatedScenario.scenario.id
+    )
+      ? [newlyCreatedScenario.scenario, ...companyScenariosQuery.scenarios]
+      : companyScenariosQuery.scenarios;
+  const selectedScenario = scenarioListActionable
+    ? scenarios.find((scenario) => scenario.id === selectedScenarioId)
+    : undefined;
+  const isLocked = selectedScenario?.isLocked === true;
   const seedChanged =
     createdFromFactsHash !== undefined &&
     response?.factsInputHash !== null &&
@@ -386,12 +404,12 @@ export function ScenarioFactsSeedPicker({
       };
       idempotencyKey: string;
     }) => {
-      if (!scenario) throw new Error('A scenario is required to create a case.');
+      if (!selectedScenario) throw new Error('A scenario is required to create a case.');
       const raw = await apiRequest(
         'POST',
         scenarioApiPath(
           fundId,
-          `/scenario-analysis/scenarios/${encodeURIComponent(scenario.id)}/cases/from-seed`
+          `/scenario-analysis/scenarios/${encodeURIComponent(selectedScenario.id)}/cases/from-seed`
         ),
         payload,
         { headers: { 'Idempotency-Key': idempotencyKey } }
@@ -403,6 +421,13 @@ export function ScenarioFactsSeedPicker({
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: workspaceQueryKey(fundId) }),
         queryClient.invalidateQueries({ queryKey: fundScenarioSeedsQueryKey(fundId) }),
+        ...(selectedCompanyId
+          ? [
+              queryClient.invalidateQueries({
+                queryKey: companyScenarioListQueryKey(selectedCompanyId),
+              }),
+            ]
+          : []),
       ]);
       form.reset();
       idempotencyRef.current = null;
@@ -415,6 +440,13 @@ export function ScenarioFactsSeedPicker({
         mutationError.status === 409 &&
         mutationError.errorCode === 'version_conflict'
       ) {
+        setSelectedScenarioId(null);
+        idempotencyRef.current = null;
+        if (selectedCompanyId) {
+          void queryClient.invalidateQueries({
+            queryKey: companyScenarioListQueryKey(selectedCompanyId),
+          });
+        }
         setServerError('Scenario changed. Refresh and try again.');
         return;
       }
@@ -428,6 +460,22 @@ export function ScenarioFactsSeedPicker({
         return;
       }
       setServerError('Case creation failed. Review the inputs and try again.');
+    },
+  });
+
+  const createScenarioMutation = useMutation({
+    retry: false,
+    mutationFn: ({ companyId, idempotencyKey }: { companyId: string; idempotencyKey: string }) =>
+      createCompanyScenario(companyId, idempotencyKey),
+    onMutate: () => setServerError(null),
+    onSuccess: async ({ scenario }, { companyId }) => {
+      setNewlyCreatedScenario({ companyId, scenario });
+      setSelectedScenarioId(scenario.id);
+      createScenarioIdempotencyRef.current = null;
+      await queryClient.invalidateQueries({ queryKey: companyScenarioListQueryKey(companyId) });
+    },
+    onError: () => {
+      setServerError('Scenario creation failed. Try again.');
     },
   });
 
@@ -470,21 +518,41 @@ export function ScenarioFactsSeedPicker({
       fmvOverride: '',
     });
     idempotencyRef.current = null;
+    createScenarioIdempotencyRef.current = null;
+    setSelectedScenarioId(null);
+    setNewlyCreatedScenario(null);
     setServerError(null);
   }
 
   function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen && createMutation.isPending) return;
+    if (!nextOpen && (createMutation.isPending || createScenarioMutation.isPending)) return;
     if (!nextOpen) {
       form.reset();
       idempotencyRef.current = null;
+      createScenarioIdempotencyRef.current = null;
+      setSelectedScenarioId(null);
+      setNewlyCreatedScenario(null);
       setServerError(null);
     }
     onOpenChange(nextOpen);
   }
 
+  function handleCreateScenario() {
+    if (!selectedSeed || !scenarioListActionable) return;
+    if (createScenarioIdempotencyRef.current?.companyId !== selectedCompanyId) {
+      createScenarioIdempotencyRef.current = {
+        companyId: selectedCompanyId,
+        key: globalThis.crypto.randomUUID(),
+      };
+    }
+    createScenarioMutation.mutate({
+      companyId: selectedCompanyId,
+      idempotencyKey: createScenarioIdempotencyRef.current.key,
+    });
+  }
+
   function handleSubmit(values: ScenarioFactsSeedPickerFormValues) {
-    if (!scenario || isLocked || !selectedSeed) return;
+    if (!selectedScenario || isLocked || !selectedSeed) return;
     const overrides = {
       caseName: values.caseName.trim(),
       probability: values.probability,
@@ -498,7 +566,7 @@ export function ScenarioFactsSeedPicker({
     const payload = {
       seed: selectedSeed,
       overrides,
-      expectedScenarioVersion: scenario.version,
+      expectedScenarioVersion: selectedScenario.version,
     };
     const signature = JSON.stringify(payload);
     if (idempotencyRef.current?.signature !== signature) {
@@ -542,12 +610,6 @@ export function ScenarioFactsSeedPicker({
             </AlertDescription>
           </Alert>
         )}
-        {isLocked ? (
-          <p className="text-sm font-medium text-charcoal-600">Scenario is locked</p>
-        ) : !scenario ? (
-          <p className="text-sm text-charcoal-600">Select a company scenario to create a case.</p>
-        ) : null}
-
         {seeds.length > 0 && (
           <div className="space-y-3" role="radiogroup" aria-label="Portfolio actuals seeds">
             {seeds.map((seed) => (
@@ -566,6 +628,94 @@ export function ScenarioFactsSeedPicker({
 
         {selectedSeed && (
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <section className="space-y-3 rounded-md border border-beige-200 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-inter text-sm font-semibold text-charcoal">
+                    Company scenarios
+                  </h3>
+                  <p className="text-xs text-charcoal-500">
+                    Select the scenario that will own the new case.
+                  </p>
+                </div>
+                {scenarioListActionable && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCreateScenario}
+                    disabled={createScenarioMutation.isPending}
+                  >
+                    {createScenarioMutation.isPending ? 'Creating scenario...' : 'Create new scenario'}
+                  </Button>
+                )}
+              </div>
+
+              {scenarioListPending && (
+                <p className="text-sm text-charcoal-500">Loading company scenarios…</p>
+              )}
+              {companyScenariosQuery.error && (
+                <Alert className="border-error/20 bg-error/5">
+                  <AlertDescription className="text-error-dark">
+                    Company scenarios could not be loaded.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {scenarioListActionable && scenarios.length === 0 && (
+                  <p className="text-sm text-charcoal-600">No company scenarios yet.</p>
+                )}
+              {scenarioListActionable && scenarios.length > 0 && (
+                <div className="space-y-2" role="radiogroup" aria-label="Company scenarios">
+                  {scenarios.map((companyScenario) => {
+                    const radioId = `company-scenario-${companyScenario.id}`;
+                    return (
+                      <div
+                        key={companyScenario.id}
+                        className={cn(
+                          'flex items-center justify-between gap-3 rounded-md border p-3',
+                          selectedScenarioId === companyScenario.id
+                            ? 'border-charcoal bg-beige-50'
+                            : 'border-beige-200 bg-white'
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <input
+                            id={radioId}
+                            type="radio"
+                            name="company-scenario"
+                            checked={selectedScenarioId === companyScenario.id}
+                            onChange={() => {
+                              setSelectedScenarioId(companyScenario.id);
+                              idempotencyRef.current = null;
+                              setServerError(null);
+                            }}
+                            className="h-4 w-4 accent-charcoal"
+                          />
+                          <Label htmlFor={radioId} className="text-sm font-medium text-charcoal">
+                            {companyScenario.name}
+                          </Label>
+                        </div>
+                        <span className="text-xs text-charcoal-500">
+                          {companyScenario.isLocked
+                            ? 'Locked'
+                            : `${companyScenario.caseCount} ${
+                                companyScenario.caseCount === 1 ? 'case' : 'cases'
+                              }`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {isLocked ? (
+                <p className="text-sm font-medium text-charcoal-600">Scenario is locked</p>
+              ) : !selectedScenario ? (
+                <p className="text-sm text-charcoal-600">
+                  Select a company scenario to create a case.
+                </p>
+              ) : null}
+            </section>
+
             <div className="grid gap-3 md:grid-cols-3">
               <SeedFieldControl
                 field={selectedSeed.fields.investment}
@@ -676,19 +826,19 @@ export function ScenarioFactsSeedPicker({
               </Alert>
             )}
 
-            {!isLocked && scenario && (
+            {!isLocked && selectedScenario && (
               <DialogFooter>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => handleOpenChange(false)}
-                  disabled={createMutation.isPending}
+                  disabled={createMutation.isPending || createScenarioMutation.isPending}
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  disabled={createMutation.isPending}
+                  disabled={createMutation.isPending || createScenarioMutation.isPending}
                   className="bg-charcoal text-white hover:bg-charcoal/90"
                 >
                   {createMutation.isPending ? 'Creating...' : 'Create case'}

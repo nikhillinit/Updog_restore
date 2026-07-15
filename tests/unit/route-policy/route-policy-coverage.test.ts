@@ -357,6 +357,18 @@ describe('route policy coverage', () => {
     expect(policy.provenanceRequired).toBe(true);
   });
 
+  it('classifies the company scenario list as an authenticated fund-scoped read', () => {
+    const policy = expectPolicy('GET /api/companies/:companyId/scenarios');
+
+    expect(policy.governanceRef).toBe('/fund-model-results/:fundId/scenarios');
+    expect(policy.financialSurface).toBe('fund_modeling');
+    expect(policy.apiAuthBoundary).toBe('require_auth_and_fund_access');
+    expect(policy.fundScopeMode).toBe('parent_entity_lookup');
+    expect(policy.workflowRequirement).toBe('fund_scope_verified');
+    expect(policy.exportPolicy).toBe('not_exportable');
+    expect(policy.provenanceRequired).toBe(false);
+  });
+
   it('covers PRD #996 Surface-A report-package exports with role-gated fund access', () => {
     expect(LP_REPORT_PACKAGE_AUTHORITATIVE_EXPORT_POLICY_KEYS).toHaveLength(6);
 

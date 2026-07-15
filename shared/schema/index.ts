@@ -17,6 +17,7 @@ export * from './fund';
 export * from './portfolio';
 export * from './scenario';
 export * from './scenario-case-seed-provenance';
+export * from './company-scenario-create-requests';
 export * from './shares';
 export * from './user';
 export * from './lp-reporting-evidence';

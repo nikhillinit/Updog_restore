@@ -70,6 +70,44 @@ const persistenceState = vi.hoisted(() => {
   };
 });
 
+const scenarioCreateState = vi.hoisted(() => {
+  class CompanyScenarioCreateIdempotencyConflictError extends Error {
+    readonly code = 'idempotency_conflict';
+
+    constructor() {
+      super(
+        'Idempotency-Key is already associated with another company scenario creation request'
+      );
+      this.name = 'CompanyScenarioCreateIdempotencyConflictError';
+    }
+  }
+
+  class CompanyScenarioCreateInProgressError extends Error {
+    readonly code = 'idempotency_request_in_progress';
+
+    constructor() {
+      super('Company scenario creation request is still in progress');
+      this.name = 'CompanyScenarioCreateInProgressError';
+    }
+  }
+
+  class CompanyScenarioCreateScopeError extends Error {
+    readonly code = 'company_scope_mismatch';
+
+    constructor() {
+      super('Company was not found in the resolved fund');
+      this.name = 'CompanyScenarioCreateScopeError';
+    }
+  }
+
+  return {
+    createCompanyScenario: vi.fn(),
+    CompanyScenarioCreateIdempotencyConflictError,
+    CompanyScenarioCreateInProgressError,
+    CompanyScenarioCreateScopeError,
+  };
+});
+
 // Chain-safe db stub: every builder method is a spy; terminal awaits resolve to
 // empty/benign values so a neutered guard (negative control) falls through to a
 // harmless 404 instead of throwing mid-chain before the assertion runs.
@@ -77,7 +115,10 @@ const dbState = vi.hoisted(() => {
   const selectChain: Record<string, unknown> = {};
   selectChain['from'] = vi.fn(() => selectChain);
   selectChain['innerJoin'] = vi.fn(() => selectChain);
+  selectChain['leftJoin'] = vi.fn(() => selectChain);
   selectChain['where'] = vi.fn(() => selectChain);
+  selectChain['groupBy'] = vi.fn(() => selectChain);
+  selectChain['orderBy'] = vi.fn(() => selectChain);
   const selectThen = vi.fn((resolve: (value: unknown[]) => void) => resolve([]));
   selectChain['then'] = selectThen;
   const selectLimit = vi.fn(async () => [] as unknown[]);
@@ -140,6 +181,14 @@ vi.mock('../../../server/services/scenarios/scenario-case-seed-persistence-servi
   ScenarioCaseSeedPersistenceError: persistenceState.ScenarioCaseSeedPersistenceError,
 }));
 
+vi.mock('../../../server/services/scenarios/company-scenario-create-service', () => ({
+  createCompanyScenario: scenarioCreateState.createCompanyScenario,
+  CompanyScenarioCreateIdempotencyConflictError:
+    scenarioCreateState.CompanyScenarioCreateIdempotencyConflictError,
+  CompanyScenarioCreateInProgressError: scenarioCreateState.CompanyScenarioCreateInProgressError,
+  CompanyScenarioCreateScopeError: scenarioCreateState.CompanyScenarioCreateScopeError,
+}));
+
 vi.mock('../../../server/db', () => ({
   db: {
     select: dbState.select,
@@ -198,6 +247,7 @@ function resetState() {
   authState.requireAuthCalls = 0;
   factsState.buildFundCompanyActualsFacts.mockReset();
   persistenceState.createScenarioCaseFromSeed.mockReset();
+  scenarioCreateState.createCompanyScenario.mockReset();
 }
 
 function denyFundAccessOnce() {
@@ -567,6 +617,274 @@ describe('scenario-analysis route fund-scope contracts', () => {
     expect(res.body).toMatchObject({ error: 'Invalid company ID' });
     expect(fundScopeState.enforceCompanyFundScope).not.toHaveBeenCalled();
     expect(dbState.insert).not.toHaveBeenCalled();
+  });
+
+  it('rejects a leading-zero companyId on create before the scope check and any write', async () => {
+    const res = await request(makeApp())
+      .post('/api/companies/01/scenarios')
+      .send({ name: 'probe' });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Invalid company ID' });
+    expect(fundScopeState.enforceCompanyFundScope).not.toHaveBeenCalled();
+    expect(dbState.insert).not.toHaveBeenCalled();
+  });
+
+  it('rejects a leading-zero companyId across every other company-scoped operation', async () => {
+    const responses = [
+      await request(makeApp()).get('/api/companies/01/scenarios'),
+      await request(makeApp()).get(`/api/companies/01/scenarios/${SCENARIO_ID}`),
+      await request(makeApp())
+        .patch(`/api/companies/01/scenarios/${SCENARIO_ID}`)
+        .send({ scenario_id: SCENARIO_ID, cases: [] }),
+      await request(makeApp()).delete(`/api/companies/01/scenarios/${SCENARIO_ID}`),
+      await request(makeApp())
+        .post('/api/companies/01/reserves/optimize')
+        .send({ scenario_id: SCENARIO_ID }),
+    ];
+
+    expect(responses.map((response) => response.status)).toEqual([400, 400, 400, 400, 400]);
+    expect(responses.map((response) => response.body)).toEqual(
+      Array.from({ length: 5 }, () => ({ error: 'Invalid company ID' }))
+    );
+    expect(fundScopeState.enforceCompanyFundScope).not.toHaveBeenCalled();
+    expectNoScenarioWrites();
+  });
+
+  it.each(['0', '01', '+1', '-1', '1.0', '1junk', '9007199254740992'])(
+    'rejects non-canonical list companyId %s',
+    async (companyId) => {
+      const res = await request(makeApp()).get(
+        `/api/companies/${encodeURIComponent(companyId)}/scenarios`
+      );
+
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({ error: 'Invalid company ID' });
+      expect(fundScopeState.enforceCompanyFundScope).not.toHaveBeenCalled();
+      expect(dbState.select).not.toHaveBeenCalled();
+    }
+  );
+});
+
+describe('scenario-analysis company scenario list', () => {
+  beforeEach(() => resetState());
+
+  it('returns an exact empty list when the company has no scenarios', async () => {
+    const res = await request(makeApp()).get('/api/companies/101/scenarios');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  it('requires authentication before scope resolution or database access', async () => {
+    authState.authenticated = false;
+
+    const res = await request(makeApp()).get('/api/companies/101/scenarios');
+
+    expect(res.status).toBe(401);
+    expect(fundScopeState.enforceCompanyFundScope).not.toHaveBeenCalled();
+    expect(dbState.select).not.toHaveBeenCalled();
+  });
+
+  it('preserves the company-scope not-found response before database access', async () => {
+    fundScopeState.enforceCompanyFundScope.mockImplementationOnce(
+      async (_req: Request, res: Response) => {
+        res.status(404).json({ error: 'Company not found' });
+        return false;
+      }
+    );
+
+    const res = await request(makeApp()).get('/api/companies/101/scenarios');
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'Company not found' });
+    expect(dbState.select).not.toHaveBeenCalled();
+  });
+
+  it('preserves a cross-fund denial before database access', async () => {
+    denyOnce();
+
+    const res = await request(makeApp()).get('/api/companies/101/scenarios');
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'Forbidden', code: 'FUND_ACCESS_DENIED' });
+    expect(dbState.select).not.toHaveBeenCalled();
+  });
+
+  it('returns the strict unflagged list contract in persisted order', async () => {
+    featureState.scenarioSeedPicker = false;
+    dbState.selectThen.mockImplementationOnce((resolve: (value: unknown[]) => void) =>
+      resolve([
+        {
+          id: '00000000-0000-4000-8000-000000000301',
+          name: 'Newest scenario',
+          version: 3,
+          updatedAt: new Date('2026-07-15T02:00:00.000Z'),
+          lockedAt: null,
+          caseCount: 2,
+        },
+        {
+          id: '00000000-0000-4000-8000-000000000302',
+          name: 'Locked scenario',
+          version: 7,
+          updatedAt: new Date('2026-07-14T02:00:00.000Z'),
+          lockedAt: new Date('2026-07-14T03:00:00.000Z'),
+          caseCount: 0,
+        },
+      ])
+    );
+
+    const res = await request(makeApp()).get('/api/companies/101/scenarios');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([
+      {
+        id: '00000000-0000-4000-8000-000000000301',
+        name: 'Newest scenario',
+        version: 3,
+        updatedAt: '2026-07-15T02:00:00.000Z',
+        isLocked: false,
+        caseCount: 2,
+      },
+      {
+        id: '00000000-0000-4000-8000-000000000302',
+        name: 'Locked scenario',
+        version: 7,
+        updatedAt: '2026-07-14T02:00:00.000Z',
+        isLocked: true,
+        caseCount: 0,
+      },
+    ]);
+    expect(fundScopeState.enforceCompanyFundScope).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      101
+    );
+  });
+});
+
+describe('scenario-analysis company scenario creation', () => {
+  beforeEach(() => resetState());
+
+  const createdResponse = {
+    scenario: {
+      id: '00000000-0000-4000-8000-000000000303',
+      name: 'New Scenario',
+      version: 1,
+      updatedAt: '2026-07-15T08:00:00.000Z',
+      isLocked: false,
+      caseCount: 0,
+    },
+    replay: false,
+  };
+
+  it.each([undefined, '', '   '])(
+    'requires a trimmed non-empty Idempotency-Key (%s)',
+    async (idempotencyKey) => {
+      const pending = request(makeApp()).post('/api/companies/101/scenarios');
+      if (idempotencyKey !== undefined) pending.set('Idempotency-Key', idempotencyKey);
+      const res = await pending.send({});
+
+      expect(res.status).toBe(400);
+      expect(res.body).toEqual({
+        error: 'missing_idempotency_key',
+        message: 'Idempotency-Key header is required',
+      });
+      expect(scenarioCreateState.createCompanyScenario).not.toHaveBeenCalled();
+    }
+  );
+
+  it('rejects an Idempotency-Key longer than 128 characters', async () => {
+    const res = await request(makeApp())
+      .post('/api/companies/101/scenarios')
+      .set('Idempotency-Key', 'x'.repeat(129))
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({
+      error: 'invalid_idempotency_key',
+      message: 'Idempotency-Key must be 128 characters or fewer',
+    });
+    expect(scenarioCreateState.createCompanyScenario).not.toHaveBeenCalled();
+  });
+
+  it('normalizes the effective body and returns the strict creation envelope', async () => {
+    scenarioCreateState.createCompanyScenario.mockResolvedValueOnce(createdResponse);
+
+    const res = await request(makeApp())
+      .post('/api/companies/101/scenarios')
+      .set('Idempotency-Key', '  scenario-create-1  ')
+      .send({ name: '', ignored: 'stripped' });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual(createdResponse);
+    expect(scenarioCreateState.createCompanyScenario).toHaveBeenCalledWith({
+      fundId: 7,
+      companyId: 101,
+      name: 'New Scenario',
+      description: null,
+      idempotencyKey: 'scenario-create-1',
+      actorId: null,
+    });
+  });
+
+  it('returns the persisted scenario with replay true on a matching replay', async () => {
+    scenarioCreateState.createCompanyScenario.mockResolvedValueOnce({
+      ...createdResponse,
+      replay: true,
+    });
+
+    const res = await request(makeApp())
+      .post('/api/companies/101/scenarios')
+      .set('Idempotency-Key', 'scenario-create-1')
+      .send({});
+
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual({ ...createdResponse, replay: true });
+  });
+
+  it('maps a reused key with different effective input to the exact conflict contract', async () => {
+    scenarioCreateState.createCompanyScenario.mockRejectedValueOnce(
+      new scenarioCreateState.CompanyScenarioCreateIdempotencyConflictError()
+    );
+
+    const res = await request(makeApp())
+      .post('/api/companies/101/scenarios')
+      .set('Idempotency-Key', 'scenario-create-1')
+      .send({ name: 'Different' });
+
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({
+      error: 'idempotency_conflict',
+      message:
+        'Idempotency-Key is already associated with another company scenario creation request',
+    });
+  });
+
+  it('does not switch to a newly resolved ungranted fund between scope reads', async () => {
+    fundScopeState.resolveCompanyFundId
+      .mockResolvedValueOnce(7)
+      .mockResolvedValueOnce(8);
+    fundScopeState.enforceCompanyFundScope.mockImplementationOnce(
+      async (_req: Request, res: Response, companyId: number) => {
+        const currentFundId = await fundScopeState.resolveCompanyFundId(companyId);
+        if (currentFundId !== 7) {
+          res.status(403).json({ error: 'Forbidden', code: 'FUND_ACCESS_DENIED' });
+          return false;
+        }
+        return true;
+      }
+    );
+
+    const res = await request(makeApp())
+      .post('/api/companies/101/scenarios')
+      .set('Idempotency-Key', 'ownership-race')
+      .send({});
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'Forbidden', code: 'FUND_ACCESS_DENIED' });
+    expect(fundScopeState.resolveCompanyFundId).toHaveBeenNthCalledWith(1, 101);
+    expect(fundScopeState.resolveCompanyFundId).toHaveBeenNthCalledWith(2, 101);
+    expect(scenarioCreateState.createCompanyScenario).not.toHaveBeenCalled();
   });
 });
 
