@@ -251,7 +251,6 @@
   },
   "overrides": {
     "esbuild": "^0.25.0",
-    "@react-pdf/pdfkit": "^4.1.0",
     "uuid": "^11.1.1",
     "ws": "^8.21.0",
     "@opentelemetry/core": "2.8.0"
