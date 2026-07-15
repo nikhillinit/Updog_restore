@@ -43,7 +43,7 @@ export const SharedDashboard = React.lazy(() => import('@/pages/shared-dashboard
 const PipelinePage = React.lazy(() => import('@/pages/pipeline'));
 const SettingsPage = React.lazy(() => import('@/pages/settings'));
 const HelpPage = React.lazy(() => import('@/pages/help'));
-// LP Reporting (Phase 1b) -- placeholder pages
+// LP Reporting
 const LpReportingLedgerPage = React.lazy(() =>
   import('@/pages/lp-reporting').then((mod) => ({ default: mod.LpReportingLedgerPage }))
 );
