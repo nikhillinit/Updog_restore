@@ -77,14 +77,17 @@ test('partner completes the truthful GP decision spine with fail-closed gaps dis
     page.getByRole('heading', { level: 1, name: 'Financial Modeling & Forecasting', exact: true })
   ).toBeVisible();
   await expectWorkspaceNav(page, 'forecast', 'Basis: Construction and Current — side by side');
-  await expect(page.getByText('Fund Value Forecast', { exact: true })).toBeVisible();
-  await expect(page.getByText('Construction Plan', { exact: true }).first()).toBeVisible();
-  await expect(page.getByText('Current Forecast', { exact: true }).first()).toBeVisible();
+  const fundValueForecastTitle = page.getByText('Fund Value Forecast', { exact: true });
+  const fundValueForecastCard = fundValueForecastTitle.locator('..').locator('..');
+  await expect(fundValueForecastTitle).toBeVisible();
+  await expect(fundValueForecastCard.getByText('Construction Plan', { exact: true })).toBeVisible();
+  await expect(fundValueForecastCard.getByText('Current Forecast', { exact: true })).toBeVisible();
   const allocationEvidence = page.getByRole('note', { name: 'Portfolio allocation evidence' });
+  const allocationCard = allocationEvidence.locator('..').locator('..');
   await expect(allocationEvidence).toContainText('Valuation freshness unavailable:');
-  await expect(page.getByText('Recorded valuations', { exact: true })).toBeVisible();
+  await expect(allocationCard.getByText('Recorded valuations', { exact: true })).toBeVisible();
   for (const company of ['TechCorp', 'HealthAI', 'DataFlow']) {
-    await expect(page.getByText(company, { exact: true }).first()).toBeVisible();
+    await expect(allocationCard.getByText(company, { exact: true })).toBeVisible();
   }
 
   await page.goto('/portfolio?tab=reserve-planning&fundId=1', {

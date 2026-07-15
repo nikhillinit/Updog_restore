@@ -19,7 +19,23 @@ const commitRef = execFileSync('git', ['rev-parse', 'HEAD'], {
 }).trim();
 
 const inheritedEnv = { ...process.env };
-delete inheritedEnv.BASE_URL;
+const scrubbedInheritedEnvNames = new Set([
+  'BASE_URL',
+  'VITE_API_URL',
+  'VITE_API_BASE_URL',
+  'DATABASE_URL',
+  'NEON_DATABASE_URL',
+  'PGHOST',
+  'PGPORT',
+  'PGUSER',
+  'PGPASSWORD',
+  'PGDATABASE',
+]);
+for (const key of Object.keys(inheritedEnv)) {
+  if (scrubbedInheritedEnvNames.has(key.toUpperCase())) {
+    delete inheritedEnv[key];
+  }
+}
 
 const apiEnv = {
   ...inheritedEnv,
@@ -88,7 +104,10 @@ async function waitForHttp(url, timeoutMs) {
 
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(url, { redirect: 'manual' });
+      const response = await fetch(url, {
+        redirect: 'manual',
+        signal: AbortSignal.timeout(5_000),
+      });
       if (response.status < 500) {
         return;
       }
@@ -119,6 +138,21 @@ async function assertRuntimeWiring() {
   if (health.commit_sha !== commitRef) {
     throw new Error(
       `[gp-spine-e2e] SHA sanity failed: /healthz exposed ${String(health.commit_sha)}, expected ${commitRef}`
+    );
+  }
+
+  const proxyHealthResponse = await fetch(`${baseUrl}/healthz`, {
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!proxyHealthResponse.ok) {
+    throw new Error(
+      `[gp-spine-e2e] proxy SHA sanity failed: ${baseUrl}/healthz returned ${proxyHealthResponse.status}`
+    );
+  }
+  const proxyHealth = await proxyHealthResponse.json();
+  if (proxyHealth.commit_sha !== commitRef) {
+    throw new Error(
+      `[gp-spine-e2e] proxy SHA sanity failed: /healthz exposed ${String(proxyHealth.commit_sha)}, expected ${commitRef}`
     );
   }
 }
@@ -179,7 +213,7 @@ async function main() {
     ...fatalServiceExits,
   ]);
 
-  const result = spawn(process.execPath, [playwrightCli, 'test', '--project=gp-spine'], {
+  const playwrightChild = spawn(process.execPath, [playwrightCli, 'test', '--project=gp-spine'], {
     cwd: repoRoot,
     env: {
       ...inheritedEnv,
@@ -189,10 +223,16 @@ async function main() {
     stdio: 'inherit',
     windowsHide: true,
   });
+  managedProcesses.push({
+    label: 'playwright',
+    child: playwrightChild,
+    expectedExit: true,
+    fatalExit: null,
+  });
 
   const playwrightExit = new Promise((resolve, reject) => {
-    result.once('error', reject);
-    result.once('exit', (code) => resolve(code ?? 1));
+    playwrightChild.once('error', reject);
+    playwrightChild.once('exit', (code) => resolve(code ?? 1));
   });
 
   return Promise.race([playwrightExit, ...fatalServiceExits]);

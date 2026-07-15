@@ -216,23 +216,25 @@ export default defineConfig(({ mode }: { mode: string }) => {
   const clientPort = parsePort(process.env['VITE_CLIENT_PORT'], 5173);
   const apiPort = parsePort(process.env['VITE_API_PORT'] ?? process.env['PORT'], 5000);
   const apiTarget = process.env['VITE_API_URL'] ?? `http://localhost:${apiPort}`;
-  // Cookie-session CSRF compares browser Origin to request Host; local proxies must preserve Host.
+  const apiTargetHostname = new URL(apiTarget).hostname.replace(/^\[|\]$/g, '');
+  const apiTargetIsLoopback = ['localhost', '127.0.0.1', '::1'].includes(apiTargetHostname);
+  // Cookie-session CSRF needs loopback proxies to preserve Host; remote targets need origin rewriting.
   const apiProxy = {
     '/api': {
       target: apiTarget,
-      changeOrigin: false,
+      changeOrigin: !apiTargetIsLoopback,
     },
     '/metrics': {
       target: apiTarget,
-      changeOrigin: false,
+      changeOrigin: !apiTargetIsLoopback,
     },
     '/healthz': {
       target: apiTarget,
-      changeOrigin: false,
+      changeOrigin: !apiTargetIsLoopback,
     },
     '/readyz': {
       target: apiTarget,
-      changeOrigin: false,
+      changeOrigin: !apiTargetIsLoopback,
     },
   };
 
