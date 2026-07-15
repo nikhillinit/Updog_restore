@@ -60,9 +60,13 @@ export async function enqueueReserveScenarioCalculation(input: {
       inputHash: identity.inputHash,
     },
     {
-      jobId: [JOB_ID_PREFIX, String(input.fundId), input.scenarioSetId, identity.inputHash].join(
-        '-'
-      ),
+      jobId: [
+        JOB_ID_PREFIX,
+        String(input.fundId),
+        input.scenarioSetId,
+        identity.inputLineage.hashKind,
+        identity.inputHash,
+      ].join('-'),
       attempts: 2,
       backoff: {
         type: 'exponential',
@@ -90,6 +94,7 @@ export async function enqueueReserveScenarioCalculation(input: {
         correlation_id: input.correlationId,
         job_id: String(job.id),
         input_hash: identity.inputHash,
+        hash_kind: identity.inputLineage.hashKind,
         source_config_version: identity.sourceConfigVersion,
         variant_count: identity.variantCount,
       },

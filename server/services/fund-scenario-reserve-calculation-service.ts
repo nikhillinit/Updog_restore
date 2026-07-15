@@ -9,8 +9,13 @@ import {
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import {
   FUND_SCENARIOS_CONTRACT_VERSION,
-  SCENARIO_INPUT_HASH_VERSION,
+  resolveScenarioInputLineage,
+  type ScenarioInputLineage,
 } from '@shared/lib/scenarios/scenario-input-envelope';
+import {
+  FundDraftWriteV1Schema,
+  type FundDraftWriteV1,
+} from '@shared/contracts/fund-draft-write-v1.contract';
 import { buildReservePortfolioInputForClientWithProvenance } from './reserve-input-builder';
 import type { ReserveInputTrustSummary } from '../../shared/contracts/reserve-input-provenance.contract';
 import { buildScenarioReserveSummary } from './fund-scenario-reserve-summary';
@@ -31,6 +36,7 @@ import {
 import { createScenarioInputHash } from '../lib/scenarios/scenario-input-hash';
 import {
   acquireScenarioCalculationRun,
+  findCompletedScenarioRun,
   markScenarioCalculationRunCompleted,
   markScenarioCalculationRunRunning,
 } from './fund-scenario-calculation-run-service';
@@ -46,6 +52,7 @@ type ReserveScenarioPortfolio = Awaited<
 interface SourceConfigRow {
   id: number;
   version: number;
+  config: unknown;
 }
 
 interface CurrentPublishedConfigRow {
@@ -69,6 +76,7 @@ interface ReserveScenarioRunContext {
   sourceConfig: SourceConfigRow;
   currentPublishedVersion: number | null;
   inputHash: string;
+  inputLineage: ScenarioInputLineage;
 }
 
 interface ReserveScenarioCalculationData {
@@ -86,6 +94,7 @@ export interface ReserveScenarioCalculationIdentity {
   sourceConfigVersion: number;
   currentPublishedConfigVersion: number | null;
   inputHash: string;
+  inputLineage: ScenarioInputLineage;
   variantCount: number;
 }
 
@@ -94,6 +103,7 @@ export function createReserveScenarioInputHash(input: {
   scenarioSetId: string;
   sourceConfigId: number;
   sourceConfigVersion: number;
+  modelInputsAsOfDate?: string;
   calcVersion: string;
   calculationMode: 'async_reserve_allocation';
   variants: Array<{
@@ -102,21 +112,32 @@ export function createReserveScenarioInputHash(input: {
     override: unknown;
   }>;
 }): string {
-  return createScenarioInputHash({
-    version: SCENARIO_INPUT_HASH_VERSION,
+  const lineage = resolveScenarioInputLineage(input.modelInputsAsOfDate);
+  const hashEnvelopeBase = {
     contractVersion: FUND_SCENARIOS_CONTRACT_VERSION,
     scenarioSetId: input.scenarioSetId,
     sourceConfigId: input.sourceConfigId,
     sourceConfigVersion: input.sourceConfigVersion,
     calculationMode: input.calculationMode,
-    overrideType: 'reserve_allocation',
+    overrideType: 'reserve_allocation' as const,
     engineVersion: input.calcVersion,
     variants: input.variants.map((variant) => ({
       variantId: variant.id,
       sortOrder: variant.sortOrder,
       override: variant.override,
     })),
-  });
+  };
+
+  return lineage.hashKind === 'scenario-input-hash-v2'
+    ? createScenarioInputHash({
+        ...hashEnvelopeBase,
+        version: lineage.hashKind,
+        modelInputsAsOfDate: lineage.modelInputsAsOfDate,
+      })
+    : createScenarioInputHash({
+        ...hashEnvelopeBase,
+        version: lineage.hashKind,
+      });
 }
 
 function assertReserveScenarioSet(scenarioSet: FundScenarioSetDetailV1): void {
@@ -138,7 +159,7 @@ async function loadSourceConfig(
   configVersion: number
 ): Promise<SourceConfigRow> {
   const result = await client.query<SourceConfigRow>(
-    `SELECT id, version
+    `SELECT id, version, config
        FROM fundconfigs
       WHERE fund_id = $1
         AND id = $2
@@ -156,6 +177,25 @@ async function loadSourceConfig(
   }
 
   return sourceConfig;
+}
+
+function parseSourceConfig(fundId: number, sourceConfig: SourceConfigRow): FundDraftWriteV1 {
+  const parsed = FundDraftWriteV1Schema.safeParse(sourceConfig.config);
+  if (parsed.success) {
+    return parsed.data;
+  }
+
+  throw createHttpError(409, `Scenario source config for fund ${fundId} is invalid`, {
+    code: 'scenario_source_config_invalid',
+    details: {
+      sourceConfigId: sourceConfig.id,
+      sourceConfigVersion: sourceConfig.version,
+      issues: parsed.error.issues.map((issue) => ({
+        path: issue.path.map(String),
+        message: issue.message,
+      })),
+    },
+  });
 }
 
 async function loadCurrentPublishedVersion(
@@ -197,6 +237,7 @@ async function loadReserveScenarioIdentityInTransaction(
   sourceConfig: SourceConfigRow;
   currentPublishedVersion: number | null;
   inputHash: string;
+  inputLineage: ScenarioInputLineage;
 }> {
   await verifyFundExists(client, fundId);
   const scenarioSetOptions =
@@ -221,12 +262,17 @@ async function loadReserveScenarioIdentityInTransaction(
     scenarioSet.sourceConfigId,
     scenarioSet.sourceConfigVersion
   );
+  const sourceConfigBody = parseSourceConfig(fundId, sourceConfig);
+  const inputLineage = resolveScenarioInputLineage(sourceConfigBody.modelInputsAsOfDate);
   const currentPublishedVersion = await loadCurrentPublishedVersion(client, fundId);
   const inputHash = createReserveScenarioInputHash({
     fundId,
     scenarioSetId,
     sourceConfigId: sourceConfig.id,
     sourceConfigVersion: sourceConfig.version,
+    ...(sourceConfigBody.modelInputsAsOfDate !== undefined && {
+      modelInputsAsOfDate: sourceConfigBody.modelInputsAsOfDate,
+    }),
     calcVersion: FUND_SCENARIO_CALC_VERSION,
     calculationMode: 'async_reserve_allocation',
     variants: scenarioSet.variants.map((variant) => ({
@@ -236,7 +282,7 @@ async function loadReserveScenarioIdentityInTransaction(
     })),
   });
 
-  return { scenarioSet, sourceConfig, currentPublishedVersion, inputHash };
+  return { scenarioSet, sourceConfig, currentPublishedVersion, inputHash, inputLineage };
 }
 
 export async function getReserveScenarioCalculationIdentity(
@@ -244,7 +290,7 @@ export async function getReserveScenarioCalculationIdentity(
   scenarioSetId: string
 ): Promise<ReserveScenarioCalculationIdentity> {
   return transaction(async (client) => {
-    const { scenarioSet, sourceConfig, currentPublishedVersion, inputHash } =
+    const { scenarioSet, sourceConfig, currentPublishedVersion, inputHash, inputLineage } =
       await loadReserveScenarioIdentityInTransaction(client, fundId, scenarioSetId);
 
     return {
@@ -254,6 +300,7 @@ export async function getReserveScenarioCalculationIdentity(
       sourceConfigVersion: sourceConfig.version,
       currentPublishedConfigVersion: currentPublishedVersion,
       inputHash,
+      inputLineage,
       variantCount: scenarioSet.variants.length,
     };
   });
@@ -266,6 +313,7 @@ async function recordCalculationFailedEvent(input: {
   correlationId: string;
   jobId: string | null;
   inputHash: string | null;
+  hashKind: ScenarioInputLineage['hashKind'] | null;
   error: unknown;
 }): Promise<void> {
   try {
@@ -281,6 +329,7 @@ async function recordCalculationFailedEvent(input: {
           correlation_id: input.correlationId,
           job_id: input.jobId,
           input_hash: input.inputHash,
+          hash_kind: input.hashKind,
           error_message: input.error instanceof Error ? input.error.message : String(input.error),
         },
       });
@@ -302,7 +351,7 @@ async function loadReserveScenarioRunContext(
 async function recordCalculationStartedEvent(
   client: PoolClient,
   input: RunReserveScenarioCalculationInput,
-  inputHash: string
+  context: ReserveScenarioRunContext
 ): Promise<void> {
   await insertScenarioSetEvent(client, {
     scenarioSetId: input.scenarioSetId,
@@ -314,7 +363,8 @@ async function recordCalculationStartedEvent(
       calculation_mode: 'async_reserve_allocation',
       correlation_id: input.correlationId,
       job_id: input.jobId,
-      input_hash: inputHash,
+      input_hash: context.inputHash,
+      hash_kind: context.inputLineage.hashKind,
     },
   });
 }
@@ -407,6 +457,7 @@ async function recordCalculatedReserveScenarioEvent(
       correlation_id: input.correlationId,
       job_id: input.jobId,
       input_hash: result.context.inputHash,
+      hash_kind: result.context.inputLineage.hashKind,
       snapshot_id: result.response.snapshotId,
       variant_count: result.variantCount,
       company_count: result.companyCount,
@@ -422,31 +473,50 @@ async function calculateReserveScenarioForContext(
   input: RunReserveScenarioCalculationInput,
   context: ReserveScenarioRunContext
 ): Promise<FundScenarioCalculationResponseV1> {
-  const reusableResponse = await findReusableReserveScenarioResponse(client, input, context);
-  if (reusableResponse) {
-    return reusableResponse;
-  }
-
-  const run = await acquireScenarioCalculationRun(client, {
+  const runIdentity = {
     fundId: input.fundId,
     scenarioSetId: input.scenarioSetId,
     sourceConfigId: context.sourceConfig.id,
     sourceConfigVersion: context.sourceConfig.version,
-    calculationMode: 'async_reserve_allocation',
-    overrideType: 'reserve_allocation',
+    calculationMode: 'async_reserve_allocation' as const,
+    overrideType: 'reserve_allocation' as const,
     inputHash: context.inputHash,
+    hashKind: context.inputLineage.hashKind,
+    modelInputsAsOfDate: context.inputLineage.modelInputsAsOfDate,
+    comparisonLineageVersion: context.inputLineage.comparisonLineageVersion,
+  };
+  const completedRun = await findCompletedScenarioRun(client, runIdentity);
+  if (completedRun?.snapshotId != null) {
+    const completedResponse = await findReusableReserveScenarioResponse(
+      client,
+      input,
+      context,
+      completedRun.snapshotId
+    );
+    if (completedResponse) {
+      return completedResponse;
+    }
+  }
+
+  const run = await acquireScenarioCalculationRun(client, {
+    ...runIdentity,
     correlationId: input.correlationId,
     jobId: input.jobId,
   });
   if (run.status === 'completed' && run.snapshotId !== null) {
-    const completedResponse = await findReusableReserveScenarioResponse(client, input, context);
+    const completedResponse = await findReusableReserveScenarioResponse(
+      client,
+      input,
+      context,
+      run.snapshotId
+    );
     if (completedResponse) {
       return completedResponse;
     }
   }
   await markScenarioCalculationRunRunning(client, run.id);
 
-  await recordCalculationStartedEvent(client, input, context.inputHash);
+  await recordCalculationStartedEvent(client, input, context);
 
   const data = await buildReserveScenarioCalculationData(client, input, context);
   const response = await persistReserveScenarioCalculation(client, input, context, data);
@@ -457,9 +527,11 @@ async function calculateReserveScenarioForContext(
 async function findReusableReserveScenarioResponse(
   client: PoolClient,
   input: RunReserveScenarioCalculationInput,
-  context: ReserveScenarioRunContext
+  context: ReserveScenarioRunContext,
+  snapshotId: number
 ): Promise<FundScenarioCalculationResponseV1 | null> {
   const reusableSnapshot = await findReusableReserveScenarioSnapshot(client, {
+    snapshotId,
     fundId: input.fundId,
     scenarioSetId: input.scenarioSetId,
     sourceConfigId: context.sourceConfig.id,
@@ -533,11 +605,13 @@ export async function runReserveScenarioCalculation(
   input: RunReserveScenarioCalculationInput
 ): Promise<FundScenarioCalculationResponseV1> {
   let inputHashForFailure: string | null = null;
+  let hashKindForFailure: ScenarioInputLineage['hashKind'] | null = null;
 
   try {
     return await transaction(async (client) => {
       const context = await loadReserveScenarioRunContext(client, input);
       inputHashForFailure = context.inputHash;
+      hashKindForFailure = context.inputLineage.hashKind;
       return calculateReserveScenarioForContext(client, input, context);
     });
   } catch (error) {
@@ -548,6 +622,7 @@ export async function runReserveScenarioCalculation(
       correlationId: input.correlationId,
       jobId: input.jobId,
       inputHash: inputHashForFailure,
+      hashKind: hashKindForFailure,
       error,
     });
     throw error;

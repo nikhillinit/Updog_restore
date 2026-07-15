@@ -31,6 +31,7 @@ const baseState: Parameters<typeof fundStoreToCreateV1>[0] = {
   carriedInterest: 20.0,
   vintageYear: 2026,
   establishmentDate: '2026-01-15',
+  modelInputsAsOfDate: '2026-06-30',
   isEvergreen: false,
   fundLife: 10,
   investmentPeriod: 5,
@@ -140,6 +141,7 @@ describe('fundStoreToDraftWriteV1', () => {
     expect(result.stages).toHaveLength(1);
     expect(result.followOnChecks).toEqual({ A: 1, B: 2, C: 3 });
     expect(result.waterfallType).toBe('american');
+    expect(result.modelInputsAsOfDate).toBe('2026-06-30');
     expect(result.economicsAssumptions).toBeUndefined();
     // Empty arrays should NOT be included
     expect(result.lpClasses).toBeUndefined();
@@ -244,6 +246,13 @@ describe('fundStoreToDraftWriteV1', () => {
 });
 
 describe('fundStoreToFinalizeV1', () => {
+  it('requires and preserves the owner-authored model inputs date', () => {
+    expect(fundStoreToFinalizeV1(baseState).modelInputsAsOfDate).toBe('2026-06-30');
+    expect(() =>
+      fundStoreToFinalizeV1({ ...baseState, modelInputsAsOfDate: undefined })
+    ).toThrow('Model inputs as-of date is required before publishing');
+  });
+
   it('includes authoritative draftFundId when the server draft is ready', () => {
     const result = fundStoreToFinalizeV1({
       ...baseState,
@@ -287,6 +296,7 @@ describe('fundDraftWriteV1ToStoreHydrationPatch', () => {
       {
         fundName: 'Recovered Fund',
         fundSize: 75_000_000,
+        modelInputsAsOfDate: '2026-06-30',
         managementFeeRate: 2,
         carriedInterest: 20,
         stages: [{ id: 'srv-stage', name: 'Series A', graduate: 40, exit: 15, months: 24 }],
@@ -297,6 +307,7 @@ describe('fundDraftWriteV1ToStoreHydrationPatch', () => {
 
     expect(patch.fundName).toBe('Recovered Fund');
     expect(patch.fundSize).toBe(75_000_000);
+    expect(patch.modelInputsAsOfDate).toBe('2026-06-30');
     expect(patch.stages).toEqual([
       { id: 'srv-stage', name: 'Series A', graduate: 40, exit: 15, months: 24 },
     ]);

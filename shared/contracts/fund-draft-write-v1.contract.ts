@@ -13,6 +13,10 @@
 import { z } from 'zod';
 import { EconomicsAssumptionsV1Schema } from './economics-v1.contract';
 
+export const ModelInputsAsOfDateSchema = z
+  .string()
+  .date('Model inputs as-of date must be a valid YYYY-MM-DD date');
+
 // ---------------------------------------------------------------------------
 // Sub-schemas (deep .strict())
 // ---------------------------------------------------------------------------
@@ -204,6 +208,7 @@ export const FundDraftWriteV1Schema = z
     managementFeeRate: z.number().optional(),
     carriedInterest: z.number().optional(),
     establishmentDate: z.string().optional(),
+    modelInputsAsOfDate: ModelInputsAsOfDateSchema.optional(),
     isEvergreen: z.boolean().optional(),
     fundLife: z.number().positive().optional(),
     investmentPeriod: z.number().positive().optional(),

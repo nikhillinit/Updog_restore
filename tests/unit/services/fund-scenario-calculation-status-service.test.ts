@@ -62,6 +62,96 @@ describe('fund scenario calculation status service', () => {
     expect(fetchScenarioSetDetailMock).toHaveBeenCalledTimes(1);
     expect(queryMock).not.toHaveBeenCalled();
   });
+
+  it('accepts only the exact completed run snapshot and hash-kind event chain', async () => {
+    fetchScenarioSetDetailMock.mockResolvedValue(reserveScenarioSetDetail());
+    queryMock.mockImplementation(async (sqlValue: unknown, params: unknown[] = []) => {
+      const sql = String(sqlValue);
+      if (sql.includes('FROM fundconfigs') && sql.includes('id = $2')) {
+        return {
+          rows: [
+            {
+              id: 12,
+              version: 4,
+              config: {
+                fundName: 'Status fund',
+                modelInputsAsOfDate: '2026-06-30',
+              },
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM fundconfigs') && sql.includes('is_published = TRUE')) {
+        return { rows: [{ version: 4 }] };
+      }
+      if (sql.includes('FROM fund_scenario_calculation_runs')) {
+        return {
+          rows: [
+            {
+              id: '00000000-0000-0000-0000-000000000222',
+              fund_id: 123,
+              scenario_set_id: scenarioSetId,
+              source_config_id: 12,
+              source_config_version: 4,
+              calculation_mode: 'async_reserve_allocation',
+              override_type: 'reserve_allocation',
+              input_hash: params[4],
+              hash_kind: 'scenario-input-hash-v2',
+              model_inputs_as_of_date: new Date(2026, 5, 30),
+              comparison_lineage_version: 'comparison-lineage-v1',
+              job_id: 'job-42',
+              correlation_id: '00000000-0000-0000-0000-000000000333',
+              status: 'completed',
+              snapshot_id: 42,
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM fund_snapshots')) {
+        expect(params[1]).toBe(42);
+        return {
+          rows: [
+            {
+              id: 42,
+              correlation_id: '00000000-0000-0000-0000-000000000333',
+              created_at: new Date('2026-07-01T00:00:00.000Z'),
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM fund_scenario_set_events')) {
+        expect(params[3]).toBe('scenario-input-hash-v2');
+        return {
+          rows: [
+            {
+              event_type: 'calculated',
+              change_summary_json: {
+                input_hash: params[2],
+                hash_kind: params[3],
+                job_id: 'job-42',
+              },
+              created_at: new Date('2026-07-01T00:00:01.000Z'),
+            },
+          ],
+        };
+      }
+      throw new Error(`Unexpected status query: ${sql}`);
+    });
+
+    const result = await getFundScenarioCalculationStatus(123, scenarioSetId);
+
+    expect(result).toMatchObject({
+      status: 'succeeded',
+      snapshotId: 42,
+      correlationId: '00000000-0000-0000-0000-000000000333',
+    });
+    const sqlCalls = queryMock.mock.calls.map((call) => String(call[0]));
+    expect(sqlCalls.some((sql) => sql.includes("COALESCE(hash_kind, 'scenario-input-hash-v1')"))).toBe(
+      true
+    );
+    expect(sqlCalls.some((sql) => sql.includes("change_summary_json ->> 'hash_kind'"))).toBe(true);
+    expect(sqlCalls.some((sql) => sql.includes('AND id = $2'))).toBe(true);
+  });
 });
 
 function feeScenarioSetDetail(): FundScenarioSetDetailV1 {
@@ -107,6 +197,31 @@ function feeScenarioSetDetail(): FundScenarioSetDetailV1 {
                 ],
               },
             ],
+          },
+        },
+        createdAt: '2026-05-29T12:00:00.000Z',
+        updatedAt: '2026-05-29T12:00:00.000Z',
+      },
+    ],
+  };
+}
+
+function reserveScenarioSetDetail(): FundScenarioSetDetailV1 {
+  return {
+    ...feeScenarioSetDetail(),
+    name: 'Reserve allocation',
+    variants: [
+      {
+        id: '00000000-0000-0000-0000-000000000112',
+        scenarioSetId,
+        name: 'Reserve case',
+        description: null,
+        sortOrder: 0,
+        override: {
+          overrideType: 'reserve_allocation',
+          payload: {
+            allocationVersion: null,
+            items: [{ companyId: 1, plannedReservesCents: 1000 }],
           },
         },
         createdAt: '2026-05-29T12:00:00.000Z',

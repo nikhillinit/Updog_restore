@@ -330,6 +330,12 @@ export function registerFundConfigRoutes(app: Express) {
         };
         return res.status(400).json(apiError);
       }
+      if (error instanceof Error && error.name === 'ModelInputsAsOfDateRequiredError') {
+        return sendApiError(res, 422, {
+          error: error.message,
+          code: 'MODEL_INPUTS_AS_OF_DATE_REQUIRED',
+        });
+      }
       routeLog.error('Publish error:', error);
       const apiError: ApiError = {
         error: 'Failed to publish configuration',

@@ -15,7 +15,10 @@
 
 import { z } from 'zod';
 import { engineResultsSchema } from '@shared/schemas/engine-results-schema';
-import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
+import {
+  FundDraftWriteV1Schema,
+  ModelInputsAsOfDateSchema,
+} from '@shared/contracts/fund-draft-write-v1.contract';
 
 // Extract only the draft config fields (exclude fundName/fundSize which overlap
 // with the create fields under different names)
@@ -77,6 +80,8 @@ export const FundFinalizeV1Schema = z
 
     /** Establishment date */
     establishmentDate: draftConfigFields.shape.establishmentDate,
+    /** Owner-asserted date through which the published model inputs are intended current */
+    modelInputsAsOfDate: ModelInputsAsOfDateSchema,
     /** Is evergreen fund */
     isEvergreen: draftConfigFields.shape.isEvergreen,
     /** Fund life in years */

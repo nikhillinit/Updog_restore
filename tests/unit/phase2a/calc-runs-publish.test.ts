@@ -34,6 +34,13 @@ describe('calcRuns table schema', () => {
     expect(calcRuns.dispatchState).toBeDefined();
   });
 
+  it('has nullable typed business-time comparison lineage columns', () => {
+    expect(calcRuns.modelInputsAsOfDate.name).toBe('model_inputs_as_of_date');
+    expect(calcRuns.comparisonLineageVersion.name).toBe('comparison_lineage_version');
+    expect(calcRuns.modelInputsAsOfDate.notNull).toBe(false);
+    expect(calcRuns.comparisonLineageVersion.notNull).toBe(false);
+  });
+
   it('has timestamp columns for lifecycle', () => {
     expect(calcRuns.requestedAt).toBeDefined();
     expect(calcRuns.dispatchedAt).toBeDefined();

@@ -19,7 +19,10 @@ import {
   isAuthoritativeEngineKey,
   type FundCalculationEngineKey,
 } from '@shared/contracts/fund-authoritative-calculations.contract';
-import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
+import {
+  FundDraftWriteV1Schema,
+  ModelInputsAsOfDateSchema,
+} from '@shared/contracts/fund-draft-write-v1.contract';
 import { isFlagEnabled } from '@shared/flags/getFlag';
 import type { Queue } from 'bullmq';
 import { runReserveCalculation } from './reserve-calculation-service';
@@ -27,6 +30,7 @@ import { runPacingCalculation } from './pacing-calculation-service';
 import { runEconomicsCalculation } from './economics-calculation-service';
 import { fundStateReadService } from './fund-state-read-service';
 import { omitEconomicsAssumptionsWhenDisabled } from './economics-feature-gate';
+import { COMPARISON_LINEAGE_VERSION } from '@shared/lib/scenarios/scenario-input-envelope';
 
 export interface CreateFundInput {
   name: string;
@@ -109,6 +113,25 @@ export class CalculationInProgressError extends Error {
     super('Calculation already in progress');
     this.name = 'CalculationInProgressError';
   }
+}
+
+export class ModelInputsAsOfDateRequiredError extends Error {
+  constructor() {
+    super('A valid modelInputsAsOfDate is required before publishing');
+    this.name = 'ModelInputsAsOfDateRequiredError';
+  }
+}
+
+function readRequiredModelInputsAsOfDate(config: unknown): string {
+  const rawDate =
+    typeof config === 'object' && config !== null && !Array.isArray(config)
+      ? (config as Record<string, unknown>)['modelInputsAsOfDate']
+      : undefined;
+  const parsed = ModelInputsAsOfDateSchema.safeParse(rawDate);
+  if (!parsed.success) {
+    throw new ModelInputsAsOfDateRequiredError();
+  }
+  return parsed.data;
 }
 
 class NoPublishableDraftError extends Error {
@@ -210,6 +233,7 @@ export class FundPersistenceService {
           throw new NoPublishableDraftError();
         }
 
+        const modelInputsAsOfDate = readRequiredModelInputsAsOfDate(draft.config);
         const engines = this.getEnginesForConfig(draft.config);
 
         await tx
@@ -238,6 +262,8 @@ export class FundPersistenceService {
             fundId,
             configId: draft.id,
             configVersion: draft.version,
+            modelInputsAsOfDate,
+            comparisonLineageVersion: COMPARISON_LINEAGE_VERSION,
             correlationId,
             engines,
             dispatchState: 'pending',
@@ -453,6 +479,10 @@ export class FundPersistenceService {
     }
 
     const engines = this.getEnginesForConfig(publishedConfig.config);
+    const parsedPublishedConfig = FundDraftWriteV1Schema.safeParse(publishedConfig.config);
+    const modelInputsAsOfDate = parsedPublishedConfig.success
+      ? (parsedPublishedConfig.data.modelInputsAsOfDate ?? null)
+      : null;
 
     // 3. Check for existing calcRun for this configVersion
     const existingRun = await db.query.calcRuns.findFirst({
@@ -481,6 +511,9 @@ export class FundPersistenceService {
           fundId,
           configId: publishedConfig.id,
           configVersion: publishedConfig.version,
+          modelInputsAsOfDate,
+          comparisonLineageVersion:
+            modelInputsAsOfDate === null ? null : COMPARISON_LINEAGE_VERSION,
           correlationId,
           engines,
           dispatchState: 'pending',

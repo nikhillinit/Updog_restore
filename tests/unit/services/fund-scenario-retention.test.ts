@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { persistFeeProfileScenarioSnapshot } from '../../../server/services/fund-scenario-calculation-service';
-import { acquireScenarioCalculationRun } from '../../../server/services/fund-scenario-calculation-run-service';
+import {
+  acquireScenarioCalculationRun,
+  findCompletedScenarioRun,
+} from '../../../server/services/fund-scenario-calculation-run-service';
 import { persistReserveScenarioSnapshot } from '../../../server/services/fund-scenario-reserve-snapshot-store';
 import type { EconomicsResultV1 } from '../../../shared/contracts/economics-v1.contract';
 import type { FundScenarioCalculationPayloadV1 } from '../../../shared/contracts/fund-scenario-sets-v1.contract';
@@ -169,6 +172,9 @@ const calculationIdentity = {
   calculationMode: 'sync_fee_profile' as const,
   overrideType: 'fee_profile' as const,
   inputHash: 'c'.repeat(64),
+  hashKind: 'scenario-input-hash-v2' as const,
+  modelInputsAsOfDate: '2026-06-30',
+  comparisonLineageVersion: 'comparison-lineage-v1' as const,
   correlationId: '11111111-1111-4111-8111-111111111114',
 };
 
@@ -230,6 +236,9 @@ describe('scenario retention helpers', () => {
             calculation_mode: 'sync_fee_profile',
             override_type: 'fee_profile',
             input_hash: calculationIdentity.inputHash,
+            hash_kind: calculationIdentity.hashKind,
+            model_inputs_as_of_date: calculationIdentity.modelInputsAsOfDate,
+            comparison_lineage_version: calculationIdentity.comparisonLineageVersion,
             job_id: null,
             correlation_id: calculationIdentity.correlationId,
             status: 'queued',
@@ -244,5 +253,51 @@ describe('scenario retention helpers', () => {
     expect(String(queryMock.mock.calls[0]?.[0])).toContain(
       "WHERE status IN ('queued', 'running', 'completed')"
     );
+    expect(String(queryMock.mock.calls[0]?.[0])).toContain(
+      "COALESCE(hash_kind, 'scenario-input-hash-v1')"
+    );
+  });
+
+  it('rejects malformed or uppercase typed hashes before querying', async () => {
+    const queryMock = vi.fn();
+
+    await expect(
+      acquireScenarioCalculationRun(
+        { query: queryMock } as never,
+        { ...calculationIdentity, inputHash: 'A'.repeat(64) }
+      )
+    ).rejects.toThrow('exact lowercase SHA-256 hex');
+    expect(queryMock).not.toHaveBeenCalled();
+  });
+
+  it('normalizes PostgreSQL DATE objects without a UTC day shift', async () => {
+    const queryMock = vi.fn().mockResolvedValue({
+      rows: [
+        {
+          id: '11111111-1111-4111-8111-111111111115',
+          fund_id: calculationIdentity.fundId,
+          scenario_set_id: calculationIdentity.scenarioSetId,
+          source_config_id: calculationIdentity.sourceConfigId,
+          source_config_version: calculationIdentity.sourceConfigVersion,
+          calculation_mode: calculationIdentity.calculationMode,
+          override_type: calculationIdentity.overrideType,
+          input_hash: calculationIdentity.inputHash,
+          hash_kind: calculationIdentity.hashKind,
+          model_inputs_as_of_date: new Date(2026, 5, 30),
+          comparison_lineage_version: calculationIdentity.comparisonLineageVersion,
+          job_id: null,
+          correlation_id: calculationIdentity.correlationId,
+          status: 'completed',
+          snapshot_id: 42,
+        },
+      ],
+    });
+
+    const run = await findCompletedScenarioRun(
+      { query: queryMock } as never,
+      calculationIdentity
+    );
+
+    expect(run?.modelInputsAsOfDate).toBe('2026-06-30');
   });
 });

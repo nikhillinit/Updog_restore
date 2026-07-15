@@ -137,6 +137,7 @@ export type FundState = {
   // Fund Basics
   fundName?: string;
   establishmentDate?: string; // ISO date string for fund establishment
+  modelInputsAsOfDate?: string; // Owner-asserted YYYY-MM-DD input provenance
   vintageYear?: number; // Derived from establishment date
   isEvergreen?: boolean;
   fundLife?: number;
@@ -188,6 +189,7 @@ export type FundState = {
         FundState,
         | 'fundName'
         | 'establishmentDate'
+        | 'modelInputsAsOfDate'
         | 'vintageYear'
         | 'isEvergreen'
         | 'fundLife'
@@ -316,6 +318,7 @@ type FundBasicsPatch = Partial<
     FundState,
     | 'fundName'
     | 'establishmentDate'
+    | 'modelInputsAsOfDate'
     | 'vintageYear'
     | 'isEvergreen'
     | 'fundLife'

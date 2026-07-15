@@ -70,7 +70,7 @@ async function seedScenarioFixtures(pool: Pool): Promise<{ fundId: number }> {
     `INSERT INTO fundconfigs (fund_id, version, config, is_draft, is_published)
      VALUES ($1, $2, $3, false, true)
      RETURNING id`,
-    [fundId, 1, { name: 'Scenario Worker Config' }]
+    [fundId, 1, { fundName: 'Scenario Worker Config' }]
   );
   const configId = config.rows[0]!.id;
 

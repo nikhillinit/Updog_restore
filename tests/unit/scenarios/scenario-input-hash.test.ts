@@ -36,6 +36,25 @@ const baseEnvelope = {
 } as const;
 
 describe('scenario input hash canonicalization', () => {
+  it('binds modelInputsAsOfDate only in scenario-input-hash-v2', () => {
+    const juneEnvelope = {
+      ...baseEnvelope,
+      version: 'scenario-input-hash-v2' as const,
+      modelInputsAsOfDate: '2026-06-30',
+    };
+    const julyEnvelope = {
+      ...juneEnvelope,
+      modelInputsAsOfDate: '2026-07-31',
+    };
+
+    expect(canonicalScenarioInputString(juneEnvelope)).toContain(
+      '"modelInputsAsOfDate":"2026-06-30"'
+    );
+    expect(createScenarioInputHash(juneEnvelope)).toMatch(/^[a-f0-9]{64}$/);
+    expect(createScenarioInputHash(juneEnvelope)).not.toBe(createScenarioInputHash(julyEnvelope));
+    expect(createScenarioInputHash(juneEnvelope)).not.toBe(createScenarioInputHash(baseEnvelope));
+  });
+
   it('hashes object key order and nested key order identically', () => {
     const reordered = {
       ...baseEnvelope,

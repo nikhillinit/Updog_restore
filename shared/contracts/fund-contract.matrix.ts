@@ -41,6 +41,7 @@ export const DRAFT_CONFIG_FIELDS = [
   'managementFeeRate',
   'carriedInterest',
   'establishmentDate',
+  'modelInputsAsOfDate',
   'isEvergreen',
   'fundLife',
   'investmentPeriod',

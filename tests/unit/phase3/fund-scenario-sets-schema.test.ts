@@ -177,6 +177,13 @@ describe('ADR-022 fund scenario set schema shell', () => {
     expect(schema.fundScenarioCalculationRuns).toBeDefined();
     expect(schema.fundScenarioCalculationRuns.scenarioSetId.name).toBe('scenario_set_id');
     expect(schema.fundScenarioCalculationRuns.inputHash.name).toBe('input_hash');
+    expect(schema.fundScenarioCalculationRuns.hashKind.name).toBe('hash_kind');
+    expect(schema.fundScenarioCalculationRuns.modelInputsAsOfDate.name).toBe(
+      'model_inputs_as_of_date'
+    );
+    expect(schema.fundScenarioCalculationRuns.comparisonLineageVersion.name).toBe(
+      'comparison_lineage_version'
+    );
     expect(schema.fundScenarioCalculationRuns.snapshotId.name).toBe('snapshot_id');
 
     const snapshotIndexes = new Map(
@@ -213,11 +220,29 @@ describe('ADR-022 fund scenario set schema shell', () => {
       'scenario_set_id',
       'source_config_id',
       'source_config_version',
+      'sql_expression',
       'input_hash',
     ]);
     expect(sqlChunkColumnNames(activeDedupeIdx?.where)).toEqual(['status']);
     expect(sqlChunkText(activeDedupeIdx?.where)).toContain(
       " IN ('queued', 'running', 'completed')"
     );
+    expect(sqlChunkText(activeDedupeIdx?.columns[3])).toContain(
+      "COALESCE(, 'scenario-input-hash-v1')"
+    );
+    expect(sqlChunkColumnNames(activeDedupeIdx?.columns[3])).toEqual(['hash_kind']);
+  });
+
+  it('business-time migration keeps legacy rows null and adds typed v2 lineage guards', async () => {
+    const migration = await readRepoFile('migrations/0034_business_time_comparison_lineage.sql');
+
+    expect(migration).toContain('ADD COLUMN IF NOT EXISTS "model_inputs_as_of_date" date');
+    expect(migration).toContain('ADD COLUMN IF NOT EXISTS "comparison_lineage_version"');
+    expect(migration).toContain('ADD COLUMN IF NOT EXISTS "hash_kind"');
+    expect(migration).toContain("'comparison-lineage-v1'");
+    expect(migration).toContain("'scenario-input-hash-v2'");
+    expect(migration).toContain("^[a-f0-9]{64}$");
+    expect(migration).toContain("COALESCE(\"hash_kind\", 'scenario-input-hash-v1')");
+    expect(migration).not.toMatch(/UPDATE\s+(?:"calc_runs"|"fund_scenario_calculation_runs")/i);
   });
 });
