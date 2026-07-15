@@ -31,6 +31,7 @@ export default function FundBasicsStep() {
   const managementFeeRate = useFundSelector((s) => s.managementFeeRate);
   const carriedInterest = useFundSelector((s) => s.carriedInterest);
   const establishmentDate = useFundSelector((s) => s.establishmentDate);
+  const modelInputsAsOfDate = useFundSelector((s) => s.modelInputsAsOfDate);
   const vintageYear = useFundSelector((s) => s.vintageYear);
   const draftFundId = useFundSelector((s) => s.draftFundId);
   const draftServerReady = useFundSelector((s) => s.draftServerReady);
@@ -209,6 +210,31 @@ export default function FundBasicsStep() {
             help="Total capital committed by LPs"
             required
           />
+
+          <div className="space-y-3">
+            <Label
+              htmlFor="model-inputs-as-of-date"
+              className="text-sm font-poppins font-medium text-pov-charcoal"
+            >
+              Model Inputs As-Of Date *
+            </Label>
+            <Input
+              id="model-inputs-as-of-date"
+              type="date"
+              value={modelInputsAsOfDate ?? ''}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                handleInputChange('modelInputsAsOfDate', event.target.value || undefined)
+              }
+              data-testid="model-inputs-as-of-date"
+              required
+              aria-required="true"
+              className="h-12 max-w-sm font-poppins border-beige-200 focus:border-pov-charcoal focus:ring-charcoal/40"
+            />
+            <p className="text-sm text-presson-textMuted">
+              The owner-asserted date through which these model inputs and assumptions are intended
+              current. This is provenance, not a valuation or calculation date.
+            </p>
+          </div>
 
           <div className="flex items-center space-x-3 pt-6 border-t border-beige-200">
             <Switch

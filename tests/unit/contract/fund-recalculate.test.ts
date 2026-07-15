@@ -123,12 +123,16 @@ function unpublishedFundState(): FundStateReadV1 {
   };
 }
 
-function publishedConfig() {
+function publishedConfig(modelInputsAsOfDate?: string) {
   return {
     id: 20,
     fundId: 1,
     version: 2,
-    config: { fundSize: 100_000_000 },
+    config: {
+      fundName: 'Published Fund',
+      fundSize: 100_000_000,
+      ...(modelInputsAsOfDate !== undefined && { modelInputsAsOfDate }),
+    },
     isDraft: false,
     isPublished: true,
   };
@@ -293,6 +297,53 @@ describe('FundPersistenceService.recalculatePublished behavior', () => {
     expect(result.correlationId).toBe('recalc-correlation-id');
     expect(result.run.id).toBe(55);
     expect(tx.insert).toHaveBeenCalledTimes(2);
+    const legacyRunValues = tx.insert.mock.results[0]?.value.values.mock.calls[0]?.[0];
+    expect(legacyRunValues).toMatchObject({
+      modelInputsAsOfDate: null,
+      comparisonLineageVersion: null,
+    });
+  });
+
+  it('copies the owner date and eligible lineage marker onto a new recalculation run', async () => {
+    const service = new FundPersistenceService();
+    mockGetState.mockResolvedValue(publishedFundState());
+    mockDb.query.fundConfigs.findFirst.mockResolvedValue(publishedConfig('2026-06-30'));
+    mockDb.query.calcRuns.findFirst.mockResolvedValue(null);
+
+    const newRun = {
+      id: 57,
+      fundId: 1,
+      configId: 20,
+      configVersion: 2,
+      correlationId: 'recalc-correlation-id',
+      engines: ['reserve', 'pacing'],
+      dispatchState: 'pending',
+      requestedAt: new Date(),
+    };
+    const tx = {
+      insert: vi
+        .fn()
+        .mockReturnValueOnce(valuesReturning([newRun]))
+        .mockReturnValueOnce(valuesResolved(undefined)),
+    };
+    mockDb.transaction.mockImplementation(async (callback: (t: typeof tx) => Promise<unknown>) =>
+      callback(tx)
+    );
+    mockDb.update.mockReturnValue(
+      whereReturning([{ ...newRun, dispatchState: 'dispatched', lastError: null }])
+    );
+
+    await service.recalculatePublished(1, {
+      reserve: null,
+      pacing: null,
+      cohort: null,
+    });
+
+    const runValues = tx.insert.mock.results[0]?.value.values.mock.calls[0]?.[0];
+    expect(runValues).toMatchObject({
+      modelInputsAsOfDate: '2026-06-30',
+      comparisonLineageVersion: 'comparison-lineage-v1',
+    });
   });
 
   it('redispatches existing pending run instead of creating new', async () => {

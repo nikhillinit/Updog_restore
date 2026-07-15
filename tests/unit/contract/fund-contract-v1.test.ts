@@ -98,6 +98,22 @@ describe('FundDraftWriteV1Schema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('allows draft omission but validates an owner-authored model inputs date when present', () => {
+    expect(FundDraftWriteV1Schema.safeParse(minimalDraftPayload).success).toBe(true);
+    expect(
+      FundDraftWriteV1Schema.safeParse({
+        ...minimalDraftPayload,
+        modelInputsAsOfDate: '2026-06-30',
+      }).success
+    ).toBe(true);
+    expect(
+      FundDraftWriteV1Schema.safeParse({
+        ...minimalDraftPayload,
+        modelInputsAsOfDate: '2026-06-31',
+      }).success
+    ).toBe(false);
+  });
+
   it('accepts warning-fields-blank payload', () => {
     const result = FundDraftWriteV1Schema.safeParse(warningFieldsBlankDraft);
     expect(result.success).toBe(true);

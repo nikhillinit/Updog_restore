@@ -108,6 +108,8 @@ export const calcRuns = pgTable(
       .references(() => fundConfigs.id)
       .notNull(),
     configVersion: integer('config_version').notNull(),
+    modelInputsAsOfDate: date('model_inputs_as_of_date'),
+    comparisonLineageVersion: varchar('comparison_lineage_version', { length: 48 }),
     correlationId: varchar('correlation_id', { length: 36 }).notNull().unique(),
     engines: jsonb('engines').notNull().$type<string[]>(), // ['reserve', 'pacing', 'cohort']
     dispatchState: varchar('dispatch_state', { length: 20 }).notNull().$type<DispatchState>(),
@@ -121,6 +123,19 @@ export const calcRuns = pgTable(
   (table) => ({
     fundIdIdx: index('calc_runs_fund_id_idx')['on'](table.fundId),
     configIdIdx: index('calc_runs_config_id_idx')['on'](table.configId),
+    comparisonLineageCheck: check(
+      'calc_runs_comparison_lineage_check',
+      sql`
+        (
+          ${table.comparisonLineageVersion} IS NULL
+          AND ${table.modelInputsAsOfDate} IS NULL
+        )
+        OR (
+          ${table.comparisonLineageVersion} = 'comparison-lineage-v1'
+          AND ${table.modelInputsAsOfDate} IS NOT NULL
+        )
+      `
+    ),
   })
 );
 
@@ -322,6 +337,9 @@ export const fundScenarioCalculationRuns = pgTable(
     calculationMode: varchar('calculation_mode', { length: 48 }).notNull(),
     overrideType: varchar('override_type', { length: 48 }).notNull(),
     inputHash: varchar('input_hash', { length: 64 }).notNull(),
+    hashKind: varchar('hash_kind', { length: 48 }),
+    modelInputsAsOfDate: date('model_inputs_as_of_date'),
+    comparisonLineageVersion: varchar('comparison_lineage_version', { length: 48 }),
     jobId: text('job_id'),
     correlationId: varchar('correlation_id', { length: 36 }).notNull(),
     status: varchar('status', { length: 24 }).notNull(),
@@ -341,11 +359,47 @@ export const fundScenarioCalculationRuns = pgTable(
       table.createdAt.desc()
     ),
     activeDedupeIdx: uniqueIndex('fund_scenario_calc_runs_active_dedup_idx')
-      .on(table.scenarioSetId, table.sourceConfigId, table.sourceConfigVersion, table.inputHash)
+      .on(
+        table.scenarioSetId,
+        table.sourceConfigId,
+        table.sourceConfigVersion,
+        sql`COALESCE(${table.hashKind}, 'scenario-input-hash-v1')`,
+        table.inputHash
+      )
       .where(sql`${table.status} IN ('queued', 'running', 'completed')`),
     statusCheck: check(
       'fund_scenario_calculation_runs_status_check',
       sql`${table.status} IN ('queued', 'running', 'completed', 'failed', 'cancelled')`
+    ),
+    hashKindCheck: check(
+      'fund_scenario_calculation_runs_hash_kind_check',
+      sql`
+        ${table.hashKind} IS NULL
+        OR ${table.hashKind} IN ('scenario-input-hash-v1', 'scenario-input-hash-v2')
+      `
+    ),
+    typedInputHashCheck: check(
+      'fund_scenario_calculation_runs_typed_input_hash_check',
+      sql`${table.hashKind} IS NULL OR ${table.inputHash} ~ '^[a-f0-9]{64}$'`
+    ),
+    comparisonLineageCheck: check(
+      'fund_scenario_calculation_runs_comparison_lineage_check',
+      sql`
+        (
+          ${table.comparisonLineageVersion} IS NULL
+          AND ${table.modelInputsAsOfDate} IS NULL
+          AND (
+            ${table.hashKind} IS NULL
+            OR ${table.hashKind} = 'scenario-input-hash-v1'
+          )
+        )
+        OR (
+          ${table.comparisonLineageVersion} = 'comparison-lineage-v1'
+          AND ${table.modelInputsAsOfDate} IS NOT NULL
+          AND ${table.hashKind} = 'scenario-input-hash-v2'
+          AND ${table.inputHash} ~ '^[a-f0-9]{64}$'
+        )
+      `
     ),
   })
 );

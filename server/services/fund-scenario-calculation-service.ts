@@ -15,7 +15,7 @@ import {
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import {
   FUND_SCENARIOS_CONTRACT_VERSION,
-  SCENARIO_INPUT_HASH_VERSION,
+  resolveScenarioInputLineage,
 } from '@shared/lib/scenarios/scenario-input-envelope';
 import {
   FundDraftWriteV1Schema,
@@ -34,6 +34,7 @@ import {
 import { createScenarioInputHash } from '../lib/scenarios/scenario-input-hash';
 import {
   acquireScenarioCalculationRun,
+  findCompletedScenarioRun,
   markScenarioCalculationRunCompleted,
   markScenarioCalculationRunRunning,
 } from './fund-scenario-calculation-run-service';
@@ -505,6 +506,7 @@ function assertSyncScenarioSet(
 async function findReusableScenarioSnapshot(
   client: PoolClient,
   input: {
+    snapshotId: number;
     fundId: number;
     scenarioSetId: string;
     sourceConfigId: number;
@@ -516,16 +518,18 @@ async function findReusableScenarioSnapshot(
     `SELECT id, payload, correlation_id, created_at, snapshot_time
        FROM fund_snapshots
       WHERE fund_id = $1
-        AND scenario_set_id = $2
+        AND id = $2
+        AND scenario_set_id = $3
         AND type = 'SCENARIOS'
-        AND config_id = $3
-        AND config_version = $4
-        AND calc_version = $5
-        AND state_hash = $6
+        AND config_id = $4
+        AND config_version = $5
+        AND calc_version = $6
+        AND state_hash = $7
       ORDER BY created_at DESC
       LIMIT 1`,
     [
       input.fundId,
+      input.snapshotId,
       input.scenarioSetId,
       input.sourceConfigId,
       input.sourceConfigVersion,
@@ -584,8 +588,8 @@ export async function calculateFundScenarioSet(
     );
     const currentPublishedVersion = await loadCurrentPublishedVersion(client, fundId);
     const sourceConfigBody = parseSourceConfig(fundId, sourceConfig);
-    const inputHash = createScenarioInputHash({
-      version: SCENARIO_INPUT_HASH_VERSION,
+    const lineage = resolveScenarioInputLineage(sourceConfigBody.modelInputsAsOfDate);
+    const hashEnvelopeBase = {
       contractVersion: FUND_SCENARIOS_CONTRACT_VERSION,
       scenarioSetId,
       sourceConfigId: sourceConfig.id,
@@ -598,21 +602,21 @@ export async function calculateFundScenarioSet(
         sortOrder: variant.sortOrder,
         override: variant.override,
       })),
-    });
-
-    const reusableSnapshot = await findReusableScenarioSnapshot(client, {
-      fundId,
-      scenarioSetId,
-      sourceConfigId: sourceConfig.id,
-      sourceConfigVersion: sourceConfig.version,
-      inputHash,
-    });
-    if (reusableSnapshot) {
-      return withReadTimeStaleness(reusableSnapshot, currentPublishedVersion);
-    }
+    };
+    const inputHash =
+      lineage.hashKind === 'scenario-input-hash-v2'
+        ? createScenarioInputHash({
+            ...hashEnvelopeBase,
+            version: lineage.hashKind,
+            modelInputsAsOfDate: lineage.modelInputsAsOfDate,
+          })
+        : createScenarioInputHash({
+            ...hashEnvelopeBase,
+            version: lineage.hashKind,
+          });
 
     const correlationId = crypto.randomUUID();
-    const run = await acquireScenarioCalculationRun(client, {
+    const runIdentity = {
       fundId,
       scenarioSetId,
       sourceConfigId: sourceConfig.id,
@@ -620,10 +624,32 @@ export async function calculateFundScenarioSet(
       calculationMode,
       overrideType,
       inputHash,
+      hashKind: lineage.hashKind,
+      modelInputsAsOfDate: lineage.modelInputsAsOfDate,
+      comparisonLineageVersion: lineage.comparisonLineageVersion,
+    };
+    const completedRun = await findCompletedScenarioRun(client, runIdentity);
+    if (completedRun?.snapshotId != null) {
+      const completedSnapshot = await findReusableScenarioSnapshot(client, {
+        snapshotId: completedRun.snapshotId,
+        fundId,
+        scenarioSetId,
+        sourceConfigId: sourceConfig.id,
+        sourceConfigVersion: sourceConfig.version,
+        inputHash,
+      });
+      if (completedSnapshot) {
+        return withReadTimeStaleness(completedSnapshot, currentPublishedVersion);
+      }
+    }
+
+    const run = await acquireScenarioCalculationRun(client, {
+      ...runIdentity,
       correlationId,
     });
     if (run.status === 'completed' && run.snapshotId !== null) {
       const completedSnapshot = await findReusableScenarioSnapshot(client, {
+        snapshotId: run.snapshotId,
         fundId,
         scenarioSetId,
         sourceConfigId: sourceConfig.id,

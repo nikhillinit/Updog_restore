@@ -23,6 +23,7 @@ type FundStateSlice = Pick<
   | 'carriedInterest'
   | 'vintageYear'
   | 'establishmentDate'
+  | 'modelInputsAsOfDate'
   | 'isEvergreen'
   | 'fundLife'
   | 'investmentPeriod'
@@ -339,6 +340,9 @@ export function fundStoreToDraftWriteV1(
   if (state.managementFeeRate != null) draft.managementFeeRate = state.managementFeeRate;
   if (state.carriedInterest != null) draft.carriedInterest = state.carriedInterest;
   if (state.establishmentDate != null) draft.establishmentDate = state.establishmentDate;
+  if (state.modelInputsAsOfDate != null) {
+    draft.modelInputsAsOfDate = state.modelInputsAsOfDate;
+  }
   if (state.isEvergreen != null) draft.isEvergreen = state.isEvergreen;
   if (state.fundLife != null) draft.fundLife = state.fundLife;
   if (state.investmentPeriod != null) draft.investmentPeriod = state.investmentPeriod;
@@ -424,6 +428,7 @@ export function fundDraftWriteV1ToStoreHydrationPatch(
     ...spreadIfDefined('managementFeeRate', draft.managementFeeRate),
     ...spreadIfDefined('carriedInterest', draft.carriedInterest),
     ...spreadIfDefined('establishmentDate', draft.establishmentDate),
+    ...spreadIfDefined('modelInputsAsOfDate', draft.modelInputsAsOfDate),
     ...spreadIfDefined('isEvergreen', draft.isEvergreen ?? defaults.isEvergreen),
     ...spreadIfDefined('fundLife', draft.fundLife),
     ...spreadIfDefined('investmentPeriod', draft.investmentPeriod),
@@ -459,6 +464,9 @@ export function fundStoreToFinalizeV1(
   options: EconomicsAdapterOptions = {}
 ): import('@shared/contracts/fund-finalize-v1.contract').FundFinalizeV1 {
   const currentYear = new Date().getFullYear();
+  if (state.modelInputsAsOfDate == null || state.modelInputsAsOfDate.length === 0) {
+    throw new Error('Model inputs as-of date is required before publishing');
+  }
 
   // ── Required fund-level fields (same logic as fundStoreToCreateV1) ──
   const result: import('@shared/contracts/fund-finalize-v1.contract').FundFinalizeV1 = {
@@ -467,6 +475,7 @@ export function fundStoreToFinalizeV1(
     managementFee: (state.managementFeeRate ?? 0) / 100,
     carryPercentage: (state.carriedInterest ?? 0) / 100,
     vintageYear: state.vintageYear ?? currentYear,
+    modelInputsAsOfDate: state.modelInputsAsOfDate,
   };
 
   if (state.draftServerReady && state.draftFundId != null) {

@@ -135,6 +135,7 @@ export function applyScenarioReadStaleness(
 export async function findReusableReserveScenarioSnapshot(
   client: PoolClient,
   input: {
+    snapshotId: number;
     fundId: number;
     scenarioSetId: string;
     sourceConfigId: number;
@@ -146,17 +147,18 @@ export async function findReusableReserveScenarioSnapshot(
     `SELECT id, payload, correlation_id, created_at, snapshot_time
        FROM fund_snapshots
       WHERE fund_id = $1
-        AND scenario_set_id = $2
+        AND id = $2
+        AND scenario_set_id = $3
         AND type = 'SCENARIOS'
-        AND config_id = $3
-        AND config_version = $4
-        AND calc_version = $5
-        AND state_hash = $6
+        AND config_id = $4
+        AND config_version = $5
+        AND calc_version = $6
+        AND state_hash = $7
         AND metadata ->> 'calculation_mode' = 'async_reserve_allocation'
-      ORDER BY created_at DESC
       LIMIT 1`,
     [
       input.fundId,
+      input.snapshotId,
       input.scenarioSetId,
       input.sourceConfigId,
       input.sourceConfigVersion,

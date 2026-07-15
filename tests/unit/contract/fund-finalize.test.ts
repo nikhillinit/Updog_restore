@@ -25,6 +25,7 @@ const validFinalizePayload = {
   managementFee: 0.02,
   carryPercentage: 0.2,
   vintageYear: 2026,
+  modelInputsAsOfDate: '2026-06-30',
   targetMetrics: {
     targetIRR: 0.25,
     targetTVPI: 2.5,
@@ -38,6 +39,7 @@ const validFinalizePayload = {
 const minimalFinalizePayload = {
   name: 'Minimal Fund',
   size: 10_000_000,
+  modelInputsAsOfDate: '2026-06-30',
 };
 
 // ---------------------------------------------------------------------------
@@ -56,7 +58,7 @@ describe('FundFinalizeV1Schema', () => {
     }
   });
 
-  it('accepts minimal payload (name + size only, defaults applied)', () => {
+  it('accepts minimal publish payload with the required owner date', () => {
     const result = FundFinalizeV1Schema.safeParse(minimalFinalizePayload);
     expect(result.success).toBe(true);
     if (result.success) {
@@ -64,6 +66,27 @@ describe('FundFinalizeV1Schema', () => {
       expect(result.data.carryPercentage).toBe(0.2);
       expect(result.data.vintageYear).toBeGreaterThanOrEqual(2020);
     }
+  });
+
+  it('rejects publish payloads without a model inputs as-of date', () => {
+    const { modelInputsAsOfDate: _omitted, ...withoutOwnerDate } = minimalFinalizePayload;
+
+    expect(FundFinalizeV1Schema.safeParse(withoutOwnerDate).success).toBe(false);
+  });
+
+  it('rejects non-calendar and non-YYYY-MM-DD model input dates', () => {
+    expect(
+      FundFinalizeV1Schema.safeParse({
+        ...minimalFinalizePayload,
+        modelInputsAsOfDate: '2026-02-30',
+      }).success
+    ).toBe(false);
+    expect(
+      FundFinalizeV1Schema.safeParse({
+        ...minimalFinalizePayload,
+        modelInputsAsOfDate: '06/30/2026',
+      }).success
+    ).toBe(false);
   });
 
   it('accepts draftFundId for routed wizard finalize', () => {
@@ -255,7 +278,7 @@ describe('FundPersistenceService.finalize behavior', () => {
       id: 100,
       fundId: 10,
       version: 1,
-      config: {},
+      config: { modelInputsAsOfDate: '2026-06-30' },
       isDraft: true,
       isPublished: false,
     };
@@ -348,7 +371,7 @@ describe('FundPersistenceService.finalize behavior', () => {
       id: 177,
       fundId: 77,
       version: 2,
-      config: {},
+      config: { modelInputsAsOfDate: '2026-06-30' },
       isDraft: true,
       isPublished: false,
     };
@@ -465,7 +488,10 @@ describe('FundPersistenceService.finalize behavior', () => {
       id: 101,
       fundId: 11,
       version: 1,
-      config: { stages: [{ id: 'stg-1', name: 'Seed', graduate: 30, exit: 10, months: 18 }] },
+      config: {
+        modelInputsAsOfDate: '2026-06-30',
+        stages: [{ id: 'stg-1', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
+      },
       isDraft: true,
       isPublished: false,
     };
@@ -520,6 +546,7 @@ describe('FundPersistenceService.finalize behavior', () => {
     const payload = {
       name: 'Config Fund',
       size: 10_000_000,
+      modelInputsAsOfDate: '2026-06-30',
       targetMetrics: {
         targetIRR: 0.28,
         targetTVPI: 2.8,
@@ -540,6 +567,7 @@ describe('FundPersistenceService.finalize behavior', () => {
       vintageYear: 2026,
       managementFeeRate: 2,
       carriedInterest: 20,
+      modelInputsAsOfDate: '2026-06-30',
       targetMetrics: {
         targetIRR: 0.28,
         targetTVPI: 2.8,
