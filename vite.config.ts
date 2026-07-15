@@ -11,6 +11,8 @@ import { defineConfig, type Plugin } from 'vite';
 import virtual from 'vite-plugin-virtual';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
+import { apiProxyChangeOrigin } from './vite.proxy-policy';
+
 // Comprehensive winston mock
 const winstonMock = `
 export const format = {
@@ -216,25 +218,24 @@ export default defineConfig(({ mode }: { mode: string }) => {
   const clientPort = parsePort(process.env['VITE_CLIENT_PORT'], 5173);
   const apiPort = parsePort(process.env['VITE_API_PORT'] ?? process.env['PORT'], 5000);
   const apiTarget = process.env['VITE_API_URL'] ?? `http://localhost:${apiPort}`;
-  const apiTargetHostname = new URL(apiTarget).hostname.replace(/^\[|\]$/g, '');
-  const apiTargetIsLoopback = ['localhost', '127.0.0.1', '::1'].includes(apiTargetHostname);
   // Cookie-session CSRF needs loopback proxies to preserve Host; remote targets need origin rewriting.
+  const changeOrigin = apiProxyChangeOrigin(apiTarget);
   const apiProxy = {
     '/api': {
       target: apiTarget,
-      changeOrigin: !apiTargetIsLoopback,
+      changeOrigin,
     },
     '/metrics': {
       target: apiTarget,
-      changeOrigin: !apiTargetIsLoopback,
+      changeOrigin,
     },
     '/healthz': {
       target: apiTarget,
-      changeOrigin: !apiTargetIsLoopback,
+      changeOrigin,
     },
     '/readyz': {
       target: apiTarget,
-      changeOrigin: !apiTargetIsLoopback,
+      changeOrigin,
     },
   };
 

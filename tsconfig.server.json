@@ -49,6 +49,7 @@
     "client/src/app/app-route-definitions.ts",
     "client/src/app/route-governance-registry.ts",
     "tests/fixtures/portfolio-intelligence-route-classification.ts",
+    "vite.proxy-policy.ts",
     "vite.config.ts"
   ],
   "exclude": [
