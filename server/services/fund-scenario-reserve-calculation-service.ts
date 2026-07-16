@@ -34,6 +34,7 @@ import {
   type FundScenarioMutationActor,
 } from './fund-scenario-set-service.js';
 import { createScenarioInputHash } from '../lib/scenarios/scenario-input-hash';
+import { normalizeLegacyScenarioSourceConfig } from './fund-scenario-source-config-compat.js';
 import {
   acquireScenarioCalculationRun,
   findCompletedScenarioRun,
@@ -180,7 +181,9 @@ async function loadSourceConfig(
 }
 
 function parseSourceConfig(fundId: number, sourceConfig: SourceConfigRow): FundDraftWriteV1 {
-  const parsed = FundDraftWriteV1Schema.safeParse(sourceConfig.config);
+  const parsed = FundDraftWriteV1Schema.safeParse(
+    normalizeLegacyScenarioSourceConfig(sourceConfig.config)
+  );
   if (parsed.success) {
     return parsed.data;
   }

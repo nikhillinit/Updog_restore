@@ -16,13 +16,63 @@ import {
 import { persistReserveScenarioSnapshot } from '../../../server/services/fund-scenario-reserve-snapshot-store';
 import type { FundScenarioCalculationPayloadV1 } from '../../../shared/contracts/fund-scenario-sets-v1.contract';
 
+const identityScenarioSetId = '11111111-1111-4111-8111-111111111111';
+
+function mockIdentityQueries(config: unknown): void {
+  identityQueryMock
+    .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+    .mockResolvedValueOnce({
+      rows: [
+        {
+          id: identityScenarioSetId,
+          fund_id: 1,
+          name: 'Reserve sensitivity',
+          description: null,
+          source_config_id: 2,
+          source_config_version: 3,
+          created_by_user_id: 7,
+          created_by_label: 'owner@example.com',
+          updated_by_user_id: 7,
+          updated_by_label: 'owner@example.com',
+          archived_at: null,
+          archived_by_user_id: null,
+          archived_by_label: null,
+          created_at: new Date('2026-06-01T00:00:00.000Z'),
+          updated_at: new Date('2026-06-01T00:00:00.000Z'),
+        },
+      ],
+    })
+    .mockResolvedValueOnce({
+      rows: [
+        {
+          id: '22222222-2222-4222-8222-222222222222',
+          scenario_set_id: identityScenarioSetId,
+          name: 'Reserve variant',
+          description: null,
+          sort_order: 0,
+          override_type: 'reserve_allocation',
+          override_payload: {
+            allocationVersion: null,
+            items: [{ companyId: 1, plannedReservesCents: 1000 }],
+          },
+          created_at: new Date('2026-06-01T00:00:00.000Z'),
+          updated_at: new Date('2026-06-01T00:00:00.000Z'),
+        },
+      ],
+    })
+    .mockResolvedValueOnce({ rows: [{ id: 2, version: 3, config }] })
+    .mockResolvedValueOnce({ rows: [{ version: 3 }] });
+}
+
 describe('fund scenario reserve calculation service', () => {
   beforeEach(() => {
     identityQueryMock.mockReset();
-    transactionMock.mockReset().mockImplementation(
-      async (callback: (client: { query: typeof identityQueryMock }) => unknown) =>
-        callback({ query: identityQueryMock })
-    );
+    transactionMock
+      .mockReset()
+      .mockImplementation(
+        async (callback: (client: { query: typeof identityQueryMock }) => unknown) =>
+          callback({ query: identityQueryMock })
+      );
   });
 
   it.each([
@@ -44,57 +94,51 @@ describe('fund scenario reserve calculation service', () => {
         comparisonLineageVersion: null,
       },
     },
+    {
+      label: 'legacy create-format config',
+      config: { name: 'Legacy Reserve Fund' },
+      expectedLineage: {
+        hashKind: 'scenario-input-hash-v1',
+        modelInputsAsOfDate: null,
+        comparisonLineageVersion: null,
+      },
+    },
   ])('derives async run lineage from the pinned $label', async ({ config, expectedLineage }) => {
-    const scenarioSetId = '11111111-1111-4111-8111-111111111111';
-    identityQueryMock
-      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            id: scenarioSetId,
-            fund_id: 1,
-            name: 'Reserve sensitivity',
-            description: null,
-            source_config_id: 2,
-            source_config_version: 3,
-            created_by_user_id: 7,
-            created_by_label: 'owner@example.com',
-            updated_by_user_id: 7,
-            updated_by_label: 'owner@example.com',
-            archived_at: null,
-            archived_by_user_id: null,
-            archived_by_label: null,
-            created_at: new Date('2026-06-01T00:00:00.000Z'),
-            updated_at: new Date('2026-06-01T00:00:00.000Z'),
-          },
-        ],
-      })
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            id: '22222222-2222-4222-8222-222222222222',
-            scenario_set_id: scenarioSetId,
-            name: 'Reserve variant',
-            description: null,
-            sort_order: 0,
-            override_type: 'reserve_allocation',
-            override_payload: {
-              allocationVersion: null,
-              items: [{ companyId: 1, plannedReservesCents: 1000 }],
-            },
-            created_at: new Date('2026-06-01T00:00:00.000Z'),
-            updated_at: new Date('2026-06-01T00:00:00.000Z'),
-          },
-        ],
-      })
-      .mockResolvedValueOnce({ rows: [{ id: 2, version: 3, config }] })
-      .mockResolvedValueOnce({ rows: [{ version: 3 }] });
+    mockIdentityQueries(config);
 
-    const result = await getReserveScenarioCalculationIdentity(1, scenarioSetId);
+    const result = await getReserveScenarioCalculationIdentity(1, identityScenarioSetId);
 
     expect(result.inputLineage).toEqual(expectedLineage);
     expect(result.inputHash).toMatch(/^[a-f0-9]{64}$/);
     expect(String(identityQueryMock.mock.calls[3]?.[0])).toContain('SELECT id, version, config');
+  });
+
+  it.each([
+    {
+      label: 'ambiguous canonical and legacy names',
+      config: { fundName: 'Canonical Fund', name: 'Legacy Fund' },
+      rejectedKey: 'name',
+    },
+    {
+      label: 'unrelated unknown fields on a legacy config',
+      config: { name: 'Legacy Fund', unexpected: true },
+      rejectedKey: 'unexpected',
+    },
+  ])('rejects $label', async ({ config, rejectedKey }) => {
+    mockIdentityQueries(config);
+
+    await expect(
+      getReserveScenarioCalculationIdentity(1, identityScenarioSetId)
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: 'scenario_source_config_invalid',
+      details: {
+        issues: expect.arrayContaining([
+          expect.objectContaining({ message: expect.stringContaining(rejectedKey) }),
+        ]),
+      },
+    });
+    expect(identityQueryMock).toHaveBeenCalledTimes(4);
   });
 
   it('creates a stable input hash regardless of equivalent variant ordering', () => {
@@ -223,8 +267,7 @@ describe('fund scenario reserve calculation service', () => {
       ],
     };
     let capturedScenarioSnapshotMetadata:
-      | ({ reserve_input_trust_summary_hash?: string } & Record<string, unknown>)
-      | undefined;
+      ({ reserve_input_trust_summary_hash?: string } & Record<string, unknown>) | undefined;
     const queryMock = vi.fn(async (_sql: string, values: unknown[]) => {
       capturedScenarioSnapshotMetadata = values[4] as {
         reserve_input_trust_summary_hash?: string;
@@ -242,28 +285,25 @@ describe('fund scenario reserve calculation service', () => {
       };
     });
 
-    await persistReserveScenarioSnapshot(
-      { query: queryMock } as never,
-      {
-        fundId: 1,
-        scenarioSetId: '11111111-1111-4111-8111-111111111111',
-        sourceConfigId: 2,
-        sourceConfigVersion: 3,
-        correlationId: '11111111-1111-4111-8111-111111111113',
-        payload: reservePayload,
-        inputHash: 'b'.repeat(64),
-        variantCount: 1,
-        companyCount: 1,
-        warningCount: 0,
-        reserveInputTrustSummary: {
-          trustedForActivation: false,
-          defaultedInputCount: 2,
-          unavailableInputCount: 0,
-          defaultedFields: ['ownership', 'stage'],
-          unavailableFields: [],
-        },
-      }
-    );
+    await persistReserveScenarioSnapshot({ query: queryMock } as never, {
+      fundId: 1,
+      scenarioSetId: '11111111-1111-4111-8111-111111111111',
+      sourceConfigId: 2,
+      sourceConfigVersion: 3,
+      correlationId: '11111111-1111-4111-8111-111111111113',
+      payload: reservePayload,
+      inputHash: 'b'.repeat(64),
+      variantCount: 1,
+      companyCount: 1,
+      warningCount: 0,
+      reserveInputTrustSummary: {
+        trustedForActivation: false,
+        defaultedInputCount: 2,
+        unavailableInputCount: 0,
+        defaultedFields: ['ownership', 'stage'],
+        unavailableFields: [],
+      },
+    });
 
     expect(capturedScenarioSnapshotMetadata).toMatchObject({
       reserve_input_trust_summary: {
@@ -271,6 +311,8 @@ describe('fund scenario reserve calculation service', () => {
         defaultedFields: ['ownership', 'stage'],
       },
     });
-    expect(capturedScenarioSnapshotMetadata!.reserve_input_trust_summary_hash).toMatch(/^[a-f0-9]{64}$/);
+    expect(capturedScenarioSnapshotMetadata!.reserve_input_trust_summary_hash).toMatch(
+      /^[a-f0-9]{64}$/
+    );
   });
 });
