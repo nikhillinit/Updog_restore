@@ -127,6 +127,12 @@ const baseConfig = {
   },
 } as const;
 
+const { fundName: legacyFundName, ...legacyBaseConfigFields } = baseConfig;
+const legacyBaseConfig = {
+  ...legacyBaseConfigFields,
+  name: legacyFundName,
+} as const;
+
 const explicitFeeTierEconomicsAssumptions = {
   version: 'v1',
   timeline: {
@@ -302,10 +308,7 @@ function calculationRunRow(
   snapshotId: number | null = null,
   options: {
     calculationMode?:
-      | 'sync_fee_profile'
-      | 'sync_allocation'
-      | 'sync_sector_profile'
-      | 'sync_methodology';
+      'sync_fee_profile' | 'sync_allocation' | 'sync_sector_profile' | 'sync_methodology';
     overrideType?: 'fee_profile' | 'allocation' | 'sector_profile' | 'methodology';
     inputHash?: string;
     hashKind?: 'scenario-input-hash-v1' | 'scenario-input-hash-v2' | null;
@@ -324,12 +327,9 @@ function calculationRunRow(
     calculation_mode: calculationMode,
     override_type: overrideType,
     input_hash: options.inputHash ?? expectedInputHash(),
-    hash_kind:
-      options.hashKind === undefined ? 'scenario-input-hash-v2' : options.hashKind,
+    hash_kind: options.hashKind === undefined ? 'scenario-input-hash-v2' : options.hashKind,
     model_inputs_as_of_date:
-      options.modelInputsAsOfDate === undefined
-        ? '2026-06-30'
-        : options.modelInputsAsOfDate,
+      options.modelInputsAsOfDate === undefined ? '2026-06-30' : options.modelInputsAsOfDate,
     comparison_lineage_version:
       options.comparisonLineageVersion === undefined
         ? 'comparison-lineage-v1'
@@ -352,10 +352,7 @@ function expectedInputHashFor(
     | typeof sectorProfileOverride
     | typeof methodologyOverride,
   calculationMode:
-    | 'sync_fee_profile'
-    | 'sync_allocation'
-    | 'sync_sector_profile'
-    | 'sync_methodology',
+    'sync_fee_profile' | 'sync_allocation' | 'sync_sector_profile' | 'sync_methodology',
   overrideType: 'fee_profile' | 'allocation' | 'sector_profile' | 'methodology'
 ): string {
   return createScenarioInputHash({
@@ -396,95 +393,102 @@ describe('fund scenario calculation service', () => {
     runEconomicsModelMock.mockReset();
   });
 
-  it('applies fee-profile overrides, persists a scenario snapshot, and records an audit event', async () => {
-    queryMock
-      .mockResolvedValueOnce({ rows: [{ id: 1 }] })
-      .mockResolvedValueOnce({ rows: [scenarioSetRow()] })
-      .mockResolvedValueOnce({ rows: [variantRow()] })
-      .mockResolvedValueOnce({ rows: [{ id: 12, version: 4, config: baseConfig }] })
-      .mockResolvedValueOnce({ rows: [{ version: 4 }] })
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [calculationRunRow('queued')] })
-      .mockResolvedValueOnce({ rows: [calculationRunRow('running')] })
-      .mockImplementationOnce((_sql: string, params: unknown[]) => ({
-        rows: [
-          {
-            id: 42,
-            payload: params[1],
-            correlation_id: params[3],
-            created_at: new Date('2026-05-26T12:05:00.000Z'),
-            snapshot_time: new Date('2026-05-26T12:05:00.000Z'),
-          },
-        ],
-      }))
-      .mockResolvedValueOnce({ rows: [calculationRunRow('completed', 42)] })
-      .mockResolvedValueOnce({ rows: [{ id: '00000000-0000-0000-0000-000000000124' }] });
+  it.each([
+    { label: 'canonical source config', config: baseConfig },
+    { label: 'legacy create-format source config', config: legacyBaseConfig },
+  ])(
+    'applies fee-profile overrides from a $label, persists a scenario snapshot, and records an audit event',
+    async ({ config }) => {
+      queryMock
+        .mockResolvedValueOnce({ rows: [{ id: 1 }] })
+        .mockResolvedValueOnce({ rows: [scenarioSetRow()] })
+        .mockResolvedValueOnce({ rows: [variantRow()] })
+        .mockResolvedValueOnce({ rows: [{ id: 12, version: 4, config }] })
+        .mockResolvedValueOnce({ rows: [{ version: 4 }] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [calculationRunRow('queued')] })
+        .mockResolvedValueOnce({ rows: [calculationRunRow('running')] })
+        .mockImplementationOnce((_sql: string, params: unknown[]) => ({
+          rows: [
+            {
+              id: 42,
+              payload: params[1],
+              correlation_id: params[3],
+              created_at: new Date('2026-05-26T12:05:00.000Z'),
+              snapshot_time: new Date('2026-05-26T12:05:00.000Z'),
+            },
+          ],
+        }))
+        .mockResolvedValueOnce({ rows: [calculationRunRow('completed', 42)] })
+        .mockResolvedValueOnce({ rows: [{ id: '00000000-0000-0000-0000-000000000124' }] });
 
-    const result = await calculateFundScenarioSet(1, scenarioSetId, {
-      userId: 17,
-      label: 'analyst@example.com',
-    });
+      const result = await calculateFundScenarioSet(1, scenarioSetId, {
+        userId: 17,
+        label: 'analyst@example.com',
+      });
 
-    expect(result.snapshotId).toBe(42);
-    expect(result.source).toBe('fund_snapshots');
-    expect(result.payload.variants[0]?.economics.summary.totalManagementFees).toBe(1);
-    expect(runEconomicsModelMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        fundName: 'Test Fund',
-        feeProfiles: feeProfileOverride.payload.feeProfiles,
-        economicsAssumptions: expect.objectContaining({
-          feeModel: { source: 'legacy_fee_profiles' },
+      expect(result.snapshotId).toBe(42);
+      expect(result.source).toBe('fund_snapshots');
+      expect(result.payload.variants[0]?.economics.summary.totalManagementFees).toBe(1);
+      expect(runEconomicsModelMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fundName: 'Test Fund',
+          feeProfiles: feeProfileOverride.payload.feeProfiles,
+          economicsAssumptions: expect.objectContaining({
+            feeModel: { source: 'legacy_fee_profiles' },
+          }),
+        })
+      );
+      expect(runEconomicsModelMock.mock.calls[0]?.[0]).not.toHaveProperty('name');
+      expect(queryMock.mock.calls[1]?.[0]).toContain('FOR UPDATE OF s');
+      const snapshotInsertCall = queryMock.mock.calls.find((call) =>
+        String(call[0]).includes('INSERT INTO fund_snapshots')
+      );
+      const snapshotInsertSql = String(snapshotInsertCall?.[0] ?? '');
+      const snapshotInsertParams = snapshotInsertCall?.[1] as unknown[] | undefined;
+      const snapshotMetadata = snapshotInsertParams?.[4];
+
+      expect(snapshotInsertSql).toContain("VALUES ($1, 'SCENARIOS'");
+      expect(snapshotInsertSql).toContain('state_hash');
+      expect(snapshotInsertSql).toContain('scenario_set_id');
+      expect(snapshotInsertSql).toContain('fund_snapshots_scenarios_dedup_idx');
+      expect(snapshotInsertSql).toContain(
+        'ON CONFLICT (fund_id, scenario_set_id, config_id, config_version, state_hash)'
+      );
+      expect(snapshotInsertSql).not.toContain('ON CONFLICT (fund_id, scenario_set_id)');
+      expect(snapshotMetadata).toMatchObject({
+        input_hash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        calculation_mode: 'sync_fee_profile',
+        override_type: 'fee_profile',
+      });
+      expect(snapshotInsertParams?.[7]).toBe(expectedInputHash());
+      expect(snapshotInsertParams?.[8]).toBe(scenarioSetId);
+      const runInsertCall = queryMock.mock.calls.find((call) =>
+        String(call[0]).includes('INSERT INTO fund_scenario_calculation_runs')
+      );
+      const runInsertSql = String(runInsertCall?.[0] ?? '');
+      const runInsertParams = runInsertCall?.[1] as unknown[] | undefined;
+      expect(runInsertSql).toContain("COALESCE(hash_kind, 'scenario-input-hash-v1')");
+      expect(runInsertParams?.[7]).toBe('scenario-input-hash-v2');
+      expect(runInsertParams?.[8]).toBe('2026-06-30');
+      expect(runInsertParams?.[9]).toBe('comparison-lineage-v1');
+      const eventInsertCall = queryMock.mock.calls.find((call) =>
+        String(call[0]).includes('INSERT INTO fund_scenario_set_events')
+      );
+      expect(eventInsertCall?.[1]).toEqual([
+        scenarioSetId,
+        1,
+        'calculated',
+        17,
+        'analyst@example.com',
+        expect.objectContaining({
+          headline: 'Calculated fee-profile scenario set',
+          snapshot_id: 42,
+          variant_count: 1,
         }),
-      })
-    );
-    expect(queryMock.mock.calls[1]?.[0]).toContain('FOR UPDATE OF s');
-    const snapshotInsertCall = queryMock.mock.calls.find((call) =>
-      String(call[0]).includes('INSERT INTO fund_snapshots')
-    );
-    const snapshotInsertSql = String(snapshotInsertCall?.[0] ?? '');
-    const snapshotInsertParams = snapshotInsertCall?.[1] as unknown[] | undefined;
-    const snapshotMetadata = snapshotInsertParams?.[4];
-
-    expect(snapshotInsertSql).toContain("VALUES ($1, 'SCENARIOS'");
-    expect(snapshotInsertSql).toContain('state_hash');
-    expect(snapshotInsertSql).toContain('scenario_set_id');
-    expect(snapshotInsertSql).toContain('fund_snapshots_scenarios_dedup_idx');
-    expect(snapshotInsertSql).toContain(
-      'ON CONFLICT (fund_id, scenario_set_id, config_id, config_version, state_hash)'
-    );
-    expect(snapshotInsertSql).not.toContain('ON CONFLICT (fund_id, scenario_set_id)');
-    expect(snapshotMetadata).toMatchObject({
-      input_hash: expect.stringMatching(/^[a-f0-9]{64}$/),
-      calculation_mode: 'sync_fee_profile',
-      override_type: 'fee_profile',
-    });
-    expect(snapshotInsertParams?.[7]).toBe(expectedInputHash());
-    expect(snapshotInsertParams?.[8]).toBe(scenarioSetId);
-    const runInsertCall = queryMock.mock.calls.find((call) =>
-      String(call[0]).includes('INSERT INTO fund_scenario_calculation_runs')
-    );
-    const runInsertSql = String(runInsertCall?.[0] ?? '');
-    const runInsertParams = runInsertCall?.[1] as unknown[] | undefined;
-    expect(runInsertSql).toContain("COALESCE(hash_kind, 'scenario-input-hash-v1')");
-    expect(runInsertParams?.[7]).toBe('scenario-input-hash-v2');
-    expect(runInsertParams?.[8]).toBe('2026-06-30');
-    expect(runInsertParams?.[9]).toBe('comparison-lineage-v1');
-    const eventInsertCall = queryMock.mock.calls.find((call) =>
-      String(call[0]).includes('INSERT INTO fund_scenario_set_events')
-    );
-    expect(eventInsertCall?.[1]).toEqual([
-      scenarioSetId,
-      1,
-      'calculated',
-      17,
-      'analyst@example.com',
-      expect.objectContaining({
-        headline: 'Calculated fee-profile scenario set',
-        snapshot_id: 42,
-        variant_count: 1,
-      }),
-    ]);
-  });
+      ]);
+    }
+  );
 
   it('applies methodology overrides to nested economics assumptions before calculation', async () => {
     const methodologyHash = expectedInputHashFor(
