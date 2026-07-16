@@ -442,7 +442,7 @@ async function authorizationHeader() {
 
 // A fund-scoped bearer (non-empty fundIds restricts the caller to those funds).
 // Empty fundIds in authorizationHeader() above means unrestricted/admin.
-async function scopedAuthorizationHeader(fundIds: number[], role = 'user') {
+async function scopedAuthorizationHeader(fundIds: number[], role = 'analyst') {
   const { signToken } = await import('../../../server/lib/auth/jwt');
   return `Bearer ${signToken({
     sub: '1',

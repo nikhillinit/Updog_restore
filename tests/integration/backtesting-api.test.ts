@@ -27,7 +27,7 @@ import type {
   HistoricalScenarioName,
   ScenarioCompareResponse,
 } from '@shared/types/backtesting';
-import { asUser, makeJwt } from '../utils/integrationAuth';
+import { makeJwt } from '../utils/integrationAuth';
 
 const {
   mockRunBacktest,
@@ -291,7 +291,12 @@ function expectValidBacktestResult(result: unknown): void {
 }
 
 beforeAll(async () => {
-  authToken = asUser();
+  authToken = makeJwt({
+    userId: 'regular-user',
+    email: 'regular@example.com',
+    role: 'analyst',
+    fundIds: [1, 2, 3],
+  });
   const backtestingRouter = (await import('../../server/routes/backtesting')).default;
 
   app = express();
@@ -404,17 +409,20 @@ describe('Backtesting API', () => {
       expect(response.body.error).toBe('Bad Request');
     });
 
-    it('returns 403 for inaccessible funds', async () => {
+    it('allows an analyst to read history for another fund', async () => {
       const limitedToken = makeJwt({
         userId: 'limited-user',
         email: 'limited@example.com',
+        role: 'analyst',
         fundIds: [2],
       });
 
       const response = await authGet('/api/backtesting/fund/1/history', limitedToken);
 
-      expect(response.status).toBe(403);
-      expect(response.body.error).toBe('Forbidden');
+      expect(response.status).toBe(200);
+      expect(response.body.fundId).toBe(1);
+      expect(response.body.history).toHaveLength(1);
+      expect(mockGetBacktestHistory).toHaveBeenCalledWith(1, { limit: 10, offset: 0 });
     });
 
     it('returns 200 and preserves scenarioComparisonSummary in history rows', async () => {

@@ -369,13 +369,13 @@ describe('route policy coverage', () => {
     expect(policy.provenanceRequired).toBe(false);
   });
 
-  it('covers PRD #996 Surface-A report-package exports with role-gated fund access', () => {
+  it('covers Surface-A report-package exports with global partner/admin role access', () => {
     expect(LP_REPORT_PACKAGE_AUTHORITATIVE_EXPORT_POLICY_KEYS).toHaveLength(6);
 
     for (const key of LP_REPORT_PACKAGE_AUTHORITATIVE_EXPORT_POLICY_KEYS) {
       const policyEntry = expectPolicy(key);
 
-      expect(policyEntry.apiAuthBoundary, key).toBe('require_auth_fund_access_and_role');
+      expect(policyEntry.apiAuthBoundary, key).toBe('require_auth_and_role');
       expect(policyEntry.financialSurface, key).toBe('lp_reporting');
       expect(policyEntry.fundScopeMode, key).toBe('route_param_fund_id');
       expect(policyEntry.exportPolicy, key).toBe('qualified_exportable');
@@ -389,7 +389,7 @@ describe('route policy coverage', () => {
     for (const key of LP_REPORT_PACKAGE_STATUS_GET_POLICY_KEYS) {
       const policyEntry = expectPolicy(key);
 
-      expect(policyEntry.apiAuthBoundary, key).toBe('require_auth_fund_access_and_role');
+      expect(policyEntry.apiAuthBoundary, key).toBe('require_auth_and_role');
       expect(policyEntry.financialSurface, key).toBe('lp_reporting');
       expect(policyEntry.fundScopeMode, key).toBe('route_param_fund_id');
       expect(policyEntry.exportPolicy, key).toBe('not_exportable');
@@ -496,7 +496,7 @@ describe('route policy coverage', () => {
     });
 
     expect(errors).toContain(
-      'Policy /portfolio does not declare API-side fund, LP, or share scope'
+      'Policy /portfolio does not declare API-side fund, LP, share, or role scope'
     );
   });
 

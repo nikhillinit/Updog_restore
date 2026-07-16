@@ -34,11 +34,14 @@ export function principalFromUser(user: Express.User | undefined): RequestPrinci
 }
 
 /**
- * Team-member predicate for universal READ. True for any authenticated non-LP
- * caller (admin/service/analyst/partner/viewer). False for anonymous (no user)
- * and for LP principals (role 'lp' or an lpId claim) -- LPs remain fund-scoped
- * via the separate requireLPFundAccess path.
+ * Interactive investment-team predicate for universal READ. Only the three
+ * approved human roles qualify: admin, partner, and analyst. Service identities
+ * retain their separate principal behavior; legacy viewer/operator roles and LP
+ * principals do not inherit investment-team visibility.
  */
 export function isTeamMemberUser(user: Express.User | undefined): boolean {
-  return !!user && user.role !== 'lp' && user.lpId == null;
+  return (
+    user?.lpId == null &&
+    (user?.role === 'admin' || user?.role === 'partner' || user?.role === 'analyst')
+  );
 }

@@ -144,10 +144,10 @@ describe('route-policy: canonical fund-model-results MOIC route', () => {
 
   it('allows scoped admin-only MOIC financial-control API entries in policy verification', () => {
     expect(verifyRoutePolicy()).not.toContain(
-      `Policy PUT ${ADMIN_INPUT_ROUTE} does not declare API-side fund, LP, or share scope`
+      `Policy PUT ${ADMIN_INPUT_ROUTE} does not declare API-side fund, LP, share, or role scope`
     );
     expect(verifyRoutePolicy()).not.toContain(
-      `Policy PUT ${ADMIN_MODE_ROUTE} does not declare API-side fund, LP, or share scope`
+      `Policy PUT ${ADMIN_MODE_ROUTE} does not declare API-side fund, LP, share, or role scope`
     );
   });
 });

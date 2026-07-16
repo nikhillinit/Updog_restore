@@ -31,7 +31,17 @@ if (process.env.NODE_ENV !== 'test') {
 interface JwtPayload {
   userId?: string;
   email?: string; // REQUIRED by verifyAccessToken
-  role?: 'flag_read' | 'flag_admin' | 'user' | 'lp'; // CORRECT roles (NOT 'admin')
+  role?:
+    | 'admin'
+    | 'partner'
+    | 'analyst'
+    | 'operator'
+    | 'viewer'
+    | 'service'
+    | 'flag_read'
+    | 'flag_admin'
+    | 'user'
+    | 'lp';
   orgId?: string;
   org_id?: string;
   permissions?: string[];
@@ -58,7 +68,7 @@ export function makeJwt(payload: JwtPayload = {}) {
       orgId, // Backward-compatible claim
       org_id: orgId, // Required by secure-context middleware
       permissions: payload.permissions,
-      fundIds: payload.fundIds || [1, 2, 3], // Default access to common test funds
+      fundIds: payload.fundIds ?? [1, 2, 3], // Default access to common test funds
       lpId: payload.lpId, // LP-specific: include if provided
     },
     JWT_SECRET,

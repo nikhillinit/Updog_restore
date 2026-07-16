@@ -39,9 +39,16 @@ describe('principalFromUser', () => {
 
 describe('isTeamMemberUser', () => {
   it.each(['admin', 'analyst', 'partner'])(
-    'recognizes authenticated non-LP role=%s as a team member',
+    'recognizes internal investment-team role=%s as a team member',
     (role) => {
       expect(isTeamMemberUser(user({ role }))).toBe(true);
+    }
+  );
+
+  it.each(['viewer', 'operator', 'service', 'user'])(
+    'does not grant non-investment-team role=%s universal investment-team reads',
+    (role) => {
+      expect(isTeamMemberUser(user({ role }))).toBe(false);
     }
   );
 

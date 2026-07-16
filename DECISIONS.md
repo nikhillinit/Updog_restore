@@ -6237,3 +6237,98 @@ approval, lock, narrative, evidence, or package-assembly lifecycle routes.
 
 **Implementation:** Plan 9 Wave 9D report-qualification characterization and
 named server-side gap fills.
+
+---
+
+## ADR-041: Global Internal Fund Visibility with Role-Gated Consequences
+
+**Date:** 2026-07-16 **Status:** [ACCEPTED] Partially implemented **Decision:** Give
+the three interactive investment-team roles—admin, partner, and analyst—global
+safe-read visibility across every fund; keep consequential mutations explicitly
+role-gated; and keep LP identities outside internal investment-team surfaces.
+
+### Context
+
+PR #1130 implemented method-aware universal reads for authenticated non-LP
+callers, but the accepted ADR set still described explicit fund grants as the
+internal read boundary. That disagreement left current-main integration tests
+and required CI red. The owner subsequently clarified the intended operating
+model for this internal tool:
+
+- admin is the developer/owner role with universal access;
+- partner is a global investment-team role;
+- analyst is a global read and analytical-support role, including scenario work,
+  but cannot create or change official fund, portfolio, or other consequential
+  parameters;
+- all funds are visible to those three internal roles; and
+- LP identities do not receive this internal visibility.
+
+The existing LP portal and its LP-specific isolation middleware are a separate
+surface. This decision does not enable LP access to internal routes and does not
+remove or redesign the separately isolated LP portal.
+
+### Decision
+
+#### Internal visibility
+
+- `GET` and `HEAD` requests guarded by the canonical fund-scope middleware are
+  globally readable by authenticated admin, partner, and analyst identities.
+- Explicit `fundIds` do not constrain those safe reads. A missing fund therefore
+  reaches the resource layer and returns the route's ordinary 404 rather than a
+  fund-grant 403.
+- `viewer`, `operator`, unknown roles, and LP identities are not investment-team
+  identities and do not inherit universal reads. Service identities remain a
+  separate non-human principal.
+- ADR-036 identity verification, signed-token validation, `jti` revocation, and
+  fail-closed anonymous behavior remain unchanged. This decision supersedes
+  ADR-036 only for safe reads by the three named internal roles.
+
+#### Consequential actions
+
+- Official fund, portfolio, and other consequential changes require partner or
+  admin. Analyst must be denied before validation or persistence.
+- Existing explicitly classified scenario routes continue to allow analyst,
+  partner, and admin. Applying decisions or changing official configuration
+  remains partner/admin-only where the route declares that distinction.
+- This Gate -1 repair does not claim complete enforcement of that mutation
+  policy. Mutations remain subject to their existing role and fund-scope checks.
+  A complete inventory must classify and gate every official mutation before the
+  three-role model can be marked fully implemented; the phrase "analytical
+  support" is not a blanket mutation grant.
+
+#### LP report exports
+
+- The eight GP-side qualified report render/export routes remain restricted to
+  partner and admin. Analyst, viewer, operator, LP, and anonymous callers remain
+  denied.
+- Partner and admin are global internal roles on these routes, so per-fund grants
+  are not required. This supersedes ADR-025's explicit partner export-grant rule
+  and ADR-040's export-grant wording, but preserves their partner/admin role
+  gate, workflow qualification, H9 validation, provenance, and artifact-serving
+  controls.
+
+### Alternatives Considered
+
+- **Retain per-fund grants for internal reads:** rejected because it contradicts
+  the owner-approved all-funds-visible operating model and the internal team's
+  analytical workflow.
+- **Treat every authenticated non-LP role as investment team:** rejected because
+  legacy or machine roles must not silently acquire human interactive access.
+- **Let analysts change any fund-scoped resource:** rejected because fund scope
+  identifies the tenant/resource, while role gates decide whether an action is
+  analytical or consequential.
+- **Remove the LP portal:** rejected as outside this baseline repair; LP-specific
+  surfaces remain separately isolated and receive no internal-team privilege.
+
+### Consequences
+
+- Current-main safe-read tests now follow resource semantics: authenticated
+  investment-team reads can return 200 for existing funds and 404 for missing
+  funds regardless of token fund grants.
+- Partner/admin report exports no longer depend on legacy per-fund grants.
+- A follow-up authorization inventory must close known consequential-write gaps,
+  including official fund creation, before this ADR can become fully implemented.
+- Portfolio, import, evidence, narrative, approval, and analytical mutations are
+  not claimed as fully classified by this baseline repair.
+
+**Implementation:** Gate -1 current-main CI baseline repair after PR #1130.
