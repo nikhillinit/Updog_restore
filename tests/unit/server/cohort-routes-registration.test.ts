@@ -75,6 +75,9 @@ vi.mock('../../../server/lib/auth/jwt', () => ({
   requireAnyRole:
     () => (_req: express.Request, _res: express.Response, next: express.NextFunction) =>
       next(),
+  requireWriteRole:
+    () => (_req: express.Request, _res: express.Response, next: express.NextFunction) =>
+      next(),
   requireExportFundGrant: (
     _req: express.Request,
     _res: express.Response,

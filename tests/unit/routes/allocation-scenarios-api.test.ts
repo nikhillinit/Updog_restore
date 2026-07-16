@@ -243,8 +243,10 @@ const reserveIcDecision = {
 
 describe('Allocation scenarios API', () => {
   let app: express.Express;
+  let role: 'analyst' | 'partner';
 
   beforeEach(() => {
+    role = 'analyst';
     app = express();
     app.use(express.json());
     app.use((req, _res, next) => {
@@ -252,8 +254,8 @@ describe('Allocation scenarios API', () => {
         id: '17',
         sub: '17',
         email: 'analyst@example.com',
-        role: 'analyst',
-        roles: ['analyst'],
+        role,
+        roles: [role],
         fundIds: [1],
         ip: '127.0.0.1',
         userAgent: 'vitest',
@@ -339,6 +341,7 @@ describe('Allocation scenarios API', () => {
   });
 
   it('creates a reserve IC decision scoped to the scenario route', async () => {
+    role = 'partner';
     createReserveIcDecisionMock.mockResolvedValue(reserveIcDecision);
 
     const payload = {
@@ -400,6 +403,7 @@ describe('Allocation scenarios API', () => {
   });
 
   it('updates a reserve IC decision', async () => {
+    role = 'partner';
     updateReserveIcDecisionMock.mockResolvedValue({
       ...reserveIcDecision,
       decisionStatus: 'approved',
@@ -467,6 +471,7 @@ describe('Allocation scenarios API', () => {
   });
 
   it('applies a scenario with a preview token', async () => {
+    role = 'partner';
     applyAllocationScenarioMock.mockResolvedValue(scenarioApplyResult);
 
     const payload = {
@@ -512,6 +517,7 @@ describe('Allocation scenarios API', () => {
   });
 
   it('rejects invalid decision ids before touching the service', async () => {
+    role = 'partner';
     const response = await request(app)
       .patch(`/funds/1/allocation-scenarios/${scenarioId}/decisions/not-a-uuid`)
       .send({ decisionStatus: 'approved' })
@@ -540,6 +546,7 @@ describe('Allocation scenarios API', () => {
   });
 
   it('rejects invalid apply payloads before touching the service', async () => {
+    role = 'partner';
     const response = await request(app)
       .post(`/funds/1/allocation-scenarios/${scenarioId}/apply`)
       .send({ preview_token: 'stale' })
@@ -554,6 +561,7 @@ describe('Allocation scenarios API', () => {
   });
 
   it('maps service conflicts to 409 responses', async () => {
+    role = 'partner';
     applyAllocationScenarioMock.mockRejectedValue(
       Object.assign(new Error('Apply preview has expired; refresh preview and try again'), {
         statusCode: 409,

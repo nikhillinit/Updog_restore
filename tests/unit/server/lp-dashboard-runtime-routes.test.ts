@@ -84,6 +84,7 @@ vi.mock('../../../server/lib/auth/jwt', () => ({
   },
   requireRole: () => (_req: Request, _res: Response, next: NextFunction) => next(),
   requireAnyRole: () => (_req: Request, _res: Response, next: NextFunction) => next(),
+  requireWriteRole: () => (_req: Request, _res: Response, next: NextFunction) => next(),
   requireFundAccess: (req: Request, res: Response, next: NextFunction) => {
     const fundId = Number(req.params['fundId']);
     if (Number.isFinite(fundId) && req.user?.fundIds?.includes(fundId)) return next();

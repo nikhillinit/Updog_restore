@@ -33,7 +33,7 @@ import {
   addMOICToCases,
 } from '@shared/utils/scenario-math';
 import type { ScenarioCase } from '@shared/types/scenario';
-import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
+import { requireAuth, requireFundAccess, requireWriteRole } from '../lib/auth/jwt.js';
 import { FEATURES } from '../config/features.js';
 import { firstString } from '../lib/request-values';
 import { createRouteLogger } from '../lib/route-logger.js';
@@ -55,6 +55,7 @@ import {
 } from '../services/scenarios/company-scenario-create-service';
 
 const routeLog = createRouteLogger('scenario-analysis');
+const WRITE_SCENARIO_ROLES = ['partner', 'admin', 'analyst'] as const;
 
 const router = Router();
 
@@ -425,6 +426,7 @@ router['get'](
 router['post'](
   '/funds/:fundId/scenario-analysis/scenarios/:scenarioId/cases/from-seed',
   requireAuth(),
+  requireWriteRole(WRITE_SCENARIO_ROLES),
   validateScenarioSeedFundId,
   requireFundAccess,
   validateScenarioIdParam,
@@ -751,6 +753,7 @@ router['get'](
 router['post'](
   '/companies/:companyId/scenarios',
   requireAuth(),
+  requireWriteRole(WRITE_SCENARIO_ROLES),
   extractUserId,
   async (req: Request, res: Response) => {
     try {
@@ -826,6 +829,7 @@ router['post'](
 router['patch'](
   '/companies/:companyId/scenarios/:scenarioId',
   requireAuth(),
+  requireWriteRole(WRITE_SCENARIO_ROLES),
   extractUserId,
   async (req: Request, res: Response) => {
     try {
@@ -977,6 +981,7 @@ router['patch'](
 router['delete'](
   '/companies/:companyId/scenarios/:scenarioId',
   requireAuth(),
+  requireWriteRole(WRITE_SCENARIO_ROLES),
   extractUserId,
   async (req: Request, res: Response) => {
     try {

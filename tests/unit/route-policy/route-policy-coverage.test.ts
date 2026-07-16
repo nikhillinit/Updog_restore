@@ -351,7 +351,7 @@ describe('route policy coverage', () => {
 
     expect(policy.governanceRef).toBe('/fund-model-results/:fundId/scenarios');
     expect(policy.financialSurface).toBe('fund_modeling');
-    expect(policy.apiAuthBoundary).toBe('require_auth_and_fund_access');
+    expect(policy.apiAuthBoundary).toBe('require_auth_fund_access_and_role');
     expect(policy.fundScopeMode).toBe('route_param_fund_id');
     expect(policy.exportPolicy).toBe('not_exportable');
     expect(policy.provenanceRequired).toBe(true);

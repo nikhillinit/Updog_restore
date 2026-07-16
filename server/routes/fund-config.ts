@@ -8,8 +8,10 @@ import { toNumber } from '@shared/number';
 import { getQueueConnectionOptions, getQueueConfig } from '../config/features';
 import { registerQueueRuntime } from '../queues/registry';
 import { createRouteLogger } from '../lib/route-logger.js';
+import { requireWriteRole } from '../lib/auth/jwt.js';
 
 const routeLog = createRouteLogger('fund-config');
+const WRITE_CONFIG_ROLES = ['partner', 'admin'] as const;
 
 const queueConfig = getQueueConfig();
 const connection = (() => {
@@ -50,7 +52,6 @@ function ensureProducerQueuesRegistered(): void {
     });
   }
 }
-
 import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
 import { sendApiError } from '../lib/apiError';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
@@ -95,174 +96,183 @@ export function registerFundConfigRoutes(app: Express) {
   ensureProducerQueuesRegistered();
 
   // Atomic finalize: create fund + save config + publish in one call
-  app.post('/api/funds/finalize', idempotency, async (req: Request, res: Response) => {
-    try {
-      const { FundFinalizeV1Schema: Schema } =
-        await import('@shared/contracts/fund-finalize-v1.contract');
-      const validation = Schema.safeParse(req.body);
-      if (!validation.success) {
-        return sendApiError(res, 400, {
-          error: 'Finalize payload is invalid',
-          code: 'FINALIZE_VALIDATION_ERROR',
-          issues: validation.error.issues.map((i) => ({ path: i.path, message: i.message })),
+  app.post(
+    '/api/funds/finalize',
+    requireWriteRole(WRITE_CONFIG_ROLES),
+    idempotency,
+    async (req: Request, res: Response) => {
+      try {
+        const { FundFinalizeV1Schema: Schema } =
+          await import('@shared/contracts/fund-finalize-v1.contract');
+        const validation = Schema.safeParse(req.body);
+        if (!validation.success) {
+          return sendApiError(res, 400, {
+            error: 'Finalize payload is invalid',
+            code: 'FINALIZE_VALIDATION_ERROR',
+            issues: validation.error.issues.map((i) => ({ path: i.path, message: i.message })),
+          });
+        }
+
+        const draftFundId = validation.data.draftFundId;
+        if (draftFundId != null && !(await enforceProvidedFundScope(req, res, draftFundId))) {
+          return;
+        }
+
+        const { fundPersistenceService } = await import('../services/fund-persistence-service');
+        const result = await fundPersistenceService.finalize(validation.data, {
+          reserve: reserveQueue,
+          pacing: pacingQueue,
+          cohort: cohortQueue,
         });
-      }
 
-      const draftFundId = validation.data.draftFundId;
-      if (draftFundId != null && !(await enforceProvidedFundScope(req, res, draftFundId))) {
-        return;
-      }
-
-      const { fundPersistenceService } = await import('../services/fund-persistence-service');
-      const result = await fundPersistenceService.finalize(validation.data, {
-        reserve: reserveQueue,
-        pacing: pacingQueue,
-        cohort: cohortQueue,
-      });
-
-      res.status(201).json({
-        success: true as const,
-        data: result,
-      });
-    } catch (error) {
-      if (error instanceof Error && error.name === 'NoActiveDraftForFinalizeError') {
-        return sendApiError(res, 409, {
-          error: error.message,
-          code: 'NO_ACTIVE_DRAFT',
+        res.status(201).json({
+          success: true as const,
+          data: result,
         });
-      }
+      } catch (error) {
+        if (error instanceof Error && error.name === 'NoActiveDraftForFinalizeError') {
+          return sendApiError(res, 409, {
+            error: error.message,
+            code: 'NO_ACTIVE_DRAFT',
+          });
+        }
 
-      routeLog.error('Finalize error:', error);
-      const apiError: ApiError = {
-        error: 'Failed to finalize fund',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      };
-      res.status(500).json(apiError);
+        routeLog.error('Finalize error:', error);
+        const apiError: ApiError = {
+          error: 'Failed to finalize fund',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        };
+        res.status(500).json(apiError);
+      }
     }
-  });
+  );
 
   // Save draft configuration (upsert: UPDATE if draft exists, INSERT if not)
-  app.put('/api/funds/:id/draft', async (req: Request, res: Response) => {
-    try {
-      const fundId = await getScopedFundId(req, res);
-      if (fundId === null) {
-        return;
-      }
+  app.put(
+    '/api/funds/:id/draft',
+    requireWriteRole(WRITE_CONFIG_ROLES),
+    async (req: Request, res: Response) => {
+      try {
+        const fundId = await getScopedFundId(req, res);
+        if (fundId === null) {
+          return;
+        }
 
-      // Validate with strict FundDraftWriteV1Schema (rejects unknown keys)
-      const validation = FundDraftWriteV1Schema.safeParse(req.body);
-      if (!validation.success) {
-        return sendApiError(res, 400, {
-          error: 'Draft configuration is invalid',
-          code: 'DRAFT_VALIDATION_ERROR',
-          issues: validation.error.issues.map((i) => ({ path: i.path, message: i.message })),
-        });
-      }
+        // Validate with strict FundDraftWriteV1Schema (rejects unknown keys)
+        const validation = FundDraftWriteV1Schema.safeParse(req.body);
+        if (!validation.success) {
+          return sendApiError(res, 400, {
+            error: 'Draft configuration is invalid',
+            code: 'DRAFT_VALIDATION_ERROR',
+            issues: validation.error.issues.map((i) => ({ path: i.path, message: i.message })),
+          });
+        }
 
-      // Check if fund exists
-      const [fund] = await db.select().from(funds).where(eq(funds.id, fundId)).limit(1);
+        // Check if fund exists
+        const [fund] = await db.select().from(funds).where(eq(funds.id, fundId)).limit(1);
 
-      if (!fund) {
-        const error: ApiError = {
-          error: 'Fund not found',
-          message: `No fund exists with ID: ${fundId}`,
-        };
-        return res.status(404).json(error);
-      }
+        if (!fund) {
+          const error: ApiError = {
+            error: 'Fund not found',
+            message: `No fund exists with ID: ${fundId}`,
+          };
+          return res.status(404).json(error);
+        }
 
-      // Draft-safe upsert: UPDATE existing draft if found, INSERT if not
-      const [existingDraft] = await db
-        .select()
-        .from(fundConfigs)
-        .where(and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)))
-        .orderBy(desc(fundConfigs.version))
-        .limit(1);
-
-      const gatedConfig = omitEconomicsAssumptionsWhenDisabled(validation.data);
-      const fieldCount = Object.keys(gatedConfig).length;
-      let savedConfig;
-
-      if (existingDraft) {
-        const priorFieldCount = existingDraft.config
-          ? Object.keys(existingDraft.config as Record<string, unknown>).length
-          : 0;
-        routeLog.warn('draft-save', { fundId, fieldCount, priorFieldCount });
-
-        const updateValues: Partial<typeof fundConfigs.$inferInsert> = {
-          config: gatedConfig,
-          updatedAt: new Date(),
-        };
-        const [updated] = await db
-          .update(fundConfigs)
-          .set(updateValues)
-          .where(eq(fundConfigs.id, existingDraft.id))
-          .returning();
-        savedConfig = updated;
-      } else {
-        // No active draft: allocate next version (MAX(version)+1)
-        const [versionResult] = await db
-          .select({ maxVersion: max(fundConfigs.version) })
+        // Draft-safe upsert: UPDATE existing draft if found, INSERT if not
+        const [existingDraft] = await db
+          .select()
           .from(fundConfigs)
-          .where(eq(fundConfigs.fundId, fundId));
-        const nextVersion = (versionResult?.maxVersion ?? 0) + 1;
+          .where(and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)))
+          .orderBy(desc(fundConfigs.version))
+          .limit(1);
 
-        routeLog.warn('draft-save', { fundId, fieldCount, nextVersion });
+        const gatedConfig = omitEconomicsAssumptionsWhenDisabled(validation.data);
+        const fieldCount = Object.keys(gatedConfig).length;
+        let savedConfig;
 
-        try {
-          const [inserted] = await db
-            .insert(fundConfigs)
-            .values({
-              fundId,
-              version: nextVersion,
-              config: gatedConfig,
-            })
+        if (existingDraft) {
+          const priorFieldCount = existingDraft.config
+            ? Object.keys(existingDraft.config as Record<string, unknown>).length
+            : 0;
+          routeLog.warn('draft-save', { fundId, fieldCount, priorFieldCount });
+
+          const updateValues: Partial<typeof fundConfigs.$inferInsert> = {
+            config: gatedConfig,
+            updatedAt: new Date(),
+          };
+          const [updated] = await db
+            .update(fundConfigs)
+            .set(updateValues)
+            .where(eq(fundConfigs.id, existingDraft.id))
             .returning();
-          savedConfig = inserted;
-        } catch (insertErr) {
-          // Unique constraint race: retry as UPDATE targeting isDraft=true
-          const [retryDraft] = await db
-            .select()
+          savedConfig = updated;
+        } else {
+          // No active draft: allocate next version (MAX(version)+1)
+          const [versionResult] = await db
+            .select({ maxVersion: max(fundConfigs.version) })
             .from(fundConfigs)
-            .where(and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)))
-            .limit(1);
-          if (retryDraft) {
-            const retryValues: Partial<typeof fundConfigs.$inferInsert> = {
-              config: gatedConfig,
-              updatedAt: new Date(),
-            };
-            const [updated] = await db
-              .update(fundConfigs)
-              .set(retryValues)
-              .where(eq(fundConfigs.id, retryDraft.id))
+            .where(eq(fundConfigs.fundId, fundId));
+          const nextVersion = (versionResult?.maxVersion ?? 0) + 1;
+
+          routeLog.warn('draft-save', { fundId, fieldCount, nextVersion });
+
+          try {
+            const [inserted] = await db
+              .insert(fundConfigs)
+              .values({
+                fundId,
+                version: nextVersion,
+                config: gatedConfig,
+              })
               .returning();
-            savedConfig = updated;
-          } else {
-            throw insertErr;
+            savedConfig = inserted;
+          } catch (insertErr) {
+            // Unique constraint race: retry as UPDATE targeting isDraft=true
+            const [retryDraft] = await db
+              .select()
+              .from(fundConfigs)
+              .where(and(eq(fundConfigs.fundId, fundId), eq(fundConfigs.isDraft, true)))
+              .limit(1);
+            if (retryDraft) {
+              const retryValues: Partial<typeof fundConfigs.$inferInsert> = {
+                config: gatedConfig,
+                updatedAt: new Date(),
+              };
+              const [updated] = await db
+                .update(fundConfigs)
+                .set(retryValues)
+                .where(eq(fundConfigs.id, retryDraft.id))
+                .returning();
+              savedConfig = updated;
+            } else {
+              throw insertErr;
+            }
           }
         }
+
+        // Log event
+        await db.insert(fundEvents).values({
+          fundId,
+          eventType: 'DRAFT_SAVED',
+          eventTime: new Date(),
+        });
+
+        res.json({
+          success: true,
+          data: savedConfig,
+          message: 'Draft saved successfully',
+        });
+      } catch (error) {
+        routeLog.error('Draft save error:', error);
+        const apiError: ApiError = {
+          error: 'Failed to save draft',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        };
+        res.status(500).json(apiError);
       }
-
-      // Log event
-      await db.insert(fundEvents).values({
-        fundId,
-        eventType: 'DRAFT_SAVED',
-        eventTime: new Date(),
-      });
-
-      res.json({
-        success: true,
-        data: savedConfig,
-        message: 'Draft saved successfully',
-      });
-    } catch (error) {
-      routeLog.error('Draft save error:', error);
-      const apiError: ApiError = {
-        error: 'Failed to save draft',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      };
-      res.status(500).json(apiError);
     }
-  });
+  );
 
   // Get latest draft
   app['get']('/api/funds/:id/draft', async (req: Request, res: Response) => {
@@ -298,100 +308,108 @@ export function registerFundConfigRoutes(app: Express) {
   });
 
   // Publish configuration (delegates to FundPersistenceService)
-  app.post('/api/funds/:id/publish', async (req: Request, res: Response) => {
-    try {
-      const fundId = await getScopedFundId(req, res);
-      if (fundId === null) {
-        return;
-      }
+  app.post(
+    '/api/funds/:id/publish',
+    requireWriteRole(WRITE_CONFIG_ROLES),
+    async (req: Request, res: Response) => {
+      try {
+        const fundId = await getScopedFundId(req, res);
+        if (fundId === null) {
+          return;
+        }
 
-      const userId = optionalNumericUserId(req);
+        const userId = optionalNumericUserId(req);
 
-      const { fundPersistenceService } = await import('../services/fund-persistence-service');
-      const result = await fundPersistenceService.publishDraft(
-        fundId,
-        { reserve: reserveQueue, pacing: pacingQueue, cohort: cohortQueue },
-        userId
-      );
+        const { fundPersistenceService } = await import('../services/fund-persistence-service');
+        const result = await fundPersistenceService.publishDraft(
+          fundId,
+          { reserve: reserveQueue, pacing: pacingQueue, cohort: cohortQueue },
+          userId
+        );
 
-      res.json({
-        success: true,
-        data: result.published,
-        message: 'Configuration published and calculations started',
-        correlationId: result.correlationId,
-        runId: result.run.id,
-        dispatchState: result.run.dispatchState,
-      });
-    } catch (error) {
-      if (error instanceof Error && error.message === 'No draft to publish') {
-        const apiError: ApiError = {
-          error: 'No draft to publish',
-          message: 'Create a draft configuration first',
-        };
-        return res.status(400).json(apiError);
-      }
-      if (error instanceof Error && error.name === 'ModelInputsAsOfDateRequiredError') {
-        return sendApiError(res, 422, {
-          error: error.message,
-          code: 'MODEL_INPUTS_AS_OF_DATE_REQUIRED',
+        res.json({
+          success: true,
+          data: result.published,
+          message: 'Configuration published and calculations started',
+          correlationId: result.correlationId,
+          runId: result.run.id,
+          dispatchState: result.run.dispatchState,
         });
+      } catch (error) {
+        if (error instanceof Error && error.message === 'No draft to publish') {
+          const apiError: ApiError = {
+            error: 'No draft to publish',
+            message: 'Create a draft configuration first',
+          };
+          return res.status(400).json(apiError);
+        }
+        if (error instanceof Error && error.name === 'ModelInputsAsOfDateRequiredError') {
+          return sendApiError(res, 422, {
+            error: error.message,
+            code: 'MODEL_INPUTS_AS_OF_DATE_REQUIRED',
+          });
+        }
+        routeLog.error('Publish error:', error);
+        const apiError: ApiError = {
+          error: 'Failed to publish configuration',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        };
+        res.status(500).json(apiError);
       }
-      routeLog.error('Publish error:', error);
-      const apiError: ApiError = {
-        error: 'Failed to publish configuration',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      };
-      res.status(500).json(apiError);
     }
-  });
+  );
 
   // Recalculate published configuration
-  app.post('/api/funds/:id/recalculate', async (req: Request, res: Response) => {
-    try {
-      const fundId = await getScopedFundId(req, res);
-      if (fundId === null) {
-        return;
-      }
+  app.post(
+    '/api/funds/:id/recalculate',
+    requireWriteRole(WRITE_CONFIG_ROLES),
+    async (req: Request, res: Response) => {
+      try {
+        const fundId = await getScopedFundId(req, res);
+        if (fundId === null) {
+          return;
+        }
 
-      const userId = optionalNumericUserId(req);
+        const userId = optionalNumericUserId(req);
 
-      const { fundPersistenceService } = await import('../services/fund-persistence-service');
+        const { fundPersistenceService } = await import('../services/fund-persistence-service');
 
-      const result = await fundPersistenceService.recalculatePublished(
-        fundId,
-        { reserve: reserveQueue, pacing: pacingQueue, cohort: cohortQueue },
-        userId
-      );
+        const result = await fundPersistenceService.recalculatePublished(
+          fundId,
+          { reserve: reserveQueue, pacing: pacingQueue, cohort: cohortQueue },
+          userId
+        );
 
-      res.json({
-        success: true,
-        correlationId: result.correlationId,
-        runId: result.run.id,
-        dispatchState: result.run.dispatchState,
-      });
-    } catch (error) {
-      if (error instanceof Error && error.name === 'NoPublishedConfigError') {
+        res.json({
+          success: true,
+          correlationId: result.correlationId,
+          runId: result.run.id,
+          dispatchState: result.run.dispatchState,
+        });
+      } catch (error) {
+        if (error instanceof Error && error.name === 'NoPublishedConfigError') {
+          const apiError: ApiError = {
+            error: 'No published configuration',
+            message: 'Publish a configuration first',
+          };
+          return res.status(400).json(apiError);
+        }
+        if (error instanceof Error && error.name === 'CalculationInProgressError') {
+          const apiError: ApiError = {
+            error: 'Calculation already in progress',
+            message: 'Wait for the current calculation to complete',
+          };
+          return res.status(409).json(apiError);
+        }
+        routeLog.error('Recalculate error:', error);
         const apiError: ApiError = {
-          error: 'No published configuration',
-          message: 'Publish a configuration first',
+          error: 'Failed to recalculate',
+          message: error instanceof Error ? error.message : 'Unknown error',
         };
-        return res.status(400).json(apiError);
+        res.status(500).json(apiError);
       }
-      if (error instanceof Error && error.name === 'CalculationInProgressError') {
-        const apiError: ApiError = {
-          error: 'Calculation already in progress',
-          message: 'Wait for the current calculation to complete',
-        };
-        return res.status(409).json(apiError);
-      }
-      routeLog.error('Recalculate error:', error);
-      const apiError: ApiError = {
-        error: 'Failed to recalculate',
-        message: error instanceof Error ? error.message : 'Unknown error',
-      };
-      res.status(500).json(apiError);
     }
-  });
+  );
 
   // Get fund reserves (from snapshots)
   app['get']('/api/funds/:id/reserves', async (req: Request, res: Response) => {

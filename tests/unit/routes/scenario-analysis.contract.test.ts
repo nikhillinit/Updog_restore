@@ -25,6 +25,7 @@ const fundAccessState = vi.hoisted(() => ({
 // route chain runs requireAuth() before any handler-level flag or param logic.
 const authState = vi.hoisted(() => ({
   authenticated: true,
+  role: 'analyst',
   requireAuthCalls: 0,
 }));
 
@@ -75,9 +76,7 @@ const scenarioCreateState = vi.hoisted(() => {
     readonly code = 'idempotency_conflict';
 
     constructor() {
-      super(
-        'Idempotency-Key is already associated with another company scenario creation request'
-      );
+      super('Idempotency-Key is already associated with another company scenario creation request');
       this.name = 'CompanyScenarioCreateIdempotencyConflictError';
     }
   }
@@ -150,14 +149,29 @@ vi.mock('../../../server/lib/auth/company-fund-scope', () => ({
 }));
 
 vi.mock('../../../server/lib/auth/jwt', () => ({
-  requireAuth: () => (_req: Request, res: Response, next: () => void) => {
+  requireAuth: () => (req: Request, res: Response, next: () => void) => {
     authState.requireAuthCalls += 1;
     if (!authState.authenticated) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
+    req.context = {
+      userId: 'scenario-user',
+      email: 'scenario-user@example.com',
+      role: authState.role,
+      orgId: 'test-org',
+    };
     next();
   },
+  requireWriteRole:
+    (roles: readonly string[]) => (req: Request, res: Response, next: () => void) => {
+      const role = req.user?.role ?? req.context?.role;
+      if (typeof role !== 'string' || !roles.includes(role)) {
+        res.sendStatus(403);
+        return;
+      }
+      next();
+    },
   requireFundAccess: fundAccessState.requireFundAccess,
 }));
 
@@ -244,6 +258,7 @@ function resetState() {
     (_req: Request, _res: Response, next: NextFunction) => next()
   );
   authState.authenticated = true;
+  authState.role = 'analyst';
   authState.requireAuthCalls = 0;
   factsState.buildFundCompanyActualsFacts.mockReset();
   persistenceState.createScenarioCaseFromSeed.mockReset();
@@ -861,9 +876,7 @@ describe('scenario-analysis company scenario creation', () => {
   });
 
   it('does not switch to a newly resolved ungranted fund between scope reads', async () => {
-    fundScopeState.resolveCompanyFundId
-      .mockResolvedValueOnce(7)
-      .mockResolvedValueOnce(8);
+    fundScopeState.resolveCompanyFundId.mockResolvedValueOnce(7).mockResolvedValueOnce(8);
     fundScopeState.enforceCompanyFundScope.mockImplementationOnce(
       async (_req: Request, res: Response, companyId: number) => {
         const currentFundId = await fundScopeState.resolveCompanyFundId(companyId);
