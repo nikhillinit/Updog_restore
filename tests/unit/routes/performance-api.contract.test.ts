@@ -176,12 +176,6 @@ function resetState() {
   loggerErrorMock.mockReset();
 }
 
-function expectNoCalculatorCalls() {
-  expect(calculateTimeseriesMock).not.toHaveBeenCalled();
-  expect(calculateBreakdownMock).not.toHaveBeenCalled();
-  expect(calculateComparisonMock).not.toHaveBeenCalled();
-}
-
 describe('performance API fund-access contract', () => {
   beforeEach(() => resetState());
 
