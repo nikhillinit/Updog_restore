@@ -122,10 +122,11 @@ async function startRuntime(): Promise<Runtime> {
   process.env._EXPLICIT_JWT_ALG = 'HS256';
 
   const { registerFundConfigRoutes } = await import('../../server/routes/fund-config');
-  const { signToken } = await import('../../server/lib/auth/jwt');
+  const { requireAuth, signToken } = await import('../../server/lib/auth/jwt');
 
   const app = express();
   app.use(express.json({ limit: '1mb' }));
+  app.use('/api', requireAuth());
   registerFundConfigRoutes(app);
 
   return { app, pool, postgres, signToken };
@@ -162,12 +163,12 @@ function finalizeFixture(): FundFinalizeV1 {
   };
 }
 
-function authHeader(active: Runtime, fundId: number): string {
+function authHeader(active: Runtime, fundId?: number): string {
   return `Bearer ${active.signToken({
     sub: 'fund-lifecycle-db',
     email: 'integration@example.com',
     role: 'admin',
-    fundIds: [fundId],
+    fundIds: fundId === undefined ? [] : [fundId],
   })}`;
 }
 
@@ -264,9 +265,11 @@ describe('fund lifecycle DB proof', () => {
     const active = runtime!;
     const idempotencyKey = 'lean-lifecycle-db-proof-1';
     const body = finalizeFixture();
+    const adminToken = authHeader(active);
 
     const first = await request(active.app)
       .post('/api/funds/finalize')
+      .set('Authorization', adminToken)
       .set('Idempotency-Key', idempotencyKey)
       .send(body);
 
@@ -377,6 +380,7 @@ describe('fund lifecycle DB proof', () => {
 
     const replay = await request(active.app)
       .post('/api/funds/finalize')
+      .set('Authorization', adminToken)
       .set('Idempotency-Key', idempotencyKey)
       .send(body);
 
