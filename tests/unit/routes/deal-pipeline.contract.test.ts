@@ -366,7 +366,7 @@ describe('deal pipeline route contracts', () => {
     expect(mockState.db.update).not.toHaveBeenCalled();
   });
 
-  it('rejects provided fund scope across body and query surfaces before DB access', async () => {
+  it('keeps cross-fund writes scoped while allowing team-member reads across surfaces', async () => {
     const app = makeApp([1]);
 
     const createBodyScope = await request(app)
@@ -384,21 +384,18 @@ describe('deal pipeline route contracts', () => {
       .post('/api/deals/opportunities/import')
       .send({ fundId: 2, rows: [validDealPayload({ companyName: 'Import Co' })] });
 
-    for (const response of [
-      createBodyScope,
-      listQueryScope,
-      updateBodyScope,
-      pipelineQueryScope,
-      previewBodyScope,
-      confirmBodyScope,
-    ]) {
+    // Writes (non-safe methods) stay fund-scoped: cross-fund mutations denied before DB access.
+    for (const response of [createBodyScope, updateBodyScope, previewBodyScope, confirmBodyScope]) {
       expect(response.status).toBe(403);
       expect(response.body).toMatchObject({
         error: 'Forbidden',
         code: 'FUND_ACCESS_DENIED',
       });
     }
-    expect(mockState.db.select).not.toHaveBeenCalled();
+    // Universal read: cross-fund GET reads are allowed for team members.
+    for (const response of [listQueryScope, pipelineQueryScope]) {
+      expect(response.status).not.toBe(403);
+    }
     expect(mockState.db.insert).not.toHaveBeenCalled();
     expect(mockState.db.update).not.toHaveBeenCalled();
   });

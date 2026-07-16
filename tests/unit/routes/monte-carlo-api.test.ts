@@ -386,7 +386,8 @@ describe('Monte Carlo routes', () => {
     expect(enforceProvidedFundScopeMock).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      2
+      2,
+      { forWrite: true }
     );
     expect(runSimulationMock).not.toHaveBeenCalled();
   });

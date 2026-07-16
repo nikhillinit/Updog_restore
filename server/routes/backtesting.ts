@@ -16,6 +16,8 @@ import type { z } from 'zod';
 import type { Request, Response, NextFunction } from 'express';
 import { backtestingService } from '../services/backtesting-service';
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
+import { isSafeReadMethod } from '../lib/auth/fund-scope';
+import { isTeamMemberUser } from '../lib/auth/principal';
 import { recordHttpMetrics } from '../metrics';
 import {
   enqueueBacktestJob,
@@ -123,6 +125,7 @@ const asyncHandler = (
 };
 
 const hasFundAccess = (req: Request, fundId: number): boolean => {
+  if (isSafeReadMethod(req.method) && isTeamMemberUser(req.user)) return true; // universal read (team-only)
   const userFundIds = req.user?.fundIds || [];
 
   // Empty fundIds means unrestricted access (admin/superuser pattern).

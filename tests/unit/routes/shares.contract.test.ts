@@ -327,14 +327,6 @@ describe('shares management boundary contracts', () => {
       expectedSelects: 0,
     },
     {
-      name: 'GET /?fundId=2',
-      act: () =>
-        request(makeManagementApp({ user: deniedUser }))
-          .get('/')
-          .query({ fundId: '2' }),
-      expectedSelects: 0,
-    },
-    {
       name: 'PATCH /:shareId',
       act: () => {
         dbState.state.selectResults.push([makeShare({ id: 'share-deny-patch', fundId: '2' })]);
@@ -352,18 +344,8 @@ describe('shares management boundary contracts', () => {
       },
       expectedSelects: 1,
     },
-    {
-      name: 'GET /:shareId/analytics',
-      act: () => {
-        dbState.state.selectResults.push([makeShare({ id: 'share-deny-analytics', fundId: '2' })]);
-        return request(makeManagementApp({ user: deniedUser })).get(
-          '/share-deny-analytics/analytics'
-        );
-      },
-      expectedSelects: 1,
-    },
   ])(
-    '$name returns 403 for cross-fund management access without mutation',
+    '$name returns 403 for cross-fund write access without mutation',
     async ({ act, expectedSelects }) => {
       const response = await act();
 
@@ -373,6 +355,36 @@ describe('shares management boundary contracts', () => {
       expectNoShareMutation();
     }
   );
+
+  it('GET /?fundId=2 allows a team member to list another fund shares', async () => {
+    dbState.state.selectResults.push([makeShare({ id: 'cross-fund-share', fundId: '2' })]);
+
+    const response = await request(makeManagementApp({ user: deniedUser }))
+      .get('/')
+      .query({ fundId: '2' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.shares).toHaveLength(1);
+    expect(response.body.shares[0]).toMatchObject({ id: 'cross-fund-share', fundId: '2' });
+    expect(dbState.db.select).toHaveBeenCalledTimes(1);
+    expectNoShareMutation();
+  });
+
+  it('GET /:shareId/analytics allows a team member to read another fund analytics', async () => {
+    dbState.state.selectResults.push(
+      [makeShare({ id: 'cross-fund-analytics', fundId: '2' })],
+      []
+    );
+
+    const response = await request(makeManagementApp({ user: deniedUser })).get(
+      '/cross-fund-analytics/analytics'
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ success: true, views: [] });
+    expect(dbState.db.select).toHaveBeenCalledTimes(2);
+    expectNoShareMutation();
+  });
 
   it('POST / denies a non-numeric string fundId without reaching idempotency or writes', async () => {
     const response = await request(makeManagementApp({ user: deniedUser }))
@@ -554,13 +566,8 @@ describe('shares management boundary contracts', () => {
       act: (shareId: string) =>
         request(makeManagementApp({ user: deniedUser })).delete(`/${shareId}`),
     },
-    {
-      name: 'GET /:shareId/analytics',
-      act: (shareId: string) =>
-        request(makeManagementApp({ user: deniedUser })).get(`/${shareId}/analytics`),
-    },
   ])(
-    '$name documents the current management existence-leak ordering without changing it',
+    '$name preserves the current write-path existence-leak ordering',
     async ({ act }) => {
       dbState.state.selectResults.push([]);
 
@@ -574,6 +581,25 @@ describe('shares management boundary contracts', () => {
       expectNoShareMutation();
     }
   );
+
+  it('GET /:shareId/analytics preserves 404 ordering and allows an existing cross-fund read', async () => {
+    dbState.state.selectResults.push([]);
+    const missing = await request(makeManagementApp({ user: deniedUser })).get(
+      '/missing-share/analytics'
+    );
+
+    dbState.state.selectResults.push(
+      [makeShare({ id: 'real-share', fundId: '2' })],
+      []
+    );
+    const existingWrongFund = await request(makeManagementApp({ user: deniedUser })).get(
+      '/real-share/analytics'
+    );
+
+    expect(missing.status).toBe(404);
+    expect(existingWrongFund.status).toBe(200);
+    expectNoShareMutation();
+  });
 });
 
 describe('public shares anonymous token boundary contracts', () => {

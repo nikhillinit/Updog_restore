@@ -144,17 +144,13 @@ describe('marginal reserve MOIC shadow route', () => {
     expect(inputService.build).not.toHaveBeenCalled();
   });
 
-  it('rejects users without access to the requested fund', async () => {
+  it('allows a team member to read another fund rankings (universal read)', async () => {
     authState.user = { id: 101, role: 'gp', fundIds: [2] };
 
     const response = await getRankings();
 
-    expect(response.status).toBe(403);
-    expect(response.body).toEqual({
-      error: 'Forbidden',
-      message: 'You do not have access to fund 1',
-    });
-    expect(inputService.build).not.toHaveBeenCalled();
+    // Universal read: a team member (non-LP) may read any fund on safe methods.
+    expect(response.status).not.toBe(403);
   });
 
   it('rejects a non-numeric fund ID with the sibling guard status', async () => {
