@@ -188,6 +188,13 @@ function hasAllowedAuthScopePair(
   }
 
   if (
+    policyEntry.apiAuthBoundary === 'require_auth_and_role' &&
+    FUND_SCOPE_MODES.has(policyEntry.fundScopeMode)
+  ) {
+    return true;
+  }
+
+  if (
     policyEntry.apiAuthBoundary === 'admin_only' &&
     policyEntry.financialSurface !== 'none' &&
     FUND_SCOPE_MODES.has(policyEntry.fundScopeMode)
@@ -397,7 +404,7 @@ export function verifyRoutePolicy(
     }
 
     if (!hasAllowedAuthScopePair(policyEntry, governanceEntry)) {
-      fail(errors, `Policy ${key} does not declare API-side fund, LP, or share scope`);
+      fail(errors, `Policy ${key} does not declare API-side fund, LP, share, or role scope`);
     }
 
     const expectedGovernanceSurface = getFinancialSurfaceForGovernanceEntry(governanceEntry);

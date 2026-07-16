@@ -487,9 +487,9 @@ function governanceRefForPortfolioIntelligenceRoute(
 const PROTOTYPE_ROUTE_NOTE = 'Prototype route must return 501 with non_actionable provenance.';
 const LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT = 'metric_run_locked_or_exported';
 const LP_REPORT_PACKAGE_EXPORT_NOTE =
-  'PRD #996 AC-1, AC-2, AC-3, D1, D2, and D3: Surface-A report-package export requires partner/admin role, denies empty-fundIds non-admin exports, requires metric-run workflow state locked or exported, and scopes visual watermarking out by ADR-027 because h9Stamp plus contentHash provide JSON/CSV hash attestation.';
+  'ADR-041: Surface-A report-package export requires the global partner/admin role, metric-run workflow state locked or exported, and H9 qualification; per-fund grants do not constrain these internal investment-team roles. The export contract scopes visual watermarking out by ADR-027 because h9Stamp plus contentHash provide JSON/CSV hash attestation.';
 const LP_REPORT_PACKAGE_EXPORT_STATUS_NOTE =
-  'Readiness-metadata status GET (in-code Finding 8, ADR-040): partner/admin role, export-grant, and workflow-state gated, but intentionally H9-independent and non-exportable. It serves stored-export metadata only; the authoritative artifact GET re-validates H9 before any artifact bytes are served.';
+  'Readiness-metadata status GET (ADR-040 as amended by ADR-041): global partner/admin role and workflow-state gated, but intentionally H9-independent and non-exportable. It serves stored-export metadata only; the authoritative artifact GET re-validates H9 before any artifact bytes are served.';
 
 type LpReportingRoutePolicyGroup = Pick<
   RoutePolicyEntry,
@@ -1006,7 +1006,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package/render-model'
     ),
     financialSurface: 'lp_reporting',
-    apiAuthBoundary: 'require_auth_fund_access_and_role',
+    apiAuthBoundary: 'require_auth_and_role',
     fundScopeMode: 'route_param_fund_id',
     workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
     exportPolicy: 'qualified_exportable',
@@ -1029,7 +1029,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package/export/json'
     ),
     financialSurface: 'lp_reporting',
-    apiAuthBoundary: 'require_auth_fund_access_and_role',
+    apiAuthBoundary: 'require_auth_and_role',
     fundScopeMode: 'route_param_fund_id',
     workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
     exportPolicy: 'qualified_exportable',
@@ -1052,7 +1052,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json'
     ),
     financialSurface: 'lp_reporting',
-    apiAuthBoundary: 'require_auth_fund_access_and_role',
+    apiAuthBoundary: 'require_auth_and_role',
     fundScopeMode: 'route_param_fund_id',
     workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
     exportPolicy: 'qualified_exportable',
@@ -1075,7 +1075,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json'
     ),
     financialSurface: 'lp_reporting',
-    apiAuthBoundary: 'require_auth_fund_access_and_role',
+    apiAuthBoundary: 'require_auth_and_role',
     fundScopeMode: 'route_param_fund_id',
     workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
     exportPolicy: 'not_exportable',
@@ -1098,7 +1098,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/json/artifact'
     ),
     financialSurface: 'lp_reporting',
-    apiAuthBoundary: 'require_auth_fund_access_and_role',
+    apiAuthBoundary: 'require_auth_and_role',
     fundScopeMode: 'route_param_fund_id',
     workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
     exportPolicy: 'qualified_exportable',
@@ -1121,7 +1121,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv'
     ),
     financialSurface: 'lp_reporting',
-    apiAuthBoundary: 'require_auth_fund_access_and_role',
+    apiAuthBoundary: 'require_auth_and_role',
     fundScopeMode: 'route_param_fund_id',
     workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
     exportPolicy: 'qualified_exportable',
@@ -1144,7 +1144,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv'
     ),
     financialSurface: 'lp_reporting',
-    apiAuthBoundary: 'require_auth_fund_access_and_role',
+    apiAuthBoundary: 'require_auth_and_role',
     fundScopeMode: 'route_param_fund_id',
     workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
     exportPolicy: 'not_exportable',
@@ -1167,7 +1167,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
       '/api/funds/:fundId/metric-runs/:metricRunId/report-package/exports/csv/artifact'
     ),
     financialSurface: 'lp_reporting',
-    apiAuthBoundary: 'require_auth_fund_access_and_role',
+    apiAuthBoundary: 'require_auth_and_role',
     fundScopeMode: 'route_param_fund_id',
     workflowRequirement: LP_REPORT_PACKAGE_EXPORT_WORKFLOW_REQUIREMENT,
     exportPolicy: 'qualified_exportable',

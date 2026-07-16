@@ -145,7 +145,7 @@ describe('marginal reserve MOIC shadow route', () => {
   });
 
   it('allows a team member to read another fund rankings (universal read)', async () => {
-    authState.user = { id: 101, role: 'gp', fundIds: [2] };
+    authState.user = { id: 101, role: 'analyst', fundIds: [2] };
 
     const response = await getRankings();
 
