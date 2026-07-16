@@ -2,9 +2,9 @@ import type { NextFunction, Request, Response } from 'express';
 
 import { parseFundIdParam } from '@shared/number';
 
-import { resolveFundScope } from './fund-scope';
+import { isSafeReadMethod, resolveFundScope } from './fund-scope';
 import { userFromClaims, verifyRequestCredential } from './jwt';
-import { principalFromUser } from './principal';
+import { isTeamMemberUser, principalFromUser } from './principal';
 import { RequestCredentialError } from './request-credentials';
 
 function assertTokenRequiredOutsideDevelopment(): void {
@@ -25,13 +25,20 @@ function denyFundAccess(res: Response, fundId: number): void {
 export async function enforceProvidedFundScope(
   req: Request,
   res: Response,
-  fundId: number
+  fundId: number,
+  opts: { forWrite?: boolean } = {}
 ): Promise<boolean> {
   try {
     const verified = await verifyRequestCredential(req);
     if (verified === null) {
       assertTokenRequiredOutsideDevelopment();
-      if (req.user && resolveFundScope(principalFromUser(req.user), fundId) === 'deny') {
+      const universalRead =
+        !opts.forWrite && isSafeReadMethod(req.method) && isTeamMemberUser(req.user);
+      if (
+        req.user &&
+        !universalRead &&
+        resolveFundScope(principalFromUser(req.user), fundId) === 'deny'
+      ) {
         denyFundAccess(res, fundId);
         return false;
       }
@@ -46,7 +53,11 @@ export async function enforceProvidedFundScope(
       ...verifiedUser,
     };
 
-    if (resolveFundScope(principalFromUser(req.user), fundId) !== 'allow') {
+    const universalRead =
+      !opts.forWrite && isSafeReadMethod(req.method) && isTeamMemberUser(req.user);
+    const allowed =
+      universalRead || resolveFundScope(principalFromUser(req.user), fundId) === 'allow';
+    if (!allowed) {
       denyFundAccess(res, fundId);
       return false;
     }
@@ -73,7 +84,10 @@ function developmentVerifiedFundScope(req: Request): VerifiedFundScope {
   if (req.user) {
     const fundIds = req.user.fundIds ?? [];
     const principal = principalFromUser(req.user);
-    const unrestricted = principal.kind === 'admin' || principal.kind === 'service';
+    const unrestricted =
+      isSafeReadMethod(req.method) && isTeamMemberUser(req.user)
+        ? true
+        : principal.kind === 'admin' || principal.kind === 'service';
     return { unrestricted, fundIds };
   }
   return { unrestricted: true, fundIds: [] };
@@ -96,7 +110,10 @@ async function verifiedFundScopeFromCredential(
   req.user = { ...req.user, ...verifiedUser };
   const fundIds = verifiedUser.fundIds ?? [];
   const principal = principalFromUser(verifiedUser);
-  const unrestricted = principal.kind === 'admin' || principal.kind === 'service';
+  const unrestricted =
+    isSafeReadMethod(req.method) && isTeamMemberUser(verifiedUser)
+      ? true
+      : principal.kind === 'admin' || principal.kind === 'service';
   return { unrestricted, fundIds };
 }
 
@@ -154,8 +171,9 @@ export interface VerifiedFundScope {
  * enforceProvidedFundScope's no-token contract: throws outside development/test,
  * and in development/test falls back to the upstream user (or an unrestricted dev
  * bypass when none is present). Returns null only for an invalid or expired token
- * so the caller can respond 401. unrestricted === true means an admin/service
- * role; a non-admin with empty grants is not unrestricted and is denied.
+ * so the caller can respond 401. On safe read methods, unrestricted === true
+ * for authenticated non-LP team members; otherwise it means an admin/service
+ * role. A non-admin with empty grants is not unrestricted for mutations.
  */
 export async function getVerifiedFundScope(req: Request): Promise<VerifiedFundScope | null> {
   try {

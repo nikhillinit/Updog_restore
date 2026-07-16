@@ -86,7 +86,7 @@ describe('cashflow route real bearer fund scope', () => {
     }
   });
 
-  it('denies an out-of-scope fund using the real bearer-token helper', async () => {
+  it('allows a team member to read an out-of-scope fund using the real bearer-token helper', async () => {
     const app = await makeApp();
     const token = signToken({ fundIds: [1] });
 
@@ -94,8 +94,8 @@ describe('cashflow route real bearer fund scope', () => {
       .get('/api/cashflow/2/transactions')
       .set('Authorization', `Bearer ${token}`);
 
-    expect(response.status).toBe(403);
-    expect(response.body).toMatchObject({ error: 'Forbidden', code: 'FUND_ACCESS_DENIED' });
+    // Universal read: a team member may read any fund on safe methods.
+    expect(response.status).not.toBe(403);
   });
 
   it('rejects a non-canonical route fundId instead of authorizing its numeric alias', async () => {

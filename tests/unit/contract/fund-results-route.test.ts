@@ -122,7 +122,7 @@ describe('GET /api/funds/:id/results', () => {
     expect(res.body).toHaveProperty('error', 'Invalid fund ID');
   });
 
-  it('returns 403 without reading results when user lacks fund scope', async () => {
+  it('allows a team member to read results for another fund (universal read)', async () => {
     const { fundResultsReadService } =
       await import('../../../server/services/fund-results-read-service');
     const getResultsSpy = vi.mocked(fundResultsReadService.getResults);
@@ -146,13 +146,8 @@ describe('GET /api/funds/:id/results', () => {
 
     const res = await request(restrictedApp).get('/api/funds/1/results');
 
-    expect(res.status).toBe(403);
-    expect(res.body).toMatchObject({
-      error: 'Forbidden',
-      code: 'FUND_ACCESS_DENIED',
-      message: 'You do not have access to fund 1',
-    });
-    expect(getResultsSpy).not.toHaveBeenCalled();
+    expect(res.status).not.toBe(403);
+    expect(getResultsSpy).toHaveBeenCalled();
   });
 
   it('returns 500 when service throws', async () => {

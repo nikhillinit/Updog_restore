@@ -17,8 +17,8 @@ import { parseFundIdParam } from '@shared/number';
 import { getConfig } from '../../config';
 import { authMetrics } from '../../telemetry';
 import { firstString } from '../request-values';
-import { resolveFundScope } from './fund-scope';
-import { principalFromUser } from './principal';
+import { isSafeReadMethod, resolveFundScope } from './fund-scope';
+import { isTeamMemberUser, principalFromUser } from './principal';
 import {
   extractRequestCredential,
   requestCredentialError,
@@ -339,6 +339,11 @@ export const requireFundAccess = (req: Request, res: Response, next: NextFunctio
       error: 'Bad Request',
       message: fundIdParam ? 'Invalid fund ID' : 'Fund ID is required',
     });
+  }
+
+  // Universal READ (team-only): any authenticated non-LP caller may read any fund on safe methods.
+  if (isSafeReadMethod(req.method) && isTeamMemberUser(req.user)) {
+    return next();
   }
 
   if (resolveFundScope(principalFromUser(req.user), fundId) === 'allow') {

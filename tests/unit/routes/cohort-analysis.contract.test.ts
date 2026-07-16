@@ -109,13 +109,17 @@ function makeApp() {
   return app;
 }
 
-const deniedEndpoints = [
+// Writes stay fund-scoped; reads are universal for team members (safe methods).
+const deniedWriteEndpoints = [
   { method: 'post', path: '/analyze', source: 'body' },
-  { method: 'get', path: '/unmapped', source: 'query' },
   { method: 'post', path: '/sector-mappings', source: 'body' },
-  { method: 'get', path: '/definitions', source: 'query' },
   { method: 'post', path: '/definitions', source: 'body' },
   { method: 'post', path: '/seed', source: 'body' },
+] as const;
+
+const allowedReadEndpoints = [
+  { method: 'get', path: '/unmapped', source: 'query' },
+  { method: 'get', path: '/definitions', source: 'query' },
 ] as const;
 
 describe('cohort-analysis fund-scope adapter contract', () => {
@@ -126,15 +130,13 @@ describe('cohort-analysis fund-scope adapter contract', () => {
     dbState.state.updateValues = [];
   });
 
-  it.each(deniedEndpoints)(
-    '$method $path denies cross-fund access before handler work',
-    async ({ method, path, source }) => {
-      const pendingRequest =
-        method === 'post' ? request(makeApp()).post(path) : request(makeApp()).get(path);
+  it.each(deniedWriteEndpoints)(
+    '$method $path denies cross-fund write before handler work',
+    async ({ path, source }) => {
       const response =
         source === 'body'
-          ? await pendingRequest.send({ fundId: 2 })
-          : await pendingRequest.query({ fundId: 2 });
+          ? await request(makeApp()).post(path).send({ fundId: 2 })
+          : await request(makeApp()).post(path).query({ fundId: 2 });
 
       expect(response.status).toBe(403);
       expect(response.body).toEqual(
@@ -147,6 +149,15 @@ describe('cohort-analysis fund-scope adapter contract', () => {
       expect(dbState.db.insert).not.toHaveBeenCalled();
       expect(dbState.db.update).not.toHaveBeenCalled();
       expect(analyzeCohorts).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(allowedReadEndpoints)(
+    '$method $path allows a team member cross-fund read',
+    async ({ path }) => {
+      const response = await request(makeApp()).get(path).query({ fundId: 2 });
+
+      expect(response.status).not.toBe(403);
     }
   );
 

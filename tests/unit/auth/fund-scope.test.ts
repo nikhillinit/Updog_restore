@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { principalFromUser } from '../../../server/lib/auth/principal';
-import { resolveFundScope } from '../../../server/lib/auth/fund-scope';
+import { isTeamMemberUser, principalFromUser } from '../../../server/lib/auth/principal';
+import { isSafeReadMethod, resolveFundScope } from '../../../server/lib/auth/fund-scope';
 
 const user = (over: Partial<Express.User> = {}): Express.User =>
   ({
@@ -34,6 +34,36 @@ describe('principalFromUser', () => {
       userId: 'u1',
       fundIds: [1, 2],
     });
+  });
+});
+
+describe('isTeamMemberUser', () => {
+  it.each(['admin', 'analyst', 'partner'])(
+    'recognizes authenticated non-LP role=%s as a team member',
+    (role) => {
+      expect(isTeamMemberUser(user({ role }))).toBe(true);
+    }
+  );
+
+  it('rejects anonymous callers', () => {
+    expect(isTeamMemberUser(undefined)).toBe(false);
+  });
+
+  it('rejects callers with the LP role', () => {
+    expect(isTeamMemberUser(user({ role: 'lp' }))).toBe(false);
+  });
+
+  it('rejects callers with an LP claim', () => {
+    expect(isTeamMemberUser(user({ lpId: 1 }))).toBe(false);
+  });
+});
+
+describe('isSafeReadMethod', () => {
+  it('allows only GET and HEAD', () => {
+    expect(isSafeReadMethod('GET')).toBe(true);
+    expect(isSafeReadMethod('HEAD')).toBe(true);
+    expect(isSafeReadMethod('POST')).toBe(false);
+    expect(isSafeReadMethod(undefined)).toBe(false);
   });
 });
 

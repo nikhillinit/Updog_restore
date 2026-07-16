@@ -785,7 +785,7 @@ router['get'](
     try {
       const fundId = toNumber(req.params['fundId'], 'Fund ID');
 
-      if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
         return;
       }
 

@@ -176,26 +176,19 @@ function resetState() {
   loggerErrorMock.mockReset();
 }
 
-function expectNoCalculatorCalls() {
-  expect(calculateTimeseriesMock).not.toHaveBeenCalled();
-  expect(calculateBreakdownMock).not.toHaveBeenCalled();
-  expect(calculateComparisonMock).not.toHaveBeenCalled();
-}
-
 describe('performance API fund-access contract', () => {
   beforeEach(() => resetState());
 
+  // Universal read: an authenticated team member may read any fund (safe methods),
+  // so a cross-fund GET is no longer denied at the fund-scope guard.
   it.each(protectedRoutes)(
-    'denies unauthorized fund access for %s',
+    'allows a team member to read another fund for %s',
     async (_route, pathForFund) => {
+      dbState.state.selectResults.push([]);
+
       const response = await request(makeApp()).get(pathForFund(2));
 
-      expect(response.status).toBe(403);
-      expect(response.status).not.toBe(404);
-      expect(response.body.error).toBe('Forbidden');
-      expect(dbState.db.select).not.toHaveBeenCalled();
-      expect(getFundMock).not.toHaveBeenCalled();
-      expectNoCalculatorCalls();
+      expect(response.status).not.toBe(403);
     }
   );
 

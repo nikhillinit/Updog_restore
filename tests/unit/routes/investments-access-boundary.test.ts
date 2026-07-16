@@ -3,11 +3,10 @@ import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import jwt from 'jsonwebtoken';
 
-// PR-H1: direct investment reads must enforce the same fund scope as the round
-// routes. These tests exercise the REAL enforceProvidedFundScope helper (signed
-// bearer tokens) while mocking storage so we control which fund an investment
-// belongs to. Cross-fund/cross-org reads must be denied; the unscoped list path
-// must be closed; the scoped ?fundId= behavior must be preserved.
+// Direct investment reads exercise the REAL enforceProvidedFundScope helper
+// (signed bearer tokens) while storage is mocked so fund ownership is explicit.
+// Authenticated non-LP team members may read across funds; the unscoped list
+// path remains closed and explicit ?fundId= behavior remains required.
 
 const TEST_SECRET = 'investments-route-auth-test-secret-minimum-32-chars';
 const TEST_ISSUER = 'updog-test';
@@ -110,7 +109,7 @@ describe('investments direct-read fund-scope boundary (PR-H1)', () => {
   });
 
   describe('GET /api/investments/:id', () => {
-    it('denies a cross-fund direct read (investment belongs to a fund the caller cannot access)', async () => {
+    it('allows a team member to read an investment from another fund', async () => {
       storageState.getInvestment.mockResolvedValue({ id: 5, fundId: 2, name: 'Secret Co' });
       const app = await makeApp();
       const token = signToken({ fundIds: [1] });
@@ -119,10 +118,8 @@ describe('investments direct-read fund-scope boundary (PR-H1)', () => {
         .get('/api/investments/5')
         .set('Authorization', `Bearer ${token}`);
 
-      expect(response.status).toBe(403);
-      expect(response.body).toMatchObject({ error: 'Forbidden', code: 'FUND_ACCESS_DENIED' });
-      // No investment detail leaks in a denied response.
-      expect(JSON.stringify(response.body)).not.toContain('Secret Co');
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({ id: 5, fundId: 2, name: 'Secret Co' });
     });
 
     it('returns the investment when it belongs to a fund in the caller scope', async () => {
@@ -179,7 +176,8 @@ describe('investments direct-read fund-scope boundary (PR-H1)', () => {
       expect(storageState.getInvestments).not.toHaveBeenCalled();
     });
 
-    it('denies a cross-fund list (?fundId= for a fund outside the caller scope)', async () => {
+    it('allows a team member to list investments for another fund', async () => {
+      storageState.getInvestments.mockResolvedValue([{ id: 10, fundId: 2, name: 'Other Fund' }]);
       const app = await makeApp();
       const token = signToken({ fundIds: [1] });
 
@@ -187,9 +185,9 @@ describe('investments direct-read fund-scope boundary (PR-H1)', () => {
         .get('/api/investments?fundId=2')
         .set('Authorization', `Bearer ${token}`);
 
-      expect(response.status).toBe(403);
-      expect(response.body).toMatchObject({ error: 'Forbidden', code: 'FUND_ACCESS_DENIED' });
-      expect(storageState.getInvestments).not.toHaveBeenCalled();
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual([{ id: 10, fundId: 2, name: 'Other Fund' }]);
+      expect(storageState.getInvestments).toHaveBeenCalledWith(2);
     });
 
     it('preserves the scoped list for ?fundId= within the caller scope', async () => {

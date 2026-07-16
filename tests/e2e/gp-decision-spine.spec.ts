@@ -149,19 +149,17 @@ test('partner completes the truthful GP decision spine with fail-closed gaps dis
   await expect(evidencePanel).toBeHidden();
   await expect(evidenceTrigger).toBeFocused();
 
-  const ungrantedResponse = await page.context().request.get('/api/funds/2');
-  expect(ungrantedResponse.status()).toBe(403);
-  const ungrantedResultsResponse = page.waitForResponse(
+  const missingFundResponse = await page.context().request.get('/api/funds/2');
+  expect(missingFundResponse.status()).toBe(404);
+  const missingFundResultsResponse = page.waitForResponse(
     (response) =>
       new URL(response.url()).pathname === '/api/funds/2/results' &&
       response.request().method() === 'GET'
   );
   await page.goto('/fund-model-results/2', { waitUntil: 'domcontentloaded' });
-  expect((await ungrantedResultsResponse).status()).toBe(403);
+  expect((await missingFundResultsResponse).status()).toBe(404);
   await expect(page.getByText('Error loading results', { exact: true })).toBeVisible();
-  await expect(
-    page.getByRole('alert').getByText('Server error (403)', { exact: true })
-  ).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('Fund not found');
   await expect(page.getByTestId('workspace-nav-fund')).toHaveText('Fund 2');
 
   const healthResponse = await page.context().request.get('/healthz');

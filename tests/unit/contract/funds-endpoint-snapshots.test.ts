@@ -246,16 +246,13 @@ describe('GET /api/funds/:id contract snapshot', () => {
     expect(res.body).toHaveProperty('error');
   });
 
-  it('returns 403 for fund detail outside the provided user scope', async () => {
+  it('allows a team member to read fund detail outside their explicit scope', async () => {
     const scopedApp = await makeScopedFundsApp([2]);
 
     const res = await request(scopedApp).get('/api/funds/1');
 
-    expect(res.status).toBe(403);
-    expect(res.body).toMatchObject({
-      error: 'Forbidden',
-      code: 'FUND_ACCESS_DENIED',
-    });
+    // Universal read: a team member may read any fund on safe methods.
+    expect(res.status).not.toBe(403);
   });
 });
 

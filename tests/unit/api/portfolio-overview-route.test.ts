@@ -160,14 +160,13 @@ describe('portfolio overview route', () => {
     expect(serviceState.getPortfolioOverview).not.toHaveBeenCalled();
   });
 
-  it('denies cross-fund access before calling the service', async () => {
+  it('allows a team member to read another fund overview (universal read)', async () => {
     const app = await makeApp();
     const response = await request(app)
       .get('/api/portfolio-overview?fundId=1')
       .set('Authorization', `Bearer ${signToken([2])}`);
 
-    expect(response.status).toBe(403);
-    expect(serviceState.getPortfolioOverview).not.toHaveBeenCalled();
+    expect(response.status).not.toBe(403);
   });
 
   it('returns 404 when the fund does not exist', async () => {

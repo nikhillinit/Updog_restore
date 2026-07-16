@@ -23,6 +23,8 @@ import {
 import { LP_HIDDEN_METRICS } from '@shared/sharing-schema';
 import { firstString } from '../lib/request-values';
 import { parseETag } from '../lib/http-preconditions';
+import { isSafeReadMethod } from '../lib/auth/fund-scope';
+import { isTeamMemberUser } from '../lib/auth/principal';
 import {
   createShareSnapshot,
   getLatestShareSnapshot,
@@ -153,6 +155,7 @@ function requireAuthenticatedUser(req: Request, res: Response): string | undefin
 }
 
 function canManageFund(req: Request, fundId: string): boolean {
+  if (isSafeReadMethod(req.method) && isTeamMemberUser(req.user)) return true; // universal read (team-only)
   if (req.context?.role === 'admin' || req.user?.isAdmin) return true;
   if (req.context?.fundId && req.context.fundId === fundId) return true;
 

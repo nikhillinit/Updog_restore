@@ -176,15 +176,15 @@ describe('backtesting route fund-scope contracts', () => {
     expect(res.body).toMatchObject({ error: 'JOB_NOT_FOUND' });
   });
 
-  it('GET /jobs/:jobId forbids a job owned by another fund', async () => {
+  it('GET /jobs/:jobId allows the requester to read a job from another fund', async () => {
     queueState.getBacktestJobStatus.mockResolvedValueOnce(
       jobSnapshot({ fundId: 2, requesterUserId: 'alice' })
     );
     const res = await request(makeApp())
       .get('/api/backtesting/jobs/job-1')
       .set(identity('1', 'alice'));
-    expect(res.status).toBe(403);
-    expect(res.body).toMatchObject({ error: 'FORBIDDEN' });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ jobId: 'job-1', fundId: 2, status: 'completed' });
   });
 
   it('GET /jobs/:jobId binds a scoped caller to jobs they requested', async () => {
@@ -236,24 +236,33 @@ describe('backtesting route fund-scope contracts', () => {
     expect(res.status).toBe(404);
   });
 
-  it('GET /jobs/:jobId/stream forbids a cross-fund job before streaming', async () => {
+  it('GET /jobs/:jobId/stream opens for the requester across funds', async () => {
     queueState.getBacktestJobStatus.mockResolvedValueOnce(
       jobSnapshot({ fundId: 2, requesterUserId: 'alice' })
     );
-    const res = await request(makeApp())
+    // SSE streams stay open, so bound the request with a short deadline instead of
+    // awaiting termination (which would hang). The guard runs before subscribing, so a
+    // successful open is proven by subscribeToBacktestJob being called; a 403 would
+    // short-circuit before subscribing.
+    await request(makeApp())
       .get('/api/backtesting/jobs/job-1/stream')
-      .set(identity('1', 'alice'));
-    expect(res.status).toBe(403);
-    expect(queueState.subscribeToBacktestJob).not.toHaveBeenCalled();
+      .set(identity('1', 'alice'))
+      .timeout({ deadline: 300 })
+      .then(
+        () => undefined,
+        () => undefined
+      );
+
+    expect(queueState.subscribeToBacktestJob).toHaveBeenCalledWith('job-1', expect.any(Object));
   });
 
   // --- GET /fund/:fundId/history (requireFundAccess; guard before service) ---
-  it('GET /fund/:fundId/history denies a cross-fund read before the service', async () => {
+  it('GET /fund/:fundId/history allows a team member to read another fund history', async () => {
     const res = await request(makeApp())
       .get('/api/backtesting/fund/2/history')
       .set(identity('1', 'alice'));
-    expect(res.status).toBe(403);
-    expect(serviceState.getBacktestHistory).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(serviceState.getBacktestHistory).toHaveBeenCalledWith(2, expect.anything());
   });
 
   it('GET /fund/:fundId/history reads in-scope history', async () => {
@@ -282,13 +291,13 @@ describe('backtesting route fund-scope contracts', () => {
     expect(res.body).toMatchObject({ error: 'BACKTEST_NOT_FOUND' });
   });
 
-  it('GET /result/:backtestId forbids a cross-fund result', async () => {
+  it('GET /result/:backtestId allows a team member to read a cross-fund result', async () => {
     serviceState.getBacktestById.mockResolvedValueOnce({ config: { fundId: 2 } });
     const res = await request(makeApp())
       .get(`/api/backtesting/result/${RESULT_ID}`)
       .set(identity('1', 'alice'));
-    expect(res.status).toBe(403);
-    expect(res.body).toMatchObject({ error: 'FORBIDDEN' });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ result: { config: { fundId: 2 } } });
   });
 
   it('GET /result/:backtestId rejects a malformed id before the service', async () => {

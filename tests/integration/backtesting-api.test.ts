@@ -460,7 +460,7 @@ describe('Backtesting API', () => {
       expect(response.body.error).toBe('BACKTEST_NOT_FOUND');
     });
 
-    it('returns 403 when the backtest belongs to an inaccessible fund', async () => {
+    it('returns 200 when a team member reads a backtest from another fund', async () => {
       mockGetBacktestById.mockResolvedValueOnce(
         makeBacktestResult({
           config: { ...validBacktestConfig, fundId: 9 },
@@ -471,8 +471,8 @@ describe('Backtesting API', () => {
         '/api/backtesting/result/550e8400-e29b-41d4-a716-446655440000'
       );
 
-      expect(response.status).toBe(403);
-      expect(response.body.error).toBe('FORBIDDEN');
+      expect(response.status).toBe(200);
+      expect(response.body.result.config.fundId).toBe(9);
     });
 
     it('returns 200 and preserves scenarioComparisonSummary on the detail payload', async () => {
