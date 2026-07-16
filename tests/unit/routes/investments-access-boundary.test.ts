@@ -61,7 +61,7 @@ function signToken(payload: Record<string, unknown>): string {
     {
       sub: 'investments-route-user',
       email: 'investments-route@example.com',
-      role: 'user',
+      role: 'analyst',
       ...payload,
     },
     TEST_SECRET,

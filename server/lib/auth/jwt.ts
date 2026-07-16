@@ -357,22 +357,6 @@ export const requireFundAccess = (req: Request, res: Response, next: NextFunctio
   });
 };
 
-export const requireExportFundGrant = (req: Request, res: Response, next: NextFunction) => {
-  if (req.user?.role === 'admin') {
-    return next();
-  }
-
-  const fundIds = fundIdsFromClaims(req.user?.fundIds);
-  if (fundIds.length === 0) {
-    return res.status(403).json({
-      error: 'Forbidden',
-      message: 'Export routes require an explicit fund grant.',
-    });
-  }
-
-  return next();
-};
-
 function signTokenWithExpiry(
   data: string | Buffer | object,
   expiresIn: NonNullable<SignOptions['expiresIn']>

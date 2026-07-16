@@ -13,6 +13,7 @@ export const ApiAuthBoundarySchema = z.enum([
   'none_public',
   'signed_public_share',
   'require_auth',
+  'require_auth_and_role',
   'require_auth_and_fund_access',
   'require_auth_fund_access_and_role',
   'require_auth_and_lp_access',

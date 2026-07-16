@@ -3,11 +3,11 @@ import jwt from 'jsonwebtoken';
 import request from 'supertest';
 import type { Express } from 'express';
 
-// Task 7: fail-closed acceptance safety net. Locks enforceProvidedFundScope's
-// role-aware contract over both production route surfaces (dashboard-summary):
-// non-admin callers need an explicit fund grant, while admin callers remain
-// unrestricted. Deny cases short-circuit before the DB read; allow cases assert
-// only that auth passed, independent of the read model returning 200/404/500.
+// Universal internal-read acceptance safety net. Locks the approved role-aware
+// contract over both production route surfaces (dashboard-summary): admin,
+// partner, and analyst callers may read every fund; LP callers remain outside
+// this internal surface. A nonexistent fund therefore reaches the read model
+// and returns 404 instead of being hidden behind a fund-grant 403.
 
 let signToken: typeof import('../../server/lib/auth/jwt').signToken;
 let makeAppSurface: Express;
@@ -21,7 +21,7 @@ const surfaces: ReadonlyArray<{ label: string; app: () => Express }> = [
   { label: 'registerRoutes', app: () => dockerHarness.app },
 ];
 
-describe('fund-scope acceptance matrix (dashboard-summary) [fail-closed]', () => {
+describe('fund-scope acceptance matrix (dashboard-summary) [universal internal read]', () => {
   beforeAll(async () => {
     const { makeApp } = await import('../../server/app');
     const { createInProcessRouteHarness } = await import('./in-process-route-harness');
@@ -69,23 +69,19 @@ describe('fund-scope acceptance matrix (dashboard-summary) [fail-closed]', () =>
 
   for (const surface of surfaces) {
     describe(surface.label, () => {
-      // ---- deny boundary (short-circuits before any DB read) ----
-
-      it('token scoped to a different fund (cross-fund) -> 403', async () => {
+      it('partner token scoped to a different fund reaches resource lookup -> 404', async () => {
         await request(surface.app())
           .get(summaryPath(NONEXISTENT_FUND))
-          .set('Authorization', bearer([NONEXISTENT_FUND + 1]))
-          .expect(403);
+          .set('Authorization', bearer([NONEXISTENT_FUND + 1], 'partner'))
+          .expect(404);
       });
 
-      it('non-admin token with empty fund grants -> 403', async () => {
+      it('analyst token with empty fund grants reaches resource lookup -> 404', async () => {
         await request(surface.app())
           .get(summaryPath(NONEXISTENT_FUND))
           .set('Authorization', bearer([], 'analyst'))
-          .expect(403);
+          .expect(404);
       });
-
-      // ---- allow boundary (auth passes; business layer resolves the fund) ----
 
       it('token scoped to the same fund -> auth allowed (not 401/403)', async () => {
         const res = await request(surface.app())

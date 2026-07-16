@@ -74,7 +74,7 @@ function signToken(fundIds: number[]): string {
     {
       sub: 'portfolio-overview-route-user',
       email: 'portfolio-overview-route@example.com',
-      role: 'user',
+      role: 'analyst',
       fundIds,
     },
     TEST_SECRET,

@@ -33,6 +33,7 @@ vi.mock('../../../server/lib/auth/jwt', async (importOriginal) => {
         (req as Request & { user?: unknown }).user = {
           id: userId,
           sub: userId,
+          role: userId === 'admin' ? 'admin' : 'analyst',
           fundIds: raw === '' ? [] : raw.split(',').map((value) => Number(value.trim())),
         };
       }

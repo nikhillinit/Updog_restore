@@ -50,8 +50,13 @@ describe('Performance Dashboard API', () => {
     app.use(errorHandler());
 
     // Generate auth token for protected endpoints
-    const { asUser } = await import('../utils/integrationAuth');
-    authToken = asUser();
+    const { makeJwt } = await import('../utils/integrationAuth');
+    authToken = makeJwt({
+      userId: 'performance-analyst',
+      email: 'performance-analyst@example.com',
+      role: 'analyst',
+      fundIds: [],
+    });
 
     await new Promise<void>((resolve) => {
       server.listen(0, () => resolve());
@@ -162,14 +167,13 @@ describe('Performance Dashboard API', () => {
       expect([400, 403]).toContain(response.status);
     });
 
-    it('should return 403 for fund user does not have access to', async () => {
-      // User only has access to funds [1, 2, 3] - fund 99999 returns 403
+    it('should return 404 for a nonexistent fund visible to an internal user', async () => {
       const response = await authGet('/api/funds/99999/performance/timeseries').query(
         validTimeseriesQuery
       );
 
-      expect(response.status).toBe(403);
-      expect(response.body.error).toBe('Forbidden');
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe('FUND_NOT_FOUND');
     });
 
     it('should accept valid query and return timeseries structure', async () => {
@@ -246,14 +250,13 @@ describe('Performance Dashboard API', () => {
       expect(response.body.field).toBe('asOfDate');
     });
 
-    it('should return 403 for fund user does not have access to', async () => {
-      // User only has access to funds [1, 2, 3] - fund 99999 returns 403
+    it('should return 404 for a nonexistent fund visible to an internal user', async () => {
       const response = await authGet('/api/funds/99999/performance/breakdown').query(
         validBreakdownQuery
       );
 
-      expect(response.status).toBe(403);
-      expect(response.body.error).toBe('Forbidden');
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe('FUND_NOT_FOUND');
     });
 
     it('should return correct breakdown structure', async () => {
@@ -328,14 +331,13 @@ describe('Performance Dashboard API', () => {
       }
     });
 
-    it('should return 403 for fund user does not have access to', async () => {
-      // User only has access to funds [1, 2, 3] - fund 99999 returns 403
+    it('should return 404 for a nonexistent fund visible to an internal user', async () => {
       const response = await authGet('/api/funds/99999/performance/comparison').query(
         validComparisonQuery
       );
 
-      expect(response.status).toBe(403);
-      expect(response.body.error).toBe('Forbidden');
+      expect(response.status).toBe(404);
+      expect(response.body.error).toBe('FUND_NOT_FOUND');
     });
   });
 
@@ -382,14 +384,13 @@ describe('Performance Dashboard API', () => {
       expect(response.body).toHaveProperty('timestamp');
     });
 
-    it('should return consistent error format for forbidden access', async () => {
-      // Fund 99999 is not in user's access list, so returns 403 Forbidden
+    it('should return consistent error format for a visible nonexistent fund', async () => {
       const response = await authGet('/api/funds/99999/performance/breakdown').query(
         validBreakdownQuery
       );
 
-      expect(response.status).toBe(403);
-      expect(response.body).toHaveProperty('error', 'Forbidden');
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty('error', 'FUND_NOT_FOUND');
       expect(response.body).toHaveProperty('message');
     });
   });

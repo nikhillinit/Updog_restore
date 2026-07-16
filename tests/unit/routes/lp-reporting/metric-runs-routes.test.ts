@@ -2101,9 +2101,9 @@ describe('metric-run report package routes', () => {
     }
   );
 
-  it('allows partner export access when the token has an explicit matching fund grant', async () => {
+  it('allows global partner export access without a per-fund grant', async () => {
     authState.role = 'partner';
-    authState.fundIds = [1];
+    authState.fundIds = [];
     seedLockedMetricRun();
     seedApprovedNarratives();
     seedMetricRunEvidence();
@@ -2149,38 +2149,52 @@ describe('metric-run report package routes', () => {
     expect(postRes.status).not.toBe(403);
   });
 
-  it('denies partner empty-fundIds export access', async () => {
+  it('allows partner empty-fundIds export access', async () => {
     authState.role = 'partner';
     authState.fundIds = [];
+    seedLockedMetricRun();
+    seedApprovedNarratives();
+    seedMetricRunEvidence();
 
     const res = await request(buildApp()).get(
       '/api/funds/1/metric-runs/500/report-package/export/json'
     );
 
-    expect(res.status).toBe(403);
+    expect(res.status).not.toBe(403);
   });
 
-  it('denies partner export access when the fund grant does not match the route fund', async () => {
+  it('allows partner export access when a legacy fund grant does not match', async () => {
     authState.role = 'partner';
     authState.fundIds = [2];
+    seedLockedMetricRun();
+    seedApprovedNarratives();
+    seedMetricRunEvidence();
 
     const res = await request(buildApp()).get(
       '/api/funds/1/metric-runs/500/report-package/export/json'
     );
 
-    expect(res.status).toBe(403);
+    expect(res.status).not.toBe(403);
   });
 
-  it('returns 400 for non-numeric export fundId after the admin role guard passes', async () => {
-    authState.role = 'admin';
-    authState.fundIds = [];
+  it.each(['not-a-number', '01', '1abc'])(
+    'returns 400 for noncanonical export fundId=%s before report-package work',
+    async (fundId) => {
+      authState.role = 'admin';
+      authState.fundIds = [];
 
-    const res = await request(buildApp()).get(
-      '/api/funds/not-a-number/metric-runs/500/report-package/export/json'
-    );
+      const res = await request(buildApp()).get(
+        `/api/funds/${fundId}/metric-runs/500/report-package/export/json`
+      );
 
-    expect(res.status).toBe(400);
-  });
+      expect(res.status).toBe(400);
+      expect(res.body).toMatchObject({ error: 'INVALID_FUND_ID' });
+      expect(dbState.metricRuns).toHaveLength(0);
+      expect(dbState.reportPackages).toHaveLength(0);
+      expect(dbState.reportPackageExports).toHaveLength(0);
+      expect(dbState.insertCalls).toBe(0);
+    }
+  );
 
   it('GET returns nullable package response before assembly', async () => {
     seedLockedMetricRun();

@@ -751,16 +751,8 @@ describe('LP report export authorization', () => {
     }
   );
 
-  it('returns 403 for a partner without an explicit export fund grant', async () => {
-    const authorization = await authorizationHeader('partner', []);
-    for (const route of EXPORT_ROUTES) {
-      const response = await sendRoute(app, route).set('Authorization', authorization);
-      expect(response.status, route.join(' ')).toBe(403);
-    }
-  });
-
   it.each([
-    ['partner', [1]],
+    ['partner', []],
     ['admin', []],
   ] as const)(
     'returns 200 for an authorized %s across all eight export routes',
