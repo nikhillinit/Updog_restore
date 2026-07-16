@@ -126,4 +126,66 @@ describe('affected-test execution', () => {
     expect(spawn).toHaveBeenCalledTimes(1);
     expect(spawn.mock.calls[0][1]).toContain('tests/unit/failing.test.ts');
   });
+
+  it('runs a selected integration test with the integration configuration', async () => {
+    const root = await makeRoot();
+    await write(root, 'tests/integration/selected.test.ts');
+    const plan = {
+      version: 1,
+      mode: 'selected',
+      tests: ['tests/integration/selected.test.ts'],
+      reason: 'changed integration test',
+    };
+    const spawn = vi.fn(() => ({ status: 0 }));
+
+    const status = await executeSelectedPlan(plan, { root, spawn });
+
+    expect(status).toBe(0);
+    expect(spawn).toHaveBeenCalledTimes(1);
+    expect(spawn.mock.calls[0][1]).toEqual([
+      'run',
+      'test:integration',
+      '--',
+      'tests/integration/selected.test.ts',
+    ]);
+  });
+
+  it('runs mixed unit and API selections with their owning configurations', async () => {
+    const root = await makeRoot();
+    await write(root, 'tests/unit/selected.test.ts');
+    await write(root, 'tests/api/selected.test.ts');
+    const plan = {
+      version: 1,
+      mode: 'selected',
+      tests: ['tests/api/selected.test.ts', 'tests/unit/selected.test.ts'],
+      reason: 'changed tests',
+    };
+    const spawn = vi.fn(() => ({ status: 0 }));
+
+    const status = await executeSelectedPlan(plan, { root, spawn });
+
+    expect(status).toBe(0);
+    expect(spawn).toHaveBeenCalledTimes(2);
+    expect(spawn.mock.calls.map((call) => call[1])).toEqual([
+      ['run', 'test:unit', '--', 'tests/unit/selected.test.ts'],
+      ['run', 'test:integration', '--', 'tests/api/selected.test.ts'],
+    ]);
+  });
+
+  it('rejects selected tests that have no configured affected-test runner', async () => {
+    const root = await makeRoot();
+    await write(root, 'tests/e2e/selected.spec.ts');
+    const plan = {
+      version: 1,
+      mode: 'selected',
+      tests: ['tests/e2e/selected.spec.ts'],
+      reason: 'changed test',
+    };
+    const spawn = vi.fn(() => ({ status: 0 }));
+
+    await expect(executeSelectedPlan(plan, { root, spawn })).rejects.toThrow(
+      'No affected-test runner is configured for tests/e2e/selected.spec.ts.'
+    );
+    expect(spawn).not.toHaveBeenCalled();
+  });
 });

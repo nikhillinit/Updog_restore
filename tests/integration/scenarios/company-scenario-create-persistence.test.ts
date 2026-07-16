@@ -65,6 +65,7 @@ async function loadRouteApp(fundId: number) {
   vi.doMock('../../../server/lib/auth/jwt', () => ({
     requireAuth: () => (_req: unknown, _res: unknown, next: () => void) => next(),
     requireFundAccess: (_req: unknown, _res: unknown, next: () => void) => next(),
+    requireWriteRole: () => (_req: unknown, _res: unknown, next: () => void) => next(),
   }));
   vi.doMock('../../../server/lib/auth/company-fund-scope', () => ({
     enforceCompanyFundScope: async () => true,

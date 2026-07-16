@@ -298,12 +298,46 @@ function runNpm(args, { root = process.cwd(), spawn = spawnSync } = {}) {
   return typeof result.status === 'number' ? result.status : 1;
 }
 
+function isIntegrationTestPath(testPath) {
+  return testPath.startsWith('tests/integration/') || testPath.startsWith('tests/api/');
+}
+
+function isUnitTestPath(testPath) {
+  return (
+    testPath.startsWith('tests/unit/') ||
+    testPath.startsWith('tests/perf/') ||
+    testPath.startsWith('tests/regressions/')
+  );
+}
+
 export async function executeSelectedPlan(plan, { root = process.cwd(), spawn = spawnSync } = {}) {
   await validateAffectedTestPlan(plan, { root });
   if (plan.mode !== 'selected') {
     throw new Error(`Cannot execute selected tests for plan mode ${plan.mode}.`);
   }
-  return runNpm(['run', 'test:unit', '--', ...plan.tests], { root, spawn });
+
+  const unsupportedTest = plan.tests.find(
+    (test) => !isUnitTestPath(test) && !isIntegrationTestPath(test)
+  );
+  if (unsupportedTest !== undefined) {
+    throw new Error(`No affected-test runner is configured for ${unsupportedTest}.`);
+  }
+
+  const integrationTests = plan.tests.filter(isIntegrationTestPath);
+  const unitTests = plan.tests.filter(isUnitTestPath);
+  for (const [script, tests] of [
+    ['test:unit', unitTests],
+    ['test:integration', integrationTests],
+  ]) {
+    if (tests.length === 0) {
+      continue;
+    }
+    const status = runNpm(['run', script, '--', ...tests], { root, spawn });
+    if (status !== 0) {
+      return status;
+    }
+  }
+  return 0;
 }
 
 function gitOutput(args, root) {
