@@ -33,6 +33,26 @@ describe('requireFundAccess Middleware', () => {
   });
 
   describe('Authorized Access', () => {
+    it('allows a team member to read a fund outside their explicit scope', () => {
+      req.method = 'GET';
+      req.params = { fundId: '2' };
+      req.user = {
+        id: 'user-1',
+        sub: 'user-1',
+        email: 'user@example.com',
+        role: 'analyst',
+        roles: ['analyst'],
+        ip: '127.0.0.1',
+        userAgent: 'test',
+        fundIds: [1],
+      };
+
+      requireFundAccess(req as Request, res as Response, next);
+
+      expect(next).toHaveBeenCalledOnce();
+      expect(statusMock).not.toHaveBeenCalled();
+    });
+
     it('should call next() when user has access to the requested fund', () => {
       req.params = { fundId: '123' };
       req.user = {
@@ -194,6 +214,57 @@ describe('requireFundAccess Middleware', () => {
   });
 
   describe('Unauthorized Access', () => {
+    it('keeps cross-fund writes scoped', () => {
+      req.method = 'POST';
+      req.params = { fundId: '2' };
+      req.user = {
+        id: 'user-1',
+        sub: 'user-1',
+        email: 'user@example.com',
+        role: 'analyst',
+        roles: ['analyst'],
+        ip: '127.0.0.1',
+        userAgent: 'test',
+        fundIds: [1],
+      };
+
+      requireFundAccess(req as Request, res as Response, next);
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('keeps LP reads fund-scoped', () => {
+      req.method = 'GET';
+      req.params = { fundId: '2' };
+      req.user = {
+        id: 'lp-1',
+        sub: 'lp-1',
+        email: 'lp@example.com',
+        role: 'lp',
+        roles: ['lp'],
+        ip: '127.0.0.1',
+        userAgent: 'test',
+        fundIds: [1],
+      };
+
+      requireFundAccess(req as Request, res as Response, next);
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('denies anonymous reads', () => {
+      req.method = 'GET';
+      req.params = { fundId: '2' };
+      req.user = undefined;
+
+      requireFundAccess(req as Request, res as Response, next);
+
+      expect(statusMock).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
     it('should return 403 when user does not have access to the requested fund', () => {
       req.params = { fundId: '99999' };
       req.user = {

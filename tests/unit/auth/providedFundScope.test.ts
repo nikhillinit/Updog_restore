@@ -259,6 +259,62 @@ describe('enforceProvidedFundScope', () => {
     });
   });
 
+  it('allows a team-member GET across funds and exposes unrestricted read scope', async () => {
+    setJwtEnv();
+    const token = signToken({ role: 'analyst', fundIds: [78] });
+    const { enforceProvidedFundScope, getVerifiedFundScope } = await import(
+      '@/server/lib/auth/provided-fund-scope'
+    );
+    const { res, status } = makeResponse();
+    const req = makeRequest(`Bearer ${token}`);
+    req.method = 'GET';
+
+    await expect(enforceProvidedFundScope(req, res, 77)).resolves.toBe(true);
+    await expect(getVerifiedFundScope(req)).resolves.toEqual({
+      unrestricted: true,
+      fundIds: [78],
+    });
+    expect(status).not.toHaveBeenCalled();
+  });
+
+  it('keeps a persisting GET strict when forWrite is set', async () => {
+    setJwtEnv();
+    const token = signToken({ role: 'analyst', fundIds: [78] });
+    const { enforceProvidedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
+    const { res, status } = makeResponse();
+    const req = makeRequest(`Bearer ${token}`);
+    req.method = 'GET';
+
+    await expect(
+      enforceProvidedFundScope(req, res, 77, { forWrite: true })
+    ).resolves.toBe(false);
+    expect(status).toHaveBeenCalledWith(403);
+  });
+
+  it('keeps cross-fund POST requests strict', async () => {
+    setJwtEnv();
+    const token = signToken({ role: 'analyst', fundIds: [78] });
+    const { enforceProvidedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
+    const { res, status } = makeResponse();
+    const req = makeRequest(`Bearer ${token}`);
+    req.method = 'POST';
+
+    await expect(enforceProvidedFundScope(req, res, 77)).resolves.toBe(false);
+    expect(status).toHaveBeenCalledWith(403);
+  });
+
+  it('keeps LP GET requests fund-scoped', async () => {
+    setJwtEnv();
+    const token = signToken({ role: 'lp', fundIds: [78] });
+    const { enforceProvidedFundScope } = await import('@/server/lib/auth/provided-fund-scope');
+    const { res, status } = makeResponse();
+    const req = makeRequest(`Bearer ${token}`);
+    req.method = 'GET';
+
+    await expect(enforceProvidedFundScope(req, res, 77)).resolves.toBe(false);
+    expect(status).toHaveBeenCalledWith(403);
+  });
+
   it('returns 401 for wrong-secret tokens', async () => {
     setJwtEnv();
     const token = signToken({ fundIds: [77] }, { secret: OTHER_SECRET });

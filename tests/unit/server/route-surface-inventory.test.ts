@@ -885,15 +885,15 @@ describe('route surface inventory', () => {
   // own unit contracts.
   // ==========================================================================
 
-  it('denies a scoped token cross-fund, allows its own fund, and allows an unrestricted token', async () => {
+  it('allows a scoped token cross-fund read, allows its own fund, and allows an unrestricted token', async () => {
     const makeApp = await makeAppWithTestAuth();
 
-    // Scoped to fund 1, requesting fund 2 -> fund-scope denial before any service.
+    // Scoped to fund 1, READING fund 2 -> universal read: the guard passes (never a
+    // fund denial) for a team member on a safe method.
     const crossFund = await request(makeApp)
       .get('/api/funds/2/allocation-scenarios')
       .set('Authorization', await scopedAuthorizationHeader([1]));
-    expect(crossFund.status).toBe(403);
-    expect(crossFund.body).toMatchObject({ code: 'FUND_ACCESS_DENIED' });
+    expect(crossFund.status).not.toBe(403);
 
     // Scoped to fund 1, requesting fund 1 -> guard passes. Status may vary on
     // memory storage (200/4xx/5xx) but it is never a fund denial.

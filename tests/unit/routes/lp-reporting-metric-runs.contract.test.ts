@@ -109,16 +109,15 @@ describe('lp-reporting metric-runs fund-scope guard contract', () => {
     resetDbCalls();
   });
 
+  // Writes stay fund-scoped: a cross-fund mutation is denied before any db work.
   it.each<DeniedEndpoint>([
     { method: 'POST', path: '/api/funds/2/metric-runs/commit', body: {} },
-    { method: 'GET', path: '/api/funds/2/metric-runs/123' },
-    { method: 'GET', path: '/api/funds/2/metric-runs/123/evidence-records' },
     {
       method: 'PATCH',
       path: '/api/funds/2/metric-runs/123/narrative-runs/456',
       body: {},
     },
-  ])('denies cross-fund $method $path before db work', async (endpoint) => {
+  ])('denies cross-fund write $method $path before db work', async (endpoint) => {
     const res = await requestEndpoint(endpoint);
 
     expect(res.status).toBe(403);
@@ -132,6 +131,16 @@ describe('lp-reporting metric-runs fund-scope guard contract', () => {
     expect(dbState.calls.insert).toBe(0);
     expect(dbState.calls.update).toBe(0);
     expect(dbState.calls.delete).toBe(0);
+  });
+
+  // Universal read: a team member may read another fund's metric-runs (safe methods).
+  it.each<DeniedEndpoint>([
+    { method: 'GET', path: '/api/funds/2/metric-runs/123' },
+    { method: 'GET', path: '/api/funds/2/metric-runs/123/evidence-records' },
+  ])('allows a team member cross-fund read $method $path', async (endpoint) => {
+    const res = await requestEndpoint(endpoint);
+
+    expect(res.status).not.toBe(403);
   });
 
   it('allows same-fund metric-run requests past the guard', async () => {

@@ -904,6 +904,8 @@ describe('marginal MOIC and report-sharing boundaries', () => {
   it('pins public share delivery to immutable snapshots without LP-reporting dependencies', () => {
     expect(productionImportSpecifiers('server/routes/shares.ts')).toEqual([
       '../db',
+      '../lib/auth/fund-scope',
+      '../lib/auth/principal',
       '../lib/http-preconditions',
       '../lib/logger.js',
       '../lib/request-values',
