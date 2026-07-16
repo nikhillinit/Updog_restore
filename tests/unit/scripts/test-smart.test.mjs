@@ -150,6 +150,29 @@ describe('affected-test execution', () => {
     ]);
   });
 
+  it('runs a Testcontainers-only selection with its owning configuration', async () => {
+    const root = await makeRoot();
+    await write(root, 'tests/integration/fund-lifecycle-db.test.ts');
+    const plan = {
+      version: 1,
+      mode: 'selected',
+      tests: ['tests/integration/fund-lifecycle-db.test.ts'],
+      reason: 'changed Testcontainers-only test',
+    };
+    const spawn = vi.fn(() => ({ status: 0 }));
+
+    const status = await executeSelectedPlan(plan, { root, spawn });
+
+    expect(status).toBe(0);
+    expect(spawn).toHaveBeenCalledTimes(1);
+    expect(spawn.mock.calls[0][1]).toEqual([
+      'run',
+      'test:testcontainers',
+      '--',
+      'tests/integration/fund-lifecycle-db.test.ts',
+    ]);
+  });
+
   it('runs mixed unit and API selections with their owning configurations', async () => {
     const root = await makeRoot();
     await write(root, 'tests/unit/selected.test.ts');

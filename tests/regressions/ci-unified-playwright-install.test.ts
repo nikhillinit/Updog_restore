@@ -56,6 +56,7 @@ describe('CI Unified scenario release gate', () => {
     const fullRun =
       workflow.jobs?.['test-full']?.steps?.find((step) => step.name === 'Run tests')?.run ?? '';
     const integrationConfig = await readRepoFile('vitest.config.int.ts');
+    const smartTestRunner = await readRepoFile('scripts/test-smart.mjs');
     const integrationIncludeBlock =
       integrationConfig.match(/include:\s*\[([\s\S]*?)\],/)?.[1] ?? '';
     const integrationExcludeBlock =
@@ -67,12 +68,17 @@ describe('CI Unified scenario release gate', () => {
     expect(fullRun).toContain('integration)');
     expect(fullRun).toContain('npm run test:integration');
     expect(integrationConfig).toContain(`'${scenarioReleaseGatePath}'`);
-    expect(integrationConfig).toContain("'tests/integration/fund-lifecycle-db.test.ts'");
     expect(integrationIncludeBlock).toContain('scenarioReleaseGatePath');
     expect(integrationExcludeBlock).not.toContain(scenarioReleaseGatePath);
     expect(integrationExcludeBlock).not.toContain('scenarioReleaseGatePath');
     expect(integrationExcludeBlock).toContain('...testcontainersOnlyPaths');
-    expect(testcontainersOnlyBlock).toContain('tests/integration/fund-lifecycle-db.test.ts');
+    for (const testPath of [
+      'tests/integration/migration-runner.test.ts',
+      'tests/integration/fund-lifecycle-db.test.ts',
+    ]) {
+      expect(testcontainersOnlyBlock).toContain(testPath);
+      expect(smartTestRunner).toContain(`'${testPath}'`);
+    }
     expect(testcontainersOnlyBlock).not.toContain(scenarioReleaseGatePath);
     expect(testcontainersOnlyBlock).not.toContain('scenarioReleaseGatePath');
   });
