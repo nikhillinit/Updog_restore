@@ -18,6 +18,10 @@ const BROAD_IMPACT_PATTERNS = [
   /^(?:package(?:-lock)?\.json|tsconfig[^/]*\.json|vite\.config\.|vitest\.config\.)/,
   /^Dockerfile/,
 ];
+const TESTCONTAINERS_ONLY_PATHS = new Set([
+  'tests/integration/migration-runner.test.ts',
+  'tests/integration/fund-lifecycle-db.test.ts',
+]);
 
 function normalizeRepoPath(value) {
   return value.split(path.sep).join('/').replace(/^\.\//, '');
@@ -302,6 +306,10 @@ function isIntegrationTestPath(testPath) {
   return testPath.startsWith('tests/integration/') || testPath.startsWith('tests/api/');
 }
 
+function isTestcontainersOnlyTestPath(testPath) {
+  return TESTCONTAINERS_ONLY_PATHS.has(testPath);
+}
+
 function isUnitTestPath(testPath) {
   return (
     testPath.startsWith('tests/unit/') ||
@@ -323,11 +331,15 @@ export async function executeSelectedPlan(plan, { root = process.cwd(), spawn = 
     throw new Error(`No affected-test runner is configured for ${unsupportedTest}.`);
   }
 
-  const integrationTests = plan.tests.filter(isIntegrationTestPath);
+  const testcontainersTests = plan.tests.filter(isTestcontainersOnlyTestPath);
+  const integrationTests = plan.tests.filter(
+    (test) => isIntegrationTestPath(test) && !isTestcontainersOnlyTestPath(test)
+  );
   const unitTests = plan.tests.filter(isUnitTestPath);
   for (const [script, tests] of [
     ['test:unit', unitTests],
     ['test:integration', integrationTests],
+    ['test:testcontainers', testcontainersTests],
   ]) {
     if (tests.length === 0) {
       continue;
