@@ -592,6 +592,19 @@ describe('POST /api/funds/finalize route contract', () => {
   beforeAll(async () => {
     app = express();
     app.use(express.json());
+    app.use((req, _res, next) => {
+      req.user = {
+        id: 'partner-1',
+        sub: 'partner-1',
+        email: 'partner@example.com',
+        role: 'partner',
+        roles: ['partner'],
+        fundIds: [77],
+        ip: '127.0.0.1',
+        userAgent: 'vitest',
+      };
+      next();
+    });
     const { registerFundConfigRoutes } = await import('../../../server/routes/fund-config');
     registerFundConfigRoutes(app);
   });
@@ -633,7 +646,8 @@ describe('POST /api/funds/finalize route contract', () => {
         id: 'user-7',
         sub: 'user-7',
         email: 'user7@example.com',
-        roles: [],
+        role: 'partner',
+        roles: ['partner'],
         fundIds: [99],
         ip: '127.0.0.1',
         userAgent: 'vitest',

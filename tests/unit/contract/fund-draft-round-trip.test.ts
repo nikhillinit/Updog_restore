@@ -20,6 +20,19 @@ let app: express.Express;
 beforeAll(async () => {
   app = express();
   app.use(express.json({ limit: '1mb' }));
+  app.use((req, _res, next) => {
+    req.user = {
+      id: 'partner-1',
+      sub: 'partner-1',
+      email: 'partner@example.com',
+      role: 'partner',
+      roles: ['partner'],
+      fundIds: [1],
+      ip: '127.0.0.1',
+      userAgent: 'vitest',
+    };
+    next();
+  });
 
   // Mount funds router for POST /api/funds (creates funds in storage mock)
   const fundRoutes = await import('../../../server/routes/funds');
@@ -87,13 +100,11 @@ describe('PUT /api/funds/:id/draft validation', () => {
   });
 
   it('rejects nonpositive period values', async () => {
-    const putRes = await request(app)
-      .put('/api/funds/1/draft')
-      .send({
-        fundName: 'Invalid Period Fund',
-        fundLife: 0,
-        investmentPeriod: 0,
-      });
+    const putRes = await request(app).put('/api/funds/1/draft').send({
+      fundName: 'Invalid Period Fund',
+      fundLife: 0,
+      investmentPeriod: 0,
+    });
 
     expect(putRes.status).toBe(400);
     expect(putRes.body).toHaveProperty('code', 'DRAFT_VALIDATION_ERROR');

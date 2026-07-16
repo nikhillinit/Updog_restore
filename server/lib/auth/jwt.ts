@@ -317,6 +317,15 @@ export const requireAnyRole =
     next();
   };
 
+// Reads the granular role from whichever auth entrypoint populated it:
+// makeApp -> req.user.role ; createServer/dev/Docker -> req.context.role.
+export const requireWriteRole =
+  (roles: readonly string[]) => (req: Request, res: Response, next: NextFunction) => {
+    const role = req.user?.role ?? req.context?.role;
+    if (typeof role !== 'string' || !roles.includes(role)) return res.sendStatus(403);
+    next();
+  };
+
 /**
  * Require user to have access to a specific fund
  * Use after requireAuth to check fund-level permissions

@@ -981,7 +981,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
       '/api/funds/:fundId/scenario-analysis/scenarios/:scenarioId/cases/from-seed'
     ),
     financialSurface: 'fund_modeling',
-    apiAuthBoundary: 'require_auth_and_fund_access',
+    apiAuthBoundary: 'require_auth_fund_access_and_role',
     fundScopeMode: 'route_param_fund_id',
     workflowRequirement: 'fund_scope_and_optimistic_lock_verified',
     exportPolicy: 'not_exportable',
