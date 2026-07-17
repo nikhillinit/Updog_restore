@@ -22,8 +22,20 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DeterministicReserveEngine } from '../../../shared/core/reserves/DeterministicReserveEngine';
+import { computeDeterministicReserveCacheKey } from '../../../shared/core/reserves/deterministic-reserve-canonical';
 import { ReserveCalculationError } from '../../../shared/schemas/reserves-schemas';
-import { ALPHA_ID, BETA_ID, GAMMA_ID, T1_ISO, T2_ISO, baseInput, collidingInput } from './fixtures';
+import {
+  ALPHA_ID,
+  BETA_ID,
+  DELTA_ID,
+  EPSILON_ID,
+  GAMMA_ID,
+  T1_ISO,
+  T2_ISO,
+  ZETA_ID,
+  baseInput,
+  collidingInput,
+} from './fixtures';
 
 // CAPTURED golden values (frozen instant T1 = 2026-01-01T00:00:00.000Z).
 // Ranking by allocation score: Beta Bio, Alpha Analytics, Gamma Grid.
@@ -146,46 +158,41 @@ describe('legacy DeterministicReserveEngine characterization', () => {
     expect(second).toBe(first);
   });
 
-  it('pins the cache-identity defect: equal-length portfolios with matching scalars collide', async () => {
+  it('no longer collides: equal-length portfolios with matching scalars keep their own results', async () => {
     freezeAt(T1_ISO);
     const engine = new DeterministicReserveEngine();
     const first = await engine.calculateOptimalReserveAllocation(baseInput());
     const second = await engine.calculateOptimalReserveAllocation(collidingInput());
 
-    // PRE-FIX PIN (flipped by the Tranche 4 cache-identity fix): the 5-field
-    // cache key ignores portfolio contents, so the second call returns the
-    // FIRST portfolio's result verbatim - a real wrong-output defect. The
-    // colliding portfolio contains Delta/Epsilon/Zeta, yet the allocations
-    // name Alpha/Beta/Gamma.
-    expect(second).toBe(first);
-    expect(second.allocations.map((a) => a.companyId)).toEqual(GOLDEN_T1.companyIds);
+    // POST-FIX PIN (ADR-045 cache-identity fix). PRE-FIX this asserted
+    // `expect(second).toBe(first)` and that the second call's allocations
+    // named Alpha/Beta/Gamma: the 5-field cache key ignored portfolio
+    // contents, so the second call returned the FIRST portfolio's result
+    // verbatim - a real wrong-output defect. The canonical input identity
+    // now keys each portfolio to its own result.
+    expect(second).not.toBe(first);
+    expect(second.allocations.map((a) => a.companyId)).toEqual([EPSILON_ID, DELTA_ID, ZETA_ID]);
   });
 
-  it('pins the pre-fix cache-key format: base64 JSON of 5 coarse fields, identical across different portfolios', async () => {
+  it('stamps the canonical 64-hex cache key, different across different portfolios', async () => {
     freezeAt(T1_ISO);
     const input = baseInput();
     const result = await new DeterministicReserveEngine().calculateOptimalReserveAllocation(input);
 
-    // PRE-FIX PIN (flipped by the Tranche 4 cache-identity fix): the stamped
-    // deterministicHash covers only portfolioCount/availableReserves/
-    // totalFundSize/scenarioType/timeHorizon.
-    const expectedPreFixHash = Buffer.from(
-      JSON.stringify({
-        portfolioCount: input.portfolio.length,
-        availableReserves: input.availableReserves,
-        totalFundSize: input.totalFundSize,
-        scenarioType: input.scenarioType,
-        timeHorizon: input.timeHorizon,
-      })
-    ).toString('base64');
-    expect(result.metadata.deterministicHash).toBe(expectedPreFixHash);
+    // POST-FIX PIN (ADR-045 cache-identity fix). PRE-FIX the stamped
+    // deterministicHash was the base64 JSON of only portfolioCount/
+    // availableReserves/totalFundSize/scenarioType/timeHorizon
+    // ("eyJwb3J0Zm9saW9Db3VudCI6..."), identical across different
+    // equal-length portfolios. It is now the domain-separated canonical
+    // sha256 of the complete serialized input.
+    expect(result.metadata.deterministicHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(result.metadata.deterministicHash).toBe(computeDeterministicReserveCacheKey(input));
 
-    // Same defect seen from the metadata side: a completely different
-    // portfolio of the same length carries the same "deterministic" hash.
+    // A different portfolio of the same length now carries a different hash.
     const other = await new DeterministicReserveEngine().calculateOptimalReserveAllocation(
       collidingInput()
     );
-    expect(other.metadata.deterministicHash).toBe(result.metadata.deterministicHash);
+    expect(other.metadata.deterministicHash).not.toBe(result.metadata.deterministicHash);
   });
 
   it('holds conservation, ranking, and bound invariants at both instants', async () => {

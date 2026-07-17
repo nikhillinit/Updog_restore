@@ -20,6 +20,7 @@ import {
 import { normalizeStageOrUndefined } from '@shared/schemas/stage';
 import { getLogger, getPerf } from '@shared/instrumentation';
 import { validateReserveAllocationConservation } from '@shared/validation/conservation';
+import { computeDeterministicReserveCacheKey } from './deterministic-reserve-canonical';
 
 // Get instrumentation instances
 const logger = getLogger();
@@ -749,16 +750,11 @@ export class DeterministicReserveEngine {
   }
 
   private generateDeterministicHash(input: ReserveAllocationInput): string {
-    // Create deterministic hash for caching and verification
-    const hashInput = {
-      portfolioCount: input.portfolio.length,
-      availableReserves: input.availableReserves,
-      totalFundSize: input.totalFundSize,
-      scenarioType: input.scenarioType,
-      timeHorizon: input.timeHorizon,
-    };
-
-    return Buffer.from(JSON.stringify(hashInput)).toString('base64');
+    // Complete canonical input identity (ADR-045). Pre-fix, this base64-JSONed
+    // only { portfolioCount, availableReserves, totalFundSize, scenarioType,
+    // timeHorizon }, so equal-length portfolios with matching scalars collided
+    // and a cache hit returned the wrong portfolio's allocations.
+    return computeDeterministicReserveCacheKey(input);
   }
 
   private sanitizeForLogging(input: ReserveAllocationInput): Record<string, unknown> {
