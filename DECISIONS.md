@@ -53,6 +53,9 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-037: Browser HttpOnly JWT Cookie and Signed CSRF Contract (D4)](#adr-037-browser-httponly-jwt-cookie-and-signed-csrf-contract-d4)
 - [ADR-039: Planned-reserve MOIC candidate basis moves to Round/FMV facts (moic-round-fmv-facts-v2)](#adr-039-planned-reserve-moic-candidate-basis-moves-to-roundfmv-facts-moic-round-fmv-facts-v2)
 - [ADR-040: Report Qualification Semantics (Plan 9)](#adr-040-report-qualification-semantics-plan-9)
+- [ADR-041: Global Internal Fund Visibility with Role-Gated Consequences](#adr-041-global-internal-fund-visibility-with-role-gated-consequences)
+- [ADR-042: Tranche 1 Calculation Substrate Contracts (Demo Scope)](#adr-042-tranche-1-calculation-substrate-contracts-demo-scope)
+- [ADR-043: Tranche 2 Substrate Adoption Starts with Pacing (Demo Scope)](#adr-043-tranche-2-substrate-adoption-starts-with-pacing-demo-scope)
 
 ---
 
@@ -6242,10 +6245,11 @@ named server-side gap fills.
 
 ## ADR-041: Global Internal Fund Visibility with Role-Gated Consequences
 
-**Date:** 2026-07-16 **Status:** [ACCEPTED] Partially implemented **Decision:** Give
-the three interactive investment-team roles—admin, partner, and analyst—global
-safe-read visibility across every fund; keep consequential mutations explicitly
-role-gated; and keep LP identities outside internal investment-team surfaces.
+**Date:** 2026-07-16 **Status:** [ACCEPTED] Partially implemented **Decision:**
+Give the three interactive investment-team roles—admin, partner, and
+analyst—global safe-read visibility across every fund; keep consequential
+mutations explicitly role-gated; and keep LP identities outside internal
+investment-team surfaces.
 
 ### Context
 
@@ -6301,11 +6305,11 @@ remove or redesign the separately isolated LP portal.
 - The eight GP-side qualified report render/export routes remain restricted to
   partner and admin. Analyst, viewer, operator, LP, and anonymous callers remain
   denied.
-- Partner and admin are global internal roles on these routes, so per-fund grants
-  are not required. This supersedes ADR-025's explicit partner export-grant rule
-  and ADR-040's export-grant wording, but preserves their partner/admin role
-  gate, workflow qualification, H9 validation, provenance, and artifact-serving
-  controls.
+- Partner and admin are global internal roles on these routes, so per-fund
+  grants are not required. This supersedes ADR-025's explicit partner
+  export-grant rule and ADR-040's export-grant wording, but preserves their
+  partner/admin role gate, workflow qualification, H9 validation, provenance,
+  and artifact-serving controls.
 
 ### Alternatives Considered
 
@@ -6317,8 +6321,9 @@ remove or redesign the separately isolated LP portal.
 - **Let analysts change any fund-scoped resource:** rejected because fund scope
   identifies the tenant/resource, while role gates decide whether an action is
   analytical or consequential.
-- **Remove the LP portal:** rejected as outside this baseline repair; LP-specific
-  surfaces remain separately isolated and receive no internal-team privilege.
+- **Remove the LP portal:** rejected as outside this baseline repair;
+  LP-specific surfaces remain separately isolated and receive no internal-team
+  privilege.
 
 ### Consequences
 
@@ -6327,8 +6332,229 @@ remove or redesign the separately isolated LP portal.
   funds regardless of token fund grants.
 - Partner/admin report exports no longer depend on legacy per-fund grants.
 - A follow-up authorization inventory must close known consequential-write gaps,
-  including official fund creation, before this ADR can become fully implemented.
+  including official fund creation, before this ADR can become fully
+  implemented.
 - Portfolio, import, evidence, narrative, approval, and analytical mutations are
   not claimed as fully classified by this baseline repair.
 
 **Implementation:** Gate -1 current-main CI baseline repair after PR #1130.
+
+---
+
+## ADR-042: Tranche 1 Calculation Substrate Contracts (Demo Scope)
+
+**Date:** 2026-07-17 **Status:** [ACCEPTED] Implemented (demo scope)
+**Decision:** Implement the "Tranche 1 - calculation substrate contracts only"
+slice of the Reinforced Multi-Entity Venture Fund Implementation Procedure as an
+additive module at `shared/core/calc-substrate/`, under an explicit
+owner-granted override of that procedure's program-governance prerequisites
+(named human role registry, Gate 0 premortem, capacity baselines) for
+demonstration purposes.
+
+### Context
+
+The reviewed procedure (uploaded plan, frontmatter `FINALIZED_FOR_GATE_0`) holds
+all implementation behind Gate -1/Gate 0 human-governance gates. The repository
+owner explicitly waived the process gates to allow demonstration development.
+Two of the plan's Gate -1 blockers had already been resolved on `origin/main`
+since its reviewed baseline `240663ea`: PR #1130 merged and the
+required-CI/write-role test regressions were repaired (#1131-#1133, ADR-041).
+The override was applied to process/approval gates only; every technical safety
+invariant the plan defines for Tranche 1 is enforced in code and tests rather
+than waived.
+
+### Decision Details
+
+- **Contract version:** `calc-substrate/1.0.0`. Changing preimage rules, reason
+  codes, or pinned vectors is a contract-version change.
+- **Result hash outside the basis:** `computeResultHash` hashes a
+  domain-separated preimage `{domain, contractVersion, basis, value}` with the
+  repository canonical utility `canonicalSha256`; the hash lives on the result
+  object, never inside the basis, so the preimage is non-circular.
+- **Hash admission:** only JSON primitives, dense arrays, and plain objects are
+  admissible. Decimal strings and Z-suffixed UTC timestamps are normalized;
+  `undefined`, sparse arrays, non-finite numbers, `bigint`, Date/Decimal/class
+  instances, Map/Set, functions, and symbol keys are rejected before hashing.
+  Any string fully matching the signed-decimal form is normalized (leading zeros
+  and trailing fractional zeros dropped), so identifiers must not rely on those
+  spellings for identity.
+- **Trust vocabulary adapter, not a parallel source:** the substrate result
+  union uses `available | indicative | unavailable | failed` and maps onto the
+  existing `DatasetTrustState` (`LIVE | PARTIAL | UNAVAILABLE | FAILED`) via
+  `toDatasetTrustState`. The existing provenance contracts remain the
+  presentation-layer authority.
+- **Determinism reuse:** the RNG wraps the existing `SeededRNG` (Xorshift32) and
+  `deriveSeed` (FNV-1a); fork seeds derive from the immutable root seed plus the
+  fork path, making fork sequences call-order independent. The fixed clock
+  stores epoch milliseconds only and returns defensive copies.
+- **Truthfulness invariants:** an engine whose effective mode is `off` or whose
+  kill switch is active cannot emit an `available` value, and suppression must
+  be disclosed via `MODE_OFF` / `KILL_SWITCH_ACTIVE` reason codes.
+
+### Alternatives Considered
+
+- **Wait for Gate 0 human governance:** rejected by explicit owner override for
+  demonstration; the substrate is additive with zero production consumers, so
+  the deferred governance applies to adoption (Tranche 2+), not to these
+  contracts.
+- **Extend `ProvenanceEnvelopeSchema` directly:** rejected; its per-state
+  invariants are domain-specific to presentation surfaces, and the plan requires
+  an ADR'd adapter rather than broadening an existing envelope.
+- **New standalone RNG/hash implementations:** rejected; parallel sources of
+  truth are the plan's REC-R2 failure mode. Existing `SeededRNG` and
+  `canonicalSha256` are wrapped instead.
+
+### Consequences
+
+- Engines can begin Tranche 2 adoption against a stable, tested seam; no
+  production behavior changed (full unit suite green, no existing test
+  modified).
+- The ambient-state source guard (`tests/unit/calc-substrate/`) fails the build
+  if the substrate ever reaches for `Math.random`, argless `new Date()`,
+  `Date.now`, or `process.env`.
+- Pinned RNG and SHA-256 vectors in the tests are published contract constants;
+  regenerating them requires a contract-version bump and a new ADR.
+- Program-governance items the override waived (role registry, baselines,
+  premortem, threshold registry) remain open if this work proceeds beyond
+  demonstration.
+
+**Implementation:** `shared/core/calc-substrate/` plus
+`tests/unit/calc-substrate/` (40 tests).
+
+## ADR-043: Tranche 2 Substrate Adoption Starts with Pacing (Demo Scope)
+
+**Date:** 2026-07-17 **Status:** [ACCEPTED] Implemented (demo scope)
+**Decision:** Adopt the Pacing calculation domain onto the ADR-042 calculation
+substrate first, via an additive context-receiving adapter
+(`shared/core/pacing/pacing-substrate-adapter.ts`, calculationKey `pacing`), and
+defer Reserve. Legacy `PacingEngine` entry points and all their consumers are
+unchanged. Same owner-granted demo override of program-governance gates as
+ADR-042; technical invariants (determinism, hash integrity, disclosure of
+suppressed results, no silent fabrication) are enforced in code and tests.
+
+### Context: why Pacing, not Reserve
+
+- **Pacing is adoptable today.** The legacy engine
+  (`shared/core/pacing/PacingEngine.ts`) resets its module-global LCG
+  (`shared/utils/prng.ts`, Numerical Recipes parameters) to a hardcoded seed of
+  123 on every call, so per-call output is already deterministic under fixed
+  inputs. Its only ambient reads are `process.env['ALG_PACING']` /
+  `process.env['NODE_ENV']` (algorithm-path selection) and, in
+  `generatePacingSummary`, `generatedAt: new Date()`.
+- **Reserve is `defer`.** `shared/core/reserves/ReserveEngine.ts` carries a
+  call-order-sensitive module-global seeded PRNG (no per-call reset) plus
+  `process.env` (`ALG_RESERVE`, `NODE_ENV`) and `new Date()` reads;
+  `DeterministicReserveEngine.ts` reads `process.env` (~line 85) and
+  `new Date()` (~line 485), and its cache key is base64 JSON over only ~5 input
+  fields (incomplete cache identity). Those audits must pass before Reserve can
+  emit an honest basis. Cohort, Projected Metrics, and Monte Carlo were
+  forbidden as first adoptions by the tranche plan.
+
+### Disposition table
+
+| Surface                                                    | Disposition | Notes                                                                                                     |
+| ---------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------- |
+| `shared/core/pacing/PacingEngine.ts` (engine kernel)       | adapt       | Kernel math restated in the adapter in context-receiving form; legacy entry points and behavior untouched |
+| `PacingEngine` / `generatePacingSummary` legacy signatures | reuse       | Still exported, still consumed; adapter wraps the domain, does not replace the API                        |
+| `shared/utils/prng.ts` (LCG)                               | reuse       | Adapter constructs a local instance per run; the `Date.now()` default seed path is never exercised        |
+| `server/services/pacing-calculation-service.ts`            | defer       | Continues to call `generatePacingSummary`; substrate wiring is a later tranche                            |
+| `server/services/projected-metrics-calculator.ts`          | defer       | Same                                                                                                      |
+| `server/routes/engine-summaries.ts`                        | defer       | Same                                                                                                      |
+| `client/src/core/pacing/PacingEngine.ts` (re-export shim)  | reuse       | Untouched                                                                                                 |
+| `process.env['ALG_PACING']` algorithm selection            | replace     | Adapter takes an explicit typed `algorithm: 'rule-based' \| 'ml'` option; never reads env                 |
+| `generatedAt: new Date()` in `generatePacingSummary`       | replace     | Adapter emits `asOfUtc` from the injected `ctx.clock`                                                     |
+
+### Decision details
+
+- **Determinism and the RNG compatibility decision.** Exact-value parity with
+  the legacy engine is only achievable by replaying its LCG stream, so the
+  adapter's variability stream is a locally constructed `PRNG` seeded from the
+  calculation context's immutable root seed. A context seeded with 123 (the
+  legacy hardcoded seed) reproduces legacy output byte-for-byte. Substituting
+  the substrate Xorshift32 (`ctx.rng`) for the LCG would change every emitted
+  value and is therefore a behavior change, deferred to a methodology-version
+  bump. This is a deliberate, disclosed deviation from the tranche plan's "use
+  `ctx.rng.fork('pacing')`" default in favor of the behavior-preservation
+  invariant.
+- **Fork-label registry (pacing).** `pacing` is RESERVED as the fork label for
+  the future migration of the variability stream onto `ctx.rng.fork('pacing')`.
+  No fork labels are consumed by the current adapter.
+- **Kernel restatement, pinned both sides.** The adapter restates the ~30-line
+  kernel rather than importing it, because the legacy entry point reads
+  `process.env` internally and its seed is not injectable. Drift protection:
+  characterization tests pin the legacy engine and parity tests pin the adapter
+  to the same hand-authored LCG(123) fixtures (neutral 50M q1, bull 100M q3,
+  bear 20M q10, plus the ML path), so divergence of either copy fails the suite.
+- **Rounding rule (boundary money).** All money at the adapter boundary is
+  emitted as whole-dollar decimal strings; the rounding rule is legacy-identical
+  `Math.round` on the non-negative float amount (half-away-from-zero to a whole
+  dollar), applied per quarter before totals, then summed. The average is
+  `Math.round(total / 8)`. Hash admission strips leading zeros from decimal
+  strings, so identities never rely on zero-padded spellings.
+- **Hashes.** `inputHash` = `canonicalSha256` over
+  `{ domain: 'updog.pacing.input-hash', input: admitForHashing(rawInput) }`; if
+  the raw input is hash-inadmissible the deterministic sentinel
+  `{ inadmissibleInput: true }` is hashed and the result carries
+  `INPUT_INVALID`. `assumptionsHash` = `canonicalSha256` over the domain
+  `updog.pacing.assumptions-hash`, the methodology version, the algorithm
+  choice, and the frozen methodology constants (market adjustment table, divisor
+  8, variability window, ML trend window, rounding rule, RNG family and seed
+  source). `resultHash` uses the substrate `computeResultHash` unchanged.
+- **Result semantics.** `on` -> `available`; `shadow` -> `indicative` with
+  `SHADOW_ONLY`; configured `off` -> `unavailable` with `MODE_OFF`; kill switch
+  -> effective `off`, `unavailable` with `KILL_SWITCH_ACTIVE` (both codes when
+  both apply); schema-invalid input -> `failed` with `INPUT_INVALID` and a
+  diagnostic; kernel error -> `failed` with `ENGINE_ERROR`. Every non-available
+  path carries at least one registered reason code; there is no silent fallback.
+- **Versions.** `engineVersion: pacing-engine/1.0.0`,
+  `methodologyVersion: pacing-methodology/1.0.0`. Changing the kernel math, the
+  RNG family/seed source, the rounding rule, or the hash domains bumps the
+  methodology or engine version.
+
+### Parity evidence summary
+
+`tests/unit/pacing-substrate/` (25 tests, all green; full suite unchanged):
+
+- Characterization pins the legacy engine to hand-authored LCG(123) expectations
+  on 4 fixtures before any adaptation, and documents the `generatedAt` ambient
+  read structurally without blessing its value.
+- Parity proves adapter-vs-legacy field-for-field equality (deployment, quarter,
+  note, totals) on the same 4 fixtures, with expected values written as literals
+  in the tests.
+- Determinism proves repeat-run byte-identical results with equal 64-hex result
+  hashes, and that different seeds, inputs, as-of instants, and algorithm
+  choices produce different hashes.
+- Mode/kill-switch tests prove the suppression and disclosure invariants above
+  against both the pacing and generic result schemas.
+- An ambient-state source guard scans the adapter for `Math.random`, argless
+  `new Date()`, `Date.now`, and `process.env`.
+
+### Alternatives considered
+
+- **Adopt Reserve first:** rejected (see Context); its ambient-state and cache
+  identity audits are open.
+- **Drive variability from `ctx.rng.fork('pacing')` now:** rejected; changes
+  every output value, violating the behavior-preservation requirement of this
+  tranche. Reserved as the documented follow-up migration.
+- **Refactor `PacingEngine.ts` to export an injectable kernel:** rejected for
+  this tranche; touching the legacy file consumed by three server services and
+  the client shim expands blast radius for zero behavior benefit, and the parity
+  suite already pins the two copies together.
+- **Return `unavailable` (not `failed`) for invalid input:** rejected; the
+  legacy engine throws on invalid input, so `failed` + `INPUT_INVALID` with a
+  diagnostic is the faithful adaptation and keeps `unavailable` reserved for
+  suppression/upstream-gap states.
+
+### Consequences
+
+- Pacing can now run against an injected `CalculationContext` and emit a
+  hash-bound `CalcResult`; consumers keep their legacy path until a later
+  tranche wires them over.
+- Remaining for Reserve (Tranche 3 candidate): remove or gate the
+  call-order-sensitive module-global PRNG, eliminate `process.env` /
+  `new Date()` reads from both reserve engines, and replace the truncated base64
+  cache key with complete canonical input identity - then repeat this adoption
+  pattern.
+
+**Implementation:** `shared/core/pacing/pacing-substrate-adapter.ts` plus
+`tests/unit/pacing-substrate/` (25 tests).
