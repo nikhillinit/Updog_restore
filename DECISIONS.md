@@ -53,6 +53,8 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-037: Browser HttpOnly JWT Cookie and Signed CSRF Contract (D4)](#adr-037-browser-httponly-jwt-cookie-and-signed-csrf-contract-d4)
 - [ADR-039: Planned-reserve MOIC candidate basis moves to Round/FMV facts (moic-round-fmv-facts-v2)](#adr-039-planned-reserve-moic-candidate-basis-moves-to-roundfmv-facts-moic-round-fmv-facts-v2)
 - [ADR-040: Report Qualification Semantics (Plan 9)](#adr-040-report-qualification-semantics-plan-9)
+- [ADR-041: Global Internal Fund Visibility with Role-Gated Consequences](#adr-041-global-internal-fund-visibility-with-role-gated-consequences)
+- [ADR-042: Tranche 1 Calculation Substrate Contracts (Demo Scope)](#adr-042-tranche-1-calculation-substrate-contracts-demo-scope)
 
 ---
 
@@ -6242,10 +6244,11 @@ named server-side gap fills.
 
 ## ADR-041: Global Internal Fund Visibility with Role-Gated Consequences
 
-**Date:** 2026-07-16 **Status:** [ACCEPTED] Partially implemented **Decision:** Give
-the three interactive investment-team roles—admin, partner, and analyst—global
-safe-read visibility across every fund; keep consequential mutations explicitly
-role-gated; and keep LP identities outside internal investment-team surfaces.
+**Date:** 2026-07-16 **Status:** [ACCEPTED] Partially implemented **Decision:**
+Give the three interactive investment-team roles—admin, partner, and
+analyst—global safe-read visibility across every fund; keep consequential
+mutations explicitly role-gated; and keep LP identities outside internal
+investment-team surfaces.
 
 ### Context
 
@@ -6301,11 +6304,11 @@ remove or redesign the separately isolated LP portal.
 - The eight GP-side qualified report render/export routes remain restricted to
   partner and admin. Analyst, viewer, operator, LP, and anonymous callers remain
   denied.
-- Partner and admin are global internal roles on these routes, so per-fund grants
-  are not required. This supersedes ADR-025's explicit partner export-grant rule
-  and ADR-040's export-grant wording, but preserves their partner/admin role
-  gate, workflow qualification, H9 validation, provenance, and artifact-serving
-  controls.
+- Partner and admin are global internal roles on these routes, so per-fund
+  grants are not required. This supersedes ADR-025's explicit partner
+  export-grant rule and ADR-040's export-grant wording, but preserves their
+  partner/admin role gate, workflow qualification, H9 validation, provenance,
+  and artifact-serving controls.
 
 ### Alternatives Considered
 
@@ -6317,8 +6320,9 @@ remove or redesign the separately isolated LP portal.
 - **Let analysts change any fund-scoped resource:** rejected because fund scope
   identifies the tenant/resource, while role gates decide whether an action is
   analytical or consequential.
-- **Remove the LP portal:** rejected as outside this baseline repair; LP-specific
-  surfaces remain separately isolated and receive no internal-team privilege.
+- **Remove the LP portal:** rejected as outside this baseline repair;
+  LP-specific surfaces remain separately isolated and receive no internal-team
+  privilege.
 
 ### Consequences
 
@@ -6327,8 +6331,91 @@ remove or redesign the separately isolated LP portal.
   funds regardless of token fund grants.
 - Partner/admin report exports no longer depend on legacy per-fund grants.
 - A follow-up authorization inventory must close known consequential-write gaps,
-  including official fund creation, before this ADR can become fully implemented.
+  including official fund creation, before this ADR can become fully
+  implemented.
 - Portfolio, import, evidence, narrative, approval, and analytical mutations are
   not claimed as fully classified by this baseline repair.
 
 **Implementation:** Gate -1 current-main CI baseline repair after PR #1130.
+
+---
+
+## ADR-042: Tranche 1 Calculation Substrate Contracts (Demo Scope)
+
+**Date:** 2026-07-17 **Status:** [ACCEPTED] Implemented (demo scope)
+**Decision:** Implement the "Tranche 1 - calculation substrate contracts only"
+slice of the Reinforced Multi-Entity Venture Fund Implementation Procedure as an
+additive module at `shared/core/calc-substrate/`, under an explicit
+owner-granted override of that procedure's program-governance prerequisites
+(named human role registry, Gate 0 premortem, capacity baselines) for
+demonstration purposes.
+
+### Context
+
+The reviewed procedure (uploaded plan, frontmatter `FINALIZED_FOR_GATE_0`) holds
+all implementation behind Gate -1/Gate 0 human-governance gates. The repository
+owner explicitly waived the process gates to allow demonstration development.
+Two of the plan's Gate -1 blockers had already been resolved on `origin/main`
+since its reviewed baseline `240663ea`: PR #1130 merged and the
+required-CI/write-role test regressions were repaired (#1131-#1133, ADR-041).
+The override was applied to process/approval gates only; every technical safety
+invariant the plan defines for Tranche 1 is enforced in code and tests rather
+than waived.
+
+### Decision Details
+
+- **Contract version:** `calc-substrate/1.0.0`. Changing preimage rules, reason
+  codes, or pinned vectors is a contract-version change.
+- **Result hash outside the basis:** `computeResultHash` hashes a
+  domain-separated preimage `{domain, contractVersion, basis, value}` with the
+  repository canonical utility `canonicalSha256`; the hash lives on the result
+  object, never inside the basis, so the preimage is non-circular.
+- **Hash admission:** only JSON primitives, dense arrays, and plain objects are
+  admissible. Decimal strings and Z-suffixed UTC timestamps are normalized;
+  `undefined`, sparse arrays, non-finite numbers, `bigint`, Date/Decimal/class
+  instances, Map/Set, functions, and symbol keys are rejected before hashing.
+  Any string fully matching the signed-decimal form is normalized (leading zeros
+  and trailing fractional zeros dropped), so identifiers must not rely on those
+  spellings for identity.
+- **Trust vocabulary adapter, not a parallel source:** the substrate result
+  union uses `available | indicative | unavailable | failed` and maps onto the
+  existing `DatasetTrustState` (`LIVE | PARTIAL | UNAVAILABLE | FAILED`) via
+  `toDatasetTrustState`. The existing provenance contracts remain the
+  presentation-layer authority.
+- **Determinism reuse:** the RNG wraps the existing `SeededRNG` (Xorshift32) and
+  `deriveSeed` (FNV-1a); fork seeds derive from the immutable root seed plus the
+  fork path, making fork sequences call-order independent. The fixed clock
+  stores epoch milliseconds only and returns defensive copies.
+- **Truthfulness invariants:** an engine whose effective mode is `off` or whose
+  kill switch is active cannot emit an `available` value, and suppression must
+  be disclosed via `MODE_OFF` / `KILL_SWITCH_ACTIVE` reason codes.
+
+### Alternatives Considered
+
+- **Wait for Gate 0 human governance:** rejected by explicit owner override for
+  demonstration; the substrate is additive with zero production consumers, so
+  the deferred governance applies to adoption (Tranche 2+), not to these
+  contracts.
+- **Extend `ProvenanceEnvelopeSchema` directly:** rejected; its per-state
+  invariants are domain-specific to presentation surfaces, and the plan requires
+  an ADR'd adapter rather than broadening an existing envelope.
+- **New standalone RNG/hash implementations:** rejected; parallel sources of
+  truth are the plan's REC-R2 failure mode. Existing `SeededRNG` and
+  `canonicalSha256` are wrapped instead.
+
+### Consequences
+
+- Engines can begin Tranche 2 adoption against a stable, tested seam; no
+  production behavior changed (full unit suite green, no existing test
+  modified).
+- The ambient-state source guard (`tests/unit/calc-substrate/`) fails the build
+  if the substrate ever reaches for `Math.random`, argless `new Date()`,
+  `Date.now`, or `process.env`.
+- Pinned RNG and SHA-256 vectors in the tests are published contract constants;
+  regenerating them requires a contract-version bump and a new ADR.
+- Program-governance items the override waived (role registry, baselines,
+  premortem, threshold registry) remain open if this work proceeds beyond
+  demonstration.
+
+**Implementation:** `shared/core/calc-substrate/` plus
+`tests/unit/calc-substrate/` (40 tests).
