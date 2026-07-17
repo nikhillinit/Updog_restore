@@ -6558,3 +6558,194 @@ suppressed results, no silent fabrication) are enforced in code and tests.
 
 **Implementation:** `shared/core/pacing/pacing-substrate-adapter.ts` plus
 `tests/unit/pacing-substrate/` (25 tests).
+
+## ADR-044: Tranche 3 Substrate Adoption of the Rule/ML Reserve Engine (Demo Scope)
+
+**Date:** 2026-07-17 **Status:** [ACCEPTED] Implemented (demo scope)
+**Decision:** Adopt `shared/core/reserves/ReserveEngine.ts` (the simple rule/ML
+engine, sibling of PacingEngine) onto the ADR-042 calculation substrate via an
+additive context-receiving adapter
+(`shared/core/reserves/reserve-substrate-adapter.ts`, calculationKey `reserve`),
+and defer `DeterministicReserveEngine.ts` to Tranche 4. Legacy reserve engines
+and all their consumers are unchanged. Same owner-granted demo override of
+program-governance gates as ADR-042/043; technical invariants (determinism, hash
+integrity, disclosure of suppressed results, no silent financial fabrication)
+are enforced in code and tests.
+
+### Context: corrected audit (supersedes the ADR-043 defer rationale)
+
+ADR-043 deferred Reserve citing a "call-order-sensitive module-global PRNG (no
+per-call reset)". Re-verification against current code (2026-07-17) shows that
+claim no longer applies to THIS engine:
+
+- `ReserveEngine.ts` DOES reset its module-global PRNG to the hardcoded seed 42
+  on every call (line 93), so it is per-call deterministic under a fixed
+  environment. Its only ambient reads are `process.env['ALG_RESERVE']` /
+  `process.env['NODE_ENV']` selecting ML vs rule-based (lines 7-12) and
+  `generatedAt: new Date()` in `generateReserveSummary` (line 140). The
+  rule-based path draws NO randomness; the ML path draws, per company in
+  portfolio order, one gate value (`next() > 0.3` selects ML) and, only when the
+  gate passes, one adjustment value (`0.8 + next() * 0.4`), so the draw count
+  interleaves with gate outcomes.
+- `DeterministicReserveEngine.ts` (924 lines) remains defer, with verified
+  facts: `Date.now()` at lines 78/123/140/486 (timing) and line 766 INSIDE
+  calculation math (`ageMonths` derived from the wall clock, so risk multipliers
+  drift with real time); `process.env['NODE_ENV']` at line 85; `new Date()` at
+  line 485; and `generateDeterministicHash` (line 737) base64-JSONs only 5
+  coarse fields including `portfolioCount` - a count, not portfolio contents -
+  so two different portfolios of equal size collide on cache identity. These are
+  Tranche 4 work items, recorded here, not fixed now.
+
+### Disposition table
+
+| Surface                                                                  | Disposition | Notes                                                                                                     |
+| ------------------------------------------------------------------------ | ----------- | --------------------------------------------------------------------------------------------------------- |
+| `shared/core/reserves/ReserveEngine.ts` (rule/ML kernel)                 | adapt       | Kernel math restated in the adapter in context-receiving form; legacy entry points and behavior untouched |
+| `ReserveEngine` / `generateReserveSummary` legacy signatures             | reuse       | Still exported, still consumed; adapter wraps the domain, does not replace the API                        |
+| `shared/utils/prng.ts` (LCG)                                             | reuse       | Adapter constructs a local instance per run; the `Date.now()` default seed path is never exercised        |
+| `shared/core/reserves/DeterministicReserveEngine.ts`                     | defer       | Tranche 4; verified ambient reads and cache-identity defects listed above                                 |
+| `shared/core/reserves/ConstrainedReserveEngine.ts`                       | defer       | Separate sibling engine; consumed by `server/routes/v1/reserves.ts` and client parity tooling             |
+| `server/services/reserve-calculation-service.ts`                         | defer       | Continues to call `generateReserveSummary`; substrate wiring is a later tranche                           |
+| `server/services/projected-metrics-calculator.ts`                        | defer       | Same                                                                                                      |
+| `server/services/fund-scenario-reserve-summary.ts`                       | defer       | Calls `ReserveEngine(input.portfolio)` directly; unchanged                                                |
+| `server/services/fund-scenario-reserve-optimization-workflow-service.ts` | defer       | Same                                                                                                      |
+| `server/routes/engine-summaries.ts`                                      | defer       | Continues to call `generateReserveSummary`                                                                |
+| `server/routes/v1/reserves.ts`                                           | defer       | ConstrainedReserveEngine consumer; out of this tranche's scope                                            |
+| `server/routes/scenario-analysis.ts`                                     | defer       | References DeterministicReserveEngine only in TODO comments                                               |
+| `server/core/reserves/` (ports/adapter/mlClient)                         | defer       | Type-level imports of Deterministic/Constrained engines; separate ML-service seam                         |
+| `client/src/core/reserves/ReserveEngine.ts` (re-export shim)             | reuse       | Untouched                                                                                                 |
+| `process.env['ALG_RESERVE']` algorithm selection                         | replace     | Adapter takes an explicit typed `algorithm: 'rule-based' \| 'ml'` option; never reads env                 |
+| `generatedAt: new Date()` in `generateReserveSummary`                    | replace     | Adapter emits `asOfUtc` from the injected `ctx.clock`                                                     |
+| Silent `[]` fallback for non-array input                                 | replace     | At the adapter boundary only: `failed` + `INPUT_INVALID` (legacy itself unchanged; see deviations)        |
+
+### Decision details
+
+- **Determinism and the RNG compatibility decision.** Exact-value parity with
+  the legacy engine is only achievable by replaying its LCG stream, so the
+  adapter's ML stream is a locally constructed `PRNG` seeded from the
+  calculation context's immutable root seed. A context seeded with 42 (the
+  legacy hardcoded seed) reproduces legacy output byte-for-byte. Substituting
+  the substrate Xorshift32 (`ctx.rng`) would change every ML-path value and is
+  deferred to a methodology-version bump.
+- **Fork-label registry (reserve).** `reserve` is RESERVED as the fork label for
+  the future migration of the ML stream onto `ctx.rng.fork('reserve')`, joining
+  the reserved `pacing` label from ADR-043. No fork labels are consumed by the
+  current adapter.
+- **Seed-invariance disclosure.** The rule-based path draws no randomness, so
+  its value - and therefore its result hash - is seed-invariant by construction
+  (the seed is not part of the basis). The different-seed hash evidence
+  therefore runs on the ML path, where the gate/adjustment draws consume the
+  stream. A dedicated test pins the rule-based seed-invariance so the property
+  is disclosed, not discovered.
+- **Kernel restatement, pinned both sides.** The adapter restates the kernel
+  rather than importing it, because the legacy entry point reads `process.env`
+  internally and its seed is not injectable. Characterization tests pin the
+  legacy engine and parity tests pin the adapter to the same hand-authored
+  fixtures (stage/sector multiplier table, both ownership branches, threshold
+  boundaries at ownership 0.1/0.05 and invested 1M, the confidence ladder, and
+  the seed-42 ML gate/adjustment interleave), so divergence of either copy fails
+  the suite.
+- **Rounding rules (boundary).** Allocations are whole-dollar decimal strings;
+  the rounding rule is legacy-identical `Math.round` on the non-negative float
+  amount (half-away-from-zero to a whole dollar). Confidence is emitted as a
+  decimal string rounded legacy-style to 2dp (`Math.round(c * 100) / 100`);
+  summary aggregation (avgConfidence, highConfidenceCount) runs on the unrounded
+  legacy confidence values first, exactly as `generateReserveSummary` does, and
+  only then renders. Hash admission normalizes decimal strings ("0.50" ->
+  "0.5"), so identities never rely on padded spellings.
+- **Input identity.** Portfolio array order is part of input identity: outputs
+  are positional and the ML draw stream interleaves with gate outcomes in
+  portfolio order. A parity test proves a reversed portfolio changes both the
+  input hash and the result hash.
+- **Hashes.** `inputHash` = `canonicalSha256` over
+  `{ domain: 'updog.reserve.input-hash', input: admitForHashing(rawInput) }`;
+  hash-inadmissible input hashes the deterministic sentinel
+  `{ inadmissibleInput: true }` and the result carries `INPUT_INVALID`.
+  `assumptionsHash` = `canonicalSha256` over the domain
+  `updog.reserve.assumptions-hash`, the methodology version, the algorithm
+  choice, and the frozen methodology constants (stage/sector multiplier tables
+  with defaults, ownership boost/penalty thresholds and factors, the confidence
+  ladder, ML gate/adjustment/confidence constants, the high-confidence
+  threshold, both rounding rules, and the RNG family and seed source).
+  `resultHash` uses the substrate `computeResultHash` unchanged.
+- **Result semantics.** `on` -> `available`; `shadow` -> `indicative` with
+  `SHADOW_ONLY`; configured `off` -> `unavailable` with `MODE_OFF`; kill switch
+  -> effective `off`, `unavailable` with `KILL_SWITCH_ACTIVE` (both codes when
+  both apply); schema-invalid input -> `failed` with `INPUT_INVALID` and a
+  diagnostic; kernel error -> `failed` with `ENGINE_ERROR`. Every non-available
+  path carries at least one registered reason code; there is no silent fallback.
+- **Versions.** `engineVersion: reserve-engine/1.0.0`,
+  `methodologyVersion: reserve-methodology/1.0.0`. Changing the kernel math, the
+  RNG family/seed source, the rounding rules, or the hash domains bumps the
+  methodology or engine version.
+
+### Deliberate boundary deviations (legacy engines unchanged)
+
+1. **Non-array input.** Legacy silently returns `[]` (pinned in the
+   characterization suite as a silent-fallback smell). The adapter returns
+   `failed` + `INPUT_INVALID` with a diagnostic: a disclosed-at-boundary fix.
+2. **Empty portfolio.** Legacy returns `[]` from the engine and zero aggregates
+   from `generateReserveSummary`. The adapter returns `available` with empty
+   allocations and zero totals - a faithful empty result, not fabrication -
+   because an empty portfolio is a valid input, not a failure.
+
+Schema-invalid company elements are NOT a deviation: the legacy engine throws,
+so `failed` + `INPUT_INVALID` is the faithful adaptation (same reasoning as
+ADR-043's invalid-input decision).
+
+### Parity evidence summary
+
+`tests/unit/reserve-substrate/` (36 tests, all green; pacing suite byte-green):
+
+- Characterization (13) pins the legacy engine before any adaptation:
+  multiplier-table allocations, both ownership branches, threshold boundaries,
+  the confidence ladder (via `ConfidenceLevel` imports, values not restated),
+  cold-start/enhanced rationale flip, the hand-derived seed-42 ML
+  gate/adjustment interleave (draws 0.2523/0.0881 fail, 0.5772 passes, 0.2226
+  prices round(9750000 * 0.8890217063948512) = 8667962), per-call reset
+  determinism and call-order independence, silent `[]` for empty and non-array
+  inputs, the invalid-element throw, and `generateReserveSummary` aggregates
+  with `generatedAt` characterized structurally only.
+- Parity (22, adapter suite) proves adapter-vs-legacy field-for-field equality
+  (allocation, confidence, rationale) for context seed 42 on the same fixtures,
+  rule-based AND ML, plus summary-aggregate parity against
+  `generateReserveSummary`, with expected values written as literals.
+- Determinism proves repeat-run byte-identical results with equal 64-hex result
+  hashes (both algorithms), and that different ML seeds, inputs, portfolio
+  order, as-of instants, and algorithm choices produce different hashes;
+  rule-based seed-invariance is pinned as a disclosed property.
+- Mode/kill-switch tests prove the suppression and disclosure invariants against
+  both the reserve and generic result schemas.
+- An ambient-state source guard (1) scans the adapter for `Math.random`, argless
+  `new Date()`, `Date.now`, and `process.env`.
+
+### Alternatives considered
+
+- **Adopt `DeterministicReserveEngine.ts` first:** rejected; its wall-clock
+  reads sit INSIDE calculation math (line 766) and its cache identity is
+  incomplete (line 737), so it cannot emit an honest basis without behavior
+  changes, which belong to their own tranche (Tranche 4).
+- **Fix the legacy silent `[]` fallback in place:** rejected; changing
+  `ReserveEngine.ts` behavior is out of scope and would ripple through five
+  server consumers; the adapter boundary discloses the rejection instead.
+- **Emit `unavailable` for an empty portfolio:** rejected; `unavailable` is
+  reserved for suppression/upstream-gap states, and an empty portfolio is a
+  computable input with a faithful empty result.
+- **Drive the ML stream from `ctx.rng.fork('reserve')` now:** rejected; changes
+  every ML value, violating behavior preservation. Reserved as the documented
+  follow-up migration.
+
+### Consequences
+
+- Reserve (rule/ML) can now run against an injected `CalculationContext` and
+  emit a hash-bound `CalcResult`; consumers keep their legacy path until a later
+  tranche wires them over.
+- Remaining for Tranche 4 (`DeterministicReserveEngine.ts`): remove `Date.now()`
+  from timing (78/123/140/486) and from calculation math (766, `ageMonths`);
+  replace `process.env['NODE_ENV']` (85) and `new Date()` (485) with injected
+  capabilities; replace the 5-field base64 cache key (737, `portfolioCount`
+  instead of portfolio contents) with complete canonical input identity - then
+  repeat this adoption pattern.
+
+**Implementation:** `shared/core/reserves/reserve-substrate-adapter.ts` plus
+`tests/unit/reserve-substrate/` (36 tests).
