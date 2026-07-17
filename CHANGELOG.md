@@ -23,6 +23,36 @@ and this project adheres to
 
 ### Added (2026-07-17)
 
+- **Tranche 4 DeterministicReserveEngine substrate adoption (ADR-045).** The
+  924-line Decimal.js reserve kernel now runs against an injected
+  `CalculationContext` via a WRAPPING adapter
+  `shared/core/reserves/deterministic-reserve-substrate-adapter.ts`
+  (calculationKey `reserve-deterministic`), enabled by two disclosed edits to
+  the legacy class: a behavior-preserving capability seam
+  (`{ now?, debugMode? }` optional constructor parameter routing all five
+  `Date.now` sites - including the one INSIDE the age-based risk multiplier -
+  the metadata `new Date()`, and the NODE_ENV debugMode read) and a
+  cache-identity fix replacing the 5-field base64 cache key with a
+  domain-separated canonical sha256 over the complete serialized input (pre-fix,
+  equal-length portfolios with matching scalars collided and the second call
+  returned the first portfolio's allocations verbatim;
+  `metadata.deterministicHash` is now the 64-hex canonical key). The adapter
+  wraps a fresh seam-injected engine per run (clock pinned to `ctx.clock`,
+  `calculationDuration` deterministically 0), projects the result JSON-safe
+  (Dates to ISO UTC strings; plain finite numbers kept - disclosed deviation
+  from the whole-dollar-string precedent), and hashes the canonical
+  serialization of the schema-parsed input (disclosed deviation from raw-input
+  hashing) plus feature flags/calculation version/Decimal config/cache-key
+  domain as methodology. The engine draws no randomness, so the value is
+  seed-invariant (disclosed and pinned); no fork label is consumed or reserved.
+  34 new tests (`tests/unit/deterministic-reserve-substrate/`) pin
+  captured-then-frozen goldens at two frozen instants (labeled as captured -
+  disclosed deviation from hand-derivation), the wall-clock drift, both
+  cache-defect states (before/after), seam correctness, four-part
+  parity/determinism/hash evidence, mode/kill-switch disclosure against both
+  result schemas, and an ambient-read guard. Pre-existing engine suites pass
+  unmodified; no consumers rewired.
+
 - **Tranche 3 reserve substrate adoption (ADR-044).** New additive adapter
   `shared/core/reserves/reserve-substrate-adapter.ts` runs the rule/ML
   `ReserveEngine` domain against an injected `CalculationContext` and emits a

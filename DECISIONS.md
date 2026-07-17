@@ -6749,3 +6749,213 @@ ADR-043's invalid-input decision).
 
 **Implementation:** `shared/core/reserves/reserve-substrate-adapter.ts` plus
 `tests/unit/reserve-substrate/` (36 tests).
+
+## ADR-045: Tranche 4 Substrate Adoption of the DeterministicReserveEngine (Demo Scope)
+
+**Date:** 2026-07-17 **Status:** [ACCEPTED] Implemented (demo scope)
+**Decision:** Adopt `shared/core/reserves/DeterministicReserveEngine.ts` onto
+the ADR-042 calculation substrate via (i) a minimal injectable capability seam
+added to the legacy class, (ii) a WRAPPING (not restating) adapter
+(`shared/core/reserves/deterministic-reserve-substrate-adapter.ts`,
+calculationKey `reserve-deterministic`), and (iii) an in-place cache-identity
+fix. Restating the 924-line Decimal.js kernel was rejected; wrapping without
+seams was rejected because the wall clock sits INSIDE calculation math and would
+poison the basis. Same owner-granted demo override of program-governance gates
+as ADR-042/043/044; technical invariants (determinism, hash integrity,
+disclosure of suppressed results, no silent financial fabrication) are enforced
+in code and tests.
+
+### Context: verified audit (re-verified on the tranche branch)
+
+- Ambient reads (pre-seam): `Date.now()` at five sites - three timing sites, the
+  metadata `calculationDuration`, and one INSIDE `calculateRiskMultiplier`
+  (`ageMonths` derived from the wall clock, so risk multipliers drift with real
+  time); `new Date()` for `metadata.calculationDate`; `process.env['NODE_ENV']`
+  for debugMode only.
+- The calculation cache WAS functionally live and wrong: the pre-fix
+  `generateDeterministicHash` base64-JSONed only 5 coarse fields
+  (`portfolioCount`, `availableReserves`, `totalFundSize`, `scenarioType`,
+  `timeHorizon`), the digest was both the cache key and the stamped
+  `metadata.deterministicHash`, and a cache hit short-circuited to the cached
+  object. Two DIFFERENT portfolios of equal length with matching scalars
+  therefore returned the FIRST portfolio's allocations on the same engine
+  instance - a real wrong-output defect, pinned by a characterization test
+  before the fix and flipped by it.
+- The engine contains NO randomness (no Math.random, no PRNG, no seed): its only
+  nondeterminism was the wall clock. Consequently the adapter value is
+  seed-invariant (disclosed and pinned, as ADR-044 did for the rule-based path);
+  different-hash evidence comes from inputs, asOf instants, and feature flags,
+  never seeds. NO fork label is consumed and none is reserved: there is nothing
+  to migrate onto `ctx.rng`.
+- The constructor already takes injectable `featureFlags` and sets the GLOBAL
+  Decimal configuration (precision 28, ROUND_HALF_UP); left untouched this
+  tranche and hashed as methodology instead.
+
+### Disposition table
+
+| Surface                                                                                                                                                                                            | Disposition | Notes                                                                                                                                              |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shared/core/reserves/DeterministicReserveEngine.ts`                                                                                                                                               | adapt       | ONLY permitted edits applied: ADR-045 capability seam + canonical cache identity; kernel math untouched                                            |
+| `shared/core/reserves/deterministic-reserve-canonical.ts`                                                                                                                                          | new         | Canonical serializer + cache-key identity shared by engine and adapter (see placement note below)                                                  |
+| `shared/core/reserves/deterministic-reserve-substrate-adapter.ts`                                                                                                                                  | new         | Wrapping adapter, calculationKey `reserve-deterministic`                                                                                           |
+| `client/src/core/reserves/DeterministicReserveEngine.ts` (re-export shim)                                                                                                                          | reuse       | One-line shim, no fork/drift risk; untouched                                                                                                       |
+| `client/src/lib/wizard-reserve-bridge.ts` (+ wizard-calculations, hooks)                                                                                                                           | defer       | Constructs the engine with the 1-arg constructor; seam is backward-compatible, no rewiring this tranche                                            |
+| `server/core/reserves/adapter.ts` (ports/mlClient seam)                                                                                                                                            | defer       | Type-level import plus injected engine instance; unchanged                                                                                         |
+| `server/routes/scenario-analysis.ts`                                                                                                                                                               | defer       | References the engine in TODO comments only                                                                                                        |
+| `server/services/projected-metrics-calculator.ts`, `shared/types/metrics.ts`                                                                                                                       | defer       | Doc-comment references only                                                                                                                        |
+| Pre-existing engine suites (engines/deterministic-reserve-engine.test.ts, parity .tsx, reserves-engine.test.ts, wizard-reserve-bridge.test.ts, adapter-unit-guard, REFL-018, phase3-critical-bugs) | reuse       | Pass UNMODIFIED - that is the seam-correctness proof                                                                                               |
+| `scripts/` references (backtest, strategic-decisions, ...)                                                                                                                                         | defer       | Dev tooling, not production surfaces                                                                                                               |
+| `ReserveEngine.ts` / `ConstrainedReserveEngine.ts`                                                                                                                                                 | untouched   | Out of scope (ADR-044 covers the former; the latter awaits its own tranche)                                                                        |
+| Wall clock inside calculation math + NODE_ENV debugMode read                                                                                                                                       | replace     | At the adapter boundary: `now: () => ctx.clock.now().getTime()`, `debugMode: false`; legacy default path keeps the characterized ambient fallbacks |
+| 5-field base64 cache key                                                                                                                                                                           | replace     | In-place fix (disclosed behavior change): domain-separated canonical sha256 over the complete serialized input                                     |
+
+### Decision details
+
+- **Seam (behavior-preserving).** Optional second constructor parameter
+  `capabilities?: { now?: () => number; debugMode?: boolean }` defaulting to
+  `Date.now` and a per-call `NODE_ENV === 'development'` read. All five
+  `Date.now` sites, the metadata `new Date()`, and the debugMode read route
+  through it; zero call-site changes. Proof: every pre-existing engine suite
+  passes unmodified, plus a dedicated test in which a seam-injected fixed `now`
+  reproduces the legacy engine field-for-field while the SYSTEM clock is frozen
+  at a different instant that would flip the age-based risk multiplier.
+- **Cache identity (disclosed behavior change).** `generateDeterministicHash`
+  now returns `canonicalSha256` over
+  `{ domain: 'updog.reserve-deterministic.cache-key', input: <canonical serialization> }`.
+  BEFORE: base64 of 5 coarse fields; the characterization suite pinned
+  `secondPortfolioResult === firstPortfolioResult` (verbatim wrong-output
+  collision) and the base64 format. AFTER: complete canonical input identity;
+  the pins are flipped in the same files with the pre-fix state recorded in
+  comments. Outputs for identical inputs are unchanged;
+  `metadata.deterministicHash` becomes the 64-hex canonical key. No pre-existing
+  test pinned the old format (verified: the `det-` prefix pins belong to the
+  Monte Carlo orchestrator, a different engine).
+- **Serializer placement (documented deviation from the tranche plan sketch).**
+  The plan placed the canonical input serializer inside the adapter module;
+  implemented in `deterministic-reserve-canonical.ts` instead because the ENGINE
+  needs the cache-key function and the ADAPTER imports the engine - a
+  same-module placement would be a circular import. The adapter re-exports the
+  serializer and cache-key helpers, so the planned public surface is preserved.
+- **Wrapping, not restating.** The adapter constructs a fresh
+  `DeterministicReserveEngine` per run with
+  `{ now: () => ctx.clock.now().getTime(), debugMode: false }`, so no
+  calculation cache survives across calls and no ambient state leaks in. With
+  the fixed clock, `metadata.calculationDuration` is deterministically 0
+  (pinned).
+- **Value boundary (disclosed deviations).** The value is the engine result
+  projected JSON-safe (every Date to ISO-8601 UTC string, undefined stripped)
+  plus `asOfUtc` from the injected clock. Numbers stay PLAIN FINITE NUMBERS -
+  deviation from the Tranche 2/3 whole-dollar-decimal-string convention, because
+  this engine emits fractional Decimal-derived amounts and inventing a boundary
+  rounding policy would fabricate precision. The value schema is a strict
+  JSON-safe mirror of the legacy result shape, NOT the legacy
+  `ReserveCalculationResultSchema`: that schema requires a positive
+  `calculationDuration` (a fixed clock yields exactly 0) and strictly positive
+  money fields the engine does not guarantee, and the engine never parses its
+  own output. Structure and JSON-safety are enforced at the boundary; business
+  bounds remain the kernel's own.
+- **Hashes.** `inputHash` = `canonicalSha256` over
+  `{ domain: 'updog.reserve-deterministic.input-hash', input: <canonical serialization of the schema-PARSED input> }` -
+  a disclosed deviation from the ADR-043/044 raw-input precedent, because valid
+  inputs necessarily contain Date instances, which hash admission rejects;
+  raw-input hashing would collapse every valid input onto the sentinel.
+  Equivalent spellings (Date vs ISO string; omitted vs explicit schema defaults)
+  share one input identity - the "complete canonical input identity" follow-up
+  recorded in ADR-044. The inadmissible-sentinel fallback
+  (`{ inadmissibleInput: true }`) remains for unparseable garbage.
+  `assumptionsHash` covers the domain
+  `updog.reserve-deterministic.assumptions-hash`, the methodology version, the
+  restated CALCULATION_VERSION (1.0.0, pinned against `metadata.modelVersion`),
+  the engine's global Decimal configuration, the cache-key domain, and the
+  resolved feature flags (flags are methodology; the default set restates the
+  ENGINE constructor defaults, not the FeatureFlagSchema defaults, which differ
+  on `enableNewReserveEngine`). `resultHash` uses the substrate
+  `computeResultHash` unchanged.
+- **Captured goldens (disclosed deviation).** Characterization expectations for
+  the Decimal kernel are CAPTURED-then-frozen at the frozen instants and labeled
+  as such - a deviation from the Tranche 2/3 hand-derivation discipline;
+  hand-restating the kernel is exactly the rejected alternative. Goldens are
+  anchored by hand-checkable structure: the T2 golden equals the T1 golden times
+  exactly 0.9 on the age-crossing company, and conservation/ranking/bound
+  invariants are asserted alongside.
+- **Result semantics.** Identical to ADR-043/044: `on` -> `available`; `shadow`
+  -> `indicative` + `SHADOW_ONLY`; configured `off` -> `unavailable`
+  - `MODE_OFF`; kill switch -> `unavailable` + `KILL_SWITCH_ACTIVE` (both codes
+    when both apply); schema-invalid input -> `failed` + `INPUT_INVALID` with a
+    diagnostic; engine throw/rejection (including `ReserveCalculationError`,
+    e.g. the empty-portfolio guard) -> `failed` + `ENGINE_ERROR`. Every
+    non-available path carries at least one registered reason code; there is no
+    silent fallback.
+- **Versions.** `engineVersion: deterministic-reserve-engine/1.0.0`,
+  `methodologyVersion: deterministic-reserve-methodology/1.0.0`. Changing the
+  kernel math, the Decimal configuration, the serialization rules, or the hash
+  domains bumps the methodology or engine version.
+
+### Alternatives considered
+
+- **Restate the kernel in the adapter (Tranche 2/3 pattern):** rejected; 924
+  lines of Decimal.js allocation math is not a restatable boundary, and a
+  drifting copy would be a silent-fabrication risk rather than a hedge.
+- **Wrap without seams:** rejected; `Date.now()` INSIDE
+  `calculateRiskMultiplier` means outputs drift with real time, so a wrapped
+  engine could not emit an honest basis (the same instant could never be
+  replayed).
+- **Parse the value through the legacy `ReserveCalculationResultSchema`:**
+  rejected; it requires `calculationDuration > 0` (fixed clock yields 0) and
+  strictly positive money fields the engine can legitimately violate, so it
+  would fabricate failures for faithful results.
+- **Hash the raw input (ADR-043/044 precedent):** rejected here; every valid
+  input contains Date instances, so admission would reject it and all valid
+  inputs would collapse onto one sentinel identity.
+- **Round value amounts to whole-dollar strings (Tranche 2/3 precedent):**
+  rejected; the engine emits fractional amounts and a boundary rounding policy
+  would be fabricated precision, not preserved behavior.
+
+### Parity evidence summary
+
+`tests/unit/deterministic-reserve-substrate/` (34 tests, all green; pre-existing
+engine suites and the pacing/reserve/calc-substrate suites byte-green):
+
+- Characterization (9) pins the legacy engine BEFORE adoption: captured goldens
+  at T1, the T1->T2 age-threshold drift (exactly 0.9 on the crossing company,
+  others byte-identical), frozen-clock metadata, per-instance determinism, the
+  cache short-circuit, the collision defect and pre-fix base64 key (both since
+  flipped, pre-fix state recorded in comments), conservation/ranking/bound
+  invariants, and guard-clause throws.
+- Seam (1) proves a seam-injected fixed `now` reproduces the legacy engine while
+  the system clock sits at an instant that would change the output.
+- Adapter (23) proves: field-for-field parity with the seam-injected legacy
+  engine plus `asOfUtc`; golden equality at T1 and the asOf-driven 0.9
+  multiplier at T2; `calculationDuration === 0`; repeat-run byte-identical
+  results with equal 64-hex hashes; DISCLOSED seed-invariance (different seeds,
+  identical value and hash); different inputs/asOf/flags change the respective
+  hashes (asOf changes the result hash but not the input hash); canonical input
+  identity across Date/string spellings and omitted schema defaults;
+  flags-default equivalence; value round-trips `admitForHashing` and
+  `computeResultHash` recomputes; mode/kill-switch/invalid-input/engine- error
+  invariants against both the typed and generic result schemas; and context
+  contract/key guards.
+- An ambient-state source guard (1) scans the adapter AND the canonical module
+  for `Math.random`, argless `new Date()`, `Date.now`, and `process.env`.
+
+### Consequences
+
+- DeterministicReserveEngine can now run against an injected
+  `CalculationContext` and emit a hash-bound `CalcResult`; consumers keep the
+  legacy path until a later tranche wires them over (no consumer rewiring this
+  tranche).
+- The legacy default path retains its characterized ambient fallbacks (Date.now
+  / NODE_ENV) inside the seam; direct constructions such as
+  `wizard-reserve-bridge.ts` behave exactly as before.
+- Remaining follow-ups for future tranches: wire
+  `server/routes/scenario-analysis.ts` (currently TODO comments) and the wizard
+  bridge onto the adapter; adopt `ConstrainedReserveEngine.ts`; revisit the
+  engine's GLOBAL Decimal configuration (currently hashed as methodology,
+  deliberately not fixed); fund_calculation_modes integration, routes, flags
+  registry, and persistence remain out of scope per the tranche plan.
+
+**Implementation:** `shared/core/reserves/deterministic-reserve-canonical.ts`,
+`shared/core/reserves/deterministic-reserve-substrate-adapter.ts`, the ADR-045
+seam and cache-identity fix inside
+`shared/core/reserves/DeterministicReserveEngine.ts`, plus
+`tests/unit/deterministic-reserve-substrate/` (34 tests).
