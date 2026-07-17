@@ -23,6 +23,28 @@ and this project adheres to
 
 ### Added (2026-07-17)
 
+- **Tranche 3 reserve substrate adoption (ADR-044).** New additive adapter
+  `shared/core/reserves/reserve-substrate-adapter.ts` runs the rule/ML
+  `ReserveEngine` domain against an injected `CalculationContext` and emits a
+  hash-bound `CalcResult` (calculationKey `reserve`): explicit typed algorithm
+  option replaces the `ALG_RESERVE` env read, the injected clock replaces
+  `generateReserveSummary`'s `new Date()`, allocations become whole-dollar
+  decimal strings and confidences 2dp decimal strings (legacy-identical
+  rounding), and domain-separated input/assumptions hashes feed the substrate
+  result hash. The ML stream replays the legacy LCG seeded from the context root
+  seed so a seed of 42 reproduces legacy output exactly;
+  `ctx.rng.fork('reserve')` is reserved for a future methodology bump. Two
+  disclosed boundary deviations: non-array input is `failed` + `INPUT_INVALID`
+  instead of the legacy silent `[]`, and an empty portfolio is `available` with
+  zero totals. 36 new tests (`tests/unit/reserve-substrate/`) characterize the
+  legacy engine (including the hand-derived seed-42 ML gate/adjustment stream),
+  prove adapter parity field-for-field on hand-authored fixtures (rule-based and
+  ML), prove repeat-run hash determinism plus disclosed rule-based
+  seed-invariance, prove mode/kill-switch disclosure invariants, and guard the
+  adapter against ambient reads. Legacy reserve engines and consumers unchanged;
+  `DeterministicReserveEngine` deferred to Tranche 4 with a verified defect list
+  recorded in the ADR.
+
 - **Tranche 2 pacing substrate adoption (ADR-043).** New additive adapter
   `shared/core/pacing/pacing-substrate-adapter.ts` runs the Pacing domain
   against an injected `CalculationContext` and emits a hash-bound `CalcResult`
