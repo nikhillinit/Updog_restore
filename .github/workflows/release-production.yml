@@ -177,6 +177,27 @@ jobs:
     timeout-minutes: 10
     environment: Production
     steps:
+      - name: Re-fence live main before promotion # <-- NEW, first step
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if ! LIVE_MAIN="$(gh api "repos/${REPO}/commits/main" --jq '.sha')"; then
+            echo "::error::Could not resolve live main HEAD; refusing to promote (fail-closed)."
+            exit 1
+          fi
+          if [[ ! "$LIVE_MAIN" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Unexpected live main SHA '${LIVE_MAIN}'; refusing to promote (fail-closed)."
+            exit 1
+          fi
+          if [[ "$LIVE_MAIN" != "$EXPECTED_SHA" ]]; then
+            echo "::error::main advanced from ${EXPECTED_SHA} to ${LIVE_MAIN} during this release run; refusing to promote a stale deployment. Re-dispatch Release Production for the current main SHA."
+            exit 1
+          fi
+          echo "Live main still equals release target ${EXPECTED_SHA}; promotion authorized."
+
       - name: Promote verified deployment
         env:
           DEPLOYMENT_URL: ${{ needs.validate-deployment.outputs.deployment_url }}
