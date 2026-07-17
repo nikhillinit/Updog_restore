@@ -23,6 +23,22 @@ and this project adheres to
 
 ### Added (2026-07-17)
 
+- **Tranche 2 pacing substrate adoption (ADR-043).** New additive adapter
+  `shared/core/pacing/pacing-substrate-adapter.ts` runs the Pacing domain
+  against an injected `CalculationContext` and emits a hash-bound `CalcResult`
+  (calculationKey `pacing`): explicit typed algorithm option replaces the
+  `ALG_PACING` env read, the injected clock replaces `new Date()`, boundary
+  money becomes whole-dollar decimal strings (legacy-identical `Math.round`),
+  and domain-separated input/assumptions hashes feed the substrate result hash.
+  Variability replays the legacy LCG seeded from the context root seed so a seed
+  of 123 reproduces legacy output exactly; `ctx.rng.fork('pacing')` is reserved
+  for a future methodology bump. 25 new tests (`tests/unit/pacing-substrate/`)
+  characterize the legacy engine, prove adapter parity on hand-authored LCG(123)
+  fixtures, prove repeat-run hash determinism and mode/kill-switch disclosure
+  invariants, and guard the adapter against ambient reads. Legacy `PacingEngine`
+  entry points and consumers unchanged; Reserve deferred with audit list
+  recorded in the ADR.
+
 - **Tranche 1 calculation substrate contracts (ADR-042).** New additive module
   `shared/core/calc-substrate/`: injected deterministic RNG with labeled
   call-order-independent forks (wraps existing `SeededRNG`/`deriveSeed`),

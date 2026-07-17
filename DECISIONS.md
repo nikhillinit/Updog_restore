@@ -55,6 +55,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-040: Report Qualification Semantics (Plan 9)](#adr-040-report-qualification-semantics-plan-9)
 - [ADR-041: Global Internal Fund Visibility with Role-Gated Consequences](#adr-041-global-internal-fund-visibility-with-role-gated-consequences)
 - [ADR-042: Tranche 1 Calculation Substrate Contracts (Demo Scope)](#adr-042-tranche-1-calculation-substrate-contracts-demo-scope)
+- [ADR-043: Tranche 2 Substrate Adoption Starts with Pacing (Demo Scope)](#adr-043-tranche-2-substrate-adoption-starts-with-pacing-demo-scope)
 
 ---
 
@@ -6419,3 +6420,141 @@ than waived.
 
 **Implementation:** `shared/core/calc-substrate/` plus
 `tests/unit/calc-substrate/` (40 tests).
+
+## ADR-043: Tranche 2 Substrate Adoption Starts with Pacing (Demo Scope)
+
+**Date:** 2026-07-17 **Status:** [ACCEPTED] Implemented (demo scope)
+**Decision:** Adopt the Pacing calculation domain onto the ADR-042 calculation
+substrate first, via an additive context-receiving adapter
+(`shared/core/pacing/pacing-substrate-adapter.ts`, calculationKey `pacing`), and
+defer Reserve. Legacy `PacingEngine` entry points and all their consumers are
+unchanged. Same owner-granted demo override of program-governance gates as
+ADR-042; technical invariants (determinism, hash integrity, disclosure of
+suppressed results, no silent fabrication) are enforced in code and tests.
+
+### Context: why Pacing, not Reserve
+
+- **Pacing is adoptable today.** The legacy engine
+  (`shared/core/pacing/PacingEngine.ts`) resets its module-global LCG
+  (`shared/utils/prng.ts`, Numerical Recipes parameters) to a hardcoded seed of
+  123 on every call, so per-call output is already deterministic under fixed
+  inputs. Its only ambient reads are `process.env['ALG_PACING']` /
+  `process.env['NODE_ENV']` (algorithm-path selection) and, in
+  `generatePacingSummary`, `generatedAt: new Date()`.
+- **Reserve is `defer`.** `shared/core/reserves/ReserveEngine.ts` carries a
+  call-order-sensitive module-global seeded PRNG (no per-call reset) plus
+  `process.env` (`ALG_RESERVE`, `NODE_ENV`) and `new Date()` reads;
+  `DeterministicReserveEngine.ts` reads `process.env` (~line 85) and
+  `new Date()` (~line 485), and its cache key is base64 JSON over only ~5 input
+  fields (incomplete cache identity). Those audits must pass before Reserve can
+  emit an honest basis. Cohort, Projected Metrics, and Monte Carlo were
+  forbidden as first adoptions by the tranche plan.
+
+### Disposition table
+
+| Surface                                                    | Disposition | Notes                                                                                                     |
+| ---------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------- |
+| `shared/core/pacing/PacingEngine.ts` (engine kernel)       | adapt       | Kernel math restated in the adapter in context-receiving form; legacy entry points and behavior untouched |
+| `PacingEngine` / `generatePacingSummary` legacy signatures | reuse       | Still exported, still consumed; adapter wraps the domain, does not replace the API                        |
+| `shared/utils/prng.ts` (LCG)                               | reuse       | Adapter constructs a local instance per run; the `Date.now()` default seed path is never exercised        |
+| `server/services/pacing-calculation-service.ts`            | defer       | Continues to call `generatePacingSummary`; substrate wiring is a later tranche                            |
+| `server/services/projected-metrics-calculator.ts`          | defer       | Same                                                                                                      |
+| `server/routes/engine-summaries.ts`                        | defer       | Same                                                                                                      |
+| `client/src/core/pacing/PacingEngine.ts` (re-export shim)  | reuse       | Untouched                                                                                                 |
+| `process.env['ALG_PACING']` algorithm selection            | replace     | Adapter takes an explicit typed `algorithm: 'rule-based' \| 'ml'` option; never reads env                 |
+| `generatedAt: new Date()` in `generatePacingSummary`       | replace     | Adapter emits `asOfUtc` from the injected `ctx.clock`                                                     |
+
+### Decision details
+
+- **Determinism and the RNG compatibility decision.** Exact-value parity with
+  the legacy engine is only achievable by replaying its LCG stream, so the
+  adapter's variability stream is a locally constructed `PRNG` seeded from the
+  calculation context's immutable root seed. A context seeded with 123 (the
+  legacy hardcoded seed) reproduces legacy output byte-for-byte. Substituting
+  the substrate Xorshift32 (`ctx.rng`) for the LCG would change every emitted
+  value and is therefore a behavior change, deferred to a methodology-version
+  bump. This is a deliberate, disclosed deviation from the tranche plan's "use
+  `ctx.rng.fork('pacing')`" default in favor of the behavior-preservation
+  invariant.
+- **Fork-label registry (pacing).** `pacing` is RESERVED as the fork label for
+  the future migration of the variability stream onto `ctx.rng.fork('pacing')`.
+  No fork labels are consumed by the current adapter.
+- **Kernel restatement, pinned both sides.** The adapter restates the ~30-line
+  kernel rather than importing it, because the legacy entry point reads
+  `process.env` internally and its seed is not injectable. Drift protection:
+  characterization tests pin the legacy engine and parity tests pin the adapter
+  to the same hand-authored LCG(123) fixtures (neutral 50M q1, bull 100M q3,
+  bear 20M q10, plus the ML path), so divergence of either copy fails the suite.
+- **Rounding rule (boundary money).** All money at the adapter boundary is
+  emitted as whole-dollar decimal strings; the rounding rule is legacy-identical
+  `Math.round` on the non-negative float amount (half-away-from-zero to a whole
+  dollar), applied per quarter before totals, then summed. The average is
+  `Math.round(total / 8)`. Hash admission strips leading zeros from decimal
+  strings, so identities never rely on zero-padded spellings.
+- **Hashes.** `inputHash` = `canonicalSha256` over
+  `{ domain: 'updog.pacing.input-hash', input: admitForHashing(rawInput) }`; if
+  the raw input is hash-inadmissible the deterministic sentinel
+  `{ inadmissibleInput: true }` is hashed and the result carries
+  `INPUT_INVALID`. `assumptionsHash` = `canonicalSha256` over the domain
+  `updog.pacing.assumptions-hash`, the methodology version, the algorithm
+  choice, and the frozen methodology constants (market adjustment table, divisor
+  8, variability window, ML trend window, rounding rule, RNG family and seed
+  source). `resultHash` uses the substrate `computeResultHash` unchanged.
+- **Result semantics.** `on` -> `available`; `shadow` -> `indicative` with
+  `SHADOW_ONLY`; configured `off` -> `unavailable` with `MODE_OFF`; kill switch
+  -> effective `off`, `unavailable` with `KILL_SWITCH_ACTIVE` (both codes when
+  both apply); schema-invalid input -> `failed` with `INPUT_INVALID` and a
+  diagnostic; kernel error -> `failed` with `ENGINE_ERROR`. Every non-available
+  path carries at least one registered reason code; there is no silent fallback.
+- **Versions.** `engineVersion: pacing-engine/1.0.0`,
+  `methodologyVersion: pacing-methodology/1.0.0`. Changing the kernel math, the
+  RNG family/seed source, the rounding rule, or the hash domains bumps the
+  methodology or engine version.
+
+### Parity evidence summary
+
+`tests/unit/pacing-substrate/` (25 tests, all green; full suite unchanged):
+
+- Characterization pins the legacy engine to hand-authored LCG(123) expectations
+  on 4 fixtures before any adaptation, and documents the `generatedAt` ambient
+  read structurally without blessing its value.
+- Parity proves adapter-vs-legacy field-for-field equality (deployment, quarter,
+  note, totals) on the same 4 fixtures, with expected values written as literals
+  in the tests.
+- Determinism proves repeat-run byte-identical results with equal 64-hex result
+  hashes, and that different seeds, inputs, as-of instants, and algorithm
+  choices produce different hashes.
+- Mode/kill-switch tests prove the suppression and disclosure invariants above
+  against both the pacing and generic result schemas.
+- An ambient-state source guard scans the adapter for `Math.random`, argless
+  `new Date()`, `Date.now`, and `process.env`.
+
+### Alternatives considered
+
+- **Adopt Reserve first:** rejected (see Context); its ambient-state and cache
+  identity audits are open.
+- **Drive variability from `ctx.rng.fork('pacing')` now:** rejected; changes
+  every output value, violating the behavior-preservation requirement of this
+  tranche. Reserved as the documented follow-up migration.
+- **Refactor `PacingEngine.ts` to export an injectable kernel:** rejected for
+  this tranche; touching the legacy file consumed by three server services and
+  the client shim expands blast radius for zero behavior benefit, and the parity
+  suite already pins the two copies together.
+- **Return `unavailable` (not `failed`) for invalid input:** rejected; the
+  legacy engine throws on invalid input, so `failed` + `INPUT_INVALID` with a
+  diagnostic is the faithful adaptation and keeps `unavailable` reserved for
+  suppression/upstream-gap states.
+
+### Consequences
+
+- Pacing can now run against an injected `CalculationContext` and emit a
+  hash-bound `CalcResult`; consumers keep their legacy path until a later
+  tranche wires them over.
+- Remaining for Reserve (Tranche 3 candidate): remove or gate the
+  call-order-sensitive module-global PRNG, eliminate `process.env` /
+  `new Date()` reads from both reserve engines, and replace the truncated base64
+  cache key with complete canonical input identity - then repeat this adoption
+  pattern.
+
+**Implementation:** `shared/core/pacing/pacing-substrate-adapter.ts` plus
+`tests/unit/pacing-substrate/` (25 tests).
