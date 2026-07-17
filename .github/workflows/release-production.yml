@@ -62,6 +62,27 @@ jobs:
     outputs:
       deployment_url: ${{ steps.verify.outputs.deployment_url }}
     steps:
+      - name: Re-fence live main before validation
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if ! LIVE_MAIN="$(gh api "repos/${REPO}/commits/main" --jq '.sha')"; then
+            echo "::error::Could not resolve live main HEAD; refusing to proceed (fail-closed)."
+            exit 1
+          fi
+          if [[ ! "$LIVE_MAIN" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Unexpected live main SHA '${LIVE_MAIN}'; refusing to proceed (fail-closed)."
+            exit 1
+          fi
+          if [[ "$LIVE_MAIN" != "$EXPECTED_SHA" ]]; then
+            echo "::error::main advanced from ${EXPECTED_SHA} to ${LIVE_MAIN} during this release run; refusing to proceed with a stale target. Re-dispatch Release Production for the current main SHA."
+            exit 1
+          fi
+          echo "Live main still equals release target ${EXPECTED_SHA}; proceeding."
+
       - name: Normalize and verify exact staged deployment
         id: verify
         env:
@@ -130,6 +151,27 @@ jobs:
     timeout-minutes: 15
     environment: Production
     steps:
+      - name: Re-fence live main before staged smoke
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if ! LIVE_MAIN="$(gh api "repos/${REPO}/commits/main" --jq '.sha')"; then
+            echo "::error::Could not resolve live main HEAD; refusing to proceed (fail-closed)."
+            exit 1
+          fi
+          if [[ ! "$LIVE_MAIN" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Unexpected live main SHA '${LIVE_MAIN}'; refusing to proceed (fail-closed)."
+            exit 1
+          fi
+          if [[ "$LIVE_MAIN" != "$EXPECTED_SHA" ]]; then
+            echo "::error::main advanced from ${EXPECTED_SHA} to ${LIVE_MAIN} during this release run; refusing to proceed with a stale target. Re-dispatch Release Production for the current main SHA."
+            exit 1
+          fi
+          echo "Live main still equals release target ${EXPECTED_SHA}; proceeding."
+
       - name: Checkout exact release commit
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
