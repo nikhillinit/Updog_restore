@@ -48,9 +48,21 @@ interface MOICCalculation {
   allocationScore: Decimal;
 }
 
+/**
+ * Injectable ambient capabilities (ADR-045 seam). Defaults preserve the
+ * legacy ambient behavior exactly: wall-clock Date.now and a per-call
+ * NODE_ENV read for debugMode.
+ */
+export interface DeterministicReserveEngineCapabilities {
+  now?: () => number;
+  debugMode?: boolean;
+}
+
 export class DeterministicReserveEngine {
   private context: CalculationContext | null = null;
   private calculationCache = new Map<string, ReserveCalculationResult>();
+  private readonly now: () => number;
+  private readonly debugModeOverride: boolean | undefined;
 
   constructor(
     private featureFlags: FeatureFlags = {
@@ -62,8 +74,11 @@ export class DeterministicReserveEngine {
       enableLiquidationPreferences: true,
       enablePerformanceLogging: true,
       maxCalculationTimeMs: 5000,
-    }
+    },
+    capabilities: DeterministicReserveEngineCapabilities = {}
   ) {
+    this.now = capabilities.now ?? Date.now;
+    this.debugModeOverride = capabilities.debugMode;
     // Set high precision for financial calculations
     Decimal['set']({ precision: 28, rounding: Decimal.ROUND_HALF_UP });
   }
@@ -75,14 +90,14 @@ export class DeterministicReserveEngine {
   async calculateOptimalReserveAllocation(
     input: ReserveAllocationInput
   ): Promise<ReserveCalculationResult> {
-    const startTime = Date.now();
+    const startTime = this.now();
 
     // Initialize calculation context
     this.context = {
       startTime,
       deterministicSeed: this.generateDeterministicHash(input),
       featureFlags: this.featureFlags,
-      debugMode: process.env['NODE_ENV'] === 'development',
+      debugMode: this.debugModeOverride ?? process.env['NODE_ENV'] === 'development',
     };
 
     try {
@@ -120,7 +135,7 @@ export class DeterministicReserveEngine {
       this.calculationCache['set'](cacheKey, result);
 
       // Performance tracking
-      const duration = Date.now() - startTime;
+      const duration = this.now() - startTime;
       if (this.featureFlags.enablePerformanceLogging) {
         performanceMonitor.recordCalculationPerformance('reserve-calculation', duration, {
           portfolioSize: input.portfolio.length,
@@ -137,7 +152,7 @@ export class DeterministicReserveEngine {
 
       return result;
     } catch (error) {
-      const duration = Date.now() - startTime;
+      const duration = this.now() - startTime;
 
       if (this.featureFlags.enablePerformanceLogging) {
         performanceMonitor.recordCalculationPerformance('reserve-calculation', duration, {
@@ -482,8 +497,8 @@ export class DeterministicReserveEngine {
       riskAnalysis,
       scenarioResults,
       metadata: {
-        calculationDate: new Date(),
-        calculationDuration: Date.now() - this.context!.startTime,
+        calculationDate: new Date(this.now()),
+        calculationDuration: this.now() - this.context!.startTime,
         modelVersion: CALCULATION_VERSION,
         deterministicHash: this.context!.deterministicSeed,
         assumptions: this.getCalculationAssumptions(),
@@ -763,7 +778,7 @@ export class DeterministicReserveEngine {
     let multiplier = new Decimal(1);
 
     // Adjust for company age
-    const ageMonths = (Date.now() - company.investmentDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
+    const ageMonths = (this.now() - company.investmentDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
     if (ageMonths > 60) {
       // Over 5 years
       multiplier = multiplier.mul(0.9);
