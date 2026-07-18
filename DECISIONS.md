@@ -7662,3 +7662,134 @@ flow); no CI/workflow, credential, or prod-deploy change; no edits to any
 `reconciliation-runs.ts`, or the existing MOIC/facts/monte-carlo readers; no
 change to the `/calculate` response shape, status codes, or auth; no
 Phoenix-protected path edits; no new dependencies.
+
+## ADR-051: Tranche 10 Expose the Constrained-Reserve Substrate Shadow Reconciliation Ledger via a Read-Only Fund-Scoped Query Endpoint (Demo Scope)
+
+### Status
+
+Accepted.
+
+### Context
+
+Tranche 9 (ADR-050) made the substrate/legacy parity outcome durable: every
+opted-in, value-producing shadow run of `POST /api/v1/reserves/calculate` writes
+one append-only, fund-scoped, idempotent row into
+`substrate_shadow_reconciliations`. Re-auditing current main confirms the gap
+ADR-050 itself named: the table has NO READER. The only references anywhere are
+the Drizzle schema, the `0035` migration, the default writer's INSERT, and their
+tests - nothing queries it. The trust record exists but is inaccessible: "has
+fund N's constrained-reserve substrate ever diverged, and when?" is still
+unanswerable programmatically.
+
+The ledger is LOCAL-only: migration `0035` is authored + journaled locally and
+has NOT been applied to prod (it reaches prod only via the pre-existing gated
+`prod-schema-reconcile` apply flow, which remains untriggered). Any prod-live
+read surface therefore MUST tolerate the table being absent.
+
+### Decision
+
+Expose the ledger via ONE new read-only, fund-scoped, auth-guarded endpoint -
+`GET /api/v1/reserves/constrained/reconciliations?fundId=N[&limit=M]` - on the
+EXISTING `reservesV1Router` (mounted directly by `makeApp`, the Vercel prod
+entrypoint, so the new sub-path reaches prod without `mountCommonRoutes`),
+backed by ONE new read service. No writes, no `/calculate` change, no promotion,
+no second consumer, no migration, no prod DB change.
+
+Why READ now (not "promote", not "second consumer", not "provision-to-prod"):
+
+- Promotion (serving the substrate value when `mode=on`) would be the FIRST
+  response change in the arc and ADR-050 forbids it before an ACCUMULATED parity
+  record exists; T9 only just began accumulating.
+- The T9 table with no reader is inert; a read surface is the precondition any
+  future promotion decision must consult.
+- Second consumer stays deferred for the same reason it was in T9: no other
+  adapter has a clean prod-live route consuming its exact input.
+- Provisioning the table to prod (prod-schema manifest + the gated
+  `prod-schema-reconcile` apply) is a separate owner-triggered operation; the
+  read surface is instead made prod-SAFE against table absence.
+
+Design (pinned):
+
+- NEW read service `server/services/substrate-shadow-reconciliation-reader.ts`:
+  `readConstrainedReserveShadowReconciliations({ fundId, limit?, reader? })`
+  returns the most recent observations for the fund, newest first (served by the
+  T9 `(fund_id, observed_at DESC)` index), each projected to a stable read DTO
+  (all scalar columns + `mismatches` + `observedAt` as ISO-8601). `limit`
+  defaults to 50 and is clamped to `[1, 200]`. The `reader` seam is injectable
+  (mirroring the T6 `resolveMode` and T9 `persist` philosophy) and defaults to
+  the real Drizzle query, so all tests stay DB-free.
+- PROD-SAFETY (headline invariant): the DEFAULT reader treats PostgreSQL `42P01`
+  (undefined_table) as "no observations recorded" and returns `[]`, matching the
+  code through the error CAUSE CHAIN because drivers and Drizzle wrap the raw PG
+  error at varying depths. A prod read against the not-yet-provisioned ledger is
+  a 200 with an empty list, never a 500. Every non-`42P01` error propagates to
+  the route's standard error handling.
+- Key-scoped read: the default reader filters
+  `calculation_key = 'reserve-constrained'` IN ADDITION to `fund_id`, so the
+  response envelope's fixed `calculationKey` label can never mislabel rows a
+  future second substrate consumer might write under another key.
+- Route (EDIT `server/routes/v1/reserves.ts`):
+  `reservesV1Router.get('/constrained/reconciliations', ...)`. `?fundId` uses
+  the repo discipline `/^[1-9]\d*$/` (400 on absent/non-conforming); the
+  OPTIONAL `?limit` uses the same positive-integer discipline (400 when present
+  but non-conforming) and exists because the pinned service contract carries a
+  caller-facing limit - a seam reachable only from tests would be dead surface.
+  Response:
+  `{ fundId, calculationKey: 'reserve-constrained', observations, rid }` (rid
+  mirrors the sibling handlers).
+- Fund-scope authorization (UNLIKE `/calculate`): this endpoint reads per-fund
+  STORED rows, so it IS an existence oracle and is guarded IN THE HANDLER (RLS
+  does not enforce prod fund scope; `requireFundAccess` middleware reads a PATH
+  param and this route's fundId is a QUERY param, so the same universal-read
+  logic is mirrored in-handler): safe method + authenticated non-LP team member
+  (admin/partner/analyst without `lpId`) reads any fund; everyone else passes
+  the strict fail-closed `resolveFundScope` grant check; 403 otherwise.
+  Credential-less requests are already 401'd by the global `/api` Bearer
+  boundary in `makeApp` (the reserves paths are not in `isPublicApiPath`).
+  `POST /calculate` itself remains guard-free by design (it never reads per-fund
+  stored data) and byte-identical - re-proven by the untouched T7 route test.
+- Route governance: `reservesV1Router` is declared in
+  `shared/routes/api-runtime-specific-manifest.ts` (`make-app-reserves-v1`) at
+  ROUTER granularity (mount paths, not per-path routes), and the route-surface
+  inventory test pins only makeApp mount ORDER - so a new sub-path requires no
+  manifest/registry edit. Verified empirically: the full unit suite passes with
+  no route-policy/coverage/entrypoint-scan guard tripped.
+
+### Disposition table
+
+| Component                                                                  | Disposition                                            |
+| -------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `substrate_shadow_reconciliations` table + `0035` migration                | reuse (unchanged)                                      |
+| T9 default writer + T8 shadow helper (persist seam)                        | reuse (unchanged)                                      |
+| `server/services/substrate-shadow-reconciliation-reader.ts` (read service) | new                                                    |
+| `GET /constrained/reconciliations` on `reservesV1Router`                   | new (route file edited)                                |
+| `requireFundAccess` middleware                                             | reject-reuse (path-param based; logic mirrored inline) |
+| runtime-specific manifest / route-policy registries                        | unchanged (router-level entry already covers)          |
+| promotion + second consumer + prod provisioning of `0035`                  | defer                                                  |
+
+### Consequences
+
+The accumulated trust record is now QUERYABLE: any authorized caller can answer
+"has fund N's constrained-reserve substrate ever diverged, and when?" from the
+prod-live API, which is the read surface a future promotion decision must
+consult. The endpoint is prod-safe BEFORE provisioning: with the table absent
+(prod today) it returns 200 with an empty list, proven by the `42P01`
+cause-chain tests; with the table present (local/test) it returns the
+fund-scoped observations newest first. Blast radius is one auth- and
+fund-scope-guarded SELECT; `/calculate` stays byte-identical. Likely Tranche 11:
+PROMOTE the substrate to authoritative behind `mode=on` once an accumulated
+parity record exists (the first response change of the arc), OR PROVISION the
+ledger to prod via the gated `prod-schema-reconcile` apply flow
+(owner-triggered) so this read surface serves real accumulated history.
+
+### Non-goals
+
+No writes or persistence changes; no promotion (the substrate value is never
+served; the `/calculate` response, status codes, and auth are unchanged); no
+second consumer; no migration/`db:push`/`db:migrate`; no provisioning the table
+to prod; no prod DB, CI/workflow, credential, or deploy change; no edits to any
+`*-substrate-adapter.ts`, `shared/core/calc-substrate/`,
+`substrate-calc-mode-resolver.ts`, `fund-calculation-mode-service.ts`,
+`ConstrainedReserveEngine.ts`, `reconciliation-runs.ts`, the T9
+writer/table/helper (beyond importing them), or the MOIC/facts/monte-carlo
+readers; no new dependencies; no Phoenix-protected path edits.
