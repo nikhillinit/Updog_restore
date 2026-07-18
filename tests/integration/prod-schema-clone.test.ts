@@ -79,6 +79,10 @@ const ALLOCATION_SCENARIO_MANIFEST_TABLES = [
   'allocation_scenario_ic_decisions',
 ] as const;
 const SCENARIO_CASE_SEED_PROVENANCE_MANIFEST_TABLES = ['scenario_case_seed_provenance'] as const;
+// M9 (09-substrate-shadow-reconciliations): ADR-050 append-only ledger (journal 0035).
+const SUBSTRATE_SHADOW_RECONCILIATION_MANIFEST_TABLES = [
+  'substrate_shadow_reconciliations',
+] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
   'flags_state',
@@ -701,6 +705,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...H9_MANIFEST_TABLES,
         ...ALLOCATION_SCENARIO_MANIFEST_TABLES,
         ...SCENARIO_CASE_SEED_PROVENANCE_MANIFEST_TABLES,
+        ...SUBSTRATE_SHADOW_RECONCILIATION_MANIFEST_TABLES,
       ])
     );
 
