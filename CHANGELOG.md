@@ -21,6 +21,39 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-07-18)
+
+- **Tranche 5 ConstrainedReserveEngine substrate adoption (ADR-046).** The
+  constrained greedy reserve engine now runs against an injected
+  `CalculationContext` via a WRAPPING adapter
+  `shared/core/reserves/constrained-reserve-substrate-adapter.ts`
+  (calculationKey `reserve-constrained`) with ZERO edits to the engine - the
+  first tranche whose adopted engine's source is touched zero times. The engine
+  draws no randomness, does no ambient read (Date.now / new Date / process.env /
+  Math.random all zero), holds no cache, and sets no global Decimal config
+  (exact BigInt cents), so unlike Tranche 4 it needs no capability seam and no
+  cache-identity fix. The synchronous adapter (mirroring Tranche 3, not Tranche
+  4's async form) wraps a fresh stateless engine per run, projects the result
+  JSON-safe with the three money fields as fixed 2-decimal strings (disclosed
+  deviation from Tranche 4's plain numbers, justified because the amounts are
+  exact cents), hashes the RAW input under `admitForHashing` with the
+  inadmissible-sentinel fallback (Tranche 3 pattern, not Tranche 4's
+  parsed-input hashing), and restates the frozen methodology (PV/score formula,
+  engine fallbacks 5/0.5/0.12, ConstraintsSchema documented defaults, cents
+  rounding, MAX_COMPANY_CAP_CENTS, tie-break, greedy fill) as the assumptions
+  hash - kept honest by an introspection parity test against the live
+  `ConstraintsSchema`. The value is seed-invariant (disclosed and pinned); no
+  fork label is consumed or reserved. 35 new tests
+  (`tests/unit/constrained-reserve-substrate/`) pin HAND-DERIVED goldens (a
+  return to the Tranche 2/3 discipline, contrasted with Tranche 4's captured
+  goldens) across every branch (score/name/id tie-break, per-company and
+  per-stage caps, minCheck skip, exhaustion, empty companies, cent precision,
+  and both engine throws), prove four-part
+  parity/determinism/seed-invariance/hash evidence against both result schemas,
+  and guard the adapter against ambient reads. With this tranche all four
+  reserve/pacing calc engines are adapter-backed; the engine file diff is empty
+  and no consumers were rewired.
+
 ### Added (2026-07-17)
 
 - **Tranche 4 DeterministicReserveEngine substrate adoption (ADR-045).** The
