@@ -6959,3 +6959,221 @@ engine suites and the pacing/reserve/calc-substrate suites byte-green):
 seam and cache-identity fix inside
 `shared/core/reserves/DeterministicReserveEngine.ts`, plus
 `tests/unit/deterministic-reserve-substrate/` (34 tests).
+
+## ADR-046: Tranche 5 Substrate Adoption of the ConstrainedReserveEngine (Demo Scope)
+
+**Date:** 2026-07-18 **Status:** [ACCEPTED] Implemented (demo scope)
+**Decision:** Adopt `shared/core/reserves/ConstrainedReserveEngine.ts` onto the
+ADR-042 calculation substrate via a WRAPPING (not restating) adapter
+(`shared/core/reserves/constrained-reserve-substrate-adapter.ts`, calculationKey
+`reserve-constrained`) and ZERO edits to the engine. Restating the pure greedy
+kernel was rejected (no reason to duplicate a deterministic function). A
+capability seam was rejected as unnecessary: the engine performs no ambient
+read. A cache-identity fix was rejected as unnecessary: there is no cache. This
+is the first tranche whose adopted engine's source is touched ZERO times - a
+disclosable property. Same owner-granted demo override of program-governance
+gates as ADR-042/043/044/045; technical invariants (determinism, hash integrity,
+disclosure of suppressed results, no silent financial fabrication) are enforced
+in code and tests. With this tranche all four reserve/pacing engines (pacing =
+T2, rule/ML reserve = T3, deterministic reserve = T4, constrained reserve = T5)
+are adapter-backed.
+
+### Context: verified audit (re-verified on the tranche branch)
+
+- **Zero ambient reads.** The engine (147 lines) has no `Date.now`, no
+  `new Date`, no `process.env`, no `Math.random` (all four scanned to zero
+  occurrences). No output field and no math branch depends on the wall clock, so
+  there is nothing to inject and no seam to add. The ambient-guard test scans
+  only the adapter.
+- **No randomness.** Ordering is a deterministic score sort with a stable
+  tie-break (descending `score`, ties broken by
+  `a.name.localeCompare(b.name) || a.id.localeCompare(b.id)`). Consequently the
+  adapter value is seed-invariant (disclosed and pinned, as ADR-044/045 did). NO
+  fork label is consumed and none is reserved: there is nothing to migrate onto
+  `ctx.rng`.
+- **No cache, no global mutation.** The engine holds no calculation cache, sets
+  no global `Decimal` config (it works in exact BigInt cents via
+  `shared/lib/cents.ts`), and mutates nothing module-scoped. The only module
+  constant is `MAX_COMPANY_CAP_CENTS = BigInt(Number.MAX_SAFE_INTEGER)`. There
+  is no cache-identity defect to repair (contrast ADR-045).
+- **Exact-cents money.** Every returned amount is `fromCents` of a BigInt, i.e.
+  an exact 2-decimal value, non-negative by construction; conservation
+  (`in == out`) holds to the cent, so `conservationOk` is always true.
+- **Math pinned in characterization.** `disc = discountRateAnnual ?? 0.12`; per
+  company `yearsToExit = graduationYears[stage] ?? 5`,
+  `exitProb = graduationProb[stage] ?? 0.5`,
+  `discountFactor = (1 + disc) ** yearsToExit`,
+  `pv = (reserveMultiple * exitProb) / discountFactor`, `score = pv * weight`;
+  then a single greedy pass fills each company up to
+  `min(remaining, stageRoom, companyCap)`. Reachable throws (mapped to
+  ENGINE_ERROR): `No policy for {stage}` (a schema-valid input can still hit
+  this, since the stage/policy cross-check lives in `validateReserveInput`, not
+  `ReserveInputSchema`) and `Invalid discount calculation for stage {stage}`
+  (reachable via `discountRateAnnual: 1` with a large `graduationYears`, which
+  overflows `discountFactor` to non-finite).
+- **Input-type note.** The engine consumes `ReserveInput` from
+  `shared/schemas.ts` (`ReserveInputSchema`), NOT the `reserves-schemas.ts`
+  `ReserveAllocationInput` used by ADR-045. It has no Date fields, so the RAW
+  input is directly hash-admissible - EXCEPT an explicit non-finite
+  `maxPerCompany` (`nonNegative()` admits `Infinity`). Because
+  `ConstraintsSchema` is `.partial()`, its field defaults (including
+  `maxPerCompany: Infinity`) are suppressed on parse, so the parsed input
+  reintroduces no Infinity of its own and the plan's stated premise (parsed
+  default Infinity) does not actually arise; raw-input hashing is still chosen
+  for ADR-043/044 consistency and to cover an explicitly-passed non-finite cap
+  via the sentinel.
+
+### Disposition table
+
+| Surface                                                                                                                       | Disposition | Notes                                                                                           |
+| ----------------------------------------------------------------------------------------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------- |
+| `shared/core/reserves/ConstrainedReserveEngine.ts`                                                                            | adapt       | WRAPPED with ZERO source edits; the engine file diff is empty (the whole point of this tranche) |
+| `shared/core/reserves/constrained-reserve-substrate-adapter.ts`                                                               | new         | Synchronous wrapping adapter, calculationKey `reserve-constrained`                              |
+| `client/src/core/reserves/ConstrainedReserveEngine.ts` (re-export shim)                                                       | reuse       | One-line re-export, no fork/drift risk; untouched                                               |
+| `server/routes/v1/reserves.ts`                                                                                                | defer       | Live consumer: constructs the engine and calls `.calculate()`; NOT rewired this tranche         |
+| `client/src/lib/excel-parity-validator.ts`                                                                                    | defer       | Constructs the engine for Excel parity tooling; unchanged                                       |
+| `server/core/reserves/adapter.ts`                                                                                             | defer       | Type-only import plus an injected engine instance; unchanged                                    |
+| `scripts/backtest.ts`, `scripts/validate-excel-parity.ts`                                                                     | defer       | Dev tooling (via the client shim), not production surfaces                                      |
+| Pre-existing tests (`ConstrainedReserveEngine.test.ts`, `adapter-unit-guard`, `phase3-critical-bugs`, `funds-boundary-guard`) | reuse       | Pass UNMODIFIED - the zero-edits proof                                                          |
+| `ReserveEngine.ts` / `DeterministicReserveEngine.ts`                                                                          | untouched   | Prior tranches (ADR-044/045); out of scope                                                      |
+
+### Decision details
+
+- **Wrapping, not restating (zero engine edits).** The adapter constructs a
+  fresh `ConstrainedReserveEngine` per run and calls its single synchronous
+  `calculate(parsedInput)`. The engine is stateless, so a fresh instance is
+  trivial and guarantees no cross-call state. The entry
+  `runConstrainedReserveWithSubstrate(ctx, input, options)` is SYNCHRONOUS
+  (mirroring the ADR-044 reserve adapter, not ADR-045's async one); `options` is
+  `{ configuredMode, killSwitchActive }` with no algorithm option (the engine
+  has no ML/env branch). Context contract-version and calculationKey are guarded
+  as in the precedents.
+- **Value boundary (disclosed money-as-2dp-string choice).** The value is the
+  engine result projected JSON-safe: `allocations`
+  (`{ id, name, stage, allocated }[]`), `totalAllocated`, `remaining`,
+  `conservationOk`, plus `asOfUtc` from `ctx.clock.isoNow()`. The three money
+  fields are emitted as fixed 2-decimal strings. This differs from ADR-045's
+  plain-numbers choice precisely because these outputs are exact cents rather
+  than irrational Decimal amounts: a 2dp string fabricates no precision and
+  restores the ADR-043/044 money-as-string discipline. Hash admission normalizes
+  "30000.00" -> "30000", so identities never depend on the padded spelling. The
+  value schema is strict; a test round-trips every emitted value through
+  `admitForHashing`, and a cents fixture ($100.55) proves the boundary is
+  cent-faithful, not whole-dollar-rounded. **Considered alternative:** plain
+  finite numbers a la ADR-045 - rejected because whole-dollar strings would lose
+  the cents while plain numbers would drop the money-as-string discipline the
+  exact-cents values make cheap to keep.
+- **Hashes (raw-input choice).** `inputHash` = `canonicalSha256` over
+  `{ domain: 'updog.reserve-constrained.input-hash', input: admitForHashing(rawInput) }`
+  with the inadmissible-sentinel fallback (`{ inadmissibleInput: true }`) - the
+  ADR-043/044 pattern, NOT ADR-045's parsed-input hashing. The common
+  omitted-constraints input is directly admissible. The one
+  schema-valid-but-inadmissible case is an explicit `maxPerCompany: Infinity`,
+  which collapses onto the sentinel; two inputs differing only elsewhere while
+  both pinning `maxPerCompany: Infinity` therefore share one input identity - a
+  disclosed consequence of raw hashing (as equivalent spellings were in
+  ADR-044), pinned by a collision test. `assumptionsHash` covers the domain
+  `updog.reserve-constrained.assumptions-hash`, the methodology version, and the
+  frozen methodology: the PV/score formula identity, the engine flat fallbacks
+  (`yearsToExit` 5, `exitProb` 0.5, `disc` 0.12), the ConstraintsSchema
+  documented defaults (minCheck 0, discountRateAnnual 0.12, maxPerStage {},
+  maxPerCompany "unbounded", the graduationYears/graduationProb per-stage
+  default maps), the cents rounding rule (half-away-from-zero to whole cents),
+  `MAX_COMPANY_CAP_CENTS`, the ranking tie-break, and the greedy-fill rule. A
+  restatement parity test extracts the live `ConstraintsSchema` defaults by
+  introspection and pins them against the restatement; the flat fallbacks are
+  kept honest by the characterization goldens (change one and the hand-derived
+  allocations move). **Honest subtlety recorded:** because `ConstraintsSchema`
+  is `.partial()`, the `graduationYears`/`graduationProb` per-stage default maps
+  never materialize on parse, so the engine's flat `?? 5` / `?? 0.5` fallbacks -
+  not those maps - govern an omitted-constraints run; both are recorded in the
+  assumptions hash for completeness. `resultHash` uses the substrate
+  `computeResultHash` unchanged.
+- **Goldens: hand-derived, not captured.** Every golden in
+  `tests/unit/constrained-reserve-substrate/fixtures.ts` is HAND-DERIVED in
+  cents from the formula and greedy fill - a deliberate return to the
+  ADR-043/044 discipline, in contrast with ADR-045's captured-then-frozen
+  goldens (necessary there because a 924-line Decimal.js kernel is not
+  pencil-derivable). The ordering rationale (pv/score) lives in comments; the
+  observable golden is the allocation set, which the engine exposes and the
+  characterization suite pins.
+- **Result semantics.** `on` -> `available`; `shadow` -> `indicative` with
+  `SHADOW_ONLY`; configured `off` -> `unavailable` with `MODE_OFF`; kill switch
+  -> effective `off`, `unavailable` with `KILL_SWITCH_ACTIVE` (both codes when
+  both apply); schema-invalid input (e.g. empty `stagePolicies`) -> `failed`
+  with `INPUT_INVALID` and a diagnostic; engine throw -> `failed` with
+  `ENGINE_ERROR`. Empty `companies` is a valid input -> `available` with empty
+  allocations, zero totals, and `remaining == availableReserves` (a faithful
+  empty result, not `unavailable`). Every non-available path carries at least
+  one registered reason code; there is no silent fallback.
+- **Versions.** `engineVersion: constrained-reserve-engine/1.0.0`,
+  `methodologyVersion: constrained-reserve-methodology/1.0.0`. Changing the
+  kernel math, the cents rounding rule, the tie-break, the caps, or the hash
+  domains bumps the methodology or engine version.
+
+### Alternatives considered
+
+- **Restate the kernel (ADR-043/044 style):** rejected; the engine is a pure,
+  ambient-free, deterministic function, so duplicating it into the adapter would
+  add a second copy to keep in sync for no benefit. Wrapping is strictly simpler
+  and needs zero engine edits.
+- **Add a capability seam (ADR-045 style):** rejected as unnecessary; the engine
+  reads no wall clock, env, or randomness.
+- **Fix a cache identity (ADR-045 style):** rejected as unnecessary; there is no
+  cache.
+- **Emit plain finite numbers (ADR-045 boundary):** rejected; the amounts are
+  exact cents, so a 2dp decimal string is faithful and keeps the money-as-string
+  discipline.
+- **Hash the schema-parsed input (ADR-045 boundary):** rejected; the raw input
+  has no Dates and (`.partial()` suppression) no Infinity of its own, so raw
+  hashing works with the sentinel fallback and matches ADR-043/044.
+- **Capture goldens (ADR-045 boundary):** rejected; the math is hand-derivable,
+  so hand-derived goldens double as a specification.
+
+### Parity evidence summary
+
+`tests/unit/constrained-reserve-substrate/` (35 tests, all green; the
+pacing/reserve/deterministic-reserve/calc-substrate suites and the pre-existing
+`ConstrainedReserveEngine` fast-check suite stay byte-green; the engine file
+diff is empty):
+
+- Characterization (12) pins the legacy engine BEFORE adoption on eight
+  hand-authored fixtures: score ordering across stages with reserve exhaustion
+  and the filtered-out zero; the per-company cap with the name tie-break; the
+  per-stage cap with a stage-room skip; the minCheck skip; the empty-companies
+  faithful-empty result; the full tie-break ladder (score -> name -> id); a
+  cent-precision case ($100.55); the `No policy` and invalid-discount throws
+  (message + status 400); and conservation/bounds/determinism invariants across
+  the value fixtures.
+- Adapter (22) proves: repeat-run byte-identical results with equal 64-hex
+  result hashes; different inputs change both hashes; a different asOf changes
+  the result hash but not the input hash; DISCLOSED seed-invariance (different
+  ctx seeds -> identical value and hash); field-for-field parity with a freshly
+  constructed engine plus the hand-derived 2dp-string goldens; cent-faithful
+  money and boundary-preserved tie-break order; mode/kill-switch/invalid-input/
+  engine-throw invariants against BOTH the tranche and generic result schemas;
+  value round-trips `admitForHashing`; the disclosed raw-hashing Infinity
+  collision; the assumptions restatement pinned against the live
+  `ConstraintsSchema`; and the context calculationKey guard.
+- An ambient-state source guard (1) scans ONLY the adapter for `Math.random`,
+  argless `new Date()`, `Date.now`, and `process.env` (the engine is clean and
+  not scanned).
+
+### Consequences
+
+- ConstrainedReserveEngine can now run against an injected `CalculationContext`
+  and emit a hash-bound `CalcResult`; `server/routes/v1/reserves.ts` and the
+  Excel parity validator keep the legacy `.calculate()` path (no consumer
+  rewiring this tranche).
+- All four reserve/pacing calc engines are now adapter-backed, which unblocks
+  the two still-open program slices for future tranches: **wire a consumer**
+  (route a live caller such as `server/routes/v1/reserves.ts` through the
+  adapter with a resolved mode) and **modes-registry wiring**
+  (`fund_calculation_modes` / kill-switch persistence feeding `configuredMode`
+  and `killSwitchActive`). Both remain out of scope here per the tranche plan,
+  alongside DB rows/migrations, flags registry, UI, queues, and Monte Carlo.
+
+**Implementation:**
+`shared/core/reserves/constrained-reserve-substrate-adapter.ts` (new; the engine
+is wrapped unchanged) plus `tests/unit/constrained-reserve-substrate/` (35
+tests: fixtures, characterization, adapter/evidence, ambient guard).
