@@ -23,7 +23,7 @@
  *   `KILL_SWITCH_ACTIVE` (not `MODE_OFF`) - carried end to end.
  */
 
-import { createCalculationContext } from '@shared/core/calc-substrate';
+import { createCalculationContext, type CalcMode } from '@shared/core/calc-substrate';
 import {
   CONSTRAINED_RESERVE_CALCULATION_KEY,
   runConstrainedReserveWithSubstrate,
@@ -34,6 +34,7 @@ import {
   resolveSubstrateCalcMode,
   type SubstrateCalcModeResolution,
 } from './substrate-calc-mode-resolver';
+import { persistSubstrateShadowReconciliation } from './substrate-shadow-reconciliation-writer';
 
 /** Minimal structural logger this helper needs; the pino app logger satisfies it. */
 export interface ShadowLogger {
@@ -160,6 +161,37 @@ export function reconcileConstrainedReserveShadow(
   };
 }
 
+/**
+ * The durable audit-ledger record persisted for one value-producing shadow
+ * reconciliation (Tranche 9, ADR-050). Built ONLY on the same gate as the
+ * reconciliation log (a substrate value exists AND the route supplied
+ * `legacyResult`), so `substrateState` is always `available` or `indicative`.
+ * Fed straight into the fund-scoped, append-only
+ * `substrate_shadow_reconciliations` table.
+ */
+export interface SubstrateShadowReconciliationRecord {
+  fundId: number;
+  calculationKey: string;
+  configuredMode: CalcMode;
+  effectiveMode: CalcMode;
+  killSwitchActive: boolean;
+  substrateState: 'available' | 'indicative';
+  reconciliationStatus: 'match' | 'mismatch';
+  inputHash: string;
+  resultHash: string;
+  assumptionsHash: string;
+  mismatches: string[];
+}
+
+/**
+ * Injectable writer seam, mirroring the `resolveMode` philosophy one level up:
+ * prod uses the real append-only DB writer; tests pass a fake so the
+ * persistence assertions stay DB-free.
+ */
+export type PersistSubstrateShadowReconciliationFn = (
+  record: SubstrateShadowReconciliationRecord
+) => Promise<void>;
+
 export interface ObserveConstrainedReserveSubstrateShadowParams {
   fundId: number;
   input: unknown;
@@ -173,6 +205,14 @@ export interface ObserveConstrainedReserveSubstrateShadowParams {
    * behavior (shadow disclosure only).
    */
   legacyResult?: LegacyConstrainedReserveResult;
+  /**
+   * Injectable persistence seam (Tranche 9, ADR-050). Defaults to the real
+   * append-only DB writer. A best-effort insert runs ONLY when the
+   * reconciliation itself runs (a substrate value exists AND `legacyResult` is
+   * supplied); a throwing writer is swallowed - persistence is off the response
+   * path and can never surface to the caller.
+   */
+  persist?: PersistSubstrateShadowReconciliationFn;
 }
 
 /**
@@ -186,6 +226,7 @@ export async function observeConstrainedReserveSubstrateShadow({
   asOf,
   log = logger,
   legacyResult,
+  persist = persistSubstrateShadowReconciliation,
 }: ObserveConstrainedReserveSubstrateShadowParams): Promise<{ ran: boolean }> {
   try {
     const resolution = await resolveMode({
@@ -252,6 +293,38 @@ export async function observeConstrainedReserveSubstrateShadow({
             mismatches: reconciliation.mismatches,
           },
           'constrained reserve substrate reconciliation MISMATCH'
+        );
+      }
+
+      // Persistence (ADR-050): durably record THIS reconciliation observation in
+      // the append-only, fund-scoped audit ledger. Best-effort and idempotent -
+      // ordered AFTER the reconciliation log, wrapped in its OWN try/catch so a
+      // persist failure logs one warn and is swallowed: it never surfaces to the
+      // caller, never throws, never alters the response, and never prevents the
+      // reconciliation log above.
+      const record: SubstrateShadowReconciliationRecord = {
+        fundId,
+        calculationKey: CONSTRAINED_RESERVE_CALCULATION_KEY,
+        configuredMode: resolution.configuredMode,
+        effectiveMode: result.basis.effectiveMode,
+        killSwitchActive: resolution.killSwitchActive,
+        substrateState: result.state,
+        reconciliationStatus: reconciliation.status,
+        inputHash: result.basis.inputHash,
+        resultHash: result.resultHash,
+        assumptionsHash: result.basis.assumptionsHash,
+        mismatches: reconciliation.mismatches,
+      };
+      try {
+        await persist(record);
+      } catch (persistError) {
+        log.warn(
+          {
+            fundId,
+            calculationKey: CONSTRAINED_RESERVE_CALCULATION_KEY,
+            error: persistError instanceof Error ? persistError.message : String(persistError),
+          },
+          'constrained reserve substrate reconciliation persist failed'
         );
       }
     }

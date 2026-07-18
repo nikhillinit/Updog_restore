@@ -217,4 +217,183 @@ describe('observeConstrainedReserveSubstrateShadow', () => {
     expect(log.info.mock.calls[0]![0]).not.toHaveProperty('reconciliation');
     expect(log.warn).not.toHaveBeenCalled();
   });
+
+  // Tranche 9 (ADR-050): best-effort, idempotent persistence of the value-producing
+  // reconciliation observation via the injectable `persist` seam. DB-free: a fake
+  // `persist` proves shape, gate, and swallow without touching a database.
+
+  it('persistence MATCH: persists exactly one correctly-shaped record (status match, empty mismatches)', async () => {
+    const resolveMode = resolverReturning({ configuredMode: 'shadow', killSwitchActive: false });
+    const log = makeLog();
+    const persist = vi.fn(async () => {});
+    // MATCH: legacy computed from the SAME parse the adapter uses.
+    const legacyResult = new ConstrainedReserveEngine().calculate(
+      ReserveInputSchema.parse(VALID_INPUT)
+    );
+
+    const result = await observeConstrainedReserveSubstrateShadow({
+      fundId: 21,
+      input: VALID_INPUT,
+      resolveMode,
+      asOf: FIXED_AS_OF,
+      log,
+      legacyResult,
+      persist,
+    });
+
+    expect(result).toEqual({ ran: true });
+    expect(persist).toHaveBeenCalledOnce();
+    const record = persist.mock.calls[0]![0] as SubstrateShadowReconciliationRecord;
+    expect(record).toMatchObject({
+      fundId: 21,
+      calculationKey: 'reserve-constrained',
+      configuredMode: 'shadow',
+      effectiveMode: 'shadow',
+      killSwitchActive: false,
+      substrateState: 'indicative',
+      reconciliationStatus: 'match',
+      mismatches: [],
+    });
+    expect(record.inputHash).toEqual(expect.any(String));
+    expect(record.resultHash).toEqual(expect.any(String));
+    expect(record.assumptionsHash).toEqual(expect.any(String));
+    // The persisted identity/status equals the logged reconciliation disclosure.
+    const reconCall = log.info.mock.calls.find((call) => call[0]!.reconciliation === 'match');
+    expect(reconCall).toBeDefined();
+    expect(record.resultHash).toBe(reconCall![0].resultHash);
+  });
+
+  it('persistence MISMATCH: persists one record whose status/mismatches match the warn disclosure', async () => {
+    const resolveMode = resolverReturning({ configuredMode: 'on', killSwitchActive: false });
+    const log = makeLog();
+    const persist = vi.fn(async () => {});
+    const tamperedLegacy = {
+      allocations: [{ id: 'c1', allocated: 42 }],
+      totalAllocated: 42,
+      remaining: 0,
+      conservationOk: true,
+    };
+
+    const result = await observeConstrainedReserveSubstrateShadow({
+      fundId: 22,
+      input: VALID_INPUT,
+      resolveMode,
+      asOf: FIXED_AS_OF,
+      log,
+      legacyResult: tamperedLegacy,
+      persist,
+    });
+
+    expect(result).toEqual({ ran: true });
+    expect(persist).toHaveBeenCalledOnce();
+    const record = persist.mock.calls[0]![0] as SubstrateShadowReconciliationRecord;
+    expect(record).toMatchObject({
+      fundId: 22,
+      calculationKey: 'reserve-constrained',
+      configuredMode: 'on',
+      effectiveMode: 'on',
+      killSwitchActive: false,
+      substrateState: 'available',
+      reconciliationStatus: 'mismatch',
+    });
+    expect(record.mismatches.length).toBeGreaterThan(0);
+    // The persisted mismatches are exactly the ones logged at warn.
+    const warnPayload = log.warn.mock.calls[0]![0];
+    expect(record.mismatches).toEqual(warnPayload.mismatches);
+  });
+
+  it('persistence: NOT called when legacyResult is absent (no reconciliation, nothing to persist)', async () => {
+    const resolveMode = resolverReturning({ configuredMode: 'shadow', killSwitchActive: false });
+    const log = makeLog();
+    const persist = vi.fn(async () => {});
+
+    const result = await observeConstrainedReserveSubstrateShadow({
+      fundId: 23,
+      input: VALID_INPUT,
+      resolveMode,
+      asOf: FIXED_AS_OF,
+      log,
+      persist,
+    });
+
+    expect(result).toEqual({ ran: true });
+    expect(persist).not.toHaveBeenCalled();
+  });
+
+  it('persistence: NOT called when mode-gated off (the shadow never runs)', async () => {
+    const resolveMode = resolverReturning({ configuredMode: 'off', killSwitchActive: false });
+    const log = makeLog();
+    const persist = vi.fn(async () => {});
+    const legacyResult = new ConstrainedReserveEngine().calculate(
+      ReserveInputSchema.parse(VALID_INPUT)
+    );
+
+    const result = await observeConstrainedReserveSubstrateShadow({
+      fundId: 24,
+      input: VALID_INPUT,
+      resolveMode,
+      asOf: FIXED_AS_OF,
+      log,
+      legacyResult,
+      persist,
+    });
+
+    expect(result).toEqual({ ran: false });
+    expect(persist).not.toHaveBeenCalled();
+  });
+
+  it('persistence: NOT called when the substrate produced no value (kill switch -> unavailable) even with legacyResult', async () => {
+    const resolveMode = resolverReturning({ configuredMode: 'on', killSwitchActive: true });
+    const log = makeLog();
+    const persist = vi.fn(async () => {});
+    const legacyResult = new ConstrainedReserveEngine().calculate(
+      ReserveInputSchema.parse(VALID_INPUT)
+    );
+
+    const result = await observeConstrainedReserveSubstrateShadow({
+      fundId: 25,
+      input: VALID_INPUT,
+      resolveMode,
+      asOf: FIXED_AS_OF,
+      log,
+      legacyResult,
+      persist,
+    });
+
+    expect(result).toEqual({ ran: true });
+    expect(persist).not.toHaveBeenCalled();
+  });
+
+  it('persistence best-effort: a THROWING persist is swallowed to { ran: true } with one warn and no rethrow', async () => {
+    const resolveMode = resolverReturning({ configuredMode: 'shadow', killSwitchActive: false });
+    const log = makeLog();
+    const persist = vi.fn(async () => {
+      throw new Error('insert boom');
+    });
+    // A MATCH, so the only warn possible is the persist-failure warn.
+    const legacyResult = new ConstrainedReserveEngine().calculate(
+      ReserveInputSchema.parse(VALID_INPUT)
+    );
+
+    const result = await observeConstrainedReserveSubstrateShadow({
+      fundId: 26,
+      input: VALID_INPUT,
+      resolveMode,
+      asOf: FIXED_AS_OF,
+      log,
+      legacyResult,
+      persist,
+    });
+
+    expect(result).toEqual({ ran: true });
+    expect(persist).toHaveBeenCalledOnce();
+    // The reconciliation MATCH still logged at info; the persist failure logs
+    // exactly one warn and never rethrows.
+    expect(log.warn).toHaveBeenCalledOnce();
+    expect(log.warn.mock.calls[0]![0]).toMatchObject({
+      fundId: 26,
+      calculationKey: 'reserve-constrained',
+    });
+    expect(log.warn.mock.calls[0]![0].error).toBe('insert boom');
+  });
 });

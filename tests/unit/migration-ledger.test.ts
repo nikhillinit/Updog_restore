@@ -45,6 +45,7 @@ const expectedJournaledDriftPatchFiles = [
   '0032_scenario_case_seed_provenance.sql',
   '0033_company_scenario_create_requests.sql',
   '0034_business_time_comparison_lineage.sql',
+  '0035_substrate_shadow_reconciliations.sql',
 ].sort();
 
 afterEach(() => {
