@@ -7177,3 +7177,118 @@ diff is empty):
 `shared/core/reserves/constrained-reserve-substrate-adapter.ts` (new; the engine
 is wrapped unchanged) plus `tests/unit/constrained-reserve-substrate/` (35
 tests: fixtures, characterization, adapter/evidence, ambient guard).
+
+## ADR-047: Tranche 6 Generic Substrate Calculation-Mode Resolver (Read Seam, Demo Scope)
+
+**Date:** 2026-07-18 **Status:** [ACCEPTED] Implemented (demo scope)
+**Decision:** Add ONE additive server service
+`server/services/substrate-calc-mode-resolver.ts` exporting async
+`resolveSubstrateCalcMode({ fundId, calculationKey, reader? })`, which reads
+`fund_calculation_modes` and returns the exact
+`{ configuredMode: CalcMode, killSwitchActive: boolean }` shape the four ADR-042
+substrate adapters consume as the leading prefix of their `*SubstrateOptions`
+(exported as `SubstrateCalcModeResolution`). This is the READ half of the still-
+open "wire a consumer" slice (ADR-046 Consequences): it turns
+`(fundId, calculationKey)` into an adapter-ready mode. It runs NO adapter,
+mounts NO route, edits NO adapter/schema/existing-reader, and writes NO row.
+Routing a live caller through it is deferred to Tranche 7. Same owner-granted
+demo override of program-governance gates as ADR-042..046; technical invariants
+(fail-safe defaults, no silent financial fabrication, honest disclosure) are
+enforced in code and tests.
+
+### Context: verified audit (re-verified on the tranche branch)
+
+- **The modes registry already exists and is consumed - not greenfield.**
+  `fund_calculation_modes` (schema `shared/schema/fund-calculation-modes.ts`,
+  migration `0017`) is keyed uniquely by `(fund_id, calculation_key)` with
+  `configured_mode varchar(16) default 'off'` (check constraint
+  `configured_mode IN ('off','shadow','on')`),
+  `kill_switch_active boolean default false`, and `version`. It is read by
+  `resolveFundCalculationMode` (`fund-calculation-mode-service.ts`,
+  MOIC/H9-specific `FundCalculationModePreview`) and by two per-key
+  collapse-style readers, `resolveReserveFactsCalculationMode`
+  (`reserve-calculation-service.ts`) and
+  `resolveMonteCarloActualsCalculationMode` (`monte-carlo-simulation.ts`).
+- **The genuine gap is a consumer, not the registry.** A grep across `server/`,
+  `client/`, and `shared/` (excluding tests and the adapters themselves) finds
+  ZERO non-test consumers of any `*SubstrateOptions` / `run*WithSubstrate`
+  adapter. The four adapters (T2 `pacing`, T3 `reserve`, T4
+  `reserve-deterministic`, T5 `reserve-constrained`) are wired to nothing.
+- **The adapters already own the mode -> disclosure mapping.** Each computes
+  `effectiveMode = killSwitchActive ? 'off' : configuredMode` internally and
+  emits `on` -> available, `shadow` -> indicative + SHADOW_ONLY, configured
+  `off` -> unavailable + MODE_OFF, kill switch -> unavailable +
+  KILL_SWITCH_ACTIVE (both codes when both apply). So a resolver need only
+  surface the two raw fields; it must not pre-decide the effective mode.
+
+### Non-collapse (the whole point of this seam)
+
+The two existing per-key readers COLLAPSE the row into a single `'off'` mode
+string
+(`if (mode?.killSwitchActive) return 'off'; return mode?.configuredMode === 'shadow' || mode?.configuredMode === 'on' ? mode.configuredMode : 'off'`).
+That is correct for their own consumers, which only need a mode. It is WRONG for
+feeding an adapter: collapsing a kill-switched
+`{ configuredMode: 'on', killSwitchActive: true }` to `'off'` (with
+`killSwitchActive` implicitly false) would make the adapter disclose `MODE_OFF`
+instead of `KILL_SWITCH_ACTIVE` - a misreported reason code.
+`resolveSubstrateCalcMode` therefore returns `configuredMode` and
+`killSwitchActive` as two INDEPENDENT fields, verbatim from the row, and lets
+the adapter apply the effective-mode rule. The adapter-drop-in test proves this
+end to end: the uncollapsed `{ on, true }` yields
+`unavailable + KILL_SWITCH_ACTIVE` with NO `MODE_OFF`, whereas a collapsed value
+would invert both codes.
+
+### Pinned safety rules (technical invariants)
+
+- **Safe default (no row):**
+  `{ configuredMode: 'off', killSwitchActive: false }`. Absent an explicit
+  per-fund opt-in the substrate is off (adapter -> unavailable
+  - MODE_OFF); never default to a more permissive mode.
+- **Fail-safe validation:** the stored `configuredMode` is validated with
+  `CalcModeSchema.safeParse`; any unexpected value (the DB check should prevent
+  it, but drift/corruption is defended against) falls back to `'off'`, never
+  `'shadow'`/`'on'`. `killSwitchActive` coerces to a strict boolean (`=== true`,
+  default false).
+- **Injectable reader:** a narrow
+  `SubstrateCalcModeReader = (fundId, calculationKey) => Promise<SubstrateCalcModeRow | null | undefined>`
+  seam (default `defaultSubstrateCalcModeReader`, wrapping
+  `db.query.fundCalculationModes.findFirst` over the two columns) lets tests run
+  without a live DB.
+- **calculationKey correspondence:** the DB `calculation_key` value equals the
+  substrate calculationKey VERBATIM (a row with
+  `calculation_key = 'reserve-constrained'` governs the constrained adapter).
+  The passed `calculationKey` is guarded with `CalculationKeySchema` and a
+  `TypeError` is thrown on an invalid key (programmer error), mirroring the
+  adapters' guard style.
+- **Return type** is exactly the `{ configuredMode, killSwitchActive }` prefix
+  shared by all four `*SubstrateOptions`, so a caller spreads it straight into
+  any adapter:
+  `runConstrainedReserveWithSubstrate(ctx, input, { ...resolution })`.
+
+### Disposition table
+
+| Surface                                                                             | Disposition | Notes                                                                                                     |
+| ----------------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------- |
+| `fund_calculation_modes` registry (`shared/schema/fund-calculation-modes.ts`, 0017) | reuse       | Already exists and is read; this seam issues the same `(fund_id, calculation_key)` lookup, no schema edit |
+| `resolveFundCalculationMode` (`fund-calculation-mode-service.ts`)                   | reuse       | Untouched; MOIC/H9-specific, returns a different preview shape                                            |
+| `resolveReserveFactsCalculationMode` / `resolveMonteCarloActualsCalculationMode`    | reuse       | Untouched; their collapse is correct for THEIR consumers, wrong for adapters (see Non-collapse)           |
+| The four `*-substrate-adapter.ts` (`*SubstrateOptions`, `run*WithSubstrate`)        | reuse       | Consume the resolution unchanged; adapter owns the effective-mode / reason-code mapping                   |
+| `server/services/substrate-calc-mode-resolver.ts`                                   | new         | The uncollapsed read seam this ADR adds                                                                   |
+| Consumer wiring (route a live caller through the resolver + an adapter)             | defer       | Tranche 7 - this ADR is the read half only                                                                |
+
+### Consequences
+
+- A caller can now obtain an adapter-ready mode for any
+  `(fundId, calculationKey)` in one call, with the kill-switch distinction
+  intact. This is the keystone that unblocks Tranche 7 (wire the first substrate
+  consumer) without touching a route or changing any behavior in this tranche.
+- Out of scope here (unchanged from ADR-046): routes, consumer rewiring, adapter
+  edits, DB rows/writes/migrations, the flags registry, UI, queues, and Monte
+  Carlo.
+
+**Implementation:** `server/services/substrate-calc-mode-resolver.ts` (new) plus
+`tests/unit/services/substrate-calc-mode-resolver.test.ts` (14 tests: on/shadow/
+off mapping, non-collapse, safe default, calculationKey isolation, fail-safe
+invalid mode, strict-boolean kill switch, invalid-key TypeError, the default
+reader's column/where query shape, and the adapter-drop-in disclosure across all
+four states).
