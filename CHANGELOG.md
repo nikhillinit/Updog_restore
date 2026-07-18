@@ -23,6 +23,22 @@ and this project adheres to
 
 ### Added (2026-07-18)
 
+- **Tranche 10 read the constrained-reserve substrate shadow reconciliation
+  ledger (ADR-051).** The Tranche 9 `substrate_shadow_reconciliations` trust
+  record, previously write-only, is now queryable: a NEW read-only, fund-scoped
+  `GET /api/v1/reserves/constrained/reconciliations?fundId=N[&limit=M]` on the
+  prod-live `reservesV1Router` returns the most recent reconciliation
+  observations (newest first via the `(fund_id, observed_at DESC)` index; limit
+  defaults to 50, hard-capped at 200) through a NEW injectable-seam read service
+  (`server/services/substrate-shadow-reconciliation-reader.ts`). Because the
+  ledger is per-fund STORED data - unlike `POST /calculate`, which stays
+  byte-identical and guard-free - the handler enforces fund scope (universal
+  non-LP team-member READ, else strict fail-closed grants) behind the global
+  Bearer boundary. PROD-SAFE before provisioning: migration `0035` is
+  local-only, so the default reader treats PG `42P01` (table absent, matched
+  through the error cause chain) as an empty ledger - a prod read is a 200 with
+  `[]`, never a 500; non-`42P01` errors propagate. No writes, no promotion, no
+  migration, no prod DB change.
 - **Tranche 9 persist the constrained-reserve substrate shadow reconciliation
   (ADR-050).** The Tranche 8 reconciliation outcome, previously logged and lost,
   is now durable: each value-producing (`available`/`indicative`) shadow run of
