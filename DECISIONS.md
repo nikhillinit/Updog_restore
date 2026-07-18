@@ -7937,3 +7937,156 @@ edits to any `*-substrate-adapter.ts`, `shared/core/calc-substrate/`,
 T10 reader/GET route, or `reconciliation-runs.ts` (import-only); no
 response-envelope or allocation-key changes; no new npm dependencies; no UI; no
 Phoenix-protected path edits.
+
+## ADR-053: Tranche 12 Activation Rehearsal and Gated Prod Provisioning of the Constrained-Reserve Reconciliation Ledger, Prod Dormant (Demo Scope)
+
+### Status
+
+Accepted.
+
+### Context
+
+Two gaps remained after Tranche 11 (ADR-042..052 all merged):
+
+1. **No environment had ever activated the arc through a real registry row.**
+   Every T6-T11 proof used injected seams, a mocked resolver module, or the
+   database mock. The chain "operator writes a `fund_calculation_modes` row ->
+   real resolver reads it -> shadow/promotion serves and persists through a real
+   database -> T10 GET returns the history" had never executed end-to-end
+   anywhere.
+2. **Prod cannot accumulate or serve reconciliation history.** Migration
+   `0035_substrate_shadow_reconciliations.sql` is local-only; the prod T10
+   endpoint serves `[]` via the `42P01` graceful-absence path, and the
+   `prod-schema-reconcile` tooling had no manifest covering the table, so the
+   gated apply pathway could not provision it.
+
+### Decision
+
+Tranche 12 closes both gaps without changing prod behavior:
+
+**Phase 1 (executed 2026-07-18, disposable environment, nothing committed):** a
+zero-mock full-stack activation rehearsal on a throwaway `postgres:16` container
+(WSL Docker, localhost:5433, refused non-localhost hosts). The full 37-migration
+journal chain was replayed (777 statements, 107 public tables), one fund (id 1)
+and one `fund_calculation_modes` row (`reserve-constrained`,
+`configured_mode='shadow'`) were seeded, and the REAL `makeApp` was driven with
+supertest under `npx tsx` (no vitest, so no database mock). Environment traps
+discovered and pinned for future rehearsals: the config loader override-loads
+`.env`/`.env.development` and preserves pre-set values only when the
+`_EXPLICIT_<VAR>` markers are set (without `_EXPLICIT_DATABASE_URL` the
+rehearsal URL is silently replaced by `.env.development`'s mock URL), and
+`ALLOW_MEMORY_STORAGE` must be pinned `0` because any truthy value resolves the
+`explicit-memory` boot mode, which installs the database MOCK in `server/db.ts`
+(`.env` sets it to `1`).
+
+**Phase 2 (this change):** manifest the ledger for the pre-existing gated apply
+pathway - NEW
+`scripts/prod-schema-manifests/09-substrate-shadow-reconciliations.json` (order
+9, `missingTablePolicy: "create_or_repair"`, sqlFiles = byte-unchanged
+`migrations/0035_substrate_shadow_reconciliations.sql`) plus the pinned
+manifest-list edit in `tests/unit/prod-schema-manifest-sentinels.test.ts`. After
+merge the owner dispatches `prod-schema-reconcile` in apply mode at the merged
+SHA and approves the `production-schema` environment gate. **Prod
+`fund_calculation_modes` stays EMPTY** - provisioning the table leaves prod
+behaviorally dormant; the real pilot flip is Tranche 13, a separate owner
+decision.
+
+### Phase 1 rehearsal evidence (2026-07-18, all five assertions PASS)
+
+- **(a) shadow:** `POST /api/v1/reserves/calculate?fundId=1` returned 200 with a
+  body deep-equal (modulo `rid`) to the no-fundId POST of the same input; the
+  ledger held exactly one row:
+  `configured_mode='shadow', effective_mode='shadow', kill_switch_active=false, substrate_state='indicative', reconciliation_status='match', mismatches=[]`,
+  `input_hash=36f89f91366a...`, `assumptions_hash=6ff6cdf97196...`.
+- **(b) idempotency - AMENDED against the pinned expectation.** The T12 plan
+  pinned "re-POST the SAME body -> row count UNCHANGED"; that is empirically
+  FALSE by design. The substrate VALUE embeds `asOfUtc`
+  (`constrained-reserve-substrate-adapter.ts:287`) and `resultHash` hashes the
+  value, so a re-POST of the same body is a NEW observation: the rehearsal
+  proved same `input_hash` + same `assumptions_hash` with a DIFFERENT
+  `result_hash`, appending a second row. What the unique key
+  `(fund_id, calculation_key, input_hash, result_hash)` + `onConflictDoNothing`
+  actually guarantees - proven by calling the real ADR-050 writer twice with row
+  1's exact record (no-op, count unchanged) - is same-OBSERVATION replay safety,
+  not temporal re-POST dedup. A distinct body changed `input_hash` and appended
+  (+1). T13 consequence: a prod fund in `shadow` appends one ledger row per
+  opted-in POST - bounded by request volume and fund-scoped.
+- **(c) T10 GET:** `/api/v1/reserves/constrained/reconciliations?fundId=1`
+  returned 200 with envelope
+  `{ fundId: 1, calculationKey: 'reserve-constrained', observations, rid }`,
+  observations newest-first, each carrying the full 13-field read DTO.
+- **(d) promotion:** after
+  `UPDATE fund_calculation_modes SET configured_mode='on'`, a POST with a third
+  distinct body returned 200 deep-equal to its no-fundId legacy twin; the server
+  logged `constrained reserve substrate promotion served` (exactly once in the
+  run); the new ledger row was
+  `configured_mode='on', effective_mode='on', substrate_state='available', reconciliation_status='match'`.
+- **(e) kill switch:** after `SET kill_switch_active=true`, a POST with a fourth
+  distinct body returned the legacy-identical 200 (delegation demotion) and
+  produced NO new ledger row (count unchanged - the kill-switched adapter yields
+  no value, so nothing reconciles or persists).
+- **Teardown:** the container was removed (`docker rm -f t12-rehearsal-pg`,
+  verified absent); the rehearsal scripts were deleted; nothing from Phase 1 is
+  committed beyond this evidence.
+
+### Manifest and sentinel facts (pinned)
+
+- Manifest 09 lists exactly the SIX constraints and ONE index that 0035's SQL
+  NAMES (`substrate_shadow_reconciliations_fund_key_input_result_unique`,
+  `_configured_mode_check`, `_effective_mode_check`, `_substrate_state_check`,
+  `_reconciliation_status_check`, `_fund_id_funds_id_fk`;
+  `idx_substrate_shadow_reconciliations_fund_observed`) and MUST NOT list
+  `substrate_shadow_reconciliations_pkey`: 0035 never names its serial PRIMARY
+  KEY, and the sentinel-survival pin only credits names appearing in the
+  manifest's own SQL - a pkey sentinel would fail the unit pin and, post-apply,
+  the reconcile audit.
+- Every column carries a `type` (un-typed manifest columns silently skip
+  type-drift detection); the vocabulary matches the reconcile normalization
+  (`serial` -> `integer`, `character varying` -> `varchar`,
+  `timestamp with time zone` -> `timestamptz`).
+- **Release-gate coupling:** `release-production.yml` invokes
+  `prod-schema-reconcile` (audit mode) as a promotion gate, and audit passes
+  only when ALL manifests are SKIP. From the moment this manifest merges until
+  the apply succeeds, production releases fail closed BY DESIGN - hence the
+  merge-then-apply-immediately sequencing.
+- **Hard-stop conditions:** apply proceeds only when the pre-apply audit reads
+  exactly `01..08: SKIP` +
+  `substrate-shadow-reconciliations: APPLY-MISSING-DDL`. Any REFUSE-FOR-HUMAN,
+  any 01-08 non-SKIP (unexpected prod drift), or 09 SKIP (table unexpectedly
+  present) stops the operation for the owner.
+
+### Disposition table
+
+| Component                                                                | Disposition               |
+| ------------------------------------------------------------------------ | ------------------------- |
+| `migrations/0035_substrate_shadow_reconciliations.sql`                   | reuse (byte-unchanged)    |
+| `scripts/reconcile-prod-schema.mjs`                                      | reuse (unchanged)         |
+| `.github/workflows/prod-schema-reconcile.yml`                            | reuse (unchanged)         |
+| `scripts/prod-schema-manifests/09-substrate-shadow-reconciliations.json` | new                       |
+| `tests/unit/prod-schema-manifest-sentinels.test.ts` (pinned list)        | edit                      |
+| Prod `fund_calculation_modes` row (any prod fund `shadow`/`on`)          | defer (Tranche 13, owner) |
+| Manifests for 0033/0034 (invisible to reconcile tooling)                 | defer                     |
+| Second substrate consumer                                                | defer                     |
+
+### Consequences
+
+After the gated apply, prod has the empty append-only ledger table with its six
+named constraints and index; the T10 endpoint transitions from 42P01-absence
+`[]` to real (initially empty) reads; and prod behavior is otherwise unchanged
+because the mode registry remains EMPTY, so every request resolves the universal
+`{ off, false }` default. The last infrastructure gap between "dormant" and
+"operator can flip a pilot fund" is closed. Tranche 13 = the owner flips ONE
+prod pilot fund to `shadow` FIRST (not `on`), lets real traffic accumulate
+parity history, consults `GET /api/v1/reserves/constrained/reconciliations`, and
+only then promotes that fund to `on` - at which point the T11 verified-parity
+seatbelt governs every served response.
+
+### Non-goals
+
+No prod `fund_calculation_modes` rows (no prod fund becomes `shadow`/`on` - prod
+stays dormant); no prod data writes of any kind (the ONLY prod change is the
+workflow's own gated apply of manifest 09); no manifests for 0033/0034; no new
+or edited migrations (0035 byte-identical); no edits to T1-T11 substrate
+services/routes/tests, `scripts/reconcile-prod-schema.mjs`, or
+`.github/workflows/prod-schema-reconcile.yml`; no UI; no new dependencies; no
+auto-merge; no Phoenix-protected path edits.
