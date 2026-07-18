@@ -7405,3 +7405,114 @@ existing MOIC/facts/monte-carlo readers; no change to the `/calculate` response
 shape, status codes, or auth; no wiring of the other three adapters; no
 persisting or reconciling the shadow; no DB rows/writes/migrations; no
 flag-registry changes; no UI/queues/Monte Carlo; no new dependencies.
+
+## ADR-049: Tranche 8 Reconcile the Constrained-Reserve Substrate Shadow Against the Legacy Output (Demo Scope)
+
+### Status
+
+Accepted.
+
+### Context
+
+Tranche 7 (ADR-048) wired the first live substrate consumer: the prod-live route
+`POST /api/v1/reserves/calculate` drives the constrained-reserve adapter through
+the T6 read seam as a mode-gated, best-effort shadow that COMPUTES and LOGS a
+`resultHash` but never COMPARES the substrate allocation output against the
+legacy `ConstrainedReserveEngine` output the route actually serves. Re-reading
+the T7 helper confirmed the gap: there is no trust signal yet - nothing asserts
+the substrate path reproduces the legacy path. The whole substrate arc is
+building toward "is the substrate faithful to the legacy path?"; T7 answered it
+with zero signal (a hash only).
+
+### Decision
+
+Extend the T7 shadow so that, when it runs (on/shadow, i.e. a value exists), it
+also RECONCILES the substrate allocation output against the legacy engine output
+the route computed for the same request, IN-PROCESS, and logs a structured
+parity/divergence disclosure (match -> info, mismatch -> warn). The comparison
+is logged server-side only; the HTTP response stays byte-identical; nothing is
+persisted. No DB, no migration, no new route, no adapter/resolver/schema edit.
+
+Why COMPARE (not "second consumer", not "persist"):
+
+- Compare is the first tranche that yields a trust signal - the precondition for
+  ever promoting the substrate to authoritative. Wiring more consumers first
+  multiplies unvalidated shadows.
+- Compare is genuinely non-trivial here: the adapter re-parses the input
+  (`ReserveInputSchema` vs the route's `validateReserveInput`), renders money as
+  fixed 2-decimal strings, and runs hash admission. Reconciliation verifies
+  those transformations are lossless - a real prod-log regression guard against
+  future adapter/engine refactors.
+- Persist is deferred: it would require lifting the no-DB-writes/no-migrations
+  posture and is premature before parity is established. Second consumer is
+  deferred: the other adapters lack a clean prod-live route consuming their
+  exact input (engine-summaries is Docker-only and 404s in prod).
+
+Design (pinned):
+
+- A NEW EXPORTED PURE function
+  `reconcileConstrainedReserveShadow(substrateValue, legacy)` in the T7 helper
+  file compares the substrate `ConstrainedReserveCalcValue` against a structural
+  `LegacyConstrainedReserveResult` (`allocations[{ id, allocated }]`,
+  `totalAllocated`, `remaining`, `conservationOk`; the route's richer `out`
+  satisfies it structurally). ALL money is normalized to exact integer cents
+  before comparison: the substrate 2-decimal string is split on `.` and
+  recombined (`Number(whole) * 100 + Number(frac)` - exact, never `parseFloat`),
+  the legacy number is `Math.round(n * 100)`. Allocations are keyed by `id`, so
+  the comparison is order- and float-artifact-independent. It accumulates a
+  human-readable `mismatches` string per divergence across the allocation id SET
+  (ids present on one side only), per-shared-id `allocated`, `totalAllocated`,
+  `remaining`, and `conservationOk`; an empty list is a `match`.
+- The helper gains an OPTIONAL `legacyResult?: LegacyConstrainedReserveResult`
+  param. When ABSENT it behaves EXACTLY as T7 (fully backward compatible). When
+  present AND `result.state` is `available` or `indicative` (so `result.value`
+  exists), the helper - AFTER the existing shadow disclosure log and INSIDE the
+  same best-effort try/catch - reconciles and logs a SECOND line: on match
+  `log.info({ fundId, calculationKey, reconciliation: 'match', substrateState, resultHash }, 'constrained reserve substrate reconciliation')`,
+  on mismatch the same fields plus `mismatches` at `log.warn` with the
+  `MISMATCH` message. A reconcile defect can never surface; the return stays
+  `{ ran: boolean }` (unchanged - the route ignores it).
+- The route (`server/routes/v1/reserves.ts`) passes one new field,
+  `legacyResult: out`, into the EXISTING
+  `observeConstrainedReserveSubstrateShadow` call. Nothing else changes: same
+  `?fundId` guard, same
+  `res.json({ allocations, totalAllocated, remaining, rid })`, same catch.
+
+Zero-response-change invariant (unchanged headline): the reconciliation reads
+`out` (already computed) and the substrate value (already computed) and only
+logs; it never enters the response body or status code, and never runs when the
+shadow is skipped (no `?fundId`, or mode-gated off). With no `?fundId` the
+response is byte-identical AND does zero extra work, exactly as T7.
+
+### Disposition table
+
+| Component                                                              | Disposition      |
+| ---------------------------------------------------------------------- | ---------------- |
+| `resolveSubstrateCalcMode` (T6 read seam)                              | reuse            |
+| constrained-reserve adapter (`runConstrainedReserveWithSubstrate`, T5) | reuse            |
+| `server/services/constrained-reserve-substrate-shadow.ts` (T7 helper)  | edit             |
+| `reconcileConstrainedReserveShadow` (pure compare)                     | new              |
+| `server/routes/v1/reserves.ts` (route)                                 | edit (one field) |
+| persistence + second consumer + other three adapters                   | defer            |
+
+### Consequences
+
+The substrate constrained-reserve path is now, for the first time, checked for
+FAITHFULNESS against the legacy path it shadows: on every opted-in prod-live
+`/calculate` request the substrate value and the served legacy output are
+reconciled in exact cents and any divergence is disclosed at warn. This is the
+parity precursor to promotion; the blast radius remains one-or-two server log
+lines (no persistence, no response change). Likely Tranche 9: PERSIST the
+shadow/reconciliation result, which requires lifting the no-DB-writes /
+no-migrations posture held since Tranche 1.
+
+### Non-goals
+
+No persistence, no DB rows/writes, no migrations (that is T9 and requires
+lifting the posture); no new routes; no second consumer; no edits to any
+`*-substrate-adapter.ts`, `shared/core/calc-substrate/`,
+`shared/schema/fund-calculation-modes.ts`, `substrate-calc-mode-resolver.ts`,
+`fund-calculation-mode-service.ts`, `ConstrainedReserveEngine.ts`, or the
+existing MOIC/facts/monte-carlo readers; no change to the `/calculate` response
+shape, status codes, or auth; no flag-registry changes; no UI/queues/Monte
+Carlo; no new dependencies.

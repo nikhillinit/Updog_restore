@@ -82,6 +82,7 @@ reservesV1Router.post('/calculate', async (req: Request, res: Response) => {
       await observeConstrainedReserveSubstrateShadow({
         fundId: Number(rawFundId),
         input: val.data,
+        legacyResult: out,
       });
     }
 

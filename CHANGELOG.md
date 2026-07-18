@@ -23,6 +23,26 @@ and this project adheres to
 
 ### Added (2026-07-18)
 
+- **Tranche 8 reconcile the constrained-reserve substrate shadow (ADR-049).**
+  The Tranche 7 shadow on `POST /api/v1/reserves/calculate` now, when it runs
+  (on/shadow), RECONCILES the substrate allocation output against the legacy
+  `ConstrainedReserveEngine` output the route serves for the same request,
+  IN-PROCESS, and logs a structured parity disclosure (match -> info, mismatch
+  -> warn). A new EXPORTED PURE function
+  `reconcileConstrainedReserveShadow(substrateValue, legacy)` in
+  `server/services/constrained-reserve-substrate-shadow.ts` normalizes ALL money
+  to exact integer cents (substrate 2-decimal string split on `.` and
+  recombined; legacy number via `Math.round(n * 100)` - never `parseFloat`),
+  keys allocations by `id`, and reports divergences across the allocation id
+  set, per-allocation `allocated`, `totalAllocated`, `remaining`, and
+  `conservationOk`. The helper takes a NEW optional
+  `legacyResult?: LegacyConstrainedReserveResult`; absent, it behaves EXACTLY as
+  Tranche 7. The route wires it with ONE new field, `legacyResult: out`, on the
+  existing shadow call. The comparison is logged server-side only - the HTTP
+  response stays byte-identical with or without `?fundId`, and nothing is
+  persisted (no DB, no migration). This is the parity precursor to promotion;
+  likely Tranche 9 persists the reconciliation result (which requires lifting
+  the no-DB posture).
 - **Tranche 7 wire the first substrate consumer (ADR-048).** The prod-live route
   `POST /api/v1/reserves/calculate` (`server/routes/v1/reserves.ts`, mounted by
   `makeApp` at `/api/v1/reserves`, the Vercel runtime) now drives the Tranche 5
