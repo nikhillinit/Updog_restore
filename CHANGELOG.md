@@ -23,6 +23,27 @@ and this project adheres to
 
 ### Added (2026-07-18)
 
+- **Tranche 11 promoted the constrained-reserve substrate to authoritative
+  behind `mode=on`, with a verified-parity seatbelt - dormant by default
+  (ADR-052).** The arc's FIRST serving-path change: a NEW promotion service
+  (`server/services/constrained-reserve-substrate-promotion.ts`) now sits in the
+  `?fundId` opt-in branch of prod-live `POST /api/v1/reserves/calculate`. For a
+  fund resolving `configuredMode 'on'` (kill switch inactive) the substrate
+  result is SERVED - but only when it verifies cents-exact against the legacy
+  engine for that same request (`available` + reconciliation `match` +
+  `conservationOk`); every other outcome (off/shadow/kill/failed/ mismatch, or
+  any throw) fail-safes to the legacy response with a warn-level demotion
+  disclosure. Non-`on` modes delegate to the untouched T7-T10 shadow helper with
+  the pre-resolved mode (zero extra registry query), preserving
+  shadow/reconcile/persist behavior byte-for-byte, and the `on` path persists
+  its reconciliation through the same T9 writer seam. Served allocations are the
+  LEGACY objects spread with only `allocated` replaced by `Number(...)` of the
+  adapter's exact-2dp string (the pinned serving parse), so the envelope shape,
+  allocation keys, status codes, and auth posture are unchanged and any byte
+  difference is float-noise cleanup, never cents. DORMANT: no mode registry row
+  exists or is seeded anywhere, so every environment resolves `off` and
+  responses are byte-identical to pre-T11 (pinned by the untouched T7
+  byte-identity test plus new service/route tests).
 - **Tranche 10 read the constrained-reserve substrate shadow reconciliation
   ledger (ADR-051).** The Tranche 9 `substrate_shadow_reconciliations` trust
   record, previously write-only, is now queryable: a NEW read-only, fund-scoped

@@ -6,7 +6,7 @@ import { CONSTRAINED_RESERVE_CALCULATION_KEY } from '../../../shared/core/reserv
 import logger from '../../utils/logger.js';
 import { isSafeReadMethod, resolveFundScope } from '../../lib/auth/fund-scope.js';
 import { isTeamMemberUser, principalFromUser } from '../../lib/auth/principal.js';
-import { observeConstrainedReserveSubstrateShadow } from '../../services/constrained-reserve-substrate-shadow.js';
+import { serveConstrainedReserveCalculation } from '../../services/constrained-reserve-substrate-promotion.js';
 import { readConstrainedReserveShadowReconciliations } from '../../services/substrate-shadow-reconciliation-reader.js';
 
 export const reservesV1Router = Router();
@@ -74,19 +74,29 @@ reservesV1Router.post('/calculate', async (req: Request, res: Response) => {
     const out = engine.calculate(val.data);
     if (!out.conservationOk) return res.status(500).json({ error: 'conservation_failed', rid });
 
-    // Best-effort, mode-gated substrate shadow (ADR-048): opt-in via ?fundId,
-    // computed and logged server-side only. The helper never throws, so it
-    // cannot affect the response body or status code; the response is
-    // byte-identical with or without ?fundId. No fund-scope guard is needed:
-    // the response never branches on fundId or mode, so there is no existence
-    // oracle and no per-fund stored data is read (only the caller-supplied
-    // ReserveInput is computed).
+    // Mode-gated substrate serving (ADR-052) behind the ?fundId opt-in: the
+    // promotion service serves the substrate result ONLY when the fund is
+    // configured `on` (kill switch inactive) AND the substrate verified
+    // cents-exact against the legacy output for THIS request; every other
+    // outcome (off/shadow/kill/failed/mismatch, or any throw) fail-safes to
+    // the legacy response and non-`on` modes keep the exact ADR-048/049/050
+    // shadow behavior, so the envelope shape, status codes, and the no-fundId
+    // path are unchanged. No fund-scope guard is needed: the response branches
+    // only on per-fund OPERATOR CONFIG (the mode registry), never on per-fund
+    // stored portfolio data, and a served substrate value is cents-identical
+    // to the legacy computation of the caller-supplied ReserveInput.
     const rawFundId = req.query['fundId'];
     if (typeof rawFundId === 'string' && /^[1-9]\d*$/.test(rawFundId)) {
-      await observeConstrainedReserveSubstrateShadow({
+      const outcome = await serveConstrainedReserveCalculation({
         fundId: Number(rawFundId),
         input: val.data,
         legacyResult: out,
+      });
+      return res.json({
+        allocations: outcome.response.allocations,
+        totalAllocated: outcome.response.totalAllocated,
+        remaining: outcome.response.remaining,
+        rid,
       });
     }
 
