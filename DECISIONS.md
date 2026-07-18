@@ -7516,3 +7516,149 @@ lifting the posture); no new routes; no second consumer; no edits to any
 existing MOIC/facts/monte-carlo readers; no change to the `/calculate` response
 shape, status codes, or auth; no flag-registry changes; no UI/queues/Monte
 Carlo; no new dependencies.
+
+## ADR-050: Tranche 9 Persist the Constrained-Reserve Substrate Shadow Reconciliation to an Append-Only Audit Ledger (Demo Scope)
+
+### Status
+
+Accepted.
+
+### Context
+
+Tranche 8 (ADR-049) added IN-PROCESS reconciliation: when the
+constrained-reserve substrate shadow runs (on/shadow) inside prod-live
+`POST /api/v1/reserves/calculate` and produces a value, the helper compares the
+substrate allocation output against the legacy `ConstrainedReserveEngine` output
+the route serves for the same request and logs a parity/divergence disclosure
+(match -> info, mismatch -> warn). Re-reading the T8 helper confirms the gap:
+the reconciliation outcome is LOGGED and then LOST. There is no durable,
+queryable trust RECORD over time - you cannot answer "has fund N's
+constrained-reserve substrate ever diverged, and when?" without scraping logs.
+The whole substrate arc builds toward a future promotion decision ("is the
+substrate faithful over time?"); that decision must rest on an accumulated
+parity record, not on ephemeral log lines. T8 gave the first trust SIGNAL; it
+left no trust RECORD.
+
+This tranche deliberately LIFTS the no-DB-writes / no-migrations posture that
+was in force for Tranches 1-8, but only within hard bounds: ONE new journaled,
+additive, replay-safe migration and ONE new Drizzle table, plus a best-effort DB
+insert from inside the T8 helper. LOCAL/test DB only. The migration is
+authored + journaled locally and reaches production ONLY via the pre-existing
+gated `prod-schema-reconcile` apply flow, which this tranche does NOT trigger
+and does NOT invoke. No prod DB, no CI/workflow, no credential, and no
+prod-deploy change.
+
+### Decision
+
+Persist each value-producing constrained-reserve shadow reconciliation
+observation (the parity outcome + calc identity hashes + mode/state) into a NEW
+append-only, fund-scoped, idempotent audit-ledger table, written BEST-EFFORT
+from inside the T8 helper, LOCAL/test DB only. No reads, no response change, no
+route change, no second consumer, no promotion of the substrate to
+authoritative.
+
+Why PERSIST now (not "second consumer", not "promote", not "expose/read"):
+
+- Persistence is the audit ledger a future promotion decision must rest on. It
+  is the precondition ADR-049 named for T9: T8 produced a trust signal but no
+  trust record.
+- Second consumer stays deferred: the other adapters lack a clean prod-live
+  route consuming their exact input (engine-summaries is Docker-only and 404s in
+  prod).
+- Promotion (serving the substrate value when `mode=on`) stays deferred: it
+  would be the first response change in the whole arc and must not precede an
+  accumulated parity record.
+- Expose/read (an endpoint or UI over the ledger) stays deferred: it is a
+  separate read surface (likely T10) and is not needed to start accumulating the
+  record.
+
+Design (pinned):
+
+- A NEW Drizzle table `substrate_shadow_reconciliations`
+  (`shared/schema/substrate-shadow-reconciliations.ts`), mirroring the
+  `reconciliation_runs` (MOIC/rounds) conventions but a SEPARATE table (the
+  substrate-shadow domain, not the MOIC domain; it reuses none of that table's
+  columns): serial `id`; `fund_id` -> `funds.id` `ON DELETE cascade`;
+  `calculation_key text`; CHECK-constrained `configured_mode`/`effective_mode`
+  varchar(8) IN `('off','shadow','on')`; `kill_switch_active boolean`; CHECK-
+  constrained `substrate_state` varchar(16) IN `('available','indicative')`
+  (only value-producing runs are persisted); CHECK-constrained
+  `reconciliation_status` varchar(16) IN `('match','mismatch')`;
+  `input_hash`/`result_hash`/`assumptions_hash` text (from `result.basis.*` /
+  `result.resultHash`); `mismatches jsonb` (`string[]`, `[]` on match - a
+  variable-length list legitimately in jsonb; every scalar identity/mode/status
+  field is a DEDICATED typed column, never blobbed);
+  `observed_at timestamptz DEFAULT now()`. Idempotency key
+  `unique(fund_id, calculation_key, input_hash, result_hash)` - same request ->
+  same substrate result -> ONE row. Lookup index `(fund_id, observed_at DESC)`.
+- A NEW migration `migrations/0035_substrate_shadow_reconciliations.sql`,
+  additive and replay-safe (`CREATE TABLE IF NOT EXISTS` with inline
+  constraints + `CREATE INDEX IF NOT EXISTS`, so a second application is a
+  strict no-op), authored + journaled per the `0034` + `meta/_journal.json`
+  convention (idx 36) and SHAPE-EQUAL to the Drizzle table. The only FK targets
+  `funds.id` (a serial PRIMARY KEY), so there is no PG 42830
+  composite-FK-to-uniqueIndex risk; all identifiers are under the PG 63-byte
+  limit. `shared/schema` remains the shape source, `./migrations` the ledger.
+- The T8 helper (`server/services/constrained-reserve-substrate-shadow.ts`)
+  gains an exported record type `SubstrateShadowReconciliationRecord`, an
+  injectable `PersistSubstrateShadowReconciliationFn` seam, and an OPTIONAL
+  `persist?` param defaulting to the real writer (mirroring the `resolveMode`
+  philosophy so tests stay DB-free). The DEFAULT writer
+  (`server/services/substrate-shadow-reconciliation-writer.ts`) issues
+  `db.insert(substrateShadowReconciliations).values(record).onConflictDoNothing()` -
+  idempotent by construction. Persistence runs ONLY on the SAME gate as the
+  reconciliation log (a substrate value exists AND `legacyResult` supplied),
+  ORDERED AFTER that log, inside its OWN try/catch that logs one `warn` and
+  swallows: a persist failure never surfaces to the caller, never throws, never
+  alters the response, and never prevents the reconciliation log. The helper's
+  return stays `{ ran: boolean }` (unchanged).
+- The route (`server/routes/v1/reserves.ts`) is UNCHANGED: it already passes
+  `legacyResult: out`; the helper owns persistence.
+
+Zero-response-change + best-effort invariants (unchanged headline): persistence
+adds one idempotent insert on opted-in (`?fundId`), mode-on/shadow,
+value-producing requests; it is off the response path and swallowed on failure.
+With no `?fundId` the response is byte-identical AND does zero extra work,
+exactly as T7/T8. Proven by the existing route supertest (byte-identical body
+with/without `?fundId`, the best-effort insert swallowed under the memory-mode
+mock DB).
+
+### Disposition table
+
+| Component                                                                    | Disposition                |
+| ---------------------------------------------------------------------------- | -------------------------- |
+| `resolveSubstrateCalcMode` (T6 read seam)                                    | reuse                      |
+| constrained-reserve adapter (`runConstrainedReserveWithSubstrate`, T5)       | reuse                      |
+| `server/services/constrained-reserve-substrate-shadow.ts` (T8 helper)        | edit                       |
+| `substrate_shadow_reconciliations` table + `0035` migration + default writer | new                        |
+| `reconciliation_runs` (MOIC/rounds ledger)                                   | reject-reuse (MOIC-domain) |
+| `server/routes/v1/reserves.ts` (route)                                       | unchanged                  |
+| second consumer + promotion + read/expose surface                            | defer                      |
+
+### Consequences
+
+For the first time in the arc the substrate/legacy parity outcome is DURABLE:
+every opted-in prod-live `/calculate` request whose substrate shadow produces a
+value writes one append-only, fund-scoped, idempotent row recording the parity
+status and calc identity. A future promotion decision can now rest on an
+accumulated, queryable trust record instead of scraped logs. The blast radius
+stays one best-effort insert off the response path (swallowed on failure); the
+HTTP response is byte-identical to T8. The migration is LOCAL-only and reaches
+prod only via the untriggered, gated `prod-schema-reconcile` apply flow. Likely
+Tranche 10: EXPOSE/READ the ledger (a query endpoint or trust-dashboard surface)
+OR PROMOTE the substrate to authoritative behind `mode=on` (the first response
+change, which must not precede an accumulated parity record).
+
+### Non-goals
+
+No reads/queries/endpoints/UI over the ledger (that is T10); no second consumer;
+no promotion (the substrate value is never served; the response stays
+byte-identical); no migration/`db:push`/`db:migrate` against prod or any remote
+DB (LOCAL/test only, reaching prod only via the untriggered gated reconcile
+flow); no CI/workflow, credential, or prod-deploy change; no edits to any
+`*-substrate-adapter.ts`, `shared/core/calc-substrate/`,
+`shared/schema/fund-calculation-modes.ts`, `substrate-calc-mode-resolver.ts`,
+`fund-calculation-mode-service.ts`, `ConstrainedReserveEngine.ts`,
+`reconciliation-runs.ts`, or the existing MOIC/facts/monte-carlo readers; no
+change to the `/calculate` response shape, status codes, or auth; no
+Phoenix-protected path edits; no new dependencies.

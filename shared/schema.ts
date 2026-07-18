@@ -41,6 +41,7 @@ export * from './schema/user';
 export * from './schema/lp-reporting-evidence';
 export * from './schema/operating-objects';
 export * from './schema/reconciliation-runs';
+export * from './schema/substrate-shadow-reconciliations';
 export * from './schema/fund-calculation-modes';
 export * from './schema/fund-moic-input-update-requests';
 export * from './schema/investment-rounds';

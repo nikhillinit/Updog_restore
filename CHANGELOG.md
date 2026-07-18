@@ -23,6 +23,40 @@ and this project adheres to
 
 ### Added (2026-07-18)
 
+- **Tranche 9 persist the constrained-reserve substrate shadow reconciliation
+  (ADR-050).** The Tranche 8 reconciliation outcome, previously logged and lost,
+  is now durable: each value-producing (`available`/`indicative`) shadow run of
+  `POST /api/v1/reserves/calculate` writes ONE append-only, fund-scoped,
+  idempotent row into a NEW `substrate_shadow_reconciliations` audit ledger,
+  BEST-EFFORT from inside the T8 helper. This tranche deliberately lifts the
+  no-DB-writes/no-migrations posture held since Tranche 1, within hard bounds:
+  ONE new Drizzle table (`shared/schema/substrate-shadow-reconciliations.ts`,
+  mirroring the `reconciliation_runs` conventions but a SEPARATE
+  MOIC-independent table - CHECK-constrained
+  `configured_mode`/`effective_mode`/`substrate_state`/ `reconciliation_status`,
+  dedicated typed hash columns, `mismatches jsonb`,
+  `unique(fund_id, calculation_key, input_hash, result_hash)` idempotency key,
+  `(fund_id, observed_at DESC)` index) and ONE new additive, replay-safe
+  migration (`migrations/0035_substrate_shadow_reconciliations.sql`,
+  `CREATE TABLE IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS`, shape-equal to
+  the Drizzle table, journaled at idx 36). The helper gains an exported
+  `SubstrateShadowReconciliationRecord` type and an injectable `persist?` writer
+  seam (default = `server/services/substrate-shadow-reconciliation-writer.ts`,
+  which issues `insert(...).values(record).onConflictDoNothing()`); persistence
+  runs ONLY on the same gate as the reconciliation log, ORDERED AFTER it, in its
+  OWN try/catch that logs one `warn` and swallows - a persist failure never
+  surfaces, never throws, never alters the response, and never blocks the log.
+  The route is UNCHANGED (it already passes `legacyResult: out`). ZERO response
+  change (byte-identical with/without `?fundId`) and best-effort-swallow remain
+  the headline invariants. The migration is LOCAL/test-DB only and reaches prod
+  ONLY via the untriggered, gated `prod-schema-reconcile` apply flow (NOT
+  invoked here); no prod DB, CI, credential, or deploy change. New tests: the
+  default writer's idempotent insert (mocked `db`, DB-free) and additive helper
+  cases (persist called exactly once with a correctly-shaped record on match and
+  on a synthetic mismatch; NOT called when `legacyResult` absent / mode-gated
+  off / no substrate value; a throwing writer swallowed to `{ ran: true }` with
+  one warn). Likely Tranche 10: expose/read the ledger OR promote the substrate
+  to authoritative behind `mode=on`.
 - **Tranche 8 reconcile the constrained-reserve substrate shadow (ADR-049).**
   The Tranche 7 shadow on `POST /api/v1/reserves/calculate` now, when it runs
   (on/shadow), RECONCILES the substrate allocation output against the legacy
