@@ -1,0 +1,41 @@
+{
+  "name": "substrate-shadow-reconciliations",
+  "order": 9,
+  "description": "Append-only fund-scoped ledger of constrained-reserve substrate shadow reconciliation observations (ADR-050).",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0035_substrate_shadow_reconciliations.sql"],
+  "allowedCreateTables": ["substrate_shadow_reconciliations"],
+  "expectedTables": [
+    {
+      "name": "substrate_shadow_reconciliations",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "calculation_key", "type": "text", "nullable": false },
+        { "name": "configured_mode", "type": "varchar", "nullable": false },
+        { "name": "effective_mode", "type": "varchar", "nullable": false },
+        { "name": "kill_switch_active", "type": "boolean", "nullable": false },
+        { "name": "substrate_state", "type": "varchar", "nullable": false },
+        {
+          "name": "reconciliation_status",
+          "type": "varchar",
+          "nullable": false
+        },
+        { "name": "input_hash", "type": "text", "nullable": false },
+        { "name": "result_hash", "type": "text", "nullable": false },
+        { "name": "assumptions_hash", "type": "text", "nullable": false },
+        { "name": "mismatches", "type": "jsonb", "nullable": false },
+        { "name": "observed_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "substrate_shadow_reconciliations_fund_key_input_result_unique",
+        "substrate_shadow_reconciliations_configured_mode_check",
+        "substrate_shadow_reconciliations_effective_mode_check",
+        "substrate_shadow_reconciliations_substrate_state_check",
+        "substrate_shadow_reconciliations_reconciliation_status_check",
+        "substrate_shadow_reconciliations_fund_id_funds_id_fk"
+      ],
+      "indexes": ["idx_substrate_shadow_reconciliations_fund_observed"]
+    }
+  ]
+}

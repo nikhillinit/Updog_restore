@@ -23,6 +23,27 @@ and this project adheres to
 
 ### Added (2026-07-18)
 
+- **Tranche 12 rehearsed full-stack activation and manifested the
+  constrained-reserve reconciliation ledger for gated prod provisioning
+  (ADR-053).** Phase 1 (disposable, uncommitted): a zero-mock rehearsal on a
+  throwaway localhost Postgres proved the real chain end to end for the first
+  time - registry row -> `resolveSubstrateCalcMode` -> shadow observe +
+  reconcile + persist -> `mode=on` serving the substrate under the
+  verified-parity seatbelt -> kill-switch demotion -> T10 GET reading the
+  history. One pinned expectation was corrected by evidence: the substrate value
+  embeds `asOfUtc`, so a re-POST of the same body appends a NEW observation
+  (same input/assumptions hashes, different result hash); the ledger's unique
+  key guarantees same-OBSERVATION replay safety (proven via the real ADR-050
+  writer), not temporal re-POST dedup. Phase 2: NEW manifest
+  `scripts/prod-schema-manifests/09-substrate-shadow-reconciliations.json` (all
+  13 columns typed; exactly the 6 SQL-named constraints + 1 index; NO pkey
+  sentinel - 0035 never names it) plus the pinned manifest-list edit in
+  `tests/unit/prod-schema-manifest-sentinels.test.ts`, enabling the
+  owner-approved `prod-schema-reconcile` apply of byte-unchanged migration 0035.
+  Prod `fund_calculation_modes` stays EMPTY (dormancy preserved), and production
+  releases fail closed between manifest merge and apply success by design (the
+  release workflow audits schema via the same reconcile tooling).
+
 - **Tranche 11 promoted the constrained-reserve substrate to authoritative
   behind `mode=on`, with a verified-parity seatbelt - dormant by default
   (ADR-052).** The arc's FIRST serving-path change: a NEW promotion service
