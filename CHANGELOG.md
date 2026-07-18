@@ -23,6 +23,28 @@ and this project adheres to
 
 ### Added (2026-07-18)
 
+- **Tranche 6 generic substrate calculation-mode resolver (ADR-047).** New
+  additive server service `server/services/substrate-calc-mode-resolver.ts`
+  exporting `resolveSubstrateCalcMode({ fundId, calculationKey, reader? })`, the
+  READ seam that turns a `(fundId, calculationKey)` into the exact
+  `{ configuredMode, killSwitchActive }` shape the four ADR-042 substrate
+  adapters consume - unblocking Tranche 7 (wire the first substrate consumer)
+  without touching a route or changing any behavior. Unlike the two existing
+  per-key readers it does NOT collapse the kill switch into a single `'off'`
+  string: it returns both fields verbatim so the adapter can disclose
+  `KILL_SWITCH_ACTIVE` vs `MODE_OFF` correctly. Safe default when no row exists
+  (`{ off, false }`); fail-safe validation of the stored `configuredMode` via
+  `CalcModeSchema` (any drift/corruption falls back to `off`, never
+  `shadow`/`on`); strict-boolean kill switch; an injectable reader seam for
+  DB-free tests (default wraps `db.query.fundCalculationModes.findFirst` over
+  the two columns); and a `CalculationKeySchema` guard (invalid key ->
+  `TypeError`). The `fund_calculation_modes` registry (migration 0017)
+  pre-existed and is reused unchanged; no routes, consumer rewiring,
+  adapter/schema edits, DB rows, writes, or migrations. Proven by
+  `tests/unit/services/substrate-calc-mode-resolver.test.ts` (14 tests),
+  including an adapter-drop-in that spreads the resolution into
+  `runConstrainedReserveWithSubstrate` and asserts the correct disclosure across
+  available / SHADOW_ONLY / MODE_OFF / KILL_SWITCH_ACTIVE.
 - **Tranche 5 ConstrainedReserveEngine substrate adoption (ADR-046).** The
   constrained greedy reserve engine now runs against an injected
   `CalculationContext` via a WRAPPING adapter
