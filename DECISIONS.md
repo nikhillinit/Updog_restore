@@ -7793,3 +7793,147 @@ to prod; no prod DB, CI/workflow, credential, or deploy change; no edits to any
 `ConstrainedReserveEngine.ts`, `reconciliation-runs.ts`, the T9
 writer/table/helper (beyond importing them), or the MOIC/facts/monte-carlo
 readers; no new dependencies; no Phoenix-protected path edits.
+
+## ADR-052: Tranche 11 Promote the Constrained-Reserve Substrate to Authoritative Behind mode=on With a Verified-Parity Seatbelt, Dormant by Default (Demo Scope)
+
+### Status
+
+Accepted.
+
+### Context
+
+Tranches 7-10 (ADR-048..051) run the substrate as a mode-gated best-effort
+SHADOW inside prod-live `POST /api/v1/reserves/calculate` (opt-in via
+`?fundId`), reconcile it in-process against the legacy
+`ConstrainedReserveEngine` output for the same request, persist every
+value-producing reconciliation to the append-only
+`substrate_shadow_reconciliations` ledger, and expose that ledger read-only and
+fund-scoped. Re-auditing current main confirms the remaining gap: even when a
+fund is configured `mode=on`, the substrate value is computed, reconciled,
+persisted - and then DISCARDED. Nothing anywhere serves it; `mode=on` is
+behaviorally identical to `mode=shadow`, and the arc's end state ("substrate
+authoritative, legacy retired") has no serving path.
+
+### Decision
+
+Add promotion: for an opted-in request whose fund resolves
+`configuredMode === 'on'` with the kill switch inactive, the substrate result
+becomes the served source - but ONLY when it VERIFIES against the legacy engine
+for that same request (state `available` AND reconciliation `match` AND
+`conservationOk`); every other outcome fail-safes to the legacy response with a
+warn-level demotion disclosure. Non-`on` modes keep EXACTLY the T7-T10 shadow
+behavior. No fund is `on` anywhere (prod has no registry rows and this tranche
+seeds none), so this change is dormant until an operator flips a fund - a
+decision that consults the T10 read endpoint.
+
+Why PROMOTE now (not "provision-to-prod", not "second consumer"):
+
+- Provisioning `0035` to prod is an owner-triggered gated
+  `prod-schema-reconcile` OPERATION, not a code tranche; and in demo scope
+  parity evidence realistically accumulates in local/test exercise, which the
+  T10 endpoint already reads.
+- Promotion is the arc's terminal capability and can land with ZERO observable
+  change (dormant + seatbelt + cents-equality guarantee), which is the safest
+  possible crossing of the "first response change" threshold ADR-050 named.
+- Second consumer stays deferred: no other adapter has a clean prod-live route
+  consuming its exact input.
+
+Design (pinned):
+
+- NEW service `server/services/constrained-reserve-substrate-promotion.ts`:
+  `serveConstrainedReserveCalculation({ fundId, input, legacyResult, resolveMode?, persist?, log?, asOf? })`
+  returns `{ served: 'substrate' | 'legacy', reasonCodes, response }` where
+  `response` (`{ allocations, totalAllocated, remaining }`) is ALWAYS present
+  and the route serves it verbatim (plus `rid`). Seams default to the real
+  `resolveSubstrateCalcMode` / `persistSubstrateShadowReconciliation` / app
+  logger; the resolver default is imported from
+  `server/services/substrate-calc-mode-resolver`, so the T7 route test's
+  resolver-module mock keeps governing the route. T7-T10 service files are
+  byte-untouched (imported only).
+- Control flow (mode resolved ONCE):
+  `configuredMode !== 'on' || killSwitchActive` DELEGATES to
+  `observeConstrainedReserveSubstrateShadow` with the already-resolved mode
+  injected through its `resolveMode` seam (zero extra registry query),
+  preserving T7-T10 logging/reconciliation/persistence byte-for-byte, and serves
+  legacy with the adapter's reason-code semantics (KILL_SWITCH_ACTIVE and/or
+  MODE_OFF when effectively off; SHADOW_ONLY when effectively shadow). `on` and
+  not killed runs the adapter against a fresh calculation context, logs the
+  shadow-style disclosure, reconciles via the exported pure
+  `reconcileConstrainedReserveShadow`, and persists the observation through the
+  T9 seam in its OWN try/catch (warn + swallow) so the ledger keeps accumulating
+  under `on` exactly as under shadow.
+- Verified-parity seatbelt (fail-safe matrix): serve `substrate` ONLY on
+  `available` + `match` + `conservationOk`. `failed`/`unavailable` demote with
+  the adapter's reason codes; `mismatch` demotes with the literal
+  `RECONCILIATION_MISMATCH` (mismatches disclosed at warn); a conservation-false
+  value demotes with `CONSERVATION_FAILED` (unreachable through the route, which
+  500s on legacy conservation failure first, but enforced independently); ANY
+  throw anywhere (resolver, adapter, reconcile, projection) is caught, warned,
+  and demoted with `PROMOTION_ERROR`. Promotion can never 500 the route or alter
+  the no-fundId path.
+- Projection (the serving parse, pinned): for each LEGACY allocation in LEGACY
+  order, `{ ...legacyAllocation, allocated: Number(substrate.allocated) }` - the
+  spread preserves the exact legacy key set/order (incl. `name`/`stage`, which
+  the substrate value also carries but is not the source of);
+  `totalAllocated`/`remaining` are `Number(...)` of the adapter's exact-2dp
+  strings. `Number(...)` on a 2dp string is the canonical SERVING parse
+  (deterministic closest-double) and is permitted ONLY here; all COMPARISONS
+  remain cents-based via the existing split idiom. The match gate guarantees
+  id-set equality and cents equality, so any byte difference vs legacy is
+  float-noise cleanup of the representation (e.g. 599999.9999999999 -> 600000),
+  never the cents.
+- Auth posture unchanged - documented, not guarded: `/calculate` still takes no
+  fund-scope guard. T7's rationale ("the response never branches on fundId")
+  narrows in T11: the response now branches on per-fund OPERATOR CONFIG (the
+  mode registry), never on per-fund stored portfolio data, and the only
+  observable difference for an opted-in `on` fund is cents-preserving
+  float-noise cleanup of the caller-supplied input's computation. There is still
+  no existence oracle over stored fund data. The T10 GET keeps its fund-scope
+  guard; nothing changes there.
+- Dormancy guarantee: this tranche writes/seeds NO mode registry row, so every
+  real environment resolves the universal default `{ off, false }` and the
+  route's responses (with or without `?fundId`) are byte-identical to pre-T11 -
+  pinned by the untouched T7 byte-identity test (now exercising the delegation
+  path) and the new route tests for `off` and `on`+kill.
+
+### Disposition table
+
+| Component                                                                    | Disposition       |
+| ---------------------------------------------------------------------------- | ----------------- |
+| Constrained-reserve substrate adapter (ADR-046)                              | reuse (unchanged) |
+| Substrate calc-mode resolver (ADR-047)                                       | reuse (unchanged) |
+| T7/T8 shadow helper (observe + exported pure reconcile)                      | reuse (unchanged) |
+| T9 writer seam + `substrate_shadow_reconciliations` table + `0035` migration | reuse (unchanged) |
+| T10 reader service + GET `/constrained/reconciliations`                      | reuse (unchanged) |
+| `server/services/constrained-reserve-substrate-promotion.ts`                 | new               |
+| `POST /calculate` `?fundId` branch (serve promotion outcome)                 | edit (route file) |
+| Mode-registry writes/seeding (any fund becoming `on`)                        | defer             |
+| Provisioning `0035` to prod (gated `prod-schema-reconcile` apply)            | defer             |
+| Second substrate consumer                                                    | defer             |
+
+### Consequences
+
+The arc's terminal capability now exists: an operator can make the substrate
+authoritative for a fund by flipping its registry row to `on`, and the serving
+decision is seatbelted per-request - the substrate is served only when it just
+verified cents-exact against the legacy engine it replaces, and silently falls
+back to legacy (with warn disclosure and a persisted mismatch row) otherwise.
+Until that flip happens nowhere is anything observable: no registry row exists
+in any environment this change creates, the envelope shape, status codes, and
+auth posture are unchanged, and non-`on` modes delegate to the untouched shadow
+path. Likely Tranche 12: an operator flips a pilot fund to `on` after consulting
+the T10 reconciliation endpoint (an operational action, not a code tranche),
+and/or provision `0035` to prod via the gated `prod-schema-reconcile` apply flow
+so the ledger accumulates real history.
+
+### Non-goals
+
+No mode-registry rows written or seeded anywhere (no fund becomes `on`); no new
+DB writes beyond the existing T9 seam; no migration/`db:push`/ `db:migrate`; no
+provisioning to prod; no prod DB, CI/workflow, credential, or deploy change; no
+edits to any `*-substrate-adapter.ts`, `shared/core/calc-substrate/`,
+`substrate-calc-mode-resolver.ts`, `fund-calculation-mode-service.ts`,
+`ConstrainedReserveEngine.ts`, the T7/T8 helper file, the T9 writer/table, the
+T10 reader/GET route, or `reconciliation-runs.ts` (import-only); no
+response-envelope or allocation-key changes; no new npm dependencies; no UI; no
+Phoenix-protected path edits.
