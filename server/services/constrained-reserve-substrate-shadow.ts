@@ -27,6 +27,7 @@ import { createCalculationContext } from '@shared/core/calc-substrate';
 import {
   CONSTRAINED_RESERVE_CALCULATION_KEY,
   runConstrainedReserveWithSubstrate,
+  type ConstrainedReserveCalcValue,
 } from '@shared/core/reserves/constrained-reserve-substrate-adapter';
 import { logger } from '../lib/logger';
 import {
@@ -49,12 +50,129 @@ export type ResolveSubstrateCalcModeFn = (args: {
   calculationKey: string;
 }) => Promise<SubstrateCalcModeResolution>;
 
+/**
+ * Structural view of the legacy `ConstrainedReserveEngine` output the prod-live
+ * route already computed and served for the same request. Only the fields the
+ * reconciliation compares are named; the route's richer `out` (whose allocations
+ * also carry `name`/`stage`) satisfies this shape structurally.
+ */
+export interface LegacyConstrainedReserveResult {
+  allocations: ReadonlyArray<{ id: string; allocated: number }>;
+  totalAllocated: number;
+  remaining: number;
+  conservationOk: boolean;
+}
+
+/** Outcome of comparing the substrate value against the legacy result. */
+export interface ConstrainedReserveShadowReconciliation {
+  status: 'match' | 'mismatch';
+  mismatches: string[];
+}
+
+/**
+ * Convert a fixed 2-decimal money string (`/^(0|[1-9]\d*)\.\d{2}$/`, as produced
+ * by the constrained-reserve adapter) into exact integer cents by splitting on
+ * the decimal point. This is lossless; `parseFloat`/`Number` on the whole string
+ * would reintroduce the binary-float artifacts the adapter deliberately avoids.
+ */
+function moneyStringToCents(value: string): number {
+  const [whole, frac] = value.split('.');
+  return Number(whole) * 100 + Number(frac);
+}
+
+/** Convert a legacy engine money number (exact 2dp cents) into integer cents. */
+function moneyNumberToCents(value: number): number {
+  return Math.round(value * 100);
+}
+
+/**
+ * Reconcile the substrate constrained-reserve value against the legacy engine
+ * result for the SAME request. Pure (no I/O, no ambient reads). All money is
+ * normalized to exact integer cents before comparison and allocations are keyed
+ * by `id`, so the comparison is order- and float-artifact-independent. An empty
+ * `mismatches` list means the substrate path reproduced the legacy path exactly.
+ */
+export function reconcileConstrainedReserveShadow(
+  substrateValue: ConstrainedReserveCalcValue,
+  legacy: LegacyConstrainedReserveResult
+): ConstrainedReserveShadowReconciliation {
+  const mismatches: string[] = [];
+
+  const substrateById = new Map(
+    substrateValue.allocations.map((allocation) => [allocation.id, allocation] as const)
+  );
+  const legacyById = new Map(
+    legacy.allocations.map((allocation) => [allocation.id, allocation] as const)
+  );
+
+  // Allocation id SET (order-independent): report ids present on one side only.
+  for (const id of substrateById.keys()) {
+    if (!legacyById.has(id)) {
+      mismatches.push(`allocation ${id} present in substrate but absent from legacy`);
+    }
+  }
+  for (const id of legacyById.keys()) {
+    if (!substrateById.has(id)) {
+      mismatches.push(`allocation ${id} present in legacy but absent from substrate`);
+    }
+  }
+
+  // Per shared id: `allocated` compared in exact cents.
+  for (const [id, substrateAllocation] of substrateById) {
+    const legacyAllocation = legacyById.get(id);
+    if (!legacyAllocation) {
+      continue;
+    }
+    const substrateCents = moneyStringToCents(substrateAllocation.allocated);
+    const legacyCents = moneyNumberToCents(legacyAllocation.allocated);
+    if (substrateCents !== legacyCents) {
+      mismatches.push(
+        `allocation ${id} allocated cents differ: substrate ${substrateCents} vs legacy ${legacyCents}`
+      );
+    }
+  }
+
+  const substrateTotal = moneyStringToCents(substrateValue.totalAllocated);
+  const legacyTotal = moneyNumberToCents(legacy.totalAllocated);
+  if (substrateTotal !== legacyTotal) {
+    mismatches.push(
+      `totalAllocated cents differ: substrate ${substrateTotal} vs legacy ${legacyTotal}`
+    );
+  }
+
+  const substrateRemaining = moneyStringToCents(substrateValue.remaining);
+  const legacyRemaining = moneyNumberToCents(legacy.remaining);
+  if (substrateRemaining !== legacyRemaining) {
+    mismatches.push(
+      `remaining cents differ: substrate ${substrateRemaining} vs legacy ${legacyRemaining}`
+    );
+  }
+
+  if (substrateValue.conservationOk !== legacy.conservationOk) {
+    mismatches.push(
+      `conservationOk differs: substrate ${substrateValue.conservationOk} vs legacy ${legacy.conservationOk}`
+    );
+  }
+
+  return {
+    status: mismatches.length === 0 ? 'match' : 'mismatch',
+    mismatches,
+  };
+}
+
 export interface ObserveConstrainedReserveSubstrateShadowParams {
   fundId: number;
   input: unknown;
   resolveMode?: ResolveSubstrateCalcModeFn;
   asOf?: string;
   log?: ShadowLogger;
+  /**
+   * The legacy engine output the route just computed and will serve. When
+   * present AND the substrate produced a value, the helper reconciles the two
+   * and logs a parity/divergence disclosure. Absent -> exactly the Tranche 7
+   * behavior (shadow disclosure only).
+   */
+  legacyResult?: LegacyConstrainedReserveResult;
 }
 
 /**
@@ -67,6 +185,7 @@ export async function observeConstrainedReserveSubstrateShadow({
   resolveMode = resolveSubstrateCalcMode,
   asOf,
   log = logger,
+  legacyResult,
 }: ObserveConstrainedReserveSubstrateShadowParams): Promise<{ ran: boolean }> {
   try {
     const resolution = await resolveMode({
@@ -103,6 +222,39 @@ export async function observeConstrainedReserveSubstrateShadow({
       },
       'constrained reserve substrate shadow'
     );
+
+    // Reconciliation (ADR-049): when the route supplied the legacy engine output
+    // it will serve AND the substrate produced a value (available/indicative),
+    // compare the two in exact cents and log a parity/divergence disclosure.
+    // Server-side only; never touches the response. Inside the same try/catch so
+    // a reconcile defect can never surface to the caller.
+    if (legacyResult && (result.state === 'available' || result.state === 'indicative')) {
+      const reconciliation = reconcileConstrainedReserveShadow(result.value, legacyResult);
+      if (reconciliation.status === 'match') {
+        log.info(
+          {
+            fundId,
+            calculationKey: CONSTRAINED_RESERVE_CALCULATION_KEY,
+            reconciliation: reconciliation.status,
+            substrateState: result.state,
+            resultHash: result.resultHash,
+          },
+          'constrained reserve substrate reconciliation'
+        );
+      } else {
+        log.warn(
+          {
+            fundId,
+            calculationKey: CONSTRAINED_RESERVE_CALCULATION_KEY,
+            reconciliation: reconciliation.status,
+            substrateState: result.state,
+            resultHash: result.resultHash,
+            mismatches: reconciliation.mismatches,
+          },
+          'constrained reserve substrate reconciliation MISMATCH'
+        );
+      }
+    }
 
     return { ran: true };
   } catch (error) {
