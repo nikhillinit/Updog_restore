@@ -7292,3 +7292,116 @@ off mapping, non-collapse, safe default, calculationKey isolation, fail-safe
 invalid mode, strict-boolean kill switch, invalid-key TypeError, the default
 reader's column/where query shape, and the adapter-drop-in disclosure across all
 four states).
+
+## ADR-048: Tranche 7 Wire the First Substrate Consumer (Prod-Live Constrained-Reserve Shadow, Demo Scope)
+
+### Status
+
+Accepted.
+
+### Context
+
+Tranches 1-6 built the calculation substrate (ADR-042 contracts; ADR-043..046
+pacing/reserve/deterministic/constrained adapters exposing
+`run*WithSubstrate(ctx, input, options)`; ADR-047 the generic read seam
+`resolveSubstrateCalcMode({ fundId, calculationKey })` returning the uncollapsed
+`{ configuredMode, killSwitchActive }`). A grep across `server/`, `client/`, and
+`shared/` (excluding tests and the adapters/resolver themselves) confirmed the
+verified gap: ZERO non-test code consumed any adapter or the resolver. The
+substrate was fully built and fully unwired. Tranche 7 wires the FIRST consumer.
+
+### Decision
+
+Wire the constrained-reserve adapter (`runConstrainedReserveWithSubstrate`,
+calculationKey `reserve-constrained`) as a MODE-GATED, BEST-EFFORT SHADOW into
+the prod-live route `POST /api/v1/reserves/calculate`
+(`server/routes/v1/reserves.ts`), sourcing the fund id from a NEW optional
+`?fundId` query param, via a NEW injectable helper
+`server/services/constrained-reserve-substrate-shadow.ts`. The shadow result is
+computed and logged server-side only; the HTTP response is byte-identical to
+today in every case.
+
+Why this route, not `engine-summaries`:
+
+- `POST /api/v1/reserves/calculate` is PROD-LIVE. `server/app.ts` (the `makeApp`
+  factory that backs the Vercel deployment) mounts `reservesV1Router` at
+  `/api/v1/reserves`. By contrast `server/routes/engine-summaries.ts`
+  (`GET /reserves/:fundId`) is mounted only in `server/routes.ts` (the
+  Docker-only path) and 404s in prod; wiring it would be a hollow "consumer".
+- Its request body validates (via `validateReserveInput`) to exactly the
+  `ReserveInput` that `runConstrainedReserveWithSubstrate` re-parses and
+  consumes, so no input translation is needed.
+- It is the route ADR-046/047 named as the "wire a consumer" target.
+
+Design (pinned):
+
+- The helper resolves the mode through the T6 seam, then MODE-GATES: if
+  `configuredMode === 'off' && !killSwitchActive` (the universal default until a
+  fund opts into the `fund_calculation_modes` registry) it returns
+  `{ ran: false }` without building a context or running the adapter - one
+  `findFirst` and nothing more. Otherwise it builds a `CalculationContext`
+  (`seed: 1`, cosmetic because the constrained engine draws no randomness;
+  `asOf` = `new Date().toISOString()`, a Z-suffixed UTC instant accepted by
+  `createFixedClock`) and runs the adapter, spreading the uncollapsed resolution
+  straight into the adapter options. It logs one disclosure line (`state`,
+  `reasonCodes`, `resultHash`, `inputHash`, `configuredMode`,
+  `killSwitchActive`) at info.
+- Best-effort: the whole helper body is wrapped in try/catch; ANY error is
+  logged at warn and swallowed to `{ ran: false }`. A shadow failure never
+  surfaces to the caller.
+- The route reads `?fundId` and parses it with the repo's fund-id discipline
+  (`/^[1-9]\d*$/` -> `Number`). Absent or non-conforming `fundId` skips the
+  shadow entirely (no resolver call, no DB read, no behavior change - it does
+  NOT 400, because the param did not exist before). The shadow runs on the
+  success path, after the conservation check, before `res.json`.
+
+Zero-response-change invariant: with no `?fundId` (the existing contract) the
+response is byte-identical AND does zero extra work. With `?fundId=N` the
+response is STILL byte-identical - the shadow is logged, not served - and only
+server-side logging plus one `findFirst` differ. No fund-scope guard is added
+and none is needed: the response never branches on `fundId` or the mode, so
+there is no existence oracle and no cross-fund disclosure (only the
+caller-supplied `ReserveInput` is computed; no per-fund stored data is read).
+The route's existing auth is preserved.
+
+Injectable resolver seam: the helper's `resolveMode` parameter (default
+`resolveSubstrateCalcMode`) lets tests drive every mode / kill-switch case with
+no live DB, mirroring T6's injectable-reader philosophy one level up.
+
+DB `calculation_key` correspondence: the registry column
+`fund_calculation_modes.calculation_key` and the substrate `calculationKey`
+share the literal value `reserve-constrained` (the adapter's
+`CONSTRAINED_RESERVE_CALCULATION_KEY`), so a per-fund row keyed on that string
+governs this shadow's mode.
+
+### Disposition table
+
+| Component                                                              | Disposition                |
+| ---------------------------------------------------------------------- | -------------------------- |
+| `resolveSubstrateCalcMode` (T6 read seam)                              | reuse                      |
+| constrained-reserve adapter (`runConstrainedReserveWithSubstrate`, T5) | reuse                      |
+| `server/services/constrained-reserve-substrate-shadow.ts` (helper)     | new                        |
+| `server/routes/v1/reserves.ts` (route)                                 | edit (additive)            |
+| pacing / rule-reserve / deterministic adapters                         | defer                      |
+| `server/routes/engine-summaries.ts` (Docker-only)                      | defer (rejected as target) |
+
+### Consequences
+
+This is the FIRST live consumer of the substrate: the read seam and the
+constrained adapter now run end to end against a prod-live request, and the
+non-collapse disclosure (kill-switched `on` -> `KILL_SWITCH_ACTIVE`, not
+`MODE_OFF`) is proven all the way through resolver -> adapter. Nothing is
+persisted or reconciled and the response is unchanged, so the blast radius is
+one server log line plus one indexed `findFirst`. Likely Tranche 8: wire a
+SECOND consumer and/or persist-or-compare the shadow result against the legacy
+allocation output.
+
+### Non-goals
+
+No new routes; no edits to any `*-substrate-adapter.ts`,
+`shared/core/calc-substrate/`, `shared/schema/fund-calculation-modes.ts`,
+`substrate-calc-mode-resolver.ts`, `fund-calculation-mode-service.ts`, or the
+existing MOIC/facts/monte-carlo readers; no change to the `/calculate` response
+shape, status codes, or auth; no wiring of the other three adapters; no
+persisting or reconciling the shadow; no DB rows/writes/migrations; no
+flag-registry changes; no UI/queues/Monte Carlo; no new dependencies.
