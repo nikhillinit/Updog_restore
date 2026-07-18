@@ -23,6 +23,32 @@ and this project adheres to
 
 ### Added (2026-07-18)
 
+- **Tranche 7 wire the first substrate consumer (ADR-048).** The prod-live route
+  `POST /api/v1/reserves/calculate` (`server/routes/v1/reserves.ts`, mounted by
+  `makeApp` at `/api/v1/reserves`, the Vercel runtime) now drives the Tranche 5
+  constrained-reserve adapter (`runConstrainedReserveWithSubstrate`,
+  calculationKey `reserve-constrained`) through the Tranche 6 read seam
+  (`resolveSubstrateCalcMode`) as a MODE-GATED, BEST-EFFORT SHADOW via a new
+  injectable helper `server/services/constrained-reserve-substrate-shadow.ts` -
+  the FIRST non-test consumer of the substrate (previously nothing consumed any
+  adapter or the resolver). The fund id comes from a NEW optional `?fundId`
+  query param parsed with the repo's `/^[1-9]\d*$/` discipline; absent or
+  non-conforming `fundId` skips the shadow entirely (no resolver call, no DB
+  read, no 400). When a valid `fundId` is present the shadow resolves the mode,
+  short-circuits the universal `off`-and-not-kill-switched default before any
+  adapter run (one `findFirst`), otherwise runs the adapter and logs one
+  disclosure line (`state`, `reasonCodes`, `resultHash`, `inputHash`,
+  `configuredMode`, `killSwitchActive`) at info; any error is logged at warn and
+  swallowed. The HTTP response is byte-identical with or without `?fundId` (the
+  shadow is logged, not served) - proven by a real supertest request test - and
+  the non-collapse disclosure (kill-switched `on` -> `KILL_SWITCH_ACTIVE`, not
+  `MODE_OFF`) is proven end to end through resolver -> adapter. No new routes;
+  no adapter/resolver/schema edits; no DB rows, writes, or migrations; no auth
+  or response-shape change. New tests:
+  `tests/unit/services/constrained-reserve-substrate-shadow.test.ts` (5 cases)
+  and `tests/unit/api/reserves-calculate-shadow-route.test.ts` (zero response
+  change).
+
 - **Tranche 6 generic substrate calculation-mode resolver (ADR-047).** New
   additive server service `server/services/substrate-calc-mode-resolver.ts`
   exporting `resolveSubstrateCalcMode({ fundId, calculationKey, reader? })`, the

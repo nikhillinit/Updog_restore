@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { validateReserveInput } from '../../../shared/schemas.js';
 import { ConstrainedReserveEngine } from '../../../shared/core/reserves/ConstrainedReserveEngine.js';
 import logger from '../../utils/logger.js';
+import { observeConstrainedReserveSubstrateShadow } from '../../services/constrained-reserve-substrate-shadow.js';
 
 export const reservesV1Router = Router();
 const engine = new ConstrainedReserveEngine();
@@ -59,7 +60,7 @@ const engine = new ConstrainedReserveEngine();
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-reservesV1Router.post('/calculate', (req: Request, res: Response) => {
+reservesV1Router.post('/calculate', async (req: Request, res: Response) => {
   const rid = (req as Request & { requestId?: string }).requestId || 'unknown';
   try {
     const val = validateReserveInput(req.body);
@@ -68,6 +69,21 @@ reservesV1Router.post('/calculate', (req: Request, res: Response) => {
 
     const out = engine.calculate(val.data);
     if (!out.conservationOk) return res.status(500).json({ error: 'conservation_failed', rid });
+
+    // Best-effort, mode-gated substrate shadow (ADR-048): opt-in via ?fundId,
+    // computed and logged server-side only. The helper never throws, so it
+    // cannot affect the response body or status code; the response is
+    // byte-identical with or without ?fundId. No fund-scope guard is needed:
+    // the response never branches on fundId or mode, so there is no existence
+    // oracle and no per-fund stored data is read (only the caller-supplied
+    // ReserveInput is computed).
+    const rawFundId = req.query['fundId'];
+    if (typeof rawFundId === 'string' && /^[1-9]\d*$/.test(rawFundId)) {
+      await observeConstrainedReserveSubstrateShadow({
+        fundId: Number(rawFundId),
+        input: val.data,
+      });
+    }
 
     res.json({
       allocations: out.allocations,
