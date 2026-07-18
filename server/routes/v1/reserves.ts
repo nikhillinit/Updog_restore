@@ -2,8 +2,12 @@ import type { Request, Response } from 'express';
 import { Router } from 'express';
 import { validateReserveInput } from '../../../shared/schemas.js';
 import { ConstrainedReserveEngine } from '../../../shared/core/reserves/ConstrainedReserveEngine.js';
+import { CONSTRAINED_RESERVE_CALCULATION_KEY } from '../../../shared/core/reserves/constrained-reserve-substrate-adapter.js';
 import logger from '../../utils/logger.js';
+import { isSafeReadMethod, resolveFundScope } from '../../lib/auth/fund-scope.js';
+import { isTeamMemberUser, principalFromUser } from '../../lib/auth/principal.js';
 import { observeConstrainedReserveSubstrateShadow } from '../../services/constrained-reserve-substrate-shadow.js';
+import { readConstrainedReserveShadowReconciliations } from '../../services/substrate-shadow-reconciliation-reader.js';
 
 export const reservesV1Router = Router();
 const engine = new ConstrainedReserveEngine();
@@ -137,4 +141,109 @@ reservesV1Router.get('/config', (_req: Request, res: Response) => {
     '/healthz': 'http://localhost:3001',
     '/readyz': 'http://localhost:3001',
   });
+});
+
+/** Positive-integer query parameter (`/^[1-9]\d*$/`), mirroring the fund-moic idiom. */
+function parsePositiveIntParam(value: unknown): number | null {
+  if (typeof value !== 'string' || !/^[1-9]\d*$/.test(value)) return null;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isSafeInteger(parsed) ? parsed : null;
+}
+
+/**
+ * @swagger
+ * /api/v1/reserves/constrained/reconciliations:
+ *   get:
+ *     summary: Read persisted constrained-reserve substrate shadow reconciliations
+ *     security:
+ *       - bearerAuth: []
+ *     description: |
+ *       Returns the most recent constrained-reserve substrate shadow
+ *       reconciliation observations persisted for one fund (ADR-050 ledger),
+ *       newest first. Read-only and fund-scoped; before the ledger table is
+ *       provisioned to an environment the endpoint returns an empty list.
+ *     tags: [Reserves]
+ *     parameters:
+ *       - in: query
+ *         name: fundId
+ *         required: true
+ *         schema: { type: integer, minimum: 1 }
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+ *     responses:
+ *       200:
+ *         description: Reconciliation observations, newest first
+ *       400:
+ *         description: Missing or non-conforming fundId/limit
+ *       401:
+ *         description: Missing or invalid credential
+ *       403:
+ *         description: Caller lacks access to the requested fund
+ */
+reservesV1Router.get('/constrained/reconciliations', async (req: Request, res: Response) => {
+  const rid = (req as Request & { requestId?: string }).requestId || 'unknown';
+  try {
+    const fundId = parsePositiveIntParam(req.query['fundId']);
+    if (fundId === null) {
+      return res.status(400).json({
+        error: 'invalid_fund_id',
+        message: 'fundId must be a positive integer query parameter',
+        rid,
+      });
+    }
+
+    const rawLimit = req.query['limit'];
+    let limit: number | undefined;
+    if (rawLimit !== undefined) {
+      const parsedLimit = parsePositiveIntParam(rawLimit);
+      if (parsedLimit === null) {
+        return res.status(400).json({
+          error: 'invalid_limit',
+          message: 'limit must be a positive integer query parameter',
+          rid,
+        });
+      }
+      limit = parsedLimit;
+    }
+
+    // Fund-scope authorization (UNLIKE POST /calculate, which never reads
+    // per-fund stored data): this endpoint returns fund-scoped ledger rows, so
+    // it IS an existence oracle and must be guarded in the handler (RLS does
+    // not enforce prod fund scope). Mirrors requireFundAccess: universal READ
+    // for authenticated non-LP team members on safe methods, else the strict
+    // fail-closed fund-grant check.
+    if (
+      !(isSafeReadMethod(req.method) && isTeamMemberUser(req.user)) &&
+      resolveFundScope(principalFromUser(req.user), fundId) !== 'allow'
+    ) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: `You do not have access to fund ${fundId}`,
+        rid,
+      });
+    }
+
+    const observations = await readConstrainedReserveShadowReconciliations({
+      fundId,
+      ...(limit !== undefined && { limit }),
+    });
+
+    res.json({
+      fundId,
+      calculationKey: CONSTRAINED_RESERVE_CALCULATION_KEY,
+      observations,
+      rid,
+    });
+  } catch (e: unknown) {
+    logger.error(
+      'Reserve reconciliation read error',
+      e instanceof Error ? e : new Error(String(e)),
+      {
+        requestId: rid,
+      }
+    );
+    res.status(500).json({ error: 'internal', rid });
+  }
 });
