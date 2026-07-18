@@ -13,6 +13,7 @@ vi.mock('../../../server/services/substrate-calc-mode-resolver', () => ({
 }));
 
 import { makeApp } from '../../../server/app';
+import { signToken } from '../../../server/lib/auth/jwt';
 
 const VALID_BODY = {
   availableReserves: 1_000_000,
@@ -39,9 +40,18 @@ describe('POST /api/v1/reserves/calculate substrate shadow (ADR-048)', () => {
   });
 
   it('is byte-identical (modulo rid) and 200 with and without ?fundId', async () => {
-    const withoutFund = await request(app).post('/api/v1/reserves/calculate').send(VALID_BODY);
+    const authorization = `Bearer ${signToken({
+      sub: 'reserves-shadow-route-test',
+      role: 'analyst',
+      fundIds: [],
+    })}`;
+    const withoutFund = await request(app)
+      .post('/api/v1/reserves/calculate')
+      .set('Authorization', authorization)
+      .send(VALID_BODY);
     const withFund = await request(app)
       .post('/api/v1/reserves/calculate?fundId=1')
+      .set('Authorization', authorization)
       .send(VALID_BODY);
 
     expect(withoutFund.status).toBe(200);
