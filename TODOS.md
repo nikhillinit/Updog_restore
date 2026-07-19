@@ -123,34 +123,38 @@ future session (or teammate) can pick them up without re-deriving the decision.
   / undisclosed constant, and derived params disclose provenance; (4) the
   constrained engine is assessed against the marginal next-dollar reserve MOIC
   (Tactyc-aligned) methodology first.
-- **Depends on:** the canonical reserve-input assembler below.
+- **Convergence decision:** superseded framing recorded in ADR-056 — the
+  authoritative reserve workflow (not the caller-JSON `/calculate` route) is the
+  convergence target; see the canonical-assembler entry below (rescoped).
+- **Depends on:** the canonical reserve-input assembler below (rescoped by ADR-056).
 - **Effort:** M (blocked on the assembler).
 
 ---
 
 ## Canonical server-side reserve-input assembler (unblocks T14)
 
-- **What:** A fund-scoped, server-side assembler that produces a complete
-  authoritative reserve calculation input from canonical sources — reusing
-  `facts-reserve-input-adapter.ts` for company candidates
-  (invested/ownership/stage/sector with provenance) and sourcing the fund
-  reserve envelope (investable capital after
-  fees/expenses/deployments/recycling), future rounds/valuations/dilution,
-  graduation/exit probabilities, planned follow-on or pro-rata, concentration
-  policy, and as-of/currency context from the saved fund model. Invoked by an
-  existing supported reserve-management action; records input provenance; no
+- **What (rescoped by ADR-056 — compose, do not greenfield):** Compose the
+  AUTHORITATIVE reserve workflow at the `runReserveCalculation` seam
+  (`server/services/reserve-calculation-service.ts`) from parts that already
+  exist plus one net-new input: (1) REUSE `buildMarginalReserveMoicInputs` for
+  provenance-controlled deal-level ranking inputs; (2) REUSE
+  `calculateMarginalReserveMoic` to rank follow-on priority; (3) NET-NEW a
+  server-side fee/expense/deployment/recycling-aware reserve ENVELOPE service
+  (replacing the naive `fundSize * reserveRatio`), with disclosed provenance;
+  (4) REUSE `ConstrainedReserveEngine.calculate` to allocate the envelope in the
+  ranked order, replacing `generateReserveSummary`'s hardcoded multipliers
+  behind a new calc-mode/flag, shadow-first. Records input provenance; no
   client-manufactured synthetic portfolio.
 - **Why:** Today the browser would have to manufacture the entire `ReserveInput`
   (Path B). The actuals seam exists but only yields company candidates, not the
   fund envelope, forecast assumptions, or constraints. Unifying these behind one
   server-side workflow is the prerequisite for any genuine, provenance-traceable
   reserve calculation — and for T14 organic shadow traffic.
-- **Also decide:** whether the constrained engine's per-stage `reserveMultiple`
-  abstraction belongs at all, versus deriving expected reserve return from
-  granular company/round assumptions per the marginal next-dollar MOIC engine
-  (Plan 7 / ADR-033, `shared/core/moic/MarginalReserveMoic.ts`). Assess the two
-  engines against Tactyc's planned-reserve-MOIC methodology before committing.
+- **Decided (ADR-056):** rank by the deal-level marginal next-dollar MOIC (B),
+  not A's per-stage `reserveMultiple`; the authoritative engine
+  (`generateReserveSummary` hardcoded multipliers) is the real thing being
+  replaced. See DECISIONS.md ADR-056.
 - **Context:** Scoped 2026-07-19 from the code-review reconsideration of T14
-  (ADR-055). See memory `project_substrate_tranche_arc`.
+  (ADR-055). See memory `project_substrate_tranche_arc`. Convergence target and reuse map fixed by ADR-056.
 - **Effort:** L (spans facts adapter reuse, fund cash-flow/envelope sourcing,
   forecast assumptions, and an engine-methodology decision).
