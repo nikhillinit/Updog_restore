@@ -8601,4 +8601,52 @@ to legacy. Promoting a real fund to ranked `on` is a governed decision in the
 same class as T13 and NET-NEW #3; this slice promotes no fund and does not touch
 `ENABLE_MARGINAL_RESERVE_MOIC`, the fund-moic route, or any H9 gate default.
 
+### Addendum — NET-NEW #2 PR4 seam wiring
+
+**H9 gate predicate (closes B2).** DD8's fourth condition, "H9 gate satisfied,"
+is implemented at the reserve seam as
+`resolveMoicActionability({fundId, sources}).actionability === 'actionable'`
+(`server/services/fund-calculation-mode-service.ts:371-375`, predicate
+`:343-352`). The gate is written as a POSITIVE equality, never as a negation of
+`non_actionable`: `H9ActionabilityStatus` is five-valued at the type level
+(`shared/contracts/financial-provenance.contract.ts:13-19`) while the resolver
+currently emits only two, so a negated gate would be non-total and would
+silently admit `input_only`, `quarantined`, or `unknown_legacy` if anything ever
+begins emitting them. This matches the shipped export-side precedent at
+`h9-export-gate.ts:72`. The seam reuses the actionability result already
+computed for the H9 stamp rather than resolving a second time, preserving the
+exact-argument characterization tests at
+`tests/unit/services/reserve-calculation-h9-stamp.test.ts:157,:228`.
+
+**Gate placement.** The ranked `on` path applies all four DD8 conditions as a
+PRE-WRITE conditional. It deliberately does NOT mirror the post-hoc stamp
+demotion at `reserve-calculation-service.ts:244-246`, which demotes the stamp
+while still writing the payload — that pattern satisfies the local convention
+but would violate ADR-056 #5c by landing a B-derived payload in the
+authoritative snapshot regardless of the stamp.
+
+**Shadow emission tier.** Option A: pino structured log only
+(`server/services/reserves/ranked-reserve-shadow-telemetry.ts`), mirroring the
+wired fund-moic lane. No DB ledger, no Prometheus counter, no zod contract for
+the payload — none of the three existing shadow lanes has any of those. A ledger
+was rejected because `substrate_shadow_reconciliations`' migration 0035 exists
+locally but is not provisioned to production. The three provenance hashes are
+truncated to 12 characters at emit time.
+
+**Snapshot metadata scope.** Ranked provenance enters `fund_snapshots.metadata`
+only as the aggregate `rankedBasis` block (mode, candidate count, excluded
+count, three hashes). No per-allocation detail is written: `metadata` is plain
+nullable `jsonb` with no size limit, CHECK constraint, or zod contract, and all
+three existing shadow lanes keep per-item detail in logs exclusively.
+Per-allocation values including `marginalMoic` remain in the structured log
+only.
+
+**Legacy-summary binding.** `generateReserveSummary` at the seam is bound to
+`legacyReserves`, which is written once and never reassigned; the authoritative
+`reserves` binding is what the ranked `on` path may swap. The facts-shadow
+comparison is pinned to `legacyReserves` so that enabling ranked mode on a fund
+already in `reserve_facts_inputs` shadow mode cannot silently change what the
+pre-existing `reserve_facts_inputs_shadow` metric measures — with both sides
+equal, `summaryValueDeltaPct` would return 0 with no error and no failing test.
+
 ---

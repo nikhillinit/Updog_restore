@@ -182,7 +182,7 @@ describe('runReserveCalculation H9 stamp', () => {
   });
 
   it('rechecks engine-fed facts provenance before retaining an actionable H9 stamp', async () => {
-    isFlagEnabled.mockReturnValue(true);
+    isFlagEnabled.mockImplementation((key) => key === 'enable_facts_sourced_reserve_inputs');
     modeFindFirst.mockResolvedValue({ configuredMode: 'on', killSwitchActive: false });
     buildFactsReserveCandidates.mockResolvedValue({
       candidates: [
@@ -249,7 +249,7 @@ describe('runReserveCalculation H9 stamp', () => {
   });
 
   it('forces non-actionable H9 when on-mode facts evidence has no input hash', async () => {
-    isFlagEnabled.mockReturnValue(true);
+    isFlagEnabled.mockImplementation((key) => key === 'enable_facts_sourced_reserve_inputs');
     modeFindFirst.mockResolvedValue({ configuredMode: 'on', killSwitchActive: false });
     buildFactsReserveCandidates.mockResolvedValue({
       candidates: [
