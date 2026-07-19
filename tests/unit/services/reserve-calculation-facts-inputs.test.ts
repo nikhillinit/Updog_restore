@@ -298,7 +298,7 @@ describe('runReserveCalculation facts-sourced inputs', () => {
   });
 
   it('threads one facts snapshot through on-mode reserve inputs and H9', async () => {
-    isFlagEnabled.mockReturnValue(true);
+    isFlagEnabled.mockImplementation((key) => key === 'enable_facts_sourced_reserve_inputs');
     modeFindFirst.mockResolvedValue({ configuredMode: 'on', killSwitchActive: false });
     generateReserveSummary.mockReturnValue(FACTS_RESERVES);
 
@@ -323,7 +323,7 @@ describe('runReserveCalculation facts-sourced inputs', () => {
   });
 
   it('threads one facts snapshot through shadow H9 and post-persist telemetry', async () => {
-    isFlagEnabled.mockReturnValue(true);
+    isFlagEnabled.mockImplementation((key) => key === 'enable_facts_sourced_reserve_inputs');
     modeFindFirst.mockResolvedValue({ configuredMode: 'shadow', killSwitchActive: false });
     buildFactsReserveCandidates.mockImplementation(async () => {
       eventOrder.push('shadow');
@@ -397,7 +397,7 @@ describe('runReserveCalculation facts-sourced inputs', () => {
   });
 
   it('does not fail a persisted shadow calculation when facts telemetry cannot be logged', async () => {
-    isFlagEnabled.mockReturnValue(true);
+    isFlagEnabled.mockImplementation((key) => key === 'enable_facts_sourced_reserve_inputs');
     modeFindFirst.mockResolvedValue({ configuredMode: 'shadow', killSwitchActive: false });
     buildFactsReserveCandidates.mockRejectedValue(new Error('facts unavailable'));
     loggerInfo.mockImplementation(() => {
