@@ -8289,17 +8289,17 @@ framing that motivated this slice:
 
 - **Authoritative engine (hardcoded fallback), not A or B.** The reserve BullMQ
   worker (`workers/reserve-worker.ts`) and `fund-persistence-service.ts` both
-  call `runReserveCalculation` (`server/services/reserve-calculation-service.ts`),
-  which writes the authoritative `fundSnapshots` RESERVE row using
-  `generateReserveSummary` from `shared/core/reserves/ReserveEngine.ts`. That
-  function applies HARDCODED per-stage/per-sector multipliers
-  (`Seed: 1.5, Series A: 2.0, ...`) times invested, then a seeded-PRNG "ML"
-  jitter (`0.8 + prng.next() * 0.4`). This is the concrete meaning of memory
-  `project_h9_rounds_moic_feature_isolated` ("actionable outputs still run on
-  hardcoded fallbacks"). The facts flag (`enable_facts_sourced_reserve_inputs`,
-  off/shadow/on) can swap the INPUTS to a provenance-controlled actuals set via
-  `buildFactsReserveCandidates`, but the ENGINE remains the hardcoded
-  `generateReserveSummary`.
+  call `runReserveCalculation`
+  (`server/services/reserve-calculation-service.ts`), which writes the
+  authoritative `fundSnapshots` RESERVE row using `generateReserveSummary` from
+  `shared/core/reserves/ReserveEngine.ts`. That function applies HARDCODED
+  per-stage/per-sector multipliers (`Seed: 1.5, Series A: 2.0, ...`) times
+  invested, then a seeded-PRNG "ML" jitter (`0.8 + prng.next() * 0.4`). This is
+  the concrete meaning of memory `project_h9_rounds_moic_feature_isolated`
+  ("actionable outputs still run on hardcoded fallbacks"). The facts flag
+  (`enable_facts_sourced_reserve_inputs`, off/shadow/on) can swap the INPUTS to
+  a provenance-controlled actuals set via `buildFactsReserveCandidates`, but the
+  ENGINE remains the hardcoded `generateReserveSummary`.
 - **Program A — constrained-reserve substrate (ADR-042..055), the envelope
   allocator.** `ConstrainedReserveEngine.calculate` greedily fills
   `input.availableReserves` across companies ranked by a COARSE per-stage score
@@ -8311,11 +8311,11 @@ framing that motivated this slice:
   loads fund state. The T13 pilot's shadow/promotion machinery
   (`serveConstrainedReserveCalculation`) sits on this route, fail-safes to the
   legacy response, and NEVER touches the authoritative RESERVE snapshot.
-- **Program B — marginal-reserve MOIC (Plan 7 / ADR-033), the deal-level
-  ranker (Tactyc-aligned).** `calculateMarginalReserveMoic` answers "expected
-  return on the next reserve dollar" from per-stage graduation/exit
-  probabilities, pre-money valuation, round size, months-from-prior-stage,
-  dilution, and pro-rata participation. Its fund-scoped assembler
+- **Program B — marginal-reserve MOIC (Plan 7 / ADR-033), the deal-level ranker
+  (Tactyc-aligned).** `calculateMarginalReserveMoic` answers "expected return on
+  the next reserve dollar" from per-stage graduation/exit probabilities,
+  pre-money valuation, round size, months-from-prior-stage, dilution, and
+  pro-rata participation. Its fund-scoped assembler
   `buildMarginalReserveMoicInputs`
   (`server/services/moic/marginal-reserve-moic-input-service.ts`) loads fund,
   published config, portfolio companies, approved allocation IC decisions, and
@@ -8326,21 +8326,22 @@ framing that motivated this slice:
   `FEATURES.marginalReserveMoic` (`ENABLE_MARGINAL_RESERVE_MOIC`, default false)
   and HARDCODES `mode: 'shadow'` / `actionability: 'non_actionable_shadow'` in
   its response, so un-gating the flag ALONE does not make its output actionable.
-- **A fourth allocator exists.** `shared/core/reserves/DeterministicReserveEngine.ts`
-  plus `server/services/reserve-optimization-calculator.ts` (Monte-Carlo /
-  baseline driven) power the scenario-analysis and capital-allocation surfaces.
-  It is not the authoritative snapshot path and is out of scope for the first
-  convergence step, but confirms the landscape is a multi-engine one, not a
-  clean A-vs-B duel.
+- **A fourth allocator exists.**
+  `shared/core/reserves/DeterministicReserveEngine.ts` plus
+  `server/services/reserve-optimization-calculator.ts` (Monte-Carlo / baseline
+  driven) power the scenario-analysis and capital-allocation surfaces. It is not
+  the authoritative snapshot path and is out of scope for the first convergence
+  step, but confirms the landscape is a multi-engine one, not a clean A-vs-B
+  duel.
 - **The one genuinely-missing input.** The fund RESERVE ENVELOPE
   (`availableReserves` = investable follow-on capital after
   fees/expenses/deployments/recycling) is CONSUMED by the constrained allocator
   but DERIVED by no reserve-input assembler. The nearest existing derivation is
   the naive `availableReserves = fundSize * reserveRatio` in
   `client/src/lib/capital-allocation-calculations.ts`, which is NOT
-  fee/expense/deployment/recycling-aware. An authoritative, provenance-disclosing
-  envelope source is the real net-new work; the company candidates and the
-  deal-level ranking already exist.
+  fee/expense/deployment/recycling-aware. An authoritative,
+  provenance-disclosing envelope source is the real net-new work; the company
+  candidates and the deal-level ranking already exist.
 
 ### The complementarity insight (reframed)
 
@@ -8357,18 +8358,20 @@ allocation in ranked order (A, exists)."
 
 ### Decision (answers to the six questions)
 
-1. **Authoritative ranking.** Rank by Program B's deal-level marginal next-dollar
-   reserve MOIC. Reject Program A's coarse stage multiplier and reject the
-   hardcoded per-stage/per-sector multipliers of the current authoritative
-   `ReserveEngine`. B already models the Tactyc-grade deal-level inputs; A's
-   ranking is a stage-coarse proxy and the authoritative engine is a placeholder.
+1. **Authoritative ranking.** Rank by Program B's deal-level marginal
+   next-dollar reserve MOIC. Reject Program A's coarse stage multiplier and
+   reject the hardcoded per-stage/per-sector multipliers of the current
+   authoritative `ReserveEngine`. B already models the Tactyc-grade deal-level
+   inputs; A's ranking is a stage-coarse proxy and the authoritative engine is a
+   placeholder.
 2. **Envelope source.** The canonical `availableReserves` must be a
    fee/expense/deployment/recycling-aware derivation with disclosed provenance,
-   sourced from the fund-model layer (`shared/core/capitalAllocation/CapitalAllocationEngine.ts`,
-   `projected-metrics-calculator.ts`, `metrics-aggregator.ts`). It does NOT exist
-   as such today; the naive `fundSize * reserveRatio` is explicitly rejected for
-   the authoritative path. This is the genuinely net-new input and owns most of
-   the follow-on effort.
+   sourced from the fund-model layer
+   (`shared/core/capitalAllocation/CapitalAllocationEngine.ts`,
+   `projected-metrics-calculator.ts`, `metrics-aggregator.ts`). It does NOT
+   exist as such today; the naive `fundSize * reserveRatio` is explicitly
+   rejected for the authoritative path. This is the genuinely net-new input and
+   owns most of the follow-on effort.
 3. **Composition (reuse over rebuild).** The "canonical assembler" is a
    composition, not a new engine: reuse `buildMarginalReserveMoicInputs`
    (ranking inputs, provenance, hashes) + a new envelope service (net-new) + the
@@ -8382,14 +8385,15 @@ allocation in ranked order (A, exists)."
    affects ONLY the caller-JSON `/api/v1/reserves/calculate` route, is
    parity-gated (serves the substrate result only when it is cents-identical to
    the legacy computation of the caller's own input), fail-safes to legacy, and
-   NEVER touches the authoritative RESERVE snapshot. Recommendation to the owner:
-   T13 promotion MAY PROCEED on its own terms as a safe, parity-gated shadow->on
-   of a non-authoritative path — it does not change actionable app reserve
-   numbers — but it should be recorded as DEPRECATED-IN-PLACE: A's coarse ranking
-   is superseded by this ADR, and no further cent-parity shadowing of A's ranking
-   should be pursued (ADR-055 point 4). The convergence decision does not block
-   the 2026-07-25 gate, but the owner should promote (or stand down) with the
-   understanding that A is not the authoritative reserve workflow.
+   NEVER touches the authoritative RESERVE snapshot. Recommendation to the
+   owner: T13 promotion MAY PROCEED on its own terms as a safe, parity-gated
+   shadow->on of a non-authoritative path — it does not change actionable app
+   reserve numbers — but it should be recorded as DEPRECATED-IN-PLACE: A's
+   coarse ranking is superseded by this ADR, and no further cent-parity
+   shadowing of A's ranking should be pursued (ADR-055 point 4). The convergence
+   decision does not block the 2026-07-25 gate, but the owner should promote (or
+   stand down) with the understanding that A is not the authoritative reserve
+   workflow.
 5. **H9 / flags.** For Program B outputs to become actionable, three things must
    change and stay behind a flag for internal soak: (a) the fund-moic route's
    hardcoded `mode: 'shadow'` / `non_actionable_shadow` must become mode-aware;
@@ -8430,16 +8434,16 @@ running unexamined.
   (`shared/core/reserves/ConstrainedReserveEngine.ts`).
 - NET-NEW 1 (largest): a server-side reserve ENVELOPE service deriving
   fee/expense/deployment/recycling-aware `availableReserves` from the fund-model
-  layer with provenance + input hash, replacing the naive `fundSize *
-  reserveRatio`.
+  layer with provenance + input hash, replacing the naive
+  `fundSize * reserveRatio`.
 - NET-NEW 2: a ranked-allocation ORCHESTRATOR that feeds B's marginal-MOIC order
   into A's envelope fill at the `runReserveCalculation` seam
-  (`server/services/reserve-calculation-service.ts`), behind a new calc-mode/flag,
-  shadow-first with rank/cent telemetry, replacing `generateReserveSummary` for
-  opted-in funds.
+  (`server/services/reserve-calculation-service.ts`), behind a new
+  calc-mode/flag, shadow-first with rank/cent telemetry, replacing
+  `generateReserveSummary` for opted-in funds.
 - NET-NEW 3: make the fund-moic route mode-aware and un-gate
-  `ENABLE_MARGINAL_RESERVE_MOIC` for internal soak once the H9 actionability gate
-  passes.
+  `ENABLE_MARGINAL_RESERVE_MOIC` for internal soak once the H9 actionability
+  gate passes.
 - Sizing: L. The ranking and allocation engines exist; the envelope derivation
   and its provenance own most of the risk and effort.
 
@@ -8453,8 +8457,8 @@ running unexamined.
   adopted. Its actionability/un-gating mechanics are correct, but on its own it
   leaves the envelope-allocation step (A's role) unspecified.
 - **Single new orchestrator that rebuilds inputs from scratch:** rejected. It
-  would duplicate `buildMarginalReserveMoicInputs` and the facts adapter, exactly
-  the greenfield mistake this slice exists to prevent.
+  would duplicate `buildMarginalReserveMoicInputs` and the facts adapter,
+  exactly the greenfield mistake this slice exists to prevent.
 
 ### Consequences
 
@@ -8462,8 +8466,69 @@ No runtime surface changes in this slice. The two TODOS reserve entries are
 repointed at this ADR and the "canonical assembler" is rescoped from greenfield
 to composition. The authoritative reserve engine's replacement is now a scoped,
 reuse-first build targeting the `runReserveCalculation` seam rather than the
-caller-JSON `/calculate` route. The T13 pilot and the ADR-052 authoritative-serve
-path are unaffected; the 2026-07-25 promotion decision gains an explicit
-"deprecated-in-place, non-authoritative path" framing for the owner.
+caller-JSON `/calculate` route. The T13 pilot and the ADR-052
+authoritative-serve path are unaffected; the 2026-07-25 promotion decision gains
+an explicit "deprecated-in-place, non-authoritative path" framing for the owner.
+
+### Addendum (2026-07-19): NET-NEW #2 build decisions (DD1 engine extension, DD3 indicative, DD8 activation governance)
+
+This addendum records the concrete build decisions made while implementing
+NET-NEW #2 (the ranked-allocation orchestrator). It is landed shadow-first: no
+fund is promoted to `on`, and the authoritative reserve snapshot is unchanged
+except on the H9-governed `on` path (DD8), which ships inert.
+
+**DD1 — `ConstrainedReserveEngine.calculate` gains an optional score override,
+retiring ADR-046's "zero source edits" proof.** ADR-056 answer #3 and TODOS both
+require reusing A's `calculate` "run in B's ranked order," but `calculate`
+re-sorts by its own coarse score
+`(reserveMultiple*exitProb/(1+disc)^years)*weight` and accepts no external
+order. To realize the reuse honestly rather than duplicating A's
+cap/minCheck/stage-room/conservation/cents logic (the greenfield mistake this
+ADR forbids), the engine now accepts an **optional, backward-compatible
+per-company score override**: a top-level
+`scoreOverride?: Record<string, number>` on `ReserveInputSchema`. The single
+behavioral line becomes
+`score = input.scoreOverride?.[company.id] ?? pv * policy.weight` — when the map
+is absent the expression is byte-identical to the prior `pv * policy.weight`, so
+every existing caller (`server/routes/v1/reserves.ts`, the client re-export
+shim, `runConstrainedReserveWithSubstrate`, parity tooling) is unaffected. A
+regression test proves omission of the override reproduces current behavior
+exactly.
+
+This **explicitly supersedes the ADR-046 (Tranche 5) "zero source edits"
+narrative** (this file, disposition table row
+`shared/core/reserves/ConstrainedReserveEngine.ts` and the "Pass UNMODIFIED —
+the zero-edits proof" test row). ADR-046's invariant was that the substrate
+adopted the engine by _wrapping only_, with an empty engine diff. That invariant
+is retired here: the engine file now carries a minimal, additive, default-off
+edit. The `runConstrainedReserveWithSubstrate` wrapper and its byte-green
+fast-check suite continue to pass unmodified (they pass no override), so
+ADR-046's substrate-adoption guarantee survives in behavior — only its literal
+"empty diff" claim is what this addendum retires. parity-auditor and
+phoenix-precision-guardian review this edit before it lands.
+
+**DD3 — the `indicative` marginal-MOIC tier is excluded from the authoritative
+fill and disclosed.** `calculateMarginalReserveMoic` returns a three-tier status
+(`unavailable | actionable | indicative`), where `indicative` is emitted when
+`marginalMoic > 100` (an implausibly high marginal MOIC signaling a degenerate
+near-zero-capital case). The orchestrator ranks only `actionable` companies;
+`unavailable` and `indicative` are excluded from A's `companies[]` (zero
+allocation) and disclosed in telemetry/metadata (list + reason). Imputation is
+never used — per ADR-056 answer #6 no defaulted/undisclosed input feeds the
+authoritative path. If after exclusions B yields zero actionable rankings, the
+path fails safe to legacy `generateReserveSummary`. Revisiting the `indicative`
+exclusion requires phoenix-precision-guardian sign-off.
+
+**DD8 — promoting a fund to ranked `on` is an H9-governed decision, out of scope
+here.** The authoritative reserve snapshot is itself a downstream reserve
+surface, so ADR-056 answer #5c requires the H9 actionability gate to be
+satisfied before any B-derived ranking feeds it. Shadow mode is telemetry-only
+and feeds nothing into the snapshot (the entire scope of this slice). The `on`
+code path is built but inert: it writes the composed result only when
+`envelope.trustedForActivation && !envelope.blocked && B-has-actionable && H9 gate satisfied`;
+otherwise it stamps `h9ActionabilityStatus = 'non_actionable'` and/or fails safe
+to legacy. Promoting a real fund to ranked `on` is a governed decision in the
+same class as T13 and NET-NEW #3; this slice promotes no fund and does not touch
+`ENABLE_MARGINAL_RESERVE_MOIC`, the fund-moic route, or any H9 gate default.
 
 ---

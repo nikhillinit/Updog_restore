@@ -82,7 +82,7 @@ export class ConstrainedReserveEngine {
         stage: company.stage,
         capCompanyC,
         capStageC,
-        score: pv * policy.weight,
+        score: input.scoreOverride?.[company.id] ?? pv * policy.weight,
         allocatedC: 0n as Cents,
       };
     });
