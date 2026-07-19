@@ -286,7 +286,7 @@ describe('runReserveCalculation facts-sourced inputs', () => {
   });
 
   it('uses the legacy path when the flag is on but no mode row exists', async () => {
-    isFlagEnabled.mockReturnValue(true);
+    isFlagEnabled.mockImplementation((key) => key === 'enable_facts_sourced_reserve_inputs');
 
     const result = await runReserveCalculation({ fundId: 7, correlationId: 'corr-no-mode' });
 
@@ -411,7 +411,12 @@ describe('runReserveCalculation facts-sourced inputs', () => {
   });
 
   it('returns to byte-identical legacy behavior on the run after the flag is disabled', async () => {
-    isFlagEnabled.mockReturnValueOnce(false).mockReturnValueOnce(true).mockReturnValueOnce(false);
+    const factsFlagByRun = [false, true, false];
+    let factsFlagCall = 0;
+    isFlagEnabled.mockImplementation((key) => {
+      if (key !== 'enable_facts_sourced_reserve_inputs') return false;
+      return factsFlagByRun[factsFlagCall++] ?? false;
+    });
     modeFindFirst.mockResolvedValue({ configuredMode: 'on', killSwitchActive: false });
     generateReserveSummary.mockImplementation((_fundId, portfolio) =>
       portfolio[0]?.invested === FACTS_COMPANY.invested ? FACTS_RESERVES : LEGACY_RESERVES

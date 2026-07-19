@@ -18,6 +18,15 @@ import {
   buildFactsReserveCandidates,
   type FactsReserveCandidate,
 } from './reserves/facts-reserve-input-adapter';
+import { resolveRankedReserveCalculationMode } from './ranked-reserve-calc-mode-resolver';
+import {
+  buildRankedReserveAllocation,
+  buildRankedShadowTelemetry,
+  toReserveSummary,
+  type RankedReserveShadowTelemetry,
+} from './reserves/ranked-reserve-orchestrator';
+import { buildReserveEnvelope } from './reserves/reserve-envelope-service';
+import { emitRankedShadowTelemetry } from './reserves/ranked-reserve-shadow-telemetry';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
@@ -28,6 +37,14 @@ type FactsBasisMetadata = {
   factsInputHash: string | null;
   trustedForActivation: boolean;
   mode: 'on';
+};
+type RankedBasisMetadata = {
+  mode: 'on';
+  candidateCount: number;
+  excludedCount: number;
+  envelopeInputHash: string;
+  factsInputHash: string;
+  assumptionsHash: string;
 };
 
 async function resolveReserveFactsCalculationMode(
@@ -94,6 +111,17 @@ function summaryValueDeltaPct(
 function logReserveFactsShadowEvent(event: Record<string, unknown>): void {
   try {
     logger.info(event, 'reserve facts inputs shadow comparison generated');
+  } catch {
+    return;
+  }
+}
+
+function logRankedReserveWarning(
+  message: string,
+  input: { fundId: number; mode: 'shadow' | 'on'; error?: unknown }
+): void {
+  try {
+    logger.warn(input, message);
   } catch {
     return;
   }
@@ -195,9 +223,16 @@ export async function runReserveCalculation({
   const reserveFactsMode = reserveFactsFlagEnabled
     ? await resolveReserveFactsCalculationMode(fundId)
     : 'off';
+  const rankedReserveFlagEnabled = isFlagEnabled('enable_ranked_reserve_allocation');
+  const rankedReserveMode = rankedReserveFlagEnabled
+    ? await resolveRankedReserveCalculationMode(fundId)
+    : 'off';
   let portfolio: ReserveCompanyInput[];
   let reserveInputTrustSummary: ReserveInputTrustSummary;
   let factsBasis: FactsBasisMetadata | undefined;
+  let rankedBasis: RankedBasisMetadata | undefined;
+  let rankedShadowEmission:
+    { asOfDate: string; telemetry: RankedReserveShadowTelemetry } | undefined;
   let factsInputsTrustedForActivation = true;
   let moicSources: FundMoicRankingSources | undefined;
   let factsAsOfDate: string | undefined;
@@ -228,7 +263,8 @@ export async function runReserveCalculation({
     reserveInputTrustSummary = legacy.reserveInputTrustSummary;
   }
 
-  const reserves = generateReserveSummary(fundId, portfolio);
+  const legacyReserves = generateReserveSummary(fundId, portfolio);
+  let reserves = legacyReserves;
   if (reserveFactsMode === 'shadow') {
     const factsNow = new Date();
     factsAsOfDate = factsNow.toISOString().slice(0, 10);
@@ -243,6 +279,50 @@ export async function runReserveCalculation({
   const h9Columns = toH9SnapshotColumns(actionability);
   if (reserveFactsMode === 'on' && !factsInputsTrustedForActivation) {
     h9Columns.h9ActionabilityStatus = 'non_actionable';
+  }
+
+  if (rankedReserveMode !== 'off') {
+    const rankedAsOfDate = new Date().toISOString().slice(0, 10);
+    try {
+      const composed = await buildRankedReserveAllocation({
+        fundId,
+        asOfDate: rankedAsOfDate,
+      });
+      if (rankedReserveMode === 'shadow') {
+        rankedShadowEmission = {
+          asOfDate: rankedAsOfDate,
+          telemetry: buildRankedShadowTelemetry(legacyReserves, composed),
+        };
+      } else {
+        // composed.failSafe encodes the envelope trust/block and actionable-candidate conditions.
+        const rankedGatePasses = !composed.failSafe && actionability.actionability === 'actionable';
+        if (rankedGatePasses) {
+          const envelope = await buildReserveEnvelope({ fundId, asOfDate: rankedAsOfDate });
+          if (envelope.inputHash === composed.envelopeInputHash) {
+            reserves = toReserveSummary(envelope, composed);
+            rankedBasis = {
+              mode: rankedReserveMode,
+              candidateCount: composed.allocations.length,
+              excludedCount: composed.excluded.length,
+              envelopeInputHash: composed.envelopeInputHash,
+              factsInputHash: composed.factsInputHash,
+              assumptionsHash: composed.assumptionsHash,
+            };
+          } else {
+            logRankedReserveWarning('ranked reserve input hash diverged; using legacy reserves', {
+              fundId,
+              mode: rankedReserveMode,
+            });
+          }
+        }
+      }
+    } catch (error) {
+      logRankedReserveWarning('ranked reserve calculation failed; using legacy reserves', {
+        fundId,
+        mode: rankedReserveMode,
+        error,
+      });
+    }
   }
 
   // ADR-022: authoritative-only writer. scenario_set_id intentionally omitted (defaults to NULL).
@@ -264,6 +344,7 @@ export async function runReserveCalculation({
         engineRuntime: performance.now() - startTime,
         reserveInputTrustSummary,
         ...(factsBasis !== undefined && { factsBasis }),
+        ...(rankedBasis !== undefined && { rankedBasis }),
       },
     })
     .returning();
@@ -283,8 +364,24 @@ export async function runReserveCalculation({
       asOfDate: factsAsOfDate,
       factsSource: moicSources.factsSource,
       legacyCompanyCount: portfolio.length,
-      legacySummary: reserves,
+      legacySummary: legacyReserves,
     });
+  }
+
+  if (rankedReserveMode === 'shadow' && rankedShadowEmission !== undefined) {
+    try {
+      emitRankedShadowTelemetry({
+        fundId,
+        asOfDate: rankedShadowEmission.asOfDate,
+        telemetry: rankedShadowEmission.telemetry,
+      });
+    } catch (error) {
+      logRankedReserveWarning('ranked reserve shadow telemetry failed', {
+        fundId,
+        mode: rankedReserveMode,
+        error,
+      });
+    }
   }
 
   return {
