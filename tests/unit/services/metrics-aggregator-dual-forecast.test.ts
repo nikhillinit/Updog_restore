@@ -636,33 +636,61 @@ describe('MetricsAggregator dual forecast', () => {
       );
     });
 
-    it('rung 3: no usable mark falls back to currentValuation, disclosed', async () => {
+    it('rung 3: explicitly recorded ownership scales currentValuation, disclosed', async () => {
+      storageMock.getPortfolioCompanies.mockResolvedValue([
+        {
+          ...baseStorageCompany(),
+          currentValuation: '50000000.00',
+          ownershipCurrentPct: '0.0208',
+        },
+      ]);
       buildFundCompanyActualsFactsMock.mockResolvedValue(makeFacts({ planningMarks: [] }));
 
       const aggregator = new MetricsAggregator();
       const result = await aggregator.getDualForecast(1);
 
       expect(result.series[0]?.actual).toEqual({
-        nav: 10_000_000,
+        nav: 1_040_000,
         calledCapital: 25_000_000,
         distributions: 2_000_000,
-        tvpi: 0.48, // (10M + 2M) / 25M
+        tvpi: 0.1216, // (1.04M + 2M) / 25M
         dpi: 0.08,
-        rvpi: 0.4, // 10M / 25M
+        rvpi: 0.0416, // 1.04M / 25M
         irr: 0.14,
       });
       expect(result.navAnchoring).toMatchObject({
-        blendedNav: '10000000.000000',
+        blendedNav: '1040000.000000',
         countsByTrustState: trustCounts({ PARTIAL: 1 }), // PLANNING_FMV_MISSING
       });
       expect(result.navAnchoring?.companies[0]).toMatchObject({
-        anchor: 'legacy_current_valuation',
-        contribution: '10000000.000000',
+        anchor: 'legacy_current_valuation_ownership_scaled',
+        contribution: '1040000.000000',
         trustState: 'PARTIAL',
       });
       expect(result.actualsFacts?.warnings).toEqual(
         expect.arrayContaining([expect.objectContaining({ code: 'PLANNING_FMV_MISSING' })])
       );
+    });
+
+    it('rung 3: null ownership preserves the full legacy currentValuation', async () => {
+      storageMock.getPortfolioCompanies.mockResolvedValue([
+        {
+          ...baseStorageCompany(),
+          currentValuation: '50000000.00',
+          ownershipCurrentPct: null,
+        },
+      ]);
+      buildFundCompanyActualsFactsMock.mockResolvedValue(makeFacts({ planningMarks: [] }));
+
+      const aggregator = new MetricsAggregator();
+      const result = await aggregator.getDualForecast(1);
+
+      expect(result.navAnchoring?.blendedNav).toBe('50000000.000000');
+      expect(result.navAnchoring?.companies[0]).toMatchObject({
+        anchor: 'legacy_current_valuation',
+        contribution: '50000000.000000',
+        trustState: 'PARTIAL',
+      });
     });
 
     it('rung 4: no mark and no legacy value is a DISCLOSED zero, and pre-money never enters NAV', async () => {
@@ -707,22 +735,22 @@ describe('MetricsAggregator dual forecast', () => {
       const result = await aggregator.getDualForecast(1);
 
       // The 999M mark is CARRIED by the facts but contributes nothing; the
-      // company descends to the base-currency legacy fallback (rung 3).
+      // company descends to the ownership-scaled legacy fallback (rung 3).
       expect(result.actualsFacts?.companies[0]).toMatchObject({
         currencyStatus: 'mismatch_blocked',
         planningFmvStatus: 'blocked',
         latestPlanningFmvValue: '999000000.000000',
       });
-      expect(result.series[0]?.actual).toMatchObject({ nav: 10_000_000, tvpi: 0.48, rvpi: 0.4 });
+      expect(result.series[0]?.actual).toMatchObject({ nav: 1_000_000, tvpi: 0.12, rvpi: 0.04 });
       expect(result.navAnchoring).toMatchObject({
-        blendedNav: '10000000.000000',
+        blendedNav: '1000000.000000',
         countsByTrustState: trustCounts({ UNAVAILABLE: 1 }),
       });
       expect(result.navAnchoring?.companies[0]).toMatchObject({
         inNavUniverse: true,
         trustState: 'UNAVAILABLE',
-        anchor: 'legacy_current_valuation',
-        contribution: '10000000.000000',
+        anchor: 'legacy_current_valuation_ownership_scaled',
+        contribution: '1000000.000000',
       });
       expect(result.actualsFacts?.warnings).toEqual(
         expect.arrayContaining([expect.objectContaining({ code: 'CURRENCY_MISMATCH_BLOCK' })])
@@ -773,9 +801,9 @@ describe('MetricsAggregator dual forecast', () => {
         ],
       });
       // Money refused: neither the 999M mark nor the 150M pre-money enters;
-      // the company descends to the legacy fallback.
-      expect(result.series[0]?.actual?.nav).toBe(10_000_000);
-      expect(result.navAnchoring?.blendedNav).toBe('10000000.000000');
+      // the company descends to the ownership-scaled legacy fallback.
+      expect(result.series[0]?.actual?.nav).toBe(1_000_000);
+      expect(result.navAnchoring?.blendedNav).toBe('1000000.000000');
       expect(result.navAnchoring?.countsByTrustState).toEqual(trustCounts({ UNAVAILABLE: 1 }));
     });
 
@@ -866,16 +894,16 @@ describe('MetricsAggregator dual forecast', () => {
       const aggregator = new MetricsAggregator();
       const result = await aggregator.getDualForecast(1);
 
-      expect(result.navAnchoring?.blendedNav).toBe('47000000.000000');
-      expect(result.series[0]?.actual?.nav).toBe(47_000_000);
+      expect(result.navAnchoring?.blendedNav).toBe('42500000.000000');
+      expect(result.series[0]?.actual?.nav).toBe(42_500_000);
       const legacyCo = result.navAnchoring?.companies.find((entry) => entry.companyId === 30);
       expect(legacyCo).toEqual({
         companyId: 30,
         companyName: 'Legacy Co',
         inNavUniverse: true,
         trustState: null, // no facts entry for this company
-        anchor: 'legacy_current_valuation',
-        contribution: '5000000.000000',
+        anchor: 'legacy_current_valuation_ownership_scaled',
+        contribution: '500000.000000',
       });
     });
 

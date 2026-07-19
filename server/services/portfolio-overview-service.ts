@@ -58,8 +58,12 @@ export async function getPortfolioOverview(
 
   const computed = companies.map((company) => {
     const invested = toDecimal(company.investmentAmount ?? '0');
-    const currentValue =
+    const companyValuation =
       company.currentValuation == null ? new Decimal(0) : toDecimal(company.currentValuation);
+    const ownership =
+      company.ownershipCurrentPct == null ? null : toDecimal(company.ownershipCurrentPct);
+    const currentValue =
+      ownership != null && ownership.gt(0) ? companyValuation.times(ownership) : companyValuation;
     // Preserve the original client guard: MOIC is 0 unless a positive amount was invested.
     const moic = invested.lte(0) ? new Decimal(0) : currentValue.dividedBy(invested);
     return { company, invested, currentValue, moic };
@@ -98,6 +102,7 @@ export async function getPortfolioOverview(
       id: company.id,
       investmentAmount: company.investmentAmount ?? null,
       currentValuation: company.currentValuation ?? null,
+      ownershipCurrentPct: company.ownershipCurrentPct ?? null,
       status: company.status,
     }))
     .sort((left, right) => left.id - right.id);
@@ -106,6 +111,7 @@ export async function getPortfolioOverview(
   const assumptionsHash = canonicalSha256({
     calculationVersion: CALCULATION_VERSION,
     averageMoicBasis: 'simple_average_of_per_company_moic',
+    positionValueBasis: 'ownership_current_pct_times_current_valuation_when_present',
     zeroInvestedGuard: 'moic_zero_when_investment_amount_le_0',
     zeroCompanyGuard: 'average_zero_when_no_companies',
     exitedStatuses: EXITED_STATUSES,
