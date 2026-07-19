@@ -126,7 +126,8 @@ future session (or teammate) can pick them up without re-deriving the decision.
 - **Convergence decision:** superseded framing recorded in ADR-056 — the
   authoritative reserve workflow (not the caller-JSON `/calculate` route) is the
   convergence target; see the canonical-assembler entry below (rescoped).
-- **Depends on:** the canonical reserve-input assembler below (rescoped by ADR-056).
+- **Depends on:** the canonical reserve-input assembler below (rescoped by
+  ADR-056).
 - **Effort:** M (blocked on the assembler).
 
 ---
@@ -140,11 +141,26 @@ future session (or teammate) can pick them up without re-deriving the decision.
   provenance-controlled deal-level ranking inputs; (2) REUSE
   `calculateMarginalReserveMoic` to rank follow-on priority; (3) NET-NEW a
   server-side fee/expense/deployment/recycling-aware reserve ENVELOPE service
-  (replacing the naive `fundSize * reserveRatio`), with disclosed provenance;
-  (4) REUSE `ConstrainedReserveEngine.calculate` to allocate the envelope in the
-  ranked order, replacing `generateReserveSummary`'s hardcoded multipliers
-  behind a new calc-mode/flag, shadow-first. Records input provenance; no
-  client-manufactured synthetic portfolio.
+  (replacing the naive `fundSize * reserveRatio`), with disclosed provenance —
+  **[LANDED, UNWIRED]** `server/services/reserves/reserve-envelope-service.ts`
+  - `shared/contracts/reserve-envelope-v1.contract.ts` (cents-exact,
+    per-component provenance status observed/derived/defaulted/unavailable,
+    `trustedForActivation`, `canonicalSha256` inputHash; consumed by no live
+    path yet); (4) REUSE `ConstrainedReserveEngine.calculate` to allocate the
+    envelope in the ranked order, replacing `generateReserveSummary`'s hardcoded
+    multipliers behind a new calc-mode/flag, shadow-first. Records input
+    provenance; no client-manufactured synthetic portfolio.
+- **Progress (2026-07-19):** NET-NEW #1 (envelope) landed standalone/unwired.
+  Envelope source map — committed=`funds.size` (observed);
+  deployed=Σ`investments.amount` else `funds.deployed_capital`
+  (observed/derived) else 0 (defaulted); mgmt fees= `funds.management_fee` x
+  committed x `config.fundLife` (derived; flat committed basis,
+  step-downs/called-basis deferred) else 10y default (defaulted); expenses=
+  `config.expenses[]` (derived) else `unavailable`; exit
+  recycling=`config.recyclingCap` upper bound (derived) else `unavailable`.
+  Remaining: NET-NEW #2 (ranked-allocation orchestrator wiring the envelope into
+  `runReserveCalculation` behind a calc-mode/flag) and NET-NEW #3 (mode-aware
+  fund-moic route + un-gate `ENABLE_MARGINAL_RESERVE_MOIC`, H9-governed).
 - **Why:** Today the browser would have to manufacture the entire `ReserveInput`
   (Path B). The actuals seam exists but only yields company candidates, not the
   fund envelope, forecast assumptions, or constraints. Unifying these behind one
@@ -155,6 +171,7 @@ future session (or teammate) can pick them up without re-deriving the decision.
   (`generateReserveSummary` hardcoded multipliers) is the real thing being
   replaced. See DECISIONS.md ADR-056.
 - **Context:** Scoped 2026-07-19 from the code-review reconsideration of T14
-  (ADR-055). See memory `project_substrate_tranche_arc`. Convergence target and reuse map fixed by ADR-056.
+  (ADR-055). See memory `project_substrate_tranche_arc`. Convergence target and
+  reuse map fixed by ADR-056.
 - **Effort:** L (spans facts adapter reuse, fund cash-flow/envelope sourcing,
   forecast assumptions, and an engine-methodology decision).
