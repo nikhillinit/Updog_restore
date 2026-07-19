@@ -8148,75 +8148,113 @@ round valuation, estimated ownership, or default ownership enters NAV.
 
 ---
 
-## ADR-055: Defer T14 Organic Constrained-Reserve Shadow Traffic Until a Canonical Production Input Boundary Exists (Demo Scope)
+## ADR-055: Defer T14 Organic Constrained-Reserve Shadow Traffic — T14 Targets the Wrong Reserve Seam (Demo Scope)
 
-**Date:** 2026-07-19 **Status:** [ACCEPTED] Accepted **Decision:** Defer wiring
-live client traffic into the constrained-reserve substrate shadow (the arc's
-"T14 organic wiring" step) until a production-routed, user-invoked reserve
-action exists that produces an authoritative `ReserveInputSchema` payload. The
-scheduled operator battery remains the sole shadow-traffic source for the T13
-pilot. No client, server, schema, flag, route, persistence, T13 registry,
-scheduled-task, or production-environment change is made.
+**Date:** 2026-07-19 **Status:** [ACCEPTED] Accepted (revised 2026-07-19 after
+code-review reconsideration) **Decision:** Defer wiring live client traffic into
+the constrained-reserve substrate shadow (the arc's "T14 organic wiring" step).
+The deferral rationale is architectural, not a data gap: T14 targeted
+`POST /api/v1/reserves/calculate` (Path B), which computes from a
+caller-supplied JSON body — `fundId` selects only the operator mode and never
+loads fund state — and its only browser mapper fabricates a synthetic
+construction portfolio. A canonical, provenance-gated, server-side actuals seam
+already exists (Path A) and is the correct foundation. The scheduled operator
+battery remains the sole shadow-traffic source for the T13 pilot. No client,
+server, schema, flag, route, persistence, T13 registry, scheduled-task, or
+production change is made.
 
 ### Context
 
 T14's purpose was to feed the constrained-reserve substrate shadow
-(ADR-048..052) with REAL user inputs via
-`POST /api/v1/reserves/calculate?fundId=`, strengthening the T13 promote
-decision beyond the synthetic scheduled battery. A code review of the proposal
-verified three substrate-local blockers against `main`:
+(ADR-048..052) with REAL user inputs, strengthening the T13 promote decision
+beyond the synthetic scheduled battery. A first review deferred T14 on the
+premise that no clean organic source exists. A reconsideration corrected that
+premise as too broad: two distinct reserve pathways exist, and T14 targeted the
+wrong one.
 
-- **No production caller routes reserve input to the server.**
-  `client/src/components/wizard/ReserveStep.tsx` has zero importers and is not
-  rendered by the live application; `reservesApi.calculate`
-  (`client/src/lib/resilient-api-client.ts`) has no callers and attaches no
-  `fundId`.
-- **The only client-to-ReserveInput mapper fabricates policy.**
-  `client/src/lib/wizard-reserve-bridge.ts:287` hardcodes
-  `reserveMultiple: 2.0`, alongside sibling synthetic constants
-  (`maxConcentration: 0.15`, `diversificationWeight: 0.5`,
-  `maxInvestment = impliedCheck * 3`, `minInvestment = impliedCheck * 0.1`).
-  Evidence collected through it would be partly synthetic while labeled organic
-  in the ledger — strictly worse than the honest scheduled battery.
-- **The browser transport retries.** `client/src/lib/resilient-api-client.ts`
-  retries POST up to `maxRetries` (default 3) on transient/retryable statuses.
-  Because the server stamps a fresh `asOfUtc` per attempt, each retry yields a
-  distinct `result_hash`, so the ledger's `onConflictDoNothing` does not dedup
-  them: a retrying transport can append duplicate observations UNDER TRANSIENT
-  FAILURE (not on every call).
-
-This decision rests ONLY on these three substrate-local facts. It does not
-depend on any other workstream's PRs or issues.
+- **Path A — server-side, facts-backed (the correct seam, already built).**
+  `server/services/reserves/facts-reserve-input-adapter.ts`
+  (`buildFactsReserveCandidates`) loads the canonical `FundCompanyActualsFact`
+  set (`fund-company-actuals-facts-service.ts`), combines
+  `initialInvestmentAmount + followOnInvestmentAmount` into `invested`, carries
+  ownership/stage/ sector with provenance, EXCLUDES any company whose inputs are
+  missing, currency-blocked, or defaulted, trusts only `observed` /
+  `approved_assumption` statuses, and emits a `trustSummary`
+  (`trustedForActivation`, defaulted/unavailable field counts).
+  `reserve-calculation-service.ts` can consume these facts-backed candidates.
+  This is an actuals-grade, provenance-controlled reserve-input seam — the
+  opposite of a synthetic mapper.
+- **Path B — `POST /api/v1/reserves/calculate` (the T14 target, wrong seam).**
+  The route validates and calculates from the caller-supplied JSON body.
+  `fundId` in the query string affects ONLY the operator mode registry lookup
+  (ADR-052) and never reads stored portfolio data, so a browser caller must
+  independently manufacture `availableReserves`, `companies`, `stagePolicies`,
+  and `constraints`. The only client mechanism that builds such a payload,
+  `client/src/lib/wizard-reserve-bridge.ts`, was written for construction
+  modeling: it fabricates a synthetic portfolio from sector profiles and
+  estimated deal counts and injects hardcoded policy (`reserveMultiple: 2.0` at
+  line 287, `maxConcentration: 0.15`, `maxInvestment = impliedCheck * 3`, and
+  similar constants). Routing evidence: `ReserveStep.tsx` has zero importers and
+  is not rendered live; `reservesApi.calculate` (`resilient-api-client.ts`) has
+  no callers and attaches no `fundId`, and its transport retries up to three
+  times on transient status — with a fresh server `asOfUtc` per attempt,
+  `onConflictDoNothing` will not dedup, so a retry can append duplicate ledger
+  observations under transient failure.
+- **Engine methodology (open question).** The constrained engine ranks by a
+  coarse per-stage `reserveMultiple x graduation / discount x weight` and
+  greedily fills the top-ranked company first. It does not incorporate current
+  FMV, future round valuation/size/dilution, pro-rata check size,
+  company-specific performance cases, expected exit valuation, deployed reserve
+  basis, or exit MOIC on the next dollar. A Tactyc-aligned engine already exists
+  in the repo — the marginal next-dollar reserve MOIC (Plan 7 / ADR-033,
+  `shared/core/moic/MarginalReserveMoic.ts`,
+  `shared/contracts/marginal-reserve-moic-v1.contract.ts`). Reconciling the
+  constrained engine to the cent under shadow has limited value while its
+  ranking abstraction is itself the open question and a more granular engine
+  already exists.
 
 ### Decision
 
-- T14 is **deferred, not cancelled.** The T13 pilot proceeds on operator-battery
-  evidence.
-- Reconsider T14 only when ALL THREE conditions hold:
+- T14 is **deferred, not cancelled**, on architectural grounds (wrong seam plus
+  an engine-methodology question), NOT a data gap. The T13 pilot proceeds on
+  operator-battery evidence.
+- Reconsider T14 only when ALL of the following hold:
   1. The T13 human promote / extend / stand-down decision is recorded.
-  2. A supported production-routed, user-invoked reserve action exists.
-  3. Every required `ReserveInputSchema` field, including stage policies, has an
-     authoritative source with no default ownership, no default stage, and no
-     hardcoded reserve multiple.
-- Any future T14 design must additionally specify same-origin auth/CSRF,
-  no-retry or idempotent delivery, stable-input deduplication, a ledger write
-  budget, and a centrally operable kill switch.
+  2. A supported, fund-scoped, user-invoked reserve action invokes a SERVER-SIDE
+     reserve-input assembler that reads persisted actuals, approved forecast
+     assumptions, and construction policy by REUSING the existing facts adapter
+     (`facts-reserve-input-adapter.ts`) — not by rebuilding actuals mapping in
+     the browser.
+  3. No client-generated synthetic portfolio, default ownership, default stage,
+     or undisclosed policy constant enters the authoritative calculation; every
+     derived parameter (reserve envelope, follow-on policy, and any stage
+     weighting) discloses its source methodology and input provenance.
+  4. Before further investment in organic shadow traffic, the constrained engine
+     is assessed against the marginal next-dollar reserve MOIC (Tactyc-aligned)
+     methodology; cent-parity shadowing is not pursued while the engine
+     abstraction is unresolved.
 
 ### Alternatives Considered
 
-- **Wire `ReserveStep` / `wizard-reserve-bridge` now:** rejected — the component
-  is unrouted and the bridge injects hardcoded synthetic policy, which would
-  poison the reconciliation ledger with false organic evidence.
-- **Keep the scheduled battery only (chosen):** the operator battery already
-  satisfies the T13 residency gate; organic wiring adds a network side-channel
-  and ledger volume for marginal benefit on an internal, roughly five-user tool
-  (KISS/YAGNI).
+- **Wire `ReserveStep` / `wizard-reserve-bridge` now (Path B):** rejected —
+  unrouted component; the bridge injects a synthetic construction portfolio and
+  hardcoded policy, which would poison the reconciliation ledger with false
+  organic evidence.
+- **Reuse the facts adapter behind a fund-scoped action (Path A) — chosen
+  forward direction:** the actuals-grade seam already exists; the remaining work
+  is a canonical server-side assembler that also sources the fund reserve
+  envelope and forecast assumptions, plus an engine-methodology decision.
+  Captured as the properly-scoped next slice.
+- **Keep the scheduled battery only for now:** the operator battery satisfies
+  the T13 residency gate, so no organic wiring is required to reach the first
+  promote decision.
 
 ### Consequences
 
 The substrate arc's authoritative-serve path (ADR-052) and the T13 pilot are
-unaffected; no runtime surface changes. When a canonical production
-reserve-input boundary lands, T14 can be redesigned against a real organic
-source rather than a synthetic one.
+unaffected; no runtime surface changes. The corrected framing points future work
+at unifying the existing actuals seam, construction policy, and deal forecasts
+behind one canonical server-side reserve workflow, rather than at building a
+browser form that manufactures a synthetic `ReserveInput`.
 
 ---

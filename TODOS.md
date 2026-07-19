@@ -107,23 +107,50 @@ future session (or teammate) can pick them up without re-deriving the decision.
 
 ## Substrate T14: organic constrained-reserve shadow traffic (ADR-055)
 
-- **What:** Wire a production-routed, user-invoked reserve action to feed the
-  constrained-reserve substrate shadow with real inputs via
-  `POST /api/v1/reserves/calculate?fundId=`.
-- **Why deferred:** No clean organic source exists today — `ReserveStep` is
-  unrouted, the only client-to-`ReserveInput` mapper
-  (`wizard-reserve-bridge.ts:287`) hardcodes `reserveMultiple: 2.0` and other
-  synthetic policy, and the retrying API client can append duplicate ledger rows
-  under transient failure. Collecting through those paths would label synthetic
-  data as organic evidence — worse than the honest scheduled battery.
-- **Revisit when (all three):** (1) the T13 promote/extend/stand-down decision
-  is recorded; (2) a supported production-routed, user-invoked reserve action
-  exists; (3) every `ReserveInputSchema` field, including stage policies, has an
-  authoritative non-defaulted source.
-- **A future design must additionally add:** same-origin auth/CSRF, no-retry or
-  idempotent delivery, stable-input deduplication, a ledger write budget, and a
-  central kill switch.
-- **Context:** Deferred 2026-07-19 after a code review of the T14 organic-wiring
-  proposal verified all three blockers against `main`. See memory
-  `project_substrate_tranche_arc` and ADR-055.
-- **Effort:** M (blocked on a production reserve-input boundary landing first).
+- **What:** Feed the constrained-reserve substrate shadow with real fund inputs
+  so the T13 pilot accrues organic (not synthetic) evidence.
+- **Why deferred (architectural, not a data gap):** T14 targeted
+  `POST /api/v1/reserves/calculate` (Path B), which computes from a
+  caller-supplied JSON body — `fundId` selects only the operator mode and never
+  loads fund state — and its only browser mapper
+  (`wizard-reserve-bridge.ts:287`) fabricates a synthetic construction portfolio
+  with hardcoded policy. A provenance-gated, server-side actuals seam (Path A,
+  `facts-reserve-input-adapter.ts`) already exists and is the correct
+  foundation. See ADR-055.
+- **Revisit when (all):** (1) T13 promote/extend/stand-down recorded; (2) a
+  fund-scoped user action invokes a server-side assembler reusing the facts
+  adapter; (3) no client synthetic portfolio / default ownership / default stage
+  / undisclosed constant, and derived params disclose provenance; (4) the
+  constrained engine is assessed against the marginal next-dollar reserve MOIC
+  (Tactyc-aligned) methodology first.
+- **Depends on:** the canonical reserve-input assembler below.
+- **Effort:** M (blocked on the assembler).
+
+---
+
+## Canonical server-side reserve-input assembler (unblocks T14)
+
+- **What:** A fund-scoped, server-side assembler that produces a complete
+  authoritative reserve calculation input from canonical sources — reusing
+  `facts-reserve-input-adapter.ts` for company candidates
+  (invested/ownership/stage/sector with provenance) and sourcing the fund
+  reserve envelope (investable capital after
+  fees/expenses/deployments/recycling), future rounds/valuations/dilution,
+  graduation/exit probabilities, planned follow-on or pro-rata, concentration
+  policy, and as-of/currency context from the saved fund model. Invoked by an
+  existing supported reserve-management action; records input provenance; no
+  client-manufactured synthetic portfolio.
+- **Why:** Today the browser would have to manufacture the entire `ReserveInput`
+  (Path B). The actuals seam exists but only yields company candidates, not the
+  fund envelope, forecast assumptions, or constraints. Unifying these behind one
+  server-side workflow is the prerequisite for any genuine, provenance-traceable
+  reserve calculation — and for T14 organic shadow traffic.
+- **Also decide:** whether the constrained engine's per-stage `reserveMultiple`
+  abstraction belongs at all, versus deriving expected reserve return from
+  granular company/round assumptions per the marginal next-dollar MOIC engine
+  (Plan 7 / ADR-033, `shared/core/moic/MarginalReserveMoic.ts`). Assess the two
+  engines against Tactyc's planned-reserve-MOIC methodology before committing.
+- **Context:** Scoped 2026-07-19 from the code-review reconsideration of T14
+  (ADR-055). See memory `project_substrate_tranche_arc`.
+- **Effort:** L (spans facts adapter reuse, fund cash-flow/envelope sourcing,
+  forecast assumptions, and an engine-methodology decision).
