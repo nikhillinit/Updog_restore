@@ -8090,3 +8090,58 @@ or edited migrations (0035 byte-identical); no edits to T1-T11 substrate
 services/routes/tests, `scripts/reconcile-prod-schema.mjs`, or
 `.github/workflows/prod-schema-reconcile.yml`; no UI; no new dependencies; no
 auto-merge; no Phoenix-protected path edits.
+
+## ADR-054: Ownership-Scaled Legacy NAV Fallback (amends ADR-029)
+
+**Date:** 2026-07-18 **Status:** [ACCEPTED] Accepted **Decision:** Rung 3 of the
+ADR-029 NAV anchor ladder scales `currentValuation` by `ownershipCurrentPct`
+only when ownership is explicitly recorded (non-null and greater than zero), and
+discloses that contribution with the new
+`legacy_current_valuation_ownership_scaled` anchor. Null or zero ownership keeps
+the unscaled rung-3 behavior and `legacy_current_valuation` label. Ownership is
+never defaulted; the H9 guard remains intact.
+
+### Context
+
+Demo/import data records company post-money valuation in `currentValuation` and
+the fund's position slice in `ownershipCurrentPct`. Summing raw company
+valuations therefore inflated dual-forecast NAV - for example, approximately
+$391.4M instead of the approximately $6.54M position total already persisted in
+`fund_metrics.totalvalue` and now shown by the corrected header and portfolio
+overview surfaces.
+
+ADR-029 rejected a different derivation: converting rounds-derived pre-money
+valuation and compounding it with DEFAULTED ownership, including the H9 `0.15`
+pathology. This amendment performs no pre-money conversion and introduces no
+ownership default. `latestRoundValuation` still never enters NAV.
+
+### Decision
+
+- Rung 1 (`planning_fmv`) and rung 2 (`planning_fmv_stale`) remain unchanged.
+- At rung 3, a non-null `currentValuation` is multiplied by
+  `ownershipCurrentPct` only when the recorded ownership is greater than zero.
+  The contribution is attributed as `legacy_current_valuation_ownership_scaled`,
+  keeping mixed-anchor NAV visibly mixed.
+- Null or zero ownership preserves the exact ADR-029 unscaled rung-3 fallback
+  and `legacy_current_valuation` attribution. Missing ownership is never
+  estimated or defaulted.
+- The same recorded-ownership derivation applies in `ActualMetricsCalculator`,
+  `portfolio-overview-service`, and the dual-forecast NAV blend so header,
+  table, and forecast surfaces remain consistent.
+- Rung 4 (`none`) and the live-company NAV universe remain unchanged.
+
+### Alternatives Considered
+
+- **Fix the data instead:** rejected because the demo author intent stores two
+  distinct facts - company post-money valuation and the fund's recorded
+  ownership - and reader-side derivation preserves both without rewriting source
+  data.
+- **Marks-only NAV:** already rejected in ADR-029 because missing mark coverage
+  would create a valuation cliff unrelated to economic value.
+
+### Consequences
+
+Recorded ownership now produces position-level legacy NAV consistently across
+all three read surfaces, with a distinct disclosed anchor. Legacy rows without
+positive recorded ownership remain byte-for-byte equivalent at rung 3, and no
+round valuation, estimated ownership, or default ownership enters NAV.

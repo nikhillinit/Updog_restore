@@ -191,10 +191,10 @@ export class ActualMetricsCalculator {
 
   /**
    * Calculate current Net Asset Value from portfolio companies
-   * Only requires status and currentValuation fields
+   * Only requires status, currentValuation, and ownershipCurrentPct fields
    */
   private calculateNAV(
-    companies: Pick<PortfolioCompany, 'status' | 'currentValuation'>[]
+    companies: Pick<PortfolioCompany, 'status' | 'currentValuation' | 'ownershipCurrentPct'>[]
   ): Decimal {
     return companies
       .filter((c) => this.isLivePortfolioCompany(c))
@@ -202,7 +202,13 @@ export class ActualMetricsCalculator {
         const valuation = company.currentValuation
           ? this.parseDecimal(company.currentValuation)
           : new Decimal(0);
-        return sum.plus(valuation);
+        const ownership =
+          company.ownershipCurrentPct != null
+            ? this.parseDecimal(company.ownershipCurrentPct)
+            : null;
+        const positionValue =
+          ownership != null && ownership.gt(0) ? valuation.mul(ownership) : valuation;
+        return sum.plus(positionValue);
       }, new Decimal(0));
   }
 

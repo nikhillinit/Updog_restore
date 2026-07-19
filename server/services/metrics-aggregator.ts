@@ -583,9 +583,11 @@ export class MetricsAggregator {
   }
 
   /**
-   * ADR-029 anchor ladder. UNAVAILABLE/FAILED envelopes and currency-blocked
-   * companies contribute no facts-derived money (ADR-030/ADR-032) and descend
-   * to the legacy rungs. `latestRoundValuation` (pre-money) NEVER enters NAV.
+   * ADR-029 anchor ladder, amended by ADR-054. UNAVAILABLE/FAILED envelopes and
+   * currency-blocked companies contribute no facts-derived money
+   * (ADR-030/ADR-032) and descend to the legacy rungs. Explicitly recorded
+   * positive ownership scales rung 3; ownership is never defaulted.
+   * `latestRoundValuation` (pre-money) NEVER enters NAV.
    */
   private resolveNavAnchor(
     company: MetricsPortfolioCompany,
@@ -610,10 +612,16 @@ export class MetricsAggregator {
     }
 
     if (company.currentValuation != null) {
-      return {
-        anchor: 'legacy_current_valuation',
-        contribution: toDecimal(company.currentValuation),
-      };
+      const valuation = toDecimal(company.currentValuation);
+      const ownership =
+        company.ownershipCurrentPct != null ? toDecimal(company.ownershipCurrentPct) : null;
+      if (ownership != null && ownership.gt(0)) {
+        return {
+          anchor: 'legacy_current_valuation_ownership_scaled',
+          contribution: valuation.times(ownership),
+        };
+      }
+      return { anchor: 'legacy_current_valuation', contribution: valuation };
     }
 
     return { anchor: 'none', contribution: toDecimal(0) };

@@ -75,6 +75,31 @@ describe('getPortfolioOverview', () => {
     expect(PortfolioOverviewResponseV1Schema.parse(result)).toEqual(result);
   });
 
+  it('derives position FMV from ownership and preserves null-ownership legacy values', async () => {
+    mockFund();
+    mockCompanies([
+      company({
+        id: 1,
+        investmentAmount: '500000.00',
+        currentValuation: '50000000.00',
+        ownershipCurrentPct: '0.0208',
+      }),
+      company({
+        id: 2,
+        investmentAmount: '1000000.00',
+        currentValuation: '3000000.00',
+        ownershipCurrentPct: null,
+      }),
+    ]);
+
+    const result = await getPortfolioOverview(10, { now: NOW });
+
+    expect(result.companies[0]?.currentValue).toBe('1040000');
+    expect(result.companies[0]?.moic).toBe('2.08');
+    expect(result.companies[1]?.currentValue).toBe('3000000');
+    expect(result.metrics.totalValue).toBe('4040000');
+  });
+
   it('matches the former client formulas at display precision (parity)', async () => {
     mockFund();
     const rows = [
@@ -176,6 +201,17 @@ describe('getPortfolioOverview', () => {
     const reversed = await getPortfolioOverview(10, { now: NOW });
 
     expect(forward.provenance.inputHash).toBe(reversed.provenance.inputHash);
+  });
+
+  it('changes inputHash when ownership changes', async () => {
+    mockFund();
+    mockCompanies([company({ ownershipCurrentPct: '0.0208' })]);
+    const lowerOwnership = await getPortfolioOverview(10, { now: NOW });
+
+    mockCompanies([company({ ownershipCurrentPct: '0.0416' })]);
+    const higherOwnership = await getPortfolioOverview(10, { now: NOW });
+
+    expect(lowerOwnership.provenance.inputHash).not.toBe(higherOwnership.provenance.inputHash);
   });
 
   it('produces different inputHashes for different resolver meta (live vs snapshot)', async () => {
