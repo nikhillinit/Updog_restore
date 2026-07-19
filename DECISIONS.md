@@ -8423,6 +8423,76 @@ answer). Borrow from "B-first productization" only its un-gating/actionability
 mechanics, not its premise that A's substrate is merely a legacy shadow to keep
 running unexamined.
 
+### Addendum — NET-NEW #2 PR3 implementation notes
+
+**C4 — distinction from `DeterministicReserveEngine`.**
+`shared/core/reserves/DeterministicReserveEngine.ts:127-128` composes a ranking
+step and an allocation step, but it does not compute a marginal reserve return
+and therefore does not duplicate NET-NEW #2. Despite its name,
+`rankByExitMOICOnPlannedReserves` (`:249`) sorts by `allocationScore`
+(`:254-256`), defined at `:639-642` as
+`projectedMOIC * graduationProbability * riskAdjustedReturn / currentValuation`,
+which expands to
+`projectedMOIC^2 * graduationProbability^2 * (1 - failureRate) / currentMOIC` —
+a static whole-position priority index containing no reserve, check, or
+allocation term, and therefore invariant to the reserve amount under
+consideration. Program B's `calculateMarginalReserveMoic`
+(`shared/core/moic/MarginalReserveMoic.ts:330`) instead computes
+`deltaE[proceeds] / deltaE[capital]` between explicit participate /
+do-not-participate counterfactuals (`:291-298`) — a finite-difference slope of
+the expected-value function with respect to reserve capital, i.e. the return on
+the next incremental reserve dollar. The two coincide only if expected proceeds
+were linear in reserve capital through the origin, which the dilution math at
+`:86-88` rules out for any company with a non-zero existing position — that is,
+for every follow-on candidate. Separately, `DeterministicReserveEngine` is
+disqualified from the authoritative path by answer #6 above, which rules out the
+client-manufactured synthetic portfolio of `wizard-reserve-bridge`; its only
+live consumer is the client modeling wizard's Capital Allocation step
+(`client/src/lib/wizard-reserve-bridge.ts:473` via `useEngineComparison`), it
+appears on no server route, and it does not touch the authoritative RESERVE
+snapshot. NET-NEW #2 introduces no new allocator — it reuses
+`ConstrainedReserveEngine.calculate` through PR1's `scoreOverride` — so
+`DeterministicReserveEngine`'s own fused greedy fill (`:258-299`) remains a
+pre-existing, non-authoritative duplicate to be retired or re-pointed under a
+later convergence step, not a reason to withhold this one.
+
+**Integer-rank convention (C2).** `scoreOverride` is fed DENSE DESCENDING
+INTEGERS (top rank = N, ... last = 1), never raw marginal-MOIC floats. `score`
+feeds no allocation amount, cap, or conservation arithmetic — it is consumed
+only by the sort comparator at `ConstrainedReserveEngine.ts:91`. Integer ranks
+make the realized order exactly Program B's order with zero float-precision
+exposure; raw floats risk collapsing two near-identical ranks into a tie that
+silently falls through to the engine's name/id tiebreak
+(`ConstrainedReserveEngine.ts:96`), producing a wrong order that still looks
+correct. Note that although `score` is sort-only, the allocator it orders is
+GREEDY and drains the envelope in rank order — so `scoreOverride` can fully
+redistribute the allocation. It is a load-bearing input, not a cosmetic one.
+
+**`indicative` exclusion (DD3).** Results with `status === 'indicative'` are
+excluded from allocation and disclosed, not allocated on. Two independent tiers
+produce `indicative` and BOTH are honored: the result tier
+(`marginalMoic > 100`, `MarginalReserveMoic.ts:331`) and the input-readiness
+tier (`STALE_ASSUMPTION`, assumption older than
+`MARGINAL_RESERVE_ASSUMPTION_STALE_AFTER_DAYS` = 120). The fold —
+result-actionable plus readiness-indicative yields indicative — follows the
+established precedent at `server/routes/fund-moic.ts:174-178`.
+
+**Identity join.** `MarginalReserveMoicResultV1` carries no company identifier
+(the schema is `.strict()`); identity exists only on the input. Results are
+therefore paired with `input.companyId` inside the same closure that computes
+them, per `server/routes/fund-moic.ts:171-185`. Company `id` on the allocator
+side is a string while `companyId` is a number, and a `scoreOverride` key miss
+fails SILENTLY by falling through to `pv * policy.weight`
+(`ConstrainedReserveEngine.ts:85`) — so the string conversion is applied from a
+single expression and is covered by a dedicated regression test.
+
+**Stage-space bridge.** The MOIC side is canonical (`pre_seed`, `series_d`,
+`growth`, `late_stage`); the allocator side is the legacy no-separator enum
+(`preseed`, `series_dplus`). Conversion uses the exported `toNoSeparatorStage`
+(`shared/schemas/stage.ts:273`). The map is MANY-TO-ONE — `series_d`, `growth`,
+and `late_stage` all collapse to `series_dplus` — so neutral stage policies are
+deduped in the LEGACY space; otherwise three policies contend for one stage key.
+
 ### Follow-on plan (concrete, file-named; not built in this slice)
 
 - REUSE (no rebuild): `buildMarginalReserveMoicInputs`

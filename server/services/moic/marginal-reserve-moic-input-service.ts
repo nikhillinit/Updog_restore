@@ -438,7 +438,7 @@ export function buildMarginalReserveMoicInputsFromSources(input: {
   return { ready, unavailable, factsInputHash, assumptionsHash };
 }
 
-async function loadMarginalReserveInputSources(input: {
+export async function loadMarginalReserveInputSources(input: {
   fundId: number;
   asOfDate: string;
 }): Promise<MarginalReserveInputSources> {
