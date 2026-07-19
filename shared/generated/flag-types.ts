@@ -48,6 +48,7 @@ export type FlagKey =
   | 'enable_marginal_reserve_moic'
   | 'enable_facts_sourced_reserve_inputs'
   | 'enable_monte_carlo_actuals_inputs'
+  | 'enable_ranked_reserve_allocation'
   | 'enable_faults'
   | 'enable_wizard_step_general'
   | 'enable_wizard_step_sectors'
@@ -119,6 +120,7 @@ export type ServerOnlyFlagKey =
   | 'enable_marginal_reserve_moic'
   | 'enable_facts_sourced_reserve_inputs'
   | 'enable_monte_carlo_actuals_inputs'
+  | 'enable_ranked_reserve_allocation'
   | 'enable_faults';
 
 /**
@@ -204,6 +206,7 @@ export const ALL_FLAG_KEYS: readonly FlagKey[] = [
   'enable_marginal_reserve_moic',
   'enable_facts_sourced_reserve_inputs',
   'enable_monte_carlo_actuals_inputs',
+  'enable_ranked_reserve_allocation',
   'enable_faults',
   'enable_wizard_step_general',
   'enable_wizard_step_sectors',

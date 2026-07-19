@@ -544,6 +544,20 @@ flags:
     expiresAt: null
     aliases: ['ENABLE_MONTE_CARLO_ACTUALS_INPUTS']
 
+  enable_ranked_reserve_allocation:
+    default: false
+    description: 'Gates the marginal-MOIC-ranked reserve allocation orchestrator (ADR-056 NET-NEW #2, shadow-first)'
+    owner: 'analytics'
+    risk: high
+    exposeToClient: false
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: []
+    expiresAt: null
+    aliases: ['ENABLE_RANKED_RESERVE_ALLOCATION']
+
   enable_faults:
     default: false
     description: 'Enable fault injection for testing'
