@@ -361,6 +361,11 @@ export const ANCHOR_RUNG_COPY: Record<DualForecastNavAnchor, { label: string; to
     label: 'Recorded valuation (legacy)',
     tooltip: 'Anchored to the recorded valuation, which has no provenance trail.',
   },
+  legacy_current_valuation_ownership_scaled: {
+    label: 'Recorded valuation x recorded ownership (legacy)',
+    tooltip:
+      'Company-level recorded valuation scaled by the explicitly recorded ownership percentage; used only when ownership is recorded and positive; never estimated or defaulted (ADR-054).',
+  },
   none: {
     label: 'None (zero)',
     tooltip: 'No usable valuation source; contributes zero to NAV rather than a silent fill.',

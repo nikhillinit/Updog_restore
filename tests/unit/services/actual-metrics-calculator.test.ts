@@ -152,6 +152,39 @@ describe('ActualMetricsCalculator actual fact plumbing', () => {
     expect(metrics.dpi).toBeNull();
   });
 
+  it('derives live position FMV from ownership and preserves null-ownership legacy NAV', async () => {
+    storageMock.getPortfolioCompanies.mockResolvedValue([
+      {
+        id: 10,
+        fundId: 1,
+        name: 'Owned Position',
+        sector: 'Consumer',
+        stage: 'Series A',
+        status: 'active',
+        investmentAmount: '500000.00',
+        currentValuation: '50000000.00',
+        ownershipCurrentPct: '0.0208',
+      },
+      {
+        id: 11,
+        fundId: 1,
+        name: 'Legacy Position',
+        sector: 'SaaS',
+        stage: 'Seed',
+        status: 'active',
+        investmentAmount: '1000000.00',
+        currentValuation: '3000000.00',
+        ownershipCurrentPct: null,
+      },
+    ]);
+    dbMock.select.mockReturnValue(distributionQuery(Promise.resolve([])));
+
+    const metrics = await calculator.calculate(1);
+
+    expect(metrics.currentNAV).toBe(4_040_000);
+    expect(metrics.totalValue).toBe(4_040_000);
+  });
+
   it('uses establishment date before vintage-year fallback for fund age', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-05-17T00:00:00.000Z'));

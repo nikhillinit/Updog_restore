@@ -125,13 +125,16 @@ export const DualForecastActualsFactsSchema = z
  * ADR-029 anchor ladder attribution: which value anchored a company's NAV
  * contribution. `planning_fmv` = active Planning FMV mark; `planning_fmv_stale`
  * = stale mark, disclosed; `legacy_current_valuation` = the un-provenanced
- * `portfolio_companies.currentValuation` fallback; `none` = the disclosed zero
- * that used to be silent.
+ * `portfolio_companies.currentValuation` fallback;
+ * `legacy_current_valuation_ownership_scaled` = that legacy valuation scaled by
+ * explicitly recorded `ownershipCurrentPct` (never defaulted), introduced by
+ * ADR-054; `none` = the disclosed zero that used to be silent.
  */
 export const DualForecastNavAnchorSchema = z.enum([
   'planning_fmv',
   'planning_fmv_stale',
   'legacy_current_valuation',
+  'legacy_current_valuation_ownership_scaled',
   'none',
 ]);
 

@@ -602,6 +602,12 @@ describe('disclosure copy map', () => {
 
   it('names the legacy rung "Recorded valuation (legacy)" — one name across surfaces', () => {
     expect(ANCHOR_RUNG_COPY.legacy_current_valuation.label).toBe('Recorded valuation (legacy)');
+    expect(ANCHOR_RUNG_COPY.legacy_current_valuation_ownership_scaled.label).toBe(
+      'Recorded valuation x recorded ownership (legacy)'
+    );
+    expect(ANCHOR_RUNG_COPY.legacy_current_valuation_ownership_scaled.tooltip).toContain(
+      'never estimated or defaulted'
+    );
     expect(ANCHOR_RUNG_COPY.planning_fmv_stale.label).toBe('Planning FMV (stale)');
     expect(ANCHOR_RUNG_COPY.none.label).toBe('None (zero)');
   });

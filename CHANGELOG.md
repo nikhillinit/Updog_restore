@@ -23,6 +23,14 @@ and this project adheres to
 
 ### Added (2026-07-18)
 
+- **Ownership-aware position FMV is now consistent across current NAV surfaces
+  (ADR-054).** Header KPIs, portfolio overview rows, and the dual-forecast NAV
+  blend now derive position value from explicitly recorded `ownershipCurrentPct`
+  x company `currentValuation`. The forecast attribution contract discloses
+  scaled legacy contributions separately, while null- or zero-ownership legacy
+  rows retain their prior unscaled behavior; ownership is never estimated or
+  defaulted.
+
 - **Tranche 12 rehearsed full-stack activation and manifested the
   constrained-reserve reconciliation ledger for gated prod provisioning
   (ADR-053).** Phase 1 (disposable, uncommitted): a zero-mock rehearsal on a
