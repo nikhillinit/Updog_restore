@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import YAML from 'yaml';
 
 type WorkflowStep = {
+  ['continue-on-error']?: boolean;
   env?: Record<string, unknown>;
   name?: string;
   run?: string;
@@ -34,6 +35,62 @@ function allRunScripts(workflow: Workflow): string[] {
     (job.steps ?? []).flatMap((step) => (typeof step.run === 'string' ? [step.run] : []))
   );
 }
+
+function normalizeNeeds(needs: WorkflowJob['needs']): string[] {
+  if (typeof needs === 'string') return [needs];
+  return needs ?? [];
+}
+
+// A "reporting publisher" writes presentation-only content to the GitHub API
+// (PR comments, labels, commit statuses, check runs). These calls depend on an
+// external service; an outage on that surface is not a validation failure, so a
+// reporting step must never be able to fail a job that feeds the required gate.
+const REPORTING_WRITE_CALL =
+  /createComment|updateComment|addLabels|removeLabel|setLabels|createCommitStatus|createStatus|checks\.create|checks\.update/;
+
+function isReportingPublisher(step: WorkflowStep | undefined): boolean {
+  if (!step || typeof step.uses !== 'string' || !step.uses.startsWith('actions/github-script')) {
+    return false;
+  }
+  const script = typeof step.with?.script === 'string' ? step.with.script : '';
+  return REPORTING_WRITE_CALL.test(script);
+}
+
+function isFailOpen(step: WorkflowStep | undefined): boolean {
+  return step?.['continue-on-error'] === true;
+}
+
+function hasBoundedRetries(step: WorkflowStep | undefined): boolean {
+  // The actions/github-script default is `retries: 0` (no retry). A reporting
+  // step must set a bounded, positive retry count so a transient 5xx is absorbed
+  // before it gives up; continue-on-error then guarantees that even an exhausted
+  // retry cannot fail the job or regain gate authority.
+  const retries = step?.with?.retries;
+  return typeof retries === 'number' && Number.isInteger(retries) && retries > 0;
+}
+
+function reportingPublishers(job: WorkflowJob | undefined): WorkflowStep[] {
+  return (job?.steps ?? []).filter(isReportingPublisher);
+}
+
+// The exact set of jobs the required aggregator (CI Gate Status) consumes.
+// Pinned so that adding a new gate input forces a conscious review of its
+// authority-vs-reporting classification below.
+const GATE_FEEDING_JOBS = [
+  'changes',
+  'docs-link-check',
+  'check',
+  'test-affected',
+  'test-full',
+  'build',
+  'release-static',
+  'dependency-validation',
+  'pr-light-security',
+  'security-tests',
+  'memory-mode',
+  'guards',
+  'secret-scan',
+];
 
 describe('required CI fails closed', () => {
   it('does not fall through from a failed unit or affected suite', async () => {
@@ -79,6 +136,9 @@ describe('required CI fails closed', () => {
     expect(determineGateStatus).not.toHaveProperty('continue-on-error', true);
     expect(commentPrStatus).toBeDefined();
     expect(commentPrStatus).toHaveProperty('continue-on-error', true);
+    // #1159 only made this advisory; the retro also requires bounded retries so a
+    // transient 5xx is absorbed rather than merely swallowed.
+    expect(hasBoundedRetries(commentPrStatus)).toBe(true);
   });
 
   it('makes critical and high Trivy findings blocking', async () => {
@@ -209,5 +269,74 @@ describe('required CI fails closed', () => {
     expect(releaseScripts).toContain('tests/smoke/production-boundaries.spec.ts');
     expect(releaseScripts).toContain('PROD_SMOKE_USERNAME');
     expect(releaseScripts).toContain('PROD_SMOKE_PASSWORD');
+  });
+
+  // --- Retro follow-up: authority-vs-reporting boundary enumeration ----------
+
+  it('pins the CI Gate Status input surface so new feeders are classified', async () => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const gateNeeds = normalizeNeeds(workflow.jobs?.gate?.needs);
+    expect([...gateNeeds].sort()).toEqual([...GATE_FEEDING_JOBS].sort());
+  });
+
+  it('keeps the gate authority step blocking under all circumstances', async () => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const determineGateStatus = (workflow.jobs?.gate?.steps ?? []).find(
+      (step) => step.name === 'Determine gate status'
+    );
+    expect(determineGateStatus).toBeDefined();
+    // Authority never becomes advisory and never delegates its verdict to a
+    // reporting API — it computes the result and exits non-zero on failure.
+    expect(determineGateStatus).not.toHaveProperty('continue-on-error', true);
+    expect(isReportingPublisher(determineGateStatus)).toBe(false);
+    expect(determineGateStatus?.run).toContain('exit 1');
+  });
+
+  it('makes every reporting publisher fail-open with bounded retries', async () => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const publishers = Object.entries(workflow.jobs ?? {}).flatMap(([jobName, job]) =>
+      reportingPublishers(job).map((step) => ({ jobName, step }))
+    );
+
+    // Guard against a vacuous pass if the reporting steps are renamed or removed.
+    expect(publishers.length).toBeGreaterThanOrEqual(3);
+    expect(new Set(publishers.map(({ step }) => step.name))).toEqual(
+      new Set(['Comment guard results', 'Comment PR with metrics', 'Comment PR status'])
+    );
+
+    const notFailOpen = publishers
+      .filter(({ step }) => !isFailOpen(step))
+      .map(({ jobName, step }) => `${jobName} > ${step.name ?? '(unnamed)'}`);
+    expect(notFailOpen).toEqual([]);
+
+    const missingRetries = publishers
+      .filter(({ step }) => !hasBoundedRetries(step))
+      .map(({ jobName, step }) => `${jobName} > ${step.name ?? '(unnamed)'}`);
+    expect(missingRetries).toEqual([]);
+  });
+
+  it('proves no advisory publisher can fail the required CI Gate Status', async () => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const jobs = workflow.jobs ?? {};
+    const gateNeeds = normalizeNeeds(jobs.gate?.needs);
+
+    // Every reporting publisher inside a gate-feeding job is fail-open, so an
+    // outage on the reporting surface cannot turn the required gate red.
+    const blockingReporters = gateNeeds.flatMap((jobName) =>
+      reportingPublishers(jobs[jobName])
+        .filter((step) => !isFailOpen(step))
+        .map((step) => `${jobName} > ${step.name ?? '(unnamed)'}`)
+    );
+    expect(blockingReporters).toEqual([]);
+
+    // `guards` is the only gate-feeding job that reports; its comment step is
+    // advisory while its validation steps stay authoritative (fail-closed).
+    const guardsReporters = reportingPublishers(jobs.guards).map((step) => step.name);
+    expect(guardsReporters).toContain('Comment guard results');
+    const flagsGuard = (jobs.guards?.steps ?? []).find(
+      (step) => step.name === 'Feature flags guard'
+    );
+    expect(flagsGuard).toBeDefined();
+    expect(flagsGuard).not.toHaveProperty('continue-on-error', true);
   });
 });
