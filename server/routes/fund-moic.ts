@@ -3,6 +3,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import Decimal from '../../shared/lib/decimal-config.js';
 import { requireAuth, requireFundAccess, requireRole } from '../lib/auth/jwt.js';
+import { isTeamMemberUser } from '../lib/auth/principal.js';
 import {
   FundMoicRankingsResponseV2Schema,
   type FundMoicRankingsResponseV2,
@@ -43,10 +44,8 @@ import { invalidateH9Artifacts } from '../services/h9-artifact-invalidation-serv
 import { buildRoundsToModelEvidence } from '../services/rounds-to-model-evidence-service.js';
 import { FEATURES } from '../config/features.js';
 import { calculateMarginalReserveMoic } from '../../shared/core/moic/MarginalReserveMoic.js';
-import {
-  MarginalReserveRankingsResponseV1Schema,
-  type MarginalReserveRankingItemV1,
-} from '../../shared/contracts/marginal-reserve-moic-v1.contract.js';
+import type { MarginalReserveRankingItemV1 } from '../../shared/contracts/marginal-reserve-moic-v1.contract.js';
+import { MarginalReserveRankingsResponseV2Schema } from '../../shared/contracts/marginal-reserve-moic-v2.contract.js';
 import { buildMarginalReserveMoicInputs } from '../services/moic/marginal-reserve-moic-input-service.js';
 import { emitFundMoicFactsShadowTelemetry } from '../services/moic/fund-moic-facts-shadow-telemetry.js';
 
@@ -144,9 +143,15 @@ function roundEvidenceSummary(coverage: {
   };
 }
 
+function requireInvestmentTeamMember(req: Request, res: Response, next: NextFunction) {
+  if (!isTeamMemberUser(req.user)) return res.sendStatus(403);
+  return next();
+}
+
 router.get(
   '/funds/:fundId/moic/marginal-rankings',
   requireAuth(),
+  requireInvestmentTeamMember,
   requireFundAccess,
   routeHandler(async (req: Request, res: Response) => {
     const fundId = parseFundId(req, res);
@@ -164,6 +169,14 @@ router.get(
       });
     }
 
+    const sources = await getFundMoicRankingSources(fundId);
+    const modePreview = await resolveFundCalculationMode({ fundId, sources });
+    if (modePreview.effectiveMode === 'off') {
+      return res.status(404).json({ error: 'not_found' });
+    }
+
+    const evidence = await buildRoundsToModelEvidence({ fundId });
+    const h9 = await resolveMoicActionability({ fundId, sources, evidence });
     const inputs = await buildMarginalReserveMoicInputs({
       fundId,
       asOfDate: parsedQuery.data.asOfDate,
@@ -183,11 +196,20 @@ router.get(
         };
       })
     );
+    const hasActionableRanking = rankings.some((ranking) => ranking.status === 'actionable');
+
+    const responseActionability =
+      modePreview.effectiveMode === 'on' &&
+      h9.actionability === 'actionable' &&
+      hasActionableRanking
+        ? 'actionable'
+        : 'non_actionable';
+
     return res.json(
-      MarginalReserveRankingsResponseV1Schema.parse({
-        contractVersion: 'marginal-reserve-rankings-v1',
-        mode: 'shadow',
-        actionability: 'non_actionable_shadow',
+      MarginalReserveRankingsResponseV2Schema.parse({
+        contractVersion: 'marginal-reserve-rankings-v2',
+        mode: modePreview.effectiveMode,
+        actionability: responseActionability,
         fundId,
         asOfDate: parsedQuery.data.asOfDate,
         factsInputHash: inputs.factsInputHash,
