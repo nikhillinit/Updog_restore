@@ -103,7 +103,7 @@ describe('MoicBasisDisclosure', () => {
     fireEvent.focus(indicative);
     await waitFor(() => {
       const tooltip = screen.getByRole('tooltip');
-      expect(tooltip.parentElement).toHaveClass(
+      expect(tooltip).toHaveClass(
         'motion-reduce:animate-none',
         'motion-reduce:transition-none'
       );
