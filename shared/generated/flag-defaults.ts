@@ -558,7 +558,7 @@ export const FLAG_DEFINITIONS: Record<FlagKey, FlagDefinition> = {
   },
   enable_marginal_reserve_moic: {
     default: false,
-    description: 'Gates shadow-only marginal reserve MOIC rankings for internal comparison',
+    description: 'Gates mode- and H9-governed marginal reserve MOIC rankings for internal soak',
     owner: 'analytics',
     risk: 'high',
     exposeToClient: false,

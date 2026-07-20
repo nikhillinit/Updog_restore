@@ -16,7 +16,7 @@ import { verifyRoutePolicy } from '../../../scripts/verify-route-policy';
 const CANONICAL = '/fund-model-results/:fundId/moic-analysis';
 const ADMIN_INPUT_ROUTE = '/api/admin/funds/:fundId/moic-inputs/portfolio-companies/:companyId';
 const ADMIN_MODE_ROUTE = '/api/admin/funds/:fundId/calculation-modes/fund-moic-rankings';
-const MARGINAL_SHADOW_ROUTE = '/api/funds/:fundId/moic/marginal-rankings';
+const MARGINAL_INTERNAL_SOAK_ROUTE = '/api/funds/:fundId/moic/marginal-rankings';
 
 const entry = (path: string): RouteGovernanceEntry => ({
   path,
@@ -119,9 +119,9 @@ describe('route-policy: canonical fund-model-results MOIC route', () => {
     );
   });
 
-  it('registers the marginal shadow route as a fund-scoped financial surface', () => {
+  it('registers the marginal internal-soak route as a fund-scoped financial surface', () => {
     const entry = API_ROUTE_POLICY_REGISTRY.find(
-      (candidate) => candidate.path === MARGINAL_SHADOW_ROUTE
+      (candidate) => candidate.path === MARGINAL_INTERNAL_SOAK_ROUTE
     );
 
     expect(entry).toMatchObject({
@@ -129,12 +129,12 @@ describe('route-policy: canonical fund-model-results MOIC route', () => {
       method: 'GET',
       lifecycle: 'durable_crud',
       governanceRef: CANONICAL,
-      surface: 'marginal-reserve-moic-shadow-api',
+      surface: 'marginal-reserve-moic-internal-soak-api',
       owner: 'analytics',
       financialSurface: 'moic_reserves',
-      apiAuthBoundary: 'require_auth_and_fund_access',
+      apiAuthBoundary: 'require_auth_fund_access_and_role',
       fundScopeMode: 'route_param_fund_id',
-      workflowRequirement: 'shadow_review_required',
+      workflowRequirement: 'internal_soak_review_required',
       exportPolicy: 'not_exportable',
       provenanceRequired: true,
       humanReviewRequired: true,
