@@ -8660,4 +8660,34 @@ already in `reserve_facts_inputs` shadow mode cannot silently change what the
 pre-existing `reserve_facts_inputs_shadow` metric measures — with both sides
 equal, `summaryValueDeltaPct` would return 0 with no error and no failing test.
 
+### Addendum (2026-07-20): NET-NEW #3 governed read path partially landed; activation deferred
+
+- The marginal-rankings endpoint now emits the V2 wire contract.
+- Effective `off` returns 404. `shadow` computes rankings but is always
+  `non_actionable`. `on` requires positive H9
+  (`h9.actionability === 'actionable'`) and at least one actionable ranking;
+  otherwise it remains `non_actionable`. A thrown H9 resolution error remains
+  a 500 fail-closed path.
+- Access is limited by `isTeamMemberUser` before fund access is evaluated.
+- V1 remains exported for source compatibility only. The endpoint wire contract
+  is no longer V1-compatible.
+- The route landed **DORMANT**. Its `shadow`/`on` path is unreachable in any
+  environment until BOTH `ENABLE_MARGINAL_RESERVE_MOIC` is enabled and a
+  `fund_calculation_modes` row exists for the fund with
+  `calculation_key='fund_moic_rankings_exit_probability'`, `configured_mode` of
+  `shadow` or `on`, and the kill switch off. No seed or migration creates such
+  a row.
+- The gating asymmetry with the sibling `/moic/rankings` route is deliberate:
+  that route is mode-gated only, while this newer marginal-ranking surface also
+  requires the server-only feature flag. Its sibling's `?contract=v1|v2`
+  negotiation is likewise not mirrored.
+- **Scope reconciliation:** ADR-056 originally scoped NET-NEW #3 as a mode-aware
+  route **and** un-gating the flag for internal soak. This slice lands only the
+  mode-aware route and V2 governed read path. The flag un-gate is deferred as a
+  separate governed activation (flag flip plus mode-row), in the same class as
+  T13. NET-NEW #3 is therefore **partially landed (read path) / activation
+  deferred**, not complete.
+- No flag was enabled, no calculation-mode row was created or promoted, and no
+  persistence or downstream financial surface changed.
+
 ---
