@@ -49,7 +49,7 @@ this file is the deep-dive.
 | [021](ADR-021-runtime-authority.md)                 | Runtime Authority for Contract-Integrity Work                | Accepted    |
 | [022](ADR-022-fund-scenario-architecture.md)        | Fund-Results Scenario Architecture                           | Implemented |
 | [023](ADR-023-investment-event-persistence.md)      | Investment Event Persistence Backbone (Rounds First Tranche) | Accepted    |
-| [033](ADR-033-marginal-next-dollar-reserve-moic.md) | Marginal Next-Dollar Reserve MOIC Model                      | Proposed    |
+| [033](ADR-033-marginal-next-dollar-reserve-moic.md) | Marginal Next-Dollar Reserve MOIC Model                      | Accepted    |
 
 ## What is an ADR?
 
