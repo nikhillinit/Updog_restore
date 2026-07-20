@@ -8593,13 +8593,24 @@ exclusion requires phoenix-precision-guardian sign-off.
 here.** The authoritative reserve snapshot is itself a downstream reserve
 surface, so ADR-056 answer #5c requires the H9 actionability gate to be
 satisfied before any B-derived ranking feeds it. Shadow mode is telemetry-only
-and feeds nothing into the snapshot (the entire scope of this slice). The `on`
-code path is built but inert: it writes the composed result only when
-`envelope.trustedForActivation && !envelope.blocked && B-has-actionable && H9 gate satisfied`;
-otherwise it stamps `h9ActionabilityStatus = 'non_actionable'` and/or fails safe
-to legacy. Promoting a real fund to ranked `on` is a governed decision in the
-same class as T13 and NET-NEW #3; this slice promotes no fund and does not touch
-`ENABLE_MARGINAL_RESERVE_MOIC`, the fund-moic route, or any H9 gate default.
+and feeds nothing into the snapshot (the entire scope of this slice). The seam
+is wired shadow-first (PR4, #1158); the `on` path is implemented but inert — the
+flag `enable_ranked_reserve_allocation` is default-false in all environments and
+no fund is promoted. The `on` path applies the four DD8 conditions
+(`envelope.trustedForActivation && !envelope.blocked && B-has-actionable && H9 gate satisfied`)
+as a PRE-WRITE gate: it writes the composed B-derived result only when the gate
+passes, and falls back to legacy `generateReserveSummary` — whose result is then
+the authoritative snapshot — when it fails. It does NOT stamp
+`h9ActionabilityStatus = 'non_actionable'` and write a B-derived payload; that
+post-hoc stamp-demotion is deliberately not mirrored at the seam (see the PR4
+addendum below for the shipped gate predicate and placement). The shipped gate
+is two clauses, not four literal checks —
+`!composed.failSafe && actionability.actionability === 'actionable'` — because
+`composed.failSafe` already encodes envelope-trusted, not-blocked, and
+has-actionable; no condition is dropped. Promoting a real fund to ranked `on` is
+a governed decision in the same class as T13 and NET-NEW #3; this slice promotes
+no fund and does not touch `ENABLE_MARGINAL_RESERVE_MOIC`, the fund-moic route,
+or any H9 gate default.
 
 ### Addendum — NET-NEW #2 PR4 seam wiring
 

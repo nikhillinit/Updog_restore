@@ -158,8 +158,12 @@ future session (or teammate) can pick them up without re-deriving the decision.
   step-downs/called-basis deferred) else 10y default (defaulted); expenses=
   `config.expenses[]` (derived) else `unavailable`; exit
   recycling=`config.recyclingCap` upper bound (derived) else `unavailable`.
-  Remaining: NET-NEW #2 (ranked-allocation orchestrator wiring the envelope into
-  `runReserveCalculation` behind a calc-mode/flag) and NET-NEW #3 (mode-aware
+  NET-NEW #2 (ranked-allocation orchestrator wiring the envelope into
+  `runReserveCalculation` behind a calc-mode/flag) — **[LANDED, shadow-first]**
+  shipped across PR1 #1155 / PR2 #1156 / PR3 #1157 / PR4 #1158; the `on` path is
+  implemented but inert (`enable_ranked_reserve_allocation` default-false), and
+  promoting a fund to ranked `on` is a governed decision (flag flip + calc-mode
+  row) in the same class as T13 / NET-NEW #3. Remaining: NET-NEW #3 (mode-aware
   fund-moic route + un-gate `ENABLE_MARGINAL_RESERVE_MOIC`, H9-governed).
 - **Why:** Today the browser would have to manufacture the entire `ReserveInput`
   (Path B). The actuals seam exists but only yields company candidates, not the

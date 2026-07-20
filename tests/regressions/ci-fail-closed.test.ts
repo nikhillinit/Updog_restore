@@ -69,6 +69,18 @@ describe('required CI fails closed', () => {
     expect(flagsGuard).not.toHaveProperty('continue-on-error', true);
   });
 
+  it('does not let advisory PR comments override the validated gate result', async () => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const gateSteps = workflow.jobs?.gate?.steps ?? [];
+    const determineGateStatus = gateSteps.find((step) => step.name === 'Determine gate status');
+    const commentPrStatus = gateSteps.find((step) => step.name === 'Comment PR status');
+
+    expect(determineGateStatus).toBeDefined();
+    expect(determineGateStatus).not.toHaveProperty('continue-on-error', true);
+    expect(commentPrStatus).toBeDefined();
+    expect(commentPrStatus).toHaveProperty('continue-on-error', true);
+  });
+
   it('makes critical and high Trivy findings blocking', async () => {
     const workflow = await readWorkflow('ci-unified.yml');
     const requiredSecurityJob = workflow.jobs?.['pr-light-security'];
