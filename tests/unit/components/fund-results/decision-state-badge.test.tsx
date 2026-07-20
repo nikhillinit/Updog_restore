@@ -61,7 +61,7 @@ describe('DecisionStateBadge', () => {
     const tooltip = await screen.findByRole('tooltip');
     expect(tooltip).toHaveTextContent('First reason.');
     expect(tooltip).toHaveTextContent('Second reason.');
-    expect(tooltip.parentElement).toHaveClass(
+    expect(tooltip).toHaveClass(
       'motion-reduce:animate-none',
       'motion-reduce:transition-none'
     );
