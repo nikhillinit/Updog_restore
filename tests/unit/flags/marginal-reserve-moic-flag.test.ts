@@ -28,9 +28,11 @@ describe('enable_marginal_reserve_moic flag registration', () => {
     expect(resolveAlias(environmentAlias)).toBe(flagKey);
   });
 
-  it('is server-only and absent from the client flag surface', () => {
+  it('is a server-only internal-soak gate absent from the client flag surface', () => {
     expect(FLAG_DEFINITIONS[serverOnlyFlagKey]).toMatchObject({
       default: false,
+      description:
+        'Gates mode- and H9-governed marginal reserve MOIC rankings for internal soak',
       owner: 'analytics',
       exposeToClient: false,
     });
