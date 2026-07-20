@@ -81,13 +81,13 @@ Humans AND Agents **Last Updated**: 2026-05-28
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                                                                                 | Description                                                                             | When to Use                                                 |
-| ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| [tests/README.md](../tests/README.md)                                                                                    | Testing strategy (Unit, Integration, E2E)                                               | Writing tests, fixing test failures                         |
-| [cheatsheets/service-testing-patterns.md](../cheatsheets/service-testing-patterns.md)                                    | API/service test patterns, integration testing                                          | When writing integration tests                              |
-| [cheatsheets/testcontainers-guide.md](../cheatsheets/testcontainers-guide.md)                                            | Testcontainers setup and usage guide                                                    | Setting up Docker-based integration tests                   |
-| [ARCHITECTURAL-DEBT.md](ARCHITECTURAL-DEBT.md)                                                                           | Complex refactoring registry (10+ files, architectural)                                 | Documenting deferred architectural work                     |
-| [cheatsheets/pr-merge-verification.md](../cheatsheets/pr-merge-verification.md)                                          | PR verification baseline (74.7% pass rate)                                              | Before merging PRs                                          |
+| Document                                                                              | Description                                             | When to Use                               |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------- | ----------------------------------------- |
+| [tests/README.md](../tests/README.md)                                                 | Testing strategy (Unit, Integration, E2E)               | Writing tests, fixing test failures       |
+| [cheatsheets/service-testing-patterns.md](../cheatsheets/service-testing-patterns.md) | API/service test patterns, integration testing          | When writing integration tests            |
+| [cheatsheets/testcontainers-guide.md](../cheatsheets/testcontainers-guide.md)         | Testcontainers setup and usage guide                    | Setting up Docker-based integration tests |
+| [ARCHITECTURAL-DEBT.md](ARCHITECTURAL-DEBT.md)                                        | Complex refactoring registry (10+ files, architectural) | Documenting deferred architectural work   |
+| [cheatsheets/pr-merge-verification.md](../cheatsheets/pr-merge-verification.md)       | PR verification baseline (74.7% pass rate)              | Before merging PRs                        |
 
 **Key Commands**:
 
@@ -105,13 +105,14 @@ Hardening baseline)
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                           | Description                                               | When to Use                                  |
-| ------------------------------------------------------------------ | --------------------------------------------------------- | -------------------------------------------- |
-| [scripts/README.md](../scripts/README.md)                          | Deployment scripts (progressive rollout, smoke tests)     | Deploying to staging/production              |
-| [workflows/PRODUCTION_SCRIPTS.md](workflows/PRODUCTION_SCRIPTS.md) | Production deployment system details                      | Understanding deployment process             |
-| [runbooks/rollback.md](runbooks/rollback.md)                       | Step-by-step rollback runbook                             | Executing or supervising production rollback |
-| [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md)                         | Unified metrics diagnostic runbook                        | Investigating production metrics anomalies   |
-| [observability.md](observability.md)                               | Monitoring, health checks, metrics, and alerting overview | Understanding runtime observability surfaces |
+| Document                                                                                                   | Description                                               | When to Use                                           |
+| ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------- |
+| [scripts/README.md](../scripts/README.md)                                                                  | Deployment scripts (progressive rollout, smoke tests)     | Deploying to staging/production                       |
+| [workflows/PRODUCTION_SCRIPTS.md](workflows/PRODUCTION_SCRIPTS.md)                                         | Production deployment system details                      | Understanding deployment process                      |
+| [runbooks/rollback.md](runbooks/rollback.md)                                                               | Step-by-step rollback runbook                             | Executing or supervising production rollback          |
+| [runbooks/marginal-moic-nonproduction-shadow-soak.md](runbooks/marginal-moic-nonproduction-shadow-soak.md) | Governed marginal MOIC shadow-soak and rollback           | Preparing or running the approved non-production soak |
+| [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md)                                                                 | Unified metrics diagnostic runbook                        | Investigating production metrics anomalies            |
+| [observability.md](observability.md)                                                                       | Monitoring, health checks, metrics, and alerting overview | Understanding runtime observability surfaces          |
 
 **Key Scripts**:
 
