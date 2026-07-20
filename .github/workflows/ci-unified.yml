@@ -623,8 +623,10 @@ jobs:
 
       - name: Comment guard results
         if: always()
+        continue-on-error: true
         uses: actions/github-script@v9
         with:
+          retries: 3
           script: |
             const marker = '<!-- ci-unified-guards -->';
             const flagsBlocked = "${{ steps.flags-guard.outcome }}" === "failure";
@@ -679,8 +681,10 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Comment PR with metrics
+        continue-on-error: true
         uses: actions/github-script@v9
         with:
+          retries: 3
           script: |
             const marker = '<!-- ci-unified-quality-metrics -->';
             const body = `${marker}
@@ -856,6 +860,7 @@ jobs:
         continue-on-error: true
         uses: actions/github-script@v9
         with:
+          retries: 3
           script: |
             const marker = '<!-- ci-unified-summary -->';
             const body = `${marker}
