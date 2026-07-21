@@ -71,7 +71,10 @@ import {
   type FundCompanyActualsFactsRows,
 } from '../../../server/services/fund-actuals/fund-company-actuals-facts-service';
 import { FundCompanyActualsFactsResponseSchema } from '@shared/contracts/fund-actuals/fund-company-actuals-fact.contract';
-import { DualForecastResponseSchema } from '@shared/contracts/dual-forecast/dual-forecast-response.contract';
+import {
+  DualForecastCurrentProjectionSchema,
+  DualForecastResponseSchema,
+} from '@shared/contracts/dual-forecast/dual-forecast-response.contract';
 
 const actualMetrics = {
   asOfDate: '2026-04-01T00:00:00.000Z',
@@ -959,5 +962,44 @@ describe('MetricsAggregator dual forecast', () => {
       expect(asOf?.variance.nav).toBeCloseTo(30_000_000 - (asOf?.construction.nav ?? 0), 6);
       expect(asOf?.variance.distributions).toBe(2_000_000);
     });
+  });
+
+  it('locks the current-projection status enum the readiness model treats as non-actionable', () => {
+    // readiness-rollup.ts:154 maps status === 'fallback_default' to state 'not_actionable'
+    // (fail-closed: a substituted default projection is not decision-grade). This enum IS that
+    // trust boundary; widening it would silently let a default projection read as actionable.
+    expect(DualForecastCurrentProjectionSchema.shape.status.options).toEqual([
+      'projected',
+      'fallback_default',
+    ]);
+    expect(
+      DualForecastCurrentProjectionSchema.parse({ status: 'projected', fallbackReason: null })
+        .status
+    ).toBe('projected');
+    expect(
+      DualForecastCurrentProjectionSchema.parse({
+        status: 'fallback_default',
+        fallbackReason: 'x',
+      }).status
+    ).toBe('fallback_default');
+    expect(() =>
+      DualForecastCurrentProjectionSchema.parse({ status: 'actionable', fallbackReason: null })
+    ).toThrow();
+    expect(() =>
+      DualForecastCurrentProjectionSchema.parse({ status: 'fallback_default' })
+    ).toThrow(); // fallbackReason required
+  });
+
+  it('a defaulted current projection is emitted in the exact shape the readiness model fails closed on', async () => {
+    projectedCalculateMock.mockRejectedValueOnce(new Error('projection engine down'));
+    const aggregator = new MetricsAggregator();
+    const result = await aggregator.getDualForecast(1);
+    // The status string is the sole signal readiness-rollup.ts:154 keys on for not_actionable.
+    expect(result.currentProjection.status).toBe('fallback_default');
+    expect(DualForecastCurrentProjectionSchema.parse(result.currentProjection)).toEqual(
+      result.currentProjection
+    );
+    // The substituted default is non-actionable: future Current quarters are the zero default, not a forecast.
+    expect(result.series[1]?.current.nav).toBe(0);
   });
 });

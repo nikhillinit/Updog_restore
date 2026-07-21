@@ -1,3 +1,4 @@
+/* eslint-disable povc-security/no-floating-point-in-core -- PLAN_61 Task 2 P10: pre-existing baseline debt in ADR-056 reserve engine; Decimal refactor pending */
 /**
  * ConstrainedReserveEngine substrate adapter (Tranche 5, ADR-046).
  *
