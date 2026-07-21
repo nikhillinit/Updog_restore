@@ -48,6 +48,7 @@ import type { MarginalReserveRankingItemV1 } from '../../shared/contracts/margin
 import { MarginalReserveRankingsResponseV2Schema } from '../../shared/contracts/marginal-reserve-moic-v2.contract.js';
 import { buildMarginalReserveMoicInputs } from '../services/moic/marginal-reserve-moic-input-service.js';
 import { emitFundMoicFactsShadowTelemetry } from '../services/moic/fund-moic-facts-shadow-telemetry.js';
+import { emitMarginalReserveMoicShadowComparison } from '../services/moic/marginal-reserve-moic-shadow-service.js';
 
 const router = Router();
 
@@ -205,21 +206,28 @@ router.get(
         ? 'actionable'
         : 'non_actionable';
 
-    return res.json(
-      MarginalReserveRankingsResponseV2Schema.parse({
-        contractVersion: 'marginal-reserve-rankings-v2',
-        mode: modePreview.effectiveMode,
-        actionability: responseActionability,
+    const parsedResponse = MarginalReserveRankingsResponseV2Schema.parse({
+      contractVersion: 'marginal-reserve-rankings-v2',
+      mode: modePreview.effectiveMode,
+      actionability: responseActionability,
+      fundId,
+      asOfDate: parsedQuery.data.asOfDate,
+      factsInputHash: inputs.factsInputHash,
+      assumptionsHash: inputs.assumptionsHash,
+      rankings,
+      unavailable: [...inputs.unavailable].sort((left, right) => left.companyId - right.companyId),
+    });
+
+    if (modePreview.effectiveMode === 'shadow') {
+      emitMarginalReserveMoicShadowComparison({
         fundId,
-        asOfDate: parsedQuery.data.asOfDate,
-        factsInputHash: inputs.factsInputHash,
-        assumptionsHash: inputs.assumptionsHash,
-        rankings,
-        unavailable: [...inputs.unavailable].sort(
-          (left, right) => left.companyId - right.companyId
-        ),
-      })
-    );
+        plannedRankings: sources.candidate.rankings,
+        marginalRankings: parsedResponse.rankings,
+        unavailable: parsedResponse.unavailable,
+      });
+    }
+
+    return res.json(parsedResponse);
   })
 );
 

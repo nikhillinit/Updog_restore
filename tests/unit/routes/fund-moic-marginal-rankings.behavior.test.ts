@@ -2,6 +2,9 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { errorHandler } from '../../../server/errors';
+import { requestId } from '../../../server/middleware/requestId';
+
 import type { MarginalReserveMoicInputV1 } from '../../../shared/contracts/marginal-reserve-moic-v1.contract';
 import { MarginalReserveRankingsResponseV2Schema } from '../../../shared/contracts/marginal-reserve-moic-v2.contract';
 
@@ -23,6 +26,7 @@ const svc = vi.hoisted(() => ({
   buildRoundsToModelEvidence: vi.fn(),
   resolveMoicActionability: vi.fn(),
   buildMarginalReserveMoicInputs: vi.fn(),
+  emitMarginalReserveMoicShadowComparison: vi.fn(),
 }));
 
 vi.mock('../../../server/services/fund-moic-ranking-service', async (importOriginal) => {
@@ -63,6 +67,10 @@ vi.mock('../../../server/services/moic/marginal-reserve-moic-input-service', () 
   buildMarginalReserveMoicInputs: svc.buildMarginalReserveMoicInputs,
 }));
 
+vi.mock('../../../server/services/moic/marginal-reserve-moic-shadow-service', () => ({
+  emitMarginalReserveMoicShadowComparison: svc.emitMarginalReserveMoicShadowComparison,
+}));
+
 vi.mock('../../../server/lib/auth/jwt', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../server/lib/auth/jwt')>();
   return {
@@ -77,7 +85,30 @@ vi.mock('../../../server/lib/auth/jwt', async (importOriginal) => {
 
 import fundMoicRouter from '../../../server/routes/fund-moic';
 
-const SOURCES = { source: 'shared-ranking-sources' };
+const PLANNED_RANKINGS = [
+  {
+    investmentId: '1',
+    rank: 1,
+    reservesMoic: {
+      value: 2,
+      description: 'planned-one',
+      formula: 'planned-one',
+    },
+  },
+  {
+    investmentId: '2',
+    rank: 2,
+    reservesMoic: {
+      value: 1.5,
+      description: 'planned-two',
+      formula: 'planned-two',
+    },
+  },
+];
+const SOURCES = {
+  source: 'shared-ranking-sources',
+  candidate: { rankings: PLANNED_RANKINGS },
+};
 const EVIDENCE = { coverage: { activeRoundCount: 1 } };
 
 function marginalInput(params: {
@@ -114,11 +145,10 @@ function marginalInput(params: {
 
 function buildApp() {
   const app = express();
+  app.use(requestId());
   app.use(express.json());
   app.use('/api', fundMoicRouter);
-  app.use((_err: unknown, _req: Request, res: Response, _next: NextFunction) =>
-    res.status(500).json({ error: 'internal_error' })
-  );
+  app.use(errorHandler());
   return app;
 }
 
@@ -126,22 +156,22 @@ function getRankings(path = '/api/funds/1/moic/marginal-rankings?asOfDate=2026-0
   return request(buildApp()).get(path);
 }
 
-function inputAssembly(overrides: {
-  ready?: MarginalReserveMoicInputV1[];
-  unavailable?: Array<{ companyId: number; reasons: string[] }>;
-} = {}) {
+function inputAssembly(
+  overrides: {
+    ready?: MarginalReserveMoicInputV1[];
+    unavailable?: Array<{ companyId: number; reasons: string[] }>;
+  } = {}
+) {
   return {
-    ready:
-      overrides.ready ??
-      [
-        marginalInput({
-          companyId: 2,
-          exitValuation: '30000000',
-          readiness: { status: 'indicative', reasons: ['STALE_ASSUMPTION'] },
-        }),
-        marginalInput({ companyId: 1, exitValuation: '50000000' }),
-        marginalInput({ companyId: 4, exitValuation: '20000000' }),
-      ],
+    ready: overrides.ready ?? [
+      marginalInput({
+        companyId: 2,
+        exitValuation: '30000000',
+        readiness: { status: 'indicative', reasons: ['STALE_ASSUMPTION'] },
+      }),
+      marginalInput({ companyId: 1, exitValuation: '50000000' }),
+      marginalInput({ companyId: 4, exitValuation: '20000000' }),
+    ],
     unavailable: overrides.unavailable ?? [
       { companyId: 3, reasons: ['MISSING_CURRENT_OWNERSHIP'] },
     ],
@@ -156,6 +186,7 @@ function expectNoRouteReads() {
   expect(svc.buildRoundsToModelEvidence).toHaveBeenCalledTimes(0);
   expect(svc.resolveMoicActionability).toHaveBeenCalledTimes(0);
   expect(svc.buildMarginalReserveMoicInputs).toHaveBeenCalledTimes(0);
+  expect(svc.emitMarginalReserveMoicShadowComparison).toHaveBeenCalledTimes(0);
 }
 
 beforeEach(() => {
@@ -200,6 +231,7 @@ describe('marginal reserve MOIC rankings route', () => {
     const response = await getRankings();
 
     expect(response.status).toBe(200);
+    expect(svc.emitMarginalReserveMoicShadowComparison).toHaveBeenCalledTimes(0);
   });
 
   it('preserves analyst universal safe-read access to another fund', async () => {
@@ -208,14 +240,13 @@ describe('marginal reserve MOIC rankings route', () => {
     const response = await getRankings();
 
     expect(response.status).toBe(200);
+    expect(svc.emitMarginalReserveMoicShadowComparison).toHaveBeenCalledTimes(0);
   });
 
   it('returns 404 without service reads when the server flag is off', async () => {
     featureState.enabled = false;
 
-    const response = await getRankings(
-      '/api/funds/1/moic/marginal-rankings?asOfDate=07-12-2026'
-    );
+    const response = await getRankings('/api/funds/1/moic/marginal-rankings?asOfDate=07-12-2026');
 
     expect(response.status).toBe(404);
     expect(response.body).toEqual({ error: 'not_found' });
@@ -249,6 +280,7 @@ describe('marginal reserve MOIC rankings route', () => {
     expect(svc.buildRoundsToModelEvidence).toHaveBeenCalledTimes(0);
     expect(svc.resolveMoicActionability).toHaveBeenCalledTimes(0);
     expect(svc.buildMarginalReserveMoicInputs).toHaveBeenCalledTimes(0);
+    expect(svc.emitMarginalReserveMoicShadowComparison).toHaveBeenCalledTimes(0);
   });
 
   it('returns sorted V2 shadow rankings as non-actionable even when H9 is actionable', async () => {
@@ -266,6 +298,24 @@ describe('marginal reserve MOIC rankings route', () => {
     ]);
     expect(parsed.unavailable).toEqual([{ companyId: 3, reasons: ['MISSING_CURRENT_OWNERSHIP'] }]);
     expect(parsed.rankings[0]?.result).not.toHaveProperty('companyId');
+
+    expect(svc.emitMarginalReserveMoicShadowComparison).toHaveBeenCalledTimes(1);
+    expect(svc.emitMarginalReserveMoicShadowComparison).toHaveBeenCalledWith({
+      fundId: 1,
+      plannedRankings: PLANNED_RANKINGS,
+      marginalRankings: parsed.rankings,
+      unavailable: parsed.unavailable,
+    });
+
+    const [emittedInput] = svc.emitMarginalReserveMoicShadowComparison.mock.calls[0];
+    expect(emittedInput.plannedRankings.length).toBeGreaterThan(0);
+    for (const planned of emittedInput.plannedRankings) {
+      expect(typeof planned.investmentId).toBe('string');
+      expect(planned.investmentId.length).toBeGreaterThan(0);
+    }
+    for (const marginal of emittedInput.marginalRankings) {
+      expect(typeof marginal.companyId).toBe('number');
+    }
   });
 
   it.each(['input_only', 'non_actionable', 'quarantined', 'unknown_legacy'] as const)(
@@ -280,6 +330,7 @@ describe('marginal reserve MOIC rankings route', () => {
         mode: 'on',
         actionability: 'non_actionable',
       });
+      expect(svc.emitMarginalReserveMoicShadowComparison).toHaveBeenCalledTimes(0);
     }
   );
 
@@ -323,6 +374,7 @@ describe('marginal reserve MOIC rankings route', () => {
     expect(svc.resolveMoicActionability.mock.invocationCallOrder[0]).toBeLessThan(
       svc.buildMarginalReserveMoicInputs.mock.invocationCallOrder[0]
     );
+    expect(svc.emitMarginalReserveMoicShadowComparison).toHaveBeenCalledTimes(0);
   });
 
   it('keeps an empty ranking set non-actionable', async () => {
@@ -334,6 +386,7 @@ describe('marginal reserve MOIC rankings route', () => {
     const parsed = MarginalReserveRankingsResponseV2Schema.parse(response.body);
     expect(parsed.rankings).toEqual([]);
     expect(parsed.actionability).toBe('non_actionable');
+    expect(svc.emitMarginalReserveMoicShadowComparison).toHaveBeenCalledTimes(0);
   });
 
   it('keeps all-indicative rankings non-actionable', async () => {
@@ -356,6 +409,7 @@ describe('marginal reserve MOIC rankings route', () => {
     const parsed = MarginalReserveRankingsResponseV2Schema.parse(response.body);
     expect(parsed.rankings.map((ranking) => ranking.status)).toEqual(['indicative']);
     expect(parsed.actionability).toBe('non_actionable');
+    expect(svc.emitMarginalReserveMoicShadowComparison).toHaveBeenCalledTimes(0);
   });
 
   it('preserves sorted all-unavailable date-mismatch assembly as non-actionable', async () => {
@@ -375,9 +429,11 @@ describe('marginal reserve MOIC rankings route', () => {
     const parsed = MarginalReserveRankingsResponseV2Schema.parse(response.body);
     expect(parsed.rankings).toEqual([]);
     expect(parsed.unavailable.map((item) => item.companyId)).toEqual([1, 3]);
-    expect(parsed.unavailable.every((item) => item.reasons.includes('CURRENT_STATE_DATE_MISMATCH')))
-      .toBe(true);
+    expect(
+      parsed.unavailable.every((item) => item.reasons.includes('CURRENT_STATE_DATE_MISMATCH'))
+    ).toBe(true);
     expect(parsed.actionability).toBe('non_actionable');
+    expect(svc.emitMarginalReserveMoicShadowComparison).toHaveBeenCalledTimes(0);
   });
 
   it('propagates H9 failures to the existing 500 path without a V2 response', async () => {
@@ -386,13 +442,21 @@ describe('marginal reserve MOIC rankings route', () => {
     const response = await getRankings();
 
     expect(response.status).toBe(500);
-    expect(response.body).toEqual({ error: 'internal_error' });
+    expect(response.headers['x-request-id']).toEqual(expect.any(String));
+    expect(response.body).toEqual({
+      code: 'INTERNAL_ERROR',
+      message: 'Internal Server Error',
+      requestId: response.headers['x-request-id'],
+      ts: expect.any(String),
+    });
+    expect(response.body).not.toHaveProperty('contractVersion');
     expect(response.body).not.toHaveProperty('actionability');
     expect(svc.getFundMoicRankingSources).toHaveBeenCalledTimes(1);
     expect(svc.resolveFundCalculationMode).toHaveBeenCalledTimes(1);
     expect(svc.buildRoundsToModelEvidence).toHaveBeenCalledTimes(1);
     expect(svc.resolveMoicActionability).toHaveBeenCalledTimes(1);
     expect(svc.buildMarginalReserveMoicInputs).toHaveBeenCalledTimes(0);
+    expect(svc.emitMarginalReserveMoicShadowComparison).toHaveBeenCalledTimes(0);
   });
 
   it('rejects a non-numeric fund ID with the sibling guard status', async () => {
@@ -403,5 +467,26 @@ describe('marginal reserve MOIC rankings route', () => {
     expect(response.status).toBe(400);
     expect(response.body).toEqual({ error: 'Bad Request', message: 'Invalid fund ID' });
     expectNoRouteReads();
+  });
+
+  it('fails a shadow read closed through the shared error contract when comparison emission throws', async () => {
+    svc.resolveFundCalculationMode.mockResolvedValue({ effectiveMode: 'shadow' });
+    svc.emitMarginalReserveMoicShadowComparison.mockImplementationOnce(() => {
+      throw new Error('shadow comparison unavailable');
+    });
+
+    const response = await getRankings();
+
+    expect(response.status).toBe(500);
+    expect(response.headers['x-request-id']).toEqual(expect.any(String));
+    expect(response.body).toEqual({
+      code: 'INTERNAL_ERROR',
+      message: 'Internal Server Error',
+      requestId: response.headers['x-request-id'],
+      ts: expect.any(String),
+    });
+    expect(response.body).not.toHaveProperty('contractVersion');
+    expect(response.body).not.toHaveProperty('actionability');
+    expect(svc.emitMarginalReserveMoicShadowComparison).toHaveBeenCalledTimes(1);
   });
 });
