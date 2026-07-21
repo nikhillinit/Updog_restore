@@ -474,7 +474,15 @@ export default [
   },
   // Core reserves - deterministic math enforcement
   {
-    files: ['core/reserves/**/*.ts', 'core/reserves/**/*.tsx'],
+    files: [
+      'shared/core/**/*.ts',
+      'shared/core/**/*.tsx',
+      'shared/lib/**/*.ts',
+      'server/services/investment-ledger/**/*.ts',
+      'server/services/internal-economics/**/*.ts',
+      'server/services/current-forecast-v2-service.ts',
+      'server/services/reserves/**/*.ts',
+    ],
     rules: {
       'povc-security/no-floating-point-in-core': 'error',
     },
@@ -487,6 +495,12 @@ export default [
       'server/analytics/**/*.ts',
       'workers/reserve-worker.ts',
       'workers/pacing-worker.ts',
+      'shared/core/**/*.ts',
+      'shared/lib/**/*.ts',
+      'server/services/investment-ledger/**/*.ts',
+      'server/services/internal-economics/**/*.ts',
+      'server/services/current-forecast-v2-service.ts',
+      'server/services/reserves/**/*.ts',
     ],
     rules: {
       'povc-security/no-parsefloat-in-calculations': 'warn',

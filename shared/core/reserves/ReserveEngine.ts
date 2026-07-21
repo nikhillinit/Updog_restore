@@ -1,3 +1,4 @@
+/* eslint-disable povc-security/no-floating-point-in-core -- PLAN_61 Task 2 P10: pre-existing baseline debt in ADR-056 reserve engine; Decimal refactor pending */
 import type { ReserveCompanyInput, ReserveOutput, ReserveSummary } from '@shared/types';
 import { ConfidenceLevel, ReserveCompanyInputSchema, ReserveOutputSchema } from '@shared/types';
 import { PRNG } from '@shared/utils/prng';
