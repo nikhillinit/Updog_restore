@@ -4,7 +4,7 @@ description:
   Deeply understand how existing features or systems work. Use for understanding
   authentication flows, onboarding, debugging complex issues, or planning
   refactoring.
-tools: All tools
+tools: Read, Grep, Glob, Bash
 model: inherit
 last_updated: 2026-04-03
 ---

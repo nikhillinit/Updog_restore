@@ -4,7 +4,6 @@ description:
   Production incidents, performance issues, deployment failures, and
   infrastructure problems. Use for outages, 500 errors, pod crashes, CI/CD
   failures, network issues, or database problems.
-tools: All tools
 model: inherit
 last_updated: 2026-04-03
 ---
