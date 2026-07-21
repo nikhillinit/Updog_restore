@@ -64,6 +64,7 @@ export class ConstrainedReserveEngine {
       const capStageC = stageMax.get(company.stage) ?? null;
       const yearsToExit = getStageConstraintValue(graduationYears, company.stage, 5);
       const exitProb = getStageConstraintValue(graduationProb, company.stage, 0.5);
+      // eslint-disable-next-line povc-security/no-floating-point-in-core -- PLAN_61 Task 2 P10: pre-existing baseline debt in ADR-056 reserve engine; Decimal refactor pending
       const discountFactor = Math.pow(1 + disc, yearsToExit);
 
       if (!Number.isFinite(discountFactor) || discountFactor <= 0) {

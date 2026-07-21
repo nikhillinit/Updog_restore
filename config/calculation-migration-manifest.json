@@ -1,0 +1,100 @@
+{
+  "version": "1.0.0",
+  "description": "PLAN_61 Wave A / Task 2 (defects D14, D18). Static-scan containment of the legacy fabricated-number forecast lane. Prevents NEW production consumers from importing the contained Cohort/ProjectedMetrics engines (directly, via @/ @shared/ @server/ or relative specifiers, via literal dynamic import(), via a protected-symbol import from the re-exporting barrel, or via the MetricsAggregator facade). Direct static scanning only: no transitive graph, no runtime tagging. Authoritative reserve snapshot is the hardcoded-multiplier ReserveEngine (ADR-056); the engines contained here are the forecast lane the program replaces with current_forecast_v2.",
+  "replacementMilestone": "current_forecast_v2",
+  "scopeDecision": "The analysis-cohort pipeline exports of client/src/core/cohorts/index.ts (analyzeCohorts, resolvers, XIRR/DPI/TVPI metrics, cash-flow helpers) are OUT of containment. Only the three engine symbols (CohortEngine, generateCohortSummary, compareCohorts) plus the ProjectedMetricsCalculator class are protected. compareCohorts is matched ONLY when it resolves to the cohorts/CohortEngine module — the unrelated compareCohorts sort comparator in shared/core/capitalAllocation is NOT protected.",
+  "scanScope": {
+    "include": [
+      "server/**/*.ts",
+      "server/**/*.tsx",
+      "client/src/**/*.ts",
+      "client/src/**/*.tsx",
+      "shared/**/*.ts",
+      "shared/**/*.tsx"
+    ],
+    "exclude": [
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "**/*.spec.ts",
+      "**/*.spec.tsx",
+      "**/*.d.ts",
+      "tests/**",
+      "scripts/**"
+    ]
+  },
+  "entryClasses": {
+    "protected_calculation_engines": {
+      "defect": "D14",
+      "protectedSymbols": [
+        "CohortEngine",
+        "generateCohortSummary",
+        "compareCohorts",
+        "ProjectedMetricsCalculator"
+      ],
+      "protectedModules": [
+        "shared/core/cohorts/CohortEngine.ts",
+        "server/services/projected-metrics-calculator.ts",
+        "client/src/core/cohorts/CohortEngine.ts"
+      ],
+      "reExportingBarrels": ["client/src/core/cohorts/index.ts"],
+      "allowedConsumers": [
+        {
+          "file": "server/services/projected-metrics-calculator.ts",
+          "consumer": "projected_metrics_calculator",
+          "disposition": "migrate_to_v2",
+          "note": "The contained PMC engine itself; replaced by current_forecast_v2."
+        },
+        {
+          "file": "server/services/metrics-aggregator.ts",
+          "consumer": "metrics_aggregator_facade",
+          "disposition": "migrate_to_v2",
+          "note": "Facade wrapping PMC; its dual-forecast path migrates to v2."
+        },
+        {
+          "file": "server/routes/engine-summaries.ts",
+          "consumer": "engine_summaries_api",
+          "disposition": "demo_freeze",
+          "note": "Fixtures-only demo route, explicitly NOT fund-scoped (engine-summaries.ts:159); pure synthetic compute. Cannot prove V2 use and MUST NOT gate activation. First candidate for the follow-up destructive-cleanup plan."
+        },
+        {
+          "file": "client/src/core/cohorts/CohortEngine.ts",
+          "consumer": "client_cohort_engine_shim",
+          "disposition": "demo_freeze",
+          "note": "Pure re-export shim of the shared engine. Sunset with the demo cohort surface."
+        },
+        {
+          "file": "client/src/core/cohorts/index.ts",
+          "consumer": "client_cohorts_barrel",
+          "disposition": "demo_freeze",
+          "note": "Re-exporting barrel; currently zero downstream importers. Protected-symbol re-export allowed here so the barrel is itself the allowlisted boundary."
+        }
+      ]
+    },
+    "legacy_backed_facades": {
+      "defect": "D18",
+      "protectedSymbols": ["MetricsAggregator", "metricsAggregator"],
+      "protectedModules": ["server/services/metrics-aggregator.ts"],
+      "reExportingBarrels": [],
+      "allowedConsumers": [
+        {
+          "file": "server/routes/dual-forecast.ts",
+          "consumer": "dual_forecast_api",
+          "disposition": "migrate_to_v2",
+          "note": "getDualForecast(fundId) — migrates to current_forecast_v2."
+        },
+        {
+          "file": "server/routes/fund-metrics.ts",
+          "consumer": "fund_results_current_forecast",
+          "disposition": "migrate_to_v2",
+          "note": "getUnifiedMetrics current-forecast surface — migrates to current_forecast_v2."
+        },
+        {
+          "file": "server/services/h9-artifact-invalidation-service.ts",
+          "consumer": "h9_artifact_invalidation",
+          "disposition": "migrate_to_v2",
+          "note": "Calls metricsAggregator.invalidateCache; follows the facade to v2."
+        }
+      ]
+    }
+  }
+}
