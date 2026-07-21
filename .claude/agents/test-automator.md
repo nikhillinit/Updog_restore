@@ -4,7 +4,6 @@ description:
   Proactive test automation strategy and comprehensive test coverage. Use when
   code changes are committed, new features discussed, quality issues arise, or
   CI/CD is modified.
-tools: All tools
 model: inherit
 last_updated: 2026-04-03
 ---

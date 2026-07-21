@@ -4,7 +4,6 @@ description:
   Design and execute chaos engineering experiments and resilience testing. Use
   for testing system recovery, planning game days, validating disaster recovery,
   or building antifragile systems.
-tools: All tools
 model: inherit
 last_updated: 2026-04-03
 ---

@@ -3,7 +3,6 @@ name: debug-expert
 description:
   Debugging, error analysis, and root cause investigation. Use for complex bugs,
   production issues, or hard-to-reproduce errors.
-tools: All tools
 model: inherit
 last_updated: 2026-04-03
 ---

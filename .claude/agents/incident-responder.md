@@ -3,7 +3,6 @@ name: incident-responder
 description:
   Production incident management and SRE practices. Use IMMEDIATELY for outages,
   errors, performance issues, or security breaches.
-tools: All tools
 model: inherit
 last_updated: 2026-04-03
 ---

@@ -3,7 +3,6 @@ name: dx-optimizer
 description:
   Developer experience optimization and tooling improvement. Use when setting up
   new projects, encountering workflow friction, or onboarding takes >10 minutes.
-tools: All tools
 model: inherit
 last_updated: 2026-04-03
 ---
