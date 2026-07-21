@@ -4,7 +4,6 @@ description:
   Database architecture design, technology selection, schema design, and query
   optimization. Use for database architecture decisions, performance tuning, or
   schema design.
-tools: All tools
 model: inherit
 last_updated: 2026-04-03
 ---

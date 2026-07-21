@@ -4,7 +4,6 @@ description:
   Modernize legacy codebases, migrate frameworks, reduce technical debt. Use
   when working with legacy code, outdated dependencies, or monolithic
   applications.
-tools: All tools
 model: inherit
 last_updated: 2026-04-03
 ---

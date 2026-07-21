@@ -4,7 +4,6 @@ description:
   Context management, memory systems, and multi-agent workflow orchestration.
   Use for RAG systems, multi-agent coordination, knowledge graphs, or semantic
   search.
-tools: All tools
 model: inherit
 last_updated: 2026-04-03
 ---

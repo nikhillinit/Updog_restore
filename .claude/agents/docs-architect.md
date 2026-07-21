@@ -4,7 +4,6 @@ description:
   Comprehensive technical documentation creation. Use when completing major
   refactoring, documenting complex architectures, preparing for onboarding, or
   recording design decisions.
-tools: All tools
 model: inherit
 last_updated: 2026-04-03
 ---
