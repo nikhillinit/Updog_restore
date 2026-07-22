@@ -4,7 +4,7 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 
 import { toNumber } from '@shared/number';
-import { requireAuth, requireFundAccess } from '../lib/auth/jwt.js';
+import { requireAuth, requireFundAccess, requireRole } from '../lib/auth/jwt.js';
 import { FundScopeError } from '../lib/fund-scoped-ownership';
 import { IdempotentCommandError } from '../lib/idempotent-command';
 import { handleNumberParseError } from '../lib/number-parse-error';
@@ -18,6 +18,13 @@ import {
   CurrentForecastV2ServiceError,
   runCurrentForecastV2,
 } from '../services/current-forecast-v2-service';
+import {
+  FundCalculationModeBlockedError,
+  FundCalculationModeIdempotencyConflictError,
+  FundCalculationModeInProgressError,
+  FundCalculationModeVersionConflictError,
+  updateCurrentForecastCalculationMode,
+} from '../services/fund-calculation-mode-service';
 
 const routeLog = createRouteLogger('current-forecast');
 const router = Router();
@@ -47,6 +54,14 @@ const RunCurrentForecastV2BodySchema = z
     currentPlanVersionId: z.string().optional(),
     financialFactsSnapshotId: z.string().optional(),
     clock: z.string().datetime().optional(),
+  })
+  .strict();
+
+const CurrentForecastModeUpdateBodySchema = z
+  .object({
+    expectedVersion: z.number().int().nonnegative(),
+    configuredMode: z.enum(['off', 'shadow', 'on']),
+    killSwitchActive: z.boolean().optional(),
   })
   .strict();
 
@@ -220,6 +235,72 @@ router.post(
       return res.status(200).json(forecast);
     } catch (error) {
       if (respondToTypedError(error, res)) return;
+      throw error;
+    }
+  })
+);
+
+router.put(
+  '/admin/funds/:fundId/calculation-modes/current-forecast',
+  currentForecastWriteLimiter,
+  requireAuth(),
+  validateFundIdParam,
+  requireFundAccess,
+  requireRole('admin'),
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = toNumber(req.params['fundId'], 'fundId', { integer: true, min: 1 });
+    const idempotencyKey = req.header('Idempotency-Key')?.trim();
+    if (!idempotencyKey) {
+      return res.status(428).json({
+        error: 'idempotency_key_required',
+        message: 'Idempotency-Key header is required',
+      });
+    }
+
+    const parsedBody = CurrentForecastModeUpdateBodySchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      return res.status(400).json({
+        error: 'invalid_mode_update',
+        message: 'Current forecast calculation mode update payload is invalid',
+        details: parsedBody.error.format(),
+      });
+    }
+
+    try {
+      const params: Parameters<typeof updateCurrentForecastCalculationMode>[0] = {
+        fundId,
+        expectedVersion: parsedBody.data.expectedVersion,
+        configuredMode: parsedBody.data.configuredMode,
+        idempotencyKey,
+        actorId: actorId(req),
+        ...(parsedBody.data.killSwitchActive !== undefined && {
+          killSwitchActive: parsedBody.data.killSwitchActive,
+        }),
+      };
+      const result = await updateCurrentForecastCalculationMode(params);
+      return res.status(200).json({ ...result.response, replayed: result.replayed });
+    } catch (error) {
+      if (error instanceof FundCalculationModeVersionConflictError) {
+        return res.status(409).json({
+          error: error.code,
+          message: error.message,
+          expectedVersion: error.expectedVersion,
+          actualVersion: error.actualVersion,
+        });
+      }
+      if (error instanceof FundCalculationModeBlockedError) {
+        return res.status(409).json({
+          error: error.code,
+          message: error.message,
+          blockers: error.blockers,
+        });
+      }
+      if (
+        error instanceof FundCalculationModeIdempotencyConflictError ||
+        error instanceof FundCalculationModeInProgressError
+      ) {
+        return res.status(409).json({ error: error.code, message: error.message });
+      }
       throw error;
     }
   })

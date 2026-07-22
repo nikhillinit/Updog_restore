@@ -17,9 +17,13 @@ import {
 import { invalidateH9Artifacts } from './h9-artifact-invalidation-service';
 import { reconciliationRuns } from '../../shared/schema';
 import { buildRoundsToModelEvidence } from './rounds-to-model-evidence-service';
+import { CURRENT_FORECAST_CALCULATION_KEY } from './current-forecast-calc-mode-resolver';
 
 const MODE_ROUTE = 'PUT /api/admin/funds/:fundId/calculation-modes/fund-moic-rankings';
+const CURRENT_FORECAST_MODE_ROUTE =
+  'PUT /api/admin/funds/:fundId/calculation-modes/current-forecast';
 export const MOIC_MODE_RESIDENCY_DAYS_REQUIRED = 7;
+const CURRENT_FORECAST_MODE_RESIDENCY_DAYS_REQUIRED = MOIC_MODE_RESIDENCY_DAYS_REQUIRED;
 
 export type FundCalculationConfiguredMode = 'off' | 'shadow' | 'on';
 export type FundCalculationEffectiveMode = 'off' | 'shadow' | 'on';
@@ -129,6 +133,10 @@ type ReconciliationRow = {
 };
 
 export type AcceptedRef = ReconciliationRow;
+
+type CurrentForecastModeSources = {
+  sourceInputHash: string;
+};
 
 export interface CalculationModeStrategy<TSources> {
   calculationKey: string;
@@ -685,6 +693,25 @@ const moicCalculationModeStrategy: CalculationModeStrategy<FundMoicRankingSource
   postCommit: invalidateH9Artifacts,
 };
 
+const currentForecastCalculationModeStrategy: CalculationModeStrategy<CurrentForecastModeSources> =
+  {
+    calculationKey: CURRENT_FORECAST_CALCULATION_KEY,
+    modeRoute: CURRENT_FORECAST_MODE_ROUTE,
+    residencyDaysRequired: CURRENT_FORECAST_MODE_RESIDENCY_DAYS_REQUIRED,
+    loadSources: async () => ({
+      sourceInputHash: canonicalSha256({
+        calculationKey: CURRENT_FORECAST_CALCULATION_KEY,
+        referenceStatus: 'unavailable_until_task_13_1',
+      }),
+    }),
+    sourceInputHash: (sources) => sources.sourceInputHash,
+    factsAvailable: () => true,
+    sourceBlockers: () => [],
+    validateAccepted: () => ['accepted_reconciliation_required'],
+    loadCompletedAccepted: async () => null,
+    postCommit: () => Promise.resolve(),
+  };
+
 function validateOnTransition<TSources>(
   strategy: CalculationModeStrategy<TSources>,
   params: {
@@ -977,4 +1004,12 @@ export async function updateFundMoicCalculationMode(
     response: result.response as FundCalculationModePreview,
     replayed: result.replayed,
   };
+}
+
+export async function updateCurrentForecastCalculationMode(
+  params: UpdateFundCalculationModeParams<CurrentForecastModeSources>
+): Promise<{ response: GenericFundCalculationModePreview; replayed: boolean }> {
+  // Transitional schema alias: last_moic_source_input_hash stores the accepted
+  // source hash for whichever calculation key owns the row until Task 13.1.
+  return updateFundCalculationMode(currentForecastCalculationModeStrategy, params);
 }

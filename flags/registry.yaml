@@ -488,6 +488,19 @@ flags:
     dependencies: []
     expiresAt: null
 
+  enable_current_forecast_v2:
+    default: false
+    description: 'Current Forecast V2 dual-forecast adapter (PLAN_61 Task 13)'
+    owner: 'gp-team'
+    risk: high
+    exposeToClient: false
+    environments:
+      development: false
+      staging: false
+      production: false
+    dependencies: []
+    expiresAt: null
+
   enable_portfolio_intelligence:
     default: false
     description: 'Gates Portfolio Intelligence prototype endpoints that remain fail-closed until backed by computed financial data'
