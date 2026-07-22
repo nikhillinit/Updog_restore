@@ -1,5 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 
+import { currentPlanVersions } from '../../shared/schema/current-plans';
+import { financialFactsSnapshots } from '../../shared/schema/financial-facts-snapshots';
 import { vehicles } from '../../shared/schema/lp-reporting-evidence';
 
 export type FundScopedReference = {
@@ -71,17 +73,46 @@ export async function assertOwnedByFund(opts: {
     throw new FundScopeError(opts.ref);
   }
 
-  if (opts.ref.kind !== 'vehicle') {
-    throw new FundScopeKindNotImplementedError(opts.ref.kind);
+  if (opts.ref.kind === 'facts_snapshot') {
+    const rows = await opts.db
+      .select({ id: financialFactsSnapshots.id })
+      .from(financialFactsSnapshots)
+      .where(
+        and(eq(financialFactsSnapshots.id, id), eq(financialFactsSnapshots.fundId, opts.fundId))
+      )
+      .limit(1);
+
+    if (rows.length === 0) {
+      throw new FundScopeError(opts.ref);
+    }
+    return;
   }
 
-  const rows = await opts.db
-    .select({ id: vehicles.id })
-    .from(vehicles)
-    .where(and(eq(vehicles.id, id), eq(vehicles.fundId, opts.fundId)))
-    .limit(1);
+  if (opts.ref.kind === 'current_plan_version') {
+    const rows = await opts.db
+      .select({ id: currentPlanVersions.id })
+      .from(currentPlanVersions)
+      .where(and(eq(currentPlanVersions.id, id), eq(currentPlanVersions.fundId, opts.fundId)))
+      .limit(1);
 
-  if (rows.length === 0) {
-    throw new FundScopeError(opts.ref);
+    if (rows.length === 0) {
+      throw new FundScopeError(opts.ref);
+    }
+    return;
   }
+
+  if (opts.ref.kind === 'vehicle') {
+    const rows = await opts.db
+      .select({ id: vehicles.id })
+      .from(vehicles)
+      .where(and(eq(vehicles.id, id), eq(vehicles.fundId, opts.fundId)))
+      .limit(1);
+
+    if (rows.length === 0) {
+      throw new FundScopeError(opts.ref);
+    }
+    return;
+  }
+
+  throw new FundScopeKindNotImplementedError(opts.ref.kind);
 }
