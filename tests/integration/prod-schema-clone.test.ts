@@ -85,6 +85,8 @@ const SUBSTRATE_SHADOW_RECONCILIATION_MANIFEST_TABLES = [
 ] as const;
 // M10 (10-financial-facts-snapshots): canonical immutable facts snapshots (journal 0036).
 const FINANCIAL_FACTS_SNAPSHOT_MANIFEST_TABLES = ['financial_facts_snapshots'] as const;
+// M11 (11-current-plan-versions): immutable accepted current-plan versions (journal 0037).
+const CURRENT_PLAN_VERSIONS_MANIFEST_TABLES = ['current_plan_versions'] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
   'flags_state',
@@ -709,6 +711,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...SCENARIO_CASE_SEED_PROVENANCE_MANIFEST_TABLES,
         ...SUBSTRATE_SHADOW_RECONCILIATION_MANIFEST_TABLES,
         ...FINANCIAL_FACTS_SNAPSHOT_MANIFEST_TABLES,
+        ...CURRENT_PLAN_VERSIONS_MANIFEST_TABLES,
       ])
     );
 
