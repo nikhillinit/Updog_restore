@@ -15,6 +15,17 @@ const service = vi.hoisted(() => ({
   getLatestFinancialFactsSnapshot: vi.fn(),
 }));
 
+const rateLimiterState = vi.hoisted(() => ({
+  configs: [] as unknown[],
+}));
+
+vi.mock('express-rate-limit', () => ({
+  default: (config: unknown) => {
+    rateLimiterState.configs.push(config);
+    return (_req: Request, _res: Response, next: NextFunction) => next();
+  },
+}));
+
 vi.mock('../../../server/lib/auth/jwt', () => ({
   requireAuth:
     () => (req: Request, _res: Response, next: NextFunction) => {
@@ -170,6 +181,23 @@ beforeEach(() => {
 });
 
 describe('financial-facts route contract', () => {
+  it('registers separate read and write rate-limit contracts', () => {
+    expect(rateLimiterState.configs).toEqual([
+      expect.objectContaining({
+        windowMs: 60_000,
+        max: 120,
+        standardHeaders: true,
+        legacyHeaders: false,
+      }),
+      expect.objectContaining({
+        windowMs: 60_000,
+        max: 30,
+        standardHeaders: true,
+        legacyHeaders: false,
+      }),
+    ]);
+  });
+
   it('GET rejects a non-numeric fund ID before reading snapshots', async () => {
     const response = await request(buildApp()).get('/api/funds/not-a-number/financial-facts/latest');
 

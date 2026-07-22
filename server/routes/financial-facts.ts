@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { NextFunction, Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 
 import {
@@ -21,6 +22,20 @@ import {
 
 const routeLog = createRouteLogger('financial-facts');
 const router = Router();
+
+const financialFactsReadLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const financialFactsWriteLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const CreateFinancialFactsSnapshotBodySchema = z
   .object({
@@ -72,6 +87,7 @@ function snapshotResponse(row: FinancialFactsSnapshot) {
 
 router.get(
   '/funds/:fundId/financial-facts/latest',
+  financialFactsReadLimiter,
   requireAuth(),
   validateFundIdParam,
   requireFundAccess,
@@ -94,6 +110,7 @@ router.get(
 
 router.post(
   '/admin/funds/:fundId/financial-facts/snapshots',
+  financialFactsWriteLimiter,
   requireAuth(),
   requireFundAccess,
   requireRole('admin'),
