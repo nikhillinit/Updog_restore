@@ -52,6 +52,15 @@ vi.mock('@/hooks/use-moic', () => ({
     error: new Error('rankings unavailable'),
   }),
 }));
+vi.mock('@/hooks/useCurrentPlanVersions', () => ({
+  useCurrentPlanVersions: () => ({
+    versions: [],
+    headVersion: null,
+    isLoading: true,
+    error: null,
+    mint: { mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false, error: null },
+  }),
+}));
 vi.mock('@/components/portfolio/tabs/hooks/useLatestAllocations', () => ({
   useLatestAllocations: () => ({
     isSuccess: false,
