@@ -11,6 +11,7 @@ import backtestingRouter from './backtesting.js';
 import cashFlowEventsRouter from './cash-flow-events.js';
 import capitalAllocationRouter from './capital-allocation.js';
 import cohortAnalysisRouter from './cohort-analysis.js';
+import currentForecastRouter from './current-forecast.js';
 import dashboardSummaryRouter from './dashboard-summary.js';
 import { dealPipelineRouter } from './deal-pipeline.js';
 import dualForecastRouter from './dual-forecast.js';
@@ -66,6 +67,7 @@ export const COMMON_ROUTE_IMPLEMENTATIONS: Record<CommonApiRouteId, RouteMountIm
   'dashboard-summary': at('/api', dashboardSummaryRouter),
   'fund-actuals': at('/api', fundActualsRouter),
   'financial-facts': at('/api', financialFactsRouter),
+  'current-forecast': at('/api', currentForecastRouter),
   funds: at('/api', fundsRouter),
   'fund-metrics': at(null, fundMetricsRouter),
   investments: at('/api', investmentsRouter),
@@ -120,6 +122,7 @@ export const COMMON_ROUTE_SURFACE_ORDER = {
     'fund-scenario-sets',
     'fund-actuals',
     'financial-facts',
+    'current-forecast',
     'allocations',
     'backtesting',
     'sensitivity',

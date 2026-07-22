@@ -118,6 +118,7 @@ describe('canonical common API route manifest', () => {
         "dashboard-summary:/api",
         "fund-actuals:/api",
         "financial-facts:/api",
+        "current-forecast:/api",
         "funds:/api",
         "fund-metrics:<bare>",
         "investments:/api",
