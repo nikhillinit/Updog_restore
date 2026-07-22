@@ -24,3 +24,4 @@ export * from './lp-reporting-evidence';
 export * from './operating-objects';
 export * from './investment-rounds';
 export * from './investment-round-model-overrides';
+export * from './current-plans';
