@@ -92,6 +92,7 @@ describe('prod-schema manifest sentinels', () => {
       '07-allocation-scenarios.json',
       '08-scenario-case-seed-provenance.json',
       '09-substrate-shadow-reconciliations.json',
+      '10-financial-facts-snapshots.json',
     ]);
   });
 

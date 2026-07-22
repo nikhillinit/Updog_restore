@@ -260,6 +260,13 @@
       "when": 1784376000000,
       "tag": "0035_substrate_shadow_reconciliations",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1784683827617,
+      "tag": "0036_financial_facts_snapshots",
+      "breakpoints": true
     }
   ]
 }

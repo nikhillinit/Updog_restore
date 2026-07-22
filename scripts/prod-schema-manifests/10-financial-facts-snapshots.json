@@ -1,0 +1,39 @@
+{
+  "name": "financial-facts-snapshots",
+  "order": 10,
+  "description": "Immutable fund-scoped financial-facts snapshots for policy 1.0.0.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0036_financial_facts_snapshots.sql"],
+  "allowedCreateTables": ["financial_facts_snapshots"],
+  "expectedTables": [
+    {
+      "name": "financial_facts_snapshots",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "policy_version", "type": "text", "nullable": false },
+        { "name": "payload_schema_id", "type": "text", "nullable": false },
+        { "name": "as_of_date", "type": "date", "nullable": false },
+        { "name": "knowledge_cutoff", "type": "timestamptz", "nullable": false },
+        { "name": "vehicle_scope", "type": "varchar", "nullable": false },
+        { "name": "vehicle_ids", "type": "jsonb", "nullable": false },
+        { "name": "selection_set_hash", "type": "text", "nullable": false },
+        { "name": "source_facts_input_hash", "type": "text", "nullable": false },
+        { "name": "snapshot_input_hash", "type": "text", "nullable": false },
+        { "name": "payload", "type": "jsonb", "nullable": false },
+        { "name": "consumer_evaluations", "type": "jsonb", "nullable": false },
+        { "name": "actor_id", "type": "integer", "nullable": true },
+        { "name": "idempotency_key", "type": "varchar", "nullable": false },
+        { "name": "request_hash", "type": "varchar", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "financial_facts_snapshots_fund_idempotency_unique",
+        "financial_facts_snapshots_fund_identity_unique",
+        "financial_facts_snapshots_vehicle_scope_check",
+        "financial_facts_snapshots_fund_id_funds_id_fk"
+      ],
+      "indexes": ["idx_financial_facts_snapshots_fund_created"]
+    }
+  ]
+}

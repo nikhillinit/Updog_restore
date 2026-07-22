@@ -14,6 +14,7 @@ import cohortAnalysisRouter from './cohort-analysis.js';
 import dashboardSummaryRouter from './dashboard-summary.js';
 import { dealPipelineRouter } from './deal-pipeline.js';
 import dualForecastRouter from './dual-forecast.js';
+import financialFactsRouter from './financial-facts.js';
 import flagsRouter from './flags.js';
 import fundActualsRouter from './fund-actuals.js';
 import { registerFundConfigRoutes } from './fund-config.js';
@@ -64,6 +65,7 @@ export const COMMON_ROUTE_IMPLEMENTATIONS: Record<CommonApiRouteId, RouteMountIm
   'dual-forecast': at('/api', dualForecastRouter),
   'dashboard-summary': at('/api', dashboardSummaryRouter),
   'fund-actuals': at('/api', fundActualsRouter),
+  'financial-facts': at('/api', financialFactsRouter),
   funds: at('/api', fundsRouter),
   'fund-metrics': at(null, fundMetricsRouter),
   investments: at('/api', investmentsRouter),
@@ -117,6 +119,7 @@ export const COMMON_ROUTE_SURFACE_ORDER = {
     'planning-fmv-overrides',
     'fund-scenario-sets',
     'fund-actuals',
+    'financial-facts',
     'allocations',
     'backtesting',
     'sensitivity',
