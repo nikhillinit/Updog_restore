@@ -83,6 +83,8 @@ const SCENARIO_CASE_SEED_PROVENANCE_MANIFEST_TABLES = ['scenario_case_seed_prove
 const SUBSTRATE_SHADOW_RECONCILIATION_MANIFEST_TABLES = [
   'substrate_shadow_reconciliations',
 ] as const;
+// M10 (10-financial-facts-snapshots): canonical immutable facts snapshots (journal 0036).
+const FINANCIAL_FACTS_SNAPSHOT_MANIFEST_TABLES = ['financial_facts_snapshots'] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
   'flags_state',
@@ -706,6 +708,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...ALLOCATION_SCENARIO_MANIFEST_TABLES,
         ...SCENARIO_CASE_SEED_PROVENANCE_MANIFEST_TABLES,
         ...SUBSTRATE_SHADOW_RECONCILIATION_MANIFEST_TABLES,
+        ...FINANCIAL_FACTS_SNAPSHOT_MANIFEST_TABLES,
       ])
     );
 
