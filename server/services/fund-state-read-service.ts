@@ -11,8 +11,14 @@
  */
 
 import { db } from '../db';
-import { funds, fundConfigs, calcRuns, fundSnapshots } from '@shared/schema';
-import { eq, and, desc, isNull, max } from 'drizzle-orm';
+import {
+  funds,
+  fundConfigs,
+  calcRuns,
+  fundSnapshots,
+  NON_TIMELINE_SNAPSHOT_TYPES,
+} from '@shared/schema';
+import { eq, and, desc, isNull, max, notInArray } from 'drizzle-orm';
 import type { FundStateReadV1 } from '@shared/contracts/fund-state-read-v1.contract';
 import { deriveReadState } from './fund-state-derivation';
 import type { DerivationInput } from './fund-state-derivation';
@@ -79,7 +85,13 @@ export class FundStateReadService {
         createdAt: fundSnapshots.createdAt,
       })
       .from(fundSnapshots)
-      .where(and(eq(fundSnapshots.fundId, fundId), isNull(fundSnapshots.scenarioSetId)));
+      .where(
+        and(
+          eq(fundSnapshots.fundId, fundId),
+          isNull(fundSnapshots.scenarioSetId),
+          notInArray(fundSnapshots.type, [...NON_TIMELINE_SNAPSHOT_TYPES])
+        )
+      );
 
     // 7. Build input and derive
     const input: DerivationInput = {

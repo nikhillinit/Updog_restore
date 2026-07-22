@@ -1,0 +1,69 @@
+{
+  "name": "current-plan-versions",
+  "order": 11,
+  "description": "Immutable accepted current-plan versions derived from fund config and financial facts.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0037_current_plans.sql"],
+  "allowedCreateTables": ["current_plan_versions"],
+  "expectedTables": [
+    {
+      "name": "current_plan_versions",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "version", "type": "integer", "nullable": false },
+        { "name": "source_config_id", "type": "integer", "nullable": false },
+        {
+          "name": "source_config_version",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "source_facts_snapshot_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "deployable_capital_usd",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "plan_transformation_version",
+          "type": "text",
+          "nullable": false
+        },
+        { "name": "allocations", "type": "jsonb", "nullable": false },
+        { "name": "pacing_assumptions", "type": "jsonb", "nullable": false },
+        { "name": "cohort_assumptions", "type": "jsonb", "nullable": false },
+        { "name": "reserve_policy_version", "type": "text", "nullable": false },
+        { "name": "assumptions_hash", "type": "text", "nullable": false },
+        {
+          "name": "supersedes_version_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "superseded_by_version_id",
+          "type": "integer",
+          "nullable": true
+        },
+        { "name": "idempotency_key", "type": "varchar", "nullable": false },
+        { "name": "request_hash", "type": "varchar", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "current_plan_versions_fund_idempotency_unique",
+        "current_plan_versions_fund_version_unique",
+        "current_plan_versions_fund_id_funds_id_fk",
+        "current_plan_versions_source_facts_snapshot_id_fk",
+        "current_plan_versions_supersedes_version_id_fk",
+        "current_plan_versions_superseded_by_version_id_fk"
+      ],
+      "indexes": [
+        "current_plan_versions_fund_head_unique",
+        "idx_current_plan_versions_fund_created"
+      ]
+    }
+  ]
+}

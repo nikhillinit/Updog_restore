@@ -1,0 +1,1040 @@
+[
+  {
+    "id": "CF-001",
+    "description": "Empty facts basis: no cash-flow points and no marks. The landed 12.0 plan schema requires a normalized stageDistribution, so the empty business plan is represented by allocations=[] with a neutral Seed assumption. Expected status is unavailable with FACTS_UNAVAILABLE and an empty series.",
+    "input": {
+      "fundId": 1,
+      "financialFactsSnapshotId": "31",
+      "currentPlanVersionId": "current-plan-cf-001",
+      "asOfDate": "2026-07-21",
+      "knowledgeCutoff": "2026-07-22T02:00:00.000Z",
+      "clock": "2026-07-22T03:00:00.000Z"
+    },
+    "plan": {
+      "contractVersion": "current-plan-version-v1",
+      "id": "current-plan-cf-001",
+      "fundId": 1,
+      "version": 1,
+      "sourceConfigId": 17,
+      "sourceConfigVersion": 3,
+      "sourceFactsSnapshotId": "31",
+      "deployableCapitalUsd": "0.000000",
+      "planTransformationVersion": "fund-config-to-current-plan/1.0.0",
+      "allocations": [],
+      "pacingAssumptions": {
+        "contractVersion": "current-plan-pacing-v1",
+        "deploymentQuarters": 1,
+        "quarterlyDeploymentPcts": ["1.000000000000"],
+        "followOnReservePct": "0.000000000000",
+        "annualFeeDragPct": "0.000000000000"
+      },
+      "cohortAssumptions": {
+        "contractVersion": "current-plan-cohort-v1",
+        "averageInitialCheckUsd": "0.000000",
+        "stageDistribution": [{ "stage": "Seed", "pct": "1.000000000000" }],
+        "graduationMatrix": [
+          {
+            "fromStage": "Seed",
+            "toStage": "Seed",
+            "rate": "1.000000000000",
+            "quartersToGraduate": 0
+          }
+        ],
+        "exitAssumptions": [
+          {
+            "stage": "Seed",
+            "exitMultiple": "1.000000000000",
+            "quartersToExit": 1,
+            "failureRate": "0.000000000000"
+          }
+        ]
+      },
+      "reservePolicyVersion": "reserve-policy/1.0.0",
+      "assumptionsHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "supersedesVersionId": null,
+      "supersededByVersionId": null,
+      "createdAt": "2026-07-22T02:00:00.000Z"
+    },
+    "facts": {
+      "id": 31,
+      "policyVersion": "financial-facts-policy/1.0.0",
+      "fundId": 1,
+      "asOfDate": "2026-07-21",
+      "knowledgeCutoff": "2026-07-22T02:00:00.000Z",
+      "vehicleScope": "fund_all",
+      "vehicleIds": [11],
+      "selectionSetHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sourceFactsInputHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "snapshotInputHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "consumerEvaluations": [],
+      "payload": {
+        "companyActuals": {
+          "fundId": 1,
+          "asOfDate": "2026-07-21",
+          "facts": [],
+          "inputHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "sourceObservationIds": [],
+        "workingValueSelectionIds": [],
+        "participationTermRefs": [],
+        "cashFlowSeries": {
+          "series": [],
+          "totals": {
+            "contributions": "0.000000",
+            "distributions": "0.000000",
+            "recallableDistributions": "0.000000"
+          },
+          "warnings": []
+        },
+        "marksSeries": { "marks": [], "periodNav": [], "warnings": [] },
+        "vehicleRoster": []
+      },
+      "actorId": 7,
+      "createdAt": "2026-07-22T02:00:00.000Z"
+    },
+    "expect": {
+      "status": "unavailable",
+      "unavailableReason": "FACTS_UNAVAILABLE",
+      "series": []
+    }
+  },
+  {
+    "id": "CF-002",
+    "description": "Fully deployed: deployable capital 8000000.000000 minus actual portfolio investment 8000000.000000 gives remaining 0.000000. No projected periods or cohorts are permitted.",
+    "input": {
+      "fundId": 1,
+      "financialFactsSnapshotId": "31",
+      "currentPlanVersionId": "current-plan-cf-002",
+      "asOfDate": "2026-07-21",
+      "knowledgeCutoff": "2026-07-22T02:00:00.000Z",
+      "clock": "2026-07-22T03:00:00.000Z"
+    },
+    "plan": {
+      "contractVersion": "current-plan-version-v1",
+      "id": "current-plan-cf-002",
+      "fundId": 1,
+      "version": 1,
+      "sourceConfigId": 17,
+      "sourceConfigVersion": 3,
+      "sourceFactsSnapshotId": "31",
+      "deployableCapitalUsd": "8000000.000000",
+      "planTransformationVersion": "fund-config-to-current-plan/1.0.0",
+      "allocations": [],
+      "pacingAssumptions": {
+        "contractVersion": "current-plan-pacing-v1",
+        "deploymentQuarters": 1,
+        "quarterlyDeploymentPcts": ["1.000000000000"],
+        "followOnReservePct": "0.000000000000",
+        "annualFeeDragPct": "0.000000000000"
+      },
+      "cohortAssumptions": {
+        "contractVersion": "current-plan-cohort-v1",
+        "averageInitialCheckUsd": "1000000.000000",
+        "stageDistribution": [{ "stage": "Seed", "pct": "1.000000000000" }],
+        "graduationMatrix": [
+          {
+            "fromStage": "Seed",
+            "toStage": "Seed",
+            "rate": "1.000000000000",
+            "quartersToGraduate": 0
+          }
+        ],
+        "exitAssumptions": [
+          {
+            "stage": "Seed",
+            "exitMultiple": "2.000000000000",
+            "quartersToExit": 4,
+            "failureRate": "0.000000000000"
+          }
+        ]
+      },
+      "reservePolicyVersion": "reserve-policy/1.0.0",
+      "assumptionsHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "supersedesVersionId": null,
+      "supersededByVersionId": null,
+      "createdAt": "2026-07-22T02:00:00.000Z"
+    },
+    "facts": {
+      "id": 31,
+      "policyVersion": "financial-facts-policy/1.0.0",
+      "fundId": 1,
+      "asOfDate": "2026-07-21",
+      "knowledgeCutoff": "2026-07-22T02:00:00.000Z",
+      "vehicleScope": "fund_all",
+      "vehicleIds": [11],
+      "selectionSetHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sourceFactsInputHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "snapshotInputHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "consumerEvaluations": [],
+      "payload": {
+        "companyActuals": {
+          "fundId": 1,
+          "asOfDate": "2026-07-21",
+          "facts": [],
+          "inputHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "sourceObservationIds": [],
+        "workingValueSelectionIds": [],
+        "participationTermRefs": [],
+        "cashFlowSeries": {
+          "series": [
+            {
+              "eventType": "portfolio_investment",
+              "vehicleId": 11,
+              "perspective": "fund_gross",
+              "points": [
+                {
+                  "eventId": 201,
+                  "effectiveAt": "2026-07-01T00:00:00.000Z",
+                  "amount": "8000000.000000"
+                }
+              ]
+            }
+          ],
+          "totals": {
+            "contributions": "0.000000",
+            "distributions": "0.000000",
+            "recallableDistributions": "0.000000"
+          },
+          "warnings": []
+        },
+        "marksSeries": { "marks": [], "periodNav": [], "warnings": [] },
+        "vehicleRoster": []
+      },
+      "actorId": 7,
+      "createdAt": "2026-07-22T02:00:00.000Z"
+    },
+    "expect": {
+      "status": "available",
+      "remainingDeployableCapitalUsd": "0.000000",
+      "actualDeployedUsd": "8000000.000000",
+      "projectedPeriodsAbsent": true
+    }
+  },
+  {
+    "id": "CF-003",
+    "description": "Mid-deployment closed form: remaining=8000000-2000000=6000000. Q1 deployment=6000000x0.6=3600000.000000; Q2=6000000x0.4=2400000.000000. Exit EV is capx3x(1-0.25): Q1 exits at projected quarter 9 with 8100000.000000 and Q2 exits at quarter 10 with 5400000.000000, total 13500000.000000; terminal NAV is 0.000000.",
+    "input": {
+      "fundId": 1,
+      "financialFactsSnapshotId": "31",
+      "currentPlanVersionId": "current-plan-cf-003",
+      "asOfDate": "2026-07-21",
+      "knowledgeCutoff": "2026-07-22T02:00:00.000Z",
+      "clock": "2026-07-22T03:00:00.000Z"
+    },
+    "plan": {
+      "contractVersion": "current-plan-version-v1",
+      "id": "current-plan-cf-003",
+      "fundId": 1,
+      "version": 1,
+      "sourceConfigId": 17,
+      "sourceConfigVersion": 3,
+      "sourceFactsSnapshotId": "31",
+      "deployableCapitalUsd": "8000000.000000",
+      "planTransformationVersion": "fund-config-to-current-plan/1.0.0",
+      "allocations": [],
+      "pacingAssumptions": {
+        "contractVersion": "current-plan-pacing-v1",
+        "deploymentQuarters": 2,
+        "quarterlyDeploymentPcts": ["0.600000000000", "0.400000000000"],
+        "followOnReservePct": "0.000000000000",
+        "annualFeeDragPct": "0.000000000000"
+      },
+      "cohortAssumptions": {
+        "contractVersion": "current-plan-cohort-v1",
+        "averageInitialCheckUsd": "1000000.000000",
+        "stageDistribution": [{ "stage": "Seed", "pct": "1.000000000000" }],
+        "graduationMatrix": [
+          {
+            "fromStage": "Seed",
+            "toStage": "Seed",
+            "rate": "1.000000000000",
+            "quartersToGraduate": 0
+          }
+        ],
+        "exitAssumptions": [
+          {
+            "stage": "Seed",
+            "exitMultiple": "3.000000000000",
+            "quartersToExit": 8,
+            "failureRate": "0.250000000000"
+          }
+        ]
+      },
+      "reservePolicyVersion": "reserve-policy/1.0.0",
+      "assumptionsHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "supersedesVersionId": null,
+      "supersededByVersionId": null,
+      "createdAt": "2026-07-22T02:00:00.000Z"
+    },
+    "facts": {
+      "id": 31,
+      "policyVersion": "financial-facts-policy/1.0.0",
+      "fundId": 1,
+      "asOfDate": "2026-07-21",
+      "knowledgeCutoff": "2026-07-22T02:00:00.000Z",
+      "vehicleScope": "fund_all",
+      "vehicleIds": [11],
+      "selectionSetHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sourceFactsInputHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "snapshotInputHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "consumerEvaluations": [],
+      "payload": {
+        "companyActuals": {
+          "fundId": 1,
+          "asOfDate": "2026-07-21",
+          "facts": [],
+          "inputHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "sourceObservationIds": [],
+        "workingValueSelectionIds": [],
+        "participationTermRefs": [],
+        "cashFlowSeries": {
+          "series": [
+            {
+              "eventType": "lp_capital_call",
+              "vehicleId": 11,
+              "perspective": "lp_net",
+              "points": [
+                {
+                  "eventId": 301,
+                  "effectiveAt": "2026-07-01T00:00:00.000Z",
+                  "amount": "2000000.000000"
+                }
+              ]
+            },
+            {
+              "eventType": "portfolio_investment",
+              "vehicleId": 11,
+              "perspective": "fund_gross",
+              "points": [
+                {
+                  "eventId": 302,
+                  "effectiveAt": "2026-07-01T00:00:00.000Z",
+                  "amount": "2000000.000000"
+                }
+              ]
+            }
+          ],
+          "totals": {
+            "contributions": "2000000.000000",
+            "distributions": "0.000000",
+            "recallableDistributions": "0.000000"
+          },
+          "warnings": []
+        },
+        "marksSeries": { "marks": [], "periodNav": [], "warnings": [] },
+        "vehicleRoster": []
+      },
+      "actorId": 7,
+      "createdAt": "2026-07-22T02:00:00.000Z"
+    },
+    "expect": {
+      "status": "available",
+      "remainingDeployableCapitalUsd": "6000000.000000",
+      "deploymentByProjectedQuarter": [
+        { "quarter": 1, "deployedUsd": "3600000.000000" },
+        { "quarter": 2, "deployedUsd": "2400000.000000" }
+      ],
+      "remainingCapitalConservation": {
+        "deployedActualUsd": "2000000.000000",
+        "deployableCapitalUsd": "8000000.000000"
+      },
+      "exitDistributionsByProjectedQuarter": [
+        { "quarter": 9, "distributionsUsd": "8100000.000000" },
+        { "quarter": 10, "distributionsUsd": "5400000.000000" }
+      ],
+      "totalProjectedDistributionsUsd": "13500000.000000",
+      "terminalNavUsd": "0.000000",
+      "fittedNavByProjectedQuarter": [
+        { "quarter": 1, "navUsd": "3600000.000000", "precision": 4 }
+      ],
+      "navBounds": {
+        "throughQuarter": 8,
+        "minimumUsd": "0.000000",
+        "maximumUsd": "13500000.000000",
+        "monotonicNonDecreasing": true
+      }
+    }
+  },
+  {
+    "id": "CF-004",
+    "description": "Incomplete assumptions: Series A has 100% stage distribution but no matching exitAssumptions entry. Expected status is unavailable with ASSUMPTION_STAGE_INCOMPLETE.",
+    "input": {
+      "fundId": 1,
+      "financialFactsSnapshotId": "31",
+      "currentPlanVersionId": "current-plan-cf-004",
+      "asOfDate": "2026-07-21",
+      "knowledgeCutoff": "2026-07-22T02:00:00.000Z",
+      "clock": "2026-07-22T03:00:00.000Z"
+    },
+    "plan": {
+      "contractVersion": "current-plan-version-v1",
+      "id": "current-plan-cf-004",
+      "fundId": 1,
+      "version": 1,
+      "sourceConfigId": 17,
+      "sourceConfigVersion": 3,
+      "sourceFactsSnapshotId": "31",
+      "deployableCapitalUsd": "8000000.000000",
+      "planTransformationVersion": "fund-config-to-current-plan/1.0.0",
+      "allocations": [],
+      "pacingAssumptions": {
+        "contractVersion": "current-plan-pacing-v1",
+        "deploymentQuarters": 1,
+        "quarterlyDeploymentPcts": ["1.000000000000"],
+        "followOnReservePct": "0.000000000000",
+        "annualFeeDragPct": "0.000000000000"
+      },
+      "cohortAssumptions": {
+        "contractVersion": "current-plan-cohort-v1",
+        "averageInitialCheckUsd": "1000000.000000",
+        "stageDistribution": [{ "stage": "Series A", "pct": "1.000000000000" }],
+        "graduationMatrix": [],
+        "exitAssumptions": []
+      },
+      "reservePolicyVersion": "reserve-policy/1.0.0",
+      "assumptionsHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "supersedesVersionId": null,
+      "supersededByVersionId": null,
+      "createdAt": "2026-07-22T02:00:00.000Z"
+    },
+    "facts": {
+      "id": 31,
+      "policyVersion": "financial-facts-policy/1.0.0",
+      "fundId": 1,
+      "asOfDate": "2026-07-21",
+      "knowledgeCutoff": "2026-07-22T02:00:00.000Z",
+      "vehicleScope": "fund_all",
+      "vehicleIds": [11],
+      "selectionSetHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sourceFactsInputHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "snapshotInputHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "consumerEvaluations": [],
+      "payload": {
+        "companyActuals": {
+          "fundId": 1,
+          "asOfDate": "2026-07-21",
+          "facts": [],
+          "inputHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "sourceObservationIds": [],
+        "workingValueSelectionIds": [],
+        "participationTermRefs": [],
+        "cashFlowSeries": {
+          "series": [
+            {
+              "eventType": "portfolio_investment",
+              "vehicleId": 11,
+              "perspective": "fund_gross",
+              "points": [
+                {
+                  "eventId": 401,
+                  "effectiveAt": "2026-07-01T00:00:00.000Z",
+                  "amount": "2000000.000000"
+                }
+              ]
+            }
+          ],
+          "totals": {
+            "contributions": "0.000000",
+            "distributions": "0.000000",
+            "recallableDistributions": "0.000000"
+          },
+          "warnings": []
+        },
+        "marksSeries": { "marks": [], "periodNav": [], "warnings": [] },
+        "vehicleRoster": []
+      },
+      "actorId": 7,
+      "createdAt": "2026-07-22T02:00:00.000Z"
+    },
+    "expect": {
+      "status": "unavailable",
+      "unavailableReason": "ASSUMPTION_STAGE_INCOMPLETE"
+    }
+  },
+  {
+    "id": "CF-005",
+    "description": "Conservation and bridge: remaining=8000000-2000000=6000000. One actual quarter plus four projected quarters gives gridYears=1.25; total fees=0.04x8000000x1.25=400000, paid fees=0.04x8000000x0.25=80000, projected fees=320000. committed=8400000 and uncalled=8400000-2500000-320000+500000=6080000.",
+    "input": {
+      "fundId": 1,
+      "financialFactsSnapshotId": "31",
+      "currentPlanVersionId": "current-plan-cf-005",
+      "asOfDate": "2026-07-21",
+      "knowledgeCutoff": "2026-07-22T02:00:00.000Z",
+      "clock": "2026-07-22T03:00:00.000Z"
+    },
+    "plan": {
+      "contractVersion": "current-plan-version-v1",
+      "id": "current-plan-cf-005",
+      "fundId": 1,
+      "version": 1,
+      "sourceConfigId": 17,
+      "sourceConfigVersion": 3,
+      "sourceFactsSnapshotId": "31",
+      "deployableCapitalUsd": "8000000.000000",
+      "planTransformationVersion": "fund-config-to-current-plan/1.0.0",
+      "allocations": [],
+      "pacingAssumptions": {
+        "contractVersion": "current-plan-pacing-v1",
+        "deploymentQuarters": 2,
+        "quarterlyDeploymentPcts": ["0.500000000000", "0.500000000000"],
+        "followOnReservePct": "0.000000000000",
+        "annualFeeDragPct": "0.040000000000"
+      },
+      "cohortAssumptions": {
+        "contractVersion": "current-plan-cohort-v1",
+        "averageInitialCheckUsd": "1000000.000000",
+        "stageDistribution": [{ "stage": "Seed", "pct": "1.000000000000" }],
+        "graduationMatrix": [
+          {
+            "fromStage": "Seed",
+            "toStage": "Seed",
+            "rate": "1.000000000000",
+            "quartersToGraduate": 0
+          }
+        ],
+        "exitAssumptions": [
+          {
+            "stage": "Seed",
+            "exitMultiple": "2.000000000000",
+            "quartersToExit": 2,
+            "failureRate": "0.000000000000"
+          }
+        ]
+      },
+      "reservePolicyVersion": "reserve-policy/1.0.0",
+      "assumptionsHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "supersedesVersionId": null,
+      "supersededByVersionId": null,
+      "createdAt": "2026-07-22T02:00:00.000Z"
+    },
+    "facts": {
+      "id": 31,
+      "policyVersion": "financial-facts-policy/1.0.0",
+      "fundId": 1,
+      "asOfDate": "2026-07-21",
+      "knowledgeCutoff": "2026-07-22T02:00:00.000Z",
+      "vehicleScope": "fund_all",
+      "vehicleIds": [11],
+      "selectionSetHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sourceFactsInputHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "snapshotInputHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "consumerEvaluations": [],
+      "payload": {
+        "companyActuals": {
+          "fundId": 1,
+          "asOfDate": "2026-07-21",
+          "facts": [],
+          "inputHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "sourceObservationIds": [],
+        "workingValueSelectionIds": [],
+        "participationTermRefs": [],
+        "cashFlowSeries": {
+          "series": [
+            {
+              "eventType": "lp_capital_call",
+              "vehicleId": 11,
+              "perspective": "lp_net",
+              "points": [
+                {
+                  "eventId": 501,
+                  "effectiveAt": "2026-07-01T00:00:00.000Z",
+                  "amount": "2500000.000000"
+                }
+              ]
+            },
+            {
+              "eventType": "recallable_distribution",
+              "vehicleId": 11,
+              "perspective": "lp_net",
+              "points": [
+                {
+                  "eventId": 502,
+                  "effectiveAt": "2026-07-01T00:00:00.000Z",
+                  "amount": "500000.000000"
+                }
+              ]
+            },
+            {
+              "eventType": "portfolio_investment",
+              "vehicleId": 11,
+              "perspective": "fund_gross",
+              "points": [
+                {
+                  "eventId": 503,
+                  "effectiveAt": "2026-07-01T00:00:00.000Z",
+                  "amount": "2000000.000000"
+                }
+              ]
+            }
+          ],
+          "totals": {
+            "contributions": "2500000.000000",
+            "distributions": "0.000000",
+            "recallableDistributions": "500000.000000"
+          },
+          "warnings": []
+        },
+        "marksSeries": { "marks": [], "periodNav": [], "warnings": [] },
+        "vehicleRoster": []
+      },
+      "actorId": 7,
+      "createdAt": "2026-07-22T02:00:00.000Z"
+    },
+    "expect": {
+      "status": "available",
+      "remainingDeployableCapitalUsd": "6000000.000000",
+      "remainingCapitalConservation": {
+        "deployedActualUsd": "2000000.000000",
+        "deployableCapitalUsd": "8000000.000000"
+      },
+      "bridge": {
+        "committedCapitalUsd": "8400000.000000",
+        "calledToDateUsd": "2500000.000000",
+        "projectedFeesRemainingUsd": "320000.000000",
+        "recallableDistributionsUsd": "500000.000000",
+        "uncalledCapitalUsd": "6080000.000000"
+      }
+    }
+  },
+  {
+    "id": "CF-006",
+    "description": "IRR convergence: the only LP-net flows are -10000000 at the Q3 2021 period end and +15000000 at the Q3 2026 period end, with terminal NAV 0. Hand-computed annual IRR=(1.5)^(1/5)-1=0.0844717712, asserted near 0.0845.",
+    "input": {
+      "fundId": 1,
+      "financialFactsSnapshotId": "31",
+      "currentPlanVersionId": "current-plan-cf-006",
+      "asOfDate": "2026-07-21",
+      "knowledgeCutoff": "2026-07-22T02:00:00.000Z",
+      "clock": "2026-07-22T03:00:00.000Z"
+    },
+    "plan": {
+      "contractVersion": "current-plan-version-v1",
+      "id": "current-plan-cf-006",
+      "fundId": 1,
+      "version": 1,
+      "sourceConfigId": 17,
+      "sourceConfigVersion": 3,
+      "sourceFactsSnapshotId": "31",
+      "deployableCapitalUsd": "10000000.000000",
+      "planTransformationVersion": "fund-config-to-current-plan/1.0.0",
+      "allocations": [],
+      "pacingAssumptions": {
+        "contractVersion": "current-plan-pacing-v1",
+        "deploymentQuarters": 1,
+        "quarterlyDeploymentPcts": ["1.000000000000"],
+        "followOnReservePct": "0.000000000000",
+        "annualFeeDragPct": "0.000000000000"
+      },
+      "cohortAssumptions": {
+        "contractVersion": "current-plan-cohort-v1",
+        "averageInitialCheckUsd": "1000000.000000",
+        "stageDistribution": [{ "stage": "Seed", "pct": "1.000000000000" }],
+        "graduationMatrix": [
+          {
+            "fromStage": "Seed",
+            "toStage": "Seed",
+            "rate": "1.000000000000",
+            "quartersToGraduate": 0
+          }
+        ],
+        "exitAssumptions": [
+          {
+            "stage": "Seed",
+            "exitMultiple": "2.000000000000",
+            "quartersToExit": 4,
+            "failureRate": "0.000000000000"
+          }
+        ]
+      },
+      "reservePolicyVersion": "reserve-policy/1.0.0",
+      "assumptionsHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "supersedesVersionId": null,
+      "supersededByVersionId": null,
+      "createdAt": "2026-07-22T02:00:00.000Z"
+    },
+    "facts": {
+      "id": 31,
+      "policyVersion": "financial-facts-policy/1.0.0",
+      "fundId": 1,
+      "asOfDate": "2026-07-21",
+      "knowledgeCutoff": "2026-07-22T02:00:00.000Z",
+      "vehicleScope": "fund_all",
+      "vehicleIds": [11],
+      "selectionSetHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sourceFactsInputHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "snapshotInputHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "consumerEvaluations": [],
+      "payload": {
+        "companyActuals": {
+          "fundId": 1,
+          "asOfDate": "2026-07-21",
+          "facts": [],
+          "inputHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "sourceObservationIds": [],
+        "workingValueSelectionIds": [],
+        "participationTermRefs": [],
+        "cashFlowSeries": {
+          "series": [
+            {
+              "eventType": "lp_capital_call",
+              "vehicleId": 11,
+              "perspective": "lp_net",
+              "points": [
+                {
+                  "eventId": 601,
+                  "effectiveAt": "2021-07-01T00:00:00.000Z",
+                  "amount": "10000000.000000"
+                }
+              ]
+            },
+            {
+              "eventType": "lp_distribution",
+              "vehicleId": 11,
+              "perspective": "lp_net",
+              "points": [
+                {
+                  "eventId": 602,
+                  "effectiveAt": "2026-07-01T00:00:00.000Z",
+                  "amount": "15000000.000000"
+                }
+              ]
+            },
+            {
+              "eventType": "portfolio_investment",
+              "vehicleId": 11,
+              "perspective": "fund_gross",
+              "points": [
+                {
+                  "eventId": 603,
+                  "effectiveAt": "2021-07-01T00:00:00.000Z",
+                  "amount": "10000000.000000"
+                }
+              ]
+            }
+          ],
+          "totals": {
+            "contributions": "10000000.000000",
+            "distributions": "15000000.000000",
+            "recallableDistributions": "0.000000"
+          },
+          "warnings": []
+        },
+        "marksSeries": { "marks": [], "periodNav": [], "warnings": [] },
+        "vehicleRoster": []
+      },
+      "actorId": 7,
+      "createdAt": "2026-07-22T02:00:00.000Z"
+    },
+    "expect": {
+      "status": "available",
+      "projectedPeriodsAbsent": true,
+      "terminalNavUsd": "0.000000",
+      "netIrrApprox": { "value": 0.0845, "precision": 3 }
+    }
+  },
+  {
+    "id": "CF-007",
+    "description": "IRR non-convergence: one LP capital call of 10000000.000000, no positive distribution, and terminal NAV 0.000000. Canonical IRR has no sign-changing root, so netIrr is exactly null.",
+    "input": {
+      "fundId": 1,
+      "financialFactsSnapshotId": "31",
+      "currentPlanVersionId": "current-plan-cf-007",
+      "asOfDate": "2026-07-21",
+      "knowledgeCutoff": "2026-07-22T02:00:00.000Z",
+      "clock": "2026-07-22T03:00:00.000Z"
+    },
+    "plan": {
+      "contractVersion": "current-plan-version-v1",
+      "id": "current-plan-cf-007",
+      "fundId": 1,
+      "version": 1,
+      "sourceConfigId": 17,
+      "sourceConfigVersion": 3,
+      "sourceFactsSnapshotId": "31",
+      "deployableCapitalUsd": "10000000.000000",
+      "planTransformationVersion": "fund-config-to-current-plan/1.0.0",
+      "allocations": [],
+      "pacingAssumptions": {
+        "contractVersion": "current-plan-pacing-v1",
+        "deploymentQuarters": 1,
+        "quarterlyDeploymentPcts": ["1.000000000000"],
+        "followOnReservePct": "0.000000000000",
+        "annualFeeDragPct": "0.000000000000"
+      },
+      "cohortAssumptions": {
+        "contractVersion": "current-plan-cohort-v1",
+        "averageInitialCheckUsd": "1000000.000000",
+        "stageDistribution": [{ "stage": "Seed", "pct": "1.000000000000" }],
+        "graduationMatrix": [
+          {
+            "fromStage": "Seed",
+            "toStage": "Seed",
+            "rate": "1.000000000000",
+            "quartersToGraduate": 0
+          }
+        ],
+        "exitAssumptions": [
+          {
+            "stage": "Seed",
+            "exitMultiple": "2.000000000000",
+            "quartersToExit": 4,
+            "failureRate": "0.000000000000"
+          }
+        ]
+      },
+      "reservePolicyVersion": "reserve-policy/1.0.0",
+      "assumptionsHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "supersedesVersionId": null,
+      "supersededByVersionId": null,
+      "createdAt": "2026-07-22T02:00:00.000Z"
+    },
+    "facts": {
+      "id": 31,
+      "policyVersion": "financial-facts-policy/1.0.0",
+      "fundId": 1,
+      "asOfDate": "2026-07-21",
+      "knowledgeCutoff": "2026-07-22T02:00:00.000Z",
+      "vehicleScope": "fund_all",
+      "vehicleIds": [11],
+      "selectionSetHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sourceFactsInputHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "snapshotInputHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "consumerEvaluations": [],
+      "payload": {
+        "companyActuals": {
+          "fundId": 1,
+          "asOfDate": "2026-07-21",
+          "facts": [],
+          "inputHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "sourceObservationIds": [],
+        "workingValueSelectionIds": [],
+        "participationTermRefs": [],
+        "cashFlowSeries": {
+          "series": [
+            {
+              "eventType": "lp_capital_call",
+              "vehicleId": 11,
+              "perspective": "lp_net",
+              "points": [
+                {
+                  "eventId": 701,
+                  "effectiveAt": "2021-07-01T00:00:00.000Z",
+                  "amount": "10000000.000000"
+                }
+              ]
+            },
+            {
+              "eventType": "portfolio_investment",
+              "vehicleId": 11,
+              "perspective": "fund_gross",
+              "points": [
+                {
+                  "eventId": 702,
+                  "effectiveAt": "2021-07-01T00:00:00.000Z",
+                  "amount": "10000000.000000"
+                }
+              ]
+            }
+          ],
+          "totals": {
+            "contributions": "10000000.000000",
+            "distributions": "0.000000",
+            "recallableDistributions": "0.000000"
+          },
+          "warnings": []
+        },
+        "marksSeries": { "marks": [], "periodNav": [], "warnings": [] },
+        "vehicleRoster": []
+      },
+      "actorId": 7,
+      "createdAt": "2026-07-22T02:00:00.000Z"
+    },
+    "expect": {
+      "status": "available",
+      "projectedPeriodsAbsent": true,
+      "terminalNavUsd": "0.000000",
+      "netIrr": null
+    }
+  },
+  {
+    "id": "CF-008",
+    "description": "Full-precision cohort conservation with two deployment cohorts and two stages. Remaining=3000000-1000000=2000000; each projected quarter deploys 1000000 and each stage receives 500000. With terminal multiples exactly 1 and zero fees/marks, exact aggregate cohort NAV by projected quarter is 1000000, 2000000, 1500000, 500000, 0 before boundary formatting.",
+    "input": {
+      "fundId": 1,
+      "financialFactsSnapshotId": "31",
+      "currentPlanVersionId": "current-plan-cf-008",
+      "asOfDate": "2026-07-21",
+      "knowledgeCutoff": "2026-07-22T02:00:00.000Z",
+      "clock": "2026-07-22T03:00:00.000Z"
+    },
+    "plan": {
+      "contractVersion": "current-plan-version-v1",
+      "id": "current-plan-cf-008",
+      "fundId": 1,
+      "version": 1,
+      "sourceConfigId": 17,
+      "sourceConfigVersion": 3,
+      "sourceFactsSnapshotId": "31",
+      "deployableCapitalUsd": "3000000.000000",
+      "planTransformationVersion": "fund-config-to-current-plan/1.0.0",
+      "allocations": [],
+      "pacingAssumptions": {
+        "contractVersion": "current-plan-pacing-v1",
+        "deploymentQuarters": 2,
+        "quarterlyDeploymentPcts": ["0.500000000000", "0.500000000000"],
+        "followOnReservePct": "0.000000000000",
+        "annualFeeDragPct": "0.000000000000"
+      },
+      "cohortAssumptions": {
+        "contractVersion": "current-plan-cohort-v1",
+        "averageInitialCheckUsd": "500000.000000",
+        "stageDistribution": [
+          { "stage": "Seed", "pct": "0.500000000000" },
+          { "stage": "Series A", "pct": "0.500000000000" }
+        ],
+        "graduationMatrix": [
+          {
+            "fromStage": "Seed",
+            "toStage": "Seed",
+            "rate": "1.000000000000",
+            "quartersToGraduate": 0
+          },
+          {
+            "fromStage": "Series A",
+            "toStage": "Series A",
+            "rate": "1.000000000000",
+            "quartersToGraduate": 0
+          }
+        ],
+        "exitAssumptions": [
+          {
+            "stage": "Seed",
+            "exitMultiple": "1.000000000000",
+            "quartersToExit": 2,
+            "failureRate": "0.000000000000"
+          },
+          {
+            "stage": "Series A",
+            "exitMultiple": "1.000000000000",
+            "quartersToExit": 3,
+            "failureRate": "0.000000000000"
+          }
+        ]
+      },
+      "reservePolicyVersion": "reserve-policy/1.0.0",
+      "assumptionsHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "supersedesVersionId": null,
+      "supersededByVersionId": null,
+      "createdAt": "2026-07-22T02:00:00.000Z"
+    },
+    "facts": {
+      "id": 31,
+      "policyVersion": "financial-facts-policy/1.0.0",
+      "fundId": 1,
+      "asOfDate": "2026-07-21",
+      "knowledgeCutoff": "2026-07-22T02:00:00.000Z",
+      "vehicleScope": "fund_all",
+      "vehicleIds": [11],
+      "selectionSetHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sourceFactsInputHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "snapshotInputHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "consumerEvaluations": [],
+      "payload": {
+        "companyActuals": {
+          "fundId": 1,
+          "asOfDate": "2026-07-21",
+          "facts": [],
+          "inputHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "sourceObservationIds": [],
+        "workingValueSelectionIds": [],
+        "participationTermRefs": [],
+        "cashFlowSeries": {
+          "series": [
+            {
+              "eventType": "lp_capital_call",
+              "vehicleId": 11,
+              "perspective": "lp_net",
+              "points": [
+                {
+                  "eventId": 801,
+                  "effectiveAt": "2026-07-01T00:00:00.000Z",
+                  "amount": "1000000.000000"
+                }
+              ]
+            },
+            {
+              "eventType": "portfolio_investment",
+              "vehicleId": 11,
+              "perspective": "fund_gross",
+              "points": [
+                {
+                  "eventId": 802,
+                  "effectiveAt": "2026-07-01T00:00:00.000Z",
+                  "amount": "1000000.000000"
+                }
+              ]
+            }
+          ],
+          "totals": {
+            "contributions": "1000000.000000",
+            "distributions": "0.000000",
+            "recallableDistributions": "0.000000"
+          },
+          "warnings": []
+        },
+        "marksSeries": { "marks": [], "periodNav": [], "warnings": [] },
+        "vehicleRoster": []
+      },
+      "actorId": 7,
+      "createdAt": "2026-07-22T02:00:00.000Z"
+    },
+    "expect": {
+      "status": "indicative",
+      "remainingDeployableCapitalUsd": "2000000.000000",
+      "remainingCapitalConservation": {
+        "deployedActualUsd": "1000000.000000",
+        "deployableCapitalUsd": "3000000.000000"
+      },
+      "cohortNavConservation": [
+        {
+          "quarter": 1,
+          "cohortNavUsd": ["500000.000000", "500000.000000"],
+          "aggregateNavUsd": "1000000.000000"
+        },
+        {
+          "quarter": 2,
+          "cohortNavUsd": [
+            "500000.000000",
+            "500000.000000",
+            "500000.000000",
+            "500000.000000"
+          ],
+          "aggregateNavUsd": "2000000.000000"
+        },
+        {
+          "quarter": 3,
+          "cohortNavUsd": ["500000.000000", "500000.000000", "500000.000000"],
+          "aggregateNavUsd": "1500000.000000"
+        },
+        {
+          "quarter": 4,
+          "cohortNavUsd": ["500000.000000"],
+          "aggregateNavUsd": "500000.000000"
+        },
+        {
+          "quarter": 5,
+          "cohortNavUsd": [],
+          "aggregateNavUsd": "0.000000"
+        }
+      ],
+      "terminalNavUsd": "0.000000"
+    }
+  }
+]

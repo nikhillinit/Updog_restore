@@ -6,9 +6,15 @@
  */
 
 import type * as schema from '@shared/schema';
-import { fundEvents, fundSnapshots, funds, type FundEvent } from '@shared/schema';
+import {
+  fundEvents,
+  fundSnapshots,
+  funds,
+  NON_TIMELINE_SNAPSHOT_TYPES,
+  type FundEvent,
+} from '@shared/schema';
 import type { SQL } from 'drizzle-orm';
-import { and, desc, eq, gte, isNull, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, lte, notInArray, sql } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as jsonpatch from 'fast-json-patch';
 import { NotFoundError } from '../errors';
@@ -160,7 +166,8 @@ export class TimeTravelAnalyticsService {
         and(
           eq(fundSnapshots.fundId, fundId),
           lte(fundSnapshots.snapshotTime, targetTime),
-          isNull(fundSnapshots.scenarioSetId)
+          isNull(fundSnapshots.scenarioSetId),
+          notInArray(fundSnapshots.type, [...NON_TIMELINE_SNAPSHOT_TYPES])
         )
       )
       .orderBy(desc(fundSnapshots.snapshotTime))

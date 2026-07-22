@@ -43,10 +43,12 @@ export * from './schema/operating-objects';
 export * from './schema/reconciliation-runs';
 export * from './schema/substrate-shadow-reconciliations';
 export * from './schema/financial-facts-snapshots';
+export * from './schema/current-plans';
 export * from './schema/fund-calculation-modes';
 export * from './schema/fund-moic-input-update-requests';
 export * from './schema/investment-rounds';
 export * from './schema/investment-round-model-overrides';
+export * from './schema/current-plans';
 export * from './schemas/flags';
 export * from './schemas/reserve-approvals';
 
