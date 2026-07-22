@@ -12,7 +12,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import { useRoute } from 'wouter';
-import { FinancialEvidenceDrawer } from '@/components/fund-results';
+import { CurrentPlanAcceptancePanel, FinancialEvidenceDrawer } from '@/components/fund-results';
 import { QuarterlyReviewTrace } from '@/features/analytics-parity/QuarterlyReviewTrace';
 import type {
   ScorecardPayload,
@@ -212,6 +212,8 @@ function FundModelResultsPage() {
       <PublishHistoryCard historyState={historyState} />
 
       <PublishComparisonCard comparisonState={comparisonState} />
+
+      <CurrentPlanAcceptancePanel fundId={routeFundNumber} />
 
       <QuarterlyReviewTrace
         results={results}
