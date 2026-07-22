@@ -111,6 +111,15 @@ vi.mock('@/hooks/use-scenario-set-list', () => ({
     error: new Error('scenario set list unavailable'),
   }),
 }));
+vi.mock('@/hooks/useCurrentPlanVersions', () => ({
+  useCurrentPlanVersions: () => ({
+    versions: [],
+    headVersion: null,
+    isLoading: true,
+    error: null,
+    mint: { mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false, error: null },
+  }),
+}));
 
 vi.mock('@/stores/useFundSelector', () => ({
   useFundSelector: (selector: (s: typeof mockFundState) => unknown) => selector(mockFundState),

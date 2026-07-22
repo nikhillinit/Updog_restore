@@ -5,6 +5,7 @@
  */
 
 export { FundModelScorecard } from './FundModelScorecard';
+export { CurrentPlanAcceptancePanel } from './CurrentPlanAcceptancePanel';
 export { ReserveAllocationBreakdown } from './ReserveAllocationBreakdown';
 export {
   ScenarioComparisonTable,
@@ -27,6 +28,7 @@ export {
 } from './financial-evidence';
 
 export type { FundModelScorecardProps } from './FundModelScorecard';
+export type { CurrentPlanAcceptancePanelProps } from './CurrentPlanAcceptancePanel';
 export type { ReserveAllocationBreakdownProps } from './ReserveAllocationBreakdown';
 export type { ScenarioComparisonTableProps } from './ScenarioComparisonTable';
 export type { CrossSetScenarioComparisonTableProps } from './CrossSetScenarioComparisonTable';
