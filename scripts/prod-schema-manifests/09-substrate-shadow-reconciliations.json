@@ -22,7 +22,7 @@
           "nullable": false
         },
         { "name": "input_hash", "type": "text", "nullable": false },
-        { "name": "result_hash", "type": "text", "nullable": false },
+        { "name": "result_hash", "type": "text", "nullable": true },
         { "name": "assumptions_hash", "type": "text", "nullable": false },
         { "name": "mismatches", "type": "jsonb", "nullable": false },
         { "name": "observed_at", "type": "timestamptz", "nullable": false }

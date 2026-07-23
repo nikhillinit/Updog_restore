@@ -87,6 +87,8 @@ const SUBSTRATE_SHADOW_RECONCILIATION_MANIFEST_TABLES = [
 const FINANCIAL_FACTS_SNAPSHOT_MANIFEST_TABLES = ['financial_facts_snapshots'] as const;
 // M11 (11-current-plan-versions): immutable accepted current-plan versions (journal 0037).
 const CURRENT_PLAN_VERSIONS_MANIFEST_TABLES = ['current_plan_versions'] as const;
+// M12 (12-current-forecast-references): append-only current-forecast reference pins (journal 0038).
+const CURRENT_FORECAST_REFERENCES_MANIFEST_TABLES = ['current_forecast_references'] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
   'flags_state',
@@ -712,6 +714,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...SUBSTRATE_SHADOW_RECONCILIATION_MANIFEST_TABLES,
         ...FINANCIAL_FACTS_SNAPSHOT_MANIFEST_TABLES,
         ...CURRENT_PLAN_VERSIONS_MANIFEST_TABLES,
+        ...CURRENT_FORECAST_REFERENCES_MANIFEST_TABLES,
       ])
     );
 

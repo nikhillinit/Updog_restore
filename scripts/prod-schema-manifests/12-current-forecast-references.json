@@ -1,0 +1,57 @@
+{
+  "name": "current-forecast-references",
+  "order": 12,
+  "description": "Append-only immutable current-forecast reference pins (basis + identity hashes) for post-cutover held display.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0038_current_forecast_references.sql"],
+  "allowedCreateTables": ["current_forecast_references"],
+  "expectedTables": [
+    {
+      "name": "current_forecast_references",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "calculation_key", "type": "text", "nullable": false },
+        { "name": "fund_snapshot_id", "type": "integer", "nullable": false },
+        {
+          "name": "current_plan_version_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "financial_facts_snapshot_id",
+          "type": "integer",
+          "nullable": false
+        },
+        { "name": "input_hash", "type": "text", "nullable": false },
+        { "name": "result_hash", "type": "text", "nullable": false },
+        { "name": "assumptions_hash", "type": "text", "nullable": false },
+        { "name": "engine_version", "type": "text", "nullable": false },
+        { "name": "methodology_version", "type": "text", "nullable": false },
+        { "name": "candidate", "type": "boolean", "nullable": false },
+        {
+          "name": "superseded_by_reference_id",
+          "type": "integer",
+          "nullable": true
+        },
+        { "name": "status", "type": "varchar", "nullable": false },
+        { "name": "reason", "type": "text", "nullable": true },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "current_forecast_references_fund_id_funds_id_fk",
+        "current_forecast_references_superseded_by_fk",
+        "current_forecast_references_fund_snapshot_fk",
+        "current_forecast_references_plan_version_fk",
+        "current_forecast_references_facts_snapshot_fk",
+        "current_forecast_references_created_by_fk",
+        "current_forecast_references_status_check"
+      ],
+      "indexes": [
+        "idx_current_forecast_references_fund_created",
+        "current_forecast_references_fund_accepted_head_unique"
+      ]
+    }
+  ]
+}

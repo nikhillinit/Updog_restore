@@ -110,7 +110,14 @@ async function queryShadowReconciliationRows(args: {
 
 function toObservation(
   row: SubstrateShadowReconciliation
-): ConstrainedReserveShadowReconciliationObservation {
+): ConstrainedReserveShadowReconciliationObservation | null {
+  // The value-producing constrained-reserve reader only ever sees rows with a
+  // result hash; the nullable `result_hash` column (migration 0038) belongs to
+  // the current-forecast shadow under a different calculation key. Skip any
+  // null-hash row defensively rather than fabricate a value.
+  if (row.resultHash === null) {
+    return null;
+  }
   return {
     id: row.id,
     fundId: row.fundId,
@@ -156,5 +163,10 @@ export async function readConstrainedReserveShadowReconciliations({
     MAX_SHADOW_RECONCILIATION_READ_LIMIT
   );
   const rows = await reader({ fundId, limit: boundedLimit });
-  return rows.map(toObservation);
+  return rows
+    .map(toObservation)
+    .filter(
+      (observation): observation is ConstrainedReserveShadowReconciliationObservation =>
+        observation !== null
+    );
 }

@@ -362,6 +362,14 @@ async function installRouteFidelityApi(page: Page): Promise<RouteFidelityApiTrac
       return;
     }
 
+    if (
+      request.method() === 'GET' &&
+      url.pathname === `/api/funds/${FIDELITY_FUND.id}/current-plan-versions`
+    ) {
+      await fulfillJson(route, []);
+      return;
+    }
+
     if (request.method() === 'GET' && url.pathname === `/api/funds/${FIDELITY_FUND.id}/data`) {
       await fulfillJson(route, {
         fund: FIDELITY_FUND,
