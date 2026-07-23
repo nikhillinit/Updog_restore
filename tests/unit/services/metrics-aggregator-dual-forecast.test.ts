@@ -66,6 +66,7 @@ vi.mock(
 );
 
 import { MetricsAggregator } from '../../../server/services/metrics-aggregator';
+import { CurrentForecastHeldError } from '../../../server/services/current-forecast-held-service';
 import {
   buildFundCompanyActualsFactsFromRows,
   type FundCompanyActualsFactsRows,
@@ -1001,5 +1002,310 @@ describe('MetricsAggregator dual forecast', () => {
     );
     // The substituted default is non-actionable: future Current quarters are the zero default, not a forecast.
     expect(result.series[1]?.current.nav).toBe(0);
+  });
+
+  describe('current-forecast serving modes (PLAN_61 Task 13.2)', () => {
+    const V2_INPUT_HASH = 'd'.repeat(64);
+    const V2_RESULT_HASH = 'e'.repeat(64);
+    const V2_ASSUMPTIONS_HASH = 'f'.repeat(64);
+    const REF_INPUT_HASH = '1'.repeat(64);
+    const REF_RESULT_HASH = '2'.repeat(64);
+    const REF_ASSUMPTIONS_HASH = '3'.repeat(64);
+    const ENGINE_VERSION = 'current-forecast-v2-engine/1.0.0';
+    const METHODOLOGY_VERSION = 'cohort-projection-v2/1.0.0';
+
+    function v2Point(overrides: Record<string, unknown> = {}) {
+      return {
+        periodStart: '2026-04-01',
+        periodEnd: '2026-06-30',
+        source: 'projected',
+        deployedUsd: '24000000.000000',
+        contributionsUsd: '30000000.000000',
+        distributionsUsd: '3000000.000000',
+        navUsd: '36000000.000000',
+        tvpi: '1.300000000000',
+        dpi: '0.100000000000',
+        activeCompanyCount: 1,
+        projectedCohortCount: 2,
+        ...overrides,
+      };
+    }
+
+    function v2Forecast(overrides: Record<string, unknown> = {}) {
+      return {
+        contractVersion: 'current-forecast-v2',
+        fundId: 1,
+        financialFactsSnapshotId: '31',
+        currentPlanVersionId: '21',
+        asOfDate: '2026-03-31',
+        status: 'available',
+        series: [
+          v2Point({
+            periodStart: '2026-01-01',
+            periodEnd: '2026-03-31',
+            source: 'actual',
+            contributionsUsd: '25000000.000000',
+            distributionsUsd: '2000000.000000',
+            navUsd: '30000000.000000',
+            tvpi: '1.280000000000',
+            dpi: '0.080000000000',
+          }),
+          v2Point(),
+          v2Point({
+            periodStart: '2026-07-01',
+            periodEnd: '2026-09-30',
+            contributionsUsd: '36000000.000000',
+            distributionsUsd: '5000000.000000',
+            navUsd: '44000000.000000',
+            tvpi: '1.360000000000',
+            dpi: '0.140000000000',
+          }),
+        ],
+        remainingDeployableCapitalUsd: '54000000.000000',
+        committedCapitalUsd: '90000000.000000',
+        calledToDateUsd: '25000000.000000',
+        projectedFeesRemainingUsd: '2000000.000000',
+        recallableDistributionsUsd: '0.000000',
+        uncalledCapitalUsd: '65000000.000000',
+        netIrr: '0.210000000000',
+        inputHash: V2_INPUT_HASH,
+        assumptionsHash: V2_ASSUMPTIONS_HASH,
+        resultHash: V2_RESULT_HASH,
+        engineVersion: ENGINE_VERSION,
+        methodologyVersion: METHODOLOGY_VERSION,
+        unavailableReasons: [],
+        warnings: [],
+        ...overrides,
+      };
+    }
+
+    function heldReference(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 41,
+        fundId: 1,
+        calculationKey: 'current_forecast',
+        fundSnapshotId: 11,
+        currentPlanVersionId: 21,
+        financialFactsSnapshotId: 31,
+        inputHash: REF_INPUT_HASH,
+        resultHash: REF_RESULT_HASH,
+        assumptionsHash: REF_ASSUMPTIONS_HASH,
+        engineVersion: ENGINE_VERSION,
+        methodologyVersion: METHODOLOGY_VERSION,
+        candidate: false,
+        supersededByReferenceId: null,
+        reason: null,
+        createdBy: null,
+        createdAt: '2026-07-01T00:00:00.000Z',
+        ...overrides,
+      };
+    }
+
+    function servingDeps(overrides: Record<string, unknown> = {}) {
+      return {
+        resolveMode: vi.fn(async () => ({ mode: 'off', cutoverReferenceId: null })),
+        runV2: vi.fn(async () => v2Forecast()),
+        loadHeld: vi.fn(async () => ({ reference: heldReference(), forecast: v2Forecast() })),
+        now: () => new Date('2026-07-22T00:00:00.000Z'),
+        ...overrides,
+      };
+    }
+
+    it('off: the response is byte-identical to the legacy composer when no mode row exists', async () => {
+      const aggregator = new MetricsAggregator();
+      const result = await aggregator.getDualForecast(1);
+
+      // Byte pin (characterization, written against the pre-13.2 composer): the
+      // mode dispatch must keep this EXACT serialized output for funds with no
+      // current_forecast mode row - the dormant default for every fund today.
+      expect(JSON.stringify(result, null, 2)).toMatchSnapshot();
+      expect('currentForecastV2' in result).toBe(false);
+      expect(result.sources.current).toBe('projected_metrics_calculator');
+      // Pre-cutover the legacy lane still runs the contained PMC engine.
+      expect(projectedCalculateMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('shadow: serves the legacy response unchanged and never engages the V2 lane (non-authority)', async () => {
+      const offDeps = servingDeps();
+      const offResult = await new MetricsAggregator(undefined, offDeps).getDualForecast(1);
+
+      vi.clearAllMocks();
+      actualCalculateMock.mockResolvedValue(actualMetrics);
+      projectedCalculateMock.mockResolvedValue(projectedMetrics);
+      buildFundCompanyActualsFactsMock.mockResolvedValue(factsFixture);
+
+      const shadowDeps = servingDeps({
+        resolveMode: vi.fn(async () => ({ mode: 'shadow', cutoverReferenceId: null })),
+      });
+      const shadowResult = await new MetricsAggregator(undefined, shadowDeps).getDualForecast(1);
+
+      expect(JSON.stringify(shadowResult)).toBe(JSON.stringify(offResult));
+      expect('currentForecastV2' in shadowResult).toBe(false);
+      // Serving-time shadow never runs V2: observation is the corpus plane (13.1).
+      expect(shadowDeps.runV2).not.toHaveBeenCalled();
+      expect(shadowDeps.loadHeld).not.toHaveBeenCalled();
+      expect(projectedCalculateMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('on: serves the V2 current lane without ever invoking the legacy PMC engine', async () => {
+      const deps = servingDeps({
+        resolveMode: vi.fn(async () => ({ mode: 'on', cutoverReferenceId: 41 })),
+      });
+      const result = await new MetricsAggregator(undefined, deps).getDualForecast(1);
+
+      expect(projectedCalculateMock).not.toHaveBeenCalled();
+      expect(deps.runV2).toHaveBeenCalledWith(1);
+      expect(deps.loadHeld).not.toHaveBeenCalled();
+
+      expect(result.sources).toEqual({
+        construction: 'construction_forecast_jcurve',
+        current: 'current_forecast_v2',
+        actual: 'actual_metrics_calculator',
+      });
+      expect(result.currentProjection).toEqual({ status: 'projected', fallbackReason: null });
+      expect(result.currentForecastV2).toEqual({
+        status: 'live',
+        engineStatus: 'available',
+        asOfDate: '2026-03-31',
+        currentPlanVersionId: '21',
+        financialFactsSnapshotId: '31',
+        inputHash: V2_INPUT_HASH,
+        resultHash: V2_RESULT_HASH,
+        assumptionsHash: V2_ASSUMPTIONS_HASH,
+        engineVersion: ENGINE_VERSION,
+        methodologyVersion: METHODOLOGY_VERSION,
+        unavailableReasons: [],
+        held: null,
+      });
+
+      // Quarter 0 stays the as-of actual; forecast quarters map the V2
+      // projected points in order (cumulative money, point-in-time NAV).
+      expect(result.series).toHaveLength(3);
+      expect(result.series[0]).toMatchObject({ label: 'As of', currentMode: 'actual' });
+      expect(result.series[0]?.current).toEqual({
+        nav: 30_000_000,
+        calledCapital: 25_000_000,
+        distributions: 2_000_000,
+        tvpi: 1.28,
+        dpi: 0.08,
+        rvpi: 1.2,
+        irr: 0.14,
+      });
+      expect(result.series[1]?.actual).toBeNull();
+      expect(result.series[1]?.currentMode).toBe('forecast');
+      expect(result.series[1]?.current).toEqual({
+        nav: 36_000_000,
+        calledCapital: 30_000_000,
+        distributions: 3_000_000,
+        tvpi: 1.3,
+        dpi: 0.1,
+        rvpi: 1.2,
+        irr: 0.21,
+      });
+      expect(result.series[2]?.current).toMatchObject({
+        nav: 44_000_000,
+        calledCapital: 36_000_000,
+        distributions: 5_000_000,
+        tvpi: 1.36,
+        dpi: 0.14,
+        irr: 0.21,
+      });
+      expect(result.series[2]?.current.rvpi).toBeCloseTo(44 / 36, 12);
+      const point = result.series[1];
+      expect(point?.variance.nav).toBe((point?.current.nav ?? 0) - (point?.construction.nav ?? 0));
+
+      // The bumped contract accepts the V2-served payload end to end.
+      expect(DualForecastResponseSchema.parse(result)).toEqual(result);
+    });
+
+    it('on: a post-cutover V2 runtime failure degrades to the pinned reference, never legacy', async () => {
+      const deps = servingDeps({
+        resolveMode: vi.fn(async () => ({ mode: 'on', cutoverReferenceId: 41 })),
+        runV2: vi.fn(async () => {
+          throw new Error('engine down');
+        }),
+      });
+      const result = await new MetricsAggregator(undefined, deps).getDualForecast(1);
+
+      expect(projectedCalculateMock).not.toHaveBeenCalled();
+      expect(deps.loadHeld).toHaveBeenCalledWith(1, 41);
+      expect(result.currentForecastV2?.status).toBe('held');
+      expect(result.currentForecastV2?.held).toEqual({
+        referenceId: 41,
+        reason: 'v2_runtime_failure',
+        pinnedAt: '2026-07-01T00:00:00.000Z',
+        ageDays: 21,
+      });
+      expect(DualForecastResponseSchema.parse(result)).toEqual(result);
+    });
+
+    it('held: serves the pointer head with the original basis, incident reason, and age; PMC never runs', async () => {
+      const deps = servingDeps({
+        resolveMode: vi.fn(async () => ({
+          mode: 'held',
+          cutoverReferenceId: 41,
+          heldReason: 'kill_switch',
+        })),
+      });
+      const result = await new MetricsAggregator(undefined, deps).getDualForecast(1);
+
+      // Post-cutover kill: the contained PMC engine is NEVER invoked (D9).
+      expect(projectedCalculateMock).not.toHaveBeenCalled();
+      expect(deps.runV2).not.toHaveBeenCalled();
+      expect(deps.loadHeld).toHaveBeenCalledWith(1, 41);
+
+      expect(result.sources.current).toBe('current_forecast_v2');
+      // Basis/version/hash come from the pinned REFERENCE row (P1: the
+      // original accepted basis), not from any recompute.
+      expect(result.currentForecastV2).toEqual({
+        status: 'held',
+        engineStatus: 'available',
+        asOfDate: '2026-03-31',
+        currentPlanVersionId: '21',
+        financialFactsSnapshotId: '31',
+        inputHash: REF_INPUT_HASH,
+        resultHash: REF_RESULT_HASH,
+        assumptionsHash: REF_ASSUMPTIONS_HASH,
+        engineVersion: ENGINE_VERSION,
+        methodologyVersion: METHODOLOGY_VERSION,
+        unavailableReasons: [],
+        held: {
+          referenceId: 41,
+          reason: 'kill_switch',
+          pinnedAt: '2026-07-01T00:00:00.000Z',
+          ageDays: 21,
+        },
+      });
+      // The pinned payload still drives the forecast quarters.
+      expect(result.series[1]?.current).toMatchObject({
+        nav: 36_000_000,
+        calledCapital: 30_000_000,
+      });
+      expect(DualForecastResponseSchema.parse(result)).toEqual(result);
+    });
+
+    it('held: a missing pointer head is an error envelope, never the legacy response', async () => {
+      const deps = servingDeps({
+        resolveMode: vi.fn(async () => ({
+          mode: 'held',
+          cutoverReferenceId: 41,
+          heldReason: 'configured_off',
+        })),
+        loadHeld: vi.fn(async () => {
+          throw new CurrentForecastHeldError(
+            'HELD_REFERENCE_MISSING',
+            'reference 41 not found for fund 1'
+          );
+        }),
+      });
+
+      await expect(new MetricsAggregator(undefined, deps).getDualForecast(1)).rejects.toMatchObject(
+        {
+          code: 'HELD_REFERENCE_MISSING',
+          component: 'aggregator',
+        }
+      );
+      expect(projectedCalculateMock).not.toHaveBeenCalled();
+    });
   });
 });

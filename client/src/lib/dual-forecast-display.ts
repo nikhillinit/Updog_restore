@@ -1,6 +1,8 @@
 import type {
   DualForecastActualsFacts,
   DualForecastActualsFactsCompany,
+  DualForecastCurrentForecastV2,
+  DualForecastHeldReason,
   DualForecastNavAnchor,
   DualForecastNavAnchoring,
   DualForecastPoint,
@@ -437,6 +439,58 @@ export function formatChipAriaLabel(count: number, key: TrustFilterKey): string 
 
 export function formatFactsFreshness(asOfDate: string, inputHash: string): string {
   return `Facts as of ${asOfDate} · input ${inputHash.slice(0, 8)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Held current-forecast disclosure (PLAN_61 Task 13.2, R24/D9)
+// ---------------------------------------------------------------------------
+
+export const CURRENT_FORECAST_HELD_NOTICE_COPY = {
+  headline: 'Current forecast is held',
+  body: 'Showing the pinned reference forecast, not a live calculation.',
+  escalation: 'Review before LP sharing.',
+} as const;
+
+/** Typed incident reason -> disclosure copy; the client reacts to the
+ * response shape only (the server flag is never exposed). */
+export const HELD_REASON_COPY: Record<DualForecastHeldReason, string> = {
+  kill_switch: 'The calculation kill switch is active.',
+  configured_off: 'The current-forecast calculation is switched off after cutover.',
+  configured_shadow: 'The current-forecast calculation is in shadow mode after cutover.',
+  v2_runtime_failure: 'The live calculation failed when this response was served.',
+};
+
+export function formatHeldAge(ageDays: number): string {
+  if (ageDays <= 0) {
+    return 'Pinned today';
+  }
+  return ageDays === 1 ? 'Pinned 1 day ago' : `Pinned ${ageDays} days ago`;
+}
+
+export interface HeldNotice {
+  headline: string;
+  body: string;
+  reason: string;
+  age: string;
+  escalation: string;
+}
+
+/** Null unless the response block is a genuine held serving (fail-quiet for
+ * absent block and for live V2 serving). */
+export function buildHeldNotice(
+  block: DualForecastCurrentForecastV2 | null | undefined
+): HeldNotice | null {
+  if (!block || block.status !== 'held' || block.held === null) {
+    return null;
+  }
+
+  return {
+    headline: CURRENT_FORECAST_HELD_NOTICE_COPY.headline,
+    body: CURRENT_FORECAST_HELD_NOTICE_COPY.body,
+    reason: HELD_REASON_COPY[block.held.reason],
+    age: formatHeldAge(block.held.ageDays),
+    escalation: CURRENT_FORECAST_HELD_NOTICE_COPY.escalation,
+  };
 }
 
 /**

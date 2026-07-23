@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   DualForecastActualsFactsSchema,
+  DualForecastCurrentForecastV2Schema,
   DualForecastNavAnchoringSchema,
   DualForecastPointSchema,
   type DualForecastActualsFacts,
   type DualForecastActualsFactsCompany,
+  type DualForecastCurrentForecastV2,
   type DualForecastNavAnchorCompany,
   type DualForecastNavAnchoring,
   type DualForecastPoint,
@@ -15,7 +17,11 @@ import {
   buildAttributionRows,
   buildAttributionSummary,
   buildForecastChartPoints,
+  buildHeldNotice,
   countNoFactsRows,
+  CURRENT_FORECAST_HELD_NOTICE_COPY,
+  formatHeldAge,
+  HELD_REASON_COPY,
   describeDriftDirection,
   filterAttributionRows,
   formatChipAriaLabel,
@@ -654,5 +660,78 @@ describe('disclosure formatters', () => {
     expect(formatFilterStatus(3, 12)).toBe('Showing 3 of 12 companies');
     expect(formatChipAriaLabel(9, 'PARTIAL')).toBe('Filter to 9 partial companies');
     expect(formatChipAriaLabel(2, 'NO_FACTS')).toBe('Filter to 2 no facts companies');
+  });
+});
+
+// ── Held current-forecast disclosure (PLAN_61 Task 13.2) ──
+
+function currentForecastV2Block(
+  overrides: Partial<DualForecastCurrentForecastV2> = {}
+): DualForecastCurrentForecastV2 {
+  return DualForecastCurrentForecastV2Schema.parse({
+    status: 'held',
+    engineStatus: 'available',
+    asOfDate: '2026-03-31',
+    currentPlanVersionId: '21',
+    financialFactsSnapshotId: '31',
+    inputHash: 'a'.repeat(64),
+    resultHash: 'b'.repeat(64),
+    assumptionsHash: 'c'.repeat(64),
+    engineVersion: 'current-forecast-v2-engine/1.0.0',
+    methodologyVersion: 'cohort-projection-v2/1.0.0',
+    unavailableReasons: [],
+    held: {
+      referenceId: 41,
+      reason: 'kill_switch',
+      pinnedAt: '2026-07-01T00:00:00.000Z',
+      ageDays: 21,
+    },
+    ...overrides,
+  });
+}
+
+describe('formatHeldAge', () => {
+  it('formats today, one day, and n days', () => {
+    expect(formatHeldAge(0)).toBe('Pinned today');
+    expect(formatHeldAge(1)).toBe('Pinned 1 day ago');
+    expect(formatHeldAge(21)).toBe('Pinned 21 days ago');
+  });
+});
+
+describe('buildHeldNotice', () => {
+  it('returns null when the block is absent or serving live', () => {
+    expect(buildHeldNotice(undefined)).toBeNull();
+    expect(buildHeldNotice(currentForecastV2Block({ status: 'live', held: null }))).toBeNull();
+  });
+
+  it('composes headline, typed reason copy, and age for a held block', () => {
+    const notice = buildHeldNotice(currentForecastV2Block());
+
+    expect(notice).toEqual({
+      headline: CURRENT_FORECAST_HELD_NOTICE_COPY.headline,
+      body: CURRENT_FORECAST_HELD_NOTICE_COPY.body,
+      reason: HELD_REASON_COPY.kill_switch,
+      age: 'Pinned 21 days ago',
+      escalation: CURRENT_FORECAST_HELD_NOTICE_COPY.escalation,
+    });
+  });
+
+  it('maps every held reason to distinct disclosure copy', () => {
+    const reasons = [
+      'kill_switch',
+      'configured_off',
+      'configured_shadow',
+      'v2_runtime_failure',
+    ] as const;
+    const copies = reasons.map((reason) => {
+      const notice = buildHeldNotice(
+        currentForecastV2Block({
+          held: { referenceId: 41, reason, pinnedAt: '2026-07-01T00:00:00.000Z', ageDays: 3 },
+        })
+      );
+      expect(notice?.reason).toBe(HELD_REASON_COPY[reason]);
+      return notice?.reason;
+    });
+    expect(new Set(copies).size).toBe(reasons.length);
   });
 });

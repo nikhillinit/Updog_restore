@@ -67,6 +67,39 @@ function dualForecastFixture(overrides: Partial<DualForecastResponse> = {}): Dua
   });
 }
 
+// ── Task 13.2 governed current-forecast serving fixtures ──
+
+function v2Sources() {
+  return {
+    construction: 'construction_forecast_jcurve',
+    current: 'current_forecast_v2',
+    actual: 'actual_metrics_calculator',
+  } as const;
+}
+
+function currentForecastV2Block(overrides: Record<string, unknown> = {}) {
+  return {
+    status: 'held',
+    engineStatus: 'available',
+    asOfDate: '2026-03-31',
+    currentPlanVersionId: '21',
+    financialFactsSnapshotId: '31',
+    inputHash: 'c'.repeat(64),
+    resultHash: 'd'.repeat(64),
+    assumptionsHash: 'e'.repeat(64),
+    engineVersion: 'current-forecast-v2-engine/1.0.0',
+    methodologyVersion: 'cohort-projection-v2/1.0.0',
+    unavailableReasons: [],
+    held: {
+      referenceId: 41,
+      reason: 'kill_switch',
+      pinnedAt: '2026-07-01T00:00:00.000Z',
+      ageDays: 21,
+    },
+    ...overrides,
+  };
+}
+
 function moicRanking(
   rank: number,
   rankability: 'actionable' | 'indicative' | 'not_actionable' | null,
@@ -480,6 +513,134 @@ describe('forecast row', () => {
 
     expect(row.state).toBe('not_actionable');
     expect(row.details).toEqual(['projection warning']);
+  });
+
+  it('a held current forecast fails closed with the incident reason and age (Task 13.2)', () => {
+    const inputs = baseInputs({
+      forecast: data(
+        dualForecastFixture({
+          sources: v2Sources(),
+          currentForecastV2: currentForecastV2Block(),
+        })
+      ),
+    });
+    const row = rowByKey(inputs, 'forecast');
+
+    expect(row.state).toBe('not_actionable');
+    expect(row.stateLabel).toBe('Held');
+    expect(row.primaryReason).toBe(
+      'Current forecast is held — The calculation kill switch is active.'
+    );
+    expect(row.blockedSummary).toBe('Pinned 21 days ago');
+    expect(row.asOfDate).toBe('2026-03-31');
+  });
+
+  it('held precedence beats every downstream facts check (Task 13.2)', () => {
+    const inputs = baseInputs({
+      forecast: data(
+        dualForecastFixture({
+          sources: v2Sources(),
+          currentForecastV2: currentForecastV2Block({
+            held: {
+              referenceId: 41,
+              reason: 'v2_runtime_failure',
+              pinnedAt: '2026-07-01T00:00:00.000Z',
+              ageDays: 0,
+            },
+          }),
+          actualsFacts: null,
+          navAnchoring: null,
+        })
+      ),
+    });
+    const row = rowByKey(inputs, 'forecast');
+
+    expect(row.state).toBe('not_actionable');
+    expect(row.stateLabel).toBe('Held');
+    expect(row.primaryReason).toBe(
+      'Current forecast is held — The live calculation failed when this response was served.'
+    );
+    expect(row.blockedSummary).toBe('Pinned today');
+  });
+
+  it('a live V2 serving with engine status unavailable or failed is not decision-grade (Task 13.2)', () => {
+    const unavailable = rowByKey(
+      baseInputs({
+        forecast: data(
+          dualForecastFixture({
+            sources: v2Sources(),
+            currentForecastV2: currentForecastV2Block({
+              status: 'live',
+              held: null,
+              engineStatus: 'unavailable',
+              unavailableReasons: [
+                { code: 'FACTS_UNAVAILABLE', detail: 'No facts snapshot exists for this fund' },
+              ],
+            }),
+          })
+        ),
+      }),
+      'forecast'
+    );
+    expect(unavailable.state).toBe('not_actionable');
+    expect(unavailable.primaryReason).toBe(
+      'Current forecast unavailable — No facts snapshot exists for this fund'
+    );
+
+    const failed = rowByKey(
+      baseInputs({
+        forecast: data(
+          dualForecastFixture({
+            sources: v2Sources(),
+            currentForecastV2: currentForecastV2Block({
+              status: 'live',
+              held: null,
+              engineStatus: 'failed',
+            }),
+          })
+        ),
+      }),
+      'forecast'
+    );
+    expect(failed.state).toBe('not_actionable');
+    expect(failed.primaryReason).toBe('Current forecast unavailable');
+  });
+
+  it('a live indicative V2 serving reads at most indicative (Task 13.2)', () => {
+    const inputs = baseInputs({
+      forecast: data(
+        dualForecastFixture({
+          sources: v2Sources(),
+          currentForecastV2: currentForecastV2Block({
+            status: 'live',
+            held: null,
+            engineStatus: 'indicative',
+          }),
+        })
+      ),
+    });
+    const row = rowByKey(inputs, 'forecast');
+
+    expect(row.state).toBe('indicative');
+    expect(row.primaryReason).toBe('Current forecast is indicative');
+  });
+
+  it('a live available V2 serving keeps the existing facts-driven derivation (Task 13.2)', () => {
+    const withBlock = rowByKey(
+      baseInputs({
+        forecast: data(
+          dualForecastFixture({
+            sources: v2Sources(),
+            currentForecastV2: currentForecastV2Block({ status: 'live', held: null }),
+          })
+        ),
+      }),
+      'forecast'
+    );
+    const baseline = rowByKey(baseInputs(), 'forecast');
+
+    expect(withBlock.state).toBe(baseline.state);
+    expect(withBlock.primaryReason).toBe(baseline.primaryReason);
   });
 
   it('fails the empty facts universe closed (all-zero pinned UNAVAILABLE, AMENDMENT 8; F3)', () => {

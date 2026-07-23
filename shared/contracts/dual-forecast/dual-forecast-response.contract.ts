@@ -14,8 +14,12 @@ import {
  * freshness window is the disclosed 60s HTTP/client pair. If a later slice
  * adds server-side caching, the cache key MUST embed this constant so shape
  * changes and key bumps land in the same diff.
+ *
+ * Version 2 (PLAN_61 Task 13.2): optional `currentForecastV2` block plus the
+ * `current_forecast_v2` source. Absent block == legacy serving (off/shadow),
+ * keeping the version-1 payload byte-identical.
  */
-export const DUAL_FORECAST_CONTRACT_VERSION = 1;
+export const DUAL_FORECAST_CONTRACT_VERSION = 2;
 
 const PositiveIdSchema = z.number().int().positive();
 const Sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
@@ -41,7 +45,9 @@ export const DualForecastConfigMetadataSchema = z
 export const DualForecastSourceMetadataSchema = z
   .object({
     construction: z.literal('construction_forecast_jcurve'),
-    current: z.literal('projected_metrics_calculator'),
+    // Task 13.2: `current_forecast_v2` when the resolved mode serves V2 live
+    // or held; the legacy literal remains the off/shadow (dormant) value.
+    current: z.enum(['projected_metrics_calculator', 'current_forecast_v2']),
     actual: z.literal('actual_metrics_calculator'),
   })
   .strict();
@@ -199,6 +205,57 @@ export const DualForecastCurrentProjectionSchema = z
   })
   .strict();
 
+/**
+ * Task 13.2 (R24/D9): why the current-forecast plane is serving the pinned
+ * reference instead of a live V2 run. `kill_switch`/`configured_off`/
+ * `configured_shadow` are the post-cutover resolver states that must never
+ * re-enter legacy; `v2_runtime_failure` is the on-lane degrade.
+ */
+export const DualForecastHeldReasonSchema = z.enum([
+  'kill_switch',
+  'configured_off',
+  'configured_shadow',
+  'v2_runtime_failure',
+]);
+
+/** Held disclosure: the served-pointer head (P1), its incident reason, and
+ * the age of the pinned result - the display triple the plan requires. */
+export const DualForecastCurrentForecastHeldSchema = z
+  .object({
+    referenceId: PositiveIdSchema,
+    reason: DualForecastHeldReasonSchema,
+    /** `created_at` of the pinned reference row (when the result was produced). */
+    pinnedAt: z.string().datetime(),
+    ageDays: z.number().int().nonnegative(),
+  })
+  .strict();
+
+/**
+ * Governed current-forecast serving block (PLAN_61 Task 13.2). Present ONLY
+ * when the resolved mode serves V2 (`live`) or the pinned reference (`held`);
+ * absent in off/shadow so the legacy response stays byte-identical. Basis
+ * identifiers and hashes are the ORIGINAL values of the served result -
+ * for `held` that is the pinned reference's basis, not a recompute.
+ */
+export const DualForecastCurrentForecastV2Schema = z
+  .object({
+    status: z.enum(['live', 'held']),
+    engineStatus: z.enum(['available', 'indicative', 'unavailable', 'failed', 'held']),
+    asOfDate: IsoDateSchema,
+    currentPlanVersionId: z.string().min(1),
+    financialFactsSnapshotId: z.string().min(1),
+    inputHash: Sha256Schema,
+    resultHash: Sha256Schema.nullable(),
+    assumptionsHash: Sha256Schema,
+    engineVersion: z.string().min(1),
+    methodologyVersion: z.string().min(1),
+    unavailableReasons: z.array(
+      z.object({ code: z.string().min(1), detail: z.string().min(1) }).strict()
+    ),
+    held: DualForecastCurrentForecastHeldSchema.nullable(),
+  })
+  .strict();
+
 export const DualForecastResponseSchema = z
   .object({
     fundId: PositiveIdSchema,
@@ -210,6 +267,7 @@ export const DualForecastResponseSchema = z
     actualsFacts: DualForecastActualsFactsSchema.nullable(),
     navAnchoring: DualForecastNavAnchoringSchema.nullable(),
     currentProjection: DualForecastCurrentProjectionSchema,
+    currentForecastV2: DualForecastCurrentForecastV2Schema.optional(),
     warnings: z.array(z.string()),
   })
   .strict();
@@ -227,4 +285,7 @@ export type DualForecastTrustCounts = z.infer<typeof DualForecastTrustCountsSche
 export type DualForecastNavAnchorCompany = z.infer<typeof DualForecastNavAnchorCompanySchema>;
 export type DualForecastNavAnchoring = z.infer<typeof DualForecastNavAnchoringSchema>;
 export type DualForecastCurrentProjection = z.infer<typeof DualForecastCurrentProjectionSchema>;
+export type DualForecastHeldReason = z.infer<typeof DualForecastHeldReasonSchema>;
+export type DualForecastCurrentForecastHeld = z.infer<typeof DualForecastCurrentForecastHeldSchema>;
+export type DualForecastCurrentForecastV2 = z.infer<typeof DualForecastCurrentForecastV2Schema>;
 export type DualForecastResponse = z.infer<typeof DualForecastResponseSchema>;
