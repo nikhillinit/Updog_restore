@@ -1,3 +1,6 @@
+// Default import on purpose: node-setup.ts vi.mock('fs') stubs the NAMED
+// readFileSync/existsSync exports, but its ...actual spread preserves
+// `default` as the real fs module - same pattern as reconcile-prod-schema.
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -99,10 +102,6 @@ const ERROR_LOCATIONS: Record<string, ErrorLocation[]> = {
 
 function loadFixture(testCase: ManifestCase): Buffer {
   return fs.readFileSync(path.join(FIXTURE_ROOT, testCase.fixture));
-}
-
-function dryRunParsedRows(rows: unknown[], errorCount: number): number {
-  return rows.length + errorCount;
 }
 
 function expectErrorLocations(
@@ -223,12 +222,14 @@ describe('parseLedgerCsv adversarial characterization', () => {
     const parsed = parseLedgerCsv(loadFixture(testCase), 1);
     const duplicates = detectLedgerDuplicates(parsed.rows);
 
-    expect(dryRunParsedRows(parsed.rows, parsed.parseErrors.length)).toBe(
-      testCase.expected.parsedRows
-    );
-    expect(parsed.rows.length - duplicates.size).toBe(testCase.expected.validRows);
-    expect(parsed.parseErrors).toHaveLength(testCase.expected.invalidRows ?? 0);
-    expect(duplicates.size).toBe(testCase.expected.duplicateRows ?? 0);
+    // Review R1: the dry-run RESPONSE is the frozen aggregation authority -
+    // asserting its fields (not a test-side reimplementation of the count
+    // math) so a V2 change to the dry-run layer trips this characterization.
+    const dryRun = runLedgerDryRun(loadFixture(testCase), 'csv', 1);
+    expect(dryRun.parsedRows).toBe(testCase.expected.parsedRows);
+    expect(dryRun.validRows).toBe(testCase.expected.validRows);
+    expect(dryRun.invalidRows).toBe(testCase.expected.invalidRows ?? 0);
+    expect(dryRun.duplicateRows).toBe(testCase.expected.duplicateRows ?? 0);
     expectErrorLocations(testCase.caseId, parsed.parseErrors, testCase.expected.errorCodes);
     expectWarningCodes(parsed.parseWarnings, testCase.expected.warningCodes);
 
@@ -280,11 +281,12 @@ describe('parseValuationMarksCsv adversarial characterization', () => {
   it.each(valuationCases)('$caseId pins current V1 $classification behavior', (testCase) => {
     const parsed = parseValuationMarksCsv(loadFixture(testCase), 1);
 
-    expect(dryRunParsedRows(parsed.rows, parsed.parseErrors.length)).toBe(
-      testCase.expected.parsedRows
-    );
-    expect(parsed.rows.length).toBe(testCase.expected.validRows);
-    expect(parsed.parseErrors).toHaveLength(testCase.expected.invalidRows ?? 0);
+    // Review R1: assert the dry-run response fields directly (see ledger note).
+    const dryRun = runValuationMarkDryRun(loadFixture(testCase), 'csv', 1);
+    expect(dryRun.parsedRows).toBe(testCase.expected.parsedRows);
+    expect(dryRun.validRows).toBe(testCase.expected.validRows);
+    expect(dryRun.invalidRows).toBe(testCase.expected.invalidRows ?? 0);
+    expect(dryRun.duplicateRows).toBe(testCase.expected.duplicateRows ?? 0);
     expectErrorLocations(testCase.caseId, parsed.parseErrors, testCase.expected.errorCodes);
     expectWarningCodes(parsed.parseWarnings, testCase.expected.warningCodes);
 
