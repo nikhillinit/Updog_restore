@@ -33,6 +33,7 @@ import {
   type ForecastMetricDrift,
   type TrustFilterKey,
 } from '@/lib/dual-forecast-display';
+import { CurrentForecastHeldNotice } from '@/components/dashboard/CurrentForecastHeldNotice';
 import { CurrentProjectionNotice } from '@/components/dashboard/CurrentProjectionNotice';
 import { FactsUnavailableNotice } from '@/components/dashboard/FactsUnavailableNotice';
 import { NavAttributionTable } from '@/components/dashboard/NavAttributionTable';
@@ -499,6 +500,7 @@ export default function DualForecastDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <CurrentForecastHeldNotice block={dualForecast.currentForecastV2} />
               <CurrentProjectionNotice projection={dualForecast.currentProjection} />
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={forecastData}>

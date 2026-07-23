@@ -24,7 +24,9 @@ import type {
   DualForecastActualsFacts,
   DualForecastActualsFactsCompany,
   DualForecastConfigMetadata,
+  DualForecastCurrentForecastV2,
   DualForecastCurrentProjection,
+  DualForecastHeldReason,
   DualForecastMetrics,
   DualForecastNavAnchor,
   DualForecastNavAnchorCompany,
@@ -32,6 +34,21 @@ import type {
   DualForecastPoint,
   DualForecastResponse,
 } from '@shared/contracts/dual-forecast/dual-forecast-response.contract';
+import type {
+  CurrentForecastSeriesPointV1,
+  CurrentForecastV2,
+} from '@shared/contracts/current-forecast-v2.contract';
+import {
+  dispatchCurrentForecastServing,
+  resolveCurrentForecastModeResolution,
+  type CurrentForecastModeResolution,
+} from './current-forecast-calc-mode-resolver';
+import { runCurrentForecastV2 } from './current-forecast-v2-service';
+import {
+  CurrentForecastHeldError,
+  loadHeldCurrentForecast,
+  type HeldCurrentForecast,
+} from './current-forecast-held-service';
 import { buildFundCompanyActualsFacts } from './fund-actuals/fund-company-actuals-facts-service';
 import { ActualMetricsCalculator, isLivePortfolioCompany } from './actual-metrics-calculator';
 import { ProjectedMetricsCalculator } from './projected-metrics-calculator';
@@ -82,6 +99,22 @@ type MetricsPortfolioCompany = PortfolioCompany & {
   investmentDate: Date | null;
   ownershipCurrentPct: string | null;
 };
+
+/** Mode-independent dual-forecast inputs shared by every serving lane (13.2). */
+interface DualForecastScaffold {
+  fund: MetricsFund;
+  effectiveFund: MetricsFund;
+  companies: MetricsPortfolioCompany[];
+  config: MetricsFundConfig;
+  metadata: DualForecastConfigMetadata;
+  warnings: string[];
+  actual: ActualMetrics;
+  actualsFacts: DualForecastActualsFacts | null;
+  navAnchoring: DualForecastNavAnchoring | null;
+  anchoredActual: ActualMetrics;
+  constructionStartIndex: number;
+  constructionForecast: ConstructionForecast;
+}
 
 const LEGACY_DEFAULT_TARGETS: MetricsFundConfig = {
   targetIRR: 0.25,
@@ -136,15 +169,37 @@ class InMemoryCache implements CacheClient {
   }
 }
 
+/**
+ * Injectable current-forecast serving seams (PLAN_61 Task 13.2). Production
+ * uses the governed defaults; unit tests inject fakes so no serving lane ever
+ * touches the database or the sanctioned V2 snapshot write.
+ */
+export interface CurrentForecastServingDeps {
+  resolveMode: (fundId: number) => Promise<CurrentForecastModeResolution>;
+  runV2: (fundId: number) => Promise<CurrentForecastV2>;
+  loadHeld: (fundId: number, referenceId: number) => Promise<HeldCurrentForecast>;
+  now: () => Date;
+}
+
+const defaultCurrentForecastServingDeps: CurrentForecastServingDeps = {
+  resolveMode: (fundId) => resolveCurrentForecastModeResolution(fundId),
+  // The sanctioned V2 run path persists its CURRENT_FORECAST_V2 fund snapshot.
+  runV2: (fundId) => runCurrentForecastV2({ fundId, clock: new Date().toISOString() }),
+  loadHeld: (fundId, referenceId) => loadHeldCurrentForecast({ fundId, referenceId }),
+  now: () => new Date(),
+};
+
 export class MetricsAggregator {
   private actualCalculator = new ActualMetricsCalculator();
   private projectedCalculator = new ProjectedMetricsCalculator();
   private varianceCalculator = new VarianceCalculator();
   private cache: CacheClient;
+  private currentForecastServing: CurrentForecastServingDeps;
 
-  constructor(cache?: CacheClient) {
+  constructor(cache?: CacheClient, currentForecastServing?: CurrentForecastServingDeps) {
     // Use provided cache or fallback to in-memory
     this.cache = cache || new InMemoryCache();
+    this.currentForecastServing = currentForecastServing ?? defaultCurrentForecastServingDeps;
   }
 
   /**
@@ -366,88 +421,34 @@ export class MetricsAggregator {
 
   /**
    * Get a dashboard-ready Construction Plan vs Current Forecast time series.
+   *
+   * Task 13.2: the current-forecast plane is mode-dispatched (R24/D9).
+   * `off`/`shadow` serve the legacy composer byte-identically (observation is
+   * the corpus plane, never this request path); `on` serves V2, degrading
+   * post-cutover to the pinned pointer head; `held` serves exactly that head
+   * (P1) and by construction never invokes the legacy PMC lane.
    */
   async getDualForecast(fundId: number): Promise<DualForecastResponse> {
-    const warnings: string[] = [];
-
     try {
-      const fundFromDb = await this.getFundForMetrics(fundId);
-      if (!fundFromDb) {
-        throw this.createError('INSUFFICIENT_DATA', `Fund ${fundId} not found`, 'aggregator');
-      }
-
-      const fund = fundFromDb as MetricsFund;
-      const companiesFromDb = await storage.getPortfolioCompanies(fundId);
-      const companies = companiesFromDb as MetricsPortfolioCompany[];
-      const { config, warnings: configWarnings, metadata } = await this.resolveFundConfig(fundId);
-      warnings.push(...configWarnings);
-
-      const effectiveFund: MetricsFund =
-        config.fundSizeOverride != null ? { ...fund, size: String(config.fundSizeOverride) } : fund;
-
-      const actual = await this.actualCalculator.calculate(fundId);
-      const actualsFacts = await this.fetchActualsFactsBlock(fundId, actual.asOfDate, warnings);
-      // PR-2 blend (ADR-029/030/032): a null facts block means no blend - the
-      // series keeps the legacy calculator NAV, disclosed via warnings.
-      const navAnchoring = this.buildNavAnchoring(companies, actualsFacts);
-      const anchoredActual = navAnchoring ? this.applyNavAnchoring(actual, navAnchoring) : actual;
-      const constructionStartIndex = this.getElapsedQuarterIndex(
-        effectiveFund.establishmentDate ?? effectiveFund.createdAt,
-        actual.asOfDate
-      );
-      const usesConstructionProjection = this.usesConstructionForecast(fund, companies);
-
-      let projected: ProjectedMetrics;
-      let currentProjectionStartIndex = 0;
-      let currentProjection: DualForecastCurrentProjection = {
-        status: 'projected',
-        fallbackReason: null,
-      };
-      try {
-        projected = await this.calculateProjectedMetrics(
-          fund,
-          effectiveFund,
-          companies,
-          config,
-          warnings
-        );
-        currentProjectionStartIndex = usesConstructionProjection ? constructionStartIndex + 1 : 0;
-      } catch (error) {
-        const fallbackReason = error instanceof Error ? error.message : 'Unknown error';
-        warnings.push(`Projected metrics calculation failed: ${fallbackReason}`);
-        projected = this.getDefaultProjectedMetrics(config);
-        currentProjection = { status: 'fallback_default', fallbackReason };
-      }
-
-      const constructionForecast = this.buildConstructionForecast(effectiveFund, config);
-      const series = this.buildDualForecastSeries(
-        anchoredActual,
-        projected,
-        constructionForecast,
-        toDecimal(effectiveFund.size),
-        config,
-        constructionStartIndex,
-        currentProjectionStartIndex
-      );
-
-      return {
-        fundId,
-        fundName: fund.name,
-        asOfDate: actual.asOfDate,
-        series,
-        sources: {
-          construction: 'construction_forecast_jcurve',
-          current: 'projected_metrics_calculator',
-          actual: 'actual_metrics_calculator',
-        },
-        config: metadata,
-        actualsFacts,
-        navAnchoring,
-        currentProjection,
-        warnings,
-      };
+      const resolution = await this.currentForecastServing.resolveMode(fundId);
+      return await dispatchCurrentForecastServing<DualForecastResponse>(resolution, {
+        runLegacy: () => this.buildLegacyDualForecast(fundId),
+        runV2: () => this.buildV2ServedDualForecast(fundId),
+        serveHeld: (referenceId) =>
+          this.buildHeldDualForecast(
+            fundId,
+            referenceId,
+            resolution.mode === 'on'
+              ? 'v2_runtime_failure'
+              : (resolution.heldReason ?? 'configured_off')
+          ),
+      });
     } catch (error) {
       console.error('Dual forecast aggregation failed:', error);
+
+      if (error instanceof CurrentForecastHeldError) {
+        throw this.createError('HELD_REFERENCE_MISSING', error.message, 'aggregator', error);
+      }
 
       if (this.isMetricsError(error)) {
         throw error;
@@ -460,6 +461,214 @@ export class MetricsAggregator {
         error
       );
     }
+  }
+
+  /**
+   * The pre-13.2 dual-forecast composer, verbatim (byte-identity pinned by the
+   * off-mode characterization snapshot). This is the ONLY lane that runs the
+   * contained ProjectedMetricsCalculator engine.
+   */
+  private async buildLegacyDualForecast(fundId: number): Promise<DualForecastResponse> {
+    const scaffold = await this.buildDualForecastScaffold(fundId);
+    const { fund, effectiveFund, companies, config, warnings } = scaffold;
+    const usesConstructionProjection = this.usesConstructionForecast(fund, companies);
+
+    let projected: ProjectedMetrics;
+    let currentProjectionStartIndex = 0;
+    let currentProjection: DualForecastCurrentProjection = {
+      status: 'projected',
+      fallbackReason: null,
+    };
+    try {
+      projected = await this.calculateProjectedMetrics(
+        fund,
+        effectiveFund,
+        companies,
+        config,
+        warnings
+      );
+      currentProjectionStartIndex = usesConstructionProjection
+        ? scaffold.constructionStartIndex + 1
+        : 0;
+    } catch (error) {
+      const fallbackReason = error instanceof Error ? error.message : 'Unknown error';
+      warnings.push(`Projected metrics calculation failed: ${fallbackReason}`);
+      projected = this.getDefaultProjectedMetrics(config);
+      currentProjection = { status: 'fallback_default', fallbackReason };
+    }
+
+    const series = this.buildDualForecastSeries(
+      scaffold.anchoredActual,
+      projected,
+      scaffold.constructionForecast,
+      toDecimal(effectiveFund.size),
+      config,
+      scaffold.constructionStartIndex,
+      currentProjectionStartIndex
+    );
+
+    return {
+      fundId,
+      fundName: fund.name,
+      asOfDate: scaffold.actual.asOfDate,
+      series,
+      sources: {
+        construction: 'construction_forecast_jcurve',
+        current: 'projected_metrics_calculator',
+        actual: 'actual_metrics_calculator',
+      },
+      config: scaffold.metadata,
+      actualsFacts: scaffold.actualsFacts,
+      navAnchoring: scaffold.navAnchoring,
+      currentProjection,
+      warnings,
+    };
+  }
+
+  /** `on` lane: the V2 engine result drives the Current series; PMC never runs. */
+  private async buildV2ServedDualForecast(fundId: number): Promise<DualForecastResponse> {
+    const scaffold = await this.buildDualForecastScaffold(fundId);
+    const forecast = await this.currentForecastServing.runV2(fundId);
+
+    return this.composeV2DualForecast(fundId, scaffold, forecast, {
+      status: 'live',
+      engineStatus: forecast.status,
+      asOfDate: forecast.asOfDate,
+      currentPlanVersionId: forecast.currentPlanVersionId,
+      financialFactsSnapshotId: forecast.financialFactsSnapshotId,
+      inputHash: forecast.inputHash,
+      resultHash: forecast.resultHash,
+      assumptionsHash: forecast.assumptionsHash,
+      engineVersion: forecast.engineVersion,
+      methodologyVersion: forecast.methodologyVersion,
+      unavailableReasons: forecast.unavailableReasons.map((reason) => ({
+        code: reason.code,
+        detail: reason.detail,
+      })),
+      held: null,
+    });
+  }
+
+  /**
+   * `held` lane (P1/D9): serve EXACTLY the pinned served-pointer head with its
+   * ORIGINAL basis/version/hashes from the reference row, the incident reason,
+   * and the age of the pinned result. A missing head throws - the route
+   * returns an error envelope, never the legacy response.
+   */
+  private async buildHeldDualForecast(
+    fundId: number,
+    referenceId: number,
+    reason: DualForecastHeldReason
+  ): Promise<DualForecastResponse> {
+    const scaffold = await this.buildDualForecastScaffold(fundId);
+    const { reference, forecast } = await this.currentForecastServing.loadHeld(fundId, referenceId);
+    const pinnedAtMs = new Date(reference.createdAt).getTime();
+    const ageDays = Math.max(
+      0,
+      Math.floor((this.currentForecastServing.now().getTime() - pinnedAtMs) / 86_400_000)
+    );
+
+    return this.composeV2DualForecast(fundId, scaffold, forecast, {
+      status: 'held',
+      engineStatus: forecast.status,
+      asOfDate: forecast.asOfDate,
+      currentPlanVersionId: String(reference.currentPlanVersionId),
+      financialFactsSnapshotId: String(reference.financialFactsSnapshotId),
+      inputHash: reference.inputHash,
+      resultHash: reference.resultHash,
+      assumptionsHash: reference.assumptionsHash,
+      engineVersion: reference.engineVersion,
+      methodologyVersion: reference.methodologyVersion,
+      unavailableReasons: forecast.unavailableReasons.map((unavailable) => ({
+        code: unavailable.code,
+        detail: unavailable.detail,
+      })),
+      held: { referenceId: reference.id, reason, pinnedAt: reference.createdAt, ageDays },
+    });
+  }
+
+  private composeV2DualForecast(
+    fundId: number,
+    scaffold: DualForecastScaffold,
+    forecast: CurrentForecastV2,
+    currentForecastV2: DualForecastCurrentForecastV2
+  ): DualForecastResponse {
+    const series = this.buildDualForecastSeriesFromV2(
+      scaffold.anchoredActual,
+      forecast,
+      scaffold.constructionForecast,
+      toDecimal(scaffold.effectiveFund.size),
+      scaffold.config,
+      scaffold.constructionStartIndex
+    );
+
+    return {
+      fundId,
+      fundName: scaffold.fund.name,
+      asOfDate: scaffold.actual.asOfDate,
+      series,
+      sources: {
+        construction: 'construction_forecast_jcurve',
+        current: 'current_forecast_v2',
+        actual: 'actual_metrics_calculator',
+      },
+      config: scaffold.metadata,
+      actualsFacts: scaffold.actualsFacts,
+      navAnchoring: scaffold.navAnchoring,
+      currentProjection: { status: 'projected', fallbackReason: null },
+      currentForecastV2,
+      warnings: scaffold.warnings,
+    };
+  }
+
+  /**
+   * The mode-independent dual-forecast inputs: fund, config, actuals, facts,
+   * NAV anchoring, and the construction lane. Extracted verbatim from the
+   * legacy composer; the off-mode byte snapshot pins the extraction.
+   */
+  private async buildDualForecastScaffold(fundId: number): Promise<DualForecastScaffold> {
+    const warnings: string[] = [];
+
+    const fundFromDb = await this.getFundForMetrics(fundId);
+    if (!fundFromDb) {
+      throw this.createError('INSUFFICIENT_DATA', `Fund ${fundId} not found`, 'aggregator');
+    }
+
+    const fund = fundFromDb as MetricsFund;
+    const companiesFromDb = await storage.getPortfolioCompanies(fundId);
+    const companies = companiesFromDb as MetricsPortfolioCompany[];
+    const { config, warnings: configWarnings, metadata } = await this.resolveFundConfig(fundId);
+    warnings.push(...configWarnings);
+
+    const effectiveFund: MetricsFund =
+      config.fundSizeOverride != null ? { ...fund, size: String(config.fundSizeOverride) } : fund;
+
+    const actual = await this.actualCalculator.calculate(fundId);
+    const actualsFacts = await this.fetchActualsFactsBlock(fundId, actual.asOfDate, warnings);
+    // PR-2 blend (ADR-029/030/032): a null facts block means no blend - the
+    // series keeps the legacy calculator NAV, disclosed via warnings.
+    const navAnchoring = this.buildNavAnchoring(companies, actualsFacts);
+    const anchoredActual = navAnchoring ? this.applyNavAnchoring(actual, navAnchoring) : actual;
+    const constructionStartIndex = this.getElapsedQuarterIndex(
+      effectiveFund.establishmentDate ?? effectiveFund.createdAt,
+      actual.asOfDate
+    );
+    const constructionForecast = this.buildConstructionForecast(effectiveFund, config);
+
+    return {
+      fund,
+      effectiveFund,
+      companies,
+      config,
+      metadata,
+      warnings,
+      actual,
+      actualsFacts,
+      navAnchoring,
+      anchoredActual,
+      constructionStartIndex,
+      constructionForecast,
+    };
   }
 
   /**
@@ -782,6 +991,86 @@ export class MetricsAggregator {
         variance: this.mapVariance(current, construction),
       };
     });
+  }
+
+  /**
+   * Task 13.2 sibling of {@link buildDualForecastSeries}: the Current lane
+   * comes from the V2 forecast's projected points (quarterly, cumulative
+   * money, point-in-time NAV) mapped in order onto quarters 1..N after the
+   * as-of quarter. Quarter 0 stays the as-of actual, exactly as the legacy
+   * builder does; the construction lane and variance reuse the same mappers.
+   */
+  private buildDualForecastSeriesFromV2(
+    actual: ActualMetrics,
+    forecast: CurrentForecastV2,
+    constructionForecast: ConstructionForecast,
+    fundSize: ReturnType<typeof toDecimal>,
+    config: MetricsFundConfig,
+    constructionStartIndex: number
+  ): DualForecastPoint[] {
+    const constructionLength = Math.min(
+      constructionForecast.jCurvePath.nav.length,
+      constructionForecast.jCurvePath.tvpi.length,
+      constructionForecast.jCurvePath.calls.length
+    );
+    const projectedPoints = forecast.series.filter((point) => point.source === 'projected');
+    const constructionRemainingLength = Math.max(1, constructionLength - constructionStartIndex);
+    const horizon = Math.max(1, Math.min(constructionRemainingLength, projectedPoints.length + 1));
+    const netIrr = forecast.netIrr === null ? null : Number(forecast.netIrr);
+
+    return Array.from({ length: horizon }, (_, quarterIndex) => {
+      const actualPoint = quarterIndex === 0 ? this.mapActualMetrics(actual) : null;
+      const construction = this.mapConstructionMetrics(
+        constructionForecast,
+        fundSize,
+        config,
+        constructionStartIndex + quarterIndex
+      );
+      const current =
+        actualPoint ?? this.mapV2PointMetrics(projectedPoints[quarterIndex - 1], netIrr);
+
+      return {
+        quarterIndex,
+        label: quarterIndex === 0 ? 'As of' : `Q+${quarterIndex}`,
+        date: this.addQuarters(actual.asOfDate, quarterIndex),
+        construction,
+        actual: actualPoint,
+        currentMode: quarterIndex === 0 ? ('actual' as const) : ('forecast' as const),
+        current,
+        variance: this.mapVariance(current, construction),
+      };
+    });
+  }
+
+  private mapV2PointMetrics(
+    point: CurrentForecastSeriesPointV1 | undefined,
+    netIrr: number | null
+  ): DualForecastMetrics {
+    if (!point) {
+      // Unreachable: the horizon caps at projectedPoints.length + 1.
+      return {
+        nav: 0,
+        calledCapital: 0,
+        distributions: 0,
+        tvpi: null,
+        dpi: null,
+        rvpi: null,
+        irr: netIrr,
+      };
+    }
+
+    const nav = Number(point.navUsd);
+    const calledCapital = Number(point.contributionsUsd);
+    const distributions = Number(point.distributionsUsd);
+    return {
+      nav,
+      calledCapital,
+      distributions,
+      tvpi: Number(point.tvpi),
+      dpi: Number(point.dpi),
+      rvpi: this.safeRatio(nav, calledCapital),
+      irr: netIrr,
+    };
   }
 
   /**

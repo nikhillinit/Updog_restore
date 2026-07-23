@@ -99,7 +99,7 @@ describe('resolveCurrentForecastModeResolution (R24/D9 held-state map)', () => {
         1,
         reader({ configuredMode: 'on', killSwitchActive: true, ...POST })
       )
-    ).toEqual({ mode: 'held', cutoverReferenceId: 41 });
+    ).toEqual({ mode: 'held', cutoverReferenceId: 41, heldReason: 'kill_switch' });
   });
 
   it('post-cutover configured off resolves held', async () => {
@@ -108,7 +108,7 @@ describe('resolveCurrentForecastModeResolution (R24/D9 held-state map)', () => {
         1,
         reader({ configuredMode: 'off', killSwitchActive: false, ...POST })
       )
-    ).toEqual({ mode: 'held', cutoverReferenceId: 41 });
+    ).toEqual({ mode: 'held', cutoverReferenceId: 41, heldReason: 'configured_off' });
   });
 
   it('post-cutover configured shadow resolves held', async () => {
@@ -117,7 +117,7 @@ describe('resolveCurrentForecastModeResolution (R24/D9 held-state map)', () => {
         1,
         reader({ configuredMode: 'shadow', killSwitchActive: false, ...POST })
       )
-    ).toEqual({ mode: 'held', cutoverReferenceId: 41 });
+    ).toEqual({ mode: 'held', cutoverReferenceId: 41, heldReason: 'configured_shadow' });
   });
 
   it('held serves the served-pointer head from the mode row, not any other lookup', async () => {
@@ -130,7 +130,12 @@ describe('resolveCurrentForecastModeResolution (R24/D9 held-state map)', () => {
 
     const resolution = await resolveCurrentForecastModeResolution(1, modeReader);
 
-    expect(resolution).toEqual({ mode: 'held', cutoverReferenceId: 41 });
+    // Kill wins the reason ordering when both kill and configured-off apply.
+    expect(resolution).toEqual({
+      mode: 'held',
+      cutoverReferenceId: 41,
+      heldReason: 'kill_switch',
+    });
     expect(modeReader).toHaveBeenCalledTimes(1);
   });
 

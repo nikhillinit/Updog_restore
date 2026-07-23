@@ -21,6 +21,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-07-23)
+
+- **Current-forecast serving plane wired into the dual forecast, dormant
+  (PLAN_61 Task 13.2, ADR-060).** `metricsAggregator.getDualForecast` now
+  dispatches on the per-fund `current_forecast` mode resolution: `off`/`shadow`
+  serve the legacy composer byte-identically (snapshot-pinned), `on` serves the
+  V2 engine, and `held` serves exactly the pinned served-pointer reference with
+  the original basis hashes, a typed incident reason, and the age of the pinned
+  result - never the legacy lane post-cutover. Dual-forecast contract bumped to
+  v2 with an optional `currentForecastV2` block; the client renders a held
+  notice and the readiness rollup fails held/unavailable servings closed. All
+  funds still resolve `off` (no mode rows; `enable_current_forecast_v2` stays
+  default-off, now pinned by an activation-gate test).
+
 ### Added (2026-07-18)
 
 - **Ownership-aware position FMV is now consistent across current NAV surfaces

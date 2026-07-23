@@ -699,6 +699,79 @@ describe('DualForecastDashboard', () => {
     expect(screen.getByText(/reason: projection engine timeout/i)).toBeInTheDocument();
   });
 
+  it('shows the held-forecast notice with the incident reason and age (Task 13.2)', async () => {
+    setActiveFundContext();
+    const payload = {
+      ...makePopulatedDualForecast(),
+      sources: {
+        construction: 'construction_forecast_jcurve',
+        current: 'current_forecast_v2',
+        actual: 'actual_metrics_calculator',
+      },
+      currentForecastV2: {
+        status: 'held',
+        engineStatus: 'available',
+        asOfDate: '2026-03-31',
+        currentPlanVersionId: '21',
+        financialFactsSnapshotId: '31',
+        inputHash: 'a'.repeat(64),
+        resultHash: 'b'.repeat(64),
+        assumptionsHash: 'c'.repeat(64),
+        engineVersion: 'current-forecast-v2-engine/1.0.0',
+        methodologyVersion: 'cohort-projection-v2/1.0.0',
+        unavailableReasons: [],
+        held: {
+          referenceId: 41,
+          reason: 'kill_switch',
+          pinnedAt: '2026-07-01T00:00:00.000Z',
+          ageDays: 21,
+        },
+      },
+    };
+    // Fixture guard: the ingress parse in useDualForecast must accept this.
+    expect(DualForecastResponseSchema.parse(payload)).toEqual(payload);
+    stubFetch({ forecast: { body: payload } });
+
+    renderWithQueryClient();
+
+    expect(await screen.findByText('Current forecast is held')).toBeInTheDocument();
+    expect(screen.getByText(/the calculation kill switch is active/i)).toBeInTheDocument();
+    expect(screen.getByText(/pinned 21 days ago/i)).toBeInTheDocument();
+  });
+
+  it('renders no held notice for a live V2 serving (Task 13.2)', async () => {
+    setActiveFundContext();
+    const payload = {
+      ...makePopulatedDualForecast(),
+      sources: {
+        construction: 'construction_forecast_jcurve',
+        current: 'current_forecast_v2',
+        actual: 'actual_metrics_calculator',
+      },
+      currentForecastV2: {
+        status: 'live',
+        engineStatus: 'available',
+        asOfDate: '2026-03-31',
+        currentPlanVersionId: '21',
+        financialFactsSnapshotId: '31',
+        inputHash: 'a'.repeat(64),
+        resultHash: 'b'.repeat(64),
+        assumptionsHash: 'c'.repeat(64),
+        engineVersion: 'current-forecast-v2-engine/1.0.0',
+        methodologyVersion: 'cohort-projection-v2/1.0.0',
+        unavailableReasons: [],
+        held: null,
+      },
+    };
+    expect(DualForecastResponseSchema.parse(payload)).toEqual(payload);
+    stubFetch({ forecast: { body: payload } });
+
+    renderWithQueryClient();
+
+    expect(await screen.findByText('Fund Value Forecast')).toBeInTheDocument();
+    expect(screen.queryByText('Current forecast is held')).toBeNull();
+  });
+
   it('shows fallback copy for a null fallbackReason without rendering the word null', async () => {
     setActiveFundContext();
     const payload = {

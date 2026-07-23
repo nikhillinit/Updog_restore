@@ -27,6 +27,13 @@ export const defaultCurrentForecastModeReader: CurrentForecastModeReader = (fund
       and(eq(row.fundId, fundId), eq(row.calculationKey, CURRENT_FORECAST_CALCULATION_KEY)),
   });
 
+/**
+ * Which post-cutover state produced a `held` resolution (13.2): the serving
+ * plane surfaces this as the incident/stale reason on the held display. Kill
+ * wins over the configured mode when both apply.
+ */
+export type CurrentForecastHeldReason = 'kill_switch' | 'configured_off' | 'configured_shadow';
+
 export interface CurrentForecastModeResolution {
   mode: CurrentForecastCalculationMode;
   /**
@@ -36,6 +43,8 @@ export interface CurrentForecastModeResolution {
    * serves exactly this pointer — never a "latest accepted" query.
    */
   cutoverReferenceId: number | null;
+  /** Present exactly when `mode` is `held`. */
+  heldReason?: CurrentForecastHeldReason;
 }
 
 /**
@@ -68,7 +77,12 @@ export async function resolveCurrentForecastModeResolution(
   if (!row?.killSwitchActive && row?.configuredMode === 'on') {
     return { mode: 'on', cutoverReferenceId };
   }
-  return { mode: 'held', cutoverReferenceId };
+  const heldReason: CurrentForecastHeldReason = row?.killSwitchActive
+    ? 'kill_switch'
+    : row?.configuredMode === 'shadow'
+      ? 'configured_shadow'
+      : 'configured_off';
+  return { mode: 'held', cutoverReferenceId, heldReason };
 }
 
 /** Bare-mode convenience wrapper over {@link resolveCurrentForecastModeResolution}. */

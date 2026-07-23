@@ -19,6 +19,7 @@
 
 import type { DecisionState } from '@/components/fund-results';
 import type { AllocationsResponse } from '@/components/portfolio/tabs/types';
+import { formatHeldAge, HELD_REASON_COPY } from '@/lib/dual-forecast-display';
 import type { DualForecastResponse } from '@shared/contracts/dual-forecast/dual-forecast-response.contract';
 import type { FundMoicRankingsResponseV2 } from '@shared/contracts/fund-moic-v2.contract';
 import type { FundResultsReadV1 } from '@shared/contracts/fund-results-v1.contract';
@@ -124,6 +125,48 @@ function deriveForecastSeed(input: ReadinessSourceInput<DualForecastResponse>): 
   const asOfDate = isoDateOnly(forecast.asOfDate);
   const details = forecast.warnings;
   const firstWarning = forecast.warnings[0] ?? null;
+
+  // Task 13.2 governed serving (R24/D9): a held current forecast is an
+  // incident state and dominates every downstream facts check - the row is
+  // pinned data, not a live calculation. Live V2 servings fail closed on
+  // unavailable/failed engine output and cap at indicative on indicative.
+  const served = forecast.currentForecastV2;
+  if (served !== undefined) {
+    if (served.status === 'held') {
+      return {
+        state: 'not_actionable',
+        stateLabel: 'Held',
+        primaryReason:
+          served.held === null
+            ? 'Current forecast is held'
+            : `Current forecast is held — ${HELD_REASON_COPY[served.held.reason]}`,
+        asOfDate: isoDateOnly(served.asOfDate),
+        ...(served.held === null ? {} : { blockedSummary: formatHeldAge(served.held.ageDays) }),
+        details,
+      };
+    }
+    if (served.engineStatus === 'unavailable' || served.engineStatus === 'failed') {
+      const detail = served.unavailableReasons[0]?.detail;
+      return {
+        state: 'not_actionable',
+        primaryReason:
+          detail === undefined
+            ? 'Current forecast unavailable'
+            : `Current forecast unavailable — ${detail}`,
+        asOfDate: isoDateOnly(served.asOfDate),
+        details,
+      };
+    }
+    if (served.engineStatus === 'indicative') {
+      return {
+        state: 'indicative',
+        primaryReason: 'Current forecast is indicative',
+        asOfDate: isoDateOnly(served.asOfDate),
+        details,
+      };
+    }
+    // engineStatus 'available': fall through to the facts-driven derivation.
+  }
 
   // Contract-documented facts-fetch failure: null facts/anchoring reads FAILED
   // (matches evidenceFromDualForecast, AMENDMENT 6).

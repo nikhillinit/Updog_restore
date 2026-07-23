@@ -8820,3 +8820,46 @@ unexplained divergences).
   produced nothing at all (thrown basis mismatch -> `failed`).
 
 ---
+
+## ADR-060: Dual-Forecast Contract v2 — Optional Serving Block Keeps `off` Byte-Identical (Demo Scope)
+
+**Date:** 2026-07-23 **Status:** [ACCEPTED] Accepted **Decision:** Task 13.2
+adapts the governed current-forecast plane into the live dual-forecast response
+by bumping `DUAL_FORECAST_CONTRACT_VERSION` to 2 with an OPTIONAL
+`currentForecastV2` block instead of a breaking reshape. The block is emitted
+ONLY when the resolved mode serves V2 (`status: 'live'`) or the pinned reference
+(`status: 'held'`); in `off`/`shadow` the payload stays byte-identical to
+version 1 (pinned by an off-mode serialization snapshot). `sources.current`
+widens to `projected_metrics_calculator | current_forecast_v2` so consumers can
+react to the response shape alone — the server-only flag is never exposed
+(`exposeToClient: false`).
+
+### Context
+
+The rollout table requires `off` byte-compatibility, `shadow` non-authority, and
+a `held` display carrying the ORIGINAL basis/version/hash plus a typed incident
+reason and the age of the pinned result. A versioned-but-additive contract lets
+one egress schema serve all four modes while the plane ships dormant (no mode
+rows exist; the flag is off; every fund resolves `off`).
+
+### Consequences
+
+- Serving dispatch lives in `MetricsAggregator.getDualForecast` through the 13.1
+  `dispatchCurrentForecastServing` seam; the route is unchanged and new mode
+  logic imports no protected module. The legacy composer is the ONLY lane that
+  invokes `ProjectedMetricsCalculator`; a consumer-level test pins that PMC is
+  never invoked post-cutover under kill.
+- Serving-time `shadow` performs NO observation write - the replay corpus is the
+  shadow evidence plane (13.1); the request path serves legacy unchanged.
+- `held` composes live construction/actual lanes with the pinned V2 payload (P1:
+  exactly `cutover_reference_id`); basis fields come from the reference row,
+  `held.reason` is the typed enum
+  `kill_switch | configured_off | configured_shadow | v2_runtime_failure`, and a
+  missing head surfaces `HELD_REFERENCE_MISSING` as an error envelope, never the
+  legacy response.
+- The V2 Current lane maps the engine's quarterly cumulative series
+  (`contributionsUsd` -> calledCapital, point-in-time `navUsd`, fund-level
+  `netIrr`) onto the existing per-quarter metrics; quarter 0 stays the as-of
+  actual, mirroring the legacy builder.
+
+---
