@@ -37,6 +37,7 @@ vi.mock('../../../server/lib/auth/jwt', () => ({
     if (!authState.fundAccess) return res.sendStatus(403);
     next();
   },
+  requireRole: () => (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
 
 vi.mock('../../../server/services/current-plan-version-service', () => {
