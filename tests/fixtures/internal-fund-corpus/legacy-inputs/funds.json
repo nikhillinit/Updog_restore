@@ -1,0 +1,22 @@
+[
+  {
+    "id": 101,
+    "name": "Internal Fund A",
+    "baseCurrency": "USD",
+    "size": "50000000",
+    "managementFee": "0.02",
+    "carryPercentage": "0.2",
+    "vintageYear": 2022,
+    "establishmentDate": "2022-07-15"
+  },
+  {
+    "id": 202,
+    "name": "Internal Fund B",
+    "baseCurrency": "USD",
+    "size": "25000000",
+    "managementFee": "0.02",
+    "carryPercentage": "0.2",
+    "vintageYear": 2023,
+    "establishmentDate": "2023-01-01"
+  }
+]

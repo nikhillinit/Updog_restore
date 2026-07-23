@@ -1,0 +1,183 @@
+{
+  "schemaVersion": "internal-fund-legacy-corpus/1",
+  "generatedFrom": {
+    "repositoryCommit": "52c58b6d4c08b3534cc3c477ae532efd73f967d7",
+    "factsPolicyVersion": "financial-facts-policy/1.0.0"
+  },
+  "fixedClock": "2026-06-30T12:00:00.000Z",
+  "asOfDate": "2026-06-30",
+  "baseCurrency": "USD",
+  "cases": [
+    {
+      "caseId": "company-actuals-authority",
+      "description": "Fund/company/round/planning-FMV authority including split parents, missing round parent, post-as-of active round behavior, and same-name fund isolation.",
+      "authoritySurface": "fund_company_actuals",
+      "inputFiles": [
+        "legacy-inputs/funds.json",
+        "legacy-inputs/portfolio-companies.json",
+        "legacy-inputs/investments.json",
+        "legacy-inputs/investment-rounds.json",
+        "legacy-inputs/investment-round-overrides.json",
+        "legacy-inputs/valuation-marks.json"
+      ],
+      "expectedFile": "expected-facts/company-actuals.json",
+      "contractOrService": "FundCompanyActualsFactsResponseSchema",
+      "assertions": [
+        "same-name companies remain fund-scoped",
+        "multiple parent investments retain investment IDs",
+        "missing-round parent contributes zero round-derived amount",
+        "post-as-of active round remains selected by current behavior",
+        "future and superseded planning FMV marks are excluded from current facts",
+        "approved non-USD planning FMV marks block company actuals"
+      ],
+      "knownLimitations": [
+        "current active round selection is not date-filtered by asOfDate",
+        "investment and lot vehicle attribution is unavailable_by_schema"
+      ]
+    },
+    {
+      "caseId": "financial-facts-snapshot-authority",
+      "description": "Financial facts cash-flow, marks, period-NAV, vehicle roster, and empty future-contract arrays.",
+      "authoritySurface": "financial_facts_snapshot",
+      "inputFiles": [
+        "legacy-inputs/funds.json",
+        "legacy-inputs/portfolio-companies.json",
+        "legacy-inputs/investments.json",
+        "legacy-inputs/investment-rounds.json",
+        "legacy-inputs/investment-round-overrides.json",
+        "legacy-inputs/vehicles.json",
+        "legacy-inputs/cash-flow-events.json",
+        "legacy-inputs/valuation-marks.json"
+      ],
+      "expectedFile": "expected-facts/financial-facts-snapshot.json",
+      "contractOrService": "FinancialFactsSnapshotV1Schema",
+      "assertions": [
+        "portfolio_investment cash-flow points are separate from ActualMetrics deployed capital",
+        "accepted cash-flow corrections and reversals follow current R35 semantics",
+        "valuation marks compose period NAV without ownership multiplication",
+        "vehicle-null target-fund valuation marks remain executable in period NAV",
+        "observation and future selection arrays stay empty"
+      ],
+      "knownLimitations": [
+        "economics consumer is blocked by unattributed legacy direct evidence",
+        "investment and lot vehicle attribution is unavailable_by_schema"
+      ]
+    },
+    {
+      "caseId": "actual-metrics-authority",
+      "description": "ActualMetrics legacy totalDeployed and ownership fallback position FMV.",
+      "authoritySurface": "actual_metrics",
+      "inputFiles": [
+        "legacy-inputs/funds.json",
+        "legacy-inputs/portfolio-companies.json",
+        "legacy-inputs/investments.json"
+      ],
+      "expectedFile": "expected-facts/actual-metrics.json",
+      "contractOrService": "ActualMetricsCalculator.calculate",
+      "assertions": [
+        "totalDeployed comes from investment rows plus company fallback",
+        "positive ownership scales current valuation",
+        "null and zero ownership preserve full legacy valuation",
+        "IRR is intentionally omitted from the golden contract"
+      ],
+      "knownLimitations": [
+        "ActualMetrics deployed capital is a separate legacy surface from financial-facts cash-flow points"
+      ]
+    },
+    {
+      "caseId": "portfolio-overview-authority",
+      "description": "Portfolio overview per-company and aggregate ownership fallback FMV.",
+      "authoritySurface": "portfolio_overview",
+      "inputFiles": [
+        "legacy-inputs/funds.json",
+        "legacy-inputs/portfolio-companies.json"
+      ],
+      "expectedFile": "expected-facts/portfolio-overview.json",
+      "contractOrService": "PortfolioOverviewResponseV1Schema",
+      "assertions": [
+        "positive ownership scales current valuation",
+        "null and zero ownership preserve full legacy valuation",
+        "portfolio aggregates match current Decimal service math"
+      ],
+      "knownLimitations": [
+        "portfolio overview consumes portfolio-company rows, not lots"
+      ]
+    },
+    {
+      "caseId": "financial-facts-cash-flow-series",
+      "description": "Financial facts cash-flow fragment for later split-surface comparisons.",
+      "authoritySurface": "financial_facts_snapshot",
+      "inputFiles": ["legacy-inputs/cash-flow-events.json"],
+      "expectedFile": "expected-cash-flows/financial-facts-cash-flow-series.json",
+      "contractOrService": "FinancialFactsSnapshotV1Schema.payload.cashFlowSeries",
+      "assertions": [
+        "portfolio_investment points are represented as accepted cash-flow facts",
+        "competing eligible perspectives choose the current perspective precedence",
+        "reversed-status cash-flow rows are excluded",
+        "totals contain LP contribution/distribution fields but no deployedCapital field"
+      ],
+      "knownLimitations": [
+        "cash-flow vehicle IDs do not imply lot or investment vehicle attribution"
+      ]
+    },
+    {
+      "caseId": "financial-facts-marks-series",
+      "description": "Financial facts valuation mark fragment including period NAV.",
+      "authoritySurface": "financial_facts_snapshot",
+      "inputFiles": ["legacy-inputs/valuation-marks.json"],
+      "expectedFile": "expected-valuations/financial-facts-marks-series.json",
+      "contractOrService": "FinancialFactsSnapshotV1Schema.payload.marksSeries",
+      "assertions": [
+        "accepted marks are position-level fair values",
+        "target-fund vehicle-null marks are retained",
+        "period NAV carries stale marks forward under current selection semantics"
+      ],
+      "knownLimitations": [
+        "financial facts marks are not multiplied by ownership"
+      ]
+    },
+    {
+      "caseId": "actual-metrics-position-fmv",
+      "description": "ActualMetrics selected NAV surface for ownership fallback.",
+      "authoritySurface": "actual_metrics",
+      "inputFiles": ["legacy-inputs/portfolio-companies.json"],
+      "expectedFile": "expected-valuations/actual-metrics-position-fmv.json",
+      "contractOrService": "ActualMetricsCalculator.calculate",
+      "assertions": [
+        "positive ownership scales valuation",
+        "null and zero ownership keep full valuation"
+      ],
+      "knownLimitations": [
+        "company-level position FMV is not vehicle-attributed"
+      ]
+    },
+    {
+      "caseId": "portfolio-overview-position-fmv",
+      "description": "PortfolioOverview selected company FMV surface for ownership fallback.",
+      "authoritySurface": "portfolio_overview",
+      "inputFiles": ["legacy-inputs/portfolio-companies.json"],
+      "expectedFile": "expected-valuations/portfolio-overview-position-fmv.json",
+      "contractOrService": "PortfolioOverviewResponseV1Schema.companies",
+      "assertions": [
+        "per-company currentValue matches ownership fallback semantics"
+      ],
+      "knownLimitations": ["portfolio overview does not consume lots"]
+    },
+    {
+      "caseId": "lot-service-authority",
+      "description": "LotService.list ordering, pagination, and stored cents from deterministic seeded rows.",
+      "authoritySurface": "lot_service",
+      "inputFiles": ["legacy-inputs/investment-lots.json"],
+      "expectedFile": "expected-lots/ordered-lot-list.json",
+      "contractOrService": "LotService.list",
+      "assertions": [
+        "lots order by createdAt descending then UUID descending",
+        "costBasisCents remain stored cents",
+        "lots are not consumed by facts services"
+      ],
+      "knownLimitations": [
+        "investment lot vehicle attribution is unavailable_by_schema"
+      ]
+    }
+  ]
+}

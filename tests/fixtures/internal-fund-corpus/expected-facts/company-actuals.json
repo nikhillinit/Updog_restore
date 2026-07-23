@@ -1,0 +1,162 @@
+{
+  "fundId": 101,
+  "asOfDate": "2026-06-30",
+  "facts": [
+    {
+      "fundId": 101,
+      "companyId": 1002,
+      "companyName": "Atlas Health",
+      "investmentIds": [5003],
+      "activeRoundIds": [],
+      "approvedPlanningFmvMarkId": 6008,
+      "planningFmvStatus": "blocked",
+      "initialInvestmentAmount": "0.000000",
+      "followOnInvestmentAmount": "0.000000",
+      "amountOnlyNonEquityAmount": "0.000000",
+      "latestRoundDate": null,
+      "latestRoundValuation": null,
+      "latestPlanningFmvDate": "2026-06-30",
+      "latestPlanningFmvValue": "888888.000000",
+      "currency": "EUR",
+      "currencyStatus": "mismatch_blocked",
+      "supersedeLineage": [],
+      "warnings": [
+        {
+          "code": "CURRENCY_MISMATCH_BLOCK",
+          "severity": "blocking",
+          "message": "Company 1002 has source currency that does not match fund base currency USD.",
+          "source": "company:1002"
+        }
+      ],
+      "provenance": {
+        "trustState": "UNAVAILABLE",
+        "core": {
+          "sourceKind": "computed",
+          "actionability": "quarantined",
+          "sourceEngine": "rounds-to-model",
+          "engineVersion": "rounds-to-model-v1",
+          "inputHash": "cbc6ed1a72863cb475c479b961ba71d8240e239c89b65329ccbb62637335abd8",
+          "assumptionsHash": "d78541901a14bd5a7c82572a062f5b152c8df79707b697b0a7c202dbf9b96374",
+          "generatedAt": "2026-06-30T12:00:00.000Z",
+          "isFinanciallyActionable": false,
+          "quarantineReason": "currency_mismatch",
+          "warnings": []
+        },
+        "structuredWarnings": [
+          {
+            "code": "CURRENCY_MISMATCH_BLOCK",
+            "severity": "blocking",
+            "message": "Company 1002 has source currency that does not match fund base currency USD.",
+            "source": "company:1002"
+          }
+        ]
+      },
+      "inputHash": "056e53bc8078a5c0cf2b7e1f8f1f848cad167107171a8f25b09f684aff152653"
+    },
+    {
+      "fundId": 101,
+      "companyId": 1001,
+      "companyName": "Nimbus Labs",
+      "investmentIds": [5001, 5002],
+      "activeRoundIds": [7002, 7003, 7004],
+      "approvedPlanningFmvMarkId": 6002,
+      "planningFmvStatus": "active",
+      "initialInvestmentAmount": "600000.000000",
+      "followOnInvestmentAmount": "600000.000000",
+      "amountOnlyNonEquityAmount": "0.000000",
+      "latestRoundDate": "2026-07-15",
+      "latestRoundValuation": "22000000.000000",
+      "latestPlanningFmvDate": "2026-06-15",
+      "latestPlanningFmvValue": "1300000.000000",
+      "currency": "USD",
+      "currencyStatus": "base_currency",
+      "supersedeLineage": [
+        {
+          "roundId": 7001,
+          "supersedesRoundId": null
+        },
+        {
+          "roundId": 7002,
+          "supersedesRoundId": 7001
+        },
+        {
+          "roundId": 7003,
+          "supersedesRoundId": null
+        },
+        {
+          "roundId": 7004,
+          "supersedesRoundId": null
+        }
+      ],
+      "warnings": [],
+      "provenance": {
+        "trustState": "LIVE",
+        "core": {
+          "sourceKind": "computed",
+          "actionability": "actionable",
+          "sourceEngine": "rounds-to-model",
+          "engineVersion": "rounds-to-model-v1",
+          "inputHash": "3d3f22226c45618049b0f22d8fcbef71c732a6fcb575bcaa5c59429d3853fc97",
+          "assumptionsHash": "d78541901a14bd5a7c82572a062f5b152c8df79707b697b0a7c202dbf9b96374",
+          "generatedAt": "2026-06-30T12:00:00.000Z",
+          "isFinanciallyActionable": true,
+          "warnings": []
+        },
+        "structuredWarnings": []
+      },
+      "inputHash": "6e8c69560f8ccf474adead0bafc3609c1affe2aa0b79c0def61626997ef49513"
+    },
+    {
+      "fundId": 101,
+      "companyId": 1003,
+      "companyName": "Zero Grid",
+      "investmentIds": [5004],
+      "activeRoundIds": [],
+      "approvedPlanningFmvMarkId": null,
+      "planningFmvStatus": "none",
+      "initialInvestmentAmount": "0.000000",
+      "followOnInvestmentAmount": "0.000000",
+      "amountOnlyNonEquityAmount": "0.000000",
+      "latestRoundDate": null,
+      "latestRoundValuation": null,
+      "latestPlanningFmvDate": null,
+      "latestPlanningFmvValue": null,
+      "currency": "USD",
+      "currencyStatus": "unknown",
+      "supersedeLineage": [],
+      "warnings": [
+        {
+          "code": "PLANNING_FMV_MISSING",
+          "severity": "warning",
+          "message": "No approved planning FMV mark is available for this company.",
+          "source": "company:1003"
+        }
+      ],
+      "provenance": {
+        "trustState": "PARTIAL",
+        "core": {
+          "sourceKind": "computed",
+          "actionability": "input_only",
+          "sourceEngine": "rounds-to-model",
+          "engineVersion": "rounds-to-model-v1",
+          "inputHash": "63c725bb541a5889fe5b9e505d19267be8dac3d88596c689715660cbbb216abc",
+          "assumptionsHash": "d78541901a14bd5a7c82572a062f5b152c8df79707b697b0a7c202dbf9b96374",
+          "generatedAt": "2026-06-30T12:00:00.000Z",
+          "isFinanciallyActionable": false,
+          "warnings": []
+        },
+        "structuredWarnings": [
+          {
+            "code": "PLANNING_FMV_MISSING",
+            "severity": "warning",
+            "message": "No approved planning FMV mark is available for this company.",
+            "source": "company:1003"
+          }
+        ]
+      },
+      "inputHash": "f6ce6afe862a83cdb54ef6a1de5c1d2710304727cdcf756cf65c4824cd194055"
+    }
+  ],
+  "inputHash": "32476893bf8f9bf80f7c82487ee4bb6af6836280971e98d69955eca409e1199f",
+  "generatedAt": "2026-06-30T12:00:00.000Z"
+}

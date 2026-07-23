@@ -38,6 +38,12 @@ import {
   assertBigIntEquals,
   generateIdempotencyKey,
 } from '../../utils/portfolio-test-utils';
+import {
+  INTERNAL_FUND_CORPUS,
+  loadCorpusExpected,
+  loadCorpusInput,
+  serializeCorpusValue,
+} from '../../utils/internal-fund-corpus';
 
 describe('LotService (Phase 0-ALPHA - TDD RED)', () => {
   let service: LotService;
@@ -228,6 +234,23 @@ describe('LotService (Phase 0-ALPHA - TDD RED)', () => {
   });
 
   describe('list()', () => {
+    it('matches the legacy internal-fund corpus for deterministic lot ordering and stored cents', async () => {
+      databaseMock.setMockData(
+        'investment_lots',
+        loadCorpusInput<Array<Record<string, unknown>>>('legacy-inputs/investment-lots.json')
+      );
+
+      const firstPage = await service.list(INTERNAL_FUND_CORPUS.fundId, { limit: 2 });
+      const secondPage = await service.list(INTERNAL_FUND_CORPUS.fundId, {
+        limit: 2,
+        cursor: firstPage.nextCursor,
+      });
+
+      expect(serializeCorpusValue({ firstPage, secondPage })).toEqual(
+        loadCorpusExpected('expected-lots/ordered-lot-list.json')
+      );
+    });
+
     it('should list lots with default pagination', async () => {
       // ARRANGE
       const fundId = 1;
