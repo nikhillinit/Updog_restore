@@ -78,6 +78,48 @@ describe('dual forecast route', () => {
     expect(DualForecastResponseSchema.parse(payload)).toEqual(payload);
   });
 
+  it('accepts V2-served and held payloads under the bumped contract (Task 13.2 fixture guard)', () => {
+    const block = {
+      status: 'live',
+      engineStatus: 'available',
+      asOfDate: '2026-03-31',
+      currentPlanVersionId: '21',
+      financialFactsSnapshotId: '31',
+      inputHash: 'a'.repeat(64),
+      resultHash: 'b'.repeat(64),
+      assumptionsHash: 'c'.repeat(64),
+      engineVersion: 'current-forecast-v2-engine/1.0.0',
+      methodologyVersion: 'cohort-projection-v2/1.0.0',
+      unavailableReasons: [],
+      held: null,
+    };
+    const livePayload = {
+      ...dualForecastPayload(),
+      sources: {
+        construction: 'construction_forecast_jcurve',
+        current: 'current_forecast_v2',
+        actual: 'actual_metrics_calculator',
+      },
+      currentForecastV2: block,
+    };
+    expect(DualForecastResponseSchema.parse(livePayload)).toEqual(livePayload);
+
+    const heldPayload = {
+      ...livePayload,
+      currentForecastV2: {
+        ...block,
+        status: 'held',
+        held: {
+          referenceId: 41,
+          reason: 'kill_switch',
+          pinnedAt: '2026-07-01T00:00:00.000Z',
+          ageDays: 21,
+        },
+      },
+    };
+    expect(DualForecastResponseSchema.parse(heldPayload)).toEqual(heldPayload);
+  });
+
   it('returns the dual forecast for an authorized fund request', async () => {
     const response = await request(makeApp()).get('/api/funds/12/dual-forecast').expect(200);
 
@@ -133,6 +175,27 @@ describe('dual forecast route', () => {
     expect(response.body).toMatchObject({
       error: 'CONTRACT_VIOLATION',
       message: 'Dual forecast response failed contract validation',
+    });
+  });
+
+  it('a missing held pointer head returns an error envelope, never the legacy response', async () => {
+    // Task 13.2 (D9): the aggregator surfaces HELD_REFERENCE_MISSING when the
+    // pinned reference cannot be served; the route must emit the standard
+    // error envelope through the metrics-error branch - not fall back.
+    getDualForecastMock.mockRejectedValue({
+      code: 'HELD_REFERENCE_MISSING',
+      message: 'current-forecast reference 41 not found for fund 12',
+      component: 'aggregator',
+      timestamp: '2026-07-22T00:00:00.000Z',
+    });
+
+    const response = await request(makeApp()).get('/api/funds/12/dual-forecast').expect(500);
+
+    expect(response.body).toEqual({
+      error: 'HELD_REFERENCE_MISSING',
+      message: 'current-forecast reference 41 not found for fund 12',
+      component: 'aggregator',
+      timestamp: '2026-07-22T00:00:00.000Z',
     });
   });
 

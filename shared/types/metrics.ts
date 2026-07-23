@@ -364,7 +364,13 @@ export interface UnifiedFundMetrics {
  */
 export interface MetricsCalculationError {
   /** Error code for programmatic handling */
-  code: 'INSUFFICIENT_DATA' | 'CALCULATION_FAILED' | 'ENGINE_ERROR' | 'CACHE_ERROR';
+  code:
+    | 'INSUFFICIENT_DATA'
+    | 'CALCULATION_FAILED'
+    | 'ENGINE_ERROR'
+    | 'CACHE_ERROR'
+    /** Task 13.2: held serving found no pointer head - error envelope, never legacy. */
+    | 'HELD_REFERENCE_MISSING';
 
   /** Human-readable error message */
   message: string;

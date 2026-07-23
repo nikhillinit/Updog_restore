@@ -235,6 +235,19 @@ async function loadReference(
 }
 
 /**
+ * Fund-scoped reference lookup by id for the held serving lane (13.2, P1):
+ * `held` loads EXACTLY the pointer head named by `cutover_reference_id`,
+ * never a latest-accepted query.
+ */
+export async function getCurrentForecastReferenceById(params: {
+  fundId: number;
+  referenceId: number;
+  database?: CurrentForecastReferenceDatabase;
+}): Promise<CurrentForecastReferenceRecord | null> {
+  return loadReference(params.database ?? db, params.fundId, params.referenceId);
+}
+
+/**
  * The accepted served-pointer head: the single non-superseded, non-candidate
  * row per fund (armed by the accepted-head partial unique from cutover onward).
  */

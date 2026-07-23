@@ -1027,6 +1027,9 @@ class DatabaseMock {
       users: createTableQuery('users'),
       investments: createTableQuery('investments'),
       investmentLots: createTableQuery('investment_lots'),
+      // Task 13.2: the current-forecast serving dispatch reads the per-key
+      // mode row on every dual-forecast request; unseeded funds resolve `off`.
+      fundCalculationModes: createTableQuery('fund_calculation_modes'),
     };
   }
 
