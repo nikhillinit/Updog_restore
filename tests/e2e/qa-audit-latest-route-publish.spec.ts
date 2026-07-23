@@ -189,6 +189,15 @@ async function installQaApiStubs(page: Page, scenario: FundsScenario) {
       return;
     }
 
+    if (request.method() === 'GET' && url.pathname === '/api/funds/1/current-plan-versions') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([]),
+      });
+      return;
+    }
+
     if (url.pathname === '/api/funds/1/results') {
       await route.fulfill({
         status: 200,
