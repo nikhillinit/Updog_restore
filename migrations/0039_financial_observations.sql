@@ -324,6 +324,7 @@ CREATE TABLE IF NOT EXISTS "working_value_selections" (
   CONSTRAINT "working_value_selections_superseded_fund_fk"
     FOREIGN KEY ("superseded_by_selection_id", "fund_id")
     REFERENCES "public"."working_value_selections"("id", "fund_id"),
+  CONSTRAINT "working_value_selections_id_fund_unique" UNIQUE ("id", "fund_id"),
   CONSTRAINT "working_value_selections_created_by_fk"
     FOREIGN KEY ("created_by") REFERENCES "public"."users"("id"),
   CONSTRAINT "working_value_selections_consumer_check"

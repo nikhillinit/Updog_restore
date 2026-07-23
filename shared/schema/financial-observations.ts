@@ -522,6 +522,7 @@ export const workingValueSelections = pgTable(
       foreignColumns: [table.id, table.fundId],
       name: 'working_value_selections_superseded_fund_fk',
     }),
+    idFundUnique: unique('working_value_selections_id_fund_unique').on(table.id, table.fundId),
     createdByFk: foreignKey({
       columns: [table.createdBy],
       foreignColumns: [users.id],

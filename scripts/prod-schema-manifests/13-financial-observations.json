@@ -340,6 +340,7 @@
         "working_value_selections_observation_fund_fk",
         "working_value_selections_identity_fund_fk",
         "working_value_selections_superseded_fund_fk",
+        "working_value_selections_id_fund_unique",
         "working_value_selections_created_by_fk",
         "working_value_selections_consumer_check",
         "working_value_selections_domain_check",
