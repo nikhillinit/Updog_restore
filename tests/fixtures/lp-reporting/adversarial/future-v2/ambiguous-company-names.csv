@@ -1,0 +1,3 @@
+company_name,event_type,amount,currency,event_date,perspective,description
+Acme,lp_capital_call,100.000000,USD,2026-01-15,fund_gross,first same-name company
+Acme,lp_capital_call,100.000000,USD,2026-01-15,fund_gross,second same-name company
