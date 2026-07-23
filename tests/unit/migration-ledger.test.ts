@@ -48,6 +48,7 @@ const expectedJournaledDriftPatchFiles = [
   '0035_substrate_shadow_reconciliations.sql',
   '0036_financial_facts_snapshots.sql',
   '0037_current_plans.sql',
+  '0038_current_forecast_references.sql',
 ].sort();
 
 afterEach(() => {
