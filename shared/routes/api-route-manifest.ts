@@ -164,6 +164,8 @@ export const COMMON_API_ROUTE_MANIFEST = [
       'fund_snapshots',
       'fundconfigs',
       'funds',
+      'fund_calculation_modes',
+      'fund_calculation_mode_requests',
     ],
     owner: 'analytics',
     probe: {

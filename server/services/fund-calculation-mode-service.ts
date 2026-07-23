@@ -17,9 +17,13 @@ import {
 import { invalidateH9Artifacts } from './h9-artifact-invalidation-service';
 import { reconciliationRuns } from '../../shared/schema';
 import { buildRoundsToModelEvidence } from './rounds-to-model-evidence-service';
+import { CURRENT_FORECAST_CALCULATION_KEY } from './current-forecast-calc-mode-resolver';
 
 const MODE_ROUTE = 'PUT /api/admin/funds/:fundId/calculation-modes/fund-moic-rankings';
+const CURRENT_FORECAST_MODE_ROUTE =
+  'PUT /api/admin/funds/:fundId/calculation-modes/current-forecast';
 export const MOIC_MODE_RESIDENCY_DAYS_REQUIRED = 7;
+const CURRENT_FORECAST_MODE_RESIDENCY_DAYS_REQUIRED = MOIC_MODE_RESIDENCY_DAYS_REQUIRED;
 
 export type FundCalculationConfiguredMode = 'off' | 'shadow' | 'on';
 export type FundCalculationEffectiveMode = 'off' | 'shadow' | 'on';
@@ -42,6 +46,21 @@ export interface FundCalculationModePreview {
   shadowStartedAt: string | null;
   eligibleAt: string | null;
   residencyDaysRequired: typeof MOIC_MODE_RESIDENCY_DAYS_REQUIRED;
+  residencyStatus: FundCalculationResidencyStatus;
+  currentSourceMatchesAccepted: boolean;
+  unreconciledEditsPresent: boolean;
+  blockers: FundCalculationModeBlocker[];
+  version: number;
+}
+
+interface GenericFundCalculationModePreview {
+  calculationKey: string;
+  configuredMode: FundCalculationConfiguredMode;
+  effectiveMode: FundCalculationEffectiveMode;
+  killSwitchActive: boolean;
+  shadowStartedAt: string | null;
+  eligibleAt: string | null;
+  residencyDaysRequired: number;
   residencyStatus: FundCalculationResidencyStatus;
   currentSourceMatchesAccepted: boolean;
   unreconciledEditsPresent: boolean;
@@ -88,8 +107,8 @@ export class FundCalculationModeInProgressError extends Error {
   }
 }
 
-type FundCalculationModeDatabase = typeof db;
-type FundCalculationModeTransaction = Parameters<
+export type FundCalculationModeDatabase = typeof db;
+export type FundCalculationModeTransaction = Parameters<
   Parameters<FundCalculationModeDatabase['transaction']>[0]
 >[0];
 type ExecuteResult<T> = { rows: T[] };
@@ -112,6 +131,29 @@ type ReconciliationRow = {
   candidate_material?: boolean;
   requested_at?: Date | string;
 };
+
+export type AcceptedRef = ReconciliationRow;
+
+type CurrentForecastModeSources = {
+  sourceInputHash: string;
+};
+
+export interface CalculationModeStrategy<TSources> {
+  calculationKey: string;
+  modeRoute: string;
+  residencyDaysRequired: number;
+  loadSources(fundId: number, database: FundCalculationModeDatabase, now: Date): Promise<TSources>;
+  sourceInputHash(sources: TSources): string;
+  factsAvailable(sources: TSources): boolean;
+  sourceBlockers(sources: TSources): FundCalculationModeBlocker[];
+  validateAccepted(accepted: AcceptedRef | null, sources: TSources): FundCalculationModeBlocker[];
+  loadCompletedAccepted(
+    tx: FundCalculationModeTransaction,
+    fundId: number,
+    acceptedId: number
+  ): Promise<AcceptedRef | null>;
+  postCommit(fundId: number): Promise<void>;
+}
 
 type AcceptedMoicReconciliationRow = {
   id?: number;
@@ -385,17 +427,20 @@ export function toH9SnapshotColumns(result: MoicActionabilityResult) {
   };
 }
 
-function requestHashFor(params: {
-  fundId: number;
-  expectedVersion: number;
-  configuredMode: FundCalculationConfiguredMode;
-  killSwitchActive: boolean | null;
-  acceptedReconciliationRunId: number | null;
-}): string {
+function requestHashFor<TSources>(
+  strategy: CalculationModeStrategy<TSources>,
+  params: {
+    fundId: number;
+    expectedVersion: number;
+    configuredMode: FundCalculationConfiguredMode;
+    killSwitchActive: boolean | null;
+    acceptedReconciliationRunId: number | null;
+  }
+): string {
   return canonicalSha256({
-    route: MODE_ROUTE,
+    route: strategy.modeRoute,
     fundId: params.fundId,
-    calculationKey: FUND_MOIC_CALCULATION_KEY,
+    calculationKey: strategy.calculationKey,
     expectedVersion: params.expectedVersion,
     configuredMode: params.configuredMode,
     killSwitchActive: params.killSwitchActive,
@@ -403,34 +448,40 @@ function requestHashFor(params: {
   });
 }
 
-function responseFromLedger(value: unknown): FundCalculationModePreview {
+function responseFromLedger<TSources>(
+  strategy: CalculationModeStrategy<TSources>,
+  value: unknown
+): GenericFundCalculationModePreview {
   const parsed: unknown = typeof value === 'string' ? (JSON.parse(value) as unknown) : value;
   if (
     typeof parsed === 'object' &&
     parsed !== null &&
-    (parsed as { calculationKey?: unknown }).calculationKey === FUND_MOIC_CALCULATION_KEY &&
+    (parsed as { calculationKey?: unknown }).calculationKey === strategy.calculationKey &&
     typeof (parsed as { version?: unknown }).version === 'number'
   ) {
-    return parsed as FundCalculationModePreview;
+    return parsed as GenericFundCalculationModePreview;
   }
 
   throw new Error('Completed MOIC mode idempotency row has an invalid response body');
 }
 
-async function claimOrReplay(params: {
-  tx: FundCalculationModeTransaction;
-  fundId: number;
-  idempotencyKey: string;
-  requestHash: string;
-  actorId: number | null;
-}): Promise<{ claimed: true } | { claimed: false; response: FundCalculationModePreview }> {
+async function claimOrReplay<TSources>(
+  strategy: CalculationModeStrategy<TSources>,
+  params: {
+    tx: FundCalculationModeTransaction;
+    fundId: number;
+    idempotencyKey: string;
+    requestHash: string;
+    actorId: number | null;
+  }
+): Promise<{ claimed: true } | { claimed: false; response: GenericFundCalculationModePreview }> {
   const claimed = await executeRows<{ id: number }>(
     params.tx,
     sql`
       INSERT INTO fund_calculation_mode_requests
         (fund_id, calculation_key, idempotency_key, request_hash, created_by, status)
       VALUES
-        (${params.fundId}, ${FUND_MOIC_CALCULATION_KEY}, ${params.idempotencyKey}, ${params.requestHash}, ${params.actorId}, 'pending')
+        (${params.fundId}, ${strategy.calculationKey}, ${params.idempotencyKey}, ${params.requestHash}, ${params.actorId}, 'pending')
       ON CONFLICT (fund_id, calculation_key, idempotency_key) DO NOTHING
       RETURNING id
     `
@@ -450,7 +501,7 @@ async function claimOrReplay(params: {
       SELECT request_hash, response_body, status
       FROM fund_calculation_mode_requests
       WHERE fund_id = ${params.fundId}
-        AND calculation_key = ${FUND_MOIC_CALCULATION_KEY}
+        AND calculation_key = ${strategy.calculationKey}
         AND idempotency_key = ${params.idempotencyKey}
       LIMIT 1
     `
@@ -469,7 +520,7 @@ async function claimOrReplay(params: {
     throw new FundCalculationModeInProgressError();
   }
 
-  return { claimed: false, response: responseFromLedger(row.response_body) };
+  return { claimed: false, response: responseFromLedger(strategy, row.response_body) };
 }
 
 function toDate(value: Date | string | null): Date | null {
@@ -495,19 +546,33 @@ function sourceBlockers(sources: FundMoicRankingSources): FundCalculationModeBlo
   return blockers;
 }
 
-function buildModePreview(params: {
-  row: ModeRow | null;
-  sources: FundMoicRankingSources;
-  now: Date;
-}): FundCalculationModePreview {
+function strategySourceBlockers<TSources>(
+  strategy: CalculationModeStrategy<TSources>,
+  sources: TSources
+): FundCalculationModeBlocker[] {
+  const blockers = strategy.sourceBlockers(sources);
+  if (!strategy.factsAvailable(sources) && !blockers.includes('facts_unavailable')) {
+    return ['facts_unavailable', ...blockers];
+  }
+  return blockers;
+}
+
+function buildModePreview<TSources>(
+  strategy: CalculationModeStrategy<TSources>,
+  params: {
+    row: ModeRow | null;
+    sources: TSources;
+    now: Date;
+  }
+): GenericFundCalculationModePreview {
   const configuredMode = params.row?.configured_mode ?? 'off';
   const killSwitchActive = params.row?.kill_switch_active ?? false;
   const shadowStartedDate = toDate(params.row?.shadow_started_at ?? null);
   const eligibleDate = shadowStartedDate
-    ? addDays(shadowStartedDate, MOIC_MODE_RESIDENCY_DAYS_REQUIRED)
+    ? addDays(shadowStartedDate, strategy.residencyDaysRequired)
     : null;
   const currentSourceMatchesAccepted =
-    params.row?.last_moic_source_input_hash === params.sources.moicSourceInputHash;
+    params.row?.last_moic_source_input_hash === strategy.sourceInputHash(params.sources);
   const unreconciledEditsPresent = Boolean(
     params.row?.last_moic_source_input_hash && !currentSourceMatchesAccepted
   );
@@ -531,16 +596,16 @@ function buildModePreview(params: {
   if (configuredMode !== 'off' && residencyStatus === 'pending') {
     blockers.push('shadow_residency_pending');
   }
-  blockers.push(...sourceBlockers(params.sources));
+  blockers.push(...strategySourceBlockers(strategy, params.sources));
 
   return {
-    calculationKey: FUND_MOIC_CALCULATION_KEY,
+    calculationKey: strategy.calculationKey,
     configuredMode,
     effectiveMode: killSwitchActive ? 'off' : configuredMode,
     killSwitchActive,
     shadowStartedAt: shadowStartedDate?.toISOString() ?? null,
     eligibleAt: eligibleDate?.toISOString() ?? null,
-    residencyDaysRequired: MOIC_MODE_RESIDENCY_DAYS_REQUIRED,
+    residencyDaysRequired: strategy.residencyDaysRequired,
     residencyStatus,
     currentSourceMatchesAccepted,
     unreconciledEditsPresent,
@@ -549,7 +614,8 @@ function buildModePreview(params: {
   };
 }
 
-async function loadModeRow(
+async function loadModeRow<TSources>(
+  strategy: CalculationModeStrategy<TSources>,
   executor: Pick<FundCalculationModeTransaction, 'execute'>,
   fundId: number,
   lock: boolean
@@ -563,7 +629,7 @@ async function loadModeRow(
                  last_candidate_output_hash, version
           FROM fund_calculation_modes
           WHERE fund_id = ${fundId}
-            AND calculation_key = ${FUND_MOIC_CALCULATION_KEY}
+            AND calculation_key = ${strategy.calculationKey}
           FOR UPDATE
         `
       : sql`
@@ -572,7 +638,7 @@ async function loadModeRow(
                  last_candidate_output_hash, version
           FROM fund_calculation_modes
           WHERE fund_id = ${fundId}
-            AND calculation_key = ${FUND_MOIC_CALCULATION_KEY}
+            AND calculation_key = ${strategy.calculationKey}
           LIMIT 1
         `
   );
@@ -613,38 +679,76 @@ function validateAcceptedReconciliation(params: {
   return [];
 }
 
-function validateOnTransition(params: {
-  accepted: ReconciliationRow | null;
-  nextKillSwitchActive: boolean;
-  shadowStartedAt: Date | null;
-  sources: FundMoicRankingSources;
-  now: Date;
-}): FundCalculationModeBlocker[] {
+const moicCalculationModeStrategy: CalculationModeStrategy<FundMoicRankingSources> = {
+  calculationKey: FUND_MOIC_CALCULATION_KEY,
+  modeRoute: MODE_ROUTE,
+  residencyDaysRequired: MOIC_MODE_RESIDENCY_DAYS_REQUIRED,
+  loadSources: (fundId, database, now) =>
+    getFundMoicRankingSources(fundId, database, undefined, now),
+  sourceInputHash: (sources) => sources.moicSourceInputHash,
+  factsAvailable: (sources) => sources.factsSource.status === 'available',
+  sourceBlockers,
+  validateAccepted: (accepted, sources) => validateAcceptedReconciliation({ accepted, sources }),
+  loadCompletedAccepted: loadCompletedReconciliation,
+  postCommit: invalidateH9Artifacts,
+};
+
+const currentForecastCalculationModeStrategy: CalculationModeStrategy<CurrentForecastModeSources> =
+  {
+    calculationKey: CURRENT_FORECAST_CALCULATION_KEY,
+    modeRoute: CURRENT_FORECAST_MODE_ROUTE,
+    residencyDaysRequired: CURRENT_FORECAST_MODE_RESIDENCY_DAYS_REQUIRED,
+    loadSources: async () => ({
+      sourceInputHash: canonicalSha256({
+        calculationKey: CURRENT_FORECAST_CALCULATION_KEY,
+        referenceStatus: 'unavailable_until_task_13_1',
+      }),
+    }),
+    sourceInputHash: (sources) => sources.sourceInputHash,
+    factsAvailable: () => true,
+    sourceBlockers: () => [],
+    validateAccepted: () => ['accepted_reconciliation_required'],
+    loadCompletedAccepted: async () => null,
+    postCommit: () => Promise.resolve(),
+  };
+
+function validateOnTransition<TSources>(
+  strategy: CalculationModeStrategy<TSources>,
+  params: {
+    accepted: AcceptedRef | null;
+    nextKillSwitchActive: boolean;
+    shadowStartedAt: Date | null;
+    sources: TSources;
+    now: Date;
+  }
+): FundCalculationModeBlocker[] {
   const blockers: FundCalculationModeBlocker[] = [];
   if (params.nextKillSwitchActive) {
     blockers.push('kill_switch_active');
   }
-  blockers.push(...validateAcceptedReconciliation(params));
+  blockers.push(...strategy.validateAccepted(params.accepted, params.sources));
   if (
     !params.shadowStartedAt ||
-    params.now.getTime() <
-      addDays(params.shadowStartedAt, MOIC_MODE_RESIDENCY_DAYS_REQUIRED).getTime()
+    params.now.getTime() < addDays(params.shadowStartedAt, strategy.residencyDaysRequired).getTime()
   ) {
     blockers.push('shadow_residency_pending');
   }
-  blockers.push(...sourceBlockers(params.sources));
+  blockers.push(...strategySourceBlockers(strategy, params.sources));
   return [...new Set(blockers)].sort();
 }
 
-async function insertModeRow(params: {
-  tx: FundCalculationModeTransaction;
-  fundId: number;
-  configuredMode: FundCalculationConfiguredMode;
-  killSwitchActive: boolean;
-  shadowStartedAt: Date | null;
-  accepted: ReconciliationRow | null;
-  actorId: number | null;
-}): Promise<ModeRow> {
+async function insertModeRow<TSources>(
+  strategy: CalculationModeStrategy<TSources>,
+  params: {
+    tx: FundCalculationModeTransaction;
+    fundId: number;
+    configuredMode: FundCalculationConfiguredMode;
+    killSwitchActive: boolean;
+    shadowStartedAt: Date | null;
+    accepted: AcceptedRef | null;
+    actorId: number | null;
+  }
+): Promise<ModeRow> {
   const rows = await executeRows<ModeRow>(
     params.tx,
     sql`
@@ -654,7 +758,7 @@ async function insertModeRow(params: {
          last_candidate_output_hash, version, updated_by, updated_at)
       VALUES (
         ${params.fundId},
-        ${FUND_MOIC_CALCULATION_KEY},
+        ${strategy.calculationKey},
         ${params.configuredMode},
         ${params.killSwitchActive},
         ${params.shadowStartedAt},
@@ -679,15 +783,18 @@ async function insertModeRow(params: {
   return inserted;
 }
 
-async function updateModeRow(params: {
-  tx: FundCalculationModeTransaction;
-  row: ModeRow;
-  configuredMode: FundCalculationConfiguredMode;
-  killSwitchActive: boolean;
-  shadowStartedAt: Date | null;
-  accepted: ReconciliationRow | null;
-  actorId: number | null;
-}): Promise<ModeRow> {
+async function updateModeRow<TSources>(
+  strategy: CalculationModeStrategy<TSources>,
+  params: {
+    tx: FundCalculationModeTransaction;
+    row: ModeRow;
+    configuredMode: FundCalculationConfiguredMode;
+    killSwitchActive: boolean;
+    shadowStartedAt: Date | null;
+    accepted: AcceptedRef | null;
+    actorId: number | null;
+  }
+): Promise<ModeRow> {
   const rows = await executeRows<ModeRow>(
     params.tx,
     sql`
@@ -702,6 +809,7 @@ async function updateModeRow(params: {
           updated_by = ${params.actorId},
           updated_at = NOW()
       WHERE id = ${params.row.id}
+        AND calculation_key = ${strategy.calculationKey}
       RETURNING id, configured_mode, kill_switch_active, shadow_started_at,
                 last_reconciliation_run_id, last_moic_source_input_hash,
                 last_candidate_output_hash, version
@@ -715,20 +823,35 @@ async function updateModeRow(params: {
   return updated;
 }
 
-export async function resolveFundCalculationMode(params: {
+type ResolveFundCalculationModeParams<TSources> = {
   fundId: number;
-  sources?: FundMoicRankingSources;
+  sources?: TSources;
   database?: FundCalculationModeDatabase;
   now?: Date;
-}): Promise<FundCalculationModePreview> {
-  const database = params.database ?? db;
-  const sources = params.sources ?? (await getFundMoicRankingSources(params.fundId, database));
-  const row = await loadModeRow(database as never, params.fundId, false);
+};
 
-  return buildModePreview({ row, sources, now: params.now ?? new Date() });
+async function resolveFundCalculationModeGeneric<TSources>(
+  strategy: CalculationModeStrategy<TSources>,
+  params: ResolveFundCalculationModeParams<TSources>
+): Promise<GenericFundCalculationModePreview> {
+  const database = params.database ?? db;
+  const now = params.now ?? new Date();
+  const sources = params.sources ?? (await strategy.loadSources(params.fundId, database, now));
+  const row = await loadModeRow(strategy, database as never, params.fundId, false);
+
+  return buildModePreview(strategy, { row, sources, now });
 }
 
-export async function updateFundMoicCalculationMode(params: {
+export async function resolveFundCalculationMode(
+  params: ResolveFundCalculationModeParams<FundMoicRankingSources>
+): Promise<FundCalculationModePreview> {
+  return resolveFundCalculationModeGeneric(
+    moicCalculationModeStrategy,
+    params
+  ) as Promise<FundCalculationModePreview>;
+}
+
+type UpdateFundCalculationModeParams<TSources> = {
   fundId: number;
   expectedVersion: number;
   configuredMode: FundCalculationConfiguredMode;
@@ -737,13 +860,18 @@ export async function updateFundMoicCalculationMode(params: {
   idempotencyKey: string;
   actorId: number | null;
   database?: FundCalculationModeDatabase;
-  sources?: FundMoicRankingSources;
+  sources?: TSources;
   now?: Date;
-}): Promise<{ response: FundCalculationModePreview; replayed: boolean }> {
+};
+
+async function updateFundCalculationMode<TSources>(
+  strategy: CalculationModeStrategy<TSources>,
+  params: UpdateFundCalculationModeParams<TSources>
+): Promise<{ response: GenericFundCalculationModePreview; replayed: boolean }> {
   const database = params.database ?? db;
-  const sources = params.sources ?? (await getFundMoicRankingSources(params.fundId, database));
   const now = params.now ?? new Date();
-  const requestHash = requestHashFor({
+  const sources = params.sources ?? (await strategy.loadSources(params.fundId, database, now));
+  const requestHash = requestHashFor(strategy, {
     fundId: params.fundId,
     expectedVersion: params.expectedVersion,
     configuredMode: params.configuredMode,
@@ -752,7 +880,7 @@ export async function updateFundMoicCalculationMode(params: {
   });
 
   const result = await database.transaction(async (tx) => {
-    const claim = await claimOrReplay({
+    const claim = await claimOrReplay(strategy, {
       tx,
       fundId: params.fundId,
       idempotencyKey: params.idempotencyKey,
@@ -763,7 +891,7 @@ export async function updateFundMoicCalculationMode(params: {
       return { response: claim.response, replayed: true };
     }
 
-    const existing = await loadModeRow(tx, params.fundId, true);
+    const existing = await loadModeRow(strategy, tx, params.fundId, true);
     if (!existing && params.expectedVersion !== 0) {
       throw new FundCalculationModeVersionConflictError(params.expectedVersion, 0);
     }
@@ -772,7 +900,7 @@ export async function updateFundMoicCalculationMode(params: {
     }
 
     const nextKillSwitchActive = params.killSwitchActive ?? existing?.kill_switch_active ?? false;
-    let accepted: ReconciliationRow | null =
+    let accepted: AcceptedRef | null =
       existing?.last_reconciliation_run_id &&
       existing.last_moic_source_input_hash &&
       existing.last_candidate_output_hash
@@ -787,12 +915,12 @@ export async function updateFundMoicCalculationMode(params: {
       params.acceptedReconciliationRunId !== undefined &&
       params.acceptedReconciliationRunId !== null
     ) {
-      accepted = await loadCompletedReconciliation(
+      accepted = await strategy.loadCompletedAccepted(
         tx,
         params.fundId,
         params.acceptedReconciliationRunId
       );
-      const blockers = validateAcceptedReconciliation({ accepted, sources });
+      const blockers = strategy.validateAccepted(accepted, sources);
       if (blockers.length > 0) {
         throw new FundCalculationModeBlockedError(blockers);
       }
@@ -800,7 +928,7 @@ export async function updateFundMoicCalculationMode(params: {
 
     let nextShadowStartedAt: Date | null = null;
     if (params.configuredMode === 'shadow') {
-      const blockers = validateAcceptedReconciliation({ accepted, sources });
+      const blockers = strategy.validateAccepted(accepted, sources);
       if (blockers.length > 0) {
         throw new FundCalculationModeBlockedError(blockers);
       }
@@ -816,7 +944,7 @@ export async function updateFundMoicCalculationMode(params: {
 
     if (params.configuredMode === 'on') {
       const shadowStartedAt = toDate(existing?.shadow_started_at ?? null);
-      const blockers = validateOnTransition({
+      const blockers = validateOnTransition(strategy, {
         accepted,
         nextKillSwitchActive,
         shadowStartedAt,
@@ -830,7 +958,7 @@ export async function updateFundMoicCalculationMode(params: {
     }
 
     const row = existing
-      ? await updateModeRow({
+      ? await updateModeRow(strategy, {
           tx,
           row: existing,
           configuredMode: params.configuredMode,
@@ -839,7 +967,7 @@ export async function updateFundMoicCalculationMode(params: {
           accepted,
           actorId: params.actorId,
         })
-      : await insertModeRow({
+      : await insertModeRow(strategy, {
           tx,
           fundId: params.fundId,
           configuredMode: params.configuredMode,
@@ -849,21 +977,39 @@ export async function updateFundMoicCalculationMode(params: {
           actorId: params.actorId,
         });
 
-    const response = buildModePreview({ row, sources, now });
+    const response = buildModePreview(strategy, { row, sources, now });
     await tx.execute(sql`
       UPDATE fund_calculation_mode_requests
       SET status = 'completed',
           response_status = 200,
           response_body = ${JSON.stringify(response)}::jsonb
       WHERE fund_id = ${params.fundId}
-        AND calculation_key = ${FUND_MOIC_CALCULATION_KEY}
+        AND calculation_key = ${strategy.calculationKey}
         AND idempotency_key = ${params.idempotencyKey}
     `);
 
     return { response, replayed: false };
   });
   if (!result.replayed) {
-    await invalidateH9Artifacts(params.fundId);
+    await strategy.postCommit(params.fundId);
   }
   return result;
+}
+
+export async function updateFundMoicCalculationMode(
+  params: UpdateFundCalculationModeParams<FundMoicRankingSources>
+): Promise<{ response: FundCalculationModePreview; replayed: boolean }> {
+  const result = await updateFundCalculationMode(moicCalculationModeStrategy, params);
+  return {
+    response: result.response as FundCalculationModePreview,
+    replayed: result.replayed,
+  };
+}
+
+export async function updateCurrentForecastCalculationMode(
+  params: UpdateFundCalculationModeParams<CurrentForecastModeSources>
+): Promise<{ response: GenericFundCalculationModePreview; replayed: boolean }> {
+  // Transitional schema alias: last_moic_source_input_hash stores the accepted
+  // source hash for whichever calculation key owns the row until Task 13.1.
+  return updateFundCalculationMode(currentForecastCalculationModeStrategy, params);
 }
