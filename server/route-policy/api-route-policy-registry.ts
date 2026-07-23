@@ -1325,6 +1325,56 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     notes:
       'Express middleware enforces fund access and admin role; route-policy verification allows this scoped admin financial-control API.',
   },
+  {
+    id: 'api:post:/api/admin/funds/:fundId/current-forecast/references',
+    method: 'POST',
+    path: '/api/admin/funds/:fundId/current-forecast/references',
+    lifecycle: 'durable_crud',
+    governanceRef: '/fund-model-results/:fundId',
+    surface: 'current-forecast-reference-admin-api',
+    owner: 'analytics',
+    telemetryKey: telemetryKeyForRoute(
+      'api.route',
+      '/api/admin/funds/:fundId/current-forecast/references'
+    ),
+    // TODO(13): replace with a current_forecast surface when the policy type supports it.
+    financialSurface: 'moic_reserves',
+    apiAuthBoundary: 'admin_only',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_and_idempotency_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes:
+      'Idempotent admin override/rollback: clones an existing current-forecast reference into a new append-only candidate (PLAN_61 13.1-svc).',
+  },
+  {
+    id: 'api:post:/api/admin/funds/:fundId/current-forecast/activate',
+    method: 'POST',
+    path: '/api/admin/funds/:fundId/current-forecast/activate',
+    lifecycle: 'durable_crud',
+    governanceRef: '/fund-model-results/:fundId',
+    surface: 'current-forecast-activation-admin-api',
+    owner: 'analytics',
+    telemetryKey: telemetryKeyForRoute(
+      'api.route',
+      '/api/admin/funds/:fundId/current-forecast/activate'
+    ),
+    // TODO(13): replace with a current_forecast surface when the policy type supports it.
+    financialSurface: 'moic_reserves',
+    apiAuthBoundary: 'admin_only',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'admin_mode_update_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes:
+      'DORMANT activation command (executed only by Task 23): atomically writes mode on + activated_at + cutover_reference_id + candidate flip.',
+  },
 ];
 
 export const EXPLICIT_API_ROUTE_POLICY_KEYS = new Set<string>(
@@ -1399,6 +1449,8 @@ export const COMMON_API_ROUTE_POLICY_IDS = {
     'api:post:/api/funds/:fundId/current-plan-versions',
     'api:post:/api/funds/:fundId/current-forecast/runs',
     'api:put:/api/admin/funds/:fundId/calculation-modes/current-forecast',
+    'api:post:/api/admin/funds/:fundId/current-forecast/references',
+    'api:post:/api/admin/funds/:fundId/current-forecast/activate',
   ],
   funds: ['client:/fund-setup'],
   'fund-metrics': ['client:/dashboard'],
