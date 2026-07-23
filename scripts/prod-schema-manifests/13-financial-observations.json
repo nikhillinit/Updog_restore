@@ -1,0 +1,351 @@
+{
+  "name": "financial-observations",
+  "order": 13,
+  "description": "Immutable financial evidence, identity, reconciliation, and import-foundation persistence.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0039_financial_observations.sql"],
+  "allowedCreateTables": [
+    "source_artifacts",
+    "import_mapping_profiles",
+    "import_batches",
+    "company_identities",
+    "company_external_identities",
+    "portfolio_company_identity_links",
+    "source_observations",
+    "reconciliation_cases",
+    "working_value_selections"
+  ],
+  "expectedTables": [
+    {
+      "name": "source_artifacts",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "source_type", "type": "text", "nullable": false },
+        { "name": "file_name", "type": "text", "nullable": true },
+        { "name": "media_type", "type": "text", "nullable": false },
+        { "name": "byte_count", "type": "integer", "nullable": false },
+        { "name": "payload_sha256", "type": "varchar", "nullable": false },
+        { "name": "payload", "type": "bytea", "nullable": true },
+        { "name": "purge_after", "type": "timestamptz", "nullable": false },
+        {
+          "name": "retention_extended_until",
+          "type": "timestamptz",
+          "nullable": true
+        },
+        {
+          "name": "retention_extension_reason",
+          "type": "text",
+          "nullable": true
+        },
+        { "name": "purged_at", "type": "timestamptz", "nullable": true },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "idempotency_key", "type": "varchar", "nullable": false },
+        { "name": "request_hash", "type": "varchar", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "source_artifacts_fund_id_funds_id_fk",
+        "source_artifacts_created_by_fk",
+        "source_artifacts_source_type_check",
+        "source_artifacts_payload_purged_check",
+        "source_artifacts_id_fund_unique",
+        "source_artifacts_fund_idempotency_unique"
+      ],
+      "indexes": [
+        "idx_source_artifacts_fund_created",
+        "idx_source_artifacts_purge_after"
+      ]
+    },
+    {
+      "name": "import_mapping_profiles",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "name", "type": "text", "nullable": false },
+        { "name": "source_type", "type": "text", "nullable": false },
+        { "name": "domain", "type": "text", "nullable": false },
+        { "name": "version", "type": "integer", "nullable": false },
+        { "name": "mappings", "type": "jsonb", "nullable": false },
+        {
+          "name": "identity_semantics_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "superseded_by_profile_id",
+          "type": "integer",
+          "nullable": true
+        },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "idempotency_key", "type": "varchar", "nullable": false },
+        { "name": "request_hash", "type": "varchar", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "import_mapping_profiles_fund_id_funds_id_fk",
+        "import_mapping_profiles_superseded_fund_fk",
+        "import_mapping_profiles_created_by_fk",
+        "import_mapping_profiles_source_type_check",
+        "import_mapping_profiles_domain_check",
+        "import_mapping_profiles_version_positive_check",
+        "import_mapping_profiles_id_fund_unique",
+        "import_mapping_profiles_fund_idempotency_unique",
+        "import_mapping_profiles_fund_name_version_unique"
+      ],
+      "indexes": ["import_mapping_profiles_fund_name_head_unique"]
+    },
+    {
+      "name": "import_batches",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "source_artifact_id", "type": "integer", "nullable": true },
+        { "name": "mapping_profile_id", "type": "integer", "nullable": true },
+        { "name": "status", "type": "text", "nullable": false },
+        { "name": "preview_hash", "type": "varchar", "nullable": true },
+        { "name": "purge_after", "type": "timestamptz", "nullable": false },
+        {
+          "name": "retention_extended_until",
+          "type": "timestamptz",
+          "nullable": true
+        },
+        {
+          "name": "retention_extension_reason",
+          "type": "text",
+          "nullable": true
+        },
+        { "name": "purged_at", "type": "timestamptz", "nullable": true },
+        { "name": "version", "type": "integer", "nullable": false },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "idempotency_key", "type": "varchar", "nullable": false },
+        { "name": "request_hash", "type": "varchar", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "import_batches_fund_id_funds_id_fk",
+        "import_batches_source_artifact_fund_fk",
+        "import_batches_mapping_profile_fund_fk",
+        "import_batches_created_by_fk",
+        "import_batches_status_check",
+        "import_batches_id_fund_unique",
+        "import_batches_fund_idempotency_unique"
+      ],
+      "indexes": [
+        "idx_import_batches_fund_created",
+        "idx_import_batches_purge_after"
+      ]
+    },
+    {
+      "name": "company_identities",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "canonical_name", "type": "text", "nullable": false },
+        {
+          "name": "merged_into_identity_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "source_portfolio_company_id",
+          "type": "integer",
+          "nullable": true
+        },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "company_identities_fund_id_funds_id_fk",
+        "company_identities_merged_into_fk",
+        "company_identities_source_portfolio_company_fk",
+        "company_identities_created_by_fk",
+        "company_identities_no_self_merge_check",
+        "company_identities_id_fund_unique"
+      ],
+      "indexes": [
+        "company_identities_source_pc_unique",
+        "idx_company_identities_fund"
+      ]
+    },
+    {
+      "name": "company_external_identities",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        {
+          "name": "company_identity_id",
+          "type": "integer",
+          "nullable": false
+        },
+        { "name": "system", "type": "text", "nullable": false },
+        { "name": "value", "type": "text", "nullable": false },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "company_external_identities_fund_id_funds_id_fk",
+        "company_external_identities_identity_fund_fk",
+        "company_external_identities_created_by_fk",
+        "company_external_identities_fund_system_value_unique"
+      ],
+      "indexes": []
+    },
+    {
+      "name": "portfolio_company_identity_links",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        {
+          "name": "portfolio_company_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "company_identity_id",
+          "type": "integer",
+          "nullable": false
+        },
+        { "name": "link_type", "type": "text", "nullable": false },
+        { "name": "active", "type": "boolean", "nullable": false },
+        { "name": "deactivated_at", "type": "timestamptz", "nullable": true },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "pc_identity_links_fund_id_funds_id_fk",
+        "pc_identity_links_portfolio_company_fk",
+        "pc_identity_links_identity_fund_fk",
+        "pc_identity_links_created_by_fk",
+        "pc_identity_links_link_type_check",
+        "pc_identity_links_active_deactivated_check"
+      ],
+      "indexes": ["pc_identity_links_active_company_unique"]
+    },
+    {
+      "name": "source_observations",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "import_batch_id", "type": "integer", "nullable": true },
+        { "name": "source_artifact_id", "type": "integer", "nullable": true },
+        { "name": "mapping_profile_id", "type": "integer", "nullable": true },
+        {
+          "name": "company_identity_id",
+          "type": "integer",
+          "nullable": true
+        },
+        { "name": "domain", "type": "text", "nullable": false },
+        { "name": "source_type", "type": "text", "nullable": false },
+        { "name": "effective_date", "type": "date", "nullable": false },
+        { "name": "normalized_payload", "type": "jsonb", "nullable": false },
+        { "name": "observation_hash", "type": "varchar", "nullable": false },
+        {
+          "name": "candidate_fingerprint",
+          "type": "varchar",
+          "nullable": false
+        },
+        { "name": "source_locator", "type": "text", "nullable": true },
+        { "name": "dependency_group_key", "type": "text", "nullable": true },
+        { "name": "status", "type": "text", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "source_observations_fund_id_funds_id_fk",
+        "source_observations_import_batch_fund_fk",
+        "source_observations_source_artifact_fund_fk",
+        "source_observations_mapping_profile_fund_fk",
+        "source_observations_company_identity_fund_fk",
+        "source_observations_domain_check",
+        "source_observations_source_type_check",
+        "source_observations_status_check",
+        "source_observations_id_fund_unique"
+      ],
+      "indexes": [
+        "source_observations_fund_hash_accepted_unique",
+        "idx_source_observations_fund_effective_date",
+        "idx_source_observations_fund_candidate_fingerprint",
+        "idx_source_observations_import_batch"
+      ]
+    },
+    {
+      "name": "reconciliation_cases",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "import_batch_id", "type": "integer", "nullable": true },
+        {
+          "name": "source_observation_id",
+          "type": "integer",
+          "nullable": true
+        },
+        { "name": "case_type", "type": "text", "nullable": false },
+        { "name": "status", "type": "text", "nullable": false },
+        { "name": "observation_hash", "type": "varchar", "nullable": true },
+        {
+          "name": "candidate_fingerprint",
+          "type": "varchar",
+          "nullable": true
+        },
+        { "name": "resolution", "type": "jsonb", "nullable": true },
+        { "name": "resolved_by", "type": "integer", "nullable": true },
+        { "name": "resolved_at", "type": "timestamptz", "nullable": true },
+        { "name": "history", "type": "jsonb", "nullable": false },
+        { "name": "version", "type": "integer", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "reconciliation_cases_fund_id_funds_id_fk",
+        "reconciliation_cases_import_batch_fund_fk",
+        "reconciliation_cases_source_observation_fund_fk",
+        "reconciliation_cases_resolved_by_fk",
+        "reconciliation_cases_case_type_check",
+        "reconciliation_cases_status_check",
+        "reconciliation_cases_resolved_fields_check"
+      ],
+      "indexes": ["idx_reconciliation_cases_fund_status"]
+    },
+    {
+      "name": "working_value_selections",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "consumer", "type": "text", "nullable": false },
+        {
+          "name": "company_identity_id",
+          "type": "integer",
+          "nullable": true
+        },
+        { "name": "domain", "type": "text", "nullable": false },
+        { "name": "measure_key", "type": "text", "nullable": false },
+        { "name": "as_of_date", "type": "date", "nullable": false },
+        {
+          "name": "selected_observation_id",
+          "type": "integer",
+          "nullable": false
+        },
+        { "name": "is_default", "type": "boolean", "nullable": false },
+        { "name": "reason", "type": "text", "nullable": true },
+        { "name": "version", "type": "integer", "nullable": false },
+        {
+          "name": "superseded_by_selection_id",
+          "type": "integer",
+          "nullable": true
+        },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "working_value_selections_fund_id_funds_id_fk",
+        "working_value_selections_observation_fund_fk",
+        "working_value_selections_identity_fund_fk",
+        "working_value_selections_superseded_fund_fk",
+        "working_value_selections_created_by_fk",
+        "working_value_selections_consumer_check",
+        "working_value_selections_domain_check",
+        "working_value_selections_deviation_reason_check"
+      ],
+      "indexes": ["working_value_selections_scope_head_unique"]
+    }
+  ]
+}

@@ -89,6 +89,18 @@ const FINANCIAL_FACTS_SNAPSHOT_MANIFEST_TABLES = ['financial_facts_snapshots'] a
 const CURRENT_PLAN_VERSIONS_MANIFEST_TABLES = ['current_plan_versions'] as const;
 // M12 (12-current-forecast-references): append-only current-forecast reference pins (journal 0038).
 const CURRENT_FORECAST_REFERENCES_MANIFEST_TABLES = ['current_forecast_references'] as const;
+// M13 (13-financial-observations): immutable evidence, identity, and import foundation (journal 0039).
+const FINANCIAL_OBSERVATIONS_MANIFEST_TABLES = [
+  'source_artifacts',
+  'import_mapping_profiles',
+  'import_batches',
+  'company_identities',
+  'company_external_identities',
+  'portfolio_company_identity_links',
+  'source_observations',
+  'reconciliation_cases',
+  'working_value_selections',
+] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
   'flags_state',
@@ -715,6 +727,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...FINANCIAL_FACTS_SNAPSHOT_MANIFEST_TABLES,
         ...CURRENT_PLAN_VERSIONS_MANIFEST_TABLES,
         ...CURRENT_FORECAST_REFERENCES_MANIFEST_TABLES,
+        ...FINANCIAL_OBSERVATIONS_MANIFEST_TABLES,
       ])
     );
 
@@ -725,6 +738,94 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
     expect(
       expectedConstraints.filter((constraintName) => !migratedConstraints.has(constraintName))
     ).toEqual([]);
+  });
+
+  it('replays the 0039 identity backfill without duplicates or operator-link resurrection', async () => {
+    expect(pool).toBeDefined();
+    const migration = await readFile(
+      path.join(process.cwd(), 'migrations', '0039_financial_observations.sql'),
+      'utf8'
+    );
+    const fundResult = await pool!.query<{ id: number }>(`
+      INSERT INTO funds (name, size, management_fee, carry_percentage, vintage_year)
+      VALUES ('Task 3 replay fund', 10000000, 0.02, 0.20, 2026)
+      RETURNING id
+    `);
+    const fundId = fundResult.rows[0]!.id;
+    const companyResult = await pool!.query<{ id: number; fund_id: number | null }>(
+      `
+        INSERT INTO portfoliocompanies
+          (fund_id, name, sector, stage, investment_amount)
+        VALUES
+          ($1, 'Task 3 linked company', 'software', 'seed', 100000),
+          (NULL, 'Task 3 NULL-fund company', 'software', 'seed', 100000)
+        RETURNING id, fund_id
+      `,
+      [fundId]
+    );
+    const linkedCompanyId = companyResult.rows.find((row) => row.fund_id === fundId)!.id;
+    const nullFundCompanyId = companyResult.rows.find((row) => row.fund_id === null)!.id;
+
+    await pool!.query(migration);
+
+    const identityCounts = await pool!.query<{
+      linked_count: string;
+      null_fund_count: string;
+    }>(
+      `
+        SELECT
+          count(*) FILTER (WHERE source_portfolio_company_id = $1) linked_count,
+          count(*) FILTER (WHERE source_portfolio_company_id = $2) null_fund_count
+        FROM company_identities
+      `,
+      [linkedCompanyId, nullFundCompanyId]
+    );
+    const linkCounts = await pool!.query<{ linked_count: string }>(
+      `
+        SELECT count(*) FILTER (WHERE portfolio_company_id = $1) linked_count
+        FROM portfolio_company_identity_links
+      `,
+      [linkedCompanyId]
+    );
+
+    expect(identityCounts.rows[0]).toEqual({
+      linked_count: '1',
+      null_fund_count: '0',
+    });
+    expect(linkCounts.rows[0]).toEqual({ linked_count: '1' });
+
+    await pool!.query(
+      `
+        UPDATE portfolio_company_identity_links
+        SET active = false, deactivated_at = now()
+        WHERE portfolio_company_id = $1
+      `,
+      [linkedCompanyId]
+    );
+    await pool!.query(migration);
+
+    const replayCounts = await pool!.query<{
+      identity_count: string;
+      link_count: string;
+      active_link_count: string;
+    }>(
+      `
+        SELECT
+          (SELECT count(*) FROM company_identities
+            WHERE source_portfolio_company_id = $1) identity_count,
+          (SELECT count(*) FROM portfolio_company_identity_links
+            WHERE portfolio_company_id = $1) link_count,
+          (SELECT count(*) FROM portfolio_company_identity_links
+            WHERE portfolio_company_id = $1 AND active) active_link_count
+      `,
+      [linkedCompanyId]
+    );
+
+    expect(replayCounts.rows[0]).toEqual({
+      identity_count: '1',
+      link_count: '1',
+      active_link_count: '0',
+    });
   });
 
   it('proves journal-built DB-A shape matches drizzle push DB-B where schemas overlap', async () => {
