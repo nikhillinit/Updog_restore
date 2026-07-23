@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   boolean,
   check,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -13,6 +14,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
+import { currentForecastReferences } from './current-forecast-references';
 import { funds } from './fund';
 import { reconciliationRuns } from './reconciliation-runs';
 import { users } from './user';
@@ -52,6 +54,11 @@ export const fundCalculationModes = pgTable(
     version: integer('version').notNull().default(1),
     updatedBy: integer('updated_by').references(() => users.id),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    // Activation event columns (PLAN_61 Task 13, R24/R35; migration 0038). Set
+    // atomically by the dormant activate command (13.1-svc); NULL pre-cutover.
+    // `cutoverReferenceId` is the served-pointer head advanced only while `on`.
+    activatedAt: timestamp('activated_at', { withTimezone: true }),
+    cutoverReferenceId: integer('cutover_reference_id'),
   },
   (table) => ({
     fundCalculationUnique: unique('fund_calculation_modes_fund_calculation_key_unique').on(
@@ -85,6 +92,11 @@ export const fundCalculationModes = pgTable(
       `
     ),
     versionCheck: check('fund_calculation_modes_version_check', sql`${table.version} >= 1`),
+    cutoverReferenceFk: foreignKey({
+      columns: [table.cutoverReferenceId],
+      foreignColumns: [currentForecastReferences.id],
+      name: 'fund_calculation_modes_cutover_reference_fk',
+    }),
   })
 );
 

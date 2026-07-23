@@ -10,6 +10,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core';
 
@@ -51,7 +52,10 @@ export const substrateShadowReconciliations = pgTable(
     substrateState: varchar('substrate_state', { length: 16 }).notNull(),
     reconciliationStatus: varchar('reconciliation_status', { length: 16 }).notNull(),
     inputHash: text('input_hash').notNull(),
-    resultHash: text('result_hash').notNull(),
+    // Nullable since migration 0038 (R23/R35): the current-forecast shadow may
+    // record a non-value-producing observation (`unavailable`/`failed`) that has
+    // no result hash. The value-producing writer path still always sets it.
+    resultHash: text('result_hash'),
     assumptionsHash: text('assumptions_hash').notNull(),
     mismatches: jsonb('mismatches').notNull().$type<string[]>(),
     observedAt: timestamp('observed_at', { withTimezone: true }).notNull().defaultNow(),
@@ -65,9 +69,17 @@ export const substrateShadowReconciliations = pgTable(
       'substrate_shadow_reconciliations_effective_mode_check',
       sql`${table.effectiveMode} IN ('off','shadow','on')`
     ),
+    // Widened by migration 0038 (R23/R35): the current-forecast shadow adds the
+    // non-value-producing `unavailable`/`failed` states. The legacy substrate
+    // writer path stays constrained to `available`/`indicative` (regression test).
     substrateStateCheck: check(
       'substrate_shadow_reconciliations_substrate_state_check',
-      sql`${table.substrateState} IN ('available','indicative')`
+      sql`${table.substrateState} IN ('available','indicative','unavailable','failed')`
+    ),
+    // A missing result hash is only legal for the non-value-producing states.
+    resultHashStateCheck: check(
+      'substrate_shadow_reconciliations_result_hash_state_check',
+      sql`${table.resultHash} IS NOT NULL OR ${table.substrateState} IN ('unavailable','failed')`
     ),
     reconciliationStatusCheck: check(
       'substrate_shadow_reconciliations_reconciliation_status_check',
@@ -80,6 +92,13 @@ export const substrateShadowReconciliations = pgTable(
     fundKeyInputResultUnique: unique(
       'substrate_shadow_reconciliations_fund_key_input_result_unique'
     ).on(table.fundId, table.calculationKey, table.inputHash, table.resultHash),
+    // Null-hash rows cannot use the result-bearing unique above (NULL never
+    // conflicts), so dedupe them on (fund, key, input) via a partial unique index.
+    fundKeyInputNullHashUnique: uniqueIndex(
+      'substrate_shadow_reconciliations_fund_key_input_null_hash_unique'
+    )
+      .on(table.fundId, table.calculationKey, table.inputHash)
+      .where(sql`${table.resultHash} IS NULL`),
   })
 );
 
