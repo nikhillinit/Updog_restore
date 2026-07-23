@@ -1,8 +1,14 @@
 import { sql, type SQL } from 'drizzle-orm';
 
 import { db } from '../db';
+import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 import { runIdempotentCommand } from '../lib/idempotent-command';
 import { CURRENT_FORECAST_CALCULATION_KEY } from './current-forecast-calc-mode-resolver';
+import {
+  FundCalculationModeIdempotencyConflictError,
+  FundCalculationModeInProgressError,
+  FundCalculationModeVersionConflictError,
+} from './fund-calculation-mode-service';
 
 /**
  * Append-only reference plane for the current-forecast calculation key
@@ -410,5 +416,270 @@ export async function createRollbackCurrentForecastReference(params: {
     createdBy: params.createdBy,
     sourceReferenceId: params.sourceReferenceId,
     database,
+  });
+}
+
+export const CURRENT_FORECAST_ACTIVATE_ROUTE =
+  'POST /api/admin/funds/:fundId/current-forecast/activate';
+
+export class CurrentForecastActivationBlockedError extends Error {
+  readonly code = 'activation_blocked';
+
+  constructor(readonly blockers: string[]) {
+    super(`current-forecast activation is blocked: ${blockers.join(', ')}`);
+    this.name = 'CurrentForecastActivationBlockedError';
+  }
+}
+
+export type VerifyGreenCandidateFn = (params: {
+  executor: Executor;
+  fundId: number;
+  reference: CurrentForecastReferenceRecord;
+}) => Promise<string[]>;
+
+/**
+ * Default green-candidate verification against the durable ledgers: the
+ * reference must still be a live candidate, a fund-owned CURRENT_FORECAST_V2
+ * snapshot must exist, the exact basis hash must have a green shadow `match`
+ * replay, and the fund must carry zero `failed` shadow rows (P3: `failed` is by
+ * definition an UNEXPLAINED divergence and blocks green).
+ */
+export const verifyGreenCandidateWithLedger: VerifyGreenCandidateFn = async ({
+  executor,
+  fundId,
+  reference,
+}) => {
+  const blockers: string[] = [];
+
+  if (!reference.candidate || reference.supersededByReferenceId !== null) {
+    blockers.push('activation_requires_green_candidate');
+  }
+
+  const snapshots = await executeRows<{ id: number }>(
+    executor,
+    sql`
+      SELECT id
+      FROM fund_snapshots
+      WHERE fund_id = ${fundId}
+        AND type = 'CURRENT_FORECAST_V2'
+      LIMIT 1
+    `
+  );
+  if (snapshots.length === 0) {
+    blockers.push('current_forecast_snapshot_missing');
+  }
+
+  const matches = await executeRows<{ reconciliation_status: string }>(
+    executor,
+    sql`
+      SELECT reconciliation_status
+      FROM substrate_shadow_reconciliations
+      WHERE fund_id = ${fundId}
+        AND calculation_key = ${CURRENT_FORECAST_CALCULATION_KEY}
+        AND input_hash = ${reference.inputHash}
+        AND result_hash = ${reference.resultHash}
+      LIMIT 1
+    `
+  );
+  if (matches[0]?.reconciliation_status !== 'match') {
+    blockers.push('shadow_green_required');
+  }
+
+  const failed = await executeRows<{ id: number }>(
+    executor,
+    sql`
+      SELECT id
+      FROM substrate_shadow_reconciliations
+      WHERE fund_id = ${fundId}
+        AND calculation_key = ${CURRENT_FORECAST_CALCULATION_KEY}
+        AND substrate_state = 'failed'
+      LIMIT 1
+    `
+  );
+  if (failed.length > 0) {
+    blockers.push('unexplained_divergence_present');
+  }
+
+  return blockers;
+};
+
+export interface CurrentForecastActivationResponse {
+  calculationKey: string;
+  configuredMode: 'on';
+  activatedAt: string;
+  cutoverReferenceId: number;
+  version: number;
+}
+
+type ActivationLedgerRow = {
+  request_hash: string;
+  response_body: unknown;
+  status: 'pending' | 'completed';
+};
+
+function activationResponseFromLedger(value: unknown): CurrentForecastActivationResponse {
+  const parsed: unknown = typeof value === 'string' ? (JSON.parse(value) as unknown) : value;
+  if (
+    typeof parsed === 'object' &&
+    parsed !== null &&
+    (parsed as { calculationKey?: unknown }).calculationKey === CURRENT_FORECAST_CALCULATION_KEY &&
+    (parsed as { configuredMode?: unknown }).configuredMode === 'on'
+  ) {
+    return parsed as CurrentForecastActivationResponse;
+  }
+  throw new Error('Completed current-forecast activation ledger row has an invalid response body');
+}
+
+/**
+ * The DORMANT activation command (executed only by Task 23). One atomic
+ * transaction validates a green candidate then writes mode `on` +
+ * `activated_at` + `cutover_reference_id` AND flips the chosen candidate to
+ * `candidate = false` (P2) — arming the accepted-head partial unique. The mode
+ * route never writes `on` for this key; only this command does, so the
+ * activation event is by construction written in the same transaction.
+ */
+export async function activateCurrentForecast(params: {
+  fundId: number;
+  referenceId: number;
+  expectedVersion: number;
+  idempotencyKey: string;
+  actorId: number | null;
+  database?: CurrentForecastReferenceDatabase;
+  verifyGreenCandidate?: VerifyGreenCandidateFn;
+}): Promise<{ response: CurrentForecastActivationResponse; replayed: boolean }> {
+  const database = params.database ?? db;
+  const verifyGreenCandidate = params.verifyGreenCandidate ?? verifyGreenCandidateWithLedger;
+  const requestHash = canonicalSha256({
+    route: CURRENT_FORECAST_ACTIVATE_ROUTE,
+    fundId: params.fundId,
+    referenceId: params.referenceId,
+    expectedVersion: params.expectedVersion,
+  });
+
+  return database.transaction(async (tx) => {
+    const claimed = await executeRows<{ id: number }>(
+      tx,
+      sql`
+        INSERT INTO fund_calculation_mode_requests
+          (fund_id, calculation_key, idempotency_key, request_hash, created_by, status)
+        VALUES
+          (${params.fundId}, ${CURRENT_FORECAST_CALCULATION_KEY}, ${params.idempotencyKey}, ${requestHash}, ${params.actorId}, 'pending')
+        ON CONFLICT (fund_id, calculation_key, idempotency_key) DO NOTHING
+        RETURNING id
+      `
+    );
+    if (claimed.length === 0) {
+      const existing = await executeRows<ActivationLedgerRow>(
+        tx,
+        sql`
+          SELECT request_hash, response_body, status
+          FROM fund_calculation_mode_requests
+          WHERE fund_id = ${params.fundId}
+            AND calculation_key = ${CURRENT_FORECAST_CALCULATION_KEY}
+            AND idempotency_key = ${params.idempotencyKey}
+          LIMIT 1
+        `
+      );
+      const row = existing[0];
+      if (!row) {
+        throw new Error('Activation idempotency claim conflict did not return an existing request');
+      }
+      if (row.request_hash !== requestHash) {
+        throw new FundCalculationModeIdempotencyConflictError(
+          'Idempotency-Key reused with a different current-forecast activation request'
+        );
+      }
+      if (row.status !== 'completed' || row.response_body === null) {
+        throw new FundCalculationModeInProgressError();
+      }
+      return { response: activationResponseFromLedger(row.response_body), replayed: true };
+    }
+
+    const mode = await lockCurrentForecastModeRow(tx, params.fundId);
+    if (!mode) {
+      throw new FundCalculationModeVersionConflictError(params.expectedVersion, 0);
+    }
+    if (mode.version !== params.expectedVersion) {
+      throw new FundCalculationModeVersionConflictError(params.expectedVersion, mode.version);
+    }
+    if (mode.activated_at !== null) {
+      throw new CurrentForecastReferenceError(
+        409,
+        'already_activated',
+        `Fund ${params.fundId} current-forecast is already activated.`
+      );
+    }
+
+    const reference = await loadReference(tx, params.fundId, params.referenceId);
+    if (!reference) {
+      throw new CurrentForecastReferenceError(
+        404,
+        'reference_not_found',
+        `current_forecast_references row ${params.referenceId} does not exist for fund ${params.fundId}.`
+      );
+    }
+
+    const blockers = [
+      ...(mode.kill_switch_active ? ['kill_switch_active'] : []),
+      ...(await verifyGreenCandidate({ executor: tx, fundId: params.fundId, reference })),
+    ];
+    if (blockers.length > 0) {
+      throw new CurrentForecastActivationBlockedError(blockers);
+    }
+
+    await supersedeAcceptedHead(tx, params.fundId, reference.id);
+    await tx.execute(sql`
+      UPDATE current_forecast_references
+      SET candidate = false
+      WHERE id = ${reference.id}
+    `);
+    const updated = await executeRows<{
+      cutover_reference_id: number;
+      version: number;
+      activated_at: Date | string;
+    }>(
+      tx,
+      sql`
+        UPDATE fund_calculation_modes
+        SET configured_mode = 'on',
+            activated_at = NOW(),
+            cutover_reference_id = ${reference.id},
+            version = version + 1,
+            updated_by = ${params.actorId},
+            updated_at = NOW()
+        WHERE id = ${mode.id}
+        RETURNING cutover_reference_id, version, activated_at
+      `
+    );
+    const row = updated[0];
+    if (!row) {
+      throw new CurrentForecastReferenceError(
+        409,
+        'activation_conflict',
+        'The current-forecast mode row disappeared during activation.'
+      );
+    }
+
+    const response: CurrentForecastActivationResponse = {
+      calculationKey: CURRENT_FORECAST_CALCULATION_KEY,
+      configuredMode: 'on',
+      activatedAt:
+        row.activated_at instanceof Date
+          ? row.activated_at.toISOString()
+          : String(row.activated_at),
+      cutoverReferenceId: row.cutover_reference_id,
+      version: row.version,
+    };
+    await tx.execute(sql`
+      UPDATE fund_calculation_mode_requests
+      SET status = 'completed',
+          response_status = 200,
+          response_body = ${JSON.stringify(response)}::jsonb
+      WHERE fund_id = ${params.fundId}
+        AND calculation_key = ${CURRENT_FORECAST_CALCULATION_KEY}
+        AND idempotency_key = ${params.idempotencyKey}
+    `);
+
+    return { response, replayed: false };
   });
 }
