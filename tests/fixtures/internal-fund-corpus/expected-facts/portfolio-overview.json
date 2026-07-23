@@ -1,0 +1,71 @@
+{
+  "fundId": 101,
+  "generatedAt": "2026-06-30T12:00:00.000Z",
+  "currency": "USD",
+  "provenance": {
+    "sourceKind": "computed",
+    "actionability": "actionable",
+    "isFinanciallyActionable": true,
+    "sourceEngine": "portfolio-overview",
+    "engineVersion": "portfolio-overview-service@1",
+    "calculationVersion": "portfolio_overview_metrics_v1",
+    "sourceRoute": "GET /api/portfolio-overview",
+    "inputHash": "5ed52e53dc3ec96e4d71c5655308651f8da63a24dbafc58a7abeaac0060c94e2",
+    "assumptionsHash": "76e0f552182f4e2d08dba9401a60a3862c8a7e109c3b71f9381dd8c190fcb58d",
+    "generatedAt": "2026-06-30T12:00:00.000Z",
+    "warnings": [
+      "currentValuation may include user-entered marks or assumptions"
+    ]
+  },
+  "sourceRecordCounts": {
+    "companies": 3
+  },
+  "metrics": {
+    "totalInvested": "2000000",
+    "totalValue": "6000000",
+    "averageMOIC": "4.333333333333333333333333333",
+    "returnPct": "200",
+    "totalCompanies": 3,
+    "activeCompanies": 3,
+    "exitedCompanies": 0
+  },
+  "companies": [
+    {
+      "id": 1001,
+      "name": "Nimbus Labs",
+      "sector": "SaaS",
+      "stage": "Series B",
+      "status": "active",
+      "invested": "1000000",
+      "currentValue": "1000000",
+      "moic": "1"
+    },
+    {
+      "id": 1002,
+      "name": "Atlas Health",
+      "sector": "Health",
+      "stage": "Seed",
+      "status": "active",
+      "invested": "750000",
+      "currentValue": "3000000",
+      "moic": "4"
+    },
+    {
+      "id": 1003,
+      "name": "Zero Grid",
+      "sector": "Climate",
+      "stage": "Seed",
+      "status": "active",
+      "invested": "250000",
+      "currentValue": "2000000",
+      "moic": "8"
+    }
+  ],
+  "meta": {
+    "mode": "live",
+    "requestedAsOf": null,
+    "resolvedAsOf": null,
+    "source": "live",
+    "historicalAvailable": false
+  }
+}

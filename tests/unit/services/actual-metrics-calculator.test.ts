@@ -27,6 +27,12 @@ vi.mock('../../../server/lib/logger', () => ({
 }));
 
 import { ActualMetricsCalculator } from '../../../server/services/actual-metrics-calculator';
+import {
+  INTERNAL_FUND_CORPUS,
+  loadCorpusExpected,
+  loadCorpusInput,
+  serializeCorpusValue,
+} from '../../utils/internal-fund-corpus';
 
 function distributionQuery(result: Promise<unknown>) {
   return {
@@ -73,6 +79,51 @@ describe('ActualMetricsCalculator actual fact plumbing', () => {
         round: 'Series A',
       },
     ]);
+  });
+
+  it('matches the legacy internal-fund corpus for deployed capital and ownership fallback', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(INTERNAL_FUND_CORPUS.fixedClock);
+    storageMock.getFund.mockResolvedValue(
+      loadCorpusInput<Array<Record<string, unknown>>>('legacy-inputs/funds.json').find(
+        (fund) => fund['id'] === INTERNAL_FUND_CORPUS.fundId
+      )
+    );
+    storageMock.getPortfolioCompanies.mockResolvedValue(
+      loadCorpusInput<Array<Record<string, unknown>>>(
+        'legacy-inputs/portfolio-companies.json'
+      ).filter((company) => company['fundId'] === INTERNAL_FUND_CORPUS.fundId)
+    );
+    storageMock.getInvestments.mockResolvedValue(
+      loadCorpusInput<Array<Record<string, unknown>>>('legacy-inputs/investments.json').filter(
+        (investment) => investment['fundId'] === INTERNAL_FUND_CORPUS.fundId
+      )
+    );
+    dbMock.select.mockReturnValue(distributionQuery(Promise.resolve([])));
+
+    try {
+      const metrics = await calculator.calculate(INTERNAL_FUND_CORPUS.fundId);
+      const stableMetrics = {
+        ...metrics,
+        irr: 'omitted_from_legacy_corpus',
+        availability: {
+          ...metrics.availability,
+          irr: 'omitted_from_legacy_corpus',
+        },
+      };
+
+      expect(serializeCorpusValue(stableMetrics)).toEqual(
+        loadCorpusExpected('expected-facts/actual-metrics.json')
+      );
+      expect(
+        serializeCorpusValue({
+          currentNAV: metrics.currentNAV,
+          totalValue: metrics.totalValue,
+        })
+      ).toEqual(loadCorpusExpected('expected-valuations/actual-metrics-position-fmv.json'));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('calculates DPI and IRR from dated investments, distributions, and current NAV', async () => {

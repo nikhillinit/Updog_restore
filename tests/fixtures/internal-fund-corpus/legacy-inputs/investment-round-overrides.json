@@ -1,0 +1,18 @@
+[
+  {
+    "id": 8001,
+    "fundId": 101,
+    "roundId": 7003,
+    "overrideRole": "follow_on",
+    "supersedesOverrideId": null,
+    "createdAt": "2025-04-22T00:00:00.000Z"
+  },
+  {
+    "id": 8002,
+    "fundId": 101,
+    "roundId": 7004,
+    "overrideRole": "follow_on",
+    "supersedesOverrideId": null,
+    "createdAt": "2026-07-17T00:00:00.000Z"
+  }
+]
