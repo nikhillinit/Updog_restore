@@ -25,6 +25,12 @@ import {
   FundCalculationModeVersionConflictError,
   updateCurrentForecastCalculationMode,
 } from '../services/fund-calculation-mode-service';
+import {
+  CurrentForecastActivationBlockedError,
+  CurrentForecastReferenceError,
+  activateCurrentForecast,
+  createRollbackCurrentForecastReference,
+} from '../services/current-forecast-reference-service';
 
 const routeLog = createRouteLogger('current-forecast');
 const router = Router();
@@ -62,6 +68,20 @@ const CurrentForecastModeUpdateBodySchema = z
     expectedVersion: z.number().int().nonnegative(),
     configuredMode: z.enum(['off', 'shadow', 'on']),
     killSwitchActive: z.boolean().optional(),
+  })
+  .strict();
+
+const CurrentForecastReferenceBodySchema = z
+  .object({
+    sourceReferenceId: z.number().int().positive(),
+    reason: z.string().min(1),
+  })
+  .strict();
+
+const CurrentForecastActivateBodySchema = z
+  .object({
+    referenceId: z.number().int().positive(),
+    expectedVersion: z.number().int().nonnegative(),
   })
   .strict();
 
@@ -266,6 +286,17 @@ router.put(
       });
     }
 
+    // R22 refusal (13.1-svc): off|shadow -> on never goes through the mode
+    // route; only the activation command writes `on`, atomically with the
+    // activation event (activated_at + cutover_reference_id + candidate flip).
+    if (parsedBody.data.configuredMode === 'on') {
+      return res.status(409).json({
+        error: 'activation_command_required',
+        message:
+          'current-forecast cannot be set to on via the mode route; the activation command writes the cutover event atomically',
+      });
+    }
+
     try {
       const params: Parameters<typeof updateCurrentForecastCalculationMode>[0] = {
         fundId,
@@ -301,6 +332,118 @@ router.put(
       ) {
         return res.status(409).json({ error: error.code, message: error.message });
       }
+      throw error;
+    }
+  })
+);
+
+router.post(
+  '/admin/funds/:fundId/current-forecast/references',
+  currentForecastWriteLimiter,
+  requireAuth(),
+  validateFundIdParam,
+  requireFundAccess,
+  requireRole('admin'),
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = toNumber(req.params['fundId'], 'fundId', { integer: true, min: 1 });
+    const idempotencyKey = req.header('Idempotency-Key')?.trim();
+    if (!idempotencyKey) {
+      return res.status(428).json({
+        error: 'idempotency_key_required',
+        message: 'Idempotency-Key header is required',
+      });
+    }
+
+    const parsedBody = CurrentForecastReferenceBodySchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      return res.status(400).json({
+        error: 'invalid_reference_request',
+        message: 'Current forecast reference request is invalid',
+        details: parsedBody.error.format(),
+      });
+    }
+
+    try {
+      const result = await createRollbackCurrentForecastReference({
+        fundId,
+        sourceReferenceId: parsedBody.data.sourceReferenceId,
+        reason: parsedBody.data.reason,
+        idempotencyKey,
+        createdBy: actorId(req),
+      });
+      return res.status(200).json({ reference: result.row, replayed: result.replayed });
+    } catch (error) {
+      if (error instanceof CurrentForecastReferenceError) {
+        return res.status(error.status).json({ error: error.code, message: error.message });
+      }
+      if (respondToTypedError(error, res)) return;
+      throw error;
+    }
+  })
+);
+
+// DORMANT (PLAN_61 Task 13.1-svc): shipped unused; executed only by Task 23.
+router.post(
+  '/admin/funds/:fundId/current-forecast/activate',
+  currentForecastWriteLimiter,
+  requireAuth(),
+  validateFundIdParam,
+  requireFundAccess,
+  requireRole('admin'),
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = toNumber(req.params['fundId'], 'fundId', { integer: true, min: 1 });
+    const idempotencyKey = req.header('Idempotency-Key')?.trim();
+    if (!idempotencyKey) {
+      return res.status(428).json({
+        error: 'idempotency_key_required',
+        message: 'Idempotency-Key header is required',
+      });
+    }
+
+    const parsedBody = CurrentForecastActivateBodySchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      return res.status(400).json({
+        error: 'invalid_activation_request',
+        message: 'Current forecast activation request is invalid',
+        details: parsedBody.error.format(),
+      });
+    }
+
+    try {
+      const result = await activateCurrentForecast({
+        fundId,
+        referenceId: parsedBody.data.referenceId,
+        expectedVersion: parsedBody.data.expectedVersion,
+        idempotencyKey,
+        actorId: actorId(req),
+      });
+      return res.status(200).json({ ...result.response, replayed: result.replayed });
+    } catch (error) {
+      if (error instanceof FundCalculationModeVersionConflictError) {
+        return res.status(409).json({
+          error: error.code,
+          message: error.message,
+          expectedVersion: error.expectedVersion,
+          actualVersion: error.actualVersion,
+        });
+      }
+      if (error instanceof CurrentForecastActivationBlockedError) {
+        return res.status(409).json({
+          error: error.code,
+          message: error.message,
+          blockers: error.blockers,
+        });
+      }
+      if (error instanceof CurrentForecastReferenceError) {
+        return res.status(error.status).json({ error: error.code, message: error.message });
+      }
+      if (
+        error instanceof FundCalculationModeIdempotencyConflictError ||
+        error instanceof FundCalculationModeInProgressError
+      ) {
+        return res.status(409).json({ error: error.code, message: error.message });
+      }
+      if (respondToTypedError(error, res)) return;
       throw error;
     }
   })

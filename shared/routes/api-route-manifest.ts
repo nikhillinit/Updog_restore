@@ -160,12 +160,14 @@ export const COMMON_API_ROUTE_MANIFEST = [
     migrationParity: { kind: 'c1', tables: ['current_plan_versions'] },
     schemaTables: [
       'current_plan_versions',
+      'current_forecast_references',
       'financial_facts_snapshots',
       'fund_snapshots',
       'fundconfigs',
       'funds',
       'fund_calculation_modes',
       'fund_calculation_mode_requests',
+      'substrate_shadow_reconciliations',
     ],
     owner: 'analytics',
     probe: {
