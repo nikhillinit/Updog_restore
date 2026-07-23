@@ -16,24 +16,25 @@ CREATE TABLE IF NOT EXISTS "current_forecast_references" (
   "methodology_version" text NOT NULL,
   "candidate" boolean NOT NULL DEFAULT true,
   "superseded_by_reference_id" integer,
-  "status" varchar(16) NOT NULL DEFAULT 'candidate',
   "reason" text,
   "created_by" integer,
+  "idempotency_key" varchar(128) NOT NULL,
+  "request_hash" varchar(64) NOT NULL,
   "created_at" timestamp with time zone DEFAULT now() NOT NULL,
   CONSTRAINT "current_forecast_references_fund_id_funds_id_fk"
     FOREIGN KEY ("fund_id") REFERENCES "public"."funds"("id") ON DELETE cascade,
   CONSTRAINT "current_forecast_references_superseded_by_fk"
     FOREIGN KEY ("superseded_by_reference_id") REFERENCES "public"."current_forecast_references"("id"),
   CONSTRAINT "current_forecast_references_fund_snapshot_fk"
-    FOREIGN KEY ("fund_snapshot_id") REFERENCES "public"."fund_snapshots"("id") ON DELETE cascade,
+    FOREIGN KEY ("fund_snapshot_id") REFERENCES "public"."fund_snapshots"("id"),
   CONSTRAINT "current_forecast_references_plan_version_fk"
     FOREIGN KEY ("current_plan_version_id") REFERENCES "public"."current_plan_versions"("id"),
   CONSTRAINT "current_forecast_references_facts_snapshot_fk"
     FOREIGN KEY ("financial_facts_snapshot_id") REFERENCES "public"."financial_facts_snapshots"("id"),
   CONSTRAINT "current_forecast_references_created_by_fk"
     FOREIGN KEY ("created_by") REFERENCES "public"."users"("id"),
-  CONSTRAINT "current_forecast_references_status_check"
-    CHECK ("status" IN ('candidate','accepted','superseded'))
+  CONSTRAINT "current_forecast_references_fund_idempotency_unique"
+    UNIQUE ("fund_id", "idempotency_key")
 );
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "idx_current_forecast_references_fund_created"
