@@ -8666,8 +8666,8 @@ equal, `summaryValueDeltaPct` would return 0 with no error and no failing test.
 - Effective `off` returns 404. `shadow` computes rankings but is always
   `non_actionable`. `on` requires positive H9
   (`h9.actionability === 'actionable'`) and at least one actionable ranking;
-  otherwise it remains `non_actionable`. A thrown H9 resolution error remains
-  a 500 fail-closed path.
+  otherwise it remains `non_actionable`. A thrown H9 resolution error remains a
+  500 fail-closed path.
 - Access is limited by `isTeamMemberUser` before fund access is evaluated.
 - V1 remains exported for source compatibility only. The endpoint wire contract
   is no longer V1-compatible.
@@ -8675,8 +8675,8 @@ equal, `summaryValueDeltaPct` would return 0 with no error and no failing test.
   environment until BOTH `ENABLE_MARGINAL_RESERVE_MOIC` is enabled and a
   `fund_calculation_modes` row exists for the fund with
   `calculation_key='fund_moic_rankings_exit_probability'`, `configured_mode` of
-  `shadow` or `on`, and the kill switch off. No seed or migration creates such
-  a row.
+  `shadow` or `on`, and the kill switch off. No seed or migration creates such a
+  row.
 - The gating asymmetry with the sibling `/moic/rankings` route is deliberate:
   that route is mode-gated only, while this newer marginal-ranking surface also
   requires the server-only feature flag. Its sibling's `?contract=v1|v2`
@@ -8689,5 +8689,134 @@ equal, `summaryValueDeltaPct` would return 0 with no error and no failing test.
   deferred**, not complete.
 - No flag was enabled, no calculation-mode row was created or promoted, and no
   persistence or downstream financial surface changed.
+
+---
+
+## ADR-057: Current-Forecast Divergence-by-Design — Legacy Numeric Parity Is Not a Shadow Gate (Demo Scope)
+
+**Date:** 2026-07-22 **Status:** [ACCEPTED] Accepted **Decision:** The
+current-forecast shadow plane (PLAN_61 Task 13.1-svc,
+`server/services/current-forecast-shadow-service.ts`) defines "green" as:
+exact-basis replay reproduces the pinned `resultHash` for EVERY committed corpus
+base, at least 90% of evaluated bases produce an `available` value, and zero
+UNEXPLAINED divergences exist. Numeric parity against the legacy
+`ProjectedMetricsCalculator` lane is deliberately NOT a criterion.
+
+### Context
+
+The substrate-reserve shadow (ADR-050) gated promotion on parity between the
+legacy engine and the substrate for the SAME request. That model does not
+transfer to current-forecast: the Task 1 nondeterminism characterization
+established that the legacy dual-forecast lane is nondeterministic by design
+(fabricated construction inputs, wall-clock coupling), so byte-parity against it
+is unattainable and would institutionalize the fabrication it replaces. The V2
+engine (`runCohortProjectionV2`) is deterministic over a pinned basis (plan
+version + facts snapshot), so replay reproducibility is the correct trust
+signal.
+
+### Consequences
+
+- Trust rests on the committed replay corpus
+  (`tests/fixtures/current-forecast-replay-corpus/`): any engine drift fails the
+  pinned-hash reproduction test.
+- Divergence from the legacy lane is EXPECTED and auditable: reconciliation rows
+  carry typed mismatch reasons
+  (`legacy_fabrication_replaced|facts_gap|methodology_change|unavailable_expected`).
+  Per review pin P3, `unavailable` runs persist as
+  `reconciliation_status='mismatch'` with a typed reason (`facts_gap` when
+  facts-driven, else `unavailable_expected`); `failed` persists as `mismatch`
+  with NO typed reason — it is by definition an UNEXPLAINED divergence and
+  blocks green.
+- `evaluateCurrentForecastShadowGreen` is pure math over shadow outcomes; a
+  legacy-parity check can never be reintroduced into it without revisiting this
+  ADR.
+
+## ADR-058: Post-Cutover Held Semantics for current_forecast — the Served Pointer Is Live (D9) (Demo Scope)
+
+**Date:** 2026-07-22 **Status:** [ACCEPTED] Accepted **Decision:** The
+`current_forecast` calculation key diverges from every other key's kill/off
+semantics AFTER activation. Pre-cutover (`fund_calculation_modes.activated_at`
+IS NULL) the kill switch and off/unknown modes collapse to the legacy
+byte-compatible `off` path. Post-cutover, EVERY state other than effective `on`
+(kill switch, configured off, configured shadow, V2 serving failure) resolves
+`held`: the fund is served the pinned reference named by
+`fund_calculation_modes.cutover_reference_id`, and the legacy
+`ProjectedMetricsCalculator` lane is never re-entered.
+
+### Context
+
+Once a fund has cut over to V2, "off" has no safe meaning: falling back to the
+legacy lane would silently re-serve fabricated numbers, and serving nothing
+would blank a live reporting surface. The R24/D9 held state pins the last
+accepted evaluation instead. Resolver:
+`server/services/current-forecast-calc-mode-resolver.ts`
+(`resolveCurrentForecastModeResolution`, `dispatchCurrentForecastServing`).
+
+### The served pointer is LIVE (review pin P1)
+
+`fund_calculation_modes.cutover_reference_id` is the LIVE served-pointer head,
+mutated on every pointer-advance while the mode is `on`
+(`advanceCurrentForecastPointer`). It is NOT a frozen activation-time snapshot;
+the activation-time value remains recoverable via `activated_at` plus the
+`current_forecast_references` supersession chain. Pointer advance is by design —
+it must never later be "fixed" as a bug. `held` serves exactly this pointer and
+never a "latest accepted" query.
+
+### Activation atomicity (review pin P2)
+
+The dormant activation command (`activateCurrentForecast`, executed only by
+Task 23) flips the chosen candidate to `candidate = false` in the SAME atomic
+write as `activated_at` + `cutover_reference_id` + `configured_mode = 'on'`,
+arming the accepted-head partial unique
+(`current_forecast_references_fund_accepted_head_unique`) from cutover onward.
+Steady-state acceptance is single-clause (`candidate = false`, non-superseded);
+"named by `cutover_reference_id`" remains only as the transitional guard. The
+13.0 mode route refuses `off|shadow -> on` (`activation_command_required`): the
+ONLY path to `on` is the activation command, so the activation event is written
+in the same transaction by construction.
+
+### Consequences
+
+- Lifecycle reads use `candidate`/`superseded_by_reference_id` only — there is
+  no status column (13.1 review R1).
+- Reference rows are append-only; admin rollback
+  (`POST /api/admin/funds/:fundId/current-forecast/references`) clones a prior
+  reference into a NEW candidate rather than rewriting history.
+- A post-cutover incident (kill switch) keeps serving the held pointer; the
+  route back to `on` is a fresh green candidate plus the activation command, not
+  a mode-route write.
+
+## ADR-059: Migration 0038 Representability Delta vs ADR-050 — Widen substrate_state Only (Demo Scope)
+
+**Date:** 2026-07-22 **Status:** [ACCEPTED] Accepted **Decision:** Migration
+0038 widens the ADR-050 `substrate_shadow_reconciliations` ledger exactly far
+enough to represent the current-forecast shadow's non-value-producing
+observations, and no further: `substrate_state` gains `unavailable`/`failed`,
+`result_hash` becomes nullable with a guard CHECK
+(`result_hash IS NOT NULL OR substrate_state IN ('unavailable','failed')`) and a
+null-hash partial unique for dedup. `reconciliation_status` remains
+`match|mismatch` and `configured_mode`/`effective_mode` remain `off|shadow|on` —
+deliberately not widened.
+
+### Context
+
+ADR-050's ledger assumed every observation is value-producing (a substrate value
+reconciled against a legacy value). The current-forecast shadow must also
+durably record runs that produce no servable value (facts gaps, basis
+mismatches, engine failures) because the green decision counts them (coverage,
+unexplained divergences).
+
+### Consequences
+
+- Review pin P3: non-value-producing rows reuse `mismatch` + typed reason rather
+  than a widened status enum; `failed` is unexplained by definition.
+- Review pin P4: `held` is a resolver/serving state, never a ledger mode. The
+  current-forecast writer clamps mode values to `off|shadow|on`
+  (`assertLedgerMode`) and the legacy substrate writer path stays constrained to
+  `available`/`indicative`
+  (`tests/unit/schema/substrate-shadow-widening.test.ts`).
+- The engine still hashes unavailable result envelopes, so `unavailable` rows
+  normally CARRY a `result_hash`; the null-hash lane exists for runs that
+  produced nothing at all (thrown basis mismatch -> `failed`).
 
 ---

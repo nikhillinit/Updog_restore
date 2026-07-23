@@ -104,6 +104,17 @@ describe('current-forecast calculation mode route', () => {
     expect(svc.updateCurrentForecastCalculationMode).not.toHaveBeenCalled();
   });
 
+  it('refuses off|shadow -> on: only the activation command may write on', async () => {
+    const response = await put({
+      key: 'forecast-on',
+      body: { expectedVersion: 0, configuredMode: 'on' },
+    });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({ error: 'activation_command_required' });
+    expect(svc.updateCurrentForecastCalculationMode).not.toHaveBeenCalled();
+  });
+
   it('writes off mode and returns the preview with replay status', async () => {
     const response = await put({ key: '  forecast-off  ' });
 

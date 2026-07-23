@@ -48,7 +48,6 @@ export * from './schema/fund-calculation-modes';
 export * from './schema/fund-moic-input-update-requests';
 export * from './schema/investment-rounds';
 export * from './schema/investment-round-model-overrides';
-export * from './schema/current-plans';
 export * from './schema/current-forecast-references';
 export * from './schemas/flags';
 export * from './schemas/reserve-approvals';
