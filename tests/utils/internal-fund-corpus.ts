@@ -1,8 +1,24 @@
+// Default import on purpose: node-setup.ts vi.mock('fs') stubs the NAMED
+// readFileSync/existsSync exports, but its ...actual spread preserves
+// `default` as the real fs module - same pattern as reconcile-prod-schema.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
+
+import {
+  cashFlowEvents,
+  funds,
+  investmentLots,
+  investmentRoundModelOverrides,
+  investmentRounds,
+  investments,
+  portfolioCompanies,
+  valuationMarks,
+  vehicles,
+} from '@shared/schema';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -145,8 +161,57 @@ export function loadInternalFundCorpusManifest(): InternalFundCorpusManifest {
   return manifest;
 }
 
+/**
+ * Review R1 (#1196): every legacy-input row validates against the REAL
+ * drizzle row shape after hydration. `.partial()` because fixtures carry
+ * only the columns the characterized services read; `.strict()` so a
+ * misspelled or nonexistent column can never freeze behavior on rows
+ * production tables cannot produce.
+ */
+type RowSchema = { parse: (value: unknown) => unknown };
+
+const legacyInputRowSchemas: Record<string, RowSchema> = {
+  'legacy-inputs/funds.json': createSelectSchema(funds).partial().strict(),
+  'legacy-inputs/portfolio-companies.json': createSelectSchema(portfolioCompanies)
+    .partial()
+    .strict(),
+  'legacy-inputs/investments.json': createSelectSchema(investments).partial().strict(),
+  'legacy-inputs/investment-rounds.json': createSelectSchema(investmentRounds).partial().strict(),
+  'legacy-inputs/investment-round-overrides.json': createSelectSchema(investmentRoundModelOverrides)
+    .partial()
+    .strict(),
+  'legacy-inputs/investment-lots.json': createSelectSchema(investmentLots).partial().strict(),
+  'legacy-inputs/valuation-marks.json': createSelectSchema(valuationMarks).partial().strict(),
+  'legacy-inputs/cash-flow-events.json': createSelectSchema(cashFlowEvents).partial().strict(),
+  'legacy-inputs/vehicles.json': createSelectSchema(vehicles).partial().strict(),
+};
+
 export function loadCorpusInput<T>(relativePath: string): T {
-  return hydrateJson(relativePath) as T;
+  const hydrated = hydrateJson(relativePath);
+  const rowSchema = legacyInputRowSchemas[relativePath];
+  if (rowSchema === undefined) {
+    if (relativePath.startsWith('legacy-inputs/')) {
+      throw new Error(`Legacy input has no drizzle row schema registered: ${relativePath}`);
+    }
+    return hydrated as T;
+  }
+  if (!Array.isArray(hydrated)) {
+    throw new Error(`Legacy input must be a row array: ${relativePath}`);
+  }
+  // Parse per row: drizzle-zod emits zod-v4-core schemas, which must not be
+  // wrapped in this file's zod-v3 combinators (mixing the two throws).
+  hydrated.forEach((row, index) => {
+    try {
+      rowSchema.parse(row);
+    } catch (error) {
+      throw new Error(
+        `Legacy input row failed its drizzle row shape: ${relativePath}[${index}]: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  });
+  return hydrated as T;
 }
 
 export function loadCorpusExpected<T>(relativePath: string): T {
