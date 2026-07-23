@@ -1,0 +1,2 @@
+company_id,mark_date,as_of_date,fair_value,currency,mark_source,confidence_level,valuation_method,vehicle_id,cost_basis,notes
+301,2026-01-15,2026-01-15,(100.000000),USD,financing_round,high,priced_round,401,10.000000,parenthetical negative

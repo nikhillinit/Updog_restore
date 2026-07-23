@@ -1,0 +1,2 @@
+event_type,amount,currency,event_date,perspective,company_id,lp_id,vehicle_id,description
+lp_distribution,25.000000,USD,2026-01-16,fund_gross,101,201,301,"Investor said ""yes"""

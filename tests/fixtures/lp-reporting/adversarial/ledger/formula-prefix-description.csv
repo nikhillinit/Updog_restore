@@ -1,0 +1,2 @@
+event_type,amount,currency,event_date,perspective,company_id,lp_id,vehicle_id,description
+lp_capital_call,100.000000,USD,2026-01-15,fund_gross,101,201,301,"=HYPERLINK(""http://example.com"",""x"")"

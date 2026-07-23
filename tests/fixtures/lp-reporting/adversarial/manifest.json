@@ -1,0 +1,458 @@
+{
+  "schemaVersion": "lp-reporting-import-adversary/1",
+  "fixedClock": "2026-05-08T00:00:00.000Z",
+  "cases": [
+    {
+      "caseId": "ledger-quoted-comma",
+      "parser": "ledger",
+      "fixture": "ledger/quoted-comma.csv",
+      "classification": "accepted_current_v1",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 1,
+        "invalidRows": 0,
+        "selectedFields": {
+          "row0.eventType": "lp_capital_call",
+          "row0.amount": "100.000000",
+          "row0.currency": "USD",
+          "row0.eventDate": "2026-01-15",
+          "row0.perspective": "fund_gross",
+          "row0.companyId": 101,
+          "row0.lpId": 201,
+          "row0.vehicleId": 301,
+          "row0.description": "Capital call, tranche A"
+        }
+      }
+    },
+    {
+      "caseId": "ledger-escaped-quote",
+      "parser": "ledger",
+      "fixture": "ledger/escaped-quote.csv",
+      "classification": "accepted_current_v1",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 1,
+        "invalidRows": 0,
+        "selectedFields": {
+          "row0.eventType": "lp_distribution",
+          "row0.amount": "25.000000",
+          "row0.description": "Investor said \"yes\""
+        }
+      }
+    },
+    {
+      "caseId": "ledger-embedded-line-break",
+      "parser": "ledger",
+      "fixture": "ledger/embedded-line-break.csv",
+      "classification": "known_current_v1_limitation",
+      "expected": {
+        "parsedRows": 4,
+        "validRows": 1,
+        "invalidRows": 3,
+        "errorCodes": [
+          "UNKNOWN_EVENT_TYPE",
+          "MALFORMED_AMOUNT",
+          "MALFORMED_EVENT_DATE"
+        ],
+        "selectedFields": {
+          "row0.eventType": "lp_capital_call",
+          "row0.rowIndex": 1,
+          "row0.description": "Line one"
+        }
+      },
+      "futureOwner": "task_5a",
+      "issueReference": "https://github.com/nikhillinit/Updog_restore/issues/1173"
+    },
+    {
+      "caseId": "ledger-utf8-bom",
+      "parser": "ledger",
+      "fixture": "ledger/utf8-bom.csv",
+      "classification": "accepted_current_v1",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 1,
+        "invalidRows": 0,
+        "selectedFields": {
+          "row0.eventType": "lp_capital_call",
+          "row0.amount": "100.000000",
+          "row0.description": "BOM stripped"
+        }
+      }
+    },
+    {
+      "caseId": "ledger-duplicate-headers",
+      "parser": "ledger",
+      "fixture": "ledger/duplicate-headers.csv",
+      "classification": "known_current_v1_limitation",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 1,
+        "invalidRows": 0,
+        "selectedFields": {
+          "row0.amount": "100.000000",
+          "row0.description": "first amount wins"
+        }
+      },
+      "futureOwner": "task_5a",
+      "issueReference": "https://github.com/nikhillinit/Updog_restore/issues/1173"
+    },
+    {
+      "caseId": "ledger-missing-required-headers",
+      "parser": "ledger",
+      "fixture": "ledger/missing-required-headers.csv",
+      "classification": "rejected_current_v1",
+      "expected": {
+        "parsedRows": 2,
+        "validRows": 0,
+        "invalidRows": 2,
+        "errorCodes": ["UNKNOWN_EVENT_TYPE", "MALFORMED_EVENT_DATE"]
+      }
+    },
+    {
+      "caseId": "ledger-blank-rows",
+      "parser": "ledger",
+      "fixture": "ledger/blank-rows.csv",
+      "classification": "accepted_current_v1",
+      "expected": {
+        "parsedRows": 2,
+        "validRows": 2,
+        "invalidRows": 0,
+        "selectedFields": {
+          "row0.eventType": "lp_capital_call",
+          "row0.description": "first row",
+          "row1.eventType": "lp_distribution",
+          "row1.rowIndex": 2,
+          "row1.description": "second row"
+        }
+      }
+    },
+    {
+      "caseId": "ledger-inconsistent-dates",
+      "parser": "ledger",
+      "fixture": "ledger/inconsistent-dates.csv",
+      "classification": "rejected_current_v1",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 0,
+        "invalidRows": 1,
+        "errorCodes": ["MALFORMED_EVENT_DATE"]
+      }
+    },
+    {
+      "caseId": "ledger-scientific-notation",
+      "parser": "ledger",
+      "fixture": "ledger/scientific-notation.csv",
+      "classification": "rejected_current_v1",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 0,
+        "invalidRows": 1,
+        "errorCodes": ["MALFORMED_AMOUNT"]
+      }
+    },
+    {
+      "caseId": "ledger-parenthetical-negative",
+      "parser": "ledger",
+      "fixture": "ledger/parenthetical-negative.csv",
+      "classification": "rejected_current_v1",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 0,
+        "invalidRows": 1,
+        "errorCodes": ["MALFORMED_AMOUNT"]
+      }
+    },
+    {
+      "caseId": "ledger-malformed-number",
+      "parser": "ledger",
+      "fixture": "ledger/malformed-number.csv",
+      "classification": "rejected_current_v1",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 0,
+        "invalidRows": 1,
+        "errorCodes": ["MALFORMED_AMOUNT"]
+      }
+    },
+    {
+      "caseId": "ledger-formula-prefix-amount",
+      "parser": "ledger",
+      "fixture": "ledger/formula-prefix-amount.csv",
+      "classification": "rejected_current_v1",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 0,
+        "invalidRows": 1,
+        "errorCodes": ["MALFORMED_AMOUNT"]
+      }
+    },
+    {
+      "caseId": "ledger-formula-prefix-description",
+      "parser": "ledger",
+      "fixture": "ledger/formula-prefix-description.csv",
+      "classification": "known_current_v1_limitation",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 1,
+        "invalidRows": 0,
+        "selectedFields": {
+          "row0.description": "=HYPERLINK(\"http://example.com\",\"x\")"
+        }
+      },
+      "futureOwner": "task_5a",
+      "issueReference": "https://github.com/nikhillinit/Updog_restore/issues/1173"
+    },
+    {
+      "caseId": "ledger-duplicated-economic-rows",
+      "parser": "ledger",
+      "fixture": "ledger/duplicated-economic-rows.csv",
+      "classification": "accepted_current_v1",
+      "expected": {
+        "parsedRows": 2,
+        "validRows": 1,
+        "invalidRows": 0,
+        "duplicateRows": 1,
+        "selectedFields": {
+          "row0.description": "first copy",
+          "row1.description": "second copy",
+          "duplicateRowIndex": 2
+        }
+      }
+    },
+    {
+      "caseId": "ledger-reordered-economic-rows",
+      "parser": "ledger",
+      "fixture": "ledger/reordered-economic-rows.csv",
+      "classification": "accepted_current_v1",
+      "expected": {
+        "parsedRows": 3,
+        "validRows": 2,
+        "invalidRows": 0,
+        "duplicateRows": 1,
+        "selectedFields": {
+          "row1.eventType": "lp_distribution",
+          "row2.description": "reordered duplicate",
+          "duplicateRowIndex": 3
+        }
+      }
+    },
+    {
+      "caseId": "ledger-unsupported-currency",
+      "parser": "ledger",
+      "fixture": "ledger/unsupported-currency.csv",
+      "classification": "rejected_current_v1",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 0,
+        "invalidRows": 1,
+        "errorCodes": ["UNSUPPORTED_CURRENCY"]
+      }
+    },
+    {
+      "caseId": "ledger-excessively-long-description",
+      "parser": "ledger",
+      "fixture": "ledger/excessively-long-description.csv",
+      "classification": "known_current_v1_limitation",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 1,
+        "invalidRows": 0,
+        "selectedFields": {
+          "row0.eventType": "lp_capital_call",
+          "row0.descriptionLength": 320
+        }
+      },
+      "futureOwner": "task_5a",
+      "issueReference": "https://github.com/nikhillinit/Updog_restore/issues/1173"
+    },
+    {
+      "caseId": "valuation-quoted-comma",
+      "parser": "valuation",
+      "fixture": "valuation/quoted-comma.csv",
+      "classification": "accepted_current_v1",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 1,
+        "invalidRows": 0,
+        "selectedFields": {
+          "row0.companyId": 301,
+          "row0.fairValue": "100.000000",
+          "row0.markSource": "financing_round",
+          "row0.confidenceLevel": "high",
+          "row0.valuationMethod": "priced, round",
+          "row0.vehicleId": 401,
+          "row0.costBasis": "10.000000",
+          "row0.notesPresent": false
+        }
+      }
+    },
+    {
+      "caseId": "valuation-embedded-line-break",
+      "parser": "valuation",
+      "fixture": "valuation/embedded-line-break.csv",
+      "classification": "known_current_v1_limitation",
+      "expected": {
+        "parsedRows": 6,
+        "validRows": 1,
+        "invalidRows": 5,
+        "errorCodes": [
+          "MALFORMED_MARK_DATE",
+          "MALFORMED_AS_OF_DATE",
+          "MALFORMED_FAIR_VALUE",
+          "MALFORMED_INTEGER_ID",
+          "MISSING_MARK_SOURCE"
+        ],
+        "selectedFields": {
+          "row0.valuationMethod": "Line one",
+          "row0.notesPresent": false
+        }
+      },
+      "futureOwner": "task_5a",
+      "issueReference": "https://github.com/nikhillinit/Updog_restore/issues/1173"
+    },
+    {
+      "caseId": "valuation-utf8-bom",
+      "parser": "valuation",
+      "fixture": "valuation/utf8-bom.csv",
+      "classification": "accepted_current_v1",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 1,
+        "invalidRows": 0,
+        "selectedFields": {
+          "row0.companyId": 301,
+          "row0.fairValue": "100.000000",
+          "row0.notesPresent": false
+        }
+      }
+    },
+    {
+      "caseId": "valuation-duplicate-headers",
+      "parser": "valuation",
+      "fixture": "valuation/duplicate-headers.csv",
+      "classification": "known_current_v1_limitation",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 1,
+        "invalidRows": 0,
+        "selectedFields": {
+          "row0.companyId": 301,
+          "row0.fairValue": "100.000000",
+          "row0.notesPresent": false
+        }
+      },
+      "futureOwner": "task_5a",
+      "issueReference": "https://github.com/nikhillinit/Updog_restore/issues/1173"
+    },
+    {
+      "caseId": "valuation-missing-required-headers",
+      "parser": "valuation",
+      "fixture": "valuation/missing-required-headers.csv",
+      "classification": "rejected_current_v1",
+      "expected": {
+        "parsedRows": 4,
+        "validRows": 0,
+        "invalidRows": 4,
+        "errorCodes": [
+          "MALFORMED_MARK_DATE",
+          "MALFORMED_AS_OF_DATE",
+          "MISSING_COMPANY_ID",
+          "MISSING_MARK_SOURCE"
+        ]
+      }
+    },
+    {
+      "caseId": "valuation-scientific-notation",
+      "parser": "valuation",
+      "fixture": "valuation/scientific-notation.csv",
+      "classification": "rejected_current_v1",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 0,
+        "invalidRows": 1,
+        "errorCodes": ["MALFORMED_FAIR_VALUE"]
+      }
+    },
+    {
+      "caseId": "valuation-parenthetical-negative",
+      "parser": "valuation",
+      "fixture": "valuation/parenthetical-negative.csv",
+      "classification": "rejected_current_v1",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 0,
+        "invalidRows": 1,
+        "errorCodes": ["MALFORMED_FAIR_VALUE"]
+      }
+    },
+    {
+      "caseId": "valuation-formula-prefix-fair-value",
+      "parser": "valuation",
+      "fixture": "valuation/formula-prefix-fair-value.csv",
+      "classification": "rejected_current_v1",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 0,
+        "invalidRows": 1,
+        "errorCodes": ["MALFORMED_FAIR_VALUE"]
+      }
+    },
+    {
+      "caseId": "valuation-formula-prefix-notes",
+      "parser": "valuation",
+      "fixture": "valuation/formula-prefix-notes.csv",
+      "classification": "known_current_v1_limitation",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 1,
+        "invalidRows": 0,
+        "selectedFields": {
+          "row0.fairValue": "123.000000",
+          "row0.valuationMethod": "priced_round",
+          "row0.notesPresent": false
+        }
+      },
+      "futureOwner": "task_5a",
+      "issueReference": "https://github.com/nikhillinit/Updog_restore/issues/1173"
+    },
+    {
+      "caseId": "valuation-unsupported-currency",
+      "parser": "valuation",
+      "fixture": "valuation/unsupported-currency.csv",
+      "classification": "rejected_current_v1",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 0,
+        "invalidRows": 1,
+        "errorCodes": ["UNSUPPORTED_CURRENCY"]
+      }
+    },
+    {
+      "caseId": "valuation-excessively-long-notes",
+      "parser": "valuation",
+      "fixture": "valuation/excessively-long-notes.csv",
+      "classification": "known_current_v1_limitation",
+      "expected": {
+        "parsedRows": 1,
+        "validRows": 1,
+        "invalidRows": 0,
+        "selectedFields": {
+          "row0.fairValue": "456.000000",
+          "row0.valuationMethod": "priced_round",
+          "row0.notesPresent": false
+        }
+      },
+      "futureOwner": "task_5a",
+      "issueReference": "https://github.com/nikhillinit/Updog_restore/issues/1173"
+    },
+    {
+      "caseId": "future-v2-ambiguous-company-names",
+      "parser": "future_v2",
+      "fixture": "future-v2/ambiguous-company-names.csv",
+      "classification": "future_v2_security_requirement",
+      "expected": {},
+      "futureOwner": "task_6",
+      "issueReference": "https://github.com/nikhillinit/Updog_restore/issues/1173"
+    }
+  ]
+}
