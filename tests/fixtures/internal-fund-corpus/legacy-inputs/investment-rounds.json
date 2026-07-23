@@ -1,0 +1,67 @@
+[
+  {
+    "id": 7001,
+    "fundId": 101,
+    "investmentId": 5001,
+    "roundDate": "2024-01-15",
+    "createdAt": "2024-01-16T00:00:00.000Z",
+    "securityType": "equity",
+    "currency": "USD",
+    "investmentAmount": "500000.000000",
+    "preMoneyValuation": "10000000.000000",
+    "roundSize": null,
+    "supersedesRoundId": null
+  },
+  {
+    "id": 7002,
+    "fundId": 101,
+    "investmentId": 5001,
+    "roundDate": "2024-01-15",
+    "createdAt": "2024-01-20T00:00:00.000Z",
+    "securityType": "equity",
+    "currency": "USD",
+    "investmentAmount": "600000.000000",
+    "preMoneyValuation": "12000000.000000",
+    "roundSize": "3000000.000000",
+    "supersedesRoundId": 7001
+  },
+  {
+    "id": 7003,
+    "fundId": 101,
+    "investmentId": 5002,
+    "roundDate": "2025-04-20",
+    "createdAt": "2025-04-21T00:00:00.000Z",
+    "securityType": "equity",
+    "currency": "USD",
+    "investmentAmount": "400000.000000",
+    "preMoneyValuation": "18000000.000000",
+    "roundSize": null,
+    "supersedesRoundId": null
+  },
+  {
+    "id": 7004,
+    "fundId": 101,
+    "investmentId": 5002,
+    "roundDate": "2026-07-15",
+    "createdAt": "2026-07-16T00:00:00.000Z",
+    "securityType": "equity",
+    "currency": "USD",
+    "investmentAmount": "200000.000000",
+    "preMoneyValuation": "22000000.000000",
+    "roundSize": null,
+    "supersedesRoundId": null
+  },
+  {
+    "id": 9002,
+    "fundId": 202,
+    "investmentId": 9001,
+    "roundDate": "2024-01-15",
+    "createdAt": "2024-01-16T00:00:00.000Z",
+    "securityType": "equity",
+    "currency": "USD",
+    "investmentAmount": "999999.000000",
+    "preMoneyValuation": "9999999.000000",
+    "roundSize": null,
+    "supersedesRoundId": null
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "id": 5001,
+    "fundId": 101,
+    "companyId": 1001,
+    "investmentDate": "2024-01-15T00:00:00.000Z",
+    "amount": "600000.00",
+    "round": "Seed"
+  },
+  {
+    "id": 5002,
+    "fundId": 101,
+    "companyId": 1001,
+    "investmentDate": "2025-04-20T00:00:00.000Z",
+    "amount": "400000.00",
+    "round": "Series A"
+  },
+  {
+    "id": 5003,
+    "fundId": 101,
+    "companyId": 1002,
+    "investmentDate": "2024-02-15T00:00:00.000Z",
+    "amount": "750000.00",
+    "round": "Seed"
+  },
+  {
+    "id": 5004,
+    "fundId": 101,
+    "companyId": 1003,
+    "investmentDate": "2024-03-15T00:00:00.000Z",
+    "amount": "250000.00",
+    "round": "Seed"
+  },
+  {
+    "id": 9001,
+    "fundId": 202,
+    "companyId": 2001,
+    "investmentDate": "2024-01-15T00:00:00.000Z",
+    "amount": "999999.00",
+    "round": "Seed"
+  }
+]

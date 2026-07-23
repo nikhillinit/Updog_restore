@@ -12,6 +12,13 @@ import {
   vehicles,
 } from '../../../shared/schema/lp-reporting-evidence';
 import { investments, portfolioCompanies } from '../../../shared/schema/portfolio';
+import {
+  INTERNAL_FUND_CORPUS,
+  loadCorpusExpected,
+  loadCorpusInput,
+  loadInternalFundCorpusManifest,
+  serializeCorpusValue,
+} from '../../utils/internal-fund-corpus';
 
 type SnapshotDatabase = typeof db;
 
@@ -30,6 +37,7 @@ class FakeSnapshotDb {
   readonly overrideRows: Array<Record<string, unknown>> = [];
   readonly vehicleRows: Array<Record<string, unknown>> = [];
   readonly cashRows: Array<Record<string, unknown>> = [];
+  readonly valuationMarkReads: Array<Array<Record<string, unknown>>> = [];
   readonly markRows: Array<Record<string, unknown>> = [];
   readonly snapshotRows: Array<Record<string, unknown>> = [];
   ownershipRows: Array<Record<string, unknown>> | null = null;
@@ -38,7 +46,7 @@ class FakeSnapshotDb {
     return this as unknown as SnapshotDatabase;
   }
 
-  select(_projection?: unknown) {
+  select(projection?: unknown) {
     return {
       from: (table: unknown) => ({
         where: (_condition: unknown) => {
@@ -49,7 +57,7 @@ class FakeSnapshotDb {
               orderBy: (..._order: unknown[]) => Promise.resolve(this.vehicleRows),
             };
           }
-          return queryRows(this.rowsFor(table));
+          return queryRows(this.rowsFor(table, projection));
         },
       }),
     };
@@ -77,7 +85,7 @@ class FakeSnapshotDb {
     };
   }
 
-  private rowsFor(table: unknown): Array<Record<string, unknown>> {
+  private rowsFor(table: unknown, _projection?: unknown): Array<Record<string, unknown>> {
     if (table === funds) return this.fundRows;
     if (table === portfolioCompanies) return this.companyRows;
     if (table === investments) return this.investmentRows;
@@ -85,13 +93,94 @@ class FakeSnapshotDb {
     if (table === investmentRoundModelOverrides) return this.overrideRows;
     if (table === vehicles) return this.vehicleRows;
     if (table === cashFlowEvents) return this.cashRows;
-    if (table === valuationMarks) return this.markRows;
+    if (table === valuationMarks) return this.valuationMarkReads.shift() ?? this.markRows;
     if (table === financialFactsSnapshots) return this.snapshotRows;
     return [];
   }
 }
 
 describe('buildFinancialFactsSnapshot', () => {
+  it('matches the legacy internal-fund corpus for split cash-flow and valuation authority', async () => {
+    loadInternalFundCorpusManifest();
+    const fakeDb = new FakeSnapshotDb();
+    fakeDb.fundRows.splice(
+      0,
+      fakeDb.fundRows.length,
+      ...loadCorpusInput<Array<{ id: number; baseCurrency: string }>>('legacy-inputs/funds.json')
+    );
+    fakeDb.companyRows.push(
+      ...loadCorpusInput<Array<Record<string, unknown>>>(
+        'legacy-inputs/portfolio-companies.json'
+      ).filter((row) => row['fundId'] === INTERNAL_FUND_CORPUS.fundId)
+    );
+    fakeDb.investmentRows.push(
+      ...loadCorpusInput<Array<Record<string, unknown>>>('legacy-inputs/investments.json').filter(
+        (row) => row['fundId'] === INTERNAL_FUND_CORPUS.fundId
+      )
+    );
+    fakeDb.roundRows.push(
+      ...loadCorpusInput<Array<Record<string, unknown>>>(
+        'legacy-inputs/investment-rounds.json'
+      ).filter((row) => row['fundId'] === INTERNAL_FUND_CORPUS.fundId)
+    );
+    fakeDb.overrideRows.push(
+      ...loadCorpusInput<Array<Record<string, unknown>>>(
+        'legacy-inputs/investment-round-overrides.json'
+      ).filter((row) => row['fundId'] === INTERNAL_FUND_CORPUS.fundId)
+    );
+    fakeDb.vehicleRows.push(
+      ...loadCorpusInput<Array<Record<string, unknown>>>('legacy-inputs/vehicles.json')
+        .filter((row) => row['fundId'] === INTERNAL_FUND_CORPUS.fundId)
+        .map(({ id, ...row }) => ({ vehicleId: id, ...row }))
+    );
+    fakeDb.cashRows.push(
+      ...loadCorpusInput<Array<Record<string, unknown>>>(
+        'legacy-inputs/cash-flow-events.json'
+      ).filter((row) => row['fundId'] === INTERNAL_FUND_CORPUS.fundId)
+    );
+    const snapshotMarkRows = loadCorpusInput<Array<Record<string, unknown>>>(
+      'legacy-inputs/valuation-marks.json'
+    ).filter((row) => row['fundId'] === INTERNAL_FUND_CORPUS.fundId);
+    const planningMarkRows = snapshotMarkRows
+      .filter(
+        (row) =>
+          row['importedFrom'] === 'planning_fmv_override' &&
+          (row['status'] === 'approved' || row['status'] === 'locked')
+      )
+      .map(
+        ({
+          importedFrom: _importedFrom,
+          vehicleId: _vehicleId,
+          priorMarkId: _priorMarkId,
+          ...row
+        }) => row
+      );
+    fakeDb.valuationMarkReads.push(snapshotMarkRows, planningMarkRows);
+    fakeDb.markRows.push(...snapshotMarkRows);
+
+    const snapshot = await buildFinancialFactsSnapshot({
+      fundId: INTERNAL_FUND_CORPUS.fundId,
+      asOfDate: INTERNAL_FUND_CORPUS.asOfDate,
+      actorId: INTERNAL_FUND_CORPUS.actorId,
+      idempotencyKey: 'internal-fund-corpus-snapshot',
+      database: fakeDb.asDatabase(),
+      now: INTERNAL_FUND_CORPUS.fixedClock,
+    });
+
+    expect(snapshot.payload.sourceObservationIds).toEqual([]);
+    expect(snapshot.payload.workingValueSelectionIds).toEqual([]);
+    expect(snapshot.payload.participationTermRefs).toEqual([]);
+    expect(serializeCorpusValue(snapshot)).toEqual(
+      loadCorpusExpected('expected-facts/financial-facts-snapshot.json')
+    );
+    expect(serializeCorpusValue(snapshot.payload.cashFlowSeries)).toEqual(
+      loadCorpusExpected('expected-cash-flows/financial-facts-cash-flow-series.json')
+    );
+    expect(serializeCorpusValue(snapshot.payload.marksSeries)).toEqual(
+      loadCorpusExpected('expected-valuations/financial-facts-marks-series.json')
+    );
+  });
+
   it('rejects every client-supplied knowledge cutoff', async () => {
     await expect(
       buildFinancialFactsSnapshot({

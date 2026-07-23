@@ -1,0 +1,54 @@
+[
+  {
+    "id": 1001,
+    "fundId": 101,
+    "name": "Nimbus Labs",
+    "sector": "SaaS",
+    "stage": "Seed",
+    "currentStage": "Series B",
+    "status": "active",
+    "investmentAmount": "1000000.00",
+    "investmentDate": "2024-01-15T00:00:00.000Z",
+    "currentValuation": "50000000.00",
+    "ownershipCurrentPct": "0.0200"
+  },
+  {
+    "id": 1002,
+    "fundId": 101,
+    "name": "Atlas Health",
+    "sector": "Health",
+    "stage": "Seed",
+    "currentStage": null,
+    "status": "active",
+    "investmentAmount": "750000.00",
+    "investmentDate": "2024-02-15T00:00:00.000Z",
+    "currentValuation": "3000000.00",
+    "ownershipCurrentPct": null
+  },
+  {
+    "id": 1003,
+    "fundId": 101,
+    "name": "Zero Grid",
+    "sector": "Climate",
+    "stage": "Seed",
+    "currentStage": null,
+    "status": "active",
+    "investmentAmount": "250000.00",
+    "investmentDate": "2024-03-15T00:00:00.000Z",
+    "currentValuation": "2000000.00",
+    "ownershipCurrentPct": "0.0000"
+  },
+  {
+    "id": 2001,
+    "fundId": 202,
+    "name": "Nimbus Labs",
+    "sector": "SaaS",
+    "stage": "Seed",
+    "currentStage": null,
+    "status": "active",
+    "investmentAmount": "999999.00",
+    "investmentDate": "2024-01-15T00:00:00.000Z",
+    "currentValuation": "9999999.00",
+    "ownershipCurrentPct": null
+  }
+]

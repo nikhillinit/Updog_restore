@@ -8,12 +8,21 @@ import {
   type FundCompanyActualsFactsRows,
 } from '../../../../server/services/fund-actuals/fund-company-actuals-facts-service';
 import { FundCompanyActualsFactsResponseSchema } from '../../../../shared/contracts/fund-actuals/fund-company-actuals-fact.contract';
+import {
+  INTERNAL_FUND_CORPUS,
+  loadCorpusExpected,
+  loadCorpusInput,
+  loadInternalFundCorpusManifest,
+  serializeCorpusValue,
+} from '../../../utils/internal-fund-corpus';
 
 const FUND_ID = 10;
 const AS_OF_DATE = '2026-06-30';
 const NOW = new Date('2026-06-30T12:00:00.000Z');
 
-function createRows(overrides: Partial<FundCompanyActualsFactsRows> = {}): FundCompanyActualsFactsRows {
+function createRows(
+  overrides: Partial<FundCompanyActualsFactsRows> = {}
+): FundCompanyActualsFactsRows {
   return {
     fund: { id: FUND_ID, baseCurrency: 'USD' },
     companies: [{ id: 101, fundId: FUND_ID, name: 'Acme Robotics' }],
@@ -89,6 +98,64 @@ class FundNotFoundDb {
 }
 
 describe('buildFundCompanyActualsFactsFromRows', () => {
+  it('characterizes current legacy corpus behavior without endorsing post-as-of round selection', () => {
+    loadInternalFundCorpusManifest();
+    const corpusPlanningMarks = loadCorpusInput<
+      Array<FundCompanyActualsFactsRows['planningMarks'][number] & { importedFrom: string }>
+    >('legacy-inputs/valuation-marks.json').filter(
+      (mark) => mark.importedFrom === 'planning_fmv_override'
+    );
+
+    expect(corpusPlanningMarks.some((mark) => mark.markDate > INTERNAL_FUND_CORPUS.asOfDate)).toBe(
+      true
+    );
+    expect(corpusPlanningMarks.some((mark) => mark.status === 'superseded')).toBe(true);
+    expect(
+      corpusPlanningMarks.some((mark) => mark.status === 'approved' && mark.currency !== 'USD')
+    ).toBe(true);
+
+    const response = buildFundCompanyActualsFactsFromRows({
+      fundId: INTERNAL_FUND_CORPUS.fundId,
+      asOfDate: INTERNAL_FUND_CORPUS.asOfDate,
+      now: INTERNAL_FUND_CORPUS.fixedClock,
+      rows: {
+        fund: loadCorpusInput<Array<{ id: number; baseCurrency: string }>>(
+          'legacy-inputs/funds.json'
+        ).find((fund) => fund.id === INTERNAL_FUND_CORPUS.fundId)!,
+        companies: loadCorpusInput<Array<{ id: number; fundId: number; name: string }>>(
+          'legacy-inputs/portfolio-companies.json'
+        ),
+        investments: loadCorpusInput<Array<{ id: number; fundId: number; companyId: number }>>(
+          'legacy-inputs/investments.json'
+        ),
+        allRounds: loadCorpusInput<FundCompanyActualsFactsRows['allRounds']>(
+          'legacy-inputs/investment-rounds.json'
+        ),
+        activeOverrides: loadCorpusInput<FundCompanyActualsFactsRows['activeOverrides']>(
+          'legacy-inputs/investment-round-overrides.json'
+        ),
+        planningMarks: corpusPlanningMarks,
+      },
+    });
+
+    expect(FundCompanyActualsFactsResponseSchema.parse(response)).toEqual(response);
+    const atlas = response.facts.find((fact) => fact.companyId === 1002);
+    expect(atlas).toMatchObject({
+      approvedPlanningFmvMarkId: 6008,
+      currencyStatus: 'mismatch_blocked',
+      planningFmvStatus: 'blocked',
+    });
+    expect(atlas?.warnings.map((warning) => warning.code)).toContain('CURRENCY_MISMATCH_BLOCK');
+    const nimbus = response.facts.find((fact) => fact.companyId === 1001);
+    expect(nimbus).toMatchObject({
+      approvedPlanningFmvMarkId: 6002,
+      planningFmvStatus: 'active',
+    });
+    expect(serializeCorpusValue(response)).toEqual(
+      loadCorpusExpected('expected-facts/company-actuals.json')
+    );
+  });
+
   it('ignores cross-fund investments, rounds, and marks before building facts', () => {
     const response = build(
       createRows({

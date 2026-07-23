@@ -1,0 +1,30 @@
+{
+  "asOfDate": "2026-06-30T12:00:00.000Z",
+  "totalCommitted": 50000000,
+  "totalCalled": 2000000,
+  "totalDeployed": 2000000,
+  "totalUncalled": 48000000,
+  "currentNAV": 6000000,
+  "totalDistributions": 0,
+  "totalValue": 6000000,
+  "irr": "omitted_from_legacy_corpus",
+  "tvpi": 3,
+  "dpi": null,
+  "rvpi": 3,
+  "activeCompanies": 3,
+  "exitedCompanies": 0,
+  "writtenOffCompanies": 0,
+  "totalCompanies": 3,
+  "deploymentRate": 4,
+  "averageCheckSize": 666666.6666666666,
+  "fundAgeMonths": 47,
+  "availability": {
+    "irr": "omitted_from_legacy_corpus",
+    "dpi": {
+      "status": "unavailable",
+      "source": "distributions",
+      "reason": "no_distributions_recorded",
+      "message": "No distributions recorded"
+    }
+  }
+}

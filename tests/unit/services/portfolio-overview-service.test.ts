@@ -14,6 +14,12 @@ vi.mock('../../../server/services/portfolio-time-machine-read', () => ({
 import { getPortfolioOverview } from '../../../server/services/portfolio-overview-service';
 import { NotFoundError } from '../../../server/errors';
 import { PortfolioOverviewResponseV1Schema } from '../../../shared/contracts/portfolio-overview-v1.contract';
+import {
+  INTERNAL_FUND_CORPUS,
+  loadCorpusExpected,
+  loadCorpusInput,
+  serializeCorpusValue,
+} from '../../utils/internal-fund-corpus';
 
 const NOW = new Date('2026-06-24T00:00:00.000Z');
 
@@ -53,6 +59,30 @@ describe('getPortfolioOverview', () => {
   beforeEach(() => {
     storageState.getFund.mockReset();
     readState.listCompanies.mockReset();
+  });
+
+  it('matches the legacy internal-fund corpus for portfolio overview ownership fallback', async () => {
+    const corpusFund = loadCorpusInput<Array<Record<string, unknown>>>(
+      'legacy-inputs/funds.json'
+    ).find((fund) => fund['id'] === INTERNAL_FUND_CORPUS.fundId);
+    storageState.getFund.mockResolvedValue(corpusFund);
+    mockCompanies(
+      loadCorpusInput<Array<ReturnType<typeof company>>>(
+        'legacy-inputs/portfolio-companies.json'
+      ).filter((candidate) => candidate.fundId === INTERNAL_FUND_CORPUS.fundId)
+    );
+
+    const result = await getPortfolioOverview(INTERNAL_FUND_CORPUS.fundId, {
+      now: INTERNAL_FUND_CORPUS.fixedClock,
+    });
+
+    expect(PortfolioOverviewResponseV1Schema.parse(result)).toEqual(result);
+    expect(serializeCorpusValue(result)).toEqual(
+      loadCorpusExpected('expected-facts/portfolio-overview.json')
+    );
+    expect(
+      serializeCorpusValue(result.companies.map(({ id, currentValue }) => ({ id, currentValue })))
+    ).toEqual(loadCorpusExpected('expected-valuations/portfolio-overview-position-fmv.json'));
   });
 
   it('computes per-company MOIC and portfolio aggregates server-side with Decimal', async () => {

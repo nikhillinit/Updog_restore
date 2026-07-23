@@ -1,0 +1,18 @@
+[
+  {
+    "id": 3001,
+    "fundId": 101,
+    "vehicleType": "main_fund",
+    "vehicleSlug": "main",
+    "name": "Internal Fund A Main",
+    "currency": "USD"
+  },
+  {
+    "id": 3002,
+    "fundId": 101,
+    "vehicleType": "spv",
+    "vehicleSlug": "nimbus-spv",
+    "name": "Nimbus SPV",
+    "currency": "USD"
+  }
+]

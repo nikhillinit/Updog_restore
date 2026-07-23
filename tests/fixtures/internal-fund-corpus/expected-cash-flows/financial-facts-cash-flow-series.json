@@ -1,0 +1,77 @@
+{
+  "series": [
+    {
+      "eventType": "fund_expense",
+      "vehicleId": 3001,
+      "perspective": "fund_gross",
+      "points": [
+        {
+          "eventId": 4012,
+          "effectiveAt": "2026-05-03T00:00:00.000Z",
+          "amount": "200000.000000"
+        }
+      ]
+    },
+    {
+      "eventType": "lp_capital_call",
+      "vehicleId": 3001,
+      "perspective": "lp_net",
+      "points": [
+        {
+          "eventId": 4001,
+          "effectiveAt": "2024-01-10T00:00:00.000Z",
+          "amount": "1000000.000000"
+        }
+      ]
+    },
+    {
+      "eventType": "portfolio_investment",
+      "vehicleId": 3001,
+      "perspective": "company",
+      "points": [
+        {
+          "eventId": 4002,
+          "effectiveAt": "2024-01-15T00:00:00.000Z",
+          "amount": "600000.000000"
+        }
+      ]
+    },
+    {
+      "eventType": "portfolio_investment",
+      "vehicleId": 3002,
+      "perspective": "company",
+      "points": [
+        {
+          "eventId": 4003,
+          "effectiveAt": "2025-04-20T00:00:00.000Z",
+          "amount": "400000.000000"
+        }
+      ]
+    },
+    {
+      "eventType": "recallable_distribution",
+      "vehicleId": 3001,
+      "perspective": "lp_net",
+      "points": [
+        {
+          "eventId": 4008,
+          "effectiveAt": "2026-04-03T00:00:00.000Z",
+          "amount": "25000.000000"
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "contributions": "975000.000000",
+    "distributions": "0.000000",
+    "recallableDistributions": "25000.000000"
+  },
+  "warnings": [
+    {
+      "code": "NON_USD_CASH_FLOW_EXCLUDED",
+      "severity": "warning",
+      "message": "Cash-flow event 4009 was excluded because policy 1.0.0 accepts USD only.",
+      "source": "cash_flow_events:4009"
+    }
+  ]
+}

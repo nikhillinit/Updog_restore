@@ -1,0 +1,56 @@
+{
+  "marks": [
+    {
+      "markId": 6001,
+      "companyId": 1001,
+      "vehicleId": 3001,
+      "effectiveAt": "2026-03-31",
+      "fairValue": "1100000.000000",
+      "currency": "USD"
+    },
+    {
+      "markId": 6002,
+      "companyId": 1001,
+      "vehicleId": 3002,
+      "effectiveAt": "2026-06-15",
+      "fairValue": "1300000.000000",
+      "currency": "USD"
+    },
+    {
+      "markId": 6003,
+      "companyId": 1002,
+      "vehicleId": 3001,
+      "effectiveAt": "2026-06-30",
+      "fairValue": "3000000.000000",
+      "currency": "USD"
+    },
+    {
+      "markId": 6012,
+      "companyId": 1003,
+      "vehicleId": null,
+      "effectiveAt": "2026-06-30",
+      "fairValue": "2500000.000000",
+      "currency": "USD"
+    }
+  ],
+  "periodNav": [
+    {
+      "periodEnd": "2026-03-31",
+      "nav": "1100000.000000",
+      "warnings": []
+    },
+    {
+      "periodEnd": "2026-06-30",
+      "nav": "6800000.000000",
+      "warnings": [
+        {
+          "code": "VALUATION_MARK_STALE",
+          "severity": "warning",
+          "message": "NAV at 2026-06-30 carries at least one valuation mark forward from an earlier date.",
+          "source": "valuation_marks"
+        }
+      ]
+    }
+  ],
+  "warnings": []
+}
