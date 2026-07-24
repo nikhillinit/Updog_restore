@@ -18,6 +18,7 @@ export const ALLOWED_MAPPING_TRANSFORMS = [
 export const IDENTITY_TARGET_FIELDS = ['company_name', 'company_external_id'] as const;
 
 export const AllowedMappingTransformSchema = z.enum(ALLOWED_MAPPING_TRANSFORMS);
+export type AllowedMappingTransform = z.infer<typeof AllowedMappingTransformSchema>;
 export const MappingRuleV1Schema = z
   .object({
     sourceColumn: z.string().min(1),
