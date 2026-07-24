@@ -16,6 +16,8 @@ import { randomUUID } from 'node:crypto';
 
 import { Decimal } from '@shared/lib/decimal-config';
 import { canonicalSha256 } from '@shared/lib/canonical-hash';
+
+import { parseCsvBuffer, normalizeHeaders } from '../../lib/csv-tokenizer';
 import type {
   ImportDryRunResponse,
   ImportError,
@@ -114,53 +116,9 @@ export function computeSourceRowHash(input: {
 // CSV / NOTION PARSING
 // ============================================================================
 
-/**
- * Minimal CSV splitter. Handles double-quoted fields and escaped quotes.
- * Sufficient for fixture parsing in Phase 0; production import in Phase 1
- * may swap this for a hardened parser if necessary.
- */
-function splitCsvLine(line: string): string[] {
-  const cells: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (inQuotes) {
-      if (ch === '"' && line[i + 1] === '"') {
-        current += '"';
-        i++;
-      } else if (ch === '"') {
-        inQuotes = false;
-      } else {
-        current += ch;
-      }
-    } else if (ch === '"') {
-      inQuotes = true;
-    } else if (ch === ',') {
-      cells.push(current);
-      current = '';
-    } else {
-      current += ch;
-    }
-  }
-  cells.push(current);
-  return cells.map((c) => c.trim());
-}
-
-const BOM_CHAR = String.fromCharCode(0xfeff);
-
-function parseCsvBuffer(buffer: Buffer): { header: string[]; rows: string[][] } {
-  // Strip optional UTF-8 BOM at the start of the file.
-  const raw = buffer.toString('utf8');
-  const text = raw.startsWith(BOM_CHAR) ? raw.slice(1) : raw;
-  const lines = text.split(/\r?\n/).filter((l) => l.length > 0);
-  if (lines.length === 0) {
-    return { header: [], rows: [] };
-  }
-  const header = splitCsvLine(lines[0]!).map((h) => h.toLowerCase().replace(/[\s-]/g, '_'));
-  const rows = lines.slice(1).map((l) => splitCsvLine(l));
-  return { header, rows };
-}
+// The CSV tokenizer (splitCsvLine/parseCsvBuffer/normalizeHeaders) lives in the
+// shared module `server/lib/csv-tokenizer` so the V1 lane and the V2
+// financial-observations adapters use exactly one implementation (defect D10).
 
 /**
  * Notion CSV exports use Title Case headers with spaces. Normalize to
@@ -182,10 +140,6 @@ const NOTION_HEADER_MAP: Record<string, string> = {
   description: 'description',
   notes: 'description',
 };
-
-function normalizeHeaders(header: string[], mapping: Record<string, string>): string[] {
-  return header.map((h) => mapping[h] ?? h);
-}
 
 function parseOptionalPositiveInteger(
   raw: string | undefined,

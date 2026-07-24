@@ -19,6 +19,8 @@ export const IDENTITY_LINK_TYPES = [
 
 export const FinancialObservationSourceSchema = z.enum(FINANCIAL_OBSERVATION_SOURCES);
 export const FinancialObservationDomainSchema = z.enum(FINANCIAL_OBSERVATION_DOMAINS);
+export type FinancialObservationSource = z.infer<typeof FinancialObservationSourceSchema>;
+export type FinancialObservationDomain = z.infer<typeof FinancialObservationDomainSchema>;
 export const SourceObservationStatusSchema = z.enum(SOURCE_OBSERVATION_STATUSES);
 export const ImportBatchStatusSchema = z.enum(IMPORT_BATCH_STATUSES);
 export const IdentityLinkTypeSchema = z.enum(IDENTITY_LINK_TYPES);
