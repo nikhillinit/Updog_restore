@@ -29,6 +29,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { formatDecimalCurrency } from '@/lib/format/lp-reporting/decimal';
 import type { ImportDryRunResponse, ImportPreviewRow } from '@shared/contracts/lp-reporting';
+import type { ImportBatchStatusResponse } from '@shared/contracts/financial-observations/reconciliation-api.contract';
 
 const PLACEHOLDER = '--';
 
@@ -53,7 +54,8 @@ const BUCKET_DESCRIPTIONS: Record<Bucket, string> = {
 };
 
 export interface ImportPreviewPanelProps {
-  response: ImportDryRunResponse;
+  response?: ImportDryRunResponse;
+  batchStatus?: ImportBatchStatusResponse;
 }
 
 function bucketize(response: ImportDryRunResponse): BucketedRows {
@@ -149,8 +151,66 @@ function BucketTable({ bucket, rows }: BucketTableProps) {
   );
 }
 
-export function ImportPreviewPanel({ response }: ImportPreviewPanelProps) {
-  const buckets = useMemo(() => bucketize(response), [response]);
+function BatchStatusPanel({ batchStatus }: { batchStatus: ImportBatchStatusResponse }) {
+  return (
+    <Card data-testid="import-preview-batch-status">
+      <CardHeader>
+        <CardTitle className="text-base">Batch {batchStatus.batchId}</CardTitle>
+        <p className="text-xs text-charcoal/70 font-poppins">
+          Accepted evidence only. Not calculation-active.
+        </p>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead scope="col">Group</TableHead>
+              <TableHead scope="col">Observation</TableHead>
+              <TableHead scope="col">Status</TableHead>
+              <TableHead scope="col">Cases</TableHead>
+              <TableHead scope="col">Accepted</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {batchStatus.groups.map((group) => (
+              <TableRow key={group.dependencyGroupKey}>
+                <TableCell>{group.dependencyGroupKey}</TableCell>
+                <TableCell>{group.observationId}</TableCell>
+                <TableCell>{group.observationStatus}</TableCell>
+                <TableCell>
+                  {group.caseIds.length === 0 ? '--' : group.caseIds.join(', ')}
+                </TableCell>
+                <TableCell>{group.accepted ? 'yes' : 'no'}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {batchStatus.blockers.length > 0 ? (
+          <div className="mt-4 space-y-2" data-testid="import-preview-batch-blockers">
+            {batchStatus.blockers.map((blocker) => (
+              <Badge key={blocker.caseId} variant="outline">
+                Case {blocker.caseId}: {blocker.caseType}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+export function ImportPreviewPanel({ response, batchStatus }: ImportPreviewPanelProps) {
+  const buckets = useMemo(
+    () => (response ? bucketize(response) : { matched: [], partial: [], unmatched: [] }),
+    [response]
+  );
+
+  if (batchStatus) {
+    return <BatchStatusPanel batchStatus={batchStatus} />;
+  }
+  if (!response) {
+    return null;
+  }
 
   return (
     <div className="space-y-4" data-testid="import-preview-panel">
