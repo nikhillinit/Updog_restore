@@ -823,7 +823,13 @@ export const COMMON_API_ROUTE_MANIFEST = [
     financial: true,
     migrationParity: {
       kind: 'c1',
-      tables: ['evidence_records', 'lp_report_packages', 'lp_report_package_exports'],
+      tables: [
+        'evidence_records',
+        'lp_report_packages',
+        'lp_report_package_exports',
+        'source_artifacts',
+        'import_mapping_profiles',
+      ],
     },
     schemaTables: [
       'cash_flow_events',
@@ -832,6 +838,8 @@ export const COMMON_API_ROUTE_MANIFEST = [
       'portfoliocompanies',
       'users',
       'lp_fund_commitments',
+      'source_artifacts',
+      'import_mapping_profiles',
       'evidence_records',
       'lp_report_packages',
       'lp_report_package_exports',

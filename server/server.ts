@@ -34,6 +34,12 @@ import { installRumIngressGuards } from './routes/metrics-rum-ingress.js';
 import type { Providers } from './providers.js';
 import { isPublicApiPath } from './lib/public-api-boundary.js';
 import { requireCsrf } from './lib/auth/csrf.js';
+import {
+  ARTIFACT_MAX_BYTES,
+  ARTIFACT_RAW_MEDIA_TYPES,
+  isArtifactUploadRequest,
+  isMappingProfileCreateRequest,
+} from './services/financial-observations/source-artifact-service.js';
 
 export { isPublicApiPath } from './lib/public-api-boundary.js';
 
@@ -122,6 +128,8 @@ export async function createServer(
         'X-Request-ID',
         'If-Match',
         'Idempotency-Key',
+        'X-Artifact-File-Name',
+        'X-Artifact-Source-Type',
       ],
       exposedHeaders: ['X-Request-ID', 'RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
     })
@@ -131,6 +139,13 @@ export async function createServer(
 
   // Body parsing with size limits and CSP report support
   const bodyLimit = config.BODY_LIMIT;
+  const artifactRawParser = express.raw({
+    type: [...ARTIFACT_RAW_MEDIA_TYPES],
+    limit: ARTIFACT_MAX_BYTES,
+  });
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    return isArtifactUploadRequest(req) ? artifactRawParser(req, res, next) : next();
+  });
   app.use(
     bodyParser['json']({
       limit: bodyLimit,
@@ -300,6 +315,12 @@ export async function createServer(
 
   // Apply idempotency middleware to mutation endpoints
   app.use('/api', (req: Request, res: Response, next: NextFunction) => {
+    const fullApiRequest = { method: req.method, path: `/api${req.path}` };
+    // D13: these V2 commands compare service request hashes so a changed
+    // payload reusing the same key returns 409 instead of middleware cache replay.
+    if (isArtifactUploadRequest(fullApiRequest) || isMappingProfileCreateRequest(fullApiRequest)) {
+      return next();
+    }
     if (
       ['POST', 'PUT', 'PATCH'].includes(req.method) &&
       (req.path.includes('/reserves/calculate') ||

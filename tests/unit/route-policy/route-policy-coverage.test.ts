@@ -96,6 +96,8 @@ const LP_REPORTING_ROUTE_POLICY_KEYS = [
   'POST /api/funds/:fundId/imports/valuation-marks/dry-run',
   'POST /api/funds/:fundId/imports/ledger/commit',
   'POST /api/funds/:fundId/imports/valuation-marks/commit',
+  'POST /api/funds/:fundId/imports/artifacts',
+  'POST /api/funds/:fundId/imports/mapping-profiles',
 ] as const;
 
 type LpReportingPolicyExpectation = Pick<
@@ -227,6 +229,17 @@ const LP_REPORTING_ADDITIONAL_POLICY_GROUPS: ReadonlyArray<{
     ],
     expected: {
       workflowRequirement: 'clean_preview_hash_fund_references_and_source_hashes_verified',
+      exportPolicy: 'not_exportable',
+      provenanceRequired: true,
+    },
+  },
+  {
+    keys: [
+      'POST /api/funds/:fundId/imports/artifacts',
+      'POST /api/funds/:fundId/imports/mapping-profiles',
+    ],
+    expected: {
+      workflowRequirement: 'fund_scope_and_idempotency_verified',
       exportPolicy: 'not_exportable',
       provenanceRequired: true,
     },
@@ -430,7 +443,7 @@ describe('route policy coverage', () => {
   });
 
   it('covers every LP-reporting metric-run and import route', () => {
-    expect(LP_REPORTING_ROUTE_POLICY_KEYS).toHaveLength(28);
+    expect(LP_REPORTING_ROUTE_POLICY_KEYS).toHaveLength(30);
 
     const declaredRoutes = [
       ...declaredRoutePolicyKeys('server/routes/lp-reporting/metric-runs.ts'),

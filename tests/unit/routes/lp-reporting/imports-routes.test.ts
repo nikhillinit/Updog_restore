@@ -44,7 +44,15 @@ const commitServiceMock = vi.hoisted(() => {
   };
 });
 
-vi.mock('../../../../server/lib/auth/jwt', () => ({
+const sourceArtifactServiceMock = vi.hoisted(() => ({
+  createSourceArtifact: vi.fn(),
+}));
+const mappingProfileServiceMock = vi.hoisted(() => ({
+  createMappingProfileVersion: vi.fn(),
+}));
+
+vi.mock('../../../../server/lib/auth/jwt', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../../server/lib/auth/jwt')>()),
   requireAuth: () => (req: Request, res: Response, next: NextFunction) => {
     if (!authState.authenticated) {
       return res.sendStatus(401);
@@ -78,9 +86,35 @@ vi.mock('../../../../server/lib/auth/jwt', () => ({
   },
 }));
 
+vi.mock('../../../../server/lib/auth/csrf', () => ({
+  requireCsrf: (_req: Request, _res: Response, next: NextFunction) => next(),
+}));
+
 vi.mock('../../../../server/services/lp-reporting/import-commit-service', () => commitServiceMock);
+vi.mock(
+  '../../../../server/services/financial-observations/source-artifact-service',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('../../../../server/services/financial-observations/source-artifact-service')
+    >()),
+    createSourceArtifact: sourceArtifactServiceMock.createSourceArtifact,
+  })
+);
+vi.mock(
+  '../../../../server/services/financial-observations/mapping-profile-service',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('../../../../server/services/financial-observations/mapping-profile-service')
+    >()),
+    createMappingProfileVersion: mappingProfileServiceMock.createMappingProfileVersion,
+  })
+);
 
 import importsRouter from '../../../../server/routes/lp-reporting/imports';
+import {
+  ARTIFACT_MAX_BYTES,
+  ARTIFACT_RAW_MEDIA_TYPES,
+} from '../../../../server/services/financial-observations/source-artifact-service';
 
 const FIXTURES_DIR = path.join(process.cwd(), 'tests', 'fixtures', 'lp-reporting');
 const ledgerCsvBase64 = fs
@@ -106,6 +140,7 @@ function buildValuationCsvWithFutureMark(): string {
 
 function buildApp(): express.Express {
   const app = express();
+  app.use(express.raw({ type: [...ARTIFACT_RAW_MEDIA_TYPES], limit: ARTIFACT_MAX_BYTES }));
   app.use(express.json({ limit: '512kb' }));
   app.use(importsRouter);
   return app;
@@ -115,12 +150,57 @@ beforeEach(() => {
   authState.authenticated = true;
   authState.userId = nextUserId++;
   authState.fundIds = [1, 2];
+  sourceArtifactServiceMock.createSourceArtifact.mockImplementation(
+    async (input: {
+      fundId: number;
+      sourceType: string;
+      fileName: string | null;
+      mediaType: string;
+      payload: Buffer;
+      actorId: number | null;
+    }) => ({
+      id: 101,
+      fundId: input.fundId,
+      sourceType: input.sourceType,
+      fileName: input.fileName,
+      mediaType: input.mediaType,
+      byteCount: input.payload.byteLength,
+      payloadSha256: 'a'.repeat(64),
+      purgeAfter: '2027-08-27T22:46:12.807Z',
+      createdBy: input.actorId,
+      createdAt: '2026-07-23T22:46:12.807Z',
+      replayed: false,
+    })
+  );
+  mappingProfileServiceMock.createMappingProfileVersion.mockImplementation(
+    async (input: {
+      fundId: number;
+      name: string;
+      sourceType: string;
+      domain: string;
+      mappings: unknown[];
+    }) => ({
+      id: 201,
+      fundId: input.fundId,
+      name: input.name,
+      sourceType: input.sourceType,
+      domain: input.domain,
+      version: 1,
+      mappings: input.mappings,
+      identitySemanticsHash: 'b'.repeat(64),
+      supersededByProfileId: null,
+      createdAt: '2026-07-23T22:46:12.807Z',
+      replayed: false,
+    })
+  );
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
   commitServiceMock.commitLedgerImport.mockReset();
   commitServiceMock.commitValuationMarkImport.mockReset();
+  sourceArtifactServiceMock.createSourceArtifact.mockReset();
+  mappingProfileServiceMock.createMappingProfileVersion.mockReset();
 });
 
 describe('POST /api/funds/:fundId/imports/ledger/dry-run', () => {
@@ -336,6 +416,227 @@ describe('POST /api/funds/:fundId/imports/valuation-marks/dry-run', () => {
   });
 });
 
+describe('POST /api/funds/:fundId/imports/artifacts', () => {
+  it('returns 401 when unauthenticated and 403 on cross-fund access', async () => {
+    authState.authenticated = false;
+    const unauthenticated = await request(buildApp())
+      .post('/api/funds/1/imports/artifacts')
+      .set('Content-Type', 'application/octet-stream')
+      .set('X-Artifact-Source-Type', 'csv')
+      .set('Idempotency-Key', 'artifact-unauthenticated')
+      .send(Buffer.from('raw'));
+    expect(unauthenticated.status).toBe(401);
+
+    authState.authenticated = true;
+    const crossFund = await request(buildApp())
+      .post('/api/funds/99/imports/artifacts')
+      .set('Content-Type', 'application/octet-stream')
+      .set('X-Artifact-Source-Type', 'csv')
+      .set('Idempotency-Key', 'artifact-cross-fund')
+      .send(Buffer.from('raw'));
+    expect(crossFund.status).toBe(403);
+  });
+
+  it('rejects missing or invalid idempotency and source-type headers', async () => {
+    const missingKey = await request(buildApp())
+      .post('/api/funds/1/imports/artifacts')
+      .set('Content-Type', 'application/octet-stream')
+      .set('X-Artifact-Source-Type', 'csv')
+      .send(Buffer.from('raw'));
+    expect(missingKey.status).toBe(400);
+    expect(missingKey.body.error).toBe('INVALID_IDEMPOTENCY_KEY');
+
+    const longKey = await request(buildApp())
+      .post('/api/funds/1/imports/artifacts')
+      .set('Content-Type', 'application/octet-stream')
+      .set('X-Artifact-Source-Type', 'csv')
+      .set('Idempotency-Key', 'x'.repeat(129))
+      .send(Buffer.from('raw'));
+    expect(longKey.status).toBe(400);
+    expect(longKey.body.error).toBe('INVALID_IDEMPOTENCY_KEY');
+
+    const invalidSource = await request(buildApp())
+      .post('/api/funds/1/imports/artifacts')
+      .set('Content-Type', 'application/octet-stream')
+      .set('X-Artifact-Source-Type', 'manual')
+      .set('Idempotency-Key', 'artifact-invalid-source')
+      .send(Buffer.from('raw'));
+    expect(invalidSource.status).toBe(400);
+    expect(invalidSource.body.error).toBe('INVALID_ARTIFACT_SOURCE_TYPE');
+  });
+
+  it('decodes an RFC 8187 filename and stores only raw payload metadata', async () => {
+    const response = await request(buildApp())
+      .post('/api/funds/1/imports/artifacts')
+      .set('Content-Type', 'text/csv')
+      .set('X-Artifact-Source-Type', 'csv')
+      .set('X-Artifact-File-Name', "UTF-8''Quarterly%20Marks.csv")
+      .set('Idempotency-Key', 'artifact-rfc8187')
+      .send(Buffer.from('company,value\nAcme,100\n'));
+
+    expect(response.status).toBe(201);
+    expect(response.body).toMatchObject({
+      id: 101,
+      fileName: 'Quarterly Marks.csv',
+      mediaType: 'text/csv',
+    });
+    expect(response.body).not.toHaveProperty('payload');
+    expect(response.body).not.toHaveProperty('replayed');
+    expect(sourceArtifactServiceMock.createSourceArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileName: 'Quarterly Marks.csv',
+        sourceType: 'csv',
+        payload: Buffer.from('company,value\nAcme,100\n'),
+      })
+    );
+  });
+
+  it('rejects a malformed RFC 8187 filename', async () => {
+    const response = await request(buildApp())
+      .post('/api/funds/1/imports/artifacts')
+      .set('Content-Type', 'application/octet-stream')
+      .set('X-Artifact-Source-Type', 'csv')
+      .set('X-Artifact-File-Name', "UTF-8''bad%ZZ.csv")
+      .set('Idempotency-Key', 'artifact-malformed-name')
+      .send(Buffer.from('raw'));
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('INVALID_ARTIFACT_FILE_NAME');
+    expect(sourceArtifactServiceMock.createSourceArtifact).not.toHaveBeenCalled();
+  });
+
+  it('accepts a JSON envelope and rejects content over 200,000 characters', async () => {
+    const accepted = await request(buildApp())
+      .post('/api/funds/1/imports/artifacts')
+      .set('Idempotency-Key', 'artifact-manual')
+      .send({ sourceType: 'manual', fileName: null, content: 'manual observation' });
+    expect(accepted.status).toBe(201);
+    expect(sourceArtifactServiceMock.createSourceArtifact).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        sourceType: 'manual',
+        fileName: null,
+        mediaType: 'application/json',
+        payload: Buffer.from('manual observation'),
+      })
+    );
+
+    const oversized = await request(buildApp())
+      .post('/api/funds/1/imports/artifacts')
+      .set('Idempotency-Key', 'artifact-oversized-json')
+      .send({ sourceType: 'manual', fileName: null, content: 'x'.repeat(200_001) });
+    expect(oversized.status).toBe(400);
+    expect(oversized.body.error).toBe('INVALID_ARTIFACT_BODY');
+  });
+});
+
+describe('POST /api/funds/:fundId/imports/mapping-profiles', () => {
+  const mappingBody = {
+    name: 'Quarterly marks',
+    sourceType: 'csv',
+    domain: 'valuation',
+    mappings: [{ sourceColumn: 'Company', targetField: 'company_name', transforms: ['trim'] }],
+    supersedesProfileId: null,
+  };
+
+  it('returns 401 when unauthenticated and 403 on cross-fund access', async () => {
+    authState.authenticated = false;
+    const unauthenticated = await request(buildApp())
+      .post('/api/funds/1/imports/mapping-profiles')
+      .set('Idempotency-Key', 'mapping-unauthenticated')
+      .send(mappingBody);
+    expect(unauthenticated.status).toBe(401);
+
+    authState.authenticated = true;
+    const crossFund = await request(buildApp())
+      .post('/api/funds/99/imports/mapping-profiles')
+      .set('Idempotency-Key', 'mapping-cross-fund')
+      .send(mappingBody);
+    expect(crossFund.status).toBe(403);
+  });
+
+  it('creates a mapping profile and rejects disallowed transforms', async () => {
+    const created = await request(buildApp())
+      .post('/api/funds/1/imports/mapping-profiles')
+      .set('Idempotency-Key', 'mapping-create')
+      .send(mappingBody);
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({
+      id: 201,
+      name: 'Quarterly marks',
+      identitySemanticsHash: 'b'.repeat(64),
+    });
+    expect(created.body).not.toHaveProperty('replayed');
+
+    const invalid = await request(buildApp())
+      .post('/api/funds/1/imports/mapping-profiles')
+      .set('Idempotency-Key', 'mapping-invalid')
+      .send({
+        ...mappingBody,
+        mappings: [
+          { sourceColumn: 'Company', targetField: 'company_name', transforms: ['uppercase'] },
+        ],
+      });
+    expect(invalid.status).toBe(400);
+    expect(invalid.body.error).toBe('INVALID_MAPPING_PROFILE_BODY');
+    expect(mappingProfileServiceMock.createMappingProfileVersion).toHaveBeenCalledTimes(1);
+  });
+
+  it('shares the 100/hour/user V2 limiter across artifact and mapping routes', async () => {
+    authState.userId = nextUserId++;
+    const app = buildApp();
+    for (let index = 0; index < 50; index += 1) {
+      const artifact = await request(app)
+        .post('/api/funds/1/imports/artifacts')
+        .set('Content-Type', 'application/octet-stream')
+        .set('X-Artifact-Source-Type', 'csv')
+        .set('Idempotency-Key', `artifact-rate-${index}`)
+        .send(Buffer.from('raw'));
+      expect(artifact.status).toBe(201);
+
+      const mapping = await request(app)
+        .post('/api/funds/1/imports/mapping-profiles')
+        .set('Idempotency-Key', `mapping-rate-${index}`)
+        .send(mappingBody);
+      expect(mapping.status).toBe(201);
+    }
+
+    const limited = await request(app)
+      .post('/api/funds/1/imports/artifacts')
+      .set('Content-Type', 'application/octet-stream')
+      .set('X-Artifact-Source-Type', 'csv')
+      .set('Idempotency-Key', 'artifact-rate-limited')
+      .send(Buffer.from('raw'));
+    expect(limited.status).toBe(429);
+    expect(limited.body.error).toBe('TOO_MANY_REQUESTS');
+  });
+});
+
+describe('makeApp artifact raw-parser boundary', () => {
+  it('accepts exactly 4 MiB and rejects 4 MiB plus one byte', async () => {
+    authState.userId = nextUserId++;
+    const { makeApp } = await import('../../../../server/app');
+    const app = makeApp();
+
+    const accepted = await request(app)
+      .post('/api/funds/1/imports/artifacts')
+      .set('Content-Type', 'application/octet-stream')
+      .set('X-Artifact-Source-Type', 'csv')
+      .set('Idempotency-Key', 'artifact-boundary-accepted')
+      .send(Buffer.alloc(ARTIFACT_MAX_BYTES));
+    expect(accepted.status).toBeGreaterThanOrEqual(200);
+    expect(accepted.status).toBeLessThan(300);
+    expect(accepted.body.byteCount).toBe(ARTIFACT_MAX_BYTES);
+
+    const rejected = await request(app)
+      .post('/api/funds/1/imports/artifacts')
+      .set('Content-Type', 'application/octet-stream')
+      .set('X-Artifact-Source-Type', 'csv')
+      .set('Idempotency-Key', 'artifact-boundary-rejected')
+      .send(Buffer.alloc(ARTIFACT_MAX_BYTES + 1));
+    expect(rejected.status).toBe(413);
+  });
+});
+
 describe('DB-write absence -- no INSERT runs during dry-run', () => {
   it('the imports router does NOT import the db module', () => {
     const routerSource = fs.readFileSync(
@@ -380,12 +681,17 @@ describe('Source grep -- bounded commit endpoints, no /api/public', () => {
     expect(routerSource).not.toMatch(/\/api\/public/);
   });
 
-  it('uses /api/funds/:fundId/imports prefix only', () => {
-    const matches =
-      routerSource.match(/router\.(post|get|put|delete|patch)\(\s*['"]([^'"]+)['"]/g) ?? [];
-    expect(matches.length).toBeGreaterThan(0);
-    for (const m of matches) {
-      expect(m).toMatch(/\/api\/funds\/:fundId\/imports\/[^/]+\/(dry-run|commit)/);
-    }
+  it('declares exactly the four frozen V1 routes and two V2 creation routes', () => {
+    const paths = [
+      ...routerSource.matchAll(/router\.(?:post|get|put|delete|patch)\(\s*['"]([^'"]+)['"]/g),
+    ].map((match) => match[1]);
+    expect(paths).toEqual([
+      '/api/funds/:fundId/imports/ledger/dry-run',
+      '/api/funds/:fundId/imports/valuation-marks/dry-run',
+      '/api/funds/:fundId/imports/ledger/commit',
+      '/api/funds/:fundId/imports/valuation-marks/commit',
+      '/api/funds/:fundId/imports/artifacts',
+      '/api/funds/:fundId/imports/mapping-profiles',
+    ]);
   });
 });
