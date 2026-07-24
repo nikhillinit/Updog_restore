@@ -5,6 +5,9 @@ import {
   Sha256HexSchema,
 } from './financial-observation.contract';
 import { MappingRuleV1Schema } from './import-profile.contract';
+import { IMPORT_V2_CONTRACT_VERSION } from './import-v2-version.contract';
+
+export { IMPORT_V2_CONTRACT_VERSION } from './import-v2-version.contract';
 
 /**
  * V2 normalization contract (PLAN_61 Wave C, Task 5a).
@@ -15,8 +18,6 @@ import { MappingRuleV1Schema } from './import-profile.contract';
  * (Tasks 6 and 9-11 wire against this frozen shape). Additive to the V1
  * `csv | notion` import contract, which is unchanged.
  */
-
-export const IMPORT_V2_CONTRACT_VERSION = 'import-v2' as const;
 
 /** Fingerprint preimage algorithm version. Bump when the economic subset changes. */
 export const FINGERPRINT_VERSION = 1 as const;

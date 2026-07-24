@@ -9,8 +9,8 @@ import {
   type CurrentPlanVersionV1,
 } from '@shared/contracts/current-plan-version-v1.contract';
 import {
-  FinancialFactsSnapshotV1Schema,
-  type FinancialFactsSnapshotV1,
+  PersistedFinancialFactsSnapshotV1Schema,
+  type PersistedFinancialFactsSnapshotV1,
 } from '@shared/contracts/financial-facts-snapshot-v1.contract';
 import { CURRENT_FORECAST_SHADOW_MISMATCH_REASONS } from '../../../server/services/current-forecast-shadow-service';
 
@@ -75,7 +75,7 @@ export interface CurrentForecastReplayCorpusEntry {
   sourceTruthCase: string;
   input: CurrentForecastV2Input;
   plan: CurrentPlanVersionV1;
-  facts: FinancialFactsSnapshotV1 & { readonly id: number };
+  facts: PersistedFinancialFactsSnapshotV1 & { readonly id: number };
   referenceBasis: z.infer<typeof ReferenceBasisSchema>;
   expected: z.infer<typeof ExpectationSchema>;
 }
@@ -86,7 +86,7 @@ function loadEntry(raw: unknown): CurrentForecastReplayCorpusEntry {
   const plan = CurrentPlanVersionV1Schema.parse(file.plan);
   const factsEnvelope = FactsEnvelopeSchema.parse(file.facts);
   const { id, ...factsWithoutId } = factsEnvelope;
-  const facts = { ...FinancialFactsSnapshotV1Schema.parse(factsWithoutId), id };
+  const facts = { ...PersistedFinancialFactsSnapshotV1Schema.parse(factsWithoutId), id };
 
   return {
     name: file.name,

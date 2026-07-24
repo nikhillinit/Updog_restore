@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 import {
   FINANCIAL_FACTS_POLICY_VERSION,
-  FinancialFactsSnapshotV1Schema,
+  PersistedFinancialFactsSnapshotV1Schema,
 } from '@shared/contracts/financial-facts-snapshot-v1.contract';
 import { toNumber } from '@shared/number';
 import type { FinancialFactsSnapshot } from '@shared/schema/financial-facts-snapshots';
@@ -68,7 +68,7 @@ function actorId(req: Request): number {
 }
 
 function snapshotResponse(row: FinancialFactsSnapshot) {
-  return FinancialFactsSnapshotV1Schema.parse({
+  return PersistedFinancialFactsSnapshotV1Schema.parse({
     policyVersion: row.policyVersion,
     fundId: row.fundId,
     asOfDate: row.asOfDate,
@@ -157,9 +157,7 @@ router.post(
         return res.status(error.status).json({
           error: error.code,
           message: error.message,
-          ...('details' in error && error.details !== undefined
-            ? { details: error.details }
-            : {}),
+          ...('details' in error && error.details !== undefined ? { details: error.details } : {}),
         });
       }
       throw error;

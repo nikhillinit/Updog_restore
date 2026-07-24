@@ -17,6 +17,7 @@ import { render, screen } from '@testing-library/react';
 
 import { ImportPreviewPanel } from '@/components/lp-reporting/ImportPreviewPanel';
 import type { ImportDryRunResponse } from '@shared/contracts/lp-reporting';
+import type { ImportBatchStatusResponse } from '@shared/contracts/financial-observations/reconciliation-api.contract';
 
 function makeResponse(): ImportDryRunResponse {
   return {
@@ -109,6 +110,41 @@ function emptyResponse(): ImportDryRunResponse {
   };
 }
 
+function batchStatus(): ImportBatchStatusResponse {
+  return {
+    batchId: 44,
+    sourceArtifactId: 11,
+    mappingProfileId: 22,
+    status: 'staged',
+    dataBasis: 'observed_actual',
+    previewHash: 'a'.repeat(64),
+    purgeAfter: '2026-04-01T00:00:00.000Z',
+    retentionExtendedUntil: null,
+    purgedAt: null,
+    expired: false,
+    version: 1,
+    etag: 'W/"batch-44-v1"',
+    groups: [
+      {
+        dependencyGroupKey: 'source-observation:101',
+        observationId: 101,
+        observationStatus: 'staged',
+        sourceLocator: 'row:1',
+        caseIds: [501],
+        accepted: false,
+      },
+    ],
+    blockers: [
+      {
+        caseId: 501,
+        caseType: 'observation_match',
+        status: 'open',
+        observationId: 101,
+      },
+    ],
+  };
+}
+
 describe('ImportPreviewPanel', () => {
   it('renders matched / partial / unmatched buckets with the expected rows', () => {
     render(<ImportPreviewPanel response={makeResponse()} />);
@@ -138,6 +174,15 @@ describe('ImportPreviewPanel', () => {
 
     // 1,000,000.00 from row 1 (matched bucket)
     expect(screen.getByText('$1,000,000.00')).toBeInTheDocument();
+  });
+
+  it('renders V2 batch singleton groups without displaying previewHash', () => {
+    render(<ImportPreviewPanel batchStatus={batchStatus()} />);
+
+    expect(screen.getByTestId('import-preview-batch-status')).toBeInTheDocument();
+    expect(screen.getByText('source-observation:101')).toBeInTheDocument();
+    expect(screen.getByText('Accepted evidence only. Not calculation-active.')).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain('a'.repeat(64));
   });
 
   it('source-discipline: component does not perform arithmetic on row.amount or row.fairValue', () => {

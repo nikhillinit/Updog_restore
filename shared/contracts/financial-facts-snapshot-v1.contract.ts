@@ -14,7 +14,9 @@ import { ProvenanceEnvelopeSchema } from './provenance-envelope.contract';
 import { canonicalSha256 } from '../lib/canonical-hash';
 import { canonicalizeDecimalLeaves, MoneyDecimalStringSchema } from '../lib/decimal-string';
 
-export const FINANCIAL_FACTS_POLICY_VERSION = 'financial-facts-policy/1.0.0' as const;
+export const FINANCIAL_FACTS_POLICY_VERSION_1_0_0 = 'financial-facts-policy/1.0.0' as const;
+export const FINANCIAL_FACTS_POLICY_VERSION_1_0_1 = 'financial-facts-policy/1.0.1' as const;
+export const FINANCIAL_FACTS_POLICY_VERSION = FINANCIAL_FACTS_POLICY_VERSION_1_0_1;
 export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID = 'financial-facts-payload/1' as const;
 
 const SelectionIdSchema = z.union([z.number().int().positive(), z.string().min(1)]);
@@ -155,7 +157,7 @@ export const FinancialFactsVehicleRosterEntrySchema = z
   })
   .strict();
 
-export const FinancialFactsPayloadV1Schema = z
+export const FinancialFactsPayloadV1_0_0Schema = z
   .object({
     companyActuals: VolatileStrippedFundCompanyActualsFactsResponseSchema,
     sourceObservationIds: z.array(SelectionIdSchema).length(0),
@@ -167,9 +169,34 @@ export const FinancialFactsPayloadV1Schema = z
   })
   .strict();
 
+export const FinancialFactsPayloadV1Schema = z
+  .object({
+    companyActuals: VolatileStrippedFundCompanyActualsFactsResponseSchema,
+    sourceObservationIds: z.array(SelectionIdSchema),
+    workingValueSelectionIds: z.array(SelectionIdSchema),
+    participationTermRefs: z.array(z.string().min(1)).length(0),
+    cashFlowSeries: FinancialFactsCashFlowSeriesSchema,
+    marksSeries: FinancialFactsMarksSeriesSchema,
+    vehicleRoster: z.array(FinancialFactsVehicleRosterEntrySchema),
+  })
+  .strict();
+
+export type FinancialFactsPayloadV1_0_0 = z.infer<typeof FinancialFactsPayloadV1_0_0Schema>;
 export type FinancialFactsPayloadV1 = z.infer<typeof FinancialFactsPayloadV1Schema>;
 
 const Sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
+
+export const FinancialFactsSnapshotInputHashPreimageV1_0_0Schema = z
+  .object({
+    fundId: z.number().int().positive(),
+    vehicleIds: z.array(z.number().int().positive()),
+    asOfDate: z.string().date(),
+    knowledgeCutoff: z.string().datetime(),
+    policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_0_0),
+    selectionSetHash: Sha256Schema,
+    payload: FinancialFactsPayloadV1_0_0Schema,
+  })
+  .strict();
 
 export const FinancialFactsSnapshotInputHashPreimageSchema = z
   .object({
@@ -177,18 +204,34 @@ export const FinancialFactsSnapshotInputHashPreimageSchema = z
     vehicleIds: z.array(z.number().int().positive()),
     asOfDate: z.string().date(),
     knowledgeCutoff: z.string().datetime(),
-    policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION),
+    policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_0_1),
     selectionSetHash: Sha256Schema,
     payload: FinancialFactsPayloadV1Schema,
   })
   .strict();
 
+export const PersistedFinancialFactsSnapshotInputHashPreimageSchema = z.discriminatedUnion(
+  'policyVersion',
+  [
+    FinancialFactsSnapshotInputHashPreimageV1_0_0Schema,
+    FinancialFactsSnapshotInputHashPreimageSchema,
+  ]
+);
+
+export type FinancialFactsSnapshotInputHashPreimageV1_0_0 = z.infer<
+  typeof FinancialFactsSnapshotInputHashPreimageV1_0_0Schema
+>;
 export type FinancialFactsSnapshotInputHashPreimage = z.infer<
   typeof FinancialFactsSnapshotInputHashPreimageSchema
 >;
+export type PersistedFinancialFactsSnapshotInputHashPreimage = z.infer<
+  typeof PersistedFinancialFactsSnapshotInputHashPreimageSchema
+>;
 
-export function buildSnapshotInputHash(input: FinancialFactsSnapshotInputHashPreimage): string {
-  const parsed = FinancialFactsSnapshotInputHashPreimageSchema.parse(input);
+export function buildSnapshotInputHash(
+  input: PersistedFinancialFactsSnapshotInputHashPreimage
+): string {
+  const parsed = PersistedFinancialFactsSnapshotInputHashPreimageSchema.parse(input);
   const preimage = canonicalizeDecimalLeaves({
     fundId: parsed.fundId,
     vehicleIds: [...parsed.vehicleIds].sort((left, right) => left - right),
@@ -203,9 +246,27 @@ export function buildSnapshotInputHash(input: FinancialFactsSnapshotInputHashPre
   return canonicalSha256(preimage);
 }
 
+export const FinancialFactsSnapshotV1_0_0Schema = z
+  .object({
+    policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_0_0),
+    fundId: z.number().int().positive(),
+    asOfDate: z.string().date(),
+    knowledgeCutoff: z.string().datetime(),
+    vehicleScope: z.literal('fund_all'),
+    vehicleIds: z.array(z.number().int().positive()),
+    selectionSetHash: Sha256Schema,
+    sourceFactsInputHash: Sha256Schema,
+    snapshotInputHash: Sha256Schema,
+    consumerEvaluations: z.array(ConsumerEvaluationSchema),
+    payload: FinancialFactsPayloadV1_0_0Schema,
+    actorId: z.number().int().positive().nullable(),
+    createdAt: z.string().datetime(),
+  })
+  .strict();
+
 export const FinancialFactsSnapshotV1Schema = z
   .object({
-    policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION),
+    policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_0_1),
     fundId: z.number().int().positive(),
     asOfDate: z.string().date(),
     knowledgeCutoff: z.string().datetime(),
@@ -221,4 +282,13 @@ export const FinancialFactsSnapshotV1Schema = z
   })
   .strict();
 
+export const PersistedFinancialFactsSnapshotV1Schema = z.discriminatedUnion('policyVersion', [
+  FinancialFactsSnapshotV1_0_0Schema,
+  FinancialFactsSnapshotV1Schema,
+]);
+
+export type FinancialFactsSnapshotV1_0_0 = z.infer<typeof FinancialFactsSnapshotV1_0_0Schema>;
 export type FinancialFactsSnapshotV1 = z.infer<typeof FinancialFactsSnapshotV1Schema>;
+export type PersistedFinancialFactsSnapshotV1 = z.infer<
+  typeof PersistedFinancialFactsSnapshotV1Schema
+>;

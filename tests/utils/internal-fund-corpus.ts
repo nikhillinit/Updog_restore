@@ -51,7 +51,7 @@ const ManifestSchema = z
     generatedFrom: z
       .object({
         repositoryCommit: z.string().regex(/^[a-f0-9]{40}$/),
-        factsPolicyVersion: z.literal('financial-facts-policy/1.0.0'),
+        factsPolicyVersion: z.literal('financial-facts-policy/1.0.1'),
       })
       .strict(),
     fixedClock: z.string().datetime(),

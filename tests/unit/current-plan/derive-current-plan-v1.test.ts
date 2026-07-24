@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { FinancialFactsSnapshotV1 } from '@shared/contracts/financial-facts-snapshot-v1.contract';
+import type { PersistedFinancialFactsSnapshotV1 } from '@shared/contracts/financial-facts-snapshot-v1.contract';
 import type { FundDraftWriteV1 } from '@shared/contracts/fund-draft-write-v1.contract';
 import { CurrentPlanVersionV1Schema } from '@shared/contracts/current-plan-version-v1.contract';
 import { deriveCurrentPlanV1 } from '@shared/lib/current-plan/derive-current-plan-v1';
@@ -8,7 +8,7 @@ import { Decimal } from '@shared/lib/decimal-config';
 import { canonicalizeDecimalLeaves } from '@shared/lib/decimal-string';
 
 describe('deriveCurrentPlanV1', () => {
-  it('derives deployable capital from the compiled fee drag', () => {
+  it('derives unchanged from a persisted policy 1.0.0 facts snapshot', () => {
     const result = deriveCurrentPlanV1(completeInput());
 
     expect(result.ok).toBe(true);
@@ -171,7 +171,7 @@ function completeConfig(): FundDraftWriteV1 {
   };
 }
 
-function factsSnapshot(): FinancialFactsSnapshotV1 & { id: number } {
+function factsSnapshot(): PersistedFinancialFactsSnapshotV1 & { id: number } {
   return {
     id: 31,
     policyVersion: 'financial-facts-policy/1.0.0',

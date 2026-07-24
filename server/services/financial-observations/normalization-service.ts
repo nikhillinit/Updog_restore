@@ -146,8 +146,40 @@ function isBlank(value: string | null | undefined): boolean {
   return value === null || value === undefined || value.trim() === '';
 }
 
+/**
+ * Version of the identity-label canonicalizer. Rides in the alias `system`
+ * namespace (`profile-alias/v1:<id>:<hash>`) so a future rule change cannot
+ * silently re-map existing aliases (PLAN_61 Task 6, fourth-review finding 4).
+ */
+export const CANONICALIZE_IDENTITY_LABEL_VERSION = 1 as const;
+
+/** Frozen v1 hash-path canonicalizer: trim, collapse whitespace, lowercase. */
 function canonicalizeName(name: string): string {
   return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/** Thrown by `canonicalizeIdentityLabel` when canonicalization yields empty. */
+export class IdentityLabelEmptyError extends Error {
+  readonly code = 'IDENTITY_LABEL_EMPTY' as const;
+  constructor() {
+    super('Identity label is empty after canonicalization.');
+    this.name = 'IdentityLabelEmptyError';
+  }
+}
+
+/**
+ * Versioned alias-label canonicalizer (`canonicalizeIdentityLabel/v1`). NFKC is
+ * intentionally confined to this alias path; observation/fingerprint hashes
+ * retain frozen v1 bytes.
+ */
+export function canonicalizeIdentityLabel(label: string): string {
+  const canonical = canonicalizeName(label.normalize('NFKC'));
+  if (canonical.length === 0) {
+    throw new IdentityLabelEmptyError();
+  }
+  return canonical.length > MAX_TEXT_FIELD_LENGTH
+    ? canonical.slice(0, MAX_TEXT_FIELD_LENGTH)
+    : canonical;
 }
 
 type FormatResult = { ok: true; value: string } | { ok: false; code: NormalizationIssueCode };

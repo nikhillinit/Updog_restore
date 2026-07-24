@@ -16,11 +16,31 @@ export const ReconciliationCaseTypeSchema = z.enum(RECONCILIATION_CASE_TYPES);
 export const ReconciliationCaseStatusSchema = z.enum(RECONCILIATION_CASE_STATUSES);
 export const ReconciliationResolutionActionSchema = z.enum(RECONCILIATION_RESOLUTION_ACTIONS);
 
+export const RECONCILIATION_CANONICAL_RECORD_KINDS = ['cash_flow_event', 'valuation_mark'] as const;
+export const ReconciliationCanonicalRecordKindSchema = z.enum(
+  RECONCILIATION_CANONICAL_RECORD_KINDS
+);
+
+/**
+ * Typed reference to the canonical record a confirmed `observation_match`
+ * duplicate points at. Additive-optional so persisted 1.0.0 resolutions (which
+ * lack it) still parse; the JSONB `resolution` column is schema-compatible.
+ */
+export const ReconciliationCanonicalRecordRefV1Schema = z
+  .object({
+    kind: ReconciliationCanonicalRecordKindSchema,
+    id: z.number().int().positive(),
+  })
+  .strict();
+
 export const ReconciliationResolutionV1Schema = z
   .object({
     action: ReconciliationResolutionActionSchema,
     targetCompanyIdentityId: z.number().int().positive().nullable(),
     memo: z.string().min(1),
+    sourceCompanyIdentityId: z.number().int().positive().optional(),
+    canonicalName: z.string().min(1).optional(),
+    targetCanonicalRecordRef: ReconciliationCanonicalRecordRefV1Schema.optional(),
   })
   .strict();
 
@@ -50,6 +70,12 @@ export const ReconciliationCaseV1Schema = z
   })
   .strict();
 
+export type ReconciliationCanonicalRecordKind = z.infer<
+  typeof ReconciliationCanonicalRecordKindSchema
+>;
+export type ReconciliationCanonicalRecordRefV1 = z.infer<
+  typeof ReconciliationCanonicalRecordRefV1Schema
+>;
 export type ReconciliationResolutionV1 = z.infer<typeof ReconciliationResolutionV1Schema>;
 export type ReconciliationCaseHistoryEntryV1 = z.infer<
   typeof ReconciliationCaseHistoryEntryV1Schema

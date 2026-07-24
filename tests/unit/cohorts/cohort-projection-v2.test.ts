@@ -6,7 +6,10 @@ import {
   CurrentForecastV2Schema,
 } from '@shared/contracts/current-forecast-v2.contract';
 import { CurrentPlanVersionV1Schema } from '@shared/contracts/current-plan-version-v1.contract';
-import { FinancialFactsSnapshotV1Schema } from '@shared/contracts/financial-facts-snapshot-v1.contract';
+import {
+  FinancialFactsSnapshotV1_0_0Schema,
+  FinancialFactsSnapshotV1Schema,
+} from '@shared/contracts/financial-facts-snapshot-v1.contract';
 import {
   CurrentForecastBasisMismatchError,
   runCohortProjectionV2,
@@ -18,9 +21,14 @@ import {
 } from '@shared/lib/decimal-string';
 import rawTruthCases from '../../../docs/current-forecast.truth-cases.json';
 
-const FactsWithIdSchema = FinancialFactsSnapshotV1Schema.extend({
-  id: z.number().int().positive(),
-});
+const FactsWithIdSchema = z.union([
+  FinancialFactsSnapshotV1_0_0Schema.extend({
+    id: z.number().int().positive(),
+  }),
+  FinancialFactsSnapshotV1Schema.extend({
+    id: z.number().int().positive(),
+  }),
+]);
 
 const cf003 = rawTruthCases.find((truthCase) => truthCase.id === 'CF-003');
 if (!cf003) {
@@ -91,7 +99,7 @@ describe('runCohortProjectionV2', () => {
     expect(randomSpy).not.toHaveBeenCalled();
   });
 
-  it('returns a deterministic result for an identical basis', () => {
+  it('replays persisted policy 1.0.0 facts deterministically for an identical basis', () => {
     const firstFixture = validFixture();
     const secondFixture = validFixture();
 

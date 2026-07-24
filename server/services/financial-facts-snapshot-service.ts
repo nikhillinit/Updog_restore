@@ -1,19 +1,23 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, lte, sql, type SQL } from 'drizzle-orm';
 
 import { db } from '../db';
 import { assertOwnedByFund, type FundScopedOwnershipDatabase } from '../lib/fund-scoped-ownership';
 import { runIdempotentCommand } from '../lib/idempotent-command';
 import {
-  EMPTY_SELECTION_SET_HASH,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID,
   FINANCIAL_FACTS_POLICY_VERSION,
   FinancialFactsPayloadV1Schema,
-  FinancialFactsSnapshotV1Schema,
+  PersistedFinancialFactsSnapshotV1Schema,
   VolatileStrippedFundCompanyActualsFactsResponseSchema,
+  buildSelectionSetHash,
   buildSnapshotInputHash,
   type FinancialFactsPayloadV1,
-  type FinancialFactsSnapshotV1,
+  type PersistedFinancialFactsSnapshotV1,
 } from '../../shared/contracts/financial-facts-snapshot-v1.contract';
+import {
+  DOMAIN_MEASURE_MATRIX,
+  type MeasureKeyV2,
+} from '../../shared/contracts/financial-observations/normalization.contract';
 import {
   FINANCIAL_FACTS_CONSUMER_KEYS,
   type ConsumerEvaluation,
@@ -23,6 +27,10 @@ import { Decimal } from '../../shared/lib/decimal-config';
 import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 import { toFixedDecimalString } from '../../shared/lib/decimal-string';
 import { financialFactsSnapshots } from '../../shared/schema/financial-facts-snapshots';
+import {
+  sourceObservations,
+  workingValueSelections,
+} from '../../shared/schema/financial-observations';
 import {
   cashFlowEvents,
   valuationMarks,
@@ -51,6 +59,9 @@ const PERSPECTIVE_ORDER: readonly CashFlowPerspectiveLite[] = [
   'vehicle',
   'company',
 ];
+const SNAPSHOT_TRANSACTION_MAX_ATTEMPTS = 3;
+const RETRYABLE_TRANSACTION_SQLSTATES = new Set(['40001', '40P01']);
+const FINANCIAL_OBSERVATION_IMPORT_SOURCE = 'financial_observation_v2';
 
 type SnapshotDatabase = typeof db;
 type SnapshotRow = typeof financialFactsSnapshots.$inferSelect;
@@ -72,6 +83,8 @@ interface CashFlowRow {
   status: string;
   supersedesEventId: number | null;
   reversalOfEventId: number | null;
+  importedFrom: string | null;
+  sourceHash: string | null;
 }
 
 interface ValuationMarkRow {
@@ -85,6 +98,60 @@ interface ValuationMarkRow {
   currency: string;
   status: string;
   confidenceLevel: string;
+  importedFrom: string | null;
+  sourceHash: string | null;
+}
+
+interface AcceptedSourceObservationRow {
+  id: number;
+  fundId: number;
+  companyIdentityId: number | null;
+  domain: string;
+  effectiveDate: string;
+  normalizedPayload: Record<string, unknown>;
+  observationHash: string;
+  status: string;
+}
+
+interface LatestWorkingSelectionRow {
+  id: number;
+  fundId: number;
+  consumer: string;
+  companyIdentityId: number | null;
+  domain: string;
+  measureKey: string;
+  selectedObservationId: number;
+  isDefault: boolean;
+}
+
+interface CanonicalContributionInput {
+  key: string;
+  domain: 'ledger_event' | 'valuation';
+  importedFrom: string | null;
+  sourceHash: string | null;
+}
+
+interface ConsumerRequiredInputs {
+  canonical: readonly CanonicalContributionInput[];
+  hasUnlinkableDirectInput: boolean;
+}
+
+type ConsumerRequiredInputMap = Record<FinancialFactsConsumerKey, ConsumerRequiredInputs>;
+
+interface CashFlowBuildResult {
+  series: CashFlowSeries;
+  canonicalInputs: CanonicalContributionInput[];
+}
+
+interface MarksBuildResult {
+  series: MarksSeries;
+  canonicalInputs: CanonicalContributionInput[];
+}
+
+interface SnapshotLineage {
+  sourceObservationIds: number[];
+  workingValueSelectionIds: number[];
+  consumerEvaluations: ConsumerEvaluation[];
 }
 
 export class FinancialFactsSnapshotServiceError extends Error {
@@ -123,7 +190,7 @@ function stripGeneratedAtLeaves(value: unknown): unknown {
 
   const stripped: Record<string, unknown> = {};
   for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-    if (key !== 'generatedAt') {
+    if (key !== 'generatedAt' && child !== undefined) {
       stripped[key] = stripGeneratedAtLeaves(child);
     }
   }
@@ -169,7 +236,15 @@ function sumCashRows(
   );
 }
 
-function buildCashFlowSeries(rows: readonly CashFlowRow[], asOfDate: string): CashFlowSeries {
+function policyVersionLabel(policyVersion: string): string {
+  return policyVersion.split('/').at(-1) ?? policyVersion;
+}
+
+function buildCashFlowSeries(
+  rows: readonly CashFlowRow[],
+  asOfDate: string,
+  policyVersion: string
+): CashFlowBuildResult {
   const referencedIds = new Set<number>();
   for (const row of rows) {
     if (row.reversalOfEventId !== null) referencedIds.add(row.reversalOfEventId);
@@ -193,7 +268,9 @@ function buildCashFlowSeries(rows: readonly CashFlowRow[], asOfDate: string): Ca
     .map((row) => ({
       code: 'NON_USD_CASH_FLOW_EXCLUDED' as const,
       severity: 'warning' as const,
-      message: `Cash-flow event ${row.id} was excluded because policy 1.0.0 accepts USD only.`,
+      message: `Cash-flow event ${row.id} was excluded because policy ${policyVersionLabel(
+        policyVersion
+      )} accepts USD only.`,
       source: `cash_flow_events:${row.id}`,
     }));
 
@@ -248,13 +325,21 @@ function buildCashFlowSeries(rows: readonly CashFlowRow[], asOfDate: string): Ca
   );
 
   return {
-    series,
-    totals: {
-      contributions: toFixedDecimalString(calledCapital.minus(recallable), 6),
-      distributions: toFixedDecimalString(distributions, 6),
-      recallableDistributions: toFixedDecimalString(recallable, 6),
+    series: {
+      series,
+      totals: {
+        contributions: toFixedDecimalString(calledCapital.minus(recallable), 6),
+        distributions: toFixedDecimalString(distributions, 6),
+        recallableDistributions: toFixedDecimalString(recallable, 6),
+      },
+      warnings,
     },
-    warnings,
+    canonicalInputs: selectedRows.map((row) => ({
+      key: `cash_flow_events:${row.id}`,
+      domain: 'ledger_event',
+      importedFrom: row.importedFrom ?? null,
+      sourceHash: row.sourceHash ?? null,
+    })),
   };
 }
 
@@ -274,7 +359,7 @@ function toSelectableMark(row: ValuationMarkRow): ParsedValuationMark {
   };
 }
 
-function buildMarksSeries(rows: readonly ValuationMarkRow[], asOfDate: string): MarksSeries {
+function buildMarksSeries(rows: readonly ValuationMarkRow[], asOfDate: string): MarksBuildResult {
   const acceptedRows = rows
     .filter(
       (row) =>
@@ -308,45 +393,233 @@ function buildMarksSeries(rows: readonly ValuationMarkRow[], asOfDate: string): 
   });
 
   return {
-    marks: acceptedRows.map((row) => ({
-      markId: row.id,
-      companyId: row.companyId,
-      vehicleId: row.vehicleId,
-      effectiveAt: isoDay(row.markDate),
-      fairValue: toFixedDecimalString(row.fairValue, 6),
-      currency: 'USD' as const,
+    series: {
+      marks: acceptedRows.map((row) => ({
+        markId: row.id,
+        companyId: row.companyId,
+        vehicleId: row.vehicleId,
+        effectiveAt: isoDay(row.markDate),
+        fairValue: toFixedDecimalString(row.fairValue, 6),
+        currency: 'USD' as const,
+      })),
+      periodNav,
+      warnings: [],
+    },
+    canonicalInputs: acceptedRows.map((row) => ({
+      key: `valuation_marks:${row.id}`,
+      domain: 'valuation',
+      importedFrom: row.importedFrom ?? null,
+      sourceHash: row.sourceHash ?? null,
     })),
-    periodNav,
-    warnings: [],
   };
 }
 
-function hasUnattributedDependency(
-  consumer: FinancialFactsConsumerKey,
-  payload: FinancialFactsPayloadV1
-): boolean {
-  if (payload.sourceObservationIds.length !== 0) return false;
-  switch (consumer) {
-    case 'forecast':
-      return payload.companyActuals.facts.length > 0;
-    case 'reserve':
-      return payload.companyActuals.facts.some((fact) => fact.approvedPlanningFmvMarkId !== null);
-    case 'economics':
-      return payload.cashFlowSeries.series.length > 0;
-    case 'periodic_analysis':
-      return payload.marksSeries.marks.length > 0;
-  }
+function isFinancialFactsConsumerKey(value: string): value is FinancialFactsConsumerKey {
+  return FINANCIAL_FACTS_CONSUMER_KEYS.some((consumer) => consumer === value);
 }
 
-function buildConsumerEvaluations(payload: FinancialFactsPayloadV1): ConsumerEvaluation[] {
-  return FINANCIAL_FACTS_CONSUMER_KEYS.map((consumer) => {
-    const blocked = hasUnattributedDependency(consumer, payload);
+function observationMeasureKey(row: AcceptedSourceObservationRow): MeasureKeyV2 | null {
+  const measureKey = row.normalizedPayload['measureKey'];
+  return typeof measureKey === 'string' ? (measureKey as MeasureKeyV2) : null;
+}
+
+function observationHasCompatibleDomain(
+  row: AcceptedSourceObservationRow,
+  requiredDomain: CanonicalContributionInput['domain']
+): boolean {
+  if (row.domain !== requiredDomain || row.normalizedPayload['domain'] !== requiredDomain) {
+    return false;
+  }
+  const measureKey = observationMeasureKey(row);
+  if (measureKey === null) return false;
+  return (DOMAIN_MEASURE_MATRIX[requiredDomain].measures as readonly string[]).includes(measureKey);
+}
+
+function observationContributesTo(
+  row: AcceptedSourceObservationRow,
+  canonical: CanonicalContributionInput,
+  fundId: number,
+  asOfDate: string
+): boolean {
+  return (
+    row.fundId === fundId &&
+    row.status === 'accepted' &&
+    row.effectiveDate <= asOfDate &&
+    canonical.importedFrom === FINANCIAL_OBSERVATION_IMPORT_SOURCE &&
+    canonical.sourceHash !== null &&
+    canonical.sourceHash.length === 64 &&
+    canonical.sourceHash === row.observationHash &&
+    observationHasCompatibleDomain(row, canonical.domain)
+  );
+}
+
+function buildSnapshotLineage(params: {
+  fundId: number;
+  asOfDate: string;
+  requiredInputs: ConsumerRequiredInputMap;
+  acceptedObservations: readonly AcceptedSourceObservationRow[];
+  latestSelections: readonly LatestWorkingSelectionRow[];
+}): SnapshotLineage {
+  const linkedCanonicalKeys = new Map<FinancialFactsConsumerKey, Set<string>>();
+  const contributingObservationIds = new Map<FinancialFactsConsumerKey, Set<number>>();
+  const selectedIds = new Set<number>();
+  const nonDefaultSelectionConsumers = new Set<FinancialFactsConsumerKey>();
+  const sourceIds = new Set<number>();
+  const observationById = new Map(params.acceptedObservations.map((row) => [row.id, row]));
+
+  for (const consumer of FINANCIAL_FACTS_CONSUMER_KEYS) {
+    const linkedKeys = new Set<string>();
+    const consumerObservationIds = new Set<number>();
+    for (const canonical of params.requiredInputs[consumer].canonical) {
+      const contributing = params.acceptedObservations.find((observation) =>
+        observationContributesTo(observation, canonical, params.fundId, params.asOfDate)
+      );
+      if (!contributing) continue;
+      linkedKeys.add(canonical.key);
+      consumerObservationIds.add(contributing.id);
+      sourceIds.add(contributing.id);
+    }
+    linkedCanonicalKeys.set(consumer, linkedKeys);
+    contributingObservationIds.set(consumer, consumerObservationIds);
+  }
+
+  for (const selection of params.latestSelections) {
+    if (
+      selection.fundId !== params.fundId ||
+      !isFinancialFactsConsumerKey(selection.consumer) ||
+      !contributingObservationIds.get(selection.consumer)?.has(selection.selectedObservationId)
+    ) {
+      continue;
+    }
+    const selectedObservation = observationById.get(selection.selectedObservationId);
+    if (
+      !selectedObservation ||
+      selection.domain !== selectedObservation.domain ||
+      selection.measureKey !== observationMeasureKey(selectedObservation)
+    ) {
+      continue;
+    }
+    selectedIds.add(selection.id);
+    if (!selection.isDefault) {
+      nonDefaultSelectionConsumers.add(selection.consumer);
+    }
+  }
+
+  const consumerEvaluations = FINANCIAL_FACTS_CONSUMER_KEYS.map((consumer) => {
+    const required = params.requiredInputs[consumer];
+    const linked = linkedCanonicalKeys.get(consumer) ?? new Set<string>();
+    const reasons: ConsumerEvaluation['reasons'] = [];
+    if (
+      required.hasUnlinkableDirectInput ||
+      required.canonical.some((canonical) => !linked.has(canonical.key))
+    ) {
+      reasons.push('unattributed_legacy_direct');
+    }
+    if (nonDefaultSelectionConsumers.has(consumer)) {
+      reasons.push('working_value_selection_deviation');
+    }
     return {
       consumer,
-      status: blocked ? ('blocked' as const) : ('accepted' as const),
-      reasons: blocked ? (['unattributed_legacy_direct'] as const) : [],
+      status: reasons.length > 0 ? ('blocked' as const) : ('accepted' as const),
+      reasons,
     };
   });
+
+  return {
+    sourceObservationIds: [...sourceIds].sort((left, right) => left - right),
+    workingValueSelectionIds: [...selectedIds].sort((left, right) => left - right),
+    consumerEvaluations,
+  };
+}
+
+async function executeRows<T>(
+  database: Pick<SnapshotDatabase, 'execute'>,
+  query: SQL
+): Promise<T[]> {
+  const result = (await database.execute(query)) as { rows?: T[] } | T[];
+  if (Array.isArray(result)) return result;
+  return result.rows ?? [];
+}
+
+async function readAcceptedSourceObservations(
+  database: SnapshotDatabase,
+  fundId: number,
+  asOfDate: string
+): Promise<AcceptedSourceObservationRow[]> {
+  const rows = await database
+    .select({
+      id: sourceObservations.id,
+      fundId: sourceObservations.fundId,
+      companyIdentityId: sourceObservations.companyIdentityId,
+      domain: sourceObservations.domain,
+      effectiveDate: sourceObservations.effectiveDate,
+      normalizedPayload: sourceObservations.normalizedPayload,
+      observationHash: sourceObservations.observationHash,
+      status: sourceObservations.status,
+    })
+    .from(sourceObservations)
+    .where(
+      and(
+        eq(sourceObservations.fundId, fundId),
+        eq(sourceObservations.status, 'accepted'),
+        lte(sourceObservations.effectiveDate, asOfDate)
+      )
+    )
+    .orderBy(asc(sourceObservations.id));
+  return rows as AcceptedSourceObservationRow[];
+}
+
+async function readLatestWorkingSelections(
+  database: SnapshotDatabase,
+  fundId: number,
+  asOfDate: string
+): Promise<LatestWorkingSelectionRow[]> {
+  return executeRows<LatestWorkingSelectionRow>(
+    database,
+    sql`
+      WITH ranked_working_value_selections AS (
+        SELECT
+          selection.id AS "id",
+          selection.fund_id AS "fundId",
+          selection.consumer AS "consumer",
+          selection.company_identity_id AS "companyIdentityId",
+          selection.domain AS "domain",
+          selection.measure_key AS "measureKey",
+          selection.selected_observation_id AS "selectedObservationId",
+          selection.is_default AS "isDefault",
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              selection.fund_id,
+              selection.consumer,
+              selection.domain,
+              selection.measure_key,
+              COALESCE(selection.company_identity_id, 0)
+            ORDER BY selection.as_of_date DESC, selection.id DESC
+          ) AS selection_rank
+        FROM ${workingValueSelections} AS selection
+        INNER JOIN ${sourceObservations} AS observation
+          ON observation.id = selection.selected_observation_id
+         AND observation.fund_id = selection.fund_id
+        WHERE selection.fund_id = ${fundId}
+          AND selection.superseded_by_selection_id IS NULL
+          AND selection.as_of_date <= ${asOfDate}
+          AND observation.status = 'accepted'
+          AND observation.effective_date <= ${asOfDate}
+      )
+      SELECT
+        "id",
+        "fundId",
+        "consumer",
+        "companyIdentityId",
+        "domain",
+        "measureKey",
+        "selectedObservationId",
+        "isDefault"
+      FROM ranked_working_value_selections
+      WHERE selection_rank = 1
+      ORDER BY "id" ASC
+    `
+  );
 }
 
 function computeSnapshotInputHash(input: Parameters<typeof buildSnapshotInputHash>[0]): string {
@@ -378,8 +651,8 @@ function computeSnapshotInputHash(input: Parameters<typeof buildSnapshotInputHas
   }
 }
 
-function snapshotFromRow(row: SnapshotRow): FinancialFactsSnapshotV1 {
-  return FinancialFactsSnapshotV1Schema.parse({
+function snapshotFromRow(row: SnapshotRow): PersistedFinancialFactsSnapshotV1 {
+  return PersistedFinancialFactsSnapshotV1Schema.parse({
     policyVersion: row.policyVersion,
     fundId: row.fundId,
     asOfDate: row.asOfDate,
@@ -426,6 +699,7 @@ async function validateVehicleScope(params: {
   fundId: number;
   suppliedVehicleIds: number[] | undefined;
   roster: readonly VehicleRosterEntry[];
+  policyVersion: string;
 }): Promise<number[]> {
   const rosterIds = params.roster
     .map((entry) => entry.vehicleId)
@@ -451,7 +725,9 @@ async function validateVehicleScope(params: {
     throw new FinancialFactsSnapshotServiceError(
       422,
       'VEHICLE_SCOPE_UNSUPPORTED',
-      'Policy 1.0.0 supports only the complete fund vehicle roster.',
+      `Policy ${policyVersionLabel(
+        params.policyVersion
+      )} supports only the complete fund vehicle roster.`,
       { expectedVehicleIds: rosterIds }
     );
   }
@@ -473,91 +749,167 @@ export async function getLatestFinancialFactsSnapshot(opts: {
   return latest ?? null;
 }
 
-export async function buildFinancialFactsSnapshot(
-  input: BuildFinancialFactsSnapshotInput
-): Promise<FinancialFactsSnapshotV1> {
-  if (input.knowledgeCutoff !== undefined) {
-    throw new FinancialFactsSnapshotServiceError(
-      400,
-      'CUTOFF_NOT_ACCEPTED',
-      'knowledgeCutoff is assigned by the server when the snapshot is created.'
-    );
+function transactionSqlState(error: unknown): string | undefined {
+  const seen = new Set<object>();
+  let current: unknown = error;
+  while (typeof current === 'object' && current !== null && !seen.has(current)) {
+    seen.add(current);
+    const record = current as Record<string, unknown>;
+    if (typeof record['code'] === 'string') return record['code'];
+    current = record['cause'];
   }
+  return undefined;
+}
 
-  const database = input.database ?? db;
-  const now = input.now ?? new Date();
-  const knowledgeCutoff = now.toISOString();
+function valuationContributionInput(row: ValuationMarkRow): CanonicalContributionInput {
+  return {
+    key: `valuation_marks:${row.id}`,
+    domain: 'valuation',
+    importedFrom: row.importedFrom ?? null,
+    sourceHash: row.sourceHash ?? null,
+  };
+}
+
+async function buildFinancialFactsSnapshotInTransaction(params: {
+  input: BuildFinancialFactsSnapshotInput;
+  database: SnapshotDatabase;
+  now: Date;
+  knowledgeCutoff: string;
+}): Promise<PersistedFinancialFactsSnapshotV1> {
+  const { input, database, now, knowledgeCutoff } = params;
   const roster = await readVehicleRoster(database, input.fundId);
   const vehicleIds = await validateVehicleScope({
     database,
     fundId: input.fundId,
     suppliedVehicleIds: input.vehicleIds,
     roster,
+    policyVersion: FINANCIAL_FACTS_POLICY_VERSION,
   });
 
-  const [actuals, cashRows, markRows] = await Promise.all([
-    buildFundCompanyActualsFacts({
-      fundId: input.fundId,
-      asOfDate: input.asOfDate,
-      now,
-      database,
-    }),
-    database
-      .select({
-        id: cashFlowEvents.id,
-        fundId: cashFlowEvents.fundId,
-        vehicleId: cashFlowEvents.vehicleId,
-        companyId: cashFlowEvents.companyId,
-        eventType: cashFlowEvents.eventType,
-        amount: cashFlowEvents.amount,
-        currency: cashFlowEvents.currency,
-        eventDate: cashFlowEvents.eventDate,
-        perspective: cashFlowEvents.perspective,
-        status: cashFlowEvents.status,
-        supersedesEventId: cashFlowEvents.supersedesEventId,
-        reversalOfEventId: cashFlowEvents.reversalOfEventId,
-      })
-      .from(cashFlowEvents)
-      .where(eq(cashFlowEvents.fundId, input.fundId))
-      .orderBy(asc(cashFlowEvents.eventDate), asc(cashFlowEvents.id)),
-    database
-      .select({
-        id: valuationMarks.id,
-        fundId: valuationMarks.fundId,
-        vehicleId: valuationMarks.vehicleId,
-        companyId: valuationMarks.companyId,
-        markDate: valuationMarks.markDate,
-        asOfDate: valuationMarks.asOfDate,
-        fairValue: valuationMarks.fairValue,
-        currency: valuationMarks.currency,
-        status: valuationMarks.status,
-        confidenceLevel: valuationMarks.confidenceLevel,
-      })
-      .from(valuationMarks)
-      .where(eq(valuationMarks.fundId, input.fundId))
-      .orderBy(asc(valuationMarks.markDate), asc(valuationMarks.id)),
-  ]);
+  const cashRows = (await database
+    .select({
+      id: cashFlowEvents.id,
+      fundId: cashFlowEvents.fundId,
+      vehicleId: cashFlowEvents.vehicleId,
+      companyId: cashFlowEvents.companyId,
+      eventType: cashFlowEvents.eventType,
+      amount: cashFlowEvents.amount,
+      currency: cashFlowEvents.currency,
+      eventDate: cashFlowEvents.eventDate,
+      perspective: cashFlowEvents.perspective,
+      status: cashFlowEvents.status,
+      supersedesEventId: cashFlowEvents.supersedesEventId,
+      reversalOfEventId: cashFlowEvents.reversalOfEventId,
+      importedFrom: cashFlowEvents.importedFrom,
+      sourceHash: cashFlowEvents.sourceHash,
+    })
+    .from(cashFlowEvents)
+    .where(eq(cashFlowEvents.fundId, input.fundId))
+    .orderBy(asc(cashFlowEvents.eventDate), asc(cashFlowEvents.id))) as CashFlowRow[];
+  const markRows = (await database
+    .select({
+      id: valuationMarks.id,
+      fundId: valuationMarks.fundId,
+      vehicleId: valuationMarks.vehicleId,
+      companyId: valuationMarks.companyId,
+      markDate: valuationMarks.markDate,
+      asOfDate: valuationMarks.asOfDate,
+      fairValue: valuationMarks.fairValue,
+      currency: valuationMarks.currency,
+      status: valuationMarks.status,
+      confidenceLevel: valuationMarks.confidenceLevel,
+      importedFrom: valuationMarks.importedFrom,
+      sourceHash: valuationMarks.sourceHash,
+    })
+    .from(valuationMarks)
+    .where(eq(valuationMarks.fundId, input.fundId))
+    .orderBy(asc(valuationMarks.markDate), asc(valuationMarks.id))) as ValuationMarkRow[];
+  const actuals = await buildFundCompanyActualsFacts({
+    fundId: input.fundId,
+    asOfDate: input.asOfDate,
+    now,
+    database,
+  });
+  const acceptedObservations = await readAcceptedSourceObservations(
+    database,
+    input.fundId,
+    input.asOfDate
+  );
+  const latestSelections = await readLatestWorkingSelections(
+    database,
+    input.fundId,
+    input.asOfDate
+  );
 
   const companyActuals = VolatileStrippedFundCompanyActualsFactsResponseSchema.parse(
     stripGeneratedAtLeaves(actuals)
   );
+  const cashFlow = buildCashFlowSeries(cashRows, input.asOfDate, FINANCIAL_FACTS_POLICY_VERSION);
+  const marks = buildMarksSeries(markRows, input.asOfDate);
+  const markById = new Map(markRows.map((row) => [row.id, row]));
+  const reserveMarkIds = [
+    ...new Set(
+      companyActuals.facts.flatMap((fact) =>
+        fact.approvedPlanningFmvMarkId === null ? [] : [fact.approvedPlanningFmvMarkId]
+      )
+    ),
+  ].sort((left, right) => left - right);
+  const reserveCanonicalInputs = reserveMarkIds.map((markId) => {
+    const row = markById.get(markId);
+    return row
+      ? valuationContributionInput(row)
+      : {
+          key: `valuation_marks:${markId}`,
+          domain: 'valuation' as const,
+          importedFrom: null,
+          sourceHash: null,
+        };
+  });
+  const requiredInputs: ConsumerRequiredInputMap = {
+    forecast: {
+      canonical: [],
+      hasUnlinkableDirectInput: companyActuals.facts.length > 0,
+    },
+    reserve: {
+      canonical: reserveCanonicalInputs,
+      hasUnlinkableDirectInput: false,
+    },
+    economics: {
+      canonical: cashFlow.canonicalInputs,
+      hasUnlinkableDirectInput: false,
+    },
+    periodic_analysis: {
+      canonical: marks.canonicalInputs,
+      hasUnlinkableDirectInput: false,
+    },
+  };
+  const lineage = buildSnapshotLineage({
+    fundId: input.fundId,
+    asOfDate: input.asOfDate,
+    requiredInputs,
+    acceptedObservations,
+    latestSelections,
+  });
+  const selectionSetHash = buildSelectionSetHash({
+    sourceObservationIds: lineage.sourceObservationIds,
+    workingValueSelectionIds: lineage.workingValueSelectionIds,
+  });
   const payload = FinancialFactsPayloadV1Schema.parse({
     companyActuals,
-    sourceObservationIds: [],
-    workingValueSelectionIds: [],
+    sourceObservationIds: lineage.sourceObservationIds,
+    workingValueSelectionIds: lineage.workingValueSelectionIds,
     participationTermRefs: [],
-    cashFlowSeries: buildCashFlowSeries(cashRows as CashFlowRow[], input.asOfDate),
-    marksSeries: buildMarksSeries(markRows as ValuationMarkRow[], input.asOfDate),
+    cashFlowSeries: cashFlow.series,
+    marksSeries: marks.series,
     vehicleRoster: roster,
   });
-  const consumerEvaluations = buildConsumerEvaluations(payload);
   const snapshotInputHash = computeSnapshotInputHash({
     fundId: input.fundId,
     vehicleIds,
     asOfDate: input.asOfDate,
     knowledgeCutoff,
     policyVersion: FINANCIAL_FACTS_POLICY_VERSION,
-    selectionSetHash: EMPTY_SELECTION_SET_HASH,
+    selectionSetHash,
     payload,
   });
 
@@ -572,7 +924,7 @@ export async function buildFinancialFactsSnapshot(
       asOfDate: input.asOfDate,
       vehicleIds,
       actorId: input.actorId,
-      selectionSetHash: EMPTY_SELECTION_SET_HASH,
+      selectionSetHash,
     },
     loadExisting: async () => {
       const [existing] = await database
@@ -598,11 +950,11 @@ export async function buildFinancialFactsSnapshot(
           knowledgeCutoff: now,
           vehicleScope: 'fund_all',
           vehicleIds,
-          selectionSetHash: EMPTY_SELECTION_SET_HASH,
+          selectionSetHash,
           sourceFactsInputHash: companyActuals.inputHash,
           snapshotInputHash,
           payload,
-          consumerEvaluations,
+          consumerEvaluations: lineage.consumerEvaluations,
           actorId: input.actorId,
           idempotencyKey: input.idempotencyKey,
           requestHash,
@@ -617,4 +969,40 @@ export async function buildFinancialFactsSnapshot(
   });
 
   return snapshotFromRow(result.row);
+}
+
+export async function buildFinancialFactsSnapshot(
+  input: BuildFinancialFactsSnapshotInput
+): Promise<PersistedFinancialFactsSnapshotV1> {
+  if (input.knowledgeCutoff !== undefined) {
+    throw new FinancialFactsSnapshotServiceError(
+      400,
+      'CUTOFF_NOT_ACCEPTED',
+      'knowledgeCutoff is assigned by the server when the snapshot is created.'
+    );
+  }
+
+  const database = input.database ?? db;
+  const now = input.now === undefined ? new Date() : new Date(input.now.getTime());
+  const knowledgeCutoff = now.toISOString();
+
+  for (let attempt = 1; attempt <= SNAPSHOT_TRANSACTION_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await database.transaction(
+        async (transaction) =>
+          buildFinancialFactsSnapshotInTransaction({
+            input,
+            database: transaction,
+            now,
+            knowledgeCutoff,
+          }),
+        { isolationLevel: 'repeatable read', accessMode: 'read write' }
+      );
+    } catch (error) {
+      const retryable = RETRYABLE_TRANSACTION_SQLSTATES.has(transactionSqlState(error) ?? '');
+      if (!retryable || attempt === SNAPSHOT_TRANSACTION_MAX_ATTEMPTS) throw error;
+    }
+  }
+
+  throw new Error('Financial-facts snapshot transaction retry bound was exhausted.');
 }

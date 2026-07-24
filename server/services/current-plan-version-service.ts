@@ -3,7 +3,7 @@ import { and, desc, eq, isNull } from 'drizzle-orm';
 import { db } from '../db';
 import { assertOwnedByFund, type FundScopedOwnershipDatabase } from '../lib/fund-scoped-ownership';
 import { runIdempotentCommand } from '../lib/idempotent-command';
-import { FinancialFactsSnapshotV1Schema } from '../../shared/contracts/financial-facts-snapshot-v1.contract';
+import { PersistedFinancialFactsSnapshotV1Schema } from '../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { FundDraftWriteV1Schema } from '../../shared/contracts/fund-draft-write-v1.contract';
 import {
   CurrentPlanVersionV1Schema,
@@ -58,7 +58,7 @@ export interface GetCurrentPlanVersionsInput {
 }
 
 function factsSnapshotFromRow(row: FactsSnapshotRow) {
-  const snapshot = FinancialFactsSnapshotV1Schema.parse({
+  const snapshot = PersistedFinancialFactsSnapshotV1Schema.parse({
     policyVersion: row.policyVersion,
     fundId: row.fundId,
     asOfDate: row.asOfDate,
