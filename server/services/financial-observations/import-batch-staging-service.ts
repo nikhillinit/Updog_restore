@@ -286,31 +286,47 @@ export async function stageImportBatch(
   input: StageImportBatchInput
 ): Promise<{ receipt: StageImportBatchReceipt; replayed: boolean }> {
   const database = input.database ?? db;
+  const request = {
+    fundId: input.fundId,
+    contractVersion: STAGING_CONTRACT_VERSION,
+    sourceArtifactId: input.sourceArtifactId,
+    mappingProfileId: input.mappingProfileId,
+    dataBasis: input.dataBasis,
+  };
+
+  // Resolve immutable replay before touching retained payload bytes. A purged
+  // artifact must still replay the persisted receipt for the original request.
+  const existing = await loadExistingBatch(database, input.fundId, input.idempotencyKey);
+  if (existing) {
+    const requestHash = canonicalSha256({
+      ...request,
+      fundId: input.fundId,
+      contractVersion: STAGING_CONTRACT_VERSION,
+    });
+    if (existing.requestHash !== requestHash) {
+      throw new IdempotentCommandError(
+        409,
+        'IDEMPOTENCY_KEY_REUSE',
+        'Idempotency-Key was already used for a different request.',
+        { idempotencyKey: input.idempotencyKey }
+      );
+    }
+    const receiptData = await loadReceiptData(database, input.fundId, existing.id);
+    return {
+      receipt: buildStageReceipt(existing, receiptData.observations, receiptData.caseIds),
+      replayed: true,
+    };
+  }
 
   const command = await runIdempotentCommand<ImportBatch>({
     db: database,
     fundId: input.fundId,
     idempotencyKey: input.idempotencyKey,
     contractVersion: STAGING_CONTRACT_VERSION,
-    request: {
-      fundId: input.fundId,
-      contractVersion: STAGING_CONTRACT_VERSION,
-      sourceArtifactId: input.sourceArtifactId,
-      mappingProfileId: input.mappingProfileId,
-      dataBasis: input.dataBasis,
-    },
+    request,
     loadExisting: async () => {
-      const [existing] = await database
-        .select()
-        .from(importBatches)
-        .where(
-          and(
-            eq(importBatches.fundId, input.fundId),
-            eq(importBatches.idempotencyKey, input.idempotencyKey)
-          )
-        )
-        .limit(1);
-      return existing ? { row: existing, requestHash: existing.requestHash } : null;
+      const concurrent = await loadExistingBatch(database, input.fundId, input.idempotencyKey);
+      return concurrent ? { row: concurrent, requestHash: concurrent.requestHash } : null;
     },
     insert: (requestHash) => stageInsert(database, input, requestHash),
   });
@@ -445,27 +461,36 @@ async function insertObservationsAndCases(
   staged: readonly StagedCandidate[]
 ): Promise<void> {
   for (const candidate of staged) {
-    // One writable CTE: RETURNING id feeds the dependency_group_key set in the
-    // same statement, so the key is assigned atomically at insert (finding 2).
-    const inserted = await tx.execute(sql`
-      WITH ins AS (
+    // Preallocate in adapter order so the dependency key is present in the
+    // single INSERT. PostgreSQL cannot update a row inserted by the same
+    // statement through a writable CTE.
+    const observationId = readInsertedId(
+      await tx.execute(sql`SELECT nextval('source_observations_id_seq') AS id`)
+    );
+    const insertedId = readInsertedId(
+      await tx.execute(sql`
         INSERT INTO source_observations (
-          fund_id, import_batch_id, source_artifact_id, mapping_profile_id,
+          id, fund_id, import_batch_id, source_artifact_id, mapping_profile_id,
           domain, source_type, effective_date, normalized_payload,
-          observation_hash, candidate_fingerprint, source_locator, status
+          observation_hash, candidate_fingerprint, source_locator,
+          dependency_group_key, status
         ) VALUES (
-          ${input.fundId}, ${batch.id}, ${artifact.id}, ${profile.id},
-          ${profile.domain}, 'csv', ${candidate.effectiveDate}, ${JSON.stringify(candidate.normalizedPayload)}::jsonb,
-          ${candidate.observationHash}, ${candidate.candidateFingerprint}, ${candidate.sourceLocator}, 'staged'
-        ) RETURNING id
-      )
-      UPDATE source_observations o
-      SET dependency_group_key = 'source-observation:' || ins.id
-      FROM ins
-      WHERE o.id = ins.id
-      RETURNING o.id AS id, o.company_identity_id AS company_identity_id
-    `);
-    const observationId = readInsertedId(inserted);
+          ${observationId}, ${input.fundId}, ${batch.id}, ${artifact.id}, ${profile.id},
+          ${profile.domain}, 'csv', ${candidate.effectiveDate},
+          ${JSON.stringify(candidate.normalizedPayload)}::jsonb,
+          ${candidate.observationHash}, ${candidate.candidateFingerprint},
+          ${candidate.sourceLocator}, ${dependencyGroupKeyForObservation(observationId)}, 'staged'
+        )
+        RETURNING id
+      `)
+    );
+    if (insertedId !== observationId) {
+      throw new ReconciliationApiError(
+        500,
+        'NORMALIZATION_REJECTED',
+        'Observation insert returned an unexpected id.'
+      );
+    }
 
     const classification = await classifyStagedObservation(tx, {
       fundId: input.fundId,
@@ -511,6 +536,19 @@ async function openInitialCases(
       history: [{ at: new Date().toISOString(), event: 'opened' }],
     });
   }
+}
+
+async function loadExistingBatch(
+  database: StagingDatabase,
+  fundId: number,
+  idempotencyKey: string
+): Promise<ImportBatch | null> {
+  const [existing] = await database
+    .select()
+    .from(importBatches)
+    .where(and(eq(importBatches.fundId, fundId), eq(importBatches.idempotencyKey, idempotencyKey)))
+    .limit(1);
+  return existing ?? null;
 }
 
 async function loadReceiptData(

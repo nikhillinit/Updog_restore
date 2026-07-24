@@ -8,7 +8,7 @@
  *
  * @module server/services/financial-observations/reconciliation-case-service
  */
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 
 import { db } from '../../db';
 import { parseETag, rowVersionETag } from '../../lib/http-preconditions';
@@ -22,14 +22,16 @@ import {
 } from '../../../shared/contracts/financial-observations/reconciliation-api.contract';
 import type { ReconciliationResolutionV1 } from '../../../shared/contracts/financial-observations/reconciliation.contract';
 import {
+  importBatches,
+  importMappingProfiles,
   reconciliationCases,
+  sourceArtifacts,
   sourceObservations,
   type ImportMappingProfile,
   type ReconciliationCase,
   type SourceObservation,
 } from '../../../shared/schema/financial-observations';
 import { cashFlowEvents, valuationMarks } from '../../../shared/schema/lp-reporting-evidence';
-import { importMappingProfiles } from '../../../shared/schema/financial-observations';
 import { ReconciliationApiError } from './reconciliation-errors';
 import { assertImportBatchNotExpired } from './import-batch-expiry';
 import {
@@ -104,6 +106,143 @@ export function caseToDto(row: ReconciliationCase): ReconciliationCaseDto {
   });
 }
 
+interface LockedCaseDependencies {
+  caseRow: ReconciliationCase;
+  observation: SourceObservation | null;
+}
+
+async function lockCaseDependencies(
+  tx: CaseDatabase,
+  input: Pick<ResolveCaseInput, 'fundId' | 'caseId'>
+): Promise<LockedCaseDependencies> {
+  const [caseReference] = await tx
+    .select({
+      importBatchId: reconciliationCases.importBatchId,
+      sourceObservationId: reconciliationCases.sourceObservationId,
+    })
+    .from(reconciliationCases)
+    .where(
+      and(eq(reconciliationCases.id, input.caseId), eq(reconciliationCases.fundId, input.fundId))
+    )
+    .limit(1);
+  if (!caseReference) {
+    throw new ReconciliationApiError(
+      404,
+      'CASE_NOT_FOUND',
+      'Reconciliation case not found in fund.'
+    );
+  }
+
+  const batchReference =
+    caseReference.importBatchId === null
+      ? null
+      : ((
+          await tx
+            .select({ sourceArtifactId: importBatches.sourceArtifactId })
+            .from(importBatches)
+            .where(
+              and(
+                eq(importBatches.id, caseReference.importBatchId),
+                eq(importBatches.fundId, input.fundId)
+              )
+            )
+            .limit(1)
+        )[0] ?? null);
+
+  if (batchReference?.sourceArtifactId !== null && batchReference?.sourceArtifactId !== undefined) {
+    await tx
+      .select({ id: sourceArtifacts.id })
+      .from(sourceArtifacts)
+      .where(
+        and(
+          eq(sourceArtifacts.id, batchReference.sourceArtifactId),
+          eq(sourceArtifacts.fundId, input.fundId)
+        )
+      )
+      .for('update')
+      .limit(1);
+  }
+
+  if (caseReference.importBatchId !== null) {
+    const [lockedBatch] = await tx
+      .select({ sourceArtifactId: importBatches.sourceArtifactId })
+      .from(importBatches)
+      .where(
+        and(
+          eq(importBatches.id, caseReference.importBatchId),
+          eq(importBatches.fundId, input.fundId)
+        )
+      )
+      .for('update')
+      .limit(1);
+    if (
+      batchReference !== null &&
+      lockedBatch !== undefined &&
+      lockedBatch.sourceArtifactId !== batchReference.sourceArtifactId
+    ) {
+      throw new ReconciliationApiError(
+        412,
+        'PRECONDITION_FAILED',
+        'Case batch source changed during resolution.'
+      );
+    }
+  }
+
+  let observation: SourceObservation | null = null;
+  if (caseReference.sourceObservationId !== null) {
+    const [lockedObservation] = await tx
+      .select()
+      .from(sourceObservations)
+      .where(
+        and(
+          eq(sourceObservations.id, caseReference.sourceObservationId),
+          eq(sourceObservations.fundId, input.fundId)
+        )
+      )
+      .for('update')
+      .limit(1);
+    if (!lockedObservation) {
+      throw new ReconciliationApiError(404, 'CASE_NOT_FOUND', 'Case observation not found.');
+    }
+    if (lockedObservation.importBatchId !== caseReference.importBatchId) {
+      throw new ReconciliationApiError(
+        412,
+        'PRECONDITION_FAILED',
+        'Case observation linkage changed during resolution.'
+      );
+    }
+    observation = lockedObservation;
+  }
+
+  const [caseRow] = await tx
+    .select()
+    .from(reconciliationCases)
+    .where(
+      and(eq(reconciliationCases.id, input.caseId), eq(reconciliationCases.fundId, input.fundId))
+    )
+    .for('update')
+    .limit(1);
+  if (!caseRow) {
+    throw new ReconciliationApiError(
+      404,
+      'CASE_NOT_FOUND',
+      'Reconciliation case not found in fund.'
+    );
+  }
+  if (
+    caseRow.importBatchId !== caseReference.importBatchId ||
+    caseRow.sourceObservationId !== caseReference.sourceObservationId
+  ) {
+    throw new ReconciliationApiError(
+      412,
+      'PRECONDITION_FAILED',
+      'Case dependencies changed during resolution.'
+    );
+  }
+
+  return { caseRow, observation };
+}
+
 // ---------------------------------------------------------------------------
 // R4 single resolve
 // ---------------------------------------------------------------------------
@@ -111,21 +250,7 @@ export function caseToDto(row: ReconciliationCase): ReconciliationCaseDto {
 export async function resolveCase(input: ResolveCaseInput): Promise<ResolveCaseResult> {
   const database = input.database ?? db;
   return database.transaction(async (tx) => {
-    const [caseRow] = await tx
-      .select()
-      .from(reconciliationCases)
-      .where(
-        and(eq(reconciliationCases.id, input.caseId), eq(reconciliationCases.fundId, input.fundId))
-      )
-      .for('update')
-      .limit(1);
-    if (!caseRow) {
-      throw new ReconciliationApiError(
-        404,
-        'CASE_NOT_FOUND',
-        'Reconciliation case not found in fund.'
-      );
-    }
+    const { caseRow, observation } = await lockCaseDependencies(tx, input);
 
     // Exact semantic replay: resolved with an identical decision is a 200 no-op.
     if (
@@ -145,7 +270,7 @@ export async function resolveCase(input: ResolveCaseInput): Promise<ResolveCaseR
     }
     await assertImportBatchNotExpired(tx, input.fundId, caseRow.importBatchId);
 
-    await applyDecisionSideEffects(tx, input, caseRow);
+    await applyDecisionSideEffects(tx, input, caseRow, observation);
 
     const resolvedAt = new Date();
     const history = [
@@ -156,7 +281,7 @@ export async function resolveCase(input: ResolveCaseInput): Promise<ResolveCaseR
       .update(reconciliationCases)
       .set({
         status: 'resolved',
-        resolution: normalizeDecision(input.decision),
+        resolution: normalizeDecision(caseRow.caseType, input.decision),
         resolvedBy: input.actorId,
         resolvedAt,
         history,
@@ -181,19 +306,112 @@ export async function resolveCase(input: ResolveCaseInput): Promise<ResolveCaseR
   });
 }
 
-function normalizeDecision(decision: ResolveCaseRequest): ReconciliationResolutionV1 {
-  return {
+export function assertDecisionShape(
+  caseType: ReconciliationCase['caseType'],
+  decision: ResolveCaseRequest
+): void {
+  const hasSourceIdentity = decision.sourceCompanyIdentityId !== undefined;
+  const hasCanonicalName = decision.canonicalName !== undefined;
+  const hasCanonicalTarget = decision.targetCanonicalRecordRef !== undefined;
+  const invalid = (): never => {
+    throw new ReconciliationApiError(
+      422,
+      'RESOLUTION_ACTION_INVALID',
+      'Resolution fields do not match the case type and action.'
+    );
+  };
+
+  if (caseType === 'identity_resolution') {
+    if (decision.action === 'confirm_match') {
+      if (
+        decision.targetCompanyIdentityId === null ||
+        hasSourceIdentity ||
+        hasCanonicalName ||
+        hasCanonicalTarget
+      ) {
+        invalid();
+      }
+      return;
+    }
+    if (decision.action === 'create_identity') {
+      if (
+        decision.targetCompanyIdentityId !== null ||
+        !hasCanonicalName ||
+        hasSourceIdentity ||
+        hasCanonicalTarget
+      ) {
+        invalid();
+      }
+      return;
+    }
+    if (decision.action === 'merge_identities') {
+      if (
+        decision.targetCompanyIdentityId === null ||
+        !hasSourceIdentity ||
+        hasCanonicalName ||
+        hasCanonicalTarget
+      ) {
+        invalid();
+      }
+      return;
+    }
+    invalid();
+  }
+
+  if (caseType === 'observation_match') {
+    if (decision.action === 'confirm_match') {
+      if (
+        decision.targetCompanyIdentityId !== null ||
+        !hasCanonicalTarget ||
+        hasSourceIdentity ||
+        hasCanonicalName
+      ) {
+        invalid();
+      }
+      return;
+    }
+    if (decision.action === 'reject') {
+      if (
+        decision.targetCompanyIdentityId !== null ||
+        hasSourceIdentity ||
+        hasCanonicalName ||
+        hasCanonicalTarget
+      ) {
+        invalid();
+      }
+      return;
+    }
+  }
+
+  invalid();
+}
+
+export function normalizeDecision(
+  caseType: ReconciliationCase['caseType'],
+  decision: ResolveCaseRequest
+): ReconciliationResolutionV1 {
+  assertDecisionShape(caseType, decision);
+  const normalized: ReconciliationResolutionV1 = {
     action: decision.action,
     targetCompanyIdentityId: decision.targetCompanyIdentityId,
     memo: decision.memo,
-    ...(decision.sourceCompanyIdentityId !== undefined && {
-      sourceCompanyIdentityId: decision.sourceCompanyIdentityId,
-    }),
-    ...(decision.canonicalName !== undefined && { canonicalName: decision.canonicalName }),
-    ...(decision.targetCanonicalRecordRef !== undefined && {
-      targetCanonicalRecordRef: decision.targetCanonicalRecordRef,
-    }),
   };
+  if (caseType === 'identity_resolution' && decision.action === 'create_identity') {
+    return { ...normalized, canonicalName: decision.canonicalName! };
+  }
+  if (caseType === 'identity_resolution' && decision.action === 'merge_identities') {
+    return {
+      ...normalized,
+      sourceCompanyIdentityId: decision.sourceCompanyIdentityId!,
+    };
+  }
+  if (caseType === 'observation_match' && decision.action === 'confirm_match') {
+    return {
+      ...normalized,
+      targetCanonicalRecordRef: decision.targetCanonicalRecordRef!,
+    };
+  }
+  return normalized;
 }
 
 // ---------------------------------------------------------------------------
@@ -203,29 +421,31 @@ function normalizeDecision(decision: ResolveCaseRequest): ReconciliationResoluti
 async function applyDecisionSideEffects(
   tx: CaseDatabase,
   input: ResolveCaseInput,
-  caseRow: ReconciliationCase
+  caseRow: ReconciliationCase,
+  observation: SourceObservation | null
 ): Promise<void> {
+  assertDecisionShape(caseRow.caseType, input.decision);
   if (caseRow.caseType === 'identity_resolution') {
-    await applyIdentityResolution(tx, input, caseRow);
+    await applyIdentityResolution(tx, input, caseRow, observation);
     return;
   }
-  await applyObservationMatch(tx, input, caseRow);
+  await applyObservationMatch(tx, input, caseRow, observation);
 }
 
 async function applyIdentityResolution(
   tx: CaseDatabase,
   input: ResolveCaseInput,
-  caseRow: ReconciliationCase
+  caseRow: ReconciliationCase,
+  observation: SourceObservation | null
 ): Promise<void> {
   const { decision, fundId, actorId } = input;
-  if (caseRow.sourceObservationId === null) {
+  if (caseRow.sourceObservationId === null || observation === null) {
     throw new ReconciliationApiError(
       422,
       'RESOLUTION_ACTION_INVALID',
       'Identity case has no observation.'
     );
   }
-  const observation = await loadObservation(tx, fundId, caseRow.sourceObservationId);
 
   let identityHead: number;
   if (decision.action === 'confirm_match') {
@@ -236,6 +456,10 @@ async function applyIdentityResolution(
         'confirm_match needs a target identity.'
       );
     }
+    // Serialize head resolution with mergeIdentities after the case lock. This
+    // is the identity tail of the shared artifact -> batch -> observation ->
+    // case -> identity lock order.
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`fund-identity:${fundId}`}))`);
     identityHead = await resolveIdentityHead(tx, fundId, decision.targetCompanyIdentityId);
   } else if (decision.action === 'create_identity') {
     if (decision.canonicalName === undefined) {
@@ -302,7 +526,8 @@ function safeAliasValue(payload: Record<string, unknown>, canonicalName: string)
 async function applyObservationMatch(
   tx: CaseDatabase,
   input: ResolveCaseInput,
-  caseRow: ReconciliationCase
+  caseRow: ReconciliationCase,
+  observation: SourceObservation | null
 ): Promise<void> {
   const { decision, fundId } = input;
   if (decision.action === 'reject') return; // suggested match rejected as a distinct observation
@@ -320,14 +545,13 @@ async function applyObservationMatch(
       'confirm_match needs a typed canonical target.'
     );
   }
-  if (caseRow.sourceObservationId === null) {
+  if (caseRow.sourceObservationId === null || observation === null) {
     throw new ReconciliationApiError(
       422,
       'RESOLUTION_ACTION_INVALID',
       'Match case has no observation.'
     );
   }
-  const observation = await loadObservation(tx, fundId, caseRow.sourceObservationId);
   const expectedKind = CANONICAL_KIND_BY_DOMAIN[observation.domain];
   if (expectedKind === null || decision.targetCanonicalRecordRef.kind !== expectedKind) {
     throw new ReconciliationApiError(
@@ -363,23 +587,6 @@ async function assertCanonicalTargetExists(
       'Canonical duplicate target does not exist in this fund.'
     );
   }
-}
-
-async function loadObservation(
-  tx: CaseDatabase,
-  fundId: number,
-  observationId: number
-): Promise<SourceObservation> {
-  const [row] = await tx
-    .select()
-    .from(sourceObservations)
-    .where(and(eq(sourceObservations.id, observationId), eq(sourceObservations.fundId, fundId)))
-    .for('update')
-    .limit(1);
-  if (!row) {
-    throw new ReconciliationApiError(404, 'CASE_NOT_FOUND', 'Case observation not found.');
-  }
-  return row;
 }
 
 async function loadProfile(

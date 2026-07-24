@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import type { SQL } from 'drizzle-orm';
+import { PgDialect } from 'drizzle-orm/pg-core';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
+  classifyStagedObservation,
   identityDescriptorFromPayload,
   profileAliasSystem,
   profileAliasValue,
@@ -9,6 +12,19 @@ import {
   IdentityLabelEmptyError,
   canonicalizeIdentityLabel,
 } from '../../../../server/services/financial-observations/normalization-service';
+
+function thenableRows(rows: readonly unknown[]): unknown {
+  const chain: unknown = new Proxy(() => undefined, {
+    get(_target, property) {
+      if (property === 'then') {
+        return (resolve: (value: readonly unknown[]) => void, reject: (reason: unknown) => void) =>
+          Promise.resolve(rows).then(resolve, reject);
+      }
+      return () => chain;
+    },
+  });
+  return chain;
+}
 
 describe('identityDescriptorFromPayload', () => {
   it('reads an external descriptor', () => {
@@ -67,5 +83,40 @@ describe('canonicalizeIdentityLabel/v1', () => {
 
   it('caps length at the max text field length', () => {
     expect(canonicalizeIdentityLabel('a'.repeat(3000))).toHaveLength(2000);
+  });
+});
+
+describe('classifyStagedObservation', () => {
+  it('takes the fund-scoped fingerprint advisory lock before duplicate lookup', async () => {
+    const events: string[] = [];
+    const execute = vi.fn(async () => {
+      events.push('fingerprint-lock');
+      return [];
+    });
+    const select = vi.fn(() => {
+      events.push('duplicate-query');
+      return thenableRows([{ id: 22 }]);
+    });
+    const candidateFingerprint = 'c'.repeat(64);
+
+    const classification = await classifyStagedObservation({ execute, select } as never, {
+      fundId: 7,
+      observationId: 21,
+      profile: { id: 3, identitySemanticsHash: 'a'.repeat(64) },
+      normalizedPayload: {},
+      observationHash: 'b'.repeat(64),
+      candidateFingerprint,
+    });
+
+    expect(events).toEqual(['fingerprint-lock', 'duplicate-query']);
+    expect(classification).toEqual({
+      companyIdentityId: null,
+      needsIdentityCase: true,
+      duplicateFingerprintCase: true,
+    });
+
+    const query = new PgDialect().sqlToQuery(execute.mock.calls[0]![0] as SQL);
+    expect(query.sql).toContain('pg_advisory_xact_lock(hashtext(');
+    expect(query.params).toEqual([`fund-fingerprint:7:${candidateFingerprint}`]);
   });
 });

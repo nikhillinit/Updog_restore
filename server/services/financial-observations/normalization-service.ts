@@ -153,13 +153,9 @@ function isBlank(value: string | null | undefined): boolean {
  */
 export const CANONICALIZE_IDENTITY_LABEL_VERSION = 1 as const;
 
-/**
- * Single shared identity canonicalizer (D10). Unicode NFKC normalize -> trim ->
- * collapse internal whitespace to one space -> locale-independent lowercase.
- * NFKC is identity on ASCII, so existing name-identity hashes are unchanged.
- */
+/** Frozen v1 hash-path canonicalizer: trim, collapse whitespace, lowercase. */
 function canonicalizeName(name: string): string {
-  return name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 /** Thrown by `canonicalizeIdentityLabel` when canonicalization yields empty. */
@@ -172,13 +168,12 @@ export class IdentityLabelEmptyError extends Error {
 }
 
 /**
- * Versioned alias-label canonicalizer (`canonicalizeIdentityLabel/v1`). Builds
- * on the shared `canonicalizeName` core, then rejects an empty result and caps
- * length so alias lookup bytes are implementation-stable. Used only for the
- * profile-alias write path, never for the observation/fingerprint hash path.
+ * Versioned alias-label canonicalizer (`canonicalizeIdentityLabel/v1`). NFKC is
+ * intentionally confined to this alias path; observation/fingerprint hashes
+ * retain frozen v1 bytes.
  */
 export function canonicalizeIdentityLabel(label: string): string {
-  const canonical = canonicalizeName(label);
+  const canonical = canonicalizeName(label.normalize('NFKC'));
   if (canonical.length === 0) {
     throw new IdentityLabelEmptyError();
   }

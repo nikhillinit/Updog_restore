@@ -1,18 +1,59 @@
-import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
 
+import type { IdempotentCommandError } from '../../../../server/services/financial-observations/import-batch-staging-service';
 import {
   assertProfileMappingGates,
   buildStageReceipt,
   collectStagedCandidates,
   computePreviewHash,
+  stageImportBatch,
 } from '../../../../server/services/financial-observations/import-batch-staging-service';
 import { ReconciliationApiError } from '../../../../server/services/financial-observations/reconciliation-errors';
-import type { NormalizationResultV2 } from '../../../../shared/contracts/financial-observations/normalization.contract';
+import { canonicalSha256 } from '../../../../shared/lib/canonical-hash';
+import {
+  IMPORT_V2_CONTRACT_VERSION,
+  type NormalizationResultV2,
+} from '../../../../shared/contracts/financial-observations/normalization.contract';
 
 const HASH_A = 'a'.repeat(64);
 const HASH_B = 'b'.repeat(64);
 const FP_A = 'c'.repeat(64);
 const FP_B = 'd'.repeat(64);
+
+function thenableRows(rows: readonly unknown[]): unknown {
+  const chain: unknown = new Proxy(() => undefined, {
+    get(_target, property) {
+      if (property === 'then') {
+        return (resolve: (value: readonly unknown[]) => void, reject: (reason: unknown) => void) =>
+          Promise.resolve(rows).then(resolve, reject);
+      }
+      return () => chain;
+    },
+  });
+  return chain;
+}
+
+function replayDatabase(
+  batch: Record<string, unknown>,
+  observations: readonly Record<string, unknown>[],
+  caseIds: readonly number[]
+) {
+  const select = vi
+    .fn()
+    .mockImplementationOnce(() => thenableRows([batch]))
+    .mockImplementationOnce(() => thenableRows(observations))
+    .mockImplementationOnce(() => thenableRows(caseIds.map((id) => ({ id }))));
+  const transaction = vi.fn(async () => {
+    throw new ReconciliationApiError(
+      422,
+      'ARTIFACT_PAYLOAD_UNAVAILABLE',
+      'Artifact payload has been purged.'
+    );
+  });
+  return { database: { select, transaction }, transaction };
+}
 
 function stagedCandidate(overrides: Record<string, unknown> = {}) {
   return {
@@ -166,6 +207,87 @@ describe('buildStageReceipt', () => {
     expect(receipt.initialCaseIds).toEqual([20, 30]);
     expect(JSON.stringify(receipt)).not.toContain(`${HASH_A.slice(0, 40)}candidate`);
     expect(receipt.observations[0]).not.toHaveProperty('observationHash');
+  });
+});
+
+describe('stageImportBatch immutable replay', () => {
+  const input = {
+    fundId: 1,
+    sourceArtifactId: 4,
+    mappingProfileId: 3,
+    dataBasis: 'observed_actual' as const,
+    idempotencyKey: 'stage-replay',
+    actorId: 7,
+  };
+  const requestHash = canonicalSha256({
+    fundId: input.fundId,
+    contractVersion: IMPORT_V2_CONTRACT_VERSION,
+    sourceArtifactId: input.sourceArtifactId,
+    mappingProfileId: input.mappingProfileId,
+    dataBasis: input.dataBasis,
+  });
+  const batch = {
+    id: 9,
+    sourceArtifactId: input.sourceArtifactId,
+    mappingProfileId: input.mappingProfileId,
+    previewHash: HASH_A,
+    purgeAfter: new Date('2026-02-10T00:00:00.000Z'),
+    requestHash,
+  };
+  const observations = [
+    { id: 11, sourceLocator: 'csv:row:1', dependencyGroupKey: 'source-observation:11' },
+    { id: 12, sourceLocator: 'csv:row:2', dependencyGroupKey: 'source-observation:12' },
+  ];
+  const caseIds = [20, 30];
+
+  it('returns the persisted receipt after payload purge without entering the insert path', async () => {
+    const { database, transaction } = replayDatabase(batch, observations, caseIds);
+    const initialReceipt = buildStageReceipt(batch, observations, caseIds);
+
+    const replay = await stageImportBatch({ ...input, database: database as never });
+
+    expect(replay).toEqual({ receipt: initialReceipt, replayed: true });
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects a changed body with the stored key before entering the insert path', async () => {
+    const { database, transaction } = replayDatabase(batch, observations, caseIds);
+
+    await expect(
+      stageImportBatch({
+        ...input,
+        mappingProfileId: 8,
+        database: database as never,
+      })
+    ).rejects.toMatchObject<Partial<IdempotentCommandError>>({
+      status: 409,
+      code: 'IDEMPOTENCY_KEY_REUSE',
+    });
+    expect(transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe('source observation insert SQL', () => {
+  it('preallocates the id and sets the dependency group in one INSERT', () => {
+    const source = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        'server',
+        'services',
+        'financial-observations',
+        'import-batch-staging-service.ts'
+      ),
+      'utf8'
+    );
+    const start = source.indexOf("SELECT nextval('source_observations_id_seq') AS id");
+    const end = source.indexOf('const classification =', start);
+    const insertBlock = source.slice(start, end);
+
+    expect(start).toBeGreaterThan(-1);
+    expect(insertBlock).toContain('INSERT INTO source_observations');
+    expect(insertBlock).toContain('dependency_group_key, status');
+    expect(insertBlock).not.toContain('WITH ins AS');
+    expect(insertBlock).not.toContain('UPDATE source_observations');
   });
 });
 

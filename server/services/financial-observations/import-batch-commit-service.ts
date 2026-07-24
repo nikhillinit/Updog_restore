@@ -112,6 +112,34 @@ export async function commitImportBatch(
   const requestedIds = requestedObservationIds(input.requestedGroupKeys);
 
   return database.transaction(async (tx) => {
+    // Pre-read immutable foreign IDs, then acquire every mutation lock in the
+    // shared artifact -> batch -> hash -> observation -> case order.
+    const [batchReference] = await tx
+      .select()
+      .from(importBatches)
+      .where(and(eq(importBatches.id, input.batchId), eq(importBatches.fundId, input.fundId)))
+      .limit(1);
+    if (!batchReference) {
+      throw new ReconciliationApiError(
+        404,
+        'ARTIFACT_NOT_FOUND',
+        'Import batch not found in fund.'
+      );
+    }
+    if (batchReference.sourceArtifactId !== null) {
+      await tx
+        .select({ id: sourceArtifacts.id })
+        .from(sourceArtifacts)
+        .where(
+          and(
+            eq(sourceArtifacts.id, batchReference.sourceArtifactId),
+            eq(sourceArtifacts.fundId, input.fundId)
+          )
+        )
+        .for('update')
+        .limit(1);
+    }
+
     const [batch] = await tx
       .select()
       .from(importBatches)
@@ -125,25 +153,24 @@ export async function commitImportBatch(
         'Import batch not found in fund.'
       );
     }
-    if (batch.sourceArtifactId !== null) {
-      await tx
-        .select({ id: sourceArtifacts.id })
-        .from(sourceArtifacts)
-        .where(
-          and(
-            eq(sourceArtifacts.id, batch.sourceArtifactId),
-            eq(sourceArtifacts.fundId, input.fundId)
-          )
-        )
-        .for('update')
-        .limit(1);
+    if (batch.sourceArtifactId !== batchReference.sourceArtifactId) {
+      throw new ReconciliationApiError(
+        412,
+        'PRECONDITION_FAILED',
+        'Batch source changed during commit.'
+      );
     }
 
-    const requested = await loadRequestedObservations(tx, input.fundId, batch.id, requestedIds);
+    const requestedReference = await preReadRequestedObservations(
+      tx,
+      input.fundId,
+      batch.id,
+      requestedIds
+    );
 
     // Exact accepted-state replay: previewHash matches and all requested groups
     // already accepted -> 200 no mutation, even if the If-Match value is stale.
-    const allAccepted = requested.every((o) => o.status === 'accepted');
+    const allAccepted = requestedReference.every((o) => o.status === 'accepted');
     if (batch.previewHash === input.previewHash && allAccepted) {
       return finalize(tx, input.fundId, batch);
     }
@@ -153,14 +180,18 @@ export async function commitImportBatch(
     }
     await assertImportBatchNotExpired(tx, input.fundId, batch.id);
 
+    const orderedHashes = requestedReference
+      .map((observation) => observation.observationHash)
+      .sort();
+    for (const hash of orderedHashes) {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${hash}))`);
+    }
+    const requested = await loadRequestedObservations(tx, input.fundId, batch.id, requestedIds);
+
     await assertPreviewHashMatches(tx, input, batch);
     await assertDependencyGroupsComplete(tx, input.fundId, requested);
 
     const staged = requested.filter((o) => o.status === 'staged');
-    const orderedHashes = staged.map((o) => o.observationHash).sort();
-    for (const hash of orderedHashes) {
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${hash}))`);
-    }
     await assertNoAcceptedHashCollision(tx, input.fundId, staged);
 
     for (const observation of staged) {
@@ -281,7 +312,8 @@ async function assertDependencyGroupsComplete(
         inArray(reconciliationCases.sourceObservationId, observationIds)
       )
     )
-    .for('update');
+    .for('update')
+    .orderBy(asc(reconciliationCases.id));
 
   const blockers: Array<{ observationId: number; reason: string }> = [];
   const casesByObs = new Map<number, ReconciliationCase[]>();
@@ -408,6 +440,33 @@ async function loadRequestedObservations(
       )
     )
     .for('update')
+    .orderBy(asc(sourceObservations.id));
+  if (rows.length !== requestedIds.length) {
+    throw new ReconciliationApiError(
+      422,
+      'UNKNOWN_GROUP_KEY',
+      'A requested group key is not in this batch.'
+    );
+  }
+  return rows;
+}
+
+async function preReadRequestedObservations(
+  tx: CommitDatabase,
+  fundId: number,
+  batchId: number,
+  requestedIds: readonly number[]
+): Promise<SourceObservation[]> {
+  const rows = await tx
+    .select()
+    .from(sourceObservations)
+    .where(
+      and(
+        eq(sourceObservations.fundId, fundId),
+        eq(sourceObservations.importBatchId, batchId),
+        inArray(sourceObservations.id, [...requestedIds])
+      )
+    )
     .orderBy(asc(sourceObservations.id));
   if (rows.length !== requestedIds.length) {
     throw new ReconciliationApiError(

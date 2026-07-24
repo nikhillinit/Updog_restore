@@ -233,6 +233,9 @@ export async function classifyStagedObservation(
     await attachObservationIdentity(database, input.fundId, input.observationId, companyIdentityId);
   }
 
+  await database.execute(
+    sql`SELECT pg_advisory_xact_lock(hashtext(${`fund-fingerprint:${input.fundId}:${input.candidateFingerprint}`}))`
+  );
   const duplicateFingerprintCase = await hasDifferentHashSameFingerprint(
     database,
     input.fundId,

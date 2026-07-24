@@ -520,7 +520,10 @@ function sendReconciliationError(res: Response, err: unknown): Response {
   if (err instanceof IdempotentCommandError) {
     return res.status(err.status).json({ error: err.code, message: err.message });
   }
-  return sendV2ImportError(res, err);
+  return res.status(500).json({
+    error: 'IMPORT_REQUEST_FAILED',
+    message: 'The import request failed.',
+  });
 }
 
 function parsePositiveParam(req: Request, name: string): number | null {
@@ -571,6 +574,7 @@ router.get(
   '/api/funds/:fundId/imports/batches/:batchId',
   requireAuth(),
   requireFundAccess,
+  importArtifactLimiter,
   async (req: Request, res: Response) => {
     const batchId = parsePositiveParam(req, 'batchId');
     if (batchId === null) {
@@ -593,6 +597,7 @@ router.get(
   '/api/funds/:fundId/reconciliation/cases',
   requireAuth(),
   requireFundAccess,
+  importArtifactLimiter,
   async (req: Request, res: Response) => {
     const parsedQuery = ListReconciliationCasesQuerySchema.safeParse(req.query);
     if (!parsedQuery.success) {
@@ -615,6 +620,7 @@ router.post(
   '/api/funds/:fundId/reconciliation/cases/:caseId/resolve',
   requireAuth(),
   requireFundAccess,
+  importArtifactLimiter,
   requireIfMatch(),
   async (req: Request, res: Response) => {
     const caseId = parsePositiveParam(req, 'caseId');
@@ -652,6 +658,7 @@ router.post(
   '/api/funds/:fundId/reconciliation/cases/bulk-resolve',
   requireAuth(),
   requireFundAccess,
+  importArtifactLimiter,
   async (req: Request, res: Response) => {
     const parsedBody = BulkResolveRequestSchema.safeParse(req.body);
     if (!parsedBody.success) {
@@ -679,6 +686,7 @@ router.post(
   '/api/funds/:fundId/imports/batches/:batchId/commit',
   requireAuth(),
   requireFundAccess,
+  importArtifactLimiter,
   requireIfMatch(),
   async (req: Request, res: Response) => {
     const batchId = parsePositiveParam(req, 'batchId');
