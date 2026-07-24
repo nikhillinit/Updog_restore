@@ -192,7 +192,7 @@ async function finalize(
   fundId: number,
   batch: ImportBatch
 ): Promise<{ response: CommitImportBatchResponse; httpStatus: 200 }> {
-  const response = await loadImportBatchStatus(tx, fundId, batch.id);
+  const response = await loadImportBatchStatus(fundId, batch.id, tx);
   return { response: { batch: response }, httpStatus: 200 };
 }
 
@@ -455,9 +455,9 @@ async function transactionUtcDate(tx: CommitDatabase): Promise<string> {
 // ---------------------------------------------------------------------------
 
 export async function loadImportBatchStatus(
-  database: CommitDatabase,
   fundId: number,
-  batchId: number
+  batchId: number,
+  database: CommitDatabase = db
 ): Promise<ImportBatchStatusResponse> {
   const [batch] = await database
     .select()

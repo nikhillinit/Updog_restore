@@ -681,7 +681,7 @@ describe('Source grep -- bounded commit endpoints, no /api/public', () => {
     expect(routerSource).not.toMatch(/\/api\/public/);
   });
 
-  it('declares exactly the four frozen V1 routes and two V2 creation routes', () => {
+  it('declares the four frozen V1 routes, two V2 creation routes, and six Task 6 routes', () => {
     const paths = [
       ...routerSource.matchAll(/router\.(?:post|get|put|delete|patch)\(\s*['"]([^'"]+)['"]/g),
     ].map((match) => match[1]);
@@ -692,6 +692,12 @@ describe('Source grep -- bounded commit endpoints, no /api/public', () => {
       '/api/funds/:fundId/imports/valuation-marks/commit',
       '/api/funds/:fundId/imports/artifacts',
       '/api/funds/:fundId/imports/mapping-profiles',
+      '/api/funds/:fundId/imports/batches',
+      '/api/funds/:fundId/imports/batches/:batchId',
+      '/api/funds/:fundId/reconciliation/cases',
+      '/api/funds/:fundId/reconciliation/cases/:caseId/resolve',
+      '/api/funds/:fundId/reconciliation/cases/bulk-resolve',
+      '/api/funds/:fundId/imports/batches/:batchId/commit',
     ]);
   });
 });
