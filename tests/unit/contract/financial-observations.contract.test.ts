@@ -171,7 +171,12 @@ describe('financial-observation contract constants', () => {
       'parse_date_us',
       'negate',
     ]);
-    expect(IDENTITY_TARGET_FIELDS).toEqual(['company_name', 'company_external_id']);
+    expect(IDENTITY_TARGET_FIELDS).toEqual([
+      'company_name',
+      'company_external_system',
+      'company_external_value',
+      'source_label',
+    ]);
     expect(RECONCILIATION_CASE_TYPES).toEqual(['identity_resolution', 'observation_match']);
     expect(RECONCILIATION_CASE_STATUSES).toEqual(['open', 'resolved', 'expired_unresolved']);
     expect(TERMINAL_RECONCILIATION_CASE_STATUSES).toEqual(['resolved', 'expired_unresolved']);
@@ -280,7 +285,7 @@ describe('identity mapping semantics', () => {
   it('hashes SHA-like source strings directly without decimal-leaf mangling', () => {
     const hexSourceRule = {
       sourceColumn: 'e'.repeat(64),
-      targetField: 'company_external_id',
+      targetField: 'company_external_value',
       transforms: ['trim'],
     } as const;
 

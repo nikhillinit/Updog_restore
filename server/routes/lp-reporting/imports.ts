@@ -57,10 +57,29 @@ import {
   MappingProfileResponseSchema,
 } from '../../services/financial-observations/mapping-profile-service';
 import {
+  BulkResolveRequestSchema,
+  CommitImportBatchRequestSchema,
   FINANCIAL_OBSERVATION_DOMAINS,
   FINANCIAL_OBSERVATION_SOURCES,
+  ListReconciliationCasesQuerySchema,
   MappingRuleV1Schema,
+  ResolveCaseRequestSchema,
+  StageImportBatchRequestSchema,
 } from '@shared/contracts/financial-observations';
+import { requireIfMatch, type PreconditionRequest } from '../../lib/http-preconditions';
+import { IdempotentCommandError } from '../../lib/idempotent-command';
+import { stageImportBatch } from '../../services/financial-observations/import-batch-staging-service';
+import {
+  bulkResolveCases,
+  listCases,
+  resolveCase,
+} from '../../services/financial-observations/reconciliation-case-service';
+import {
+  commitImportBatch,
+  loadImportBatchStatus,
+} from '../../services/financial-observations/import-batch-commit-service';
+import { isReconciliationApiError } from '../../services/financial-observations/reconciliation-errors';
+import { recordV1ImportInvocation } from '../../services/lp-reporting/v1-import-telemetry';
 
 const router = Router();
 
@@ -241,6 +260,11 @@ router.post(
     const fundId = Number.parseInt(firstString(req.params['fundId']) ?? '', 10);
     const buffer = decodePayload(parsedBody.data.payload);
 
+    recordV1ImportInvocation({
+      route: 'imports/ledger/dry-run',
+      fundId,
+      sourceType: parsedBody.data.sourceType,
+    });
     try {
       const result = runLedgerDryRun(buffer, parsedBody.data.sourceType, fundId);
       const validated = ImportDryRunResponseSchema.parse(result);
@@ -273,6 +297,11 @@ router.post(
     const fundId = Number.parseInt(firstString(req.params['fundId']) ?? '', 10);
     const buffer = decodePayload(parsedBody.data.payload);
 
+    recordV1ImportInvocation({
+      route: 'imports/valuation-marks/dry-run',
+      fundId,
+      sourceType: parsedBody.data.sourceType,
+    });
     try {
       const result = runValuationMarkDryRun(buffer, parsedBody.data.sourceType, fundId);
       const validated = ImportDryRunResponseSchema.parse(result);
@@ -302,6 +331,11 @@ router.post(
       });
     }
 
+    recordV1ImportInvocation({
+      route: 'imports/ledger/commit',
+      fundId: parseFundId(req),
+      sourceType: parsedBody.data.sourceType,
+    });
     try {
       const result = await commitLedgerImport({
         fundId: parseFundId(req),
@@ -334,6 +368,11 @@ router.post(
       });
     }
 
+    recordV1ImportInvocation({
+      route: 'imports/valuation-marks/commit',
+      fundId: parseFundId(req),
+      sourceType: parsedBody.data.sourceType,
+    });
     try {
       const result = await commitValuationMarkImport({
         fundId: parseFundId(req),
@@ -462,6 +501,221 @@ router.post(
       return res.status(replayed ? 200 : 201).json(response);
     } catch (error) {
       return sendV2ImportError(res, error);
+    }
+  }
+);
+
+// ===========================================================================
+// V2 acceptance layer (PLAN_61 Task 6): CSV staging, reconciliation, commit.
+// ===========================================================================
+
+function sendReconciliationError(res: Response, err: unknown): Response {
+  if (isReconciliationApiError(err)) {
+    return res.status(err.status).json({
+      error: err.code,
+      message: err.message,
+      ...(err.details !== undefined && { details: err.details }),
+    });
+  }
+  if (err instanceof IdempotentCommandError) {
+    return res.status(err.status).json({ error: err.code, message: err.message });
+  }
+  return res.status(500).json({
+    error: 'IMPORT_REQUEST_FAILED',
+    message: 'The import request failed.',
+  });
+}
+
+function parsePositiveParam(req: Request, name: string): number | null {
+  return numericIdentity(firstString(req.params[name]));
+}
+
+// R1: stage a CSV observed-actual import batch.
+router.post(
+  '/api/funds/:fundId/imports/batches',
+  requireAuth(),
+  requireFundAccess,
+  importArtifactLimiter,
+  async (req: Request, res: Response) => {
+    const parsedIdempotencyKey = parseIdempotencyKey(req);
+    if (!parsedIdempotencyKey.success) {
+      return res.status(400).json({
+        error: 'INVALID_IDEMPOTENCY_KEY',
+        message: 'Idempotency-Key must contain 1 to 128 characters.',
+      });
+    }
+    const parsedBody = StageImportBatchRequestSchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      return res.status(400).json({
+        error: 'INVALID_BODY',
+        message:
+          'Body must contain contractVersion, sourceArtifactId, mappingProfileId, dataBasis.',
+        issues: parsedBody.error.issues,
+      });
+    }
+    try {
+      const { receipt, replayed } = await stageImportBatch({
+        fundId: parseFundId(req),
+        sourceArtifactId: parsedBody.data.sourceArtifactId,
+        mappingProfileId: parsedBody.data.mappingProfileId,
+        dataBasis: parsedBody.data.dataBasis,
+        idempotencyKey: parsedIdempotencyKey.data,
+        actorId: resolveAuthenticatedUserId(req),
+      });
+      return res.status(replayed ? 200 : 201).json(receipt);
+    } catch (error) {
+      return sendReconciliationError(res, error);
+    }
+  }
+);
+
+// R2: current batch status, groups, blockers, retention, ETag.
+router.get(
+  '/api/funds/:fundId/imports/batches/:batchId',
+  requireAuth(),
+  requireFundAccess,
+  importArtifactLimiter,
+  async (req: Request, res: Response) => {
+    const batchId = parsePositiveParam(req, 'batchId');
+    if (batchId === null) {
+      return res
+        .status(400)
+        .json({ error: 'INVALID_BATCH_ID', message: 'batchId must be a positive integer.' });
+    }
+    try {
+      const status = await loadImportBatchStatus(parseFundId(req), batchId);
+      res.setHeader('ETag', status.etag);
+      return res.status(200).json(status);
+    } catch (error) {
+      return sendReconciliationError(res, error);
+    }
+  }
+);
+
+// R3: fund-scoped reconciliation cases with per-case ETags.
+router.get(
+  '/api/funds/:fundId/reconciliation/cases',
+  requireAuth(),
+  requireFundAccess,
+  importArtifactLimiter,
+  async (req: Request, res: Response) => {
+    const parsedQuery = ListReconciliationCasesQuerySchema.safeParse(req.query);
+    if (!parsedQuery.success) {
+      return res.status(400).json({
+        error: 'INVALID_QUERY',
+        message: 'status must be one of open, resolved, expired_unresolved.',
+      });
+    }
+    try {
+      const cases = await listCases(parseFundId(req), parsedQuery.data.status);
+      return res.status(200).json({ cases });
+    } catch (error) {
+      return sendReconciliationError(res, error);
+    }
+  }
+);
+
+// R4: resolve a single case (If-Match required; exact semantic replay is a 200 no-op).
+router.post(
+  '/api/funds/:fundId/reconciliation/cases/:caseId/resolve',
+  requireAuth(),
+  requireFundAccess,
+  importArtifactLimiter,
+  requireIfMatch(),
+  async (req: Request, res: Response) => {
+    const caseId = parsePositiveParam(req, 'caseId');
+    if (caseId === null) {
+      return res
+        .status(400)
+        .json({ error: 'INVALID_CASE_ID', message: 'caseId must be a positive integer.' });
+    }
+    const parsedBody = ResolveCaseRequestSchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      return res.status(400).json({
+        error: 'INVALID_BODY',
+        message: 'Body must contain a valid resolution decision.',
+        issues: parsedBody.error.issues,
+      });
+    }
+    try {
+      const result = await resolveCase({
+        fundId: parseFundId(req),
+        caseId,
+        ifMatch: (req as PreconditionRequest).ifMatch ?? '',
+        decision: parsedBody.data,
+        actorId: resolveAuthenticatedUserId(req),
+      });
+      res.setHeader('ETag', result.case.etag);
+      return res.status(result.httpStatus).json({ case: result.case });
+    } catch (error) {
+      return sendReconciliationError(res, error);
+    }
+  }
+);
+
+// R5: bulk-resolve unique cases; per-item If-Match; ordered partial-result envelope.
+router.post(
+  '/api/funds/:fundId/reconciliation/cases/bulk-resolve',
+  requireAuth(),
+  requireFundAccess,
+  importArtifactLimiter,
+  async (req: Request, res: Response) => {
+    const parsedBody = BulkResolveRequestSchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      return res.status(400).json({
+        error: 'INVALID_BODY',
+        message: 'Body must contain a non-empty items array of {caseId, ifMatch, decision}.',
+        issues: parsedBody.error.issues,
+      });
+    }
+    try {
+      const result = await bulkResolveCases({
+        fundId: parseFundId(req),
+        items: parsedBody.data.items,
+        actorId: resolveAuthenticatedUserId(req),
+      });
+      return res.status(200).json(result);
+    } catch (error) {
+      return sendReconciliationError(res, error);
+    }
+  }
+);
+
+// R6: acceptance-only commit of requested singleton groups (If-Match required).
+router.post(
+  '/api/funds/:fundId/imports/batches/:batchId/commit',
+  requireAuth(),
+  requireFundAccess,
+  importArtifactLimiter,
+  requireIfMatch(),
+  async (req: Request, res: Response) => {
+    const batchId = parsePositiveParam(req, 'batchId');
+    if (batchId === null) {
+      return res
+        .status(400)
+        .json({ error: 'INVALID_BATCH_ID', message: 'batchId must be a positive integer.' });
+    }
+    const parsedBody = CommitImportBatchRequestSchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      return res.status(400).json({
+        error: 'INVALID_BODY',
+        message: 'Body must contain previewHash and a non-empty requestedGroupKeys array.',
+        issues: parsedBody.error.issues,
+      });
+    }
+    try {
+      const result = await commitImportBatch({
+        fundId: parseFundId(req),
+        batchId,
+        ifMatch: (req as PreconditionRequest).ifMatch ?? '',
+        previewHash: parsedBody.data.previewHash,
+        requestedGroupKeys: parsedBody.data.requestedGroupKeys,
+        actorId: resolveAuthenticatedUserId(req),
+      });
+      res.setHeader('ETag', result.response.batch.etag);
+      return res.status(result.httpStatus).json(result.response);
+    } catch (error) {
+      return sendReconciliationError(res, error);
     }
   }
 );

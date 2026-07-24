@@ -626,6 +626,35 @@ const LP_REPORTING_ADDITIONAL_ROUTE_POLICY_GROUPS = [
     exportPolicy: 'not_exportable',
     provenanceRequired: true,
   },
+  {
+    // Task 6 R1: CSV observed-actual staging (Idempotency-Key required).
+    governanceRef: '/lp-reporting/imports',
+    routes: [['POST', '/api/funds/:fundId/imports/batches']],
+    workflowRequirement: 'fund_scope_and_idempotency_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+  },
+  {
+    // Task 6 R2/R3/R4/R5: batch status, case list, and case resolution.
+    governanceRef: '/lp-reporting/imports',
+    routes: [
+      ['GET', '/api/funds/:fundId/imports/batches/:batchId'],
+      ['GET', '/api/funds/:fundId/reconciliation/cases'],
+      ['POST', '/api/funds/:fundId/reconciliation/cases/:caseId/resolve'],
+      ['POST', '/api/funds/:fundId/reconciliation/cases/bulk-resolve'],
+    ],
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+  },
+  {
+    // Task 6 R6: acceptance-only commit of requested singleton groups.
+    governanceRef: '/lp-reporting/imports',
+    routes: [['POST', '/api/funds/:fundId/imports/batches/:batchId/commit']],
+    workflowRequirement: 'clean_preview_hash_fund_references_and_source_hashes_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+  },
 ] satisfies ReadonlyArray<LpReportingRoutePolicyGroup>;
 
 const LP_REPORTING_ADDITIONAL_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] =

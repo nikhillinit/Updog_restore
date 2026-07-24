@@ -27,23 +27,21 @@ vi.mock('express-rate-limit', () => ({
 }));
 
 vi.mock('../../../server/lib/auth/jwt', () => ({
-  requireAuth:
-    () => (req: Request, _res: Response, next: NextFunction) => {
-      req.user = {
-        id: 7,
-        sub: '7',
-        role: 'admin',
-        roles: ['admin'],
-        fundIds: [1, 999],
-      } as never;
-      next();
-    },
+  requireAuth: () => (req: Request, _res: Response, next: NextFunction) => {
+    req.user = {
+      id: 7,
+      sub: '7',
+      role: 'admin',
+      roles: ['admin'],
+      fundIds: [1, 999],
+    } as never;
+    next();
+  },
   requireFundAccess: (_req: Request, _res: Response, next: NextFunction) => next(),
-  requireRole:
-    (role: string) => (req: Request, res: Response, next: NextFunction) => {
-      if (req.user?.role !== role) return res.sendStatus(403);
-      next();
-    },
+  requireRole: (role: string) => (req: Request, res: Response, next: NextFunction) => {
+    if (req.user?.role !== role) return res.sendStatus(403);
+    next();
+  },
 }));
 
 vi.mock('../../../server/services/financial-facts-snapshot-service', () => {
@@ -199,7 +197,9 @@ describe('financial-facts route contract', () => {
   });
 
   it('GET rejects a non-numeric fund ID before reading snapshots', async () => {
-    const response = await request(buildApp()).get('/api/funds/not-a-number/financial-facts/latest');
+    const response = await request(buildApp()).get(
+      '/api/funds/not-a-number/financial-facts/latest'
+    );
 
     expect(response.status).toBe(400);
     expect(response.body).toMatchObject({ error: 'Invalid parameter' });
@@ -258,7 +258,7 @@ describe('financial-facts route contract', () => {
     expect(service.buildFinancialFactsSnapshot).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        idempotencyKey: 'facts:1:2026-07-21:financial-facts-policy/1.0.0:trigger-7',
+        idempotencyKey: 'facts:1:2026-07-21:financial-facts-policy/1.0.1:trigger-7',
       })
     );
   });

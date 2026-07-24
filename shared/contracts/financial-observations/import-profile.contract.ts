@@ -15,7 +15,18 @@ export const ALLOWED_MAPPING_TRANSFORMS = [
   'parse_date_us',
   'negate',
 ] as const;
-export const IDENTITY_TARGET_FIELDS = ['company_name', 'company_external_id'] as const;
+/**
+ * Target fields that drive a profile's identity semantics hash. These are the
+ * fields the CSV adapter actually consumes to derive a durable/name company
+ * identity (`assignTargetField`, `csv-adapter.ts`); `company_external_id` is a
+ * dead target the adapter never assigns, so it is excluded (PLAN_61 Task 6 F5).
+ */
+export const IDENTITY_TARGET_FIELDS = [
+  'company_name',
+  'company_external_system',
+  'company_external_value',
+  'source_label',
+] as const;
 
 export const AllowedMappingTransformSchema = z.enum(ALLOWED_MAPPING_TRANSFORMS);
 export type AllowedMappingTransform = z.infer<typeof AllowedMappingTransformSchema>;

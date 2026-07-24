@@ -159,6 +159,22 @@ describe('hash derivation', () => {
       }
     }
   });
+
+  it('preserves frozen v1 non-ASCII name bytes outside the alias path', () => {
+    const candidate = normalizeObservation(baseLedger({ companyName: 'ＡＣＭＥ' }));
+
+    expect(candidate.outcome).toBe('staged');
+    expect(candidate.normalizedPayload?.companyIdentity).toEqual({
+      kind: 'name',
+      canonicalName: 'ａｃｍｅ',
+    });
+    expect(candidate.observationHash).toBe(
+      'b3cb7d8fb28e8428984d57147c67a1de02e4353ce6b46fec9f036042f709a864'
+    );
+    expect(candidate.candidateFingerprint).toBe(
+      'e014a4e02400d390b16f307efb3023eedc314593ad4f8e4b96a0da6ef86309f5'
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

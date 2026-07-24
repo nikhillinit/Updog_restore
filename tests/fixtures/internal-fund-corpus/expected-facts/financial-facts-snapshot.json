@@ -1,5 +1,5 @@
 {
-  "policyVersion": "financial-facts-policy/1.0.0",
+  "policyVersion": "financial-facts-policy/1.0.1",
   "fundId": 101,
   "asOfDate": "2026-06-30",
   "knowledgeCutoff": "2026-06-30T12:00:00.000Z",
@@ -7,7 +7,7 @@
   "vehicleIds": [3001, 3002],
   "selectionSetHash": "be150e55440d5748ad85f67b7c5a1ace54bbd847880a4ec7aa10bc85b6777230",
   "sourceFactsInputHash": "32476893bf8f9bf80f7c82487ee4bb6af6836280971e98d69955eca409e1199f",
-  "snapshotInputHash": "90b009a98f4cc4144f1e219a51de25b61c5e54ceb17919e67bf9327e38ada9a5",
+  "snapshotInputHash": "77e8ee1451bf2e6786c233a97a24b2a400d25ae4d2192725b18618f69e2b5748",
   "consumerEvaluations": [
     {
       "consumer": "forecast",
@@ -264,7 +264,7 @@
         {
           "code": "NON_USD_CASH_FLOW_EXCLUDED",
           "severity": "warning",
-          "message": "Cash-flow event 4009 was excluded because policy 1.0.0 accepts USD only.",
+          "message": "Cash-flow event 4009 was excluded because policy 1.0.1 accepts USD only.",
           "source": "cash_flow_events:4009"
         }
       ]

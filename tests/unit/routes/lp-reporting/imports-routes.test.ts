@@ -50,6 +50,10 @@ const sourceArtifactServiceMock = vi.hoisted(() => ({
 const mappingProfileServiceMock = vi.hoisted(() => ({
   createMappingProfileVersion: vi.fn(),
 }));
+const importBatchCommitServiceMock = vi.hoisted(() => ({
+  commitImportBatch: vi.fn(),
+  loadImportBatchStatus: vi.fn(),
+}));
 
 vi.mock('../../../../server/lib/auth/jwt', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../../server/lib/auth/jwt')>()),
@@ -107,6 +111,16 @@ vi.mock(
       typeof import('../../../../server/services/financial-observations/mapping-profile-service')
     >()),
     createMappingProfileVersion: mappingProfileServiceMock.createMappingProfileVersion,
+  })
+);
+vi.mock(
+  '../../../../server/services/financial-observations/import-batch-commit-service',
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import('../../../../server/services/financial-observations/import-batch-commit-service')
+    >()),
+    commitImportBatch: importBatchCommitServiceMock.commitImportBatch,
+    loadImportBatchStatus: importBatchCommitServiceMock.loadImportBatchStatus,
   })
 );
 
@@ -201,6 +215,8 @@ afterEach(() => {
   commitServiceMock.commitValuationMarkImport.mockReset();
   sourceArtifactServiceMock.createSourceArtifact.mockReset();
   mappingProfileServiceMock.createMappingProfileVersion.mockReset();
+  importBatchCommitServiceMock.commitImportBatch.mockReset();
+  importBatchCommitServiceMock.loadImportBatchStatus.mockReset();
 });
 
 describe('POST /api/funds/:fundId/imports/ledger/dry-run', () => {
@@ -637,6 +653,23 @@ describe('makeApp artifact raw-parser boundary', () => {
   });
 });
 
+describe('Task 6 route hardening', () => {
+  it('sanitizes an unexpected reconciliation service error', async () => {
+    importBatchCommitServiceMock.loadImportBatchStatus.mockRejectedValueOnce(
+      new Error('sensitive database detail')
+    );
+
+    const response = await request(buildApp()).get('/api/funds/1/imports/batches/9');
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      error: 'IMPORT_REQUEST_FAILED',
+      message: 'The import request failed.',
+    });
+    expect(JSON.stringify(response.body)).not.toContain('sensitive database detail');
+  });
+});
+
 describe('DB-write absence -- no INSERT runs during dry-run', () => {
   it('the imports router does NOT import the db module', () => {
     const routerSource = fs.readFileSync(
@@ -681,7 +714,7 @@ describe('Source grep -- bounded commit endpoints, no /api/public', () => {
     expect(routerSource).not.toMatch(/\/api\/public/);
   });
 
-  it('declares exactly the four frozen V1 routes and two V2 creation routes', () => {
+  it('declares the four frozen V1 routes, two V2 creation routes, and six Task 6 routes', () => {
     const paths = [
       ...routerSource.matchAll(/router\.(?:post|get|put|delete|patch)\(\s*['"]([^'"]+)['"]/g),
     ].map((match) => match[1]);
@@ -692,6 +725,33 @@ describe('Source grep -- bounded commit endpoints, no /api/public', () => {
       '/api/funds/:fundId/imports/valuation-marks/commit',
       '/api/funds/:fundId/imports/artifacts',
       '/api/funds/:fundId/imports/mapping-profiles',
+      '/api/funds/:fundId/imports/batches',
+      '/api/funds/:fundId/imports/batches/:batchId',
+      '/api/funds/:fundId/reconciliation/cases',
+      '/api/funds/:fundId/reconciliation/cases/:caseId/resolve',
+      '/api/funds/:fundId/reconciliation/cases/bulk-resolve',
+      '/api/funds/:fundId/imports/batches/:batchId/commit',
     ]);
+  });
+
+  it('applies the shared artifact limiter to every Task 6 route', () => {
+    const task6Paths = [
+      '/api/funds/:fundId/imports/batches',
+      '/api/funds/:fundId/imports/batches/:batchId',
+      '/api/funds/:fundId/reconciliation/cases',
+      '/api/funds/:fundId/reconciliation/cases/:caseId/resolve',
+      '/api/funds/:fundId/reconciliation/cases/bulk-resolve',
+      '/api/funds/:fundId/imports/batches/:batchId/commit',
+    ];
+
+    for (const routePath of task6Paths) {
+      const routeStart = routerSource.indexOf(`'${routePath}'`);
+      const handlerStart = routerSource.indexOf('async (req: Request, res: Response)', routeStart);
+      expect(routeStart, routePath).toBeGreaterThan(-1);
+      expect(handlerStart, routePath).toBeGreaterThan(routeStart);
+      expect(routerSource.slice(routeStart, handlerStart), routePath).toContain(
+        'importArtifactLimiter'
+      );
+    }
   });
 });

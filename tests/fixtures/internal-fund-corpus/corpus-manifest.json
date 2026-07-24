@@ -2,7 +2,7 @@
   "schemaVersion": "internal-fund-legacy-corpus/1",
   "generatedFrom": {
     "repositoryCommit": "52c58b6d4c08b3534cc3c477ae532efd73f967d7",
-    "factsPolicyVersion": "financial-facts-policy/1.0.0"
+    "factsPolicyVersion": "financial-facts-policy/1.0.1"
   },
   "fixedClock": "2026-06-30T12:00:00.000Z",
   "asOfDate": "2026-06-30",

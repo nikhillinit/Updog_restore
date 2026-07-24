@@ -48,8 +48,8 @@ export {
   type NarrativeRunDetailResponse,
   type NarrativeRunEditMutationRequest,
   type NarrativeRunEditRequest,
-  type NarrativeRunLifecycleResponse,
   type NarrativeRunListResponse,
+  type NarrativeRunLifecycleResponse,
   type NarrativeRunReviewMutationRequest,
   type NarrativeRunReviewRequest,
   type ReportPackageAssembleMutationRequest,
@@ -70,3 +70,15 @@ export { useLedgerImportDryRun } from './useLedgerImportDryRun';
 export { useValuationMarkImportDryRun } from './useValuationMarkImportDryRun';
 export { useLedgerImportCommit } from './useLedgerImportCommit';
 export { useValuationMarkImportCommit } from './useValuationMarkImportCommit';
+export {
+  reconciliationErrorEnvelope,
+  useBulkResolveReconciliationCases,
+  useCommitImportBatch,
+  useImportBatchStatus,
+  useReconciliationCases,
+  useResolveReconciliationCase,
+  useStageImportBatch,
+  type CommitImportBatchMutationRequest,
+  type ResolveCaseMutationRequest,
+  type StageImportBatchMutationRequest,
+} from './useImportBatchReconciliation';
