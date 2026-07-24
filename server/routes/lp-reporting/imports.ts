@@ -125,6 +125,17 @@ const importArtifactLimiter = rateLimit({
   },
 });
 
+const importIngressLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'TOO_MANY_REQUESTS',
+    message: 'LP reporting import requests are limited to 300 requests per hour per client.',
+  },
+});
+
 const idempotencyKeySchema = z.string().min(1).max(128);
 const rawArtifactSourceTypeSchema = z.enum(['csv', 'xlsx']);
 const rawArtifactMediaTypes = new Set<string>(ARTIFACT_RAW_MEDIA_TYPES);
@@ -533,6 +544,7 @@ function parsePositiveParam(req: Request, name: string): number | null {
 // R1: stage a CSV observed-actual import batch.
 router.post(
   '/api/funds/:fundId/imports/batches',
+  importIngressLimiter,
   requireAuth(),
   requireFundAccess,
   importArtifactLimiter,
@@ -572,6 +584,7 @@ router.post(
 // R2: current batch status, groups, blockers, retention, ETag.
 router.get(
   '/api/funds/:fundId/imports/batches/:batchId',
+  importIngressLimiter,
   requireAuth(),
   requireFundAccess,
   importArtifactLimiter,
@@ -595,6 +608,7 @@ router.get(
 // R3: fund-scoped reconciliation cases with per-case ETags.
 router.get(
   '/api/funds/:fundId/reconciliation/cases',
+  importIngressLimiter,
   requireAuth(),
   requireFundAccess,
   importArtifactLimiter,
@@ -618,6 +632,7 @@ router.get(
 // R4: resolve a single case (If-Match required; exact semantic replay is a 200 no-op).
 router.post(
   '/api/funds/:fundId/reconciliation/cases/:caseId/resolve',
+  importIngressLimiter,
   requireAuth(),
   requireFundAccess,
   importArtifactLimiter,
@@ -656,6 +671,7 @@ router.post(
 // R5: bulk-resolve unique cases; per-item If-Match; ordered partial-result envelope.
 router.post(
   '/api/funds/:fundId/reconciliation/cases/bulk-resolve',
+  importIngressLimiter,
   requireAuth(),
   requireFundAccess,
   importArtifactLimiter,
@@ -684,6 +700,7 @@ router.post(
 // R6: acceptance-only commit of requested singleton groups (If-Match required).
 router.post(
   '/api/funds/:fundId/imports/batches/:batchId/commit',
+  importIngressLimiter,
   requireAuth(),
   requireFundAccess,
   importArtifactLimiter,

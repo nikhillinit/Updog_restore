@@ -12,7 +12,7 @@
  */
 import { z } from 'zod';
 
-import { IMPORT_V2_CONTRACT_VERSION } from './normalization.contract';
+import { IMPORT_V2_CONTRACT_VERSION } from './import-v2-version.contract';
 import {
   ImportBatchStatusSchema,
   Sha256HexSchema,

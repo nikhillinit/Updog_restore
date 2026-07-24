@@ -654,6 +654,20 @@ describe('makeApp artifact raw-parser boundary', () => {
 });
 
 describe('Task 6 route hardening', () => {
+  it('rate-limits all six acceptance routes before authentication', async () => {
+    const routerSource = fs.readFileSync(
+      path.join(process.cwd(), 'server', 'routes', 'lp-reporting', 'imports.ts'),
+      'utf8'
+    );
+    expect(routerSource.match(/importIngressLimiter,\s+requireAuth\(\)/g) ?? []).toHaveLength(6);
+
+    authState.authenticated = false;
+    const response = await request(buildApp()).get('/api/funds/1/imports/batches/9');
+
+    expect(response.status).toBe(401);
+    expect(response.headers['ratelimit-limit']).toBe('300');
+  });
+
   it('sanitizes an unexpected reconciliation service error', async () => {
     importBatchCommitServiceMock.loadImportBatchStatus.mockRejectedValueOnce(
       new Error('sensitive database detail')

@@ -8,7 +8,7 @@ import {
   type ResolveCaseRequest,
   type StageImportBatchReceipt,
 } from '@shared/contracts/financial-observations/reconciliation-api.contract';
-import { IMPORT_V2_CONTRACT_VERSION } from '@shared/contracts/financial-observations/normalization.contract';
+import { IMPORT_V2_CONTRACT_VERSION } from '@shared/contracts/financial-observations/import-v2-version.contract';
 import type { ReconciliationCanonicalRecordKind } from '@shared/contracts/financial-observations/reconciliation.contract';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
