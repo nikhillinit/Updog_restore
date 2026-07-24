@@ -9,7 +9,14 @@ export const FINANCIAL_FACTS_CONSUMER_KEYS = [
 
 export const FinancialFactsConsumerKeySchema = z.enum(FINANCIAL_FACTS_CONSUMER_KEYS);
 
-export const ConsumerEvaluationReasonSchema = z.enum(['unattributed_legacy_direct']);
+export const ConsumerEvaluationReasonSchema = z.enum([
+  'unattributed_legacy_direct',
+  // Additive (PLAN_61 Task 6, facts policy 1.0.1): a non-default working-value
+  // selection head deviates from the default rule for this consumer. Persisted
+  // 1.0.0 rows never carry it, so they still parse; dormant in production until
+  // Task 11 seeds a non-default head.
+  'working_value_selection_deviation',
+]);
 
 export const ConsumerEvaluationSchema = z
   .object({
