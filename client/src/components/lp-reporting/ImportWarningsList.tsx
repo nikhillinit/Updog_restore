@@ -16,17 +16,54 @@
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { ImportWarning, ImportError } from '@shared/contracts/lp-reporting';
+import type { ImportBatchStatusResponse } from '@shared/contracts/financial-observations/reconciliation-api.contract';
 
 export interface ImportWarningsListProps {
-  warnings: ImportWarning[];
+  warnings?: ImportWarning[];
   errors?: ImportError[];
+  batchStatus?: ImportBatchStatusResponse;
 }
 
 function severityVariant(severity: 'error' | 'warning' | 'info'): 'default' | 'destructive' {
   return severity === 'error' ? 'destructive' : 'default';
 }
 
-export function ImportWarningsList({ warnings, errors = [] }: ImportWarningsListProps) {
+export function ImportWarningsList({
+  warnings = [],
+  errors = [],
+  batchStatus,
+}: ImportWarningsListProps) {
+  if (batchStatus) {
+    const hasBlockers = batchStatus.blockers.length > 0;
+    if (!batchStatus.expired && !hasBlockers) {
+      return (
+        <div data-testid="import-warnings-empty" className="rounded-md border border-dashed p-6">
+          <p className="text-sm text-charcoal/70 font-poppins text-center">No warnings.</p>
+        </div>
+      );
+    }
+    return (
+      <div className="space-y-3" data-testid="import-warnings-list">
+        {batchStatus.expired ? (
+          <Alert variant="destructive" data-warning-code="BATCH_EXPIRED">
+            <AlertTitle>Batch expired</AlertTitle>
+            <AlertDescription>Stage a fresh batch before committing evidence.</AlertDescription>
+          </Alert>
+        ) : null}
+        {batchStatus.blockers.map((blocker) => (
+          <Alert key={blocker.caseId} data-warning-code="RECONCILIATION_BLOCKER">
+            <AlertTitle>
+              Case {blocker.caseId} blocks observation {blocker.observationId ?? '--'}
+            </AlertTitle>
+            <AlertDescription>
+              {blocker.caseType} is {blocker.status}.
+            </AlertDescription>
+          </Alert>
+        ))}
+      </div>
+    );
+  }
+
   const total = warnings.length + errors.length;
   if (total === 0) {
     return (

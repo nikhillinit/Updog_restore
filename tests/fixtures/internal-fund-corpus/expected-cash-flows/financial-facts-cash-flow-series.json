@@ -70,7 +70,7 @@
     {
       "code": "NON_USD_CASH_FLOW_EXCLUDED",
       "severity": "warning",
-      "message": "Cash-flow event 4009 was excluded because policy 1.0.0 accepts USD only.",
+      "message": "Cash-flow event 4009 was excluded because policy 1.0.1 accepts USD only.",
       "source": "cash_flow_events:4009"
     }
   ]

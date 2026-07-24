@@ -3,10 +3,16 @@ import { describe, expect, it } from 'vitest';
 import {
   EMPTY_SELECTION_SET_HASH,
   FINANCIAL_FACTS_POLICY_VERSION,
+  FINANCIAL_FACTS_POLICY_VERSION_1_0_0,
+  FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
+  FinancialFactsPayloadV1_0_0Schema,
   FinancialFactsPayloadV1Schema,
+  FinancialFactsSnapshotInputHashPreimageV1_0_0Schema,
   FinancialFactsSelectionSetHashPreimageSchema,
   FinancialFactsSnapshotInputHashPreimageSchema,
+  FinancialFactsSnapshotV1_0_0Schema,
   FinancialFactsSnapshotV1Schema,
+  PersistedFinancialFactsSnapshotV1Schema,
   VolatileStrippedFundCompanyActualsFactsResponseSchema,
   buildSelectionSetHash,
   buildSnapshotInputHash,
@@ -139,13 +145,83 @@ describe('canonical decimal-string primitives', () => {
 });
 
 describe('financial facts snapshot hashes', () => {
-  it('pins the policy 1.0.0 empty selection-set hash', () => {
+  it('pins the byte-identical policy 1.0.0 empty selection-set hash under 1.0.1', () => {
+    expect(FINANCIAL_FACTS_POLICY_VERSION).toBe(FINANCIAL_FACTS_POLICY_VERSION_1_0_1);
     expect(EMPTY_SELECTION_SET_HASH).toBe(
       'be150e55440d5748ad85f67b7c5a1ace54bbd847880a4ec7aa10bc85b6777230'
     );
     expect(buildSelectionSetHash({ sourceObservationIds: [], workingValueSelectionIds: [] })).toBe(
       EMPTY_SELECTION_SET_HASH
     );
+  });
+
+  it('keeps legacy 1.0.0 selection arrays empty while current 1.0.1 accepts lineage IDs', () => {
+    const currentPayload = emptyPayload({
+      sourceObservationIds: [7],
+      workingValueSelectionIds: [11],
+    });
+
+    expect(currentPayload.sourceObservationIds).toEqual([7]);
+    expect(currentPayload.workingValueSelectionIds).toEqual([11]);
+    expect(() => FinancialFactsPayloadV1_0_0Schema.parse(currentPayload)).toThrow();
+  });
+
+  it('parses persisted 1.0.0 and current 1.0.1 snapshots without rewriting legacy bytes', () => {
+    const common = {
+      fundId: 10,
+      asOfDate: '2026-07-21',
+      knowledgeCutoff: '2026-07-22T01:42:44.186Z',
+      vehicleScope: 'fund_all' as const,
+      vehicleIds: [] as number[],
+      selectionSetHash: EMPTY_SELECTION_SET_HASH,
+      sourceFactsInputHash: 'a'.repeat(64),
+      snapshotInputHash: 'b'.repeat(64),
+      consumerEvaluations: [],
+      actorId: 7,
+      createdAt: '2026-07-22T01:42:44.186Z',
+    };
+    const legacy = FinancialFactsSnapshotV1_0_0Schema.parse({
+      ...common,
+      policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_0_0,
+      payload: FinancialFactsPayloadV1_0_0Schema.parse(emptyPayload()),
+    });
+    const current = FinancialFactsSnapshotV1Schema.parse({
+      ...common,
+      policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
+      payload: emptyPayload({
+        sourceObservationIds: [7],
+        workingValueSelectionIds: [11],
+      }),
+    });
+    const legacyBytes = JSON.stringify(legacy);
+
+    expect(JSON.stringify(PersistedFinancialFactsSnapshotV1Schema.parse(legacy))).toBe(legacyBytes);
+    expect(PersistedFinancialFactsSnapshotV1Schema.parse(current)).toEqual(current);
+  });
+
+  it('keeps the legacy 1.0.0 input hash byte-identical and separates current 1.0.1', () => {
+    const identity = {
+      fundId: 10,
+      vehicleIds: [20, 10],
+      asOfDate: '2026-07-21',
+      knowledgeCutoff: '2026-07-22T01:42:44.186Z',
+      selectionSetHash: 'a'.repeat(64),
+    };
+    const legacy = FinancialFactsSnapshotInputHashPreimageV1_0_0Schema.parse({
+      ...identity,
+      policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_0_0,
+      payload: FinancialFactsPayloadV1_0_0Schema.parse(emptyPayload()),
+    });
+    const current = FinancialFactsSnapshotInputHashPreimageSchema.parse({
+      ...identity,
+      policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
+      payload: emptyPayload(),
+    });
+
+    expect(buildSnapshotInputHash(legacy)).toBe(
+      'ea4cc7f7765abc2240d72df3a8cb7affde14fa235219fd3705fdad153b63c4ed'
+    );
+    expect(buildSnapshotInputHash(current)).not.toBe(buildSnapshotInputHash(legacy));
   });
 
   it('defines the source, selection, and snapshot preimages and hashes them stably under key reordering', () => {

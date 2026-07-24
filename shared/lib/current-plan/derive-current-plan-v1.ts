@@ -1,6 +1,6 @@
 // This transform is the sanctioned config float-ingestion boundary. Decimal-valued config
 // numbers are converted once to fixed decimal strings before participating in Decimal math.
-import type { FinancialFactsSnapshotV1 } from '../../contracts/financial-facts-snapshot-v1.contract';
+import type { PersistedFinancialFactsSnapshotV1 } from '../../contracts/financial-facts-snapshot-v1.contract';
 import type { FundDraftWriteV1 } from '../../contracts/fund-draft-write-v1.contract';
 import {
   PLAN_TRANSFORMATION_VERSION,
@@ -35,7 +35,7 @@ export interface DeriveCurrentPlanV1Input {
   config: FundDraftWriteV1;
   sourceConfigId: number;
   sourceConfigVersion: number;
-  factsSnapshot: FinancialFactsSnapshotV1;
+  factsSnapshot: PersistedFinancialFactsSnapshotV1;
   asOfDate: string;
 }
 
@@ -66,9 +66,11 @@ function normalizedRatioStrings(weights: Decimal[]): string[] {
   });
 }
 
-function sourceSnapshotId(snapshot: FinancialFactsSnapshotV1): string {
+function sourceSnapshotId(snapshot: PersistedFinancialFactsSnapshotV1): string {
   // The persisted snapshot row supplies id; the payload contract intentionally omits DB identity.
-  const persistedSnapshot = snapshot as FinancialFactsSnapshotV1 & { readonly id: number };
+  const persistedSnapshot = snapshot as PersistedFinancialFactsSnapshotV1 & {
+    readonly id: number;
+  };
   return String(persistedSnapshot.id);
 }
 
