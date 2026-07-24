@@ -1,9 +1,13 @@
+import type { SQL } from 'drizzle-orm';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 
 import type { db } from '../../../server/db';
 import { buildFinancialFactsSnapshot } from '../../../server/services/financial-facts-snapshot-service';
+import { buildSelectionSetHash } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { funds } from '../../../shared/schema/fund';
 import { financialFactsSnapshots } from '../../../shared/schema/financial-facts-snapshots';
+import { sourceObservations } from '../../../shared/schema/financial-observations';
 import { investmentRoundModelOverrides } from '../../../shared/schema/investment-round-model-overrides';
 import { investmentRounds } from '../../../shared/schema/investment-rounds';
 import {
@@ -21,11 +25,49 @@ import {
 } from '../../utils/internal-fund-corpus';
 
 type SnapshotDatabase = typeof db;
+const OBSERVATION_HASH = 'a'.repeat(64);
 
 function queryRows<T>(rows: T[]) {
   return {
     limit: (count: number) => Promise.resolve(rows.slice(0, count)),
     orderBy: (..._order: unknown[]) => Promise.resolve(rows),
+  };
+}
+
+function cashRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 1,
+    fundId: 1,
+    vehicleId: null,
+    companyId: null,
+    eventType: 'lp_capital_call',
+    amount: '100.000000',
+    currency: 'USD',
+    eventDate: new Date('2026-06-30T00:00:00.000Z'),
+    perspective: 'lp_net',
+    status: 'approved',
+    supersedesEventId: null,
+    reversalOfEventId: null,
+    importedFrom: 'financial_observation_v2',
+    sourceHash: OBSERVATION_HASH,
+    ...overrides,
+  };
+}
+
+function acceptedObservation(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 71,
+    fundId: 1,
+    companyIdentityId: 42,
+    domain: 'ledger_event',
+    effectiveDate: '2026-06-30',
+    normalizedPayload: {
+      domain: 'ledger_event',
+      measureKey: 'capital_contribution',
+    },
+    observationHash: OBSERVATION_HASH,
+    status: 'accepted',
+    ...overrides,
   };
 }
 
@@ -39,11 +81,33 @@ class FakeSnapshotDb {
   readonly cashRows: Array<Record<string, unknown>> = [];
   readonly valuationMarkReads: Array<Array<Record<string, unknown>>> = [];
   readonly markRows: Array<Record<string, unknown>> = [];
+  readonly sourceObservationRows: Array<Record<string, unknown>> = [];
+  readonly latestSelectionRows: Array<Record<string, unknown>> = [];
   readonly snapshotRows: Array<Record<string, unknown>> = [];
+  readonly executedStatements: SQL[] = [];
+  readonly transactionConfigs: Array<Record<string, unknown>> = [];
+  readonly snapshotInsertAttempts: Array<Record<string, unknown>> = [];
   ownershipRows: Array<Record<string, unknown>> | null = null;
+  insertSerializationFailuresRemaining = 0;
+  transactionAttempts = 0;
+  insertedSnapshotCount = 0;
 
   asDatabase(): SnapshotDatabase {
     return this as unknown as SnapshotDatabase;
+  }
+
+  async transaction<T>(
+    callback: (transaction: SnapshotDatabase) => Promise<T>,
+    config?: Record<string, unknown>
+  ): Promise<T> {
+    this.transactionAttempts += 1;
+    this.transactionConfigs.push(config ?? {});
+    return callback(this.asDatabase());
+  }
+
+  execute(query: SQL) {
+    this.executedStatements.push(query);
+    return Promise.resolve({ rows: this.latestSelectionRows });
   }
 
   select(projection?: unknown) {
@@ -69,6 +133,13 @@ class FakeSnapshotDb {
         onConflictDoNothing: (_options: unknown) => ({
           returning: () => {
             if (table !== financialFactsSnapshots) return Promise.resolve([]);
+            this.snapshotInsertAttempts.push(values);
+            if (this.insertSerializationFailuresRemaining > 0) {
+              this.insertSerializationFailuresRemaining -= 1;
+              throw Object.assign(new Error('serialization failure during insert'), {
+                code: '40001',
+              });
+            }
             const conflict = this.snapshotRows.some(
               (row) =>
                 row['fundId'] === values['fundId'] &&
@@ -78,6 +149,7 @@ class FakeSnapshotDb {
             if (conflict) return Promise.resolve([]);
             const inserted = { id: this.snapshotRows.length + 1, ...values };
             this.snapshotRows.push(inserted);
+            this.insertedSnapshotCount += 1;
             return Promise.resolve([inserted]);
           },
         }),
@@ -94,6 +166,7 @@ class FakeSnapshotDb {
     if (table === vehicles) return this.vehicleRows;
     if (table === cashFlowEvents) return this.cashRows;
     if (table === valuationMarks) return this.valuationMarkReads.shift() ?? this.markRows;
+    if (table === sourceObservations) return this.sourceObservationRows;
     if (table === financialFactsSnapshots) return this.snapshotRows;
     return [];
   }
@@ -273,7 +346,11 @@ describe('buildFinancialFactsSnapshot', () => {
         database: fakeDb.asDatabase(),
         now: new Date('2026-07-22T01:42:44.186Z'),
       })
-    ).rejects.toMatchObject({ status: 422, code: 'VEHICLE_SCOPE_UNSUPPORTED' });
+    ).rejects.toMatchObject({
+      status: 422,
+      code: 'VEHICLE_SCOPE_UNSUPPORTED',
+      message: 'Policy 1.0.1 supports only the complete fund vehicle roster.',
+    });
 
     const accepted = await buildFinancialFactsSnapshot({
       fundId: 1,
@@ -528,6 +605,109 @@ describe('buildFinancialFactsSnapshot', () => {
     ]);
   });
 
+  it('attributes only accepted, as-of, domain-compatible observations from the V2 bridge', async () => {
+    const fakeDb = new FakeSnapshotDb();
+    fakeDb.cashRows.push(cashRow());
+    fakeDb.sourceObservationRows.push(acceptedObservation());
+    fakeDb.latestSelectionRows.push({
+      id: 91,
+      fundId: 1,
+      consumer: 'economics',
+      companyIdentityId: 42,
+      domain: 'ledger_event',
+      measureKey: 'capital_contribution',
+      selectedObservationId: 71,
+      isDefault: false,
+    });
+
+    const snapshot = await buildFinancialFactsSnapshot({
+      fundId: 1,
+      asOfDate: '2026-06-30',
+      actorId: 7,
+      idempotencyKey: 'snapshot-linked-lineage',
+      database: fakeDb.asDatabase(),
+      now: new Date('2026-07-22T01:42:44.186Z'),
+    });
+
+    expect(snapshot.payload.sourceObservationIds).toEqual([71]);
+    expect(snapshot.payload.workingValueSelectionIds).toEqual([91]);
+    expect(snapshot.selectionSetHash).toBe(
+      buildSelectionSetHash({
+        sourceObservationIds: [71],
+        workingValueSelectionIds: [91],
+      })
+    );
+    const selectionSql = new PgDialect().sqlToQuery(fakeDb.executedStatements[0]!).sql;
+    expect(selectionSql).toContain('WITH ranked_working_value_selections AS');
+    expect(selectionSql).toContain('ROW_NUMBER() OVER');
+    expect(selectionSql).toContain('selection.superseded_by_selection_id IS NULL');
+    expect(selectionSql).toContain("observation.status = 'accepted'");
+    expect(selectionSql).toContain('selection.as_of_date DESC, selection.id DESC');
+    expect(
+      snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'economics')
+    ).toEqual({
+      consumer: 'economics',
+      status: 'blocked',
+      reasons: ['working_value_selection_deviation'],
+    });
+  });
+
+  it.each(['csv', 'notion', 'planning_fmv_override', null])(
+    'does not attribute a matching hash when canonical imported_from is %s',
+    async (importedFrom) => {
+      const fakeDb = new FakeSnapshotDb();
+      fakeDb.cashRows.push(cashRow({ importedFrom }));
+      fakeDb.sourceObservationRows.push(acceptedObservation());
+
+      const snapshot = await buildFinancialFactsSnapshot({
+        fundId: 1,
+        asOfDate: '2026-06-30',
+        actorId: 7,
+        idempotencyKey: `snapshot-provenance-${String(importedFrom)}`,
+        database: fakeDb.asDatabase(),
+        now: new Date('2026-07-22T01:42:44.186Z'),
+      });
+
+      expect(snapshot.payload.sourceObservationIds).toEqual([]);
+      expect(
+        snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'economics')
+      ).toEqual({
+        consumer: 'economics',
+        status: 'blocked',
+        reasons: ['unattributed_legacy_direct'],
+      });
+    }
+  );
+
+  it('does not attribute a matching V2 hash across incompatible canonical domains', async () => {
+    const fakeDb = new FakeSnapshotDb();
+    fakeDb.cashRows.push(cashRow());
+    fakeDb.sourceObservationRows.push(
+      acceptedObservation({
+        domain: 'valuation',
+        normalizedPayload: {
+          domain: 'valuation',
+          measureKey: 'post_money_valuation',
+        },
+      })
+    );
+
+    const snapshot = await buildFinancialFactsSnapshot({
+      fundId: 1,
+      asOfDate: '2026-06-30',
+      actorId: 7,
+      idempotencyKey: 'snapshot-domain-mismatch',
+      database: fakeDb.asDatabase(),
+      now: new Date('2026-07-22T01:42:44.186Z'),
+    });
+
+    expect(snapshot.payload.sourceObservationIds).toEqual([]);
+    expect(
+      snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'economics')
+        ?.reasons
+    ).toEqual(['unattributed_legacy_direct']);
+  });
+
   it('rejects a cross-fund vehicle through the shared ownership guard', async () => {
     const fakeDb = new FakeSnapshotDb();
     fakeDb.vehicleRows.push({
@@ -556,6 +736,50 @@ describe('buildFinancialFactsSnapshot', () => {
       code: 'FUND_SCOPE_NOT_FOUND',
       ref: { kind: 'vehicle', id: 99 },
     });
+  });
+
+  it('retries 40001 in a repeatable-read transaction and yields one insert plus exact replay', async () => {
+    const fakeDb = new FakeSnapshotDb();
+    fakeDb.insertSerializationFailuresRemaining = 1;
+    const input = {
+      fundId: 1,
+      asOfDate: '2026-06-30',
+      actorId: 7,
+      idempotencyKey: 'snapshot-parallel-retry',
+      database: fakeDb.asDatabase(),
+      now: new Date('2026-07-22T01:42:44.186Z'),
+    };
+
+    const [left, right] = await Promise.all([
+      buildFinancialFactsSnapshot(input),
+      buildFinancialFactsSnapshot(input),
+    ]);
+
+    expect(left).toEqual(right);
+    expect(fakeDb.snapshotRows).toHaveLength(1);
+    expect(fakeDb.insertedSnapshotCount).toBe(1);
+    expect(fakeDb.transactionAttempts).toBe(3);
+    expect(fakeDb.snapshotInsertAttempts).toHaveLength(3);
+    const requestHash = fakeDb.snapshotInsertAttempts[0]?.['requestHash'];
+    expect(requestHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(
+      fakeDb.snapshotInsertAttempts.map((attempt) => ({
+        knowledgeCutoff: attempt['knowledgeCutoff'],
+        requestHash: attempt['requestHash'],
+        snapshotInputHash: attempt['snapshotInputHash'],
+      }))
+    ).toEqual(
+      Array.from({ length: 3 }, () => ({
+        knowledgeCutoff: new Date('2026-07-22T01:42:44.186Z'),
+        requestHash,
+        snapshotInputHash: left.snapshotInputHash,
+      }))
+    );
+    expect(fakeDb.transactionConfigs).toEqual([
+      { isolationLevel: 'repeatable read', accessMode: 'read write' },
+      { isolationLevel: 'repeatable read', accessMode: 'read write' },
+      { isolationLevel: 'repeatable read', accessMode: 'read write' },
+    ]);
   });
 
   it('keeps identity unique, creates a new immutable row for a new cutoff, and hashes reordered source keys stably', async () => {

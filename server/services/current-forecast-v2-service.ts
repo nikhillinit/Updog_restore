@@ -14,8 +14,8 @@ import {
   type CurrentPlanVersionV1,
 } from '../../shared/contracts/current-plan-version-v1.contract';
 import {
-  FinancialFactsSnapshotV1Schema,
-  type FinancialFactsSnapshotV1,
+  PersistedFinancialFactsSnapshotV1Schema,
+  type PersistedFinancialFactsSnapshotV1,
 } from '../../shared/contracts/financial-facts-snapshot-v1.contract';
 import {
   CurrentForecastBasisMismatchError,
@@ -31,7 +31,7 @@ import { fundSnapshots } from '../../shared/schema/fund';
 import { getLatestFinancialFactsSnapshot } from './financial-facts-snapshot-service';
 
 type CurrentForecastDatabase = typeof db;
-type FactsWithId = FinancialFactsSnapshotV1 & { readonly id: number };
+type FactsWithId = PersistedFinancialFactsSnapshotV1 & { readonly id: number };
 
 export type CurrentForecastV2ServiceErrorCode =
   'NO_CURRENT_PLAN_VERSION' | 'NO_FACTS_SNAPSHOT' | 'CURRENT_FORECAST_BASIS_MISMATCH';
@@ -85,7 +85,7 @@ function currentPlanVersionFromRow(row: CurrentPlanVersionRow): CurrentPlanVersi
 }
 
 function factsSnapshotFromRow(row: FinancialFactsSnapshot): FactsWithId {
-  const snapshot = FinancialFactsSnapshotV1Schema.parse({
+  const snapshot = PersistedFinancialFactsSnapshotV1Schema.parse({
     policyVersion: row.policyVersion,
     fundId: row.fundId,
     asOfDate: row.asOfDate,

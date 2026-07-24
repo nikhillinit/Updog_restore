@@ -20,7 +20,7 @@ import {
   type CurrentForecastV2Input,
 } from '../../contracts/current-forecast-v2.contract';
 import type { CurrentPlanVersionV1 } from '../../contracts/current-plan-version-v1.contract';
-import type { FinancialFactsSnapshotV1 } from '../../contracts/financial-facts-snapshot-v1.contract';
+import type { PersistedFinancialFactsSnapshotV1 } from '../../contracts/financial-facts-snapshot-v1.contract';
 import { canonicalSha256 } from '../../lib/canonical-hash';
 import { Decimal } from '../../lib/decimal-config';
 import { canonicalizeDecimalLeaves, toFixedDecimalString } from '../../lib/decimal-string';
@@ -48,7 +48,7 @@ export class CurrentForecastBasisMismatchError extends Error {
   }
 }
 
-type FactsWithId = FinancialFactsSnapshotV1 & { readonly id: number };
+type FactsWithId = PersistedFinancialFactsSnapshotV1 & { readonly id: number };
 type ForecastStatus = CurrentForecastV2['status'];
 
 interface QuarterPeriod {

@@ -141,6 +141,8 @@ export const COMMON_API_ROUTE_MANIFEST = [
       'investments',
       'investment_rounds',
       'investment_round_model_overrides',
+      'source_observations',
+      'working_value_selections',
     ],
     owner: 'analytics',
     probe: {

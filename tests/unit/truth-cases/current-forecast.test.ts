@@ -8,7 +8,7 @@ import {
   CurrentForecastV2Schema,
 } from '@shared/contracts/current-forecast-v2.contract';
 import { CurrentPlanVersionV1Schema } from '@shared/contracts/current-plan-version-v1.contract';
-import { FinancialFactsSnapshotV1Schema } from '@shared/contracts/financial-facts-snapshot-v1.contract';
+import { PersistedFinancialFactsSnapshotV1Schema } from '@shared/contracts/financial-facts-snapshot-v1.contract';
 // @ts-expect-error: Phase 1 intentionally precedes the Phase 2 engine implementation.
 import { runCohortProjectionV2 } from '@shared/core/cohorts/CohortProjectionV2';
 import { Decimal } from '@shared/lib/decimal-config';
@@ -303,7 +303,7 @@ describe('current forecast V2 truth cases', () => {
       const factsEnvelope = FactsEnvelopeSchema.parse(truthCase.facts);
       const { id, ...factsWithoutId } = factsEnvelope;
       const facts = {
-        ...FinancialFactsSnapshotV1Schema.parse(factsWithoutId),
+        ...PersistedFinancialFactsSnapshotV1Schema.parse(factsWithoutId),
         id,
       };
 
