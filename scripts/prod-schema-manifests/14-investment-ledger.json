@@ -1,0 +1,126 @@
+{
+  "name": "investment-ledger",
+  "order": 14,
+  "description": "Canonical financing events, immutable versioned tranches, and observation lineage.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0040_multi_entity_ledger_foundation.sql"],
+  "allowedCreateTables": ["financing_events", "financing_tranches"],
+  "expectedTables": [
+    {
+      "name": "financing_events",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "company_identity_id", "type": "integer", "nullable": false },
+        { "name": "event_key", "type": "text", "nullable": false },
+        { "name": "round_name", "type": "text", "nullable": false },
+        { "name": "security_type", "type": "text", "nullable": false },
+        { "name": "event_date", "type": "date", "nullable": false },
+        { "name": "currency", "type": "varchar", "nullable": false },
+        { "name": "round_size", "type": "numeric", "nullable": true },
+        { "name": "pre_money_valuation", "type": "numeric", "nullable": true },
+        { "name": "post_money_valuation", "type": "numeric", "nullable": true },
+        { "name": "price_per_share", "type": "numeric", "nullable": true },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "idempotency_key", "type": "varchar", "nullable": false },
+        { "name": "request_hash", "type": "varchar", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "financing_events_fund_id_funds_id_fk",
+        "financing_events_identity_fund_fk",
+        "financing_events_created_by_fk",
+        "financing_events_security_type_check",
+        "financing_events_id_fund_unique",
+        "financing_events_fund_idempotency_unique",
+        "financing_events_identity_event_key_unique"
+      ],
+      "indexes": ["idx_financing_events_fund_event_date"]
+    },
+    {
+      "name": "financing_tranches",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "financing_event_id", "type": "integer", "nullable": false },
+        { "name": "tranche_key", "type": "text", "nullable": false },
+        { "name": "version", "type": "integer", "nullable": false },
+        {
+          "name": "superseded_by_tranche_id",
+          "type": "integer",
+          "nullable": true
+        },
+        { "name": "closing_date", "type": "date", "nullable": false },
+        { "name": "security_type", "type": "text", "nullable": false },
+        { "name": "investment_amount", "type": "numeric", "nullable": false },
+        { "name": "original_amount", "type": "numeric", "nullable": false },
+        { "name": "currency", "type": "varchar", "nullable": false },
+        { "name": "fx_rate_to_usd", "type": "numeric", "nullable": false },
+        { "name": "fx_rate_date", "type": "date", "nullable": false },
+        { "name": "price_per_share", "type": "numeric", "nullable": true },
+        { "name": "post_money_valuation", "type": "numeric", "nullable": true },
+        { "name": "valuation_cap", "type": "numeric", "nullable": true },
+        {
+          "name": "conversion_discount_rate",
+          "type": "numeric",
+          "nullable": true
+        },
+        { "name": "interest_rate", "type": "numeric", "nullable": true },
+        { "name": "maturity_date", "type": "date", "nullable": true },
+        {
+          "name": "liquidation_preference_multiple",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "participating_preferred",
+          "type": "boolean",
+          "nullable": true
+        },
+        {
+          "name": "participation_cap_multiple",
+          "type": "numeric",
+          "nullable": true
+        },
+        { "name": "pro_rata_rights_pct", "type": "numeric", "nullable": true },
+        { "name": "descriptive_terms", "type": "jsonb", "nullable": false },
+        {
+          "name": "calculation_eligible",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "source_observation_id",
+          "type": "integer",
+          "nullable": true
+        },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "idempotency_key", "type": "varchar", "nullable": false },
+        { "name": "request_hash", "type": "varchar", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "financing_tranches_fund_id_funds_id_fk",
+        "financing_tranches_event_fund_fk",
+        "financing_tranches_superseded_fund_fk",
+        "financing_tranches_observation_fund_fk",
+        "financing_tranches_created_by_fk",
+        "financing_tranches_security_type_check",
+        "financing_tranches_version_positive_check",
+        "financing_tranches_amount_positive_check",
+        "financing_tranches_no_self_supersede_check",
+        "financing_tranches_usd_fx_check",
+        "financing_tranches_equity_terms_check",
+        "financing_tranches_safe_terms_check",
+        "financing_tranches_note_terms_check",
+        "financing_tranches_id_fund_unique",
+        "financing_tranches_fund_idempotency_unique",
+        "financing_tranches_event_key_version_unique"
+      ],
+      "indexes": [
+        "financing_tranches_head_unique",
+        "idx_financing_tranches_fund_event"
+      ]
+    }
+  ]
+}

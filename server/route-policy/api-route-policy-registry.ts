@@ -1414,6 +1414,102 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     notes:
       'DORMANT activation command (executed only by Task 23): atomically writes mode on + activated_at + cutover_reference_id + candidate flip.',
   },
+  {
+    id: 'api:post:/api/funds/:fundId/investment-ledger/financing-events',
+    method: 'POST',
+    path: '/api/funds/:fundId/investment-ledger/financing-events',
+    lifecycle: 'durable_crud',
+    governanceRef: '/portfolio',
+    surface: 'investment-ledger-api',
+    owner: ownerForFinancialSurface('portfolio_management'),
+    telemetryKey: telemetryKeyForRoute(
+      'api.route',
+      '/api/funds/:fundId/investment-ledger/financing-events'
+    ),
+    financialSurface: 'portfolio_management',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_and_idempotency_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes:
+      'Task 9 canonical financing event. A repeat (companyIdentity, eventKey) resolves onto the existing event rather than duplicating the parent identity.',
+  },
+  {
+    id: 'api:post:/api/funds/:fundId/investment-ledger/financing-events/:eventId/tranches',
+    method: 'POST',
+    path: '/api/funds/:fundId/investment-ledger/financing-events/:eventId/tranches',
+    lifecycle: 'durable_crud',
+    governanceRef: '/portfolio',
+    surface: 'investment-ledger-api',
+    owner: ownerForFinancialSurface('portfolio_management'),
+    telemetryKey: telemetryKeyForRoute(
+      'api.route',
+      '/api/funds/:fundId/investment-ledger/financing-events/:eventId/tranches'
+    ),
+    financialSurface: 'portfolio_management',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_and_idempotency_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes:
+      'Task 9 independent closing recorded as tranche version 1; the write synthesizes a manual observation in the same transaction.',
+  },
+  {
+    id: 'api:post:/api/funds/:fundId/investment-ledger/tranches/:trancheId/corrections',
+    method: 'POST',
+    path: '/api/funds/:fundId/investment-ledger/tranches/:trancheId/corrections',
+    lifecycle: 'durable_crud',
+    governanceRef: '/portfolio',
+    surface: 'investment-ledger-api',
+    owner: ownerForFinancialSurface('portfolio_management'),
+    telemetryKey: telemetryKeyForRoute(
+      'api.route',
+      '/api/funds/:fundId/investment-ledger/tranches/:trancheId/corrections'
+    ),
+    financialSurface: 'portfolio_management',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_and_idempotency_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes:
+      'Task 9 correction supersedes the tranche head with an incremented version row; the superseded row is never edited in place. The downstream cascade is Task 10.',
+  },
+  {
+    id: 'api:get:/api/funds/:fundId/investment-ledger/financing-events/:eventId',
+    method: 'GET',
+    path: '/api/funds/:fundId/investment-ledger/financing-events/:eventId',
+    lifecycle: 'durable_crud',
+    governanceRef: '/portfolio',
+    surface: 'investment-ledger-api',
+    owner: ownerForFinancialSurface('portfolio_management'),
+    telemetryKey: telemetryKeyForRoute(
+      'api.route',
+      '/api/funds/:fundId/investment-ledger/financing-events/:eventId'
+    ),
+    financialSurface: 'portfolio_management',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes:
+      'Fund-scoped read of one financing event with its current tranche heads and full version history; reads create nothing.',
+  },
 ];
 
 export const EXPLICIT_API_ROUTE_POLICY_KEYS = new Set<string>(
@@ -1525,4 +1621,10 @@ export const COMMON_API_ROUTE_POLICY_IDS = {
   'lp-reporting-imports': ['client:/lp-reporting/imports'],
   'lp-reporting-metric-runs': ['client:/lp-reporting/metrics'],
   backtesting: ['client:/performance'],
+  'investment-ledger': [
+    'api:post:/api/funds/:fundId/investment-ledger/financing-events',
+    'api:post:/api/funds/:fundId/investment-ledger/financing-events/:eventId/tranches',
+    'api:post:/api/funds/:fundId/investment-ledger/tranches/:trancheId/corrections',
+    'api:get:/api/funds/:fundId/investment-ledger/financing-events/:eventId',
+  ],
 } as const satisfies Record<FinancialCommonApiRouteId, readonly string[]>;

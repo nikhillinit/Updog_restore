@@ -101,6 +101,8 @@ const FINANCIAL_OBSERVATIONS_MANIFEST_TABLES = [
   'reconciliation_cases',
   'working_value_selections',
 ] as const;
+// M14 (14-investment-ledger): canonical financing events and versioned tranches (journal 0040).
+const INVESTMENT_LEDGER_MANIFEST_TABLES = ['financing_events', 'financing_tranches'] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
   'flags_state',
@@ -728,6 +730,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...CURRENT_PLAN_VERSIONS_MANIFEST_TABLES,
         ...CURRENT_FORECAST_REFERENCES_MANIFEST_TABLES,
         ...FINANCIAL_OBSERVATIONS_MANIFEST_TABLES,
+        ...INVESTMENT_LEDGER_MANIFEST_TABLES,
       ])
     );
 

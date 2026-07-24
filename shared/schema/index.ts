@@ -27,3 +27,4 @@ export * from './investment-round-model-overrides';
 export * from './current-plans';
 export * from './current-forecast-references';
 export * from './financial-observations';
+export * from './investment-ledger';
