@@ -19,6 +19,11 @@ import { isPublicApiPath } from './lib/public-api-boundary.js';
 import { errorHandler } from './errors.js';
 import { requireCsrf } from './lib/auth/csrf.js';
 import { mountCommonRoutes } from './routes/mount-common-routes.js';
+import {
+  ARTIFACT_MAX_BYTES,
+  ARTIFACT_RAW_MEDIA_TYPES,
+  isArtifactUploadRequest,
+} from './services/financial-observations/source-artifact-service.js';
 
 export function makeApp() {
   const app = express();
@@ -74,7 +79,7 @@ export function makeApp() {
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       res.setHeader(
         'Access-Control-Allow-Headers',
-        'content-type, authorization, x-csrf-token, x-request-id, if-match, idempotency-key'
+        'content-type, authorization, x-csrf-token, x-request-id, if-match, idempotency-key, x-artifact-file-name, x-artifact-source-type'
       );
       res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
     }
@@ -86,10 +91,26 @@ export function makeApp() {
   const rateLimitWindowMs = Number(process.env['RATE_LIMIT_WINDOW_MS'] || '60000');
   const rateLimitMax = Number(process.env['RATE_LIMIT_MAX'] || '60');
 
+  const artifactRawParser = express.raw({
+    type: [...ARTIFACT_RAW_MEDIA_TYPES],
+    limit: ARTIFACT_MAX_BYTES,
+  });
+  const artifactRawMediaTypes = new Set<string>(ARTIFACT_RAW_MEDIA_TYPES);
+
+  // Deliberate single-route transport exception: only exact artifact POSTs
+  // may enter the raw parser before mutation Content-Type enforcement.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    return isArtifactUploadRequest(req) ? artifactRawParser(req, res, next) : next();
+  });
+
   // Content-Type validation for mutations
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
       const ct = ((req.headers['content-type'] as string) || '').toLowerCase();
+      const mediaType = ct.split(';', 1)[0]?.trim() ?? '';
+      if (isArtifactUploadRequest(req) && artifactRawMediaTypes.has(mediaType)) {
+        return next();
+      }
       if (!ct.startsWith('application/json')) {
         return res.status(415).json({
           error: 'unsupported_media_type',
