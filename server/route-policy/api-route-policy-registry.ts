@@ -616,6 +616,16 @@ const LP_REPORTING_ADDITIONAL_ROUTE_POLICY_GROUPS = [
     exportPolicy: 'not_exportable',
     provenanceRequired: true,
   },
+  {
+    governanceRef: '/lp-reporting/imports',
+    routes: [
+      ['POST', '/api/funds/:fundId/imports/artifacts'],
+      ['POST', '/api/funds/:fundId/imports/mapping-profiles'],
+    ],
+    workflowRequirement: 'fund_scope_and_idempotency_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+  },
 ] satisfies ReadonlyArray<LpReportingRoutePolicyGroup>;
 
 const LP_REPORTING_ADDITIONAL_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] =

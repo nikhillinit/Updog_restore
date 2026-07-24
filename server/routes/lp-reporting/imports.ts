@@ -46,6 +46,21 @@ import {
   ImportCommitError,
 } from '../../services/lp-reporting/import-commit-service';
 import { invalidateH9Artifacts } from '../../services/h9-artifact-invalidation-service';
+import {
+  ARTIFACT_RAW_MEDIA_TYPES,
+  createSourceArtifact,
+  SourceArtifactJsonEnvelopeSchema,
+  SourceArtifactResponseSchema,
+} from '../../services/financial-observations/source-artifact-service';
+import {
+  createMappingProfileVersion,
+  MappingProfileResponseSchema,
+} from '../../services/financial-observations/mapping-profile-service';
+import {
+  FINANCIAL_OBSERVATION_DOMAINS,
+  FINANCIAL_OBSERVATION_SOURCES,
+  MappingRuleV1Schema,
+} from '@shared/contracts/financial-observations';
 
 const router = Router();
 
@@ -75,6 +90,34 @@ const importLimiter = rateLimit({
     return userId !== undefined ? `lp-reporting-import:${userId}` : 'lp-reporting-import:anon';
   },
 });
+
+const importArtifactLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'TOO_MANY_REQUESTS',
+    message: 'Artifact and mapping-profile imports are limited to 100 requests per hour per user.',
+  },
+  keyGenerator: (req: Request) => {
+    const userId = req.user?.id;
+    return userId !== undefined ? `lp-reporting-artifact:${userId}` : 'lp-reporting-artifact:anon';
+  },
+});
+
+const idempotencyKeySchema = z.string().min(1).max(128);
+const rawArtifactSourceTypeSchema = z.enum(['csv', 'xlsx']);
+const rawArtifactMediaTypes = new Set<string>(ARTIFACT_RAW_MEDIA_TYPES);
+const mappingProfileBodySchema = z
+  .object({
+    name: z.string().min(1),
+    sourceType: z.enum(FINANCIAL_OBSERVATION_SOURCES),
+    domain: z.enum(FINANCIAL_OBSERVATION_DOMAINS),
+    mappings: z.array(MappingRuleV1Schema),
+    supersedesProfileId: z.number().int().positive().nullable(),
+  })
+  .strict();
 
 function decodePayload(payload: string): Buffer {
   return Buffer.from(payload, 'base64');
@@ -126,6 +169,57 @@ function sendCommitError(res: Response, err: unknown): Response {
   return res.status(500).json({
     error: 'IMPORT_COMMIT_FAILED',
     message,
+  });
+}
+
+function requestHeader(req: Request, name: string): string | undefined {
+  return firstString(req.headers[name.toLowerCase()]);
+}
+
+function parseIdempotencyKey(req: Request): z.SafeParseReturnType<string, string> {
+  return idempotencyKeySchema.safeParse(requestHeader(req, 'idempotency-key'));
+}
+
+function decodeArtifactFileName(req: Request): string | null {
+  const rawFileName = requestHeader(req, 'x-artifact-file-name');
+  if (rawFileName === undefined) return null;
+
+  const encodedFileName = rawFileName.replace(/^UTF-8''/i, '');
+  try {
+    return decodeURIComponent(encodedFileName);
+  } catch {
+    throw new ImportCommitError(
+      400,
+      'INVALID_ARTIFACT_FILE_NAME',
+      'X-Artifact-File-Name must use valid RFC 8187 percent-encoding.'
+    );
+  }
+}
+
+function baseMediaType(req: Request): string {
+  return (requestHeader(req, 'content-type') ?? '').split(';', 1)[0]!.trim().toLowerCase();
+}
+
+function sendV2ImportError(res: Response, error: unknown): Response {
+  if (typeof error === 'object' && error !== null) {
+    const candidate = error as { status?: unknown; statusCode?: unknown; code?: unknown };
+    const status =
+      typeof candidate.status === 'number'
+        ? candidate.status
+        : typeof candidate.statusCode === 'number'
+          ? candidate.statusCode
+          : null;
+    if (status !== null) {
+      return res.status(status).json({
+        error: typeof candidate.code === 'string' ? candidate.code : 'IMPORT_REQUEST_FAILED',
+        message: error instanceof Error ? error.message : 'Import request failed.',
+      });
+    }
+  }
+
+  return res.status(500).json({
+    error: 'IMPORT_REQUEST_FAILED',
+    message: error instanceof Error ? error.message : 'Unknown error',
   });
 }
 
@@ -253,6 +347,121 @@ router.post(
       return res.status(validated.insertedCount > 0 ? 201 : 200).json(validated);
     } catch (err) {
       return sendCommitError(res, err);
+    }
+  }
+);
+
+router.post(
+  '/api/funds/:fundId/imports/artifacts',
+  requireAuth(),
+  requireFundAccess,
+  importArtifactLimiter,
+  async (req: Request, res: Response) => {
+    const parsedIdempotencyKey = parseIdempotencyKey(req);
+    if (!parsedIdempotencyKey.success) {
+      return res.status(400).json({
+        error: 'INVALID_IDEMPOTENCY_KEY',
+        message: 'Idempotency-Key must contain 1 to 128 characters.',
+      });
+    }
+
+    try {
+      let mediaType = baseMediaType(req);
+      let sourceType: (typeof FINANCIAL_OBSERVATION_SOURCES)[number];
+      let fileName: string | null;
+      let payload: Buffer;
+
+      if (rawArtifactMediaTypes.has(mediaType)) {
+        const parsedSourceType = rawArtifactSourceTypeSchema.safeParse(
+          requestHeader(req, 'x-artifact-source-type')
+        );
+        if (!parsedSourceType.success) {
+          return res.status(400).json({
+            error: 'INVALID_ARTIFACT_SOURCE_TYPE',
+            message: 'X-Artifact-Source-Type must be csv or xlsx.',
+          });
+        }
+        if (!Buffer.isBuffer(req.body)) {
+          return res.status(400).json({
+            error: 'INVALID_ARTIFACT_BODY',
+            message: 'Raw artifact requests must contain byte payloads.',
+          });
+        }
+        sourceType = parsedSourceType.data;
+        fileName = decodeArtifactFileName(req);
+        payload = req.body;
+      } else {
+        // The contract caps characters at 200,000. The upstream JSON parser
+        // separately enforces its byte limit, so multibyte envelopes can fail earlier.
+        const parsedBody = SourceArtifactJsonEnvelopeSchema.safeParse(req.body);
+        if (!parsedBody.success) {
+          return res.status(400).json({
+            error: 'INVALID_ARTIFACT_BODY',
+            message: 'JSON artifact body is invalid.',
+            issues: parsedBody.error.issues,
+          });
+        }
+        sourceType = parsedBody.data.sourceType;
+        fileName = parsedBody.data.fileName;
+        mediaType = 'application/json';
+        payload = Buffer.from(parsedBody.data.content, 'utf8');
+      }
+
+      const result = SourceArtifactResponseSchema.parse(
+        await createSourceArtifact({
+          fundId: parseFundId(req),
+          sourceType,
+          fileName,
+          mediaType,
+          payload,
+          actorId: resolveAuthenticatedUserId(req),
+          idempotencyKey: parsedIdempotencyKey.data,
+        })
+      );
+      const { replayed, ...response } = result;
+      return res.status(replayed ? 200 : 201).json(response);
+    } catch (error) {
+      return sendV2ImportError(res, error);
+    }
+  }
+);
+
+router.post(
+  '/api/funds/:fundId/imports/mapping-profiles',
+  requireAuth(),
+  requireFundAccess,
+  importArtifactLimiter,
+  async (req: Request, res: Response) => {
+    const parsedIdempotencyKey = parseIdempotencyKey(req);
+    if (!parsedIdempotencyKey.success) {
+      return res.status(400).json({
+        error: 'INVALID_IDEMPOTENCY_KEY',
+        message: 'Idempotency-Key must contain 1 to 128 characters.',
+      });
+    }
+
+    const parsedBody = mappingProfileBodySchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      return res.status(400).json({
+        error: 'INVALID_MAPPING_PROFILE_BODY',
+        message: 'Mapping-profile body is invalid.',
+        issues: parsedBody.error.issues,
+      });
+    }
+
+    try {
+      const result = MappingProfileResponseSchema.parse(
+        await createMappingProfileVersion({
+          fundId: parseFundId(req),
+          ...parsedBody.data,
+          actorId: resolveAuthenticatedUserId(req),
+          idempotencyKey: parsedIdempotencyKey.data,
+        })
+      );
+      const { replayed, ...response } = result;
+      return res.status(replayed ? 200 : 201).json(response);
+    } catch (error) {
+      return sendV2ImportError(res, error);
     }
   }
 );
