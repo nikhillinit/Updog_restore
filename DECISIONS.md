@@ -8863,3 +8863,54 @@ rows exist; the flag is off; every fund resolves `off`).
   actual, mirroring the legacy builder.
 
 ---
+
+## ADR-061: V2 Normalization — Two-Key Identity and Descriptor-Excluded Fingerprint (PLAN_61 Task 5a)
+
+**Date:** 2026-07-23 **Status:** [ACCEPTED] Accepted **Decision:** The V2
+CSV/manual normalization layer derives two independent keys from every staged
+observation. `observationHash = canonicalSha256(normalizedPayload)` is the FULL
+identity (economics + descriptor + transaction discriminator) and drives hard
+dedup via `source_observations_fund_hash_accepted_unique`.
+`candidateFingerprint = canonicalSha256(economicPreimage)` is the ECONOMIC
+identity: it EXCLUDES the `descriptor` sub-object and `schemaVersion`, INCLUDES
+the `externalRef` discriminator plus a dedicated `fingerprintVersion` tag, and
+drives soft `observation_match` lookup via
+`idx_source_observations_fund_candidate_fingerprint`. Equivalent CSV and manual
+inputs converge on equal `normalizedPayload` and equal `candidateFingerprint`;
+byte-identical `observationHash` across modes is NOT asserted (defect D15) — the
+executable spec asserts derivation (`hash === canonicalSha256(payload)`) and
+payload equality, not cross-mode digest identity.
+
+### Context
+
+Field selection is the load-bearing, non-derivable decision the future
+reconciliation/commit path (Task 6) depends on: a descriptor-only edit must
+reuse the existing economic identity (same fingerprint, different hash), while a
+same-amount/same-date pair of distinct wires must stay distinct (different
+fingerprint via `externalRef`). The corpus test
+`tests/unit/services/financial-observations/normalization-service.test.ts` is
+the executable spec (cases 11 and 12 pin these two properties; case 6 pins that
+a durable external identity holds the fingerprint stable across differing
+display names).
+
+### Consequences
+
+- No adapter may inject a financial assumption: formulas, malformed
+  numbers/dates, inferred FX, defaulted currency, and out-of-range values are
+  rejected (preview outcome `rejected`, distinct from the DB
+  `staged|accepted|purged` status). Currency is USD-only and explicit; `fxRate`
+  is the definitional constant `1.000000000000` when absent, never an inferred
+  conversion.
+- Company identity is a STRUCTURED object (`{kind:'external',system,externalId}`
+  or `{kind:'name',canonicalName}`), object-hashed to avoid delimiter collisions
+  — never a delimiter-joined string.
+- Decimal precision is a fixed per-field policy (`amount`/`postMoneyValuation`
+  6dp, `fxRate`/`ownershipPct` 12dp), never inferred from a key-name regex;
+  `MONEY_LEAF_KEY`/`RATIO_LEAF_KEY` stay assertion-only. Hashing uses plain
+  `canonicalSha256`; the decimal invariant is asserted on a numeric-only
+  projection (never over free text — `canonicalizeDecimalLeaves` false-positives
+  on real names/memos containing `/e[+-]?\d/`).
+- One CSV tokenizer (`server/lib/csv-tokenizer.ts`) serves both the byte-frozen
+  V1 lane and the V2 raw lane (defect D10); no `csv-parse` dependency. No
+  migration, no route, no schema change — the layer ships as a pure, executable
+  reference spec ahead of the ingestion service.
