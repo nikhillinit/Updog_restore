@@ -13,7 +13,7 @@
  *
  * @module server/services/financial-observations/identity-resolution-service
  */
-import { and, eq, ne, sql } from 'drizzle-orm';
+import { and, eq, isNull, ne, sql } from 'drizzle-orm';
 
 import type { db } from '../../db';
 import {
@@ -22,6 +22,7 @@ import {
 } from '../../../shared/contracts/financial-observations/financial-observation.contract';
 import {
   companyExternalIdentities,
+  companyIdentities,
   sourceObservations,
   type ImportMappingProfile,
 } from '../../../shared/schema/financial-observations';
@@ -279,6 +280,116 @@ async function hasDifferentHashSameFingerprint(
     )
     .limit(1);
   return row !== undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Identity mutations for case resolution (integration-tested)
+// ---------------------------------------------------------------------------
+
+/** Create a fresh name identity in the fund and return its id. */
+export async function createNameIdentity(
+  database: IdentityDatabase,
+  fundId: number,
+  canonicalName: string,
+  actorId: number | null
+): Promise<number> {
+  const [row] = await database
+    .insert(companyIdentities)
+    .values({ fundId, canonicalName, createdBy: actorId })
+    .returning({ id: companyIdentities.id });
+  if (!row) {
+    throw new ReconciliationApiError(500, 'IDENTITY_NOT_FOUND', 'Identity insert returned no row.');
+  }
+  return row.id;
+}
+
+/**
+ * Same-fund merge of `sourceId` into `targetId` (§7). Acquires the fund identity
+ * advisory lock, re-resolves both heads, and writes with an expected-state
+ * predicate (`merged_into_identity_id IS NULL`); zero rows -> head changed
+ * concurrently. Returns the surviving target head. Cross-fund inputs surface as
+ * `IDENTITY_NOT_FOUND` because both lookups are fund-scoped.
+ */
+export async function mergeIdentities(
+  database: IdentityDatabase,
+  fundId: number,
+  sourceId: number,
+  targetId: number
+): Promise<number> {
+  await database.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`fund-identity:${fundId}`}))`);
+  const sourceHead = await resolveIdentityHead(database, fundId, sourceId);
+  const targetHead = await resolveIdentityHead(database, fundId, targetId);
+  if (sourceHead === targetHead) return targetHead;
+
+  const updated = await database
+    .update(companyIdentities)
+    .set({ mergedIntoIdentityId: targetHead })
+    .where(
+      and(
+        eq(companyIdentities.id, sourceHead),
+        eq(companyIdentities.fundId, fundId),
+        isNull(companyIdentities.mergedIntoIdentityId)
+      )
+    )
+    .returning({ id: companyIdentities.id });
+  if (updated.length !== 1) {
+    throw new ReconciliationApiError(
+      409,
+      'IDENTITY_MERGE_HEAD_CHANGED',
+      'A merge head changed concurrently; retry.'
+    );
+  }
+  return targetHead;
+}
+
+/**
+ * Write a profile alias for a confirmed identity (§7): insert-on-conflict-do-
+ * nothing, then reload. Same head -> idempotent no-op. A different head ->
+ * `409 PROFILE_ALIAS_CONFLICT` (never repoint). Returns nothing on success.
+ */
+export async function writeProfileAliasForIdentity(
+  database: IdentityDatabase,
+  fundId: number,
+  profile: Pick<ImportMappingProfile, 'id' | 'identitySemanticsHash'>,
+  aliasValue: string,
+  identityHead: number,
+  actorId: number | null
+): Promise<void> {
+  const system = profileAliasSystem(profile);
+  const inserted = await database
+    .insert(companyExternalIdentities)
+    .values({
+      fundId,
+      companyIdentityId: identityHead,
+      system,
+      value: aliasValue,
+      createdBy: actorId,
+    })
+    .onConflictDoNothing({
+      target: [
+        companyExternalIdentities.fundId,
+        companyExternalIdentities.system,
+        companyExternalIdentities.value,
+      ],
+    })
+    .returning({ id: companyExternalIdentities.id });
+  if (inserted.length === 1) return;
+
+  const existingHead = await lookupExternalIdentityHead(database, fundId, system, aliasValue);
+  if (existingHead === null) {
+    throw new ReconciliationApiError(
+      409,
+      'PROFILE_ALIAS_CONFLICT',
+      'Alias row vanished under contention.'
+    );
+  }
+  if (existingHead !== identityHead) {
+    throw new ReconciliationApiError(
+      409,
+      'PROFILE_ALIAS_CONFLICT',
+      'Profile alias already points at a different identity head.'
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
