@@ -8,6 +8,7 @@
   "expectedTables": [
     {
       "name": "vehicles",
+      "sharedTable": true,
       "columns": [
         { "name": "id", "type": "integer", "nullable": false },
         { "name": "fund_id", "type": "integer", "nullable": false }
@@ -135,6 +136,7 @@
     },
     {
       "name": "investment_lots",
+      "sharedTable": true,
       "columns": [
         { "name": "imported_from", "type": "text", "nullable": true },
         {
@@ -147,6 +149,7 @@
     },
     {
       "name": "cash_flow_events",
+      "sharedTable": true,
       "columns": [
         {
           "name": "vehicle_participation_id",
