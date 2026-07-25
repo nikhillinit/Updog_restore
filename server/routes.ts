@@ -6,6 +6,7 @@ import { recordHttpMetrics } from './metrics';
 import { monitor } from './middleware/performance-monitor.js';
 import { registerCompletionHandlers } from './services/calc-run-completion-handlers.js';
 import { varianceAlertAutomationService } from './services/variance-alert-automation.js';
+import { artifactRetentionService } from './services/financial-observations/artifact-retention-service.js';
 
 type DefaultRouteModule = {
   default: Router;
@@ -37,6 +38,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Wire calc-run completion automation and periodic alert scheduling.
   registerCompletionHandlers();
   varianceAlertAutomationService.start();
+  // Artifact retention sweep (PLAN_61 Task 8) — Docker/Railway surface only.
+  artifactRetentionService.start();
 
   // Performance monitoring middleware - track all API requests
   app.use('/api', monitor.middleware());

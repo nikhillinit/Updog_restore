@@ -10,7 +10,7 @@
   "packageManager": "npm@10.9.2",
   "scripts": {
     "preinstall": "node scripts/check-package-manager.mjs",
-    "postinstall": "node scripts/patch-vitest-sourcemap.mjs",
+    "postinstall": "node scripts/patch-vitest-sourcemap.mjs && node scripts/patch-brace-expansion-exports.mjs",
     "doctor": "node scripts/doctor.mjs",
     "doctor:shell": "node scripts/doctor-shell.mjs",
     "doctor:quick": "node scripts/doctor-quick.mjs",
@@ -256,7 +256,8 @@
     "esbuild": "^0.25.0",
     "uuid": "^11.1.1",
     "ws": "^8.21.0",
-    "@opentelemetry/core": "2.8.0"
+    "@opentelemetry/core": "2.8.0",
+    "brace-expansion": "5.0.8"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.12.1",

@@ -50,6 +50,7 @@ export * from './schema/investment-rounds';
 export * from './schema/investment-round-model-overrides';
 export * from './schema/current-forecast-references';
 export * from './schema/financial-observations';
+export * from './schema/investment-ledger';
 export * from './schemas/flags';
 export * from './schemas/reserve-approvals';
 
