@@ -359,7 +359,11 @@ describe('financial observations migration and production sync set', () => {
       entries: Array<{ idx: number; tag: string; breakpoints: boolean }>;
     };
 
-    expect(journal.entries.at(-1)).toMatchObject({
+    // Pin 0039's own entry, not the journal tail: later migrations legitimately
+    // append after it, and asserting `.at(-1)` would fail every future task.
+    expect(
+      journal.entries.find((entry) => entry.tag === '0039_financial_observations')
+    ).toMatchObject({
       idx: 40,
       tag: '0039_financial_observations',
       breakpoints: true,
