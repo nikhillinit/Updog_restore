@@ -23,8 +23,8 @@
     "deny": [
       "Bash(npm run db:push:*)",
       "Bash(rm -rf:*)",
-      "Write(.env*)",
-      "Write(package.json)"
+      "Edit(.env*)",
+      "Edit(package.json)"
     ]
   },
   "hooks": {
