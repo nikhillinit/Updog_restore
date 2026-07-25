@@ -4,6 +4,11 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { pgIdentifier } from '../../scripts/db-push-core.mjs';
+import {
+  loadManifests,
+  readManifestSql,
+  validateManifestSql,
+} from '../../scripts/reconcile-prod-schema.mjs';
 
 // s8.1 slice 3 (ADR-023): reconcile-prod-schema.mjs verifies sentinels BY NAME
 // (findMissingSentinels), so a manifest sentinel that its own SQL never creates
@@ -97,6 +102,7 @@ describe('prod-schema manifest sentinels', () => {
       '12-current-forecast-references.json',
       '13-financial-observations.json',
       '14-investment-ledger.json',
+      '15-vehicle-financing-participations.json',
     ]);
   });
 
@@ -121,6 +127,22 @@ describe('prod-schema manifest sentinels', () => {
     }
 
     expect(offenders).toEqual([]);
+  });
+
+  it('every manifest passes production SQL ownership validation', async () => {
+    const failures: string[] = [];
+
+    for (const manifest of await loadManifests()) {
+      try {
+        validateManifestSql(manifest, await readManifestSql(manifest));
+      } catch (error) {
+        failures.push(
+          `${manifest.name}: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+
+    expect(failures).toEqual([]);
   });
 
   it('every sentinel name SURVIVES the manifest own SQL sequence (63-byte aware)', () => {

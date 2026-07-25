@@ -6,3 +6,14 @@ id = "updog-negative-control-token"
 description = "Updog secret-scanner negative control"
 regex = '''UPDOG_NEGATIVE_CONTROL_TOKEN\s*=\s*updog_test_secret_[0-9a-f]{32}'''
 keywords = ["updog_test_secret_"]
+
+[[allowlists]]
+description = "Allow historical Task 10 makeApp synthetic JWT fixture"
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''process\.env\.JWT_SECRET\s*=\s*'ledger-surface-test-secret-32-chars-min';'''
+]
+paths = [
+  '''^tests/unit/routes/investment-ledger-makeapp-surface\.contract\.test\.ts$'''
+]

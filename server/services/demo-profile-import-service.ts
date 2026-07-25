@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 
 import type { db as defaultDb } from '../db';
 import {
@@ -1559,6 +1559,26 @@ export class DrizzleDemoProfileImportStore implements DemoProfileImportStore {
           );
         return targetIdTexts.length;
       case 'investments':
+        if (
+          (
+            await this.tx
+              .select({ id: investments.id })
+              .from(investments)
+              .where(
+                and(
+                  inArray(investments.id, targetIdTexts.map(parseIntegerId)),
+                  eq(investments.fundId, fundId),
+                  isNotNull(investments.vehicleParticipationId)
+                )
+              )
+          ).length > 0
+        ) {
+          throw new DemoProfileImportError(
+            409,
+            'USE_LEDGER_ROUTE',
+            'Participation-linked investments are read-only outside the investment ledger.'
+          );
+        }
         await this.tx
           .delete(investments)
           .where(
@@ -1570,10 +1590,26 @@ export class DrizzleDemoProfileImportStore implements DemoProfileImportStore {
         return targetIdTexts.length;
       case 'investment_lots': {
         const scoped = await this.tx
-          .select({ id: investmentLots.id })
+          .select({
+            id: investmentLots.id,
+            vehicleParticipationId: investmentLots.vehicleParticipationId,
+            investmentVehicleParticipationId: investments.vehicleParticipationId,
+          })
           .from(investmentLots)
           .innerJoin(investments, eq(investmentLots.investmentId, investments.id))
           .where(and(inArray(investmentLots.id, targetIdTexts), eq(investments.fundId, fundId)));
+        if (
+          scoped.some(
+            (row) =>
+              row.vehicleParticipationId !== null || row.investmentVehicleParticipationId !== null
+          )
+        ) {
+          throw new DemoProfileImportError(
+            409,
+            'USE_LEDGER_ROUTE',
+            'Participation-linked investment lots are read-only outside the investment ledger.'
+          );
+        }
         const scopedIds = scoped.map((row) => row.id);
         if (scopedIds.length > 0) {
           await this.tx.delete(investmentLots).where(inArray(investmentLots.id, scopedIds));

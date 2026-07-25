@@ -23,7 +23,9 @@ export default defineConfig({
   resolve: { alias },
   test: {
     name: 'testcontainers',
-    globalSetup: ['./tests/setup/global-setup.testcontainers.ts'],
+    globalSetup: process.env.TEST_DATABASE_URL
+      ? []
+      : ['./tests/setup/global-setup.testcontainers.ts'],
     // Only include tests that actually work with testcontainers
     // Other tests have pre-existing issues tracked in separate issues
     include: [
@@ -35,6 +37,7 @@ export default defineConfig({
       'tests/integration/migrations/investment-rounds-schema.test.ts',
       'tests/integration/migrations/investments-id-fund-unique.test.ts',
       'tests/integration/investment-scenario-capability.test.ts',
+      'tests/integration/vehicle-financing-participations-real-pg.test.ts',
       'tests/integration/scenarios/scenario-case-seed-persistence.test.ts',
       'tests/integration/scenarios/company-scenario-create-persistence.test.ts',
       // DISABLED: Pre-existing issues - fix in separate PRs

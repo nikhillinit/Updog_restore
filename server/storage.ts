@@ -499,6 +499,8 @@ export class MemStorage implements IStorage {
       costBasisCents: null,
       pricingConfidence: 'calculated',
       version: 1,
+      importedFrom: null,
+      vehicleParticipationId: null,
       createdAt: new Date(),
     };
     this.investments.set(id, investment);

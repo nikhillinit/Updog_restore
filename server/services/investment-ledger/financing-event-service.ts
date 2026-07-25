@@ -59,6 +59,7 @@ export type FinancingLedgerServiceErrorCode =
   | 'FINANCING_EVENT_NOT_FOUND'
   | 'FINANCING_TRANCHE_NOT_CURRENT'
   | 'FINANCING_TRANCHE_CONFLICT'
+  | 'PARTICIPATION_CASCADE_REQUIRED'
   | 'NORMALIZATION_REJECTED'
   | 'LEDGER_WRITE_FAILED';
 
@@ -337,6 +338,7 @@ export async function correctFinancingTranche(
             'Only the current tranche version can be corrected.'
           );
         }
+        await assertNoCurrentDependentParticipations(transaction, input.fundId, input.trancheId);
 
         const newId = readInsertedId(
           await transaction.execute(sql`SELECT nextval('financing_tranches_id_seq') AS id`)
@@ -794,6 +796,31 @@ async function loadPriorObservationMeasureKey(
     'LEDGER_WRITE_FAILED',
     'Correction could not reuse the prior tranche observation measure key.'
   );
+}
+
+async function assertNoCurrentDependentParticipations(
+  database: LedgerDatabase,
+  fundId: number,
+  trancheId: number
+): Promise<void> {
+  const dependents = readRows(
+    await database.execute(sql`
+      SELECT id, version
+      FROM vehicle_financing_participations
+      WHERE fund_id = ${fundId}
+        AND financing_tranche_id = ${trancheId}
+        AND superseded_by_participation_id IS NULL
+      ORDER BY id
+      FOR UPDATE
+    `)
+  );
+  if (dependents.length > 0) {
+    throw new FinancingLedgerServiceError(
+      409,
+      'PARTICIPATION_CASCADE_REQUIRED',
+      'Current vehicle participations depend on this tranche; use the ledger correction cascade.'
+    );
+  }
 }
 
 async function insertManualObservation(

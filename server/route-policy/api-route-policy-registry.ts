@@ -1487,6 +1487,54 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
       'Task 9 correction supersedes the tranche head with an incremented version row; the superseded row is never edited in place. The downstream cascade is Task 10.',
   },
   {
+    id: 'api:post:/api/funds/:fundId/investment-ledger/tranches/:trancheId/participations',
+    method: 'POST',
+    path: '/api/funds/:fundId/investment-ledger/tranches/:trancheId/participations',
+    lifecycle: 'durable_crud',
+    governanceRef: '/portfolio',
+    surface: 'investment-ledger-api',
+    owner: ownerForFinancialSurface('portfolio_management'),
+    telemetryKey: telemetryKeyForRoute(
+      'api.route',
+      '/api/funds/:fundId/investment-ledger/tranches/:trancheId/participations'
+    ),
+    financialSurface: 'portfolio_management',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_and_idempotency_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes:
+      'Task 10 vehicle participation atomically records canonical economics, compatibility rows, and accepted observation provenance.',
+  },
+  {
+    id: 'api:post:/api/funds/:fundId/investment-ledger/tranches/:trancheId/ledger-corrections',
+    method: 'POST',
+    path: '/api/funds/:fundId/investment-ledger/tranches/:trancheId/ledger-corrections',
+    lifecycle: 'durable_crud',
+    governanceRef: '/portfolio',
+    surface: 'investment-ledger-api',
+    owner: ownerForFinancialSurface('portfolio_management'),
+    telemetryKey: telemetryKeyForRoute(
+      'api.route',
+      '/api/funds/:fundId/investment-ledger/tranches/:trancheId/ledger-corrections'
+    ),
+    financialSurface: 'portfolio_management',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_and_idempotency_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes:
+      'Task 10 atomic correction command supersedes a tranche and its complete dependent participation set with compatibility and reconciliation updates.',
+  },
+  {
     id: 'api:get:/api/funds/:fundId/investment-ledger/financing-events/:eventId',
     method: 'GET',
     path: '/api/funds/:fundId/investment-ledger/financing-events/:eventId',
@@ -1625,6 +1673,8 @@ export const COMMON_API_ROUTE_POLICY_IDS = {
     'api:post:/api/funds/:fundId/investment-ledger/financing-events',
     'api:post:/api/funds/:fundId/investment-ledger/financing-events/:eventId/tranches',
     'api:post:/api/funds/:fundId/investment-ledger/tranches/:trancheId/corrections',
+    'api:post:/api/funds/:fundId/investment-ledger/tranches/:trancheId/participations',
+    'api:post:/api/funds/:fundId/investment-ledger/tranches/:trancheId/ledger-corrections',
     'api:get:/api/funds/:fundId/investment-ledger/financing-events/:eventId',
   ],
 } as const satisfies Record<FinancialCommonApiRouteId, readonly string[]>;

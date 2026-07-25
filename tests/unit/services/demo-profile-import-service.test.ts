@@ -420,6 +420,37 @@ describe('demo profile import service', () => {
     expect(onConflictDoUpdate).not.toHaveBeenCalled();
   });
 
+  it('blocks demo rollback from deleting participation-linked investments', async () => {
+    const where = vi.fn().mockResolvedValue([{ id: 41 }]);
+    const from = vi.fn(() => ({ where }));
+    const select = vi.fn(() => ({ from }));
+    const deleteRow = vi.fn();
+    const store = new DrizzleDemoProfileImportStore({ select, delete: deleteRow } as never);
+
+    await expect(store.deleteTargets(77, 'investments', ['41'])).rejects.toMatchObject({
+      status: 409,
+      code: 'USE_LEDGER_ROUTE',
+    });
+
+    expect(deleteRow).not.toHaveBeenCalled();
+  });
+
+  it('blocks demo rollback from deleting participation-linked investment lots', async () => {
+    const where = vi.fn().mockResolvedValue([{ id: 'lot-41' }]);
+    const innerJoin = vi.fn(() => ({ where }));
+    const from = vi.fn(() => ({ innerJoin }));
+    const select = vi.fn(() => ({ from }));
+    const deleteRow = vi.fn();
+    const store = new DrizzleDemoProfileImportStore({ select, delete: deleteRow } as never);
+
+    await expect(store.deleteTargets(77, 'investment_lots', ['lot-41'])).rejects.toMatchObject({
+      status: 409,
+      code: 'USE_LEDGER_ROUTE',
+    });
+
+    expect(deleteRow).not.toHaveBeenCalled();
+  });
+
   it('rolls back only ledger-scoped targets in reverse dependency order', async () => {
     const bundle = buildDemoProfileImportBundle();
     const preview = runDemoProfileDryRun(bundle);

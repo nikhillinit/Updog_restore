@@ -12,6 +12,8 @@ const serviceState = vi.hoisted(() => ({
   recordFinancingTranche: vi.fn(),
   correctFinancingTranche: vi.fn(),
   loadFinancingEventDetail: vi.fn(),
+  createVehicleFinancingParticipation: vi.fn(),
+  correctVehicleParticipationLedger: vi.fn(),
 }));
 
 const authState = vi.hoisted(() => ({
@@ -32,6 +34,14 @@ vi.mock('../../../server/services/investment-ledger/financing-event-service', ()
   recordFinancingTranche: serviceState.recordFinancingTranche,
   correctFinancingTranche: serviceState.correctFinancingTranche,
   loadFinancingEventDetail: serviceState.loadFinancingEventDetail,
+}));
+
+vi.mock('../../../server/services/investment-ledger/participation-service', () => ({
+  createVehicleFinancingParticipation: serviceState.createVehicleFinancingParticipation,
+}));
+
+vi.mock('../../../server/services/investment-ledger/ledger-correction-service', () => ({
+  correctVehicleParticipationLedger: serviceState.correctVehicleParticipationLedger,
 }));
 
 vi.mock('../../../server/lib/auth/jwt', async (importOriginal) => {
@@ -58,6 +68,7 @@ const EVENT = {
 };
 
 const TRANCHE = { id: 500, fundId: 7, trancheKey: 'first-close', version: 1 };
+const PARTICIPATION = { id: 600, fundId: 7, vehicleId: 9, version: 1 };
 
 function makeApp() {
   const app = express();
@@ -85,6 +96,26 @@ const trancheBody = {
   pricePerShare: '4.250000',
 };
 
+const participationBody = {
+  vehicleId: 9,
+  participationAmount: '123.456789',
+};
+
+const ledgerCorrectionBody = {
+  expectedTrancheVersion: 1,
+  correctedTranche: trancheBody,
+  dependents: [
+    {
+      participationId: 600,
+      expectedVersion: 1,
+      acknowledgements: {
+        termsReviewed: true,
+        compatibilityRewriteAccepted: true,
+      },
+    },
+  ],
+};
+
 beforeEach(() => {
   authState.user = {
     id: '3',
@@ -98,6 +129,8 @@ beforeEach(() => {
   serviceState.recordFinancingTranche.mockReset();
   serviceState.correctFinancingTranche.mockReset();
   serviceState.loadFinancingEventDetail.mockReset();
+  serviceState.createVehicleFinancingParticipation.mockReset();
+  serviceState.correctVehicleParticipationLedger.mockReset();
 });
 
 describe('investment-ledger routes', () => {
@@ -144,6 +177,22 @@ describe('investment-ledger routes', () => {
       path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/tranches/500/corrections`,
       service: serviceState.correctFinancingTranche,
       body: trancheBody,
+    },
+    {
+      name: 'record participation',
+      method: 'post' as const,
+      path: (fundId: string) =>
+        `/api/funds/${fundId}/investment-ledger/tranches/500/participations`,
+      service: serviceState.createVehicleFinancingParticipation,
+      body: participationBody,
+    },
+    {
+      name: 'correct participation ledger',
+      method: 'post' as const,
+      path: (fundId: string) =>
+        `/api/funds/${fundId}/investment-ledger/tranches/500/ledger-corrections`,
+      service: serviceState.correctVehicleParticipationLedger,
+      body: ledgerCorrectionBody,
     },
     {
       name: 'read detail',
@@ -280,6 +329,75 @@ describe('investment-ledger routes', () => {
 
     expect(response.status).toBe(409);
     expect(response.body.error).toBe('FINANCING_TRANCHE_NOT_CURRENT');
+  });
+
+  it('returns 201 for participation creation and 200 for an exact replay', async () => {
+    serviceState.createVehicleFinancingParticipation
+      .mockResolvedValueOnce({ value: PARTICIPATION, replayed: false })
+      .mockResolvedValueOnce({ value: PARTICIPATION, replayed: true });
+
+    const created = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/tranches/500/participations')
+      .set('Idempotency-Key', 'participation-1')
+      .send(participationBody);
+    const replayed = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/tranches/500/participations')
+      .set('Idempotency-Key', 'participation-1')
+      .send(participationBody);
+
+    expect(created.status).toBe(201);
+    expect(replayed.status).toBe(200);
+    expect(serviceState.createVehicleFinancingParticipation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fundId: 7,
+        trancheId: 500,
+        actorId: 3,
+        idempotencyKey: 'participation-1',
+      })
+    );
+  });
+
+  it('returns duplicate-confirmation conflict without burning the route key', async () => {
+    serviceState.createVehicleFinancingParticipation.mockRejectedValueOnce(
+      Object.assign(new Error('A matching legacy position requires confirmation.'), {
+        status: 409,
+        statusCode: 409,
+        code: 'SUSPECTED_DUPLICATE_POSITION',
+        details: { duplicateFingerprints: ['a'.repeat(64)] },
+      })
+    );
+
+    const response = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/tranches/500/participations')
+      .set('Idempotency-Key', 'participation-confirm')
+      .send(participationBody);
+
+    expect(response.status).toBe(409);
+    expect(response.body.error).toBe('SUSPECTED_DUPLICATE_POSITION');
+    expect(response.body.details).toEqual({ duplicateFingerprints: ['a'.repeat(64)] });
+  });
+
+  it('passes the atomic ledger-correction body through one route command', async () => {
+    serviceState.correctVehicleParticipationLedger.mockResolvedValueOnce({
+      value: { tranche: TRANCHE, participations: [PARTICIPATION] },
+      replayed: false,
+    });
+
+    const response = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/tranches/500/ledger-corrections')
+      .set('Idempotency-Key', 'ledger-correction-1')
+      .send(ledgerCorrectionBody);
+
+    expect(response.status).toBe(201);
+    expect(serviceState.correctVehicleParticipationLedger).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fundId: 7,
+        trancheId: 500,
+        actorId: 3,
+        idempotencyKey: 'ledger-correction-1',
+        request: ledgerCorrectionBody,
+      })
+    );
   });
 
   it('serves the fund-scoped event detail read', async () => {

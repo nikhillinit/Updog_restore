@@ -138,9 +138,7 @@
           "nullable": false
         }
       ],
-      "constraints": [
-        "lp_distributions_activity_id_capital_activities_id_fk"
-      ]
+      "constraints": ["lp_distributions_activity_id_capital_activities_id_fk"]
     },
     {
       "name": "lp_capital_accounts",
@@ -177,9 +175,7 @@
           "nullable": false
         }
       ],
-      "constraints": [
-        "lp_reports_lp_id_limited_partners_id_fk"
-      ]
+      "constraints": ["lp_reports_lp_id_limited_partners_id_fk"]
     },
     {
       "name": "report_templates",
@@ -200,9 +196,7 @@
           "nullable": false
         }
       ],
-      "constraints": [
-        "lp_audit_log_lp_id_limited_partners_id_fk"
-      ]
+      "constraints": ["lp_audit_log_lp_id_limited_partners_id_fk"]
     },
     {
       "name": "vehicles",
@@ -235,9 +229,7 @@
         "vehicles_admin_score_check",
         "vehicles_fund_id_funds_id_fk"
       ],
-      "indexes": [
-        "idx_vehicles_fund_type"
-      ]
+      "indexes": ["idx_vehicles_fund_type"]
     },
     {
       "name": "cash_flow_events",
@@ -264,6 +256,7 @@
         },
         {
           "name": "perspective",
+          "type": "varchar",
           "nullable": false
         }
       ],

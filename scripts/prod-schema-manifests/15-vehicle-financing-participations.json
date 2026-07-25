@@ -1,0 +1,163 @@
+{
+  "name": "vehicle-financing-participations",
+  "order": 15,
+  "description": "Task 10 (#1174) vehicle participation ledger table and additive compat lineage pointers.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0041_vehicle_financing_participations.sql"],
+  "allowedCreateTables": ["vehicle_financing_participations"],
+  "expectedTables": [
+    {
+      "name": "vehicles",
+      "sharedTable": true,
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false }
+      ],
+      "constraints": ["vehicles_id_fund_unique"]
+    },
+    {
+      "name": "vehicle_financing_participations",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "vehicle_id", "type": "integer", "nullable": false },
+        { "name": "financing_event_id", "type": "integer", "nullable": false },
+        { "name": "tranche_key", "type": "text", "nullable": false },
+        {
+          "name": "financing_tranche_id",
+          "type": "integer",
+          "nullable": false
+        },
+        { "name": "version", "type": "integer", "nullable": false },
+        {
+          "name": "superseded_by_participation_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "participation_amount",
+          "type": "numeric",
+          "nullable": false
+        },
+        { "name": "original_amount", "type": "numeric", "nullable": true },
+        { "name": "currency", "type": "varchar", "nullable": false },
+        { "name": "fx_rate_to_usd", "type": "numeric", "nullable": true },
+        { "name": "fx_rate_date", "type": "date", "nullable": true },
+        { "name": "shares_acquired", "type": "numeric", "nullable": true },
+        { "name": "closing_date", "type": "date", "nullable": true },
+        { "name": "price_per_share", "type": "numeric", "nullable": true },
+        { "name": "post_money_valuation", "type": "numeric", "nullable": true },
+        { "name": "valuation_cap", "type": "numeric", "nullable": true },
+        {
+          "name": "conversion_discount_rate",
+          "type": "numeric",
+          "nullable": true
+        },
+        { "name": "interest_rate", "type": "numeric", "nullable": true },
+        {
+          "name": "liquidation_preference_multiple",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "participation_cap_multiple",
+          "type": "numeric",
+          "nullable": true
+        },
+        { "name": "pro_rata_rights_pct", "type": "numeric", "nullable": true },
+        {
+          "name": "participating_preferred",
+          "type": "boolean",
+          "nullable": true
+        },
+        { "name": "maturity_date", "type": "date", "nullable": true },
+        { "name": "descriptive_terms", "type": "jsonb", "nullable": true },
+        { "name": "confirmed_duplicates", "type": "jsonb", "nullable": false },
+        {
+          "name": "source_observation_id",
+          "type": "integer",
+          "nullable": true
+        },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "idempotency_key", "type": "varchar", "nullable": false },
+        { "name": "request_hash", "type": "varchar", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "vfp_fund_id_funds_id_fk",
+        "vfp_vehicle_fund_fk",
+        "vfp_tranche_fund_fk",
+        "vfp_superseded_fund_fk",
+        "vfp_observation_fund_fk",
+        "vfp_created_by_fk",
+        "vfp_version_positive_check",
+        "vfp_amount_positive_check",
+        "vfp_fx_rate_positive_check",
+        "vfp_no_self_supersede_check",
+        "vfp_usd_fx_check",
+        "vfp_id_fund_unique",
+        "vfp_fund_idem_unique",
+        "vfp_key_version_unique"
+      ],
+      "indexes": [
+        "vfp_head_unique",
+        "idx_vfp_fund_vehicle",
+        "idx_vfp_fund_tranche"
+      ]
+    },
+    {
+      "name": "investments",
+      "columns": [
+        { "name": "imported_from", "type": "text", "nullable": true },
+        {
+          "name": "vehicle_participation_id",
+          "type": "integer",
+          "nullable": true
+        }
+      ],
+      "constraints": ["investments_vfp_fund_fk"],
+      "indexes": ["investments_vfp_unique"]
+    },
+    {
+      "name": "investment_rounds",
+      "columns": [
+        { "name": "imported_from", "type": "varchar", "nullable": true },
+        {
+          "name": "vehicle_participation_id",
+          "type": "integer",
+          "nullable": true
+        },
+        { "name": "financing_tranche_id", "type": "integer", "nullable": true }
+      ],
+      "constraints": [
+        "investment_rounds_vfp_fund_fk",
+        "investment_rounds_financing_tranche_fund_fk"
+      ]
+    },
+    {
+      "name": "investment_lots",
+      "sharedTable": true,
+      "columns": [
+        { "name": "imported_from", "type": "text", "nullable": true },
+        {
+          "name": "vehicle_participation_id",
+          "type": "integer",
+          "nullable": true
+        }
+      ],
+      "constraints": ["investment_lots_vfp_fk"]
+    },
+    {
+      "name": "cash_flow_events",
+      "sharedTable": true,
+      "columns": [
+        {
+          "name": "vehicle_participation_id",
+          "type": "integer",
+          "nullable": true
+        }
+      ],
+      "constraints": ["cash_flow_events_vfp_fund_fk"]
+    }
+  ]
+}
