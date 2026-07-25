@@ -21,6 +21,11 @@ import {
   listRoundsForInvestment,
   loadRound,
 } from '../services/investments/investment-round-service';
+import {
+  assertLegacyInvestmentMutable,
+  createLegacyInvestmentWithLedgerGuard,
+  UseLedgerRouteError,
+} from '../services/investment-ledger/legacy-compat-guard-service';
 import { invalidateH9Artifacts } from '../services/h9-artifact-invalidation-service';
 import { storage, UnsupportedStorageOperationError } from '../storage';
 
@@ -135,19 +140,29 @@ router.post('/investments', async (req: Request, res: Response) => {
       return res.status(400).json(error);
     }
 
-    if (
-      typeof result.data.fundId === 'number' &&
-      !(await enforceProvidedFundScope(req, res, result.data.fundId))
-    ) {
+    if (typeof result.data.fundId !== 'number' || typeof result.data.companyId !== 'number') {
+      const error: ApiError = {
+        error: 'Invalid investment data',
+        message: 'Legacy investment creation requires fundId and companyId.',
+      };
+      return res.status(400).json(error);
+    }
+
+    if (!(await enforceProvidedFundScope(req, res, result.data.fundId))) {
       return;
     }
 
-    const investment = await storage.createInvestment(result.data);
-    if (typeof result.data.fundId === 'number') {
-      await invalidateH9Artifacts(result.data.fundId);
-    }
+    const investment = await createLegacyInvestmentWithLedgerGuard({
+      ...result.data,
+      fundId: result.data.fundId,
+      companyId: result.data.companyId,
+    });
+    await invalidateH9Artifacts(result.data.fundId);
     return res.status(201).json(investment);
   } catch (error) {
+    if (error instanceof UseLedgerRouteError) {
+      return res.status(error.status).json({ error: error.code, message: error.message });
+    }
     const apiError: ApiError = {
       error: 'Database operation failed',
       message: error instanceof Error ? error.message : 'Failed to create investment',
@@ -298,6 +313,7 @@ router.post('/investments/:id/rounds', async (req: Request, res: Response) => {
       });
     }
 
+    await assertLegacyInvestmentMutable(scope.fundId, scope.investmentId);
     const result = await createRound({
       ...parsed.data,
       investmentId: scope.investmentId,
@@ -326,6 +342,9 @@ router.post('/investments/:id/rounds', async (req: Request, res: Response) => {
     }
     return res.status(400).json({ error: 'supersede_target_other_investment' });
   } catch (error) {
+    if (error instanceof UseLedgerRouteError) {
+      return res.status(error.status).json({ error: error.code, message: error.message });
+    }
     if (handleNumberParseError(error, res, 'Invalid investment ID')) {
       return;
     }

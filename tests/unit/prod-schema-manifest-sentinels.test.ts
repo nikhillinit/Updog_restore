@@ -97,6 +97,7 @@ describe('prod-schema manifest sentinels', () => {
       '12-current-forecast-references.json',
       '13-financial-observations.json',
       '14-investment-ledger.json',
+      '15-vehicle-financing-participations.json',
     ]);
   });
 
