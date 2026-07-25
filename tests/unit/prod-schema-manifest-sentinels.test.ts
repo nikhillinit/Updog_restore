@@ -96,6 +96,7 @@ describe('prod-schema manifest sentinels', () => {
       '11-current-plan-versions.json',
       '12-current-forecast-references.json',
       '13-financial-observations.json',
+      '14-investment-ledger.json',
     ]);
   });
 

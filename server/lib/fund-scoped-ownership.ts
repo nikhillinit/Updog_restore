@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm';
 
 import { currentPlanVersions } from '../../shared/schema/current-plans';
 import { financialFactsSnapshots } from '../../shared/schema/financial-facts-snapshots';
+import { financingEvents, financingTranches } from '../../shared/schema/investment-ledger';
 import { vehicles } from '../../shared/schema/lp-reporting-evidence';
 
 export type FundScopedReference = {
@@ -106,6 +107,32 @@ export async function assertOwnedByFund(opts: {
       .select({ id: vehicles.id })
       .from(vehicles)
       .where(and(eq(vehicles.id, id), eq(vehicles.fundId, opts.fundId)))
+      .limit(1);
+
+    if (rows.length === 0) {
+      throw new FundScopeError(opts.ref);
+    }
+    return;
+  }
+
+  if (opts.ref.kind === 'financing_event') {
+    const rows = await opts.db
+      .select({ id: financingEvents.id })
+      .from(financingEvents)
+      .where(and(eq(financingEvents.id, id), eq(financingEvents.fundId, opts.fundId)))
+      .limit(1);
+
+    if (rows.length === 0) {
+      throw new FundScopeError(opts.ref);
+    }
+    return;
+  }
+
+  if (opts.ref.kind === 'financing_tranche') {
+    const rows = await opts.db
+      .select({ id: financingTranches.id })
+      .from(financingTranches)
+      .where(and(eq(financingTranches.id, id), eq(financingTranches.fundId, opts.fundId)))
       .limit(1);
 
     if (rows.length === 0) {

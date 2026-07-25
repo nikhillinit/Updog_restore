@@ -46,13 +46,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash --noprofile --norc -c \"source 'C:/dev/Updog_restore/scripts/hooks/discovery-hook.sh'\"",
-            "timeout": 10
-          },
-          {
-            "type": "command",
             "command": "bash --noprofile --norc -c \"source 'C:/dev/Updog_restore/scripts/hooks/complexity-checkpoint-hook.sh'\"",
-            "timeout": 5
+            "timeout": 20
           }
         ]
       }
@@ -95,7 +90,7 @@
     "command": "echo 'Commands: /test-smart /fix-auto /deploy-check /workflows | Agents: waterfall-specialist test-repair perf-guard db-migration'"
   },
   "enabledPlugins": {
-    "cicd-automation@claude-code-workflows": true,
+    "cicd-automation@claude-code-workflows": false,
     "playwright@claude-plugins-official": true
   }
 }
