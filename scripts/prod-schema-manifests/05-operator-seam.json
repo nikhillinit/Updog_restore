@@ -8,7 +8,10 @@
     {
       "name": "forecast_snapshots",
       "constraints": ["forecast_snapshots_idem_key_len_check"],
-      "indexes": ["forecast_snapshots_fund_idem_key_idx", "forecast_snapshots_fund_cursor_idx"]
+      "indexes": [
+        "forecast_snapshots_fund_idem_key_idx",
+        "forecast_snapshots_fund_cursor_idx"
+      ]
     },
     {
       "name": "investment_lots",

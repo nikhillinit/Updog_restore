@@ -103,6 +103,15 @@ const FINANCIAL_OBSERVATIONS_MANIFEST_TABLES = [
 ] as const;
 // M14 (14-investment-ledger): canonical financing events and versioned tranches (journal 0040).
 const INVESTMENT_LEDGER_MANIFEST_TABLES = ['financing_events', 'financing_tranches'] as const;
+// M15 (15-vehicle-financing-participations): Task 10 participation table and additive compat pins.
+const VEHICLE_FINANCING_PARTICIPATION_MANIFEST_TABLES = [
+  'vehicles',
+  'vehicle_financing_participations',
+  'investments',
+  'investment_rounds',
+  'investment_lots',
+  'cash_flow_events',
+] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
   'flags_state',
@@ -731,6 +740,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...CURRENT_FORECAST_REFERENCES_MANIFEST_TABLES,
         ...FINANCIAL_OBSERVATIONS_MANIFEST_TABLES,
         ...INVESTMENT_LEDGER_MANIFEST_TABLES,
+        ...VEHICLE_FINANCING_PARTICIPATION_MANIFEST_TABLES,
       ])
     );
 

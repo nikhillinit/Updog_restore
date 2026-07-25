@@ -14,6 +14,9 @@ const fundScope = vi.hoisted(() => ({
   enforceProvidedFundScope: vi.fn(async (_req: Request, _res: Response, _fundId: number) => true),
 }));
 const storageMock = vi.hoisted(() => ({ createInvestment: vi.fn() }));
+const legacyGuard = vi.hoisted(() => ({
+  createLegacyInvestmentWithLedgerGuard: vi.fn(),
+}));
 
 vi.mock('../../../server/services/h9-artifact-invalidation-service', () => ({
   invalidateH9Artifacts,
@@ -30,6 +33,12 @@ vi.mock('../../../server/storage', () => ({
   },
 }));
 
+vi.mock('../../../server/services/investment-ledger/legacy-compat-guard-service', () => ({
+  createLegacyInvestmentWithLedgerGuard: legacyGuard.createLegacyInvestmentWithLedgerGuard,
+  assertLegacyInvestmentMutable: vi.fn(),
+  UseLedgerRouteError: class UseLedgerRouteError extends Error {},
+}));
+
 // Override only insertInvestmentSchema so the JSON body validates (the real
 // drizzle-zod schema maps investmentDate to z.date(), which cannot be carried
 // over JSON). All other @shared/schema exports stay real; this isolates the
@@ -37,7 +46,13 @@ vi.mock('../../../server/storage', () => ({
 vi.mock('@shared/schema', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@shared/schema')>();
   const { z } = await import('zod');
-  return { ...actual, insertInvestmentSchema: z.object({ fundId: z.number() }) };
+  return {
+    ...actual,
+    insertInvestmentSchema: z.object({
+      fundId: z.number().optional(),
+      companyId: z.number().optional(),
+    }),
+  };
 });
 
 import investmentsRouter from '../../../server/routes/investments';
@@ -47,6 +62,7 @@ const FUND_ID = 7;
 function body() {
   return {
     fundId: FUND_ID,
+    companyId: 12,
     investmentDate: '2026-06-01T00:00:00.000Z',
     amount: '1000000',
     round: 'Series A',
@@ -63,7 +79,7 @@ function buildApp() {
 beforeEach(() => {
   vi.clearAllMocks();
   fundScope.enforceProvidedFundScope.mockResolvedValue(true);
-  storageMock.createInvestment.mockResolvedValue({ id: 1, ...body() });
+  legacyGuard.createLegacyInvestmentWithLedgerGuard.mockResolvedValue({ id: 1, ...body() });
 });
 
 describe('investment create route -> H9 invalidation wiring', () => {
@@ -72,5 +88,16 @@ describe('investment create route -> H9 invalidation wiring', () => {
 
     expect(res.status).toBe(201);
     expect(invalidateH9Artifacts).toHaveBeenCalledWith(FUND_ID);
+  });
+
+  it('rejects legacy investment creation without a fund and company identity', async () => {
+    const res = await request(buildApp())
+      .post('/investments')
+      .send({ ...body(), companyId: undefined });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({ error: 'Invalid investment data' });
+    expect(legacyGuard.createLegacyInvestmentWithLedgerGuard).not.toHaveBeenCalled();
+    expect(storageMock.createInvestment).not.toHaveBeenCalled();
   });
 });

@@ -51,6 +51,7 @@ export * from './schema/investment-round-model-overrides';
 export * from './schema/current-forecast-references';
 export * from './schema/financial-observations';
 export * from './schema/investment-ledger';
+export * from './schema/vehicle-financing-participations';
 export * from './schemas/flags';
 export * from './schemas/reserve-approvals';
 
@@ -554,6 +555,8 @@ export const insertPortfolioCompanySchema = createInsertSchema(portfolioCompanie
 export const insertInvestmentSchema = createInsertSchema(investments).omit({
   id: true,
   createdAt: true,
+  importedFrom: true,
+  vehicleParticipationId: true,
 });
 
 export const insertFundMetricsSchema = createInsertSchema(fundMetrics).omit({

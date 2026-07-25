@@ -84,6 +84,13 @@ interface LedgerModel {
   identityNames: Map<number, string>;
   events: EventRow[];
   tranches: TrancheRow[];
+  participations: Array<{
+    id: number;
+    fund_id: number;
+    financing_tranche_id: number;
+    version: number;
+    superseded_by_participation_id: number | null;
+  }>;
   observations: Array<Record<string, unknown>>;
   owned: boolean;
   nextEventId: number;
@@ -98,6 +105,13 @@ interface LedgerModelSnapshot {
   identityNames: Map<number, string>;
   events: EventRow[];
   tranches: TrancheRow[];
+  participations: Array<{
+    id: number;
+    fund_id: number;
+    financing_tranche_id: number;
+    version: number;
+    superseded_by_participation_id: number | null;
+  }>;
   observations: Array<Record<string, unknown>>;
   owned: boolean;
   nextEventId: number;
@@ -112,6 +126,7 @@ function emptyModel(): LedgerModel {
     identityNames: new Map([[11, 'Acme Robotics']]),
     events: [],
     tranches: [],
+    participations: [],
     observations: [],
     owned: true,
     nextEventId: 100,
@@ -221,6 +236,7 @@ function snapshotModel(model: LedgerModel): LedgerModelSnapshot {
       ...tranche,
       descriptive_terms: { ...tranche.descriptive_terms },
     })),
+    participations: model.participations.map((participation) => ({ ...participation })),
     observations: model.observations.map(cloneRecord),
     owned: model.owned,
     nextEventId: model.nextEventId,
@@ -238,6 +254,7 @@ function restoreModel(model: LedgerModel, snapshot: LedgerModelSnapshot): void {
     ...tranche,
     descriptive_terms: { ...tranche.descriptive_terms },
   }));
+  model.participations = snapshot.participations.map((participation) => ({ ...participation }));
   model.observations = snapshot.observations.map(cloneRecord);
   model.owned = snapshot.owned;
   model.nextEventId = snapshot.nextEventId;
@@ -464,6 +481,17 @@ function runStatement(model: LedgerModel, text: string, params: unknown[]): { ro
   }
   if (flat.startsWith('SELECT * FROM financing_tranches')) {
     return runFinancingTrancheSelect(model, flat, params);
+  }
+  if (flat.startsWith('SELECT id, version FROM vehicle_financing_participations')) {
+    const [fundId, trancheId] = params as [number, number];
+    return {
+      rows: model.participations.filter(
+        (participation) =>
+          participation.fund_id === fundId &&
+          participation.financing_tranche_id === trancheId &&
+          participation.superseded_by_participation_id === null
+      ),
+    };
   }
 
   return { rows: [] };
@@ -880,6 +908,26 @@ describe('correctFinancingTranche', () => {
     );
     expect(heads).toHaveLength(1);
     expect(model.observations).toHaveLength(2);
+  });
+
+  it('blocks direct correction when current vehicle participations depend on the tranche', async () => {
+    await seedEvent();
+    const original = await seedTranche('tr-1');
+    model.participations.push({
+      id: 700,
+      fund_id: FUND_ID,
+      financing_tranche_id: original.value.id,
+      version: 1,
+      superseded_by_participation_id: null,
+    });
+
+    await expect(correctHead(original.value.id, 'tr-1-fix')).rejects.toMatchObject({
+      status: 409,
+      code: 'PARTICIPATION_CASCADE_REQUIRED',
+    });
+
+    expect(model.tranches).toHaveLength(1);
+    expect(statementsMatching(model, "nextval('financing_tranches_id_seq')")).toHaveLength(0);
   });
 
   it('refuses to correct a version that is no longer the head', async () => {

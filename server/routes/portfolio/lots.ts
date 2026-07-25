@@ -19,6 +19,10 @@ import {
   InvestmentFundMismatchError,
   CostBasisMismatchError,
 } from '../../services/lot-service';
+import {
+  assertLegacyInvestmentMutable,
+  UseLedgerRouteError,
+} from '../../services/investment-ledger/legacy-compat-guard-service';
 
 const router = Router();
 const lotService = new LotService();
@@ -57,6 +61,7 @@ router.post(
 
     try {
       // 3. Create lot using service
+      await assertLegacyInvestmentMutable(fundId, investmentId);
       const lot = await lotService.create(fundId, {
         investmentId,
         lotType: lotType as 'initial' | 'follow_on' | 'secondary',
@@ -97,6 +102,12 @@ router.post(
       if (error instanceof CostBasisMismatchError) {
         return res.status(400).json({
           error: 'cost_basis_mismatch',
+          message: error.message,
+        });
+      }
+      if (error instanceof UseLedgerRouteError) {
+        return res.status(error.status).json({
+          error: error.code,
           message: error.message,
         });
       }

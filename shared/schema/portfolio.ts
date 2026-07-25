@@ -10,6 +10,7 @@ import {
   bigint,
   check,
   decimal,
+  ForeignKeyBuilder,
   index,
   integer,
   pgTable,
@@ -23,6 +24,7 @@ import {
 
 // Import funds for FK references
 import { funds } from './fund';
+import { vehicleFinancingParticipations } from './vehicle-financing-participations';
 
 // ============================================================================
 // PORTFOLIO COMPANIES TABLE
@@ -92,6 +94,8 @@ export const investments = pgTable(
     costBasisCents: bigint('cost_basis_cents', { mode: 'bigint' }),
     pricingConfidence: text('pricing_confidence').default('calculated'),
     version: integer('version').notNull().default(1),
+    importedFrom: text('imported_from'),
+    vehicleParticipationId: integer('vehicle_participation_id'),
 
     createdAt: timestamp('created_at').defaultNow(),
   },
@@ -101,6 +105,14 @@ export const investments = pgTable(
       sql`${table.pricingConfidence} IN ('calculated', 'verified')`
     ),
     idFundKey: unique('investments_id_fund_id_key').on(table.id, table.fundId),
+    vehicleParticipationFundFk: new ForeignKeyBuilder(() => ({
+      columns: [table.vehicleParticipationId, table.fundId],
+      foreignColumns: [vehicleFinancingParticipations.id, vehicleFinancingParticipations.fundId],
+      name: 'investments_vfp_fund_fk',
+    })),
+    vehicleParticipationUniqueIdx: uniqueIndex('investments_vfp_unique')
+      .on(table.vehicleParticipationId)
+      .where(sql`${table.vehicleParticipationId} IS NOT NULL`),
   })
 );
 
@@ -125,6 +137,8 @@ export const investmentLots = pgTable(
       .notNull()
       .default(sql`0`),
     idempotencyKey: text('idempotency_key'),
+    importedFrom: text('imported_from'),
+    vehicleParticipationId: integer('vehicle_participation_id'),
 
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -137,6 +151,11 @@ export const investmentLots = pgTable(
     idempotencyUniqueIdx: uniqueIndex('investment_lots_investment_idem_key_idx')
       .on(table.investmentId, table.idempotencyKey)
       .where(sql`${table.idempotencyKey} IS NOT NULL`),
+    vehicleParticipationFk: new ForeignKeyBuilder(() => ({
+      columns: [table.vehicleParticipationId],
+      foreignColumns: [vehicleFinancingParticipations.id],
+      name: 'investment_lots_vfp_fk',
+    })),
     cursorIdx: index('investment_lots_investment_cursor_idx').on(
       table.investmentId,
       table.createdAt.desc(),

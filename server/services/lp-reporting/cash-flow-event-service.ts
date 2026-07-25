@@ -42,6 +42,7 @@ const columnsWithXmin = {
   importedFrom: cashFlowEvents.importedFrom,
   importBatchId: cashFlowEvents.importBatchId,
   sourceHash: cashFlowEvents.sourceHash,
+  vehicleParticipationId: cashFlowEvents.vehicleParticipationId,
   createdBy: cashFlowEvents.createdBy,
   createdAt: cashFlowEvents.createdAt,
   updatedAt: cashFlowEvents.updatedAt,
