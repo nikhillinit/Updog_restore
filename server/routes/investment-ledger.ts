@@ -4,6 +4,8 @@
  *   POST /api/funds/:fundId/investment-ledger/financing-events
  *   POST /api/funds/:fundId/investment-ledger/financing-events/:eventId/tranches
  *   POST /api/funds/:fundId/investment-ledger/tranches/:trancheId/corrections
+ *   POST /api/funds/:fundId/investment-ledger/tranches/:trancheId/participations
+ *   POST /api/funds/:fundId/investment-ledger/tranches/:trancheId/ledger-corrections
  *   GET  /api/funds/:fundId/investment-ledger/financing-events/:eventId
  *
  * Middleware chain (existing primitives only):
@@ -29,6 +31,8 @@ import {
   loadFinancingEventDetail,
   recordFinancingTranche,
 } from '../services/investment-ledger/financing-event-service';
+import { correctVehicleParticipationLedger } from '../services/investment-ledger/ledger-correction-service';
+import { createVehicleFinancingParticipation } from '../services/investment-ledger/participation-service';
 
 const router = Router();
 
@@ -135,7 +139,12 @@ function sendLedgerError(res: Response, error: unknown): Response {
     });
   }
   if (typeof error === 'object' && error !== null) {
-    const candidate = error as { status?: unknown; statusCode?: unknown; code?: unknown };
+    const candidate = error as {
+      status?: unknown;
+      statusCode?: unknown;
+      code?: unknown;
+      details?: unknown;
+    };
     const status =
       typeof candidate.status === 'number'
         ? candidate.status
@@ -146,6 +155,7 @@ function sendLedgerError(res: Response, error: unknown): Response {
       return res.status(status).json({
         error: candidate.code,
         message: error instanceof Error ? error.message : 'Investment ledger request failed.',
+        ...(candidate.details !== undefined && { details: candidate.details }),
       });
     }
   }
@@ -227,6 +237,52 @@ router.post(
       const fundId = parsePositiveParam(req, 'fundId', 'INVALID_FUND_ID');
       const trancheId = parsePositiveParam(req, 'trancheId', 'INVALID_TRANCHE_ID');
       const result = await correctFinancingTranche({
+        fundId,
+        trancheId,
+        actorId: resolveAuthenticatedUserId(req),
+        idempotencyKey,
+        request: req.body,
+      });
+      return res.status(result.replayed ? 200 : 201).json(result.value);
+    } catch (error) {
+      return sendLedgerError(res, error);
+    }
+  }
+);
+
+// Record one vehicle participation and all compatibility/provenance rows atomically.
+router.post(
+  '/api/funds/:fundId/investment-ledger/tranches/:trancheId/participations',
+  ...writeChain,
+  async (req: Request, res: Response) => {
+    try {
+      const idempotencyKey = parseIdempotencyKey(req);
+      const fundId = parsePositiveParam(req, 'fundId', 'INVALID_FUND_ID');
+      const trancheId = parsePositiveParam(req, 'trancheId', 'INVALID_TRANCHE_ID');
+      const result = await createVehicleFinancingParticipation({
+        fundId,
+        trancheId,
+        actorId: resolveAuthenticatedUserId(req),
+        idempotencyKey,
+        request: req.body,
+      });
+      return res.status(result.replayed ? 200 : 201).json(result.value);
+    } catch (error) {
+      return sendLedgerError(res, error);
+    }
+  }
+);
+
+// Correct a tranche and its complete dependent participation set in one command.
+router.post(
+  '/api/funds/:fundId/investment-ledger/tranches/:trancheId/ledger-corrections',
+  ...writeChain,
+  async (req: Request, res: Response) => {
+    try {
+      const idempotencyKey = parseIdempotencyKey(req);
+      const fundId = parsePositiveParam(req, 'fundId', 'INVALID_FUND_ID');
+      const trancheId = parsePositiveParam(req, 'trancheId', 'INVALID_TRANCHE_ID');
+      const result = await correctVehicleParticipationLedger({
         fundId,
         trancheId,
         actorId: resolveAuthenticatedUserId(req),

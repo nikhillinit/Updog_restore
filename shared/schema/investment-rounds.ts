@@ -27,8 +27,10 @@ import {
 } from 'drizzle-orm/pg-core';
 
 import { funds } from './fund';
+import { financingTranches } from './investment-ledger';
 import { investments } from './portfolio';
 import { users } from './user';
+import { vehicleFinancingParticipations } from './vehicle-financing-participations';
 
 export const investmentRounds = pgTable(
   'investment_rounds',
@@ -47,6 +49,9 @@ export const investmentRounds = pgTable(
     preMoneyValuation: numeric('pre_money_valuation', { precision: 20, scale: 6 }),
     idempotencyKey: varchar('idempotency_key', { length: 255 }).notNull(),
     requestHash: varchar('request_hash', { length: 64 }).notNull(),
+    importedFrom: varchar('imported_from', { length: 32 }),
+    vehicleParticipationId: integer('vehicle_participation_id'),
+    financingTrancheId: integer('financing_tranche_id'),
     supersedesRoundId: integer('supersedes_round_id').references(
       (): AnyPgColumn => investmentRounds.id,
       { onDelete: 'restrict' }
@@ -71,6 +76,16 @@ export const investmentRounds = pgTable(
     })
       .onDelete('restrict')
       .onUpdate('restrict'),
+    vehicleParticipationFundFk: foreignKey({
+      name: 'investment_rounds_vfp_fund_fk',
+      columns: [table.vehicleParticipationId, table.fundId],
+      foreignColumns: [vehicleFinancingParticipations.id, vehicleFinancingParticipations.fundId],
+    }),
+    financingTrancheFundFk: foreignKey({
+      name: 'investment_rounds_financing_tranche_fund_fk',
+      columns: [table.financingTrancheId, table.fundId],
+      foreignColumns: [financingTranches.id, financingTranches.fundId],
+    }),
     fundInvestmentIdx: index('investment_rounds_fund_investment_idx').on(
       table.fundId,
       table.investmentId

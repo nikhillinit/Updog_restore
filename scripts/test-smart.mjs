@@ -21,6 +21,7 @@ const BROAD_IMPACT_PATTERNS = [
 const TESTCONTAINERS_ONLY_PATHS = new Set([
   'tests/integration/migration-runner.test.ts',
   'tests/integration/fund-lifecycle-db.test.ts',
+  'tests/integration/vehicle-financing-participations-real-pg.test.ts',
 ]);
 
 function normalizeRepoPath(value) {

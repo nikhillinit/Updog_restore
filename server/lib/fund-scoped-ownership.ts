@@ -4,6 +4,7 @@ import { currentPlanVersions } from '../../shared/schema/current-plans';
 import { financialFactsSnapshots } from '../../shared/schema/financial-facts-snapshots';
 import { financingEvents, financingTranches } from '../../shared/schema/investment-ledger';
 import { vehicles } from '../../shared/schema/lp-reporting-evidence';
+import { vehicleFinancingParticipations } from '../../shared/schema/vehicle-financing-participations';
 
 export type FundScopedReference = {
   kind:
@@ -133,6 +134,24 @@ export async function assertOwnedByFund(opts: {
       .select({ id: financingTranches.id })
       .from(financingTranches)
       .where(and(eq(financingTranches.id, id), eq(financingTranches.fundId, opts.fundId)))
+      .limit(1);
+
+    if (rows.length === 0) {
+      throw new FundScopeError(opts.ref);
+    }
+    return;
+  }
+
+  if (opts.ref.kind === 'participation') {
+    const rows = await opts.db
+      .select({ id: vehicleFinancingParticipations.id })
+      .from(vehicleFinancingParticipations)
+      .where(
+        and(
+          eq(vehicleFinancingParticipations.id, id),
+          eq(vehicleFinancingParticipations.fundId, opts.fundId)
+        )
+      )
       .limit(1);
 
     if (rows.length === 0) {

@@ -34,6 +34,7 @@ import {
   check,
   date,
   decimal,
+  ForeignKeyBuilder,
   index,
   integer,
   jsonb,
@@ -50,6 +51,8 @@ import {
 import { funds } from './fund';
 import { portfolioCompanies } from './portfolio';
 import { users } from './user';
+import { vehicleFinancingParticipations } from './vehicle-financing-participations';
+import { vehicles } from './vehicles';
 import { limitedPartners } from '../schema-lp-reporting';
 import {
   FinancialActionabilitySchema,
@@ -60,52 +63,8 @@ const h9FinancialActionabilityValuesSql = sql.raw(
   FinancialActionabilitySchema.options.map((value) => `'${value}'`).join(', ')
 );
 
-// ============================================================================
-// VEHICLES
-// ============================================================================
-
-export const vehicles = pgTable(
-  'vehicles',
-  {
-    id: serial('id').primaryKey(),
-    fundId: integer('fund_id')
-      .notNull()
-      .references(() => funds.id, { onDelete: 'cascade' }),
-    vehicleSlug: varchar('vehicle_slug', { length: 64 }).notNull(),
-    vehicleType: varchar('vehicle_type', { length: 16 }).notNull(),
-    name: varchar('name', { length: 128 }).notNull(),
-    description: text('description'),
-    committedCapital: decimal('committed_capital', { precision: 20, scale: 6 }),
-    currency: varchar('currency', { length: 3 }).notNull().default('USD'),
-    inceptionDate: date('inception_date'),
-    status: varchar('status', { length: 16 }).notNull().default('active'),
-    spvEconomics: jsonb('spv_economics')
-      .notNull()
-      .default(sql`'{}'::jsonb`),
-    adminBurdenScore: integer('admin_burden_score'),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => ({
-    fundSlugUnique: unique('vehicles_fund_slug_unique').on(table.fundId, table.vehicleSlug),
-    typeCheck: check(
-      'vehicles_type_check',
-      sql`${table.vehicleType} IN ('main_fund', 'spv', 'co_invest')`
-    ),
-    statusCheck: check(
-      'vehicles_status_check',
-      sql`${table.status} IN ('active', 'winding_down', 'closed')`
-    ),
-    adminScoreCheck: check(
-      'vehicles_admin_score_check',
-      sql`${table.adminBurdenScore} IS NULL OR (${table.adminBurdenScore} >= 0 AND ${table.adminBurdenScore} <= 100)`
-    ),
-    fundTypeIdx: index('idx_vehicles_fund_type').on(table.fundId, table.vehicleType),
-  })
-);
-
-export type Vehicle = typeof vehicles.$inferSelect;
-export type InsertVehicle = typeof vehicles.$inferInsert;
+export { vehicles };
+export type { InsertVehicle, Vehicle } from './vehicles';
 
 // ============================================================================
 // CASH FLOW EVENTS
@@ -147,6 +106,7 @@ export const cashFlowEvents = pgTable(
     importedFrom: varchar('imported_from', { length: 32 }),
     importBatchId: uuid('import_batch_id'),
     sourceHash: varchar('source_hash', { length: 128 }),
+    vehicleParticipationId: integer('vehicle_participation_id'),
 
     createdBy: integer('created_by').references(() => users.id),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
@@ -177,6 +137,11 @@ export const cashFlowEvents = pgTable(
     sourceHashUniqueIdx: uniqueIndex('cash_flow_events_fund_source_hash_unique')
       .on(table.fundId, table.sourceHash)
       .where(sql`${table.sourceHash} IS NOT NULL`),
+    vehicleParticipationFundFk: new ForeignKeyBuilder(() => ({
+      columns: [table.vehicleParticipationId, table.fundId],
+      foreignColumns: [vehicleFinancingParticipations.id, vehicleFinancingParticipations.fundId],
+      name: 'cash_flow_events_vfp_fund_fk',
+    })),
   })
 );
 

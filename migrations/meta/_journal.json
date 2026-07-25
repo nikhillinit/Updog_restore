@@ -295,6 +295,13 @@
       "when": 1784936400000,
       "tag": "0040_multi_entity_ledger_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1785022800000,
+      "tag": "0041_vehicle_financing_participations",
+      "breakpoints": true
     }
   ]
 }

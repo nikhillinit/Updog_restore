@@ -75,6 +75,7 @@ describe('CI Unified scenario release gate', () => {
     for (const testPath of [
       'tests/integration/migration-runner.test.ts',
       'tests/integration/fund-lifecycle-db.test.ts',
+      'tests/integration/vehicle-financing-participations-real-pg.test.ts',
     ]) {
       expect(testcontainersOnlyBlock).toContain(testPath);
       expect(smartTestRunner).toContain(`'${testPath}'`);

@@ -121,8 +121,6 @@ function loadProductionSchemaTables(): ReadonlySet<string> {
 export const PRODUCTION_SCHEMA_TABLE_EXEMPTIONS = {
   investment_round_model_overrides:
     'Dormant investment-round modeling remains flag-gated and outside production reconciliation manifests',
-  investment_rounds:
-    'Dormant investment-round modeling remains flag-gated and outside production reconciliation manifests',
 } as const satisfies Readonly<Record<string, string>>;
 
 export const defaultRoutePolicyVerificationInput: RoutePolicyVerificationInput = {
