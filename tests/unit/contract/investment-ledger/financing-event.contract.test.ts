@@ -150,6 +150,38 @@ describe('RecordFinancingTrancheRequestSchema', () => {
     expect(usd.fxRateToUsd).toBe(USD_FX_RATE_TO_USD);
   });
 
+  it('rejects non-positive invested and original amount decimals', () => {
+    for (const field of ['investmentAmount', 'originalAmount'] as const) {
+      for (const value of ['0.000000', '-1.000000']) {
+        expect(() =>
+          RecordFinancingTrancheRequestSchema.parse({
+            ...baseEquityTranche,
+            [field]: value,
+          })
+        ).toThrow();
+      }
+    }
+  });
+
+  it('rejects non-positive FX rates before currency normalization', () => {
+    for (const fxRateToUsd of ['0.0000000000', '-1.0000000000']) {
+      expect(() =>
+        RecordFinancingTrancheRequestSchema.parse({
+          ...baseEquityTranche,
+          fxRateToUsd,
+        })
+      ).toThrow();
+      expect(() =>
+        RecordFinancingTrancheRequestSchema.parse({
+          ...baseEquityTranche,
+          originalAmount: '920000.000000',
+          currency: 'EUR',
+          fxRateToUsd,
+        })
+      ).toThrow();
+    }
+  });
+
   it('rejects money and rate values without their exact fixed decimal places', () => {
     expect(() =>
       RecordFinancingTrancheRequestSchema.parse({

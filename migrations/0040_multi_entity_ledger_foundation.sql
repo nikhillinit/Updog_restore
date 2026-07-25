@@ -90,6 +90,8 @@ CREATE TABLE IF NOT EXISTS "financing_tranches" (
     CHECK ("version" >= 1),
   CONSTRAINT "financing_tranches_amount_positive_check"
     CHECK ("investment_amount" > 0 AND "original_amount" > 0),
+  CONSTRAINT "financing_tranches_fx_rate_positive_check"
+    CHECK ("fx_rate_to_usd" > 0),
   CONSTRAINT "financing_tranches_no_self_supersede_check"
     CHECK ("superseded_by_tranche_id" IS NULL OR "superseded_by_tranche_id" <> "id"),
   CONSTRAINT "financing_tranches_usd_fx_check"

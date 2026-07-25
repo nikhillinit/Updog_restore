@@ -108,6 +108,7 @@
         "financing_tranches_security_type_check",
         "financing_tranches_version_positive_check",
         "financing_tranches_amount_positive_check",
+        "financing_tranches_fx_rate_positive_check",
         "financing_tranches_no_self_supersede_check",
         "financing_tranches_usd_fx_check",
         "financing_tranches_equity_terms_check",

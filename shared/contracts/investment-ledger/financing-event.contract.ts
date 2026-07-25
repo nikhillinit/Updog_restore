@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { Decimal } from '../../lib/decimal-config';
 import { MoneyDecimalStringSchema, assertDecimalStringLeaves } from '../../lib/decimal-string';
 
 export const LEDGER_CONTRACT_VERSION = '1.0.0';
@@ -11,6 +12,14 @@ export const USD_FX_RATE_TO_USD = '1.0000000000';
 
 export const LedgerRateDecimalStringSchema = z.string().regex(/^-?(?:0|[1-9]\d*)\.\d{8}$/);
 export const LedgerFxDecimalStringSchema = z.string().regex(/^(?:0|[1-9]\d*)\.\d{10}$/);
+const PositiveMoneyDecimalStringSchema = MoneyDecimalStringSchema.refine(
+  (value) => new Decimal(value).gt(0),
+  'Amount must be greater than zero.'
+);
+const PositiveLedgerFxDecimalStringSchema = LedgerFxDecimalStringSchema.refine(
+  (value) => new Decimal(value).gt(0),
+  'FX rate must be greater than zero.'
+);
 
 export const SECURITY_TYPE_TERM_MATRIX = {
   equity: {
@@ -42,10 +51,10 @@ const InputSecurityTypeSchema = z.enum([...LEDGER_SECURITY_TYPES, 'warrant']);
 const trancheEconomicShape = {
   closingDate: IsoDateSchema,
   securityType: InputSecurityTypeSchema,
-  investmentAmount: MoneyDecimalStringSchema,
-  originalAmount: MoneyDecimalStringSchema.optional(),
+  investmentAmount: PositiveMoneyDecimalStringSchema,
+  originalAmount: PositiveMoneyDecimalStringSchema.optional(),
   currency: CurrencySchema.optional(),
-  fxRateToUsd: LedgerFxDecimalStringSchema.optional(),
+  fxRateToUsd: PositiveLedgerFxDecimalStringSchema.optional(),
   fxRateDate: IsoDateSchema.optional(),
   pricePerShare: MoneyDecimalStringSchema.optional(),
   postMoneyValuation: MoneyDecimalStringSchema.optional(),

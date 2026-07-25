@@ -162,6 +162,10 @@ export const financingTranches = pgTable(
       'financing_tranches_amount_positive_check',
       sql`${table.investmentAmount} > 0 AND ${table.originalAmount} > 0`
     ),
+    fxRatePositiveCheck: check(
+      'financing_tranches_fx_rate_positive_check',
+      sql`${table.fxRateToUsd} > 0`
+    ),
     noSelfSupersedeCheck: check(
       'financing_tranches_no_self_supersede_check',
       sql`${table.supersededByTrancheId} IS NULL OR ${table.supersededByTrancheId} <> ${table.id}`

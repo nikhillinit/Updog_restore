@@ -1,6 +1,9 @@
+import fs from 'node:fs';
+
 import { PgDialect, getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 
+import { SECURITY_TYPE_TERM_MATRIX } from '@shared/contracts/investment-ledger/financing-event.contract';
 import * as runtimeSchema from '@shared/schema';
 import { financingEvents, financingTranches } from '@shared/schema/investment-ledger';
 
@@ -24,6 +27,36 @@ function numericShape(config: typeof eventConfig, columnName: string) {
   const column = config.columns.find((candidate) => candidate.name === columnName) as
     { precision?: number; scale?: number } | undefined;
   return { precision: column?.precision, scale: column?.scale };
+}
+
+function checkSql(config: typeof eventConfig, checkName: string): string {
+  const check = config.checks.find((candidate) => candidate.name === checkName);
+  if (!check) {
+    throw new Error(`Missing CHECK ${checkName}`);
+  }
+  return dialect.sqlToQuery(check.value).sql;
+}
+
+function snakeCase(value: string): string {
+  return value.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+const migration0040 = fs.readFileSync('migrations/0040_multi_entity_ledger_foundation.sql', 'utf8');
+const trancheTermCheckBySecurityType = {
+  equity: 'financing_tranches_equity_terms_check',
+  safe: 'financing_tranches_safe_terms_check',
+  convertible_note: 'financing_tranches_note_terms_check',
+} as const;
+
+function migrationCheckBody(checkName: string): string {
+  const startMarker = `CONSTRAINT "${checkName}"`;
+  const start = migration0040.indexOf(startMarker);
+  if (start === -1) {
+    throw new Error(`Missing migration CHECK ${checkName}`);
+  }
+
+  const nextConstraint = migration0040.indexOf('\n  CONSTRAINT "', start + startMarker.length);
+  return migration0040.slice(start, nextConstraint === -1 ? undefined : nextConstraint);
 }
 
 describe('investment ledger Drizzle schema', () => {
@@ -174,6 +207,7 @@ describe('investment ledger Drizzle schema', () => {
         'financing_tranches_security_type_check',
         'financing_tranches_version_positive_check',
         'financing_tranches_amount_positive_check',
+        'financing_tranches_fx_rate_positive_check',
         'financing_tranches_no_self_supersede_check',
         'financing_tranches_usd_fx_check',
         'financing_tranches_equity_terms_check',
@@ -184,5 +218,45 @@ describe('investment ledger Drizzle schema', () => {
         'financing_tranches_event_key_version_unique',
       ])
     );
+  });
+
+  it('declares and migrates direct-write protection for positive tranche amounts and FX rates', () => {
+    expect(checkSql(trancheConfig, 'financing_tranches_amount_positive_check')).toContain(
+      '"financing_tranches"."investment_amount" > 0 AND "financing_tranches"."original_amount" > 0'
+    );
+    expect(checkSql(trancheConfig, 'financing_tranches_fx_rate_positive_check')).toContain(
+      '"financing_tranches"."fx_rate_to_usd" > 0'
+    );
+    expect(migration0040).toContain('CONSTRAINT "financing_tranches_amount_positive_check"');
+    expect(migration0040).toContain('CHECK ("investment_amount" > 0 AND "original_amount" > 0)');
+    expect(migration0040).toContain('CONSTRAINT "financing_tranches_fx_rate_positive_check"');
+    expect(migration0040).toContain('CHECK ("fx_rate_to_usd" > 0)');
+  });
+
+  it('keeps migration security-type term CHECKs semantically aligned with the exported matrix', () => {
+    for (const [securityType, terms] of Object.entries(SECURITY_TYPE_TERM_MATRIX)) {
+      const checkName =
+        trancheTermCheckBySecurityType[securityType as keyof typeof trancheTermCheckBySecurityType];
+      if (!checkName) {
+        continue;
+      }
+      const body = migrationCheckBody(checkName);
+
+      expect(body).toContain(`"security_type" <> '${securityType}'`);
+
+      if ('requiredAny' in terms) {
+        for (const field of terms.requiredAny) {
+          expect(body).toContain(`"${snakeCase(field)}" IS NOT NULL`);
+        }
+      }
+      if ('requiredAll' in terms) {
+        for (const field of terms.requiredAll) {
+          expect(body).toContain(`"${snakeCase(field)}" IS NOT NULL`);
+        }
+      }
+      for (const field of terms.forbidden) {
+        expect(body).toContain(`"${snakeCase(field)}" IS NULL`);
+      }
+    }
   });
 });

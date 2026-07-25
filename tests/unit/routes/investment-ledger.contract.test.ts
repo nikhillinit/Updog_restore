@@ -14,6 +14,17 @@ const serviceState = vi.hoisted(() => ({
   loadFinancingEventDetail: vi.fn(),
 }));
 
+const authState = vi.hoisted(() => ({
+  user: {
+    id: '3',
+    sub: '3',
+    email: 'ledger-user@example.com',
+    role: 'user',
+    roles: ['user'],
+    fundIds: [7],
+  } as Express.User | undefined,
+}));
+
 // The factory must export every symbol the route imports, or the route module
 // throws at load time rather than failing a single assertion.
 vi.mock('../../../server/services/investment-ledger/financing-event-service', () => ({
@@ -27,11 +38,13 @@ vi.mock('../../../server/lib/auth/jwt', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../server/lib/auth/jwt')>();
   return {
     ...actual,
-    requireAuth: () => (req: Request, _res: Response, next: NextFunction) => {
-      (req as Request & { user?: unknown }).user = { id: 3 };
+    requireAuth: () => (req: Request, res: Response, next: NextFunction) => {
+      if (!authState.user) {
+        return res.sendStatus(401);
+      }
+      req.user = authState.user;
       next();
     },
-    requireFundAccess: (_req: Request, _res: Response, next: NextFunction) => next(),
   };
 });
 
@@ -73,6 +86,14 @@ const trancheBody = {
 };
 
 beforeEach(() => {
+  authState.user = {
+    id: '3',
+    sub: '3',
+    email: 'ledger-user@example.com',
+    role: 'user',
+    roles: ['user'],
+    fundIds: [7],
+  };
   serviceState.createFinancingEvent.mockReset();
   serviceState.recordFinancingTranche.mockReset();
   serviceState.correctFinancingTranche.mockReset();
@@ -101,14 +122,95 @@ describe('investment-ledger routes', () => {
     expect(serviceState.createFinancingEvent).not.toHaveBeenCalled();
   });
 
-  it('rejects a non-numeric fundId', async () => {
+  const fundScopedRoutes = [
+    {
+      name: 'create event',
+      method: 'post' as const,
+      path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/financing-events`,
+      service: serviceState.createFinancingEvent,
+      body: eventBody,
+    },
+    {
+      name: 'record tranche',
+      method: 'post' as const,
+      path: (fundId: string) =>
+        `/api/funds/${fundId}/investment-ledger/financing-events/100/tranches`,
+      service: serviceState.recordFinancingTranche,
+      body: trancheBody,
+    },
+    {
+      name: 'correct tranche',
+      method: 'post' as const,
+      path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/tranches/500/corrections`,
+      service: serviceState.correctFinancingTranche,
+      body: trancheBody,
+    },
+    {
+      name: 'read detail',
+      method: 'get' as const,
+      path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/financing-events/100`,
+      service: serviceState.loadFinancingEventDetail,
+    },
+  ];
+
+  it.each([
+    ['malformed', 'abc'],
+    ['non-positive', '0'],
+    ['unsafe', '9007199254740992'],
+    ['PostgreSQL int overflow', '2147483648'],
+  ])(
+    'returns the ledger INVALID_FUND_ID envelope for %s fundId on every fund-scoped route',
+    async (_caseName, fundId) => {
+      for (const route of fundScopedRoutes) {
+        let pending = request(makeApp())[route.method](route.path(fundId));
+        if (route.method === 'post') {
+          pending = pending.set('Idempotency-Key', `invalid-${fundId}`).send(route.body);
+        }
+
+        const response = await pending;
+
+        expect(response.status, route.name).toBe(400);
+        expect(response.body, route.name).toMatchObject({
+          error: 'INVALID_FUND_ID',
+          message: 'fundId must be a positive integer.',
+        });
+        expect(route.service, route.name).not.toHaveBeenCalled();
+      }
+    }
+  );
+
+  it('preserves auth-before-resource ordering for malformed fundId requests', async () => {
+    authState.user = undefined;
+
     const response = await request(makeApp())
       .post('/api/funds/abc/investment-ledger/financing-events')
       .set('Idempotency-Key', 'evt-1')
       .send(eventBody);
 
-    expect(response.status).toBe(400);
-    expect(response.body.error).toBe('INVALID_FUND_ID');
+    expect(response.status).toBe(401);
+    expect(serviceState.createFinancingEvent).not.toHaveBeenCalled();
+  });
+
+  it('runs the real fund access guard for valid fund IDs', async () => {
+    authState.user = {
+      id: '3',
+      sub: '3',
+      email: 'ledger-user@example.com',
+      role: 'user',
+      roles: ['user'],
+      fundIds: [7],
+    };
+
+    const response = await request(makeApp())
+      .post('/api/funds/8/investment-ledger/financing-events')
+      .set('Idempotency-Key', 'evt-1')
+      .send(eventBody);
+
+    expect(response.status).toBe(403);
+    expect(response.body).toMatchObject({
+      error: 'Forbidden',
+      message: 'You do not have access to fund 8',
+    });
     expect(serviceState.createFinancingEvent).not.toHaveBeenCalled();
   });
 

@@ -55,6 +55,7 @@ export interface LedgerCommandResult<T> {
 }
 
 export type FinancingLedgerServiceErrorCode =
+  | 'FINANCING_EVENT_NATURAL_KEY_CONFLICT'
   | 'FINANCING_EVENT_NOT_FOUND'
   | 'FINANCING_TRANCHE_NOT_CURRENT'
   | 'FINANCING_TRANCHE_CONFLICT'
@@ -78,18 +79,25 @@ export class FinancingLedgerServiceError extends Error {
 export async function createFinancingEvent(
   input: CreateFinancingEventInput
 ): Promise<LedgerCommandResult<FinancingEventV1>> {
-  const request = CreateFinancingEventRequestSchema.parse(input.request);
   const database = input.database ?? db;
-  const identityHead = await resolveIdentityHead(database, input.fundId, request.companyIdentityId);
+  const earlyReplay = await replayExistingFinancingEventBeforeParse(database, input);
+  if (earlyReplay) return earlyReplay;
+
+  const request = CreateFinancingEventRequestSchema.parse(input.request);
   const commandRequest = {
     fundId: input.fundId,
     contractVersion: LEDGER_CONTRACT_VERSION,
     ...request,
   };
-  const requestHash = canonicalSha256(commandRequest);
+  const result = await database.transaction(async (transaction) => {
+    await lockFundIdentity(transaction, input.fundId);
+    const identityHead = await resolveIdentityHead(
+      transaction,
+      input.fundId,
+      request.companyIdentityId
+    );
 
-  const result = await database.transaction(async (transaction) =>
-    runIdempotentCommand<FinancingEvent>({
+    return runIdempotentCommand<FinancingEvent>({
       db: transaction,
       fundId: input.fundId,
       idempotencyKey: input.idempotencyKey,
@@ -104,13 +112,16 @@ export async function createFinancingEvent(
         if (byIdempotency) {
           return { row: byIdempotency, requestHash: byIdempotency.requestHash };
         }
-        const byNaturalKey = await selectFinancingEventByNaturalKey(
+        const byNaturalKey = await selectFinancingEventsByEquivalentNaturalKey(
           transaction,
           input.fundId,
           identityHead,
           request.eventKey
         );
-        return byNaturalKey ? { row: byNaturalKey, requestHash } : null;
+        if (byNaturalKey.length > 0) {
+          throw naturalKeyConflict();
+        }
+        return null;
       },
       insert: async (storedRequestHash) => {
         const byIdempotency = await selectFinancingEventByIdempotency(
@@ -119,13 +130,15 @@ export async function createFinancingEvent(
           input.idempotencyKey
         );
         if (byIdempotency) return null;
-        const byNaturalKey = await selectFinancingEventByNaturalKey(
+        const byNaturalKey = await selectFinancingEventsByEquivalentNaturalKey(
           transaction,
           input.fundId,
           identityHead,
           request.eventKey
         );
-        if (byNaturalKey) return null;
+        if (byNaturalKey.length > 0) {
+          throw naturalKeyConflict();
+        }
 
         return firstFinancingEvent(
           await transaction.execute(sql`
@@ -146,8 +159,8 @@ export async function createFinancingEvent(
           `)
         );
       },
-    })
-  );
+    });
+  });
 
   return {
     value: financingEventDto(result.row),
@@ -158,12 +171,16 @@ export async function createFinancingEvent(
 export async function recordFinancingTranche(
   input: RecordFinancingTrancheInput
 ): Promise<LedgerCommandResult<FinancingTrancheV1>> {
-  const request = RecordFinancingTrancheRequestSchema.parse(input.request);
   const database = input.database ?? db;
+  const earlyReplay = await replayExistingFinancingTrancheBeforeParse(database, input);
+  if (earlyReplay) return earlyReplay;
+
+  const request = RecordFinancingTrancheRequestSchema.parse(input.request);
   await assertLedgerOwnership(database, input.fundId, 'financing_event', input.eventId);
 
-  const result = await database.transaction(async (transaction) =>
-    runIdempotentCommand<FinancingTranche>({
+  const result = await database.transaction(async (transaction) => {
+    await lockFinancingEvent(transaction, input.fundId, input.eventId);
+    return runIdempotentCommand<FinancingTranche>({
       db: transaction,
       fundId: input.fundId,
       idempotencyKey: input.idempotencyKey,
@@ -236,6 +253,7 @@ export async function recordFinancingTranche(
           companyIdentityId: context.companyIdentityId,
           companyName: context.companyName,
           measureKey: priorCount === 0 ? 'initial_investment' : 'follow_on_investment',
+          eventId: input.eventId,
           trancheKey: request.trancheKey,
           version: 1,
           closingDate: request.closingDate,
@@ -247,8 +265,8 @@ export async function recordFinancingTranche(
           sourceObservationId: observationId,
         });
       },
-    })
-  );
+    });
+  });
 
   return {
     value: financingTrancheDto(result.row),
@@ -259,12 +277,23 @@ export async function recordFinancingTranche(
 export async function correctFinancingTranche(
   input: CorrectFinancingTrancheInput
 ): Promise<LedgerCommandResult<FinancingTrancheV1>> {
-  const request = CorrectFinancingTrancheRequestSchema.parse(input.request);
   const database = input.database ?? db;
+  const earlyReplay = await replayExistingFinancingTrancheBeforeParse(database, input);
+  if (earlyReplay) return earlyReplay;
+
+  const request = CorrectFinancingTrancheRequestSchema.parse(input.request);
   await assertLedgerOwnership(database, input.fundId, 'financing_tranche', input.trancheId);
 
-  const result = await database.transaction(async (transaction) =>
-    runIdempotentCommand<FinancingTranche>({
+  const result = await database.transaction(async (transaction) => {
+    const currentEventId = await selectCurrentTrancheEventId(
+      transaction,
+      input.fundId,
+      input.trancheId
+    );
+    if (currentEventId !== null) {
+      await lockFinancingEvent(transaction, input.fundId, currentEventId);
+    }
+    return runIdempotentCommand<FinancingTranche>({
       db: transaction,
       fundId: input.fundId,
       idempotencyKey: input.idempotencyKey,
@@ -371,17 +400,17 @@ export async function correctFinancingTranche(
           input.fundId,
           current.financingEventId
         );
-        const priorCount = await countOtherTrancheKeys(
+        const measureKey = await loadPriorObservationMeasureKey(
           transaction,
           input.fundId,
-          current.financingEventId,
-          current.trancheKey
+          current.id
         );
         const observationId = await insertManualObservation(transaction, {
           fundId: input.fundId,
           companyIdentityId: context.companyIdentityId,
           companyName: context.companyName,
-          measureKey: priorCount === 0 ? 'initial_investment' : 'follow_on_investment',
+          measureKey,
+          eventId: current.financingEventId,
           trancheKey: current.trancheKey,
           version: current.version + 1,
           closingDate: request.closingDate,
@@ -393,8 +422,8 @@ export async function correctFinancingTranche(
           sourceObservationId: observationId,
         });
       },
-    })
-  );
+    });
+  });
 
   return {
     value: financingTrancheDto(result.row),
@@ -473,21 +502,32 @@ async function selectFinancingEventByIdempotency(
   );
 }
 
-async function selectFinancingEventByNaturalKey(
+async function selectFinancingEventsByEquivalentNaturalKey(
   database: LedgerDatabase,
   fundId: number,
-  companyIdentityId: number,
+  identityHead: number,
   eventKey: string
-): Promise<FinancingEvent | null> {
-  return firstFinancingEvent(
+): Promise<FinancingEvent[]> {
+  return readRows(
     await database.execute(sql`
-      SELECT * FROM financing_events
-      WHERE fund_id = ${fundId}
-        AND company_identity_id = ${companyIdentityId}
-        AND event_key = ${eventKey}
-      LIMIT 1
+      WITH RECURSIVE equivalent_identities AS (
+        SELECT id
+        FROM company_identities
+        WHERE id = ${identityHead} AND fund_id = ${fundId}
+        UNION
+        SELECT c.id
+        FROM company_identities c
+        JOIN equivalent_identities e
+          ON c.merged_into_identity_id = e.id AND c.fund_id = ${fundId}
+      )
+      SELECT fe.*
+      FROM financing_events fe
+      JOIN equivalent_identities e
+        ON e.id = fe.company_identity_id
+      WHERE fe.fund_id = ${fundId}
+        AND fe.event_key = ${eventKey}
     `)
-  );
+  ).map(financingEventFromRow);
 }
 
 async function selectFinancingTrancheByIdempotency(
@@ -501,6 +541,176 @@ async function selectFinancingTrancheByIdempotency(
       WHERE fund_id = ${fundId} AND idempotency_key = ${idempotencyKey}
       LIMIT 1
     `)
+  );
+}
+
+async function selectFinancingTrancheById(
+  database: LedgerDatabase,
+  fundId: number,
+  trancheId: number
+): Promise<FinancingTranche | null> {
+  return firstFinancingTranche(
+    await database.execute(sql`
+      SELECT * FROM financing_tranches
+      WHERE id = ${trancheId}
+        AND fund_id = ${fundId}
+      LIMIT 1
+    `)
+  );
+}
+
+async function selectCurrentTrancheEventId(
+  database: LedgerDatabase,
+  fundId: number,
+  trancheId: number
+): Promise<number | null> {
+  const row = readRows(
+    await database.execute(sql`
+      SELECT financing_event_id
+      FROM financing_tranches
+      WHERE id = ${trancheId}
+        AND fund_id = ${fundId}
+        AND superseded_by_tranche_id IS NULL
+      LIMIT 1
+    `)
+  )[0];
+  return row ? asPositiveInt(row['financing_event_id']) : null;
+}
+
+async function lockFundIdentity(database: LedgerDatabase, fundId: number): Promise<void> {
+  await database.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`fund-identity:${fundId}`}))`);
+}
+
+async function lockFinancingEvent(
+  database: LedgerDatabase,
+  fundId: number,
+  eventId: number
+): Promise<void> {
+  await database.execute(
+    sql`SELECT pg_advisory_xact_lock(hashtext(${`financing-event:${fundId}:${eventId}`}))`
+  );
+}
+
+function naturalKeyConflict(): FinancingLedgerServiceError {
+  return new FinancingLedgerServiceError(
+    409,
+    'FINANCING_EVENT_NATURAL_KEY_CONFLICT',
+    'A financing event with the same canonical natural key already exists.'
+  );
+}
+
+async function replayExistingFinancingEventBeforeParse(
+  database: LedgerDatabase,
+  input: CreateFinancingEventInput
+): Promise<LedgerCommandResult<FinancingEventV1> | null> {
+  const existing = await selectFinancingEventByIdempotency(
+    database,
+    input.fundId,
+    input.idempotencyKey
+  );
+  if (!existing) return null;
+
+  const parsed = CreateFinancingEventRequestSchema.safeParse(input.request);
+  if (parsed.success) {
+    const requestHash = canonicalSha256({
+      fundId: input.fundId,
+      contractVersion: LEDGER_CONTRACT_VERSION,
+      ...parsed.data,
+    });
+    assertReplayHash(existing.requestHash, requestHash, input.idempotencyKey);
+  }
+  return { value: financingEventDto(existing), replayed: true };
+}
+
+async function replayExistingFinancingTrancheBeforeParse(
+  database: LedgerDatabase,
+  input: RecordFinancingTrancheInput | CorrectFinancingTrancheInput
+): Promise<LedgerCommandResult<FinancingTrancheV1> | null> {
+  const existing = await selectFinancingTrancheByIdempotency(
+    database,
+    input.fundId,
+    input.idempotencyKey
+  );
+  if (!existing) return null;
+
+  const requestHash = requestHashForParseableTrancheReplay(input);
+  if (requestHash !== null) {
+    assertReplayHash(existing.requestHash, requestHash, input.idempotencyKey);
+    return { value: financingTrancheDto(existing), replayed: true };
+  }
+
+  if ('eventId' in input) {
+    assertMalformedRecordReplayMatchesPath(existing, input);
+  } else {
+    await assertMalformedCorrectionReplayMatchesPath(database, existing, input);
+  }
+  return { value: financingTrancheDto(existing), replayed: true };
+}
+
+function assertMalformedRecordReplayMatchesPath(
+  existing: FinancingTranche,
+  input: RecordFinancingTrancheInput
+): void {
+  if (existing.version !== 1 || existing.financingEventId !== input.eventId) {
+    throwIdempotencyKeyReuse(input.idempotencyKey);
+  }
+}
+
+async function assertMalformedCorrectionReplayMatchesPath(
+  database: LedgerDatabase,
+  existing: FinancingTranche,
+  input: CorrectFinancingTrancheInput
+): Promise<void> {
+  const predecessor = await selectFinancingTrancheById(database, input.fundId, input.trancheId);
+  if (!predecessor || predecessor.supersededByTrancheId !== existing.id) {
+    throwIdempotencyKeyReuse(input.idempotencyKey);
+  }
+}
+
+function requestHashForParseableTrancheReplay(
+  input: RecordFinancingTrancheInput | CorrectFinancingTrancheInput
+): string | null {
+  if ('eventId' in input) {
+    const parsed = RecordFinancingTrancheRequestSchema.safeParse(input.request);
+    return parsed.success
+      ? canonicalSha256({
+          fundId: input.fundId,
+          contractVersion: LEDGER_CONTRACT_VERSION,
+          eventId: input.eventId,
+          ...parsed.data,
+          money: investmentLedgerMoneyProjection(parsed.data),
+        })
+      : null;
+  }
+
+  const parsed = CorrectFinancingTrancheRequestSchema.safeParse(input.request);
+  return parsed.success
+    ? canonicalSha256({
+        fundId: input.fundId,
+        contractVersion: LEDGER_CONTRACT_VERSION,
+        trancheId: input.trancheId,
+        ...parsed.data,
+        money: investmentLedgerMoneyProjection(parsed.data),
+      })
+    : null;
+}
+
+function assertReplayHash(
+  storedRequestHash: string,
+  requestHash: string,
+  idempotencyKey: string
+): void {
+  if (storedRequestHash !== requestHash) {
+    throwIdempotencyKeyReuse(idempotencyKey);
+  }
+}
+
+function throwIdempotencyKeyReuse(idempotencyKey: string): never {
+  throw new IdempotentCommandError(
+    409,
+    'IDEMPOTENCY_KEY_REUSE',
+    'Idempotency-Key was already used for a different request.',
+    { idempotencyKey }
   );
 }
 
@@ -550,6 +760,42 @@ async function countOtherTrancheKeys(
   return row ? asNonnegativeInt(row['count']) : 0;
 }
 
+async function loadPriorObservationMeasureKey(
+  database: LedgerDatabase,
+  fundId: number,
+  trancheId: number
+): Promise<'initial_investment' | 'follow_on_investment'> {
+  const row = readRows(
+    await database.execute(sql`
+      SELECT so.normalized_payload
+      FROM financing_tranches t
+      JOIN source_observations so
+        ON so.id = t.source_observation_id AND so.fund_id = t.fund_id
+      WHERE t.id = ${trancheId}
+        AND t.fund_id = ${fundId}
+      LIMIT 1
+    `)
+  )[0];
+  if (!row) {
+    throw new FinancingLedgerServiceError(
+      500,
+      'LEDGER_WRITE_FAILED',
+      'Correction could not load the prior tranche observation.'
+    );
+  }
+
+  const payload = asRecord(row['normalized_payload']);
+  const measureKey = payload['measureKey'];
+  if (measureKey === 'initial_investment' || measureKey === 'follow_on_investment') {
+    return measureKey;
+  }
+  throw new FinancingLedgerServiceError(
+    500,
+    'LEDGER_WRITE_FAILED',
+    'Correction could not reuse the prior tranche observation measure key.'
+  );
+}
+
 async function insertManualObservation(
   database: LedgerDatabase,
   input: {
@@ -557,13 +803,14 @@ async function insertManualObservation(
     companyIdentityId: number;
     companyName: string;
     measureKey: 'initial_investment' | 'follow_on_investment';
+    eventId: number;
     trancheKey: string;
     version: number;
     closingDate: string;
     investmentAmount: string;
   }
 ): Promise<number> {
-  const sourceLocator = `financing-tranche:${input.trancheKey}`;
+  const sourceLocator = `financing-event:${input.eventId}:tranche:${input.trancheKey}`;
   const candidate = normalizeManualObservation({
     domain: 'ledger_event',
     measureKey: input.measureKey,

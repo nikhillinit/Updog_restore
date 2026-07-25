@@ -89,7 +89,21 @@ interface LedgerModel {
   nextEventId: number;
   nextTrancheId: number;
   nextObservationId: number;
+  failObservationInsert: boolean;
   statements: Statement[];
+}
+
+interface LedgerModelSnapshot {
+  identities: Map<number, number | null>;
+  identityNames: Map<number, string>;
+  events: EventRow[];
+  tranches: TrancheRow[];
+  observations: Array<Record<string, unknown>>;
+  owned: boolean;
+  nextEventId: number;
+  nextTrancheId: number;
+  nextObservationId: number;
+  failObservationInsert: boolean;
 }
 
 function emptyModel(): LedgerModel {
@@ -103,6 +117,7 @@ function emptyModel(): LedgerModel {
     nextEventId: 100,
     nextTrancheId: 500,
     nextObservationId: 900,
+    failObservationInsert: false,
     statements: [],
   };
 }
@@ -193,6 +208,44 @@ function trancheRow(id: number, parsed: Record<string, unknown>): TrancheRow {
   };
 }
 
+function cloneRecord(record: Record<string, unknown>): Record<string, unknown> {
+  return { ...record };
+}
+
+function snapshotModel(model: LedgerModel): LedgerModelSnapshot {
+  return {
+    identities: new Map(model.identities),
+    identityNames: new Map(model.identityNames),
+    events: model.events.map((event) => ({ ...event })),
+    tranches: model.tranches.map((tranche) => ({
+      ...tranche,
+      descriptive_terms: { ...tranche.descriptive_terms },
+    })),
+    observations: model.observations.map(cloneRecord),
+    owned: model.owned,
+    nextEventId: model.nextEventId,
+    nextTrancheId: model.nextTrancheId,
+    nextObservationId: model.nextObservationId,
+    failObservationInsert: model.failObservationInsert,
+  };
+}
+
+function restoreModel(model: LedgerModel, snapshot: LedgerModelSnapshot): void {
+  model.identities = new Map(snapshot.identities);
+  model.identityNames = new Map(snapshot.identityNames);
+  model.events = snapshot.events.map((event) => ({ ...event }));
+  model.tranches = snapshot.tranches.map((tranche) => ({
+    ...tranche,
+    descriptive_terms: { ...tranche.descriptive_terms },
+  }));
+  model.observations = snapshot.observations.map(cloneRecord);
+  model.owned = snapshot.owned;
+  model.nextEventId = snapshot.nextEventId;
+  model.nextTrancheId = snapshot.nextTrancheId;
+  model.nextObservationId = snapshot.nextObservationId;
+  model.failObservationInsert = snapshot.failObservationInsert;
+}
+
 function resolveChain(model: LedgerModel, startId: number): unknown[] {
   const rows: unknown[] = [];
   let cursor: number | null = startId;
@@ -222,9 +275,35 @@ function runFinancingEventSelect(
     );
     return { rows: row ? [row] : [] };
   }
+  if (flat.includes('JOIN equivalent_identities')) {
+    const identityHead = params[0] as number;
+    const fundId = params[1] as number;
+    const eventKey = params.at(-1) as string;
+    const equivalentIds = identitiesEndingAtHead(model, identityHead);
+    const rows = model.events.filter(
+      (e) =>
+        e.fund_id === fundId && equivalentIds.has(e.company_identity_id) && e.event_key === eventKey
+    );
+    return { rows };
+  }
   const [eventId, fundId] = params as [number, number];
   const row = model.events.find((e) => e.id === eventId && e.fund_id === fundId);
   return { rows: row ? [row] : [] };
+}
+
+function identitiesEndingAtHead(model: LedgerModel, headId: number): Set<number> {
+  const ids = new Set<number>();
+  for (const candidateId of model.identities.keys()) {
+    const chain = resolveChain(model, candidateId) as Array<{
+      id: number;
+      merged_into_identity_id: number | null;
+    }>;
+    const terminal = chain.at(-1);
+    if (terminal?.id === headId && terminal.merged_into_identity_id === null) {
+      ids.add(candidateId);
+    }
+  }
+  return ids;
 }
 
 function runFinancingTrancheSelect(
@@ -232,6 +311,13 @@ function runFinancingTrancheSelect(
   flat: string,
   params: unknown[]
 ): { rows: unknown[] } {
+  if (flat.startsWith('SELECT financing_event_id')) {
+    const [trancheId, fundId] = params as [number, number];
+    const row = model.tranches.find(
+      (t) => t.id === trancheId && t.fund_id === fundId && t.superseded_by_tranche_id === null
+    );
+    return { rows: row ? [{ financing_event_id: row.financing_event_id }] : [] };
+  }
   if (flat.includes('idempotency_key =')) {
     const [fundId, key] = params as [number, string];
     const row = model.tranches.find((t) => t.fund_id === fundId && t.idempotency_key === key);
@@ -242,6 +328,11 @@ function runFinancingTrancheSelect(
     const row = model.tranches.find(
       (t) => t.id === trancheId && t.fund_id === fundId && t.superseded_by_tranche_id === null
     );
+    return { rows: row ? [row] : [] };
+  }
+  if (flat.startsWith('SELECT * FROM financing_tranches') && flat.includes('WHERE id =')) {
+    const [trancheId, fundId] = params as [number, number];
+    const row = model.tranches.find((t) => t.id === trancheId && t.fund_id === fundId);
     return { rows: row ? [row] : [] };
   }
   const [eventId, fundId] = params as [number, number];
@@ -288,6 +379,12 @@ function runStatement(model: LedgerModel, text: string, params: unknown[]): { ro
   if (flat.includes('WITH RECURSIVE chain')) {
     return { rows: resolveChain(model, params[0] as number) };
   }
+  if (flat.includes('WITH RECURSIVE equivalent_identities')) {
+    return runFinancingEventSelect(model, flat, params);
+  }
+  if (flat.includes('pg_advisory_xact_lock')) {
+    return { rows: [] };
+  }
   if (flat.includes("nextval('financing_tranches_id_seq')")) {
     return { rows: [{ id: model.nextTrancheId++ }] };
   }
@@ -314,6 +411,9 @@ function runStatement(model: LedgerModel, text: string, params: unknown[]): { ro
   }
 
   if (flat.startsWith('INSERT INTO source_observations')) {
+    if (model.failObservationInsert) {
+      throw new Error('fake source observation insert failure');
+    }
     const row = parseInsert(flat, params);
     model.observations.push(row);
     return { rows: [{ id: row['id'] }] };
@@ -350,6 +450,15 @@ function runStatement(model: LedgerModel, text: string, params: unknown[]): { ro
     return { rows: [{ count: keys.size }] };
   }
 
+  if (flat.startsWith('SELECT so.normalized_payload')) {
+    const [trancheId, fundId] = params as [number, number];
+    const tranche = model.tranches.find((t) => t.id === trancheId && t.fund_id === fundId);
+    const observation = model.observations.find(
+      (candidate) => candidate['id'] === tranche?.source_observation_id
+    );
+    return { rows: observation ? [observation] : [] };
+  }
+
   if (flat.startsWith('SELECT * FROM financing_events')) {
     return runFinancingEventSelect(model, flat, params);
   }
@@ -368,7 +477,15 @@ function makeDatabase(model: LedgerModel) {
       return runStatement(model, rendered.sql, rendered.params);
     },
     select: () => thenableRows(model.owned ? [{ id: 1 }] : []),
-    transaction: async <T>(callback: (tx: unknown) => Promise<T>): Promise<T> => callback(database),
+    transaction: async <T>(callback: (tx: unknown) => Promise<T>): Promise<T> => {
+      const snapshot = snapshotModel(model);
+      try {
+        return await callback(database);
+      } catch (error) {
+        restoreModel(model, snapshot);
+        throw error;
+      }
+    },
   };
   return database as never;
 }
@@ -445,22 +562,24 @@ async function correctHead(trancheId: number, idempotencyKey: string, amount?: s
 }
 
 describe('createFinancingEvent', () => {
-  it('creates the canonical event once and resolves later closings onto it', async () => {
+  it('creates metadata once and rejects a different-key natural-key duplicate', async () => {
     const first = await seedEvent('evt-1');
     expect(first.replayed).toBe(false);
     expect(first.value.eventKey).toBe('series-a-2026');
+    // Event creation has no economic amount. Observations begin with tranche
+    // mutations, where each version supplies the USD cost projection.
+    expect(model.observations).toHaveLength(0);
 
-    const second = await createFinancingEvent({
-      fundId: FUND_ID,
-      actorId: 3,
-      idempotencyKey: 'evt-2-different-key',
-      request: eventRequest,
-      database: makeDatabase(model),
-    });
+    await expect(
+      createFinancingEvent({
+        fundId: FUND_ID,
+        actorId: 3,
+        idempotencyKey: 'evt-2-different-key',
+        request: eventRequest,
+        database: makeDatabase(model),
+      })
+    ).rejects.toMatchObject({ status: 409, code: 'FINANCING_EVENT_NATURAL_KEY_CONFLICT' });
 
-    // Acceptance 1: a second closing reuses the same parent identity and event.
-    expect(second.replayed).toBe(true);
-    expect(second.value.id).toBe(first.value.id);
     expect(model.events).toHaveLength(1);
     expect(statementsMatching(model, 'INSERT INTO financing_events')).toHaveLength(1);
   });
@@ -475,6 +594,81 @@ describe('createFinancingEvent', () => {
     const created = await seedEvent('evt-merged');
 
     expect(created.value.companyIdentityId).toBe(21);
+  });
+
+  it('locks and searches the merge-equivalence chain before a post-merge duplicate insert', async () => {
+    const first = await seedEvent('evt-before-merge');
+    model.identities = new Map([
+      [11, 21],
+      [21, null],
+    ]);
+    model.identityNames.set(21, 'Acme Robotics');
+
+    await expect(
+      createFinancingEvent({
+        fundId: FUND_ID,
+        actorId: 3,
+        idempotencyKey: 'evt-after-merge',
+        request: { ...eventRequest, companyIdentityId: 21 },
+        database: makeDatabase(model),
+      })
+    ).rejects.toMatchObject({ status: 409, code: 'FINANCING_EVENT_NATURAL_KEY_CONFLICT' });
+
+    expect(model.events).toHaveLength(1);
+    expect(model.events[0]?.id).toBe(first.value.id);
+    expect(statementsMatching(model, 'INSERT INTO financing_events')).toHaveLength(1);
+    expect(statementsMatching(model, 'pg_advisory_xact_lock(hashtext(')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ params: expect.arrayContaining([`fund-identity:${FUND_ID}`]) }),
+      ])
+    );
+    expect(statementsMatching(model, 'JOIN equivalent_identities').length).toBeGreaterThanOrEqual(
+      1
+    );
+  });
+
+  it('refuses arbitrary replay when corrupt equivalent natural-key duplicates exist', async () => {
+    const first = await seedEvent('evt-1');
+    model.identities = new Map([
+      [11, 21],
+      [31, 21],
+      [21, null],
+    ]);
+    model.events.push({
+      ...(model.events[0] as EventRow),
+      id: 101,
+      company_identity_id: 31,
+      idempotency_key: 'evt-corrupt-equivalent',
+      request_hash: 'different-hash',
+    });
+
+    await expect(
+      createFinancingEvent({
+        fundId: FUND_ID,
+        actorId: 3,
+        idempotencyKey: 'evt-new',
+        request: { ...eventRequest, companyIdentityId: 21 },
+        database: makeDatabase(model),
+      })
+    ).rejects.toMatchObject({ status: 409, code: 'FINANCING_EVENT_NATURAL_KEY_CONFLICT' });
+
+    expect(model.events.map((event) => event.id)).toEqual([first.value.id, 101]);
+  });
+
+  it('replays an existing idempotency key before parsing a malformed retry body', async () => {
+    const first = await seedEvent('evt-1');
+
+    const replay = await createFinancingEvent({
+      fundId: FUND_ID,
+      actorId: 3,
+      idempotencyKey: 'evt-1',
+      request: {},
+      database: makeDatabase(model),
+    });
+
+    expect(replay.replayed).toBe(true);
+    expect(replay.value.id).toBe(first.value.id);
+    expect(model.events).toHaveLength(1);
   });
 
   it('replays an identical command and rejects key reuse with a different payload', async () => {
@@ -518,7 +712,9 @@ describe('recordFinancingTranche', () => {
     expect(model.observations).toHaveLength(1);
     const observation = model.observations[0];
     expect(observation?.['dependency_group_key']).toBe(`source-observation:${observation?.['id']}`);
-    expect(observation?.['source_locator']).toBe('financing-tranche:first-close');
+    expect(observation?.['source_locator']).toBe(
+      `financing-event:${model.events[0]?.id}:tranche:first-close`
+    );
 
     const inserts = statementsMatching(model, 'INSERT INTO source_observations');
     expect(inserts).toHaveLength(1);
@@ -529,6 +725,13 @@ describe('recordFinancingTranche', () => {
 
     // The observation id is linked back onto the tranche before the tx returns.
     expect(recorded.value.sourceObservationId).toBe(observation?.['id']);
+    expect(statementsMatching(model, 'pg_advisory_xact_lock(hashtext(')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          params: expect.arrayContaining([`financing-event:${FUND_ID}:${model.events[0]?.id}`]),
+        }),
+      ])
+    );
   });
 
   it('labels the first closing initial and later closings follow-on', async () => {
@@ -541,6 +744,31 @@ describe('recordFinancingTranche', () => {
     );
     expect(payloads[0]).toContain('initial_investment');
     expect(payloads[1]).toContain('follow_on_investment');
+  });
+
+  it('uses event-scoped source locators for the same tranche key across events', async () => {
+    const firstEvent = await seedEvent('evt-1');
+    await seedTranche('tr-1');
+    const secondEvent = await createFinancingEvent({
+      fundId: FUND_ID,
+      actorId: 3,
+      idempotencyKey: 'evt-2',
+      request: { ...eventRequest, eventKey: 'series-b-2026', roundName: 'Series B' },
+      database: makeDatabase(model),
+    });
+    await recordFinancingTranche({
+      fundId: FUND_ID,
+      eventId: secondEvent.value.id,
+      actorId: 3,
+      idempotencyKey: 'tr-2',
+      request: trancheRequest,
+      database: makeDatabase(model),
+    });
+
+    expect(model.observations.map((observation) => observation['source_locator'])).toEqual([
+      `financing-event:${firstEvent.value.id}:tranche:first-close`,
+      `financing-event:${secondEvent.value.id}:tranche:first-close`,
+    ]);
   });
 
   it('rejects a tranche on an event outside the fund', async () => {
@@ -559,6 +787,69 @@ describe('recordFinancingTranche', () => {
     expect(replay.value.id).toBe(first.value.id);
     expect(model.tranches).toHaveLength(1);
     expect(model.observations).toHaveLength(1);
+  });
+
+  it('rolls back fake transaction state when observation synthesis fails after tranche insert', async () => {
+    await seedEvent();
+    model.failObservationInsert = true;
+    const nextTrancheId = model.nextTrancheId;
+    const nextObservationId = model.nextObservationId;
+
+    await expect(seedTranche('tr-fails-after-insert')).rejects.toThrow(
+      'fake source observation insert failure'
+    );
+
+    // Unit-double evidence only: this proves the in-memory transaction fake
+    // restores state for thrown callbacks; it is not PostgreSQL proof.
+    expect(model.tranches).toHaveLength(0);
+    expect(model.observations).toHaveLength(0);
+    expect(model.nextTrancheId).toBe(nextTrancheId);
+    expect(model.nextObservationId).toBe(nextObservationId);
+  });
+
+  it('does not replay a correction idempotency key through malformed record-tranche input', async () => {
+    await seedEvent();
+    const original = await seedTranche('tr-1');
+    await correctHead(original.value.id, 'tr-1-fix');
+
+    await expect(
+      recordFinancingTranche({
+        fundId: FUND_ID,
+        eventId: original.value.financingEventId,
+        actorId: 3,
+        idempotencyKey: 'tr-1-fix',
+        request: {},
+        database: makeDatabase(model),
+      })
+    ).rejects.toMatchObject({ status: 409, code: 'IDEMPOTENCY_KEY_REUSE' });
+  });
+
+  it('replays an existing idempotency key before parsing a malformed retry body', async () => {
+    await seedEvent();
+    const first = await seedTranche('tr-1');
+
+    const replay = await recordFinancingTranche({
+      fundId: FUND_ID,
+      eventId: first.value.financingEventId,
+      actorId: 3,
+      idempotencyKey: 'tr-1',
+      request: {},
+      database: makeDatabase(model),
+    });
+
+    expect(replay.replayed).toBe(true);
+    expect(replay.value.id).toBe(first.value.id);
+    expect(model.tranches).toHaveLength(1);
+    expect(model.observations).toHaveLength(1);
+  });
+
+  it('rejects a parseable same-key tranche retry with a changed body', async () => {
+    await seedEvent();
+    await seedTranche('tr-1');
+
+    await expect(seedTranche('tr-1', { investmentAmount: '2600000.000000' })).rejects.toMatchObject(
+      { status: 409, code: 'IDEMPOTENCY_KEY_REUSE' }
+    );
   });
 });
 
@@ -599,6 +890,125 @@ describe('correctFinancingTranche', () => {
     await expect(
       correctHead(original.value.id, 'tr-1-fix-again', '2900000.000000')
     ).rejects.toMatchObject({ status: 409, code: 'FINANCING_TRANCHE_NOT_CURRENT' });
+  });
+
+  it('keeps a corrected initial tranche classified as initial after follow-on closings exist', async () => {
+    await seedEvent();
+    const initial = await seedTranche('tr-1');
+    await seedTranche('tr-2', { trancheKey: 'second-close', closingDate: '2026-04-01' });
+
+    const corrected = await correctHead(initial.value.id, 'tr-1-fix');
+
+    expect(model.observations).toHaveLength(3);
+    expect(model.tranches).toHaveLength(3);
+    expect(model.tranches.map((tranche) => tranche.source_observation_id)).toEqual(
+      model.observations.map((observation) => observation['id'])
+    );
+    const payloads = model.observations.map((observation) =>
+      JSON.stringify(observation['normalized_payload'])
+    );
+    expect(payloads[0]).toContain('initial_investment');
+    expect(payloads[1]).toContain('follow_on_investment');
+    expect(payloads[2]).toContain('initial_investment');
+    expect(corrected.value.sourceObservationId).toBe(model.observations[2]?.['id']);
+  });
+
+  it('replays an existing correction idempotency key before parsing a malformed retry body', async () => {
+    await seedEvent();
+    const original = await seedTranche('tr-1');
+    const correction = await correctHead(original.value.id, 'tr-1-fix');
+
+    const replay = await correctFinancingTranche({
+      fundId: FUND_ID,
+      trancheId: original.value.id,
+      actorId: 3,
+      idempotencyKey: 'tr-1-fix',
+      request: {},
+      database: makeDatabase(model),
+    });
+
+    expect(replay.replayed).toBe(true);
+    expect(replay.value.id).toBe(correction.value.id);
+    expect(model.tranches).toHaveLength(2);
+    expect(model.observations).toHaveLength(2);
+  });
+
+  it('does not replay a record idempotency key through malformed correction input', async () => {
+    await seedEvent();
+    const original = await seedTranche('tr-1');
+
+    await expect(
+      correctFinancingTranche({
+        fundId: FUND_ID,
+        trancheId: original.value.id,
+        actorId: 3,
+        idempotencyKey: 'tr-1',
+        request: {},
+        database: makeDatabase(model),
+      })
+    ).rejects.toMatchObject({ status: 409, code: 'IDEMPOTENCY_KEY_REUSE' });
+  });
+
+  it('does not replay a correction idempotency key through the corrected row path', async () => {
+    await seedEvent();
+    const original = await seedTranche('tr-1');
+    const correction = await correctHead(original.value.id, 'tr-1-fix');
+
+    await expect(
+      correctFinancingTranche({
+        fundId: FUND_ID,
+        trancheId: correction.value.id,
+        actorId: 3,
+        idempotencyKey: 'tr-1-fix',
+        request: {},
+        database: makeDatabase(model),
+      })
+    ).rejects.toMatchObject({ status: 409, code: 'IDEMPOTENCY_KEY_REUSE' });
+  });
+
+  it('fails closed when a correction cannot reuse the prior accepted measure key', async () => {
+    await seedEvent();
+    const initial = await seedTranche('tr-1');
+    await seedTranche('tr-2', { trancheKey: 'second-close', closingDate: '2026-04-01' });
+    model.observations = model.observations.filter(
+      (observation) => observation['id'] !== initial.value.sourceObservationId
+    );
+
+    await expect(correctHead(initial.value.id, 'tr-1-fix')).rejects.toMatchObject({
+      status: 500,
+      code: 'LEDGER_WRITE_FAILED',
+    });
+    expect(model.tranches).toHaveLength(2);
+  });
+
+  it('fails closed when the prior accepted measure key is invalid', async () => {
+    await seedEvent();
+    const initial = await seedTranche('tr-1');
+    await seedTranche('tr-2', { trancheKey: 'second-close', closingDate: '2026-04-01' });
+    const observation = model.observations.find(
+      (candidate) => candidate['id'] === initial.value.sourceObservationId
+    );
+    if (!observation) throw new Error('expected prior observation');
+    observation['normalized_payload'] = {
+      ...(observation['normalized_payload'] as Record<string, unknown>),
+      measureKey: 'not_a_supported_measure',
+    };
+
+    await expect(correctHead(initial.value.id, 'tr-1-fix')).rejects.toMatchObject({
+      status: 500,
+      code: 'LEDGER_WRITE_FAILED',
+    });
+    expect(model.tranches).toHaveLength(2);
+  });
+
+  it('rejects a parseable same-key correction retry with a changed body', async () => {
+    await seedEvent();
+    const original = await seedTranche('tr-1');
+    await correctHead(original.value.id, 'tr-1-fix');
+
+    await expect(
+      correctHead(original.value.id, 'tr-1-fix', '2900000.000000')
+    ).rejects.toMatchObject({ status: 409, code: 'IDEMPOTENCY_KEY_REUSE' });
   });
 });
 

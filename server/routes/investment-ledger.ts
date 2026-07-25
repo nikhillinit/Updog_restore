@@ -7,7 +7,7 @@
  *   GET  /api/funds/:fundId/investment-ledger/financing-events/:eventId
  *
  * Middleware chain (existing primitives only):
- *   ledgerIngressLimiter -> requireAuth() -> requireFundAccess -> ledgerWriteLimiter
+ *   ledgerIngressLimiter -> requireAuth() -> validateFundIdParam -> requireFundAccess -> ledgerWriteLimiter
  *
  * Every write requires an `Idempotency-Key`; the header is parsed before the body so
  * a malformed command is rejected without touching the contract. Persistence stays
@@ -17,7 +17,7 @@
  * @module server/routes/investment-ledger
  */
 
-import { Router, type Request, type Response } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { ZodError, z } from 'zod';
 
@@ -63,6 +63,7 @@ const ledgerWriteLimiter = rateLimit({
 
 const idempotencyKeySchema = z.string().min(1).max(128);
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
+const POSTGRES_INT_MAX = 2_147_483_647;
 
 class LedgerRouteError extends Error {
   constructor(
@@ -77,10 +78,11 @@ class LedgerRouteError extends Error {
 
 function parsePositiveParam(req: Request, name: string, code: string): number {
   const raw = firstString(req.params[name]) ?? '';
-  if (!POSITIVE_INTEGER.test(raw)) {
+  const parsed = Number(raw);
+  if (!POSITIVE_INTEGER.test(raw) || !Number.isSafeInteger(parsed) || parsed > POSTGRES_INT_MAX) {
     throw new LedgerRouteError(400, code, `${name} must be a positive integer.`);
   }
-  return Number.parseInt(raw, 10);
+  return parsed;
 }
 
 function parseIdempotencyKey(req: Request): string {
@@ -154,9 +156,19 @@ function sendLedgerError(res: Response, error: unknown): Response {
   });
 }
 
+function validateFundIdParam(req: Request, res: Response, next: NextFunction): void | Response {
+  try {
+    parsePositiveParam(req, 'fundId', 'INVALID_FUND_ID');
+    return next();
+  } catch (error) {
+    return sendLedgerError(res, error);
+  }
+}
+
 const writeChain = [
   ledgerIngressLimiter,
   requireAuth(),
+  validateFundIdParam,
   requireFundAccess,
   ledgerWriteLimiter,
 ] as const;
@@ -233,6 +245,7 @@ router.get(
   '/api/funds/:fundId/investment-ledger/financing-events/:eventId',
   ledgerIngressLimiter,
   requireAuth(),
+  validateFundIdParam,
   requireFundAccess,
   ledgerWriteLimiter,
   async (req: Request, res: Response) => {
