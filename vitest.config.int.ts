@@ -14,6 +14,7 @@ const scenarioReleaseGatePath =
 const testcontainersOnlyPaths = [
   'tests/integration/migration-runner.test.ts',
   'tests/integration/fund-lifecycle-db.test.ts',
+  'tests/integration/vehicle-financing-participations-real-pg.test.ts',
 ];
 
 export default defineConfig({
