@@ -1,11 +1,24 @@
 import { PgDialect } from 'drizzle-orm/pg-core';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { invalidateH9Artifacts } = vi.hoisted(() => ({
+  invalidateH9Artifacts: vi.fn(async () => undefined),
+}));
+
+vi.mock('../../../../server/services/h9-artifact-invalidation-service', () => ({
+  invalidateH9Artifacts,
+}));
 
 import {
   createVehicleFinancingParticipation,
   ParticipationLedgerServiceError,
 } from '../../../../server/services/investment-ledger/participation-service';
 import { canonicalSha256 } from '../../../../shared/lib/canonical-hash';
+
+const EXPECTED_WIRE_FINGERPRINT =
+  'd53cfe684a8035fa107cafef10ef09d4168f3074eb7bd69a694471d14c60f947';
+const EXPECTED_ORIGINAL_SOURCE_HASH =
+  '0916d139dee222b9a47461fbee66157d7262785e6bc8a13466e95c91ebb0d62f';
 
 const dialect = new PgDialect();
 const FUND_ID = 7;
@@ -551,6 +564,7 @@ let model: LedgerModel;
 
 beforeEach(() => {
   model = emptyModel();
+  invalidateH9Artifacts.mockClear();
 });
 
 describe('createVehicleFinancingParticipation', () => {
@@ -618,13 +632,13 @@ describe('createVehicleFinancingParticipation', () => {
       amount: '1000.000000',
       perspective: 'vehicle',
       status: 'approved',
-      source_hash: canonicalSha256({
-        source: 'vehicle_participation',
-        fundId: FUND_ID,
-        participationId: 700,
-        participationVersion: 1,
-        role: 'original',
-      }),
+      source_hash: EXPECTED_ORIGINAL_SOURCE_HASH,
+    });
+    expect(JSON.parse(String(model.cashFlowEvents[0]?.['payload']))).toMatchObject({
+      source: 'vehicle_participation',
+      wireFingerprint: EXPECTED_WIRE_FINGERPRINT,
+      participationId: 700,
+      participationVersion: 1,
     });
     expect(model.cashFlowEvents[0]?.['event_date']).toEqual(new Date('2026-02-01T00:00:00.000Z'));
     expect(model.observations[0]).toMatchObject({
@@ -634,6 +648,14 @@ describe('createVehicleFinancingParticipation', () => {
       status: 'accepted',
       dependency_group_key: 'source-observation:1200',
     });
+    expect(
+      JSON.parse(String(model.observations[0]?.['normalized_payload']))['provenance']
+    ).toMatchObject({
+      sourceHash: EXPECTED_ORIGINAL_SOURCE_HASH,
+      wireFingerprint: EXPECTED_WIRE_FINGERPRINT,
+    });
+    expect(invalidateH9Artifacts).toHaveBeenCalledTimes(1);
+    expect(invalidateH9Artifacts).toHaveBeenCalledWith(FUND_ID);
     expect(
       statementsMatching(model, "nextval('vehicle_financing_participations_id_seq')")
     ).toHaveLength(1);
@@ -648,6 +670,7 @@ describe('createVehicleFinancingParticipation', () => {
 
   it('replays before parsing malformed body and rejects changed payload reuse', async () => {
     const first = await createParticipation('part-replay');
+    invalidateH9Artifacts.mockClear();
     model.investments[0]!['vehicle_participation_id'] = 701;
     model.rounds[0]!['vehicle_participation_id'] = 701;
     model.lots = [];
@@ -666,6 +689,7 @@ describe('createVehicleFinancingParticipation', () => {
     expect(replay.value).toEqual(first.value);
     expect(model.participations).toHaveLength(1);
     expect(model.cashFlowEvents).toHaveLength(1);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
 
     await expect(
       createParticipation('part-replay', { participationAmount: '1100.000000' })
@@ -806,11 +830,13 @@ describe('createVehicleFinancingParticipation', () => {
     expect(model.participations).toHaveLength(1);
 
     model.failCashFlowInsert = true;
+    invalidateH9Artifacts.mockClear();
     await expect(createParticipation('late-fail')).rejects.toThrow('fake cash flow insert failure');
     expect(model.participations).toHaveLength(1);
     expect(model.investments).toHaveLength(1);
     expect(model.rounds).toHaveLength(1);
     expect(model.cashFlowEvents).toHaveLength(1);
     expect(model.observations).toHaveLength(1);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
   });
 });

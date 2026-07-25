@@ -1,5 +1,13 @@
 import { PgDialect } from 'drizzle-orm/pg-core';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { invalidateH9Artifacts } = vi.hoisted(() => ({
+  invalidateH9Artifacts: vi.fn(async () => undefined),
+}));
+
+vi.mock('../../../../server/services/h9-artifact-invalidation-service', () => ({
+  invalidateH9Artifacts,
+}));
 
 import {
   correctVehicleParticipationLedger,
@@ -88,8 +96,13 @@ interface InvestmentRow {
   id: number;
   fund_id: number;
   vehicle_participation_id: number;
+  investment_date: Date;
   amount: string;
   round: string;
+  valuation_at_investment: string | null;
+  share_price_cents: bigint | null;
+  shares_acquired: string | null;
+  cost_basis_cents: bigint | null;
   version: number;
 }
 
@@ -98,7 +111,11 @@ interface RoundRow {
   fund_id: number;
   vehicle_participation_id: number;
   supersedes_round_id: number | null;
+  security_type: string;
+  round_date: string;
   investment_amount: string;
+  financing_tranche_id: number | null;
+  imported_from: string | null;
 }
 
 interface CashFlowRow {
@@ -107,9 +124,11 @@ interface CashFlowRow {
   vehicle_participation_id: number;
   event_type: string;
   amount: string;
+  event_date: Date;
   status: string;
   reversal_of_event_id: number | null;
   supersedes_event_id: number | null;
+  imported_from: string | null;
   source_hash: string | null;
 }
 
@@ -123,6 +142,7 @@ interface LotRow {
 interface Model {
   tranches: TrancheRow[];
   participations: ParticipationRow[];
+  financingEventIdempotencyKeys: string[];
   investments: InvestmentRow[];
   rounds: RoundRow[];
   cashFlows: CashFlowRow[];
@@ -220,13 +240,19 @@ function emptyModel(): Model {
   return {
     tranches: [baseTranche()],
     participations: [baseParticipation()],
+    financingEventIdempotencyKeys: [],
     investments: [
       {
         id: 800,
         fund_id: FUND_ID,
         vehicle_participation_id: 700,
+        investment_date: new Date('2026-02-01T00:00:00.000Z'),
         amount: '100.00',
         round: 'first-close',
+        valuation_at_investment: null,
+        share_price_cents: 1000n,
+        shares_acquired: '10.00000000',
+        cost_basis_cents: 10000n,
         version: 1,
       },
     ],
@@ -236,7 +262,11 @@ function emptyModel(): Model {
         fund_id: FUND_ID,
         vehicle_participation_id: 700,
         supersedes_round_id: null,
+        security_type: 'equity',
+        round_date: '2026-02-01',
         investment_amount: '100.000000',
+        financing_tranche_id: 500,
+        imported_from: 'vehicle_participation',
       },
     ],
     cashFlows: [
@@ -246,16 +276,31 @@ function emptyModel(): Model {
         vehicle_participation_id: 700,
         event_type: 'portfolio_investment',
         amount: '100.000000',
+        event_date: new Date('2026-02-01T00:00:00.000Z'),
         status: 'approved',
         reversal_of_event_id: null,
         supersedes_event_id: null,
+        imported_from: 'vehicle_participation',
         source_hash: canonicalSha256({ seed: 'cfe' }),
       },
     ],
     lots: [
       { id: 'lot-1', investment_id: 800, vehicle_participation_id: 700, cost_basis_cents: 10000n },
     ],
-    observations: [],
+    observations: [
+      {
+        id: 900,
+        fund_id: FUND_ID,
+        normalized_payload: { measureKey: 'initial_investment' },
+        observation_hash: canonicalSha256({ measureKey: 'initial_investment' }),
+      },
+      {
+        id: 901,
+        fund_id: FUND_ID,
+        normalized_payload: { measureKey: 'initial_investment' },
+        observation_hash: canonicalSha256({ measureKey: 'initial_investment' }),
+      },
+    ],
     cases: [],
     statements: [],
     nextTrancheId: 501,
@@ -283,6 +328,7 @@ function cloneModel(model: Model): Model {
       descriptive_terms: row.descriptive_terms ? { ...row.descriptive_terms } : null,
       confirmed_duplicates: [...row.confirmed_duplicates],
     })),
+    financingEventIdempotencyKeys: [...model.financingEventIdempotencyKeys],
     investments: model.investments.map((row) => ({ ...row })),
     rounds: model.rounds.map((row) => ({ ...row })),
     cashFlows: model.cashFlows.map((row) => ({ ...row })),
@@ -397,6 +443,20 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
     const row = model.tranches.find((t) => t.fund_id === fundId && t.idempotency_key === key);
     return { rows: row ? [row] : [] };
   }
+  if (flat.startsWith('SELECT command_table FROM')) {
+    const [fundId, key] = params as [number, string];
+    const rows: Array<{ command_table: string }> = [];
+    if (model.financingEventIdempotencyKeys.includes(key)) {
+      rows.push({ command_table: 'financing_events' });
+    }
+    if (model.tranches.some((t) => t.fund_id === fundId && t.idempotency_key === key)) {
+      rows.push({ command_table: 'financing_tranches' });
+    }
+    if (model.participations.some((p) => p.fund_id === fundId && p.idempotency_key === key)) {
+      rows.push({ command_table: 'vehicle_financing_participations' });
+    }
+    return { rows };
+  }
   if (flat.startsWith('SELECT * FROM financing_tranches')) {
     const [trancheId, fundId] = params as [number, number];
     const row = model.tranches.find(
@@ -408,7 +468,10 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
     const [fundId, trancheId] = params as [number, number];
     return {
       rows: model.participations.filter(
-        (p) => p.fund_id === fundId && p.financing_tranche_id === trancheId
+        (p) =>
+          p.fund_id === fundId &&
+          p.financing_tranche_id === trancheId &&
+          p.superseded_by_participation_id === null
       ),
     };
   }
@@ -439,7 +502,10 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
     );
     return { rows: row ? [{ id: row.id }] : [] };
   }
-  if (flat.startsWith('SELECT id, status FROM cash_flow_events')) {
+  if (
+    flat.startsWith('SELECT id, status FROM cash_flow_events') ||
+    flat.startsWith('SELECT id, amount, event_date, status FROM cash_flow_events')
+  ) {
     const [fundId, participationId] = params as [number, number];
     const row = model.cashFlows.find(
       (c) =>
@@ -448,7 +514,11 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
         c.event_type === 'portfolio_investment' &&
         c.reversal_of_event_id === null
     );
-    return { rows: row ? [{ id: row.id, status: row.status }] : [] };
+    return {
+      rows: row
+        ? [{ id: row.id, amount: row.amount, event_date: row.event_date, status: row.status }]
+        : [],
+    };
   }
   if (flat.startsWith('SELECT normalized_payload FROM source_observations')) {
     const [observationId, fundId] = params as [number, number];
@@ -467,7 +537,11 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
       fund_id: row['fund_id'] as number,
       vehicle_participation_id: row['vehicle_participation_id'] as number,
       supersedes_round_id: row['supersedes_round_id'] as number,
+      security_type: row['security_type'] as string,
+      round_date: row['round_date'] as string,
       investment_amount: row['investment_amount'] as string,
+      financing_tranche_id: row['financing_tranche_id'] as number,
+      imported_from: row['imported_from'] as string,
     });
     return { rows: [] };
   }
@@ -479,9 +553,11 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
       vehicle_participation_id: row['vehicle_participation_id'] as number,
       event_type: row['event_type'] as string,
       amount: row['amount'] as string,
+      event_date: row['event_date'] as Date,
       status: row['status'] as string,
       reversal_of_event_id: (row['reversal_of_event_id'] as number | null) ?? null,
       supersedes_event_id: (row['supersedes_event_id'] as number | null) ?? null,
+      imported_from: (row['imported_from'] as string | null) ?? null,
       source_hash: row['source_hash'] as string,
     });
     return { rows: [] };
@@ -536,7 +612,10 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
     flat.startsWith('UPDATE vehicle_financing_participations') &&
     flat.includes('superseded_by_participation_id = NULL')
   ) {
-    return { rows: [] };
+    const [participationId, fundId] = params as [number, number];
+    const row = model.participations.find((p) => p.id === participationId && p.fund_id === fundId);
+    if (row) row.superseded_by_participation_id = null;
+    return { rows: row ? [{ id: row.id }] : [] };
   }
   if (flat.startsWith('UPDATE vehicle_financing_participations')) {
     const [newId, currentId, fundId, version] = params as [number, number, number, number];
@@ -553,23 +632,51 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
   }
   if (flat.startsWith('UPDATE investments')) {
     if (model.failInvestmentUpdate) return { rows: [] };
-    const [amount, round, _date, participationId, investmentId, fundId, version] = params as [
-      string,
-      string,
-      Date,
-      number,
-      number,
-      number,
-      number,
-    ];
+    const updateParams = params as unknown[];
+    const [amount, round, investmentDate] = updateParams as [string, string, Date];
+    const hasValuation = updateParams.length >= 8;
+    const hasLotColumns = updateParams.length >= 11;
+    const valuationAtInvestment = hasValuation ? (updateParams[3] as string | null) : null;
+    const sharePriceCents = hasLotColumns ? (updateParams[4] as bigint | null) : undefined;
+    const sharesAcquired = hasLotColumns ? (updateParams[5] as string | null) : undefined;
+    const costBasisCents = hasLotColumns ? (updateParams[6] as bigint | null) : undefined;
+    const participationIndex = hasLotColumns ? 7 : hasValuation ? 4 : 3;
+    const participationId = updateParams[participationIndex] as number;
+    const investmentId = updateParams[participationIndex + 1] as number;
+    const fundId = updateParams[participationIndex + 2] as number;
+    const version = updateParams[participationIndex + 3] as number;
     const row = model.investments.find(
       (i) => i.id === investmentId && i.fund_id === fundId && i.version === version
     );
     if (!row) return { rows: [] };
     row.amount = amount;
     row.round = round;
+    row.investment_date = investmentDate;
+    row.valuation_at_investment = valuationAtInvestment;
+    if (hasLotColumns) {
+      row.share_price_cents = sharePriceCents ?? null;
+      row.shares_acquired = sharesAcquired ?? null;
+      row.cost_basis_cents = costBasisCents ?? null;
+    }
     row.vehicle_participation_id = participationId;
     row.version += 1;
+    return { rows: [{ id: row.id }] };
+  }
+  if (flat.startsWith('UPDATE cash_flow_events') && flat.includes('vehicle_participation_id')) {
+    const updateParams = params as number[];
+    const successorId = updateParams[0]!;
+    const eventId = updateParams[1]!;
+    const oldParticipationId = updateParams.length === 4 ? updateParams[2] : undefined;
+    const fundId = updateParams[updateParams.length === 4 ? 3 : 2]!;
+    const row = model.cashFlows.find(
+      (c) =>
+        c.id === eventId &&
+        c.fund_id === fundId &&
+        (oldParticipationId === undefined || c.vehicle_participation_id === oldParticipationId) &&
+        (updateParams.length !== 4 || c.status === 'approved')
+    );
+    if (!row) return { rows: [] };
+    row.vehicle_participation_id = successorId;
     return { rows: [{ id: row.id }] };
   }
   if (flat.startsWith('UPDATE cash_flow_events')) {
@@ -608,6 +715,15 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
         !(lot.investment_id === investmentId && lot.vehicle_participation_id === participationId)
     );
     return { rows: deleted.map((lot) => ({ id: lot.id })) };
+  }
+  if (flat.startsWith('UPDATE investment_lots')) {
+    const [successorId, investmentId, oldParticipationId] = params as [number, number, number];
+    const rows = model.lots.filter(
+      (lot) =>
+        lot.investment_id === investmentId && lot.vehicle_participation_id === oldParticipationId
+    );
+    for (const row of rows) row.vehicle_participation_id = successorId;
+    return { rows: rows.map((row) => ({ id: row.id })) };
   }
   return { rows: [] };
 }
@@ -665,14 +781,18 @@ let model: Model;
 
 beforeEach(() => {
   model = emptyModel();
+  invalidateH9Artifacts.mockClear();
 });
 
-async function runCorrection(request: unknown = correctionRequest) {
+async function runCorrection(
+  request: unknown = correctionRequest,
+  options: { trancheId?: number; idempotencyKey?: string } = {}
+) {
   return correctVehicleParticipationLedger({
     fundId: FUND_ID,
-    trancheId: 500,
+    trancheId: options.trancheId ?? 500,
     actorId: 3,
-    idempotencyKey: 'cascade-1',
+    idempotencyKey: options.idempotencyKey ?? 'cascade-1',
     request,
     database: makeDatabase(model),
   });
@@ -746,6 +866,9 @@ describe('correctVehicleParticipationLedger', () => {
       vehicle_participation_id: 701,
       amount: '110.00',
       round: 'Series A',
+      share_price_cents: 1100n,
+      shares_acquired: '10.00000000',
+      cost_basis_cents: 11000n,
       version: 2,
     });
     expect(model.rounds.find((row) => row.supersedes_round_id === 810)).toMatchObject({
@@ -764,6 +887,225 @@ describe('correctVehicleParticipationLedger', () => {
     expect(model.lots).toHaveLength(1);
     expect(model.lots[0]?.vehicle_participation_id).toBe(701);
     expect(result.value.reconciliationCaseIds).toHaveLength(1);
+    expect(invalidateH9Artifacts).toHaveBeenCalledTimes(1);
+    expect(invalidateH9Artifacts).toHaveBeenCalledWith(FUND_ID);
+  });
+
+  it('rewrites metadata-only stale fields and links current compat rows to the successor', async () => {
+    const result = await runCorrection({
+      ...correctionRequest,
+      correctedTranche: {
+        ...correctionRequest.correctedTranche,
+        closingDate: '2026-03-03',
+        securityType: 'equity',
+        investmentAmount: '1000.000000',
+        originalAmount: '1000.000000',
+        pricePerShare: '10.000000',
+        postMoneyValuation: '9000.000000',
+      },
+      dependents: [
+        {
+          ...correctionRequest.dependents[0],
+          overrideAdjustments: undefined,
+        },
+      ],
+    });
+
+    expect(result.value.compat.rewrittenParticipationIds).toEqual([701]);
+    expect(result.value.compat.unchangedParticipationIds).toEqual([]);
+    expect(model.investments).toHaveLength(1);
+    expect(model.investments[0]).toMatchObject({
+      vehicle_participation_id: 701,
+      amount: '100.00',
+      round: 'Series A',
+      valuation_at_investment: '9000.00',
+      version: 2,
+    });
+    expect(model.investments[0]?.investment_date.toISOString()).toBe('2026-03-03T00:00:00.000Z');
+    expect(model.rounds).toHaveLength(2);
+    expect(model.rounds.find((row) => row.supersedes_round_id === 810)).toMatchObject({
+      vehicle_participation_id: 701,
+      security_type: 'equity',
+      round_date: '2026-03-03',
+      investment_amount: '100.000000',
+      financing_tranche_id: 501,
+      imported_from: 'vehicle_participation',
+    });
+    expect(model.lots).toHaveLength(1);
+    expect(model.lots[0]?.vehicle_participation_id).toBe(701);
+    expect(model.cashFlows.find((row) => row.id === 820)?.status).toBe('reversed');
+    expect(model.cashFlows.find((row) => row.reversal_of_event_id === 820)).toMatchObject({
+      imported_from: 'vehicle_participation',
+    });
+  });
+
+  it('supports a second correction after compat lineage advances to the first successor', async () => {
+    await runCorrection({
+      ...correctionRequest,
+      correctedTranche: {
+        ...correctionRequest.correctedTranche,
+        investmentAmount: '1000.000000',
+        originalAmount: '1000.000000',
+        pricePerShare: '10.000000',
+      },
+      dependents: [
+        {
+          ...correctionRequest.dependents[0],
+          overrideAdjustments: undefined,
+        },
+      ],
+    });
+
+    const second = await runCorrection(
+      {
+        expectedTrancheVersion: 2,
+        correctedTranche: {
+          ...correctionRequest.correctedTranche,
+          closingDate: '2026-04-04',
+          investmentAmount: '1000.000000',
+          originalAmount: '1000.000000',
+          pricePerShare: '10.000000',
+        },
+        dependents: [
+          {
+            participationId: 701,
+            expectedVersion: 2,
+            acknowledgements: correctionRequest.dependents[0].acknowledgements,
+          },
+        ],
+      },
+      { trancheId: 501, idempotencyKey: 'cascade-2' }
+    );
+
+    expect(second.replayed).toBe(false);
+    expect(second.value.participationSuccessors[0]?.id).toBe(702);
+    expect(model.investments).toHaveLength(1);
+    expect(model.investments[0]).toMatchObject({
+      vehicle_participation_id: 702,
+      version: 3,
+    });
+    expect(model.lots).toHaveLength(1);
+    expect(model.lots[0]?.vehicle_participation_id).toBe(702);
+    expect(model.rounds.filter((row) => row.vehicle_participation_id === 702)).toHaveLength(1);
+  });
+
+  it('preserves prior observation measure keys for the corrected tranche and dependents', async () => {
+    const trancheObservation = model.observations.find((row) => row['id'] === 900);
+    const participationObservation = model.observations.find((row) => row['id'] === 901);
+    if (trancheObservation) {
+      trancheObservation['normalized_payload'] = { measureKey: 'initial_investment' };
+    }
+    if (participationObservation) {
+      participationObservation['normalized_payload'] = { measureKey: 'follow_on_investment' };
+    }
+
+    await runCorrection();
+
+    const insertedObservations = model.observations.slice(2);
+    expect(insertedObservations).toHaveLength(2);
+    expect(insertedObservations.map((row) => row['normalized_payload'])).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ measureKey: 'initial_investment' }),
+        expect.stringContaining('"measureKey":"follow_on_investment"'),
+      ])
+    );
+  });
+
+  it('rolls back when a prior source observation measure key is missing or unsupported', async () => {
+    const snapshot = cloneModel(model);
+    const trancheObservation = model.observations.find((row) => row['id'] === 900);
+    if (trancheObservation) {
+      trancheObservation['normalized_payload'] = { measureKey: 'ownership_stake' };
+    }
+
+    await expect(runCorrection()).rejects.toMatchObject({
+      status: 500,
+      code: 'LEDGER_WRITE_FAILED',
+    });
+
+    expect(model.tranches).toEqual(snapshot.tranches);
+    expect(model.participations).toEqual(snapshot.participations);
+    expect(model.investments).toEqual(snapshot.investments);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
+  });
+
+  it('marks correction reversal and replacement cash flows as vehicle participation imports', async () => {
+    await runCorrection();
+
+    expect(model.cashFlows.find((row) => row.reversal_of_event_id === 820)).toMatchObject({
+      imported_from: 'vehicle_participation',
+    });
+    expect(
+      model.cashFlows.find(
+        (row) => row.vehicle_participation_id === 701 && row.event_type === 'portfolio_investment'
+      )
+    ).toMatchObject({ imported_from: 'vehicle_participation' });
+  });
+
+  it('returns idempotency-key reuse when a non-correction tranche owns the key', async () => {
+    model.tranches[0] = { ...model.tranches[0]!, idempotency_key: 'cascade-1' };
+    const snapshot = cloneModel(model);
+
+    await expect(runCorrection()).rejects.toMatchObject({
+      name: 'IdempotentCommandError',
+      status: 409,
+      code: 'IDEMPOTENCY_KEY_REUSE',
+    });
+
+    expect(model.tranches).toEqual(snapshot.tranches);
+    expect(model.participations).toEqual(snapshot.participations);
+    expect(model.investments).toEqual(snapshot.investments);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
+  });
+
+  it('returns idempotency-key reuse when a financing event owns the key', async () => {
+    model.financingEventIdempotencyKeys = ['cascade-1'];
+    const snapshot = cloneModel(model);
+
+    await expect(runCorrection()).rejects.toMatchObject({
+      name: 'IdempotentCommandError',
+      status: 409,
+      code: 'IDEMPOTENCY_KEY_REUSE',
+    });
+
+    expect(model.tranches).toEqual(snapshot.tranches);
+    expect(model.participations).toEqual(snapshot.participations);
+    expect(model.investments).toEqual(snapshot.investments);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
+  });
+
+  it('returns idempotency-key reuse when a vehicle participation owns the key', async () => {
+    model.participations[0] = { ...model.participations[0]!, idempotency_key: 'cascade-1' };
+    const snapshot = cloneModel(model);
+
+    await expect(runCorrection()).rejects.toMatchObject({
+      name: 'IdempotentCommandError',
+      status: 409,
+      code: 'IDEMPOTENCY_KEY_REUSE',
+    });
+
+    expect(model.tranches).toEqual(snapshot.tranches);
+    expect(model.participations).toEqual(snapshot.participations);
+    expect(model.investments).toEqual(snapshot.investments);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
+  });
+
+  it('rejects a correction replay key if another command table also owns it', async () => {
+    await runCorrection();
+    invalidateH9Artifacts.mockClear();
+    model.financingEventIdempotencyKeys = ['cascade-1'];
+    const snapshot = cloneModel(model);
+
+    await expect(runCorrection()).rejects.toMatchObject({
+      name: 'IdempotentCommandError',
+      status: 409,
+      code: 'IDEMPOTENCY_KEY_REUSE',
+    });
+
+    expect(model.tranches).toEqual(snapshot.tranches);
+    expect(model.participations).toEqual(snapshot.participations);
+    expect(model.investments).toEqual(snapshot.investments);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
   });
 
   it('rejects an ambiguous identity link before any correction persists', async () => {
@@ -785,7 +1127,18 @@ describe('correctVehicleParticipationLedger', () => {
     expect(model.cases).toEqual(snapshot.cases);
   });
 
-  it('emits a newly representable lot when the old participation had none', async () => {
+  it('emits a newly representable lot when the prior projection had no lot', async () => {
+    model.tranches[0] = {
+      ...model.tranches[0]!,
+      price_per_share: null,
+      post_money_valuation: '8000.000000',
+    };
+    model.investments[0] = {
+      ...model.investments[0]!,
+      share_price_cents: null,
+      shares_acquired: null,
+      cost_basis_cents: null,
+    };
     model.lots = [];
 
     const result = await runCorrection();
@@ -794,6 +1147,11 @@ describe('correctVehicleParticipationLedger', () => {
     expect(result.value.compat.removedLotParticipationIds).toEqual([]);
     expect(model.lots).toHaveLength(1);
     expect(model.lots[0]?.vehicle_participation_id).toBe(701);
+    expect(model.investments[0]).toMatchObject({
+      share_price_cents: 1100n,
+      shares_acquired: '10.00000000',
+      cost_basis_cents: 11000n,
+    });
   });
 
   it('rolls back when an optimistic compat investment update loses its race', async () => {
@@ -811,6 +1169,7 @@ describe('correctVehicleParticipationLedger', () => {
     expect(model.rounds).toEqual(snapshot.rounds);
     expect(model.cashFlows).toEqual(snapshot.cashFlows);
     expect(model.lots).toEqual(snapshot.lots);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
   });
 
   it('rolls back when the approved cash-flow head changes before reversal', async () => {
@@ -828,6 +1187,107 @@ describe('correctVehicleParticipationLedger', () => {
     expect(model.rounds).toEqual(snapshot.rounds);
     expect(model.cashFlows).toEqual(snapshot.cashFlows);
     expect(model.lots).toEqual(snapshot.lots);
+  });
+
+  it('rolls back when the prior lot projection exists but no lot row is present', async () => {
+    model.lots = [];
+    const snapshot = cloneModel(model);
+
+    await expect(runCorrection()).rejects.toMatchObject({
+      status: 409,
+      code: 'PARTICIPATION_VERSION_CONFLICT',
+    });
+
+    expect(model.tranches).toEqual(snapshot.tranches);
+    expect(model.participations).toEqual(snapshot.participations);
+    expect(model.investments).toEqual(snapshot.investments);
+    expect(model.lots).toEqual(snapshot.lots);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
+  });
+
+  it('rolls back when the prior lot projection matches multiple lot rows', async () => {
+    model.lots.push({
+      id: 'lot-duplicate',
+      investment_id: 800,
+      vehicle_participation_id: 700,
+      cost_basis_cents: 10000n,
+    });
+    const snapshot = cloneModel(model);
+
+    await expect(runCorrection()).rejects.toMatchObject({
+      status: 409,
+      code: 'PARTICIPATION_VERSION_CONFLICT',
+    });
+
+    expect(model.tranches).toEqual(snapshot.tranches);
+    expect(model.participations).toEqual(snapshot.participations);
+    expect(model.investments).toEqual(snapshot.investments);
+    expect(model.lots).toEqual(snapshot.lots);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
+  });
+
+  it('rolls back when unchanged cash-flow relink no longer sees the old approved event', async () => {
+    model.cashFlows[0] = { ...model.cashFlows[0]!, status: 'reversed' };
+    const snapshot = cloneModel(model);
+
+    await expect(
+      runCorrection({
+        ...correctionRequest,
+        correctedTranche: {
+          ...correctionRequest.correctedTranche,
+          investmentAmount: '1000.000000',
+          closingDate: '2026-02-01',
+          pricePerShare: '10.000000',
+          descriptiveTerms: { boardObserver: true },
+        },
+        dependents: [
+          {
+            ...correctionRequest.dependents[0],
+            overrideAdjustments: undefined,
+          },
+        ],
+      })
+    ).rejects.toMatchObject({
+      status: 409,
+      code: 'PARTICIPATION_VERSION_CONFLICT',
+    });
+
+    expect(model.tranches).toEqual(snapshot.tranches);
+    expect(model.participations).toEqual(snapshot.participations);
+    expect(model.cashFlows).toEqual(snapshot.cashFlows);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
+  });
+
+  it('rejects a locked unchanged cash-flow before relinking', async () => {
+    model.cashFlows[0] = { ...model.cashFlows[0]!, status: 'locked' };
+    const snapshot = cloneModel(model);
+
+    await expect(
+      runCorrection({
+        ...correctionRequest,
+        correctedTranche: {
+          ...correctionRequest.correctedTranche,
+          investmentAmount: '1000.000000',
+          closingDate: '2026-02-01',
+          pricePerShare: '10.000000',
+          descriptiveTerms: { boardObserver: true },
+        },
+        dependents: [
+          {
+            ...correctionRequest.dependents[0],
+            overrideAdjustments: undefined,
+          },
+        ],
+      })
+    ).rejects.toMatchObject({
+      status: 409,
+      code: 'LEDGER_WRITE_FAILED',
+    });
+
+    expect(model.tranches).toEqual(snapshot.tranches);
+    expect(model.participations).toEqual(snapshot.participations);
+    expect(model.cashFlows).toEqual(snapshot.cashFlows);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
   });
 
   it('does not rewrite compat rows for a non-money correction', async () => {
@@ -852,12 +1312,16 @@ describe('correctVehicleParticipationLedger', () => {
     expect(result.value.compat.unchangedParticipationIds).toEqual([701]);
     expect(result.value.warnings).toEqual([]);
     expect(model.investments[0]).toMatchObject({
-      vehicle_participation_id: 700,
-      version: 1,
+      vehicle_participation_id: 701,
+      version: 2,
     });
-    expect(model.rounds).toHaveLength(1);
+    expect(model.rounds).toHaveLength(2);
+    expect(model.rounds.find((row) => row.supersedes_round_id === 810)).toMatchObject({
+      vehicle_participation_id: 701,
+    });
     expect(model.cashFlows).toHaveLength(1);
-    expect(model.lots[0]?.vehicle_participation_id).toBe(700);
+    expect(model.cashFlows[0]?.vehicle_participation_id).toBe(701);
+    expect(model.lots[0]?.vehicle_participation_id).toBe(701);
   });
 
   it.each([
@@ -889,6 +1353,11 @@ describe('correctVehicleParticipationLedger', () => {
     expect(result.value.warnings).toContain('LOT_OMITTED_UNREPRESENTABLE');
     expect(result.value.compat.removedLotParticipationIds).toEqual([701]);
     expect(model.lots).toHaveLength(0);
+    expect(model.investments[0]).toMatchObject({
+      share_price_cents: null,
+      shares_acquired: null,
+      cost_basis_cents: null,
+    });
   });
 
   it('replays a completed correction without new mutations', async () => {
@@ -898,6 +1367,7 @@ describe('correctVehicleParticipationLedger', () => {
 
     expect(replay.value as LedgerCorrectionReceiptV1).toEqual(first.value);
     expect(replay.replayed).toBe(true);
+    expect(invalidateH9Artifacts).toHaveBeenCalledTimes(1);
     expect(model.tranches).toHaveLength(snapshot.tranches.length);
     expect(model.participations).toHaveLength(snapshot.participations.length);
     expect(model.cashFlows).toHaveLength(snapshot.cashFlows.length);

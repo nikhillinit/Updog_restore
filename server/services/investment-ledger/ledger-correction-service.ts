@@ -31,6 +31,7 @@ import {
   type ParticipationCompatibilityProjection,
 } from '../../../shared/lib/investment-ledger/participation-quantization';
 import { normalizeManualObservation } from '../financial-observations/manual-entry-adapter';
+import { invalidateH9Artifacts } from '../h9-artifact-invalidation-service';
 
 type LedgerDatabase = typeof db;
 
@@ -341,6 +342,10 @@ export async function correctVehicleParticipationLedger(
     });
   });
 
+  if (!result.replayed) {
+    await invalidateH9Artifacts(input.fundId);
+  }
+
   return { value: result.row, replayed: result.replayed };
 }
 
@@ -379,8 +384,25 @@ async function selectReceiptByIdempotency(
   fundId: number,
   idempotencyKey: string
 ): Promise<{ row: LedgerCorrectionReceiptV1; requestHash: string } | null> {
+  const owners = await selectIdempotencyKeyOwners(database, fundId, idempotencyKey);
+  if (owners.length === 0) return null;
+  if (owners.some((owner) => owner !== 'financing_tranches')) {
+    throw new IdempotentCommandError(
+      409,
+      'IDEMPOTENCY_KEY_REUSE',
+      'Idempotency-Key was already used for a different ledger command.',
+      { idempotencyKey }
+    );
+  }
+
   const tranche = await selectTrancheByIdempotency(database, fundId, idempotencyKey);
-  if (!tranche) return null;
+  if (!tranche) {
+    throw new LedgerCorrectionServiceError(
+      500,
+      'LEDGER_WRITE_FAILED',
+      'Stored correction tranche owner could not be found.'
+    );
+  }
   if (tranche.sourceObservationId === null) {
     throw new LedgerCorrectionServiceError(
       500,
@@ -397,9 +419,23 @@ async function selectReceiptByIdempotency(
       LIMIT 1
     `)
   )[0];
-  const storedReceipt = observation
-    ? asRecord(observation['normalized_payload'])['ledgerCorrectionReceipt']
-    : undefined;
+  if (!observation) {
+    throw new LedgerCorrectionServiceError(
+      500,
+      'LEDGER_WRITE_FAILED',
+      'Stored correction receipt observation could not be found.'
+    );
+  }
+  const payload = asRecord(observation['normalized_payload']);
+  const storedReceipt = payload['ledgerCorrectionReceipt'];
+  if (storedReceipt === undefined) {
+    throw new IdempotentCommandError(
+      409,
+      'IDEMPOTENCY_KEY_REUSE',
+      'Idempotency-Key was already used for a different ledger command.',
+      { idempotencyKey }
+    );
+  }
   const parsedReceipt = LedgerCorrectionReceiptV1Schema.safeParse(storedReceipt);
   if (!parsedReceipt.success) {
     throw new LedgerCorrectionServiceError(
@@ -412,6 +448,34 @@ async function selectReceiptByIdempotency(
     row: parsedReceipt.data,
     requestHash: tranche.requestHash,
   };
+}
+
+async function selectIdempotencyKeyOwners(
+  database: LedgerDatabase,
+  fundId: number,
+  idempotencyKey: string
+): Promise<string[]> {
+  return readRows(
+    await database.execute(sql`
+      SELECT command_table
+      FROM (
+        SELECT 'financing_events' AS command_table
+        FROM financing_events
+        WHERE fund_id = ${fundId}
+          AND idempotency_key = ${idempotencyKey}
+        UNION ALL
+        SELECT 'financing_tranches' AS command_table
+        FROM financing_tranches
+        WHERE fund_id = ${fundId}
+          AND idempotency_key = ${idempotencyKey}
+        UNION ALL
+        SELECT 'vehicle_financing_participations' AS command_table
+        FROM vehicle_financing_participations
+        WHERE fund_id = ${fundId}
+          AND idempotency_key = ${idempotencyKey}
+      ) AS ledger_command_idempotency_owners
+    `)
+  ).map((row) => asString(row['command_table']));
 }
 
 async function persistCorrectionReceipt(
@@ -703,7 +767,11 @@ async function supersedeTranche(
     companyIdentityId: observationContext.companyIdentityId,
     companyName: observationContext.companyName,
     sourceLocator: `financing-event:${current.financingEventId}:tranche:${current.trancheKey}`,
-    measureKey: 'follow_on_investment',
+    measureKey: await loadPriorObservationMeasureKey(
+      database,
+      input.fundId,
+      current.sourceObservationId
+    ),
     effectiveDate: request.correctedTranche.closingDate,
     amount: request.correctedTranche.investmentAmount,
     version: current.version + 1,
@@ -764,34 +832,40 @@ async function cascadeParticipationSuccessors(
       if (!warnings.includes(warning)) warnings.push(warning);
     }
 
-    const moneyRowsChanged =
-      moneyRowsProjectionHash(oldProjection) !== moneyRowsProjectionHash(newProjection);
+    const visibleRowsChanged =
+      compatibilityVisibleProjectionHash(oldProjection, oldTerms, context.context.roundName) !==
+      compatibilityVisibleProjectionHash(newProjection, newTerms, context.context.roundName);
+    const cashFlowChanged =
+      cashFlowProjectionHash(oldProjection, oldTerms) !==
+      cashFlowProjectionHash(newProjection, newTerms);
     const lotChanged = lotProjectionHash(oldProjection) !== lotProjectionHash(newProjection);
     const change = {
-      rewritten: moneyRowsChanged || lotChanged,
-      moneyRowsChanged,
+      rewritten: visibleRowsChanged || lotChanged,
+      moneyRowsChanged: visibleRowsChanged,
       lotChanged,
       oldProjection,
       newProjection,
     };
     if (change.rewritten) {
       rewrittenParticipationIds.push(successor.id);
-      const lotStatus = await rewriteCompatibilityRows(database, {
-        input: context.input,
-        observationContext: context.context,
-        oldParticipation: dependent,
-        successor,
-        tranche: context.newTranche,
-        priorProjection: oldProjection,
-        projection: newProjection,
-        rewriteMoneyRows: moneyRowsChanged,
-        rewriteLot: lotChanged,
-      });
-      if (lotStatus.removed) removedLotParticipationIds.push(successor.id);
-      if (lotStatus.emitted) emittedLotParticipationIds.push(successor.id);
     } else {
       unchangedParticipationIds.push(successor.id);
     }
+    const lotStatus = await rewriteCompatibilityRows(database, {
+      input: context.input,
+      observationContext: context.context,
+      oldParticipation: dependent,
+      successor,
+      tranche: context.newTranche,
+      priorProjection: oldProjection,
+      projection: newProjection,
+      priorTerms: oldTerms,
+      terms: newTerms,
+      rewriteCashFlow: cashFlowChanged,
+      rewriteLot: lotChanged,
+    });
+    if (lotStatus.removed) removedLotParticipationIds.push(successor.id);
+    if (lotStatus.emitted) emittedLotParticipationIds.push(successor.id);
 
     const observationId = await insertParticipationObservation(database, {
       input: context.input,
@@ -800,6 +874,11 @@ async function cascadeParticipationSuccessors(
       tranche: context.newTranche,
       projection: newProjection,
       compatibilityChange: change,
+      measureKey: await loadPriorObservationMeasureKey(
+        database,
+        context.input.fundId,
+        dependent.sourceObservationId
+      ),
     });
     await updateParticipationObservation(
       database,
@@ -930,7 +1009,9 @@ async function rewriteCompatibilityRows(
     tranche: FinancingTrancheRow;
     priorProjection: ParticipationCompatibilityProjection;
     projection: ParticipationCompatibilityProjection;
-    rewriteMoneyRows: boolean;
+    priorTerms: ReturnType<typeof resolveEffectiveTerms>;
+    terms: ReturnType<typeof resolveEffectiveTerms>;
+    rewriteCashFlow: boolean;
     rewriteLot: boolean;
   }
 ): Promise<{ removed: boolean; emitted: boolean }> {
@@ -946,86 +1027,100 @@ async function rewriteCompatibilityRows(
       'Participation correction could not find its compat investment.'
     );
   }
-  if (context.rewriteMoneyRows) {
-    const updatedInvestments = readRows(
-      await database.execute(sql`
-        UPDATE investments
-        SET amount = ${context.projection.investmentAmount},
-            round = ${truncateRoundLabel(context.observationContext.roundName)},
-            investment_date = ${midnightUtc(context.tranche.closingDate)},
-            vehicle_participation_id = ${context.successor.id},
-            version = version + 1
-        WHERE id = ${investment.id}
-          AND fund_id = ${context.input.fundId}
-          AND version = ${investment.version}
-        RETURNING id
-      `)
-    );
-    if (updatedInvestments.length !== 1) {
-      throw new LedgerCorrectionServiceError(
-        409,
-        'PARTICIPATION_VERSION_CONFLICT',
-        'The participation compat investment changed concurrently; retry the correction.'
-      );
-    }
-
-    const priorRound = await selectActiveRoundForParticipation(
-      database,
-      context.input.fundId,
-      context.oldParticipation.id
-    );
-    if (!priorRound) {
-      throw new LedgerCorrectionServiceError(
-        500,
-        'LEDGER_WRITE_FAILED',
-        'Participation correction could not find its active compat investment round.'
-      );
-    }
+  const updatedInvestments = readRows(
     await database.execute(sql`
-      INSERT INTO investment_rounds (
-        investment_id, fund_id, round_name, security_type, round_date, currency,
-        investment_amount, idempotency_key, request_hash, supersedes_round_id,
-        financing_tranche_id, imported_from, vehicle_participation_id, created_by
-      ) VALUES (
-        ${investment.id}, ${context.input.fundId}, ${truncateRoundLabel(context.observationContext.roundName)},
-        ${context.tranche.securityType}, ${context.tranche.closingDate}, 'USD',
-        ${context.projection.roundInvestmentAmount}, ${`vfp:${context.successor.id}:v${context.successor.version}:round`},
-        ${canonicalSha256({
-          source: 'vehicle_participation',
-          role: 'round',
-          participationId: context.successor.id,
-          participationVersion: context.successor.version,
-        })},
-        ${priorRound.id}, ${context.tranche.id}, 'vehicle_participation',
-        ${context.successor.id}, ${context.input.actorId}
-      )
-    `);
-
-    const priorCashFlow = await selectOriginalCashFlowForParticipation(
-      database,
-      context.input.fundId,
-      context.oldParticipation.id
+      UPDATE investments
+      SET amount = ${context.projection.investmentAmount},
+          round = ${truncateRoundLabel(context.observationContext.roundName)},
+          investment_date = ${midnightUtc(context.terms.closingDate)},
+          valuation_at_investment = ${formatNullableMoney(context.terms.postMoneyValuation)},
+          share_price_cents = ${context.projection.lot?.sharePriceCents ?? null},
+          shares_acquired = ${context.projection.lot?.sharesAcquired ?? null},
+          cost_basis_cents = ${context.projection.lot?.costBasisCents ?? null},
+          vehicle_participation_id = ${context.successor.id},
+          version = version + 1
+      WHERE id = ${investment.id}
+        AND fund_id = ${context.input.fundId}
+        AND version = ${investment.version}
+      RETURNING id
+    `)
+  );
+  if (updatedInvestments.length !== 1) {
+    throw new LedgerCorrectionServiceError(
+      409,
+      'PARTICIPATION_VERSION_CONFLICT',
+      'The participation compat investment changed concurrently; retry the correction.'
     );
-    if (!priorCashFlow) {
-      throw new LedgerCorrectionServiceError(
-        500,
-        'LEDGER_WRITE_FAILED',
-        'Participation correction could not find its active compat cash-flow event.'
-      );
-    }
+  }
+
+  const priorRound = await selectActiveRoundForParticipation(
+    database,
+    context.input.fundId,
+    context.oldParticipation.id
+  );
+  if (!priorRound) {
+    throw new LedgerCorrectionServiceError(
+      500,
+      'LEDGER_WRITE_FAILED',
+      'Participation correction could not find its active compat investment round.'
+    );
+  }
+  await database.execute(sql`
+    INSERT INTO investment_rounds (
+      investment_id, fund_id, round_name, security_type, round_date, currency,
+      investment_amount, idempotency_key, request_hash, supersedes_round_id,
+      financing_tranche_id, imported_from, vehicle_participation_id, created_by
+    ) VALUES (
+      ${investment.id}, ${context.input.fundId}, ${truncateRoundLabel(context.observationContext.roundName)},
+      ${context.terms.securityType}, ${context.terms.closingDate}, 'USD',
+      ${context.projection.roundInvestmentAmount}, ${`vfp:${context.successor.id}:v${context.successor.version}:round`},
+      ${canonicalSha256({
+        source: 'vehicle_participation',
+        role: 'round',
+        participationId: context.successor.id,
+        participationVersion: context.successor.version,
+      })},
+      ${priorRound.id}, ${context.tranche.id}, 'vehicle_participation',
+      ${context.successor.id}, ${context.input.actorId}
+    )
+  `);
+
+  const priorCashFlow = await selectOriginalCashFlowForParticipation(
+    database,
+    context.input.fundId,
+    context.oldParticipation.id
+  );
+  if (!priorCashFlow) {
+    throw new LedgerCorrectionServiceError(
+      500,
+      'LEDGER_WRITE_FAILED',
+      'Participation correction could not find its active compat cash-flow event.'
+    );
+  }
+  if (context.rewriteCashFlow) {
     await reverseAndReplaceCashFlow(database, context, priorCashFlow);
+  } else {
+    await relinkCashFlow(database, {
+      input: context.input,
+      oldParticipation: context.oldParticipation,
+      successor: context.successor,
+      priorCashFlow,
+    });
   }
 
   let deletedLots: Array<Record<string, unknown>> = [];
   if (context.rewriteLot) {
-    deletedLots = readRows(
-      await database.execute(sql`
-        DELETE FROM investment_lots
-        WHERE investment_id = ${investment.id}
-          AND vehicle_participation_id = ${context.oldParticipation.id}
-        RETURNING id
-      `)
-    );
+    if (context.priorProjection.lot) {
+      deletedLots = readRows(
+        await database.execute(sql`
+          DELETE FROM investment_lots
+          WHERE investment_id = ${investment.id}
+            AND vehicle_participation_id = ${context.oldParticipation.id}
+          RETURNING id
+        `)
+      );
+      assertExactlyOneLotRow(deletedLots.length);
+    }
     if (context.projection.lot) {
       await database.execute(sql`
         INSERT INTO investment_lots (
@@ -1039,12 +1134,33 @@ async function rewriteCompatibilityRows(
         )
       `);
     }
+  } else if (context.priorProjection.lot) {
+    const updatedLots = readRows(
+      await database.execute(sql`
+        UPDATE investment_lots
+        SET vehicle_participation_id = ${context.successor.id}
+        WHERE investment_id = ${investment.id}
+          AND vehicle_participation_id = ${context.oldParticipation.id}
+        RETURNING id
+      `)
+    );
+    assertExactlyOneLotRow(updatedLots.length);
   }
 
   return {
     removed: context.rewriteLot && deletedLots.length > 0 && !context.projection.lot,
     emitted: context.rewriteLot && !!context.projection.lot,
   };
+}
+
+function assertExactlyOneLotRow(rowCount: number): void {
+  if (rowCount !== 1) {
+    throw new LedgerCorrectionServiceError(
+      409,
+      'PARTICIPATION_VERSION_CONFLICT',
+      'The participation compat lot changed concurrently; retry the correction.'
+    );
+  }
 }
 
 async function reverseAndReplaceCashFlow(
@@ -1057,6 +1173,8 @@ async function reverseAndReplaceCashFlow(
     tranche: FinancingTrancheRow;
     priorProjection: ParticipationCompatibilityProjection;
     projection: ParticipationCompatibilityProjection;
+    priorTerms: ReturnType<typeof resolveEffectiveTerms>;
+    terms: ReturnType<typeof resolveEffectiveTerms>;
   },
   priorCashFlow: CashFlowRow
 ): Promise<void> {
@@ -1088,11 +1206,11 @@ async function reverseAndReplaceCashFlow(
     INSERT INTO cash_flow_events (
       fund_id, vehicle_id, company_id, event_type, amount, currency, event_date,
       perspective, description, payload, status, reversal_of_event_id,
-      vehicle_participation_id, source_hash, created_by
+      imported_from, vehicle_participation_id, source_hash, created_by
     ) VALUES (
       ${context.input.fundId}, ${context.successor.vehicleId},
       ${context.observationContext.portfolioCompanyId}, 'reversal',
-      ${context.priorProjection.cashFlowAmount}, 'USD', ${midnightUtc(context.tranche.closingDate)},
+      ${context.priorProjection.cashFlowAmount}, 'USD', ${midnightUtc(context.priorTerms.closingDate)},
       'vehicle', ${`Reversal for vehicle participation ${context.oldParticipation.id}`},
       ${JSON.stringify({
         source: 'vehicle_participation',
@@ -1101,7 +1219,7 @@ async function reverseAndReplaceCashFlow(
         oldParticipationId: context.oldParticipation.id,
         participationId: context.successor.id,
       })}::jsonb,
-      'approved', ${priorCashFlow.id}, ${context.successor.id},
+      'approved', ${priorCashFlow.id}, 'vehicle_participation', ${context.successor.id},
       ${cashFlowSourceHash(context.input.fundId, context.successor, 'reversal', priorCashFlow.id)},
       ${context.input.actorId}
     )
@@ -1110,11 +1228,11 @@ async function reverseAndReplaceCashFlow(
     INSERT INTO cash_flow_events (
       fund_id, vehicle_id, company_id, event_type, amount, currency, event_date,
       perspective, description, payload, status, vehicle_participation_id,
-      source_hash, created_by
+      imported_from, source_hash, created_by
     ) VALUES (
       ${context.input.fundId}, ${context.successor.vehicleId},
       ${context.observationContext.portfolioCompanyId}, 'portfolio_investment',
-      ${context.projection.cashFlowAmount}, 'USD', ${midnightUtc(context.tranche.closingDate)},
+      ${context.projection.cashFlowAmount}, 'USD', ${midnightUtc(context.terms.closingDate)},
       'vehicle', ${`Vehicle participation ${context.successor.id}`},
       ${JSON.stringify({
         source: 'vehicle_participation',
@@ -1123,11 +1241,54 @@ async function reverseAndReplaceCashFlow(
         oldParticipationId: context.oldParticipation.id,
         participationId: context.successor.id,
       })}::jsonb,
-      'approved', ${context.successor.id},
+      'approved', ${context.successor.id}, 'vehicle_participation',
       ${cashFlowSourceHash(context.input.fundId, context.successor, 'replacement')},
       ${context.input.actorId}
     )
   `);
+}
+
+async function relinkCashFlow(
+  database: LedgerDatabase,
+  context: {
+    input: LedgerCorrectionContext;
+    oldParticipation: ParticipationRow;
+    successor: ParticipationRow;
+    priorCashFlow: CashFlowRow;
+  }
+): Promise<void> {
+  if (context.priorCashFlow.status === 'locked') {
+    throw new LedgerCorrectionServiceError(
+      409,
+      'LEDGER_WRITE_FAILED',
+      'Locked cash-flow events cannot be relinked by participation cascade.'
+    );
+  }
+  if (context.priorCashFlow.status !== 'approved') {
+    throw new LedgerCorrectionServiceError(
+      409,
+      'PARTICIPATION_VERSION_CONFLICT',
+      'The participation cash-flow head changed concurrently; retry the correction.'
+    );
+  }
+  const updated = readRows(
+    await database.execute(sql`
+      UPDATE cash_flow_events
+      SET vehicle_participation_id = ${context.successor.id}
+      WHERE id = ${context.priorCashFlow.id}
+        AND vehicle_participation_id = ${context.oldParticipation.id}
+        AND fund_id = ${context.input.fundId}
+        AND status = 'approved'
+      RETURNING id
+    `)
+  );
+  if (updated.length !== 1) {
+    throw new LedgerCorrectionServiceError(
+      409,
+      'PARTICIPATION_VERSION_CONFLICT',
+      'The participation cash-flow head changed concurrently; retry the correction.'
+    );
+  }
 }
 
 async function selectInvestmentForParticipation(
@@ -1236,6 +1397,47 @@ async function loadObservationContext(
   };
 }
 
+async function loadPriorObservationMeasureKey(
+  database: LedgerDatabase,
+  fundId: number,
+  observationId: number | null
+): Promise<'initial_investment' | 'follow_on_investment'> {
+  if (observationId === null) {
+    throw new LedgerCorrectionServiceError(
+      500,
+      'LEDGER_WRITE_FAILED',
+      'Correction could not load the prior source observation.'
+    );
+  }
+  const row = readRows(
+    await database.execute(sql`
+      SELECT normalized_payload
+      FROM source_observations
+      WHERE id = ${observationId}
+        AND fund_id = ${fundId}
+      LIMIT 1
+    `)
+  )[0];
+  if (!row) {
+    throw new LedgerCorrectionServiceError(
+      500,
+      'LEDGER_WRITE_FAILED',
+      'Correction could not load the prior source observation.'
+    );
+  }
+
+  const payload = asRecord(row['normalized_payload']);
+  const measureKey = payload['measureKey'];
+  if (measureKey === 'initial_investment' || measureKey === 'follow_on_investment') {
+    return measureKey;
+  }
+  throw new LedgerCorrectionServiceError(
+    500,
+    'LEDGER_WRITE_FAILED',
+    'Correction could not reuse the prior source observation measure key.'
+  );
+}
+
 async function insertParticipationObservation(
   database: LedgerDatabase,
   context: {
@@ -1245,6 +1447,7 @@ async function insertParticipationObservation(
     tranche: FinancingTrancheRow;
     projection: ParticipationCompatibilityProjection;
     compatibilityChange: CompatibilityChange;
+    measureKey: 'initial_investment' | 'follow_on_investment';
   }
 ): Promise<number> {
   return insertManualObservation(database, {
@@ -1252,7 +1455,7 @@ async function insertParticipationObservation(
     companyIdentityId: context.observationContext.companyIdentityId,
     companyName: context.observationContext.companyName,
     sourceLocator: `vehicle-participation:${context.participation.id}:v${context.participation.version}`,
-    measureKey: 'follow_on_investment',
+    measureKey: context.measureKey,
     effectiveDate: context.tranche.closingDate,
     amount: context.projection.cashFlowAmount,
     version: context.participation.version,
@@ -1411,12 +1614,36 @@ function cashFlowSourceHash(
   });
 }
 
-function moneyRowsProjectionHash(projection: ParticipationCompatibilityProjection): string {
+function compatibilityVisibleProjectionHash(
+  projection: ParticipationCompatibilityProjection,
+  terms: ReturnType<typeof resolveEffectiveTerms>,
+  roundName: string
+): string {
   return canonicalSha256({
     investmentAmount: projection.investmentAmount,
+    investmentDate: terms.closingDate,
+    roundName: truncateRoundLabel(roundName),
+    valuationAtInvestment: formatNullableMoney(terms.postMoneyValuation),
+    roundSecurityType: terms.securityType,
+    roundDate: terms.closingDate,
     roundInvestmentAmount: projection.roundInvestmentAmount,
-    cashFlowAmount: projection.cashFlowAmount,
   });
+}
+
+function cashFlowProjectionHash(
+  projection: ParticipationCompatibilityProjection,
+  terms: ReturnType<typeof resolveEffectiveTerms>
+): string {
+  return canonicalSha256({
+    cashFlowAmount: projection.cashFlowAmount,
+    cashFlowDate: terms.closingDate,
+  });
+}
+
+function formatNullableMoney(value: string | null): string | null {
+  return value === null
+    ? null
+    : new Decimal(value).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toFixed(2);
 }
 
 function lotProjectionHash(projection: ParticipationCompatibilityProjection): string {

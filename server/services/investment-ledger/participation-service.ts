@@ -27,7 +27,12 @@ import {
   formatRoundHalfUp,
   projectParticipationCompatibility,
 } from '../../../shared/lib/investment-ledger/participation-quantization';
+import {
+  createOriginalParticipationSourceHash,
+  createParticipationWireFingerprint,
+} from '../../../shared/lib/investment-ledger/participation-wire-fingerprint';
 import { normalizeManualObservation } from '../financial-observations/manual-entry-adapter';
+import { invalidateH9Artifacts } from '../h9-artifact-invalidation-service';
 
 type LedgerDatabase = typeof db;
 
@@ -142,6 +147,7 @@ interface CompatRows {
   investmentLotId: string | null;
   cashFlowEventId: number;
   sourceHash: string;
+  wireFingerprint: string;
 }
 
 const StoredParticipationReceiptSchema = z
@@ -271,6 +277,8 @@ export async function createVehicleFinancingParticipation(
           actorId: input.actorId,
           vehicleId: request.vehicleId,
           companyId: identityLink.portfolioCompanyId,
+          financingEventId: context.tranche.financingEventId,
+          trancheKey: context.tranche.trancheKey,
           roundName: truncateRoundLabel(context.roundName),
           closingDate: effectiveTerms.closingDate,
           securityType: effectiveTerms.securityType,
@@ -291,6 +299,7 @@ export async function createVehicleFinancingParticipation(
           participationAmount: projection.cashFlowAmount,
           warnings: projection.warnings,
           sourceHash: compatRows.sourceHash,
+          wireFingerprint: compatRows.wireFingerprint,
           compat: compatRows,
         });
 
@@ -300,6 +309,10 @@ export async function createVehicleFinancingParticipation(
       },
     });
   });
+
+  if (!result.replayed) {
+    await invalidateH9Artifacts(input.fundId);
+  }
 
   const value = await loadParticipationReceipt(database, input.fundId, result.row.id);
   return {
@@ -524,6 +537,8 @@ async function insertCompatRows(
     actorId: number | null;
     vehicleId: number;
     companyId: number;
+    financingEventId: number;
+    trancheKey: string;
     roundName: string;
     closingDate: string;
     securityType: string;
@@ -595,13 +610,17 @@ async function insertCompatRows(
             `)
           )[0]?.['id']
         );
-  const sourceHash = canonicalSha256({
-    source: 'vehicle_participation',
+  const wireFingerprint = createParticipationWireFingerprint({
     fundId: input.fundId,
-    participationId: input.participation.id,
-    participationVersion: input.participation.version,
-    role: 'original',
+    vehicleId: input.vehicleId,
+    portfolioCompanyId: input.companyId,
+    financingEventId: input.financingEventId,
+    trancheKey: input.trancheKey,
+    effectiveClosingDate: input.closingDate,
+    cashFlowAmountUsd: input.cashFlowAmount,
+    currency: 'USD',
   });
+  const sourceHash = createOriginalParticipationSourceHash(wireFingerprint);
   const cashFlowEventId = readInsertedId(
     await database.execute(sql`
       INSERT INTO cash_flow_events (
@@ -614,6 +633,7 @@ async function insertCompatRows(
         ${`Vehicle participation ${input.participation.id}`},
         ${JSON.stringify({
           source: 'vehicle_participation',
+          wireFingerprint,
           participationId: input.participation.id,
           participationVersion: input.participation.version,
           financingTrancheId: input.participation.financingTrancheId,
@@ -624,7 +644,14 @@ async function insertCompatRows(
       RETURNING id
     `)
   );
-  return { investmentId, investmentRoundId, investmentLotId, cashFlowEventId, sourceHash };
+  return {
+    investmentId,
+    investmentRoundId,
+    investmentLotId,
+    cashFlowEventId,
+    sourceHash,
+    wireFingerprint,
+  };
 }
 
 async function insertManualObservation(
@@ -639,6 +666,7 @@ async function insertManualObservation(
     participationAmount: string;
     warnings: VehicleParticipationErrorCode[];
     sourceHash: string;
+    wireFingerprint: string;
     compat: CompatRows;
   }
 ): Promise<number> {
@@ -670,6 +698,13 @@ async function insertManualObservation(
     );
   }
 
+  const receiptCompat: Omit<CompatRows, 'wireFingerprint'> = {
+    investmentId: input.compat.investmentId,
+    investmentRoundId: input.compat.investmentRoundId,
+    investmentLotId: input.compat.investmentLotId,
+    cashFlowEventId: input.compat.cashFlowEventId,
+    sourceHash: input.compat.sourceHash,
+  };
   const observationId = readInsertedId(
     await database.execute(sql`SELECT nextval('source_observations_id_seq') AS id`)
   );
@@ -680,11 +715,12 @@ async function insertManualObservation(
       participationId: input.participationId,
       participationVersion: input.participationVersion,
       sourceHash: input.sourceHash,
+      wireFingerprint: input.wireFingerprint,
       warnings: input.warnings,
       receipt: {
         warnings: input.warnings,
-        lotStatus: lotStatusFromWarnings(input.warnings, input.compat.investmentLotId),
-        compat: input.compat,
+        lotStatus: lotStatusFromWarnings(input.warnings, receiptCompat.investmentLotId),
+        compat: receiptCompat,
       },
     },
   };

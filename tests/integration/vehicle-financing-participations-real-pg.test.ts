@@ -88,12 +88,31 @@ interface LegacyGuardServiceModule {
   ) => Promise<unknown>;
 }
 
+interface FundCompanyActualsFactsServiceModule {
+  buildFundCompanyActualsFacts: (input: {
+    fundId: number;
+    asOfDate: string;
+    now?: Date;
+    database: TransactionalDb;
+  }) => Promise<{
+    facts: Array<{
+      fundId: number;
+      companyId: number;
+      investmentIds: number[];
+      activeRoundIds: number[];
+      initialInvestmentAmount: string;
+      followOnInvestmentAmount: string;
+    }>;
+  }>;
+}
+
 let container: Awaited<ReturnType<typeof setupTestDB>> | undefined;
 let pool: Pool | undefined;
 let db: TransactionalDb;
 let participationService: ParticipationServiceModule;
 let correctionService: LedgerCorrectionServiceModule;
 let legacyGuardService: LegacyGuardServiceModule;
+let factsService: FundCompanyActualsFactsServiceModule;
 
 describe('vehicle financing participations real PostgreSQL', () => {
   beforeAll(async () => {
@@ -110,6 +129,8 @@ describe('vehicle financing participations real PostgreSQL', () => {
       (await import('../../server/services/investment-ledger/ledger-correction-service')) as unknown as LedgerCorrectionServiceModule;
     legacyGuardService =
       (await import('../../server/services/investment-ledger/legacy-compat-guard-service')) as unknown as LegacyGuardServiceModule;
+    factsService =
+      (await import('../../server/services/fund-actuals/fund-company-actuals-facts-service')) as unknown as FundCompanyActualsFactsServiceModule;
   }, STARTUP_TIMEOUT_MS);
 
   afterAll(async () => {
@@ -197,13 +218,7 @@ describe('vehicle financing participations real PostgreSQL', () => {
       participationRequest(context.vehicleId, '102.000000'),
       'task10-source-hash'
     );
-    const sourceHash = canonicalSha256({
-      source: 'vehicle_participation',
-      fundId: context.fundId,
-      participationId: result.value.participation.id,
-      participationVersion: result.value.participation.version,
-      role: 'original',
-    });
+    const sourceHash = result.value.compat.sourceHash;
 
     await expect(
       db.execute(sql`
@@ -303,6 +318,76 @@ describe('vehicle financing participations real PostgreSQL', () => {
     expect(await countCurrentParticipationHeads(context)).toBe(1);
     expect(await countCurrentTrancheHeads(context.fundId, context.eventId)).toBe(1);
   });
+
+  it('persists participation compatibility literals consumed by fund-company actuals facts', async () => {
+    const context = await seedLedgerContext(7);
+    const result = await createParticipation(
+      context,
+      participationRequest(context.vehicleId, '123.456789', '12.34567890'),
+      'task10-facts-parity'
+    );
+
+    const persisted = oneRow(
+      await db.execute(sql`
+        SELECT
+          i.id::integer AS "investmentId",
+          i.amount::text AS "investmentAmount",
+          i.share_price_cents::text AS "investmentSharePriceCents",
+          i.shares_acquired::text AS "investmentSharesAcquired",
+          i.cost_basis_cents::text AS "investmentCostBasisCents",
+          r.id::integer AS "roundId",
+          r.investment_amount::text AS "roundInvestmentAmount",
+          l.share_price_cents::text AS "lotSharePriceCents",
+          l.shares_acquired::text AS "lotSharesAcquired",
+          l.cost_basis_cents::text AS "lotCostBasisCents",
+          c.amount::text AS "cashFlowAmount",
+          c.perspective AS "cashFlowPerspective",
+          c.event_type AS "cashFlowEventType",
+          c.status AS "cashFlowStatus"
+        FROM investments i
+        JOIN investment_rounds r
+          ON r.vehicle_participation_id = i.vehicle_participation_id
+        JOIN investment_lots l
+          ON l.vehicle_participation_id = i.vehicle_participation_id
+        JOIN cash_flow_events c
+          ON c.vehicle_participation_id = i.vehicle_participation_id
+        WHERE i.fund_id = ${context.fundId}
+          AND i.vehicle_participation_id = ${result.value.participation.id}
+      `)
+    );
+
+    expect(persisted).toMatchObject({
+      investmentAmount: '123.46',
+      investmentSharePriceCents: '1000',
+      investmentSharesAcquired: '12.34567890',
+      investmentCostBasisCents: '12346',
+      roundInvestmentAmount: '123.456789',
+      lotSharePriceCents: '1000',
+      lotSharesAcquired: '12.34567890',
+      lotCostBasisCents: '12346',
+      cashFlowAmount: '123.456789',
+      cashFlowPerspective: 'vehicle',
+      cashFlowEventType: 'portfolio_investment',
+      cashFlowStatus: 'approved',
+    });
+
+    const facts = await factsService.buildFundCompanyActualsFacts({
+      fundId: context.fundId,
+      asOfDate: '2026-01-31',
+      now: new Date('2026-01-31T12:00:00.000Z'),
+      database: db,
+    });
+
+    expect(facts.facts).toHaveLength(1);
+    expect(facts.facts[0]).toMatchObject({
+      fundId: context.fundId,
+      companyId: context.companyId,
+      investmentIds: [persisted['investmentId']],
+      activeRoundIds: [persisted['roundId']],
+      initialInvestmentAmount: '123.456789',
+      followOnInvestmentAmount: '0.000000',
+    });
+  });
 });
 
 async function startContainer(): Promise<{ connectionUri: string }> {
@@ -310,11 +395,15 @@ async function startContainer(): Promise<{ connectionUri: string }> {
   return { connectionUri: container.getConnectionUri() };
 }
 
-function participationRequest(vehicleId: number, participationAmount: string): unknown {
+function participationRequest(
+  vehicleId: number,
+  participationAmount: string,
+  sharesAcquired = '10.00000000'
+): unknown {
   return CreateVehicleFinancingParticipationRequestSchema.parse({
     vehicleId,
     participationAmount,
-    sharesAcquired: '10.00000000',
+    sharesAcquired,
   });
 }
 
@@ -533,4 +622,10 @@ function readRows(result: unknown): Array<Record<string, unknown>> {
     );
   }
   return [];
+}
+
+function oneRow(result: unknown): Record<string, unknown> {
+  const rows = readRows(result);
+  expect(rows).toHaveLength(1);
+  return rows[0]!;
 }
