@@ -298,6 +298,16 @@ describe('investment ledger Drizzle schema', () => {
     expect(indexes(participationConfig)).toEqual(
       expect.arrayContaining(['vfp_head_unique', 'idx_vfp_fund_vehicle', 'idx_vfp_fund_tranche'])
     );
+
+    const usdFxCheck = participationConfig.checks.find(
+      (constraint) => constraint.name === 'vfp_usd_fx_check'
+    );
+    expect(usdFxCheck).toBeDefined();
+    const usdFxQuery = dialect.sqlToQuery(usdFxCheck!.value);
+    expect(usdFxQuery.params).toEqual([]);
+    expect(usdFxQuery.sql).toContain(
+      '"vehicle_financing_participations"."fx_rate_to_usd" = 1.0000000000'
+    );
   });
 
   it('adds compat lineage columns without exposing server-owned investment pointers', () => {

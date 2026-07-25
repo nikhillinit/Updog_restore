@@ -3,10 +3,6 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import {
-  CorrectFinancingTrancheRequestSchema,
-  RecordFinancingTrancheRequestSchema,
-} from '../../shared/contracts/investment-ledger/financing-event.contract';
 import { CreateVehicleFinancingParticipationRequestSchema } from '../../shared/contracts/investment-ledger/participation.contract';
 import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 import * as schema from '../../shared/schema';
@@ -43,6 +39,20 @@ interface ParticipationServiceModule {
       participation: { id: number; version: number };
       compat: { sourceHash: string };
     };
+    replayed: boolean;
+  }>;
+}
+
+interface FinancingEventServiceModule {
+  recordFinancingTranche: (input: {
+    fundId: number;
+    eventId: number;
+    actorId: number | null;
+    idempotencyKey: string;
+    request: unknown;
+    database: TransactionalDb;
+  }) => Promise<{
+    value: { id: number };
     replayed: boolean;
   }>;
 }
@@ -110,6 +120,7 @@ let container: Awaited<ReturnType<typeof setupTestDB>> | undefined;
 let pool: Pool | undefined;
 let db: TransactionalDb;
 let participationService: ParticipationServiceModule;
+let financingEventService: FinancingEventServiceModule;
 let correctionService: LedgerCorrectionServiceModule;
 let legacyGuardService: LegacyGuardServiceModule;
 let factsService: FundCompanyActualsFactsServiceModule;
@@ -125,6 +136,8 @@ describe('vehicle financing participations real PostgreSQL', () => {
     db = drizzle(pool, { schema }) as TransactionalDb;
     participationService =
       (await import('../../server/services/investment-ledger/participation-service')) as unknown as ParticipationServiceModule;
+    financingEventService =
+      (await import('../../server/services/investment-ledger/financing-event-service')) as unknown as FinancingEventServiceModule;
     correctionService =
       (await import('../../server/services/investment-ledger/ledger-correction-service')) as unknown as LedgerCorrectionServiceModule;
     legacyGuardService =
@@ -232,7 +245,7 @@ describe('vehicle financing participations real PostgreSQL', () => {
           '{}'::jsonb, 'approved', ${sourceHash}, ${result.value.participation.id}
         )
       `)
-    ).rejects.toMatchObject({ code: '23505' });
+    ).rejects.toMatchObject({ cause: { code: '23505' } });
   });
 
   it('rolls back participation, compat, observation, and correction rows on final-step failure', async () => {
@@ -240,17 +253,15 @@ describe('vehicle financing participations real PostgreSQL', () => {
     const request = participationRequest(context.vehicleId, '103.000000');
     const before = await persistenceCounts(context.fundId);
 
+    const failingDb = withDatabaseOverrides(db, {
+      transaction: async <T>(callback: (transaction: TransactionalDb) => Promise<T>): Promise<T> =>
+        db.transaction(async (transaction) => {
+          await callback(transaction as unknown as TransactionalDb);
+          throw new Error('task10 final-step failure injection');
+        }),
+    });
     await expect(
-      db.transaction(async (transaction) => {
-        const failingDb = {
-          execute: (query: Query) => transaction.execute(query),
-          transaction: async <T>(callback: (tx: TransactionalDb) => Promise<T>): Promise<T> => {
-            await callback(transaction as unknown as TransactionalDb);
-            throw new Error('task10 final-step failure injection');
-          },
-        } as TransactionalDb;
-        await createParticipation(context, request, 'task10-final-step', failingDb);
-      })
+      createParticipation(context, request, 'task10-final-step', failingDb)
     ).rejects.toThrow('task10 final-step failure injection');
 
     expect(await persistenceCounts(context.fundId)).toEqual(before);
@@ -260,12 +271,10 @@ describe('vehicle financing participations real PostgreSQL', () => {
     const context = await seedLedgerContext(5);
     const request = participationRequest(context.vehicleId, '104.000000');
     let identityLinkRemoved = false;
-    const raceDb = {
-      execute: (query: Query) => db.execute(query),
+    const raceDb = withDatabaseOverrides(db, {
       transaction: async <T>(callback: (transaction: TransactionalDb) => Promise<T>): Promise<T> =>
         db.transaction(async (transaction) => {
-          const wrappedTx = {
-            ...transaction,
+          const wrappedTx = withDatabaseOverrides(transaction as unknown as TransactionalDb, {
             execute: async (query: Query) => {
               if (!identityLinkRemoved) {
                 identityLinkRemoved = true;
@@ -278,10 +287,10 @@ describe('vehicle financing participations real PostgreSQL', () => {
               }
               return transaction.execute(query);
             },
-          } as unknown as TransactionalDb;
+          });
           return callback(wrappedTx);
         }),
-    } as TransactionalDb;
+    });
 
     await expect(
       createParticipation(context, request, 'task10-stale-identity', raceDb)
@@ -410,13 +419,13 @@ function participationRequest(
 function ledgerCorrectionRequest(participationId: number): unknown {
   return {
     expectedTrancheVersion: 1,
-    correctedTranche: CorrectFinancingTrancheRequestSchema.parse({
+    correctedTranche: {
       closingDate: '2026-02-01',
       securityType: 'equity',
       investmentAmount: '1200.000000',
       pricePerShare: '10.000000',
       postMoneyValuation: '12000000.000000',
-    }),
+    },
     dependents: [
       {
         participationId,
@@ -428,6 +437,21 @@ function ledgerCorrectionRequest(participationId: number): unknown {
       },
     ],
   };
+}
+
+function withDatabaseOverrides(
+  database: TransactionalDb,
+  overrides: Partial<Pick<TransactionalDb, 'execute' | 'transaction'>>
+): TransactionalDb {
+  return new Proxy(database, {
+    get(target, property) {
+      if (Object.prototype.hasOwnProperty.call(overrides, property)) {
+        return Reflect.get(overrides, property);
+      }
+      const value: unknown = Reflect.get(target, property, target);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
 }
 
 async function createParticipation(
@@ -516,33 +540,23 @@ async function createEventAndTranche(
     RETURNING id
   `)
   );
-  const tranche = RecordFinancingTrancheRequestSchema.parse({
+  const trancheRequest = {
     trancheKey: 'primary',
     closingDate: '2026-01-15',
     securityType: 'equity',
     investmentAmount: '1000.000000',
     pricePerShare: '10.000000',
     postMoneyValuation: '10000000.000000',
+  };
+  const recorded = await financingEventService.recordFinancingTranche({
+    fundId,
+    eventId,
+    actorId: null,
+    idempotencyKey: `task10-tranche-${fundId}`,
+    request: trancheRequest,
+    database: db,
   });
-  const trancheId = insertedId(
-    await db.execute(sql`
-    INSERT INTO financing_tranches (
-      fund_id, financing_event_id, tranche_key, version, closing_date,
-      security_type, investment_amount, original_amount, currency,
-      fx_rate_to_usd, fx_rate_date, price_per_share, post_money_valuation,
-      descriptive_terms, calculation_eligible, idempotency_key, request_hash
-    ) VALUES (
-      ${fundId}, ${eventId}, ${tranche.trancheKey}, 1, ${tranche.closingDate},
-      ${tranche.securityType}, ${tranche.investmentAmount}, ${tranche.originalAmount},
-      ${tranche.currency}, ${tranche.fxRateToUsd}, ${tranche.fxRateDate},
-      ${tranche.pricePerShare ?? null}, ${tranche.postMoneyValuation ?? null},
-      ${JSON.stringify(tranche.descriptiveTerms)}::jsonb, ${tranche.calculationEligible},
-      ${`task10-tranche-${fundId}`}, ${canonicalSha256({ fundId, role: 'tranche' })}
-    )
-    RETURNING id
-  `)
-  );
-  return { eventId, trancheId };
+  return { eventId, trancheId: recorded.value.id };
 }
 
 async function countRows(tableName: string, fundId: number): Promise<number> {

@@ -83,7 +83,7 @@ function configureTestAuthEnv(): void {
   process.env.DEFAULT_USER_ID = '1';
   process.env.JWT_ALG = 'HS256';
   process.env._EXPLICIT_JWT_ALG = 'HS256';
-  process.env.JWT_SECRET = 'ledger-surface-test-secret-32-chars-min';
+  process.env.JWT_SECRET = 'test'.repeat(8);
   process.env._EXPLICIT_JWT_SECRET = process.env.JWT_SECRET;
   process.env.JWT_AUDIENCE = 'updog-test';
   process.env._EXPLICIT_JWT_AUDIENCE = process.env.JWT_AUDIENCE;

@@ -115,7 +115,7 @@ export const vehicleFinancingParticipations = pgTable(
     ),
     usdFxCheck: check(
       'vfp_usd_fx_check',
-      sql`${table.currency} <> 'USD' OR ${table.fxRateToUsd} IS NULL OR ${table.fxRateToUsd} = ${USD_FX_RATE_TO_USD}`
+      sql`${table.currency} <> 'USD' OR ${table.fxRateToUsd} IS NULL OR ${table.fxRateToUsd} = ${sql.raw(USD_FX_RATE_TO_USD)}`
     ),
     idFundUnique: unique('vfp_id_fund_unique').on(table.id, table.fundId),
     fundIdempotencyUnique: unique('vfp_fund_idem_unique').on(table.fundId, table.idempotencyKey),
