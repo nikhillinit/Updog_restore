@@ -1,0 +1,244 @@
+{
+  "name": "positions-ownership-compat",
+  "order": 16,
+  "description": "Task 11 position-event ledger, lot reliefs, ownership snapshots, and additive compat sentinels.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0042_positions_ownership_compat.sql"],
+  "allowedCreateTables": [
+    "position_events",
+    "position_event_lot_reliefs",
+    "ownership_snapshots"
+  ],
+  "expectedTables": [
+    {
+      "name": "position_events",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "vehicle_id", "type": "integer", "nullable": false },
+        {
+          "name": "company_identity_id",
+          "type": "integer",
+          "nullable": false
+        },
+        { "name": "event_type", "type": "varchar", "nullable": false },
+        { "name": "effective_date", "type": "date", "nullable": false },
+        { "name": "recorded_at", "type": "timestamptz", "nullable": false },
+        { "name": "shares_delta", "type": "numeric", "nullable": false },
+        { "name": "cost_basis_delta", "type": "numeric", "nullable": false },
+        { "name": "proceeds", "type": "numeric", "nullable": false },
+        { "name": "replaces_event_id", "type": "integer", "nullable": true },
+        {
+          "name": "reverses_position_event_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "vehicle_participation_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "resulting_participation_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "source_participation_version",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "resulting_participation_version",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "source_tranche_version",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "resulting_tranche_version",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "source_observation_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "backfilled_from_investment_id",
+          "type": "integer",
+          "nullable": true
+        },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "idempotency_key", "type": "varchar", "nullable": true },
+        { "name": "request_hash", "type": "varchar", "nullable": true }
+      ],
+      "constraints": [
+        "position_events_fund_fk",
+        "position_events_vehicle_fund_fk",
+        "position_events_identity_fund_fk",
+        "position_events_replaces_fund_fk",
+        "position_events_reverses_fund_fk",
+        "position_events_participation_fund_fk",
+        "position_events_resulting_participation_fund_fk",
+        "position_events_observation_fund_fk",
+        "position_events_backfill_investment_fund_fk",
+        "position_events_created_by_fk",
+        "position_events_event_type_check",
+        "position_events_conversion_links_check",
+        "position_events_reversal_target_check",
+        "position_events_no_self_lineage_check",
+        "position_events_idempotency_pair_check",
+        "position_events_id_fund_unique",
+        "position_events_backfill_investment_unique",
+        "position_events_fund_idempotency_unique"
+      ],
+      "indexes": [
+        "position_events_acquisition_participation_unique",
+        "position_events_reversal_target_unique",
+        "idx_position_events_scope_effective_recorded"
+      ]
+    },
+    {
+      "name": "position_event_lot_reliefs",
+      "columns": [
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "position_event_id", "type": "integer", "nullable": false },
+        { "name": "investment_id", "type": "integer", "nullable": false },
+        { "name": "investment_lot_id", "type": "uuid", "nullable": false },
+        { "name": "relieved_shares", "type": "numeric", "nullable": false },
+        {
+          "name": "relieved_cost_basis",
+          "type": "numeric",
+          "nullable": false
+        },
+        { "name": "allocated_proceeds", "type": "numeric", "nullable": false }
+      ],
+      "constraints": [
+        "position_event_lot_reliefs_event_fund_fk",
+        "position_event_lot_reliefs_investment_fund_fk",
+        "position_event_lot_reliefs_lot_investment_fk",
+        "position_event_lot_reliefs_event_lot_unique"
+      ],
+      "indexes": ["idx_position_event_lot_reliefs_investment"]
+    },
+    {
+      "name": "ownership_snapshots",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "vehicle_id", "type": "integer", "nullable": false },
+        {
+          "name": "company_identity_id",
+          "type": "integer",
+          "nullable": false
+        },
+        { "name": "effective_date", "type": "date", "nullable": false },
+        { "name": "recorded_at", "type": "timestamptz", "nullable": false },
+        { "name": "ownership_pct", "type": "numeric", "nullable": false },
+        { "name": "fd_numerator", "type": "numeric", "nullable": true },
+        { "name": "fd_denominator", "type": "numeric", "nullable": true },
+        { "name": "currency", "type": "varchar", "nullable": false },
+        {
+          "name": "supersedes_snapshot_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "source_observation_id",
+          "type": "integer",
+          "nullable": false
+        },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "idempotency_key", "type": "varchar", "nullable": false },
+        { "name": "request_hash", "type": "varchar", "nullable": false }
+      ],
+      "constraints": [
+        "ownership_snapshots_fund_fk",
+        "ownership_snapshots_vehicle_fund_fk",
+        "ownership_snapshots_identity_fund_fk",
+        "ownership_snapshots_supersedes_fund_fk",
+        "ownership_snapshots_observation_fund_fk",
+        "ownership_snapshots_created_by_fk",
+        "ownership_snapshots_pct_range_check",
+        "ownership_snapshots_fd_pair_check",
+        "ownership_snapshots_no_self_supersede_check",
+        "ownership_snapshots_id_fund_unique",
+        "ownership_snapshots_fund_idempotency_unique"
+      ],
+      "indexes": [
+        "ownership_snapshots_supersedes_unique",
+        "idx_ownership_snapshots_scope_effective_recorded"
+      ]
+    },
+    {
+      "name": "investment_lots",
+      "sharedTable": true,
+      "columns": [
+        { "name": "id", "type": "uuid", "nullable": false },
+        { "name": "investment_id", "type": "integer", "nullable": false },
+        { "name": "lot_type", "type": "text", "nullable": false }
+      ],
+      "constraints": [
+        "investment_lots_id_investment_unique",
+        "investment_lots_lot_type_check"
+      ]
+    },
+    {
+      "name": "valuation_marks",
+      "sharedTable": true,
+      "columns": [
+        { "name": "mark_purpose", "type": "varchar", "nullable": false },
+        {
+          "name": "source_observation_id",
+          "type": "integer",
+          "nullable": true
+        }
+      ],
+      "constraints": [
+        "valuation_marks_mark_purpose_check",
+        "valuation_marks_direct_position_lineage_check",
+        "valuation_marks_source_observation_fund_fk"
+      ],
+      "indexes": ["idx_valuation_marks_direct_position_mark_date"]
+    },
+    {
+      "name": "financial_facts_snapshots",
+      "sharedTable": true,
+      "columns": [
+        {
+          "name": "supersedes_snapshot_id",
+          "type": "integer",
+          "nullable": true
+        }
+      ],
+      "constraints": [
+        "financial_facts_snapshots_id_fund_unique",
+        "financial_facts_snapshots_supersedes_fund_fk",
+        "financial_facts_snapshots_no_self_supersede_check"
+      ],
+      "indexes": ["financial_facts_snapshots_supersedes_unique"]
+    },
+    {
+      "name": "vehicles",
+      "sharedTable": true,
+      "columns": [
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "vehicle_type", "type": "varchar", "nullable": false }
+      ],
+      "indexes": ["vehicles_main_fund_unique"]
+    },
+    {
+      "name": "vehicle_financing_participations",
+      "sharedTable": true,
+      "columns": [
+        { "name": "economic_origin", "type": "varchar", "nullable": false }
+      ],
+      "constraints": ["vfp_economic_origin_check"]
+    }
+  ]
+}

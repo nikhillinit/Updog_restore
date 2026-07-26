@@ -24,6 +24,11 @@ const manifestDir = path.join(repoRoot, 'scripts', 'prod-schema-manifests');
 
 interface ManifestTable {
   name: string;
+  columns?: Array<{
+    name: string;
+    type?: string;
+    nullable: boolean;
+  }>;
   constraints?: string[];
   indexes?: string[];
 }
@@ -103,6 +108,7 @@ describe('prod-schema manifest sentinels', () => {
       '13-financial-observations.json',
       '14-investment-ledger.json',
       '15-vehicle-financing-participations.json',
+      '16-positions-ownership-compat.json',
     ]);
   });
 
@@ -193,5 +199,24 @@ describe('prod-schema manifest sentinels', () => {
       const duplicates = seen.filter((name, index) => seen.indexOf(name) !== index);
       expect(duplicates, `${file} duplicate sentinels`).toEqual([]);
     }
+  });
+
+  it('the positions and ownership manifest types every expected column', () => {
+    const positionsManifest = manifests.find(
+      (entry) => entry.file === '16-positions-ownership-compat.json'
+    );
+    expect(positionsManifest).toBeDefined();
+
+    const missingTypes: string[] = [];
+
+    for (const table of positionsManifest?.manifest.expectedTables ?? []) {
+      for (const column of table.columns ?? []) {
+        if (!column.type?.trim()) {
+          missingTypes.push(`${table.name}.${column.name}`);
+        }
+      }
+    }
+
+    expect(missingTypes).toEqual([]);
   });
 });

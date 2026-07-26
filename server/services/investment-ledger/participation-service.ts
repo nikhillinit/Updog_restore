@@ -48,6 +48,21 @@ export interface CreateVehicleFinancingParticipationInput extends LedgerCommandC
   request: unknown;
 }
 
+type ParticipationEconomicOrigin = 'cash_investment' | 'conversion_result';
+type ParsedParticipationRequest = z.output<typeof CreateVehicleFinancingParticipationRequestSchema>;
+
+interface ParticipationInsertStatementInput {
+  participationId: number;
+  fundId: number;
+  trancheId: number;
+  actorId: number | null;
+  idempotencyKey: string;
+  requestHash: string;
+  economicOrigin: ParticipationEconomicOrigin;
+  request: ParsedParticipationRequest;
+  tranche: Pick<FinancingTrancheV1, 'financingEventId' | 'trancheKey' | 'closingDate'>;
+}
+
 export interface VehicleFinancingParticipationReceiptV1 {
   participation: VehicleFinancingParticipationV1;
   warnings: VehicleParticipationErrorCode[];
@@ -150,6 +165,34 @@ interface CompatRows {
   wireFingerprint: string;
 }
 
+interface EmptyCompatRows {
+  investmentId: null;
+  investmentRoundId: null;
+  investmentLotId: null;
+  cashFlowEventId: null;
+  sourceHash: null;
+  wireFingerprint: null;
+}
+
+interface InsertCompatRowsInput {
+  economicOrigin: ParticipationEconomicOrigin;
+  fundId: number;
+  actorId: number | null;
+  vehicleId: number;
+  companyId: number;
+  financingEventId: number;
+  trancheKey: string;
+  roundName: string;
+  closingDate: string;
+  securityType: string;
+  participation: VehicleFinancingParticipationV1;
+  investmentAmount: string;
+  roundInvestmentAmount: string;
+  cashFlowAmount: string;
+  postMoneyValuation: string | null;
+  lot: { sharePriceCents: bigint; sharesAcquired: string; costBasisCents: bigint } | null;
+}
+
 const StoredParticipationReceiptSchema = z
   .object({
     warnings: z.array(VehicleParticipationErrorCodeSchema),
@@ -183,6 +226,7 @@ export async function createVehicleFinancingParticipation(
     trancheId: input.trancheId,
     ...request,
   };
+  const economicOrigin = 'cash_investment' as const;
 
   const result = await database.transaction(async (transaction) => {
     await lockParticipationFamily(transaction, input.fundId, input.trancheId, request.vehicleId);
@@ -230,42 +274,20 @@ export async function createVehicleFinancingParticipation(
             sql`SELECT nextval('vehicle_financing_participations_id_seq') AS id`
           )
         );
-        const effectiveClosingDate = request.closingDate ?? context.tranche.closingDate;
-        const retainedOriginalAmount = request.originalAmount ?? request.participationAmount;
-        const retainedCurrency = request.currency ?? 'USD';
-        const retainedFxRateToUsd = request.fxRateToUsd ?? USD_FX_RATE_TO_USD;
-        const retainedFxRateDate = request.fxRateDate ?? effectiveClosingDate;
         const inserted = firstParticipation(
-          await transaction.execute(sql`
-            INSERT INTO vehicle_financing_participations (
-              id, fund_id, vehicle_id, financing_event_id, tranche_key,
-              financing_tranche_id, version, superseded_by_participation_id,
-              participation_amount, original_amount, currency, fx_rate_to_usd,
-              fx_rate_date, shares_acquired, closing_date, price_per_share,
-              post_money_valuation, valuation_cap, conversion_discount_rate,
-              interest_rate, liquidation_preference_multiple, participating_preferred,
-              participation_cap_multiple, pro_rata_rights_pct, maturity_date,
-              descriptive_terms, confirmed_duplicates, source_observation_id,
-              created_by, idempotency_key, request_hash
-            ) VALUES (
-              ${participationId}, ${input.fundId}, ${request.vehicleId},
-              ${context.tranche.financingEventId}, ${context.tranche.trancheKey},
-              ${input.trancheId}, 1, NULL, ${request.participationAmount},
-              ${retainedOriginalAmount}, ${retainedCurrency},
-              ${retainedFxRateToUsd}, ${retainedFxRateDate},
-              ${request.sharesAcquired ?? null}, ${request.closingDate ?? null},
-              ${request.pricePerShare ?? null}, ${request.postMoneyValuation ?? null},
-              ${request.valuationCap ?? null}, ${request.conversionDiscountRate ?? null},
-              ${request.interestRate ?? null}, ${request.liquidationPreferenceMultiple ?? null},
-              ${request.participatingPreferred ?? null}, ${request.participationCapMultiple ?? null},
-              ${request.proRataRightsPct ?? null}, ${request.maturityDate ?? null},
-              ${request.descriptiveTerms === undefined ? null : JSON.stringify(request.descriptiveTerms)}::jsonb,
-              ${JSON.stringify(request.confirmedDuplicates)}::jsonb, NULL, ${input.actorId},
-              ${input.idempotencyKey}, ${requestHash}
-            )
-            ON CONFLICT DO NOTHING
-            RETURNING *
-          `)
+          await transaction.execute(
+            buildParticipationInsertStatement({
+              participationId,
+              fundId: input.fundId,
+              trancheId: input.trancheId,
+              actorId: input.actorId,
+              idempotencyKey: input.idempotencyKey,
+              requestHash,
+              economicOrigin,
+              request,
+              tranche: context.tranche,
+            })
+          )
         );
         if (!inserted) return null;
 
@@ -273,6 +295,7 @@ export async function createVehicleFinancingParticipation(
         const effectiveTerms = resolveEffectiveTerms(context.tranche, participationDto);
         const projection = projectParticipationCompatibility(effectiveTerms);
         const compatRows = await insertCompatRows(transaction, {
+          economicOrigin,
           fundId: input.fundId,
           actorId: input.actorId,
           vehicleId: request.vehicleId,
@@ -289,6 +312,13 @@ export async function createVehicleFinancingParticipation(
           postMoneyValuation: effectiveTerms.postMoneyValuation,
           lot: projection.lot,
         });
+        if (compatRows.investmentId === null) {
+          throw new ParticipationLedgerServiceError(
+            500,
+            'LEDGER_WRITE_FAILED',
+            'Cash participation did not produce compatibility rows.'
+          );
+        }
         const observationId = await insertManualObservation(transaction, {
           fundId: input.fundId,
           companyIdentityId: context.companyIdentityId,
@@ -302,6 +332,26 @@ export async function createVehicleFinancingParticipation(
           wireFingerprint: compatRows.wireFingerprint,
           compat: compatRows,
         });
+        // Reuse compat projection economics: lot shares at position precision and 2dp investment basis widened to 6dp.
+        const sharesDelta =
+          projection.lot === null ? '0' : formatRoundHalfUp(projection.lot.sharesAcquired, 6);
+        const costBasisDelta = formatRoundHalfUp(projection.investmentAmount, 6);
+        await transaction.execute(sql`
+          INSERT INTO position_events (
+            fund_id, vehicle_id, company_identity_id, event_type, effective_date,
+            shares_delta, cost_basis_delta, proceeds, replaces_event_id,
+            reverses_position_event_id, vehicle_participation_id,
+            resulting_participation_id, source_participation_version,
+            resulting_participation_version, source_tranche_version,
+            resulting_tranche_version, source_observation_id, idempotency_key, request_hash
+          ) VALUES (
+            ${input.fundId}, ${request.vehicleId}, ${context.companyIdentityId}, 'acquisition',
+            ${effectiveTerms.closingDate}, ${sharesDelta}, ${costBasisDelta}, '0', NULL, NULL,
+            ${participationId}, NULL, NULL, NULL, NULL, NULL, ${observationId},
+            ${input.idempotencyKey}, ${requestHash}
+          )
+          ON CONFLICT DO NOTHING
+        `);
 
         return updateParticipationObservation(transaction, input.fundId, participationId, {
           sourceObservationId: observationId,
@@ -319,6 +369,50 @@ export async function createVehicleFinancingParticipation(
     value,
     replayed: result.replayed,
   };
+}
+
+export function buildParticipationInsertStatement(input: ParticipationInsertStatementInput) {
+  const effectiveClosingDate = input.request.closingDate ?? input.tranche.closingDate;
+  const retainedOriginalAmount = input.request.originalAmount ?? input.request.participationAmount;
+  const retainedCurrency = input.request.currency ?? 'USD';
+  const retainedFxRateToUsd = input.request.fxRateToUsd ?? USD_FX_RATE_TO_USD;
+  const retainedFxRateDate = input.request.fxRateDate ?? effectiveClosingDate;
+
+  return sql`
+    INSERT INTO vehicle_financing_participations (
+      id, fund_id, vehicle_id, financing_event_id, tranche_key,
+      financing_tranche_id, version, superseded_by_participation_id,
+      participation_amount, original_amount, currency, fx_rate_to_usd,
+      fx_rate_date, shares_acquired, closing_date, price_per_share,
+      post_money_valuation, valuation_cap, conversion_discount_rate,
+      interest_rate, liquidation_preference_multiple, participating_preferred,
+      participation_cap_multiple, pro_rata_rights_pct, maturity_date,
+      descriptive_terms, confirmed_duplicates, economic_origin,
+      source_observation_id, created_by, idempotency_key, request_hash
+    ) VALUES (
+      ${input.participationId}, ${input.fundId}, ${input.request.vehicleId},
+      ${input.tranche.financingEventId}, ${input.tranche.trancheKey},
+      ${input.trancheId}, 1, NULL, ${input.request.participationAmount},
+      ${retainedOriginalAmount}, ${retainedCurrency},
+      ${retainedFxRateToUsd}, ${retainedFxRateDate},
+      ${input.request.sharesAcquired ?? null}, ${input.request.closingDate ?? null},
+      ${input.request.pricePerShare ?? null}, ${input.request.postMoneyValuation ?? null},
+      ${input.request.valuationCap ?? null}, ${input.request.conversionDiscountRate ?? null},
+      ${input.request.interestRate ?? null}, ${input.request.liquidationPreferenceMultiple ?? null},
+      ${input.request.participatingPreferred ?? null},
+      ${input.request.participationCapMultiple ?? null},
+      ${input.request.proRataRightsPct ?? null}, ${input.request.maturityDate ?? null},
+      ${
+        input.request.descriptiveTerms === undefined
+          ? null
+          : JSON.stringify(input.request.descriptiveTerms)
+      }::jsonb,
+      ${JSON.stringify(input.request.confirmedDuplicates)}::jsonb, ${input.economicOrigin}, NULL,
+      ${input.actorId}, ${input.idempotencyKey}, ${input.requestHash}
+    )
+    ON CONFLICT DO NOTHING
+    RETURNING *
+  `;
 }
 
 async function assertLedgerOwnership(
@@ -530,26 +624,21 @@ function assertDuplicateConfirmationFresh(
   }
 }
 
-async function insertCompatRows(
+export async function insertCompatRows(
   database: LedgerDatabase,
-  input: {
-    fundId: number;
-    actorId: number | null;
-    vehicleId: number;
-    companyId: number;
-    financingEventId: number;
-    trancheKey: string;
-    roundName: string;
-    closingDate: string;
-    securityType: string;
-    participation: VehicleFinancingParticipationV1;
-    investmentAmount: string;
-    roundInvestmentAmount: string;
-    cashFlowAmount: string;
-    postMoneyValuation: string | null;
-    lot: { sharePriceCents: bigint; sharesAcquired: string; costBasisCents: bigint } | null;
+  input: InsertCompatRowsInput
+): Promise<CompatRows | EmptyCompatRows> {
+  if (input.economicOrigin === 'conversion_result') {
+    return {
+      investmentId: null,
+      investmentRoundId: null,
+      investmentLotId: null,
+      cashFlowEventId: null,
+      sourceHash: null,
+      wireFingerprint: null,
+    };
   }
-): Promise<CompatRows> {
+
   const investmentId = readInsertedId(
     await database.execute(sql`
       INSERT INTO investments (

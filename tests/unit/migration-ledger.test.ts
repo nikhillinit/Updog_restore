@@ -52,6 +52,7 @@ const expectedJournaledDriftPatchFiles = [
   '0039_financial_observations.sql',
   '0040_multi_entity_ledger_foundation.sql',
   '0041_vehicle_financing_participations.sql',
+  '0042_positions_ownership_compat.sql',
 ].sort();
 
 afterEach(() => {
@@ -126,6 +127,18 @@ describe('migration ledger helpers', () => {
     expect(markedJournaled.map((classification) => classification.file).sort()).toEqual(
       expectedJournaledDriftPatchFiles
     );
+  });
+
+  it('pins positions and ownership migration to its own journal index 43 entry', () => {
+    const entry = readDrizzleJournal(repoRoot).entries.find(
+      (candidate) => candidate.tag === '0042_positions_ownership_compat'
+    );
+
+    expect(entry).toMatchObject({
+      idx: 43,
+      tag: '0042_positions_ownership_compat',
+      breakpoints: true,
+    });
   });
 
   it('keeps the Planning FMV drift patch aligned to the canonical portfolio company table', () => {

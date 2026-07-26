@@ -32,6 +32,7 @@ import {
 } from '../../../shared/lib/investment-ledger/participation-quantization';
 import { normalizeManualObservation } from '../financial-observations/manual-entry-adapter';
 import { invalidateH9Artifacts } from '../h9-artifact-invalidation-service';
+import { appendCorrectionPositionEvents } from './position-service';
 
 type LedgerDatabase = typeof db;
 
@@ -327,6 +328,7 @@ export async function correctVehicleParticipationLedger(
           currentTranche: current,
           newTranche,
           request,
+          requestHash,
           dependents,
           context: observationContext,
         });
@@ -787,6 +789,7 @@ async function cascadeParticipationSuccessors(
     currentTranche: FinancingTrancheRow;
     newTranche: FinancingTrancheRow;
     request: LedgerCorrectionRequest;
+    requestHash: string;
     dependents: ParticipationRow[];
     context: ObservationContext;
   }
@@ -841,7 +844,7 @@ async function cascadeParticipationSuccessors(
     const lotChanged = lotProjectionHash(oldProjection) !== lotProjectionHash(newProjection);
     const change = {
       rewritten: visibleRowsChanged || lotChanged,
-      moneyRowsChanged: visibleRowsChanged,
+      moneyRowsChanged: visibleRowsChanged || lotChanged,
       lotChanged,
       oldProjection,
       newProjection,
@@ -889,6 +892,15 @@ async function cascadeParticipationSuccessors(
     reconciliationCaseIds.push(
       await insertObservationMatchCase(database, context.input.fundId, observationId)
     );
+    await appendCorrectionPositionEvents(database, {
+      fundId: context.input.fundId,
+      oldParticipation: dependent,
+      successor,
+      newProjection,
+      change,
+      observationId,
+      requestHash: context.requestHash,
+    });
     successors.push(successor);
   }
 
