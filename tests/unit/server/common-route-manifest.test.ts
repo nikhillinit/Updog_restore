@@ -16,6 +16,7 @@ import {
   COMMON_ROUTE_SURFACE_ORDER,
   mountCommonRoutes,
 } from '../../../server/routes/mount-common-routes';
+import { COMMON_API_ROUTE_POLICY_IDS } from '../../../server/route-policy/api-route-policy-registry';
 
 type SurfaceModule = `${RuntimeSurface}:${string}`;
 
@@ -156,6 +157,41 @@ describe('canonical common API route manifest', () => {
         "investment-ledger:<bare>",
       ]
     `);
+  });
+
+  it('registers Task 11 schema parity and policy metadata on the existing investment-ledger mount', () => {
+    const ledgerEntry = COMMON_API_ROUTE_MANIFEST.find((entry) => entry.id === 'investment-ledger');
+    expect(ledgerEntry).toBeDefined();
+    expect(ledgerEntry?.migrationParity).toMatchObject({ kind: 'c1' });
+    if (ledgerEntry?.migrationParity.kind !== 'c1') {
+      throw new Error('investment-ledger must remain a C1 route');
+    }
+
+    expect(ledgerEntry.migrationParity.tables).toEqual(
+      expect.arrayContaining([
+        'position_events',
+        'position_event_lot_reliefs',
+        'ownership_snapshots',
+      ])
+    );
+    expect(ledgerEntry.schemaTables).toEqual(
+      expect.arrayContaining([
+        'position_events',
+        'position_event_lot_reliefs',
+        'ownership_snapshots',
+      ])
+    );
+    expect(COMMON_API_ROUTE_POLICY_IDS['investment-ledger']).toEqual(
+      expect.arrayContaining([
+        'api:get:/api/funds/:fundId/investment-ledger/positions',
+        'api:post:/api/funds/:fundId/investment-ledger/position-events',
+        'api:post:/api/funds/:fundId/investment-ledger/position-conversions',
+        'api:post:/api/funds/:fundId/investment-ledger/position-corrections',
+        'api:get:/api/funds/:fundId/investment-ledger/ownership-snapshots',
+        'api:post:/api/funds/:fundId/investment-ledger/ownership-snapshots',
+        'api:post:/api/funds/:fundId/investment-ledger/position-valuations',
+      ])
+    );
   });
 
   it('snapshots intentional runtime-specific mounts and gates', () => {

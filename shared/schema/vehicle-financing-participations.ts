@@ -35,6 +35,10 @@ export const vehicleFinancingParticipations = pgTable(
     financingTrancheId: integer('financing_tranche_id').notNull(),
     version: integer('version').notNull().default(1),
     supersededByParticipationId: integer('superseded_by_participation_id'),
+    economicOrigin: varchar('economic_origin', { length: 32 })
+      .notNull()
+      .default('cash_investment')
+      .$type<'cash_investment' | 'conversion_result'>(),
     participationAmount: numeric('participation_amount', { precision: 20, scale: 6 }).notNull(),
     originalAmount: numeric('original_amount', { precision: 20, scale: 6 }),
     currency: varchar('currency', { length: 3 }).notNull().default('USD'),
@@ -112,6 +116,10 @@ export const vehicleFinancingParticipations = pgTable(
     noSelfSupersedeCheck: check(
       'vfp_no_self_supersede_check',
       sql`${table.supersededByParticipationId} IS NULL OR ${table.supersededByParticipationId} <> ${table.id}`
+    ),
+    economicOriginCheck: check(
+      'vfp_economic_origin_check',
+      sql`${table.economicOrigin} IN ('cash_investment', 'conversion_result')`
     ),
     usdFxCheck: check(
       'vfp_usd_fx_check',

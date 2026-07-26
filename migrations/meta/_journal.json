@@ -302,6 +302,13 @@
       "when": 1785022800000,
       "tag": "0041_vehicle_financing_participations",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1785109200000,
+      "tag": "0042_positions_ownership_compat",
+      "breakpoints": true
     }
   ]
 }
