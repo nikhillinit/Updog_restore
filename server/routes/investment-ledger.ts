@@ -6,6 +6,7 @@
  *   POST /api/funds/:fundId/investment-ledger/tranches/:trancheId/corrections
  *   POST /api/funds/:fundId/investment-ledger/tranches/:trancheId/participations
  *   POST /api/funds/:fundId/investment-ledger/tranches/:trancheId/ledger-corrections
+ *   POST /api/funds/:fundId/investment-ledger/position-events
  *   GET  /api/funds/:fundId/investment-ledger/financing-events/:eventId
  *
  * Middleware chain (existing primitives only):
@@ -33,6 +34,7 @@ import {
 } from '../services/investment-ledger/financing-event-service';
 import { correctVehicleParticipationLedger } from '../services/investment-ledger/ledger-correction-service';
 import { createVehicleFinancingParticipation } from '../services/investment-ledger/participation-service';
+import { recordPositionEvent } from '../services/investment-ledger/position-service';
 
 const router = Router();
 
@@ -285,6 +287,27 @@ router.post(
       const result = await correctVehicleParticipationLedger({
         fundId,
         trancheId,
+        actorId: resolveAuthenticatedUserId(req),
+        idempotencyKey,
+        request: req.body,
+      });
+      return res.status(result.replayed ? 200 : 201).json(result.value);
+    } catch (error) {
+      return sendLedgerError(res, error);
+    }
+  }
+);
+
+// Record a manual position event without wiring corrections or conversions.
+router.post(
+  '/api/funds/:fundId/investment-ledger/position-events',
+  ...writeChain,
+  async (req: Request, res: Response) => {
+    try {
+      const idempotencyKey = parseIdempotencyKey(req);
+      const fundId = parsePositiveParam(req, 'fundId', 'INVALID_FUND_ID');
+      const result = await recordPositionEvent({
+        fundId,
         actorId: resolveAuthenticatedUserId(req),
         idempotencyKey,
         request: req.body,

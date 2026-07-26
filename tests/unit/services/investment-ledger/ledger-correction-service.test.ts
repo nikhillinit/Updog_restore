@@ -132,6 +132,29 @@ interface CashFlowRow {
   source_hash: string | null;
 }
 
+interface PositionEventRow {
+  id: number;
+  fund_id: number;
+  vehicle_id: number;
+  company_identity_id: number;
+  event_type: string;
+  effective_date: string;
+  shares_delta: string;
+  cost_basis_delta: string;
+  proceeds: string;
+  replaces_event_id: number | null;
+  reverses_position_event_id: number | null;
+  vehicle_participation_id: number | null;
+  resulting_participation_id: number | null;
+  source_participation_version: number | null;
+  resulting_participation_version: number | null;
+  source_tranche_version: number | null;
+  resulting_tranche_version: number | null;
+  source_observation_id: number | null;
+  idempotency_key: string;
+  request_hash: string;
+}
+
 interface LotRow {
   id: string;
   investment_id: number;
@@ -146,6 +169,7 @@ interface Model {
   investments: InvestmentRow[];
   rounds: RoundRow[];
   cashFlows: CashFlowRow[];
+  positionEvents: PositionEventRow[];
   lots: LotRow[];
   observations: Array<Record<string, unknown>>;
   cases: Array<Record<string, unknown>>;
@@ -156,6 +180,7 @@ interface Model {
   nextCaseId: number;
   nextRoundId: number;
   nextCashFlowId: number;
+  nextPositionEventId: number;
   owned: boolean;
   identityLinks: number[];
   failInvestmentUpdate: boolean;
@@ -284,6 +309,30 @@ function emptyModel(): Model {
         source_hash: canonicalSha256({ seed: 'cfe' }),
       },
     ],
+    positionEvents: [
+      {
+        id: 830,
+        fund_id: FUND_ID,
+        vehicle_id: 44,
+        company_identity_id: 11,
+        event_type: 'acquisition',
+        effective_date: '2026-02-01',
+        shares_delta: '10.000000',
+        cost_basis_delta: '100.000000',
+        proceeds: '0',
+        replaces_event_id: null,
+        reverses_position_event_id: null,
+        vehicle_participation_id: 700,
+        resulting_participation_id: null,
+        source_participation_version: null,
+        resulting_participation_version: null,
+        source_tranche_version: null,
+        resulting_tranche_version: null,
+        source_observation_id: 901,
+        idempotency_key: 'part-1',
+        request_hash: canonicalSha256({ seed: 'participation' }),
+      },
+    ],
     lots: [
       { id: 'lot-1', investment_id: 800, vehicle_participation_id: 700, cost_basis_cents: 10000n },
     ],
@@ -309,6 +358,7 @@ function emptyModel(): Model {
     nextCaseId: 960,
     nextRoundId: 811,
     nextCashFlowId: 821,
+    nextPositionEventId: 831,
     owned: true,
     identityLinks: [22],
     failInvestmentUpdate: false,
@@ -332,6 +382,7 @@ function cloneModel(model: Model): Model {
     investments: model.investments.map((row) => ({ ...row })),
     rounds: model.rounds.map((row) => ({ ...row })),
     cashFlows: model.cashFlows.map((row) => ({ ...row })),
+    positionEvents: model.positionEvents.map((row) => ({ ...row })),
     lots: model.lots.map((row) => ({ ...row })),
     observations: model.observations.map((row) => ({ ...row })),
     cases: model.cases.map((row) => ({ ...row })),
@@ -527,6 +578,31 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
     );
     return { rows: row ? [{ normalized_payload: row['normalized_payload'] }] : [] };
   }
+  if (
+    flat.startsWith(
+      'SELECT id, fund_id, vehicle_id, company_identity_id, event_type, effective_date'
+    )
+  ) {
+    const [fundId, participationId] = params as [number, number];
+    const row = model.positionEvents.find(
+      (event) =>
+        event.fund_id === fundId &&
+        event.vehicle_participation_id === participationId &&
+        event.event_type === 'acquisition'
+    );
+    return {
+      rows: row
+        ? [
+            {
+              ...row,
+              recorded_at: CREATED_AT,
+              backfilled_from_investment_id: null,
+              created_by: 3,
+            },
+          ]
+        : [],
+    };
+  }
   if (flat.startsWith('INSERT INTO financing_tranches')) return insertTranche(model, flat, params);
   if (flat.startsWith('INSERT INTO vehicle_financing_participations'))
     return insertParticipation(model, flat, params);
@@ -570,6 +646,42 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
       vehicle_participation_id: row['vehicle_participation_id'] as number,
       cost_basis_cents: row['cost_basis_cents'] as bigint,
     });
+    return { rows: [] };
+  }
+  if (flat.startsWith('INSERT INTO position_events')) {
+    const parsed = parseInsert(flat, params);
+    const duplicate = model.positionEvents.some(
+      (row) =>
+        (row.fund_id === parsed['fund_id'] && row.idempotency_key === parsed['idempotency_key']) ||
+        (parsed['reverses_position_event_id'] !== null &&
+          row.reverses_position_event_id === parsed['reverses_position_event_id'])
+    );
+    if (!duplicate) {
+      model.positionEvents.push({
+        id: model.nextPositionEventId++,
+        fund_id: parsed['fund_id'] as number,
+        vehicle_id: parsed['vehicle_id'] as number,
+        company_identity_id: parsed['company_identity_id'] as number,
+        event_type: parsed['event_type'] as string,
+        effective_date: parsed['effective_date'] as string,
+        shares_delta: parsed['shares_delta'] as string,
+        cost_basis_delta: parsed['cost_basis_delta'] as string,
+        proceeds: parsed['proceeds'] as string,
+        replaces_event_id: (parsed['replaces_event_id'] as number | null) ?? null,
+        reverses_position_event_id: (parsed['reverses_position_event_id'] as number | null) ?? null,
+        vehicle_participation_id: (parsed['vehicle_participation_id'] as number | null) ?? null,
+        resulting_participation_id: (parsed['resulting_participation_id'] as number | null) ?? null,
+        source_participation_version:
+          (parsed['source_participation_version'] as number | null) ?? null,
+        resulting_participation_version:
+          (parsed['resulting_participation_version'] as number | null) ?? null,
+        source_tranche_version: (parsed['source_tranche_version'] as number | null) ?? null,
+        resulting_tranche_version: (parsed['resulting_tranche_version'] as number | null) ?? null,
+        source_observation_id: (parsed['source_observation_id'] as number | null) ?? null,
+        idempotency_key: parsed['idempotency_key'] as string,
+        request_hash: parsed['request_hash'] as string,
+      });
+    }
     return { rows: [] };
   }
   if (flat.startsWith('INSERT INTO source_observations')) {
@@ -884,6 +996,34 @@ describe('correctVehicleParticipationLedger', () => {
     });
     expect(replacement?.reversal_of_event_id).toBeNull();
     expect(replacement?.supersedes_event_id).toBeNull();
+    const positionReversal = model.positionEvents.find(
+      (row) => row.event_type === 'reversal' && row.reverses_position_event_id === 830
+    );
+    expect(positionReversal).toMatchObject({
+      fund_id: FUND_ID,
+      vehicle_id: 44,
+      company_identity_id: 11,
+      shares_delta: '-10.000000',
+      cost_basis_delta: '-100.000000',
+      proceeds: '0.000000',
+      source_observation_id: 951,
+      idempotency_key: 'pos:corr:830:reversal',
+    });
+    const positionAcquisition = model.positionEvents.find(
+      (row) => row.event_type === 'acquisition' && row.vehicle_participation_id === 701
+    );
+    expect(positionAcquisition).toMatchObject({
+      fund_id: FUND_ID,
+      vehicle_id: 44,
+      company_identity_id: 11,
+      effective_date: '2026-02-01',
+      shares_delta: '10.000000',
+      cost_basis_delta: '110.000000',
+      proceeds: '0.000000',
+      source_observation_id: 951,
+      idempotency_key: 'pos:corr:701:acquisition',
+    });
+    expect(model.positionEvents).toHaveLength(3);
     expect(model.lots).toHaveLength(1);
     expect(model.lots[0]?.vehicle_participation_id).toBe(701);
     expect(result.value.reconciliationCaseIds).toHaveLength(1);
@@ -1321,7 +1461,69 @@ describe('correctVehicleParticipationLedger', () => {
     });
     expect(model.cashFlows).toHaveLength(1);
     expect(model.cashFlows[0]?.vehicle_participation_id).toBe(701);
+    expect(model.positionEvents).toHaveLength(1);
     expect(model.lots[0]?.vehicle_participation_id).toBe(701);
+
+    invalidateH9Artifacts.mockClear();
+    const replay = await runCorrection({
+      ...correctionRequest,
+      correctedTranche: {
+        ...correctionRequest.correctedTranche,
+        investmentAmount: '1000.000000',
+        closingDate: '2026-02-01',
+        pricePerShare: '10.000000',
+        descriptiveTerms: { boardObserver: true },
+      },
+      dependents: [
+        {
+          ...correctionRequest.dependents[0],
+          overrideAdjustments: undefined,
+        },
+      ],
+    });
+
+    expect(replay.replayed).toBe(true);
+    expect(model.positionEvents).toHaveLength(1);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
+  });
+
+  it('emits position events when only lot shares and price change', async () => {
+    const result = await runCorrection({
+      ...correctionRequest,
+      correctedTranche: {
+        ...correctionRequest.correctedTranche,
+        investmentAmount: '1000.000000',
+        closingDate: '2026-02-01',
+        pricePerShare: '20.000000',
+      },
+      dependents: [
+        {
+          ...correctionRequest.dependents[0],
+          overrideAdjustments: { sharesAcquired: '5.00000000' },
+        },
+      ],
+    });
+
+    expect(result.value.compat.rewrittenParticipationIds).toEqual([701]);
+    expect(model.positionEvents).toHaveLength(3);
+    expect(
+      model.positionEvents.find(
+        (row) => row.event_type === 'reversal' && row.reverses_position_event_id === 830
+      )
+    ).toMatchObject({
+      shares_delta: '-10.000000',
+      cost_basis_delta: '-100.000000',
+      proceeds: '0.000000',
+    });
+    expect(
+      model.positionEvents.find(
+        (row) => row.event_type === 'acquisition' && row.vehicle_participation_id === 701
+      )
+    ).toMatchObject({
+      shares_delta: '5.000000',
+      cost_basis_delta: '100.000000',
+      proceeds: '0.000000',
+    });
   });
 
   it.each([
@@ -1371,5 +1573,6 @@ describe('correctVehicleParticipationLedger', () => {
     expect(model.tranches).toHaveLength(snapshot.tranches.length);
     expect(model.participations).toHaveLength(snapshot.participations.length);
     expect(model.cashFlows).toHaveLength(snapshot.cashFlows.length);
+    expect(model.positionEvents).toEqual(snapshot.positionEvents);
   });
 });
