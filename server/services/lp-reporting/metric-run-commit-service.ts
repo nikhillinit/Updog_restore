@@ -191,6 +191,20 @@ function assertRowsBelongToFund(
   }
 }
 
+function assertNoDirectPositionMarks(markRows: ValuationMark[]): void {
+  const directMarkIds = markRows
+    .filter((row) => row.markPurpose === 'direct_position_fmv')
+    .map((row) => row.id);
+  if (directMarkIds.length > 0) {
+    throw new MetricRunCommitError(
+      400,
+      'DIRECT_POSITION_FMV_MARK_UNSUPPORTED',
+      'LP metric runs accept planning_company_fmv marks only.',
+      { markIds: directMarkIds }
+    );
+  }
+}
+
 function assertRealizedProceedsValid(eventRows: CashFlowEvent[]): void {
   const offending = eventRows
     .filter((row) => row.eventType === 'realized_proceeds')
@@ -318,8 +332,10 @@ async function loadSources(
     const candidateRows = await database
       .select()
       .from(valuationMarks)
-      .where(eq(valuationMarks.fundId, fundId));
-    const fundRows = candidateRows.filter((row) => row.fundId === fundId);
+      .where(and(eq(valuationMarks.fundId, fundId), eq(valuationMarks.markPurpose, 'planning_company_fmv')));
+    const fundRows = candidateRows.filter(
+      (row) => row.fundId === fundId && row.markPurpose === 'planning_company_fmv'
+    );
     const selection = selectActiveValuationMarks(fundRows.map(toParsedValuationMark), asOfDate);
     sourceMarkIds = uniqueSorted(selection.active.map((mark) => mark.id));
     markRows = fundRows;
@@ -334,6 +350,7 @@ async function loadSources(
     );
   }
 
+  assertNoDirectPositionMarks(markRows);
   assertAllRequestedRowsFound(
     sourceEventIds,
     eventRows.map((row) => row.id),

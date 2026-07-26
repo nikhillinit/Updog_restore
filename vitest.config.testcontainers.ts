@@ -39,6 +39,7 @@ export default defineConfig({
       'tests/integration/investment-scenario-capability.test.ts',
       'tests/integration/vehicle-financing-participations-real-pg.test.ts',
       'tests/integration/investment-ledger/position-conversion.pg.test.ts',
+      'tests/integration/investment-ledger/current-position-ownership-valuation.pg.test.ts',
       'tests/integration/scenarios/scenario-case-seed-persistence.test.ts',
       'tests/integration/scenarios/company-scenario-create-persistence.test.ts',
       // DISABLED: Pre-existing issues - fix in separate PRs
