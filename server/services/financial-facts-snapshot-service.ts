@@ -98,6 +98,7 @@ interface ValuationMarkRow {
   currency: string;
   status: string;
   confidenceLevel: string;
+  markPurpose: string;
   importedFrom: string | null;
   sourceHash: string | null;
 }
@@ -818,11 +819,17 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
       currency: valuationMarks.currency,
       status: valuationMarks.status,
       confidenceLevel: valuationMarks.confidenceLevel,
+      markPurpose: valuationMarks.markPurpose,
       importedFrom: valuationMarks.importedFrom,
       sourceHash: valuationMarks.sourceHash,
     })
     .from(valuationMarks)
-    .where(eq(valuationMarks.fundId, input.fundId))
+    .where(
+      and(
+        eq(valuationMarks.fundId, input.fundId),
+        eq(valuationMarks.markPurpose, 'planning_company_fmv')
+      )
+    )
     .orderBy(asc(valuationMarks.markDate), asc(valuationMarks.id))) as ValuationMarkRow[];
   const actuals = await buildFundCompanyActualsFacts({
     fundId: input.fundId,

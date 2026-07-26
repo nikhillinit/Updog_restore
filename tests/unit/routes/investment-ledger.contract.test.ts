@@ -15,6 +15,11 @@ const serviceState = vi.hoisted(() => ({
   createVehicleFinancingParticipation: vi.fn(),
   correctVehicleParticipationLedger: vi.fn(),
   convertPosition: vi.fn(),
+  listCurrentPositions: vi.fn(),
+  createOwnershipSnapshot: vi.fn(),
+  listOwnershipSnapshots: vi.fn(),
+  recordDirectPositionValuation: vi.fn(),
+  selectPositionValuation: vi.fn(),
   recordPositionEvent: vi.fn(),
   correctPosition: vi.fn(),
 }));
@@ -45,6 +50,20 @@ vi.mock('../../../server/services/investment-ledger/participation-service', () =
 
 vi.mock('../../../server/services/investment-ledger/position-conversion-service', () => ({
   convertPosition: serviceState.convertPosition,
+}));
+
+vi.mock('../../../server/services/investment-ledger/current-position-service', () => ({
+  listCurrentPositions: serviceState.listCurrentPositions,
+}));
+
+vi.mock('../../../server/services/investment-ledger/ownership-snapshot-service', () => ({
+  createOwnershipSnapshot: serviceState.createOwnershipSnapshot,
+  listOwnershipSnapshots: serviceState.listOwnershipSnapshots,
+}));
+
+vi.mock('../../../server/services/investment-ledger/position-valuation-service', () => ({
+  recordDirectPositionValuation: serviceState.recordDirectPositionValuation,
+  selectPositionValuation: serviceState.selectPositionValuation,
 }));
 
 vi.mock('../../../server/services/investment-ledger/ledger-correction-service', () => ({
@@ -104,6 +123,66 @@ const POSITION_CONVERSION = {
   sourceBasisRelief: { conversionPositionEventId: 704 },
   resultConversionLotId: '11111111-1111-4111-8111-111111111111',
   conversionObservationId: 705,
+};
+const CURRENT_POSITIONS = {
+  fundId: 7,
+  asOfDate: '2026-07-01',
+  knowledgeCutoff: '2026-07-26T00:00:00.000Z',
+  positions: [],
+};
+const OWNERSHIP_SNAPSHOT = {
+  id: 801,
+  fundId: 7,
+  vehicleId: 9,
+  companyIdentityId: 11,
+  effectiveDate: '2026-07-01',
+  recordedAt: '2026-07-01T00:00:00.000Z',
+  ownershipPct: '12.50000000',
+  fdNumerator: '125.000000',
+  fdDenominator: '1000.000000',
+  currency: 'USD',
+  supersedesSnapshotId: null,
+  sourceObservationId: 802,
+  createdBy: 3,
+  idempotencyKey: 'ownership-1',
+  requestHash: 'a'.repeat(64),
+};
+const OWNERSHIP_SNAPSHOTS = {
+  fundId: 7,
+  asOfDate: '2026-07-01',
+  knowledgeCutoff: '2026-07-26T00:00:00.000Z',
+  snapshots: [OWNERSHIP_SNAPSHOT],
+};
+const DIRECT_POSITION_VALUATION = {
+  valuationMarkId: 901,
+  sourceObservationId: 902,
+  fundId: 7,
+  vehicleId: 9,
+  companyIdentityId: 11,
+  companyId: 12,
+  asOfDate: '2026-07-01',
+  fairValue: '1250000.000000',
+  sourceHash: 'b'.repeat(64),
+};
+const POSITION_VALUATION_SELECTION = {
+  fundId: 7,
+  vehicleId: 9,
+  companyIdentityId: 11,
+  companyId: 12,
+  asOfDate: '2026-07-01',
+  aggregateFairValue: '1250000.000000',
+  basis: 'direct',
+  directMarkId: 901,
+  directSourceObservationId: 902,
+  ownershipSnapshotId: null,
+  derivedTrancheId: null,
+  derivedTrancheVersion: null,
+  derivedParticipationId: null,
+  derivedParticipationVersion: null,
+  evidenceDate: '2026-07-01',
+  valuationAgeDays: 0,
+  pricedComponentFairValue: '1250000.000000',
+  warnings: [],
 };
 
 function makeApp() {
@@ -176,6 +255,28 @@ const positionConversionBody = {
   accruedInterest: { mode: 'excluded' },
   currency: 'USD',
 };
+const ownershipSnapshotBody = {
+  vehicleId: 9,
+  companyIdentityId: 11,
+  effectiveDate: '2026-07-01',
+  ownershipPct: '12.50000000',
+  fdNumerator: '125.000000',
+  fdDenominator: '1000.000000',
+  sourceObservationId: 802,
+  currency: 'USD',
+};
+const directValuationBody = {
+  vehicleId: 9,
+  companyIdentityId: 11,
+  companyId: 12,
+  asOfDate: '2026-07-01',
+  fairValue: '1250000.000000',
+  sourceObservationId: 902,
+  markSource: 'board_update',
+  confidenceLevel: 'high',
+  valuationMethod: 'direct_position_mark',
+  currency: 'USD',
+};
 
 beforeEach(() => {
   authState.user = {
@@ -193,6 +294,11 @@ beforeEach(() => {
   serviceState.createVehicleFinancingParticipation.mockReset();
   serviceState.correctVehicleParticipationLedger.mockReset();
   serviceState.convertPosition.mockReset();
+  serviceState.listCurrentPositions.mockReset();
+  serviceState.createOwnershipSnapshot.mockReset();
+  serviceState.listOwnershipSnapshots.mockReset();
+  serviceState.recordDirectPositionValuation.mockReset();
+  serviceState.selectPositionValuation.mockReset();
   serviceState.recordPositionEvent.mockReset();
   serviceState.correctPosition.mockReset();
 });
@@ -266,6 +372,12 @@ describe('investment-ledger routes', () => {
       body: positionEventBody,
     },
     {
+      name: 'read current positions',
+      method: 'get' as const,
+      path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/positions`,
+      service: serviceState.listCurrentPositions,
+    },
+    {
       name: 'convert position',
       method: 'post' as const,
       path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/position-conversions`,
@@ -278,6 +390,33 @@ describe('investment-ledger routes', () => {
       path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/position-corrections`,
       service: serviceState.correctPosition,
       body: positionCorrectionBody,
+    },
+    {
+      name: 'read ownership snapshots',
+      method: 'get' as const,
+      path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/ownership-snapshots`,
+      service: serviceState.listOwnershipSnapshots,
+    },
+    {
+      name: 'record ownership snapshot',
+      method: 'post' as const,
+      path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/ownership-snapshots`,
+      service: serviceState.createOwnershipSnapshot,
+      body: ownershipSnapshotBody,
+    },
+    {
+      name: 'read position valuation',
+      method: 'get' as const,
+      path: (fundId: string) =>
+        `/api/funds/${fundId}/investment-ledger/position-valuations?vehicleId=9&companyIdentityId=11&companyId=12&asOfDate=2026-07-01`,
+      service: serviceState.selectPositionValuation,
+    },
+    {
+      name: 'record direct position valuation',
+      method: 'post' as const,
+      path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/position-valuations`,
+      service: serviceState.recordDirectPositionValuation,
+      body: directValuationBody,
     },
     {
       name: 'read detail',
@@ -557,6 +696,122 @@ describe('investment-ledger routes', () => {
         request: positionConversionBody,
       })
     );
+  });
+
+  it('rejects public current-position reads that supply knowledgeCutoff', async () => {
+    const response = await request(makeApp()).get(
+      '/api/funds/7/investment-ledger/positions?knowledgeCutoff=2026-07-01T00:00:00.000Z'
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('KNOWLEDGE_CUTOFF_NOT_ACCEPTED');
+    expect(serviceState.listCurrentPositions).not.toHaveBeenCalled();
+  });
+
+  it('serves current positions with only public filters passed to the service', async () => {
+    serviceState.listCurrentPositions.mockResolvedValueOnce(CURRENT_POSITIONS);
+
+    const response = await request(makeApp()).get(
+      '/api/funds/7/investment-ledger/positions?vehicleId=9&companyIdentityId=11&asOfDate=2026-07-01'
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(CURRENT_POSITIONS);
+    expect(serviceState.listCurrentPositions).toHaveBeenCalledWith({
+      fundId: 7,
+      query: { vehicleId: 9, companyIdentityId: 11, asOfDate: '2026-07-01' },
+    });
+  });
+
+  it('serves terminal ownership heads and rejects client knowledge cutoffs', async () => {
+    const rejected = await request(makeApp()).get(
+      '/api/funds/7/investment-ledger/ownership-snapshots?knowledgeCutoff=2026-07-01T00:00:00.000Z'
+    );
+    expect(rejected.status).toBe(400);
+
+    serviceState.listOwnershipSnapshots.mockResolvedValueOnce(OWNERSHIP_SNAPSHOTS);
+    const accepted = await request(makeApp()).get(
+      '/api/funds/7/investment-ledger/ownership-snapshots?vehicleId=9&companyIdentityId=11&asOfDate=2026-07-01'
+    );
+
+    expect(accepted.status).toBe(200);
+    expect(accepted.body).toEqual(OWNERSHIP_SNAPSHOTS);
+    expect(serviceState.listOwnershipSnapshots).toHaveBeenCalledWith({
+      fundId: 7,
+      vehicleId: 9,
+      companyIdentityId: 11,
+      asOfDate: '2026-07-01',
+    });
+  });
+
+  it('records ownership snapshots and direct position valuations with replay status', async () => {
+    serviceState.createOwnershipSnapshot
+      .mockResolvedValueOnce({ value: OWNERSHIP_SNAPSHOT, replayed: false })
+      .mockResolvedValueOnce({ value: OWNERSHIP_SNAPSHOT, replayed: true });
+    serviceState.recordDirectPositionValuation
+      .mockResolvedValueOnce({ value: DIRECT_POSITION_VALUATION, replayed: false })
+      .mockResolvedValueOnce({ value: DIRECT_POSITION_VALUATION, replayed: true });
+
+    const ownershipCreated = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/ownership-snapshots')
+      .set('Idempotency-Key', 'ownership-1')
+      .send(ownershipSnapshotBody);
+    const ownershipReplay = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/ownership-snapshots')
+      .set('Idempotency-Key', 'ownership-1')
+      .send(ownershipSnapshotBody);
+    const valuationCreated = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/position-valuations')
+      .set('Idempotency-Key', 'valuation-1')
+      .send(directValuationBody);
+    const valuationReplay = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/position-valuations')
+      .set('Idempotency-Key', 'valuation-1')
+      .send(directValuationBody);
+
+    expect(ownershipCreated.status).toBe(201);
+    expect(ownershipReplay.status).toBe(200);
+    expect(valuationCreated.status).toBe(201);
+    expect(valuationReplay.status).toBe(200);
+    expect(serviceState.createOwnershipSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({ fundId: 7, actorId: 3, idempotencyKey: 'ownership-1' })
+    );
+    expect(serviceState.recordDirectPositionValuation).toHaveBeenCalledWith(
+      expect.objectContaining({ fundId: 7, actorId: 3, idempotencyKey: 'valuation-1' })
+    );
+  });
+
+  it('selects a position valuation through required public filters only', async () => {
+    serviceState.selectPositionValuation.mockResolvedValueOnce(POSITION_VALUATION_SELECTION);
+
+    const response = await request(makeApp()).get(
+      '/api/funds/7/investment-ledger/position-valuations?vehicleId=9&companyIdentityId=11&companyId=12&asOfDate=2026-07-01'
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(POSITION_VALUATION_SELECTION);
+    expect(serviceState.selectPositionValuation).toHaveBeenCalledWith({
+      fundId: 7,
+      vehicleId: 9,
+      companyIdentityId: 11,
+      companyId: 12,
+      asOfDate: '2026-07-01',
+    });
+  });
+
+  it('rejects position-valuation GET knowledgeCutoff and missing identity filters', async () => {
+    const cutoff = await request(makeApp()).get(
+      '/api/funds/7/investment-ledger/position-valuations?vehicleId=9&companyIdentityId=11&companyId=12&asOfDate=2026-07-01&knowledgeCutoff=2026-07-01T00:00:00.000Z'
+    );
+    const missing = await request(makeApp()).get(
+      '/api/funds/7/investment-ledger/position-valuations?vehicleId=9&companyIdentityId=11&asOfDate=2026-07-01'
+    );
+
+    expect(cutoff.status).toBe(400);
+    expect(cutoff.body.error).toBe('KNOWLEDGE_CUTOFF_NOT_ACCEPTED');
+    expect(missing.status).toBe(400);
+    expect(missing.body.error).toBe('INVALID_COMPANY_ID');
+    expect(serviceState.selectPositionValuation).not.toHaveBeenCalled();
   });
 
   it('passes the parsed If-Match value into the atomic position correction command', async () => {

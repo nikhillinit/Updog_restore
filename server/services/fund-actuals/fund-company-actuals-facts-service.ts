@@ -690,6 +690,7 @@ export async function buildFundCompanyActualsFacts(
           and(
             eq(valuationMarks.fundId, input.fundId),
             eq(valuationMarks.importedFrom, 'planning_fmv_override'),
+            eq(valuationMarks.markPurpose, 'planning_company_fmv'),
             inArray(valuationMarks.status, ['approved', 'locked'])
           )
         )

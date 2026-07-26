@@ -1703,6 +1703,30 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
       'Task 11 immutable ownership snapshot command; route handler mounting is deferred to the Task 11C service slice.',
   },
   {
+    id: 'api:get:/api/funds/:fundId/investment-ledger/position-valuations',
+    method: 'GET',
+    path: '/api/funds/:fundId/investment-ledger/position-valuations',
+    lifecycle: 'durable_crud',
+    governanceRef: '/portfolio',
+    surface: 'investment-ledger-api',
+    owner: ownerForFinancialSurface('portfolio_management'),
+    telemetryKey: telemetryKeyForRoute(
+      'api.route',
+      '/api/funds/:fundId/investment-ledger/position-valuations'
+    ),
+    financialSurface: 'portfolio_management',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes:
+      'Task 11 direct/derived position valuation selection; public reads use server knowledge cutoff only.',
+  },
+  {
     id: 'api:post:/api/funds/:fundId/investment-ledger/position-valuations',
     method: 'POST',
     path: '/api/funds/:fundId/investment-ledger/position-valuations',
@@ -1850,6 +1874,7 @@ export const COMMON_API_ROUTE_POLICY_IDS = {
     'api:post:/api/funds/:fundId/investment-ledger/position-corrections',
     'api:get:/api/funds/:fundId/investment-ledger/ownership-snapshots',
     'api:post:/api/funds/:fundId/investment-ledger/ownership-snapshots',
+    'api:get:/api/funds/:fundId/investment-ledger/position-valuations',
     'api:post:/api/funds/:fundId/investment-ledger/position-valuations',
   ],
 } as const satisfies Record<FinancialCommonApiRouteId, readonly string[]>;

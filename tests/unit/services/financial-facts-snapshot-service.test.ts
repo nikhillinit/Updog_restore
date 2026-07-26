@@ -85,6 +85,7 @@ class FakeSnapshotDb {
   readonly latestSelectionRows: Array<Record<string, unknown>> = [];
   readonly snapshotRows: Array<Record<string, unknown>> = [];
   readonly executedStatements: SQL[] = [];
+  readonly valuationMarkWhereClauses: Array<{ sql: string; params: unknown[] }> = [];
   readonly transactionConfigs: Array<Record<string, unknown>> = [];
   readonly snapshotInsertAttempts: Array<Record<string, unknown>> = [];
   ownershipRows: Array<Record<string, unknown>> | null = null;
@@ -113,7 +114,7 @@ class FakeSnapshotDb {
   select(projection?: unknown) {
     return {
       from: (table: unknown) => ({
-        where: (_condition: unknown) => {
+        where: (condition: unknown) => {
           if (table === vehicles) {
             return {
               limit: (count: number) =>
@@ -121,7 +122,21 @@ class FakeSnapshotDb {
               orderBy: (..._order: unknown[]) => Promise.resolve(this.vehicleRows),
             };
           }
-          return queryRows(this.rowsFor(table, projection));
+          const rows = this.rowsFor(table, projection);
+          if (table === valuationMarks) {
+            const rendered = new PgDialect().sqlToQuery(condition as SQL);
+            this.valuationMarkWhereClauses.push(rendered);
+            if (rendered.params.includes('planning_company_fmv')) {
+              return queryRows(
+                rows.filter(
+                  (row) =>
+                    row['markPurpose'] === undefined ||
+                    row['markPurpose'] === 'planning_company_fmv'
+                )
+              );
+            }
+          }
+          return queryRows(rows);
         },
       }),
     };
@@ -492,6 +507,7 @@ describe('buildFinancialFactsSnapshot', () => {
       currency: 'USD',
       status: 'approved',
       confidenceLevel: 'high',
+      markPurpose: 'planning_company_fmv',
     };
     fakeDb.markRows.push(
       {
@@ -535,6 +551,15 @@ describe('buildFinancialFactsSnapshot', () => {
         asOfDate: '2026-06-30',
         fairValue: '800.000000',
         status: 'draft',
+      },
+      {
+        ...markBase,
+        id: 6,
+        companyId: 45,
+        markDate: '2026-06-30',
+        asOfDate: '2026-06-30',
+        fairValue: '999.000000',
+        markPurpose: 'direct_position_fmv',
       }
     );
 
@@ -557,6 +582,13 @@ describe('buildFinancialFactsSnapshot', () => {
       },
     ]);
     expect(snapshot.payload.marksSeries.marks.map((mark) => mark.markId)).toEqual([1, 2, 3]);
+    expect(
+      fakeDb.valuationMarkWhereClauses.some(
+        (clause) =>
+          clause.sql.includes('mark_purpose') &&
+          clause.params.includes('planning_company_fmv')
+      )
+    ).toBe(true);
     expect(snapshot.payload.marksSeries.periodNav).toEqual([
       { periodEnd: '2026-03-31', nav: '300.000000', warnings: [] },
       {
