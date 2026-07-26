@@ -148,6 +148,12 @@ interface ComponentTermRow extends TermRefRow {
   readonly kind: PositionComponentRef['kind'];
 }
 
+interface PositionCompanyRef {
+  readonly vehicleId: number;
+  readonly companyIdentityId: number;
+  readonly companyId: number;
+}
+
 interface CanonicalContributionInput {
   key: string;
   domain: 'ledger_event' | 'valuation';
@@ -682,6 +688,15 @@ async function readPositionRefs(params: {
       WHERE event.fund_id = ${params.fundId}
         AND event.effective_date <= ${params.asOfDate}
         AND event.recorded_at <= ${new Date(params.knowledgeCutoff)}
+        AND event.event_type <> 'reversal'
+        AND NOT EXISTS (
+          SELECT 1
+          FROM position_events reversal
+          WHERE reversal.fund_id = event.fund_id
+            AND reversal.reverses_position_event_id = event.id
+            AND reversal.effective_date <= ${params.asOfDate}
+            AND reversal.recorded_at <= ${new Date(params.knowledgeCutoff)}
+        )
       ORDER BY event.id ASC
     `
   );
@@ -862,6 +877,49 @@ async function readOwnershipRefs(params: {
     sourceObservationId: asPositiveInt(row['sourceObservationId']),
     effectiveDate: asDateString(row['effectiveDate']),
     recordedAt: asDateTimeString(row['recordedAt']),
+  }));
+}
+
+async function readPositionCompanyRefs(params: {
+  database: SnapshotDatabase;
+  fundId: number;
+  asOfDate: string;
+  knowledgeCutoff: string;
+}): Promise<PositionCompanyRef[]> {
+  const rows = await executeRows<RawRow>(
+    params.database,
+    sql`
+      /* financial_facts_v2_position_company_refs */
+      SELECT DISTINCT
+        event.vehicle_id AS "vehicleId",
+        event.company_identity_id AS "companyIdentityId",
+        link.portfolio_company_id AS "companyId"
+      FROM position_events event
+      INNER JOIN portfolio_company_identity_links link
+        ON link.fund_id = event.fund_id
+       AND link.company_identity_id = event.company_identity_id
+       AND link.active = TRUE
+      WHERE event.fund_id = ${params.fundId}
+        AND event.effective_date <= ${params.asOfDate}
+        AND event.recorded_at <= ${new Date(params.knowledgeCutoff)}
+        AND event.event_type <> 'reversal'
+        AND (event.vehicle_participation_id IS NOT NULL OR event.resulting_participation_id IS NOT NULL)
+        AND NOT EXISTS (
+          SELECT 1
+          FROM position_events reversal
+          WHERE reversal.fund_id = event.fund_id
+            AND reversal.reverses_position_event_id = event.id
+            AND reversal.effective_date <= ${params.asOfDate}
+            AND reversal.recorded_at <= ${new Date(params.knowledgeCutoff)}
+        )
+      ORDER BY event.vehicle_id ASC, event.company_identity_id ASC, link.portfolio_company_id ASC
+    `
+  );
+
+  return rows.map((row) => ({
+    vehicleId: asPositiveInt(row['vehicleId']),
+    companyIdentityId: asPositiveInt(row['companyIdentityId']),
+    companyId: asPositiveInt(row['companyId']),
   }));
 }
 
@@ -1459,6 +1517,7 @@ function mergeV2ConsumerEvaluations(params: {
   base: readonly ConsumerEvaluation[];
   componentRows: readonly ComponentTermRow[];
   positionRefs: readonly PositionRef[];
+  positionCompanyRefs: readonly PositionCompanyRef[];
   valuationRefs: readonly ValuationRef[];
   companyActuals: FinancialFactsPayloadV1['companyActuals'];
 }): ConsumerEvaluationV2[] {
@@ -1501,7 +1560,7 @@ function mergeV2ConsumerEvaluations(params: {
         .map((ref) => scopeKey(ref))
     );
     const reportedMissingValuationScopes = new Set<string>();
-    for (const positionRef of params.positionRefs) {
+    for (const positionRef of params.positionRefs.filter((ref) => ref.eventType !== 'reversal')) {
       const key = scopeKey(positionRef);
       if (!valuatedScopes.has(key) && !reportedMissingValuationScopes.has(key)) {
         reportedMissingValuationScopes.add(key);
@@ -1515,19 +1574,13 @@ function mergeV2ConsumerEvaluations(params: {
       }
     }
 
-    const ledgerParticipationIdentityIds = new Set(
-      params.positionRefs
-        .filter(
-          (ref) => ref.vehicleParticipationId !== null || ref.resultingParticipationId !== null
-        )
-        .map((ref) => ref.companyIdentityId)
-    );
+    const ledgerPositionCompanyIds = new Set(params.positionCompanyRefs.map((ref) => ref.companyId));
     const legacyCompanyIds = [
       ...new Set(
         params.companyActuals.facts
           .filter((fact) => fact.provenance.core.sourceKind === 'legacy_unknown')
           .map((fact) => fact.companyId)
-          .filter((id) => ledgerParticipationIdentityIds.has(id))
+          .filter((id) => ledgerPositionCompanyIds.has(id))
       ),
     ].sort((left, right) => left - right);
     if (legacyCompanyIds.length > 0) {
@@ -1558,12 +1611,14 @@ async function buildPayloadV2(params: {
     ownershipRefs,
     directValuationRefs,
     derivedValuationRefs,
+    positionCompanyRefs,
   ] = await Promise.all([
     readPositionRefs(params),
     readComponentTermRows(params),
     readOwnershipRefs(params),
     readDirectValuationRefs(params),
     readDerivedValuationRefs(params),
+    readPositionCompanyRefs(params),
   ]);
   const valuationRefs = buildValuationRefs({
     positionRefs,
@@ -1616,6 +1671,7 @@ async function buildPayloadV2(params: {
       base: params.consumerEvaluations,
       componentRows,
       positionRefs,
+      positionCompanyRefs,
       valuationRefs,
       companyActuals: params.base.companyActuals,
     }),
