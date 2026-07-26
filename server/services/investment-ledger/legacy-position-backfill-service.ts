@@ -62,15 +62,30 @@ interface LegacyInvestmentRow {
   participationVehicleId: number | null;
   participationCompanyIdentityId: number | null;
   participationVersion: number | null;
+  participationSourceObservationId: number | null;
   supersededByParticipationId: number | null;
   participationCurrency: string | null;
   existingEventId: number | null;
   existingRequestHash: string | null;
+  existingVehicleId: number | null;
+  existingCompanyIdentityId: number | null;
+  existingEffectiveDate: string | null;
+  existingSharesDelta: string | null;
+  existingCostBasisDelta: string | null;
+  existingVehicleParticipationId: number | null;
+  existingSourceObservationId: number | null;
+  overlappingAcquisitionId: number | null;
 }
 
 interface PlannedCandidate extends LegacyPositionBackfillCandidate {
   requestHash: string | null;
   observationPayload: Record<string, unknown> | null;
+  vehiclePlan:
+    | { kind: 'existing_main'; vehicleId: number }
+    | { kind: 'deterministic_main'; slug: typeof DETERMINISTIC_MAIN_SLUG }
+    | { kind: 'participation'; vehicleId: number }
+    | null;
+  sourceObservationId: number | null;
 }
 
 const BACKFILL_COMMAND = 'legacy_position_backfill_v1';
@@ -101,6 +116,15 @@ export async function backfillLegacyPositionEvents(
     return LegacyPositionBackfillResultSchema.parse(summarize('dry_run', planned, 0));
   }
 
+  if (preflight.multiMainFunds.length > 0) {
+    throw new LegacyPositionBackfillServiceError(
+      409,
+      'MULTI_MAIN_FUND_VEHICLE',
+      'Legacy position backfill cannot run while a target fund has multiple main-fund vehicles.',
+      { fundIds: preflight.multiMainFunds }
+    );
+  }
+
   const globallyBlocked = planned.filter((candidate) => candidate.blockers.length > 0);
   if (globallyBlocked.length > 0) {
     return LegacyPositionBackfillResultSchema.parse(summarize('apply', planned, 0));
@@ -114,36 +138,80 @@ export async function backfillLegacyPositionEvents(
     await database.transaction(async (transaction) => {
       await lockGlobalBackfill(transaction);
       await lockFundIdentity(transaction, fundId);
-      let mainVehicle = mainVehicles.get(fundId) ?? null;
-      if (!mainVehicle) {
+      const freshPreflight = await preflightMainVehicles(transaction, [fundId]);
+      if (freshPreflight.multiMainFunds.length > 0) {
+        throw new LegacyPositionBackfillServiceError(
+          409,
+          'MULTI_MAIN_FUND_VEHICLE',
+          'Legacy position backfill cannot run while a target fund has multiple main-fund vehicles.',
+          { fundIds: freshPreflight.multiMainFunds }
+        );
+      }
+      const freshMainVehicles = mapMainVehicles(freshPreflight.mainVehicles);
+      const freshSlugConflicts = new Set(freshPreflight.slugConflicts.map((row) => row.fundId));
+      const freshRows = await loadLegacyInvestments(transaction, [fundId]);
+      const freshCandidates = freshRows.map((row) =>
+        planCandidate(row, {
+          mainVehicle: freshMainVehicles.get(row.fundId) ?? null,
+          hasMainSlugConflict: freshSlugConflicts.has(row.fundId),
+          hasMultiMain: false,
+        })
+      );
+      const freshBlocker = freshCandidates.find((candidate) => candidate.blockers.length > 0);
+      if (freshBlocker) {
+        throw backfillBlocked(freshBlocker.blockers[0]!, freshBlocker);
+      }
+      const freshByInvestment = new Map(
+        freshCandidates.map((candidate) => [candidate.investmentId, candidate])
+      );
+      let mainVehicle = freshMainVehicles.get(fundId) ?? null;
+      const needsMainVehicle = freshCandidates.some(
+        (candidate) =>
+          candidate.status === 'planned' &&
+          candidate.vehicleParticipationId === null &&
+          candidate.vehicleId === null
+      );
+      if (!mainVehicle && needsMainVehicle) {
         mainVehicle = await ensureDeterministicMainVehicle(transaction, fundId);
         mainVehicles.set(fundId, mainVehicle);
         createdMainVehicles += 1;
       }
 
       for (const candidate of fundCandidates) {
-        const expectedHash = request.expectedSourceHashes?.[String(candidate.investmentId)];
-        if (!candidate.sourcePlanHash || expectedHash === undefined) {
-          throw backfillBlocked('SOURCE_PLAN_HASH_REQUIRED', candidate);
+        const freshCandidate = freshByInvestment.get(candidate.investmentId);
+        if (!freshCandidate) {
+          throw backfillBlocked('SOURCE_PLAN_HASH_CHANGED', candidate, {
+            reason: 'source_row_missing',
+          });
         }
-        if (expectedHash !== candidate.sourcePlanHash) {
-          throw backfillBlocked('SOURCE_PLAN_HASH_CHANGED', candidate, { expectedHash });
+        const expectedHash = request.expectedSourceHashes?.[String(freshCandidate.investmentId)];
+        if (!freshCandidate.sourcePlanHash || expectedHash === undefined) {
+          throw backfillBlocked('SOURCE_PLAN_HASH_REQUIRED', freshCandidate);
+        }
+        if (expectedHash !== freshCandidate.sourcePlanHash) {
+          throw backfillBlocked('SOURCE_PLAN_HASH_CHANGED', freshCandidate, { expectedHash });
+        }
+        const resolvedVehicleId = freshCandidate.vehicleId ?? mainVehicle?.vehicleId ?? null;
+        if (resolvedVehicleId === null) {
+          throw backfillBlocked('SOURCE_PLAN_HASH_REQUIRED', freshCandidate);
         }
         const eventId = await insertBackfillEvent(transaction, {
-          ...candidate,
-          vehicleId: candidate.vehicleId ?? mainVehicle.vehicleId,
+          ...freshCandidate,
+          vehicleId: resolvedVehicleId,
           actorId: input.actorId,
         });
-        candidate.eventId = eventId;
-        candidate.status = 'written';
-        if (candidate.vehicleId === null) {
-          candidate.vehicleId = mainVehicle.vehicleId;
-          candidate.warnings = uniqueWarnings([
-            ...candidate.warnings.filter((warning) => warning !== 'MAIN_VEHICLE_WOULD_BE_CREATED'),
+        freshCandidate.eventId = eventId;
+        freshCandidate.status = 'written';
+        if (freshCandidate.vehicleId === null) {
+          freshCandidate.vehicleId = resolvedVehicleId;
+          freshCandidate.warnings = uniqueWarnings([
+            ...freshCandidate.warnings.filter(
+              (warning) => warning !== 'MAIN_VEHICLE_WOULD_BE_CREATED'
+            ),
             'MAIN_VEHICLE_CREATED',
           ]);
         }
-        writtenCandidates.push(candidate);
+        writtenCandidates.push(freshCandidate);
       }
     });
   }
@@ -216,9 +284,18 @@ async function loadLegacyInvestments(
            vfp.vehicle_id AS participation_vehicle_id,
            fe.company_identity_id AS participation_company_identity_id,
            vfp.version AS participation_version,
+           vfp.source_observation_id AS participation_source_observation_id,
            vfp.superseded_by_participation_id,
            vfp.currency AS participation_currency,
-           pe.id AS existing_event_id, pe.request_hash AS existing_request_hash
+           pe.id AS existing_event_id, pe.request_hash AS existing_request_hash,
+           pe.vehicle_id AS existing_vehicle_id,
+           pe.company_identity_id AS existing_company_identity_id,
+           pe.effective_date::text AS existing_effective_date,
+           pe.shares_delta::text AS existing_shares_delta,
+           pe.cost_basis_delta::text AS existing_cost_basis_delta,
+           pe.vehicle_participation_id AS existing_vehicle_participation_id,
+           pe.source_observation_id AS existing_source_observation_id,
+           overlap.id AS overlapping_acquisition_id
     FROM investments i
     LEFT JOIN portfoliocompanies pc ON pc.id = i.company_id
     LEFT JOIN LATERAL (
@@ -235,6 +312,21 @@ async function loadLegacyInvestments(
      AND fe.fund_id = vfp.fund_id
     LEFT JOIN position_events pe
       ON pe.backfilled_from_investment_id = i.id
+    LEFT JOIN LATERAL (
+      SELECT existing.id
+      FROM position_events existing
+      WHERE existing.fund_id = i.fund_id
+        AND existing.event_type = 'acquisition'
+        AND existing.backfilled_from_investment_id IS NULL
+        AND (
+          (i.vehicle_participation_id IS NOT NULL
+            AND existing.vehicle_participation_id = i.vehicle_participation_id)
+          OR (i.vehicle_participation_id IS NULL
+            AND existing.vehicle_participation_id IS NULL
+            AND existing.company_identity_id = identity_scope.company_identity_id)
+        )
+      LIMIT 1
+    ) overlap ON true
     WHERE i.fund_id IS NOT NULL
       ${fundFilter}
     ORDER BY i.fund_id, i.id
@@ -256,10 +348,19 @@ async function loadLegacyInvestments(
     participationVehicleId: nullablePositiveInt(row['participation_vehicle_id']),
     participationCompanyIdentityId: nullablePositiveInt(row['participation_company_identity_id']),
     participationVersion: nullablePositiveInt(row['participation_version']),
+    participationSourceObservationId: nullablePositiveInt(row['participation_source_observation_id']),
     supersededByParticipationId: nullablePositiveInt(row['superseded_by_participation_id']),
     participationCurrency: nullableString(row['participation_currency']),
     existingEventId: nullablePositiveInt(row['existing_event_id']),
     existingRequestHash: nullableString(row['existing_request_hash']),
+    existingVehicleId: nullablePositiveInt(row['existing_vehicle_id']),
+    existingCompanyIdentityId: nullablePositiveInt(row['existing_company_identity_id']),
+    existingEffectiveDate: nullableString(row['existing_effective_date']),
+    existingSharesDelta: nullableString(row['existing_shares_delta']),
+    existingCostBasisDelta: nullableString(row['existing_cost_basis_delta']),
+    existingVehicleParticipationId: nullablePositiveInt(row['existing_vehicle_participation_id']),
+    existingSourceObservationId: nullablePositiveInt(row['existing_source_observation_id']),
+    overlappingAcquisitionId: nullablePositiveInt(row['overlapping_acquisition_id']),
   }));
 }
 
@@ -283,8 +384,21 @@ function planCandidate(
     blockers.push('IDENTITY_LINK_AMBIGUOUS');
   }
 
+  const deterministicMain =
+    row.vehicleParticipationId === null &&
+    context.mainVehicle?.vehicleSlug === DETERMINISTIC_MAIN_SLUG;
   const vehicleId =
-    row.vehicleParticipationId === null ? context.mainVehicle?.vehicleId ?? null : row.participationVehicleId;
+    row.vehicleParticipationId === null
+      ? context.mainVehicle?.vehicleId ?? null
+      : row.participationVehicleId;
+  const vehiclePlan =
+    row.vehicleParticipationId !== null && row.participationVehicleId !== null
+      ? ({ kind: 'participation', vehicleId: row.participationVehicleId } as const)
+      : deterministicMain || (row.vehicleParticipationId === null && context.mainVehicle === null)
+        ? ({ kind: 'deterministic_main', slug: DETERMINISTIC_MAIN_SLUG } as const)
+        : vehicleId !== null
+          ? ({ kind: 'existing_main', vehicleId } as const)
+          : null;
   if (row.vehicleParticipationId !== null) {
     if (row.participationFundId === null) blockers.push('PARTICIPATION_NOT_FOUND');
     if (row.supersededByParticipationId !== null) blockers.push('PARTICIPATION_SUPERSEDED');
@@ -301,26 +415,40 @@ function planCandidate(
   } else if (context.mainVehicle === null && !context.hasMainSlugConflict && !context.hasMultiMain) {
     warnings.push('MAIN_VEHICLE_WOULD_BE_CREATED');
   }
+  if (row.overlappingAcquisitionId !== null && row.existingEventId === null) {
+    blockers.push('POSITION_ACQUISITION_OVERLAP');
+  }
 
   const costBasis = canonicalCostBasis(row);
   if (costBasis.status === 'missing') blockers.push('COST_BASIS_MISSING');
   if (costBasis.status === 'mismatch') blockers.push('COST_BASIS_MISMATCH');
   const sharesDelta = canonicalShares(row.sharesAcquired);
-  if (new Decimal(sharesDelta).eq(0)) warnings.push('ZERO_SHARE_LEGACY_POSITION');
+  if (sharesDelta.status === 'precision_loss') blockers.push('SHARE_PRECISION_LOSS');
+  if (sharesDelta.value !== null && new Decimal(sharesDelta.value).eq(0)) {
+    warnings.push('ZERO_SHARE_LEGACY_POSITION');
+  }
+  if (row.participationSourceObservationId !== null) {
+    warnings.push('PARTICIPATION_OBSERVATION_REUSED');
+  }
 
   const effectiveDate = isoDate(row.investmentDate);
   const sourcePlan =
-    blockers.length === 0 && row.companyIdentityId !== null && costBasis.value !== null
+    blockers.length === 0 &&
+    row.companyIdentityId !== null &&
+    costBasis.value !== null &&
+    sharesDelta.value !== null &&
+    vehiclePlan !== null
       ? {
           command: BACKFILL_COMMAND,
           investmentId: row.investmentId,
           fundId: row.fundId,
-          vehicleId,
+          vehiclePlan,
           companyIdentityId: row.companyIdentityId,
           vehicleParticipationId: row.vehicleParticipationId,
           participationVersion: row.participationVersion,
+          sourceObservationId: row.participationSourceObservationId,
           effectiveDate,
-          sharesDelta,
+          sharesDelta: sharesDelta.value,
           costBasisDelta: costBasis.value,
           proceeds: '0.000000',
           source: {
@@ -337,7 +465,18 @@ function planCandidate(
     : null;
 
   if (row.existingEventId !== null) {
-    if (row.existingRequestHash === requestHash) {
+    if (
+      row.existingRequestHash === requestHash &&
+      existingEventMatches(row, {
+        vehicleId,
+        companyIdentityId: row.companyIdentityId,
+        effectiveDate,
+        sharesDelta: sharesDelta.value,
+        costBasisDelta: costBasis.value,
+        vehicleParticipationId: row.vehicleParticipationId,
+        sourceObservationId: row.participationSourceObservationId,
+      })
+    ) {
       warnings.push('EXISTING_BACKFILL_REPLAYED');
       return {
         investmentId: row.investmentId,
@@ -346,11 +485,13 @@ function planCandidate(
         companyIdentityId: row.companyIdentityId,
         vehicleParticipationId: row.vehicleParticipationId,
         effectiveDate,
-        sharesDelta,
+        sharesDelta: sharesDelta.value,
         costBasisDelta: costBasis.value,
         sourcePlanHash,
         requestHash,
         observationPayload: sourcePlan,
+        vehiclePlan,
+        sourceObservationId: row.participationSourceObservationId,
         eventId: row.existingEventId,
         status: 'skipped',
         blockers: [],
@@ -367,11 +508,13 @@ function planCandidate(
     companyIdentityId: row.companyIdentityId,
     vehicleParticipationId: row.vehicleParticipationId,
     effectiveDate,
-    sharesDelta: costBasis.value === null ? null : sharesDelta,
+    sharesDelta: costBasis.value === null ? null : sharesDelta.value,
     costBasisDelta: costBasis.value,
     sourcePlanHash,
     requestHash,
     observationPayload: sourcePlan,
+    vehiclePlan,
+    sourceObservationId: row.participationSourceObservationId,
     eventId: row.existingEventId,
     status: blockers.length === 0 ? 'planned' : 'blocked',
     blockers: uniqueBlockers(blockers),
@@ -394,20 +537,26 @@ async function insertBackfillEvent(
     throw backfillBlocked('SOURCE_PLAN_HASH_REQUIRED', candidate);
   }
   const existing = first(rowsOf(await database.execute(sql`
-    SELECT id, request_hash
+    SELECT id, request_hash, vehicle_id, company_identity_id, effective_date::text,
+           shares_delta::text, cost_basis_delta::text, vehicle_participation_id,
+           source_observation_id
     FROM position_events
     WHERE fund_id = ${candidate.fundId}
       AND backfilled_from_investment_id = ${candidate.investmentId}
     FOR UPDATE
   `)));
   if (existing) {
-    if (existing['request_hash'] !== candidate.requestHash) {
+    if (
+      existing['request_hash'] !== candidate.requestHash ||
+      !rowLikeEventMatches(existing, candidate)
+    ) {
       throw backfillBlocked('EXISTING_BACKFILL_MISMATCH', candidate);
     }
     return asPositiveInt(existing['id']);
   }
 
-  const observationId = await insertBackfillObservation(database, candidate);
+  const observationId =
+    candidate.sourceObservationId ?? (await insertBackfillObservation(database, candidate));
   const inserted = first(rowsOf(await database.execute(sql`
     INSERT INTO position_events (
       fund_id, vehicle_id, company_identity_id, event_type, effective_date,
@@ -428,12 +577,18 @@ async function insertBackfillEvent(
   `)));
   if (!inserted) {
     const replay = first(rowsOf(await database.execute(sql`
-      SELECT id, request_hash
+      SELECT id, request_hash, vehicle_id, company_identity_id, effective_date::text,
+             shares_delta::text, cost_basis_delta::text, vehicle_participation_id,
+             source_observation_id
       FROM position_events
       WHERE fund_id = ${candidate.fundId}
         AND backfilled_from_investment_id = ${candidate.investmentId}
     `)));
-    if (replay && replay['request_hash'] === candidate.requestHash) {
+    if (
+      replay &&
+      replay['request_hash'] === candidate.requestHash &&
+      rowLikeEventMatches(replay, candidate)
+    ) {
       return asPositiveInt(replay['id']);
     }
     throw backfillBlocked('EXISTING_BACKFILL_MISMATCH', candidate);
@@ -555,9 +710,54 @@ function canonicalCostBasis(row: LegacyInvestmentRow):
   return { status: 'ok', value: fromCents.toFixed(6) };
 }
 
-function canonicalShares(value: string | null): string {
-  if (value === null) return '0.000000';
-  return new Decimal(value).toFixed(6);
+function canonicalShares(value: string | null):
+  | { status: 'ok'; value: string }
+  | { status: 'precision_loss'; value: null } {
+  if (value === null) return { status: 'ok', value: '0.000000' };
+  const decimal = new Decimal(value);
+  const fixed = decimal.toFixed(6);
+  if (!decimal.eq(new Decimal(fixed))) return { status: 'precision_loss', value: null };
+  return { status: 'ok', value: fixed };
+}
+
+function existingEventMatches(
+  row: LegacyInvestmentRow,
+  expected: {
+    vehicleId: number | null;
+    companyIdentityId: number | null;
+    effectiveDate: string;
+    sharesDelta: string | null;
+    costBasisDelta: string | null;
+    vehicleParticipationId: number | null;
+    sourceObservationId: number | null;
+  }
+): boolean {
+  return (
+    row.existingVehicleId === expected.vehicleId &&
+    row.existingCompanyIdentityId === expected.companyIdentityId &&
+    row.existingEffectiveDate === expected.effectiveDate &&
+    row.existingSharesDelta === expected.sharesDelta &&
+    row.existingCostBasisDelta === expected.costBasisDelta &&
+    row.existingVehicleParticipationId === expected.vehicleParticipationId &&
+    (expected.sourceObservationId === null ||
+      row.existingSourceObservationId === expected.sourceObservationId)
+  );
+}
+
+function rowLikeEventMatches(
+  row: Record<string, unknown>,
+  candidate: PlannedCandidate & { vehicleId: number }
+): boolean {
+  return (
+    nullablePositiveInt(row['vehicle_id']) === candidate.vehicleId &&
+    nullablePositiveInt(row['company_identity_id']) === candidate.companyIdentityId &&
+    nullableString(row['effective_date']) === candidate.effectiveDate &&
+    nullableString(row['shares_delta']) === candidate.sharesDelta &&
+    nullableString(row['cost_basis_delta']) === candidate.costBasisDelta &&
+    nullablePositiveInt(row['vehicle_participation_id']) === candidate.vehicleParticipationId &&
+    (candidate.sourceObservationId === null ||
+      nullablePositiveInt(row['source_observation_id']) === candidate.sourceObservationId)
+  );
 }
 
 function summarize(

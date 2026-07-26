@@ -36,9 +36,11 @@ export const LegacyPositionBackfillBlockerCodeSchema = z.enum([
   'NON_USD_VALUE_UNSUPPORTED',
   'COST_BASIS_MISSING',
   'COST_BASIS_MISMATCH',
+  'SHARE_PRECISION_LOSS',
   'SOURCE_PLAN_HASH_REQUIRED',
   'SOURCE_PLAN_HASH_CHANGED',
   'EXISTING_BACKFILL_MISMATCH',
+  'POSITION_ACQUISITION_OVERLAP',
 ]);
 
 export const LegacyPositionBackfillWarningCodeSchema = z.enum([
@@ -46,6 +48,7 @@ export const LegacyPositionBackfillWarningCodeSchema = z.enum([
   'MAIN_VEHICLE_WOULD_BE_CREATED',
   'MAIN_VEHICLE_CREATED',
   'EXISTING_BACKFILL_REPLAYED',
+  'PARTICIPATION_OBSERVATION_REUSED',
 ]);
 
 export const LegacyPositionBackfillCandidateSchema = z
