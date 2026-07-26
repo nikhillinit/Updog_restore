@@ -85,6 +85,7 @@ interface ParticipationRow {
   maturity_date: string | null;
   descriptive_terms: Record<string, unknown> | null;
   confirmed_duplicates: string[];
+  economic_origin: 'cash_investment' | 'conversion_result';
   source_observation_id: number | null;
   created_by: number | null;
   idempotency_key: string;
@@ -170,6 +171,11 @@ interface Model {
   rounds: RoundRow[];
   cashFlows: CashFlowRow[];
   positionEvents: PositionEventRow[];
+  conversionReliefs: Array<{
+    fund_id: number;
+    source_participation_id: number;
+    resulting_participation_id: number;
+  }>;
   lots: LotRow[];
   observations: Array<Record<string, unknown>>;
   cases: Array<Record<string, unknown>>;
@@ -252,6 +258,7 @@ function baseParticipation(overrides: Partial<ParticipationRow> = {}): Participa
     maturity_date: null,
     descriptive_terms: null,
     confirmed_duplicates: [],
+    economic_origin: 'cash_investment',
     source_observation_id: 901,
     created_by: 3,
     idempotency_key: 'part-1',
@@ -333,6 +340,7 @@ function emptyModel(): Model {
         request_hash: canonicalSha256({ seed: 'participation' }),
       },
     ],
+    conversionReliefs: [],
     lots: [
       { id: 'lot-1', investment_id: 800, vehicle_participation_id: 700, cost_basis_cents: 10000n },
     ],
@@ -383,6 +391,7 @@ function cloneModel(model: Model): Model {
     rounds: model.rounds.map((row) => ({ ...row })),
     cashFlows: model.cashFlows.map((row) => ({ ...row })),
     positionEvents: model.positionEvents.map((row) => ({ ...row })),
+    conversionReliefs: model.conversionReliefs.map((row) => ({ ...row })),
     lots: model.lots.map((row) => ({ ...row })),
     observations: model.observations.map((row) => ({ ...row })),
     cases: model.cases.map((row) => ({ ...row })),
@@ -542,6 +551,17 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
       (i) => i.fund_id === fundId && i.vehicle_participation_id === participationId
     );
     return { rows: row ? [{ id: row.id, version: row.version }] : [] };
+  }
+  if (flat.startsWith('SELECT source_participation_id, resulting_participation_id')) {
+    const [fundId, ...dependentIds] = params as [number, ...number[]];
+    const dependentSet = new Set(dependentIds);
+    const row = model.conversionReliefs.find(
+      (relief) =>
+        relief.fund_id === fundId &&
+        (dependentSet.has(relief.source_participation_id) ||
+          dependentSet.has(relief.resulting_participation_id))
+    );
+    return { rows: row ? [row] : [] };
   }
   if (flat.startsWith('SELECT id FROM investment_rounds')) {
     const [fundId, participationId] = params as [number, number];
@@ -1265,6 +1285,53 @@ describe('correctVehicleParticipationLedger', () => {
     expect(model.lots).toEqual(snapshot.lots);
     expect(model.observations).toEqual(snapshot.observations);
     expect(model.cases).toEqual(snapshot.cases);
+  });
+
+  it('rejects converted source/result dependents before any correction persists', async () => {
+    model.conversionReliefs.push({
+      fund_id: FUND_ID,
+      source_participation_id: 700,
+      resulting_participation_id: 701,
+    });
+    const snapshot = cloneModel(model);
+
+    await expect(runCorrection()).rejects.toMatchObject({
+      status: 409,
+      code: 'PARTICIPATION_CONVERSION_LOCKED',
+    });
+
+    expect(model.tranches).toEqual(snapshot.tranches);
+    expect(model.participations).toEqual(snapshot.participations);
+    expect(model.investments).toEqual(snapshot.investments);
+    expect(model.rounds).toEqual(snapshot.rounds);
+    expect(model.cashFlows).toEqual(snapshot.cashFlows);
+    expect(model.lots).toEqual(snapshot.lots);
+    expect(model.observations).toEqual(snapshot.observations);
+    expect(model.cases).toEqual(snapshot.cases);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
+  });
+
+  it('rejects conversion-result dependents before any correction persists', async () => {
+    model.participations[0] = {
+      ...model.participations[0]!,
+      economic_origin: 'conversion_result',
+    };
+    const snapshot = cloneModel(model);
+
+    await expect(runCorrection()).rejects.toMatchObject({
+      status: 409,
+      code: 'PARTICIPATION_CONVERSION_LOCKED',
+    });
+
+    expect(model.tranches).toEqual(snapshot.tranches);
+    expect(model.participations).toEqual(snapshot.participations);
+    expect(model.investments).toEqual(snapshot.investments);
+    expect(model.rounds).toEqual(snapshot.rounds);
+    expect(model.cashFlows).toEqual(snapshot.cashFlows);
+    expect(model.lots).toEqual(snapshot.lots);
+    expect(model.observations).toEqual(snapshot.observations);
+    expect(model.cases).toEqual(snapshot.cases);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
   });
 
   it('emits a newly representable lot when the prior projection had no lot', async () => {
