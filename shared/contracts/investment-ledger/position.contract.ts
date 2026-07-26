@@ -10,6 +10,10 @@ export const POSITION_EVENT_ERROR_CODES = [
   'LOT_RELIEF_NOT_FOUND',
   'LOT_RELIEF_EXCEEDED',
   'NORMALIZATION_REJECTED',
+  'POSITION_EVENT_NOT_FOUND',
+  'POSITION_EVENT_ALREADY_CORRECTED',
+  'POSITION_EVENT_NOT_CORRECTABLE',
+  'precondition_failed',
   'LEDGER_WRITE_FAILED',
 ] as const;
 
@@ -137,6 +141,17 @@ export const RecordPositionEventRequestSchema = z
     }
   });
 
+export const CorrectPositionRequestSchema = z
+  .object({
+    positionEventId: PositiveIntSchema,
+    currency: CurrencySchema.default('USD'),
+    sharesDelta: SharesDecimalStringSchema,
+    costBasisDelta: MoneyDecimalStringSchema,
+    proceeds: MoneyDecimalStringSchema,
+    lotReliefs: z.array(PositionEventLotReliefRequestSchema).min(1).optional(),
+  })
+  .strict();
+
 export const PositionEventV1Schema = z
   .object({
     id: PositiveIntSchema,
@@ -165,6 +180,16 @@ export const PositionEventV1Schema = z
   })
   .strict();
 
+export const PositionCorrectionV1Schema = z
+  .object({
+    reversal: PositionEventV1Schema,
+    replacement: PositionEventV1Schema,
+    reconciliationCaseId: PositiveIntSchema,
+  })
+  .strict();
+
 export type PositionEventLotReliefRequest = z.infer<typeof PositionEventLotReliefRequestSchema>;
 export type RecordPositionEventRequest = z.output<typeof RecordPositionEventRequestSchema>;
+export type CorrectPositionRequest = z.output<typeof CorrectPositionRequestSchema>;
 export type PositionEventV1 = z.infer<typeof PositionEventV1Schema>;
+export type PositionCorrectionV1 = z.infer<typeof PositionCorrectionV1Schema>;

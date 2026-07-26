@@ -7,6 +7,7 @@
  *   POST /api/funds/:fundId/investment-ledger/tranches/:trancheId/participations
  *   POST /api/funds/:fundId/investment-ledger/tranches/:trancheId/ledger-corrections
  *   POST /api/funds/:fundId/investment-ledger/position-events
+ *   POST /api/funds/:fundId/investment-ledger/position-corrections
  *   GET  /api/funds/:fundId/investment-ledger/financing-events/:eventId
  *
  * Middleware chain (existing primitives only):
@@ -25,6 +26,7 @@ import rateLimit from 'express-rate-limit';
 import { ZodError, z } from 'zod';
 
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
+import { parseETag } from '../lib/http-preconditions';
 import { firstString } from '../lib/request-values';
 import {
   correctFinancingTranche,
@@ -34,7 +36,10 @@ import {
 } from '../services/investment-ledger/financing-event-service';
 import { correctVehicleParticipationLedger } from '../services/investment-ledger/ledger-correction-service';
 import { createVehicleFinancingParticipation } from '../services/investment-ledger/participation-service';
-import { recordPositionEvent } from '../services/investment-ledger/position-service';
+import {
+  correctPosition,
+  recordPositionEvent,
+} from '../services/investment-ledger/position-service';
 
 const router = Router();
 
@@ -310,6 +315,32 @@ router.post(
         fundId,
         actorId: resolveAuthenticatedUserId(req),
         idempotencyKey,
+        request: req.body,
+      });
+      return res.status(result.replayed ? 200 : 201).json(result.value);
+    } catch (error) {
+      return sendLedgerError(res, error);
+    }
+  }
+);
+
+// Correct one append-only position event through reversal and replacement lineage.
+router.post(
+  '/api/funds/:fundId/investment-ledger/position-corrections',
+  ...writeChain,
+  async (req: Request, res: Response) => {
+    try {
+      const idempotencyKey = parseIdempotencyKey(req);
+      const fundId = parsePositiveParam(req, 'fundId', 'INVALID_FUND_ID');
+      const ifMatch = firstString(req.headers['if-match']);
+      if (!ifMatch) {
+        throw new LedgerRouteError(428, 'precondition_required', 'If-Match header is required');
+      }
+      const result = await correctPosition({
+        fundId,
+        actorId: resolveAuthenticatedUserId(req),
+        idempotencyKey,
+        ifMatch: parseETag(ifMatch),
         request: req.body,
       });
       return res.status(result.replayed ? 200 : 201).json(result.value);

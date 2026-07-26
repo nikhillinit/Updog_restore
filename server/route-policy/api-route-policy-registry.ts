@@ -1604,7 +1604,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     humanReviewRequired: true,
     performanceBudgetMs: null,
     notes:
-      'Task 11 append-only position event command; route handler mounting is deferred to the Task 11C service slice.',
+      'Task 11 append-only position event command; route handler is mounted on the common investment-ledger router.',
   },
   {
     id: 'api:post:/api/funds/:fundId/investment-ledger/position-conversions',
@@ -1652,7 +1652,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     humanReviewRequired: true,
     performanceBudgetMs: null,
     notes:
-      'Task 11 correction command registers append-only replacement/reversal policy; route handler mounting is deferred to Task 11C.',
+      'Task 11 correction command registers append-only replacement/reversal policy; route handler is mounted on the common investment-ledger router.',
   },
   {
     id: 'api:get:/api/funds/:fundId/investment-ledger/ownership-snapshots',

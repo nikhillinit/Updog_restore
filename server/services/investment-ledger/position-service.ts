@@ -5,6 +5,7 @@ import {
   assertOwnedByFund,
   type FundScopedOwnershipDatabase,
 } from '../../lib/fund-scoped-ownership';
+import { parseETag, rowVersionETag } from '../../lib/http-preconditions';
 import { runIdempotentCommand } from '../../lib/idempotent-command';
 import { dependencyGroupKeyForObservation } from '../../../shared/contracts/financial-observations/reconciliation-api.contract';
 import {
@@ -12,10 +13,13 @@ import {
   USD_FX_RATE_TO_USD,
 } from '../../../shared/contracts/investment-ledger/financing-event.contract';
 import {
+  CorrectPositionRequestSchema,
+  PositionCorrectionV1Schema,
   PositionEventV1Schema,
   RecordPositionEventRequestSchema,
+  type CorrectPositionRequest,
+  type PositionCorrectionV1,
   type PositionEventErrorCode,
-  type PositionEventLotReliefRequest,
   type PositionEventV1,
   type RecordPositionEventRequest,
 } from '../../../shared/contracts/investment-ledger/position.contract';
@@ -35,6 +39,11 @@ interface PositionCommandContext {
 }
 
 export interface RecordPositionEventInput extends PositionCommandContext {
+  request: unknown;
+}
+
+export interface CorrectPositionInput extends PositionCommandContext {
+  ifMatch: string;
   request: unknown;
 }
 
@@ -84,6 +93,10 @@ interface PositionEventRow {
   requestHash: string | null;
 }
 
+interface LockedPositionEventRow extends PositionEventRow {
+  xmin: string;
+}
+
 interface LockedLot {
   id: string;
   investmentId: number;
@@ -91,6 +104,11 @@ interface LockedLot {
   costBasisCents: bigint;
   activeRelievedShares: string;
   activeRelievedCostBasis: string;
+}
+
+interface PositionLotReference {
+  investmentId: number;
+  investmentLotId: string;
 }
 
 interface CanonicalPositionEconomics {
@@ -104,6 +122,12 @@ interface CanonicalPositionEconomics {
     relievedCostBasis: string;
     allocatedProceeds: string;
   }>;
+}
+
+interface PositionCorrectionReceiptRow {
+  reversal: PositionEventRow;
+  replacement: PositionEventRow;
+  reconciliationCaseId: number;
 }
 
 interface CorrectionPositionEventContext {
@@ -227,6 +251,213 @@ export async function recordPositionEvent(
   };
 }
 
+export async function correctPosition(
+  input: CorrectPositionInput
+): Promise<LedgerCommandResult<PositionCorrectionV1>> {
+  const database = input.database ?? db;
+  const request = CorrectPositionRequestSchema.parse(input.request);
+  assertUsdOnly(request);
+  const normalizedIfMatch = parseETag(input.ifMatch);
+  const commandRequest = {
+    fundId: input.fundId,
+    contractVersion: LEDGER_CONTRACT_VERSION,
+    ifMatch: normalizedIfMatch,
+    ...request,
+  };
+
+  const result = await database.transaction(async (transaction) => {
+    await lockFundIdentity(transaction, input.fundId);
+    const target = await selectPositionEventForUpdate(
+      transaction,
+      input.fundId,
+      request.positionEventId
+    );
+    if (!target) {
+      throw new PositionLedgerServiceError(
+        404,
+        'POSITION_EVENT_NOT_FOUND',
+        'The position event to correct was not found in this fund.'
+      );
+    }
+    const currentEtag = rowVersionETag(target.xmin);
+    if (normalizedIfMatch !== parseETag(currentEtag)) {
+      throw new PositionLedgerServiceError(
+        412,
+        'precondition_failed',
+        'The position event has been modified.',
+        { current: currentEtag }
+      );
+    }
+    assertCorrectablePositionEvent(target);
+    const existingReversal = await selectPositionEventReversal(
+      transaction,
+      input.fundId,
+      target.id,
+      true
+    );
+
+    const commandResult = await runIdempotentCommand<PositionEventRow>({
+      db: transaction,
+      fundId: input.fundId,
+      idempotencyKey: input.idempotencyKey,
+      contractVersion: LEDGER_CONTRACT_VERSION,
+      request: commandRequest,
+      loadExisting: async () => {
+        const existing = await selectPositionEventByIdempotency(
+          transaction,
+          input.fundId,
+          input.idempotencyKey
+        );
+        return existing ? { row: existing, requestHash: requiredRequestHash(existing) } : null;
+      },
+      insert: async (requestHash) => {
+        const existing = await selectPositionEventByIdempotency(
+          transaction,
+          input.fundId,
+          input.idempotencyKey
+        );
+        if (existing) return null;
+        if (existingReversal) {
+          throw new PositionLedgerServiceError(
+            409,
+            'POSITION_EVENT_ALREADY_CORRECTED',
+            'The target position event already has a reversal.'
+          );
+        }
+
+        await assertCurrentIdentityHead(transaction, input.fundId, target.companyIdentityId);
+        const companyName = await loadIdentityName(
+          transaction,
+          input.fundId,
+          target.companyIdentityId
+        );
+        const replacementRequest = correctionReplacementRequest(target, request);
+        const targetReliefs = await selectPositionEventLotReferences(
+          transaction,
+          input.fundId,
+          target.id
+        );
+        const replacementReliefs = replacementRequest.lotReliefs ?? [];
+        const lotReferences = uniqueLotReferences([...targetReliefs, ...replacementReliefs]);
+        const lockedLots =
+          lotReferences.length === 0
+            ? []
+            : await lockLotFamily(transaction, input.fundId, lotReferences, target.id);
+        const economics = validateAndCanonicalizeEconomics(replacementRequest, lockedLots);
+        const observationId = await insertManualObservation(transaction, {
+          fundId: input.fundId,
+          companyIdentityId: target.companyIdentityId,
+          companyName,
+          idempotencyKey: input.idempotencyKey,
+          request: replacementRequest,
+          economics,
+        });
+
+        const reversalId = readInsertedIdOrNull(
+          await transaction.execute(sql`
+            INSERT INTO position_events (
+              fund_id, vehicle_id, company_identity_id, event_type, effective_date,
+              shares_delta, cost_basis_delta, proceeds, replaces_event_id,
+              reverses_position_event_id, vehicle_participation_id,
+              resulting_participation_id, source_participation_version,
+              resulting_participation_version, source_tranche_version,
+              resulting_tranche_version, source_observation_id,
+              backfilled_from_investment_id, created_by, idempotency_key, request_hash
+            ) VALUES (
+              ${input.fundId}, ${target.vehicleId}, ${target.companyIdentityId}, 'reversal',
+              ${target.effectiveDate}, ${negateStoredDecimal(target.sharesDelta)},
+              ${negateStoredDecimal(target.costBasisDelta)},
+              ${negateStoredDecimal(target.proceeds)}, NULL, ${target.id},
+              ${target.vehicleParticipationId}, NULL, NULL, NULL, NULL, NULL,
+              ${observationId}, NULL, ${input.actorId},
+              ${`pos:corr:${target.id}:reversal`}, ${requestHash}
+            )
+            ON CONFLICT DO NOTHING
+            RETURNING id
+          `)
+        );
+        if (reversalId === null) {
+          throw new PositionLedgerServiceError(
+            409,
+            'POSITION_EVENT_ALREADY_CORRECTED',
+            'The target position event already has a reversal.'
+          );
+        }
+
+        const replacementId = readInsertedIdOrNull(
+          await transaction.execute(sql`
+            INSERT INTO position_events (
+              fund_id, vehicle_id, company_identity_id, event_type, effective_date,
+              shares_delta, cost_basis_delta, proceeds, replaces_event_id,
+              reverses_position_event_id, vehicle_participation_id,
+              resulting_participation_id, source_participation_version,
+              resulting_participation_version, source_tranche_version,
+              resulting_tranche_version, source_observation_id,
+              backfilled_from_investment_id, created_by, idempotency_key, request_hash
+            ) VALUES (
+              ${input.fundId}, ${target.vehicleId}, ${target.companyIdentityId},
+              ${target.eventType}, ${target.effectiveDate}, ${economics.sharesDelta},
+              ${economics.costBasisDelta}, ${economics.proceeds}, ${target.id}, NULL,
+              ${target.vehicleParticipationId}, NULL, NULL, NULL, NULL, NULL,
+              ${observationId}, NULL, ${input.actorId}, ${input.idempotencyKey}, ${requestHash}
+            )
+            ON CONFLICT DO NOTHING
+            RETURNING id
+          `)
+        );
+        if (replacementId === null) {
+          throw new PositionLedgerServiceError(
+            409,
+            'POSITION_EVENT_NOT_CORRECTABLE',
+            'The corrected replacement conflicts with existing position lineage.'
+          );
+        }
+
+        for (const relief of economics.lotReliefs) {
+          await transaction.execute(sql`
+            INSERT INTO position_event_lot_reliefs (
+              fund_id, position_event_id, investment_id, investment_lot_id,
+              relieved_shares, relieved_cost_basis, allocated_proceeds
+            ) VALUES (
+              ${input.fundId}, ${replacementId}, ${relief.investmentId},
+              ${relief.investmentLotId}, ${relief.relievedShares},
+              ${relief.relievedCostBasis}, ${relief.allocatedProceeds}
+            )
+          `);
+        }
+
+        await insertObservationMatchCase(transaction, input.fundId, observationId);
+        return requirePositionEvent(
+          await selectPositionEventById(transaction, input.fundId, replacementId)
+        );
+      },
+    });
+    const receipt = await loadPositionCorrectionReceipt(
+      transaction,
+      input.fundId,
+      target.id,
+      input.idempotencyKey
+    );
+    if (!receipt) {
+      throw new PositionLedgerServiceError(
+        500,
+        'LEDGER_WRITE_FAILED',
+        'Position correction could not be reloaded.'
+      );
+    }
+    return { row: receipt, replayed: commandResult.replayed };
+  });
+
+  if (!result.replayed) {
+    await invalidateH9Artifacts(input.fundId);
+  }
+
+  return {
+    value: positionCorrectionDto(result.row),
+    replayed: result.replayed,
+  };
+}
+
 export async function appendCorrectionPositionEvents(
   database: LedgerDatabase,
   context: CorrectionPositionEventContext
@@ -307,7 +538,7 @@ function negateStoredDecimal(value: string): string {
   return decimal.eq(0) ? '0.000000' : decimal.negated().toFixed(6);
 }
 
-function assertUsdOnly(request: RecordPositionEventRequest): void {
+function assertUsdOnly(request: Pick<RecordPositionEventRequest, 'currency'>): void {
   if (request.currency !== 'USD') {
     throw new PositionLedgerServiceError(
       422,
@@ -315,6 +546,59 @@ function assertUsdOnly(request: RecordPositionEventRequest): void {
       'Position-event money values must be quoted in USD.'
     );
   }
+}
+
+function assertCorrectablePositionEvent(
+  target: PositionEventRow
+): asserts target is PositionEventRow & {
+  eventType: RecordPositionEventRequest['eventType'];
+} {
+  if (target.eventType === 'conversion' || target.eventType === 'reversal') {
+    throw new PositionLedgerServiceError(
+      409,
+      'POSITION_EVENT_NOT_CORRECTABLE',
+      'Conversion and reversal events cannot be corrected by the Phase 2 position command.'
+    );
+  }
+  if (target.vehicleParticipationId !== null) {
+    throw new PositionLedgerServiceError(
+      409,
+      'POSITION_EVENT_NOT_CORRECTABLE',
+      'Participation-backed positions must be corrected through the ledger-corrections command.'
+    );
+  }
+  if (target.backfilledFromInvestmentId !== null) {
+    throw new PositionLedgerServiceError(
+      409,
+      'POSITION_EVENT_NOT_CORRECTABLE',
+      'Backfill-backed positions require their compatibility writer to own the correction.'
+    );
+  }
+}
+
+function correctionReplacementRequest(
+  target: PositionEventRow & { eventType: RecordPositionEventRequest['eventType'] },
+  request: CorrectPositionRequest
+): RecordPositionEventRequest {
+  return RecordPositionEventRequestSchema.parse({
+    vehicleId: target.vehicleId,
+    companyIdentityId: target.companyIdentityId,
+    eventType: target.eventType,
+    effectiveDate: target.effectiveDate,
+    currency: request.currency,
+    sharesDelta: request.sharesDelta,
+    costBasisDelta: request.costBasisDelta,
+    proceeds: request.proceeds,
+    ...(request.lotReliefs !== undefined && { lotReliefs: request.lotReliefs }),
+  });
+}
+
+function uniqueLotReferences(references: PositionLotReference[]): PositionLotReference[] {
+  const byPair = new Map<string, PositionLotReference>();
+  for (const reference of references) {
+    byPair.set(`${reference.investmentId}:${reference.investmentLotId}`, reference);
+  }
+  return [...byPair.values()];
 }
 
 async function assertLedgerOwnership(
@@ -377,7 +661,8 @@ async function loadIdentityName(
 async function lockLotFamily(
   database: LedgerDatabase,
   fundId: number,
-  reliefs: PositionEventLotReliefRequest[]
+  reliefs: readonly PositionLotReference[],
+  excludedPositionEventId?: number
 ): Promise<LockedLot[]> {
   const lotIds = reliefs.map((relief) => relief.investmentLotId);
   const investmentIds = reliefs.map((relief) => relief.investmentId);
@@ -433,6 +718,11 @@ async function lockLotFamily(
       WHERE r.fund_id = ${fundId}
         AND r.investment_lot_id = ANY(ARRAY[${lotIdParams}]::uuid[])
         AND reversal_event.id IS NULL
+        ${
+          excludedPositionEventId === undefined
+            ? sql``
+            : sql`AND source_event.id <> ${excludedPositionEventId}`
+        }
       GROUP BY r.investment_id, r.investment_lot_id
     `)
   );
@@ -463,6 +753,25 @@ async function lockLotFamily(
         active === undefined ? '0.000000' : asString(active['relieved_cost_basis']),
     };
   });
+}
+
+async function selectPositionEventLotReferences(
+  database: LedgerDatabase,
+  fundId: number,
+  positionEventId: number
+): Promise<PositionLotReference[]> {
+  return readRows(
+    await database.execute(sql`
+      SELECT investment_id, investment_lot_id
+      FROM position_event_lot_reliefs
+      WHERE fund_id = ${fundId}
+        AND position_event_id = ${positionEventId}
+      ORDER BY investment_id, investment_lot_id
+    `)
+  ).map((row) => ({
+    investmentId: asPositiveInt(row['investment_id']),
+    investmentLotId: asString(row['investment_lot_id']),
+  }));
 }
 
 function validateAndCanonicalizeEconomics(
@@ -637,6 +946,115 @@ async function selectPositionEventById(
   );
 }
 
+async function selectPositionEventForUpdate(
+  database: LedgerDatabase,
+  fundId: number,
+  eventId: number
+): Promise<LockedPositionEventRow | null> {
+  const row = readRows(
+    await database.execute(sql`
+      SELECT *, xmin::text AS xmin
+      FROM position_events
+      WHERE id = ${eventId}
+        AND fund_id = ${fundId}
+      FOR UPDATE
+    `)
+  )[0];
+  return row
+    ? {
+        ...positionEventFromRow(row),
+        xmin: asString(row['xmin']),
+      }
+    : null;
+}
+
+async function selectPositionEventReversal(
+  database: LedgerDatabase,
+  fundId: number,
+  targetEventId: number,
+  forUpdate = false
+): Promise<PositionEventRow | null> {
+  const result = forUpdate
+    ? await database.execute(sql`
+        SELECT *
+        FROM position_events
+        WHERE fund_id = ${fundId}
+          AND reverses_position_event_id = ${targetEventId}
+        LIMIT 1
+        FOR UPDATE
+      `)
+    : await database.execute(sql`
+        SELECT *
+        FROM position_events
+        WHERE fund_id = ${fundId}
+          AND reverses_position_event_id = ${targetEventId}
+        LIMIT 1
+      `);
+  return firstPositionEvent(result);
+}
+
+async function loadPositionCorrectionReceipt(
+  database: LedgerDatabase,
+  fundId: number,
+  targetEventId: number,
+  idempotencyKey: string
+): Promise<PositionCorrectionReceiptRow | null> {
+  const replacement = await selectPositionEventByIdempotency(database, fundId, idempotencyKey);
+  if (!replacement) return null;
+  const reversal = await selectPositionEventReversal(database, fundId, targetEventId);
+  if (!reversal || replacement.sourceObservationId === null) {
+    throw new PositionLedgerServiceError(
+      500,
+      'LEDGER_WRITE_FAILED',
+      'Stored position correction is missing reversal or observation lineage.'
+    );
+  }
+  const caseRow = readRows(
+    await database.execute(sql`
+      SELECT id
+      FROM reconciliation_cases
+      WHERE fund_id = ${fundId}
+        AND source_observation_id = ${replacement.sourceObservationId}
+        AND case_type = 'observation_match'
+      ORDER BY id DESC
+      LIMIT 1
+    `)
+  )[0];
+  if (!caseRow) {
+    throw new PositionLedgerServiceError(
+      500,
+      'LEDGER_WRITE_FAILED',
+      'Stored position correction is missing its reconciliation case.'
+    );
+  }
+  return {
+    reversal,
+    replacement,
+    reconciliationCaseId: asPositiveInt(caseRow['id']),
+  };
+}
+
+async function insertObservationMatchCase(
+  database: LedgerDatabase,
+  fundId: number,
+  observationId: number
+): Promise<number> {
+  return readInsertedId(
+    await database.execute(sql`
+      INSERT INTO reconciliation_cases (
+        fund_id, source_observation_id, case_type, status, resolution,
+        resolved_by, resolved_at, history
+      ) VALUES (
+        ${fundId}, ${observationId}, 'observation_match', 'resolved',
+        ${JSON.stringify({ action: 'confirm_match', reason: 'position_correction' })}::jsonb,
+        NULL, now(),
+        ${JSON.stringify([{ action: 'auto_resolved_position_correction' }])}::jsonb
+      )
+      RETURNING id
+    `)
+  );
+}
+
 function requirePositionEvent(row: PositionEventRow | null): PositionEventRow {
   if (!row) {
     throw new PositionLedgerServiceError(
@@ -714,6 +1132,14 @@ function positionEventDto(row: PositionEventRow): PositionEventV1 {
   return PositionEventV1Schema.parse({
     ...row,
     recordedAt: row.recordedAt.toISOString(),
+  });
+}
+
+function positionCorrectionDto(row: PositionCorrectionReceiptRow): PositionCorrectionV1 {
+  return PositionCorrectionV1Schema.parse({
+    reversal: positionEventDto(row.reversal),
+    replacement: positionEventDto(row.replacement),
+    reconciliationCaseId: row.reconciliationCaseId,
   });
 }
 

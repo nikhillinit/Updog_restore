@@ -1,6 +1,8 @@
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { rowVersionETag } from '../../../../server/lib/http-preconditions';
+
 const { invalidateH9Artifacts } = vi.hoisted(() => ({
   invalidateH9Artifacts: vi.fn(async () => undefined),
 }));
@@ -9,7 +11,10 @@ vi.mock('../../../../server/services/h9-artifact-invalidation-service', () => ({
   invalidateH9Artifacts,
 }));
 
-import { recordPositionEvent } from '../../../../server/services/investment-ledger/position-service';
+import {
+  correctPosition,
+  recordPositionEvent,
+} from '../../../../server/services/investment-ledger/position-service';
 
 const dialect = new PgDialect();
 const FUND_ID = 7;
@@ -45,11 +50,14 @@ interface Model {
   positionEvents: Array<Record<string, unknown>>;
   reliefs: Array<Record<string, unknown>>;
   observations: Array<Record<string, unknown>>;
+  reconciliationCases: Array<Record<string, unknown>>;
   statements: Statement[];
   nextPositionEventId: number;
   nextObservationId: number;
+  nextReconciliationCaseId: number;
   owned: boolean;
   failReliefInsert: boolean;
+  failReconciliationCaseInsert: boolean;
 }
 
 interface ModelSnapshot {
@@ -58,10 +66,13 @@ interface ModelSnapshot {
   positionEvents: Array<Record<string, unknown>>;
   reliefs: Array<Record<string, unknown>>;
   observations: Array<Record<string, unknown>>;
+  reconciliationCases: Array<Record<string, unknown>>;
   nextPositionEventId: number;
   nextObservationId: number;
+  nextReconciliationCaseId: number;
   owned: boolean;
   failReliefInsert: boolean;
+  failReconciliationCaseInsert: boolean;
 }
 
 function emptyModel(): Model {
@@ -78,11 +89,14 @@ function emptyModel(): Model {
     positionEvents: [],
     reliefs: [],
     observations: [],
+    reconciliationCases: [],
     statements: [],
     nextPositionEventId: 1300,
     nextObservationId: 1200,
+    nextReconciliationCaseId: 1400,
     owned: true,
     failReliefInsert: false,
+    failReconciliationCaseInsert: false,
   };
 }
 
@@ -97,10 +111,13 @@ function snapshotModel(model: Model): ModelSnapshot {
     positionEvents: cloneRecords(model.positionEvents),
     reliefs: cloneRecords(model.reliefs),
     observations: cloneRecords(model.observations),
+    reconciliationCases: cloneRecords(model.reconciliationCases),
     nextPositionEventId: model.nextPositionEventId,
     nextObservationId: model.nextObservationId,
+    nextReconciliationCaseId: model.nextReconciliationCaseId,
     owned: model.owned,
     failReliefInsert: model.failReliefInsert,
+    failReconciliationCaseInsert: model.failReconciliationCaseInsert,
   };
 }
 
@@ -110,10 +127,13 @@ function restoreModel(model: Model, snapshot: ModelSnapshot): void {
   model.positionEvents = cloneRecords(snapshot.positionEvents);
   model.reliefs = cloneRecords(snapshot.reliefs);
   model.observations = cloneRecords(snapshot.observations);
+  model.reconciliationCases = cloneRecords(snapshot.reconciliationCases);
   model.nextPositionEventId = snapshot.nextPositionEventId;
   model.nextObservationId = snapshot.nextObservationId;
+  model.nextReconciliationCaseId = snapshot.nextReconciliationCaseId;
   model.owned = snapshot.owned;
   model.failReliefInsert = snapshot.failReliefInsert;
+  model.failReconciliationCaseInsert = snapshot.failReconciliationCaseInsert;
 }
 
 function splitTopLevel(text: string): string[] {
@@ -229,9 +249,14 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
       (value) => typeof value === 'string' && /^[a-f0-9-]{36}$/i.test(value)
     ) as string[];
     const fundId = params.find((value) => typeof value === 'number') as number;
+    const numericParams = params.filter((value): value is number => typeof value === 'number');
+    const excludedPositionEventId = flat.includes('source_event.id <>')
+      ? numericParams[numericParams.length - 1]
+      : undefined;
     const activeReliefs = model.reliefs.filter((relief) => {
       if (relief['fund_id'] !== fundId) return false;
       if (!lotIds.includes(String(relief['investment_lot_id']))) return false;
+      if (relief['position_event_id'] === excludedPositionEventId) return false;
       return !model.positionEvents.some(
         (event) =>
           event['fund_id'] === fundId &&
@@ -265,6 +290,20 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
     }
     return { rows: [...totals.values()] };
   }
+  if (flat.startsWith('SELECT investment_id, investment_lot_id')) {
+    const [fundId, positionEventId] = params as [number, number];
+    return {
+      rows: model.reliefs
+        .filter(
+          (relief) =>
+            relief['fund_id'] === fundId && relief['position_event_id'] === positionEventId
+        )
+        .map((relief) => ({
+          investment_id: relief['investment_id'],
+          investment_lot_id: relief['investment_lot_id'],
+        })),
+    };
+  }
   if (flat.startsWith('SELECT * FROM position_events') && flat.includes('idempotency_key')) {
     const [fundId, idempotencyKey] = params as [number, string];
     const row = model.positionEvents.find(
@@ -277,6 +316,27 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
     const [eventId, fundId] = params as [number, number];
     const row = model.positionEvents.find(
       (candidate) => candidate['id'] === eventId && candidate['fund_id'] === fundId
+    );
+    return { rows: row ? [row] : [] };
+  }
+  if (
+    flat.startsWith('SELECT *, xmin::text AS xmin FROM position_events') &&
+    flat.includes('FOR UPDATE')
+  ) {
+    const [eventId, fundId] = params as [number, number];
+    const row = model.positionEvents.find(
+      (candidate) => candidate['id'] === eventId && candidate['fund_id'] === fundId
+    );
+    return { rows: row ? [row] : [] };
+  }
+  if (
+    flat.startsWith('SELECT * FROM position_events') &&
+    flat.includes('reverses_position_event_id')
+  ) {
+    const [fundId, targetEventId] = params as [number, number];
+    const row = model.positionEvents.find(
+      (candidate) =>
+        candidate['fund_id'] === fundId && candidate['reverses_position_event_id'] === targetEventId
     );
     return { rows: row ? [row] : [] };
   }
@@ -308,6 +368,29 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
     const row = parseInsert(flat, params);
     model.reliefs.push(row);
     return { rows: [] };
+  }
+  if (flat.startsWith('INSERT INTO reconciliation_cases')) {
+    if (model.failReconciliationCaseInsert) {
+      throw new Error('Injected reconciliation-case failure.');
+    }
+    const row = {
+      ...parseInsert(flat, params),
+      id: model.nextReconciliationCaseId++,
+    };
+    model.reconciliationCases.push(row);
+    return { rows: [{ id: row.id }] };
+  }
+  if (flat.startsWith('SELECT id FROM reconciliation_cases')) {
+    const [fundId, observationId] = params as [number, number];
+    const row = [...model.reconciliationCases]
+      .reverse()
+      .find(
+        (candidate) =>
+          candidate['fund_id'] === fundId &&
+          candidate['source_observation_id'] === observationId &&
+          candidate['case_type'] === 'observation_match'
+      );
+    return { rows: row ? [{ id: row['id'] }] : [] };
   }
 
   return { rows: [] };
@@ -390,10 +473,91 @@ async function recordEvent(
   });
 }
 
+function seedPositionEvent(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  const row = {
+    id: 1299,
+    fund_id: FUND_ID,
+    vehicle_id: VEHICLE_ID,
+    company_identity_id: IDENTITY_ID,
+    event_type: 'realization',
+    effective_date: '2026-02-15',
+    recorded_at: new Date('2026-02-16T00:00:00.000Z'),
+    xmin: '101',
+    shares_delta: '-4.000000',
+    cost_basis_delta: '-40.000000',
+    proceeds: '60.000000',
+    replaces_event_id: null,
+    reverses_position_event_id: null,
+    vehicle_participation_id: null,
+    resulting_participation_id: null,
+    source_participation_version: null,
+    resulting_participation_version: null,
+    source_tranche_version: null,
+    resulting_tranche_version: null,
+    source_observation_id: 1199,
+    backfilled_from_investment_id: null,
+    created_by: ACTOR_ID,
+    idempotency_key: 'position-realization-original',
+    request_hash: 'a'.repeat(64),
+    ...overrides,
+  };
+  model.positionEvents.push(row);
+  return row;
+}
+
+async function correctEvent(
+  idempotencyKey = 'position-correction-1',
+  request: unknown = {
+    positionEventId: 1299,
+    currency: 'USD',
+    sharesDelta: '-3.00000000',
+    costBasisDelta: '-30.000000',
+    proceeds: '55.000000',
+    lotReliefs: [
+      {
+        investmentId: 800,
+        investmentLotId: LOT_ID,
+        relievedShares: '3.00000000',
+        relievedCostBasis: '30.000000',
+        allocatedProceeds: '55.000000',
+      },
+    ],
+  },
+  ifMatch = rowVersionETag('101')
+) {
+  return correctPosition({
+    fundId: FUND_ID,
+    actorId: ACTOR_ID,
+    idempotencyKey,
+    ifMatch,
+    request,
+    database: makeDatabase(model),
+  });
+}
+
 function statementsMatching(model: Model, needle: string): Statement[] {
   return model.statements.filter((statement) =>
     statement.text.replace(/\s+/g, ' ').includes(needle)
   );
+}
+
+function foldPositionEconomics(
+  rows: Array<Record<string, unknown>>,
+  knowledgeCutoff: Date
+): { shares: number; costBasis: number; proceeds: number } {
+  return rows
+    .filter((row) => {
+      const recordedAt = row['recorded_at'];
+      return recordedAt instanceof Date && recordedAt <= knowledgeCutoff;
+    })
+    .reduce(
+      (total, row) => ({
+        shares: total.shares + Number(row['shares_delta']),
+        costBasis: total.costBasis + Number(row['cost_basis_delta']),
+        proceeds: total.proceeds + Number(row['proceeds']),
+      }),
+      { shares: 0, costBasis: 0, proceeds: 0 }
+    );
 }
 
 let model: Model;
@@ -714,5 +878,449 @@ describe('recordPositionEvent', () => {
     expect(model.positionEvents).toHaveLength(0);
     expect(model.observations).toHaveLength(0);
     expect(model.statements).toHaveLength(0);
+  });
+});
+
+describe('correctPosition', () => {
+  it('rejects a stale If-Match with zero persisted rows', async () => {
+    seedPositionEvent();
+    const before = cloneRecords(model.positionEvents);
+
+    await expect(
+      correctEvent('position-correction-stale', undefined, rowVersionETag('100'))
+    ).rejects.toMatchObject({
+      status: 412,
+      code: 'precondition_failed',
+    });
+
+    expect(model.positionEvents).toEqual(before);
+    expect(model.reliefs).toHaveLength(0);
+    expect(model.observations).toHaveLength(0);
+    expect(model.reconciliationCases).toHaveLength(0);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
+  });
+
+  it('rejects participation-backed compat corrections so callers use ledger-corrections', async () => {
+    seedPositionEvent({ vehicle_participation_id: 900 });
+
+    await expect(correctEvent('position-correction-participation')).rejects.toMatchObject({
+      status: 409,
+      code: 'POSITION_EVENT_NOT_CORRECTABLE',
+    });
+
+    expect(model.positionEvents).toHaveLength(1);
+    expect(model.observations).toHaveLength(0);
+    expect(statementsMatching(model, 'UPDATE investments')).toHaveLength(0);
+  });
+
+  it('rejects backfill-backed compat corrections until the backfill writer owns compensation', async () => {
+    seedPositionEvent({ backfilled_from_investment_id: 800 });
+
+    await expect(correctEvent('position-correction-backfill')).rejects.toMatchObject({
+      status: 409,
+      code: 'POSITION_EVENT_NOT_CORRECTABLE',
+    });
+
+    expect(model.positionEvents).toHaveLength(1);
+    expect(model.observations).toHaveLength(0);
+    expect(statementsMatching(model, 'UPDATE investments')).toHaveLength(0);
+  });
+
+  it('reverses stored economics exactly and appends corrected replacement lineage', async () => {
+    seedPositionEvent();
+    model.lots.push({
+      id: LOT_ID,
+      investment_id: 800,
+      fund_id: FUND_ID,
+      shares_acquired: '10.00000000',
+      cost_basis_cents: 10000n,
+    });
+    model.reliefs.push({
+      fund_id: FUND_ID,
+      position_event_id: 1299,
+      investment_id: 800,
+      investment_lot_id: LOT_ID,
+      relieved_shares: '4.000000',
+      relieved_cost_basis: '40.000000',
+      allocated_proceeds: '60.000000',
+    });
+
+    const result = await correctEvent();
+
+    expect(result.replayed).toBe(false);
+    expect(result.value.reversal).toMatchObject({
+      eventType: 'reversal',
+      sharesDelta: '4.000000',
+      costBasisDelta: '40.000000',
+      proceeds: '-60.000000',
+      reversesPositionEventId: 1299,
+      replacesEventId: null,
+    });
+    expect(result.value.replacement).toMatchObject({
+      eventType: 'realization',
+      sharesDelta: '-3.000000',
+      costBasisDelta: '-30.000000',
+      proceeds: '55.000000',
+      replacesEventId: 1299,
+      reversesPositionEventId: null,
+    });
+    expect(
+      Number(result.value.reversal.sharesDelta) + Number(model.positionEvents[0]?.['shares_delta'])
+    ).toBe(0);
+    expect(
+      Number(result.value.reversal.costBasisDelta) +
+        Number(model.positionEvents[0]?.['cost_basis_delta'])
+    ).toBe(0);
+    expect(
+      Number(result.value.reversal.proceeds) + Number(model.positionEvents[0]?.['proceeds'])
+    ).toBe(0);
+    expect(result.value.reversal.sourceObservationId).toBe(
+      result.value.replacement.sourceObservationId
+    );
+    expect(model.observations).toHaveLength(1);
+    expect(model.reconciliationCases).toContainEqual(
+      expect.objectContaining({
+        id: result.value.reconciliationCaseId,
+        fund_id: FUND_ID,
+        source_observation_id: result.value.replacement.sourceObservationId,
+        case_type: 'observation_match',
+        status: 'resolved',
+      })
+    );
+    expect(statementsMatching(model, 'UPDATE investments')).toHaveLength(0);
+    expect(statementsMatching(model, 'INSERT INTO investment_rounds')).toHaveLength(0);
+    expect(statementsMatching(model, 'INSERT INTO cash_flow_events')).toHaveLength(0);
+    expect(invalidateH9Artifacts).toHaveBeenCalledOnce();
+    expect(invalidateH9Artifacts).toHaveBeenCalledWith(FUND_ID);
+  });
+
+  it('deactivates target relief through reversal and recreates relief only on replacement', async () => {
+    seedPositionEvent();
+    model.lots.push({
+      id: LOT_ID,
+      investment_id: 800,
+      fund_id: FUND_ID,
+      shares_acquired: '5.00000000',
+      cost_basis_cents: 5000n,
+    });
+    model.reliefs.push({
+      fund_id: FUND_ID,
+      position_event_id: 1299,
+      investment_id: 800,
+      investment_lot_id: LOT_ID,
+      relieved_shares: '4.000000',
+      relieved_cost_basis: '40.000000',
+      allocated_proceeds: '60.000000',
+    });
+
+    const result = await correctEvent();
+
+    expect(model.reliefs).toHaveLength(2);
+    expect(model.reliefs).toContainEqual(
+      expect.objectContaining({
+        position_event_id: result.value.replacement.id,
+        relieved_shares: '3.000000',
+        relieved_cost_basis: '30.000000',
+        allocated_proceeds: '55.000000',
+      })
+    );
+    expect(model.reliefs).not.toContainEqual(
+      expect.objectContaining({ position_event_id: result.value.reversal.id })
+    );
+
+    const fundLockIndex = model.statements.findIndex((statement) =>
+      statement.text.includes('pg_advisory_xact_lock')
+    );
+    const eventLockIndex = model.statements.findIndex(
+      (statement) =>
+        statement.text.includes('SELECT *, xmin::text AS xmin') &&
+        statement.text.includes('FOR UPDATE')
+    );
+    const lotLockIndex = model.statements.findIndex(
+      (statement) =>
+        statement.text.includes('FROM investment_lots l') && statement.text.includes('FOR UPDATE')
+    );
+    expect(fundLockIndex).toBeGreaterThanOrEqual(0);
+    expect(eventLockIndex).toBeGreaterThan(fundLockIndex);
+    expect(lotLockIndex).toBeGreaterThan(eventLockIndex);
+  });
+
+  it('rejects a second correction of the same target without persisting rows', async () => {
+    seedPositionEvent();
+    model.lots.push({
+      id: LOT_ID,
+      investment_id: 800,
+      fund_id: FUND_ID,
+      shares_acquired: '10.00000000',
+      cost_basis_cents: 10000n,
+    });
+    model.reliefs.push({
+      fund_id: FUND_ID,
+      position_event_id: 1299,
+      investment_id: 800,
+      investment_lot_id: LOT_ID,
+      relieved_shares: '4.000000',
+      relieved_cost_basis: '40.000000',
+      allocated_proceeds: '60.000000',
+    });
+    await correctEvent();
+    const countsBeforeConflict = {
+      events: model.positionEvents.length,
+      reliefs: model.reliefs.length,
+      observations: model.observations.length,
+      reconciliationCases: model.reconciliationCases.length,
+    };
+
+    await expect(correctEvent('position-correction-2')).rejects.toMatchObject({
+      status: 409,
+      code: 'POSITION_EVENT_ALREADY_CORRECTED',
+    });
+
+    expect({
+      events: model.positionEvents.length,
+      reliefs: model.reliefs.length,
+      observations: model.observations.length,
+      reconciliationCases: model.reconciliationCases.length,
+    }).toEqual(countsBeforeConflict);
+  });
+
+  it('replays one correction key and rejects changed payload reuse without duplicates', async () => {
+    seedPositionEvent();
+    model.lots.push({
+      id: LOT_ID,
+      investment_id: 800,
+      fund_id: FUND_ID,
+      shares_acquired: '10.00000000',
+      cost_basis_cents: 10000n,
+    });
+    model.reliefs.push({
+      fund_id: FUND_ID,
+      position_event_id: 1299,
+      investment_id: 800,
+      investment_lot_id: LOT_ID,
+      relieved_shares: '4.000000',
+      relieved_cost_basis: '40.000000',
+      allocated_proceeds: '60.000000',
+    });
+
+    const first = await correctEvent();
+    const replay = await correctEvent();
+
+    expect(replay).toEqual({ ...first, replayed: true });
+    expect(model.positionEvents).toHaveLength(3);
+    expect(model.reliefs).toHaveLength(2);
+    expect(model.observations).toHaveLength(1);
+    expect(model.reconciliationCases).toHaveLength(1);
+    expect(invalidateH9Artifacts).toHaveBeenCalledOnce();
+
+    await expect(
+      correctEvent('position-correction-1', {
+        positionEventId: 1299,
+        currency: 'USD',
+        sharesDelta: '-2.00000000',
+        costBasisDelta: '-20.000000',
+        proceeds: '45.000000',
+        lotReliefs: [
+          {
+            investmentId: 800,
+            investmentLotId: LOT_ID,
+            relievedShares: '2.00000000',
+            relievedCostBasis: '20.000000',
+            allocatedProceeds: '45.000000',
+          },
+        ],
+      })
+    ).rejects.toMatchObject({
+      status: 409,
+      code: 'IDEMPOTENCY_KEY_REUSE',
+    });
+    expect(model.positionEvents).toHaveLength(3);
+    expect(model.reliefs).toHaveLength(2);
+  });
+
+  it('replays an exact correction after the target identity later merges into a new head', async () => {
+    seedPositionEvent();
+    model.lots.push({
+      id: LOT_ID,
+      investment_id: 800,
+      fund_id: FUND_ID,
+      shares_acquired: '10.00000000',
+      cost_basis_cents: 10000n,
+    });
+    model.reliefs.push({
+      fund_id: FUND_ID,
+      position_event_id: 1299,
+      investment_id: 800,
+      investment_lot_id: LOT_ID,
+      relieved_shares: '4.000000',
+      relieved_cost_basis: '40.000000',
+      allocated_proceeds: '60.000000',
+    });
+
+    const first = await correctEvent();
+    const countsAfterFirstCorrection = {
+      events: model.positionEvents.length,
+      reliefs: model.reliefs.length,
+      observations: model.observations.length,
+      reconciliationCases: model.reconciliationCases.length,
+    };
+    model.identities = [
+      {
+        id: IDENTITY_ID,
+        fund_id: FUND_ID,
+        merged_into_identity_id: 12,
+        canonical_name: 'Acme Robotics Legacy',
+      },
+      {
+        id: 12,
+        fund_id: FUND_ID,
+        merged_into_identity_id: null,
+        canonical_name: 'Acme Robotics',
+      },
+    ];
+
+    const replay = await correctEvent();
+
+    expect(replay).toEqual({ ...first, replayed: true });
+    expect({
+      events: model.positionEvents.length,
+      reliefs: model.reliefs.length,
+      observations: model.observations.length,
+      reconciliationCases: model.reconciliationCases.length,
+    }).toEqual(countsAfterFirstCorrection);
+    expect(invalidateH9Artifacts).toHaveBeenCalledOnce();
+  });
+
+  it('rejects a new correction when the target identity has already merged into a new head', async () => {
+    seedPositionEvent();
+    model.lots.push({
+      id: LOT_ID,
+      investment_id: 800,
+      fund_id: FUND_ID,
+      shares_acquired: '10.00000000',
+      cost_basis_cents: 10000n,
+    });
+    model.reliefs.push({
+      fund_id: FUND_ID,
+      position_event_id: 1299,
+      investment_id: 800,
+      investment_lot_id: LOT_ID,
+      relieved_shares: '4.000000',
+      relieved_cost_basis: '40.000000',
+      allocated_proceeds: '60.000000',
+    });
+    const countsBeforeCorrection = {
+      events: model.positionEvents.length,
+      reliefs: model.reliefs.length,
+      observations: model.observations.length,
+      reconciliationCases: model.reconciliationCases.length,
+    };
+    model.identities = [
+      {
+        id: IDENTITY_ID,
+        fund_id: FUND_ID,
+        merged_into_identity_id: 12,
+        canonical_name: 'Acme Robotics Legacy',
+      },
+      {
+        id: 12,
+        fund_id: FUND_ID,
+        merged_into_identity_id: null,
+        canonical_name: 'Acme Robotics',
+      },
+    ];
+
+    await expect(correctEvent('position-correction-after-merge')).rejects.toMatchObject({
+      status: 409,
+      code: 'IDENTITY_NOT_CURRENT',
+      details: {
+        companyIdentityId: IDENTITY_ID,
+        identityHead: 12,
+      },
+    });
+
+    expect({
+      events: model.positionEvents.length,
+      reliefs: model.reliefs.length,
+      observations: model.observations.length,
+      reconciliationCases: model.reconciliationCases.length,
+    }).toEqual(countsBeforeCorrection);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
+  });
+
+  it('preserves the old knowledge cutoff while later cutoffs reflect the correction', async () => {
+    seedPositionEvent();
+    seedPositionEvent({
+      id: 1298,
+      event_type: 'adjustment',
+      effective_date: '2026-02-20',
+      recorded_at: new Date('2026-02-20T00:00:00.000Z'),
+      xmin: '100',
+      shares_delta: '1.000000',
+      cost_basis_delta: '5.000000',
+      proceeds: '0.000000',
+      idempotency_key: 'position-adjustment-later',
+      request_hash: 'b'.repeat(64),
+    });
+    model.lots.push({
+      id: LOT_ID,
+      investment_id: 800,
+      fund_id: FUND_ID,
+      shares_acquired: '10.00000000',
+      cost_basis_cents: 10000n,
+    });
+    model.reliefs.push({
+      fund_id: FUND_ID,
+      position_event_id: 1299,
+      investment_id: 800,
+      investment_lot_id: LOT_ID,
+      relieved_shares: '4.000000',
+      relieved_cost_basis: '40.000000',
+      allocated_proceeds: '60.000000',
+    });
+    const oldCutoff = new Date('2026-02-25T00:00:00.000Z');
+    const beforeCorrection = foldPositionEconomics(model.positionEvents, oldCutoff);
+
+    await correctEvent();
+
+    expect(foldPositionEconomics(model.positionEvents, oldCutoff)).toEqual(beforeCorrection);
+    expect(
+      foldPositionEconomics(model.positionEvents, new Date('2026-03-02T00:00:00.000Z'))
+    ).toEqual({
+      shares: -2,
+      costBasis: -25,
+      proceeds: 55,
+    });
+  });
+
+  it('rolls back the full correction when final reconciliation-case persistence fails', async () => {
+    seedPositionEvent();
+    model.lots.push({
+      id: LOT_ID,
+      investment_id: 800,
+      fund_id: FUND_ID,
+      shares_acquired: '10.00000000',
+      cost_basis_cents: 10000n,
+    });
+    model.reliefs.push({
+      fund_id: FUND_ID,
+      position_event_id: 1299,
+      investment_id: 800,
+      investment_lot_id: LOT_ID,
+      relieved_shares: '4.000000',
+      relieved_cost_basis: '40.000000',
+      allocated_proceeds: '60.000000',
+    });
+    model.failReconciliationCaseInsert = true;
+
+    await expect(correctEvent('position-correction-rollback')).rejects.toThrow(
+      'Injected reconciliation-case failure.'
+    );
+
+    expect(model.positionEvents).toHaveLength(1);
+    expect(model.reliefs).toHaveLength(1);
+    expect(model.observations).toHaveLength(0);
+    expect(model.reconciliationCases).toHaveLength(0);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
   });
 });
