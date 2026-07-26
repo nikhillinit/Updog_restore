@@ -397,6 +397,12 @@ export class DatabasePoolManager extends EventEmitter {
       this.updateMemoryMetrics(poolId);
     }, config.healthCheckIntervalMs);
 
+    // Never let the health-check timer keep the process alive. On serverless
+    // (Vercel Lambda) a referenced interval holds the event loop open, so the
+    // platform blocks every response until the 300s ceiling -> FUNCTION_INVOCATION_TIMEOUT
+    // on all routes once any request has created this pool.
+    interval.unref();
+
     this.healthCheckIntervals.set(poolId, interval);
   }
 
