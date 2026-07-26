@@ -1466,7 +1466,7 @@ function buildValuationRefs(params: {
     });
   }
 
-  for (const positionRef of params.positionRefs) {
+  for (const positionRef of params.positionRefs.filter((ref) => ref.eventType !== 'reversal')) {
     const key = scopeKey(positionRef);
     if (refsByScope.has(key)) continue;
     refsByScope.set(key, {
@@ -1578,7 +1578,6 @@ function mergeV2ConsumerEvaluations(params: {
     const legacyCompanyIds = [
       ...new Set(
         params.companyActuals.facts
-          .filter((fact) => fact.provenance.core.sourceKind === 'legacy_unknown')
           .map((fact) => fact.companyId)
           .filter((id) => ledgerPositionCompanyIds.has(id))
       ),
