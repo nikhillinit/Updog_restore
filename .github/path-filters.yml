@@ -343,6 +343,7 @@ schema_tests:
   - 'tests/unit/services/investment-ledger/ownership-snapshot-service.test.ts'
   - 'tests/unit/services/investment-ledger/position-valuation-service.test.ts'
   - 'tests/unit/services/investment-ledger/legacy-position-backfill-service.test.ts'
+  - 'tests/unit/scripts/backfill-legacy-position-events.test.ts'
   - 'tests/unit/schema/investment-positions-schema.test.ts'
   - 'tests/unit/migration-ledger.test.ts'
   - 'tests/unit/prod-schema-manifest-sentinels.test.ts'

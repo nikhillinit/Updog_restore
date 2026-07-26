@@ -1,14 +1,24 @@
-import { backfillLegacyPositionEvents } from '../server/services/investment-ledger/legacy-position-backfill-service';
+import type { LegacyPositionBackfillResult } from '../shared/contracts/investment-ledger/legacy-position-backfill.contract';
 
 interface CliOptions {
   mode: 'dry_run' | 'apply' | 'resume';
   fundIds?: number[];
   expectedSourceHashes?: Record<string, string>;
   actorId: number | null;
+  help: boolean;
 }
 
-function parseArgs(argv: string[]): CliOptions {
-  const options: CliOptions = { mode: 'dry_run', actorId: null };
+export type LegacyBackfillRunner = (input: {
+  actorId: number | null;
+  request: {
+    mode: CliOptions['mode'];
+    fundIds?: number[];
+    expectedSourceHashes?: Record<string, string>;
+  };
+}) => Promise<LegacyPositionBackfillResult>;
+
+export function parseLegacyPositionBackfillArgs(argv: string[]): CliOptions {
+  const options: CliOptions = { mode: 'dry_run', actorId: null, help: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--apply') {
@@ -37,8 +47,7 @@ function parseArgs(argv: string[]): CliOptions {
         [investmentId]: hash,
       };
     } else if (arg === '--help' || arg === '-h') {
-      printUsage();
-      process.exit(0);
+      options.help = true;
     } else {
       throw new Error(`Unknown argument: ${arg}`);
     }
@@ -46,20 +55,35 @@ function parseArgs(argv: string[]): CliOptions {
   return options;
 }
 
-function printUsage(): void {
-  console.log(`Usage: npx tsx scripts/backfill-legacy-position-events.ts [--dry-run|--apply|--resume] [options]
+export function legacyPositionBackfillUsage(): string {
+  return `Usage: npx tsx scripts/backfill-legacy-position-events.ts [--dry-run|--apply|--resume] [options]
 
 Options:
   --resume                               Apply only missing rows from a prior dry-run plan
   --fund-id <id>                         Limit to one fund; repeatable
   --actor-id <id>                        User id recorded on created events
   --expected-source-hash <id=sha256>     Required for apply; repeatable
-`);
+`;
 }
 
-export async function runLegacyPositionBackfillCli(argv = process.argv.slice(2)): Promise<void> {
-  const options = parseArgs(argv);
-  const result = await backfillLegacyPositionEvents({
+function printUsage(): void {
+  console.log(legacyPositionBackfillUsage());
+}
+
+export async function runLegacyPositionBackfillCli(
+  argv = process.argv.slice(2),
+  runner?: LegacyBackfillRunner
+): Promise<void> {
+  const options = parseLegacyPositionBackfillArgs(argv);
+  if (options.help) {
+    printUsage();
+    return;
+  }
+  const backfill =
+    runner ??
+    (await import('../server/services/investment-ledger/legacy-position-backfill-service'))
+      .backfillLegacyPositionEvents;
+  const result = await backfill({
     actorId: options.actorId,
     request: {
       mode: options.mode,
@@ -70,6 +94,9 @@ export async function runLegacyPositionBackfillCli(argv = process.argv.slice(2))
     },
   });
   console.log(JSON.stringify(result, null, 2));
+  if (result.blocked > 0) {
+    process.exitCode = 1;
+  }
 }
 
 if (require.main === module) {
