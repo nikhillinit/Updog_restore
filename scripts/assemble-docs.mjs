@@ -24,7 +24,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
-import yaml from 'js-yaml';
+import { load as loadYaml } from 'js-yaml';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -114,7 +114,7 @@ class DocumentationAssembler {
     }
 
     const manifestContent = readFileSync(manifestPath, 'utf-8');
-    this.manifest = yaml.load(manifestContent);
+    this.manifest = loadYaml(manifestContent);
 
     this.log(`  Module: ${this.manifest.modules.waterfall.description}`, true);
     this.log(`  Source files: ${this.manifest.modules.waterfall.source_files.length}`, true);
