@@ -17,6 +17,7 @@ import {
 
 import { funds } from './fund';
 import { companyIdentities, sourceObservations } from './financial-observations';
+import { financingEvents, financingTranches } from './investment-ledger';
 import { investments, investmentLots } from './portfolio';
 import { users } from './user';
 import { vehicleFinancingParticipations } from './vehicle-financing-participations';
@@ -148,6 +149,28 @@ export const positionEvents = pgTable(
       sql`(${table.idempotencyKey} IS NULL) = (${table.requestHash} IS NULL)`
     ),
     idFundUnique: unique('position_events_id_fund_unique').on(table.id, table.fundId),
+    sourceBasisAnchorUnique: unique('position_events_source_basis_anchor_unique').on(
+      table.id,
+      table.fundId,
+      table.vehicleId,
+      table.companyIdentityId,
+      table.eventType,
+      table.vehicleParticipationId,
+      table.costBasisDelta
+    ),
+    conversionLineageUnique: unique('position_events_conversion_lineage_unique').on(
+      table.id,
+      table.fundId,
+      table.vehicleId,
+      table.companyIdentityId,
+      table.eventType,
+      table.vehicleParticipationId,
+      table.sourceParticipationVersion,
+      table.resultingParticipationId,
+      table.resultingParticipationVersion,
+      table.sourceTrancheVersion,
+      table.resultingTrancheVersion
+    ),
     backfillInvestmentUnique: unique('position_events_backfill_investment_unique').on(
       table.backfilledFromInvestmentId
     ),
@@ -158,6 +181,14 @@ export const positionEvents = pgTable(
     acquisitionParticipationUnique: uniqueIndex('position_events_acquisition_participation_unique')
       .on(table.vehicleParticipationId)
       .where(sql`${table.eventType} = 'acquisition'`),
+    conversionZeroBasisCheck: check(
+      'position_events_conversion_zero_basis_check',
+      sql`${table.eventType} <> 'conversion' OR (${table.costBasisDelta} = 0 AND ${table.proceeds} = 0)`
+    ),
+    conversionDistinctParticipationsCheck: check(
+      'position_events_conversion_distinct_participations_check',
+      sql`${table.eventType} <> 'conversion' OR ${table.vehicleParticipationId} <> ${table.resultingParticipationId}`
+    ),
     reversalTargetUnique: uniqueIndex('position_events_reversal_target_unique')
       .on(table.reversesPositionEventId)
       .where(sql`${table.reversesPositionEventId} IS NOT NULL`),
@@ -167,6 +198,264 @@ export const positionEvents = pgTable(
       table.companyIdentityId,
       table.effectiveDate.desc(),
       table.recordedAt.desc()
+    ),
+  })
+);
+
+export const positionEventSourceBasisReliefs = pgTable(
+  'position_event_source_basis_reliefs',
+  {
+    conversionPositionEventId: integer('conversion_position_event_id').primaryKey(),
+    sourceAcquisitionPositionEventId: integer('source_acquisition_position_event_id').notNull(),
+    capitalizedAdjustmentPositionEventId: integer('capitalized_adjustment_position_event_id'),
+    fundId: integer('fund_id').notNull(),
+    vehicleId: integer('vehicle_id').notNull(),
+    companyIdentityId: integer('company_identity_id').notNull(),
+    sourceParticipationId: integer('source_participation_id').notNull(),
+    sourceParticipationVersion: integer('source_participation_version').notNull(),
+    sourceFinancingEventId: integer('source_financing_event_id').notNull(),
+    sourceFinancingTrancheId: integer('source_financing_tranche_id').notNull(),
+    resultingParticipationId: integer('resulting_participation_id').notNull(),
+    resultingParticipationVersion: integer('resulting_participation_version').notNull(),
+    resultingFinancingEventId: integer('resulting_financing_event_id').notNull(),
+    resultingFinancingTrancheId: integer('resulting_financing_tranche_id').notNull(),
+    sourceTrancheVersion: integer('source_tranche_version').notNull(),
+    resultingTrancheVersion: integer('resulting_tranche_version').notNull(),
+    sourceAcquisitionCostBasis: numeric('source_acquisition_cost_basis', {
+      precision: 20,
+      scale: 6,
+    }).notNull(),
+    capitalizedAdjustmentCostBasis: numeric('capitalized_adjustment_cost_basis', {
+      precision: 20,
+      scale: 6,
+    })
+      .notNull()
+      .default('0'),
+    relievedCostBasis: numeric('relieved_cost_basis', { precision: 20, scale: 6 }).notNull(),
+    sourceEventType: varchar('source_event_type', { length: 32 })
+      .notNull()
+      .default('acquisition'),
+    capitalizedAdjustmentEventType: varchar('capitalized_adjustment_event_type', { length: 32 }),
+    conversionEventType: varchar('conversion_event_type', { length: 32 })
+      .notNull()
+      .default('conversion'),
+    sourceEconomicOrigin: varchar('source_economic_origin', { length: 32 })
+      .notNull()
+      .default('cash_investment'),
+    resultingEconomicOrigin: varchar('resulting_economic_origin', { length: 32 })
+      .notNull()
+      .default('conversion_result'),
+  },
+  (table) => ({
+    sourceAcquisitionUnique: unique('pesbr_source_acq_unique').on(
+      table.sourceAcquisitionPositionEventId
+    ),
+    resultingParticipationUnique: unique('pesbr_resulting_participation_unique').on(
+      table.resultingParticipationId
+    ),
+    capitalizedAdjustmentUnique: uniqueIndex('pesbr_capitalized_adj_unique')
+      .on(table.capitalizedAdjustmentPositionEventId)
+      .where(sql`${table.capitalizedAdjustmentPositionEventId} IS NOT NULL`),
+    sourceAcquisitionEventFk: foreignKey({
+      columns: [
+        table.sourceAcquisitionPositionEventId,
+        table.fundId,
+        table.vehicleId,
+        table.companyIdentityId,
+        table.sourceEventType,
+        table.sourceParticipationId,
+        table.sourceAcquisitionCostBasis,
+      ],
+      foreignColumns: [
+        positionEvents.id,
+        positionEvents.fundId,
+        positionEvents.vehicleId,
+        positionEvents.companyIdentityId,
+        positionEvents.eventType,
+        positionEvents.vehicleParticipationId,
+        positionEvents.costBasisDelta,
+      ],
+      name: 'pesbr_source_acq_event_fk',
+    }),
+    capitalizedAdjustmentEventFk: foreignKey({
+      columns: [
+        table.capitalizedAdjustmentPositionEventId,
+        table.fundId,
+        table.vehicleId,
+        table.companyIdentityId,
+        table.capitalizedAdjustmentEventType,
+        table.sourceParticipationId,
+        table.capitalizedAdjustmentCostBasis,
+      ],
+      foreignColumns: [
+        positionEvents.id,
+        positionEvents.fundId,
+        positionEvents.vehicleId,
+        positionEvents.companyIdentityId,
+        positionEvents.eventType,
+        positionEvents.vehicleParticipationId,
+        positionEvents.costBasisDelta,
+      ],
+      name: 'pesbr_capitalized_adj_event_fk',
+    }),
+    conversionEventFk: foreignKey({
+      columns: [
+        table.conversionPositionEventId,
+        table.fundId,
+        table.vehicleId,
+        table.companyIdentityId,
+        table.conversionEventType,
+        table.sourceParticipationId,
+        table.sourceParticipationVersion,
+        table.resultingParticipationId,
+        table.resultingParticipationVersion,
+        table.sourceTrancheVersion,
+        table.resultingTrancheVersion,
+      ],
+      foreignColumns: [
+        positionEvents.id,
+        positionEvents.fundId,
+        positionEvents.vehicleId,
+        positionEvents.companyIdentityId,
+        positionEvents.eventType,
+        positionEvents.vehicleParticipationId,
+        positionEvents.sourceParticipationVersion,
+        positionEvents.resultingParticipationId,
+        positionEvents.resultingParticipationVersion,
+        positionEvents.sourceTrancheVersion,
+        positionEvents.resultingTrancheVersion,
+      ],
+      name: 'pesbr_conversion_event_fk',
+    }),
+    sourceParticipationFk: foreignKey({
+      columns: [
+        table.sourceParticipationId,
+        table.fundId,
+        table.vehicleId,
+        table.sourceParticipationVersion,
+        table.sourceFinancingEventId,
+        table.sourceFinancingTrancheId,
+        table.sourceEconomicOrigin,
+      ],
+      foreignColumns: [
+        vehicleFinancingParticipations.id,
+        vehicleFinancingParticipations.fundId,
+        vehicleFinancingParticipations.vehicleId,
+        vehicleFinancingParticipations.version,
+        vehicleFinancingParticipations.financingEventId,
+        vehicleFinancingParticipations.financingTrancheId,
+        vehicleFinancingParticipations.economicOrigin,
+      ],
+      name: 'pesbr_source_participation_fk',
+    }),
+    resultingParticipationFk: foreignKey({
+      columns: [
+        table.resultingParticipationId,
+        table.fundId,
+        table.vehicleId,
+        table.resultingParticipationVersion,
+        table.resultingFinancingEventId,
+        table.resultingFinancingTrancheId,
+        table.resultingEconomicOrigin,
+        table.relievedCostBasis,
+      ],
+      foreignColumns: [
+        vehicleFinancingParticipations.id,
+        vehicleFinancingParticipations.fundId,
+        vehicleFinancingParticipations.vehicleId,
+        vehicleFinancingParticipations.version,
+        vehicleFinancingParticipations.financingEventId,
+        vehicleFinancingParticipations.financingTrancheId,
+        vehicleFinancingParticipations.economicOrigin,
+        vehicleFinancingParticipations.participationAmount,
+      ],
+      name: 'pesbr_resulting_participation_fk',
+    }),
+    sourceTrancheFk: foreignKey({
+      columns: [
+        table.sourceFinancingTrancheId,
+        table.fundId,
+        table.sourceFinancingEventId,
+        table.sourceTrancheVersion,
+      ],
+      foreignColumns: [
+        financingTranches.id,
+        financingTranches.fundId,
+        financingTranches.financingEventId,
+        financingTranches.version,
+      ],
+      name: 'pesbr_source_tranche_fk',
+    }),
+    resultingTrancheFk: foreignKey({
+      columns: [
+        table.resultingFinancingTrancheId,
+        table.fundId,
+        table.resultingFinancingEventId,
+        table.resultingTrancheVersion,
+      ],
+      foreignColumns: [
+        financingTranches.id,
+        financingTranches.fundId,
+        financingTranches.financingEventId,
+        financingTranches.version,
+      ],
+      name: 'pesbr_resulting_tranche_fk',
+    }),
+    sourceFinancingEventFk: foreignKey({
+      columns: [table.sourceFinancingEventId, table.fundId, table.companyIdentityId],
+      foreignColumns: [financingEvents.id, financingEvents.fundId, financingEvents.companyIdentityId],
+      name: 'pesbr_source_financing_event_fk',
+    }),
+    resultingFinancingEventFk: foreignKey({
+      columns: [table.resultingFinancingEventId, table.fundId, table.companyIdentityId],
+      foreignColumns: [financingEvents.id, financingEvents.fundId, financingEvents.companyIdentityId],
+      name: 'pesbr_resulting_financing_event_fk',
+    }),
+    sourceEventTypeCheck: check(
+      'pesbr_source_event_type_check',
+      sql`${table.sourceEventType} = 'acquisition'`
+    ),
+    conversionEventTypeCheck: check(
+      'pesbr_conversion_event_type_check',
+      sql`${table.conversionEventType} = 'conversion'`
+    ),
+    sourceEconomicOriginCheck: check(
+      'pesbr_source_origin_check',
+      sql`${table.sourceEconomicOrigin} = 'cash_investment'`
+    ),
+    resultingEconomicOriginCheck: check(
+      'pesbr_resulting_origin_check',
+      sql`${table.resultingEconomicOrigin} = 'conversion_result'`
+    ),
+    distinctParticipationsCheck: check(
+      'pesbr_distinct_participations_check',
+      sql`${table.sourceParticipationId} <> ${table.resultingParticipationId}`
+    ),
+    distinctEventsCheck: check(
+      'pesbr_distinct_events_check',
+      sql`${table.conversionPositionEventId} <> ${table.sourceAcquisitionPositionEventId}`
+    ),
+    positiveBasisCheck: check(
+      'pesbr_positive_basis_check',
+      sql`${table.sourceAcquisitionCostBasis} > 0 AND ${table.capitalizedAdjustmentCostBasis} >= 0 AND ${table.relievedCostBasis} > 0`
+    ),
+    conservationCheck: check(
+      'pesbr_conservation_check',
+      sql`${table.relievedCostBasis} = ${table.sourceAcquisitionCostBasis} + ${table.capitalizedAdjustmentCostBasis}`
+    ),
+    adjustmentPresenceCheck: check(
+      'pesbr_adjustment_presence_check',
+      sql`(
+        ${table.capitalizedAdjustmentPositionEventId} IS NULL
+        AND ${table.capitalizedAdjustmentEventType} IS NULL
+        AND ${table.capitalizedAdjustmentCostBasis} = 0
+      ) OR (
+        ${table.capitalizedAdjustmentPositionEventId} IS NOT NULL
+        AND ${table.capitalizedAdjustmentEventType} = 'adjustment'
+        AND ${table.capitalizedAdjustmentCostBasis} > 0
+        AND ${table.capitalizedAdjustmentPositionEventId} <> ${table.sourceAcquisitionPositionEventId}
+        AND ${table.capitalizedAdjustmentPositionEventId} <> ${table.conversionPositionEventId}
+      )`
     ),
   })
 );
@@ -291,6 +580,8 @@ export const ownershipSnapshots = pgTable(
 
 export type PositionEvent = typeof positionEvents.$inferSelect;
 export type InsertPositionEvent = typeof positionEvents.$inferInsert;
+export type PositionEventSourceBasisRelief = typeof positionEventSourceBasisReliefs.$inferSelect;
+export type InsertPositionEventSourceBasisRelief = typeof positionEventSourceBasisReliefs.$inferInsert;
 export type PositionEventLotRelief = typeof positionEventLotReliefs.$inferSelect;
 export type InsertPositionEventLotRelief = typeof positionEventLotReliefs.$inferInsert;
 export type OwnershipSnapshot = typeof ownershipSnapshots.$inferSelect;

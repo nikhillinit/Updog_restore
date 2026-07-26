@@ -309,6 +309,13 @@
       "when": 1785109200000,
       "tag": "0042_positions_ownership_compat",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1785195600000,
+      "tag": "0043_position_source_basis_reliefs",
+      "breakpoints": true
     }
   ]
 }
