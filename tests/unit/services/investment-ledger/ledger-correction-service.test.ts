@@ -772,7 +772,12 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
     const sharePriceCents = hasLotColumns ? (updateParams[4] as bigint | null) : undefined;
     const sharesAcquired = hasLotColumns ? (updateParams[5] as string | null) : undefined;
     const costBasisCents = hasLotColumns ? (updateParams[6] as bigint | null) : undefined;
-    const participationIndex = hasLotColumns ? 7 : hasValuation ? 4 : 3;
+    let participationIndex = 3;
+    if (hasLotColumns) {
+      participationIndex = 7;
+    } else if (hasValuation) {
+      participationIndex = 4;
+    }
     const participationId = updateParams[participationIndex] as number;
     const investmentId = updateParams[participationIndex + 1] as number;
     const fundId = updateParams[participationIndex + 2] as number;

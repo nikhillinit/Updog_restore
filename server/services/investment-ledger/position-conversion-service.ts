@@ -1312,12 +1312,12 @@ function readInsertedId(result: unknown): number {
 }
 
 function asPositiveInt(value: unknown): number {
-  const parsed =
-    typeof value === 'number'
-      ? value
-      : typeof value === 'string' && /^\d+$/.test(value)
-        ? Number.parseInt(value, 10)
-        : Number.NaN;
+  let parsed = Number.NaN;
+  if (typeof value === 'number') {
+    parsed = value;
+  } else if (typeof value === 'string' && /^\d+$/.test(value)) {
+    parsed = Number.parseInt(value, 10);
+  }
   if (!Number.isSafeInteger(parsed) || parsed <= 0) {
     throw new PositionConversionServiceError(
       500,
