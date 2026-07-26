@@ -503,6 +503,10 @@ export class UnifiedMonteCarloService {
     const explicit = process.env['ENABLE_STREAMING_MONTE_CARLO'];
     if (explicit === '1') return true;
     if (explicit === '0') return false;
+    // Serverless (Vercel Lambda) cannot open the Neon WebSocket pool the streaming
+    // engine depends on; creating it wedges the function's event loop until the 300s
+    // ceiling, 504-ing every route. Off by default there unless explicitly enabled.
+    if (process.env['VERCEL']) return false;
     return process.env['NODE_ENV'] === 'production';
   }
 
