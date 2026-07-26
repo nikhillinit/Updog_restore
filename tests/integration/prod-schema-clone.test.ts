@@ -112,6 +112,12 @@ const VEHICLE_FINANCING_PARTICIPATION_MANIFEST_TABLES = [
   'investment_lots',
   'cash_flow_events',
 ] as const;
+// M16 (16-positions-ownership-compat): Task 11 position history and ownership snapshots.
+const POSITIONS_OWNERSHIP_COMPAT_MANIFEST_TABLES = [
+  'position_events',
+  'position_event_lot_reliefs',
+  'ownership_snapshots',
+] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
   'flags_state',
@@ -741,6 +747,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...FINANCIAL_OBSERVATIONS_MANIFEST_TABLES,
         ...INVESTMENT_LEDGER_MANIFEST_TABLES,
         ...VEHICLE_FINANCING_PARTICIPATION_MANIFEST_TABLES,
+        ...POSITIONS_OWNERSHIP_COMPAT_MANIFEST_TABLES,
       ])
     );
 
