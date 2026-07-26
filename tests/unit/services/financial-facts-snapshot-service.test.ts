@@ -243,6 +243,51 @@ class FakeSnapshotDb {
   }
 }
 
+function seedInternalFundCorpus(fakeDb: FakeSnapshotDb): void {
+  fakeDb.fundRows.splice(
+    0,
+    fakeDb.fundRows.length,
+    ...loadCorpusInput<Array<{ id: number; baseCurrency: string }>>('legacy-inputs/funds.json')
+  );
+  fakeDb.companyRows.push(
+    ...loadCorpusInput<Array<Record<string, unknown>>>(
+      'legacy-inputs/portfolio-companies.json'
+    ).filter((row) => row['fundId'] === INTERNAL_FUND_CORPUS.fundId)
+  );
+  fakeDb.investmentRows.push(
+    ...loadCorpusInput<Array<Record<string, unknown>>>('legacy-inputs/investments.json').filter(
+      (row) => row['fundId'] === INTERNAL_FUND_CORPUS.fundId
+    )
+  );
+  fakeDb.roundRows.push(
+    ...loadCorpusInput<Array<Record<string, unknown>>>(
+      'legacy-inputs/investment-rounds.json'
+    ).filter((row) => row['fundId'] === INTERNAL_FUND_CORPUS.fundId)
+  );
+  fakeDb.overrideRows.push(
+    ...loadCorpusInput<Array<Record<string, unknown>>>(
+      'legacy-inputs/investment-round-overrides.json'
+    ).filter((row) => row['fundId'] === INTERNAL_FUND_CORPUS.fundId)
+  );
+  fakeDb.vehicleRows.push(
+    ...loadCorpusInput<Array<Record<string, unknown>>>('legacy-inputs/vehicles.json')
+      .filter((row) => row['fundId'] === INTERNAL_FUND_CORPUS.fundId)
+      .map(({ id, ...row }) => ({ vehicleId: id, ...row }))
+  );
+  const snapshotMarkRows = loadCorpusInput<Array<Record<string, unknown>>>(
+    'legacy-inputs/valuation-marks.json'
+  ).filter((row) => row['fundId'] === INTERNAL_FUND_CORPUS.fundId);
+  const planningMarkRows = snapshotMarkRows
+    .filter(
+      (row) =>
+        row['importedFrom'] === 'planning_fmv_override' &&
+        (row['status'] === 'approved' || row['status'] === 'locked')
+    )
+    .map(({ importedFrom: _importedFrom, vehicleId: _vehicleId, priorMarkId: _priorMarkId, ...row }) => row);
+  fakeDb.valuationMarkReads.push(snapshotMarkRows, planningMarkRows);
+  fakeDb.markRows.push(...snapshotMarkRows);
+}
+
 describe('buildFinancialFactsSnapshot', () => {
   it('matches the legacy internal-fund corpus for split cash-flow and valuation authority', async () => {
     loadInternalFundCorpusManifest();
@@ -666,7 +711,9 @@ describe('buildFinancialFactsSnapshot', () => {
       fakeDb.valuationMarkWhereClauses.some(
         (clause) =>
           clause.sql.includes('mark_purpose') &&
-          clause.params.includes('planning_company_fmv')
+          clause.params.includes('planning_company_fmv') &&
+          clause.sql.includes('created_at') &&
+          clause.sql.includes('COALESCE')
       )
     ).toBe(true);
     expect(snapshot.payload.marksSeries.periodNav).toEqual([
@@ -1006,10 +1053,11 @@ describe('buildFinancialFactsSnapshot', () => {
       });
     expect(snapshot.payload.valuationRefs).toEqual([
       expect.objectContaining({
-        basis: 'unavailable',
+        basis: 'direct',
         vehicleId: 10,
         companyIdentityId: 42,
-        directMarkId: null,
+        directMarkId: 701,
+        directSourceObservationId: 71,
         ownershipSnapshotId: null,
       }),
     ]);
@@ -1107,6 +1155,186 @@ describe('buildFinancialFactsSnapshot', () => {
       });
   });
 
+  it('does not let reversal-only position refs create unavailable valuation blockers', async () => {
+    const fakeDb = new FakeSnapshotDb();
+    fakeDb.positionRefRows.push({
+      positionEventId: 901,
+      eventType: 'reversal',
+      vehicleId: 10,
+      companyIdentityId: 42,
+      vehicleParticipationId: 201,
+      resultingParticipationId: null,
+      sourceObservationId: null,
+      effectiveDate: '2026-06-30',
+      recordedAt: new Date('2026-07-22T01:00:00.000Z'),
+    });
+
+    const snapshot = await buildFinancialFactsSnapshot({
+      fundId: 1,
+      asOfDate: '2026-06-30',
+      actorId: 7,
+      idempotencyKey: 'snapshot-reversal-only-position',
+      database: fakeDb.asDatabase(),
+      now: new Date('2026-07-22T01:42:44.186Z'),
+    });
+
+    expect(snapshot.payload.positionRefs).toEqual([
+      expect.objectContaining({ positionEventId: 901, eventType: 'reversal' }),
+    ]);
+    expect(snapshot.payload.valuationRefs).toEqual([]);
+    expect(snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast'))
+      .toEqual({ consumer: 'forecast', status: 'accepted', reasons: [] });
+  });
+
+  it('emits mixed legacy-ledger details only for mapped overlapping company ids', async () => {
+    const allLegacyDb = new FakeSnapshotDb();
+    seedInternalFundCorpus(allLegacyDb);
+    const allLegacy = await buildFinancialFactsSnapshot({
+      fundId: INTERNAL_FUND_CORPUS.fundId,
+      asOfDate: INTERNAL_FUND_CORPUS.asOfDate,
+      actorId: INTERNAL_FUND_CORPUS.actorId,
+      idempotencyKey: 'snapshot-all-legacy-origin',
+      database: allLegacyDb.asDatabase(),
+      now: INTERNAL_FUND_CORPUS.fixedClock,
+    });
+    expect(
+      allLegacy.consumerEvaluations
+        .find((evaluation) => evaluation.consumer === 'forecast')
+        ?.details?.filter((detail) => detail.code === 'mixed_legacy_ledger_provenance')
+    ).toEqual(undefined);
+
+    const allLedgerDb = new FakeSnapshotDb();
+    allLedgerDb.positionRefRows.push({
+      positionEventId: 501,
+      eventType: 'acquisition',
+      vehicleId: 10,
+      companyIdentityId: 42001,
+      vehicleParticipationId: 201,
+      resultingParticipationId: null,
+      sourceObservationId: null,
+      effectiveDate: '2026-06-30',
+      recordedAt: new Date('2026-07-22T01:00:00.000Z'),
+    });
+    allLedgerDb.positionCompanyRefRows.push({
+      vehicleId: 10,
+      companyIdentityId: 42001,
+      companyId: 1001,
+    });
+    allLedgerDb.directValuationRefRows.push({
+      directMarkId: 701,
+      vehicleId: 10,
+      companyIdentityId: 42001,
+      directSourceObservationId: 71,
+    });
+    const allLedger = await buildFinancialFactsSnapshot({
+      fundId: 1,
+      asOfDate: '2026-06-30',
+      actorId: 7,
+      idempotencyKey: 'snapshot-all-ledger-origin',
+      database: allLedgerDb.asDatabase(),
+      now: new Date('2026-07-22T01:42:44.186Z'),
+    });
+    expect(
+      allLedger.consumerEvaluations
+        .find((evaluation) => evaluation.consumer === 'forecast')
+        ?.details?.filter((detail) => detail.code === 'mixed_legacy_ledger_provenance')
+    ).toEqual(undefined);
+
+    const nonOverlapDb = new FakeSnapshotDb();
+    seedInternalFundCorpus(nonOverlapDb);
+    nonOverlapDb.positionRefRows.push({
+      positionEventId: 501,
+      eventType: 'acquisition',
+      vehicleId: 10,
+      companyIdentityId: 42099,
+      vehicleParticipationId: 201,
+      resultingParticipationId: null,
+      sourceObservationId: null,
+      effectiveDate: '2026-06-30',
+      recordedAt: new Date('2026-07-22T01:00:00.000Z'),
+    });
+    nonOverlapDb.positionCompanyRefRows.push({
+      vehicleId: 10,
+      companyIdentityId: 42099,
+      companyId: 9999,
+    });
+    nonOverlapDb.directValuationRefRows.push({
+      directMarkId: 701,
+      vehicleId: 10,
+      companyIdentityId: 42099,
+      directSourceObservationId: 71,
+    });
+    const nonOverlap = await buildFinancialFactsSnapshot({
+      fundId: INTERNAL_FUND_CORPUS.fundId,
+      asOfDate: INTERNAL_FUND_CORPUS.asOfDate,
+      actorId: INTERNAL_FUND_CORPUS.actorId,
+      idempotencyKey: 'snapshot-non-overlap-origin',
+      database: nonOverlapDb.asDatabase(),
+      now: INTERNAL_FUND_CORPUS.fixedClock,
+    });
+    expect(
+      nonOverlap.consumerEvaluations
+        .find((evaluation) => evaluation.consumer === 'forecast')
+        ?.details?.filter((detail) => detail.code === 'mixed_legacy_ledger_provenance')
+    ).toEqual(undefined);
+
+    const mixedDb = new FakeSnapshotDb();
+    seedInternalFundCorpus(mixedDb);
+    mixedDb.positionRefRows.push(
+      {
+        positionEventId: 501,
+        eventType: 'acquisition',
+        vehicleId: 10,
+        companyIdentityId: 42001,
+        vehicleParticipationId: 201,
+        resultingParticipationId: null,
+        sourceObservationId: null,
+        effectiveDate: INTERNAL_FUND_CORPUS.asOfDate,
+        recordedAt: INTERNAL_FUND_CORPUS.fixedClock,
+      },
+      {
+        positionEventId: 502,
+        eventType: 'adjustment',
+        vehicleId: 10,
+        companyIdentityId: 42001,
+        vehicleParticipationId: 201,
+        resultingParticipationId: null,
+        sourceObservationId: null,
+        effectiveDate: INTERNAL_FUND_CORPUS.asOfDate,
+        recordedAt: INTERNAL_FUND_CORPUS.fixedClock,
+      }
+    );
+    mixedDb.positionCompanyRefRows.push(
+      { vehicleId: 10, companyIdentityId: 42001, companyId: 1001 },
+      { vehicleId: 10, companyIdentityId: 42001, companyId: 1001 }
+    );
+    mixedDb.directValuationRefRows.push({
+      directMarkId: 701,
+      vehicleId: 10,
+      companyIdentityId: 42001,
+      directSourceObservationId: 71,
+    });
+    const mixed = await buildFinancialFactsSnapshot({
+      fundId: INTERNAL_FUND_CORPUS.fundId,
+      asOfDate: INTERNAL_FUND_CORPUS.asOfDate,
+      actorId: INTERNAL_FUND_CORPUS.actorId,
+      idempotencyKey: 'snapshot-mixed-origin',
+      database: mixedDb.asDatabase(),
+      now: INTERNAL_FUND_CORPUS.fixedClock,
+    });
+
+    expect(
+      mixed.consumerEvaluations
+        .find((evaluation) => evaluation.consumer === 'forecast')
+        ?.details?.filter((detail) => detail.code === 'mixed_legacy_ledger_provenance')
+    ).toEqual([
+      expect.objectContaining({
+        code: 'mixed_legacy_ledger_provenance',
+        companyIds: [1001],
+      }),
+    ]);
+  });
+
   it.each(['csv', 'notion', 'planning_fmv_override', null])(
     'does not attribute a matching hash when canonical imported_from is %s',
     async (importedFrom) => {
@@ -1189,6 +1417,77 @@ describe('buildFinancialFactsSnapshot', () => {
 
     expect(right.payload.observationRefs).toEqual([]);
     expect(right.snapshotInputHash).toBe(left.snapshotInputHash);
+  });
+
+  it('keeps terminal facts predecessor chains scoped to the same as-of family', async () => {
+    const fakeDb = new FakeSnapshotDb();
+    fakeDb.snapshotRows.push({
+      id: 90,
+      fundId: 1,
+      policyVersion: 'financial-facts-policy/1.1.0',
+      payloadSchemaId: 'financial-facts-payload/2',
+      asOfDate: '2026-05-31',
+      knowledgeCutoff: new Date('2026-07-20T01:00:00.000Z'),
+      vehicleScope: 'fund_all',
+      vehicleIds: [],
+      selectionSetHash: buildSelectionSetHash({
+        sourceObservationIds: [],
+        workingValueSelectionIds: [],
+      }),
+      sourceFactsInputHash: 'a'.repeat(64),
+      snapshotInputHash: 'b'.repeat(64),
+      payload: {
+        companyActuals: { fundId: 1, asOfDate: '2026-05-31', facts: [], inputHash: 'c'.repeat(64) },
+        sourceObservationIds: [],
+        workingValueSelectionIds: [],
+        cashFlowSeries: {
+          series: [],
+          totals: {
+            contributions: '0.000000',
+            distributions: '0.000000',
+            recallableDistributions: '0.000000',
+          },
+          warnings: [],
+        },
+        marksSeries: { marks: [], periodNav: [], warnings: [] },
+        vehicleRoster: [],
+        participationTermRefs: [],
+        positionRefs: [],
+        positionComponentRefs: [],
+        ownershipRefs: [],
+        valuationRefs: [],
+        observationRefs: [],
+      },
+      consumerEvaluations: [],
+      actorId: 7,
+      idempotencyKey: 'older-asof',
+      requestHash: 'd'.repeat(64),
+      supersedesSnapshotId: null,
+      createdAt: new Date('2026-07-20T01:00:00.000Z'),
+    });
+
+    await buildFinancialFactsSnapshot({
+      fundId: 1,
+      asOfDate: '2026-06-30',
+      actorId: 7,
+      idempotencyKey: 'snapshot-family-first',
+      database: fakeDb.asDatabase(),
+      now: new Date('2026-07-22T01:42:44.186Z'),
+    });
+    const secondFamilyHead = await buildFinancialFactsSnapshot({
+      fundId: 1,
+      asOfDate: '2026-06-30',
+      actorId: 7,
+      idempotencyKey: 'snapshot-family-second',
+      database: fakeDb.asDatabase(),
+      now: new Date('2026-07-23T01:42:44.186Z'),
+    });
+
+    expect(fakeDb.snapshotInsertAttempts.at(-2)?.['supersedesSnapshotId']).toBeNull();
+    expect(fakeDb.snapshotInsertAttempts.at(-1)?.['supersedesSnapshotId']).toBe(
+      fakeDb.snapshotRows.at(-2)?.['id']
+    );
+    expect(secondFamilyHead.asOfDate).toBe('2026-06-30');
   });
 
   it('rejects a cross-fund vehicle through the shared ownership guard', async () => {
