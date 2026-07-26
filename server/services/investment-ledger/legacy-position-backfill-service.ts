@@ -74,6 +74,8 @@ interface LegacyInvestmentRow {
   existingCostBasisDelta: string | null;
   existingVehicleParticipationId: number | null;
   existingSourceObservationId: number | null;
+  existingSourceObservationHash: string | null;
+  existingSourceObservationLocator: string | null;
   overlappingAcquisitionId: number | null;
 }
 
@@ -149,6 +151,7 @@ export async function backfillLegacyPositionEvents(
       }
       const freshMainVehicles = mapMainVehicles(freshPreflight.mainVehicles);
       const freshSlugConflicts = new Set(freshPreflight.slugConflicts.map((row) => row.fundId));
+      await lockBackfillSourceRows(transaction, fundId);
       const freshRows = await loadLegacyInvestments(transaction, [fundId]);
       const freshCandidates = freshRows.map((row) =>
         planCandidate(row, {
@@ -157,6 +160,7 @@ export async function backfillLegacyPositionEvents(
           hasMultiMain: false,
         })
       );
+      assertFreshCandidateSet(fundCandidates, freshCandidates);
       const freshBlocker = freshCandidates.find((candidate) => candidate.blockers.length > 0);
       if (freshBlocker) {
         throw backfillBlocked(freshBlocker.blockers[0]!, freshBlocker);
@@ -295,6 +299,8 @@ async function loadLegacyInvestments(
            pe.cost_basis_delta::text AS existing_cost_basis_delta,
            pe.vehicle_participation_id AS existing_vehicle_participation_id,
            pe.source_observation_id AS existing_source_observation_id,
+           existing_so.observation_hash AS existing_source_observation_hash,
+           existing_so.source_locator AS existing_source_observation_locator,
            overlap.id AS overlapping_acquisition_id
     FROM investments i
     LEFT JOIN portfoliocompanies pc ON pc.id = i.company_id
@@ -312,6 +318,9 @@ async function loadLegacyInvestments(
      AND fe.fund_id = vfp.fund_id
     LEFT JOIN position_events pe
       ON pe.backfilled_from_investment_id = i.id
+    LEFT JOIN source_observations existing_so
+      ON existing_so.id = pe.source_observation_id
+     AND existing_so.fund_id = pe.fund_id
     LEFT JOIN LATERAL (
       SELECT existing.id
       FROM position_events existing
@@ -360,8 +369,73 @@ async function loadLegacyInvestments(
     existingCostBasisDelta: nullableString(row['existing_cost_basis_delta']),
     existingVehicleParticipationId: nullablePositiveInt(row['existing_vehicle_participation_id']),
     existingSourceObservationId: nullablePositiveInt(row['existing_source_observation_id']),
+    existingSourceObservationHash: nullableString(row['existing_source_observation_hash']),
+    existingSourceObservationLocator: nullableString(row['existing_source_observation_locator']),
     overlappingAcquisitionId: nullablePositiveInt(row['overlapping_acquisition_id']),
   }));
+}
+
+async function lockBackfillSourceRows(database: LedgerDatabase, fundId: number): Promise<void> {
+  await database.execute(sql`
+    SELECT id
+    FROM investments
+    WHERE fund_id = ${fundId}
+    ORDER BY id
+    FOR UPDATE
+  `);
+  await database.execute(sql`
+    SELECT vfp.id
+    FROM vehicle_financing_participations vfp
+    JOIN investments i
+      ON i.vehicle_participation_id = vfp.id
+     AND i.fund_id = ${fundId}
+    ORDER BY vfp.id
+    FOR UPDATE OF vfp
+  `);
+  await database.execute(sql`
+    SELECT link.id
+    FROM portfolio_company_identity_links link
+    JOIN investments i
+      ON i.fund_id = link.fund_id
+     AND i.company_id = link.portfolio_company_id
+     AND i.fund_id = ${fundId}
+    WHERE link.active = true
+    ORDER BY link.id
+    FOR UPDATE OF link
+  `);
+  await database.execute(sql`
+    SELECT pe.id
+    FROM position_events pe
+    JOIN investments i
+      ON i.id = pe.backfilled_from_investment_id
+     AND i.fund_id = ${fundId}
+    ORDER BY pe.id
+    FOR UPDATE OF pe
+  `);
+  await database.execute(sql`
+    SELECT source.id
+    FROM source_observations source
+    JOIN vehicle_financing_participations vfp
+      ON vfp.source_observation_id = source.id
+     AND vfp.fund_id = source.fund_id
+    JOIN investments i
+      ON i.vehicle_participation_id = vfp.id
+     AND i.fund_id = ${fundId}
+    ORDER BY source.id
+    FOR UPDATE OF source
+  `);
+  await database.execute(sql`
+    SELECT source.id
+    FROM source_observations source
+    JOIN position_events pe
+      ON pe.source_observation_id = source.id
+     AND pe.fund_id = source.fund_id
+    JOIN investments i
+      ON i.id = pe.backfilled_from_investment_id
+     AND i.fund_id = ${fundId}
+    ORDER BY source.id
+    FOR UPDATE OF source
+  `);
 }
 
 function planCandidate(
@@ -411,6 +485,9 @@ function planCandidate(
     }
     if (row.participationCurrency !== null && row.participationCurrency !== 'USD') {
       blockers.push('NON_USD_VALUE_UNSUPPORTED');
+    }
+    if (row.participationSourceObservationId === null) {
+      blockers.push('PARTICIPATION_OBSERVATION_MISSING');
     }
   } else if (context.mainVehicle === null && !context.hasMainSlugConflict && !context.hasMultiMain) {
     warnings.push('MAIN_VEHICLE_WOULD_BE_CREATED');
@@ -475,6 +552,7 @@ function planCandidate(
         costBasisDelta: costBasis.value,
         vehicleParticipationId: row.vehicleParticipationId,
         sourceObservationId: row.participationSourceObservationId,
+        sourcePlanHash,
       })
     ) {
       warnings.push('EXISTING_BACKFILL_REPLAYED');
@@ -539,11 +617,16 @@ async function insertBackfillEvent(
   const existing = first(rowsOf(await database.execute(sql`
     SELECT id, request_hash, vehicle_id, company_identity_id, effective_date::text,
            shares_delta::text, cost_basis_delta::text, vehicle_participation_id,
-           source_observation_id
+           source_observation_id,
+           source_observation.observation_hash AS source_observation_hash,
+           source_observation.source_locator AS source_observation_locator
     FROM position_events
-    WHERE fund_id = ${candidate.fundId}
+    LEFT JOIN source_observations source_observation
+      ON source_observation.id = position_events.source_observation_id
+     AND source_observation.fund_id = position_events.fund_id
+    WHERE position_events.fund_id = ${candidate.fundId}
       AND backfilled_from_investment_id = ${candidate.investmentId}
-    FOR UPDATE
+    FOR UPDATE OF position_events
   `)));
   if (existing) {
     if (
@@ -579,9 +662,14 @@ async function insertBackfillEvent(
     const replay = first(rowsOf(await database.execute(sql`
       SELECT id, request_hash, vehicle_id, company_identity_id, effective_date::text,
              shares_delta::text, cost_basis_delta::text, vehicle_participation_id,
-             source_observation_id
+             source_observation_id,
+             source_observation.observation_hash AS source_observation_hash,
+             source_observation.source_locator AS source_observation_locator
       FROM position_events
-      WHERE fund_id = ${candidate.fundId}
+      LEFT JOIN source_observations source_observation
+        ON source_observation.id = position_events.source_observation_id
+       AND source_observation.fund_id = position_events.fund_id
+      WHERE position_events.fund_id = ${candidate.fundId}
         AND backfilled_from_investment_id = ${candidate.investmentId}
     `)));
     if (
@@ -639,7 +727,7 @@ async function insertBackfillObservation(
         fundId: candidate.fundId,
         investmentId: candidate.investmentId,
         companyIdentityId: candidate.companyIdentityId,
-      })}, ${`legacy-investment:${candidate.investmentId}`},
+      })}, ${sourceLocator(candidate.investmentId)},
       ${dependencyGroupKeyForObservation(observationId)}, 'accepted'
     )
   `);
@@ -730,6 +818,7 @@ function existingEventMatches(
     costBasisDelta: string | null;
     vehicleParticipationId: number | null;
     sourceObservationId: number | null;
+    sourcePlanHash: string | null;
   }
 ): boolean {
   return (
@@ -740,7 +829,10 @@ function existingEventMatches(
     row.existingCostBasisDelta === expected.costBasisDelta &&
     row.existingVehicleParticipationId === expected.vehicleParticipationId &&
     (expected.sourceObservationId === null ||
-      row.existingSourceObservationId === expected.sourceObservationId)
+      row.existingSourceObservationId === expected.sourceObservationId) &&
+    (expected.sourceObservationId !== null ||
+      (row.existingSourceObservationHash === expected.sourcePlanHash &&
+        row.existingSourceObservationLocator === sourceLocator(row.investmentId)))
   );
 }
 
@@ -756,8 +848,33 @@ function rowLikeEventMatches(
     nullableString(row['cost_basis_delta']) === candidate.costBasisDelta &&
     nullablePositiveInt(row['vehicle_participation_id']) === candidate.vehicleParticipationId &&
     (candidate.sourceObservationId === null ||
-      nullablePositiveInt(row['source_observation_id']) === candidate.sourceObservationId)
+      nullablePositiveInt(row['source_observation_id']) === candidate.sourceObservationId) &&
+    (candidate.sourceObservationId !== null ||
+      (nullableString(row['source_observation_hash']) === candidate.sourcePlanHash &&
+        nullableString(row['source_observation_locator']) === sourceLocator(candidate.investmentId)))
   );
+}
+
+function assertFreshCandidateSet(
+  expectedCandidates: PlannedCandidate[],
+  freshCandidates: PlannedCandidate[]
+): void {
+  const expectedIds = expectedCandidates.map((candidate) => candidate.investmentId).sort((a, b) => a - b);
+  const freshIds = freshCandidates.map((candidate) => candidate.investmentId).sort((a, b) => a - b);
+  if (
+    expectedIds.length !== freshIds.length ||
+    expectedIds.some((id, index) => id !== freshIds[index])
+  ) {
+    throw backfillBlocked('SOURCE_PLAN_HASH_CHANGED', expectedCandidates[0]!, {
+      reason: 'candidate_set_changed',
+      expectedInvestmentIds: expectedIds,
+      freshInvestmentIds: freshIds,
+    });
+  }
+}
+
+function sourceLocator(investmentId: number): string {
+  return `legacy-investment:${investmentId}`;
 }
 
 function summarize(

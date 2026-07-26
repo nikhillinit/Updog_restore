@@ -22,6 +22,8 @@ interface FakeModel {
   nextVehicleId: number;
   statements: Statement[];
   transactions: number;
+  investmentReads: number;
+  beforeInvestmentRead?: (model: FakeModel, readCount: number) => void;
 }
 
 function makeDb(model: FakeModel) {
@@ -32,19 +34,23 @@ function makeDb(model: FakeModel) {
       model.transactions += 1;
       const snapshot = {
         vehicles: model.vehicles.map((row) => ({ ...row })),
+        investments: model.investments.map((row) => ({ ...row })),
         positionEvents: model.positionEvents.map((row) => ({ ...row })),
         sourceObservations: model.sourceObservations.map((row) => ({ ...row })),
         nextObservationId: model.nextObservationId,
         nextVehicleId: model.nextVehicleId,
+        investmentReads: model.investmentReads,
       };
       try {
         return await callback(database);
       } catch (error) {
         model.vehicles = snapshot.vehicles;
+        model.investments = snapshot.investments;
         model.positionEvents = snapshot.positionEvents;
         model.sourceObservations = snapshot.sourceObservations;
         model.nextObservationId = snapshot.nextObservationId;
         model.nextVehicleId = snapshot.nextVehicleId;
+        model.investmentReads = snapshot.investmentReads;
         throw error;
       }
     },
@@ -76,10 +82,17 @@ async function executeFake(
   }
 
   if (lower.includes('from investments i') || lower.includes('from "investments" i')) {
+    model.investmentReads += 1;
+    model.beforeInvestmentRead?.(model, model.investmentReads);
     return {
       rows: model.investments.map((investment) => {
         const existing = model.positionEvents.find(
           (event) => event['backfilled_from_investment_id'] === investment['investment_id']
+        );
+        const sourceObservation = model.sourceObservations.find(
+          (observation) =>
+            existing?.['source_observation_id'] !== null &&
+            observation['id'] === existing?.['source_observation_id']
         );
         const overlapping = model.positionEvents.find(
           (event) =>
@@ -109,6 +122,12 @@ async function executeFake(
             investment['existing_vehicle_participation_id'],
           existing_source_observation_id:
             existing?.['source_observation_id'] ?? investment['existing_source_observation_id'],
+          existing_source_observation_hash:
+            sourceObservation?.['observation_hash'] ??
+            investment['existing_source_observation_hash'],
+          existing_source_observation_locator:
+            sourceObservation?.['source_locator'] ??
+            investment['existing_source_observation_locator'],
           overlapping_acquisition_id: overlapping?.['id'] ?? investment['overlapping_acquisition_id'],
         };
       }),
@@ -149,10 +168,21 @@ async function executeFake(
   ) {
     const [fundId, investmentId] = rendered.params as [number, number];
     return {
-      rows: model.positionEvents.filter(
-        (event) =>
-          event['fund_id'] === fundId && event['backfilled_from_investment_id'] === investmentId
-      ),
+      rows: model.positionEvents
+        .filter(
+          (event) =>
+            event['fund_id'] === fundId && event['backfilled_from_investment_id'] === investmentId
+        )
+        .map((event) => {
+          const sourceObservation = model.sourceObservations.find(
+            (observation) => observation['id'] === event['source_observation_id']
+          );
+          return {
+            ...event,
+            source_observation_hash: sourceObservation?.['observation_hash'],
+            source_observation_locator: sourceObservation?.['source_locator'],
+          };
+        }),
     };
   }
 
@@ -273,6 +303,7 @@ function baseModel(overrides: Partial<FakeModel> = {}): FakeModel {
     nextVehicleId: 50,
     statements: [],
     transactions: 0,
+    investmentReads: 0,
     ...overrides,
   };
 }
@@ -307,6 +338,8 @@ function investmentRow(overrides: Record<string, unknown> = {}): Record<string, 
     existing_cost_basis_delta: null,
     existing_vehicle_participation_id: null,
     existing_source_observation_id: null,
+    existing_source_observation_hash: null,
+    existing_source_observation_locator: null,
     overlapping_acquisition_id: null,
     ...overrides,
   };
@@ -500,6 +533,33 @@ describe('legacy position backfill service', () => {
     });
   });
 
+  it('blocks participation-backed investments without source observation lineage', async () => {
+    const model = baseModel({
+      investments: [
+        investmentRow({
+          vehicle_participation_id: 900,
+          participation_fund_id: 7,
+          participation_vehicle_id: 10,
+          participation_company_identity_id: 700,
+          participation_version: 1,
+          participation_source_observation_id: null,
+          participation_currency: 'USD',
+        }),
+      ],
+    });
+
+    const result = await backfillLegacyPositionEvents({
+      actorId: 1,
+      database: makeDb(model),
+      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': 'a'.repeat(64) } },
+    });
+
+    expect(result.blocked).toBe(1);
+    expect(result.candidates[0]?.blockers).toContain('PARTICIPATION_OBSERVATION_MISSING');
+    expect(model.positionEvents).toHaveLength(0);
+    expect(model.sourceObservations).toHaveLength(0);
+  });
+
   it('blocks manual acquisition overlap before insert', async () => {
     const model = baseModel();
     model.positionEvents.push({
@@ -551,5 +611,63 @@ describe('legacy position backfill service', () => {
 
     expect(result.blocked).toBe(1);
     expect(result.candidates[0]?.blockers).toContain('EXISTING_BACKFILL_MISMATCH');
+  });
+
+  it('rejects replay when source observation hash no longer matches', async () => {
+    const model = baseModel();
+    const database = makeDb(model);
+    const dryRun = await backfillLegacyPositionEvents({
+      actorId: 1,
+      database,
+      request: { mode: 'dry_run', fundIds: [7] },
+    });
+    const hash = dryRun.candidates[0]?.sourcePlanHash ?? '';
+    await backfillLegacyPositionEvents({
+      actorId: 1,
+      database,
+      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': hash } },
+    });
+    model.sourceObservations[0]!['observation_hash'] = 'b'.repeat(64);
+
+    const result = await backfillLegacyPositionEvents({
+      actorId: 1,
+      database,
+      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': hash } },
+    });
+
+    expect(result.blocked).toBe(1);
+    expect(result.candidates[0]?.blockers).toContain('EXISTING_BACKFILL_MISMATCH');
+  });
+
+  it('rejects candidate set drift before writes', async () => {
+    const model = baseModel();
+    const database = makeDb(model);
+    const dryRun = await backfillLegacyPositionEvents({
+      actorId: 1,
+      database,
+      request: { mode: 'dry_run', fundIds: [7] },
+    });
+    const hash = dryRun.candidates[0]?.sourcePlanHash ?? '';
+    model.beforeInvestmentRead = (fakeModel, readCount) => {
+      if (readCount !== 3) return;
+      fakeModel.investments.push(
+        investmentRow({
+          investment_id: 801,
+          amount: '250.00',
+          cost_basis_cents: 25000n,
+        })
+      );
+    };
+
+    await expect(
+      backfillLegacyPositionEvents({
+        actorId: 1,
+        database,
+        request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': hash } },
+      })
+    ).rejects.toMatchObject({ code: 'SOURCE_PLAN_HASH_CHANGED' });
+
+    expect(model.positionEvents).toHaveLength(0);
+    expect(model.sourceObservations).toHaveLength(0);
   });
 });
