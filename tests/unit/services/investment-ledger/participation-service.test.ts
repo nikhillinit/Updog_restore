@@ -10,7 +10,9 @@ vi.mock('../../../../server/services/h9-artifact-invalidation-service', () => ({
 }));
 
 import {
+  buildParticipationInsertStatement,
   createVehicleFinancingParticipation,
+  insertCompatRows,
   ParticipationLedgerServiceError,
 } from '../../../../server/services/investment-ledger/participation-service';
 import { canonicalSha256 } from '../../../../shared/lib/canonical-hash';
@@ -102,6 +104,7 @@ interface ParticipationRow {
   descriptive_terms: Record<string, unknown> | null;
   confirmed_duplicates: string[];
   source_observation_id: number | null;
+  economic_origin: 'cash_investment' | 'conversion_result';
   created_by: number | null;
   idempotency_key: string;
   request_hash: string;
@@ -127,6 +130,7 @@ interface LedgerModel {
   rounds: Array<Record<string, unknown>>;
   lots: Array<Record<string, unknown>>;
   cashFlowEvents: Array<Record<string, unknown>>;
+  positionEvents: Array<Record<string, unknown>>;
   observations: Array<Record<string, unknown>>;
   legacyInvestments: LegacyInvestmentRow[];
   owned: boolean;
@@ -135,6 +139,7 @@ interface LedgerModel {
   nextRoundId: number;
   nextLotId: number;
   nextCashFlowEventId: number;
+  nextPositionEventId: number;
   nextObservationId: number;
   failCashFlowInsert: boolean;
   statements: Statement[];
@@ -149,6 +154,7 @@ interface LedgerModelSnapshot {
   rounds: Array<Record<string, unknown>>;
   lots: Array<Record<string, unknown>>;
   cashFlowEvents: Array<Record<string, unknown>>;
+  positionEvents: Array<Record<string, unknown>>;
   observations: Array<Record<string, unknown>>;
   legacyInvestments: LegacyInvestmentRow[];
   owned: boolean;
@@ -157,6 +163,7 @@ interface LedgerModelSnapshot {
   nextRoundId: number;
   nextLotId: number;
   nextCashFlowEventId: number;
+  nextPositionEventId: number;
   nextObservationId: number;
   failCashFlowInsert: boolean;
 }
@@ -206,6 +213,7 @@ function emptyModel(): LedgerModel {
     rounds: [],
     lots: [],
     cashFlowEvents: [],
+    positionEvents: [],
     observations: [],
     legacyInvestments: [],
     owned: true,
@@ -214,6 +222,7 @@ function emptyModel(): LedgerModel {
     nextRoundId: 900,
     nextLotId: 1000,
     nextCashFlowEventId: 1100,
+    nextPositionEventId: 1300,
     nextObservationId: 1200,
     failCashFlowInsert: false,
     statements: [],
@@ -284,6 +293,7 @@ function snapshotModel(model: LedgerModel): LedgerModelSnapshot {
     rounds: cloneRecords(model.rounds),
     lots: cloneRecords(model.lots),
     cashFlowEvents: cloneRecords(model.cashFlowEvents),
+    positionEvents: cloneRecords(model.positionEvents),
     observations: cloneRecords(model.observations),
     legacyInvestments: model.legacyInvestments.map((investment) => ({ ...investment })),
     owned: model.owned,
@@ -292,6 +302,7 @@ function snapshotModel(model: LedgerModel): LedgerModelSnapshot {
     nextRoundId: model.nextRoundId,
     nextLotId: model.nextLotId,
     nextCashFlowEventId: model.nextCashFlowEventId,
+    nextPositionEventId: model.nextPositionEventId,
     nextObservationId: model.nextObservationId,
     failCashFlowInsert: model.failCashFlowInsert,
   };
@@ -309,6 +320,7 @@ function restoreModel(model: LedgerModel, snapshot: LedgerModelSnapshot): void {
   model.rounds = cloneRecords(snapshot.rounds);
   model.lots = cloneRecords(snapshot.lots);
   model.cashFlowEvents = cloneRecords(snapshot.cashFlowEvents);
+  model.positionEvents = cloneRecords(snapshot.positionEvents);
   model.observations = cloneRecords(snapshot.observations);
   model.legacyInvestments = snapshot.legacyInvestments.map((investment) => ({ ...investment }));
   model.owned = snapshot.owned;
@@ -317,6 +329,7 @@ function restoreModel(model: LedgerModel, snapshot: LedgerModelSnapshot): void {
   model.nextRoundId = snapshot.nextRoundId;
   model.nextLotId = snapshot.nextLotId;
   model.nextCashFlowEventId = snapshot.nextCashFlowEventId;
+  model.nextPositionEventId = snapshot.nextPositionEventId;
   model.nextObservationId = snapshot.nextObservationId;
   model.failCashFlowInsert = snapshot.failCashFlowInsert;
 }
@@ -485,6 +498,23 @@ function runStatement(model: LedgerModel, text: string, params: unknown[]): { ro
     return { rows: [{ id: row.id }] };
   }
 
+  if (flat.startsWith('INSERT INTO position_events')) {
+    const parsed = parseInsert(flat, params);
+    const existing = model.positionEvents.find(
+      (candidate) =>
+        candidate['event_type'] === 'acquisition' &&
+        candidate['vehicle_participation_id'] === parsed['vehicle_participation_id']
+    );
+    if (existing) return { rows: [] };
+    const row = {
+      ...parsed,
+      id: model.nextPositionEventId++,
+      recorded_at: CREATED_AT,
+    };
+    model.positionEvents.push(row);
+    return { rows: [{ id: row.id }] };
+  }
+
   if (flat.startsWith('INSERT INTO source_observations')) {
     const row = parseInsert(flat, params);
     model.observations.push(row);
@@ -592,7 +622,11 @@ describe('createVehicleFinancingParticipation', () => {
     expect(model.rounds).toHaveLength(1);
     expect(model.lots).toHaveLength(1);
     expect(model.cashFlowEvents).toHaveLength(1);
+    expect(model.positionEvents).toHaveLength(1);
     expect(model.observations).toHaveLength(1);
+    expect(model.participations[0]).toMatchObject({
+      economic_origin: 'cash_investment',
+    });
     const storedPayload = model.observations[0]?.['normalized_payload'];
     expect(model.observations[0]?.['observation_hash']).toBe(
       canonicalSha256(
@@ -654,6 +688,31 @@ describe('createVehicleFinancingParticipation', () => {
       sourceHash: EXPECTED_ORIGINAL_SOURCE_HASH,
       wireFingerprint: EXPECTED_WIRE_FINGERPRINT,
     });
+    expect(model.positionEvents[0]).toMatchObject({
+      fund_id: FUND_ID,
+      vehicle_id: VEHICLE_ID,
+      company_identity_id: IDENTITY_ID,
+      event_type: 'acquisition',
+      effective_date: '2026-02-01',
+      shares_delta: '200.000000',
+      cost_basis_delta: '1000.000000',
+      proceeds: '0',
+      vehicle_participation_id: 700,
+      source_observation_id: 1200,
+      idempotency_key: 'part-1',
+      request_hash: model.participations[0]?.request_hash,
+      replaces_event_id: null,
+      reverses_position_event_id: null,
+      resulting_participation_id: null,
+      source_participation_version: null,
+      resulting_participation_version: null,
+      source_tranche_version: null,
+      resulting_tranche_version: null,
+    });
+    expect(model.positionEvents[0]?.['request_hash']).toMatch(/^[a-f0-9]{64}$/);
+    expect(statementsMatching(model, 'INSERT INTO position_events')[0]?.text).not.toContain(
+      'recorded_at'
+    );
     expect(invalidateH9Artifacts).toHaveBeenCalledTimes(1);
     expect(invalidateH9Artifacts).toHaveBeenCalledWith(FUND_ID);
     expect(
@@ -689,6 +748,7 @@ describe('createVehicleFinancingParticipation', () => {
     expect(replay.value).toEqual(first.value);
     expect(model.participations).toHaveLength(1);
     expect(model.cashFlowEvents).toHaveLength(1);
+    expect(model.positionEvents).toHaveLength(1);
     expect(invalidateH9Artifacts).not.toHaveBeenCalled();
 
     await expect(
@@ -709,6 +769,7 @@ describe('createVehicleFinancingParticipation', () => {
     expect(model.rounds).toHaveLength(0);
     expect(model.lots).toHaveLength(0);
     expect(model.cashFlowEvents).toHaveLength(0);
+    expect(model.positionEvents).toHaveLength(0);
     expect(model.observations).toHaveLength(0);
 
     model.activeLinks = [COMPANY_ID, 43];
@@ -732,6 +793,10 @@ describe('createVehicleFinancingParticipation', () => {
     expect(created.value.lotStatus).toBe('omitted_unpriced');
     expect(created.value.compat.investmentLotId).toBeNull();
     expect(model.lots).toHaveLength(0);
+    expect(model.positionEvents[0]).toMatchObject({
+      shares_delta: '0',
+      cost_basis_delta: '1000.000000',
+    });
 
     const replay = await createParticipation('warning-receipt', {
       participationAmount: '1000.001000',
@@ -782,6 +847,76 @@ describe('createVehicleFinancingParticipation', () => {
     expect(confirmed.value.participation.confirmedDuplicates).toEqual([duplicateFingerprint]);
     expect(confirmed.value.warnings).toEqual([]);
     expect(model.participations).toHaveLength(1);
+  });
+
+  it('emits no compatibility rows for conversion-result origin', async () => {
+    const source = await createParticipation('conversion-source');
+    model = emptyModel();
+    const conversionInsert = dialect.sqlToQuery(
+      buildParticipationInsertStatement({
+        participationId: 700,
+        fundId: FUND_ID,
+        trancheId: TRANCHE_ID,
+        actorId: 3,
+        idempotencyKey: 'conversion-result',
+        requestHash: canonicalSha256({ participation: 'conversion-result' }),
+        economicOrigin: 'conversion_result',
+        request: {
+          vehicleId: VEHICLE_ID,
+          participationAmount: '1000.000000',
+          sharesAcquired: '200.00000000',
+          confirmedDuplicates: [],
+        },
+        tranche: {
+          financingEventId: 100,
+          trancheKey: 'first-close',
+          closingDate: '2026-02-01',
+        },
+      }) as never
+    );
+    runStatement(model, conversionInsert.sql, conversionInsert.params);
+
+    const compat = await insertCompatRows(makeDatabase(model), {
+      economicOrigin: 'conversion_result',
+      fundId: FUND_ID,
+      actorId: 3,
+      vehicleId: VEHICLE_ID,
+      companyId: COMPANY_ID,
+      financingEventId: 100,
+      trancheKey: 'first-close',
+      roundName: 'Series A',
+      closingDate: '2026-02-01',
+      securityType: 'equity',
+      participation: source.value.participation,
+      investmentAmount: '1000.00',
+      roundInvestmentAmount: '1000.000000',
+      cashFlowAmount: '1000.000000',
+      postMoneyValuation: null,
+      lot: {
+        sharePriceCents: 500n,
+        sharesAcquired: '200.00000000',
+        costBasisCents: 100000n,
+      },
+    });
+
+    expect(compat).toMatchObject({
+      investmentId: null,
+      investmentRoundId: null,
+      investmentLotId: null,
+      cashFlowEventId: null,
+      sourceHash: null,
+      wireFingerprint: null,
+    });
+    expect(model.participations).toHaveLength(1);
+    expect(model.participations[0]?.economic_origin).toBe('conversion_result');
+    expect(model.investments).toHaveLength(0);
+    expect(model.rounds).toHaveLength(0);
+    expect(model.lots).toHaveLength(0);
+    expect(model.cashFlowEvents).toHaveLength(0);
+    expect(statementsMatching(model, 'INSERT INTO investments')).toHaveLength(0);
+    expect(statementsMatching(model, 'INSERT INTO investment_rounds')).toHaveLength(0);
+    expect(statementsMatching(model, 'INSERT INTO investment_lots')).toHaveLength(0);
+    expect(statementsMatching(model, 'INSERT INTO cash_flow_events')).toHaveLength(0);
   });
 
   it('scans duplicate investments using the 2dp legacy amount projection', async () => {
@@ -836,6 +971,7 @@ describe('createVehicleFinancingParticipation', () => {
     expect(model.investments).toHaveLength(1);
     expect(model.rounds).toHaveLength(1);
     expect(model.cashFlowEvents).toHaveLength(1);
+    expect(model.positionEvents).toHaveLength(1);
     expect(model.observations).toHaveLength(1);
     expect(invalidateH9Artifacts).not.toHaveBeenCalled();
   });

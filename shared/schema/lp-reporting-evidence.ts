@@ -34,6 +34,7 @@ import {
   check,
   date,
   decimal,
+  foreignKey,
   ForeignKeyBuilder,
   index,
   integer,
@@ -49,6 +50,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 import { funds } from './fund';
+import { sourceObservations } from './financial-observations';
 import { portfolioCompanies } from './portfolio';
 import { users } from './user';
 import { vehicleFinancingParticipations } from './vehicle-financing-participations';
@@ -169,6 +171,11 @@ export const valuationMarks = pgTable(
     fairValue: decimal('fair_value', { precision: 20, scale: 6 }).notNull(),
     currency: varchar('currency', { length: 3 }).notNull().default('USD'),
     costBasis: decimal('cost_basis', { precision: 20, scale: 6 }),
+    markPurpose: varchar('mark_purpose', { length: 32 })
+      .notNull()
+      .default('planning_company_fmv')
+      .$type<'planning_company_fmv' | 'direct_position_fmv'>(),
+    sourceObservationId: integer('source_observation_id'),
 
     markSource: varchar('mark_source', { length: 64 }).notNull(),
     confidenceLevel: varchar('confidence_level', { length: 16 }).notNull(),
@@ -202,6 +209,20 @@ export const valuationMarks = pgTable(
       'valuation_status_check',
       sql`${table.status} IN ('draft', 'approved', 'locked', 'superseded')`
     ),
+    markPurposeCheck: check(
+      'valuation_marks_mark_purpose_check',
+      sql`${table.markPurpose} IN ('planning_company_fmv', 'direct_position_fmv')`
+    ),
+    directPositionLineageCheck: check(
+      'valuation_marks_direct_position_lineage_check',
+      sql`${table.markPurpose} <> 'direct_position_fmv'
+        OR (${table.vehicleId} IS NOT NULL AND ${table.sourceObservationId} IS NOT NULL)`
+    ),
+    sourceObservationFundFk: foreignKey({
+      columns: [table.sourceObservationId, table.fundId],
+      foreignColumns: [sourceObservations.id, sourceObservations.fundId],
+      name: 'valuation_marks_source_observation_fund_fk',
+    }),
     fundAsofIdx: index('idx_valuation_marks_fund_asof').on(table.fundId, table.asOfDate.desc()),
     companyAsofIdx: index('idx_valuation_marks_company_asof').on(
       table.companyId,
@@ -215,6 +236,11 @@ export const valuationMarks = pgTable(
       .on(table.fundId, table.companyId, table.markDate.desc(), table.id.desc())
       .where(
         sql`${table.importedFrom} = 'planning_fmv_override' AND ${table.status} IN ('approved', 'locked')`
+      ),
+    directPositionIdx: index('idx_valuation_marks_direct_position_mark_date')
+      .on(table.fundId, table.vehicleId, table.companyId, table.markDate.desc(), table.id.desc())
+      .where(
+        sql`${table.markPurpose} = 'direct_position_fmv' AND ${table.status} IN ('approved', 'locked')`
       ),
     importBatchIdx: index('idx_valuation_marks_import_batch').on(table.importBatchId),
     sourceHashUniqueIdx: uniqueIndex('valuation_marks_fund_source_hash_unique')

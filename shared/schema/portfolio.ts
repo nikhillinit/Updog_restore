@@ -144,6 +144,10 @@ export const investmentLots = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => ({
+    idInvestmentUnique: unique('investment_lots_id_investment_unique').on(
+      table.id,
+      table.investmentId
+    ),
     investmentLotTypeIdx: index('investment_lots_investment_lot_type_idx').on(
       table.investmentId,
       table.lotType
@@ -163,7 +167,7 @@ export const investmentLots = pgTable(
     ),
     lotTypeCheck: check(
       'investment_lots_lot_type_check',
-      sql`${table.lotType} IN ('initial', 'follow_on', 'secondary')`
+      sql`${table.lotType} IN ('initial', 'follow_on', 'secondary', 'conversion')`
     ),
     idempotencyKeyLenCheck: check(
       'investment_lots_idem_key_len_check',

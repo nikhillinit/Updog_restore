@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import {
   check,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -10,6 +11,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core';
 
@@ -38,6 +40,7 @@ export const financialFactsSnapshots = pgTable(
     actorId: integer('actor_id'),
     idempotencyKey: varchar('idempotency_key', { length: 128 }).notNull(),
     requestHash: varchar('request_hash', { length: 64 }).notNull(),
+    supersedesSnapshotId: integer('supersedes_snapshot_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
@@ -57,6 +60,19 @@ export const financialFactsSnapshots = pgTable(
       table.fundId,
       table.snapshotInputHash
     ),
+    idFundUnique: unique('financial_facts_snapshots_id_fund_unique').on(table.id, table.fundId),
+    supersedesFundFk: foreignKey({
+      columns: [table.supersedesSnapshotId, table.fundId],
+      foreignColumns: [table.id, table.fundId],
+      name: 'financial_facts_snapshots_supersedes_fund_fk',
+    }),
+    noSelfSupersedeCheck: check(
+      'financial_facts_snapshots_no_self_supersede_check',
+      sql`${table.supersedesSnapshotId} IS NULL OR ${table.supersedesSnapshotId} <> ${table.id}`
+    ),
+    supersedesUnique: uniqueIndex('financial_facts_snapshots_supersedes_unique')
+      .on(table.supersedesSnapshotId)
+      .where(sql`${table.supersedesSnapshotId} IS NOT NULL`),
   })
 );
 

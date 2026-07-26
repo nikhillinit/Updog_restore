@@ -14,6 +14,8 @@ const serviceState = vi.hoisted(() => ({
   loadFinancingEventDetail: vi.fn(),
   createVehicleFinancingParticipation: vi.fn(),
   correctVehicleParticipationLedger: vi.fn(),
+  recordPositionEvent: vi.fn(),
+  correctPosition: vi.fn(),
 }));
 
 const authState = vi.hoisted(() => ({
@@ -44,6 +46,11 @@ vi.mock('../../../server/services/investment-ledger/ledger-correction-service', 
   correctVehicleParticipationLedger: serviceState.correctVehicleParticipationLedger,
 }));
 
+vi.mock('../../../server/services/investment-ledger/position-service', () => ({
+  recordPositionEvent: serviceState.recordPositionEvent,
+  correctPosition: serviceState.correctPosition,
+}));
+
 vi.mock('../../../server/lib/auth/jwt', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../server/lib/auth/jwt')>();
   return {
@@ -69,6 +76,18 @@ const EVENT = {
 
 const TRANCHE = { id: 500, fundId: 7, trancheKey: 'first-close', version: 1 };
 const PARTICIPATION = { id: 600, fundId: 7, vehicleId: 9, version: 1 };
+const POSITION_EVENT = {
+  id: 700,
+  fundId: 7,
+  vehicleId: 9,
+  companyIdentityId: 11,
+  eventType: 'acquisition',
+};
+const POSITION_CORRECTION = {
+  reversal: { ...POSITION_EVENT, id: 701, eventType: 'reversal' },
+  replacement: { ...POSITION_EVENT, id: 702 },
+  reconciliationCaseId: 703,
+};
 
 function makeApp() {
   const app = express();
@@ -116,6 +135,23 @@ const ledgerCorrectionBody = {
   ],
 };
 
+const positionEventBody = {
+  vehicleId: 9,
+  companyIdentityId: 11,
+  eventType: 'acquisition',
+  effectiveDate: '2026-02-01',
+  sharesDelta: '100.00000000',
+  costBasisDelta: '2500000.000000',
+  proceeds: '0.000000',
+};
+const positionCorrectionBody = {
+  positionEventId: 700,
+  currency: 'USD',
+  sharesDelta: '90.00000000',
+  costBasisDelta: '2250000.000000',
+  proceeds: '0.000000',
+};
+
 beforeEach(() => {
   authState.user = {
     id: '3',
@@ -131,6 +167,8 @@ beforeEach(() => {
   serviceState.loadFinancingEventDetail.mockReset();
   serviceState.createVehicleFinancingParticipation.mockReset();
   serviceState.correctVehicleParticipationLedger.mockReset();
+  serviceState.recordPositionEvent.mockReset();
+  serviceState.correctPosition.mockReset();
 });
 
 describe('investment-ledger routes', () => {
@@ -193,6 +231,20 @@ describe('investment-ledger routes', () => {
         `/api/funds/${fundId}/investment-ledger/tranches/500/ledger-corrections`,
       service: serviceState.correctVehicleParticipationLedger,
       body: ledgerCorrectionBody,
+    },
+    {
+      name: 'record position event',
+      method: 'post' as const,
+      path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/position-events`,
+      service: serviceState.recordPositionEvent,
+      body: positionEventBody,
+    },
+    {
+      name: 'correct position',
+      method: 'post' as const,
+      path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/position-corrections`,
+      service: serviceState.correctPosition,
+      body: positionCorrectionBody,
     },
     {
       name: 'read detail',
@@ -396,6 +448,78 @@ describe('investment-ledger routes', () => {
         actorId: 3,
         idempotencyKey: 'ledger-correction-1',
         request: ledgerCorrectionBody,
+      })
+    );
+  });
+
+  it('records a manual position event through the route command', async () => {
+    serviceState.recordPositionEvent
+      .mockResolvedValueOnce({
+        value: POSITION_EVENT,
+        replayed: false,
+      })
+      .mockResolvedValueOnce({
+        value: POSITION_EVENT,
+        replayed: true,
+      });
+
+    const created = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/position-events')
+      .set('Idempotency-Key', 'position-event-1')
+      .send(positionEventBody);
+    const replayed = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/position-events')
+      .set('Idempotency-Key', 'position-event-1')
+      .send(positionEventBody);
+
+    expect(created.status).toBe(201);
+    expect(created.body).toEqual(POSITION_EVENT);
+    expect(replayed.status).toBe(200);
+    expect(serviceState.recordPositionEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fundId: 7,
+        actorId: 3,
+        idempotencyKey: 'position-event-1',
+        request: positionEventBody,
+      })
+    );
+  });
+
+  it('requires If-Match before dispatching a position correction', async () => {
+    const response = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/position-corrections')
+      .set('Idempotency-Key', 'position-correction-1')
+      .send(positionCorrectionBody);
+
+    expect(response.status).toBe(428);
+    expect(response.body).toMatchObject({
+      error: 'precondition_required',
+      message: 'If-Match header is required',
+    });
+    expect(serviceState.correctPosition).not.toHaveBeenCalled();
+  });
+
+  it('passes the parsed If-Match value into the atomic position correction command', async () => {
+    serviceState.correctPosition.mockResolvedValueOnce({
+      value: POSITION_CORRECTION,
+      replayed: false,
+    });
+
+    const response = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/position-corrections')
+      .set('Idempotency-Key', 'position-correction-1')
+      .set('If-Match', 'W/"event-version-101"')
+      .send(positionCorrectionBody);
+
+    expect(response.status).toBe(201);
+    expect(response.body).toEqual(POSITION_CORRECTION);
+    expect(serviceState.correctPosition).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fundId: 7,
+        actorId: 3,
+        idempotencyKey: 'position-correction-1',
+        ifMatch: 'event-version-101',
+        request: positionCorrectionBody,
       })
     );
   });

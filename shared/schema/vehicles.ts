@@ -11,6 +11,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core';
 
@@ -54,6 +55,9 @@ export const vehicles = pgTable(
       sql`${table.adminBurdenScore} IS NULL OR (${table.adminBurdenScore} >= 0 AND ${table.adminBurdenScore} <= 100)`
     ),
     fundTypeIdx: index('idx_vehicles_fund_type').on(table.fundId, table.vehicleType),
+    mainFundUnique: uniqueIndex('vehicles_main_fund_unique')
+      .on(table.fundId)
+      .where(sql`${table.vehicleType} = 'main_fund'`),
   })
 );
 
