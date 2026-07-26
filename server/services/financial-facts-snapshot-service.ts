@@ -1762,7 +1762,11 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
     .where(
       and(
         eq(valuationMarks.fundId, input.fundId),
-        eq(valuationMarks.markPurpose, 'planning_company_fmv')
+        eq(valuationMarks.markPurpose, 'planning_company_fmv'),
+        lte(valuationMarks.createdAt, new Date(knowledgeCutoff)),
+        sql`COALESCE(${valuationMarks.approvedAt}, ${valuationMarks.lockedAt}, ${valuationMarks.createdAt}) <= ${new Date(
+          knowledgeCutoff
+        )}`
       )
     )
     .orderBy(asc(valuationMarks.markDate), asc(valuationMarks.id))) as ValuationMarkRow[];
