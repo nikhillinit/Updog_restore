@@ -271,6 +271,21 @@ describe('financial-facts route contract', () => {
     expect(response.body.payloadSchemaId).toBe(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2);
   });
 
+  it('GET rejects a corrupt legacy row that carries a payload 2 schema id', async () => {
+    service.getLatestFinancialFactsSnapshot.mockResolvedValueOnce({
+      ...snapshotRow(),
+      payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
+    });
+
+    const response = await request(buildApp()).get('/api/funds/1/financial-facts/latest');
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      error: 'internal_error',
+      message: 'Failed to process financial-facts request',
+    });
+  });
+
   it('POST rejects a missing Idempotency-Key before building a snapshot', async () => {
     const response = await request(buildApp())
       .post('/api/admin/funds/1/financial-facts/snapshots')

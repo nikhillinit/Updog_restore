@@ -69,11 +69,9 @@ function actorId(req: Request): number {
 }
 
 function snapshotResponse(row: FinancialFactsSnapshot) {
-  return PersistedFinancialFactsSnapshotV1Schema.parse({
+  const persisted = {
     policyVersion: row.policyVersion,
-    ...(row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_1_0
-      ? { payloadSchemaId: row.payloadSchemaId }
-      : {}),
+    payloadSchemaId: row.payloadSchemaId,
     fundId: row.fundId,
     asOfDate: row.asOfDate,
     knowledgeCutoff: row.knowledgeCutoff.toISOString(),
@@ -86,6 +84,14 @@ function snapshotResponse(row: FinancialFactsSnapshot) {
     payload: row.payload,
     actorId: row.actorId,
     createdAt: row.createdAt.toISOString(),
+  };
+  PersistedFinancialFactsSnapshotV1Schema.parse(persisted);
+
+  return PersistedFinancialFactsSnapshotV1Schema.parse({
+    ...persisted,
+    ...(row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_1_0
+      ? { payloadSchemaId: row.payloadSchemaId }
+      : { payloadSchemaId: undefined }),
   });
 }
 
