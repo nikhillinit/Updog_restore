@@ -1628,7 +1628,7 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     humanReviewRequired: true,
     performanceBudgetMs: null,
     notes:
-      'Task 11 conversion command records source and resulting participation lineage; route handler mounting is deferred to Task 11C.',
+      'Task 11 conversion command records source and resulting participation lineage; route handler is mounted on the common investment-ledger router.',
   },
   {
     id: 'api:post:/api/funds/:fundId/investment-ledger/position-corrections',

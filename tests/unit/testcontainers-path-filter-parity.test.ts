@@ -11,6 +11,21 @@ interface PathFilters {
   schema_tests?: string[];
 }
 
+const REQUIRED_SCHEMA_TEST_SEAMS = [
+  'shared/contracts/investment-ledger/position.contract.ts',
+  'shared/contracts/investment-ledger/participation.contract.ts',
+  'shared/schema/investment-ledger.ts',
+  'shared/schema/investment-positions.ts',
+  'shared/schema/vehicle-financing-participations.ts',
+  'server/services/investment-ledger/position-conversion-service.ts',
+  'server/services/investment-ledger/ledger-correction-service.ts',
+  'server/routes/investment-ledger.ts',
+  'server/routes/cohort-analysis.ts',
+  'tests/integration/investment-ledger/position-conversion.pg.test.ts',
+  'tests/integration/vehicle-financing-participations-real-pg.test.ts',
+  'tests/integration/scenarios/company-scenario-create-persistence.test.ts',
+] as const;
+
 function activeTestcontainersIncludes(): string[] {
   const config = fs.readFileSync(TESTCONTAINERS_CONFIG, 'utf8');
   const includeBlock = config.match(/include:\s*\[([\s\S]*?)\],\s*exclude:/)?.[1];
@@ -45,6 +60,14 @@ describe('Testcontainers path-filter parity', () => {
     const patterns = schemaTestPatterns();
     const isSchemaTestPath = picomatch(patterns);
     const missing = activeTestcontainersIncludes().filter((includePath) => !isSchemaTestPath(includePath));
+
+    expect(missing).toEqual([]);
+  });
+
+  it('matches every required conversion production seam with schema_tests', () => {
+    const patterns = schemaTestPatterns();
+    const isSchemaTestPath = picomatch(patterns);
+    const missing = REQUIRED_SCHEMA_TEST_SEAMS.filter((seamPath) => !isSchemaTestPath(seamPath));
 
     expect(missing).toEqual([]);
   });

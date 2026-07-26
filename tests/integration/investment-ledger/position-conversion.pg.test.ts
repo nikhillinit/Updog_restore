@@ -1,14 +1,30 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { and, eq, ne } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { Pool, type DatabaseError } from 'pg';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { getPostgresConnectionString } from '../../helpers/testcontainers';
 import { runMigrationsWithConnectionString } from '../../helpers/testcontainers-migration';
+import { investmentLots, investments } from '../../../shared/schema';
+
+const { invalidateH9Artifacts } = vi.hoisted(() => ({
+  invalidateH9Artifacts: vi.fn(async () => undefined),
+}));
+
+vi.mock('../../../server/services/h9-artifact-invalidation-service', () => ({
+  invalidateH9Artifacts,
+}));
+
+import { convertPosition } from '../../../server/services/investment-ledger/position-conversion-service';
+import { correctVehicleParticipationLedger } from '../../../server/services/investment-ledger/ledger-correction-service';
 
 const skipIfNoDocker = !process.env.CI && process.platform === 'win32';
 const createdDatabases: string[] = [];
+const pgDialect = new PgDialect();
 
 const NEW_TABLE = 'position_event_source_basis_reliefs';
 const NEW_INDEXES = ['pesbr_capitalized_adj_unique'];
@@ -93,6 +109,20 @@ interface ConversionSeed {
   conversionEventId: number;
   basisMismatchConversionEventId: number;
   adjustmentEventId: number;
+}
+
+interface ServiceConversionSeed {
+  fundId: number;
+  vehicleId: number;
+  identityId: number;
+  sourceEventId: number;
+  targetEventId: number;
+  sourceTrancheId: number;
+  targetTrancheId: number;
+  sourceParticipationId: number;
+  sourceAcquisitionEventId: number;
+  sourceInvestmentId: number;
+  sourceLotId: string | null;
 }
 
 type ReliefInsertOverrides = Partial<{
@@ -424,7 +454,592 @@ describe.skipIf(skipIfNoDocker)('position conversion source-basis migration', ()
       });
     }
   );
+
+  it('converts a no-lot SAFE source through the real service and preserves legacy compatibility rows', async () => {
+    invalidateH9Artifacts.mockClear();
+    const { connectionString } = await createDatabase('position_conversion_service_no_lot');
+    await runMigrationsWithConnectionString(connectionString, '0043_position_source_basis_reliefs');
+
+    await withPool(connectionString, async (pool) => {
+      const seed = await seedServiceConversion(pool, nextFundId(), {
+        sourceLot: false,
+        unpricedSource: true,
+      });
+      const before = await legacyCompatibilitySnapshot(pool, seed.fundId);
+      await expectSourceIsUnpricedNoLot(pool, seed);
+      const result = await convertPosition({
+        fundId: seed.fundId,
+        actorId: null,
+        idempotencyKey: `pg-no-lot-${seed.fundId}`,
+        request: conversionRequest(seed),
+        database: drizzle(pool) as never,
+      });
+
+      expect(result.replayed).toBe(false);
+      expect(result.value.reliefMode).toBe('source_basis');
+      expect(result.value.lotReliefs).toEqual([]);
+      expect(result.value.sourceBasisRelief).toMatchObject({
+        sourceAcquisitionPositionEventId: seed.sourceAcquisitionEventId,
+        sourceParticipationId: seed.sourceParticipationId,
+        sourceAcquisitionCostBasis: '1000.000000',
+        capitalizedAdjustmentCostBasis: '0.000000',
+        relievedCostBasis: '1000.000000',
+        sourceEconomicOrigin: 'cash_investment',
+        resultingEconomicOrigin: 'conversion_result',
+      });
+      expect(await countRows(pool, 'position_event_source_basis_reliefs', seed.fundId)).toBe(1);
+      expect(await countRows(pool, 'position_event_lot_reliefs', seed.fundId)).toBe(0);
+      expect(await resultConversionLots(pool, result.value.resultingParticipation.id)).toEqual([
+        expect.objectContaining({
+          investment_id: seed.sourceInvestmentId,
+          lot_type: 'conversion',
+          cost_basis_cents: '100000',
+          vehicle_participation_id: result.value.resultingParticipation.id,
+        }),
+      ]);
+      expect(await legacyCompatibilitySnapshot(pool, seed.fundId)).toEqual(before);
+      expect(invalidateH9Artifacts).toHaveBeenCalledWith(seed.fundId);
+    });
+  });
+
+  it('converts a lot-backed source with strict lot relief plus source-basis receipt', async () => {
+    invalidateH9Artifacts.mockClear();
+    const { connectionString } = await createDatabase('position_conversion_service_lot');
+    await runMigrationsWithConnectionString(connectionString, '0043_position_source_basis_reliefs');
+
+    await withPool(connectionString, async (pool) => {
+      const seed = await seedServiceConversion(pool, nextFundId(), {
+        sourceLot: true,
+        unpricedSource: false,
+      });
+      const result = await convertPosition({
+        fundId: seed.fundId,
+        actorId: null,
+        idempotencyKey: `pg-lot-${seed.fundId}`,
+        request: conversionRequest(seed, {
+          sourceLotReliefs: [
+            {
+              investmentId: seed.sourceInvestmentId,
+              investmentLotId: requireString(seed.sourceLotId),
+              relievedShares: '100.000000',
+              relievedCostBasis: '1000.000000',
+            },
+          ],
+        }),
+        database: drizzle(pool) as never,
+      });
+
+      expect(result.replayed).toBe(false);
+      expect(result.value.reliefMode).toBe('specific_lots');
+      expect(result.value.conversionEvent.sharesDelta).toBe('0.000000');
+      expect(result.value.lotReliefs).toEqual([
+        {
+          investmentId: seed.sourceInvestmentId,
+          investmentLotId: seed.sourceLotId,
+          relievedShares: '100.000000',
+          relievedCostBasis: '1000.000000',
+          allocatedProceeds: '0.000000',
+        },
+      ]);
+      expect(await countRows(pool, 'position_event_source_basis_reliefs', seed.fundId)).toBe(1);
+      expect(await countRows(pool, 'position_event_lot_reliefs', seed.fundId)).toBe(1);
+    });
+  });
+
+  it('capitalizes interest as an adjustment before the conversion in the same transaction', async () => {
+    invalidateH9Artifacts.mockClear();
+    const { connectionString } = await createDatabase('position_conversion_service_interest');
+    await runMigrationsWithConnectionString(connectionString, '0043_position_source_basis_reliefs');
+
+    await withPool(connectionString, async (pool) => {
+      const seed = await seedServiceConversion(pool, nextFundId(), {
+        sourceLot: false,
+        unpricedSource: true,
+      });
+      const before = await legacyCompatibilitySnapshot(pool, seed.fundId);
+      const result = await convertPosition({
+        fundId: seed.fundId,
+        actorId: null,
+        idempotencyKey: `pg-interest-${seed.fundId}`,
+        request: conversionRequest(seed, {
+          resultingSharesAcquired: '101.000000',
+          accruedInterest: {
+            mode: 'capitalized_with_adjustment',
+            amount: '10.000000',
+          },
+        }),
+        database: drizzle(pool) as never,
+      });
+
+      expect(result.value.capitalizedAdjustmentEvent).toMatchObject({
+        eventType: 'adjustment',
+        sharesDelta: '0.000000',
+        costBasisDelta: '10.000000',
+        proceeds: '0.000000',
+      });
+      expect(result.value.sourceBasisRelief).toMatchObject({
+        sourceAcquisitionCostBasis: '1000.000000',
+        capitalizedAdjustmentCostBasis: '10.000000',
+        relievedCostBasis: '1010.000000',
+      });
+      expect(result.value.resultingParticipation.participationAmount).toBe('1010.000000');
+      expect(result.value.capitalizedAdjustmentEvent!.id).toBeLessThan(
+        result.value.conversionEvent.id
+      );
+      expect(await resultConversionLots(pool, result.value.resultingParticipation.id)).toEqual([
+        expect.objectContaining({ cost_basis_cents: '101000' }),
+      ]);
+      expect(await legacyCompatibilitySnapshot(pool, seed.fundId)).toEqual(before);
+      expect(invalidateH9Artifacts).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('replays the exact same idempotency key and rejects changed payload without more rows', async () => {
+    invalidateH9Artifacts.mockClear();
+    const { connectionString } = await createDatabase('position_conversion_service_replay');
+    await runMigrationsWithConnectionString(connectionString, '0043_position_source_basis_reliefs');
+
+    await withPool(connectionString, async (pool) => {
+      const seed = await seedServiceConversion(pool, nextFundId(), {
+        sourceLot: false,
+        unpricedSource: true,
+      });
+      const database = drizzle(pool) as never;
+      const request = conversionRequest(seed);
+      const first = await convertPosition({
+        fundId: seed.fundId,
+        actorId: null,
+        idempotencyKey: `pg-replay-${seed.fundId}`,
+        request,
+        database,
+      });
+      const afterFirst = await conversionPersistenceSnapshot(pool, seed.fundId);
+
+      const replay = await convertPosition({
+        fundId: seed.fundId,
+        actorId: null,
+        idempotencyKey: `pg-replay-${seed.fundId}`,
+        request,
+        database,
+      });
+      const changedPayloadError = await captureError(() =>
+        convertPosition({
+          fundId: seed.fundId,
+          actorId: null,
+          idempotencyKey: `pg-replay-${seed.fundId}`,
+          request: conversionRequest(seed, { resultingSharesAcquired: '101.000000' }),
+          database,
+        })
+      );
+
+      expect(replay).toEqual({ value: first.value, replayed: true });
+      expect(changedPayloadError).toMatchObject({ status: 409, code: 'IDEMPOTENCY_KEY_REUSE' });
+      expect(await conversionPersistenceSnapshot(pool, seed.fundId)).toEqual(afterFirst);
+    });
+  });
+
+  it('serializes same-key concurrent requests into one commit and one replay', async () => {
+    invalidateH9Artifacts.mockClear();
+    const { connectionString } = await createDatabase('position_conversion_service_same_key');
+    await runMigrationsWithConnectionString(connectionString, '0043_position_source_basis_reliefs');
+
+    await withPool(connectionString, async (pool) => {
+      const seed = await seedServiceConversion(pool, nextFundId(), {
+        sourceLot: false,
+        unpricedSource: true,
+      });
+      const database = drizzle(pool, { logger: false }) as never;
+      const results = await Promise.all([
+        convertPosition({
+          fundId: seed.fundId,
+          actorId: null,
+          idempotencyKey: `pg-same-key-${seed.fundId}`,
+          request: conversionRequest(seed),
+          database,
+        }),
+        convertPosition({
+          fundId: seed.fundId,
+          actorId: null,
+          idempotencyKey: `pg-same-key-${seed.fundId}`,
+          request: conversionRequest(seed),
+          database,
+        }),
+      ]);
+
+      expect(results.map((result) => result.replayed).sort()).toEqual([false, true]);
+      expect(new Set(results.map((result) => result.value.conversionEvent.id)).size).toBe(1);
+      expect(await conversionPersistenceSnapshot(pool, seed.fundId)).toMatchObject({
+        conversionEvents: 1,
+        sourceBasisReliefs: 1,
+        resultParticipations: 1,
+        resultLots: 1,
+      });
+      expect(invalidateH9Artifacts).toHaveBeenCalledTimes(1);
+      expect(invalidateH9Artifacts).toHaveBeenCalledWith(seed.fundId);
+    });
+  });
+
+  it('serializes different-key same-source requests into one success and one typed conflict', async () => {
+    invalidateH9Artifacts.mockClear();
+    const { connectionString } = await createDatabase('position_conversion_service_diff_key');
+    await runMigrationsWithConnectionString(connectionString, '0043_position_source_basis_reliefs');
+
+    await withPool(connectionString, async (pool) => {
+      const seed = await seedServiceConversion(pool, nextFundId(), {
+        sourceLot: false,
+        unpricedSource: true,
+      });
+      const database = drizzle(pool, { logger: false }) as never;
+      const results = await Promise.allSettled([
+        convertPosition({
+          fundId: seed.fundId,
+          actorId: null,
+          idempotencyKey: `pg-diff-key-a-${seed.fundId}`,
+          request: conversionRequest(seed),
+          database,
+        }),
+        convertPosition({
+          fundId: seed.fundId,
+          actorId: null,
+          idempotencyKey: `pg-diff-key-b-${seed.fundId}`,
+          request: conversionRequest(seed),
+          database,
+        }),
+      ]);
+
+      expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+      const rejected = results.find((result) => result.status === 'rejected');
+      expect(rejected).toMatchObject({
+        status: 'rejected',
+        reason: expect.objectContaining({
+          status: 409,
+          code: 'POSITION_CONVERSION_CONFLICT',
+        }),
+      });
+      expect(await conversionPersistenceSnapshot(pool, seed.fundId)).toMatchObject({
+        conversionEvents: 1,
+        sourceBasisReliefs: 1,
+        resultParticipations: 1,
+        resultLots: 1,
+      });
+    });
+  });
+
+  it('serializes different-key attempts against the same physical source lot', async () => {
+    invalidateH9Artifacts.mockClear();
+    const { connectionString } = await createDatabase('position_conversion_service_lot_race');
+    await runMigrationsWithConnectionString(connectionString, '0043_position_source_basis_reliefs');
+
+    await withPool(connectionString, async (pool) => {
+      const seed = await seedServiceConversion(pool, nextFundId(), {
+        sourceLot: true,
+        unpricedSource: false,
+      });
+      const database = drizzle(pool, { logger: false }) as never;
+      const request = conversionRequest(seed, {
+        sourceLotReliefs: [
+          {
+            investmentId: seed.sourceInvestmentId,
+            investmentLotId: requireString(seed.sourceLotId),
+            relievedShares: '100.000000',
+            relievedCostBasis: '1000.000000',
+          },
+        ],
+      });
+      const results = await Promise.allSettled([
+        convertPosition({
+          fundId: seed.fundId,
+          actorId: null,
+          idempotencyKey: `pg-lot-race-a-${seed.fundId}`,
+          request,
+          database,
+        }),
+        convertPosition({
+          fundId: seed.fundId,
+          actorId: null,
+          idempotencyKey: `pg-lot-race-b-${seed.fundId}`,
+          request,
+          database,
+        }),
+      ]);
+
+      expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+      expect(results.find((result) => result.status === 'rejected')).toMatchObject({
+        status: 'rejected',
+        reason: expect.objectContaining({
+          status: 409,
+          code: 'POSITION_CONVERSION_CONFLICT',
+        }),
+      });
+      expect(await conversionPersistenceSnapshot(pool, seed.fundId)).toMatchObject({
+        conversionEvents: 1,
+        sourceBasisReliefs: 1,
+        lotReliefs: 1,
+        resultParticipations: 1,
+        resultLots: 1,
+      });
+      expect(invalidateH9Artifacts).toHaveBeenCalledTimes(1);
+      expect(invalidateH9Artifacts).toHaveBeenCalledWith(seed.fundId);
+    });
+  });
+
+  it('rolls back every conversion row when the final participation link update fails and skips H9', async () => {
+    invalidateH9Artifacts.mockClear();
+    const { connectionString } = await createDatabase('position_conversion_service_rollback');
+    await runMigrationsWithConnectionString(connectionString, '0043_position_source_basis_reliefs');
+
+    await withPool(connectionString, async (pool) => {
+      const seed = await seedServiceConversion(pool, nextFundId(), {
+        sourceLot: true,
+        unpricedSource: false,
+      });
+      const database = drizzle(pool) as { execute: (query: unknown) => Promise<unknown> };
+      const failingDatabase = {
+        execute: async (query: unknown): Promise<unknown> => {
+          if (isParticipationLinkUpdate(query)) {
+            throw new Error('Injected final participation-link failure.');
+          }
+          return database.execute(query);
+        },
+        transaction: async <T>(callback: (tx: unknown) => Promise<T>): Promise<T> =>
+          (database as unknown as { transaction: (cb: (tx: unknown) => Promise<T>) => Promise<T> }).transaction(
+            async (tx) => {
+              const txDb = tx as { execute: (query: unknown) => Promise<unknown> };
+              return callback({
+                execute: async (query: unknown): Promise<unknown> => {
+                  if (isParticipationLinkUpdate(query)) {
+                    throw new Error('Injected final participation-link failure.');
+                  }
+                  return txDb.execute(query);
+                },
+              });
+            }
+          ),
+      };
+      const before = await conversionPersistenceSnapshot(pool, seed.fundId);
+
+      await expect(
+        convertPosition({
+          fundId: seed.fundId,
+          actorId: null,
+          idempotencyKey: `pg-rollback-${seed.fundId}`,
+          request: conversionRequest(seed, {
+            sourceLotReliefs: [
+              {
+                investmentId: seed.sourceInvestmentId,
+                investmentLotId: requireString(seed.sourceLotId),
+                relievedShares: '100.000000',
+                relievedCostBasis: '1000.000000',
+              },
+            ],
+          }),
+          database: failingDatabase as never,
+        })
+      ).rejects.toThrow('Injected final participation-link failure.');
+
+      expect(await conversionPersistenceSnapshot(pool, seed.fundId)).toEqual(before);
+      expect(invalidateH9Artifacts).not.toHaveBeenCalledWith(seed.fundId);
+    });
+  });
+
+  it('executes the cohort lot query shape and excludes conversion lots from the observed input rows', async () => {
+    invalidateH9Artifacts.mockClear();
+    const { connectionString } = await createDatabase('position_conversion_cohort_lots');
+    await runMigrationsWithConnectionString(connectionString, '0043_position_source_basis_reliefs');
+
+    await withPool(connectionString, async (pool) => {
+      const seed = await seedServiceConversion(pool, nextFundId(), {
+        sourceLot: false,
+        unpricedSource: true,
+      });
+      const cashInvestmentId = await insertServiceInvestment(pool, {
+        fundId: seed.fundId,
+        companyId: await portfolioCompanyIdForIdentity(pool, seed.identityId),
+        sourceParticipationId: null,
+      });
+      const cashLotId = await insertServiceSourceLot(pool, cashInvestmentId, seed.fundId + 10_000);
+      const database = drizzle(pool);
+
+      await convertPosition({
+        fundId: seed.fundId,
+        actorId: null,
+        idempotencyKey: `pg-cohort-${seed.fundId}`,
+        request: conversionRequest(seed),
+        database: database as never,
+      });
+
+      const rows = await database
+        .select({
+          id: investmentLots.id,
+          investmentId: investmentLots.investmentId,
+          lotType: investmentLots.lotType,
+          costBasisCents: investmentLots.costBasisCents,
+        })
+        .from(investmentLots)
+        .innerJoin(investments, eq(investmentLots.investmentId, investments.id))
+        .where(and(eq(investments.fundId, seed.fundId), ne(investmentLots.lotType, 'conversion')));
+
+      expect(rows).toEqual([
+        expect.objectContaining({
+          id: cashLotId,
+          investmentId: cashInvestmentId,
+          lotType: 'initial',
+          costBasisCents: 100000n,
+        }),
+      ]);
+      expect(await conversionLotCount(pool, seed.fundId)).toBe(1);
+    });
+  });
+
+  it('rejects generic correction after conversion without splitting heads or mutating legacy rows', async () => {
+    invalidateH9Artifacts.mockClear();
+    const { connectionString } = await createDatabase('position_conversion_correction_locked');
+    await runMigrationsWithConnectionString(connectionString, '0043_position_source_basis_reliefs');
+
+    await withPool(connectionString, async (pool) => {
+      const seed = await seedServiceConversion(pool, nextFundId(), {
+        sourceLot: false,
+        unpricedSource: true,
+      });
+      const database = drizzle(pool) as never;
+      await convertPosition({
+        fundId: seed.fundId,
+        actorId: null,
+        idempotencyKey: `pg-correction-lock-convert-${seed.fundId}`,
+        request: conversionRequest(seed),
+        database,
+      });
+      invalidateH9Artifacts.mockClear();
+      const before = {
+        conversion: await conversionPersistenceSnapshot(pool, seed.fundId),
+        legacy: await legacyCompatibilitySnapshot(pool, seed.fundId),
+        heads: await participationAndTrancheHeads(pool, seed.fundId),
+      };
+
+      const error = await captureError(() =>
+        correctVehicleParticipationLedger({
+          fundId: seed.fundId,
+          trancheId: seed.sourceTrancheId,
+          actorId: null,
+          idempotencyKey: `pg-correction-lock-${seed.fundId}`,
+          request: correctionRequest(seed),
+          database,
+        })
+      );
+
+      expect(error).toMatchObject({
+        status: 409,
+        code: 'PARTICIPATION_CONVERSION_LOCKED',
+      });
+      expect(await conversionPersistenceSnapshot(pool, seed.fundId)).toEqual(before.conversion);
+      expect(await legacyCompatibilitySnapshot(pool, seed.fundId)).toEqual(before.legacy);
+      expect(await participationAndTrancheHeads(pool, seed.fundId)).toEqual(before.heads);
+      expect(invalidateH9Artifacts).not.toHaveBeenCalledWith(seed.fundId);
+    });
+  });
+
+  it('serializes a live conversion-versus-correction race without split heads or mixed origin', async () => {
+    invalidateH9Artifacts.mockClear();
+    const { connectionString } = await createDatabase('position_conversion_correction_race');
+    await runMigrationsWithConnectionString(connectionString, '0043_position_source_basis_reliefs');
+
+    await withPool(connectionString, async (pool) => {
+      const seed = await seedServiceConversion(pool, nextFundId(), {
+        sourceLot: false,
+        unpricedSource: true,
+      });
+      const database = drizzle(pool, { logger: false }) as never;
+      const legacyBefore = await legacyCompatibilitySnapshot(pool, seed.fundId);
+      const outcomes = await Promise.allSettled([
+        convertPosition({
+          fundId: seed.fundId,
+          actorId: null,
+          idempotencyKey: `pg-correction-race-convert-${seed.fundId}`,
+          request: conversionRequest(seed),
+          database,
+        }),
+        correctVehicleParticipationLedger({
+          fundId: seed.fundId,
+          trancheId: seed.sourceTrancheId,
+          actorId: null,
+          idempotencyKey: `pg-correction-race-correct-${seed.fundId}`,
+          request: correctionRequest(seed),
+          database,
+        }),
+      ]);
+
+      expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(1);
+      expect(outcomes.filter((outcome) => outcome.status === 'rejected')).toHaveLength(1);
+      const rejected = outcomes.find((outcome) => outcome.status === 'rejected');
+      const persistence = await conversionPersistenceSnapshot(pool, seed.fundId);
+      const heads = await participationAndTrancheHeads(pool, seed.fundId);
+      const activeParticipations = (
+        heads.participations as Array<{
+          id: number;
+          financing_tranche_id: number;
+          economic_origin: 'cash_investment' | 'conversion_result';
+          superseded_by_participation_id: number | null;
+        }>
+      ).filter((row) => row.superseded_by_participation_id === null);
+      const activeTranches = (
+        heads.tranches as Array<{
+          id: number;
+          version: number;
+          superseded_by_tranche_id: number | null;
+        }>
+      ).filter((row) => row.superseded_by_tranche_id === null);
+
+      expect(activeTranches).toHaveLength(2);
+      expect(activeTranches.some((row) => row.id === seed.targetTrancheId)).toBe(true);
+      expect(invalidateH9Artifacts).toHaveBeenCalledTimes(1);
+      expect(invalidateH9Artifacts).toHaveBeenCalledWith(seed.fundId);
+
+      if (persistence.conversionEvents === 1) {
+        expect(rejected).toMatchObject({
+          status: 'rejected',
+          reason: expect.objectContaining({
+            status: 409,
+            code: 'PARTICIPATION_CONVERSION_LOCKED',
+          }),
+        });
+        expect(persistence).toMatchObject({
+          sourceBasisReliefs: 1,
+          resultParticipations: 1,
+          resultLots: 1,
+        });
+        expect(activeParticipations.map((row) => row.economic_origin).sort()).toEqual([
+          'cash_investment',
+          'conversion_result',
+        ]);
+        expect(await legacyCompatibilitySnapshot(pool, seed.fundId)).toEqual(legacyBefore);
+      } else {
+        expect(rejected).toMatchObject({
+          status: 'rejected',
+          reason: expect.objectContaining({
+            status: 404,
+            code: 'POSITION_CONVERSION_NOT_FOUND',
+          }),
+        });
+        expect(persistence).toMatchObject({
+          conversionEvents: 0,
+          sourceBasisReliefs: 0,
+          resultParticipations: 0,
+          resultLots: 0,
+        });
+        expect(activeParticipations).toHaveLength(1);
+        expect(activeParticipations[0]).toMatchObject({
+          economic_origin: 'cash_investment',
+        });
+        expect(activeParticipations[0]?.financing_tranche_id).not.toBe(seed.sourceTrancheId);
+      }
+    });
+  });
 });
+
+function isParticipationLinkUpdate(query: unknown): boolean {
+  const rendered = pgDialect.sqlToQuery(query as never).sql.replace(/\s+/g, ' ').trim();
+  return rendered.startsWith('UPDATE vehicle_financing_participations SET source_observation_id');
+}
 
 let fundIdCounter = 120_431_000;
 function nextFundId(): number {
@@ -456,7 +1071,7 @@ function quoteIdentifier(identifier: string): string {
 }
 
 async function withPool<T>(connectionString: string, callback: (pool: Pool) => Promise<T>) {
-  const pool = new Pool({ connectionString, max: 1 });
+  const pool = new Pool({ connectionString, max: 4 });
   try {
     return await callback(pool);
   } finally {
@@ -858,6 +1473,168 @@ async function persistenceCounts(pool: Pool, fundId: number): Promise<Record<str
   };
 }
 
+async function countRows(pool: Pool, tableName: string, fundId: number): Promise<number> {
+  const result = await pool.query<{ count: string }>(
+    `SELECT count(*)::text AS count FROM ${quoteIdentifier(tableName)} WHERE fund_id = $1`,
+    [fundId]
+  );
+  return Number.parseInt(result.rows[0]?.count ?? '0', 10);
+}
+
+async function conversionPersistenceSnapshot(
+  pool: Pool,
+  fundId: number
+): Promise<Record<string, number>> {
+  return {
+    observations: await countRows(pool, 'source_observations', fundId),
+    conversionEvents: await countRowsByFilter(pool, 'position_events', fundId, "event_type = 'conversion'"),
+    adjustmentEvents: await countRowsByFilter(pool, 'position_events', fundId, "event_type = 'adjustment'"),
+    sourceBasisReliefs: await countRows(pool, NEW_TABLE, fundId),
+    lotReliefs: await countRows(pool, 'position_event_lot_reliefs', fundId),
+    resultParticipations: await countRowsByFilter(
+      pool,
+      'vehicle_financing_participations',
+      fundId,
+      "economic_origin = 'conversion_result'"
+    ),
+    resultLots: await conversionLotCount(pool, fundId),
+  };
+}
+
+async function participationAndTrancheHeads(
+  pool: Pool,
+  fundId: number
+): Promise<Record<string, unknown[]>> {
+  const participations = await pool.query(
+    `
+      SELECT id::int, financing_tranche_id::int, economic_origin, superseded_by_participation_id::int
+      FROM vehicle_financing_participations
+      WHERE fund_id = $1
+      ORDER BY id
+    `,
+    [fundId]
+  );
+  const tranches = await pool.query(
+    `
+      SELECT id::int, version::int, superseded_by_tranche_id::int
+      FROM financing_tranches
+      WHERE fund_id = $1
+      ORDER BY id
+    `,
+    [fundId]
+  );
+  return {
+    participations: participations.rows,
+    tranches: tranches.rows,
+  };
+}
+
+async function countRowsByFilter(
+  pool: Pool,
+  tableName: string,
+  fundId: number,
+  filterSql: string
+): Promise<number> {
+  const result = await pool.query<{ count: string }>(
+    `SELECT count(*)::text AS count FROM ${quoteIdentifier(tableName)} WHERE fund_id = $1 AND ${filterSql}`,
+    [fundId]
+  );
+  return Number.parseInt(result.rows[0]?.count ?? '0', 10);
+}
+
+async function conversionLotCount(pool: Pool, fundId: number): Promise<number> {
+  const result = await pool.query<{ count: string }>(
+    `
+      SELECT count(*)::text AS count
+      FROM investment_lots l
+      JOIN investments i ON i.id = l.investment_id
+      WHERE i.fund_id = $1
+        AND l.lot_type = 'conversion'
+        AND l.imported_from = 'position_conversion'
+    `,
+    [fundId]
+  );
+  return Number.parseInt(result.rows[0]?.count ?? '0', 10);
+}
+
+async function resultConversionLots(pool: Pool, participationId: number): Promise<Array<Record<string, unknown>>> {
+  const result = await pool.query(
+    `
+      SELECT investment_id::int, lot_type, cost_basis_cents::text, vehicle_participation_id::int
+      FROM investment_lots
+      WHERE vehicle_participation_id = $1
+        AND lot_type = 'conversion'
+        AND imported_from = 'position_conversion'
+      ORDER BY id
+    `,
+    [participationId]
+  );
+  return result.rows;
+}
+
+async function legacyCompatibilitySnapshot(
+  pool: Pool,
+  fundId: number
+): Promise<Record<string, unknown>> {
+  const tables = ['financing_events', 'financing_tranches', 'investments', 'investment_rounds', 'cash_flow_events'];
+  const entries: Array<[string, unknown]> = [];
+  for (const table of tables) {
+    const result = await pool.query<{ count: string; fingerprint: string | null }>(
+      `
+        SELECT
+          count(*)::text AS count,
+          md5(COALESCE(string_agg(to_jsonb(t)::text, '|' ORDER BY to_jsonb(t)::text), '')) AS fingerprint
+        FROM ${quoteIdentifier(table)} t
+        WHERE fund_id = $1
+      `,
+      [fundId]
+    );
+    entries.push([table, result.rows[0]]);
+  }
+  return Object.fromEntries(entries);
+}
+
+async function expectSourceIsUnpricedNoLot(pool: Pool, seed: ServiceConversionSeed): Promise<void> {
+  const event = await pool.query<{
+    price_per_share: string | null;
+    post_money_valuation: string | null;
+  }>(
+    `
+      SELECT price_per_share, post_money_valuation
+      FROM financing_events
+      WHERE id = $1 AND fund_id = $2
+    `,
+    [seed.sourceEventId, seed.fundId]
+  );
+  const tranche = await pool.query<{
+    price_per_share: string | null;
+    post_money_valuation: string | null;
+  }>(
+    `
+      SELECT price_per_share, post_money_valuation
+      FROM financing_tranches
+      WHERE id = $1 AND fund_id = $2
+    `,
+    [seed.sourceTrancheId, seed.fundId]
+  );
+  expect(event.rows[0]).toEqual({ price_per_share: null, post_money_valuation: null });
+  expect(tranche.rows[0]).toEqual({ price_per_share: null, post_money_valuation: null });
+  expect(await sourceLotCount(pool, seed.sourceInvestmentId)).toBe(0);
+}
+
+async function sourceLotCount(pool: Pool, investmentId: number): Promise<number> {
+  const result = await pool.query<{ count: string }>(
+    `
+      SELECT count(*)::text AS count
+      FROM investment_lots
+      WHERE investment_id = $1
+        AND lot_type <> 'conversion'
+    `,
+    [investmentId]
+  );
+  return Number.parseInt(result.rows[0]?.count ?? '0', 10);
+}
+
 async function rowCountByFund(pool: Pool, tableName: string, fundId: number): Promise<number> {
   const result = await pool.query<{ count: string }>(
     `SELECT count(*)::text AS count FROM ${quoteIdentifier(tableName)} WHERE fund_id = $1`,
@@ -873,6 +1650,20 @@ async function capturePgError(action: () => Promise<unknown>): Promise<DatabaseE
     return error as DatabaseError;
   }
   throw new Error('Expected PostgreSQL rejection');
+}
+
+async function captureError(action: () => Promise<unknown>): Promise<unknown> {
+  try {
+    await action();
+  } catch (error) {
+    return error;
+  }
+  throw new Error('Expected rejection');
+}
+
+function requireString(value: string | null): string {
+  if (value === null) throw new Error('Expected string value');
+  return value;
 }
 
 async function seedConversionParents(pool: Pool, fundId: number): Promise<ConversionSeed> {
@@ -1023,6 +1814,206 @@ async function seedConversionParents(pool: Pool, fundId: number): Promise<Conver
     basisMismatchConversionEventId,
     adjustmentEventId,
   };
+}
+
+async function seedServiceConversion(
+  pool: Pool,
+  fundId: number,
+  options: { sourceLot: boolean; unpricedSource: boolean }
+): Promise<ServiceConversionSeed> {
+  await pool.query(
+    `
+      INSERT INTO funds (id, name, size, management_fee, carry_percentage, vintage_year)
+      VALUES ($1, $2, '1000000.00', '0.0200', '0.2000', 2026)
+    `,
+    [fundId, `Position Conversion Service Fund ${fundId}`]
+  );
+  const companyId = await insertedId(
+    pool,
+    `
+      INSERT INTO portfoliocompanies (fund_id, name, sector, stage, investment_amount, status)
+      VALUES ($1, $2, 'SaaS', 'seed', '0.00', 'active')
+      RETURNING id
+    `,
+    [fundId, `Position Conversion Service Company ${fundId}`]
+  );
+  const vehicleId = await insertVehicle(pool, fundId, `service-${fundId}`);
+  const identityId = await insertIdentity(pool, fundId, companyId, `Service Identity ${fundId}`);
+  const sourceEventId = await insertFinancingEvent(pool, fundId, identityId, 'safe', 'service-source');
+  const targetEventId = await insertFinancingEvent(pool, fundId, identityId, 'equity', 'service-target');
+  const sourceTrancheId = await insertFinancingTranche(pool, fundId, sourceEventId, 'safe', 'service-source');
+  const targetTrancheId = await insertFinancingTranche(pool, fundId, targetEventId, 'equity', 'service-target');
+  if (options.unpricedSource) {
+    await markSourceUnpriced(pool, fundId, sourceEventId, sourceTrancheId);
+  }
+  const sourceParticipationId = await insertParticipation(
+    pool,
+    fundId,
+    vehicleId,
+    sourceEventId,
+    sourceTrancheId,
+    'cash_investment',
+    'service-source',
+    '1000.000000'
+  );
+  const sourceAcquisitionEventId = await insertPositionEvent(pool, {
+    fundId,
+    vehicleId,
+    identityId,
+    eventType: 'acquisition',
+    sharesDelta: '0.000000',
+    costBasisDelta: '1000.000000',
+    proceeds: '0.000000',
+    sourceParticipationId,
+  });
+  const sourceInvestmentId = await insertServiceInvestment(pool, {
+    fundId,
+    companyId,
+    sourceParticipationId,
+  });
+  const sourceLotId = options.sourceLot
+    ? await insertServiceSourceLot(pool, sourceInvestmentId, fundId)
+    : null;
+
+  return {
+    fundId,
+    vehicleId,
+    identityId,
+    sourceEventId,
+    targetEventId,
+    sourceTrancheId,
+    targetTrancheId,
+    sourceParticipationId,
+    sourceAcquisitionEventId,
+    sourceInvestmentId,
+    sourceLotId,
+  };
+}
+
+async function markSourceUnpriced(
+  pool: Pool,
+  fundId: number,
+  sourceEventId: number,
+  sourceTrancheId: number
+): Promise<void> {
+  await pool.query(
+    `
+      UPDATE financing_events
+      SET price_per_share = NULL,
+          post_money_valuation = NULL
+      WHERE fund_id = $1 AND id = $2
+    `,
+    [fundId, sourceEventId]
+  );
+  await pool.query(
+    `
+      UPDATE financing_tranches
+      SET price_per_share = NULL,
+          post_money_valuation = NULL
+      WHERE fund_id = $1 AND id = $2
+    `,
+    [fundId, sourceTrancheId]
+  );
+}
+
+function conversionRequest(
+  seed: ServiceConversionSeed,
+  overrides: Record<string, unknown> = {}
+): Record<string, unknown> {
+  return {
+    sourceParticipationId: seed.sourceParticipationId,
+    resultingTrancheId: seed.targetTrancheId,
+    effectiveDate: '2026-02-15',
+    resultingSharesAcquired: '100.000000',
+    accruedInterest: { mode: 'excluded' },
+    currency: 'USD',
+    ...overrides,
+  };
+}
+
+function correctionRequest(seed: ServiceConversionSeed): Record<string, unknown> {
+  return {
+    expectedTrancheVersion: 1,
+    correctedTranche: {
+      closingDate: '2026-02-16',
+      securityType: 'safe',
+      investmentAmount: '1100.000000',
+      valuationCap: '9000000.000000',
+    },
+    dependents: [
+      {
+        participationId: seed.sourceParticipationId,
+        expectedVersion: 1,
+        acknowledgements: {
+          termsReviewed: true,
+          compatibilityRewriteAccepted: true,
+        },
+        overrideAdjustments: {
+          participationAmount: '1100.000000',
+          originalAmount: '1100.000000',
+        },
+      },
+    ],
+  };
+}
+
+async function insertServiceInvestment(
+  pool: Pool,
+  input: { fundId: number; companyId: number; sourceParticipationId: number | null }
+): Promise<number> {
+  return insertedId(
+    pool,
+    `
+      INSERT INTO investments (
+        fund_id, company_id, investment_date, amount, round, ownership_percentage,
+        valuation_at_investment, share_price_cents, shares_acquired, cost_basis_cents,
+        imported_from, vehicle_participation_id
+      ) VALUES (
+        $1, $2, '2026-01-15', '1000.00', 'SAFE', NULL, NULL, NULL, NULL,
+        100000, 'vehicle_financing_participation', $3
+      )
+      RETURNING id
+    `,
+    [input.fundId, input.companyId, input.sourceParticipationId]
+  );
+}
+
+async function portfolioCompanyIdForIdentity(pool: Pool, identityId: number): Promise<number> {
+  const result = await pool.query<{ source_portfolio_company_id: number }>(
+    `
+      SELECT source_portfolio_company_id
+      FROM company_identities
+      WHERE id = $1
+    `,
+    [identityId]
+  );
+  const value = result.rows[0]?.source_portfolio_company_id;
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error('Expected portfolio company identity link.');
+  }
+  return value;
+}
+
+async function insertServiceSourceLot(
+  pool: Pool,
+  investmentId: number,
+  fundId: number
+): Promise<string> {
+  const lotId = deterministicUuid(fundId);
+  await pool.query(
+    `
+      INSERT INTO investment_lots (
+        id, investment_id, lot_type, share_price_cents, shares_acquired,
+        cost_basis_cents, idempotency_key, imported_from
+      ) VALUES ($1, $2, 'initial', 1000, '100.00000000', 100000, $3, 'service-fixture')
+    `,
+    [lotId, investmentId, `source-lot-${fundId}`]
+  );
+  return lotId;
+}
+
+function deterministicUuid(seed: number): string {
+  return `00000000-0000-4000-8000-${seed.toString(16).padStart(12, '0').slice(-12)}`;
 }
 
 async function insertVehicle(pool: Pool, fundId: number, suffix: string): Promise<number> {

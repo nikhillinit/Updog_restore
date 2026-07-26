@@ -12,7 +12,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import express from 'express';
 import { z } from 'zod';
-import { eq, and, desc, isNull } from 'drizzle-orm';
+import { eq, and, desc, isNull, ne } from 'drizzle-orm';
 import { db } from '../db';
 import {
   sectorTaxonomy,
@@ -224,7 +224,7 @@ router['post'](
         })
         .from(investmentLots)
         .innerJoin(investments, eq(investmentLots.investmentId, investments.id))
-        .where(eq(investments.fundId, fundId));
+        .where(and(eq(investments.fundId, fundId), ne(investmentLots.lotType, 'conversion')));
 
       const response = analyzeCohorts({
         request,
