@@ -8,7 +8,7 @@ import {
   FundCalculationModeIdempotencyConflictError,
   FundCalculationModeInProgressError,
   FundCalculationModeVersionConflictError,
-} from './fund-calculation-mode-service';
+} from './fund-calculation-mode-errors';
 
 /**
  * Append-only reference plane for the current-forecast calculation key

@@ -9,6 +9,11 @@ import {
 } from '../../shared/contracts/h9-actionability.contract';
 import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 import {
+  FundCalculationModeIdempotencyConflictError,
+  FundCalculationModeInProgressError,
+  FundCalculationModeVersionConflictError,
+} from './fund-calculation-mode-errors';
+import {
   FUND_MOIC_CALCULATION_KEY,
   getFundMoicRankingSources,
   type FundMoicFactsSource,
@@ -18,6 +23,12 @@ import { invalidateH9Artifacts } from './h9-artifact-invalidation-service';
 import { reconciliationRuns } from '../../shared/schema';
 import { buildRoundsToModelEvidence } from './rounds-to-model-evidence-service';
 import { CURRENT_FORECAST_CALCULATION_KEY } from './current-forecast-calc-mode-resolver';
+
+export {
+  FundCalculationModeIdempotencyConflictError,
+  FundCalculationModeInProgressError,
+  FundCalculationModeVersionConflictError,
+} from './fund-calculation-mode-errors';
 
 const MODE_ROUTE = 'PUT /api/admin/funds/:fundId/calculation-modes/fund-moic-rankings';
 const CURRENT_FORECAST_MODE_ROUTE =
@@ -68,42 +79,12 @@ interface GenericFundCalculationModePreview {
   version: number;
 }
 
-export class FundCalculationModeVersionConflictError extends Error {
-  readonly code = 'stale_expected_version';
-
-  constructor(
-    readonly expectedVersion: number,
-    readonly actualVersion: number
-  ) {
-    super(`Expected mode version ${expectedVersion}, found ${actualVersion}`);
-    this.name = 'FundCalculationModeVersionConflictError';
-  }
-}
-
 export class FundCalculationModeBlockedError extends Error {
   readonly code = 'mode_activation_blocked';
 
   constructor(readonly blockers: FundCalculationModeBlocker[]) {
     super(`MOIC calculation mode update is blocked: ${blockers.join(', ')}`);
     this.name = 'FundCalculationModeBlockedError';
-  }
-}
-
-export class FundCalculationModeIdempotencyConflictError extends Error {
-  readonly code = 'idempotency_conflict';
-
-  constructor(message: string) {
-    super(message);
-    this.name = 'FundCalculationModeIdempotencyConflictError';
-  }
-}
-
-export class FundCalculationModeInProgressError extends Error {
-  readonly code = 'idempotency_request_in_progress';
-
-  constructor() {
-    super('Idempotent MOIC mode update is still in progress');
-    this.name = 'FundCalculationModeInProgressError';
   }
 }
 
