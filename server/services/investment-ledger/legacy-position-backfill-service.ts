@@ -465,14 +465,14 @@ function planCandidate(
     row.vehicleParticipationId === null
       ? context.mainVehicle?.vehicleId ?? null
       : row.participationVehicleId;
-  const vehiclePlan =
-    row.vehicleParticipationId !== null && row.participationVehicleId !== null
-      ? ({ kind: 'participation', vehicleId: row.participationVehicleId } as const)
-      : deterministicMain || (row.vehicleParticipationId === null && context.mainVehicle === null)
-        ? ({ kind: 'deterministic_main', slug: DETERMINISTIC_MAIN_SLUG } as const)
-        : vehicleId !== null
-          ? ({ kind: 'existing_main', vehicleId } as const)
-          : null;
+  let vehiclePlan: PlannedCandidate['vehiclePlan'] = null;
+  if (row.vehicleParticipationId !== null && row.participationVehicleId !== null) {
+    vehiclePlan = { kind: 'participation', vehicleId: row.participationVehicleId };
+  } else if (deterministicMain || (row.vehicleParticipationId === null && context.mainVehicle === null)) {
+    vehiclePlan = { kind: 'deterministic_main', slug: DETERMINISTIC_MAIN_SLUG };
+  } else if (vehicleId !== null) {
+    vehiclePlan = { kind: 'existing_main', vehicleId };
+  }
   if (row.vehicleParticipationId !== null) {
     if (row.participationFundId === null) blockers.push('PARTICIPATION_NOT_FOUND');
     if (row.supersededByParticipationId !== null) blockers.push('PARTICIPATION_SUPERSEDED');
