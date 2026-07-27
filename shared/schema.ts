@@ -53,6 +53,7 @@ export * from './schema/financial-observations';
 export * from './schema/investment-ledger';
 export * from './schema/investment-positions';
 export * from './schema/vehicle-financing-participations';
+export * from './schema/internal-analysis';
 export * from './schemas/flags';
 export * from './schemas/reserve-approvals';
 

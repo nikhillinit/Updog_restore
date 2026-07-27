@@ -122,6 +122,7 @@ describe('prod-schema manifest sentinels', () => {
       '15-vehicle-financing-participations.json',
       '16-positions-ownership-compat.json',
       '17-position-source-basis-reliefs.json',
+      '18-internal-analysis.json',
     ]);
   });
 
@@ -232,9 +233,10 @@ describe('prod-schema manifest sentinels', () => {
         const column = tables
           .get(allowed.table)
           ?.columns?.find((candidate) => candidate.name === allowed.column);
-        expect(column?.nullable, `${file} allowDropNotNull ${allowed.table}.${allowed.column}`).toBe(
-          true
-        );
+        expect(
+          column?.nullable,
+          `${file} allowDropNotNull ${allowed.table}.${allowed.column}`
+        ).toBe(true);
       }
 
       for (const allowed of manifest.applyPolicy?.allowConstraintReplacements ?? []) {
@@ -290,10 +292,7 @@ describe('prod-schema manifest sentinels', () => {
       for (const constraint of guardedConstraints) {
         const guards = [
           ...sql.matchAll(
-            new RegExp(
-              String.raw`WHERE\s+conname\s*=\s*'${constraint}'([\s\S]*?)\)\s+THEN`,
-              'gi'
-            )
+            new RegExp(String.raw`WHERE\s+conname\s*=\s*'${constraint}'([\s\S]*?)\)\s+THEN`, 'gi')
           ),
         ];
         expect(guards.length, `${sqlFile} guard count for ${constraint}`).toBeGreaterThan(0);
