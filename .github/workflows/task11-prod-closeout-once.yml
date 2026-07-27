@@ -161,7 +161,7 @@ jobs:
 
               case "$STATE" in
                 success)
-                  if [[ ! "$DEPLOYMENT_URL" =~ ^https://[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.vercel\.app/?$ ]]; then
+                  if [[ ! "$DEPLOYMENT_URL" =~ ^https://[a-z0-9]([a-z0-9-]*[a-z0-9])?\.vercel\.app/?$ ]]; then
                     echo "::error::Exact-SHA deployment returned a non-bare Vercel URL."
                     exit 1
                   fi
@@ -194,7 +194,7 @@ jobs:
     steps:
       - name: Re-fence release target
         env:
-          EXPECTED_SHA: ${{ needs.schema-apply.outputs.target_sha || needs.wait-for-vercel.outputs.target_sha || github.sha }}
+          EXPECTED_SHA: ${{ github.sha }}
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
