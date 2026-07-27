@@ -14,6 +14,7 @@ const serviceState = vi.hoisted(() => ({
   loadFinancingEventDetail: vi.fn(),
   createVehicleFinancingParticipation: vi.fn(),
   correctVehicleParticipationLedger: vi.fn(),
+  convertPosition: vi.fn(),
   recordPositionEvent: vi.fn(),
   correctPosition: vi.fn(),
 }));
@@ -40,6 +41,10 @@ vi.mock('../../../server/services/investment-ledger/financing-event-service', ()
 
 vi.mock('../../../server/services/investment-ledger/participation-service', () => ({
   createVehicleFinancingParticipation: serviceState.createVehicleFinancingParticipation,
+}));
+
+vi.mock('../../../server/services/investment-ledger/position-conversion-service', () => ({
+  convertPosition: serviceState.convertPosition,
 }));
 
 vi.mock('../../../server/services/investment-ledger/ledger-correction-service', () => ({
@@ -87,6 +92,18 @@ const POSITION_CORRECTION = {
   reversal: { ...POSITION_EVENT, id: 701, eventType: 'reversal' },
   replacement: { ...POSITION_EVENT, id: 702 },
   reconciliationCaseId: 703,
+};
+const POSITION_CONVERSION = {
+  sourceParticipationId: 600,
+  sourceParticipationVersion: 1,
+  resultingParticipation: { id: 601, economicOrigin: 'conversion_result' },
+  conversionEvent: { ...POSITION_EVENT, eventType: 'conversion', id: 704 },
+  capitalizedAdjustmentEvent: null,
+  reliefMode: 'source_basis',
+  lotReliefs: [],
+  sourceBasisRelief: { conversionPositionEventId: 704 },
+  resultConversionLotId: '11111111-1111-4111-8111-111111111111',
+  conversionObservationId: 705,
 };
 
 function makeApp() {
@@ -151,6 +168,14 @@ const positionCorrectionBody = {
   costBasisDelta: '2250000.000000',
   proceeds: '0.000000',
 };
+const positionConversionBody = {
+  sourceParticipationId: 600,
+  resultingTrancheId: 501,
+  effectiveDate: '2026-07-01',
+  resultingSharesAcquired: '100.000000',
+  accruedInterest: { mode: 'excluded' },
+  currency: 'USD',
+};
 
 beforeEach(() => {
   authState.user = {
@@ -167,6 +192,7 @@ beforeEach(() => {
   serviceState.loadFinancingEventDetail.mockReset();
   serviceState.createVehicleFinancingParticipation.mockReset();
   serviceState.correctVehicleParticipationLedger.mockReset();
+  serviceState.convertPosition.mockReset();
   serviceState.recordPositionEvent.mockReset();
   serviceState.correctPosition.mockReset();
 });
@@ -238,6 +264,13 @@ describe('investment-ledger routes', () => {
       path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/position-events`,
       service: serviceState.recordPositionEvent,
       body: positionEventBody,
+    },
+    {
+      name: 'convert position',
+      method: 'post' as const,
+      path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/position-conversions`,
+      service: serviceState.convertPosition,
+      body: positionConversionBody,
     },
     {
       name: 'correct position',
@@ -497,6 +530,33 @@ describe('investment-ledger routes', () => {
       message: 'If-Match header is required',
     });
     expect(serviceState.correctPosition).not.toHaveBeenCalled();
+  });
+
+  it('converts a position through the route command and preserves replay status', async () => {
+    serviceState.convertPosition
+      .mockResolvedValueOnce({ value: POSITION_CONVERSION, replayed: false })
+      .mockResolvedValueOnce({ value: POSITION_CONVERSION, replayed: true });
+
+    const created = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/position-conversions')
+      .set('Idempotency-Key', 'position-conversion-1')
+      .send(positionConversionBody);
+    const replayed = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/position-conversions')
+      .set('Idempotency-Key', 'position-conversion-1')
+      .send(positionConversionBody);
+
+    expect(created.status).toBe(201);
+    expect(created.body).toEqual(POSITION_CONVERSION);
+    expect(replayed.status).toBe(200);
+    expect(serviceState.convertPosition).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fundId: 7,
+        actorId: 3,
+        idempotencyKey: 'position-conversion-1',
+        request: positionConversionBody,
+      })
+    );
   });
 
   it('passes the parsed If-Match value into the atomic position correction command', async () => {

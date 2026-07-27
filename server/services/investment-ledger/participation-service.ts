@@ -115,6 +115,7 @@ interface ParticipationRow {
   financingTrancheId: number;
   version: number;
   supersededByParticipationId: number | null;
+  economicOrigin: ParticipationEconomicOrigin;
   participationAmount: string;
   originalAmount: string | null;
   currency: string | null;
@@ -1073,6 +1074,7 @@ function participationFromRow(row: Record<string, unknown>): ParticipationRow {
     supersededByParticipationId: asNullablePositiveInt(
       row['superseded_by_participation_id'] ?? row['supersededByParticipationId']
     ),
+    economicOrigin: asParticipationEconomicOrigin(row['economic_origin'] ?? row['economicOrigin']),
     participationAmount: asString(row['participation_amount'] ?? row['participationAmount']),
     originalAmount: asNullableString(row['original_amount'] ?? row['originalAmount']),
     currency: asNullableString(row['currency']),
@@ -1143,6 +1145,15 @@ function asPositiveInt(value: unknown): number {
 
 function asNullablePositiveInt(value: unknown): number | null {
   return value === null || value === undefined ? null : asPositiveInt(value);
+}
+
+function asParticipationEconomicOrigin(value: unknown): ParticipationEconomicOrigin {
+  if (value === 'cash_investment' || value === 'conversion_result') return value;
+  throw new ParticipationLedgerServiceError(
+    500,
+    'LEDGER_WRITE_FAILED',
+    'Database returned an invalid participation economic origin.'
+  );
 }
 
 function asString(value: unknown): string {

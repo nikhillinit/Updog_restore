@@ -32,6 +32,8 @@ const IsoDateTimeSchema = z.string().datetime();
 const CurrencySchema = z.string().regex(/^[A-Z]{3}$/);
 const Sha256HexSchema = z.string().regex(/^[a-f0-9]{64}$/);
 const DescriptiveTermsSchema = z.record(z.string(), z.unknown());
+export const ParticipationEconomicOriginSchema = z.enum(['cash_investment', 'conversion_result']);
+export type ParticipationEconomicOrigin = z.infer<typeof ParticipationEconomicOriginSchema>;
 const SharesDecimalStringSchema = z
   .string()
   .regex(/^(?:0|[1-9]\d*)\.\d{8}$/)
@@ -101,6 +103,7 @@ export const VehicleFinancingParticipationV1Schema = z
     financingTrancheId: PositiveIntSchema,
     version: PositiveIntSchema,
     supersededByParticipationId: PositiveIntSchema.nullable(),
+    economicOrigin: ParticipationEconomicOriginSchema,
     participationAmount: MoneyDecimalStringSchema,
     originalAmount: MoneyDecimalStringSchema.nullable(),
     currency: CurrencySchema.nullable(),

@@ -7,6 +7,7 @@
  *   POST /api/funds/:fundId/investment-ledger/tranches/:trancheId/participations
  *   POST /api/funds/:fundId/investment-ledger/tranches/:trancheId/ledger-corrections
  *   POST /api/funds/:fundId/investment-ledger/position-events
+ *   POST /api/funds/:fundId/investment-ledger/position-conversions
  *   POST /api/funds/:fundId/investment-ledger/position-corrections
  *   GET  /api/funds/:fundId/investment-ledger/financing-events/:eventId
  *
@@ -36,6 +37,7 @@ import {
 } from '../services/investment-ledger/financing-event-service';
 import { correctVehicleParticipationLedger } from '../services/investment-ledger/ledger-correction-service';
 import { createVehicleFinancingParticipation } from '../services/investment-ledger/participation-service';
+import { convertPosition } from '../services/investment-ledger/position-conversion-service';
 import {
   correctPosition,
   recordPositionEvent,
@@ -312,6 +314,27 @@ router.post(
       const idempotencyKey = parseIdempotencyKey(req);
       const fundId = parsePositiveParam(req, 'fundId', 'INVALID_FUND_ID');
       const result = await recordPositionEvent({
+        fundId,
+        actorId: resolveAuthenticatedUserId(req),
+        idempotencyKey,
+        request: req.body,
+      });
+      return res.status(result.replayed ? 200 : 201).json(result.value);
+    } catch (error) {
+      return sendLedgerError(res, error);
+    }
+  }
+);
+
+// Convert a full SAFE/note participation into one priced-equity participation.
+router.post(
+  '/api/funds/:fundId/investment-ledger/position-conversions',
+  ...writeChain,
+  async (req: Request, res: Response) => {
+    try {
+      const idempotencyKey = parseIdempotencyKey(req);
+      const fundId = parsePositiveParam(req, 'fundId', 'INVALID_FUND_ID');
+      const result = await convertPosition({
         fundId,
         actorId: resolveAuthenticatedUserId(req),
         idempotencyKey,
