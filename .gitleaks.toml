@@ -17,3 +17,15 @@ regexes = [
 paths = [
   '''^tests/unit/routes/investment-ledger-makeapp-surface\.contract\.test\.ts$'''
 ]
+
+[[allowlists]]
+description = "Allow deterministic Task 11 legacy-round idempotency fixture"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''^\s*idempotency_key:\s*'legacy-round-901',$'''
+]
+paths = [
+  '''^tests/unit/services/investment-ledger/position-service\.test\.ts$'''
+]
