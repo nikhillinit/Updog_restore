@@ -970,7 +970,11 @@ export const COMMON_API_ROUTE_MANIFEST = [
   {
     id: 'internal-analysis',
     sourceModule: './routes/internal-analysis.js',
-    mountPath: null,
+    // The router declares bare `/funds/...` paths (current-forecast style), so it
+    // must be mounted under /api. investment-ledger takes the other convention --
+    // `/api/...` in the router and a null mountPath -- and mixing the two serves
+    // nothing at all.
+    mountPath: '/api',
     authBoundary: 'router_local',
     fundScope: 'path',
     financial: true,

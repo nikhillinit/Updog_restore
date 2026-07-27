@@ -105,7 +105,7 @@ export const COMMON_ROUTE_IMPLEMENTATIONS: Record<CommonApiRouteId, RouteMountIm
   'lp-reporting-metric-runs': at(null, lpReportingMetricRunsRouter),
   backtesting: at('/api/backtesting', backtestingRouter),
   'investment-ledger': at(null, investmentLedgerRouter),
-  'internal-analysis': at(null, internalAnalysisRouter),
+  'internal-analysis': at('/api', internalAnalysisRouter),
 } satisfies Record<CommonApiRouteId, RouteMountImplementation>;
 
 export const COMMON_ROUTE_SURFACE_ORDER = {

@@ -155,7 +155,7 @@ describe('canonical common API route manifest', () => {
         "lp-reporting-metric-runs:<bare>",
         "backtesting:/api/backtesting",
         "investment-ledger:<bare>",
-        "internal-analysis:<bare>",
+        "internal-analysis:/api",
       ]
     `);
   });
