@@ -49,6 +49,10 @@ import type {
   CashFlowPerspectiveLite,
   ParsedValuationMark,
 } from './lp-reporting/metrics-engine';
+import {
+  DIRECT_MARK_STALE_DAYS,
+  ageDays,
+} from './investment-ledger/position-valuation-service';
 
 const ACCEPTED_STATUSES = new Set(['approved', 'locked']);
 const CASH_FLOW_TYPES = new Set<CashFlowEventType>([
@@ -152,6 +156,11 @@ interface PositionCompanyRef {
   readonly vehicleId: number;
   readonly companyIdentityId: number;
   readonly companyId: number;
+}
+
+interface DirectValuationRefRead {
+  readonly valuationRef: ValuationRef;
+  readonly markDate: string;
 }
 
 interface CanonicalContributionInput {
@@ -928,7 +937,7 @@ async function readDirectValuationRefs(params: {
   fundId: number;
   asOfDate: string;
   knowledgeCutoff: string;
-}): Promise<ValuationRef[]> {
+}): Promise<DirectValuationRefRead[]> {
   const rows = await executeRows<RawRow>(
     params.database,
     sql`
@@ -938,6 +947,7 @@ async function readDirectValuationRefs(params: {
         mark.id AS "directMarkId",
         mark.vehicle_id AS "vehicleId",
         link.company_identity_id AS "companyIdentityId",
+          mark.mark_date AS "markDate",
           mark.source_observation_id AS "directSourceObservationId",
           ROW_NUMBER() OVER (
             PARTITION BY mark.vehicle_id, link.company_identity_id
@@ -972,6 +982,7 @@ async function readDirectValuationRefs(params: {
         "directMarkId",
         "vehicleId",
         "companyIdentityId",
+        "markDate",
         "directSourceObservationId"
       FROM ranked_direct_marks
       WHERE mark_rank = 1
@@ -980,16 +991,19 @@ async function readDirectValuationRefs(params: {
   );
 
   return rows.map((row) => ({
-    basis: 'direct',
-    vehicleId: asPositiveInt(row['vehicleId']),
-    companyIdentityId: asPositiveInt(row['companyIdentityId']),
-    directMarkId: asPositiveInt(row['directMarkId']),
-    directSourceObservationId: asPositiveInt(row['directSourceObservationId']),
-    ownershipSnapshotId: null,
-    derivedTrancheId: null,
-    derivedTrancheVersion: null,
-    derivedParticipationId: null,
-    derivedParticipationVersion: null,
+    valuationRef: {
+      basis: 'direct',
+      vehicleId: asPositiveInt(row['vehicleId']),
+      companyIdentityId: asPositiveInt(row['companyIdentityId']),
+      directMarkId: asPositiveInt(row['directMarkId']),
+      directSourceObservationId: asPositiveInt(row['directSourceObservationId']),
+      ownershipSnapshotId: null,
+      derivedTrancheId: null,
+      derivedTrancheVersion: null,
+      derivedParticipationId: null,
+      derivedParticipationVersion: null,
+    },
+    markDate: asDateString(row['markDate']),
   }));
 }
 
@@ -1496,12 +1510,13 @@ function buildValuationRefs(params: {
 
 function addConsumerReason(
   evaluation: ConsumerEvaluationV2,
-  reason: ConsumerEvaluationReasonV2
+  reason: ConsumerEvaluationReasonV2,
+  blocking = true
 ): ConsumerEvaluationV2 {
   if (evaluation.reasons.includes(reason)) return evaluation;
   return {
     ...evaluation,
-    status: 'blocked',
+    status: blocking ? 'blocked' : evaluation.status,
     reasons: [...evaluation.reasons, reason],
   };
 }
@@ -1522,6 +1537,8 @@ function mergeV2ConsumerEvaluations(params: {
   positionRefs: readonly PositionRef[];
   positionCompanyRefs: readonly PositionCompanyRef[];
   valuationRefs: readonly ValuationRef[];
+  directMarkDatesByScope: ReadonlyMap<string, string>;
+  asOfDate: string;
   companyActuals: FinancialFactsPayloadV1['companyActuals'];
 }): ConsumerEvaluationV2[] {
   return params.base.map((evaluation) => {
@@ -1577,6 +1594,36 @@ function mergeV2ConsumerEvaluations(params: {
       }
     }
 
+    for (const valuationRef of params.valuationRefs) {
+      const key = scopeKey(valuationRef);
+      const directMarkDate = params.directMarkDatesByScope.get(key);
+      if (
+        valuationRef.basis === 'direct' &&
+        directMarkDate !== undefined &&
+        ageDays(directMarkDate, params.asOfDate) > DIRECT_MARK_STALE_DAYS
+      ) {
+        forecast = addConsumerReason(forecast, 'valuation_mark_stale', false);
+        forecast = addConsumerDetail(forecast, {
+          code: 'valuation_mark_stale',
+          vehicleId: valuationRef.vehicleId,
+          companyIdentityId: valuationRef.companyIdentityId,
+          message: `Direct position valuation mark is older than ${DIRECT_MARK_STALE_DAYS} days and remains selected.`,
+        });
+      }
+      if (
+        valuationRef.basis !== 'unavailable' &&
+        termsByScope.get(key)?.some((row) => row.kind === 'contingent')
+      ) {
+        forecast = addConsumerReason(forecast, 'contingent_instrument_excluded', false);
+        forecast = addConsumerDetail(forecast, {
+          code: 'contingent_instrument_excluded',
+          vehicleId: valuationRef.vehicleId,
+          companyIdentityId: valuationRef.companyIdentityId,
+          message: 'Contingent instruments are excluded from the disclosed priced-component FMV.',
+        });
+      }
+    }
+
     const ledgerPositionCompanyIds = new Set(params.positionCompanyRefs.map((ref) => ref.companyId));
     const legacyCompanyIds = [
       ...new Set(
@@ -1611,7 +1658,7 @@ async function buildPayloadV2(params: {
     positionRefs,
     componentRows,
     ownershipRefs,
-    directValuationRefs,
+    directValuationRefReads,
     derivedValuationRefs,
     positionCompanyRefs,
   ] = await Promise.all([
@@ -1622,6 +1669,10 @@ async function buildPayloadV2(params: {
     readDerivedValuationRefs(params),
     readPositionCompanyRefs(params),
   ]);
+  const directValuationRefs = directValuationRefReads.map((read) => read.valuationRef);
+  const directMarkDatesByScope = new Map(
+    directValuationRefReads.map((read) => [scopeKey(read.valuationRef), read.markDate])
+  );
   const valuationRefs = buildValuationRefs({
     positionRefs,
     ownershipRefs,
@@ -1675,6 +1726,8 @@ async function buildPayloadV2(params: {
       positionRefs,
       positionCompanyRefs,
       valuationRefs,
+      directMarkDatesByScope,
+      asOfDate: params.asOfDate,
       companyActuals: params.base.companyActuals,
     }),
   };

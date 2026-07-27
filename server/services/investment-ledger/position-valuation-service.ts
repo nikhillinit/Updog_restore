@@ -17,6 +17,8 @@ import { listOwnershipSnapshots } from './ownership-snapshot-service';
 
 type LedgerDatabase = typeof db;
 
+export const DIRECT_MARK_STALE_DAYS = 120;
+
 interface DirectMarkRow {
   id: number;
   fundId: number;
@@ -635,11 +637,11 @@ async function selectObservation(
 }
 
 function staleWarning(markDate: string, asOfDate: string): PositionValuationSelectionV1['warnings'] {
-  return ageDays(markDate, asOfDate) > 120
+  return ageDays(markDate, asOfDate) > DIRECT_MARK_STALE_DAYS
     ? [
         {
           code: 'DIRECT_POSITION_MARK_STALE',
-          message: 'Direct position valuation mark is older than 120 days and remains selected.',
+          message: `Direct position valuation mark is older than ${DIRECT_MARK_STALE_DAYS} days and remains selected.`,
         },
       ]
     : [];
@@ -659,7 +661,7 @@ function contingentIncompleteWarnings(): PositionValuationSelectionV1['warnings'
   ];
 }
 
-function ageDays(evidenceDate: string, asOfDate: string): number {
+export function ageDays(evidenceDate: string, asOfDate: string): number {
   return Math.floor(
     (Date.parse(`${asOfDate}T00:00:00.000Z`) -
       Date.parse(`${evidenceDate}T00:00:00.000Z`)) /
