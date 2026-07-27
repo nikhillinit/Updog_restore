@@ -8947,8 +8947,10 @@ and SPV holdings or silently borrowing company-level legacy NAV.
 Migration `0042_positions_ownership_compat` established the position substrate.
 Task 11 owns the next live additive migration,
 `0043_position_source_basis_reliefs`; Wave G must recompute and take the next
-unclaimed number, expected to be `0044`. No production migration is authorized
-by this decision.
+unclaimed number, expected to be `0044`. Already-ledgered production manifest
+16 remains pinned to `0042`; additive production manifest 17 owns `0043`.
+Production application is separately authorized for Item 12 closeout and still
+requires exact-main audit/apply proof through the governed workflow.
 
 ### Decision
 
@@ -9034,7 +9036,9 @@ by this decision.
 - Both source-lot and no-source-lot conversions share one command,
   idempotency receipt, conservation equation, and rollback boundary.
 - `0043` is additive and replay-safe; it weakens no existing check or foreign
-  key. Production application and real-PostgreSQL proof remain separate gates.
+  key. Production manifest 17 isolates it from already-ledgered manifest 16 so
+  apply never replays `0042`. Production application and real-PostgreSQL proof
+  remain separate governed release checks.
 - 11D-B uses the selected atomic compatibility-compensation writer. Canonical
   and deterministic compatibility changes share the correction transaction,
   lock order, idempotency outcome, and rollback boundary. Ambiguous active
@@ -9059,4 +9063,4 @@ by this decision.
 | 11D backfill and correction | Unit and CLI tests cover dry-run/apply/resume, deterministic hashes, terminal corrected-lineage replay, atomic investment/round/lot compensation, idempotency, ambiguity rejection, and rollback | Testcontainers correction, replay, concurrency, and rollback code authored; execution pending Docker lane | 11D-A locally complete; 11D-B selected and locally implemented, external proof pending |
 | 11E facts | Contract, snapshot, and Current Forecast V2 unit tests cover `(policyVersion, payloadSchemaId)`, payload 2 provenance refs, terminal heads, blocked evaluations, and 1.0.x compatibility | Testcontainers execution pending Docker lane | Locally complete, external proof pending |
 | 11F UI | Hidden hook/component tests cover loading, error, empty, direct/derived/unavailable basis, stale marks, and contingent exclusion; no visible nav mount | Manual/product gate pending for 11F-A and 11F-B | Prepared, gated |
-| 11G ADR | This ADR records Option B, migration ownership, conversion conservation, valuation ladder, facts payload, legacy isolation, and unresolved gates | Issue closure not authorized | Complete as local record |
+| 11G ADR | This ADR records Option B, migration ownership, production manifest isolation, conversion conservation, valuation ladder, facts payload, legacy isolation, and unresolved UI gates | Issue closure authorized only after migration, deployment, and smoke proof | Complete as local record |

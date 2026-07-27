@@ -3,13 +3,9 @@
   "order": 16,
   "description": "Task 11 position-event ledger, lot reliefs, ownership snapshots, and additive compat sentinels.",
   "missingTablePolicy": "create_or_repair",
-  "sqlFiles": [
-    "migrations/0042_positions_ownership_compat.sql",
-    "migrations/0043_position_source_basis_reliefs.sql"
-  ],
+  "sqlFiles": ["migrations/0042_positions_ownership_compat.sql"],
   "allowedCreateTables": [
     "position_events",
-    "position_event_source_basis_reliefs",
     "position_event_lot_reliefs",
     "ownership_snapshots"
   ],
@@ -98,10 +94,6 @@
         "position_events_no_self_lineage_check",
         "position_events_idempotency_pair_check",
         "position_events_id_fund_unique",
-        "position_events_source_basis_anchor_unique",
-        "position_events_conversion_lineage_unique",
-        "position_events_conversion_zero_basis_check",
-        "position_events_conversion_distinct_participations_check",
         "position_events_backfill_investment_unique",
         "position_events_fund_idempotency_unique"
       ],
@@ -110,147 +102,6 @@
         "position_events_reversal_target_unique",
         "idx_position_events_scope_effective_recorded"
       ]
-    },
-    {
-      "name": "position_event_source_basis_reliefs",
-      "columns": [
-        {
-          "name": "conversion_position_event_id",
-          "type": "integer",
-          "nullable": false
-        },
-        {
-          "name": "source_acquisition_position_event_id",
-          "type": "integer",
-          "nullable": false
-        },
-        {
-          "name": "capitalized_adjustment_position_event_id",
-          "type": "integer",
-          "nullable": true
-        },
-        { "name": "fund_id", "type": "integer", "nullable": false },
-        { "name": "vehicle_id", "type": "integer", "nullable": false },
-        {
-          "name": "company_identity_id",
-          "type": "integer",
-          "nullable": false
-        },
-        {
-          "name": "source_participation_id",
-          "type": "integer",
-          "nullable": false
-        },
-        {
-          "name": "source_participation_version",
-          "type": "integer",
-          "nullable": false
-        },
-        {
-          "name": "source_financing_event_id",
-          "type": "integer",
-          "nullable": false
-        },
-        {
-          "name": "source_financing_tranche_id",
-          "type": "integer",
-          "nullable": false
-        },
-        {
-          "name": "resulting_participation_id",
-          "type": "integer",
-          "nullable": false
-        },
-        {
-          "name": "resulting_participation_version",
-          "type": "integer",
-          "nullable": false
-        },
-        {
-          "name": "resulting_financing_event_id",
-          "type": "integer",
-          "nullable": false
-        },
-        {
-          "name": "resulting_financing_tranche_id",
-          "type": "integer",
-          "nullable": false
-        },
-        {
-          "name": "source_tranche_version",
-          "type": "integer",
-          "nullable": false
-        },
-        {
-          "name": "resulting_tranche_version",
-          "type": "integer",
-          "nullable": false
-        },
-        {
-          "name": "source_acquisition_cost_basis",
-          "type": "numeric",
-          "nullable": false
-        },
-        {
-          "name": "capitalized_adjustment_cost_basis",
-          "type": "numeric",
-          "nullable": false
-        },
-        {
-          "name": "relieved_cost_basis",
-          "type": "numeric",
-          "nullable": false
-        },
-        {
-          "name": "source_event_type",
-          "type": "varchar",
-          "nullable": false
-        },
-        {
-          "name": "capitalized_adjustment_event_type",
-          "type": "varchar",
-          "nullable": true
-        },
-        {
-          "name": "conversion_event_type",
-          "type": "varchar",
-          "nullable": false
-        },
-        {
-          "name": "source_economic_origin",
-          "type": "varchar",
-          "nullable": false
-        },
-        {
-          "name": "resulting_economic_origin",
-          "type": "varchar",
-          "nullable": false
-        }
-      ],
-      "constraints": [
-        "position_event_source_basis_reliefs_pkey",
-        "pesbr_source_acq_unique",
-        "pesbr_resulting_participation_unique",
-        "pesbr_source_acq_event_fk",
-        "pesbr_capitalized_adj_event_fk",
-        "pesbr_conversion_event_fk",
-        "pesbr_source_participation_fk",
-        "pesbr_resulting_participation_fk",
-        "pesbr_source_tranche_fk",
-        "pesbr_resulting_tranche_fk",
-        "pesbr_source_financing_event_fk",
-        "pesbr_resulting_financing_event_fk",
-        "pesbr_source_event_type_check",
-        "pesbr_conversion_event_type_check",
-        "pesbr_source_origin_check",
-        "pesbr_resulting_origin_check",
-        "pesbr_distinct_participations_check",
-        "pesbr_distinct_events_check",
-        "pesbr_positive_basis_check",
-        "pesbr_conservation_check",
-        "pesbr_adjustment_presence_check"
-      ],
-      "indexes": ["pesbr_capitalized_adj_unique"]
     },
     {
       "name": "position_event_lot_reliefs",
@@ -387,31 +238,7 @@
       "columns": [
         { "name": "economic_origin", "type": "varchar", "nullable": false }
       ],
-      "constraints": [
-        "vfp_economic_origin_check",
-        "vfp_conversion_source_lineage_unique",
-        "vfp_conversion_result_basis_unique"
-      ]
-    },
-    {
-      "name": "financing_events",
-      "sharedTable": true,
-      "columns": [
-        {
-          "name": "company_identity_id",
-          "type": "integer",
-          "nullable": false
-        }
-      ],
-      "constraints": ["financing_events_conversion_identity_unique"]
-    },
-    {
-      "name": "financing_tranches",
-      "sharedTable": true,
-      "columns": [
-        { "name": "version", "type": "integer", "nullable": false }
-      ],
-      "constraints": ["financing_tranches_conversion_lineage_unique"]
+      "constraints": ["vfp_economic_origin_check"]
     }
   ]
 }

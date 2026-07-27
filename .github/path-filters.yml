@@ -316,6 +316,7 @@ schema_tests:
   - 'scripts/reconcile-prod-schema.mjs'
   - 'scripts/prod-schema-manifests/**'
   - 'scripts/prod-schema-manifests/16-positions-ownership-compat.json'
+  - 'scripts/prod-schema-manifests/17-position-source-basis-reliefs.json'
   - 'migrations/0043_position_source_basis_reliefs.sql'
   - 'shared/contracts/investment-ledger/position.contract.ts'
   - 'shared/contracts/investment-ledger/participation.contract.ts'
