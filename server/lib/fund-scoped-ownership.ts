@@ -2,6 +2,8 @@ import { and, eq } from 'drizzle-orm';
 
 import { currentPlanVersions } from '../../shared/schema/current-plans';
 import { financialFactsSnapshots } from '../../shared/schema/financial-facts-snapshots';
+import { fundSnapshots } from '../../shared/schema/fund';
+import { internalAnalysisReferences } from '../../shared/schema/internal-analysis';
 import { financingEvents, financingTranches } from '../../shared/schema/investment-ledger';
 import { vehicles } from '../../shared/schema/lp-reporting-evidence';
 import { vehicleFinancingParticipations } from '../../shared/schema/vehicle-financing-participations';
@@ -11,6 +13,7 @@ export type FundScopedReference = {
     | 'facts_snapshot'
     | 'current_plan_version'
     | 'fund_snapshot'
+    | 'analysis_reference'
     | 'vehicle'
     | 'portfolio_company'
     | 'financing_event'
@@ -95,6 +98,42 @@ export async function assertOwnedByFund(opts: {
       .select({ id: currentPlanVersions.id })
       .from(currentPlanVersions)
       .where(and(eq(currentPlanVersions.id, id), eq(currentPlanVersions.fundId, opts.fundId)))
+      .limit(1);
+
+    if (rows.length === 0) {
+      throw new FundScopeError(opts.ref);
+    }
+    return;
+  }
+
+  // Forecast runs are persisted as fund_snapshots rows (type CURRENT_FORECAST_V2);
+  // there is no dedicated forecast-run table and no (id, fund_id) sibling key on
+  // fund_snapshots, so pinning one can only be fund-scoped here (PLAN_61 D29).
+  if (opts.ref.kind === 'fund_snapshot') {
+    const rows = await opts.db
+      .select({ id: fundSnapshots.id })
+      .from(fundSnapshots)
+      .where(and(eq(fundSnapshots.id, id), eq(fundSnapshots.fundId, opts.fundId)))
+      .limit(1);
+
+    if (rows.length === 0) {
+      throw new FundScopeError(opts.ref);
+    }
+    return;
+  }
+
+  // A draft's source_reference_id carries no FK (a mutual drafts <-> references FK
+  // pair would be a dependency cycle), so this is the only ownership check on it.
+  if (opts.ref.kind === 'analysis_reference') {
+    const rows = await opts.db
+      .select({ id: internalAnalysisReferences.id })
+      .from(internalAnalysisReferences)
+      .where(
+        and(
+          eq(internalAnalysisReferences.id, id),
+          eq(internalAnalysisReferences.fundId, opts.fundId)
+        )
+      )
       .limit(1);
 
     if (rows.length === 0) {

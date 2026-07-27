@@ -180,9 +180,8 @@ function makeDb(model: Model) {
                         successor['vehicle_id'] === participation['vehicle_id'] &&
                         successor['created_at'] instanceof Date &&
                         successor['created_at'] <= participationSuccessorCutoff &&
-                        String(
-                          successor['closing_date'] ?? successorTranche?.['closing_date']
-                        ) <= participationSuccessorAsOfDate
+                        String(successor['closing_date'] ?? successorTranche?.['closing_date']) <=
+                          participationSuccessorAsOfDate
                       );
                     })
                 )
@@ -264,10 +263,8 @@ function makeDb(model: Model) {
               observation['fund_id'] === fundId &&
               (companyIdentityId === undefined ||
                 observation['company_identity_id'] === companyIdentityId) &&
-              (!flat.includes("domain = 'valuation'") ||
-                observation['domain'] === 'valuation') &&
-              (!flat.includes("status = 'accepted'") ||
-                observation['status'] === 'accepted') &&
+              (!flat.includes("domain = 'valuation'") || observation['domain'] === 'valuation') &&
+              (!flat.includes("status = 'accepted'") || observation['status'] === 'accepted') &&
               (effectiveDate === undefined ||
                 String(observation['effective_date']) <= String(effectiveDate))
           ),
