@@ -51,24 +51,44 @@ ALTER TABLE "fund_calculation_modes" ADD COLUMN IF NOT EXISTS "activated_at" tim
 --> statement-breakpoint
 ALTER TABLE "fund_calculation_modes" ADD COLUMN IF NOT EXISTS "cutover_reference_id" integer;
 --> statement-breakpoint
-ALTER TABLE "fund_calculation_modes"
-  ADD CONSTRAINT "fund_calculation_modes_cutover_reference_fk"
-  FOREIGN KEY ("cutover_reference_id") REFERENCES "public"."current_forecast_references"("id");
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'fund_calculation_modes_cutover_reference_fk'
+      AND conrelid = 'public.fund_calculation_modes'::regclass
+  ) THEN
+    ALTER TABLE "fund_calculation_modes"
+      ADD CONSTRAINT "fund_calculation_modes_cutover_reference_fk"
+      FOREIGN KEY ("cutover_reference_id") REFERENCES "public"."current_forecast_references"("id");
+  END IF;
+END $$;
 --> statement-breakpoint
 
 -- substrate_shadow_reconciliations representability (R23/R35)
-ALTER TABLE "substrate_shadow_reconciliations"
-  DROP CONSTRAINT IF EXISTS "substrate_shadow_reconciliations_substrate_state_check";
---> statement-breakpoint
-ALTER TABLE "substrate_shadow_reconciliations"
-  ADD CONSTRAINT "substrate_shadow_reconciliations_substrate_state_check"
-  CHECK ("substrate_state" IN ('available','indicative','unavailable','failed'));
---> statement-breakpoint
-ALTER TABLE "substrate_shadow_reconciliations" ALTER COLUMN "result_hash" DROP NOT NULL;
---> statement-breakpoint
-ALTER TABLE "substrate_shadow_reconciliations"
-  ADD CONSTRAINT "substrate_shadow_reconciliations_result_hash_state_check"
-  CHECK ("result_hash" IS NOT NULL OR "substrate_state" IN ('unavailable','failed'));
+DO $$
+BEGIN
+  ALTER TABLE "substrate_shadow_reconciliations"
+    DROP CONSTRAINT IF EXISTS "substrate_shadow_reconciliations_substrate_state_check";
+  ALTER TABLE "substrate_shadow_reconciliations"
+    ADD CONSTRAINT "substrate_shadow_reconciliations_substrate_state_check"
+    CHECK ("substrate_state" IN ('available','indicative','unavailable','failed'));
+
+  ALTER TABLE "substrate_shadow_reconciliations"
+    ALTER COLUMN "result_hash" DROP NOT NULL;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'substrate_shadow_reconciliations_result_hash_state_check'
+      AND conrelid = 'public.substrate_shadow_reconciliations'::regclass
+  ) THEN
+    ALTER TABLE "substrate_shadow_reconciliations"
+      ADD CONSTRAINT "substrate_shadow_reconciliations_result_hash_state_check"
+      CHECK ("result_hash" IS NOT NULL OR "substrate_state" IN ('unavailable','failed'));
+  END IF;
+END $$;
 --> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "substrate_shadow_reconciliations_fund_key_input_null_hash_unique"
   ON "substrate_shadow_reconciliations" ("fund_id", "calculation_key", "input_hash")

@@ -5451,6 +5451,10 @@ requires its own decision.
 - Mixed-anchor NAV is harder to reason about (mitigated by attribution); numeric
   benefit is adoption-dependent on marks entry; `currentValuation` survives
   inside the blend until a future retirement lane.
+- ADR-062 introduces a separate, vehicle-exact position-valuation ladder.
+  `direct_position_fmv` is evidence for that position surface only; it does not
+  enter this Current/Forecast ladder or replace `planning_fmv` as its first
+  rung.
 
 Full draft with verified evidence: issue #1020 comment 4894286410 (amended
 2026-07-06).
@@ -8146,6 +8150,11 @@ all three read surfaces, with a distinct disclosed anchor. Legacy rows without
 positive recorded ownership remain byte-for-byte equivalent at rung 3, and no
 round valuation, estimated ownership, or default ownership enters NAV.
 
+ADR-062 adds accepted ownership snapshots for exact
+`(fund, vehicle, company identity)` position valuation. Those snapshots do not
+change this legacy company-level fallback, and this fallback is not used when
+the position surface lacks accepted ownership evidence.
+
 ---
 
 ## ADR-055: Defer T14 Organic Constrained-Reserve Shadow Traffic — T14 Targets the Wrong Reserve Seam (Demo Scope)
@@ -8914,3 +8923,144 @@ display names).
   V1 lane and the V2 raw lane (defect D10); no `csv-parse` dependency. No
   migration, no route, no schema change — the layer ships as a pure, executable
   reference spec ahead of the ingestion service.
+
+---
+
+## ADR-062: No-Lot Conversion Basis and Vehicle-Exact Position Truth (Task 11 Option B)
+
+**Date:** 2026-07-26 **Status:** [ACCEPTED] Accepted **Decision:** Convert
+unpriced SAFE and note participations without fabricating source lots by
+anchoring relief to their immutable acquisition position event. Use exact
+fund-, vehicle-, company-identity-, participation-, tranche-, version-, origin-,
+and basis-scoped lineage. Keep position valuation and direct marks isolated from
+the legacy Current/Forecast ladder amended by ADR-029 and ADR-054.
+
+### Context
+
+An unpriced cash-origin participation retains cost basis in its acquisition
+`position_event` but intentionally creates no compatibility `investment_lot`.
+Requiring a lot would either reject a normal SAFE/note conversion or invent
+inventory that never existed. Task 11 also needs exact current positions,
+accepted ownership, and direct or derived valuation without blending main-fund
+and SPV holdings or silently borrowing company-level legacy NAV.
+
+Migration `0042_positions_ownership_compat` established the position substrate.
+Task 11 owns the next live additive migration,
+`0043_position_source_basis_reliefs`; Wave G must recompute and take the next
+unclaimed number, expected to be `0044`. Already-ledgered production manifest
+16 remains pinned to `0042`; additive production manifest 17 owns `0043`.
+Production application is separately authorized for Item 12 closeout and still
+requires exact-main audit/apply proof through the governed workflow.
+
+### Decision
+
+- Treat the immutable cash-origin acquisition `position_event` as the durable
+  source-economic receipt. Add append-only
+  `position_event_source_basis_reliefs`, keyed one-to-one by conversion event
+  and source acquisition event. Composite foreign keys prove exact fund,
+  vehicle, company identity, source/result participation, financing event,
+  tranche, pinned versions, economic origins, and conserved basis.
+- Every full conversion writes one source-basis relief. A lot-backed source
+  additionally uses existing strict `position_event_lot_reliefs` for complete
+  specific identification. A no-lot source writes no lot relief. Existing lot
+  foreign keys keep their literal lot meaning.
+- Conserve basis as
+  `result basis = acquisition-event basis + capitalized-interest adjustment`.
+  Result shares use exact six-decimal position precision; result price and basis
+  must be exactly cent-representable. Relief, observations, optional adjustment,
+  result participation, conversion event, result conversion lot, and lineage
+  commit or roll back in one transaction. Fund advisory locking plus unique
+  source-acquisition relief prevents concurrent double conversion.
+- Caller supplies an existing terminal priced-equity tranche in the same exact
+  fund and company-identity family. Result participation uses
+  `economic_origin='conversion_result'`. Conversion creates no financing event,
+  financing tranche, legacy investment, legacy investment round, or legacy cash
+  flow. Its result lot is basis-transfer inventory and is excluded from
+  deployed-capital cohort inputs.
+- Current-position folding is exact by
+  `(fund_id, vehicle_id, company_identity_id)` and bitemporal by effective date
+  and recorded knowledge. Accepted direct `direct_position_fmv` wins for the
+  position surface; age over 120 days warns without changing basis. Otherwise,
+  accepted ownership plus typed post-money evidence may derive valuation.
+  Mixed priced and contingent holdings disclose the priced component and return
+  null aggregate FMV.
+- `direct_position_fmv` never enters legacy facts or LP-metric implicit paths;
+  those continue to accept only `planning_company_fmv`. This preserves the
+  ADR-029/ADR-054 Current/Forecast ladder byte-for-byte.
+- Facts policy `1.1.0` uses payload schema `2` for typed position, ownership,
+  valuation, participation-term, and observation provenance. Dispatch and hash
+  admission use the tuple `(policy_version, payload_schema_id)`. Existing
+  `(1.0.0, 1)` and `(1.0.1, 1)` payloads and hash preimages remain unchanged;
+  default reads resolve terminal supersession heads while explicit snapshot IDs
+  stay pinned.
+- Legacy backfill is dry-run/apply/resume, deterministic by source investment,
+  and never accepts an operator-selected main vehicle. Corrections of direct
+  backfilled acquisitions use atomic compatibility compensation: append the
+  canonical reversal and replacement, update the source `investment`
+  optimistically, append a successor for one unambiguous active legacy round,
+  and replace or remove one unreferenced direct initial lot when present. An
+  absent round or lot remains absent; no compatibility row is fabricated.
+  Reversal and replacement rows retain ordinary position lineage while only the
+  immutable acquisition anchor retains `backfilled_from_investment_id`.
+- Direct legacy `cash_flow_events` have no investment foreign key, and 11D-A
+  creates none. Backfill correction therefore writes no cash-flow compensation:
+  company/date/amount matching is too ambiguous to mutate financial history.
+  Participation-backed cash-flow compensation remains owned by the existing
+  `ledger-corrections` command. Backfill replay follows paired
+  reversal/replacement lineage to the terminal corrected acquisition.
+- Position hooks and an evidence panel may exist unmounted. A visible positions
+  tab requires Gate 11F-A approval. Repointing WorkspaceNav "Portfolio Actuals"
+  requires separate Gate 11F-B approval.
+
+### Alternatives Considered
+
+- **Synthetic zero-share or placeholder source lot:** rejected because it
+  fabricates economic and pricing lineage.
+- **Generalize lot relief to nullable or polymorphic sources:** rejected because
+  it weakens strict lot foreign keys and overloads "lot" with non-lot basis.
+- **Create a second source-economic receipt:** rejected because the acquisition
+  position event already contains immutable scoped basis and provenance.
+- **Mutate acquisition truth in place:** rejected because position history is
+  append-only and bitemporal.
+- **Position-truth-only backfill correction:** rejected for 11D-B because
+  existing compatibility/reporting readers still consume legacy investments.
+  Leaving those rows stale would make two supported views disagree.
+- **Heuristic direct cash-flow compensation:** rejected because
+  `cash_flow_events` has no durable investment edge; a company/date/amount match
+  could reverse an unrelated record.
+- **Use company-level legacy NAV when position evidence is absent:** rejected
+  because it blends incompatible scope and hides missing evidence.
+
+### Consequences
+
+- Both source-lot and no-source-lot conversions share one command,
+  idempotency receipt, conservation equation, and rollback boundary.
+- `0043` is additive and replay-safe; it weakens no existing check or foreign
+  key. Production manifest 17 isolates it from already-ledgered manifest 16 so
+  apply never replays `0042`. Production application and real-PostgreSQL proof
+  remain separate governed release checks.
+- 11D-B uses the selected atomic compatibility-compensation writer. Canonical
+  and deterministic compatibility changes share the correction transaction,
+  lock order, idempotency outcome, and rollback boundary. Ambiguous active
+  rounds, multiple lots, referenced lots, lineage drift, or optimistic-lock
+  failure reject the command with zero committed writes. No migration is
+  required. Every writer that mutates direct legacy rounds or lots must first
+  lock the owning `investment`; that row is the compatibility projection mutex.
+- 11F-A and 11F-B remain unresolved product gates. No visible mount or navigation
+  change follows from this ADR.
+- Partial conversion, conversion-chain correction, production data repair,
+  public exposure of knowledge cutoffs or internal snapshot receipts, and
+  replacement of the legacy Current/Forecast contract are non-goals.
+
+### Proof Matrix
+
+| Slice | Local proof | External proof | Status |
+| --- | --- | --- | --- |
+| 11A compatibility substrate | PR #1207 merged into `origin/main` at `2e00a5c`; retained by this branch | CI gate passed on PR #1207 before this lane | Complete |
+| 11B conversion basis | Option B amendment approved; schema/unit/prod-schema tests cover `0043` and no synthetic lot | Testcontainers SQL path authored and registered; execution pending Docker lane | Locally complete, external proof pending |
+| P3 conversion | Unit, route-contract, and PostgreSQL test code cover source-lot and no-source-lot conversion, idempotency, rollback, and cohort isolation | Testcontainers execution pending Docker lane | Locally complete, external proof pending |
+| 11C current positions and valuation | Unit and PostgreSQL test code cover exact vehicle/company folding, ownership snapshots, direct marks, stale warnings, and mixed contingent valuation | Testcontainers execution pending Docker lane | Locally complete, external proof pending |
+| 11D backfill and correction | Unit and CLI tests cover dry-run/apply/resume, deterministic hashes, terminal corrected-lineage replay, atomic investment/round/lot compensation, idempotency, ambiguity rejection, and rollback | Testcontainers correction, replay, concurrency, and rollback code authored; execution pending Docker lane | 11D-A locally complete; 11D-B selected and locally implemented, external proof pending |
+| 11E facts | Contract, snapshot, and Current Forecast V2 unit tests cover `(policyVersion, payloadSchemaId)`, payload 2 provenance refs, terminal heads, blocked evaluations, and 1.0.x compatibility | Testcontainers execution pending Docker lane | Locally complete, external proof pending |
+| 11F UI | Hidden hook/component tests cover loading, error, empty, direct/derived/unavailable basis, stale marks, and contingent exclusion; no visible nav mount | Manual/product gate pending for 11F-A and 11F-B | Prepared, gated |
+| 11G ADR | This ADR records Option B, migration ownership, production manifest isolation, conversion conservation, valuation ladder, facts payload, legacy isolation, and unresolved UI gates | Issue closure authorized only after migration, deployment, and smoke proof | Complete as local record |

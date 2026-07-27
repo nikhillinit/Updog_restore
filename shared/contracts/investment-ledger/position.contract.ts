@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { Decimal } from '../../lib/decimal-config';
 import { MoneyDecimalStringSchema } from '../../lib/decimal-string';
+import { VehicleFinancingParticipationV1Schema } from './participation.contract';
 
 export const POSITION_EVENT_ERROR_CODES = [
   'NON_USD_VALUE_UNSUPPORTED',
@@ -13,6 +14,11 @@ export const POSITION_EVENT_ERROR_CODES = [
   'POSITION_EVENT_NOT_FOUND',
   'POSITION_EVENT_ALREADY_CORRECTED',
   'POSITION_EVENT_NOT_CORRECTABLE',
+  'POSITION_CONVERSION_NOT_FOUND',
+  'POSITION_CONVERSION_INELIGIBLE',
+  'POSITION_CONVERSION_CONFLICT',
+  'POSITION_CONVERSION_PRECISION_LOSS',
+  'POSITION_CONVERSION_FORBIDDEN_WRITE',
   'precondition_failed',
   'LEDGER_WRITE_FAILED',
 ] as const;
@@ -27,6 +33,10 @@ const CurrencySchema = z.string().regex(/^[A-Z]{3}$/);
 const Sha256HexSchema = z.string().regex(/^[a-f0-9]{64}$/);
 const SharesDecimalStringSchema = z.string().regex(/^-?(?:0|[1-9]\d*)\.\d{8}$/);
 const StoredPositionDecimalStringSchema = z.string().regex(/^-?(?:0|[1-9]\d*)\.\d{6}$/);
+const PositiveStoredPositionDecimalStringSchema = z
+  .string()
+  .regex(/^(?:0|[1-9]\d*)\.\d{6}$/)
+  .refine((value) => new Decimal(value).gt(0), 'Shares must be greater than zero.');
 const PositionEventTypeSchema = z.enum([
   'acquisition',
   'conversion',
@@ -152,6 +162,43 @@ export const CorrectPositionRequestSchema = z
   })
   .strict();
 
+export const PositionConversionLotReliefRequestSchema = z
+  .object({
+    investmentId: PositiveIntSchema,
+    investmentLotId: z.string().uuid(),
+    relievedShares: PositiveStoredPositionDecimalStringSchema,
+    relievedCostBasis: MoneyDecimalStringSchema.refine(
+      (value) => new Decimal(value).gt(0),
+      'Relieved cost basis must be greater than zero.'
+    ),
+  })
+  .strict();
+
+export const PositionConversionAccruedInterestSchema = z.discriminatedUnion('mode', [
+  z.object({ mode: z.literal('excluded') }).strict(),
+  z
+    .object({
+      mode: z.literal('capitalized_with_adjustment'),
+      amount: MoneyDecimalStringSchema.refine(
+        (value) => new Decimal(value).gt(0),
+        'Capitalized interest amount must be greater than zero.'
+      ),
+    })
+    .strict(),
+]);
+
+export const ConvertPositionRequestSchema = z
+  .object({
+    sourceParticipationId: PositiveIntSchema,
+    resultingTrancheId: PositiveIntSchema,
+    effectiveDate: IsoDateSchema,
+    resultingSharesAcquired: PositiveStoredPositionDecimalStringSchema,
+    sourceLotReliefs: z.array(PositionConversionLotReliefRequestSchema).min(1).optional(),
+    accruedInterest: PositionConversionAccruedInterestSchema.default({ mode: 'excluded' }),
+    currency: z.literal('USD').default('USD'),
+  })
+  .strict();
+
 export const PositionEventV1Schema = z
   .object({
     id: PositiveIntSchema,
@@ -188,8 +235,66 @@ export const PositionCorrectionV1Schema = z
   })
   .strict();
 
+export const PositionSourceBasisReliefV1Schema = z
+  .object({
+    conversionPositionEventId: PositiveIntSchema,
+    sourceAcquisitionPositionEventId: PositiveIntSchema,
+    capitalizedAdjustmentPositionEventId: PositiveIntSchema.nullable(),
+    fundId: PositiveIntSchema,
+    vehicleId: PositiveIntSchema,
+    companyIdentityId: PositiveIntSchema,
+    sourceParticipationId: PositiveIntSchema,
+    sourceParticipationVersion: PositiveIntSchema,
+    sourceFinancingEventId: PositiveIntSchema,
+    sourceFinancingTrancheId: PositiveIntSchema,
+    resultingParticipationId: PositiveIntSchema,
+    resultingParticipationVersion: PositiveIntSchema,
+    resultingFinancingEventId: PositiveIntSchema,
+    resultingFinancingTrancheId: PositiveIntSchema,
+    sourceTrancheVersion: PositiveIntSchema,
+    resultingTrancheVersion: PositiveIntSchema,
+    sourceAcquisitionCostBasis: MoneyDecimalStringSchema,
+    capitalizedAdjustmentCostBasis: MoneyDecimalStringSchema,
+    relievedCostBasis: MoneyDecimalStringSchema,
+    sourceEconomicOrigin: z.literal('cash_investment'),
+    resultingEconomicOrigin: z.literal('conversion_result'),
+  })
+  .strict();
+
+export const PositionConversionLotReliefV1Schema = z
+  .object({
+    investmentId: PositiveIntSchema,
+    investmentLotId: z.string().uuid(),
+    relievedShares: StoredPositionDecimalStringSchema,
+    relievedCostBasis: MoneyDecimalStringSchema,
+    allocatedProceeds: MoneyDecimalStringSchema,
+  })
+  .strict();
+
+export const PositionConversionV1Schema = z
+  .object({
+    sourceParticipationId: PositiveIntSchema,
+    sourceParticipationVersion: PositiveIntSchema,
+    resultingParticipation: VehicleFinancingParticipationV1Schema,
+    conversionEvent: PositionEventV1Schema,
+    capitalizedAdjustmentEvent: PositionEventV1Schema.nullable(),
+    reliefMode: z.enum(['specific_lots', 'source_basis']),
+    lotReliefs: z.array(PositionConversionLotReliefV1Schema),
+    sourceBasisRelief: PositionSourceBasisReliefV1Schema,
+    resultConversionLotId: z.string().uuid(),
+    conversionObservationId: PositiveIntSchema,
+  })
+  .strict();
+
 export type PositionEventLotReliefRequest = z.infer<typeof PositionEventLotReliefRequestSchema>;
 export type RecordPositionEventRequest = z.output<typeof RecordPositionEventRequestSchema>;
 export type CorrectPositionRequest = z.output<typeof CorrectPositionRequestSchema>;
+export type PositionConversionLotReliefRequest = z.infer<
+  typeof PositionConversionLotReliefRequestSchema
+>;
+export type ConvertPositionRequest = z.output<typeof ConvertPositionRequestSchema>;
 export type PositionEventV1 = z.infer<typeof PositionEventV1Schema>;
 export type PositionCorrectionV1 = z.infer<typeof PositionCorrectionV1Schema>;
+export type PositionSourceBasisReliefV1 = z.infer<typeof PositionSourceBasisReliefV1Schema>;
+export type PositionConversionLotReliefV1 = z.infer<typeof PositionConversionLotReliefV1Schema>;
+export type PositionConversionV1 = z.infer<typeof PositionConversionV1Schema>;

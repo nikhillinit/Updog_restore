@@ -34,7 +34,11 @@ type CurrentForecastDatabase = typeof db;
 type FactsWithId = PersistedFinancialFactsSnapshotV1 & { readonly id: number };
 
 export type CurrentForecastV2ServiceErrorCode =
-  'NO_CURRENT_PLAN_VERSION' | 'NO_FACTS_SNAPSHOT' | 'CURRENT_FORECAST_BASIS_MISMATCH';
+  | 'NO_CURRENT_PLAN_VERSION'
+  | 'NO_FACTS_SNAPSHOT'
+  | 'FACTS_FORECAST_EVALUATION_BLOCKED'
+  | 'FORECAST_SNAPSHOT_WRITE_FAILED'
+  | 'CURRENT_FORECAST_BASIS_MISMATCH';
 
 export class CurrentForecastV2ServiceError extends Error {
   readonly statusCode: number;
@@ -61,6 +65,11 @@ export interface RunCurrentForecastV2Input {
   database?: CurrentForecastDatabase;
 }
 
+export interface RunCurrentForecastV2Receipt {
+  result: CurrentForecastV2;
+  fundSnapshotId: number;
+}
+
 function currentPlanVersionFromRow(row: CurrentPlanVersionRow): CurrentPlanVersionV1 {
   return CurrentPlanVersionV1Schema.parse({
     contractVersion: 'current-plan-version-v1',
@@ -85,8 +94,29 @@ function currentPlanVersionFromRow(row: CurrentPlanVersionRow): CurrentPlanVersi
 }
 
 function factsSnapshotFromRow(row: FinancialFactsSnapshot): FactsWithId {
+  const persisted = {
+    policyVersion: row.policyVersion,
+    payloadSchemaId: row.payloadSchemaId,
+    fundId: row.fundId,
+    asOfDate: row.asOfDate,
+    knowledgeCutoff: row.knowledgeCutoff.toISOString(),
+    vehicleScope: row.vehicleScope,
+    vehicleIds: row.vehicleIds,
+    selectionSetHash: row.selectionSetHash,
+    sourceFactsInputHash: row.sourceFactsInputHash,
+    snapshotInputHash: row.snapshotInputHash,
+    consumerEvaluations: row.consumerEvaluations,
+    payload: row.payload,
+    actorId: row.actorId,
+    createdAt: row.createdAt.toISOString(),
+  };
+  PersistedFinancialFactsSnapshotV1Schema.parse(persisted);
+
   const snapshot = PersistedFinancialFactsSnapshotV1Schema.parse({
     policyVersion: row.policyVersion,
+    ...(row.policyVersion === 'financial-facts-policy/1.1.0'
+      ? { payloadSchemaId: row.payloadSchemaId }
+      : {}),
     fundId: row.fundId,
     asOfDate: row.asOfDate,
     knowledgeCutoff: row.knowledgeCutoff.toISOString(),
@@ -196,11 +226,27 @@ async function loadFactsSnapshot(
 export async function runCurrentForecastV2(
   input: RunCurrentForecastV2Input
 ): Promise<CurrentForecastV2> {
+  return (await runCurrentForecastV2WithReceipt(input)).result;
+}
+
+export async function runCurrentForecastV2WithReceipt(
+  input: RunCurrentForecastV2Input
+): Promise<RunCurrentForecastV2Receipt> {
   const database = input.database ?? db;
   const planRow = await loadCurrentPlanVersion(input, database);
   const factsRow = await loadFactsSnapshot(input, database);
   const plan = currentPlanVersionFromRow(planRow);
   const facts = factsSnapshotFromRow(factsRow);
+  const forecastEvaluation = facts.consumerEvaluations.find(
+    (evaluation) => evaluation.consumer === 'forecast'
+  );
+  if (forecastEvaluation?.status === 'blocked') {
+    throw new CurrentForecastV2ServiceError(
+      422,
+      'FACTS_FORECAST_EVALUATION_BLOCKED',
+      'The financial-facts snapshot blocks Current Forecast V2.'
+    );
+  }
   const engineInput = CurrentForecastV2InputSchema.parse({
     fundId: input.fundId,
     financialFactsSnapshotId: String(facts.id),
@@ -225,16 +271,27 @@ export async function runCurrentForecastV2(
     throw error;
   }
 
-  await database.insert(fundSnapshots).values({
-    fundId: input.fundId,
-    type: 'CURRENT_FORECAST_V2',
-    payload: result,
-    state: null,
-    scenarioSetId: null,
-    snapshotTime: new Date(input.clock),
-    calcVersion: ENGINE_VERSION,
-    correlationId: randomUUID(),
-  });
+  const [inserted] = await database
+    .insert(fundSnapshots)
+    .values({
+      fundId: input.fundId,
+      type: 'CURRENT_FORECAST_V2',
+      payload: result,
+      state: null,
+      scenarioSetId: null,
+      snapshotTime: new Date(input.clock),
+      calcVersion: ENGINE_VERSION,
+      correlationId: randomUUID(),
+    })
+    .returning({ id: fundSnapshots.id });
 
-  return result;
+  if (inserted === undefined || !Number.isSafeInteger(inserted.id) || inserted.id <= 0) {
+    throw new CurrentForecastV2ServiceError(
+      500,
+      'FORECAST_SNAPSHOT_WRITE_FAILED',
+      'Current Forecast V2 snapshot insert did not return a persisted snapshot id.'
+    );
+  }
+
+  return { result, fundSnapshotId: inserted.id };
 }

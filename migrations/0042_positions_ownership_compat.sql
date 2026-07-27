@@ -14,22 +14,11 @@ END $$;
 
 DO $$
 BEGIN
-  IF EXISTS (
-    SELECT 1
-    FROM pg_constraint
-    WHERE conname = 'investment_lots_lot_type_check'
-      AND pg_get_constraintdef(oid) NOT LIKE '%conversion%'
-  ) THEN
-    ALTER TABLE "investment_lots"
-      DROP CONSTRAINT "investment_lots_lot_type_check";
-  END IF;
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'investment_lots_lot_type_check'
-  ) THEN
-    ALTER TABLE "investment_lots"
-      ADD CONSTRAINT "investment_lots_lot_type_check"
-      CHECK ("lot_type" IN ('initial', 'follow_on', 'secondary', 'conversion'));
-  END IF;
+  ALTER TABLE "investment_lots"
+    DROP CONSTRAINT IF EXISTS "investment_lots_lot_type_check";
+  ALTER TABLE "investment_lots"
+    ADD CONSTRAINT "investment_lots_lot_type_check"
+    CHECK ("lot_type" IN ('initial', 'follow_on', 'secondary', 'conversion'));
 END $$;
 --> statement-breakpoint
 

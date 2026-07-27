@@ -134,6 +134,25 @@ export const vehicleFinancingParticipations = pgTable(
       table.trancheKey,
       table.version
     ),
+    conversionSourceLineageUnique: unique('vfp_conversion_source_lineage_unique').on(
+      table.id,
+      table.fundId,
+      table.vehicleId,
+      table.version,
+      table.financingEventId,
+      table.financingTrancheId,
+      table.economicOrigin
+    ),
+    conversionResultBasisUnique: unique('vfp_conversion_result_basis_unique').on(
+      table.id,
+      table.fundId,
+      table.vehicleId,
+      table.version,
+      table.financingEventId,
+      table.financingTrancheId,
+      table.economicOrigin,
+      table.participationAmount
+    ),
     headUnique: uniqueIndex('vfp_head_unique')
       .on(table.fundId, table.vehicleId, table.financingEventId, table.trancheKey)
       .where(sql`${table.supersededByParticipationId} IS NULL`),
