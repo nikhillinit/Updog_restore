@@ -24,6 +24,8 @@ export const ConsumerEvaluationReasonV2Schema = z.enum([
   'uniformly_stale_refs',
   'mixed_legacy_ledger_provenance',
   'position_valuation_incomplete',
+  'valuation_mark_stale',
+  'contingent_instrument_excluded',
 ]);
 
 export const ConsumerEvaluationDetailV2Schema = z
