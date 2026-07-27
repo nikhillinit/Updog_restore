@@ -8,7 +8,11 @@
     "allowConstraintReplacements": [
       {
         "table": "investment_lots",
-        "name": "investment_lots_lot_type_check"
+        "name": "investment_lots_lot_type_check",
+        "expectedDefinition": {
+          "requiredFragments": ["lot_type"],
+          "stringLiterals": ["initial", "follow_on", "secondary", "conversion"]
+        }
       }
     ]
   },

@@ -14,7 +14,11 @@
     "allowConstraintReplacements": [
       {
         "table": "substrate_shadow_reconciliations",
-        "name": "substrate_shadow_reconciliations_substrate_state_check"
+        "name": "substrate_shadow_reconciliations_substrate_state_check",
+        "expectedDefinition": {
+          "requiredFragments": ["substrate_state"],
+          "stringLiterals": ["available", "indicative", "unavailable", "failed"]
+        }
       }
     ]
   },

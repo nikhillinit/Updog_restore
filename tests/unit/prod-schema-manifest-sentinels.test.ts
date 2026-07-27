@@ -47,7 +47,14 @@ interface Manifest {
   dropObjects?: DropObject[];
   applyPolicy?: {
     allowDropNotNull?: Array<{ table: string; column: string }>;
-    allowConstraintReplacements?: Array<{ table: string; name: string }>;
+    allowConstraintReplacements?: Array<{
+      table: string;
+      name: string;
+      expectedDefinition: {
+        requiredFragments: string[];
+        stringLiterals: string[];
+      };
+    }>;
   };
 }
 
@@ -215,6 +222,65 @@ describe('prod-schema manifest sentinels', () => {
           constraints,
           `${file} allowConstraintReplacements ${allowed.table}.${allowed.name}`
         ).toContain(allowed.name);
+        expect(
+          allowed.expectedDefinition.requiredFragments.length,
+          `${file} ${allowed.name} required definition fragments`
+        ).toBeGreaterThan(0);
+        expect(
+          allowed.expectedDefinition.stringLiterals.length,
+          `${file} ${allowed.name} expected string literals`
+        ).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('scopes replacement constraint guards to their target tables', () => {
+    const cases = [
+      {
+        sqlFile: 'scripts/prod-schema-patches/0035_substrate_shadow_reconciliations_widening.sql',
+        table: 'substrate_shadow_reconciliations',
+        replacements: ['substrate_shadow_reconciliations_substrate_state_check'],
+        guardedConstraints: ['substrate_shadow_reconciliations_result_hash_state_check'],
+      },
+      {
+        sqlFile: 'migrations/0038_current_forecast_references.sql',
+        table: 'substrate_shadow_reconciliations',
+        replacements: ['substrate_shadow_reconciliations_substrate_state_check'],
+        guardedConstraints: ['substrate_shadow_reconciliations_result_hash_state_check'],
+      },
+      {
+        sqlFile: 'migrations/0042_positions_ownership_compat.sql',
+        table: 'investment_lots',
+        replacements: ['investment_lots_lot_type_check'],
+        guardedConstraints: [],
+      },
+    ] as const;
+
+    for (const { sqlFile, table, replacements, guardedConstraints } of cases) {
+      const sql = fs.readFileSync(path.join(repoRoot, sqlFile), 'utf8');
+      for (const constraint of replacements) {
+        expect(sql, `${sqlFile} direct target replacement for ${constraint}`).toMatch(
+          new RegExp(
+            String.raw`ALTER\s+TABLE\s+"${table}"\s+DROP\s+CONSTRAINT\s+IF\s+EXISTS\s+"${constraint}";[\s\S]*?ALTER\s+TABLE\s+"${table}"\s+ADD\s+CONSTRAINT\s+"${constraint}"`,
+            'i'
+          )
+        );
+      }
+      for (const constraint of guardedConstraints) {
+        const guards = [
+          ...sql.matchAll(
+            new RegExp(
+              String.raw`WHERE\s+conname\s*=\s*'${constraint}'([\s\S]*?)\)\s+THEN`,
+              'gi'
+            )
+          ),
+        ];
+        expect(guards.length, `${sqlFile} guard count for ${constraint}`).toBeGreaterThan(0);
+        for (const guard of guards) {
+          expect(guard[1], `${sqlFile} ${constraint} target scope`).toContain(
+            `AND conrelid = 'public.${table}'::regclass`
+          );
+        }
       }
     }
   });

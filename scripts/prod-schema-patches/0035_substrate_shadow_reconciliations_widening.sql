@@ -5,25 +5,11 @@
 
 DO $$
 BEGIN
-  IF EXISTS (
-    SELECT 1
-    FROM pg_constraint
-    WHERE conname = 'substrate_shadow_reconciliations_substrate_state_check'
-      AND pg_get_constraintdef(oid) NOT LIKE '%unavailable%'
-  ) THEN
-    ALTER TABLE "substrate_shadow_reconciliations"
-      DROP CONSTRAINT "substrate_shadow_reconciliations_substrate_state_check";
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_constraint
-    WHERE conname = 'substrate_shadow_reconciliations_substrate_state_check'
-  ) THEN
-    ALTER TABLE "substrate_shadow_reconciliations"
-      ADD CONSTRAINT "substrate_shadow_reconciliations_substrate_state_check"
-      CHECK ("substrate_state" IN ('available','indicative','unavailable','failed'));
-  END IF;
+  ALTER TABLE "substrate_shadow_reconciliations"
+    DROP CONSTRAINT IF EXISTS "substrate_shadow_reconciliations_substrate_state_check";
+  ALTER TABLE "substrate_shadow_reconciliations"
+    ADD CONSTRAINT "substrate_shadow_reconciliations_substrate_state_check"
+    CHECK ("substrate_state" IN ('available','indicative','unavailable','failed'));
 
   ALTER TABLE "substrate_shadow_reconciliations"
     ALTER COLUMN "result_hash" DROP NOT NULL;
@@ -32,6 +18,7 @@ BEGIN
     SELECT 1
     FROM pg_constraint
     WHERE conname = 'substrate_shadow_reconciliations_result_hash_state_check'
+      AND conrelid = 'public.substrate_shadow_reconciliations'::regclass
   ) THEN
     ALTER TABLE "substrate_shadow_reconciliations"
       ADD CONSTRAINT "substrate_shadow_reconciliations_result_hash_state_check"

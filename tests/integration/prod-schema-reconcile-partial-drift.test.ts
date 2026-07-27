@@ -37,6 +37,7 @@ let h9Manifest: Manifest | undefined;
 let allocationManifest: Manifest | undefined;
 let substrateShadowManifest: Manifest | undefined;
 let currentForecastManifest: Manifest | undefined;
+let positionsOwnershipManifest: Manifest | undefined;
 let baseConnectionString = '';
 
 function requirePool(): Pool {
@@ -95,6 +96,9 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
     allocationManifest = findManifest(manifests, 'allocation_scenarios');
     substrateShadowManifest = findManifest(manifests, 'substrate_shadow_reconciliations');
     currentForecastManifest = findManifest(manifests, 'current_forecast_references');
+    positionsOwnershipManifest = manifests.find(
+      (manifest) => manifest.name === 'positions-ownership-compat'
+    );
   }, STARTUP_TIMEOUT_MS * 2);
 
   afterAll(async () => {
@@ -411,9 +415,13 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
           ALTER COLUMN result_hash SET NOT NULL
       `);
 
-      expect((await auditManifest(activePool, substrateManifest)).action).toBe(
-        ACTION_APPLY_MISSING_DDL
-      );
+      const preApplyAudit = await auditManifest(activePool, substrateManifest);
+      expect(preApplyAudit.action).toBe(ACTION_APPLY_MISSING_DDL);
+      expect(
+        preApplyAudit.objects
+          .find((object) => object.table === 'substrate_shadow_reconciliations')
+          ?.deltas.map((delta) => delta.kind)
+      ).toContain('constraint-definition-mismatch');
 
       await applyManifest(activePool, substrateManifest);
       expect((await auditManifest(activePool, substrateManifest)).action).toBe(ACTION_SKIP);
@@ -421,6 +429,77 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
       await applyManifest(activePool, forecastManifest);
       expect((await auditManifest(activePool, substrateManifest)).action).toBe(ACTION_SKIP);
       expect((await auditManifest(activePool, forecastManifest)).action).toBe(ACTION_SKIP);
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'stale same-name lot-type check repairs on its target table despite a name collision',
+    async () => {
+      const activePool = requirePool();
+      const manifest = requireManifest(positionsOwnershipManifest, 'investment_lots');
+      const constraintName = 'investment_lots_lot_type_check';
+
+      await activePool.query('DROP TABLE IF EXISTS constraint_collision_probe');
+      await activePool.query(`
+        CREATE TABLE constraint_collision_probe (
+          lot_type text,
+          CONSTRAINT investment_lots_lot_type_check
+            CHECK (lot_type IN ('legacy'))
+        )
+      `);
+      try {
+        await activePool.query(`
+          ALTER TABLE investment_lots
+            DROP CONSTRAINT IF EXISTS investment_lots_lot_type_check
+        `);
+        await activePool.query(`
+          ALTER TABLE investment_lots
+            ADD CONSTRAINT investment_lots_lot_type_check
+            CHECK (lot_type IN ('initial', 'follow_on', 'secondary'))
+        `);
+
+        const preApplyAudit = await auditManifest(activePool, manifest);
+        expect(preApplyAudit.action).toBe(ACTION_APPLY_MISSING_DDL);
+        expect(
+          preApplyAudit.objects
+            .find((object) => object.table === 'investment_lots')
+            ?.deltas
+        ).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              kind: 'constraint-definition-mismatch',
+              name: constraintName,
+            }),
+          ])
+        );
+
+        await applyManifest(activePool, manifest);
+        expect((await auditManifest(activePool, manifest)).action).toBe(ACTION_SKIP);
+
+        const targetDefinition = await activePool.query<{ definition: string }>(
+          `
+            SELECT pg_get_constraintdef(oid) AS definition
+            FROM pg_constraint
+            WHERE conname = $1
+              AND conrelid = 'public.investment_lots'::regclass
+          `,
+          [constraintName]
+        );
+        const collisionDefinition = await activePool.query<{ definition: string }>(
+          `
+            SELECT pg_get_constraintdef(oid) AS definition
+            FROM pg_constraint
+            WHERE conname = $1
+              AND conrelid = 'public.constraint_collision_probe'::regclass
+          `,
+          [constraintName]
+        );
+        expect(targetDefinition.rows[0]?.definition).toContain('conversion');
+        expect(collisionDefinition.rows[0]?.definition).toContain('legacy');
+      } finally {
+        await activePool.query('DROP TABLE IF EXISTS constraint_collision_probe');
+      }
     },
     TEST_TIMEOUT_MS
   );

@@ -192,7 +192,9 @@ function extractDropConstraintNames(statement) {
   const tableName = statement.match(/\bALTER\s+TABLE\s+"?([a-z_][a-z0-9_]*)"?/i)?.[1];
   if (!tableName) return drops;
 
-  for (const match of statement.matchAll(/\bDROP\s+CONSTRAINT\s+"?([a-z_][a-z0-9_]*)"?/gi)) {
+  for (const match of statement.matchAll(
+    /\bDROP\s+CONSTRAINT\s+(?:IF\s+EXISTS\s+)?"?([a-z_][a-z0-9_]*)"?/gi
+  )) {
     const name = match[1];
     if (!drops.some((drop) => drop.table === tableName && drop.name === name)) {
       drops.push({

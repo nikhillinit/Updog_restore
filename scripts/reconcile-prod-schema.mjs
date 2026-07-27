@@ -251,6 +251,29 @@ function validateApplyPolicy(manifest) {
   for (const target of applyPolicy.allowConstraintReplacements ?? []) {
     assertSafeIdentifier(String(target.table ?? ''));
     assertSafeIdentifier(String(target.name ?? ''));
+    const expectedDefinition = target.expectedDefinition;
+    if (
+      !expectedDefinition ||
+      !Array.isArray(expectedDefinition.requiredFragments) ||
+      expectedDefinition.requiredFragments.length === 0 ||
+      expectedDefinition.requiredFragments.some(
+        (fragment) => typeof fragment !== 'string' || fragment.trim().length === 0
+      ) ||
+      !Array.isArray(expectedDefinition.stringLiterals) ||
+      expectedDefinition.stringLiterals.length === 0 ||
+      expectedDefinition.stringLiterals.some(
+        (literal) => typeof literal !== 'string' || literal.length === 0
+      )
+    ) {
+      throw new ReconcileError(
+        `Manifest ${manifestLabel(manifest)} allowConstraintReplacements target ${target.table}.${target.name} requires expectedDefinition fragments and string literals`,
+        {
+          kind: 'invalid-apply-policy',
+          manifest: manifestLabel(manifest),
+          target: `${target.table}.${target.name}`,
+        }
+      );
+    }
     const key = `${target.table}.${target.name}`;
     if (seenConstraintReplacement.has(key)) {
       throw new ReconcileError(`Manifest ${manifestLabel(manifest)} has duplicate applyPolicy target ${key}`, {
@@ -429,14 +452,20 @@ export async function auditManifest(client, manifest) {
     const indexes = await loadIndexes(client, expectedTables);
 
     for (const expectedTable of expectedTables) {
+      const tableConstraints = constraints.filter(
+        (constraint) => constraint.table_name === expectedTable.name
+      );
       objects.push(
         await auditTable({
           client,
           expectedTable,
           tablePresent: presentTables.has(expectedTable.name),
           columns: columns.get(expectedTable.name) ?? new Map(),
-          constraints,
+          constraints: tableConstraints,
           indexes,
+          constraintReplacements: (
+            manifest.applyPolicy?.allowConstraintReplacements ?? []
+          ).filter((replacement) => replacement.table === expectedTable.name),
           missingTablePolicy,
         })
       );
@@ -726,6 +755,7 @@ async function auditTable({
   columns,
   constraints,
   indexes,
+  constraintReplacements,
   missingTablePolicy,
 }) {
   const deltas = [];
@@ -804,6 +834,24 @@ async function auditTable({
     deltas.push({ kind: 'missing-index', name, additiveSafe: true });
   }
 
+  for (const replacement of constraintReplacements) {
+    const constraint = constraints.find(
+      (row) => row.conname === pgIdentifier(replacement.name)
+    );
+    if (
+      constraint &&
+      !constraintDefinitionMatches(constraint.definition, replacement.expectedDefinition)
+    ) {
+      deltas.push({
+        kind: 'constraint-definition-mismatch',
+        name: replacement.name,
+        expected: replacement.expectedDefinition,
+        actual: constraint.definition,
+        additiveSafe: true,
+      });
+    }
+  }
+
   const populated =
     deltas.some((delta) => delta.additiveSafe === false) &&
     (await hasRows(client, expectedTable.name));
@@ -862,7 +910,10 @@ async function loadConstraints(client, tableNames, expectedTables) {
 
   const result = await client.query(
     `
-      SELECT c.conname
+      SELECT
+        rel.relname AS table_name,
+        c.conname,
+        pg_get_constraintdef(c.oid) AS definition
       FROM pg_constraint c
       JOIN pg_class rel ON rel.oid = c.conrelid
       JOIN pg_namespace n ON n.oid = c.connamespace
@@ -873,6 +924,31 @@ async function loadConstraints(client, tableNames, expectedTables) {
     [tableNames, lookupNames]
   );
   return result.rows;
+}
+
+function constraintDefinitionMatches(actualDefinition, expectedDefinition) {
+  if (typeof actualDefinition !== 'string') return false;
+  const normalizedDefinition = actualDefinition.toLowerCase();
+  if (
+    expectedDefinition.requiredFragments.some(
+      (fragment) => !normalizedDefinition.includes(fragment.toLowerCase())
+    )
+  ) {
+    return false;
+  }
+
+  const actualLiterals = extractSqlStringLiterals(actualDefinition).sort();
+  const expectedLiterals = [...expectedDefinition.stringLiterals].sort();
+  return (
+    actualLiterals.length === expectedLiterals.length &&
+    actualLiterals.every((literal, index) => literal === expectedLiterals[index])
+  );
+}
+
+function extractSqlStringLiterals(definition) {
+  return [...definition.matchAll(/'((?:''|[^'])*)'/g)].map((match) =>
+    match[1].replace(/''/g, "'")
+  );
 }
 
 async function loadIndexes(client, expectedTables) {
