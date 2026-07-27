@@ -181,6 +181,7 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
           'vehicle-financing-participations',
           'positions-ownership-compat',
           'position-source-basis-reliefs',
+          'internal-analysis',
         ]);
 
         const postAudits = await Promise.all(

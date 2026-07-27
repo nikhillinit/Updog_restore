@@ -128,6 +128,16 @@ const POSITIONS_OWNERSHIP_COMPAT_MANIFEST_TABLES = [
 const POSITION_SOURCE_BASIS_RELIEF_MANIFEST_TABLES = [
   'position_event_source_basis_reliefs',
 ] as const;
+// M18 (18-internal-analysis): Task 18 periodic drafts and immutable reference
+// snapshots, plus the Task 19 narrative and notes tables which land dormant.
+const INTERNAL_ANALYSIS_MANIFEST_TABLES = [
+  'internal_analysis_drafts',
+  'internal_analysis_references',
+  'internal_analysis_revision_events',
+  'internal_narrative_drafts',
+  'internal_narrative_claims',
+  'internal_analysis_notes',
+] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
   'flags_state',
@@ -759,6 +769,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...VEHICLE_FINANCING_PARTICIPATION_MANIFEST_TABLES,
         ...POSITIONS_OWNERSHIP_COMPAT_MANIFEST_TABLES,
         ...POSITION_SOURCE_BASIS_RELIEF_MANIFEST_TABLES,
+        ...INTERNAL_ANALYSIS_MANIFEST_TABLES,
       ])
     );
 
