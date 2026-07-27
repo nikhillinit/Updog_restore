@@ -20,6 +20,7 @@ interface Model {
   participations: Array<Record<string, unknown>>;
   nextObservationId: number;
   nextMarkId: number;
+  statements: Array<{ text: string; params: unknown[] }>;
 }
 
 function makeDb(model: Model) {
@@ -27,6 +28,10 @@ function makeDb(model: Model) {
     execute: async (query: unknown): Promise<{ rows: Array<Record<string, unknown>> }> => {
       const rendered = dialect.sqlToQuery(query as never);
       const flat = rendered.sql.replace(/\s+/g, ' ').trim();
+      model.statements.push({ text: flat, params: rendered.params });
+      if (flat.includes('pg_advisory_xact_lock')) {
+        return { rows: [] };
+      }
       if (flat.includes('FROM portfolio_company_identity_links')) {
         const [fundId, companyId, companyIdentityId] = rendered.params as [number, number, number];
         return {
@@ -432,6 +437,7 @@ function baseModel(): Model {
     ],
     nextObservationId: 700,
     nextMarkId: 600,
+    statements: [],
   };
 }
 
@@ -898,6 +904,29 @@ describe('direct position valuation command', () => {
     expect(replayed).toEqual({ ...created, replayed: true });
     expect(fake.directMarks).toHaveLength(1);
     expect(fake.observations).toHaveLength(3);
+  });
+
+  it('locks the fund identity before the direct-mark idempotency read', async () => {
+    const fake = baseModel();
+
+    await recordDirectPositionValuation({
+      fundId: 7,
+      actorId: 3,
+      idempotencyKey: 'valuation-locked',
+      request,
+      database: makeDb(fake),
+    });
+
+    const lockIndex = fake.statements.findIndex((statement) =>
+      statement.text.includes('pg_advisory_xact_lock(hashtext(')
+    );
+    const idempotencyReadIndex = fake.statements.findIndex(
+      (statement) =>
+        statement.text.includes('FROM valuation_marks') && statement.text.includes('source_hash =')
+    );
+    expect(lockIndex).toBeGreaterThanOrEqual(0);
+    expect(fake.statements[lockIndex]?.params).toEqual(['fund-identity:7']);
+    expect(idempotencyReadIndex).toBeGreaterThan(lockIndex);
   });
 
   it('rejects a direct mark when vehicle does not belong to the fund', async () => {

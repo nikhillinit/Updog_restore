@@ -11,8 +11,11 @@
  *   POST /api/funds/:fundId/investment-ledger/position-corrections
  *   GET  /api/funds/:fundId/investment-ledger/financing-events/:eventId
  *
- * Middleware chain (existing primitives only):
+ * Write middleware chain (existing primitives only):
  *   ledgerIngressLimiter -> requireAuth() -> validateFundIdParam -> requireFundAccess -> ledgerWriteLimiter
+ *
+ * Read middleware keeps the ingress cap, auth, fund validation, and fund access
+ * guard, but does not consume the write quota.
  *
  * Every write requires an `Idempotency-Key`; the header is parsed before the body so
  * a malformed command is rejected without touching the contract. Persistence stays
@@ -252,7 +255,6 @@ const readChain = [
   requireAuth(),
   validateFundIdParam,
   requireFundAccess,
-  ledgerWriteLimiter,
 ] as const;
 
 // Create (or resolve) the canonical financing event for a company identity.
@@ -561,11 +563,7 @@ router.post(
 // Read an event with its current tranche heads and full version history.
 router.get(
   '/api/funds/:fundId/investment-ledger/financing-events/:eventId',
-  ledgerIngressLimiter,
-  requireAuth(),
-  validateFundIdParam,
-  requireFundAccess,
-  ledgerWriteLimiter,
+  ...readChain,
   async (req: Request, res: Response) => {
     try {
       const fundId = parsePositiveParam(req, 'fundId', 'INVALID_FUND_ID');

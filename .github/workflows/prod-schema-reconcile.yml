@@ -126,9 +126,10 @@ jobs:
       - name: Require additive-safe apply decision
         if: inputs.mode == 'apply'
         run: |
-          node <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { assertApplyPolicyForManifests } from './scripts/prod-schema-apply-policy.mjs';
 
           const manifestDir = 'scripts/prod-schema-manifests';
           const manifests = fs
@@ -167,19 +168,13 @@ jobs:
               .filter(({ action }) => action === 'APPLY-MISSING-DDL')
               .map(({ manifest }) => manifest)
           );
-          const destructiveSqlPattern = /\b(?:DROP|TRUNCATE)\b|\bDELETE\s+FROM\b/i;
-          const destructiveSqlFiles = manifests
-            .filter(({ name }) => applyingManifests.has(name))
-            .flatMap((manifest) => manifest.sqlFiles ?? [])
-            .filter((file) => {
-              const sql = fs
-                .readFileSync(file, 'utf8')
-                .replace(/--.*$/gm, '')
-                .replace(/\/\*[\s\S]*?\*\//g, '');
-              return destructiveSqlPattern.test(sql);
+          try {
+            assertApplyPolicyForManifests({
+              manifests,
+              applyingManifestNames: applyingManifests,
             });
-          if (destructiveSqlFiles.length > 0) {
-            fail('Pre-apply audit selected manifest SQL containing destructive statements.');
+          } catch (error) {
+            fail(error instanceof Error ? error.message : String(error));
           }
 
           const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

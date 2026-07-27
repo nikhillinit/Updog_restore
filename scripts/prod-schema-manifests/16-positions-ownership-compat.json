@@ -4,6 +4,18 @@
   "description": "Task 11 position-event ledger, lot reliefs, ownership snapshots, and additive compat sentinels.",
   "missingTablePolicy": "create_or_repair",
   "sqlFiles": ["migrations/0042_positions_ownership_compat.sql"],
+  "applyPolicy": {
+    "allowConstraintReplacements": [
+      {
+        "table": "investment_lots",
+        "name": "investment_lots_lot_type_check",
+        "expectedDefinition": {
+          "requiredFragments": ["lot_type"],
+          "stringLiterals": ["initial", "follow_on", "secondary", "conversion"]
+        }
+      }
+    ]
+  },
   "allowedCreateTables": [
     "position_events",
     "position_event_lot_reliefs",
