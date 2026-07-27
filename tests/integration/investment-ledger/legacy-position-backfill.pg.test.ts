@@ -2,7 +2,9 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { rowVersionETag } from '../../../server/lib/http-preconditions';
 import { backfillLegacyPositionEvents } from '../../../server/services/investment-ledger/legacy-position-backfill-service';
+import { correctPosition } from '../../../server/services/investment-ledger/position-service';
 import { getPostgresConnectionString } from '../../helpers/testcontainers';
 import { runMigrationsWithConnectionString } from '../../helpers/testcontainers-migration';
 
@@ -402,6 +404,318 @@ describe.skipIf(skipIfNoDocker)('legacy position backfill PostgreSQL proof', () 
       expect(await rowCount(pool, 'position_events', second.fundId)).toBe(1);
     });
   });
+
+  it('corrects direct backfill projections atomically and replays from terminal lineage', async () => {
+    const { connectionString } = await createMigratedDatabase('correction_projection');
+
+    await withPool(connectionString, async (pool) => {
+      const db = drizzle(pool);
+      const seed = await seedLegacyInvestment(pool, {
+        withMainVehicle: true,
+        sharesAcquired: '10.00000000',
+      });
+      const dryRun = await backfillLegacyPositionEvents({
+        actorId: null,
+        database: db,
+        request: { mode: 'dry_run', fundIds: [seed.fundId] },
+      });
+      const hash = dryRun.candidates[0]?.sourcePlanHash ?? '';
+
+      await backfillLegacyPositionEvents({
+        actorId: null,
+        database: db,
+        request: {
+          mode: 'apply',
+          fundIds: [seed.fundId],
+          expectedSourceHashes: { [seed.investmentId]: hash },
+        },
+      });
+      const target = await backfilledPositionEvent(pool, seed.fundId, seed.investmentId);
+      const beforeCounts = await compatibilityCounts(pool, seed.fundId);
+
+      const correction = await correctPosition({
+        actorId: null,
+        database: db,
+        fundId: seed.fundId,
+        idempotencyKey: `pg-correct-backfill-${seed.investmentId}`,
+        ifMatch: rowVersionETag(target.xmin),
+        request: {
+          positionEventId: target.id,
+          currency: 'USD',
+          sharesDelta: '12.00000000',
+          costBasisDelta: '120.000000',
+          proceeds: '0.000000',
+        },
+      });
+
+      expect(correction.replayed).toBe(false);
+      expect(correction.value.reversal).toMatchObject({
+        eventType: 'reversal',
+        sharesDelta: '-10.000000',
+        costBasisDelta: '-1000.000000',
+        reversesPositionEventId: target.id,
+      });
+      expect(correction.value.replacement).toMatchObject({
+        eventType: 'acquisition',
+        sharesDelta: '12.000000',
+        costBasisDelta: '120.000000',
+        replacesEventId: target.id,
+        backfilledFromInvestmentId: null,
+      });
+      expect(await investmentProjection(pool, seed.investmentId)).toMatchObject({
+        amount: '120.00',
+        share_price_cents: '1000',
+        shares_acquired: '12.00000000',
+        cost_basis_cents: '12000',
+        version: 2,
+      });
+      expect(await compatibilityCounts(pool, seed.fundId)).toEqual({
+        ...beforeCounts,
+        positionEvents: beforeCounts.positionEvents + 2,
+        sourceObservations: beforeCounts.sourceObservations + 1,
+        reconciliationCases: beforeCounts.reconciliationCases + 1,
+      });
+      expect(await rowCount(pool, 'financing_events', seed.fundId)).toBe(0);
+      expect(await rowCount(pool, 'financing_tranches', seed.fundId)).toBe(0);
+      expect(await rowCount(pool, 'vehicle_financing_participations', seed.fundId)).toBe(0);
+      expect(await rowCount(pool, 'investment_rounds', seed.fundId)).toBe(0);
+      expect(await rowCount(pool, 'investment_lots', seed.fundId)).toBe(0);
+      expect(await rowCount(pool, 'cash_flow_events', seed.fundId)).toBe(0);
+
+      const exactReplay = await correctPosition({
+        actorId: null,
+        database: db,
+        fundId: seed.fundId,
+        idempotencyKey: `pg-correct-backfill-${seed.investmentId}`,
+        ifMatch: rowVersionETag(target.xmin),
+        request: {
+          positionEventId: target.id,
+          currency: 'USD',
+          sharesDelta: '12.00000000',
+          costBasisDelta: '120.000000',
+          proceeds: '0.000000',
+        },
+      });
+      expect(exactReplay.replayed).toBe(true);
+      expect(await compatibilityCounts(pool, seed.fundId)).toEqual({
+        ...beforeCounts,
+        positionEvents: beforeCounts.positionEvents + 2,
+        sourceObservations: beforeCounts.sourceObservations + 1,
+        reconciliationCases: beforeCounts.reconciliationCases + 1,
+      });
+
+      await expect(
+        correctPosition({
+          actorId: null,
+          database: db,
+          fundId: seed.fundId,
+          idempotencyKey: `pg-correct-backfill-${seed.investmentId}`,
+          ifMatch: rowVersionETag(target.xmin),
+          request: {
+            positionEventId: target.id,
+            currency: 'USD',
+            sharesDelta: '13.00000000',
+            costBasisDelta: '130.000000',
+            proceeds: '0.000000',
+          },
+        })
+      ).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSE' });
+      expect(await compatibilityCounts(pool, seed.fundId)).toEqual({
+        ...beforeCounts,
+        positionEvents: beforeCounts.positionEvents + 2,
+        sourceObservations: beforeCounts.sourceObservations + 1,
+        reconciliationCases: beforeCounts.reconciliationCases + 1,
+      });
+
+      const replayBackfill = await backfillLegacyPositionEvents({
+        actorId: null,
+        database: db,
+        request: { mode: 'dry_run', fundIds: [seed.fundId] },
+      });
+      expect(replayBackfill).toMatchObject({ written: 0, skipped: 1, blocked: 0 });
+      expect(replayBackfill.candidates[0]?.blockers).toEqual([]);
+      expect(replayBackfill.candidates[0]?.warnings).toContain('EXISTING_BACKFILL_REPLAYED');
+    });
+  });
+
+  it('lets only one concurrent direct backfill correction update compatibility', async () => {
+    const { connectionString } = await createMigratedDatabase('correction_concurrent');
+
+    await withPool(connectionString, async (pool) => {
+      const seed = await seedCorrectableBackfill(pool);
+      const target = await backfilledPositionEvent(pool, seed.fundId, seed.investmentId);
+      const beforeCounts = await compatibilityCounts(pool, seed.fundId);
+      const request = {
+        positionEventId: target.id,
+        currency: 'USD',
+        sharesDelta: '12.00000000',
+        costBasisDelta: '120.000000',
+        proceeds: '0.000000',
+      };
+
+      const attempts = await Promise.allSettled([
+        correctPosition({
+          actorId: null,
+          database: drizzle(pool),
+          fundId: seed.fundId,
+          idempotencyKey: `pg-concurrent-a-${seed.investmentId}`,
+          ifMatch: rowVersionETag(target.xmin),
+          request,
+        }),
+        correctPosition({
+          actorId: null,
+          database: drizzle(pool),
+          fundId: seed.fundId,
+          idempotencyKey: `pg-concurrent-b-${seed.investmentId}`,
+          ifMatch: rowVersionETag(target.xmin),
+          request,
+        }),
+      ]);
+
+      expect(attempts.filter((attempt) => attempt.status === 'fulfilled')).toHaveLength(1);
+      const rejected = attempts.filter(
+        (attempt): attempt is PromiseRejectedResult => attempt.status === 'rejected'
+      );
+      expect(rejected).toHaveLength(1);
+      expect(rejected[0]?.reason).toMatchObject({
+        status: 409,
+        code: 'POSITION_EVENT_ALREADY_CORRECTED',
+      });
+      expect(await compatibilityCounts(pool, seed.fundId)).toEqual({
+        ...beforeCounts,
+        positionEvents: beforeCounts.positionEvents + 2,
+        sourceObservations: beforeCounts.sourceObservations + 1,
+        reconciliationCases: beforeCounts.reconciliationCases + 1,
+      });
+      expect(await investmentProjection(pool, seed.investmentId)).toMatchObject({
+        amount: '120.00',
+        shares_acquired: '12.00000000',
+        cost_basis_cents: '12000',
+        version: 2,
+      });
+    });
+  });
+
+  it('rolls back canonical correction writes when compatibility projection is ambiguous', async () => {
+    const { connectionString } = await createMigratedDatabase('correction_rollback');
+
+    await withPool(connectionString, async (pool) => {
+      const db = drizzle(pool);
+      const seed = await seedCorrectableBackfill(pool);
+      const target = await backfilledPositionEvent(pool, seed.fundId, seed.investmentId);
+      await seedLegacyRound(pool, seed.fundId, seed.investmentId, 1);
+      await seedLegacyRound(pool, seed.fundId, seed.investmentId, 2);
+      const beforeCounts = await compatibilityCounts(pool, seed.fundId);
+      const beforeInvestment = await investmentProjection(pool, seed.investmentId);
+
+      await expect(
+        correctPosition({
+          actorId: null,
+          database: db,
+          fundId: seed.fundId,
+          idempotencyKey: `pg-correct-ambiguous-${seed.investmentId}`,
+          ifMatch: rowVersionETag(target.xmin),
+          request: {
+            positionEventId: target.id,
+            currency: 'USD',
+            sharesDelta: '12.00000000',
+            costBasisDelta: '120.000000',
+            proceeds: '0.000000',
+          },
+        })
+      ).rejects.toMatchObject({
+        status: 409,
+        code: 'POSITION_EVENT_NOT_CORRECTABLE',
+      });
+
+      expect(await compatibilityCounts(pool, seed.fundId)).toEqual(beforeCounts);
+      expect(await investmentProjection(pool, seed.investmentId)).toEqual(beforeInvestment);
+    });
+  });
+
+  it('rolls back canonical and compatibility writes after a round-successor insert failure', async () => {
+    const { connectionString } = await createMigratedDatabase('correction_postwrite_rollback');
+
+    await withPool(connectionString, async (pool) => {
+      const db = drizzle(pool);
+      const seed = await seedCorrectableBackfill(pool);
+      const target = await backfilledPositionEvent(pool, seed.fundId, seed.investmentId);
+      await seedLegacyRound(pool, seed.fundId, seed.investmentId, 1);
+      await pool.query(`
+        CREATE FUNCTION task11d_reject_correction_round() RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        BEGIN
+          IF NEW.imported_from = 'position_correction' THEN
+            RAISE EXCEPTION 'task11d synthetic compatibility failure';
+          END IF;
+          RETURN NEW;
+        END
+        $$
+      `);
+      await pool.query(`
+        CREATE TRIGGER task11d_reject_correction_round
+        BEFORE INSERT ON investment_rounds
+        FOR EACH ROW EXECUTE FUNCTION task11d_reject_correction_round()
+      `);
+      const beforeCounts = await compatibilityCounts(pool, seed.fundId);
+      const beforeInvestment = await investmentProjection(pool, seed.investmentId);
+
+      await expect(
+        correctPosition({
+          actorId: null,
+          database: db,
+          fundId: seed.fundId,
+          idempotencyKey: `pg-correct-postwrite-failure-${seed.investmentId}`,
+          ifMatch: rowVersionETag(target.xmin),
+          request: {
+            positionEventId: target.id,
+            currency: 'USD',
+            sharesDelta: '12.00000000',
+            costBasisDelta: '120.000000',
+            proceeds: '0.000000',
+          },
+        })
+      ).rejects.toThrow('task11d synthetic compatibility failure');
+
+      expect(await compatibilityCounts(pool, seed.fundId)).toEqual(beforeCounts);
+      expect(await investmentProjection(pool, seed.investmentId)).toEqual(beforeInvestment);
+    });
+  });
+
+  it('supersedes one direct round and replaces one unreferenced lot without synthetic rows', async () => {
+    const { connectionString } = await createMigratedDatabase('correction_round_lot');
+
+    await withPool(connectionString, async (pool) => {
+      const db = drizzle(pool);
+      const seed = await seedCorrectableBackfill(pool);
+      const target = await backfilledPositionEvent(pool, seed.fundId, seed.investmentId);
+      const roundId = await seedLegacyRound(pool, seed.fundId, seed.investmentId, 1);
+      const lotId = await seedLegacyLot(pool, seed.investmentId);
+
+      await correctPosition({
+        actorId: null,
+        database: db,
+        fundId: seed.fundId,
+        idempotencyKey: `pg-correct-round-lot-${seed.investmentId}`,
+        ifMatch: rowVersionETag(target.xmin),
+        request: {
+          positionEventId: target.id,
+          currency: 'USD',
+          sharesDelta: '12.00000000',
+          costBasisDelta: '120.000000',
+          proceeds: '0.000000',
+        },
+      });
+
+      expect(await rowCount(pool, 'investment_rounds', seed.fundId)).toBe(2);
+      expect(await scalar(pool, `SELECT supersedes_round_id::int FROM investment_rounds WHERE fund_id = $1 AND supersedes_round_id IS NOT NULL`, [seed.fundId])).toBe(roundId);
+      expect(await rowCount(pool, 'investment_lots', seed.fundId)).toBe(1);
+      expect(await scalar(pool, `SELECT COUNT(*)::int FROM investment_lots WHERE id = $1`, [lotId])).toBe(0);
+      expect(await scalar(pool, `SELECT imported_from FROM investment_lots WHERE investment_id = $1`, [seed.investmentId])).toBe('position_correction');
+      expect(await scalar(pool, `SELECT COUNT(*)::int FROM position_event_lot_reliefs WHERE fund_id = $1`, [seed.fundId])).toBe(0);
+      expect(await rowCount(pool, 'cash_flow_events', seed.fundId)).toBe(0);
+    });
+  });
 });
 
 async function createMigratedDatabase(suffix: string): Promise<{ connectionString: string }> {
@@ -599,6 +913,155 @@ async function cloneLegacyInvestment(
       RETURNING id
     `,
     [fundId, companyId]
+  );
+}
+
+async function seedCorrectableBackfill(
+  pool: Pool
+): Promise<{ fundId: number; investmentId: number; hash: string }> {
+  const db = drizzle(pool);
+  const seed = await seedLegacyInvestment(pool, {
+    withMainVehicle: true,
+    sharesAcquired: '10.00000000',
+  });
+  const dryRun = await backfillLegacyPositionEvents({
+    actorId: null,
+    database: db,
+    request: { mode: 'dry_run', fundIds: [seed.fundId] },
+  });
+  const hash = dryRun.candidates[0]?.sourcePlanHash ?? '';
+  await backfillLegacyPositionEvents({
+    actorId: null,
+    database: db,
+    request: {
+      mode: 'apply',
+      fundIds: [seed.fundId],
+      expectedSourceHashes: { [seed.investmentId]: hash },
+    },
+  });
+  return { fundId: seed.fundId, investmentId: seed.investmentId, hash };
+}
+
+async function backfilledPositionEvent(
+  pool: Pool,
+  fundId: number,
+  investmentId: number
+): Promise<{ id: number; xmin: string }> {
+  const result = await pool.query(
+    `
+      SELECT id::int, xmin::text AS xmin
+      FROM position_events
+      WHERE fund_id = $1
+        AND backfilled_from_investment_id = $2
+      LIMIT 1
+    `,
+    [fundId, investmentId]
+  );
+  const row = result.rows[0];
+  if (!row) throw new Error('Backfilled position event was not inserted.');
+  return { id: Number(row.id), xmin: String(row.xmin) };
+}
+
+async function compatibilityCounts(
+  pool: Pool,
+  fundId: number
+): Promise<{
+  positionEvents: number;
+  sourceObservations: number;
+  reconciliationCases: number;
+  investmentRounds: number;
+  investmentLots: number;
+  cashFlowEvents: number;
+  financingEvents: number;
+  financingTranches: number;
+  participations: number;
+}> {
+  return {
+    positionEvents: await rowCount(pool, 'position_events', fundId),
+    sourceObservations: await rowCount(pool, 'source_observations', fundId),
+    reconciliationCases: await rowCount(pool, 'reconciliation_cases', fundId),
+    investmentRounds: await rowCount(pool, 'investment_rounds', fundId),
+    investmentLots: await rowCount(pool, 'investment_lots', fundId),
+    cashFlowEvents: await rowCount(pool, 'cash_flow_events', fundId),
+    financingEvents: await rowCount(pool, 'financing_events', fundId),
+    financingTranches: await rowCount(pool, 'financing_tranches', fundId),
+    participations: await rowCount(pool, 'vehicle_financing_participations', fundId),
+  };
+}
+
+async function investmentProjection(
+  pool: Pool,
+  investmentId: number
+): Promise<{
+  amount: string;
+  share_price_cents: string | null;
+  shares_acquired: string | null;
+  cost_basis_cents: string | null;
+  version: number;
+}> {
+  const result = await pool.query(
+    `
+      SELECT amount::text, share_price_cents::text, shares_acquired::text,
+             cost_basis_cents::text, version::int
+      FROM investments
+      WHERE id = $1
+    `,
+    [investmentId]
+  );
+  const row = result.rows[0];
+  if (!row) throw new Error('Investment projection missing.');
+  return {
+    amount: row.amount,
+    share_price_cents: row.share_price_cents,
+    shares_acquired: row.shares_acquired,
+    cost_basis_cents: row.cost_basis_cents,
+    version: Number(row.version),
+  };
+}
+
+async function seedLegacyRound(
+  pool: Pool,
+  fundId: number,
+  investmentId: number,
+  ordinal: number
+): Promise<number> {
+  return insertedId(
+    pool,
+    `
+      INSERT INTO investment_rounds (
+        investment_id, fund_id, round_name, security_type, round_date, currency,
+        investment_amount, round_size, pre_money_valuation, idempotency_key,
+        request_hash, imported_from
+      ) VALUES (
+        $1, $2, $3, 'equity', '2026-01-15', 'USD', '100.000000',
+        '1000.000000', '900.000000', $4, repeat('e', 64), 'legacy'
+      )
+      RETURNING id
+    `,
+    [
+      investmentId,
+      fundId,
+      `Seed ${ordinal}`,
+      `task-11d-round-${investmentId}-${ordinal}`,
+    ]
+  );
+}
+
+async function seedLegacyLot(pool: Pool, investmentId: number): Promise<string> {
+  return String(
+    await scalar(
+      pool,
+      `
+        INSERT INTO investment_lots (
+          investment_id, lot_type, share_price_cents, shares_acquired,
+          cost_basis_cents, idempotency_key, imported_from
+        ) VALUES (
+          $1, 'initial', 1000, '10.00000000', 10000, $2, 'legacy'
+        )
+        RETURNING id
+      `,
+      [investmentId, `task-11d-lot-${investmentId}`]
+    )
   );
 }
 

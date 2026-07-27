@@ -94,6 +94,34 @@ async function executeFake(
             existing?.['source_observation_id'] !== null &&
             observation['id'] === existing?.['source_observation_id']
         );
+        let corrected = existing;
+        let correctedEventCount = 0;
+        const seenCorrectionIds = new Set<number>();
+        while (corrected && !seenCorrectionIds.has(Number(corrected['id']))) {
+          seenCorrectionIds.add(Number(corrected['id']));
+          const reversal = model.positionEvents.find(
+            (event) =>
+              event['fund_id'] === investment['fund_id'] &&
+              event['reverses_position_event_id'] === corrected?.['id']
+          );
+          const successors = model.positionEvents.filter(
+            (event) =>
+              event['fund_id'] === investment['fund_id'] &&
+              event['replaces_event_id'] === corrected?.['id'] &&
+              event['event_type'] === corrected?.['event_type'] &&
+              event['request_hash'] === reversal?.['request_hash'] &&
+              event['source_observation_id'] === reversal?.['source_observation_id']
+          );
+          if (successors.length === 0) break;
+          if (successors.length > 1) {
+            correctedEventCount = successors.length;
+            corrected = successors[0];
+            break;
+          }
+          correctedEventCount = 1;
+          corrected = successors[0];
+        }
+        if (correctedEventCount === 0) corrected = undefined;
         const overlapping = model.positionEvents.find(
           (event) =>
             event['backfilled_from_investment_id'] === null &&
@@ -128,6 +156,15 @@ async function executeFake(
           existing_source_observation_locator:
             sourceObservation?.['source_locator'] ??
             investment['existing_source_observation_locator'],
+          corrected_event_count: correctedEventCount,
+          corrected_event_id: corrected?.['id'] ?? null,
+          corrected_vehicle_id: corrected?.['vehicle_id'] ?? null,
+          corrected_company_identity_id: corrected?.['company_identity_id'] ?? null,
+          corrected_effective_date: corrected?.['effective_date'] ?? null,
+          corrected_shares_delta: corrected?.['shares_delta'] ?? null,
+          corrected_cost_basis_delta: corrected?.['cost_basis_delta'] ?? null,
+          corrected_vehicle_participation_id:
+            corrected?.['vehicle_participation_id'] ?? null,
           overlapping_acquisition_id: overlapping?.['id'] ?? investment['overlapping_acquisition_id'],
         };
       }),
@@ -414,6 +451,127 @@ describe('legacy position backfill service', () => {
     expect(resume.skipped).toBe(1);
     expect(model.positionEvents).toHaveLength(1);
     expect(model.sourceObservations).toHaveLength(1);
+  });
+
+  it('replays a corrected backfill through its terminal replacement lineage', async () => {
+    const model = baseModel({
+      investments: [
+        investmentRow({
+          amount: '1000.00',
+          shares_acquired: '10.00000000',
+          cost_basis_cents: 100000n,
+        }),
+      ],
+    });
+    const database = makeDb(model);
+    const dryRun = await backfillLegacyPositionEvents({
+      actorId: 1,
+      database,
+      request: { mode: 'dry_run', fundIds: [7] },
+    });
+    const hash = dryRun.candidates[0]?.sourcePlanHash ?? '';
+    await backfillLegacyPositionEvents({
+      actorId: 1,
+      database,
+      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': hash } },
+    });
+    const anchor = model.positionEvents[0]!;
+    model.investments[0]!['amount'] = '1200.00';
+    model.investments[0]!['shares_acquired'] = '12.00000000';
+    model.investments[0]!['cost_basis_cents'] = 120000n;
+    model.positionEvents.push(
+      {
+        id: 2,
+        fund_id: 7,
+        vehicle_id: 10,
+        company_identity_id: 700,
+        event_type: 'reversal',
+        effective_date: '2025-01-15',
+        shares_delta: '-10.000000',
+        cost_basis_delta: '-1000.000000',
+        proceeds: '0.000000',
+        replaces_event_id: null,
+        reverses_position_event_id: anchor['id'],
+        vehicle_participation_id: null,
+        source_observation_id: 200,
+        backfilled_from_investment_id: null,
+        request_hash: 'd'.repeat(64),
+      },
+      {
+        id: 3,
+        fund_id: 7,
+        vehicle_id: 10,
+        company_identity_id: 700,
+        event_type: 'acquisition',
+        effective_date: '2025-01-15',
+        shares_delta: '12.000000',
+        cost_basis_delta: '1200.000000',
+        proceeds: '0.000000',
+        replaces_event_id: anchor['id'],
+        reverses_position_event_id: null,
+        vehicle_participation_id: null,
+        source_observation_id: 200,
+        backfilled_from_investment_id: null,
+        request_hash: 'd'.repeat(64),
+      }
+    );
+    model.investments[0]!['amount'] = '1400.00';
+    model.investments[0]!['shares_acquired'] = '14.00000000';
+    model.investments[0]!['cost_basis_cents'] = 140000n;
+    model.positionEvents.push(
+      {
+        id: 4,
+        fund_id: 7,
+        vehicle_id: 10,
+        company_identity_id: 700,
+        event_type: 'reversal',
+        effective_date: '2025-01-15',
+        shares_delta: '-12.000000',
+        cost_basis_delta: '-1200.000000',
+        proceeds: '0.000000',
+        replaces_event_id: null,
+        reverses_position_event_id: 3,
+        vehicle_participation_id: null,
+        source_observation_id: 201,
+        backfilled_from_investment_id: null,
+        request_hash: 'e'.repeat(64),
+      },
+      {
+        id: 5,
+        fund_id: 7,
+        vehicle_id: 10,
+        company_identity_id: 700,
+        event_type: 'acquisition',
+        effective_date: '2025-01-15',
+        shares_delta: '14.000000',
+        cost_basis_delta: '1400.000000',
+        proceeds: '0.000000',
+        replaces_event_id: 3,
+        reverses_position_event_id: null,
+        vehicle_participation_id: null,
+        source_observation_id: 201,
+        backfilled_from_investment_id: null,
+        request_hash: 'e'.repeat(64),
+      }
+    );
+
+    const replay = await backfillLegacyPositionEvents({
+      actorId: 1,
+      database,
+      request: { mode: 'dry_run', fundIds: [7] },
+    });
+
+    expect(replay.skipped).toBe(1);
+    expect(replay.blocked).toBe(0);
+    expect(replay.candidates[0]).toMatchObject({
+      investmentId: 800,
+      eventId: anchor['id'],
+      status: 'skipped',
+      sharesDelta: '14.000000',
+      costBasisDelta: '1400.000000',
+      warnings: expect.arrayContaining(['EXISTING_BACKFILL_REPLAYED']),
+    });
+    expect(model.positionEvents).toHaveLength(5);
   });
 
   it('rejects changed source hash before writing affected fund', async () => {

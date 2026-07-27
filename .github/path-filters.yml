@@ -324,6 +324,7 @@ schema_tests:
   - 'shared/schema/investment-positions.ts'
   - 'shared/schema/vehicle-financing-participations.ts'
   - 'server/services/investment-ledger/position-conversion-service.ts'
+  - 'server/services/investment-ledger/position-service.ts'
   - 'server/services/investment-ledger/ledger-correction-service.ts'
   - 'server/services/investment-ledger/current-position-service.ts'
   - 'server/services/investment-ledger/ownership-snapshot-service.ts'

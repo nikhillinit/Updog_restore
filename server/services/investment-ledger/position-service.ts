@@ -106,6 +106,42 @@ interface LockedLot {
   activeRelievedCostBasis: string;
 }
 
+interface LockedBackfillInvestment {
+  id: number;
+  version: number;
+}
+
+interface BackfillAnchor {
+  investmentId: number;
+}
+
+interface LockedBackfillRound {
+  id: number;
+  roundName: string;
+  securityType: string;
+  roundDate: string;
+  currency: string;
+  roundSize: string | null;
+  preMoneyValuation: string | null;
+}
+
+interface LockedBackfillLot {
+  id: string;
+}
+
+interface LockedBackfillCompatibility {
+  investment: LockedBackfillInvestment;
+  round: LockedBackfillRound | null;
+  lot: LockedBackfillLot | null;
+}
+
+interface BackfillCompatibilityProjection {
+  investmentAmount: string;
+  sharesAcquired: string;
+  costBasisCents: bigint;
+  sharePriceCents: bigint | null;
+}
+
 interface PositionLotReference {
   investmentId: number;
   investmentLotId: string;
@@ -332,6 +368,20 @@ export async function correctPosition(
           target.companyIdentityId
         );
         const replacementRequest = correctionReplacementRequest(target, request);
+        const backfillAnchor = await selectBackfillAnchor(
+          transaction,
+          input.fundId,
+          target.id
+        );
+        const backfillCompatibility =
+          backfillAnchor === null
+            ? null
+            : await lockBackfillCompatibility(
+                transaction,
+                input.fundId,
+                target,
+                backfillAnchor.investmentId
+              );
         const targetReliefs = await selectPositionEventLotReferences(
           transaction,
           input.fundId,
@@ -344,6 +394,11 @@ export async function correctPosition(
             ? []
             : await lockLotFamily(transaction, input.fundId, lotReferences, target.id);
         const economics = validateAndCanonicalizeEconomics(replacementRequest, lockedLots);
+        const backfillProjection =
+          backfillCompatibility === null ? null : backfillCompatibilityProjection(economics);
+        if (backfillCompatibility !== null && backfillProjection !== null) {
+          assertBackfillProjectionCompatible(backfillCompatibility, backfillProjection);
+        }
         const observationId = await insertManualObservation(transaction, {
           fundId: input.fundId,
           companyIdentityId: target.companyIdentityId,
@@ -426,6 +481,16 @@ export async function correctPosition(
           `);
         }
 
+        if (backfillCompatibility !== null && backfillProjection !== null) {
+          await rewriteBackfillCompatibility(transaction, {
+            fundId: input.fundId,
+            actorId: input.actorId,
+            replacementId,
+            requestHash,
+            compatibility: backfillCompatibility,
+            projection: backfillProjection,
+          });
+        }
         await insertObservationMatchCase(transaction, input.fundId, observationId);
         return requirePositionEvent(
           await selectPositionEventById(transaction, input.fundId, replacementId)
@@ -567,11 +632,11 @@ function assertCorrectablePositionEvent(
       'Participation-backed positions must be corrected through the ledger-corrections command.'
     );
   }
-  if (target.backfilledFromInvestmentId !== null) {
+  if (target.backfilledFromInvestmentId !== null && target.eventType !== 'acquisition') {
     throw new PositionLedgerServiceError(
       409,
       'POSITION_EVENT_NOT_CORRECTABLE',
-      'Backfill-backed positions require their compatibility writer to own the correction.'
+      'Only direct legacy acquisition backfills support compatibility compensation.'
     );
   }
 }
@@ -656,6 +721,383 @@ async function loadIdentityName(
     );
   }
   return asString(row['canonical_name']);
+}
+
+async function selectBackfillAnchor(
+  database: LedgerDatabase,
+  fundId: number,
+  targetPositionEventId: number
+): Promise<BackfillAnchor | null> {
+  const rows = readRows(
+    await database.execute(sql`
+      WITH RECURSIVE lineage AS (
+        SELECT id, fund_id, vehicle_id, company_identity_id, event_type,
+               replaces_event_id, backfilled_from_investment_id,
+               ARRAY[id]::integer[] AS path
+        FROM position_events
+        WHERE id = ${targetPositionEventId}
+          AND fund_id = ${fundId}
+        UNION ALL
+        SELECT prior.id, prior.fund_id, prior.vehicle_id, prior.company_identity_id,
+               prior.event_type, prior.replaces_event_id,
+               prior.backfilled_from_investment_id, child.path || prior.id
+        FROM position_events prior
+        JOIN lineage child
+          ON child.replaces_event_id = prior.id
+         AND child.fund_id = prior.fund_id
+         AND child.vehicle_id = prior.vehicle_id
+         AND child.company_identity_id = prior.company_identity_id
+         AND child.event_type = prior.event_type
+         AND NOT prior.id = ANY(child.path)
+      )
+      SELECT id, backfilled_from_investment_id
+      FROM lineage
+      WHERE backfilled_from_investment_id IS NOT NULL
+      ORDER BY id
+      LIMIT 2
+    `)
+  );
+  if (rows.length > 1) {
+    throw new PositionLedgerServiceError(
+      409,
+      'POSITION_EVENT_NOT_CORRECTABLE',
+      'The position correction has ambiguous legacy backfill ancestry.'
+    );
+  }
+  const row = rows[0];
+  return row
+    ? {
+        investmentId: asPositiveInt(row['backfilled_from_investment_id']),
+      }
+    : null;
+}
+
+async function lockBackfillCompatibility(
+  database: LedgerDatabase,
+  fundId: number,
+  target: PositionEventRow & { eventType: RecordPositionEventRequest['eventType'] },
+  investmentId: number
+): Promise<LockedBackfillCompatibility> {
+  const investmentRow = readRows(
+    await database.execute(sql`
+      SELECT id, company_id, version, vehicle_participation_id
+      FROM investments
+      WHERE id = ${investmentId}
+        AND fund_id = ${fundId}
+      FOR UPDATE
+    `)
+  )[0];
+  if (!investmentRow) {
+    throw new PositionLedgerServiceError(
+      409,
+      'POSITION_EVENT_NOT_CORRECTABLE',
+      'The backfill source investment is no longer available in this fund.'
+    );
+  }
+
+  const vehicleRow = readRows(
+    await database.execute(sql`
+      SELECT vehicle_type
+      FROM vehicles
+      WHERE id = ${target.vehicleId}
+        AND fund_id = ${fundId}
+      LIMIT 1
+    `)
+  )[0];
+  if (!vehicleRow || asString(vehicleRow['vehicle_type']) !== 'main_fund') {
+    throw new PositionLedgerServiceError(
+      409,
+      'POSITION_EVENT_NOT_CORRECTABLE',
+      'Direct legacy backfill corrections require their original main-fund vehicle.'
+    );
+  }
+
+  const companyId = asPositiveInt(investmentRow['company_id']);
+  const identityLinks = readRows(
+    await database.execute(sql`
+      SELECT company_identity_id
+      FROM portfolio_company_identity_links
+      WHERE fund_id = ${fundId}
+        AND portfolio_company_id = ${companyId}
+        AND active = true
+      ORDER BY company_identity_id
+      FOR SHARE
+    `)
+  );
+  if (
+    identityLinks.length !== 1 ||
+    asPositiveInt(identityLinks[0]?.['company_identity_id']) !== target.companyIdentityId
+  ) {
+    throw new PositionLedgerServiceError(
+      409,
+      'POSITION_EVENT_NOT_CORRECTABLE',
+      'The backfill source investment no longer has one matching active company identity.'
+    );
+  }
+
+  const vehicleParticipationId = asNullablePositiveInt(
+    investmentRow['vehicle_participation_id']
+  );
+  if (vehicleParticipationId !== null) {
+    throw new PositionLedgerServiceError(
+      409,
+      'POSITION_EVENT_NOT_CORRECTABLE',
+      'Participation-backed investments must be corrected through ledger-corrections.'
+    );
+  }
+
+  const investment = {
+    id: asPositiveInt(investmentRow['id']),
+    version: asPositiveInt(investmentRow['version']),
+  };
+  const round = await lockBackfillRound(database, fundId, investment.id);
+  const lot = await lockBackfillLot(database, fundId, investment.id);
+  return { investment, round, lot };
+}
+
+async function lockBackfillRound(
+  database: LedgerDatabase,
+  fundId: number,
+  investmentId: number
+): Promise<LockedBackfillRound | null> {
+  const rows = readRows(
+    await database.execute(sql`
+      SELECT r.id, r.round_name, r.security_type, r.round_date::text, r.currency,
+             r.round_size::text, r.pre_money_valuation::text,
+             r.vehicle_participation_id, r.financing_tranche_id
+      FROM investment_rounds r
+      WHERE r.investment_id = ${investmentId}
+        AND r.fund_id = ${fundId}
+        AND NOT EXISTS (
+          SELECT 1
+          FROM investment_rounds successor
+          WHERE successor.supersedes_round_id = r.id
+        )
+      ORDER BY r.id
+      LIMIT 2
+      FOR UPDATE OF r
+    `)
+  );
+  if (rows.length > 1) {
+    throw new PositionLedgerServiceError(
+      409,
+      'POSITION_EVENT_NOT_CORRECTABLE',
+      'The backfill compatibility investment has multiple active round heads.'
+    );
+  }
+  const row = rows[0];
+  if (!row) return null;
+  const vehicleParticipationId = asNullablePositiveInt(row['vehicle_participation_id']);
+  const financingTrancheId = asNullablePositiveInt(row['financing_tranche_id']);
+  if (vehicleParticipationId !== null || financingTrancheId !== null) {
+    throw new PositionLedgerServiceError(
+      409,
+      'POSITION_EVENT_NOT_CORRECTABLE',
+      'Participation or financing-tranche rounds require ledger-corrections.'
+    );
+  }
+  return {
+    id: asPositiveInt(row['id']),
+    roundName: asString(row['round_name']),
+    securityType: asString(row['security_type']),
+    roundDate: asDateString(row['round_date']),
+    currency: asString(row['currency']),
+    roundSize: asNullableString(row['round_size']),
+    preMoneyValuation: asNullableString(row['pre_money_valuation']),
+  };
+}
+
+async function lockBackfillLot(
+  database: LedgerDatabase,
+  fundId: number,
+  investmentId: number
+): Promise<LockedBackfillLot | null> {
+  const rows = readRows(
+    await database.execute(sql`
+      SELECT id, lot_type, vehicle_participation_id
+      FROM investment_lots
+      WHERE investment_id = ${investmentId}
+      ORDER BY id
+      FOR UPDATE
+    `)
+  );
+  if (rows.length > 1) {
+    throw new PositionLedgerServiceError(
+      409,
+      'POSITION_EVENT_NOT_CORRECTABLE',
+      'The backfill compatibility investment has multiple lots and cannot be compensated safely.'
+    );
+  }
+  const row = rows[0];
+  if (!row) return null;
+  const lot = {
+    id: asString(row['id']),
+    lotType: asString(row['lot_type']),
+    vehicleParticipationId: asNullablePositiveInt(row['vehicle_participation_id']),
+  };
+  if (lot.lotType !== 'initial' || lot.vehicleParticipationId !== null) {
+    throw new PositionLedgerServiceError(
+      409,
+      'POSITION_EVENT_NOT_CORRECTABLE',
+      'Only one direct initial compatibility lot can be compensated.'
+    );
+  }
+  const reference = readRows(
+    await database.execute(sql`
+      SELECT position_event_id
+      FROM position_event_lot_reliefs
+      WHERE fund_id = ${fundId}
+        AND investment_id = ${investmentId}
+        AND investment_lot_id = ${lot.id}
+      LIMIT 1
+    `)
+  )[0];
+  if (reference) {
+    throw new PositionLedgerServiceError(
+      409,
+      'POSITION_EVENT_NOT_CORRECTABLE',
+      'A compatibility lot already referenced by position lineage cannot be rewritten.'
+    );
+  }
+  return { id: lot.id };
+}
+
+function backfillCompatibilityProjection(
+  economics: CanonicalPositionEconomics
+): BackfillCompatibilityProjection {
+  const costBasis = new Decimal(economics.costBasisDelta);
+  const investmentAmount = costBasis.toFixed(2);
+  const costBasisCents = costBasis.mul(100);
+  const shares = new Decimal(economics.sharesDelta);
+  const sharesAcquired = shares.toFixed(8);
+  if (
+    !costBasis.eq(investmentAmount) ||
+    !costBasisCents.isInteger() ||
+    !shares.eq(sharesAcquired) ||
+    !shares.gt(0)
+  ) {
+    throw new PositionLedgerServiceError(
+      422,
+      'NORMALIZATION_REJECTED',
+      'Corrected backfill economics are not exactly representable by the legacy investment.'
+    );
+  }
+
+  const exactSharePriceCents = costBasisCents.div(shares);
+  return {
+    investmentAmount,
+    sharesAcquired,
+    costBasisCents: BigInt(costBasisCents.toFixed(0)),
+    sharePriceCents: costBasisCents.gt(0) && exactSharePriceCents.isInteger()
+      ? BigInt(exactSharePriceCents.toFixed(0))
+      : null,
+  };
+}
+
+function assertBackfillProjectionCompatible(
+  compatibility: LockedBackfillCompatibility,
+  projection: BackfillCompatibilityProjection
+): void {
+  if (
+    compatibility.round !== null &&
+    new Decimal(projection.investmentAmount).lte(0)
+  ) {
+    throw new PositionLedgerServiceError(
+      422,
+      'NORMALIZATION_REJECTED',
+      'A legacy investment round requires positive corrected investment amount.'
+    );
+  }
+}
+
+async function rewriteBackfillCompatibility(
+  database: LedgerDatabase,
+  context: {
+    fundId: number;
+    actorId: number | null;
+    replacementId: number;
+    requestHash: string;
+    compatibility: LockedBackfillCompatibility;
+    projection: BackfillCompatibilityProjection;
+  }
+): Promise<void> {
+  const { investment, round, lot } = context.compatibility;
+  const rows = readRows(
+    await database.execute(sql`
+      UPDATE investments
+      SET amount = ${context.projection.investmentAmount},
+          share_price_cents = ${context.projection.sharePriceCents},
+          shares_acquired = ${context.projection.sharesAcquired},
+          cost_basis_cents = ${context.projection.costBasisCents},
+          version = version + 1
+      WHERE id = ${investment.id}
+        AND fund_id = ${context.fundId}
+        AND version = ${investment.version}
+      RETURNING id
+    `)
+  );
+  if (rows.length !== 1) {
+    throw new PositionLedgerServiceError(
+      409,
+      'POSITION_EVENT_NOT_CORRECTABLE',
+      'The backfill compatibility investment changed concurrently; retry the correction.'
+    );
+  }
+
+  if (round !== null) {
+    await database.execute(sql`
+      INSERT INTO investment_rounds (
+        investment_id, fund_id, round_name, security_type, round_date, currency,
+        investment_amount, round_size, pre_money_valuation, idempotency_key,
+        request_hash, imported_from, vehicle_participation_id,
+        financing_tranche_id, supersedes_round_id, created_by
+      ) VALUES (
+        ${investment.id}, ${context.fundId}, ${round.roundName}, ${round.securityType},
+        ${round.roundDate}, ${round.currency},
+        ${new Decimal(context.projection.investmentAmount).toFixed(6)},
+        ${round.roundSize}, ${round.preMoneyValuation},
+        ${`pos:corr:${context.replacementId}:compat:round`},
+        ${canonicalSha256({
+          source: 'position_correction',
+          role: 'investment_round',
+          replacementPositionEventId: context.replacementId,
+          requestHash: context.requestHash,
+        })},
+        'position_correction', NULL, NULL, ${round.id}, ${context.actorId}
+      )
+    `);
+  }
+
+  if (lot !== null) {
+    const deleted = readRows(
+      await database.execute(sql`
+        DELETE FROM investment_lots
+        WHERE id = ${lot.id}
+          AND investment_id = ${investment.id}
+        RETURNING id
+      `)
+    );
+    if (deleted.length !== 1) {
+      throw new PositionLedgerServiceError(
+        409,
+        'POSITION_EVENT_NOT_CORRECTABLE',
+        'The backfill compatibility lot changed concurrently; retry the correction.'
+      );
+    }
+    if (context.projection.sharePriceCents !== null) {
+      await database.execute(sql`
+        INSERT INTO investment_lots (
+          investment_id, lot_type, share_price_cents, shares_acquired,
+          cost_basis_cents, idempotency_key, imported_from, vehicle_participation_id
+        ) VALUES (
+          ${investment.id}, 'initial', ${context.projection.sharePriceCents},
+          ${context.projection.sharesAcquired}, ${context.projection.costBasisCents},
+          ${`pos:corr:${context.replacementId}:compat:lot`},
+          'position_correction', NULL
+        )
+      `);
+    }
+  }
 }
 
 async function lockLotFamily(

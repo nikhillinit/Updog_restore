@@ -8992,9 +8992,20 @@ by this decision.
   default reads resolve terminal supersession heads while explicit snapshot IDs
   stay pinned.
 - Legacy backfill is dry-run/apply/resume, deterministic by source investment,
-  and never accepts an operator-selected main vehicle. Backfilled position
-  events remain rejected by correction until the separate 11D-B compensation
-  policy is selected.
+  and never accepts an operator-selected main vehicle. Corrections of direct
+  backfilled acquisitions use atomic compatibility compensation: append the
+  canonical reversal and replacement, update the source `investment`
+  optimistically, append a successor for one unambiguous active legacy round,
+  and replace or remove one unreferenced direct initial lot when present. An
+  absent round or lot remains absent; no compatibility row is fabricated.
+  Reversal and replacement rows retain ordinary position lineage while only the
+  immutable acquisition anchor retains `backfilled_from_investment_id`.
+- Direct legacy `cash_flow_events` have no investment foreign key, and 11D-A
+  creates none. Backfill correction therefore writes no cash-flow compensation:
+  company/date/amount matching is too ambiguous to mutate financial history.
+  Participation-backed cash-flow compensation remains owned by the existing
+  `ledger-corrections` command. Backfill replay follows paired
+  reversal/replacement lineage to the terminal corrected acquisition.
 - Position hooks and an evidence panel may exist unmounted. A visible positions
   tab requires Gate 11F-A approval. Repointing WorkspaceNav "Portfolio Actuals"
   requires separate Gate 11F-B approval.
@@ -9009,6 +9020,12 @@ by this decision.
   position event already contains immutable scoped basis and provenance.
 - **Mutate acquisition truth in place:** rejected because position history is
   append-only and bitemporal.
+- **Position-truth-only backfill correction:** rejected for 11D-B because
+  existing compatibility/reporting readers still consume legacy investments.
+  Leaving those rows stale would make two supported views disagree.
+- **Heuristic direct cash-flow compensation:** rejected because
+  `cash_flow_events` has no durable investment edge; a company/date/amount match
+  could reverse an unrelated record.
 - **Use company-level legacy NAV when position evidence is absent:** rejected
   because it blends incompatible scope and hides missing evidence.
 
@@ -9018,9 +9035,13 @@ by this decision.
   idempotency receipt, conservation equation, and rollback boundary.
 - `0043` is additive and replay-safe; it weakens no existing check or foreign
   key. Production application and real-PostgreSQL proof remain separate gates.
-- 11D-B remains unresolved: choose either an atomic compatibility-compensation
-  writer or a proven position-truth-only correction policy before enabling
-  corrections of backfilled rows.
+- 11D-B uses the selected atomic compatibility-compensation writer. Canonical
+  and deterministic compatibility changes share the correction transaction,
+  lock order, idempotency outcome, and rollback boundary. Ambiguous active
+  rounds, multiple lots, referenced lots, lineage drift, or optimistic-lock
+  failure reject the command with zero committed writes. No migration is
+  required. Every writer that mutates direct legacy rounds or lots must first
+  lock the owning `investment`; that row is the compatibility projection mutex.
 - 11F-A and 11F-B remain unresolved product gates. No visible mount or navigation
   change follows from this ADR.
 - Partial conversion, conversion-chain correction, production data repair,
@@ -9035,7 +9056,7 @@ by this decision.
 | 11B conversion basis | Option B amendment approved; schema/unit/prod-schema tests cover `0043` and no synthetic lot | Testcontainers SQL path authored and registered; execution pending Docker lane | Locally complete, external proof pending |
 | P3 conversion | Unit, route-contract, and PostgreSQL test code cover source-lot and no-source-lot conversion, idempotency, rollback, and cohort isolation | Testcontainers execution pending Docker lane | Locally complete, external proof pending |
 | 11C current positions and valuation | Unit and PostgreSQL test code cover exact vehicle/company folding, ownership snapshots, direct marks, stale warnings, and mixed contingent valuation | Testcontainers execution pending Docker lane | Locally complete, external proof pending |
-| 11D-A backfill | Unit and CLI tests cover dry-run/apply/resume, deterministic hashes, provenance replay, candidate drift, multi-main block, and P2 correction rejection | Testcontainers execution pending Docker lane; 11D-B policy unresolved | 11D-A locally complete; 11D-B gated |
+| 11D backfill and correction | Unit and CLI tests cover dry-run/apply/resume, deterministic hashes, terminal corrected-lineage replay, atomic investment/round/lot compensation, idempotency, ambiguity rejection, and rollback | Testcontainers correction, replay, concurrency, and rollback code authored; execution pending Docker lane | 11D-A locally complete; 11D-B selected and locally implemented, external proof pending |
 | 11E facts | Contract, snapshot, and Current Forecast V2 unit tests cover `(policyVersion, payloadSchemaId)`, payload 2 provenance refs, terminal heads, blocked evaluations, and 1.0.x compatibility | Testcontainers execution pending Docker lane | Locally complete, external proof pending |
 | 11F UI | Hidden hook/component tests cover loading, error, empty, direct/derived/unavailable basis, stale marks, and contingent exclusion; no visible nav mount | Manual/product gate pending for 11F-A and 11F-B | Prepared, gated |
 | 11G ADR | This ADR records Option B, migration ownership, conversion conservation, valuation ladder, facts payload, legacy isolation, and unresolved gates | Issue closure not authorized | Complete as local record |

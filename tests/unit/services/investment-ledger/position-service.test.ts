@@ -40,12 +40,51 @@ interface LotRow {
   id: string;
   investment_id: number;
   fund_id: number;
+  lot_type?: string;
+  share_price_cents?: bigint;
   shares_acquired: string;
   cost_basis_cents: bigint;
+  idempotency_key?: string | null;
+  imported_from?: string | null;
+  vehicle_participation_id?: number | null;
+}
+
+interface RoundRow {
+  id: number;
+  investment_id: number;
+  fund_id: number;
+  round_name: string;
+  security_type: string;
+  round_date: string;
+  currency: string;
+  investment_amount: string;
+  round_size: string | null;
+  pre_money_valuation: string | null;
+  idempotency_key: string;
+  request_hash: string;
+  imported_from: string | null;
+  vehicle_participation_id: number | null;
+  financing_tranche_id: number | null;
+  supersedes_round_id: number | null;
+  created_by: number | null;
+}
+
+interface InvestmentRow {
+  id: number;
+  fund_id: number;
+  company_id: number;
+  amount: string;
+  share_price_cents: bigint | null;
+  shares_acquired: string | null;
+  cost_basis_cents: bigint | null;
+  version: number;
+  vehicle_participation_id: number | null;
 }
 
 interface Model {
   identities: IdentityRow[];
+  investments: InvestmentRow[];
+  rounds: RoundRow[];
   lots: LotRow[];
   positionEvents: Array<Record<string, unknown>>;
   reliefs: Array<Record<string, unknown>>;
@@ -53,24 +92,30 @@ interface Model {
   reconciliationCases: Array<Record<string, unknown>>;
   statements: Statement[];
   nextPositionEventId: number;
+  nextRoundId: number;
   nextObservationId: number;
   nextReconciliationCaseId: number;
   owned: boolean;
+  failInvestmentUpdate: boolean;
   failReliefInsert: boolean;
   failReconciliationCaseInsert: boolean;
 }
 
 interface ModelSnapshot {
   identities: IdentityRow[];
+  investments: InvestmentRow[];
+  rounds: RoundRow[];
   lots: LotRow[];
   positionEvents: Array<Record<string, unknown>>;
   reliefs: Array<Record<string, unknown>>;
   observations: Array<Record<string, unknown>>;
   reconciliationCases: Array<Record<string, unknown>>;
   nextPositionEventId: number;
+  nextRoundId: number;
   nextObservationId: number;
   nextReconciliationCaseId: number;
   owned: boolean;
+  failInvestmentUpdate: boolean;
   failReliefInsert: boolean;
   failReconciliationCaseInsert: boolean;
 }
@@ -85,6 +130,8 @@ function emptyModel(): Model {
         canonical_name: 'Acme Robotics',
       },
     ],
+    investments: [],
+    rounds: [],
     lots: [],
     positionEvents: [],
     reliefs: [],
@@ -92,9 +139,11 @@ function emptyModel(): Model {
     reconciliationCases: [],
     statements: [],
     nextPositionEventId: 1300,
+    nextRoundId: 1500,
     nextObservationId: 1200,
     nextReconciliationCaseId: 1400,
     owned: true,
+    failInvestmentUpdate: false,
     failReliefInsert: false,
     failReconciliationCaseInsert: false,
   };
@@ -107,15 +156,19 @@ function cloneRecords<T extends Record<string, unknown>>(rows: T[]): T[] {
 function snapshotModel(model: Model): ModelSnapshot {
   return {
     identities: model.identities.map((row) => ({ ...row })),
+    investments: model.investments.map((row) => ({ ...row })),
+    rounds: model.rounds.map((row) => ({ ...row })),
     lots: model.lots.map((row) => ({ ...row })),
     positionEvents: cloneRecords(model.positionEvents),
     reliefs: cloneRecords(model.reliefs),
     observations: cloneRecords(model.observations),
     reconciliationCases: cloneRecords(model.reconciliationCases),
     nextPositionEventId: model.nextPositionEventId,
+    nextRoundId: model.nextRoundId,
     nextObservationId: model.nextObservationId,
     nextReconciliationCaseId: model.nextReconciliationCaseId,
     owned: model.owned,
+    failInvestmentUpdate: model.failInvestmentUpdate,
     failReliefInsert: model.failReliefInsert,
     failReconciliationCaseInsert: model.failReconciliationCaseInsert,
   };
@@ -123,15 +176,19 @@ function snapshotModel(model: Model): ModelSnapshot {
 
 function restoreModel(model: Model, snapshot: ModelSnapshot): void {
   model.identities = snapshot.identities.map((row) => ({ ...row }));
+  model.investments = snapshot.investments.map((row) => ({ ...row }));
+  model.rounds = snapshot.rounds.map((row) => ({ ...row }));
   model.lots = snapshot.lots.map((row) => ({ ...row }));
   model.positionEvents = cloneRecords(snapshot.positionEvents);
   model.reliefs = cloneRecords(snapshot.reliefs);
   model.observations = cloneRecords(snapshot.observations);
   model.reconciliationCases = cloneRecords(snapshot.reconciliationCases);
   model.nextPositionEventId = snapshot.nextPositionEventId;
+  model.nextRoundId = snapshot.nextRoundId;
   model.nextObservationId = snapshot.nextObservationId;
   model.nextReconciliationCaseId = snapshot.nextReconciliationCaseId;
   model.owned = snapshot.owned;
+  model.failInvestmentUpdate = snapshot.failInvestmentUpdate;
   model.failReliefInsert = snapshot.failReliefInsert;
   model.failReconciliationCaseInsert = snapshot.failReconciliationCaseInsert;
 }
@@ -211,6 +268,31 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
       })),
     };
   }
+  if (flat.startsWith('WITH RECURSIVE lineage AS')) {
+    const [targetEventId, fundId] = params as [number, number];
+    const rows: Array<Record<string, unknown>> = [];
+    const seen = new Set<number>();
+    let current = model.positionEvents.find(
+      (event) => event['id'] === targetEventId && event['fund_id'] === fundId
+    );
+    while (current && !seen.has(Number(current['id']))) {
+      seen.add(Number(current['id']));
+      if (current['backfilled_from_investment_id'] !== null) {
+        rows.push({
+          id: current['id'],
+          backfilled_from_investment_id: current['backfilled_from_investment_id'],
+        });
+      }
+      const priorId = current['replaces_event_id'];
+      current =
+        priorId === null || priorId === undefined
+          ? undefined
+          : model.positionEvents.find(
+              (event) => event['id'] === priorId && event['fund_id'] === fundId
+            );
+    }
+    return { rows: rows.slice(0, 2) };
+  }
   if (flat.startsWith('SELECT canonical_name FROM company_identities')) {
     const [identityId, fundId] = params as [number, number];
     const row = model.identities.find(
@@ -220,6 +302,66 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
         candidate.merged_into_identity_id === null
     );
     return { rows: row ? [{ canonical_name: row.canonical_name }] : [] };
+  }
+  if (flat.startsWith('SELECT id, company_id, version, vehicle_participation_id FROM investments')) {
+    const [investmentId, fundId] = params as [number, number];
+    const row = model.investments.find(
+      (candidate) => candidate.id === investmentId && candidate.fund_id === fundId
+    );
+    return { rows: row ? [row] : [] };
+  }
+  if (flat.startsWith('SELECT vehicle_type FROM vehicles')) {
+    const [vehicleId, fundId] = params as [number, number];
+    return {
+      rows:
+        vehicleId === VEHICLE_ID && fundId === FUND_ID
+          ? [{ vehicle_type: 'main_fund' }]
+          : [],
+    };
+  }
+  if (flat.startsWith('SELECT company_identity_id FROM portfolio_company_identity_links')) {
+    const [fundId, companyId] = params as [number, number];
+    const investment = model.investments.find(
+      (candidate) => candidate.fund_id === fundId && candidate.company_id === companyId
+    );
+    return {
+      rows: investment ? [{ company_identity_id: IDENTITY_ID }] : [],
+    };
+  }
+  if (flat.startsWith('SELECT r.id, r.round_name, r.security_type')) {
+    const [investmentId, fundId] = params as [number, number];
+    const activeRounds = model.rounds
+      .filter(
+        (round) =>
+          round.investment_id === investmentId &&
+          round.fund_id === fundId &&
+          !model.rounds.some((successor) => successor.supersedes_round_id === round.id)
+      )
+      .sort((left, right) => left.id - right.id)
+      .slice(0, 2);
+    return { rows: activeRounds };
+  }
+  if (flat.startsWith('SELECT id, lot_type, vehicle_participation_id FROM investment_lots')) {
+    const [investmentId] = params as [number];
+    return {
+      rows: model.lots
+        .filter((lot) => lot.investment_id === investmentId)
+        .map((lot) => ({
+          id: lot.id,
+          lot_type: lot.lot_type ?? 'initial',
+          vehicle_participation_id: lot.vehicle_participation_id ?? null,
+        })),
+    };
+  }
+  if (flat.startsWith('SELECT position_event_id FROM position_event_lot_reliefs')) {
+    const [fundId, investmentId, lotId] = params as [number, number, string];
+    const row = model.reliefs.find(
+      (relief) =>
+        relief['fund_id'] === fundId &&
+        relief['investment_id'] === investmentId &&
+        relief['investment_lot_id'] === lotId
+    );
+    return { rows: row ? [{ position_event_id: row['position_event_id'] }] : [] };
   }
   if (flat.startsWith('SELECT l.id, l.investment_id')) {
     const lotIds = params.filter(
@@ -357,6 +499,7 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
       ...parsed,
       id: model.nextPositionEventId++,
       recorded_at: CREATED_AT,
+      xmin: String(model.nextPositionEventId),
     };
     model.positionEvents.push(row);
     return { rows: [{ id: row.id }] };
@@ -369,6 +512,71 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
     model.reliefs.push(row);
     return { rows: [] };
   }
+  if (flat.startsWith('INSERT INTO investment_rounds')) {
+    const parsed = parseInsert(flat, params);
+    model.rounds.push({
+      id: model.nextRoundId++,
+      investment_id: Number(parsed['investment_id']),
+      fund_id: Number(parsed['fund_id']),
+      round_name: String(parsed['round_name']),
+      security_type: String(parsed['security_type']),
+      round_date: String(parsed['round_date']),
+      currency: String(parsed['currency']),
+      investment_amount: String(parsed['investment_amount']),
+      round_size:
+        parsed['round_size'] === null ? null : String(parsed['round_size']),
+      pre_money_valuation:
+        parsed['pre_money_valuation'] === null
+          ? null
+          : String(parsed['pre_money_valuation']),
+      idempotency_key: String(parsed['idempotency_key']),
+      request_hash: String(parsed['request_hash']),
+      imported_from:
+        parsed['imported_from'] === null ? null : String(parsed['imported_from']),
+      vehicle_participation_id:
+        parsed['vehicle_participation_id'] === null
+          ? null
+          : Number(parsed['vehicle_participation_id']),
+      financing_tranche_id:
+        parsed['financing_tranche_id'] === null
+          ? null
+          : Number(parsed['financing_tranche_id']),
+      supersedes_round_id:
+        parsed['supersedes_round_id'] === null
+          ? null
+          : Number(parsed['supersedes_round_id']),
+      created_by: parsed['created_by'] === null ? null : Number(parsed['created_by']),
+    });
+    return { rows: [] };
+  }
+  if (flat.startsWith('DELETE FROM investment_lots')) {
+    const [lotId, investmentId] = params as [string, number];
+    const index = model.lots.findIndex(
+      (lot) => lot.id === lotId && lot.investment_id === investmentId
+    );
+    if (index < 0) return { rows: [] };
+    const [deleted] = model.lots.splice(index, 1);
+    return { rows: deleted ? [{ id: deleted.id }] : [] };
+  }
+  if (flat.startsWith('INSERT INTO investment_lots')) {
+    const parsed = parseInsert(flat, params);
+    model.lots.push({
+      id: '22222222-2222-4222-8222-222222222222',
+      investment_id: Number(parsed['investment_id']),
+      fund_id: FUND_ID,
+      lot_type: String(parsed['lot_type']),
+      share_price_cents: BigInt(String(parsed['share_price_cents'])),
+      shares_acquired: String(parsed['shares_acquired']),
+      cost_basis_cents: BigInt(String(parsed['cost_basis_cents'])),
+      idempotency_key: String(parsed['idempotency_key']),
+      imported_from: String(parsed['imported_from']),
+      vehicle_participation_id:
+        parsed['vehicle_participation_id'] === null
+          ? null
+          : Number(parsed['vehicle_participation_id']),
+    });
+    return { rows: [] };
+  }
   if (flat.startsWith('INSERT INTO reconciliation_cases')) {
     if (model.failReconciliationCaseInsert) {
       throw new Error('Injected reconciliation-case failure.');
@@ -378,6 +586,33 @@ function runStatement(model: Model, text: string, params: unknown[]): { rows: un
       id: model.nextReconciliationCaseId++,
     };
     model.reconciliationCases.push(row);
+    return { rows: [{ id: row.id }] };
+  }
+  if (flat.startsWith('UPDATE investments SET amount =')) {
+    if (model.failInvestmentUpdate) {
+      throw new Error('Injected backfill compatibility investment failure.');
+    }
+    const [
+      amount,
+      sharePriceCents,
+      sharesAcquired,
+      costBasisCents,
+      investmentId,
+      fundId,
+      version,
+    ] = params as [string, bigint | null, string, bigint, number, number, number];
+    const row = model.investments.find(
+      (candidate) =>
+        candidate.id === investmentId &&
+        candidate.fund_id === fundId &&
+        candidate.version === version
+    );
+    if (!row) return { rows: [] };
+    row.amount = amount;
+    row.share_price_cents = sharePriceCents;
+    row.shares_acquired = sharesAcquired;
+    row.cost_basis_cents = costBasisCents;
+    row.version += 1;
     return { rows: [{ id: row.id }] };
   }
   if (flat.startsWith('SELECT id FROM reconciliation_cases')) {
@@ -503,6 +738,39 @@ function seedPositionEvent(overrides: Record<string, unknown> = {}): Record<stri
   };
   model.positionEvents.push(row);
   return row;
+}
+
+function seedBackfillAcquisition(): void {
+  seedPositionEvent({
+    event_type: 'acquisition',
+    effective_date: '2026-02-01',
+    shares_delta: '10.000000',
+    cost_basis_delta: '100.000000',
+    proceeds: '0.000000',
+    backfilled_from_investment_id: 800,
+  });
+  model.investments.push({
+    id: 800,
+    fund_id: FUND_ID,
+    company_id: 501,
+    amount: '100.00',
+    share_price_cents: 1000n,
+    shares_acquired: '10.00000000',
+    cost_basis_cents: 10000n,
+    version: 1,
+    vehicle_participation_id: null,
+  });
+}
+
+function backfillCorrectionRequest(overrides: Record<string, unknown> = {}) {
+  return {
+    positionEventId: 1299,
+    currency: 'USD',
+    sharesDelta: '12.00000000',
+    costBasisDelta: '120.000000',
+    proceeds: '0.000000',
+    ...overrides,
+  };
 }
 
 async function correctEvent(
@@ -913,17 +1181,333 @@ describe('correctPosition', () => {
     expect(statementsMatching(model, 'UPDATE investments')).toHaveLength(0);
   });
 
-  it('rejects backfill-backed compat corrections until the backfill writer owns compensation', async () => {
-    seedPositionEvent({ backfilled_from_investment_id: 800 });
+  it('atomically corrects a direct backfill acquisition and updates its legacy investment', async () => {
+    seedBackfillAcquisition();
 
-    await expect(correctEvent('position-correction-backfill')).rejects.toMatchObject({
+    const result = await correctEvent(
+      'position-correction-backfill',
+      backfillCorrectionRequest()
+    );
+
+    expect(result.replayed).toBe(false);
+    expect(result.value.reversal).toMatchObject({
+      eventType: 'reversal',
+      sharesDelta: '-10.000000',
+      costBasisDelta: '-100.000000',
+      reversesPositionEventId: 1299,
+    });
+    expect(result.value.replacement).toMatchObject({
+      eventType: 'acquisition',
+      sharesDelta: '12.000000',
+      costBasisDelta: '120.000000',
+      replacesEventId: 1299,
+      backfilledFromInvestmentId: null,
+    });
+    expect(model.investments).toContainEqual(
+      expect.objectContaining({
+        id: 800,
+        amount: '120.00',
+        share_price_cents: 1000n,
+        shares_acquired: '12.00000000',
+        cost_basis_cents: 12000n,
+        version: 2,
+      })
+    );
+    expect(statementsMatching(model, 'INSERT INTO cash_flow_events')).toHaveLength(0);
+    expect(statementsMatching(model, 'INSERT INTO investment_lots')).toHaveLength(0);
+  });
+
+  it('supersedes one direct round and replaces one unreferenced direct lot', async () => {
+    seedBackfillAcquisition();
+    model.rounds.push({
+      id: 901,
+      investment_id: 800,
+      fund_id: FUND_ID,
+      round_name: 'Seed',
+      security_type: 'equity',
+      round_date: '2026-02-01',
+      currency: 'USD',
+      investment_amount: '100.000000',
+      round_size: '1000.000000',
+      pre_money_valuation: '5000.000000',
+      idempotency_key: 'legacy-round-901',
+      request_hash: 'c'.repeat(64),
+      imported_from: 'legacy',
+      vehicle_participation_id: null,
+      financing_tranche_id: null,
+      supersedes_round_id: null,
+      created_by: ACTOR_ID,
+    });
+    model.lots.push({
+      id: LOT_ID,
+      investment_id: 800,
+      fund_id: FUND_ID,
+      lot_type: 'initial',
+      share_price_cents: 1000n,
+      shares_acquired: '10.00000000',
+      cost_basis_cents: 10000n,
+      idempotency_key: 'legacy-lot-800',
+      imported_from: 'legacy',
+      vehicle_participation_id: null,
+    });
+
+    const result = await correctEvent(
+      'position-correction-backfill-projection',
+      backfillCorrectionRequest()
+    );
+
+    expect(model.rounds).toHaveLength(2);
+    expect(model.rounds.at(-1)).toMatchObject({
+      investment_id: 800,
+      fund_id: FUND_ID,
+      investment_amount: '120.000000',
+      supersedes_round_id: 901,
+      imported_from: 'position_correction',
+    });
+    expect(model.lots).toHaveLength(1);
+    expect(model.lots[0]).toMatchObject({
+      investment_id: 800,
+      lot_type: 'initial',
+      share_price_cents: 1000n,
+      shares_acquired: '12.00000000',
+      cost_basis_cents: 12000n,
+      imported_from: 'position_correction',
+    });
+    expect(model.lots[0]?.id).not.toBe(LOT_ID);
+    expect(result.value.replacement.backfilledFromInvestmentId).toBeNull();
+  });
+
+  it('fails closed when a direct legacy investment has multiple active round heads', async () => {
+    seedBackfillAcquisition();
+    for (const id of [901, 902]) {
+      model.rounds.push({
+        id,
+        investment_id: 800,
+        fund_id: FUND_ID,
+        round_name: `Seed ${id}`,
+        security_type: 'equity',
+        round_date: '2026-02-01',
+        currency: 'USD',
+        investment_amount: '100.000000',
+        round_size: null,
+        pre_money_valuation: null,
+        idempotency_key: `legacy-round-${id}`,
+        request_hash: 'c'.repeat(64),
+        imported_from: 'legacy',
+        vehicle_participation_id: null,
+        financing_tranche_id: null,
+        supersedes_round_id: null,
+        created_by: ACTOR_ID,
+      });
+    }
+    const snapshot = snapshotModel(model);
+
+    await expect(
+      correctEvent(
+        'position-correction-backfill-round-ambiguous',
+        backfillCorrectionRequest()
+      )
+    ).rejects.toMatchObject({
       status: 409,
       code: 'POSITION_EVENT_NOT_CORRECTABLE',
     });
 
-    expect(model.positionEvents).toHaveLength(1);
-    expect(model.observations).toHaveLength(0);
-    expect(statementsMatching(model, 'UPDATE investments')).toHaveLength(0);
+    expect(snapshotModel(model)).toEqual(snapshot);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
+  });
+
+  it('does not rewrite a legacy lot already referenced by canonical position lineage', async () => {
+    seedBackfillAcquisition();
+    model.lots.push({
+      id: LOT_ID,
+      investment_id: 800,
+      fund_id: FUND_ID,
+      lot_type: 'initial',
+      share_price_cents: 1000n,
+      shares_acquired: '10.00000000',
+      cost_basis_cents: 10000n,
+      vehicle_participation_id: null,
+    });
+    model.reliefs.push({
+      fund_id: FUND_ID,
+      position_event_id: 1200,
+      investment_id: 800,
+      investment_lot_id: LOT_ID,
+      relieved_shares: '1.000000',
+      relieved_cost_basis: '10.000000',
+      allocated_proceeds: '12.000000',
+    });
+    const snapshot = snapshotModel(model);
+
+    await expect(
+      correctEvent(
+        'position-correction-backfill-lot-referenced',
+        backfillCorrectionRequest()
+      )
+    ).rejects.toMatchObject({
+      status: 409,
+      code: 'POSITION_EVENT_NOT_CORRECTABLE',
+    });
+
+    expect(snapshotModel(model)).toEqual(snapshot);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
+  });
+
+  it('removes one stale unreferenced lot when corrected price is not cent-exact', async () => {
+    seedBackfillAcquisition();
+    model.lots.push({
+      id: LOT_ID,
+      investment_id: 800,
+      fund_id: FUND_ID,
+      lot_type: 'initial',
+      share_price_cents: 1000n,
+      shares_acquired: '10.00000000',
+      cost_basis_cents: 10000n,
+      vehicle_participation_id: null,
+    });
+
+    await correctEvent(
+      'position-correction-backfill-lot-unpriced',
+      backfillCorrectionRequest({
+        sharesDelta: '7.00000000',
+        costBasisDelta: '100.000000',
+      })
+    );
+
+    expect(model.investments[0]).toMatchObject({
+      amount: '100.00',
+      share_price_cents: null,
+      shares_acquired: '7.00000000',
+      cost_basis_cents: 10000n,
+      version: 2,
+    });
+    expect(model.lots).toHaveLength(0);
+    expect(statementsMatching(model, 'INSERT INTO investment_lots')).toHaveLength(0);
+  });
+
+  it('replays a backfill correction without duplicating canonical or compatibility writes', async () => {
+    seedBackfillAcquisition();
+
+    const first = await correctEvent(
+      'position-correction-backfill-replay',
+      backfillCorrectionRequest()
+    );
+    const countsAfterFirst = {
+      events: model.positionEvents.length,
+      observations: model.observations.length,
+      cases: model.reconciliationCases.length,
+      investmentVersion: model.investments[0]?.version,
+      investmentUpdates: statementsMatching(model, 'UPDATE investments SET amount =').length,
+    };
+
+    const replay = await correctEvent(
+      'position-correction-backfill-replay',
+      backfillCorrectionRequest()
+    );
+
+    expect(replay).toEqual({ ...first, replayed: true });
+    expect({
+      events: model.positionEvents.length,
+      observations: model.observations.length,
+      cases: model.reconciliationCases.length,
+      investmentVersion: model.investments[0]?.version,
+      investmentUpdates: statementsMatching(model, 'UPDATE investments SET amount =').length,
+    }).toEqual(countsAfterFirst);
+    expect(invalidateH9Artifacts).toHaveBeenCalledOnce();
+  });
+
+  it('keeps compatibility aligned when correcting a prior backfill replacement', async () => {
+    seedBackfillAcquisition();
+    const first = await correctEvent(
+      'position-correction-backfill-first',
+      backfillCorrectionRequest()
+    );
+
+    const second = await correctPosition({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID,
+      idempotencyKey: 'position-correction-backfill-second',
+      ifMatch: rowVersionETag(String(first.value.replacement.id + 1)),
+      request: {
+        ...backfillCorrectionRequest({
+          positionEventId: first.value.replacement.id,
+          sharesDelta: '14.00000000',
+          costBasisDelta: '140.000000',
+        }),
+      },
+      database: makeDatabase(model),
+    });
+
+    expect(second.value.replacement).toMatchObject({
+      replacesEventId: first.value.replacement.id,
+      sharesDelta: '14.000000',
+      costBasisDelta: '140.000000',
+    });
+    expect(model.investments[0]).toMatchObject({
+      amount: '140.00',
+      shares_acquired: '14.00000000',
+      cost_basis_cents: 14000n,
+      version: 3,
+    });
+  });
+
+  it('rejects changed-payload reuse without another backfill compatibility mutation', async () => {
+    seedBackfillAcquisition();
+    await correctEvent(
+      'position-correction-backfill-conflict',
+      backfillCorrectionRequest()
+    );
+    const snapshot = snapshotModel(model);
+
+    await expect(
+      correctEvent(
+        'position-correction-backfill-conflict',
+        backfillCorrectionRequest({
+          sharesDelta: '13.00000000',
+          costBasisDelta: '130.000000',
+        })
+      )
+    ).rejects.toMatchObject({
+      status: 409,
+      code: 'IDEMPOTENCY_KEY_REUSE',
+    });
+
+    expect(snapshotModel(model)).toEqual(snapshot);
+    expect(invalidateH9Artifacts).toHaveBeenCalledOnce();
+  });
+
+  it('rejects sub-cent backfill compatibility economics before persistence', async () => {
+    seedBackfillAcquisition();
+    const snapshot = snapshotModel(model);
+
+    await expect(
+      correctEvent(
+        'position-correction-backfill-precision',
+        backfillCorrectionRequest({ costBasisDelta: '120.000001' })
+      )
+    ).rejects.toMatchObject({
+      status: 422,
+      code: 'NORMALIZATION_REJECTED',
+    });
+
+    expect(snapshotModel(model)).toEqual(snapshot);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
+  });
+
+  it('rolls back canonical rows when the backfill compatibility update fails', async () => {
+    seedBackfillAcquisition();
+    model.failInvestmentUpdate = true;
+    const snapshot = snapshotModel(model);
+
+    await expect(
+      correctEvent(
+        'position-correction-backfill-rollback',
+        backfillCorrectionRequest()
+      )
+    ).rejects.toThrow('Injected backfill compatibility investment failure.');
+
+    expect(snapshotModel(model)).toEqual(snapshot);
+    expect(invalidateH9Artifacts).not.toHaveBeenCalled();
   });
 
   it('reverses stored economics exactly and appends corrected replacement lineage', async () => {

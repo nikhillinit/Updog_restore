@@ -76,6 +76,14 @@ interface LegacyInvestmentRow {
   existingSourceObservationId: number | null;
   existingSourceObservationHash: string | null;
   existingSourceObservationLocator: string | null;
+  correctedEventCount: number;
+  correctedEventId: number | null;
+  correctedVehicleId: number | null;
+  correctedCompanyIdentityId: number | null;
+  correctedEffectiveDate: string | null;
+  correctedSharesDelta: string | null;
+  correctedCostBasisDelta: string | null;
+  correctedVehicleParticipationId: number | null;
   overlappingAcquisitionId: number | null;
 }
 
@@ -301,6 +309,14 @@ async function loadLegacyInvestments(
            pe.source_observation_id AS existing_source_observation_id,
            existing_so.observation_hash AS existing_source_observation_hash,
            existing_so.source_locator AS existing_source_observation_locator,
+           COALESCE(correction.corrected_event_count, 0)::int AS corrected_event_count,
+           corrected.id AS corrected_event_id,
+           corrected.vehicle_id AS corrected_vehicle_id,
+           corrected.company_identity_id AS corrected_company_identity_id,
+           corrected.effective_date::text AS corrected_effective_date,
+           corrected.shares_delta::text AS corrected_shares_delta,
+           corrected.cost_basis_delta::text AS corrected_cost_basis_delta,
+           corrected.vehicle_participation_id AS corrected_vehicle_participation_id,
            overlap.id AS overlapping_acquisition_id
     FROM investments i
     LEFT JOIN portfoliocompanies pc ON pc.id = i.company_id
@@ -321,6 +337,52 @@ async function loadLegacyInvestments(
     LEFT JOIN source_observations existing_so
       ON existing_so.id = pe.source_observation_id
      AND existing_so.fund_id = pe.fund_id
+    LEFT JOIN LATERAL (
+      WITH RECURSIVE correction_chain AS (
+        SELECT anchor.id, anchor.fund_id, anchor.event_type, 0 AS depth,
+               ARRAY[anchor.id]::int[] AS path
+        FROM position_events anchor
+        WHERE anchor.id = pe.id
+          AND anchor.fund_id = pe.fund_id
+        UNION ALL
+        SELECT replacement.id, replacement.fund_id, replacement.event_type,
+               chain.depth + 1, chain.path || replacement.id
+        FROM correction_chain chain
+        JOIN position_events reversal
+          ON reversal.fund_id = chain.fund_id
+         AND reversal.reverses_position_event_id = chain.id
+        JOIN position_events replacement
+          ON replacement.fund_id = chain.fund_id
+         AND replacement.replaces_event_id = chain.id
+         AND replacement.event_type = chain.event_type
+         AND replacement.request_hash = reversal.request_hash
+         AND replacement.source_observation_id = reversal.source_observation_id
+         AND NOT replacement.id = ANY(chain.path)
+      ),
+      terminal_events AS (
+        SELECT chain.*
+        FROM correction_chain chain
+        WHERE NOT EXISTS (
+          SELECT 1
+          FROM position_events reversal
+          JOIN position_events replacement
+            ON replacement.fund_id = chain.fund_id
+           AND replacement.replaces_event_id = chain.id
+           AND replacement.event_type = chain.event_type
+           AND replacement.request_hash = reversal.request_hash
+           AND replacement.source_observation_id = reversal.source_observation_id
+           AND NOT replacement.id = ANY(chain.path)
+          WHERE reversal.fund_id = chain.fund_id
+            AND reversal.reverses_position_event_id = chain.id
+        )
+      )
+      SELECT COUNT(*) FILTER (WHERE depth > 0)::int AS corrected_event_count,
+             MIN(id) FILTER (WHERE depth > 0) AS corrected_event_id
+      FROM terminal_events
+    ) correction ON true
+    LEFT JOIN position_events corrected
+      ON corrected.id = correction.corrected_event_id
+     AND corrected.fund_id = pe.fund_id
     LEFT JOIN LATERAL (
       SELECT existing.id
       FROM position_events existing
@@ -371,6 +433,16 @@ async function loadLegacyInvestments(
     existingSourceObservationId: nullablePositiveInt(row['existing_source_observation_id']),
     existingSourceObservationHash: nullableString(row['existing_source_observation_hash']),
     existingSourceObservationLocator: nullableString(row['existing_source_observation_locator']),
+    correctedEventCount: Number(row['corrected_event_count'] ?? 0),
+    correctedEventId: nullablePositiveInt(row['corrected_event_id']),
+    correctedVehicleId: nullablePositiveInt(row['corrected_vehicle_id']),
+    correctedCompanyIdentityId: nullablePositiveInt(row['corrected_company_identity_id']),
+    correctedEffectiveDate: nullableString(row['corrected_effective_date']),
+    correctedSharesDelta: nullableString(row['corrected_shares_delta']),
+    correctedCostBasisDelta: nullableString(row['corrected_cost_basis_delta']),
+    correctedVehicleParticipationId: nullablePositiveInt(
+      row['corrected_vehicle_participation_id']
+    ),
     overlappingAcquisitionId: nullablePositiveInt(row['overlapping_acquisition_id']),
   }));
 }
@@ -543,6 +615,40 @@ function planCandidate(
 
   if (row.existingEventId !== null) {
     if (
+      row.correctedEventCount === 1 &&
+      correctedEventMatches(row, {
+        vehicleId,
+        companyIdentityId: row.companyIdentityId,
+        effectiveDate,
+        sharesDelta: sharesDelta.value,
+        costBasisDelta: costBasis.value,
+        vehicleParticipationId: row.vehicleParticipationId,
+      })
+    ) {
+      warnings.push('EXISTING_BACKFILL_REPLAYED');
+      return {
+        investmentId: row.investmentId,
+        fundId: row.fundId,
+        vehicleId,
+        companyIdentityId: row.companyIdentityId,
+        vehicleParticipationId: row.vehicleParticipationId,
+        effectiveDate,
+        sharesDelta: sharesDelta.value,
+        costBasisDelta: costBasis.value,
+        sourcePlanHash,
+        requestHash,
+        observationPayload: sourcePlan,
+        vehiclePlan,
+        sourceObservationId: row.participationSourceObservationId,
+        eventId: row.existingEventId,
+        status: 'skipped',
+        blockers: [],
+        warnings: uniqueWarnings(warnings),
+      };
+    }
+    if (row.correctedEventCount > 0) {
+      blockers.push('EXISTING_BACKFILL_MISMATCH');
+    } else if (
       row.existingRequestHash === requestHash &&
       existingEventMatches(row, {
         vehicleId,
@@ -575,8 +681,9 @@ function planCandidate(
         blockers: [],
         warnings: uniqueWarnings(warnings),
       };
+    } else {
+      blockers.push('EXISTING_BACKFILL_MISMATCH');
     }
-    blockers.push('EXISTING_BACKFILL_MISMATCH');
   }
 
   return {
@@ -833,6 +940,28 @@ function existingEventMatches(
     (expected.sourceObservationId !== null ||
       (row.existingSourceObservationHash === expected.sourcePlanHash &&
         row.existingSourceObservationLocator === sourceLocator(row.investmentId)))
+  );
+}
+
+function correctedEventMatches(
+  row: LegacyInvestmentRow,
+  expected: {
+    vehicleId: number | null;
+    companyIdentityId: number | null;
+    effectiveDate: string;
+    sharesDelta: string | null;
+    costBasisDelta: string | null;
+    vehicleParticipationId: number | null;
+  }
+): boolean {
+  return (
+    row.correctedEventId !== null &&
+    row.correctedVehicleId === expected.vehicleId &&
+    row.correctedCompanyIdentityId === expected.companyIdentityId &&
+    row.correctedEffectiveDate === expected.effectiveDate &&
+    row.correctedSharesDelta === expected.sharesDelta &&
+    row.correctedCostBasisDelta === expected.costBasisDelta &&
+    row.correctedVehicleParticipationId === expected.vehicleParticipationId
   );
 }
 
