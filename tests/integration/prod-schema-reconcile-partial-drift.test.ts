@@ -112,7 +112,10 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
     async () => {
       const activePool = requirePool();
       const databaseName = 'prod_like_0035_reconcile';
-      const databaseConnectionString = connectionStringForDatabase(baseConnectionString, databaseName);
+      const databaseConnectionString = connectionStringForDatabase(
+        baseConnectionString,
+        databaseName
+      );
       let isolatedPool: Pool | undefined;
 
       await activePool.query(`DROP DATABASE IF EXISTS ${databaseName} WITH (FORCE)`);
@@ -178,14 +181,13 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
           'vehicle-financing-participations',
           'positions-ownership-compat',
           'position-source-basis-reliefs',
+          'internal-analysis',
         ]);
 
         const postAudits = await Promise.all(
           manifests.map((manifest) => auditManifest(isolatedPool!, manifest))
         );
-        expect(postAudits.map((audit) => audit.action)).toEqual(
-          manifests.map(() => ACTION_SKIP)
-        );
+        expect(postAudits.map((audit) => audit.action)).toEqual(manifests.map(() => ACTION_SKIP));
 
         const replay = await runReconciliation({
           client: isolatedPool,
@@ -198,9 +200,7 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
         const tableResult = await isolatedPool.query<{ regclass: string | null }>(
           "SELECT to_regclass('public.position_event_source_basis_reliefs')::text AS regclass"
         );
-        expect(tableResult.rows).toEqual([
-          { regclass: 'position_event_source_basis_reliefs' },
-        ]);
+        expect(tableResult.rows).toEqual([{ regclass: 'position_event_source_basis_reliefs' }]);
 
         const sourceBasisTable = manifests
           .flatMap((manifest) => manifest.expectedTables ?? [])
@@ -359,7 +359,10 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
         substrateShadowManifest,
         'substrate_shadow_reconciliations'
       );
-      const forecastManifest = requireManifest(currentForecastManifest, 'current_forecast_references');
+      const forecastManifest = requireManifest(
+        currentForecastManifest,
+        'current_forecast_references'
+      );
 
       await activePool.query(`
         WITH inserted_fund AS (
@@ -462,9 +465,7 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
         const preApplyAudit = await auditManifest(activePool, manifest);
         expect(preApplyAudit.action).toBe(ACTION_APPLY_MISSING_DDL);
         expect(
-          preApplyAudit.objects
-            .find((object) => object.table === 'investment_lots')
-            ?.deltas
+          preApplyAudit.objects.find((object) => object.table === 'investment_lots')?.deltas
         ).toEqual(
           expect.arrayContaining([
             expect.objectContaining({

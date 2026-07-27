@@ -49,10 +49,7 @@ import type {
   CashFlowPerspectiveLite,
   ParsedValuationMark,
 } from './lp-reporting/metrics-engine';
-import {
-  DIRECT_MARK_STALE_DAYS,
-  ageDays,
-} from './investment-ledger/position-valuation-service';
+import { DIRECT_MARK_STALE_DAYS, ageDays } from './investment-ledger/position-valuation-service';
 
 const ACCEPTED_STATUSES = new Set(['approved', 'locked']);
 const CASH_FLOW_TYPES = new Set<CashFlowEventType>([
@@ -1412,7 +1409,9 @@ export async function getFinancialFactsSnapshotById(opts: {
 }
 
 async function lockFactsGeneration(database: SnapshotDatabase, fundId: number): Promise<void> {
-  await database.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`financial-facts:${fundId}`}))`);
+  await database.execute(
+    sql`SELECT pg_advisory_xact_lock(hashtext(${`financial-facts:${fundId}`}))`
+  );
 }
 
 function scopeKey(value: { vehicleId: number; companyIdentityId: number }): string {
@@ -1575,9 +1574,7 @@ function mergeV2ConsumerEvaluations(params: {
     }
 
     const valuatedScopes = new Set(
-      params.valuationRefs
-        .filter((ref) => ref.basis !== 'unavailable')
-        .map((ref) => scopeKey(ref))
+      params.valuationRefs.filter((ref) => ref.basis !== 'unavailable').map((ref) => scopeKey(ref))
     );
     const reportedMissingValuationScopes = new Set<string>();
     for (const positionRef of params.positionRefs.filter((ref) => ref.eventType !== 'reversal')) {
@@ -1624,7 +1621,9 @@ function mergeV2ConsumerEvaluations(params: {
       }
     }
 
-    const ledgerPositionCompanyIds = new Set(params.positionCompanyRefs.map((ref) => ref.companyId));
+    const ledgerPositionCompanyIds = new Set(
+      params.positionCompanyRefs.map((ref) => ref.companyId)
+    );
     const legacyCompanyIds = [
       ...new Set(
         params.companyActuals.facts
@@ -1681,7 +1680,8 @@ async function buildPayloadV2(params: {
   });
   const observationIds = new Set<number>(params.sourceObservationIds);
   for (const positionRef of positionRefs) {
-    if (positionRef.sourceObservationId !== null) observationIds.add(positionRef.sourceObservationId);
+    if (positionRef.sourceObservationId !== null)
+      observationIds.add(positionRef.sourceObservationId);
   }
   for (const ownershipRef of ownershipRefs) {
     observationIds.add(ownershipRef.sourceObservationId);

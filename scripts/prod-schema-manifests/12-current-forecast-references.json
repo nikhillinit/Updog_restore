@@ -75,9 +75,7 @@
     {
       "name": "substrate_shadow_reconciliations",
       "sharedTable": true,
-      "columns": [
-        { "name": "result_hash", "type": "text", "nullable": true }
-      ],
+      "columns": [{ "name": "result_hash", "type": "text", "nullable": true }],
       "constraints": [
         "substrate_shadow_reconciliations_substrate_state_check",
         "substrate_shadow_reconciliations_result_hash_state_check"
