@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import type { SQL } from 'drizzle-orm';
+import { PgDialect } from 'drizzle-orm/pg-core';
 
 import type { db } from '../../../../server/db';
 import {
@@ -8,6 +10,11 @@ import {
   type FundCompanyActualsFactsRows,
 } from '../../../../server/services/fund-actuals/fund-company-actuals-facts-service';
 import { FundCompanyActualsFactsResponseSchema } from '../../../../shared/contracts/fund-actuals/fund-company-actuals-fact.contract';
+import { funds } from '../../../../shared/schema/fund';
+import { investmentRoundModelOverrides } from '../../../../shared/schema/investment-round-model-overrides';
+import { investmentRounds } from '../../../../shared/schema/investment-rounds';
+import { valuationMarks } from '../../../../shared/schema/lp-reporting-evidence';
+import { investments, portfolioCompanies } from '../../../../shared/schema/portfolio';
 import {
   INTERNAL_FUND_CORPUS,
   loadCorpusExpected,
@@ -94,6 +101,106 @@ class FundNotFoundDb {
         }),
       }),
     };
+  }
+}
+
+function queryRows<T>(rows: readonly T[]) {
+  const values = [...rows];
+  const query = {
+    where: (_condition: unknown) => query,
+    orderBy: (..._order: unknown[]) => query,
+    limit: (count: number) => Promise.resolve(values.slice(0, count)),
+    then: <TResult1 = T[], TResult2 = never>(
+      onfulfilled?: ((value: T[]) => TResult1 | PromiseLike<TResult1>) | null,
+      onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
+    ) => Promise.resolve(values).then(onfulfilled, onrejected),
+  };
+  return query;
+}
+
+class CutoffFactsDb {
+  readonly fundRows = [{ id: FUND_ID, baseCurrency: 'USD' }];
+  readonly companyRows = [{ id: 101, fundId: FUND_ID, name: 'Acme Robotics' }];
+  readonly investmentRows = [{ id: 201, fundId: FUND_ID, companyId: 101 }];
+  readonly roundRows = createRows().allRounds;
+  readonly overrideRows: Array<Record<string, unknown>> = [];
+  readonly markRows: Array<Record<string, unknown>> = [
+    {
+      id: 301,
+      fundId: FUND_ID,
+      companyId: 101,
+      markDate: '2026-05-01',
+      fairValue: '12000000.000000',
+      currency: 'USD',
+      status: 'approved',
+      createdAt: new Date('2026-06-01T00:00:00.000Z'),
+      approvedAt: new Date('2026-06-01T00:00:00.000Z'),
+      lockedAt: null,
+    },
+    {
+      id: 302,
+      fundId: FUND_ID,
+      companyId: 101,
+      markDate: '2026-06-15',
+      fairValue: '19000000.000000',
+      currency: 'USD',
+      status: 'approved',
+      createdAt: new Date('2026-07-15T00:00:00.000Z'),
+      approvedAt: new Date('2026-07-15T00:00:00.000Z'),
+      lockedAt: null,
+    },
+  ];
+
+  asDatabase(): FactsDatabase {
+    return this as unknown as FactsDatabase;
+  }
+
+  select(_projection?: unknown) {
+    return {
+      from: (table: unknown) => {
+        const rows = this.rowsFor(table);
+        return {
+          ...queryRows(rows),
+          where: (condition: unknown) => {
+            if (table !== valuationMarks) return queryRows(rows);
+            const rendered = new PgDialect().sqlToQuery(condition as SQL);
+            const cutoff = rendered.params.find((param) => param instanceof Date) as
+              | Date
+              | undefined;
+            if (cutoff === undefined) return queryRows(rows);
+            return queryRows(
+              rows.filter((row) => {
+                const createdAt = row['createdAt'];
+                const approvedAt = row['approvedAt'];
+                const lockedAt = row['lockedAt'];
+                const acceptedAt =
+                  approvedAt instanceof Date
+                    ? approvedAt
+                    : lockedAt instanceof Date
+                      ? lockedAt
+                      : createdAt;
+                return (
+                  createdAt instanceof Date &&
+                  acceptedAt instanceof Date &&
+                  createdAt <= cutoff &&
+                  acceptedAt <= cutoff
+                );
+              })
+            );
+          },
+        };
+      },
+    };
+  }
+
+  private rowsFor(table: unknown): Array<Record<string, unknown>> {
+    if (table === funds) return this.fundRows;
+    if (table === portfolioCompanies) return this.companyRows;
+    if (table === investments) return this.investmentRows;
+    if (table === investmentRounds) return this.roundRows;
+    if (table === investmentRoundModelOverrides) return this.overrideRows;
+    if (table === valuationMarks) return this.markRows;
+    return [];
   }
 }
 
@@ -485,6 +592,30 @@ describe('buildFundCompanyActualsFactsFromRows', () => {
 });
 
 describe('buildFundCompanyActualsFacts', () => {
+  it('filters planning FMV marks by optional knowledge cutoff without changing uncapped callers', async () => {
+    const database = new CutoffFactsDb().asDatabase();
+
+    const uncapped = await buildFundCompanyActualsFacts({
+      fundId: FUND_ID,
+      asOfDate: AS_OF_DATE,
+      now: NOW,
+      database,
+    });
+    const capped = await buildFundCompanyActualsFacts({
+      fundId: FUND_ID,
+      asOfDate: AS_OF_DATE,
+      now: NOW,
+      knowledgeCutoff: new Date('2026-06-30T23:59:59.000Z'),
+      database,
+    });
+
+    expect(factFor(uncapped).approvedPlanningFmvMarkId).toBe(302);
+    expect(factFor(uncapped).latestPlanningFmvValue).toBe('19000000.000000');
+    expect(factFor(capped).approvedPlanningFmvMarkId).toBe(301);
+    expect(factFor(capped).latestPlanningFmvValue).toBe('12000000.000000');
+    expect(capped.inputHash).not.toBe(uncapped.inputHash);
+  });
+
   it('throws FundActualsFactsServiceError when the fund is not found', async () => {
     await expect(
       buildFundCompanyActualsFacts({

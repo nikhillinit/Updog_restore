@@ -1153,6 +1153,20 @@ describe('buildFinancialFactsSnapshot', () => {
           }),
         ],
       });
+    expect(snapshot.payload.valuationRefs).toEqual([
+      {
+        basis: 'unavailable',
+        vehicleId: 10,
+        companyIdentityId: 42,
+        directMarkId: null,
+        directSourceObservationId: null,
+        ownershipSnapshotId: null,
+        derivedTrancheId: null,
+        derivedTrancheVersion: null,
+        derivedParticipationId: null,
+        derivedParticipationVersion: null,
+      },
+    ]);
   });
 
   it('does not let reversal-only position refs create unavailable valuation blockers', async () => {

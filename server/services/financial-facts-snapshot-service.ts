@@ -1773,6 +1773,7 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
     fundId: input.fundId,
     asOfDate: input.asOfDate,
     now,
+    knowledgeCutoff: new Date(knowledgeCutoff),
     database,
   });
   const acceptedObservations = await readAcceptedSourceObservations(
