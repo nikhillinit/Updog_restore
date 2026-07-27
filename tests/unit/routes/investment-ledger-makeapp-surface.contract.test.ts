@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const participationState = vi.hoisted(() => ({
   create: vi.fn(),
   correct: vi.fn(),
+  convert: vi.fn(),
 }));
 
 vi.mock('../../../server/services/investment-ledger/financing-event-service', () => ({
@@ -19,6 +20,10 @@ vi.mock('../../../server/services/investment-ledger/participation-service', () =
 
 vi.mock('../../../server/services/investment-ledger/ledger-correction-service', () => ({
   correctVehicleParticipationLedger: participationState.correct,
+}));
+
+vi.mock('../../../server/services/investment-ledger/position-conversion-service', () => ({
+  convertPosition: participationState.convert,
 }));
 
 const ENV_KEYS = [

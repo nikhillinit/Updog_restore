@@ -17,3 +17,27 @@ regexes = [
 paths = [
   '''^tests/unit/routes/investment-ledger-makeapp-surface\.contract\.test\.ts$'''
 ]
+
+[[allowlists]]
+description = "Allow deterministic Task 11 legacy-round idempotency fixture"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''^\s*idempotency_key:\s*'legacy-round-901',$'''
+]
+paths = [
+  '''^tests/unit/services/investment-ledger/position-service\.test\.ts$'''
+]
+
+[[allowlists]]
+description = "Allow historical negative-control fixture template from blocking repo-history scans"
+targetRules = ["updog-negative-control-token"]
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''^\s*UPDOG_NEGATIVE_CONTROL_TOKEN\s*=\s*updog_test_secret_[0-9a-f]{32}\s*$'''
+]
+paths = [
+  '''^tests/fixtures/security/secret-scan-negative-control\.txt\.template$'''
+]

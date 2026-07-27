@@ -52,6 +52,7 @@ const participation = VehicleFinancingParticipationV1Schema.parse({
   financingTrancheId: 41,
   version: 1,
   supersededByParticipationId: null,
+  economicOrigin: 'cash_investment',
   participationAmount: '123.456789',
   originalAmount: '123.456789',
   currency: 'USD',
