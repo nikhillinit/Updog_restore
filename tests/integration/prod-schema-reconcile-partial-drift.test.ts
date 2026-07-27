@@ -23,6 +23,7 @@ const skipIfNoDocker = !process.env.CI && process.platform === 'win32';
 
 interface ManifestTable {
   readonly name: string;
+  readonly constraints?: readonly string[];
 }
 
 interface Manifest {
@@ -201,25 +202,24 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
           { regclass: 'position_event_source_basis_reliefs' },
         ]);
 
+        const sourceBasisTable = manifests
+          .flatMap((manifest) => manifest.expectedTables ?? [])
+          .find((table) => table.name === 'position_event_source_basis_reliefs');
+        if (!sourceBasisTable?.constraints) {
+          throw new Error(
+            'Manifest constraints for position_event_source_basis_reliefs were not loaded'
+          );
+        }
+
         const constraintResult = await isolatedPool.query<{ conname: string }>(`
           SELECT conname
           FROM pg_constraint
-          WHERE conname IN (
-            'position_event_source_basis_reliefs_event_fund_fk',
-            'position_event_source_basis_reliefs_participation_fund_fk',
-            'position_event_source_basis_reliefs_source_position_event_fund_fk',
-            'position_event_source_basis_reliefs_observation_fund_fk',
-            'position_event_source_basis_reliefs_source_basis_unique'
-          )
+          WHERE conrelid = 'public.position_event_source_basis_reliefs'::regclass
           ORDER BY conname
         `);
-        expect(constraintResult.rows.map((row) => row.conname)).toEqual([
-          'position_event_source_basis_reliefs_event_fund_fk',
-          'position_event_source_basis_reliefs_observation_fund_fk',
-          'position_event_source_basis_reliefs_participation_fund_fk',
-          'position_event_source_basis_reliefs_source_basis_unique',
-          'position_event_source_basis_reliefs_source_position_event_fund_fk',
-        ]);
+        expect(constraintResult.rows.map((row) => row.conname)).toEqual(
+          [...sourceBasisTable.constraints].sort()
+        );
 
         await expect(
           isolatedPool.query(`
