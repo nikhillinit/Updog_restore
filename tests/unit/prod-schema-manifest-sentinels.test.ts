@@ -133,6 +133,27 @@ describe('prod-schema manifest sentinels', () => {
     }
   });
 
+  it('creates the canonical investment-rounds foundation before applying participation lineage', () => {
+    const participationManifest = manifests.find(
+      (entry) => entry.file === '15-vehicle-financing-participations.json'
+    );
+    expect(participationManifest).toBeDefined();
+    expect(participationManifest!.manifest.sqlFiles).toEqual([
+      'scripts/prod-schema-patches/0027_investment_rounds_foundation.sql',
+      'migrations/0041_vehicle_financing_participations.sql',
+    ]);
+    expect(participationManifest!.manifest.allowedCreateTables).toContain('investment_rounds');
+
+    const foundationSql = fs.readFileSync(
+      path.join(repoRoot, participationManifest!.manifest.sqlFiles![0]),
+      'utf8'
+    );
+    expect(foundationSql).toMatch(/CREATE TABLE IF NOT EXISTS "investment_rounds"/);
+    expect(foundationSql).toContain('CONSTRAINT "investment_rounds_investment_fund_fk"');
+    expect(foundationSql).toContain('CONSTRAINT "investment_rounds_id_fund_uq"');
+    expect(foundationSql).not.toMatch(/^\s*(?:DROP|DELETE|TRUNCATE)\b/im);
+  });
+
   it('every manifest SQL file begins with a -- @generated or -- @drift-patch marker', () => {
     const offenders: string[] = [];
 
