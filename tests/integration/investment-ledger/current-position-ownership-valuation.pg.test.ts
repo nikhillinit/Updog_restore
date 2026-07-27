@@ -540,6 +540,76 @@ describe.skipIf(skipIfNoDocker)('current position, ownership, and valuation Post
       ).rejects.toMatchObject({ status: 422, code: 'POSITION_VALUATION_SCOPE_MISMATCH' });
     });
   });
+
+  it('serializes concurrent direct mark replay without duplicate observations or marks', async () => {
+    const { connectionString } = await createMigratedDatabase('position_valuation_concurrent');
+
+    await withPool(connectionString, async (pool) => {
+      const seed = await seedScope(pool, nextFundId());
+      const sourceValuationObservationId = await insertObservation(pool, {
+        fundId: seed.fundId,
+        identityId: seed.identityId,
+        domain: 'valuation',
+        status: 'accepted',
+        effectiveDate: '2026-06-30',
+        suffix: 'direct-concurrent-source',
+      });
+      const beforeObservationCount = await countRows(pool, 'source_observations', seed.fundId);
+      const beforeMarkCount = await countRows(pool, 'valuation_marks', seed.fundId);
+      const database = drizzle(pool) as never;
+      const directRequest = {
+        vehicleId: seed.vehicleId,
+        companyIdentityId: seed.identityId,
+        companyId: seed.companyId,
+        asOfDate: '2026-07-01',
+        fairValue: '1250000.000000',
+        sourceObservationId: sourceValuationObservationId,
+        markSource: 'board_update',
+        confidenceLevel: 'high',
+        valuationMethod: 'direct_position_mark',
+      };
+
+      const attempts = await Promise.all([
+        recordDirectPositionValuation({
+          fundId: seed.fundId,
+          actorId: null,
+          idempotencyKey: `direct-concurrent-${seed.fundId}`,
+          request: directRequest,
+          database,
+        }),
+        recordDirectPositionValuation({
+          fundId: seed.fundId,
+          actorId: null,
+          idempotencyKey: `direct-concurrent-${seed.fundId}`,
+          request: directRequest,
+          database,
+        }),
+      ]);
+
+      expect(attempts.map((attempt) => attempt.replayed).sort()).toEqual([false, true]);
+      const created = attempts.find((attempt) => !attempt.replayed);
+      const replayed = attempts.find((attempt) => attempt.replayed);
+      expect(replayed).toEqual({ ...created, replayed: true });
+      expect(await countRows(pool, 'valuation_marks', seed.fundId)).toBe(beforeMarkCount + 1);
+      expect(await countRows(pool, 'source_observations', seed.fundId)).toBe(
+        beforeObservationCount + 1
+      );
+
+      await expect(
+        recordDirectPositionValuation({
+          fundId: seed.fundId,
+          actorId: null,
+          idempotencyKey: `direct-concurrent-${seed.fundId}`,
+          request: { ...directRequest, fairValue: '1300000.000000' },
+          database,
+        })
+      ).rejects.toMatchObject({ status: 409, code: 'IDEMPOTENCY_KEY_REUSE' });
+      expect(await countRows(pool, 'valuation_marks', seed.fundId)).toBe(beforeMarkCount + 1);
+      expect(await countRows(pool, 'source_observations', seed.fundId)).toBe(
+        beforeObservationCount + 1
+      );
+    });
+  });
 });
 
 async function createMigratedDatabase(label: string): Promise<{ connectionString: string }> {
