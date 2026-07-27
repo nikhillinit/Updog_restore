@@ -967,6 +967,43 @@ export const COMMON_API_ROUTE_MANIFEST = [
       authenticated: true,
     },
   },
+  {
+    id: 'internal-analysis',
+    sourceModule: './routes/internal-analysis.js',
+    // The router declares bare `/funds/...` paths (current-forecast style), so it
+    // must be mounted under /api. investment-ledger takes the other convention --
+    // `/api/...` in the router and a null mountPath -- and mixing the two serves
+    // nothing at all.
+    mountPath: '/api',
+    authBoundary: 'router_local',
+    fundScope: 'path',
+    financial: true,
+    migrationParity: {
+      kind: 'c1',
+      tables: [
+        'internal_analysis_drafts',
+        'internal_analysis_references',
+        'internal_analysis_revision_events',
+      ],
+    },
+    schemaTables: [
+      'internal_analysis_drafts',
+      'internal_analysis_references',
+      'internal_analysis_revision_events',
+      'financial_facts_snapshots',
+      'fund_snapshots',
+      'job_outbox',
+      'funds',
+    ],
+    owner: 'gp-team',
+    probe: {
+      method: 'POST',
+      path: '/api/funds/abc/internal-analysis/drafts',
+      expectedStatus: 400,
+      body: {},
+      authenticated: true,
+    },
+  },
 ] as const satisfies readonly CommonApiRouteManifestEntry[];
 
 function assertUniqueManifestIds(entries: readonly CommonApiRouteManifestEntry[]): void {

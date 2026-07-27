@@ -43,6 +43,7 @@ export default defineConfig({
       'tests/integration/investment-ledger/legacy-position-backfill.pg.test.ts',
       'tests/integration/scenarios/scenario-case-seed-persistence.test.ts',
       'tests/integration/scenarios/company-scenario-create-persistence.test.ts',
+      'tests/integration/internal-analysis/analysis-checkpoint.pg.test.ts',
       // DISABLED: Pre-existing issues - fix in separate PRs
       // 'tests/integration/ScenarioMatrixCache.integration.test.ts', // bucket allocation validation
       // 'tests/integration/cache-monitoring.integration.test.ts', // server/db.ts imports database-mock
