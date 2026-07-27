@@ -10,6 +10,7 @@ const dialect = new PgDialect();
 
 interface Model {
   links: Array<Record<string, unknown>>;
+  vehicles: Array<Record<string, unknown>>;
   positionEvents: Array<Record<string, unknown>>;
   participationTerms: Array<Record<string, unknown>>;
   ownership: Array<Record<string, unknown>>;
@@ -35,6 +36,14 @@ function makeDb(model: Model) {
               row['portfolio_company_id'] === companyId &&
               row['company_identity_id'] === companyIdentityId &&
               row['active'] === true
+          ),
+        };
+      }
+      if (flat.includes('FROM vehicles')) {
+        const [vehicleId, fundId] = rendered.params as [number, number];
+        return {
+          rows: model.vehicles.filter(
+            (row) => row['id'] === vehicleId && row['fund_id'] === fundId
           ),
         };
       }
@@ -328,6 +337,12 @@ function baseModel(): Model {
         active: true,
       },
     ],
+    vehicles: [
+      {
+        id: 9,
+        fund_id: 7,
+      },
+    ],
     positionEvents: [
       {
         id: 1,
@@ -476,6 +491,67 @@ describe('position valuation selection', () => {
       aggregateFairValue: '1250000.000000',
       directMarkId: 601,
       ownershipSnapshotId: null,
+    });
+  });
+
+  it('keeps mixed direct valuations aggregate-incomplete with priced component disclosure', async () => {
+    const fake = baseModel();
+    fake.positionEvents.push({
+      id: 2,
+      fund_id: 7,
+      vehicle_id: 9,
+      company_identity_id: 11,
+      event_type: 'acquisition',
+      effective_date: '2026-02-01',
+      recorded_at: new Date('2026-02-02T00:00:00.000Z'),
+      shares_delta: '0.000000',
+      cost_basis_delta: '250.000000',
+      proceeds: '0.000000',
+      vehicle_participation_id: 101,
+      resulting_participation_id: null,
+    });
+    fake.participationTerms.push({ id: 101, security_type: 'safe' });
+    fake.directMarks.push({
+      id: 601,
+      fund_id: 7,
+      vehicle_id: 9,
+      company_id: 12,
+      mark_date: '2026-07-01',
+      as_of_date: '2026-07-01',
+      fair_value: '1250000.000000',
+      currency: 'USD',
+      cost_basis: null,
+      mark_purpose: 'direct_position_fmv',
+      mark_source: 'board_update',
+      confidence_level: 'high',
+      valuation_method: 'direct',
+      methodology_notes: null,
+      status: 'approved',
+      source_observation_id: 402,
+      source_hash: 'b'.repeat(64),
+      created_at: new Date('2026-07-02T00:00:00.000Z'),
+      approved_at: new Date('2026-07-02T00:00:00.000Z'),
+    });
+
+    const result = await selectPositionValuation({
+      fundId: 7,
+      vehicleId: 9,
+      companyIdentityId: 11,
+      companyId: 12,
+      asOfDate: '2026-07-31',
+      knowledgeCutoff: new Date('2026-07-31T00:00:00.000Z'),
+      database: makeDb(fake),
+    });
+
+    expect(result).toMatchObject({
+      basis: 'direct',
+      aggregateFairValue: null,
+      directMarkId: 601,
+      pricedComponentFairValue: '1250000.000000',
+      warnings: [
+        { code: 'CONTINGENT_INSTRUMENT_EXCLUDED' },
+        { code: 'POSITION_VALUATION_INCOMPLETE' },
+      ],
     });
   });
 
@@ -822,5 +898,26 @@ describe('direct position valuation command', () => {
     expect(replayed).toEqual({ ...created, replayed: true });
     expect(fake.directMarks).toHaveLength(1);
     expect(fake.observations).toHaveLength(3);
+  });
+
+  it('rejects a direct mark when vehicle does not belong to the fund', async () => {
+    const fake = baseModel();
+    fake.vehicles[0] = { ...fake.vehicles[0]!, fund_id: 8 };
+
+    await expect(
+      recordDirectPositionValuation({
+        fundId: 7,
+        actorId: 3,
+        idempotencyKey: 'valuation-cross-fund-vehicle',
+        request,
+        database: makeDb(fake),
+      })
+    ).rejects.toMatchObject({
+      status: 422,
+      code: 'POSITION_VALUATION_SCOPE_MISMATCH',
+    });
+
+    expect(fake.directMarks).toHaveLength(0);
+    expect(fake.observations).toHaveLength(2);
   });
 });

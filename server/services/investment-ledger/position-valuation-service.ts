@@ -102,6 +102,10 @@ export async function recordDirectPositionValuation(input: {
       companyId: request.companyId,
       companyIdentityId: request.companyIdentityId,
     });
+    await assertVehicleBelongsToFund(transaction, {
+      fundId: input.fundId,
+      vehicleId: request.vehicleId,
+    });
     await assertAcceptedValuationObservation(transaction, {
       fundId: input.fundId,
       companyIdentityId: request.companyIdentityId,
@@ -184,6 +188,9 @@ export async function selectPositionValuation(input: {
     database,
   });
   const position = positionList.positions[0] ?? null;
+  const mixed = position?.warnings.some(
+    (warning) => warning.code === 'MIXED_PRICED_AND_CONTINGENT_COMPONENTS'
+  );
   const direct = await selectLatestDirectMark(database, {
     fundId: input.fundId,
     vehicleId: input.vehicleId,
@@ -199,7 +206,7 @@ export async function selectPositionValuation(input: {
       companyIdentityId: input.companyIdentityId,
       companyId: input.companyId,
       asOfDate: input.asOfDate,
-      aggregateFairValue: direct.fairValue,
+      aggregateFairValue: mixed ? null : direct.fairValue,
       basis: 'direct',
       directMarkId: direct.id,
       directSourceObservationId: direct.sourceObservationId,
@@ -211,13 +218,13 @@ export async function selectPositionValuation(input: {
       evidenceDate: direct.markDate,
       valuationAgeDays: ageDays(direct.markDate, input.asOfDate),
       pricedComponentFairValue: direct.fairValue,
-      warnings: staleWarning(direct.markDate, input.asOfDate),
+      warnings: [
+        ...staleWarning(direct.markDate, input.asOfDate),
+        ...(mixed ? contingentIncompleteWarnings() : []),
+      ],
     });
   }
 
-  const mixed = position?.warnings.some(
-    (warning) => warning.code === 'MIXED_PRICED_AND_CONTINGENT_COMPONENTS'
-  );
   const ownership = (
     await listOwnershipSnapshots({
       fundId: input.fundId,
@@ -258,20 +265,7 @@ export async function selectPositionValuation(input: {
       evidenceDate: postMoney.evidenceDate,
       valuationAgeDays: ageDays(postMoney.evidenceDate, input.asOfDate),
       pricedComponentFairValue: mixed ? derived : null,
-      warnings: mixed
-        ? [
-            {
-              code: 'CONTINGENT_INSTRUMENT_EXCLUDED',
-              message:
-                'Contingent instruments are excluded from the disclosed priced-component FMV.',
-            },
-            {
-              code: 'POSITION_VALUATION_INCOMPLETE',
-              message:
-                'Aggregate FMV is unavailable because the position contains unconverted contingent instruments.',
-            },
-          ]
-        : [],
+      warnings: mixed ? contingentIncompleteWarnings() : [],
     });
   }
 
@@ -360,6 +354,28 @@ async function assertCompanyIdentityLink(
       422,
       'POSITION_VALUATION_SCOPE_MISMATCH',
       'Direct valuation requires an exact active company identity link.'
+    );
+  }
+}
+
+async function assertVehicleBelongsToFund(
+  database: LedgerDatabase,
+  input: { fundId: number; vehicleId: number }
+): Promise<void> {
+  const row = readRows(
+    await database.execute(sql`
+      SELECT id
+      FROM vehicles
+      WHERE id = ${input.vehicleId}
+        AND fund_id = ${input.fundId}
+      LIMIT 1
+    `)
+  )[0];
+  if (!row) {
+    throw new PositionValuationServiceError(
+      422,
+      'POSITION_VALUATION_SCOPE_MISMATCH',
+      'Direct valuation requires the vehicle to belong to the fund.'
     );
   }
 }
@@ -621,6 +637,20 @@ function staleWarning(markDate: string, asOfDate: string): PositionValuationSele
         },
       ]
     : [];
+}
+
+function contingentIncompleteWarnings(): PositionValuationSelectionV1['warnings'] {
+  return [
+    {
+      code: 'CONTINGENT_INSTRUMENT_EXCLUDED',
+      message: 'Contingent instruments are excluded from the disclosed priced-component FMV.',
+    },
+    {
+      code: 'POSITION_VALUATION_INCOMPLETE',
+      message:
+        'Aggregate FMV is unavailable because the position contains unconverted contingent instruments.',
+    },
+  ];
 }
 
 function ageDays(evidenceDate: string, asOfDate: string): number {
