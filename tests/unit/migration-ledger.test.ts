@@ -54,6 +54,7 @@ const expectedJournaledDriftPatchFiles = [
   '0041_vehicle_financing_participations.sql',
   '0042_positions_ownership_compat.sql',
   '0043_position_source_basis_reliefs.sql',
+  '0044_internal_analysis.sql',
 ].sort();
 
 afterEach(() => {

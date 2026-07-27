@@ -7,6 +7,7 @@ import { monitor } from './middleware/performance-monitor.js';
 import { registerCompletionHandlers } from './services/calc-run-completion-handlers.js';
 import { varianceAlertAutomationService } from './services/variance-alert-automation.js';
 import { artifactRetentionService } from './services/financial-observations/artifact-retention-service.js';
+import { internalAnalysisCheckpointService } from './services/internal-analysis/analysis-checkpoint-service.js';
 
 type DefaultRouteModule = {
   default: Router;
@@ -40,6 +41,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   varianceAlertAutomationService.start();
   // Artifact retention sweep (PLAN_61 Task 8) — Docker/Railway surface only.
   artifactRetentionService.start();
+  // Quarterly analysis drafts (PLAN_61 Task 18) — Docker/Railway surface only (R33-a).
+  internalAnalysisCheckpointService.start();
 
   // Performance monitoring middleware - track all API requests
   app.use('/api', monitor.middleware());

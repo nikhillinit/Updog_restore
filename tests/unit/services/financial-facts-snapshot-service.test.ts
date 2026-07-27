@@ -158,41 +158,41 @@ class FakeSnapshotDb {
         return {
           ...baseQuery,
           where: (condition: unknown) => {
-          if (table === vehicles) {
-            return queryRows(this.ownershipRows ?? this.vehicleRows);
-          }
-          if (table === valuationMarks) {
-            const rendered = new PgDialect().sqlToQuery(condition as SQL);
-            this.valuationMarkWhereClauses.push(rendered);
-            if (rendered.params.includes('planning_company_fmv')) {
-              return queryRows(
-                rows.filter(
-                  (row) =>
-                    row['markPurpose'] === undefined ||
-                    row['markPurpose'] === 'planning_company_fmv'
-                )
-              );
+            if (table === vehicles) {
+              return queryRows(this.ownershipRows ?? this.vehicleRows);
             }
-          }
-          if (table === financialFactsSnapshots) {
-            const rendered = new PgDialect().sqlToQuery(condition as SQL);
-            let filtered = rows;
-            if (rendered.sql.includes('idempotency_key')) {
-              const key = rendered.params.find((param) => typeof param === 'string');
-              filtered = filtered.filter((row) => row['idempotencyKey'] === key);
-            }
-            if (rendered.sql.includes('as_of_date')) {
-              const asOfDate = rendered.params.find(
-                (param) => typeof param === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(param)
-              );
-              if (asOfDate !== undefined) {
-                filtered = filtered.filter((row) => row['asOfDate'] === asOfDate);
+            if (table === valuationMarks) {
+              const rendered = new PgDialect().sqlToQuery(condition as SQL);
+              this.valuationMarkWhereClauses.push(rendered);
+              if (rendered.params.includes('planning_company_fmv')) {
+                return queryRows(
+                  rows.filter(
+                    (row) =>
+                      row['markPurpose'] === undefined ||
+                      row['markPurpose'] === 'planning_company_fmv'
+                  )
+                );
               }
             }
-            return queryRows(filtered);
-          }
-          return queryRows(rows);
-        },
+            if (table === financialFactsSnapshots) {
+              const rendered = new PgDialect().sqlToQuery(condition as SQL);
+              let filtered = rows;
+              if (rendered.sql.includes('idempotency_key')) {
+                const key = rendered.params.find((param) => typeof param === 'string');
+                filtered = filtered.filter((row) => row['idempotencyKey'] === key);
+              }
+              if (rendered.sql.includes('as_of_date')) {
+                const asOfDate = rendered.params.find(
+                  (param) => typeof param === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(param)
+                );
+                if (asOfDate !== undefined) {
+                  filtered = filtered.filter((row) => row['asOfDate'] === asOfDate);
+                }
+              }
+              return queryRows(filtered);
+            }
+            return queryRows(rows);
+          },
         };
       },
     };
@@ -283,7 +283,10 @@ function seedInternalFundCorpus(fakeDb: FakeSnapshotDb): void {
         row['importedFrom'] === 'planning_fmv_override' &&
         (row['status'] === 'approved' || row['status'] === 'locked')
     )
-    .map(({ importedFrom: _importedFrom, vehicleId: _vehicleId, priorMarkId: _priorMarkId, ...row }) => row);
+    .map(
+      ({ importedFrom: _importedFrom, vehicleId: _vehicleId, priorMarkId: _priorMarkId, ...row }) =>
+        row
+    );
   fakeDb.valuationMarkReads.push(snapshotMarkRows, planningMarkRows);
   fakeDb.markRows.push(...snapshotMarkRows);
 }
@@ -851,6 +854,7 @@ describe('buildFinancialFactsSnapshot', () => {
       directMarkId: 701,
       vehicleId: 10,
       companyIdentityId: 42,
+      markDate: '2026-06-30',
       directSourceObservationId: 71,
     });
 
@@ -896,6 +900,7 @@ describe('buildFinancialFactsSnapshot', () => {
         directSourceObservationId: 71,
       }),
     ]);
+    expect(snapshot.payload.valuationRefs[0]).not.toHaveProperty('markDate');
     expect(snapshot.payload.observationRefs).toEqual([
       {
         observationId: 71,
@@ -907,32 +912,47 @@ describe('buildFinancialFactsSnapshot', () => {
     const renderedSql = fakeDb.executedStatements.map(
       (statement) => new PgDialect().sqlToQuery(statement).sql
     );
-    expect(renderedSql.find((sql) => sql.includes('financial_facts_v2_participation_term_refs')))
-      .toContain('participation.created_at <=');
-    expect(renderedSql.find((sql) => sql.includes('financial_facts_v2_participation_term_refs')))
-      .toContain('tranche_successor.created_at <=');
-    expect(renderedSql.find((sql) => sql.includes('financial_facts_v2_position_refs')))
-      .toContain('event.recorded_at <=');
-    expect(renderedSql.find((sql) => sql.includes('financial_facts_v2_position_company_refs')))
-      .toContain('link.company_identity_id = event.company_identity_id');
-    expect(renderedSql.find((sql) => sql.includes('financial_facts_v2_ownership_refs')))
-      .toContain('successor.recorded_at <=');
-    expect(renderedSql.find((sql) => sql.includes('financial_facts_v2_direct_valuation_refs')))
-      .toContain("observation.domain = 'valuation'");
-    expect(renderedSql.find((sql) => sql.includes('financial_facts_v2_direct_valuation_refs')))
-      .toContain('COALESCE(mark.approved_at, mark.locked_at, mark.created_at) <=');
-    expect(renderedSql.find((sql) => sql.includes('financial_facts_v2_derived_valuation_refs')))
-      .toContain("observation.domain = 'ledger_event'");
-    expect(renderedSql.find((sql) => sql.includes('financial_facts_v2_derived_valuation_refs')))
-      .toContain('COALESCE(participation.post_money_valuation, tranche.post_money_valuation)');
-    expect(renderedSql.find((sql) => sql.includes('financial_facts_v2_derived_valuation_refs')))
-      .toContain('snapshot.effective_date AS ownership_effective_date');
-    expect(renderedSql.find((sql) => sql.includes('financial_facts_v2_derived_valuation_refs')))
-      .toMatch(
-        /ownership\.ownership_effective_date\s*>=\s*COALESCE\(participation\.closing_date,\s*tranche\.closing_date\)/
-      );
-    expect(snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast'))
-      .toEqual({ consumer: 'forecast', status: 'accepted', reasons: [] });
+    expect(
+      renderedSql.find((sql) => sql.includes('financial_facts_v2_participation_term_refs'))
+    ).toContain('participation.created_at <=');
+    expect(
+      renderedSql.find((sql) => sql.includes('financial_facts_v2_participation_term_refs'))
+    ).toContain('tranche_successor.created_at <=');
+    expect(renderedSql.find((sql) => sql.includes('financial_facts_v2_position_refs'))).toContain(
+      'event.recorded_at <='
+    );
+    expect(
+      renderedSql.find((sql) => sql.includes('financial_facts_v2_position_company_refs'))
+    ).toContain('link.company_identity_id = event.company_identity_id');
+    expect(renderedSql.find((sql) => sql.includes('financial_facts_v2_ownership_refs'))).toContain(
+      'successor.recorded_at <='
+    );
+    expect(
+      renderedSql.find((sql) => sql.includes('financial_facts_v2_direct_valuation_refs'))
+    ).toContain("observation.domain = 'valuation'");
+    expect(
+      renderedSql.find((sql) => sql.includes('financial_facts_v2_direct_valuation_refs'))
+    ).toContain('COALESCE(mark.approved_at, mark.locked_at, mark.created_at) <=');
+    expect(
+      renderedSql.find((sql) => sql.includes('financial_facts_v2_direct_valuation_refs'))
+    ).toContain('mark.mark_date AS "markDate"');
+    expect(
+      renderedSql.find((sql) => sql.includes('financial_facts_v2_derived_valuation_refs'))
+    ).toContain("observation.domain = 'ledger_event'");
+    expect(
+      renderedSql.find((sql) => sql.includes('financial_facts_v2_derived_valuation_refs'))
+    ).toContain('COALESCE(participation.post_money_valuation, tranche.post_money_valuation)');
+    expect(
+      renderedSql.find((sql) => sql.includes('financial_facts_v2_derived_valuation_refs'))
+    ).toContain('snapshot.effective_date AS ownership_effective_date');
+    expect(
+      renderedSql.find((sql) => sql.includes('financial_facts_v2_derived_valuation_refs'))
+    ).toMatch(
+      /ownership\.ownership_effective_date\s*>=\s*COALESCE\(participation\.closing_date,\s*tranche\.closing_date\)/
+    );
+    expect(
+      snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast')
+    ).toEqual({ consumer: 'forecast', status: 'accepted', reasons: [] });
   });
 
   it('emits a derived valuation ref only from accepted post-money evidence', async () => {
@@ -989,8 +1009,9 @@ describe('buildFinancialFactsSnapshot', () => {
         derivedParticipationVersion: 3,
       },
     ]);
-    expect(snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast'))
-      .toEqual({ consumer: 'forecast', status: 'accepted', reasons: [] });
+    expect(
+      snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast')
+    ).toEqual({ consumer: 'forecast', status: 'accepted', reasons: [] });
   });
 
   it('blocks when chronology rejects derived valuation provenance before ownership exists', async () => {
@@ -1038,19 +1059,125 @@ describe('buildFinancialFactsSnapshot', () => {
         derivedParticipationVersion: null,
       },
     ]);
-    expect(snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast'))
-      .toEqual({
-        consumer: 'forecast',
-        status: 'blocked',
-        reasons: ['position_valuation_incomplete'],
-        details: [
-          expect.objectContaining({
-            code: 'position_valuation_incomplete',
-            vehicleId: 10,
-            companyIdentityId: 42,
-          }),
-        ],
-      });
+    expect(
+      snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast')
+    ).toEqual({
+      consumer: 'forecast',
+      status: 'blocked',
+      reasons: ['position_valuation_incomplete'],
+      details: [
+        expect.objectContaining({
+          code: 'position_valuation_incomplete',
+          vehicleId: 10,
+          companyIdentityId: 42,
+        }),
+      ],
+    });
+  });
+
+  it('discloses a selected direct valuation mark older than 120 days without blocking', async () => {
+    const fakeDb = new FakeSnapshotDb();
+    fakeDb.directValuationRefRows.push({
+      directMarkId: 701,
+      vehicleId: 10,
+      companyIdentityId: 42,
+      markDate: '2026-03-01',
+      directSourceObservationId: 71,
+    });
+
+    const snapshot = await buildFinancialFactsSnapshot({
+      fundId: 1,
+      asOfDate: '2026-06-30',
+      actorId: 7,
+      idempotencyKey: 'snapshot-stale-direct-valuation',
+      database: fakeDb.asDatabase(),
+      now: new Date('2026-07-22T01:42:44.186Z'),
+    });
+
+    expect(
+      snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast')
+    ).toEqual({
+      consumer: 'forecast',
+      status: 'accepted',
+      reasons: ['valuation_mark_stale'],
+      details: [
+        {
+          code: 'valuation_mark_stale',
+          vehicleId: 10,
+          companyIdentityId: 42,
+          message: 'Direct position valuation mark is older than 120 days and remains selected.',
+        },
+      ],
+    });
+  });
+
+  it('does not disclose a direct valuation mark exactly 120 days old', async () => {
+    const fakeDb = new FakeSnapshotDb();
+    fakeDb.directValuationRefRows.push({
+      directMarkId: 701,
+      vehicleId: 10,
+      companyIdentityId: 42,
+      markDate: '2026-03-02',
+      directSourceObservationId: 71,
+    });
+
+    const snapshot = await buildFinancialFactsSnapshot({
+      fundId: 1,
+      asOfDate: '2026-06-30',
+      actorId: 7,
+      idempotencyKey: 'snapshot-current-direct-valuation',
+      database: fakeDb.asDatabase(),
+      now: new Date('2026-07-22T01:42:44.186Z'),
+    });
+    expect(
+      snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast')
+    ).toEqual({ consumer: 'forecast', status: 'accepted', reasons: [] });
+  });
+
+  it('discloses contingent components excluded from a valued scope without blocking', async () => {
+    const fakeDb = new FakeSnapshotDb();
+    fakeDb.participationTermRefRows.push({
+      participationId: 201,
+      participationVersion: 1,
+      financingTrancheId: 301,
+      trancheVersion: 1,
+      vehicleId: 10,
+      companyIdentityId: 42,
+      isCurrent: true,
+      kind: 'contingent',
+    });
+    fakeDb.directValuationRefRows.push({
+      directMarkId: 701,
+      vehicleId: 10,
+      companyIdentityId: 42,
+      markDate: '2026-06-30',
+      directSourceObservationId: 71,
+    });
+
+    const snapshot = await buildFinancialFactsSnapshot({
+      fundId: 1,
+      asOfDate: '2026-06-30',
+      actorId: 7,
+      idempotencyKey: 'snapshot-contingent-component-excluded',
+      database: fakeDb.asDatabase(),
+      now: new Date('2026-07-22T01:42:44.186Z'),
+    });
+
+    expect(
+      snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast')
+    ).toEqual({
+      consumer: 'forecast',
+      status: 'accepted',
+      reasons: ['contingent_instrument_excluded'],
+      details: [
+        {
+          code: 'contingent_instrument_excluded',
+          vehicleId: 10,
+          companyIdentityId: 42,
+          message: 'Contingent instruments are excluded from the disclosed priced-component FMV.',
+        },
+      ],
+    });
   });
 
   it('blocks forecast evaluation when payload 2 mixes current and stale term refs', async () => {
@@ -1075,7 +1202,7 @@ describe('buildFinancialFactsSnapshot', () => {
         vehicleId: 10,
         companyIdentityId: 42,
         isCurrent: false,
-        kind: 'contingent',
+        kind: 'priced',
       },
       {
         participationId: 202,
@@ -1092,6 +1219,7 @@ describe('buildFinancialFactsSnapshot', () => {
       directMarkId: 701,
       vehicleId: 10,
       companyIdentityId: 42,
+      markDate: '2026-06-30',
       directSourceObservationId: 71,
     });
 
@@ -1104,19 +1232,20 @@ describe('buildFinancialFactsSnapshot', () => {
       now: new Date('2026-07-22T01:42:44.186Z'),
     });
 
-    expect(snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast'))
-      .toEqual({
-        consumer: 'forecast',
-        status: 'blocked',
-        reasons: ['mixed_term_versions'],
-        details: [
-          expect.objectContaining({
-            code: 'mixed_term_versions',
-            vehicleId: 10,
-            companyIdentityId: 42,
-          }),
-        ],
-      });
+    expect(
+      snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast')
+    ).toEqual({
+      consumer: 'forecast',
+      status: 'blocked',
+      reasons: ['mixed_term_versions'],
+      details: [
+        expect.objectContaining({
+          code: 'mixed_term_versions',
+          vehicleId: 10,
+          companyIdentityId: 42,
+        }),
+      ],
+    });
     expect(snapshot.payload.valuationRefs).toEqual([
       expect.objectContaining({
         basis: 'direct',
@@ -1150,12 +1279,13 @@ describe('buildFinancialFactsSnapshot', () => {
       vehicleId: 10,
       companyIdentityId: 42,
       isCurrent: false,
-      kind: 'contingent',
+      kind: 'priced',
     });
     fakeDb.directValuationRefRows.push({
       directMarkId: 701,
       vehicleId: 10,
       companyIdentityId: 42,
+      markDate: '2026-06-30',
       directSourceObservationId: 71,
     });
 
@@ -1168,19 +1298,20 @@ describe('buildFinancialFactsSnapshot', () => {
       now: new Date('2026-07-22T01:42:44.186Z'),
     });
 
-    expect(snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast'))
-      .toEqual({
-        consumer: 'forecast',
-        status: 'accepted',
-        reasons: [],
-        details: [
-          expect.objectContaining({
-            code: 'uniformly_stale_refs',
-            vehicleId: 10,
-            companyIdentityId: 42,
-          }),
-        ],
-      });
+    expect(
+      snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast')
+    ).toEqual({
+      consumer: 'forecast',
+      status: 'accepted',
+      reasons: [],
+      details: [
+        expect.objectContaining({
+          code: 'uniformly_stale_refs',
+          vehicleId: 10,
+          companyIdentityId: 42,
+        }),
+      ],
+    });
   });
 
   it('blocks forecast evaluation when a position lacks direct or derived valuation provenance', async () => {
@@ -1206,19 +1337,20 @@ describe('buildFinancialFactsSnapshot', () => {
       now: new Date('2026-07-22T01:42:44.186Z'),
     });
 
-    expect(snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast'))
-      .toEqual({
-        consumer: 'forecast',
-        status: 'blocked',
-        reasons: ['position_valuation_incomplete'],
-        details: [
-          expect.objectContaining({
-            code: 'position_valuation_incomplete',
-            vehicleId: 10,
-            companyIdentityId: 42,
-          }),
-        ],
-      });
+    expect(
+      snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast')
+    ).toEqual({
+      consumer: 'forecast',
+      status: 'blocked',
+      reasons: ['position_valuation_incomplete'],
+      details: [
+        expect.objectContaining({
+          code: 'position_valuation_incomplete',
+          vehicleId: 10,
+          companyIdentityId: 42,
+        }),
+      ],
+    });
     expect(snapshot.payload.valuationRefs).toEqual([
       {
         basis: 'unavailable',
@@ -1262,8 +1394,9 @@ describe('buildFinancialFactsSnapshot', () => {
       expect.objectContaining({ positionEventId: 901, eventType: 'reversal' }),
     ]);
     expect(snapshot.payload.valuationRefs).toEqual([]);
-    expect(snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast'))
-      .toEqual({ consumer: 'forecast', status: 'accepted', reasons: [] });
+    expect(
+      snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast')
+    ).toEqual({ consumer: 'forecast', status: 'accepted', reasons: [] });
   });
 
   it('emits mixed legacy-ledger details only for mapped overlapping company ids', async () => {
@@ -1304,6 +1437,7 @@ describe('buildFinancialFactsSnapshot', () => {
       directMarkId: 701,
       vehicleId: 10,
       companyIdentityId: 42001,
+      markDate: '2026-06-30',
       directSourceObservationId: 71,
     });
     const allLedger = await buildFinancialFactsSnapshot({
@@ -1342,6 +1476,7 @@ describe('buildFinancialFactsSnapshot', () => {
       directMarkId: 701,
       vehicleId: 10,
       companyIdentityId: 42099,
+      markDate: INTERNAL_FUND_CORPUS.asOfDate,
       directSourceObservationId: 71,
     });
     const nonOverlap = await buildFinancialFactsSnapshot({
@@ -1392,6 +1527,7 @@ describe('buildFinancialFactsSnapshot', () => {
       directMarkId: 701,
       vehicleId: 10,
       companyIdentityId: 42001,
+      markDate: INTERNAL_FUND_CORPUS.asOfDate,
       directSourceObservationId: 71,
     });
     const mixed = await buildFinancialFactsSnapshot({
