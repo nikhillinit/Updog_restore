@@ -76,7 +76,43 @@ async function executeFake(
   }
 
   if (lower.includes('from investments i') || lower.includes('from "investments" i')) {
-    return { rows: model.investments };
+    return {
+      rows: model.investments.map((investment) => {
+        const existing = model.positionEvents.find(
+          (event) => event['backfilled_from_investment_id'] === investment['investment_id']
+        );
+        const overlapping = model.positionEvents.find(
+          (event) =>
+            event['backfilled_from_investment_id'] === null &&
+            event['event_type'] === 'acquisition' &&
+            event['fund_id'] === investment['fund_id'] &&
+            ((investment['vehicle_participation_id'] !== null &&
+              event['vehicle_participation_id'] === investment['vehicle_participation_id']) ||
+              (investment['vehicle_participation_id'] === null &&
+                event['vehicle_participation_id'] === null &&
+                event['company_identity_id'] === investment['company_identity_id']))
+        );
+        return {
+          ...investment,
+          existing_event_id: existing?.['id'] ?? investment['existing_event_id'],
+          existing_request_hash: existing?.['request_hash'] ?? investment['existing_request_hash'],
+          existing_vehicle_id: existing?.['vehicle_id'] ?? investment['existing_vehicle_id'],
+          existing_company_identity_id:
+            existing?.['company_identity_id'] ?? investment['existing_company_identity_id'],
+          existing_effective_date:
+            existing?.['effective_date'] ?? investment['existing_effective_date'],
+          existing_shares_delta: existing?.['shares_delta'] ?? investment['existing_shares_delta'],
+          existing_cost_basis_delta:
+            existing?.['cost_basis_delta'] ?? investment['existing_cost_basis_delta'],
+          existing_vehicle_participation_id:
+            existing?.['vehicle_participation_id'] ??
+            investment['existing_vehicle_participation_id'],
+          existing_source_observation_id:
+            existing?.['source_observation_id'] ?? investment['existing_source_observation_id'],
+          overlapping_acquisition_id: overlapping?.['id'] ?? investment['overlapping_acquisition_id'],
+        };
+      }),
+    };
   }
 
   if (
@@ -259,10 +295,19 @@ function investmentRow(overrides: Record<string, unknown> = {}): Record<string, 
     participation_vehicle_id: null,
     participation_company_identity_id: null,
     participation_version: null,
+    participation_source_observation_id: null,
     superseded_by_participation_id: null,
     participation_currency: null,
     existing_event_id: null,
     existing_request_hash: null,
+    existing_vehicle_id: null,
+    existing_company_identity_id: null,
+    existing_effective_date: null,
+    existing_shares_delta: null,
+    existing_cost_basis_delta: null,
+    existing_vehicle_participation_id: null,
+    existing_source_observation_id: null,
+    overlapping_acquisition_id: null,
     ...overrides,
   };
 }
@@ -362,14 +407,13 @@ describe('legacy position backfill service', () => {
       ],
     });
 
-    const result = await backfillLegacyPositionEvents({
-      actorId: 1,
-      database: makeDb(model),
-      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': 'a'.repeat(64) } },
-    });
-
-    expect(result.blocked).toBe(1);
-    expect(result.candidates[0]?.blockers).toContain('MULTI_MAIN_FUND_VEHICLE');
+    await expect(
+      backfillLegacyPositionEvents({
+        actorId: 1,
+        database: makeDb(model),
+        request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': 'a'.repeat(64) } },
+      })
+    ).rejects.toMatchObject({ code: 'MULTI_MAIN_FUND_VEHICLE' });
     expect(model.transactions).toBe(0);
     expect(model.positionEvents).toHaveLength(0);
   });
@@ -400,5 +444,112 @@ describe('legacy position backfill service', () => {
       vehicle_slug: 'legacy-main-fund',
       vehicle_type: 'main_fund',
     });
+  });
+
+  it('rejects lossy share precision before writes', async () => {
+    const model = baseModel({
+      investments: [investmentRow({ shares_acquired: '1.12345678' })],
+    });
+
+    const result = await backfillLegacyPositionEvents({
+      actorId: 1,
+      database: makeDb(model),
+      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': 'a'.repeat(64) } },
+    });
+
+    expect(result.blocked).toBe(1);
+    expect(result.candidates[0]?.blockers).toContain('SHARE_PRECISION_LOSS');
+    expect(model.positionEvents).toHaveLength(0);
+  });
+
+  it('reuses participation source observation without duplicating observations', async () => {
+    const model = baseModel({
+      investments: [
+        investmentRow({
+          vehicle_participation_id: 900,
+          participation_fund_id: 7,
+          participation_vehicle_id: 10,
+          participation_company_identity_id: 700,
+          participation_version: 1,
+          participation_source_observation_id: 300,
+          participation_currency: 'USD',
+          shares_acquired: '2.00000000',
+        }),
+      ],
+    });
+    const database = makeDb(model);
+    const dryRun = await backfillLegacyPositionEvents({
+      actorId: 1,
+      database,
+      request: { mode: 'dry_run', fundIds: [7] },
+    });
+    const hash = dryRun.candidates[0]?.sourcePlanHash;
+
+    const apply = await backfillLegacyPositionEvents({
+      actorId: 1,
+      database,
+      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': hash ?? '' } },
+    });
+
+    expect(apply.written).toBe(1);
+    expect(apply.candidates[0]?.warnings).toContain('PARTICIPATION_OBSERVATION_REUSED');
+    expect(model.sourceObservations).toHaveLength(0);
+    expect(model.positionEvents[0]).toMatchObject({
+      vehicle_participation_id: 900,
+      source_observation_id: 300,
+    });
+  });
+
+  it('blocks manual acquisition overlap before insert', async () => {
+    const model = baseModel();
+    model.positionEvents.push({
+      id: 99,
+      fund_id: 7,
+      vehicle_id: 10,
+      company_identity_id: 700,
+      event_type: 'acquisition',
+      effective_date: '2025-01-01',
+      shares_delta: '1.000000',
+      cost_basis_delta: '1.000000',
+      vehicle_participation_id: null,
+      source_observation_id: null,
+      backfilled_from_investment_id: null,
+      request_hash: null,
+    });
+
+    const result = await backfillLegacyPositionEvents({
+      actorId: 1,
+      database: makeDb(model),
+      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': 'a'.repeat(64) } },
+    });
+
+    expect(result.blocked).toBe(1);
+    expect(result.candidates[0]?.blockers).toContain('POSITION_ACQUISITION_OVERLAP');
+  });
+
+  it('rejects replay when immutable event fields no longer match', async () => {
+    const model = baseModel();
+    const database = makeDb(model);
+    const dryRun = await backfillLegacyPositionEvents({
+      actorId: 1,
+      database,
+      request: { mode: 'dry_run', fundIds: [7] },
+    });
+    const hash = dryRun.candidates[0]?.sourcePlanHash ?? '';
+    await backfillLegacyPositionEvents({
+      actorId: 1,
+      database,
+      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': hash } },
+    });
+    model.positionEvents[0]!['cost_basis_delta'] = '999.000000';
+
+    const result = await backfillLegacyPositionEvents({
+      actorId: 1,
+      database,
+      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': hash } },
+    });
+
+    expect(result.blocked).toBe(1);
+    expect(result.candidates[0]?.blockers).toContain('EXISTING_BACKFILL_MISMATCH');
   });
 });
