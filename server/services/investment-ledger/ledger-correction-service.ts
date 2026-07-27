@@ -88,6 +88,7 @@ export type LedgerCorrectionServiceErrorCode =
   | 'PARTICIPATION_VERSION_CONFLICT'
   | 'IDENTITY_LINK_REQUIRED'
   | 'IDENTITY_LINK_AMBIGUOUS'
+  | 'PARTICIPATION_CONVERSION_LOCKED'
   | 'LEDGER_WRITE_FAILED'
   | 'NORMALIZATION_REJECTED';
 
@@ -308,6 +309,7 @@ export async function correctVehicleParticipationLedger(
           input.fundId,
           input.trancheId
         );
+        await assertNoConversionDependents(transaction, input.fundId, dependents);
         assertCompleteDependentSet(dependents, request.dependents);
 
         const observationContext = await loadObservationContext(
@@ -1764,6 +1766,7 @@ function participationFromRow(row: Record<string, unknown>): ParticipationRow {
     supersededByParticipationId: asNullablePositiveInt(
       row['superseded_by_participation_id'] ?? row['supersededByParticipationId']
     ),
+    economicOrigin: asParticipationEconomicOrigin(row['economic_origin'] ?? row['economicOrigin']),
     participationAmount: asString(row['participation_amount'] ?? row['participationAmount']),
     originalAmount: asNullableString(row['original_amount'] ?? row['originalAmount']),
     currency: asNullableString(row['currency']),
@@ -1834,6 +1837,63 @@ function asPositiveInt(value: unknown): number {
 
 function asNullablePositiveInt(value: unknown): number | null {
   return value === null || value === undefined ? null : asPositiveInt(value);
+}
+
+async function assertNoConversionDependents(
+  database: LedgerDatabase,
+  fundId: number,
+  dependents: ParticipationRow[]
+): Promise<void> {
+  const conversionResultIds = dependents
+    .filter((dependent) => dependent.economicOrigin === 'conversion_result')
+    .map((dependent) => dependent.id);
+  if (conversionResultIds.length > 0) {
+    throw new LedgerCorrectionServiceError(
+      409,
+      'PARTICIPATION_CONVERSION_LOCKED',
+      'Conversion-result participations cannot be corrected by the generic cascade.',
+      { participationIds: conversionResultIds }
+    );
+  }
+
+  const dependentIds = dependents.map((dependent) => dependent.id);
+  if (dependentIds.length === 0) return;
+  const idParams = sql.join(
+    dependentIds.map((id) => sql`${id}`),
+    sql`, `
+  );
+  const rows = readRows(
+    await database.execute(sql`
+      SELECT source_participation_id, resulting_participation_id
+      FROM position_event_source_basis_reliefs
+      WHERE fund_id = ${fundId}
+        AND (
+          source_participation_id = ANY(ARRAY[${idParams}]::int[])
+          OR resulting_participation_id = ANY(ARRAY[${idParams}]::int[])
+        )
+      LIMIT 1
+    `)
+  );
+  if (rows.length > 0) {
+    throw new LedgerCorrectionServiceError(
+      409,
+      'PARTICIPATION_CONVERSION_LOCKED',
+      'Converted source/result participations cannot be corrected by the generic cascade.',
+      {
+        sourceParticipationId: rows[0]?.['source_participation_id'],
+        resultingParticipationId: rows[0]?.['resulting_participation_id'],
+      }
+    );
+  }
+}
+
+function asParticipationEconomicOrigin(value: unknown): 'cash_investment' | 'conversion_result' {
+  if (value === 'cash_investment' || value === 'conversion_result') return value;
+  throw new LedgerCorrectionServiceError(
+    500,
+    'LEDGER_WRITE_FAILED',
+    'Database returned invalid participation economic origin.'
+  );
 }
 
 function asString(value: unknown): string {

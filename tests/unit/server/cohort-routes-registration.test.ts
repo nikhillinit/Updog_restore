@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import express from 'express';
 import request from 'supertest';
 
@@ -270,4 +272,13 @@ describe('cohort routes on registerRoutes surface', () => {
     expect(authCalls).toEqual(['/definitions']);
     expect(accessCalls).toEqual(['1']);
   }, 30_000);
+
+  it('excludes conversion lots before cohort analysis input is constructed', () => {
+    const source = fs.readFileSync(
+      path.join(process.cwd(), 'server', 'routes', 'cohort-analysis.ts'),
+      'utf8'
+    );
+
+    expect(source).toContain("ne(investmentLots.lotType, 'conversion')");
+  });
 });

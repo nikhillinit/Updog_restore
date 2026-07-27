@@ -4,6 +4,7 @@ import type { db } from '../../../server/db';
 import {
   CurrentForecastV2ServiceError,
   runCurrentForecastV2,
+  runCurrentForecastV2WithReceipt,
 } from '../../../server/services/current-forecast-v2-service';
 import { ENGINE_VERSION } from '../../../shared/contracts/current-forecast-v2.contract';
 import { currentPlanVersions } from '../../../shared/schema/current-plans';
@@ -35,6 +36,7 @@ class FakeCurrentForecastDb {
   readonly insertedSnapshots: FundSnapshotInsert[] = [];
   planOwnershipAllowed = true;
   factsOwnershipAllowed = true;
+  returnEmptyInsert = false;
 
   asDatabase(): CurrentForecastDatabase {
     return this as unknown as CurrentForecastDatabase;
@@ -67,9 +69,14 @@ class FakeCurrentForecastDb {
 
   insert(table: unknown) {
     return {
-      values: async (values: FundSnapshotInsert) => {
-        if (table === fundSnapshots) this.insertedSnapshots.push(values);
-      },
+      values: (values: FundSnapshotInsert) => ({
+        returning: async () => {
+          if (table !== fundSnapshots) return [];
+          this.insertedSnapshots.push(values);
+          if (this.returnEmptyInsert) return [];
+          return [{ id: this.insertedSnapshots.length }];
+        },
+      }),
     };
   }
 }
@@ -95,6 +102,92 @@ describe('current forecast v2 service', () => {
       snapshotTime: new Date(clock),
       calcVersion: ENGINE_VERSION,
       correlationId: expect.any(String),
+    });
+  });
+
+  it('exposes an internal receipt seam without changing the public forecast result', async () => {
+    const fakeDb = new FakeCurrentForecastDb();
+    const input = {
+      fundId: 1,
+      clock: '2026-07-22T18:24:32.051Z',
+      database: fakeDb.asDatabase(),
+    };
+
+    const publicResult = await runCurrentForecastV2(input);
+    fakeDb.insertedSnapshots.length = 0;
+    const receipt = await runCurrentForecastV2WithReceipt(input);
+
+    expect(receipt.result).toEqual(publicResult);
+    expect(receipt.fundSnapshotId).toBe(1);
+    expect(Object.keys(publicResult)).not.toContain('fundSnapshotId');
+  });
+
+  it('rejects blocked forecast evaluations before writing a fund snapshot', async () => {
+    const fakeDb = new FakeCurrentForecastDb();
+    fakeDb.factsRows[0] = factsRow({
+      policyVersion: 'financial-facts-policy/1.1.0',
+      payloadSchemaId: 'financial-facts-payload/2',
+      payload: {
+        ...(factsRow().payload as Record<string, unknown>),
+        positionRefs: [],
+        positionComponentRefs: [],
+        ownershipRefs: [],
+        valuationRefs: [],
+        observationRefs: [],
+      },
+      consumerEvaluations: [
+        {
+          consumer: 'forecast',
+          status: 'blocked',
+          reasons: ['position_valuation_incomplete'],
+          details: [{ code: 'position_valuation_incomplete', companyIdentityId: 42 }],
+        },
+      ],
+    });
+
+    await expect(
+      runCurrentForecastV2({
+        fundId: 1,
+        clock: '2026-07-22T18:24:32.051Z',
+        database: fakeDb.asDatabase(),
+      })
+    ).rejects.toMatchObject({
+      status: 422,
+      code: 'FACTS_FORECAST_EVALUATION_BLOCKED',
+    });
+    expect(fakeDb.insertedSnapshots).toHaveLength(0);
+  });
+
+  it('rejects facts rows whose stored policy and payload schema tuple is invalid', async () => {
+    const fakeDb = new FakeCurrentForecastDb();
+    fakeDb.factsRows[0] = factsRow({
+      policyVersion: 'financial-facts-policy/1.0.1',
+      payloadSchemaId: 'financial-facts-payload/2',
+    });
+
+    await expect(
+      runCurrentForecastV2({
+        fundId: 1,
+        clock: '2026-07-22T18:24:32.051Z',
+        database: fakeDb.asDatabase(),
+      })
+    ).rejects.toThrow();
+    expect(fakeDb.insertedSnapshots).toHaveLength(0);
+  });
+
+  it('rejects a forecast snapshot insert that does not return a persisted id', async () => {
+    const fakeDb = new FakeCurrentForecastDb();
+    fakeDb.returnEmptyInsert = true;
+
+    await expect(
+      runCurrentForecastV2WithReceipt({
+        fundId: 1,
+        clock: '2026-07-22T18:24:32.051Z',
+        database: fakeDb.asDatabase(),
+      })
+    ).rejects.toMatchObject({
+      status: 500,
+      code: 'FORECAST_SNAPSHOT_WRITE_FAILED',
     });
   });
 
@@ -200,7 +293,7 @@ function currentPlanRow(overrides: Partial<CurrentPlanRow> = {}): CurrentPlanRow
   };
 }
 
-function factsRow(): FactsRow {
+function factsRow(overrides: Partial<FactsRow> = {}): FactsRow {
   return {
     id: 31,
     fundId: 1,
@@ -240,5 +333,6 @@ function factsRow(): FactsRow {
     idempotencyKey: 'facts-31',
     requestHash: 'f'.repeat(64),
     createdAt: new Date('2026-07-22T02:00:00.000Z'),
+    ...overrides,
   };
 }

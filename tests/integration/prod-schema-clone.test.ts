@@ -118,6 +118,10 @@ const POSITIONS_OWNERSHIP_COMPAT_MANIFEST_TABLES = [
   'position_event_lot_reliefs',
   'ownership_snapshots',
 ] as const;
+// M17 (17-position-source-basis-reliefs): Option B no-lot conversion receipt.
+const POSITION_SOURCE_BASIS_RELIEF_MANIFEST_TABLES = [
+  'position_event_source_basis_reliefs',
+] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
   'flags_state',
@@ -748,6 +752,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...INVESTMENT_LEDGER_MANIFEST_TABLES,
         ...VEHICLE_FINANCING_PARTICIPATION_MANIFEST_TABLES,
         ...POSITIONS_OWNERSHIP_COMPAT_MANIFEST_TABLES,
+        ...POSITION_SOURCE_BASIS_RELIEF_MANIFEST_TABLES,
       ])
     );
 

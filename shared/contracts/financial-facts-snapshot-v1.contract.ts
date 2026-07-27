@@ -8,7 +8,10 @@
 import { z } from 'zod';
 
 import { FundCompanyActualsFactsResponseSchema } from './fund-actuals/fund-company-actuals-fact.contract';
-import { ConsumerEvaluationSchema } from './financial-facts-consumer-policies';
+import {
+  ConsumerEvaluationSchema,
+  ConsumerEvaluationV2Schema,
+} from './financial-facts-consumer-policies';
 import { FinancialProvenanceSchema } from './financial-provenance.contract';
 import { ProvenanceEnvelopeSchema } from './provenance-envelope.contract';
 import { canonicalSha256 } from '../lib/canonical-hash';
@@ -16,8 +19,11 @@ import { canonicalizeDecimalLeaves, MoneyDecimalStringSchema } from '../lib/deci
 
 export const FINANCIAL_FACTS_POLICY_VERSION_1_0_0 = 'financial-facts-policy/1.0.0' as const;
 export const FINANCIAL_FACTS_POLICY_VERSION_1_0_1 = 'financial-facts-policy/1.0.1' as const;
-export const FINANCIAL_FACTS_POLICY_VERSION = FINANCIAL_FACTS_POLICY_VERSION_1_0_1;
-export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID = 'financial-facts-payload/1' as const;
+export const FINANCIAL_FACTS_POLICY_VERSION_1_1_0 = 'financial-facts-policy/1.1.0' as const;
+export const FINANCIAL_FACTS_POLICY_VERSION = FINANCIAL_FACTS_POLICY_VERSION_1_1_0;
+export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_1 = 'financial-facts-payload/1' as const;
+export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2 = 'financial-facts-payload/2' as const;
+export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID = FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_1;
 
 const SelectionIdSchema = z.union([z.number().int().positive(), z.string().min(1)]);
 
@@ -181,8 +187,92 @@ export const FinancialFactsPayloadV1Schema = z
   })
   .strict();
 
+const PositionRefSchema = z
+  .object({
+    positionEventId: z.number().int().positive(),
+    eventType: z.string().min(1),
+    vehicleId: z.number().int().positive(),
+    companyIdentityId: z.number().int().positive(),
+    vehicleParticipationId: z.number().int().positive().nullable(),
+    resultingParticipationId: z.number().int().positive().nullable(),
+    sourceObservationId: z.number().int().positive().nullable(),
+    effectiveDate: z.string().date(),
+    recordedAt: z.string().datetime(),
+  })
+  .strict();
+
+const PositionComponentRefSchema = z
+  .object({
+    vehicleId: z.number().int().positive(),
+    companyIdentityId: z.number().int().positive(),
+    kind: z.enum(['priced', 'contingent', 'conversion_source', 'conversion_result']),
+    participationId: z.number().int().positive().nullable(),
+    participationVersion: z.number().int().positive().nullable(),
+    financingTrancheId: z.number().int().positive().nullable(),
+    trancheVersion: z.number().int().positive().nullable(),
+  })
+  .strict();
+
+const OwnershipRefSchema = z
+  .object({
+    ownershipSnapshotId: z.number().int().positive(),
+    vehicleId: z.number().int().positive(),
+    companyIdentityId: z.number().int().positive(),
+    sourceObservationId: z.number().int().positive(),
+    effectiveDate: z.string().date(),
+    recordedAt: z.string().datetime(),
+  })
+  .strict();
+
+const ValuationRefSchema = z
+  .object({
+    basis: z.enum(['direct', 'derived', 'unavailable']),
+    vehicleId: z.number().int().positive(),
+    companyIdentityId: z.number().int().positive(),
+    directMarkId: z.number().int().positive().nullable(),
+    directSourceObservationId: z.number().int().positive().nullable(),
+    ownershipSnapshotId: z.number().int().positive().nullable(),
+    derivedTrancheId: z.number().int().positive().nullable(),
+    derivedTrancheVersion: z.number().int().positive().nullable(),
+    derivedParticipationId: z.number().int().positive().nullable(),
+    derivedParticipationVersion: z.number().int().positive().nullable(),
+  })
+  .strict();
+
+const ParticipationTermRefSchema = z
+  .object({
+    participationId: z.number().int().positive(),
+    participationVersion: z.number().int().positive(),
+    financingTrancheId: z.number().int().positive(),
+    trancheVersion: z.number().int().positive(),
+  })
+  .strict();
+
+const ObservationRefSchema = z
+  .object({
+    observationId: z.number().int().positive(),
+    domain: z.string().min(1),
+    status: z.literal('accepted'),
+    effectiveDate: z.string().date(),
+  })
+  .strict();
+
+export const FinancialFactsPayloadV2Schema = FinancialFactsPayloadV1Schema.omit({
+  participationTermRefs: true,
+})
+  .extend({
+    positionRefs: z.array(PositionRefSchema),
+    positionComponentRefs: z.array(PositionComponentRefSchema),
+    ownershipRefs: z.array(OwnershipRefSchema),
+    valuationRefs: z.array(ValuationRefSchema),
+    participationTermRefs: z.array(ParticipationTermRefSchema),
+    observationRefs: z.array(ObservationRefSchema),
+  })
+  .strict();
+
 export type FinancialFactsPayloadV1_0_0 = z.infer<typeof FinancialFactsPayloadV1_0_0Schema>;
 export type FinancialFactsPayloadV1 = z.infer<typeof FinancialFactsPayloadV1Schema>;
+export type FinancialFactsPayloadV2 = z.infer<typeof FinancialFactsPayloadV2Schema>;
 
 const Sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
 
@@ -193,6 +283,7 @@ export const FinancialFactsSnapshotInputHashPreimageV1_0_0Schema = z
     asOfDate: z.string().date(),
     knowledgeCutoff: z.string().datetime(),
     policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_0_0),
+    payloadSchemaId: z.literal(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_1).optional(),
     selectionSetHash: Sha256Schema,
     payload: FinancialFactsPayloadV1_0_0Schema,
   })
@@ -205,8 +296,22 @@ export const FinancialFactsSnapshotInputHashPreimageSchema = z
     asOfDate: z.string().date(),
     knowledgeCutoff: z.string().datetime(),
     policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_0_1),
+    payloadSchemaId: z.literal(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_1).optional(),
     selectionSetHash: Sha256Schema,
     payload: FinancialFactsPayloadV1Schema,
+  })
+  .strict();
+
+export const FinancialFactsSnapshotInputHashPreimageV2Schema = z
+  .object({
+    fundId: z.number().int().positive(),
+    vehicleIds: z.array(z.number().int().positive()),
+    asOfDate: z.string().date(),
+    knowledgeCutoff: z.string().datetime(),
+    policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_1_0),
+    payloadSchemaId: z.literal(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2),
+    selectionSetHash: Sha256Schema,
+    payload: FinancialFactsPayloadV2Schema,
   })
   .strict();
 
@@ -215,6 +320,7 @@ export const PersistedFinancialFactsSnapshotInputHashPreimageSchema = z.discrimi
   [
     FinancialFactsSnapshotInputHashPreimageV1_0_0Schema,
     FinancialFactsSnapshotInputHashPreimageSchema,
+    FinancialFactsSnapshotInputHashPreimageV2Schema,
   ]
 );
 
@@ -223,6 +329,9 @@ export type FinancialFactsSnapshotInputHashPreimageV1_0_0 = z.infer<
 >;
 export type FinancialFactsSnapshotInputHashPreimage = z.infer<
   typeof FinancialFactsSnapshotInputHashPreimageSchema
+>;
+export type FinancialFactsSnapshotInputHashPreimageV2 = z.infer<
+  typeof FinancialFactsSnapshotInputHashPreimageV2Schema
 >;
 export type PersistedFinancialFactsSnapshotInputHashPreimage = z.infer<
   typeof PersistedFinancialFactsSnapshotInputHashPreimageSchema
@@ -239,7 +348,10 @@ export function buildSnapshotInputHash(
     knowledgeCutoff: parsed.knowledgeCutoff,
     policyVersion: parsed.policyVersion,
     selectionSetHash: parsed.selectionSetHash,
-    payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID,
+    payloadSchemaId:
+      'payloadSchemaId' in parsed && parsed.payloadSchemaId !== undefined
+        ? parsed.payloadSchemaId
+        : FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_1,
     payload: parsed.payload,
   });
 
@@ -249,6 +361,7 @@ export function buildSnapshotInputHash(
 export const FinancialFactsSnapshotV1_0_0Schema = z
   .object({
     policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_0_0),
+    payloadSchemaId: z.literal(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_1).optional(),
     fundId: z.number().int().positive(),
     asOfDate: z.string().date(),
     knowledgeCutoff: z.string().datetime(),
@@ -267,6 +380,7 @@ export const FinancialFactsSnapshotV1_0_0Schema = z
 export const FinancialFactsSnapshotV1Schema = z
   .object({
     policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_0_1),
+    payloadSchemaId: z.literal(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_1).optional(),
     fundId: z.number().int().positive(),
     asOfDate: z.string().date(),
     knowledgeCutoff: z.string().datetime(),
@@ -282,13 +396,34 @@ export const FinancialFactsSnapshotV1Schema = z
   })
   .strict();
 
+export const FinancialFactsSnapshotV2Schema = z
+  .object({
+    policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_1_0),
+    payloadSchemaId: z.literal(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2),
+    fundId: z.number().int().positive(),
+    asOfDate: z.string().date(),
+    knowledgeCutoff: z.string().datetime(),
+    vehicleScope: z.literal('fund_all'),
+    vehicleIds: z.array(z.number().int().positive()),
+    selectionSetHash: Sha256Schema,
+    sourceFactsInputHash: Sha256Schema,
+    snapshotInputHash: Sha256Schema,
+    consumerEvaluations: z.array(ConsumerEvaluationV2Schema),
+    payload: FinancialFactsPayloadV2Schema,
+    actorId: z.number().int().positive().nullable(),
+    createdAt: z.string().datetime(),
+  })
+  .strict();
+
 export const PersistedFinancialFactsSnapshotV1Schema = z.discriminatedUnion('policyVersion', [
   FinancialFactsSnapshotV1_0_0Schema,
   FinancialFactsSnapshotV1Schema,
+  FinancialFactsSnapshotV2Schema,
 ]);
 
 export type FinancialFactsSnapshotV1_0_0 = z.infer<typeof FinancialFactsSnapshotV1_0_0Schema>;
 export type FinancialFactsSnapshotV1 = z.infer<typeof FinancialFactsSnapshotV1Schema>;
+export type FinancialFactsSnapshotV2 = z.infer<typeof FinancialFactsSnapshotV2Schema>;
 export type PersistedFinancialFactsSnapshotV1 = z.infer<
   typeof PersistedFinancialFactsSnapshotV1Schema
 >;

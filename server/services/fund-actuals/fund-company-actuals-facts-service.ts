@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, lte, sql } from 'drizzle-orm';
 
 import { db } from '../../db';
 import {
@@ -90,6 +90,7 @@ export interface BuildFundCompanyActualsFactsInput {
   fundId: number;
   asOfDate: string;
   now?: Date;
+  knowledgeCutoff?: Date;
   database?: typeof db;
 }
 
@@ -690,7 +691,14 @@ export async function buildFundCompanyActualsFacts(
           and(
             eq(valuationMarks.fundId, input.fundId),
             eq(valuationMarks.importedFrom, 'planning_fmv_override'),
-            inArray(valuationMarks.status, ['approved', 'locked'])
+            eq(valuationMarks.markPurpose, 'planning_company_fmv'),
+            inArray(valuationMarks.status, ['approved', 'locked']),
+            ...(input.knowledgeCutoff === undefined
+              ? []
+              : [
+                  lte(valuationMarks.createdAt, input.knowledgeCutoff),
+                  sql`COALESCE(${valuationMarks.approvedAt}, ${valuationMarks.lockedAt}, ${valuationMarks.createdAt}) <= ${input.knowledgeCutoff}`,
+                ])
           )
         )
         .orderBy(asc(valuationMarks.companyId), asc(valuationMarks.markDate), asc(valuationMarks.id)),

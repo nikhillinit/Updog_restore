@@ -7,6 +7,7 @@
  *   POST /api/funds/:fundId/investment-ledger/tranches/:trancheId/participations
  *   POST /api/funds/:fundId/investment-ledger/tranches/:trancheId/ledger-corrections
  *   POST /api/funds/:fundId/investment-ledger/position-events
+ *   POST /api/funds/:fundId/investment-ledger/position-conversions
  *   POST /api/funds/:fundId/investment-ledger/position-corrections
  *   GET  /api/funds/:fundId/investment-ledger/financing-events/:eventId
  *
@@ -36,6 +37,16 @@ import {
 } from '../services/investment-ledger/financing-event-service';
 import { correctVehicleParticipationLedger } from '../services/investment-ledger/ledger-correction-service';
 import { createVehicleFinancingParticipation } from '../services/investment-ledger/participation-service';
+import { convertPosition } from '../services/investment-ledger/position-conversion-service';
+import { listCurrentPositions } from '../services/investment-ledger/current-position-service';
+import {
+  createOwnershipSnapshot,
+  listOwnershipSnapshots,
+} from '../services/investment-ledger/ownership-snapshot-service';
+import {
+  recordDirectPositionValuation,
+  selectPositionValuation,
+} from '../services/investment-ledger/position-valuation-service';
 import {
   correctPosition,
   recordPositionEvent,
@@ -73,6 +84,7 @@ const ledgerWriteLimiter = rateLimit({
 });
 
 const idempotencyKeySchema = z.string().min(1).max(128);
+const isoDateQuerySchema = z.string().date();
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
 const POSTGRES_INT_MAX = 2_147_483_647;
 
@@ -94,6 +106,51 @@ function parsePositiveParam(req: Request, name: string, code: string): number {
     throw new LedgerRouteError(400, code, `${name} must be a positive integer.`);
   }
   return parsed;
+}
+
+function parseOptionalPositiveQuery(req: Request, name: string, code: string): number | undefined {
+  const raw = firstString(req.query[name]);
+  if (raw === undefined) return undefined;
+  const parsed = Number(raw);
+  if (!POSITIVE_INTEGER.test(raw) || !Number.isSafeInteger(parsed) || parsed > POSTGRES_INT_MAX) {
+    throw new LedgerRouteError(400, code, `${name} must be a positive integer.`);
+  }
+  return parsed;
+}
+
+function parseRequiredPositiveQuery(req: Request, name: string, code: string): number {
+  const value = parseOptionalPositiveQuery(req, name, code);
+  if (value === undefined) {
+    throw new LedgerRouteError(400, code, `${name} must be a positive integer.`);
+  }
+  return value;
+}
+
+function parseOptionalDateQuery(req: Request, name: string, code: string): string | undefined {
+  const raw = firstString(req.query[name]);
+  if (raw === undefined) return undefined;
+  if (!isoDateQuerySchema.safeParse(raw).success) {
+    throw new LedgerRouteError(400, code, `${name} must be an ISO date.`);
+  }
+  return raw;
+}
+
+function parseRequiredDateQuery(req: Request, name: string, code: string): string {
+  const value = parseOptionalDateQuery(req, name, code);
+  if (value === undefined) {
+    throw new LedgerRouteError(400, code, `${name} must be an ISO date.`);
+  }
+  return value;
+}
+
+function assertNoKnowledgeCutoffQuery(req: Request): void {
+  if (firstString(req.query['knowledgeCutoff']) !== undefined) {
+    throw new LedgerRouteError(
+      400,
+      'KNOWLEDGE_CUTOFF_NOT_ACCEPTED',
+      'knowledgeCutoff is assigned by the server and is not accepted on public reads.'
+    );
+  }
 }
 
 function parseIdempotencyKey(req: Request): string {
@@ -183,6 +240,14 @@ function validateFundIdParam(req: Request, res: Response, next: NextFunction): v
 }
 
 const writeChain = [
+  ledgerIngressLimiter,
+  requireAuth(),
+  validateFundIdParam,
+  requireFundAccess,
+  ledgerWriteLimiter,
+] as const;
+
+const readChain = [
   ledgerIngressLimiter,
   requireAuth(),
   validateFundIdParam,
@@ -303,6 +368,33 @@ router.post(
   }
 );
 
+// Read current positions by exact fund/vehicle/company identity as of server knowledge.
+router.get(
+  '/api/funds/:fundId/investment-ledger/positions',
+  ...readChain,
+  async (req: Request, res: Response) => {
+    try {
+      assertNoKnowledgeCutoffQuery(req);
+      const fundId = parsePositiveParam(req, 'fundId', 'INVALID_FUND_ID');
+      const result = await listCurrentPositions({
+        fundId,
+        query: {
+          vehicleId: parseOptionalPositiveQuery(req, 'vehicleId', 'INVALID_VEHICLE_ID'),
+          companyIdentityId: parseOptionalPositiveQuery(
+            req,
+            'companyIdentityId',
+            'INVALID_COMPANY_IDENTITY_ID'
+          ),
+          asOfDate: parseOptionalDateQuery(req, 'asOfDate', 'INVALID_AS_OF_DATE'),
+        },
+      });
+      return res.status(200).json(result);
+    } catch (error) {
+      return sendLedgerError(res, error);
+    }
+  }
+);
+
 // Record a manual position event without wiring corrections or conversions.
 router.post(
   '/api/funds/:fundId/investment-ledger/position-events',
@@ -312,6 +404,122 @@ router.post(
       const idempotencyKey = parseIdempotencyKey(req);
       const fundId = parsePositiveParam(req, 'fundId', 'INVALID_FUND_ID');
       const result = await recordPositionEvent({
+        fundId,
+        actorId: resolveAuthenticatedUserId(req),
+        idempotencyKey,
+        request: req.body,
+      });
+      return res.status(result.replayed ? 200 : 201).json(result.value);
+    } catch (error) {
+      return sendLedgerError(res, error);
+    }
+  }
+);
+
+// Read terminal ownership snapshot heads by exact fund/vehicle/company identity.
+router.get(
+  '/api/funds/:fundId/investment-ledger/ownership-snapshots',
+  ...readChain,
+  async (req: Request, res: Response) => {
+    try {
+      assertNoKnowledgeCutoffQuery(req);
+      const fundId = parsePositiveParam(req, 'fundId', 'INVALID_FUND_ID');
+      const vehicleId = parseOptionalPositiveQuery(req, 'vehicleId', 'INVALID_VEHICLE_ID');
+      const companyIdentityId = parseOptionalPositiveQuery(
+        req,
+        'companyIdentityId',
+        'INVALID_COMPANY_IDENTITY_ID'
+      );
+      const asOfDate = parseOptionalDateQuery(req, 'asOfDate', 'INVALID_AS_OF_DATE');
+      const result = await listOwnershipSnapshots({
+        fundId,
+        ...(vehicleId !== undefined && { vehicleId }),
+        ...(companyIdentityId !== undefined && { companyIdentityId }),
+        ...(asOfDate !== undefined && { asOfDate }),
+      });
+      return res.status(200).json(result);
+    } catch (error) {
+      return sendLedgerError(res, error);
+    }
+  }
+);
+
+// Append an immutable ownership snapshot with exact observation provenance.
+router.post(
+  '/api/funds/:fundId/investment-ledger/ownership-snapshots',
+  ...writeChain,
+  async (req: Request, res: Response) => {
+    try {
+      const idempotencyKey = parseIdempotencyKey(req);
+      const fundId = parsePositiveParam(req, 'fundId', 'INVALID_FUND_ID');
+      const result = await createOwnershipSnapshot({
+        fundId,
+        actorId: resolveAuthenticatedUserId(req),
+        idempotencyKey,
+        request: req.body,
+      });
+      return res.status(result.replayed ? 200 : 201).json(result.value);
+    } catch (error) {
+      return sendLedgerError(res, error);
+    }
+  }
+);
+
+// Record an accepted direct position FMV mark scoped to one vehicle/company identity.
+router.get(
+  '/api/funds/:fundId/investment-ledger/position-valuations',
+  ...readChain,
+  async (req: Request, res: Response) => {
+    try {
+      assertNoKnowledgeCutoffQuery(req);
+      const fundId = parsePositiveParam(req, 'fundId', 'INVALID_FUND_ID');
+      const result = await selectPositionValuation({
+        fundId,
+        vehicleId: parseRequiredPositiveQuery(req, 'vehicleId', 'INVALID_VEHICLE_ID'),
+        companyIdentityId: parseRequiredPositiveQuery(
+          req,
+          'companyIdentityId',
+          'INVALID_COMPANY_IDENTITY_ID'
+        ),
+        companyId: parseRequiredPositiveQuery(req, 'companyId', 'INVALID_COMPANY_ID'),
+        asOfDate: parseRequiredDateQuery(req, 'asOfDate', 'INVALID_AS_OF_DATE'),
+      });
+      return res.status(200).json(result);
+    } catch (error) {
+      return sendLedgerError(res, error);
+    }
+  }
+);
+
+router.post(
+  '/api/funds/:fundId/investment-ledger/position-valuations',
+  ...writeChain,
+  async (req: Request, res: Response) => {
+    try {
+      const idempotencyKey = parseIdempotencyKey(req);
+      const fundId = parsePositiveParam(req, 'fundId', 'INVALID_FUND_ID');
+      const result = await recordDirectPositionValuation({
+        fundId,
+        actorId: resolveAuthenticatedUserId(req),
+        idempotencyKey,
+        request: req.body,
+      });
+      return res.status(result.replayed ? 200 : 201).json(result.value);
+    } catch (error) {
+      return sendLedgerError(res, error);
+    }
+  }
+);
+
+// Convert a full SAFE/note participation into one priced-equity participation.
+router.post(
+  '/api/funds/:fundId/investment-ledger/position-conversions',
+  ...writeChain,
+  async (req: Request, res: Response) => {
+    try {
+      const idempotencyKey = parseIdempotencyKey(req);
+      const fundId = parsePositiveParam(req, 'fundId', 'INVALID_FUND_ID');
+      const result = await convertPosition({
         fundId,
         actorId: resolveAuthenticatedUserId(req),
         idempotencyKey,

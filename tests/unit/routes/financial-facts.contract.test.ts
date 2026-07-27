@@ -5,7 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   EMPTY_SELECTION_SET_HASH,
-  FINANCIAL_FACTS_POLICY_VERSION,
+  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
+  FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
+  FINANCIAL_FACTS_POLICY_VERSION_1_1_0,
+  type FinancialFactsSnapshotV2,
   type FinancialFactsSnapshotV1,
 } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { IdempotentCommandError } from '../../../server/lib/idempotent-command';
@@ -69,7 +72,7 @@ const KNOWLEDGE_CUTOFF = '2026-07-22T02:00:00.000Z';
 
 function snapshot(overrides: Partial<FinancialFactsSnapshotV1> = {}): FinancialFactsSnapshotV1 {
   return {
-    policyVersion: FINANCIAL_FACTS_POLICY_VERSION,
+    policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
     fundId: 1,
     asOfDate: '2026-07-21',
     knowledgeCutoff: KNOWLEDGE_CUTOFF,
@@ -127,6 +130,35 @@ function snapshotRow() {
     idempotencyKey: 'stored-key',
     requestHash: 'c'.repeat(64),
     createdAt: new Date(value.createdAt),
+  };
+}
+
+function snapshotV2(overrides: Partial<FinancialFactsSnapshotV2> = {}): FinancialFactsSnapshotV2 {
+  return {
+    ...snapshot(),
+    policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_1_0,
+    payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
+    payload: {
+      ...snapshot().payload,
+      participationTermRefs: [],
+      positionRefs: [],
+      positionComponentRefs: [],
+      ownershipRefs: [],
+      valuationRefs: [],
+      observationRefs: [],
+    },
+    ...overrides,
+  };
+}
+
+function snapshotRowV2() {
+  const value = snapshotV2();
+  return {
+    ...snapshotRow(),
+    policyVersion: value.policyVersion,
+    payloadSchemaId: value.payloadSchemaId,
+    payload: value.payload,
+    consumerEvaluations: value.consumerEvaluations,
   };
 }
 
@@ -229,6 +261,31 @@ describe('financial-facts route contract', () => {
     expect(service.getLatestFinancialFactsSnapshot).toHaveBeenCalledWith({ fundId: 1 });
   });
 
+  it('GET serves a persisted policy 1.1.0 payload 2 snapshot with its tuple intact', async () => {
+    service.getLatestFinancialFactsSnapshot.mockResolvedValueOnce(snapshotRowV2());
+
+    const response = await request(buildApp()).get('/api/funds/1/financial-facts/latest');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(snapshotV2());
+    expect(response.body.payloadSchemaId).toBe(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2);
+  });
+
+  it('GET rejects a corrupt legacy row that carries a payload 2 schema id', async () => {
+    service.getLatestFinancialFactsSnapshot.mockResolvedValueOnce({
+      ...snapshotRow(),
+      payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
+    });
+
+    const response = await request(buildApp()).get('/api/funds/1/financial-facts/latest');
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      error: 'internal_error',
+      message: 'Failed to process financial-facts request',
+    });
+  });
+
   it('POST rejects a missing Idempotency-Key before building a snapshot', async () => {
     const response = await request(buildApp())
       .post('/api/admin/funds/1/financial-facts/snapshots')
@@ -258,7 +315,7 @@ describe('financial-facts route contract', () => {
     expect(service.buildFinancialFactsSnapshot).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        idempotencyKey: 'facts:1:2026-07-21:financial-facts-policy/1.0.1:trigger-7',
+        idempotencyKey: 'facts:1:2026-07-21:financial-facts-policy/1.1.0:trigger-7',
       })
     );
   });

@@ -15,8 +15,14 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 
-import type { ConsumerEvaluation } from '../contracts/financial-facts-consumer-policies';
-import type { FinancialFactsPayloadV1 } from '../contracts/financial-facts-snapshot-v1.contract';
+import type {
+  ConsumerEvaluation,
+  ConsumerEvaluationV2,
+} from '../contracts/financial-facts-consumer-policies';
+import type {
+  FinancialFactsPayloadV1,
+  FinancialFactsPayloadV2,
+} from '../contracts/financial-facts-snapshot-v1.contract';
 import { funds } from './fund';
 
 export const financialFactsSnapshots = pgTable(
@@ -35,8 +41,12 @@ export const financialFactsSnapshots = pgTable(
     selectionSetHash: text('selection_set_hash').notNull(),
     sourceFactsInputHash: text('source_facts_input_hash').notNull(),
     snapshotInputHash: text('snapshot_input_hash').notNull(),
-    payload: jsonb('payload').notNull().$type<FinancialFactsPayloadV1>(),
-    consumerEvaluations: jsonb('consumer_evaluations').notNull().$type<ConsumerEvaluation[]>(),
+    payload: jsonb('payload')
+      .notNull()
+      .$type<FinancialFactsPayloadV1 | FinancialFactsPayloadV2>(),
+    consumerEvaluations: jsonb('consumer_evaluations')
+      .notNull()
+      .$type<ConsumerEvaluation[] | ConsumerEvaluationV2[]>(),
     actorId: integer('actor_id'),
     idempotencyKey: varchar('idempotency_key', { length: 128 }).notNull(),
     requestHash: varchar('request_hash', { length: 64 }).notNull(),
