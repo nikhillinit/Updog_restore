@@ -10,7 +10,12 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { pgIdentifier } from '../../scripts/db-push-core.mjs';
-import { ACTION_SKIP, auditManifest, loadManifests } from '../../scripts/reconcile-prod-schema.mjs';
+import {
+  ACTION_SKIP,
+  auditManifest,
+  loadManifests,
+  runReconciliation,
+} from '../../scripts/reconcile-prod-schema.mjs';
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
 
 const STARTUP_TIMEOUT_MS = 90_000;
@@ -22,6 +27,7 @@ let pool: Pool | undefined;
 let shapePool: Pool | undefined;
 
 const SHAPE_DATABASE = 'shape_db';
+const INVESTMENT_ROUNDS_RECOVERY_DATABASE = 'investment_rounds_recovery_db';
 const C1_MOUNTED_TABLES = [
   'cohort_definitions',
   'sector_taxonomy',
@@ -1051,4 +1057,73 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
     // operator apply (company_overrides.canonical_sector_id nullability).
     expect(failures).toEqual([]);
   }, 120_000);
+
+  it('recovers a production-shaped database with no investment_rounds and replays cleanly', async () => {
+    expect(pool).toBeDefined();
+    expect(postgres).toBeDefined();
+
+    await pool!.query(`DROP DATABASE IF EXISTS "${INVESTMENT_ROUNDS_RECOVERY_DATABASE}"`);
+    await pool!.query(`CREATE DATABASE "${INVESTMENT_ROUNDS_RECOVERY_DATABASE}"`);
+
+    const recoveryUrl = new URL(postgres!.getConnectionUri());
+    recoveryUrl.pathname = `/${INVESTMENT_ROUNDS_RECOVERY_DATABASE}`;
+    let recoveryPool: Pool | undefined;
+
+    try {
+      await runMigrationsWithConnectionString(
+        recoveryUrl.toString(),
+        '0040_multi_entity_ledger_foundation'
+      );
+      recoveryPool = new Pool({ connectionString: recoveryUrl.toString(), max: 1 });
+      await recoveryPool.query('DROP TABLE IF EXISTS "investment_round_model_overrides" CASCADE');
+      await recoveryPool.query('DROP TABLE "investment_rounds" CASCADE');
+
+      const manifest = (await loadManifests()).find(
+        (candidate) => candidate.name === 'vehicle-financing-participations'
+      );
+      expect(manifest).toBeDefined();
+
+      const client = await recoveryPool.connect();
+      try {
+        const stdout = { write: () => true };
+        const first = await runReconciliation({
+          client,
+          manifests: [manifest!],
+          apply: true,
+          expectedDatabase: INVESTMENT_ROUNDS_RECOVERY_DATABASE,
+          stdout,
+        });
+        expect(first.applied).toEqual(['vehicle-financing-participations']);
+
+        const afterFirst = await auditManifest(client, manifest!);
+        expect(afterFirst.action).toBe(ACTION_SKIP);
+        expect(afterFirst.objects.every((object) => object.action === ACTION_SKIP)).toBe(true);
+
+        const replay = await runReconciliation({
+          client,
+          manifests: [manifest!],
+          apply: true,
+          expectedDatabase: INVESTMENT_ROUNDS_RECOVERY_DATABASE,
+          stdout,
+        });
+        expect(replay.applied).toEqual([]);
+
+        const afterReplay = await auditManifest(client, manifest!);
+        expect(afterReplay.action).toBe(ACTION_SKIP);
+        expect(afterReplay.objects.every((object) => object.action === ACTION_SKIP)).toBe(true);
+      } finally {
+        client.release();
+      }
+    } finally {
+      await recoveryPool?.end();
+      await pool!.query(
+        `SELECT pg_terminate_backend(pid)
+         FROM pg_stat_activity
+         WHERE datname = $1
+           AND pid <> pg_backend_pid()`,
+        [INVESTMENT_ROUNDS_RECOVERY_DATABASE]
+      );
+      await pool!.query(`DROP DATABASE IF EXISTS "${INVESTMENT_ROUNDS_RECOVERY_DATABASE}"`);
+    }
+  }, STARTUP_TIMEOUT_MS * 2);
 });
