@@ -687,7 +687,11 @@ describe.skipIf(skipIfNoDocker)('legacy position backfill PostgreSQL proof', () 
             proceeds: '0.000000',
           },
         })
-      ).rejects.toThrow('task11d synthetic compatibility failure');
+      ).rejects.toMatchObject({
+        cause: {
+          message: 'task11d synthetic compatibility failure',
+        },
+      });
 
       expect(await compatibilityCounts(pool, seed.fundId)).toEqual(beforeCounts);
       expect(await investmentProjection(pool, seed.investmentId)).toEqual(beforeInvestment);
@@ -871,10 +875,10 @@ async function seedParticipationBackedInvestment(
       INSERT INTO financing_tranches (
         fund_id, financing_event_id, tranche_key, version, closing_date, security_type,
         investment_amount, original_amount, currency, fx_rate_to_usd, fx_rate_date,
-        idempotency_key, request_hash
+        valuation_cap, idempotency_key, request_hash
       ) VALUES (
         $1, $2, $3::text, 1, '2026-01-15', 'safe', '1000.000000', '1000.000000',
-        'USD', '1.0000000000', '2026-01-15', $3::varchar, repeat('b', 64)
+        'USD', '1.0000000000', '2026-01-15', '5000000.000000', $3::varchar, repeat('b', 64)
       )
       RETURNING id
     `,
