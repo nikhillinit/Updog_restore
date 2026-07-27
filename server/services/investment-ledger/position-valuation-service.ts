@@ -91,6 +91,8 @@ export async function recordDirectPositionValuation(input: {
   });
 
   const result = await database.transaction(async (transaction) => {
+    await lockFundIdentity(transaction, input.fundId);
+
     const existing = await selectDirectMarkBySourceHash(transaction, input.fundId, sourceHash);
     if (existing) {
       await assertDirectMarkReplay(transaction, existing, requestHash, request, sourceHash);
@@ -296,10 +298,12 @@ export async function selectPositionValuation(input: {
   });
 }
 
-function selection(
-  input: PositionValuationSelectionV1
-): PositionValuationSelectionV1 {
+function selection(input: PositionValuationSelectionV1): PositionValuationSelectionV1 {
   return PositionValuationSelectionV1Schema.parse(input);
+}
+
+async function lockFundIdentity(database: LedgerDatabase, fundId: number): Promise<void> {
+  await database.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`fund-identity:${fundId}`}))`);
 }
 
 async function assertDirectMarkReplay(
@@ -628,7 +632,10 @@ async function selectObservation(
     : null;
 }
 
-function staleWarning(markDate: string, asOfDate: string): PositionValuationSelectionV1['warnings'] {
+function staleWarning(
+  markDate: string,
+  asOfDate: string
+): PositionValuationSelectionV1['warnings'] {
   return ageDays(markDate, asOfDate) > 120
     ? [
         {
@@ -655,8 +662,7 @@ function contingentIncompleteWarnings(): PositionValuationSelectionV1['warnings'
 
 function ageDays(evidenceDate: string, asOfDate: string): number {
   return Math.floor(
-    (Date.parse(`${asOfDate}T00:00:00.000Z`) -
-      Date.parse(`${evidenceDate}T00:00:00.000Z`)) /
+    (Date.parse(`${asOfDate}T00:00:00.000Z`) - Date.parse(`${evidenceDate}T00:00:00.000Z`)) /
       86_400_000
   );
 }
@@ -716,7 +722,11 @@ function readInsertedId(result: unknown): number {
 function asPositiveInt(value: unknown): number {
   const parsed = typeof value === 'number' ? value : Number(value);
   if (!Number.isSafeInteger(parsed) || parsed <= 0) {
-    throw new PositionValuationServiceError(500, 'LEDGER_READ_FAILED', 'Database returned invalid id.');
+    throw new PositionValuationServiceError(
+      500,
+      'LEDGER_READ_FAILED',
+      'Database returned invalid id.'
+    );
   }
   return parsed;
 }

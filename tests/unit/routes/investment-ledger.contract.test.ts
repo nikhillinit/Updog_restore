@@ -487,6 +487,47 @@ describe('investment-ledger routes', () => {
     expect(serviceState.createFinancingEvent).not.toHaveBeenCalled();
   });
 
+  it('applies the write cap to POST routes without spending it on Task 11 GET routes', async () => {
+    authState.user = {
+      id: '3003',
+      sub: '3003',
+      email: 'ledger-limit@example.com',
+      role: 'user',
+      roles: ['user'],
+      fundIds: [7],
+    };
+    serviceState.createFinancingEvent.mockResolvedValue({ value: EVENT, replayed: false });
+    serviceState.listCurrentPositions.mockResolvedValueOnce(CURRENT_POSITIONS);
+
+    for (let index = 0; index < 100; index += 1) {
+      const response = await request(makeApp())
+        .post('/api/funds/7/investment-ledger/financing-events')
+        .set('Idempotency-Key', `write-limit-${index}`)
+        .send(eventBody);
+
+      expect(response.status, `write ${index + 1}`).toBe(201);
+    }
+
+    const cappedWrite = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/financing-events')
+      .set('Idempotency-Key', 'write-limit-capped')
+      .send(eventBody);
+
+    const readAfterWriteCap = await request(makeApp()).get(
+      '/api/funds/7/investment-ledger/positions?vehicleId=9&companyIdentityId=11&asOfDate=2026-07-01'
+    );
+
+    expect(cappedWrite.status).toBe(429);
+    expect(cappedWrite.body.error).toBe('TOO_MANY_REQUESTS');
+    expect(readAfterWriteCap.status).toBe(200);
+    expect(readAfterWriteCap.body).toEqual(CURRENT_POSITIONS);
+    expect(serviceState.createFinancingEvent).toHaveBeenCalledTimes(100);
+    expect(serviceState.listCurrentPositions).toHaveBeenCalledWith({
+      fundId: 7,
+      query: { vehicleId: 9, companyIdentityId: 11, asOfDate: '2026-07-01' },
+    });
+  });
+
   it('returns 201 on a first event write and 200 on a replay', async () => {
     serviceState.createFinancingEvent.mockResolvedValueOnce({ value: EVENT, replayed: false });
     const created = await request(makeApp())
@@ -891,5 +932,28 @@ describe('investment-ledger routes', () => {
 
     expect(source).not.toMatch(/from\s+'\.\.\/db'/);
     expect(source).not.toMatch(/from\s+"\.\.\/db"/);
+  });
+
+  it('keeps Task 11 read chains free of the ledger write limiter', () => {
+    const source = fs.readFileSync(
+      path.join(process.cwd(), 'server', 'routes', 'investment-ledger.ts'),
+      'utf8'
+    );
+
+    const readChain = source.match(/const readChain = \[([\s\S]*?)\] as const;/)?.[1] ?? '';
+    const writeChain = source.match(/const writeChain = \[([\s\S]*?)\] as const;/)?.[1] ?? '';
+    const eventDetailRoute =
+      source.match(
+        /router\.get\(\s*'\/api\/funds\/:fundId\/investment-ledger\/financing-events\/:eventId',([\s\S]*?)async/
+      )?.[1] ?? '';
+
+    expect(readChain).toContain('ledgerIngressLimiter');
+    expect(readChain).toContain('requireAuth()');
+    expect(readChain).toContain('validateFundIdParam');
+    expect(readChain).toContain('requireFundAccess');
+    expect(readChain).not.toContain('ledgerWriteLimiter');
+    expect(writeChain).toContain('ledgerWriteLimiter');
+    expect(eventDetailRoute).toContain('...readChain');
+    expect(eventDetailRoute).not.toContain('ledgerWriteLimiter');
   });
 });

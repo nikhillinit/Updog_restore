@@ -42,509 +42,606 @@ interface ParticipationSeed {
   participationId: number;
 }
 
-describe.skipIf(skipIfNoDocker)('current position, ownership, and valuation PostgreSQL proof', () => {
-  beforeAll(async () => {
-    if (!process.env.TEST_DATABASE_URL) {
-      await setupTestContainers();
-      startedTestContainers = true;
-    }
-    adminPool = new Pool({ connectionString: testDatabaseConnectionString(), max: 1 });
-  });
-
-  afterAll(async () => {
-    if (adminPool) {
-      for (const databaseName of createdDatabases.reverse()) {
-        await adminPool.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)}`);
+describe.skipIf(skipIfNoDocker)(
+  'current position, ownership, and valuation PostgreSQL proof',
+  () => {
+    beforeAll(async () => {
+      if (!process.env.TEST_DATABASE_URL) {
+        await setupTestContainers();
+        startedTestContainers = true;
       }
-      await adminPool.end();
-    }
-    if (startedTestContainers) {
-      await cleanupTestContainers();
-    }
-  });
+      adminPool = new Pool({ connectionString: testDatabaseConnectionString(), max: 1 });
+    });
 
-  it('folds current positions by exact vehicle/company and recorded cutoff, with conversion basis conservation', async () => {
-    const { connectionString } = await createMigratedDatabase('current_position_fold');
+    afterAll(async () => {
+      if (adminPool) {
+        for (const databaseName of createdDatabases.reverse()) {
+          await adminPool.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)}`);
+        }
+        await adminPool.end();
+      }
+      if (startedTestContainers) {
+        await cleanupTestContainers();
+      }
+    });
 
-    await withPool(connectionString, async (pool) => {
-      const seed = await seedScope(pool, nextFundId());
-      const main = await insertParticipation(pool, seed, {
-        vehicleId: seed.vehicleId,
-        securityType: 'safe',
-        suffix: 'main-safe',
-        amount: '1000.000000',
-      });
-      const converted = await insertParticipation(pool, seed, {
-        vehicleId: seed.vehicleId,
-        securityType: 'equity',
-        suffix: 'main-equity',
-        amount: '1000.000000',
-        economicOrigin: 'conversion_result',
-      });
-      const spv = await insertParticipation(pool, seed, {
-        vehicleId: seed.otherVehicleId,
-        securityType: 'equity',
-        suffix: 'spv',
-        amount: '250.000000',
-      });
-      const spvAcquisitionEventId = await insertPositionEvent(pool, {
-        fundId: seed.fundId,
-        vehicleId: seed.otherVehicleId,
-        identityId: seed.identityId,
-        eventType: 'acquisition',
-        effectiveDate: '2026-01-05',
-        recordedAt: '2026-01-06T00:00:00.000Z',
-        sharesDelta: '25.000000',
-        costBasisDelta: '250.000000',
-        proceeds: '0.000000',
-        vehicleParticipationId: spv.participationId,
-      });
-      await insertPositionEvent(pool, {
-        fundId: seed.fundId,
-        vehicleId: seed.otherVehicleId,
-        identityId: seed.identityId,
-        eventType: 'reversal',
-        effectiveDate: '2026-01-05',
-        recordedAt: '2026-03-01T00:00:00.000Z',
-        sharesDelta: '-25.000000',
-        costBasisDelta: '-250.000000',
-        proceeds: '0.000000',
-        vehicleParticipationId: spv.participationId,
-        reversesPositionEventId: spvAcquisitionEventId,
-      });
-      const acquisitionEventId = await insertPositionEvent(pool, {
-        fundId: seed.fundId,
-        vehicleId: seed.vehicleId,
-        identityId: seed.identityId,
-        eventType: 'acquisition',
-        effectiveDate: '2026-01-01',
-        recordedAt: '2026-01-02T00:00:00.000Z',
-        sharesDelta: '0.000000',
-        costBasisDelta: '1000.000000',
-        proceeds: '0.000000',
-        vehicleParticipationId: main.participationId,
-      });
-      const conversionEventId = await insertPositionEvent(pool, {
-        fundId: seed.fundId,
-        vehicleId: seed.vehicleId,
-        identityId: seed.identityId,
-        eventType: 'conversion',
-        effectiveDate: '2026-02-01',
-        recordedAt: '2026-02-02T00:00:00.000Z',
-        sharesDelta: '100.000000',
-        costBasisDelta: '0.000000',
-        proceeds: '0.000000',
-        vehicleParticipationId: main.participationId,
-        resultingParticipationId: converted.participationId,
-      });
-      await insertSourceBasisRelief(pool, {
-        fundId: seed.fundId,
-        vehicleId: seed.vehicleId,
-        identityId: seed.identityId,
-        conversionEventId,
-        acquisitionEventId,
-        source: main,
-        result: converted,
-      });
+    it('folds current positions by exact vehicle/company and recorded cutoff, with conversion basis conservation', async () => {
+      const { connectionString } = await createMigratedDatabase('current_position_fold');
 
-      const beforeReversal = await listCurrentPositions({
-        fundId: seed.fundId,
-        query: { asOfDate: '2026-03-15' },
-        knowledgeCutoff: new Date('2026-02-15T00:00:00.000Z'),
-        database: drizzle(pool) as never,
-      });
-      const afterReversal = await listCurrentPositions({
-        fundId: seed.fundId,
-        query: { asOfDate: '2026-03-15' },
-        knowledgeCutoff: new Date('2026-03-15T00:00:00.000Z'),
-        database: drizzle(pool) as never,
-      });
+      await withPool(connectionString, async (pool) => {
+        const seed = await seedScope(pool, nextFundId());
+        const main = await insertParticipation(pool, seed, {
+          vehicleId: seed.vehicleId,
+          securityType: 'safe',
+          suffix: 'main-safe',
+          amount: '1000.000000',
+        });
+        const converted = await insertParticipation(pool, seed, {
+          vehicleId: seed.vehicleId,
+          securityType: 'equity',
+          suffix: 'main-equity',
+          amount: '1000.000000',
+          economicOrigin: 'conversion_result',
+        });
+        const spv = await insertParticipation(pool, seed, {
+          vehicleId: seed.otherVehicleId,
+          securityType: 'equity',
+          suffix: 'spv',
+          amount: '250.000000',
+        });
+        const spvAcquisitionEventId = await insertPositionEvent(pool, {
+          fundId: seed.fundId,
+          vehicleId: seed.otherVehicleId,
+          identityId: seed.identityId,
+          eventType: 'acquisition',
+          effectiveDate: '2026-01-05',
+          recordedAt: '2026-01-06T00:00:00.000Z',
+          sharesDelta: '25.000000',
+          costBasisDelta: '250.000000',
+          proceeds: '0.000000',
+          vehicleParticipationId: spv.participationId,
+        });
+        await insertPositionEvent(pool, {
+          fundId: seed.fundId,
+          vehicleId: seed.otherVehicleId,
+          identityId: seed.identityId,
+          eventType: 'reversal',
+          effectiveDate: '2026-01-05',
+          recordedAt: '2026-03-01T00:00:00.000Z',
+          sharesDelta: '-25.000000',
+          costBasisDelta: '-250.000000',
+          proceeds: '0.000000',
+          vehicleParticipationId: spv.participationId,
+          reversesPositionEventId: spvAcquisitionEventId,
+        });
+        const acquisitionEventId = await insertPositionEvent(pool, {
+          fundId: seed.fundId,
+          vehicleId: seed.vehicleId,
+          identityId: seed.identityId,
+          eventType: 'acquisition',
+          effectiveDate: '2026-01-01',
+          recordedAt: '2026-01-02T00:00:00.000Z',
+          sharesDelta: '0.000000',
+          costBasisDelta: '1000.000000',
+          proceeds: '0.000000',
+          vehicleParticipationId: main.participationId,
+        });
+        const conversionEventId = await insertPositionEvent(pool, {
+          fundId: seed.fundId,
+          vehicleId: seed.vehicleId,
+          identityId: seed.identityId,
+          eventType: 'conversion',
+          effectiveDate: '2026-02-01',
+          recordedAt: '2026-02-02T00:00:00.000Z',
+          sharesDelta: '100.000000',
+          costBasisDelta: '0.000000',
+          proceeds: '0.000000',
+          vehicleParticipationId: main.participationId,
+          resultingParticipationId: converted.participationId,
+        });
+        await insertSourceBasisRelief(pool, {
+          fundId: seed.fundId,
+          vehicleId: seed.vehicleId,
+          identityId: seed.identityId,
+          conversionEventId,
+          acquisitionEventId,
+          source: main,
+          result: converted,
+        });
 
-      expect(beforeReversal.positions.map((position) => position.vehicleId)).toEqual([
-        seed.vehicleId,
-        seed.otherVehicleId,
-      ]);
-      expect(beforeReversal.positions.find((position) => position.vehicleId === seed.vehicleId)).toMatchObject({
-        shares: '100.000000',
-        costBasis: '1000.000000',
-        components: [{ kind: 'priced', shares: '100.000000', costBasis: '1000.000000' }],
-      });
-      expect(beforeReversal.positions.find((position) => position.vehicleId === seed.otherVehicleId)).toMatchObject({
-        shares: '25.000000',
-        costBasis: '250.000000',
-      });
-      expect(afterReversal.positions.find((position) => position.vehicleId === seed.otherVehicleId)).toMatchObject({
-        shares: '0.000000',
-        costBasis: '0.000000',
+        const beforeReversal = await listCurrentPositions({
+          fundId: seed.fundId,
+          query: { asOfDate: '2026-03-15' },
+          knowledgeCutoff: new Date('2026-02-15T00:00:00.000Z'),
+          database: drizzle(pool) as never,
+        });
+        const afterReversal = await listCurrentPositions({
+          fundId: seed.fundId,
+          query: { asOfDate: '2026-03-15' },
+          knowledgeCutoff: new Date('2026-03-15T00:00:00.000Z'),
+          database: drizzle(pool) as never,
+        });
+
+        expect(beforeReversal.positions.map((position) => position.vehicleId)).toEqual([
+          seed.vehicleId,
+          seed.otherVehicleId,
+        ]);
+        expect(
+          beforeReversal.positions.find((position) => position.vehicleId === seed.vehicleId)
+        ).toMatchObject({
+          shares: '100.000000',
+          costBasis: '1000.000000',
+          components: [{ kind: 'priced', shares: '100.000000', costBasis: '1000.000000' }],
+        });
+        expect(
+          beforeReversal.positions.find((position) => position.vehicleId === seed.otherVehicleId)
+        ).toMatchObject({
+          shares: '25.000000',
+          costBasis: '250.000000',
+        });
+        expect(
+          afterReversal.positions.find((position) => position.vehicleId === seed.otherVehicleId)
+        ).toMatchObject({
+          shares: '0.000000',
+          costBasis: '0.000000',
+        });
       });
     });
-  });
 
-  it('creates ownership snapshots idempotently and enforces accepted same-scope lineage', async () => {
-    const { connectionString } = await createMigratedDatabase('ownership_snapshot');
+    it('creates ownership snapshots idempotently and enforces accepted same-scope lineage', async () => {
+      const { connectionString } = await createMigratedDatabase('ownership_snapshot');
 
-    await withPool(connectionString, async (pool) => {
-      const seed = await seedScope(pool, nextFundId());
-      const observationId = await insertObservation(pool, {
-        fundId: seed.fundId,
-        identityId: seed.identityId,
-        domain: 'ownership',
-        status: 'accepted',
-        effectiveDate: '2026-06-30',
-        suffix: 'ownership',
-      });
-      const database = drizzle(pool) as never;
-      const request = {
-        vehicleId: seed.vehicleId,
-        companyIdentityId: seed.identityId,
-        effectiveDate: '2026-07-01',
-        ownershipPct: '12.50000000',
-        fdNumerator: '125.000000',
-        fdDenominator: '1000.000000',
-        sourceObservationId: observationId,
-      };
+      await withPool(connectionString, async (pool) => {
+        const seed = await seedScope(pool, nextFundId());
+        const observationId = await insertObservation(pool, {
+          fundId: seed.fundId,
+          identityId: seed.identityId,
+          domain: 'ownership',
+          status: 'accepted',
+          effectiveDate: '2026-06-30',
+          suffix: 'ownership',
+        });
+        const database = drizzle(pool) as never;
+        const request = {
+          vehicleId: seed.vehicleId,
+          companyIdentityId: seed.identityId,
+          effectiveDate: '2026-07-01',
+          ownershipPct: '12.50000000',
+          fdNumerator: '125.000000',
+          fdDenominator: '1000.000000',
+          sourceObservationId: observationId,
+        };
 
-      const created = await createOwnershipSnapshot({
-        fundId: seed.fundId,
-        actorId: null,
-        idempotencyKey: `ownership-${seed.fundId}-1`,
-        request,
-        database,
-      });
-      const replayed = await createOwnershipSnapshot({
-        fundId: seed.fundId,
-        actorId: null,
-        idempotencyKey: `ownership-${seed.fundId}-1`,
-        request,
-        database,
-      });
-      await expect(
-        createOwnershipSnapshot({
+        const created = await createOwnershipSnapshot({
           fundId: seed.fundId,
           actorId: null,
           idempotencyKey: `ownership-${seed.fundId}-1`,
-          request: { ...request, ownershipPct: '13.00000000', fdNumerator: '130.000000' },
+          request,
           database,
-        })
-      ).rejects.toMatchObject({ status: 409, code: 'IDEMPOTENCY_KEY_REUSE' });
-      expect(await countRows(pool, 'ownership_snapshots', seed.fundId)).toBe(1);
-      expect(replayed).toEqual({ ...created, replayed: true });
+        });
+        const replayed = await createOwnershipSnapshot({
+          fundId: seed.fundId,
+          actorId: null,
+          idempotencyKey: `ownership-${seed.fundId}-1`,
+          request,
+          database,
+        });
+        await expect(
+          createOwnershipSnapshot({
+            fundId: seed.fundId,
+            actorId: null,
+            idempotencyKey: `ownership-${seed.fundId}-1`,
+            request: { ...request, ownershipPct: '13.00000000', fdNumerator: '130.000000' },
+            database,
+          })
+        ).rejects.toMatchObject({ status: 409, code: 'IDEMPOTENCY_KEY_REUSE' });
+        expect(await countRows(pool, 'ownership_snapshots', seed.fundId)).toBe(1);
+        expect(replayed).toEqual({ ...created, replayed: true });
 
-      await updateRecordedAt(pool, 'ownership_snapshots', created.value.id, '2026-07-02T00:00:00.000Z');
-      const successor = await createOwnershipSnapshot({
-        fundId: seed.fundId,
-        actorId: null,
-        idempotencyKey: `ownership-${seed.fundId}-2`,
-        request: {
-          ...request,
+        await updateRecordedAt(
+          pool,
+          'ownership_snapshots',
+          created.value.id,
+          '2026-07-02T00:00:00.000Z'
+        );
+        const successor = await createOwnershipSnapshot({
+          fundId: seed.fundId,
+          actorId: null,
+          idempotencyKey: `ownership-${seed.fundId}-2`,
+          request: {
+            ...request,
+            effectiveDate: '2026-08-01',
+            ownershipPct: '15.00000000',
+            fdNumerator: '150.000000',
+            supersedesSnapshotId: created.value.id,
+          },
+          database,
+        });
+        await updateRecordedAt(
+          pool,
+          'ownership_snapshots',
+          successor.value.id,
+          '2026-08-02T00:00:00.000Z'
+        );
+
+        const beforeEffective = await listOwnershipSnapshots({
+          fundId: seed.fundId,
+          asOfDate: '2026-07-31',
+          knowledgeCutoff: new Date('2026-12-31T00:00:00.000Z'),
+          database,
+        });
+        const beforeRecorded = await listOwnershipSnapshots({
+          fundId: seed.fundId,
+          asOfDate: '2026-08-31',
+          knowledgeCutoff: new Date('2026-08-01T00:00:00.000Z'),
+          database,
+        });
+        const current = await listOwnershipSnapshots({
+          fundId: seed.fundId,
+          asOfDate: '2026-08-31',
+          knowledgeCutoff: new Date('2026-08-31T00:00:00.000Z'),
+          database,
+        });
+        expect(beforeEffective.snapshots.map((snapshot) => snapshot.id)).toEqual([
+          created.value.id,
+        ]);
+        expect(beforeRecorded.snapshots.map((snapshot) => snapshot.id)).toEqual([created.value.id]);
+        expect(current.snapshots.map((snapshot) => snapshot.id)).toEqual([successor.value.id]);
+
+        const stagedObservationId = await insertObservation(pool, {
+          fundId: seed.fundId,
+          identityId: seed.identityId,
+          domain: 'ownership',
+          status: 'staged',
           effectiveDate: '2026-08-01',
-          ownershipPct: '15.00000000',
-          fdNumerator: '150.000000',
-          supersedesSnapshotId: created.value.id,
-        },
-        database,
-      });
-      await updateRecordedAt(pool, 'ownership_snapshots', successor.value.id, '2026-08-02T00:00:00.000Z');
-
-      const beforeEffective = await listOwnershipSnapshots({
-        fundId: seed.fundId,
-        asOfDate: '2026-07-31',
-        knowledgeCutoff: new Date('2026-12-31T00:00:00.000Z'),
-        database,
-      });
-      const beforeRecorded = await listOwnershipSnapshots({
-        fundId: seed.fundId,
-        asOfDate: '2026-08-31',
-        knowledgeCutoff: new Date('2026-08-01T00:00:00.000Z'),
-        database,
-      });
-      const current = await listOwnershipSnapshots({
-        fundId: seed.fundId,
-        asOfDate: '2026-08-31',
-        knowledgeCutoff: new Date('2026-08-31T00:00:00.000Z'),
-        database,
-      });
-      expect(beforeEffective.snapshots.map((snapshot) => snapshot.id)).toEqual([created.value.id]);
-      expect(beforeRecorded.snapshots.map((snapshot) => snapshot.id)).toEqual([created.value.id]);
-      expect(current.snapshots.map((snapshot) => snapshot.id)).toEqual([successor.value.id]);
-
-      const stagedObservationId = await insertObservation(pool, {
-        fundId: seed.fundId,
-        identityId: seed.identityId,
-        domain: 'ownership',
-        status: 'staged',
-        effectiveDate: '2026-08-01',
-        suffix: 'staged-ownership',
-      });
-      await expect(
-        createOwnershipSnapshot({
-          fundId: seed.fundId,
-          actorId: null,
-          idempotencyKey: `ownership-${seed.fundId}-staged`,
-          request: { ...request, sourceObservationId: stagedObservationId },
-          database,
-        })
-      ).rejects.toMatchObject({ status: 422, code: 'OWNERSHIP_OBSERVATION_NOT_ACCEPTED' });
-      await expect(
-        createOwnershipSnapshot({
-          fundId: seed.fundId,
-          actorId: null,
-          idempotencyKey: `ownership-${seed.fundId}-cross-service`,
-          request: { ...request, vehicleId: seed.otherVehicleId, supersedesSnapshotId: created.value.id },
-          database,
-        })
-      ).rejects.toMatchObject({ status: 409, code: 'OWNERSHIP_SUPERSEDE_SCOPE_MISMATCH' });
-      await expect(
-        pool.query(
-          `
+          suffix: 'staged-ownership',
+        });
+        await expect(
+          createOwnershipSnapshot({
+            fundId: seed.fundId,
+            actorId: null,
+            idempotencyKey: `ownership-${seed.fundId}-staged`,
+            request: { ...request, sourceObservationId: stagedObservationId },
+            database,
+          })
+        ).rejects.toMatchObject({ status: 422, code: 'OWNERSHIP_OBSERVATION_NOT_ACCEPTED' });
+        await expect(
+          createOwnershipSnapshot({
+            fundId: seed.fundId,
+            actorId: null,
+            idempotencyKey: `ownership-${seed.fundId}-cross-service`,
+            request: {
+              ...request,
+              vehicleId: seed.otherVehicleId,
+              supersedesSnapshotId: created.value.id,
+            },
+            database,
+          })
+        ).rejects.toMatchObject({ status: 409, code: 'OWNERSHIP_SUPERSEDE_SCOPE_MISMATCH' });
+        await expect(
+          pool.query(
+            `
             INSERT INTO ownership_snapshots (
               fund_id, vehicle_id, company_identity_id, effective_date, ownership_pct,
               currency, source_observation_id, idempotency_key, request_hash
             ) VALUES ($1, $2, $3, '2026-09-01', '10.00000000', 'USD', $4, $5, repeat('f', 64))
           `,
-          [
-            seed.fundId + 999,
-            seed.vehicleId,
-            seed.identityId,
-            observationId,
-            `ownership-${seed.fundId}-cross-fk`,
-          ]
-        )
-      ).rejects.toMatchObject({ code: '23503' });
+            [
+              seed.fundId + 999,
+              seed.vehicleId,
+              seed.identityId,
+              observationId,
+              `ownership-${seed.fundId}-cross-fk`,
+            ]
+          )
+        ).rejects.toMatchObject({ code: '23503' });
+      });
     });
-  });
 
-  it('records direct marks idempotently and selects direct, stale direct, derived, mixed, and unavailable valuations', async () => {
-    const { connectionString } = await createMigratedDatabase('position_valuation');
+    it('records direct marks idempotently and selects direct, stale direct, derived, mixed, and unavailable valuations', async () => {
+      const { connectionString } = await createMigratedDatabase('position_valuation');
 
-    await withPool(connectionString, async (pool) => {
-      const seed = await seedScope(pool, nextFundId());
-      const priced = await insertParticipation(pool, seed, {
-        vehicleId: seed.vehicleId,
-        securityType: 'equity',
-        suffix: 'priced',
-        amount: '500.000000',
-      });
-      await insertPositionEvent(pool, {
-        fundId: seed.fundId,
-        vehicleId: seed.vehicleId,
-        identityId: seed.identityId,
-        eventType: 'acquisition',
-        effectiveDate: '2026-01-15',
-        recordedAt: '2026-01-16T00:00:00.000Z',
-        sharesDelta: '50.000000',
-        costBasisDelta: '500.000000',
-        proceeds: '0.000000',
-        vehicleParticipationId: priced.participationId,
-      });
-      const ownershipObservationId = await insertObservation(pool, {
-        fundId: seed.fundId,
-        identityId: seed.identityId,
-        domain: 'ownership',
-        status: 'accepted',
-        effectiveDate: '2026-06-30',
-        suffix: 'valuation-ownership',
-      });
-      const sourceValuationObservationId = await insertObservation(pool, {
-        fundId: seed.fundId,
-        identityId: seed.identityId,
-        domain: 'valuation',
-        status: 'accepted',
-        effectiveDate: '2026-06-30',
-        suffix: 'direct-source',
-      });
-      const trancheObservationId = await insertObservation(pool, {
-        fundId: seed.fundId,
-        identityId: seed.identityId,
-        domain: 'ledger_event',
-        status: 'accepted',
-        effectiveDate: '2026-06-30',
-        suffix: 'post-money',
-      });
-      await attachObservationToTranche(pool, priced.trancheId, trancheObservationId);
-      await createOwnershipSnapshot({
-        fundId: seed.fundId,
-        actorId: null,
-        idempotencyKey: `ownership-valuation-${seed.fundId}`,
-        request: {
+      await withPool(connectionString, async (pool) => {
+        const seed = await seedScope(pool, nextFundId());
+        const priced = await insertParticipation(pool, seed, {
+          vehicleId: seed.vehicleId,
+          securityType: 'equity',
+          suffix: 'priced',
+          amount: '500.000000',
+        });
+        await insertPositionEvent(pool, {
+          fundId: seed.fundId,
+          vehicleId: seed.vehicleId,
+          identityId: seed.identityId,
+          eventType: 'acquisition',
+          effectiveDate: '2026-01-15',
+          recordedAt: '2026-01-16T00:00:00.000Z',
+          sharesDelta: '50.000000',
+          costBasisDelta: '500.000000',
+          proceeds: '0.000000',
+          vehicleParticipationId: priced.participationId,
+        });
+        const ownershipObservationId = await insertObservation(pool, {
+          fundId: seed.fundId,
+          identityId: seed.identityId,
+          domain: 'ownership',
+          status: 'accepted',
+          effectiveDate: '2026-06-30',
+          suffix: 'valuation-ownership',
+        });
+        const sourceValuationObservationId = await insertObservation(pool, {
+          fundId: seed.fundId,
+          identityId: seed.identityId,
+          domain: 'valuation',
+          status: 'accepted',
+          effectiveDate: '2026-06-30',
+          suffix: 'direct-source',
+        });
+        const trancheObservationId = await insertObservation(pool, {
+          fundId: seed.fundId,
+          identityId: seed.identityId,
+          domain: 'ledger_event',
+          status: 'accepted',
+          effectiveDate: '2026-06-30',
+          suffix: 'post-money',
+        });
+        await attachObservationToTranche(pool, priced.trancheId, trancheObservationId);
+        await createOwnershipSnapshot({
+          fundId: seed.fundId,
+          actorId: null,
+          idempotencyKey: `ownership-valuation-${seed.fundId}`,
+          request: {
+            vehicleId: seed.vehicleId,
+            companyIdentityId: seed.identityId,
+            effectiveDate: '2026-07-01',
+            ownershipPct: '10.00000000',
+            sourceObservationId: ownershipObservationId,
+          },
+          database: drizzle(pool) as never,
+        });
+        await pool.query(
+          `UPDATE ownership_snapshots SET recorded_at = '2026-07-02T00:00:00.000Z' WHERE fund_id = $1`,
+          [seed.fundId]
+        );
+
+        const database = drizzle(pool) as never;
+        const directRequest = {
           vehicleId: seed.vehicleId,
           companyIdentityId: seed.identityId,
-          effectiveDate: '2026-07-01',
-          ownershipPct: '10.00000000',
-          sourceObservationId: ownershipObservationId,
-        },
-        database: drizzle(pool) as never,
-      });
-      await pool.query(
-        `UPDATE ownership_snapshots SET recorded_at = '2026-07-02T00:00:00.000Z' WHERE fund_id = $1`,
-        [seed.fundId]
-      );
-
-      const database = drizzle(pool) as never;
-      const directRequest = {
-        vehicleId: seed.vehicleId,
-        companyIdentityId: seed.identityId,
-        companyId: seed.companyId,
-        asOfDate: '2026-07-01',
-        fairValue: '1250000.000000',
-        sourceObservationId: sourceValuationObservationId,
-        markSource: 'board_update',
-        confidenceLevel: 'high',
-        valuationMethod: 'direct_position_mark',
-      };
-      const direct = await recordDirectPositionValuation({
-        fundId: seed.fundId,
-        actorId: null,
-        idempotencyKey: `direct-${seed.fundId}`,
-        request: directRequest,
-        database,
-      });
-      const replay = await recordDirectPositionValuation({
-        fundId: seed.fundId,
-        actorId: null,
-        idempotencyKey: `direct-${seed.fundId}`,
-        request: directRequest,
-        database,
-      });
-      await expect(
-        recordDirectPositionValuation({
+          companyId: seed.companyId,
+          asOfDate: '2026-07-01',
+          fairValue: '1250000.000000',
+          sourceObservationId: sourceValuationObservationId,
+          markSource: 'board_update',
+          confidenceLevel: 'high',
+          valuationMethod: 'direct_position_mark',
+        };
+        const direct = await recordDirectPositionValuation({
           fundId: seed.fundId,
           actorId: null,
           idempotencyKey: `direct-${seed.fundId}`,
-          request: { ...directRequest, fairValue: '1300000.000000' },
+          request: directRequest,
           database,
-        })
-      ).rejects.toMatchObject({ status: 409, code: 'IDEMPOTENCY_KEY_REUSE' });
-      expect(replay).toEqual({ ...direct, replayed: true });
-      expect(await countRows(pool, 'valuation_marks', seed.fundId)).toBe(1);
-
-      const selectedDirect = await selectPositionValuation({
-        fundId: seed.fundId,
-        vehicleId: seed.vehicleId,
-        companyIdentityId: seed.identityId,
-        companyId: seed.companyId,
-        asOfDate: '2026-07-31',
-        knowledgeCutoff: new Date('2030-01-01T00:00:00.000Z'),
-        database,
-      });
-      expect(selectedDirect).toMatchObject({
-        basis: 'direct',
-        aggregateFairValue: '1250000.000000',
-        directMarkId: direct.value.valuationMarkId,
-        ownershipSnapshotId: null,
-      });
-
-      await pool.query(`UPDATE valuation_marks SET mark_date = '2026-01-01', as_of_date = '2026-01-01' WHERE id = $1`, [
-        direct.value.valuationMarkId,
-      ]);
-      const staleDirect = await selectPositionValuation({
-        fundId: seed.fundId,
-        vehicleId: seed.vehicleId,
-        companyIdentityId: seed.identityId,
-        companyId: seed.companyId,
-        asOfDate: '2026-07-31',
-        knowledgeCutoff: new Date('2030-01-01T00:00:00.000Z'),
-        database,
-      });
-      expect(staleDirect).toMatchObject({
-        basis: 'direct',
-        aggregateFairValue: '1250000.000000',
-        directMarkId: direct.value.valuationMarkId,
-        ownershipSnapshotId: null,
-        warnings: [{ code: 'DIRECT_POSITION_MARK_STALE' }],
-      });
-
-      await pool.query(`UPDATE valuation_marks SET status = 'superseded' WHERE id = $1`, [
-        direct.value.valuationMarkId,
-      ]);
-      const derived = await selectPositionValuation({
-        fundId: seed.fundId,
-        vehicleId: seed.vehicleId,
-        companyIdentityId: seed.identityId,
-        companyId: seed.companyId,
-        asOfDate: '2026-07-31',
-        knowledgeCutoff: new Date('2030-01-01T00:00:00.000Z'),
-        database,
-      });
-      expect(derived).toMatchObject({
-        basis: 'derived',
-        aggregateFairValue: '1000000.000000',
-        directMarkId: null,
-      });
-
-      await pool.query(`UPDATE source_observations SET status = 'staged' WHERE id = $1`, [
-        trancheObservationId,
-      ]);
-      const unavailable = await selectPositionValuation({
-        fundId: seed.fundId,
-        vehicleId: seed.vehicleId,
-        companyIdentityId: seed.identityId,
-        companyId: seed.companyId,
-        asOfDate: '2026-07-31',
-        knowledgeCutoff: new Date('2030-01-01T00:00:00.000Z'),
-        database,
-      });
-      expect(unavailable).toMatchObject({
-        basis: 'unavailable',
-        aggregateFairValue: null,
-      });
-      await pool.query(`UPDATE source_observations SET status = 'accepted' WHERE id = $1`, [
-        trancheObservationId,
-      ]);
-
-      const contingent = await insertParticipation(pool, seed, {
-        vehicleId: seed.vehicleId,
-        securityType: 'safe',
-        suffix: 'contingent',
-        amount: '250.000000',
-      });
-      await insertPositionEvent(pool, {
-        fundId: seed.fundId,
-        vehicleId: seed.vehicleId,
-        identityId: seed.identityId,
-        eventType: 'acquisition',
-        effectiveDate: '2026-02-15',
-        recordedAt: '2026-02-16T00:00:00.000Z',
-        sharesDelta: '0.000000',
-        costBasisDelta: '250.000000',
-        proceeds: '0.000000',
-        vehicleParticipationId: contingent.participationId,
-      });
-      const mixed = await selectPositionValuation({
-        fundId: seed.fundId,
-        vehicleId: seed.vehicleId,
-        companyIdentityId: seed.identityId,
-        companyId: seed.companyId,
-        asOfDate: '2026-07-31',
-        knowledgeCutoff: new Date('2030-01-01T00:00:00.000Z'),
-        database,
-      });
-      expect(mixed).toMatchObject({
-        basis: 'derived',
-        aggregateFairValue: null,
-        pricedComponentFairValue: '1000000.000000',
-        warnings: [
-          { code: 'CONTINGENT_INSTRUMENT_EXCLUDED' },
-          { code: 'POSITION_VALUATION_INCOMPLETE' },
-        ],
-      });
-
-      await expect(
-        recordDirectPositionValuation({
+        });
+        const replay = await recordDirectPositionValuation({
           fundId: seed.fundId,
           actorId: null,
-          idempotencyKey: `direct-${seed.fundId}-other-company`,
-          request: { ...directRequest, companyId: seed.otherCompanyId },
+          idempotencyKey: `direct-${seed.fundId}`,
+          request: directRequest,
           database,
-        })
-      ).rejects.toMatchObject({ status: 422, code: 'POSITION_VALUATION_SCOPE_MISMATCH' });
+        });
+        await expect(
+          recordDirectPositionValuation({
+            fundId: seed.fundId,
+            actorId: null,
+            idempotencyKey: `direct-${seed.fundId}`,
+            request: { ...directRequest, fairValue: '1300000.000000' },
+            database,
+          })
+        ).rejects.toMatchObject({ status: 409, code: 'IDEMPOTENCY_KEY_REUSE' });
+        expect(replay).toEqual({ ...direct, replayed: true });
+        expect(await countRows(pool, 'valuation_marks', seed.fundId)).toBe(1);
+
+        const selectedDirect = await selectPositionValuation({
+          fundId: seed.fundId,
+          vehicleId: seed.vehicleId,
+          companyIdentityId: seed.identityId,
+          companyId: seed.companyId,
+          asOfDate: '2026-07-31',
+          knowledgeCutoff: new Date('2030-01-01T00:00:00.000Z'),
+          database,
+        });
+        expect(selectedDirect).toMatchObject({
+          basis: 'direct',
+          aggregateFairValue: '1250000.000000',
+          directMarkId: direct.value.valuationMarkId,
+          ownershipSnapshotId: null,
+        });
+
+        await pool.query(
+          `UPDATE valuation_marks SET mark_date = '2026-01-01', as_of_date = '2026-01-01' WHERE id = $1`,
+          [direct.value.valuationMarkId]
+        );
+        const staleDirect = await selectPositionValuation({
+          fundId: seed.fundId,
+          vehicleId: seed.vehicleId,
+          companyIdentityId: seed.identityId,
+          companyId: seed.companyId,
+          asOfDate: '2026-07-31',
+          knowledgeCutoff: new Date('2030-01-01T00:00:00.000Z'),
+          database,
+        });
+        expect(staleDirect).toMatchObject({
+          basis: 'direct',
+          aggregateFairValue: '1250000.000000',
+          directMarkId: direct.value.valuationMarkId,
+          ownershipSnapshotId: null,
+          warnings: [{ code: 'DIRECT_POSITION_MARK_STALE' }],
+        });
+
+        await pool.query(`UPDATE valuation_marks SET status = 'superseded' WHERE id = $1`, [
+          direct.value.valuationMarkId,
+        ]);
+        const derived = await selectPositionValuation({
+          fundId: seed.fundId,
+          vehicleId: seed.vehicleId,
+          companyIdentityId: seed.identityId,
+          companyId: seed.companyId,
+          asOfDate: '2026-07-31',
+          knowledgeCutoff: new Date('2030-01-01T00:00:00.000Z'),
+          database,
+        });
+        expect(derived).toMatchObject({
+          basis: 'derived',
+          aggregateFairValue: '1000000.000000',
+          directMarkId: null,
+        });
+
+        await pool.query(`UPDATE source_observations SET status = 'staged' WHERE id = $1`, [
+          trancheObservationId,
+        ]);
+        const unavailable = await selectPositionValuation({
+          fundId: seed.fundId,
+          vehicleId: seed.vehicleId,
+          companyIdentityId: seed.identityId,
+          companyId: seed.companyId,
+          asOfDate: '2026-07-31',
+          knowledgeCutoff: new Date('2030-01-01T00:00:00.000Z'),
+          database,
+        });
+        expect(unavailable).toMatchObject({
+          basis: 'unavailable',
+          aggregateFairValue: null,
+        });
+        await pool.query(`UPDATE source_observations SET status = 'accepted' WHERE id = $1`, [
+          trancheObservationId,
+        ]);
+
+        const contingent = await insertParticipation(pool, seed, {
+          vehicleId: seed.vehicleId,
+          securityType: 'safe',
+          suffix: 'contingent',
+          amount: '250.000000',
+        });
+        await insertPositionEvent(pool, {
+          fundId: seed.fundId,
+          vehicleId: seed.vehicleId,
+          identityId: seed.identityId,
+          eventType: 'acquisition',
+          effectiveDate: '2026-02-15',
+          recordedAt: '2026-02-16T00:00:00.000Z',
+          sharesDelta: '0.000000',
+          costBasisDelta: '250.000000',
+          proceeds: '0.000000',
+          vehicleParticipationId: contingent.participationId,
+        });
+        const mixed = await selectPositionValuation({
+          fundId: seed.fundId,
+          vehicleId: seed.vehicleId,
+          companyIdentityId: seed.identityId,
+          companyId: seed.companyId,
+          asOfDate: '2026-07-31',
+          knowledgeCutoff: new Date('2030-01-01T00:00:00.000Z'),
+          database,
+        });
+        expect(mixed).toMatchObject({
+          basis: 'derived',
+          aggregateFairValue: null,
+          pricedComponentFairValue: '1000000.000000',
+          warnings: [
+            { code: 'CONTINGENT_INSTRUMENT_EXCLUDED' },
+            { code: 'POSITION_VALUATION_INCOMPLETE' },
+          ],
+        });
+
+        await expect(
+          recordDirectPositionValuation({
+            fundId: seed.fundId,
+            actorId: null,
+            idempotencyKey: `direct-${seed.fundId}-other-company`,
+            request: { ...directRequest, companyId: seed.otherCompanyId },
+            database,
+          })
+        ).rejects.toMatchObject({ status: 422, code: 'POSITION_VALUATION_SCOPE_MISMATCH' });
+      });
     });
-  });
-});
+
+    it('serializes concurrent direct mark replay without duplicate observations or marks', async () => {
+      const { connectionString } = await createMigratedDatabase('position_valuation_concurrent');
+
+      await withPool(connectionString, async (pool) => {
+        const seed = await seedScope(pool, nextFundId());
+        const sourceValuationObservationId = await insertObservation(pool, {
+          fundId: seed.fundId,
+          identityId: seed.identityId,
+          domain: 'valuation',
+          status: 'accepted',
+          effectiveDate: '2026-06-30',
+          suffix: 'direct-concurrent-source',
+        });
+        const beforeObservationCount = await countRows(pool, 'source_observations', seed.fundId);
+        const beforeMarkCount = await countRows(pool, 'valuation_marks', seed.fundId);
+        const database = drizzle(pool) as never;
+        const directRequest = {
+          vehicleId: seed.vehicleId,
+          companyIdentityId: seed.identityId,
+          companyId: seed.companyId,
+          asOfDate: '2026-07-01',
+          fairValue: '1250000.000000',
+          sourceObservationId: sourceValuationObservationId,
+          markSource: 'board_update',
+          confidenceLevel: 'high',
+          valuationMethod: 'direct_position_mark',
+        };
+
+        const attempts = await Promise.all([
+          recordDirectPositionValuation({
+            fundId: seed.fundId,
+            actorId: null,
+            idempotencyKey: `direct-concurrent-${seed.fundId}`,
+            request: directRequest,
+            database,
+          }),
+          recordDirectPositionValuation({
+            fundId: seed.fundId,
+            actorId: null,
+            idempotencyKey: `direct-concurrent-${seed.fundId}`,
+            request: directRequest,
+            database,
+          }),
+        ]);
+
+        expect(attempts.map((attempt) => attempt.replayed).sort()).toEqual([false, true]);
+        const created = attempts.find((attempt) => !attempt.replayed);
+        const replayed = attempts.find((attempt) => attempt.replayed);
+        expect(replayed).toEqual({ ...created, replayed: true });
+        expect(await countRows(pool, 'valuation_marks', seed.fundId)).toBe(beforeMarkCount + 1);
+        expect(await countRows(pool, 'source_observations', seed.fundId)).toBe(
+          beforeObservationCount + 1
+        );
+
+        await expect(
+          recordDirectPositionValuation({
+            fundId: seed.fundId,
+            actorId: null,
+            idempotencyKey: `direct-concurrent-${seed.fundId}`,
+            request: { ...directRequest, fairValue: '1300000.000000' },
+            database,
+          })
+        ).rejects.toMatchObject({ status: 409, code: 'IDEMPOTENCY_KEY_REUSE' });
+        expect(await countRows(pool, 'valuation_marks', seed.fundId)).toBe(beforeMarkCount + 1);
+        expect(await countRows(pool, 'source_observations', seed.fundId)).toBe(
+          beforeObservationCount + 1
+        );
+      });
+    });
+  }
+);
 
 async function createMigratedDatabase(label: string): Promise<{ connectionString: string }> {
   if (!adminPool) throw new Error('adminPool missing');
-  const databaseName = `${label}_${process.pid}_${Date.now()}_${createdDatabases.length}`.toLowerCase();
+  const databaseName =
+    `${label}_${process.pid}_${Date.now()}_${createdDatabases.length}`.toLowerCase();
   createdDatabases.push(databaseName);
   await adminPool.query(`CREATE DATABASE ${quoteIdentifier(databaseName)}`);
   const connectionString = databaseConnectionString(databaseName);
@@ -570,7 +667,10 @@ function quoteIdentifier(identifier: string): string {
   return `"${identifier.replace(/"/g, '""')}"`;
 }
 
-async function withPool<T>(connectionString: string, callback: (pool: Pool) => Promise<T>): Promise<T> {
+async function withPool<T>(
+  connectionString: string,
+  callback: (pool: Pool) => Promise<T>
+): Promise<T> {
   const pool = new Pool({ connectionString, max: 4 });
   try {
     return await callback(pool);
@@ -613,7 +713,12 @@ async function seedScope(pool: Pool, fundId: number): Promise<ScopeSeed> {
   const vehicleId = await insertVehicle(pool, fundId, 'main_fund', `main-${fundId}`);
   const otherVehicleId = await insertVehicle(pool, fundId, 'spv', `spv-${fundId}`);
   const identityId = await insertIdentity(pool, fundId, companyId, `Task 11C Identity ${fundId}`);
-  const otherIdentityId = await insertIdentity(pool, fundId, otherCompanyId, `Task 11C Other Identity ${fundId}`);
+  const otherIdentityId = await insertIdentity(
+    pool,
+    fundId,
+    otherCompanyId,
+    `Task 11C Other Identity ${fundId}`
+  );
   await pool.query(
     `
       INSERT INTO portfolio_company_identity_links (
@@ -622,7 +727,15 @@ async function seedScope(pool: Pool, fundId: number): Promise<ScopeSeed> {
     `,
     [fundId, companyId, identityId, otherCompanyId, otherIdentityId]
   );
-  return { fundId, vehicleId, otherVehicleId, companyId, otherCompanyId, identityId, otherIdentityId };
+  return {
+    fundId,
+    vehicleId,
+    otherVehicleId,
+    companyId,
+    otherCompanyId,
+    identityId,
+    otherIdentityId,
+  };
 }
 
 async function insertVehicle(

@@ -3,8 +3,14 @@
   "order": 15,
   "description": "Task 10 (#1174) vehicle participation ledger table and additive compat lineage pointers.",
   "missingTablePolicy": "create_or_repair",
-  "sqlFiles": ["migrations/0041_vehicle_financing_participations.sql"],
-  "allowedCreateTables": ["vehicle_financing_participations"],
+  "sqlFiles": [
+    "scripts/prod-schema-patches/0027_investment_rounds_foundation.sql",
+    "migrations/0041_vehicle_financing_participations.sql"
+  ],
+  "allowedCreateTables": [
+    "investment_rounds",
+    "vehicle_financing_participations"
+  ],
   "expectedTables": [
     {
       "name": "vehicles",
@@ -121,6 +127,38 @@
     {
       "name": "investment_rounds",
       "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "investment_id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "round_name", "type": "varchar", "nullable": false },
+        { "name": "security_type", "type": "varchar", "nullable": false },
+        { "name": "round_date", "type": "date", "nullable": false },
+        { "name": "currency", "type": "varchar", "nullable": false },
+        {
+          "name": "investment_amount",
+          "type": "numeric",
+          "nullable": false
+        },
+        { "name": "round_size", "type": "numeric", "nullable": true },
+        {
+          "name": "pre_money_valuation",
+          "type": "numeric",
+          "nullable": true
+        },
+        {
+          "name": "idempotency_key",
+          "type": "varchar",
+          "nullable": false
+        },
+        { "name": "request_hash", "type": "varchar", "nullable": false },
+        {
+          "name": "supersedes_round_id",
+          "type": "integer",
+          "nullable": true
+        },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "created_at", "type": "timestamptz", "nullable": true },
+        { "name": "updated_at", "type": "timestamptz", "nullable": true },
         { "name": "imported_from", "type": "varchar", "nullable": true },
         {
           "name": "vehicle_participation_id",
@@ -130,8 +168,19 @@
         { "name": "financing_tranche_id", "type": "integer", "nullable": true }
       ],
       "constraints": [
+        "investment_rounds_security_type_check",
+        "investment_rounds_amount_positive",
+        "investment_rounds_investment_fund_fk",
+        "investment_rounds_fund_idem_key",
+        "investment_rounds_id_fund_uq",
         "investment_rounds_vfp_fund_fk",
         "investment_rounds_financing_tranche_fund_fk"
+      ],
+      "indexes": [
+        "investment_rounds_fund_investment_idx",
+        "investment_rounds_investment_round_date_idx",
+        "investment_rounds_fund_round_order_idx",
+        "investment_rounds_supersedes_uq"
       ]
     },
     {

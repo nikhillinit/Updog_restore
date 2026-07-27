@@ -42,7 +42,14 @@ interface MockClientOptions {
     udt_name?: string;
     is_nullable: 'YES' | 'NO';
   }[];
-  readonly constraints?: readonly string[];
+  readonly constraints?: readonly (
+    | string
+    | {
+        table_name: string;
+        conname: string;
+        definition: string;
+      }
+  )[];
   readonly indexes?: readonly string[];
   readonly populatedTables?: readonly string[];
   /** When true, DROP statements do NOT mutate mock state - simulates a drop
@@ -53,7 +60,12 @@ interface MockClientOptions {
 function createMockClient(options: MockClientOptions = {}) {
   const calls: QueryCall[] = [];
   const presentTables = new Set(options.presentTables ?? []);
-  const constraints = new Set(options.constraints ?? []);
+  const constraintRows = (options.constraints ?? []).map((constraint) =>
+    typeof constraint === 'string'
+      ? { table_name: undefined, conname: constraint, definition: undefined }
+      : constraint
+  );
+  const constraints = new Set(constraintRows.map((constraint) => constraint.conname));
   const indexes = new Set(options.indexes ?? []);
   const populatedTables = new Set(options.populatedTables ?? []);
 
@@ -106,9 +118,21 @@ function createMockClient(options: MockClientOptions = {}) {
       }
 
       if (text.includes('FROM pg_constraint')) {
+        const tableNames = params?.[0] as string[];
         const names = params?.[1] as string[];
         return {
-          rows: names.filter((conname) => constraints.has(conname)).map((conname) => ({ conname })),
+          rows: constraintRows
+            .filter(
+              (constraint) =>
+                constraints.has(constraint.conname) &&
+                names.includes(constraint.conname) &&
+                (constraint.table_name === undefined || tableNames.includes(constraint.table_name))
+            )
+            .map((constraint) => ({
+              table_name: constraint.table_name ?? tableNames[0],
+              conname: constraint.conname,
+              definition: constraint.definition,
+            })),
           rowCount: names.length,
         };
       }
@@ -308,6 +332,158 @@ describe('reconcile-prod-schema shape decisions', () => {
     expect(audit.objects[0]?.deltas).toEqual([]);
   });
 
+  it('finds indexes stored under PostgreSQL-truncated identifiers', async () => {
+    const expectedIndexName = 'substrate_shadow_reconciliations_fund_key_input_null_hash_unique';
+    const storedIndexName = expectedIndexName.slice(0, 63);
+    expect(expectedIndexName).toHaveLength(64);
+
+    const client = createMockClient({
+      presentTables: ['tasks'],
+      columns: [
+        {
+          table_name: 'tasks',
+          column_name: 'id',
+          data_type: 'integer',
+          udt_name: 'int4',
+          is_nullable: 'NO',
+        },
+      ],
+      indexes: [storedIndexName],
+    });
+    const audit = await auditManifest(client, {
+      name: 'long-index-fixture',
+      missingTablePolicy: MISSING_TABLE_POLICY_CREATE_OR_REPAIR,
+      expectedTables: [
+        {
+          name: 'tasks',
+          columns: [{ name: 'id', type: 'integer', nullable: false }],
+          constraints: [],
+          indexes: [expectedIndexName],
+        },
+      ],
+    });
+
+    expect(audit.action).toBe(ACTION_SKIP);
+    expect(audit.objects[0]?.deltas).toEqual([]);
+    expect(client.calls.find((call) => call.text.includes('FROM pg_indexes'))?.params).toEqual([
+      [storedIndexName],
+    ]);
+  });
+
+  it('does not let a same-named constraint on another table satisfy the target table', async () => {
+    const sameName = 'ledger_rows_state_check';
+    const client = createMockClient({
+      presentTables: ['ledger_rows', 'ledger_archive_rows'],
+      columns: [
+        {
+          table_name: 'ledger_rows',
+          column_name: 'id',
+          data_type: 'integer',
+          udt_name: 'int4',
+          is_nullable: 'NO',
+        },
+        {
+          table_name: 'ledger_archive_rows',
+          column_name: 'id',
+          data_type: 'integer',
+          udt_name: 'int4',
+          is_nullable: 'NO',
+        },
+      ],
+      constraints: [
+        {
+          table_name: 'ledger_archive_rows',
+          conname: sameName,
+          definition: "CHECK (state = 'ready')",
+        },
+      ],
+    });
+    const audit = await auditManifest(client, {
+      name: 'table-scoped-constraint-fixture',
+      missingTablePolicy: MISSING_TABLE_POLICY_CREATE_OR_REPAIR,
+      expectedTables: [
+        {
+          name: 'ledger_rows',
+          columns: [{ name: 'id', type: 'integer', nullable: false }],
+          constraints: [sameName],
+          indexes: [],
+        },
+        {
+          name: 'ledger_archive_rows',
+          columns: [{ name: 'id', type: 'integer', nullable: false }],
+          constraints: [],
+          indexes: [],
+        },
+      ],
+    });
+
+    expect(audit.action).toBe(ACTION_APPLY_MISSING_DDL);
+    expect(audit.objects.find((object) => object.table === 'ledger_rows')?.deltas).toEqual([
+      { kind: 'missing-constraint', name: sameName, additiveSafe: true },
+    ]);
+  });
+
+  it('applies a declared replacement when a same-named check definition is stale', async () => {
+    const constraintName = 'investment_lots_lot_type_check';
+    const expectedDefinition = {
+      requiredFragments: ['lot_type'],
+      stringLiterals: ['initial', 'follow_on', 'secondary', 'conversion'],
+    };
+    const client = createMockClient({
+      presentTables: ['investment_lots'],
+      columns: [
+        {
+          table_name: 'investment_lots',
+          column_name: 'lot_type',
+          data_type: 'text',
+          udt_name: 'text',
+          is_nullable: 'NO',
+        },
+      ],
+      constraints: [
+        {
+          table_name: 'investment_lots',
+          conname: constraintName,
+          definition:
+            "CHECK ((lot_type = ANY (ARRAY['initial'::text, 'follow_on'::text, 'secondary'::text])))",
+        },
+      ],
+    });
+    const audit = await auditManifest(client, {
+      name: 'definition-aware-constraint-fixture',
+      missingTablePolicy: MISSING_TABLE_POLICY_CREATE_OR_REPAIR,
+      applyPolicy: {
+        allowConstraintReplacements: [
+          {
+            table: 'investment_lots',
+            name: constraintName,
+            expectedDefinition,
+          },
+        ],
+      },
+      expectedTables: [
+        {
+          name: 'investment_lots',
+          columns: [{ name: 'lot_type', type: 'text', nullable: false }],
+          constraints: [constraintName],
+          indexes: [],
+        },
+      ],
+    });
+
+    expect(audit.action).toBe(ACTION_APPLY_MISSING_DDL);
+    expect(audit.objects[0]?.deltas).toEqual([
+      {
+        kind: 'constraint-definition-mismatch',
+        name: constraintName,
+        expected: expectedDefinition,
+        actual:
+          "CHECK ((lot_type = ANY (ARRAY['initial'::text, 'follow_on'::text, 'secondary'::text])))",
+        additiveSafe: true,
+      },
+    ]);
+  });
+
   it('applies missing DDL when the table is absent', async () => {
     const client = createMockClient();
     const audit = await auditManifest(client, manifest);
@@ -359,6 +535,102 @@ describe('reconcile-prod-schema shape decisions', () => {
         deltas: [{ kind: 'column-type-mismatch', name: 'tasks.title', additiveSafe: false }],
       })
     ).toBe(ACTION_REFUSE_FOR_HUMAN);
+  });
+
+  it('treats NOT NULL to nullable as additive-safe on populated tables', async () => {
+    const client = createMockClient({
+      presentTables: ['tasks'],
+      populatedTables: ['tasks'],
+      columns: [
+        {
+          table_name: 'tasks',
+          column_name: 'id',
+          data_type: 'integer',
+          is_nullable: 'NO',
+        },
+        {
+          table_name: 'tasks',
+          column_name: 'fund_id',
+          data_type: 'integer',
+          is_nullable: 'NO',
+        },
+        {
+          table_name: 'tasks',
+          column_name: 'title',
+          data_type: 'character varying',
+          udt_name: 'varchar',
+          is_nullable: 'NO',
+        },
+      ],
+    });
+    const audit = await auditManifest(client, {
+      ...manifest,
+      expectedTables: [
+        {
+          ...manifest.expectedTables[0],
+          columns: [
+            { name: 'id', type: 'integer', nullable: false },
+            { name: 'fund_id', type: 'integer', nullable: false },
+            { name: 'title', type: 'varchar', nullable: true },
+          ],
+          constraints: [],
+          indexes: [],
+        },
+      ],
+    });
+
+    expect(audit.action).toBe(ACTION_APPLY_MISSING_DDL);
+    expect(audit.objects[0]?.populated).toBe(false);
+    expect(audit.objects[0]?.deltas).toMatchObject([
+      {
+        kind: 'column-nullability-mismatch',
+        name: 'tasks.title',
+        expected: true,
+        actual: false,
+        additiveSafe: true,
+      },
+    ]);
+  });
+
+  it('refuses nullable to NOT NULL tightening on populated tables', async () => {
+    const client = createMockClient({
+      presentTables: ['tasks'],
+      populatedTables: ['tasks'],
+      columns: [
+        {
+          table_name: 'tasks',
+          column_name: 'id',
+          data_type: 'integer',
+          is_nullable: 'NO',
+        },
+        {
+          table_name: 'tasks',
+          column_name: 'fund_id',
+          data_type: 'integer',
+          is_nullable: 'NO',
+        },
+        {
+          table_name: 'tasks',
+          column_name: 'title',
+          data_type: 'character varying',
+          udt_name: 'varchar',
+          is_nullable: 'YES',
+        },
+      ],
+    });
+    const audit = await auditManifest(client, {
+      ...manifest,
+      expectedTables: [
+        {
+          ...manifest.expectedTables[0],
+          constraints: [],
+          indexes: [],
+        },
+      ],
+    });
+
+    expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+    expect(audit.objects[0]?.populated).toBe(true);
   });
 
   it('audit-only mode does not issue mutation queries', async () => {
@@ -470,6 +742,70 @@ describe('missing-table policy', () => {
       )
     ).toThrow(ReconcileError);
   });
+
+  it('rejects malformed apply policy targets', () => {
+    const badPolicies = [
+      {
+        applyPolicy: {
+          allowDropNotNull: [{ table: 'tasks', column: 'bad;column' }],
+        },
+      },
+      {
+        applyPolicy: {
+          allowDropNotNull: [{ table: 'tasks', column: 'title' }],
+        },
+      },
+      {
+        applyPolicy: {
+          allowConstraintReplacements: [{ table: 'tasks', name: 'missing_check' }],
+        },
+      },
+      {
+        applyPolicy: {
+          allowConstraintReplacements: [{ table: 'tasks', name: 'tasks_fund_id_funds_id_fk' }],
+        },
+      },
+      {
+        applyPolicy: {
+          unexpectedKey: true,
+        },
+      },
+      {
+        applyPolicy: {
+          allowConstraintReplacements: [
+            {
+              table: 'tasks',
+              name: 'tasks_fund_id_funds_id_fk',
+              expectedDefinition: {
+                requiredFragments: ['fund_id'],
+                stringLiterals: ['unused'],
+              },
+            },
+            {
+              table: 'tasks',
+              name: 'tasks_fund_id_funds_id_fk',
+              expectedDefinition: {
+                requiredFragments: ['fund_id'],
+                stringLiterals: ['unused'],
+              },
+            },
+          ],
+        },
+      },
+    ];
+
+    for (const badPolicy of badPolicies) {
+      expect(() =>
+        validateManifestSql(
+          {
+            ...manifest,
+            ...badPolicy,
+          },
+          []
+        )
+      ).toThrow(ReconcileError);
+    }
+  });
 });
 
 describe('reconcile-prod-schema dropObjects path (s8.1 slice 3.5)', () => {
@@ -514,6 +850,21 @@ describe('reconcile-prod-schema dropObjects path (s8.1 slice 3.5)', () => {
     expect(identical).toBe(base);
     expect(reverseSqlChanged).not.toBe(base);
     expect(entryRemoved).not.toBe(base);
+  });
+
+  it('manifest checksum changes when apply policy changes', () => {
+    const base = manifestChecksum({ ...dropManifest, applyPolicy: {} }, []);
+    const changed = manifestChecksum(
+      {
+        ...dropManifest,
+        applyPolicy: {
+          allowDropNotNull: [{ table: 'jobs', column: 'state' }],
+        },
+      },
+      []
+    );
+
+    expect(changed).not.toBe(base);
   });
 
   it('statement hashes include generated drop statements', () => {
