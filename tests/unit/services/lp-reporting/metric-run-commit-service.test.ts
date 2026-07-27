@@ -35,6 +35,7 @@ interface FakeValuationMark {
   markDate: string;
   asOfDate: string;
   status: string | null;
+  markPurpose: 'planning_company_fmv' | 'direct_position_fmv';
   confidenceLevel: string;
   companyId: number | null;
   sourceHash: string | null;
@@ -181,6 +182,7 @@ function seedHappyPath(
     markDate: '2026-03-31',
     asOfDate: '2026-03-31',
     status: 'approved',
+    markPurpose: 'planning_company_fmv',
     confidenceLevel: 'high',
     companyId: 42,
     sourceHash: '3'.repeat(64),
@@ -252,6 +254,7 @@ describe('commitMetricRun', () => {
         markDate: '2026-03-31',
         asOfDate: '2026-03-31',
         status: 'approved',
+        markPurpose: 'planning_company_fmv',
         confidenceLevel: 'medium',
         companyId: 42,
         sourceHash: '5'.repeat(64),
@@ -265,6 +268,7 @@ describe('commitMetricRun', () => {
         markDate: '2026-06-30',
         asOfDate: '2026-06-30',
         status: 'approved',
+        markPurpose: 'planning_company_fmv',
         confidenceLevel: 'low',
         companyId: 42,
         sourceHash: '6'.repeat(64),
@@ -334,6 +338,19 @@ describe('commitMetricRun', () => {
     await expect(commitMetricRun(input, { database: fakeDb.asDatabase() })).rejects.toMatchObject({
       code: 'CROSS_FUND_RESOURCE',
       status: 403,
+    });
+    expect(fakeDb.insertedMetricRows).toHaveLength(0);
+  });
+
+  it('rejects explicit direct_position_fmv marks before write', async () => {
+    const fakeDb = new FakeMetricRunDb();
+    const sourceIds = seedHappyPath(fakeDb);
+    const input = await buildCommitInput(fakeDb, sourceIds);
+    fakeDb.marks[0] = { ...fakeDb.marks[0]!, markPurpose: 'direct_position_fmv' };
+
+    await expect(commitMetricRun(input, { database: fakeDb.asDatabase() })).rejects.toMatchObject({
+      code: 'DIRECT_POSITION_FMV_MARK_UNSUPPORTED',
+      status: 400,
     });
     expect(fakeDb.insertedMetricRows).toHaveLength(0);
   });
