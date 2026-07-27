@@ -308,6 +308,45 @@ describe('reconcile-prod-schema shape decisions', () => {
     expect(audit.objects[0]?.deltas).toEqual([]);
   });
 
+  it('finds indexes stored under PostgreSQL-truncated identifiers', async () => {
+    const expectedIndexName =
+      'substrate_shadow_reconciliations_fund_key_input_null_hash_unique';
+    const storedIndexName = expectedIndexName.slice(0, 63);
+    expect(expectedIndexName).toHaveLength(64);
+
+    const client = createMockClient({
+      presentTables: ['tasks'],
+      columns: [
+        {
+          table_name: 'tasks',
+          column_name: 'id',
+          data_type: 'integer',
+          udt_name: 'int4',
+          is_nullable: 'NO',
+        },
+      ],
+      indexes: [storedIndexName],
+    });
+    const audit = await auditManifest(client, {
+      name: 'long-index-fixture',
+      missingTablePolicy: MISSING_TABLE_POLICY_CREATE_OR_REPAIR,
+      expectedTables: [
+        {
+          name: 'tasks',
+          columns: [{ name: 'id', type: 'integer', nullable: false }],
+          constraints: [],
+          indexes: [expectedIndexName],
+        },
+      ],
+    });
+
+    expect(audit.action).toBe(ACTION_SKIP);
+    expect(audit.objects[0]?.deltas).toEqual([]);
+    expect(client.calls.find((call) => call.text.includes('FROM pg_indexes'))?.params).toEqual([
+      [storedIndexName],
+    ]);
+  });
+
   it('applies missing DDL when the table is absent', async () => {
     const client = createMockClient();
     const audit = await auditManifest(client, manifest);

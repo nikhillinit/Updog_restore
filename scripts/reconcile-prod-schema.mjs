@@ -878,6 +878,7 @@ async function loadConstraints(client, tableNames, expectedTables) {
 async function loadIndexes(client, expectedTables) {
   const indexNames = expectedTables.flatMap((table) => table.indexes ?? []);
   if (indexNames.length === 0) return [];
+  const lookupNames = indexNames.map(pgIdentifier);
 
   const result = await client.query(
     `
@@ -886,7 +887,7 @@ async function loadIndexes(client, expectedTables) {
       WHERE schemaname = 'public'
         AND indexname = ANY($1::text[])
     `,
-    [indexNames]
+    [lookupNames]
   );
   return result.rows;
 }
