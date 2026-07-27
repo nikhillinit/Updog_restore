@@ -383,6 +383,38 @@ function investmentRow(overrides: Record<string, unknown> = {}): Record<string, 
 }
 
 describe('legacy position backfill service', () => {
+  it.each([
+    { fundIds: [7], placeholders: '$1' },
+    { fundIds: [7, 8], placeholders: '$1, $2' },
+  ])(
+    'binds fund filter $fundIds as an explicit PostgreSQL integer array',
+    async ({ fundIds, placeholders }) => {
+      const model = baseModel();
+
+      await backfillLegacyPositionEvents({
+        actorId: 1,
+        database: makeDb(model),
+        request: { mode: 'dry_run', fundIds },
+      });
+
+      const preflight = model.statements.find((statement) =>
+        statement.text.toLowerCase().includes('with scoped as')
+      );
+      const investmentRead = model.statements.find((statement) =>
+        statement.text.toLowerCase().includes('from investments i')
+      );
+
+      expect(preflight?.text.replace(/\s+/g, ' ')).toContain(
+        `WHERE fund_id = ANY(ARRAY[${placeholders}]::int[])`
+      );
+      expect(preflight?.params.slice(0, fundIds.length)).toEqual(fundIds);
+      expect(investmentRead?.text.replace(/\s+/g, ' ')).toContain(
+        `AND i.fund_id = ANY(ARRAY[${placeholders}]::int[])`
+      );
+      expect(investmentRead?.params.slice(0, fundIds.length)).toEqual(fundIds);
+    }
+  );
+
   it('dry-run computes source hashes and writes zero rows', async () => {
     const model = baseModel();
 

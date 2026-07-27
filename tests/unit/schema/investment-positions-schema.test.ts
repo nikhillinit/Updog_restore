@@ -501,6 +501,9 @@ describe('Task 11 position and ownership structural schema', () => {
       '"position_event_source_basis_reliefs"."relieved_cost_basis" ='
     );
     expect(checkSql(sourceBasisReliefConfig, 'pesbr_adjustment_presence_check')).toContain(
+      '"position_event_source_basis_reliefs"."capitalized_adjustment_event_type" IS NOT NULL'
+    );
+    expect(checkSql(sourceBasisReliefConfig, 'pesbr_adjustment_presence_check')).toContain(
       `"position_event_source_basis_reliefs"."capitalized_adjustment_event_type" = 'adjustment'`
     );
     expect(checkSql(sourceBasisReliefConfig, 'pesbr_adjustment_presence_check')).toContain(
@@ -796,6 +799,7 @@ describe('Task 11 position and ownership structural schema', () => {
       "conrelid = 'public.position_event_source_basis_reliefs'::regclass"
     );
     expect(migration).toContain('to_regclass');
+    expect(migration).toContain('"capitalized_adjustment_event_type" IS NOT NULL');
     expect(migration).toContain('--> statement-breakpoint');
   });
 });

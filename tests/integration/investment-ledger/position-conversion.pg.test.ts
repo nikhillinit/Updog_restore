@@ -112,7 +112,7 @@ interface ConversionSeed {
   basisMismatchResultParticipationId: number;
   sourceAcquisitionEventId: number;
   conversionEventId: number;
-  basisMismatchConversionEventId: number;
+  basisMismatchConversionEventId: number | null;
   adjustmentEventId: number;
 }
 
@@ -311,7 +311,7 @@ const MISMATCH_CASES: MismatchCase[] = [
   {
     name: 'resulting basis mismatch',
     overrides: (seed) => ({
-      conversionEventId: seed.basisMismatchConversionEventId,
+      conversionEventId: requireBasisMismatchConversionEventId(seed),
       resultParticipationId: seed.basisMismatchResultParticipationId,
     }),
     code: '23503',
@@ -453,7 +453,9 @@ describe.skipIf(skipIfNoDocker)('position conversion source-basis migration', ()
       await runMigrationsWithConnectionString(connectionString, '0043_position_source_basis_reliefs');
 
       await withPool(connectionString, async (pool) => {
-        const seed = await seedConversionParents(pool, nextFundId());
+        const seed = await seedConversionParents(pool, nextFundId(), {
+          includeBasisMismatchConversion: name === 'resulting basis mismatch',
+        });
         const before = await persistenceCounts(pool, seed.fundId);
 
         const error = await capturePgError(() => pool.query(reliefInsertSql(seed, overrides(seed))));
@@ -1139,8 +1141,16 @@ async function expectParentCatalog(pool: Pool): Promise<void> {
         'source_tranche_version',
         'resulting_tranche_version',
       ]),
-      constraint('position_events_conversion_zero_basis_check', 'c', []),
-      constraint('position_events_conversion_distinct_participations_check', 'c', []),
+      constraint('position_events_conversion_zero_basis_check', 'c', [
+        'event_type',
+        'cost_basis_delta',
+        'proceeds',
+      ]),
+      constraint('position_events_conversion_distinct_participations_check', 'c', [
+        'event_type',
+        'vehicle_participation_id',
+        'resulting_participation_id',
+      ]),
     ])
   );
   expect(await constraintsForTable(pool, 'vehicle_financing_participations')).toEqual(
@@ -1310,15 +1320,35 @@ async function expectReliefCatalog(pool: Pool): Promise<void> {
         'fund_id',
         'company_identity_id',
       ], 'financing_events', ['id', 'fund_id', 'company_identity_id']),
-      constraint('pesbr_source_event_type_check', 'c', []),
-      constraint('pesbr_conversion_event_type_check', 'c', []),
-      constraint('pesbr_source_origin_check', 'c', []),
-      constraint('pesbr_resulting_origin_check', 'c', []),
-      constraint('pesbr_distinct_participations_check', 'c', []),
-      constraint('pesbr_distinct_events_check', 'c', []),
-      constraint('pesbr_positive_basis_check', 'c', []),
-      constraint('pesbr_conservation_check', 'c', []),
-      constraint('pesbr_adjustment_presence_check', 'c', []),
+      constraint('pesbr_source_event_type_check', 'c', ['source_event_type']),
+      constraint('pesbr_conversion_event_type_check', 'c', ['conversion_event_type']),
+      constraint('pesbr_source_origin_check', 'c', ['source_economic_origin']),
+      constraint('pesbr_resulting_origin_check', 'c', ['resulting_economic_origin']),
+      constraint('pesbr_distinct_participations_check', 'c', [
+        'source_participation_id',
+        'resulting_participation_id',
+      ]),
+      constraint('pesbr_distinct_events_check', 'c', [
+        'conversion_position_event_id',
+        'source_acquisition_position_event_id',
+      ]),
+      constraint('pesbr_positive_basis_check', 'c', [
+        'source_acquisition_cost_basis',
+        'capitalized_adjustment_cost_basis',
+        'relieved_cost_basis',
+      ]),
+      constraint('pesbr_conservation_check', 'c', [
+        'relieved_cost_basis',
+        'source_acquisition_cost_basis',
+        'capitalized_adjustment_cost_basis',
+      ]),
+      constraint('pesbr_adjustment_presence_check', 'c', [
+        'capitalized_adjustment_position_event_id',
+        'capitalized_adjustment_event_type',
+        'capitalized_adjustment_cost_basis',
+        'source_acquisition_position_event_id',
+        'conversion_position_event_id',
+      ]),
     ])
   );
 }
@@ -1682,7 +1712,11 @@ function requireString(value: string | null): string {
   return value;
 }
 
-async function seedConversionParents(pool: Pool, fundId: number): Promise<ConversionSeed> {
+async function seedConversionParents(
+  pool: Pool,
+  fundId: number,
+  options: { includeBasisMismatchConversion?: boolean } = {}
+): Promise<ConversionSeed> {
   await pool.query(
     `
       INSERT INTO funds (id, name, size, management_fee, carry_percentage, vintage_year)
@@ -1796,17 +1830,19 @@ async function seedConversionParents(pool: Pool, fundId: number): Promise<Conver
     sourceParticipationId,
     resultParticipationId,
   });
-  const basisMismatchConversionEventId = await insertPositionEvent(pool, {
-    fundId,
-    vehicleId,
-    identityId,
-    eventType: 'conversion',
-    sharesDelta: '100.000000',
-    costBasisDelta: '0.000000',
-    proceeds: '0.000000',
-    sourceParticipationId,
-    resultParticipationId: basisMismatchResultParticipationId,
-  });
+  const basisMismatchConversionEventId = options.includeBasisMismatchConversion
+    ? await insertPositionEvent(pool, {
+        fundId,
+        vehicleId,
+        identityId,
+        eventType: 'conversion',
+        sharesDelta: '100.000000',
+        costBasisDelta: '0.000000',
+        proceeds: '0.000000',
+        sourceParticipationId,
+        resultParticipationId: basisMismatchResultParticipationId,
+      })
+    : null;
 
   return {
     fundId,
@@ -1830,6 +1866,13 @@ async function seedConversionParents(pool: Pool, fundId: number): Promise<Conver
     basisMismatchConversionEventId,
     adjustmentEventId,
   };
+}
+
+function requireBasisMismatchConversionEventId(seed: ConversionSeed): number {
+  if (seed.basisMismatchConversionEventId === null) {
+    throw new Error('Basis-mismatch conversion fixture was not requested');
+  }
+  return seed.basisMismatchConversionEventId;
 }
 
 async function seedServiceConversion(

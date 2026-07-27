@@ -451,6 +451,7 @@ export const positionEventSourceBasisReliefs = pgTable(
         AND ${table.capitalizedAdjustmentCostBasis} = 0
       ) OR (
         ${table.capitalizedAdjustmentPositionEventId} IS NOT NULL
+        AND ${table.capitalizedAdjustmentEventType} IS NOT NULL
         AND ${table.capitalizedAdjustmentEventType} = 'adjustment'
         AND ${table.capitalizedAdjustmentCostBasis} > 0
         AND ${table.capitalizedAdjustmentPositionEventId} <> ${table.sourceAcquisitionPositionEventId}

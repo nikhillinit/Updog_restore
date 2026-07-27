@@ -238,7 +238,13 @@ export async function backfillLegacyPositionEvents(
 }
 
 async function preflightMainVehicles(database: LedgerDatabase, fundIds?: number[]) {
-  const filter = fundIds && fundIds.length > 0 ? sql`WHERE fund_id = ANY(${fundIds})` : sql``;
+  const filter =
+    fundIds && fundIds.length > 0
+      ? sql`WHERE fund_id = ANY(ARRAY[${sql.join(
+          fundIds.map((fundId) => sql`${fundId}`),
+          sql`, `
+        )}]::int[])`
+      : sql``;
   const result = await database.execute(sql`
     WITH scoped AS (
       SELECT id, fund_id, vehicle_slug, vehicle_type
@@ -287,7 +293,13 @@ async function loadLegacyInvestments(
   database: LedgerDatabase,
   fundIds?: number[]
 ): Promise<LegacyInvestmentRow[]> {
-  const fundFilter = fundIds && fundIds.length > 0 ? sql`AND i.fund_id = ANY(${fundIds})` : sql``;
+  const fundFilter =
+    fundIds && fundIds.length > 0
+      ? sql`AND i.fund_id = ANY(ARRAY[${sql.join(
+          fundIds.map((fundId) => sql`${fundId}`),
+          sql`, `
+        )}]::int[])`
+      : sql``;
   const result = await database.execute(sql`
     SELECT i.id AS investment_id, i.fund_id, i.company_id, pc.fund_id AS company_fund_id,
            i.investment_date, i.amount::text, i.share_price_cents, i.shares_acquired::text,

@@ -530,6 +530,7 @@ BEGIN
         )
         OR (
           "capitalized_adjustment_position_event_id" IS NOT NULL
+          AND "capitalized_adjustment_event_type" IS NOT NULL
           AND "capitalized_adjustment_event_type" = 'adjustment'
           AND "capitalized_adjustment_cost_basis" > 0
           AND "capitalized_adjustment_position_event_id" <> "source_acquisition_position_event_id"
