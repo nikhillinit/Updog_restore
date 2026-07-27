@@ -734,9 +734,10 @@ async function insertBackfillEvent(
     throw backfillBlocked('SOURCE_PLAN_HASH_REQUIRED', candidate);
   }
   const existing = first(rowsOf(await database.execute(sql`
-    SELECT id, request_hash, vehicle_id, company_identity_id, effective_date::text,
-           shares_delta::text, cost_basis_delta::text, vehicle_participation_id,
-           source_observation_id,
+    SELECT position_events.id, position_events.request_hash, position_events.vehicle_id,
+           position_events.company_identity_id, position_events.effective_date::text,
+           position_events.shares_delta::text, position_events.cost_basis_delta::text,
+           position_events.vehicle_participation_id, position_events.source_observation_id,
            source_observation.observation_hash AS source_observation_hash,
            source_observation.source_locator AS source_observation_locator
     FROM position_events
@@ -744,7 +745,7 @@ async function insertBackfillEvent(
       ON source_observation.id = position_events.source_observation_id
      AND source_observation.fund_id = position_events.fund_id
     WHERE position_events.fund_id = ${candidate.fundId}
-      AND backfilled_from_investment_id = ${candidate.investmentId}
+      AND position_events.backfilled_from_investment_id = ${candidate.investmentId}
     FOR UPDATE OF position_events
   `)));
   if (existing) {
@@ -779,9 +780,10 @@ async function insertBackfillEvent(
   `)));
   if (!inserted) {
     const replay = first(rowsOf(await database.execute(sql`
-      SELECT id, request_hash, vehicle_id, company_identity_id, effective_date::text,
-             shares_delta::text, cost_basis_delta::text, vehicle_participation_id,
-             source_observation_id,
+      SELECT position_events.id, position_events.request_hash, position_events.vehicle_id,
+             position_events.company_identity_id, position_events.effective_date::text,
+             position_events.shares_delta::text, position_events.cost_basis_delta::text,
+             position_events.vehicle_participation_id, position_events.source_observation_id,
              source_observation.observation_hash AS source_observation_hash,
              source_observation.source_locator AS source_observation_locator
       FROM position_events
@@ -789,7 +791,7 @@ async function insertBackfillEvent(
         ON source_observation.id = position_events.source_observation_id
        AND source_observation.fund_id = position_events.fund_id
       WHERE position_events.fund_id = ${candidate.fundId}
-        AND backfilled_from_investment_id = ${candidate.investmentId}
+        AND position_events.backfilled_from_investment_id = ${candidate.investmentId}
     `)));
     if (
       replay &&

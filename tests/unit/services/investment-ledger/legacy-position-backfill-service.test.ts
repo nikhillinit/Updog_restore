@@ -24,6 +24,7 @@ interface FakeModel {
   transactions: number;
   investmentReads: number;
   beforeInvestmentRead?: (model: FakeModel, readCount: number) => void;
+  beforePositionEventInsert?: (model: FakeModel, row: Record<string, unknown>) => void;
 }
 
 function makeDb(model: FakeModel) {
@@ -321,6 +322,15 @@ async function executeFake(
       idempotency_key: idempotencyKey,
       request_hash: requestHash,
     };
+    model.beforePositionEventInsert?.(model, row);
+    model.beforePositionEventInsert = undefined;
+    if (
+      model.positionEvents.some(
+        (event) => event['backfilled_from_investment_id'] === investmentId
+      )
+    ) {
+      return { rows: [] };
+    }
     model.positionEvents.push(row);
     return { rows: [{ id: row.id }] };
   }
@@ -414,6 +424,50 @@ describe('legacy position backfill service', () => {
       expect(investmentRead?.params.slice(0, fundIds.length)).toEqual(fundIds);
     }
   );
+
+  it('qualifies joined position_events lookups used for insert replay checks', async () => {
+    const model = baseModel();
+    const database = makeDb(model);
+    const dryRun = await backfillLegacyPositionEvents({
+      actorId: 1,
+      database,
+      request: { mode: 'dry_run', fundIds: [7] },
+    });
+    const hash = dryRun.candidates[0]?.sourcePlanHash ?? '';
+    model.beforePositionEventInsert = (target, row) => {
+      target.positionEvents.push({ ...row, id: 77 });
+    };
+
+    const apply = await backfillLegacyPositionEvents({
+      actorId: 42,
+      database,
+      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': hash } },
+    });
+
+    const lookupQueries = model.statements
+      .map((statement) => statement.text.replace(/\s+/g, ' '))
+      .filter(
+        (statement) =>
+          statement.includes('FROM position_events') &&
+          statement.includes('LEFT JOIN source_observations source_observation')
+      );
+
+    expect(apply.written).toBe(1);
+    expect(lookupQueries).toHaveLength(2);
+    for (const query of lookupQueries) {
+      expect(query).toContain('position_events.request_hash');
+      expect(query).toContain('position_events.vehicle_id');
+      expect(query).toContain('position_events.company_identity_id');
+      expect(query).toContain('position_events.effective_date::text');
+      expect(query).toContain('position_events.shares_delta::text');
+      expect(query).toContain('position_events.cost_basis_delta::text');
+      expect(query).toContain('position_events.vehicle_participation_id');
+      expect(query).toContain('position_events.source_observation_id');
+      expect(query).toContain('position_events.backfilled_from_investment_id =');
+      expect(query).not.toMatch(/\bSELECT position_events\.id, request_hash\b/);
+      expect(query).not.toMatch(/\bAND backfilled_from_investment_id =\b/);
+    }
+  });
 
   it('dry-run computes source hashes and writes zero rows', async () => {
     const model = baseModel();

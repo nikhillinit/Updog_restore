@@ -857,7 +857,10 @@ async function seedParticipationBackedInvestment(
       INSERT INTO financing_events (
         fund_id, company_identity_id, event_key, round_name, security_type, event_date,
         currency, round_size, idempotency_key, request_hash
-      ) VALUES ($1, $2, $3, 'SAFE', 'safe', '2026-01-15', 'USD', '1000.000000', $3, repeat('a', 64))
+      ) VALUES (
+        $1, $2, $3::text, 'SAFE', 'safe', '2026-01-15', 'USD', '1000.000000',
+        $3::varchar, repeat('a', 64)
+      )
       RETURNING id
     `,
     [seed.fundId, identityId, `task-11d-event-${seed.fundId}`]
@@ -870,8 +873,8 @@ async function seedParticipationBackedInvestment(
         investment_amount, original_amount, currency, fx_rate_to_usd, fx_rate_date,
         idempotency_key, request_hash
       ) VALUES (
-        $1, $2, $3, 1, '2026-01-15', 'safe', '1000.000000', '1000.000000',
-        'USD', '1.0000000000', '2026-01-15', $3, repeat('b', 64)
+        $1, $2, $3::text, 1, '2026-01-15', 'safe', '1000.000000', '1000.000000',
+        'USD', '1.0000000000', '2026-01-15', $3::varchar, repeat('b', 64)
       )
       RETURNING id
     `,

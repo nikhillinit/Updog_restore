@@ -162,6 +162,7 @@ interface MismatchCase {
   overrides: (seed: ConversionSeed) => ReliefInsertOverrides;
   code: string;
   constraint?: string;
+  includeBasisMismatchConversion?: boolean;
 }
 
 const MISMATCH_CASES: MismatchCase[] = [
@@ -316,6 +317,7 @@ const MISMATCH_CASES: MismatchCase[] = [
     }),
     code: '23503',
     constraint: 'pesbr_resulting_participation_fk',
+    includeBasisMismatchConversion: true,
   },
   {
     name: 'basis conservation mismatch',
@@ -448,13 +450,13 @@ describe.skipIf(skipIfNoDocker)('position conversion source-basis migration', ()
 
   it.each(MISMATCH_CASES)(
     'rejects direct source-basis relief rows with $name',
-    async ({ overrides, code, constraint }) => {
+    async ({ overrides, code, constraint, includeBasisMismatchConversion = false }) => {
       const { connectionString } = await createDatabase('position_conversion_mismatch');
       await runMigrationsWithConnectionString(connectionString, '0043_position_source_basis_reliefs');
 
       await withPool(connectionString, async (pool) => {
         const seed = await seedConversionParents(pool, nextFundId(), {
-          includeBasisMismatchConversion: name === 'resulting basis mismatch',
+          includeBasisMismatchConversion,
         });
         const before = await persistenceCounts(pool, seed.fundId);
 
