@@ -357,22 +357,22 @@ describe.skipIf(skipIfNoDocker)('position conversion source-basis migration', ()
     await withPool(connectionString, async (pool) => {
       expect(await tableExists(pool, NEW_TABLE)).toBe(true);
       expect(await columnsForTable(pool, NEW_TABLE)).toEqual([
-        ['conversion_position_event_id', 'integer', 'NO', null, null, null, null],
-        ['source_acquisition_position_event_id', 'integer', 'NO', null, null, null, null],
-        ['capitalized_adjustment_position_event_id', 'integer', 'YES', null, null, null, null],
-        ['fund_id', 'integer', 'NO', null, null, null, null],
-        ['vehicle_id', 'integer', 'NO', null, null, null, null],
-        ['company_identity_id', 'integer', 'NO', null, null, null, null],
-        ['source_participation_id', 'integer', 'NO', null, null, null, null],
-        ['source_participation_version', 'integer', 'NO', null, null, null, null],
-        ['source_financing_event_id', 'integer', 'NO', null, null, null, null],
-        ['source_financing_tranche_id', 'integer', 'NO', null, null, null, null],
-        ['resulting_participation_id', 'integer', 'NO', null, null, null, null],
-        ['resulting_participation_version', 'integer', 'NO', null, null, null, null],
-        ['resulting_financing_event_id', 'integer', 'NO', null, null, null, null],
-        ['resulting_financing_tranche_id', 'integer', 'NO', null, null, null, null],
-        ['source_tranche_version', 'integer', 'NO', null, null, null, null],
-        ['resulting_tranche_version', 'integer', 'NO', null, null, null, null],
+        ['conversion_position_event_id', 'integer', 'NO', null, 32, 0, null],
+        ['source_acquisition_position_event_id', 'integer', 'NO', null, 32, 0, null],
+        ['capitalized_adjustment_position_event_id', 'integer', 'YES', null, 32, 0, null],
+        ['fund_id', 'integer', 'NO', null, 32, 0, null],
+        ['vehicle_id', 'integer', 'NO', null, 32, 0, null],
+        ['company_identity_id', 'integer', 'NO', null, 32, 0, null],
+        ['source_participation_id', 'integer', 'NO', null, 32, 0, null],
+        ['source_participation_version', 'integer', 'NO', null, 32, 0, null],
+        ['source_financing_event_id', 'integer', 'NO', null, 32, 0, null],
+        ['source_financing_tranche_id', 'integer', 'NO', null, 32, 0, null],
+        ['resulting_participation_id', 'integer', 'NO', null, 32, 0, null],
+        ['resulting_participation_version', 'integer', 'NO', null, 32, 0, null],
+        ['resulting_financing_event_id', 'integer', 'NO', null, 32, 0, null],
+        ['resulting_financing_tranche_id', 'integer', 'NO', null, 32, 0, null],
+        ['source_tranche_version', 'integer', 'NO', null, 32, 0, null],
+        ['resulting_tranche_version', 'integer', 'NO', null, 32, 0, null],
         ['source_acquisition_cost_basis', 'numeric', 'NO', null, 20, 6, null],
         ['capitalized_adjustment_cost_basis', 'numeric', 'NO', '0', 20, 6, null],
         ['relieved_cost_basis', 'numeric', 'NO', null, 20, 6, null],
@@ -2175,11 +2175,11 @@ async function insertPositionEvent(
         resulting_participation_id, source_participation_version,
         resulting_participation_version, source_tranche_version, resulting_tranche_version
       ) VALUES (
-        $1, $2, $3, $4, '2026-01-31', $5, $6, $7, $8, $9,
-        CASE WHEN $4 = 'conversion' THEN 1 ELSE NULL END,
-        CASE WHEN $4 = 'conversion' THEN 1 ELSE NULL END,
-        CASE WHEN $4 = 'conversion' THEN 1 ELSE NULL END,
-        CASE WHEN $4 = 'conversion' THEN 1 ELSE NULL END
+        $1, $2, $3, $4::varchar(32), '2026-01-31', $5, $6, $7, $8, $9,
+        CASE WHEN $4::varchar(32) = 'conversion' THEN 1 ELSE NULL END,
+        CASE WHEN $4::varchar(32) = 'conversion' THEN 1 ELSE NULL END,
+        CASE WHEN $4::varchar(32) = 'conversion' THEN 1 ELSE NULL END,
+        CASE WHEN $4::varchar(32) = 'conversion' THEN 1 ELSE NULL END
       )
       RETURNING id
     `,

@@ -769,10 +769,10 @@ async function insertPositionEvent(
         resulting_participation_version, source_tranche_version, resulting_tranche_version
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-        CASE WHEN $4 = 'conversion' THEN 1 ELSE NULL END,
-        CASE WHEN $4 = 'conversion' THEN 1 ELSE NULL END,
-        CASE WHEN $4 = 'conversion' THEN 1 ELSE NULL END,
-        CASE WHEN $4 = 'conversion' THEN 1 ELSE NULL END
+        CASE WHEN $4::varchar = 'conversion' THEN 1 ELSE NULL END,
+        CASE WHEN $4::varchar = 'conversion' THEN 1 ELSE NULL END,
+        CASE WHEN $4::varchar = 'conversion' THEN 1 ELSE NULL END,
+        CASE WHEN $4::varchar = 'conversion' THEN 1 ELSE NULL END
       )
       RETURNING id
     `,

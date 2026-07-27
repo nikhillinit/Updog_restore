@@ -761,7 +761,7 @@ async function seedLegacyInvestment(
   await pool.query(
     `
       INSERT INTO funds (id, name, size, management_fee, carry_percentage, vintage_year)
-      VALUES ($1, $2, 10000000, 2, 20, 2026)
+      VALUES ($1, $2, 10000000, '0.0200', '0.2000', 2026)
     `,
     [fundId, `Task 11D Fund ${fundId}`]
   );
