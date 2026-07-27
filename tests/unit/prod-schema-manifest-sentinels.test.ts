@@ -42,6 +42,7 @@ interface DropObject {
 interface Manifest {
   name: string;
   sqlFiles?: string[];
+  allowedCreateTables?: string[];
   expectedTables?: ManifestTable[];
   dropObjects?: DropObject[];
 }
@@ -109,6 +110,7 @@ describe('prod-schema manifest sentinels', () => {
       '14-investment-ledger.json',
       '15-vehicle-financing-participations.json',
       '16-positions-ownership-compat.json',
+      '17-position-source-basis-reliefs.json',
     ]);
   });
 
@@ -201,18 +203,63 @@ describe('prod-schema manifest sentinels', () => {
     }
   });
 
-  it('the positions and ownership manifest types every expected column', () => {
+  it('keeps ledgered manifest 16 immutable and isolates additive 0043 in manifest 17', () => {
     const positionsManifest = manifests.find(
       (entry) => entry.file === '16-positions-ownership-compat.json'
     );
+    const sourceBasisManifest = manifests.find(
+      (entry) => entry.file === '17-position-source-basis-reliefs.json'
+    );
     expect(positionsManifest).toBeDefined();
+    expect(sourceBasisManifest).toBeDefined();
+
+    expect(positionsManifest!.manifest.sqlFiles).toEqual([
+      'migrations/0042_positions_ownership_compat.sql',
+    ]);
+    expect(positionsManifest!.manifest.allowedCreateTables).not.toContain(
+      'position_event_source_basis_reliefs'
+    );
+    expect(positionsManifest!.manifest.expectedTables?.map((table) => table.name)).not.toContain(
+      'position_event_source_basis_reliefs'
+    );
+
+    expect(sourceBasisManifest!.manifest.sqlFiles).toEqual([
+      'migrations/0043_position_source_basis_reliefs.sql',
+    ]);
+    expect(sourceBasisManifest!.manifest.allowedCreateTables).toEqual([
+      'position_event_source_basis_reliefs',
+    ]);
+    expect(sourceBasisManifest!.manifest.expectedTables?.map((table) => table.name)).toEqual([
+      'position_events',
+      'vehicle_financing_participations',
+      'financing_events',
+      'financing_tranches',
+      'position_event_source_basis_reliefs',
+    ]);
+
+    const sourceBasisSql = fs.readFileSync(
+      path.join(repoRoot, sourceBasisManifest!.manifest.sqlFiles![0]),
+      'utf8'
+    );
+    expect(sourceBasisSql).not.toMatch(/\b(?:DROP|TRUNCATE|DELETE\s+FROM)\b/i);
+  });
+
+  it('the Task 11 manifests type every expected column', () => {
+    const task11Manifests = manifests.filter((entry) =>
+      ['16-positions-ownership-compat.json', '17-position-source-basis-reliefs.json'].includes(
+        entry.file
+      )
+    );
+    expect(task11Manifests).toHaveLength(2);
 
     const missingTypes: string[] = [];
 
-    for (const table of positionsManifest?.manifest.expectedTables ?? []) {
-      for (const column of table.columns ?? []) {
-        if (!column.type?.trim()) {
-          missingTypes.push(`${table.name}.${column.name}`);
+    for (const { file, manifest } of task11Manifests) {
+      for (const table of manifest.expectedTables ?? []) {
+        for (const column of table.columns ?? []) {
+          if (!column.type?.trim()) {
+            missingTypes.push(`${file}: ${table.name}.${column.name}`);
+          }
         }
       }
     }

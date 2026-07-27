@@ -5,18 +5,25 @@ import {
   FINANCIAL_FACTS_POLICY_VERSION,
   FINANCIAL_FACTS_POLICY_VERSION_1_0_0,
   FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
+  FINANCIAL_FACTS_POLICY_VERSION_1_1_0,
+  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_1,
+  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
   FinancialFactsPayloadV1_0_0Schema,
   FinancialFactsPayloadV1Schema,
+  FinancialFactsPayloadV2Schema,
   FinancialFactsSnapshotInputHashPreimageV1_0_0Schema,
   FinancialFactsSelectionSetHashPreimageSchema,
   FinancialFactsSnapshotInputHashPreimageSchema,
+  FinancialFactsSnapshotInputHashPreimageV2Schema,
   FinancialFactsSnapshotV1_0_0Schema,
   FinancialFactsSnapshotV1Schema,
+  FinancialFactsSnapshotV2Schema,
   PersistedFinancialFactsSnapshotV1Schema,
   VolatileStrippedFundCompanyActualsFactsResponseSchema,
   buildSelectionSetHash,
   buildSnapshotInputHash,
   type FinancialFactsPayloadV1,
+  type FinancialFactsPayloadV2,
 } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
 import { Decimal } from '../../../shared/lib/decimal-config';
@@ -49,6 +56,19 @@ function emptyPayload(overrides: Partial<FinancialFactsPayloadV1> = {}): Financi
     },
     marksSeries: { marks: [], periodNav: [], warnings: [] },
     vehicleRoster: [],
+    ...overrides,
+  });
+}
+
+function emptyPayloadV2(overrides: Partial<FinancialFactsPayloadV2> = {}): FinancialFactsPayloadV2 {
+  return FinancialFactsPayloadV2Schema.parse({
+    ...emptyPayload(),
+    participationTermRefs: [],
+    positionRefs: [],
+    positionComponentRefs: [],
+    ownershipRefs: [],
+    valuationRefs: [],
+    observationRefs: [],
     ...overrides,
   });
 }
@@ -145,8 +165,8 @@ describe('canonical decimal-string primitives', () => {
 });
 
 describe('financial facts snapshot hashes', () => {
-  it('pins the byte-identical policy 1.0.0 empty selection-set hash under 1.0.1', () => {
-    expect(FINANCIAL_FACTS_POLICY_VERSION).toBe(FINANCIAL_FACTS_POLICY_VERSION_1_0_1);
+  it('pins the byte-identical policy 1.0.0 empty selection-set hash under current policy', () => {
+    expect(FINANCIAL_FACTS_POLICY_VERSION).toBe(FINANCIAL_FACTS_POLICY_VERSION_1_1_0);
     expect(EMPTY_SELECTION_SET_HASH).toBe(
       'be150e55440d5748ad85f67b7c5a1ace54bbd847880a4ec7aa10bc85b6777230'
     );
@@ -221,7 +241,86 @@ describe('financial facts snapshot hashes', () => {
     expect(buildSnapshotInputHash(legacy)).toBe(
       'ea4cc7f7765abc2240d72df3a8cb7affde14fa235219fd3705fdad153b63c4ed'
     );
-    expect(buildSnapshotInputHash(current)).not.toBe(buildSnapshotInputHash(legacy));
+    expect(buildSnapshotInputHash(current)).toBe(
+      '9a51f1cbc1beba5aa659c5bd2817e8ea908508d560ce2f92728ecac13f502e62'
+    );
+  });
+
+  it('rejects invalid policy and payload-schema tuples', () => {
+    expect(() =>
+      FinancialFactsSnapshotInputHashPreimageSchema.parse({
+        fundId: 10,
+        vehicleIds: [],
+        asOfDate: '2026-07-21',
+        knowledgeCutoff: '2026-07-22T01:42:44.186Z',
+        policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
+        payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
+        selectionSetHash: 'a'.repeat(64),
+        payload: emptyPayload(),
+      })
+    ).toThrow();
+    expect(() =>
+      FinancialFactsSnapshotInputHashPreimageV2Schema.parse({
+        fundId: 10,
+        vehicleIds: [],
+        asOfDate: '2026-07-21',
+        knowledgeCutoff: '2026-07-22T01:42:44.186Z',
+        policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_1_0,
+        payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_1,
+        selectionSetHash: 'a'.repeat(64),
+        payload: emptyPayloadV2(),
+      })
+    ).toThrow();
+  });
+
+  it('hashes payload 2 lineage blocks as part of the tuple preimage', () => {
+    const base = {
+      fundId: 10,
+      vehicleIds: [20, 10],
+      asOfDate: '2026-07-21',
+      knowledgeCutoff: '2026-07-22T01:42:44.186Z',
+      policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_1_0,
+      payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
+      selectionSetHash: 'a'.repeat(64),
+    } as const;
+    const left = buildSnapshotInputHash({
+      ...base,
+      payload: emptyPayloadV2({
+        positionRefs: [
+          {
+            positionEventId: 1,
+            eventType: 'acquisition',
+            vehicleId: 2,
+            companyIdentityId: 3,
+            vehicleParticipationId: 4,
+            resultingParticipationId: null,
+            sourceObservationId: 5,
+            effectiveDate: '2026-01-01',
+            recordedAt: '2026-01-02T00:00:00.000Z',
+          },
+        ],
+      }),
+    });
+    const right = buildSnapshotInputHash({
+      ...base,
+      payload: emptyPayloadV2({
+        positionRefs: [
+          {
+            positionEventId: 2,
+            eventType: 'acquisition',
+            vehicleId: 2,
+            companyIdentityId: 3,
+            vehicleParticipationId: 4,
+            resultingParticipationId: null,
+            sourceObservationId: 5,
+            effectiveDate: '2026-01-01',
+            recordedAt: '2026-01-02T00:00:00.000Z',
+          },
+        ],
+      }),
+    });
+
+    expect(left).not.toBe(right);
   });
 
   it('defines the source, selection, and snapshot preimages and hashes them stably under key reordering', () => {
@@ -244,14 +343,14 @@ describe('financial facts snapshot hashes', () => {
       vehicleIds: [20, 10],
       asOfDate: '2026-07-21',
       knowledgeCutoff: '2026-07-22T01:42:44.186Z',
-      policyVersion: FINANCIAL_FACTS_POLICY_VERSION,
+      policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
       selectionSetHash: 'a'.repeat(64),
       payload: emptyPayload(),
     });
     const snapshotRight = FinancialFactsSnapshotInputHashPreimageSchema.parse({
       payload: emptyPayload(),
       selectionSetHash: 'a'.repeat(64),
-      policyVersion: FINANCIAL_FACTS_POLICY_VERSION,
+      policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
       knowledgeCutoff: '2026-07-22T01:42:44.186Z',
       asOfDate: '2026-07-21',
       vehicleIds: [10, 20],
@@ -272,7 +371,7 @@ describe('financial facts snapshot hashes', () => {
       vehicleIds: [] as number[],
       asOfDate: '2026-07-21',
       knowledgeCutoff: '2026-07-22T01:42:44.186Z',
-      policyVersion: FINANCIAL_FACTS_POLICY_VERSION,
+      policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
       selectionSetHash: 'a'.repeat(64),
     };
 
@@ -305,7 +404,7 @@ describe('financial facts snapshot hashes', () => {
         vehicleIds: [],
         asOfDate: '2026-07-21',
         knowledgeCutoff: '2026-07-22T01:42:44.186Z',
-        policyVersion: FINANCIAL_FACTS_POLICY_VERSION,
+        policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
         selectionSetHash: 'a'.repeat(64),
         payload: unsafePayload as FinancialFactsPayloadV1,
       })
@@ -338,7 +437,7 @@ describe('financial facts snapshot hashes', () => {
       },
     });
     const snapshot = FinancialFactsSnapshotV1Schema.parse({
-      policyVersion: FINANCIAL_FACTS_POLICY_VERSION,
+      policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
       fundId: 10,
       asOfDate: '2026-07-21',
       knowledgeCutoff: '2026-07-22T01:42:44.186Z',
@@ -359,5 +458,70 @@ describe('financial facts snapshot hashes', () => {
 
     expect(after).toBe(before);
     expect(after).toContain('"amount":"123456789012345.123456"');
+  });
+
+  it('parses persisted payload 2 snapshots with typed Task 11 references', () => {
+    const snapshot = FinancialFactsSnapshotV2Schema.parse({
+      policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_1_0,
+      payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
+      fundId: 10,
+      asOfDate: '2026-07-21',
+      knowledgeCutoff: '2026-07-22T01:42:44.186Z',
+      vehicleScope: 'fund_all',
+      vehicleIds: [],
+      selectionSetHash: EMPTY_SELECTION_SET_HASH,
+      sourceFactsInputHash: 'a'.repeat(64),
+      snapshotInputHash: 'b'.repeat(64),
+      consumerEvaluations: [
+        {
+          consumer: 'forecast',
+          status: 'blocked',
+          reasons: ['position_valuation_incomplete'],
+          details: [{ code: 'position_valuation_incomplete', companyIdentityId: 42 }],
+        },
+      ],
+      payload: emptyPayloadV2({
+        participationTermRefs: [
+          {
+            participationId: 1,
+            participationVersion: 2,
+            financingTrancheId: 3,
+            trancheVersion: 4,
+          },
+        ],
+      }),
+      actorId: 7,
+      createdAt: '2026-07-22T01:42:44.186Z',
+    });
+
+    expect(PersistedFinancialFactsSnapshotV1Schema.parse(snapshot)).toEqual(snapshot);
+  });
+
+  it('keeps policy 1.0.x consumer evaluations strict against payload 2 details', () => {
+    const legacySnapshot = {
+      policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
+      payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_1,
+      fundId: 10,
+      asOfDate: '2026-07-21',
+      knowledgeCutoff: '2026-07-22T01:42:44.186Z',
+      vehicleScope: 'fund_all',
+      vehicleIds: [],
+      selectionSetHash: EMPTY_SELECTION_SET_HASH,
+      sourceFactsInputHash: 'a'.repeat(64),
+      snapshotInputHash: 'b'.repeat(64),
+      consumerEvaluations: [
+        {
+          consumer: 'forecast',
+          status: 'blocked',
+          reasons: ['position_valuation_incomplete'],
+          details: [{ code: 'position_valuation_incomplete', companyIdentityId: 42 }],
+        },
+      ],
+      payload: emptyPayload(),
+      actorId: 7,
+      createdAt: '2026-07-22T01:42:44.186Z',
+    };
+
+    expect(() => PersistedFinancialFactsSnapshotV1Schema.parse(legacySnapshot)).toThrow();
   });
 });

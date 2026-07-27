@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CreateVehicleFinancingParticipationRequestSchema,
   VEHICLE_PARTICIPATION_ERROR_CODES,
+  VehicleFinancingParticipationV1Schema,
   VehicleParticipationErrorCodeSchema,
 } from '../../../../shared/contracts/investment-ledger/participation.contract';
 
@@ -52,5 +53,45 @@ describe('vehicle participation contract', () => {
         fxRateToUsd: '1.0000000001',
       })
     ).toThrow();
+  });
+
+  it('requires public DTOs to expose participation economic origin', () => {
+    expect(
+      VehicleFinancingParticipationV1Schema.parse({
+        id: 1,
+        fundId: 7,
+        vehicleId: 8,
+        financingEventId: 9,
+        trancheKey: 'safe',
+        financingTrancheId: 10,
+        version: 1,
+        supersededByParticipationId: null,
+        economicOrigin: 'cash_investment',
+        participationAmount: '1000.000000',
+        originalAmount: '1000.000000',
+        currency: 'USD',
+        fxRateToUsd: '1.0000000000',
+        fxRateDate: '2026-07-01',
+        sharesAcquired: null,
+        closingDate: '2026-07-01',
+        pricePerShare: null,
+        postMoneyValuation: null,
+        valuationCap: '5000000.000000',
+        conversionDiscountRate: null,
+        interestRate: null,
+        liquidationPreferenceMultiple: null,
+        participatingPreferred: null,
+        participationCapMultiple: null,
+        proRataRightsPct: null,
+        maturityDate: null,
+        descriptiveTerms: null,
+        confirmedDuplicates: [],
+        sourceObservationId: 11,
+        createdBy: 3,
+        idempotencyKey: 'part-1',
+        requestHash: 'a'.repeat(64),
+        createdAt: '2026-07-01T00:00:00.000Z',
+      }).economicOrigin
+    ).toBe('cash_investment');
   });
 });
