@@ -1,0 +1,500 @@
+{
+  "name": "internal-analysis",
+  "order": 18,
+  "description": "Task 18 quarterly analysis drafts, immutable reference snapshots, and revision history, plus the Task 19 narrative and notes tables which land dormant.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0044_internal_analysis.sql"],
+  "allowedCreateTables": [
+    "internal_analysis_drafts",
+    "internal_analysis_references",
+    "internal_analysis_revision_events",
+    "internal_narrative_drafts",
+    "internal_narrative_claims",
+    "internal_analysis_notes"
+  ],
+  "expectedTables": [
+    {
+      "name": "internal_analysis_drafts",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "period_kind",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "period_start",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "period_end",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "knowledge_cutoff",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "financial_facts_snapshot_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "forecast_fund_snapshot_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "reserve_reference_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "economics_reference_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "source_reference_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "saved_at",
+          "type": "timestamptz",
+          "nullable": true
+        },
+        {
+          "name": "version",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "idempotency_key",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "request_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        "internal_analysis_drafts_fund_id_funds_id_fk",
+        "internal_analysis_drafts_facts_snapshot_fund_fk",
+        "internal_analysis_drafts_forecast_snapshot_fk",
+        "internal_analysis_drafts_created_by_fk",
+        "internal_analysis_drafts_id_fund_unique",
+        "internal_analysis_drafts_fund_idempotency_unique",
+        "internal_analysis_drafts_period_kind_check",
+        "internal_analysis_drafts_period_order_check",
+        "internal_analysis_drafts_version_check"
+      ],
+      "indexes": [
+        "internal_analysis_drafts_open_period_unique",
+        "idx_internal_analysis_drafts_fund_period"
+      ]
+    },
+    {
+      "name": "internal_analysis_references",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "period_kind",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "period_start",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "period_end",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "knowledge_cutoff",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "financial_facts_snapshot_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "forecast_fund_snapshot_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "reserve_reference_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "economics_reference_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "mixed_basis_at_save",
+          "type": "boolean",
+          "nullable": false
+        },
+        {
+          "name": "supersedes_reference_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "source_draft_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "idempotency_key",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "request_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        "internal_analysis_references_fund_id_funds_id_fk",
+        "internal_analysis_references_facts_snapshot_fund_fk",
+        "internal_analysis_references_forecast_snapshot_fk",
+        "internal_analysis_references_supersedes_fund_fk",
+        "internal_analysis_references_source_draft_fund_fk",
+        "internal_analysis_references_created_by_fk",
+        "internal_analysis_references_id_fund_unique",
+        "internal_analysis_references_fund_idempotency_unique",
+        "internal_analysis_references_period_kind_check",
+        "internal_analysis_references_period_order_check",
+        "internal_analysis_references_no_self_supersede_check"
+      ],
+      "indexes": [
+        "internal_analysis_references_supersedes_unique",
+        "idx_internal_analysis_references_fund_period"
+      ]
+    },
+    {
+      "name": "internal_analysis_revision_events",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "draft_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "reference_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "event_type",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "detail",
+          "type": "jsonb",
+          "nullable": false
+        },
+        {
+          "name": "actor_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        "internal_analysis_revision_events_fund_id_funds_id_fk",
+        "internal_analysis_revision_events_draft_fund_fk",
+        "internal_analysis_revision_events_reference_fund_fk",
+        "internal_analysis_revision_events_actor_fk",
+        "internal_analysis_revision_events_event_type_check",
+        "internal_analysis_revision_events_target_check"
+      ],
+      "indexes": ["idx_internal_analysis_revision_events_fund_created"]
+    },
+    {
+      "name": "internal_narrative_drafts",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "analysis_draft_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "analysis_reference_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "revision",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "supersedes_draft_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "idempotency_key",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "request_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        "internal_narrative_drafts_fund_id_funds_id_fk",
+        "internal_narrative_drafts_analysis_draft_fund_fk",
+        "internal_narrative_drafts_analysis_reference_fund_fk",
+        "internal_narrative_drafts_supersedes_fund_fk",
+        "internal_narrative_drafts_created_by_fk",
+        "internal_narrative_drafts_id_fund_unique",
+        "internal_narrative_drafts_fund_idempotency_unique",
+        "internal_narrative_drafts_revision_check",
+        "internal_narrative_drafts_anchor_check",
+        "internal_narrative_drafts_no_self_supersede_check"
+      ],
+      "indexes": ["internal_narrative_drafts_supersedes_unique"]
+    },
+    {
+      "name": "internal_narrative_claims",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "narrative_draft_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "ordinal",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "marker",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "authorship",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "source_facts_snapshot_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "source_fund_snapshot_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "source_observation_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "source_analysis_reference_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        "internal_narrative_claims_fund_id_funds_id_fk",
+        "internal_narrative_claims_draft_fund_fk",
+        "internal_narrative_claims_source_facts_snapshot_fund_fk",
+        "internal_narrative_claims_source_fund_snapshot_fk",
+        "internal_narrative_claims_source_observation_fund_fk",
+        "internal_narrative_claims_source_analysis_reference_fund_fk",
+        "internal_narrative_claims_draft_ordinal_unique",
+        "internal_narrative_claims_authorship_check",
+        "internal_narrative_claims_exactly_one_source_check"
+      ],
+      "indexes": ["idx_internal_narrative_claims_draft_ordinal"]
+    },
+    {
+      "name": "internal_analysis_notes",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "analysis_draft_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "analysis_reference_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "supersedes_note_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "idempotency_key",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "request_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        "internal_analysis_notes_fund_id_funds_id_fk",
+        "internal_analysis_notes_analysis_draft_fund_fk",
+        "internal_analysis_notes_analysis_reference_fund_fk",
+        "internal_analysis_notes_supersedes_fund_fk",
+        "internal_analysis_notes_created_by_fk",
+        "internal_analysis_notes_id_fund_unique",
+        "internal_analysis_notes_fund_idempotency_unique",
+        "internal_analysis_notes_anchor_check",
+        "internal_analysis_notes_no_self_supersede_check"
+      ],
+      "indexes": ["internal_analysis_notes_supersedes_unique"]
+    }
+  ]
+}
