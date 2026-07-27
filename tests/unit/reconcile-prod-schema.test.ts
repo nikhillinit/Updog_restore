@@ -126,8 +126,7 @@ function createMockClient(options: MockClientOptions = {}) {
               (constraint) =>
                 constraints.has(constraint.conname) &&
                 names.includes(constraint.conname) &&
-                (constraint.table_name === undefined ||
-                  tableNames.includes(constraint.table_name))
+                (constraint.table_name === undefined || tableNames.includes(constraint.table_name))
             )
             .map((constraint) => ({
               table_name: constraint.table_name ?? tableNames[0],
@@ -334,8 +333,7 @@ describe('reconcile-prod-schema shape decisions', () => {
   });
 
   it('finds indexes stored under PostgreSQL-truncated identifiers', async () => {
-    const expectedIndexName =
-      'substrate_shadow_reconciliations_fund_key_input_null_hash_unique';
+    const expectedIndexName = 'substrate_shadow_reconciliations_fund_key_input_null_hash_unique';
     const storedIndexName = expectedIndexName.slice(0, 63);
     expect(expectedIndexName).toHaveLength(64);
 
@@ -764,9 +762,7 @@ describe('missing-table policy', () => {
       },
       {
         applyPolicy: {
-          allowConstraintReplacements: [
-            { table: 'tasks', name: 'tasks_fund_id_funds_id_fk' },
-          ],
+          allowConstraintReplacements: [{ table: 'tasks', name: 'tasks_fund_id_funds_id_fk' }],
         },
       },
       {
