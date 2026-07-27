@@ -1007,7 +1007,8 @@ async function readDerivedValuationRefs(params: {
         SELECT
           snapshot.id AS ownership_snapshot_id,
           snapshot.vehicle_id,
-          snapshot.company_identity_id
+          snapshot.company_identity_id,
+          snapshot.effective_date AS ownership_effective_date
         FROM ownership_snapshots snapshot
         WHERE snapshot.fund_id = ${params.fundId}
           AND snapshot.effective_date <= ${params.asOfDate}
@@ -1061,6 +1062,8 @@ async function readDerivedValuationRefs(params: {
          AND observation.created_at <= ${new Date(params.knowledgeCutoff)}
         WHERE COALESCE(participation.post_money_valuation, tranche.post_money_valuation) IS NOT NULL
           AND COALESCE(participation.closing_date, tranche.closing_date) <= ${params.asOfDate}
+          AND ownership.ownership_effective_date >=
+              COALESCE(participation.closing_date, tranche.closing_date)
           AND NOT EXISTS (
             SELECT 1
             FROM vehicle_financing_participations participation_successor

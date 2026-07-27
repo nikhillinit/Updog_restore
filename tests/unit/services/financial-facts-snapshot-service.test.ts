@@ -925,6 +925,12 @@ describe('buildFinancialFactsSnapshot', () => {
       .toContain("observation.domain = 'ledger_event'");
     expect(renderedSql.find((sql) => sql.includes('financial_facts_v2_derived_valuation_refs')))
       .toContain('COALESCE(participation.post_money_valuation, tranche.post_money_valuation)');
+    expect(renderedSql.find((sql) => sql.includes('financial_facts_v2_derived_valuation_refs')))
+      .toContain('snapshot.effective_date AS ownership_effective_date');
+    expect(renderedSql.find((sql) => sql.includes('financial_facts_v2_derived_valuation_refs')))
+      .toMatch(
+        /ownership\.ownership_effective_date\s*>=\s*COALESCE\(participation\.closing_date,\s*tranche\.closing_date\)/
+      );
     expect(snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast'))
       .toEqual({ consumer: 'forecast', status: 'accepted', reasons: [] });
   });
@@ -985,6 +991,66 @@ describe('buildFinancialFactsSnapshot', () => {
     ]);
     expect(snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast'))
       .toEqual({ consumer: 'forecast', status: 'accepted', reasons: [] });
+  });
+
+  it('blocks when chronology rejects derived valuation provenance before ownership exists', async () => {
+    const fakeDb = new FakeSnapshotDb();
+    fakeDb.positionRefRows.push({
+      positionEventId: 501,
+      eventType: 'acquisition',
+      vehicleId: 10,
+      companyIdentityId: 42,
+      vehicleParticipationId: 201,
+      resultingParticipationId: null,
+      sourceObservationId: null,
+      effectiveDate: '2026-06-30',
+      recordedAt: new Date('2026-07-22T01:00:00.000Z'),
+    });
+    fakeDb.ownershipRefRows.push({
+      ownershipSnapshotId: 601,
+      vehicleId: 10,
+      companyIdentityId: 42,
+      sourceObservationId: 71,
+      effectiveDate: '2026-05-31',
+      recordedAt: new Date('2026-07-22T01:00:00.000Z'),
+    });
+
+    const snapshot = await buildFinancialFactsSnapshot({
+      fundId: 1,
+      asOfDate: '2026-06-30',
+      actorId: 7,
+      idempotencyKey: 'snapshot-derived-valuation-chronology-blocked',
+      database: fakeDb.asDatabase(),
+      now: new Date('2026-07-22T01:42:44.186Z'),
+    });
+
+    expect(snapshot.payload.valuationRefs).toEqual([
+      {
+        basis: 'unavailable',
+        vehicleId: 10,
+        companyIdentityId: 42,
+        directMarkId: null,
+        directSourceObservationId: null,
+        ownershipSnapshotId: 601,
+        derivedTrancheId: null,
+        derivedTrancheVersion: null,
+        derivedParticipationId: null,
+        derivedParticipationVersion: null,
+      },
+    ]);
+    expect(snapshot.consumerEvaluations.find((evaluation) => evaluation.consumer === 'forecast'))
+      .toEqual({
+        consumer: 'forecast',
+        status: 'blocked',
+        reasons: ['position_valuation_incomplete'],
+        details: [
+          expect.objectContaining({
+            code: 'position_valuation_incomplete',
+            vehicleId: 10,
+            companyIdentityId: 42,
+          }),
+        ],
+      });
   });
 
   it('blocks forecast evaluation when payload 2 mixes current and stale term refs', async () => {
