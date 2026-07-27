@@ -111,6 +111,7 @@ describe('prod-schema manifest sentinels', () => {
       '15-vehicle-financing-participations.json',
       '16-positions-ownership-compat.json',
       '17-position-source-basis-reliefs.json',
+      '18-internal-analysis.json',
     ]);
   });
 

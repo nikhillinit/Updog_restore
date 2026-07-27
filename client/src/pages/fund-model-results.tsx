@@ -11,7 +11,7 @@
  */
 
 import { useRef, useEffect, useState } from 'react';
-import { useRoute } from 'wouter';
+import { Link, useRoute } from 'wouter';
 import { CurrentPlanAcceptancePanel, FinancialEvidenceDrawer } from '@/components/fund-results';
 import { QuarterlyReviewTrace } from '@/features/analytics-parity/QuarterlyReviewTrace';
 import type {
@@ -214,6 +214,33 @@ function FundModelResultsPage() {
       <PublishComparisonCard comparisonState={comparisonState} />
 
       <CurrentPlanAcceptancePanel fundId={routeFundNumber} />
+
+      {/* PLAN_61 Task 18 entry point. Deliberately a card here rather than a
+          seventh workspace-nav link: the nav row is a six-destination contract
+          (D-F.5 chrome budget). */}
+      <section
+        aria-labelledby="internal-analysis-entry-heading"
+        data-testid="internal-analysis-entry"
+        className="rounded-lg border border-beige-200 bg-white p-4"
+      >
+        <h2
+          id="internal-analysis-entry-heading"
+          className="text-sm font-semibold text-pov-charcoal"
+        >
+          Internal Analysis
+        </h2>
+        <p className="mt-1 text-xs text-presson-textMuted">
+          Quarterly reference snapshots on one coherent facts basis. Internal only -- not closes,
+          restatements, or approved reports.
+        </p>
+        <Link
+          href={`/fund-model-results/${fundId}/internal-analysis`}
+          data-testid="internal-analysis-entry-link"
+          className="mt-2 inline-block text-sm text-pov-charcoal underline decoration-1 underline-offset-4 hover:decoration-2"
+        >
+          Open internal analysis
+        </Link>
+      </section>
 
       <QuarterlyReviewTrace
         results={results}

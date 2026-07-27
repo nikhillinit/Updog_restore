@@ -296,6 +296,21 @@ const GOVERNANCE_ROUTE_POLICY_DECISIONS: Readonly<Record<string, RoutePolicyDeci
     humanReviewRequired: true,
     performanceBudgetMs: null,
   },
+  // PLAN_61 Task 18 (Wave G). Internal reference snapshots on one coherent facts
+  // basis -- never closes, restatements, or approved reports, so there is no
+  // export path off this destination at all.
+  '/fund-model-results/:fundId/internal-analysis': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
   '/sensitivity-analysis': {
     lifecycle: 'durable_crud',
     financialSurface: 'fund_modeling',
@@ -1750,6 +1765,74 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     notes:
       'Task 11 direct position valuation command creates direct-position FMV marks; route handler mounting is deferred to Task 11C.',
   },
+  ...(
+    [
+      ['GET', '/api/funds/:fundId/internal-analysis/drafts', 'List revisable analysis drafts.'],
+      [
+        'GET',
+        '/api/funds/:fundId/internal-analysis/drafts/:draftId',
+        'Read one draft; the response ETag is what a refresh or save must echo in If-Match.',
+      ],
+      [
+        'POST',
+        '/api/funds/:fundId/internal-analysis/drafts',
+        'Create a manual-period draft; quarterly drafts come from the job_outbox planner.',
+      ],
+      [
+        'POST',
+        '/api/funds/:fundId/internal-analysis/drafts/:draftId/refresh',
+        'Advance the cutoff and repin every consumer from ONE facts snapshot (D6); rotates the ETag.',
+      ],
+      [
+        'POST',
+        '/api/funds/:fundId/internal-analysis/drafts/:draftId/save',
+        'Freeze a draft into an immutable reference; rejects a mixed facts basis unless acknowledged (D6/R34-d).',
+      ],
+      [
+        'GET',
+        '/api/funds/:fundId/internal-analysis/references',
+        'List immutable references, terminal-per-revision-chain by default.',
+      ],
+      [
+        'GET',
+        '/api/funds/:fundId/internal-analysis/references/:referenceId',
+        'Read one immutable reference, including its persisted mixed-basis flag.',
+      ],
+      [
+        'POST',
+        '/api/funds/:fundId/internal-analysis/references/:referenceId/drafts',
+        'Start a late-correction draft; saving it supersedes the source reference.',
+      ],
+      [
+        'POST',
+        '/api/admin/funds/:fundId/internal-analysis/quarterly-draft-run',
+        'Manual quarterly planner trigger (R33-b escape hatch); enqueues only, never processes.',
+      ],
+    ] as const
+  ).map(([method, path, notes]): RoutePolicyEntry => ({
+    id: `api:${method.toLowerCase()}:${path}`,
+    method,
+    path,
+    lifecycle: 'durable_crud',
+    governanceRef: '/fund-model-results/:fundId',
+    surface: 'internal-analysis-api',
+    owner: ownerForFinancialSurface('fund_modeling'),
+    telemetryKey: telemetryKeyForRoute('api.route', path),
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: path.startsWith('/api/admin/')
+      ? 'require_auth_fund_access_and_role'
+      : 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_and_idempotency_verified',
+    // Internal reference snapshots are never closes, restatements, or approved
+    // reports -- there is no export path off this surface at all (Task 18 gate).
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes: `PLAN_61 Task 18. ${notes}`,
+  })),
 ];
 
 export const EXPLICIT_API_ROUTE_POLICY_KEYS = new Set<string>(
@@ -1819,6 +1902,17 @@ export const COMMON_API_ROUTE_POLICY_IDS = {
   'dashboard-summary': ['client:/dashboard'],
   'fund-actuals': ['api:get:/api/funds/:fundId/actuals/facts'],
   'financial-facts': ['api:get:/api/funds/:fundId/financial-facts/latest'],
+  'internal-analysis': [
+    'api:get:/api/funds/:fundId/internal-analysis/drafts',
+    'api:get:/api/funds/:fundId/internal-analysis/drafts/:draftId',
+    'api:post:/api/funds/:fundId/internal-analysis/drafts',
+    'api:post:/api/funds/:fundId/internal-analysis/drafts/:draftId/refresh',
+    'api:post:/api/funds/:fundId/internal-analysis/drafts/:draftId/save',
+    'api:get:/api/funds/:fundId/internal-analysis/references',
+    'api:get:/api/funds/:fundId/internal-analysis/references/:referenceId',
+    'api:post:/api/funds/:fundId/internal-analysis/references/:referenceId/drafts',
+    'api:post:/api/admin/funds/:fundId/internal-analysis/quarterly-draft-run',
+  ],
   'current-forecast': [
     'api:get:/api/funds/:fundId/current-plan-versions',
     'api:post:/api/funds/:fundId/current-plan-versions',

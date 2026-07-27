@@ -25,7 +25,10 @@ import { createHash } from 'node:crypto';
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 
 import {
+  ANALYSIS_REFERENCE_CONTRACT_VERSION,
+  type AnalysisDraftV1,
   type AnalysisPeriod,
+  type AnalysisReferenceV1,
   MIXED_FACTS_BASIS,
   enumerateDueQuarterlyPeriods,
   quarterlyDedupeKey,
@@ -188,6 +191,7 @@ export interface AnalysisCheckpointPorts {
   listActiveFundIds(): Promise<number[]>;
   getOpenDraft(fundId: number, period: AnalysisPeriod): Promise<DraftRecord | null>;
   getDraftById(fundId: number, draftId: number): Promise<DraftRecord | null>;
+  listDrafts(fundId: number): Promise<DraftRecord[]>;
   insertDraft(input: {
     fundId: number;
     period: AnalysisPeriod;
@@ -255,7 +259,7 @@ export interface AnalysisCheckpointPorts {
 export async function planQuarterlyDrafts(
   ports: AnalysisCheckpointPorts,
   now: Date,
-  options?: { catchupDays?: number; period?: AnalysisPeriod }
+  options?: { catchupDays?: number; period?: AnalysisPeriod; fundIds?: readonly number[] }
 ): Promise<{ enqueued: number; periods: AnalysisPeriod[] }> {
   const periods =
     options?.period !== undefined
@@ -269,7 +273,9 @@ export async function planQuarterlyDrafts(
     return { enqueued: 0, periods: [] };
   }
 
-  const fundIds = await ports.listActiveFundIds();
+  // The scheduled planner fans out across every fund; the fund-scoped admin
+  // trigger passes its own fund so an operator cannot plan for someone else's.
+  const fundIds = options?.fundIds ?? (await ports.listActiveFundIds());
   let enqueued = 0;
   for (const fundId of fundIds) {
     for (const period of periods) {
@@ -544,6 +550,52 @@ export async function listReferences(
 }
 
 // ---------------------------------------------------------------------------
+// Contract mapping (pure -- the wire shape is derived here, once)
+// ---------------------------------------------------------------------------
+
+export function toDraftContract(draft: DraftRecord): AnalysisDraftV1 {
+  return {
+    contractVersion: ANALYSIS_REFERENCE_CONTRACT_VERSION,
+    draftId: draft.draftId,
+    fundId: draft.fundId,
+    period: draft.period,
+    basis: {
+      financialFactsSnapshotId: draft.financialFactsSnapshotId,
+      knowledgeCutoff: draft.knowledgeCutoff.toISOString(),
+      forecastFundSnapshotId: draft.forecastFundSnapshotId,
+      reserveReferenceId: draft.reserveReferenceId,
+      economicsReferenceId: draft.economicsReferenceId,
+    },
+    sourceReferenceId: draft.sourceReferenceId,
+    savedAt: draft.savedAt === null ? null : draft.savedAt.toISOString(),
+    version: draft.version,
+    createdAt: draft.createdAt.toISOString(),
+    updatedAt: draft.updatedAt.toISOString(),
+  };
+}
+
+export function toReferenceContract(reference: ReferenceRecord): AnalysisReferenceV1 {
+  return {
+    contractVersion: ANALYSIS_REFERENCE_CONTRACT_VERSION,
+    referenceId: reference.referenceId,
+    fundId: reference.fundId,
+    period: reference.period,
+    basis: {
+      financialFactsSnapshotId: reference.financialFactsSnapshotId,
+      knowledgeCutoff: reference.knowledgeCutoff.toISOString(),
+      forecastFundSnapshotId: reference.forecastFundSnapshotId,
+      reserveReferenceId: reference.reserveReferenceId,
+      economicsReferenceId: reference.economicsReferenceId,
+    },
+    mixedBasisAtSave: reference.mixedBasisAtSave,
+    supersedesReferenceId: reference.supersedesReferenceId,
+    sourceDraftId: reference.sourceDraftId,
+    createdBy: reference.createdBy,
+    createdAt: reference.createdAt.toISOString(),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // DB-backed ports
 // ---------------------------------------------------------------------------
 
@@ -633,6 +685,15 @@ export function createAnalysisCheckpointPorts(database: Database = db): Analysis
         )
         .limit(1);
       return rows[0] ? toDraftRecord(rows[0]) : null;
+    },
+
+    async listDrafts(fundId) {
+      const rows = await database
+        .select()
+        .from(internalAnalysisDrafts)
+        .where(eq(internalAnalysisDrafts.fundId, fundId))
+        .orderBy(desc(internalAnalysisDrafts.periodStart), desc(internalAnalysisDrafts.createdAt));
+      return rows.map(toDraftRecord);
     },
 
     async insertDraft(input) {
