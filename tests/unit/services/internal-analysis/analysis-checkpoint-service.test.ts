@@ -56,6 +56,9 @@ class FakePorts implements AnalysisCheckpointPorts {
   forecastBasis = new Map<number, number | null>();
   rebuildCalls: Array<{ fundId: number; asOfDate: string; idempotencyKey: string }> = [];
 
+  /** Mirrors the fund-scoped idempotency uniques the real tables enforce. */
+  private draftKeys = new Map<number, string>();
+  private referenceKeys = new Map<number, string>();
   private draftSeq = 1;
   private referenceSeq = 1;
   private clock = new Date('2026-07-01T00:00:00.000Z');
@@ -69,25 +72,45 @@ class FakePorts implements AnalysisCheckpointPorts {
     return this.fundIds;
   }
 
+  /** The live row, for mutation by the write paths. */
+  private findDraft(fundId: number, draftId: number): DraftRecord | undefined {
+    return this.drafts.find((draft) => draft.draftId === draftId && draft.fundId === fundId);
+  }
+
+  // Reads hand back COPIES, the way a real row read does. Sharing the live
+  // object would let a caller holding a "stale" draft observe a concurrent
+  // refresh's mutations, hiding exactly the interleaving the version guard is
+  // there to catch.
   async getOpenDraft(fundId: number, period: AnalysisPeriod) {
-    return (
-      this.drafts.find(
-        (draft) =>
-          draft.fundId === fundId &&
-          draft.period.periodStart === period.periodStart &&
-          draft.period.periodEnd === period.periodEnd &&
-          draft.savedAt === null
-      ) ?? null
+    const found = this.drafts.find(
+      (draft) =>
+        draft.fundId === fundId &&
+        draft.period.periodStart === period.periodStart &&
+        draft.period.periodEnd === period.periodEnd &&
+        draft.savedAt === null
     );
+    return found ? { ...found } : null;
   }
 
   async getDraftById(fundId: number, draftId: number) {
-    return (
-      this.drafts.find((draft) => draft.draftId === draftId && draft.fundId === fundId) ?? null
-    );
+    const found = this.findDraft(fundId, draftId);
+    return found ? { ...found } : null;
   }
 
   async insertDraft(input: Parameters<AnalysisCheckpointPorts['insertDraft']>[0]) {
+    // Mirrors internal_analysis_drafts_fund_idempotency_unique. Without this the
+    // fake silently accepted the correction-draft key collision that the real
+    // table rejects.
+    if (
+      this.drafts.some(
+        (existing) =>
+          existing.fundId === input.fundId &&
+          this.draftKeys.get(existing.draftId) === input.idempotencyKey
+      )
+    ) {
+      throw new Error('internal_analysis_drafts_fund_idempotency_unique');
+    }
+
     const draft: DraftRecord = {
       draftId: this.draftSeq++,
       fundId: input.fundId,
@@ -104,11 +127,12 @@ class FakePorts implements AnalysisCheckpointPorts {
       updatedAt: this.tick(),
     };
     this.drafts.push(draft);
+    this.draftKeys.set(draft.draftId, input.idempotencyKey);
     return draft;
   }
 
   async updateDraftBasis(input: Parameters<AnalysisCheckpointPorts['updateDraftBasis']>[0]) {
-    const draft = await this.getDraftById(input.fundId, input.draftId);
+    const draft = this.findDraft(input.fundId, input.draftId);
     if (!draft || draft.savedAt !== null || draft.version !== input.expectedVersion) {
       throw new AnalysisCheckpointServiceError(
         412,
@@ -121,12 +145,27 @@ class FakePorts implements AnalysisCheckpointPorts {
     draft.forecastFundSnapshotId = input.basis.forecastFundSnapshotId;
     draft.version += 1;
     draft.updatedAt = this.tick();
-    return draft;
+    return { ...draft };
   }
 
-  async markDraftSaved(input: { fundId: number; draftId: number; savedAt: Date }) {
-    const draft = await this.getDraftById(input.fundId, input.draftId);
-    if (draft) draft.savedAt = input.savedAt;
+  async listDrafts(fundId: number) {
+    return this.drafts.filter((draft) => draft.fundId === fundId);
+  }
+
+  async listRevisionEvents(fundId: number, referenceId: number) {
+    return this.events
+      .filter((event) => event.fundId === fundId && event.referenceId === referenceId)
+      .map((event, index) => ({
+        eventId: index + 1,
+        fundId: event.fundId,
+        draftId: event.draftId,
+        referenceId: event.referenceId,
+        eventType: event.eventType as
+          'created' | 'refreshed' | 'saved' | 'mixed_basis_acknowledged',
+        detail: event.detail,
+        actorId: null,
+        createdAt: '2026-07-02T00:00:00.000Z',
+      }));
   }
 
   async rebuildBasis(input: Parameters<AnalysisCheckpointPorts['rebuildBasis']>[0]) {
@@ -154,7 +193,28 @@ class FakePorts implements AnalysisCheckpointPorts {
     return null;
   }
 
-  async insertReference(input: Parameters<AnalysisCheckpointPorts['insertReference']>[0]) {
+  /**
+   * Mirrors the adapter's transaction: close the draft under its expected
+   * version FIRST, then insert. A replay whose draft is already closed gets the
+   * reference that attempt produced rather than a duplicate.
+   */
+  async commitReference(input: Parameters<AnalysisCheckpointPorts['commitReference']>[0]) {
+    const draft = this.findDraft(input.fundId, input.draft.draftId);
+    if (!draft || draft.savedAt !== null || draft.version !== input.expectedVersion) {
+      const existing = this.references.find(
+        (candidate) =>
+          candidate.fundId === input.fundId &&
+          this.referenceKeys.get(candidate.referenceId) === input.idempotencyKey
+      );
+      if (existing) return existing;
+      throw new AnalysisCheckpointServiceError(
+        412,
+        'DRAFT_VERSION_CONFLICT',
+        'The draft changed since it was read.'
+      );
+    }
+    draft.savedAt = this.tick();
+
     const reference: ReferenceRecord = {
       referenceId: this.referenceSeq++,
       fundId: input.fundId,
@@ -171,6 +231,7 @@ class FakePorts implements AnalysisCheckpointPorts {
       createdAt: this.tick(),
     };
     this.references.push(reference);
+    this.referenceKeys.set(reference.referenceId, input.idempotencyKey);
     return reference;
   }
 
@@ -587,6 +648,38 @@ describe('analysis checkpoint service', () => {
       ).rejects.toMatchObject({ statusCode: 412, code: 'DRAFT_VERSION_CONFLICT' });
     });
 
+    it('loses to a refresh that lands between the coherence read and the commit', async () => {
+      const draft = await openDraft();
+
+      // Simulate the interleaving: the basis moves on after saveDraft has read
+      // the draft but before it commits. The commit is version-guarded, so no
+      // reference may be written from the basis the draft no longer has.
+      const originalRead = ports.readComponentBasis.bind(ports);
+      ports.readComponentBasis = async (input) => {
+        const result = await originalRead(input);
+        await refreshDraft(ports, {
+          fundId: FUND,
+          draftId: draft.draftId,
+          expectedVersion: 1,
+          actorId: null,
+        });
+        return result;
+      };
+
+      await expect(
+        saveDraft(ports, {
+          fundId: FUND,
+          draftId: draft.draftId,
+          expectedVersion: 1,
+          acknowledgeMixedBasis: false,
+          actorId: null,
+        })
+      ).rejects.toMatchObject({ statusCode: 412, code: 'DRAFT_VERSION_CONFLICT' });
+
+      expect(ports.references).toHaveLength(0);
+      expect((await ports.getDraftById(FUND, draft.draftId))?.savedAt).toBeNull();
+    });
+
     it('rejects a draft owned by another fund', async () => {
       const draft = await openDraft();
 
@@ -674,6 +767,25 @@ describe('analysis checkpoint service', () => {
         original.referenceId,
         successor.referenceId,
       ]);
+    });
+
+    it('keys the correction draft off the reference, not the period alone', async () => {
+      const original = await saveInitialReference();
+
+      const correction = await startCorrectionDraft(ports, {
+        fundId: FUND,
+        referenceId: original.referenceId,
+        actorId: null,
+      });
+
+      // Period-only keys collide with the saved original on the fund-scoped
+      // idempotency unique, and make the facts rebuild replay the ORIGINAL
+      // snapshot instead of building one at the new cutoff.
+      const keys = ports.rebuildCalls.map((call) => call.idempotencyKey);
+      expect(keys[0]).toBe(draftIdempotencyKey(FUND, Q2_2026, null));
+      expect(keys[1]).toBe(draftIdempotencyKey(FUND, Q2_2026, original.referenceId));
+      expect(keys[0]).not.toBe(keys[1]);
+      expect(correction.financialFactsSnapshotId).not.toBe(original.financialFactsSnapshotId);
     });
 
     it('rejects a correction against another fund reference', async () => {

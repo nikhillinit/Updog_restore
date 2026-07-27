@@ -29,6 +29,7 @@ import {
   type AnalysisDraftV1,
   type AnalysisPeriod,
   type AnalysisReferenceV1,
+  type AnalysisRevisionEventV1,
   MIXED_FACTS_BASIS,
   enumerateDueQuarterlyPeriods,
   quarterlyDedupeKey,
@@ -134,9 +135,22 @@ export function draftAsOfDate(period: AnalysisPeriod): string {
   return period.periodEnd;
 }
 
-/** Deterministic idempotency key for the draft a given period owns. */
-export function draftIdempotencyKey(fundId: number, period: AnalysisPeriod): string {
-  return `analysis-draft:${fundId}:${period.periodStart}:${period.periodEnd}`;
+/**
+ * Deterministic idempotency key for the draft a given period owns.
+ *
+ * A late correction MUST key off the reference it corrects. Keying on the period
+ * alone collides with the already-saved original on
+ * `internal_analysis_drafts_fund_idempotency_unique`, and makes the facts-snapshot
+ * rebuild replay the original snapshot instead of building one at the new cutoff --
+ * so the correction flow could never produce a second draft for the period.
+ */
+export function draftIdempotencyKey(
+  fundId: number,
+  period: AnalysisPeriod,
+  sourceReferenceId: number | null = null
+): string {
+  const lineage = sourceReferenceId === null ? 'initial' : `from-${sourceReferenceId}`;
+  return `analysis-draft:${fundId}:${period.periodStart}:${period.periodEnd}:${lineage}`;
 }
 
 /** Deterministic idempotency key for the reference a given draft version produces. */
@@ -206,7 +220,24 @@ export interface AnalysisCheckpointPorts {
     expectedVersion: number;
     basis: RebuiltBasis;
   }): Promise<DraftRecord>;
-  markDraftSaved(input: { fundId: number; draftId: number; savedAt: Date }): Promise<void>;
+  /**
+   * Insert the reference AND close its draft atomically, under the draft's
+   * expected version. Splitting these lets a concurrent refresh land between the
+   * read and the write, which would persist a reference built from a basis the
+   * draft no longer has; a crash between them would strand an open draft whose
+   * retry then collides with the reference idempotency key. Implementations MUST
+   * do both in one transaction, MUST guard on `version` and `savedAt IS NULL`,
+   * and MUST return the existing reference on idempotent replay.
+   */
+  commitReference(input: {
+    fundId: number;
+    draft: DraftRecord;
+    expectedVersion: number;
+    mixedBasisAtSave: boolean;
+    supersedesReferenceId: number | null;
+    actorId: number | null;
+    idempotencyKey: string;
+  }): Promise<ReferenceRecord>;
   /**
    * Build ONE canonical facts snapshot at the advanced cutoff and rebuild every
    * consumer from it. The single seam that guarantees the one-basis rule (D6).
@@ -223,16 +254,9 @@ export interface AnalysisCheckpointPorts {
     component: PinnedComponentKind;
     id: number;
   }): Promise<number | null>;
-  insertReference(input: {
-    fundId: number;
-    draft: DraftRecord;
-    mixedBasisAtSave: boolean;
-    supersedesReferenceId: number | null;
-    actorId: number | null;
-    idempotencyKey: string;
-  }): Promise<ReferenceRecord>;
   listReferences(fundId: number): Promise<ReferenceRecord[]>;
   getReferenceById(fundId: number, referenceId: number): Promise<ReferenceRecord | null>;
+  listRevisionEvents(fundId: number, referenceId: number): Promise<AnalysisRevisionEventV1[]>;
   recordRevisionEvent(input: {
     fundId: number;
     draftId: number | null;
@@ -304,20 +328,25 @@ export async function createDraftForPeriod(
   const existing = await ports.getOpenDraft(input.fundId, input.period);
   if (existing !== null) return existing;
 
+  const sourceReferenceId = input.sourceReferenceId ?? null;
+  // Keyed by lineage, not period alone: a correction must not collide with the
+  // already-saved original on the fund-scoped idempotency unique.
+  const idempotencyKey = draftIdempotencyKey(input.fundId, input.period, sourceReferenceId);
+
   const basis = await ports.rebuildBasis({
     fundId: input.fundId,
     asOfDate: draftAsOfDate(input.period),
     actorId: input.actorId,
-    idempotencyKey: draftIdempotencyKey(input.fundId, input.period),
+    idempotencyKey,
   });
 
   const draft = await ports.insertDraft({
     fundId: input.fundId,
     period: input.period,
     basis,
-    sourceReferenceId: input.sourceReferenceId ?? null,
+    sourceReferenceId,
     actorId: input.actorId,
-    idempotencyKey: draftIdempotencyKey(input.fundId, input.period),
+    idempotencyKey,
   });
 
   await ports.recordRevisionEvent({
@@ -361,7 +390,7 @@ export async function refreshDraft(
     fundId: input.fundId,
     asOfDate: draftAsOfDate(draft.period),
     actorId: input.actorId,
-    idempotencyKey: `${draftIdempotencyKey(input.fundId, draft.period)}:v${draft.version + 1}`,
+    idempotencyKey: `${draftIdempotencyKey(input.fundId, draft.period, draft.sourceReferenceId)}:v${draft.version + 1}`,
   });
 
   const refreshed = await ports.updateDraftBasis({
@@ -469,19 +498,17 @@ export async function saveDraft(
   }
 
   const mixedBasisAtSave = !coherence.coherent;
-  const reference = await ports.insertReference({
+  // One transaction, guarded on the version we validated the bundle against: a
+  // refresh that lands in this window loses rather than silently producing a
+  // reference whose basis the draft no longer has.
+  const reference = await ports.commitReference({
     fundId: input.fundId,
     draft,
+    expectedVersion: input.expectedVersion,
     mixedBasisAtSave,
     supersedesReferenceId: draft.sourceReferenceId,
     actorId: input.actorId,
     idempotencyKey: referenceIdempotencyKey(input.fundId, draft.draftId, draft.version),
-  });
-
-  await ports.markDraftSaved({
-    fundId: input.fundId,
-    draftId: draft.draftId,
-    savedAt: reference.createdAt,
   });
 
   if (mixedBasisAtSave) {
@@ -571,6 +598,21 @@ export function toDraftContract(draft: DraftRecord): AnalysisDraftV1 {
     version: draft.version,
     createdAt: draft.createdAt.toISOString(),
     updatedAt: draft.updatedAt.toISOString(),
+  };
+}
+
+export function toRevisionEventContract(
+  row: typeof internalAnalysisRevisionEvents.$inferSelect
+): AnalysisRevisionEventV1 {
+  return {
+    eventId: row.id,
+    fundId: row.fundId,
+    draftId: row.draftId,
+    referenceId: row.referenceId,
+    eventType: row.eventType,
+    detail: row.detail,
+    actorId: row.actorId,
+    createdAt: row.createdAt.toISOString(),
   };
 }
 
@@ -772,18 +814,6 @@ export function createAnalysisCheckpointPorts(database: Database = db): Analysis
       return toDraftRecord(row);
     },
 
-    async markDraftSaved(input) {
-      await database
-        .update(internalAnalysisDrafts)
-        .set({ savedAt: input.savedAt, updatedAt: new Date() })
-        .where(
-          and(
-            eq(internalAnalysisDrafts.id, input.draftId),
-            eq(internalAnalysisDrafts.fundId, input.fundId)
-          )
-        );
-    },
-
     async rebuildBasis(input) {
       // ONE canonical facts snapshot at the server-assigned cutoff...
       const snapshot = await buildFinancialFactsSnapshot({
@@ -866,37 +896,92 @@ export function createAnalysisCheckpointPorts(database: Database = db): Analysis
       return null;
     },
 
-    async insertReference(input) {
-      const inserted = await database
-        .insert(internalAnalysisReferences)
-        .values({
-          fundId: input.fundId,
-          periodKind: input.draft.period.periodKind,
-          periodStart: input.draft.period.periodStart,
-          periodEnd: input.draft.period.periodEnd,
-          knowledgeCutoff: input.draft.knowledgeCutoff,
-          financialFactsSnapshotId: input.draft.financialFactsSnapshotId,
-          forecastFundSnapshotId: input.draft.forecastFundSnapshotId,
-          reserveReferenceId: input.draft.reserveReferenceId,
-          economicsReferenceId: input.draft.economicsReferenceId,
-          mixedBasisAtSave: input.mixedBasisAtSave,
-          supersedesReferenceId: input.supersedesReferenceId,
-          sourceDraftId: input.draft.draftId,
-          createdBy: input.actorId,
-          idempotencyKey: input.idempotencyKey,
-          requestHash: sha256Hex(input.idempotencyKey),
-        })
-        .returning();
+    async commitReference(input) {
+      return database.transaction(async (tx) => {
+        // Close the draft FIRST, under its expected version. This takes the row
+        // lock, so a concurrent refresh either already won (version mismatch
+        // here) or blocks until commit and then fails its own guard.
+        const closed = await tx
+          .update(internalAnalysisDrafts)
+          .set({ savedAt: new Date(), updatedAt: new Date() })
+          .where(
+            and(
+              eq(internalAnalysisDrafts.id, input.draft.draftId),
+              eq(internalAnalysisDrafts.fundId, input.fundId),
+              eq(internalAnalysisDrafts.version, input.expectedVersion),
+              isNull(internalAnalysisDrafts.savedAt)
+            )
+          )
+          .returning();
 
-      const row = inserted[0];
-      if (!row) {
-        throw new AnalysisCheckpointServiceError(
-          500,
-          'REFERENCE_WRITE_FAILED',
-          'Failed to persist the analysis reference.'
-        );
-      }
-      return toReferenceRecord(row);
+        if (!closed[0]) {
+          // Either the draft moved on, or a previous attempt already closed it.
+          // Replay is idempotent: hand back the reference that attempt produced.
+          const [existing] = await tx
+            .select()
+            .from(internalAnalysisReferences)
+            .where(
+              and(
+                eq(internalAnalysisReferences.fundId, input.fundId),
+                eq(internalAnalysisReferences.idempotencyKey, input.idempotencyKey)
+              )
+            )
+            .limit(1);
+          if (existing) return toReferenceRecord(existing);
+
+          throw new AnalysisCheckpointServiceError(
+            412,
+            'DRAFT_VERSION_CONFLICT',
+            'The draft changed since it was read.',
+            { expectedVersion: input.expectedVersion }
+          );
+        }
+
+        const inserted = await tx
+          .insert(internalAnalysisReferences)
+          .values({
+            fundId: input.fundId,
+            periodKind: input.draft.period.periodKind,
+            periodStart: input.draft.period.periodStart,
+            periodEnd: input.draft.period.periodEnd,
+            knowledgeCutoff: input.draft.knowledgeCutoff,
+            financialFactsSnapshotId: input.draft.financialFactsSnapshotId,
+            forecastFundSnapshotId: input.draft.forecastFundSnapshotId,
+            reserveReferenceId: input.draft.reserveReferenceId,
+            economicsReferenceId: input.draft.economicsReferenceId,
+            mixedBasisAtSave: input.mixedBasisAtSave,
+            supersedesReferenceId: input.supersedesReferenceId,
+            sourceDraftId: input.draft.draftId,
+            createdBy: input.actorId,
+            idempotencyKey: input.idempotencyKey,
+            requestHash: sha256Hex(input.idempotencyKey),
+          })
+          .returning();
+
+        const row = inserted[0];
+        if (!row) {
+          throw new AnalysisCheckpointServiceError(
+            500,
+            'REFERENCE_WRITE_FAILED',
+            'Failed to persist the analysis reference.'
+          );
+        }
+        return toReferenceRecord(row);
+      });
+    },
+
+    async listRevisionEvents(fundId, referenceId) {
+      const rows = await database
+        .select()
+        .from(internalAnalysisRevisionEvents)
+        .where(
+          and(
+            eq(internalAnalysisRevisionEvents.fundId, fundId),
+            eq(internalAnalysisRevisionEvents.referenceId, referenceId)
+          )
+        )
+        .orderBy(internalAnalysisRevisionEvents.createdAt);
+      return rows.map(toRevisionEventContract);
     },
 
     async listReferences(fundId) {
@@ -1185,7 +1270,12 @@ export class InternalAnalysisCheckpointService {
     try {
       claimed = await this.claimNextQuarterlyJob();
       if (!claimed) return;
-      await this.processQuarterlyJob(claimed);
+      // Bounded: the facts-snapshot build and forecast rebuild are the slowest
+      // things this process does, and a hang would leave processorInFlight true
+      // and wedge every later quarterly job. On timeout the catch below routes
+      // the claimed job through the normal failure/retry path.
+      const job = claimed;
+      await withTimeout('processQuarterlyJob', () => this.processQuarterlyJob(job));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown processor error';
       if (claimed) await this.handleJobFailure(claimed, message);

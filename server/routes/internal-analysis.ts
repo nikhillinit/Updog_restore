@@ -334,15 +334,21 @@ router.get(
       return res.status(400).json({ error: 'Invalid parameter', message: 'Invalid referenceId' });
     }
 
-    const reference = await createAnalysisCheckpointPorts().getReferenceById(fundId, referenceId);
+    const ports = createAnalysisCheckpointPorts();
+    const reference = await ports.getReferenceById(fundId, referenceId);
     if (reference === null) {
       return res
         .status(404)
         .json({ error: 'REFERENCE_NOT_FOUND', message: 'Analysis reference not found.' });
     }
 
+    // The contract requires revisionHistory; it is also where an explicit
+    // mixed-basis acknowledgement is recorded (R34-d), so the detail view can
+    // show WHY a reference carries the warning.
+    const revisionHistory = await ports.listRevisionEvents(fundId, referenceId);
+
     res.setHeader('Cache-Control', 'private, no-store');
-    return res.json({ reference: toReferenceContract(reference) });
+    return res.json({ reference: toReferenceContract(reference), revisionHistory });
   })
 );
 

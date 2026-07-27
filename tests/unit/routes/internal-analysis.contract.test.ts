@@ -7,6 +7,7 @@ const service = vi.hoisted(() => ({
   getDraftById: vi.fn(),
   listDrafts: vi.fn(),
   getReferenceById: vi.fn(),
+  listRevisionEvents: vi.fn(),
   createDraftForPeriod: vi.fn(),
   refreshDraft: vi.fn(),
   saveDraft: vi.fn(),
@@ -67,6 +68,7 @@ vi.mock('../../../server/services/internal-analysis/analysis-checkpoint-service'
       getDraftById: service.getDraftById,
       listDrafts: service.listDrafts,
       getReferenceById: service.getReferenceById,
+      listRevisionEvents: service.listRevisionEvents,
     }),
     createDraftForPeriod: service.createDraftForPeriod,
     refreshDraft: service.refreshDraft,
@@ -444,8 +446,20 @@ describe('internal-analysis route contract', () => {
       );
     });
 
-    it('surfaces the persisted mixed-basis flag on every read (R34-d)', async () => {
+    it('surfaces the persisted mixed-basis flag and its revision history (R34-d)', async () => {
       service.getReferenceById.mockResolvedValue(referenceRecord({ mixedBasisAtSave: true }));
+      service.listRevisionEvents.mockResolvedValue([
+        {
+          eventId: 1,
+          fundId: 1,
+          draftId: 3,
+          referenceId: 11,
+          eventType: 'mixed_basis_acknowledged',
+          detail: { mismatches: [] },
+          actorId: 7,
+          createdAt: '2026-07-02T00:00:00.000Z',
+        },
+      ]);
 
       const response = await request(buildApp()).get(
         '/api/funds/1/internal-analysis/references/11'
@@ -453,6 +467,10 @@ describe('internal-analysis route contract', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.reference.mixedBasisAtSave).toBe(true);
+      // The contract requires revisionHistory; it also carries WHY the warning
+      // is there.
+      expect(response.body.revisionHistory).toHaveLength(1);
+      expect(response.body.revisionHistory[0].eventType).toBe('mixed_basis_acknowledged');
     });
 
     it('starts a late-correction draft from a saved reference', async () => {
