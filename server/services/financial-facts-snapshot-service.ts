@@ -5,13 +5,17 @@ import { assertOwnedByFund, type FundScopedOwnershipDatabase } from '../lib/fund
 import { runIdempotentCommand } from '../lib/idempotent-command';
 import {
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID,
+  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
   FINANCIAL_FACTS_POLICY_VERSION,
+  FINANCIAL_FACTS_POLICY_VERSION_1_1_0,
   FinancialFactsPayloadV1Schema,
+  FinancialFactsPayloadV2Schema,
   PersistedFinancialFactsSnapshotV1Schema,
   VolatileStrippedFundCompanyActualsFactsResponseSchema,
   buildSelectionSetHash,
   buildSnapshotInputHash,
   type FinancialFactsPayloadV1,
+  type FinancialFactsPayloadV2,
   type PersistedFinancialFactsSnapshotV1,
 } from '../../shared/contracts/financial-facts-snapshot-v1.contract';
 import {
@@ -21,6 +25,8 @@ import {
 import {
   FINANCIAL_FACTS_CONSUMER_KEYS,
   type ConsumerEvaluation,
+  type ConsumerEvaluationReasonV2,
+  type ConsumerEvaluationV2,
   type FinancialFactsConsumerKey,
 } from '../../shared/contracts/financial-facts-consumer-policies';
 import { Decimal } from '../../shared/lib/decimal-config';
@@ -69,6 +75,11 @@ type VehicleRosterEntry = FinancialFactsPayloadV1['vehicleRoster'][number];
 type CashFlowSeries = FinancialFactsPayloadV1['cashFlowSeries'];
 type MarksSeries = FinancialFactsPayloadV1['marksSeries'];
 type FinancialFactsWarning = CashFlowSeries['warnings'][number];
+type PositionRef = FinancialFactsPayloadV2['positionRefs'][number];
+type PositionComponentRef = FinancialFactsPayloadV2['positionComponentRefs'][number];
+type OwnershipRef = FinancialFactsPayloadV2['ownershipRefs'][number];
+type ValuationRef = FinancialFactsPayloadV2['valuationRefs'][number];
+type ParticipationTermRef = FinancialFactsPayloadV2['participationTermRefs'][number];
 
 interface CashFlowRow {
   id: number;
@@ -114,6 +125,8 @@ interface AcceptedSourceObservationRow {
   status: string;
 }
 
+type RawRow = Record<string, unknown>;
+
 interface LatestWorkingSelectionRow {
   id: number;
   fundId: number;
@@ -123,6 +136,16 @@ interface LatestWorkingSelectionRow {
   measureKey: string;
   selectedObservationId: number;
   isDefault: boolean;
+}
+
+interface TermRefRow extends ParticipationTermRef {
+  readonly vehicleId: number;
+  readonly companyIdentityId: number;
+  readonly isCurrent: boolean;
+}
+
+interface ComponentTermRow extends TermRefRow {
+  readonly kind: PositionComponentRef['kind'];
 }
 
 interface CanonicalContributionInput {
@@ -545,7 +568,8 @@ async function executeRows<T>(
 async function readAcceptedSourceObservations(
   database: SnapshotDatabase,
   fundId: number,
-  asOfDate: string
+  asOfDate: string,
+  knowledgeCutoff: string
 ): Promise<AcceptedSourceObservationRow[]> {
   const rows = await database
     .select({
@@ -563,7 +587,8 @@ async function readAcceptedSourceObservations(
       and(
         eq(sourceObservations.fundId, fundId),
         eq(sourceObservations.status, 'accepted'),
-        lte(sourceObservations.effectiveDate, asOfDate)
+        lte(sourceObservations.effectiveDate, asOfDate),
+        lte(sourceObservations.createdAt, new Date(knowledgeCutoff))
       )
     )
     .orderBy(asc(sourceObservations.id));
@@ -573,7 +598,8 @@ async function readAcceptedSourceObservations(
 async function readLatestWorkingSelections(
   database: SnapshotDatabase,
   fundId: number,
-  asOfDate: string
+  asOfDate: string,
+  knowledgeCutoff: string
 ): Promise<LatestWorkingSelectionRow[]> {
   return executeRows<LatestWorkingSelectionRow>(
     database,
@@ -602,10 +628,19 @@ async function readLatestWorkingSelections(
           ON observation.id = selection.selected_observation_id
          AND observation.fund_id = selection.fund_id
         WHERE selection.fund_id = ${fundId}
-          AND selection.superseded_by_selection_id IS NULL
           AND selection.as_of_date <= ${asOfDate}
+          AND selection.created_at <= ${new Date(knowledgeCutoff)}
           AND observation.status = 'accepted'
           AND observation.effective_date <= ${asOfDate}
+          AND observation.created_at <= ${new Date(knowledgeCutoff)}
+          AND NOT EXISTS (
+            SELECT 1
+            FROM ${workingValueSelections} successor
+            WHERE successor.fund_id = selection.fund_id
+              AND successor.id = selection.superseded_by_selection_id
+              AND successor.as_of_date <= ${asOfDate}
+              AND successor.created_at <= ${new Date(knowledgeCutoff)}
+          )
       )
       SELECT
         "id",
@@ -621,6 +656,404 @@ async function readLatestWorkingSelections(
       ORDER BY "id" ASC
     `
   );
+}
+
+async function readPositionRefs(params: {
+  database: SnapshotDatabase;
+  fundId: number;
+  asOfDate: string;
+  knowledgeCutoff: string;
+}): Promise<PositionRef[]> {
+  const rows = await executeRows<RawRow>(
+    params.database,
+    sql`
+      /* financial_facts_v2_position_refs */
+      SELECT
+        event.id AS "positionEventId",
+        event.event_type AS "eventType",
+        event.vehicle_id AS "vehicleId",
+        event.company_identity_id AS "companyIdentityId",
+        event.vehicle_participation_id AS "vehicleParticipationId",
+        event.resulting_participation_id AS "resultingParticipationId",
+        event.source_observation_id AS "sourceObservationId",
+        event.effective_date AS "effectiveDate",
+        event.recorded_at AS "recordedAt"
+      FROM position_events event
+      WHERE event.fund_id = ${params.fundId}
+        AND event.effective_date <= ${params.asOfDate}
+        AND event.recorded_at <= ${new Date(params.knowledgeCutoff)}
+      ORDER BY event.id ASC
+    `
+  );
+
+  return rows.map((row) => ({
+    positionEventId: asPositiveInt(row['positionEventId']),
+    eventType: asString(row['eventType']),
+    vehicleId: asPositiveInt(row['vehicleId']),
+    companyIdentityId: asPositiveInt(row['companyIdentityId']),
+    vehicleParticipationId: asNullablePositiveInt(row['vehicleParticipationId']),
+    resultingParticipationId: asNullablePositiveInt(row['resultingParticipationId']),
+    sourceObservationId: asNullablePositiveInt(row['sourceObservationId']),
+    effectiveDate: asDateString(row['effectiveDate']),
+    recordedAt: asDateTimeString(row['recordedAt']),
+  }));
+}
+
+async function readComponentTermRows(params: {
+  database: SnapshotDatabase;
+  fundId: number;
+  asOfDate: string;
+  knowledgeCutoff: string;
+}): Promise<ComponentTermRow[]> {
+  const rows = await executeRows<RawRow>(
+    params.database,
+    sql`
+      /* financial_facts_v2_participation_term_refs */
+      WITH position_participations AS (
+        SELECT DISTINCT
+          event.vehicle_id,
+          event.company_identity_id,
+          event.vehicle_participation_id AS participation_id,
+          CASE
+            WHEN event.event_type = 'conversion' THEN 'conversion_source'
+            ELSE 'position_source'
+          END AS link_kind
+        FROM position_events event
+        WHERE event.fund_id = ${params.fundId}
+          AND event.effective_date <= ${params.asOfDate}
+          AND event.recorded_at <= ${new Date(params.knowledgeCutoff)}
+          AND event.vehicle_participation_id IS NOT NULL
+          AND event.event_type <> 'reversal'
+          AND NOT EXISTS (
+            SELECT 1
+            FROM position_events reversal
+            WHERE reversal.fund_id = event.fund_id
+              AND reversal.reverses_position_event_id = event.id
+              AND reversal.effective_date <= ${params.asOfDate}
+              AND reversal.recorded_at <= ${new Date(params.knowledgeCutoff)}
+          )
+        UNION
+        SELECT DISTINCT
+          event.vehicle_id,
+          event.company_identity_id,
+          event.resulting_participation_id AS participation_id,
+          'conversion_result' AS link_kind
+        FROM position_events event
+        WHERE event.fund_id = ${params.fundId}
+          AND event.effective_date <= ${params.asOfDate}
+          AND event.recorded_at <= ${new Date(params.knowledgeCutoff)}
+          AND event.resulting_participation_id IS NOT NULL
+          AND event.event_type <> 'reversal'
+          AND NOT EXISTS (
+            SELECT 1
+            FROM position_events reversal
+            WHERE reversal.fund_id = event.fund_id
+              AND reversal.reverses_position_event_id = event.id
+              AND reversal.effective_date <= ${params.asOfDate}
+              AND reversal.recorded_at <= ${new Date(params.knowledgeCutoff)}
+          )
+      )
+      SELECT DISTINCT
+        participation.id AS "participationId",
+        participation.version AS "participationVersion",
+        tranche.id AS "financingTrancheId",
+        tranche.version AS "trancheVersion",
+        source.vehicle_id AS "vehicleId",
+        source.company_identity_id AS "companyIdentityId",
+        (
+          NOT EXISTS (
+            SELECT 1
+            FROM vehicle_financing_participations participation_successor
+            INNER JOIN financing_tranches participation_successor_tranche
+              ON participation_successor_tranche.id =
+                 participation_successor.financing_tranche_id
+             AND participation_successor_tranche.fund_id = participation_successor.fund_id
+            WHERE participation_successor.id = participation.superseded_by_participation_id
+              AND participation_successor.fund_id = participation.fund_id
+              AND participation_successor.vehicle_id = participation.vehicle_id
+              AND participation_successor.created_at <= ${new Date(params.knowledgeCutoff)}
+              AND COALESCE(
+                    participation_successor.closing_date,
+                    participation_successor_tranche.closing_date
+                  ) <= ${params.asOfDate}
+          )
+          AND NOT EXISTS (
+            SELECT 1
+            FROM financing_tranches tranche_successor
+            WHERE tranche_successor.id = tranche.superseded_by_tranche_id
+              AND tranche_successor.fund_id = tranche.fund_id
+              AND tranche_successor.closing_date <= ${params.asOfDate}
+              AND tranche_successor.created_at <= ${new Date(params.knowledgeCutoff)}
+          )
+        ) AS "isCurrent",
+        CASE
+          WHEN source.link_kind = 'conversion_source' THEN 'conversion_source'
+          WHEN source.link_kind = 'conversion_result' THEN 'conversion_result'
+          WHEN tranche.security_type = 'equity' THEN 'priced'
+          ELSE 'contingent'
+        END AS "kind"
+      FROM position_participations source
+      INNER JOIN vehicle_financing_participations participation
+        ON participation.id = source.participation_id
+       AND participation.fund_id = ${params.fundId}
+       AND participation.created_at <= ${new Date(params.knowledgeCutoff)}
+      INNER JOIN financing_tranches tranche
+        ON tranche.id = participation.financing_tranche_id
+       AND tranche.fund_id = participation.fund_id
+       AND tranche.created_at <= ${new Date(params.knowledgeCutoff)}
+       AND COALESCE(participation.closing_date, tranche.closing_date) <= ${params.asOfDate}
+      ORDER BY
+        source.vehicle_id ASC,
+        source.company_identity_id ASC,
+        participation.id ASC,
+        tranche.id ASC
+    `
+  );
+
+  return rows.map((row) => ({
+    participationId: asPositiveInt(row['participationId']),
+    participationVersion: asPositiveInt(row['participationVersion']),
+    financingTrancheId: asPositiveInt(row['financingTrancheId']),
+    trancheVersion: asPositiveInt(row['trancheVersion']),
+    vehicleId: asPositiveInt(row['vehicleId']),
+    companyIdentityId: asPositiveInt(row['companyIdentityId']),
+    isCurrent: asBoolean(row['isCurrent']),
+    kind: asPositionComponentKind(row['kind']),
+  }));
+}
+
+async function readOwnershipRefs(params: {
+  database: SnapshotDatabase;
+  fundId: number;
+  asOfDate: string;
+  knowledgeCutoff: string;
+}): Promise<OwnershipRef[]> {
+  const rows = await executeRows<RawRow>(
+    params.database,
+    sql`
+      /* financial_facts_v2_ownership_refs */
+      SELECT
+        snapshot.id AS "ownershipSnapshotId",
+        snapshot.vehicle_id AS "vehicleId",
+        snapshot.company_identity_id AS "companyIdentityId",
+        snapshot.source_observation_id AS "sourceObservationId",
+        snapshot.effective_date AS "effectiveDate",
+        snapshot.recorded_at AS "recordedAt"
+      FROM ownership_snapshots snapshot
+      WHERE snapshot.fund_id = ${params.fundId}
+        AND snapshot.effective_date <= ${params.asOfDate}
+        AND snapshot.recorded_at <= ${new Date(params.knowledgeCutoff)}
+        AND NOT EXISTS (
+          SELECT 1
+          FROM ownership_snapshots successor
+          WHERE successor.fund_id = snapshot.fund_id
+            AND successor.supersedes_snapshot_id = snapshot.id
+            AND successor.effective_date <= ${params.asOfDate}
+            AND successor.recorded_at <= ${new Date(params.knowledgeCutoff)}
+        )
+      ORDER BY snapshot.id ASC
+    `
+  );
+
+  return rows.map((row) => ({
+    ownershipSnapshotId: asPositiveInt(row['ownershipSnapshotId']),
+    vehicleId: asPositiveInt(row['vehicleId']),
+    companyIdentityId: asPositiveInt(row['companyIdentityId']),
+    sourceObservationId: asPositiveInt(row['sourceObservationId']),
+    effectiveDate: asDateString(row['effectiveDate']),
+    recordedAt: asDateTimeString(row['recordedAt']),
+  }));
+}
+
+async function readDirectValuationRefs(params: {
+  database: SnapshotDatabase;
+  fundId: number;
+  asOfDate: string;
+  knowledgeCutoff: string;
+}): Promise<ValuationRef[]> {
+  const rows = await executeRows<RawRow>(
+    params.database,
+    sql`
+      /* financial_facts_v2_direct_valuation_refs */
+      WITH ranked_direct_marks AS (
+      SELECT
+        mark.id AS "directMarkId",
+        mark.vehicle_id AS "vehicleId",
+        link.company_identity_id AS "companyIdentityId",
+          mark.source_observation_id AS "directSourceObservationId",
+          ROW_NUMBER() OVER (
+            PARTITION BY mark.vehicle_id, link.company_identity_id
+            ORDER BY mark.mark_date DESC, mark.id DESC
+          ) AS mark_rank
+      FROM valuation_marks mark
+      INNER JOIN portfolio_company_identity_links link
+        ON link.fund_id = mark.fund_id
+       AND link.portfolio_company_id = mark.company_id
+       AND link.active = TRUE
+        INNER JOIN source_observations observation
+          ON observation.id = mark.source_observation_id
+         AND observation.fund_id = mark.fund_id
+         AND observation.company_identity_id = link.company_identity_id
+         AND observation.domain = 'valuation'
+         AND observation.status = 'accepted'
+         AND observation.effective_date <= ${params.asOfDate}
+         AND observation.created_at <= ${new Date(params.knowledgeCutoff)}
+      WHERE mark.fund_id = ${params.fundId}
+        AND mark.mark_purpose = 'direct_position_fmv'
+        AND mark.status IN ('approved', 'locked')
+        AND mark.vehicle_id IS NOT NULL
+        AND mark.source_observation_id IS NOT NULL
+        AND mark.mark_date <= ${params.asOfDate}
+        AND mark.as_of_date <= ${params.asOfDate}
+        AND mark.created_at <= ${new Date(params.knowledgeCutoff)}
+          AND COALESCE(mark.approved_at, mark.locked_at, mark.created_at) <= ${new Date(
+            params.knowledgeCutoff
+          )}
+      )
+      SELECT
+        "directMarkId",
+        "vehicleId",
+        "companyIdentityId",
+        "directSourceObservationId"
+      FROM ranked_direct_marks
+      WHERE mark_rank = 1
+      ORDER BY "vehicleId" ASC, "companyIdentityId" ASC, "directMarkId" ASC
+    `
+  );
+
+  return rows.map((row) => ({
+    basis: 'direct',
+    vehicleId: asPositiveInt(row['vehicleId']),
+    companyIdentityId: asPositiveInt(row['companyIdentityId']),
+    directMarkId: asPositiveInt(row['directMarkId']),
+    directSourceObservationId: asPositiveInt(row['directSourceObservationId']),
+    ownershipSnapshotId: null,
+    derivedTrancheId: null,
+    derivedTrancheVersion: null,
+    derivedParticipationId: null,
+    derivedParticipationVersion: null,
+  }));
+}
+
+async function readDerivedValuationRefs(params: {
+  database: SnapshotDatabase;
+  fundId: number;
+  asOfDate: string;
+  knowledgeCutoff: string;
+}): Promise<ValuationRef[]> {
+  const rows = await executeRows<RawRow>(
+    params.database,
+    sql`
+      /* financial_facts_v2_derived_valuation_refs */
+      WITH terminal_ownership AS (
+        SELECT
+          snapshot.id AS ownership_snapshot_id,
+          snapshot.vehicle_id,
+          snapshot.company_identity_id
+        FROM ownership_snapshots snapshot
+        WHERE snapshot.fund_id = ${params.fundId}
+          AND snapshot.effective_date <= ${params.asOfDate}
+          AND snapshot.recorded_at <= ${new Date(params.knowledgeCutoff)}
+          AND NOT EXISTS (
+            SELECT 1
+            FROM ownership_snapshots successor
+            WHERE successor.fund_id = snapshot.fund_id
+              AND successor.supersedes_snapshot_id = snapshot.id
+              AND successor.effective_date <= ${params.asOfDate}
+              AND successor.recorded_at <= ${new Date(params.knowledgeCutoff)}
+          )
+      ),
+      ranked_post_money AS (
+        SELECT
+          ownership.ownership_snapshot_id AS "ownershipSnapshotId",
+          ownership.vehicle_id AS "vehicleId",
+          ownership.company_identity_id AS "companyIdentityId",
+          tranche.id AS "derivedTrancheId",
+          tranche.version AS "derivedTrancheVersion",
+          participation.id AS "derivedParticipationId",
+          participation.version AS "derivedParticipationVersion",
+          ROW_NUMBER() OVER (
+            PARTITION BY ownership.vehicle_id, ownership.company_identity_id
+            ORDER BY COALESCE(participation.closing_date, tranche.closing_date) DESC,
+                     tranche.id DESC,
+                     participation.id DESC
+          ) AS evidence_rank
+        FROM terminal_ownership ownership
+        INNER JOIN financing_events event
+          ON event.fund_id = ${params.fundId}
+         AND event.company_identity_id = ownership.company_identity_id
+         AND event.created_at <= ${new Date(params.knowledgeCutoff)}
+        INNER JOIN financing_tranches tranche
+          ON tranche.financing_event_id = event.id
+         AND tranche.fund_id = event.fund_id
+         AND tranche.security_type = 'equity'
+         AND tranche.created_at <= ${new Date(params.knowledgeCutoff)}
+        INNER JOIN vehicle_financing_participations participation
+          ON participation.financing_tranche_id = tranche.id
+         AND participation.fund_id = tranche.fund_id
+         AND participation.vehicle_id = ownership.vehicle_id
+         AND participation.created_at <= ${new Date(params.knowledgeCutoff)}
+        INNER JOIN source_observations observation
+          ON observation.id = tranche.source_observation_id
+         AND observation.fund_id = tranche.fund_id
+         AND observation.company_identity_id = ownership.company_identity_id
+         AND observation.domain = 'ledger_event'
+         AND observation.status = 'accepted'
+         AND observation.effective_date <= ${params.asOfDate}
+         AND observation.created_at <= ${new Date(params.knowledgeCutoff)}
+        WHERE COALESCE(participation.post_money_valuation, tranche.post_money_valuation) IS NOT NULL
+          AND COALESCE(participation.closing_date, tranche.closing_date) <= ${params.asOfDate}
+          AND NOT EXISTS (
+            SELECT 1
+            FROM vehicle_financing_participations participation_successor
+            INNER JOIN financing_tranches participation_successor_tranche
+              ON participation_successor_tranche.id =
+                 participation_successor.financing_tranche_id
+             AND participation_successor_tranche.fund_id = participation_successor.fund_id
+            WHERE participation_successor.id = participation.superseded_by_participation_id
+              AND participation_successor.fund_id = participation.fund_id
+              AND participation_successor.vehicle_id = participation.vehicle_id
+              AND participation_successor.created_at <= ${new Date(params.knowledgeCutoff)}
+              AND COALESCE(
+                    participation_successor.closing_date,
+                    participation_successor_tranche.closing_date
+                  ) <= ${params.asOfDate}
+          )
+          AND NOT EXISTS (
+            SELECT 1
+            FROM financing_tranches tranche_successor
+            WHERE tranche_successor.id = tranche.superseded_by_tranche_id
+              AND tranche_successor.fund_id = tranche.fund_id
+              AND tranche_successor.closing_date <= ${params.asOfDate}
+              AND tranche_successor.created_at <= ${new Date(params.knowledgeCutoff)}
+          )
+      )
+      SELECT
+        "ownershipSnapshotId",
+        "vehicleId",
+        "companyIdentityId",
+        "derivedTrancheId",
+        "derivedTrancheVersion",
+        "derivedParticipationId",
+        "derivedParticipationVersion"
+      FROM ranked_post_money
+      WHERE evidence_rank = 1
+      ORDER BY "vehicleId" ASC, "companyIdentityId" ASC, "ownershipSnapshotId" ASC
+    `
+  );
+
+  return rows.map((row) => ({
+    basis: 'derived',
+    vehicleId: asPositiveInt(row['vehicleId']),
+    companyIdentityId: asPositiveInt(row['companyIdentityId']),
+    directMarkId: null,
+    directSourceObservationId: null,
+    ownershipSnapshotId: asPositiveInt(row['ownershipSnapshotId']),
+    derivedTrancheId: asPositiveInt(row['derivedTrancheId']),
+    derivedTrancheVersion: asPositiveInt(row['derivedTrancheVersion']),
+    derivedParticipationId: asPositiveInt(row['derivedParticipationId']),
+    derivedParticipationVersion: asPositiveInt(row['derivedParticipationVersion']),
+  }));
 }
 
 function computeSnapshotInputHash(input: Parameters<typeof buildSnapshotInputHash>[0]): string {
@@ -646,15 +1079,39 @@ function computeSnapshotInputHash(input: Parameters<typeof buildSnapshotInputHas
       knowledgeCutoff: input.knowledgeCutoff,
       policyVersion: input.policyVersion,
       selectionSetHash: input.selectionSetHash,
-      payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID,
+      payloadSchemaId:
+        'payloadSchemaId' in input && input.payloadSchemaId !== undefined
+          ? input.payloadSchemaId
+          : FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID,
       payload: input.payload,
     });
   }
 }
 
 function snapshotFromRow(row: SnapshotRow): PersistedFinancialFactsSnapshotV1 {
+  const persisted = {
+    policyVersion: row.policyVersion,
+    payloadSchemaId: row.payloadSchemaId,
+    fundId: row.fundId,
+    asOfDate: row.asOfDate,
+    knowledgeCutoff: row.knowledgeCutoff.toISOString(),
+    vehicleScope: row.vehicleScope,
+    vehicleIds: row.vehicleIds,
+    selectionSetHash: row.selectionSetHash,
+    sourceFactsInputHash: row.sourceFactsInputHash,
+    snapshotInputHash: row.snapshotInputHash,
+    consumerEvaluations: row.consumerEvaluations,
+    payload: row.payload,
+    actorId: row.actorId,
+    createdAt: row.createdAt.toISOString(),
+  };
+  PersistedFinancialFactsSnapshotV1Schema.parse(persisted);
+
   return PersistedFinancialFactsSnapshotV1Schema.parse({
     policyVersion: row.policyVersion,
+    ...(row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_1_0
+      ? { payloadSchemaId: row.payloadSchemaId }
+      : {}),
     fundId: row.fundId,
     asOfDate: row.asOfDate,
     knowledgeCutoff: row.knowledgeCutoff.toISOString(),
@@ -668,6 +1125,78 @@ function snapshotFromRow(row: SnapshotRow): PersistedFinancialFactsSnapshotV1 {
     actorId: row.actorId,
     createdAt: row.createdAt.toISOString(),
   });
+}
+
+function asPositiveInt(value: unknown): number {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new FinancialFactsSnapshotServiceError(
+      500,
+      'FACTS_SNAPSHOT_READ_FAILED',
+      'Database returned invalid id.'
+    );
+  }
+  return parsed;
+}
+
+function asNullablePositiveInt(value: unknown): number | null {
+  return value === null || value === undefined ? null : asPositiveInt(value);
+}
+
+function asString(value: unknown): string {
+  if (typeof value !== 'string') {
+    throw new FinancialFactsSnapshotServiceError(
+      500,
+      'FACTS_SNAPSHOT_READ_FAILED',
+      'Database returned invalid string.'
+    );
+  }
+  return value;
+}
+
+function asDateString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return asString(value);
+}
+
+function asDateTimeString(value: unknown): string {
+  const parsed = value instanceof Date ? value : new Date(asString(value));
+  if (Number.isNaN(parsed.getTime())) {
+    throw new FinancialFactsSnapshotServiceError(
+      500,
+      'FACTS_SNAPSHOT_READ_FAILED',
+      'Database returned invalid timestamp.'
+    );
+  }
+  return parsed.toISOString();
+}
+
+function asBoolean(value: unknown): boolean {
+  if (typeof value !== 'boolean') {
+    throw new FinancialFactsSnapshotServiceError(
+      500,
+      'FACTS_SNAPSHOT_READ_FAILED',
+      'Database returned invalid boolean.'
+    );
+  }
+  return value;
+}
+
+function asPositionComponentKind(value: unknown): PositionComponentRef['kind'] {
+  const parsed = asString(value);
+  if (
+    parsed === 'priced' ||
+    parsed === 'contingent' ||
+    parsed === 'conversion_source' ||
+    parsed === 'conversion_result'
+  ) {
+    return parsed;
+  }
+  throw new FinancialFactsSnapshotServiceError(
+    500,
+    'FACTS_SNAPSHOT_READ_FAILED',
+    'Database returned invalid position component kind.'
+  );
 }
 
 async function readVehicleRoster(
@@ -743,11 +1272,354 @@ export async function getLatestFinancialFactsSnapshot(opts: {
   const [latest] = await database
     .select()
     .from(financialFactsSnapshots)
-    .where(eq(financialFactsSnapshots.fundId, opts.fundId))
-    .orderBy(desc(financialFactsSnapshots.createdAt))
+    .where(
+      and(
+        eq(financialFactsSnapshots.fundId, opts.fundId),
+        sql`NOT EXISTS (
+          SELECT 1
+          FROM ${financialFactsSnapshots} successor
+          WHERE successor.fund_id = ${financialFactsSnapshots.fundId}
+            AND successor.supersedes_snapshot_id = ${financialFactsSnapshots.id}
+        )`
+      )
+    )
+    .orderBy(desc(financialFactsSnapshots.knowledgeCutoff), desc(financialFactsSnapshots.id))
     .limit(1);
 
   return latest ?? null;
+}
+
+async function getLatestTerminalFinancialFactsSnapshot(opts: {
+  fundId: number;
+  asOfDate: string;
+  database: SnapshotDatabase;
+}): Promise<SnapshotRow | null> {
+  const [latest] = await opts.database
+    .select()
+    .from(financialFactsSnapshots)
+    .where(
+      and(
+        eq(financialFactsSnapshots.fundId, opts.fundId),
+        eq(financialFactsSnapshots.asOfDate, opts.asOfDate),
+        sql`NOT EXISTS (
+          SELECT 1
+          FROM ${financialFactsSnapshots} successor
+          WHERE successor.fund_id = ${financialFactsSnapshots.fundId}
+            AND successor.as_of_date = ${financialFactsSnapshots.asOfDate}
+            AND successor.supersedes_snapshot_id = ${financialFactsSnapshots.id}
+        )`
+      )
+    )
+    .orderBy(desc(financialFactsSnapshots.knowledgeCutoff), desc(financialFactsSnapshots.id))
+    .limit(1);
+
+  return latest ?? null;
+}
+
+export async function getFinancialFactsSnapshotById(opts: {
+  fundId: number;
+  snapshotId: number;
+  database?: SnapshotDatabase;
+}): Promise<SnapshotRow | null> {
+  const database = opts.database ?? db;
+  const [selected] = await database
+    .select()
+    .from(financialFactsSnapshots)
+    .where(
+      and(
+        eq(financialFactsSnapshots.fundId, opts.fundId),
+        eq(financialFactsSnapshots.id, opts.snapshotId)
+      )
+    )
+    .limit(1);
+
+  return selected ?? null;
+}
+
+async function lockFactsGeneration(database: SnapshotDatabase, fundId: number): Promise<void> {
+  await database.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`financial-facts:${fundId}`}))`);
+}
+
+function scopeKey(value: { vehicleId: number; companyIdentityId: number }): string {
+  return `${value.vehicleId}:${value.companyIdentityId}`;
+}
+
+function buildParticipationTermRefs(rows: readonly ComponentTermRow[]): ParticipationTermRef[] {
+  const byKey = new Map<string, ParticipationTermRef>();
+  for (const row of rows) {
+    const ref = {
+      participationId: row.participationId,
+      participationVersion: row.participationVersion,
+      financingTrancheId: row.financingTrancheId,
+      trancheVersion: row.trancheVersion,
+    };
+    byKey.set(JSON.stringify(ref), ref);
+  }
+  return [...byKey.values()].sort(
+    (left, right) =>
+      left.participationId - right.participationId ||
+      left.financingTrancheId - right.financingTrancheId
+  );
+}
+
+function buildPositionComponentRefs(rows: readonly ComponentTermRow[]): PositionComponentRef[] {
+  return rows.map((row) => ({
+    vehicleId: row.vehicleId,
+    companyIdentityId: row.companyIdentityId,
+    kind: row.kind,
+    participationId: row.participationId,
+    participationVersion: row.participationVersion,
+    financingTrancheId: row.financingTrancheId,
+    trancheVersion: row.trancheVersion,
+  }));
+}
+
+function buildValuationRefs(params: {
+  positionRefs: readonly PositionRef[];
+  ownershipRefs: readonly OwnershipRef[];
+  directRefs: readonly ValuationRef[];
+  derivedRefs: readonly ValuationRef[];
+}): ValuationRef[] {
+  const refsByScope = new Map<string, ValuationRef>();
+  for (const directRef of params.directRefs) {
+    const key = scopeKey(directRef);
+    if (!refsByScope.has(key)) refsByScope.set(key, directRef);
+  }
+
+  for (const derivedRef of params.derivedRefs) {
+    const key = scopeKey(derivedRef);
+    if (!refsByScope.has(key)) refsByScope.set(key, derivedRef);
+  }
+
+  for (const ownershipRef of params.ownershipRefs) {
+    const key = scopeKey(ownershipRef);
+    if (refsByScope.has(key)) continue;
+    refsByScope.set(key, {
+      basis: 'unavailable',
+      vehicleId: ownershipRef.vehicleId,
+      companyIdentityId: ownershipRef.companyIdentityId,
+      directMarkId: null,
+      directSourceObservationId: null,
+      ownershipSnapshotId: ownershipRef.ownershipSnapshotId,
+      derivedTrancheId: null,
+      derivedTrancheVersion: null,
+      derivedParticipationId: null,
+      derivedParticipationVersion: null,
+    });
+  }
+
+  for (const positionRef of params.positionRefs) {
+    const key = scopeKey(positionRef);
+    if (refsByScope.has(key)) continue;
+    refsByScope.set(key, {
+      basis: 'unavailable',
+      vehicleId: positionRef.vehicleId,
+      companyIdentityId: positionRef.companyIdentityId,
+      directMarkId: null,
+      directSourceObservationId: null,
+      ownershipSnapshotId: null,
+      derivedTrancheId: null,
+      derivedTrancheVersion: null,
+      derivedParticipationId: null,
+      derivedParticipationVersion: null,
+    });
+  }
+
+  return [...refsByScope.values()].sort(
+    (left, right) =>
+      left.vehicleId - right.vehicleId ||
+      left.companyIdentityId - right.companyIdentityId ||
+      (left.directMarkId ?? 0) - (right.directMarkId ?? 0)
+  );
+}
+
+function addConsumerReason(
+  evaluation: ConsumerEvaluationV2,
+  reason: ConsumerEvaluationReasonV2
+): ConsumerEvaluationV2 {
+  if (evaluation.reasons.includes(reason)) return evaluation;
+  return {
+    ...evaluation,
+    status: 'blocked',
+    reasons: [...evaluation.reasons, reason],
+  };
+}
+
+function addConsumerDetail(
+  evaluation: ConsumerEvaluationV2,
+  detail: NonNullable<ConsumerEvaluationV2['details']>[number]
+): ConsumerEvaluationV2 {
+  return {
+    ...evaluation,
+    details: [...(evaluation.details ?? []), detail],
+  };
+}
+
+function mergeV2ConsumerEvaluations(params: {
+  base: readonly ConsumerEvaluation[];
+  componentRows: readonly ComponentTermRow[];
+  positionRefs: readonly PositionRef[];
+  valuationRefs: readonly ValuationRef[];
+  companyActuals: FinancialFactsPayloadV1['companyActuals'];
+}): ConsumerEvaluationV2[] {
+  return params.base.map((evaluation) => {
+    if (evaluation.consumer !== 'forecast') return evaluation;
+
+    let forecast: ConsumerEvaluationV2 = evaluation;
+    const termsByScope = new Map<string, ComponentTermRow[]>();
+    for (const row of params.componentRows) {
+      const rows = termsByScope.get(scopeKey(row)) ?? [];
+      rows.push(row);
+      termsByScope.set(scopeKey(row), rows);
+    }
+
+    for (const [key, rows] of termsByScope) {
+      const [vehicleId, companyIdentityId] = key.split(':').map((part) => Number(part));
+      const hasCurrent = rows.some((row) => row.isCurrent);
+      const hasStale = rows.some((row) => !row.isCurrent);
+      if (hasCurrent && hasStale) {
+        forecast = addConsumerReason(forecast, 'mixed_term_versions');
+        forecast = addConsumerDetail(forecast, {
+          code: 'mixed_term_versions',
+          vehicleId,
+          companyIdentityId,
+          message: 'Position term references include both current and superseded terms.',
+        });
+      } else if (hasStale) {
+        forecast = addConsumerDetail(forecast, {
+          code: 'uniformly_stale_refs',
+          vehicleId,
+          companyIdentityId,
+          message: 'Position term references are uniformly superseded at this cutoff.',
+        });
+      }
+    }
+
+    const valuatedScopes = new Set(
+      params.valuationRefs
+        .filter((ref) => ref.basis !== 'unavailable')
+        .map((ref) => scopeKey(ref))
+    );
+    const reportedMissingValuationScopes = new Set<string>();
+    for (const positionRef of params.positionRefs) {
+      const key = scopeKey(positionRef);
+      if (!valuatedScopes.has(key) && !reportedMissingValuationScopes.has(key)) {
+        reportedMissingValuationScopes.add(key);
+        forecast = addConsumerReason(forecast, 'position_valuation_incomplete');
+        forecast = addConsumerDetail(forecast, {
+          code: 'position_valuation_incomplete',
+          vehicleId: positionRef.vehicleId,
+          companyIdentityId: positionRef.companyIdentityId,
+          message: 'Position exists without direct or derived valuation provenance.',
+        });
+      }
+    }
+
+    const ledgerParticipationIdentityIds = new Set(
+      params.positionRefs
+        .filter(
+          (ref) => ref.vehicleParticipationId !== null || ref.resultingParticipationId !== null
+        )
+        .map((ref) => ref.companyIdentityId)
+    );
+    const legacyCompanyIds = [
+      ...new Set(
+        params.companyActuals.facts
+          .filter((fact) => fact.provenance.core.sourceKind === 'legacy_unknown')
+          .map((fact) => fact.companyId)
+          .filter((id) => ledgerParticipationIdentityIds.has(id))
+      ),
+    ].sort((left, right) => left - right);
+    if (legacyCompanyIds.length > 0) {
+      forecast = addConsumerDetail(forecast, {
+        code: 'mixed_legacy_ledger_provenance',
+        companyIds: legacyCompanyIds,
+        message: 'Forecast payload contains legacy actuals and position-ledger provenance.',
+      });
+    }
+
+    return forecast;
+  });
+}
+
+async function buildPayloadV2(params: {
+  database: SnapshotDatabase;
+  fundId: number;
+  asOfDate: string;
+  knowledgeCutoff: string;
+  base: FinancialFactsPayloadV1;
+  acceptedObservations: AcceptedSourceObservationRow[];
+  sourceObservationIds: readonly number[];
+  consumerEvaluations: readonly ConsumerEvaluation[];
+}): Promise<{ payload: FinancialFactsPayloadV2; consumerEvaluations: ConsumerEvaluationV2[] }> {
+  const [
+    positionRefs,
+    componentRows,
+    ownershipRefs,
+    directValuationRefs,
+    derivedValuationRefs,
+  ] = await Promise.all([
+    readPositionRefs(params),
+    readComponentTermRows(params),
+    readOwnershipRefs(params),
+    readDirectValuationRefs(params),
+    readDerivedValuationRefs(params),
+  ]);
+  const valuationRefs = buildValuationRefs({
+    positionRefs,
+    ownershipRefs,
+    directRefs: directValuationRefs,
+    derivedRefs: derivedValuationRefs,
+  });
+  const observationIds = new Set<number>(params.sourceObservationIds);
+  for (const positionRef of positionRefs) {
+    if (positionRef.sourceObservationId !== null) observationIds.add(positionRef.sourceObservationId);
+  }
+  for (const ownershipRef of ownershipRefs) {
+    observationIds.add(ownershipRef.sourceObservationId);
+  }
+  for (const valuationRef of valuationRefs) {
+    if (valuationRef.directSourceObservationId !== null) {
+      observationIds.add(valuationRef.directSourceObservationId);
+    }
+  }
+  const acceptedObservationById = new Map(
+    params.acceptedObservations.map((observation) => [observation.id, observation])
+  );
+
+  const payload = FinancialFactsPayloadV2Schema.parse({
+    ...params.base,
+    participationTermRefs: buildParticipationTermRefs(componentRows),
+    positionRefs,
+    positionComponentRefs: buildPositionComponentRefs(componentRows),
+    ownershipRefs,
+    valuationRefs,
+    observationRefs: [...observationIds]
+      .sort((left, right) => left - right)
+      .flatMap((observationId) => {
+        const observation = acceptedObservationById.get(observationId);
+        return observation === undefined
+          ? []
+          : [
+              {
+                observationId: observation.id,
+                domain: observation.domain,
+                status: 'accepted' as const,
+                effectiveDate: observation.effectiveDate,
+              },
+            ];
+      }),
+  });
+  return {
+    payload,
+    consumerEvaluations: mergeV2ConsumerEvaluations({
+      base: params.consumerEvaluations,
+      componentRows,
+      positionRefs,
+      valuationRefs,
+      companyActuals: params.base.companyActuals,
+    }),
+  };
 }
 
 function transactionSqlState(error: unknown): string | undefined {
@@ -778,6 +1650,13 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
   knowledgeCutoff: string;
 }): Promise<PersistedFinancialFactsSnapshotV1> {
   const { input, database, now, knowledgeCutoff } = params;
+  await lockFactsGeneration(database, input.fundId);
+  const supersedesSnapshot = await getLatestTerminalFinancialFactsSnapshot({
+    fundId: input.fundId,
+    asOfDate: input.asOfDate,
+    database,
+  });
+
   const roster = await readVehicleRoster(database, input.fundId);
   const vehicleIds = await validateVehicleScope({
     database,
@@ -840,12 +1719,14 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
   const acceptedObservations = await readAcceptedSourceObservations(
     database,
     input.fundId,
-    input.asOfDate
+    input.asOfDate,
+    knowledgeCutoff
   );
   const latestSelections = await readLatestWorkingSelections(
     database,
     input.fundId,
-    input.asOfDate
+    input.asOfDate,
+    knowledgeCutoff
   );
 
   const companyActuals = VolatileStrippedFundCompanyActualsFactsResponseSchema.parse(
@@ -901,7 +1782,7 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
     sourceObservationIds: lineage.sourceObservationIds,
     workingValueSelectionIds: lineage.workingValueSelectionIds,
   });
-  const payload = FinancialFactsPayloadV1Schema.parse({
+  const payloadV1 = FinancialFactsPayloadV1Schema.parse({
     companyActuals,
     sourceObservationIds: lineage.sourceObservationIds,
     workingValueSelectionIds: lineage.workingValueSelectionIds,
@@ -910,12 +1791,24 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
     marksSeries: marks.series,
     vehicleRoster: roster,
   });
+  const payloadV2 = await buildPayloadV2({
+    database,
+    fundId: input.fundId,
+    asOfDate: input.asOfDate,
+    knowledgeCutoff,
+    base: payloadV1,
+    acceptedObservations,
+    sourceObservationIds: lineage.sourceObservationIds,
+    consumerEvaluations: lineage.consumerEvaluations,
+  });
+  const { payload, consumerEvaluations } = payloadV2;
   const snapshotInputHash = computeSnapshotInputHash({
     fundId: input.fundId,
     vehicleIds,
     asOfDate: input.asOfDate,
     knowledgeCutoff,
     policyVersion: FINANCIAL_FACTS_POLICY_VERSION,
+    payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
     selectionSetHash,
     payload,
   });
@@ -952,7 +1845,7 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
         .values({
           fundId: input.fundId,
           policyVersion: FINANCIAL_FACTS_POLICY_VERSION,
-          payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID,
+          payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
           asOfDate: input.asOfDate,
           knowledgeCutoff: now,
           vehicleScope: 'fund_all',
@@ -961,8 +1854,9 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
           sourceFactsInputHash: companyActuals.inputHash,
           snapshotInputHash,
           payload,
-          consumerEvaluations: lineage.consumerEvaluations,
+          consumerEvaluations,
           actorId: input.actorId,
+          supersedesSnapshotId: supersedesSnapshot?.id ?? null,
           idempotencyKey: input.idempotencyKey,
           requestHash,
           createdAt: now,
