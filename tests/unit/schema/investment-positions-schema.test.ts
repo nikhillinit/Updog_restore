@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 
+import type { SQL } from 'drizzle-orm';
 import { PgDialect, getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 
@@ -525,10 +526,14 @@ describe('Task 11 position and ownership structural schema', () => {
     expect(columnMeta(sourceBasisReliefConfig, 'capitalized_adjustment_event_type').notNull).toBe(
       false
     );
-    expect(columnMeta(sourceBasisReliefConfig, 'capitalized_adjustment_cost_basis')).toMatchObject({
+    const capitalizedAdjustmentColumn = columnMeta(
+      sourceBasisReliefConfig,
+      'capitalized_adjustment_cost_basis'
+    );
+    expect(capitalizedAdjustmentColumn).toMatchObject({
       hasDefault: true,
-      default: '0',
     });
+    expect(dialect.sqlToQuery(capitalizedAdjustmentColumn.default as SQL).sql).toBe('0');
     expect(columnMeta(sourceBasisReliefConfig, 'source_event_type')).toMatchObject({
       hasDefault: true,
       default: 'acquisition',

@@ -230,7 +230,7 @@ export const positionEventSourceBasisReliefs = pgTable(
       scale: 6,
     })
       .notNull()
-      .default('0'),
+      .default(sql`0`),
     relievedCostBasis: numeric('relieved_cost_basis', { precision: 20, scale: 6 }).notNull(),
     sourceEventType: varchar('source_event_type', { length: 32 })
       .notNull()
