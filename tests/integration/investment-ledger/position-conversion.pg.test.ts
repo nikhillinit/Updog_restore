@@ -7,7 +7,11 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 import { Pool, type DatabaseError } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { getPostgresConnectionString } from '../../helpers/testcontainers';
+import {
+  cleanupTestContainers,
+  getPostgresConnectionString,
+  setupTestContainers,
+} from '../../helpers/testcontainers';
 import { runMigrationsWithConnectionString } from '../../helpers/testcontainers-migration';
 import { investmentLots, investments } from '../../../shared/schema';
 
@@ -25,6 +29,7 @@ import { correctVehicleParticipationLedger } from '../../../server/services/inve
 const skipIfNoDocker = !process.env.CI && process.platform === 'win32';
 const createdDatabases: string[] = [];
 const pgDialect = new PgDialect();
+let startedTestContainers = false;
 
 const NEW_TABLE = 'position_event_source_basis_reliefs';
 const NEW_INDEXES = ['pesbr_capitalized_adj_unique'];
@@ -321,8 +326,12 @@ const MISMATCH_CASES: MismatchCase[] = [
 ];
 
 describe.skipIf(skipIfNoDocker)('position conversion source-basis migration', () => {
-  beforeAll(() => {
-    adminPool = new Pool({ connectionString: getPostgresConnectionString(), max: 1 });
+  beforeAll(async () => {
+    if (!process.env.TEST_DATABASE_URL) {
+      await setupTestContainers();
+      startedTestContainers = true;
+    }
+    adminPool = new Pool({ connectionString: testDatabaseConnectionString(), max: 1 });
   });
 
   afterAll(async () => {
@@ -331,6 +340,9 @@ describe.skipIf(skipIfNoDocker)('position conversion source-basis migration', ()
         await adminPool.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)}`);
       }
       await adminPool.end();
+    }
+    if (startedTestContainers) {
+      await cleanupTestContainers();
     }
   });
 
@@ -1061,9 +1073,13 @@ async function createDatabase(label: string): Promise<{ connectionString: string
 }
 
 function databaseConnectionString(databaseName: string): string {
-  const base = new URL(getPostgresConnectionString());
+  const base = new URL(testDatabaseConnectionString());
   base.pathname = `/${databaseName}`;
   return base.toString();
+}
+
+function testDatabaseConnectionString(): string {
+  return process.env.TEST_DATABASE_URL ?? getPostgresConnectionString();
 }
 
 function quoteIdentifier(identifier: string): string {

@@ -5,7 +5,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { rowVersionETag } from '../../../server/lib/http-preconditions';
 import { backfillLegacyPositionEvents } from '../../../server/services/investment-ledger/legacy-position-backfill-service';
 import { correctPosition } from '../../../server/services/investment-ledger/position-service';
-import { getPostgresConnectionString } from '../../helpers/testcontainers';
+import {
+  cleanupTestContainers,
+  getPostgresConnectionString,
+  setupTestContainers,
+} from '../../helpers/testcontainers';
 import { runMigrationsWithConnectionString } from '../../helpers/testcontainers-migration';
 
 const skipIfNoDocker =
@@ -14,9 +18,14 @@ const createdDatabases: string[] = [];
 
 let adminPool: Pool | undefined;
 let fundIdCounter = 120_532_000;
+let startedTestContainers = false;
 
 describe.skipIf(skipIfNoDocker)('legacy position backfill PostgreSQL proof', () => {
-  beforeAll(() => {
+  beforeAll(async () => {
+    if (!process.env.TEST_DATABASE_URL) {
+      await setupTestContainers();
+      startedTestContainers = true;
+    }
     adminPool = new Pool({ connectionString: testDatabaseConnectionString(), max: 1 });
   });
 
@@ -26,6 +35,9 @@ describe.skipIf(skipIfNoDocker)('legacy position backfill PostgreSQL proof', () 
         await adminPool.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)}`);
       }
       await adminPool.end();
+    }
+    if (startedTestContainers) {
+      await cleanupTestContainers();
     }
   });
 

@@ -11,7 +11,11 @@ import {
   recordDirectPositionValuation,
   selectPositionValuation,
 } from '../../../server/services/investment-ledger/position-valuation-service';
-import { getPostgresConnectionString } from '../../helpers/testcontainers';
+import {
+  cleanupTestContainers,
+  getPostgresConnectionString,
+  setupTestContainers,
+} from '../../helpers/testcontainers';
 import { runMigrationsWithConnectionString } from '../../helpers/testcontainers-migration';
 
 const skipIfNoDocker =
@@ -20,6 +24,7 @@ const createdDatabases: string[] = [];
 
 let adminPool: Pool | undefined;
 let fundIdCounter = 120_432_000;
+let startedTestContainers = false;
 
 interface ScopeSeed {
   fundId: number;
@@ -38,7 +43,11 @@ interface ParticipationSeed {
 }
 
 describe.skipIf(skipIfNoDocker)('current position, ownership, and valuation PostgreSQL proof', () => {
-  beforeAll(() => {
+  beforeAll(async () => {
+    if (!process.env.TEST_DATABASE_URL) {
+      await setupTestContainers();
+      startedTestContainers = true;
+    }
     adminPool = new Pool({ connectionString: testDatabaseConnectionString(), max: 1 });
   });
 
@@ -48,6 +57,9 @@ describe.skipIf(skipIfNoDocker)('current position, ownership, and valuation Post
         await adminPool.query(`DROP DATABASE IF EXISTS ${quoteIdentifier(databaseName)}`);
       }
       await adminPool.end();
+    }
+    if (startedTestContainers) {
+      await cleanupTestContainers();
     }
   });
 
