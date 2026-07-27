@@ -71,6 +71,11 @@ export const financingEvents = pgTable(
       table.companyIdentityId,
       table.eventKey
     ),
+    conversionIdentityUnique: unique('financing_events_conversion_identity_unique').on(
+      table.id,
+      table.fundId,
+      table.companyIdentityId
+    ),
     fundEventDateIdx: index('idx_financing_events_fund_event_date').on(
       table.fundId,
       table.eventDate.desc()
@@ -203,6 +208,12 @@ export const financingTranches = pgTable(
       table.fundId,
       table.financingEventId,
       table.trancheKey,
+      table.version
+    ),
+    conversionLineageUnique: unique('financing_tranches_conversion_lineage_unique').on(
+      table.id,
+      table.fundId,
+      table.financingEventId,
       table.version
     ),
     headUnique: uniqueIndex('financing_tranches_head_unique')

@@ -56,6 +56,7 @@ function effectiveTerms(
     financingTrancheId: 41,
     version: 1,
     supersededByParticipationId: null,
+    economicOrigin: 'cash_investment',
     participationAmount: overrides.participationAmount ?? '123.456789',
     originalAmount: overrides.participationAmount ?? '123.456789',
     currency: 'USD',

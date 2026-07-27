@@ -184,7 +184,13 @@ async function loadPlanningMarksForCompany(
   const rows = await database
     .select()
     .from(valuationMarks)
-    .where(and(eq(valuationMarks.fundId, fundId), eq(valuationMarks.companyId, companyId)))
+    .where(
+      and(
+        eq(valuationMarks.fundId, fundId),
+        eq(valuationMarks.companyId, companyId),
+        eq(valuationMarks.markPurpose, 'planning_company_fmv')
+      )
+    )
     .orderBy(desc(valuationMarks.markDate), desc(valuationMarks.id));
   return rows.filter(
     (row) =>
@@ -476,7 +482,9 @@ export async function listLatestPlanningFmvOverrides(
   const rows = await database
     .select()
     .from(valuationMarks)
-    .where(eq(valuationMarks.fundId, fundId))
+    .where(
+      and(eq(valuationMarks.fundId, fundId), eq(valuationMarks.markPurpose, 'planning_company_fmv'))
+    )
     .orderBy(desc(valuationMarks.markDate), desc(valuationMarks.id));
   const planningRows = rows.filter(
     (row) =>
