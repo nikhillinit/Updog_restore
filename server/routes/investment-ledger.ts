@@ -84,6 +84,7 @@ const ledgerWriteLimiter = rateLimit({
 });
 
 const idempotencyKeySchema = z.string().min(1).max(128);
+const isoDateQuerySchema = z.string().date();
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
 const POSTGRES_INT_MAX = 2_147_483_647;
 
@@ -128,7 +129,7 @@ function parseRequiredPositiveQuery(req: Request, name: string, code: string): n
 function parseOptionalDateQuery(req: Request, name: string, code: string): string | undefined {
   const raw = firstString(req.query[name]);
   if (raw === undefined) return undefined;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw) || Number.isNaN(Date.parse(`${raw}T00:00:00.000Z`))) {
+  if (!isoDateQuerySchema.safeParse(raw).success) {
     throw new LedgerRouteError(400, code, `${name} must be an ISO date.`);
   }
   return raw;

@@ -723,6 +723,37 @@ describe('investment-ledger routes', () => {
     });
   });
 
+  it.each(['2026-02-30', '2026-04-31'])(
+    'rejects calendar-invalid public asOfDate %s before every position read',
+    async (asOfDate) => {
+      const routes = [
+        {
+          path: `/api/funds/7/investment-ledger/positions?asOfDate=${asOfDate}`,
+          service: serviceState.listCurrentPositions,
+        },
+        {
+          path: `/api/funds/7/investment-ledger/ownership-snapshots?asOfDate=${asOfDate}`,
+          service: serviceState.listOwnershipSnapshots,
+        },
+        {
+          path: `/api/funds/7/investment-ledger/position-valuations?vehicleId=9&companyIdentityId=11&companyId=12&asOfDate=${asOfDate}`,
+          service: serviceState.selectPositionValuation,
+        },
+      ];
+
+      for (const route of routes) {
+        const response = await request(makeApp()).get(route.path);
+
+        expect(response.status, route.path).toBe(400);
+        expect(response.body, route.path).toMatchObject({
+          error: 'INVALID_AS_OF_DATE',
+          message: 'asOfDate must be an ISO date.',
+        });
+        expect(route.service, route.path).not.toHaveBeenCalled();
+      }
+    }
+  );
+
   it('serves terminal ownership heads and rejects client knowledge cutoffs', async () => {
     const rejected = await request(makeApp()).get(
       '/api/funds/7/investment-ledger/ownership-snapshots?knowledgeCutoff=2026-07-01T00:00:00.000Z'
