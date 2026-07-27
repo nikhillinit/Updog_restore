@@ -3,7 +3,24 @@
   "order": 9,
   "description": "Append-only fund-scoped ledger of constrained-reserve substrate shadow reconciliation observations (ADR-050).",
   "missingTablePolicy": "create_or_repair",
-  "sqlFiles": ["migrations/0035_substrate_shadow_reconciliations.sql"],
+  "sqlFiles": [
+    "migrations/0035_substrate_shadow_reconciliations.sql",
+    "scripts/prod-schema-patches/0035_substrate_shadow_reconciliations_widening.sql"
+  ],
+  "applyPolicy": {
+    "allowDropNotNull": [
+      {
+        "table": "substrate_shadow_reconciliations",
+        "column": "result_hash"
+      }
+    ],
+    "allowConstraintReplacements": [
+      {
+        "table": "substrate_shadow_reconciliations",
+        "name": "substrate_shadow_reconciliations_substrate_state_check"
+      }
+    ]
+  },
   "allowedCreateTables": ["substrate_shadow_reconciliations"],
   "expectedTables": [
     {
@@ -32,10 +49,14 @@
         "substrate_shadow_reconciliations_configured_mode_check",
         "substrate_shadow_reconciliations_effective_mode_check",
         "substrate_shadow_reconciliations_substrate_state_check",
+        "substrate_shadow_reconciliations_result_hash_state_check",
         "substrate_shadow_reconciliations_reconciliation_status_check",
         "substrate_shadow_reconciliations_fund_id_funds_id_fk"
       ],
-      "indexes": ["idx_substrate_shadow_reconciliations_fund_observed"]
+      "indexes": [
+        "idx_substrate_shadow_reconciliations_fund_observed",
+        "substrate_shadow_reconciliations_fund_key_input_null_hash_unique"
+      ]
     }
   ]
 }

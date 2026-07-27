@@ -11,6 +11,7 @@ import {
   ACTION_SKIP,
   auditManifest,
   loadManifests,
+  runReconciliation,
   splitSqlStatements,
 } from '../../scripts/reconcile-prod-schema.mjs';
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
@@ -34,6 +35,9 @@ let postgres: StartedPostgreSqlContainer | undefined;
 let pool: Pool | undefined;
 let h9Manifest: Manifest | undefined;
 let allocationManifest: Manifest | undefined;
+let substrateShadowManifest: Manifest | undefined;
+let currentForecastManifest: Manifest | undefined;
+let baseConnectionString = '';
 
 function requirePool(): Pool {
   if (!pool) {
@@ -58,6 +62,12 @@ function findManifest(manifests: readonly Manifest[], tableName: string): Manife
   );
 }
 
+function connectionStringForDatabase(connectionString: string, database: string): string {
+  const url = new URL(connectionString);
+  url.pathname = `/${database}`;
+  return url.toString();
+}
+
 async function applyManifest(activePool: Pool, manifest: Manifest): Promise<void> {
   for (const sqlFile of manifest.sqlFiles) {
     const sql = await readFile(path.resolve(REPO_ROOT, sqlFile), 'utf8');
@@ -76,19 +86,205 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
       .withStartupTimeout(STARTUP_TIMEOUT_MS)
       .start();
 
-    const connectionString = postgres.getConnectionUri();
-    await runMigrationsWithConnectionString(connectionString);
-    pool = new Pool({ connectionString, max: 1 });
+    baseConnectionString = postgres.getConnectionUri();
+    await runMigrationsWithConnectionString(baseConnectionString);
+    pool = new Pool({ connectionString: baseConnectionString, max: 1 });
 
     const manifests = (await loadManifests()) as Manifest[];
     h9Manifest = findManifest(manifests, 'pacing_history');
     allocationManifest = findManifest(manifests, 'allocation_scenarios');
+    substrateShadowManifest = findManifest(manifests, 'substrate_shadow_reconciliations');
+    currentForecastManifest = findManifest(manifests, 'current_forecast_references');
   }, STARTUP_TIMEOUT_MS * 2);
 
   afterAll(async () => {
     await pool?.end();
     await postgres?.stop();
   });
+
+  it(
+    'production-like 0035 database converges M9 through M17 in apply order',
+    async () => {
+      const activePool = requirePool();
+      const databaseName = 'prod_like_0035_reconcile';
+      const databaseConnectionString = connectionStringForDatabase(baseConnectionString, databaseName);
+      let isolatedPool: Pool | undefined;
+
+      await activePool.query(`DROP DATABASE IF EXISTS ${databaseName} WITH (FORCE)`);
+      await activePool.query(`CREATE DATABASE ${databaseName}`);
+
+      try {
+        await runMigrationsWithConnectionString(
+          databaseConnectionString,
+          '0035_substrate_shadow_reconciliations'
+        );
+        isolatedPool = new Pool({ connectionString: databaseConnectionString, max: 1 });
+        const manifests = (await loadManifests()) as Manifest[];
+
+        await isolatedPool.query(`
+          WITH inserted_fund AS (
+            INSERT INTO funds (name, size, management_fee, carry_percentage, vintage_year)
+            VALUES ('Prod-like reconcile fund', 1000000, 0.02, 0.20, 2026)
+            RETURNING id
+          )
+          INSERT INTO substrate_shadow_reconciliations (
+            fund_id,
+            calculation_key,
+            configured_mode,
+            effective_mode,
+            kill_switch_active,
+            substrate_state,
+            reconciliation_status,
+            input_hash,
+            result_hash,
+            assumptions_hash,
+            mismatches
+          )
+          SELECT
+            id,
+            'proof',
+            'off',
+            'off',
+            false,
+            'available',
+            'match',
+            'input-hash',
+            'result-hash',
+            'assumptions-hash',
+            '[]'::jsonb
+          FROM inserted_fund
+        `);
+
+        const output: string[] = [];
+        const result = await runReconciliation({
+          client: isolatedPool,
+          manifests,
+          apply: true,
+          stdout: { write: (chunk: string) => output.push(chunk) },
+        });
+
+        expect(result.applied).toEqual([
+          'substrate-shadow-reconciliations',
+          'financial-facts-snapshots',
+          'current-plan-versions',
+          'current-forecast-references',
+          'financial-observations',
+          'investment-ledger',
+          'vehicle-financing-participations',
+          'positions-ownership-compat',
+          'position-source-basis-reliefs',
+        ]);
+
+        const postAudits = await Promise.all(
+          manifests.map((manifest) => auditManifest(isolatedPool!, manifest))
+        );
+        expect(postAudits.map((audit) => audit.action)).toEqual(
+          manifests.map(() => ACTION_SKIP)
+        );
+
+        const replay = await runReconciliation({
+          client: isolatedPool,
+          manifests,
+          apply: true,
+          stdout: { write: (chunk: string) => output.push(chunk) },
+        });
+        expect(replay.applied).toEqual([]);
+
+        const tableResult = await isolatedPool.query<{ regclass: string | null }>(
+          "SELECT to_regclass('public.position_event_source_basis_reliefs')::text AS regclass"
+        );
+        expect(tableResult.rows).toEqual([
+          { regclass: 'position_event_source_basis_reliefs' },
+        ]);
+
+        const constraintResult = await isolatedPool.query<{ conname: string }>(`
+          SELECT conname
+          FROM pg_constraint
+          WHERE conname IN (
+            'position_event_source_basis_reliefs_event_fund_fk',
+            'position_event_source_basis_reliefs_participation_fund_fk',
+            'position_event_source_basis_reliefs_source_position_event_fund_fk',
+            'position_event_source_basis_reliefs_observation_fund_fk',
+            'position_event_source_basis_reliefs_source_basis_unique'
+          )
+          ORDER BY conname
+        `);
+        expect(constraintResult.rows.map((row) => row.conname)).toEqual([
+          'position_event_source_basis_reliefs_event_fund_fk',
+          'position_event_source_basis_reliefs_observation_fund_fk',
+          'position_event_source_basis_reliefs_participation_fund_fk',
+          'position_event_source_basis_reliefs_source_basis_unique',
+          'position_event_source_basis_reliefs_source_position_event_fund_fk',
+        ]);
+
+        await expect(
+          isolatedPool.query(`
+            INSERT INTO substrate_shadow_reconciliations (
+              fund_id,
+              calculation_key,
+              configured_mode,
+              effective_mode,
+              kill_switch_active,
+              substrate_state,
+              reconciliation_status,
+              input_hash,
+              result_hash,
+              assumptions_hash,
+              mismatches
+            )
+            SELECT
+              id,
+              'proof-invalid-null',
+              'off',
+              'off',
+              false,
+              'available',
+              'match',
+              'input-invalid-null',
+              null,
+              'assumptions-hash',
+              '[]'::jsonb
+            FROM funds
+            WHERE name = 'Prod-like reconcile fund'
+          `)
+        ).rejects.toThrow();
+
+        await isolatedPool.query(`
+          INSERT INTO substrate_shadow_reconciliations (
+            fund_id,
+            calculation_key,
+            configured_mode,
+            effective_mode,
+            kill_switch_active,
+            substrate_state,
+            reconciliation_status,
+            input_hash,
+            result_hash,
+            assumptions_hash,
+            mismatches
+          )
+          SELECT
+            id,
+            'proof-valid-null',
+            'off',
+            'off',
+            false,
+            'failed',
+            'match',
+            'input-valid-null',
+            null,
+            'assumptions-hash',
+            '[]'::jsonb
+          FROM funds
+          WHERE name = 'Prod-like reconcile fund'
+        `);
+      } finally {
+        await isolatedPool?.end();
+        await activePool.query(`DROP DATABASE IF EXISTS ${databaseName} WITH (FORCE)`);
+      }
+    },
+    TEST_TIMEOUT_MS * 2
+  );
 
   it(
     'clean journal clone audits SKIP for M6 and M7',
@@ -147,6 +343,84 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
 
       await applyManifest(activePool, manifest);
       expect((await auditManifest(activePool, manifest)).action).toBe(ACTION_SKIP);
+    },
+    TEST_TIMEOUT_MS
+  );
+
+  it(
+    'partial substrate-shadow widening drift repairs additively before current forecast replay',
+    async () => {
+      const activePool = requirePool();
+      const substrateManifest = requireManifest(
+        substrateShadowManifest,
+        'substrate_shadow_reconciliations'
+      );
+      const forecastManifest = requireManifest(currentForecastManifest, 'current_forecast_references');
+
+      await activePool.query(`
+        WITH inserted_fund AS (
+          INSERT INTO funds (name, size, management_fee, carry_percentage, vintage_year)
+          VALUES ('Substrate widening proof fund', 1000000, 0.02, 0.20, 2026)
+          RETURNING id
+        )
+        INSERT INTO substrate_shadow_reconciliations (
+          fund_id,
+          calculation_key,
+          configured_mode,
+          effective_mode,
+          kill_switch_active,
+          substrate_state,
+          reconciliation_status,
+          input_hash,
+          result_hash,
+          assumptions_hash,
+          mismatches
+        )
+        SELECT
+          id,
+          'proof',
+          'off',
+          'off',
+          false,
+          'available',
+          'match',
+          'input-hash',
+          'result-hash',
+          'assumptions-hash',
+          '[]'::jsonb
+        FROM inserted_fund
+      `);
+      await activePool.query(
+        'DROP INDEX IF EXISTS substrate_shadow_reconciliations_fund_key_input_null_hash_unique'
+      );
+      await activePool.query(`
+        ALTER TABLE substrate_shadow_reconciliations
+          DROP CONSTRAINT IF EXISTS substrate_shadow_reconciliations_result_hash_state_check
+      `);
+      await activePool.query(`
+        ALTER TABLE substrate_shadow_reconciliations
+          DROP CONSTRAINT IF EXISTS substrate_shadow_reconciliations_substrate_state_check
+      `);
+      await activePool.query(`
+        ALTER TABLE substrate_shadow_reconciliations
+          ADD CONSTRAINT substrate_shadow_reconciliations_substrate_state_check
+          CHECK (substrate_state IN ('available','indicative'))
+      `);
+      await activePool.query(`
+        ALTER TABLE substrate_shadow_reconciliations
+          ALTER COLUMN result_hash SET NOT NULL
+      `);
+
+      expect((await auditManifest(activePool, substrateManifest)).action).toBe(
+        ACTION_APPLY_MISSING_DDL
+      );
+
+      await applyManifest(activePool, substrateManifest);
+      expect((await auditManifest(activePool, substrateManifest)).action).toBe(ACTION_SKIP);
+
+      await applyManifest(activePool, forecastManifest);
+      expect((await auditManifest(activePool, substrateManifest)).action).toBe(ACTION_SKIP);
+      expect((await auditManifest(activePool, forecastManifest)).action).toBe(ACTION_SKIP);
     },
     TEST_TIMEOUT_MS
   );

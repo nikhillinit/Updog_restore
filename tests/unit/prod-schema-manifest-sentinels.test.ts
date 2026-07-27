@@ -45,6 +45,10 @@ interface Manifest {
   allowedCreateTables?: string[];
   expectedTables?: ManifestTable[];
   dropObjects?: DropObject[];
+  applyPolicy?: {
+    allowDropNotNull?: Array<{ table: string; column: string }>;
+    allowConstraintReplacements?: Array<{ table: string; name: string }>;
+  };
 }
 
 function loadManifestFiles(): Array<{ file: string; manifest: Manifest }> {
@@ -190,6 +194,44 @@ describe('prod-schema manifest sentinels', () => {
         .filter((name) => surviving.has(pgIdentifier(name.toLowerCase())));
       expect(incoherent, `${file} drops what its own SQL creates`).toEqual([]);
     }
+  });
+
+  it('applyPolicy targets only expected nullable columns and expected constraints', () => {
+    for (const { file, manifest } of manifests) {
+      const tables = new Map((manifest.expectedTables ?? []).map((table) => [table.name, table]));
+
+      for (const allowed of manifest.applyPolicy?.allowDropNotNull ?? []) {
+        const column = tables
+          .get(allowed.table)
+          ?.columns?.find((candidate) => candidate.name === allowed.column);
+        expect(column?.nullable, `${file} allowDropNotNull ${allowed.table}.${allowed.column}`).toBe(
+          true
+        );
+      }
+
+      for (const allowed of manifest.applyPolicy?.allowConstraintReplacements ?? []) {
+        const constraints = tables.get(allowed.table)?.constraints ?? [];
+        expect(
+          constraints,
+          `${file} allowConstraintReplacements ${allowed.table}.${allowed.name}`
+        ).toContain(allowed.name);
+      }
+    }
+  });
+
+  it('guards the current-forecast cutover foreign key for partial-drift replay', () => {
+    const currentForecast = manifests.find(
+      (entry) => entry.file === '12-current-forecast-references.json'
+    );
+    expect(currentForecast).toBeDefined();
+
+    const sql = fs.readFileSync(
+      path.join(repoRoot, currentForecast!.manifest.sqlFiles![0]),
+      'utf8'
+    );
+    expect(sql).toMatch(
+      /IF NOT EXISTS \(\s*SELECT 1\s*FROM pg_constraint\s*WHERE conname = 'fund_calculation_modes_cutover_reference_fk'\s*AND conrelid = 'public\.fund_calculation_modes'::regclass\s*\)/i
+    );
   });
 
   it('no duplicate sentinel names within a manifest', () => {

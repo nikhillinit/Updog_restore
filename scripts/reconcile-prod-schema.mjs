@@ -42,6 +42,7 @@ const KNOWN_MANIFEST_KEYS = new Set([
   'allowedCreateTables',
   'expectedTables',
   'dropObjects',
+  'applyPolicy',
   'missingTablePolicy',
   'manifestPath',
 ]);
@@ -157,6 +158,7 @@ export function manifestChecksum(manifest, sqlFiles) {
       // different drop manifest must never dedup against a committed row
       // (s8.1 red-team F3). Safe to add while the prod ledger is empty.
       dropObjects: manifest.dropObjects ?? [],
+      applyPolicy: manifest.applyPolicy ?? {},
     })
   );
 }
@@ -196,6 +198,80 @@ function validateMissingTablePolicyValue(manifest) {
 function validateManifest(manifest) {
   validateManifestKeys(manifest);
   validateMissingTablePolicyValue(manifest);
+  validateApplyPolicy(manifest);
+}
+
+function validateApplyPolicy(manifest) {
+  const applyPolicy = manifest?.applyPolicy;
+  if (applyPolicy === undefined) {
+    return;
+  }
+
+  const knownPolicyKeys = new Set(['allowDropNotNull', 'allowConstraintReplacements']);
+  for (const key of Object.keys(applyPolicy ?? {})) {
+    if (!knownPolicyKeys.has(key)) {
+      throw new ReconcileError(`Manifest ${manifestLabel(manifest)} has unsupported applyPolicy key ${key}`, {
+        kind: 'invalid-apply-policy',
+        manifest: manifestLabel(manifest),
+        key,
+      });
+    }
+  }
+
+  const tables = new Map((manifest.expectedTables ?? []).map((table) => [table.name, table]));
+  const seenDropNotNull = new Set();
+  for (const target of applyPolicy.allowDropNotNull ?? []) {
+    assertSafeIdentifier(String(target.table ?? ''));
+    assertSafeIdentifier(String(target.column ?? ''));
+    const key = `${target.table}.${target.column}`;
+    if (seenDropNotNull.has(key)) {
+      throw new ReconcileError(`Manifest ${manifestLabel(manifest)} has duplicate applyPolicy target ${key}`, {
+        kind: 'invalid-apply-policy',
+        manifest: manifestLabel(manifest),
+        target: key,
+      });
+    }
+    seenDropNotNull.add(key);
+    const expectedColumn = tables
+      .get(target.table)
+      ?.columns?.find((column) => column.name === target.column);
+    if (expectedColumn?.nullable !== true) {
+      throw new ReconcileError(
+        `Manifest ${manifestLabel(manifest)} allowDropNotNull target ${key} is not an expected nullable column`,
+        {
+          kind: 'invalid-apply-policy',
+          manifest: manifestLabel(manifest),
+          target: key,
+        }
+      );
+    }
+  }
+
+  const seenConstraintReplacement = new Set();
+  for (const target of applyPolicy.allowConstraintReplacements ?? []) {
+    assertSafeIdentifier(String(target.table ?? ''));
+    assertSafeIdentifier(String(target.name ?? ''));
+    const key = `${target.table}.${target.name}`;
+    if (seenConstraintReplacement.has(key)) {
+      throw new ReconcileError(`Manifest ${manifestLabel(manifest)} has duplicate applyPolicy target ${key}`, {
+        kind: 'invalid-apply-policy',
+        manifest: manifestLabel(manifest),
+        target: key,
+      });
+    }
+    seenConstraintReplacement.add(key);
+    const constraints = tables.get(target.table)?.constraints ?? [];
+    if (!constraints.includes(target.name)) {
+      throw new ReconcileError(
+        `Manifest ${manifestLabel(manifest)} allowConstraintReplacements target ${key} is not an expected constraint`,
+        {
+          kind: 'invalid-apply-policy',
+          manifest: manifestLabel(manifest),
+          target: key,
+        }
+      );
+    }
+  }
 }
 
 function resolveMissingTablePolicy(manifest) {
@@ -699,12 +775,14 @@ async function auditTable({
       typeof expectedColumn.nullable === 'boolean' &&
       actualColumn.nullable !== expectedColumn.nullable
     ) {
+      const widensToNullable =
+        actualColumn.nullable === false && expectedColumn.nullable === true;
       deltas.push({
         kind: 'column-nullability-mismatch',
         name: `${expectedTable.name}.${expectedColumn.name}`,
         expected: expectedColumn.nullable,
         actual: actualColumn.nullable,
-        additiveSafe: false,
+        additiveSafe: widensToNullable,
       });
     }
   }

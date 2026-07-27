@@ -361,6 +361,102 @@ describe('reconcile-prod-schema shape decisions', () => {
     ).toBe(ACTION_REFUSE_FOR_HUMAN);
   });
 
+  it('treats NOT NULL to nullable as additive-safe on populated tables', async () => {
+    const client = createMockClient({
+      presentTables: ['tasks'],
+      populatedTables: ['tasks'],
+      columns: [
+        {
+          table_name: 'tasks',
+          column_name: 'id',
+          data_type: 'integer',
+          is_nullable: 'NO',
+        },
+        {
+          table_name: 'tasks',
+          column_name: 'fund_id',
+          data_type: 'integer',
+          is_nullable: 'NO',
+        },
+        {
+          table_name: 'tasks',
+          column_name: 'title',
+          data_type: 'character varying',
+          udt_name: 'varchar',
+          is_nullable: 'NO',
+        },
+      ],
+    });
+    const audit = await auditManifest(client, {
+      ...manifest,
+      expectedTables: [
+        {
+          ...manifest.expectedTables[0],
+          columns: [
+            { name: 'id', type: 'integer', nullable: false },
+            { name: 'fund_id', type: 'integer', nullable: false },
+            { name: 'title', type: 'varchar', nullable: true },
+          ],
+          constraints: [],
+          indexes: [],
+        },
+      ],
+    });
+
+    expect(audit.action).toBe(ACTION_APPLY_MISSING_DDL);
+    expect(audit.objects[0]?.populated).toBe(false);
+    expect(audit.objects[0]?.deltas).toMatchObject([
+      {
+        kind: 'column-nullability-mismatch',
+        name: 'tasks.title',
+        expected: true,
+        actual: false,
+        additiveSafe: true,
+      },
+    ]);
+  });
+
+  it('refuses nullable to NOT NULL tightening on populated tables', async () => {
+    const client = createMockClient({
+      presentTables: ['tasks'],
+      populatedTables: ['tasks'],
+      columns: [
+        {
+          table_name: 'tasks',
+          column_name: 'id',
+          data_type: 'integer',
+          is_nullable: 'NO',
+        },
+        {
+          table_name: 'tasks',
+          column_name: 'fund_id',
+          data_type: 'integer',
+          is_nullable: 'NO',
+        },
+        {
+          table_name: 'tasks',
+          column_name: 'title',
+          data_type: 'character varying',
+          udt_name: 'varchar',
+          is_nullable: 'YES',
+        },
+      ],
+    });
+    const audit = await auditManifest(client, {
+      ...manifest,
+      expectedTables: [
+        {
+          ...manifest.expectedTables[0],
+          constraints: [],
+          indexes: [],
+        },
+      ],
+    });
+
+    expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+    expect(audit.objects[0]?.populated).toBe(true);
+  });
+
   it('audit-only mode does not issue mutation queries', async () => {
     const client = fullShapeClient();
     const output: string[] = [];
@@ -470,6 +566,51 @@ describe('missing-table policy', () => {
       )
     ).toThrow(ReconcileError);
   });
+
+  it('rejects malformed apply policy targets', () => {
+    const badPolicies = [
+      {
+        applyPolicy: {
+          allowDropNotNull: [{ table: 'tasks', column: 'bad;column' }],
+        },
+      },
+      {
+        applyPolicy: {
+          allowDropNotNull: [{ table: 'tasks', column: 'title' }],
+        },
+      },
+      {
+        applyPolicy: {
+          allowConstraintReplacements: [{ table: 'tasks', name: 'missing_check' }],
+        },
+      },
+      {
+        applyPolicy: {
+          unexpectedKey: true,
+        },
+      },
+      {
+        applyPolicy: {
+          allowConstraintReplacements: [
+            { table: 'tasks', name: 'tasks_fund_id_funds_id_fk' },
+            { table: 'tasks', name: 'tasks_fund_id_funds_id_fk' },
+          ],
+        },
+      },
+    ];
+
+    for (const badPolicy of badPolicies) {
+      expect(() =>
+        validateManifestSql(
+          {
+            ...manifest,
+            ...badPolicy,
+          },
+          []
+        )
+      ).toThrow(ReconcileError);
+    }
+  });
 });
 
 describe('reconcile-prod-schema dropObjects path (s8.1 slice 3.5)', () => {
@@ -514,6 +655,21 @@ describe('reconcile-prod-schema dropObjects path (s8.1 slice 3.5)', () => {
     expect(identical).toBe(base);
     expect(reverseSqlChanged).not.toBe(base);
     expect(entryRemoved).not.toBe(base);
+  });
+
+  it('manifest checksum changes when apply policy changes', () => {
+    const base = manifestChecksum({ ...dropManifest, applyPolicy: {} }, []);
+    const changed = manifestChecksum(
+      {
+        ...dropManifest,
+        applyPolicy: {
+          allowDropNotNull: [{ table: 'jobs', column: 'state' }],
+        },
+      },
+      []
+    );
+
+    expect(changed).not.toBe(base);
   });
 
   it('statement hashes include generated drop statements', () => {
