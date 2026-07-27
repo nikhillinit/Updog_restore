@@ -53,6 +53,7 @@ const expectedJournaledDriftPatchFiles = [
   '0040_multi_entity_ledger_foundation.sql',
   '0041_vehicle_financing_participations.sql',
   '0042_positions_ownership_compat.sql',
+  '0043_position_source_basis_reliefs.sql',
 ].sort();
 
 afterEach(() => {
@@ -137,6 +138,18 @@ describe('migration ledger helpers', () => {
     expect(entry).toMatchObject({
       idx: 43,
       tag: '0042_positions_ownership_compat',
+      breakpoints: true,
+    });
+  });
+
+  it('pins source-basis relief migration to its own journal index 44 entry', () => {
+    const entry = readDrizzleJournal(repoRoot).entries.find(
+      (candidate) => candidate.tag === '0043_position_source_basis_reliefs'
+    );
+
+    expect(entry).toMatchObject({
+      idx: 44,
+      tag: '0043_position_source_basis_reliefs',
       breakpoints: true,
     });
   });

@@ -120,13 +120,16 @@ function currentPlanVersionErrorStatus(error: CurrentPlanVersionServiceError): 4
   }
 }
 
-function currentForecastErrorStatus(error: CurrentForecastV2ServiceError): 409 | 422 {
+function currentForecastErrorStatus(error: CurrentForecastV2ServiceError): 409 | 422 | 500 {
   switch (error.code) {
     case 'NO_CURRENT_PLAN_VERSION':
     case 'CURRENT_FORECAST_BASIS_MISMATCH':
       return 409;
     case 'NO_FACTS_SNAPSHOT':
+    case 'FACTS_FORECAST_EVALUATION_BLOCKED':
       return 422;
+    case 'FORECAST_SNAPSHOT_WRITE_FAILED':
+      return 500;
   }
 }
 

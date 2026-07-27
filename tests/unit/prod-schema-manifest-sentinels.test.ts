@@ -42,8 +42,20 @@ interface DropObject {
 interface Manifest {
   name: string;
   sqlFiles?: string[];
+  allowedCreateTables?: string[];
   expectedTables?: ManifestTable[];
   dropObjects?: DropObject[];
+  applyPolicy?: {
+    allowDropNotNull?: Array<{ table: string; column: string }>;
+    allowConstraintReplacements?: Array<{
+      table: string;
+      name: string;
+      expectedDefinition: {
+        requiredFragments: string[];
+        stringLiterals: string[];
+      };
+    }>;
+  };
 }
 
 function loadManifestFiles(): Array<{ file: string; manifest: Manifest }> {
@@ -109,6 +121,7 @@ describe('prod-schema manifest sentinels', () => {
       '14-investment-ledger.json',
       '15-vehicle-financing-participations.json',
       '16-positions-ownership-compat.json',
+      '17-position-source-basis-reliefs.json',
     ]);
   });
 
@@ -118,6 +131,27 @@ describe('prod-schema manifest sentinels', () => {
         expect(fs.existsSync(path.join(repoRoot, sqlFile)), `${file} -> ${sqlFile}`).toBe(true);
       }
     }
+  });
+
+  it('creates the canonical investment-rounds foundation before applying participation lineage', () => {
+    const participationManifest = manifests.find(
+      (entry) => entry.file === '15-vehicle-financing-participations.json'
+    );
+    expect(participationManifest).toBeDefined();
+    expect(participationManifest!.manifest.sqlFiles).toEqual([
+      'scripts/prod-schema-patches/0027_investment_rounds_foundation.sql',
+      'migrations/0041_vehicle_financing_participations.sql',
+    ]);
+    expect(participationManifest!.manifest.allowedCreateTables).toContain('investment_rounds');
+
+    const foundationSql = fs.readFileSync(
+      path.join(repoRoot, participationManifest!.manifest.sqlFiles![0]),
+      'utf8'
+    );
+    expect(foundationSql).toMatch(/CREATE TABLE IF NOT EXISTS "investment_rounds"/);
+    expect(foundationSql).toContain('CONSTRAINT "investment_rounds_investment_fund_fk"');
+    expect(foundationSql).toContain('CONSTRAINT "investment_rounds_id_fund_uq"');
+    expect(foundationSql).not.toMatch(/^\s*(?:DROP|DELETE|TRUNCATE)\b/im);
   });
 
   it('every manifest SQL file begins with a -- @generated or -- @drift-patch marker', () => {
@@ -190,6 +224,103 @@ describe('prod-schema manifest sentinels', () => {
     }
   });
 
+  it('applyPolicy targets only expected nullable columns and expected constraints', () => {
+    for (const { file, manifest } of manifests) {
+      const tables = new Map((manifest.expectedTables ?? []).map((table) => [table.name, table]));
+
+      for (const allowed of manifest.applyPolicy?.allowDropNotNull ?? []) {
+        const column = tables
+          .get(allowed.table)
+          ?.columns?.find((candidate) => candidate.name === allowed.column);
+        expect(column?.nullable, `${file} allowDropNotNull ${allowed.table}.${allowed.column}`).toBe(
+          true
+        );
+      }
+
+      for (const allowed of manifest.applyPolicy?.allowConstraintReplacements ?? []) {
+        const constraints = tables.get(allowed.table)?.constraints ?? [];
+        expect(
+          constraints,
+          `${file} allowConstraintReplacements ${allowed.table}.${allowed.name}`
+        ).toContain(allowed.name);
+        expect(
+          allowed.expectedDefinition.requiredFragments.length,
+          `${file} ${allowed.name} required definition fragments`
+        ).toBeGreaterThan(0);
+        expect(
+          allowed.expectedDefinition.stringLiterals.length,
+          `${file} ${allowed.name} expected string literals`
+        ).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('scopes replacement constraint guards to their target tables', () => {
+    const cases = [
+      {
+        sqlFile: 'scripts/prod-schema-patches/0035_substrate_shadow_reconciliations_widening.sql',
+        table: 'substrate_shadow_reconciliations',
+        replacements: ['substrate_shadow_reconciliations_substrate_state_check'],
+        guardedConstraints: ['substrate_shadow_reconciliations_result_hash_state_check'],
+      },
+      {
+        sqlFile: 'migrations/0038_current_forecast_references.sql',
+        table: 'substrate_shadow_reconciliations',
+        replacements: ['substrate_shadow_reconciliations_substrate_state_check'],
+        guardedConstraints: ['substrate_shadow_reconciliations_result_hash_state_check'],
+      },
+      {
+        sqlFile: 'migrations/0042_positions_ownership_compat.sql',
+        table: 'investment_lots',
+        replacements: ['investment_lots_lot_type_check'],
+        guardedConstraints: [],
+      },
+    ] as const;
+
+    for (const { sqlFile, table, replacements, guardedConstraints } of cases) {
+      const sql = fs.readFileSync(path.join(repoRoot, sqlFile), 'utf8');
+      for (const constraint of replacements) {
+        expect(sql, `${sqlFile} direct target replacement for ${constraint}`).toMatch(
+          new RegExp(
+            String.raw`ALTER\s+TABLE\s+"${table}"\s+DROP\s+CONSTRAINT\s+IF\s+EXISTS\s+"${constraint}";[\s\S]*?ALTER\s+TABLE\s+"${table}"\s+ADD\s+CONSTRAINT\s+"${constraint}"`,
+            'i'
+          )
+        );
+      }
+      for (const constraint of guardedConstraints) {
+        const guards = [
+          ...sql.matchAll(
+            new RegExp(
+              String.raw`WHERE\s+conname\s*=\s*'${constraint}'([\s\S]*?)\)\s+THEN`,
+              'gi'
+            )
+          ),
+        ];
+        expect(guards.length, `${sqlFile} guard count for ${constraint}`).toBeGreaterThan(0);
+        for (const guard of guards) {
+          expect(guard[1], `${sqlFile} ${constraint} target scope`).toContain(
+            `AND conrelid = 'public.${table}'::regclass`
+          );
+        }
+      }
+    }
+  });
+
+  it('guards the current-forecast cutover foreign key for partial-drift replay', () => {
+    const currentForecast = manifests.find(
+      (entry) => entry.file === '12-current-forecast-references.json'
+    );
+    expect(currentForecast).toBeDefined();
+
+    const sql = fs.readFileSync(
+      path.join(repoRoot, currentForecast!.manifest.sqlFiles![0]),
+      'utf8'
+    );
+    expect(sql).toMatch(
+      /IF NOT EXISTS \(\s*SELECT 1\s*FROM pg_constraint\s*WHERE conname = 'fund_calculation_modes_cutover_reference_fk'\s*AND conrelid = 'public\.fund_calculation_modes'::regclass\s*\)/i
+    );
+  });
+
   it('no duplicate sentinel names within a manifest', () => {
     for (const { file, manifest } of manifests) {
       const seen: string[] = [];
@@ -201,18 +332,63 @@ describe('prod-schema manifest sentinels', () => {
     }
   });
 
-  it('the positions and ownership manifest types every expected column', () => {
+  it('keeps ledgered manifest 16 immutable and isolates additive 0043 in manifest 17', () => {
     const positionsManifest = manifests.find(
       (entry) => entry.file === '16-positions-ownership-compat.json'
     );
+    const sourceBasisManifest = manifests.find(
+      (entry) => entry.file === '17-position-source-basis-reliefs.json'
+    );
     expect(positionsManifest).toBeDefined();
+    expect(sourceBasisManifest).toBeDefined();
+
+    expect(positionsManifest!.manifest.sqlFiles).toEqual([
+      'migrations/0042_positions_ownership_compat.sql',
+    ]);
+    expect(positionsManifest!.manifest.allowedCreateTables).not.toContain(
+      'position_event_source_basis_reliefs'
+    );
+    expect(positionsManifest!.manifest.expectedTables?.map((table) => table.name)).not.toContain(
+      'position_event_source_basis_reliefs'
+    );
+
+    expect(sourceBasisManifest!.manifest.sqlFiles).toEqual([
+      'migrations/0043_position_source_basis_reliefs.sql',
+    ]);
+    expect(sourceBasisManifest!.manifest.allowedCreateTables).toEqual([
+      'position_event_source_basis_reliefs',
+    ]);
+    expect(sourceBasisManifest!.manifest.expectedTables?.map((table) => table.name)).toEqual([
+      'position_events',
+      'vehicle_financing_participations',
+      'financing_events',
+      'financing_tranches',
+      'position_event_source_basis_reliefs',
+    ]);
+
+    const sourceBasisSql = fs.readFileSync(
+      path.join(repoRoot, sourceBasisManifest!.manifest.sqlFiles![0]),
+      'utf8'
+    );
+    expect(sourceBasisSql).not.toMatch(/\b(?:DROP|TRUNCATE|DELETE\s+FROM)\b/i);
+  });
+
+  it('the Task 11 manifests type every expected column', () => {
+    const task11Manifests = manifests.filter((entry) =>
+      ['16-positions-ownership-compat.json', '17-position-source-basis-reliefs.json'].includes(
+        entry.file
+      )
+    );
+    expect(task11Manifests).toHaveLength(2);
 
     const missingTypes: string[] = [];
 
-    for (const table of positionsManifest?.manifest.expectedTables ?? []) {
-      for (const column of table.columns ?? []) {
-        if (!column.type?.trim()) {
-          missingTypes.push(`${table.name}.${column.name}`);
+    for (const { file, manifest } of task11Manifests) {
+      for (const table of manifest.expectedTables ?? []) {
+        for (const column of table.columns ?? []) {
+          if (!column.type?.trim()) {
+            missingTypes.push(`${file}: ${table.name}.${column.name}`);
+          }
         }
       }
     }
