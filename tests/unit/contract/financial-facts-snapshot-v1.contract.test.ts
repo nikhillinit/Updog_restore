@@ -241,7 +241,9 @@ describe('financial facts snapshot hashes', () => {
     expect(buildSnapshotInputHash(legacy)).toBe(
       'ea4cc7f7765abc2240d72df3a8cb7affde14fa235219fd3705fdad153b63c4ed'
     );
-    expect(buildSnapshotInputHash(current)).not.toBe(buildSnapshotInputHash(legacy));
+    expect(buildSnapshotInputHash(current)).toBe(
+      '9a51f1cbc1beba5aa659c5bd2817e8ea908508d560ce2f92728ecac13f502e62'
+    );
   });
 
   it('rejects invalid policy and payload-schema tuples', () => {
