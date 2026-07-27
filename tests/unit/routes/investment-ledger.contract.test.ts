@@ -14,6 +14,12 @@ const serviceState = vi.hoisted(() => ({
   loadFinancingEventDetail: vi.fn(),
   createVehicleFinancingParticipation: vi.fn(),
   correctVehicleParticipationLedger: vi.fn(),
+  convertPosition: vi.fn(),
+  listCurrentPositions: vi.fn(),
+  createOwnershipSnapshot: vi.fn(),
+  listOwnershipSnapshots: vi.fn(),
+  recordDirectPositionValuation: vi.fn(),
+  selectPositionValuation: vi.fn(),
   recordPositionEvent: vi.fn(),
   correctPosition: vi.fn(),
 }));
@@ -40,6 +46,24 @@ vi.mock('../../../server/services/investment-ledger/financing-event-service', ()
 
 vi.mock('../../../server/services/investment-ledger/participation-service', () => ({
   createVehicleFinancingParticipation: serviceState.createVehicleFinancingParticipation,
+}));
+
+vi.mock('../../../server/services/investment-ledger/position-conversion-service', () => ({
+  convertPosition: serviceState.convertPosition,
+}));
+
+vi.mock('../../../server/services/investment-ledger/current-position-service', () => ({
+  listCurrentPositions: serviceState.listCurrentPositions,
+}));
+
+vi.mock('../../../server/services/investment-ledger/ownership-snapshot-service', () => ({
+  createOwnershipSnapshot: serviceState.createOwnershipSnapshot,
+  listOwnershipSnapshots: serviceState.listOwnershipSnapshots,
+}));
+
+vi.mock('../../../server/services/investment-ledger/position-valuation-service', () => ({
+  recordDirectPositionValuation: serviceState.recordDirectPositionValuation,
+  selectPositionValuation: serviceState.selectPositionValuation,
 }));
 
 vi.mock('../../../server/services/investment-ledger/ledger-correction-service', () => ({
@@ -87,6 +111,78 @@ const POSITION_CORRECTION = {
   reversal: { ...POSITION_EVENT, id: 701, eventType: 'reversal' },
   replacement: { ...POSITION_EVENT, id: 702 },
   reconciliationCaseId: 703,
+};
+const POSITION_CONVERSION = {
+  sourceParticipationId: 600,
+  sourceParticipationVersion: 1,
+  resultingParticipation: { id: 601, economicOrigin: 'conversion_result' },
+  conversionEvent: { ...POSITION_EVENT, eventType: 'conversion', id: 704 },
+  capitalizedAdjustmentEvent: null,
+  reliefMode: 'source_basis',
+  lotReliefs: [],
+  sourceBasisRelief: { conversionPositionEventId: 704 },
+  resultConversionLotId: '11111111-1111-4111-8111-111111111111',
+  conversionObservationId: 705,
+};
+const CURRENT_POSITIONS = {
+  fundId: 7,
+  asOfDate: '2026-07-01',
+  knowledgeCutoff: '2026-07-26T00:00:00.000Z',
+  positions: [],
+};
+const OWNERSHIP_SNAPSHOT = {
+  id: 801,
+  fundId: 7,
+  vehicleId: 9,
+  companyIdentityId: 11,
+  effectiveDate: '2026-07-01',
+  recordedAt: '2026-07-01T00:00:00.000Z',
+  ownershipPct: '12.50000000',
+  fdNumerator: '125.000000',
+  fdDenominator: '1000.000000',
+  currency: 'USD',
+  supersedesSnapshotId: null,
+  sourceObservationId: 802,
+  createdBy: 3,
+  idempotencyKey: 'ownership-1',
+  requestHash: 'a'.repeat(64),
+};
+const OWNERSHIP_SNAPSHOTS = {
+  fundId: 7,
+  asOfDate: '2026-07-01',
+  knowledgeCutoff: '2026-07-26T00:00:00.000Z',
+  snapshots: [OWNERSHIP_SNAPSHOT],
+};
+const DIRECT_POSITION_VALUATION = {
+  valuationMarkId: 901,
+  sourceObservationId: 902,
+  fundId: 7,
+  vehicleId: 9,
+  companyIdentityId: 11,
+  companyId: 12,
+  asOfDate: '2026-07-01',
+  fairValue: '1250000.000000',
+  sourceHash: 'b'.repeat(64),
+};
+const POSITION_VALUATION_SELECTION = {
+  fundId: 7,
+  vehicleId: 9,
+  companyIdentityId: 11,
+  companyId: 12,
+  asOfDate: '2026-07-01',
+  aggregateFairValue: '1250000.000000',
+  basis: 'direct',
+  directMarkId: 901,
+  directSourceObservationId: 902,
+  ownershipSnapshotId: null,
+  derivedTrancheId: null,
+  derivedTrancheVersion: null,
+  derivedParticipationId: null,
+  derivedParticipationVersion: null,
+  evidenceDate: '2026-07-01',
+  valuationAgeDays: 0,
+  pricedComponentFairValue: '1250000.000000',
+  warnings: [],
 };
 
 function makeApp() {
@@ -151,6 +247,36 @@ const positionCorrectionBody = {
   costBasisDelta: '2250000.000000',
   proceeds: '0.000000',
 };
+const positionConversionBody = {
+  sourceParticipationId: 600,
+  resultingTrancheId: 501,
+  effectiveDate: '2026-07-01',
+  resultingSharesAcquired: '100.000000',
+  accruedInterest: { mode: 'excluded' },
+  currency: 'USD',
+};
+const ownershipSnapshotBody = {
+  vehicleId: 9,
+  companyIdentityId: 11,
+  effectiveDate: '2026-07-01',
+  ownershipPct: '12.50000000',
+  fdNumerator: '125.000000',
+  fdDenominator: '1000.000000',
+  sourceObservationId: 802,
+  currency: 'USD',
+};
+const directValuationBody = {
+  vehicleId: 9,
+  companyIdentityId: 11,
+  companyId: 12,
+  asOfDate: '2026-07-01',
+  fairValue: '1250000.000000',
+  sourceObservationId: 902,
+  markSource: 'board_update',
+  confidenceLevel: 'high',
+  valuationMethod: 'direct_position_mark',
+  currency: 'USD',
+};
 
 beforeEach(() => {
   authState.user = {
@@ -167,6 +293,12 @@ beforeEach(() => {
   serviceState.loadFinancingEventDetail.mockReset();
   serviceState.createVehicleFinancingParticipation.mockReset();
   serviceState.correctVehicleParticipationLedger.mockReset();
+  serviceState.convertPosition.mockReset();
+  serviceState.listCurrentPositions.mockReset();
+  serviceState.createOwnershipSnapshot.mockReset();
+  serviceState.listOwnershipSnapshots.mockReset();
+  serviceState.recordDirectPositionValuation.mockReset();
+  serviceState.selectPositionValuation.mockReset();
   serviceState.recordPositionEvent.mockReset();
   serviceState.correctPosition.mockReset();
 });
@@ -240,11 +372,51 @@ describe('investment-ledger routes', () => {
       body: positionEventBody,
     },
     {
+      name: 'read current positions',
+      method: 'get' as const,
+      path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/positions`,
+      service: serviceState.listCurrentPositions,
+    },
+    {
+      name: 'convert position',
+      method: 'post' as const,
+      path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/position-conversions`,
+      service: serviceState.convertPosition,
+      body: positionConversionBody,
+    },
+    {
       name: 'correct position',
       method: 'post' as const,
       path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/position-corrections`,
       service: serviceState.correctPosition,
       body: positionCorrectionBody,
+    },
+    {
+      name: 'read ownership snapshots',
+      method: 'get' as const,
+      path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/ownership-snapshots`,
+      service: serviceState.listOwnershipSnapshots,
+    },
+    {
+      name: 'record ownership snapshot',
+      method: 'post' as const,
+      path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/ownership-snapshots`,
+      service: serviceState.createOwnershipSnapshot,
+      body: ownershipSnapshotBody,
+    },
+    {
+      name: 'read position valuation',
+      method: 'get' as const,
+      path: (fundId: string) =>
+        `/api/funds/${fundId}/investment-ledger/position-valuations?vehicleId=9&companyIdentityId=11&companyId=12&asOfDate=2026-07-01`,
+      service: serviceState.selectPositionValuation,
+    },
+    {
+      name: 'record direct position valuation',
+      method: 'post' as const,
+      path: (fundId: string) => `/api/funds/${fundId}/investment-ledger/position-valuations`,
+      service: serviceState.recordDirectPositionValuation,
+      body: directValuationBody,
     },
     {
       name: 'read detail',
@@ -313,6 +485,47 @@ describe('investment-ledger routes', () => {
       message: 'You do not have access to fund 8',
     });
     expect(serviceState.createFinancingEvent).not.toHaveBeenCalled();
+  });
+
+  it('applies the write cap to POST routes without spending it on Task 11 GET routes', async () => {
+    authState.user = {
+      id: '3003',
+      sub: '3003',
+      email: 'ledger-limit@example.com',
+      role: 'user',
+      roles: ['user'],
+      fundIds: [7],
+    };
+    serviceState.createFinancingEvent.mockResolvedValue({ value: EVENT, replayed: false });
+    serviceState.listCurrentPositions.mockResolvedValueOnce(CURRENT_POSITIONS);
+
+    for (let index = 0; index < 100; index += 1) {
+      const response = await request(makeApp())
+        .post('/api/funds/7/investment-ledger/financing-events')
+        .set('Idempotency-Key', `write-limit-${index}`)
+        .send(eventBody);
+
+      expect(response.status, `write ${index + 1}`).toBe(201);
+    }
+
+    const cappedWrite = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/financing-events')
+      .set('Idempotency-Key', 'write-limit-capped')
+      .send(eventBody);
+
+    const readAfterWriteCap = await request(makeApp()).get(
+      '/api/funds/7/investment-ledger/positions?vehicleId=9&companyIdentityId=11&asOfDate=2026-07-01'
+    );
+
+    expect(cappedWrite.status).toBe(429);
+    expect(cappedWrite.body.error).toBe('TOO_MANY_REQUESTS');
+    expect(readAfterWriteCap.status).toBe(200);
+    expect(readAfterWriteCap.body).toEqual(CURRENT_POSITIONS);
+    expect(serviceState.createFinancingEvent).toHaveBeenCalledTimes(100);
+    expect(serviceState.listCurrentPositions).toHaveBeenCalledWith({
+      fundId: 7,
+      query: { vehicleId: 9, companyIdentityId: 11, asOfDate: '2026-07-01' },
+    });
   });
 
   it('returns 201 on a first event write and 200 on a replay', async () => {
@@ -499,6 +712,180 @@ describe('investment-ledger routes', () => {
     expect(serviceState.correctPosition).not.toHaveBeenCalled();
   });
 
+  it('converts a position through the route command and preserves replay status', async () => {
+    serviceState.convertPosition
+      .mockResolvedValueOnce({ value: POSITION_CONVERSION, replayed: false })
+      .mockResolvedValueOnce({ value: POSITION_CONVERSION, replayed: true });
+
+    const created = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/position-conversions')
+      .set('Idempotency-Key', 'position-conversion-1')
+      .send(positionConversionBody);
+    const replayed = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/position-conversions')
+      .set('Idempotency-Key', 'position-conversion-1')
+      .send(positionConversionBody);
+
+    expect(created.status).toBe(201);
+    expect(created.body).toEqual(POSITION_CONVERSION);
+    expect(replayed.status).toBe(200);
+    expect(serviceState.convertPosition).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fundId: 7,
+        actorId: 3,
+        idempotencyKey: 'position-conversion-1',
+        request: positionConversionBody,
+      })
+    );
+  });
+
+  it('rejects public current-position reads that supply knowledgeCutoff', async () => {
+    const response = await request(makeApp()).get(
+      '/api/funds/7/investment-ledger/positions?knowledgeCutoff=2026-07-01T00:00:00.000Z'
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('KNOWLEDGE_CUTOFF_NOT_ACCEPTED');
+    expect(serviceState.listCurrentPositions).not.toHaveBeenCalled();
+  });
+
+  it('serves current positions with only public filters passed to the service', async () => {
+    serviceState.listCurrentPositions.mockResolvedValueOnce(CURRENT_POSITIONS);
+
+    const response = await request(makeApp()).get(
+      '/api/funds/7/investment-ledger/positions?vehicleId=9&companyIdentityId=11&asOfDate=2026-07-01'
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(CURRENT_POSITIONS);
+    expect(serviceState.listCurrentPositions).toHaveBeenCalledWith({
+      fundId: 7,
+      query: { vehicleId: 9, companyIdentityId: 11, asOfDate: '2026-07-01' },
+    });
+  });
+
+  it.each(['2026-02-30', '2026-04-31'])(
+    'rejects calendar-invalid public asOfDate %s before every position read',
+    async (asOfDate) => {
+      const routes = [
+        {
+          path: `/api/funds/7/investment-ledger/positions?asOfDate=${asOfDate}`,
+          service: serviceState.listCurrentPositions,
+        },
+        {
+          path: `/api/funds/7/investment-ledger/ownership-snapshots?asOfDate=${asOfDate}`,
+          service: serviceState.listOwnershipSnapshots,
+        },
+        {
+          path: `/api/funds/7/investment-ledger/position-valuations?vehicleId=9&companyIdentityId=11&companyId=12&asOfDate=${asOfDate}`,
+          service: serviceState.selectPositionValuation,
+        },
+      ];
+
+      for (const route of routes) {
+        const response = await request(makeApp()).get(route.path);
+
+        expect(response.status, route.path).toBe(400);
+        expect(response.body, route.path).toMatchObject({
+          error: 'INVALID_AS_OF_DATE',
+          message: 'asOfDate must be an ISO date.',
+        });
+        expect(route.service, route.path).not.toHaveBeenCalled();
+      }
+    }
+  );
+
+  it('serves terminal ownership heads and rejects client knowledge cutoffs', async () => {
+    const rejected = await request(makeApp()).get(
+      '/api/funds/7/investment-ledger/ownership-snapshots?knowledgeCutoff=2026-07-01T00:00:00.000Z'
+    );
+    expect(rejected.status).toBe(400);
+
+    serviceState.listOwnershipSnapshots.mockResolvedValueOnce(OWNERSHIP_SNAPSHOTS);
+    const accepted = await request(makeApp()).get(
+      '/api/funds/7/investment-ledger/ownership-snapshots?vehicleId=9&companyIdentityId=11&asOfDate=2026-07-01'
+    );
+
+    expect(accepted.status).toBe(200);
+    expect(accepted.body).toEqual(OWNERSHIP_SNAPSHOTS);
+    expect(serviceState.listOwnershipSnapshots).toHaveBeenCalledWith({
+      fundId: 7,
+      vehicleId: 9,
+      companyIdentityId: 11,
+      asOfDate: '2026-07-01',
+    });
+  });
+
+  it('records ownership snapshots and direct position valuations with replay status', async () => {
+    serviceState.createOwnershipSnapshot
+      .mockResolvedValueOnce({ value: OWNERSHIP_SNAPSHOT, replayed: false })
+      .mockResolvedValueOnce({ value: OWNERSHIP_SNAPSHOT, replayed: true });
+    serviceState.recordDirectPositionValuation
+      .mockResolvedValueOnce({ value: DIRECT_POSITION_VALUATION, replayed: false })
+      .mockResolvedValueOnce({ value: DIRECT_POSITION_VALUATION, replayed: true });
+
+    const ownershipCreated = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/ownership-snapshots')
+      .set('Idempotency-Key', 'ownership-1')
+      .send(ownershipSnapshotBody);
+    const ownershipReplay = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/ownership-snapshots')
+      .set('Idempotency-Key', 'ownership-1')
+      .send(ownershipSnapshotBody);
+    const valuationCreated = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/position-valuations')
+      .set('Idempotency-Key', 'valuation-1')
+      .send(directValuationBody);
+    const valuationReplay = await request(makeApp())
+      .post('/api/funds/7/investment-ledger/position-valuations')
+      .set('Idempotency-Key', 'valuation-1')
+      .send(directValuationBody);
+
+    expect(ownershipCreated.status).toBe(201);
+    expect(ownershipReplay.status).toBe(200);
+    expect(valuationCreated.status).toBe(201);
+    expect(valuationReplay.status).toBe(200);
+    expect(serviceState.createOwnershipSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({ fundId: 7, actorId: 3, idempotencyKey: 'ownership-1' })
+    );
+    expect(serviceState.recordDirectPositionValuation).toHaveBeenCalledWith(
+      expect.objectContaining({ fundId: 7, actorId: 3, idempotencyKey: 'valuation-1' })
+    );
+  });
+
+  it('selects a position valuation through required public filters only', async () => {
+    serviceState.selectPositionValuation.mockResolvedValueOnce(POSITION_VALUATION_SELECTION);
+
+    const response = await request(makeApp()).get(
+      '/api/funds/7/investment-ledger/position-valuations?vehicleId=9&companyIdentityId=11&companyId=12&asOfDate=2026-07-01'
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(POSITION_VALUATION_SELECTION);
+    expect(serviceState.selectPositionValuation).toHaveBeenCalledWith({
+      fundId: 7,
+      vehicleId: 9,
+      companyIdentityId: 11,
+      companyId: 12,
+      asOfDate: '2026-07-01',
+    });
+  });
+
+  it('rejects position-valuation GET knowledgeCutoff and missing identity filters', async () => {
+    const cutoff = await request(makeApp()).get(
+      '/api/funds/7/investment-ledger/position-valuations?vehicleId=9&companyIdentityId=11&companyId=12&asOfDate=2026-07-01&knowledgeCutoff=2026-07-01T00:00:00.000Z'
+    );
+    const missing = await request(makeApp()).get(
+      '/api/funds/7/investment-ledger/position-valuations?vehicleId=9&companyIdentityId=11&asOfDate=2026-07-01'
+    );
+
+    expect(cutoff.status).toBe(400);
+    expect(cutoff.body.error).toBe('KNOWLEDGE_CUTOFF_NOT_ACCEPTED');
+    expect(missing.status).toBe(400);
+    expect(missing.body.error).toBe('INVALID_COMPANY_ID');
+    expect(serviceState.selectPositionValuation).not.toHaveBeenCalled();
+  });
+
   it('passes the parsed If-Match value into the atomic position correction command', async () => {
     serviceState.correctPosition.mockResolvedValueOnce({
       value: POSITION_CORRECTION,
@@ -545,5 +932,28 @@ describe('investment-ledger routes', () => {
 
     expect(source).not.toMatch(/from\s+'\.\.\/db'/);
     expect(source).not.toMatch(/from\s+"\.\.\/db"/);
+  });
+
+  it('keeps Task 11 read chains free of the ledger write limiter', () => {
+    const source = fs.readFileSync(
+      path.join(process.cwd(), 'server', 'routes', 'investment-ledger.ts'),
+      'utf8'
+    );
+
+    const readChain = source.match(/const readChain = \[([\s\S]*?)\] as const;/)?.[1] ?? '';
+    const writeChain = source.match(/const writeChain = \[([\s\S]*?)\] as const;/)?.[1] ?? '';
+    const eventDetailRoute =
+      source.match(
+        /router\.get\(\s*'\/api\/funds\/:fundId\/investment-ledger\/financing-events\/:eventId',([\s\S]*?)async/
+      )?.[1] ?? '';
+
+    expect(readChain).toContain('ledgerIngressLimiter');
+    expect(readChain).toContain('requireAuth()');
+    expect(readChain).toContain('validateFundIdParam');
+    expect(readChain).toContain('requireFundAccess');
+    expect(readChain).not.toContain('ledgerWriteLimiter');
+    expect(writeChain).toContain('ledgerWriteLimiter');
+    expect(eventDetailRoute).toContain('...readChain');
+    expect(eventDetailRoute).not.toContain('ledgerWriteLimiter');
   });
 });
