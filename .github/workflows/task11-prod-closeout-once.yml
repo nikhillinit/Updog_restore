@@ -156,7 +156,7 @@ jobs:
               STATUSES="$(gh api "repos/${REPO}/deployments/${DEPLOYMENT_ID}/statuses")"
               STATE="$(jq -r '.[0].state // empty' <<<"$STATUSES")"
               DEPLOYMENT_URL="$(
-                jq -r '.[0].environment_url // .[0].target_url // empty' <<<"$STATUSES"
+                jq -r '.[0].target_url // .[0].environment_url // empty' <<<"$STATUSES"
               )"
 
               case "$STATE" in
