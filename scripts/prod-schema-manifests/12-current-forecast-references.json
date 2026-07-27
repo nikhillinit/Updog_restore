@@ -4,6 +4,24 @@
   "description": "Append-only immutable current-forecast reference pins (basis + identity hashes) for post-cutover held display.",
   "missingTablePolicy": "create_or_repair",
   "sqlFiles": ["migrations/0038_current_forecast_references.sql"],
+  "applyPolicy": {
+    "allowDropNotNull": [
+      {
+        "table": "substrate_shadow_reconciliations",
+        "column": "result_hash"
+      }
+    ],
+    "allowConstraintReplacements": [
+      {
+        "table": "substrate_shadow_reconciliations",
+        "name": "substrate_shadow_reconciliations_substrate_state_check",
+        "expectedDefinition": {
+          "requiredFragments": ["substrate_state"],
+          "stringLiterals": ["available", "indicative", "unavailable", "failed"]
+        }
+      }
+    ]
+  },
   "allowedCreateTables": ["current_forecast_references"],
   "expectedTables": [
     {
@@ -52,6 +70,20 @@
       "indexes": [
         "idx_current_forecast_references_fund_created",
         "current_forecast_references_fund_accepted_head_unique"
+      ]
+    },
+    {
+      "name": "substrate_shadow_reconciliations",
+      "sharedTable": true,
+      "columns": [
+        { "name": "result_hash", "type": "text", "nullable": true }
+      ],
+      "constraints": [
+        "substrate_shadow_reconciliations_substrate_state_check",
+        "substrate_shadow_reconciliations_result_hash_state_check"
+      ],
+      "indexes": [
+        "substrate_shadow_reconciliations_fund_key_input_null_hash_unique"
       ]
     }
   ]

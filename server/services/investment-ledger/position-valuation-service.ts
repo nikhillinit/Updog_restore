@@ -91,6 +91,8 @@ export async function recordDirectPositionValuation(input: {
   });
 
   const result = await database.transaction(async (transaction) => {
+    await lockFundIdentity(transaction, input.fundId);
+
     const existing = await selectDirectMarkBySourceHash(transaction, input.fundId, sourceHash);
     if (existing) {
       await assertDirectMarkReplay(transaction, existing, requestHash, request, sourceHash);
@@ -300,6 +302,10 @@ function selection(
   input: PositionValuationSelectionV1
 ): PositionValuationSelectionV1 {
   return PositionValuationSelectionV1Schema.parse(input);
+}
+
+async function lockFundIdentity(database: LedgerDatabase, fundId: number): Promise<void> {
+  await database.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`fund-identity:${fundId}`}))`);
 }
 
 async function assertDirectMarkReplay(
