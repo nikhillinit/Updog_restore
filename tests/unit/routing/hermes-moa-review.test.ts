@@ -176,10 +176,7 @@ const moaConfig = {
 
 const routingStub = { commands: {} };
 
-function reviewerOutput(
-  verdict: 'approve' | 'changes',
-  findings: object[] = []
-) {
+function reviewerOutput(verdict: 'approve' | 'changes', findings: object[] = []) {
   return {
     code: 0,
     output: `\`\`\`json\n${JSON.stringify({ verdict, summary: 's', findings })}\n\`\`\``,
@@ -232,10 +229,7 @@ describe('runMoaReview', () => {
         mode: 'moa',
         moaConfig: {
           ...moaConfig,
-          reviewers: [
-            { model: 'terra', lens: 'correctness' },
-            { model: 'luna' },
-          ],
+          reviewers: [{ model: 'terra', lens: 'correctness' }, { model: 'luna' }],
         },
         routing: routingStub,
         executor,
@@ -324,9 +318,7 @@ describe('runMoaReview', () => {
 
   test('moa mode requests changes when any reviewer requests changes; findings are unioned', async () => {
     const executor = async (model: string) =>
-      model === 'terra'
-        ? reviewerOutput('changes', [finding])
-        : reviewerOutput('approve');
+      model === 'terra' ? reviewerOutput('changes', [finding]) : reviewerOutput('approve');
     const result = await runMoaReview({
       artifact: 'diff',
       task: 't',
@@ -341,9 +333,7 @@ describe('runMoaReview', () => {
 
   test('moa mode with one failed reviewer is degraded but still decides from the survivor', async () => {
     const executor = async (model: string) =>
-      model === 'terra'
-        ? { code: 1, output: 'crash' }
-        : reviewerOutput('approve');
+      model === 'terra' ? { code: 1, output: 'crash' } : reviewerOutput('approve');
     const result = await runMoaReview({
       artifact: 'diff',
       task: 't',
@@ -354,9 +344,7 @@ describe('runMoaReview', () => {
     });
     expect(result.degraded).toBe(true);
     expect(result.approved).toBe(true);
-    expect(result.votes.find((vote) => vote.model === 'terra')?.verdict).toBe(
-      'error'
-    );
+    expect(result.votes.find((vote) => vote.model === 'terra')?.verdict).toBe('error');
   });
 
   test('non-Error reviewer rejection becomes an error vote without crashing the panel', async () => {
@@ -425,9 +413,7 @@ describe('runMoaReview', () => {
     const calls: string[] = [];
     const executor = async (model: string) => {
       calls.push(model);
-      return model === 'luna'
-        ? reviewerOutput('changes', [finding])
-        : reviewerOutput('approve');
+      return model === 'luna' ? reviewerOutput('changes', [finding]) : reviewerOutput('approve');
     };
     const result = await runMoaReview({
       artifact: 'diff',
@@ -443,9 +429,7 @@ describe('runMoaReview', () => {
 
   test('moa-strict fails closed on any degradation even with 2 approvals', async () => {
     const executor = async (model: string) =>
-      model === 'claude'
-        ? { code: 1, output: 'crash' }
-        : reviewerOutput('approve');
+      model === 'claude' ? { code: 1, output: 'crash' } : reviewerOutput('approve');
     const result = await runMoaReview({
       artifact: 'diff',
       task: 't',
@@ -460,9 +444,7 @@ describe('runMoaReview', () => {
 
   test('invalid JSON from a reviewer counts as error vote', async () => {
     const executor = async (model: string) =>
-      model === 'terra'
-        ? { code: 0, output: 'LGTM!' }
-        : reviewerOutput('approve');
+      model === 'terra' ? { code: 0, output: 'LGTM!' } : reviewerOutput('approve');
     const result = await runMoaReview({
       artifact: 'diff',
       task: 't',
@@ -472,9 +454,7 @@ describe('runMoaReview', () => {
       executor,
     });
     expect(result.degraded).toBe(true);
-    expect(result.votes.find((vote) => vote.model === 'terra')?.verdict).toBe(
-      'error'
-    );
+    expect(result.votes.find((vote) => vote.model === 'terra')?.verdict).toBe('error');
   });
 
   test('duplicate findings across reviewers are deduped by findingKey', async () => {
@@ -504,9 +484,7 @@ describe('runMoaReview', () => {
       claim: 'x',
     };
     const executor = async (model: string) =>
-      model === 'terra'
-        ? reviewerOutput('changes', [first])
-        : reviewerOutput('changes', [second]);
+      model === 'terra' ? reviewerOutput('changes', [first]) : reviewerOutput('changes', [second]);
     const result = await runMoaReview({
       artifact: 'diff',
       task: 't',
@@ -522,9 +500,7 @@ describe('runMoaReview', () => {
   test('duplicate finding keeps the higher severity', async () => {
     const low = { ...finding, severity: 'low' };
     const executor = async (model: string) =>
-      model === 'terra'
-        ? reviewerOutput('changes', [low])
-        : reviewerOutput('changes', [finding]);
+      model === 'terra' ? reviewerOutput('changes', [low]) : reviewerOutput('changes', [finding]);
     const result = await runMoaReview({
       artifact: 'diff',
       task: 't',
@@ -541,11 +517,8 @@ describe('runMoaReview', () => {
     const calls: string[] = [];
     const executor = async (model: string) => {
       calls.push(model);
-      if (model === 'sol')
-        return { code: 0, output: 'Merged review narrative.' };
-      return model === 'terra'
-        ? reviewerOutput('changes', [finding])
-        : reviewerOutput('approve');
+      if (model === 'sol') return { code: 0, output: 'Merged review narrative.' };
+      return model === 'terra' ? reviewerOutput('changes', [finding]) : reviewerOutput('approve');
     };
     const result = await runMoaReview({
       artifact: 'diff',
@@ -557,5 +530,238 @@ describe('runMoaReview', () => {
     });
     expect(calls).toContain('sol');
     expect(result.aggregatorSummary).toBe('Merged review narrative.');
+  });
+});
+
+import { createWorkflowPlan, executeWorkflow } from '../../../orchestrate.js';
+
+describe('createWorkflowPlan with MOA review', () => {
+  const ownership = {
+    owner: 'sol',
+    reviewer: 'claude',
+    role: 'worker-executor',
+    artifact: 'diff plus tests',
+  };
+
+  test('review policy moa inserts a moa-review step after owner', () => {
+    const workflow = createWorkflowPlan({
+      requestedWorkflow: 'pair',
+      phase: 'production',
+      model: 'sol',
+      specialist: null,
+      gate: 'npm run check',
+      ownership: { effectivePhase: 'production', ...ownership },
+      risk: 'standard',
+      review: 'moa',
+      moaConfig: { aggregator: 'sol' },
+    });
+    const roles = workflow.steps.map((step) => step.role);
+    expect(roles.indexOf('moa-review')).toBeGreaterThan(roles.indexOf('owner'));
+    expect(workflow.steps.find((step) => step.role === 'moa-review')?.mode).toBe('moa');
+  });
+
+  test('review policy none omits moa-review', () => {
+    const workflow = createWorkflowPlan({
+      requestedWorkflow: 'solo',
+      phase: 'production',
+      model: 'qwen',
+      specialist: null,
+      gate: 'npm run check',
+      ownership: { effectivePhase: 'production', ...ownership },
+      risk: 'standard',
+      review: 'none',
+    });
+    expect(workflow.steps.some((step) => step.role === 'moa-review')).toBe(false);
+  });
+
+  test('review policy none suppresses the reviewer step too', () => {
+    const workflow = createWorkflowPlan({
+      requestedWorkflow: 'pair',
+      phase: 'production',
+      model: 'qwen',
+      specialist: null,
+      gate: 'npm run check',
+      ownership: { effectivePhase: 'production', ...ownership },
+      risk: 'standard',
+      review: 'none',
+    });
+    expect(workflow.steps.some((step) => step.role === 'reviewer')).toBe(false);
+  });
+
+  test('review workflow mode never gets a moa step (no artifact to review)', () => {
+    const workflow = createWorkflowPlan({
+      requestedWorkflow: 'review',
+      phase: 'production',
+      model: 'sol',
+      specialist: null,
+      gate: 'npm run check',
+      ownership: { effectivePhase: 'production', ...ownership },
+      risk: 'standard',
+      review: 'moa',
+      moaConfig: { aggregator: 'sol' },
+    });
+    expect(workflow.steps.some((step) => step.role === 'moa-review')).toBe(false);
+  });
+});
+
+describe('executeWorkflow with MOA review', () => {
+  const moaStepPlan = (mode: 'moa' | 'moa-strict') => ({
+    phase: 'production',
+    risk: 'standard',
+    gate: null,
+    review: mode,
+    workflow: {
+      selected: 'pair',
+      steps: [
+        { role: 'owner', model: 'sol', action: 'execute production lane' },
+        {
+          role: 'moa-review',
+          model: 'sol',
+          action: 'multi-model lens review of artifact',
+          mode,
+        },
+        { role: 'reviewer', model: 'claude', action: 'review diff plus tests' },
+      ],
+    },
+  });
+
+  const approvingRunStep = async ({ step }: { step: { role: string } }) =>
+    step.role === 'reviewer'
+      ? { code: 0, output: 'APPROVED', approved: true }
+      : { code: 0, output: 'artifact-v1' };
+
+  test('approved moa and reviewer exit zero with moa result in record', async () => {
+    const moaRunner = async () => ({
+      approved: true,
+      degraded: false,
+      findings: [],
+      votes: [],
+      aggregatorSummary: null,
+    });
+    const record = await executeWorkflow(moaStepPlan('moa'), {
+      runStep: approvingRunStep,
+      moaRunner,
+      writeRunLedger: null,
+    });
+    expect(record.exitCode).toBe(0);
+    expect(record.moa?.approved).toBe(true);
+  });
+
+  test('moa changes trigger repair; second clean round approves', async () => {
+    const finding = {
+      file: 'a.ts',
+      line: 3,
+      severity: 'high',
+      lens: 'correctness',
+      claim: 'Bad cursor.',
+    };
+    let round = 0;
+    const moaRunner = async () => {
+      round += 1;
+      return round === 1
+        ? {
+            approved: false,
+            degraded: false,
+            findings: [finding],
+            votes: [],
+            aggregatorSummary: null,
+          }
+        : {
+            approved: true,
+            degraded: false,
+            findings: [],
+            votes: [],
+            aggregatorSummary: null,
+          };
+    };
+    const record = await executeWorkflow(moaStepPlan('moa'), {
+      runStep: approvingRunStep,
+      moaRunner,
+      writeRunLedger: null,
+    });
+    expect(record.exitCode).toBe(0);
+    expect(record.repairs).toBe(1);
+  });
+
+  test('repeated identical findings exit as dry loop without exhausting maxRepairs', async () => {
+    const finding = {
+      file: 'a.ts',
+      line: 3,
+      severity: 'high',
+      lens: 'correctness',
+      claim: 'Bad cursor.',
+    };
+    let moaCalls = 0;
+    const moaRunner = async () => {
+      moaCalls += 1;
+      return {
+        approved: false,
+        degraded: false,
+        findings: [finding],
+        votes: [],
+        aggregatorSummary: null,
+      };
+    };
+    const record = await executeWorkflow(moaStepPlan('moa'), {
+      runStep: approvingRunStep,
+      moaRunner,
+      maxRepairs: 5,
+      writeRunLedger: null,
+    });
+    expect(record.exitCode).toBe(1);
+    expect(moaCalls).toBe(2);
+  });
+
+  test('moa-strict degraded fails immediately without burning repairs', async () => {
+    let moaCalls = 0;
+    const moaRunner = async () => {
+      moaCalls += 1;
+      return {
+        approved: false,
+        degraded: true,
+        findings: [],
+        votes: [],
+        aggregatorSummary: null,
+      };
+    };
+    const record = await executeWorkflow(moaStepPlan('moa-strict'), {
+      runStep: approvingRunStep,
+      moaRunner,
+      writeRunLedger: null,
+    });
+    expect(record.exitCode).toBe(1);
+    expect(record.moa?.degraded).toBe(true);
+    expect(moaCalls).toBe(1);
+    expect(record.repairs).toBe(0);
+  });
+
+  test('workflow without moa step never invokes moaRunner', async () => {
+    let called = false;
+    const moaRunner = async () => {
+      called = true;
+      return {
+        approved: true,
+        degraded: false,
+        findings: [],
+        votes: [],
+        aggregatorSummary: null,
+      };
+    };
+    const plan = {
+      phase: 'production',
+      risk: 'standard',
+      gate: null,
+      workflow: {
+        selected: 'solo',
+        steps: [{ role: 'owner', model: 'codex', action: 'execute production lane' }],
+      },
+    };
+    const record = await executeWorkflow(plan, {
+      runStep: approvingRunStep,
+      moaRunner,
+      writeRunLedger: null,
+    });
+    expect(called).toBe(false);
+    expect(record.exitCode).toBe(0);
   });
 });

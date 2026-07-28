@@ -1477,7 +1477,7 @@ describe('Hermes routing helpers', () => {
       expect(record.approved).toBe(true);
       expect(record.exitCode).toBe(0);
       expect(calls.map((call) => call.role)).toEqual(['owner', 'reviewer', 'owner', 'reviewer']);
-      expect(calls[2].input).toBe('please-fix-0');
+      expect(calls[2].input).toBe('REVIEWER OUTPUT:\nplease-fix-0');
       expect(calls[3].input).toBe('owner-diff-1');
     });
 

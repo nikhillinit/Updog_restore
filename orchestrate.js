@@ -314,6 +314,8 @@ function createWorkflowPlan({
   ownership = null,
   risk = 'standard',
   debate = null,
+  review = 'standard',
+  moaConfig = null,
 }) {
   if (!WORKFLOW_MODES.has(requestedWorkflow)) {
     throw new Error(
@@ -350,8 +352,23 @@ function createWorkflowPlan({
   }
 
   if (
+    (review === 'moa' || review === 'moa-strict') &&
+    selected !== 'review' &&
+    selected !== 'debate' &&
+    ownerModel
+  ) {
+    steps.push({
+      role: 'moa-review',
+      model: moaConfig?.aggregator || 'sol',
+      action: 'multi-model lens review of artifact',
+      mode: review,
+    });
+  }
+
+  if (
     (selected === 'pair' || selected === 'chain' || selected === 'review') &&
-    ownership?.reviewer
+    ownership?.reviewer &&
+    review !== 'none'
   ) {
     steps.push({
       role: 'reviewer',
@@ -459,6 +476,8 @@ function createRoutingPlan({
       ownership,
       risk,
       debate: routing.debate || null,
+      review: tierConfig?.review || 'standard',
+      moaConfig: routing.moaReview || null,
     });
   }
 
@@ -864,8 +883,7 @@ async function runMoaReview({
   env = process.env,
   executor = executeModelCapture,
 }) {
-  const reviewerConfigKey =
-    mode === 'moa-strict' ? 'strictReviewers' : 'reviewers';
+  const reviewerConfigKey = mode === 'moa-strict' ? 'strictReviewers' : 'reviewers';
   const reviewers = moaConfig?.[reviewerConfigKey];
   const minimumReviewers = mode === 'moa-strict' ? 3 : 2;
   if (!Array.isArray(reviewers) || reviewers.length < minimumReviewers) {
@@ -935,9 +953,7 @@ async function runMoaReview({
   );
 
   const succeeded = votes.filter((vote) => vote.verdict !== 'error');
-  const approvals = succeeded.filter(
-    (vote) => vote.verdict === 'approve'
-  ).length;
+  const approvals = succeeded.filter((vote) => vote.verdict === 'approve').length;
   const degraded = succeeded.length < reviewers.length;
 
   const SEVERITY_RANK = { high: 3, medium: 2, low: 1 };
@@ -946,10 +962,7 @@ async function runMoaReview({
     for (const finding of vote.findings) {
       const key = findingKey(finding);
       const existing = byKey.get(key);
-      if (
-        !existing ||
-        SEVERITY_RANK[finding.severity] > SEVERITY_RANK[existing.severity]
-      ) {
+      if (!existing || SEVERITY_RANK[finding.severity] > SEVERITY_RANK[existing.severity]) {
         byKey.set(key, finding);
       }
     }
@@ -973,12 +986,7 @@ async function runMoaReview({
         '',
         'Write a concise reviewer-facing narrative: group related findings, order by severity, one paragraph max per finding.',
       ].join('\n');
-      const { code, output } = await executor(
-        moaConfig.aggregator,
-        aggregatorPrompt,
-        routing,
-        env
-      );
+      const { code, output } = await executor(moaConfig.aggregator, aggregatorPrompt, routing, env);
       if (code === 0) aggregatorSummary = output.trim();
     } catch {
       // narration is best-effort; the vote already decided the outcome
@@ -1175,10 +1183,14 @@ async function executeWorkflow(plan, deps = {}) {
   const stepByRole = (role) => workflow.steps.find((step) => step.role === role) || null;
   const ownerStep = stepByRole('owner');
   const specialistStep = stepByRole('specialist');
+  const moaStep = stepByRole('moa-review');
   const reviewerStep = stepByRole('reviewer');
   const auditStep = stepByRole('audit');
   const comparatorSteps = workflow.steps.filter((step) => step.role === 'comparator');
   const synthesisStep = stepByRole('synthesis');
+  const moaRunner = deps.moaRunner || runMoaReview;
+  const routing = deps.routing || null;
+  const env = deps.env || process.env;
 
   let specialistNotes = null;
   const records = [];
@@ -1204,6 +1216,7 @@ async function executeWorkflow(plan, deps = {}) {
   };
 
   let artifact = null;
+  let moaResult = null;
   let approved = true;
   let repairs = 0;
 
@@ -1228,15 +1241,80 @@ async function executeWorkflow(plan, deps = {}) {
       specialistNotes = specialist.output ?? null;
     }
 
-    if (reviewerStep) {
-      let review = await runRecorded(reviewerStep, artifact, 0);
-      approved = Boolean(review.approved);
+    const seenFindingKeys = new Set();
+
+    const runReviewRound = async (attempt) => {
+      let roundApproved = true;
+      let repairInput = '';
+
+      if (moaStep) {
+        moaResult = await moaRunner({
+          artifact: artifact ?? '',
+          task: plan.task ?? '',
+          mode: moaStep.mode,
+          moaConfig: deps.moaConfig || routing?.moaReview || {},
+          routing,
+          env,
+        });
+        records.push({
+          role: 'moa-review',
+          model: moaStep.model,
+          attempt,
+          code: moaResult.degraded && moaStep.mode === 'moa-strict' ? 1 : 0,
+          approved: moaResult.approved,
+          output: JSON.stringify({
+            votes: moaResult.votes,
+            findings: moaResult.findings,
+          }),
+        });
+        if (moaResult.degraded) {
+          process.stderr.write(
+            `[hermes] WARNING: MOA review degraded (mode ${moaStep.mode}): ${JSON.stringify(moaResult.votes)}\n`
+          );
+        }
+        if (!moaResult.approved) {
+          roundApproved = false;
+          repairInput += `MOA REVIEW FINDINGS:\n${JSON.stringify(moaResult.findings, null, 2)}\n`;
+        }
+      }
+
+      let reviewerApproved = null;
+      if (reviewerStep) {
+        const review = await runRecorded(reviewerStep, artifact, attempt);
+        reviewerApproved = Boolean(review.approved);
+        if (!review.approved) {
+          roundApproved = false;
+          repairInput += `REVIEWER OUTPUT:\n${review.output ?? ''}`;
+        }
+      }
+
+      return { roundApproved, repairInput, reviewerApproved };
+    };
+
+    if (moaStep || reviewerStep) {
+      let round = await runReviewRound(0);
+      approved = round.roundApproved;
+
       while (!approved && repairs < maxRepairs && ownerStep) {
+        if (moaResult?.degraded && moaStep?.mode === 'moa-strict') {
+          break; // transport failure: repairing code cannot fix a crashed reviewer lane
+        }
+        const newKeys = (moaResult?.findings || [])
+          .map(findingKey)
+          .filter((key) => !seenFindingKeys.has(key));
+        const moaIsSoleRejector =
+          moaStep && moaResult && !moaResult.approved && round.reviewerApproved !== false;
+        if (moaIsSoleRejector && !moaResult.degraded && newKeys.length === 0 && repairs > 0) {
+          break; // dry loop: MOA repeats known findings and nothing else rejects
+        }
+        for (const key of newKeys) seenFindingKeys.add(key);
+
         repairs += 1;
-        const repair = await runRecorded(ownerStep, review.output ?? '', repairs);
+        const repair = await runRecorded(ownerStep, round.repairInput, repairs);
+        // eslint-disable-next-line require-atomic-updates -- repair rounds own artifact state and run serially.
         artifact = repair.output ?? artifact;
-        review = await runRecorded(reviewerStep, artifact, repairs);
-        approved = Boolean(review.approved);
+        round = await runReviewRound(repairs);
+        approved = round.roundApproved;
       }
     }
 
@@ -1260,6 +1338,8 @@ async function executeWorkflow(plan, deps = {}) {
     exitCode = stepFailureCode;
   } else if (reviewerStep && !approved) {
     exitCode = 1;
+  } else if (moaStep && moaResult && !moaResult.approved) {
+    exitCode = 1;
   }
 
   const record = {
@@ -1268,6 +1348,7 @@ async function executeWorkflow(plan, deps = {}) {
     phase: plan.phase,
     risk: plan.risk,
     approved,
+    moa: moaResult,
     repairs,
     steps: records,
     gate: {
@@ -1522,6 +1603,9 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
       writeRunLedger: ledgerWriter,
       clock,
       runId,
+      routing,
+      env,
+      moaRunner: deps.moaRunner,
     });
     return record.exitCode;
   }
