@@ -8,9 +8,19 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = dirname(__filename);
 const LEGACY_COMMANDS = new Set(['bootstrap', 'smoke', 'enable-algorithms', 'doctor']);
-const DOCTOR_PROVIDERS = ['claude', 'codex', 'kimi-cli', 'gemini', 'agy'];
+const DOCTOR_PROVIDERS = ['claude', 'codex', 'kimi-cli', 'gemini', 'agy', 'ollama'];
 const WORKFLOW_MODES = new Set(['auto', 'solo', 'pair', 'chain', 'debate', 'review']);
-const MODEL_OVERRIDES = new Set(['claude', 'codex', 'kimi', 'gemini', 'agy']);
+const MODEL_OVERRIDES = new Set([
+  'claude',
+  'codex',
+  'kimi',
+  'gemini',
+  'agy',
+  'sol',
+  'luna',
+  'terra',
+  'qwen',
+]);
 const WORKFLOW_DEFERRED_BEHAVIOR = [
   'model execution',
   'artifact handoff',
@@ -117,6 +127,14 @@ function parseArgs(argv = []) {
       options.manualModel = 'gemini';
     } else if (arg === '--agy') {
       options.manualModel = 'agy';
+    } else if (arg === '--sol') {
+      options.manualModel = 'sol';
+    } else if (arg === '--luna') {
+      options.manualModel = 'luna';
+    } else if (arg === '--terra') {
+      options.manualModel = 'terra';
+    } else if (arg === '--qwen') {
+      options.manualModel = 'qwen';
     }
   }
 

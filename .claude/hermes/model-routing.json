@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "defaults": {
     "research": "claude",
     "production": "codex",
@@ -58,7 +58,11 @@
     "--codex": "codex",
     "--kimi": "kimi",
     "--gemini": "gemini",
-    "--agy": "agy"
+    "--agy": "agy",
+    "--sol": "sol",
+    "--luna": "luna",
+    "--terra": "terra",
+    "--qwen": "qwen"
   },
   "specialists": {
     "waterfall-specialist": {
@@ -157,7 +161,27 @@
     "agy": {
       "binEnv": "AGY_BIN",
       "defaultBin": "agy",
-      "args": []
+      "args": ["-p"]
+    },
+    "sol": {
+      "binEnv": "CODEX_BIN",
+      "defaultBin": "codex",
+      "args": ["exec", "--sandbox", "danger-full-access", "-m", "gpt-5.6-sol"]
+    },
+    "luna": {
+      "binEnv": "CODEX_BIN",
+      "defaultBin": "codex",
+      "args": ["exec", "--sandbox", "read-only", "-m", "gpt-5.6-luna"]
+    },
+    "terra": {
+      "binEnv": "CODEX_BIN",
+      "defaultBin": "codex",
+      "args": ["exec", "--sandbox", "read-only", "-m", "gpt-5.6-terra"]
+    },
+    "qwen": {
+      "binEnv": "OLLAMA_BIN",
+      "defaultBin": "ollama",
+      "args": ["run", "qwen3.6:latest"]
     }
   }
 }
