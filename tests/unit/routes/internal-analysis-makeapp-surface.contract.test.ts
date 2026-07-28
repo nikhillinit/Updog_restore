@@ -158,4 +158,33 @@ describe('internal-analysis makeApp surface', () => {
     expect(response.status).not.toBe(404);
     expect(response.status).toBe(400);
   }, 30_000);
+
+  it('returns 401 for an unauthenticated narrative generate (Task 19)', async () => {
+    const response = await request(await makeAppWithTestAuth())
+      .post('/api/funds/7/internal-analysis/narratives/generate')
+      .send({ analysisReferenceId: 1 });
+
+    // 401, never 404: the narrative routes must be mounted on this surface too.
+    expect(response.status).toBe(401);
+  }, 30_000);
+
+  it('mounts the narrative read on the same surface (Task 19)', async () => {
+    const response = await request(await makeAppWithTestAuth())
+      .get('/api/funds/abc/internal-analysis/narratives?analysisReferenceId=5')
+      .set('Authorization', await authorizationHeader());
+
+    // Non-numeric fund id rejects at the param guard, before any port work.
+    expect(response.status).not.toBe(404);
+    expect(response.status).toBe(400);
+  }, 30_000);
+
+  it('mounts the append-only notes write on the same surface (Task 19)', async () => {
+    const response = await request(await makeAppWithTestAuth())
+      .post('/api/funds/abc/internal-analysis/notes')
+      .set('Authorization', await authorizationHeader())
+      .send({ analysisReferenceId: 5, body: 'x' });
+
+    expect(response.status).not.toBe(404);
+    expect(response.status).toBe(400);
+  }, 30_000);
 });
