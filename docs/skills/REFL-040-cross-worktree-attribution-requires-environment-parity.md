@@ -205,8 +205,22 @@ Before declaring a commit causal across worktrees:
   mock.
 - **Minimal control:** Same feature tree with explicit test-mode markers:
   `4/4 passed`.
+- **Inverse control (baseline under the failing environment):** `origin/main`
+  (`544a1f0c`) with Task 19 **absent**, run under an injected `.env`
+  (`NODE_ENV=development`) in an otherwise clean worktree, reproduced the
+  identical `3 failed / 1 passed` and `expected 400 to be 200`. This
+  demonstrates the environment, not the feature commit, is causal and closes the
+  attribution loop that gate step 5 requires. Without this direction the
+  exoneration rests on inference ("schedulers pre-exist") rather than
+  observation.
 - **Repair:** Commit `ffc3c8bd` added one line to `vitest.config.mjs`:
   `_EXPLICIT_NODE_ENV: 'test'`.
+- **Production safety:** The shifted rows are a test-only artifact. The ordered
+  mock-result queue exists solely in the unit test; a real database has no
+  shared ordered fixture, so a scheduler's query cannot consume rows destined
+  for a later request. Schedulers starting under development or production is
+  intended behavior, and the cohort route returns correct data in every
+  non-mocked environment. No production impact.
 - **Focused validation:** Cohort regression `4/4`; Task 19 tests `45/45`;
   post-fast-forward combined proof `49/49`.
 - **Broad validation:** Full configured server/client unit suite exited `0`
