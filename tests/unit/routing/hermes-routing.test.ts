@@ -214,6 +214,173 @@ describe('Hermes routing helpers', () => {
     expect(result).toEqual({ code: 0, output: 'captured-output' });
   });
 
+  test('executeModelCapture pins the child process to the routed workspace', async () => {
+    const events: { close?: (code: number) => void } = {};
+    let spawnedOptions: { cwd?: string } | null = null;
+    const fakeChild = {
+      stdin: { write: () => undefined, end: () => undefined },
+      stdout: { on: () => undefined },
+      on: (event: string, cb: (code: number) => void) => {
+        if (event === 'close') events.close = cb;
+      },
+    };
+    const spawnImpl = ((...spawnArgs: unknown[]) => {
+      spawnedOptions = spawnArgs[2] as { cwd?: string };
+      queueMicrotask(() => events.close?.(0));
+      return fakeChild;
+    }) as unknown as typeof import('node:child_process').spawn;
+
+    await executeModelCapture(
+      'stub',
+      'prompt',
+      { commands: { stub: { binEnv: 'STUB_BIN', defaultBin: 'node' } } },
+      process.env,
+      { spawn: spawnImpl, workspace: '/repo/Updog_restore' }
+    );
+
+    expect(spawnedOptions?.cwd).toBe('/repo/Updog_restore');
+  });
+
+  test('executeModelCapture passes argument-delivered prompts on argv instead of stdin', async () => {
+    const events: { close?: (code: number) => void } = {};
+    const stdinWrites: unknown[] = [];
+    let spawnedArgs: string[] | null = null;
+    const fakeChild = {
+      stdin: {
+        write: (value: unknown) => {
+          stdinWrites.push(value);
+        },
+        end: () => undefined,
+      },
+      stdout: {
+        on: () => undefined,
+      },
+      on: (event: string, cb: (code: number) => void) => {
+        if (event === 'close') events.close = cb;
+      },
+    };
+    const spawnImpl = ((...spawnArgs: unknown[]) => {
+      spawnedArgs = spawnArgs[1] as string[];
+      queueMicrotask(() => events.close?.(0));
+      return fakeChild;
+    }) as unknown as typeof import('node:child_process').spawn;
+    const captureRouting = {
+      commands: {
+        agy: {
+          binEnv: 'AGY_BIN',
+          defaultBin: 'node',
+          args: ['--mode', 'plan', '--sandbox', '-p'],
+          promptDelivery: 'argument',
+        },
+      },
+    };
+
+    await executeModelCapture('agy', 'inspect the repository', captureRouting, process.env, {
+      spawn: spawnImpl,
+    });
+
+    expect(spawnedArgs).toEqual(['--mode', 'plan', '--sandbox', '-p', 'inspect the repository']);
+    expect(stdinWrites).toEqual([]);
+  });
+
+  test('executeModelCapture bypasses the Windows shell only for argument-delivered prompts', async () => {
+    const spawnedShellValues: boolean[] = [];
+    const spawnImpl = ((...spawnArgs: unknown[]) => {
+      const events: { close?: (code: number) => void } = {};
+      const fakeChild = {
+        stdin: { write: () => undefined, end: () => undefined },
+        stdout: { on: () => undefined },
+        on: (event: string, cb: (code: number) => void) => {
+          if (event === 'close') events.close = cb;
+        },
+      };
+      const options = spawnArgs[2] as { shell?: boolean };
+      spawnedShellValues.push(options.shell === true);
+      queueMicrotask(() => events.close?.(0));
+      return fakeChild;
+    }) as unknown as typeof import('node:child_process').spawn;
+    const captureRouting = {
+      commands: {
+        argument: {
+          binEnv: 'ARGUMENT_BIN',
+          defaultBin: process.execPath,
+          promptDelivery: 'argument',
+        },
+        stdin: {
+          binEnv: 'STDIN_BIN',
+          defaultBin: process.execPath,
+        },
+      },
+    };
+    const platformDescriptor = Object.getOwnPropertyDescriptor(process, 'platform');
+    if (!platformDescriptor) throw new Error('process.platform descriptor unavailable');
+
+    try {
+      Object.defineProperty(process, 'platform', { value: 'win32' });
+      await executeModelCapture(
+        'argument',
+        'prompt with & shell syntax',
+        captureRouting,
+        {},
+        {
+          spawn: spawnImpl,
+        }
+      );
+      await executeModelCapture(
+        'stdin',
+        'prompt with & shell syntax',
+        captureRouting,
+        {},
+        {
+          spawn: spawnImpl,
+        }
+      );
+    } finally {
+      Object.defineProperty(process, 'platform', platformDescriptor);
+    }
+
+    expect(spawnedShellValues).toEqual([false, true]);
+  });
+
+  test('executeModelCapture removes command-specific inherited environment variables', async () => {
+    const events: { close?: (code: number) => void } = {};
+    const spawned: { env?: Record<string, string | undefined> } = {};
+    const fakeChild = {
+      stdin: { write: () => undefined, end: () => undefined },
+      stdout: { on: () => undefined },
+      on: (event: string, cb: (code: number) => void) => {
+        if (event === 'close') events.close = cb;
+      },
+    };
+    const spawnImpl = ((...spawnArgs: unknown[]) => {
+      spawned.env = (spawnArgs[2] as { env: Record<string, string | undefined> }).env;
+      queueMicrotask(() => events.close?.(0));
+      return fakeChild;
+    }) as unknown as typeof import('node:child_process').spawn;
+    const captureRouting = {
+      commands: {
+        kimi: {
+          binEnv: 'KIMI_BIN',
+          defaultBin: 'node',
+          unsetEnv: ['PYTHONPATH', 'PYTHONHOME'],
+        },
+      },
+    };
+    const inheritedEnv = {
+      KEEP_ME: 'yes',
+      PYTHONPATH: '/hermes/python',
+      PYTHONHOME: '/hermes/home',
+    };
+
+    await executeModelCapture('kimi', 'inspect', captureRouting, inheritedEnv, {
+      spawn: spawnImpl,
+    });
+
+    expect(spawned.env?.['PYTHONPATH']).toBeUndefined();
+    expect(spawned.env?.['PYTHONHOME']).toBeUndefined();
+    expect(spawned.env?.['KEEP_ME']).toBe('yes');
+  });
+
   test('main executes a live workflow through executeWorkflow and returns its exit code', async () => {
     const roles = [];
     const code = await main(
@@ -788,6 +955,19 @@ describe('Hermes routing helpers', () => {
     expect(prompt).toContain('.claude/schemas/handoff.schema.json');
   });
 
+  test('buildPrompt pins command tools to the routed workspace', () => {
+    const plan = createRoutingPlan({
+      phase: 'research',
+      task: 'inspect routing config',
+      routing,
+    });
+
+    const prompt = buildPrompt({ plan, brain: 'DEV_BRAIN', workspace: '/repo/Updog_restore' });
+
+    expect(prompt).toContain('WORKSPACE: /repo/Updog_restore');
+    expect(prompt).toContain('Set command-tool Cwd to /repo/Updog_restore');
+  });
+
   test('generateRunId formats deterministically from a clock', () => {
     const id = generateRunId(new Date('2026-05-20T18:30:45.123Z'));
     expect(id).toBe('hermes-2026-05-20T18-30-45-123Z');
@@ -828,6 +1008,20 @@ describe('Hermes routing helpers', () => {
 
     expect(result).toEqual({ command: 'npm run check', skipped: false, status: 0 });
     expect(calls).toEqual([{ bin: 'npm', args: ['run', 'check'] }]);
+  });
+
+  test('runGate pins the gate process to the routed workspace', () => {
+    let cwd: string | undefined;
+
+    runGate('npm run check', {
+      workspace: '/repo/Updog_restore',
+      runner: (_bin, _args, options) => {
+        cwd = options.cwd;
+        return { status: 0 };
+      },
+    });
+
+    expect(cwd).toBe('/repo/Updog_restore');
   });
 
   test('runGate reports non-zero exits', () => {
@@ -1283,7 +1477,7 @@ describe('Hermes routing helpers', () => {
       expect(record.approved).toBe(true);
       expect(record.exitCode).toBe(0);
       expect(calls.map((call) => call.role)).toEqual(['owner', 'reviewer', 'owner', 'reviewer']);
-      expect(calls[2].input).toBe('please-fix-0');
+      expect(calls[2].input).toBe('REVIEWER OUTPUT:\nplease-fix-0');
       expect(calls[3].input).toBe('owner-diff-1');
     });
 

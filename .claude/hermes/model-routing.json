@@ -1,5 +1,66 @@
 {
-  "version": 2,
+  "version": 3,
+  "tiers": {
+    "T0": {
+      "label": "trivial",
+      "keywords": [
+        { "phrase": "fix typo", "weight": 3 },
+        { "phrase": "reformat", "weight": 3 },
+        { "phrase": "rename", "weight": 3 },
+        { "phrase": "doc tweak", "weight": 3 },
+        { "phrase": "one-liner", "weight": 3 },
+        { "phrase": "bump version", "weight": 3 }
+      ],
+      "minScore": 3,
+      "modelByPhase": {
+        "research": "qwen",
+        "production": "sol",
+        "distribution": "qwen"
+      },
+      "review": "none"
+    },
+    "T2": {
+      "label": "complex",
+      "keywords": [
+        { "phrase": "multi-module", "weight": 4 },
+        { "phrase": "architecture", "weight": 3 },
+        { "phrase": "cross-cutting", "weight": 3 },
+        { "phrase": "migration", "weight": 3 },
+        { "phrase": "race condition", "weight": 4 },
+        { "phrase": "concurrency", "weight": 3 },
+        { "phrase": "performance regression", "weight": 3 }
+      ],
+      "minScore": 3,
+      "modelByPhase": {
+        "research": "claude",
+        "production": "sol",
+        "distribution": "claude"
+      },
+      "review": "moa"
+    },
+    "T3": {
+      "label": "critical",
+      "modelByPhase": {
+        "research": "claude",
+        "production": "sol",
+        "distribution": "claude"
+      },
+      "review": "moa-strict"
+    }
+  },
+  "moaReview": {
+    "reviewers": [
+      { "model": "terra", "lens": "correctness" },
+      { "model": "luna", "lens": "spec-compliance" },
+      { "model": "qwen", "lens": "simplicity-efficiency" }
+    ],
+    "strictReviewers": [
+      { "model": "terra", "lens": "correctness" },
+      { "model": "luna", "lens": "spec-compliance" },
+      { "model": "claude", "lens": "numeric-precision" }
+    ],
+    "aggregator": "sol"
+  },
   "defaults": {
     "research": "claude",
     "production": "codex",
@@ -58,7 +119,11 @@
     "--codex": "codex",
     "--kimi": "kimi",
     "--gemini": "gemini",
-    "--agy": "agy"
+    "--agy": "agy",
+    "--sol": "sol",
+    "--luna": "luna",
+    "--terra": "terra",
+    "--qwen": "qwen"
   },
   "specialists": {
     "waterfall-specialist": {
@@ -147,7 +212,8 @@
     "kimi": {
       "binEnv": "KIMI_CODE_BIN",
       "defaultBin": "kimi-cli",
-      "args": ["--print", "--input-format", "text", "--final-message-only"]
+      "args": ["--print", "--input-format", "text", "--final-message-only"],
+      "unsetEnv": ["PYTHONPATH", "PYTHONHOME"]
     },
     "gemini": {
       "binEnv": "GEMINI_BIN",
@@ -157,7 +223,28 @@
     "agy": {
       "binEnv": "AGY_BIN",
       "defaultBin": "agy",
-      "args": []
+      "args": ["--mode", "plan", "--sandbox", "-p"],
+      "promptDelivery": "argument"
+    },
+    "sol": {
+      "binEnv": "CODEX_BIN",
+      "defaultBin": "codex",
+      "args": ["exec", "--sandbox", "danger-full-access", "-m", "gpt-5.6-sol"]
+    },
+    "luna": {
+      "binEnv": "CODEX_BIN",
+      "defaultBin": "codex",
+      "args": ["exec", "--sandbox", "read-only", "-m", "gpt-5.6-luna"]
+    },
+    "terra": {
+      "binEnv": "CODEX_BIN",
+      "defaultBin": "codex",
+      "args": ["exec", "--sandbox", "read-only", "-m", "gpt-5.6-terra"]
+    },
+    "qwen": {
+      "binEnv": "OLLAMA_BIN",
+      "defaultBin": "ollama",
+      "args": ["run", "qwen3.6:latest"]
     }
   }
 }

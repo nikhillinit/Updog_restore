@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-07-13
+last_updated: 2026-07-28
 owner: Core Team
 review_cadence: P90D
 ---
@@ -8930,10 +8930,10 @@ display names).
 
 **Date:** 2026-07-26 **Status:** [ACCEPTED] Accepted **Decision:** Convert
 unpriced SAFE and note participations without fabricating source lots by
-anchoring relief to their immutable acquisition position event. Use exact
-fund-, vehicle-, company-identity-, participation-, tranche-, version-, origin-,
-and basis-scoped lineage. Keep position valuation and direct marks isolated from
-the legacy Current/Forecast ladder amended by ADR-029 and ADR-054.
+anchoring relief to their immutable acquisition position event. Use exact fund-,
+vehicle-, company-identity-, participation-, tranche-, version-, origin-, and
+basis-scoped lineage. Keep position valuation and direct marks isolated from the
+legacy Current/Forecast ladder amended by ADR-029 and ADR-054.
 
 ### Context
 
@@ -8947,8 +8947,8 @@ and SPV holdings or silently borrowing company-level legacy NAV.
 Migration `0042_positions_ownership_compat` established the position substrate.
 Task 11 owns the next live additive migration,
 `0043_position_source_basis_reliefs`; Wave G must recompute and take the next
-unclaimed number, expected to be `0044`. Already-ledgered production manifest
-16 remains pinned to `0042`; additive production manifest 17 owns `0043`.
+unclaimed number, expected to be `0044`. Already-ledgered production manifest 16
+remains pinned to `0042`; additive production manifest 17 owns `0043`.
 Production application is separately authorized for Item 12 closeout and still
 requires exact-main audit/apply proof through the governed workflow.
 
@@ -8981,9 +8981,9 @@ requires exact-main audit/apply proof through the governed workflow.
   `(fund_id, vehicle_id, company_identity_id)` and bitemporal by effective date
   and recorded knowledge. Accepted direct `direct_position_fmv` wins for the
   position surface; age over 120 days warns without changing basis. Otherwise,
-  accepted ownership plus typed post-money evidence may derive valuation.
-  Mixed priced and contingent holdings disclose the priced component and return
-  null aggregate FMV.
+  accepted ownership plus typed post-money evidence may derive valuation. Mixed
+  priced and contingent holdings disclose the priced component and return null
+  aggregate FMV.
 - `direct_position_fmv` never enters legacy facts or LP-metric implicit paths;
   those continue to accept only `planning_company_fmv`. This preserves the
   ADR-029/ADR-054 Current/Forecast ladder byte-for-byte.
@@ -9033,34 +9033,109 @@ requires exact-main audit/apply proof through the governed workflow.
 
 ### Consequences
 
-- Both source-lot and no-source-lot conversions share one command,
-  idempotency receipt, conservation equation, and rollback boundary.
+- Both source-lot and no-source-lot conversions share one command, idempotency
+  receipt, conservation equation, and rollback boundary.
 - `0043` is additive and replay-safe; it weakens no existing check or foreign
   key. Production manifest 17 isolates it from already-ledgered manifest 16 so
   apply never replays `0042`. Production application and real-PostgreSQL proof
   remain separate governed release checks.
 - 11D-B uses the selected atomic compatibility-compensation writer. Canonical
-  and deterministic compatibility changes share the correction transaction,
-  lock order, idempotency outcome, and rollback boundary. Ambiguous active
-  rounds, multiple lots, referenced lots, lineage drift, or optimistic-lock
-  failure reject the command with zero committed writes. No migration is
-  required. Every writer that mutates direct legacy rounds or lots must first
-  lock the owning `investment`; that row is the compatibility projection mutex.
-- 11F-A and 11F-B remain unresolved product gates. No visible mount or navigation
-  change follows from this ADR.
+  and deterministic compatibility changes share the correction transaction, lock
+  order, idempotency outcome, and rollback boundary. Ambiguous active rounds,
+  multiple lots, referenced lots, lineage drift, or optimistic-lock failure
+  reject the command with zero committed writes. No migration is required. Every
+  writer that mutates direct legacy rounds or lots must first lock the owning
+  `investment`; that row is the compatibility projection mutex.
+- 11F-A and 11F-B remain unresolved product gates. No visible mount or
+  navigation change follows from this ADR.
 - Partial conversion, conversion-chain correction, production data repair,
   public exposure of knowledge cutoffs or internal snapshot receipts, and
   replacement of the legacy Current/Forecast contract are non-goals.
 
 ### Proof Matrix
 
-| Slice | Local proof | External proof | Status |
-| --- | --- | --- | --- |
-| 11A compatibility substrate | PR #1207 merged into `origin/main` at `2e00a5c`; retained by this branch | CI gate passed on PR #1207 before this lane | Complete |
-| 11B conversion basis | Option B amendment approved; schema/unit/prod-schema tests cover `0043` and no synthetic lot | Testcontainers SQL path authored and registered; execution pending Docker lane | Locally complete, external proof pending |
-| P3 conversion | Unit, route-contract, and PostgreSQL test code cover source-lot and no-source-lot conversion, idempotency, rollback, and cohort isolation | Testcontainers execution pending Docker lane | Locally complete, external proof pending |
-| 11C current positions and valuation | Unit and PostgreSQL test code cover exact vehicle/company folding, ownership snapshots, direct marks, stale warnings, and mixed contingent valuation | Testcontainers execution pending Docker lane | Locally complete, external proof pending |
-| 11D backfill and correction | Unit and CLI tests cover dry-run/apply/resume, deterministic hashes, terminal corrected-lineage replay, atomic investment/round/lot compensation, idempotency, ambiguity rejection, and rollback | Testcontainers correction, replay, concurrency, and rollback code authored; execution pending Docker lane | 11D-A locally complete; 11D-B selected and locally implemented, external proof pending |
-| 11E facts | Contract, snapshot, and Current Forecast V2 unit tests cover `(policyVersion, payloadSchemaId)`, payload 2 provenance refs, terminal heads, blocked evaluations, and 1.0.x compatibility | Testcontainers execution pending Docker lane | Locally complete, external proof pending |
-| 11F UI | Hidden hook/component tests cover loading, error, empty, direct/derived/unavailable basis, stale marks, and contingent exclusion; no visible nav mount | Manual/product gate pending for 11F-A and 11F-B | Prepared, gated |
-| 11G ADR | This ADR records Option B, migration ownership, production manifest isolation, conversion conservation, valuation ladder, facts payload, legacy isolation, and unresolved UI gates | Issue closure authorized only after migration, deployment, and smoke proof | Complete as local record |
+| Slice                               | Local proof                                                                                                                                                                                      | External proof                                                                                            | Status                                                                                 |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 11A compatibility substrate         | PR #1207 merged into `origin/main` at `2e00a5c`; retained by this branch                                                                                                                         | CI gate passed on PR #1207 before this lane                                                               | Complete                                                                               |
+| 11B conversion basis                | Option B amendment approved; schema/unit/prod-schema tests cover `0043` and no synthetic lot                                                                                                     | Testcontainers SQL path authored and registered; execution pending Docker lane                            | Locally complete, external proof pending                                               |
+| P3 conversion                       | Unit, route-contract, and PostgreSQL test code cover source-lot and no-source-lot conversion, idempotency, rollback, and cohort isolation                                                        | Testcontainers execution pending Docker lane                                                              | Locally complete, external proof pending                                               |
+| 11C current positions and valuation | Unit and PostgreSQL test code cover exact vehicle/company folding, ownership snapshots, direct marks, stale warnings, and mixed contingent valuation                                             | Testcontainers execution pending Docker lane                                                              | Locally complete, external proof pending                                               |
+| 11D backfill and correction         | Unit and CLI tests cover dry-run/apply/resume, deterministic hashes, terminal corrected-lineage replay, atomic investment/round/lot compensation, idempotency, ambiguity rejection, and rollback | Testcontainers correction, replay, concurrency, and rollback code authored; execution pending Docker lane | 11D-A locally complete; 11D-B selected and locally implemented, external proof pending |
+| 11E facts                           | Contract, snapshot, and Current Forecast V2 unit tests cover `(policyVersion, payloadSchemaId)`, payload 2 provenance refs, terminal heads, blocked evaluations, and 1.0.x compatibility         | Testcontainers execution pending Docker lane                                                              | Locally complete, external proof pending                                               |
+| 11F UI                              | Hidden hook/component tests cover loading, error, empty, direct/derived/unavailable basis, stale marks, and contingent exclusion; no visible nav mount                                           | Manual/product gate pending for 11F-A and 11F-B                                                           | Prepared, gated                                                                        |
+| 11G ADR                             | This ADR records Option B, migration ownership, production manifest isolation, conversion conservation, valuation ladder, facts payload, legacy isolation, and unresolved UI gates               | Issue closure authorized only after migration, deployment, and smoke proof                                | Complete as local record                                                               |
+
+---
+
+## ADR-063: Sophistication-tiered model routing with native MOA review
+
+**Date:** 2026-07-28 **Status:** [ACCEPTED] Accepted **Decision:** Add a
+sophistication tier axis (T0–T3) to Hermes routing, composed orthogonally with
+phase routing (phase decides roles, artifacts, and gates; tier decides owner
+model (subject to existing `--model` overrides and long-context routing, both of
+which still take precedence) and review depth), and implement the coding-review
+diamond natively with lens-diverse reviewers, a schema-validated JSON findings
+contract, a code-decided vote, and decoupled `reviewers` / `strictReviewers`
+panels.
+
+### Context
+
+Multiple model lanes became available beyond the original claude/codex/kimi
+trio: gpt-5.6 variants (`sol`, `luna`, `terra`) via the Codex CLI, local
+`qwen3.6` via Ollama, and `agy`. Routing every task to premium lanes wastes
+quota on trivial work, while under-reviewing critical work—especially financial
+calculations—risks defects that gates alone catch too late. The Hermes Agent
+(Nous) MOA preset was considered for multi-model review, but it has no headless
+CLI entry point and sends identical prompts to all reference models rather than
+distinct review lenses.
+
+### Decision
+
+- Introduce tiers T0 (trivial), T1 (standard fallback), T2 (complex), and T3
+  (critical) in `orchestrate.js` and `.claude/hermes/model-routing.json`. Tier
+  classification uses explicit `--tier` if given, otherwise weighted keyword
+  scoring; financial specialist risk always promotes to T3 and cannot be
+  overridden downward.
+- Tier selects the owner model per phase from `modelByPhase` after `--model`
+  overrides and long-context routing (e.g., T0 production uses `sol`; T0
+  research/distribution use `qwen`; T2/T3 use `claude`/`sol`/`claude`), falling
+  back to phase defaults for T1.
+- T2 uses MOA review through the `reviewers` panel (`terra`/correctness,
+  `luna`/spec-compliance, `qwen`/simplicity-efficiency). T3 uses the independent
+  `strictReviewers` panel (`terra`/correctness, `luna`/spec-compliance,
+  `claude`/numeric-precision). The two panels are decoupled so editing one never
+  changes the other.
+- The MOA diamond runs reviewers in parallel with fresh context, distinct
+  lenses, and a strict JSON findings contract. Approval is decided by code:
+  `moa` requires unanimous approval among surviving reviewers (at least 2
+  configured); `moa-strict` requires at least 3 configured reviewers and at
+  least 2 approvals with zero degradation (today's config ships exactly 3
+  reviewers, i.e. 2-of-3; a larger panel without raising the threshold would
+  lower the required consensus). `sol` serves only as a non-authoritative
+  aggregator/narrator.
+- Degraded fan-in is loud in T2 (stderr warning) and fatal in T3 (the repair
+  loop breaks immediately with zero repair attempts, though any audit and gate
+  steps still run before the final exit code reflects the unapproved review). A
+  malformed reviewer entry is rejected before any reviewer is spawned; reviewer
+  errors are isolated and cannot crash the panel.
+- The repair loop deduplicates findings by file:line:claim and exits on a dry
+  loop when MOA is the sole rejector and repeats the same findings as the
+  immediately preceding round.
+- T2/T3 production dispatches auto-upgrade to a live `pair` workflow unless the
+  caller passes `--dry-run`, `--json`, or an explicit `--workflow`, ensuring the
+  mandated review actually runs.
+- Anchors are unchanged: gates, tests, and Phoenix truth cases outrank every
+  model verdict.
+
+### Consequences
+
+- T0 research/distribution work runs on the quota-free local `qwen` lane; T0
+  production uses `sol` because `qwen` has no tool-use loop and cannot write
+  files or run tests.
+- T2/T3 production diffs receive multi-model adversarial review without a Hermes
+  Agent dependency.
+- `orchestrate.js` stays dependency-free; routing and MOA vote logic remain
+  deterministic and dry-run auditable.
+- The extra panel configuration and strict-mode failure behavior add operational
+  surface; a misconfigured `strictReviewers` array blocks T3 runs rather than
+  silently shrinking the panel.

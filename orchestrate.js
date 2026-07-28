@@ -8,9 +8,20 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = dirname(__filename);
 const LEGACY_COMMANDS = new Set(['bootstrap', 'smoke', 'enable-algorithms', 'doctor']);
-const DOCTOR_PROVIDERS = ['claude', 'codex', 'kimi-cli', 'gemini', 'agy'];
+const DOCTOR_PROVIDERS = ['claude', 'codex', 'kimi-cli', 'gemini', 'agy', 'ollama'];
 const WORKFLOW_MODES = new Set(['auto', 'solo', 'pair', 'chain', 'debate', 'review']);
-const MODEL_OVERRIDES = new Set(['claude', 'codex', 'kimi', 'gemini', 'agy']);
+const MODEL_OVERRIDES = new Set([
+  'claude',
+  'codex',
+  'kimi',
+  'gemini',
+  'agy',
+  'sol',
+  'luna',
+  'terra',
+  'qwen',
+]);
+const TIER_NAMES = ['T0', 'T1', 'T2', 'T3'];
 const WORKFLOW_DEFERRED_BEHAVIOR = [
   'model execution',
   'artifact handoff',
@@ -57,6 +68,7 @@ function parseArgs(argv = []) {
     live: false,
     manualModel: null,
     legacyCommand: null,
+    tier: null,
   };
 
   if (argv[0] && LEGACY_COMMANDS.has(argv[0])) {
@@ -104,6 +116,13 @@ function parseArgs(argv = []) {
     } else if (arg === '--phase') {
       options.phase = argv[index + 1] || options.phase;
       index += 1;
+    } else if (arg === '--tier') {
+      const tier = argv[index + 1] || '';
+      if (!TIER_NAMES.includes(tier)) {
+        throw new Error(`Unknown tier "${tier}". Expected one of: ${TIER_NAMES.join(', ')}.`);
+      }
+      options.tier = tier;
+      index += 1;
     } else if (arg === '--task') {
       options.task = argv[index + 1] || '';
       index += 1;
@@ -117,6 +136,14 @@ function parseArgs(argv = []) {
       options.manualModel = 'gemini';
     } else if (arg === '--agy') {
       options.manualModel = 'agy';
+    } else if (arg === '--sol') {
+      options.manualModel = 'sol';
+    } else if (arg === '--luna') {
+      options.manualModel = 'luna';
+    } else if (arg === '--terra') {
+      options.manualModel = 'terra';
+    } else if (arg === '--qwen') {
+      options.manualModel = 'qwen';
     }
   }
 
@@ -195,7 +222,45 @@ function scoreSpecialist(task, specialists = {}, scoring = {}) {
   return { ...selected, candidates };
 }
 
-function chooseModel(task, phase, routing, manualModel = null) {
+// Sophistication tier classification. Explicit flag wins; otherwise weighted
+// keyword scoring per tier (same idiom as scoreSpecialist); highest matching
+// tier wins; absent config or no match falls back to T1 (status quo behavior).
+function classifyTier(task, routing, explicitTier = null) {
+  if (explicitTier) {
+    if (!TIER_NAMES.includes(explicitTier)) {
+      throw new Error(`Unknown tier "${explicitTier}". Expected one of: ${TIER_NAMES.join(', ')}.`);
+    }
+    return { tier: explicitTier, source: 'flag', matched: [] };
+  }
+
+  const tiers = routing.tiers || {};
+  const input = String(task || '').toLowerCase();
+  let best = null;
+
+  for (const name of TIER_NAMES) {
+    const config = tiers[name];
+    if (!config || !Array.isArray(config.keywords)) continue;
+
+    const minScore = config.minScore ?? 3;
+    let score = 0;
+    const matched = [];
+    for (const keyword of config.keywords) {
+      const phrase = String(keyword.phrase || '').toLowerCase();
+      const weight = keyword.weight || 1;
+      if (phrase && input.includes(phrase)) {
+        score += weight;
+        matched.push(phrase);
+      }
+    }
+    if (score >= minScore) {
+      best = { tier: name, source: 'keyword', matched };
+    }
+  }
+
+  return best || { tier: 'T1', source: 'default', matched: [] };
+}
+
+function chooseModel(task, phase, routing, manualModel = null, tierConfig = null) {
   if (manualModel) return manualModel;
 
   const input = task.toLowerCase();
@@ -203,6 +268,10 @@ function chooseModel(task, phase, routing, manualModel = null) {
     if (input.includes(String(trigger).toLowerCase())) {
       return routing.longContextModel || 'kimi';
     }
+  }
+
+  if (tierConfig?.modelByPhase?.[phase]) {
+    return tierConfig.modelByPhase[phase];
   }
 
   return routing.defaults?.[phase] || 'claude';
@@ -245,6 +314,8 @@ function createWorkflowPlan({
   ownership = null,
   risk = 'standard',
   debate = null,
+  review = 'standard',
+  moaConfig = null,
 }) {
   if (!WORKFLOW_MODES.has(requestedWorkflow)) {
     throw new Error(
@@ -281,8 +352,23 @@ function createWorkflowPlan({
   }
 
   if (
+    (review === 'moa' || review === 'moa-strict') &&
+    selected !== 'review' &&
+    selected !== 'debate' &&
+    ownerModel
+  ) {
+    steps.push({
+      role: 'moa-review',
+      model: moaConfig?.aggregator || 'sol',
+      action: 'multi-model lens review of artifact',
+      mode: review,
+    });
+  }
+
+  if (
     (selected === 'pair' || selected === 'chain' || selected === 'review') &&
-    ownership?.reviewer
+    ownership?.reviewer &&
+    review !== 'none'
   ) {
     steps.push({
       role: 'reviewer',
@@ -347,20 +433,31 @@ function createRoutingPlan({
   task,
   routing,
   manualModel = null,
+  explicitTier = null,
   requestedWorkflow = null,
   skipPreflightGate = false,
   gateSkipReason = null,
 }) {
   const specialist = scoreSpecialist(task, routing.specialists || {}, routing.scoring || {});
-  const model = chooseModel(task, phase, routing, manualModel);
+  let tierResult = classifyTier(task, routing, explicitTier);
+  if (specialist?.risk === 'financial' && tierResult.tier !== 'T3') {
+    tierResult = { tier: 'T3', source: 'financial-promotion', matched: [] };
+  }
+  const tierConfig = routing.tiers?.[tierResult.tier] || null;
+  const model = chooseModel(task, phase, routing, manualModel, tierConfig);
   const gate = resolveGate(phase, specialist, routing.gates || {});
-  const ownership = resolveOwnership(phase, specialist, routing.ownership || {});
+  let ownership = resolveOwnership(phase, specialist, routing.ownership || {});
+  if (ownership && tierConfig?.modelByPhase?.[phase] && model === tierConfig.modelByPhase[phase]) {
+    ownership = { ...ownership, owner: model };
+  }
   const risk = specialist?.risk || 'standard';
 
   const plan = {
     phase,
     task,
     model,
+    tier: { name: tierResult.tier, source: tierResult.source, matched: tierResult.matched },
+    review: tierConfig?.review || 'standard',
     specialist: specialist?.name || null,
     risk,
     score: specialist?.score || 0,
@@ -379,6 +476,8 @@ function createRoutingPlan({
       ownership,
       risk,
       debate: routing.debate || null,
+      review: tierConfig?.review || 'standard',
+      moaConfig: routing.moaReview || null,
     });
   }
 
@@ -396,12 +495,13 @@ function createRoutingPlan({
   return plan;
 }
 
-function buildPrompt({ plan, brain, soul = '', runId = null }) {
+function buildPrompt({ plan, brain, soul = '', runId = null, workspace = ROOT }) {
   const lines = [
     'You are operating inside Updog_restore.',
     '',
     `PHASE: ${plan.phase}`,
     `MODEL ROLE: ${plan.model}`,
+    `WORKSPACE: ${workspace}`,
   ];
 
   if (plan.ownership) {
@@ -445,16 +545,17 @@ function buildPrompt({ plan, brain, soul = '', runId = null }) {
     '',
     'Instructions:',
     '1. Read your governance file first when filesystem access is available.',
-    '2. Search for existing implementations before proposing new code.',
-    '3. Use .claude/DISCOVERY-MAP.md and .claude/AGENT-DIRECTORY.md for routing.',
-    '4. Prefer existing specialists before inventing new abstractions.',
-    '5. Produce the smallest safe diff.',
-    '6. If financial logic is touched, confirm calc-gate coverage.',
-    '7. Return: Summary, Affected Files, Changes or Plan, Verification, Risks.',
-    '8. End with a compact Handoff block listing:',
+    `2. Set command-tool Cwd to ${workspace}; never run repository commands from a tool scratch directory.`,
+    '3. Search for existing implementations before proposing new code.',
+    '4. Use .claude/DISCOVERY-MAP.md and .claude/AGENT-DIRECTORY.md for routing.',
+    '5. Prefer existing specialists before inventing new abstractions.',
+    '6. Produce the smallest safe diff.',
+    '7. If financial logic is touched, confirm calc-gate coverage.',
+    '8. Return: Summary, Affected Files, Changes or Plan, Verification, Risks.',
+    '9. End with a compact Handoff block listing:',
     '   Run ID, Phase, Owner, Reviewer, Task, Protected areas, Files touched,',
     '   Commands run, Gate status, Decision needed, Next action.',
-    '9. If writing a persisted handoff or checkpoint artifact, conform to',
+    '10. If writing a persisted handoff or checkpoint artifact, conform to',
     '   .claude/schemas/handoff.schema.json.'
   );
 
@@ -505,6 +606,33 @@ function buildDoctorReport({
   });
 }
 
+function resolveCommandInput(commandConfig, prompt) {
+  const args = [...(commandConfig.args || [])];
+  const promptDelivery = commandConfig.promptDelivery || 'stdin';
+
+  if (promptDelivery === 'argument') {
+    args.push(prompt);
+    return { args, stdin: null };
+  }
+  if (promptDelivery === 'stdin') {
+    return { args, stdin: prompt };
+  }
+
+  throw new Error(`Unknown prompt delivery mode: ${promptDelivery}`);
+}
+
+function shouldUseShell(platform, commandConfig) {
+  return platform === 'win32' && commandConfig.promptDelivery !== 'argument';
+}
+
+function resolveCommandEnv(commandConfig, env) {
+  const commandEnv = { ...env };
+  for (const name of commandConfig.unsetEnv || []) {
+    delete commandEnv[name];
+  }
+  return commandEnv;
+}
+
 function formatDoctorReport(report) {
   const rows = [
     ['Provider', 'Binary', 'Source', 'Status'],
@@ -530,42 +658,12 @@ function printDoctorReport(report, stdout = process.stdout) {
   stdout.write(`${formatDoctorReport(report)}\n`);
 }
 
-function executeModel(model, prompt, routing, env = process.env) {
-  const commandConfig = routing.commands?.[model];
-  if (!commandConfig) {
-    throw new Error(`No command config for model: ${model}`);
-  }
-
-  const bin = env[commandConfig.binEnv] || commandConfig.defaultBin;
-  if (!commandExists(bin)) {
-    throw new Error(
-      `Command not found for model "${model}": ${bin}. Set ${commandConfig.binEnv} or install the CLI.`
-    );
-  }
-
-  return new Promise((resolvePromise, reject) => {
-    const child = spawn(bin, commandConfig.args || [], {
-      stdio: ['pipe', 'inherit', 'inherit'],
-      shell: process.platform === 'win32',
-      env,
-    });
-
-    child.stdin.write(prompt);
-    child.stdin.end();
-    child.on('error', reject);
-    child.on('close', (code) => resolvePromise(code || 0));
-  });
-}
-
-// Sibling of executeModel that PIPES stdout so a step's output can be captured
-// and fed back into executeWorkflow. executeModel is left untouched so the
-// non-workflow path keeps inheriting stdout.
-function executeModelCapture(
+function executeModel(
   model,
   prompt,
   routing,
   env = process.env,
-  { spawn: spawnImpl = spawn } = {}
+  { spawn: spawnImpl = spawn, workspace = ROOT } = {}
 ) {
   const commandConfig = routing.commands?.[model];
   if (!commandConfig) {
@@ -579,18 +677,62 @@ function executeModelCapture(
     );
   }
 
+  const input = resolveCommandInput(commandConfig, prompt);
+  const commandEnv = resolveCommandEnv(commandConfig, env);
+  const useShell = shouldUseShell(process.platform, commandConfig);
   return new Promise((resolvePromise, reject) => {
-    const child = spawnImpl(bin, commandConfig.args || [], {
+    const child = spawnImpl(bin, input.args, {
+      stdio: ['pipe', 'inherit', 'inherit'],
+      shell: useShell,
+      env: commandEnv,
+      cwd: workspace,
+    });
+
+    if (input.stdin !== null) child.stdin.write(input.stdin);
+    child.stdin.end();
+    child.on('error', reject);
+    child.on('close', (code) => resolvePromise(code || 0));
+  });
+}
+
+// Sibling of executeModel that PIPES stdout so a step's output can be captured
+// and fed back into executeWorkflow. The non-workflow executeModel path keeps
+// inheriting stdout.
+function executeModelCapture(
+  model,
+  prompt,
+  routing,
+  env = process.env,
+  { spawn: spawnImpl = spawn, workspace = ROOT } = {}
+) {
+  const commandConfig = routing.commands?.[model];
+  if (!commandConfig) {
+    throw new Error(`No command config for model: ${model}`);
+  }
+
+  const bin = env[commandConfig.binEnv] || commandConfig.defaultBin;
+  if (!commandExists(bin)) {
+    throw new Error(
+      `Command not found for model "${model}": ${bin}. Set ${commandConfig.binEnv} or install the CLI.`
+    );
+  }
+
+  const input = resolveCommandInput(commandConfig, prompt);
+  const commandEnv = resolveCommandEnv(commandConfig, env);
+  const useShell = shouldUseShell(process.platform, commandConfig);
+  return new Promise((resolvePromise, reject) => {
+    const child = spawnImpl(bin, input.args, {
       stdio: ['pipe', 'pipe', 'inherit'],
-      shell: process.platform === 'win32',
-      env,
+      shell: useShell,
+      env: commandEnv,
+      cwd: workspace,
     });
 
     let output = '';
     child.stdout.on('data', (chunk) => {
       output += chunk.toString();
     });
-    child.stdin.write(prompt);
+    if (input.stdin !== null) child.stdin.write(input.stdin);
     child.stdin.end();
     child.on('error', reject);
     child.on('close', (code) => resolvePromise({ code: code || 0, output }));
@@ -611,6 +753,258 @@ function parseApprovalSignal(output) {
     return false;
   }
   return lines.some((line) => line === APPROVAL_SENTINEL);
+}
+
+const FINDING_SEVERITIES = new Set(['high', 'medium', 'low']);
+const REPORT_VERDICTS = new Set(['approve', 'changes']);
+
+// Node contract for MOA reviewer output. Hand-rolled (orchestrate.js is
+// dependency-free). Lenient on extra properties, strict on required shape.
+function validateFindingsReport(value) {
+  const fail = (error) => ({ ok: false, error });
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return fail('report must be an object');
+  }
+  if (!REPORT_VERDICTS.has(value.verdict)) {
+    return fail(`verdict must be one of: ${[...REPORT_VERDICTS].join(', ')}`);
+  }
+  if (typeof value.summary !== 'string') {
+    return fail('summary must be a string');
+  }
+  if (!Array.isArray(value.findings)) {
+    return fail('findings must be an array');
+  }
+  for (const [index, finding] of value.findings.entries()) {
+    if (!finding || typeof finding !== 'object')
+      return fail(`findings[${index}] must be an object`);
+    if (typeof finding.file !== 'string' || !finding.file)
+      return fail(`findings[${index}].file required`);
+    if (!Number.isInteger(finding.line) || finding.line < 1)
+      return fail(`findings[${index}].line must be a positive integer`);
+    if (!FINDING_SEVERITIES.has(finding.severity))
+      return fail(`findings[${index}].severity must be high|medium|low`);
+    if (typeof finding.lens !== 'string' || !finding.lens)
+      return fail(`findings[${index}].lens required`);
+    if (typeof finding.claim !== 'string' || !finding.claim)
+      return fail(`findings[${index}].claim required`);
+    if (finding.evidence !== undefined && typeof finding.evidence !== 'string')
+      return fail(`findings[${index}].evidence must be a string when present`);
+  }
+  if (value.verdict === 'approve' && value.findings.length > 0) {
+    return fail('verdict approve requires an empty findings array');
+  }
+  if (value.verdict === 'changes' && value.findings.length === 0) {
+    return fail('verdict changes requires at least one finding');
+  }
+  return { ok: true, error: null };
+}
+
+// Pulls the last fenced ```json block (or, failing that, the whole output) and
+// validates it against the findings contract.
+function extractFindingsReport(output) {
+  const text = String(output || '');
+  const fenced = [...text.matchAll(/```json\s*\n([\s\S]*?)\n```/g)];
+  const candidates = fenced.length > 0 ? [fenced[fenced.length - 1][1]] : [text.trim()];
+
+  for (const candidate of candidates) {
+    let parsed;
+    try {
+      parsed = JSON.parse(candidate);
+    } catch {
+      return {
+        ok: false,
+        error: 'no parseable JSON report found in reviewer output',
+      };
+    }
+    const valid = validateFindingsReport(parsed);
+    if (!valid.ok) {
+      return { ok: false, error: valid.error };
+    }
+    return { ok: true, report: parsed };
+  }
+  return {
+    ok: false,
+    error: 'no parseable JSON report found in reviewer output',
+  };
+}
+
+// Opaque JSON-encoded tuple key, not display text or the original colon-delimited sketch.
+function findingKey(finding) {
+  const claim = String(finding.claim || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+  return JSON.stringify([finding.file, finding.line, claim]);
+}
+
+function buildMoaReviewerPrompt({ task, artifact, lens }) {
+  return [
+    'You are one reviewer in a multi-model code review panel.',
+    `Your assigned lens: ${lens}. Review ONLY through this lens; other lenses are covered by other reviewers.`,
+    'Adversarial stance: actively try to find problems. Approve only if you find none through your lens.',
+    '',
+    `TASK UNDER REVIEW: ${task}`,
+    '',
+    '--- ARTIFACT (diff / implementation output) ---',
+    artifact,
+    '--- END ARTIFACT ---',
+    '',
+    'Respond with ONLY a fenced json block of this exact shape:',
+    '```json',
+    '{"verdict": "approve" | "changes", "summary": "<one sentence>", "findings": [{"file": "<path>", "line": <int>, "severity": "high" | "medium" | "low", "lens": "<your lens>", "claim": "<the defect>", "evidence": "<why>"}]}',
+    '```',
+    'verdict "approve" requires an empty findings array. No prose outside the block.',
+  ].join('\n');
+}
+
+function isMoaReviewerConfig(value) {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    typeof value.model === 'string' &&
+    value.model.trim().length > 0 &&
+    typeof value.lens === 'string' &&
+    value.lens.trim().length > 0
+  );
+}
+
+// The MOA coding-review diamond: parallel lens reviewers, deterministic merge
+// and vote in code, optional aggregator narration. Approval is decided HERE,
+// never by a model: moa = all successful reviewers approve (degraded tolerated
+// loudly if at least one survives); moa-strict = >=2 approvals AND zero
+// degradation. Findings are unioned and deduped by findingKey.
+async function runMoaReview({
+  artifact,
+  task,
+  mode,
+  moaConfig,
+  routing,
+  env = process.env,
+  executor = executeModelCapture,
+}) {
+  const reviewerConfigKey = mode === 'moa-strict' ? 'strictReviewers' : 'reviewers';
+  const reviewers = moaConfig?.[reviewerConfigKey];
+  const minimumReviewers = mode === 'moa-strict' ? 3 : 2;
+  if (!Array.isArray(reviewers) || reviewers.length < minimumReviewers) {
+    throw new Error(
+      mode === 'moa-strict'
+        ? 'runMoaReview: moa-strict mode requires at least 3 configured reviewers in moaConfig.strictReviewers'
+        : 'runMoaReview: moa mode requires at least 2 configured reviewers'
+    );
+  }
+  if (!reviewers.every(isMoaReviewerConfig)) {
+    throw new Error(
+      `runMoaReview: moaConfig.${reviewerConfigKey} entries require non-empty string model and lens`
+    );
+  }
+
+  const votes = await Promise.all(
+    reviewers.map(async ({ model, lens }) => {
+      try {
+        const { code, output } = await executor(
+          model,
+          buildMoaReviewerPrompt({ task, artifact, lens }),
+          routing,
+          env
+        );
+        if (code !== 0) {
+          return {
+            model,
+            lens,
+            verdict: 'error',
+            error: `exit code ${code}`,
+            findings: [],
+          };
+        }
+        const extracted = extractFindingsReport(output);
+        if (!extracted.ok) {
+          return {
+            model,
+            lens,
+            verdict: 'error',
+            error: extracted.error,
+            findings: [],
+          };
+        }
+        return {
+          model,
+          lens,
+          verdict: extracted.report.verdict,
+          error: null,
+          findings: extracted.report.findings,
+        };
+      } catch (error) {
+        let errorMessage;
+        try {
+          errorMessage = error instanceof Error ? error.message : String(error);
+        } catch {
+          errorMessage = 'unknown error';
+        }
+        return {
+          model,
+          lens,
+          verdict: 'error',
+          error: errorMessage,
+          findings: [],
+        };
+      }
+    })
+  );
+
+  const succeeded = votes.filter((vote) => vote.verdict !== 'error');
+  const approvals = succeeded.filter((vote) => vote.verdict === 'approve').length;
+  const degraded = succeeded.length < reviewers.length;
+
+  const SEVERITY_RANK = { high: 3, medium: 2, low: 1 };
+  const byKey = new Map();
+  for (const vote of votes) {
+    for (const finding of vote.findings) {
+      const key = findingKey(finding);
+      const existing = byKey.get(key);
+      if (!existing || SEVERITY_RANK[finding.severity] > SEVERITY_RANK[existing.severity]) {
+        byKey.set(key, finding);
+      }
+    }
+  }
+  const findings = [...byKey.values()];
+
+  let approved;
+  if (mode === 'moa-strict') {
+    approved = !degraded && approvals >= 2;
+  } else {
+    approved = succeeded.length > 0 && approvals === succeeded.length;
+  }
+
+  let aggregatorSummary = null;
+  if (!approved && findings.length > 0 && moaConfig.aggregator) {
+    try {
+      const aggregatorPrompt = [
+        'You aggregate a multi-model code review. The verdict is already decided by vote; do not change it.',
+        `Merged findings (${findings.length}):`,
+        JSON.stringify(findings, null, 2),
+        '',
+        'Write a concise reviewer-facing narrative: group related findings, order by severity, one paragraph max per finding.',
+      ].join('\n');
+      const { code, output } = await executor(moaConfig.aggregator, aggregatorPrompt, routing, env);
+      if (code === 0) aggregatorSummary = output.trim();
+    } catch {
+      // narration is best-effort; the vote already decided the outcome
+    }
+  }
+
+  return {
+    approved,
+    degraded,
+    findings,
+    votes: votes.map(({ model, lens, verdict, error }) => ({
+      model,
+      lens,
+      verdict,
+      error,
+    })),
+    aggregatorSummary,
+  };
 }
 
 function formatStepInput(input) {
@@ -666,7 +1060,13 @@ function createLiveRunStep({
 
 function runGate(
   gate,
-  { runner = spawnSync, env = process.env, stdio = 'inherit', throwOnFailure = true } = {}
+  {
+    runner = spawnSync,
+    env = process.env,
+    stdio = 'inherit',
+    throwOnFailure = true,
+    workspace = ROOT,
+  } = {}
 ) {
   const command = String(gate || '').trim();
   if (!command) {
@@ -678,6 +1078,7 @@ function runGate(
     env,
     shell: process.platform === 'win32',
     stdio,
+    cwd: workspace,
   });
 
   if (result.error) {
@@ -782,10 +1183,14 @@ async function executeWorkflow(plan, deps = {}) {
   const stepByRole = (role) => workflow.steps.find((step) => step.role === role) || null;
   const ownerStep = stepByRole('owner');
   const specialistStep = stepByRole('specialist');
+  const moaStep = stepByRole('moa-review');
   const reviewerStep = stepByRole('reviewer');
   const auditStep = stepByRole('audit');
   const comparatorSteps = workflow.steps.filter((step) => step.role === 'comparator');
   const synthesisStep = stepByRole('synthesis');
+  const moaRunner = deps.moaRunner || runMoaReview;
+  const routing = deps.routing || null;
+  const env = deps.env || process.env;
 
   let specialistNotes = null;
   const records = [];
@@ -811,6 +1216,7 @@ async function executeWorkflow(plan, deps = {}) {
   };
 
   let artifact = null;
+  let moaResult = null;
   let approved = true;
   let repairs = 0;
 
@@ -835,15 +1241,83 @@ async function executeWorkflow(plan, deps = {}) {
       specialistNotes = specialist.output ?? null;
     }
 
-    if (reviewerStep) {
-      let review = await runRecorded(reviewerStep, artifact, 0);
-      approved = Boolean(review.approved);
+    let previousFindingKeys = new Set();
+
+    const runReviewRound = async (attempt) => {
+      let roundApproved = true;
+      let repairInput = '';
+
+      if (moaStep) {
+        moaResult = await moaRunner({
+          artifact: artifact ?? '',
+          task: plan.task ?? '',
+          mode: moaStep.mode,
+          moaConfig: deps.moaConfig || routing?.moaReview || {},
+          routing,
+          env,
+        });
+        records.push({
+          role: 'moa-review',
+          model: moaStep.model,
+          attempt,
+          code: moaResult.degraded && moaStep.mode === 'moa-strict' ? 1 : 0,
+          approved: moaResult.approved,
+          output: JSON.stringify({
+            votes: moaResult.votes,
+            findings: moaResult.findings,
+          }),
+        });
+        if (moaResult.degraded) {
+          process.stderr.write(
+            `[hermes] WARNING: MOA review degraded (mode ${moaStep.mode}): ${JSON.stringify(moaResult.votes)}\n`
+          );
+        }
+        if (!moaResult.approved) {
+          roundApproved = false;
+          repairInput += `MOA REVIEW FINDINGS:\n${JSON.stringify(moaResult.findings, null, 2)}\n`;
+        }
+      }
+
+      let reviewerApproved = null;
+      if (reviewerStep) {
+        const review = await runRecorded(reviewerStep, artifact, attempt);
+        reviewerApproved = Boolean(review.approved);
+        if (!review.approved) {
+          roundApproved = false;
+          repairInput += `REVIEWER OUTPUT:\n${review.output ?? ''}`;
+        }
+      }
+
+      return { roundApproved, repairInput, reviewerApproved };
+    };
+
+    if (moaStep || reviewerStep) {
+      let round = await runReviewRound(0);
+      approved = round.roundApproved;
+
       while (!approved && repairs < maxRepairs && ownerStep) {
+        if (
+          moaResult?.degraded &&
+          (moaStep?.mode === 'moa-strict' ||
+            (!moaResult.approved && (moaResult.findings?.length ?? 0) === 0))
+        ) {
+          break; // transport failure: repairing code cannot fix a crashed reviewer lane
+        }
+        const currentFindingKeys = new Set((moaResult?.findings || []).map(findingKey));
+        const newKeys = [...currentFindingKeys].filter((key) => !previousFindingKeys.has(key));
+        const moaIsSoleRejector =
+          moaStep && moaResult && !moaResult.approved && round.reviewerApproved !== false;
+        if (moaIsSoleRejector && !moaResult.degraded && newKeys.length === 0 && repairs > 0) {
+          break; // dry loop: MOA repeats known findings and nothing else rejects
+        }
+        previousFindingKeys = currentFindingKeys;
+
         repairs += 1;
-        const repair = await runRecorded(ownerStep, review.output ?? '', repairs);
+        const repair = await runRecorded(ownerStep, round.repairInput, repairs);
+        // eslint-disable-next-line require-atomic-updates -- repair rounds own artifact state and run serially.
         artifact = repair.output ?? artifact;
-        review = await runRecorded(reviewerStep, artifact, repairs);
-        approved = Boolean(review.approved);
+        round = await runReviewRound(repairs);
+        approved = round.roundApproved;
       }
     }
 
@@ -867,6 +1341,8 @@ async function executeWorkflow(plan, deps = {}) {
     exitCode = stepFailureCode;
   } else if (reviewerStep && !approved) {
     exitCode = 1;
+  } else if (moaStep && moaResult && !moaResult.approved) {
+    exitCode = 1;
   }
 
   const record = {
@@ -875,6 +1351,7 @@ async function executeWorkflow(plan, deps = {}) {
     phase: plan.phase,
     risk: plan.risk,
     approved,
+    moa: moaResult,
     repairs,
     steps: records,
     gate: {
@@ -911,8 +1388,17 @@ Phases:
   Financial production tasks are promoted internally to production-financial; gate: npm run calc-gate.
 
 Model overrides:
-  --claude | --codex | --kimi
-  --model <claude|codex|kimi>
+  --claude | --codex | --kimi | --gemini | --agy | --sol | --luna | --terra | --qwen
+  --model <claude|codex|kimi|gemini|agy|sol|luna|terra|qwen>
+
+Tier overrides:
+  --tier <T0|T1|T2|T3>
+                 Force the sophistication tier. Default: keyword-scored, T1 fallback.
+                 T0 trivial (qwen research/distribution, sol production, no review)
+                 T1 standard (phase defaults)
+                 T2 complex (sol production, MOA review) | T3 critical (MOA-strict review).
+                 Financial production tasks always promote to T3 and carry the calc-gate;
+                 financial tasks in other phases still promote to T3 but keep their ordinary phase gate.
 
 Output:
   --dry-run       Print the routing plan and prompt without model execution.
@@ -924,6 +1410,7 @@ Workflow planning:
                  Add a planning-only workflow recommendation to dry-run output.
   --live         Execute the planned workflow live (spawns real model CLIs).
                  Without --live, --workflow stays planning-only.
+                 T2/T3 production dispatches auto-upgrade to a live workflow (no --live needed).
 
 Gate controls:
   --skip-preflight-gate --skip-reason "<reason>"
@@ -947,21 +1434,30 @@ class Orchestrator {
     phase = 'research',
     task,
     manualModel = null,
+    explicitTier = null,
     requestedWorkflow = 'auto',
     routing = this.routing,
   }) {
     if (!routing) throw new Error('Routing config is required to build a Hermes plan');
-    return createRoutingPlan({ phase, task, routing, manualModel, requestedWorkflow });
+    return createRoutingPlan({
+      phase,
+      task,
+      routing,
+      manualModel,
+      explicitTier,
+      requestedWorkflow,
+    });
   }
 
   execute({
     phase = 'research',
     task,
     manualModel = null,
+    explicitTier = null,
     routing = this.routing,
     env = process.env,
   }) {
-    const plan = this.plan({ phase, task, manualModel, routing });
+    const plan = this.plan({ phase, task, manualModel, explicitTier, routing });
     const prompt = buildPrompt({ plan, brain: this.brain, soul: this.soul });
     return executeModel(plan.model, prompt, routing, env);
   }
@@ -1061,9 +1557,8 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     throw new Error('--task is required. Use --help for usage.');
   }
 
-  const liveExecution = options.live || env.HERMES_LIVE === '1' || env.HERMES_LIVE === 'true';
-
-  if (options.workflowProvided && !options.dryRun && !options.json && !liveExecution) {
+  const liveExecutionEarly = options.live || env.HERMES_LIVE === '1' || env.HERMES_LIVE === 'true';
+  if (options.workflowProvided && !options.dryRun && !options.json && !liveExecutionEarly) {
     throw new Error('--workflow is planning-only; use --dry-run or --json. Add --live to execute.');
   }
 
@@ -1075,7 +1570,7 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
   const brain = deps.brain ?? loadText(brainPath);
   const soul = deps.soul ?? loadText(soulPath, { optional: true });
   const runId = generateRunId(clock());
-  const plan = createRoutingPlan({
+  let plan = createRoutingPlan({
     phase: options.phase,
     task: options.task,
     routing,
@@ -1083,7 +1578,31 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     requestedWorkflow: options.workflowProvided ? options.workflow : null,
     skipPreflightGate: options.skipPreflightGate,
     gateSkipReason: options.gateSkipReason,
+    explicitTier: options.tier,
   });
+  let autoWorkflow = false;
+  if (
+    (plan.review === 'moa' || plan.review === 'moa-strict') &&
+    plan.phase === 'production' &&
+    !options.workflowProvided &&
+    !options.dryRun &&
+    !options.json
+  ) {
+    plan = createRoutingPlan({
+      phase: options.phase,
+      task: options.task,
+      routing,
+      manualModel: options.manualModel,
+      requestedWorkflow: 'pair',
+      skipPreflightGate: options.skipPreflightGate,
+      gateSkipReason: options.gateSkipReason,
+      explicitTier: options.tier,
+    });
+    autoWorkflow = true;
+  }
+  const liveExecution =
+    options.live || autoWorkflow || env.HERMES_LIVE === '1' || env.HERMES_LIVE === 'true';
+
   const prompt = buildPrompt({ plan, brain, soul, runId });
 
   if (options.json) {
@@ -1099,7 +1618,7 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     return 0;
   }
 
-  if (options.workflowProvided && liveExecution && plan.workflow) {
+  if ((options.workflowProvided || autoWorkflow) && liveExecution && plan.workflow) {
     // Preflight gate parity with the non-workflow path: a failing gate (e.g.
     // npm run check) must abort BEFORE spawning the owner/reviewer CLIs, unless
     // explicitly skipped. executeWorkflow only runs the gate postflight.
@@ -1129,6 +1648,9 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
       writeRunLedger: ledgerWriter,
       clock,
       runId,
+      routing,
+      env,
+      moaRunner: deps.moaRunner,
     });
     return record.exitCode;
   }
@@ -1221,12 +1743,15 @@ export {
   buildDoctorReport,
   buildPrompt,
   chooseModel,
+  classifyTier,
   createLiveRunStep,
   createWorkflowPlan,
   createRoutingPlan,
   evaluateReadiness,
   executeModelCapture,
   executeWorkflow,
+  extractFindingsReport,
+  findingKey,
   generateRunId,
   getGateRunPlan,
   isCliEntryPoint,
@@ -1239,7 +1764,9 @@ export {
   resolveGate,
   resolveOwnership,
   runGate,
+  runMoaReview,
   shouldRunPostflightGate,
   scoreSpecialist,
+  validateFindingsReport,
   writeRunLedger,
 };
