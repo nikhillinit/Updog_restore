@@ -156,6 +156,7 @@ export default defineConfig({
     ],
     env: {
       NODE_ENV: 'test',
+      _EXPLICIT_NODE_ENV: 'test',
       TZ: 'UTC',
       REDIS_URL: 'memory://', // Prevent real Redis connections in tests
       // JWT configuration (min 32 chars required by server/config.ts:16)
