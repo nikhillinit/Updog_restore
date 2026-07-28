@@ -21,6 +21,8 @@ import { useRoute } from 'wouter';
 import { AlertTriangle, Info } from 'lucide-react';
 
 import type { AnalysisReferenceV1 } from '@shared/contracts/internal-analysis/analysis-reference-snapshot-v1.contract';
+import type { NarrativeAnchor } from '@shared/contracts/internal-analysis/internal-narrative-draft-v1.contract';
+import { InternalNarrativePanel } from '@/components/fund-results/InternalNarrativePanel';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFundContext } from '@/contexts/FundContext';
 import { useInternalAnalysis } from '@/hooks/useInternalAnalysis';
@@ -139,6 +141,14 @@ export function ReferenceCard({ reference }: { reference: AnalysisReferenceV1 })
 function InternalAnalysisContent({ fundId }: { fundId: number }) {
   const { drafts, references, isLoading, error } = useInternalAnalysis(fundId);
   const openDrafts = drafts.filter((draft) => draft.savedAt === null);
+  // Anchor the narrative to the terminal reference, else the latest open draft.
+  const firstReference = references[0];
+  const firstOpenDraft = openDrafts[0];
+  const narrativeAnchor: NarrativeAnchor | null = firstReference
+    ? { kind: 'analysis_reference', id: firstReference.referenceId }
+    : firstOpenDraft
+      ? { kind: 'analysis_draft', id: firstOpenDraft.draftId }
+      : null;
 
   return (
     <section aria-labelledby="internal-analysis-heading" className="space-y-5">
@@ -205,6 +215,8 @@ function InternalAnalysisContent({ fundId }: { fundId: number }) {
               ))
             )}
           </div>
+
+          <InternalNarrativePanel fundId={fundId} anchor={narrativeAnchor} />
         </>
       ) : null}
     </section>
