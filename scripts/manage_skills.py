@@ -363,6 +363,19 @@ describe('{refl_id}: {title}', () => {{
     rebuild_index()
 
 
+DATE_LINE_RE = re.compile(r'^\*Last Updated: \d{4}-\d{2}-\d{2}\*$', re.MULTILINE)
+
+
+def _index_matches(path, generated: str) -> bool:
+    """Compare a generated index against the file on disk, ignoring the
+    Last Updated stamp — otherwise check mode fails whenever the CI runner's
+    date (UTC) differs from the date the index was last rebuilt (local tz)."""
+    if not path.exists():
+        return False
+    current = path.read_text(encoding='utf-8')
+    return DATE_LINE_RE.sub('', current) == DATE_LINE_RE.sub('', generated)
+
+
 def rebuild_index(check_mode=False):
     """Generates the SKILLS_INDEX.md file."""
     print("[INFO] Rebuilding SKILLS_INDEX.md...")
@@ -421,7 +434,7 @@ def rebuild_index(check_mode=False):
     index_content = "\n".join(lines) + "\n"
 
     if check_mode:
-        if not INDEX_FILE.exists() or INDEX_FILE.read_text(encoding='utf-8') != index_content:
+        if not _index_matches(INDEX_FILE, index_content):
             print("[ERROR] Index is out of date. Run `python scripts/manage_skills.py rebuild`.", file=sys.stderr)
             sys.exit(1)
         else:
@@ -744,7 +757,7 @@ def build_wizard_index(check_mode=False):
     index_content = "\n".join(lines) + "\n"
 
     if check_mode:
-        if not WIZARD_INDEX_FILE.exists() or WIZARD_INDEX_FILE.read_text(encoding='utf-8') != index_content:
+        if not _index_matches(WIZARD_INDEX_FILE, index_content):
             print("[ERROR] WIZARD_INDEX.md is out of date. Run `python scripts/manage_skills.py wizard-index`.", file=sys.stderr)
             sys.exit(1)
         else:
