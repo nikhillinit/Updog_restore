@@ -809,6 +809,165 @@ function extractFindingsReport(output) {
   };
 }
 
+function findingKey(finding) {
+  const claim = String(finding.claim || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+  return `${finding.file}:${finding.line}:${claim}`;
+}
+
+function buildMoaReviewerPrompt({ task, artifact, lens }) {
+  return [
+    'You are one reviewer in a multi-model code review panel.',
+    `Your assigned lens: ${lens}. Review ONLY through this lens; other lenses are covered by other reviewers.`,
+    'Adversarial stance: actively try to find problems. Approve only if you find none through your lens.',
+    '',
+    `TASK UNDER REVIEW: ${task}`,
+    '',
+    '--- ARTIFACT (diff / implementation output) ---',
+    artifact,
+    '--- END ARTIFACT ---',
+    '',
+    'Respond with ONLY a fenced json block of this exact shape:',
+    '```json',
+    '{"verdict": "approve" | "changes", "summary": "<one sentence>", "findings": [{"file": "<path>", "line": <int>, "severity": "high" | "medium" | "low", "lens": "<your lens>", "claim": "<the defect>", "evidence": "<why>"}]}',
+    '```',
+    'verdict "approve" requires an empty findings array. No prose outside the block.',
+  ].join('\n');
+}
+
+// The MOA coding-review diamond: parallel lens reviewers, deterministic merge
+// and vote in code, optional aggregator narration. Approval is decided HERE,
+// never by a model: moa = all successful reviewers approve (degraded tolerated
+// loudly if at least one survives); moa-strict = >=2 approvals AND zero
+// degradation. Findings are unioned and deduped by findingKey.
+async function runMoaReview({
+  artifact,
+  task,
+  mode,
+  moaConfig,
+  routing,
+  env = process.env,
+  executor = executeModelCapture,
+}) {
+  const reviewers = [...(moaConfig.reviewers || [])];
+  if (mode === 'moa-strict' && moaConfig.strictExtraReviewer) {
+    reviewers.push(moaConfig.strictExtraReviewer);
+  }
+
+  const votes = await Promise.all(
+    reviewers.map(async ({ model, lens }) => {
+      try {
+        const { code, output } = await executor(
+          model,
+          buildMoaReviewerPrompt({ task, artifact, lens }),
+          routing,
+          env
+        );
+        if (code !== 0) {
+          return {
+            model,
+            lens,
+            verdict: 'error',
+            error: `exit code ${code}`,
+            findings: [],
+          };
+        }
+        const extracted = extractFindingsReport(output);
+        if (!extracted.ok) {
+          return {
+            model,
+            lens,
+            verdict: 'error',
+            error: extracted.error,
+            findings: [],
+          };
+        }
+        return {
+          model,
+          lens,
+          verdict: extracted.report.verdict,
+          error: null,
+          findings: extracted.report.findings,
+        };
+      } catch (error) {
+        return {
+          model,
+          lens,
+          verdict: 'error',
+          error: error.message,
+          findings: [],
+        };
+      }
+    })
+  );
+
+  const succeeded = votes.filter((vote) => vote.verdict !== 'error');
+  const approvals = succeeded.filter(
+    (vote) => vote.verdict === 'approve'
+  ).length;
+  const degraded = succeeded.length < reviewers.length;
+
+  const SEVERITY_RANK = { high: 3, medium: 2, low: 1 };
+  const byKey = new Map();
+  for (const vote of votes) {
+    for (const finding of vote.findings) {
+      const key = findingKey(finding);
+      const existing = byKey.get(key);
+      if (
+        !existing ||
+        SEVERITY_RANK[finding.severity] > SEVERITY_RANK[existing.severity]
+      ) {
+        byKey.set(key, finding);
+      }
+    }
+  }
+  const findings = [...byKey.values()];
+
+  let approved;
+  if (mode === 'moa-strict') {
+    approved = !degraded && approvals >= 2;
+  } else {
+    approved = succeeded.length > 0 && approvals === succeeded.length;
+  }
+
+  let aggregatorSummary = null;
+  if (!approved && findings.length > 0 && moaConfig.aggregator) {
+    try {
+      const aggregatorPrompt = [
+        'You aggregate a multi-model code review. The verdict is already decided by vote; do not change it.',
+        `Merged findings (${findings.length}):`,
+        JSON.stringify(findings, null, 2),
+        '',
+        'Write a concise reviewer-facing narrative: group related findings, order by severity, one paragraph max per finding.',
+      ].join('\n');
+      const { code, output } = await executor(
+        moaConfig.aggregator,
+        aggregatorPrompt,
+        routing,
+        env
+      );
+      if (code === 0) aggregatorSummary = output.trim();
+    } catch {
+      // narration is best-effort; the vote already decided the outcome
+    }
+  }
+
+  return {
+    approved,
+    degraded,
+    findings,
+    votes: votes.map(({ model, lens, verdict, error }) => ({
+      model,
+      lens,
+      verdict,
+      error,
+    })),
+    aggregatorSummary,
+  };
+}
+
 function formatStepInput(input) {
   if (Array.isArray(input)) {
     return input.map((entry, index) => `--- INPUT ${index + 1} ---\n${entry ?? ''}`).join('\n\n');
@@ -1432,6 +1591,7 @@ export {
   executeModelCapture,
   executeWorkflow,
   extractFindingsReport,
+  findingKey,
   generateRunId,
   getGateRunPlan,
   isCliEntryPoint,
@@ -1444,6 +1604,7 @@ export {
   resolveGate,
   resolveOwnership,
   runGate,
+  runMoaReview,
   shouldRunPostflightGate,
   scoreSpecialist,
   validateFindingsReport,
