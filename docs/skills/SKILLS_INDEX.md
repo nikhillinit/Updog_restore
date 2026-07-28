@@ -46,6 +46,7 @@
 | **[REFL-038](REFL-038-windows-agent-shell-env-missing.md)** | DRAFT | Windows Agent Execution Paths Can Lose COMSPEC and Profile Env | [ ] | `docs/skills/REFL-038-windows-agent-shell-env-missing.md` |
 | **[REFL-039](REFL-039-transport-failure-must-not-invert-model-roles.md)** | VERIFIED | Transport failure must not invert model roles | [x] | `docs/skills/REFL-039-transport-failure-must-not-invert-model-roles.md` |
 | **[REFL-040](REFL-040-cross-worktree-attribution-requires-environment-parity.md)** | VERIFIED | Cross-Worktree Attribution Requires Environment Parity | [x] | `docs/skills/REFL-040-cross-worktree-attribution-requires-environment-parity.md` |
+| **[REFL-041](REFL-041-production-activation-requires-schema-provisioning-proof.md)** | VERIFIED | Production Activation Requires Schema Provisioning Proof | [x] | `docs/skills/REFL-041-production-activation-requires-schema-provisioning-proof.md` |
 
 ## How to Add a Reflection
 

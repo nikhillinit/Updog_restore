@@ -170,6 +170,23 @@ test.describe('production boundary smoke', () => {
     expectContentTypeStartsWith(guardedResponse, 'application/json');
   });
 
+  test('authenticated internal-analysis canary reaches provisioned schema', async ({ request }) => {
+    // SKIP: schema-backed canary requires dedicated production smoke credentials.
+    test.skip(
+      !PROD_SMOKE_USERNAME || !PROD_SMOKE_PASSWORD,
+      'Set PROD_SMOKE_USERNAME and PROD_SMOKE_PASSWORD to verify internal-analysis schema'
+    );
+
+    await loginProdSmoke(request);
+
+    const response = await request.get(`${PRODUCTION_URL}/api/funds/1/internal-analysis/drafts`);
+    expectNotSpaRewrite(response);
+    expect(response.status()).toBe(200);
+    expectContentTypeStartsWith(response, 'application/json');
+    const body = await expectJsonObject(response);
+    expect(body['drafts']).toEqual(expect.any(Array));
+  });
+
   test('rum lookalike origin is rejected', async ({ request }) => {
     const response = await request.post(`${PRODUCTION_URL}/api/metrics/rum`, {
       headers: {
