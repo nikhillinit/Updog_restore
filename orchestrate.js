@@ -602,6 +602,10 @@ function resolveCommandInput(commandConfig, prompt) {
   throw new Error(`Unknown prompt delivery mode: ${promptDelivery}`);
 }
 
+function shouldUseShell(platform, commandConfig) {
+  return platform === 'win32' && commandConfig.promptDelivery !== 'argument';
+}
+
 function resolveCommandEnv(commandConfig, env) {
   const commandEnv = { ...env };
   for (const name of commandConfig.unsetEnv || []) {
@@ -656,10 +660,11 @@ function executeModel(
 
   const input = resolveCommandInput(commandConfig, prompt);
   const commandEnv = resolveCommandEnv(commandConfig, env);
+  const useShell = shouldUseShell(process.platform, commandConfig);
   return new Promise((resolvePromise, reject) => {
     const child = spawnImpl(bin, input.args, {
       stdio: ['pipe', 'inherit', 'inherit'],
-      shell: process.platform === 'win32',
+      shell: useShell,
       env: commandEnv,
       cwd: workspace,
     });
@@ -695,10 +700,11 @@ function executeModelCapture(
 
   const input = resolveCommandInput(commandConfig, prompt);
   const commandEnv = resolveCommandEnv(commandConfig, env);
+  const useShell = shouldUseShell(process.platform, commandConfig);
   return new Promise((resolvePromise, reject) => {
     const child = spawnImpl(bin, input.args, {
       stdio: ['pipe', 'pipe', 'inherit'],
-      shell: process.platform === 'win32',
+      shell: useShell,
       env: commandEnv,
       cwd: workspace,
     });

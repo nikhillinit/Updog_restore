@@ -283,6 +283,65 @@ describe('Hermes routing helpers', () => {
     expect(stdinWrites).toEqual([]);
   });
 
+  test('executeModelCapture bypasses the Windows shell only for argument-delivered prompts', async () => {
+    const spawnedShellValues: boolean[] = [];
+    const spawnImpl = ((...spawnArgs: unknown[]) => {
+      const events: { close?: (code: number) => void } = {};
+      const fakeChild = {
+        stdin: { write: () => undefined, end: () => undefined },
+        stdout: { on: () => undefined },
+        on: (event: string, cb: (code: number) => void) => {
+          if (event === 'close') events.close = cb;
+        },
+      };
+      const options = spawnArgs[2] as { shell?: boolean };
+      spawnedShellValues.push(options.shell === true);
+      queueMicrotask(() => events.close?.(0));
+      return fakeChild;
+    }) as unknown as typeof import('node:child_process').spawn;
+    const captureRouting = {
+      commands: {
+        argument: {
+          binEnv: 'ARGUMENT_BIN',
+          defaultBin: process.execPath,
+          promptDelivery: 'argument',
+        },
+        stdin: {
+          binEnv: 'STDIN_BIN',
+          defaultBin: process.execPath,
+        },
+      },
+    };
+    const platformDescriptor = Object.getOwnPropertyDescriptor(process, 'platform');
+    if (!platformDescriptor) throw new Error('process.platform descriptor unavailable');
+
+    try {
+      Object.defineProperty(process, 'platform', { value: 'win32' });
+      await executeModelCapture(
+        'argument',
+        'prompt with & shell syntax',
+        captureRouting,
+        {},
+        {
+          spawn: spawnImpl,
+        }
+      );
+      await executeModelCapture(
+        'stdin',
+        'prompt with & shell syntax',
+        captureRouting,
+        {},
+        {
+          spawn: spawnImpl,
+        }
+      );
+    } finally {
+      Object.defineProperty(process, 'platform', platformDescriptor);
+    }
+
+    expect(spawnedShellValues).toEqual([false, true]);
+  });
+
   test('executeModelCapture removes command-specific inherited environment variables', async () => {
     const events: { close?: (code: number) => void } = {};
     const spawned: { env?: Record<string, string | undefined> } = {};

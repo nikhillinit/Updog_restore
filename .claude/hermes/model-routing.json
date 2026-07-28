@@ -54,7 +54,11 @@
       { "model": "luna", "lens": "spec-compliance" },
       { "model": "qwen", "lens": "simplicity-efficiency" }
     ],
-    "strictExtraReviewer": { "model": "claude", "lens": "numeric-precision" },
+    "strictReviewers": [
+      { "model": "terra", "lens": "correctness" },
+      { "model": "luna", "lens": "spec-compliance" },
+      { "model": "claude", "lens": "numeric-precision" }
+    ],
     "aggregator": "sol"
   },
   "defaults": {
