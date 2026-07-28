@@ -1296,7 +1296,10 @@ async function executeWorkflow(plan, deps = {}) {
       approved = round.roundApproved;
 
       while (!approved && repairs < maxRepairs && ownerStep) {
-        if (moaResult?.degraded && moaStep?.mode === 'moa-strict') {
+        if (
+          moaResult?.degraded &&
+          (moaStep?.mode === 'moa-strict' || moaResult.findings.length === 0)
+        ) {
           break; // transport failure: repairing code cannot fix a crashed reviewer lane
         }
         const currentFindingKeys = new Set((moaResult?.findings || []).map(findingKey));
@@ -1390,10 +1393,11 @@ Model overrides:
 Tier overrides:
   --tier <T0|T1|T2|T3>
                  Force the sophistication tier. Default: keyword-scored, T1 fallback.
-                 T0 trivial (qwen, no review) | T1 standard (phase defaults)
+                 T0 trivial (qwen research/distribution, sol production, no review)
+                 T1 standard (phase defaults)
                  T2 complex (sol production, MOA review) | T3 critical (MOA-strict review).
-                 Financial tasks always promote to T3 and carry the calc-gate;
-                 a nonfinancial --tier T3 keeps its ordinary phase gate.
+                 Financial production tasks always promote to T3 and carry the calc-gate;
+                 financial tasks in other phases still promote to T3 but keep their ordinary phase gate.
 
 Output:
   --dry-run       Print the routing plan and prompt without model execution.
@@ -1405,6 +1409,7 @@ Workflow planning:
                  Add a planning-only workflow recommendation to dry-run output.
   --live         Execute the planned workflow live (spawns real model CLIs).
                  Without --live, --workflow stays planning-only.
+                 T2/T3 production dispatches auto-upgrade to a live workflow (no --live needed).
 
 Gate controls:
   --skip-preflight-gate --skip-reason "<reason>"

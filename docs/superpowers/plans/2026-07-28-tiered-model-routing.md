@@ -1,5 +1,11 @@
 # Sophistication-Tiered Model Routing with Native MOA Review Implementation Plan
 
+> **Shipped-state note:** This plan predates corrections made during
+> implementation and review. See ADR-063 in `DECISIONS.md` and `DEV_BRAIN.md`'s
+> "Sophistication Tiers" section for authoritative shipped design. Notably,
+> `moaReview.strictExtraReviewer` became independent `moaReview.strictReviewers`
+> array, and T0 production model is `sol`, not `qwen`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > superpowers:subagent-driven-development (recommended) or
 > superpowers:executing-plans to implement this plan task-by-task. Steps use

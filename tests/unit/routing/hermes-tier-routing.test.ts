@@ -141,7 +141,7 @@ describe('parseArgs --tier', () => {
   });
 });
 
-import { chooseModel, createRoutingPlan } from '../../../orchestrate.js';
+import { chooseModel, createRoutingPlan, executeWorkflow } from '../../../orchestrate.js';
 
 const fullRouting = {
   defaults: { research: 'claude', production: 'codex', distribution: 'claude' },
@@ -330,7 +330,18 @@ describe('main --tier plumbing', () => {
   test('help text documents --tier', async () => {
     const { io, read } = captureIo();
     await main(['--help'], {}, io as never, {});
-    expect(read()).toContain('--tier');
+    const help = read();
+    expect(help).toContain('--tier');
+    expect(help).toContain('T0 trivial (qwen research/distribution, sol production, no review)');
+    expect(help).toContain(
+      'Financial production tasks always promote to T3 and carry the calc-gate'
+    );
+    expect(help).toContain(
+      'financial tasks in other phases still promote to T3 but keep their ordinary phase gate'
+    );
+    expect(help).toContain(
+      'T2/T3 production dispatches auto-upgrade to a live workflow (no --live needed)'
+    );
   });
 
   test('rejects planning-only workflow before reading routing config', async () => {
@@ -389,6 +400,68 @@ describe('main --tier plumbing', () => {
     expect(code).toBe(0);
     expect(moaCalled).toBe(true);
   });
+
+  test.each([
+    {
+      label: 'T2 keyword dispatch',
+      task: 'untangle race condition in worker pool',
+      explicitTier: undefined,
+      expectedMode: 'moa',
+    },
+    {
+      label: '--tier T3 dispatch',
+      task: 'plain task',
+      explicitTier: 'T3',
+      expectedMode: 'moa-strict',
+    },
+  ])(
+    '$label passes real moaReview config into MOA runner',
+    async ({ task, explicitTier, expectedMode }) => {
+      // Server test setup mocks named fs exports; default export remains real.
+      const realRouting = JSON.parse(
+        fs.readFileSync(
+          new URL('../../../.claude/hermes/model-routing.json', import.meta.url),
+          'utf8'
+        )
+      );
+      const plan = createRoutingPlan({
+        phase: 'production',
+        task,
+        routing: realRouting,
+        explicitTier,
+        requestedWorkflow: 'pair',
+      });
+      const receivedMoaConfigs: unknown[] = [];
+      const moaRunner = async ({ moaConfig }: { moaConfig: unknown }) => {
+        receivedMoaConfigs.push(moaConfig);
+        return {
+          approved: true,
+          degraded: false,
+          findings: [],
+          votes: [],
+          aggregatorSummary: null,
+        };
+      };
+      const runStep = async ({ step }: { step: { role: string } }) =>
+        step.role === 'reviewer'
+          ? { code: 0, output: 'APPROVED', approved: true }
+          : { code: 0, output: 'artifact' };
+
+      const record = await executeWorkflow(plan, {
+        routing: realRouting,
+        runStep,
+        moaRunner,
+        gateRunner: () => ({ status: 0 }),
+        writeRunLedger: null,
+      });
+
+      expect(plan.review).toBe(expectedMode);
+      expect(record.exitCode).toBe(0);
+      expect(receivedMoaConfigs).toHaveLength(1);
+      expect(receivedMoaConfigs[0]).toBe(realRouting.moaReview);
+      expect(receivedMoaConfigs[0]).toEqual(realRouting.moaReview);
+    }
+  );
 });
 
 describe('model-routing.json v3 integrity', () => {

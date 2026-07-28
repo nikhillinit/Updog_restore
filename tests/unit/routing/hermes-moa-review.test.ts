@@ -782,6 +782,30 @@ describe('executeWorkflow with MOA review', () => {
     expect(record.repairs).toBe(0);
   });
 
+  test('moa total panel failure exits immediately without burning repairs', async () => {
+    let moaCalls = 0;
+    const moaRunner = async () => {
+      moaCalls += 1;
+      return {
+        approved: false,
+        degraded: true,
+        findings: [],
+        votes: [],
+        aggregatorSummary: null,
+      };
+    };
+    const record = await executeWorkflow(moaStepPlan('moa'), {
+      runStep: approvingRunStep,
+      moaRunner,
+      maxRepairs: 5,
+      writeRunLedger: null,
+    });
+    expect(record.exitCode).toBe(1);
+    expect(record.moa?.degraded).toBe(true);
+    expect(moaCalls).toBe(1);
+    expect(record.repairs).toBe(0);
+  });
+
   test('workflow without moa step never invokes moaRunner', async () => {
     let called = false;
     const moaRunner = async () => {
