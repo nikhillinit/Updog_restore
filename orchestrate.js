@@ -1551,6 +1551,11 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     throw new Error('--task is required. Use --help for usage.');
   }
 
+  const liveExecutionEarly = options.live || env.HERMES_LIVE === '1' || env.HERMES_LIVE === 'true';
+  if (options.workflowProvided && !options.dryRun && !options.json && !liveExecutionEarly) {
+    throw new Error('--workflow is planning-only; use --dry-run or --json. Add --live to execute.');
+  }
+
   const routingPath =
     env.HERMES_MODEL_ROUTING_FILE || join(ROOT, '.claude', 'hermes', 'model-routing.json');
   const brainPath = env.HERMES_DEV_BRAIN_FILE || join(ROOT, 'DEV_BRAIN.md');
@@ -1591,10 +1596,6 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
   }
   const liveExecution =
     options.live || autoWorkflow || env.HERMES_LIVE === '1' || env.HERMES_LIVE === 'true';
-
-  if (options.workflowProvided && !options.dryRun && !options.json && !liveExecution) {
-    throw new Error('--workflow is planning-only; use --dry-run or --json. Add --live to execute.');
-  }
 
   const prompt = buildPrompt({ plan, brain, soul, runId });
 

@@ -331,6 +331,27 @@ describe('main --tier plumbing', () => {
     expect(read()).toContain('--tier');
   });
 
+  test('rejects planning-only workflow before reading routing config', async () => {
+    const { io } = captureIo();
+    let routingRead = false;
+    const deps = {
+      get routing() {
+        routingRead = true;
+        throw new Error('routing config should not be read');
+      },
+    };
+
+    await expect(
+      main(
+        ['--workflow', 'pair', '--phase', 'production', '--task', 'plain task'],
+        {},
+        io as never,
+        deps as never
+      )
+    ).rejects.toThrow('--workflow is planning-only');
+    expect(routingRead).toBe(false);
+  });
+
   test('T2 production dispatch auto-upgrades to live workflow with MOA', async () => {
     const { io } = captureIo();
     let moaCalled = false;
