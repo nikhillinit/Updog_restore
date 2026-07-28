@@ -1384,8 +1384,16 @@ Phases:
   Financial production tasks are promoted internally to production-financial; gate: npm run calc-gate.
 
 Model overrides:
-  --claude | --codex | --kimi
-  --model <claude|codex|kimi>
+  --claude | --codex | --kimi | --gemini | --agy | --sol | --luna | --terra | --qwen
+  --model <claude|codex|kimi|gemini|agy|sol|luna|terra|qwen>
+
+Tier overrides:
+  --tier <T0|T1|T2|T3>
+                 Force the sophistication tier. Default: keyword-scored, T1 fallback.
+                 T0 trivial (qwen, no review) | T1 standard (phase defaults)
+                 T2 complex (sol production, MOA review) | T3 critical (MOA-strict review).
+                 Financial tasks always promote to T3 and carry the calc-gate;
+                 a nonfinancial --tier T3 keeps its ordinary phase gate.
 
 Output:
   --dry-run       Print the routing plan and prompt without model execution.
@@ -1420,21 +1428,30 @@ class Orchestrator {
     phase = 'research',
     task,
     manualModel = null,
+    explicitTier = null,
     requestedWorkflow = 'auto',
     routing = this.routing,
   }) {
     if (!routing) throw new Error('Routing config is required to build a Hermes plan');
-    return createRoutingPlan({ phase, task, routing, manualModel, requestedWorkflow });
+    return createRoutingPlan({
+      phase,
+      task,
+      routing,
+      manualModel,
+      explicitTier,
+      requestedWorkflow,
+    });
   }
 
   execute({
     phase = 'research',
     task,
     manualModel = null,
+    explicitTier = null,
     routing = this.routing,
     env = process.env,
   }) {
-    const plan = this.plan({ phase, task, manualModel, routing });
+    const plan = this.plan({ phase, task, manualModel, explicitTier, routing });
     const prompt = buildPrompt({ plan, brain: this.brain, soul: this.soul });
     return executeModel(plan.model, prompt, routing, env);
   }
@@ -1534,12 +1551,6 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     throw new Error('--task is required. Use --help for usage.');
   }
 
-  const liveExecution = options.live || env.HERMES_LIVE === '1' || env.HERMES_LIVE === 'true';
-
-  if (options.workflowProvided && !options.dryRun && !options.json && !liveExecution) {
-    throw new Error('--workflow is planning-only; use --dry-run or --json. Add --live to execute.');
-  }
-
   const routingPath =
     env.HERMES_MODEL_ROUTING_FILE || join(ROOT, '.claude', 'hermes', 'model-routing.json');
   const brainPath = env.HERMES_DEV_BRAIN_FILE || join(ROOT, 'DEV_BRAIN.md');
@@ -1548,7 +1559,7 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
   const brain = deps.brain ?? loadText(brainPath);
   const soul = deps.soul ?? loadText(soulPath, { optional: true });
   const runId = generateRunId(clock());
-  const plan = createRoutingPlan({
+  let plan = createRoutingPlan({
     phase: options.phase,
     task: options.task,
     routing,
@@ -1556,7 +1567,35 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     requestedWorkflow: options.workflowProvided ? options.workflow : null,
     skipPreflightGate: options.skipPreflightGate,
     gateSkipReason: options.gateSkipReason,
+    explicitTier: options.tier,
   });
+  let autoWorkflow = false;
+  if (
+    (plan.review === 'moa' || plan.review === 'moa-strict') &&
+    plan.phase === 'production' &&
+    !options.workflowProvided &&
+    !options.dryRun &&
+    !options.json
+  ) {
+    plan = createRoutingPlan({
+      phase: options.phase,
+      task: options.task,
+      routing,
+      manualModel: options.manualModel,
+      requestedWorkflow: 'pair',
+      skipPreflightGate: options.skipPreflightGate,
+      gateSkipReason: options.gateSkipReason,
+      explicitTier: options.tier,
+    });
+    autoWorkflow = true;
+  }
+  const liveExecution =
+    options.live || autoWorkflow || env.HERMES_LIVE === '1' || env.HERMES_LIVE === 'true';
+
+  if (options.workflowProvided && !options.dryRun && !options.json && !liveExecution) {
+    throw new Error('--workflow is planning-only; use --dry-run or --json. Add --live to execute.');
+  }
+
   const prompt = buildPrompt({ plan, brain, soul, runId });
 
   if (options.json) {
@@ -1572,7 +1611,7 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     return 0;
   }
 
-  if (options.workflowProvided && liveExecution && plan.workflow) {
+  if ((options.workflowProvided || autoWorkflow) && liveExecution && plan.workflow) {
     // Preflight gate parity with the non-workflow path: a failing gate (e.g.
     // npm run check) must abort BEFORE spawning the owner/reviewer CLIs, unless
     // explicitly skipped. executeWorkflow only runs the gate postflight.

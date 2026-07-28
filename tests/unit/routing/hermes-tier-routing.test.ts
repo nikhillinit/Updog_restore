@@ -291,3 +291,79 @@ describe('tier-aware routing', () => {
     expect(plan.ownership.owner).toBe('codex');
   });
 });
+
+import { main } from '../../../orchestrate.js';
+
+describe('main --tier plumbing', () => {
+  function captureIo() {
+    let stdout = '';
+    return {
+      io: {
+        stdout: {
+          write: (chunk: string) => {
+            stdout += chunk;
+          },
+        },
+        stderr: { write: () => {} },
+      },
+      read: () => stdout,
+    };
+  }
+
+  test('--json includes tier and review from explicit flag', async () => {
+    const { io, read } = captureIo();
+    const code = await main(
+      ['--json', '--tier', 'T2', '--phase', 'production', '--task', 'plain task'],
+      {},
+      io as never,
+      { routing: fullRouting, brain: 'stub', soul: '' }
+    );
+    expect(code).toBe(0);
+    const plan = JSON.parse(read());
+    expect(plan.tier).toEqual({ name: 'T2', source: 'flag', matched: [] });
+    expect(plan.review).toBe('moa');
+    expect(plan.model).toBe('sol');
+  });
+
+  test('help text documents --tier', async () => {
+    const { io, read } = captureIo();
+    await main(['--help'], {}, io as never, {});
+    expect(read()).toContain('--tier');
+  });
+
+  test('T2 production dispatch auto-upgrades to live workflow with MOA', async () => {
+    const { io } = captureIo();
+    let moaCalled = false;
+    const moaRunner = async () => {
+      moaCalled = true;
+      return {
+        approved: true,
+        degraded: false,
+        findings: [],
+        votes: [],
+        aggregatorSummary: null,
+      };
+    };
+    const runStep = async ({ step }: { step: { role: string } }) =>
+      step.role === 'reviewer'
+        ? { code: 0, output: 'APPROVED', approved: true }
+        : { code: 0, output: 'artifact' };
+    const gateRunner = () => ({ status: 0 });
+    const code = await main(
+      ['--phase', 'production', '--task', 'untangle race condition in worker pool'],
+      {},
+      io as never,
+      {
+        routing: fullRouting,
+        brain: 'stub',
+        soul: '',
+        runStep,
+        moaRunner,
+        gateRunner,
+        writeRunLedger: null,
+      }
+    );
+    expect(code).toBe(0);
+    expect(moaCalled).toBe(true);
+  });
+});
