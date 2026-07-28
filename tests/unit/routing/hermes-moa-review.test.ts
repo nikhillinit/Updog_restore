@@ -246,7 +246,13 @@ describe('runMoaReview', () => {
     expect(calls).toEqual([]);
   });
 
-  test('rejects moa-strict config with fewer than two strict reviewers', async () => {
+  test('rejects moa-strict config with exactly two strict reviewers before spawning reviewers', async () => {
+    const calls: string[] = [];
+    const executor = async (model: string) => {
+      calls.push(model);
+      return reviewerOutput('approve');
+    };
+
     await expect(
       runMoaReview({
         artifact: 'diff',
@@ -254,13 +260,18 @@ describe('runMoaReview', () => {
         mode: 'moa-strict',
         moaConfig: {
           ...moaConfig,
-          strictReviewers: [{ model: 'terra', lens: 'correctness' }],
+          strictReviewers: [
+            { model: 'terra', lens: 'correctness' },
+            { model: 'luna', lens: 'spec-compliance' },
+          ],
         },
         routing: routingStub,
+        executor,
       })
     ).rejects.toThrow(
-      'runMoaReview: moa-strict mode requires at least 2 configured reviewers'
+      'runMoaReview: moa-strict mode requires at least 3 configured reviewers in moaConfig.strictReviewers'
     );
+    expect(calls).toEqual([]);
   });
 
   test('rejects a malformed strict reviewer before spawning reviewers', async () => {
@@ -279,6 +290,7 @@ describe('runMoaReview', () => {
           ...moaConfig,
           strictReviewers: [
             { model: 'terra', lens: 'correctness' },
+            { model: 'luna', lens: 'spec-compliance' },
             { model: 'claude', lens: '' },
           ],
         },

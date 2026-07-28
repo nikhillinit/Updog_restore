@@ -867,9 +867,12 @@ async function runMoaReview({
   const reviewerConfigKey =
     mode === 'moa-strict' ? 'strictReviewers' : 'reviewers';
   const reviewers = moaConfig?.[reviewerConfigKey];
-  if (!Array.isArray(reviewers) || reviewers.length < 2) {
+  const minimumReviewers = mode === 'moa-strict' ? 3 : 2;
+  if (!Array.isArray(reviewers) || reviewers.length < minimumReviewers) {
     throw new Error(
-      `runMoaReview: ${mode} mode requires at least 2 configured reviewers`
+      mode === 'moa-strict'
+        ? 'runMoaReview: moa-strict mode requires at least 3 configured reviewers in moaConfig.strictReviewers'
+        : 'runMoaReview: moa mode requires at least 2 configured reviewers'
     );
   }
   if (!reviewers.every(isMoaReviewerConfig)) {
