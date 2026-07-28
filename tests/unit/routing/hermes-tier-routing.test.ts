@@ -396,13 +396,37 @@ describe('model-routing.json v3 integrity', () => {
   const real = JSON.parse(
     fs.readFileSync(new URL('../../../.claude/hermes/model-routing.json', import.meta.url), 'utf8')
   );
+  const requiredDefaultPhases = ['research', 'production', 'distribution'] as const;
+  const requiredManualOverrideModels = [
+    'claude',
+    'codex',
+    'kimi',
+    'gemini',
+    'agy',
+    'sol',
+    'luna',
+    'terra',
+    'qwen',
+  ] as const;
+
+  function expectUsableCommand(model: unknown) {
+    expect(typeof model).toBe('string');
+    const defaultBin = typeof model === 'string' ? real.commands[model]?.defaultBin : undefined;
+    expect(typeof defaultBin).toBe('string');
+    expect(typeof defaultBin === 'string' ? defaultBin.trim().length : 0).toBeGreaterThan(0);
+  }
+
+  test('MOA reviewer panels satisfy runtime minimums', () => {
+    expect(real.moaReview.reviewers.length).toBeGreaterThanOrEqual(2);
+    expect(real.moaReview.strictReviewers.length).toBeGreaterThanOrEqual(3);
+  });
 
   test('every tier model has a commands entry', () => {
     for (const tier of Object.values(real.tiers) as Array<{
       modelByPhase?: Record<string, string>;
     }>) {
       for (const model of Object.values(tier.modelByPhase ?? {})) {
-        expect(real.commands[model]).toBeDefined();
+        expectUsableCommand(model);
       }
     }
   });
@@ -414,8 +438,18 @@ describe('model-routing.json v3 integrity', () => {
       real.moaReview.aggregator,
     ];
     for (const model of models) {
-      expect(real.commands[model]).toBeDefined();
+      expectUsableCommand(model);
     }
+  });
+
+  test('every fallback and long-context model has a commands entry', () => {
+    for (const phase of requiredDefaultPhases) {
+      expectUsableCommand(real.defaults[phase]);
+    }
+    for (const model of Object.values(real.defaults)) {
+      expectUsableCommand(model);
+    }
+    expectUsableCommand(real.longContextModel);
   });
 
   test('every MOA reviewer has non-empty model and lens fields', () => {
@@ -433,7 +467,11 @@ describe('model-routing.json v3 integrity', () => {
   });
 
   test('every manualFlags entry parses to its model', () => {
-    for (const [flag, model] of Object.entries(real.manualFlags)) {
+    const manualFlags = Object.entries(real.manualFlags);
+    expect(manualFlags.length).toBeGreaterThan(0);
+    expect(manualFlags.length).toBeGreaterThanOrEqual(requiredManualOverrideModels.length);
+
+    for (const [flag, model] of manualFlags) {
       expect(parseArgs([flag, '--task', 'demo']).manualModel).toBe(model);
     }
   });
