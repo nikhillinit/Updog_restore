@@ -864,25 +864,18 @@ async function runMoaReview({
   env = process.env,
   executor = executeModelCapture,
 }) {
-  const configuredReviewers = moaConfig?.reviewers;
-  if (!Array.isArray(configuredReviewers) || configuredReviewers.length < 2) {
-    throw new Error('runMoaReview: moa mode requires at least 2 configured reviewers');
-  }
-  if (!configuredReviewers.every(isMoaReviewerConfig)) {
+  const reviewerConfigKey =
+    mode === 'moa-strict' ? 'strictReviewers' : 'reviewers';
+  const reviewers = moaConfig?.[reviewerConfigKey];
+  if (!Array.isArray(reviewers) || reviewers.length < 2) {
     throw new Error(
-      'runMoaReview: moaConfig.reviewers entries require non-empty string model and lens'
+      `runMoaReview: ${mode} mode requires at least 2 configured reviewers`
     );
   }
-  const strictExtraReviewer = moaConfig.strictExtraReviewer;
-  if (mode === 'moa-strict' && !isMoaReviewerConfig(strictExtraReviewer)) {
+  if (!reviewers.every(isMoaReviewerConfig)) {
     throw new Error(
-      'runMoaReview: moa-strict mode requires moaConfig.strictExtraReviewer'
+      `runMoaReview: moaConfig.${reviewerConfigKey} entries require non-empty string model and lens`
     );
-  }
-
-  const reviewers = [...configuredReviewers];
-  if (mode === 'moa-strict') {
-    reviewers.push(strictExtraReviewer);
   }
 
   const votes = await Promise.all(

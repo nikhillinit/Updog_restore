@@ -166,7 +166,11 @@ const moaConfig = {
     { model: 'terra', lens: 'correctness' },
     { model: 'luna', lens: 'spec-compliance' },
   ],
-  strictExtraReviewer: { model: 'claude', lens: 'numeric-precision' },
+  strictReviewers: [
+    { model: 'terra', lens: 'correctness' },
+    { model: 'luna', lens: 'spec-compliance' },
+    { model: 'claude', lens: 'numeric-precision' },
+  ],
   aggregator: 'sol',
 };
 
@@ -242,18 +246,49 @@ describe('runMoaReview', () => {
     expect(calls).toEqual([]);
   });
 
-  test('rejects moa-strict config without a valid extra reviewer', async () => {
+  test('rejects moa-strict config with fewer than two strict reviewers', async () => {
     await expect(
       runMoaReview({
         artifact: 'diff',
         task: 't',
         mode: 'moa-strict',
-        moaConfig: { ...moaConfig, strictExtraReviewer: null },
+        moaConfig: {
+          ...moaConfig,
+          strictReviewers: [{ model: 'terra', lens: 'correctness' }],
+        },
         routing: routingStub,
       })
     ).rejects.toThrow(
-      'runMoaReview: moa-strict mode requires moaConfig.strictExtraReviewer'
+      'runMoaReview: moa-strict mode requires at least 2 configured reviewers'
     );
+  });
+
+  test('rejects a malformed strict reviewer before spawning reviewers', async () => {
+    const calls: string[] = [];
+    const executor = async (model: string) => {
+      calls.push(model);
+      return reviewerOutput('approve');
+    };
+
+    await expect(
+      runMoaReview({
+        artifact: 'diff',
+        task: 't',
+        mode: 'moa-strict',
+        moaConfig: {
+          ...moaConfig,
+          strictReviewers: [
+            { model: 'terra', lens: 'correctness' },
+            { model: 'claude', lens: '' },
+          ],
+        },
+        routing: routingStub,
+        executor,
+      })
+    ).rejects.toThrow(
+      'runMoaReview: moaConfig.strictReviewers entries require non-empty string model and lens'
+    );
+    expect(calls).toEqual([]);
   });
 
   test('moa mode approves when both reviewers approve; aggregator not spawned for zero findings', async () => {
