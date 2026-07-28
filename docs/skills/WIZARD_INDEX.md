@@ -90,6 +90,7 @@ This index groups reflections by the wizard step they affect, helping you find r
 | [REFL-038](REFL-038-windows-agent-shell-env-missing.md) | DRAFT | Windows Agent Execution Paths Can Lose COMSPEC and Profile Env | high |
 | [REFL-039](REFL-039-transport-failure-must-not-invert-model-roles.md) | VERIFIED | Transport failure must not invert model roles | high |
 | [REFL-040](REFL-040-cross-worktree-attribution-requires-environment-parity.md) | VERIFIED | Cross-Worktree Attribution Requires Environment Parity | high |
+| [REFL-041](REFL-041-production-activation-requires-schema-provisioning-proof.md) | VERIFIED | Production Activation Requires Schema Provisioning Proof | high |
 
 ---
 
