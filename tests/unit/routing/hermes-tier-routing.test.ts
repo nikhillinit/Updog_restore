@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+
 import { describe, expect, test } from 'vitest';
 
 import checkedInRouting from '../../../.claude/hermes/model-routing.json';
@@ -386,5 +388,66 @@ describe('main --tier plumbing', () => {
     );
     expect(code).toBe(0);
     expect(moaCalled).toBe(true);
+  });
+});
+
+describe('model-routing.json v3 integrity', () => {
+  // Server test setup mocks named fs exports; default export remains real.
+  const real = JSON.parse(
+    fs.readFileSync(new URL('../../../.claude/hermes/model-routing.json', import.meta.url), 'utf8')
+  );
+
+  test('every tier model has a commands entry', () => {
+    for (const tier of Object.values(real.tiers) as Array<{
+      modelByPhase?: Record<string, string>;
+    }>) {
+      for (const model of Object.values(tier.modelByPhase ?? {})) {
+        expect(real.commands[model]).toBeDefined();
+      }
+    }
+  });
+
+  test('every MOA reviewer and aggregator has a commands entry', () => {
+    const models = [
+      ...real.moaReview.reviewers.map((reviewer: { model: string }) => reviewer.model),
+      ...real.moaReview.strictReviewers.map((reviewer: { model: string }) => reviewer.model),
+      real.moaReview.aggregator,
+    ];
+    for (const model of models) {
+      expect(real.commands[model]).toBeDefined();
+    }
+  });
+
+  test('every MOA reviewer has non-empty model and lens fields', () => {
+    const reviewers = [...real.moaReview.reviewers, ...real.moaReview.strictReviewers] as Array<{
+      model: unknown;
+      lens: unknown;
+    }>;
+
+    for (const reviewer of reviewers) {
+      expect(typeof reviewer.model).toBe('string');
+      expect((reviewer.model as string).trim()).not.toBe('');
+      expect(typeof reviewer.lens).toBe('string');
+      expect((reviewer.lens as string).trim()).not.toBe('');
+    }
+  });
+
+  test('every manualFlags entry parses to its model', () => {
+    for (const [flag, model] of Object.entries(real.manualFlags)) {
+      expect(parseArgs([flag, '--task', 'demo']).manualModel).toBe(model);
+    }
+  });
+
+  test('T3 resolves to moa-strict review with a valid gate', () => {
+    const plan = createRoutingPlan({
+      phase: 'production',
+      task: 'plain task',
+      routing: real,
+      explicitTier: 'T3',
+    });
+
+    expect(plan.tier.name).toBe('T3');
+    expect(plan.review).toBe('moa-strict');
+    expect(plan.gate).toEqual(expect.stringMatching(/\S/));
   });
 });
