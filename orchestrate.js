@@ -1298,7 +1298,8 @@ async function executeWorkflow(plan, deps = {}) {
       while (!approved && repairs < maxRepairs && ownerStep) {
         if (
           moaResult?.degraded &&
-          (moaStep?.mode === 'moa-strict' || moaResult.findings.length === 0)
+          (moaStep?.mode === 'moa-strict' ||
+            (!moaResult.approved && (moaResult.findings?.length ?? 0) === 0))
         ) {
           break; // transport failure: repairing code cannot fix a crashed reviewer lane
         }

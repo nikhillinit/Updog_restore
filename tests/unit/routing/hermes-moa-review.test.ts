@@ -806,6 +806,42 @@ describe('executeWorkflow with MOA review', () => {
     expect(record.repairs).toBe(0);
   });
 
+  test('moa partial degradation still repairs a standard reviewer rejection', async () => {
+    let moaCalls = 0;
+    const moaRunner = async () => {
+      moaCalls += 1;
+      return {
+        approved: true,
+        degraded: true,
+        findings: [],
+        votes: [],
+        aggregatorSummary: null,
+      };
+    };
+    const runStep = async ({ step, attempt }: { step: { role: string }; attempt: number }) => {
+      if (step.role === 'reviewer') {
+        return attempt === 0
+          ? {
+              code: 0,
+              output: 'Fix the actionable reviewer finding.',
+              approved: false,
+            }
+          : { code: 0, output: 'APPROVED', approved: true };
+      }
+      return { code: 0, output: `artifact-v${attempt}` };
+    };
+    const record = await executeWorkflow(moaStepPlan('moa'), {
+      runStep,
+      moaRunner,
+      maxRepairs: 5,
+      writeRunLedger: null,
+    });
+    expect(record.exitCode).toBe(0);
+    expect(record.approved).toBe(true);
+    expect(record.repairs).toBeGreaterThan(0);
+    expect(moaCalls).toBe(2);
+  });
+
   test('workflow without moa step never invokes moaRunner', async () => {
     let called = false;
     const moaRunner = async () => {
