@@ -784,7 +784,7 @@ function validateFindingsReport(value) {
 // validates it against the findings contract.
 function extractFindingsReport(output) {
   const text = String(output || '');
-  const fenced = [...text.matchAll(/```json\s*\n([\s\S]*?)```/g)];
+  const fenced = [...text.matchAll(/```json\s*\n([\s\S]*?)\n```/g)];
   const candidates = fenced.length > 0 ? [fenced[fenced.length - 1][1]] : [text.trim()];
 
   for (const candidate of candidates) {

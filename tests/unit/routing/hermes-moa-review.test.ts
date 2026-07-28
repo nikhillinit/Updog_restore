@@ -130,6 +130,26 @@ describe('extractFindingsReport', () => {
     if (result.ok) expect(result.report.verdict).toBe('changes');
   });
 
+  test('extracts fenced JSON when a finding claim contains triple backticks', () => {
+    const report = {
+      ...validReport,
+      findings: [
+        {
+          ...validReport.findings[0],
+          claim: 'Use ``` to describe a fenced code block.',
+        },
+      ],
+    };
+    const output = ['```json', JSON.stringify(report), '```'].join('\n');
+
+    const result = extractFindingsReport(output);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.report.findings[0].claim).toBe('Use ``` to describe a fenced code block.');
+    }
+  });
+
   test('fails on missing JSON', () => {
     expect(extractFindingsReport('Looks good to me!').ok).toBe(false);
   });
