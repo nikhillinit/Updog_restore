@@ -736,6 +736,79 @@ function parseApprovalSignal(output) {
   return lines.some((line) => line === APPROVAL_SENTINEL);
 }
 
+const FINDING_SEVERITIES = new Set(['high', 'medium', 'low']);
+const REPORT_VERDICTS = new Set(['approve', 'changes']);
+
+// Node contract for MOA reviewer output. Hand-rolled (orchestrate.js is
+// dependency-free). Lenient on extra properties, strict on required shape.
+function validateFindingsReport(value) {
+  const fail = (error) => ({ ok: false, error });
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return fail('report must be an object');
+  }
+  if (!REPORT_VERDICTS.has(value.verdict)) {
+    return fail(`verdict must be one of: ${[...REPORT_VERDICTS].join(', ')}`);
+  }
+  if (typeof value.summary !== 'string') {
+    return fail('summary must be a string');
+  }
+  if (!Array.isArray(value.findings)) {
+    return fail('findings must be an array');
+  }
+  for (const [index, finding] of value.findings.entries()) {
+    if (!finding || typeof finding !== 'object')
+      return fail(`findings[${index}] must be an object`);
+    if (typeof finding.file !== 'string' || !finding.file)
+      return fail(`findings[${index}].file required`);
+    if (!Number.isInteger(finding.line) || finding.line < 1)
+      return fail(`findings[${index}].line must be a positive integer`);
+    if (!FINDING_SEVERITIES.has(finding.severity))
+      return fail(`findings[${index}].severity must be high|medium|low`);
+    if (typeof finding.lens !== 'string' || !finding.lens)
+      return fail(`findings[${index}].lens required`);
+    if (typeof finding.claim !== 'string' || !finding.claim)
+      return fail(`findings[${index}].claim required`);
+    if (finding.evidence !== undefined && typeof finding.evidence !== 'string')
+      return fail(`findings[${index}].evidence must be a string when present`);
+  }
+  if (value.verdict === 'approve' && value.findings.length > 0) {
+    return fail('verdict approve requires an empty findings array');
+  }
+  if (value.verdict === 'changes' && value.findings.length === 0) {
+    return fail('verdict changes requires at least one finding');
+  }
+  return { ok: true, error: null };
+}
+
+// Pulls the last fenced ```json block (or, failing that, the whole output) and
+// validates it against the findings contract.
+function extractFindingsReport(output) {
+  const text = String(output || '');
+  const fenced = [...text.matchAll(/```json\s*\n([\s\S]*?)```/g)];
+  const candidates = fenced.length > 0 ? [fenced[fenced.length - 1][1]] : [text.trim()];
+
+  for (const candidate of candidates) {
+    let parsed;
+    try {
+      parsed = JSON.parse(candidate);
+    } catch {
+      return {
+        ok: false,
+        error: 'no parseable JSON report found in reviewer output',
+      };
+    }
+    const valid = validateFindingsReport(parsed);
+    if (!valid.ok) {
+      return { ok: false, error: valid.error };
+    }
+    return { ok: true, report: parsed };
+  }
+  return {
+    ok: false,
+    error: 'no parseable JSON report found in reviewer output',
+  };
+}
+
 function formatStepInput(input) {
   if (Array.isArray(input)) {
     return input.map((entry, index) => `--- INPUT ${index + 1} ---\n${entry ?? ''}`).join('\n\n');
@@ -1358,6 +1431,7 @@ export {
   evaluateReadiness,
   executeModelCapture,
   executeWorkflow,
+  extractFindingsReport,
   generateRunId,
   getGateRunPlan,
   isCliEntryPoint,
@@ -1372,5 +1446,6 @@ export {
   runGate,
   shouldRunPostflightGate,
   scoreSpecialist,
+  validateFindingsReport,
   writeRunLedger,
 };
