@@ -1833,6 +1833,56 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     performanceBudgetMs: null,
     notes: `PLAN_61 Task 18. ${notes}`,
   })),
+  ...(
+    [
+      [
+        'GET',
+        '/api/funds/:fundId/internal-analysis/narratives',
+        'Read the terminal source-linked narrative for an anchor (draft or reference).',
+      ],
+      [
+        'POST',
+        '/api/funds/:fundId/internal-analysis/narratives/generate',
+        'Generate a narrative from an anchor basis; regeneration carries user commentary forward.',
+      ],
+      [
+        'POST',
+        '/api/funds/:fundId/internal-analysis/narratives/revise',
+        'Persist an operator edit as a new narrative revision superseding the terminal.',
+      ],
+      [
+        'GET',
+        '/api/funds/:fundId/internal-analysis/notes',
+        'List append-only notes for an anchor.',
+      ],
+      [
+        'POST',
+        '/api/funds/:fundId/internal-analysis/notes',
+        'Append a note, or a correction that supersedes one, for an anchor.',
+      ],
+    ] as const
+  ).map(([method, path, notes]): RoutePolicyEntry => ({
+    id: `api:${method.toLowerCase()}:${path}`,
+    method,
+    path,
+    lifecycle: 'durable_crud',
+    governanceRef: '/fund-model-results/:fundId',
+    surface: 'internal-analysis-api',
+    owner: ownerForFinancialSurface('fund_modeling'),
+    telemetryKey: telemetryKeyForRoute('api.route', path),
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_and_idempotency_verified',
+    // Narratives and notes are internal reference artifacts -- no recipient, send,
+    // approval, or export path exists on this surface at all (Task 19 gate).
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes: `PLAN_61 Task 19. ${notes}`,
+  })),
 ];
 
 export const EXPLICIT_API_ROUTE_POLICY_KEYS = new Set<string>(
@@ -1912,6 +1962,11 @@ export const COMMON_API_ROUTE_POLICY_IDS = {
     'api:get:/api/funds/:fundId/internal-analysis/references/:referenceId',
     'api:post:/api/funds/:fundId/internal-analysis/references/:referenceId/drafts',
     'api:post:/api/admin/funds/:fundId/internal-analysis/quarterly-draft-run',
+    'api:get:/api/funds/:fundId/internal-analysis/narratives',
+    'api:post:/api/funds/:fundId/internal-analysis/narratives/generate',
+    'api:post:/api/funds/:fundId/internal-analysis/narratives/revise',
+    'api:get:/api/funds/:fundId/internal-analysis/notes',
+    'api:post:/api/funds/:fundId/internal-analysis/notes',
   ],
   'current-forecast': [
     'api:get:/api/funds/:fundId/current-plan-versions',

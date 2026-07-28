@@ -19,6 +19,7 @@ export { ScenarioSetsSummary } from './ScenarioSetsSummary';
 export { EngineMetricsGrid } from './EngineMetricsGrid';
 export { DecisionStateBadge } from './DecisionStateBadge';
 export { FinancialEvidenceDrawer } from './FinancialEvidenceDrawer';
+export { InternalNarrativePanel } from './InternalNarrativePanel';
 export { ForecastBasisControl, ScenarioOverlayControl } from './FundForecastModeSelector';
 export {
   createFundResultsViewState,
@@ -40,6 +41,7 @@ export type {
   FinancialEvidenceDrawerProps,
   FinancialEvidenceDrawerStatus,
 } from './FinancialEvidenceDrawer';
+export type { InternalNarrativePanelProps } from './InternalNarrativePanel';
 export type {
   ForecastBasisControlProps,
   ScenarioOverlayControlProps,
