@@ -710,6 +710,53 @@ describe('executeWorkflow with MOA review', () => {
     });
     expect(record.exitCode).toBe(1);
     expect(moaCalls).toBe(2);
+    expect(record.repairs).toBe(1);
+  });
+
+  test('reintroduced finding after a clean moa round is not treated as a dry loop', async () => {
+    const finding = {
+      file: 'a.ts',
+      line: 3,
+      severity: 'high',
+      lens: 'correctness',
+      claim: 'Bad cursor.',
+    };
+    let moaCalls = 0;
+    const moaRunner = async () => {
+      moaCalls += 1;
+      const rejects = moaCalls === 1 || moaCalls === 3;
+      return {
+        approved: !rejects,
+        degraded: false,
+        findings: rejects ? [finding] : [],
+        votes: [],
+        aggregatorSummary: null,
+      };
+    };
+    const runStep = async ({ step, attempt }: { step: { role: string }; attempt: number }) => {
+      if (step.role === 'reviewer') {
+        return attempt === 1
+          ? {
+              code: 0,
+              output: 'Unrelated reviewer feedback.',
+              approved: false,
+            }
+          : { code: 0, output: 'APPROVED', approved: true };
+      }
+      return { code: 0, output: `artifact-v${attempt}` };
+    };
+
+    const record = await executeWorkflow(moaStepPlan('moa'), {
+      runStep,
+      moaRunner,
+      maxRepairs: 5,
+      writeRunLedger: null,
+    });
+
+    expect(record.exitCode).toBe(0);
+    expect(record.approved).toBe(true);
+    expect(record.repairs).toBe(3);
+    expect(moaCalls).toBe(4);
   });
 
   test('moa-strict degraded fails immediately without burning repairs', async () => {

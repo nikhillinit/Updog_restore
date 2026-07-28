@@ -1241,7 +1241,7 @@ async function executeWorkflow(plan, deps = {}) {
       specialistNotes = specialist.output ?? null;
     }
 
-    const seenFindingKeys = new Set();
+    let previousFindingKeys = new Set();
 
     const runReviewRound = async (attempt) => {
       let roundApproved = true;
@@ -1299,15 +1299,14 @@ async function executeWorkflow(plan, deps = {}) {
         if (moaResult?.degraded && moaStep?.mode === 'moa-strict') {
           break; // transport failure: repairing code cannot fix a crashed reviewer lane
         }
-        const newKeys = (moaResult?.findings || [])
-          .map(findingKey)
-          .filter((key) => !seenFindingKeys.has(key));
+        const currentFindingKeys = new Set((moaResult?.findings || []).map(findingKey));
+        const newKeys = [...currentFindingKeys].filter((key) => !previousFindingKeys.has(key));
         const moaIsSoleRejector =
           moaStep && moaResult && !moaResult.approved && round.reviewerApproved !== false;
         if (moaIsSoleRejector && !moaResult.degraded && newKeys.length === 0 && repairs > 0) {
           break; // dry loop: MOA repeats known findings and nothing else rejects
         }
-        for (const key of newKeys) seenFindingKeys.add(key);
+        previousFindingKeys = currentFindingKeys;
 
         repairs += 1;
         const repair = await runRecorded(ownerStep, round.repairInput, repairs);
