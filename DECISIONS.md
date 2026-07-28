@@ -9072,9 +9072,11 @@ requires exact-main audit/apply proof through the governed workflow.
 **Date:** 2026-07-28 **Status:** [ACCEPTED] Accepted **Decision:** Add a
 sophistication tier axis (T0–T3) to Hermes routing, composed orthogonally with
 phase routing (phase decides roles, artifacts, and gates; tier decides owner
-model and review depth), and implement the coding-review diamond natively with
-lens-diverse reviewers, a schema-validated JSON findings contract, a
-code-decided vote, and decoupled `reviewers` / `strictReviewers` panels.
+model (subject to existing `--model` overrides and long-context routing, both of
+which still take precedence) and review depth), and implement the coding-review
+diamond natively with lens-diverse reviewers, a schema-validated JSON findings
+contract, a code-decided vote, and decoupled `reviewers` / `strictReviewers`
+panels.
 
 ### Context
 
@@ -9094,9 +9096,10 @@ distinct review lenses.
   classification uses explicit `--tier` if given, otherwise weighted keyword
   scoring; financial specialist risk always promotes to T3 and cannot be
   overridden downward.
-- Tier selects the owner model per phase from `modelByPhase` (e.g., T0
-  production uses `sol`; T0 research/distribution use `qwen`; T2/T3 use
-  `claude`/`sol`/`claude`), falling back to phase defaults for T1.
+- Tier selects the owner model per phase from `modelByPhase` after `--model`
+  overrides and long-context routing (e.g., T0 production uses `sol`; T0
+  research/distribution use `qwen`; T2/T3 use `claude`/`sol`/`claude`), falling
+  back to phase defaults for T1.
 - T2 uses MOA review through the `reviewers` panel (`terra`/correctness,
   `luna`/spec-compliance, `qwen`/simplicity-efficiency). T3 uses the independent
   `strictReviewers` panel (`terra`/correctness, `luna`/spec-compliance,
@@ -9105,12 +9108,16 @@ distinct review lenses.
 - The MOA diamond runs reviewers in parallel with fresh context, distinct
   lenses, and a strict JSON findings contract. Approval is decided by code:
   `moa` requires unanimous approval among surviving reviewers (at least 2
-  configured); `moa-strict` requires at least 3 configured reviewers and a
-  2-of-3 vote with zero degradation. `sol` serves only as a non-authoritative
+  configured); `moa-strict` requires at least 3 configured reviewers and at
+  least 2 approvals with zero degradation (today's config ships exactly 3
+  reviewers, i.e. 2-of-3; a larger panel without raising the threshold would
+  lower the required consensus). `sol` serves only as a non-authoritative
   aggregator/narrator.
-- Degraded fan-in is loud in T2 (stderr warning) and fatal in T3 (immediate
-  failure, no repair rounds). A malformed reviewer entry is rejected before any
-  reviewer is spawned; reviewer errors are isolated and cannot crash the panel.
+- Degraded fan-in is loud in T2 (stderr warning) and fatal in T3 (the repair
+  loop breaks immediately with zero repair attempts, though any audit and gate
+  steps still run before the final exit code reflects the unapproved review). A
+  malformed reviewer entry is rejected before any reviewer is spawned; reviewer
+  errors are isolated and cannot crash the panel.
 - The repair loop deduplicates findings by file:line:claim and exits on a dry
   loop when MOA is the sole rejector and repeats the same findings as the
   immediately preceding round.
@@ -9122,7 +9129,9 @@ distinct review lenses.
 
 ### Consequences
 
-- T0 work runs on the quota-free local `qwen` lane.
+- T0 research/distribution work runs on the quota-free local `qwen` lane; T0
+  production uses `sol` because `qwen` has no tool-use loop and cannot write
+  files or run tests.
 - T2/T3 production diffs receive multi-model adversarial review without a Hermes
   Agent dependency.
 - `orchestrate.js` stays dependency-free; routing and MOA vote logic remain

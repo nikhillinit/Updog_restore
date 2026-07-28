@@ -41,17 +41,19 @@ the model-specific governance files remain authoritative.
 ## Sophistication Tiers (added 2026-07-28)
 
 Tier is an orthogonal axis composed with phase routing: phase decides roles,
-artifacts, and gates; tier decides which model fills the owner slot and how much
-review fires. Explicit `--tier` wins; otherwise weighted keyword scoring per
-tier is used; absent any match the fallback is T1. Financial specialist risk
-always promotes to T3 and cannot be overridden downward.
+artifacts, and gates; tier decides which model fills the owner slot (after
+`--model` overrides and long-context routing, both of which still take
+precedence) and how much review fires. Explicit `--tier` wins; otherwise
+weighted keyword scoring per tier is used; absent any match the fallback is T1.
+Financial specialist risk always promotes to T3 and cannot be overridden
+downward.
 
-| Tier | Meaning  | Owner model (research / production / distribution) | Review                                         |
-| ---- | -------- | -------------------------------------------------- | ---------------------------------------------- |
-| T0   | trivial  | qwen / sol / qwen                                  | none                                           |
-| T1   | standard | claude / codex / claude (phase defaults)           | standard reviewer flow                         |
-| T2   | complex  | claude / sol / claude                              | MOA: all surviving reviewers must approve      |
-| T3   | critical | claude / sol / claude                              | MOA-strict: 3 lenses, 2-of-3 vote, fail-closed |
+| Tier | Meaning  | Owner model (research / production / distribution) | Review                                                                     |
+| ---- | -------- | -------------------------------------------------- | -------------------------------------------------------------------------- |
+| T0   | trivial  | qwen / sol / qwen                                  | none                                                                       |
+| T1   | standard | claude / codex / claude (phase defaults)           | no automatic review; existing `--workflow` behavior                        |
+| T2   | complex  | claude / sol / claude                              | MOA: all surviving reviewers must approve                                  |
+| T3   | critical | claude / sol / claude                              | MOA-strict: >=3 reviewers, >=2 approvals, zero degradation (today: 2-of-3) |
 
 MOA review rules:
 
@@ -72,7 +74,9 @@ MOA review rules:
   stringification of a rejection value is wrapped in try/catch so no payload can
   crash the whole panel.
 - Degraded fan-in is loud in T2 (stderr warning; surviving reviewers decide) and
-  fails closed in T3 (immediate run failure with zero repair attempts).
+  fails closed in T3 (repair loop breaks immediately with zero repair attempts,
+  though audit and gate steps still run before the final exit code reflects the
+  unapproved review).
 - The repair loop deduplicates findings by file:line:claim and compares them to
   the immediately preceding round only. If MOA is the sole rejector and produces
   no new keys after at least one repair round, the loop exits to avoid a dry
