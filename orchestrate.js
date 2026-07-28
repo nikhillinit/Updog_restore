@@ -21,6 +21,7 @@ const MODEL_OVERRIDES = new Set([
   'terra',
   'qwen',
 ]);
+const TIER_NAMES = ['T0', 'T1', 'T2', 'T3'];
 const WORKFLOW_DEFERRED_BEHAVIOR = [
   'model execution',
   'artifact handoff',
@@ -67,6 +68,7 @@ function parseArgs(argv = []) {
     live: false,
     manualModel: null,
     legacyCommand: null,
+    tier: null,
   };
 
   if (argv[0] && LEGACY_COMMANDS.has(argv[0])) {
@@ -113,6 +115,13 @@ function parseArgs(argv = []) {
       index += 1;
     } else if (arg === '--phase') {
       options.phase = argv[index + 1] || options.phase;
+      index += 1;
+    } else if (arg === '--tier') {
+      const tier = argv[index + 1] || '';
+      if (!TIER_NAMES.includes(tier)) {
+        throw new Error(`Unknown tier "${tier}". Expected one of: ${TIER_NAMES.join(', ')}.`);
+      }
+      options.tier = tier;
       index += 1;
     } else if (arg === '--task') {
       options.task = argv[index + 1] || '';
@@ -211,6 +220,44 @@ function scoreSpecialist(task, specialists = {}, scoring = {}) {
 
   const [selected] = candidates;
   return { ...selected, candidates };
+}
+
+// Sophistication tier classification. Explicit flag wins; otherwise weighted
+// keyword scoring per tier (same idiom as scoreSpecialist); highest matching
+// tier wins; absent config or no match falls back to T1 (status quo behavior).
+function classifyTier(task, routing, explicitTier = null) {
+  if (explicitTier) {
+    if (!TIER_NAMES.includes(explicitTier)) {
+      throw new Error(`Unknown tier "${explicitTier}". Expected one of: ${TIER_NAMES.join(', ')}.`);
+    }
+    return { tier: explicitTier, source: 'flag', matched: [] };
+  }
+
+  const tiers = routing.tiers || {};
+  const input = String(task || '').toLowerCase();
+  let best = null;
+
+  for (const name of TIER_NAMES) {
+    const config = tiers[name];
+    if (!config || !Array.isArray(config.keywords)) continue;
+
+    const minScore = config.minScore ?? 3;
+    let score = 0;
+    const matched = [];
+    for (const keyword of config.keywords) {
+      const phrase = String(keyword.phrase || '').toLowerCase();
+      const weight = keyword.weight || 1;
+      if (phrase && input.includes(phrase)) {
+        score += weight;
+        matched.push(phrase);
+      }
+    }
+    if (score >= minScore) {
+      best = { tier: name, source: 'keyword', matched };
+    }
+  }
+
+  return best || { tier: 'T1', source: 'default', matched: [] };
 }
 
 function chooseModel(task, phase, routing, manualModel = null) {
@@ -1239,6 +1286,7 @@ export {
   buildDoctorReport,
   buildPrompt,
   chooseModel,
+  classifyTier,
   createLiveRunStep,
   createWorkflowPlan,
   createRoutingPlan,

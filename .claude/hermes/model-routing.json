@@ -1,5 +1,61 @@
 {
   "version": 3,
+  "tiers": {
+    "T0": {
+      "label": "trivial",
+      "keywords": [
+        { "phrase": "fix typo", "weight": 3 },
+        { "phrase": "reformat", "weight": 3 },
+        { "phrase": "rename", "weight": 3 },
+        { "phrase": "doc tweak", "weight": 3 },
+        { "phrase": "one-liner", "weight": 3 },
+        { "phrase": "bump version", "weight": 3 }
+      ],
+      "minScore": 3,
+      "modelByPhase": {
+        "research": "qwen",
+        "production": "qwen",
+        "distribution": "qwen"
+      },
+      "review": "none"
+    },
+    "T2": {
+      "label": "complex",
+      "keywords": [
+        { "phrase": "multi-module", "weight": 4 },
+        { "phrase": "architecture", "weight": 3 },
+        { "phrase": "cross-cutting", "weight": 3 },
+        { "phrase": "migration", "weight": 3 },
+        { "phrase": "race condition", "weight": 4 },
+        { "phrase": "concurrency", "weight": 3 },
+        { "phrase": "performance regression", "weight": 3 }
+      ],
+      "minScore": 3,
+      "modelByPhase": {
+        "research": "claude",
+        "production": "sol",
+        "distribution": "claude"
+      },
+      "review": "moa"
+    },
+    "T3": {
+      "label": "critical",
+      "modelByPhase": {
+        "research": "claude",
+        "production": "sol",
+        "distribution": "claude"
+      },
+      "review": "moa-strict"
+    }
+  },
+  "moaReview": {
+    "reviewers": [
+      { "model": "terra", "lens": "correctness" },
+      { "model": "luna", "lens": "spec-compliance" }
+    ],
+    "strictExtraReviewer": { "model": "claude", "lens": "numeric-precision" },
+    "aggregator": "sol"
+  },
   "defaults": {
     "research": "claude",
     "production": "codex",
