@@ -214,6 +214,34 @@ describe('runMoaReview', () => {
     ).rejects.toThrow('runMoaReview: moa mode requires at least 2 configured reviewers');
   });
 
+  test('rejects a malformed base reviewer before spawning reviewers', async () => {
+    const calls: string[] = [];
+    const executor = async (model: string) => {
+      calls.push(model);
+      return reviewerOutput('approve');
+    };
+
+    await expect(
+      runMoaReview({
+        artifact: 'diff',
+        task: 't',
+        mode: 'moa',
+        moaConfig: {
+          ...moaConfig,
+          reviewers: [
+            { model: 'terra', lens: 'correctness' },
+            { model: 'luna' },
+          ],
+        },
+        routing: routingStub,
+        executor,
+      })
+    ).rejects.toThrow(
+      'runMoaReview: moaConfig.reviewers entries require non-empty string model and lens'
+    );
+    expect(calls).toEqual([]);
+  });
+
   test('rejects moa-strict config without a valid extra reviewer', async () => {
     await expect(
       runMoaReview({
@@ -303,6 +331,32 @@ describe('runMoaReview', () => {
     expect(result.votes.find((vote) => vote.model === 'terra')).toMatchObject({
       verdict: 'error',
       error: 'null',
+    });
+  });
+
+  test('reviewer rejection with a throwing stringifier becomes an unknown error vote', async () => {
+    const pathologicalRejection = {
+      toString() {
+        throw new Error('cannot stringify rejection');
+      },
+    };
+    const executor = async (model: string) => {
+      if (model === 'terra') throw pathologicalRejection;
+      return reviewerOutput('approve');
+    };
+    const result = await runMoaReview({
+      artifact: 'diff',
+      task: 't',
+      mode: 'moa',
+      moaConfig,
+      routing: routingStub,
+      executor,
+    });
+    expect(result.degraded).toBe(true);
+    expect(result.approved).toBe(true);
+    expect(result.votes.find((vote) => vote.model === 'terra')).toMatchObject({
+      verdict: 'error',
+      error: 'unknown error',
     });
   });
 

@@ -809,6 +809,7 @@ function extractFindingsReport(output) {
   };
 }
 
+// Opaque JSON-encoded tuple key, not display text or the original colon-delimited sketch.
 function findingKey(finding) {
   const claim = String(finding.claim || '')
     .toLowerCase()
@@ -837,6 +838,18 @@ function buildMoaReviewerPrompt({ task, artifact, lens }) {
   ].join('\n');
 }
 
+function isMoaReviewerConfig(value) {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    typeof value.model === 'string' &&
+    value.model.trim().length > 0 &&
+    typeof value.lens === 'string' &&
+    value.lens.trim().length > 0
+  );
+}
+
 // The MOA coding-review diamond: parallel lens reviewers, deterministic merge
 // and vote in code, optional aggregator narration. Approval is decided HERE,
 // never by a model: moa = all successful reviewers approve (degraded tolerated
@@ -851,25 +864,23 @@ async function runMoaReview({
   env = process.env,
   executor = executeModelCapture,
 }) {
-  if (!Array.isArray(moaConfig?.reviewers) || moaConfig.reviewers.length < 2) {
+  const configuredReviewers = moaConfig?.reviewers;
+  if (!Array.isArray(configuredReviewers) || configuredReviewers.length < 2) {
     throw new Error('runMoaReview: moa mode requires at least 2 configured reviewers');
   }
+  if (!configuredReviewers.every(isMoaReviewerConfig)) {
+    throw new Error(
+      'runMoaReview: moaConfig.reviewers entries require non-empty string model and lens'
+    );
+  }
   const strictExtraReviewer = moaConfig.strictExtraReviewer;
-  if (
-    mode === 'moa-strict' &&
-    (!strictExtraReviewer ||
-      typeof strictExtraReviewer !== 'object' ||
-      typeof strictExtraReviewer.model !== 'string' ||
-      !strictExtraReviewer.model ||
-      typeof strictExtraReviewer.lens !== 'string' ||
-      !strictExtraReviewer.lens)
-  ) {
+  if (mode === 'moa-strict' && !isMoaReviewerConfig(strictExtraReviewer)) {
     throw new Error(
       'runMoaReview: moa-strict mode requires moaConfig.strictExtraReviewer'
     );
   }
 
-  const reviewers = [...(moaConfig.reviewers || [])];
+  const reviewers = [...configuredReviewers];
   if (mode === 'moa-strict') {
     reviewers.push(strictExtraReviewer);
   }
@@ -910,11 +921,17 @@ async function runMoaReview({
           findings: extracted.report.findings,
         };
       } catch (error) {
+        let errorMessage;
+        try {
+          errorMessage = error instanceof Error ? error.message : String(error);
+        } catch {
+          errorMessage = 'unknown error';
+        }
         return {
           model,
           lens,
           verdict: 'error',
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessage,
           findings: [],
         };
       }
