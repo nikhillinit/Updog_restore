@@ -260,7 +260,7 @@ function classifyTier(task, routing, explicitTier = null) {
   return best || { tier: 'T1', source: 'default', matched: [] };
 }
 
-function chooseModel(task, phase, routing, manualModel = null) {
+function chooseModel(task, phase, routing, manualModel = null, tierConfig = null) {
   if (manualModel) return manualModel;
 
   const input = task.toLowerCase();
@@ -268,6 +268,10 @@ function chooseModel(task, phase, routing, manualModel = null) {
     if (input.includes(String(trigger).toLowerCase())) {
       return routing.longContextModel || 'kimi';
     }
+  }
+
+  if (tierConfig?.modelByPhase?.[phase]) {
+    return tierConfig.modelByPhase[phase];
   }
 
   return routing.defaults?.[phase] || 'claude';
@@ -412,20 +416,31 @@ function createRoutingPlan({
   task,
   routing,
   manualModel = null,
+  explicitTier = null,
   requestedWorkflow = null,
   skipPreflightGate = false,
   gateSkipReason = null,
 }) {
   const specialist = scoreSpecialist(task, routing.specialists || {}, routing.scoring || {});
-  const model = chooseModel(task, phase, routing, manualModel);
+  let tierResult = classifyTier(task, routing, explicitTier);
+  if (specialist?.risk === 'financial' && tierResult.tier !== 'T3') {
+    tierResult = { tier: 'T3', source: 'financial-promotion', matched: [] };
+  }
+  const tierConfig = routing.tiers?.[tierResult.tier] || null;
+  const model = chooseModel(task, phase, routing, manualModel, tierConfig);
   const gate = resolveGate(phase, specialist, routing.gates || {});
-  const ownership = resolveOwnership(phase, specialist, routing.ownership || {});
+  let ownership = resolveOwnership(phase, specialist, routing.ownership || {});
+  if (ownership && tierConfig?.modelByPhase?.[phase] && model === tierConfig.modelByPhase[phase]) {
+    ownership = { ...ownership, owner: model };
+  }
   const risk = specialist?.risk || 'standard';
 
   const plan = {
     phase,
     task,
     model,
+    tier: { name: tierResult.tier, source: tierResult.source, matched: tierResult.matched },
+    review: tierConfig?.review || 'standard',
     specialist: specialist?.name || null,
     risk,
     score: specialist?.score || 0,
@@ -461,12 +476,13 @@ function createRoutingPlan({
   return plan;
 }
 
-function buildPrompt({ plan, brain, soul = '', runId = null }) {
+function buildPrompt({ plan, brain, soul = '', runId = null, workspace = ROOT }) {
   const lines = [
     'You are operating inside Updog_restore.',
     '',
     `PHASE: ${plan.phase}`,
     `MODEL ROLE: ${plan.model}`,
+    `WORKSPACE: ${workspace}`,
   ];
 
   if (plan.ownership) {
@@ -510,16 +526,17 @@ function buildPrompt({ plan, brain, soul = '', runId = null }) {
     '',
     'Instructions:',
     '1. Read your governance file first when filesystem access is available.',
-    '2. Search for existing implementations before proposing new code.',
-    '3. Use .claude/DISCOVERY-MAP.md and .claude/AGENT-DIRECTORY.md for routing.',
-    '4. Prefer existing specialists before inventing new abstractions.',
-    '5. Produce the smallest safe diff.',
-    '6. If financial logic is touched, confirm calc-gate coverage.',
-    '7. Return: Summary, Affected Files, Changes or Plan, Verification, Risks.',
-    '8. End with a compact Handoff block listing:',
+    `2. Set command-tool Cwd to ${workspace}; never run repository commands from a tool scratch directory.`,
+    '3. Search for existing implementations before proposing new code.',
+    '4. Use .claude/DISCOVERY-MAP.md and .claude/AGENT-DIRECTORY.md for routing.',
+    '5. Prefer existing specialists before inventing new abstractions.',
+    '6. Produce the smallest safe diff.',
+    '7. If financial logic is touched, confirm calc-gate coverage.',
+    '8. Return: Summary, Affected Files, Changes or Plan, Verification, Risks.',
+    '9. End with a compact Handoff block listing:',
     '   Run ID, Phase, Owner, Reviewer, Task, Protected areas, Files touched,',
     '   Commands run, Gate status, Decision needed, Next action.',
-    '9. If writing a persisted handoff or checkpoint artifact, conform to',
+    '10. If writing a persisted handoff or checkpoint artifact, conform to',
     '   .claude/schemas/handoff.schema.json.'
   );
 
@@ -570,6 +587,29 @@ function buildDoctorReport({
   });
 }
 
+function resolveCommandInput(commandConfig, prompt) {
+  const args = [...(commandConfig.args || [])];
+  const promptDelivery = commandConfig.promptDelivery || 'stdin';
+
+  if (promptDelivery === 'argument') {
+    args.push(prompt);
+    return { args, stdin: null };
+  }
+  if (promptDelivery === 'stdin') {
+    return { args, stdin: prompt };
+  }
+
+  throw new Error(`Unknown prompt delivery mode: ${promptDelivery}`);
+}
+
+function resolveCommandEnv(commandConfig, env) {
+  const commandEnv = { ...env };
+  for (const name of commandConfig.unsetEnv || []) {
+    delete commandEnv[name];
+  }
+  return commandEnv;
+}
+
 function formatDoctorReport(report) {
   const rows = [
     ['Provider', 'Binary', 'Source', 'Status'],
@@ -595,42 +635,12 @@ function printDoctorReport(report, stdout = process.stdout) {
   stdout.write(`${formatDoctorReport(report)}\n`);
 }
 
-function executeModel(model, prompt, routing, env = process.env) {
-  const commandConfig = routing.commands?.[model];
-  if (!commandConfig) {
-    throw new Error(`No command config for model: ${model}`);
-  }
-
-  const bin = env[commandConfig.binEnv] || commandConfig.defaultBin;
-  if (!commandExists(bin)) {
-    throw new Error(
-      `Command not found for model "${model}": ${bin}. Set ${commandConfig.binEnv} or install the CLI.`
-    );
-  }
-
-  return new Promise((resolvePromise, reject) => {
-    const child = spawn(bin, commandConfig.args || [], {
-      stdio: ['pipe', 'inherit', 'inherit'],
-      shell: process.platform === 'win32',
-      env,
-    });
-
-    child.stdin.write(prompt);
-    child.stdin.end();
-    child.on('error', reject);
-    child.on('close', (code) => resolvePromise(code || 0));
-  });
-}
-
-// Sibling of executeModel that PIPES stdout so a step's output can be captured
-// and fed back into executeWorkflow. executeModel is left untouched so the
-// non-workflow path keeps inheriting stdout.
-function executeModelCapture(
+function executeModel(
   model,
   prompt,
   routing,
   env = process.env,
-  { spawn: spawnImpl = spawn } = {}
+  { spawn: spawnImpl = spawn, workspace = ROOT } = {}
 ) {
   const commandConfig = routing.commands?.[model];
   if (!commandConfig) {
@@ -644,18 +654,60 @@ function executeModelCapture(
     );
   }
 
+  const input = resolveCommandInput(commandConfig, prompt);
+  const commandEnv = resolveCommandEnv(commandConfig, env);
   return new Promise((resolvePromise, reject) => {
-    const child = spawnImpl(bin, commandConfig.args || [], {
+    const child = spawnImpl(bin, input.args, {
+      stdio: ['pipe', 'inherit', 'inherit'],
+      shell: process.platform === 'win32',
+      env: commandEnv,
+      cwd: workspace,
+    });
+
+    if (input.stdin !== null) child.stdin.write(input.stdin);
+    child.stdin.end();
+    child.on('error', reject);
+    child.on('close', (code) => resolvePromise(code || 0));
+  });
+}
+
+// Sibling of executeModel that PIPES stdout so a step's output can be captured
+// and fed back into executeWorkflow. The non-workflow executeModel path keeps
+// inheriting stdout.
+function executeModelCapture(
+  model,
+  prompt,
+  routing,
+  env = process.env,
+  { spawn: spawnImpl = spawn, workspace = ROOT } = {}
+) {
+  const commandConfig = routing.commands?.[model];
+  if (!commandConfig) {
+    throw new Error(`No command config for model: ${model}`);
+  }
+
+  const bin = env[commandConfig.binEnv] || commandConfig.defaultBin;
+  if (!commandExists(bin)) {
+    throw new Error(
+      `Command not found for model "${model}": ${bin}. Set ${commandConfig.binEnv} or install the CLI.`
+    );
+  }
+
+  const input = resolveCommandInput(commandConfig, prompt);
+  const commandEnv = resolveCommandEnv(commandConfig, env);
+  return new Promise((resolvePromise, reject) => {
+    const child = spawnImpl(bin, input.args, {
       stdio: ['pipe', 'pipe', 'inherit'],
       shell: process.platform === 'win32',
-      env,
+      env: commandEnv,
+      cwd: workspace,
     });
 
     let output = '';
     child.stdout.on('data', (chunk) => {
       output += chunk.toString();
     });
-    child.stdin.write(prompt);
+    if (input.stdin !== null) child.stdin.write(input.stdin);
     child.stdin.end();
     child.on('error', reject);
     child.on('close', (code) => resolvePromise({ code: code || 0, output }));
@@ -731,7 +783,13 @@ function createLiveRunStep({
 
 function runGate(
   gate,
-  { runner = spawnSync, env = process.env, stdio = 'inherit', throwOnFailure = true } = {}
+  {
+    runner = spawnSync,
+    env = process.env,
+    stdio = 'inherit',
+    throwOnFailure = true,
+    workspace = ROOT,
+  } = {}
 ) {
   const command = String(gate || '').trim();
   if (!command) {
@@ -743,6 +801,7 @@ function runGate(
     env,
     shell: process.platform === 'win32',
     stdio,
+    cwd: workspace,
   });
 
   if (result.error) {

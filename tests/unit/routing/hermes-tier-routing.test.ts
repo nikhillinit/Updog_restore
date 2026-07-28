@@ -1,6 +1,17 @@
 import { describe, expect, test } from 'vitest';
 
+import checkedInRouting from '../../../.claude/hermes/model-routing.json';
 import { parseArgs } from '../../../orchestrate.js';
+
+describe('text-only lane policy', () => {
+  test('keeps qwen out of production ownership and uses it as a review lens', () => {
+    expect(checkedInRouting.tiers.T0.modelByPhase.production).toBe('sol');
+    expect(checkedInRouting.moaReview.reviewers).toContainEqual({
+      model: 'qwen',
+      lens: 'simplicity-efficiency',
+    });
+  });
+});
 
 describe('model roster expansion', () => {
   test.each([
@@ -37,7 +48,7 @@ const tierRouting = {
       minScore: 3,
       modelByPhase: {
         research: 'qwen',
-        production: 'qwen',
+        production: 'sol',
         distribution: 'qwen',
       },
       review: 'none',
@@ -125,5 +136,158 @@ describe('parseArgs --tier', () => {
   test('defaults to null', () => {
     const options = parseArgs(['--task', 'demo task']);
     expect(options.tier).toBeNull();
+  });
+});
+
+import { chooseModel, createRoutingPlan } from '../../../orchestrate.js';
+
+const fullRouting = {
+  defaults: { research: 'claude', production: 'codex', distribution: 'claude' },
+  longContextModel: 'kimi',
+  longContextTriggers: ['full repo audit'],
+  gates: {
+    research: 'npm run doctor:quick',
+    production: 'npm run check',
+    'production-financial': 'npm run calc-gate',
+    distribution: 'npm run lint',
+  },
+  specialists: {
+    'waterfall-specialist': {
+      keywords: [{ phrase: 'waterfall calculation', weight: 4 }],
+      risk: 'financial',
+    },
+  },
+  scoring: {
+    minScoreToAssign: 3,
+    riskOrder: ['financial', 'operational', 'quality'],
+  },
+  ...tierRouting,
+};
+
+describe('tier-aware routing', () => {
+  test('T0 keyword task routes to sol with review none', () => {
+    const plan = createRoutingPlan({
+      phase: 'production',
+      task: 'fix typo in banner',
+      routing: fullRouting,
+    });
+    expect(plan.model).toBe('sol');
+    expect(plan.tier).toEqual({
+      name: 'T0',
+      source: 'keyword',
+      matched: ['fix typo'],
+    });
+    expect(plan.review).toBe('none');
+  });
+
+  test('T1 default keeps phase default model and standard review', () => {
+    const plan = createRoutingPlan({
+      phase: 'production',
+      task: 'add pagination to funds endpoint',
+      routing: fullRouting,
+    });
+    expect(plan.model).toBe('codex');
+    expect(plan.tier.name).toBe('T1');
+    expect(plan.review).toBe('standard');
+  });
+
+  test('T2 keyword task routes production to sol with moa review', () => {
+    const plan = createRoutingPlan({
+      phase: 'production',
+      task: 'untangle race condition in worker pool',
+      routing: fullRouting,
+    });
+    expect(plan.model).toBe('sol');
+    expect(plan.review).toBe('moa');
+  });
+
+  test('financial specialist promotes any tier to T3 moa-strict', () => {
+    const plan = createRoutingPlan({
+      phase: 'production',
+      task: 'fix typo in waterfall calculation docs',
+      routing: fullRouting,
+      explicitTier: 'T0',
+    });
+    expect(plan.tier).toEqual({
+      name: 'T3',
+      source: 'financial-promotion',
+      matched: [],
+    });
+    expect(plan.review).toBe('moa-strict');
+    expect(plan.gate).toBe('npm run calc-gate');
+  });
+
+  test('manual model override beats tier model', () => {
+    const plan = createRoutingPlan({
+      phase: 'production',
+      task: 'fix typo in banner',
+      routing: fullRouting,
+      manualModel: 'claude',
+    });
+    expect(plan.model).toBe('claude');
+    expect(plan.tier.name).toBe('T0');
+  });
+
+  test('long-context trigger beats tier model', () => {
+    expect(
+      chooseModel(
+        'full repo audit of typo fixes',
+        'research',
+        fullRouting,
+        null,
+        fullRouting.tiers.T0
+      )
+    ).toBe('kimi');
+  });
+
+  test('explicit tier flows through createRoutingPlan', () => {
+    const plan = createRoutingPlan({
+      phase: 'research',
+      task: 'plain task',
+      routing: fullRouting,
+      explicitTier: 'T2',
+    });
+    expect(plan.model).toBe('claude');
+    expect(plan.tier).toEqual({ name: 'T2', source: 'flag', matched: [] });
+  });
+
+  test('tier model override is reflected in ownership owner', () => {
+    const routingWithOwnership = {
+      ...fullRouting,
+      ownership: {
+        production: {
+          owner: 'codex',
+          reviewer: 'claude',
+          role: 'worker-executor',
+          artifact: 'diff plus tests',
+        },
+      },
+    };
+    const plan = createRoutingPlan({
+      phase: 'production',
+      task: 'untangle race condition in worker pool',
+      routing: routingWithOwnership,
+    });
+    expect(plan.ownership.owner).toBe('sol');
+  });
+
+  test('T1 ownership owner is unchanged', () => {
+    const routingWithOwnership = {
+      ...fullRouting,
+      ownership: {
+        production: {
+          owner: 'codex',
+          reviewer: 'claude',
+          role: 'worker-executor',
+          artifact: 'diff plus tests',
+        },
+      },
+    };
+    const plan = createRoutingPlan({
+      phase: 'production',
+      task: 'add pagination to funds endpoint',
+      routing: routingWithOwnership,
+    });
+    expect(plan.ownership.owner).toBe('codex');
   });
 });

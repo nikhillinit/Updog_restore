@@ -14,7 +14,7 @@
       "minScore": 3,
       "modelByPhase": {
         "research": "qwen",
-        "production": "qwen",
+        "production": "sol",
         "distribution": "qwen"
       },
       "review": "none"
@@ -51,7 +51,8 @@
   "moaReview": {
     "reviewers": [
       { "model": "terra", "lens": "correctness" },
-      { "model": "luna", "lens": "spec-compliance" }
+      { "model": "luna", "lens": "spec-compliance" },
+      { "model": "qwen", "lens": "simplicity-efficiency" }
     ],
     "strictExtraReviewer": { "model": "claude", "lens": "numeric-precision" },
     "aggregator": "sol"
@@ -207,7 +208,8 @@
     "kimi": {
       "binEnv": "KIMI_CODE_BIN",
       "defaultBin": "kimi-cli",
-      "args": ["--print", "--input-format", "text", "--final-message-only"]
+      "args": ["--print", "--input-format", "text", "--final-message-only"],
+      "unsetEnv": ["PYTHONPATH", "PYTHONHOME"]
     },
     "gemini": {
       "binEnv": "GEMINI_BIN",
@@ -217,7 +219,8 @@
     "agy": {
       "binEnv": "AGY_BIN",
       "defaultBin": "agy",
-      "args": []
+      "args": ["--mode", "plan", "--sandbox", "-p"],
+      "promptDelivery": "argument"
     },
     "sol": {
       "binEnv": "CODEX_BIN",
