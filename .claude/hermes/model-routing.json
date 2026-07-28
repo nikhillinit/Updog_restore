@@ -161,7 +161,7 @@
     "agy": {
       "binEnv": "AGY_BIN",
       "defaultBin": "agy",
-      "args": ["-p"]
+      "args": []
     },
     "sol": {
       "binEnv": "CODEX_BIN",
