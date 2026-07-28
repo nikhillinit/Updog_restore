@@ -193,12 +193,41 @@ const finding = {
 describe('findingKey', () => {
   test('normalizes whitespace and case of the claim', () => {
     expect(findingKey({ file: 'a.ts', line: 3, claim: 'Bad  Cursor.' })).toBe(
-      'a.ts:3:bad cursor.'
+      '["a.ts",3,"bad cursor."]'
     );
   });
 });
 
 describe('runMoaReview', () => {
+  test('rejects moa config with fewer than two reviewers', async () => {
+    await expect(
+      runMoaReview({
+        artifact: 'diff',
+        task: 't',
+        mode: 'moa',
+        moaConfig: {
+          ...moaConfig,
+          reviewers: [{ model: 'terra', lens: 'correctness' }],
+        },
+        routing: routingStub,
+      })
+    ).rejects.toThrow('runMoaReview: moa mode requires at least 2 configured reviewers');
+  });
+
+  test('rejects moa-strict config without a valid extra reviewer', async () => {
+    await expect(
+      runMoaReview({
+        artifact: 'diff',
+        task: 't',
+        mode: 'moa-strict',
+        moaConfig: { ...moaConfig, strictExtraReviewer: null },
+        routing: routingStub,
+      })
+    ).rejects.toThrow(
+      'runMoaReview: moa-strict mode requires moaConfig.strictExtraReviewer'
+    );
+  });
+
   test('moa mode approves when both reviewers approve; aggregator not spawned for zero findings', async () => {
     const calls: string[] = [];
     const executor = async (model: string) => {
@@ -253,6 +282,28 @@ describe('runMoaReview', () => {
     expect(result.votes.find((vote) => vote.model === 'terra')?.verdict).toBe(
       'error'
     );
+  });
+
+  test('non-Error reviewer rejection becomes an error vote without crashing the panel', async () => {
+    const nonErrorRejection: unknown = null;
+    const executor = async (model: string) => {
+      if (model === 'terra') throw nonErrorRejection;
+      return reviewerOutput('approve');
+    };
+    const result = await runMoaReview({
+      artifact: 'diff',
+      task: 't',
+      mode: 'moa',
+      moaConfig,
+      routing: routingStub,
+      executor,
+    });
+    expect(result.degraded).toBe(true);
+    expect(result.approved).toBe(true);
+    expect(result.votes.find((vote) => vote.model === 'terra')).toMatchObject({
+      verdict: 'error',
+      error: 'null',
+    });
   });
 
   test('moa mode with all reviewers failed is degraded and not approved', async () => {
@@ -340,6 +391,31 @@ describe('runMoaReview', () => {
       executor,
     });
     expect(result.findings).toHaveLength(1);
+  });
+
+  test('distinct findings that share a legacy colon key both survive dedup', async () => {
+    const first = { ...finding, file: 'a', line: 3, claim: '4:x' };
+    const second = {
+      ...finding,
+      file: 'a:3',
+      line: 4,
+      lens: 'spec-compliance',
+      claim: 'x',
+    };
+    const executor = async (model: string) =>
+      model === 'terra'
+        ? reviewerOutput('changes', [first])
+        : reviewerOutput('changes', [second]);
+    const result = await runMoaReview({
+      artifact: 'diff',
+      task: 't',
+      mode: 'moa',
+      moaConfig: { ...moaConfig, aggregator: null },
+      routing: routingStub,
+      executor,
+    });
+    expect(result.findings).toHaveLength(2);
+    expect(result.findings).toEqual(expect.arrayContaining([first, second]));
   });
 
   test('duplicate finding keeps the higher severity', async () => {

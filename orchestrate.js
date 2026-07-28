@@ -814,7 +814,7 @@ function findingKey(finding) {
     .toLowerCase()
     .replace(/\s+/g, ' ')
     .trim();
-  return `${finding.file}:${finding.line}:${claim}`;
+  return JSON.stringify([finding.file, finding.line, claim]);
 }
 
 function buildMoaReviewerPrompt({ task, artifact, lens }) {
@@ -851,9 +851,27 @@ async function runMoaReview({
   env = process.env,
   executor = executeModelCapture,
 }) {
+  if (!Array.isArray(moaConfig?.reviewers) || moaConfig.reviewers.length < 2) {
+    throw new Error('runMoaReview: moa mode requires at least 2 configured reviewers');
+  }
+  const strictExtraReviewer = moaConfig.strictExtraReviewer;
+  if (
+    mode === 'moa-strict' &&
+    (!strictExtraReviewer ||
+      typeof strictExtraReviewer !== 'object' ||
+      typeof strictExtraReviewer.model !== 'string' ||
+      !strictExtraReviewer.model ||
+      typeof strictExtraReviewer.lens !== 'string' ||
+      !strictExtraReviewer.lens)
+  ) {
+    throw new Error(
+      'runMoaReview: moa-strict mode requires moaConfig.strictExtraReviewer'
+    );
+  }
+
   const reviewers = [...(moaConfig.reviewers || [])];
-  if (mode === 'moa-strict' && moaConfig.strictExtraReviewer) {
-    reviewers.push(moaConfig.strictExtraReviewer);
+  if (mode === 'moa-strict') {
+    reviewers.push(strictExtraReviewer);
   }
 
   const votes = await Promise.all(
@@ -896,7 +914,7 @@ async function runMoaReview({
           model,
           lens,
           verdict: 'error',
-          error: error.message,
+          error: error instanceof Error ? error.message : String(error),
           findings: [],
         };
       }
