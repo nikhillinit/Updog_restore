@@ -15,13 +15,9 @@ export type FundScopedReference = {
     | 'fund_snapshot'
     | 'analysis_reference'
     | 'vehicle'
-    | 'portfolio_company'
     | 'financing_event'
     | 'financing_tranche'
-    | 'participation'
-    | 'scenario_set'
-    | 'reconciliation_case'
-    | 'source_observation';
+    | 'participation';
   id: string | number;
 };
 
