@@ -49,6 +49,15 @@ import { MarginalReserveRankingsResponseV2Schema } from '../../shared/contracts/
 import { buildMarginalReserveMoicInputs } from '../services/moic/marginal-reserve-moic-input-service.js';
 import { emitFundMoicFactsShadowTelemetry } from '../services/moic/fund-moic-facts-shadow-telemetry.js';
 import { emitMarginalReserveMoicShadowComparison } from '../services/moic/marginal-reserve-moic-shadow-service.js';
+import { DynamicReserveIntelligenceRunRequestV1Schema } from '../../shared/contracts/dynamic-reserve-intelligence-v1.contract.js';
+import { FundScopeError } from '../lib/fund-scoped-ownership.js';
+import { IdempotentCommandError } from '../lib/idempotent-command.js';
+import {
+  DynamicReserveIntelligenceServiceError,
+  createDynamicReserveIntelligenceRun,
+  getDynamicReserveIntelligenceRun,
+  getLatestDynamicReserveIntelligenceRun,
+} from '../services/reserves/dynamic-reserve-intelligence-service.js';
 
 const router = Router();
 
@@ -148,6 +157,122 @@ function requireInvestmentTeamMember(req: Request, res: Response, next: NextFunc
   if (!isTeamMemberUser(req.user)) return res.sendStatus(403);
   return next();
 }
+
+function respondToReserveIntelligenceError(error: unknown, res: Response): boolean {
+  if (error instanceof DynamicReserveIntelligenceServiceError) {
+    res.status(error.status).json({ error: error.code, message: error.message });
+    return true;
+  }
+  if (error instanceof FundScopeError) {
+    res.status(404).json({ error: error.code, message: error.message });
+    return true;
+  }
+  if (error instanceof IdempotentCommandError) {
+    res.status(error.status).json({
+      error: error.code,
+      message: error.message,
+      ...(error.details === undefined ? {} : { details: error.details }),
+    });
+    return true;
+  }
+  return false;
+}
+
+router.post(
+  '/funds/:fundId/moic/reserve-intelligence/runs',
+  requireAuth(),
+  requireInvestmentTeamMember,
+  requireFundAccess,
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = parseFundId(req, res);
+    if (fundId === null) return;
+    if (!FEATURES.marginalReserveMoic) {
+      return res.status(404).json({ error: 'not_found' });
+    }
+
+    const idempotencyKey = req.header('Idempotency-Key')?.trim();
+    if (!idempotencyKey) {
+      return res.status(428).json({
+        error: 'idempotency_key_required',
+        message: 'Idempotency-Key header is required',
+      });
+    }
+    const parsedBody = DynamicReserveIntelligenceRunRequestV1Schema.safeParse(req.body);
+    if (!parsedBody.success) {
+      return res.status(400).json({
+        error: 'invalid_reserve_intelligence_request',
+        message: 'Reserve intelligence request is invalid',
+        details: parsedBody.error.format(),
+      });
+    }
+
+    try {
+      const commandInput: Parameters<typeof createDynamicReserveIntelligenceRun>[0] = {
+        fundId,
+        financialFactsSnapshotId: parsedBody.data.financialFactsSnapshotId,
+        idempotencyKey,
+        actorId: resolveActorId(req),
+      };
+      if (parsedBody.data.overlay !== undefined) {
+        commandInput.overlay = parsedBody.data.overlay;
+      }
+      const result = await createDynamicReserveIntelligenceRun(commandInput);
+      return res.status(result.replayed ? 200 : 201).json(result);
+    } catch (error) {
+      if (respondToReserveIntelligenceError(error, res)) return;
+      throw error;
+    }
+  })
+);
+
+router.get(
+  '/funds/:fundId/moic/reserve-intelligence/latest',
+  requireAuth(),
+  requireInvestmentTeamMember,
+  requireFundAccess,
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = parseFundId(req, res);
+    if (fundId === null) return;
+    if (!FEATURES.marginalReserveMoic) {
+      return res.status(404).json({ error: 'not_found' });
+    }
+
+    try {
+      return res.json(await getLatestDynamicReserveIntelligenceRun({ fundId }));
+    } catch (error) {
+      if (respondToReserveIntelligenceError(error, res)) return;
+      throw error;
+    }
+  })
+);
+
+router.get(
+  '/funds/:fundId/moic/reserve-intelligence/runs/:snapshotId',
+  requireAuth(),
+  requireInvestmentTeamMember,
+  requireFundAccess,
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = parseFundId(req, res);
+    if (fundId === null) return;
+    if (!FEATURES.marginalReserveMoic) {
+      return res.status(404).json({ error: 'not_found' });
+    }
+    const snapshotId = positiveIntegerParam(req.params['snapshotId']);
+    if (snapshotId === null) {
+      return res.status(400).json({
+        error: 'invalid_snapshot_id',
+        message: 'Snapshot ID must be a positive integer',
+      });
+    }
+
+    try {
+      return res.json(await getDynamicReserveIntelligenceRun({ fundId, snapshotId }));
+    } catch (error) {
+      if (respondToReserveIntelligenceError(error, res)) return;
+      throw error;
+    }
+  })
+);
 
 router.get(
   '/funds/:fundId/moic/marginal-rankings',

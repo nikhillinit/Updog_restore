@@ -145,7 +145,7 @@ export const calcRuns = pgTable(
 
 // Fund snapshots for CQRS pattern
 // Phase 2A Item 8: runId/configId/configVersion nullable for attribution
-export const NON_TIMELINE_SNAPSHOT_TYPES = ['CURRENT_FORECAST_V2'] as const;
+export const NON_TIMELINE_SNAPSHOT_TYPES = ['CURRENT_FORECAST_V2', 'RESERVE_INTELLIGENCE'] as const;
 
 export const fundSnapshots = pgTable(
   'fund_snapshots',

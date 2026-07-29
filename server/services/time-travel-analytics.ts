@@ -272,6 +272,7 @@ export class TimeTravelAnalyticsService {
           and(
             eq(fundSnapshots.fundId, fundId),
             isNull(fundSnapshots.scenarioSetId),
+            notInArray(fundSnapshots.type, [...NON_TIMELINE_SNAPSHOT_TYPES]),
             startTime ? gte(fundSnapshots.snapshotTime, startTime) : undefined,
             endTime ? lte(fundSnapshots.snapshotTime, endTime) : (undefined as SQL | undefined)
           )
@@ -426,7 +427,8 @@ export class TimeTravelAnalyticsService {
         and(
           eq(fundSnapshots.fundId, fundId),
           lte(fundSnapshots.snapshotTime, targetTime),
-          isNull(fundSnapshots.scenarioSetId)
+          isNull(fundSnapshots.scenarioSetId),
+          notInArray(fundSnapshots.type, [...NON_TIMELINE_SNAPSHOT_TYPES])
         )
       )
       .orderBy(desc(fundSnapshots.snapshotTime))

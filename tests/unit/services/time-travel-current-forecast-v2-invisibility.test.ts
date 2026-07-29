@@ -6,6 +6,8 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { TimeTravelAnalyticsService } from '../../../server/services/time-travel-analytics';
 import { fundStateReadService } from '../../../server/services/fund-state-read-service';
+import { AUTHORITATIVE_SNAPSHOT_TYPES } from '../../../shared/contracts/fund-authoritative-calculations.contract';
+import { EXPECTED_SNAPSHOT_TYPES } from '../../../shared/contracts/fund-state-read-v1.contract';
 
 const mockDb = vi.hoisted(() => ({
   query: {
@@ -81,6 +83,19 @@ const currentForecastSnapshot: SnapshotSeed = {
   scenarioSetId: null,
 };
 
+const reserveIntelligenceSnapshot: SnapshotSeed = {
+  id: 103,
+  fundId: 1,
+  type: 'RESERVE_INTELLIGENCE',
+  snapshotTime: new Date('2026-07-21T18:00:00.000Z'),
+  createdAt: new Date('2026-07-21T18:00:00.000Z'),
+  eventCount: 0,
+  stateHash: 'reserve-intelligence-payload-hash',
+  state: null,
+  configVersion: null,
+  scenarioSetId: null,
+};
+
 let seededSnapshots: SnapshotSeed[] = [];
 
 function executeQuery(state: QueryState): unknown[] {
@@ -137,15 +152,16 @@ function createQueryChain(): QueryChain {
   return chain;
 }
 
-function expectCurrentForecastDenylist(queryCount: number): void {
+function expectNonTimelineDenylist(queryCount: number): void {
   expect(snapshotQuerySql).toHaveLength(queryCount);
   for (const query of snapshotQuerySql) {
     expect(query.sql).toContain('"fund_snapshots"."type" not in');
     expect(query.params).toContain('CURRENT_FORECAST_V2');
+    expect(query.params).toContain('RESERVE_INTELLIGENCE');
   }
 }
 
-describe('CURRENT_FORECAST_V2 snapshot invisibility', () => {
+describe('non-timeline snapshot invisibility', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     seededSnapshots = [reserveSnapshot];
@@ -160,13 +176,13 @@ describe('CURRENT_FORECAST_V2 snapshot invisibility', () => {
     const targetTime = new Date('2026-07-22T12:00:00.000Z');
 
     const reserveOnly = await service.getStateAtTime(1, targetTime);
-    seededSnapshots = [reserveSnapshot, currentForecastSnapshot];
+    seededSnapshots = [reserveSnapshot, currentForecastSnapshot, reserveIntelligenceSnapshot];
     const withCurrentForecast = await service.getStateAtTime(1, targetTime);
 
     expect(JSON.stringify(withCurrentForecast)).toBe(JSON.stringify(reserveOnly));
     expect(withCurrentForecast.snapshot.id).toBe(String(reserveSnapshot.id));
     expect(withCurrentForecast.state).toEqual(reserveSnapshot.state);
-    expectCurrentForecastDenylist(2);
+    expectNonTimelineDenylist(2);
   });
 
   it('does not change fund-state read output while the RESERVE type remains available', async () => {
@@ -193,11 +209,47 @@ describe('CURRENT_FORECAST_V2 snapshot invisibility', () => {
     });
 
     const reserveOnly = await fundStateReadService.getState(1);
-    seededSnapshots = [reserveSnapshot, currentForecastSnapshot];
+    seededSnapshots = [reserveSnapshot, currentForecastSnapshot, reserveIntelligenceSnapshot];
     const withCurrentForecast = await fundStateReadService.getState(1);
 
     expect(JSON.stringify(withCurrentForecast)).toBe(JSON.stringify(reserveOnly));
     expect(withCurrentForecast?.calculationState.availableSnapshotTypes).toEqual(['RESERVE']);
-    expectCurrentForecastDenylist(2);
+    expectNonTimelineDenylist(2);
+  });
+
+  it('omits reserve intelligence from timeline snapshot listings', async () => {
+    const service = new TimeTravelAnalyticsService(
+      mockDb as unknown as NodePgDatabase<typeof schema>
+    );
+    const reserveOnly = await service.getTimelineEvents(1);
+    seededSnapshots = [reserveSnapshot, currentForecastSnapshot, reserveIntelligenceSnapshot];
+    const withAnalyticalSnapshots = await service.getTimelineEvents(1);
+
+    expect(JSON.stringify(withAnalyticalSnapshots)).toBe(JSON.stringify(reserveOnly));
+    expect(withAnalyticalSnapshots.snapshots.map((snapshot) => snapshot.id)).toEqual([
+      reserveSnapshot.id,
+    ]);
+    expectNonTimelineDenylist(2);
+  });
+
+  it('omits reserve intelligence from compareStates reconstruction', async () => {
+    const service = new TimeTravelAnalyticsService(
+      mockDb as unknown as NodePgDatabase<typeof schema>
+    );
+    const firstTime = new Date('2026-07-22T12:00:00.000Z');
+    const secondTime = new Date('2026-07-23T12:00:00.000Z');
+    const reserveOnly = await service.compareStates(1, firstTime, secondTime);
+    seededSnapshots = [reserveSnapshot, currentForecastSnapshot, reserveIntelligenceSnapshot];
+    const withAnalyticalSnapshots = await service.compareStates(1, firstTime, secondTime);
+
+    expect(JSON.stringify(withAnalyticalSnapshots)).toBe(JSON.stringify(reserveOnly));
+    expect(withAnalyticalSnapshots.comparison.state1.snapshotId).toBe(String(reserveSnapshot.id));
+    expect(withAnalyticalSnapshots.comparison.state2.snapshotId).toBe(String(reserveSnapshot.id));
+    expectNonTimelineDenylist(4);
+  });
+
+  it('does not promote reserve intelligence into authoritative readiness types', () => {
+    expect(AUTHORITATIVE_SNAPSHOT_TYPES).not.toContain('RESERVE_INTELLIGENCE');
+    expect(EXPECTED_SNAPSHOT_TYPES).not.toContain('RESERVE_INTELLIGENCE');
   });
 });
