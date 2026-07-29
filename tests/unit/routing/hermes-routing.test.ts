@@ -13,7 +13,7 @@ import {
   generateRunId,
   getGateRunPlan,
   isCliEntryPoint,
-  main,
+  main as orchestrateMain,
   parseApprovalSignal,
   parseArgs,
   recommendWorkflow,
@@ -23,6 +23,14 @@ import {
   runGate,
   scoreSpecialist,
 } from '../../../orchestrate.js';
+
+function main(...args: Parameters<typeof orchestrateMain>) {
+  const [argv, env, io, deps = {}] = args;
+  return orchestrateMain(argv, env, io, {
+    prepareRelaunchCleanup: () => undefined,
+    ...deps,
+  });
+}
 
 const routing = {
   defaults: {
@@ -406,6 +414,57 @@ describe('Hermes routing helpers', () => {
     expect(code).toBe(0);
     expect(roles).toContain('owner');
     expect(roles).toContain('reviewer');
+  });
+
+  test.each([
+    {
+      label: 'executeModel',
+      argv: ['--phase', 'research', '--task', 'trace reserve engine flow'],
+      injectedRunner: {
+        executeModel: async () => 0,
+      },
+    },
+    {
+      label: 'runStep',
+      argv: ['--phase', 'production', '--task', 'ship the change', '--workflow', 'pair', '--live'],
+      injectedRunner: {
+        runStep: async ({ step }) => ({
+          code: 0,
+          output: `${step.role}-output`,
+          approved: step.role === 'reviewer',
+        }),
+      },
+    },
+  ])('main prepares relaunch cleanup when $label is injected', async ({ argv, injectedRunner }) => {
+    const writes: Array<[string, string]> = [];
+    const pidFs = {
+      existsSync: () => false,
+      mkdirSync: () => undefined,
+      readFileSync: () => '',
+      writeFileSync: (file: string, content: string) => writes.push([file, content]),
+    };
+
+    const code = await orchestrateMain(
+      argv,
+      process.env,
+      {
+        stdout: { write: () => undefined },
+        stderr: { write: () => undefined },
+      },
+      {
+        routing,
+        brain: 'DEV_BRAIN',
+        soul: 'SOUL',
+        gateRunner: () => ({ status: 0 }),
+        writeRunLedger: null,
+        pidFs,
+        currentPid: 5678,
+        ...injectedRunner,
+      }
+    );
+
+    expect(code).toBe(0);
+    expect(writes).toEqual([[`${process.cwd()}/ai-logs/hermes/orchestrate.pid`, '5678\n']]);
   });
 
   test('main aborts a live workflow when the preflight gate fails, before any model runs', async () => {

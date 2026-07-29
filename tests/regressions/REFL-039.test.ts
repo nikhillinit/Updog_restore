@@ -24,6 +24,11 @@ describe('REFL-039: DEV_BRAIN.md orchestration guardrails', () => {
     const devBrain = await readDevBrain();
     expect(devBrain).toMatch(/## Lane Hygiene/);
     expect(devBrain).toMatch(/node orchestrate\.js --phase production/);
-    expect(devBrain).toMatch(/ONE lane at a time/);
+    expect(devBrain).toMatch(/Relaunch cleanup is automated/);
+    expect(devBrain).toMatch(
+      /Periodic >6h orphaned Node-process sweeps remain manual and separate/
+    );
+    expect(devBrain).not.toMatch(/ONE lane at a time|free RAM < 4 GB/);
+    expect(devBrain).not.toMatch(/node\/cmd processes/i);
   });
 });

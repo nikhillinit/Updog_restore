@@ -152,16 +152,16 @@ Transport rules for Hermes lane dispatch, one per observed 2026-07-13 failure:
 1. Invoke `node orchestrate.js --phase production` directly (npm shim can 126).
 2. Keyword-light `--task` string; payload details go in a temp-file brief
    pointer (multi-line payloads mangle; financial keywords self-classify).
-3. Unique launcher script per run; kill the prior orchestrate process tree
-   before relaunch; purge >6h orphaned node/cmd processes after runs (orphan
-   accumulation caused the 2026-07-13 OOM).
-4. ONE lane at a time while free RAM < 4 GB; no detached lane stacking.
-5. Long-running dispatch = a single synchronous background invocation, never
+3. Relaunch cleanup is automated: before live dispatch, `orchestrate.js` checks
+   its PID file, kills a live prior process tree, and records its current PID.
+   Periodic >6h orphaned Node-process sweeps remain manual and separate because
+   relaunch cleanup runs only on the next invocation, not on a timer.
+4. Long-running dispatch = a single synchronous background invocation, never
    nohup+poll; long CLI calls run inside subagent synchronous Bash, not
    session-level background tasks.
-6. Hermes postflight verifies only `npm run check` — the review phase reruns
+5. Hermes postflight verifies only `npm run check` — the review phase reruns
    targeted and full test suites independently.
-7. Degraded-environment vitest: client project runs use `--maxWorkers=1`; write
+6. Degraded-environment vitest: client project runs use `--maxWorkers=1`; write
    outputs to files, never pipe through `tail`.
 
 ## Hard Rules
