@@ -33,14 +33,7 @@ const DEFAULT_DEBATE = {
   synthesis: 'claude',
 };
 
-// REFL-039 (2026-07-13 OOM): orphaned model-CLI processes accumulated across
-// lane sessions with no automated bound. These two defaults are the safety
-// net that prose "Lane Hygiene" rules stood in for — a timeout kills a hung
-// dispatch's whole process tree; one retry absorbs a transient hang without
-// masking a genuine model failure (only timeouts are retried, never a real
-// non-zero exit).
-const DEFAULT_MODEL_TIMEOUT_MS = 10 * 60 * 1000;
-const DEFAULT_MODEL_MAX_ATTEMPTS = 2;
+const currentModelChildren = new Set();
 
 function normalizeEntrypointPath(value) {
   return String(value || '')
@@ -694,23 +687,28 @@ function killProcessTree(
   }
 }
 
-// Shared spawn core for executeModel/executeModelCapture: enforces a
-// per-attempt timeout that kills the whole process tree (see REFL-039), and
-// optionally pipes+aggregates stdout for the capture variant.
-function runModelProcessOnce(bin, input, spawnOpts, { spawnImpl, timeoutMs, killTree, capture }) {
+function forwardTerminationSignal(
+  signal,
+  { killTree = killProcessTree, exit = process.exit } = {}
+) {
+  for (const child of currentModelChildren) {
+    killTree(child);
+  }
+  exit(signal === 'SIGINT' ? 130 : 143);
+}
+
+// Shared spawn core for executeModel/executeModelCapture. Optionally
+// pipes+aggregates stdout for the capture variant.
+function runModelProcessOnce(bin, input, spawnOpts, { spawnImpl, capture }) {
   return new Promise((resolvePromise, reject) => {
     const child = spawnImpl(bin, input.args, spawnOpts);
+    currentModelChildren.add(child);
     let settled = false;
     let output = '';
 
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      killTree(child);
-      const error = new Error(`Model dispatch timed out after ${timeoutMs}ms`);
-      error.timedOut = true;
-      reject(error);
-    }, timeoutMs);
+    const clearCurrentChild = () => {
+      currentModelChildren.delete(child);
+    };
 
     if (capture) {
       child.stdout.on('data', (chunk) => {
@@ -722,33 +720,16 @@ function runModelProcessOnce(bin, input, spawnOpts, { spawnImpl, timeoutMs, kill
     child.on('error', (error) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      clearCurrentChild();
       reject(error);
     });
     child.on('close', (code) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      clearCurrentChild();
       resolvePromise(capture ? { code: code || 0, output } : code || 0);
     });
   });
-}
-
-// Bounded retry around runModelProcessOnce. Only a timeout is retried — a
-// real non-zero exit is the model's actual answer and must surface
-// immediately, never be silently re-run.
-async function runModelProcessWithRetry(bin, input, spawnOpts, opts) {
-  const { maxAttempts } = opts;
-  let lastError;
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    try {
-      return await runModelProcessOnce(bin, input, spawnOpts, opts);
-    } catch (error) {
-      lastError = error;
-      if (!error?.timedOut || attempt === maxAttempts) throw error;
-    }
-  }
-  throw lastError;
 }
 
 function prepareModelDispatch(model, prompt, routing, env) {
@@ -777,13 +758,7 @@ function executeModel(
   prompt,
   routing,
   env = process.env,
-  {
-    spawn: spawnImpl = spawn,
-    workspace = ROOT,
-    timeoutMs = DEFAULT_MODEL_TIMEOUT_MS,
-    maxAttempts = DEFAULT_MODEL_MAX_ATTEMPTS,
-    killTree = killProcessTree,
-  } = {}
+  { spawn: spawnImpl = spawn, workspace = ROOT } = {}
 ) {
   const { bin, input, commandEnv, useShell } = prepareModelDispatch(model, prompt, routing, env);
   const spawnOpts = {
@@ -793,11 +768,8 @@ function executeModel(
     cwd: workspace,
     detached: process.platform !== 'win32',
   };
-  return runModelProcessWithRetry(bin, input, spawnOpts, {
+  return runModelProcessOnce(bin, input, spawnOpts, {
     spawnImpl,
-    timeoutMs,
-    killTree,
-    maxAttempts,
     capture: false,
   });
 }
@@ -810,13 +782,7 @@ function executeModelCapture(
   prompt,
   routing,
   env = process.env,
-  {
-    spawn: spawnImpl = spawn,
-    workspace = ROOT,
-    timeoutMs = DEFAULT_MODEL_TIMEOUT_MS,
-    maxAttempts = DEFAULT_MODEL_MAX_ATTEMPTS,
-    killTree = killProcessTree,
-  } = {}
+  { spawn: spawnImpl = spawn, workspace = ROOT } = {}
 ) {
   const { bin, input, commandEnv, useShell } = prepareModelDispatch(model, prompt, routing, env);
   const spawnOpts = {
@@ -826,11 +792,8 @@ function executeModelCapture(
     cwd: workspace,
     detached: process.platform !== 'win32',
   };
-  return runModelProcessWithRetry(bin, input, spawnOpts, {
+  return runModelProcessOnce(bin, input, spawnOpts, {
     spawnImpl,
-    timeoutMs,
-    killTree,
-    maxAttempts,
     capture: true,
   });
 }
@@ -1203,6 +1166,8 @@ const SECRET_TEXT_PATTERNS = [
   /\bAKIA[0-9A-Z]{16}\b/g,
   // Bearer auth headers.
   /\b(Bearer\s+)[A-Za-z0-9\-._~+/]+=*/gi,
+  // JSON-quoted key:value assignments for common secret-ish names.
+  /("(?:api[_-]?key|secret|token|password|passwd)"\s*:\s*")((?:\\.|[^"\\])+)(?=")/gi,
   // key=value / key: value assignments for common secret-ish names.
   /\b((?:api[_-]?key|secret|token|password|passwd)\s*[:=]\s*)(\S+)/gi,
 ];
@@ -1237,6 +1202,68 @@ function writeRunLedger(record, { root = ROOT, fs = { mkdirSync, writeFileSync }
   const file = join(dir, `${record.runId}.json`);
   fs.writeFileSync(file, `${JSON.stringify(scrubSecrets(record), null, 2)}\n`);
   return file;
+}
+
+function isProcessAlive(pid, kill = process.kill) {
+  try {
+    kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === 'EPERM';
+  }
+}
+
+function prepareRelaunchCleanup({
+  root = ROOT,
+  fs = { existsSync, mkdirSync, readFileSync, writeFileSync },
+  isProcessAlive: checkProcessAlive = isProcessAlive,
+  platform = process.platform,
+  killTree = killProcessTree,
+  signalProcess = process.kill,
+  currentPid = process.pid,
+} = {}) {
+  const dir = join(root, 'ai-logs', 'hermes');
+  const pidFile = join(dir, 'orchestrate.pid');
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch {
+    return null;
+  }
+
+  let previousPid = null;
+  try {
+    if (fs.existsSync(pidFile)) {
+      previousPid = Number(fs.readFileSync(pidFile, 'utf8').trim());
+    }
+  } catch {
+    previousPid = null;
+  }
+
+  if (
+    Number.isInteger(previousPid) &&
+    previousPid > 0 &&
+    previousPid !== currentPid &&
+    checkProcessAlive(previousPid)
+  ) {
+    try {
+      if (platform === 'win32') {
+        killTree({ pid: previousPid });
+      } else {
+        // SIGTERM lets the prior orchestrator forward termination to every
+        // detached model process group before it exits.
+        signalProcess(previousPid, 'SIGTERM');
+      }
+    } catch {
+      // Prior process exited after the liveness check.
+    }
+  }
+
+  try {
+    fs.writeFileSync(pidFile, `${currentPid}\n`);
+  } catch {
+    return null;
+  }
+  return pidFile;
 }
 
 function getGateRunPlan(plan, { skipPreflightGate = false } = {}) {
@@ -1751,7 +1778,18 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     return 0;
   }
 
-  if ((options.workflowProvided || autoWorkflow) && liveExecution && plan.workflow) {
+  const willExecuteWorkflow =
+    (options.workflowProvided || autoWorkflow) && liveExecution && plan.workflow;
+  const relaunchCleanup = deps.prepareRelaunchCleanup || prepareRelaunchCleanup;
+  relaunchCleanup({
+    root: deps.root,
+    fs: deps.pidFs,
+    isProcessAlive: deps.isProcessAlive,
+    signalProcess: deps.signalProcess,
+    currentPid: deps.currentPid,
+  });
+
+  if (willExecuteWorkflow) {
     // Preflight gate parity with the non-workflow path: a failing gate (e.g.
     // npm run check) must abort BEFORE spawning the owner/reviewer CLIs, unless
     // explicitly skipped. executeWorkflow only runs the gate postflight.
@@ -1860,6 +1898,8 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
 }
 
 if (isCliEntryPoint(import.meta.url, process.argv)) {
+  process.on('SIGINT', () => forwardTerminationSignal('SIGINT'));
+  process.on('SIGTERM', () => forwardTerminationSignal('SIGTERM'));
   main(process.argv.slice(2))
     .then((code) => {
       process.exitCode = code;
@@ -1886,6 +1926,7 @@ export {
   executeWorkflow,
   extractFindingsReport,
   findingKey,
+  forwardTerminationSignal,
   generateRunId,
   getGateRunPlan,
   isCliEntryPoint,
@@ -1894,6 +1935,7 @@ export {
   main,
   parseApprovalSignal,
   parseArgs,
+  prepareRelaunchCleanup,
   recommendWorkflow,
   resolveEffectivePhase,
   resolveGate,
