@@ -278,6 +278,9 @@ _archive/
 # Hermes run ledger (ephemeral runtime state)
 ai-logs/
 
+# ~/.ai-brain staging notes (personal cross-project memory, not a repo deliverable)
+.remember/
+
 # Skill staging directories (source material, not deployed)
 uiux-skill/
 

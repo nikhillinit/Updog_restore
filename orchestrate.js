@@ -33,6 +33,15 @@ const DEFAULT_DEBATE = {
   synthesis: 'claude',
 };
 
+// REFL-039 (2026-07-13 OOM): orphaned model-CLI processes accumulated across
+// lane sessions with no automated bound. These two defaults are the safety
+// net that prose "Lane Hygiene" rules stood in for — a timeout kills a hung
+// dispatch's whole process tree; one retry absorbs a transient hang without
+// masking a genuine model failure (only timeouts are retried, never a real
+// non-zero exit).
+const DEFAULT_MODEL_TIMEOUT_MS = 10 * 60 * 1000;
+const DEFAULT_MODEL_MAX_ATTEMPTS = 2;
+
 function normalizeEntrypointPath(value) {
   return String(value || '')
     .replace(/^file:\/\//, '')
@@ -658,13 +667,91 @@ function printDoctorReport(report, stdout = process.stdout) {
   stdout.write(`${formatDoctorReport(report)}\n`);
 }
 
-function executeModel(
-  model,
-  prompt,
-  routing,
-  env = process.env,
-  { spawn: spawnImpl = spawn, workspace = ROOT } = {}
+// Kills a spawned model-CLI process AND its children. executeModel/
+// executeModelCapture always spawn with `detached: true` on POSIX (own
+// process group, pgid === child.pid), so `-pid` reaches the whole tree, not
+// just the immediate child (e.g. a shell wrapping the real CLI). Windows has
+// no negative-pid group signal, so it shells out to taskkill /T (tree) /F.
+function killProcessTree(
+  child,
+  { platform = process.platform, kill = process.kill, spawnSyncImpl = spawnSync } = {}
 ) {
+  if (!child || !child.pid) return;
+  if (platform === 'win32') {
+    spawnSyncImpl('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+    return;
+  }
+  try {
+    kill(-child.pid, 'SIGKILL');
+  } catch {
+    // Process group already gone, or this child was never its own group
+    // leader (e.g. a fake/injected child in tests) — fall back to a direct kill.
+    try {
+      child.kill?.('SIGKILL');
+    } catch {
+      // Nothing left to kill.
+    }
+  }
+}
+
+// Shared spawn core for executeModel/executeModelCapture: enforces a
+// per-attempt timeout that kills the whole process tree (see REFL-039), and
+// optionally pipes+aggregates stdout for the capture variant.
+function runModelProcessOnce(bin, input, spawnOpts, { spawnImpl, timeoutMs, killTree, capture }) {
+  return new Promise((resolvePromise, reject) => {
+    const child = spawnImpl(bin, input.args, spawnOpts);
+    let settled = false;
+    let output = '';
+
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      killTree(child);
+      const error = new Error(`Model dispatch timed out after ${timeoutMs}ms`);
+      error.timedOut = true;
+      reject(error);
+    }, timeoutMs);
+
+    if (capture) {
+      child.stdout.on('data', (chunk) => {
+        output += chunk.toString();
+      });
+    }
+    if (input.stdin !== null) child.stdin.write(input.stdin);
+    child.stdin.end();
+    child.on('error', (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.on('close', (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolvePromise(capture ? { code: code || 0, output } : code || 0);
+    });
+  });
+}
+
+// Bounded retry around runModelProcessOnce. Only a timeout is retried — a
+// real non-zero exit is the model's actual answer and must surface
+// immediately, never be silently re-run.
+async function runModelProcessWithRetry(bin, input, spawnOpts, opts) {
+  const { maxAttempts } = opts;
+  let lastError;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await runModelProcessOnce(bin, input, spawnOpts, opts);
+    } catch (error) {
+      lastError = error;
+      if (!error?.timedOut || attempt === maxAttempts) throw error;
+    }
+  }
+  throw lastError;
+}
+
+function prepareModelDispatch(model, prompt, routing, env) {
   const commandConfig = routing.commands?.[model];
   if (!commandConfig) {
     throw new Error(`No command config for model: ${model}`);
@@ -677,21 +764,41 @@ function executeModel(
     );
   }
 
-  const input = resolveCommandInput(commandConfig, prompt);
-  const commandEnv = resolveCommandEnv(commandConfig, env);
-  const useShell = shouldUseShell(process.platform, commandConfig);
-  return new Promise((resolvePromise, reject) => {
-    const child = spawnImpl(bin, input.args, {
-      stdio: ['pipe', 'inherit', 'inherit'],
-      shell: useShell,
-      env: commandEnv,
-      cwd: workspace,
-    });
+  return {
+    bin,
+    input: resolveCommandInput(commandConfig, prompt),
+    commandEnv: resolveCommandEnv(commandConfig, env),
+    useShell: shouldUseShell(process.platform, commandConfig),
+  };
+}
 
-    if (input.stdin !== null) child.stdin.write(input.stdin);
-    child.stdin.end();
-    child.on('error', reject);
-    child.on('close', (code) => resolvePromise(code || 0));
+function executeModel(
+  model,
+  prompt,
+  routing,
+  env = process.env,
+  {
+    spawn: spawnImpl = spawn,
+    workspace = ROOT,
+    timeoutMs = DEFAULT_MODEL_TIMEOUT_MS,
+    maxAttempts = DEFAULT_MODEL_MAX_ATTEMPTS,
+    killTree = killProcessTree,
+  } = {}
+) {
+  const { bin, input, commandEnv, useShell } = prepareModelDispatch(model, prompt, routing, env);
+  const spawnOpts = {
+    stdio: ['pipe', 'inherit', 'inherit'],
+    shell: useShell,
+    env: commandEnv,
+    cwd: workspace,
+    detached: process.platform !== 'win32',
+  };
+  return runModelProcessWithRetry(bin, input, spawnOpts, {
+    spawnImpl,
+    timeoutMs,
+    killTree,
+    maxAttempts,
+    capture: false,
   });
 }
 
@@ -703,39 +810,28 @@ function executeModelCapture(
   prompt,
   routing,
   env = process.env,
-  { spawn: spawnImpl = spawn, workspace = ROOT } = {}
+  {
+    spawn: spawnImpl = spawn,
+    workspace = ROOT,
+    timeoutMs = DEFAULT_MODEL_TIMEOUT_MS,
+    maxAttempts = DEFAULT_MODEL_MAX_ATTEMPTS,
+    killTree = killProcessTree,
+  } = {}
 ) {
-  const commandConfig = routing.commands?.[model];
-  if (!commandConfig) {
-    throw new Error(`No command config for model: ${model}`);
-  }
-
-  const bin = env[commandConfig.binEnv] || commandConfig.defaultBin;
-  if (!commandExists(bin)) {
-    throw new Error(
-      `Command not found for model "${model}": ${bin}. Set ${commandConfig.binEnv} or install the CLI.`
-    );
-  }
-
-  const input = resolveCommandInput(commandConfig, prompt);
-  const commandEnv = resolveCommandEnv(commandConfig, env);
-  const useShell = shouldUseShell(process.platform, commandConfig);
-  return new Promise((resolvePromise, reject) => {
-    const child = spawnImpl(bin, input.args, {
-      stdio: ['pipe', 'pipe', 'inherit'],
-      shell: useShell,
-      env: commandEnv,
-      cwd: workspace,
-    });
-
-    let output = '';
-    child.stdout.on('data', (chunk) => {
-      output += chunk.toString();
-    });
-    if (input.stdin !== null) child.stdin.write(input.stdin);
-    child.stdin.end();
-    child.on('error', reject);
-    child.on('close', (code) => resolvePromise({ code: code || 0, output }));
+  const { bin, input, commandEnv, useShell } = prepareModelDispatch(model, prompt, routing, env);
+  const spawnOpts = {
+    stdio: ['pipe', 'pipe', 'inherit'],
+    shell: useShell,
+    env: commandEnv,
+    cwd: workspace,
+    detached: process.platform !== 'win32',
+  };
+  return runModelProcessWithRetry(bin, input, spawnOpts, {
+    spawnImpl,
+    timeoutMs,
+    killTree,
+    maxAttempts,
+    capture: true,
   });
 }
 
@@ -1098,11 +1194,48 @@ function generateRunId(now = new Date()) {
   return `hermes-${iso}`;
 }
 
+const SECRET_TEXT_PATTERNS = [
+  // OpenAI/Anthropic-style API keys (sk-..., sk-ant-..., sk-proj-...).
+  /\bsk-[A-Za-z0-9-_]{10,}\b/g,
+  // GitHub tokens (ghp_, gho_, ghu_, ghs_, ghr_).
+  /\bgh[pousr]_[A-Za-z0-9]{20,}\b/g,
+  // AWS access key IDs.
+  /\bAKIA[0-9A-Z]{16}\b/g,
+  // Bearer auth headers.
+  /\b(Bearer\s+)[A-Za-z0-9\-._~+/]+=*/gi,
+  // key=value / key: value assignments for common secret-ish names.
+  /\b((?:api[_-]?key|secret|token|password|passwd)\s*[:=]\s*)(\S+)/gi,
+];
+
+// The Hermes run ledger (ai-logs/hermes/runs/*.json) stores the raw --task
+// string verbatim. ai-logs/ is gitignored so this isn't a git-history leak,
+// but nothing stopped a credential pasted into a task string from landing on
+// disk in plaintext. Recursively redacts obvious secret shapes from every
+// string field before a record is written.
+function scrubSecrets(value) {
+  if (typeof value === 'string') {
+    return SECRET_TEXT_PATTERNS.reduce((text, pattern) => {
+      if (pattern.source.includes('(')) {
+        // Patterns with a capture group keep the non-secret prefix (e.g. "Bearer ", "api_key=").
+        return text.replace(pattern, (...args) => `${args[1]}[REDACTED]`);
+      }
+      return text.replace(pattern, '[REDACTED]');
+    }, value);
+  }
+  if (Array.isArray(value)) {
+    return value.map(scrubSecrets);
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, val]) => [key, scrubSecrets(val)]));
+  }
+  return value;
+}
+
 function writeRunLedger(record, { root = ROOT, fs = { mkdirSync, writeFileSync } } = {}) {
   const dir = join(root, 'ai-logs', 'hermes', 'runs');
   fs.mkdirSync(dir, { recursive: true });
   const file = join(dir, `${record.runId}.json`);
-  fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
+  fs.writeFileSync(file, `${JSON.stringify(scrubSecrets(record), null, 2)}\n`);
   return file;
 }
 
@@ -1748,6 +1881,7 @@ export {
   createWorkflowPlan,
   createRoutingPlan,
   evaluateReadiness,
+  executeModel,
   executeModelCapture,
   executeWorkflow,
   extractFindingsReport,
@@ -1756,6 +1890,7 @@ export {
   getGateRunPlan,
   isCliEntryPoint,
   isProductionFinancial,
+  killProcessTree,
   main,
   parseApprovalSignal,
   parseArgs,
@@ -1765,6 +1900,7 @@ export {
   resolveOwnership,
   runGate,
   runMoaReview,
+  scrubSecrets,
   shouldRunPostflightGate,
   scoreSpecialist,
   validateFindingsReport,
