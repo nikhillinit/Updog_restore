@@ -395,6 +395,7 @@ describe('main --tier plumbing', () => {
         moaRunner,
         gateRunner,
         writeRunLedger: null,
+        prepareRelaunchCleanup: () => undefined,
       }
     );
     expect(code).toBe(0);
