@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-07-29
 ---
 
 # Database Schema Evolution
@@ -14,6 +14,7 @@ drift detection specific to this codebase's PostgreSQL + Drizzle setup.
 ## Triggers
 
 Activate this skill when you see:
+
 - "drizzle" OR "migration" OR "schema change"
 - "npm run db:push" OR "db:studio"
 - "add column" OR "drop table" OR "alter table"
@@ -26,6 +27,20 @@ Activate this skill when you see:
 2. **Validate before push** - Always run schema-drift-checker first
 3. **Additive first** - Add new, migrate data, then remove old
 4. **Types follow schema** - Zod schemas must match Drizzle schemas
+
+## Migration Semaphore (Concurrent-Lane Coordination)
+
+When multiple lanes/agents may mint or apply migrations concurrently (Wave H
+Tasks 14, 15, 21, Wave E/F and beyond), claim the migration semaphore on
+[issue #1178](https://github.com/nikhillinit/Updog_restore/issues/1178) before
+pushing a lane-owned migration:
+
+```
+MIGRATION SEMAPHORE CLAIM: <branch> | run <id> | tail <journal-idx>@<sha> | <ISO timestamp>
+```
+
+Full claim/withdraw/release protocol, stale-claim rule, and double-claim
+handling are documented on #1178 — read it before your first claim.
 
 ## Schema Change Categories
 
@@ -66,7 +81,7 @@ export const funds = pgTable('funds', {
   name: varchar('name', { length: 255 }).notNull(),
   status: varchar('status', { length: 50 }).notNull(),
   // NEW: More granular status
-  statusV2: varchar('status_v2', { length: 50 }),  // Nullable initially
+  statusV2: varchar('status_v2', { length: 50 }), // Nullable initially
 });
 ```
 
@@ -82,9 +97,9 @@ import { eq, isNull } from 'drizzle-orm';
 
 async function backfillStatusV2() {
   const STATUS_MAPPING = {
-    'active': 'investing',
-    'closed': 'harvesting',
-    'liquidating': 'liquidating',
+    active: 'investing',
+    closed: 'harvesting',
+    liquidating: 'liquidating',
   };
 
   const fundsToUpdate = await db
@@ -119,7 +134,7 @@ app.get('/api/funds/:id', async (req, res) => {
   // Return new field, fall back to old
   return {
     ...fund,
-    status: fund.statusV2 || fund.status,  // Prefer new
+    status: fund.statusV2 || fund.status, // Prefer new
   };
 });
 ```
@@ -138,7 +153,7 @@ export const funds = pgTable('funds', {
   id: uuid('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   // status REMOVED
-  statusV2: varchar('status_v2', { length: 50 }).notNull(),  // Now required
+  statusV2: varchar('status_v2', { length: 50 }).notNull(), // Now required
 });
 ```
 
@@ -148,7 +163,14 @@ export const funds = pgTable('funds', {
 
 ```typescript
 // shared/db/schema/funds.ts
-import { pgTable, uuid, varchar, timestamp, numeric, boolean } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  timestamp,
+  numeric,
+  boolean,
+} from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 export const funds = pgTable('funds', {
@@ -232,8 +254,8 @@ function validateSchemaAlignment() {
   const drizzleColumns = Object.keys(funds);
   const zodFields = Object.keys(fundSchema.shape);
 
-  const missingInZod = drizzleColumns.filter(c => !zodFields.includes(c));
-  const extraInZod = zodFields.filter(f => !drizzleColumns.includes(f));
+  const missingInZod = drizzleColumns.filter((c) => !zodFields.includes(c));
+  const extraInZod = zodFields.filter((f) => !drizzleColumns.includes(f));
 
   if (missingInZod.length || extraInZod.length) {
     console.error('Schema drift detected!');
@@ -281,6 +303,7 @@ ALTER TABLE funds ALTER COLUMN status SET NOT NULL;
 
 Before running `npm run db:push`:
 
+- [ ] Migration semaphore claimed on #1178 if lane work may overlap another
 - [ ] Ran schema-drift-checker agent
 - [ ] All Zod schemas updated to match
 - [ ] Mock data updated for new columns
@@ -293,11 +316,13 @@ Before running `npm run db:push`:
 ### 1. Adding NOT NULL without default
 
 **Bad:**
+
 ```typescript
 newColumn: varchar('new_column', { length: 50 }).notNull(),
 ```
 
 **Good:**
+
 ```typescript
 newColumn: varchar('new_column', { length: 50 }).notNull().default('pending'),
 ```
@@ -305,6 +330,7 @@ newColumn: varchar('new_column', { length: 50 }).notNull().default('pending'),
 ### 2. Dropping columns with active queries
 
 Always search codebase first:
+
 ```bash
 grep -r "oldColumnName" server/ client/ shared/
 ```
@@ -312,6 +338,7 @@ grep -r "oldColumnName" server/ client/ shared/
 ### 3. Changing precision on numeric columns
 
 Can cause data truncation - always check:
+
 ```sql
 SELECT MAX(LENGTH(amount::text)) FROM transactions;
 ```
@@ -327,3 +354,5 @@ SELECT MAX(LENGTH(amount::text)) FROM transactions;
 - [Drizzle ORM docs](https://orm.drizzle.team/)
 - [DECISIONS.md](DECISIONS.md) - Schema ADRs
 - [shared/db/schema/](shared/db/schema/) - Schema definitions
+- [Issue #1178](https://github.com/nikhillinit/Updog_restore/issues/1178) -
+  Migration semaphore protocol (concurrent-lane coordination)
