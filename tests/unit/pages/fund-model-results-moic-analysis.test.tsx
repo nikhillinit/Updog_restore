@@ -12,6 +12,11 @@ import {
   FundMoicFactsBasisV1Schema,
   type FundMoicFactsBasisV1,
 } from '../../../shared/contracts/fund-moic-v1.contract';
+import type {
+  ReserveIntelligenceHookError,
+  ReserveIntelligenceQueryResult,
+} from '../../../client/src/hooks/useReserveIntelligence';
+import { makeReserveIntelligenceRun } from '../fixtures/dynamic-reserve-intelligence';
 
 type HookError = { code: string };
 type HookResult = {
@@ -28,6 +33,13 @@ const usePortfolioCompanies = vi.fn<
       plannedReservesCents: number;
       deployedReservesCents: number;
     }>;
+  }
+>();
+const useReserveIntelligence = vi.fn<
+  (fundId: number | null) => {
+    data: ReserveIntelligenceQueryResult | undefined;
+    error: ReserveIntelligenceHookError | null;
+    isLoading: boolean;
   }
 >();
 
@@ -59,6 +71,10 @@ vi.mock('../../../client/src/hooks/use-moic', () => ({
 
 vi.mock('../../../client/src/hooks/use-fund-data', () => ({
   usePortfolioCompanies: (fundId: number | undefined) => usePortfolioCompanies(fundId),
+}));
+
+vi.mock('../../../client/src/hooks/useReserveIntelligence', () => ({
+  useReserveIntelligence: (fundId: number | null) => useReserveIntelligence(fundId),
 }));
 
 const canonicalFixture = {
@@ -171,6 +187,12 @@ describe('FundModelResultsMoicAnalysisPage', () => {
         { id: 103, plannedReservesCents: 120_000_000, deployedReservesCents: 80_000_000 },
         { id: 104, plannedReservesCents: 110_000_000, deployedReservesCents: 70_000_000 },
       ],
+    });
+    useReserveIntelligence.mockReset();
+    useReserveIntelligence.mockReturnValue({
+      data: { kind: 'feature-disabled' },
+      error: null,
+      isLoading: false,
     });
   });
 
@@ -507,5 +529,35 @@ describe('FundModelResultsMoicAnalysisPage', () => {
       expect(skeleton).toHaveClass('tabular-nums', 'motion-reduce:animate-none');
     }
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('keeps reserve diagnostics visible when the rankings query fails', () => {
+    mockHook({
+      data: null,
+      error: { code: 'LOAD_ERROR' },
+      isLoading: false,
+    });
+    useReserveIntelligence.mockReturnValue({
+      data: { kind: 'ready', run: makeReserveIntelligenceRun() },
+      error: null,
+      isLoading: false,
+    });
+
+    renderPage();
+
+    expect(screen.getByText('Unable to load MOIC rankings')).toBeInTheDocument();
+    expect(
+      screen.getByRole('table', { name: 'Reserve intelligence diagnostics' })
+    ).toBeInTheDocument();
+  });
+
+  it('keeps rankings visible when reserve intelligence is unavailable', () => {
+    mockHook({ data: makeV2(), error: null, isLoading: false });
+
+    renderPage();
+
+    expect(screen.getByRole('table')).toHaveAccessibleName('');
+    expect(screen.getByText('Reserve intelligence unavailable')).toBeInTheDocument();
+    expect(useReserveIntelligence).toHaveBeenCalledWith(7);
   });
 });
