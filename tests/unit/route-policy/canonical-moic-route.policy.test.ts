@@ -11,12 +11,18 @@ import {
   getRouteGovernanceEntry,
   type RouteGovernanceEntry,
 } from '../../../shared/routes/route-governance-registry';
+import { COMMON_API_ROUTE_MANIFEST } from '../../../shared/routes/api-route-manifest';
 import { verifyRoutePolicy } from '../../../scripts/verify-route-policy';
 
 const CANONICAL = '/fund-model-results/:fundId/moic-analysis';
 const ADMIN_INPUT_ROUTE = '/api/admin/funds/:fundId/moic-inputs/portfolio-companies/:companyId';
 const ADMIN_MODE_ROUTE = '/api/admin/funds/:fundId/calculation-modes/fund-moic-rankings';
 const MARGINAL_INTERNAL_SOAK_ROUTE = '/api/funds/:fundId/moic/marginal-rankings';
+const RESERVE_INTELLIGENCE_ROUTES = [
+  ['POST', '/api/funds/:fundId/moic/reserve-intelligence/runs'],
+  ['GET', '/api/funds/:fundId/moic/reserve-intelligence/latest'],
+  ['GET', '/api/funds/:fundId/moic/reserve-intelligence/runs/:snapshotId'],
+] as const;
 
 const entry = (path: string): RouteGovernanceEntry => ({
   path,
@@ -140,6 +146,39 @@ describe('route-policy: canonical fund-model-results MOIC route', () => {
       humanReviewRequired: true,
     });
     expect(entry ? EXPLICIT_API_ROUTE_POLICY_KEYS.has(routePolicyKey(entry)) : false).toBe(true);
+  });
+
+  it.each(RESERVE_INTELLIGENCE_ROUTES)(
+    'registers %s %s as a governed fund-scoped financial surface',
+    (method, path) => {
+      const entry = API_ROUTE_POLICY_REGISTRY.find(
+        (candidate) => candidate.method === method && candidate.path === path
+      );
+
+      expect(entry).toMatchObject({
+        method,
+        path,
+        lifecycle: 'durable_crud',
+        governanceRef: CANONICAL,
+        owner: 'analytics',
+        financialSurface: 'moic_reserves',
+        apiAuthBoundary: 'require_auth_fund_access_and_role',
+        fundScopeMode: 'route_param_fund_id',
+        workflowRequirement: 'internal_soak_review_required',
+        exportPolicy: 'not_exportable',
+        provenanceRequired: true,
+        humanReviewRequired: true,
+      });
+      expect(entry ? EXPLICIT_API_ROUTE_POLICY_KEYS.has(routePolicyKey(entry)) : false).toBe(true);
+    }
+  );
+
+  it('declares reserve intelligence source tables in the fund-moic route manifest', () => {
+    const manifestEntry = COMMON_API_ROUTE_MANIFEST.find((entry) => entry.id === 'fund-moic');
+
+    expect(manifestEntry?.schemaTables).toEqual(
+      expect.arrayContaining(['financial_facts_snapshots', 'fund_snapshots'])
+    );
   });
 
   it('allows scoped admin-only MOIC financial-control API entries in policy verification', () => {
