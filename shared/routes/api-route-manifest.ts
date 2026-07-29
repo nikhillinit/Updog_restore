@@ -476,6 +476,8 @@ export const COMMON_API_ROUTE_MANIFEST = [
       'fund_events',
       'fund_calculation_modes',
       'fund_calculation_mode_requests',
+      'financial_facts_snapshots',
+      'fund_snapshots',
     ],
     owner: 'analytics',
     probe: {

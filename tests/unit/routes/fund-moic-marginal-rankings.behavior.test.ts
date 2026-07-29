@@ -27,6 +27,9 @@ const svc = vi.hoisted(() => ({
   resolveMoicActionability: vi.fn(),
   buildMarginalReserveMoicInputs: vi.fn(),
   emitMarginalReserveMoicShadowComparison: vi.fn(),
+  createDynamicReserveIntelligenceRun: vi.fn(),
+  getLatestDynamicReserveIntelligenceRun: vi.fn(),
+  getDynamicReserveIntelligenceRun: vi.fn(),
 }));
 
 vi.mock('../../../server/services/fund-moic-ranking-service', async (importOriginal) => {
@@ -63,13 +66,39 @@ vi.mock('../../../server/config/features', async (importOriginal) => {
   return { ...actual, FEATURES: features };
 });
 
-vi.mock('../../../server/services/moic/marginal-reserve-moic-input-service', () => ({
-  buildMarginalReserveMoicInputs: svc.buildMarginalReserveMoicInputs,
-}));
+vi.mock(
+  '../../../server/services/moic/marginal-reserve-moic-input-service',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../server/services/moic/marginal-reserve-moic-input-service')
+      >();
+    return {
+      ...actual,
+      buildMarginalReserveMoicInputs: svc.buildMarginalReserveMoicInputs,
+    };
+  }
+);
 
 vi.mock('../../../server/services/moic/marginal-reserve-moic-shadow-service', () => ({
   emitMarginalReserveMoicShadowComparison: svc.emitMarginalReserveMoicShadowComparison,
 }));
+
+vi.mock(
+  '../../../server/services/reserves/dynamic-reserve-intelligence-service',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../server/services/reserves/dynamic-reserve-intelligence-service')
+      >();
+    return {
+      ...actual,
+      createDynamicReserveIntelligenceRun: svc.createDynamicReserveIntelligenceRun,
+      getLatestDynamicReserveIntelligenceRun: svc.getLatestDynamicReserveIntelligenceRun,
+      getDynamicReserveIntelligenceRun: svc.getDynamicReserveIntelligenceRun,
+    };
+  }
+);
 
 vi.mock('../../../server/lib/auth/jwt', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../server/lib/auth/jwt')>();
@@ -110,6 +139,14 @@ const SOURCES = {
   candidate: { rankings: PLANNED_RANKINGS },
 };
 const EVIDENCE = { coverage: { activeRoundCount: 1 } };
+const RESERVE_INTELLIGENCE_RUN = {
+  snapshotId: 41,
+  createdAt: '2026-07-29T20:00:00.000Z',
+  result: {
+    contractVersion: 'dynamic-reserve-intelligence-v1',
+    fundId: 1,
+  },
+};
 
 function marginalInput(params: {
   companyId: number;
@@ -156,6 +193,16 @@ function getRankings(path = '/api/funds/1/moic/marginal-rankings?asOfDate=2026-0
   return request(buildApp()).get(path);
 }
 
+function postReserveIntelligence(
+  body: unknown = { financialFactsSnapshotId: 31 },
+  idempotencyKey = 'reserve-run-31'
+) {
+  const pending = request(buildApp())
+    .post('/api/funds/1/moic/reserve-intelligence/runs')
+    .send(body);
+  return idempotencyKey ? pending.set('Idempotency-Key', idempotencyKey) : pending;
+}
+
 function inputAssembly(
   overrides: {
     ready?: MarginalReserveMoicInputV1[];
@@ -198,6 +245,12 @@ beforeEach(() => {
   svc.buildRoundsToModelEvidence.mockResolvedValue(EVIDENCE);
   svc.resolveMoicActionability.mockResolvedValue({ actionability: 'actionable' });
   svc.buildMarginalReserveMoicInputs.mockResolvedValue(inputAssembly());
+  svc.createDynamicReserveIntelligenceRun.mockResolvedValue({
+    ...RESERVE_INTELLIGENCE_RUN,
+    replayed: false,
+  });
+  svc.getLatestDynamicReserveIntelligenceRun.mockResolvedValue(RESERVE_INTELLIGENCE_RUN);
+  svc.getDynamicReserveIntelligenceRun.mockResolvedValue(RESERVE_INTELLIGENCE_RUN);
 });
 
 describe('marginal reserve MOIC rankings route', () => {
@@ -488,5 +541,153 @@ describe('marginal reserve MOIC rankings route', () => {
     expect(response.body).not.toHaveProperty('contractVersion');
     expect(response.body).not.toHaveProperty('actionability');
     expect(svc.emitMarginalReserveMoicShadowComparison).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('reserve intelligence run routes', () => {
+  it('requires authentication on command and read endpoints', async () => {
+    authState.user = null;
+
+    const responses = await Promise.all([
+      postReserveIntelligence(),
+      request(buildApp()).get('/api/funds/1/moic/reserve-intelligence/latest'),
+      request(buildApp()).get('/api/funds/1/moic/reserve-intelligence/runs/41'),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([401, 401, 401]);
+    expect(svc.createDynamicReserveIntelligenceRun).not.toHaveBeenCalled();
+    expect(svc.getLatestDynamicReserveIntelligenceRun).not.toHaveBeenCalled();
+    expect(svc.getDynamicReserveIntelligenceRun).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['LP', { id: 101, role: 'user', fundIds: [1], lpId: 1 }],
+    ['viewer', { id: 101, role: 'viewer', fundIds: [1] }],
+    ['operator', { id: 101, role: 'operator', fundIds: [1] }],
+  ])('rejects %s principals before service work', async (_label, user) => {
+    authState.user = user;
+
+    const responses = await Promise.all([
+      postReserveIntelligence(),
+      request(buildApp()).get('/api/funds/1/moic/reserve-intelligence/latest'),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([403, 403]);
+    expect(svc.createDynamicReserveIntelligenceRun).not.toHaveBeenCalled();
+    expect(svc.getLatestDynamicReserveIntelligenceRun).not.toHaveBeenCalled();
+  });
+
+  it.each(['analyst', 'partner'])(
+    'allows %s universal safe reads but requires an explicit fund grant for POST',
+    async (role) => {
+      authState.user = { id: 101, role, fundIds: [2] };
+
+      const read = await request(buildApp()).get('/api/funds/1/moic/reserve-intelligence/latest');
+      const command = await postReserveIntelligence();
+
+      expect(read.status).toBe(200);
+      expect(command.status).toBe(403);
+      expect(svc.getLatestDynamicReserveIntelligenceRun).toHaveBeenCalledWith({ fundId: 1 });
+      expect(svc.createDynamicReserveIntelligenceRun).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['admin', 'analyst', 'partner'])(
+    'allows a fund-scoped %s command and returns 201 for a new run',
+    async (role) => {
+      authState.user = { id: 101, role, fundIds: [1] };
+
+      const response = await postReserveIntelligence({
+        financialFactsSnapshotId: 31,
+        overlay: [{ companyId: 11, plannedReserveCents: 70_00 }],
+      });
+
+      expect(response.status).toBe(201);
+      expect(response.body).toEqual({
+        ...RESERVE_INTELLIGENCE_RUN,
+        replayed: false,
+      });
+      expect(svc.createDynamicReserveIntelligenceRun).toHaveBeenCalledWith({
+        fundId: 1,
+        financialFactsSnapshotId: 31,
+        overlay: [{ companyId: 11, plannedReserveCents: 70_00 }],
+        idempotencyKey: 'reserve-run-31',
+        actorId: 101,
+      });
+    }
+  );
+
+  it('returns 200 for an idempotent replay', async () => {
+    svc.createDynamicReserveIntelligenceRun.mockResolvedValueOnce({
+      ...RESERVE_INTELLIGENCE_RUN,
+      replayed: true,
+    });
+
+    const response = await postReserveIntelligence();
+
+    expect(response.status).toBe(200);
+    expect(response.body.replayed).toBe(true);
+  });
+
+  it('requires Idempotency-Key and a strict unique-overlay request', async () => {
+    const missingKey = await postReserveIntelligence({ financialFactsSnapshotId: 31 }, '');
+    const duplicateOverlay = await postReserveIntelligence({
+      financialFactsSnapshotId: 31,
+      overlay: [
+        { companyId: 11, plannedReserveCents: 10_00 },
+        { companyId: 11, plannedReserveCents: 20_00 },
+      ],
+    });
+    const unknownField = await postReserveIntelligence({
+      financialFactsSnapshotId: 31,
+      unexpected: true,
+    });
+
+    expect(missingKey.status).toBe(428);
+    expect(duplicateOverlay.status).toBe(400);
+    expect(unknownField.status).toBe(400);
+    expect(svc.createDynamicReserveIntelligenceRun).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 without service work when the marginal-reserve feature is off', async () => {
+    featureState.enabled = false;
+
+    const responses = await Promise.all([
+      postReserveIntelligence(),
+      request(buildApp()).get('/api/funds/1/moic/reserve-intelligence/latest'),
+      request(buildApp()).get('/api/funds/1/moic/reserve-intelligence/runs/41'),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([404, 404, 404]);
+    expect(svc.createDynamicReserveIntelligenceRun).not.toHaveBeenCalled();
+    expect(svc.getLatestDynamicReserveIntelligenceRun).not.toHaveBeenCalled();
+    expect(svc.getDynamicReserveIntelligenceRun).not.toHaveBeenCalled();
+  });
+
+  it('serves latest and typed by-id reads without minting', async () => {
+    const latest = await request(buildApp()).get('/api/funds/1/moic/reserve-intelligence/latest');
+    const selected = await request(buildApp()).get(
+      '/api/funds/1/moic/reserve-intelligence/runs/41'
+    );
+
+    expect(latest.status).toBe(200);
+    expect(selected.status).toBe(200);
+    expect(latest.body).toEqual(RESERVE_INTELLIGENCE_RUN);
+    expect(selected.body).toEqual(RESERVE_INTELLIGENCE_RUN);
+    expect(svc.getLatestDynamicReserveIntelligenceRun).toHaveBeenCalledWith({ fundId: 1 });
+    expect(svc.getDynamicReserveIntelligenceRun).toHaveBeenCalledWith({
+      fundId: 1,
+      snapshotId: 41,
+    });
+    expect(svc.createDynamicReserveIntelligenceRun).not.toHaveBeenCalled();
+  });
+
+  it('rejects an invalid run id before service work', async () => {
+    const response = await request(buildApp()).get(
+      '/api/funds/1/moic/reserve-intelligence/runs/not-an-id'
+    );
+
+    expect(response.status).toBe(400);
+    expect(svc.getDynamicReserveIntelligenceRun).not.toHaveBeenCalled();
   });
 });

@@ -37,7 +37,7 @@ export interface MarginalReserveCompanySource {
   currentStage: string | null;
   sector: string;
   currentOwnership: string | number | null;
-  plannedReservesCents: number | bigint | null;
+  plannedReservesCents: string | number | bigint | null;
   allocationVersion: number;
 }
 
@@ -45,7 +45,7 @@ export interface MarginalReserveApprovedAllocationSource {
   companyId: number;
   decisionType: string;
   decisionStatus: string;
-  finalPlannedReservesCents: number | bigint | null;
+  finalPlannedReservesCents: string | number | bigint | null;
   liveAllocationVersion: number | null;
   decidedAt: Date | null;
   updatedAt: Date;
@@ -438,13 +438,18 @@ export function buildMarginalReserveMoicInputsFromSources(input: {
   return { ready, unavailable, factsInputHash, assumptionsHash };
 }
 
-export async function loadMarginalReserveInputSources(input: {
-  fundId: number;
-  asOfDate: string;
-}): Promise<MarginalReserveInputSources> {
+export async function loadMarginalReserveInputSources(
+  input: {
+    fundId: number;
+    asOfDate: string;
+  },
+  options?: {
+    facts?: FundCompanyActualsFactsResponse;
+  }
+): Promise<MarginalReserveInputSources> {
   const sourceSnapshotDate = new Date().toISOString().slice(0, 10);
   const [facts, fundRows, configRows, companyRows, approvedAllocations] = await Promise.all([
-    buildFundCompanyActualsFacts(input),
+    options?.facts ?? buildFundCompanyActualsFacts(input),
     db
       .select({ baseCurrency: funds.baseCurrency })
       .from(funds)
