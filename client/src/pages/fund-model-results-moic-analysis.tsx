@@ -1,6 +1,7 @@
 import { Fragment, useState } from 'react';
 import { AlertTriangle, ChevronRight, Info } from 'lucide-react';
 import { useRoute } from 'wouter';
+import { ReserveIntelligencePanel } from '@/components/fund-results/ReserveIntelligencePanel';
 import { MoicBasisDisclosure, MoicRankabilityBadge } from '@/components/moic/MoicBasisDisclosure';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -575,6 +576,10 @@ export default function FundModelResultsMoicAnalysisPage() {
           <ProvenanceStrip data={data} />
           <RankingsTable rankings={data.rankings} portfolioCompanies={portfolioCompanies} />
         </>
+      ) : null}
+
+      {fundIdResult.status === 'valid' ? (
+        <ReserveIntelligencePanel fundId={fundIdResult.fundId} />
       ) : null}
     </div>
   );
