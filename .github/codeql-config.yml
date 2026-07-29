@@ -1,5 +1,15 @@
 name: 'CodeQL configuration'
 
+# js/missing-rate-limiting: excluded repo-wide. The query can't connect an
+# app-level limiter registered in one file (server/app.ts) to route handlers
+# on a Router() mounted from a separate file, so every authenticated route
+# in this codebase false-positives despite the global express-rate-limit
+# applied ahead of all routers (server/app.ts). 112+ pre-existing open
+# alerts, all the same shape; PR #1238 added 3 more for the same reason.
+query-filters:
+  - exclude:
+      id: js/missing-rate-limiting
+
 paths-ignore:
   - tests
   - _archive
