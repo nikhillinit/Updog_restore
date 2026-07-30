@@ -51,6 +51,21 @@ describe('FundAccountingStateObservationV1Schema', () => {
     ).toBe(false);
   });
 
+  it('rejects malformed money without throwing from safeParse', () => {
+    expect(() =>
+      FundAccountingStateObservationV1Schema.safeParse({
+        ...validObservation,
+        cashBalanceUsd: 'not-money',
+      })
+    ).not.toThrow();
+    expect(
+      FundAccountingStateObservationV1Schema.safeParse({
+        ...validObservation,
+        cashBalanceUsd: 'not-money',
+      }).success
+    ).toBe(false);
+  });
+
   it('rejects an LP distribution total that differs from return of capital plus profit', () => {
     expect(
       FundAccountingStateObservationV1Schema.safeParse({
@@ -69,7 +84,16 @@ describe('FundAccountingStateObservationV1Schema', () => {
     ).toBe(false);
   });
 
-  it('rejects an accrued-through instant different from the cutover instant', () => {
+  it('accepts equivalent RFC3339 representations of the accrued-through and cutover instant', () => {
+    expect(
+      FundAccountingStateObservationV1Schema.safeParse({
+        ...validObservation,
+        accruedPreferredReturnThroughInstant: '2026-06-30T23:59:59Z',
+      }).success
+    ).toBe(true);
+  });
+
+  it('rejects a genuinely different accrued-through instant from the cutover instant', () => {
     expect(
       FundAccountingStateObservationV1Schema.safeParse({
         ...validObservation,

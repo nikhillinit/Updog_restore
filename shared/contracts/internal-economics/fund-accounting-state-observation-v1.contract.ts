@@ -6,9 +6,13 @@ import { MoneyDecimalStringSchema } from '../../lib/decimal-string';
 export const FUND_ACCOUNTING_STATE_OBSERVATION_VERSION =
   'fund-accounting-state-observation/1.0.0' as const;
 
-const NonnegativeMoneyDecimalStringSchema = MoneyDecimalStringSchema.refine(
-  (value) => !value.startsWith('-') && new Decimal(value).gte(0),
-  'Money must be a canonical nonnegative decimal string.'
+const NonnegativeMoneyDecimalStringSchema = MoneyDecimalStringSchema.pipe(
+  z
+    .string()
+    .refine(
+      (value) => !value.startsWith('-') && new Decimal(value).gte(0),
+      'Money must be a canonical nonnegative decimal string.'
+    )
 );
 
 export const FundAccountingStateObservationV1Schema = z
@@ -64,7 +68,9 @@ export const FundAccountingStateObservationV1Schema = z
       });
     }
 
-    if (value.accruedPreferredReturnThroughInstant !== value.cutoverInstant) {
+    if (
+      Date.parse(value.accruedPreferredReturnThroughInstant) !== Date.parse(value.cutoverInstant)
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['accruedPreferredReturnThroughInstant'],
