@@ -1,15 +1,15 @@
 # Task 16.3 GO Readiness Briefs
 
-Date: 2026-07-30 Status: Governance freeze; production implementation gate
-CLOSED Scope: Preconditions for reopening the production implementation lane in
+Date: 2026-07-30 Status: Accepted; scoped production implementation gate GO
+Scope: Ratified readiness basis for WP-L2, WP-L3, and WP-L4 implementation in
 `2026-07-30-task163-deal-by-deal-scoping-design.md`
 
 ## Outcome
 
-Task 16.3 remains split-gate NO-GO for production implementation. Readiness
-proofs and release remediation are recorded here, but clean waterfall-specialist
-and Phoenix precision-guardian re-signs remain mandatory before ADR-065 can
-reconsider the gate:
+Task 16.3 scoped production implementation gate is GO. Waterfall-specialist and
+Phoenix precision-guardian independently re-signed the reconciled contracts on
+2026-07-30 against exact SHA `d2b39f7db476ca8a7497b21688c79e1178a6a352`.
+Completed readiness basis:
 
 1. legacy characterization is merged without changing the legacy engine;
 2. production activation cannot bypass schema reconciliation;
@@ -22,26 +22,29 @@ reconsider the gate:
 6. the remaining credit-facility deviation is resolved as a reserved seed-time
    refusal whose source field is structurally unreachable today.
 
-No production economics engine, assembly integration, persistence, route, or
-migration exists from this readiness work. Production Task 16.3 remains at most
-`indicative`. `available` stays typed-but-unreachable until the separately
-certified Decimal-native engine condition in ADR-065 is met.
+GO authorizes WP-L2 compiler/state-machine, WP-L3 service/persistence, and WP-L4
+restricted-route implementation. Migrations may appear only in reviewed owning
+implementation PRs. GO does not authorize deployment, activation, production
+traffic, or claim feature availability. No production economics engine exists at
+ratification. A future float64 path remains at most `indicative`; `available`
+stays typed-but-unreachable until the separately certified Decimal-native money
+core condition in ADR-065 is met.
 
 ## Decision Summary
 
-| Gate            | Frozen decision                                                                                               | Evidence status                                                                        |
-| --------------- | ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| WP-CHAR         | Keep `LEGACY-*` fixtures isolated from product truth                                                          | Merged characterization plus corrected same-input `LEGACY-04`/`LEGACY-05` counterparts |
-| #1179           | Set versioned Vercel `github.autoAlias=false`; production traffic moves only through `release-production.yml` | Complete; exact release evidence below                                                 |
-| B1              | Pin a directly attested JSON source artifact into financial facts payload v3                                  | Readiness contract/builder/route proofs exist                                          |
-| B2              | Support only explicit zero fees and zero expenses                                                             | Readiness compatibility/rejection proofs exist                                         |
-| Envelope        | Freeze immutable legal-envelope contract; persistence follows after GO                                        | Design frozen; persistence deferred to L3                                              |
-| Vehicle scope   | V1 stays single-vehicle; SPV-bearing funds refuse                                                             | Scoped vNext design frozen; legacy `fund_all` behavior unchanged                       |
-| Realizations    | One labeled synthetic quarterly aggregate per forecast point in no-hurdle V1                                  | Full-precision aggregation-invariance proof exists                                     |
-| Event ordering  | Derive versioned canonical order keys; do not duplicate fields in persisted facts                             | Readiness contract and permutation proof exist                                         |
-| Precision       | Full-precision state and hierarchical presentation-only LRM                                                   | Readiness oracle exists; clean specialist re-signs pending                             |
-| Compound hurdle | Corrected unreturned-capital semantics with Decimal math                                                      | Clean waterfall and precision re-signs pending before schema V1.1                      |
-| Credit facility | Reserved seed-time `422 CREDIT_FACILITY_UNSUPPORTED`                                                          | Structurally unreachable; strict-schema guard exists                                   |
+| Gate            | Ratified decision                                                                                             | Current state                                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| WP-CHAR         | Keep `LEGACY-*` fixtures isolated from product truth                                                          | Complete; merged characterization plus corrected same-input `LEGACY-04`/`LEGACY-05` counterparts      |
+| #1179           | Set versioned Vercel `github.autoAlias=false`; production traffic moves only through `release-production.yml` | Complete; removed release blocker but did not independently open Task 16.3                            |
+| B1              | Pin a directly attested JSON source artifact into financial facts payload v3                                  | Complete; contract, builder, route, and source-reachability proofs exist                              |
+| B2              | Support only explicit zero fees and zero expenses                                                             | Complete; all nonzero, absent, or ambiguous fee/expense inputs remain runtime-ineligible              |
+| Envelope        | Freeze immutable legal-envelope contract                                                                      | Ratified; persistence and migration only in reviewed owning WP-L3 PR                                  |
+| Vehicle scope   | V1 stays single-vehicle                                                                                       | Ratified; SPV/co-invest-bearing funds remain runtime-ineligible; legacy `fund_all` behavior unchanged |
+| Realizations    | One labeled synthetic quarterly aggregate per forecast point in no-hurdle V1                                  | Ratified; full-precision aggregation-invariance proof exists                                          |
+| Event ordering  | Derive versioned canonical order keys; do not duplicate fields in persisted facts                             | Ratified; readiness contract and permutation proof exist                                              |
+| Precision       | Full-precision state and hierarchical presentation-only LRM                                                   | Clean GO                                                                                              |
+| Compound hurdle | Corrected unreturned-capital semantics with Decimal math                                                      | Semantics ratified; policy schema V1.1 remains separately gated                                       |
+| Credit facility | Reserved seed-time `422 CREDIT_FACILITY_UNSUPPORTED`                                                          | Ratified; structurally unreachable and strict-schema guarded                                          |
 
 ## Release-Schema Activation Remediation (#1179)
 
@@ -124,8 +127,9 @@ tests. GitHub production deployment `5679938936` recorded success for the same
 SHA. Issue [#1179](https://github.com/nikhillinit/Updog_restore/issues/1179)
 closed on 2026-07-30.
 
-This completed release proof removes #1179 as a release blocker. It does not
-open the Task 16.3 production implementation gate.
+This completed release proof removed #1179 as a release blocker. It did not
+independently open the Task 16.3 production implementation gate; the later
+exact-SHA dual-specialist ratification did.
 
 ## Brief 1: Authoritative Opening Accounting State
 
@@ -137,8 +141,8 @@ snapshot creation. The observation originates in an existing fund-scoped
 Financial-facts builder parses those exact stored bytes; it never trusts a
 second copy of the monetary fields in the snapshot request.
 
-This is payload-only work. No new table or migration is required before the gate
-opens.
+This is payload-only work. No new table or migration is required for this
+readiness contract.
 
 ### Source artifact contract
 
@@ -407,8 +411,8 @@ deployable-capital output, and optional GP commitment are modeling inputs and
 cannot independently establish legal commitment. LP may be derived as
 `total - GP` only after both total and GP sources are authoritative.
 
-Persistence remains a post-GO implementation task; this brief completes its
-design gate.
+Persistence and any migration belong only in the reviewed owning WP-L3
+implementation PR; this brief completed the design gate.
 
 ## Brief 4: Vehicle Scope and Forecast Realization Grain
 
@@ -477,8 +481,9 @@ within-quarter timing can change preferred return.
 
 ## Brief 5: Compound-Hurdle Semantics
 
-Schema V1.1 may add `annualized_compound` only after waterfall-specialist and
-Phoenix precision-guardian sign-off on this executable contract.
+Waterfall-specialist and Phoenix precision-guardian ratified these compound
+semantics on 2026-07-30. Policy schema V1.1 remains separately gated and may add
+`annualized_compound` only in its own reviewed implementation scope.
 
 State at instant `t`:
 
@@ -639,9 +644,9 @@ The authoritative #1176 register correction supersedes the initial
 five-ratified/one-pending posting and records all six deviations as ratified:
 https://github.com/nikhillinit/Updog_restore/issues/1176#issuecomment-5134955218
 
-## Specialist Review State
+## Historical NO-GO Findings and Resolution
 
-Both specialist verdicts remain NO-GO pending clean re-sign:
+Former specialist NO-GO findings required these repairs:
 
 - Waterfall review rejected D1/D9's former per-split cent rounding,
   pre-comparison rounding, and unconditional LP assignment. This freeze replaces
@@ -650,25 +655,32 @@ Both specialist verdicts remain NO-GO pending clean re-sign:
 - Precision review found the flat quarterly aggregation proof insufficient by
   itself and required a hierarchical exact-Decimal oracle, corrected same-input
   `LEGACY-04`/`LEGACY-05` counterparts, and an executable event-order contract.
-  Those readiness proofs now exist, but they have not yet received clean
-  specialist re-sign.
+  Those readiness proofs now exist and received clean specialist GO re-signs.
 
 Architecture review ruled that ordering metadata derives from persisted facts:
 priority from `eventType`, stable source ID from post-insert
 `snapshotId`/`eventId`. Persisting either derived field redundantly is
 forbidden.
 
-## Gate Evidence Record
+## Ratification Record
 
-Readiness proofs, release remediation, and the authoritative #1176
-deviation-register correction are recorded. ADR-065 remains `[PROPOSED]`, and
-the production implementation gate remains CLOSED. Clean re-review must produce:
+| Specialist                 | Date       | Exact SHA                                  | Verdict | Evidence                                                                                             |
+| -------------------------- | ---------- | ------------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------- |
+| waterfall-specialist       | 2026-07-30 | `d2b39f7db476ca8a7497b21688c79e1178a6a352` | GO      | 12 focused files, 205/205 tests; Phoenix 328/328; `npm run check` exit 0; lint and guardrails pass   |
+| phoenix-precision-guardian | 2026-07-30 | `d2b39f7db476ca8a7497b21688c79e1178a6a352` | GO      | 51/51 focused tests; corrected-account pins, event ordering, Decimal LRM, and conservation all clean |
 
-- waterfall-specialist semantic re-sign against corrected capital accounts,
-  full-precision threshold/state math, hierarchical presentation LRM, and the
-  versioned event-order contract;
-- Phoenix precision-guardian re-sign against exact Decimal remainder ordering,
-  presentation-only cent rounding, conservation, and no rounded-state feedback.
+Ratification covers corrected capital accounts, full-precision threshold/state
+math, hierarchical presentation-only LRM, exact Decimal remainder ordering, the
+versioned event-order contract, conservation, opening-artifact reachability, and
+the zero-fee bridge. Evidence anchors include
+`tests/unit/truth-cases/waterfall-corrected-capital-account.test.ts:198` and
+`:248`, plus
+`shared/contracts/internal-economics/event-ordering-v1.contract.ts:3`, `:145`,
+and `:176`; `tests/unit/services/financial-facts-snapshot-service.test.ts:506`
+and `:524` pin opening-artifact reachability; and
+`tests/unit/internal-economics/effective-fee-expense-bridge-v1.test.ts:301`,
+`:361`, `:368`, and `:428` pin absent, ambiguous, and nonzero fee rejection.
 
-Prior NO-GO findings are not treated as sign-off. No `CONTEXT.md` or generated
-routing output is part of this governance freeze.
+Former NO-GO findings remain above only as resolved historical context. ADR-065
+is `[ACCEPTED]`; scoped WP-L2/WP-L3/WP-L4 implementation is GO. Run/result
+atomicity, idempotency races, and rollback remain mandatory WP-L3 acceptance.
