@@ -28,6 +28,20 @@ function mockHook(result: HookResult) {
   useReserveIntelligence.mockReturnValue(result);
 }
 
+const PARTICIPATION_BASIS_UNAVAILABLE =
+  'Participation basis unavailable: companyId to companyIdentityId mapping is not disclosed.';
+
+function expectParticipationBasisDisclosureForEachCompany() {
+  const table = screen.getByRole('table', { name: 'Reserve intelligence diagnostics' });
+  for (const companyName of ['Alpha', 'Beta', 'Gamma']) {
+    const row = within(table).getByText(companyName).closest('tr');
+    expect(row).not.toBeNull();
+    expect(
+      within(row as HTMLTableRowElement).getByText(PARTICIPATION_BASIS_UNAVAILABLE)
+    ).toBeVisible();
+  }
+}
+
 describe('ReserveIntelligencePanel', () => {
   beforeEach(() => {
     useReserveIntelligence.mockReset();
@@ -130,6 +144,16 @@ describe('ReserveIntelligencePanel', () => {
     expect(screen.getByText(/one non-usd cash flow was excluded/i)).toBeInTheDocument();
     expect(screen.getByText(/follow_on.*approved/i)).toBeInTheDocument();
     expect(screen.getByText(/maxpercompany:infinity/i)).toBeInTheDocument();
+    expectParticipationBasisDisclosureForEachCompany();
+  });
+
+  it('renders the per-row participation-basis disclosure under policy 1.0.1', () => {
+    const run = makeReserveIntelligenceRun('financial-facts-policy/1.0.1');
+    mockHook({ data: { kind: 'ready', run }, error: null, isLoading: false });
+
+    render(<ReserveIntelligencePanel fundId={7} />);
+
+    expectParticipationBasisDisclosureForEachCompany();
   });
 
   it('links facts per row, opens evidence, and discloses missing row fallback', async () => {

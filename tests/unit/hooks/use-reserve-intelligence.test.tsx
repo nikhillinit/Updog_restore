@@ -88,6 +88,42 @@ describe('useReserveIntelligence', () => {
     expect(result.current.data).toBeUndefined();
   });
 
+  it('rejects a non-integer final planned reserves value', async () => {
+    const run = makeReserveIntelligenceRun();
+    run.result.provenance.marginalNonFactsSources.approvedAllocations[0]!.finalPlannedReservesCents =
+      '12.5';
+    fetchMock.mockResolvedValue(jsonResponse(run));
+
+    const { result } = renderHook(() => useReserveIntelligence(7), { wrapper });
+
+    await waitFor(() => expect(result.current.error?.code).toBe('CONTRACT_PARSE_ERROR'));
+    expect(result.current.data).toBeUndefined();
+  });
+
+  it('accepts a negative integer final planned reserves value', async () => {
+    const run = makeReserveIntelligenceRun();
+    run.result.provenance.marginalNonFactsSources.approvedAllocations[0]!.finalPlannedReservesCents =
+      '-1200';
+    fetchMock.mockResolvedValue(jsonResponse(run));
+
+    const { result } = renderHook(() => useReserveIntelligence(7), { wrapper });
+
+    await waitFor(() => expect(result.current.data?.kind).toBe('ready'));
+    expect(result.current.error).toBeNull();
+  });
+
+  it('accepts a null final planned reserves value', async () => {
+    const run = makeReserveIntelligenceRun();
+    run.result.provenance.marginalNonFactsSources.approvedAllocations[0]!.finalPlannedReservesCents =
+      null;
+    fetchMock.mockResolvedValue(jsonResponse(run));
+
+    const { result } = renderHook(() => useReserveIntelligence(7), { wrapper });
+
+    await waitFor(() => expect(result.current.data?.kind).toBe('ready'));
+    expect(result.current.error).toBeNull();
+  });
+
   it('returns a schema-valid reserve intelligence run', async () => {
     const run = makeReserveIntelligenceRun();
     fetchMock.mockResolvedValue(jsonResponse(run));
