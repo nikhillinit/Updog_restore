@@ -336,7 +336,7 @@ jobs:
 
   release-static:
     name: Static Release Diagnostic
-    needs: [changes, check]
+    needs: [changes, check, build]
     if: |
       needs.changes.outputs.heavy_ci_relevant == 'true' ||
       github.event.inputs.run_full_suite == 'true'
@@ -357,7 +357,7 @@ jobs:
           CI: 'true'
           NODE_OPTIONS: --max-old-space-size=4096
           TZ: UTC
-        run: npm run release:check -- --skip-db
+        run: npm run release:check -- --skip-db --reuse-ci-gates
 
   dependency-validation:
     name: Dependency Validation (Linux)

@@ -3596,34 +3596,29 @@ describe('required CI fails closed', () => {
     expect(normalizedNeeds).toContain('secret-scan');
   });
 
-  it('separates static diagnostics from full release proof', async () => {
+  it('reuses generic CI gates only in the upstream-gated static release diagnostic', async () => {
     const ciWorkflow = await readWorkflow('ci-unified.yml');
-    const staticScripts = allRunScripts({
-      jobs: { release: ciWorkflow.jobs?.['release-static'] ?? {} },
-    });
-    expect(staticScripts.join('\n')).toContain('npm run release:check -- --skip-db');
-    expect(staticScripts.join('\n')).toContain('npx playwright install --with-deps chromium');
+    const staticJob = ciWorkflow.jobs?.['release-static'];
+    const staticScripts = (staticJob?.steps ?? [])
+      .flatMap((step) => (typeof step.run === 'string' ? [step.run] : []))
+      .join('\n');
+    expect(normalizeNeeds(staticJob?.needs)).toEqual(
+      expect.arrayContaining(['changes', 'check', 'build'])
+    );
+    expect(staticScripts).toContain('npm run release:check -- --skip-db --reuse-ci-gates');
+    expect(staticScripts).toContain('npx playwright install --with-deps chromium');
 
     const gateNeeds = ciWorkflow.jobs?.gate?.needs;
-    const normalizedNeeds = typeof gateNeeds === 'string' ? [gateNeeds] : (gateNeeds ?? []);
-    expect(normalizedNeeds).toContain('release-static');
+    const normalizedGateNeeds = typeof gateNeeds === 'string' ? [gateNeeds] : (gateNeeds ?? []);
+    expect(normalizedGateNeeds).toEqual(
+      expect.arrayContaining(['release-static', 'check', 'build'])
+    );
 
     const fullWorkflow = await readWorkflow('release-proof.yml');
     const fullScripts = allRunScripts(fullWorkflow).join('\n');
-    expect(fullScripts).toContain('npx playwright install --with-deps chromium');
     expect(fullScripts).toContain('npm run release:check');
-    expect(fullScripts).not.toContain('release:check -- --skip-db');
-
-    const releaseChecker = await readFile(
-      path.join(process.cwd(), 'scripts/release-check.mjs'),
-      'utf8'
-    );
-    const dbBackedSteps = releaseChecker.slice(
-      releaseChecker.indexOf('const dbBackedSteps'),
-      releaseChecker.indexOf('if (skipDbProof)')
-    );
-    expect(dbBackedSteps).toContain("name: 'Scenario release gate'");
-    expect(releaseChecker).toContain('steps.push(...dbBackedSteps)');
+    expect(fullScripts).not.toContain('--skip-db');
+    expect(fullScripts).not.toContain('--reuse-ci-gates');
   });
 
   // This guard intentionally scans every tracked automation surface. Under the

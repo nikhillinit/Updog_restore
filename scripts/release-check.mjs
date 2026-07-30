@@ -2,10 +2,9 @@
 
 import { spawnSync } from 'node:child_process';
 import console from 'node:console';
+import path from 'node:path';
 import process from 'node:process';
-
-const skipDbProof =
-  process.argv.includes('--skip-db') || process.env.UPDOG_RELEASE_CHECK_SKIP_DB === '1';
+import { fileURLToPath } from 'node:url';
 
 const clientSurfaceTests = [
   'tests/unit/pages/fund-scenario-workspace.test.tsx',
@@ -107,15 +106,12 @@ function checkReleaseOwnedFilesTracked() {
   return 1;
 }
 
-const steps = [
-  {
-    name: 'TypeScript baseline',
-    command: 'npm run check',
-  },
-  {
-    name: 'Lint and guardrails',
-    command: 'npm run lint',
-  },
+const upstreamSharedSteps = [
+  { name: 'TypeScript baseline', command: 'npm run check' },
+  { name: 'Lint and guardrails', command: 'npm run lint' },
+];
+
+const releaseSurfaceSteps = [
   {
     name: 'Lean release client surface lock',
     command: ['cross-env TZ=UTC vitest run', ...clientSurfaceTests, '--project=client'].join(' '),
@@ -167,62 +163,90 @@ const dbBackedSteps = [
   },
 ];
 
-if (skipDbProof) {
-  console.warn(
-    '[release:check] skipping container-backed lifecycle proof; this is diagnostic only and is not release proof'
-  );
-} else {
-  steps.push(...dbBackedSteps);
+const trailingSharedSteps = [
+  { name: 'Core validation wrapper', command: 'npm run validate:core' },
+  { name: 'Production build', command: 'npm run build' },
+];
+
+const repositoryIntegritySteps = [
+  { name: 'Whitespace diff check', command: 'git diff --check HEAD --' },
+  { name: 'Release-owned file tracking', run: checkReleaseOwnedFilesTracked },
+];
+
+export function validateReleaseCheckMode({ skipDbProof, reuseCiGates, ci }) {
+  if (reuseCiGates && !skipDbProof) {
+    throw new Error('--reuse-ci-gates requires --skip-db');
+  }
+  if (reuseCiGates && !ci) {
+    throw new Error('--reuse-ci-gates requires CI=true');
+  }
 }
 
-steps.push(
-  {
-    name: 'Core validation wrapper',
-    command: 'npm run validate:core',
-  },
-  {
-    name: 'Production build',
-    command: 'npm run build',
-  },
-  {
-    name: 'Whitespace diff check',
-    command: 'git diff --check HEAD --',
-  },
-  {
-    name: 'Release-owned file tracking',
-    run: checkReleaseOwnedFilesTracked,
-  }
-);
+export function buildReleaseCheckSteps({ skipDbProof, reuseCiGates }) {
+  return [
+    ...(reuseCiGates ? [] : upstreamSharedSteps),
+    ...releaseSurfaceSteps,
+    ...(skipDbProof ? [] : dbBackedSteps),
+    ...(reuseCiGates ? [] : trailingSharedSteps),
+    ...repositoryIntegritySteps,
+  ];
+}
 
-for (const [index, step] of steps.entries()) {
-  console.log(`[release:check] ${index + 1}/${steps.length}: ${step.name}`);
+function executeSteps(steps, spawn = spawnSync) {
+  for (const [index, step] of steps.entries()) {
+    console.log(`[release:check] ${index + 1}/${steps.length}: ${step.name}`);
 
-  if (step.run) {
-    const status = step.run();
-    if (status !== 0) {
-      console.error(`[release:check] failed: ${step.name}`);
-      process.exitCode = status;
-      break;
+    if (step.run) {
+      const status = step.run();
+      if (status !== 0) {
+        console.error(`[release:check] failed: ${step.name}`);
+        return status;
+      }
+      continue;
     }
-    continue;
+
+    const result = spawn(step.command, {
+      env: process.env,
+      shell: true,
+      stdio: 'inherit',
+    });
+
+    if (result.error) {
+      console.error(`[release:check] failed to run: ${step.command}`);
+      console.error(result.error.message);
+      return 1;
+    }
+
+    if (result.status !== 0) {
+      console.error(`[release:check] failed: ${step.name}`);
+      return result.status ?? 1;
+    }
+  }
+  return 0;
+}
+
+function main(argv = process.argv.slice(2), env = process.env) {
+  const skipDbProof = argv.includes('--skip-db') || env.UPDOG_RELEASE_CHECK_SKIP_DB === '1';
+  const reuseCiGates = argv.includes('--reuse-ci-gates');
+  validateReleaseCheckMode({ skipDbProof, reuseCiGates, ci: env.CI === 'true' });
+
+  if (skipDbProof) {
+    console.warn(
+      '[release:check] skipping container-backed lifecycle proof; this is diagnostic only and is not release proof'
+    );
   }
 
-  const result = spawnSync(step.command, {
-    env: process.env,
-    shell: true,
-    stdio: 'inherit',
-  });
+  const steps = buildReleaseCheckSteps({ skipDbProof, reuseCiGates });
+  return executeSteps(steps);
+}
 
-  if (result.error) {
-    console.error(`[release:check] failed to run: ${step.command}`);
-    console.error(result.error.message);
+const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
+const modulePath = path.resolve(fileURLToPath(import.meta.url));
+if (invokedPath.toLowerCase() === modulePath.toLowerCase()) {
+  try {
+    process.exitCode = main();
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
-    break;
-  }
-
-  if (result.status !== 0) {
-    console.error(`[release:check] failed: ${step.name}`);
-    process.exitCode = result.status ?? 1;
-    break;
   }
 }
