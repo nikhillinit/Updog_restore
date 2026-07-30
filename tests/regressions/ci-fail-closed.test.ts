@@ -3569,6 +3569,9 @@ describe('required CI fails closed', () => {
     expect(releaseChecker).toContain('steps.push(...dbBackedSteps)');
   });
 
+  // This guard intentionally scans every tracked automation surface. Under the
+  // full Linux unit-fast shard, concurrent repository I/O can exceed Vitest's
+  // 30-second default even though the same scan is fast in isolation.
   it('gates production promotion on a clean schema audit and authenticated smoke', async () => {
     const schemaWorkflow = await readWorkflow('prod-schema-reconcile.yml');
     const schemaScripts = allRunScripts(schemaWorkflow).join('\n');
@@ -3758,7 +3761,7 @@ describe('required CI fails closed', () => {
     expect(releaseScripts).toContain('tests/smoke/production-boundaries.spec.ts');
     expect(releaseScripts).toContain('PROD_SMOKE_USERNAME');
     expect(releaseScripts).toContain('PROD_SMOKE_PASSWORD');
-  });
+  }, 120_000);
 
   it('keeps the PowerShell production helper as an exact-live-main dispatcher', async () => {
     const dispatcher = await readFile(
