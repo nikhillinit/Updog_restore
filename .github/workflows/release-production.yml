@@ -119,6 +119,7 @@ jobs:
           DEPLOYMENT_URL="$(
             npx --yes vercel@55.0.0 deploy \
               --prod \
+              --archive=tgz \
               --skip-domain \
               --yes \
               --meta githubDeployment=1 \
