@@ -8,9 +8,9 @@ on:
         type: string
         required: true
       deployment_url:
-        description: Staged Vercel production deployment URL for expected_sha
+        description: Legacy compatibility input; ignored by governed release
         type: string
-        required: true
+        required: false
 
 permissions:
   contents: read
@@ -53,9 +53,108 @@ jobs:
       expected_sha: ${{ inputs.expected_sha }}
     secrets: inherit
 
+  stage-production:
+    name: Create Staged Production Deployment
+    needs: schema-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: Production
+    outputs:
+      deployment_url: ${{ steps.deploy.outputs.deployment_url }}
+    steps:
+      - name: Re-fence live main before staging
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if ! LIVE_MAIN="$(gh api "repos/${REPO}/commits/main" --jq '.sha')"; then
+            echo "::error::Could not resolve live main HEAD; refusing to stage (fail-closed)."
+            exit 1
+          fi
+          if [[ ! "$LIVE_MAIN" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Unexpected live main SHA '${LIVE_MAIN}'; refusing to stage (fail-closed)."
+            exit 1
+          fi
+          if [[ "$LIVE_MAIN" != "$EXPECTED_SHA" ]]; then
+            echo "::error::main advanced from ${EXPECTED_SHA} to ${LIVE_MAIN} during this release run; refusing to stage a stale target. Re-dispatch Release Production for the current main SHA."
+            exit 1
+          fi
+          echo "Live main still equals release target ${EXPECTED_SHA}; staging authorized."
+
+      - name: Checkout exact release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.expected_sha }}
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20.19.0'
+
+      - name: Verify checked-out release commit
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          if [[ "$ACTUAL_SHA" != "$EXPECTED_SHA" || "$GITHUB_SHA" != "$EXPECTED_SHA" ]]; then
+            echo "::error::Checked-out SHA does not match expected_sha."
+            exit 1
+          fi
+
+      - name: Create staged production deployment
+        id: deploy
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          : "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
+          : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
+          : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required}"
+          DEPLOYMENT_URL="$(
+            npx --yes vercel@55.0.0 deploy \
+              --prod \
+              --skip-domain \
+              --yes \
+              --meta githubDeployment=1 \
+              --meta githubCommitRef=main \
+              --meta "githubCommitSha=${EXPECTED_SHA}"
+          )"
+          export DEPLOYMENT_URL
+          node <<'NODE'
+          const fs = require('node:fs');
+          const raw = process.env.DEPLOYMENT_URL ?? '';
+          const validShape =
+            /^https:\/\/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.vercel\.app$/.test(raw);
+          if (!validShape) {
+            console.error('Vercel deploy must return one bare HTTPS vercel.app deployment URL.');
+            process.exit(1);
+          }
+          const url = new URL(raw);
+          const validUrl =
+            url.protocol === 'https:' &&
+            url.username === '' &&
+            url.password === '' &&
+            url.port === '' &&
+            url.pathname === '/' &&
+            url.search === '' &&
+            url.hash === '';
+          if (!validUrl) {
+            console.error('Staged deployment URL failed strict validation.');
+            process.exit(1);
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `deployment_url=${raw}\n`);
+          console.log('Staged production deployment created.');
+          NODE
+
   validate-deployment:
     name: Validate Staged Deployment Identity
-    needs: schema-audit
+    needs: stage-production
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment: Production
@@ -86,7 +185,7 @@ jobs:
       - name: Normalize and verify exact staged deployment
         id: verify
         env:
-          DEPLOYMENT_URL: ${{ inputs.deployment_url }}
+          DEPLOYMENT_URL: ${{ needs.stage-production.outputs.deployment_url }}
           EXPECTED_SHA: ${{ inputs.expected_sha }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
@@ -135,6 +234,7 @@ jobs:
             deployment.projectId === process.env.VERCEL_PROJECT_ID &&
             deployment.meta?.githubCommitSha === process.env.EXPECTED_SHA &&
             deployment.meta?.githubCommitRef === 'main' &&
+            deployment.meta?.githubDeployment === '1' &&
             deploymentHost === requestedHost;
           if (!valid) {
             console.error('Staged deployment does not match the exact production release target.');
@@ -247,15 +347,14 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
-        # Vercel can auto-promote the merge-created deployment before this step runs
-        # (#1091); a bare `vercel promote` then 409s "already the current production
-        # deployment" and skips post-promotion smoke. Treat that case as a no-op
-        # success ONLY after independently confirming, via the Vercel API, that the
-        # deployment serving PRODUCTION_URL is the exact staged deployment this run
-        # verified. Any other promote failure stays fatal.
+        # A retry or concurrent governed release can find the verified deployment
+        # already serving production. Treat that promote failure as a no-op success
+        # ONLY after independently confirming, via the Vercel API, that PRODUCTION_URL
+        # resolves to the exact staged deployment this run verified. Any other
+        # promote failure stays fatal.
         run: |
           set -euo pipefail
-          if npx --yes vercel@55.0.0 promote "$DEPLOYMENT_URL" --yes --timeout=5m --token="$VERCEL_TOKEN"; then
+          if npx --yes vercel@55.0.0 promote "$DEPLOYMENT_URL" --yes --timeout=5m; then
             echo "Promoted $DEPLOYMENT_URL"
             exit 0
           fi

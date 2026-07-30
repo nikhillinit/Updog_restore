@@ -83,6 +83,19 @@ function namesSurvivingSql(sqlFiles: string[]): Set<string> {
 
   for (const sqlFile of sqlFiles) {
     const sql = fs.readFileSync(path.join(repoRoot, sqlFile), 'utf8');
+    for (const match of sql.matchAll(
+      /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?"?([a-z0-9_]+)"?\s*\(([\s\S]*?)\);/gi
+    )) {
+      const tableName = match[1];
+      const tableBody = match[2] ?? '';
+      if (
+        tableName &&
+        /^\s*(?!CONSTRAINT\b)"?[a-z0-9_]+"?\s+[^,\n]*\bPRIMARY\s+KEY\b/im.test(tableBody)
+      ) {
+        surviving.add(pgIdentifier(`${tableName}_pkey`));
+      }
+    }
+
     const pattern = new RegExp(SQL_NAME_EVENT.source, 'gi');
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(sql)) !== null) {
@@ -123,6 +136,9 @@ describe('prod-schema manifest sentinels', () => {
       '16-positions-ownership-compat.json',
       '17-position-source-basis-reliefs.json',
       '18-internal-analysis.json',
+      '19-user-identity-grants-revocation.json',
+      '20-company-scenario-create-requests.json',
+      '21-business-time-comparison-lineage.json',
     ]);
   });
 
@@ -201,6 +217,15 @@ describe('prod-schema manifest sentinels', () => {
     }
 
     expect(failures).toEqual([]);
+  });
+
+  it('derives PostgreSQL names for both inline primary keys in manifests 19 and 20', () => {
+    expect(namesSurvivingSql(['migrations/0031_user_identity_grants_revocation.sql'])).toContain(
+      'revoked_tokens_pkey'
+    );
+    expect(namesSurvivingSql(['migrations/0033_company_scenario_create_requests.sql'])).toContain(
+      'company_scenario_create_requests_pkey'
+    );
   });
 
   it('negative control: a dropped-then-replaced name does not survive (0016/0017 case)', () => {

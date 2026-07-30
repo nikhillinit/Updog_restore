@@ -3,8 +3,8 @@ type: reflection
 id: REFL-041
 title: Production Activation Requires Schema Provisioning Proof
 status: VERIFIED
-date: 2026-07-27
-version: 1
+date: 2026-07-30
+version: 2
 severity: high
 wizard_steps: []
 error_codes: [ERR_SCHEMA_ACTIVATION_ORDER, ERR_UNPROVISIONED_DEPENDENCY]
@@ -18,6 +18,7 @@ keywords:
     exact-sha,
     manifest-apply,
     authenticated-smoke,
+    governed-promotion,
   ]
 test_file: tests/regressions/REFL-041.test.ts
 superseded_by: null
@@ -135,6 +136,25 @@ Use one of two safe release shapes:
    production. Merge route readers/writers only after the manifest is already
    `SKIP (shape-ok)`.
 
+This repository uses governed-only promotion. `vercel.json` owns the invariant
+`github.autoAlias=false`; do not replace it with a dashboard-only setting. The
+required post-merge activation sequence is:
+
+```text
+schema apply when required -> clean audit -> stage production target -> validate identity -> staged smoke -> promote -> production smoke
+```
+
+`Release Production` requires the exact current `main` SHA at dispatch and
+rechecks live `main` before staging, deployment validation, staged smoke, and
+promotion. After a clean schema audit, the workflow checks out the exact SHA and
+creates its own production-target Vercel deployment without assigning domains.
+It then validates that deployment's project, SHA, branch, metadata, target,
+host, and ready state before smoke. Caller-provided deployment URLs are ignored.
+Post-promotion smoke validates the promoted deployment through the canonical
+alias rather than rechecking `main`. Schema apply remains a separate, explicit
+action when audit identifies an authorized missing forward migration. Release
+dispatch follows only after a clean audit.
+
 Both shapes require:
 
 1. Pin exact application SHA and expected production database identity.
@@ -199,6 +219,8 @@ The governed recovery minimized blast radius:
 
 - Treat production manifest `SKIP (shape-ok)` as evidence required before
   activating any schema-backed consumer.
+- Preserve `vercel.json.github.autoAlias=false` as the code-owned activation
+  invariant.
 - Record exact SHA, database identity, manifest, delta tuple, transaction
   result, final audit, and authenticated canary as one release proof chain.
 - Split schema provisioning from feature activation when hosting auto-promotion
@@ -224,15 +246,15 @@ The governed recovery minimized blast radius:
 
 | Action                                                                                                                                                                                       | Owner                  | Due                                        | Binary success measure                                                                                                             | Status |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| Make every production-serving path respect schema proof: either disable Vercel merge auto-promotion or require schema-first dormant PRs.                                                     | Release owner          | Before next schema-backed route activation | No schema-backed consumer can serve before exact-target manifest audit is clean.                                                   | OPEN   |
+| Make every production-serving path respect schema proof: disable Vercel merge auto-aliasing and require governed promotion after schema proof.                                               | Release owner          | Before next schema-backed route activation | `vercel.json.github.autoAlias=false`; governed exact-SHA release requires clean schema audit before staged smoke and promotion.    | DONE   |
 | Harden `prod-schema-reconcile` apply authorization with expected database identity, expected manifest, exact allowed delta kinds/names, and one advisory-lock audit/apply decision boundary. | Schema/reconcile owner | Before next production schema apply        | Negative tests reject wrong database, extra manifest/table, shape repair, drop, or audit/apply drift; intended exact tuple passes. | OPEN   |
 | Add authenticated read-only internal-analysis production canary and pin its manifest/migration mapping.                                                                                      | Feature owner          | This reflection closeout                   | `REFL-041.test.ts` passes and production smoke requires `200` plus JSON `drafts` from `/api/funds/1/internal-analysis/drafts`.     | DONE   |
 
 **Follow-up:** Review at the next schema-backed release gate. Current
-completion: `1/3` (33%). Required before that activation: `3/3` (100%),
-exceeding the retrospective action-completion target of 80%. Open actions do not
-roll forward silently; release owner must block activation or explicitly
-re-scope with new evidence.
+completion: `2/3` (67%). Production activation remains blocked until the
+required sequence completes for the exact release SHA. Remaining reconcile
+authorization hardening does not roll forward silently; schema/reconcile owner
+must block any apply or explicitly re-scope it with new evidence.
 
 ## 3. Evidence
 
@@ -252,5 +274,8 @@ re-scope with new evidence.
   to the exact six-table production manifest and requires an authenticated
   read-only internal-analysis canary in
   `tests/smoke/production-boundaries.spec.ts`.
+- **Activation guard:** `vercel.json.github.autoAlias=false` prevents the Git
+  integration from automatically assigning production aliases; the governed
+  workflow owns staged smoke, promotion, and production smoke.
 - **Related:** REFL-040 (cross-worktree environment parity); Task 11 governed
   schema/release closeout.

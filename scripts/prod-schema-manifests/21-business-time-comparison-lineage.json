@@ -1,0 +1,74 @@
+{
+  "name": "business-time-comparison-lineage",
+  "order": 21,
+  "missingTablePolicy": "existing_table_required",
+  "sqlFiles": ["migrations/0034_business_time_comparison_lineage.sql"],
+  "allowedCreateTables": [],
+  "expectedTables": [
+    {
+      "name": "calc_runs",
+      "sharedTable": true,
+      "columns": [
+        {
+          "name": "model_inputs_as_of_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "comparison_lineage_version",
+          "type": "varchar",
+          "nullable": true
+        }
+      ],
+      "constraints": ["calc_runs_comparison_lineage_check"]
+    },
+    {
+      "name": "fund_scenario_calculation_runs",
+      "sharedTable": true,
+      "columns": [
+        {
+          "name": "model_inputs_as_of_date",
+          "type": "date",
+          "nullable": true
+        },
+        {
+          "name": "comparison_lineage_version",
+          "type": "varchar",
+          "nullable": true
+        },
+        { "name": "hash_kind", "type": "varchar", "nullable": true }
+      ],
+      "constraints": [
+        "fund_scenario_calculation_runs_hash_kind_check",
+        "fund_scenario_calculation_runs_typed_input_hash_check",
+        "fund_scenario_calculation_runs_comparison_lineage_check"
+      ],
+      "indexes": ["fund_scenario_calc_runs_active_dedup_idx"],
+      "indexDefinitions": [
+        {
+          "name": "fund_scenario_calc_runs_active_dedup_idx",
+          "expectedDefinition": {
+            "exactDefinition": "CREATE UNIQUE INDEX fund_scenario_calc_runs_active_dedup_idx ON public.fund_scenario_calculation_runs USING btree (scenario_set_id, source_config_id, source_config_version, COALESCE(hash_kind, 'scenario-input-hash-v1'::character varying), input_hash) WHERE ((status)::text = ANY ((ARRAY['queued'::character varying, 'running'::character varying, 'completed'::character varying])::text[]))",
+            "orderedFragments": [
+              "CREATE UNIQUE INDEX",
+              "ON public.fund_scenario_calculation_runs",
+              "scenario_set_id",
+              "source_config_id",
+              "source_config_version",
+              "COALESCE(hash_kind",
+              "input_hash",
+              "WHERE",
+              "status"
+            ],
+            "stringLiterals": [
+              "scenario-input-hash-v1",
+              "queued",
+              "running",
+              "completed"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

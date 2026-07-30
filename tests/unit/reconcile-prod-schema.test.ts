@@ -50,7 +50,14 @@ interface MockClientOptions {
         definition: string;
       }
   )[];
-  readonly indexes?: readonly string[];
+  readonly indexes?: readonly (
+    | string
+    | {
+        tablename: string;
+        indexname: string;
+        indexdef: string;
+      }
+  )[];
   readonly populatedTables?: readonly string[];
   /** When true, DROP statements do NOT mutate mock state - simulates a drop
    * that silently fails to take effect, so the post-apply audit must catch it. */
@@ -66,7 +73,16 @@ function createMockClient(options: MockClientOptions = {}) {
       : constraint
   );
   const constraints = new Set(constraintRows.map((constraint) => constraint.conname));
-  const indexes = new Set(options.indexes ?? []);
+  const indexRows = (options.indexes ?? []).map((index) =>
+    typeof index === 'string'
+      ? {
+          tablename: options.presentTables?.[0],
+          indexname: index,
+          indexdef: undefined,
+        }
+      : index
+  );
+  const indexes = new Set(indexRows.map((index) => index.indexname));
   const populatedTables = new Set(options.populatedTables ?? []);
 
   return {
@@ -140,9 +156,15 @@ function createMockClient(options: MockClientOptions = {}) {
       if (text.includes('FROM pg_indexes')) {
         const names = params?.[0] as string[];
         return {
-          rows: names
-            .filter((indexname) => indexes.has(indexname))
-            .map((indexname) => ({ indexname })),
+          rows: indexRows
+            .filter((index) => indexes.has(index.indexname) && names.includes(index.indexname))
+            .map((index) =>
+              text.includes('tablename')
+                ? index
+                : {
+                    indexname: index.indexname,
+                  }
+            ),
           rowCount: names.length,
         };
       }
@@ -258,6 +280,43 @@ function fullShapeClient() {
   });
 }
 
+const activeDedupeIndexName = 'fund_scenario_calc_runs_active_dedup_idx';
+const activeDedupeExactDefinition =
+  "CREATE UNIQUE INDEX fund_scenario_calc_runs_active_dedup_idx ON public.fund_scenario_calculation_runs USING btree (scenario_set_id, source_config_id, source_config_version, COALESCE(hash_kind, 'scenario-input-hash-v1'::character varying), input_hash) WHERE ((status)::text = ANY ((ARRAY['queued'::character varying, 'running'::character varying, 'completed'::character varying])::text[]))";
+const activeDedupeExpectedDefinition = {
+  exactDefinition: activeDedupeExactDefinition,
+  orderedFragments: [
+    'CREATE UNIQUE INDEX',
+    'ON public.fund_scenario_calculation_runs',
+    'scenario_set_id',
+    'source_config_id',
+    'source_config_version',
+    'COALESCE(hash_kind',
+    'input_hash',
+    'WHERE',
+    'status',
+  ],
+  stringLiterals: ['scenario-input-hash-v1', 'queued', 'running', 'completed'],
+};
+const definitionAwareIndexManifest = {
+  name: 'definition-aware-index-fixture',
+  missingTablePolicy: MISSING_TABLE_POLICY_EXISTING_REQUIRED,
+  expectedTables: [
+    {
+      name: 'fund_scenario_calculation_runs',
+      columns: [{ name: 'id', type: 'uuid', nullable: false }],
+      constraints: [],
+      indexes: [activeDedupeIndexName],
+      indexDefinitions: [
+        {
+          name: activeDedupeIndexName,
+          expectedDefinition: activeDedupeExpectedDefinition,
+        },
+      ],
+    },
+  ],
+};
+
 describe('reconcile-prod-schema runner helpers', () => {
   it('defaults to audit-only mode', () => {
     expect(parseReconcileArgs([])).toMatchObject({
@@ -320,6 +379,32 @@ describe('reconcile-prod-schema runner helpers', () => {
       ])
     ).toThrow(/missing -- @generated or -- @drift-patch marker/);
   });
+
+  it('requires index definitions to target a named expected index', () => {
+    expect(() =>
+      validateManifestSql(
+        {
+          name: 'bad-index-definition-fixture',
+          expectedTables: [
+            {
+              name: 'tasks',
+              indexes: [],
+              indexDefinitions: [
+                {
+                  name: 'idx_tasks_fund_created',
+                  expectedDefinition: {
+                    orderedFragments: ['CREATE INDEX'],
+                    stringLiterals: [],
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        []
+      )
+    ).toThrow(ReconcileError);
+  });
 });
 
 describe('reconcile-prod-schema shape decisions', () => {
@@ -367,6 +452,207 @@ describe('reconcile-prod-schema shape decisions', () => {
     expect(audit.objects[0]?.deltas).toEqual([]);
     expect(client.calls.find((call) => call.text.includes('FROM pg_indexes'))?.params).toEqual([
       [storedIndexName],
+    ]);
+  });
+
+  it('skips a matching definition-aware unique index', async () => {
+    const formattingVariant = activeDedupeExactDefinition
+      .replace(activeDedupeIndexName, `"${activeDedupeIndexName}"`)
+      .replace(
+        'public.fund_scenario_calculation_runs',
+        '"public" . "fund_scenario_calculation_runs"'
+      )
+      .replace(/, /g, ' ,   ');
+    const client = createMockClient({
+      presentTables: ['fund_scenario_calculation_runs'],
+      columns: [
+        {
+          table_name: 'fund_scenario_calculation_runs',
+          column_name: 'id',
+          data_type: 'uuid',
+          udt_name: 'uuid',
+          is_nullable: 'NO',
+        },
+      ],
+      indexes: [
+        {
+          tablename: 'fund_scenario_calculation_runs',
+          indexname: activeDedupeIndexName,
+          indexdef: formattingVariant,
+        },
+      ],
+    });
+
+    const audit = await auditManifest(client, definitionAwareIndexManifest);
+
+    expect(audit.action).toBe(ACTION_SKIP);
+    expect(audit.objects[0]?.deltas).toEqual([]);
+  });
+
+  it('refuses a populated table with the legacy same-name four-key index', async () => {
+    const legacyDefinition =
+      "CREATE UNIQUE INDEX fund_scenario_calc_runs_active_dedup_idx ON public.fund_scenario_calculation_runs USING btree (scenario_set_id, source_config_id, source_config_version, input_hash) WHERE ((status)::text = ANY ((ARRAY['queued'::character varying, 'running'::character varying, 'completed'::character varying])::text[]))";
+    const client = createMockClient({
+      presentTables: ['fund_scenario_calculation_runs'],
+      populatedTables: ['fund_scenario_calculation_runs'],
+      columns: [
+        {
+          table_name: 'fund_scenario_calculation_runs',
+          column_name: 'id',
+          data_type: 'uuid',
+          udt_name: 'uuid',
+          is_nullable: 'NO',
+        },
+      ],
+      indexes: [
+        {
+          tablename: 'fund_scenario_calculation_runs',
+          indexname: activeDedupeIndexName,
+          indexdef: legacyDefinition,
+        },
+      ],
+    });
+
+    const audit = await auditManifest(client, definitionAwareIndexManifest);
+
+    expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+    expect(audit.objects[0]?.populated).toBe(true);
+    expect(audit.objects[0]?.deltas).toEqual([
+      {
+        kind: 'index-definition-mismatch',
+        name: activeDedupeIndexName,
+        expected: activeDedupeExpectedDefinition,
+        actual: legacyDefinition,
+        additiveSafe: false,
+      },
+    ]);
+  });
+
+  it('refuses a NOT IN predicate with the expected literals', async () => {
+    const notInDefinition =
+      "CREATE UNIQUE INDEX fund_scenario_calc_runs_active_dedup_idx ON public.fund_scenario_calculation_runs USING btree (scenario_set_id, source_config_id, source_config_version, COALESCE(hash_kind, 'scenario-input-hash-v1'::character varying), input_hash) WHERE status NOT IN ('queued', 'running', 'completed')";
+    const client = createMockClient({
+      presentTables: ['fund_scenario_calculation_runs'],
+      populatedTables: ['fund_scenario_calculation_runs'],
+      columns: [
+        {
+          table_name: 'fund_scenario_calculation_runs',
+          column_name: 'id',
+          data_type: 'uuid',
+          udt_name: 'uuid',
+          is_nullable: 'NO',
+        },
+      ],
+      indexes: [
+        {
+          tablename: 'fund_scenario_calculation_runs',
+          indexname: activeDedupeIndexName,
+          indexdef: notInDefinition,
+        },
+      ],
+    });
+
+    const audit = await auditManifest(client, definitionAwareIndexManifest);
+
+    expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+    expect(audit.objects[0]?.deltas.map((delta) => delta.kind)).toEqual([
+      'index-definition-mismatch',
+    ]);
+  });
+
+  it('refuses an extra OR TRUE predicate', async () => {
+    const orTrueDefinition = `${activeDedupeExactDefinition} OR true`;
+    const client = createMockClient({
+      presentTables: ['fund_scenario_calculation_runs'],
+      populatedTables: ['fund_scenario_calculation_runs'],
+      columns: [
+        {
+          table_name: 'fund_scenario_calculation_runs',
+          column_name: 'id',
+          data_type: 'uuid',
+          udt_name: 'uuid',
+          is_nullable: 'NO',
+        },
+      ],
+      indexes: [
+        {
+          tablename: 'fund_scenario_calculation_runs',
+          indexname: activeDedupeIndexName,
+          indexdef: orTrueDefinition,
+        },
+      ],
+    });
+
+    const audit = await auditManifest(client, definitionAwareIndexManifest);
+
+    expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+    expect(audit.objects[0]?.deltas.map((delta) => delta.kind)).toEqual([
+      'index-definition-mismatch',
+    ]);
+  });
+
+  it('refuses a schema-global same-name index owned by another table', async () => {
+    const client = createMockClient({
+      presentTables: ['fund_scenario_calculation_runs'],
+      columns: [
+        {
+          table_name: 'fund_scenario_calculation_runs',
+          column_name: 'id',
+          data_type: 'uuid',
+          udt_name: 'uuid',
+          is_nullable: 'NO',
+        },
+      ],
+      indexes: [
+        {
+          tablename: 'archived_calculation_runs',
+          indexname: activeDedupeIndexName,
+          indexdef: activeDedupeExactDefinition.replace(
+            'public.fund_scenario_calculation_runs',
+            'public.archived_calculation_runs'
+          ),
+        },
+      ],
+    });
+
+    const audit = await auditManifest(client, definitionAwareIndexManifest);
+
+    expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+    expect(audit.objects[0]?.populated).toBe(false);
+    expect(audit.objects[0]?.deltas).toEqual([
+      {
+        kind: 'index-table-mismatch',
+        name: activeDedupeIndexName,
+        expectedTable: 'fund_scenario_calculation_runs',
+        actualTable: 'archived_calculation_runs',
+        additiveSafe: false,
+        humanReviewRequired: true,
+      },
+      { kind: 'missing-index', name: activeDedupeIndexName, additiveSafe: true },
+    ]);
+  });
+
+  it('keeps a missing definition-aware index as additive missing DDL', async () => {
+    const client = createMockClient({
+      presentTables: ['fund_scenario_calculation_runs'],
+      populatedTables: ['fund_scenario_calculation_runs'],
+      columns: [
+        {
+          table_name: 'fund_scenario_calculation_runs',
+          column_name: 'id',
+          data_type: 'uuid',
+          udt_name: 'uuid',
+          is_nullable: 'NO',
+        },
+      ],
+    });
+
+    const audit = await auditManifest(client, definitionAwareIndexManifest);
+
+    expect(audit.action).toBe(ACTION_APPLY_MISSING_DDL);
+    expect(audit.objects[0]?.populated).toBe(false);
+    expect(audit.objects[0]?.deltas).toEqual([
+      { kind: 'missing-index', name: activeDedupeIndexName, additiveSafe: true },
     ]);
   });
 
@@ -860,6 +1146,32 @@ describe('reconcile-prod-schema dropObjects path (s8.1 slice 3.5)', () => {
         applyPolicy: {
           allowDropNotNull: [{ table: 'jobs', column: 'state' }],
         },
+      },
+      []
+    );
+
+    expect(changed).not.toBe(base);
+  });
+
+  it('manifest checksum changes when an expected index definition changes', () => {
+    const base = manifestChecksum(definitionAwareIndexManifest, []);
+    const changed = manifestChecksum(
+      {
+        ...definitionAwareIndexManifest,
+        expectedTables: [
+          {
+            ...definitionAwareIndexManifest.expectedTables[0],
+            indexDefinitions: [
+              {
+                name: activeDedupeIndexName,
+                expectedDefinition: {
+                  ...activeDedupeExpectedDefinition,
+                  orderedFragments: [...activeDedupeExpectedDefinition.orderedFragments, 'extra'],
+                },
+              },
+            ],
+          },
+        ],
       },
       []
     );

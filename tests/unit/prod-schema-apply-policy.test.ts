@@ -180,10 +180,14 @@ describe('prod schema apply policy', () => {
     ).toThrow(ReconcileError);
   });
 
-  it('accepts the actual production-like M9 through M17 manifest SQL set', async () => {
+  it('accepts additive-safe production manifests from M9 onward', async () => {
     const manifests = await loadManifests();
     const applyingManifestNames = new Set(
-      manifests.filter((manifest) => manifest.order >= 9).map((manifest) => manifest.name)
+      manifests
+        .filter(
+          (manifest) => manifest.order >= 9 && manifest.name !== 'business-time-comparison-lineage'
+        )
+        .map((manifest) => manifest.name)
     );
 
     expect(() =>
@@ -192,5 +196,16 @@ describe('prod schema apply policy', () => {
         applyingManifestNames,
       })
     ).not.toThrow();
+  });
+
+  it('refuses automated apply for business-time comparison lineage', async () => {
+    const manifests = await loadManifests();
+
+    expect(() =>
+      assertApplyPolicyForManifests({
+        manifests,
+        applyingManifestNames: new Set(['business-time-comparison-lineage']),
+      })
+    ).toThrow(ReconcileError);
   });
 });
