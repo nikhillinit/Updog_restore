@@ -1,4 +1,3 @@
-import { mapAsync } from '../../utils/async-iteration';
 import { Worker } from 'bullmq';
 import { logger } from '../lib/logger';
 import { resilientLimit } from '@shared/utils/resilientLimit';
@@ -22,7 +21,7 @@ const processCohortCompanies = async (companies: any[]) => {
 
   try {
     const results = await Promise.all(
-      await mapAsync(companies, (company) =>
+      companies.map((company) =>
         limit(async () => {
           // Simulate cohort analysis per company
           await new Promise((resolve) => setTimeout(resolve, 100));

@@ -27,7 +27,7 @@
  */
 
 import { Client, QueryResult } from 'pg';
-import { normalizeInvestmentStage } from '@shared/schemas/investment-stages';
+import { normalizeInvestmentStage } from '../server/utils/stage-utils.js';
 
 // ============================================================================
 // Configuration
