@@ -17,6 +17,14 @@ describe('CI telemetry timing semantics', () => {
     expect(queueWaitMs(run)).toBe(12_000);
     expect(workflowDurationMs(run)).toBe(120_000);
   });
+  it('reports no workflow duration for a run that has not started', () => {
+    const queuedRun = {
+      createdAt: '2026-07-30T10:00:00.000Z',
+      startedAt: undefined,
+      updatedAt: '2026-07-30T10:05:00.000Z',
+    };
+    expect(workflowDurationMs(queuedRun)).toBeNull();
+  });
   it('keeps runner duration separate from zero public-repo billing', () => {
     expect(
       summarizeTiming({
@@ -137,5 +145,25 @@ describe('CI execution-path classification', () => {
         { name: 'CI Gate Status', conclusion: 'success', steps: [] },
       ])
     ).toBe('full-path');
+  });
+  it('attributes a failing full-path job to full-path, not a lighter path', () => {
+    expect(
+      classifyExecutionPath('.github/workflows/ci-unified.yml', [
+        { name: 'Check typecheck', conclusion: 'success', steps: [] },
+        { name: 'Check lint', conclusion: 'success', steps: [] },
+        { name: 'Check unit-fast', conclusion: 'success', steps: [] },
+        { name: 'Test integration', conclusion: 'failure', steps: [] },
+        { name: 'CI Gate Status', conclusion: 'failure', steps: [] },
+      ])
+    ).toBe('full-path');
+  });
+  it('attributes a failing affected-path job to affected-path, not heavy-path', () => {
+    expect(
+      classifyExecutionPath('.github/workflows/ci-unified.yml', [
+        { name: 'Check unit-fast', conclusion: 'success', steps: [] },
+        { name: 'Test (Affected Only)', conclusion: 'failure', steps: [] },
+        { name: 'CI Gate Status', conclusion: 'failure', steps: [] },
+      ])
+    ).toBe('affected-path');
   });
 });

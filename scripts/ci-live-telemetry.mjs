@@ -311,7 +311,13 @@ function executionPathDetail(workflow, runs, options) {
 
 function inspectWorkflow(workflow, limit, required, options) {
   const pathExistsAtHead = gitPathExistsAtHead(workflow.path);
-  const runs = workflowRuns(workflow.id, limit);
+  // A workflow selected for detail sampling needs at least detailsLimit runs
+  // fetched, independent of the summary --limit, or the later slice in
+  // executionPathDetail silently truncates below what was requested.
+  const isDetailSelected =
+    options.detailWorkflows.includes(workflow.path) && options.detailsLimit > 0;
+  const runsLimit = isDetailSelected ? Math.max(limit, options.detailsLimit) : limit;
+  const runs = workflowRuns(workflow.id, runsLimit);
   const lastRun = runs[0] ?? null;
   const requiredStatus = requiredStatusForWorkflow(workflow, required);
   const classification = classifyWorkflow({ workflow, pathExistsAtHead, runs });

@@ -19,7 +19,8 @@ export function queueWaitMs(run) {
   return durationBetween(run.createdAt, run.startedAt);
 }
 export function workflowDurationMs(run) {
-  return durationBetween(run.startedAt ?? run.createdAt, run.updatedAt);
+  if (!run.startedAt) return null;
+  return durationBetween(run.startedAt, run.updatedAt);
 }
 export function metricStats(valuesMs) {
   const values = valuesMs
@@ -116,23 +117,27 @@ export function classifyExecutionPath(workflowPath, jobs) {
       : 'unknown';
   }
   if (workflowPath === '.github/workflows/ci-unified.yml') {
-    const succeeded = new Set(
+    // Classification reflects which execution path RAN, not whether it
+    // passed -- a failing "Test integration" job still means the full-path
+    // shape executed, and must not be attributed to a lighter path just
+    // because a later job failed.
+    const executed = new Set(
       jobs
-        .filter((job) => job.conclusion === 'success')
+        .filter((job) => job.conclusion !== 'skipped')
         .map((job) => job.name)
     );
     if (
       ['Test integration', 'Test e2e', 'Test validate-core'].some((name) =>
-        succeeded.has(name)
+        executed.has(name)
       )
     ) {
       return 'full-path';
     }
-    if (succeeded.has('Test (Affected Only)')) return 'affected-path';
-    if ([...succeeded].some((name) => name.startsWith('Check '))) {
+    if (executed.has('Test (Affected Only)')) return 'affected-path';
+    if ([...executed].some((name) => name.startsWith('Check '))) {
       return 'heavy-path';
     }
-    if (succeeded.has('CI Gate Status')) return 'fast-path';
+    if (executed.has('CI Gate Status')) return 'fast-path';
   }
   return 'unknown';
 }
