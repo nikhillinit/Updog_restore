@@ -149,10 +149,7 @@ function evidenceFromReserveRun(run: ReserveRun, fact: CompanyFact): FinancialEv
 }
 
 function EffectiveTermsBasis({ snapshot }: { snapshot: FactsSnapshot }) {
-  if (
-    snapshot.policyVersion !== 'financial-facts-policy/1.1.0' &&
-    snapshot.policyVersion !== 'financial-facts-policy/1.2.0'
-  ) {
+  if (snapshot.policyVersion !== 'financial-facts-policy/1.1.0') {
     return (
       <div className="space-y-1 text-xs text-presson-textMuted">
         <p>{snapshot.policyVersion} does not disclose effective-terms refs.</p>
@@ -210,10 +207,7 @@ function buildSelectionDeviationItems(snapshot: FactsSnapshot): string[] {
   }
 
   const items = ['working_value_selection_deviation'];
-  if (
-    snapshot.policyVersion !== 'financial-facts-policy/1.1.0' &&
-    snapshot.policyVersion !== 'financial-facts-policy/1.2.0'
-  ) {
+  if (snapshot.policyVersion !== 'financial-facts-policy/1.1.0') {
     return items;
   }
 

@@ -11,16 +11,16 @@ last_updated: 2026-07-30
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 692 |
+| Total Documents | 691 |
 | Stale Documents | 465 |
-| Missing Frontmatter | 48 |
+| Missing Frontmatter | 47 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 450 |
-| UNKNOWN | 142 |
+| UNKNOWN | 141 |
 | DRAFT | 34 |
 | HISTORICAL | 22 |
 | VERIFIED | 12 |
@@ -247,7 +247,6 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/superpowers/specs/2026-06-21-investment-rounds-ui-v2-design.md`
 - [ ] `docs/superpowers/specs/2026-07-29-task160-internal-waterfall-governance-design.md`
 - [ ] `docs/superpowers/specs/2026-07-30-task163-deal-by-deal-scoping-design.md`
-- [ ] `docs/superpowers/specs/2026-07-30-task163-go-readiness-briefs.md`
 - [ ] `docs/tooling-catalog.md`
 
 ---
