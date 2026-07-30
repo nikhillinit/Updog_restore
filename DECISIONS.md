@@ -9335,6 +9335,6 @@ characterization lane, by design.
   default terms under the strict catch-up ruling of 2026-07-30 —
   `prefCatchUp: true` seed-refuses even with hurdle basis `'none'` —
   credit-facility phase [pending re-ratification], payload-only persistence,
-  union shape) is recorded in the spec's Deviation register — the user approved
-  posting the register on #1176 (2026-07-30); it posts once these documents are
-  committed.
+  union shape) is recorded in the spec's Deviation register — posted to #1176 on
+  2026-07-30 after these documents landed on main:
+  https://github.com/nikhillinit/Updog_restore/issues/1176#issuecomment-5129260472
