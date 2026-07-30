@@ -209,7 +209,10 @@ const reserveIntelligenceRunSchema = z
                       companyId: z.number().int().positive(),
                       decisionType: z.string(),
                       decisionStatus: z.string(),
-                      finalPlannedReservesCents: z.string().nullable(),
+                      finalPlannedReservesCents: z
+                        .string()
+                        .regex(/^-?\d+$/)
+                        .nullable(),
                       liveAllocationVersion: z.number().int().nullable(),
                       decidedAt: z.string().datetime().nullable(),
                     })

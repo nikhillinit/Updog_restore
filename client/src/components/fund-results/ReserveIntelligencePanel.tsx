@@ -339,6 +339,10 @@ function DiagnosticsTable({
                   <span className="block text-xs text-presson-textMuted">
                     {fact === undefined ? 'No facts row disclosed' : `Linked: ${fact.companyName}`}
                   </span>
+                  <span className="block text-xs text-presson-textMuted">
+                    Participation basis unavailable: companyId to companyIdentityId mapping is not
+                    disclosed.
+                  </span>
                   <button
                     type="button"
                     className="text-left text-xs font-medium text-pov-charcoal underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal-400 focus-visible:ring-offset-2"
