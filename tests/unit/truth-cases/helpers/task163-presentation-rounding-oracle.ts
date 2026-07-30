@@ -34,6 +34,18 @@ export interface Task163RoundedWaterfallEvent {
   gpCarryCents: string;
 }
 
+export interface Task163RoundedWaterfallRun {
+  events: Task163RoundedWaterfallEvent[];
+  fullPrecisionTotalsUsd: {
+    totalUsd: string;
+    rocUsd: string;
+    preferredReturnUsd: string;
+    lpResidualUsd: string;
+    gpCarryUsd: string;
+  };
+  roundedTotalsCents: Task163RoundedWaterfallEvent;
+}
+
 export function roundUsdToIntegerCents(amountUsd: Decimal): string {
   if (!amountUsd.isFinite() || amountUsd.lt(0)) {
     throw new Task163PresentationRoundingError(
@@ -162,4 +174,83 @@ export function roundWaterfallEventForPresentation(
   }
 
   return rounded;
+}
+
+export function processWaterfallRunForPresentation(
+  events: readonly Task163WaterfallEventEntitlements[]
+): Task163RoundedWaterfallRun {
+  const fullPrecisionTotals = events.reduce(
+    (totals, event) => ({
+      totalUsd: totals.totalUsd.plus(event.totalUsd),
+      rocUsd: totals.rocUsd.plus(event.rocUsd),
+      preferredReturnUsd: totals.preferredReturnUsd.plus(event.preferredReturnUsd),
+      lpResidualUsd: totals.lpResidualUsd.plus(event.lpResidualUsd),
+      gpCarryUsd: totals.gpCarryUsd.plus(event.gpCarryUsd),
+    }),
+    {
+      totalUsd: new Decimal(0),
+      rocUsd: new Decimal(0),
+      preferredReturnUsd: new Decimal(0),
+      lpResidualUsd: new Decimal(0),
+      gpCarryUsd: new Decimal(0),
+    }
+  );
+  const fullPrecisionCategoryTotal = fullPrecisionTotals.rocUsd
+    .plus(fullPrecisionTotals.preferredReturnUsd)
+    .plus(fullPrecisionTotals.lpResidualUsd)
+    .plus(fullPrecisionTotals.gpCarryUsd);
+
+  if (!fullPrecisionCategoryTotal.eq(fullPrecisionTotals.totalUsd)) {
+    throw new Task163PresentationRoundingError(
+      'FULL_PRECISION_CONSERVATION_FAILED',
+      'Full-precision waterfall categories do not conserve run total.'
+    );
+  }
+
+  const roundedEvents = events.map(roundWaterfallEventForPresentation);
+  const roundedTotals = roundedEvents.reduce(
+    (totals, event) => ({
+      totalCents: totals.totalCents.plus(event.totalCents),
+      rocCents: totals.rocCents.plus(event.rocCents),
+      preferredReturnCents: totals.preferredReturnCents.plus(event.preferredReturnCents),
+      lpResidualCents: totals.lpResidualCents.plus(event.lpResidualCents),
+      gpCarryCents: totals.gpCarryCents.plus(event.gpCarryCents),
+    }),
+    {
+      totalCents: new Decimal(0),
+      rocCents: new Decimal(0),
+      preferredReturnCents: new Decimal(0),
+      lpResidualCents: new Decimal(0),
+      gpCarryCents: new Decimal(0),
+    }
+  );
+  const roundedCategoryTotal = roundedTotals.rocCents
+    .plus(roundedTotals.preferredReturnCents)
+    .plus(roundedTotals.lpResidualCents)
+    .plus(roundedTotals.gpCarryCents);
+
+  if (!roundedCategoryTotal.eq(roundedTotals.totalCents)) {
+    throw new Task163PresentationRoundingError(
+      'OUTPUT_CONSERVATION_FAILED',
+      'Rounded waterfall categories do not conserve run total.'
+    );
+  }
+
+  return {
+    events: roundedEvents,
+    fullPrecisionTotalsUsd: {
+      totalUsd: fullPrecisionTotals.totalUsd.toString(),
+      rocUsd: fullPrecisionTotals.rocUsd.toString(),
+      preferredReturnUsd: fullPrecisionTotals.preferredReturnUsd.toString(),
+      lpResidualUsd: fullPrecisionTotals.lpResidualUsd.toString(),
+      gpCarryUsd: fullPrecisionTotals.gpCarryUsd.toString(),
+    },
+    roundedTotalsCents: {
+      totalCents: roundedTotals.totalCents.toFixed(0),
+      rocCents: roundedTotals.rocCents.toFixed(0),
+      preferredReturnCents: roundedTotals.preferredReturnCents.toFixed(0),
+      lpResidualCents: roundedTotals.lpResidualCents.toFixed(0),
+      gpCarryCents: roundedTotals.gpCarryCents.toFixed(0),
+    },
+  };
 }

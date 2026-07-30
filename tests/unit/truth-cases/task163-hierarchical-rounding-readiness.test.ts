@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Decimal } from '@shared/lib/decimal-config';
 import {
   allocateIntegerCentsByExactEntitlements,
+  processWaterfallRunForPresentation,
   roundUsdToIntegerCents,
   roundWaterfallEventForPresentation,
   Task163PresentationRoundingError,
@@ -91,6 +92,94 @@ describe('Task 16.3 hierarchical presentation-rounding readiness contract', () =
     });
   });
 
+  it('distinguishes hierarchical rounding from forbidden flat allocation', () => {
+    const event = {
+      totalUsd: new Decimal('0.016'),
+      rocUsd: new Decimal('0.004'),
+      preferredReturnUsd: new Decimal('0.004'),
+      lpResidualUsd: new Decimal('0.004'),
+      gpCarryUsd: new Decimal('0.004'),
+    };
+
+    expect(roundWaterfallEventForPresentation(event)).toEqual({
+      totalCents: '2',
+      rocCents: '1',
+      preferredReturnCents: '0',
+      lpResidualCents: '1',
+      gpCarryCents: '0',
+    });
+    expect(
+      allocateIntegerCentsByExactEntitlements(
+        new Decimal(2),
+        [event.rocUsd, event.preferredReturnUsd, event.lpResidualUsd, event.gpCarryUsd].map(
+          (amount) => amount.times(100)
+        )
+      )
+    ).toEqual(['1', '1', '0', '0']);
+  });
+
+  it('validates raw and rounded whole-run conservation from hand-derived totals', () => {
+    const result = processWaterfallRunForPresentation([
+      {
+        totalUsd: new Decimal('0.016'),
+        rocUsd: new Decimal('0.004'),
+        preferredReturnUsd: new Decimal('0.004'),
+        lpResidualUsd: new Decimal('0.004'),
+        gpCarryUsd: new Decimal('0.004'),
+      },
+      {
+        totalUsd: new Decimal('1.045'),
+        rocUsd: new Decimal('1.014'),
+        preferredReturnUsd: new Decimal('0.014'),
+        lpResidualUsd: new Decimal('0.0102'),
+        gpCarryUsd: new Decimal('0.0068'),
+      },
+    ]);
+
+    expect(result.fullPrecisionTotalsUsd).toEqual({
+      totalUsd: '1.061',
+      rocUsd: '1.018',
+      preferredReturnUsd: '0.018',
+      lpResidualUsd: '0.0142',
+      gpCarryUsd: '0.0108',
+    });
+    expect(result.roundedTotalsCents).toEqual({
+      totalCents: '107',
+      rocCents: '103',
+      preferredReturnCents: '1',
+      lpResidualCents: '2',
+      gpCarryCents: '1',
+    });
+  });
+
+  it('publishes no local result when a later event fails validation', () => {
+    let publishedResult: ReturnType<typeof processWaterfallRunForPresentation> | undefined;
+
+    expect(() => {
+      publishedResult = processWaterfallRunForPresentation([
+        {
+          totalUsd: new Decimal('0.016'),
+          rocUsd: new Decimal('0.004'),
+          preferredReturnUsd: new Decimal('0.004'),
+          lpResidualUsd: new Decimal('0.004'),
+          gpCarryUsd: new Decimal('0.004'),
+        },
+        {
+          totalUsd: new Decimal('0.01'),
+          rocUsd: new Decimal('-0.000000001'),
+          preferredReturnUsd: new Decimal(0),
+          lpResidualUsd: new Decimal('0.010000001'),
+          gpCarryUsd: new Decimal(0),
+        },
+      ]);
+    }).toThrowError(
+      expect.objectContaining({
+        code: 'INVALID_ENTITLEMENT',
+      })
+    );
+    expect(publishedResult).toBeUndefined();
+  });
+
   it('conserves integer cents across emitted run totals', () => {
     const events = [
       roundWaterfallEventForPresentation({
@@ -163,6 +252,12 @@ describe('Task 16.3 hierarchical presentation-rounding readiness contract', () =
       code: 'INVALID_ENTITLEMENT',
     },
     {
+      name: 'tiny negative entitlement',
+      run: () =>
+        allocateIntegerCentsByExactEntitlements(new Decimal(0), [new Decimal('-0.000000001')]),
+      code: 'INVALID_ENTITLEMENT',
+    },
+    {
       name: 'negative conservation residual',
       run: () =>
         allocateIntegerCentsByExactEntitlements(new Decimal(1), [new Decimal(1), new Decimal(1)]),
@@ -190,6 +285,22 @@ describe('Task 16.3 hierarchical presentation-rounding readiness contract', () =
     ).toThrowError(
       expect.objectContaining({
         code: 'FULL_PRECISION_CONSERVATION_FAILED',
+      })
+    );
+  });
+
+  it('rejects a tiny negative event component without epsilon clamping', () => {
+    expect(() =>
+      roundWaterfallEventForPresentation({
+        totalUsd: new Decimal('0.01'),
+        rocUsd: new Decimal('-0.000000001'),
+        preferredReturnUsd: new Decimal(0),
+        lpResidualUsd: new Decimal('0.010000001'),
+        gpCarryUsd: new Decimal(0),
+      })
+    ).toThrowError(
+      expect.objectContaining({
+        code: 'INVALID_ENTITLEMENT',
       })
     );
   });
