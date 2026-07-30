@@ -2,10 +2,10 @@
  * Waterfall-Ledger Truth Case Adapter
  *
  * Maps truth case JSON structure to production function signatures.
- * Production function: calculateAmericanWaterfallLedger() in client/src/lib/waterfall/american-ledger.ts
+ * Production function: calculateAmericanWaterfallLedger() in shared/lib/waterfall/american-ledger.ts
  *
  * @see docs/waterfall-ledger.truth-cases.json
- * @see client/src/lib/waterfall/american-ledger.ts
+ * @see shared/lib/waterfall/american-ledger.ts
  */
 
 import type {
@@ -13,7 +13,7 @@ import type {
   ContributionCF,
   ExitCF,
   AmericanWaterfallResult,
-} from '../../../client/src/lib/waterfall/american-ledger';
+} from '../../../shared/lib/waterfall/american-ledger';
 
 /**
  * Truth case structure from docs/waterfall-ledger.truth-cases.json

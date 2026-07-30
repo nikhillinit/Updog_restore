@@ -41,7 +41,7 @@ import { computeFeePreview } from '@/lib/fees-wizard';
 import { adaptFeeTruthCase, scaleExpectedOutput, type FeeTruthCase } from './fee-adapter';
 
 // Phase 1B: Waterfall-Ledger validation imports
-import { calculateAmericanWaterfallLedger } from '@/lib/waterfall/american-ledger';
+import { calculateAmericanWaterfallLedger } from '@shared/lib/waterfall/american-ledger';
 import {
   adaptWaterfallLedgerTruthCase,
   validateWaterfallLedgerResult,
