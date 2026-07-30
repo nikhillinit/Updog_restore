@@ -60,7 +60,6 @@ export interface GetCurrentPlanVersionsInput {
 function factsSnapshotFromRow(row: FactsSnapshotRow) {
   const snapshot = PersistedFinancialFactsSnapshotV1Schema.parse({
     policyVersion: row.policyVersion,
-    payloadSchemaId: row.payloadSchemaId,
     fundId: row.fundId,
     asOfDate: row.asOfDate,
     knowledgeCutoff: row.knowledgeCutoff.toISOString(),

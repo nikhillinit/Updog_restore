@@ -13,7 +13,6 @@ import {
   ConsumerEvaluationV2Schema,
 } from './financial-facts-consumer-policies';
 import { FinancialProvenanceSchema } from './financial-provenance.contract';
-import { FundAccountingStateSnapshotRefV1Schema } from './internal-economics/fund-accounting-state-observation-v1.contract';
 import { ProvenanceEnvelopeSchema } from './provenance-envelope.contract';
 import { canonicalSha256 } from '../lib/canonical-hash';
 import { canonicalizeDecimalLeaves, MoneyDecimalStringSchema } from '../lib/decimal-string';
@@ -21,12 +20,10 @@ import { canonicalizeDecimalLeaves, MoneyDecimalStringSchema } from '../lib/deci
 export const FINANCIAL_FACTS_POLICY_VERSION_1_0_0 = 'financial-facts-policy/1.0.0' as const;
 export const FINANCIAL_FACTS_POLICY_VERSION_1_0_1 = 'financial-facts-policy/1.0.1' as const;
 export const FINANCIAL_FACTS_POLICY_VERSION_1_1_0 = 'financial-facts-policy/1.1.0' as const;
-export const FINANCIAL_FACTS_POLICY_VERSION_1_2_0 = 'financial-facts-policy/1.2.0' as const;
-export const FINANCIAL_FACTS_POLICY_VERSION = FINANCIAL_FACTS_POLICY_VERSION_1_2_0;
+export const FINANCIAL_FACTS_POLICY_VERSION = FINANCIAL_FACTS_POLICY_VERSION_1_1_0;
 export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_1 = 'financial-facts-payload/1' as const;
 export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2 = 'financial-facts-payload/2' as const;
-export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3 = 'financial-facts-payload/3' as const;
-export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID = FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3;
+export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID = FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_1;
 
 const SelectionIdSchema = z.union([z.number().int().positive(), z.string().min(1)]);
 
@@ -273,14 +270,9 @@ export const FinancialFactsPayloadV2Schema = FinancialFactsPayloadV1Schema.omit(
   })
   .strict();
 
-export const FinancialFactsPayloadV3Schema = FinancialFactsPayloadV2Schema.extend({
-  openingAccountingState: FundAccountingStateSnapshotRefV1Schema.nullable(),
-}).strict();
-
 export type FinancialFactsPayloadV1_0_0 = z.infer<typeof FinancialFactsPayloadV1_0_0Schema>;
 export type FinancialFactsPayloadV1 = z.infer<typeof FinancialFactsPayloadV1Schema>;
 export type FinancialFactsPayloadV2 = z.infer<typeof FinancialFactsPayloadV2Schema>;
-export type FinancialFactsPayloadV3 = z.infer<typeof FinancialFactsPayloadV3Schema>;
 
 const Sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
 
@@ -323,26 +315,12 @@ export const FinancialFactsSnapshotInputHashPreimageV2Schema = z
   })
   .strict();
 
-export const FinancialFactsSnapshotInputHashPreimageV3Schema = z
-  .object({
-    fundId: z.number().int().positive(),
-    vehicleIds: z.array(z.number().int().positive()),
-    asOfDate: z.string().date(),
-    knowledgeCutoff: z.string().datetime(),
-    policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_2_0),
-    payloadSchemaId: z.literal(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3),
-    selectionSetHash: Sha256Schema,
-    payload: FinancialFactsPayloadV3Schema,
-  })
-  .strict();
-
 export const PersistedFinancialFactsSnapshotInputHashPreimageSchema = z.discriminatedUnion(
   'policyVersion',
   [
     FinancialFactsSnapshotInputHashPreimageV1_0_0Schema,
     FinancialFactsSnapshotInputHashPreimageSchema,
     FinancialFactsSnapshotInputHashPreimageV2Schema,
-    FinancialFactsSnapshotInputHashPreimageV3Schema,
   ]
 );
 
@@ -354,9 +332,6 @@ export type FinancialFactsSnapshotInputHashPreimage = z.infer<
 >;
 export type FinancialFactsSnapshotInputHashPreimageV2 = z.infer<
   typeof FinancialFactsSnapshotInputHashPreimageV2Schema
->;
-export type FinancialFactsSnapshotInputHashPreimageV3 = z.infer<
-  typeof FinancialFactsSnapshotInputHashPreimageV3Schema
 >;
 export type PersistedFinancialFactsSnapshotInputHashPreimage = z.infer<
   typeof PersistedFinancialFactsSnapshotInputHashPreimageSchema
@@ -440,36 +415,15 @@ export const FinancialFactsSnapshotV2Schema = z
   })
   .strict();
 
-export const FinancialFactsSnapshotV3Schema = z
-  .object({
-    policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_2_0),
-    payloadSchemaId: z.literal(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3),
-    fundId: z.number().int().positive(),
-    asOfDate: z.string().date(),
-    knowledgeCutoff: z.string().datetime(),
-    vehicleScope: z.literal('fund_all'),
-    vehicleIds: z.array(z.number().int().positive()),
-    selectionSetHash: Sha256Schema,
-    sourceFactsInputHash: Sha256Schema,
-    snapshotInputHash: Sha256Schema,
-    consumerEvaluations: z.array(ConsumerEvaluationV2Schema),
-    payload: FinancialFactsPayloadV3Schema,
-    actorId: z.number().int().positive().nullable(),
-    createdAt: z.string().datetime(),
-  })
-  .strict();
-
 export const PersistedFinancialFactsSnapshotV1Schema = z.discriminatedUnion('policyVersion', [
   FinancialFactsSnapshotV1_0_0Schema,
   FinancialFactsSnapshotV1Schema,
   FinancialFactsSnapshotV2Schema,
-  FinancialFactsSnapshotV3Schema,
 ]);
 
 export type FinancialFactsSnapshotV1_0_0 = z.infer<typeof FinancialFactsSnapshotV1_0_0Schema>;
 export type FinancialFactsSnapshotV1 = z.infer<typeof FinancialFactsSnapshotV1Schema>;
 export type FinancialFactsSnapshotV2 = z.infer<typeof FinancialFactsSnapshotV2Schema>;
-export type FinancialFactsSnapshotV3 = z.infer<typeof FinancialFactsSnapshotV3Schema>;
 export type PersistedFinancialFactsSnapshotV1 = z.infer<
   typeof PersistedFinancialFactsSnapshotV1Schema
 >;

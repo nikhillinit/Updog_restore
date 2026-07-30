@@ -158,32 +158,6 @@ describe('current forecast v2 service', () => {
     expect(fakeDb.insertedSnapshots).toHaveLength(0);
   });
 
-  it('runs from a payload 3 facts snapshot', async () => {
-    const fakeDb = new FakeCurrentForecastDb();
-    const legacy = factsRow();
-    fakeDb.factsRows[0] = factsRow({
-      policyVersion: 'financial-facts-policy/1.2.0',
-      payloadSchemaId: 'financial-facts-payload/3',
-      payload: {
-        ...(legacy.payload as Record<string, unknown>),
-        positionRefs: [],
-        positionComponentRefs: [],
-        ownershipRefs: [],
-        valuationRefs: [],
-        observationRefs: [],
-        openingAccountingState: null,
-      },
-    });
-
-    await expect(
-      runCurrentForecastV2({
-        fundId: 1,
-        clock: '2026-07-22T18:24:32.051Z',
-        database: fakeDb.asDatabase(),
-      })
-    ).resolves.toMatchObject({ contractVersion: 'current-forecast-v2' });
-  });
-
   it('rejects facts rows whose stored policy and payload schema tuple is invalid', async () => {
     const fakeDb = new FakeCurrentForecastDb();
     fakeDb.factsRows[0] = factsRow({

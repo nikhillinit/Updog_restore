@@ -7,8 +7,7 @@ const HASH_A = 'a'.repeat(64);
 const HASH_B = 'b'.repeat(64);
 const HASH_C = 'c'.repeat(64);
 
-type PolicyVersion =
-  'financial-facts-policy/1.0.1' | 'financial-facts-policy/1.1.0' | 'financial-facts-policy/1.2.0';
+type PolicyVersion = 'financial-facts-policy/1.0.1' | 'financial-facts-policy/1.1.0';
 
 function companyFact(companyId: number, companyName: string, withWarning: boolean) {
   const warnings = withWarning
@@ -161,10 +160,7 @@ function factsSnapshot(policyVersion: PolicyVersion) {
   return {
     ...common,
     policyVersion,
-    payloadSchemaId:
-      policyVersion === 'financial-facts-policy/1.2.0'
-        ? 'financial-facts-payload/3'
-        : 'financial-facts-payload/2',
+    payloadSchemaId: 'financial-facts-payload/2',
     consumerEvaluations: [
       {
         consumer: 'reserve',
@@ -181,7 +177,6 @@ function factsSnapshot(policyVersion: PolicyVersion) {
     ],
     payload: {
       ...sharedFactsPayload(),
-      ...(policyVersion === 'financial-facts-policy/1.2.0' ? { openingAccountingState: null } : {}),
       positionRefs: [],
       positionComponentRefs: [
         {

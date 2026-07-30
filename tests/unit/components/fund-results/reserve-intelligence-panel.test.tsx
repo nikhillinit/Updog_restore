@@ -176,28 +176,27 @@ describe('ReserveIntelligencePanel', () => {
     expect(screen.getByText('No facts row disclosed', { selector: 'span' })).toBeInTheDocument();
   });
 
-  it.each([
-    'financial-facts-policy/1.0.1' as const,
-    'financial-facts-policy/1.1.0' as const,
-    'financial-facts-policy/1.2.0' as const,
-  ])('renders policy version %s without assuming details exist', async (policyVersion) => {
-    const user = userEvent.setup();
-    const run = makeReserveIntelligenceRun(policyVersion);
-    mockHook({ data: { kind: 'ready', run }, error: null, isLoading: false });
+  it.each(['financial-facts-policy/1.0.1' as const, 'financial-facts-policy/1.1.0' as const])(
+    'renders policy version %s without assuming details exist',
+    async (policyVersion) => {
+      const user = userEvent.setup();
+      const run = makeReserveIntelligenceRun(policyVersion);
+      mockHook({ data: { kind: 'ready', run }, error: null, isLoading: false });
 
-    render(<ReserveIntelligencePanel fundId={7} />);
+      render(<ReserveIntelligencePanel fundId={7} />);
 
-    expect(screen.getByText(policyVersion)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Open reserve facts for Alpha' }));
-    const drawer = screen.getByRole('dialog', { name: 'Alpha reserve evidence' });
-    if (policyVersion === 'financial-facts-policy/1.0.1') {
-      expect(
-        within(drawer).getByText(/does not disclose effective-terms refs/i)
-      ).toBeInTheDocument();
-    } else {
-      expect(within(drawer).getByText(/valuation basis.*derived 1/i)).toBeInTheDocument();
+      expect(screen.getByText(policyVersion)).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Open reserve facts for Alpha' }));
+      const drawer = screen.getByRole('dialog', { name: 'Alpha reserve evidence' });
+      if (policyVersion === 'financial-facts-policy/1.0.1') {
+        expect(
+          within(drawer).getByText(/does not disclose effective-terms refs/i)
+        ).toBeInTheDocument();
+      } else {
+        expect(within(drawer).getByText(/valuation basis.*derived 1/i)).toBeInTheDocument();
+      }
     }
-  });
+  );
 
   it('keeps recompute disabled with reason and exposes no apply or write-back action', () => {
     const run = makeReserveIntelligenceRun();

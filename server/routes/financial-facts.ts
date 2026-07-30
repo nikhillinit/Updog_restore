@@ -6,7 +6,6 @@ import { z } from 'zod';
 import {
   FINANCIAL_FACTS_POLICY_VERSION,
   FINANCIAL_FACTS_POLICY_VERSION_1_1_0,
-  FINANCIAL_FACTS_POLICY_VERSION_1_2_0,
   PersistedFinancialFactsSnapshotV1Schema,
 } from '@shared/contracts/financial-facts-snapshot-v1.contract';
 import { toNumber } from '@shared/number';
@@ -21,7 +20,6 @@ import {
   FinancialFactsSnapshotServiceError,
   getLatestFinancialFactsSnapshot,
 } from '../services/financial-facts-snapshot-service';
-import { OpeningAccountingStateArtifactError } from '../services/financial-facts/opening-accounting-state-artifact';
 
 const routeLog = createRouteLogger('financial-facts');
 const router = Router();
@@ -45,7 +43,6 @@ const CreateFinancialFactsSnapshotBodySchema = z
     asOfDate: z.string().date(),
     vehicleIds: z.array(z.number().int().positive()).optional(),
     knowledgeCutoff: z.string().datetime().optional(),
-    openingAccountingStateArtifactId: z.number().int().positive().optional(),
   })
   .strict();
 
@@ -92,8 +89,7 @@ function snapshotResponse(row: FinancialFactsSnapshot) {
 
   return PersistedFinancialFactsSnapshotV1Schema.parse({
     ...persisted,
-    ...(row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_1_0 ||
-    row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_2_0
+    ...(row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_1_0
       ? { payloadSchemaId: row.payloadSchemaId }
       : { payloadSchemaId: undefined }),
   });
@@ -159,17 +155,11 @@ router.post(
         ...(parsedBody.data.knowledgeCutoff === undefined
           ? {}
           : { knowledgeCutoff: parsedBody.data.knowledgeCutoff }),
-        ...(parsedBody.data.openingAccountingStateArtifactId === undefined
-          ? {}
-          : {
-              openingAccountingStateArtifactId: parsedBody.data.openingAccountingStateArtifactId,
-            }),
       });
       return res.status(200).json(snapshot);
     } catch (error) {
       if (
         error instanceof FinancialFactsSnapshotServiceError ||
-        error instanceof OpeningAccountingStateArtifactError ||
         error instanceof IdempotentCommandError ||
         error instanceof FundScopeError ||
         error instanceof FundScopeKindNotImplementedError

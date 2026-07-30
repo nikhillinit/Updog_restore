@@ -4029,15 +4029,15 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-07-30",
+        "last_updated": "2026-07-12",
         "status": "ACTIVE"
       },
       "hasExecutionClaims": false,
       "isStale": false,
-      "lastUpdated": "2026-07-30",
+      "lastUpdated": "2026-07-12",
       "owner": null,
       "path": "docs/BUILD_READINESS.md",
-      "staleDays": 0,
+      "staleDays": 18,
       "status": "ACTIVE"
     },
     {
@@ -9218,15 +9218,15 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-07-30",
+        "last_updated": "2026-01-19",
         "status": "ACTIVE"
       },
       "hasExecutionClaims": false,
-      "isStale": false,
-      "lastUpdated": "2026-07-30",
+      "isStale": true,
+      "lastUpdated": "2026-01-19",
       "owner": null,
       "path": "docs/runbooks/rollback.md",
-      "staleDays": 0,
+      "staleDays": 192,
       "status": "ACTIVE"
     },
     {
@@ -11070,7 +11070,7 @@
           "vercel",
           "internal-analysis"
         ],
-        "date": "2026-07-30",
+        "date": "2026-07-27",
         "error_codes": [
           "ERR_SCHEMA_ACTIVATION_ORDER",
           "ERR_UNPROVISIONED_DEPENDENCY"
@@ -11083,8 +11083,7 @@
           "auto-promotion",
           "exact-sha",
           "manifest-apply",
-          "authenticated-smoke",
-          "governed-promotion"
+          "authenticated-smoke"
         ],
         "severity": "high",
         "status": "VERIFIED",
@@ -11092,7 +11091,7 @@
         "test_file": "tests/regressions/REFL-041.test.ts",
         "title": "Production Activation Requires Schema Provisioning Proof",
         "type": "reflection",
-        "version": 2,
+        "version": 1,
         "wizard_steps": []
       },
       "hasExecutionClaims": false,
@@ -12011,18 +12010,6 @@
       "lastUpdated": null,
       "owner": null,
       "path": "docs/superpowers/specs/2026-07-30-task163-deal-by-deal-scoping-design.md",
-      "staleDays": 999,
-      "status": "UNKNOWN"
-    },
-    {
-      "docType": "doc",
-      "exists": true,
-      "frontmatter": {},
-      "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": null,
-      "owner": null,
-      "path": "docs/superpowers/specs/2026-07-30-task163-go-readiness-briefs.md",
       "staleDays": 999,
       "status": "UNKNOWN"
     },
@@ -13636,14 +13623,14 @@
       "REFERENCE": 8,
       "STALE-VALIDATION": 1,
       "TRACKED (not scheduled)": 1,
-      "UNKNOWN": 142,
+      "UNKNOWN": 141,
       "VERIFIED": 12,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 48,
+    "missing_frontmatter": 47,
     "stale_docs": 465,
-    "total_docs": 692
+    "total_docs": 691
   },
   "version": "2.0"
 }

@@ -260,12 +260,7 @@ function factsRow(snapshot = factsSnapshot()): FactsRow {
     id: 31,
     fundId: snapshot.fundId,
     policyVersion: snapshot.policyVersion,
-    payloadSchemaId:
-      snapshot.policyVersion === 'financial-facts-policy/1.2.0'
-        ? 'financial-facts-payload/3'
-        : snapshot.policyVersion === 'financial-facts-policy/1.1.0'
-          ? 'financial-facts-payload/2'
-          : 'financial-facts-payload/1',
+    payloadSchemaId: 'financial-facts-payload/1',
     asOfDate: snapshot.asOfDate,
     knowledgeCutoff: new Date(snapshot.knowledgeCutoff),
     vehicleScope: snapshot.vehicleScope,
@@ -473,41 +468,6 @@ describe('ranked reserve input from pinned snapshot', () => {
 });
 
 describe('dynamic reserve intelligence service', () => {
-  it.each([
-    ['financial-facts-policy/1.1.0', 'financial-facts-payload/2', false],
-    ['financial-facts-policy/1.2.0', 'financial-facts-payload/3', true],
-  ] as const)(
-    'pins %s into reserve provenance',
-    async (policyVersion, payloadSchemaId, isPayload3) => {
-      const database = new FakeDatabase();
-      const legacy = factsSnapshot();
-      const snapshot = PersistedFinancialFactsSnapshotV1Schema.parse({
-        ...legacy,
-        policyVersion,
-        payloadSchemaId,
-        payload: {
-          ...legacy.payload,
-          positionRefs: [],
-          positionComponentRefs: [],
-          ownershipRefs: [],
-          valuationRefs: [],
-          observationRefs: [],
-          ...(isPayload3 ? { openingAccountingState: null } : {}),
-        },
-      });
-      database.facts = factsRow(snapshot);
-
-      const deps = dependencies(database);
-      const response = await createDynamicReserveIntelligenceRun(runInput(deps));
-
-      expect(response.result.provenance.factsSnapshot).toMatchObject({
-        policyVersion,
-        payloadSchemaId,
-        ...(isPayload3 ? { payload: { openingAccountingState: null } } : {}),
-      });
-    }
-  );
-
   it('persists conserved cents output and signed overlay divergence without plan write-back', async () => {
     const database = new FakeDatabase();
     const deps = dependencies(database);
