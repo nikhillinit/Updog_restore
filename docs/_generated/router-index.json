@@ -12004,6 +12004,18 @@
     {
       "docType": "doc",
       "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/superpowers/specs/2026-07-30-task163-deal-by-deal-scoping-design.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
       "frontmatter": {
         "categories": [
           "tech-debt",
@@ -13611,14 +13623,14 @@
       "REFERENCE": 8,
       "STALE-VALIDATION": 1,
       "TRACKED (not scheduled)": 1,
-      "UNKNOWN": 140,
+      "UNKNOWN": 141,
       "VERIFIED": 12,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 46,
-    "stale_docs": 464,
-    "total_docs": 690
+    "missing_frontmatter": 47,
+    "stale_docs": 465,
+    "total_docs": 691
   },
   "version": "2.0"
 }

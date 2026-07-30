@@ -9210,3 +9210,131 @@ Task 16.0). Three facts shape the vocabulary:
   is not modified by Task 16).
 - waterfall-specialist sign-off on this ADR is recorded in the Task 16.0 PR
   description per the Phoenix protected-path rules.
+
+## ADR-065: Internal LP Economics deal_by_deal V1 — Indicative Float64 Posture, Versioned Economics Policy, Split Implementation Gate (PLAN_61 Task 16.3)
+
+**Date:** 2026-07-30 **Status:** [PROPOSED] Proposed **Decision:** The
+deal_by_deal slice of internal LP economics ships under an explicitly indicative
+posture with a versioned, immutable economics-policy entity and a split
+implementation gate. Detailed schemas, the rejection-code registry, and the
+dependency order live in
+`docs/superpowers/specs/2026-07-30-task163-deal-by-deal-scoping-design.md`; this
+ADR records only the durable architectural choices.
+
+### Context
+
+Task 16.3's combined issue text (#1176) assumed capabilities the shipped
+substrate does not have. Verified against `main` at `6dda7c19`: the relocated
+ledger (`shared/lib/waterfall/american-ledger.ts`) has no GP catch-up, applies
+`hurdleRate` as a flat percent of outstanding capital at event time (not an
+annualized preferred return), and computes in JS `number`; facts snapshots carry
+no authoritative cash balance and are type-constrained to
+`vehicleScope: 'fund_all'`; the forecast embeds a flat fee drag whose compiler
+"intentionally ignores" fee basis (`shared/lib/economics/fee-drag-compiler.ts`),
+making detailed fee re-computation a double-count; and no versioned
+operator-assumption entity exists — GP-economics inputs survive only inside
+`fund_snapshots.type = 'ECONOMICS'` run payloads. Note on citations: this
+repository carries TWO records numbered ADR-014
+(`docs/adr/ADR-014-snapshot-governance.md` and the "Test Baseline & PR Merge
+Criteria" entry in this file); ADR references must cite full path plus title.
+
+Review addendum (2026-07-30): four independent review artifacts were adjudicated
+against live code. The material new fact, verified by live execution: the
+relocated ledger derives outstanding capital as `paidIn - distributed` where
+`distributed` INCLUDES LP profit distributions, so a contribution after a
+profitable exit is treated as already returned, and contributions after the
+final exit are dropped from paid-in entirely (spec defect L-DEF-1). This
+converts the planned "Decimal parity" step into an explicit parity-vs-repair
+decision. The review also established that no currently-persisted fund can
+produce a value-bearing V1 result (opening-cash absence plus `defaultWaterfall`
+seeding an 8 percent compounded hurdle and `clawbackEnabled: true` into every
+defaulted config); V1 as specified is a fail-closed refusal machine plus a
+characterization lane, by design.
+
+### Decision
+
+1. **Purity contract.** An internal-economics result is
+   `f(basis, economicsPolicyVersion, engineVersion, methodologyVersion)`. Basis
+   IDs are explicit at the run endpoint — no latest-resolution (the
+   current-forecast and GP-economics services' optional-ID fallback is the named
+   anti-pattern). Sensitivity analysis persists an immutable non-current
+   scenario plan version before calculating.
+2. **Policy is authored configuration, not calculated state.** A dedicated
+   append-only `internal_economics_policy_versions` table (with DB-enforced
+   immutability of body, hash, and provenance) holds waterfall, fee, expense,
+   call/cash, and terminal-mechanics assumptions, referencing an immutable
+   capital-envelope version; a relational `internal_lp_economics_runs` lineage
+   table FK-references policy, facts, plan, forecast, and result snapshot.
+   `fund_snapshots` remains result storage per
+   `docs/adr/ADR-014-snapshot-governance.md` (Snapshot Governance); results
+   persist as type `INTERNAL_LP_ECONOMICS`, enrolled in
+   `NON_TIMELINE_SNAPSHOT_TYPES`.
+3. **Status model split.** `runState` (completed | failed) is lineage/lifecycle,
+   excluded from result hashing; `resultStatus` (available | indicative |
+   unavailable) is value trust, computed as the worst of forecast trust, policy
+   gates, methodology trust, and numerical trust. `held` is a serving-plane
+   state and never an engine result.
+4. **Numerical trust.** The float64 waterfall path is capped at `indicative`
+   with reason `FLOAT64_WATERFALL_PATH`; `available` is reserved for a certified
+   Decimal-native waterfall core ("certified Decimal-native" means
+   Decimal-native MONEY allocation with a sanctioned float64 XIRR boundary; XIRR
+   diagnostics never cap money-result trust). Precision migration is sequenced
+   separately from hurdle-semantics change: characterization (pinning ledger
+   defect L-DEF-1 as labeled legacy behavior), then the SEMANTIC DISPOSITION
+   (user-ratified 2026-07-30: CORRECT unreturned-capital accounting — not a
+   parity migration; engine/methodology version change with dual-pinned
+   old-vs-new fixtures, LEGACY-* pins untouched), then the certified Decimal
+   no-hurdle core behind a compatibility wrapper, then specialist-reviewed
+   `annualized_compound` hurdle as policy schema V1.1. The ledger's
+   flat-at-event hurdle is never exposed in the policy surface; V1 permits
+   `basis: 'none'` only, and pref-bearing source configurations seed-refuse
+   rather than silently downgrade.
+5. **Vehicle scope.** V1 computes main-fund LP economics only and runs only when
+   the fund's vehicle roster contains exactly one vehicle (the main fund). Any
+   SPV or co-invest roster entry yields `MAIN_FUND_SCOPED_FORECAST_UNAVAILABLE`
+   until a vehicle-scoped facts/forecast basis exists. SPV consolidation is
+   explicitly deferred, not silently dropped.
+6. **Split implementation gate.** GO: tests-only ledger characterization; the
+   scoping spec and this ADR; five briefs (opening-cash facts, fee-vector
+   bridge, capital envelope, vehicle-scoped forecast, compound-hurdle
+   semantics). NO-GO: production assembly integration, service/persistence,
+   routes, migrations, and any `available` result — reconsidered only after
+   authoritative opening cash, an exact fee/no-double-count proof, the envelope
+   design, resolution of the release-schema-audit issue #1179, an authoritative
+   opening waterfall state with actual/projected cutover semantics, and the
+   forecast realization-granularity decision. Two conditions were user-ratified
+   2026-07-30 and are MET: the ledger semantic disposition / Decimal parity
+   decision (corrected accounting, per Decision 4) and the rounding contract
+   (frozen: HALF_UP, residual cent to LP with deterministic ordering per the
+   `allocateLRM` largest-remainder precedent, money 6dp at rest — detail in the
+   spec's D9). The remaining conditions keep the gate CLOSED; ratifying them
+   does not open implementation.
+
+### Consequences
+
+- Issue #1176's Task 16.3 exit-gate wording ("genuine Decimal-derived
+  boundaries") is amended: V1 results carry decimal-string boundaries but remain
+  `indicative` until the Decimal-native core certifies; catch-up on/off fixtures
+  are replaced by seed-refusal tests because the ledger has no catch-up to
+  fixture.
+- Scope guards carry forward unchanged: `economics-v1.contract.ts` and
+  `WaterfallAssumptionsV1Schema` untouched; `WaterfallTypeSchema` never
+  imported; `FORBIDDEN_TOKENS` and the integration scanner not weakened.
+- The fail-open `NON_TIMELINE_SNAPSHOT_TYPES` denylist is enrolled and
+  regression-tested for the new type, but flipping snapshot classification to
+  fail-closed remains an open follow-up outside this slice.
+- waterfall-specialist sign-off is required on compound-hurdle SEMANTICS before
+  policy schema V1.1 exists, not merely on implementation math (Phoenix
+  protected-path rules).
+- (Review-added 2026-07-30) `CLAWBACK_UNSUPPORTED` joins the seed-refusal
+  registry — `defaultWaterfall` emits `clawbackEnabled: true` into every
+  defaulted config, so the active/dormant determination must be explicit and
+  normalization outcomes persist and hash; characterization fixtures are
+  separated into a legacy-labeled file (`LEGACY-*`) and are never product truth;
+  and every knowing departure from issue #1176 (exit gate, catch-up fixtures, G1
+  default terms under the strict catch-up ruling of 2026-07-30 —
+  `prefCatchUp: true` seed-refuses even with hurdle basis `'none'` —
+  credit-facility phase [pending re-ratification], payload-only persistence,
+  union shape) is recorded in the spec's Deviation register — the user approved
+  posting the register on #1176 (2026-07-30); it posts once these documents are
+  committed.
