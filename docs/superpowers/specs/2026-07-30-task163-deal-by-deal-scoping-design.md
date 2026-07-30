@@ -887,11 +887,9 @@ schema V1.1 plus engine/methodology version bump plan.
 
 ## Deviation register (review-added 2026-07-30)
 
-Five ratified departures from issue #1176's Task 16.3 text plus one pending
-decision, in one place. Approval column: "ratified" = user-ratified 2026-07-30;
-"[PENDING]" = requires a user action. Posting to #1176: POSTED 2026-07-30
-(escalation E3, revised text) after commit `3298e10c` landed the citing
-documents:
+Six ratified departures from issue #1176's Task 16.3 text, in one place. All six
+were user-ratified 2026-07-30. Posting to #1176: POSTED 2026-07-30 (escalation
+E3, revised text) after commit `3298e10c` landed the citing documents:
 https://github.com/nikhillinit/Updog_restore/issues/1176#issuecomment-5129260472
 
 1. Exit gate "genuine Decimal-derived boundaries" -> amended to decimal-string
@@ -904,9 +902,8 @@ https://github.com/nikhillinit/Updog_restore/issues/1176#issuecomment-5129260472
    V1's structurally catch-up-free policy. `prefCatchUp=true` seed-refuses even
    when hurdle basis is `none`; only dormant numeric fields with
    `prefCatchUp=false` normalize with persisted warning. Ratified deviation.
-4. [PENDING] `CREDIT_FACILITY_UNSUPPORTED` phase: #1176 says run-phase
-   `unavailable`; this spec chose seed-phase 422. Deviation recorded; re-ratify
-   or move to run phase (escalated).
+4. RESOLVED: seed-time 422 CREDIT_FACILITY_UNSUPPORTED is reserved and
+   structurally unreachable until an authoritative facility field lands.
 5. "Payload-only" persistence -> dedicated `internal_economics_policy_ versions`
    and `internal_lp_economics_runs` lineage tables added (D3/ADR-065). Ratified.
 6. Result union: #1176 finding W3 wants a discriminated union carrying BOTH
