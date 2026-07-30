@@ -3853,4 +3853,16 @@ describe('required CI fails closed', () => {
     expect(flagsGuard).toBeDefined();
     expect(flagsGuard).not.toHaveProperty('continue-on-error', true);
   });
+
+  it('keeps CI telemetry runtime and billable metrics semantically separate', async () => {
+    const telemetry = await readFile(
+      path.join(process.cwd(), 'scripts/ci-live-telemetry.mjs'),
+      'utf8'
+    );
+    expect(telemetry).toContain('schemaVersion: 2');
+    expect(telemetry).toContain('runnerDurationMinutes');
+    expect(telemetry).toContain('billableMinutes');
+    expect(telemetry).toContain('queueWaitMinutes');
+    expect(telemetry).not.toContain('function billedMinutesForRun');
+  });
 });
