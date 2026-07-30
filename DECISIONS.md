@@ -9288,27 +9288,61 @@ characterization lane, by design.
    `annualized_compound` hurdle as policy schema V1.1. The ledger's
    flat-at-event hurdle is never exposed in the policy surface; V1 permits
    `basis: 'none'` only, and pref-bearing source configurations seed-refuse
-   rather than silently downgrade.
+   rather than silently downgrade. Entitlement, threshold, and accounting-state
+   math remains full precision. Ratio splits never round to cents, and rounded
+   presentation never participates in threshold comparison or feeds accounting
+   state. HALF_UP converts each emitted event total to cents only at the
+   presentation boundary; hierarchical exact-Decimal LRM allocates ROC,
+   preferred return, and residual, then splits residual between LP and GP. Tie
+   contract:
+   `LP is canonical first bucket and wins exact-remainder ties. Otherwise largest exact Decimal remainder wins.`
 5. **Vehicle scope.** V1 computes main-fund LP economics only and runs only when
    the fund's vehicle roster contains exactly one vehicle (the main fund). Any
    SPV or co-invest roster entry yields `MAIN_FUND_SCOPED_FORECAST_UNAVAILABLE`
    until a vehicle-scoped facts/forecast basis exists. SPV consolidation is
    explicitly deferred, not silently dropped.
-6. **Split implementation gate.** GO: tests-only ledger characterization; the
-   scoping spec and this ADR; five briefs (opening-cash facts, fee-vector
-   bridge, capital envelope, vehicle-scoped forecast, compound-hurdle
-   semantics). NO-GO: production assembly integration, service/persistence,
-   routes, migrations, and any `available` result — reconsidered only after
-   authoritative opening cash, an exact fee/no-double-count proof, the envelope
-   design, resolution of the release-schema-audit issue #1179, an authoritative
-   opening waterfall state with actual/projected cutover semantics, and the
-   forecast realization-granularity decision. Two conditions were user-ratified
-   2026-07-30 and are MET: the ledger semantic disposition / Decimal parity
-   decision (corrected accounting, per Decision 4) and the rounding contract
-   (frozen: HALF_UP, residual cent to LP with deterministic ordering per the
-   `allocateLRM` largest-remainder precedent, money 6dp at rest — detail in the
-   spec's D9). The remaining conditions keep the gate CLOSED; ratifying them
-   does not open implementation.
+6. **Split implementation gate.** GO remains limited to tests-only ledger
+   characterization, readiness contracts/oracles, this spec and ADR, and the
+   five briefs. NO-GO remains production assembly integration,
+   service/persistence, routes, migrations, and any `available` result.
+   Readiness work now includes a test-only hierarchical presentation oracle,
+   corrected same-input `LEGACY-04`/`LEGACY-05` counterparts, and a versioned
+   event-order contract; it includes no production economics engine. Release
+   issue #1179 is resolved by the exact-SHA proof recorded below. Run/result
+   atomicity and idempotency remain L3 acceptance work. Waterfall-specialist and
+   Phoenix precision-guardian NO-GO findings require clean re-review and
+   re-sign. Until both re-sign, ADR status remains `[PROPOSED]` and the
+   production implementation gate remains CLOSED.
+7. **Derived event ordering.** Methodology contract
+   `internal-economics-event-ordering/1.0.0` orders
+   `(effectiveAt, eventClassPriority, stableSourceId)`. Persisted facts already
+   contain `eventType`, `effectiveAt`, and `eventId`; priority derives from
+   `eventType`, and stable source ID derives post-insert as
+   `facts:<snapshotId>:cash_flow_event:<eventId>`. Neither derived field is
+   persisted redundantly. Forecast uses canonical type
+   `forecast_quarterly_distribution`, priority `4`, stable key
+   `forecast:<id>:quarter:<periodEnd>:forecast_quarterly_distribution`, and
+   `effectiveAt=<periodEnd>T23:59:59.999Z`.
+
+### Governance-freeze evidence
+
+- Release remediation merged through
+  [PR #1247](https://github.com/nikhillinit/Updog_restore/pull/1247) and
+  [PR #1248](https://github.com/nikhillinit/Updog_restore/pull/1248).
+- [Release run 30567774563](https://github.com/nikhillinit/Updog_restore/actions/runs/30567774563)
+  succeeded for exact SHA `068430726a0d1d297d50e93be36a67f90238a26a`: clean
+  production schema audit, no DDL, staged inspect locator
+  `5fB4SsnPTmF76xw13nRQhwFf55jb`, 12/12 staged smoke, and 12/12 production
+  smoke.
+- GitHub production deployment `5679938936` succeeded for the same SHA. Issue
+  [#1179](https://github.com/nikhillinit/Updog_restore/issues/1179) closed
+  2026-07-30.
+- Readiness proofs live in
+  `tests/unit/truth-cases/task163-hierarchical-rounding-readiness.test.ts`,
+  `tests/unit/truth-cases/waterfall-corrected-capital-account.test.ts`, and
+  `tests/unit/internal-economics/event-ordering-v1.contract.test.ts`.
+- Gate evidence remains incomplete pending clean waterfall-specialist and
+  Phoenix precision-guardian re-sign. Prior NO-GO findings are not sign-off.
 
 ### Consequences
 
@@ -9334,7 +9368,9 @@ characterization lane, by design.
   and every knowing departure from issue #1176 (exit gate, catch-up fixtures, G1
   default terms under the strict catch-up ruling of 2026-07-30 —
   `prefCatchUp: true` seed-refuses even with hurdle basis `'none'` —
-  credit-facility phase [pending re-ratification], payload-only persistence,
-  union shape) is recorded in the spec's Deviation register — posted to #1176 on
-  2026-07-30 after these documents landed on main:
+  credit-facility handling as reserved seed-time
+  `422 CREDIT_FACILITY_UNSUPPORTED` that is structurally unreachable under
+  current strict source contracts, payload-only persistence, union shape) is
+  recorded in the spec's Deviation register — posted to #1176 on 2026-07-30
+  after these documents landed on main:
   https://github.com/nikhillinit/Updog_restore/issues/1176#issuecomment-5129260472

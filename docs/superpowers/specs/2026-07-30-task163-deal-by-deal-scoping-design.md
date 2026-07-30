@@ -1,6 +1,6 @@
 # Task 16.3 Scoping: Internal LP Economics deal_by_deal Slice (PLAN_61 Wave F)
 
-Date: 2026-07-30 Status: Proposed (scoping output; implementation split-gated)
+Date: 2026-07-30 Status: Proposed (governance frozen; production gate CLOSED)
 Source contract: GitHub issue #1176 Task 16.3 combined text, deal_by_deal slice
 only. Provenance: 10-question scoping interview (grilling protocol), every
 decision user-ratified 2026-07-30; every code citation below verified against
@@ -35,8 +35,9 @@ holds the detail).
 - Decimal no-hurdle parity decision made (see D10 sequencing). RESOLVED
   (user-ratified 2026-07-30, escalation E1): the Decimal core CORRECTS
   unreturned-capital accounting — not a parity migration.
-- Release-schema-audit remediation resolved (GitHub issue #1179) — gates all
-  migration-bearing work.
+- Release-schema-audit remediation resolved (GitHub issue #1179). RESOLVED: PRs
+  #1247/#1248 and exact-SHA release proof are recorded below. This removes the
+  release blocker but does not open the production implementation gate.
 - REVIEW-ADDED (2026-07-30): ledger unreturned-capital semantic disposition made
   (defect L-DEF-1, see D10) — parity-with-legacy vs corrected capital accounting
   decides what the Decimal core certifies. RESOLVED (user-ratified 2026-07-30,
@@ -44,11 +45,15 @@ holds the detail).
   change with dual-pinned old-vs-new fixtures.
 - REVIEW-ADDED: authoritative opening waterfall state and actual/projected
   cutover semantics defined (Brief 1, extended).
-- REVIEW-ADDED: rounding contract frozen (mode, timing, residual-cent recipient,
-  dual conservation — see D9). RESOLVED (user-ratified 2026-07-30, escalation
-  E7): D9's proposed values ratified; contract frozen.
+- REVIEW-ADDED: rounding contract frozen (mode, presentation boundary,
+  hierarchical exact-Decimal LRM, dual conservation — see D9). RESOLVED
+  (user-ratified 2026-07-30, escalation E7) and reconciled by the governance
+  freeze after specialist NO-GO review.
 - REVIEW-ADDED: forecast realization granularity resolved (quarterly aggregates
   vs per-event exits at the basis boundary — Brief 4, extended).
+- GOVERNANCE FREEZE: clean waterfall-specialist and Phoenix precision-guardian
+  re-signs remain pending after their NO-GO findings. Production L2/L3/L4 and
+  migrations stay CLOSED until both re-sign the reconciled contracts.
 
 Blocker B3 (vehicle-scoped basis) does not block single-vehicle funds; it
 runtime-gates SPV-bearing funds via `MAIN_FUND_SCOPED_FORECAST_UNAVAILABLE`.
@@ -69,6 +74,18 @@ consumers must not branch on availability before Decimal certification
 (escalation E5 resolved 2026-07-30: user ratified keeping `available`
 typed-but-unreachable in schema V1 — no omission, no version bump needed when
 certification lands).
+
+Release evidence (verified 2026-07-30): PRs
+[#1247](https://github.com/nikhillinit/Updog_restore/pull/1247) and
+[#1248](https://github.com/nikhillinit/Updog_restore/pull/1248) merged.
+[Run 30567774563](https://github.com/nikhillinit/Updog_restore/actions/runs/30567774563)
+completed successfully for exact SHA `068430726a0d1d297d50e93be36a67f90238a26a`,
+with clean production schema audit and no DDL, staged inspect locator
+`5fB4SsnPTmF76xw13nRQhwFf55jb`, 12/12 staged smoke tests, 12/12 production smoke
+tests, and successful GitHub production deployment `5679938936`. Issue
+[#1179](https://github.com/nikhillinit/Updog_restore/issues/1179) closed
+2026-07-30. This resolves only the release blocker; specialist re-sign remains
+pending and the production implementation gate remains CLOSED.
 
 ## D1. Fidelity posture: A+ (indicative float64 core, hardened boundaries)
 
@@ -96,10 +113,11 @@ certification lands).
   cents on a 100M fund; the material risks are unit errors (100x+), hurdle
   time-basis (tens of millions over 10y), catch-up omission (~1M-scale),
   terminal policy (up to half of TVPI). Hence: branded unit types on every
-  input, documented round-to-cents policy at each ratio-split point
-  (integer-cents precedent: `shared/core/capitalAllocation`), conservation
-  assertions that fail the run, truth cases pinned exactly on post-rounding
-  string outputs.
+  input; full-precision entitlement, threshold, and accounting-state math;
+  hierarchical exact-Decimal LRM only after each emitted event total is
+  HALF_UP-rounded to cents at the presentation boundary; conservation assertions
+  that fail the run; truth cases pinned on both full-precision and emitted-cent
+  results. Rounded presentation never feeds accounting state.
 - No catch-up math in V1; no Decimal refactor of the shared ledger in PR-1 (see
   D10 sequencing for the Decimal path).
 - Issue #1176 exit-gate wording ("genuine Decimal-derived boundaries") is
@@ -316,20 +334,27 @@ request_hash, created_at, created_by
   `periodStart` or prior quarter-end; fee/expense true-up at `periodEnd`. The
   cash recurrence explicitly orders: opening cash, calls, deployments, fees,
   expenses, proceeds, distributions, ending cash. Fee-transition fixture
-  mandatory. REVIEW-ADDED: this coarse ordering must be frozen as a VERSIONED
-  event-priority table before L2 (candidate shape: opening state,
-  beginning-of-period calls, deployments, timestamped actual activity, projected
-  exits by stable forecast event id, fee/expense true-up, waterfall
-  distributions, terminal realization, ending state), with same-instant
-  tie-breaking (event-class priority, then source timestamp, then stable source
-  id), hashed into the methodology version, and exercised by permutation
-  fixtures. Also note a SECOND fee channel exists upstream:
-  `derive-current-plan-v1.ts:140-145` already reduces deployable capital by the
-  compiled drag (`fundSize x (1 - annualDrag x horizonYears)`) — Brief 2's
-  identity must prove each fee dollar appears exactly once across
-  deployable-capital reduction, forecast NAV drag, and economics cash assembly
-  (one review asserts the forecast already double-burdens fees across these
-  channels; unproven — exactly what the identity settles).
+  mandatory. Event ordering is frozen as
+  `internal-economics-event-ordering/1.0.0`, with canonical key
+  `(effectiveAt, eventClassPriority, stableSourceId)` and priority table:
+  `lp_capital_call=1`, `portfolio_investment=2`, `fund_expense=3`,
+  `realized_proceeds=4`, `lp_distribution=5`, `recallable_distribution=6`.
+  Persisted facts already contain `eventType`, `effectiveAt`, and `eventId`;
+  facts `eventClassPriority` derives from `eventType`, and facts
+  `stableSourceId` derives post-insert as
+  `facts:<snapshotId>:cash_flow_event:<eventId>`. Neither derived field is
+  persisted redundantly. Forecast uses canonical type
+  `forecast_quarterly_distribution`, priority `4`, stable key
+  `forecast:<id>:quarter:<periodEnd>:forecast_quarterly_distribution`, and
+  `effectiveAt=<periodEnd>T23:59:59.999Z`. The methodology version pins this
+  derivation and permutation fixtures prove it. Also note a SECOND fee channel
+  exists upstream: `derive-current-plan-v1.ts:140-145` already reduces
+  deployable capital by the compiled drag
+  (`fundSize x (1 - annualDrag x horizonYears)`) — Brief 2's identity must prove
+  each fee dollar appears exactly once across deployable-capital reduction,
+  forecast NAV drag, and economics cash assembly (one review asserts the
+  forecast already double-burdens fees across these channels; unproven — exactly
+  what the identity settles).
 - Envelope enforcement: reject-never-clamp. Use the LEGAL capital-envelope
   version (LP/GP/total components), NOT forecast-derived `committedCapitalUsd`.
   `COMMITTED_CAPITAL_EXCEEDED` context reports the first violating quarter,
@@ -533,12 +558,14 @@ NAV is a stock, outside the cash recurrence.
   corrected-accounting Decimal core WILL maintain that account and emits them
   once certified), `grossProceedsUsd`, `lpCapitalReturnUsd`, `lpProfitShareUsd`,
   `gpInvestmentDistributionUsd`, `gpCarryUsd`,
-  `eventKind: forecast_exit | terminal_realization` (documented as modeled
-  forward events, not historical LP distributions). V1 is clawback-free per
-  issue. Event conservation: gross = LP capital return + LP profit share + GP
-  investment distribution + GP carry. Quarterly/event reconciliation identities
-  are enforced; events are DECOMPOSITION only — consumers must not sum both
-  arrays as separate cashflows.
+  `eventKind: forecast_quarterly_distribution | terminal_realization`
+  (documented as modeled forward events, not historical LP distributions).
+  Forecast events use the D6 canonical priority, stable source key, and UTC
+  period-end instant; they are never mislabeled `forecast_exit`. V1 is
+  clawback-free per issue. Event conservation: gross = LP capital return + LP
+  profit share + GP investment distribution + GP carry. Quarterly/event
+  reconciliation identities are enforced; events are DECOMPOSITION only —
+  consumers must not sum both arrays as separate cashflows.
 - Terminal/XIRR exact rules: `liquidate_at_horizon` -> terminal event REQUIRED
   when pre-terminal NAV is positive; final NAV becomes zero; XIRR uses resulting
   distributions only (adding terminal NAV after liquidation double-counts).
@@ -574,18 +601,21 @@ NAV is a stock, outside the cash recurrence.
   units after rounding (post-rounding cents must also conserve); violation at
   either precision -> failed run, no result. No `conservation: false` field
   ever.
-- REVIEW-ADDED rounding contract (REQUIRED before L2; values user-RATIFIED
-  2026-07-30, escalation E7): rounding mode HALF_UP; rounding points (each
-  ratio-split boundary, per D1); residual-cent recipient LP, with deterministic
-  ordering per the integer-cents residual precedent `allocateLRM`
-  (`shared/core/capitalAllocation/allocateLRM.ts` ~L152: Largest Remainder
-  Method in BigInt arithmetic, canonical tie-break remainder DESC then index
-  ASC); tie-breaking, negative-value, and negative-zero normalization; persisted
-  precision (money 6dp at rest matching `NUMERIC(20,6)` and issue #1176 finding
-  P1's field-class table; ratios/rates per that table); and rounding BEFORE
-  threshold comparison so a future hurdle's `>` vs `>=` is deterministic. D1's
-  "round-to-cents at each split point" and the dual conservation rule above are
-  reconciled by this contract.
+- GOVERNANCE-FROZEN rounding contract (REQUIRED before L2; reconciles the
+  waterfall and precision NO-GO findings): entitlement, threshold, and
+  accounting-state math remains full precision. No ratio split rounds to cents,
+  and no rounded presentation value participates in threshold comparison or
+  feeds accounting state. HALF_UP converts each emitted event total to integer
+  cents only at the presentation boundary. Hierarchical exact-Decimal LRM first
+  allocates event cents across LP ROC, LP preferred return, and residual, then
+  allocates residual-stage cents across LP residual and GP carry. Each stage
+  floors exact entitlement cents and distributes shortfall by exact Decimal
+  remainder DESC, stable index ASC. Tie contract:
+  `LP is canonical first bucket and wins exact-remainder ties. Otherwise largest exact Decimal remainder wins.`
+  Independently rounding each entitlement is forbidden. Full-precision and
+  emitted-cent conservation both fail closed; money persists at six decimals,
+  ratios/rates at their frozen field scales, negative values reject, and signed
+  zero canonicalizes to zero.
 
 ## D10. Architecture and sequencing
 
@@ -632,6 +662,16 @@ characterization (GO now; pins L-DEF-1 as legacy behavior)
 Never combine numeric migration with new waterfall behavior. Until Decimal
 certification lands, integrated results remain `indicative` with
 `FLOAT64_WATERFALL_PATH`.
+
+Readiness-only executable proofs now freeze three seams without implementing a
+production engine: the hierarchical presentation oracle in
+`tests/unit/truth-cases/helpers/task163-presentation-rounding-oracle.ts`; exact
+same-input corrected counterparts for `LEGACY-04` and `LEGACY-05` in
+`docs/waterfall-corrected-capital-account.truth-cases.json`; and the derived
+event-order contract in
+`shared/contracts/internal-economics/event-ordering-v1.contract.ts`. These are
+test/contract artifacts, not L2 assembly. Atomic run/result persistence,
+idempotency races, and failure rollback remain deferred to L3.
 
 REVIEW-ADDED work-package naming (replaces the ambiguous "PR-1" label): WP-CHAR
 (GO characterization PR), WP-DECIMAL (semantic disposition + Decimal track),
@@ -739,6 +779,10 @@ HTTP 409                     idempotency key reuse with changed preimage
   IDs `LEGACY-01...`, header stating they encode legacy behavior and are NOT
   product truth); existing L01-L14 stay untouched so the legacy pins can never
   become a de facto product oracle.
+- Readiness-only corrected product oracles replay exact `LEGACY-04` and
+  `LEGACY-05` inputs with repaired unreturned-capital accounting. The
+  hierarchical exact-Decimal LRM oracle and versioned event-order permutation
+  contract are also executable. None is a production economics engine.
 - Assembly fixtures (WP-L2, when unblocked): fee-base transition,
   buffer-triggered early call, envelope-violation rejection; REVIEW-ADDED:
   event-order permutation fixtures against the frozen priority table and
@@ -761,16 +805,18 @@ HTTP 409                     idempotency key reuse with changed preimage
   TODAY and stays untouched; "zeroed behavior" is #1176's mandate for the new V1
   path, not a description of current pinned behavior.
 - REVIEW-ADDED persistence/API acceptance (WP-L3/L4): concurrent identical and
-  changed-preimage idempotency races, failed-run key consumption replay,
-  wrong-fund and wrong-snapshot-type FK rejection, no orphan snapshots,
-  role-matrix negatives.
+  changed-preimage idempotency races, failed-run key consumption replay, atomic
+  no-result persistence on failure, wrong-fund and wrong-snapshot-type FK
+  rejection, no orphan snapshots, role-matrix negatives. Readiness oracles do
+  not discharge these L3/L4 obligations.
 - The issue's "GP catch-up on/off" fixtures belong to the whole_fund truth-case
   slice (parked on G1) and are replaced in THIS slice by seed-refusal plus
   dormancy-normalization tests (see Deviation register).
 - Ratios-null-before-paid-in; nested resultStatus union shape tests.
 - REVIEW-ADDED rounding fixtures (contract ratified 2026-07-30, escalation E7):
-  dual conservation (full precision AND post-rounding cents), residual-cent
-  determinism, negative-zero normalization, tie cases.
+  dual conservation (full precision AND post-rounding cents), exact-tie LP
+  precedence, larger exact-remainder precedence, sub-1e-7 remainder ordering,
+  negative rejection, and negative-zero normalization.
 - REVIEW-ADDED Decimal-parity track: a float64-vs-Decimal error-bound benchmark
   backing D1's cents-scale estimate.
 
@@ -902,9 +948,12 @@ https://github.com/nikhillinit/Updog_restore/issues/1176#issuecomment-5129260472
    V1's structurally catch-up-free policy. `prefCatchUp=true` seed-refuses even
    when hurdle basis is `none`; only dormant numeric fields with
    `prefCatchUp=false` normalize with persisted warning. Ratified deviation.
-4. RESOLVED: seed-time 422 CREDIT_FACILITY_UNSUPPORTED is reserved and
-   structurally unreachable until an authoritative facility field lands.
-5. "Payload-only" persistence -> dedicated `internal_economics_policy_ versions`
+4. RESOLVED: seed-time `422 CREDIT_FACILITY_UNSUPPORTED` is reserved and
+   structurally unreachable because accepted source contracts expose neither a
+   facility field nor a facility cash-flow event. Strict source schemas reject
+   both. Once an authoritative facility field lands, policy seeding refuses it
+   before normalization.
+5. "Payload-only" persistence -> dedicated `internal_economics_policy_versions`
    and `internal_lp_economics_runs` lineage tables added (D3/ADR-065). Ratified.
 6. Result union: #1176 finding W3 wants a discriminated union carrying BOTH
    templates; V1 ships the single-member `deal_by_deal` union with whole_fund as
