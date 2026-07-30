@@ -1,17 +1,15 @@
 # Task 16.3 GO Readiness Briefs
 
-Date: 2026-07-30 Status: Accepted contracts; fresh exact-SHA re-sign pending
+Date: 2026-07-30 Status: Accepted; scoped production implementation gate GO
 Scope: Ratified readiness basis for WP-L2, WP-L3, and WP-L4 implementation in
 `2026-07-30-task163-deal-by-deal-scoping-design.md`
 
 ## Outcome
 
-Task 16.3 scoped production implementation gate is temporarily pending fresh
-exact-SHA re-sign after terminal-policy and idempotent-replay review repairs.
-The 2026-07-30 waterfall-specialist and Phoenix precision-guardian re-signs at
-SHA `d2b39f7db476ca8a7497b21688c79e1178a6a352` remain valid historical evidence
-for the pre-terminal contracts; they do not ratify the terminal repair.
-Completed readiness basis:
+Task 16.3 scoped production implementation gate is GO. Waterfall-specialist and
+Phoenix precision-guardian independently re-signed the terminal-policy and
+idempotent-replay repairs on 2026-07-30 against exact contract SHA
+`4b20e07c7e431042fe0a25241687259cf38c33b9`. Completed readiness basis:
 
 1. legacy characterization is merged without changing the legacy engine;
 2. production activation cannot bypass schema reconciliation;
@@ -24,15 +22,15 @@ Completed readiness basis:
 6. the remaining credit-facility deviation is resolved as a reserved seed-time
    refusal whose source field is structurally unreachable today;
 7. terminal-period resolution and the exhaustive post-term activity matrix are
-   frozen by a 76-test contract proof and await exact-SHA specialist re-sign.
+   frozen by a 76-test contract proof and exact-SHA dual-specialist re-sign.
 
-Once re-signed, GO authorizes WP-L2 compiler/state-machine, WP-L3
-service/persistence, and WP-L4 restricted-route implementation. Migrations may
-appear only in reviewed owning implementation PRs. GO does not authorize
-deployment, activation, production traffic, or claim feature availability. No
-production economics engine exists at ratification. A future float64 path
-remains at most `indicative`; `available` stays typed-but-unreachable until the
-separately certified Decimal-native money core condition in ADR-065 is met.
+GO authorizes WP-L2 compiler/state-machine, WP-L3 service/persistence, and WP-L4
+restricted-route implementation. Migrations may appear only in reviewed owning
+implementation PRs. GO does not authorize deployment, activation, production
+traffic, or claim feature availability. No production economics engine exists at
+ratification. A future float64 path remains at most `indicative`; `available`
+stays typed-but-unreachable until the separately certified Decimal-native money
+core condition in ADR-065 is met.
 
 ## Decision Summary
 
@@ -46,7 +44,7 @@ separately certified Decimal-native money core condition in ADR-065 is met.
 | Vehicle scope   | V1 stays single-vehicle                                                                                       | Ratified; SPV/co-invest-bearing funds remain runtime-ineligible; legacy `fund_all` behavior unchanged |
 | Realizations    | One labeled synthetic quarterly aggregate per forecast point in no-hurdle V1                                  | Ratified; full-precision aggregation-invariance proof exists                                          |
 | Event ordering  | Derive versioned canonical order keys; do not duplicate fields in persisted facts                             | Ratified; readiness contract and permutation proof exist                                              |
-| Terminal policy | Versioned Gregorian quarter resolution plus exhaustive post-term matrix                                       | Frozen contract and 76/76 focused tests; fresh exact-SHA re-sign pending                              |
+| Terminal policy | Versioned Gregorian quarter resolution plus exhaustive post-term matrix                                       | Ratified; frozen contract and 76/76 focused tests                                                     |
 | Precision       | Full-precision state and hierarchical presentation-only LRM                                                   | Clean GO                                                                                              |
 | Compound hurdle | Corrected unreturned-capital semantics with Decimal math                                                      | Semantics ratified; policy schema V1.1 remains separately gated                                       |
 | Credit facility | Reserved seed-time `422 CREDIT_FACILITY_UNSUPPORTED`                                                          | Ratified; structurally unreachable and strict-schema guarded                                          |
@@ -133,9 +131,8 @@ SHA. Issue [#1179](https://github.com/nikhillinit/Updog_restore/issues/1179)
 closed on 2026-07-30.
 
 This completed release proof removed #1179 as a release blocker. It did not
-independently open the Task 16.3 production implementation gate. The later
-exact-SHA dual-specialist ratification opened the pre-terminal gate; terminal
-repair now requires its own fresh exact-SHA re-sign.
+independently open the Task 16.3 production implementation gate; the later
+exact-SHA dual-specialist ratification did.
 
 ## Brief 1: Authoritative Opening Accounting State
 
@@ -298,6 +295,21 @@ Forecast quarterly distributions use canonical event type
 
 V1 requires opening-state `cutoverInstant` to equal the run cutover. It does not
 silently roll a stale observation forward.
+
+### Snapshot replay compatibility
+
+Financial-facts snapshot replay now hashes only stable client-authoritative
+request fields and checks the persisted response immediately after the
+fund-scoped advisory lock, before roster, selection, observation, or source
+artifact payload reads. An exact retry therefore still replays after mutable
+source state changes or source-artifact payload purge.
+
+Deployment compatibility is fail-closed: snapshots created before contract SHA
+`4b20e07c7e431042fe0a25241687259cf38c33b9` stored request hashes containing
+resolved vehicle IDs and `selectionSetHash`. Reusing one of those pre-change
+idempotency keys after deployment can return `409 IDEMPOTENCY_KEY_REUSE` instead
+of replaying. It never accepts a changed request or corrupts the stored
+snapshot. Operators must inspect the existing snapshot before issuing a new key.
 
 ## Brief 2: Exact Fee/Expense Vector Bridge
 
@@ -736,27 +748,25 @@ forbidden.
 
 ## Ratification Record
 
-| Specialist                 | Date       | Exact SHA                                  | Verdict                 | Evidence                                                                                             |
-| -------------------------- | ---------- | ------------------------------------------ | ----------------------- | ---------------------------------------------------------------------------------------------------- |
-| waterfall-specialist       | 2026-07-30 | `d2b39f7db476ca8a7497b21688c79e1178a6a352` | GO (pre-terminal scope) | 12 focused files, 205/205 tests; Phoenix 328/328; `npm run check` exit 0; lint and guardrails pass   |
-| phoenix-precision-guardian | 2026-07-30 | `d2b39f7db476ca8a7497b21688c79e1178a6a352` | GO (pre-terminal scope) | 51/51 focused tests; corrected-account pins, event ordering, Decimal LRM, and conservation all clean |
-| terminal repair re-sign    | 2026-07-30 | pending                                    | PENDING                 | Exact-SHA waterfall and precision re-signs required                                                  |
+| Specialist                 | Date       | Exact contract SHA                         | Verdict | Evidence                                                                                                       |
+| -------------------------- | ---------- | ------------------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------- |
+| waterfall-specialist       | 2026-07-30 | `4b20e07c7e431042fe0a25241687259cf38c33b9` | GO      | 14 focused files, 292/292 tests; Phoenix 328/328; `npm run check` 0 errors; lint and guardrails pass           |
+| phoenix-precision-guardian | 2026-07-30 | `4b20e07c7e431042fe0a25241687259cf38c33b9` | GO      | 7 focused files, 173/173 tests, including terminal 76/76 and precision 51/51; Phoenix 328/328; check/lint pass |
 
 Ratification covers corrected capital accounts, full-precision threshold/state
 math, hierarchical presentation-only LRM, exact Decimal remainder ordering, the
 versioned event-order contract, conservation, opening-artifact reachability, and
-the zero-fee bridge. The terminal-policy repair adds a 76/76 focused proof but
-does not enter the GO basis until fresh exact-SHA dual-specialist re-sign.
-Evidence anchors include
-`tests/unit/truth-cases/waterfall-corrected-capital-account.test.ts:198` and
-`:248`, plus
+the zero-fee bridge. The GO basis also includes the terminal-policy 76/76
+focused proof and stable early idempotent replay repair. Evidence anchors
+include `tests/unit/truth-cases/waterfall-corrected-capital-account.test.ts:198`
+and `:248`, plus
 `shared/contracts/internal-economics/event-ordering-v1.contract.ts:3`, `:145`,
 and `:176`; `tests/unit/services/financial-facts-snapshot-service.test.ts:506`
-and `:524` pin opening-artifact reachability; and
+and `:524` pin opening-artifact reachability, while `:533` and `:558` pin
+purged-artifact and mutable-source early replay; and
 `tests/unit/internal-economics/effective-fee-expense-bridge-v1.test.ts:301`,
 `:361`, `:368`, and `:428` pin absent, ambiguous, and nonzero fee rejection.
 
 Former NO-GO findings remain above only as resolved historical context. ADR-065
-is `[ACCEPTED]`; scoped WP-L2/WP-L3/WP-L4 implementation remains pending until
-the terminal repair receives fresh exact-SHA dual-specialist re-sign. Run/result
+is `[ACCEPTED]`; scoped WP-L2/WP-L3/WP-L4 implementation is GO. Run/result
 atomicity, idempotency races, and rollback remain mandatory WP-L3 acceptance.

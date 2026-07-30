@@ -9305,28 +9305,26 @@ activation, production traffic, or feature availability.
    SPV or co-invest roster entry yields `MAIN_FUND_SCOPED_FORECAST_UNAVAILABLE`
    until a vehicle-scoped facts/forecast basis exists. SPV consolidation is
    explicitly deferred, not silently dropped.
-6. Production implementation gate: temporarily pending fresh exact-SHA
-   dual-specialist re-sign after terminal-policy and idempotent-replay review
-   repairs. Candidate authorized scope is WP-L2 compiler/state-machine
-   implementation, WP-L3 service/persistence implementation, and WP-L4
-   restricted-route implementation. Schema migrations may appear only in
-   reviewed implementation PRs owned by the consuming work package. Readiness
-   work includes a test-only hierarchical presentation oracle, corrected
-   same-input `LEGACY-04`/`LEGACY-05` counterparts, and a versioned event-order
-   contract. It also includes the frozen
-   `internal-economics-terminal-resolution/1.0.0` contract and its 76/76 focused
-   proof. None is a production economics engine. Release issue #1179 removed one
-   blocker but did not independently open this gate. Waterfall-specialist and
-   Phoenix precision-guardian independently re-signed the pre-terminal contracts
-   on 2026-07-30 against exact SHA `d2b39f7db476ca8a7497b21688c79e1178a6a352`;
-   terminal repair requires a fresh exact-SHA re-sign. Future GO does not
-   authorize deployment, activation, production traffic, or claim feature
-   availability. `available` remains typed-but-unreachable pending a certified
-   Decimal-native money core. SPV/co-invest-bearing funds and funds with
-   nonzero, absent, or ambiguous fee/expense inputs remain runtime-ineligible.
-   Compound-hurdle semantics are ratified, but policy schema V1.1 remains
-   separately gated. Run/result atomicity, idempotency, and rollback remain
-   WP-L3 acceptance requirements.
+6. Production implementation gate: GO after fresh exact-SHA dual-specialist
+   re-sign of terminal-policy and idempotent-replay review repairs. Authorized
+   scope is WP-L2 compiler/state-machine implementation, WP-L3
+   service/persistence implementation, and WP-L4 restricted-route
+   implementation. Schema migrations may appear only in reviewed implementation
+   PRs owned by the consuming work package. Readiness work includes a test-only
+   hierarchical presentation oracle, corrected same-input
+   `LEGACY-04`/`LEGACY-05` counterparts, and a versioned event-order contract.
+   It also includes the frozen `internal-economics-terminal-resolution/1.0.0`
+   contract and its 76/76 focused proof. None is a production economics engine.
+   Release issue #1179 removed one blocker but did not independently open this
+   gate. Waterfall-specialist and Phoenix precision-guardian independently
+   re-signed GO on 2026-07-30 against exact contract SHA
+   `4b20e07c7e431042fe0a25241687259cf38c33b9`. GO does not authorize deployment,
+   activation, production traffic, or claim feature availability. `available`
+   remains typed-but-unreachable pending a certified Decimal-native money core.
+   SPV/co-invest-bearing funds and funds with nonzero, absent, or ambiguous
+   fee/expense inputs remain runtime-ineligible. Compound-hurdle semantics are
+   ratified, but policy schema V1.1 remains separately gated. Run/result
+   atomicity, idempotency, and rollback remain WP-L3 acceptance requirements.
 7. **Derived event ordering.** Methodology contract
    `internal-economics-event-ordering/1.0.0` orders
    `(effectiveAt, eventClassPriority, stableSourceId)`. Persisted facts already
@@ -9363,7 +9361,10 @@ activation, production traffic, or feature availability.
    and NAV are excluded. Negative source money or cumulative deployment rejects
    first with `NEGATIVE_SOURCE_MONEY`; a decreasing nonnegative cumulative
    deployment rejects with `FORECAST_DEPLOYMENT_CUMULATIVE_DECREASE`. Exact-zero
-   money rows are no-ops, but NAV observations are not.
+   money rows are no-ops, but NAV observations are not. WP-L3 must route
+   terminal-pair writes and readback through the exported policy
+   projection/match helpers; WP-L2 must supply `amountUsd` for every
+   value-bearing post-term class.
 
 ### Ratification evidence
 
@@ -9386,14 +9387,12 @@ activation, production traffic, or feature availability.
   `tests/unit/internal-economics/terminal-policy-v1.contract.test.ts`: 76/76
   focused tests against
   `shared/contracts/internal-economics/terminal-policy-v1.contract.ts`.
-- waterfall-specialist re-signed the pre-terminal scope on 2026-07-30 for exact
-  SHA `d2b39f7db476ca8a7497b21688c79e1178a6a352`: 12 focused files, 205/205
-  tests; Phoenix 328/328; `npm run check` exit 0; lint and guardrails pass.
-- phoenix-precision-guardian re-signed the pre-terminal scope on 2026-07-30 for
-  the same exact SHA: 51/51 focused tests; corrected-account pins, event
-  ordering, Decimal remainder ordering, presentation-only rounding, and
-  conservation clean.
-- Terminal repair awaits fresh exact-SHA waterfall and precision re-signs.
+- waterfall-specialist re-signed GO on 2026-07-30 for exact contract SHA
+  `4b20e07c7e431042fe0a25241687259cf38c33b9`: 14 focused files, 292/292 tests;
+  Phoenix 328/328; `npm run check` 0 errors; lint and guardrails pass.
+- phoenix-precision-guardian re-signed GO on 2026-07-30 for the same exact
+  contract SHA: 7 focused files, 173/173 tests, including terminal 76/76 and
+  precision 51/51; Phoenix 328/328; check, lint, and guardrails pass.
 - Former NO-GO findings are retained only as resolved historical evidence.
 
 ### Consequences
@@ -9409,6 +9408,12 @@ activation, production traffic, or feature availability.
 - The fail-open `NON_TIMELINE_SNAPSHOT_TYPES` denylist is enrolled and
   regression-tested for the new type, but flipping snapshot classification to
   fail-closed remains an open follow-up outside this slice.
+- Financial-facts snapshot request hashes change at contract SHA
+  `4b20e07c7e431042fe0a25241687259cf38c33b9` from mutable
+  resolved-roster/selection identity to stable client-authoritative fields.
+  Cross-deployment reuse of a key persisted under the former hash can fail
+  closed with `409 IDEMPOTENCY_KEY_REUSE`; it never changes or silently accepts
+  the stored snapshot. Inspect the existing snapshot before issuing a new key.
 - The 2026-07-30 waterfall and precision re-signs ratify compound-hurdle
   semantics only. Policy schema V1.1 remains separately gated; its
   implementation PR requires explicit specialist confirmation before schema

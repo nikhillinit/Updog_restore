@@ -1,22 +1,21 @@
 # Task 16.3 Scoping: Internal LP Economics deal_by_deal Slice (PLAN_61 Wave F)
 
-Date: 2026-07-30 Status: Accepted contracts; fresh exact-SHA re-sign pending
-Source contract: GitHub issue #1176 Task 16.3 combined text, deal_by_deal slice
-only. Provenance: 10-question scoping interview (grilling protocol), every
-decision user-ratified 2026-07-30; every code citation below verified against
-the live repository at `main` = `6dda7c19`, not taken from plan docs or the
-knowledge graph (which correctly refused authority on a stale workspace hash).
-Companion ADR: ADR-065 in `DECISIONS.md` (narrow durable choices only; this spec
-holds the detail).
+Date: 2026-07-30 Status: Accepted (scoped production implementation GO) Source
+contract: GitHub issue #1176 Task 16.3 combined text, deal_by_deal slice only.
+Provenance: 10-question scoping interview (grilling protocol), every decision
+user-ratified 2026-07-30; every code citation below verified against the live
+repository at `main` = `6dda7c19`, not taken from plan docs or the knowledge
+graph (which correctly refused authority on a stale workspace hash). Companion
+ADR: ADR-065 in `DECISIONS.md` (narrow durable choices only; this spec holds the
+detail).
 
 Ratification: waterfall-specialist and Phoenix precision-guardian independently
-re-signed the pre-terminal contracts on 2026-07-30 against exact SHA
-`d2b39f7db476ca8a7497b21688c79e1178a6a352`. Terminal-policy repair requires a
-fresh exact-SHA dual-specialist re-sign.
+re-signed the repaired contracts on 2026-07-30 against exact contract SHA
+`4b20e07c7e431042fe0a25241687259cf38c33b9`.
 
-## Verdict: scoped production implementation pending fresh re-sign
+## Verdict: scoped production implementation GO
 
-**Candidate GO scope after re-sign:**
+**GO scope:**
 
 1. WP-L2 quarterly fee/expense compiler and cash-assembly state machine.
 2. WP-L3 basis resolution, service, lineage, idempotency, and atomic
@@ -25,11 +24,10 @@ fresh exact-SHA dual-specialist re-sign.
 4. Schema migrations only inside reviewed implementation PRs owned by the work
    package that consumes them.
 
-After re-sign, GO authorizes implementation only. It does not authorize
-deployment, activation, production traffic, or claim feature availability. No
-production internal LP economics engine exists at ratification. `available`
-remains typed-but-unreachable until a certified Decimal-native money core
-exists.
+GO authorizes implementation only. It does not authorize deployment, activation,
+production traffic, or claim feature availability. No production internal LP
+economics engine exists at ratification. `available` remains
+typed-but-unreachable until a certified Decimal-native money core exists.
 
 **Completed readiness evidence:**
 
@@ -62,15 +60,14 @@ exists.
 - Terminal resolution and the exhaustive post-term activity matrix are frozen in
   `internal-economics-terminal-resolution/1.0.0`, with 76/76 focused contract
   tests.
-- RATIFICATION PENDING: fresh waterfall-specialist and Phoenix
-  precision-guardian re-signs must review the exact SHA containing the terminal
-  repair.
+- RATIFICATION SATISFIED: fresh waterfall-specialist and Phoenix
+  precision-guardian re-signs returned GO on exact contract SHA
+  `4b20e07c7e431042fe0a25241687259cf38c33b9`.
 
-| Specialist                 | Date       | SHA                                        | Verdict                 | Exact re-sign evidence                                                                                 |
-| -------------------------- | ---------- | ------------------------------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------ |
-| waterfall-specialist       | 2026-07-30 | `d2b39f7db476ca8a7497b21688c79e1178a6a352` | GO (pre-terminal scope) | 12 focused files, 205/205 tests; Phoenix 328/328; `npm run check` exit 0; lint and guardrails pass     |
-| phoenix-precision-guardian | 2026-07-30 | `d2b39f7db476ca8a7497b21688c79e1178a6a352` | GO (pre-terminal scope) | 51/51 focused precision tests; corrected-account pins, event ordering, Decimal LRM, conservation clean |
-| terminal repair re-sign    | 2026-07-30 | pending                                    | PENDING                 | Exact-SHA waterfall and precision re-signs required                                                    |
+| Specialist                 | Date       | Exact contract SHA                         | Verdict | Exact re-sign evidence                                                                                       |
+| -------------------------- | ---------- | ------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------ |
+| waterfall-specialist       | 2026-07-30 | `4b20e07c7e431042fe0a25241687259cf38c33b9` | GO      | 14 focused files, 292/292 tests; Phoenix 328/328; `npm run check` 0 errors; lint and guardrails pass         |
+| phoenix-precision-guardian | 2026-07-30 | `4b20e07c7e431042fe0a25241687259cf38c33b9` | GO      | 7 focused files, 173/173 tests; terminal 76/76, precision 51/51, Phoenix 328/328; check/lint/guardrails pass |
 
 Blocker B3 (vehicle-scoped basis) does not block single-vehicle funds; it
 runtime-gates SPV-bearing funds via `MAIN_FUND_SCOPED_FORECAST_UNAVAILABLE`.
@@ -103,9 +100,8 @@ with clean production schema audit and no DDL, staged inspect locator
 tests, and successful GitHub production deployment `5679938936`. Issue
 [#1179](https://github.com/nikhillinit/Updog_restore/issues/1179) closed
 2026-07-30. This removed one release blocker but did not independently open the
-Task 16.3 implementation gate. The prior exact-SHA dual-specialist ratification
-opened the pre-terminal lane; the terminal repair temporarily closes it until
-fresh exact-SHA dual-specialist re-sign.
+Task 16.3 implementation gate. The exact-SHA dual-specialist ratification
+recorded above opens the scoped WP-L2/WP-L3/WP-L4 implementation lane.
 
 ## D1. Fidelity posture: A+ (indicative float64 core, hardened boundaries)
 
@@ -308,6 +304,11 @@ request_hash, created_at, created_by
   `TERMINAL_BEFORE_CUTOVER`. Frozen typed-error precedence is persisted
   pair/version, cutover chronology, short horizon, then exact-point
   representability.
+- WP-L3 must route every terminal pair write and readback through the exported
+  policy projection/match helpers before runtime validation; a raw date-shaped
+  value is not authoritative. WP-L2 must supply `amountUsd` for every
+  value-bearing post-term class so negative and exact-zero policies cannot be
+  bypassed by omission.
 - Terminal modes (repo-style literals), both required in WP-L2:
   `liquidate_at_horizon | hold_unrealized`.
 - `liquidate_at_horizon` exact ordering: (1) process normal terminal-quarter
@@ -527,6 +528,13 @@ numerical trust. Float64 waterfall path caps at `indicative` with
   failure and run id rather than re-executing); concurrent identical and
   concurrent changed-preimage requests are acceptance fixtures, not
   implementation details.
+- Financial-facts snapshot compatibility note: contract SHA
+  `4b20e07c7e431042fe0a25241687259cf38c33b9` changes its command hash from
+  mutable resolved-roster/selection identity to stable client-authoritative
+  fields and replays before mutable reads. An idempotency key persisted by the
+  earlier hash can fail closed with `409 IDEMPOTENCY_KEY_REUSE` on a
+  cross-deployment retry. No stored response is changed or silently accepted;
+  inspect the existing snapshot before issuing a new key.
 - REVIEW-ADDED persistence acceptance invariants (freeze before L3): exactly one
   `INTERNAL_LP_ECONOMICS` result snapshot per completed run; no result snapshot
   for a `failed` run; exactly one persisted `unavailable` snapshot for a
@@ -906,8 +914,7 @@ HTTP 409                     idempotency key reuse with changed preimage
 ```text
 COMPLETE:           characterization PR | accepted spec + ADR-065 | five briefs
                     B1 opening-state source bridge | B2 zero-fee bridge
-RE-SIGN PENDING:    terminal-policy repair exact-SHA specialist review
-AFTER GO:           WP-L2 compiler + state machine
+IMPLEMENTATION GO: WP-L2 compiler + state machine
                     WP-L3 service + owned persistence/migrations
                     WP-L4 restricted routes
                     V1 integration (indicative-capped, single-vehicle funds)
