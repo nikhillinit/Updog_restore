@@ -659,8 +659,11 @@ characterization (GO now; pins L-DEF-1 as legacy behavior)
   -> specialist-reviewed compound hurdle (schema V1.1)
 ```
 
-Never combine numeric migration with new waterfall behavior. Until Decimal
-certification lands, integrated results remain `indicative` with
+Never combine numeric migration with new hurdle semantics or another unreviewed
+waterfall-behavior change. The E1-ratified correction of L-DEF-1
+unreturned-capital accounting is the named exception and requires the recorded
+engine/methodology version change plus dual-pinned old-vs-new fixtures. Until
+Decimal certification lands, integrated results remain `indicative` with
 `FLOAT64_WATERFALL_PATH`.
 
 Readiness-only executable proofs now freeze three seams without implementing a
