@@ -24,6 +24,7 @@ type WorkflowJob = {
     };
   };
   environment?: string;
+  if?: string;
   needs?: string | string[];
   outputs?: Record<string, unknown>;
   ['runs-on']?: string | string[];
@@ -3525,6 +3526,42 @@ describe('required CI fails closed', () => {
     const normalizedDeepScanNeeds =
       typeof deepScanNeeds === 'string' ? [deepScanNeeds] : (deepScanNeeds ?? []);
     expect(normalizedDeepScanNeeds).toContain('dependency-check');
+  });
+
+  it('runs Security Deep Scan fully only for relevant paths or explicit full-scan events', async () => {
+    const workflow = await readWorkflow('security-scan.yml');
+    const changes = workflow.jobs?.changes;
+    expect(changes?.outputs?.security_relevant).toBe(
+      "${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || steps.filter.outputs.security_relevant == 'true' }}"
+    );
+    for (const jobName of [
+      'filesystem-scan',
+      'container-scan',
+      'license-check',
+      'dependency-check',
+      'sbom',
+    ]) {
+      expect(workflow.jobs?.[jobName]?.if).toBe(
+        "needs.changes.outputs.security_relevant == 'true'"
+      );
+    }
+    const aggregate = workflow.jobs?.['security-scan'];
+    expect(aggregate?.if).toBe('always()');
+    expect(normalizeNeeds(aggregate?.needs)).toEqual(
+      expect.arrayContaining([
+        'changes',
+        'filesystem-scan',
+        'container-scan',
+        'license-check',
+        'dependency-check',
+        'sbom',
+      ])
+    );
+    const aggregateScript = (aggregate?.steps ?? [])
+      .flatMap((step) => (typeof step.run === 'string' ? [step.run] : []))
+      .join('\n');
+    expect(aggregateScript).toContain('Change detection failed');
+    expect(aggregateScript).toContain('security deep scan skipped');
   });
 
   it('runs secret scanning inside the required CI aggregator', async () => {
