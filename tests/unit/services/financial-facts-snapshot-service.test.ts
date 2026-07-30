@@ -1,13 +1,16 @@
+import { createHash } from 'node:crypto';
+
 import type { SQL } from 'drizzle-orm';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 
 import type { db } from '../../../server/db';
+import { IdempotentCommandError } from '../../../server/lib/idempotent-command';
 import { buildFinancialFactsSnapshot } from '../../../server/services/financial-facts-snapshot-service';
 import { buildSelectionSetHash } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { funds } from '../../../shared/schema/fund';
 import { financialFactsSnapshots } from '../../../shared/schema/financial-facts-snapshots';
-import { sourceObservations } from '../../../shared/schema/financial-observations';
+import { sourceArtifacts, sourceObservations } from '../../../shared/schema/financial-observations';
 import { investmentRoundModelOverrides } from '../../../shared/schema/investment-round-model-overrides';
 import { investmentRounds } from '../../../shared/schema/investment-rounds';
 import {
@@ -26,6 +29,28 @@ import {
 
 type SnapshotDatabase = typeof db;
 const OBSERVATION_HASH = 'a'.repeat(64);
+const OPENING_STATE_OBSERVATION = {
+  contractVersion: 'fund-accounting-state-observation/1.0.0',
+  cutoverInstant: '2026-06-30T23:59:59.123456Z',
+  currency: 'USD',
+  cashBalanceUsd: '100.000000',
+  cumulativeLpPaidInUsd: '80.000000',
+  cumulativeGpPaidInUsd: '20.000000',
+  lpUnreturnedContributedCapitalUsd: '70.000000',
+  gpUnreturnedContributedCapitalUsd: '15.000000',
+  lpDistributionsReturnOfCapitalUsd: '10.000000',
+  lpDistributionsProfitUsd: '5.000000',
+  actualLpDistributionsCumulativeUsd: '15.000000',
+  gpInvestmentDistributionsPaidUsd: '2.000000',
+  gpCarryPaidUsd: '1.000000',
+  accruedPreferredReturnUsd: '0.000000',
+  accruedPreferredReturnThroughInstant: '2026-06-30T23:59:59.123456Z',
+  recallableDistributionsCumulativeUsd: '4.000000',
+  recallableDistributionsOutstandingUsd: '3.000000',
+  recycledProceedsCumulativeUsd: '6.000000',
+  realizedProceedsCumulativeUsd: '21.000000',
+  methodologyVersion: 'opening-state-methodology/1.0.0',
+} as const;
 
 function queryRows<T>(rows: T[]) {
   const query: {
@@ -82,6 +107,21 @@ function acceptedObservation(overrides: Record<string, unknown> = {}): Record<st
   };
 }
 
+function openingStateArtifact(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  const payload = Buffer.from(JSON.stringify(OPENING_STATE_OBSERVATION), 'utf8');
+  return {
+    id: 42,
+    fundId: 1,
+    sourceType: 'manual',
+    mediaType: 'application/json',
+    payloadSha256: createHash('sha256').update(payload).digest('hex'),
+    payload,
+    purgedAt: null,
+    createdAt: new Date('2026-06-30T23:59:59.500Z'),
+    ...overrides,
+  };
+}
+
 class FakeSnapshotDb {
   readonly fundRows = [{ id: 1, baseCurrency: 'USD' }];
   readonly companyRows: Array<Record<string, unknown>> = [];
@@ -93,6 +133,7 @@ class FakeSnapshotDb {
   readonly valuationMarkReads: Array<Array<Record<string, unknown>>> = [];
   readonly markRows: Array<Record<string, unknown>> = [];
   readonly sourceObservationRows: Array<Record<string, unknown>> = [];
+  readonly sourceArtifactRows: Array<Record<string, unknown>> = [];
   readonly latestSelectionRows: Array<Record<string, unknown>> = [];
   readonly positionRefRows: Array<Record<string, unknown>> = [];
   readonly participationTermRefRows: Array<Record<string, unknown>> = [];
@@ -103,6 +144,7 @@ class FakeSnapshotDb {
   readonly snapshotRows: Array<Record<string, unknown>> = [];
   readonly executedStatements: SQL[] = [];
   readonly valuationMarkWhereClauses: Array<{ sql: string; params: unknown[] }> = [];
+  readonly sourceArtifactWhereClauses: Array<{ sql: string; params: unknown[] }> = [];
   readonly transactionConfigs: Array<Record<string, unknown>> = [];
   readonly snapshotInsertAttempts: Array<Record<string, unknown>> = [];
   ownershipRows: Array<Record<string, unknown>> | null = null;
@@ -191,6 +233,16 @@ class FakeSnapshotDb {
               }
               return queryRows(filtered);
             }
+            if (table === sourceArtifacts) {
+              const rendered = new PgDialect().sqlToQuery(condition as SQL);
+              this.sourceArtifactWhereClauses.push(rendered);
+              return queryRows(
+                rows.filter(
+                  (row) =>
+                    rendered.params.includes(row['id']) && rendered.params.includes(row['fundId'])
+                )
+              );
+            }
             return queryRows(rows);
           },
         };
@@ -238,6 +290,7 @@ class FakeSnapshotDb {
     if (table === cashFlowEvents) return this.cashRows;
     if (table === valuationMarks) return this.valuationMarkReads.shift() ?? this.markRows;
     if (table === sourceObservations) return this.sourceObservationRows;
+    if (table === sourceArtifacts) return this.sourceArtifactRows;
     if (table === financialFactsSnapshots) return this.snapshotRows;
     return [];
   }
@@ -380,15 +433,15 @@ describe('buildFinancialFactsSnapshot', () => {
     delete legacyComparablePayload['ownershipRefs'];
     delete legacyComparablePayload['valuationRefs'];
     delete legacyComparablePayload['observationRefs'];
-    expect(
-      serializeCorpusValue({
-        ...snapshot,
-        payloadSchemaId: undefined,
-        policyVersion: expectedSnapshot['policyVersion'],
-        snapshotInputHash: expectedSnapshot['snapshotInputHash'],
-        payload: legacyComparablePayload,
-      })
-    ).toEqual(expectedSnapshot);
+    delete legacyComparablePayload['openingAccountingState'];
+    const legacyComparableSnapshot: Record<string, unknown> = {
+      ...snapshot,
+      policyVersion: expectedSnapshot['policyVersion'],
+      snapshotInputHash: expectedSnapshot['snapshotInputHash'],
+      payload: legacyComparablePayload,
+    };
+    delete legacyComparableSnapshot['payloadSchemaId'];
+    expect(serializeCorpusValue(legacyComparableSnapshot)).toEqual(expectedSnapshot);
     expect(serializeCorpusValue(legacyComparablePayload.cashFlowSeries)).toEqual(
       loadCorpusExpected('expected-cash-flows/financial-facts-cash-flow-series.json')
     );
@@ -407,6 +460,142 @@ describe('buildFinancialFactsSnapshot', () => {
         idempotencyKey: 'snapshot-cutoff-rejected',
       })
     ).rejects.toMatchObject({ status: 400, code: 'CUTOFF_NOT_ACCEPTED' });
+  });
+
+  it('emits payload 3 with a null opening state when no artifact id is supplied', async () => {
+    const fakeDb = new FakeSnapshotDb();
+
+    const snapshot = await buildFinancialFactsSnapshot({
+      fundId: 1,
+      asOfDate: '2026-06-30',
+      actorId: 7,
+      idempotencyKey: 'snapshot-no-opening-state',
+      database: fakeDb.asDatabase(),
+      now: new Date('2026-07-22T01:42:44.186Z'),
+    });
+
+    if (snapshot.policyVersion !== 'financial-facts-policy/1.2.0') {
+      throw new Error(`Expected payload 3 snapshot, received ${snapshot.policyVersion}`);
+    }
+    expect(snapshot.payloadSchemaId).toBe('financial-facts-payload/3');
+    expect(snapshot.payload.openingAccountingState).toBeNull();
+    expect(fakeDb.sourceArtifactWhereClauses).toHaveLength(0);
+  });
+
+  it('preserves the payload 3 schema id when reconstructing an exact replay', async () => {
+    const fakeDb = new FakeSnapshotDb();
+    const input = {
+      fundId: 1,
+      asOfDate: '2026-06-30',
+      actorId: 7,
+      idempotencyKey: 'snapshot-v3-reconstruction',
+      database: fakeDb.asDatabase(),
+      now: new Date('2026-07-22T01:42:44.186Z'),
+    };
+
+    const created = await buildFinancialFactsSnapshot(input);
+    const replayed = await buildFinancialFactsSnapshot(input);
+
+    expect(replayed).toEqual(created);
+    expect(replayed).toMatchObject({
+      policyVersion: 'financial-facts-policy/1.2.0',
+      payloadSchemaId: 'financial-facts-payload/3',
+    });
+  });
+
+  it('pins the exact selected artifact ref into payload 3', async () => {
+    const fakeDb = new FakeSnapshotDb();
+    const artifact = openingStateArtifact();
+    fakeDb.sourceArtifactRows.push(artifact);
+
+    const snapshot = await buildFinancialFactsSnapshot({
+      fundId: 1,
+      asOfDate: '2026-06-30',
+      openingAccountingStateArtifactId: 42,
+      actorId: 7,
+      idempotencyKey: 'snapshot-opening-state',
+      database: fakeDb.asDatabase(),
+      now: new Date('2026-07-22T01:42:44.186Z'),
+    });
+
+    if (snapshot.policyVersion !== 'financial-facts-policy/1.2.0') {
+      throw new Error(`Expected payload 3 snapshot, received ${snapshot.policyVersion}`);
+    }
+    expect(snapshot.payload.openingAccountingState).toEqual({
+      sourceArtifactId: 42,
+      sourceArtifactSha256: artifact['payloadSha256'],
+      sourceArtifactCreatedAt: '2026-06-30T23:59:59.500Z',
+      attestedByActorId: 7,
+      observation: OPENING_STATE_OBSERVATION,
+    });
+  });
+
+  it('selects an opening-state artifact by composite fund and id', async () => {
+    const fakeDb = new FakeSnapshotDb();
+    fakeDb.sourceArtifactRows.push(openingStateArtifact({ fundId: 2 }));
+
+    await expect(
+      buildFinancialFactsSnapshot({
+        fundId: 1,
+        asOfDate: '2026-06-30',
+        openingAccountingStateArtifactId: 42,
+        actorId: 7,
+        idempotencyKey: 'snapshot-cross-fund-opening-state',
+        database: fakeDb.asDatabase(),
+        now: new Date('2026-07-22T01:42:44.186Z'),
+      })
+    ).rejects.toMatchObject({
+      status: 404,
+      code: 'OPENING_ACCOUNTING_STATE_ARTIFACT_NOT_FOUND',
+    });
+    expect(fakeDb.sourceArtifactWhereClauses).toHaveLength(1);
+    expect(fakeDb.sourceArtifactWhereClauses[0]?.sql).toMatch(/source_artifacts.*id.*fund_id/);
+    expect(fakeDb.sourceArtifactWhereClauses[0]?.params).toEqual(expect.arrayContaining([42, 1]));
+  });
+
+  it('changes snapshot identity and rejects idempotency replay when artifact id changes', async () => {
+    const leftDb = new FakeSnapshotDb();
+    const rightDb = new FakeSnapshotDb();
+    leftDb.sourceArtifactRows.push(openingStateArtifact({ id: 42 }));
+    rightDb.sourceArtifactRows.push(openingStateArtifact({ id: 43 }));
+    const input = {
+      fundId: 1,
+      asOfDate: '2026-06-30',
+      actorId: 7,
+      now: new Date('2026-07-22T01:42:44.186Z'),
+    };
+
+    const left = await buildFinancialFactsSnapshot({
+      ...input,
+      openingAccountingStateArtifactId: 42,
+      idempotencyKey: 'snapshot-artifact-left',
+      database: leftDb.asDatabase(),
+    });
+    const right = await buildFinancialFactsSnapshot({
+      ...input,
+      openingAccountingStateArtifactId: 43,
+      idempotencyKey: 'snapshot-artifact-right',
+      database: rightDb.asDatabase(),
+    });
+    expect(right.snapshotInputHash).not.toBe(left.snapshotInputHash);
+
+    leftDb.sourceArtifactRows.push(openingStateArtifact({ id: 43 }));
+    await expect(
+      buildFinancialFactsSnapshot({
+        ...input,
+        openingAccountingStateArtifactId: 43,
+        idempotencyKey: 'snapshot-artifact-left',
+        database: leftDb.asDatabase(),
+      })
+    ).rejects.toBeInstanceOf(IdempotentCommandError);
+    await expect(
+      buildFinancialFactsSnapshot({
+        ...input,
+        openingAccountingStateArtifactId: 43,
+        idempotencyKey: 'snapshot-artifact-left',
+        database: leftDb.asDatabase(),
+      })
+    ).rejects.toMatchObject({ status: 409, code: 'IDEMPOTENCY_KEY_REUSE' });
   });
 
   it('includes only cash-flow facts effective on or before the as-of date', async () => {
@@ -492,7 +681,7 @@ describe('buildFinancialFactsSnapshot', () => {
     ).rejects.toMatchObject({
       status: 422,
       code: 'VEHICLE_SCOPE_UNSUPPORTED',
-      message: 'Policy 1.1.0 supports only the complete fund vehicle roster.',
+      message: 'Policy 1.2.0 supports only the complete fund vehicle roster.',
     });
 
     const accepted = await buildFinancialFactsSnapshot({

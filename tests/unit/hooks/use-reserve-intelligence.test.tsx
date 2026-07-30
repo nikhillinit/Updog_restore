@@ -136,4 +136,14 @@ describe('useReserveIntelligence', () => {
     }
     expect(result.current.data.run).toEqual(run);
   });
+
+  it('accepts a payload 3 facts snapshot', async () => {
+    const run = makeReserveIntelligenceRun('financial-facts-policy/1.2.0');
+    fetchMock.mockResolvedValue(jsonResponse(run));
+
+    const { result } = renderHook(() => useReserveIntelligence(7), { wrapper });
+
+    await waitFor(() => expect(result.current.data?.kind).toBe('ready'));
+    expect(result.current.error).toBeNull();
+  });
 });

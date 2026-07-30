@@ -1,42 +1,49 @@
 # Task 16.3 Scoping: Internal LP Economics deal_by_deal Slice (PLAN_61 Wave F)
 
-Date: 2026-07-30 Status: Proposed (scoping output; implementation split-gated)
-Source contract: GitHub issue #1176 Task 16.3 combined text, deal_by_deal slice
-only. Provenance: 10-question scoping interview (grilling protocol), every
-decision user-ratified 2026-07-30; every code citation below verified against
-the live repository at `main` = `6dda7c19`, not taken from plan docs or the
-knowledge graph (which correctly refused authority on a stale workspace hash).
-Companion ADR: ADR-065 in `DECISIONS.md` (narrow durable choices only; this spec
-holds the detail).
+Date: 2026-07-30 Status: Accepted (scoped production implementation GO) Source
+contract: GitHub issue #1176 Task 16.3 combined text, deal_by_deal slice only.
+Provenance: 10-question scoping interview (grilling protocol), every decision
+user-ratified 2026-07-30; every code citation below verified against the live
+repository at `main` = `6dda7c19`, not taken from plan docs or the knowledge
+graph (which correctly refused authority on a stale workspace hash). Companion
+ADR: ADR-065 in `DECISIONS.md` (narrow durable choices only; this spec holds the
+detail).
 
-## Verdict: split gate
+Ratification: waterfall-specialist and Phoenix precision-guardian independently
+re-signed GO on 2026-07-30 against exact SHA
+`d2b39f7db476ca8a7497b21688c79e1178a6a352`.
 
-**GO (ungated, may start now):**
+## Verdict: scoped production implementation GO
 
-1. Tests-only L1 characterization PR pinning existing-ledger behavior on
-   supported inputs: ROC ordering, residual carry, partial ROC, multiple exits,
-   no-hurdle behavior, conservation. No service, route, persistence, or
-   decision-grade claims.
-2. This spec plus narrow ADR-065.
-3. Five briefs (section "Briefs" below): opening-cash facts, exact fee-vector
-   bridge, immutable capital envelope, vehicle-scoped forecast, compound-hurdle
-   semantics.
+**GO scope:**
 
-**NO-GO (blocked until reconsideration conditions clear):**
+1. WP-L2 quarterly fee/expense compiler and cash-assembly state machine.
+2. WP-L3 basis resolution, service, lineage, idempotency, and atomic
+   persistence.
+3. WP-L4 manifest-registered restricted internal-investment analytics routes.
+4. Schema migrations only inside reviewed implementation PRs owned by the work
+   package that consumes them.
 
-- Production L2 integration, L3 service/persistence, L4 routes, any migration,
-  and any `available` result.
+GO authorizes implementation only. It does not authorize deployment, activation,
+production traffic, or claim feature availability. No production internal LP
+economics engine exists at ratification. `available` remains
+typed-but-unreachable until a certified Decimal-native money core exists.
 
-**Reconsider after ALL of:**
+**Completed readiness evidence:**
 
-- Authoritative opening cash lands in pinned facts (Blocker B1).
-- Exact fee/no-double-count proof or typed incompatibility (Blocker B2).
-- Immutable capital-envelope design complete.
+- Authoritative opening cash and opening waterfall state land in pinned facts
+  through the attested source-artifact bridge (Blocker B1).
+- Exact zero-fee/no-double-count proof and typed rejection for every nonzero,
+  absent, or ambiguous fee/expense input are implemented (Blocker B2).
+- Immutable capital-envelope design is complete; persistence belongs only in its
+  reviewed owning WP-L3 implementation PR.
 - Decimal no-hurdle parity decision made (see D10 sequencing). RESOLVED
   (user-ratified 2026-07-30, escalation E1): the Decimal core CORRECTS
   unreturned-capital accounting — not a parity migration.
-- Release-schema-audit remediation resolved (GitHub issue #1179) — gates all
-  migration-bearing work.
+- Release-schema-audit remediation resolved (GitHub issue #1179). RESOLVED: PRs
+  #1247/#1248 and exact-SHA release proof are recorded below. This removes the
+  release blocker but did not independently open the production implementation
+  gate.
 - REVIEW-ADDED (2026-07-30): ledger unreturned-capital semantic disposition made
   (defect L-DEF-1, see D10) — parity-with-legacy vs corrected capital accounting
   decides what the Decimal core certifies. RESOLVED (user-ratified 2026-07-30,
@@ -44,31 +51,55 @@ holds the detail).
   change with dual-pinned old-vs-new fixtures.
 - REVIEW-ADDED: authoritative opening waterfall state and actual/projected
   cutover semantics defined (Brief 1, extended).
-- REVIEW-ADDED: rounding contract frozen (mode, timing, residual-cent recipient,
-  dual conservation — see D9). RESOLVED (user-ratified 2026-07-30, escalation
-  E7): D9's proposed values ratified; contract frozen.
+- REVIEW-ADDED: rounding contract frozen (mode, presentation boundary,
+  hierarchical exact-Decimal LRM, dual conservation — see D9). RESOLVED
+  (user-ratified 2026-07-30, escalation E7) and reconciled by the governance
+  freeze after the former specialist NO-GO review.
 - REVIEW-ADDED: forecast realization granularity resolved (quarterly aggregates
   vs per-event exits at the basis boundary — Brief 4, extended).
+- RATIFICATION SATISFIED: clean waterfall-specialist and Phoenix
+  precision-guardian re-signs both returned GO on exact SHA
+  `d2b39f7db476ca8a7497b21688c79e1178a6a352` after reviewing the reconciled
+  contracts.
+
+| Specialist                 | Date       | SHA                                        | Verdict | Exact re-sign evidence                                                                                 |
+| -------------------------- | ---------- | ------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------ |
+| waterfall-specialist       | 2026-07-30 | `d2b39f7db476ca8a7497b21688c79e1178a6a352` | GO      | 12 focused files, 205/205 tests; Phoenix 328/328; `npm run check` exit 0; lint and guardrails pass     |
+| phoenix-precision-guardian | 2026-07-30 | `d2b39f7db476ca8a7497b21688c79e1178a6a352` | GO      | 51/51 focused precision tests; corrected-account pins, event ordering, Decimal LRM, conservation clean |
 
 Blocker B3 (vehicle-scoped basis) does not block single-vehicle funds; it
 runtime-gates SPV-bearing funds via `MAIN_FUND_SCOPED_FORECAST_UNAVAILABLE`.
+SPV/co-invest-bearing funds remain runtime-ineligible.
 
-Reachability (review finding, verified 2026-07-30): composing this spec's own
-gates, NO currently-persisted fund can produce a value-bearing result today. B1
-alone makes every run `unavailable` (no cash-balance field exists in any facts
-snapshot); B2 independently does the same; and `defaultWaterfall`
-(`shared/lib/economics/economics-engine.ts:276-283`) seeds an 8 percent
-compounded hurdle plus `clawbackEnabled: true` into every defaulted config, so
-default-seeded funds refuse at policy seed (`HURDLE_BASIS_UNSUPPORTED`,
-`CLAWBACK_UNSUPPORTED`). Even after B1/B2 land, results cap at `indicative`
-(`FLOAT64_WATERFALL_PATH`) until the Decimal core certifies. V1 as specified is
-a refusal-and-unavailability machine plus a characterization lane. That is the
-intended fail-closed posture — stated here so nobody infers a value-serving V1.
-The `available | indicative` schema member is typed but UNREACHABLE in V1;
+Historical reachability finding (verified before readiness implementation on
+2026-07-30): composing the original gates, no then-persisted fund could produce
+a value-bearing result. B1 alone made every run `unavailable` (no cash-balance
+field existed in any facts snapshot); B2 independently did the same; and
+`defaultWaterfall` (`shared/lib/economics/economics-engine.ts:276-283`) seeds an
+8 percent compounded hurdle plus `clawbackEnabled: true` into every defaulted
+config, so default-seeded funds refuse at policy seed
+(`HURDLE_BASIS_UNSUPPORTED`, `CLAWBACK_UNSUPPORTED`). B1 and the zero-fee B2
+bridge now exist, but no production engine exists at ratification. A future
+implemented float64 path still caps at `indicative` (`FLOAT64_WATERFALL_PATH`),
+and nonzero, absent, or ambiguous fees/expenses remain runtime-ineligible. The
+`available` schema member is typed but UNREACHABLE pending certification;
 consumers must not branch on availability before Decimal certification
 (escalation E5 resolved 2026-07-30: user ratified keeping `available`
 typed-but-unreachable in schema V1 — no omission, no version bump needed when
 certification lands).
+
+Release evidence (verified 2026-07-30): PRs
+[#1247](https://github.com/nikhillinit/Updog_restore/pull/1247) and
+[#1248](https://github.com/nikhillinit/Updog_restore/pull/1248) merged.
+[Run 30567774563](https://github.com/nikhillinit/Updog_restore/actions/runs/30567774563)
+completed successfully for exact SHA `068430726a0d1d297d50e93be36a67f90238a26a`,
+with clean production schema audit and no DDL, staged inspect locator
+`5fB4SsnPTmF76xw13nRQhwFf55jb`, 12/12 staged smoke tests, 12/12 production smoke
+tests, and successful GitHub production deployment `5679938936`. Issue
+[#1179](https://github.com/nikhillinit/Updog_restore/issues/1179) closed
+2026-07-30. This removed one release blocker but did not independently open the
+Task 16.3 implementation gate. The exact-SHA dual-specialist ratification
+recorded above opened the scoped WP-L2/WP-L3/WP-L4 implementation lane.
 
 ## D1. Fidelity posture: A+ (indicative float64 core, hardened boundaries)
 
@@ -96,10 +127,11 @@ certification lands).
   cents on a 100M fund; the material risks are unit errors (100x+), hurdle
   time-basis (tens of millions over 10y), catch-up omission (~1M-scale),
   terminal policy (up to half of TVPI). Hence: branded unit types on every
-  input, documented round-to-cents policy at each ratio-split point
-  (integer-cents precedent: `shared/core/capitalAllocation`), conservation
-  assertions that fail the run, truth cases pinned exactly on post-rounding
-  string outputs.
+  input; full-precision entitlement, threshold, and accounting-state math;
+  hierarchical exact-Decimal LRM only after each emitted event total is
+  HALF_UP-rounded to cents at the presentation boundary; conservation assertions
+  that fail the run; truth cases pinned on both full-precision and emitted-cent
+  results. Rounded presentation never feeds accounting state.
 - No catch-up math in V1; no Decimal refactor of the shared ledger in PR-1 (see
   D10 sequencing for the Decimal path).
 - Issue #1176 exit-gate wording ("genuine Decimal-derived boundaries") is
@@ -188,7 +220,8 @@ request_hash, created_at, created_by
   fail-open timeline readers today. Follow-up worth filing: a lint/source gate
   on any new `fund_snapshots` query lacking the denylist filter (repo precedent:
   the decimal-string-laundering and legacy-calculation-consumers guards).
-- All migration-bearing work above is gated by issue #1179.
+- Migration-bearing work above proceeds only in the reviewed owning
+  implementation PR; #1179 no longer blocks it.
 
 ## D4. Policy waterfall semantics: catch-up and hurdle
 
@@ -316,20 +349,27 @@ request_hash, created_at, created_by
   `periodStart` or prior quarter-end; fee/expense true-up at `periodEnd`. The
   cash recurrence explicitly orders: opening cash, calls, deployments, fees,
   expenses, proceeds, distributions, ending cash. Fee-transition fixture
-  mandatory. REVIEW-ADDED: this coarse ordering must be frozen as a VERSIONED
-  event-priority table before L2 (candidate shape: opening state,
-  beginning-of-period calls, deployments, timestamped actual activity, projected
-  exits by stable forecast event id, fee/expense true-up, waterfall
-  distributions, terminal realization, ending state), with same-instant
-  tie-breaking (event-class priority, then source timestamp, then stable source
-  id), hashed into the methodology version, and exercised by permutation
-  fixtures. Also note a SECOND fee channel exists upstream:
-  `derive-current-plan-v1.ts:140-145` already reduces deployable capital by the
-  compiled drag (`fundSize x (1 - annualDrag x horizonYears)`) — Brief 2's
-  identity must prove each fee dollar appears exactly once across
-  deployable-capital reduction, forecast NAV drag, and economics cash assembly
-  (one review asserts the forecast already double-burdens fees across these
-  channels; unproven — exactly what the identity settles).
+  mandatory. Event ordering is frozen as
+  `internal-economics-event-ordering/1.0.0`, with canonical key
+  `(effectiveAt, eventClassPriority, stableSourceId)` and priority table:
+  `lp_capital_call=1`, `portfolio_investment=2`, `fund_expense=3`,
+  `realized_proceeds=4`, `lp_distribution=5`, `recallable_distribution=6`.
+  Persisted facts already contain `eventType`, `effectiveAt`, and `eventId`;
+  facts `eventClassPriority` derives from `eventType`, and facts
+  `stableSourceId` derives post-insert as
+  `facts:<snapshotId>:cash_flow_event:<eventId>`. Neither derived field is
+  persisted redundantly. Forecast uses canonical type
+  `forecast_quarterly_distribution`, priority `4`, stable key
+  `forecast:<id>:quarter:<periodEnd>:forecast_quarterly_distribution`, and
+  `effectiveAt=<periodEnd>T23:59:59.999Z`. The methodology version pins this
+  derivation and permutation fixtures prove it. Also note a SECOND fee channel
+  exists upstream: `derive-current-plan-v1.ts:140-145` already reduces
+  deployable capital by the compiled drag
+  (`fundSize x (1 - annualDrag x horizonYears)`) — Brief 2's identity must prove
+  each fee dollar appears exactly once across deployable-capital reduction,
+  forecast NAV drag, and economics cash assembly (one review asserts the
+  forecast already double-burdens fees across these channels; unproven — exactly
+  what the identity settles).
 - Envelope enforcement: reject-never-clamp. Use the LEGAL capital-envelope
   version (LP/GP/total components), NOT forecast-derived `committedCapitalUsd`.
   `COMMITTED_CAPITAL_EXCEEDED` context reports the first violating quarter,
@@ -533,12 +573,14 @@ NAV is a stock, outside the cash recurrence.
   corrected-accounting Decimal core WILL maintain that account and emits them
   once certified), `grossProceedsUsd`, `lpCapitalReturnUsd`, `lpProfitShareUsd`,
   `gpInvestmentDistributionUsd`, `gpCarryUsd`,
-  `eventKind: forecast_exit | terminal_realization` (documented as modeled
-  forward events, not historical LP distributions). V1 is clawback-free per
-  issue. Event conservation: gross = LP capital return + LP profit share + GP
-  investment distribution + GP carry. Quarterly/event reconciliation identities
-  are enforced; events are DECOMPOSITION only — consumers must not sum both
-  arrays as separate cashflows.
+  `eventKind: forecast_quarterly_distribution | terminal_realization`
+  (documented as modeled forward events, not historical LP distributions).
+  Forecast events use the D6 canonical priority, stable source key, and UTC
+  period-end instant; they are never mislabeled `forecast_exit`. V1 is
+  clawback-free per issue. Event conservation: gross = LP capital return + LP
+  profit share + GP investment distribution + GP carry. Quarterly/event
+  reconciliation identities are enforced; events are DECOMPOSITION only —
+  consumers must not sum both arrays as separate cashflows.
 - Terminal/XIRR exact rules: `liquidate_at_horizon` -> terminal event REQUIRED
   when pre-terminal NAV is positive; final NAV becomes zero; XIRR uses resulting
   distributions only (adding terminal NAV after liquidation double-counts).
@@ -574,18 +616,21 @@ NAV is a stock, outside the cash recurrence.
   units after rounding (post-rounding cents must also conserve); violation at
   either precision -> failed run, no result. No `conservation: false` field
   ever.
-- REVIEW-ADDED rounding contract (REQUIRED before L2; values user-RATIFIED
-  2026-07-30, escalation E7): rounding mode HALF_UP; rounding points (each
-  ratio-split boundary, per D1); residual-cent recipient LP, with deterministic
-  ordering per the integer-cents residual precedent `allocateLRM`
-  (`shared/core/capitalAllocation/allocateLRM.ts` ~L152: Largest Remainder
-  Method in BigInt arithmetic, canonical tie-break remainder DESC then index
-  ASC); tie-breaking, negative-value, and negative-zero normalization; persisted
-  precision (money 6dp at rest matching `NUMERIC(20,6)` and issue #1176 finding
-  P1's field-class table; ratios/rates per that table); and rounding BEFORE
-  threshold comparison so a future hurdle's `>` vs `>=` is deterministic. D1's
-  "round-to-cents at each split point" and the dual conservation rule above are
-  reconciled by this contract.
+- RATIFIED rounding contract (required for L2 acceptance; reconciles the former
+  waterfall and precision NO-GO findings): entitlement, threshold, and
+  accounting-state math remains full precision. No ratio split rounds to cents,
+  and no rounded presentation value participates in threshold comparison or
+  feeds accounting state. HALF_UP converts each emitted event total to integer
+  cents only at the presentation boundary. Hierarchical exact-Decimal LRM first
+  allocates event cents across LP ROC, LP preferred return, and residual, then
+  allocates residual-stage cents across LP residual and GP carry. Each stage
+  floors exact entitlement cents and distributes shortfall by exact Decimal
+  remainder DESC, stable index ASC. Tie contract:
+  `LP is canonical first bucket and wins exact-remainder ties. Otherwise largest exact Decimal remainder wins.`
+  Independently rounding each entitlement is forbidden. Full-precision and
+  emitted-cent conservation both fail closed; money persists at six decimals,
+  ratios/rates at their frozen field scales, negative values reject, and signed
+  zero canonicalizes to zero.
 
 ## D10. Architecture and sequencing
 
@@ -616,7 +661,7 @@ Layering:
 Precision migration is SEPARATED from hurdle semantics:
 
 ```text
-characterization (GO now; pins L-DEF-1 as legacy behavior)
+characterization (complete; pins L-DEF-1 as legacy behavior)
   -> SEMANTIC DISPOSITION (user-RATIFIED 2026-07-30, escalation E1): the
      Decimal core CORRECTS unreturned-capital accounting. This is NOT a
      parity migration: engine + methodology version change, dual-pinned
@@ -629,15 +674,29 @@ characterization (GO now; pins L-DEF-1 as legacy behavior)
   -> specialist-reviewed compound hurdle (schema V1.1)
 ```
 
-Never combine numeric migration with new waterfall behavior. Until Decimal
-certification lands, integrated results remain `indicative` with
+Never combine numeric migration with new hurdle semantics or another unreviewed
+waterfall-behavior change. The E1-ratified correction of L-DEF-1
+unreturned-capital accounting is the named exception and requires the recorded
+engine/methodology version change plus dual-pinned old-vs-new fixtures. Until
+Decimal certification lands, integrated results remain `indicative` with
 `FLOAT64_WATERFALL_PATH`.
 
+Readiness executable proofs freeze three seams without implementing a production
+engine at ratification: the hierarchical presentation oracle in
+`tests/unit/truth-cases/helpers/task163-presentation-rounding-oracle.ts`; exact
+same-input corrected counterparts for `LEGACY-04` and `LEGACY-05` in
+`docs/waterfall-corrected-capital-account.truth-cases.json`; and the derived
+event-order contract in
+`shared/contracts/internal-economics/event-ordering-v1.contract.ts`. These are
+test/contract artifacts, not L2 assembly. Atomic run/result persistence,
+idempotency races, and failure rollback remain mandatory WP-L3 implementation
+acceptance.
+
 REVIEW-ADDED work-package naming (replaces the ambiguous "PR-1" label): WP-CHAR
-(GO characterization PR), WP-DECIMAL (semantic disposition + Decimal track),
-WP-L2 (compiler + state machine), WP-L3 (service/persistence), WP-L4 (routes).
-Where this document says "PR-1" it means the first gated integration package
-(WP-L2 onward) unless it explicitly names the characterization PR.
+(completed characterization PR), WP-DECIMAL (semantic disposition + Decimal
+track), WP-L2 (compiler + state machine), WP-L3 (service/persistence), WP-L4
+(routes). Where this document says "PR-1" it means the first gated integration
+package (WP-L2 onward) unless it explicitly names the characterization PR.
 
 REVIEW-RESOLVED wave order (user-ratified 2026-07-30, escalation E2): a review
 claimed this Decimal-ledger track contradicts R34-i's "seam ships with its first
@@ -739,7 +798,11 @@ HTTP 409                     idempotency key reuse with changed preimage
   IDs `LEGACY-01...`, header stating they encode legacy behavior and are NOT
   product truth); existing L01-L14 stay untouched so the legacy pins can never
   become a de facto product oracle.
-- Assembly fixtures (WP-L2, when unblocked): fee-base transition,
+- Readiness-only corrected product oracles replay exact `LEGACY-04` and
+  `LEGACY-05` inputs with repaired unreturned-capital accounting. The
+  hierarchical exact-Decimal LRM oracle and versioned event-order permutation
+  contract are also executable. None is a production economics engine.
+- Assembly fixtures (WP-L2 implementation): fee-base transition,
   buffer-triggered early call, envelope-violation rejection; REVIEW-ADDED:
   event-order permutation fixtures against the frozen priority table and
   single-count fee-identity cases (each fee dollar exactly once across both
@@ -761,48 +824,51 @@ HTTP 409                     idempotency key reuse with changed preimage
   TODAY and stays untouched; "zeroed behavior" is #1176's mandate for the new V1
   path, not a description of current pinned behavior.
 - REVIEW-ADDED persistence/API acceptance (WP-L3/L4): concurrent identical and
-  changed-preimage idempotency races, failed-run key consumption replay,
-  wrong-fund and wrong-snapshot-type FK rejection, no orphan snapshots,
-  role-matrix negatives.
+  changed-preimage idempotency races, failed-run key consumption replay, atomic
+  no-result persistence on failure, wrong-fund and wrong-snapshot-type FK
+  rejection, no orphan snapshots, role-matrix negatives. Readiness oracles do
+  not discharge these L3/L4 obligations.
 - The issue's "GP catch-up on/off" fixtures belong to the whole_fund truth-case
   slice (parked on G1) and are replaced in THIS slice by seed-refusal plus
   dormancy-normalization tests (see Deviation register).
 - Ratios-null-before-paid-in; nested resultStatus union shape tests.
 - REVIEW-ADDED rounding fixtures (contract ratified 2026-07-30, escalation E7):
-  dual conservation (full precision AND post-rounding cents), residual-cent
-  determinism, negative-zero normalization, tie cases.
+  dual conservation (full precision AND post-rounding cents), exact-tie LP
+  precedence, larger exact-remainder precedence, sub-1e-7 remainder ordering,
+  negative rejection, and negative-zero normalization.
 - REVIEW-ADDED Decimal-parity track: a float64-vs-Decimal error-bound benchmark
   backing D1's cents-scale estimate.
 
-## Dependency order
+## Ratified implementation sequence
 
 ```text
-NOW (parallel):     characterization PR | this spec + ADR-065 | five briefs
-AFTER BRIEFS:       B1 opening-cash facts work
-                    capital-envelope entity + policy/lineage tables  [gated: #1179]
-                    B2 fee-vector bridge implementation
-THEN:               L2 compiler + state machine (Decimal-native)
-                    L3 service + L4 routes                           [gated: #1179]
+COMPLETE:           characterization PR | accepted spec + ADR-065 | five briefs
+                    B1 opening-state source bridge | B2 zero-fee bridge
+IMPLEMENTATION GO: WP-L2 compiler + state machine
+                    WP-L3 service + owned persistence/migrations
+                    WP-L4 restricted routes
                     V1 integration (indicative-capped, single-vehicle funds)
 PARALLEL TRACK:     Decimal no-hurdle corrected-accounting core (E1)
-                    (after characterization)
-                    -> compound hurdle V1.1 (after specialist sign-off brief)
+                    -> compound hurdle policy schema V1.1
+                       (separately gated despite ratified semantics)
 LATER:              vehicle-scoped basis (unlocks SPV-bearing funds)
                     whole_fund = V2 publish (Task 16.2 primitive; G1 question)
 ```
 
-## Briefs (GO item 3)
+## Completed readiness briefs
 
 ### Brief 1: Authoritative opening cash AND opening waterfall state in facts (extended 2026-07-30)
 
-Question: where does the fund's authoritative cash balance come from, and how
-does it enter the facts snapshot as an observation with as-of provenance?
-Candidates: anchored derivation from the cash-flow event series (requires an
-anchor observation), or a directly observed balance. Constraints: facts remain
-observations-only (D2); warnings taxonomy for staleness. Exit: facts contract
-vNext plus builder emit an opening-cash observation consumable by the economics
-run; `OPENING_CASH_UNAVAILABLE` becomes reachable only on genuinely missing
-data.
+Status: Completed; ratified contract recorded in the companion readiness brief.
+
+Original readiness question: where does the fund's authoritative cash balance
+come from, and how does it enter the facts snapshot as an observation with as-of
+provenance? Candidates: anchored derivation from the cash-flow event series
+(requires an anchor observation), or a directly observed balance. Constraints:
+facts remain observations-only (D2); warnings taxonomy for staleness. Exit:
+facts contract vNext plus builder emit an opening-cash observation consumable by
+the economics run; `OPENING_CASH_UNAVAILABLE` becomes reachable only on
+genuinely missing data.
 
 REVIEW EXTENSION — opening waterfall state and cutover: opening cash alone
 cannot initialize a forward waterfall run. The brief must also resolve the
@@ -825,74 +891,84 @@ participate in the input and result hashes.
 
 ### Brief 2: Exact fee/expense vector bridge
 
-Question: define `effectiveFeeExpenseHash` — the canonical quarterly fee/expense
-dollar vector plus compiler version, application mode, capital base, and horizon
-— and the reconciliation proof that economics-side accrual does not double-count
-the forecast's embedded flat drag. Alternatives: forecast emits gross/pre-fee
-NAV; or an exact fee-drag reconciliation bridge; identity-match (policy fee
-model hash-identical to the plan's flat drag) is necessary but NOT sufficient
-(REVIEW CORRECTION: hash equality proves shared input, not single-count
-application). Constraints: the fee-drag compiler intentionally ignores basis and
-collapses tiers — its output alone can never anchor the hash. REVIEW EXTENSION:
-the brief must audit BOTH fee channels — the NAV-embedded flat drag AND the
-upstream deployable-capital reduction (`derive-current-plan-v1.ts:140-145`) —
-and produce a formal per-quarter reconciliation identity connecting committed
-capital, deployable capital, deployment, fee expense, NAV, distributions, and
-ending cash; fixtures prove each fee dollar is represented exactly once, not
-merely that conservation balances. This brief also OWNS the quarterly
-fee/expense accrual primitive's definition (previously unassigned): basis
-measurement timing (beginning-, average-, or end-of-quarter), partial-period
-convention, and tier-transition timing. Exit: proof or typed rejection path
-exercised by fixtures.
+Status: Completed; ratified zero-fee bridge recorded in the companion readiness
+brief.
+
+Original readiness question: define `effectiveFeeExpenseHash` — the canonical
+quarterly fee/expense dollar vector plus compiler version, application mode,
+capital base, and horizon — and the reconciliation proof that economics-side
+accrual does not double-count the forecast's embedded flat drag. Alternatives:
+forecast emits gross/pre-fee NAV; or an exact fee-drag reconciliation bridge;
+identity-match (policy fee model hash-identical to the plan's flat drag) is
+necessary but NOT sufficient (REVIEW CORRECTION: hash equality proves shared
+input, not single-count application). Constraints: the fee-drag compiler
+intentionally ignores basis and collapses tiers — its output alone can never
+anchor the hash. REVIEW EXTENSION: the brief must audit BOTH fee channels — the
+NAV-embedded flat drag AND the upstream deployable-capital reduction
+(`derive-current-plan-v1.ts:140-145`) — and produce a formal per-quarter
+reconciliation identity connecting committed capital, deployable capital,
+deployment, fee expense, NAV, distributions, and ending cash; fixtures prove
+each fee dollar is represented exactly once, not merely that conservation
+balances. This brief also OWNS the quarterly fee/expense accrual primitive's
+definition (previously unassigned): basis measurement timing (beginning-,
+average-, or end-of-quarter), partial-period convention, and tier-transition
+timing. Exit: proof or typed rejection path exercised by fixtures.
 
 ### Brief 3: Immutable capital-envelope entity
 
-Question: schema and seeding for the versioned LEGAL envelope: main-fund vehicle
-reference, LP/GP/total commitment components, currency, provenance, hash; LP
-plus GP reconcile exactly to total. Constraints: policy references it by version
-(D3); observed state (opening cash, called-to-date) stays in facts/run basis;
-migration gated by #1179. Exit: schema plus reconciliation rule plus seed flow
-specified.
+Status: Completed; ratified contract recorded in the companion readiness brief.
+
+Original readiness question: schema and seeding for the versioned LEGAL
+envelope: main-fund vehicle reference, LP/GP/total commitment components,
+currency, provenance, hash; LP plus GP reconcile exactly to total. Constraints:
+policy references it by version (D3); observed state (opening cash,
+called-to-date) stays in facts/run basis. Persistence and any migration belong
+in the reviewed owning WP-L3 PR. Exit: schema plus reconciliation rule plus seed
+flow specified.
 
 ### Brief 4: Vehicle-scoped facts and forecast
 
-Question: introduce `vehicleScope: 'main_fund'` variants of facts snapshot and
-forecast (periodNav gains a vehicle dimension or a scoped series), with the
-perspective-preservation policy from D7. Constraints: existing `fund_all`
-consumers untouched; scoped-facts policy must preserve required perspectives
-explicitly. REVIEW EXTENSION — realization granularity: the persisted forecast
-contract emits only quarterly aggregate `distributionsUsd` (no per-event exits
-at the basis boundary; modeled exits exist only inside the projection's cohort
-structure). The brief must decide whether forecast vNext exposes
-per-cohort/per-deal exit events (enabling honest `forecast_exit` event rows with
-real `sourceRefs`) or V1 event rows are explicitly labeled SYNTHETIC
+Status: Completed; ratified V1 restriction and vNext design recorded in the
+companion readiness brief.
+
+Original readiness question: introduce `vehicleScope: 'main_fund'` variants of
+facts snapshot and forecast (periodNav gains a vehicle dimension or a scoped
+series), with the perspective-preservation policy from D7. Constraints: existing
+`fund_all` consumers untouched; scoped-facts policy must preserve required
+perspectives explicitly. REVIEW EXTENSION — realization granularity: the
+persisted forecast contract emits only quarterly aggregate `distributionsUsd`
+(no per-event exits at the basis boundary; modeled exits exist only inside the
+projection's cohort structure). The brief must decide whether forecast vNext
+exposes per-cohort/per-deal exit events (enabling honest `forecast_exit` event
+rows with real `sourceRefs`) or V1 event rows are explicitly labeled SYNTHETIC
 decompositions of quarterly aggregates. Exit: SPV-bearing funds can produce a
 main-fund basis; `MAIN_FUND_SCOPED_FORECAST_UNAVAILABLE` retires for them; the
 realization-granularity decision is recorded.
 
 ### Brief 5: Compound-hurdle semantics (waterfall-specialist)
 
-Question: freeze `annualized_compound` semantics BEFORE schema V1.1: accrual
-base (unreturned contributed capital; does accrued pref compound), accrual
-start/end dates, day-count or quarterly convention, partial-capital-return
-treatment, ordering among ROC, pref, residual LP share, carry, terminal accrual
-date and liquidation interaction. Constraints: Decimal-native core behind the
-legacy-ledger compatibility wrapper; existing truth cases L01-L14 unchanged
-(REVIEW NOTE: the new legacy-characterization pins live in a separate `LEGACY-*`
-file and never become the product oracle); compound-hurdle work targets the
-CORRECTED capital-account semantics chosen in D10's semantic disposition, never
-the L-DEF-1 derivation; specialist sign-off on semantics precedes schema
-addition (Phoenix protected-path rules). Exit: signed-off semantics document;
-schema V1.1 plus engine/methodology version bump plan.
+Status: Completed for semantics; policy schema V1.1 remains separately gated.
+
+Original readiness question: freeze `annualized_compound` semantics BEFORE
+schema V1.1: accrual base (unreturned contributed capital; does accrued pref
+compound), accrual start/end dates, day-count or quarterly convention,
+partial-capital-return treatment, ordering among ROC, pref, residual LP share,
+carry, terminal accrual date and liquidation interaction. Constraints:
+Decimal-native core behind the legacy-ledger compatibility wrapper; existing
+truth cases L01-L14 unchanged (REVIEW NOTE: the new legacy-characterization pins
+live in a separate `LEGACY-*` file and never become the product oracle);
+compound-hurdle work targets the CORRECTED capital-account semantics chosen in
+D10's semantic disposition, never the L-DEF-1 derivation; specialist sign-off on
+semantics precedes schema addition (Phoenix protected-path rules). Exit:
+signed-off semantics document; schema V1.1 plus engine/methodology version bump
+plan.
 
 ## Deviation register (review-added 2026-07-30)
 
-Five ratified departures from issue #1176's Task 16.3 text plus one pending
-decision, in one place. Approval column: "ratified" = user-ratified 2026-07-30;
-"[PENDING]" = requires a user action. Posting to #1176: POSTED 2026-07-30
-(escalation E3, revised text) after commit `3298e10c` landed the citing
-documents:
-https://github.com/nikhillinit/Updog_restore/issues/1176#issuecomment-5129260472
+Six ratified departures from issue #1176's Task 16.3 text, in one place. All six
+were user-ratified 2026-07-30. The authoritative #1176 register correction
+supersedes the initial five-ratified/one-pending posting and closes entry 4:
+https://github.com/nikhillinit/Updog_restore/issues/1176#issuecomment-5134955218
 
 1. Exit gate "genuine Decimal-derived boundaries" -> amended to decimal-string
    boundaries plus `indicative` cap until the Decimal-native core certifies
@@ -904,10 +980,12 @@ https://github.com/nikhillinit/Updog_restore/issues/1176#issuecomment-5129260472
    V1's structurally catch-up-free policy. `prefCatchUp=true` seed-refuses even
    when hurdle basis is `none`; only dormant numeric fields with
    `prefCatchUp=false` normalize with persisted warning. Ratified deviation.
-4. [PENDING] `CREDIT_FACILITY_UNSUPPORTED` phase: #1176 says run-phase
-   `unavailable`; this spec chose seed-phase 422. Deviation recorded; re-ratify
-   or move to run phase (escalated).
-5. "Payload-only" persistence -> dedicated `internal_economics_policy_ versions`
+4. RESOLVED: seed-time `422 CREDIT_FACILITY_UNSUPPORTED` is reserved and
+   structurally unreachable because accepted source contracts expose neither a
+   facility field nor a facility cash-flow event. Strict source schemas reject
+   both. Once an authoritative facility field lands, policy seeding refuses it
+   before normalization.
+5. "Payload-only" persistence -> dedicated `internal_economics_policy_versions`
    and `internal_lp_economics_runs` lineage tables added (D3/ADR-065). Ratified.
 6. Result union: #1176 finding W3 wants a discriminated union carrying BOTH
    templates; V1 ships the single-member `deal_by_deal` union with whole_fund as

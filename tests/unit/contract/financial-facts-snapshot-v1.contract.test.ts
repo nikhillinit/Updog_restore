@@ -6,24 +6,31 @@ import {
   FINANCIAL_FACTS_POLICY_VERSION_1_0_0,
   FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
   FINANCIAL_FACTS_POLICY_VERSION_1_1_0,
+  FINANCIAL_FACTS_POLICY_VERSION_1_2_0,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_1,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
+  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3,
   FinancialFactsPayloadV1_0_0Schema,
   FinancialFactsPayloadV1Schema,
   FinancialFactsPayloadV2Schema,
+  FinancialFactsPayloadV3Schema,
   FinancialFactsSnapshotInputHashPreimageV1_0_0Schema,
   FinancialFactsSelectionSetHashPreimageSchema,
   FinancialFactsSnapshotInputHashPreimageSchema,
   FinancialFactsSnapshotInputHashPreimageV2Schema,
+  FinancialFactsSnapshotInputHashPreimageV3Schema,
   FinancialFactsSnapshotV1_0_0Schema,
   FinancialFactsSnapshotV1Schema,
   FinancialFactsSnapshotV2Schema,
+  FinancialFactsSnapshotV3Schema,
   PersistedFinancialFactsSnapshotV1Schema,
   VolatileStrippedFundCompanyActualsFactsResponseSchema,
   buildSelectionSetHash,
   buildSnapshotInputHash,
   type FinancialFactsPayloadV1,
   type FinancialFactsPayloadV2,
+  type FinancialFactsPayloadV3,
+  type FinancialFactsSnapshotInputHashPreimageV3,
 } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
 import { Decimal } from '../../../shared/lib/decimal-config';
@@ -69,6 +76,48 @@ function emptyPayloadV2(overrides: Partial<FinancialFactsPayloadV2> = {}): Finan
     ownershipRefs: [],
     valuationRefs: [],
     observationRefs: [],
+    ...overrides,
+  });
+}
+
+function openingAccountingState(
+  overrides: Partial<NonNullable<FinancialFactsPayloadV3['openingAccountingState']>> = {}
+): NonNullable<FinancialFactsPayloadV3['openingAccountingState']> {
+  return {
+    sourceArtifactId: 41,
+    sourceArtifactSha256: 'd'.repeat(64),
+    sourceArtifactCreatedAt: '2026-07-21T23:00:00.000Z',
+    attestedByActorId: 7,
+    observation: {
+      contractVersion: 'fund-accounting-state-observation/1.0.0',
+      cutoverInstant: '2026-07-21T23:59:59.000Z',
+      currency: 'USD',
+      cashBalanceUsd: '10.000000',
+      cumulativeLpPaidInUsd: '20.000000',
+      cumulativeGpPaidInUsd: '3.000000',
+      lpUnreturnedContributedCapitalUsd: '12.000000',
+      gpUnreturnedContributedCapitalUsd: '2.000000',
+      lpDistributionsReturnOfCapitalUsd: '4.000000',
+      lpDistributionsProfitUsd: '5.000000',
+      actualLpDistributionsCumulativeUsd: '9.000000',
+      gpInvestmentDistributionsPaidUsd: '1.000000',
+      gpCarryPaidUsd: '2.000000',
+      accruedPreferredReturnUsd: '3.000000',
+      accruedPreferredReturnThroughInstant: '2026-07-21T23:59:59.000Z',
+      recallableDistributionsCumulativeUsd: '6.000000',
+      recallableDistributionsOutstandingUsd: '2.000000',
+      recycledProceedsCumulativeUsd: '4.000000',
+      realizedProceedsCumulativeUsd: '8.000000',
+      methodologyVersion: 'manual-opening-state/1.0.0',
+    },
+    ...overrides,
+  };
+}
+
+function emptyPayloadV3(overrides: Partial<FinancialFactsPayloadV3> = {}): FinancialFactsPayloadV3 {
+  return FinancialFactsPayloadV3Schema.parse({
+    ...emptyPayloadV2(),
+    openingAccountingState: null,
     ...overrides,
   });
 }
@@ -166,7 +215,7 @@ describe('canonical decimal-string primitives', () => {
 
 describe('financial facts snapshot hashes', () => {
   it('pins the byte-identical policy 1.0.0 empty selection-set hash under current policy', () => {
-    expect(FINANCIAL_FACTS_POLICY_VERSION).toBe(FINANCIAL_FACTS_POLICY_VERSION_1_1_0);
+    expect(FINANCIAL_FACTS_POLICY_VERSION).toBe(FINANCIAL_FACTS_POLICY_VERSION_1_2_0);
     expect(EMPTY_SELECTION_SET_HASH).toBe(
       'be150e55440d5748ad85f67b7c5a1ace54bbd847880a4ec7aa10bc85b6777230'
     );
@@ -321,6 +370,138 @@ describe('financial facts snapshot hashes', () => {
     });
 
     expect(left).not.toBe(right);
+  });
+
+  it('requires payload 3 opening accounting state and accepts null or a valid snapshot ref', () => {
+    expect(emptyPayloadV3().openingAccountingState).toBeNull();
+    expect(
+      emptyPayloadV3({ openingAccountingState: openingAccountingState() }).openingAccountingState
+    ).toEqual(openingAccountingState());
+    expect(() =>
+      FinancialFactsPayloadV3Schema.parse({
+        ...emptyPayloadV2(),
+      })
+    ).toThrow();
+    expect(() =>
+      FinancialFactsPayloadV3Schema.parse({
+        ...emptyPayloadV2(),
+        openingAccountingState: {
+          ...openingAccountingState(),
+          sourceArtifactSha256: 'not-a-sha256',
+        },
+      })
+    ).toThrow();
+  });
+
+  it('hashes every opening-state money field plus source, cutover, and attestation identity', () => {
+    const baseOpeningState = openingAccountingState();
+    const base: FinancialFactsSnapshotInputHashPreimageV3 = {
+      fundId: 10,
+      vehicleIds: [20, 10],
+      asOfDate: '2026-07-21',
+      knowledgeCutoff: '2026-07-22T01:42:44.186Z',
+      policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_2_0,
+      payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3,
+      selectionSetHash: 'a'.repeat(64),
+      payload: emptyPayloadV3({ openingAccountingState: baseOpeningState }),
+    };
+    const baselineHash = buildSnapshotInputHash(base);
+    const moneyMutations: Array<
+      Partial<NonNullable<FinancialFactsPayloadV3['openingAccountingState']>['observation']>
+    > = [
+      { cashBalanceUsd: '11.000000' },
+      { cumulativeLpPaidInUsd: '21.000000' },
+      { cumulativeGpPaidInUsd: '4.000000' },
+      { lpUnreturnedContributedCapitalUsd: '13.000000' },
+      { gpUnreturnedContributedCapitalUsd: '3.000000' },
+      {
+        lpDistributionsReturnOfCapitalUsd: '5.000000',
+        actualLpDistributionsCumulativeUsd: '10.000000',
+      },
+      {
+        lpDistributionsProfitUsd: '6.000000',
+        actualLpDistributionsCumulativeUsd: '10.000000',
+      },
+      {
+        actualLpDistributionsCumulativeUsd: '10.000000',
+        lpDistributionsProfitUsd: '6.000000',
+      },
+      { gpInvestmentDistributionsPaidUsd: '2.000000' },
+      { gpCarryPaidUsd: '3.000000' },
+      { accruedPreferredReturnUsd: '4.000000' },
+      { recallableDistributionsCumulativeUsd: '7.000000' },
+      { recallableDistributionsOutstandingUsd: '3.000000' },
+      { recycledProceedsCumulativeUsd: '5.000000' },
+      { realizedProceedsCumulativeUsd: '9.000000' },
+    ];
+
+    for (const observationOverrides of moneyMutations) {
+      const changedOpeningState = openingAccountingState({
+        observation: {
+          ...baseOpeningState.observation,
+          ...observationOverrides,
+        },
+      });
+      expect(
+        buildSnapshotInputHash({
+          ...base,
+          payload: emptyPayloadV3({ openingAccountingState: changedOpeningState }),
+        })
+      ).not.toBe(baselineHash);
+    }
+
+    const identityMutations = [
+      openingAccountingState({ sourceArtifactSha256: 'e'.repeat(64) }),
+      openingAccountingState({ attestedByActorId: 8 }),
+      openingAccountingState({
+        observation: {
+          ...baseOpeningState.observation,
+          cutoverInstant: '2026-07-21T23:58:59.000Z',
+          accruedPreferredReturnThroughInstant: '2026-07-21T23:58:59.000Z',
+        },
+      }),
+    ];
+
+    for (const changedOpeningState of identityMutations) {
+      expect(
+        buildSnapshotInputHash({
+          ...base,
+          payload: emptyPayloadV3({ openingAccountingState: changedOpeningState }),
+        })
+      ).not.toBe(baselineHash);
+    }
+  });
+
+  it('parses persisted policy 1.2.0 snapshots through the versioned union', () => {
+    const snapshot = FinancialFactsSnapshotV3Schema.parse({
+      policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_2_0,
+      payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3,
+      fundId: 10,
+      asOfDate: '2026-07-21',
+      knowledgeCutoff: '2026-07-22T01:42:44.186Z',
+      vehicleScope: 'fund_all',
+      vehicleIds: [],
+      selectionSetHash: EMPTY_SELECTION_SET_HASH,
+      sourceFactsInputHash: 'a'.repeat(64),
+      snapshotInputHash: 'b'.repeat(64),
+      consumerEvaluations: [],
+      payload: emptyPayloadV3({ openingAccountingState: openingAccountingState() }),
+      actorId: 7,
+      createdAt: '2026-07-22T01:42:44.186Z',
+    });
+    const preimage = FinancialFactsSnapshotInputHashPreimageV3Schema.parse({
+      fundId: snapshot.fundId,
+      vehicleIds: snapshot.vehicleIds,
+      asOfDate: snapshot.asOfDate,
+      knowledgeCutoff: snapshot.knowledgeCutoff,
+      policyVersion: snapshot.policyVersion,
+      payloadSchemaId: snapshot.payloadSchemaId,
+      selectionSetHash: 'a'.repeat(64),
+      payload: snapshot.payload,
+    });
+
+    expect(PersistedFinancialFactsSnapshotV1Schema.parse(snapshot)).toEqual(snapshot);
+    expect(buildSnapshotInputHash(preimage)).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it('defines the source, selection, and snapshot preimages and hashes them stably under key reordering', () => {

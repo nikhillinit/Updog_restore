@@ -5,11 +5,11 @@ import { assertOwnedByFund, type FundScopedOwnershipDatabase } from '../lib/fund
 import { runIdempotentCommand } from '../lib/idempotent-command';
 import {
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID,
-  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
+  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3,
   FINANCIAL_FACTS_POLICY_VERSION,
-  FINANCIAL_FACTS_POLICY_VERSION_1_1_0,
   FinancialFactsPayloadV1Schema,
   FinancialFactsPayloadV2Schema,
+  FinancialFactsPayloadV3Schema,
   PersistedFinancialFactsSnapshotV1Schema,
   VolatileStrippedFundCompanyActualsFactsResponseSchema,
   buildSelectionSetHash,
@@ -34,6 +34,7 @@ import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 import { toFixedDecimalString } from '../../shared/lib/decimal-string';
 import { financialFactsSnapshots } from '../../shared/schema/financial-facts-snapshots';
 import {
+  sourceArtifacts,
   sourceObservations,
   workingValueSelections,
 } from '../../shared/schema/financial-observations';
@@ -50,6 +51,10 @@ import type {
   ParsedValuationMark,
 } from './lp-reporting/metrics-engine';
 import { DIRECT_MARK_STALE_DAYS, ageDays } from './investment-ledger/position-valuation-service';
+import {
+  parseOpeningAccountingStateArtifact,
+  type OpeningAccountingStateArtifactRow,
+} from './financial-facts/opening-accounting-state-artifact';
 
 const ACCEPTED_STATUSES = new Set(['approved', 'locked']);
 const CASH_FLOW_TYPES = new Set<CashFlowEventType>([
@@ -208,6 +213,7 @@ export class FinancialFactsSnapshotServiceError extends Error {
 export interface BuildFinancialFactsSnapshotInput {
   fundId: number;
   vehicleIds?: number[];
+  openingAccountingStateArtifactId?: number;
   asOfDate: string;
   knowledgeCutoff?: string;
   actorId: number;
@@ -1177,26 +1183,7 @@ function snapshotFromRow(row: SnapshotRow): PersistedFinancialFactsSnapshotV1 {
     actorId: row.actorId,
     createdAt: row.createdAt.toISOString(),
   };
-  PersistedFinancialFactsSnapshotV1Schema.parse(persisted);
-
-  return PersistedFinancialFactsSnapshotV1Schema.parse({
-    policyVersion: row.policyVersion,
-    ...(row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_1_0
-      ? { payloadSchemaId: row.payloadSchemaId }
-      : {}),
-    fundId: row.fundId,
-    asOfDate: row.asOfDate,
-    knowledgeCutoff: row.knowledgeCutoff.toISOString(),
-    vehicleScope: row.vehicleScope,
-    vehicleIds: row.vehicleIds,
-    selectionSetHash: row.selectionSetHash,
-    sourceFactsInputHash: row.sourceFactsInputHash,
-    snapshotInputHash: row.snapshotInputHash,
-    consumerEvaluations: row.consumerEvaluations,
-    payload: row.payload,
-    actorId: row.actorId,
-    createdAt: row.createdAt.toISOString(),
-  });
+  return PersistedFinancialFactsSnapshotV1Schema.parse(persisted);
 }
 
 function asPositiveInt(value: unknown): number {
@@ -1767,6 +1754,38 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
     asOfDate: input.asOfDate,
     database,
   });
+  const [openingAccountingStateArtifact] =
+    input.openingAccountingStateArtifactId === undefined
+      ? []
+      : ((await database
+          .select({
+            id: sourceArtifacts.id,
+            fundId: sourceArtifacts.fundId,
+            sourceType: sourceArtifacts.sourceType,
+            mediaType: sourceArtifacts.mediaType,
+            payloadSha256: sourceArtifacts.payloadSha256,
+            payload: sourceArtifacts.payload,
+            purgedAt: sourceArtifacts.purgedAt,
+            createdAt: sourceArtifacts.createdAt,
+          })
+          .from(sourceArtifacts)
+          .where(
+            and(
+              eq(sourceArtifacts.id, input.openingAccountingStateArtifactId),
+              eq(sourceArtifacts.fundId, input.fundId)
+            )
+          )
+          .limit(1)) as OpeningAccountingStateArtifactRow[]);
+  const openingAccountingState =
+    input.openingAccountingStateArtifactId === undefined
+      ? null
+      : parseOpeningAccountingStateArtifact({
+          row: openingAccountingStateArtifact,
+          fundId: input.fundId,
+          asOfDate: input.asOfDate,
+          knowledgeCutoff,
+          actorId: input.actorId,
+        });
 
   const roster = await readVehicleRoster(database, input.fundId);
   const vehicleIds = await validateVehicleScope({
@@ -1917,14 +1936,18 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
     sourceObservationIds: lineage.sourceObservationIds,
     consumerEvaluations: lineage.consumerEvaluations,
   });
-  const { payload, consumerEvaluations } = payloadV2;
+  const { consumerEvaluations } = payloadV2;
+  const payload = FinancialFactsPayloadV3Schema.parse({
+    ...payloadV2.payload,
+    openingAccountingState,
+  });
   const snapshotInputHash = computeSnapshotInputHash({
     fundId: input.fundId,
     vehicleIds,
     asOfDate: input.asOfDate,
     knowledgeCutoff,
     policyVersion: FINANCIAL_FACTS_POLICY_VERSION,
-    payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
+    payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3,
     selectionSetHash,
     payload,
   });
@@ -1940,6 +1963,7 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
       asOfDate: input.asOfDate,
       vehicleIds,
       actorId: input.actorId,
+      openingAccountingStateArtifactId: input.openingAccountingStateArtifactId ?? null,
       selectionSetHash,
     },
     loadExisting: async () => {
@@ -1961,7 +1985,7 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
         .values({
           fundId: input.fundId,
           policyVersion: FINANCIAL_FACTS_POLICY_VERSION,
-          payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
+          payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3,
           asOfDate: input.asOfDate,
           knowledgeCutoff: now,
           vehicleScope: 'fund_all',
