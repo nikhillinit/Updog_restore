@@ -30,6 +30,7 @@ import {
   type FinancialFactsPayloadV1,
   type FinancialFactsPayloadV2,
   type FinancialFactsPayloadV3,
+  type FinancialFactsSnapshotInputHashPreimageV3,
 } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
 import { Decimal } from '../../../shared/lib/decimal-config';
@@ -394,7 +395,7 @@ describe('financial facts snapshot hashes', () => {
 
   it('hashes every opening-state money field plus source, cutover, and attestation identity', () => {
     const baseOpeningState = openingAccountingState();
-    const base = {
+    const base: FinancialFactsSnapshotInputHashPreimageV3 = {
       fundId: 10,
       vehicleIds: [20, 10],
       asOfDate: '2026-07-21',
@@ -403,7 +404,7 @@ describe('financial facts snapshot hashes', () => {
       payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3,
       selectionSetHash: 'a'.repeat(64),
       payload: emptyPayloadV3({ openingAccountingState: baseOpeningState }),
-    } as const;
+    };
     const baselineHash = buildSnapshotInputHash(base);
     const moneyMutations: Array<
       Partial<NonNullable<FinancialFactsPayloadV3['openingAccountingState']>['observation']>
