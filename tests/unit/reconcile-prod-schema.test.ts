@@ -2,6 +2,8 @@
 // readFileSync export, but its ...actual spread preserves `default` as the
 // real fs module - same pattern as the sibling ledger/sentinel tests.
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
@@ -813,6 +815,84 @@ describe('reconcile-prod-schema shape decisions', () => {
     ]);
   });
 
+  it('allows an explicitly declared missing NOT NULL column on a populated table', async () => {
+    const client = createMockClient({
+      presentTables: ['tasks'],
+      populatedTables: ['tasks'],
+      columns: [
+        {
+          table_name: 'tasks',
+          column_name: 'id',
+          data_type: 'integer',
+          is_nullable: 'NO',
+        },
+        {
+          table_name: 'tasks',
+          column_name: 'fund_id',
+          data_type: 'integer',
+          is_nullable: 'NO',
+        },
+      ],
+    });
+    const audit = await auditManifest(client, {
+      ...manifest,
+      applyPolicy: {
+        allowNonNullColumnAdds: [{ table: 'tasks', column: 'title' }],
+      },
+      expectedTables: [
+        {
+          ...manifest.expectedTables[0],
+          constraints: [],
+          indexes: [],
+        },
+      ],
+    });
+
+    expect(audit.action).toBe(ACTION_APPLY_MISSING_DDL);
+    expect(audit.objects[0]?.populated).toBe(false);
+    expect(audit.objects[0]?.deltas).toEqual([
+      {
+        kind: 'missing-column',
+        name: 'tasks.title',
+        additiveSafe: true,
+      },
+    ]);
+  });
+
+  it('refuses an undeclared missing NOT NULL column on a populated table', async () => {
+    const client = createMockClient({
+      presentTables: ['tasks'],
+      populatedTables: ['tasks'],
+      columns: [
+        {
+          table_name: 'tasks',
+          column_name: 'id',
+          data_type: 'integer',
+          is_nullable: 'NO',
+        },
+        {
+          table_name: 'tasks',
+          column_name: 'fund_id',
+          data_type: 'integer',
+          is_nullable: 'NO',
+        },
+      ],
+    });
+    const audit = await auditManifest(client, {
+      ...manifest,
+      expectedTables: [
+        {
+          ...manifest.expectedTables[0],
+          constraints: [],
+          indexes: [],
+        },
+      ],
+    });
+
+    expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+    expect(audit.objects[0]?.populated).toBe(true);
+  });
+
   it('refuses non-additive deltas on populated tables', () => {
     expect(
       decideObjectAction({
@@ -953,6 +1033,68 @@ describe('reconcile-prod-schema shape decisions', () => {
       client.calls.some((call) => /\bBEGIN\b|INSERT INTO|CREATE TABLE|COMMIT/.test(call.text))
     ).toBe(false);
   });
+
+  it.each([
+    [
+      'missing DEFAULT',
+      'ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "role" varchar(32) NOT NULL;',
+    ],
+    [
+      'missing NOT NULL',
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "role" varchar(32) DEFAULT 'viewer';`,
+    ],
+    [
+      'DEFAULT NULL',
+      'ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "role" varchar(32) NOT NULL DEFAULT NULL;',
+    ],
+    [
+      'unmatched table quote',
+      `ALTER TABLE "users ADD COLUMN IF NOT EXISTS "role" varchar(32) NOT NULL DEFAULT 'viewer';`,
+    ],
+    [
+      'unmatched column quote',
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "role varchar(32) NOT NULL DEFAULT 'viewer';`,
+    ],
+  ])('apply rejects a declared non-null add with %s before mutation', async (_case, sql) => {
+    const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'prod-schema-policy-'));
+    const sqlFile = 'fixture.sql';
+    fs.writeFileSync(path.join(rootDir, sqlFile), `-- @drift-patch\n${sql}`);
+    const client = createMockClient();
+
+    try {
+      await expect(
+        runReconciliation({
+          client,
+          manifests: [
+            {
+              name: 'runner-policy-fixture',
+              missingTablePolicy: MISSING_TABLE_POLICY_CREATE_OR_REPAIR,
+              sqlFiles: [sqlFile],
+              applyPolicy: {
+                allowNonNullColumnAdds: [{ table: 'users', column: 'role' }],
+              },
+              expectedTables: [
+                {
+                  name: 'users',
+                  columns: [{ name: 'role', type: 'varchar', nullable: false }],
+                },
+              ],
+            },
+          ],
+          rootDir,
+          apply: true,
+          stdout: { write: () => undefined },
+        })
+      ).rejects.toMatchObject({
+        details: { kind: 'invalid-non-null-column-add-policy' },
+      });
+      expect(
+        client.calls.some((call) => /\bBEGIN\b|INSERT INTO|ALTER TABLE|COMMIT/.test(call.text))
+      ).toBe(false);
+    } finally {
+      fs.rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('missing-table policy', () => {
@@ -1039,6 +1181,35 @@ describe('missing-table policy', () => {
       {
         applyPolicy: {
           allowDropNotNull: [{ table: 'tasks', column: 'title' }],
+        },
+      },
+      {
+        applyPolicy: {
+          allowNonNullColumnAdds: [{ table: 'tasks', column: 'bad;column' }],
+        },
+      },
+      {
+        applyPolicy: {
+          allowNonNullColumnAdds: [{ table: 'tasks', column: 'missing' }],
+        },
+      },
+      {
+        applyPolicy: {
+          allowNonNullColumnAdds: [{ table: 'tasks', column: 'title' }],
+        },
+        expectedTables: [
+          {
+            ...manifest.expectedTables[0],
+            columns: [{ name: 'title', type: 'varchar', nullable: true }],
+          },
+        ],
+      },
+      {
+        applyPolicy: {
+          allowNonNullColumnAdds: [
+            { table: 'tasks', column: 'title' },
+            { table: 'tasks', column: 'title' },
+          ],
         },
       },
       {

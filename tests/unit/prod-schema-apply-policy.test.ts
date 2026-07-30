@@ -15,6 +15,14 @@ const policyManifest = {
   },
 };
 
+const nonNullAddManifest = {
+  name: 'non-null-add-fixture',
+  sqlFiles: [],
+  applyPolicy: {
+    allowNonNullColumnAdds: [{ table: 'users', column: 'role' }],
+  },
+};
+
 describe('prod schema apply policy', () => {
   it('allows declared nullable widening and same-name check replacement', () => {
     const violations = validateSqlApplyPolicy({
@@ -158,6 +166,126 @@ describe('prod schema apply policy', () => {
         sql: '-- @drift-patch\nALTER TABLE "ledger_rows" ALTER COLUMN "other_hash" DROP NOT NULL;',
       }).map((violation) => violation.kind)
     ).toEqual(['drop-not-null']);
+  });
+
+  it('proves each declared NOT NULL column add has IF NOT EXISTS and a DEFAULT', () => {
+    expect(
+      validateSqlApplyPolicy({
+        manifest: nonNullAddManifest,
+        sqlFile: 'fixture.sql',
+        sql: `
+          -- @drift-patch
+          ALTER TABLE "users"
+            ADD COLUMN IF NOT EXISTS "role" varchar(32) NOT NULL DEFAULT 'viewer';
+        `,
+      })
+    ).toEqual([]);
+  });
+
+  it.each([
+    [
+      'missing DEFAULT',
+      'ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "role" varchar(32) NOT NULL;',
+      'invalid-non-null-column-add',
+    ],
+    [
+      'missing NOT NULL',
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "role" varchar(32) DEFAULT 'viewer';`,
+      'invalid-non-null-column-add',
+    ],
+    [
+      'missing IF NOT EXISTS',
+      `ALTER TABLE "users" ADD COLUMN "role" varchar(32) NOT NULL DEFAULT 'viewer';`,
+      'invalid-non-null-column-add',
+    ],
+    [
+      'wrong table',
+      `ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "role" varchar(32) NOT NULL DEFAULT 'viewer';`,
+      'unproven-non-null-column-add',
+    ],
+    [
+      'wrong column',
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "user_role" varchar(32) NOT NULL DEFAULT 'viewer';`,
+      'unproven-non-null-column-add',
+    ],
+  ])('blocks a declared NOT NULL column add with %s', (_case, sql, expectedKind) => {
+    const violations = validateSqlApplyPolicy({
+      manifest: nonNullAddManifest,
+      sqlFile: 'fixture.sql',
+      sql: `-- @drift-patch\n${sql}`,
+    });
+
+    expect(violations.map((violation) => violation.kind)).toContain(expectedKind);
+  });
+
+  it('rejects an undeclared column addition beside the declared target', () => {
+    const violations = validateSqlApplyPolicy({
+      manifest: nonNullAddManifest,
+      sqlFile: 'fixture.sql',
+      sql: `
+        -- @drift-patch
+        ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "role" varchar(32) NOT NULL DEFAULT 'viewer';
+        --> statement-breakpoint
+        ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "is_active" boolean NOT NULL DEFAULT true;
+      `,
+    });
+
+    expect(violations.map((violation) => violation.kind)).toContain(
+      'undeclared-non-null-column-add'
+    );
+  });
+
+  it.each([
+    ['missing target', 'ALTER TABLE "users" ADD COLUMN IF NOT EXISTS;'],
+    [
+      'unmatched table quote',
+      `ALTER TABLE "users ADD COLUMN IF NOT EXISTS "role" varchar(32) NOT NULL DEFAULT 'viewer';`,
+    ],
+    [
+      'unmatched column quote',
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "role varchar(32) NOT NULL DEFAULT 'viewer';`,
+    ],
+  ])('rejects a malformed ALTER TABLE ADD COLUMN statement with %s', (_case, sql) => {
+    const violations = validateSqlApplyPolicy({
+      manifest: nonNullAddManifest,
+      sqlFile: 'fixture.sql',
+      sql: `-- @drift-patch\n${sql}`,
+    });
+
+    expect(violations.map((violation) => violation.kind)).toContain(
+      'malformed-non-null-column-add'
+    );
+  });
+
+  it('rejects DEFAULT NULL for a declared non-null column addition', () => {
+    const violations = validateSqlApplyPolicy({
+      manifest: nonNullAddManifest,
+      sqlFile: 'fixture.sql',
+      sql: `
+        -- @drift-patch
+        ALTER TABLE "users"
+          ADD COLUMN IF NOT EXISTS "role" varchar(32) NOT NULL DEFAULT NULL;
+      `,
+    });
+
+    expect(violations.map((violation) => violation.kind)).toContain('invalid-non-null-column-add');
+  });
+
+  it('rejects duplicate unsafe and safe statements for one declared target', () => {
+    const violations = validateSqlApplyPolicy({
+      manifest: nonNullAddManifest,
+      sqlFile: 'fixture.sql',
+      sql: `
+        -- @drift-patch
+        ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "role" varchar(32) NOT NULL DEFAULT NULL;
+        --> statement-breakpoint
+        ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "role" varchar(32) NOT NULL DEFAULT 'viewer';
+      `,
+    });
+
+    expect(violations.map((violation) => violation.kind)).toContain(
+      'duplicate-non-null-column-add'
+    );
   });
 
   it('rejects dropObjects during additive-safe apply', () => {
