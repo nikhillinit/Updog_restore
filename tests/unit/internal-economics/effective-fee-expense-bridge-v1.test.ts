@@ -7,6 +7,8 @@ import {
   EFFECTIVE_FEE_EXPENSE_BRIDGE_VERSION,
   EffectiveFeeExpenseBridgeV1Schema,
 } from '../../../shared/contracts/internal-economics/effective-fee-expense-bridge-v1.contract';
+import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
+import { canonicalizeDecimalLeaves } from '../../../shared/lib/decimal-string';
 import { FEE_DRAG_COMPILER_VERSION } from '../../../shared/lib/economics/fee-drag-compiler';
 import { buildEffectiveFeeExpenseBridgeV1 } from '../../../shared/lib/internal-economics/effective-fee-expense-bridge-v1';
 
@@ -14,6 +16,8 @@ const ZERO_MONEY = '0.000000';
 const ZERO_RATIO = '0.000000000000';
 const TOTAL_COMMITMENT_USD = '1000000.000000';
 const HASH = 'a'.repeat(64);
+const GOLDEN_EFFECTIVE_FEE_EXPENSE_HASH =
+  '369f040dbdd0570f4084ef22c08276406f903d326b1a332f6b3924fc62cdeb31';
 
 function zeroCostConfig(): FundDraftWriteV1 {
   return {
@@ -105,7 +109,7 @@ function zeroCostPlan(): CurrentPlanVersionV1 {
     cohortAssumptions: {
       contractVersion: 'current-plan-cohort-v1',
       averageInitialCheckUsd: ZERO_MONEY,
-      stageDistribution: [],
+      stageDistribution: [{ stage: 'Seed', pct: '1.000000000000' }],
       graduationMatrix: [],
       exitAssumptions: [],
     },
@@ -189,6 +193,17 @@ function expectIncompatible(
   });
 }
 
+type CompatibleInput = ReturnType<typeof compatibleInput>;
+type MutationCase = {
+  name: string;
+  reason: string;
+  mutate: (input: CompatibleInput) => void;
+};
+
+function buildFromRuntimeInput(input: unknown) {
+  return buildEffectiveFeeExpenseBridgeV1(input as CompatibleInput);
+}
+
 describe('buildEffectiveFeeExpenseBridgeV1', () => {
   it('builds canonical all-zero entries for projected quarters only', () => {
     const result = buildEffectiveFeeExpenseBridgeV1(compatibleInput());
@@ -224,19 +239,15 @@ describe('buildEffectiveFeeExpenseBridgeV1', () => {
           economicsExpenseCashDebitUsd: ZERO_MONEY,
         },
       ],
-      effectiveFeeExpenseHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      effectiveFeeExpenseHash: GOLDEN_EFFECTIVE_FEE_EXPENSE_HASH,
     });
   });
 
-  it('sorts projected periods before hashing and returns a stable hash', () => {
-    const ordered = compatibleInput();
+  it('rejects projected periods that are not in chronological input order', () => {
     const reversed = compatibleInput();
     reversed.forecast.series.reverse();
 
-    const orderedResult = buildEffectiveFeeExpenseBridgeV1(ordered);
-    const reversedResult = buildEffectiveFeeExpenseBridgeV1(reversed);
-
-    expect(orderedResult).toEqual(reversedResult);
+    expectIncompatible(reversed, 'forecast.series.projectedPeriods.order');
   });
 
   it('pins the compiler version in the bridge contract', () => {
@@ -263,115 +274,148 @@ describe('buildEffectiveFeeExpenseBridgeV1', () => {
     expect(result.bridge.quarterlyVector).toEqual([]);
   });
 
-  it.each([
-    [
-      'managementFeeRate',
-      (input: ReturnType<typeof compatibleInput>) => {
-        delete input.config.managementFeeRate;
-      },
-    ],
-    [
-      'lpClasses',
-      (input: ReturnType<typeof compatibleInput>) => {
-        input.config.lpClasses = [];
-      },
-    ],
-    [
-      'feeProfiles',
-      (input: ReturnType<typeof compatibleInput>) => {
-        input.config.feeProfiles = [];
-      },
-    ],
-    [
-      'fundExpenses',
-      (input: ReturnType<typeof compatibleInput>) => {
-        input.config.fundExpenses = [];
-      },
-    ],
-    [
-      'economicsAssumptions.feeModel.tiers',
-      (input: ReturnType<typeof compatibleInput>) => {
-        input.config.economicsAssumptions!.feeModel!.tiers = [];
-      },
-    ],
-    [
-      'economicsAssumptions.feeModel.defaultRate',
-      (input: ReturnType<typeof compatibleInput>) => {
-        delete input.config.economicsAssumptions!.feeModel!.defaultRate;
-      },
-    ],
-    [
-      'economicsAssumptions.expenseModel.annualExpenses',
-      (input: ReturnType<typeof compatibleInput>) => {
-        input.config.economicsAssumptions!.expenseModel!.annualExpenses = [];
-      },
-    ],
-    [
-      'economicsAssumptions.expenseModel.orgExpenseCap',
-      (input: ReturnType<typeof compatibleInput>) => {
-        delete input.config.economicsAssumptions!.expenseModel!.orgExpenseCap;
-      },
-    ],
-  ])('rejects absent or empty source channel %s', (reason, mutate) => {
+  it('accepts explicit empty non-schedule arrays as known zero', () => {
     const input = compatibleInput();
-    mutate(input);
-    expectIncompatible(input, reason);
+    input.config.lpClasses = [];
+    input.config.fundExpenses = [];
+    input.config.economicsAssumptions!.expenseModel!.annualExpenses = [];
+
+    expect(buildEffectiveFeeExpenseBridgeV1(input).ok).toBe(true);
   });
 
-  it.each([
-    [
-      'managementFeeRate',
-      (input: ReturnType<typeof compatibleInput>) => {
+  const absentCases: MutationCase[] = [
+    {
+      name: 'managementFeeRate',
+      reason: 'managementFeeRate',
+      mutate: (input) => {
+        delete input.config.managementFeeRate;
+      },
+    },
+    {
+      name: 'lpClasses',
+      reason: 'lpClasses',
+      mutate: (input) => {
+        delete input.config.lpClasses;
+      },
+    },
+    {
+      name: 'feeProfiles',
+      reason: 'feeProfiles',
+      mutate: (input) => {
+        input.config.feeProfiles = [];
+      },
+    },
+    {
+      name: 'fundExpenses',
+      reason: 'fundExpenses',
+      mutate: (input) => {
+        delete input.config.fundExpenses;
+      },
+    },
+    {
+      name: 'economics fee tiers',
+      reason: 'economicsAssumptions.feeModel.tiers',
+      mutate: (input) => {
+        input.config.economicsAssumptions!.feeModel!.tiers = [];
+      },
+    },
+    {
+      name: 'economics default rate',
+      reason: 'economicsAssumptions.feeModel.defaultRate',
+      mutate: (input) => {
+        delete input.config.economicsAssumptions!.feeModel!.defaultRate;
+      },
+    },
+    {
+      name: 'economics annual expenses',
+      reason: 'economicsAssumptions.expenseModel.annualExpenses',
+      mutate: (input) => {
+        delete input.config.economicsAssumptions!.expenseModel!.annualExpenses;
+      },
+    },
+    {
+      name: 'economics organization expense cap',
+      reason: 'economicsAssumptions.expenseModel.orgExpenseCap',
+      mutate: (input) => {
+        delete input.config.economicsAssumptions!.expenseModel!.orgExpenseCap;
+      },
+    },
+  ];
+
+  for (const testCase of absentCases) {
+    it(`rejects absent or ambiguous source channel ${testCase.name}`, () => {
+      const input = compatibleInput();
+      testCase.mutate(input);
+      expectIncompatible(input, testCase.reason);
+    });
+  }
+
+  const nonzeroCases: MutationCase[] = [
+    {
+      name: 'managementFeeRate',
+      reason: 'managementFeeRate',
+      mutate: (input) => {
         input.config.managementFeeRate = 0.01;
       },
-    ],
-    [
-      'lpClasses[0].managementFeeRate',
-      (input: ReturnType<typeof compatibleInput>) => {
+    },
+    {
+      name: 'LP-class managementFeeRate',
+      reason: 'lpClasses[0].managementFeeRate',
+      mutate: (input) => {
         input.config.lpClasses![0]!.managementFeeRate = 0.01;
       },
-    ],
-    [
-      'feeProfiles[0].feeTiers[0].percentage',
-      (input: ReturnType<typeof compatibleInput>) => {
+    },
+    {
+      name: 'legacy fee tier percentage',
+      reason: 'feeProfiles[0].feeTiers[0].percentage',
+      mutate: (input) => {
         input.config.feeProfiles![0]!.feeTiers[0]!.percentage = 0.01;
       },
-    ],
-    [
-      'fundExpenses[0].monthlyAmount',
-      (input: ReturnType<typeof compatibleInput>) => {
+    },
+    {
+      name: 'legacy fund expense',
+      reason: 'fundExpenses[0].monthlyAmount',
+      mutate: (input) => {
         input.config.fundExpenses![0]!.monthlyAmount = 1;
       },
-    ],
-    [
-      'economicsAssumptions.feeModel.tiers[0].rate',
-      (input: ReturnType<typeof compatibleInput>) => {
+    },
+    {
+      name: 'economics fee tier rate',
+      reason: 'economicsAssumptions.feeModel.tiers[0].rate',
+      mutate: (input) => {
         input.config.economicsAssumptions!.feeModel!.tiers![0]!.rate = 0.01;
       },
-    ],
-    [
-      'economicsAssumptions.feeModel.defaultRate',
-      (input: ReturnType<typeof compatibleInput>) => {
+    },
+    {
+      name: 'economics default rate',
+      reason: 'economicsAssumptions.feeModel.defaultRate',
+      mutate: (input) => {
         input.config.economicsAssumptions!.feeModel!.defaultRate = 0.01;
       },
-    ],
-    [
-      'economicsAssumptions.expenseModel.annualExpenses[0].amount',
-      (input: ReturnType<typeof compatibleInput>) => {
+    },
+    {
+      name: 'economics annual expense',
+      reason: 'economicsAssumptions.expenseModel.annualExpenses[0].amount',
+      mutate: (input) => {
         input.config.economicsAssumptions!.expenseModel!.annualExpenses![0]!.amount = 1;
       },
-    ],
-    [
-      'economicsAssumptions.expenseModel.orgExpenseCap',
-      (input: ReturnType<typeof compatibleInput>) => {
+    },
+    {
+      name: 'economics organization expense cap',
+      reason: 'economicsAssumptions.expenseModel.orgExpenseCap',
+      mutate: (input) => {
         input.config.economicsAssumptions!.expenseModel!.orgExpenseCap = 1;
       },
-    ],
-  ])('rejects nonzero source field %s', (reason, mutate) => {
-    const input = compatibleInput();
-    mutate(input);
-    expectIncompatible(input, reason);
-  });
+    },
+  ];
+
+  for (const testCase of nonzeroCases) {
+    it(`rejects nonzero source field ${testCase.name}`, () => {
+      const input = compatibleInput();
+      testCase.mutate(input);
+      expectIncompatible(input, testCase.reason);
+    });
+  }
 
   it('rejects a nonzero tier outside the forecast horizon even when flat drag compiles to zero', () => {
     const input = compatibleInput();
@@ -384,35 +428,203 @@ describe('buildEffectiveFeeExpenseBridgeV1', () => {
     expectIncompatible(input, 'economicsAssumptions.feeModel.tiers[0].rate');
   });
 
-  it.each([
-    [
-      'currentPlan.pacingAssumptions.annualFeeDragPct',
-      (input: ReturnType<typeof compatibleInput>) => {
+  const reconciliationCases: MutationCase[] = [
+    {
+      name: 'plan fee drag',
+      reason: 'currentPlan.pacingAssumptions.annualFeeDragPct',
+      mutate: (input) => {
         input.currentPlan.pacingAssumptions.annualFeeDragPct = '0.010000000000';
       },
-    ],
-    [
-      'currentPlan.deployableCapitalUsd',
-      (input: ReturnType<typeof compatibleInput>) => {
+    },
+    {
+      name: 'plan deployable capital',
+      reason: 'currentPlan.deployableCapitalUsd',
+      mutate: (input) => {
         input.currentPlan.deployableCapitalUsd = '999999.000000';
       },
-    ],
-    [
-      'forecast.committedCapitalUsd',
-      (input: ReturnType<typeof compatibleInput>) => {
+    },
+    {
+      name: 'forecast committed capital',
+      reason: 'forecast.committedCapitalUsd',
+      mutate: (input) => {
         input.forecast.committedCapitalUsd = '999999.000000';
       },
-    ],
-    [
-      'forecast.projectedFeesRemainingUsd',
-      (input: ReturnType<typeof compatibleInput>) => {
+    },
+    {
+      name: 'forecast projected fees',
+      reason: 'forecast.projectedFeesRemainingUsd',
+      mutate: (input) => {
         input.forecast.projectedFeesRemainingUsd = '1.000000';
       },
-    ],
-  ])('rejects reconciliation mismatch %s', (reason, mutate) => {
+    },
+  ];
+
+  for (const testCase of reconciliationCases) {
+    it(`rejects reconciliation mismatch ${testCase.name}`, () => {
+      const input = compatibleInput();
+      testCase.mutate(input);
+      expectIncompatible(input, testCase.reason);
+    });
+  }
+
+  it('returns typed sorted reasons for malformed and coercible runtime values', () => {
     const input = compatibleInput();
-    mutate(input);
-    expectIncompatible(input, reason);
+    const malformed = {
+      ...input,
+      totalCommitmentUsd: -1,
+      config: {
+        ...input.config,
+        managementFeeRate: '0',
+      },
+    };
+
+    expect(buildFromRuntimeInput(malformed)).toEqual({
+      ok: false,
+      code: 'FORECAST_FEE_BASIS_INCOMPATIBLE',
+      reasons: ['config.managementFeeRate', 'totalCommitmentUsd'],
+    });
+  });
+
+  it('returns typed incompatibility for missing required nested arrays and extra input keys', () => {
+    const input = compatibleInput();
+    const currentPlan = { ...input.currentPlan } as Record<string, unknown>;
+    delete currentPlan.allocations;
+
+    expect(buildFromRuntimeInput({ ...input, currentPlan, unexpected: true })).toEqual({
+      ok: false,
+      code: 'FORECAST_FEE_BASIS_INCOMPATIBLE',
+      reasons: ['currentPlan.allocations', 'unexpected'],
+    });
+  });
+
+  it('parses the forecast contract and rejects a missing forecast series', () => {
+    const input = compatibleInput();
+    const forecast = { ...input.forecast } as Record<string, unknown>;
+    delete forecast.series;
+
+    expect(buildFromRuntimeInput({ ...input, forecast })).toEqual({
+      ok: false,
+      code: 'FORECAST_FEE_BASIS_INCOMPATIBLE',
+      reasons: ['forecast.series'],
+    });
+  });
+
+  for (const invalidTotalCommitment of ['-1.000000', '-0.000000']) {
+    it(`rejects nonnegative-money violation ${invalidTotalCommitment}`, () => {
+      expect(
+        buildFromRuntimeInput({
+          ...compatibleInput(),
+          totalCommitmentUsd: invalidTotalCommitment,
+        })
+      ).toEqual({
+        ok: false,
+        code: 'FORECAST_FEE_BASIS_INCOMPATIBLE',
+        reasons: ['totalCommitmentUsd'],
+      });
+    });
+  }
+
+  it('returns typed incompatibility rather than throwing for malformed decimal strings', () => {
+    const input = compatibleInput();
+
+    expect(() =>
+      buildFromRuntimeInput({
+        ...input,
+        totalCommitmentUsd: 'not-money',
+      })
+    ).not.toThrow();
+    expect(
+      buildFromRuntimeInput({
+        ...input,
+        totalCommitmentUsd: 'not-money',
+      })
+    ).toEqual({
+      ok: false,
+      code: 'FORECAST_FEE_BASIS_INCOMPATIBLE',
+      reasons: ['totalCommitmentUsd'],
+    });
+  });
+
+  it('rejects projected periods with non-calendar-quarter bounds', () => {
+    const input = compatibleInput();
+    input.forecast.series[0] = forecastPoint('2026-07-02', '2026-09-30', 'projected');
+
+    expectIncompatible(input, 'forecast.series.projectedPeriods.calendarQuarter');
+  });
+
+  it('rejects gaps between projected calendar quarters', () => {
+    const input = compatibleInput();
+    input.forecast.series[2] = forecastPoint('2027-01-01', '2027-03-31', 'projected');
+
+    expectIncompatible(input, 'forecast.series.projectedPeriods.gap');
+  });
+
+  it('rejects overlapping projected calendar quarters', () => {
+    const input = compatibleInput();
+    input.forecast.series[2] = forecastPoint('2026-09-01', '2026-11-30', 'projected');
+
+    const result = buildEffectiveFeeExpenseBridgeV1(input);
+    expect(result).toEqual({
+      ok: false,
+      code: 'FORECAST_FEE_BASIS_INCOMPATIBLE',
+      reasons: [
+        'forecast.series.projectedPeriods.calendarQuarter',
+        'forecast.series.projectedPeriods.overlap',
+      ],
+    });
+  });
+
+  it('rejects reversed projected period bounds', () => {
+    const input = compatibleInput();
+    input.forecast.series[0] = forecastPoint('2026-09-30', '2026-07-01', 'projected');
+
+    const result = buildEffectiveFeeExpenseBridgeV1(input);
+    expect(result).toEqual({
+      ok: false,
+      code: 'FORECAST_FEE_BASIS_INCOMPATIBLE',
+      reasons: [
+        'forecast.series.projectedPeriods.calendarQuarter',
+        'forecast.series.projectedPeriods.reversed',
+      ],
+    });
+  });
+
+  it('changes canonical hash with capital base, horizon, and compiler representation', () => {
+    const baseline = buildEffectiveFeeExpenseBridgeV1(compatibleInput());
+    expect(baseline.ok).toBe(true);
+    if (!baseline.ok) return;
+
+    const changedCapital = compatibleInput();
+    changedCapital.totalCommitmentUsd = '2000000.000000';
+    changedCapital.currentPlan.deployableCapitalUsd = '2000000.000000';
+    changedCapital.forecast.committedCapitalUsd = '2000000.000000';
+    const changedCapitalResult = buildEffectiveFeeExpenseBridgeV1(changedCapital);
+    expect(changedCapitalResult.ok).toBe(true);
+    if (!changedCapitalResult.ok) return;
+
+    const changedHorizon = compatibleInput();
+    changedHorizon.forecast.series = changedHorizon.forecast.series.filter(
+      (period) => period.periodStart !== '2026-10-01'
+    );
+    const changedHorizonResult = buildEffectiveFeeExpenseBridgeV1(changedHorizon);
+    expect(changedHorizonResult.ok).toBe(true);
+    if (!changedHorizonResult.ok) return;
+
+    const { effectiveFeeExpenseHash: _hash, ...preimage } = baseline.bridge;
+    const changedCompilerHash = canonicalSha256(
+      canonicalizeDecimalLeaves({
+        ...preimage,
+        compilerVersion: `${FEE_DRAG_COMPILER_VERSION} `,
+      })
+    );
+
+    expect(changedCapitalResult.bridge.effectiveFeeExpenseHash).not.toBe(
+      baseline.bridge.effectiveFeeExpenseHash
+    );
+    expect(changedHorizonResult.bridge.effectiveFeeExpenseHash).not.toBe(
+      baseline.bridge.effectiveFeeExpenseHash
+    );
+    expect(changedCompilerHash).not.toBe(baseline.bridge.effectiveFeeExpenseHash);
   });
 
   it('sorts and deduplicates incompatibility reasons', () => {
@@ -427,7 +639,14 @@ describe('buildEffectiveFeeExpenseBridgeV1', () => {
       },
     ];
     input.currentPlan.pacingAssumptions.annualFeeDragPct = '0.010000000000';
-    input.forecast.series.push(input.forecast.series[0]!, input.forecast.series[0]!);
+    const firstProjected = input.forecast.series[0]!;
+    input.forecast.series = [
+      firstProjected,
+      firstProjected,
+      firstProjected,
+      input.forecast.series[1]!,
+      input.forecast.series[2]!,
+    ];
 
     const result = buildEffectiveFeeExpenseBridgeV1(input);
 
@@ -445,8 +664,23 @@ describe('buildEffectiveFeeExpenseBridgeV1', () => {
 
   it('rejects duplicate projected forecast periods', () => {
     const input = compatibleInput();
-    input.forecast.series.push(input.forecast.series[0]!);
+    input.forecast.series.splice(1, 0, input.forecast.series[0]!);
 
     expectIncompatible(input, 'forecast.series.projectedPeriods.duplicate');
+  });
+
+  it('identifies a duplicate projected quarter even when it is non-adjacent', () => {
+    const input = compatibleInput();
+    input.forecast.series.push(input.forecast.series[0]!);
+
+    const result = buildEffectiveFeeExpenseBridgeV1(input);
+    expect(result).toEqual({
+      ok: false,
+      code: 'FORECAST_FEE_BASIS_INCOMPATIBLE',
+      reasons: [
+        'forecast.series.projectedPeriods.duplicate',
+        'forecast.series.projectedPeriods.order',
+      ],
+    });
   });
 });

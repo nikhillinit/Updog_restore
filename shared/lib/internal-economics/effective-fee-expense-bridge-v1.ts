@@ -1,11 +1,13 @@
-import type { CurrentForecastV2 } from '../../contracts/current-forecast-v2.contract';
-import type { CurrentPlanVersionV1 } from '../../contracts/current-plan-version-v1.contract';
 import type { FundDraftWriteV1 } from '../../contracts/fund-draft-write-v1.contract';
 import {
   EFFECTIVE_FEE_EXPENSE_BRIDGE_VERSION,
+  EffectiveFeeExpenseBridgeInputV1Schema,
+  EffectiveFeeExpenseBridgeV1Schema,
   type EffectiveFeeExpenseBridgeResultV1,
-  type EffectiveFeeExpenseBridgeV1,
+  type EffectiveFeeExpenseBridgeInputV1,
   type EffectiveFeeExpenseQuarterV1,
+  isExactCalendarQuarterV1,
+  nextCalendarQuarterStartV1,
 } from '../../contracts/internal-economics/effective-fee-expense-bridge-v1.contract';
 import { canonicalSha256 } from '../canonical-hash';
 import { Decimal } from '../decimal-config';
@@ -32,7 +34,7 @@ function addRequiredZero(
 function collectConfigReasons(config: FundDraftWriteV1, reasons: Set<string>): void {
   addRequiredZero(reasons, 'managementFeeRate', config.managementFeeRate);
 
-  if (config.lpClasses === undefined || config.lpClasses.length === 0) {
+  if (config.lpClasses === undefined) {
     reasons.add('lpClasses');
   } else {
     config.lpClasses.forEach((lpClass, index) => {
@@ -58,7 +60,7 @@ function collectConfigReasons(config: FundDraftWriteV1, reasons: Set<string>): v
     });
   }
 
-  if (config.fundExpenses === undefined || config.fundExpenses.length === 0) {
+  if (config.fundExpenses === undefined) {
     reasons.add('fundExpenses');
   } else {
     config.fundExpenses.forEach((expense, index) => {
@@ -84,7 +86,7 @@ function collectConfigReasons(config: FundDraftWriteV1, reasons: Set<string>): v
   if (expenseModel === undefined) {
     reasons.add('economicsAssumptions.expenseModel');
   } else {
-    if (expenseModel.annualExpenses === undefined || expenseModel.annualExpenses.length === 0) {
+    if (expenseModel.annualExpenses === undefined) {
       reasons.add('economicsAssumptions.expenseModel.annualExpenses');
     } else {
       expenseModel.annualExpenses.forEach((expense, index) => {
@@ -104,23 +106,53 @@ function collectConfigReasons(config: FundDraftWriteV1, reasons: Set<string>): v
 }
 
 function projectedPeriods(
-  forecast: CurrentForecastV2,
+  forecast: EffectiveFeeExpenseBridgeInputV1['forecast'],
   reasons: Set<string>
-): Array<Pick<CurrentForecastV2['series'][number], 'periodStart' | 'periodEnd'>> {
+): Array<
+  Pick<EffectiveFeeExpenseBridgeInputV1['forecast']['series'][number], 'periodStart' | 'periodEnd'>
+> {
   const projected = forecast.series
     .filter((period) => period.source === 'projected')
-    .map(({ periodStart, periodEnd }) => ({ periodStart, periodEnd }))
-    .sort(
-      (left, right) =>
-        left.periodStart.localeCompare(right.periodStart) ||
-        left.periodEnd.localeCompare(right.periodEnd)
-    );
+    .map(({ periodStart, periodEnd }) => ({ periodStart, periodEnd }));
+
+  projected.forEach((period) => {
+    if (period.periodStart > period.periodEnd) {
+      reasons.add('forecast.series.projectedPeriods.reversed');
+    }
+    if (!isExactCalendarQuarterV1(period.periodStart, period.periodEnd)) {
+      reasons.add('forecast.series.projectedPeriods.calendarQuarter');
+    }
+  });
+
+  const seenPeriods = new Set<string>();
+  projected.forEach((period) => {
+    const periodKey = `${period.periodStart}/${period.periodEnd}`;
+    if (seenPeriods.has(periodKey)) {
+      reasons.add('forecast.series.projectedPeriods.duplicate');
+    }
+    seenPeriods.add(periodKey);
+  });
 
   for (let index = 1; index < projected.length; index += 1) {
     const previous = projected[index - 1]!;
     const current = projected[index]!;
     if (previous.periodStart === current.periodStart && previous.periodEnd === current.periodEnd) {
-      reasons.add('forecast.series.projectedPeriods.duplicate');
+      continue;
+    }
+    if (current.periodStart < previous.periodStart) {
+      reasons.add('forecast.series.projectedPeriods.order');
+      continue;
+    }
+    if (current.periodStart <= previous.periodEnd) {
+      reasons.add('forecast.series.projectedPeriods.overlap');
+      continue;
+    }
+    if (
+      isExactCalendarQuarterV1(previous.periodStart, previous.periodEnd) &&
+      isExactCalendarQuarterV1(current.periodStart, current.periodEnd) &&
+      nextCalendarQuarterStartV1(previous.periodStart) !== current.periodStart
+    ) {
+      reasons.add('forecast.series.projectedPeriods.gap');
     }
   }
 
@@ -143,53 +175,94 @@ function allZeroEntry(period: {
   };
 }
 
-export function buildEffectiveFeeExpenseBridgeV1(input: {
-  config: FundDraftWriteV1;
-  currentPlan: CurrentPlanVersionV1;
-  forecast: CurrentForecastV2;
-  totalCommitmentUsd: string;
-}): EffectiveFeeExpenseBridgeResultV1 {
-  const reasons = new Set<string>();
+function formatIssuePath(path: PropertyKey[]): string {
+  return path.reduce<string>((formatted, segment) => {
+    if (typeof segment === 'number') return `${formatted}[${segment}]`;
+    const text = String(segment);
+    return formatted.length === 0 ? text : `${formatted}.${text}`;
+  }, '');
+}
 
-  collectConfigReasons(input.config, reasons);
+function collectSchemaReasons(
+  issues: readonly {
+    code: string;
+    path: PropertyKey[];
+    keys?: readonly string[];
+  }[],
+  reasons: Set<string>,
+  root?: string
+): void {
+  issues.forEach((issue) => {
+    if (issue.code === 'unrecognized_keys' && issue.keys !== undefined) {
+      issue.keys.forEach((key) => {
+        reasons.add(formatIssuePath(root ? [root, ...issue.path, key] : [...issue.path, key]));
+      });
+      return;
+    }
+    const reason = formatIssuePath(root ? [root, ...issue.path] : issue.path);
+    reasons.add(reason || root || 'input');
+  });
+}
+
+function incompatible(reasons: Set<string>): EffectiveFeeExpenseBridgeResultV1 {
+  return {
+    ok: false,
+    code: INCOMPATIBLE_CODE,
+    reasons: [...reasons].sort(),
+  };
+}
+
+export function buildEffectiveFeeExpenseBridgeV1(
+  input: EffectiveFeeExpenseBridgeInputV1
+): EffectiveFeeExpenseBridgeResultV1 {
+  const reasons = new Set<string>();
+  const parsedInput = EffectiveFeeExpenseBridgeInputV1Schema.safeParse(input);
+  if (!parsedInput.success) {
+    collectSchemaReasons(parsedInput.error.issues, reasons);
+    return incompatible(reasons);
+  }
+  const admitted = parsedInput.data;
+
+  collectConfigReasons(admitted.config, reasons);
   addRequiredZero(
     reasons,
     'currentPlan.pacingAssumptions.annualFeeDragPct',
-    input.currentPlan.pacingAssumptions.annualFeeDragPct
+    admitted.currentPlan.pacingAssumptions.annualFeeDragPct
   );
 
-  if (!new Decimal(input.currentPlan.deployableCapitalUsd).eq(input.totalCommitmentUsd)) {
+  if (!new Decimal(admitted.currentPlan.deployableCapitalUsd).eq(admitted.totalCommitmentUsd)) {
     reasons.add('currentPlan.deployableCapitalUsd');
   }
-  if (!new Decimal(input.forecast.committedCapitalUsd).eq(input.totalCommitmentUsd)) {
+  if (!new Decimal(admitted.forecast.committedCapitalUsd).eq(admitted.totalCommitmentUsd)) {
     reasons.add('forecast.committedCapitalUsd');
   }
   addRequiredZero(
     reasons,
     'forecast.projectedFeesRemainingUsd',
-    input.forecast.projectedFeesRemainingUsd
+    admitted.forecast.projectedFeesRemainingUsd
   );
 
-  const periods = projectedPeriods(input.forecast, reasons);
+  const periods = projectedPeriods(admitted.forecast, reasons);
   if (reasons.size > 0) {
-    return {
-      ok: false,
-      code: INCOMPATIBLE_CODE,
-      reasons: [...reasons].sort(),
-    };
+    return incompatible(reasons);
   }
 
   const hashPreimage = {
     contractVersion: EFFECTIVE_FEE_EXPENSE_BRIDGE_VERSION,
     applicationMode: 'zero_fee_zero_expense' as const,
     compilerVersion: FEE_DRAG_COMPILER_VERSION,
-    capitalBaseUsd: input.totalCommitmentUsd,
+    capitalBaseUsd: admitted.totalCommitmentUsd,
     quarterlyVector: periods.map(allZeroEntry),
   };
-  const bridge: EffectiveFeeExpenseBridgeV1 = {
+  const bridgeCandidate = {
     ...hashPreimage,
     effectiveFeeExpenseHash: canonicalSha256(canonicalizeDecimalLeaves(hashPreimage)),
   };
+  const parsedBridge = EffectiveFeeExpenseBridgeV1Schema.safeParse(bridgeCandidate);
+  if (!parsedBridge.success) {
+    collectSchemaReasons(parsedBridge.error.issues, reasons, 'bridge');
+    return incompatible(reasons);
+  }
 
-  return { ok: true, bridge };
+  return { ok: true, bridge: parsedBridge.data };
 }
