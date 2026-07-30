@@ -11,16 +11,16 @@ last_updated: 2026-07-30
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 690 |
-| Stale Documents | 464 |
-| Missing Frontmatter | 46 |
+| Total Documents | 691 |
+| Stale Documents | 465 |
+| Missing Frontmatter | 47 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 450 |
-| UNKNOWN | 140 |
+| UNKNOWN | 141 |
 | DRAFT | 34 |
 | HISTORICAL | 22 |
 | VERIFIED | 12 |
@@ -97,7 +97,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/superpowers/plans/2026-06-18-secondary-surface-trust-slim.md` | Never | 999 | No | Unassigned |
 | `docs/superpowers/plans/2026-06-22-investment-rounds-ui-v2.md` | Never | 999 | No | Unassigned |
 
-*...and 414 more stale documents.*
+*...and 415 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -246,6 +246,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/superpowers/specs/2026-06-11-worker-prod-ops-design.md`
 - [ ] `docs/superpowers/specs/2026-06-21-investment-rounds-ui-v2-design.md`
 - [ ] `docs/superpowers/specs/2026-07-29-task160-internal-waterfall-governance-design.md`
+- [ ] `docs/superpowers/specs/2026-07-30-task163-deal-by-deal-scoping-design.md`
 - [ ] `docs/tooling-catalog.md`
 
 ---

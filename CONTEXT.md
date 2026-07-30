@@ -540,6 +540,28 @@ caps. _Avoid_: Cohort
 **Exit Cohort Model**: An aggregate exit timing and value progression model used
 in fund economics. _Avoid_: Cohort
 
+**Fund Cash Balance**: The fund-level cash position at a point in time,
+authoritative only when observed in pinned facts with as-of provenance — never
+assumed zero. _Avoid_: Ending cash (a modeled output), Deployable capital
+
+**Opening Waterfall State**: The capital-account state that initializes a
+forward waterfall run: cumulative paid-in, unreturned contributed capital, the
+historical return-of-capital vs profit distribution split, and prior GP carry.
+_Avoid_: Opening cash
+
+**Capital Envelope Version**: An immutable, versioned record of the fund's legal
+commitment structure, with LP, GP, and total components reconciling exactly.
+_Avoid_: Committed capital (forecast-derived), Fund size
+
+**Economics Policy Version**: An immutable, versioned record of operator
+waterfall, fee, expense, and cash assumptions referenced by an internal
+economics run — authored configuration, not calculated state. _Avoid_: Fund
+configuration, Facts snapshot
+
+**Internal LP Economics Projection**: A modeled, indicative projection of LP net
+economics under a pinned basis and policy — an internal what-if output, not an
+accounting statement. _Avoid_: LP report, Fund performance
+
 ## Relationships
 
 - **Cohort Analysis** uses **Cohort Definitions** to produce **Analysis
