@@ -263,6 +263,21 @@ describe('buildEffectiveFeeExpenseBridgeV1', () => {
     ).toBe(false);
   });
 
+  for (const invalidCapitalBaseUsd of ['-1.000000', '-0.000000']) {
+    it(`rejects capitalBaseUsd ${invalidCapitalBaseUsd}`, () => {
+      const result = buildEffectiveFeeExpenseBridgeV1(compatibleInput());
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+
+      expect(
+        EffectiveFeeExpenseBridgeV1Schema.safeParse({
+          ...result.bridge,
+          capitalBaseUsd: invalidCapitalBaseUsd,
+        }).success
+      ).toBe(false);
+    });
+  }
+
   it('supports an empty projected horizon with an empty canonical vector', () => {
     const input = compatibleInput();
     input.forecast.series = input.forecast.series.filter((period) => period.source === 'actual');
@@ -488,7 +503,7 @@ describe('buildEffectiveFeeExpenseBridgeV1', () => {
   it('returns typed incompatibility for missing required nested arrays and extra input keys', () => {
     const input = compatibleInput();
     const currentPlan = { ...input.currentPlan } as Record<string, unknown>;
-    delete currentPlan.allocations;
+    delete currentPlan['allocations'];
 
     expect(buildFromRuntimeInput({ ...input, currentPlan, unexpected: true })).toEqual({
       ok: false,
@@ -500,7 +515,7 @@ describe('buildEffectiveFeeExpenseBridgeV1', () => {
   it('parses the forecast contract and rejects a missing forecast series', () => {
     const input = compatibleInput();
     const forecast = { ...input.forecast } as Record<string, unknown>;
-    delete forecast.series;
+    delete forecast['series'];
 
     expect(buildFromRuntimeInput({ ...input, forecast })).toEqual({
       ok: false,

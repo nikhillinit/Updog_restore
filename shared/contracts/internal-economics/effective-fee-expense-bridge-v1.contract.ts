@@ -88,7 +88,7 @@ export const EffectiveFeeExpenseBridgeV1Schema = z
     contractVersion: z.literal(EFFECTIVE_FEE_EXPENSE_BRIDGE_VERSION),
     applicationMode: z.literal('zero_fee_zero_expense'),
     compilerVersion: z.literal(FEE_DRAG_COMPILER_VERSION),
-    capitalBaseUsd: MoneyDecimalStringSchema,
+    capitalBaseUsd: NonnegativeMoneyDecimalStringSchema,
     quarterlyVector: z.array(EffectiveFeeExpenseQuarterV1Schema),
     effectiveFeeExpenseHash: Sha256Schema,
   })
