@@ -114,7 +114,8 @@ function factsSnapshotFromRow(row: FinancialFactsSnapshot): FactsWithId {
 
   const snapshot = PersistedFinancialFactsSnapshotV1Schema.parse({
     policyVersion: row.policyVersion,
-    ...(row.policyVersion === 'financial-facts-policy/1.1.0'
+    ...(row.policyVersion === 'financial-facts-policy/1.1.0' ||
+    row.policyVersion === 'financial-facts-policy/1.2.0'
       ? { payloadSchemaId: row.payloadSchemaId }
       : {}),
     fundId: row.fundId,
