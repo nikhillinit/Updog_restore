@@ -498,22 +498,26 @@ describe('investment-ledger routes', () => {
     };
     serviceState.createFinancingEvent.mockResolvedValue({ value: EVENT, replayed: false });
     serviceState.listCurrentPositions.mockResolvedValueOnce(CURRENT_POSITIONS);
+    const app = makeApp();
 
     for (let index = 0; index < 100; index += 1) {
-      const response = await request(makeApp())
+      const response = await request(app)
         .post('/api/funds/7/investment-ledger/financing-events')
         .set('Idempotency-Key', `write-limit-${index}`)
         .send(eventBody);
 
-      expect(response.status, `write ${index + 1}`).toBe(201);
+      expect(
+        response.status,
+        `write ${index + 1}: body=${JSON.stringify(response.body)} calls=${serviceState.createFinancingEvent.mock.calls.length}`
+      ).toBe(201);
     }
 
-    const cappedWrite = await request(makeApp())
+    const cappedWrite = await request(app)
       .post('/api/funds/7/investment-ledger/financing-events')
       .set('Idempotency-Key', 'write-limit-capped')
       .send(eventBody);
 
-    const readAfterWriteCap = await request(makeApp()).get(
+    const readAfterWriteCap = await request(app).get(
       '/api/funds/7/investment-ledger/positions?vehicleId=9&companyIdentityId=11&asOfDate=2026-07-01'
     );
 

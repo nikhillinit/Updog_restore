@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   IdempotentCommandError,
+  replayIdempotentCommandIfPresent,
   runIdempotentCommand,
 } from '../../../server/lib/idempotent-command';
 
@@ -34,16 +35,14 @@ class InMemoryCommandStore {
       loadExisting: async () => {
         const row = this.rows.find(
           (candidate) =>
-            candidate.fundId === input.fundId &&
-            candidate.idempotencyKey === input.idempotencyKey
+            candidate.fundId === input.fundId && candidate.idempotencyKey === input.idempotencyKey
         );
         return row ? { row, requestHash: row.requestHash } : null;
       },
       insert: async (requestHash: string) => {
         const existing = this.rows.some(
           (candidate) =>
-            candidate.fundId === input.fundId &&
-            candidate.idempotencyKey === input.idempotencyKey
+            candidate.fundId === input.fundId && candidate.idempotencyKey === input.idempotencyKey
         );
         if (existing) return null;
 
@@ -75,6 +74,53 @@ function request(fundId: number, value: string) {
 }
 
 describe('runIdempotentCommand', () => {
+  it('returns null when no command exists for an early replay check', async () => {
+    const store = new InMemoryCommandStore();
+    const replayOptions = store.options({
+      fundId: 1,
+      idempotencyKey: 'missing-command',
+      request: request(1, 'alpha'),
+    });
+
+    await expect(replayIdempotentCommandIfPresent(replayOptions)).resolves.toBeNull();
+  });
+
+  it('replays a stored command before mutable inputs are dereferenced', async () => {
+    const store = new InMemoryCommandStore();
+    const options = store.options({
+      fundId: 1,
+      idempotencyKey: 'early-replay',
+      request: request(1, 'alpha'),
+    });
+    const created = await runIdempotentCommand(options);
+
+    await expect(replayIdempotentCommandIfPresent(options)).resolves.toEqual({
+      row: created.row,
+      replayed: true,
+    });
+  });
+
+  it('rejects a changed preimage during an early replay check', async () => {
+    const store = new InMemoryCommandStore();
+    await runIdempotentCommand(
+      store.options({
+        fundId: 1,
+        idempotencyKey: 'early-replay-conflict',
+        request: request(1, 'alpha'),
+      })
+    );
+    const replayOptions = store.options({
+      fundId: 1,
+      idempotencyKey: 'early-replay-conflict',
+      request: request(1, 'beta'),
+    });
+
+    await expect(replayIdempotentCommandIfPresent(replayOptions)).rejects.toMatchObject({
+      status: 409,
+      code: 'IDEMPOTENCY_KEY_REUSE',
+    });
+  });
+
   it('returns the stored row when an identical request is replayed', async () => {
     const store = new InMemoryCommandStore();
     const options = store.options({

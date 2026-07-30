@@ -6,12 +6,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   EMPTY_SELECTION_SET_HASH,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
+  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3,
   FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
   FINANCIAL_FACTS_POLICY_VERSION_1_1_0,
+  FINANCIAL_FACTS_POLICY_VERSION_1_2_0,
   type FinancialFactsSnapshotV2,
+  type FinancialFactsSnapshotV3,
   type FinancialFactsSnapshotV1,
 } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { IdempotentCommandError } from '../../../server/lib/idempotent-command';
+import {
+  OpeningAccountingStateArtifactError,
+  type OpeningAccountingStateArtifactErrorCode,
+} from '../../../server/services/financial-facts/opening-accounting-state-artifact';
 
 const service = vi.hoisted(() => ({
   buildFinancialFactsSnapshot: vi.fn(),
@@ -162,6 +169,30 @@ function snapshotRowV2() {
   };
 }
 
+function snapshotV3(overrides: Partial<FinancialFactsSnapshotV3> = {}): FinancialFactsSnapshotV3 {
+  return {
+    ...snapshotV2(),
+    policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_2_0,
+    payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3,
+    payload: {
+      ...snapshotV2().payload,
+      openingAccountingState: null,
+    },
+    ...overrides,
+  };
+}
+
+function snapshotRowV3() {
+  const value = snapshotV3();
+  return {
+    ...snapshotRowV2(),
+    policyVersion: value.policyVersion,
+    payloadSchemaId: value.payloadSchemaId,
+    payload: value.payload,
+    consumerEvaluations: value.consumerEvaluations,
+  };
+}
+
 function buildApp() {
   const app = express();
   app.use(express.json());
@@ -271,6 +302,16 @@ describe('financial-facts route contract', () => {
     expect(response.body.payloadSchemaId).toBe(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2);
   });
 
+  it('GET serves a persisted policy 1.2.0 payload 3 snapshot with its tuple intact', async () => {
+    service.getLatestFinancialFactsSnapshot.mockResolvedValueOnce(snapshotRowV3());
+
+    const response = await request(buildApp()).get('/api/funds/1/financial-facts/latest');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(snapshotV3());
+    expect(response.body.payloadSchemaId).toBe(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3);
+  });
+
   it('GET rejects a corrupt legacy row that carries a payload 2 schema id', async () => {
     service.getLatestFinancialFactsSnapshot.mockResolvedValueOnce({
       ...snapshotRow(),
@@ -299,6 +340,52 @@ describe('financial-facts route contract', () => {
     expect(service.buildFinancialFactsSnapshot).not.toHaveBeenCalled();
   });
 
+  it('POST passes an opening accounting-state artifact pin to the snapshot builder', async () => {
+    const response = await request(buildApp())
+      .post('/api/admin/funds/1/financial-facts/snapshots')
+      .set('Idempotency-Key', 'trigger-opening-state')
+      .send({
+        asOfDate: '2026-07-21',
+        openingAccountingStateArtifactId: 42,
+      });
+
+    expect(response.status).toBe(200);
+    expect(service.buildFinancialFactsSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({ openingAccountingStateArtifactId: 42 })
+    );
+  });
+
+  it('POST omits the opening accounting-state artifact pin when not supplied', async () => {
+    const response = await request(buildApp())
+      .post('/api/admin/funds/1/financial-facts/snapshots')
+      .set('Idempotency-Key', 'trigger-no-opening-state')
+      .send({ asOfDate: '2026-07-21' });
+
+    expect(response.status).toBe(200);
+    expect(service.buildFinancialFactsSnapshot.mock.calls[0]?.[0]).not.toHaveProperty(
+      'openingAccountingStateArtifactId'
+    );
+  });
+
+  it.each([
+    ['zero', { openingAccountingStateArtifactId: 0 }],
+    ['negative', { openingAccountingStateArtifactId: -1 }],
+    ['float', { openingAccountingStateArtifactId: 1.5 }],
+    ['string', { openingAccountingStateArtifactId: '42' }],
+    ['unknown field', { openingAccountingStateArtifactId: 42, unsupported: true }],
+  ])('POST rejects a %s opening accounting-state artifact request', async (_label, fields) => {
+    const response = await request(buildApp())
+      .post('/api/admin/funds/1/financial-facts/snapshots')
+      .set('Idempotency-Key', 'trigger-invalid-opening-state')
+      .send({ asOfDate: '2026-07-21', ...fields });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      error: 'invalid_financial_facts_snapshot_request',
+    });
+    expect(service.buildFinancialFactsSnapshot).not.toHaveBeenCalled();
+  });
+
   it('POST replays the stored snapshot for the same trigger and payload', async () => {
     const post = () =>
       request(buildApp())
@@ -315,7 +402,7 @@ describe('financial-facts route contract', () => {
     expect(service.buildFinancialFactsSnapshot).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        idempotencyKey: 'facts:1:2026-07-21:financial-facts-policy/1.1.0:trigger-7',
+        idempotencyKey: 'facts:1:2026-07-21:financial-facts-policy/1.2.0:trigger-7',
       })
     );
   });
@@ -337,4 +424,30 @@ describe('financial-facts route contract', () => {
       message: 'Idempotency-Key was already used for a different request.',
     });
   });
+
+  it.each([
+    [404, 'OPENING_ACCOUNTING_STATE_ARTIFACT_NOT_FOUND'],
+    [422, 'OPENING_ACCOUNTING_STATE_ARTIFACT_PURGED'],
+    [422, 'OPENING_ACCOUNTING_STATE_ARTIFACT_INVALID'],
+    [422, 'OPENING_ACCOUNTING_STATE_AFTER_CUTOFF'],
+    [422, 'OPENING_ACCOUNTING_STATE_AS_OF_MISMATCH'],
+  ] satisfies ReadonlyArray<readonly [number, OpeningAccountingStateArtifactErrorCode]>)(
+    'POST maps opening-state artifact error %s %s',
+    async (status, code) => {
+      service.buildFinancialFactsSnapshot.mockRejectedValueOnce(
+        new OpeningAccountingStateArtifactError(status, code, `Typed error: ${code}`)
+      );
+
+      const response = await request(buildApp())
+        .post('/api/admin/funds/1/financial-facts/snapshots')
+        .set('Idempotency-Key', `trigger-${code}`)
+        .send({ asOfDate: '2026-07-21', openingAccountingStateArtifactId: 42 });
+
+      expect(response.status).toBe(status);
+      expect(response.body).toMatchObject({
+        error: code,
+        message: `Typed error: ${code}`,
+      });
+    }
+  );
 });
