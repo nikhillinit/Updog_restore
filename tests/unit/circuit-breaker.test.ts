@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { CircuitBreakerCache } from '../../server/infra/circuit-breaker-cache';
-import type { Cache } from '../../server/infra/cache';
+
+type Cache = ConstructorParameters<typeof CircuitBreakerCache>[0];
 
 // Mock cache implementation for testing
 class MockCache implements Cache {
