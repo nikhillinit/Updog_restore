@@ -5,10 +5,12 @@ import {
   INTERNAL_ECONOMICS_EVENT_ORDERING_VERSION,
   InternalEconomicsEventOrderKeyV1Schema,
   InternalEconomicsEventTypeV1Schema,
+  InternalEconomicsForecastEventTypeV1Schema,
   buildFactsStableSourceId,
   buildForecastStableSourceId,
   compareEventOrderKeys,
   deriveFactsEventOrderKey,
+  deriveForecastEventOrderKey,
 } from '../../../shared/contracts/internal-economics/event-ordering-v1.contract';
 
 describe('internal economics event ordering v1 contract', () => {
@@ -39,10 +41,20 @@ describe('internal economics event ordering v1 contract', () => {
     expect(() => InternalEconomicsEventTypeV1Schema.parse('unknown')).toThrow();
   });
 
+  it('uses a dedicated forecast event type outside the persisted facts event classes', () => {
+    expect(
+      InternalEconomicsForecastEventTypeV1Schema.parse('forecast_quarterly_distribution')
+    ).toBe('forecast_quarterly_distribution');
+    expect(() => InternalEconomicsForecastEventTypeV1Schema.parse('realized_proceeds')).toThrow();
+    expect(() =>
+      InternalEconomicsEventTypeV1Schema.parse('forecast_quarterly_distribution')
+    ).toThrow();
+  });
+
   it('builds exact canonical stable source IDs', () => {
     expect(buildFactsStableSourceId(23, 41)).toBe('facts:23:cash_flow_event:41');
-    expect(buildForecastStableSourceId(17, '2027-03-31', 'realized_proceeds')).toBe(
-      'forecast:17:quarter:2027-03-31:realized_proceeds'
+    expect(buildForecastStableSourceId(17, '2027-03-31', 'forecast_quarterly_distribution')).toBe(
+      'forecast:17:quarter:2027-03-31:forecast_quarterly_distribution'
     );
   });
 
@@ -51,19 +63,24 @@ describe('internal economics event ordering v1 contract', () => {
     ['facts event ID fractional', () => buildFactsStableSourceId(1, 1.5)],
     [
       'forecast snapshot ID negative',
-      () => buildForecastStableSourceId(-1, '2027-03-31', 'fund_expense'),
+      () => buildForecastStableSourceId(-1, '2027-03-31', 'forecast_quarterly_distribution'),
     ],
     [
       'forecast period end malformed',
-      () => buildForecastStableSourceId(1, '2027-3-31', 'fund_expense'),
+      () => buildForecastStableSourceId(1, '2027-3-31', 'forecast_quarterly_distribution'),
     ],
     [
       'forecast period end impossible',
-      () => buildForecastStableSourceId(1, '2027-02-29', 'fund_expense'),
+      () => buildForecastStableSourceId(1, '2027-02-29', 'forecast_quarterly_distribution'),
     ],
     [
-      'forecast event class unknown',
-      () => buildForecastStableSourceId(1, '2027-03-31', 'reversal' as 'fund_expense'),
+      'facts event class used as forecast event type',
+      () =>
+        buildForecastStableSourceId(
+          1,
+          '2027-03-31',
+          'realized_proceeds' as 'forecast_quarterly_distribution'
+        ),
     ],
   ])('rejects malformed %s', (_name, build) => {
     expect(build).toThrow();
@@ -82,6 +99,21 @@ describe('internal economics event ordering v1 contract', () => {
       eventClassPriority: 2,
       stableSourceId: 'facts:23:cash_flow_event:41',
     });
+  });
+
+  it('derives a forecast order key at the canonical UTC period-end instant', () => {
+    const key = deriveForecastEventOrderKey({
+      forecastSnapshotId: 17,
+      periodEnd: '2027-03-31',
+      eventType: 'forecast_quarterly_distribution',
+    });
+
+    expect(key).toEqual({
+      effectiveAt: '2027-03-31T23:59:59.999Z',
+      eventClassPriority: 4,
+      stableSourceId: 'forecast:17:quarter:2027-03-31:forecast_quarterly_distribution',
+    });
+    expect(InternalEconomicsEventOrderKeyV1Schema.parse(key)).toEqual(key);
   });
 
   it('rejects unknown classes, malformed IDs, malformed instants, and extra persisted fields', () => {
@@ -118,6 +150,35 @@ describe('internal economics event ordering v1 contract', () => {
     expect(() =>
       InternalEconomicsEventOrderKeyV1Schema.parse({ ...key, redundantObservation: true })
     ).toThrow();
+  });
+
+  it.each([
+    [
+      'priority differing from four',
+      {
+        effectiveAt: '2027-03-31T23:59:59.999Z',
+        eventClassPriority: 5,
+        stableSourceId: 'forecast:17:quarter:2027-03-31:forecast_quarterly_distribution',
+      },
+    ],
+    [
+      'effective instant differing from the period end',
+      {
+        effectiveAt: '2027-03-31T00:00:00.000Z',
+        eventClassPriority: 4,
+        stableSourceId: 'forecast:17:quarter:2027-03-31:forecast_quarterly_distribution',
+      },
+    ],
+    [
+      'facts event class suffix',
+      {
+        effectiveAt: '2027-03-31T23:59:59.999Z',
+        eventClassPriority: 4,
+        stableSourceId: 'forecast:17:quarter:2027-03-31:realized_proceeds',
+      },
+    ],
+  ])('rejects a forecast order key with %s', (_name, key) => {
+    expect(() => InternalEconomicsEventOrderKeyV1Schema.parse(key)).toThrow();
   });
 
   it('orders same-instant events by class priority', () => {
@@ -214,6 +275,45 @@ describe('internal economics event ordering v1 contract', () => {
       'facts:1:cash_flow_event:1',
       'facts:1:cash_flow_event:2',
       'facts:1:cash_flow_event:3',
+    ];
+
+    for (const permutation of permutations) {
+      expect([...permutation].sort(compareEventOrderKeys).map((key) => key.stableSourceId)).toEqual(
+        expected
+      );
+    }
+  });
+
+  it('produces one canonical forecast order for every input permutation', () => {
+    const canonical = [
+      deriveForecastEventOrderKey({
+        forecastSnapshotId: 2,
+        periodEnd: '2027-06-30',
+        eventType: 'forecast_quarterly_distribution',
+      }),
+      deriveForecastEventOrderKey({
+        forecastSnapshotId: 2,
+        periodEnd: '2027-03-31',
+        eventType: 'forecast_quarterly_distribution',
+      }),
+      deriveForecastEventOrderKey({
+        forecastSnapshotId: 10,
+        periodEnd: '2027-06-30',
+        eventType: 'forecast_quarterly_distribution',
+      }),
+    ];
+    const permutations = [
+      [canonical[0]!, canonical[1]!, canonical[2]!],
+      [canonical[0]!, canonical[2]!, canonical[1]!],
+      [canonical[1]!, canonical[0]!, canonical[2]!],
+      [canonical[1]!, canonical[2]!, canonical[0]!],
+      [canonical[2]!, canonical[0]!, canonical[1]!],
+      [canonical[2]!, canonical[1]!, canonical[0]!],
+    ];
+    const expected = [
+      'forecast:2:quarter:2027-03-31:forecast_quarterly_distribution',
+      'forecast:10:quarter:2027-06-30:forecast_quarterly_distribution',
+      'forecast:2:quarter:2027-06-30:forecast_quarterly_distribution',
     ];
 
     for (const permutation of permutations) {
