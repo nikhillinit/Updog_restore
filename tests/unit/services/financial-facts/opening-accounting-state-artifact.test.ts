@@ -57,17 +57,20 @@ const parseInput = {
 } as const;
 
 describe('parseOpeningAccountingStateArtifact', () => {
-  it('returns an attested ref parsed from exact stored JSON bytes', () => {
-    const row = artifactRow();
+  it.each(['manual', 'structured_paste'])(
+    'returns an attested ref from exact stored JSON bytes for %s artifacts',
+    (sourceType) => {
+      const row = artifactRow({ sourceType });
 
-    expect(parseOpeningAccountingStateArtifact({ ...parseInput, row })).toEqual({
-      sourceArtifactId: 42,
-      sourceArtifactSha256: row.payloadSha256,
-      sourceArtifactCreatedAt: '2026-06-30T23:59:59.500Z',
-      attestedByActorId: 99,
-      observation,
-    });
-  });
+      expect(parseOpeningAccountingStateArtifact({ ...parseInput, row })).toEqual({
+        sourceArtifactId: 42,
+        sourceArtifactSha256: row.payloadSha256,
+        sourceArtifactCreatedAt: '2026-06-30T23:59:59.500Z',
+        attestedByActorId: 99,
+        observation,
+      });
+    }
+  );
 
   it('rejects a missing composite fund and artifact match', () => {
     for (const row of [null, undefined, artifactRow({ fundId: 8 })]) {
@@ -147,6 +150,34 @@ describe('parseOpeningAccountingStateArtifact', () => {
         row: artifactRow({
           payload,
           payloadSha256: createHash('sha256').update(payload).digest('hex'),
+        }),
+      })
+    ).toThrowError(
+      expect.objectContaining({
+        status: 422,
+        code: 'OPENING_ACCOUNTING_STATE_AFTER_CUTOFF',
+      })
+    );
+  });
+
+  it('rejects an observation cutover after the cutoff by less than one millisecond', () => {
+    const cutoverInstant = '2026-06-30T23:59:59.1234561Z';
+    const payload = Buffer.from(
+      JSON.stringify({
+        ...observation,
+        cutoverInstant,
+        accruedPreferredReturnThroughInstant: cutoverInstant,
+      }),
+      'utf8'
+    );
+
+    expect(() =>
+      parseOpeningAccountingStateArtifact({
+        ...parseInput,
+        knowledgeCutoff: '2026-06-30T23:59:59.123456Z',
+        row: artifactRow({
+          payload,
+          createdAt: new Date('2026-06-30T23:59:59.123Z'),
         }),
       })
     ).toThrowError(

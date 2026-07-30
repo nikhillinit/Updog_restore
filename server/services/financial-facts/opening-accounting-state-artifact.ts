@@ -46,6 +46,29 @@ function invalidArtifact(message: string): never {
   );
 }
 
+function compareRfc3339UtcInstants(left: string, right: string): number {
+  const pattern = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d+))?Z$/;
+  const leftMatch = pattern.exec(left);
+  const rightMatch = pattern.exec(right);
+  if (!leftMatch || !rightMatch) {
+    invalidArtifact('Opening accounting-state chronology must use RFC3339 UTC instants.');
+  }
+
+  const leftSecond = leftMatch[1]!;
+  const rightSecond = rightMatch[1]!;
+  if (leftSecond < rightSecond) return -1;
+  if (leftSecond > rightSecond) return 1;
+
+  const leftFraction = (leftMatch[2] ?? '').replace(/0+$/, '');
+  const rightFraction = (rightMatch[2] ?? '').replace(/0+$/, '');
+  const precision = Math.max(leftFraction.length, rightFraction.length);
+  const normalizedLeft = leftFraction.padEnd(precision, '0');
+  const normalizedRight = rightFraction.padEnd(precision, '0');
+  if (normalizedLeft < normalizedRight) return -1;
+  if (normalizedLeft > normalizedRight) return 1;
+  return 0;
+}
+
 export function parseOpeningAccountingStateArtifact(input: {
   row: OpeningAccountingStateArtifactRow | null | undefined;
   fundId: number;
@@ -92,7 +115,10 @@ export function parseOpeningAccountingStateArtifact(input: {
   }
 
   const cutoff = new Date(input.knowledgeCutoff);
-  if (row.createdAt.getTime() > cutoff.getTime() || new Date(observation.cutoverInstant) > cutoff) {
+  if (
+    row.createdAt.getTime() > cutoff.getTime() ||
+    compareRfc3339UtcInstants(observation.cutoverInstant, input.knowledgeCutoff) > 0
+  ) {
     throw new OpeningAccountingStateArtifactError(
       422,
       'OPENING_ACCOUNTING_STATE_AFTER_CUTOFF',

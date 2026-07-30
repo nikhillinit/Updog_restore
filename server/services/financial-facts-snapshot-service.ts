@@ -7,7 +7,6 @@ import {
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3,
   FINANCIAL_FACTS_POLICY_VERSION,
-  FINANCIAL_FACTS_POLICY_VERSION_1_1_0,
   FinancialFactsPayloadV1Schema,
   FinancialFactsPayloadV2Schema,
   FinancialFactsPayloadV3Schema,
@@ -1184,27 +1183,7 @@ function snapshotFromRow(row: SnapshotRow): PersistedFinancialFactsSnapshotV1 {
     actorId: row.actorId,
     createdAt: row.createdAt.toISOString(),
   };
-  PersistedFinancialFactsSnapshotV1Schema.parse(persisted);
-
-  return PersistedFinancialFactsSnapshotV1Schema.parse({
-    policyVersion: row.policyVersion,
-    ...(row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_1_0 ||
-    row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION
-      ? { payloadSchemaId: row.payloadSchemaId }
-      : {}),
-    fundId: row.fundId,
-    asOfDate: row.asOfDate,
-    knowledgeCutoff: row.knowledgeCutoff.toISOString(),
-    vehicleScope: row.vehicleScope,
-    vehicleIds: row.vehicleIds,
-    selectionSetHash: row.selectionSetHash,
-    sourceFactsInputHash: row.sourceFactsInputHash,
-    snapshotInputHash: row.snapshotInputHash,
-    consumerEvaluations: row.consumerEvaluations,
-    payload: row.payload,
-    actorId: row.actorId,
-    createdAt: row.createdAt.toISOString(),
-  });
+  return PersistedFinancialFactsSnapshotV1Schema.parse(persisted);
 }
 
 function asPositiveInt(value: unknown): number {

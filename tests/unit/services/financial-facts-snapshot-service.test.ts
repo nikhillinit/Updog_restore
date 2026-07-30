@@ -482,6 +482,27 @@ describe('buildFinancialFactsSnapshot', () => {
     expect(fakeDb.sourceArtifactWhereClauses).toHaveLength(0);
   });
 
+  it('preserves the payload 3 schema id when reconstructing an exact replay', async () => {
+    const fakeDb = new FakeSnapshotDb();
+    const input = {
+      fundId: 1,
+      asOfDate: '2026-06-30',
+      actorId: 7,
+      idempotencyKey: 'snapshot-v3-reconstruction',
+      database: fakeDb.asDatabase(),
+      now: new Date('2026-07-22T01:42:44.186Z'),
+    };
+
+    const created = await buildFinancialFactsSnapshot(input);
+    const replayed = await buildFinancialFactsSnapshot(input);
+
+    expect(replayed).toEqual(created);
+    expect(replayed).toMatchObject({
+      policyVersion: 'financial-facts-policy/1.2.0',
+      payloadSchemaId: 'financial-facts-payload/3',
+    });
+  });
+
   it('pins the exact selected artifact ref into payload 3', async () => {
     const fakeDb = new FakeSnapshotDb();
     const artifact = openingStateArtifact();
