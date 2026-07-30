@@ -3455,6 +3455,26 @@ describe('required CI fails closed', () => {
     expect(affectedScripts).toContain('npm run test:affected:run');
   });
 
+  it('owns full unit coverage once while preserving affected and full integration gates', async () => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const checkMatrix = workflow.jobs?.check?.strategy?.matrix?.job;
+    const fullMatrix = workflow.jobs?.['test-full']?.strategy?.matrix?.group;
+    expect(checkMatrix).toEqual(['typecheck', 'lint', 'unit-fast']);
+    expect(fullMatrix).toEqual(['integration', 'e2e', 'validate-core']);
+    expect(workflow.jobs?.['test-affected']?.if).toContain(
+      "needs.changes.outputs.schema != 'true'"
+    );
+    const affectedScript = (workflow.jobs?.['test-affected']?.steps ?? [])
+      .flatMap((step) => (typeof step.run === 'string' ? [step.run] : []))
+      .join('\n');
+    expect(affectedScript).toContain('npm run test:affected:run -- --skip-unit');
+    expect(affectedScript).not.toMatch(/full_fallback\)[\s\S]*npm run test:unit/);
+    const fullScript = (workflow.jobs?.['test-full']?.steps ?? [])
+      .flatMap((step) => (typeof step.run === 'string' ? [step.run] : []))
+      .join('\n');
+    expect(fullScript).not.toMatch(/unit\)\s*npm run test:unit/);
+  });
+
   it('does not mask bundle-budget failures', async () => {
     const workflow = await readWorkflow('ci-unified.yml');
     const scripts = allRunScripts(workflow).join('\n');

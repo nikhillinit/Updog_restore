@@ -219,4 +219,26 @@ describe('affected-test execution', () => {
       TESTCONTAINERS_TEST_PATHS.map(() => 'test:testcontainers')
     );
   });
+
+  it('can skip selected unit tests already proven by the canonical CI unit lane', async () => {
+    const root = await makeRoot();
+    await write(root, 'tests/unit/selected.test.ts');
+    await write(root, 'tests/api/selected.test.ts');
+    const plan = {
+      version: 1,
+      mode: 'selected',
+      tests: ['tests/api/selected.test.ts', 'tests/unit/selected.test.ts'],
+      reason: 'changed tests',
+    };
+    const spawn = vi.fn(() => ({ status: 0 }));
+    const status = await executeSelectedPlan(plan, {
+      root,
+      spawn,
+      skipUnit: true,
+    });
+    expect(status).toBe(0);
+    expect(spawn.mock.calls.map((call) => call[1])).toEqual([
+      ['run', 'test:integration', '--', 'tests/api/selected.test.ts'],
+    ]);
+  });
 });

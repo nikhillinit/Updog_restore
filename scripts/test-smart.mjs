@@ -319,7 +319,10 @@ export function testRunnerForPath(testPath) {
   return undefined;
 }
 
-export async function executeSelectedPlan(plan, { root = process.cwd(), spawn = spawnSync } = {}) {
+export async function executeSelectedPlan(
+  plan,
+  { root = process.cwd(), spawn = spawnSync, skipUnit = false } = {}
+) {
   await validateAffectedTestPlan(plan, { root });
   if (plan.mode !== 'selected') {
     throw new Error(`Cannot execute selected tests for plan mode ${plan.mode}.`);
@@ -337,6 +340,9 @@ export async function executeSelectedPlan(plan, { root = process.cwd(), spawn = 
   }
 
   for (const script of ['test:unit', 'test:integration', 'test:testcontainers']) {
+    if (script === 'test:unit' && skipUnit) {
+      continue;
+    }
     const tests = testsByRunner.get(script);
     if (!tests || tests.length === 0) {
       continue;
@@ -396,9 +402,14 @@ async function main(args = process.argv.slice(2), root = process.cwd()) {
   const planPath = argumentValue(args, '--plan-json');
   const runPlanPath = argumentValue(args, '--run-plan');
   const baseRef = argumentValue(args, '--base-ref') || DEFAULT_BASE_REF;
+  const skipUnit = args.includes('--skip-unit');
 
   if (planPath !== undefined && runPlanPath !== undefined) {
     throw new Error('--plan-json and --run-plan are mutually exclusive.');
+  }
+
+  if (skipUnit && runPlanPath === undefined) {
+    throw new Error('--skip-unit requires --run-plan.');
   }
 
   if (runPlanPath !== undefined) {
@@ -410,7 +421,7 @@ async function main(args = process.argv.slice(2), root = process.cwd()) {
         `Affected test plan is stale: planned ${plan.headSha}, current ${currentHead}.`
       );
     }
-    process.exitCode = await executeSelectedPlan(plan, { root });
+    process.exitCode = await executeSelectedPlan(plan, { root, skipUnit });
     return;
   }
 

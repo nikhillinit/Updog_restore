@@ -135,6 +135,7 @@ jobs:
     if: |
       github.event_name == 'pull_request' &&
       needs.changes.outputs.heavy_ci_relevant == 'true' &&
+      needs.changes.outputs.schema != 'true' &&
       github.event.inputs.run_full_suite != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -188,13 +189,13 @@ jobs:
           MODE="$(node -e "const fs=require('node:fs'); const plan=JSON.parse(fs.readFileSync('artifacts/affected-plan.json','utf8')); process.stdout.write(String(plan.mode));")"
           case "$MODE" in
             selected)
-              npm run test:affected:run
+              npm run test:affected:run -- --skip-unit
               ;;
             no_affected_tests)
               npm run validate:core
               ;;
             full_fallback)
-              npm run test:unit
+              echo "Full unit fallback already satisfied by Check unit-fast."
               ;;
             *)
               echo "Unknown affected-test plan mode: $MODE"
@@ -234,7 +235,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [unit, integration, e2e, validate-core]
+        group: [integration, e2e, validate-core]
     services:
       postgres:
         image: postgres:16-alpine
@@ -278,9 +279,6 @@ jobs:
       - name: Run tests
         run: |
           case "${{ matrix.group }}" in
-            unit)
-              npm run test:unit
-              ;;
             integration)
               # vitest.config.int.ts explicitly includes the scenario release gate
               # while excluding Docker-only testcontainers proofs from this path.
@@ -772,7 +770,11 @@ jobs:
 
           if [[ "${{ github.event_name }}" == "pull_request" && "$run_full_suite" != "true" ]]; then
             test_result="${{ needs.test-affected.result }}"
-            test_expected="$heavy_ci_relevant"
+            if [[ "$schema_changed" == "true" ]]; then
+              test_expected=false
+            else
+              test_expected="$heavy_ci_relevant"
+            fi
           else
             test_result="${{ needs.test-full.result }}"
             test_expected="$heavy_expected"
