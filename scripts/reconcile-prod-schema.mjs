@@ -257,7 +257,11 @@ function validateApplyPolicy(manifest) {
     return;
   }
 
-  const knownPolicyKeys = new Set(['allowDropNotNull', 'allowConstraintReplacements']);
+  const knownPolicyKeys = new Set([
+    'allowDropNotNull',
+    'allowConstraintReplacements',
+    'allowNonNullColumnAdds',
+  ]);
   for (const key of Object.keys(applyPolicy ?? {})) {
     if (!knownPolicyKeys.has(key)) {
       throw new ReconcileError(
@@ -272,6 +276,37 @@ function validateApplyPolicy(manifest) {
   }
 
   const tables = new Map((manifest.expectedTables ?? []).map((table) => [table.name, table]));
+  const seenNonNullColumnAdds = new Set();
+  for (const target of applyPolicy.allowNonNullColumnAdds ?? []) {
+    assertSafeIdentifier(String(target.table ?? ''));
+    assertSafeIdentifier(String(target.column ?? ''));
+    const key = `${target.table}.${target.column}`;
+    if (seenNonNullColumnAdds.has(key)) {
+      throw new ReconcileError(
+        `Manifest ${manifestLabel(manifest)} has duplicate applyPolicy target ${key}`,
+        {
+          kind: 'invalid-apply-policy',
+          manifest: manifestLabel(manifest),
+          target: key,
+        }
+      );
+    }
+    seenNonNullColumnAdds.add(key);
+    const expectedColumn = tables
+      .get(target.table)
+      ?.columns?.find((column) => column.name === target.column);
+    if (expectedColumn?.nullable !== false) {
+      throw new ReconcileError(
+        `Manifest ${manifestLabel(manifest)} allowNonNullColumnAdds target ${key} is not an expected non-null column`,
+        {
+          kind: 'invalid-apply-policy',
+          manifest: manifestLabel(manifest),
+          target: key,
+        }
+      );
+    }
+  }
+
   const seenDropNotNull = new Set();
   for (const target of applyPolicy.allowDropNotNull ?? []) {
     assertSafeIdentifier(String(target.table ?? ''));
@@ -476,6 +511,159 @@ export function validateManifestSql(manifest, sqlFiles) {
       }
     }
   }
+
+  const nonNullColumnAddViolations = validateNonNullColumnAddPolicy(manifest, sqlFiles);
+  if (nonNullColumnAddViolations.length > 0) {
+    throw new ReconcileError(
+      `Manifest ${manifest.name} has SQL outside allowNonNullColumnAdds policy`,
+      {
+        kind: 'invalid-non-null-column-add-policy',
+        manifest: manifest.name,
+        violations: nonNullColumnAddViolations,
+      }
+    );
+  }
+}
+
+export function validateNonNullColumnAddPolicy(manifest, sqlFiles) {
+  const allowedTargets = manifest.applyPolicy?.allowNonNullColumnAdds ?? [];
+  if (allowedTargets.length === 0) {
+    return [];
+  }
+
+  const allowedKeys = new Set(allowedTargets.map((target) => `${target.table}.${target.column}`));
+  const additions = [];
+  const violations = [];
+
+  for (const file of sqlFiles) {
+    const statements = splitSqlStatements(file.sql)
+      .map((statement) => stripSqlComments(statement).trim())
+      .filter(Boolean);
+
+    for (const statement of statements) {
+      if (!/\bALTER\s+TABLE\b/i.test(statement) || !/\bADD\s+COLUMN\b/i.test(statement)) {
+        continue;
+      }
+
+      const parsed = parseAlterTableAddColumn(statement);
+      if (!parsed) {
+        violations.push({
+          manifest: manifest.name,
+          file: file.path,
+          kind: 'malformed-non-null-column-add',
+          statement,
+          reason: 'ALTER TABLE ADD COLUMN must be one direct, parseable statement',
+        });
+        continue;
+      }
+
+      additions.push({ ...parsed, file: file.path, statement });
+      if (!allowedKeys.has(parsed.key)) {
+        violations.push({
+          manifest: manifest.name,
+          file: file.path,
+          kind: 'undeclared-non-null-column-add',
+          statement,
+          reason: `${parsed.key} is not declared in allowNonNullColumnAdds`,
+        });
+        continue;
+      }
+
+      if (!isSafeNonNullColumnAdd(parsed)) {
+        violations.push({
+          manifest: manifest.name,
+          file: file.path,
+          kind: 'invalid-non-null-column-add',
+          statement,
+          reason: `${parsed.key} must use IF NOT EXISTS and exactly one NOT NULL DEFAULT with a proven non-null value`,
+        });
+      }
+    }
+  }
+
+  for (const target of allowedTargets) {
+    const key = `${target.table}.${target.column}`;
+    const matches = additions.filter((addition) => addition.key === key);
+    if (matches.length === 0) {
+      violations.push({
+        manifest: manifest.name,
+        file: '<manifest-sql>',
+        kind: 'unproven-non-null-column-add',
+        statement: key,
+        reason: `${key} has no matching ALTER TABLE ADD COLUMN statement`,
+      });
+    } else if (matches.length > 1) {
+      violations.push({
+        manifest: manifest.name,
+        file: '<manifest-sql>',
+        kind: 'duplicate-non-null-column-add',
+        statement: key,
+        reason: `${key} must have exactly one ALTER TABLE ADD COLUMN statement`,
+      });
+    }
+  }
+
+  return violations;
+}
+
+function parseAlterTableAddColumn(statement) {
+  const withoutTerminator = statement.replace(/;\s*$/, '').trim();
+  const statementMatch = withoutTerminator.match(
+    /^ALTER\s+TABLE\s+(?:"([a-z_][a-z0-9_]*)"|([a-z_][a-z0-9_]*))\s+ADD\s+COLUMN\s+([\s\S]+)$/i
+  );
+  if (!statementMatch) {
+    return null;
+  }
+
+  const table = statementMatch[1] ?? statementMatch[2];
+  let remainder = statementMatch[3].trim();
+  let ifNotExists = false;
+  if (/^IF\b/i.test(remainder)) {
+    const guardMatch = remainder.match(/^IF\s+NOT\s+EXISTS\s+([\s\S]+)$/i);
+    if (!guardMatch) {
+      return null;
+    }
+    ifNotExists = true;
+    remainder = guardMatch[1].trim();
+  }
+
+  const columnMatch = remainder.match(/^(?:"([a-z_][a-z0-9_]*)"|([a-z_][a-z0-9_]*))\s+([\s\S]+)$/i);
+  if (!columnMatch) {
+    return null;
+  }
+
+  const column = columnMatch[1] ?? columnMatch[2];
+  return {
+    table,
+    column,
+    key: `${table}.${column}`,
+    ifNotExists,
+    definition: columnMatch[3].trim(),
+  };
+}
+
+function isSafeNonNullColumnAdd(addition) {
+  if (
+    !addition.ifNotExists ||
+    /\b(?:ALTER\s+TABLE|ADD\s+COLUMN)\b/i.test(addition.definition) ||
+    (addition.definition.match(/\bNOT\s+NULL\b/gi) ?? []).length !== 1 ||
+    (addition.definition.match(/\bDEFAULT\b/gi) ?? []).length !== 1
+  ) {
+    return false;
+  }
+
+  const defaultMatch = addition.definition.match(/\bNOT\s+NULL\s+DEFAULT\s+([\s\S]+)$/i);
+  return defaultMatch !== null && isProvenNonNullDefault(defaultMatch[1].trim());
+}
+
+function isProvenNonNullDefault(value) {
+  return /^(?:true|false|[-+]?(?:\d+(?:\.\d+)?|\.\d+)|'(?:''|[^'])*'(?:\s*::\s*[a-z_][a-z0-9_]*(?:\([^)]*\))?)?|now\(\)|current_timestamp)$/i.test(
+    value
+  );
+}
+
+function stripSqlComments(sql) {
+  return sql.replace(/--.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
 export function extractCreateTableNames(sql) {
@@ -522,6 +710,9 @@ export async function auditManifest(client, manifest) {
           columns: columns.get(expectedTable.name) ?? new Map(),
           constraints: tableConstraints,
           indexes,
+          nonNullColumnAdds: (manifest.applyPolicy?.allowNonNullColumnAdds ?? []).filter(
+            (target) => target.table === expectedTable.name
+          ),
           constraintReplacements: (manifest.applyPolicy?.allowConstraintReplacements ?? []).filter(
             (replacement) => replacement.table === expectedTable.name
           ),
@@ -820,6 +1011,7 @@ async function auditTable({
   columns,
   constraints,
   indexes,
+  nonNullColumnAdds,
   constraintReplacements,
   missingTablePolicy,
 }) {
@@ -847,10 +1039,13 @@ async function auditTable({
   for (const expectedColumn of expectedTable.columns ?? []) {
     const actualColumn = columns.get(expectedColumn.name);
     if (!actualColumn) {
+      const allowNonNullAdd = nonNullColumnAdds.some(
+        (target) => target.column === expectedColumn.name
+      );
       deltas.push({
         kind: 'missing-column',
         name: `${expectedTable.name}.${expectedColumn.name}`,
-        additiveSafe: expectedColumn.nullable !== false,
+        additiveSafe: expectedColumn.nullable !== false || allowNonNullAdd,
       });
       continue;
     }

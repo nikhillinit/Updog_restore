@@ -4,6 +4,15 @@
   "missingTablePolicy": "create_or_repair",
   "sqlFiles": ["migrations/0031_user_identity_grants_revocation.sql"],
   "allowedCreateTables": ["user_fund_grants", "revoked_tokens"],
+  "applyPolicy": {
+    "allowNonNullColumnAdds": [
+      { "table": "users", "column": "role" },
+      { "table": "users", "column": "is_active" },
+      { "table": "users", "column": "password_updated_at" },
+      { "table": "users", "column": "created_at" },
+      { "table": "users", "column": "updated_at" }
+    ]
+  },
   "expectedTables": [
     {
       "name": "users",
