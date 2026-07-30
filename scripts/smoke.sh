@@ -112,8 +112,8 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 if [ $FAILED -eq 0 ]; then
     echo -e "${GREEN}✅ All smoke tests passed!${NC}"
     echo ""
-    echo "Ready for production deployment:"
-    echo "  npx vercel --prod"
+    echo "Dispatch governed production release:"
+    echo "  pwsh ./scripts/deploy-production.ps1"
     exit 0
 else
     echo -e "${RED}❌ $FAILED smoke test(s) failed${NC}"

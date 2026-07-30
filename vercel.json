@@ -1,4 +1,8 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "github": {
+    "autoAlias": false
+  },
   "version": 2,
   "buildCommand": "npm run build:web && node scripts/build-vercel-api.mjs",
   "outputDirectory": "dist/public",

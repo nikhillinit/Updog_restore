@@ -1,7 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { ReconcileError, splitSqlStatements } from './reconcile-prod-schema.mjs';
+import {
+  ReconcileError,
+  splitSqlStatements,
+  validateNonNullColumnAddPolicy,
+} from './reconcile-prod-schema.mjs';
 
 const DANGEROUS_STATEMENT_PATTERNS = [
   {
@@ -52,17 +56,29 @@ export function assertApplyPolicyForManifests({
 
   for (const manifest of manifests) {
     if (!applying.has(manifest.name)) continue;
+    const manifestSql = [];
     for (const sqlFile of manifest.sqlFiles ?? []) {
       const sql = fs.readFileSync(path.resolve(rootDir, sqlFile), 'utf8');
-      violations.push(...validateSqlApplyPolicy({ manifest, sqlFile, sql }));
+      manifestSql.push(sql);
+      violations.push(...validateSqlStatementPolicy({ manifest, sqlFile, sql }));
     }
+    violations.push(
+      ...validateNonNullColumnAddPolicy(
+        manifest,
+        manifestSql.map((sql, index) => ({
+          path: manifest.sqlFiles[index],
+          sql,
+        }))
+      )
+    );
     if ((manifest.dropObjects ?? []).length > 0) {
       violations.push({
         manifest: manifest.name,
         file: '<dropObjects>',
         kind: 'drop-objects',
         statement: 'dropObjects',
-        reason: 'dropObjects are explicit removals and cannot run in additive-safe production apply',
+        reason:
+          'dropObjects are explicit removals and cannot run in additive-safe production apply',
       });
     }
   }
@@ -78,6 +94,13 @@ export function assertApplyPolicyForManifests({
 }
 
 export function validateSqlApplyPolicy({ manifest, sqlFile, sql }) {
+  return [
+    ...validateSqlStatementPolicy({ manifest, sqlFile, sql }),
+    ...validateNonNullColumnAddPolicy(manifest, [{ path: sqlFile, sql }]),
+  ];
+}
+
+function validateSqlStatementPolicy({ manifest, sqlFile, sql }) {
   const statements = splitSqlStatements(sql)
     .map((statement) => stripSqlComments(statement).trim())
     .filter(Boolean);
@@ -140,7 +163,11 @@ function validateStatementApplyPolicy({ manifest, sqlFile, statement }) {
   }
 
   for (const dropToken of findDropTokens(statement)) {
-    if (!recognizedDropSpans.some((span) => dropToken.index >= span.start && dropToken.index < span.end)) {
+    if (
+      !recognizedDropSpans.some(
+        (span) => dropToken.index >= span.start && dropToken.index < span.end
+      )
+    ) {
       violations.push({
         manifest: manifest.name,
         file: sqlFile,
@@ -213,9 +240,7 @@ function extractDropNotNulls(statement) {
   if (!tableName) return [];
 
   return [
-    ...statement.matchAll(
-      /\bALTER\s+COLUMN\s+"?([a-z_][a-z0-9_]*)"?\s+DROP\s+NOT\s+NULL\b/gi
-    ),
+    ...statement.matchAll(/\bALTER\s+COLUMN\s+"?([a-z_][a-z0-9_]*)"?\s+DROP\s+NOT\s+NULL\b/gi),
   ].map((match) => ({
     table: tableName,
     column: match[1],

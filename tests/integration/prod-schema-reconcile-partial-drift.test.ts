@@ -14,6 +14,7 @@ import {
   runReconciliation,
   splitSqlStatements,
 } from '../../scripts/reconcile-prod-schema.mjs';
+import { assertApplyPolicyForManifests } from '../../scripts/prod-schema-apply-policy.mjs';
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
 
 const STARTUP_TIMEOUT_MS = 90_000;
@@ -39,6 +40,9 @@ let allocationManifest: Manifest | undefined;
 let substrateShadowManifest: Manifest | undefined;
 let currentForecastManifest: Manifest | undefined;
 let positionsOwnershipManifest: Manifest | undefined;
+let identityManifest: Manifest | undefined;
+let companyScenarioCreateManifest: Manifest | undefined;
+let businessTimeComparisonManifest: Manifest | undefined;
 let baseConnectionString = '';
 
 function requirePool(): Pool {
@@ -100,12 +104,295 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
     positionsOwnershipManifest = manifests.find(
       (manifest) => manifest.name === 'positions-ownership-compat'
     );
+    identityManifest = manifests.find(
+      (manifest) => manifest.name === 'user-identity-grants-revocation'
+    );
+    companyScenarioCreateManifest = manifests.find(
+      (manifest) => manifest.name === 'company-scenario-create-requests'
+    );
+    businessTimeComparisonManifest = manifests.find(
+      (manifest) => manifest.name === 'business-time-comparison-lineage'
+    );
   }, STARTUP_TIMEOUT_MS * 2);
 
   afterAll(async () => {
     await pool?.end();
     await postgres?.stop();
   });
+
+  it(
+    'manifest 19 additively converges identity grants and revocation from pre-0031',
+    async () => {
+      const activePool = requirePool();
+      const manifest = requireManifest(identityManifest, 'user_fund_grants');
+      const databaseName = 'prod_like_pre_0031_identity';
+      const databaseConnectionString = connectionStringForDatabase(
+        baseConnectionString,
+        databaseName
+      );
+      let isolatedPool: Pool | undefined;
+
+      await activePool.query(`DROP DATABASE IF EXISTS ${databaseName} WITH (FORCE)`);
+      await activePool.query(`CREATE DATABASE ${databaseName}`);
+
+      try {
+        await runMigrationsWithConnectionString(
+          databaseConnectionString,
+          '0030_allocation_scenarios_reconcile_drift'
+        );
+        isolatedPool = new Pool({ connectionString: databaseConnectionString, max: 1 });
+
+        const result = await runReconciliation({
+          client: isolatedPool,
+          manifests: [manifest],
+          apply: true,
+          stdout: { write: () => undefined },
+        });
+        expect(result.applied).toContain('user-identity-grants-revocation');
+
+        const tableResult = await isolatedPool.query<{ name: string | null }>(`
+          SELECT to_regclass('public.user_fund_grants')::text AS name
+          UNION ALL
+          SELECT to_regclass('public.revoked_tokens')::text
+        `);
+        expect(tableResult.rows.map((row) => row.name)).toEqual([
+          'user_fund_grants',
+          'revoked_tokens',
+        ]);
+
+        const columnResult = await isolatedPool.query<{
+          column_name: string;
+          data_type: string;
+          is_nullable: string;
+        }>(`
+          SELECT column_name, data_type, is_nullable
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'users'
+            AND column_name = ANY(
+              ARRAY['role', 'is_active', 'password_updated_at']::text[]
+            )
+          ORDER BY column_name
+        `);
+        expect(columnResult.rows).toEqual([
+          { column_name: 'is_active', data_type: 'boolean', is_nullable: 'NO' },
+          {
+            column_name: 'password_updated_at',
+            data_type: 'timestamp with time zone',
+            is_nullable: 'NO',
+          },
+          { column_name: 'role', data_type: 'character varying', is_nullable: 'NO' },
+        ]);
+
+        const constraintResult = await isolatedPool.query<{ conname: string }>(`
+          SELECT conname
+          FROM pg_constraint
+          WHERE conname = ANY(
+            ARRAY[
+              'users_role_check',
+              'user_fund_grants_pkey',
+              'user_fund_grants_user_id_users_id_fk',
+              'user_fund_grants_fund_id_funds_id_fk',
+              'revoked_tokens_pkey',
+              'revoked_tokens_user_id_users_id_fk'
+            ]::text[]
+          )
+          ORDER BY conname
+        `);
+        expect(constraintResult.rows.map((row) => row.conname)).toEqual([
+          'revoked_tokens_pkey',
+          'revoked_tokens_user_id_users_id_fk',
+          'user_fund_grants_fund_id_funds_id_fk',
+          'user_fund_grants_pkey',
+          'user_fund_grants_user_id_users_id_fk',
+          'users_role_check',
+        ]);
+
+        const indexResult = await isolatedPool.query<{ name: string | null }>(
+          "SELECT to_regclass('public.revoked_tokens_expires_at_idx')::text AS name"
+        );
+        expect(indexResult.rows).toEqual([{ name: 'revoked_tokens_expires_at_idx' }]);
+        expect((await auditManifest(isolatedPool, manifest)).action).toBe(ACTION_SKIP);
+
+        const replay = await runReconciliation({
+          client: isolatedPool,
+          manifests: [manifest],
+          apply: true,
+          stdout: { write: () => undefined },
+        });
+        expect(replay.applied).toEqual([]);
+      } finally {
+        await isolatedPool?.end();
+        await activePool.query(`DROP DATABASE IF EXISTS ${databaseName} WITH (FORCE)`);
+      }
+    },
+    TEST_TIMEOUT_MS * 2
+  );
+
+  it(
+    'manifest 20 additively converges company scenario create requests from pre-0033',
+    async () => {
+      const activePool = requirePool();
+      const manifest = requireManifest(
+        companyScenarioCreateManifest,
+        'company_scenario_create_requests'
+      );
+      const databaseName = 'prod_like_pre_0033_company_requests';
+      const databaseConnectionString = connectionStringForDatabase(
+        baseConnectionString,
+        databaseName
+      );
+      let isolatedPool: Pool | undefined;
+
+      await activePool.query(`DROP DATABASE IF EXISTS ${databaseName} WITH (FORCE)`);
+      await activePool.query(`CREATE DATABASE ${databaseName}`);
+
+      try {
+        await runMigrationsWithConnectionString(
+          databaseConnectionString,
+          '0032_scenario_case_seed_provenance'
+        );
+        isolatedPool = new Pool({ connectionString: databaseConnectionString, max: 1 });
+
+        const result = await runReconciliation({
+          client: isolatedPool,
+          manifests: [manifest],
+          apply: true,
+          stdout: { write: () => undefined },
+        });
+        expect(result.applied).toContain('company-scenario-create-requests');
+
+        const tableResult = await isolatedPool.query<{ name: string | null }>(
+          "SELECT to_regclass('public.company_scenario_create_requests')::text AS name"
+        );
+        expect(tableResult.rows).toEqual([{ name: 'company_scenario_create_requests' }]);
+        expect((await auditManifest(isolatedPool, manifest)).action).toBe(ACTION_SKIP);
+
+        const replay = await runReconciliation({
+          client: isolatedPool,
+          manifests: [manifest],
+          apply: true,
+          stdout: { write: () => undefined },
+        });
+        expect(replay.applied).toEqual([]);
+      } finally {
+        await isolatedPool?.end();
+        await activePool.query(`DROP DATABASE IF EXISTS ${databaseName} WITH (FORCE)`);
+      }
+    },
+    TEST_TIMEOUT_MS * 2
+  );
+
+  it(
+    'manifest 21 exposes legacy index drift and refuses non-additive apply from pre-0034',
+    async () => {
+      const activePool = requirePool();
+      const manifest = requireManifest(businessTimeComparisonManifest, 'calc_runs');
+      const databaseName = 'prod_like_pre_0034_business_time';
+      const databaseConnectionString = connectionStringForDatabase(
+        baseConnectionString,
+        databaseName
+      );
+      let isolatedPool: Pool | undefined;
+
+      await activePool.query(`DROP DATABASE IF EXISTS ${databaseName} WITH (FORCE)`);
+      await activePool.query(`CREATE DATABASE ${databaseName}`);
+
+      try {
+        await runMigrationsWithConnectionString(
+          databaseConnectionString,
+          '0033_company_scenario_create_requests'
+        );
+        isolatedPool = new Pool({ connectionString: databaseConnectionString, max: 1 });
+
+        const legacyIndex = await isolatedPool.query<{ definition: string }>(`
+          SELECT pg_get_indexdef('public.fund_scenario_calc_runs_active_dedup_idx'::regclass)
+            AS definition
+        `);
+        expect(legacyIndex.rows[0]?.definition).toContain(
+          '(scenario_set_id, source_config_id, source_config_version, input_hash)'
+        );
+        expect(legacyIndex.rows[0]?.definition).not.toContain('COALESCE(hash_kind');
+
+        const audit = await auditManifest(isolatedPool, manifest);
+        expect(audit.action).toBe(ACTION_APPLY_MISSING_DDL);
+        expect(
+          audit.objects
+            .flatMap((object) => object.deltas)
+            .map((delta) => ({ kind: delta.kind, name: delta.name }))
+        ).toEqual(
+          expect.arrayContaining([
+            { kind: 'missing-column', name: 'calc_runs.model_inputs_as_of_date' },
+            { kind: 'missing-column', name: 'calc_runs.comparison_lineage_version' },
+            {
+              kind: 'missing-column',
+              name: 'fund_scenario_calculation_runs.hash_kind',
+            },
+            {
+              kind: 'index-definition-mismatch',
+              name: 'fund_scenario_calc_runs_active_dedup_idx',
+            },
+          ])
+        );
+
+        expect(() =>
+          assertApplyPolicyForManifests({
+            manifests: [manifest],
+            applyingManifestNames: new Set([manifest.name]),
+          })
+        ).toThrowError(
+          expect.objectContaining({
+            details: {
+              kind: 'apply-policy-violation',
+              violations: expect.arrayContaining([expect.objectContaining({ kind: 'drop-index' })]),
+            },
+          })
+        );
+
+        const unchangedColumns = await isolatedPool.query<{
+          table_name: string;
+          column_name: string;
+        }>(`
+          SELECT table_name, column_name
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND (
+              (
+                table_name = 'calc_runs'
+                AND column_name = ANY(
+                  ARRAY[
+                    'model_inputs_as_of_date',
+                    'comparison_lineage_version'
+                  ]::text[]
+                )
+              )
+              OR (
+                table_name = 'fund_scenario_calculation_runs'
+                AND column_name = ANY(
+                  ARRAY[
+                    'model_inputs_as_of_date',
+                    'comparison_lineage_version',
+                    'hash_kind'
+                  ]::text[]
+                )
+              )
+            )
+          ORDER BY table_name, column_name
+        `);
+        expect(unchangedColumns.rows).toEqual([]);
+
+        const unchangedIndex = await isolatedPool.query<{ definition: string }>(`
+          SELECT pg_get_indexdef('public.fund_scenario_calc_runs_active_dedup_idx'::regclass)
+            AS definition
+        `);
+        expect(unchangedIndex.rows[0]?.definition).not.toContain('COALESCE(hash_kind');
+      } finally {
+        await isolatedPool?.end();
+        await activePool.query(`DROP DATABASE IF EXISTS ${databaseName} WITH (FORCE)`);
+      }
+    },
+    TEST_TIMEOUT_MS * 2
+  );
 
   it(
     'production-like 0035 database converges M9 through M17 in apply order',

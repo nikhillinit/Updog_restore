@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-07-12
+last_updated: 2026-07-30
 ---
 
 # Build Readiness Verification Report
@@ -89,17 +89,36 @@ DB-backed partial-drift reconciliation proof), a clean production schema audit
 (exactly one `SKIP` decision per manifest; workflow success alone is
 insufficient), and an authenticated smoke against the deployed application.
 
-`.github/workflows/release-production.yml` enforces the order against one exact
-main SHA: full release proof, clean production schema audit, authenticated smoke
-against the staged production deployment, Vercel promotion, then authenticated
-smoke against the canonical production URL. Both smoke passes require health,
-metrics, and dedicated login credentials before Playwright starts, so missing
-credentials cannot produce a skipped green run.
+`.github/workflows/release-production.yml` requires the exact current `main` SHA
+at dispatch, then enforces this order: full release proof, clean production
+schema audit, creation of a production-target Vercel deployment without domain
+assignment, exact deployment identity validation, authenticated staged smoke,
+Vercel promotion, then authenticated smoke against the canonical production URL.
+The workflow creates this staged deployment from the exact checked-out SHA with
+the pinned Vercel CLI only after the schema audit is clean. It rechecks live
+`main` before staging, deployment validation, staged smoke, and promotion.
+Post-promotion smoke validates the promoted deployment through the canonical
+alias rather than rechecking `main`. Both smoke passes require health, metrics,
+and dedicated login credentials before Playwright starts, so missing credentials
+cannot produce a skipped green run.
 
-Vercel's `Auto-assign Custom Production Domains` setting must remain disabled;
-otherwise the Git integration can bypass this workflow and serve a main-branch
-build before the schema audit. `Production` holds the promotion token and smoke
-credentials, while `production-schema` holds only `PRODUCTION_DATABASE_URL`.
+`vercel.json` owns the invariant `github.autoAlias=false`. It disables automatic
+alias assignment in version control so the Vercel Git integration cannot bypass
+the governed workflow and serve a main-branch build before the schema audit. Do
+not replace this code-owned control with a dashboard-only setting.
+
+The required post-merge production activation sequence is:
+
+```text
+schema apply when required -> clean audit -> stage production target -> validate identity -> staged smoke -> promote -> production smoke
+```
+
+`Release Production` must target the exact current `main` SHA. After the clean
+audit, it creates and validates the staged Vercel production deployment itself;
+caller-provided deployment URLs are ignored. The release workflow reads its
+deployment/promotion token and smoke credentials from `Production`; the
+prod-schema-reconcile workflow reads only `PRODUCTION_DATABASE_URL` from
+`production-schema`.
 
 ## Surface Status
 

@@ -284,7 +284,7 @@ if ($testsFailed -eq 0) {
     Write-Host "Next steps:" -ForegroundColor Yellow
     Write-Host "  1. Monitor logs: vercel logs --follow" -ForegroundColor White
     Write-Host "  2. Run full E2E tests: npm run test:e2e" -ForegroundColor White
-    Write-Host "  3. Deploy to production: .\scripts\deploy-production.ps1" -ForegroundColor White
+    Write-Host "  3. Dispatch governed production release: .\scripts\deploy-production.ps1" -ForegroundColor White
     exit 0
 } else {
     Write-Host "❌ Some smoke tests failed!" -ForegroundColor Red

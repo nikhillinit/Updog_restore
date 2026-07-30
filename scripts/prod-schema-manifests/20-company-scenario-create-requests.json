@@ -1,0 +1,39 @@
+{
+  "name": "company-scenario-create-requests",
+  "order": 20,
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0033_company_scenario_create_requests.sql"],
+  "allowedCreateTables": ["company_scenario_create_requests"],
+  "expectedTables": [
+    {
+      "name": "company_scenario_create_requests",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "company_id", "type": "integer", "nullable": false },
+        { "name": "scenario_id", "type": "uuid", "nullable": true },
+        { "name": "idempotency_key", "type": "varchar", "nullable": false },
+        { "name": "request_hash", "type": "character", "nullable": false },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "status", "type": "varchar", "nullable": false },
+        { "name": "response_status", "type": "integer", "nullable": true },
+        { "name": "response_body", "type": "jsonb", "nullable": true },
+        { "name": "created_at", "type": "timestamptz", "nullable": false },
+        { "name": "updated_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "company_scenario_create_requests_pkey",
+        "company_scenario_create_requests_fund_idempotency_key_unique",
+        "company_scenario_create_requests_status_check",
+        "company_scenario_create_requests_fund_id_funds_id_fk",
+        "company_scenario_create_requests_company_id_portfoliocompanies_id_fk",
+        "company_scenario_create_requests_scenario_id_scenarios_id_fk",
+        "company_scenario_create_requests_created_by_users_id_fk"
+      ],
+      "indexes": [
+        "company_scenario_create_requests_company_idx",
+        "company_scenario_create_requests_scenario_idx"
+      ]
+    }
+  ]
+}

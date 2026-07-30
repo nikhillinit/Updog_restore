@@ -64,7 +64,8 @@ export function parseReconcileArgs(argv, env = process.env) {
   const args = [...argv];
   const apply = args.includes('--apply');
   const yes = args.includes('--yes');
-  const manifestDir = valueAfter(args, '--manifest-dir') ?? env.UPDOG_SCHEMA_MANIFEST_DIR ?? DEFAULT_MANIFEST_DIR;
+  const manifestDir =
+    valueAfter(args, '--manifest-dir') ?? env.UPDOG_SCHEMA_MANIFEST_DIR ?? DEFAULT_MANIFEST_DIR;
   const expectedDatabase =
     valueAfter(args, '--expect-db') ?? env.UPDOG_EXPECTED_DATABASE ?? env.PGDATABASE ?? null;
 
@@ -95,15 +96,21 @@ export function isPoolerUrl(connectionString) {
 
 export function assertDirectDatabaseUrl(connectionString) {
   if (!connectionString || connectionString === 'memory://') {
-    throw new ReconcileError('DATABASE_URL is missing or memory://; set it to the target database', {
-      kind: 'missing-database-url',
-    });
+    throw new ReconcileError(
+      'DATABASE_URL is missing or memory://; set it to the target database',
+      {
+        kind: 'missing-database-url',
+      }
+    );
   }
 
   if (isPoolerUrl(connectionString)) {
-    throw new ReconcileError('Refusing pooled database URL; DDL requires the direct Neon endpoint', {
-      kind: 'pooler-url-refused',
-    });
+    throw new ReconcileError(
+      'Refusing pooled database URL; DDL requires the direct Neon endpoint',
+      {
+        kind: 'pooler-url-refused',
+      }
+    );
   }
 }
 
@@ -170,11 +177,14 @@ function manifestLabel(manifest) {
 function validateManifestKeys(manifest) {
   for (const key of Object.keys(manifest ?? {})) {
     if (!KNOWN_MANIFEST_KEYS.has(key)) {
-      throw new ReconcileError(`Manifest ${manifestLabel(manifest)} has unsupported top-level key ${key}`, {
-        kind: 'unknown-manifest-key',
-        manifest: manifestLabel(manifest),
-        key,
-      });
+      throw new ReconcileError(
+        `Manifest ${manifestLabel(manifest)} has unsupported top-level key ${key}`,
+        {
+          kind: 'unknown-manifest-key',
+          manifest: manifestLabel(manifest),
+          key,
+        }
+      );
     }
   }
 }
@@ -198,7 +208,47 @@ function validateMissingTablePolicyValue(manifest) {
 function validateManifest(manifest) {
   validateManifestKeys(manifest);
   validateMissingTablePolicyValue(manifest);
+  validateExpectedTables(manifest);
   validateApplyPolicy(manifest);
+}
+
+function validateExpectedTables(manifest) {
+  for (const table of manifest?.expectedTables ?? []) {
+    const indexes = new Set(table.indexes ?? []);
+    const seenDefinitions = new Set();
+
+    for (const indexDefinition of table.indexDefinitions ?? []) {
+      assertSafeIdentifier(String(indexDefinition.name ?? ''));
+      const expectedDefinition = indexDefinition.expectedDefinition;
+      if (
+        !indexes.has(indexDefinition.name) ||
+        seenDefinitions.has(indexDefinition.name) ||
+        !expectedDefinition ||
+        typeof expectedDefinition.exactDefinition !== 'string' ||
+        expectedDefinition.exactDefinition.trim().length === 0 ||
+        !Array.isArray(expectedDefinition.orderedFragments) ||
+        expectedDefinition.orderedFragments.length === 0 ||
+        expectedDefinition.orderedFragments.some(
+          (fragment) => typeof fragment !== 'string' || fragment.trim().length === 0
+        ) ||
+        !Array.isArray(expectedDefinition.stringLiterals) ||
+        expectedDefinition.stringLiterals.some(
+          (literal) => typeof literal !== 'string' || literal.length === 0
+        )
+      ) {
+        throw new ReconcileError(
+          `Manifest ${manifestLabel(manifest)} indexDefinitions target ${table.name}.${String(indexDefinition.name)} must name an expected index exactly once and provide an exact definition, ordered fragments, and string literals`,
+          {
+            kind: 'invalid-index-definition',
+            manifest: manifestLabel(manifest),
+            table: table.name,
+            name: indexDefinition.name,
+          }
+        );
+      }
+      seenDefinitions.add(indexDefinition.name);
+    }
+  }
 }
 
 function validateApplyPolicy(manifest) {
@@ -207,29 +257,70 @@ function validateApplyPolicy(manifest) {
     return;
   }
 
-  const knownPolicyKeys = new Set(['allowDropNotNull', 'allowConstraintReplacements']);
+  const knownPolicyKeys = new Set([
+    'allowDropNotNull',
+    'allowConstraintReplacements',
+    'allowNonNullColumnAdds',
+  ]);
   for (const key of Object.keys(applyPolicy ?? {})) {
     if (!knownPolicyKeys.has(key)) {
-      throw new ReconcileError(`Manifest ${manifestLabel(manifest)} has unsupported applyPolicy key ${key}`, {
-        kind: 'invalid-apply-policy',
-        manifest: manifestLabel(manifest),
-        key,
-      });
+      throw new ReconcileError(
+        `Manifest ${manifestLabel(manifest)} has unsupported applyPolicy key ${key}`,
+        {
+          kind: 'invalid-apply-policy',
+          manifest: manifestLabel(manifest),
+          key,
+        }
+      );
     }
   }
 
   const tables = new Map((manifest.expectedTables ?? []).map((table) => [table.name, table]));
+  const seenNonNullColumnAdds = new Set();
+  for (const target of applyPolicy.allowNonNullColumnAdds ?? []) {
+    assertSafeIdentifier(String(target.table ?? ''));
+    assertSafeIdentifier(String(target.column ?? ''));
+    const key = `${target.table}.${target.column}`;
+    if (seenNonNullColumnAdds.has(key)) {
+      throw new ReconcileError(
+        `Manifest ${manifestLabel(manifest)} has duplicate applyPolicy target ${key}`,
+        {
+          kind: 'invalid-apply-policy',
+          manifest: manifestLabel(manifest),
+          target: key,
+        }
+      );
+    }
+    seenNonNullColumnAdds.add(key);
+    const expectedColumn = tables
+      .get(target.table)
+      ?.columns?.find((column) => column.name === target.column);
+    if (expectedColumn?.nullable !== false) {
+      throw new ReconcileError(
+        `Manifest ${manifestLabel(manifest)} allowNonNullColumnAdds target ${key} is not an expected non-null column`,
+        {
+          kind: 'invalid-apply-policy',
+          manifest: manifestLabel(manifest),
+          target: key,
+        }
+      );
+    }
+  }
+
   const seenDropNotNull = new Set();
   for (const target of applyPolicy.allowDropNotNull ?? []) {
     assertSafeIdentifier(String(target.table ?? ''));
     assertSafeIdentifier(String(target.column ?? ''));
     const key = `${target.table}.${target.column}`;
     if (seenDropNotNull.has(key)) {
-      throw new ReconcileError(`Manifest ${manifestLabel(manifest)} has duplicate applyPolicy target ${key}`, {
-        kind: 'invalid-apply-policy',
-        manifest: manifestLabel(manifest),
-        target: key,
-      });
+      throw new ReconcileError(
+        `Manifest ${manifestLabel(manifest)} has duplicate applyPolicy target ${key}`,
+        {
+          kind: 'invalid-apply-policy',
+          manifest: manifestLabel(manifest),
+          target: key,
+        }
+      );
     }
     seenDropNotNull.add(key);
     const expectedColumn = tables
@@ -276,11 +367,14 @@ function validateApplyPolicy(manifest) {
     }
     const key = `${target.table}.${target.name}`;
     if (seenConstraintReplacement.has(key)) {
-      throw new ReconcileError(`Manifest ${manifestLabel(manifest)} has duplicate applyPolicy target ${key}`, {
-        kind: 'invalid-apply-policy',
-        manifest: manifestLabel(manifest),
-        target: key,
-      });
+      throw new ReconcileError(
+        `Manifest ${manifestLabel(manifest)} has duplicate applyPolicy target ${key}`,
+        {
+          kind: 'invalid-apply-policy',
+          manifest: manifestLabel(manifest),
+          target: key,
+        }
+      );
     }
     seenConstraintReplacement.add(key);
     const constraints = tables.get(target.table)?.constraints ?? [];
@@ -417,6 +511,159 @@ export function validateManifestSql(manifest, sqlFiles) {
       }
     }
   }
+
+  const nonNullColumnAddViolations = validateNonNullColumnAddPolicy(manifest, sqlFiles);
+  if (nonNullColumnAddViolations.length > 0) {
+    throw new ReconcileError(
+      `Manifest ${manifest.name} has SQL outside allowNonNullColumnAdds policy`,
+      {
+        kind: 'invalid-non-null-column-add-policy',
+        manifest: manifest.name,
+        violations: nonNullColumnAddViolations,
+      }
+    );
+  }
+}
+
+export function validateNonNullColumnAddPolicy(manifest, sqlFiles) {
+  const allowedTargets = manifest.applyPolicy?.allowNonNullColumnAdds ?? [];
+  if (allowedTargets.length === 0) {
+    return [];
+  }
+
+  const allowedKeys = new Set(allowedTargets.map((target) => `${target.table}.${target.column}`));
+  const additions = [];
+  const violations = [];
+
+  for (const file of sqlFiles) {
+    const statements = splitSqlStatements(file.sql)
+      .map((statement) => stripSqlComments(statement).trim())
+      .filter(Boolean);
+
+    for (const statement of statements) {
+      if (!/\bALTER\s+TABLE\b/i.test(statement) || !/\bADD\s+COLUMN\b/i.test(statement)) {
+        continue;
+      }
+
+      const parsed = parseAlterTableAddColumn(statement);
+      if (!parsed) {
+        violations.push({
+          manifest: manifest.name,
+          file: file.path,
+          kind: 'malformed-non-null-column-add',
+          statement,
+          reason: 'ALTER TABLE ADD COLUMN must be one direct, parseable statement',
+        });
+        continue;
+      }
+
+      additions.push({ ...parsed, file: file.path, statement });
+      if (!allowedKeys.has(parsed.key)) {
+        violations.push({
+          manifest: manifest.name,
+          file: file.path,
+          kind: 'undeclared-non-null-column-add',
+          statement,
+          reason: `${parsed.key} is not declared in allowNonNullColumnAdds`,
+        });
+        continue;
+      }
+
+      if (!isSafeNonNullColumnAdd(parsed)) {
+        violations.push({
+          manifest: manifest.name,
+          file: file.path,
+          kind: 'invalid-non-null-column-add',
+          statement,
+          reason: `${parsed.key} must use IF NOT EXISTS and exactly one NOT NULL DEFAULT with a proven non-null value`,
+        });
+      }
+    }
+  }
+
+  for (const target of allowedTargets) {
+    const key = `${target.table}.${target.column}`;
+    const matches = additions.filter((addition) => addition.key === key);
+    if (matches.length === 0) {
+      violations.push({
+        manifest: manifest.name,
+        file: '<manifest-sql>',
+        kind: 'unproven-non-null-column-add',
+        statement: key,
+        reason: `${key} has no matching ALTER TABLE ADD COLUMN statement`,
+      });
+    } else if (matches.length > 1) {
+      violations.push({
+        manifest: manifest.name,
+        file: '<manifest-sql>',
+        kind: 'duplicate-non-null-column-add',
+        statement: key,
+        reason: `${key} must have exactly one ALTER TABLE ADD COLUMN statement`,
+      });
+    }
+  }
+
+  return violations;
+}
+
+function parseAlterTableAddColumn(statement) {
+  const withoutTerminator = statement.replace(/;\s*$/, '').trim();
+  const statementMatch = withoutTerminator.match(
+    /^ALTER\s+TABLE\s+(?:"([a-z_][a-z0-9_]*)"|([a-z_][a-z0-9_]*))\s+ADD\s+COLUMN\s+([\s\S]+)$/i
+  );
+  if (!statementMatch) {
+    return null;
+  }
+
+  const table = statementMatch[1] ?? statementMatch[2];
+  let remainder = statementMatch[3].trim();
+  let ifNotExists = false;
+  if (/^IF\b/i.test(remainder)) {
+    const guardMatch = remainder.match(/^IF\s+NOT\s+EXISTS\s+([\s\S]+)$/i);
+    if (!guardMatch) {
+      return null;
+    }
+    ifNotExists = true;
+    remainder = guardMatch[1].trim();
+  }
+
+  const columnMatch = remainder.match(/^(?:"([a-z_][a-z0-9_]*)"|([a-z_][a-z0-9_]*))\s+([\s\S]+)$/i);
+  if (!columnMatch) {
+    return null;
+  }
+
+  const column = columnMatch[1] ?? columnMatch[2];
+  return {
+    table,
+    column,
+    key: `${table}.${column}`,
+    ifNotExists,
+    definition: columnMatch[3].trim(),
+  };
+}
+
+function isSafeNonNullColumnAdd(addition) {
+  if (
+    !addition.ifNotExists ||
+    /\b(?:ALTER\s+TABLE|ADD\s+COLUMN)\b/i.test(addition.definition) ||
+    (addition.definition.match(/\bNOT\s+NULL\b/gi) ?? []).length !== 1 ||
+    (addition.definition.match(/\bDEFAULT\b/gi) ?? []).length !== 1
+  ) {
+    return false;
+  }
+
+  const defaultMatch = addition.definition.match(/\bNOT\s+NULL\s+DEFAULT\s+([\s\S]+)$/i);
+  return defaultMatch !== null && isProvenNonNullDefault(defaultMatch[1].trim());
+}
+
+function isProvenNonNullDefault(value) {
+  return /^(?:true|false|[-+]?(?:\d+(?:\.\d+)?|\.\d+)|'(?:''|[^'])*'(?:\s*::\s*[a-z_][a-z0-9_]*(?:\([^)]*\))?)?|now\(\)|current_timestamp)$/i.test(
+    value
+  );
+}
+
+function stripSqlComments(sql) {
+  return sql.replace(/--.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
 export function extractCreateTableNames(sql) {
@@ -463,9 +710,12 @@ export async function auditManifest(client, manifest) {
           columns: columns.get(expectedTable.name) ?? new Map(),
           constraints: tableConstraints,
           indexes,
-          constraintReplacements: (
-            manifest.applyPolicy?.allowConstraintReplacements ?? []
-          ).filter((replacement) => replacement.table === expectedTable.name),
+          nonNullColumnAdds: (manifest.applyPolicy?.allowNonNullColumnAdds ?? []).filter(
+            (target) => target.table === expectedTable.name
+          ),
+          constraintReplacements: (manifest.applyPolicy?.allowConstraintReplacements ?? []).filter(
+            (replacement) => replacement.table === expectedTable.name
+          ),
           missingTablePolicy,
         })
       );
@@ -536,6 +786,10 @@ async function loadPresentDropConstraints(client, constraintDrops) {
 }
 
 export function decideObjectAction({ tablePresent, deltas, populated, missingTablePolicy }) {
+  if (deltas.some((delta) => delta.humanReviewRequired === true)) {
+    return ACTION_REFUSE_FOR_HUMAN;
+  }
+
   if (!tablePresent) {
     if (missingTablePolicy === MISSING_TABLE_POLICY_EXISTING_REQUIRED) {
       return ACTION_REFUSE_FOR_HUMAN;
@@ -702,7 +956,9 @@ export async function runReconciliation({
 
     for (const prepared of manifestsNeedingApply) {
       if (await hasCommittedLedger(client, prepared.manifest.name, prepared.checksum)) {
-        stdout.write(`\nSkipping ${prepared.manifest.name}: committed ledger row already exists.\n`);
+        stdout.write(
+          `\nSkipping ${prepared.manifest.name}: committed ledger row already exists.\n`
+        );
         continue;
       }
 
@@ -755,10 +1011,13 @@ async function auditTable({
   columns,
   constraints,
   indexes,
+  nonNullColumnAdds,
   constraintReplacements,
   missingTablePolicy,
 }) {
   const deltas = [];
+  const indexTableMismatches = findIndexTableMismatches(expectedTable, indexes);
+  deltas.push(...indexTableMismatches);
 
   if (!tablePresent) {
     deltas.push({ kind: 'missing-table', name: expectedTable.name, additiveSafe: true });
@@ -780,10 +1039,13 @@ async function auditTable({
   for (const expectedColumn of expectedTable.columns ?? []) {
     const actualColumn = columns.get(expectedColumn.name);
     if (!actualColumn) {
+      const allowNonNullAdd = nonNullColumnAdds.some(
+        (target) => target.column === expectedColumn.name
+      );
       deltas.push({
         kind: 'missing-column',
         name: `${expectedTable.name}.${expectedColumn.name}`,
-        additiveSafe: expectedColumn.nullable !== false,
+        additiveSafe: expectedColumn.nullable !== false || allowNonNullAdd,
       });
       continue;
     }
@@ -805,8 +1067,7 @@ async function auditTable({
       typeof expectedColumn.nullable === 'boolean' &&
       actualColumn.nullable !== expectedColumn.nullable
     ) {
-      const widensToNullable =
-        actualColumn.nullable === false && expectedColumn.nullable === true;
+      const widensToNullable = actualColumn.nullable === false && expectedColumn.nullable === true;
       deltas.push({
         kind: 'column-nullability-mismatch',
         name: `${expectedTable.name}.${expectedColumn.name}`,
@@ -823,7 +1084,7 @@ async function auditTable({
       indexes: expectedTable.indexes ?? [],
     },
     constraintRows: constraints,
-    indexRows: indexes,
+    indexRows: indexes.filter((row) => row.tablename === expectedTable.name),
   });
 
   for (const name of missingSentinels.constraints) {
@@ -835,9 +1096,7 @@ async function auditTable({
   }
 
   for (const replacement of constraintReplacements) {
-    const constraint = constraints.find(
-      (row) => row.conname === pgIdentifier(replacement.name)
-    );
+    const constraint = constraints.find((row) => row.conname === pgIdentifier(replacement.name));
     if (
       constraint &&
       !constraintDefinitionMatches(constraint.definition, replacement.expectedDefinition)
@@ -852,7 +1111,25 @@ async function auditTable({
     }
   }
 
+  for (const indexDefinition of expectedTable.indexDefinitions ?? []) {
+    const index = indexes.find(
+      (row) =>
+        row.indexname === pgIdentifier(indexDefinition.name) && row.tablename === expectedTable.name
+    );
+    if (index && !indexDefinitionMatches(index.indexdef, indexDefinition.expectedDefinition)) {
+      deltas.push({
+        kind: 'index-definition-mismatch',
+        name: indexDefinition.name,
+        expected: indexDefinition.expectedDefinition,
+        actual: index.indexdef,
+        additiveSafe: false,
+      });
+    }
+  }
+
+  const requiresHumanReview = deltas.some((delta) => delta.humanReviewRequired === true);
   const populated =
+    !requiresHumanReview &&
     deltas.some((delta) => delta.additiveSafe === false) &&
     (await hasRows(client, expectedTable.name));
   const action = decideObjectAction({ tablePresent, deltas, populated, missingTablePolicy });
@@ -945,10 +1222,59 @@ function constraintDefinitionMatches(actualDefinition, expectedDefinition) {
   );
 }
 
-function extractSqlStringLiterals(definition) {
-  return [...definition.matchAll(/'((?:''|[^'])*)'/g)].map((match) =>
-    match[1].replace(/''/g, "'")
+function indexDefinitionMatches(actualDefinition, expectedDefinition) {
+  if (typeof actualDefinition !== 'string') return false;
+
+  const normalizedDefinition = normalizeSqlDefinition(actualDefinition);
+  if (normalizedDefinition !== normalizeSqlDefinition(expectedDefinition.exactDefinition)) {
+    return false;
+  }
+
+  let searchFrom = 0;
+  for (const fragment of expectedDefinition.orderedFragments) {
+    const normalizedFragment = normalizeSqlDefinition(fragment);
+    const position = normalizedDefinition.indexOf(normalizedFragment, searchFrom);
+    if (position === -1) return false;
+    searchFrom = position + normalizedFragment.length;
+  }
+
+  const actualLiterals = extractSqlStringLiterals(actualDefinition).sort();
+  const expectedLiterals = [...expectedDefinition.stringLiterals].sort();
+  return (
+    actualLiterals.length === expectedLiterals.length &&
+    actualLiterals.every((literal, index) => literal === expectedLiterals[index])
   );
+}
+
+function findIndexTableMismatches(expectedTable, indexes) {
+  const expectedNames = new Set((expectedTable.indexes ?? []).map(pgIdentifier));
+  return indexes
+    .filter(
+      (index) =>
+        expectedNames.has(pgIdentifier(index.indexname)) && index.tablename !== expectedTable.name
+    )
+    .map((index) => ({
+      kind: 'index-table-mismatch',
+      name: index.indexname,
+      expectedTable: expectedTable.name,
+      actualTable: index.tablename,
+      additiveSafe: false,
+      humanReviewRequired: true,
+    }));
+}
+
+function normalizeSqlDefinition(definition) {
+  return definition
+    .toLowerCase()
+    .replace(/"/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s*(::|<>|<=|>=|=)\s*/g, '$1')
+    .replace(/\s*([(),.;])\s*/g, '$1')
+    .trim();
+}
+
+function extractSqlStringLiterals(definition) {
+  return [...definition.matchAll(/'((?:''|[^'])*)'/g)].map((match) => match[1].replace(/''/g, "'"));
 }
 
 async function loadIndexes(client, expectedTables) {
@@ -958,7 +1284,7 @@ async function loadIndexes(client, expectedTables) {
 
   const result = await client.query(
     `
-      SELECT indexname
+      SELECT tablename, indexname, indexdef
       FROM pg_indexes
       WHERE schemaname = 'public'
         AND indexname = ANY($1::text[])
@@ -970,7 +1296,9 @@ async function loadIndexes(client, expectedTables) {
 
 async function hasRows(client, tableName) {
   assertSafeIdentifier(tableName);
-  const result = await client.query(`SELECT EXISTS (SELECT 1 FROM "${tableName}" LIMIT 1) AS populated`);
+  const result = await client.query(
+    `SELECT EXISTS (SELECT 1 FROM "${tableName}" LIMIT 1) AS populated`
+  );
   return result.rows[0]?.populated === true;
 }
 
@@ -1040,7 +1368,10 @@ async function hasCommittedLedger(client, manifestName, checksum) {
 }
 
 async function applyPreparedManifest({ client, prepared, identity, stdout }) {
-  const fileChecksums = prepared.sqlFiles.map((file) => ({ path: file.path, checksum: file.checksum }));
+  const fileChecksums = prepared.sqlFiles.map((file) => ({
+    path: file.path,
+    checksum: file.checksum,
+  }));
   const appliedBy = process.env.USER || process.env.USERNAME || 'unknown';
   let ledgerId;
 

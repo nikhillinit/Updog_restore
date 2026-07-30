@@ -1,0 +1,62 @@
+{
+  "name": "user-identity-grants-revocation",
+  "order": 19,
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0031_user_identity_grants_revocation.sql"],
+  "allowedCreateTables": ["user_fund_grants", "revoked_tokens"],
+  "applyPolicy": {
+    "allowNonNullColumnAdds": [
+      { "table": "users", "column": "role" },
+      { "table": "users", "column": "is_active" },
+      { "table": "users", "column": "password_updated_at" },
+      { "table": "users", "column": "created_at" },
+      { "table": "users", "column": "updated_at" }
+    ]
+  },
+  "expectedTables": [
+    {
+      "name": "users",
+      "sharedTable": true,
+      "columns": [
+        { "name": "role", "type": "varchar", "nullable": false },
+        { "name": "is_active", "type": "boolean", "nullable": false },
+        {
+          "name": "password_updated_at",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        { "name": "created_at", "type": "timestamptz", "nullable": false },
+        { "name": "updated_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": ["users_role_check"]
+    },
+    {
+      "name": "user_fund_grants",
+      "columns": [
+        { "name": "user_id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "user_fund_grants_pkey",
+        "user_fund_grants_user_id_users_id_fk",
+        "user_fund_grants_fund_id_funds_id_fk"
+      ]
+    },
+    {
+      "name": "revoked_tokens",
+      "columns": [
+        { "name": "jti", "type": "varchar", "nullable": false },
+        { "name": "user_id", "type": "integer", "nullable": false },
+        { "name": "revoked_at", "type": "timestamptz", "nullable": false },
+        { "name": "expires_at", "type": "timestamptz", "nullable": false },
+        { "name": "reason", "type": "varchar", "nullable": true }
+      ],
+      "constraints": [
+        "revoked_tokens_pkey",
+        "revoked_tokens_user_id_users_id_fk"
+      ],
+      "indexes": ["revoked_tokens_expires_at_idx"]
+    }
+  ]
+}

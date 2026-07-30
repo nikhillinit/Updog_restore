@@ -138,6 +138,41 @@ const INTERNAL_ANALYSIS_MANIFEST_TABLES = [
   'internal_narrative_claims',
   'internal_analysis_notes',
 ] as const;
+const USER_IDENTITY_GRANTS_REVOCATION_MANIFEST_TABLES = [
+  'users',
+  'user_fund_grants',
+  'revoked_tokens',
+] as const;
+const COMPANY_SCENARIO_CREATE_REQUEST_MANIFEST_TABLES = [
+  'company_scenario_create_requests',
+] as const;
+const BUSINESS_TIME_COMPARISON_LINEAGE_MANIFEST_TABLES = [
+  'calc_runs',
+  'fund_scenario_calculation_runs',
+] as const;
+const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
+  'M1-cohort',
+  'M2-fund-moic',
+  'M3-operating-tasks',
+  'M4-lp-reporting',
+  'M5-operator-seam',
+  'M6-h9-actionability',
+  'M7-allocation-scenarios',
+  'scenario-case-seed-provenance',
+  'substrate-shadow-reconciliations',
+  'financial-facts-snapshots',
+  'current-plan-versions',
+  'current-forecast-references',
+  'financial-observations',
+  'investment-ledger',
+  'vehicle-financing-participations',
+  'positions-ownership-compat',
+  'position-source-basis-reliefs',
+  'internal-analysis',
+  'user-identity-grants-revocation',
+  'company-scenario-create-requests',
+  'business-time-comparison-lineage',
+] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
   'flags_state',
@@ -741,6 +776,9 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
   it('applies the PR-1 manifest tables and FK sentinels to an empty clone', async () => {
     expect(pool).toBeDefined();
     const manifests = await loadManifests();
+    expect(manifests.map((manifest) => manifest.name)).toEqual([
+      ...EXPECTED_PRODUCTION_MANIFEST_NAMES,
+    ]);
     const expectedTables = manifests.flatMap((manifest) =>
       (manifest.expectedTables ?? []).map((table: { name: string }) => table.name)
     );
@@ -770,6 +808,9 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...POSITIONS_OWNERSHIP_COMPAT_MANIFEST_TABLES,
         ...POSITION_SOURCE_BASIS_RELIEF_MANIFEST_TABLES,
         ...INTERNAL_ANALYSIS_MANIFEST_TABLES,
+        ...USER_IDENTITY_GRANTS_REVOCATION_MANIFEST_TABLES,
+        ...COMPANY_SCENARIO_CREATE_REQUEST_MANIFEST_TABLES,
+        ...BUSINESS_TIME_COMPARISON_LINEAGE_MANIFEST_TABLES,
       ])
     );
 

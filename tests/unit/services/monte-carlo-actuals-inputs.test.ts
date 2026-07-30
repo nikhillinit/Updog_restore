@@ -168,6 +168,30 @@ function sha256(value: unknown): string {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
+function normalizeExternalGolden(value: unknown): unknown {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      throw new Error(`External golden contains non-finite number: ${String(value)}`);
+    }
+    return value.toPrecision(12);
+  }
+  if (Array.isArray(value)) {
+    return value.map(normalizeExternalGolden);
+  }
+  if (value !== null && typeof value === 'object') {
+    const normalized: Record<string, unknown> = {};
+    for (const [key, nestedValue] of Object.entries(value)) {
+      normalized[key] = normalizeExternalGolden(nestedValue);
+    }
+    return normalized;
+  }
+  return value;
+}
+
+function externalGoldenSha256(value: unknown): string {
+  return sha256(normalizeExternalGolden(value));
+}
+
 function withoutAssumptionsProvenance(
   forecast: Awaited<ReturnType<MonteCarloSimulationService['generateForecast']>>
 ): Record<string, unknown> {
@@ -234,6 +258,44 @@ describe('Monte Carlo assumptions profile v1', () => {
   });
 });
 
+describe('cross-platform Monte Carlo external golden projection', () => {
+  it('changes the hash for material numeric changes within retained precision', () => {
+    expect(externalGoldenSha256({ value: 1.23456789012 })).not.toBe(
+      externalGoldenSha256({ value: 1.23456789013 })
+    );
+  });
+
+  it('collapses numeric drift beyond the retained 12 significant digits', () => {
+    expect(externalGoldenSha256({ value: 1.234567890123 })).toBe(
+      externalGoldenSha256({ value: 1.234567890124 })
+    );
+  });
+
+  it('preserves nested array shape and object insertion order', () => {
+    const normalized = normalizeExternalGolden({
+      z: [3.14159, { b: true, a: null }],
+      a: ['tail', -2.5],
+    });
+
+    expect(normalized).toEqual({
+      z: ['3.14159000000', { b: true, a: null }],
+      a: ['tail', '-2.50000000000'],
+    });
+    expect(JSON.stringify(normalized)).toBe(
+      '{"z":["3.14159000000",{"b":true,"a":null}],"a":["tail","-2.50000000000"]}'
+    );
+  });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    'rejects non-finite number %s',
+    (value) => {
+      expect(() => normalizeExternalGolden({ value })).toThrow(
+        'External golden contains non-finite number'
+      );
+    }
+  );
+});
+
 describe('MonteCarloSimulationService actuals-backed company inputs', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -281,11 +343,8 @@ describe('MonteCarloSimulationService actuals-backed company inputs', () => {
     expect(flagOffForecast).toEqual(legacyForecast);
     expect(insertedSnapshots).toHaveLength(2);
     expect(insertedSnapshots[1]).toEqual(insertedSnapshots[0]);
-    expect(sha256(legacyForecast)).toBe(
-      '69a0799ff35b8790f91d22989c9079ab78eee22159f3976f0bc4a5ee765c2c49'
-    );
-    expect(sha256(insertedSnapshots[0])).toBe(
-      '44481fab6a0726bbabc2bdedb4d98bc499792a5725cbdab31b301d226df6b643'
+    expect(externalGoldenSha256(legacyForecast)).toBe(
+      '7436ed22741a23d3017fa23dcdd0821c950205005137aac3d5315ea3f8d6d401'
     );
     expect(flagOffForecast).not.toHaveProperty('provenance');
     expect(insertedSnapshots[1]?.metadata).not.toHaveProperty('actualsFacts');
@@ -305,11 +364,11 @@ describe('MonteCarloSimulationService actuals-backed company inputs', () => {
     const shadowForecast = await new MonteCarloSimulationService().generateForecast(PARAMS);
 
     expect
-      .soft(sha256(withoutAssumptionsProvenance(onForecast)))
-      .toBe('3ecee4b969b8e5bd423bb322a0cb078e862a4069eb24a2526d63252dc49f70ad');
+      .soft(externalGoldenSha256(withoutAssumptionsProvenance(onForecast)))
+      .toBe('d7ec452b229e69c630fe6658cba3cbd00c46fd82bff1a870071274a4a59efb4c');
     expect
-      .soft(sha256(withoutAssumptionsProvenance(shadowForecast)))
-      .toBe('35736f29571844d463574dcf59c57836e67d9712297c41d90075f108c30f8e1d');
+      .soft(externalGoldenSha256(withoutAssumptionsProvenance(shadowForecast)))
+      .toBe('1b842f12238fa9adab2ff149504bc27e5e939f7caad9d9bf6e9536e4f7faadc1');
   });
 
   it('registers the server-only actuals-input flag off in every environment', () => {

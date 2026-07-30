@@ -1,6 +1,7 @@
 # Deployment Automation Scripts
 
-Complete automation for deploying CODEX fixes to staging and production with comprehensive smoke tests and security monitoring.
+Complete automation for deploying CODEX fixes to staging and production with
+comprehensive smoke tests and security monitoring.
 
 ## 📋 Overview
 
@@ -9,7 +10,7 @@ These PowerShell scripts automate the entire deployment pipeline:
 1. **Deploy to Staging** → Automated deployment with health checks
 2. **Smoke Tests** → Verify all CODEX fixes work correctly
 3. **Monitor Logs** → Security checks and password masking verification
-4. **Deploy to Production** → Safe production rollout with rollback support
+4. **Release Production** → Dispatch governed exact-`main` release workflow
 
 ---
 
@@ -27,7 +28,7 @@ These PowerShell scripts automate the entire deployment pipeline:
 # 3. Monitor logs for security issues
 .\scripts\monitor-logs.ps1 -Environment staging -Minutes 5
 
-# 4. Deploy to production (after verification)
+# 4. Dispatch governed production release (after verification)
 .\scripts\deploy-production.ps1
 ```
 
@@ -40,15 +41,18 @@ These PowerShell scripts automate the entire deployment pipeline:
 Deploys code to Vercel staging environment with automated checks.
 
 #### Usage
+
 ```powershell
 .\scripts\deploy-staging.ps1 [-SkipBuild] [-Verbose]
 ```
 
 #### Parameters
+
 - `-SkipBuild` - Skip build and tests (use for hotfixes)
 - `-Verbose` - Show detailed output
 
 #### What It Does
+
 1. ✅ Pre-deployment checks (git status, branch verification)
 2. 🧪 Runs unit tests (125 tests)
 3. 🔨 Builds application
@@ -57,6 +61,7 @@ Deploys code to Vercel staging environment with automated checks.
 6. 🔐 Checks logs for password masking
 
 #### Example
+
 ```powershell
 # Standard deployment
 .\scripts\deploy-staging.ps1
@@ -75,45 +80,54 @@ Deploys code to Vercel staging environment with automated checks.
 Comprehensive smoke tests verifying all CODEX fixes.
 
 #### Usage
+
 ```powershell
 .\scripts\smoke-test.ps1 -BaseUrl "https://your-app.vercel.app" [-Verbose]
 ```
 
 #### Parameters
+
 - `-BaseUrl` (required) - Deployment URL to test
 - `-Verbose` - Show detailed output
 
 #### Test Suites
 
 **Suite 1: Health & Infrastructure**
+
 - ✅ Health endpoint responds
 - ✅ Redis connection verified
 
 **Suite 2: Fee Calculations (P0 Fix)**
+
 - ⚠️ Manual verification required
 - Navigate to fund setup UI and verify:
   - 2% annual fee → 20% total drag (not 0.2%)
   - Fee calculations use fractions correctly
 
 **Suite 3: Reserve API (P1 Fix - Date Schema)**
+
 - ✅ Accepts ISO date strings (`"2023-10-27T10:00:00.000Z"`)
 - ✅ Returns reserve allocations
 - ✅ Handles portfolio of 4+ companies
 
 **Suite 4: Pagination (P1 Fix - Portfolio Truncation)**
+
 - ✅ Respects `limit` parameter (was hard-coded to 3)
 - ✅ Returns all companies when limit > portfolio size
 - ✅ Pagination works correctly
 
 **Suite 5: Query Parameters (P2 Fix)**
+
 - ✅ Boolean strings parsed (`"true"` → `true`)
 - ✅ Enum values case-insensitive (`"HIGH"` → `"high"`)
 
 **Suite 6: Security**
+
 - ✅ No passwords in API responses
 - ✅ Redis credentials masked in logs
 
 #### Example
+
 ```powershell
 # Run all smoke tests
 .\scripts\smoke-test.ps1 -BaseUrl "https://updog-staging.vercel.app"
@@ -123,6 +137,7 @@ Comprehensive smoke tests verifying all CODEX fixes.
 ```
 
 #### Exit Codes
+
 - `0` - All tests passed
 - `1` - One or more tests failed
 
@@ -133,11 +148,13 @@ Comprehensive smoke tests verifying all CODEX fixes.
 Monitors deployment logs and performs security checks.
 
 #### Usage
+
 ```powershell
 .\scripts\monitor-logs.ps1 [-Environment staging|production] [-Minutes 5] [-Follow] [-CheckSecurity]
 ```
 
 #### Parameters
+
 - `-Environment` - Which environment to monitor (default: `staging`)
 - `-Minutes` - Time window in minutes (default: `5`)
 - `-Follow` - Continuous monitoring (Ctrl+C to stop)
@@ -166,6 +183,7 @@ Monitors deployment logs and performs security checks.
    - ❌ Detects "Redis Client Error" messages
 
 #### Examples
+
 ```powershell
 # Monitor staging for last 5 minutes
 .\scripts\monitor-logs.ps1 -Environment staging
@@ -184,59 +202,27 @@ Monitors deployment logs and performs security checks.
 
 ### **4. deploy-production.ps1**
 
-Safe production deployment with rollback support.
+Fail-closed dispatcher for `.github/workflows/release-production.yml`. It reads
+exact live `main` SHA from GitHub, validates SHA shape, and dispatches governed
+release with that SHA. Workflow owns release proof, schema audit, staged
+production-target creation, identity validation, smoke, promotion, and
+post-promotion smoke.
 
 #### Usage
+
 ```powershell
-.\scripts\deploy-production.ps1 [-SkipSmokeTest] [-Force]
+.\scripts\deploy-production.ps1
 ```
-
-#### Parameters
-- `-SkipSmokeTest` - Skip smoke tests after deployment
-- `-Force` - Skip safety confirmations (use with caution!)
-
-#### Safety Features
-
-**Pre-deployment Confirmations**
-1. ✅ Smoke tests passed in staging?
-2. ✅ Team members notified?
-3. ✅ Type "DEPLOY" to confirm
-
-**Rollback Protection**
-- Captures current production URL before deployment
-- Provides rollback command if anything fails
-- Automatic rollback instructions if health checks fail
 
 #### What It Does
-1. 📋 Pre-deployment checks
-2. 🧪 Final test suite run
-3. 🔨 Production build
-4. 🚀 Deploy to Vercel production
-5. ✅ Post-deployment verification (health + Redis)
-6. 🧪 Smoke tests (unless skipped)
-7. 📊 Initial monitoring
 
-#### Examples
-```powershell
-# Standard production deployment
-.\scripts\deploy-production.ps1
+1. Resolves repository with authenticated GitHub CLI.
+2. Resolves exact live `main` SHA through GitHub API.
+3. Rejects missing or malformed SHA.
+4. Dispatches `release-production.yml` from `main` with `expected_sha`.
 
-# Skip smoke tests (if already verified)
-.\scripts\deploy-production.ps1 -SkipSmokeTest
-
-# Force deployment (no confirmations)
-.\scripts\deploy-production.ps1 -Force
-```
-
-#### Rollback
-If deployment fails or issues are detected:
-
-```powershell
-# Rollback to previous deployment
-vercel rollback <previous-url> --yes
-```
-
-The script automatically provides the rollback command in case of failure.
+No skip or force options exist. Script never invokes Vercel production commands;
+governed workflow is sole production-mutation path.
 
 ---
 
@@ -363,12 +349,14 @@ client.on('connect', () => {
 Use this checklist for each deployment:
 
 ### **Pre-Deployment**
+
 - [ ] All CODEX fixes merged to main branch
 - [ ] 125 unit tests passing locally
 - [ ] TypeScript compiles without errors
 - [ ] Environment variables configured in Vercel
 
 ### **Staging Deployment**
+
 - [ ] Run `.\scripts\deploy-staging.ps1`
 - [ ] Verify deployment URL works
 - [ ] Run `.\scripts\smoke-test.ps1` with staging URL
@@ -377,6 +365,7 @@ Use this checklist for each deployment:
 - [ ] No security issues detected
 
 ### **Production Deployment**
+
 - [ ] Team notified of deployment
 - [ ] All staging tests passed
 - [ ] Run `.\scripts\deploy-production.ps1`
@@ -387,6 +376,7 @@ Use this checklist for each deployment:
 - [ ] No errors in production logs
 
 ### **Post-Deployment**
+
 - [ ] Monitor error rates in Vercel dashboard
 - [ ] Check Redis connection metrics
 - [ ] Verify no password exposure in logs
@@ -397,20 +387,22 @@ Use this checklist for each deployment:
 
 ## 🎯 What Each Script Verifies
 
-| Fix | Script | Verification Method |
-|-----|--------|-------------------|
-| **P0 - Fee Calculation** | smoke-test.ps1 | Manual UI verification required |
-| **P1 - Redis Factory** | deploy-staging.ps1<br>monitor-logs.ps1 | Health endpoint<br>Log password masking |
-| **P1 - Portfolio Truncation** | smoke-test.ps1 | API returns >3 companies |
-| **P1 - Date Schema** | smoke-test.ps1 | API accepts ISO strings |
-| **P2 - Query Params** | smoke-test.ps1 | Boolean/enum parsing |
+| Fix                           | Script                                 | Verification Method                     |
+| ----------------------------- | -------------------------------------- | --------------------------------------- |
+| **P0 - Fee Calculation**      | smoke-test.ps1                         | Manual UI verification required         |
+| **P1 - Redis Factory**        | deploy-staging.ps1<br>monitor-logs.ps1 | Health endpoint<br>Log password masking |
+| **P1 - Portfolio Truncation** | smoke-test.ps1                         | API returns >3 companies                |
+| **P1 - Date Schema**          | smoke-test.ps1                         | API accepts ISO strings                 |
+| **P2 - Query Params**         | smoke-test.ps1                         | Boolean/enum parsing                    |
 
 ---
 
 ## 📚 Additional Resources
 
-- [CODEX_FIXES_COMPLETE.md](../CODEX_FIXES_COMPLETE.md) - Complete fix documentation
-- [REDIS_FACTORY_UPGRADE_SUMMARY.md](../REDIS_FACTORY_UPGRADE_SUMMARY.md) - Redis-specific details
+- [CODEX_FIXES_COMPLETE.md](../CODEX_FIXES_COMPLETE.md) - Complete fix
+  documentation
+- [REDIS_FACTORY_UPGRADE_SUMMARY.md](../REDIS_FACTORY_UPGRADE_SUMMARY.md) -
+  Redis-specific details
 - [Vercel Documentation](https://vercel.com/docs) - Deployment platform docs
 
 ---
@@ -427,6 +419,5 @@ If you encounter issues:
 
 ---
 
-**Generated**: 2025-01-04
-**Version**: 1.0.0
-**Compatibility**: Windows PowerShell 5.1+, PowerShell Core 7+
+**Generated**: 2025-01-04 **Version**: 1.0.0 **Compatibility**: Windows
+PowerShell 5.1+, PowerShell Core 7+
