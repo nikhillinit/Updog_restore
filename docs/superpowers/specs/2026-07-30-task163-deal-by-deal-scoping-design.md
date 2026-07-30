@@ -889,9 +889,10 @@ schema V1.1 plus engine/methodology version bump plan.
 
 Five ratified departures from issue #1176's Task 16.3 text plus one pending
 decision, in one place. Approval column: "ratified" = user-ratified 2026-07-30;
-"[PENDING]" = requires a user action. Posting to #1176: user-approved 2026-07-30
-(escalation E3, revised); the comment posts after the citing documents are
-committed, and the comment URL is recorded here once posted.
+"[PENDING]" = requires a user action. Posting to #1176: POSTED 2026-07-30
+(escalation E3, revised text) after commit `3298e10c` landed the citing
+documents:
+https://github.com/nikhillinit/Updog_restore/issues/1176#issuecomment-5129260472
 
 1. Exit gate "genuine Decimal-derived boundaries" -> amended to decimal-string
    boundaries plus `indicative` cap until the Decimal-native core certifies
