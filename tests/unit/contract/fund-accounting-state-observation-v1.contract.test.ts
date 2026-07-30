@@ -102,6 +102,16 @@ describe('FundAccountingStateObservationV1Schema', () => {
     ).toBe(false);
   });
 
+  it('rejects distinct accrued-through and cutover instants below millisecond precision', () => {
+    expect(
+      FundAccountingStateObservationV1Schema.safeParse({
+        ...validObservation,
+        cutoverInstant: '2026-06-30T23:59:59.0001Z',
+        accruedPreferredReturnThroughInstant: '2026-06-30T23:59:59.0002Z',
+      }).success
+    ).toBe(false);
+  });
+
   it('rejects unknown keys', () => {
     expect(
       FundAccountingStateObservationV1Schema.safeParse({

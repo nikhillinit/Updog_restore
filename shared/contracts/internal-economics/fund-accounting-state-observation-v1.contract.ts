@@ -15,6 +15,14 @@ const NonnegativeMoneyDecimalStringSchema = MoneyDecimalStringSchema.pipe(
     )
 );
 
+function normalizeRfc3339UtcInstant(value: string): string {
+  const match = /^(.*:\d{2})(?:\.(\d+))?Z$/.exec(value);
+  if (!match) return value;
+
+  const fractionalSeconds = (match[2] ?? '').replace(/0+$/, '');
+  return `${match[1]}${fractionalSeconds ? `.${fractionalSeconds}` : ''}Z`;
+}
+
 export const FundAccountingStateObservationV1Schema = z
   .object({
     contractVersion: z.literal(FUND_ACCOUNTING_STATE_OBSERVATION_VERSION),
@@ -69,7 +77,8 @@ export const FundAccountingStateObservationV1Schema = z
     }
 
     if (
-      Date.parse(value.accruedPreferredReturnThroughInstant) !== Date.parse(value.cutoverInstant)
+      normalizeRfc3339UtcInstant(value.accruedPreferredReturnThroughInstant) !==
+      normalizeRfc3339UtcInstant(value.cutoverInstant)
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
