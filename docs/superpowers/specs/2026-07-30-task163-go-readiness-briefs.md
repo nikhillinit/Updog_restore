@@ -1,14 +1,16 @@
 # Task 16.3 GO Readiness Briefs
 
-Date: 2026-07-30 Status: Accepted; scoped production implementation gate GO
+Date: 2026-07-30 Status: Accepted contracts; fresh exact-SHA re-sign pending
 Scope: Ratified readiness basis for WP-L2, WP-L3, and WP-L4 implementation in
 `2026-07-30-task163-deal-by-deal-scoping-design.md`
 
 ## Outcome
 
-Task 16.3 scoped production implementation gate is GO. Waterfall-specialist and
-Phoenix precision-guardian independently re-signed the reconciled contracts on
-2026-07-30 against exact SHA `d2b39f7db476ca8a7497b21688c79e1178a6a352`.
+Task 16.3 scoped production implementation gate is temporarily pending fresh
+exact-SHA re-sign after terminal-policy and idempotent-replay review repairs.
+The 2026-07-30 waterfall-specialist and Phoenix precision-guardian re-signs at
+SHA `d2b39f7db476ca8a7497b21688c79e1178a6a352` remain valid historical evidence
+for the pre-terminal contracts; they do not ratify the terminal repair.
 Completed readiness basis:
 
 1. legacy characterization is merged without changing the legacy engine;
@@ -20,15 +22,17 @@ Completed readiness basis:
 5. the legal capital envelope, main-fund scope, forecast realization grain, and
    compound-hurdle semantics are frozen;
 6. the remaining credit-facility deviation is resolved as a reserved seed-time
-   refusal whose source field is structurally unreachable today.
+   refusal whose source field is structurally unreachable today;
+7. terminal-period resolution and the exhaustive post-term activity matrix are
+   frozen by a 76-test contract proof and await exact-SHA specialist re-sign.
 
-GO authorizes WP-L2 compiler/state-machine, WP-L3 service/persistence, and WP-L4
-restricted-route implementation. Migrations may appear only in reviewed owning
-implementation PRs. GO does not authorize deployment, activation, production
-traffic, or claim feature availability. No production economics engine exists at
-ratification. A future float64 path remains at most `indicative`; `available`
-stays typed-but-unreachable until the separately certified Decimal-native money
-core condition in ADR-065 is met.
+Once re-signed, GO authorizes WP-L2 compiler/state-machine, WP-L3
+service/persistence, and WP-L4 restricted-route implementation. Migrations may
+appear only in reviewed owning implementation PRs. GO does not authorize
+deployment, activation, production traffic, or claim feature availability. No
+production economics engine exists at ratification. A future float64 path
+remains at most `indicative`; `available` stays typed-but-unreachable until the
+separately certified Decimal-native money core condition in ADR-065 is met.
 
 ## Decision Summary
 
@@ -42,6 +46,7 @@ core condition in ADR-065 is met.
 | Vehicle scope   | V1 stays single-vehicle                                                                                       | Ratified; SPV/co-invest-bearing funds remain runtime-ineligible; legacy `fund_all` behavior unchanged |
 | Realizations    | One labeled synthetic quarterly aggregate per forecast point in no-hurdle V1                                  | Ratified; full-precision aggregation-invariance proof exists                                          |
 | Event ordering  | Derive versioned canonical order keys; do not duplicate fields in persisted facts                             | Ratified; readiness contract and permutation proof exist                                              |
+| Terminal policy | Versioned Gregorian quarter resolution plus exhaustive post-term matrix                                       | Frozen contract and 76/76 focused tests; fresh exact-SHA re-sign pending                              |
 | Precision       | Full-precision state and hierarchical presentation-only LRM                                                   | Clean GO                                                                                              |
 | Compound hurdle | Corrected unreturned-capital semantics with Decimal math                                                      | Semantics ratified; policy schema V1.1 remains separately gated                                       |
 | Credit facility | Reserved seed-time `422 CREDIT_FACILITY_UNSUPPORTED`                                                          | Ratified; structurally unreachable and strict-schema guarded                                          |
@@ -128,8 +133,9 @@ SHA. Issue [#1179](https://github.com/nikhillinit/Updog_restore/issues/1179)
 closed on 2026-07-30.
 
 This completed release proof removed #1179 as a release blocker. It did not
-independently open the Task 16.3 production implementation gate; the later
-exact-SHA dual-specialist ratification did.
+independently open the Task 16.3 production implementation gate. The later
+exact-SHA dual-specialist ratification opened the pre-terminal gate; terminal
+repair now requires its own fresh exact-SHA re-sign.
 
 ## Brief 1: Authoritative Opening Accounting State
 
@@ -479,6 +485,66 @@ or row identity.
 The decision automatically reopens before `annualized_compound` V1.1 because
 within-quarter timing can change preferred return.
 
+## Ratified Terminal Resolution and Post-Term Matrix
+
+Frozen contract:
+`shared/contracts/internal-economics/terminal-policy-v1.contract.ts`.
+Methodology version: `internal-economics-terminal-resolution/1.0.0`.
+
+Resolution is exact:
+
+1. Require `fundLifeYears * 4` to be a positive integer quarter count; otherwise
+   return `FUND_LIFE_GRID_UNREPRESENTABLE`.
+2. Add `quarterCount * 3` UTC Gregorian calendar months to `termStartDate` in
+   one operation. Clamp the source day to the target month's last day.
+3. Select the containing calendar-quarter end. An exact quarter-end legal term
+   date remains unchanged.
+4. Set `terminalInstant` to `<terminalPeriodEnd>T23:59:59.999Z`.
+5. Persist `terminalPeriodEnd` and `terminalResolutionMethodologyVersion`; hash
+   that exact pair into the assumptions and result identities.
+
+Policy-time resolution performs this arithmetic once. Runtime accepts only the
+persisted pair and never re-resolves the date from term inputs. Policy readback
+rejects an unsupported persisted version with
+`TERMINAL_RESOLUTION_METHODOLOGY_UNSUPPORTED` and a persisted date that differs
+from a fresh policy-time resolution with `TERMINAL_RESOLUTION_MISMATCH`.
+
+Runtime forecast validation uses the exact persisted pair. Forecast must contain
+exactly one point at `terminalPeriodEnd`. A maximum period earlier than the
+terminal period returns `FORECAST_HORIZON_SHORT`. A grid that reaches or passes
+the terminal period but omits or duplicates the exact point returns
+`FORECAST_TERMINAL_PERIOD_UNREPRESENTABLE`. A cutover later than
+`terminalInstant` returns `TERMINAL_BEFORE_CUTOVER`; equality is valid.
+Interpolation is forbidden. Typed multi-error precedence is persisted
+pair/version, cutover chronology, short horizon, then exact-point
+representability.
+
+The exported `POST_TERM_ACTIVITY_MATRIX_V1` applies identically to
+`liquidate_at_horizon` and `hold_unrealized`:
+
+| Post-term source class                                                                                  | Disposition                                                                                                      |
+| ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| LP capital call, projected contribution, portfolio investment, positive projected deployment delta      | Reject `POST_TERM_ACTIVITY`; decreasing cumulative deployment rejects `FORECAST_DEPLOYMENT_CUMULATIVE_DECREASE`  |
+| Compiled management fee or fund expense                                                                 | Reject `FORECAST_FEE_BASIS_INCOMPATIBLE` first under V1; future fee-compatible path rejects `POST_TERM_ACTIVITY` |
+| Actual fund expense, LP distribution, realized proceeds, recallable distribution, NAV mark, `periodNav` | Reject `POST_TERM_ACTIVITY`                                                                                      |
+| Later projected forecast quarterly distribution or projected NAV                                        | Exclude                                                                                                          |
+
+Projected deployment activity means a positive delta between consecutive
+cumulative deployed-capital values. Unchanged values are not activity; a
+decrease rejects before matrix evaluation. Any negative source amount or
+cumulative deployment input rejects first with `NEGATIVE_SOURCE_MONEY`.
+Exact-zero money rows are no-ops. NAV marks and `periodNav` remain observations,
+so zero-valued observations still reject.
+
+Proof: `tests/unit/internal-economics/terminal-policy-v1.contract.test.ts`
+passes 76/76 focused tests covering methodology identity, policy-time
+resolution, persisted-pair projection and mismatch rejection, runtime-only
+validation, frozen error precedence, Gregorian clamping, timezone invariance,
+exact forecast representation, cutover chronology, exact hash fields, every
+matrix class under both modes, negative and exact-zero handling, and cumulative
+deployment validation. This proof supplies no production engine, deployment,
+activation, feature availability, or `available` result.
+
 ## Brief 5: Compound-Hurdle Semantics
 
 Waterfall-specialist and Phoenix precision-guardian ratified these compound
@@ -542,7 +608,7 @@ preferred return remains unpaid, no residual exists and GP carry is zero.
 Partial capital returns reduce `U` before the next accrual interval. Unpaid `A`
 keeps compounding even when `U` is zero.
 
-V1.1 supports `terminalMode='liquidation'` only. It accrues through the
+V1.1 supports `terminalMode='liquidate_at_horizon'` only. It accrues through the
 liquidation instant, then processes exactly one authorized terminal realization
 whose proceeds equal `terminalNavBeforeRealizationUsd` under the versioned
 `ONE-FOR-ONE NAV REALIZATION` methodology. No amount beyond that pinned NAV is
@@ -620,6 +686,12 @@ These proofs freeze contracts without supplying a production economics engine:
   `tests/unit/internal-economics/event-ordering-v1.contract.test.ts` freeze
   `internal-economics-event-ordering/1.0.0`, derived facts keys, canonical
   forecast ordering, and permutation invariance.
+- `shared/contracts/internal-economics/terminal-policy-v1.contract.ts` and
+  `tests/unit/internal-economics/terminal-policy-v1.contract.test.ts` freeze
+  `internal-economics-terminal-resolution/1.0.0`, policy-time persistence,
+  runtime-only validation, exact terminal hash fields, forecast/cutover
+  precedence, the exhaustive post-term activity matrix, negative/zero handling,
+  and cumulative deployment validation; focused proof is 76/76.
 
 These artifacts do not write results. Run-level transaction atomicity,
 idempotency races, and “failure persists no result” enforcement remain L3
@@ -664,15 +736,18 @@ forbidden.
 
 ## Ratification Record
 
-| Specialist                 | Date       | Exact SHA                                  | Verdict | Evidence                                                                                             |
-| -------------------------- | ---------- | ------------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------- |
-| waterfall-specialist       | 2026-07-30 | `d2b39f7db476ca8a7497b21688c79e1178a6a352` | GO      | 12 focused files, 205/205 tests; Phoenix 328/328; `npm run check` exit 0; lint and guardrails pass   |
-| phoenix-precision-guardian | 2026-07-30 | `d2b39f7db476ca8a7497b21688c79e1178a6a352` | GO      | 51/51 focused tests; corrected-account pins, event ordering, Decimal LRM, and conservation all clean |
+| Specialist                 | Date       | Exact SHA                                  | Verdict                 | Evidence                                                                                             |
+| -------------------------- | ---------- | ------------------------------------------ | ----------------------- | ---------------------------------------------------------------------------------------------------- |
+| waterfall-specialist       | 2026-07-30 | `d2b39f7db476ca8a7497b21688c79e1178a6a352` | GO (pre-terminal scope) | 12 focused files, 205/205 tests; Phoenix 328/328; `npm run check` exit 0; lint and guardrails pass   |
+| phoenix-precision-guardian | 2026-07-30 | `d2b39f7db476ca8a7497b21688c79e1178a6a352` | GO (pre-terminal scope) | 51/51 focused tests; corrected-account pins, event ordering, Decimal LRM, and conservation all clean |
+| terminal repair re-sign    | 2026-07-30 | pending                                    | PENDING                 | Exact-SHA waterfall and precision re-signs required                                                  |
 
 Ratification covers corrected capital accounts, full-precision threshold/state
 math, hierarchical presentation-only LRM, exact Decimal remainder ordering, the
 versioned event-order contract, conservation, opening-artifact reachability, and
-the zero-fee bridge. Evidence anchors include
+the zero-fee bridge. The terminal-policy repair adds a 76/76 focused proof but
+does not enter the GO basis until fresh exact-SHA dual-specialist re-sign.
+Evidence anchors include
 `tests/unit/truth-cases/waterfall-corrected-capital-account.test.ts:198` and
 `:248`, plus
 `shared/contracts/internal-economics/event-ordering-v1.contract.ts:3`, `:145`,
@@ -682,5 +757,6 @@ and `:524` pin opening-artifact reachability; and
 `:361`, `:368`, and `:428` pin absent, ambiguous, and nonzero fee rejection.
 
 Former NO-GO findings remain above only as resolved historical context. ADR-065
-is `[ACCEPTED]`; scoped WP-L2/WP-L3/WP-L4 implementation is GO. Run/result
+is `[ACCEPTED]`; scoped WP-L2/WP-L3/WP-L4 implementation remains pending until
+the terminal repair receives fresh exact-SHA dual-specialist re-sign. Run/result
 atomicity, idempotency races, and rollback remain mandatory WP-L3 acceptance.

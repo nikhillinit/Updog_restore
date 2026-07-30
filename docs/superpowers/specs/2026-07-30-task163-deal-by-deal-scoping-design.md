@@ -1,21 +1,22 @@
 # Task 16.3 Scoping: Internal LP Economics deal_by_deal Slice (PLAN_61 Wave F)
 
-Date: 2026-07-30 Status: Accepted (scoped production implementation GO) Source
-contract: GitHub issue #1176 Task 16.3 combined text, deal_by_deal slice only.
-Provenance: 10-question scoping interview (grilling protocol), every decision
-user-ratified 2026-07-30; every code citation below verified against the live
-repository at `main` = `6dda7c19`, not taken from plan docs or the knowledge
-graph (which correctly refused authority on a stale workspace hash). Companion
-ADR: ADR-065 in `DECISIONS.md` (narrow durable choices only; this spec holds the
-detail).
+Date: 2026-07-30 Status: Accepted contracts; fresh exact-SHA re-sign pending
+Source contract: GitHub issue #1176 Task 16.3 combined text, deal_by_deal slice
+only. Provenance: 10-question scoping interview (grilling protocol), every
+decision user-ratified 2026-07-30; every code citation below verified against
+the live repository at `main` = `6dda7c19`, not taken from plan docs or the
+knowledge graph (which correctly refused authority on a stale workspace hash).
+Companion ADR: ADR-065 in `DECISIONS.md` (narrow durable choices only; this spec
+holds the detail).
 
 Ratification: waterfall-specialist and Phoenix precision-guardian independently
-re-signed GO on 2026-07-30 against exact SHA
-`d2b39f7db476ca8a7497b21688c79e1178a6a352`.
+re-signed the pre-terminal contracts on 2026-07-30 against exact SHA
+`d2b39f7db476ca8a7497b21688c79e1178a6a352`. Terminal-policy repair requires a
+fresh exact-SHA dual-specialist re-sign.
 
-## Verdict: scoped production implementation GO
+## Verdict: scoped production implementation pending fresh re-sign
 
-**GO scope:**
+**Candidate GO scope after re-sign:**
 
 1. WP-L2 quarterly fee/expense compiler and cash-assembly state machine.
 2. WP-L3 basis resolution, service, lineage, idempotency, and atomic
@@ -24,10 +25,11 @@ re-signed GO on 2026-07-30 against exact SHA
 4. Schema migrations only inside reviewed implementation PRs owned by the work
    package that consumes them.
 
-GO authorizes implementation only. It does not authorize deployment, activation,
-production traffic, or claim feature availability. No production internal LP
-economics engine exists at ratification. `available` remains
-typed-but-unreachable until a certified Decimal-native money core exists.
+After re-sign, GO authorizes implementation only. It does not authorize
+deployment, activation, production traffic, or claim feature availability. No
+production internal LP economics engine exists at ratification. `available`
+remains typed-but-unreachable until a certified Decimal-native money core
+exists.
 
 **Completed readiness evidence:**
 
@@ -57,15 +59,18 @@ typed-but-unreachable until a certified Decimal-native money core exists.
   freeze after the former specialist NO-GO review.
 - REVIEW-ADDED: forecast realization granularity resolved (quarterly aggregates
   vs per-event exits at the basis boundary — Brief 4, extended).
-- RATIFICATION SATISFIED: clean waterfall-specialist and Phoenix
-  precision-guardian re-signs both returned GO on exact SHA
-  `d2b39f7db476ca8a7497b21688c79e1178a6a352` after reviewing the reconciled
-  contracts.
+- Terminal resolution and the exhaustive post-term activity matrix are frozen in
+  `internal-economics-terminal-resolution/1.0.0`, with 76/76 focused contract
+  tests.
+- RATIFICATION PENDING: fresh waterfall-specialist and Phoenix
+  precision-guardian re-signs must review the exact SHA containing the terminal
+  repair.
 
-| Specialist                 | Date       | SHA                                        | Verdict | Exact re-sign evidence                                                                                 |
-| -------------------------- | ---------- | ------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------ |
-| waterfall-specialist       | 2026-07-30 | `d2b39f7db476ca8a7497b21688c79e1178a6a352` | GO      | 12 focused files, 205/205 tests; Phoenix 328/328; `npm run check` exit 0; lint and guardrails pass     |
-| phoenix-precision-guardian | 2026-07-30 | `d2b39f7db476ca8a7497b21688c79e1178a6a352` | GO      | 51/51 focused precision tests; corrected-account pins, event ordering, Decimal LRM, conservation clean |
+| Specialist                 | Date       | SHA                                        | Verdict                 | Exact re-sign evidence                                                                                 |
+| -------------------------- | ---------- | ------------------------------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------ |
+| waterfall-specialist       | 2026-07-30 | `d2b39f7db476ca8a7497b21688c79e1178a6a352` | GO (pre-terminal scope) | 12 focused files, 205/205 tests; Phoenix 328/328; `npm run check` exit 0; lint and guardrails pass     |
+| phoenix-precision-guardian | 2026-07-30 | `d2b39f7db476ca8a7497b21688c79e1178a6a352` | GO (pre-terminal scope) | 51/51 focused precision tests; corrected-account pins, event ordering, Decimal LRM, conservation clean |
+| terminal repair re-sign    | 2026-07-30 | pending                                    | PENDING                 | Exact-SHA waterfall and precision re-signs required                                                    |
 
 Blocker B3 (vehicle-scoped basis) does not block single-vehicle funds; it
 runtime-gates SPV-bearing funds via `MAIN_FUND_SCOPED_FORECAST_UNAVAILABLE`.
@@ -98,8 +103,9 @@ with clean production schema audit and no DDL, staged inspect locator
 tests, and successful GitHub production deployment `5679938936`. Issue
 [#1179](https://github.com/nikhillinit/Updog_restore/issues/1179) closed
 2026-07-30. This removed one release blocker but did not independently open the
-Task 16.3 implementation gate. The exact-SHA dual-specialist ratification
-recorded above opened the scoped WP-L2/WP-L3/WP-L4 implementation lane.
+Task 16.3 implementation gate. The prior exact-SHA dual-specialist ratification
+opened the pre-terminal lane; the terminal repair temporarily closes it until
+fresh exact-SHA dual-specialist re-sign.
 
 ## D1. Fidelity posture: A+ (indicative float64 core, hardened boundaries)
 
@@ -277,7 +283,32 @@ request_hash, created_at, created_by
   arithmetic at run time). Separate typed failures: `FUND_LIFE_ABSENT`,
   `FUND_TERM_START_ABSENT`, `EVERGREEN_STATUS_ABSENT` (a missing evergreen flag
   never silently means false). `isEvergreen: true` -> `EVERGREEN_UNSUPPORTED`.
-- Terminal modes (repo-style literals), BOTH implemented in PR-1:
+- Ratified terminal-resolution methodology:
+  `internal-economics-terminal-resolution/1.0.0`, frozen in
+  `shared/contracts/internal-economics/terminal-policy-v1.contract.ts`.
+  `fundLifeYears * 4` must resolve exactly to a positive integer quarter count;
+  otherwise `FUND_LIFE_GRID_UNREPRESENTABLE`. Add `quarterCount * 3` UTC
+  Gregorian calendar months to `termStartDate` in one operation, clamping the
+  source day to the target month's last day. Resolve `terminalPeriodEnd` to the
+  containing calendar-quarter end; an exact quarter-end legal term date remains
+  unchanged. `terminalInstant` is `<terminalPeriodEnd>T23:59:59.999Z`. Persist
+  `terminalPeriodEnd` and `terminalResolutionMethodologyVersion`; the exact pair
+  participates in assumptions and result hashing.
+- Resolve and persist the pair at policy time. Runtime accepts that pair plus
+  forecast/cutover inputs and performs no term-date arithmetic. Policy readback
+  rejects an unsupported persisted methodology version with
+  `TERMINAL_RESOLUTION_METHODOLOGY_UNSUPPORTED` and a persisted date that
+  differs from fresh policy-time resolution with `TERMINAL_RESOLUTION_MISMATCH`.
+- Runtime forecast representation requires exactly one point whose `periodEnd`
+  equals persisted `terminalPeriodEnd`. If the maximum forecast period is
+  earlier, return `FORECAST_HORIZON_SHORT`. If the grid reaches or passes the
+  terminal period but the exact point is missing or duplicated, return
+  `FORECAST_TERMINAL_PERIOD_UNREPRESENTABLE`. Never interpolate.
+- Opening cutover may equal persisted `terminalInstant`; a later cutover returns
+  `TERMINAL_BEFORE_CUTOVER`. Frozen typed-error precedence is persisted
+  pair/version, cutover chronology, short horizon, then exact-point
+  representability.
+- Terminal modes (repo-style literals), both required in WP-L2:
   `liquidate_at_horizon | hold_unrealized`.
 - `liquidate_at_horizon` exact ordering: (1) process normal terminal-quarter
   calls and exits; (2) read end-of-quarter `navUsd`; (3) create a synthetic
@@ -291,26 +322,38 @@ request_hash, created_at, created_by
   `navUsd` pushed as final XIRR flow).
 - Trust propagation: terminal processing inherits forecast trust. An
   `indicative` forecast can never produce an `available` economics result.
-- Horizon rules: an exact terminal-quarter series point is required — no
-  interpolation. Short series -> `FORECAST_HORIZON_SHORT`. A longer series
-  truncates ONLY when no calls or deployments occur after fund term; nonzero
-  post-term activity -> `POST_TERM_ACTIVITY`. Under liquidation mode, later
-  modeled exits are replaced by the terminal realization; hold mode retains
-  terminal NAV and ignores later projections.
+- Ratified post-term matrix, identical under both terminal modes:
+  - Nonzero LP capital calls, projected contributions, portfolio investments,
+    and projected deployment deltas reject with `POST_TERM_ACTIVITY`. Projected
+    deployment means only a positive change between consecutive cumulative
+    deployed-capital values; unchanged values are not deployment activity. A
+    decrease rejects as `FORECAST_DEPLOYMENT_CUMULATIVE_DECREASE` before the
+    post-term matrix.
+  - Nonzero compiled management fees or compiled fund expenses first reject with
+    `FORECAST_FEE_BASIS_INCOMPATIBLE` under V1's zero-cost compatibility gate. A
+    future fee-compatible path must reject the same post-term activity with
+    `POST_TERM_ACTIVITY`.
+  - Nonzero actual fund expenses, LP distributions, realized proceeds, and
+    recallable distributions reject with `POST_TERM_ACTIVITY`.
+  - Actual NAV marks and actual `periodNav` observations reject with
+    `POST_TERM_ACTIVITY`, including zero-valued observations.
+  - Later projected forecast quarterly distributions and projected NAV are
+    excluded under both modes.
+  - Negative source money and negative cumulative deployment inputs reject with
+    `NEGATIVE_SOURCE_MONEY` before matrix or delta evaluation.
+  - Exact-zero money rows are no-ops. NAV observations are observations, not
+    money rows, so zero does not make them no-ops.
 - Liquidation is NOT cheap: it requires valuation-basis, event-ordering,
   trust-inheritance, post-term-activity, and conservation fixtures.
-- REVIEW-ADDED terminal-date resolution: the `terminalPeriodEnd` computation
-  must be specified and versioned — persist
-  `terminalResolutionMethodologyVersion` beside the resolved date — covering
-  anniversary-vs-calendar-quarter arithmetic, mid-quarter fund-life end
-  normalization (containing vs preceding quarter), leap years, UTC as the
-  canonical zone, and forecast-grid representability (a non-representable anchor
-  is a typed failure, never interpolated).
-- REVIEW-ADDED post-term activity matrix: `POST_TERM_ACTIVITY` as written covers
-  calls/deployments only. Before L2, define treatment for EVERY event class
-  after fund term under BOTH terminal modes — fees, expenses, actual
-  distributions, gross proceeds, and NAV marks — as an explicit matrix with
-  fixtures; undefined cells are not permitted to default.
+- Readiness proof: 76/76 focused tests in
+  `tests/unit/internal-economics/terminal-policy-v1.contract.test.ts` cover
+  policy-time resolution, strict persisted-pair projection, methodology and date
+  mismatch rejection, runtime-only validation, frozen error precedence,
+  Gregorian clamping, timezone invariance, exact forecast representation,
+  cutover chronology, hash preimage, every exported matrix source class under
+  both modes, negative and zero handling, and cumulative deployment validation.
+  This contract is implementation readiness evidence, not a production engine or
+  feature-availability claim.
 
 ## D6. Call/cash policy (Blockers B1 and B2 live here)
 
@@ -733,6 +776,9 @@ ESCROW_UNSUPPORTED           active escrow semantics
 RECYCLING_UNSUPPORTED        active recycling semantics
 HURDLE_BASIS_UNSUPPORTED     pref-bearing source config; schema V1 is basis 'none'
 FUND_LIFE_ABSENT             no fund life resolvable
+FUND_LIFE_GRID_UNREPRESENTABLE
+                             fundLifeYears * 4 is not a positive integer quarter count,
+                             or resolved Gregorian date is outside supported range
 FUND_TERM_START_ABSENT       no term start resolvable
 EVERGREEN_STATUS_ABSENT      evergreen flag missing (never silently false)
 EVERGREEN_UNSUPPORTED        isEvergreen true
@@ -755,8 +801,20 @@ CONFIG_LINEAGE_MISMATCH                policy/plan descend from different config
 FORECAST_UNAVAILABLE                   pinned forecast unavailable
 FORECAST_FAILED                        pinned forecast failed
 FORECAST_HELD_UNSUPPORTED              pinned forecast is serving-plane held
-FORECAST_HORIZON_SHORT                 no exact terminal-quarter series point
-POST_TERM_ACTIVITY                     nonzero post-term calls/deployments
+FORECAST_HORIZON_SHORT                 maximum forecast period precedes terminalPeriodEnd
+FORECAST_TERMINAL_PERIOD_UNREPRESENTABLE
+                                       grid reaches/passes terminalPeriodEnd but exact
+                                       point is missing or duplicated
+FORECAST_DEPLOYMENT_CUMULATIVE_DECREASE
+                                       cumulative deployedUsd decreases between periods
+NEGATIVE_SOURCE_MONEY                  source money or cumulative deployment is negative
+TERMINAL_RESOLUTION_METHODOLOGY_UNSUPPORTED
+                                       persisted terminal methodology version is unsupported
+TERMINAL_RESOLUTION_MISMATCH           persisted terminalPeriodEnd differs from policy-time
+                                       resolution
+TERMINAL_BEFORE_CUTOVER                opening cutover is later than terminalInstant
+POST_TERM_ACTIVITY                     prohibited post-term calls, positive deployment
+                                       delta, actual money event, or NAV observation
 COMMITTED_CAPITAL_EXCEEDED             context: first violating quarter, requested
                                        call, remaining capacity, cumulative calls
 MAIN_FUND_VEHICLE_ABSENT               no main_fund vehicle row
@@ -807,11 +865,15 @@ HTTP 409                     idempotency key reuse with changed preimage
   event-order permutation fixtures against the frozen priority table and
   single-count fee-identity cases (each fee dollar exactly once across both
   channels — D6/Brief 2).
-- Terminal fixtures: valuation basis, event ordering, trust inheritance,
-  post-term activity (REVIEW-ADDED: the FULL matrix — fees, expenses,
-  distributions, proceeds, NAV marks under both modes), conservation, both
-  terminal modes; REVIEW-ADDED terminal-date resolution edges (mid-quarter
-  fund-life end, leap year, non-representable anchor).
+- Terminal fixtures: the frozen 76-test terminal-policy proof covers policy-time
+  persistence, readback mismatch and unsupported-version rejection, runtime-only
+  validation, mid-quarter and exact-quarter-end resolution, leap-day clamping,
+  quarter-grid validation, timezone invariance, exact-one forecast
+  representation, frozen cutover/horizon/shape precedence, persisted hash
+  fields, the exhaustive exported post-term matrix under both modes,
+  negative/exact-zero handling, and cumulative deployment validation. WP-L2
+  still owes valuation-basis, event-ordering, trust-inheritance, terminal
+  realization, and conservation integration fixtures.
 - REVIEW-ADDED purity/boundary obligations: the issue-named
   `tests/unit/source/internal-economics-boundary.test.ts`; engine purity (no
   I/O, no ambient clock or randomness); determinism (same input ->
@@ -844,7 +906,8 @@ HTTP 409                     idempotency key reuse with changed preimage
 ```text
 COMPLETE:           characterization PR | accepted spec + ADR-065 | five briefs
                     B1 opening-state source bridge | B2 zero-fee bridge
-IMPLEMENTATION GO: WP-L2 compiler + state machine
+RE-SIGN PENDING:    terminal-policy repair exact-SHA specialist review
+AFTER GO:           WP-L2 compiler + state machine
                     WP-L3 service + owned persistence/migrations
                     WP-L4 restricted routes
                     V1 integration (indicative-capped, single-vehicle funds)

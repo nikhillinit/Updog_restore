@@ -9305,23 +9305,28 @@ activation, production traffic, or feature availability.
    SPV or co-invest roster entry yields `MAIN_FUND_SCOPED_FORECAST_UNAVAILABLE`
    until a vehicle-scoped facts/forecast basis exists. SPV consolidation is
    explicitly deferred, not silently dropped.
-6. Production implementation gate: GO. Authorized scope is WP-L2
-   compiler/state-machine implementation, WP-L3 service/persistence
-   implementation, and WP-L4 restricted-route implementation. Schema migrations
-   may appear only in reviewed implementation PRs owned by the consuming work
-   package. Readiness work includes a test-only hierarchical presentation
-   oracle, corrected same-input `LEGACY-04`/`LEGACY-05` counterparts, and a
-   versioned event-order contract; it contains no production economics engine.
-   Release issue #1179 removed one blocker but did not independently open this
-   gate. Waterfall-specialist and Phoenix precision-guardian independently
-   re-signed GO on 2026-07-30 against exact SHA
-   `d2b39f7db476ca8a7497b21688c79e1178a6a352`. GO does not authorize deployment,
-   activation, production traffic, or claim feature availability. `available`
-   remains typed-but-unreachable pending a certified Decimal-native money core.
-   SPV/co-invest-bearing funds and funds with nonzero, absent, or ambiguous
-   fee/expense inputs remain runtime-ineligible. Compound-hurdle semantics are
-   ratified, but policy schema V1.1 remains separately gated. Run/result
-   atomicity, idempotency, and rollback remain WP-L3 acceptance requirements.
+6. Production implementation gate: temporarily pending fresh exact-SHA
+   dual-specialist re-sign after terminal-policy and idempotent-replay review
+   repairs. Candidate authorized scope is WP-L2 compiler/state-machine
+   implementation, WP-L3 service/persistence implementation, and WP-L4
+   restricted-route implementation. Schema migrations may appear only in
+   reviewed implementation PRs owned by the consuming work package. Readiness
+   work includes a test-only hierarchical presentation oracle, corrected
+   same-input `LEGACY-04`/`LEGACY-05` counterparts, and a versioned event-order
+   contract. It also includes the frozen
+   `internal-economics-terminal-resolution/1.0.0` contract and its 76/76 focused
+   proof. None is a production economics engine. Release issue #1179 removed one
+   blocker but did not independently open this gate. Waterfall-specialist and
+   Phoenix precision-guardian independently re-signed the pre-terminal contracts
+   on 2026-07-30 against exact SHA `d2b39f7db476ca8a7497b21688c79e1178a6a352`;
+   terminal repair requires a fresh exact-SHA re-sign. Future GO does not
+   authorize deployment, activation, production traffic, or claim feature
+   availability. `available` remains typed-but-unreachable pending a certified
+   Decimal-native money core. SPV/co-invest-bearing funds and funds with
+   nonzero, absent, or ambiguous fee/expense inputs remain runtime-ineligible.
+   Compound-hurdle semantics are ratified, but policy schema V1.1 remains
+   separately gated. Run/result atomicity, idempotency, and rollback remain
+   WP-L3 acceptance requirements.
 7. **Derived event ordering.** Methodology contract
    `internal-economics-event-ordering/1.0.0` orders
    `(effectiveAt, eventClassPriority, stableSourceId)`. Persisted facts already
@@ -9332,6 +9337,33 @@ activation, production traffic, or feature availability.
    `forecast_quarterly_distribution`, priority `4`, stable key
    `forecast:<id>:quarter:<periodEnd>:forecast_quarterly_distribution`, and
    `effectiveAt=<periodEnd>T23:59:59.999Z`.
+8. **Terminal policy.** Version `internal-economics-terminal-resolution/1.0.0`
+   requires `fundLifeYears * 4` to be a positive integer quarter count, adds
+   `quarterCount * 3` UTC Gregorian calendar months in one clamped operation,
+   resolves to the containing quarter end, preserves exact quarter ends, and
+   fixes the terminal instant at `23:59:59.999Z`. The resolved date and
+   methodology version persist and participate in hashing. Policy-time
+   resolution performs date arithmetic once; runtime consumes only the exact
+   persisted pair. Unsupported persisted methodology returns
+   `TERMINAL_RESOLUTION_METHODOLOGY_UNSUPPORTED`; a persisted date differing
+   from policy-time resolution returns `TERMINAL_RESOLUTION_MISMATCH`. Forecast
+   representation requires exactly one terminal-period point:
+   `FORECAST_HORIZON_SHORT` applies when the grid ends earlier;
+   `FORECAST_TERMINAL_PERIOD_UNREPRESENTABLE` applies when a grid that reaches
+   or passes the terminal period omits or duplicates it; and
+   `TERMINAL_BEFORE_CUTOVER` rejects a cutover later than the terminal instant.
+   Runtime typed-error precedence is persisted pair/version, cutover chronology,
+   short horizon, then exact-point representability. The exported exhaustive
+   post-term matrix applies under both terminal modes. Calls, contributions,
+   investments, positive cumulative deployment deltas, actual
+   expenses/distributions/proceeds/recallable distributions, NAV marks, and
+   `periodNav` reject with `POST_TERM_ACTIVITY`; compiled nonzero fees or
+   expenses first reject with `FORECAST_FEE_BASIS_INCOMPATIBLE`, while a future
+   compatible path must use `POST_TERM_ACTIVITY`; later projected distributions
+   and NAV are excluded. Negative source money or cumulative deployment rejects
+   first with `NEGATIVE_SOURCE_MONEY`; a decreasing nonnegative cumulative
+   deployment rejects with `FORECAST_DEPLOYMENT_CUMULATIVE_DECREASE`. Exact-zero
+   money rows are no-ops, but NAV observations are not.
 
 ### Ratification evidence
 
@@ -9350,12 +9382,18 @@ activation, production traffic, or feature availability.
   `tests/unit/truth-cases/task163-hierarchical-rounding-readiness.test.ts`,
   `tests/unit/truth-cases/waterfall-corrected-capital-account.test.ts`, and
   `tests/unit/internal-economics/event-ordering-v1.contract.test.ts`.
-- waterfall-specialist re-signed GO on 2026-07-30 for exact SHA
-  `d2b39f7db476ca8a7497b21688c79e1178a6a352`: 12 focused files, 205/205 tests;
-  Phoenix 328/328; `npm run check` exit 0; lint and guardrails pass.
-- phoenix-precision-guardian re-signed GO on 2026-07-30 for the same exact SHA:
-  51/51 focused tests; corrected-account pins, event ordering, Decimal remainder
-  ordering, presentation-only rounding, and conservation clean.
+- Terminal readiness proof lives in
+  `tests/unit/internal-economics/terminal-policy-v1.contract.test.ts`: 76/76
+  focused tests against
+  `shared/contracts/internal-economics/terminal-policy-v1.contract.ts`.
+- waterfall-specialist re-signed the pre-terminal scope on 2026-07-30 for exact
+  SHA `d2b39f7db476ca8a7497b21688c79e1178a6a352`: 12 focused files, 205/205
+  tests; Phoenix 328/328; `npm run check` exit 0; lint and guardrails pass.
+- phoenix-precision-guardian re-signed the pre-terminal scope on 2026-07-30 for
+  the same exact SHA: 51/51 focused tests; corrected-account pins, event
+  ordering, Decimal remainder ordering, presentation-only rounding, and
+  conservation clean.
+- Terminal repair awaits fresh exact-SHA waterfall and precision re-signs.
 - Former NO-GO findings are retained only as resolved historical evidence.
 
 ### Consequences

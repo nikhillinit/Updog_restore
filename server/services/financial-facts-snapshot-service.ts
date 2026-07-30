@@ -2,7 +2,7 @@ import { and, asc, desc, eq, lte, sql, type SQL } from 'drizzle-orm';
 
 import { db } from '../db';
 import { assertOwnedByFund, type FundScopedOwnershipDatabase } from '../lib/fund-scoped-ownership';
-import { runIdempotentCommand } from '../lib/idempotent-command';
+import { replayIdempotentCommandIfPresent, runIdempotentCommand } from '../lib/idempotent-command';
 import {
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3,
@@ -1749,43 +1749,45 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
 }): Promise<PersistedFinancialFactsSnapshotV1> {
   const { input, database, now, knowledgeCutoff } = params;
   await lockFactsGeneration(database, input.fundId);
+  const idempotencyRequest = {
+    fundId: input.fundId,
+    contractVersion: FINANCIAL_FACTS_POLICY_VERSION,
+    asOfDate: input.asOfDate,
+    requestedVehicleIds:
+      input.vehicleIds === undefined
+        ? null
+        : [...input.vehicleIds].sort((left, right) => left - right),
+    actorId: input.actorId,
+    openingAccountingStateArtifactId: input.openingAccountingStateArtifactId ?? null,
+  };
+  const loadExistingSnapshot = async () => {
+    const [existing] = await database
+      .select()
+      .from(financialFactsSnapshots)
+      .where(
+        and(
+          eq(financialFactsSnapshots.fundId, input.fundId),
+          eq(financialFactsSnapshots.idempotencyKey, input.idempotencyKey)
+        )
+      )
+      .limit(1);
+    return existing ? { row: existing, requestHash: existing.requestHash } : null;
+  };
+  const replay = await replayIdempotentCommandIfPresent<SnapshotRow>({
+    db: database,
+    fundId: input.fundId,
+    idempotencyKey: input.idempotencyKey,
+    contractVersion: FINANCIAL_FACTS_POLICY_VERSION,
+    request: idempotencyRequest,
+    loadExisting: loadExistingSnapshot,
+  });
+  if (replay !== null) return snapshotFromRow(replay.row);
+
   const supersedesSnapshot = await getLatestTerminalFinancialFactsSnapshot({
     fundId: input.fundId,
     asOfDate: input.asOfDate,
     database,
   });
-  const [openingAccountingStateArtifact] =
-    input.openingAccountingStateArtifactId === undefined
-      ? []
-      : ((await database
-          .select({
-            id: sourceArtifacts.id,
-            fundId: sourceArtifacts.fundId,
-            sourceType: sourceArtifacts.sourceType,
-            mediaType: sourceArtifacts.mediaType,
-            payloadSha256: sourceArtifacts.payloadSha256,
-            payload: sourceArtifacts.payload,
-            purgedAt: sourceArtifacts.purgedAt,
-            createdAt: sourceArtifacts.createdAt,
-          })
-          .from(sourceArtifacts)
-          .where(
-            and(
-              eq(sourceArtifacts.id, input.openingAccountingStateArtifactId),
-              eq(sourceArtifacts.fundId, input.fundId)
-            )
-          )
-          .limit(1)) as OpeningAccountingStateArtifactRow[]);
-  const openingAccountingState =
-    input.openingAccountingStateArtifactId === undefined
-      ? null
-      : parseOpeningAccountingStateArtifact({
-          row: openingAccountingStateArtifact,
-          fundId: input.fundId,
-          asOfDate: input.asOfDate,
-          knowledgeCutoff,
-          actorId: input.actorId,
-        });
 
   const roster = await readVehicleRoster(database, input.fundId);
   const vehicleIds = await validateVehicleScope({
@@ -1917,6 +1919,39 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
     sourceObservationIds: lineage.sourceObservationIds,
     workingValueSelectionIds: lineage.workingValueSelectionIds,
   });
+
+  const [openingAccountingStateArtifact] =
+    input.openingAccountingStateArtifactId === undefined
+      ? []
+      : ((await database
+          .select({
+            id: sourceArtifacts.id,
+            fundId: sourceArtifacts.fundId,
+            sourceType: sourceArtifacts.sourceType,
+            mediaType: sourceArtifacts.mediaType,
+            payloadSha256: sourceArtifacts.payloadSha256,
+            payload: sourceArtifacts.payload,
+            purgedAt: sourceArtifacts.purgedAt,
+            createdAt: sourceArtifacts.createdAt,
+          })
+          .from(sourceArtifacts)
+          .where(
+            and(
+              eq(sourceArtifacts.id, input.openingAccountingStateArtifactId),
+              eq(sourceArtifacts.fundId, input.fundId)
+            )
+          )
+          .limit(1)) as OpeningAccountingStateArtifactRow[]);
+  const openingAccountingState =
+    input.openingAccountingStateArtifactId === undefined
+      ? null
+      : parseOpeningAccountingStateArtifact({
+          row: openingAccountingStateArtifact,
+          fundId: input.fundId,
+          asOfDate: input.asOfDate,
+          knowledgeCutoff,
+          actorId: input.actorId,
+        });
   const payloadV1 = FinancialFactsPayloadV1Schema.parse({
     companyActuals,
     sourceObservationIds: lineage.sourceObservationIds,
@@ -1957,28 +1992,8 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
     fundId: input.fundId,
     idempotencyKey: input.idempotencyKey,
     contractVersion: FINANCIAL_FACTS_POLICY_VERSION,
-    request: {
-      fundId: input.fundId,
-      contractVersion: FINANCIAL_FACTS_POLICY_VERSION,
-      asOfDate: input.asOfDate,
-      vehicleIds,
-      actorId: input.actorId,
-      openingAccountingStateArtifactId: input.openingAccountingStateArtifactId ?? null,
-      selectionSetHash,
-    },
-    loadExisting: async () => {
-      const [existing] = await database
-        .select()
-        .from(financialFactsSnapshots)
-        .where(
-          and(
-            eq(financialFactsSnapshots.fundId, input.fundId),
-            eq(financialFactsSnapshots.idempotencyKey, input.idempotencyKey)
-          )
-        )
-        .limit(1);
-      return existing ? { row: existing, requestHash: existing.requestHash } : null;
-    },
+    request: idempotencyRequest,
+    loadExisting: loadExistingSnapshot,
     insert: async (requestHash) => {
       const [inserted] = await database
         .insert(financialFactsSnapshots)

@@ -12,17 +12,20 @@ export class IdempotentCommandError extends Error {
   }
 }
 
-export interface IdempotentCommandOptions<TRow> {
+export interface IdempotentCommandReplayOptions<TRow> {
   db: unknown;
   fundId: number;
   idempotencyKey: string;
   request: Record<string, unknown>;
   contractVersion: string;
   loadExisting: () => Promise<{ row: TRow; requestHash: string } | null>;
+}
+
+export interface IdempotentCommandOptions<TRow> extends IdempotentCommandReplayOptions<TRow> {
   insert: (requestHash: string) => Promise<TRow | null>;
 }
 
-function assertAuthoritativeFields<TRow>(opts: IdempotentCommandOptions<TRow>): void {
+function assertAuthoritativeFields<TRow>(opts: IdempotentCommandReplayOptions<TRow>): void {
   if (
     opts.request['fundId'] !== opts.fundId ||
     opts.request['contractVersion'] !== opts.contractVersion
@@ -56,15 +59,29 @@ function replayExisting<TRow>(
   return { row: existing.row, replayed: true };
 }
 
-export async function runIdempotentCommand<TRow>(
-  opts: IdempotentCommandOptions<TRow>
-): Promise<{ row: TRow; replayed: boolean }> {
-  assertAuthoritativeFields(opts);
-  const requestHash = canonicalSha256({
+function requestHashFor<TRow>(opts: IdempotentCommandReplayOptions<TRow>): string {
+  return canonicalSha256({
     ...opts.request,
     fundId: opts.fundId,
     contractVersion: opts.contractVersion,
   });
+}
+
+export async function replayIdempotentCommandIfPresent<TRow>(
+  opts: IdempotentCommandReplayOptions<TRow>
+): Promise<{ row: TRow; replayed: true } | null> {
+  assertAuthoritativeFields(opts);
+  const existing = await opts.loadExisting();
+  if (existing === null) return null;
+
+  return replayExisting(existing, requestHashFor(opts), opts.idempotencyKey);
+}
+
+export async function runIdempotentCommand<TRow>(
+  opts: IdempotentCommandOptions<TRow>
+): Promise<{ row: TRow; replayed: boolean }> {
+  assertAuthoritativeFields(opts);
+  const requestHash = requestHashFor(opts);
 
   const inserted = await opts.insert(requestHash);
   if (inserted !== null) {

@@ -530,6 +530,85 @@ describe('buildFinancialFactsSnapshot', () => {
     });
   });
 
+  it('replays an artifact-backed snapshot after the source payload is purged', async () => {
+    const fakeDb = new FakeSnapshotDb();
+    const artifact = openingStateArtifact();
+    fakeDb.sourceArtifactRows.push(artifact);
+    const input = {
+      fundId: 1,
+      asOfDate: '2026-06-30',
+      openingAccountingStateArtifactId: 42,
+      actorId: 7,
+      idempotencyKey: 'snapshot-opening-state-purged-replay',
+      database: fakeDb.asDatabase(),
+      now: new Date('2026-07-22T01:42:44.186Z'),
+    };
+
+    const created = await buildFinancialFactsSnapshot(input);
+    artifact['payload'] = null;
+    artifact['purgedAt'] = new Date('2026-07-23T00:00:00.000Z');
+
+    const replayed = await buildFinancialFactsSnapshot(input);
+
+    expect(replayed).toEqual(created);
+    expect(fakeDb.snapshotRows).toHaveLength(1);
+    expect(fakeDb.insertedSnapshotCount).toBe(1);
+  });
+
+  it('replays before mutable roster and source-selection state is read again', async () => {
+    const fakeDb = new FakeSnapshotDb();
+    fakeDb.vehicleRows.push({
+      vehicleId: 1,
+      vehicleType: 'main_fund',
+      vehicleSlug: 'fund-i',
+      name: 'Fund I',
+      currency: 'USD',
+    });
+    fakeDb.sourceObservationRows.push(acceptedObservation());
+    fakeDb.latestSelectionRows.push({
+      id: 17,
+      fundId: 1,
+      consumer: 'forecast',
+      companyIdentityId: null,
+      domain: 'ledger_event',
+      measureKey: 'capital_contribution',
+      selectedObservationId: 501,
+      isDefault: false,
+    });
+    const input = {
+      fundId: 1,
+      asOfDate: '2026-06-30',
+      actorId: 7,
+      idempotencyKey: 'snapshot-mutable-input-replay',
+      database: fakeDb.asDatabase(),
+      now: new Date('2026-07-22T01:42:44.186Z'),
+    };
+
+    const created = await buildFinancialFactsSnapshot(input);
+    const statementCountAfterCreate = fakeDb.executedStatements.length;
+    fakeDb.vehicleRows.length = 0;
+    fakeDb.sourceObservationRows.push(acceptedObservation({ id: 502 }));
+    fakeDb.latestSelectionRows.splice(0, fakeDb.latestSelectionRows.length, {
+      id: 18,
+      fundId: 1,
+      consumer: 'forecast',
+      companyIdentityId: null,
+      domain: 'ledger_event',
+      measureKey: 'capital_contribution',
+      selectedObservationId: 502,
+      isDefault: false,
+    });
+
+    const replayed = await buildFinancialFactsSnapshot(input);
+
+    expect(replayed).toEqual(created);
+    expect(fakeDb.snapshotRows).toHaveLength(1);
+    expect(fakeDb.insertedSnapshotCount).toBe(1);
+    const replayStatements = fakeDb.executedStatements.slice(statementCountAfterCreate);
+    expect(replayStatements).toHaveLength(1);
+    expect(new PgDialect().sqlToQuery(replayStatements[0]!).sql).toContain('pg_advisory_xact_lock');
+  });
+
   it('selects an opening-state artifact by composite fund and id', async () => {
     const fakeDb = new FakeSnapshotDb();
     fakeDb.sourceArtifactRows.push(openingStateArtifact({ fundId: 2 }));
@@ -1925,7 +2004,7 @@ describe('buildFinancialFactsSnapshot', () => {
     });
   });
 
-  it('retries 40001 in a repeatable-read transaction and yields one insert plus exact replay', async () => {
+  it('retries 40001 in a repeatable-read transaction and yields one insert plus early exact replay', async () => {
     const fakeDb = new FakeSnapshotDb();
     fakeDb.insertSerializationFailuresRemaining = 1;
     const input = {
@@ -1946,7 +2025,7 @@ describe('buildFinancialFactsSnapshot', () => {
     expect(fakeDb.snapshotRows).toHaveLength(1);
     expect(fakeDb.insertedSnapshotCount).toBe(1);
     expect(fakeDb.transactionAttempts).toBe(3);
-    expect(fakeDb.snapshotInsertAttempts).toHaveLength(3);
+    expect(fakeDb.snapshotInsertAttempts).toHaveLength(2);
     const requestHash = fakeDb.snapshotInsertAttempts[0]?.['requestHash'];
     expect(requestHash).toMatch(/^[0-9a-f]{64}$/);
     expect(
@@ -1956,7 +2035,7 @@ describe('buildFinancialFactsSnapshot', () => {
         snapshotInputHash: attempt['snapshotInputHash'],
       }))
     ).toEqual(
-      Array.from({ length: 3 }, () => ({
+      Array.from({ length: 2 }, () => ({
         knowledgeCutoff: new Date('2026-07-22T01:42:44.186Z'),
         requestHash,
         snapshotInputHash: left.snapshotInputHash,
