@@ -228,6 +228,27 @@ describe('current plan version service', () => {
       })
     ).rejects.toMatchObject({ code: 'NO_FACTS_SNAPSHOT', status: 422 });
   });
+
+  it.each([
+    ['financial-facts-policy/1.1.0', 'financial-facts-payload/2', false],
+    ['financial-facts-policy/1.2.0', 'financial-facts-payload/3', true],
+  ] as const)('mints a plan from %s', async (policyVersion, payloadSchemaId, isPayload3) => {
+    const fakeDb = new FakeCurrentPlanDb();
+    fakeDb.factsRows[0] = factsRowWithEffectiveTerms({
+      policyVersion,
+      payloadSchemaId,
+      isPayload3,
+    });
+
+    const plan = await mintCurrentPlanVersion({
+      fundId: 1,
+      idempotencyKey: `plan-${payloadSchemaId}`,
+      actorId: 7,
+      database: fakeDb.asDatabase(),
+    });
+
+    expect(plan.sourceFactsSnapshotId).toBe('31');
+  });
 });
 
 function publishedConfigRow(config: FundDraftWriteV1 = completeConfig()): FundConfigRow {
@@ -322,5 +343,27 @@ function factsRow(): FactsRow {
     idempotencyKey: 'facts-31',
     requestHash: 'd'.repeat(64),
     createdAt: new Date('2026-07-22T02:00:00.000Z'),
+  };
+}
+
+function factsRowWithEffectiveTerms(input: {
+  policyVersion: 'financial-facts-policy/1.1.0' | 'financial-facts-policy/1.2.0';
+  payloadSchemaId: 'financial-facts-payload/2' | 'financial-facts-payload/3';
+  isPayload3: boolean;
+}): FactsRow {
+  const legacy = factsRow();
+  return {
+    ...legacy,
+    policyVersion: input.policyVersion,
+    payloadSchemaId: input.payloadSchemaId,
+    payload: {
+      ...legacy.payload,
+      positionRefs: [],
+      positionComponentRefs: [],
+      ownershipRefs: [],
+      valuationRefs: [],
+      observationRefs: [],
+      ...(input.isPayload3 ? { openingAccountingState: null } : {}),
+    },
   };
 }

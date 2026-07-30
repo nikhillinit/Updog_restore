@@ -562,6 +562,11 @@ configuration, Facts snapshot
 economics under a pinned basis and policy — an internal what-if output, not an
 accounting statement. _Avoid_: LP report, Fund performance
 
+Routing note: this term does not mean a shipped or available production engine.
+For Task 16.3 implementation scope and ratification, route to ADR-065 in
+`DECISIONS.md` and
+`docs/superpowers/specs/2026-07-30-task163-deal-by-deal-scoping-design.md`.
+
 ## Relationships
 
 - **Cohort Analysis** uses **Cohort Definitions** to produce **Analysis
@@ -577,6 +582,9 @@ accounting statement. _Avoid_: LP report, Fund performance
 - A **Fund Model** belongs to one **Fund** but may contain forecast assumptions
   that differ from actual fund records
 - **Fund Configuration** sets fund-level assumptions for a **Fund Model**
+- An **Internal LP Economics Projection** references a pinned **Opening
+  Waterfall State**, **Economics Policy Version**, and **Capital Envelope
+  Version**
 - **Fund Start Date** anchors **Forecast Period** calculations
 - A **Credit Facility** can create interest and unused-fee costs before partner
   capital is called

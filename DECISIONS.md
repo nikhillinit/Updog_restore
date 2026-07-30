@@ -9213,11 +9213,11 @@ Task 16.0). Three facts shape the vocabulary:
 
 ## ADR-065: Internal LP Economics deal_by_deal V1 — Indicative Float64 Posture, Versioned Economics Policy, Split Implementation Gate (PLAN_61 Task 16.3)
 
-**Date:** 2026-07-30 **Status:** [PROPOSED] Proposed **Decision:** The
-deal_by_deal slice of internal LP economics ships under an explicitly indicative
-posture with a versioned, immutable economics-policy entity and a split
-implementation gate. Detailed schemas, the rejection-code registry, and the
-dependency order live in
+**Date:** 2026-07-30 **Status:** [ACCEPTED] Accepted **Decision:** The
+deal_by_deal slice of internal LP economics may proceed through scoped
+production implementation under an explicitly indicative posture with a
+versioned, immutable economics-policy entity. Detailed schemas, the
+rejection-code registry, and implementation sequence live in
 `docs/superpowers/specs/2026-07-30-task163-deal-by-deal-scoping-design.md`; this
 ADR records only the durable architectural choices.
 
@@ -9250,6 +9250,10 @@ produce a value-bearing V1 result (opening-cash absence plus `defaultWaterfall`
 seeding an 8 percent compounded hurdle and `clawbackEnabled: true` into every
 defaulted config); V1 as specified is a fail-closed refusal machine plus a
 characterization lane, by design.
+
+Ratification addendum (2026-07-30): no production internal LP economics engine
+exists at ratification. GO authorizes implementation, not deployment,
+activation, production traffic, or feature availability.
 
 ### Decision
 
@@ -9288,27 +9292,108 @@ characterization lane, by design.
    `annualized_compound` hurdle as policy schema V1.1. The ledger's
    flat-at-event hurdle is never exposed in the policy surface; V1 permits
    `basis: 'none'` only, and pref-bearing source configurations seed-refuse
-   rather than silently downgrade.
+   rather than silently downgrade. Entitlement, threshold, and accounting-state
+   math remains full precision. Ratio splits never round to cents, and rounded
+   presentation never participates in threshold comparison or feeds accounting
+   state. HALF_UP converts each emitted event total to cents only at the
+   presentation boundary; hierarchical exact-Decimal LRM allocates ROC,
+   preferred return, and residual, then splits residual between LP and GP. Tie
+   contract:
+   `LP is canonical first bucket and wins exact-remainder ties. Otherwise largest exact Decimal remainder wins.`
 5. **Vehicle scope.** V1 computes main-fund LP economics only and runs only when
    the fund's vehicle roster contains exactly one vehicle (the main fund). Any
    SPV or co-invest roster entry yields `MAIN_FUND_SCOPED_FORECAST_UNAVAILABLE`
    until a vehicle-scoped facts/forecast basis exists. SPV consolidation is
    explicitly deferred, not silently dropped.
-6. **Split implementation gate.** GO: tests-only ledger characterization; the
-   scoping spec and this ADR; five briefs (opening-cash facts, fee-vector
-   bridge, capital envelope, vehicle-scoped forecast, compound-hurdle
-   semantics). NO-GO: production assembly integration, service/persistence,
-   routes, migrations, and any `available` result — reconsidered only after
-   authoritative opening cash, an exact fee/no-double-count proof, the envelope
-   design, resolution of the release-schema-audit issue #1179, an authoritative
-   opening waterfall state with actual/projected cutover semantics, and the
-   forecast realization-granularity decision. Two conditions were user-ratified
-   2026-07-30 and are MET: the ledger semantic disposition / Decimal parity
-   decision (corrected accounting, per Decision 4) and the rounding contract
-   (frozen: HALF_UP, residual cent to LP with deterministic ordering per the
-   `allocateLRM` largest-remainder precedent, money 6dp at rest — detail in the
-   spec's D9). The remaining conditions keep the gate CLOSED; ratifying them
-   does not open implementation.
+6. Production implementation gate: GO after fresh exact-SHA dual-specialist
+   re-sign of terminal-policy and idempotent-replay review repairs. Authorized
+   scope is WP-L2 compiler/state-machine implementation, WP-L3
+   service/persistence implementation, and WP-L4 restricted-route
+   implementation. Schema migrations may appear only in reviewed implementation
+   PRs owned by the consuming work package. Readiness work includes a test-only
+   hierarchical presentation oracle, corrected same-input
+   `LEGACY-04`/`LEGACY-05` counterparts, and a versioned event-order contract.
+   It also includes the frozen `internal-economics-terminal-resolution/1.0.0`
+   contract and its 76/76 focused proof. None is a production economics engine.
+   Release issue #1179 removed one blocker but did not independently open this
+   gate. Waterfall-specialist and Phoenix precision-guardian independently
+   re-signed GO on 2026-07-30 against exact contract SHA
+   `4b20e07c7e431042fe0a25241687259cf38c33b9`. GO does not authorize deployment,
+   activation, production traffic, or claim feature availability. `available`
+   remains typed-but-unreachable pending a certified Decimal-native money core.
+   SPV/co-invest-bearing funds and funds with nonzero, absent, or ambiguous
+   fee/expense inputs remain runtime-ineligible. Compound-hurdle semantics are
+   ratified, but policy schema V1.1 remains separately gated. Run/result
+   atomicity, idempotency, and rollback remain WP-L3 acceptance requirements.
+7. **Derived event ordering.** Methodology contract
+   `internal-economics-event-ordering/1.0.0` orders
+   `(effectiveAt, eventClassPriority, stableSourceId)`. Persisted facts already
+   contain `eventType`, `effectiveAt`, and `eventId`; priority derives from
+   `eventType`, and stable source ID derives post-insert as
+   `facts:<snapshotId>:cash_flow_event:<eventId>`. Neither derived field is
+   persisted redundantly. Forecast uses canonical type
+   `forecast_quarterly_distribution`, priority `4`, stable key
+   `forecast:<id>:quarter:<periodEnd>:forecast_quarterly_distribution`, and
+   `effectiveAt=<periodEnd>T23:59:59.999Z`.
+8. **Terminal policy.** Version `internal-economics-terminal-resolution/1.0.0`
+   requires `fundLifeYears * 4` to be a positive integer quarter count, adds
+   `quarterCount * 3` UTC Gregorian calendar months in one clamped operation,
+   resolves to the containing quarter end, preserves exact quarter ends, and
+   fixes the terminal instant at `23:59:59.999Z`. The resolved date and
+   methodology version persist and participate in hashing. Policy-time
+   resolution performs date arithmetic once; runtime consumes only the exact
+   persisted pair. Unsupported persisted methodology returns
+   `TERMINAL_RESOLUTION_METHODOLOGY_UNSUPPORTED`; a persisted date differing
+   from policy-time resolution returns `TERMINAL_RESOLUTION_MISMATCH`. Forecast
+   representation requires exactly one terminal-period point:
+   `FORECAST_HORIZON_SHORT` applies when the grid ends earlier;
+   `FORECAST_TERMINAL_PERIOD_UNREPRESENTABLE` applies when a grid that reaches
+   or passes the terminal period omits or duplicates it; and
+   `TERMINAL_BEFORE_CUTOVER` rejects a cutover later than the terminal instant.
+   Runtime typed-error precedence is persisted pair/version, cutover chronology,
+   short horizon, then exact-point representability. The exported exhaustive
+   post-term matrix applies under both terminal modes. Calls, contributions,
+   investments, positive cumulative deployment deltas, actual
+   expenses/distributions/proceeds/recallable distributions, NAV marks, and
+   `periodNav` reject with `POST_TERM_ACTIVITY`; compiled nonzero fees or
+   expenses first reject with `FORECAST_FEE_BASIS_INCOMPATIBLE`, while a future
+   compatible path must use `POST_TERM_ACTIVITY`; later projected distributions
+   and NAV are excluded. Negative source money or cumulative deployment rejects
+   first with `NEGATIVE_SOURCE_MONEY`; a decreasing nonnegative cumulative
+   deployment rejects with `FORECAST_DEPLOYMENT_CUMULATIVE_DECREASE`. Exact-zero
+   money rows are no-ops, but NAV observations are not. WP-L3 must route
+   terminal-pair writes and readback through the exported policy
+   projection/match helpers; WP-L2 must supply `amountUsd` for every
+   value-bearing post-term class.
+
+### Ratification evidence
+
+- Release remediation merged through
+  [PR #1247](https://github.com/nikhillinit/Updog_restore/pull/1247) and
+  [PR #1248](https://github.com/nikhillinit/Updog_restore/pull/1248).
+- [Release run 30567774563](https://github.com/nikhillinit/Updog_restore/actions/runs/30567774563)
+  succeeded for exact SHA `068430726a0d1d297d50e93be36a67f90238a26a`: clean
+  production schema audit, no DDL, staged inspect locator
+  `5fB4SsnPTmF76xw13nRQhwFf55jb`, 12/12 staged smoke, and 12/12 production
+  smoke.
+- GitHub production deployment `5679938936` succeeded for the same SHA. Issue
+  [#1179](https://github.com/nikhillinit/Updog_restore/issues/1179) closed
+  2026-07-30.
+- Readiness proofs live in
+  `tests/unit/truth-cases/task163-hierarchical-rounding-readiness.test.ts`,
+  `tests/unit/truth-cases/waterfall-corrected-capital-account.test.ts`, and
+  `tests/unit/internal-economics/event-ordering-v1.contract.test.ts`.
+- Terminal readiness proof lives in
+  `tests/unit/internal-economics/terminal-policy-v1.contract.test.ts`: 76/76
+  focused tests against
+  `shared/contracts/internal-economics/terminal-policy-v1.contract.ts`.
+- waterfall-specialist re-signed GO on 2026-07-30 for exact contract SHA
+  `4b20e07c7e431042fe0a25241687259cf38c33b9`: 14 focused files, 292/292 tests;
+  Phoenix 328/328; `npm run check` 0 errors; lint and guardrails pass.
+- phoenix-precision-guardian re-signed GO on 2026-07-30 for the same exact
+  contract SHA: 7 focused files, 173/173 tests, including terminal 76/76 and
+  precision 51/51; Phoenix 328/328; check, lint, and guardrails pass.
+- Former NO-GO findings are retained only as resolved historical evidence.
 
 ### Consequences
 
@@ -9323,9 +9408,16 @@ characterization lane, by design.
 - The fail-open `NON_TIMELINE_SNAPSHOT_TYPES` denylist is enrolled and
   regression-tested for the new type, but flipping snapshot classification to
   fail-closed remains an open follow-up outside this slice.
-- waterfall-specialist sign-off is required on compound-hurdle SEMANTICS before
-  policy schema V1.1 exists, not merely on implementation math (Phoenix
-  protected-path rules).
+- Financial-facts snapshot request hashes change at contract SHA
+  `4b20e07c7e431042fe0a25241687259cf38c33b9` from mutable
+  resolved-roster/selection identity to stable client-authoritative fields.
+  Cross-deployment reuse of a key persisted under the former hash can fail
+  closed with `409 IDEMPOTENCY_KEY_REUSE`; it never changes or silently accepts
+  the stored snapshot. Inspect the existing snapshot before issuing a new key.
+- The 2026-07-30 waterfall and precision re-signs ratify compound-hurdle
+  semantics only. Policy schema V1.1 remains separately gated; its
+  implementation PR requires explicit specialist confirmation before schema
+  addition.
 - (Review-added 2026-07-30) `CLAWBACK_UNSUPPORTED` joins the seed-refusal
   registry — `defaultWaterfall` emits `clawbackEnabled: true` into every
   defaulted config, so the active/dormant determination must be explicit and
@@ -9334,7 +9426,9 @@ characterization lane, by design.
   and every knowing departure from issue #1176 (exit gate, catch-up fixtures, G1
   default terms under the strict catch-up ruling of 2026-07-30 —
   `prefCatchUp: true` seed-refuses even with hurdle basis `'none'` —
-  credit-facility phase [pending re-ratification], payload-only persistence,
-  union shape) is recorded in the spec's Deviation register — posted to #1176 on
-  2026-07-30 after these documents landed on main:
-  https://github.com/nikhillinit/Updog_restore/issues/1176#issuecomment-5129260472
+  credit-facility handling as reserved seed-time
+  `422 CREDIT_FACILITY_UNSUPPORTED` that is structurally unreachable under
+  current strict source contracts, payload-only persistence, union shape) is
+  recorded in the spec's Deviation register. The authoritative #1176 correction
+  supersedes the initial five-ratified/one-pending posting and closes entry 4:
+  https://github.com/nikhillinit/Updog_restore/issues/1176#issuecomment-5134955218

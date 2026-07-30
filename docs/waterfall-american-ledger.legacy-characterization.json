@@ -1,0 +1,391 @@
+{
+  "header": "LEGACY BEHAVIOR — CHARACTERIZATION ONLY — NOT PRODUCT TRUTH",
+  "classification": "legacy_behavior",
+  "productTruth": false,
+  "cases": [
+    {
+      "id": "LEGACY-01",
+      "description": "returns contributed capital before splitting residual profit with no hurdle",
+      "input": {
+        "config": {
+          "carryPct": 0.2
+        },
+        "contributions": [
+          {
+            "quarter": 1,
+            "amount": 100
+          }
+        ],
+        "exits": [
+          {
+            "quarter": 2,
+            "grossProceeds": 200
+          }
+        ]
+      },
+      "expected": {
+        "rows": [
+          {
+            "quarter": 2,
+            "grossProceeds": 200,
+            "lpCapitalReturn": 100,
+            "lpProfitShare": 80,
+            "gpCarry": 20,
+            "recycledAmount": 0,
+            "running": {
+              "paidIn": 100,
+              "distributed": 180,
+              "recycled": 0,
+              "unrealizedCapital": 0,
+              "dpi": 1.8,
+              "tvpi": 1.8
+            }
+          }
+        ],
+        "totals": {
+          "paidIn": 100,
+          "distributed": 180,
+          "recycled": 0,
+          "unrealizedCapital": 0,
+          "dpi": 1.8,
+          "tvpi": 1.8,
+          "gpCarryTotal": 20,
+          "gpCarryNet": 20
+        },
+        "conservation": {
+          "grossProceeds": 200,
+          "lpDistributed": 180,
+          "gpCarry": 20
+        }
+      }
+    },
+    {
+      "id": "LEGACY-02",
+      "description": "allocates a partial exit entirely to return of capital",
+      "input": {
+        "config": {
+          "carryPct": 0.2
+        },
+        "contributions": [
+          {
+            "quarter": 1,
+            "amount": 100
+          }
+        ],
+        "exits": [
+          {
+            "quarter": 2,
+            "grossProceeds": 40
+          }
+        ]
+      },
+      "expected": {
+        "rows": [
+          {
+            "quarter": 2,
+            "grossProceeds": 40,
+            "lpCapitalReturn": 40,
+            "lpProfitShare": 0,
+            "gpCarry": 0,
+            "recycledAmount": 0,
+            "running": {
+              "paidIn": 100,
+              "distributed": 40,
+              "recycled": 0,
+              "unrealizedCapital": 60,
+              "dpi": 0.4,
+              "tvpi": 1
+            }
+          }
+        ],
+        "totals": {
+          "paidIn": 100,
+          "distributed": 40,
+          "recycled": 0,
+          "unrealizedCapital": 60,
+          "dpi": 0.4,
+          "tvpi": 1,
+          "gpCarryTotal": 0,
+          "gpCarryNet": 0
+        },
+        "conservation": {
+          "grossProceeds": 40,
+          "lpDistributed": 40,
+          "gpCarry": 0
+        }
+      }
+    },
+    {
+      "id": "LEGACY-03",
+      "description": "carries remaining capital across multiple exits before applying residual carry",
+      "input": {
+        "config": {
+          "carryPct": 0.2
+        },
+        "contributions": [
+          {
+            "quarter": 1,
+            "amount": 100
+          }
+        ],
+        "exits": [
+          {
+            "quarter": 2,
+            "grossProceeds": 60
+          },
+          {
+            "quarter": 3,
+            "grossProceeds": 90
+          }
+        ]
+      },
+      "expected": {
+        "rows": [
+          {
+            "quarter": 2,
+            "grossProceeds": 60,
+            "lpCapitalReturn": 60,
+            "lpProfitShare": 0,
+            "gpCarry": 0,
+            "recycledAmount": 0,
+            "running": {
+              "paidIn": 100,
+              "distributed": 60,
+              "recycled": 0,
+              "unrealizedCapital": 40,
+              "dpi": 0.6,
+              "tvpi": 1
+            }
+          },
+          {
+            "quarter": 3,
+            "grossProceeds": 90,
+            "lpCapitalReturn": 40,
+            "lpProfitShare": 40,
+            "gpCarry": 10,
+            "recycledAmount": 0,
+            "running": {
+              "paidIn": 100,
+              "distributed": 140,
+              "recycled": 0,
+              "unrealizedCapital": 0,
+              "dpi": 1.4,
+              "tvpi": 1.4
+            }
+          }
+        ],
+        "totals": {
+          "paidIn": 100,
+          "distributed": 140,
+          "recycled": 0,
+          "unrealizedCapital": 0,
+          "dpi": 1.4,
+          "tvpi": 1.4,
+          "gpCarryTotal": 10,
+          "gpCarryNet": 10
+        },
+        "conservation": {
+          "grossProceeds": 150,
+          "lpDistributed": 140,
+          "gpCarry": 10
+        }
+      }
+    },
+    {
+      "id": "LEGACY-04",
+      "description": "pins L-DEF-1 contribution after profitable exit as already returned by prior LP profit",
+      "input": {
+        "config": {
+          "carryPct": 0.2
+        },
+        "contributions": [
+          {
+            "quarter": 1,
+            "amount": 100
+          },
+          {
+            "quarter": 3,
+            "amount": 100
+          }
+        ],
+        "exits": [
+          {
+            "quarter": 2,
+            "grossProceeds": 200
+          },
+          {
+            "quarter": 4,
+            "grossProceeds": 100
+          }
+        ]
+      },
+      "expected": {
+        "rows": [
+          {
+            "quarter": 2,
+            "grossProceeds": 200,
+            "lpCapitalReturn": 100,
+            "lpProfitShare": 80,
+            "gpCarry": 20,
+            "recycledAmount": 0,
+            "running": {
+              "paidIn": 100,
+              "distributed": 180,
+              "recycled": 0,
+              "unrealizedCapital": 0,
+              "dpi": 1.8,
+              "tvpi": 1.8
+            }
+          },
+          {
+            "quarter": 4,
+            "grossProceeds": 100,
+            "lpCapitalReturn": 20,
+            "lpProfitShare": 64,
+            "gpCarry": 16,
+            "recycledAmount": 0,
+            "running": {
+              "paidIn": 200,
+              "distributed": 264,
+              "recycled": 0,
+              "unrealizedCapital": 0,
+              "dpi": 1.32,
+              "tvpi": 1.32
+            }
+          }
+        ],
+        "totals": {
+          "paidIn": 200,
+          "distributed": 264,
+          "recycled": 0,
+          "unrealizedCapital": 0,
+          "dpi": 1.32,
+          "tvpi": 1.32,
+          "gpCarryTotal": 36,
+          "gpCarryNet": 36
+        },
+        "conservation": {
+          "grossProceeds": 300,
+          "lpDistributed": 264,
+          "gpCarry": 36
+        }
+      }
+    },
+    {
+      "id": "LEGACY-05",
+      "description": "pins L-DEF-1 contribution after final exit as omitted from paid-in totals",
+      "input": {
+        "config": {
+          "carryPct": 0.2
+        },
+        "contributions": [
+          {
+            "quarter": 1,
+            "amount": 100
+          },
+          {
+            "quarter": 3,
+            "amount": 50
+          }
+        ],
+        "exits": [
+          {
+            "quarter": 2,
+            "grossProceeds": 100
+          }
+        ]
+      },
+      "expected": {
+        "rows": [
+          {
+            "quarter": 2,
+            "grossProceeds": 100,
+            "lpCapitalReturn": 100,
+            "lpProfitShare": 0,
+            "gpCarry": 0,
+            "recycledAmount": 0,
+            "running": {
+              "paidIn": 100,
+              "distributed": 100,
+              "recycled": 0,
+              "unrealizedCapital": 0,
+              "dpi": 1,
+              "tvpi": 1
+            }
+          }
+        ],
+        "totals": {
+          "paidIn": 100,
+          "distributed": 100,
+          "recycled": 0,
+          "unrealizedCapital": 0,
+          "dpi": 1,
+          "tvpi": 1,
+          "gpCarryTotal": 0,
+          "gpCarryNet": 0
+        },
+        "conservation": {
+          "grossProceeds": 100,
+          "lpDistributed": 100,
+          "gpCarry": 0
+        }
+      }
+    },
+    {
+      "id": "LEGACY-06",
+      "description": "applies a same-quarter contribution before allocating that quarter's exit",
+      "input": {
+        "config": {
+          "carryPct": 0.2
+        },
+        "contributions": [
+          {
+            "quarter": 2,
+            "amount": 100
+          }
+        ],
+        "exits": [
+          {
+            "quarter": 2,
+            "grossProceeds": 150
+          }
+        ]
+      },
+      "expected": {
+        "rows": [
+          {
+            "quarter": 2,
+            "grossProceeds": 150,
+            "lpCapitalReturn": 100,
+            "lpProfitShare": 40,
+            "gpCarry": 10,
+            "recycledAmount": 0,
+            "running": {
+              "paidIn": 100,
+              "distributed": 140,
+              "recycled": 0,
+              "unrealizedCapital": 0,
+              "dpi": 1.4,
+              "tvpi": 1.4
+            }
+          }
+        ],
+        "totals": {
+          "paidIn": 100,
+          "distributed": 140,
+          "recycled": 0,
+          "unrealizedCapital": 0,
+          "dpi": 1.4,
+          "tvpi": 1.4,
+          "gpCarryTotal": 10,
+          "gpCarryNet": 10
+        },
+        "conservation": {
+          "grossProceeds": 150,
+          "lpDistributed": 140,
+          "gpCarry": 10
+        }
+      }
+    }
+  ]
+}
