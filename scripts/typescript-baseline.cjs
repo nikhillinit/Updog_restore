@@ -211,14 +211,17 @@ function parseTypeScriptErrors(output) {
 }
 
 /**
- * Generate baseline from current TypeScript errors
- * @returns {Object} - Baseline object
+ * Run the TypeScript compiler exactly once and derive both the baseline
+ * (hash-only) representation and the full detailed error list from that
+ * single collection.
+ * @param {Function} [runCompiler] - Compiler runner (injectable for tests)
+ * @returns {{ baseline: Object, errors: Array }} - Baseline object and detailed errors
  */
-function generateBaseline() {
+function collectCurrentTypeScriptState(runCompiler = runTypeScriptCompiler) {
   console.log('Running TypeScript compilation...');
   const startTime = Date.now();
 
-  const output = runTypeScriptCompiler();
+  const output = runCompiler();
   const errors = parseTypeScriptErrors(output);
 
   console.log(`Found ${errors.length} TypeScript errors`);
@@ -234,7 +237,7 @@ function generateBaseline() {
     totalErrors: 0,
     timestamp,
     buildMode: 'per-project',
-    elapsedMs: Date.now() - startTime
+    elapsedMs: 0
   };
 
   // Group errors by project
@@ -243,25 +246,26 @@ function generateBaseline() {
     const hash = generateContextHash(error, fileCache);
 
     if (!baseline.projects[project]) {
-      baseline.projects[project] = createEmptyProjectEntry(baseline.timestamp);
+      baseline.projects[project] = createEmptyProjectEntry(timestamp);
     }
 
     baseline.projects[project].errors.push(hash);
-    baseline.projects[project].total++;
-    baseline.totalErrors++;
   }
 
   // Deduplicate errors within each project
-  for (const project in baseline.projects) {
-    baseline.projects[project].errors = [...new Set(baseline.projects[project].errors)].sort();
-    baseline.projects[project].total = baseline.projects[project].errors.length;
+  for (const project of Object.keys(baseline.projects)) {
+    const uniqueErrors = [...new Set(baseline.projects[project].errors)].sort();
+    baseline.projects[project].errors = uniqueErrors;
+    baseline.projects[project].total = uniqueErrors.length;
   }
 
   // Recalculate total after deduplication
   baseline.totalErrors = Object.values(baseline.projects)
-    .reduce((sum, proj) => sum + proj.total, 0);
+    .reduce((sum, project) => sum + project.total, 0);
 
-  return baseline;
+  baseline.elapsedMs = Date.now() - startTime;
+
+  return { baseline, errors };
 }
 
 /**
@@ -289,7 +293,7 @@ function loadBaseline() {
  * Save baseline to disk
  */
 function saveBaseline() {
-  const baseline = generateBaseline();
+  const { baseline } = collectCurrentTypeScriptState();
 
   fs.writeFileSync(BASELINE_FILE, JSON.stringify(baseline, null, 2));
 
@@ -307,10 +311,13 @@ function saveBaseline() {
 
 /**
  * Check current errors against baseline
+ * @param {Object} [options]
+ * @param {Object} [options.baseline] - Baseline to check against (defaults to loading from disk)
+ * @param {Function} [options.collectState] - Current-state collector (injectable for tests)
+ * @returns {number} - Exit code (0 = no new errors, 1 = new errors found)
  */
-function checkBaseline() {
-  const baseline = loadBaseline();
-  const current = generateBaseline();
+function checkBaseline({ baseline = loadBaseline(), collectState = collectCurrentTypeScriptState } = {}) {
+  const { baseline: current, errors } = collectState();
 
   // Build hash sets for comparison
   const baselineHashes = new Set();
@@ -323,9 +330,7 @@ function checkBaseline() {
   const currentHashes = new Set();
   const currentHashToError = new Map();
 
-  // Regenerate current errors with full details for reporting
-  const output = runTypeScriptCompiler();
-  const errors = parseTypeScriptErrors(output);
+  // Reuse the detailed errors from the single collection above for reporting
   const fileCache = {};
 
   for (const error of errors) {
@@ -376,7 +381,7 @@ function checkBaseline() {
     console.log('\n[WARN] Emergency bypass: git push --no-verify');
     console.log('   (Document in commit message why bypass was necessary)');
 
-    process.exit(1);
+    return 1;
   }
 
   if (fixedErrors.length > 0) {
@@ -388,6 +393,8 @@ function checkBaseline() {
   }
 
   console.log('\n[OK] No new TypeScript errors introduced');
+
+  return 0;
 }
 
 /**
@@ -395,7 +402,7 @@ function checkBaseline() {
  */
 function showProgress() {
   const baseline = loadBaseline();
-  const current = generateBaseline();
+  const { baseline: current } = collectCurrentTypeScriptState();
 
   console.log('\nTypeScript Error Progress\n');
   console.log('─'.repeat(70));
@@ -438,28 +445,41 @@ function showProgress() {
 // CLI Interface
 // ============================================================================
 
-const command = process.argv[2];
+function printUsage() {
+  console.log('TypeScript Baseline System');
+  console.log('');
+  console.log('Usage:');
+  console.log('  node scripts/typescript-baseline.js save      # Save/update baseline');
+  console.log('  node scripts/typescript-baseline.js check     # Check for new errors');
+  console.log('  node scripts/typescript-baseline.js progress  # Show progress metrics');
+  console.log('');
+}
 
-switch (command) {
-  case 'save':
-    saveBaseline();
-    break;
+function main(command = process.argv[2]) {
+  switch (command) {
+    case 'save':
+      saveBaseline();
+      return 0;
 
-  case 'check':
-    checkBaseline();
-    break;
+    case 'check':
+      return checkBaseline();
 
-  case 'progress':
-    showProgress();
-    break;
+    case 'progress':
+      showProgress();
+      return 0;
 
-  default:
-    console.log('TypeScript Baseline System');
-    console.log('');
-    console.log('Usage:');
-    console.log('  node scripts/typescript-baseline.js save      # Save/update baseline');
-    console.log('  node scripts/typescript-baseline.js check     # Check for new errors');
-    console.log('  node scripts/typescript-baseline.js progress  # Show progress metrics');
-    console.log('');
-    process.exit(1);
+    default:
+      printUsage();
+      return 1;
+  }
+}
+
+module.exports = {
+  checkBaseline,
+  collectCurrentTypeScriptState,
+  parseTypeScriptErrors,
+};
+
+if (require.main === module) {
+  process.exitCode = main();
 }

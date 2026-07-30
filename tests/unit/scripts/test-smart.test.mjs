@@ -7,8 +7,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createAffectedTestPlan,
   executeSelectedPlan,
+  testRunnerForPath,
   validateAffectedTestPlan,
 } from '../../../scripts/test-smart.mjs';
+import { TESTCONTAINERS_TEST_PATHS } from '../../config/testcontainers-test-paths.mjs';
 
 const tempRoots = [];
 
@@ -210,5 +212,33 @@ describe('affected-test execution', () => {
       'No affected-test runner is configured for tests/e2e/selected.spec.ts.'
     );
     expect(spawn).not.toHaveBeenCalled();
+  });
+
+  it('routes every canonical Docker test to the Testcontainers runner', () => {
+    expect(TESTCONTAINERS_TEST_PATHS.map(testRunnerForPath)).toEqual(
+      TESTCONTAINERS_TEST_PATHS.map(() => 'test:testcontainers')
+    );
+  });
+
+  it('can skip selected unit tests already proven by the canonical CI unit lane', async () => {
+    const root = await makeRoot();
+    await write(root, 'tests/unit/selected.test.ts');
+    await write(root, 'tests/api/selected.test.ts');
+    const plan = {
+      version: 1,
+      mode: 'selected',
+      tests: ['tests/api/selected.test.ts', 'tests/unit/selected.test.ts'],
+      reason: 'changed tests',
+    };
+    const spawn = vi.fn(() => ({ status: 0 }));
+    const status = await executeSelectedPlan(plan, {
+      root,
+      spawn,
+      skipUnit: true,
+    });
+    expect(status).toBe(0);
+    expect(spawn.mock.calls.map((call) => call[1])).toEqual([
+      ['run', 'test:integration', '--', 'tests/api/selected.test.ts'],
+    ]);
   });
 });

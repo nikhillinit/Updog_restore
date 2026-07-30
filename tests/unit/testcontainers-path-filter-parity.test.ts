@@ -4,7 +4,8 @@ import picomatch from 'picomatch';
 import YAML from 'yaml';
 import { describe, expect, it } from 'vitest';
 
-const TESTCONTAINERS_CONFIG = 'vitest.config.testcontainers.ts';
+import { TESTCONTAINERS_TEST_PATHS } from '../config/testcontainers-test-paths.mjs';
+
 const PATH_FILTERS = '.github/path-filters.yml';
 
 interface PathFilters {
@@ -26,26 +27,6 @@ const REQUIRED_SCHEMA_TEST_SEAMS = [
   'tests/integration/scenarios/company-scenario-create-persistence.test.ts',
 ] as const;
 
-function activeTestcontainersIncludes(): string[] {
-  const config = fs.readFileSync(TESTCONTAINERS_CONFIG, 'utf8');
-  const includeBlock = config.match(/include:\s*\[([\s\S]*?)\],\s*exclude:/)?.[1];
-  if (!includeBlock) {
-    throw new Error('Could not find vitest.config.testcontainers.ts include block');
-  }
-
-  const uncommentedIncludeBlock = includeBlock
-    .split(/\r?\n/)
-    .filter((line) => !line.trimStart().startsWith('//'))
-    .join('\n');
-  const includePaths = [...uncommentedIncludeBlock.matchAll(/'([^']+\.test\.ts)'/g)].map(
-    (match) => match[1]!
-  );
-  if (includePaths.length === 0) {
-    throw new Error('No active Testcontainers include paths found');
-  }
-  return includePaths;
-}
-
 function schemaTestPatterns(): string[] {
   const filters = YAML.parse(fs.readFileSync(PATH_FILTERS, 'utf8')) as PathFilters;
   const patterns = filters.schema_tests ?? [];
@@ -56,10 +37,12 @@ function schemaTestPatterns(): string[] {
 }
 
 describe('Testcontainers path-filter parity', () => {
-  it('matches every active Testcontainers include with schema_tests', () => {
+  it('matches every canonical Testcontainers include with schema_tests', () => {
     const patterns = schemaTestPatterns();
     const isSchemaTestPath = picomatch(patterns);
-    const missing = activeTestcontainersIncludes().filter((includePath) => !isSchemaTestPath(includePath));
+    const missing = TESTCONTAINERS_TEST_PATHS.filter(
+      (includePath) => !isSchemaTestPath(includePath)
+    );
 
     expect(missing).toEqual([]);
   });

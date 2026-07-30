@@ -24,6 +24,7 @@ type WorkflowJob = {
     };
   };
   environment?: string;
+  if?: string;
   needs?: string | string[];
   outputs?: Record<string, unknown>;
   ['runs-on']?: string | string[];
@@ -3454,6 +3455,26 @@ describe('required CI fails closed', () => {
     expect(affectedScripts).toContain('npm run test:affected:run');
   });
 
+  it('owns full unit coverage once while preserving affected and full integration gates', async () => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const checkMatrix = workflow.jobs?.check?.strategy?.matrix?.job;
+    const fullMatrix = workflow.jobs?.['test-full']?.strategy?.matrix?.group;
+    expect(checkMatrix).toEqual(['typecheck', 'lint', 'unit-fast']);
+    expect(fullMatrix).toEqual(['integration', 'e2e', 'validate-core']);
+    expect(workflow.jobs?.['test-affected']?.if).toContain(
+      "needs.changes.outputs.schema != 'true'"
+    );
+    const affectedScript = (workflow.jobs?.['test-affected']?.steps ?? [])
+      .flatMap((step) => (typeof step.run === 'string' ? [step.run] : []))
+      .join('\n');
+    expect(affectedScript).toContain('npm run test:affected:run -- --skip-unit');
+    expect(affectedScript).not.toMatch(/full_fallback\)[\s\S]*npm run test:unit/);
+    const fullScript = (workflow.jobs?.['test-full']?.steps ?? [])
+      .flatMap((step) => (typeof step.run === 'string' ? [step.run] : []))
+      .join('\n');
+    expect(fullScript).not.toMatch(/unit\)\s*npm run test:unit/);
+  });
+
   it('does not mask bundle-budget failures', async () => {
     const workflow = await readWorkflow('ci-unified.yml');
     const scripts = allRunScripts(workflow).join('\n');
@@ -3527,6 +3548,42 @@ describe('required CI fails closed', () => {
     expect(normalizedDeepScanNeeds).toContain('dependency-check');
   });
 
+  it('runs Security Deep Scan fully only for relevant paths or explicit full-scan events', async () => {
+    const workflow = await readWorkflow('security-scan.yml');
+    const changes = workflow.jobs?.changes;
+    expect(changes?.outputs?.security_relevant).toBe(
+      "${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || steps.filter.outputs.security_relevant == 'true' }}"
+    );
+    for (const jobName of [
+      'filesystem-scan',
+      'container-scan',
+      'license-check',
+      'dependency-check',
+      'sbom',
+    ]) {
+      expect(workflow.jobs?.[jobName]?.if).toBe(
+        "needs.changes.outputs.security_relevant == 'true'"
+      );
+    }
+    const aggregate = workflow.jobs?.['security-scan'];
+    expect(aggregate?.if).toBe('always()');
+    expect(normalizeNeeds(aggregate?.needs)).toEqual(
+      expect.arrayContaining([
+        'changes',
+        'filesystem-scan',
+        'container-scan',
+        'license-check',
+        'dependency-check',
+        'sbom',
+      ])
+    );
+    const aggregateScript = (aggregate?.steps ?? [])
+      .flatMap((step) => (typeof step.run === 'string' ? [step.run] : []))
+      .join('\n');
+    expect(aggregateScript).toContain('Change detection failed');
+    expect(aggregateScript).toContain('security deep scan skipped');
+  });
+
   it('runs secret scanning inside the required CI aggregator', async () => {
     const secretWorkflowPath = path.join(workflowsDir, 'secret-scan.yml');
     await expect(access(secretWorkflowPath)).resolves.toBeUndefined();
@@ -3539,34 +3596,29 @@ describe('required CI fails closed', () => {
     expect(normalizedNeeds).toContain('secret-scan');
   });
 
-  it('separates static diagnostics from full release proof', async () => {
+  it('reuses generic CI gates only in the upstream-gated static release diagnostic', async () => {
     const ciWorkflow = await readWorkflow('ci-unified.yml');
-    const staticScripts = allRunScripts({
-      jobs: { release: ciWorkflow.jobs?.['release-static'] ?? {} },
-    });
-    expect(staticScripts.join('\n')).toContain('npm run release:check -- --skip-db');
-    expect(staticScripts.join('\n')).toContain('npx playwright install --with-deps chromium');
+    const staticJob = ciWorkflow.jobs?.['release-static'];
+    const staticScripts = (staticJob?.steps ?? [])
+      .flatMap((step) => (typeof step.run === 'string' ? [step.run] : []))
+      .join('\n');
+    expect(normalizeNeeds(staticJob?.needs)).toEqual(
+      expect.arrayContaining(['changes', 'check', 'build'])
+    );
+    expect(staticScripts).toContain('npm run release:check -- --skip-db --reuse-ci-gates');
+    expect(staticScripts).toContain('npx playwright install --with-deps chromium');
 
     const gateNeeds = ciWorkflow.jobs?.gate?.needs;
-    const normalizedNeeds = typeof gateNeeds === 'string' ? [gateNeeds] : (gateNeeds ?? []);
-    expect(normalizedNeeds).toContain('release-static');
+    const normalizedGateNeeds = typeof gateNeeds === 'string' ? [gateNeeds] : (gateNeeds ?? []);
+    expect(normalizedGateNeeds).toEqual(
+      expect.arrayContaining(['release-static', 'check', 'build'])
+    );
 
     const fullWorkflow = await readWorkflow('release-proof.yml');
     const fullScripts = allRunScripts(fullWorkflow).join('\n');
-    expect(fullScripts).toContain('npx playwright install --with-deps chromium');
     expect(fullScripts).toContain('npm run release:check');
-    expect(fullScripts).not.toContain('release:check -- --skip-db');
-
-    const releaseChecker = await readFile(
-      path.join(process.cwd(), 'scripts/release-check.mjs'),
-      'utf8'
-    );
-    const dbBackedSteps = releaseChecker.slice(
-      releaseChecker.indexOf('const dbBackedSteps'),
-      releaseChecker.indexOf('if (skipDbProof)')
-    );
-    expect(dbBackedSteps).toContain("name: 'Scenario release gate'");
-    expect(releaseChecker).toContain('steps.push(...dbBackedSteps)');
+    expect(fullScripts).not.toContain('--skip-db');
+    expect(fullScripts).not.toContain('--reuse-ci-gates');
   });
 
   // This guard intentionally scans every tracked automation surface. Under the
@@ -3852,5 +3904,17 @@ describe('required CI fails closed', () => {
     );
     expect(flagsGuard).toBeDefined();
     expect(flagsGuard).not.toHaveProperty('continue-on-error', true);
+  });
+
+  it('keeps CI telemetry runtime and billable metrics semantically separate', async () => {
+    const telemetry = await readFile(
+      path.join(process.cwd(), 'scripts/ci-live-telemetry.mjs'),
+      'utf8'
+    );
+    expect(telemetry).toContain('schemaVersion: 2');
+    expect(telemetry).toContain('runnerDurationMinutes');
+    expect(telemetry).toContain('billableMinutes');
+    expect(telemetry).toContain('queueWaitMinutes');
+    expect(telemetry).not.toContain('function billedMinutesForRun');
   });
 });
