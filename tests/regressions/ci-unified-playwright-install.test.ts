@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import YAML from 'yaml';
 import { describe, expect, it } from 'vitest';
+import { TESTCONTAINERS_TEST_PATHS } from '../config/testcontainers-test-paths.mjs';
 
 interface WorkflowStep {
   name?: string;
@@ -61,8 +62,6 @@ describe('CI Unified scenario release gate', () => {
       integrationConfig.match(/include:\s*\[([\s\S]*?)\],/)?.[1] ?? '';
     const integrationExcludeBlock =
       integrationConfig.match(/exclude:\s*\[([\s\S]*?)\],/)?.[1] ?? '';
-    const testcontainersOnlyBlock =
-      integrationConfig.match(/const testcontainersOnlyPaths = \[([\s\S]*?)\];/)?.[1] ?? '';
 
     expect(affectedRun).toContain('npm run test:scenario-release-gate');
     expect(fullRun).toContain('integration)');
@@ -72,15 +71,15 @@ describe('CI Unified scenario release gate', () => {
     expect(integrationExcludeBlock).not.toContain(scenarioReleaseGatePath);
     expect(integrationExcludeBlock).not.toContain('scenarioReleaseGatePath');
     expect(integrationExcludeBlock).toContain('...testcontainersOnlyPaths');
-    for (const testPath of [
-      'tests/integration/migration-runner.test.ts',
-      'tests/integration/fund-lifecycle-db.test.ts',
-      'tests/integration/vehicle-financing-participations-real-pg.test.ts',
-    ]) {
-      expect(testcontainersOnlyBlock).toContain(testPath);
-      expect(smartTestRunner).toContain(`'${testPath}'`);
-    }
-    expect(testcontainersOnlyBlock).not.toContain(scenarioReleaseGatePath);
-    expect(testcontainersOnlyBlock).not.toContain('scenarioReleaseGatePath');
+
+    // Testcontainers-only ownership is centralized in one canonical manifest
+    // (tests/config/testcontainers-test-paths.mjs), consumed by the Docker
+    // vitest config, the plain-integration exclude list, and affected-test
+    // routing. Verify both configs are wired to that single source rather
+    // than carrying their own hardcoded path lists that can drift apart.
+    expect(integrationConfig).toContain("from './tests/config/testcontainers-test-paths.mjs'");
+    expect(smartTestRunner).toContain("from '../tests/config/testcontainers-test-paths.mjs'");
+    expect(TESTCONTAINERS_TEST_PATHS.length).toBeGreaterThan(0);
+    expect(TESTCONTAINERS_TEST_PATHS).not.toContain(scenarioReleaseGatePath);
   });
 });

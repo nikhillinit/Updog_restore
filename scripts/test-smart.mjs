@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { TESTCONTAINERS_TEST_PATHS } from '../tests/config/testcontainers-test-paths.mjs';
 
 const PLAN_VERSION = 1;
 const DEFAULT_BASE_REF = process.env.BASE_REF || 'origin/main';
@@ -18,11 +19,7 @@ const BROAD_IMPACT_PATTERNS = [
   /^(?:package(?:-lock)?\.json|tsconfig[^/]*\.json|vite\.config\.|vitest\.config\.)/,
   /^Dockerfile/,
 ];
-const TESTCONTAINERS_ONLY_PATHS = new Set([
-  'tests/integration/migration-runner.test.ts',
-  'tests/integration/fund-lifecycle-db.test.ts',
-  'tests/integration/vehicle-financing-participations-real-pg.test.ts',
-]);
+const TESTCONTAINERS_ONLY_PATHS = new Set(TESTCONTAINERS_TEST_PATHS);
 
 function normalizeRepoPath(value) {
   return value.split(path.sep).join('/').replace(/^\.\//, '');
@@ -307,10 +304,6 @@ function isIntegrationTestPath(testPath) {
   return testPath.startsWith('tests/integration/') || testPath.startsWith('tests/api/');
 }
 
-function isTestcontainersOnlyTestPath(testPath) {
-  return TESTCONTAINERS_ONLY_PATHS.has(testPath);
-}
-
 function isUnitTestPath(testPath) {
   return (
     testPath.startsWith('tests/unit/') ||
@@ -319,30 +312,33 @@ function isUnitTestPath(testPath) {
   );
 }
 
+export function testRunnerForPath(testPath) {
+  if (TESTCONTAINERS_ONLY_PATHS.has(testPath)) return 'test:testcontainers';
+  if (isIntegrationTestPath(testPath)) return 'test:integration';
+  if (isUnitTestPath(testPath)) return 'test:unit';
+  return undefined;
+}
+
 export async function executeSelectedPlan(plan, { root = process.cwd(), spawn = spawnSync } = {}) {
   await validateAffectedTestPlan(plan, { root });
   if (plan.mode !== 'selected') {
     throw new Error(`Cannot execute selected tests for plan mode ${plan.mode}.`);
   }
 
-  const unsupportedTest = plan.tests.find(
-    (test) => !isUnitTestPath(test) && !isIntegrationTestPath(test)
-  );
-  if (unsupportedTest !== undefined) {
-    throw new Error(`No affected-test runner is configured for ${unsupportedTest}.`);
+  const testsByRunner = new Map();
+  for (const test of plan.tests) {
+    const runner = testRunnerForPath(test);
+    if (runner === undefined) {
+      throw new Error(`No affected-test runner is configured for ${test}.`);
+    }
+    const tests = testsByRunner.get(runner) ?? [];
+    tests.push(test);
+    testsByRunner.set(runner, tests);
   }
 
-  const testcontainersTests = plan.tests.filter(isTestcontainersOnlyTestPath);
-  const integrationTests = plan.tests.filter(
-    (test) => isIntegrationTestPath(test) && !isTestcontainersOnlyTestPath(test)
-  );
-  const unitTests = plan.tests.filter(isUnitTestPath);
-  for (const [script, tests] of [
-    ['test:unit', unitTests],
-    ['test:integration', integrationTests],
-    ['test:testcontainers', testcontainersTests],
-  ]) {
-    if (tests.length === 0) {
+  for (const script of ['test:unit', 'test:integration', 'test:testcontainers']) {
+    const tests = testsByRunner.get(script);
+    if (!tests || tests.length === 0) {
       continue;
     }
     const status = runNpm(['run', script, '--', ...tests], { root, spawn });

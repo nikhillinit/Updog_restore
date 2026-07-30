@@ -1,0 +1,17 @@
+export const TESTCONTAINERS_TEST_PATHS = Object.freeze([
+  'tests/integration/migration-runner.test.ts',
+  'tests/integration/fund-lifecycle-db.test.ts',
+  'tests/integration/migration-drift.test.ts',
+  'tests/integration/prod-schema-clone.test.ts',
+  'tests/integration/prod-schema-reconcile-partial-drift.test.ts',
+  'tests/integration/migrations/investment-rounds-schema.test.ts',
+  'tests/integration/migrations/investments-id-fund-unique.test.ts',
+  'tests/integration/investment-scenario-capability.test.ts',
+  'tests/integration/vehicle-financing-participations-real-pg.test.ts',
+  'tests/integration/investment-ledger/position-conversion.pg.test.ts',
+  'tests/integration/investment-ledger/current-position-ownership-valuation.pg.test.ts',
+  'tests/integration/investment-ledger/legacy-position-backfill.pg.test.ts',
+  'tests/integration/scenarios/scenario-case-seed-persistence.test.ts',
+  'tests/integration/scenarios/company-scenario-create-persistence.test.ts',
+  'tests/integration/internal-analysis/analysis-checkpoint.pg.test.ts',
+]);

@@ -11,6 +11,7 @@ import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import { createVitestAlias } from './vitest.config.shared.mjs';
+import { TESTCONTAINERS_TEST_PATHS } from './tests/config/testcontainers-test-paths.mjs';
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
 const alias = createVitestAlias(projectRoot, {
@@ -29,21 +30,7 @@ export default defineConfig({
     // Only include tests that actually work with testcontainers
     // Other tests have pre-existing issues tracked in separate issues
     include: [
-      'tests/integration/migration-runner.test.ts',
-      'tests/integration/fund-lifecycle-db.test.ts',
-      'tests/integration/migration-drift.test.ts',
-      'tests/integration/prod-schema-clone.test.ts',
-      'tests/integration/prod-schema-reconcile-partial-drift.test.ts',
-      'tests/integration/migrations/investment-rounds-schema.test.ts',
-      'tests/integration/migrations/investments-id-fund-unique.test.ts',
-      'tests/integration/investment-scenario-capability.test.ts',
-      'tests/integration/vehicle-financing-participations-real-pg.test.ts',
-      'tests/integration/investment-ledger/position-conversion.pg.test.ts',
-      'tests/integration/investment-ledger/current-position-ownership-valuation.pg.test.ts',
-      'tests/integration/investment-ledger/legacy-position-backfill.pg.test.ts',
-      'tests/integration/scenarios/scenario-case-seed-persistence.test.ts',
-      'tests/integration/scenarios/company-scenario-create-persistence.test.ts',
-      'tests/integration/internal-analysis/analysis-checkpoint.pg.test.ts',
+      ...TESTCONTAINERS_TEST_PATHS,
       // DISABLED: Pre-existing issues - fix in separate PRs
       // 'tests/integration/ScenarioMatrixCache.integration.test.ts', // bucket allocation validation
       // 'tests/integration/cache-monitoring.integration.test.ts', // server/db.ts imports database-mock

@@ -7,8 +7,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createAffectedTestPlan,
   executeSelectedPlan,
+  testRunnerForPath,
   validateAffectedTestPlan,
 } from '../../../scripts/test-smart.mjs';
+import { TESTCONTAINERS_TEST_PATHS } from '../../config/testcontainers-test-paths.mjs';
 
 const tempRoots = [];
 
@@ -210,5 +212,11 @@ describe('affected-test execution', () => {
       'No affected-test runner is configured for tests/e2e/selected.spec.ts.'
     );
     expect(spawn).not.toHaveBeenCalled();
+  });
+
+  it('routes every canonical Docker test to the Testcontainers runner', () => {
+    expect(TESTCONTAINERS_TEST_PATHS.map(testRunnerForPath)).toEqual(
+      TESTCONTAINERS_TEST_PATHS.map(() => 'test:testcontainers')
+    );
   });
 });
