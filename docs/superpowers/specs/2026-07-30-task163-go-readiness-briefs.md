@@ -635,6 +635,10 @@ field first lands, the policy seeder must refuse before normalization can drop
 it. Run-phase `unavailable` is not used because knowingly unsupported active
 policy must not persist as if accepted.
 
+The authoritative #1176 register correction supersedes the initial
+five-ratified/one-pending posting and records all six deviations as ratified:
+https://github.com/nikhillinit/Updog_restore/issues/1176#issuecomment-5134955218
+
 ## Specialist Review State
 
 Both specialist verdicts remain NO-GO pending clean re-sign:
@@ -656,9 +660,9 @@ forbidden.
 
 ## Gate Evidence Record
 
-Readiness proofs, release remediation, and the posted #1176 deviation-register
-update are recorded. ADR-065 remains `[PROPOSED]`, and the production
-implementation gate remains CLOSED. Clean re-review must produce:
+Readiness proofs, release remediation, and the authoritative #1176
+deviation-register correction are recorded. ADR-065 remains `[PROPOSED]`, and
+the production implementation gate remains CLOSED. Clean re-review must produce:
 
 - waterfall-specialist semantic re-sign against corrected capital accounts,
   full-precision threshold/state math, hierarchical presentation LRM, and the

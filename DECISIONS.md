@@ -9371,6 +9371,6 @@ characterization lane, by design.
   credit-facility handling as reserved seed-time
   `422 CREDIT_FACILITY_UNSUPPORTED` that is structurally unreachable under
   current strict source contracts, payload-only persistence, union shape) is
-  recorded in the spec's Deviation register — posted to #1176 on 2026-07-30
-  after these documents landed on main:
-  https://github.com/nikhillinit/Updog_restore/issues/1176#issuecomment-5129260472
+  recorded in the spec's Deviation register. The authoritative #1176 correction
+  supersedes the initial five-ratified/one-pending posting and closes entry 4:
+  https://github.com/nikhillinit/Updog_restore/issues/1176#issuecomment-5134955218

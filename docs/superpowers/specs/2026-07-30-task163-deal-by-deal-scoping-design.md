@@ -934,9 +934,9 @@ schema V1.1 plus engine/methodology version bump plan.
 ## Deviation register (review-added 2026-07-30)
 
 Six ratified departures from issue #1176's Task 16.3 text, in one place. All six
-were user-ratified 2026-07-30. Posting to #1176: POSTED 2026-07-30 (escalation
-E3, revised text) after commit `3298e10c` landed the citing documents:
-https://github.com/nikhillinit/Updog_restore/issues/1176#issuecomment-5129260472
+were user-ratified 2026-07-30. The authoritative #1176 register correction
+supersedes the initial five-ratified/one-pending posting and closes entry 4:
+https://github.com/nikhillinit/Updog_restore/issues/1176#issuecomment-5134955218
 
 1. Exit gate "genuine Decimal-derived boundaries" -> amended to decimal-string
    boundaries plus `indicative` cap until the Decimal-native core certifies
