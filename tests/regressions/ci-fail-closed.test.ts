@@ -3672,6 +3672,12 @@ describe('required CI fails closed', () => {
     expect(stageNode?.uses).toBe('actions/setup-node@820762786026740c76f36085b0efc47a31fe5020');
     expect(stageNode?.with?.['node-version']).toBe('20.19.0');
     expect(stageNode?.with?.cache).toBeUndefined();
+    const deployStep = stageProduction?.steps?.find(
+      (step) => step.name === 'Create staged production deployment'
+    );
+    const stageDeployCommands = vercelCommandTokens(deployStep?.run ?? '');
+    expect(stageDeployCommands).toHaveLength(1);
+    expect(stageDeployCommands[0]).toContain('--archive=tgz');
     const stageScripts = allRunScripts({ jobs: { stage: stageProduction ?? {} } }).join('\n');
     expect(stageScripts).toContain('repos/${REPO}/commits/main');
     expect(stageScripts).toContain('git rev-parse HEAD');
@@ -3690,9 +3696,6 @@ describe('required CI fails closed', () => {
     expect(stageScripts).toContain('VERCEL_PROJECT_ID is required');
     expect(stageScripts).toContain('GITHUB_OUTPUT');
     expect(stageScripts).toContain('Vercel deploy must return one bare HTTPS vercel.app');
-    const deployStep = stageProduction?.steps?.find(
-      (step) => step.name === 'Create staged production deployment'
-    );
     expect(deployStep?.env?.VERCEL_TOKEN).toBe('${{ secrets.VERCEL_TOKEN }}');
     expect(deployStep?.env?.VERCEL_ORG_ID).toBe('${{ vars.VERCEL_ORG_ID }}');
     expect(deployStep?.env?.VERCEL_PROJECT_ID).toBe('${{ vars.VERCEL_PROJECT_ID }}');
