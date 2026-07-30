@@ -9139,3 +9139,74 @@ distinct review lenses.
 - The extra panel configuration and strict-mode failure behavior add operational
   surface; a misconfigured `strictReviewers` array blocks T3 runs rather than
   silently shrinking the panel.
+
+---
+
+## ADR-064: Authorize Internal Whole-Fund Waterfall Modeling (PLAN_61 Task 16.0)
+
+**Date:** 2026-07-29 **Status:** [ACCEPTED] Accepted **Decision:** Authorize
+whole-fund carry mechanics for internal modeling under the template name
+`whole_fund`, expressed by the new internal contract
+`shared/contracts/internal-economics/internal-waterfall-template.ts`
+(`InternalWaterfallTemplateSchema = z.enum(['whole_fund', 'deal_by_deal'])`).
+The legacy European feature surface and its token stay removed;
+`FORBIDDEN_TOKENS`, the coercing `WaterfallTypeSchema`
+(`shared/types/forbidden-features.ts:36-38`), and
+`tests/integration/forbidden-tokens.test.ts` are not weakened.
+
+### Context
+
+PLAN_61 Wave F introduces internal LP economics with two waterfall templates.
+The template vocabulary must be authorized before any engine work (issue #1176
+Task 16.0). Three facts shape the vocabulary:
+
+1. The existing deal-by-deal ledger
+   (`client/src/lib/waterfall/american-ledger.ts:142-148`) is a non-compounding
+   hurdle recomputed against outstanding capital at each distribution event
+   (`outstandingCapital = max(0, paidIn - distributed)`, hurdle treated as a
+   minimum return above paid-in at event time). It is not strict per-security
+   cost-basis netting, and the template name `deal_by_deal` must not be read as
+   promising per-deal fidelity the ledger does not have.
+2. The existing economics engine (`shared/lib/economics/economics-engine.ts:695`
+   `runEconomicsModel`, with module-private `allocateWaterfall` at line 476)
+   maintains single fund-wide `unreturnedCapital` / `prefBalance` accounts
+   (lines 713-714) with compounding preferred-return accrual and no per-deal
+   cost basis. It is whole-fund in substance despite its `'american'` label.
+   Numerical characterization of this engine belongs to Task 16.3, not this ADR.
+3. The token `'european'` is banned repo-wide by an active guard
+   (`shared/types/forbidden-features.ts:16-29` and the integration scanner). The
+   public `WaterfallTypeSchema` silently migrates `'european'` to `'american'`.
+   Reintroducing whole-fund mechanics therefore requires a new, distinct
+   internal vocabulary -- not a revival of the legacy surface. This mirrors
+   deliberate product-scope divergence from Tactyc parity elsewhere: Tactyc
+   documents a line-of-credit feature, and Updog bans its tokens.
+
+### Decision
+
+- Internal LP economics uses
+  `InternalWaterfallTemplateSchema = z.enum(['whole_fund', 'deal_by_deal'])`
+  from `shared/contracts/internal-economics/internal-waterfall-template.ts`.
+- The internal enum is a distinct type: it never imports, re-exports, or
+  round-trips the coercing public `WaterfallTypeSchema`. A contract test pins
+  this (parse-rejection of both `'american'` and the banned legacy value, plus a
+  source scan of the contract file). The drift it guards against has live
+  precedent: `shared/contracts/kpi-selector.contract.ts:15-17` imports and
+  re-exports `WaterfallTypeSchema`.
+- The legacy European feature surface remains removed. The guard stack --
+  `FORBIDDEN_TOKENS`, its banned-token entry, the coercion schema, and the
+  integration scanner -- is unchanged.
+- Whole-fund carry mechanics are authorized for INTERNAL modeling only. Engine
+  relocation (16.1), primitive extraction (16.2), and numerical characterization
+  plus truth cases (16.3) are separately gated follow-on tasks; the `whole_fund`
+  truth-case slice additionally waits on the open G1 question (actual LPA carry
+  basis).
+
+### Consequences
+
+- Wave F engine tasks have an authorized, contract-typed template vocabulary
+  with no dependency on the banned legacy surface.
+- The internal contract is the reference point for later scope guards (the live
+  `WaterfallAssumptionsV1Schema` in `shared/contracts/economics-v1.contract.ts`
+  is not modified by Task 16).
+- waterfall-specialist sign-off on this ADR is recorded in the Task 16.0 PR
+  description per the Phoenix protected-path rules.

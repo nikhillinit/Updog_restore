@@ -46,6 +46,7 @@ tmpclaude-*-cwd
 .claude/locks/
 .claude/scheduled_tasks.lock
 .audit/
+audit/
 
 # Runtime data
 pids
