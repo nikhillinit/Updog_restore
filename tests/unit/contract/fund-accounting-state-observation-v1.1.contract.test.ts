@@ -53,14 +53,8 @@ describe('FundAccountingStateObservationV1_1Schema', () => {
   });
 
   it.each([
-    [
-      'LP distribution sum identity',
-      { actualLpDistributionsCumulativeUsd: '4375000.000001' },
-    ],
-    [
-      'recallable distribution bound',
-      { recallableDistributionsOutstandingUsd: '600000.000001' },
-    ],
+    ['LP distribution sum identity', { actualLpDistributionsCumulativeUsd: '4375000.000001' }],
+    ['recallable distribution bound', { recallableDistributionsOutstandingUsd: '600000.000001' }],
     [
       'accrued preferred return instant identity',
       { accruedPreferredReturnThroughInstant: '2026-06-30T23:59:58.000Z' },

@@ -1,0 +1,173 @@
+{
+  "header": "DECIMAL WATERFALL CORE V1 PRODUCT TRUTH",
+  "classification": "decimal_waterfall_core_product_truth",
+  "productTruth": true,
+  "oracle": "decimal-waterfall-core-v1/1.0.0",
+  "methodologyVersion": "correct-unreturned-capital/1.0.0",
+  "sourceOracle": "waterfall-corrected-capital-account.truth-cases.json",
+  "decimal": {
+    "precision": 60,
+    "boundaryPrecision": 28,
+    "rounding": "ROUND_HALF_UP",
+    "moneyScale": 6,
+    "carryRatioScale": 12
+  },
+  "cases": [
+    {
+      "id": "CORRECTED-LEGACY-04",
+      "sourceLegacyCaseId": "LEGACY-04",
+      "description": "tracks a post-profit capital call as new unreturned capital before the next exit",
+      "canonicalCarryRatio": "0.200000000000",
+      "input": {
+        "config": {
+          "carryPct": 0.2
+        },
+        "contributions": [
+          {
+            "quarter": 1,
+            "amount": 100
+          },
+          {
+            "quarter": 3,
+            "amount": 100
+          }
+        ],
+        "exits": [
+          {
+            "quarter": 2,
+            "grossProceeds": 200
+          },
+          {
+            "quarter": 4,
+            "grossProceeds": 100
+          }
+        ]
+      },
+      "expected": {
+        "rows": [
+          {
+            "quarter": 1,
+            "openingUnreturnedCapital": "0.000000",
+            "capitalCalls": "100.000000",
+            "grossProceeds": "0.000000",
+            "returnOfCapital": "0.000000",
+            "lpResidual": "0.000000",
+            "gpCarry": "0.000000",
+            "endingUnreturnedCapital": "100.000000"
+          },
+          {
+            "quarter": 2,
+            "openingUnreturnedCapital": "100.000000",
+            "capitalCalls": "0.000000",
+            "grossProceeds": "200.000000",
+            "returnOfCapital": "100.000000",
+            "lpResidual": "80.000000",
+            "gpCarry": "20.000000",
+            "endingUnreturnedCapital": "0.000000"
+          },
+          {
+            "quarter": 3,
+            "openingUnreturnedCapital": "0.000000",
+            "capitalCalls": "100.000000",
+            "grossProceeds": "0.000000",
+            "returnOfCapital": "0.000000",
+            "lpResidual": "0.000000",
+            "gpCarry": "0.000000",
+            "endingUnreturnedCapital": "100.000000"
+          },
+          {
+            "quarter": 4,
+            "openingUnreturnedCapital": "100.000000",
+            "capitalCalls": "0.000000",
+            "grossProceeds": "100.000000",
+            "returnOfCapital": "100.000000",
+            "lpResidual": "0.000000",
+            "gpCarry": "0.000000",
+            "endingUnreturnedCapital": "0.000000"
+          }
+        ],
+        "totals": {
+          "openingUnreturnedCapital": "0.000000",
+          "paidIn": "200.000000",
+          "grossProceeds": "300.000000",
+          "returnOfCapital": "200.000000",
+          "lpResidual": "80.000000",
+          "gpCarry": "20.000000",
+          "endingUnreturnedCapital": "0.000000",
+          "lpDistributions": "280.000000"
+        }
+      }
+    },
+    {
+      "id": "CORRECTED-LEGACY-05",
+      "sourceLegacyCaseId": "LEGACY-05",
+      "description": "retains a capital call after the final exit as ending unreturned capital",
+      "canonicalCarryRatio": "0.200000000000",
+      "input": {
+        "config": {
+          "carryPct": 0.2
+        },
+        "contributions": [
+          {
+            "quarter": 1,
+            "amount": 100
+          },
+          {
+            "quarter": 3,
+            "amount": 50
+          }
+        ],
+        "exits": [
+          {
+            "quarter": 2,
+            "grossProceeds": 100
+          }
+        ]
+      },
+      "expected": {
+        "rows": [
+          {
+            "quarter": 1,
+            "openingUnreturnedCapital": "0.000000",
+            "capitalCalls": "100.000000",
+            "grossProceeds": "0.000000",
+            "returnOfCapital": "0.000000",
+            "lpResidual": "0.000000",
+            "gpCarry": "0.000000",
+            "endingUnreturnedCapital": "100.000000"
+          },
+          {
+            "quarter": 2,
+            "openingUnreturnedCapital": "100.000000",
+            "capitalCalls": "0.000000",
+            "grossProceeds": "100.000000",
+            "returnOfCapital": "100.000000",
+            "lpResidual": "0.000000",
+            "gpCarry": "0.000000",
+            "endingUnreturnedCapital": "0.000000"
+          },
+          {
+            "quarter": 3,
+            "openingUnreturnedCapital": "0.000000",
+            "capitalCalls": "50.000000",
+            "grossProceeds": "0.000000",
+            "returnOfCapital": "0.000000",
+            "lpResidual": "0.000000",
+            "gpCarry": "0.000000",
+            "endingUnreturnedCapital": "50.000000"
+          }
+        ],
+        "totals": {
+          "openingUnreturnedCapital": "0.000000",
+          "paidIn": "150.000000",
+          "grossProceeds": "100.000000",
+          "returnOfCapital": "100.000000",
+          "lpResidual": "0.000000",
+          "gpCarry": "0.000000",
+          "endingUnreturnedCapital": "50.000000",
+          "lpDistributions": "100.000000"
+        }
+      }
+    }
+  ]
+}

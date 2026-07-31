@@ -9473,3 +9473,29 @@ long-term):
 `.superpowers/sdd/2026-07-30-task163-wp-l2b-cash-assembly-and-nonzero-fees-plan/wp2b3-design-note.md`.
 Implementation: `shared/lib/internal-economics/cash-assembly-call-sizing-v1.ts`
 (commits `8d73c28a`, `25678cc1`, `a1259d2a`).
+
+Addendum (2026-07-31, WP-2b-4 D-11 ratification): recorded per the gate-cleared
+WP-2b-4 implementation plan
+(`docs/superpowers/plans/2026-07-31-task163-wp-2b-4-decimal-core-plan.md`
+section 3, decision D-11; gate question DC-4 signed off by waterfall-specialist
+in that plan's section 14 gate history). Two amendments to Decision item 4
+(Numerical trust):
+
+1. **OQ-4 no-wrapper resolution supersedes the compatibility-wrapper clause.**
+   The precision-migration sequencing sentence "then the certified Decimal
+   no-hurdle core behind a compatibility wrapper" is superseded: the
+   Decimal-native core (`computeDecimalWaterfallAllocationV1`,
+   `shared/lib/internal-economics/decimal-waterfall-core-v1.ts`) is consumed
+   directly by the WP-2b-4 period loop through its native `openingState` input —
+   no compatibility wrapper over the legacy ledger interface is built, and none
+   is planned. The remainder of the sequencing (specialist- reviewed
+   `annualized_compound` hurdle as policy schema V1.1) is unchanged.
+2. **Numerical-trust reason vocabulary.** `DECIMAL_CORE_UNCERTIFIED` is ratified
+   as the numerical-trust reason capping any result produced by the
+   not-yet-certified Decimal-native waterfall path at `indicative`.
+   `FLOAT64_WATERFALL_PATH` is retained for any result still produced by the
+   legacy float64 path — emitting it from the Decimal-native path would be a
+   false disclosure. `resultStatus` remains hardcoded `'indicative'` throughout
+   the WP-2b-4 plan's scope; the separate certification act (plan section 12)
+   will be recorded in its own later addendum covering only the certification
+   itself.
