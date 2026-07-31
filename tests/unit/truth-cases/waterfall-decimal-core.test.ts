@@ -13,7 +13,7 @@ import correctedFixture from '../../../docs/waterfall-corrected-capital-account.
 import coreFixture from '../../../docs/waterfall-decimal-core.truth-cases.json';
 
 const moneySchema = z.string().regex(/^(0|[1-9]\d*)\.\d{6}$/);
-const carryRatioSchema = z.string().regex(/^(0|1)\.\d{12}$/);
+const carryRatioSchema = z.string().regex(/^(?:0\.\d{12}|1\.0{12})$/);
 
 const rowSchema = z
   .object({

@@ -400,8 +400,9 @@ export function computeDecimalWaterfallAllocationV1(
   }
   const carryRatio = new CoreDecimal(input.carryRatio);
 
+  const parsedOpeningMoney = new Map<(typeof OPENING_MONEY_FIELDS)[number], CoreMoney>();
   for (const field of OPENING_MONEY_FIELDS) {
-    parseOpeningMoney(input.openingState, field);
+    parsedOpeningMoney.set(field, parseOpeningMoney(input.openingState, field));
   }
 
   const sourceIds = new Set<string>();
@@ -471,14 +472,11 @@ export function computeDecimalWaterfallAllocationV1(
 
   events.sort(compareEvents);
 
-  const openingUnreturnedCapital = parseOpeningMoney(
-    input.openingState,
-    'lpUnreturnedContributedCapitalUsd'
-  );
+  const openingUnreturnedCapital = parsedOpeningMoney.get('lpUnreturnedContributedCapitalUsd')!;
   const accumulator: FoldAccumulator = {
-    unreturnedCapital: new CoreDecimal(openingUnreturnedCapital.toFixed()),
-    profitDistributed: parseOpeningMoney(input.openingState, 'lpDistributionsProfitUsd'),
-    paidIn: parseOpeningMoney(input.openingState, 'cumulativeLpPaidInUsd'),
+    unreturnedCapital: openingUnreturnedCapital,
+    profitDistributed: parsedOpeningMoney.get('lpDistributionsProfitUsd')!,
+    paidIn: parsedOpeningMoney.get('cumulativeLpPaidInUsd')!,
     totalGross: new CoreDecimal(0),
     totalRoc: new CoreDecimal(0),
     totalLpProfit: new CoreDecimal(0),
