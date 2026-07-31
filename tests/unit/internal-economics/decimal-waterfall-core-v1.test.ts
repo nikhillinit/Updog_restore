@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { FundAccountingStateObservationV1_1 } from '../../../shared/contracts/internal-economics/fund-accounting-state-observation-v1.1.contract';
 import {
   __testOnlyFoldDecimalWaterfallEventV1,
+  __testOnlyProbeNonnegativeMoneyGuardsV1,
   __testOnlySerializeCoreDecimalV1,
   computeDecimalWaterfallAllocationV1,
   DECIMAL_WATERFALL_CORE_ENGINE_VERSION,
@@ -50,6 +51,23 @@ function fixed(value: { toFixed(): string }): string {
   return value.toFixed();
 }
 
+function byteExact(value: unknown): string {
+  const serialized = JSON.stringify(value);
+  if (serialized === undefined) {
+    throw new Error('Expected a JSON-serializable waterfall result.');
+  }
+  return serialized;
+}
+
+function permutations<T>(values: readonly T[]): T[][] {
+  if (values.length <= 1) return [[...values]];
+
+  return values.flatMap((value, index) => {
+    const remaining = [...values.slice(0, index), ...values.slice(index + 1)];
+    return permutations(remaining).map((permutation) => [value, ...permutation]);
+  });
+}
+
 function validInput(
   overrides: Partial<DecimalWaterfallCoreV1Input> = {}
 ): DecimalWaterfallCoreV1Input {
@@ -61,6 +79,42 @@ function validInput(
     distributions: [],
     ...overrides,
   };
+}
+
+function mixedMultiPeriodInput(): DecimalWaterfallCoreV1Input {
+  return validInput({
+    openingState: openingState({
+      cumulativeLpPaidInUsd: '30.000000',
+      lpDistributionsProfitUsd: '5.000000',
+      actualLpDistributionsCumulativeUsd: '5.000000',
+      lpUnreturnedContributedCapitalUsd: '30.000000',
+    }),
+    contributions: [
+      { sourceId: 'call-q3', periodIndex: 3, amountUsd: '40.000000' },
+      { sourceId: 'call-q1', periodIndex: 1, amountUsd: '70.000000' },
+      { sourceId: 'call-q2', periodIndex: 2, amountUsd: '10.000000' },
+    ],
+    distributions: [
+      {
+        sourceId: 'exit-q4-normal',
+        periodIndex: 4,
+        grossUsd: '200.000000',
+        isTerminal: false,
+      },
+      {
+        sourceId: 'exit-q2',
+        periodIndex: 2,
+        grossUsd: '50.000000',
+        isTerminal: false,
+      },
+      {
+        sourceId: 'a-exit-q4-terminal',
+        periodIndex: 4,
+        grossUsd: '20.000000',
+        isTerminal: true,
+      },
+    ],
+  });
 }
 
 function expectCoreError(
@@ -110,7 +164,7 @@ function expectSharedDecimalBoundaries(result: DecimalWaterfallCoreV1Result): vo
 }
 
 describe('computeDecimalWaterfallAllocationV1', () => {
-  it('serializes a 1e-8 carry through the shared boundary in exact fixed notation', () => {
+  it('T0.8 converts a 1e-8 carry through the shared boundary by exact fixed notation', () => {
     const result = computeDecimalWaterfallAllocationV1({
       carryRatio: '0.010000000000',
       hurdle: { basis: 'none' },
@@ -129,6 +183,8 @@ describe('computeDecimalWaterfallAllocationV1', () => {
     const gpCarry = result.rows[0].gpCarry;
     const serialized = __testOnlySerializeCoreDecimalV1(gpCarry.toFixed());
 
+    expect(gpCarry.constructor).toBe(SharedDecimal);
+    expect(fixed(gpCarry)).toBe('0.00000001');
     expect(serialized).toBe('0.00000001');
     expect(serialized).not.toMatch(/[eE]/);
     expect(new SharedDecimal(serialized).eq(gpCarry)).toBe(true);
@@ -595,6 +651,203 @@ describe('computeDecimalWaterfallAllocationV1', () => {
       profitDistributedAfter: '0.876542334444789012',
       totalLpProfit: '0.876542334444789012',
       totalGpCarry: '0.123456665555210988',
+    });
+  });
+
+  describe('T0.7 ordering and determinism properties', () => {
+    it('returns byte-identical output for every contribution and distribution permutation', () => {
+      const input = mixedMultiPeriodInput();
+      const expected = byteExact(computeDecimalWaterfallAllocationV1(input));
+
+      for (const contributions of permutations(input.contributions)) {
+        for (const distributions of permutations(input.distributions)) {
+          const actual = computeDecimalWaterfallAllocationV1({
+            ...input,
+            contributions,
+            distributions,
+          });
+          expect(byteExact(actual)).toBe(expected);
+        }
+      }
+    });
+
+    it('applies a same-period contribution before a distribution regardless of source order', () => {
+      const result = computeDecimalWaterfallAllocationV1(
+        validInput({
+          contributions: [{ sourceId: 'z-call', periodIndex: 1, amountUsd: '100.000000' }],
+          distributions: [
+            {
+              sourceId: 'a-exit',
+              periodIndex: 1,
+              grossUsd: '150.000000',
+              isTerminal: false,
+            },
+          ],
+        })
+      );
+
+      expect(fixed(result.rows[0].roc)).toBe('100');
+      expect(fixed(result.rows[0].gpCarry)).toBe('10');
+    });
+
+    it('sorts a normal distribution before a same-period alphabetically earlier terminal event', () => {
+      const result = computeDecimalWaterfallAllocationV1(
+        validInput({
+          openingState: openingState({
+            cumulativeLpPaidInUsd: '100.000000',
+            lpUnreturnedContributedCapitalUsd: '100.000000',
+          }),
+          distributions: [
+            {
+              sourceId: 'a-terminal',
+              periodIndex: 1,
+              grossUsd: '50.000000',
+              isTerminal: true,
+            },
+            {
+              sourceId: 'z-normal',
+              periodIndex: 1,
+              grossUsd: '150.000000',
+              isTerminal: false,
+            },
+          ],
+        })
+      );
+
+      expect(result.rows.map((row) => ({ sourceId: row.sourceId, roc: fixed(row.roc) }))).toEqual([
+        { sourceId: 'z-normal', roc: '100' },
+        { sourceId: 'a-terminal', roc: '0' },
+      ]);
+    });
+
+    it('returns byte-identical output for two identical invocations', () => {
+      const input = mixedMultiPeriodInput();
+
+      expect(byteExact(computeDecimalWaterfallAllocationV1(input))).toBe(
+        byteExact(computeDecimalWaterfallAllocationV1(input))
+      );
+    });
+
+    it('matches every batch row to the row from its incrementally prefixed call', () => {
+      const callQ1 = { sourceId: 'call-q1', periodIndex: 1, amountUsd: '100.000000' };
+      const exitQ2 = {
+        sourceId: 'exit-q2',
+        periodIndex: 2,
+        grossUsd: '60.000000',
+        isTerminal: false,
+      };
+      const callQ3 = { sourceId: 'call-q3', periodIndex: 3, amountUsd: '25.000000' };
+      const exitQ3 = {
+        sourceId: 'exit-q3',
+        periodIndex: 3,
+        grossUsd: '80.000000',
+        isTerminal: false,
+      };
+      const exitQ4 = {
+        sourceId: 'exit-q4',
+        periodIndex: 4,
+        grossUsd: '50.000000',
+        isTerminal: false,
+      };
+      const batch = computeDecimalWaterfallAllocationV1(
+        validInput({
+          contributions: [callQ3, callQ1],
+          distributions: [exitQ4, exitQ2, exitQ3],
+        })
+      );
+      const prefixes = [
+        validInput({ contributions: [callQ1], distributions: [exitQ2] }),
+        validInput({ contributions: [callQ3, callQ1], distributions: [exitQ2, exitQ3] }),
+        validInput({
+          contributions: [callQ3, callQ1],
+          distributions: [exitQ4, exitQ2, exitQ3],
+        }),
+      ];
+      const prefixedRows = prefixes.map((prefix) => {
+        const rows = computeDecimalWaterfallAllocationV1(prefix).rows;
+        return rows[rows.length - 1];
+      });
+
+      expect(prefixedRows.map(byteExact)).toEqual(batch.rows.map(byteExact));
+    });
+  });
+
+  describe('T0.8 precision envelope', () => {
+    it('matches a precision-100 reference for one max-ceiling multiplication', () => {
+      const ReferenceDecimal = SharedDecimal.clone({
+        precision: 100,
+        rounding: SharedDecimal.ROUND_HALF_UP,
+      });
+      const maximumTenDigitMoney = '9999999999.999999';
+      const carryRatio = '0.000000000001';
+      const reference = new ReferenceDecimal(maximumTenDigitMoney).times(carryRatio);
+      const result = computeDecimalWaterfallAllocationV1(
+        validInput({
+          carryRatio,
+          distributions: [
+            {
+              sourceId: 'max-ceiling-exit',
+              periodIndex: 1,
+              grossUsd: maximumTenDigitMoney,
+              isTerminal: false,
+            },
+          ],
+        })
+      );
+
+      expect(fixed(result.rows[0].gpCarry)).toBe(reference.toFixed());
+    });
+
+    it('rejects an 11-integer-digit event before the fold', () => {
+      const error = expectCoreError(
+        () =>
+          computeDecimalWaterfallAllocationV1(
+            validInput({
+              distributions: [
+                {
+                  sourceId: 'oversized-exit',
+                  periodIndex: 1,
+                  grossUsd: '10000000000.000000',
+                  isTerminal: false,
+                },
+              ],
+            })
+          ),
+        'EVENT_INPUT_INVALID'
+      );
+
+      expect(error.context).toMatchObject({
+        field: 'grossUsd',
+        sourceId: 'oversized-exit',
+      });
+    });
+
+    it('keeps one million shared precision-28 cumulative additions bit-exact', () => {
+      const ReferenceDecimal = SharedDecimal.clone({
+        precision: 100,
+        rounding: SharedDecimal.ROUND_HALF_UP,
+      });
+      const maximumTenDigitMoney = '9999999999.999999';
+      const addend = new SharedDecimal(maximumTenDigitMoney);
+      let actual = new SharedDecimal(0);
+
+      for (let index = 0; index < 1_000_000; index += 1) {
+        actual = actual.plus(addend);
+      }
+
+      const reference = new ReferenceDecimal(maximumTenDigitMoney).times(1_000_000);
+      expect(actual.toFixed()).toBe(reference.toFixed());
+    });
+  });
+
+  it('T6.6 accepts sign-flipped zero at every Decimal money nonnegativity guard', () => {
+    const negativeZero = new SharedDecimal(0).neg();
+
+    expect(negativeZero.isNegative()).toBe(true);
+    expect(negativeZero.gte(0)).toBe(true);
+    expect(__testOnlyProbeNonnegativeMoneyGuardsV1(negativeZero)).toEqual({
+      accumulatorUnreturnedCapital: true,
+      nextUnreturnedCapital: true,
     });
   });
 });

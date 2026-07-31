@@ -139,6 +139,21 @@ interface DistributionEvent {
 
 type CoreEvent = ContributionEvent | DistributionEvent;
 
+function isNonnegativeCoreMoney(value: CoreMoney): boolean {
+  return value.gte(0);
+}
+
+export function __testOnlyProbeNonnegativeMoneyGuardsV1(value: SharedDecimal): {
+  readonly accumulatorUnreturnedCapital: boolean;
+  readonly nextUnreturnedCapital: boolean;
+} {
+  const coreValue = new CoreDecimal(value);
+  return {
+    accumulatorUnreturnedCapital: isNonnegativeCoreMoney(coreValue),
+    nextUnreturnedCapital: isNonnegativeCoreMoney(coreValue),
+  };
+}
+
 function isCanonicalMoney(value: unknown): value is string {
   return (
     typeof value === 'string' &&
@@ -250,7 +265,7 @@ function assertFoldAccumulator(accumulator: FoldAccumulator, sourceId: string): 
       { sourceId }
     );
   }
-  if (accumulator.unreturnedCapital.lt(0)) {
+  if (!isNonnegativeCoreMoney(accumulator.unreturnedCapital)) {
     throw new DecimalWaterfallCoreV1Error(
       'UNRETURNED_CAPITAL_MONOTONICITY',
       'Waterfall accumulator contains negative unreturned capital.',
@@ -287,7 +302,7 @@ function foldDecimalWaterfallEventV1(
     );
   }
   if (
-    nextUnreturnedCapital.lt(0) ||
+    !isNonnegativeCoreMoney(nextUnreturnedCapital) ||
     nextUnreturnedCapital.gt(unreturnedCapitalBefore) ||
     !unreturnedCapitalBefore.minus(nextUnreturnedCapital).eq(roc)
   ) {
