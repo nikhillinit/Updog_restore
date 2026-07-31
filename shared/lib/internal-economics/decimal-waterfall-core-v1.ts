@@ -214,8 +214,151 @@ function compareEvents(left: CoreEvent, right: CoreEvent): number {
   return left.sourceId < right.sourceId ? -1 : left.sourceId > right.sourceId ? 1 : 0;
 }
 
+function serializeCoreDecimal(value: CoreMoney): string {
+  return value.toFixed();
+}
+
+export function __testOnlySerializeCoreDecimalV1(value: string): string {
+  return serializeCoreDecimal(new CoreDecimal(value));
+}
+
 function toSharedDecimal(value: CoreMoney): SharedDecimal {
-  return new SharedDecimal(value.toString());
+  return new SharedDecimal(serializeCoreDecimal(value));
+}
+
+interface FoldAccumulator {
+  unreturnedCapital: CoreMoney;
+  profitDistributed: CoreMoney;
+  paidIn: CoreMoney;
+  totalGross: CoreMoney;
+  totalRoc: CoreMoney;
+  totalLpProfit: CoreMoney;
+  totalGpCarry: CoreMoney;
+  readonly rows: CoreAllocationRowV1[];
+}
+
+function assertFoldAccumulator(accumulator: FoldAccumulator, sourceId: string): void {
+  if (
+    !accumulator.totalRoc
+      .plus(accumulator.totalLpProfit)
+      .plus(accumulator.totalGpCarry)
+      .eq(accumulator.totalGross)
+  ) {
+    throw new DecimalWaterfallCoreV1Error(
+      'CONSERVATION_FAILED',
+      'Waterfall accumulator failed exact conservation.',
+      { sourceId }
+    );
+  }
+  if (accumulator.unreturnedCapital.lt(0)) {
+    throw new DecimalWaterfallCoreV1Error(
+      'UNRETURNED_CAPITAL_MONOTONICITY',
+      'Waterfall accumulator contains negative unreturned capital.',
+      { sourceId }
+    );
+  }
+}
+
+function foldDecimalWaterfallEventV1(
+  accumulator: FoldAccumulator,
+  event: CoreEvent,
+  carryRatio: CoreMoney
+): void {
+  assertFoldAccumulator(accumulator, event.sourceId);
+
+  if (event.kind === 'contribution') {
+    accumulator.unreturnedCapital = accumulator.unreturnedCapital.plus(event.amount);
+    accumulator.paidIn = accumulator.paidIn.plus(event.amount);
+    return;
+  }
+
+  const unreturnedCapitalBefore = accumulator.unreturnedCapital;
+  const roc = CoreDecimal.min(event.gross, unreturnedCapitalBefore);
+  const residual = event.gross.minus(roc);
+  const gpCarry = residual.times(carryRatio);
+  const lpProfit = residual.minus(gpCarry);
+  const nextUnreturnedCapital = unreturnedCapitalBefore.minus(roc);
+
+  if (!roc.plus(lpProfit).plus(gpCarry).eq(event.gross)) {
+    throw new DecimalWaterfallCoreV1Error(
+      'CONSERVATION_FAILED',
+      'Distribution allocation failed exact conservation.',
+      { sourceId: event.sourceId }
+    );
+  }
+  if (
+    nextUnreturnedCapital.lt(0) ||
+    nextUnreturnedCapital.gt(unreturnedCapitalBefore) ||
+    !unreturnedCapitalBefore.minus(nextUnreturnedCapital).eq(roc)
+  ) {
+    throw new DecimalWaterfallCoreV1Error(
+      'UNRETURNED_CAPITAL_MONOTONICITY',
+      'Distribution changed unreturned capital outside the ROC amount.',
+      { sourceId: event.sourceId }
+    );
+  }
+
+  accumulator.unreturnedCapital = nextUnreturnedCapital;
+  accumulator.profitDistributed = accumulator.profitDistributed.plus(lpProfit);
+  accumulator.totalGross = accumulator.totalGross.plus(event.gross);
+  accumulator.totalRoc = accumulator.totalRoc.plus(roc);
+  accumulator.totalLpProfit = accumulator.totalLpProfit.plus(lpProfit);
+  accumulator.totalGpCarry = accumulator.totalGpCarry.plus(gpCarry);
+  accumulator.rows.push({
+    sourceId: event.sourceId,
+    periodIndex: event.periodIndex,
+    gross: toSharedDecimal(event.gross),
+    roc: toSharedDecimal(roc),
+    lpProfit: toSharedDecimal(lpProfit),
+    gpCarry: toSharedDecimal(gpCarry),
+    unreturnedCapitalAfter: toSharedDecimal(accumulator.unreturnedCapital),
+    profitDistributedAfter: toSharedDecimal(accumulator.profitDistributed),
+  });
+  assertFoldAccumulator(accumulator, event.sourceId);
+}
+
+export function __testOnlyFoldDecimalWaterfallEventV1(input: {
+  readonly carryRatio: string;
+  readonly accumulator: {
+    readonly unreturnedCapital: string;
+    readonly profitDistributed: string;
+    readonly paidIn: string;
+    readonly totalGross: string;
+    readonly totalRoc: string;
+    readonly totalLpProfit: string;
+    readonly totalGpCarry: string;
+  };
+  readonly event:
+    | {
+        readonly kind: 'contribution';
+        readonly sourceId: string;
+        readonly periodIndex: number;
+        readonly amount: string;
+      }
+    | {
+        readonly kind: 'distribution';
+        readonly sourceId: string;
+        readonly periodIndex: number;
+        readonly gross: string;
+        readonly isTerminal: boolean;
+      };
+}): void {
+  const accumulator: FoldAccumulator = {
+    unreturnedCapital: new CoreDecimal(input.accumulator.unreturnedCapital),
+    profitDistributed: new CoreDecimal(input.accumulator.profitDistributed),
+    paidIn: new CoreDecimal(input.accumulator.paidIn),
+    totalGross: new CoreDecimal(input.accumulator.totalGross),
+    totalRoc: new CoreDecimal(input.accumulator.totalRoc),
+    totalLpProfit: new CoreDecimal(input.accumulator.totalLpProfit),
+    totalGpCarry: new CoreDecimal(input.accumulator.totalGpCarry),
+    rows: [],
+  };
+  const event: CoreEvent =
+    input.event.kind === 'contribution'
+      ? { ...input.event, amount: new CoreDecimal(input.event.amount) }
+      : { ...input.event, gross: new CoreDecimal(input.event.gross) };
+
+  foldDecimalWaterfallEventV1(accumulator, event, new CoreDecimal(input.carryRatio));
 }
 
 export function computeDecimalWaterfallAllocationV1(
@@ -316,76 +459,31 @@ export function computeDecimalWaterfallAllocationV1(
     input.openingState,
     'lpUnreturnedContributedCapitalUsd'
   );
-  let unreturnedCapital = new CoreDecimal(openingUnreturnedCapital.toString());
-  let profitDistributed = parseOpeningMoney(input.openingState, 'lpDistributionsProfitUsd');
-  let paidIn = parseOpeningMoney(input.openingState, 'cumulativeLpPaidInUsd');
-  let totalGross = new CoreDecimal(0);
-  let totalRoc = new CoreDecimal(0);
-  let totalLpProfit = new CoreDecimal(0);
-  let totalGpCarry = new CoreDecimal(0);
-  const rows: CoreAllocationRowV1[] = [];
+  const accumulator: FoldAccumulator = {
+    unreturnedCapital: new CoreDecimal(openingUnreturnedCapital.toFixed()),
+    profitDistributed: parseOpeningMoney(input.openingState, 'lpDistributionsProfitUsd'),
+    paidIn: parseOpeningMoney(input.openingState, 'cumulativeLpPaidInUsd'),
+    totalGross: new CoreDecimal(0),
+    totalRoc: new CoreDecimal(0),
+    totalLpProfit: new CoreDecimal(0),
+    totalGpCarry: new CoreDecimal(0),
+    rows: [],
+  };
 
   for (const event of events) {
-    if (event.kind === 'contribution') {
-      unreturnedCapital = unreturnedCapital.plus(event.amount);
-      paidIn = paidIn.plus(event.amount);
-      continue;
-    }
-
-    const unreturnedCapitalBefore = unreturnedCapital;
-    const roc = CoreDecimal.min(event.gross, unreturnedCapitalBefore);
-    const residual = event.gross.minus(roc);
-    const gpCarry = residual.times(carryRatio);
-    const lpProfit = residual.minus(gpCarry);
-    const nextUnreturnedCapital = unreturnedCapitalBefore.minus(roc);
-
-    if (!roc.plus(lpProfit).plus(gpCarry).eq(event.gross)) {
-      throw new DecimalWaterfallCoreV1Error(
-        'CONSERVATION_FAILED',
-        'Distribution allocation failed exact conservation.',
-        { sourceId: event.sourceId }
-      );
-    }
-    if (
-      nextUnreturnedCapital.lt(0) ||
-      nextUnreturnedCapital.gt(unreturnedCapitalBefore) ||
-      !unreturnedCapitalBefore.minus(nextUnreturnedCapital).eq(roc)
-    ) {
-      throw new DecimalWaterfallCoreV1Error(
-        'UNRETURNED_CAPITAL_MONOTONICITY',
-        'Distribution changed unreturned capital outside the ROC amount.',
-        { sourceId: event.sourceId }
-      );
-    }
-
-    unreturnedCapital = nextUnreturnedCapital;
-    profitDistributed = profitDistributed.plus(lpProfit);
-    totalGross = totalGross.plus(event.gross);
-    totalRoc = totalRoc.plus(roc);
-    totalLpProfit = totalLpProfit.plus(lpProfit);
-    totalGpCarry = totalGpCarry.plus(gpCarry);
-    rows.push({
-      sourceId: event.sourceId,
-      periodIndex: event.periodIndex,
-      gross: toSharedDecimal(event.gross),
-      roc: toSharedDecimal(roc),
-      lpProfit: toSharedDecimal(lpProfit),
-      gpCarry: toSharedDecimal(gpCarry),
-      unreturnedCapitalAfter: toSharedDecimal(unreturnedCapital),
-      profitDistributedAfter: toSharedDecimal(profitDistributed),
-    });
+    foldDecimalWaterfallEventV1(accumulator, event, carryRatio);
   }
 
   return {
-    rows,
+    rows: accumulator.rows,
     totals: {
       openingUnreturnedCapital: toSharedDecimal(openingUnreturnedCapital),
-      endingUnreturnedCapital: toSharedDecimal(unreturnedCapital),
-      paidIn: toSharedDecimal(paidIn),
-      gross: toSharedDecimal(totalGross),
-      roc: toSharedDecimal(totalRoc),
-      lpProfit: toSharedDecimal(totalLpProfit),
-      gpCarry: toSharedDecimal(totalGpCarry),
+      endingUnreturnedCapital: toSharedDecimal(accumulator.unreturnedCapital),
+      paidIn: toSharedDecimal(accumulator.paidIn),
+      gross: toSharedDecimal(accumulator.totalGross),
+      roc: toSharedDecimal(accumulator.totalRoc),
+      lpProfit: toSharedDecimal(accumulator.totalLpProfit),
+      gpCarry: toSharedDecimal(accumulator.totalGpCarry),
     },
     engineVersion: DECIMAL_WATERFALL_CORE_ENGINE_VERSION,
     methodologyVersion: DECIMAL_WATERFALL_CORE_METHODOLOGY_VERSION,
