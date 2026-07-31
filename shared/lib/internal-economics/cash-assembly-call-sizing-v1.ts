@@ -30,8 +30,26 @@
  *    the design note all depend on it. A negative value throws
  *    NEGATIVE_SCHEDULED_AMOUNT (first violating quarter/field) instead of
  *    silently making the recurrence non-monotonic.
+ *  - V1 supports zero-fee/zero-expense schedules only. The
+ *    periodStart/periodEnd two-slot split subtracts the fee/expense
+ *    true-up from the total call; that subtraction is only proven
+ *    non-negative when the true-up is zero. A nonzero `scheduledFeeUsd` /
+ *    `scheduledExpenseUsd` throws NONZERO_FEE_EXPENSE_UNSUPPORTED_V1
+ *    instead of letting the subtraction run and potentially emit a
+ *    negative call slot.
+ *  - All money inputs (scheduled amounts, opening cash, unfunded envelope)
+ *    are assumed to already be at canonical 6dp precision, as produced by
+ *    D2/pinned facts. This function does not itself round inputs to 6dp
+ *    before doing Decimal arithmetic; a sub-6dp input is out of contract
+ *    and could in principle produce per-row outputs that don't sum
+ *    exactly to `totalCalledUsd` after independent 6dp formatting of each
+ *    row.
  *  - Does not model deployments/fees/proceeds/distributions consuming cash
- *    over time -- that full recurrence is WP-2b-4's period loop.
+ *    over time -- that full recurrence is WP-2b-4's period loop. In
+ *    particular, calls are sized net of the horizon-*starting*
+ *    `openingCashUsd` only, never net of interim realized/recallable
+ *    proceeds landing in earlier quarters -- see the design note's
+ *    review-ask #4.
  */
 
 import { Decimal } from '../decimal-config';
@@ -42,7 +60,10 @@ export const INTERNAL_ECONOMICS_CALL_SIZING_VERSION =
   'internal-economics-cash-assembly-call-sizing/1.0.0' as const;
 
 export type CashAssemblyCallSizingV1ErrorCode =
-  'OPENING_CASH_UNAVAILABLE' | 'COMMITTED_CAPITAL_EXCEEDED' | 'NEGATIVE_SCHEDULED_AMOUNT';
+  | 'OPENING_CASH_UNAVAILABLE'
+  | 'COMMITTED_CAPITAL_EXCEEDED'
+  | 'NEGATIVE_SCHEDULED_AMOUNT'
+  | 'NONZERO_FEE_EXPENSE_UNSUPPORTED_V1';
 
 export interface CommittedCapitalExceededContextV1 {
   readonly period: CashAssemblyPeriodV1;
@@ -60,11 +81,22 @@ export interface NegativeScheduledAmountContextV1 {
   readonly valueUsd: string;
 }
 
+export type FeeExpenseFieldV1 = 'scheduledFeeUsd' | 'scheduledExpenseUsd';
+
+export interface NonzeroFeeExpenseContextV1 {
+  readonly period: CashAssemblyPeriodV1;
+  readonly field: FeeExpenseFieldV1;
+  readonly valueUsd: string;
+}
+
 export class CashAssemblyCallSizingV1Error extends Error {
   constructor(
     readonly code: CashAssemblyCallSizingV1ErrorCode,
     message: string,
-    readonly context?: CommittedCapitalExceededContextV1 | NegativeScheduledAmountContextV1
+    readonly context?:
+      | CommittedCapitalExceededContextV1
+      | NegativeScheduledAmountContextV1
+      | NonzeroFeeExpenseContextV1
   ) {
     super(message);
     this.name = 'CashAssemblyCallSizingV1Error';
@@ -149,6 +181,39 @@ function assertNonNegativeScheduledAmounts(
   }
 }
 
+const FEE_EXPENSE_FIELDS: readonly FeeExpenseFieldV1[] = ['scheduledFeeUsd', 'scheduledExpenseUsd'];
+
+/**
+ * V1 doctrine is zero-fee/zero-expense only (frozen D2 contract: "zero
+ * vector in V1"). The periodStart/periodEnd two-slot split
+ * (`deploymentFundingCallUsd = totalCallUsd - feeExpenseTrueUpUsd`) is only
+ * proven to stay non-negative when `feeExpenseTrueUpUsd` is zero -- see the
+ * design note's flagged simplification. Reject nonzero fee/expense inputs
+ * outright, in quarter order, rather than letting that subtraction run and
+ * potentially emit a negative call slot for a case V1 doesn't support
+ * anyway.
+ */
+function assertZeroFeeExpense(quarters: readonly CallSizingQuarterNeedInputV1[]): void {
+  for (const quarterInput of quarters) {
+    for (const field of FEE_EXPENSE_FIELDS) {
+      const value = quarterInput[field];
+      if (!value.isZero()) {
+        throw new CashAssemblyCallSizingV1Error(
+          'NONZERO_FEE_EXPENSE_UNSUPPORTED_V1',
+          `${field} at quarter ending ${quarterInput.period.periodEnd} is nonzero ` +
+            `(${formatMoney(value)}); V1 supports zero-fee/zero-expense schedules only -- ` +
+            'the periodStart/periodEnd two-slot split is not proven safe for nonzero fees.',
+          {
+            period: quarterInput.period,
+            field,
+            valueUsd: formatMoney(value),
+          }
+        );
+      }
+    }
+  }
+}
+
 /**
  * Prefix sums of combined scheduled need (deployment + fee + expense), one
  * entry per quarter index, cumulative through that index inclusive.
@@ -176,6 +241,7 @@ export function sizeCashAssemblyCallsV1(
     throw new Error('sizeCashAssemblyCallsV1 requires at least one quarter.');
   }
   assertNonNegativeScheduledAmounts(quarters);
+  assertZeroFeeExpense(quarters);
   if (openingCashUsd === null) {
     throw new CashAssemblyCallSizingV1Error(
       'OPENING_CASH_UNAVAILABLE',

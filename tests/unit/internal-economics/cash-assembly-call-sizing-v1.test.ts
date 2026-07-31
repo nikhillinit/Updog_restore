@@ -235,7 +235,72 @@ describe('cash assembly call sizing and buffer roll-down v1', () => {
     }
   });
 
-  it('does not include zero-value fee/expense inputs beyond the two-slot shape (V1 placeholder proof)', () => {
+  it('rejects nonzero fee/expense outright instead of letting the two-slot split emit a negative call (reviewer repro)', () => {
+    // Repro: dep 100 fee 10 in Q1, dep 0 fee 10 in Q2, buffer 1. Without the
+    // guard, Q2's totalCallUsd (buffered forward only for deployment need,
+    // not fee) minus Q2's own feeExpenseTrueUpUsd (10) would go negative.
+    const quarters: CallSizingQuarterNeedInputV1[] = [
+      quarter('2026-01-01', '2026-03-31', '100', { scheduledFeeUsd: new Decimal('10') }),
+      quarter('2026-04-01', '2026-06-30', '0', { scheduledFeeUsd: new Decimal('10') }),
+    ];
+
+    let thrown: CashAssemblyCallSizingV1Error | undefined;
+    try {
+      sizeCashAssemblyCallsV1({
+        quarters,
+        cashBufferQuarters: 1,
+        openingCashUsd: ZERO,
+        unfundedEnvelopeRemainingUsd: LARGE_ENVELOPE,
+      });
+    } catch (error) {
+      thrown = error as CashAssemblyCallSizingV1Error;
+    }
+
+    expect(thrown).toBeInstanceOf(CashAssemblyCallSizingV1Error);
+    expect(thrown!.code).toBe('NONZERO_FEE_EXPENSE_UNSUPPORTED_V1');
+  });
+
+  it.each([
+    ['scheduledFeeUsd', { scheduledFeeUsd: new Decimal('5'), scheduledExpenseUsd: ZERO }] as const,
+    [
+      'scheduledExpenseUsd',
+      { scheduledFeeUsd: ZERO, scheduledExpenseUsd: new Decimal('5') },
+    ] as const,
+  ])(
+    'rejects a nonzero %s with NONZERO_FEE_EXPENSE_UNSUPPORTED_V1 and full context',
+    (field, overrides) => {
+      const quarters: CallSizingQuarterNeedInputV1[] = [
+        {
+          period: period('2026-01-01', '2026-03-31'),
+          scheduledDeploymentUsd: new Decimal('10'),
+          scheduledFeeUsd: overrides.scheduledFeeUsd,
+          scheduledExpenseUsd: overrides.scheduledExpenseUsd,
+        },
+      ];
+
+      let thrown: CashAssemblyCallSizingV1Error | undefined;
+      try {
+        sizeCashAssemblyCallsV1({
+          quarters,
+          cashBufferQuarters: 0,
+          openingCashUsd: ZERO,
+          unfundedEnvelopeRemainingUsd: LARGE_ENVELOPE,
+        });
+      } catch (error) {
+        thrown = error as CashAssemblyCallSizingV1Error;
+      }
+
+      expect(thrown).toBeInstanceOf(CashAssemblyCallSizingV1Error);
+      expect(thrown!.code).toBe('NONZERO_FEE_EXPENSE_UNSUPPORTED_V1');
+      expect(thrown!.context).toMatchObject({
+        period: period('2026-01-01', '2026-03-31'),
+        field,
+        valueUsd: '5.000000',
+      });
+    }
+  );
+
+  it('still accepts explicit zero-value fee/expense inputs (the two-slot shape stays behaviorally inert in V1)', () => {
     const quarters: CallSizingQuarterNeedInputV1[] = [
       quarter('2026-01-01', '2026-03-31', '10', {
         scheduledFeeUsd: ZERO,
@@ -253,6 +318,21 @@ describe('cash assembly call sizing and buffer roll-down v1', () => {
     expect(result.quarters[0]!.feeExpenseTrueUpUsd).toBe('0.000000');
     expect(result.quarters[0]!.deploymentFundingCallUsd).toBe('10.000000');
     expect(result.quarters[0]!.totalCallUsd).toBe('10.000000');
+  });
+
+  it('conserves precision: per-quarter totalCallUsd values sum exactly to totalCalledUsd for canonical 6dp inputs', () => {
+    const result = sizeCashAssemblyCallsV1({
+      quarters: FOUR_QUARTERS,
+      cashBufferQuarters: 1,
+      openingCashUsd: ZERO,
+      unfundedEnvelopeRemainingUsd: LARGE_ENVELOPE,
+    });
+
+    const summedTotalCallUsd = result.quarters
+      .reduce((sum, quarterResult) => sum.plus(quarterResult.totalCallUsd), new Decimal(0))
+      .toFixed(6);
+
+    expect(summedTotalCallUsd).toBe(result.totalCalledUsd);
   });
 
   it('formats every money output as a canonical 6dp decimal string', () => {

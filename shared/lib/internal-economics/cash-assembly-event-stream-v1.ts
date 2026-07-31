@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 import type { CurrentForecastSeriesPointV1 } from '../../contracts/current-forecast-v2.contract';
 import {
   compareEventOrderKeys,
@@ -255,6 +257,40 @@ function validateFactsNavMoney(input: AssembleCashEventStreamV1Input): void {
   }
 }
 
+const FACTS_NAV_CALENDAR_DATE_SCHEMA = z.string().date();
+
+/**
+ * Facts NAV marks and period NAV observations are produced upstream as
+ * calendar dates (financial-facts-snapshot-v1.contract.ts:
+ * `FinancialFactsMarksSeriesSchema.marks[].effectiveAt` and
+ * `.periodNav[].periodEnd` are both `z.string().date()`, never a datetime
+ * instant -- unlike facts cash-flow events, whose `effectiveAt` is
+ * `z.string().datetime()`). The post-term check below compares these
+ * fields directly against the bare `terminalPeriodEnd` date string; if an
+ * instant ever leaked through unvalidated, an in-term same-day mark
+ * (e.g. '2026-06-30T12:00:00.000Z') would string-compare as GREATER than
+ * the bare date '2026-06-30' and be falsely rejected as post-term. Reject
+ * the malformed format outright instead of letting that comparison run.
+ */
+function assertValidFactsNavDates(input: AssembleCashEventStreamV1Input): void {
+  for (const mark of input.factsNavMarks) {
+    if (!FACTS_NAV_CALENDAR_DATE_SCHEMA.safeParse(mark.effectiveAt).success) {
+      throw new Error(
+        `Facts NAV mark ${mark.markId} effectiveAt must be a calendar date (YYYY-MM-DD) ` +
+          `matching the upstream facts marks schema, received "${mark.effectiveAt}".`
+      );
+    }
+  }
+  for (const observation of input.factsPeriodNav) {
+    if (!FACTS_NAV_CALENDAR_DATE_SCHEMA.safeParse(observation.periodEnd).success) {
+      throw new Error(
+        'Facts period NAV observation periodEnd must be a calendar date (YYYY-MM-DD) ' +
+          `matching the upstream facts periodNav schema, received "${observation.periodEnd}".`
+      );
+    }
+  }
+}
+
 function validateForecastDeployment(
   forecastSeries: readonly CurrentForecastSeriesPointV1[]
 ): boolean[] {
@@ -436,6 +472,7 @@ export function assembleCashEventStreamV1(
   const terminalAt = terminalInstant(input);
   const factsEvents = prepareFactsEvents(input);
   validateFactsNavMoney(input);
+  assertValidFactsNavDates(input);
   const forecastSeries = prepareForecastSeries(input);
   const positiveDeploymentDeltaByIndex = validateForecastDeployment(forecastSeries);
   validatePostTermActivity({

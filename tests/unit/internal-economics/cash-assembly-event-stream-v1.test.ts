@@ -267,6 +267,56 @@ describe('cash assembly event stream v1', () => {
     }
   );
 
+  it('rejects a NAV mark effectiveAt formatted as a datetime instant instead of a calendar date', () => {
+    // Reviewer repro: terminal is 2026-06-30. An instant-formatted mark
+    // dated noon on the terminal date ('2026-06-30T12:00:00.000Z') string-
+    // compares as GREATER than the bare terminalPeriodEnd date
+    // ('2026-06-30'), which would falsely classify an in-term mark as
+    // post-term. Reject the malformed format outright instead of letting
+    // that comparison run.
+    const action = () =>
+      assemble([], [], {
+        factsNavMarks: [
+          {
+            markId: 40,
+            effectiveAt: '2026-06-30T12:00:00.000Z',
+            fairValueUsd: '5.000000',
+          },
+        ],
+      });
+
+    expect(action).toThrow(/calendar date/i);
+  });
+
+  it('accepts a NAV mark dated exactly on the terminal date as in-term, not post-term', () => {
+    const action = () =>
+      assemble([], [], {
+        factsNavMarks: [
+          {
+            markId: 41,
+            effectiveAt: '2026-06-30',
+            fairValueUsd: '5.000000',
+          },
+        ],
+      });
+
+    expect(action).not.toThrow();
+  });
+
+  it('rejects a period NAV observation periodEnd that is not a calendar date', () => {
+    const action = () =>
+      assemble([], [], {
+        factsPeriodNav: [
+          {
+            periodEnd: '2026-06-30T00:00:00.000Z',
+            navUsd: '5.000000',
+          },
+        ],
+      });
+
+    expect(action).toThrow(/calendar date/i);
+  });
+
   it('rejects a positive post-term deployment delta but ignores unchanged deployment', () => {
     const baseline = [
       forecastPoint('2026-04-01', '2026-06-30', 'projected', {
