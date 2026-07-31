@@ -53,6 +53,30 @@ describe('findRawNumbers', () => {
       const result = findRawNumbers(obj);
       expect(result.violations).toEqual([]);
     });
+
+    it('prefix wildcard covers array element descendants', () => {
+      const obj = {
+        rows: [{ fee: 1 }, { fee: 2 }],
+        totals: { fee: '3.000000' },
+      };
+      const result = findRawNumbers(obj, { allowlist: ['rows.*'] });
+      expect(result.violations).toEqual([]);
+    });
+
+    it('prefix wildcard covers a root-level array of numbers', () => {
+      const obj = { counts: [1, 2, 3] };
+      const result = findRawNumbers(obj, { allowlist: ['counts.*'] });
+      expect(result.violations).toEqual([]);
+    });
+
+    it('array wildcard does not leak onto sibling keys', () => {
+      const obj = {
+        rows: [{ fee: 1 }],
+        rowsTotal: 2,
+      };
+      const result = findRawNumbers(obj, { allowlist: ['rows.*'] });
+      expect(result.violations).toEqual([{ path: 'rowsTotal', value: 2 }]);
+    });
   });
 
   describe('negative cases (violations found)', () => {

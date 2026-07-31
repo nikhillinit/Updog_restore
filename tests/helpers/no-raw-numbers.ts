@@ -23,7 +23,9 @@ export interface NoRawNumbersResult {
 export interface NoRawNumbersOptions {
   /**
    * Dot-delimited paths where raw numbers are acceptable.
-   * Supports exact match and prefix-wildcard match (trailing ".*").
+   * Supports exact match and prefix-wildcard match (trailing ".*");
+   * a wildcard also covers array descendants ("rows.*" matches
+   * "rows[0].fee").
    * Examples: ["meta.version", "pagination.*"]
    */
   allowlist?: string[];
@@ -34,15 +36,18 @@ export interface NoRawNumbersOptions {
  *
  * Supports:
  * - Exact match: "meta.version" matches path "meta.version"
- * - Prefix wildcard: "pagination.*" matches "pagination.page", "pagination.total", etc.
+ * - Prefix wildcard: "pagination.*" matches "pagination.page", "pagination.total",
+ *   and array descendants such as "pagination[0]" or "rows[0].fee" for "rows.*"
  * - Plain prefix without wildcard: "pagination" matches "pagination" only (not children)
  */
 function isAllowed(path: string, allowlist: string[]): boolean {
   for (const entry of allowlist) {
     if (entry === path) return true;
     if (entry.endsWith('.*')) {
-      const prefix = entry.slice(0, -1); // "pagination.*" -> "pagination."
-      if (path.startsWith(prefix)) return true;
+      const base = entry.slice(0, -2); // "pagination.*" -> "pagination"
+      // Object children ("pagination.page") and array descendants
+      // ("rows[0].fee") are both covered by the wildcard.
+      if (path.startsWith(`${base}.`) || path.startsWith(`${base}[`)) return true;
     }
   }
   return false;

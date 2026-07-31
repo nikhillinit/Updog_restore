@@ -14,8 +14,19 @@ export interface MultiEventCapitalCallFixture {
 
 export type MultiEventAccountingFixture = MultiEventProceedsFixture | MultiEventCapitalCallFixture;
 
+/**
+ * Waterfall config the expected totals were computed under. Declared
+ * explicitly so the fixtures are self-describing: consumers must not
+ * assume a carry rate out-of-band. V1 permits hurdle basis 'none' only.
+ */
+export interface MultiEventWaterfallConfigFixture {
+  carryPct: string;
+  hurdleBasis: 'none';
+}
+
 export interface MultiEventIndependenceFixture {
   description: string;
+  config: MultiEventWaterfallConfigFixture;
   events: MultiEventAccountingFixture[];
   expectedTotals: {
     proceeds: string;
@@ -26,9 +37,15 @@ export interface MultiEventIndependenceFixture {
   };
 }
 
+const CARRY_20_PCT_NO_HURDLE: MultiEventWaterfallConfigFixture = {
+  carryPct: '0.200000000000',
+  hurdleBasis: 'none',
+};
+
 export const MULTI_EVENT_INDEPENDENCE_FIXTURES: MultiEventIndependenceFixture[] = [
   {
     description: 'interleaved capital calls and proceeds preserving chronology',
+    config: CARRY_20_PCT_NO_HURDLE,
     events: [
       {
         type: 'capitalCall',
@@ -65,6 +82,7 @@ export const MULTI_EVENT_INDEPENDENCE_FIXTURES: MultiEventIndependenceFixture[] 
   },
   {
     description: 'multiple proceeds in the same quarter aggregating correctly',
+    config: CARRY_20_PCT_NO_HURDLE,
     events: [
       {
         type: 'capitalCall',
@@ -95,6 +113,7 @@ export const MULTI_EVENT_INDEPENDENCE_FIXTURES: MultiEventIndependenceFixture[] 
   },
   {
     description: 'carry rounding independence across fractional proceeds',
+    config: CARRY_20_PCT_NO_HURDLE,
     events: [
       {
         type: 'proceeds',

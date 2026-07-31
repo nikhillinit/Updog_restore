@@ -9,6 +9,18 @@ describe('multi-event-independence-fixtures', () => {
   });
 
   describe.each(MULTI_EVENT_INDEPENDENCE_FIXTURES)('$description', (fixture) => {
+    it('declares the waterfall config its expected totals were computed under', () => {
+      expect(fixture.config.hurdleBasis).toBe('none');
+
+      // Profit split must reproduce from the declared carry rate alone —
+      // no out-of-band assumptions.
+      const { proceeds, roc, lpProfit, gpCarry } = fixture.expectedTotals;
+      const profit = new Decimal(proceeds).minus(roc);
+      const expectedCarry = profit.times(fixture.config.carryPct);
+      expect(expectedCarry.toFixed(6)).toBe(new Decimal(gpCarry).toFixed(6));
+      expect(profit.minus(expectedCarry).toFixed(6)).toBe(new Decimal(lpProfit).toFixed(6));
+    });
+
     it('preserves conservation of capital in expected totals', () => {
       const { proceeds, roc, lpProfit, gpCarry } = fixture.expectedTotals;
       const totalDistributed = new Decimal(roc).plus(lpProfit).plus(gpCarry);
