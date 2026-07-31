@@ -24,6 +24,12 @@
  *    COMMITTED_CAPITAL_EXCEEDED, never silently caps the call.
  *  - Opening cash must be a pinned fact; missing throws
  *    OPENING_CASH_UNAVAILABLE. Never assumed zero.
+ *  - Every `scheduledDeploymentUsd` / `scheduledFeeUsd` / `scheduledExpenseUsd`
+ *    input must be non-negative -- the coverage-target monotonicity,
+ *    timing-only/never-total, and roll-to-zero-with-no-residual proofs in
+ *    the design note all depend on it. A negative value throws
+ *    NEGATIVE_SCHEDULED_AMOUNT (first violating quarter/field) instead of
+ *    silently making the recurrence non-monotonic.
  *  - Does not model deployments/fees/proceeds/distributions consuming cash
  *    over time -- that full recurrence is WP-2b-4's period loop.
  */
@@ -36,7 +42,7 @@ export const INTERNAL_ECONOMICS_CALL_SIZING_VERSION =
   'internal-economics-cash-assembly-call-sizing/1.0.0' as const;
 
 export type CashAssemblyCallSizingV1ErrorCode =
-  'OPENING_CASH_UNAVAILABLE' | 'COMMITTED_CAPITAL_EXCEEDED';
+  'OPENING_CASH_UNAVAILABLE' | 'COMMITTED_CAPITAL_EXCEEDED' | 'NEGATIVE_SCHEDULED_AMOUNT';
 
 export interface CommittedCapitalExceededContextV1 {
   readonly period: CashAssemblyPeriodV1;
@@ -45,11 +51,20 @@ export interface CommittedCapitalExceededContextV1 {
   readonly cumulativeCalledUsd: string;
 }
 
+export type NegativeScheduledAmountFieldV1 =
+  'scheduledDeploymentUsd' | 'scheduledFeeUsd' | 'scheduledExpenseUsd';
+
+export interface NegativeScheduledAmountContextV1 {
+  readonly period: CashAssemblyPeriodV1;
+  readonly field: NegativeScheduledAmountFieldV1;
+  readonly valueUsd: string;
+}
+
 export class CashAssemblyCallSizingV1Error extends Error {
   constructor(
     readonly code: CashAssemblyCallSizingV1ErrorCode,
     message: string,
-    readonly context?: CommittedCapitalExceededContextV1
+    readonly context?: CommittedCapitalExceededContextV1 | NegativeScheduledAmountContextV1
   ) {
     super(message);
     this.name = 'CashAssemblyCallSizingV1Error';
@@ -96,6 +111,44 @@ function assertValidCashBufferQuarters(cashBufferQuarters: number): void {
   }
 }
 
+const NEGATIVE_SCHEDULED_AMOUNT_FIELDS: readonly NegativeScheduledAmountFieldV1[] = [
+  'scheduledDeploymentUsd',
+  'scheduledFeeUsd',
+  'scheduledExpenseUsd',
+];
+
+/**
+ * Every downstream invariant this module proves (coverage-target
+ * monotonicity, timing-only/never-total, roll-to-zero-with-no-residual)
+ * depends on every scheduled need being non-negative -- see the design
+ * note. Enforce that precondition here rather than leaving it as prose:
+ * reject the first violating (quarter, field) pair found, in quarter
+ * order, never silently letting a negative value make the recurrence
+ * non-monotonic.
+ */
+function assertNonNegativeScheduledAmounts(
+  quarters: readonly CallSizingQuarterNeedInputV1[]
+): void {
+  for (const quarterInput of quarters) {
+    for (const field of NEGATIVE_SCHEDULED_AMOUNT_FIELDS) {
+      const value = quarterInput[field];
+      if (value.isNegative()) {
+        throw new CashAssemblyCallSizingV1Error(
+          'NEGATIVE_SCHEDULED_AMOUNT',
+          `${field} at quarter ending ${quarterInput.period.periodEnd} is negative ` +
+            `(${formatMoney(value)}); scheduled deployment/fee/expense amounts must be ` +
+            'non-negative for the coverage-target recurrence to stay monotonic.',
+          {
+            period: quarterInput.period,
+            field,
+            valueUsd: formatMoney(value),
+          }
+        );
+      }
+    }
+  }
+}
+
 /**
  * Prefix sums of combined scheduled need (deployment + fee + expense), one
  * entry per quarter index, cumulative through that index inclusive.
@@ -122,6 +175,7 @@ export function sizeCashAssemblyCallsV1(
   if (quarters.length === 0) {
     throw new Error('sizeCashAssemblyCallsV1 requires at least one quarter.');
   }
+  assertNonNegativeScheduledAmounts(quarters);
   if (openingCashUsd === null) {
     throw new CashAssemblyCallSizingV1Error(
       'OPENING_CASH_UNAVAILABLE',

@@ -304,4 +304,74 @@ describe('cash assembly call sizing and buffer roll-down v1', () => {
       })
     ).toThrow();
   });
+
+  it.each([
+    ['scheduledDeploymentUsd', { scheduledFeeUsd: ZERO, scheduledExpenseUsd: ZERO }] as const,
+    ['scheduledFeeUsd', { scheduledFeeUsd: new Decimal('-5'), scheduledExpenseUsd: ZERO }] as const,
+    [
+      'scheduledExpenseUsd',
+      { scheduledFeeUsd: ZERO, scheduledExpenseUsd: new Decimal('-5') },
+    ] as const,
+  ])(
+    'rejects a negative %s with NEGATIVE_SCHEDULED_AMOUNT, never silently going non-monotonic',
+    (field, overrides) => {
+      const quarters: CallSizingQuarterNeedInputV1[] =
+        field === 'scheduledDeploymentUsd'
+          ? [quarter('2026-01-01', '2026-03-31', '-5')]
+          : [
+              {
+                period: period('2026-01-01', '2026-03-31'),
+                scheduledDeploymentUsd: new Decimal('10'),
+                scheduledFeeUsd: overrides.scheduledFeeUsd,
+                scheduledExpenseUsd: overrides.scheduledExpenseUsd,
+              },
+            ];
+
+      let thrown: CashAssemblyCallSizingV1Error | undefined;
+      try {
+        sizeCashAssemblyCallsV1({
+          quarters,
+          cashBufferQuarters: 0,
+          openingCashUsd: ZERO,
+          unfundedEnvelopeRemainingUsd: LARGE_ENVELOPE,
+        });
+      } catch (error) {
+        thrown = error as CashAssemblyCallSizingV1Error;
+      }
+
+      expect(thrown).toBeInstanceOf(CashAssemblyCallSizingV1Error);
+      expect(thrown!.code).toBe('NEGATIVE_SCHEDULED_AMOUNT');
+      expect(thrown!.context).toMatchObject({
+        period: period('2026-01-01', '2026-03-31'),
+        field,
+        valueUsd: '-5.000000',
+      });
+    }
+  );
+
+  it('reports the first violating quarter when a later quarter carries the negative amount', () => {
+    const quarters: CallSizingQuarterNeedInputV1[] = [
+      quarter('2026-01-01', '2026-03-31', '10'),
+      quarter('2026-04-01', '2026-06-30', '-1'),
+    ];
+
+    let thrown: CashAssemblyCallSizingV1Error | undefined;
+    try {
+      sizeCashAssemblyCallsV1({
+        quarters,
+        cashBufferQuarters: 0,
+        openingCashUsd: ZERO,
+        unfundedEnvelopeRemainingUsd: LARGE_ENVELOPE,
+      });
+    } catch (error) {
+      thrown = error as CashAssemblyCallSizingV1Error;
+    }
+
+    expect(thrown).toBeInstanceOf(CashAssemblyCallSizingV1Error);
+    expect(thrown!.code).toBe('NEGATIVE_SCHEDULED_AMOUNT');
+    expect(thrown!.context).toMatchObject({
+      period: period('2026-04-01', '2026-06-30'),
+      field: 'scheduledDeploymentUsd',
+    });
+  });
 });
