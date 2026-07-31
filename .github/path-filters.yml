@@ -29,8 +29,11 @@
 # pr_security:      Files that warrant lightweight PR security checks.
 # security_tests:   Files that warrant the security integration test suite.
 # security_relevant:
-#                   Files that warrant deep security scans on PRs. Schedules,
-#                   dispatches, and push-to-main still run full deep scans.
+#                   Files that warrant deep security scans on push/PR events.
+#                   Schedule and workflow_dispatch events always run full deep
+#                   scans regardless of changed paths; push and pull_request
+#                   events run the heavy scans only when changed paths match
+#                   this filter.
 # codeql_relevant:  Files that warrant full CodeQL analysis instead of the
 #                   required-check-safe pass-through path.
 # claude_review_relevant:

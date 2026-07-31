@@ -2,6 +2,14 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import {
+  classifyExecutionPath,
+  detailedDurationStats,
+  metricStats,
+  queueWaitMs,
+  summarizeTiming,
+  workflowDurationMs,
+} from './lib/ci-telemetry-core.mjs';
 
 const DEFAULT_LIMIT = 50;
 const MS_PER_MINUTE = 60_000;
@@ -11,6 +19,12 @@ const OPTION_PARSERS = new Map([
   ['--limit', (options, value) => {
     options.limit = Number.parseInt(value, 10);
   }],
+  ['--details-limit', (options, value) => {
+    options.detailsLimit = Number.parseInt(value, 10);
+  }],
+  ['--detail-workflow', (options, value) => {
+    options.detailWorkflows.push(value);
+  }],
   ['--json', (options, value) => {
     options.jsonPath = value;
   }],
@@ -19,10 +33,13 @@ const OPTION_PARSERS = new Map([
   }],
 ]);
 const RUN_FIELDS = 'databaseId,event,headBranch,conclusion,status,createdAt,startedAt,updatedAt';
+const EXECUTION_PATH_KINDS = ['fast-path', 'affected-path', 'full-path', 'heavy-path', 'unknown'];
 
 function parseArgs(argv) {
   const options = {
     limit: DEFAULT_LIMIT,
+    detailsLimit: 0,
+    detailWorkflows: [],
     jsonPath: null,
     markdownPath: null,
   };
@@ -44,6 +61,7 @@ function parseArgs(argv) {
   }
 
   validateLimit(options.limit);
+  validateDetailsOptions(options);
   return options;
 }
 
@@ -62,13 +80,24 @@ function validateLimit(limit) {
   }
 }
 
+function validateDetailsOptions(options) {
+  if (!Number.isInteger(options.detailsLimit) || options.detailsLimit < 0) {
+    throw new Error('--details-limit must be a non-negative integer');
+  }
+  if (options.detailWorkflows.length > 0 && options.detailsLimit === 0) {
+    throw new Error('--detail-workflow requires --details-limit > 0');
+  }
+}
+
 function printUsage() {
   console.log(`Usage: npm run ci:telemetry -- [options]
 
 Options:
-  --limit <n>       Maximum workflow runs to inspect per workflow. Default: ${DEFAULT_LIMIT}
-  --json <path>     Write JSON report to path.
-  --markdown <path> Write Markdown report to path.
+  --limit <n>              Maximum workflow runs to inspect per workflow. Default: ${DEFAULT_LIMIT}
+  --details-limit <n>      Recent runs per selected workflow to inspect. Default: 0.
+  --detail-workflow <path> Repeatable workflow path; requires --details-limit > 0.
+  --json <path>             Write JSON report to path.
+  --markdown <path>         Write Markdown report to path.
 `);
 }
 
@@ -142,47 +171,25 @@ function requiredStatusForWorkflow(workflow, required) {
   return checkNames.has(workflow.name) ? 'required' : 'not-visible';
 }
 
-function parseDurationMs(runRecord) {
-  const start = Date.parse(runRecord.startedAt || runRecord.createdAt || '');
-  const end = Date.parse(runRecord.updatedAt || '');
-
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
-    return null;
-  }
-
-  return end - start;
-}
-
-function percentile(sortedValues, percentileValue) {
-  if (sortedValues.length === 0) return null;
-  const index = Math.ceil((percentileValue / 100) * sortedValues.length) - 1;
-  return sortedValues[Math.max(0, Math.min(sortedValues.length - 1, index))];
-}
-
-function billedMinutesForRun(runId) {
-  if (!runId) return null;
-
-  const timing = ghJson(['api', `repos/:owner/:repo/actions/runs/${runId}/timing`], null);
-  if (!timing) return null;
-
-  if (typeof timing.run_duration_ms === 'number') {
-    return roundMinutes(timing.run_duration_ms / MS_PER_MINUTE);
-  }
-
-  if (!timing.billable || typeof timing.billable !== 'object') {
-    return null;
-  }
-
-  const totalMs = Object.values(timing.billable).reduce((sum, value) => {
-    if (!value || typeof value !== 'object') return sum;
-    return sum + (typeof value.total_ms === 'number' ? value.total_ms : 0);
-  }, 0);
-
-  return totalMs > 0 ? roundMinutes(totalMs / MS_PER_MINUTE) : null;
-}
-
 function roundMinutes(value) {
   return Math.round(value * 100) / 100;
+}
+
+function timingForRun(runId) {
+  if (!runId) return { runnerDurationMinutes: null, billableMinutes: null };
+
+  const timing = ghJson(['api', `repos/:owner/:repo/actions/runs/${runId}/timing`], null);
+  if (!timing) return { runnerDurationMinutes: null, billableMinutes: null };
+
+  return summarizeTiming(timing);
+}
+
+function runJobs(runId) {
+  const response = ghJson(
+    ['run', 'view', String(runId), '--json', 'jobs'],
+    { jobs: [] }
+  );
+  return Array.isArray(response.jobs) ? response.jobs : [];
 }
 
 function workflowTriggerKind(workflowPath, pathExistsAtHead) {
@@ -246,21 +253,10 @@ function workflowRuns(workflowId, limit) {
   );
 }
 
-function durationStats(runs) {
-  const durations = runs
-    .map(parseDurationMs)
-    .filter((value) => typeof value === 'number')
-    .sort((a, b) => a - b);
-
-  return {
-    p50: durations.length ? roundMinutes(percentile(durations, 50) / MS_PER_MINUTE) : null,
-    p95: durations.length ? roundMinutes(percentile(durations, 95) / MS_PER_MINUTE) : null,
-    sampleSize: durations.length,
-  };
-}
-
 function lastRunSummary(lastRun) {
   if (!lastRun) return null;
+
+  const timing = timingForRun(lastRun.databaseId);
 
   return {
     id: lastRun.databaseId,
@@ -271,8 +267,9 @@ function lastRunSummary(lastRun) {
     createdAt: lastRun.createdAt,
     startedAt: lastRun.startedAt,
     updatedAt: lastRun.updatedAt,
-    durationMinutes: roundMinutes((parseDurationMs(lastRun) ?? 0) / MS_PER_MINUTE),
-    billedMinutes: billedMinutesForRun(lastRun.databaseId),
+    durationMinutes: roundMinutes((workflowDurationMs(lastRun) ?? 0) / MS_PER_MINUTE),
+    runnerDurationMinutes: timing.runnerDurationMinutes,
+    billableMinutes: timing.billableMinutes,
   };
 }
 
@@ -287,12 +284,38 @@ function isStaleOrphanCandidate({ classification, workflow, requiredStatus, last
   );
 }
 
-function inspectWorkflow(workflow, limit, required) {
+function executionPathDetail(workflow, runs, options) {
+  const isSelected = options.detailWorkflows.includes(workflow.path);
+  if (!isSelected || options.detailsLimit === 0) {
+    return { executionPaths: null, detailedDurationMinutes: null };
+  }
+
+  const detailedRuns = runs.slice(0, options.detailsLimit).map((sampledRun) => ({
+    runId: sampledRun.databaseId,
+    jobs: runJobs(sampledRun.databaseId),
+  }));
+
+  const executionRuns = detailedRuns.map(({ runId, jobs }) => ({
+    runId,
+    classification: classifyExecutionPath(workflow.path, jobs),
+  }));
+
+  const counts = Object.fromEntries(EXECUTION_PATH_KINDS.map((kind) => [kind, 0]));
+  for (const sampledRun of executionRuns) counts[sampledRun.classification] += 1;
+
+  return {
+    executionPaths: { counts, runs: executionRuns },
+    detailedDurationMinutes: detailedDurationStats(detailedRuns),
+  };
+}
+
+function inspectWorkflow(workflow, limit, required, options) {
   const pathExistsAtHead = gitPathExistsAtHead(workflow.path);
   const runs = workflowRuns(workflow.id, limit);
   const lastRun = runs[0] ?? null;
   const requiredStatus = requiredStatusForWorkflow(workflow, required);
   const classification = classifyWorkflow({ workflow, pathExistsAtHead, runs });
+  const { executionPaths, detailedDurationMinutes } = executionPathDetail(workflow, runs, options);
 
   return {
     id: workflow.id,
@@ -304,7 +327,10 @@ function inspectWorkflow(workflow, limit, required) {
     classification,
     staleOrphanCandidate: isStaleOrphanCandidate({ classification, workflow, requiredStatus, lastRun }),
     lastRun: lastRunSummary(lastRun),
-    durationMinutes: durationStats(runs),
+    workflowDurationMinutes: metricStats(runs.map(workflowDurationMs)),
+    queueWaitMinutes: metricStats(runs.map(queueWaitMs)),
+    executionPaths,
+    detailedDurationMinutes,
   };
 }
 
@@ -320,9 +346,12 @@ function markdownReport(report) {
       workflow.classification,
       workflow.requiredCheckStatus,
       last ? `${last.event} / ${last.branch ?? ''} / ${last.conclusion ?? last.status ?? ''}` : 'none',
-      formatNullable(workflow.durationMinutes.p50),
-      formatNullable(workflow.durationMinutes.p95),
-      formatNullable(last?.billedMinutes),
+      formatNullable(workflow.workflowDurationMinutes.p50Minutes),
+      formatNullable(workflow.workflowDurationMinutes.p95Minutes),
+      formatNullable(workflow.queueWaitMinutes.p50Minutes),
+      formatNullable(workflow.queueWaitMinutes.p95Minutes),
+      formatNullable(last?.runnerDurationMinutes),
+      formatNullable(last?.billableMinutes),
     ];
   });
 
@@ -330,11 +359,12 @@ function markdownReport(report) {
     '# CI Live Telemetry',
     '',
     `Generated: ${report.generatedAt}`,
+    `Schema version: ${report.schemaVersion}`,
     `Run sample limit per workflow: ${report.limit}`,
     `Required status checks: ${report.requiredChecks.enabled ? 'enabled' : 'not enabled'}`,
     '',
-    '| ID | Name | Path | State | Path at HEAD | Classification | Required | Last run | p50 min | p95 min | Billed min |',
-    '| ---: | --- | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: |',
+    '| ID | Name | Path | State | Path at HEAD | Classification | Required | Last run | Workflow p50 min | Workflow p95 min | Queue p50 min | Queue p95 min | Runner min | Billable min |',
+    '| ---: | --- | --- | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |',
   ];
 
   for (const row of rows) {
@@ -355,6 +385,27 @@ function markdownReport(report) {
   } else {
     for (const workflow of cleanupCandidates) {
       lines.push(`- ${workflow.id} ${workflow.name} (${workflow.path})`);
+    }
+  }
+
+  const detailedWorkflows = report.workflows.filter((workflow) => workflow.executionPaths);
+  if (detailedWorkflows.length > 0) {
+    lines.push('', '## Detailed Execution Sampling', '');
+    for (const workflow of detailedWorkflows) {
+      lines.push(`### ${workflow.name} (${workflow.path})`, '');
+      lines.push('| Execution path | Count |', '| --- | ---: |');
+      for (const kind of EXECUTION_PATH_KINDS) {
+        lines.push(`| ${kind} | ${workflow.executionPaths.counts[kind]} |`);
+      }
+      lines.push('', '**Jobs**', '', '| Job | p50 min | p95 min | Sample size |', '| --- | ---: | ---: | ---: |');
+      for (const [name, stats] of Object.entries(workflow.detailedDurationMinutes.jobs)) {
+        lines.push(`| ${escapeMarkdownCell(name)} | ${formatNullable(stats.p50Minutes)} | ${formatNullable(stats.p95Minutes)} | ${stats.sampleSize} |`);
+      }
+      lines.push('', '**Steps**', '', '| Step | p50 min | p95 min | Sample size |', '| --- | ---: | ---: | ---: |');
+      for (const [name, stats] of Object.entries(workflow.detailedDurationMinutes.steps)) {
+        lines.push(`| ${escapeMarkdownCell(name)} | ${formatNullable(stats.p50Minutes)} | ${formatNullable(stats.p95Minutes)} | ${stats.sampleSize} |`);
+      }
+      lines.push('');
     }
   }
 
@@ -382,10 +433,11 @@ function main() {
   const workflows = ghJson(['workflow', 'list', '--all', '--json', 'id,name,state,path'], []);
   const required = requiredChecks();
   const report = {
+    schemaVersion: 2,
     generatedAt: new Date().toISOString(),
     limit: options.limit,
     requiredChecks: required,
-    workflows: workflows.map((workflow) => inspectWorkflow(workflow, options.limit, required)),
+    workflows: workflows.map((workflow) => inspectWorkflow(workflow, options.limit, required, options)),
   };
 
   const json = `${JSON.stringify(report, null, 2)}\n`;

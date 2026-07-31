@@ -5,13 +5,26 @@ export const DOCS_ONLY_CLASSIFICATION = 'docs-only-skip';
 export const FULL_RUN_CLASSIFICATION = 'full-run';
 export const NO_CHANGES_CLASSIFICATION = 'no-changes';
 export const TARGETED_CLASSIFICATION = 'targeted';
-export const TYPE_FIX_ONLY_CLASSIFICATION = 'type-fix-only-skip';
 
-export const NON_TEST_IMPACTING_PATTERN =
-  /^(docs\/|.*\.md$|.*\.ya?ml$|.*\.toml$|.*\.gitignore$|CLAUDE\.md$)/;
-export const FULL_RUN_PATTERN =
-  /(vitest\.config\.ts|vite\.config\.ts|tsconfig\.json|package\.json|package-lock\.json)/;
-export const TYPE_FIX_ONLY_PATTERN = /(ErrorBoundary|LoadingState|CHANGELOG)/;
+export const DOCS_ONLY_PATTERNS = [
+  /^docs\//,
+  /\.mdx?$/i,
+  /^\.gitignore$/,
+];
+export const FULL_RUN_PATTERNS = [
+  /^package(?:-lock)?\.json$/,
+  /^tsconfig(?:\.[^/]+)?\.json$/,
+  /^(?:vite|vitest)\.config\.[^/]+$/,
+  /^\.github\/(?:actions|workflows)\//,
+  /^\.github\/path-filters\.ya?ml$/,
+  /^Dockerfile(?:\..+)?$/,
+  /^docker-compose(?:\.[^/]+)?\.ya?ml$/,
+  /^scripts\/(?:test-smart|pre-push|pre-push-classification|typescript-baseline)\.(?:mjs|cjs)$/,
+];
+
+function matchesAny(file, patterns) {
+  return patterns.some((pattern) => pattern.test(file));
+}
 
 function normalizeChangedFiles(changedFiles) {
   return changedFiles.map((file) => file.trim()).filter(Boolean);
@@ -24,16 +37,12 @@ export function classifyChangedFiles(changedFiles) {
     return NO_CHANGES_CLASSIFICATION;
   }
 
-  if (files.every((file) => NON_TEST_IMPACTING_PATTERN.test(file))) {
+  if (files.every((file) => matchesAny(file, DOCS_ONLY_PATTERNS))) {
     return DOCS_ONLY_CLASSIFICATION;
   }
 
-  if (files.some((file) => FULL_RUN_PATTERN.test(file))) {
+  if (files.some((file) => matchesAny(file, FULL_RUN_PATTERNS))) {
     return FULL_RUN_CLASSIFICATION;
-  }
-
-  if (files.some((file) => TYPE_FIX_ONLY_PATTERN.test(file))) {
-    return TYPE_FIX_ONLY_CLASSIFICATION;
   }
 
   return TARGETED_CLASSIFICATION;

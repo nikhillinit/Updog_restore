@@ -112,7 +112,6 @@ switch (classification) {
     process.exit(0);
     break;
   case 'full-run':
-  case 'type-fix-only-skip':
   case 'targeted':
     break;
   default:
@@ -156,14 +155,10 @@ if (classification === 'full-run') {
 }
 
 console.log('Running targeted tests for changed files...');
-if (classification === 'type-fix-only-skip') {
-  console.log('Type-fix only changes detected (ErrorBoundary/LoadingState/CHANGELOG)');
-  console.log('TypeScript baseline check already passed');
-  console.log('Skipping test suite (no behavioral changes)');
-  process.exit(0);
-}
-
 const changedFiles = splitLines(changed);
+// Local optimization only. Vitest related follows statically discoverable
+// imports; required CI remains authoritative and fails closed through the
+// affected-test planner when direct ownership is not proven.
 run('npx', [
   'vitest',
   'related',

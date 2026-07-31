@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       auto_docs_only: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' && steps.filter.outputs.auto_docs == 'true' && steps.filter.outputs.not_auto_docs == 'false' }}
-      security_relevant: ${{ github.event_name != 'pull_request' || steps.filter.outputs.security_relevant == 'true' }}
+      security_relevant: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || steps.filter.outputs.security_relevant == 'true' }}
     steps:
       - name: Checkout repository
         if: github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
