@@ -236,7 +236,7 @@ function containingQuarterEnd(value: string): string {
   return formatDate(date.year, quarterEndMonth, daysInMonth(date.year, quarterEndMonth));
 }
 
-function compareCanonicalUtcInstants(left: string, right: string): number {
+export function compareCanonicalUtcInstants(left: string, right: string): number {
   const pattern = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d+))?Z$/;
   const leftMatch = pattern.exec(left);
   const rightMatch = pattern.exec(right);
