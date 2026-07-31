@@ -2,7 +2,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -71,6 +71,7 @@ function parseArgs(argv = []) {
     manualModel: null,
     legacyCommand: null,
     tier: null,
+    batchesFile: null,
   };
 
   if (argv[0] && LEGACY_COMMANDS.has(argv[0])) {
@@ -127,6 +128,9 @@ function parseArgs(argv = []) {
       index += 1;
     } else if (arg === '--task') {
       options.task = argv[index + 1] || '';
+      index += 1;
+    } else if (arg === '--batches-file') {
+      options.batchesFile = argv[index + 1] || null;
       index += 1;
     } else if (arg === '--claude') {
       options.manualModel = 'claude';
@@ -439,6 +443,7 @@ function createRoutingPlan({
   requestedWorkflow = null,
   skipPreflightGate = false,
   gateSkipReason = null,
+  batches = null,
 }) {
   const specialist = scoreSpecialist(task, routing.specialists || {}, routing.scoring || {});
   let tierResult = classifyTier(task, routing, explicitTier);
@@ -492,6 +497,10 @@ function createRoutingPlan({
       preflight: true,
       reason: gateSkipReason || 'unspecified',
     };
+  }
+
+  if (Array.isArray(batches) && batches.length > 0) {
+    plan.batches = batches;
   }
 
   return plan;
@@ -1326,10 +1335,286 @@ function defaultRunStep() {
   );
 }
 
+async function runOwnerReviewRepairRound({
+  ownerStep,
+  moaStep,
+  reviewerStep,
+  runRecorded,
+  records,
+  moaRunner,
+  initialArtifact = null,
+  initialOwnerInput = null,
+  task,
+  routing,
+  env,
+  moaConfig,
+  maxRepairs,
+}) {
+  let artifact = initialArtifact;
+  let moaResult = null;
+  let approved = true;
+  let repairs = 0;
+
+  if (artifact === null && ownerStep) {
+    const owner = await runRecorded(ownerStep, initialOwnerInput, 0);
+    // eslint-disable-next-line require-atomic-updates -- owner production is awaited and serialized.
+    artifact = owner.output ?? '';
+  }
+
+  if (!moaStep && !reviewerStep) {
+    return { artifact, approved, repairs, moaResult };
+  }
+
+  let previousFindingKeys = new Set();
+
+  const runReviewRound = async (attempt) => {
+    let roundApproved = true;
+    let repairInput = '';
+
+    if (moaStep) {
+      moaResult = await moaRunner({
+        artifact: artifact ?? '',
+        task: task ?? '',
+        mode: moaStep.mode,
+        moaConfig,
+        routing,
+        env,
+      });
+      records.push({
+        role: 'moa-review',
+        model: moaStep.model,
+        attempt,
+        code: moaResult.degraded && moaStep.mode === 'moa-strict' ? 1 : 0,
+        approved: moaResult.approved,
+        output: JSON.stringify({
+          votes: moaResult.votes,
+          findings: moaResult.findings,
+        }),
+      });
+      if (moaResult.degraded) {
+        process.stderr.write(
+          `[hermes] WARNING: MOA review degraded (mode ${moaStep.mode}): ${JSON.stringify(moaResult.votes)}\n`
+        );
+      }
+      if (!moaResult.approved) {
+        roundApproved = false;
+        repairInput += `MOA REVIEW FINDINGS:\n${JSON.stringify(moaResult.findings, null, 2)}\n`;
+      }
+    }
+
+    let reviewerApproved = null;
+    if (reviewerStep) {
+      const review = await runRecorded(reviewerStep, artifact, attempt);
+      reviewerApproved = Boolean(review.approved);
+      if (!review.approved) {
+        roundApproved = false;
+        repairInput += `REVIEWER OUTPUT:\n${review.output ?? ''}`;
+      }
+    }
+
+    return { roundApproved, repairInput, reviewerApproved };
+  };
+
+  let round = await runReviewRound(0);
+  approved = round.roundApproved;
+
+  while (!approved && repairs < maxRepairs && ownerStep) {
+    if (
+      moaResult?.degraded &&
+      (moaStep?.mode === 'moa-strict' ||
+        (!moaResult.approved && (moaResult.findings?.length ?? 0) === 0))
+    ) {
+      break; // transport failure: repairing code cannot fix a crashed reviewer lane
+    }
+    const currentFindingKeys = new Set((moaResult?.findings || []).map(findingKey));
+    const newKeys = [...currentFindingKeys].filter((key) => !previousFindingKeys.has(key));
+    const moaIsSoleRejector =
+      moaStep && moaResult && !moaResult.approved && round.reviewerApproved !== false;
+    if (moaIsSoleRejector && !moaResult.degraded && newKeys.length === 0 && repairs > 0) {
+      break; // dry loop: MOA repeats known findings and nothing else rejects
+    }
+    previousFindingKeys = currentFindingKeys;
+
+    repairs += 1;
+    const repair = await runRecorded(ownerStep, round.repairInput, repairs);
+    // eslint-disable-next-line require-atomic-updates -- repair rounds own artifact state and run serially.
+    artifact = repair.output ?? artifact;
+    round = await runReviewRound(repairs);
+    approved = round.roundApproved;
+  }
+
+  return { artifact, approved, repairs, moaResult };
+}
+
+async function executeBatchedWorkflow(plan, deps = {}) {
+  const workflow = plan.workflow;
+  if (plan.phase !== 'production') {
+    throw new Error('Batched workflows require the production phase.');
+  }
+  const maxRepairs = Number.isInteger(deps.maxRepairs) ? deps.maxRepairs : 2;
+  const runStep = deps.runStep || defaultRunStep;
+  const gateRunner = deps.gateRunner || spawnSync;
+  const assertGate = deps.assertFinancialGate || assertFinancialGate;
+  const ledgerWriter = deps.writeRunLedger === undefined ? null : deps.writeRunLedger;
+  const clock = deps.clock || (() => new Date());
+  const runId = deps.runId || generateRunId(clock());
+
+  const stepByRole = (role) => workflow.steps.find((step) => step.role === role) || null;
+  const ownerStep = stepByRole('owner');
+  const specialistStep = stepByRole('specialist');
+  const moaStep = stepByRole('moa-review');
+  const reviewerStep = stepByRole('reviewer');
+  const auditStep = stepByRole('audit');
+  const moaRunner = deps.moaRunner || runMoaReview;
+  const routing = deps.routing || null;
+  const env = deps.env || process.env;
+
+  if (!ownerStep) {
+    throw new Error('Batched workflows require an owner step.');
+  }
+
+  let specialistNotes = null;
+  const records = [];
+  let stepFailureCode = 0;
+  const runRecorded = async (step, input, attempt) => {
+    const result = await runStep({ step, input, notes: specialistNotes, plan, attempt, runId });
+    const code = result.code ?? 0;
+    if (stepFailureCode === 0 && code !== 0) {
+      stepFailureCode = code;
+    }
+    records.push({
+      role: step.role,
+      model: step.model,
+      attempt,
+      code,
+      approved: result.approved ?? null,
+      output: result.output ?? '',
+    });
+    return result;
+  };
+
+  let accumulatedArtifact = '';
+  const batchResults = [];
+  let haltedAt = null;
+  let totalRepairs = 0;
+
+  for (let index = 0; index < plan.batches.length; index += 1) {
+    const batchDescription = plan.batches[index];
+    const round = await runOwnerReviewRepairRound({
+      ownerStep,
+      moaStep,
+      reviewerStep,
+      runRecorded,
+      records,
+      moaRunner,
+      initialArtifact: null,
+      initialOwnerInput: [accumulatedArtifact, batchDescription],
+      task: plan.task,
+      routing,
+      env,
+      moaConfig: deps.moaConfig || routing?.moaReview || {},
+      maxRepairs,
+    });
+    batchResults.push({
+      index,
+      description: batchDescription,
+      approved: round.approved,
+      repairs: round.repairs,
+    });
+    totalRepairs += round.repairs;
+    accumulatedArtifact = round.artifact;
+    if (!round.approved) {
+      haltedAt = index;
+      break;
+    }
+  }
+
+  let finalPass = null;
+  let gate = { command: plan.gate || null, skipped: true, status: 0 };
+  let exitCode = 0;
+
+  if (haltedAt !== null) {
+    exitCode = 1;
+  } else {
+    if (specialistStep) {
+      const specialist = await runRecorded(specialistStep, accumulatedArtifact, 0);
+      specialistNotes = specialist.output ?? null;
+    }
+
+    finalPass = await runOwnerReviewRepairRound({
+      ownerStep,
+      moaStep,
+      reviewerStep,
+      runRecorded,
+      records,
+      moaRunner,
+      initialArtifact: accumulatedArtifact,
+      task: plan.task,
+      routing,
+      env,
+      moaConfig: deps.moaConfig || routing?.moaReview || {},
+      maxRepairs,
+    });
+    accumulatedArtifact = finalPass.artifact;
+    totalRepairs += finalPass.repairs;
+
+    if (auditStep) {
+      await runRecorded(auditStep, accumulatedArtifact, totalRepairs);
+    }
+
+    // Batched workflows gate only after final full-artifact approval.
+    if (finalPass.approved && plan.gate) {
+      if (isProductionFinancial(plan)) {
+        assertGate(plan);
+      }
+      gate = runGate(plan.gate, { runner: gateRunner, throwOnFailure: false });
+    }
+
+    if (gate.status && gate.status !== 0) {
+      exitCode = gate.status;
+    } else if (stepFailureCode !== 0) {
+      exitCode = stepFailureCode;
+    } else if (!finalPass.approved) {
+      exitCode = 1;
+    }
+  }
+
+  const record = {
+    runId,
+    workflow: workflow.selected,
+    phase: plan.phase,
+    risk: plan.risk,
+    approved: haltedAt === null && Boolean(finalPass?.approved),
+    moa: finalPass ? finalPass.moaResult : null,
+    repairs: totalRepairs,
+    steps: records,
+    batches: { total: plan.batches.length, results: batchResults, haltedAt },
+    gate: {
+      command: gate.command ?? null,
+      status: gate.status ?? 0,
+      skipped: gate.skipped ?? false,
+    },
+    exitCode,
+  };
+
+  if (ledgerWriter) {
+    try {
+      ledgerWriter(record);
+    } catch {
+      // ledger persistence is best-effort; the execution result is still returned
+    }
+  }
+
+  return record;
+}
+
 async function executeWorkflow(plan, deps = {}) {
   const workflow = plan.workflow;
   if (!workflow || !Array.isArray(workflow.steps)) {
     throw new Error('executeWorkflow requires a plan with a workflow.steps array.');
+  }
+  if (Array.isArray(plan.batches) && plan.batches.length > 0) {
+    return executeBatchedWorkflow(plan, deps);
   }
 
   const maxRepairs = Number.isInteger(deps.maxRepairs) ? deps.maxRepairs : 2;
@@ -1401,84 +1686,25 @@ async function executeWorkflow(plan, deps = {}) {
       specialistNotes = specialist.output ?? null;
     }
 
-    let previousFindingKeys = new Set();
-
-    const runReviewRound = async (attempt) => {
-      let roundApproved = true;
-      let repairInput = '';
-
-      if (moaStep) {
-        moaResult = await moaRunner({
-          artifact: artifact ?? '',
-          task: plan.task ?? '',
-          mode: moaStep.mode,
-          moaConfig: deps.moaConfig || routing?.moaReview || {},
-          routing,
-          env,
-        });
-        records.push({
-          role: 'moa-review',
-          model: moaStep.model,
-          attempt,
-          code: moaResult.degraded && moaStep.mode === 'moa-strict' ? 1 : 0,
-          approved: moaResult.approved,
-          output: JSON.stringify({
-            votes: moaResult.votes,
-            findings: moaResult.findings,
-          }),
-        });
-        if (moaResult.degraded) {
-          process.stderr.write(
-            `[hermes] WARNING: MOA review degraded (mode ${moaStep.mode}): ${JSON.stringify(moaResult.votes)}\n`
-          );
-        }
-        if (!moaResult.approved) {
-          roundApproved = false;
-          repairInput += `MOA REVIEW FINDINGS:\n${JSON.stringify(moaResult.findings, null, 2)}\n`;
-        }
-      }
-
-      let reviewerApproved = null;
-      if (reviewerStep) {
-        const review = await runRecorded(reviewerStep, artifact, attempt);
-        reviewerApproved = Boolean(review.approved);
-        if (!review.approved) {
-          roundApproved = false;
-          repairInput += `REVIEWER OUTPUT:\n${review.output ?? ''}`;
-        }
-      }
-
-      return { roundApproved, repairInput, reviewerApproved };
-    };
-
     if (moaStep || reviewerStep) {
-      let round = await runReviewRound(0);
-      approved = round.roundApproved;
-
-      while (!approved && repairs < maxRepairs && ownerStep) {
-        if (
-          moaResult?.degraded &&
-          (moaStep?.mode === 'moa-strict' ||
-            (!moaResult.approved && (moaResult.findings?.length ?? 0) === 0))
-        ) {
-          break; // transport failure: repairing code cannot fix a crashed reviewer lane
-        }
-        const currentFindingKeys = new Set((moaResult?.findings || []).map(findingKey));
-        const newKeys = [...currentFindingKeys].filter((key) => !previousFindingKeys.has(key));
-        const moaIsSoleRejector =
-          moaStep && moaResult && !moaResult.approved && round.reviewerApproved !== false;
-        if (moaIsSoleRejector && !moaResult.degraded && newKeys.length === 0 && repairs > 0) {
-          break; // dry loop: MOA repeats known findings and nothing else rejects
-        }
-        previousFindingKeys = currentFindingKeys;
-
-        repairs += 1;
-        const repair = await runRecorded(ownerStep, round.repairInput, repairs);
-        // eslint-disable-next-line require-atomic-updates -- repair rounds own artifact state and run serially.
-        artifact = repair.output ?? artifact;
-        round = await runReviewRound(repairs);
-        approved = round.roundApproved;
-      }
+      const round = await runOwnerReviewRepairRound({
+        ownerStep,
+        moaStep,
+        reviewerStep,
+        runRecorded,
+        records,
+        moaRunner,
+        initialArtifact: artifact,
+        task: plan.task,
+        routing,
+        env,
+        moaConfig: deps.moaConfig || routing?.moaReview || {},
+        maxRepairs,
+      });
+      artifact = round.artifact;
+      approved = round.approved;
+      repairs = round.repairs;
+      moaResult = round.moaResult;
     }
 
     if (auditStep) {
@@ -1568,6 +1794,9 @@ Output:
 Workflow planning:
   --workflow <auto|solo|pair|chain|debate|review>
                  Add a planning-only workflow recommendation to dry-run output.
+  --batches-file <path>
+                 Load ordered implementation batches from a JSON array of non-empty strings.
+                 Requires production phase and an owner-based auto, solo, pair, or chain workflow.
   --live         Execute the planned workflow live (spawns real model CLIs).
                  Without --live, --workflow stays planning-only.
                  T2/T3 production dispatches auto-upgrade to a live workflow (no --live needed).
@@ -1717,6 +1946,20 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     throw new Error('--task is required. Use --help for usage.');
   }
 
+  if (options.batchesFile) {
+    if (options.phase !== 'production') {
+      throw new Error('--batches-file requires --phase production.');
+    }
+    if (!options.workflowProvided) {
+      throw new Error('--batches-file requires --workflow <auto|solo|pair|chain>.');
+    }
+    if (options.workflow === 'debate' || options.workflow === 'review') {
+      throw new Error(
+        '--batches-file supports only owner-based auto, solo, pair, or chain workflows.'
+      );
+    }
+  }
+
   const liveExecutionEarly = options.live || env.HERMES_LIVE === '1' || env.HERMES_LIVE === 'true';
   if (options.workflowProvided && !options.dryRun && !options.json && !liveExecutionEarly) {
     throw new Error('--workflow is planning-only; use --dry-run or --json. Add --live to execute.');
@@ -1729,6 +1972,23 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
   const routing = deps.routing || loadJSON(routingPath);
   const brain = deps.brain ?? loadText(brainPath);
   const soul = deps.soul ?? loadText(soulPath, { optional: true });
+  let batches = null;
+  if (options.batchesFile) {
+    const batchesPath = isAbsolute(options.batchesFile)
+      ? options.batchesFile
+      : join(ROOT, options.batchesFile);
+    const parsed = (deps.loadJSON || loadJSON)(batchesPath);
+    const isValid =
+      Array.isArray(parsed) &&
+      parsed.length > 0 &&
+      parsed.every((entry) => typeof entry === 'string' && entry.trim().length > 0);
+    if (!isValid) {
+      throw new Error(
+        `--batches-file must point to a JSON array of one or more non-empty strings (got: ${batchesPath}).`
+      );
+    }
+    batches = parsed;
+  }
   const runId = generateRunId(clock());
   let plan = createRoutingPlan({
     phase: options.phase,
@@ -1739,6 +1999,7 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
     skipPreflightGate: options.skipPreflightGate,
     gateSkipReason: options.gateSkipReason,
     explicitTier: options.tier,
+    batches,
   });
   let autoWorkflow = false;
   if (
@@ -1757,6 +2018,7 @@ async function main(argv = process.argv.slice(2), env = process.env, io = proces
       skipPreflightGate: options.skipPreflightGate,
       gateSkipReason: options.gateSkipReason,
       explicitTier: options.tier,
+      batches,
     });
     autoWorkflow = true;
   }
