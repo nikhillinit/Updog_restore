@@ -8,6 +8,7 @@ import type {
 import * as americanLedgerModule from '../../../shared/lib/waterfall/american-ledger';
 import {
   computeLedgerAllocationV1,
+  LedgerAllocationInvariantError,
   type LedgerAllocationConfigV1,
 } from '../../../shared/lib/internal-economics/ledger-allocation-v1';
 
@@ -37,19 +38,15 @@ const L03_EXITS: ExitCF[] = [
 
 /**
  * Build the full AmericanWaterfallConfig that the wrapper should pass
- * to the underlying ledger: only carryPct + hurdleRate, with recycling
- * and clawback structurally disabled.
+ * to the underlying ledger: carryPct only, with hurdle, recycling, and
+ * clawback structurally disabled.
  */
 function expectedFullConfig(narrow: LedgerAllocationConfigV1): AmericanWaterfallConfig {
-  const cfg: AmericanWaterfallConfig = {
+  return {
     carryPct: narrow.carryPct,
     recyclingEnabled: false,
     clawbackEnabled: false,
   };
-  if (narrow.hurdleRate !== undefined) {
-    cfg.hurdleRate = narrow.hurdleRate;
-  }
-  return cfg;
 }
 
 // ── tests ────────────────────────────────────────────────────────────
@@ -104,20 +101,6 @@ describe('computeLedgerAllocationV1', () => {
       expect(wrapped.rows[1]!.gpCarry).toBe(260_000);
     });
 
-    it('with hurdleRate: wrapper matches direct call', () => {
-      const config: LedgerAllocationConfigV1 = { carryPct: 0.2, hurdleRate: 0.08 };
-      const contributions: ContributionCF[] = [{ quarter: 1, amount: 1_000_000 }];
-      const exits: ExitCF[] = [{ quarter: 4, grossProceeds: 2_000_000 }];
-
-      const direct = calculateAmericanWaterfallLedger(
-        expectedFullConfig(config),
-        contributions,
-        exits
-      );
-      const wrapped = computeLedgerAllocationV1(config, contributions, exits);
-
-      expect(wrapped).toEqual(direct);
-    });
   });
 
   // ── structural enforcement tests ─────────────────────────────────
@@ -138,12 +121,13 @@ describe('computeLedgerAllocationV1', () => {
       spy.mockRestore();
     });
 
-    it('ignores recycling/clawback fields if somehow present on input object', () => {
+    it('ignores hurdle/recycling/clawback fields if somehow present on input object', () => {
       const spy = vi.spyOn(americanLedgerModule, 'calculateAmericanWaterfallLedger');
 
       // Force extra fields at runtime (callers cannot do this via the type system)
       const tainted = {
         carryPct: 0.2,
+        hurdleRate: 0.08,
         recyclingEnabled: true,
         clawbackEnabled: true,
         clawbackLpHurdleMultiple: 1.1,
@@ -154,11 +138,54 @@ describe('computeLedgerAllocationV1', () => {
 
       expect(spy).toHaveBeenCalledTimes(1);
       const passedConfig = spy.mock.calls[0]![0] as AmericanWaterfallConfig;
+      expect(passedConfig.hurdleRate).toBeUndefined();
       expect(passedConfig.recyclingEnabled).toBeUndefined();
       expect(passedConfig.clawbackEnabled).toBeUndefined();
       // Ensure tainted fields are NOT forwarded
       expect(passedConfig).not.toHaveProperty('clawbackLpHurdleMultiple');
       expect(passedConfig).not.toHaveProperty('recyclingCapPctOfCommitted');
+
+      spy.mockRestore();
+    });
+
+    it('throws LedgerAllocationInvariantError when the ledger reports recycled cash', () => {
+      const clean = calculateAmericanWaterfallLedger(
+        expectedFullConfig(L02_CONFIG),
+        L02_CONTRIBUTIONS,
+        L02_EXITS
+      );
+      const taintedResult = {
+        ...clean,
+        totals: { ...clean.totals, recycled: 1 },
+      };
+      const spy = vi
+        .spyOn(americanLedgerModule, 'calculateAmericanWaterfallLedger')
+        .mockReturnValue(taintedResult);
+
+      expect(() => computeLedgerAllocationV1(L02_CONFIG, L02_CONTRIBUTIONS, L02_EXITS)).toThrow(
+        LedgerAllocationInvariantError
+      );
+
+      spy.mockRestore();
+    });
+
+    it('throws LedgerAllocationInvariantError when the ledger reports clawback', () => {
+      const clean = calculateAmericanWaterfallLedger(
+        expectedFullConfig(L02_CONFIG),
+        L02_CONTRIBUTIONS,
+        L02_EXITS
+      );
+      const taintedResult = {
+        ...clean,
+        totals: { ...clean.totals, gpClawback: 100 },
+      };
+      const spy = vi
+        .spyOn(americanLedgerModule, 'calculateAmericanWaterfallLedger')
+        .mockReturnValue(taintedResult);
+
+      expect(() => computeLedgerAllocationV1(L02_CONFIG, L02_CONTRIBUTIONS, L02_EXITS)).toThrow(
+        LedgerAllocationInvariantError
+      );
 
       spy.mockRestore();
     });
@@ -185,13 +212,16 @@ describe('computeLedgerAllocationV1', () => {
   // ── type safety tests ────────────────────────────────────────────
 
   describe('type safety', () => {
-    it('LedgerAllocationConfigV1 exposes only carryPct and hurdleRate', () => {
-      // Compile-time verification: the type shape is exactly what we expect.
-      // At runtime, verify the wrapper builds a config with only the allowed keys.
-      const config: LedgerAllocationConfigV1 = { carryPct: 0.2, hurdleRate: 0.08 };
-      const keys = Object.keys(config);
-      expect(keys).toEqual(expect.arrayContaining(['carryPct', 'hurdleRate']));
-      expect(keys.length).toBe(2);
+    it('forwards a config containing exactly carryPct to the ledger', () => {
+      const spy = vi.spyOn(americanLedgerModule, 'calculateAmericanWaterfallLedger');
+
+      computeLedgerAllocationV1({ carryPct: 0.2 }, L01_CONTRIBUTIONS, L01_EXITS);
+
+      const passedConfig = spy.mock.calls[0]![0] as AmericanWaterfallConfig;
+      expect(Object.keys(passedConfig)).toEqual(['carryPct']);
+      expect(passedConfig.carryPct).toBe(0.2);
+
+      spy.mockRestore();
     });
 
     it('accepts readonly contribution and exit arrays', () => {
