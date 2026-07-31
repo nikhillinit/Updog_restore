@@ -14,6 +14,33 @@ export interface MultiEventCapitalCallFixture {
 
 export type MultiEventAccountingFixture = MultiEventProceedsFixture | MultiEventCapitalCallFixture;
 
+export function generatePermutations<T>(items: readonly T[]): T[][] {
+  if (items.length === 0) return [[]];
+
+  return items.flatMap((item, index) => {
+    const remaining = [...items.slice(0, index), ...items.slice(index + 1)];
+    return generatePermutations(remaining).map((permutation) => [item, ...permutation]);
+  });
+}
+
+export function assertEveryPermutationProducesByteIdenticalResult<TInput, TResult>(
+  items: readonly TInput[],
+  assemble: (permutation: readonly TInput[]) => TResult
+): TResult {
+  const permutations = generatePermutations(items);
+  const firstResult = assemble(permutations[0] ?? []);
+  const expectedBytes = JSON.stringify(firstResult);
+
+  for (const permutation of permutations.slice(1)) {
+    const actualBytes = JSON.stringify(assemble(permutation));
+    if (actualBytes !== expectedBytes) {
+      throw new Error('Input permutation changed assembled event-stream bytes.');
+    }
+  }
+
+  return firstResult;
+}
+
 /**
  * Waterfall config the expected totals were computed under. Declared
  * explicitly so the fixtures are self-describing: consumers must not

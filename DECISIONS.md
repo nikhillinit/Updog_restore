@@ -9432,3 +9432,44 @@ activation, production traffic, or feature availability.
   recorded in the spec's Deviation register. The authoritative #1176 correction
   supersedes the initial five-ratified/one-pending posting and closes entry 4:
   https://github.com/nikhillinit/Updog_restore/issues/1176#issuecomment-5134955218
+
+Addendum (2026-07-31, WP-2b-3 approval gate A1): the plan's WP-L2b cash-assembly
+implementation plan
+(`docs/superpowers/plans/2026-07-30-task163-wp-l2b-cash-assembly-and-nonzero-fees-plan.md`)
+gates its period-loop package (WP-2b-4) behind human review of WP-2b-3's
+call-sizing design note. Four design choices, none spec-sourced (D6 gives
+qualitative behavior only), were ratified as-proposed with no amendments:
+
+1. **Coverage-target formula.** The buffer coverage target uses a
+   cumulative-from-start windowed sum, not a fresh per-quarter window sum. The
+   two forms are equal only when each quarter's scheduled need is fully consumed
+   within that same quarter — a real constraint binding WP-2b-4's period loop,
+   not merely an implementation detail. (An earlier draft of this rationale in
+   the design note misattributed the equivalence to input non-negativity;
+   corrected before ratification — non-negativity is what keeps the resulting
+   call amounts non-negative, a separate property.)
+2. **Two-slot call timing** (deployment funding call at `periodStart`,
+   fee/expense true-up at `periodEnd`) is accepted as an inert V1 placeholder.
+   It is unproven for nonzero fees and is guarded by outright rejection
+   (`NONZERO_FEE_EXPENSE_UNSUPPORTED_V1`) rather than an unproven subtraction —
+   a review-round fix after a hand-run repro produced a negative call slot at
+   nonzero fee inputs. Part 2 (nonzero fee/expense program) must revisit this
+   split before lifting the guard.
+3. **`unfundedEnvelopeRemainingUsd`** (already defined on
+   `CashAssemblyEngineStateV1` in WP-2b-1) is reused as the legal
+   capital-envelope value, rather than introducing a parallel field, ahead of
+   Brief 3's immutable capital-envelope entity landing.
+4. **Calls are sized net of the horizon-starting opening cash only** — never net
+   of interim realized/recallable proceeds landing in earlier quarters. Ratified
+   as V1's intentional scope: WP-2b-4's period loop tracks real cash via
+   `endingCashUsd` separately, and call sizing is not expected to net proceeds.
+   Funds where proceeds are not immediately and fully distributed will
+   accumulate idle cash this function cannot see — a known, accepted V1
+   limitation, not a defect to silently work around in WP-2b-4.
+
+Full design note (superseded by this addendum as the durable record; the note
+itself lives in a git-ignored per-plan workspace and is not preserved
+long-term):
+`.superpowers/sdd/2026-07-30-task163-wp-l2b-cash-assembly-and-nonzero-fees-plan/wp2b3-design-note.md`.
+Implementation: `shared/lib/internal-economics/cash-assembly-call-sizing-v1.ts`
+(commits `8d73c28a`, `25678cc1`, `a1259d2a`).
