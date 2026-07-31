@@ -314,6 +314,7 @@ function foldDecimalWaterfallEventV1(
   }
 
   accumulator.unreturnedCapital = nextUnreturnedCapital;
+  // `profitDistributed` is write-only in V1 no-hurdle fold; staged for ADR-065's hurdle-bearing `annualized_compound` successor core, not current behavior.
   accumulator.profitDistributed = accumulator.profitDistributed.plus(lpProfit);
   accumulator.totalGross = accumulator.totalGross.plus(event.gross);
   accumulator.totalRoc = accumulator.totalRoc.plus(roc);
