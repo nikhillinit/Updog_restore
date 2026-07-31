@@ -1,11 +1,12 @@
 /**
  * cash-assembly-period-loop-v1.ts
  *
- * Pure projected-period cash assembly loop. Phases 1-2 compose the existing
+ * Pure projected-period cash assembly loop. Phases 1-3 compose the existing
  * period-grid, event-stream, call-sizing, and quarterly-row modules; enforce
  * opening-state eligibility, cutover partitioning, and historical cash
- * reconciliation; then apply the D6 cash recurrence in its required order.
- * Decimal waterfall decomposition, terminal realization, and XIRR assembly
+ * reconciliation; invoke the Decimal waterfall core once; join allocations by
+ * source ID; quantize and validate presentation rows; then apply the D6 cash
+ * recurrence in its required order. Terminal realization and XIRR assembly
  * remain later ordered TDD phases.
  *
  * Phase 1 invariants:
@@ -36,8 +37,16 @@ import {
 } from './cash-assembly-event-stream-v1';
 import {
   sizeCashAssemblyCallsV1,
+  type CashAssemblyCallSizingQuarterV1,
   type CallSizingQuarterNeedInputV1,
 } from './cash-assembly-call-sizing-v1';
+import {
+  computeDecimalWaterfallAllocationV1,
+  type CoreAllocationRowV1,
+  type CoreContributionV1,
+  type CoreDistributionV1,
+} from './decimal-waterfall-core-v1';
+import { processWaterfallRunForPresentation } from './presentation-rounding-v1';
 import {
   buildCashAssemblyPeriodGridV1,
   buildCashAssemblyQuarterRowV1,
@@ -46,6 +55,7 @@ import {
 } from './cash-assembly-types-v1';
 
 const ZERO = new Decimal(0);
+const ZERO_MONEY = '0.000000';
 const RESULT_STATUS_REASONS = [
   'DECIMAL_CORE_UNCERTIFIED',
   'LP_NET_NAV_FLAT_SHARE_APPROXIMATION',
@@ -247,9 +257,7 @@ function partitionProjectedPeriods(
 }
 
 type HistoricalReconciliationCategory =
-  | 'lp_capital_call'
-  | 'lp_distribution'
-  | 'recallable_distribution';
+  'lp_capital_call' | 'lp_distribution' | 'recallable_distribution';
 
 function assertHistoricalReconciliation(input: {
   readonly eventStream: AssembledCashEventStreamV1;
@@ -398,6 +406,89 @@ function buildDeploymentDeltaMap(
   return deploymentDeltas;
 }
 
+interface PreparedProjectedQuarterV1 {
+  readonly period: CashAssemblyPeriodV1;
+  readonly forecastPoint: CurrentForecastSeriesPointV1;
+  readonly deployment: Decimal;
+  readonly callSizingQuarter: CashAssemblyCallSizingQuarterV1;
+  readonly scheduledNeed: CallSizingQuarterNeedInputV1;
+  readonly lpCall: Decimal;
+  readonly grossProceeds: Decimal;
+}
+
+interface QuantizedCoreAllocationV1 {
+  readonly sourceId: string;
+  readonly periodIndex: number;
+  readonly gross6: Decimal;
+  readonly roc6: Decimal;
+  readonly lpProfit6: Decimal;
+  readonly carry6: Decimal;
+}
+
+function coreMappingMismatch(message: string, context: Record<string, string>): never {
+  throw new CashAssemblyPeriodLoopV1Error('CORE_ROW_MAPPING_MISMATCH', message, context);
+}
+
+function quantizeCoreRowsBySourceId(input: {
+  readonly distributions: readonly CoreDistributionV1[];
+  readonly rows: readonly CoreAllocationRowV1[];
+}): QuantizedCoreAllocationV1[] {
+  if (input.rows.length !== input.distributions.length) {
+    coreMappingMismatch('Decimal core row count does not match distribution event count.', {
+      distributionCount: String(input.distributions.length),
+      rowCount: String(input.rows.length),
+    });
+  }
+
+  const rowsBySourceId = new Map<string, CoreAllocationRowV1>();
+  for (const row of input.rows) {
+    if (rowsBySourceId.has(row.sourceId)) {
+      coreMappingMismatch('Decimal core returned duplicate source IDs.', {
+        sourceId: row.sourceId,
+      });
+    }
+    rowsBySourceId.set(row.sourceId, row);
+  }
+
+  const distributionIds = new Set(input.distributions.map((event) => event.sourceId));
+  for (const sourceId of rowsBySourceId.keys()) {
+    if (!distributionIds.has(sourceId)) {
+      coreMappingMismatch('Decimal core returned an unknown source ID.', { sourceId });
+    }
+  }
+
+  return input.distributions.map((event) => {
+    const row = rowsBySourceId.get(event.sourceId);
+    if (row === undefined) {
+      coreMappingMismatch('Decimal core omitted a distribution source ID.', {
+        sourceId: event.sourceId,
+      });
+    }
+    if (!row.gross.eq(new Decimal(event.grossUsd))) {
+      coreMappingMismatch('Decimal core row gross does not match its distribution event.', {
+        sourceId: event.sourceId,
+        eventGrossUsd: event.grossUsd,
+        rowGrossUsd: row.gross.toFixed(),
+      });
+    }
+
+    const gross6 = row.gross.toDecimalPlaces(6);
+    const roc6 = row.roc.toDecimalPlaces(6);
+    const residual6 = gross6.minus(roc6);
+    const carry6 = row.gpCarry.toDecimalPlaces(6, Decimal.ROUND_HALF_UP);
+    const lpProfit6 = residual6.minus(carry6);
+
+    return {
+      sourceId: event.sourceId,
+      periodIndex: event.periodIndex,
+      gross6,
+      roc6,
+      lpProfit6,
+      carry6,
+    };
+  });
+}
+
 function assertScheduledDeploymentsMatchForecast(input: {
   readonly projectedPeriods: readonly CashAssemblyPeriodV1[];
   readonly scheduledNeeds: readonly CallSizingQuarterNeedInputV1[];
@@ -415,8 +506,7 @@ function assertScheduledDeploymentsMatchForecast(input: {
         {
           periodEnd: period.periodEnd,
           scheduledDeploymentUsd: scheduledDeployment.toFixed(6),
-          forecastDeploymentDeltaUsd:
-            forecastDeploymentDelta?.toFixed(6) ?? 'missing',
+          forecastDeploymentDeltaUsd: forecastDeploymentDelta?.toFixed(6) ?? 'missing',
         }
       );
     }
@@ -456,10 +546,7 @@ export function executeCashAssemblyPeriodLoopV1(
     factsPeriodNav: input.factsPeriodNav,
     cutoverInstant: input.openingState.cutoverInstant,
   });
-  const projectedPeriods = partitionProjectedPeriods(
-    periodGrid,
-    input.openingState.cutoverInstant
-  );
+  const projectedPeriods = partitionProjectedPeriods(periodGrid, input.openingState.cutoverInstant);
   assertHistoricalReconciliation({ eventStream, openingState: input.openingState });
   alignScheduledNeeds(projectedPeriods, input.scheduledNeeds);
   const deploymentDeltaByPeriod = buildDeploymentDeltaMap(input.forecastSeries);
@@ -481,21 +568,10 @@ export function executeCashAssemblyPeriodLoopV1(
   });
   const projectedPointByPeriod = buildProjectedPointMap(input.forecastSeries);
 
-  const quarters: CashAssemblyQuarterRowV1[] = [];
-  let openingCash = new Decimal(input.openingState.cashBalanceUsd);
-  let cumulativeLpPaidIn = new Decimal(input.openingState.cumulativeLpPaidInUsd);
-  let cumulativeLpDistributed = new Decimal(
-    input.openingState.actualLpDistributionsCumulativeUsd
-  );
-  let remainingEnvelope = initialRemainingEnvelope;
-
-  for (let index = 0; index < projectedPeriods.length; index += 1) {
-    const period = projectedPeriods[index]!;
+  const preparedQuarters = projectedPeriods.map((period, index): PreparedProjectedQuarterV1 => {
     const key = periodKey(period);
     const forecastPoint = projectedPointByPeriod.get(key);
     const deployment = deploymentDeltaByPeriod.get(key);
-    const callSizingQuarter = callSizing.quarters[index]!;
-    const scheduledNeed = input.scheduledNeeds[index]!;
 
     if (forecastPoint === undefined || deployment === undefined) {
       throw new CashAssemblyPeriodLoopV1Error(
@@ -505,17 +581,131 @@ export function executeCashAssemblyPeriodLoopV1(
       );
     }
 
-    const lpCall = new Decimal(callSizingQuarter.totalCallUsd);
+    return {
+      period,
+      forecastPoint,
+      deployment,
+      callSizingQuarter: callSizing.quarters[index]!,
+      scheduledNeed: input.scheduledNeeds[index]!,
+      lpCall: new Decimal(callSizing.quarters[index]!.totalCallUsd),
+      grossProceeds: new Decimal(forecastPoint.distributionsUsd),
+    };
+  });
+
+  // Carry first enters the pipeline at Phase 3 core-input construction. Its
+  // validation remains after the already-implemented pipeline steps 1-8.
+  assertCarryPct(input.carryPct);
+  const carryRatio = new Decimal(input.carryPct).toFixed(12);
+
+  const coreContributions: CoreContributionV1[] = preparedQuarters.flatMap(
+    (quarter, periodIndex) =>
+      quarter.lpCall.isZero()
+        ? []
+        : [
+            {
+              sourceId: `forecast:${input.forecastSnapshotId}:quarter:${quarter.period.periodEnd}:lp_capital_call`,
+              periodIndex,
+              amountUsd: quarter.lpCall.toFixed(6),
+            },
+          ]
+  );
+  const periodIndexByEnd = new Map(
+    preparedQuarters.map((quarter, periodIndex) => [quarter.period.periodEnd, periodIndex])
+  );
+  const coreDistributions: CoreDistributionV1[] = eventStream.events.flatMap((event) => {
+    if (event.source !== 'forecast' || event.eventType !== 'forecast_quarterly_distribution') {
+      return [];
+    }
+    const periodEnd = event.effectiveAt.slice(0, 10);
+    const periodIndex = periodIndexByEnd.get(periodEnd);
+    if (periodIndex === undefined) return [];
+
+    return [
+      {
+        sourceId: event.stableSourceId,
+        periodIndex,
+        grossUsd: event.amountUsd,
+        isTerminal: false,
+      },
+    ];
+  });
+
+  const coreResult = computeDecimalWaterfallAllocationV1({
+    carryRatio,
+    hurdle: { basis: 'none' },
+    openingState: input.openingState,
+    contributions: coreContributions,
+    distributions: coreDistributions,
+  });
+  const quantizedAllocations = quantizeCoreRowsBySourceId({
+    distributions: coreDistributions,
+    rows: coreResult.rows,
+  });
+
+  processWaterfallRunForPresentation(
+    quantizedAllocations.map((allocation) => ({
+      totalUsd: allocation.gross6,
+      rocUsd: allocation.roc6,
+      preferredReturnUsd: new Decimal(0),
+      lpResidualUsd: allocation.lpProfit6,
+      gpCarryUsd: allocation.carry6,
+    }))
+  );
+
+  const waterfallEvents = quantizedAllocations.map((allocation): CashAssemblyWaterfallEventV1 => {
+    const quarter = preparedQuarters[allocation.periodIndex];
+    if (quarter === undefined) {
+      coreMappingMismatch('Decimal core row references an unknown period index.', {
+        sourceId: allocation.sourceId,
+        periodIndex: String(allocation.periodIndex),
+      });
+    }
+
+    return {
+      periodEnd: quarter.period.periodEnd,
+      sourceId: allocation.sourceId,
+      grossDistributionUsd: allocation.gross6.toFixed(6),
+      lpCapitalReturnUsd: allocation.roc6.toFixed(6),
+      lpProfitUsd: allocation.lpProfit6.toFixed(6),
+      // G2: GP investment distribution is structurally zero in V1; GP capital is out of scope.
+      gpInvestmentDistributionUsd: ZERO_MONEY,
+      gpCarryUsd: allocation.carry6.toFixed(6),
+    };
+  });
+  const allocationsByPeriodIndex = new Map<number, QuantizedCoreAllocationV1[]>();
+  for (const allocation of quantizedAllocations) {
+    const quarterAllocations = allocationsByPeriodIndex.get(allocation.periodIndex) ?? [];
+    quarterAllocations.push(allocation);
+    allocationsByPeriodIndex.set(allocation.periodIndex, quarterAllocations);
+  }
+
+  const quarters: CashAssemblyQuarterRowV1[] = [];
+  let openingCash = new Decimal(input.openingState.cashBalanceUsd);
+  let cumulativeLpPaidIn = new Decimal(input.openingState.cumulativeLpPaidInUsd);
+  let cumulativeLpDistributed = new Decimal(input.openingState.actualLpDistributionsCumulativeUsd);
+  let remainingEnvelope = initialRemainingEnvelope;
+
+  for (let index = 0; index < preparedQuarters.length; index += 1) {
+    const preparedQuarter = preparedQuarters[index]!;
+    const period = preparedQuarter.period;
+    const forecastPoint = preparedQuarter.forecastPoint;
+    const deployment = preparedQuarter.deployment;
+    const callSizingQuarter = preparedQuarter.callSizingQuarter;
+    const scheduledNeed = preparedQuarter.scheduledNeed;
+    const lpCall = preparedQuarter.lpCall;
     const managementFees = scheduledNeed.scheduledFeeUsd;
     const fundExpenses = scheduledNeed.scheduledExpenseUsd;
-    const grossProceeds = new Decimal(forecastPoint.distributionsUsd);
-
-    // Phase 1 has no waterfall decomposition. Until Phase 3 joins the Decimal
-    // core, projected gross proceeds leave as LP distributions with zero GP
-    // participation, preserving the cash recurrence without inventing carry.
-    const lpDistribution = grossProceeds;
+    const grossProceeds = preparedQuarter.grossProceeds;
+    const quarterAllocations = allocationsByPeriodIndex.get(index) ?? [];
+    const lpDistribution = quarterAllocations.reduce(
+      (total, allocation) => total.plus(allocation.roc6).plus(allocation.lpProfit6),
+      ZERO
+    );
     const gpInvestmentDistribution = ZERO;
-    const gpCarryDistribution = ZERO;
+    const gpCarryDistribution = quarterAllocations.reduce(
+      (total, allocation) => total.plus(allocation.carry6),
+      ZERO
+    );
 
     let endingCash = openingCash.plus(lpCall);
     endingCash = endingCash.minus(deployment);
@@ -578,17 +768,12 @@ export function executeCashAssemblyPeriodLoopV1(
     remainingEnvelope = nextRemainingEnvelope;
   }
 
-  // Carry is first consumed during Phase 3 core-input construction. Keep its
-  // validation after the already-implemented pipeline steps 1-8 so an invalid
-  // future-stage input cannot mask an earlier opening/cutover/schedule error.
-  assertCarryPct(input.carryPct);
-
   const terminalNavBeforeRealizationUsd =
     projectedPointByPeriod.get(periodKey(projectedPeriods.at(-1)!))?.navUsd ?? '0.000000';
 
   return {
     quarters,
-    waterfallEvents: [],
+    waterfallEvents,
     terminalNavBeforeRealizationUsd,
     lpNetIrr: null,
     xirrDiagnostic: PHASE_1_XIRR_DIAGNOSTIC,

@@ -1,4 +1,4 @@
-import { describe, expect, expectTypeOf, it } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import type { CurrentForecastSeriesPointV1 } from '../../../shared/contracts/current-forecast-v2.contract';
 import type { FundAccountingStateObservationV1 } from '../../../shared/contracts/internal-economics/fund-accounting-state-observation-v1.contract';
@@ -26,6 +26,12 @@ import {
   executeCashAssemblyPeriodLoopV1,
   type ExecuteCashAssemblyPeriodLoopV1Input,
 } from '../../../shared/lib/internal-economics/cash-assembly-period-loop-v1';
+import * as decimalWaterfallCore from '../../../shared/lib/internal-economics/decimal-waterfall-core-v1';
+import {
+  DecimalWaterfallCoreV1Error,
+  computeDecimalWaterfallAllocationV1,
+} from '../../../shared/lib/internal-economics/decimal-waterfall-core-v1';
+import { processWaterfallRunForPresentation } from '../../../shared/lib/internal-economics/presentation-rounding-v1';
 import type { CashAssemblyPeriodV1 } from '../../../shared/lib/internal-economics/cash-assembly-types-v1';
 
 const ZERO_MONEY = '0.000000';
@@ -656,5 +662,418 @@ describe('cash assembly period loop v1 Phase 2', () => {
     expectTypeOf<FundAccountingStateObservationV1>().not.toMatchTypeOf<
       ExecuteCashAssemblyPeriodLoopV1Input['openingState']
     >();
+  });
+});
+
+describe('cash assembly period loop v1 Phase 3', () => {
+  it('T3.1 conserves every event after residual D-12 quantization and wires LP/GP quarter totals', () => {
+    const forecastSeries = [
+      forecastPoint('2026-01-01', '2026-03-31', { deployedUsd: '100.000000' }),
+      forecastPoint('2026-04-01', '2026-06-30', {
+        deployedUsd: '100.000000',
+        distributionsUsd: '150.000000',
+      }),
+      forecastPoint('2026-07-01', '2026-09-30', {
+        deployedUsd: '100.000000',
+        distributionsUsd: '50.000000',
+      }),
+    ];
+    const result = execute({
+      forecastSeries,
+      scheduledNeeds: [
+        scheduledNeed(forecastSeries[0]!, '100.000000'),
+        scheduledNeed(forecastSeries[1]!, ZERO_MONEY),
+        scheduledNeed(forecastSeries[2]!, ZERO_MONEY),
+      ],
+      carryPct: 0.2,
+    });
+
+    expect(result.waterfallEvents).toEqual([
+      {
+        periodEnd: '2026-06-30',
+        sourceId: 'forecast:202:quarter:2026-06-30:forecast_quarterly_distribution',
+        grossDistributionUsd: '150.000000',
+        lpCapitalReturnUsd: '100.000000',
+        lpProfitUsd: '40.000000',
+        gpInvestmentDistributionUsd: ZERO_MONEY,
+        gpCarryUsd: '10.000000',
+      },
+      {
+        periodEnd: '2026-09-30',
+        sourceId: 'forecast:202:quarter:2026-09-30:forecast_quarterly_distribution',
+        grossDistributionUsd: '50.000000',
+        lpCapitalReturnUsd: ZERO_MONEY,
+        lpProfitUsd: '40.000000',
+        gpInvestmentDistributionUsd: ZERO_MONEY,
+        gpCarryUsd: '10.000000',
+      },
+    ]);
+
+    for (const event of result.waterfallEvents) {
+      const gross = new Decimal(event.grossDistributionUsd);
+      const roc = new Decimal(event.lpCapitalReturnUsd);
+      const lpProfit = new Decimal(event.lpProfitUsd);
+      const gpInvestment = new Decimal(event.gpInvestmentDistributionUsd);
+      const carry = new Decimal(event.gpCarryUsd);
+      expect(roc.plus(lpProfit).plus(gpInvestment).plus(carry).toFixed(6)).toBe(gross.toFixed(6));
+      expect(
+        gross
+          .minus(roc)
+          .times('0.200000000000')
+          .toDecimalPlaces(6, Decimal.ROUND_HALF_UP)
+          .toFixed(6)
+      ).toBe(event.gpCarryUsd);
+    }
+
+    expect(result.quarters.map((quarter) => quarter.lpDistributionUsd)).toEqual([
+      ZERO_MONEY,
+      '140.000000',
+      '40.000000',
+    ]);
+    expect(result.quarters.map((quarter) => quarter.gpCarryDistributedUsd)).toEqual([
+      ZERO_MONEY,
+      '10.000000',
+      '10.000000',
+    ]);
+    expect(result.quarters.map((quarter) => quarter.cumulativeLpDistributedUsd)).toEqual([
+      ZERO_MONEY,
+      '140.000000',
+      '180.000000',
+    ]);
+  });
+
+  it('T3.2 seeds ROC from opening basis without creating calls, paid-in, or XIRR flows', () => {
+    const actual = forecastPoint('2025-10-01', '2025-12-31', { source: 'actual' });
+    const projected = forecastPoint('2026-01-01', '2026-03-31', {
+      distributionsUsd: '100.000000',
+    });
+    const result = execute({
+      forecastSeries: [actual, projected],
+      scheduledNeeds: [scheduledNeed(projected, ZERO_MONEY)],
+      openingState: openingState({
+        cumulativeLpPaidInUsd: '100.000000',
+        lpDistributionsReturnOfCapitalUsd: '40.000000',
+        actualLpDistributionsCumulativeUsd: '40.000000',
+      }),
+      factsEvents: [
+        {
+          eventId: 1,
+          eventType: 'lp_capital_call',
+          effectiveAt: '2025-10-01T00:00:00.000Z',
+          amountUsd: '100.000000',
+        },
+        {
+          eventId: 2,
+          eventType: 'lp_distribution',
+          effectiveAt: '2025-12-01T00:00:00.000Z',
+          amountUsd: '40.000000',
+        },
+      ],
+    });
+
+    expect(result.waterfallEvents).toEqual([
+      expect.objectContaining({
+        lpCapitalReturnUsd: '60.000000',
+        lpProfitUsd: '32.000000',
+        gpCarryUsd: '8.000000',
+      }),
+    ]);
+    expect(result.quarters[0]).toEqual(
+      expect.objectContaining({
+        lpCapitalCallUsd: ZERO_MONEY,
+        cumulativeLpPaidInUsd: '100.000000',
+        lpDistributionUsd: '92.000000',
+      })
+    );
+    expect(result.waterfallEvents.every((event) => !event.sourceId.startsWith('facts:'))).toBe(
+      true
+    );
+    expect(result.lpNetIrr).toBeNull();
+    expect(result.xirrDiagnostic.failureReason).toBe('INSUFFICIENT_CASH_FLOWS');
+  });
+
+  it('T3.3 joins equal-gross rows by sourceId and orders terminal realization after normal exits', () => {
+    const equalGross = computeDecimalWaterfallAllocationV1({
+      carryRatio: '0.200000000000',
+      hurdle: { basis: 'none' },
+      openingState: openingState({ cumulativeLpPaidInUsd: '100.000000' }),
+      contributions: [],
+      distributions: [
+        { sourceId: 'z-normal', periodIndex: 0, grossUsd: '75.000000', isTerminal: false },
+        { sourceId: 'a-normal', periodIndex: 0, grossUsd: '75.000000', isTerminal: false },
+      ],
+    });
+    expect(
+      equalGross.rows.map((row) => ({ sourceId: row.sourceId, roc: row.roc.toFixed(6) }))
+    ).toEqual([
+      { sourceId: 'a-normal', roc: '75.000000' },
+      { sourceId: 'z-normal', roc: '25.000000' },
+    ]);
+
+    const terminalOrdering = computeDecimalWaterfallAllocationV1({
+      carryRatio: '0.200000000000',
+      hurdle: { basis: 'none' },
+      openingState: openingState({ cumulativeLpPaidInUsd: '100.000000' }),
+      contributions: [],
+      distributions: [
+        { sourceId: 'a-terminal', periodIndex: 0, grossUsd: '50.000000', isTerminal: true },
+        { sourceId: 'z-normal', periodIndex: 0, grossUsd: '150.000000', isTerminal: false },
+      ],
+    });
+    expect(
+      terminalOrdering.rows.map((row) => ({ sourceId: row.sourceId, roc: row.roc.toFixed(6) }))
+    ).toEqual([
+      { sourceId: 'z-normal', roc: '100.000000' },
+      { sourceId: 'a-terminal', roc: ZERO_MONEY },
+    ]);
+
+    const projected = forecastPoint('2026-01-01', '2026-03-31', {
+      distributionsUsd: '1.000000',
+    });
+    const coreSpy = vi.spyOn(decimalWaterfallCore, 'computeDecimalWaterfallAllocationV1');
+    try {
+      const result = execute({
+        forecastSeries: [projected],
+        scheduledNeeds: [scheduledNeed(projected, ZERO_MONEY)],
+      });
+      expect(coreSpy).toHaveBeenCalledOnce();
+      const coreInput = coreSpy.mock.calls[0]![0];
+      expect(coreInput.distributions).toEqual([
+        {
+          sourceId: 'forecast:202:quarter:2026-03-31:forecast_quarterly_distribution',
+          periodIndex: 0,
+          grossUsd: '1.000000',
+          isTerminal: false,
+        },
+      ]);
+      expect(
+        coreInput.distributions.every(
+          (event) => event.isTerminal === false && !event.sourceId.endsWith(':terminal_liquidation')
+        )
+      ).toBe(true);
+      expect(result.waterfallEvents.map((event) => event.sourceId)).toEqual(
+        coreInput.distributions.map((event) => event.sourceId)
+      );
+    } finally {
+      coreSpy.mockRestore();
+    }
+  });
+
+  it('T3.4 keeps LP profit nonnegative at the tight residual-quantization boundary', () => {
+    const actual = forecastPoint('2025-10-01', '2025-12-31', { source: 'actual' });
+    const projected = forecastPoint('2026-01-01', '2026-03-31', {
+      distributionsUsd: '1.000000',
+    });
+    const result = execute({
+      forecastSeries: [actual, projected],
+      scheduledNeeds: [scheduledNeed(projected, ZERO_MONEY)],
+      openingState: openingState({ cumulativeLpPaidInUsd: '0.999999' }),
+      factsEvents: [
+        {
+          eventId: 1,
+          eventType: 'lp_capital_call',
+          effectiveAt: '2025-12-01T00:00:00.000Z',
+          amountUsd: '0.999999',
+        },
+      ],
+      carryPct: 0.999999,
+    });
+
+    expect(result.waterfallEvents).toEqual([
+      expect.objectContaining({
+        grossDistributionUsd: '1.000000',
+        lpCapitalReturnUsd: '0.999999',
+        lpProfitUsd: ZERO_MONEY,
+        gpCarryUsd: '0.000001',
+      }),
+    ]);
+    expect(new Decimal(result.waterfallEvents[0]!.lpProfitUsd).gte(0)).toBe(true);
+  });
+
+  it('T3.5 emits byte-identical waterfall prefixes for every loop prefix', () => {
+    const fullForecast = [
+      forecastPoint('2026-01-01', '2026-03-31', {
+        deployedUsd: '100.000000',
+        distributionsUsd: '60.000000',
+      }),
+      forecastPoint('2026-04-01', '2026-06-30', {
+        deployedUsd: '125.000000',
+        distributionsUsd: '80.000000',
+      }),
+      forecastPoint('2026-07-01', '2026-09-30', {
+        deployedUsd: '125.000000',
+        distributionsUsd: '50.000000',
+      }),
+    ];
+    const fullNeeds = [
+      scheduledNeed(fullForecast[0]!, '100.000000'),
+      scheduledNeed(fullForecast[1]!, '25.000000'),
+      scheduledNeed(fullForecast[2]!, ZERO_MONEY),
+    ];
+    const full = execute({
+      forecastSeries: fullForecast,
+      scheduledNeeds: fullNeeds,
+      unfundedEnvelopeRemainingUsd: '200.000000',
+    });
+    expect(full.waterfallEvents).toHaveLength(3);
+
+    for (let count = 1; count <= fullForecast.length; count += 1) {
+      const prefix = execute({
+        forecastSeries: fullForecast.slice(0, count),
+        scheduledNeeds: fullNeeds.slice(0, count),
+        unfundedEnvelopeRemainingUsd: '200.000000',
+      });
+      expect(JSON.stringify(prefix.waterfallEvents)).toBe(
+        JSON.stringify(full.waterfallEvents.slice(0, count))
+      );
+    }
+  });
+
+  it('T3.6 propagates core opening-state errors without wrapping', () => {
+    const projected = forecastPoint('2026-01-01', '2026-03-31');
+    const malformedOpeningState = {
+      ...openingState(),
+      lpDistributionsProfitUsd: 'malformed',
+    } as FundAccountingStateObservationV1_1;
+
+    let caught: unknown;
+    try {
+      execute({
+        forecastSeries: [projected],
+        scheduledNeeds: [scheduledNeed(projected, ZERO_MONEY)],
+        openingState: malformedOpeningState,
+      });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(DecimalWaterfallCoreV1Error);
+    expect(caught).toMatchObject({
+      name: 'DecimalWaterfallCoreV1Error',
+      code: 'OPENING_STATE_INVALID',
+    });
+    expect(caught).not.toBeInstanceOf(CashAssemblyPeriodLoopV1Error);
+  });
+
+  it('T3.8 sends projected distributions and calls, never historical distributions, to the core', () => {
+    const actual = forecastPoint('2025-10-01', '2025-12-31', { source: 'actual' });
+    const projected = forecastPoint('2026-01-01', '2026-03-31', {
+      deployedUsd: '25.000000',
+      distributionsUsd: '75.000000',
+    });
+    const coreSpy = vi.spyOn(decimalWaterfallCore, 'computeDecimalWaterfallAllocationV1');
+    try {
+      const result = execute({
+        forecastSeries: [actual, projected],
+        scheduledNeeds: [scheduledNeed(projected, '25.000000')],
+        openingState: openingState({
+          cumulativeLpPaidInUsd: '100.000000',
+          lpDistributionsReturnOfCapitalUsd: '50.000000',
+          actualLpDistributionsCumulativeUsd: '50.000000',
+        }),
+        factsEvents: [
+          {
+            eventId: 1,
+            eventType: 'lp_capital_call',
+            effectiveAt: '2025-10-01T00:00:00.000Z',
+            amountUsd: '100.000000',
+          },
+          {
+            eventId: 2,
+            eventType: 'lp_distribution',
+            effectiveAt: '2025-12-01T00:00:00.000Z',
+            amountUsd: '50.000000',
+          },
+        ],
+      });
+
+      expect(coreSpy).toHaveBeenCalledOnce();
+      const coreInput = coreSpy.mock.calls[0]![0];
+      expect(coreInput.contributions).toEqual([
+        {
+          sourceId: 'forecast:202:quarter:2026-03-31:lp_capital_call',
+          periodIndex: 0,
+          amountUsd: '25.000000',
+        },
+      ]);
+      expect(coreInput.distributions.map((event) => event.sourceId)).toEqual([
+        'forecast:202:quarter:2026-03-31:forecast_quarterly_distribution',
+      ]);
+      expect(coreInput.distributions.every((event) => !event.sourceId.startsWith('facts:'))).toBe(
+        true
+      );
+      expect(result.waterfallEvents.map((event) => event.sourceId)).toEqual(
+        coreInput.distributions.map((event) => event.sourceId)
+      );
+    } finally {
+      coreSpy.mockRestore();
+    }
+  });
+
+  it('T3.10 preserves the LP-first exact-remainder tie at the D1 validation boundary', () => {
+    const projected = forecastPoint('2026-01-01', '2026-03-31', {
+      distributionsUsd: '0.010000',
+    });
+    const result = execute({
+      forecastSeries: [projected],
+      scheduledNeeds: [scheduledNeed(projected, ZERO_MONEY)],
+      carryPct: 0.5,
+    });
+    const event = result.waterfallEvents[0]!;
+    const rounded = processWaterfallRunForPresentation([
+      {
+        totalUsd: new Decimal(event.grossDistributionUsd),
+        rocUsd: new Decimal(event.lpCapitalReturnUsd),
+        preferredReturnUsd: new Decimal(0),
+        lpResidualUsd: new Decimal(event.lpProfitUsd),
+        gpCarryUsd: new Decimal(event.gpCarryUsd),
+      },
+    ]);
+
+    expect(event).toEqual(
+      expect.objectContaining({
+        lpProfitUsd: '0.005000',
+        gpCarryUsd: '0.005000',
+      })
+    );
+    expect(rounded.events[0]).toEqual({
+      totalCents: '1',
+      rocCents: '0',
+      preferredReturnCents: '0',
+      lpResidualCents: '1',
+      gpCarryCents: '0',
+    });
+  });
+
+  it('T3.11 pins the loop to hurdle none while the core refuses preference-bearing inputs', () => {
+    const projected = forecastPoint('2026-01-01', '2026-03-31', {
+      distributionsUsd: '1.000000',
+    });
+    const coreSpy = vi.spyOn(decimalWaterfallCore, 'computeDecimalWaterfallAllocationV1');
+    try {
+      execute({
+        forecastSeries: [projected],
+        scheduledNeeds: [scheduledNeed(projected, ZERO_MONEY)],
+      });
+      expect(coreSpy).toHaveBeenCalledOnce();
+      expect(coreSpy.mock.calls[0]![0].hurdle).toEqual({ basis: 'none' });
+    } finally {
+      coreSpy.mockRestore();
+    }
+
+    expect(() =>
+      computeDecimalWaterfallAllocationV1({
+        carryRatio: '0.200000000000',
+        hurdle: { basis: 'annualized_compound' } as unknown as { readonly basis: 'none' },
+        openingState: openingState(),
+        contributions: [],
+        distributions: [],
+      })
+    ).toThrowError(
+      expect.objectContaining({
+        name: 'DecimalWaterfallCoreV1Error',
+        code: 'PREF_BEARING_UNSUPPORTED_V1',
+      })
+    );
   });
 });
