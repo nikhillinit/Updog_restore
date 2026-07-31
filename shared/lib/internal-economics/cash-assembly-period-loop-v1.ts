@@ -1,13 +1,17 @@
 /**
  * cash-assembly-period-loop-v1.ts
  *
- * Pure projected-period cash assembly loop. Phases 1-3 compose the existing
+ * Pure projected-period cash assembly loop. Phases 1-4 compose the existing
  * period-grid, event-stream, call-sizing, and quarterly-row modules; enforce
  * opening-state eligibility, cutover partitioning, and historical cash
  * reconciliation; invoke the Decimal waterfall core once; join allocations by
- * source ID; quantize and validate presentation rows; then apply the D6 cash
- * recurrence in its required order. Terminal realization and XIRR assembly
- * remain later ordered TDD phases.
+ * source ID; quantize and validate presentation rows; apply the D6 cash
+ * recurrence in its required order; resolve terminal realization; and compute
+ * LP-net XIRR.
+ *
+ * D-5 timezone disclosure: XIRR determinism is conditional on running with
+ * TZ=UTC because the frozen upstream safeXIRR date normalization uses local-time
+ * getters (tracked by issue #1256). The rest of this loop is timezone-pure.
  *
  * Phase 1 invariants:
  * - opening cash threads from each emitted quarter into the next;
@@ -28,6 +32,7 @@ import {
 } from '../../contracts/internal-economics/terminal-policy-v1.contract';
 import type { XirrDiagnostic } from '../../contracts/lp-reporting/lp-metric-run.contract';
 import { Decimal } from '../decimal-config';
+import { safeXIRR, type CashFlowEvent } from '../finance/xirr';
 import {
   assembleCashEventStreamV1,
   type AssembledCashEventStreamV1,
@@ -61,13 +66,8 @@ const RESULT_STATUS_REASONS = [
   'LP_NET_NAV_FLAT_SHARE_APPROXIMATION',
 ] as const;
 
-const PHASE_1_XIRR_DIAGNOSTIC: XirrDiagnostic = {
-  convergence: 'failed',
-  iterations: 0,
-  method: 'none',
-  boundHit: null,
-  failureReason: 'INSUFFICIENT_CASH_FLOWS',
-};
+const XIRR_MIN_RATE = -0.999999;
+const XIRR_MAX_RATE = 200;
 
 export interface ExecuteCashAssemblyPeriodLoopV1Input {
   readonly factsSnapshotId: number;
@@ -425,6 +425,131 @@ interface QuantizedCoreAllocationV1 {
   readonly carry6: Decimal;
 }
 
+interface DecimalXirrFlowV1 {
+  readonly date: string;
+  readonly amount: Decimal;
+}
+
+interface LpNetXirrResultV1 {
+  readonly lpNetIrr: string | null;
+  readonly xirrDiagnostic: XirrDiagnostic;
+}
+
+function buildTerminalLiquidationDistribution(input: {
+  readonly forecastSnapshotId: number;
+  readonly periodEnd: string;
+  readonly periodIndex: number;
+  readonly terminalNav: Decimal;
+}): CoreDistributionV1 {
+  return {
+    sourceId: `forecast:${input.forecastSnapshotId}:quarter:${input.periodEnd}:terminal_liquidation`,
+    periodIndex: input.periodIndex,
+    grossUsd: input.terminalNav.toFixed(6),
+    isTerminal: true,
+  };
+}
+
+function xirrFailure(failureReason: XirrDiagnostic['failureReason']): LpNetXirrResultV1 {
+  return {
+    lpNetIrr: null,
+    xirrDiagnostic: {
+      convergence: 'failed',
+      iterations: 0,
+      method: 'none',
+      boundHit: null,
+      failureReason,
+    },
+  };
+}
+
+function canonicalXirrMethod(method: string): XirrDiagnostic['method'] {
+  if (method === 'newton' || method === 'brent' || method === 'bisection') return method;
+  return 'none';
+}
+
+function computeLpNetXirr(flows: readonly DecimalXirrFlowV1[]): LpNetXirrResultV1 {
+  const nonzeroFlows = flows.filter((flow) => !flow.amount.isZero());
+  if (nonzeroFlows.length < 2) {
+    return xirrFailure('INSUFFICIENT_CASH_FLOWS');
+  }
+
+  const hasNegative = nonzeroFlows.some((flow) => flow.amount.lt(0));
+  const hasPositive = nonzeroFlows.some((flow) => flow.amount.gt(0));
+  if (!hasNegative || !hasPositive) {
+    return xirrFailure('NO_SIGN_CHANGE');
+  }
+
+  // Sole sanctioned float64 boundary: safeXIRR accepts and returns JS numbers.
+  const solverFlows: CashFlowEvent[] = nonzeroFlows.map((flow) => ({
+    date: flow.date,
+    amount: flow.amount.toNumber(),
+  }));
+  const solverResult = safeXIRR(solverFlows);
+  const method = canonicalXirrMethod(solverResult.method);
+
+  if (solverResult.error !== undefined || solverResult.irr === null) {
+    return {
+      lpNetIrr: null,
+      xirrDiagnostic: {
+        convergence: 'failed',
+        iterations: solverResult.iterations,
+        method,
+        boundHit: null,
+        failureReason: 'NUMERICAL_INSTABILITY',
+      },
+    };
+  }
+
+  if (solverResult.irr === XIRR_MAX_RATE) {
+    return {
+      lpNetIrr: null,
+      xirrDiagnostic: {
+        convergence: 'bounded_high',
+        iterations: solverResult.iterations,
+        method,
+        boundHit: 'max',
+        failureReason: 'OUT_OF_BOUNDS_HIGH',
+      },
+    };
+  }
+  if (solverResult.irr === XIRR_MIN_RATE) {
+    return {
+      lpNetIrr: null,
+      xirrDiagnostic: {
+        convergence: 'bounded_low',
+        iterations: solverResult.iterations,
+        method,
+        boundHit: 'min',
+        failureReason: 'OUT_OF_BOUNDS_LOW',
+      },
+    };
+  }
+  if (!solverResult.converged) {
+    return {
+      lpNetIrr: null,
+      xirrDiagnostic: {
+        convergence: 'failed',
+        iterations: solverResult.iterations,
+        method,
+        boundHit: null,
+        failureReason: 'NUMERICAL_INSTABILITY',
+      },
+    };
+  }
+
+  const roundedIrr = new Decimal(solverResult.irr).toDecimalPlaces(12);
+  return {
+    lpNetIrr: roundedIrr.isZero() ? '0.000000000000' : roundedIrr.toFixed(12),
+    xirrDiagnostic: {
+      convergence: 'converged',
+      iterations: solverResult.iterations,
+      method,
+      boundHit: null,
+      failureReason: null,
+    },
+  };
+}
+
 function coreMappingMismatch(message: string, context: Record<string, string>): never {
   throw new CashAssemblyPeriodLoopV1Error('CORE_ROW_MAPPING_MISMATCH', message, context);
 }
@@ -612,7 +737,7 @@ export function executeCashAssemblyPeriodLoopV1(
   const periodIndexByEnd = new Map(
     preparedQuarters.map((quarter, periodIndex) => [quarter.period.periodEnd, periodIndex])
   );
-  const coreDistributions: CoreDistributionV1[] = eventStream.events.flatMap((event) => {
+  const ordinaryCoreDistributions: CoreDistributionV1[] = eventStream.events.flatMap((event) => {
     if (event.source !== 'forecast' || event.eventType !== 'forecast_quarterly_distribution') {
       return [];
     }
@@ -629,6 +754,23 @@ export function executeCashAssemblyPeriodLoopV1(
       },
     ];
   });
+  const terminalQuarter = preparedQuarters.at(-1);
+  const terminalNavBeforeRealization = new Decimal(terminalQuarter?.forecastPoint.navUsd ?? 0);
+  const terminalLiquidationDistribution =
+    input.terminalMode === 'liquidate_at_horizon' &&
+    terminalQuarter !== undefined &&
+    terminalNavBeforeRealization.gt(0)
+      ? buildTerminalLiquidationDistribution({
+          forecastSnapshotId: input.forecastSnapshotId,
+          periodEnd: terminalQuarter.period.periodEnd,
+          periodIndex: preparedQuarters.length - 1,
+          terminalNav: terminalNavBeforeRealization,
+        })
+      : null;
+  const coreDistributions: CoreDistributionV1[] = [
+    ...ordinaryCoreDistributions,
+    ...(terminalLiquidationDistribution === null ? [] : [terminalLiquidationDistribution]),
+  ];
 
   const coreResult = computeDecimalWaterfallAllocationV1({
     carryRatio,
@@ -695,7 +837,11 @@ export function executeCashAssemblyPeriodLoopV1(
     const lpCall = preparedQuarter.lpCall;
     const managementFees = scheduledNeed.scheduledFeeUsd;
     const fundExpenses = scheduledNeed.scheduledExpenseUsd;
-    const grossProceeds = preparedQuarter.grossProceeds;
+    const terminalRealization =
+      terminalLiquidationDistribution !== null && index === preparedQuarters.length - 1
+        ? terminalNavBeforeRealization
+        : ZERO;
+    const grossProceeds = preparedQuarter.grossProceeds.plus(terminalRealization);
     const quarterAllocations = allocationsByPeriodIndex.get(index) ?? [];
     const lpDistribution = quarterAllocations.reduce(
       (total, allocation) => total.plus(allocation.roc6).plus(allocation.lpProfit6),
@@ -755,8 +901,14 @@ export function executeCashAssemblyPeriodLoopV1(
         gpInvestmentDistributionUsd: gpInvestmentDistribution,
         gpCarryDistributedUsd: gpCarryDistribution,
         endingCashUsd: endingCash,
-        grossNavUsd: new Decimal(forecastPoint.navUsd),
-        lpNetNavUsd: new Decimal(forecastPoint.navUsd),
+        grossNavUsd:
+          terminalLiquidationDistribution !== null && index === preparedQuarters.length - 1
+            ? ZERO
+            : new Decimal(forecastPoint.navUsd),
+        lpNetNavUsd:
+          terminalLiquidationDistribution !== null && index === preparedQuarters.length - 1
+            ? ZERO
+            : new Decimal(forecastPoint.navUsd),
         cumulativeLpPaidInUsd: nextCumulativeLpPaidIn,
         cumulativeLpDistributedUsd: nextCumulativeLpDistributed,
       })
@@ -768,15 +920,57 @@ export function executeCashAssemblyPeriodLoopV1(
     remainingEnvelope = nextRemainingEnvelope;
   }
 
-  const terminalNavBeforeRealizationUsd =
-    projectedPointByPeriod.get(periodKey(projectedPeriods.at(-1)!))?.navUsd ?? '0.000000';
+  const xirrFlows: DecimalXirrFlowV1[] = [];
+  for (const event of eventStream.events) {
+    if (event.source !== 'facts') continue;
+    if (event.eventType === 'lp_capital_call') {
+      xirrFlows.push({ date: event.effectiveAt, amount: new Decimal(event.amountUsd).negated() });
+    } else if (
+      event.eventType === 'lp_distribution' ||
+      event.eventType === 'recallable_distribution'
+    ) {
+      xirrFlows.push({ date: event.effectiveAt, amount: new Decimal(event.amountUsd) });
+    }
+  }
+  for (const quarter of preparedQuarters) {
+    if (quarter.lpCall.gt(0)) {
+      xirrFlows.push({
+        date: `${quarter.period.periodStart}T00:00:00.000Z`,
+        amount: quarter.lpCall.negated(),
+      });
+    }
+  }
+  for (const allocation of quantizedAllocations) {
+    const quarter = preparedQuarters[allocation.periodIndex];
+    if (quarter === undefined) {
+      coreMappingMismatch('Decimal core allocation cannot map to an XIRR instant.', {
+        sourceId: allocation.sourceId,
+        periodIndex: String(allocation.periodIndex),
+      });
+    }
+    xirrFlows.push({
+      date: `${quarter.period.periodEnd}T23:59:59.999Z`,
+      amount: allocation.roc6.plus(allocation.lpProfit6),
+    });
+  }
+  if (
+    input.terminalMode === 'hold_unrealized' &&
+    terminalQuarter !== undefined &&
+    terminalNavBeforeRealization.gt(0)
+  ) {
+    xirrFlows.push({
+      date: `${terminalQuarter.period.periodEnd}T23:59:59.999Z`,
+      amount: terminalNavBeforeRealization,
+    });
+  }
+  const xirrResult = computeLpNetXirr(xirrFlows);
 
   return {
     quarters,
     waterfallEvents,
-    terminalNavBeforeRealizationUsd,
-    lpNetIrr: null,
-    xirrDiagnostic: PHASE_1_XIRR_DIAGNOSTIC,
+    terminalNavBeforeRealizationUsd: terminalNavBeforeRealization.toFixed(6),
+    lpNetIrr: xirrResult.lpNetIrr,
+    xirrDiagnostic: xirrResult.xirrDiagnostic,
     resultStatus: 'indicative',
     resultStatusReasons: RESULT_STATUS_REASONS,
     terminalMode: input.terminalMode,

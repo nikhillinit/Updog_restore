@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import type { CurrentForecastSeriesPointV1 } from '../../../shared/contracts/current-forecast-v2.contract';
@@ -9,13 +11,18 @@ import {
 import {
   compareCanonicalUtcInstants,
   INTERNAL_ECONOMICS_TERMINAL_RESOLUTION_VERSION,
+  type TerminalModeV1,
 } from '../../../shared/contracts/internal-economics/terminal-policy-v1.contract';
 import { Decimal } from '../../../shared/lib/decimal-config';
+import * as xirrFinance from '../../../shared/lib/finance/xirr';
+import { assertNoRawNumbers } from '../../helpers/no-raw-numbers';
+import * as callSizingModule from '../../../shared/lib/internal-economics/cash-assembly-call-sizing-v1';
 import {
   CashAssemblyCallSizingV1Error,
   type CallSizingQuarterNeedInputV1,
 } from '../../../shared/lib/internal-economics/cash-assembly-call-sizing-v1';
 import {
+  CashAssemblyEventStreamV1Error,
   CashAssemblyEventStreamInvariantError,
   type FactsCashAssemblyEventV1,
   type FactsCashAssemblyNavMarkV1,
@@ -111,8 +118,10 @@ function execute(input: {
   readonly factsNavMarks?: readonly FactsCashAssemblyNavMarkV1[];
   readonly factsPeriodNav?: readonly FactsCashAssemblyPeriodNavV1[];
   readonly carryPct?: number;
+  readonly terminalMode?: TerminalModeV1;
+  readonly terminalPeriodEnd?: string;
 }) {
-  const terminalPeriodEnd = input.forecastSeries.at(-1)!.periodEnd;
+  const terminalPeriodEnd = input.terminalPeriodEnd ?? input.forecastSeries.at(-1)!.periodEnd;
 
   return executeCashAssemblyPeriodLoopV1({
     factsSnapshotId: 101,
@@ -132,7 +141,7 @@ function execute(input: {
       terminalPeriodEnd,
       terminalResolutionMethodologyVersion: INTERNAL_ECONOMICS_TERMINAL_RESOLUTION_VERSION,
     },
-    terminalMode: 'hold_unrealized',
+    terminalMode: input.terminalMode ?? 'hold_unrealized',
     carryPct: input.carryPct ?? 0.2,
   });
 }
@@ -742,7 +751,7 @@ describe('cash assembly period loop v1 Phase 3', () => {
     ]);
   });
 
-  it('T3.2 seeds ROC from opening basis without creating calls, paid-in, or XIRR flows', () => {
+  it('T3.2 seeds ROC without creating calls, paid-in, or synthetic opening-state XIRR flows', () => {
     const actual = forecastPoint('2025-10-01', '2025-12-31', { source: 'actual' });
     const projected = forecastPoint('2026-01-01', '2026-03-31', {
       distributionsUsd: '100.000000',
@@ -788,8 +797,10 @@ describe('cash assembly period loop v1 Phase 3', () => {
     expect(result.waterfallEvents.every((event) => !event.sourceId.startsWith('facts:'))).toBe(
       true
     );
-    expect(result.lpNetIrr).toBeNull();
-    expect(result.xirrDiagnostic.failureReason).toBe('INSUFFICIENT_CASH_FLOWS');
+    expect(result.lpNetIrr).toBe('1.046863826352');
+    expect(result.xirrDiagnostic).toEqual(
+      expect.objectContaining({ convergence: 'converged', failureReason: null })
+    );
   });
 
   it('T3.3 joins equal-gross rows by sourceId and orders terminal realization after normal exits', () => {
@@ -1075,5 +1086,773 @@ describe('cash assembly period loop v1 Phase 3', () => {
         code: 'PREF_BEARING_UNSUPPORTED_V1',
       })
     );
+  });
+});
+
+describe('cash assembly period loop v1 Phase 4', () => {
+  it('T4.1 liquidates positive terminal NAV through one last dual-entry core event', () => {
+    const actual = forecastPoint('2025-10-01', '2025-12-31', { source: 'actual' });
+    const terminal = forecastPoint('2026-01-01', '2026-03-31', {
+      distributionsUsd: '150.000000',
+      navUsd: '50.000000',
+    });
+    const coreSpy = vi.spyOn(decimalWaterfallCore, 'computeDecimalWaterfallAllocationV1');
+
+    try {
+      const result = execute({
+        forecastSeries: [actual, terminal],
+        scheduledNeeds: [scheduledNeed(terminal, ZERO_MONEY)],
+        terminalMode: 'liquidate_at_horizon',
+        openingState: openingState({ cumulativeLpPaidInUsd: '100.000000' }),
+        factsEvents: [
+          {
+            eventId: 1,
+            eventType: 'lp_capital_call',
+            effectiveAt: '2025-12-01T00:00:00.000Z',
+            amountUsd: '100.000000',
+          },
+        ],
+      });
+
+      expect(coreSpy).toHaveBeenCalledOnce();
+      const coreDistributions = coreSpy.mock.calls[0]![0].distributions;
+      expect(coreDistributions).toEqual([
+        {
+          sourceId: 'forecast:202:quarter:2026-03-31:forecast_quarterly_distribution',
+          periodIndex: 0,
+          grossUsd: '150.000000',
+          isTerminal: false,
+        },
+        {
+          sourceId: 'forecast:202:quarter:2026-03-31:terminal_liquidation',
+          periodIndex: 0,
+          grossUsd: '50.000000',
+          isTerminal: true,
+        },
+      ]);
+      expect(
+        coreDistributions.every(
+          (event) => event.isTerminal === event.sourceId.endsWith(':terminal_liquidation')
+        )
+      ).toBe(true);
+      expect(result.waterfallEvents.map((event) => event.sourceId)).toEqual(
+        coreDistributions.map((event) => event.sourceId)
+      );
+      expect(result.waterfallEvents).toEqual([
+        expect.objectContaining({
+          sourceId: 'forecast:202:quarter:2026-03-31:forecast_quarterly_distribution',
+          lpCapitalReturnUsd: '100.000000',
+        }),
+        expect.objectContaining({
+          sourceId: 'forecast:202:quarter:2026-03-31:terminal_liquidation',
+          lpCapitalReturnUsd: ZERO_MONEY,
+        }),
+      ]);
+      expect(result.quarters.at(-1)).toEqual(
+        expect.objectContaining({
+          grossRealizedProceedsUsd: '200.000000',
+          lpDistributionUsd: '180.000000',
+          gpCarryDistributedUsd: '20.000000',
+          endingCashUsd: ZERO_MONEY,
+          grossNavUsd: ZERO_MONEY,
+          lpNetNavUsd: ZERO_MONEY,
+        })
+      );
+      expect(result.terminalNavBeforeRealizationUsd).toBe('50.000000');
+    } finally {
+      coreSpy.mockRestore();
+    }
+  });
+
+  it('T4.2 treats zero terminal NAV liquidation as a no-op', () => {
+    const terminal = forecastPoint('2026-01-01', '2026-03-31');
+    const coreSpy = vi.spyOn(decimalWaterfallCore, 'computeDecimalWaterfallAllocationV1');
+
+    try {
+      const result = execute({
+        forecastSeries: [terminal],
+        scheduledNeeds: [scheduledNeed(terminal, ZERO_MONEY)],
+        terminalMode: 'liquidate_at_horizon',
+      });
+
+      expect(coreSpy.mock.calls[0]![0].distributions).toEqual([]);
+      expect(result.waterfallEvents).toEqual([]);
+      expect(result.terminalNavBeforeRealizationUsd).toBe(ZERO_MONEY);
+      expect(result.quarters.at(-1)).toEqual(
+        expect.objectContaining({
+          grossRealizedProceedsUsd: ZERO_MONEY,
+          lpDistributionUsd: ZERO_MONEY,
+          endingCashUsd: ZERO_MONEY,
+          grossNavUsd: ZERO_MONEY,
+          lpNetNavUsd: ZERO_MONEY,
+        })
+      );
+    } finally {
+      coreSpy.mockRestore();
+    }
+  });
+
+  it('T4.3 holds terminal NAV outside cash and counts exactly one terminal NAV XIRR flow', () => {
+    const forecastSeries = [
+      forecastPoint('2026-01-01', '2026-03-31', { deployedUsd: '100.000000' }),
+      forecastPoint('2026-04-01', '2026-06-30', { deployedUsd: '100.000000' }),
+      forecastPoint('2026-07-01', '2026-09-30', { deployedUsd: '100.000000' }),
+      forecastPoint('2026-10-01', '2026-12-31', {
+        deployedUsd: '100.000000',
+        navUsd: '100.000000',
+      }),
+    ];
+    const result = execute({
+      forecastSeries,
+      scheduledNeeds: [
+        scheduledNeed(forecastSeries[0]!, '100.000000'),
+        scheduledNeed(forecastSeries[1]!, ZERO_MONEY),
+        scheduledNeed(forecastSeries[2]!, ZERO_MONEY),
+        scheduledNeed(forecastSeries[3]!, ZERO_MONEY),
+      ],
+    });
+
+    expect(result.waterfallEvents).toEqual([]);
+    expect(result.quarters.at(-1)).toEqual(
+      expect.objectContaining({
+        grossRealizedProceedsUsd: ZERO_MONEY,
+        lpDistributionUsd: ZERO_MONEY,
+        endingCashUsd: ZERO_MONEY,
+        grossNavUsd: '100.000000',
+        lpNetNavUsd: '100.000000',
+      })
+    );
+    expect(result.terminalNavBeforeRealizationUsd).toBe('100.000000');
+    expect(result.lpNetIrr).toBe(ZERO_RATIO);
+    expect(result.xirrDiagnostic).toEqual(
+      expect.objectContaining({
+        convergence: 'converged',
+        boundHit: null,
+        failureReason: null,
+      })
+    );
+  });
+
+  it('T4.4 maps XIRR preflight, solver failures, bounds, and convergence deterministically', () => {
+    const empty = forecastPoint('2026-01-01', '2026-03-31');
+    const insufficient = execute({
+      forecastSeries: [empty],
+      scheduledNeeds: [scheduledNeed(empty, ZERO_MONEY)],
+    });
+    expect(insufficient.lpNetIrr).toBeNull();
+    expect(insufficient.xirrDiagnostic).toEqual({
+      convergence: 'failed',
+      iterations: 0,
+      method: 'none',
+      boundHit: null,
+      failureReason: 'INSUFFICIENT_CASH_FLOWS',
+    });
+
+    const actual = forecastPoint('2025-10-01', '2025-12-31', { source: 'actual' });
+    const noSign = execute({
+      forecastSeries: [actual, empty],
+      scheduledNeeds: [scheduledNeed(empty, ZERO_MONEY)],
+      openingState: openingState({ cumulativeLpPaidInUsd: '100.000000' }),
+      factsEvents: [
+        {
+          eventId: 1,
+          eventType: 'lp_capital_call',
+          effectiveAt: '2025-10-01T00:00:00.000Z',
+          amountUsd: '40.000000',
+        },
+        {
+          eventId: 2,
+          eventType: 'lp_capital_call',
+          effectiveAt: '2025-12-01T00:00:00.000Z',
+          amountUsd: '60.000000',
+        },
+      ],
+    });
+    expect(noSign.lpNetIrr).toBeNull();
+    expect(noSign.xirrDiagnostic.failureReason).toBe('NO_SIGN_CHANGE');
+
+    const readyForecast = [
+      forecastPoint('2026-01-01', '2026-03-31', { deployedUsd: '100.000000' }),
+      forecastPoint('2026-04-01', '2026-06-30', {
+        deployedUsd: '100.000000',
+        navUsd: '100.000000',
+      }),
+    ];
+    const readyInput = {
+      forecastSeries: readyForecast,
+      scheduledNeeds: [
+        scheduledNeed(readyForecast[0]!, '100.000000'),
+        scheduledNeed(readyForecast[1]!, ZERO_MONEY),
+      ],
+    } as const;
+    const solverSpy = vi.spyOn(xirrFinance, 'safeXIRR');
+
+    try {
+      solverSpy.mockReturnValueOnce({
+        irr: null,
+        converged: false,
+        iterations: 0,
+        method: 'none',
+        error: 'Invalid date in cash flows',
+      });
+      const unstable = execute(readyInput);
+      expect(unstable.lpNetIrr).toBeNull();
+      expect(unstable.xirrDiagnostic).toEqual({
+        convergence: 'failed',
+        iterations: 0,
+        method: 'none',
+        boundHit: null,
+        failureReason: 'NUMERICAL_INSTABILITY',
+      });
+
+      solverSpy.mockReturnValueOnce({
+        irr: 200,
+        converged: true,
+        iterations: 7,
+        method: 'newton',
+      });
+      const boundedHigh = execute(readyInput);
+      expect(boundedHigh.lpNetIrr).toBeNull();
+      expect(boundedHigh.xirrDiagnostic).toEqual({
+        convergence: 'bounded_high',
+        iterations: 7,
+        method: 'newton',
+        boundHit: 'max',
+        failureReason: 'OUT_OF_BOUNDS_HIGH',
+      });
+
+      solverSpy.mockReturnValueOnce({
+        irr: -0.999999,
+        converged: true,
+        iterations: 9,
+        method: 'brent',
+      });
+      const boundedLow = execute(readyInput);
+      expect(boundedLow.lpNetIrr).toBeNull();
+      expect(boundedLow.xirrDiagnostic).toEqual({
+        convergence: 'bounded_low',
+        iterations: 9,
+        method: 'brent',
+        boundHit: 'min',
+        failureReason: 'OUT_OF_BOUNDS_LOW',
+      });
+
+      solverSpy.mockReturnValueOnce({
+        irr: 0.1234567890126,
+        converged: true,
+        iterations: 4,
+        method: 'bisection',
+      });
+      const converged = execute(readyInput);
+      expect(converged.lpNetIrr).toBe('0.123456789013');
+      expect(converged.xirrDiagnostic).toEqual({
+        convergence: 'converged',
+        iterations: 4,
+        method: 'bisection',
+        boundHit: null,
+        failureReason: null,
+      });
+    } finally {
+      solverSpy.mockRestore();
+    }
+  });
+
+  it('T4.5 propagates POST_TERM_ACTIVITY without wrapping it', () => {
+    const terminal = forecastPoint('2026-01-01', '2026-03-31');
+    const postTerm = forecastPoint('2026-04-01', '2026-06-30', {
+      contributionsUsd: '1.000000',
+    });
+
+    let caught: unknown;
+    try {
+      execute({
+        forecastSeries: [terminal, postTerm],
+        scheduledNeeds: [scheduledNeed(terminal, ZERO_MONEY)],
+        terminalPeriodEnd: terminal.periodEnd,
+      });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(CashAssemblyEventStreamV1Error);
+    expect(caught).toMatchObject({ code: 'POST_TERM_ACTIVITY' });
+    expect(caught).not.toBeInstanceOf(CashAssemblyPeriodLoopV1Error);
+  });
+});
+
+describe('cash assembly period loop v1 Phase 5', () => {
+  it('T5.1 keeps ratios null before paid-in and emits canonical 12dp ratios afterward', () => {
+    const forecastSeries = [
+      forecastPoint('2026-01-01', '2026-03-31'),
+      forecastPoint('2026-04-01', '2026-06-30', {
+        deployedUsd: '3.000000',
+        distributionsUsd: '1.000000',
+        navUsd: '1.000000',
+      }),
+    ];
+    const result = execute({
+      forecastSeries,
+      scheduledNeeds: [
+        scheduledNeed(forecastSeries[0]!, ZERO_MONEY),
+        scheduledNeed(forecastSeries[1]!, '3.000000'),
+      ],
+    });
+
+    expect(result.quarters[0]).toEqual(
+      expect.objectContaining({ dpi: null, rvpi: null, tvpi: null })
+    );
+    expect(result.quarters[1]).toEqual(
+      expect.objectContaining({
+        dpi: '0.333333333333',
+        rvpi: '0.333333333333',
+        tvpi: '0.666666666667',
+      })
+    );
+  });
+
+  it('T5.2 emits only 6dp money and keeps float64 money conversion at the XIRR boundary', () => {
+    const terminal = forecastPoint('2026-01-01', '2026-03-31', {
+      deployedUsd: '1.234567',
+      distributionsUsd: '2.345678',
+      navUsd: '3.456789',
+    });
+    const result = execute({
+      forecastSeries: [terminal],
+      scheduledNeeds: [scheduledNeed(terminal, '1.234567')],
+      unfundedEnvelopeRemainingUsd: '10.000000',
+      terminalMode: 'liquidate_at_horizon',
+    });
+    const moneyEntries: Array<[string, unknown]> = [];
+    const collectMoney = (value: unknown, currentPath = ''): void => {
+      if (value === null || value === undefined) return;
+      if (Array.isArray(value)) {
+        value.forEach((entry, index) => collectMoney(entry, `${currentPath}[${index}]`));
+        return;
+      }
+      if (typeof value !== 'object') return;
+      for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+        const childPath = currentPath === '' ? key : `${currentPath}.${key}`;
+        if (key.endsWith('Usd')) moneyEntries.push([childPath, child]);
+        collectMoney(child, childPath);
+      }
+    };
+    collectMoney(result);
+
+    expect(moneyEntries.length).toBeGreaterThan(0);
+    for (const [moneyPath, value] of moneyEntries) {
+      expect(value, moneyPath).toMatch(/^\d+\.\d{6}$/);
+    }
+    expect(() =>
+      assertNoRawNumbers(result, { allowlist: ['xirrDiagnostic.iterations'] })
+    ).not.toThrow();
+
+    const coreResult = computeDecimalWaterfallAllocationV1({
+      carryRatio: '0.200000000000',
+      hurdle: { basis: 'none' },
+      openingState: openingState(),
+      contributions: [{ sourceId: 'core-call', periodIndex: 0, amountUsd: '1.000000' }],
+      distributions: [
+        {
+          sourceId: 'core-distribution',
+          periodIndex: 0,
+          grossUsd: '2.000000',
+          isTerminal: false,
+        },
+      ],
+    });
+    const serializeDecimalValues = (value: unknown): unknown => {
+      if (Decimal.isDecimal(value)) return value.toString();
+      if (Array.isArray(value)) return value.map(serializeDecimalValues);
+      if (value !== null && typeof value === 'object') {
+        return Object.fromEntries(
+          Object.entries(value as Record<string, unknown>).map(([key, child]) => [
+            key,
+            serializeDecimalValues(child),
+          ])
+        );
+      }
+      return value;
+    };
+    expect(() =>
+      assertNoRawNumbers(serializeDecimalValues(coreResult), {
+        allowlist: coreResult.rows.map((_, index) => `rows[${index}].periodIndex`),
+      })
+    ).not.toThrow();
+
+    const loopSource = fs.readFileSync(
+      path.resolve(process.cwd(), 'shared/lib/internal-economics/cash-assembly-period-loop-v1.ts'),
+      'utf8'
+    );
+    const coreSource = fs.readFileSync(
+      path.resolve(process.cwd(), 'shared/lib/internal-economics/decimal-waterfall-core-v1.ts'),
+      'utf8'
+    );
+    for (const [sourceName, source] of [
+      ['loop', loopSource],
+      ['core', coreSource],
+    ] as const) {
+      expect(source, `${sourceName} uses parseFloat`).not.toMatch(/\bparseFloat\s*\(/);
+      expect(source, `${sourceName} uses parseInt`).not.toMatch(/\bparseInt\s*\(/);
+    }
+    expect(coreSource).not.toMatch(/\.toNumber\s*\(/);
+    expect(loopSource.match(/\.toNumber\s*\(/g)).toHaveLength(1);
+    expect(loopSource).toContain('Sole sanctioned float64 boundary');
+  });
+
+  it('T5.3 validates adversarial half-cent splits without feeding cents back into results', () => {
+    const forecastSeries = [
+      forecastPoint('2026-01-01', '2026-03-31', { distributionsUsd: '0.010000' }),
+      forecastPoint('2026-04-01', '2026-06-30', { distributionsUsd: '0.010000' }),
+      forecastPoint('2026-07-01', '2026-09-30', { distributionsUsd: '0.010000' }),
+    ];
+    const result = execute({
+      forecastSeries,
+      scheduledNeeds: forecastSeries.map((point) => scheduledNeed(point, ZERO_MONEY)),
+      carryPct: 0.5,
+    });
+    const rounded = processWaterfallRunForPresentation(
+      result.waterfallEvents.map((event) => ({
+        totalUsd: new Decimal(event.grossDistributionUsd),
+        rocUsd: new Decimal(event.lpCapitalReturnUsd),
+        preferredReturnUsd: new Decimal(0),
+        lpResidualUsd: new Decimal(event.lpProfitUsd),
+        gpCarryUsd: new Decimal(event.gpCarryUsd),
+      }))
+    );
+
+    expect(result.waterfallEvents).toHaveLength(3);
+    expect(
+      result.waterfallEvents.every(
+        (event) => event.lpProfitUsd === '0.005000' && event.gpCarryUsd === '0.005000'
+      )
+    ).toBe(true);
+    expect(rounded.roundedTotalsCents).toEqual({
+      totalCents: '3',
+      rocCents: '0',
+      preferredReturnCents: '0',
+      lpResidualCents: '3',
+      gpCarryCents: '0',
+    });
+  });
+
+  it('T5.4 propagates call-sizing and event-stream errors without wrapping', () => {
+    const projected = forecastPoint('2026-01-01', '2026-03-31');
+    const openingCashError = new CashAssemblyCallSizingV1Error(
+      'OPENING_CASH_UNAVAILABLE',
+      'opening cash unavailable'
+    );
+    const callSizingSpy = vi.spyOn(callSizingModule, 'sizeCashAssemblyCallsV1');
+    try {
+      callSizingSpy.mockImplementationOnce(() => {
+        throw openingCashError;
+      });
+      let caught: unknown;
+      try {
+        execute({
+          forecastSeries: [projected],
+          scheduledNeeds: [scheduledNeed(projected, ZERO_MONEY)],
+        });
+      } catch (error) {
+        caught = error;
+      }
+      expect(caught).toBe(openingCashError);
+      expect(caught).not.toBeInstanceOf(CashAssemblyPeriodLoopV1Error);
+    } finally {
+      callSizingSpy.mockRestore();
+    }
+
+    const deployment = forecastPoint('2026-01-01', '2026-03-31', {
+      deployedUsd: '2.000000',
+    });
+    expect(() =>
+      execute({
+        forecastSeries: [deployment],
+        scheduledNeeds: [scheduledNeed(deployment, '2.000000')],
+        unfundedEnvelopeRemainingUsd: '1.000000',
+      })
+    ).toThrowError(
+      expect.objectContaining({
+        name: 'CashAssemblyCallSizingV1Error',
+        code: 'COMMITTED_CAPITAL_EXCEEDED',
+      })
+    );
+
+    const nonzeroFee = scheduledNeed(projected, ZERO_MONEY);
+    const feeNeed: CallSizingQuarterNeedInputV1 = {
+      ...nonzeroFee,
+      scheduledFeeUsd: new Decimal('0.010000'),
+    };
+    expect(() => execute({ forecastSeries: [projected], scheduledNeeds: [feeNeed] })).toThrowError(
+      expect.objectContaining({
+        name: 'CashAssemblyCallSizingV1Error',
+        code: 'NONZERO_FEE_EXPENSE_UNSUPPORTED_V1',
+      })
+    );
+
+    expect(() =>
+      execute({
+        forecastSeries: [projected],
+        scheduledNeeds: [scheduledNeed(projected, ZERO_MONEY)],
+        factsEvents: [
+          {
+            eventId: 1,
+            eventType: 'realized_proceeds',
+            effectiveAt: '2025-12-01T00:00:00.000Z',
+            amountUsd: '-0.000001',
+          },
+        ],
+      })
+    ).toThrowError(
+      expect.objectContaining({
+        name: 'CashAssemblyEventStreamV1Error',
+        code: 'NEGATIVE_SOURCE_MONEY',
+      })
+    );
+
+    const decreasingForecast = [
+      forecastPoint('2026-01-01', '2026-03-31', { deployedUsd: '2.000000' }),
+      forecastPoint('2026-04-01', '2026-06-30', { deployedUsd: '1.000000' }),
+    ];
+    expect(() =>
+      execute({
+        forecastSeries: decreasingForecast,
+        scheduledNeeds: decreasingForecast.map((point) => scheduledNeed(point, ZERO_MONEY)),
+      })
+    ).toThrowError(
+      expect.objectContaining({
+        name: 'CashAssemblyEventStreamV1Error',
+        code: 'FORECAST_DEPLOYMENT_CUMULATIVE_DECREASE',
+      })
+    );
+  });
+
+  it('T5.5 handles an empty forward distribution stream through the real core', () => {
+    const actual = forecastPoint('2025-10-01', '2025-12-31', { source: 'actual' });
+    const projected = forecastPoint('2026-01-01', '2026-03-31');
+    const opening = openingState({ cumulativeLpPaidInUsd: '5.000000' });
+    const coreSpy = vi.spyOn(decimalWaterfallCore, 'computeDecimalWaterfallAllocationV1');
+
+    try {
+      const result = execute({
+        forecastSeries: [actual, projected],
+        scheduledNeeds: [scheduledNeed(projected, ZERO_MONEY)],
+        openingState: opening,
+        factsEvents: [
+          {
+            eventId: 1,
+            eventType: 'lp_capital_call',
+            effectiveAt: '2025-12-01T00:00:00.000Z',
+            amountUsd: '5.000000',
+          },
+        ],
+      });
+
+      expect(coreSpy).toHaveBeenCalledOnce();
+      expect(coreSpy.mock.calls[0]![0]).toEqual(
+        expect.objectContaining({
+          openingState: opening,
+          contributions: [],
+          distributions: [],
+        })
+      );
+      expect(result.waterfallEvents).toEqual([]);
+      expect(result.quarters).toEqual([
+        expect.objectContaining({
+          grossRealizedProceedsUsd: ZERO_MONEY,
+          lpDistributionUsd: ZERO_MONEY,
+          gpInvestmentDistributionUsd: ZERO_MONEY,
+          gpCarryDistributedUsd: ZERO_MONEY,
+        }),
+      ]);
+    } finally {
+      coreSpy.mockRestore();
+    }
+  });
+});
+
+describe('cash assembly period loop v1 Phase 6', () => {
+  const permutationFixture = () => {
+    const actual = forecastPoint('2025-10-01', '2025-12-31', { source: 'actual' });
+    const projected = forecastPoint('2026-01-01', '2026-03-31', {
+      distributionsUsd: '30.000000',
+      navUsd: '60.000000',
+    });
+    const factsEvents: readonly FactsCashAssemblyEventV1[] = [
+      {
+        eventId: 4,
+        eventType: 'recallable_distribution',
+        effectiveAt: '2025-12-15T00:00:00.000Z',
+        amountUsd: '5.000000',
+      },
+      {
+        eventId: 2,
+        eventType: 'lp_capital_call',
+        effectiveAt: '2025-11-01T00:00:00.000Z',
+        amountUsd: '60.000000',
+      },
+      {
+        eventId: 3,
+        eventType: 'lp_distribution',
+        effectiveAt: '2025-12-01T00:00:00.000Z',
+        amountUsd: '20.000000',
+      },
+      {
+        eventId: 1,
+        eventType: 'lp_capital_call',
+        effectiveAt: '2025-10-01T00:00:00.000Z',
+        amountUsd: '40.000000',
+      },
+    ];
+    return {
+      actual,
+      projected,
+      factsEvents,
+      opening: openingState({
+        cumulativeLpPaidInUsd: '100.000000',
+        lpDistributionsReturnOfCapitalUsd: '20.000000',
+        lpDistributionsProfitUsd: '5.000000',
+        actualLpDistributionsCumulativeUsd: '25.000000',
+        recallableDistributionsCumulativeUsd: '5.000000',
+      }),
+    };
+  };
+
+  it('T6.1 emits byte-identical output for every facts-event permutation', () => {
+    const fixture = permutationFixture();
+    const run = (factsEvents: readonly FactsCashAssemblyEventV1[]) =>
+      execute({
+        forecastSeries: [fixture.actual, fixture.projected],
+        scheduledNeeds: [scheduledNeed(fixture.projected, ZERO_MONEY)],
+        openingState: fixture.opening,
+        factsEvents,
+      });
+    const baseline = JSON.stringify(run(fixture.factsEvents));
+    const permutations = [
+      [...fixture.factsEvents].reverse(),
+      [
+        fixture.factsEvents[2]!,
+        fixture.factsEvents[0]!,
+        fixture.factsEvents[3]!,
+        fixture.factsEvents[1]!,
+      ],
+      [
+        fixture.factsEvents[1]!,
+        fixture.factsEvents[3]!,
+        fixture.factsEvents[0]!,
+        fixture.factsEvents[2]!,
+      ],
+    ];
+
+    for (const permutation of permutations) {
+      expect(JSON.stringify(run(permutation))).toBe(baseline);
+    }
+  });
+
+  it('T6.2 never emits lpUnreturnedCapital fields anywhere in the result tree', () => {
+    const terminal = forecastPoint('2026-01-01', '2026-03-31', {
+      distributionsUsd: '10.000000',
+      navUsd: '20.000000',
+    });
+    const result = execute({
+      forecastSeries: [terminal],
+      scheduledNeeds: [scheduledNeed(terminal, ZERO_MONEY)],
+      terminalMode: 'liquidate_at_horizon',
+    });
+    const forbiddenPaths: string[] = [];
+    const sweep = (value: unknown, currentPath = ''): void => {
+      if (value === null || value === undefined) return;
+      if (Array.isArray(value)) {
+        value.forEach((entry, index) => sweep(entry, `${currentPath}[${index}]`));
+        return;
+      }
+      if (typeof value !== 'object') return;
+      for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+        const childPath = currentPath === '' ? key : `${currentPath}.${key}`;
+        if (key.startsWith('lpUnreturnedCapital')) forbiddenPaths.push(childPath);
+        sweep(child, childPath);
+      }
+    };
+    sweep(result);
+
+    expect(forbiddenPaths).toEqual([]);
+  });
+
+  it('T6.3 never raises resultStatus above indicative in either terminal mode', () => {
+    const terminal = forecastPoint('2026-01-01', '2026-03-31', { navUsd: '5.000000' });
+    const statuses = (['hold_unrealized', 'liquidate_at_horizon'] as const).map(
+      (terminalMode) =>
+        execute({
+          forecastSeries: [terminal],
+          scheduledNeeds: [scheduledNeed(terminal, ZERO_MONEY)],
+          terminalMode,
+        }).resultStatus
+    );
+
+    expect(statuses).toEqual(['indicative', 'indicative']);
+  });
+
+  it('T6.4 keeps loop and core deterministic and free of ambient effects', () => {
+    const fixture = permutationFixture();
+    const loopInput = {
+      forecastSeries: [fixture.actual, fixture.projected],
+      scheduledNeeds: [scheduledNeed(fixture.projected, ZERO_MONEY)],
+      openingState: fixture.opening,
+      factsEvents: fixture.factsEvents,
+    } as const;
+    expect(JSON.stringify(execute(loopInput))).toBe(JSON.stringify(execute(loopInput)));
+
+    const coreInput = {
+      carryRatio: '0.200000000000',
+      hurdle: { basis: 'none' },
+      openingState: fixture.opening,
+      contributions: [{ sourceId: 'contribution', periodIndex: 0, amountUsd: '10.000000' }],
+      distributions: [
+        {
+          sourceId: 'distribution',
+          periodIndex: 0,
+          grossUsd: '20.000000',
+          isTerminal: false,
+        },
+      ],
+    } as const;
+    expect(JSON.stringify(computeDecimalWaterfallAllocationV1(coreInput))).toBe(
+      JSON.stringify(computeDecimalWaterfallAllocationV1(coreInput))
+    );
+
+    const guardedSources = [
+      fs.readFileSync(
+        path.resolve(
+          process.cwd(),
+          'shared/lib/internal-economics/cash-assembly-period-loop-v1.ts'
+        ),
+        'utf8'
+      ),
+      fs.readFileSync(
+        path.resolve(process.cwd(), 'shared/lib/internal-economics/decimal-waterfall-core-v1.ts'),
+        'utf8'
+      ),
+    ];
+    for (const source of guardedSources) {
+      expect(source).not.toMatch(/\bDate\.now\b/);
+      expect(source).not.toMatch(/\bnew\s+Date\s*\(/);
+      expect(source).not.toMatch(/\bMath\.random\b/);
+      expect(source).not.toMatch(
+        /from ['"]node:(?:fs|fs\/promises|http|https|net|tls|child_process)['"]/
+      );
+      expect(source).not.toMatch(/\bfetch\s*\(/);
+    }
+  });
+
+  it('T6.5 emits exactly the frozen indicative reason pair', () => {
+    const terminal = forecastPoint('2026-01-01', '2026-03-31');
+    const result = execute({
+      forecastSeries: [terminal],
+      scheduledNeeds: [scheduledNeed(terminal, ZERO_MONEY)],
+    });
+
+    expect(result.resultStatusReasons).toEqual([
+      'DECIMAL_CORE_UNCERTIFIED',
+      'LP_NET_NAV_FLAT_SHARE_APPROXIMATION',
+    ]);
   });
 });
