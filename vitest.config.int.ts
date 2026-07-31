@@ -2,6 +2,7 @@ import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import { createVitestAlias } from './vitest.config.shared.mjs';
+import { TESTCONTAINERS_TEST_PATHS as testcontainersOnlyPaths } from './tests/config/testcontainers-test-paths.mjs';
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
 const alias = createVitestAlias(projectRoot, {
@@ -11,11 +12,6 @@ const alias = createVitestAlias(projectRoot, {
 });
 const scenarioReleaseGatePath =
   'tests/integration/scenarios/scenario-release-gate.integration.test.ts';
-const testcontainersOnlyPaths = [
-  'tests/integration/migration-runner.test.ts',
-  'tests/integration/fund-lifecycle-db.test.ts',
-  'tests/integration/vehicle-financing-participations-real-pg.test.ts',
-];
 
 export default defineConfig({
   root: projectRoot,
