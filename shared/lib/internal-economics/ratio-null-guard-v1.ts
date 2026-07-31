@@ -1,4 +1,8 @@
 import { Decimal } from '../decimal-config';
+import { toFixedDecimalString } from '../decimal-string';
+
+/** Ratios use the canonical RatioDecimalStringSchema scale (12 dp). */
+const RATIO_SCALE = 12;
 
 export interface GuardedRatios {
   dpi: string | null;
@@ -41,10 +45,10 @@ export function calculateGuardedRatios(
   const moicD = d.plus(n).dividedBy(c);
 
   return {
-    dpi: dpiD.toFixed(6),
-    rvpi: rvpiD.toFixed(6),
-    tvpi: tvpiD.toFixed(6),
-    moic: moicD.toFixed(6),
+    dpi: toFixedDecimalString(dpiD, RATIO_SCALE),
+    rvpi: toFixedDecimalString(rvpiD, RATIO_SCALE),
+    tvpi: toFixedDecimalString(tvpiD, RATIO_SCALE),
+    moic: toFixedDecimalString(moicD, RATIO_SCALE),
     warning: null,
   };
 }
