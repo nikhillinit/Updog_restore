@@ -58,6 +58,11 @@ export interface DecimalWaterfallCoreV1Input {
   readonly distributions: readonly CoreDistributionV1[];
 }
 
+/**
+ * Exact core allocation diagnostics. `lpProfit` is unrounded and must not feed
+ * presentation arithmetic. The future loop must quantize gross, ROC, and GP carry
+ * before precision-28 arithmetic, then derive presentation LP profit from those values.
+ */
 export interface CoreAllocationRowV1 {
   readonly sourceId: string;
   readonly periodIndex: number;
@@ -69,6 +74,10 @@ export interface CoreAllocationRowV1 {
   readonly profitDistributedAfter: SharedDecimal;
 }
 
+/**
+ * Exact core totals. `lpProfit` remains an unrounded diagnostic; the future loop must
+ * quantize gross, ROC, and GP carry first and derive its presentation LP-profit total.
+ */
 export interface CoreAllocationTotalsV1 {
   readonly openingUnreturnedCapital: SharedDecimal;
   readonly endingUnreturnedCapital: SharedDecimal;
@@ -260,6 +269,13 @@ export function computeDecimalWaterfallAllocationV1(
   let terminalSourceId: string | undefined;
   for (const distribution of input.distributions) {
     validateEventIdentity(distribution, 'distribution');
+    if (sourceIds.has(distribution.sourceId)) {
+      throw new DecimalWaterfallCoreV1Error(
+        'DUPLICATE_EVENT_ID',
+        'Event sourceId must be unique across contributions and distributions.',
+        { sourceId: distribution.sourceId }
+      );
+    }
     if (typeof distribution.isTerminal !== 'boolean') {
       throw new DecimalWaterfallCoreV1Error(
         'EVENT_INPUT_INVALID',
@@ -281,13 +297,6 @@ export function computeDecimalWaterfallAllocationV1(
           sourceId: distribution.sourceId,
           priorSourceId: terminalSourceId,
         }
-      );
-    }
-    if (sourceIds.has(distribution.sourceId)) {
-      throw new DecimalWaterfallCoreV1Error(
-        'DUPLICATE_EVENT_ID',
-        'Event sourceId must be unique across contributions and distributions.',
-        { sourceId: distribution.sourceId }
       );
     }
     if (distribution.isTerminal) terminalSourceId = distribution.sourceId;

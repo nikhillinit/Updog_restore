@@ -5,7 +5,10 @@ import {
   computeDecimalWaterfallAllocationV1,
   DECIMAL_WATERFALL_CORE_ENGINE_VERSION,
   DECIMAL_WATERFALL_CORE_METHODOLOGY_VERSION,
+  DecimalWaterfallCoreV1Error,
+  type DecimalWaterfallCoreV1Result,
 } from '../../../shared/lib/internal-economics/decimal-waterfall-core-v1';
+import { Decimal as SharedDecimal } from '../../../shared/lib/decimal-config';
 
 function openingState(
   overrides: Partial<FundAccountingStateObservationV1_1> = {}
@@ -35,8 +38,35 @@ function openingState(
   };
 }
 
-function money(value: { toFixed(decimalPlaces: number): string }): string {
-  return value.toFixed(6);
+function exact(value: { toString(): string }): string {
+  return value.toString();
+}
+
+function expectSharedDecimalBoundaries(result: DecimalWaterfallCoreV1Result): void {
+  for (const row of result.rows) {
+    for (const value of [
+      row.gross,
+      row.roc,
+      row.lpProfit,
+      row.gpCarry,
+      row.unreturnedCapitalAfter,
+      row.profitDistributedAfter,
+    ]) {
+      expect(value.constructor).toBe(SharedDecimal);
+    }
+  }
+
+  for (const value of [
+    result.totals.openingUnreturnedCapital,
+    result.totals.endingUnreturnedCapital,
+    result.totals.paidIn,
+    result.totals.gross,
+    result.totals.roc,
+    result.totals.lpProfit,
+    result.totals.gpCarry,
+  ]) {
+    expect(value.constructor).toBe(SharedDecimal);
+  }
 }
 
 describe('computeDecimalWaterfallAllocationV1', () => {
@@ -62,17 +92,17 @@ describe('computeDecimalWaterfallAllocationV1', () => {
     expect(DECIMAL_WATERFALL_CORE_METHODOLOGY_VERSION).toBe(result.methodologyVersion);
     expect(result.rows).toHaveLength(1);
     expect({
-      gross: money(result.rows[0].gross),
-      roc: money(result.rows[0].roc),
-      lpProfit: money(result.rows[0].lpProfit),
-      gpCarry: money(result.rows[0].gpCarry),
-      unreturnedCapitalAfter: money(result.rows[0].unreturnedCapitalAfter),
+      gross: exact(result.rows[0].gross),
+      roc: exact(result.rows[0].roc),
+      lpProfit: exact(result.rows[0].lpProfit),
+      gpCarry: exact(result.rows[0].gpCarry),
+      unreturnedCapitalAfter: exact(result.rows[0].unreturnedCapitalAfter),
     }).toEqual({
-      gross: '200.000000',
-      roc: '100.000000',
-      lpProfit: '80.000000',
-      gpCarry: '20.000000',
-      unreturnedCapitalAfter: '0.000000',
+      gross: '200',
+      roc: '100',
+      lpProfit: '80',
+      gpCarry: '20',
+      unreturnedCapitalAfter: '0',
     });
     expect(
       result.rows[0].roc
@@ -80,7 +110,8 @@ describe('computeDecimalWaterfallAllocationV1', () => {
         .plus(result.rows[0].gpCarry)
         .eq(result.rows[0].gross)
     ).toBe(true);
-    expect(money(result.totals.endingUnreturnedCapital)).toBe('0.000000');
+    expect(exact(result.totals.endingUnreturnedCapital)).toBe('0');
+    expectSharedDecimalBoundaries(result);
   });
 
   it('T0.2 keeps opening unreturned capital independent from historical LP profit', () => {
@@ -105,18 +136,21 @@ describe('computeDecimalWaterfallAllocationV1', () => {
     });
 
     expect({
-      roc: money(result.rows[0].roc),
-      lpProfit: money(result.rows[0].lpProfit),
-      gpCarry: money(result.rows[0].gpCarry),
-      unreturnedCapitalAfter: money(result.rows[0].unreturnedCapitalAfter),
-      profitDistributedAfter: money(result.rows[0].profitDistributedAfter),
+      roc: exact(result.rows[0].roc),
+      lpProfit: exact(result.rows[0].lpProfit),
+      gpCarry: exact(result.rows[0].gpCarry),
+      unreturnedCapitalAfter: exact(result.rows[0].unreturnedCapitalAfter),
+      profitDistributedAfter: exact(result.rows[0].profitDistributedAfter),
+      paidIn: exact(result.totals.paidIn),
     }).toEqual({
-      roc: '60.000000',
-      lpProfit: '32.000000',
-      gpCarry: '8.000000',
-      unreturnedCapitalAfter: '0.000000',
-      profitDistributedAfter: '62.000000',
+      roc: '60',
+      lpProfit: '32',
+      gpCarry: '8',
+      unreturnedCapitalAfter: '0',
+      profitDistributedAfter: '62',
+      paidIn: '60',
     });
+    expectSharedDecimalBoundaries(result);
   });
 
   it('T0.3 CORRECTED-LEGACY-04 replenishes unreturned capital after profit', () => {
@@ -148,52 +182,53 @@ describe('computeDecimalWaterfallAllocationV1', () => {
       result.rows.map((row) => ({
         sourceId: row.sourceId,
         periodIndex: row.periodIndex,
-        gross: money(row.gross),
-        roc: money(row.roc),
-        lpProfit: money(row.lpProfit),
-        gpCarry: money(row.gpCarry),
-        unreturnedCapitalAfter: money(row.unreturnedCapitalAfter),
-        profitDistributedAfter: money(row.profitDistributedAfter),
+        gross: exact(row.gross),
+        roc: exact(row.roc),
+        lpProfit: exact(row.lpProfit),
+        gpCarry: exact(row.gpCarry),
+        unreturnedCapitalAfter: exact(row.unreturnedCapitalAfter),
+        profitDistributedAfter: exact(row.profitDistributedAfter),
       }))
     ).toEqual([
       {
         sourceId: 'exit-q2',
         periodIndex: 2,
-        gross: '200.000000',
-        roc: '100.000000',
-        lpProfit: '80.000000',
-        gpCarry: '20.000000',
-        unreturnedCapitalAfter: '0.000000',
-        profitDistributedAfter: '80.000000',
+        gross: '200',
+        roc: '100',
+        lpProfit: '80',
+        gpCarry: '20',
+        unreturnedCapitalAfter: '0',
+        profitDistributedAfter: '80',
       },
       {
         sourceId: 'exit-q4',
         periodIndex: 4,
-        gross: '100.000000',
-        roc: '100.000000',
-        lpProfit: '0.000000',
-        gpCarry: '0.000000',
-        unreturnedCapitalAfter: '0.000000',
-        profitDistributedAfter: '80.000000',
+        gross: '100',
+        roc: '100',
+        lpProfit: '0',
+        gpCarry: '0',
+        unreturnedCapitalAfter: '0',
+        profitDistributedAfter: '80',
       },
     ]);
     expect({
-      openingUnreturnedCapital: money(result.totals.openingUnreturnedCapital),
-      endingUnreturnedCapital: money(result.totals.endingUnreturnedCapital),
-      paidIn: money(result.totals.paidIn),
-      gross: money(result.totals.gross),
-      roc: money(result.totals.roc),
-      lpProfit: money(result.totals.lpProfit),
-      gpCarry: money(result.totals.gpCarry),
+      openingUnreturnedCapital: exact(result.totals.openingUnreturnedCapital),
+      endingUnreturnedCapital: exact(result.totals.endingUnreturnedCapital),
+      paidIn: exact(result.totals.paidIn),
+      gross: exact(result.totals.gross),
+      roc: exact(result.totals.roc),
+      lpProfit: exact(result.totals.lpProfit),
+      gpCarry: exact(result.totals.gpCarry),
     }).toEqual({
-      openingUnreturnedCapital: '0.000000',
-      endingUnreturnedCapital: '0.000000',
-      paidIn: '200.000000',
-      gross: '300.000000',
-      roc: '200.000000',
-      lpProfit: '80.000000',
-      gpCarry: '20.000000',
+      openingUnreturnedCapital: '0',
+      endingUnreturnedCapital: '0',
+      paidIn: '200',
+      gross: '300',
+      roc: '200',
+      lpProfit: '80',
+      gpCarry: '20',
     });
+    expectSharedDecimalBoundaries(result);
   });
 
   it('T0.3 CORRECTED-LEGACY-05 retains a final call in ending basis and paid-in', () => {
@@ -210,7 +245,7 @@ describe('computeDecimalWaterfallAllocationV1', () => {
           sourceId: 'exit-q2',
           periodIndex: 2,
           grossUsd: '100.000000',
-          isTerminal: true,
+          isTerminal: false,
         },
       ],
     });
@@ -219,39 +254,70 @@ describe('computeDecimalWaterfallAllocationV1', () => {
       result.rows.map((row) => ({
         sourceId: row.sourceId,
         periodIndex: row.periodIndex,
-        gross: money(row.gross),
-        roc: money(row.roc),
-        lpProfit: money(row.lpProfit),
-        gpCarry: money(row.gpCarry),
-        unreturnedCapitalAfter: money(row.unreturnedCapitalAfter),
+        gross: exact(row.gross),
+        roc: exact(row.roc),
+        lpProfit: exact(row.lpProfit),
+        gpCarry: exact(row.gpCarry),
+        unreturnedCapitalAfter: exact(row.unreturnedCapitalAfter),
       }))
     ).toEqual([
       {
         sourceId: 'exit-q2',
         periodIndex: 2,
-        gross: '100.000000',
-        roc: '100.000000',
-        lpProfit: '0.000000',
-        gpCarry: '0.000000',
-        unreturnedCapitalAfter: '0.000000',
+        gross: '100',
+        roc: '100',
+        lpProfit: '0',
+        gpCarry: '0',
+        unreturnedCapitalAfter: '0',
       },
     ]);
     expect({
-      openingUnreturnedCapital: money(result.totals.openingUnreturnedCapital),
-      endingUnreturnedCapital: money(result.totals.endingUnreturnedCapital),
-      paidIn: money(result.totals.paidIn),
-      gross: money(result.totals.gross),
-      roc: money(result.totals.roc),
-      lpProfit: money(result.totals.lpProfit),
-      gpCarry: money(result.totals.gpCarry),
+      openingUnreturnedCapital: exact(result.totals.openingUnreturnedCapital),
+      endingUnreturnedCapital: exact(result.totals.endingUnreturnedCapital),
+      paidIn: exact(result.totals.paidIn),
+      gross: exact(result.totals.gross),
+      roc: exact(result.totals.roc),
+      lpProfit: exact(result.totals.lpProfit),
+      gpCarry: exact(result.totals.gpCarry),
     }).toEqual({
-      openingUnreturnedCapital: '0.000000',
-      endingUnreturnedCapital: '50.000000',
-      paidIn: '150.000000',
-      gross: '100.000000',
-      roc: '100.000000',
-      lpProfit: '0.000000',
-      gpCarry: '0.000000',
+      openingUnreturnedCapital: '0',
+      endingUnreturnedCapital: '50',
+      paidIn: '150',
+      gross: '100',
+      roc: '100',
+      lpProfit: '0',
+      gpCarry: '0',
     });
+    expectSharedDecimalBoundaries(result);
+  });
+
+  it('classifies repeated terminal source IDs as duplicate event IDs', () => {
+    expect.assertions(2);
+
+    try {
+      computeDecimalWaterfallAllocationV1({
+        carryRatio: '0.200000000000',
+        hurdle: { basis: 'none' },
+        openingState: openingState(),
+        contributions: [],
+        distributions: [
+          {
+            sourceId: 'terminal-duplicate',
+            periodIndex: 1,
+            grossUsd: '0.000000',
+            isTerminal: true,
+          },
+          {
+            sourceId: 'terminal-duplicate',
+            periodIndex: 2,
+            grossUsd: '0.000000',
+            isTerminal: true,
+          },
+        ],
+      });
+    } catch (error) {
+      expect(error).toBeInstanceOf(DecimalWaterfallCoreV1Error);
+      expect((error as DecimalWaterfallCoreV1Error).code).toBe('DUPLICATE_EVENT_ID');
+    }
   });
 });
