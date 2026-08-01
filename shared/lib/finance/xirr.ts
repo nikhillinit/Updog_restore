@@ -67,8 +67,8 @@ const MAX_RATE = 200;
  * Normalize a JS Date to UTC midnight and return the corresponding
  * "Excel-style" serial day number (days since epoch).
  */
-function serialDayUtc(date: Date): number {
-  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / MS_PER_DAY;
+export function serialDayUtc(date: Date): number {
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) / MS_PER_DAY;
 }
 
 /**
