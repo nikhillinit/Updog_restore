@@ -55,6 +55,7 @@ const expectedJournaledDriftPatchFiles = [
   '0042_positions_ownership_compat.sql',
   '0043_position_source_basis_reliefs.sql',
   '0044_internal_analysis.sql',
+  '0045_internal_economics_policy_runs.sql',
 ].sort();
 
 afterEach(() => {
@@ -151,6 +152,20 @@ describe('migration ledger helpers', () => {
     expect(entry).toMatchObject({
       idx: 44,
       tag: '0043_position_source_basis_reliefs',
+      breakpoints: true,
+    });
+  });
+
+  // T-A1 (WP-L3 Phase A): the pin asserts THIS migration's OWN journal entry
+  // by tag, never entries.at(-1) (memory-pinned repo lesson).
+  it('pins internal economics policy runs migration to its own journal index 46 entry', () => {
+    const entry = readDrizzleJournal(repoRoot).entries.find(
+      (candidate) => candidate.tag === '0045_internal_economics_policy_runs'
+    );
+
+    expect(entry).toMatchObject({
+      idx: 46,
+      tag: '0045_internal_economics_policy_runs',
       breakpoints: true,
     });
   });

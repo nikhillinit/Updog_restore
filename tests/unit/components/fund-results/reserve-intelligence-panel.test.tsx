@@ -180,6 +180,7 @@ describe('ReserveIntelligencePanel', () => {
     'financial-facts-policy/1.0.1' as const,
     'financial-facts-policy/1.1.0' as const,
     'financial-facts-policy/1.2.0' as const,
+    'financial-facts-policy/1.3.0' as const,
   ])('renders policy version %s without assuming details exist', async (policyVersion) => {
     const user = userEvent.setup();
     const run = makeReserveIntelligenceRun(policyVersion);
@@ -197,6 +198,25 @@ describe('ReserveIntelligencePanel', () => {
     } else {
       expect(within(drawer).getByText(/valuation basis.*derived 1/i)).toBeInTheDocument();
     }
+  });
+
+  it('renders the policy 1.3.0 effective-terms and evaluation-detail branches, never the fallback', async () => {
+    const user = userEvent.setup();
+    const run = makeReserveIntelligenceRun('financial-facts-policy/1.3.0');
+    mockHook({ data: { kind: 'ready', run }, error: null, isLoading: false });
+
+    render(<ReserveIntelligencePanel fundId={7} />);
+
+    expect(screen.queryByText(/does not disclose effective-terms refs/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/reserve selection differs from the default/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Open reserve facts for Alpha' }));
+    const drawer = screen.getByRole('dialog', { name: 'Alpha reserve evidence' });
+    expect(within(drawer).getByText(/participation refs: 1/i)).toBeInTheDocument();
+    expect(within(drawer).getByText(/valuation basis.*derived 1/i)).toBeInTheDocument();
+    expect(
+      within(drawer).queryByText(/does not disclose effective-terms refs/i)
+    ).not.toBeInTheDocument();
   });
 
   it('keeps recompute disabled with reason and exposes no apply or write-back action', () => {

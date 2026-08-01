@@ -7,6 +7,7 @@ import {
   FINANCIAL_FACTS_POLICY_VERSION,
   FINANCIAL_FACTS_POLICY_VERSION_1_1_0,
   FINANCIAL_FACTS_POLICY_VERSION_1_2_0,
+  FINANCIAL_FACTS_POLICY_VERSION_1_3_0,
   PersistedFinancialFactsSnapshotV1Schema,
 } from '@shared/contracts/financial-facts-snapshot-v1.contract';
 import { toNumber } from '@shared/number';
@@ -93,7 +94,8 @@ function snapshotResponse(row: FinancialFactsSnapshot) {
   return PersistedFinancialFactsSnapshotV1Schema.parse({
     ...persisted,
     ...(row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_1_0 ||
-    row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_2_0
+    row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_2_0 ||
+    row.policyVersion === FINANCIAL_FACTS_POLICY_VERSION_1_3_0
       ? { payloadSchemaId: row.payloadSchemaId }
       : { payloadSchemaId: undefined }),
   });

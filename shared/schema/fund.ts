@@ -145,7 +145,11 @@ export const calcRuns = pgTable(
 
 // Fund snapshots for CQRS pattern
 // Phase 2A Item 8: runId/configId/configVersion nullable for attribution
-export const NON_TIMELINE_SNAPSHOT_TYPES = ['CURRENT_FORECAST_V2', 'RESERVE_INTELLIGENCE'] as const;
+export const NON_TIMELINE_SNAPSHOT_TYPES = [
+  'CURRENT_FORECAST_V2',
+  'RESERVE_INTELLIGENCE',
+  'INTERNAL_LP_ECONOMICS',
+] as const;
 
 export const fundSnapshots = pgTable(
   'fund_snapshots',
@@ -186,6 +190,10 @@ export const fundSnapshots = pgTable(
       table.type,
       table.createdAt.desc()
     ),
+    /** WP-L3 P-D3: DB-enforced snapshot TYPE for typed composite FKs
+     * (`internal_lp_economics_runs`). Declared as `unique()`, never
+     * `uniqueIndex` — composite FKs must target a constraint (42830). */
+    idTypeUnique: unique('fund_snapshots_id_type_unique').on(table.id, table.type),
     scenarioDedupeIdx: uniqueIndex('fund_snapshots_scenarios_dedup_idx').on(
       table.fundId,
       table.scenarioSetId,

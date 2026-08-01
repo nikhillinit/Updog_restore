@@ -5,13 +5,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   EMPTY_SELECTION_SET_HASH,
+  EmbeddedFundAccountingStateSnapshotRefV1_1Schema,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3,
+  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_4,
   FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
   FINANCIAL_FACTS_POLICY_VERSION_1_1_0,
   FINANCIAL_FACTS_POLICY_VERSION_1_2_0,
+  FINANCIAL_FACTS_POLICY_VERSION_1_3_0,
   type FinancialFactsSnapshotV2,
   type FinancialFactsSnapshotV3,
+  type FinancialFactsSnapshotV4,
   type FinancialFactsSnapshotV1,
 } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { IdempotentCommandError } from '../../../server/lib/idempotent-command';
@@ -193,6 +197,60 @@ function snapshotRowV3() {
   };
 }
 
+function resolvedOpeningAccountingState() {
+  return EmbeddedFundAccountingStateSnapshotRefV1_1Schema.parse({
+    sourceArtifactId: 42,
+    sourceArtifactSha256: 'd'.repeat(64),
+    sourceArtifactCreatedAt: '2026-06-30T20:15:00.000Z',
+    attestedByActorId: 7,
+    observation: {
+      contractVersion: 'fund-accounting-state-observation/1.1.0',
+      cutoverInstant: '2026-06-30T23:59:59.000Z',
+      currency: 'USD',
+      cashBalanceUsd: '1250000.000000',
+      cumulativeLpPaidInUsd: '10000000.000000',
+      cumulativeGpPaidInUsd: '250000.000000',
+      gpUnreturnedContributedCapitalUsd: '150000.000000',
+      lpDistributionsReturnOfCapitalUsd: '3500000.000000',
+      lpDistributionsProfitUsd: '875000.000000',
+      actualLpDistributionsCumulativeUsd: '4375000.000000',
+      gpInvestmentDistributionsPaidUsd: '125000.000000',
+      gpCarryPaidUsd: '200000.000000',
+      accruedPreferredReturnUsd: '325000.000000',
+      accruedPreferredReturnThroughInstant: '2026-06-30T23:59:59.000Z',
+      recallableDistributionsCumulativeUsd: '600000.000000',
+      recallableDistributionsOutstandingUsd: '400000.000000',
+      recycledProceedsCumulativeUsd: '250000.000000',
+      realizedProceedsCumulativeUsd: '5000000.000000',
+      methodologyVersion: 'fund-accounting-methodology/1.0.0',
+    },
+  });
+}
+
+function snapshotV4(overrides: Partial<FinancialFactsSnapshotV4> = {}): FinancialFactsSnapshotV4 {
+  return {
+    ...snapshotV2(),
+    policyVersion: FINANCIAL_FACTS_POLICY_VERSION_1_3_0,
+    payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_4,
+    payload: {
+      ...snapshotV2().payload,
+      openingAccountingState: resolvedOpeningAccountingState(),
+    },
+    ...overrides,
+  };
+}
+
+function snapshotRowV4() {
+  const value = snapshotV4();
+  return {
+    ...snapshotRowV2(),
+    policyVersion: value.policyVersion,
+    payloadSchemaId: value.payloadSchemaId,
+    payload: value.payload,
+    consumerEvaluations: value.consumerEvaluations,
+  };
+}
+
 function buildApp() {
   const app = express();
   app.use(express.json());
@@ -312,6 +370,20 @@ describe('financial-facts route contract', () => {
     expect(response.body.payloadSchemaId).toBe(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3);
   });
 
+  it('GET serves a persisted policy 1.3.0 payload 4 snapshot with its tuple intact', async () => {
+    service.getLatestFinancialFactsSnapshot.mockResolvedValueOnce(snapshotRowV4());
+
+    const response = await request(buildApp()).get('/api/funds/1/financial-facts/latest');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(snapshotV4());
+    expect(response.body.policyVersion).toBe(FINANCIAL_FACTS_POLICY_VERSION_1_3_0);
+    expect(response.body.payloadSchemaId).toBe(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_4);
+    expect(
+      response.body.payload.openingAccountingState.observation.lpUnreturnedContributedCapitalUsd
+    ).toBe('6500000.000000');
+  });
+
   it('GET rejects a corrupt legacy row that carries a payload 2 schema id', async () => {
     service.getLatestFinancialFactsSnapshot.mockResolvedValueOnce({
       ...snapshotRow(),
@@ -402,7 +474,7 @@ describe('financial-facts route contract', () => {
     expect(service.buildFinancialFactsSnapshot).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        idempotencyKey: 'facts:1:2026-07-21:financial-facts-policy/1.2.0:trigger-7',
+        idempotencyKey: 'facts:1:2026-07-21:financial-facts-policy/1.3.0:trigger-7',
       })
     );
   });

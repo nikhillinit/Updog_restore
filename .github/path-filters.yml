@@ -327,6 +327,11 @@ schema_tests:
   - 'server/routes/internal-analysis.ts'
   - 'scripts/audit-prod-operator-seam.mjs'
   - 'scripts/reconcile-prod-schema.mjs'
+  # WP-L3 (task 16.3) internal-economics policy/envelope/run substrate
+  - 'tests/integration/internal-economics/economics-schema.pg.test.ts'
+  - 'migrations/0045_internal_economics_policy_runs.sql'
+  - 'scripts/prod-schema-manifests/22-internal-economics-policy-runs.json'
+  - 'shared/schema/internal-economics.ts'
   - 'scripts/prod-schema-apply-policy.mjs'
   - 'scripts/prod-schema-patches/**'
   - 'scripts/prod-schema-manifests/**'

@@ -7,7 +7,13 @@ import { describe, expect, it } from 'vitest';
 import type { db } from '../../../server/db';
 import { IdempotentCommandError } from '../../../server/lib/idempotent-command';
 import { buildFinancialFactsSnapshot } from '../../../server/services/financial-facts-snapshot-service';
-import { buildSelectionSetHash } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
+import {
+  FinancialFactsPayloadV4Schema,
+  FinancialFactsSnapshotInputHashPreimageV4Schema,
+  FinancialFactsSnapshotV4Schema,
+  buildSelectionSetHash,
+  buildSnapshotInputHash,
+} from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import { funds } from '../../../shared/schema/fund';
 import { financialFactsSnapshots } from '../../../shared/schema/financial-facts-snapshots';
 import { sourceArtifacts, sourceObservations } from '../../../shared/schema/financial-observations';
@@ -29,14 +35,16 @@ import {
 
 type SnapshotDatabase = typeof db;
 const OBSERVATION_HASH = 'a'.repeat(64);
-const OPENING_STATE_OBSERVATION = {
-  contractVersion: 'fund-accounting-state-observation/1.0.0',
+// Raw (frozen v1.1 input-shape) opening-state observation: omits the derived
+// lpUnreturnedContributedCapitalUsd field, which the frozen schema computes
+// itself. This is what gets serialized into stored artifact bytes.
+const OPENING_STATE_OBSERVATION_INPUT = {
+  contractVersion: 'fund-accounting-state-observation/1.1.0',
   cutoverInstant: '2026-06-30T23:59:59.123456Z',
   currency: 'USD',
   cashBalanceUsd: '100.000000',
   cumulativeLpPaidInUsd: '80.000000',
   cumulativeGpPaidInUsd: '20.000000',
-  lpUnreturnedContributedCapitalUsd: '70.000000',
   gpUnreturnedContributedCapitalUsd: '15.000000',
   lpDistributionsReturnOfCapitalUsd: '10.000000',
   lpDistributionsProfitUsd: '5.000000',
@@ -51,6 +59,14 @@ const OPENING_STATE_OBSERVATION = {
   realizedProceedsCumulativeUsd: '21.000000',
   methodologyVersion: 'opening-state-methodology/1.0.0',
 } as const;
+// Resolved (output-shape) observation: derived by the frozen v1.1 schema as
+// cumulativeLpPaidInUsd (80) minus lpDistributionsReturnOfCapitalUsd (10).
+// This is what the producer/builder actually emits and what assertions
+// compare against.
+const OPENING_STATE_OBSERVATION = {
+  ...OPENING_STATE_OBSERVATION_INPUT,
+  lpUnreturnedContributedCapitalUsd: '70.000000',
+};
 
 function queryRows<T>(rows: T[]) {
   const query: {
@@ -108,7 +124,7 @@ function acceptedObservation(overrides: Record<string, unknown> = {}): Record<st
 }
 
 function openingStateArtifact(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-  const payload = Buffer.from(JSON.stringify(OPENING_STATE_OBSERVATION), 'utf8');
+  const payload = Buffer.from(JSON.stringify(OPENING_STATE_OBSERVATION_INPUT), 'utf8');
   return {
     id: 42,
     fundId: 1,
@@ -462,7 +478,7 @@ describe('buildFinancialFactsSnapshot', () => {
     ).rejects.toMatchObject({ status: 400, code: 'CUTOFF_NOT_ACCEPTED' });
   });
 
-  it('emits payload 3 with a null opening state when no artifact id is supplied', async () => {
+  it('emits payload 4 with a null opening state when no artifact id is supplied', async () => {
     const fakeDb = new FakeSnapshotDb();
 
     const snapshot = await buildFinancialFactsSnapshot({
@@ -474,21 +490,21 @@ describe('buildFinancialFactsSnapshot', () => {
       now: new Date('2026-07-22T01:42:44.186Z'),
     });
 
-    if (snapshot.policyVersion !== 'financial-facts-policy/1.2.0') {
-      throw new Error(`Expected payload 3 snapshot, received ${snapshot.policyVersion}`);
+    if (snapshot.policyVersion !== 'financial-facts-policy/1.3.0') {
+      throw new Error(`Expected payload 4 snapshot, received ${snapshot.policyVersion}`);
     }
-    expect(snapshot.payloadSchemaId).toBe('financial-facts-payload/3');
+    expect(snapshot.payloadSchemaId).toBe('financial-facts-payload/4');
     expect(snapshot.payload.openingAccountingState).toBeNull();
     expect(fakeDb.sourceArtifactWhereClauses).toHaveLength(0);
   });
 
-  it('preserves the payload 3 schema id when reconstructing an exact replay', async () => {
+  it('preserves the payload 4 schema id when reconstructing an exact replay', async () => {
     const fakeDb = new FakeSnapshotDb();
     const input = {
       fundId: 1,
       asOfDate: '2026-06-30',
       actorId: 7,
-      idempotencyKey: 'snapshot-v3-reconstruction',
+      idempotencyKey: 'snapshot-v4-reconstruction',
       database: fakeDb.asDatabase(),
       now: new Date('2026-07-22T01:42:44.186Z'),
     };
@@ -498,12 +514,12 @@ describe('buildFinancialFactsSnapshot', () => {
 
     expect(replayed).toEqual(created);
     expect(replayed).toMatchObject({
-      policyVersion: 'financial-facts-policy/1.2.0',
-      payloadSchemaId: 'financial-facts-payload/3',
+      policyVersion: 'financial-facts-policy/1.3.0',
+      payloadSchemaId: 'financial-facts-payload/4',
     });
   });
 
-  it('pins the exact selected artifact ref into payload 3', async () => {
+  it('pins the exact selected artifact ref into payload 4', async () => {
     const fakeDb = new FakeSnapshotDb();
     const artifact = openingStateArtifact();
     fakeDb.sourceArtifactRows.push(artifact);
@@ -518,8 +534,8 @@ describe('buildFinancialFactsSnapshot', () => {
       now: new Date('2026-07-22T01:42:44.186Z'),
     });
 
-    if (snapshot.policyVersion !== 'financial-facts-policy/1.2.0') {
-      throw new Error(`Expected payload 3 snapshot, received ${snapshot.policyVersion}`);
+    if (snapshot.policyVersion !== 'financial-facts-policy/1.3.0') {
+      throw new Error(`Expected payload 4 snapshot, received ${snapshot.policyVersion}`);
     }
     expect(snapshot.payload.openingAccountingState).toEqual({
       sourceArtifactId: 42,
@@ -528,6 +544,71 @@ describe('buildFinancialFactsSnapshot', () => {
       attestedByActorId: 7,
       observation: OPENING_STATE_OBSERVATION,
     });
+  });
+
+  it('emits an authoritative V4 hash that reconstructs via the exported preimage schema and helper, and survives the five-stage traversal (T-D3)', async () => {
+    const fakeDb = new FakeSnapshotDb();
+    const artifact = openingStateArtifact();
+    fakeDb.sourceArtifactRows.push(artifact);
+
+    const snapshot = await buildFinancialFactsSnapshot({
+      fundId: 1,
+      asOfDate: '2026-06-30',
+      openingAccountingStateArtifactId: 42,
+      actorId: 7,
+      idempotencyKey: 'snapshot-v4-hash-oracle',
+      database: fakeDb.asDatabase(),
+      now: new Date('2026-07-22T01:42:44.186Z'),
+    });
+
+    if (snapshot.policyVersion !== 'financial-facts-policy/1.3.0') {
+      throw new Error(`Expected payload 4 snapshot, received ${snapshot.policyVersion}`);
+    }
+    expect(snapshot.payloadSchemaId).toBe('financial-facts-payload/4');
+
+    // Reconstruct-and-compare oracle (R8 amendment): rebuild the V4
+    // hash-preimage object from the emitted snapshot's own authoritative
+    // fields, validate it under the V4 preimage schema (never silently
+    // accepted by V3's), and assert the exported hash helper reproduces the
+    // persisted hash exactly -- proving V4 dispatch, not a fabricated value.
+    const reconstructedPreimage = FinancialFactsSnapshotInputHashPreimageV4Schema.parse({
+      fundId: snapshot.fundId,
+      vehicleIds: snapshot.vehicleIds,
+      asOfDate: snapshot.asOfDate,
+      knowledgeCutoff: snapshot.knowledgeCutoff,
+      policyVersion: snapshot.policyVersion,
+      payloadSchemaId: snapshot.payloadSchemaId,
+      selectionSetHash: snapshot.selectionSetHash,
+      payload: snapshot.payload,
+    });
+    expect(buildSnapshotInputHash(reconstructedPreimage)).toBe(snapshot.snapshotInputHash);
+
+    // Five-stage traversal (R10 amendment): payload parse -> V4-preimage
+    // parse -> direct hash-helper reparse -> persisted-envelope parse ->
+    // readback parse, none of which may reject, each preserving the resolved
+    // opening state and exact hash.
+    const payloadStage = FinancialFactsPayloadV4Schema.parse(snapshot.payload);
+    expect(payloadStage.openingAccountingState).toEqual(snapshot.payload.openingAccountingState);
+
+    const preimageStage = FinancialFactsSnapshotInputHashPreimageV4Schema.parse({
+      ...reconstructedPreimage,
+      payload: payloadStage,
+    });
+    expect(preimageStage.payload.openingAccountingState).toEqual(
+      snapshot.payload.openingAccountingState
+    );
+
+    const hashStage = buildSnapshotInputHash(preimageStage);
+    expect(hashStage).toBe(snapshot.snapshotInputHash);
+
+    const envelopeStage = FinancialFactsSnapshotV4Schema.parse(snapshot);
+    const readbackStage = FinancialFactsSnapshotV4Schema.parse(
+      JSON.parse(JSON.stringify(snapshot)) as unknown
+    );
+    for (const stage of [envelopeStage, readbackStage]) {
+      expect(stage.payload.openingAccountingState).toEqual(snapshot.payload.openingAccountingState);
+      expect(stage.snapshotInputHash).toBe(snapshot.snapshotInputHash);
+    }
   });
 
   it('replays an artifact-backed snapshot after the source payload is purged', async () => {
@@ -760,7 +841,7 @@ describe('buildFinancialFactsSnapshot', () => {
     ).rejects.toMatchObject({
       status: 422,
       code: 'VEHICLE_SCOPE_UNSUPPORTED',
-      message: 'Policy 1.2.0 supports only the complete fund vehicle roster.',
+      message: 'Policy 1.3.0 supports only the complete fund vehicle roster.',
     });
 
     const accepted = await buildFinancialFactsSnapshot({
