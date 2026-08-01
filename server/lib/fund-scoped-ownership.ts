@@ -4,6 +4,11 @@ import { currentPlanVersions } from '../../shared/schema/current-plans';
 import { financialFactsSnapshots } from '../../shared/schema/financial-facts-snapshots';
 import { fundSnapshots } from '../../shared/schema/fund';
 import { internalAnalysisReferences } from '../../shared/schema/internal-analysis';
+import {
+  internalCapitalEnvelopeVersions,
+  internalEconomicsPolicyVersions,
+  internalLpEconomicsRuns,
+} from '../../shared/schema/internal-economics';
 import { financingEvents, financingTranches } from '../../shared/schema/investment-ledger';
 import { vehicles } from '../../shared/schema/lp-reporting-evidence';
 import { vehicleFinancingParticipations } from '../../shared/schema/vehicle-financing-participations';
@@ -17,7 +22,10 @@ export type FundScopedReference = {
     | 'vehicle'
     | 'financing_event'
     | 'financing_tranche'
-    | 'participation';
+    | 'participation'
+    | 'capital_envelope_version'
+    | 'economics_policy_version'
+    | 'lp_economics_run';
   id: string | number;
 };
 
@@ -186,6 +194,57 @@ export async function assertOwnedByFund(opts: {
           eq(vehicleFinancingParticipations.id, id),
           eq(vehicleFinancingParticipations.fundId, opts.fundId)
         )
+      )
+      .limit(1);
+
+    if (rows.length === 0) {
+      throw new FundScopeError(opts.ref);
+    }
+    return;
+  }
+
+  if (opts.ref.kind === 'capital_envelope_version') {
+    const rows = await opts.db
+      .select({ id: internalCapitalEnvelopeVersions.id })
+      .from(internalCapitalEnvelopeVersions)
+      .where(
+        and(
+          eq(internalCapitalEnvelopeVersions.id, id),
+          eq(internalCapitalEnvelopeVersions.fundId, opts.fundId)
+        )
+      )
+      .limit(1);
+
+    if (rows.length === 0) {
+      throw new FundScopeError(opts.ref);
+    }
+    return;
+  }
+
+  if (opts.ref.kind === 'economics_policy_version') {
+    const rows = await opts.db
+      .select({ id: internalEconomicsPolicyVersions.id })
+      .from(internalEconomicsPolicyVersions)
+      .where(
+        and(
+          eq(internalEconomicsPolicyVersions.id, id),
+          eq(internalEconomicsPolicyVersions.fundId, opts.fundId)
+        )
+      )
+      .limit(1);
+
+    if (rows.length === 0) {
+      throw new FundScopeError(opts.ref);
+    }
+    return;
+  }
+
+  if (opts.ref.kind === 'lp_economics_run') {
+    const rows = await opts.db
+      .select({ id: internalLpEconomicsRuns.id })
+      .from(internalLpEconomicsRuns)
+      .where(
+        and(eq(internalLpEconomicsRuns.id, id), eq(internalLpEconomicsRuns.fundId, opts.fundId))
       )
       .limit(1);
 

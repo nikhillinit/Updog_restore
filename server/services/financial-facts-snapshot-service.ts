@@ -4,12 +4,11 @@ import { db } from '../db';
 import { assertOwnedByFund, type FundScopedOwnershipDatabase } from '../lib/fund-scoped-ownership';
 import { replayIdempotentCommandIfPresent, runIdempotentCommand } from '../lib/idempotent-command';
 import {
-  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID,
-  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3,
+  FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_4,
   FINANCIAL_FACTS_POLICY_VERSION,
   FinancialFactsPayloadV1Schema,
   FinancialFactsPayloadV2Schema,
-  FinancialFactsPayloadV3Schema,
+  FinancialFactsPayloadV4Schema,
   PersistedFinancialFactsSnapshotV1Schema,
   VolatileStrippedFundCompanyActualsFactsResponseSchema,
   buildSelectionSetHash,
@@ -30,7 +29,6 @@ import {
   type FinancialFactsConsumerKey,
 } from '../../shared/contracts/financial-facts-consumer-policies';
 import { Decimal } from '../../shared/lib/decimal-config';
-import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 import { toFixedDecimalString } from '../../shared/lib/decimal-string';
 import { financialFactsSnapshots } from '../../shared/schema/financial-facts-snapshots';
 import {
@@ -1134,38 +1132,6 @@ async function readDerivedValuationRefs(params: {
   }));
 }
 
-function computeSnapshotInputHash(input: Parameters<typeof buildSnapshotInputHash>[0]): string {
-  try {
-    return buildSnapshotInputHash(input);
-  } catch (error) {
-    if (
-      !(error instanceof Error) ||
-      error.message !== 'Scientific notation is not allowed in decimal-string hash inputs.'
-    ) {
-      throw error;
-    }
-
-    // Wave A's unanchored scientific-notation guard also matches SHA-256
-    // substrings such as the policy 1.0.0 empty-selection hash (`be150...`).
-    // The payload has already passed its decimal-string schemas, so retain the
-    // contract's exact canonical preimage while leaving the protected helper
-    // unchanged in this service-only slice.
-    return canonicalSha256({
-      fundId: input.fundId,
-      vehicleIds: [...input.vehicleIds].sort((left, right) => left - right),
-      asOfDate: input.asOfDate,
-      knowledgeCutoff: input.knowledgeCutoff,
-      policyVersion: input.policyVersion,
-      selectionSetHash: input.selectionSetHash,
-      payloadSchemaId:
-        'payloadSchemaId' in input && input.payloadSchemaId !== undefined
-          ? input.payloadSchemaId
-          : FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID,
-      payload: input.payload,
-    });
-  }
-}
-
 function snapshotFromRow(row: SnapshotRow): PersistedFinancialFactsSnapshotV1 {
   const persisted = {
     policyVersion: row.policyVersion,
@@ -1972,17 +1938,17 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
     consumerEvaluations: lineage.consumerEvaluations,
   });
   const { consumerEvaluations } = payloadV2;
-  const payload = FinancialFactsPayloadV3Schema.parse({
+  const payload = FinancialFactsPayloadV4Schema.parse({
     ...payloadV2.payload,
     openingAccountingState,
   });
-  const snapshotInputHash = computeSnapshotInputHash({
+  const snapshotInputHash = buildSnapshotInputHash({
     fundId: input.fundId,
     vehicleIds,
     asOfDate: input.asOfDate,
     knowledgeCutoff,
     policyVersion: FINANCIAL_FACTS_POLICY_VERSION,
-    payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3,
+    payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_4,
     selectionSetHash,
     payload,
   });
@@ -2000,7 +1966,7 @@ async function buildFinancialFactsSnapshotInTransaction(params: {
         .values({
           fundId: input.fundId,
           policyVersion: FINANCIAL_FACTS_POLICY_VERSION,
-          payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3,
+          payloadSchemaId: FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_4,
           asOfDate: input.asOfDate,
           knowledgeCutoff: now,
           vehicleScope: 'fund_all',

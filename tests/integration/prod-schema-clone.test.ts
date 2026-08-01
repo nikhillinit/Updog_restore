@@ -150,6 +150,15 @@ const BUSINESS_TIME_COMPARISON_LINEAGE_MANIFEST_TABLES = [
   'calc_runs',
   'fund_scenario_calculation_runs',
 ] as const;
+// M22 (22-internal-economics-policy-runs): WP-L3 Phase A envelope/policy/run
+// tables (journal 0045) plus the shared fund_snapshots entry carrying the new
+// (id, type) unique and the type-scoped immutability trigger pin.
+const INTERNAL_ECONOMICS_MANIFEST_TABLES = [
+  'internal_capital_envelope_versions',
+  'internal_economics_policy_versions',
+  'internal_lp_economics_runs',
+  'fund_snapshots',
+] as const;
 const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'M1-cohort',
   'M2-fund-moic',
@@ -172,6 +181,7 @@ const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'user-identity-grants-revocation',
   'company-scenario-create-requests',
   'business-time-comparison-lineage',
+  'internal-economics-policy-runs',
 ] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
@@ -811,6 +821,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...USER_IDENTITY_GRANTS_REVOCATION_MANIFEST_TABLES,
         ...COMPANY_SCENARIO_CREATE_REQUEST_MANIFEST_TABLES,
         ...BUSINESS_TIME_COMPARISON_LINEAGE_MANIFEST_TABLES,
+        ...INTERNAL_ECONOMICS_MANIFEST_TABLES,
       ])
     );
 

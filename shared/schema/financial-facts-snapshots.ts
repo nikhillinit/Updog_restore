@@ -23,6 +23,7 @@ import type {
   FinancialFactsPayloadV1,
   FinancialFactsPayloadV2,
   FinancialFactsPayloadV3,
+  FinancialFactsPayloadV4,
 } from '../contracts/financial-facts-snapshot-v1.contract';
 import { funds } from './fund';
 
@@ -44,7 +45,12 @@ export const financialFactsSnapshots = pgTable(
     snapshotInputHash: text('snapshot_input_hash').notNull(),
     payload: jsonb('payload')
       .notNull()
-      .$type<FinancialFactsPayloadV1 | FinancialFactsPayloadV2 | FinancialFactsPayloadV3>(),
+      .$type<
+        | FinancialFactsPayloadV1
+        | FinancialFactsPayloadV2
+        | FinancialFactsPayloadV3
+        | FinancialFactsPayloadV4
+      >(),
     consumerEvaluations: jsonb('consumer_evaluations')
       .notNull()
       .$type<ConsumerEvaluation[] | ConsumerEvaluationV2[]>(),

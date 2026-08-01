@@ -1,0 +1,460 @@
+{
+  "name": "internal-economics-policy-runs",
+  "order": 22,
+  "description": "Task 16.3 WP-L3 Phase A internal LP economics persistence tier: immutable capital-envelope versions, immutable economics-policy versions, and pure-lineage run rows, landing dormant. Includes the fund_snapshots (id, type) unique for typed snapshot composite FKs and the internal_economics_forbid_update trigger web (three new tables plus the type-scoped fund_snapshots trigger). Trigger and function DDL cannot ride the additive-safe automated apply path (DROP TRIGGER is an unknown drop), so trigger drift audits REFUSE-FOR-HUMAN: the operator applies migrations/0045 manually and the audit must then end SKIP-clean.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0045_internal_economics_policy_runs.sql"],
+  "allowedCreateTables": [
+    "internal_capital_envelope_versions",
+    "internal_economics_policy_versions",
+    "internal_lp_economics_runs"
+  ],
+  "functionDefinitions": [
+    {
+      "name": "internal_economics_forbid_update",
+      "expectedDefinition": {
+        "exactDefinition": "CREATE OR REPLACE FUNCTION public.internal_economics_forbid_update()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n  RAISE EXCEPTION 'immutable_row_update_forbidden: %', TG_TABLE_NAME;\nEND;\n$function$\n",
+        "orderedFragments": [
+          "CREATE OR REPLACE FUNCTION public.internal_economics_forbid_update()",
+          "RETURNS trigger",
+          "LANGUAGE plpgsql",
+          "RAISE EXCEPTION",
+          "TG_TABLE_NAME"
+        ],
+        "stringLiterals": ["immutable_row_update_forbidden: %"]
+      }
+    }
+  ],
+  "expectedTables": [
+    {
+      "name": "internal_capital_envelope_versions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "version",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "main_fund_vehicle_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "lp_commitment_usd",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "gp_commitment_usd",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "total_commitment_usd",
+          "type": "numeric",
+          "nullable": false
+        },
+        {
+          "name": "currency",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "effective_at",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "source_artifact_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "source_config_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "source_config_version",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "source_config_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "attested_by",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "attested_at",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "envelope_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "parent_envelope_version_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "idempotency_key",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "request_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        "internal_capital_envelope_versions_fund_id_funds_id_fk",
+        "internal_capital_envelope_versions_vehicle_fund_fk",
+        "internal_capital_envelope_versions_source_artifact_fund_fk",
+        "internal_capital_envelope_versions_attested_by_fk",
+        "internal_capital_envelope_versions_parent_fund_fk",
+        "internal_capital_envelope_versions_id_fund_unique",
+        "internal_capital_envelope_versions_fund_version_unique",
+        "internal_capital_envelope_versions_fund_idempotency_unique",
+        "internal_capital_envelope_versions_currency_check",
+        "internal_capital_envelope_versions_lp_nonnegative_check",
+        "internal_capital_envelope_versions_gp_nonnegative_check",
+        "internal_capital_envelope_versions_total_positive_check",
+        "internal_capital_envelope_versions_commitment_sum_check",
+        "internal_capital_envelope_versions_no_self_parent_check"
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "internal_capital_envelope_versions_forbid_update_trigger",
+          "expectedDefinition": {
+            "exactDefinition": "CREATE TRIGGER internal_capital_envelope_versions_forbid_update_trigger BEFORE UPDATE ON public.internal_capital_envelope_versions FOR EACH ROW EXECUTE FUNCTION internal_economics_forbid_update()",
+            "orderedFragments": [
+              "CREATE TRIGGER",
+              "BEFORE UPDATE ON public.internal_capital_envelope_versions",
+              "FOR EACH ROW",
+              "EXECUTE FUNCTION internal_economics_forbid_update()"
+            ],
+            "stringLiterals": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "internal_economics_policy_versions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "version",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "policy_schema_version",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "policy_body",
+          "type": "jsonb",
+          "nullable": false
+        },
+        {
+          "name": "normalization_warnings",
+          "type": "jsonb",
+          "nullable": false
+        },
+        {
+          "name": "terminal_period_end",
+          "type": "date",
+          "nullable": false
+        },
+        {
+          "name": "terminal_resolution_methodology_version",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "capital_envelope_version_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "assumptions_hash",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "source_config_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "source_config_version",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "parent_policy_version_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "idempotency_key",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "request_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        "internal_economics_policy_versions_fund_id_funds_id_fk",
+        "internal_economics_policy_versions_envelope_fund_fk",
+        "internal_economics_policy_versions_parent_fund_fk",
+        "internal_economics_policy_versions_created_by_fk",
+        "internal_economics_policy_versions_id_fund_unique",
+        "internal_economics_policy_versions_fund_version_unique",
+        "internal_economics_policy_versions_fund_idempotency_unique",
+        "internal_economics_policy_versions_no_self_parent_check"
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "internal_economics_policy_versions_forbid_update_trigger",
+          "expectedDefinition": {
+            "exactDefinition": "CREATE TRIGGER internal_economics_policy_versions_forbid_update_trigger BEFORE UPDATE ON public.internal_economics_policy_versions FOR EACH ROW EXECUTE FUNCTION internal_economics_forbid_update()",
+            "orderedFragments": [
+              "CREATE TRIGGER",
+              "BEFORE UPDATE ON public.internal_economics_policy_versions",
+              "FOR EACH ROW",
+              "EXECUTE FUNCTION internal_economics_forbid_update()"
+            ],
+            "stringLiterals": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "internal_lp_economics_runs",
+      "columns": [
+        {
+          "name": "id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "fund_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "policy_version_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "facts_snapshot_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "plan_version_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "forecast_snapshot_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "forecast_snapshot_type",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "result_snapshot_id",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "result_snapshot_type",
+          "type": "varchar",
+          "nullable": true
+        },
+        {
+          "name": "run_state",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "result_status",
+          "type": "varchar",
+          "nullable": true
+        },
+        {
+          "name": "failure_code",
+          "type": "text",
+          "nullable": true
+        },
+        {
+          "name": "failure_context",
+          "type": "jsonb",
+          "nullable": true
+        },
+        {
+          "name": "evaluation_clock",
+          "type": "timestamptz",
+          "nullable": false
+        },
+        {
+          "name": "terminal_mode",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "engine_version",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "methodology_version",
+          "type": "text",
+          "nullable": false
+        },
+        {
+          "name": "input_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "result_hash",
+          "type": "varchar",
+          "nullable": true
+        },
+        {
+          "name": "created_by",
+          "type": "integer",
+          "nullable": true
+        },
+        {
+          "name": "idempotency_key",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "request_hash",
+          "type": "varchar",
+          "nullable": false
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false
+        }
+      ],
+      "constraints": [
+        "internal_lp_economics_runs_fund_id_funds_id_fk",
+        "internal_lp_economics_runs_policy_version_fund_fk",
+        "internal_lp_economics_runs_facts_snapshot_fund_fk",
+        "internal_lp_economics_runs_plan_version_fk",
+        "internal_lp_economics_runs_forecast_snapshot_type_fk",
+        "internal_lp_economics_runs_result_snapshot_type_fk",
+        "internal_lp_economics_runs_created_by_fk",
+        "internal_lp_economics_runs_id_fund_unique",
+        "internal_lp_economics_runs_fund_idempotency_unique",
+        "internal_lp_economics_runs_run_state_check",
+        "internal_lp_economics_runs_result_status_check",
+        "internal_lp_economics_runs_terminal_mode_check",
+        "internal_lp_economics_runs_forecast_snapshot_type_check",
+        "internal_lp_economics_runs_result_snapshot_type_check",
+        "internal_lp_economics_runs_state_coupling_check"
+      ],
+      "indexes": [
+        "internal_lp_economics_runs_result_snapshot_unique",
+        "idx_internal_lp_economics_runs_fund_created"
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "internal_lp_economics_runs_forbid_update_trigger",
+          "expectedDefinition": {
+            "exactDefinition": "CREATE TRIGGER internal_lp_economics_runs_forbid_update_trigger BEFORE UPDATE ON public.internal_lp_economics_runs FOR EACH ROW EXECUTE FUNCTION internal_economics_forbid_update()",
+            "orderedFragments": [
+              "CREATE TRIGGER",
+              "BEFORE UPDATE ON public.internal_lp_economics_runs",
+              "FOR EACH ROW",
+              "EXECUTE FUNCTION internal_economics_forbid_update()"
+            ],
+            "stringLiterals": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "fund_snapshots",
+      "sharedTable": true,
+      "constraints": ["fund_snapshots_id_type_unique"],
+      "triggerDefinitions": [
+        {
+          "name": "fund_snapshots_internal_economics_forbid_update_trigger",
+          "expectedDefinition": {
+            "exactDefinition": "CREATE TRIGGER fund_snapshots_internal_economics_forbid_update_trigger BEFORE UPDATE ON public.fund_snapshots FOR EACH ROW WHEN ((((old.type)::text = 'INTERNAL_LP_ECONOMICS'::text) OR ((new.type)::text = 'INTERNAL_LP_ECONOMICS'::text))) EXECUTE FUNCTION internal_economics_forbid_update()",
+            "orderedFragments": [
+              "CREATE TRIGGER",
+              "BEFORE UPDATE ON public.fund_snapshots",
+              "FOR EACH ROW",
+              "WHEN",
+              "old.type",
+              "new.type",
+              "EXECUTE FUNCTION internal_economics_forbid_update()"
+            ],
+            "stringLiterals": ["INTERNAL_LP_ECONOMICS", "INTERNAL_LP_ECONOMICS"]
+          }
+        }
+      ]
+    }
+  ]
+}

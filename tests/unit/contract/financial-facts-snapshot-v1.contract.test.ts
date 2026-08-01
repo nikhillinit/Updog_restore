@@ -7,6 +7,7 @@ import {
   FINANCIAL_FACTS_POLICY_VERSION_1_0_1,
   FINANCIAL_FACTS_POLICY_VERSION_1_1_0,
   FINANCIAL_FACTS_POLICY_VERSION_1_2_0,
+  FINANCIAL_FACTS_POLICY_VERSION_1_3_0,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_1,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2,
   FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3,
@@ -215,7 +216,7 @@ describe('canonical decimal-string primitives', () => {
 
 describe('financial facts snapshot hashes', () => {
   it('pins the byte-identical policy 1.0.0 empty selection-set hash under current policy', () => {
-    expect(FINANCIAL_FACTS_POLICY_VERSION).toBe(FINANCIAL_FACTS_POLICY_VERSION_1_2_0);
+    expect(FINANCIAL_FACTS_POLICY_VERSION).toBe(FINANCIAL_FACTS_POLICY_VERSION_1_3_0);
     expect(EMPTY_SELECTION_SET_HASH).toBe(
       'be150e55440d5748ad85f67b7c5a1ace54bbd847880a4ec7aa10bc85b6777230'
     );

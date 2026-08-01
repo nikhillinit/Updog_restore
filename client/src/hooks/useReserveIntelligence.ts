@@ -73,6 +73,7 @@ const factsSnapshotSchema = z
       'financial-facts-policy/1.0.1',
       'financial-facts-policy/1.1.0',
       'financial-facts-policy/1.2.0',
+      'financial-facts-policy/1.3.0',
     ]),
     asOfDate: z.string().date(),
     snapshotInputHash: sha256Schema,

@@ -139,6 +139,7 @@ describe('prod-schema manifest sentinels', () => {
       '19-user-identity-grants-revocation.json',
       '20-company-scenario-create-requests.json',
       '21-business-time-comparison-lineage.json',
+      '22-internal-economics-policy-runs.json',
     ]);
   });
 

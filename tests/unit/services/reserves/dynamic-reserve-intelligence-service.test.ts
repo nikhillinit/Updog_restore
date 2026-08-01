@@ -261,11 +261,13 @@ function factsRow(snapshot = factsSnapshot()): FactsRow {
     fundId: snapshot.fundId,
     policyVersion: snapshot.policyVersion,
     payloadSchemaId:
-      snapshot.policyVersion === 'financial-facts-policy/1.2.0'
-        ? 'financial-facts-payload/3'
-        : snapshot.policyVersion === 'financial-facts-policy/1.1.0'
-          ? 'financial-facts-payload/2'
-          : 'financial-facts-payload/1',
+      snapshot.policyVersion === 'financial-facts-policy/1.3.0'
+        ? 'financial-facts-payload/4'
+        : snapshot.policyVersion === 'financial-facts-policy/1.2.0'
+          ? 'financial-facts-payload/3'
+          : snapshot.policyVersion === 'financial-facts-policy/1.1.0'
+            ? 'financial-facts-payload/2'
+            : 'financial-facts-payload/1',
     asOfDate: snapshot.asOfDate,
     knowledgeCutoff: new Date(snapshot.knowledgeCutoff),
     vehicleScope: snapshot.vehicleScope,
@@ -476,9 +478,10 @@ describe('dynamic reserve intelligence service', () => {
   it.each([
     ['financial-facts-policy/1.1.0', 'financial-facts-payload/2', false],
     ['financial-facts-policy/1.2.0', 'financial-facts-payload/3', true],
+    ['financial-facts-policy/1.3.0', 'financial-facts-payload/4', true],
   ] as const)(
     'pins %s into reserve provenance',
-    async (policyVersion, payloadSchemaId, isPayload3) => {
+    async (policyVersion, payloadSchemaId, hasOpeningState) => {
       const database = new FakeDatabase();
       const legacy = factsSnapshot();
       const snapshot = PersistedFinancialFactsSnapshotV1Schema.parse({
@@ -492,7 +495,7 @@ describe('dynamic reserve intelligence service', () => {
           ownershipRefs: [],
           valuationRefs: [],
           observationRefs: [],
-          ...(isPayload3 ? { openingAccountingState: null } : {}),
+          ...(hasOpeningState ? { openingAccountingState: null } : {}),
         },
       });
       database.facts = factsRow(snapshot);
@@ -503,7 +506,7 @@ describe('dynamic reserve intelligence service', () => {
       expect(response.result.provenance.factsSnapshot).toMatchObject({
         policyVersion,
         payloadSchemaId,
-        ...(isPayload3 ? { payload: { openingAccountingState: null } } : {}),
+        ...(hasOpeningState ? { payload: { openingAccountingState: null } } : {}),
       });
     }
   );

@@ -121,7 +121,8 @@ function snapshotFromRow(row: FinancialFactsSnapshot): PersistedFinancialFactsSn
   return PersistedFinancialFactsSnapshotV1Schema.parse({
     policyVersion: row.policyVersion,
     ...(row.policyVersion === 'financial-facts-policy/1.1.0' ||
-    row.policyVersion === 'financial-facts-policy/1.2.0'
+    row.policyVersion === 'financial-facts-policy/1.2.0' ||
+    row.policyVersion === 'financial-facts-policy/1.3.0'
       ? { payloadSchemaId: row.payloadSchemaId }
       : {}),
     fundId: row.fundId,

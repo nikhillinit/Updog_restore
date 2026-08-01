@@ -14,19 +14,22 @@ import {
 } from './financial-facts-consumer-policies';
 import { FinancialProvenanceSchema } from './financial-provenance.contract';
 import { FundAccountingStateSnapshotRefV1Schema } from './internal-economics/fund-accounting-state-observation-v1.contract';
+import { FundAccountingStateSnapshotRefV1_1Schema } from './internal-economics/fund-accounting-state-observation-v1.1.contract';
 import { ProvenanceEnvelopeSchema } from './provenance-envelope.contract';
 import { canonicalSha256 } from '../lib/canonical-hash';
-import { canonicalizeDecimalLeaves, MoneyDecimalStringSchema } from '../lib/decimal-string';
+import { MoneyDecimalStringSchema } from '../lib/decimal-string';
 
 export const FINANCIAL_FACTS_POLICY_VERSION_1_0_0 = 'financial-facts-policy/1.0.0' as const;
 export const FINANCIAL_FACTS_POLICY_VERSION_1_0_1 = 'financial-facts-policy/1.0.1' as const;
 export const FINANCIAL_FACTS_POLICY_VERSION_1_1_0 = 'financial-facts-policy/1.1.0' as const;
 export const FINANCIAL_FACTS_POLICY_VERSION_1_2_0 = 'financial-facts-policy/1.2.0' as const;
-export const FINANCIAL_FACTS_POLICY_VERSION = FINANCIAL_FACTS_POLICY_VERSION_1_2_0;
+export const FINANCIAL_FACTS_POLICY_VERSION_1_3_0 = 'financial-facts-policy/1.3.0' as const;
+export const FINANCIAL_FACTS_POLICY_VERSION = FINANCIAL_FACTS_POLICY_VERSION_1_3_0;
 export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_1 = 'financial-facts-payload/1' as const;
 export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_2 = 'financial-facts-payload/2' as const;
 export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3 = 'financial-facts-payload/3' as const;
-export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID = FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_3;
+export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_4 = 'financial-facts-payload/4' as const;
+export const FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID = FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_4;
 
 const SelectionIdSchema = z.union([z.number().int().positive(), z.string().min(1)]);
 
@@ -277,10 +280,96 @@ export const FinancialFactsPayloadV3Schema = FinancialFactsPayloadV2Schema.exten
   openingAccountingState: FundAccountingStateSnapshotRefV1Schema.nullable(),
 }).strict();
 
+const EMBEDDED_OPENING_STATE_DERIVED_FIELD = 'lpUnreturnedContributedCapitalUsd' as const;
+
+type FundAccountingStateSnapshotRefV1_1Resolved = z.infer<
+  typeof FundAccountingStateSnapshotRefV1_1Schema
+>;
+
+/**
+ * V4-only idempotent embedded-ref adapter (WP-L3 section 7, R10 amendment).
+ *
+ * The frozen v1.1 observation contract is intentionally asymmetric: its strict
+ * raw input omits `lpUnreturnedContributedCapitalUsd` and its transform derives
+ * that field into the output, so parsing a resolved output a second time is
+ * rejected by the frozen schema. This adapter is the resolved/persisted
+ * embedding boundary ONLY (payload, hash preimage, persisted envelope, and
+ * readback validation). It delegates all authoritative validation and
+ * derivation to the frozen `FundAccountingStateSnapshotRefV1_1Schema`:
+ *
+ * - Raw-shape input (no derived field): parsed once via the frozen schema.
+ * - Already-resolved input (derived field present): the derived field alone is
+ *   stripped to reconstruct the frozen input shape, the frozen schema reparses
+ *   it, and the supplied value must equal the frozen recomputation
+ *   byte-for-byte. A mismatch is rejected, never silently healed.
+ *
+ * Therefore `adapter.parse(adapter.parse(rawRef))` is byte-stable. The producer
+ * must keep applying the frozen observation schema DIRECTLY to source-artifact
+ * bytes; this adapter never parses source-artifact JSON, so a human-supplied
+ * derived field remains invalid at the artifact boundary.
+ */
+export const EmbeddedFundAccountingStateSnapshotRefV1_1Schema = z
+  .unknown()
+  .transform((value, ctx): FundAccountingStateSnapshotRefV1_1Resolved => {
+    const observation =
+      typeof value === 'object' && value !== null && !Array.isArray(value)
+        ? (value as { observation?: unknown }).observation
+        : undefined;
+    const suppliedDerived =
+      typeof observation === 'object' &&
+      observation !== null &&
+      !Array.isArray(observation) &&
+      EMBEDDED_OPENING_STATE_DERIVED_FIELD in observation
+        ? {
+            present: true as const,
+            value: (observation as Record<string, unknown>)[EMBEDDED_OPENING_STATE_DERIVED_FIELD],
+          }
+        : { present: false as const };
+
+    const candidate = suppliedDerived.present
+      ? {
+          ...(value as Record<string, unknown>),
+          observation: Object.fromEntries(
+            Object.entries(observation as Record<string, unknown>).filter(
+              ([key]) => key !== EMBEDDED_OPENING_STATE_DERIVED_FIELD
+            )
+          ),
+        }
+      : value;
+
+    const reparsed = FundAccountingStateSnapshotRefV1_1Schema.safeParse(candidate);
+    if (!reparsed.success) {
+      for (const issue of reparsed.error.issues) {
+        ctx.addIssue(issue);
+      }
+      return z.NEVER;
+    }
+
+    if (
+      suppliedDerived.present &&
+      suppliedDerived.value !== reparsed.data.observation[EMBEDDED_OPENING_STATE_DERIVED_FIELD]
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['observation', EMBEDDED_OPENING_STATE_DERIVED_FIELD],
+        message:
+          'Supplied lpUnreturnedContributedCapitalUsd must equal the frozen v1.1 recomputation byte-for-byte.',
+      });
+      return z.NEVER;
+    }
+
+    return reparsed.data;
+  });
+
+export const FinancialFactsPayloadV4Schema = FinancialFactsPayloadV3Schema.extend({
+  openingAccountingState: EmbeddedFundAccountingStateSnapshotRefV1_1Schema.nullable(),
+}).strict();
+
 export type FinancialFactsPayloadV1_0_0 = z.infer<typeof FinancialFactsPayloadV1_0_0Schema>;
 export type FinancialFactsPayloadV1 = z.infer<typeof FinancialFactsPayloadV1Schema>;
 export type FinancialFactsPayloadV2 = z.infer<typeof FinancialFactsPayloadV2Schema>;
 export type FinancialFactsPayloadV3 = z.infer<typeof FinancialFactsPayloadV3Schema>;
+export type FinancialFactsPayloadV4 = z.infer<typeof FinancialFactsPayloadV4Schema>;
 
 const Sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
 
@@ -336,6 +425,19 @@ export const FinancialFactsSnapshotInputHashPreimageV3Schema = z
   })
   .strict();
 
+export const FinancialFactsSnapshotInputHashPreimageV4Schema = z
+  .object({
+    fundId: z.number().int().positive(),
+    vehicleIds: z.array(z.number().int().positive()),
+    asOfDate: z.string().date(),
+    knowledgeCutoff: z.string().datetime(),
+    policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_3_0),
+    payloadSchemaId: z.literal(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_4),
+    selectionSetHash: Sha256Schema,
+    payload: FinancialFactsPayloadV4Schema,
+  })
+  .strict();
+
 export const PersistedFinancialFactsSnapshotInputHashPreimageSchema = z.discriminatedUnion(
   'policyVersion',
   [
@@ -343,6 +445,7 @@ export const PersistedFinancialFactsSnapshotInputHashPreimageSchema = z.discrimi
     FinancialFactsSnapshotInputHashPreimageSchema,
     FinancialFactsSnapshotInputHashPreimageV2Schema,
     FinancialFactsSnapshotInputHashPreimageV3Schema,
+    FinancialFactsSnapshotInputHashPreimageV4Schema,
   ]
 );
 
@@ -358,15 +461,28 @@ export type FinancialFactsSnapshotInputHashPreimageV2 = z.infer<
 export type FinancialFactsSnapshotInputHashPreimageV3 = z.infer<
   typeof FinancialFactsSnapshotInputHashPreimageV3Schema
 >;
+export type FinancialFactsSnapshotInputHashPreimageV4 = z.infer<
+  typeof FinancialFactsSnapshotInputHashPreimageV4Schema
+>;
 export type PersistedFinancialFactsSnapshotInputHashPreimage = z.infer<
   typeof PersistedFinancialFactsSnapshotInputHashPreimageSchema
 >;
 
+/**
+ * Total for every schema-valid persisted preimage (WP-L3 section 7, R9
+ * amendment): the discriminated preimage/payload Zod schemas are the
+ * validation boundary for decimal strings, so the redundant decimal-leaf scan
+ * (whose unanchored scientific-notation guard also matched ordinary SHA-256
+ * substrings such as `EMPTY_SELECTION_SET_HASH`) is not reapplied here.
+ * Canonical bytes are unchanged: both canonicalizers recursively sort object
+ * keys and preserve array order.
+ */
 export function buildSnapshotInputHash(
   input: PersistedFinancialFactsSnapshotInputHashPreimage
 ): string {
   const parsed = PersistedFinancialFactsSnapshotInputHashPreimageSchema.parse(input);
-  const preimage = canonicalizeDecimalLeaves({
+
+  return canonicalSha256({
     fundId: parsed.fundId,
     vehicleIds: [...parsed.vehicleIds].sort((left, right) => left - right),
     asOfDate: parsed.asOfDate,
@@ -379,8 +495,6 @@ export function buildSnapshotInputHash(
         : FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_1,
     payload: parsed.payload,
   });
-
-  return canonicalSha256(preimage);
 }
 
 export const FinancialFactsSnapshotV1_0_0Schema = z
@@ -459,17 +573,38 @@ export const FinancialFactsSnapshotV3Schema = z
   })
   .strict();
 
+export const FinancialFactsSnapshotV4Schema = z
+  .object({
+    policyVersion: z.literal(FINANCIAL_FACTS_POLICY_VERSION_1_3_0),
+    payloadSchemaId: z.literal(FINANCIAL_FACTS_PAYLOAD_SCHEMA_ID_4),
+    fundId: z.number().int().positive(),
+    asOfDate: z.string().date(),
+    knowledgeCutoff: z.string().datetime(),
+    vehicleScope: z.literal('fund_all'),
+    vehicleIds: z.array(z.number().int().positive()),
+    selectionSetHash: Sha256Schema,
+    sourceFactsInputHash: Sha256Schema,
+    snapshotInputHash: Sha256Schema,
+    consumerEvaluations: z.array(ConsumerEvaluationV2Schema),
+    payload: FinancialFactsPayloadV4Schema,
+    actorId: z.number().int().positive().nullable(),
+    createdAt: z.string().datetime(),
+  })
+  .strict();
+
 export const PersistedFinancialFactsSnapshotV1Schema = z.discriminatedUnion('policyVersion', [
   FinancialFactsSnapshotV1_0_0Schema,
   FinancialFactsSnapshotV1Schema,
   FinancialFactsSnapshotV2Schema,
   FinancialFactsSnapshotV3Schema,
+  FinancialFactsSnapshotV4Schema,
 ]);
 
 export type FinancialFactsSnapshotV1_0_0 = z.infer<typeof FinancialFactsSnapshotV1_0_0Schema>;
 export type FinancialFactsSnapshotV1 = z.infer<typeof FinancialFactsSnapshotV1Schema>;
 export type FinancialFactsSnapshotV2 = z.infer<typeof FinancialFactsSnapshotV2Schema>;
 export type FinancialFactsSnapshotV3 = z.infer<typeof FinancialFactsSnapshotV3Schema>;
+export type FinancialFactsSnapshotV4 = z.infer<typeof FinancialFactsSnapshotV4Schema>;
 export type PersistedFinancialFactsSnapshotV1 = z.infer<
   typeof PersistedFinancialFactsSnapshotV1Schema
 >;

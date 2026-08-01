@@ -310,11 +310,17 @@ describe('prod schema apply policy', () => {
 
   it('accepts additive-safe production manifests from M9 onward', async () => {
     const manifests = await loadManifests();
+    const humanReconciledManifests = new Set([
+      'business-time-comparison-lineage',
+      // WP-L3 T-A5 disposition: manifest 22's DROP TRIGGER IF EXISTS is an
+      // unknown drop for the additive-safe allow-list, so it follows the
+      // 0034 precedent — audit-visible, human-reconciled — see the dedicated
+      // refusal pin below and the REFUSE-FOR-HUMAN trigger audit.
+      'internal-economics-policy-runs',
+    ]);
     const applyingManifestNames = new Set(
       manifests
-        .filter(
-          (manifest) => manifest.order >= 9 && manifest.name !== 'business-time-comparison-lineage'
-        )
+        .filter((manifest) => manifest.order >= 9 && !humanReconciledManifests.has(manifest.name))
         .map((manifest) => manifest.name)
     );
 
@@ -333,6 +339,21 @@ describe('prod schema apply policy', () => {
       assertApplyPolicyForManifests({
         manifests,
         applyingManifestNames: new Set(['business-time-comparison-lineage']),
+      })
+    ).toThrow(ReconcileError);
+  });
+
+  // WP-L3 T-A5: trigger DDL cannot ride the additive-safe automated apply
+  // path. The operator applies migrations/0045 manually; the reconcile audit
+  // then proves convergence via the triggerDefinitions/functionDefinitions
+  // REFUSE-FOR-HUMAN -> SKIP cycle.
+  it('refuses automated apply for internal economics policy runs', async () => {
+    const manifests = await loadManifests();
+
+    expect(() =>
+      assertApplyPolicyForManifests({
+        manifests,
+        applyingManifestNames: new Set(['internal-economics-policy-runs']),
       })
     ).toThrow(ReconcileError);
   });

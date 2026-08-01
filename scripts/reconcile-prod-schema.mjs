@@ -45,6 +45,9 @@ const KNOWN_MANIFEST_KEYS = new Set([
   'applyPolicy',
   'missingTablePolicy',
   'manifestPath',
+  // WP-L3 T-A5: pg_proc-backed function-body pins (see functionDefinitions
+  // validation below; the per-table sibling is expectedTables[].triggerDefinitions).
+  'functionDefinitions',
 ]);
 const MISSING_TABLE_POLICIES = new Set([
   MISSING_TABLE_POLICY_CREATE_OR_REPAIR,
@@ -166,6 +169,11 @@ export function manifestChecksum(manifest, sqlFiles) {
       // (s8.1 red-team F3). Safe to add while the prod ledger is empty.
       dropObjects: manifest.dropObjects ?? [],
       applyPolicy: manifest.applyPolicy ?? {},
+      // Only manifests that PIN function bodies carry the key, so every
+      // pre-existing manifest checksum stays byte-identical (ledger dedupe).
+      ...(manifest.functionDefinitions
+        ? { functionDefinitions: manifest.functionDefinitions }
+        : {}),
     })
   );
 }
@@ -209,7 +217,48 @@ function validateManifest(manifest) {
   validateManifestKeys(manifest);
   validateMissingTablePolicyValue(manifest);
   validateExpectedTables(manifest);
+  validateFunctionDefinitions(manifest);
   validateApplyPolicy(manifest);
+}
+
+/** Shared shape contract for indexDefinitions / triggerDefinitions /
+ * functionDefinitions expected-definition pins. */
+function isValidExpectedDefinition(expectedDefinition) {
+  return (
+    Boolean(expectedDefinition) &&
+    typeof expectedDefinition.exactDefinition === 'string' &&
+    expectedDefinition.exactDefinition.trim().length > 0 &&
+    Array.isArray(expectedDefinition.orderedFragments) &&
+    expectedDefinition.orderedFragments.length > 0 &&
+    expectedDefinition.orderedFragments.every(
+      (fragment) => typeof fragment === 'string' && fragment.trim().length > 0
+    ) &&
+    Array.isArray(expectedDefinition.stringLiterals) &&
+    expectedDefinition.stringLiterals.every(
+      (literal) => typeof literal === 'string' && literal.length > 0
+    )
+  );
+}
+
+function validateFunctionDefinitions(manifest) {
+  const seenNames = new Set();
+  for (const functionDefinition of manifest?.functionDefinitions ?? []) {
+    assertSafeIdentifier(String(functionDefinition.name ?? ''));
+    if (
+      seenNames.has(functionDefinition.name) ||
+      !isValidExpectedDefinition(functionDefinition.expectedDefinition)
+    ) {
+      throw new ReconcileError(
+        `Manifest ${manifestLabel(manifest)} functionDefinitions target ${String(functionDefinition.name)} must be named exactly once and provide an exact definition, ordered fragments, and string literals`,
+        {
+          kind: 'invalid-function-definition',
+          manifest: manifestLabel(manifest),
+          name: functionDefinition.name,
+        }
+      );
+    }
+    seenNames.add(functionDefinition.name);
+  }
 }
 
 function validateExpectedTables(manifest) {
@@ -219,22 +268,10 @@ function validateExpectedTables(manifest) {
 
     for (const indexDefinition of table.indexDefinitions ?? []) {
       assertSafeIdentifier(String(indexDefinition.name ?? ''));
-      const expectedDefinition = indexDefinition.expectedDefinition;
       if (
         !indexes.has(indexDefinition.name) ||
         seenDefinitions.has(indexDefinition.name) ||
-        !expectedDefinition ||
-        typeof expectedDefinition.exactDefinition !== 'string' ||
-        expectedDefinition.exactDefinition.trim().length === 0 ||
-        !Array.isArray(expectedDefinition.orderedFragments) ||
-        expectedDefinition.orderedFragments.length === 0 ||
-        expectedDefinition.orderedFragments.some(
-          (fragment) => typeof fragment !== 'string' || fragment.trim().length === 0
-        ) ||
-        !Array.isArray(expectedDefinition.stringLiterals) ||
-        expectedDefinition.stringLiterals.some(
-          (literal) => typeof literal !== 'string' || literal.length === 0
-        )
+        !isValidExpectedDefinition(indexDefinition.expectedDefinition)
       ) {
         throw new ReconcileError(
           `Manifest ${manifestLabel(manifest)} indexDefinitions target ${table.name}.${String(indexDefinition.name)} must name an expected index exactly once and provide an exact definition, ordered fragments, and string literals`,
@@ -247,6 +284,26 @@ function validateExpectedTables(manifest) {
         );
       }
       seenDefinitions.add(indexDefinition.name);
+    }
+
+    const seenTriggers = new Set();
+    for (const triggerDefinition of table.triggerDefinitions ?? []) {
+      assertSafeIdentifier(String(triggerDefinition.name ?? ''));
+      if (
+        seenTriggers.has(triggerDefinition.name) ||
+        !isValidExpectedDefinition(triggerDefinition.expectedDefinition)
+      ) {
+        throw new ReconcileError(
+          `Manifest ${manifestLabel(manifest)} triggerDefinitions target ${table.name}.${String(triggerDefinition.name)} must be named exactly once and provide an exact definition, ordered fragments, and string literals`,
+          {
+            kind: 'invalid-trigger-definition',
+            manifest: manifestLabel(manifest),
+            table: table.name,
+            name: triggerDefinition.name,
+          }
+        );
+      }
+      seenTriggers.add(triggerDefinition.name);
     }
   }
 }
@@ -680,8 +737,9 @@ export async function auditManifest(client, manifest) {
   const missingTablePolicy = resolveMissingTablePolicy(manifest);
   const expectedTables = manifest.expectedTables ?? [];
   const dropObjects = manifest.dropObjects ?? [];
+  const functionDefinitions = manifest.functionDefinitions ?? [];
   const tableNames = expectedTables.map((table) => table.name);
-  if (tableNames.length === 0 && dropObjects.length === 0) {
+  if (tableNames.length === 0 && dropObjects.length === 0 && functionDefinitions.length === 0) {
     return {
       manifest: manifest.name,
       missingTablePolicy,
@@ -697,6 +755,7 @@ export async function auditManifest(client, manifest) {
     const columns = await loadColumns(client, tableNames);
     const constraints = await loadConstraints(client, tableNames, expectedTables);
     const indexes = await loadIndexes(client, expectedTables);
+    const triggers = await loadTriggers(client, expectedTables);
 
     for (const expectedTable of expectedTables) {
       const tableConstraints = constraints.filter(
@@ -710,6 +769,7 @@ export async function auditManifest(client, manifest) {
           columns: columns.get(expectedTable.name) ?? new Map(),
           constraints: tableConstraints,
           indexes,
+          triggers,
           nonNullColumnAdds: (manifest.applyPolicy?.allowNonNullColumnAdds ?? []).filter(
             (target) => target.table === expectedTable.name
           ),
@@ -722,6 +782,10 @@ export async function auditManifest(client, manifest) {
     }
   }
 
+  if (functionDefinitions.length > 0) {
+    objects.push(...(await auditFunctionDefinitions(client, functionDefinitions, missingTablePolicy)));
+  }
+
   if (dropObjects.length > 0) {
     objects.push(...(await auditDropObjects(client, dropObjects)));
   }
@@ -732,6 +796,113 @@ export async function auditManifest(client, manifest) {
     action: summarizeAction(objects.map((object) => object.action)),
     objects,
   };
+}
+
+/**
+ * WP-L3 T-A5: pg_proc-sourced function-body audit, the sibling of the
+ * per-table trigger wiring audit below. Function DDL cannot ride the
+ * additive-safe automated apply path, so any drift is humanReviewRequired:
+ * ACTION_REFUSE_FOR_HUMAN until the operator reconciles manually, ACTION_SKIP
+ * only once the live pg_get_functiondef body matches the manifest pin.
+ */
+async function auditFunctionDefinitions(client, functionDefinitions, missingTablePolicy) {
+  const rows = await loadFunctions(
+    client,
+    functionDefinitions.map((functionDefinition) => functionDefinition.name)
+  );
+
+  return functionDefinitions.map((functionDefinition) => {
+    const matches = rows.filter(
+      (row) => row.proname === pgIdentifier(functionDefinition.name)
+    );
+    const deltas = [];
+    if (matches.length === 0) {
+      deltas.push({
+        kind: 'missing-function',
+        name: functionDefinition.name,
+        additiveSafe: false,
+        humanReviewRequired: true,
+      });
+    } else if (matches.length > 1) {
+      deltas.push({
+        kind: 'function-overload-ambiguous',
+        name: functionDefinition.name,
+        additiveSafe: false,
+        humanReviewRequired: true,
+      });
+    } else if (
+      !indexDefinitionMatches(matches[0].definition, functionDefinition.expectedDefinition)
+    ) {
+      deltas.push({
+        kind: 'function-definition-mismatch',
+        name: functionDefinition.name,
+        expected: functionDefinition.expectedDefinition,
+        actual: matches[0].definition,
+        additiveSafe: false,
+        humanReviewRequired: true,
+      });
+    }
+
+    return {
+      table: `function:${functionDefinition.name}`,
+      present: matches.length > 0,
+      populated: false,
+      deltas,
+      action: decideObjectAction({
+        tablePresent: true,
+        deltas,
+        populated: false,
+        missingTablePolicy,
+      }),
+    };
+  });
+}
+
+async function loadFunctions(client, functionNames) {
+  if (functionNames.length === 0) return [];
+  const lookupNames = functionNames.map(pgIdentifier);
+
+  const result = await client.query(
+    `
+      SELECT p.proname, pg_get_functiondef(p.oid) AS definition
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public'
+        AND p.proname = ANY($1::text[])
+    `,
+    [lookupNames]
+  );
+  return result.rows;
+}
+
+async function loadTriggers(client, expectedTables) {
+  const triggerNames = expectedTables.flatMap((table) =>
+    (table.triggerDefinitions ?? []).map((triggerDefinition) => triggerDefinition.name)
+  );
+  if (triggerNames.length === 0) return [];
+  const lookupNames = triggerNames.map(pgIdentifier);
+  const tableNames = expectedTables
+    .filter((table) => (table.triggerDefinitions ?? []).length > 0)
+    .map((table) => table.name);
+
+  const result = await client.query(
+    `
+      SELECT
+        c.relname AS table_name,
+        t.tgname,
+        t.tgenabled,
+        pg_get_triggerdef(t.oid) AS definition
+      FROM pg_trigger t
+      JOIN pg_class c ON c.oid = t.tgrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND NOT t.tgisinternal
+        AND c.relname = ANY($1::text[])
+        AND t.tgname = ANY($2::text[])
+    `,
+    [tableNames, lookupNames]
+  );
+  return result.rows;
 }
 
 // Extra-objects audit: a dropObject PRESENT on the target means the manifest
@@ -1011,6 +1182,7 @@ async function auditTable({
   columns,
   constraints,
   indexes,
+  triggers = [],
   nonNullColumnAdds,
   constraintReplacements,
   missingTablePolicy,
@@ -1018,6 +1190,12 @@ async function auditTable({
   const deltas = [];
   const indexTableMismatches = findIndexTableMismatches(expectedTable, indexes);
   deltas.push(...indexTableMismatches);
+  // WP-L3 T-A5: trigger wiring deltas are computed BEFORE the missing-table
+  // early return so the pre-reconciliation state (table and trigger both
+  // absent) surfaces as ACTION_REFUSE_FOR_HUMAN, never as an automated
+  // create-and-apply — trigger DDL cannot ride the additive-safe apply path
+  // (DROP TRIGGER is an unknown drop for prod-schema-apply-policy.mjs).
+  deltas.push(...triggerDefinitionDeltas(expectedTable, triggers));
 
   if (!tablePresent) {
     deltas.push({ kind: 'missing-table', name: expectedTable.name, additiveSafe: true });
@@ -1244,6 +1422,55 @@ function indexDefinitionMatches(actualDefinition, expectedDefinition) {
     actualLiterals.length === expectedLiterals.length &&
     actualLiterals.every((literal, index) => literal === expectedLiterals[index])
   );
+}
+
+/**
+ * WP-L3 T-A5: pg_trigger/pg_get_triggerdef wiring audit, analogous to
+ * 0034's indexDefinitions. Every discrepancy — missing trigger, disabled
+ * trigger (tgenabled <> 'O'), or drifted definition — is humanReviewRequired,
+ * so the manifest audits ACTION_REFUSE_FOR_HUMAN until the operator applies
+ * the journaled migration manually, and ACTION_SKIP only once the live
+ * definition matches the manifest pin exactly.
+ */
+function triggerDefinitionDeltas(expectedTable, triggers) {
+  const deltas = [];
+  for (const triggerDefinition of expectedTable.triggerDefinitions ?? []) {
+    const trigger = triggers.find(
+      (row) =>
+        row.tgname === pgIdentifier(triggerDefinition.name) &&
+        row.table_name === expectedTable.name
+    );
+    if (!trigger) {
+      deltas.push({
+        kind: 'missing-trigger',
+        name: triggerDefinition.name,
+        additiveSafe: false,
+        humanReviewRequired: true,
+      });
+      continue;
+    }
+    if (trigger.tgenabled !== 'O') {
+      deltas.push({
+        kind: 'trigger-disabled',
+        name: triggerDefinition.name,
+        actual: trigger.tgenabled,
+        additiveSafe: false,
+        humanReviewRequired: true,
+      });
+      continue;
+    }
+    if (!indexDefinitionMatches(trigger.definition, triggerDefinition.expectedDefinition)) {
+      deltas.push({
+        kind: 'trigger-definition-mismatch',
+        name: triggerDefinition.name,
+        expected: triggerDefinition.expectedDefinition,
+        actual: trigger.definition,
+        additiveSafe: false,
+        humanReviewRequired: true,
+      });
+    }
+  }
+  return deltas;
 }
 
 function findIndexTableMismatches(expectedTable, indexes) {

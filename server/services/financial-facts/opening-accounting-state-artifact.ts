@@ -1,10 +1,12 @@
 import { createHash } from 'node:crypto';
 
+import { EmbeddedFundAccountingStateSnapshotRefV1_1Schema } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
 import {
-  FundAccountingStateObservationV1Schema,
-  FundAccountingStateSnapshotRefV1Schema,
-  type FundAccountingStateSnapshotRefV1,
-} from '../../../shared/contracts/internal-economics/fund-accounting-state-observation-v1.contract';
+  FUND_ACCOUNTING_STATE_OBSERVATION_VERSION_1_1_0,
+  FundAccountingStateObservationV1_1Schema,
+  type FundAccountingStateObservationV1_1,
+  type FundAccountingStateSnapshotRefV1_1,
+} from '../../../shared/contracts/internal-economics/fund-accounting-state-observation-v1.1.contract';
 
 export interface OpeningAccountingStateArtifactRow {
   id: number;
@@ -69,13 +71,31 @@ function compareRfc3339UtcInstants(left: string, right: string): number {
   return 0;
 }
 
+/**
+ * Best-effort extraction of a JSON value's `contractVersion` field, used only
+ * to add version context to the INVALID error below. Never throws; an
+ * unreadable shape simply reports as "unknown".
+ */
+function observedContractVersion(rawObservation: unknown): string {
+  if (
+    typeof rawObservation === 'object' &&
+    rawObservation !== null &&
+    !Array.isArray(rawObservation) &&
+    'contractVersion' in rawObservation
+  ) {
+    const value = (rawObservation as Record<string, unknown>)['contractVersion'];
+    if (typeof value === 'string') return value;
+  }
+  return 'unknown';
+}
+
 export function parseOpeningAccountingStateArtifact(input: {
   row: OpeningAccountingStateArtifactRow | null | undefined;
   fundId: number;
   asOfDate: string;
   knowledgeCutoff: string;
   actorId: number;
-}): FundAccountingStateSnapshotRefV1 {
+}): FundAccountingStateSnapshotRefV1_1 {
   const { row } = input;
   if (row == null || row.fundId !== input.fundId) {
     throw new OpeningAccountingStateArtifactError(
@@ -103,16 +123,30 @@ export function parseOpeningAccountingStateArtifact(input: {
     invalidArtifact('Opening accounting-state artifact digest does not match its stored bytes.');
   }
 
-  let observation: ReturnType<typeof FundAccountingStateObservationV1Schema.parse>;
+  let rawObservation: unknown;
   try {
-    observation = FundAccountingStateObservationV1Schema.parse(
-      JSON.parse(row.payload.toString('utf8'))
-    );
+    rawObservation = JSON.parse(row.payload.toString('utf8'));
   } catch {
+    invalidArtifact('Opening accounting-state artifact bytes are not valid JSON.');
+  }
+
+  // Frozen raw-input boundary (Brief 1, WP-L3 section 7 R10): the v1.1
+  // observation contract's strict input shape derives
+  // lpUnreturnedContributedCapitalUsd rather than accepting it, and rejects
+  // any older (e.g. v1.0.0) artifact outright. A stored v1 artifact failing
+  // this parse is the normal, expected path for pre-migration data, not a
+  // bug -- the historical artifact row itself remains stored and untouched;
+  // the operator must re-attest a v1.1 artifact to resolve opening state for
+  // new snapshots.
+  const parsedObservation = FundAccountingStateObservationV1_1Schema.safeParse(rawObservation);
+  if (!parsedObservation.success) {
     invalidArtifact(
-      'Opening accounting-state artifact bytes do not satisfy the observation contract.'
+      `Opening accounting-state artifact bytes do not satisfy the ${FUND_ACCOUNTING_STATE_OBSERVATION_VERSION_1_1_0} observation contract (observed contractVersion "${observedContractVersion(
+        rawObservation
+      )}"). Re-attest a v1.1 artifact.`
     );
   }
+  const observation: FundAccountingStateObservationV1_1 = parsedObservation.data;
 
   const cutoff = new Date(input.knowledgeCutoff);
   if (
@@ -133,7 +167,13 @@ export function parseOpeningAccountingStateArtifact(input: {
     );
   }
 
-  return FundAccountingStateSnapshotRefV1Schema.parse({
+  // Resolved/persisted embedding boundary (WP-L3 section 7 R10): `observation`
+  // already carries the frozen schema's derived lpUnreturnedContributedCapitalUsd,
+  // so the ref is emitted through Commit A's idempotent adapter rather than
+  // the frozen ref schema directly (which would reject the derived field on
+  // a second pass). The adapter re-delegates to the same frozen schema and
+  // requires the derived value to match its own recomputation byte-for-byte.
+  return EmbeddedFundAccountingStateSnapshotRefV1_1Schema.parse({
     sourceArtifactId: row.id,
     sourceArtifactSha256: row.payloadSha256,
     sourceArtifactCreatedAt: row.createdAt.toISOString(),

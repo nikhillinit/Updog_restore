@@ -184,6 +184,33 @@ describe('current forecast v2 service', () => {
     ).resolves.toMatchObject({ contractVersion: 'current-forecast-v2' });
   });
 
+  it('runs from a payload 4 facts snapshot and round-trips its tuple', async () => {
+    const fakeDb = new FakeCurrentForecastDb();
+    const legacy = factsRow();
+    fakeDb.factsRows[0] = factsRow({
+      policyVersion: 'financial-facts-policy/1.3.0',
+      payloadSchemaId: 'financial-facts-payload/4',
+      payload: {
+        ...(legacy.payload as Record<string, unknown>),
+        positionRefs: [],
+        positionComponentRefs: [],
+        ownershipRefs: [],
+        valuationRefs: [],
+        observationRefs: [],
+        openingAccountingState: resolvedOpeningAccountingState(),
+      } as FactsRow['payload'],
+    });
+
+    await expect(
+      runCurrentForecastV2({
+        fundId: 1,
+        clock: '2026-07-22T18:24:32.051Z',
+        database: fakeDb.asDatabase(),
+      })
+    ).resolves.toMatchObject({ contractVersion: 'current-forecast-v2' });
+    expect(fakeDb.insertedSnapshots).toHaveLength(1);
+  });
+
   it('rejects facts rows whose stored policy and payload schema tuple is invalid', async () => {
     const fakeDb = new FakeCurrentForecastDb();
     fakeDb.factsRows[0] = factsRow({
@@ -316,6 +343,42 @@ function currentPlanRow(overrides: Partial<CurrentPlanRow> = {}): CurrentPlanRow
     requestHash: 'b'.repeat(64),
     createdAt: new Date('2026-07-22T02:00:00.000Z'),
     ...overrides,
+  };
+}
+
+/**
+ * A stored, already-resolved v1.1 embedded ref exactly as a persisted payload 4
+ * row would carry it: the derived lpUnreturnedContributedCapitalUsd is present
+ * and equals the frozen recomputation (20 paid-in minus 4 ROC).
+ */
+function resolvedOpeningAccountingState() {
+  return {
+    sourceArtifactId: 41,
+    sourceArtifactSha256: 'd'.repeat(64),
+    sourceArtifactCreatedAt: '2026-07-20T23:00:00.000Z',
+    attestedByActorId: 7,
+    observation: {
+      contractVersion: 'fund-accounting-state-observation/1.1.0',
+      cutoverInstant: '2026-07-20T23:59:59.000Z',
+      currency: 'USD',
+      cashBalanceUsd: '10.000000',
+      cumulativeLpPaidInUsd: '20.000000',
+      cumulativeGpPaidInUsd: '3.000000',
+      gpUnreturnedContributedCapitalUsd: '2.000000',
+      lpDistributionsReturnOfCapitalUsd: '4.000000',
+      lpDistributionsProfitUsd: '5.000000',
+      actualLpDistributionsCumulativeUsd: '9.000000',
+      gpInvestmentDistributionsPaidUsd: '1.000000',
+      gpCarryPaidUsd: '2.000000',
+      accruedPreferredReturnUsd: '3.000000',
+      accruedPreferredReturnThroughInstant: '2026-07-20T23:59:59.000Z',
+      recallableDistributionsCumulativeUsd: '6.000000',
+      recallableDistributionsOutstandingUsd: '2.000000',
+      recycledProceedsCumulativeUsd: '4.000000',
+      realizedProceedsCumulativeUsd: '8.000000',
+      methodologyVersion: 'manual-opening-state/1.0.0',
+      lpUnreturnedContributedCapitalUsd: '16.000000',
+    },
   };
 }
 
