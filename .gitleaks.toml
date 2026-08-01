@@ -31,6 +31,18 @@ paths = [
 ]
 
 [[allowlists]]
+description = "Allow deterministic WP-L3 idempotency fixtures"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''^\s*idempotencyKey:\s*'(?:tc13-ordinary|tc16-exhausted)',$'''
+]
+paths = [
+  '''^tests/unit/services/internal-economics/lp-economics-run-service\.test\.ts$'''
+]
+
+[[allowlists]]
 description = "Allow historical negative-control fixture template from blocking repo-history scans"
 targetRules = ["updog-negative-control-token"]
 condition = "AND"

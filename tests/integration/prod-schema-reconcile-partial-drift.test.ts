@@ -29,6 +29,7 @@ interface ManifestTable {
 
 interface Manifest {
   readonly name: string;
+  readonly order: number;
   readonly sqlFiles: readonly string[];
   readonly expectedTables?: readonly ManifestTable[];
 }
@@ -414,7 +415,9 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
           '0035_substrate_shadow_reconciliations'
         );
         isolatedPool = new Pool({ connectionString: databaseConnectionString, max: 1 });
-        const manifests = (await loadManifests()) as Manifest[];
+        const manifests = ((await loadManifests()) as Manifest[]).filter(
+          (manifest) => manifest.order <= 21
+        );
 
         await isolatedPool.query(`
           WITH inserted_fund AS (
