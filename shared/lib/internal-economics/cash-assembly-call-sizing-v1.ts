@@ -164,7 +164,7 @@ function assertNonNegativeScheduledAmounts(
   for (const quarterInput of quarters) {
     for (const field of NEGATIVE_SCHEDULED_AMOUNT_FIELDS) {
       const value = quarterInput[field];
-      if (value.isNegative()) {
+      if (value.lt(0)) {
         throw new CashAssemblyCallSizingV1Error(
           'NEGATIVE_SCHEDULED_AMOUNT',
           `${field} at quarter ending ${quarterInput.period.periodEnd} is negative ` +
