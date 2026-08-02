@@ -209,6 +209,7 @@ export type LpEconomicsRunServiceErrorCode =
   | 'FACTS_SNAPSHOT_NOT_FOUND'
   | 'PLAN_VERSION_NOT_FOUND'
   | 'FORECAST_SNAPSHOT_NOT_FOUND'
+  | 'FUND_SCOPE_NOT_FOUND'
   | 'RUN_NOT_FOUND'
   | 'RUN_RESULT_SNAPSHOT_MISSING'
   | 'SOURCE_CONFIG_VERSION_DRIFTED'
@@ -448,33 +449,40 @@ type PersistedRunExecution = Readonly<{
 export async function executeLpEconomicsRun(
   opts: ExecuteLpEconomicsRunOptions
 ): Promise<LpEconomicsRunExecution> {
-  const database = opts.database ?? db;
-  let persisted: PersistedRunExecution | undefined;
+  try {
+    const database = opts.database ?? db;
+    let persisted: PersistedRunExecution | undefined;
 
-  for (let attempt = 1; attempt <= RUN_TRANSACTION_MAX_ATTEMPTS; attempt += 1) {
-    try {
-      persisted = await database.transaction(
-        async (transaction) =>
-          executeLpEconomicsRunInTransaction({
-            opts,
-            database: transaction as unknown as RunDatabase,
-          }),
-        { isolationLevel: 'repeatable read', accessMode: 'read write' }
-      );
-      break;
-    } catch (error) {
-      const retryable = RETRYABLE_TRANSACTION_SQLSTATES.has(transactionSqlState(error) ?? '');
-      if (!retryable || attempt === RUN_TRANSACTION_MAX_ATTEMPTS) throw error;
+    for (let attempt = 1; attempt <= RUN_TRANSACTION_MAX_ATTEMPTS; attempt += 1) {
+      try {
+        persisted = await database.transaction(
+          async (transaction) =>
+            executeLpEconomicsRunInTransaction({
+              opts,
+              database: transaction as unknown as RunDatabase,
+            }),
+          { isolationLevel: 'repeatable read', accessMode: 'read write' }
+        );
+        break;
+      } catch (error) {
+        const retryable = RETRYABLE_TRANSACTION_SQLSTATES.has(transactionSqlState(error) ?? '');
+        if (!retryable || attempt === RUN_TRANSACTION_MAX_ATTEMPTS) throw error;
+      }
     }
-  }
 
-  if (persisted === undefined) {
-    throw new Error('Internal LP economics run transaction retry bound was exhausted.');
+    if (persisted === undefined) {
+      throw new Error('Internal LP economics run transaction retry bound was exhausted.');
+    }
+    return {
+      receipt: await buildReceiptFromRunRow(persisted.run, database),
+      replayed: persisted.replayed,
+    };
+  } catch (error) {
+    if (error instanceof FundScopeError) {
+      throw new LpEconomicsRunServiceError(404, error.code, error.message);
+    }
+    throw error;
   }
-  return {
-    receipt: await buildReceiptFromRunRow(persisted.run, database),
-    replayed: persisted.replayed,
-  };
 }
 
 export interface GetLpEconomicsRunReceiptOptions {
@@ -490,11 +498,18 @@ export async function getLpEconomicsRunReceipt(
 ): Promise<InternalLpEconomicsRunReceiptV1> {
   const database = opts.database ?? db;
 
-  await assertOwnedByFund({
-    db: database as unknown as FundScopedOwnershipDatabase,
-    fundId: opts.fundId,
-    ref: { kind: 'lp_economics_run', id: opts.runId },
-  });
+  try {
+    await assertOwnedByFund({
+      db: database as unknown as FundScopedOwnershipDatabase,
+      fundId: opts.fundId,
+      ref: { kind: 'lp_economics_run', id: opts.runId },
+    });
+  } catch (error) {
+    if (error instanceof FundScopeError) {
+      throw new LpEconomicsRunServiceError(404, error.code, error.message);
+    }
+    throw error;
+  }
 
   const [run] = await database
     .select()

@@ -155,6 +155,7 @@ describe('canonical common API route manifest', () => {
         "lp-reporting-metric-runs:<bare>",
         "backtesting:/api/backtesting",
         "investment-ledger:<bare>",
+        "internal-economics:/api",
         "internal-analysis:/api",
       ]
     `);
@@ -192,6 +193,77 @@ describe('canonical common API route manifest', () => {
         'api:post:/api/funds/:fundId/investment-ledger/ownership-snapshots',
         'api:post:/api/funds/:fundId/investment-ledger/position-valuations',
       ])
+    );
+  });
+
+  it('registers internal-economics run creation and receipt routes on both runtimes', () => {
+    const entry = COMMON_API_ROUTE_MANIFEST.find(
+      (candidate) => candidate.id === 'internal-economics'
+    );
+
+    expect(entry).toMatchObject({
+      sourceModule: './routes/internal-economics.js',
+      mountPath: '/api',
+      authBoundary: 'router_local',
+      fundScope: 'path',
+      financial: true,
+      migrationParity: {
+        kind: 'c1',
+        tables: [
+          'internal_lp_economics_runs',
+          'internal_economics_policy_versions',
+          'internal_capital_envelope_versions',
+        ],
+      },
+      owner: 'gp-team',
+      probe: {
+        method: 'POST',
+        path: '/api/funds/abc/internal-economics/runs',
+        expectedStatus: 400,
+        body: {},
+        authenticated: true,
+      },
+    });
+    expect(entry?.schemaTables).toEqual(
+      expect.arrayContaining([
+        'internal_lp_economics_runs',
+        'internal_economics_policy_versions',
+        'internal_capital_envelope_versions',
+        'financial_facts_snapshots',
+        'current_plan_versions',
+        'fund_snapshots',
+        'funds',
+        'fundconfigs',
+      ])
+    );
+    expect(COMMON_ROUTE_SURFACE_ORDER.make_app).toContain('internal-economics');
+    expect(COMMON_ROUTE_SURFACE_ORDER.register_routes).toContain('internal-economics');
+    expect(COMMON_API_ROUTE_POLICY_IDS['internal-economics']).toEqual([
+      'api:post:/api/funds/:fundId/internal-economics/runs',
+      'api:get:/api/funds/:fundId/internal-economics/runs/:runId',
+    ]);
+  });
+
+  it('bypasses database-backed internal-economics creation before generic idempotency', async () => {
+    const source = await readFile(path.resolve(process.cwd(), 'server/server.ts'), 'utf8');
+    const compositionStart = source.indexOf(
+      '// Apply idempotency middleware to mutation endpoints'
+    );
+    const compositionEnd = source.indexOf(
+      '// Register API routes with dependency injection',
+      compositionStart
+    );
+
+    expect(compositionStart).toBeGreaterThanOrEqual(0);
+    expect(compositionEnd).toBeGreaterThan(compositionStart);
+
+    const composition = source.slice(compositionStart, compositionEnd);
+    const classifierCall =
+      'isDatabaseBackedIdempotencyRoute(fullApiRequest.method, fullApiRequest.path)';
+
+    expect(composition).toContain(classifierCall);
+    expect(composition.indexOf(classifierCall)).toBeLessThan(
+      composition.indexOf('withIdempotency()(req, res, next)')
     );
   });
 

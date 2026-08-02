@@ -30,6 +30,7 @@ import {
   LP_ECONOMICS_RUN_METHODOLOGY_VERSION,
   MAX_CASH_ASSEMBLY_PERIOD_COUNT,
   MAX_CASH_ASSEMBLY_TOTAL_EVENT_COUNT,
+  LpEconomicsRunServiceError,
   executeLpEconomicsRun as executeLpEconomicsRunService,
   getLpEconomicsRunReceipt as getLpEconomicsRunReceiptService,
 } from '../../../../server/services/internal-economics/lp-economics-run-service';
@@ -252,6 +253,7 @@ async function executeLpEconomicsRun(
 ): Promise<{
   readonly run: InternalLpEconomicsRunRow;
   readonly result: LpEconomicsResultV1 | LpEconomicsResultV1_1 | null;
+  readonly replayed: boolean;
 }> {
   const execution = await executeLpEconomicsRunService(opts);
   const fakeDb = opts.database as unknown as FakeRunDb;
@@ -260,9 +262,8 @@ async function executeLpEconomicsRun(
   return {
     run: run as unknown as InternalLpEconomicsRunRow,
     result:
-      execution.receipt.outcome.runState === 'completed'
-        ? execution.receipt.outcome.result
-        : null,
+      execution.receipt.outcome.runState === 'completed' ? execution.receipt.outcome.result : null,
+    replayed: execution.replayed,
   };
 }
 
@@ -1461,29 +1462,60 @@ describe('executeLpEconomicsRun -- T-C4 unexpected exception', () => {
 describe('executeLpEconomicsRun -- T-C5 no latest-resolution fallback', () => {
   it('an unknown policyVersionId 404s rather than falling back to any "latest" policy', async () => {
     const fakeDb = seededDb(() => {});
-    await expect(
-      executeLpEconomicsRun({
-        fundId: FUND_ID,
-        actorId: ACTOR_ID,
-        idempotencyKey: 'no-fallback-policy',
-        request: goldenRequest({ policyVersionId: 999 }),
-        database: fakeDb.asDatabase(),
-      })
-    ).rejects.toMatchObject({ code: 'FUND_SCOPE_NOT_FOUND' });
+    const error = await executeLpEconomicsRun({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID,
+      idempotencyKey: 'no-fallback-policy',
+      request: goldenRequest({ policyVersionId: 999 }),
+      database: fakeDb.asDatabase(),
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(LpEconomicsRunServiceError);
+    expect(error).toMatchObject({
+      statusCode: 404,
+      code: 'FUND_SCOPE_NOT_FOUND',
+      message: 'The requested resource was not found in this fund.',
+    });
     expect(fakeDb.runRows).toHaveLength(0);
   });
 
   it('an unknown forecastSnapshotId 404s rather than resolving the latest CURRENT_FORECAST_V2 snapshot', async () => {
     const fakeDb = seededDb(() => {});
-    await expect(
-      executeLpEconomicsRun({
-        fundId: FUND_ID,
-        actorId: ACTOR_ID,
-        idempotencyKey: 'no-fallback-forecast',
-        request: goldenRequest({ forecastSnapshotId: 999 }),
-        database: fakeDb.asDatabase(),
-      })
-    ).rejects.toMatchObject({ code: 'FUND_SCOPE_NOT_FOUND' });
+    const error = await executeLpEconomicsRun({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID,
+      idempotencyKey: 'no-fallback-forecast',
+      request: goldenRequest({ forecastSnapshotId: 999 }),
+      database: fakeDb.asDatabase(),
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(LpEconomicsRunServiceError);
+    expect(error).toMatchObject({
+      statusCode: 404,
+      code: 'FUND_SCOPE_NOT_FOUND',
+      message: 'The requested resource was not found in this fund.',
+    });
+    expect(fakeDb.runRows).toHaveLength(0);
+  });
+
+  it('normalizes cross-fund explicit basis ownership rejection at the public execute boundary', async () => {
+    const fakeDb = seededDb((database) => {
+      database.policyRows[0]!['fundId'] = FUND_ID + 1;
+    });
+    const error = await executeLpEconomicsRun({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID,
+      idempotencyKey: 'cross-fund-policy',
+      request: goldenRequest(),
+      database: fakeDb.asDatabase(),
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(LpEconomicsRunServiceError);
+    expect(error).toMatchObject({
+      statusCode: 404,
+      code: 'FUND_SCOPE_NOT_FOUND',
+      message: 'The requested resource was not found in this fund.',
+    });
     expect(fakeDb.runRows).toHaveLength(0);
   });
 
@@ -1517,6 +1549,7 @@ describe('executeLpEconomicsRun -- T-C6/T-C7 concurrency races', () => {
     ]);
 
     expect(left.run.id).toBe(right.run.id);
+    expect([left.replayed, right.replayed].sort()).toEqual([false, true]);
     expect(fakeDb.runRows).toHaveLength(1);
     expect(
       fakeDb.fundSnapshotRows.filter((row) => row['type'] === 'INTERNAL_LP_ECONOMICS')
@@ -1587,13 +1620,18 @@ describe('getRunWithResult -- T-C9 lineage read joins + type/ownership', () => {
       database: fakeDb.asDatabase(),
     });
 
-    await expect(
-      getRunWithResult({
-        fundId: FUND_ID + 1,
-        runId: receipt.run.id,
-        database: fakeDb.asDatabase(),
-      })
-    ).rejects.toMatchObject({ code: 'FUND_SCOPE_NOT_FOUND' });
+    const error = await getRunWithResult({
+      fundId: FUND_ID + 1,
+      runId: receipt.run.id,
+      database: fakeDb.asDatabase(),
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(LpEconomicsRunServiceError);
+    expect(error).toMatchObject({
+      statusCode: 404,
+      code: 'FUND_SCOPE_NOT_FOUND',
+      message: 'The requested resource was not found in this fund.',
+    });
   });
 
   it('returns a null result for a failed run', async () => {

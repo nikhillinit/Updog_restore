@@ -970,6 +970,41 @@ export const COMMON_API_ROUTE_MANIFEST = [
     },
   },
   {
+    id: 'internal-economics',
+    sourceModule: './routes/internal-economics.js',
+    mountPath: '/api',
+    authBoundary: 'router_local',
+    fundScope: 'path',
+    financial: true,
+    migrationParity: {
+      kind: 'c1',
+      tables: [
+        'internal_lp_economics_runs',
+        'internal_economics_policy_versions',
+        'internal_capital_envelope_versions',
+      ],
+    },
+    schemaTables: [
+      'internal_lp_economics_runs',
+      'internal_economics_policy_versions',
+      'internal_capital_envelope_versions',
+      'financial_facts_snapshots',
+      'current_plan_versions',
+      'fund_snapshots',
+      'funds',
+      'fundconfigs',
+      'users',
+    ],
+    owner: 'gp-team',
+    probe: {
+      method: 'POST',
+      path: '/api/funds/abc/internal-economics/runs',
+      expectedStatus: 400,
+      body: {},
+      authenticated: true,
+    },
+  },
+  {
     id: 'internal-analysis',
     sourceModule: './routes/internal-analysis.js',
     // The router declares bare `/funds/...` paths (current-forecast style), so it
