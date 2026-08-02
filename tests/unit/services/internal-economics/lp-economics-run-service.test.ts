@@ -256,6 +256,7 @@ const PERIOD_END = '2026-03-31';
 const ZERO_MONEY = '0.000000';
 const ZERO_RATIO = '0.000000000000';
 const ONE_RATIO = '1.000000000000';
+const CERTIFICATION_OUTPUT_PREFIX = 'LP_ECONOMICS_V1_1_CERTIFICATION:';
 
 /** A syntactically valid (lowercase hex, 64 chars) sha256-shaped fixture. */
 function hex64(index: number): string {
@@ -635,11 +636,94 @@ function goldenRequest(
   };
 }
 
+function canonicalizeForCertification(value: unknown): unknown {
+  if (value === null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(canonicalizeForCertification);
+  if (value instanceof Date) return value.toJSON();
+
+  const source = value as Record<string, unknown>;
+  return Object.fromEntries(
+    Object.keys(source)
+      .sort()
+      .filter((key) => source[key] !== undefined)
+      .map((key) => [key, canonicalizeForCertification(source[key])])
+  );
+}
+
+function canonicalResultBytesForCertification(value: unknown): string {
+  const serialized = JSON.stringify(canonicalizeForCertification(value));
+  if (serialized === undefined) throw new Error('Certification result must be JSON serializable.');
+  return serialized;
+}
+
 // ---------------------------------------------------------------------------
 // T-C1: completed-indicative happy path.
 // ---------------------------------------------------------------------------
 
 describe('executeLpEconomicsRun -- T-C1 indicative happy path', () => {
+  it('emits representative final V1.1 bytes and hashes for the timezone certification subprocess', async () => {
+    const fakeDb = new FakeRunDb();
+    seedGoldenFixture(fakeDb);
+
+    const certificationSeries = [
+      ['2026-01-01', '2026-03-31', '100.000000', ZERO_MONEY, ZERO_MONEY],
+      ['2026-04-01', '2026-06-30', '125.000000', '180.000000', ZERO_MONEY],
+      ['2026-07-01', '2026-09-30', '150.000000', '10.000000', ZERO_MONEY],
+      ['2026-10-01', '2026-12-31', '150.000000', ZERO_MONEY, '20.000000'],
+    ].map(([periodStart, periodEnd, deployedUsd, distributionsUsd, navUsd]) => ({
+      periodStart: periodStart!,
+      periodEnd: periodEnd!,
+      source: 'projected' as const,
+      deployedUsd: deployedUsd!,
+      contributionsUsd: ZERO_MONEY,
+      distributionsUsd: distributionsUsd!,
+      navUsd: navUsd!,
+      tvpi: ZERO_RATIO,
+      dpi: ZERO_RATIO,
+      activeCompanyCount: 0,
+      projectedCohortCount: 0,
+    }));
+    const policy = fakeDb.policyRows[0]!;
+    policy['policyBody'] = {
+      ...(policy['policyBody'] as Record<string, unknown>),
+      fundLifeYears: '5.75',
+    };
+    policy['terminalPeriodEnd'] = '2026-12-31';
+    const forecast = fakeDb.fundSnapshotRows[0]!;
+    forecast['payload'] = {
+      ...(forecast['payload'] as Record<string, unknown>),
+      series: certificationSeries,
+    };
+
+    const receipt = await executeLpEconomicsRun({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID,
+      idempotencyKey: 'run-v1.1-timezone-certification',
+      request: goldenRequest({ clock: '2026-12-31T23:59:59.000Z' }),
+      database: fakeDb.asDatabase(),
+    });
+
+    expect(receipt.result).toMatchObject({
+      clock: '2026-12-31T23:59:59.000Z',
+      resultStatus: 'indicative',
+      terminalNavBeforeRealizationUsd: '20.000000',
+    });
+    expect(receipt.run.inputHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(receipt.run.resultHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(receipt.run.resultHash).toBe(canonicalSha256(receipt.result));
+
+    if (process.env['LP_ECONOMICS_CERTIFICATION_OUTPUT'] === '1') {
+      process.stdout.write(
+        `${CERTIFICATION_OUTPUT_PREFIX}${JSON.stringify({
+          timezone: process.env['TZ'] ?? null,
+          canonicalResultBytes: canonicalResultBytesForCertification(receipt.result),
+          inputHash: receipt.run.inputHash,
+          resultHash: receipt.run.resultHash,
+        })}\n`
+      );
+    }
+  });
+
   it('persists one run row + one snapshot in a single transaction, with a stable result_hash across replay', async () => {
     const fakeDb = new FakeRunDb();
     seedGoldenFixture(fakeDb);
