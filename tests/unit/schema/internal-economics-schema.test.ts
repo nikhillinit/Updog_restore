@@ -1,10 +1,11 @@
 /**
- * T-A4 (WP-L3 Phase A): Drizzle parity for migration 0045.
+ * T-A4 (WP-L3 Phase A + Trust-Spine PR1): Drizzle parity for migrations 0045/0046.
  *
  * The schema module `shared/schema/internal-economics.ts` must match
- * `migrations/0045_internal_economics_policy_runs.sql` name-for-name so the
- * journaled migration and a Drizzle push produce byte-identical catalogs (G5
- * idiom). Composite-FK targets are declared as plain `unique()` constraints,
+ * `migrations/0045_internal_economics_policy_runs.sql` plus the additive 0046
+ * certification migration name-for-name so the journaled migrations and a
+ * Drizzle push produce catalog-equivalent schemas (G5 idiom). Composite-FK
+ * targets are declared as plain `unique()` constraints,
  * never `uniqueIndex` (drizzle-kit 42830 lesson); the ONE partial unique
  * (`internal_lp_economics_runs_result_snapshot_unique`) is correctly a
  * `uniqueIndex().where(...)` because nothing FKs it.
@@ -29,6 +30,11 @@ const MIGRATION_PATH = path.join(
   process.cwd(),
   'migrations',
   '0045_internal_economics_policy_runs.sql'
+);
+const CERTIFICATION_MIGRATION_PATH = path.join(
+  process.cwd(),
+  'migrations',
+  '0046_internal_economics_certification.sql'
 );
 
 const tableEntries = [
@@ -75,6 +81,10 @@ function migrationSql(): string {
   return fs.readFileSync(MIGRATION_PATH, 'utf8');
 }
 
+function certificationMigrationSql(): string {
+  return fs.readFileSync(CERTIFICATION_MIGRATION_PATH, 'utf8');
+}
+
 interface MigrationTableBlock {
   readonly name: string;
   readonly body: string;
@@ -105,9 +115,13 @@ function sqlConstraintNames(tableName: OwnedTableName): string[] {
 }
 
 function sqlColumnNames(tableName: OwnedTableName): string[] {
-  return [...blockFor(tableName).body.matchAll(/^\s{2}"([a-z0-9_]+)"\s/gm)].map(
+  const baseColumns = [...blockFor(tableName).body.matchAll(/^\s{2}"([a-z0-9_]+)"\s/gm)].map(
     (match) => match[1]!
   );
+  if (tableName === 'internal_lp_economics_runs') {
+    baseColumns.push('calculation_contract_version');
+  }
+  return baseColumns;
 }
 
 function normalizeTypeText(value: string): string {
@@ -145,7 +159,11 @@ describe('internal economics Drizzle schema (T-A4)', () => {
 
   it('declares every column with the exact journaled SQL type', () => {
     for (const [tableName] of tableEntries) {
-      const body = normalizeTypeText(blockFor(tableName).body);
+      const body = normalizeTypeText(
+        `${blockFor(tableName).body}\n${
+          tableName === 'internal_lp_economics_runs' ? certificationMigrationSql() : ''
+        }`
+      );
       for (const column of configFor(tableName).columns) {
         const sqlType = normalizeTypeText(column.getSQLType());
         expect(body, `${tableName}.${column.name} type drift`).toContain(
@@ -255,7 +273,7 @@ describe('internal economics Drizzle schema (T-A4)', () => {
     );
   });
 
-  it('pins the P-D5 state-coupling and literal CHECK vocabularies', () => {
+  it('pins the state-coupling and certified trust-state CHECK vocabularies', () => {
     const coupling = checkSql(
       'internal_lp_economics_runs',
       'internal_lp_economics_runs_state_coupling_check'
@@ -277,9 +295,23 @@ describe('internal economics Drizzle schema (T-A4)', () => {
       'internal_lp_economics_runs',
       'internal_lp_economics_runs_result_status_check'
     );
+    expect(resultStatus).toContain("'available'");
     expect(resultStatus).toContain("'indicative'");
     expect(resultStatus).toContain("'unavailable'");
-    expect(resultStatus).not.toContain("'available'");
+
+    const runColumns = configFor('internal_lp_economics_runs').columns;
+    const calculationContractVersion = runColumns.find(
+      (column) => column.name === 'calculation_contract_version'
+    );
+    expect(calculationContractVersion?.getSQLType()).toBe('text');
+    expect(calculationContractVersion?.notNull).toBe(false);
+
+    const certificationSql = certificationMigrationSql();
+    expect(certificationSql).toContain(
+      'COMMENT ON COLUMN "internal_lp_economics_runs"."calculation_contract_version"'
+    );
+    expect(certificationSql).toContain('null is legacy-only and requires registry verification');
+    expect(certificationSql).not.toMatch(/^\s*(?:UPDATE|INSERT|DELETE|TRUNCATE)\b/im);
 
     expect(
       checkSql('internal_lp_economics_runs', 'internal_lp_economics_runs_terminal_mode_check')

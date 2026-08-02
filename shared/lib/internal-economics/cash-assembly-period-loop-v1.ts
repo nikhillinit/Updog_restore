@@ -9,9 +9,11 @@
  * recurrence in its required order; resolve terminal realization; and compute
  * LP-net XIRR.
  *
- * D-5 timezone disclosure: XIRR determinism is conditional on running with
- * TZ=UTC because the frozen upstream safeXIRR date normalization uses local-time
- * getters (tracked by issue #1256). The rest of this loop is timezone-pure.
+ * Timezone disclosure: SafeXIRR has normalized dates with UTC getters since
+ * `ef96c931` (#1256). Trust-Spine certification executes the same representative
+ * V1.1 result in fresh UTC, America/New_York, and Asia/Kolkata processes and
+ * requires byte-identical canonical results and hashes. Existing `TZ=UTC`
+ * runtime and CI pins remain defense in depth.
  *
  * Phase 1 invariants:
  * - opening cash threads from each emitted quarter into the next;
@@ -61,10 +63,7 @@ import {
 
 const ZERO = new Decimal(0);
 const ZERO_MONEY = '0.000000';
-const RESULT_STATUS_REASONS = [
-  'DECIMAL_CORE_UNCERTIFIED',
-  'LP_NET_NAV_FLAT_SHARE_APPROXIMATION',
-] as const;
+const RESULT_STATUS_REASONS = ['LP_NET_NAV_FLAT_SHARE_APPROXIMATION'] as const;
 
 const XIRR_MIN_RATE = -0.999999;
 const XIRR_MAX_RATE = 200;
@@ -104,11 +103,19 @@ export interface ExecuteCashAssemblyPeriodLoopV1Result {
   readonly terminalNavBeforeRealizationUsd: string;
   readonly lpNetIrr: string | null;
   readonly xirrDiagnostic: XirrDiagnostic;
-  readonly resultStatus: 'indicative';
+  readonly resultStatus: 'available' | 'indicative' | 'unavailable';
   readonly resultStatusReasons: readonly string[];
   readonly terminalMode: TerminalModeV1;
   readonly engineVersion: string;
   readonly methodologyVersion: string;
+}
+
+export function foldCashAssemblyResultStatusV1(input: {
+  readonly eligibilityRefused: boolean;
+  readonly trustCapReasons: readonly string[];
+}): 'available' | 'indicative' | 'unavailable' {
+  if (input.eligibilityRefused) return 'unavailable';
+  return input.trustCapReasons.length > 0 ? 'indicative' : 'available';
 }
 
 export type CashAssemblyPeriodLoopV1ErrorCode =
@@ -971,7 +978,10 @@ export function executeCashAssemblyPeriodLoopV1(
     terminalNavBeforeRealizationUsd: terminalNavBeforeRealization.toFixed(6),
     lpNetIrr: xirrResult.lpNetIrr,
     xirrDiagnostic: xirrResult.xirrDiagnostic,
-    resultStatus: 'indicative',
+    resultStatus: foldCashAssemblyResultStatusV1({
+      eligibilityRefused: false,
+      trustCapReasons: RESULT_STATUS_REASONS,
+    }),
     resultStatusReasons: RESULT_STATUS_REASONS,
     terminalMode: input.terminalMode,
     engineVersion: input.engineVersion,

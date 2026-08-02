@@ -1,5 +1,13 @@
 # Existing-history baseline captured by Gitleaks v8.30.1 on 2026-07-12.
 # Each entry is an exact commit:file:rule:line fingerprint. New findings still fail.
+# Reviewed synthetic internal-economics fixtures added after the baseline.
+# Keep these fingerprint-scoped so future findings in the same files still fail.
+52eccafefe313dd5053492df35b29c9d7f9c2dd9:tests/unit/services/internal-economics/lp-economics-run-service.test.ts:generic-api-key:1548
+52eccafefe313dd5053492df35b29c9d7f9c2dd9:tests/unit/services/internal-economics/lp-economics-run-service.test.ts:generic-api-key:1738
+f847ed987a620f194cdd52ecd5b1ae81a0faff10:tests/unit/services/internal-economics/lp-economics-run-service.test.ts:generic-api-key:1548
+f847ed987a620f194cdd52ecd5b1ae81a0faff10:tests/unit/services/internal-economics/lp-economics-run-service.test.ts:generic-api-key:1738
+ae497aedd948f8d3f8502577df0a4d0ad3c49cc0:tests/unit/services/internal-economics/lp-economics-run-service.test.ts:generic-api-key:1562
+cfbf32d1c019b3c3acf6bedbb356dc583f9ee851:tests/fixtures/internal-economics/vitest.config.ts:generic-api-key:36
 007f8762376db33c28a7bf310aede9cf2c0c31b0:server/routes/reserve-engine.md:generic-api-key:45
 0911c51546496d8bd43e2c8bd31fba3724ef48f2:tests/unit/routes/portfolio-overview-makeapp-surface.contract.test.ts:generic-api-key:69
 0a54e4a036372c02bc935d156e52367056bd626b:tests/unit/routes/capital-allocation-makeapp-surface.contract.test.ts:generic-api-key:69

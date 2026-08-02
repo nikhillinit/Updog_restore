@@ -31,6 +31,7 @@ import {
 import {
   CashAssemblyPeriodLoopV1Error,
   executeCashAssemblyPeriodLoopV1,
+  foldCashAssemblyResultStatusV1,
   type ExecuteCashAssemblyPeriodLoopV1Input,
 } from '../../../shared/lib/internal-economics/cash-assembly-period-loop-v1';
 import * as decimalWaterfallCore from '../../../shared/lib/internal-economics/decimal-waterfall-core-v1';
@@ -180,10 +181,7 @@ describe('cash assembly period loop v1 Phase 1', () => {
     expect(result.quarters.every((quarter) => quarter.rvpi === null)).toBe(true);
     expect(result.quarters.every((quarter) => quarter.tvpi === null)).toBe(true);
     expect(result.resultStatus).toBe('indicative');
-    expect(result.resultStatusReasons).toEqual([
-      'DECIMAL_CORE_UNCERTIFIED',
-      'LP_NET_NAV_FLAT_SHARE_APPROXIMATION',
-    ]);
+    expect(result.resultStatusReasons).toEqual(['LP_NET_NAV_FLAT_SHARE_APPROXIMATION']);
   });
 
   it('T1.2 applies every single-quarter recurrence term in the required order', () => {
@@ -1777,7 +1775,25 @@ describe('cash assembly period loop v1 Phase 6', () => {
     expect(forbiddenPaths).toEqual([]);
   });
 
-  it('T6.3 never raises resultStatus above indicative in either terminal mode', () => {
+  it('T6.3 folds eligibility refusal before trust caps, then admits cap-free availability', () => {
+    expect(
+      foldCashAssemblyResultStatusV1({
+        eligibilityRefused: true,
+        trustCapReasons: ['LP_NET_NAV_FLAT_SHARE_APPROXIMATION'],
+      })
+    ).toBe('unavailable');
+    expect(
+      foldCashAssemblyResultStatusV1({
+        eligibilityRefused: false,
+        trustCapReasons: ['LP_NET_NAV_FLAT_SHARE_APPROXIMATION'],
+      })
+    ).toBe('indicative');
+    expect(foldCashAssemblyResultStatusV1({ eligibilityRefused: false, trustCapReasons: [] })).toBe(
+      'available'
+    );
+  });
+
+  it('T6.4 current producer stays indicative in either terminal mode', () => {
     const terminal = forecastPoint('2026-01-01', '2026-03-31', { navUsd: '5.000000' });
     const statuses = (['hold_unrealized', 'liquidate_at_horizon'] as const).map(
       (terminalMode) =>
@@ -1791,7 +1807,7 @@ describe('cash assembly period loop v1 Phase 6', () => {
     expect(statuses).toEqual(['indicative', 'indicative']);
   });
 
-  it('T6.4 keeps loop and core deterministic and free of ambient effects', () => {
+  it('T6.5 keeps loop and core deterministic and free of ambient effects', () => {
     const fixture = permutationFixture();
     const loopInput = {
       forecastSeries: [fixture.actual, fixture.projected],
@@ -1843,16 +1859,13 @@ describe('cash assembly period loop v1 Phase 6', () => {
     }
   });
 
-  it('T6.5 emits exactly the frozen indicative reason pair', () => {
+  it('T6.6 emits only the active flat-share trust cap', () => {
     const terminal = forecastPoint('2026-01-01', '2026-03-31');
     const result = execute({
       forecastSeries: [terminal],
       scheduledNeeds: [scheduledNeed(terminal, ZERO_MONEY)],
     });
 
-    expect(result.resultStatusReasons).toEqual([
-      'DECIMAL_CORE_UNCERTIFIED',
-      'LP_NET_NAV_FLAT_SHARE_APPROXIMATION',
-    ]);
+    expect(result.resultStatusReasons).toEqual(['LP_NET_NAV_FLAT_SHARE_APPROXIMATION']);
   });
 });

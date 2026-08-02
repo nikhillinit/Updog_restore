@@ -122,14 +122,16 @@ async function publicColumns(
 
 describe.skipIf(skipIfNoDocker)('migration drift guard', () => {
   beforeAll(async () => {
-    postgres = await new PostgreSqlContainer('pgvector/pgvector:pg16')
-      .withDatabase('test_db')
-      .withUsername('test_user')
-      .withPassword('test_password')
-      .withStartupTimeout(STARTUP_TIMEOUT_MS)
-      .start();
-
-    const connectionString = postgres.getConnectionUri();
+    let connectionString = process.env.TEST_DATABASE_URL;
+    if (!connectionString) {
+      postgres = await new PostgreSqlContainer('pgvector/pgvector:pg16')
+        .withDatabase('test_db')
+        .withUsername('test_user')
+        .withPassword('test_password')
+        .withStartupTimeout(STARTUP_TIMEOUT_MS)
+        .start();
+      connectionString = postgres.getConnectionUri();
+    }
     await runMigrationsWithConnectionString(connectionString);
     pool = new Pool({ connectionString, max: 1 });
   }, STARTUP_TIMEOUT_MS * 2);

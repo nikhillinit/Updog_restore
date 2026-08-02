@@ -56,6 +56,7 @@ const expectedJournaledDriftPatchFiles = [
   '0043_position_source_basis_reliefs.sql',
   '0044_internal_analysis.sql',
   '0045_internal_economics_policy_runs.sql',
+  '0046_internal_economics_certification.sql',
 ].sort();
 
 afterEach(() => {
@@ -166,6 +167,18 @@ describe('migration ledger helpers', () => {
     expect(entry).toMatchObject({
       idx: 46,
       tag: '0045_internal_economics_policy_runs',
+      breakpoints: true,
+    });
+  });
+
+  it('pins internal economics certification migration to its own journal index 47 entry', () => {
+    const entry = readDrizzleJournal(repoRoot).entries.find(
+      (candidate) => candidate.tag === '0046_internal_economics_certification'
+    );
+
+    expect(entry).toMatchObject({
+      idx: 47,
+      tag: '0046_internal_economics_certification',
       breakpoints: true,
     });
   });

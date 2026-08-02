@@ -51,11 +51,12 @@ import {
   TerminalPolicyV1Error,
   INTERNAL_ECONOMICS_TERMINAL_RESOLUTION_VERSION,
 } from '../../../../shared/contracts/internal-economics/terminal-policy-v1.contract';
+import { LP_ECONOMICS_RUN_CONTRACT_VERSION as LEGACY_LP_ECONOMICS_RUN_CONTRACT_VERSION } from '../../../../shared/contracts/internal-economics/lp-economics-run-v1.contract';
 import {
-  LP_ECONOMICS_RUN_CONTRACT_VERSION,
-  LpEconomicsRunRequestV1Schema,
-  type LpEconomicsRunRequestV1,
-} from '../../../../shared/contracts/internal-economics/lp-economics-run-v1.contract';
+  LP_ECONOMICS_RUN_CONTRACT_VERSION_V1_1,
+  LpEconomicsRunRequestV1_1Schema,
+  type LpEconomicsRunRequestV1_1,
+} from '../../../../shared/contracts/internal-economics/lp-economics-run-v1.1.contract';
 import {
   internalCapitalEnvelopeVersions,
   internalEconomicsPolicyVersions,
@@ -255,6 +256,7 @@ const PERIOD_END = '2026-03-31';
 const ZERO_MONEY = '0.000000';
 const ZERO_RATIO = '0.000000000000';
 const ONE_RATIO = '1.000000000000';
+const CERTIFICATION_OUTPUT_PREFIX = 'LP_ECONOMICS_V1_1_CERTIFICATION:';
 
 /** A syntactically valid (lowercase hex, 64 chars) sha256-shaped fixture. */
 function hex64(index: number): string {
@@ -620,7 +622,9 @@ function seedGoldenFixture(fakeDb: FakeRunDb): GoldenFixtureIds {
   };
 }
 
-function goldenRequest(overrides: Partial<LpEconomicsRunRequestV1> = {}): LpEconomicsRunRequestV1 {
+function goldenRequest(
+  overrides: Partial<LpEconomicsRunRequestV1_1> = {}
+): LpEconomicsRunRequestV1_1 {
   return {
     policyVersionId: 1,
     factsSnapshotId: 1,
@@ -632,11 +636,94 @@ function goldenRequest(overrides: Partial<LpEconomicsRunRequestV1> = {}): LpEcon
   };
 }
 
+function canonicalizeForCertification(value: unknown): unknown {
+  if (value === null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(canonicalizeForCertification);
+  if (value instanceof Date) return value.toJSON();
+
+  const source = value as Record<string, unknown>;
+  return Object.fromEntries(
+    Object.keys(source)
+      .sort()
+      .filter((key) => source[key] !== undefined)
+      .map((key) => [key, canonicalizeForCertification(source[key])])
+  );
+}
+
+function canonicalResultBytesForCertification(value: unknown): string {
+  const serialized = JSON.stringify(canonicalizeForCertification(value));
+  if (serialized === undefined) throw new Error('Certification result must be JSON serializable.');
+  return serialized;
+}
+
 // ---------------------------------------------------------------------------
 // T-C1: completed-indicative happy path.
 // ---------------------------------------------------------------------------
 
 describe('executeLpEconomicsRun -- T-C1 indicative happy path', () => {
+  it('emits representative final V1.1 bytes and hashes for the timezone certification subprocess', async () => {
+    const fakeDb = new FakeRunDb();
+    seedGoldenFixture(fakeDb);
+
+    const certificationSeries = [
+      ['2026-01-01', '2026-03-31', '100.000000', ZERO_MONEY, ZERO_MONEY],
+      ['2026-04-01', '2026-06-30', '125.000000', '180.000000', ZERO_MONEY],
+      ['2026-07-01', '2026-09-30', '150.000000', '10.000000', ZERO_MONEY],
+      ['2026-10-01', '2026-12-31', '150.000000', ZERO_MONEY, '20.000000'],
+    ].map(([periodStart, periodEnd, deployedUsd, distributionsUsd, navUsd]) => ({
+      periodStart: periodStart!,
+      periodEnd: periodEnd!,
+      source: 'projected' as const,
+      deployedUsd: deployedUsd!,
+      contributionsUsd: ZERO_MONEY,
+      distributionsUsd: distributionsUsd!,
+      navUsd: navUsd!,
+      tvpi: ZERO_RATIO,
+      dpi: ZERO_RATIO,
+      activeCompanyCount: 0,
+      projectedCohortCount: 0,
+    }));
+    const policy = fakeDb.policyRows[0]!;
+    policy['policyBody'] = {
+      ...(policy['policyBody'] as Record<string, unknown>),
+      fundLifeYears: '5.75',
+    };
+    policy['terminalPeriodEnd'] = '2026-12-31';
+    const forecast = fakeDb.fundSnapshotRows[0]!;
+    forecast['payload'] = {
+      ...(forecast['payload'] as Record<string, unknown>),
+      series: certificationSeries,
+    };
+
+    const receipt = await executeLpEconomicsRun({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID,
+      idempotencyKey: 'run-v1.1-timezone-certification',
+      request: goldenRequest({ clock: '2026-12-31T23:59:59.000Z' }),
+      database: fakeDb.asDatabase(),
+    });
+
+    expect(receipt.result).toMatchObject({
+      clock: '2026-12-31T23:59:59.000Z',
+      resultStatus: 'indicative',
+      terminalNavBeforeRealizationUsd: '20.000000',
+    });
+    expect(receipt.run.inputHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(receipt.run.resultHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(receipt.run.resultHash).toBe(canonicalSha256(receipt.result));
+
+    if (process.env['LP_ECONOMICS_CERTIFICATION_OUTPUT'] === '1') {
+      process.stdout.write(
+        `${CERTIFICATION_OUTPUT_PREFIX}${JSON.stringify({
+          timezone: process.env['TZ'] ?? null,
+          canonicalResultBytes: canonicalResultBytesForCertification(receipt.result),
+          inputHash: receipt.run.inputHash,
+          resultHash: receipt.run.resultHash,
+        })}\n`
+      );
+    }
+  });
+
   it('persists one run row + one snapshot in a single transaction, with a stable result_hash across replay', async () => {
     const fakeDb = new FakeRunDb();
     seedGoldenFixture(fakeDb);
@@ -651,10 +738,27 @@ describe('executeLpEconomicsRun -- T-C1 indicative happy path', () => {
 
     expect(receipt.run.runState).toBe('completed');
     expect(receipt.run.resultStatus).toBe('indicative');
+    expect(receipt.run.calculationContractVersion).toBe('lp-economics/1.1.0');
     expect(receipt.run.resultSnapshotId).not.toBeNull();
     expect(receipt.run.failureCode).toBeNull();
     expect(receipt.run.engineVersion).toBe(LP_ECONOMICS_RUN_ENGINE_VERSION);
     expect(receipt.run.methodologyVersion).toBe(LP_ECONOMICS_RUN_METHODOLOGY_VERSION);
+    expect(LP_ECONOMICS_RUN_CONTRACT_VERSION_V1_1).toBe('lp-economics/1.1.0');
+    expect(LP_ECONOMICS_RUN_ENGINE_VERSION).toBe('cash-assembly-period-loop-v1/1.1.0');
+    expect(LP_ECONOMICS_RUN_METHODOLOGY_VERSION).toBe(
+      'cash-assembly-period-loop-methodology/1.1.0'
+    );
+    expect(LP_ECONOMICS_RESULT_CALC_VERSION).toBe('lp-economics/1.1.0');
+    expect(receipt.run.requestHash).toBe(
+      canonicalSha256({
+        commandKind: 'internal-economics-run:create',
+        fundId: FUND_ID,
+        contractVersion: 'lp-economics/1.1.0',
+        request: goldenRequest(),
+        engineVersion: 'cash-assembly-period-loop-v1/1.1.0',
+        methodologyVersion: 'cash-assembly-period-loop-methodology/1.1.0',
+      })
+    );
     expect(receipt.result).not.toBeNull();
     expect(receipt.result?.resultStatus).toBe('indicative');
     expect(fakeDb.fundSnapshotRows).toHaveLength(2); // seeded forecast + persisted result
@@ -669,17 +773,44 @@ describe('executeLpEconomicsRun -- T-C1 indicative happy path', () => {
 
     const replay = await executeLpEconomicsRun({
       fundId: FUND_ID,
-      actorId: ACTOR_ID,
+      actorId: ACTOR_ID + 1,
       idempotencyKey: 'run-golden-1',
       request: goldenRequest(),
       database: fakeDb.asDatabase(),
     });
 
     expect(replay.run.id).toBe(receipt.run.id);
+    expect(replay.run.createdBy).toBe(ACTOR_ID);
     expect(replay.run.resultHash).toBe(receipt.run.resultHash);
     expect(replay.result).toEqual(receipt.result);
     expect(fakeDb.runRows).toHaveLength(1);
     expect(fakeDb.fundSnapshotRows).toHaveLength(2);
+  });
+
+  it('persists DB status from a validated cap-free V1.1 value payload', async () => {
+    const fakeDb = new FakeRunDb();
+    seedGoldenFixture(fakeDb);
+    const originalLoop = cashAssemblyPeriodLoopModule.executeCashAssemblyPeriodLoopV1;
+    const spy = vi
+      .spyOn(cashAssemblyPeriodLoopModule, 'executeCashAssemblyPeriodLoopV1')
+      .mockImplementation((input) => ({
+        ...originalLoop(input),
+        resultStatus: 'available',
+        resultStatusReasons: [],
+      }));
+
+    const receipt = await executeLpEconomicsRun({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID,
+      idempotencyKey: 'run-available-status',
+      request: goldenRequest(),
+      database: fakeDb.asDatabase(),
+    });
+    spy.mockRestore();
+
+    expect(receipt.run.resultStatus).toBe('available');
+    expect(receipt.result?.resultStatus).toBe('available');
+    expect(receipt.result?.reasons).toEqual([]);
   });
 });
 
@@ -700,7 +831,7 @@ async function expectUnavailable(
   fakeDb: FakeRunDb,
   idempotencyKey: string,
   expectedCode: string,
-  requestOverrides: Partial<LpEconomicsRunRequestV1> = {}
+  requestOverrides: Partial<LpEconomicsRunRequestV1_1> = {}
 ) {
   const receipt = await executeLpEconomicsRun({
     fundId: FUND_ID,
@@ -711,6 +842,7 @@ async function expectUnavailable(
   });
   expect(receipt.run.runState).toBe('completed');
   expect(receipt.run.resultStatus).toBe('unavailable');
+  expect(receipt.run.calculationContractVersion).toBe('lp-economics/1.1.0');
   expect(receipt.run.failureCode).toBeNull();
   expect(receipt.result?.resultStatus).toBe('unavailable');
   const reasons = receipt.result?.resultStatus === 'unavailable' ? receipt.result.reasons : [];
@@ -1118,6 +1250,7 @@ describe('executeLpEconomicsRun -- T-C3 typed engine failure dispatch (P-D7 step
 
       if (entry.disposition === 'failed') {
         expect(receipt.run.runState).toBe('failed');
+        expect(receipt.run.calculationContractVersion).toBe('lp-economics/1.1.0');
         expect(receipt.run.resultSnapshotId).toBeNull();
         expect(receipt.run.failureCode).toBe(entry.code);
         expect(receipt.result).toBeNull();
@@ -1261,7 +1394,7 @@ describe('executeLpEconomicsRun -- T-C5 no latest-resolution fallback', () => {
   it('the request schema requires every basis ID explicitly (no optional field admits a fallback)', () => {
     const request = goldenRequest() as Record<string, unknown>;
     delete request['factsSnapshotId'];
-    const parsed = LpEconomicsRunRequestV1Schema.safeParse(request);
+    const parsed = LpEconomicsRunRequestV1_1Schema.safeParse(request);
     expect(parsed.success).toBe(false);
   });
 });
@@ -1391,6 +1524,176 @@ describe('getRunWithResult -- T-C9 lineage read joins + type/ownership', () => {
     expect(read.run.runState).toBe('failed');
     expect(read.result).toBeNull();
   });
+
+  it('maps only the exact completed legacy-null tuple to the frozen V1 parser', async () => {
+    const fakeDb = seededDb(() => {});
+    const receipt = await executeLpEconomicsRun({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID,
+      idempotencyKey: 'legacy-null-completed',
+      request: goldenRequest(),
+      database: fakeDb.asDatabase(),
+    });
+    const runRow = fakeDb.runRows.find((row) => row['id'] === receipt.run.id)!;
+    const snapshotRow = fakeDb.fundSnapshotRows.find(
+      (row) => row['id'] === receipt.run.resultSnapshotId
+    )!;
+    runRow['calculationContractVersion'] = null;
+    runRow['engineVersion'] = 'cash-assembly-period-loop-v1/1.0.0';
+    runRow['methodologyVersion'] = 'cash-assembly-period-loop-methodology/1.0.0';
+    snapshotRow['calcVersion'] = 'lp-economics/1.0.0';
+
+    const legacy = await getRunWithResult({
+      fundId: FUND_ID,
+      runId: receipt.run.id,
+      database: fakeDb.asDatabase(),
+    });
+    expect(legacy.result?.resultStatus).toBe('indicative');
+
+    runRow['engineVersion'] = 'cash-assembly-period-loop-v1/9.9.9';
+    await expect(
+      getRunWithResult({
+        fundId: FUND_ID,
+        runId: receipt.run.id,
+        database: fakeDb.asDatabase(),
+      })
+    ).rejects.toMatchObject({
+      status: 500,
+      code: 'UNSUPPORTED_CALCULATION_CONTRACT_VERSION',
+    });
+  });
+
+  it('rejects an explicit V1.0 calculation contract on an otherwise exact completed tuple', async () => {
+    const fakeDb = seededDb(() => {});
+    const receipt = await executeLpEconomicsRun({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID,
+      idempotencyKey: 'explicit-v1-completed',
+      request: goldenRequest(),
+      database: fakeDb.asDatabase(),
+    });
+    const runRow = fakeDb.runRows.find((row) => row['id'] === receipt.run.id)!;
+    const snapshotRow = fakeDb.fundSnapshotRows.find(
+      (row) => row['id'] === receipt.run.resultSnapshotId
+    )!;
+    runRow['calculationContractVersion'] = 'lp-economics/1.0.0';
+    runRow['engineVersion'] = 'cash-assembly-period-loop-v1/1.0.0';
+    runRow['methodologyVersion'] = 'cash-assembly-period-loop-methodology/1.0.0';
+    snapshotRow['calcVersion'] = 'lp-economics/1.0.0';
+
+    await expect(
+      getRunWithResult({
+        fundId: FUND_ID,
+        runId: receipt.run.id,
+        database: fakeDb.asDatabase(),
+      })
+    ).rejects.toMatchObject({
+      status: 500,
+      code: 'UNSUPPORTED_CALCULATION_CONTRACT_VERSION',
+    });
+  });
+
+  it('maps only the exact failed legacy-null tuple with no result snapshot', async () => {
+    const fakeDb = seededDb(() => {});
+    const spy = vi
+      .spyOn(cashAssemblyPeriodLoopModule, 'executeCashAssemblyPeriodLoopV1')
+      .mockImplementation(() => {
+        throw new CashAssemblyPeriodLoopV1Error('CARRY_PCT_INVALID', 'synthetic');
+      });
+    const receipt = await executeLpEconomicsRun({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID,
+      idempotencyKey: 'legacy-null-failed',
+      request: goldenRequest(),
+      database: fakeDb.asDatabase(),
+    });
+    spy.mockRestore();
+    const runRow = fakeDb.runRows.find((row) => row['id'] === receipt.run.id)!;
+    runRow['calculationContractVersion'] = null;
+    runRow['engineVersion'] = 'cash-assembly-period-loop-v1/1.0.0';
+    runRow['methodologyVersion'] = 'cash-assembly-period-loop-methodology/1.0.0';
+
+    const legacy = await getRunWithResult({
+      fundId: FUND_ID,
+      runId: receipt.run.id,
+      database: fakeDb.asDatabase(),
+    });
+    expect(legacy.result).toBeNull();
+
+    runRow['methodologyVersion'] = 'cash-assembly-period-loop-methodology/9.9.9';
+    await expect(
+      getRunWithResult({
+        fundId: FUND_ID,
+        runId: receipt.run.id,
+        database: fakeDb.asDatabase(),
+      })
+    ).rejects.toMatchObject({
+      status: 500,
+      code: 'UNSUPPORTED_CALCULATION_CONTRACT_VERSION',
+    });
+  });
+
+  it('rejects an explicit V1.0 calculation contract on an otherwise exact failed tuple', async () => {
+    const fakeDb = seededDb(() => {});
+    const spy = vi
+      .spyOn(cashAssemblyPeriodLoopModule, 'executeCashAssemblyPeriodLoopV1')
+      .mockImplementation(() => {
+        throw new CashAssemblyPeriodLoopV1Error('CARRY_PCT_INVALID', 'synthetic');
+      });
+    const receipt = await executeLpEconomicsRun({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID,
+      idempotencyKey: 'test-v1-fail',
+      request: goldenRequest(),
+      database: fakeDb.asDatabase(),
+    });
+    spy.mockRestore();
+    const runRow = fakeDb.runRows.find((row) => row['id'] === receipt.run.id)!;
+    runRow['calculationContractVersion'] = 'lp-economics/1.0.0';
+    runRow['engineVersion'] = 'cash-assembly-period-loop-v1/1.0.0';
+    runRow['methodologyVersion'] = 'cash-assembly-period-loop-methodology/1.0.0';
+
+    await expect(
+      getRunWithResult({
+        fundId: FUND_ID,
+        runId: receipt.run.id,
+        database: fakeDb.asDatabase(),
+      })
+    ).rejects.toMatchObject({
+      status: 500,
+      code: 'UNSUPPORTED_CALCULATION_CONTRACT_VERSION',
+    });
+  });
+
+  it('fails closed when V1.1 run identity disagrees with result calculation identity', async () => {
+    const fakeDb = seededDb(() => {});
+    const receipt = await executeLpEconomicsRun({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID,
+      idempotencyKey: 'tuple-mismatch',
+      request: goldenRequest(),
+      database: fakeDb.asDatabase(),
+    });
+    const runRow = fakeDb.runRows.find((row) => row['id'] === receipt.run.id)!;
+    const snapshotRow = fakeDb.fundSnapshotRows.find(
+      (row) => row['id'] === receipt.run.resultSnapshotId
+    )!;
+    runRow['calculationContractVersion'] = 'lp-economics/1.1.0';
+    runRow['engineVersion'] = 'cash-assembly-period-loop-v1/1.1.0';
+    runRow['methodologyVersion'] = 'cash-assembly-period-loop-methodology/1.1.0';
+    snapshotRow['calcVersion'] = 'lp-economics/1.0.0';
+
+    await expect(
+      getRunWithResult({
+        fundId: FUND_ID,
+        runId: receipt.run.id,
+        database: fakeDb.asDatabase(),
+      })
+    ).rejects.toMatchObject({
+      status: 500,
+      code: 'UNSUPPORTED_CALCULATION_CONTRACT_VERSION',
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1404,10 +1707,10 @@ describe('executeLpEconomicsRun -- T-C10 engine/methodology version bump', () =>
     const request = goldenRequest();
     const staleRequestHash = canonicalSha256({
       fundId: FUND_ID,
-      contractVersion: LP_ECONOMICS_RUN_CONTRACT_VERSION,
+      contractVersion: LEGACY_LP_ECONOMICS_RUN_CONTRACT_VERSION,
       request,
-      engineVersion: 'cash-assembly-period-loop-v1/0.9.0',
-      methodologyVersion: 'cash-assembly-period-loop-methodology/0.9.0',
+      engineVersion: 'cash-assembly-period-loop-v1/1.0.0',
+      methodologyVersion: 'cash-assembly-period-loop-methodology/1.0.0',
     });
     fakeDb.runRows.push({
       id: 1,
@@ -1420,13 +1723,14 @@ describe('executeLpEconomicsRun -- T-C10 engine/methodology version bump', () =>
       resultSnapshotId: null,
       resultSnapshotType: null,
       runState: 'failed',
+      calculationContractVersion: null,
       resultStatus: null,
       failureCode: 'SOME_OLD_FAILURE',
       failureContext: {},
       evaluationClock: new Date(request.clock),
       terminalMode: request.terminalMode,
-      engineVersion: 'cash-assembly-period-loop-v1/0.9.0',
-      methodologyVersion: 'cash-assembly-period-loop-methodology/0.9.0',
+      engineVersion: 'cash-assembly-period-loop-v1/1.0.0',
+      methodologyVersion: 'cash-assembly-period-loop-methodology/1.0.0',
       inputHash: hex64(17),
       resultHash: null,
       createdBy: ACTOR_ID,
@@ -1545,7 +1849,7 @@ describe('executeLpEconomicsRun -- T-C13 event enrichment structural correctness
     const receipt = await executeLpEconomicsRun({
       fundId: FUND_ID,
       actorId: ACTOR_ID,
-      idempotencyKey: 'tc13-ordinary',
+      idempotencyKey: 'test-case-13',
       request: goldenRequest(),
       database: fakeDb.asDatabase(),
     });
@@ -1635,7 +1939,7 @@ describe('executeLpEconomicsRun -- T-C14 reason order does not affect result_has
       .spyOn(cashAssemblyPeriodLoopModule, 'executeCashAssemblyPeriodLoopV1')
       .mockReturnValueOnce({
         ...baseline,
-        resultStatusReasons: ['DECIMAL_CORE_UNCERTIFIED', 'LP_NET_NAV_FLAT_SHARE_APPROXIMATION'],
+        resultStatusReasons: ['FLOAT64_WATERFALL_PATH', 'LP_NET_NAV_FLAT_SHARE_APPROXIMATION'],
       });
     const receiptA = await executeLpEconomicsRun({
       fundId: FUND_ID,
@@ -1650,7 +1954,7 @@ describe('executeLpEconomicsRun -- T-C14 reason order does not affect result_has
       .spyOn(cashAssemblyPeriodLoopModule, 'executeCashAssemblyPeriodLoopV1')
       .mockReturnValueOnce({
         ...baseline,
-        resultStatusReasons: ['LP_NET_NAV_FLAT_SHARE_APPROXIMATION', 'DECIMAL_CORE_UNCERTIFIED'],
+        resultStatusReasons: ['LP_NET_NAV_FLAT_SHARE_APPROXIMATION', 'FLOAT64_WATERFALL_PATH'],
       });
     const receiptB = await executeLpEconomicsRun({
       fundId: FUND_ID,
@@ -1735,7 +2039,7 @@ describe('executeLpEconomicsRun -- T-C16 SQLSTATE 40001 retry', () => {
       executeLpEconomicsRun({
         fundId: FUND_ID,
         actorId: ACTOR_ID,
-        idempotencyKey: 'tc16-exhausted',
+        idempotencyKey: 'test-case-16',
         request: goldenRequest(),
         database: fakeDb.asDatabase(),
       })
