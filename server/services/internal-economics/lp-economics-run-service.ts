@@ -143,6 +143,11 @@ import {
   type LpEconomicsRunRequestV1_1,
 } from '../../../shared/contracts/internal-economics/lp-economics-run-v1.1.contract';
 import {
+  INTERNAL_LP_ECONOMICS_RUN_RECEIPT_VERSION_V1,
+  InternalLpEconomicsRunReceiptV1Schema,
+  type InternalLpEconomicsRunReceiptV1,
+} from '../../../shared/contracts/internal-economics/lp-economics-run-receipt-v1.contract';
+import {
   PersistedFinancialFactsSnapshotV1Schema,
   type PersistedFinancialFactsSnapshotV1,
 } from '../../../shared/contracts/financial-facts-snapshot-v1.contract';
@@ -430,19 +435,25 @@ export interface ExecuteLpEconomicsRunOptions {
   readonly database?: RunDatabase;
 }
 
-export interface LpEconomicsRunReceipt {
-  readonly run: InternalLpEconomicsRunRow;
-  readonly result: LpEconomicsResultV1 | LpEconomicsResultV1_1 | null;
-}
+export type LpEconomicsRunExecution = Readonly<{
+  receipt: InternalLpEconomicsRunReceiptV1;
+  replayed: boolean;
+}>;
+
+type PersistedRunExecution = Readonly<{
+  run: InternalLpEconomicsRunRow;
+  replayed: boolean;
+}>;
 
 export async function executeLpEconomicsRun(
   opts: ExecuteLpEconomicsRunOptions
-): Promise<LpEconomicsRunReceipt> {
+): Promise<LpEconomicsRunExecution> {
   const database = opts.database ?? db;
+  let persisted: PersistedRunExecution | undefined;
 
   for (let attempt = 1; attempt <= RUN_TRANSACTION_MAX_ATTEMPTS; attempt += 1) {
     try {
-      return await database.transaction(
+      persisted = await database.transaction(
         async (transaction) =>
           executeLpEconomicsRunInTransaction({
             opts,
@@ -450,16 +461,23 @@ export async function executeLpEconomicsRun(
           }),
         { isolationLevel: 'repeatable read', accessMode: 'read write' }
       );
+      break;
     } catch (error) {
       const retryable = RETRYABLE_TRANSACTION_SQLSTATES.has(transactionSqlState(error) ?? '');
       if (!retryable || attempt === RUN_TRANSACTION_MAX_ATTEMPTS) throw error;
     }
   }
 
-  throw new Error('Internal LP economics run transaction retry bound was exhausted.');
+  if (persisted === undefined) {
+    throw new Error('Internal LP economics run transaction retry bound was exhausted.');
+  }
+  return {
+    receipt: await buildReceiptFromRunRow(persisted.run, database),
+    replayed: persisted.replayed,
+  };
 }
 
-export interface GetRunWithResultOptions {
+export interface GetLpEconomicsRunReceiptOptions {
   readonly fundId: number;
   readonly runId: number;
   readonly database?: RunDatabase;
@@ -467,9 +485,9 @@ export interface GetRunWithResultOptions {
 
 /** Read surface (section 5's closing paragraph): joins the result snapshot,
  * validates type/ownership (T-C9). */
-export async function getRunWithResult(
-  opts: GetRunWithResultOptions
-): Promise<LpEconomicsRunReceipt> {
+export async function getLpEconomicsRunReceipt(
+  opts: GetLpEconomicsRunReceiptOptions
+): Promise<InternalLpEconomicsRunReceiptV1> {
   const database = opts.database ?? db;
 
   await assertOwnedByFund({
@@ -1248,7 +1266,7 @@ async function insertRunRow(
     readonly failureCode: string | null;
     readonly failureContext: Record<string, unknown> | null;
   }
-): Promise<InternalLpEconomicsRunRow> {
+): Promise<{ readonly row: InternalLpEconomicsRunRow; readonly replayed: boolean }> {
   const loadExistingRun = async (): Promise<{
     row: InternalLpEconomicsRunRow;
     requestHash: string;
@@ -1307,7 +1325,7 @@ async function insertRunRow(
       return inserted ?? null;
     },
   });
-  return result.row;
+  return result;
 }
 
 async function insertResultSnapshot(
@@ -1342,8 +1360,8 @@ async function persistFailedRun(
   common: CommonRunFields,
   failureCode: string,
   failureContext: Record<string, unknown>
-): Promise<LpEconomicsRunReceipt> {
-  const run = await insertRunRow(database, common, {
+): Promise<PersistedRunExecution> {
+  const persisted = await insertRunRow(database, common, {
     runState: 'failed',
     resultSnapshotId: null,
     resultSnapshotType: null,
@@ -1352,7 +1370,7 @@ async function persistFailedRun(
     failureCode,
     failureContext,
   });
-  return { run, result: null };
+  return { run: persisted.row, replayed: persisted.replayed };
 }
 
 // `resultHash` (below and in `persistCompletedRun`) hashes the persisted
@@ -1368,7 +1386,7 @@ async function persistUnavailableRun(
   common: CommonRunFields,
   clock: string,
   reasons: readonly LpEconomicsRunUnavailabilityReasonV1[]
-): Promise<LpEconomicsRunReceipt> {
+): Promise<PersistedRunExecution> {
   const sortedReasons = sortAndDedupeLpEconomicsReasonsV1(reasons);
   const payload = LpEconomicsResultV1_1Schema.parse({
     waterfallTemplate: 'deal_by_deal',
@@ -1384,7 +1402,7 @@ async function persistUnavailableRun(
     clock,
     payload,
   });
-  const run = await insertRunRow(database, common, {
+  const persisted = await insertRunRow(database, common, {
     runState: 'completed',
     resultSnapshotId,
     resultSnapshotType: 'INTERNAL_LP_ECONOMICS',
@@ -1393,7 +1411,7 @@ async function persistUnavailableRun(
     failureCode: null,
     failureContext: null,
   });
-  return { run, result: payload };
+  return { run: persisted.row, replayed: persisted.replayed };
 }
 
 async function persistCompletedRun(
@@ -1401,13 +1419,13 @@ async function persistCompletedRun(
   common: CommonRunFields,
   clock: string,
   payload: LpEconomicsAvailableResultV1_1 | LpEconomicsIndicativeResultV1_1
-): Promise<LpEconomicsRunReceipt> {
+): Promise<PersistedRunExecution> {
   const resultSnapshotId = await insertResultSnapshot(database, {
     fundId: common.fundId,
     clock,
     payload,
   });
-  const run = await insertRunRow(database, common, {
+  const persisted = await insertRunRow(database, common, {
     runState: 'completed',
     resultSnapshotId,
     resultSnapshotType: 'INTERNAL_LP_ECONOMICS',
@@ -1416,50 +1434,105 @@ async function persistCompletedRun(
     failureCode: null,
     failureContext: null,
   });
-  return { run, result: payload };
+  return { run: persisted.row, replayed: persisted.replayed };
 }
 
 async function buildReceiptFromRunRow(
   run: InternalLpEconomicsRunRow,
   database: RunDatabase
-): Promise<LpEconomicsRunReceipt> {
-  if (run.runState === 'failed') {
-    resolvePersistedCalculationContract(run, null);
-    return { run, result: null };
-  }
-  if (run.resultSnapshotId === null) {
+): Promise<InternalLpEconomicsRunReceiptV1> {
+  let resultCalculationVersion: string | null = null;
+  let result: LpEconomicsResultV1 | LpEconomicsResultV1_1 | null = null;
+
+  if (run.runState === 'completed' && run.resultSnapshotId === null) {
     throw new LpEconomicsRunServiceError(
       500,
       'RUN_RESULT_SNAPSHOT_MISSING',
       'The completed run does not carry a result snapshot identity.'
     );
   }
-  const [snapshotRow] = await database
-    .select()
-    .from(fundSnapshots)
-    .where(
-      and(
-        eq(fundSnapshots.id, run.resultSnapshotId),
-        eq(fundSnapshots.fundId, run.fundId),
-        eq(fundSnapshots.type, 'INTERNAL_LP_ECONOMICS')
+  if (run.resultSnapshotId !== null) {
+    await assertOwnedByFund({
+      db: database as unknown as FundScopedOwnershipDatabase,
+      fundId: run.fundId,
+      ref: { kind: 'fund_snapshot', id: run.resultSnapshotId },
+    });
+    const [snapshotRow] = await database
+      .select()
+      .from(fundSnapshots)
+      .where(
+        and(
+          eq(fundSnapshots.id, run.resultSnapshotId),
+          eq(fundSnapshots.fundId, run.fundId),
+          eq(fundSnapshots.type, 'INTERNAL_LP_ECONOMICS')
+        )
       )
-    )
-    .limit(1);
-  if (snapshotRow === undefined) {
-    throw new LpEconomicsRunServiceError(
-      500,
-      'RUN_RESULT_SNAPSHOT_MISSING',
-      'The run result snapshot could not be read back by (id, fund, type).'
-    );
-  }
-  const calculationContract = resolvePersistedCalculationContract(run, snapshotRow.calcVersion);
-  return {
-    run,
-    result:
+      .limit(1);
+    if (snapshotRow === undefined) {
+      throw new LpEconomicsRunServiceError(
+        500,
+        'RUN_RESULT_SNAPSHOT_MISSING',
+        'The run result snapshot could not be read back by (id, fund, type).'
+      );
+    }
+    resultCalculationVersion = snapshotRow.calcVersion;
+    const calculationContract = resolvePersistedCalculationContract(run, resultCalculationVersion);
+    result =
       calculationContract === 'v1.0'
         ? LpEconomicsResultV1Schema.parse(snapshotRow.payload)
-        : LpEconomicsResultV1_1Schema.parse(snapshotRow.payload),
-  };
+        : LpEconomicsResultV1_1Schema.parse(snapshotRow.payload);
+  }
+
+  const calculationContract = resolvePersistedCalculationContract(run, resultCalculationVersion);
+  const policy = await loadPolicyRow(database, run.fundId, run.policyVersionId);
+  const envelope = await loadEnvelopeRow(database, run.fundId, policy.capitalEnvelopeVersionId);
+  const facts = await loadFactsRow(database, run.fundId, run.factsSnapshotId);
+  const plan = await loadPlanRow(database, run.fundId, run.planVersionId);
+  const { forecast } = await loadForecastRow(database, run.fundId, run.forecastSnapshotId);
+
+  return InternalLpEconomicsRunReceiptV1Schema.parse({
+    receiptVersion: INTERNAL_LP_ECONOMICS_RUN_RECEIPT_VERSION_V1,
+    runId: run.id,
+    fundId: run.fundId,
+    createdAt: run.createdAt.toISOString(),
+    basis: {
+      policyVersionId: policy.id,
+      capitalEnvelopeVersionId: envelope.id,
+      factsSnapshotId: facts.id,
+      knowledgeCutoff: facts.knowledgeCutoff,
+      planVersionId: plan.id,
+      forecastSnapshotId: run.forecastSnapshotId,
+      evaluationClock: run.evaluationClock.toISOString(),
+      terminalMode: run.terminalMode,
+      terminalPeriodEnd: policy.terminalPeriodEnd,
+      terminalResolutionMethodologyVersion: policy.terminalResolutionMethodologyVersion,
+    },
+    versions: {
+      calculationContractVersion:
+        calculationContract === 'v1.0'
+          ? LEGACY_LP_ECONOMICS_RESULT_CALC_VERSION
+          : LP_ECONOMICS_RUN_CONTRACT_VERSION_V1_1,
+      engineVersion: run.engineVersion,
+      methodologyVersion: run.methodologyVersion,
+      resultCalculationVersion,
+    },
+    hashes: {
+      capitalEnvelopeHash: envelope.envelopeHash,
+      policyAssumptionsHash: policy.assumptionsHash,
+      factsSnapshotInputHash: facts.snapshotInputHash,
+      planAssumptionsHash: plan.assumptionsHash,
+      forecastInputHash: forecast.inputHash,
+      inputHash: run.inputHash,
+      resultHash: run.resultHash,
+    },
+    outcome:
+      run.runState === 'completed'
+        ? { runState: 'completed', result }
+        : {
+            runState: 'failed',
+            failure: { code: run.failureCode, context: run.failureContext },
+          },
+  });
 }
 
 function resolvePersistedCalculationContract(
@@ -1514,7 +1587,7 @@ function resolvePersistedCalculationContract(
 async function executeLpEconomicsRunInTransaction(params: {
   readonly opts: ExecuteLpEconomicsRunOptions;
   readonly database: RunDatabase;
-}): Promise<LpEconomicsRunReceipt> {
+}): Promise<PersistedRunExecution> {
   const { opts, database } = params;
   const { fundId, request } = opts;
 
@@ -1553,7 +1626,7 @@ async function executeLpEconomicsRunInTransaction(params: {
     },
   });
   if (replay !== null) {
-    return buildReceiptFromRunRow(replay.row, database);
+    return { run: replay.row, replayed: true };
   }
 
   // Step 3: basis reads by explicit IDs only (ADR-065 item 1) with

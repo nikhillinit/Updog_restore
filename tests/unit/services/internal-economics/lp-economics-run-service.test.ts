@@ -30,8 +30,8 @@ import {
   LP_ECONOMICS_RUN_METHODOLOGY_VERSION,
   MAX_CASH_ASSEMBLY_PERIOD_COUNT,
   MAX_CASH_ASSEMBLY_TOTAL_EVENT_COUNT,
-  executeLpEconomicsRun,
-  getRunWithResult,
+  executeLpEconomicsRun as executeLpEconomicsRunService,
+  getLpEconomicsRunReceipt as getLpEconomicsRunReceiptService,
 } from '../../../../server/services/internal-economics/lp-economics-run-service';
 import { canonicalSha256 } from '../../../../shared/lib/canonical-hash';
 import { Decimal } from '../../../../shared/lib/decimal-config';
@@ -52,15 +52,18 @@ import {
   INTERNAL_ECONOMICS_TERMINAL_RESOLUTION_VERSION,
 } from '../../../../shared/contracts/internal-economics/terminal-policy-v1.contract';
 import { LP_ECONOMICS_RUN_CONTRACT_VERSION as LEGACY_LP_ECONOMICS_RUN_CONTRACT_VERSION } from '../../../../shared/contracts/internal-economics/lp-economics-run-v1.contract';
+import type { LpEconomicsResultV1 } from '../../../../shared/contracts/internal-economics/lp-economics-run-v1.contract';
 import {
   LP_ECONOMICS_RUN_CONTRACT_VERSION_V1_1,
   LpEconomicsRunRequestV1_1Schema,
   type LpEconomicsRunRequestV1_1,
+  type LpEconomicsResultV1_1,
 } from '../../../../shared/contracts/internal-economics/lp-economics-run-v1.1.contract';
 import {
   internalCapitalEnvelopeVersions,
   internalEconomicsPolicyVersions,
   internalLpEconomicsRuns,
+  type InternalLpEconomicsRunRow,
 } from '../../../../shared/schema/internal-economics';
 import { financialFactsSnapshots } from '../../../../shared/schema/financial-facts-snapshots';
 import { currentPlanVersions } from '../../../../shared/schema/current-plans';
@@ -112,6 +115,7 @@ class FakeRunDb {
   transactionAttempts = 0;
   readonly transactionConfigs: Record<string, unknown>[] = [];
   insertSerializationFailuresRemaining = 0;
+  hiddenExistingRunReadsRemaining = 0;
   readonly runInsertAttempts: Record<string, unknown>[] = [];
 
   private readonly mutex = new KeyedMutex();
@@ -229,6 +233,10 @@ class FakeRunDb {
   }
 
   private filterRows(table: unknown, condition: unknown): Record<string, unknown>[] {
+    if (table === internalLpEconomicsRuns && this.hiddenExistingRunReadsRemaining > 0) {
+      this.hiddenExistingRunReadsRemaining -= 1;
+      return [];
+    }
     const rows = this.rowsFor(table);
     const rendered = new PgDialect().sqlToQuery(condition as SQL);
     return rows.filter((row) =>
@@ -237,6 +245,41 @@ class FakeRunDb {
       )
     );
   }
+}
+
+async function executeLpEconomicsRun(
+  opts: Parameters<typeof executeLpEconomicsRunService>[0]
+): Promise<{
+  readonly run: InternalLpEconomicsRunRow;
+  readonly result: LpEconomicsResultV1 | LpEconomicsResultV1_1 | null;
+}> {
+  const execution = await executeLpEconomicsRunService(opts);
+  const fakeDb = opts.database as unknown as FakeRunDb;
+  const run = fakeDb.runRows.find((row) => row['id'] === execution.receipt.runId);
+  if (run === undefined) throw new Error('Test fixture could not resolve persisted run row.');
+  return {
+    run: run as unknown as InternalLpEconomicsRunRow,
+    result:
+      execution.receipt.outcome.runState === 'completed'
+        ? execution.receipt.outcome.result
+        : null,
+  };
+}
+
+async function getRunWithResult(
+  opts: Parameters<typeof getLpEconomicsRunReceiptService>[0]
+): Promise<{
+  readonly run: InternalLpEconomicsRunRow;
+  readonly result: LpEconomicsResultV1 | LpEconomicsResultV1_1 | null;
+}> {
+  const receipt = await getLpEconomicsRunReceiptService(opts);
+  const fakeDb = opts.database as unknown as FakeRunDb;
+  const run = fakeDb.runRows.find((row) => row['id'] === receipt.runId);
+  if (run === undefined) throw new Error('Test fixture could not resolve persisted run row.');
+  return {
+    run: run as unknown as InternalLpEconomicsRunRow,
+    result: receipt.outcome.runState === 'completed' ? receipt.outcome.result : null,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -661,6 +704,59 @@ function canonicalResultBytesForCertification(value: unknown): string {
 // ---------------------------------------------------------------------------
 
 describe('executeLpEconomicsRun -- T-C1 indicative happy path', () => {
+  it('returns only a strict public receipt plus private replay metadata', async () => {
+    const fakeDb = new FakeRunDb();
+    seedGoldenFixture(fakeDb);
+
+    const execution = await executeLpEconomicsRunService({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID,
+      idempotencyKey: 'strict-receipt-shape',
+      request: goldenRequest(),
+      database: fakeDb.asDatabase(),
+    });
+
+    expect(Object.keys(execution).sort()).toEqual(['receipt', 'replayed']);
+    expect(execution).toMatchObject({
+      replayed: false,
+      receipt: {
+        receiptVersion: 'internal-lp-economics-run-receipt/1.0.0',
+        runId: 1,
+        fundId: FUND_ID,
+        outcome: { runState: 'completed' },
+      },
+    });
+    expect(JSON.stringify(execution.receipt)).not.toMatch(
+      /idempotencyKey|requestHash|createdBy|resultSnapshotId|correlationId|replayed/
+    );
+
+    const earlyReplay = await executeLpEconomicsRunService({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID + 1,
+      idempotencyKey: 'strict-receipt-shape',
+      request: goldenRequest(),
+      database: fakeDb.asDatabase(),
+    });
+    expect(earlyReplay).toEqual({ receipt: execution.receipt, replayed: true });
+
+    const read = await getLpEconomicsRunReceiptService({
+      fundId: FUND_ID,
+      runId: execution.receipt.runId,
+      database: fakeDb.asDatabase(),
+    });
+    expect(read).toEqual(execution.receipt);
+
+    fakeDb.hiddenExistingRunReadsRemaining = 1;
+    const conflictReplay = await executeLpEconomicsRunService({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID + 2,
+      idempotencyKey: 'strict-receipt-shape',
+      request: goldenRequest(),
+      database: fakeDb.asDatabase(),
+    });
+    expect(conflictReplay).toEqual({ receipt: execution.receipt, replayed: true });
+  });
+
   it('emits representative final V1.1 bytes and hashes for the timezone certification subprocess', async () => {
     const fakeDb = new FakeRunDb();
     seedGoldenFixture(fakeDb);
@@ -2100,33 +2196,35 @@ describe('executeLpEconomicsRun -- T-C19/T-C20 admission-control bounds', () => 
       (db_.policyRows[0]!['policyBody'] as Record<string, unknown>)['fundLifeYears'] = '55';
     });
 
-    const receipt = await executeLpEconomicsRun({
-      fundId: FUND_ID,
-      actorId: ACTOR_ID,
-      idempotencyKey: 'tc19',
-      request: goldenRequest(),
-      database: fakeDb.asDatabase(),
-    });
+    await expect(
+      executeLpEconomicsRunService({
+        fundId: FUND_ID,
+        actorId: ACTOR_ID,
+        idempotencyKey: 'tc19',
+        request: goldenRequest(),
+        database: fakeDb.asDatabase(),
+      })
+    ).rejects.toThrow();
 
-    expect(receipt.run.runState).toBe('failed');
-    expect(receipt.run.failureCode).toBe('CASH_ASSEMBLY_PERIOD_COUNT_EXCEEDED');
-    expect(receipt.run.failureContext).toMatchObject({
+    expect(fakeDb.runRows[0]?.['runState']).toBe('failed');
+    expect(fakeDb.runRows[0]?.['failureCode']).toBe('CASH_ASSEMBLY_PERIOD_COUNT_EXCEEDED');
+    expect(fakeDb.runRows[0]?.['failureContext']).toMatchObject({
       bound: MAX_CASH_ASSEMBLY_PERIOD_COUNT,
       observed: 201,
     });
-    expect(receipt.result).toBeNull();
     expect(
       fakeDb.fundSnapshotRows.filter((row) => row['type'] === 'INTERNAL_LP_ECONOMICS')
     ).toHaveLength(0);
 
-    const replay = await executeLpEconomicsRun({
-      fundId: FUND_ID,
-      actorId: ACTOR_ID,
-      idempotencyKey: 'tc19',
-      request: goldenRequest(),
-      database: fakeDb.asDatabase(),
-    });
-    expect(replay.run.id).toBe(receipt.run.id);
+    await expect(
+      executeLpEconomicsRunService({
+        fundId: FUND_ID,
+        actorId: ACTOR_ID,
+        idempotencyKey: 'tc19',
+        request: goldenRequest(),
+        database: fakeDb.asDatabase(),
+      })
+    ).rejects.toThrow();
     expect(fakeDb.runRows).toHaveLength(1);
   });
 
@@ -2156,29 +2254,30 @@ describe('executeLpEconomicsRun -- T-C19/T-C20 admission-control bounds', () => 
       };
     });
 
-    const receipt = await executeLpEconomicsRun({
-      fundId: FUND_ID,
-      actorId: ACTOR_ID,
-      idempotencyKey: 'tc20',
-      request: goldenRequest(),
-      database: fakeDb.asDatabase(),
-    });
+    await expect(
+      executeLpEconomicsRunService({
+        fundId: FUND_ID,
+        actorId: ACTOR_ID,
+        idempotencyKey: 'tc20',
+        request: goldenRequest(),
+        database: fakeDb.asDatabase(),
+      })
+    ).rejects.toThrow();
 
-    expect(receipt.run.runState).toBe('failed');
-    expect(receipt.run.failureCode).toBe('CASH_ASSEMBLY_TOTAL_EVENT_COUNT_EXCEEDED');
-    expect(receipt.run.failureContext).toMatchObject({
+    expect(fakeDb.runRows[0]?.['runState']).toBe('failed');
+    expect(fakeDb.runRows[0]?.['failureCode']).toBe('CASH_ASSEMBLY_TOTAL_EVENT_COUNT_EXCEEDED');
+    expect(fakeDb.runRows[0]?.['failureContext']).toMatchObject({
       bound: MAX_CASH_ASSEMBLY_TOTAL_EVENT_COUNT,
     });
-    expect(receipt.result).toBeNull();
-
-    const replay = await executeLpEconomicsRun({
-      fundId: FUND_ID,
-      actorId: ACTOR_ID,
-      idempotencyKey: 'tc20',
-      request: goldenRequest(),
-      database: fakeDb.asDatabase(),
-    });
-    expect(replay.run.id).toBe(receipt.run.id);
+    await expect(
+      executeLpEconomicsRunService({
+        fundId: FUND_ID,
+        actorId: ACTOR_ID,
+        idempotencyKey: 'tc20',
+        request: goldenRequest(),
+        database: fakeDb.asDatabase(),
+      })
+    ).rejects.toThrow();
     expect(fakeDb.runRows).toHaveLength(1);
   });
 });

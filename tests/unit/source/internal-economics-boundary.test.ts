@@ -20,6 +20,7 @@ const CONTRACTS_DIR = 'shared/contracts/internal-economics';
 const V1_SCHEMA_PATH = `${CONTRACTS_DIR}/lp-economics-run-v1.contract.ts`;
 const V1_1_SCHEMA_PATH = `${CONTRACTS_DIR}/lp-economics-run-v1.1.contract.ts`;
 const HASH_HELPER_PATH = `${CONTRACTS_DIR}/lp-economics-run-v1.hash.ts`;
+const RECEIPT_PATH = `${CONTRACTS_DIR}/lp-economics-run-receipt-v1.contract.ts`;
 const RUN_SERVICE_PATH = 'server/services/internal-economics/lp-economics-run-service.ts';
 
 const readSource = (relPath: string): string =>
@@ -100,12 +101,24 @@ describe('internal-economics boundary (D4)', () => {
   });
 
   it('keeps V1.0 and V1.1 schema and receipt-result imports outside the Node crypto graph', () => {
-    const graph = collectRuntimeImportGraph([V1_SCHEMA_PATH, V1_1_SCHEMA_PATH]);
+    const graph = collectRuntimeImportGraph([V1_SCHEMA_PATH, V1_1_SCHEMA_PATH, RECEIPT_PATH]);
     for (const [modulePath, source] of graph) {
       expect(source, `${modulePath} imports node:crypto`).not.toMatch(/node:crypto/);
       expect(source, `${modulePath} imports canonical-hash`).not.toMatch(/canonical-hash/);
       expect(source, `${modulePath} references canonicalSha256`).not.toMatch(/canonicalSha256/);
     }
+  });
+
+  it('keeps public service signatures free of persisted Drizzle run rows', () => {
+    const runServiceSource = stripComments(readSource(RUN_SERVICE_PATH));
+    const executionType = runServiceSource.match(
+      /export type LpEconomicsRunExecution = Readonly<\{([\s\S]*?)\}>;/
+    );
+    expect(executionType?.[1]).toMatch(/receipt:[\s\S]*replayed:/);
+    expect(executionType?.[1]).not.toMatch(/InternalLpEconomicsRunRow/);
+    expect(runServiceSource).toMatch(
+      /getLpEconomicsRunReceipt\([\s\S]{0,120}Promise<InternalLpEconomicsRunReceiptV1>/
+    );
   });
 
   it('gives hash-only helpers one dedicated owner and direct server consumers', () => {
