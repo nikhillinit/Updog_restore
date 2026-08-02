@@ -43,18 +43,12 @@
  *    block reuses the ADR-010 XIRR diagnostic taxonomy. Money passes
  *    through as canonical 6dp decimal strings, ratios as 12dp; never
  *    `number` round-trips.
- *  - `sortAndDedupeLpEconomicsReasonsV1` — the registry's binding
- *    sort/dedupe rule, applied exactly once at payload construction: sort
- *    key is `code` (ties broken by `detail`, with the dedupe hash as a
- *    final deterministic tiebreak); dedupe identity is the EXPORTED
- *    `canonicalSha256` of the full `{ code, detail, context }` tuple
- *    (section 6 R7 — key-order-insensitive, and context discriminants are
- *    never collapsed by a code-only dedupe).
+ *  - Schema-only result surfaces. Crypto-bearing reason sort/dedupe and
+ *    event-ID helpers live in `lp-economics-run-v1.hash.ts` and are not
+ *    re-exported here.
  *
- * NOTE: this module is crypto-bearing — `canonicalSha256` pulls
- * `node:crypto` (used by the event-id builder and the reason dedupe
- * helper). Client code must import this module TYPE-ONLY (plan section
- * 10(j)); the schema-only sibling contracts stay crypto-free.
+ * NOTE: this module is browser-safe. Runtime hashing belongs to the
+ * server-safe hash sibling so schema consumers never reach `node:crypto`.
  *
  * Governing docs: docs/superpowers/plans/
  * 2026-07-31-task163-wp-l3-service-persistence-plan.md (sections 5, 6, 8;
@@ -66,7 +60,6 @@
  */
 import { z } from 'zod';
 
-import { canonicalSha256 } from '../../lib/canonical-hash';
 import { MoneyDecimalStringSchema, RatioDecimalStringSchema } from '../../lib/decimal-string';
 import type { CashAssemblyWaterfallEventV1 } from '../../lib/internal-economics/cash-assembly-period-loop-v1';
 import type { CashAssemblyQuarterRowV1 } from '../../lib/internal-economics/cash-assembly-types-v1';
@@ -263,55 +256,6 @@ export type LpEconomicsIndicativeReasonV1 = Readonly<
 >;
 
 // ---------------------------------------------------------------------------
-// Reason sort/dedupe (registry rule: exactly once, at payload construction).
-// ---------------------------------------------------------------------------
-
-export interface LpEconomicsReasonTupleV1 {
-  readonly code: string;
-  readonly detail?: string | undefined;
-  readonly context?: Readonly<Record<string, string>> | undefined;
-}
-
-function compareStrings(left: string, right: string): number {
-  if (left < right) return -1;
-  if (left > right) return 1;
-  return 0;
-}
-
-/**
- * Sorts by `code` (ties broken by `detail`, then by the dedupe hash as a
- * final deterministic tiebreak) and dedupes on the `canonicalSha256` of the
- * full `{ code, detail, context }` tuple — key-order-insensitive, so
- * semantically identical contexts collapse while context discriminants
- * (e.g. distinct `OPENING_STATE_INELIGIBLE` fields) always survive.
- */
-export function sortAndDedupeLpEconomicsReasonsV1<T extends LpEconomicsReasonTupleV1>(
-  reasons: readonly T[]
-): readonly T[] {
-  const seen = new Set<string>();
-  const entries: Array<{ reason: T; dedupeKey: string }> = [];
-  for (const reason of reasons) {
-    const dedupeKey = canonicalSha256({
-      code: reason.code,
-      detail: reason.detail,
-      context: reason.context,
-    });
-    if (seen.has(dedupeKey)) continue;
-    seen.add(dedupeKey);
-    entries.push({ reason, dedupeKey });
-  }
-
-  return entries
-    .sort(
-      (left, right) =>
-        compareStrings(left.reason.code, right.reason.code) ||
-        compareStrings(left.reason.detail ?? '', right.reason.detail ?? '') ||
-        compareStrings(left.dedupeKey, right.dedupeKey)
-    )
-    .map((entry) => entry.reason);
-}
-
-// ---------------------------------------------------------------------------
 // D9 value rows: frozen-loop quarter rows verbatim; events + enrichment.
 // ---------------------------------------------------------------------------
 
@@ -377,23 +321,6 @@ export const LpEconomicsWaterfallEventV1Schema = z
 export type LpEconomicsWaterfallEventV1 = Readonly<
   z.infer<typeof LpEconomicsWaterfallEventV1Schema>
 >;
-
-/**
- * Deterministic, basis-only event identity (section 6 R3(a)): a hash of
- * the loop's stable `sourceId`, the event's `periodEnd`, and its array
- * position — identical basis replays produce identical `eventId` values.
- */
-export function buildLpEconomicsEventIdV1(input: {
-  readonly sourceId: string;
-  readonly periodEnd: string;
-  readonly eventSequence: number;
-}): string {
-  return canonicalSha256({
-    sourceId: input.sourceId,
-    periodEnd: input.periodEnd,
-    eventSequence: input.eventSequence,
-  });
-}
 
 /**
  * Section 6(c) totals: (i) quarter-summed flow fields, (ii) the
