@@ -33,7 +33,7 @@ keywords:
     materiality-gate,
     testcontainers,
   ]
-test_file: null
+test_file: tests/unit/schema/internal-economics-linkage-schema.test.ts
 superseded_by: null
 ---
 

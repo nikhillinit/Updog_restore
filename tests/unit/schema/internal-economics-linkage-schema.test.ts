@@ -1,3 +1,7 @@
+// REFLECTION_ID: REFL-042
+// This test is linked to: docs/skills/REFL-042-migration-replay-reviews-must-close-semantic-classes.md
+// Do not rename without updating the reflection's test_file field.
+
 /**
  * Trust-Spine PR4 migration 0047 parity.
  *
