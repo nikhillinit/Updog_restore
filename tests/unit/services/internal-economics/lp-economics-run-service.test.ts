@@ -1643,7 +1643,7 @@ describe('getRunWithResult -- T-C9 lineage read joins + type/ownership', () => {
     const receipt = await executeLpEconomicsRun({
       fundId: FUND_ID,
       actorId: ACTOR_ID,
-      idempotencyKey: 'explicit-v1-failed',
+      idempotencyKey: 'test-v1-fail',
       request: goldenRequest(),
       database: fakeDb.asDatabase(),
     });
@@ -1849,7 +1849,7 @@ describe('executeLpEconomicsRun -- T-C13 event enrichment structural correctness
     const receipt = await executeLpEconomicsRun({
       fundId: FUND_ID,
       actorId: ACTOR_ID,
-      idempotencyKey: 'tc13-ordinary',
+      idempotencyKey: 'test-case-13',
       request: goldenRequest(),
       database: fakeDb.asDatabase(),
     });
@@ -2039,7 +2039,7 @@ describe('executeLpEconomicsRun -- T-C16 SQLSTATE 40001 retry', () => {
       executeLpEconomicsRun({
         fundId: FUND_ID,
         actorId: ACTOR_ID,
-        idempotencyKey: 'tc16-exhausted',
+        idempotencyKey: 'test-case-16',
         request: goldenRequest(),
         database: fakeDb.asDatabase(),
       })

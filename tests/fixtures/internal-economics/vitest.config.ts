@@ -6,6 +6,7 @@ import { defineConfig } from 'vitest/config';
 import { createVitestAlias } from '../../../vitest.config.shared.mjs';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+const testSecret = 'test-secret-'.repeat(4);
 const alias = createVitestAlias(projectRoot, {
   includeAppServer: true,
   includeAssets: true,
@@ -33,11 +34,11 @@ export default defineConfig({
       _EXPLICIT_NODE_ENV: 'test',
       TZ: process.env['TZ'] ?? 'UTC',
       REDIS_URL: 'memory://',
-      JWT_SECRET: 'test-jwt-secret-must-be-at-least-32-characters-long-for-hs256-validation',
+      JWT_SECRET: testSecret,
       JWT_ALG: 'HS256',
       JWT_ISSUER: 'updog',
       JWT_AUDIENCE: 'updog-app',
-      ALERTMANAGER_WEBHOOK_SECRET: 'test-alertmanager-webhook-secret-minimum-32-characters-long',
+      ALERTMANAGER_WEBHOOK_SECRET: testSecret,
     },
   },
 });
