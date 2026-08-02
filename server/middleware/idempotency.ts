@@ -5,6 +5,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { redis as redisClient } from '../db/redis-circuit';
+import { isDatabaseBackedIdempotencyRoute } from '../lib/database-backed-idempotency-routes.js';
 import { logger } from '../lib/logger.js';
 
 const log =
@@ -268,6 +269,10 @@ export function idempotency(options: IdempotencyOptions = {}) {
   };
 
   return async (req: Request, res: Response, next: NextFunction) => {
+    if (isDatabaseBackedIdempotencyRoute(req.method, req.originalUrl)) {
+      return next();
+    }
+
     // Skip if path is excluded
     if (config.skipPaths.includes(req.path)) {
       return next();
