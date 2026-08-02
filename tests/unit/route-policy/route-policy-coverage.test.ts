@@ -406,6 +406,20 @@ describe('route policy coverage', () => {
     expect(policy.humanReviewRequired).toBe(true);
   });
 
+  it('classifies internal-economics run creation as idempotent analytical scenario work', () => {
+    const policy = expectPolicy('POST /api/funds/:fundId/internal-economics/runs');
+
+    expect(policy.governanceRef).toBe('/fund-model-results/:fundId/internal-analysis');
+    expect(policy.financialSurface).toBe('fund_modeling');
+    expect(policy.apiAuthBoundary).toBe('require_auth_fund_access_and_role');
+    expect(policy.fundScopeMode).toBe('route_param_fund_id');
+    expect(policy.workflowRequirement).toBe('idempotent_immutable_run_creation');
+    expect(policy.exportPolicy).toBe('not_exportable');
+    expect(policy.provenanceRequired).toBe(true);
+    expect(policy.staleBlocksExport).toBe(false);
+    expect(policy.humanReviewRequired).toBe(true);
+  });
+
   it('classifies from-seed case creation as a fund-scoped provenance mutation', () => {
     const policy = expectPolicy(
       'POST /api/funds/:fundId/scenario-analysis/scenarios/:scenarioId/cases/from-seed'

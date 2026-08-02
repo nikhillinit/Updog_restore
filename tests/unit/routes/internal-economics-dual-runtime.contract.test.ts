@@ -5,6 +5,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const service = vi.hoisted(() => ({
+  executeLpEconomicsRun: vi.fn(),
   getLpEconomicsRunReceipt: vi.fn(),
 }));
 
@@ -26,6 +27,7 @@ vi.mock('../../../server/services/internal-economics/lp-economics-run-service', 
 
   return {
     LpEconomicsRunServiceError: MockLpEconomicsRunServiceError,
+    executeLpEconomicsRun: service.executeLpEconomicsRun,
     getLpEconomicsRunReceipt: service.getLpEconomicsRunReceipt,
   };
 });
@@ -98,6 +100,15 @@ const RECEIPT = {
   },
 } as const;
 
+const RUN_REQUEST = {
+  policyVersionId: 3,
+  factsSnapshotId: 5,
+  planVersionId: 6,
+  forecastSnapshotId: 7,
+  terminalMode: 'hold_unrealized',
+  clock: '2026-06-30T23:59:59.000Z',
+} as const;
+
 type Surface = {
   readonly name: 'makeApp' | 'registerRoutes';
   readonly app: Express;
@@ -147,13 +158,17 @@ function configureTestAuthEnv(): void {
   process.env.SESSION_SECRET = 'internal-economics-surface-session-secret-32';
 }
 
-async function authorizationHeader(role: string, lpId?: number): Promise<string> {
+async function authorizationHeader(
+  role: string,
+  lpId?: number,
+  fundIds: readonly number[] = [1]
+): Promise<string> {
   const { signToken } = await import('../../../server/lib/auth/jwt');
   return `Bearer ${signToken({
     sub: '9',
     email: 'internal-economics-user@example.com',
     role,
-    fundIds: [1],
+    fundIds,
     ...(lpId === undefined ? {} : { lpId }),
   })}`;
 }
@@ -189,6 +204,8 @@ afterAll(async () => {
 });
 
 beforeEach(() => {
+  service.executeLpEconomicsRun.mockReset();
+  service.executeLpEconomicsRun.mockResolvedValue({ receipt: RECEIPT, replayed: false });
   service.getLpEconomicsRunReceipt.mockReset();
   service.getLpEconomicsRunReceipt.mockResolvedValue(RECEIPT);
 });
@@ -371,16 +388,137 @@ describe('internal-economics dual-runtime receipt parity', () => {
     }
   });
 
-  it('leaves the successor POST route unmounted on both surfaces', async () => {
+  it('uses identical first/replay POST resource semantics on both surfaces', async () => {
+    const authorization = await authorizationHeader('admin');
+    service.executeLpEconomicsRun.mockResolvedValueOnce({ receipt: RECEIPT, replayed: false });
+    service.executeLpEconomicsRun.mockResolvedValueOnce({ receipt: RECEIPT, replayed: true });
+
+    const first = await request(surfaces[0]!.app)
+      .post('/api/funds/1/internal-economics/runs')
+      .set('Authorization', authorization)
+      .set('Idempotency-Key', 'dual-runtime-create')
+      .send(RUN_REQUEST)
+      .expect(201);
+    const replay = await request(surfaces[1]!.app)
+      .post('/api/funds/1/internal-economics/runs')
+      .set('Authorization', authorization)
+      .set('Idempotency-Key', 'dual-runtime-create')
+      .send(RUN_REQUEST)
+      .expect(200);
+
+    expect(first.body).toEqual(RECEIPT);
+    expect(replay.body).toEqual(RECEIPT);
+    expect(first.headers['location']).toBe('/api/funds/1/internal-economics/runs/9');
+    expect(replay.headers['location']).toBeUndefined();
+    expect(first.headers['idempotency-replay']).toBeUndefined();
+    expect(replay.headers['idempotency-replay']).toBeUndefined();
+    expect(first.headers['cache-control']).toBe('private, no-store');
+    expect(replay.headers['cache-control']).toBe('private, no-store');
+    expect(service.executeLpEconomicsRun).toHaveBeenNthCalledWith(1, {
+      fundId: 1,
+      actorId: 9,
+      idempotencyKey: 'dual-runtime-create',
+      request: RUN_REQUEST,
+    });
+    expect(service.executeLpEconomicsRun).toHaveBeenNthCalledWith(2, {
+      fundId: 1,
+      actorId: 9,
+      idempotencyKey: 'dual-runtime-create',
+      request: RUN_REQUEST,
+    });
+  });
+
+  it.each([
+    ['admin', 2, [1], 201],
+    ['partner', 1, [1], 201],
+    ['analyst', 1, [1], 201],
+    ['partner', 2, [1], 403],
+    ['analyst', 2, [1], 403],
+  ] as const)(
+    'enforces unsafe-method fund scope role=%s fund=%s on both surfaces',
+    async (role, fundId, fundIds, expectedStatus) => {
+      const authorization = await authorizationHeader(role, undefined, fundIds);
+
+      for (const surface of surfaces) {
+        await request(surface.app)
+          .post(`/api/funds/${fundId}/internal-economics/runs`)
+          .set('Authorization', authorization)
+          .set('Idempotency-Key', `scope-${role}-${fundId}`)
+          .send(RUN_REQUEST)
+          .expect(expectedStatus);
+      }
+
+      const expectedCalls = expectedStatus === 201 ? 2 : 0;
+      expect(service.executeLpEconomicsRun).toHaveBeenCalledTimes(expectedCalls);
+    }
+  );
+
+  it.each([
+    ['service', undefined],
+    ['viewer', undefined],
+    ['operator', undefined],
+    ['unknown', undefined],
+    ['lp', 41],
+  ])('denies excluded POST role=%s lpId=%s on both surfaces before service', async (role, lpId) => {
+    const authorization = await authorizationHeader(role, lpId);
+
+    for (const surface of surfaces) {
+      const response = await request(surface.app)
+        .post('/api/funds/1/internal-economics/runs')
+        .set('Authorization', authorization)
+        .set('Idempotency-Key', 'excluded-principal')
+        .send(RUN_REQUEST)
+        .expect(403);
+      expect(response.body, surface.name).toEqual({
+        error: 'Forbidden',
+        message: 'Investment-team access is required',
+      });
+    }
+    expect(service.executeLpEconomicsRun).not.toHaveBeenCalled();
+  });
+
+  it('returns canonical invalid-fund failure before key/body validation on both surfaces', async () => {
     const authorization = await authorizationHeader('admin');
 
     for (const surface of surfaces) {
-      await request(surface.app)
-        .post('/api/funds/1/internal-economics/runs')
+      const response = await request(surface.app)
+        .post('/api/funds/abc/internal-economics/runs')
         .set('Authorization', authorization)
         .send({})
-        .expect(404);
+        .expect(400);
+      expect(response.body, surface.name).toEqual({
+        error: 'Invalid fund ID',
+        message: 'Fund ID must be a canonical positive integer',
+      });
     }
-    expect(service.getLpEconomicsRunReceipt).not.toHaveBeenCalled();
+    expect(service.executeLpEconomicsRun).not.toHaveBeenCalled();
+  });
+
+  it('returns the same typed service error body for POST on both surfaces', async () => {
+    const { LpEconomicsRunServiceError } =
+      await import('../../../server/services/internal-economics/lp-economics-run-service');
+    service.executeLpEconomicsRun.mockRejectedValue(
+      new LpEconomicsRunServiceError(
+        404,
+        'FUND_SCOPE_NOT_FOUND',
+        'The requested resource was not found in this fund.',
+        { ref: { id: 99 } }
+      )
+    );
+    const authorization = await authorizationHeader('admin');
+
+    for (const surface of surfaces) {
+      const response = await request(surface.app)
+        .post('/api/funds/1/internal-economics/runs')
+        .set('Authorization', authorization)
+        .set('Idempotency-Key', 'typed-post-error')
+        .send(RUN_REQUEST)
+        .expect(404);
+      expect(response.body, surface.name).toEqual({
+        error: 'FUND_SCOPE_NOT_FOUND',
+        message: 'The requested resource was not found in this fund.',
+      });
+      expect(response.body, surface.name).not.toHaveProperty('details');
+    }
   });
 });

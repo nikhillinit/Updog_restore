@@ -1829,6 +1829,27 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
       'Task 11 direct position valuation command creates direct-position FMV marks; route handler mounting is deferred to Task 11C.',
   },
   {
+    id: 'api:post:/api/funds/:fundId/internal-economics/runs',
+    method: 'POST',
+    path: '/api/funds/:fundId/internal-economics/runs',
+    lifecycle: 'durable_crud',
+    governanceRef: '/fund-model-results/:fundId/internal-analysis',
+    surface: 'internal-economics-run-create-api',
+    owner: ownerForFinancialSurface('fund_modeling'),
+    telemetryKey: telemetryKeyForRoute('api.route', '/api/funds/:fundId/internal-economics/runs'),
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_fund_access_and_role',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'idempotent_immutable_run_creation',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes:
+      'Investment-team-only idempotent creation of one immutable internal LP economics scenario run. This surface is not policy authoring, a consequential configuration mutation, or an export.',
+  },
+  {
     id: 'api:get:/api/funds/:fundId/internal-economics/runs/:runId',
     method: 'GET',
     path: '/api/funds/:fundId/internal-economics/runs/:runId',
@@ -2113,5 +2134,8 @@ export const COMMON_API_ROUTE_POLICY_IDS = {
     'api:get:/api/funds/:fundId/investment-ledger/position-valuations',
     'api:post:/api/funds/:fundId/investment-ledger/position-valuations',
   ],
-  'internal-economics': ['api:get:/api/funds/:fundId/internal-economics/runs/:runId'],
+  'internal-economics': [
+    'api:post:/api/funds/:fundId/internal-economics/runs',
+    'api:get:/api/funds/:fundId/internal-economics/runs/:runId',
+  ],
 } as const satisfies Record<FinancialCommonApiRouteId, readonly string[]>;

@@ -25,6 +25,7 @@ import { engineGuardExpress } from './middleware/engineGuardExpress.js';
 import { requireSecureContext } from './lib/secure-context.js';
 import { withRLSTransaction } from './middleware/with-rls-transaction.js';
 import { handlePreconditionError } from './lib/http-preconditions.js';
+import { isDatabaseBackedIdempotencyRoute } from './lib/database-backed-idempotency-routes.js';
 import { withIdempotency } from './lib/idempotency.js';
 import { sendApiError, createErrorBody } from './lib/apiError.js';
 import { registerRoutes } from './routes.js';
@@ -275,7 +276,11 @@ export async function createServer(
     const fullApiRequest = { method: req.method, path: `/api${req.path}` };
     // D13: these V2 commands compare service request hashes so a changed
     // payload reusing the same key returns 409 instead of middleware cache replay.
-    if (isArtifactUploadRequest(fullApiRequest) || isMappingProfileCreateRequest(fullApiRequest)) {
+    if (
+      isArtifactUploadRequest(fullApiRequest) ||
+      isMappingProfileCreateRequest(fullApiRequest) ||
+      isDatabaseBackedIdempotencyRoute(fullApiRequest.method, fullApiRequest.path)
+    ) {
       return next();
     }
     if (

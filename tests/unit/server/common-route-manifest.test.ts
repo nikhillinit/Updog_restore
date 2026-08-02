@@ -196,7 +196,7 @@ describe('canonical common API route manifest', () => {
     );
   });
 
-  it('registers the internal-economics receipt router on both runtimes with strict governance metadata', () => {
+  it('registers internal-economics run creation and receipt routes on both runtimes', () => {
     const entry = COMMON_API_ROUTE_MANIFEST.find(
       (candidate) => candidate.id === 'internal-economics'
     );
@@ -217,9 +217,10 @@ describe('canonical common API route manifest', () => {
       },
       owner: 'gp-team',
       probe: {
-        method: 'GET',
-        path: '/api/funds/abc/internal-economics/runs/1',
+        method: 'POST',
+        path: '/api/funds/abc/internal-economics/runs',
         expectedStatus: 400,
+        body: {},
         authenticated: true,
       },
     });
@@ -232,13 +233,38 @@ describe('canonical common API route manifest', () => {
         'current_plan_versions',
         'fund_snapshots',
         'funds',
+        'fundconfigs',
       ])
     );
     expect(COMMON_ROUTE_SURFACE_ORDER.make_app).toContain('internal-economics');
     expect(COMMON_ROUTE_SURFACE_ORDER.register_routes).toContain('internal-economics');
     expect(COMMON_API_ROUTE_POLICY_IDS['internal-economics']).toEqual([
+      'api:post:/api/funds/:fundId/internal-economics/runs',
       'api:get:/api/funds/:fundId/internal-economics/runs/:runId',
     ]);
+  });
+
+  it('bypasses database-backed internal-economics creation before generic idempotency', async () => {
+    const source = await readFile(path.resolve(process.cwd(), 'server/server.ts'), 'utf8');
+    const compositionStart = source.indexOf(
+      '// Apply idempotency middleware to mutation endpoints'
+    );
+    const compositionEnd = source.indexOf(
+      '// Register API routes with dependency injection',
+      compositionStart
+    );
+
+    expect(compositionStart).toBeGreaterThanOrEqual(0);
+    expect(compositionEnd).toBeGreaterThan(compositionStart);
+
+    const composition = source.slice(compositionStart, compositionEnd);
+    const classifierCall =
+      'isDatabaseBackedIdempotencyRoute(fullApiRequest.method, fullApiRequest.path)';
+
+    expect(composition).toContain(classifierCall);
+    expect(composition.indexOf(classifierCall)).toBeLessThan(
+      composition.indexOf('withIdempotency()(req, res, next)')
+    );
   });
 
   it('snapshots intentional runtime-specific mounts and gates', () => {

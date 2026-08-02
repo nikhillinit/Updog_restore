@@ -13,9 +13,12 @@ const SENSITIVE_RECEIPT = {
   outcome: { runState: 'succeeded' },
 };
 
-function buildApp(info: ReturnType<typeof vi.fn>) {
+function buildApp(info: ReturnType<typeof vi.fn>, createStatus = 201) {
   const app = express();
   app.use(requestLoggingMiddleware({ APP_VERSION: 'test', NODE_ENV: 'test' }, { info }));
+  app.post('/api/funds/:fundId/internal-economics/runs', (_req, res) => {
+    res.status(createStatus).json(SENSITIVE_RECEIPT);
+  });
   app.get('/api/funds/:fundId/internal-economics/runs/:runId', (_req, res) => {
     res.status(200).json(SENSITIVE_RECEIPT);
   });
@@ -41,6 +44,31 @@ describe('request logging sensitive-response boundary', () => {
     expect(line).not.toContain('receiptVersion');
     expect(JSON.stringify(info.mock.calls)).not.toContain('sensitive-input-hash');
   });
+
+  it.each([
+    [201, 'first create'],
+    [200, 'replay'],
+  ] as const)(
+    'omits POST collection receipt hashes from structured and rendered logs for %s %s semantics',
+    async (status) => {
+      const info = vi.fn();
+
+      const response = await request(buildApp(info, status))
+        .post('/api/funds/1/internal-economics/runs')
+        .set('Idempotency-Key', 'internal-economics-run-create')
+        .send({})
+        .expect(status);
+
+      expect(response.body).toEqual(SENSITIVE_RECEIPT);
+      expect(info).toHaveBeenCalledOnce();
+      const [metadata, line] = info.mock.calls[0] as [Record<string, unknown>, string];
+      expect(metadata).not.toHaveProperty('response');
+      expect(JSON.stringify(metadata)).not.toContain('receiptVersion');
+      expect(JSON.stringify(metadata)).not.toContain('sensitive-input-hash');
+      expect(line).not.toContain('receiptVersion');
+      expect(line).not.toContain('sensitive-input-hash');
+    }
+  );
 
   it('preserves response logging for ordinary API routes', async () => {
     const info = vi.fn();

@@ -130,10 +130,16 @@ const routeSurfaceInventory = {
   },
   'internal-economics': {
     surfaceStatus: 'both',
-    registerRoutesMount: '/api/funds/:fundId/internal-economics/runs/:runId',
-    makeAppMount: '/api/funds/:fundId/internal-economics/runs/:runId',
+    registerRoutesMount: '/api/funds/:fundId/internal-economics/runs',
+    makeAppMount: '/api/funds/:fundId/internal-economics/runs',
     exposure: 'protected',
     endpoints: [
+      {
+        method: 'POST',
+        path: '/api/funds/:fundId/internal-economics/runs',
+        mountSurfaces: ['registerRoutes', 'makeApp'],
+        authPosture: 'protected',
+      },
       {
         method: 'GET',
         path: '/api/funds/:fundId/internal-economics/runs/:runId',
@@ -142,7 +148,7 @@ const routeSurfaceInventory = {
       },
     ],
     intent:
-      'Immutable internal LP economics receipt read mounted through the common router on both bootstrap surfaces.',
+      'Idempotent internal LP economics run creation and immutable receipt reads mounted through the common router on both bootstrap surfaces.',
   },
   'api-docs': {
     surfaceStatus: 'makeApp-only-intentional',
@@ -559,10 +565,16 @@ describe('route surface inventory', () => {
 
     expect(routeSurfaceInventory['internal-economics']).toMatchObject({
       surfaceStatus: 'both',
-      registerRoutesMount: '/api/funds/:fundId/internal-economics/runs/:runId',
-      makeAppMount: '/api/funds/:fundId/internal-economics/runs/:runId',
+      registerRoutesMount: '/api/funds/:fundId/internal-economics/runs',
+      makeAppMount: '/api/funds/:fundId/internal-economics/runs',
       exposure: 'protected',
       endpoints: [
+        {
+          method: 'POST',
+          path: '/api/funds/:fundId/internal-economics/runs',
+          mountSurfaces: ['registerRoutes', 'makeApp'],
+          authPosture: 'protected',
+        },
         {
           method: 'GET',
           path: '/api/funds/:fundId/internal-economics/runs/:runId',
