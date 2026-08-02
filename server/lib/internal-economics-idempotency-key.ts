@@ -1,4 +1,3 @@
-const HTTP_WHITESPACE_AT_EDGES = /^[\t ]+|[\t ]+$/g;
 const RFC_TOKEN_SAFE_ASCII = /^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$/;
 const MAX_IDEMPOTENCY_KEY_LENGTH = 128;
 
@@ -20,7 +19,13 @@ export function parseInternalEconomicsIdempotencyKey(
   if (rawHeader === undefined) return { kind: 'missing' };
   if (typeof rawHeader !== 'string') return { kind: 'invalid' };
 
-  const value = rawHeader.replace(HTTP_WHITESPACE_AT_EDGES, '');
+  let start = 0;
+  while (rawHeader[start] === ' ' || rawHeader[start] === '\t') start += 1;
+
+  let end = rawHeader.length;
+  while (end > start && (rawHeader[end - 1] === ' ' || rawHeader[end - 1] === '\t')) end -= 1;
+
+  const value = rawHeader.slice(start, end);
   if (
     value.length === 0 ||
     value.length > MAX_IDEMPOTENCY_KEY_LENGTH ||

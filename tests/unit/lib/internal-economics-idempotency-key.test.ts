@@ -23,6 +23,18 @@ describe('internal-economics canonical Idempotency-Key parser', () => {
     expect(Buffer.byteLength(maxLengthToken, 'utf8')).toBe(maxLengthToken.length);
   });
 
+  it('handles long HTTP whitespace runs in linear passes', () => {
+    const tabs = '\t'.repeat(20_000);
+
+    expect(parseInternalEconomicsIdempotencyKey(`${tabs}retry-key${tabs}`)).toEqual({
+      kind: 'valid',
+      value: 'retry-key',
+    });
+    expect(parseInternalEconomicsIdempotencyKey(`retry-key${tabs}\n`)).toEqual({
+      kind: 'invalid',
+    });
+  });
+
   it.each([
     ['', 'empty'],
     [' \t ', 'empty after HTTP whitespace trimming'],
