@@ -51,11 +51,12 @@ import {
   TerminalPolicyV1Error,
   INTERNAL_ECONOMICS_TERMINAL_RESOLUTION_VERSION,
 } from '../../../../shared/contracts/internal-economics/terminal-policy-v1.contract';
+import { LP_ECONOMICS_RUN_CONTRACT_VERSION as LEGACY_LP_ECONOMICS_RUN_CONTRACT_VERSION } from '../../../../shared/contracts/internal-economics/lp-economics-run-v1.contract';
 import {
-  LP_ECONOMICS_RUN_CONTRACT_VERSION,
-  LpEconomicsRunRequestV1Schema,
-  type LpEconomicsRunRequestV1,
-} from '../../../../shared/contracts/internal-economics/lp-economics-run-v1.contract';
+  LP_ECONOMICS_RUN_CONTRACT_VERSION_V1_1,
+  LpEconomicsRunRequestV1_1Schema,
+  type LpEconomicsRunRequestV1_1,
+} from '../../../../shared/contracts/internal-economics/lp-economics-run-v1.1.contract';
 import {
   internalCapitalEnvelopeVersions,
   internalEconomicsPolicyVersions,
@@ -620,7 +621,9 @@ function seedGoldenFixture(fakeDb: FakeRunDb): GoldenFixtureIds {
   };
 }
 
-function goldenRequest(overrides: Partial<LpEconomicsRunRequestV1> = {}): LpEconomicsRunRequestV1 {
+function goldenRequest(
+  overrides: Partial<LpEconomicsRunRequestV1_1> = {}
+): LpEconomicsRunRequestV1_1 {
   return {
     policyVersionId: 1,
     factsSnapshotId: 1,
@@ -651,10 +654,27 @@ describe('executeLpEconomicsRun -- T-C1 indicative happy path', () => {
 
     expect(receipt.run.runState).toBe('completed');
     expect(receipt.run.resultStatus).toBe('indicative');
+    expect(receipt.run.calculationContractVersion).toBe('lp-economics/1.1.0');
     expect(receipt.run.resultSnapshotId).not.toBeNull();
     expect(receipt.run.failureCode).toBeNull();
     expect(receipt.run.engineVersion).toBe(LP_ECONOMICS_RUN_ENGINE_VERSION);
     expect(receipt.run.methodologyVersion).toBe(LP_ECONOMICS_RUN_METHODOLOGY_VERSION);
+    expect(LP_ECONOMICS_RUN_CONTRACT_VERSION_V1_1).toBe('lp-economics/1.1.0');
+    expect(LP_ECONOMICS_RUN_ENGINE_VERSION).toBe('cash-assembly-period-loop-v1/1.1.0');
+    expect(LP_ECONOMICS_RUN_METHODOLOGY_VERSION).toBe(
+      'cash-assembly-period-loop-methodology/1.1.0'
+    );
+    expect(LP_ECONOMICS_RESULT_CALC_VERSION).toBe('lp-economics/1.1.0');
+    expect(receipt.run.requestHash).toBe(
+      canonicalSha256({
+        commandKind: 'internal-economics-run:create',
+        fundId: FUND_ID,
+        contractVersion: 'lp-economics/1.1.0',
+        request: goldenRequest(),
+        engineVersion: 'cash-assembly-period-loop-v1/1.1.0',
+        methodologyVersion: 'cash-assembly-period-loop-methodology/1.1.0',
+      })
+    );
     expect(receipt.result).not.toBeNull();
     expect(receipt.result?.resultStatus).toBe('indicative');
     expect(fakeDb.fundSnapshotRows).toHaveLength(2); // seeded forecast + persisted result
@@ -669,17 +689,44 @@ describe('executeLpEconomicsRun -- T-C1 indicative happy path', () => {
 
     const replay = await executeLpEconomicsRun({
       fundId: FUND_ID,
-      actorId: ACTOR_ID,
+      actorId: ACTOR_ID + 1,
       idempotencyKey: 'run-golden-1',
       request: goldenRequest(),
       database: fakeDb.asDatabase(),
     });
 
     expect(replay.run.id).toBe(receipt.run.id);
+    expect(replay.run.createdBy).toBe(ACTOR_ID);
     expect(replay.run.resultHash).toBe(receipt.run.resultHash);
     expect(replay.result).toEqual(receipt.result);
     expect(fakeDb.runRows).toHaveLength(1);
     expect(fakeDb.fundSnapshotRows).toHaveLength(2);
+  });
+
+  it('persists DB status from a validated cap-free V1.1 value payload', async () => {
+    const fakeDb = new FakeRunDb();
+    seedGoldenFixture(fakeDb);
+    const originalLoop = cashAssemblyPeriodLoopModule.executeCashAssemblyPeriodLoopV1;
+    const spy = vi
+      .spyOn(cashAssemblyPeriodLoopModule, 'executeCashAssemblyPeriodLoopV1')
+      .mockImplementation((input) => ({
+        ...originalLoop(input),
+        resultStatus: 'available',
+        resultStatusReasons: [],
+      }));
+
+    const receipt = await executeLpEconomicsRun({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID,
+      idempotencyKey: 'run-available-status',
+      request: goldenRequest(),
+      database: fakeDb.asDatabase(),
+    });
+    spy.mockRestore();
+
+    expect(receipt.run.resultStatus).toBe('available');
+    expect(receipt.result?.resultStatus).toBe('available');
+    expect(receipt.result?.reasons).toEqual([]);
   });
 });
 
@@ -700,7 +747,7 @@ async function expectUnavailable(
   fakeDb: FakeRunDb,
   idempotencyKey: string,
   expectedCode: string,
-  requestOverrides: Partial<LpEconomicsRunRequestV1> = {}
+  requestOverrides: Partial<LpEconomicsRunRequestV1_1> = {}
 ) {
   const receipt = await executeLpEconomicsRun({
     fundId: FUND_ID,
@@ -711,6 +758,7 @@ async function expectUnavailable(
   });
   expect(receipt.run.runState).toBe('completed');
   expect(receipt.run.resultStatus).toBe('unavailable');
+  expect(receipt.run.calculationContractVersion).toBe('lp-economics/1.1.0');
   expect(receipt.run.failureCode).toBeNull();
   expect(receipt.result?.resultStatus).toBe('unavailable');
   const reasons = receipt.result?.resultStatus === 'unavailable' ? receipt.result.reasons : [];
@@ -1118,6 +1166,7 @@ describe('executeLpEconomicsRun -- T-C3 typed engine failure dispatch (P-D7 step
 
       if (entry.disposition === 'failed') {
         expect(receipt.run.runState).toBe('failed');
+        expect(receipt.run.calculationContractVersion).toBe('lp-economics/1.1.0');
         expect(receipt.run.resultSnapshotId).toBeNull();
         expect(receipt.run.failureCode).toBe(entry.code);
         expect(receipt.result).toBeNull();
@@ -1261,7 +1310,7 @@ describe('executeLpEconomicsRun -- T-C5 no latest-resolution fallback', () => {
   it('the request schema requires every basis ID explicitly (no optional field admits a fallback)', () => {
     const request = goldenRequest() as Record<string, unknown>;
     delete request['factsSnapshotId'];
-    const parsed = LpEconomicsRunRequestV1Schema.safeParse(request);
+    const parsed = LpEconomicsRunRequestV1_1Schema.safeParse(request);
     expect(parsed.success).toBe(false);
   });
 });
@@ -1391,6 +1440,176 @@ describe('getRunWithResult -- T-C9 lineage read joins + type/ownership', () => {
     expect(read.run.runState).toBe('failed');
     expect(read.result).toBeNull();
   });
+
+  it('maps only the exact completed legacy-null tuple to the frozen V1 parser', async () => {
+    const fakeDb = seededDb(() => {});
+    const receipt = await executeLpEconomicsRun({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID,
+      idempotencyKey: 'legacy-null-completed',
+      request: goldenRequest(),
+      database: fakeDb.asDatabase(),
+    });
+    const runRow = fakeDb.runRows.find((row) => row['id'] === receipt.run.id)!;
+    const snapshotRow = fakeDb.fundSnapshotRows.find(
+      (row) => row['id'] === receipt.run.resultSnapshotId
+    )!;
+    runRow['calculationContractVersion'] = null;
+    runRow['engineVersion'] = 'cash-assembly-period-loop-v1/1.0.0';
+    runRow['methodologyVersion'] = 'cash-assembly-period-loop-methodology/1.0.0';
+    snapshotRow['calcVersion'] = 'lp-economics/1.0.0';
+
+    const legacy = await getRunWithResult({
+      fundId: FUND_ID,
+      runId: receipt.run.id,
+      database: fakeDb.asDatabase(),
+    });
+    expect(legacy.result?.resultStatus).toBe('indicative');
+
+    runRow['engineVersion'] = 'cash-assembly-period-loop-v1/9.9.9';
+    await expect(
+      getRunWithResult({
+        fundId: FUND_ID,
+        runId: receipt.run.id,
+        database: fakeDb.asDatabase(),
+      })
+    ).rejects.toMatchObject({
+      status: 500,
+      code: 'UNSUPPORTED_CALCULATION_CONTRACT_VERSION',
+    });
+  });
+
+  it('rejects an explicit V1.0 calculation contract on an otherwise exact completed tuple', async () => {
+    const fakeDb = seededDb(() => {});
+    const receipt = await executeLpEconomicsRun({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID,
+      idempotencyKey: 'explicit-v1-completed',
+      request: goldenRequest(),
+      database: fakeDb.asDatabase(),
+    });
+    const runRow = fakeDb.runRows.find((row) => row['id'] === receipt.run.id)!;
+    const snapshotRow = fakeDb.fundSnapshotRows.find(
+      (row) => row['id'] === receipt.run.resultSnapshotId
+    )!;
+    runRow['calculationContractVersion'] = 'lp-economics/1.0.0';
+    runRow['engineVersion'] = 'cash-assembly-period-loop-v1/1.0.0';
+    runRow['methodologyVersion'] = 'cash-assembly-period-loop-methodology/1.0.0';
+    snapshotRow['calcVersion'] = 'lp-economics/1.0.0';
+
+    await expect(
+      getRunWithResult({
+        fundId: FUND_ID,
+        runId: receipt.run.id,
+        database: fakeDb.asDatabase(),
+      })
+    ).rejects.toMatchObject({
+      status: 500,
+      code: 'UNSUPPORTED_CALCULATION_CONTRACT_VERSION',
+    });
+  });
+
+  it('maps only the exact failed legacy-null tuple with no result snapshot', async () => {
+    const fakeDb = seededDb(() => {});
+    const spy = vi
+      .spyOn(cashAssemblyPeriodLoopModule, 'executeCashAssemblyPeriodLoopV1')
+      .mockImplementation(() => {
+        throw new CashAssemblyPeriodLoopV1Error('CARRY_PCT_INVALID', 'synthetic');
+      });
+    const receipt = await executeLpEconomicsRun({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID,
+      idempotencyKey: 'legacy-null-failed',
+      request: goldenRequest(),
+      database: fakeDb.asDatabase(),
+    });
+    spy.mockRestore();
+    const runRow = fakeDb.runRows.find((row) => row['id'] === receipt.run.id)!;
+    runRow['calculationContractVersion'] = null;
+    runRow['engineVersion'] = 'cash-assembly-period-loop-v1/1.0.0';
+    runRow['methodologyVersion'] = 'cash-assembly-period-loop-methodology/1.0.0';
+
+    const legacy = await getRunWithResult({
+      fundId: FUND_ID,
+      runId: receipt.run.id,
+      database: fakeDb.asDatabase(),
+    });
+    expect(legacy.result).toBeNull();
+
+    runRow['methodologyVersion'] = 'cash-assembly-period-loop-methodology/9.9.9';
+    await expect(
+      getRunWithResult({
+        fundId: FUND_ID,
+        runId: receipt.run.id,
+        database: fakeDb.asDatabase(),
+      })
+    ).rejects.toMatchObject({
+      status: 500,
+      code: 'UNSUPPORTED_CALCULATION_CONTRACT_VERSION',
+    });
+  });
+
+  it('rejects an explicit V1.0 calculation contract on an otherwise exact failed tuple', async () => {
+    const fakeDb = seededDb(() => {});
+    const spy = vi
+      .spyOn(cashAssemblyPeriodLoopModule, 'executeCashAssemblyPeriodLoopV1')
+      .mockImplementation(() => {
+        throw new CashAssemblyPeriodLoopV1Error('CARRY_PCT_INVALID', 'synthetic');
+      });
+    const receipt = await executeLpEconomicsRun({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID,
+      idempotencyKey: 'explicit-v1-failed',
+      request: goldenRequest(),
+      database: fakeDb.asDatabase(),
+    });
+    spy.mockRestore();
+    const runRow = fakeDb.runRows.find((row) => row['id'] === receipt.run.id)!;
+    runRow['calculationContractVersion'] = 'lp-economics/1.0.0';
+    runRow['engineVersion'] = 'cash-assembly-period-loop-v1/1.0.0';
+    runRow['methodologyVersion'] = 'cash-assembly-period-loop-methodology/1.0.0';
+
+    await expect(
+      getRunWithResult({
+        fundId: FUND_ID,
+        runId: receipt.run.id,
+        database: fakeDb.asDatabase(),
+      })
+    ).rejects.toMatchObject({
+      status: 500,
+      code: 'UNSUPPORTED_CALCULATION_CONTRACT_VERSION',
+    });
+  });
+
+  it('fails closed when V1.1 run identity disagrees with result calculation identity', async () => {
+    const fakeDb = seededDb(() => {});
+    const receipt = await executeLpEconomicsRun({
+      fundId: FUND_ID,
+      actorId: ACTOR_ID,
+      idempotencyKey: 'tuple-mismatch',
+      request: goldenRequest(),
+      database: fakeDb.asDatabase(),
+    });
+    const runRow = fakeDb.runRows.find((row) => row['id'] === receipt.run.id)!;
+    const snapshotRow = fakeDb.fundSnapshotRows.find(
+      (row) => row['id'] === receipt.run.resultSnapshotId
+    )!;
+    runRow['calculationContractVersion'] = 'lp-economics/1.1.0';
+    runRow['engineVersion'] = 'cash-assembly-period-loop-v1/1.1.0';
+    runRow['methodologyVersion'] = 'cash-assembly-period-loop-methodology/1.1.0';
+    snapshotRow['calcVersion'] = 'lp-economics/1.0.0';
+
+    await expect(
+      getRunWithResult({
+        fundId: FUND_ID,
+        runId: receipt.run.id,
+        database: fakeDb.asDatabase(),
+      })
+    ).rejects.toMatchObject({
+      status: 500,
+      code: 'UNSUPPORTED_CALCULATION_CONTRACT_VERSION',
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1404,10 +1623,10 @@ describe('executeLpEconomicsRun -- T-C10 engine/methodology version bump', () =>
     const request = goldenRequest();
     const staleRequestHash = canonicalSha256({
       fundId: FUND_ID,
-      contractVersion: LP_ECONOMICS_RUN_CONTRACT_VERSION,
+      contractVersion: LEGACY_LP_ECONOMICS_RUN_CONTRACT_VERSION,
       request,
-      engineVersion: 'cash-assembly-period-loop-v1/0.9.0',
-      methodologyVersion: 'cash-assembly-period-loop-methodology/0.9.0',
+      engineVersion: 'cash-assembly-period-loop-v1/1.0.0',
+      methodologyVersion: 'cash-assembly-period-loop-methodology/1.0.0',
     });
     fakeDb.runRows.push({
       id: 1,
@@ -1420,13 +1639,14 @@ describe('executeLpEconomicsRun -- T-C10 engine/methodology version bump', () =>
       resultSnapshotId: null,
       resultSnapshotType: null,
       runState: 'failed',
+      calculationContractVersion: null,
       resultStatus: null,
       failureCode: 'SOME_OLD_FAILURE',
       failureContext: {},
       evaluationClock: new Date(request.clock),
       terminalMode: request.terminalMode,
-      engineVersion: 'cash-assembly-period-loop-v1/0.9.0',
-      methodologyVersion: 'cash-assembly-period-loop-methodology/0.9.0',
+      engineVersion: 'cash-assembly-period-loop-v1/1.0.0',
+      methodologyVersion: 'cash-assembly-period-loop-methodology/1.0.0',
       inputHash: hex64(17),
       resultHash: null,
       createdBy: ACTOR_ID,
@@ -1635,7 +1855,7 @@ describe('executeLpEconomicsRun -- T-C14 reason order does not affect result_has
       .spyOn(cashAssemblyPeriodLoopModule, 'executeCashAssemblyPeriodLoopV1')
       .mockReturnValueOnce({
         ...baseline,
-        resultStatusReasons: ['DECIMAL_CORE_UNCERTIFIED', 'LP_NET_NAV_FLAT_SHARE_APPROXIMATION'],
+        resultStatusReasons: ['FLOAT64_WATERFALL_PATH', 'LP_NET_NAV_FLAT_SHARE_APPROXIMATION'],
       });
     const receiptA = await executeLpEconomicsRun({
       fundId: FUND_ID,
@@ -1650,7 +1870,7 @@ describe('executeLpEconomicsRun -- T-C14 reason order does not affect result_has
       .spyOn(cashAssemblyPeriodLoopModule, 'executeCashAssemblyPeriodLoopV1')
       .mockReturnValueOnce({
         ...baseline,
-        resultStatusReasons: ['LP_NET_NAV_FLAT_SHARE_APPROXIMATION', 'DECIMAL_CORE_UNCERTIFIED'],
+        resultStatusReasons: ['LP_NET_NAV_FLAT_SHARE_APPROXIMATION', 'FLOAT64_WATERFALL_PATH'],
       });
     const receiptB = await executeLpEconomicsRun({
       fundId: FUND_ID,

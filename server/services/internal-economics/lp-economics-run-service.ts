@@ -118,21 +118,28 @@ import {
   type EconomicsPolicyBodyV1,
 } from '../../../shared/contracts/internal-economics/economics-policy-v1.contract';
 import {
-  LP_ECONOMICS_RUN_CONTRACT_VERSION,
   LpEconomicsResultV1Schema,
   OPENING_STATE_CONTRACT_V1_INELIGIBLE_DETAIL,
   OPENING_STATE_INELIGIBLE_FIELDS_V1,
   buildLpEconomicsEventIdV1,
-  buildLpEconomicsRunIdempotencyPreimageV1,
   sortAndDedupeLpEconomicsReasonsV1,
-  type LpEconomicsIndicativeReasonV1,
   type LpEconomicsIrrBasisV1,
   type LpEconomicsResultV1,
-  type LpEconomicsRunRequestV1,
   type LpEconomicsRunUnavailabilityReasonV1,
   type LpEconomicsTotalsV1,
   type LpEconomicsWaterfallEventV1,
 } from '../../../shared/contracts/internal-economics/lp-economics-run-v1.contract';
+import {
+  LP_ECONOMICS_RUN_CONTRACT_VERSION_V1_1,
+  LpEconomicsIndicativeReasonV1_1Schema,
+  LpEconomicsResultV1_1Schema,
+  buildLpEconomicsRunIdempotencyPreimageV1_1,
+  type LpEconomicsAvailableResultV1_1,
+  type LpEconomicsIndicativeReasonV1_1,
+  type LpEconomicsIndicativeResultV1_1,
+  type LpEconomicsResultV1_1,
+  type LpEconomicsRunRequestV1_1,
+} from '../../../shared/contracts/internal-economics/lp-economics-run-v1.1.contract';
 import {
   PersistedFinancialFactsSnapshotV1Schema,
   type PersistedFinancialFactsSnapshotV1,
@@ -162,11 +169,16 @@ type RunDatabase = typeof db;
 // ---------------------------------------------------------------------------
 
 /** The engine identity stamped on every run row and fed to the frozen loop. */
-export const LP_ECONOMICS_RUN_ENGINE_VERSION = 'cash-assembly-period-loop-v1/1.0.0' as const;
+export const LP_ECONOMICS_RUN_ENGINE_VERSION = 'cash-assembly-period-loop-v1/1.1.0' as const;
 export const LP_ECONOMICS_RUN_METHODOLOGY_VERSION =
-  'cash-assembly-period-loop-methodology/1.0.0' as const;
+  'cash-assembly-period-loop-methodology/1.1.0' as const;
 /** P-D4: 18 chars, fits the journaled `fund_snapshots.calc_version varchar(20)`. */
-export const LP_ECONOMICS_RESULT_CALC_VERSION = 'lp-economics/1.0.0' as const;
+export const LP_ECONOMICS_RESULT_CALC_VERSION = 'lp-economics/1.1.0' as const;
+
+const LEGACY_LP_ECONOMICS_RUN_ENGINE_VERSION = 'cash-assembly-period-loop-v1/1.0.0' as const;
+const LEGACY_LP_ECONOMICS_RUN_METHODOLOGY_VERSION =
+  'cash-assembly-period-loop-methodology/1.0.0' as const;
+const LEGACY_LP_ECONOMICS_RESULT_CALC_VERSION = 'lp-economics/1.0.0' as const;
 
 /** P-D7 R5: firm service constant, not an example — pre-invocation guard. */
 export const MAX_CASH_ASSEMBLY_PERIOD_COUNT = 200;
@@ -192,7 +204,8 @@ export type LpEconomicsRunServiceErrorCode =
   | 'FORECAST_SNAPSHOT_NOT_FOUND'
   | 'RUN_NOT_FOUND'
   | 'RUN_RESULT_SNAPSHOT_MISSING'
-  | 'SOURCE_CONFIG_VERSION_DRIFTED';
+  | 'SOURCE_CONFIG_VERSION_DRIFTED'
+  | 'UNSUPPORTED_CALCULATION_CONTRACT_VERSION';
 
 export class LpEconomicsRunServiceError extends Error {
   readonly statusCode: number;
@@ -411,13 +424,13 @@ export interface ExecuteLpEconomicsRunOptions {
   readonly fundId: number;
   readonly actorId: number | null;
   readonly idempotencyKey: string;
-  readonly request: LpEconomicsRunRequestV1;
+  readonly request: LpEconomicsRunRequestV1_1;
   readonly database?: RunDatabase;
 }
 
 export interface LpEconomicsRunReceipt {
   readonly run: InternalLpEconomicsRunRow;
-  readonly result: LpEconomicsResultV1 | null;
+  readonly result: LpEconomicsResultV1 | LpEconomicsResultV1_1 | null;
 }
 
 export async function executeLpEconomicsRun(
@@ -759,9 +772,7 @@ function readOpeningStateFromFacts(
  * invoking the loop on a doomed input. `OPENING_STATE_INELIGIBLE_FIELDS_V1`
  * (the contract's read-only mirror of the loop's own list) pins the order.
  */
-function firstNonzeroOpeningBalanceField(
-  observation: FundAccountingStateObservationV1_1
-): {
+function firstNonzeroOpeningBalanceField(observation: FundAccountingStateObservationV1_1): {
   readonly field: (typeof OPENING_STATE_INELIGIBLE_FIELDS_V1)[number];
   readonly valueUsd: string;
 } | null {
@@ -1171,10 +1182,10 @@ function assembleTotals(
 
 function buildIndicativeReasons(
   resultStatusReasons: readonly string[]
-): LpEconomicsIndicativeReasonV1[] {
-  const reasons = resultStatusReasons.map((code) => ({
-    code: code as LpEconomicsIndicativeReasonV1['code'],
-  }));
+): LpEconomicsIndicativeReasonV1_1[] {
+  const reasons = resultStatusReasons.map((code) =>
+    LpEconomicsIndicativeReasonV1_1Schema.parse({ code })
+  );
   return [...sortAndDedupeLpEconomicsReasonsV1(reasons)];
 }
 
@@ -1190,7 +1201,7 @@ interface CommonRunFields {
   readonly planVersionId: number;
   readonly forecastSnapshotId: number;
   readonly evaluationClock: Date;
-  readonly terminalMode: LpEconomicsRunRequestV1['terminalMode'];
+  readonly terminalMode: LpEconomicsRunRequestV1_1['terminalMode'];
   readonly engineVersion: string;
   readonly methodologyVersion: string;
   readonly inputHash: string;
@@ -1230,7 +1241,7 @@ async function insertRunRow(
     readonly runState: 'completed' | 'failed';
     readonly resultSnapshotId: number | null;
     readonly resultSnapshotType: 'INTERNAL_LP_ECONOMICS' | null;
-    readonly resultStatus: 'indicative' | 'unavailable' | null;
+    readonly resultStatus: 'available' | 'indicative' | 'unavailable' | null;
     readonly resultHash: string | null;
     readonly failureCode: string | null;
     readonly failureContext: Record<string, unknown> | null;
@@ -1257,7 +1268,7 @@ async function insertRunRow(
     db: database,
     fundId: common.fundId,
     idempotencyKey: common.idempotencyKey,
-    contractVersion: LP_ECONOMICS_RUN_CONTRACT_VERSION,
+    contractVersion: LP_ECONOMICS_RUN_CONTRACT_VERSION_V1_1,
     request: common.preimagePlain,
     loadExisting: loadExistingRun,
     insert: async (requestHash) => {
@@ -1273,6 +1284,7 @@ async function insertRunRow(
           resultSnapshotId: stateFields.resultSnapshotId,
           resultSnapshotType: stateFields.resultSnapshotType,
           runState: stateFields.runState,
+          calculationContractVersion: LP_ECONOMICS_RUN_CONTRACT_VERSION_V1_1,
           resultStatus: stateFields.resultStatus,
           failureCode: stateFields.failureCode,
           failureContext: stateFields.failureContext,
@@ -1301,7 +1313,7 @@ async function insertResultSnapshot(
   input: {
     readonly fundId: number;
     readonly clock: string;
-    readonly payload: LpEconomicsResultV1;
+    readonly payload: LpEconomicsResultV1_1;
   }
 ): Promise<number> {
   const [inserted] = await database
@@ -1356,7 +1368,7 @@ async function persistUnavailableRun(
   reasons: readonly LpEconomicsRunUnavailabilityReasonV1[]
 ): Promise<LpEconomicsRunReceipt> {
   const sortedReasons = sortAndDedupeLpEconomicsReasonsV1(reasons);
-  const payload = LpEconomicsResultV1Schema.parse({
+  const payload = LpEconomicsResultV1_1Schema.parse({
     waterfallTemplate: 'deal_by_deal',
     resultStatus: 'unavailable',
     clock,
@@ -1386,7 +1398,7 @@ async function persistCompletedRun(
   database: RunDatabase,
   common: CommonRunFields,
   clock: string,
-  payload: LpEconomicsResultV1
+  payload: LpEconomicsAvailableResultV1_1 | LpEconomicsIndicativeResultV1_1
 ): Promise<LpEconomicsRunReceipt> {
   const resultSnapshotId = await insertResultSnapshot(database, {
     fundId: common.fundId,
@@ -1397,7 +1409,7 @@ async function persistCompletedRun(
     runState: 'completed',
     resultSnapshotId,
     resultSnapshotType: 'INTERNAL_LP_ECONOMICS',
-    resultStatus: 'indicative',
+    resultStatus: payload.resultStatus,
     resultHash: canonicalSha256(payload),
     failureCode: null,
     failureContext: null,
@@ -1409,8 +1421,16 @@ async function buildReceiptFromRunRow(
   run: InternalLpEconomicsRunRow,
   database: RunDatabase
 ): Promise<LpEconomicsRunReceipt> {
-  if (run.runState === 'failed' || run.resultSnapshotId === null) {
+  if (run.runState === 'failed') {
+    resolvePersistedCalculationContract(run, null);
     return { run, result: null };
+  }
+  if (run.resultSnapshotId === null) {
+    throw new LpEconomicsRunServiceError(
+      500,
+      'RUN_RESULT_SNAPSHOT_MISSING',
+      'The completed run does not carry a result snapshot identity.'
+    );
   }
   const [snapshotRow] = await database
     .select()
@@ -1430,7 +1450,59 @@ async function buildReceiptFromRunRow(
       'The run result snapshot could not be read back by (id, fund, type).'
     );
   }
-  return { run, result: LpEconomicsResultV1Schema.parse(snapshotRow.payload) };
+  const calculationContract = resolvePersistedCalculationContract(run, snapshotRow.calcVersion);
+  return {
+    run,
+    result:
+      calculationContract === 'v1.0'
+        ? LpEconomicsResultV1Schema.parse(snapshotRow.payload)
+        : LpEconomicsResultV1_1Schema.parse(snapshotRow.payload),
+  };
+}
+
+function resolvePersistedCalculationContract(
+  run: InternalLpEconomicsRunRow,
+  resultCalculationVersion: string | null
+): 'v1.0' | 'v1.1' {
+  const isFailedWithoutResult = run.runState === 'failed' && resultCalculationVersion === null;
+  const isCompletedV1Result =
+    run.runState === 'completed' &&
+    resultCalculationVersion === LEGACY_LP_ECONOMICS_RESULT_CALC_VERSION;
+  const isCompletedV1_1Result =
+    run.runState === 'completed' && resultCalculationVersion === LP_ECONOMICS_RESULT_CALC_VERSION;
+
+  const hasLegacyRuntimeIdentity =
+    run.engineVersion === LEGACY_LP_ECONOMICS_RUN_ENGINE_VERSION &&
+    run.methodologyVersion === LEGACY_LP_ECONOMICS_RUN_METHODOLOGY_VERSION;
+  if (
+    hasLegacyRuntimeIdentity &&
+    run.calculationContractVersion === null &&
+    (isFailedWithoutResult || isCompletedV1Result)
+  ) {
+    return 'v1.0';
+  }
+
+  if (
+    run.calculationContractVersion === LP_ECONOMICS_RUN_CONTRACT_VERSION_V1_1 &&
+    run.engineVersion === LP_ECONOMICS_RUN_ENGINE_VERSION &&
+    run.methodologyVersion === LP_ECONOMICS_RUN_METHODOLOGY_VERSION &&
+    (isFailedWithoutResult || isCompletedV1_1Result)
+  ) {
+    return 'v1.1';
+  }
+
+  throw new LpEconomicsRunServiceError(
+    500,
+    'UNSUPPORTED_CALCULATION_CONTRACT_VERSION',
+    'The persisted LP economics calculation identity tuple is unsupported.',
+    {
+      calculationContractVersion: run.calculationContractVersion,
+      engineVersion: run.engineVersion,
+      methodologyVersion: run.methodologyVersion,
+      resultCalculationVersion,
+      runState: run.runState,
+    }
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -1450,7 +1522,7 @@ async function executeLpEconomicsRunInTransaction(params: {
   // Step 2: early idempotent replay, before ANY basis read (G16 fail-closed
   // lesson). The preimage already carries fundId + contractVersion at its
   // top level (P-D8), so it doubles directly as the replay request.
-  const preimage = buildLpEconomicsRunIdempotencyPreimageV1({
+  const preimage = buildLpEconomicsRunIdempotencyPreimageV1_1({
     fundId,
     request,
     engineVersion: LP_ECONOMICS_RUN_ENGINE_VERSION,
@@ -1462,7 +1534,7 @@ async function executeLpEconomicsRunInTransaction(params: {
     db: database,
     fundId,
     idempotencyKey: opts.idempotencyKey,
-    contractVersion: LP_ECONOMICS_RUN_CONTRACT_VERSION,
+    contractVersion: LP_ECONOMICS_RUN_CONTRACT_VERSION_V1_1,
     request: preimagePlain,
     loadExisting: async () => {
       const [existing] = await database
@@ -1715,9 +1787,9 @@ async function executeLpEconomicsRunInTransaction(params: {
   const enrichedEvents = enrichWaterfallEvents(loopResult.waterfallEvents);
   const totals = assembleTotals(loopResult.quarters, enrichedEvents);
   const reasons = buildIndicativeReasons(loopResult.resultStatusReasons);
-  const resultEnvelope = LpEconomicsResultV1Schema.parse({
+  const resultEnvelope = LpEconomicsResultV1_1Schema.parse({
     waterfallTemplate: 'deal_by_deal',
-    resultStatus: 'indicative',
+    resultStatus: loopResult.resultStatus,
     clock: request.clock,
     currency: 'USD',
     perspective: 'lp_net',
@@ -1731,6 +1803,9 @@ async function executeLpEconomicsRunInTransaction(params: {
     lpNetIrrDiagnostic: loopResult.xirrDiagnostic,
     reasons,
   });
+  if (resultEnvelope.resultStatus === 'unavailable') {
+    throw new Error('Successful loop output cannot assemble an unavailable result payload.');
+  }
 
   return persistCompletedRun(database, common, request.clock, resultEnvelope);
 }
