@@ -19,10 +19,12 @@ import {
   LpEconomicsTotalsV1Schema,
   LpEconomicsResultV1Schema,
   buildLpEconomicsRunIdempotencyPreimageV1,
-  buildLpEconomicsEventIdV1,
-  sortAndDedupeLpEconomicsReasonsV1,
   type LpEconomicsRunRequestV1,
 } from '../../../../shared/contracts/internal-economics/lp-economics-run-v1.contract';
+import {
+  buildLpEconomicsEventIdV1,
+  sortAndDedupeLpEconomicsReasonsV1,
+} from '../../../../shared/contracts/internal-economics/lp-economics-run-v1.hash';
 
 const validRequest = {
   policyVersionId: 11,
