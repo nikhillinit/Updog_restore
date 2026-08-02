@@ -9499,3 +9499,63 @@ in that plan's section 14 gate history). Two amendments to Decision item 4
    the WP-2b-4 plan's scope; the separate certification act (plan section 12)
    will be recorded in its own later addendum covering only the certification
    itself.
+
+Addendum (2026-08-01, Trust-Spine PR1 ADR-065/D-11 certification): the
+numerical-certification condition in Decision item 4 is fulfilled. SafeXIRR's
+UTC-normalization prerequisite shipped in `ef96c931`; Trust-Spine PR1 changes
+neither SafeXIRR nor its sanctioned Float64 XIRR boundary. The final-SHA
+attestation and complete gate evidence live at the immutable external locus
+[issue #1266](https://github.com/nikhillinit/Updog_restore/issues/1266). That
+record binds one full, unchanged PR1 candidate SHA to environment versions,
+commands, counts, hashes, failure classifications, and independent PASS verdicts
+from waterfall-specialist, phoenix-precision-guardian, and xirr-fees-validator.
+A later calculation, certification-proof, live-comment, or ADR commit
+invalidates all three verdicts and requires the complete gate and attestation
+sequence again; tracked prose therefore does not embed a self-referential final
+commit hash.
+
+The exact final-candidate command ledger is:
+
+1. Focused contract/core/certification/service/schema/manifest proof:
+
+   ```text
+   TZ=UTC npx vitest run --config vitest.config.mjs --configLoader native --project=server tests/unit/contract/internal-economics/lp-economics-run-v1.contract.test.ts tests/unit/contract/internal-economics/lp-economics-run-v1.1.contract.test.ts tests/unit/internal-economics/decimal-waterfall-core-v1.test.ts tests/unit/internal-economics/decimal-waterfall-core-v1.property.test.ts tests/unit/internal-economics/cash-assembly-period-loop-v1.test.ts tests/unit/internal-economics/lp-economics-v1.1-timezone-certification.test.ts tests/unit/truth-cases/waterfall-corrected-capital-account.test.ts tests/unit/truth-cases/waterfall-decimal-core.test.ts tests/unit/truth-cases/waterfall-dual-pin.test.ts tests/unit/services/internal-economics/lp-economics-run-service.test.ts tests/unit/schema/internal-economics-schema.test.ts tests/unit/prod-schema-manifest-coverage.test.ts tests/unit/prod-schema-manifest-sentinels.test.ts tests/unit/prod-schema-manifest-trigger-audit.test.ts
+   ```
+
+   Result: 264/264 tests. This includes pinned fast-check seed 1263, 500
+   generated cases with shrinking and retained examples, and fresh UTC,
+   America/New_York, and Asia/Kolkata subprocesses producing the same 4,591-byte
+   canonical result,
+   `inputHash=95753293e0bb10c38c3e78d9e6ffdd72f194278d646bec73c65af82ae8b0811b`,
+   and
+   `resultHash=d646867ffa1c1eb73ad36d607463748d8500bcd49d07ebb8e4dc96ae67447cd6`.
+
+2. `TZ=UTC npm run phoenix:truth` — 336/336 tests.
+3. `npm run calc-gate` — 587/587 tests, including Phoenix truth.
+4. `npm run validate:schema-drift` — no drift; `TZ=UTC npm run check` — no type
+   errors; `npm run lint` — no lint or guardrail errors.
+5. `TZ=UTC npm test` — expected aggregate: 11,192 non-skipped tests; the
+   external final-SHA record carries actual pass count and any fresh failure
+   classification.
+6. `DOCKER_HOST=unix://$HOME/.colima/default/docker.sock TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock NODE_OPTIONS=--dns-result-order=ipv4first TZ=UTC npx vitest run -c vitest.config.testcontainers.ts tests/integration/internal-economics/economics-schema.pg.test.ts tests/integration/prod-schema-clone.test.ts`
+   — 12/12 tests against fresh PostgreSQL.
+7. `npm run build` and `git diff --check` — PASS.
+
+Certification retires `DECIMAL_CORE_UNCERTIFIED` from new V1.1 emission while
+the immutable V1.0 parser continues to accept that historical reason.
+`available` is now representable in both the V1.1 contract and database, but the
+current Decimal path still emits `LP_NET_NAV_FLAT_SHARE_APPROXIMATION`, so
+current value-bearing results remain `indicative`. Five version axes remain
+independent: calculation contract `lp-economics/1.1.0`, engine
+`cash-assembly-period-loop-v1/1.1.0`, methodology
+`cash-assembly-period-loop-methodology/1.1.0`, result calculation
+`lp-economics/1.1.0`, and receipt `internal-lp-economics-run-receipt/1.0.0`
+(allocated here but introduced by PR2, not exposed by PR1).
+
+A null `calculation_contract_version` is legacy-only. It maps to V1.0 only when
+engine is `cash-assembly-period-loop-v1/1.0.0`, methodology is
+`cash-assembly-period-loop-methodology/1.0.0`, and either a completed row's
+result snapshot has `calc_version=lp-economics/1.0.0` or a failed row has no
+result snapshot. Every other null tuple fails closed with
+`UNSUPPORTED_CALCULATION_CONTRACT_VERSION`. This addendum fulfills ADR-065/D-11;
+it does not reverse P-D5.

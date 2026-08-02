@@ -1,3 +1,12 @@
+/**
+ * Certified Internal LP Economics V1.1 calculation contract.
+ *
+ * `DECIMAL_CORE_UNCERTIFIED` is retired from new V1.1 emission (the frozen
+ * V1.0 parser retains it for historical payloads). `available` is a reachable
+ * contract state only when no trust-cap reason remains; the current period
+ * loop still emits `LP_NET_NAV_FLAT_SHARE_APPROXIMATION`, so current successful
+ * results remain `indicative`.
+ */
 import { z } from 'zod';
 
 import {

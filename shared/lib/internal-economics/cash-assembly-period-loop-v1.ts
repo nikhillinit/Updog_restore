@@ -9,9 +9,11 @@
  * recurrence in its required order; resolve terminal realization; and compute
  * LP-net XIRR.
  *
- * D-5 timezone disclosure: XIRR determinism is conditional on running with
- * TZ=UTC because the frozen upstream safeXIRR date normalization uses local-time
- * getters (tracked by issue #1256). The rest of this loop is timezone-pure.
+ * Timezone disclosure: SafeXIRR has normalized dates with UTC getters since
+ * `ef96c931` (#1256). Trust-Spine certification executes the same representative
+ * V1.1 result in fresh UTC, America/New_York, and Asia/Kolkata processes and
+ * requires byte-identical canonical results and hashes. Existing `TZ=UTC`
+ * runtime and CI pins remain defense in depth.
  *
  * Phase 1 invariants:
  * - opening cash threads from each emitted quarter into the next;

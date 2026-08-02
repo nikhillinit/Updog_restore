@@ -232,11 +232,19 @@ export const internalLpEconomicsRuns = pgTable(
       length: 50,
     }).$type<'INTERNAL_LP_ECONOMICS'>(),
     runState: varchar('run_state', { length: 16 }).notNull().$type<'completed' | 'failed'>(),
-    /** Null is legacy-only and requires calculation-contract registry verification. */
+    /**
+     * Null is legacy-only: readers accept V1.0 engine/methodology only with
+     * either a completed V1.0 result or a failed row with no result snapshot;
+     * every V1.1 writer persists 1.1.0.
+     */
     calculationContractVersion: text('calculation_contract_version').$type<
       'lp-economics/1.0.0' | 'lp-economics/1.1.0'
     >(),
-    /** Trust-Spine PR1: all certified V1.1 trust states are representable. */
+    /**
+     * Certified V1.1 trust-state vocabulary. `available` is structurally
+     * reachable, while the current flat-share LP NAV cap keeps emitted value
+     * results `indicative`.
+     */
     resultStatus: varchar('result_status', { length: 16 }).$type<
       'available' | 'indicative' | 'unavailable'
     >(),
