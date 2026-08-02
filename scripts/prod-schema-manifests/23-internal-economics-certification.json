@@ -1,0 +1,34 @@
+{
+  "name": "internal-economics-certification",
+  "order": 23,
+  "description": "Trust-Spine PR1 migration 0046: add nullable calculation-contract identity to existing internal LP economics runs and widen result status to available, indicative, or unavailable without rewriting historical rows.",
+  "missingTablePolicy": "existing_table_required",
+  "sqlFiles": ["migrations/0046_internal_economics_certification.sql"],
+  "allowedCreateTables": [],
+  "applyPolicy": {
+    "allowConstraintReplacements": [
+      {
+        "table": "internal_lp_economics_runs",
+        "name": "internal_lp_economics_runs_result_status_check",
+        "expectedDefinition": {
+          "requiredFragments": ["result_status"],
+          "stringLiterals": ["available", "indicative", "unavailable"]
+        }
+      }
+    ]
+  },
+  "expectedTables": [
+    {
+      "name": "internal_lp_economics_runs",
+      "sharedTable": true,
+      "columns": [
+        {
+          "name": "calculation_contract_version",
+          "type": "text",
+          "nullable": true
+        }
+      ],
+      "constraints": ["internal_lp_economics_runs_result_status_check"]
+    }
+  ]
+}

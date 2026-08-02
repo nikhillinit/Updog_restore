@@ -1,9 +1,9 @@
 /**
- * PostgreSQL proofs for migration 0045 (WP-L3 Phase A, T-A1/T-A2/T-A3/T-A5).
+ * PostgreSQL proofs for migrations 0045/0046 (WP-L3 Phase A + Trust-Spine PR1).
  *
  * These assert the invariants only a real database can demonstrate:
- * - T-A1: the migration applies clean through the drizzle migrator (journal
- *   entry asserted by its OWN tag) and the raw file replays without error.
+ * - T-A1: both migrations apply clean through the drizzle migrator (journal
+ *   entries asserted by their OWN tags) and raw files replay without error.
  * - T-A2: the internal_economics_forbid_update() trigger web forbids every
  *   UPDATE on the three new tables, forbids UPDATE of INTERNAL_LP_ECONOMICS
  *   fund_snapshots rows in BOTH directions (including laundering another
@@ -11,8 +11,8 @@
  *   admits child-version corrections, and `DELETE FROM funds` fails on the
  *   FK web (L3-Q2: RESTRICT posture, no live fund-deletion cascade exists).
  * - T-A3: envelope arithmetic CHECKs (exact numeric equality incl. the
- *   trailing-zeros pre-mortem case), runs state-coupling CHECKs
- *   ('available' DB-unreachable), typed snapshot composite FKs, wrong-fund
+ *   trailing-zeros pre-mortem case), runs state-coupling CHECKs, all three
+ *   certified trust states, typed snapshot composite FKs, wrong-fund
  *   composite FK rejection, and the one-result-snapshot-per-run partial
  *   unique.
  * - T-A5: manifest 22 audits ACTION_REFUSE_FOR_HUMAN before manual
@@ -27,6 +27,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  ACTION_APPLY_MISSING_DDL,
   ACTION_REFUSE_FOR_HUMAN,
   ACTION_SKIP,
   auditManifest,
@@ -43,8 +44,14 @@ const skipIfNoDocker =
   !process.env.TEST_DATABASE_URL && !process.env.CI && process.platform === 'win32';
 const createdDatabases: string[] = [];
 
-const MIGRATION_TAG = '0045_internal_economics_policy_runs';
-const MIGRATION_FILE = path.join(process.cwd(), 'migrations', `${MIGRATION_TAG}.sql`);
+const BASE_MIGRATION_TAG = '0045_internal_economics_policy_runs';
+const BASE_MIGRATION_FILE = path.join(process.cwd(), 'migrations', `${BASE_MIGRATION_TAG}.sql`);
+const CERTIFICATION_MIGRATION_TAG = '0046_internal_economics_certification';
+const CERTIFICATION_MIGRATION_FILE = path.join(
+  process.cwd(),
+  'migrations',
+  `${CERTIFICATION_MIGRATION_TAG}.sql`
+);
 const TRIGGER_NAMES = [
   'internal_capital_envelope_versions_forbid_update_trigger',
   'internal_economics_policy_versions_forbid_update_trigger',
@@ -77,16 +84,18 @@ describe.skipIf(skipIfNoDocker)('internal economics schema PostgreSQL proof', ()
     }
   });
 
-  it('applies migration 0045 through the migrator and replays the raw file (T-A1)', async () => {
+  it('applies migrations 0045/0046 through the migrator and replays both raw files', async () => {
     const { connectionString, state } = await createMigratedDatabase('replay');
 
     // Journal entry asserted by its OWN tag, never entries.at(-1).
-    expect(state.applied.map((entry) => entry.name)).toContain(MIGRATION_TAG);
+    expect(state.applied.map((entry) => entry.name)).toEqual(
+      expect.arrayContaining([BASE_MIGRATION_TAG, CERTIFICATION_MIGRATION_TAG])
+    );
 
     await withPool(connectionString, async (pool) => {
       // Raw replay: every statement is replay-safe by construction.
-      const migrationSql = await readFile(MIGRATION_FILE, 'utf8');
-      await pool.query(migrationSql);
+      await pool.query(await readFile(BASE_MIGRATION_FILE, 'utf8'));
+      await pool.query(await readFile(CERTIFICATION_MIGRATION_FILE, 'utf8'));
 
       const triggers = await pool.query<{ tgname: string; tgenabled: string }>(
         `
@@ -122,6 +131,61 @@ describe.skipIf(skipIfNoDocker)('internal economics schema PostgreSQL proof', ()
         `
       );
       expect(functions.rowCount).toBe(1);
+    });
+  });
+
+  it('rolls back every 0046 catalog change and preserves rows when migration fails', async () => {
+    const { connectionString } = await createMigratedDatabase('atomic-failure', BASE_MIGRATION_TAG);
+
+    await withPool(connectionString, async (pool) => {
+      const basis = await seedRunBasis(pool);
+      const runId = await insertRun(pool, basis, {
+        idempotencyKey: 'pre-certification-failed-run',
+        runState: 'failed',
+        resultSnapshotId: null,
+        resultSnapshotType: null,
+        resultStatus: null,
+        resultHash: null,
+        failureCode: 'CORE_ROW_MAPPING_MISMATCH',
+        failureContext: '{}',
+      });
+
+      const migrationSql = await readFile(CERTIFICATION_MIGRATION_FILE, 'utf8');
+      const failingMigrationSql = migrationSql.replace(
+        'END $$;',
+        "RAISE EXCEPTION 'forced_0046_failure';\nEND $$;"
+      );
+      expect(failingMigrationSql).not.toBe(migrationSql);
+      await expect(pool.query(failingMigrationSql)).rejects.toThrow(/forced_0046_failure/);
+
+      const column = await pool.query(
+        `
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'internal_lp_economics_runs'
+            AND column_name = 'calculation_contract_version'
+        `
+      );
+      expect(column.rowCount).toBe(0);
+
+      const constraint = await pool.query<{ definition: string }>(
+        `
+          SELECT pg_get_constraintdef(oid) AS definition
+          FROM pg_constraint
+          WHERE conname = 'internal_lp_economics_runs_result_status_check'
+            AND conrelid = 'public.internal_lp_economics_runs'::regclass
+        `
+      );
+      expect(constraint.rows[0]?.definition).not.toContain("'available'");
+
+      const preserved = await pool.query<{ run_state: string; failure_code: string }>(
+        `SELECT run_state, failure_code FROM internal_lp_economics_runs WHERE id = $1`,
+        [runId]
+      );
+      expect(preserved.rows).toEqual([
+        { run_state: 'failed', failure_code: 'CORE_ROW_MAPPING_MISMATCH' },
+      ]);
     });
   });
 
@@ -323,19 +387,21 @@ describe.skipIf(skipIfNoDocker)('internal economics schema PostgreSQL proof', ()
         })
       ).rejects.toThrow(/internal_lp_economics_runs_state_coupling_check/);
 
-      // ...and 'available' is DB-unreachable until the certification act.
+      // Certification migration makes 'available' and contract identity representable.
+      const availableBasis = await seedRunBasis(pool);
       await expect(
-        insertRun(pool, basis, {
-          idempotencyKey: 'available-unreachable',
+        insertRun(pool, availableBasis, {
+          idempotencyKey: 'available-certified',
+          calculationContractVersion: 'lp-economics/1.1.0',
           runState: 'completed',
-          resultSnapshotId: basis.resultSnapshotId,
+          resultSnapshotId: availableBasis.resultSnapshotId,
           resultSnapshotType: 'INTERNAL_LP_ECONOMICS',
           resultStatus: 'available',
           resultHash: hex64('r'),
           failureCode: null,
           failureContext: null,
         })
-      ).rejects.toThrow(/internal_lp_economics_runs_result_status_check/);
+      ).resolves.toEqual(expect.any(Number));
 
       // Typed snapshot composite FK: a RESERVE row cannot satisfy the
       // CURRENT_FORECAST_V2 pin even when the type literal is asserted.
@@ -418,7 +484,7 @@ describe.skipIf(skipIfNoDocker)('internal economics schema PostgreSQL proof', ()
       expect(beforeKinds).toContain('missing-function');
 
       // Manual reconciliation: the operator applies the journaled migration.
-      const migrationSql = await readFile(MIGRATION_FILE, 'utf8');
+      const migrationSql = await readFile(BASE_MIGRATION_FILE, 'utf8');
       await pool.query(migrationSql);
 
       const after = await auditManifest(pool, manifest);
@@ -474,6 +540,48 @@ describe.skipIf(skipIfNoDocker)('internal economics schema PostgreSQL proof', ()
       expect((await auditManifest(pool, manifest)).action).toBe(ACTION_SKIP);
     });
   }, 120_000);
+
+  it('manifest 23 applies additive certification DDL and audits the widened contract', async () => {
+    const { connectionString } = await createMigratedDatabase(
+      'certification-manifest',
+      BASE_MIGRATION_TAG
+    );
+    const manifests = await loadManifests();
+    const manifest = manifests.find(
+      (candidate: { name: string }) => candidate.name === 'internal-economics-certification'
+    );
+    expect(manifest).toBeDefined();
+
+    await withPool(connectionString, async (pool) => {
+      const before = await auditManifest(pool, manifest);
+      expect(before.action).toBe(ACTION_APPLY_MISSING_DDL);
+
+      await pool.query(await readFile(CERTIFICATION_MIGRATION_FILE, 'utf8'));
+
+      const after = await auditManifest(pool, manifest);
+      expect(after.action).toBe(ACTION_SKIP);
+      expect(after.objects).toEqual([
+        expect.objectContaining({
+          table: 'internal_lp_economics_runs',
+          deltas: [],
+          action: ACTION_SKIP,
+        }),
+      ]);
+
+      const comment = await pool.query<{ description: string }>(
+        `
+          SELECT col_description('public.internal_lp_economics_runs'::regclass, ordinal_position) AS description
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'internal_lp_economics_runs'
+            AND column_name = 'calculation_contract_version'
+        `
+      );
+      expect(comment.rows[0]?.description).toBe(
+        'null is legacy-only and requires registry verification'
+      );
+    });
+  }, 120_000);
 });
 
 interface RunBasis {
@@ -506,6 +614,7 @@ interface EnvelopeInput {
 
 interface RunOverrides {
   idempotencyKey: string;
+  calculationContractVersion?: 'lp-economics/1.0.0' | 'lp-economics/1.1.0';
   policyVersionId?: number;
   forecastSnapshotId?: number;
   runState?: 'completed' | 'failed';
@@ -671,6 +780,9 @@ function insertEnvelope(pool: Pool, input: EnvelopeInput): Promise<number> {
 
 function insertRun(pool: Pool, basis: RunBasis, overrides: RunOverrides): Promise<number> {
   const runState = overrides.runState ?? 'completed';
+  const contractColumn =
+    overrides.calculationContractVersion === undefined ? '' : ', calculation_contract_version';
+  const contractValue = overrides.calculationContractVersion === undefined ? '' : ', $17';
   return insertedId(
     pool,
     `
@@ -680,11 +792,11 @@ function insertRun(pool: Pool, basis: RunBasis, overrides: RunOverrides): Promis
         result_snapshot_type, run_state, result_status, failure_code,
         failure_context, evaluation_clock, terminal_mode, engine_version,
         methodology_version, input_hash, result_hash, created_by,
-        idempotency_key, request_hash
+        idempotency_key, request_hash${contractColumn}
       ) VALUES (
         $1, $2, $3, $4, $5, 'CURRENT_FORECAST_V2', $6, $7, $8, $9, $10,
         $11::jsonb, NOW(), 'liquidate_at_horizon', 'cash-assembly-period-loop/1.0.0',
-        'lp-economics/1.0.0', $12, $13, $14, $15, $16
+        'lp-economics/1.0.0', $12, $13, $14, $15, $16${contractValue}
       )
       RETURNING id
     `,
@@ -705,6 +817,9 @@ function insertRun(pool: Pool, basis: RunBasis, overrides: RunOverrides): Promis
       basis.userId,
       overrides.idempotencyKey,
       hex64(overrides.idempotencyKey),
+      ...(overrides.calculationContractVersion === undefined
+        ? []
+        : [overrides.calculationContractVersion]),
     ]
   );
 }
@@ -728,7 +843,7 @@ async function seedFundSnapshot(pool: Pool, fundId: number, type: string): Promi
 
 async function createMigratedDatabase(
   suffix: string,
-  targetVersion: string = MIGRATION_TAG
+  targetVersion: string = CERTIFICATION_MIGRATION_TAG
 ): Promise<{ connectionString: string; state: { applied: Array<{ name: string }> } }> {
   if (!adminPool) throw new Error('Admin pool not initialized.');
   const databaseName = `wp_l3_${suffix}_${process.pid}_${Date.now()}`.toLowerCase();

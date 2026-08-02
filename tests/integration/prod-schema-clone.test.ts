@@ -23,6 +23,7 @@ const skipIfNoDocker = !process.env.CI && process.platform === 'win32';
 const execFileAsync = promisify(execFile);
 
 let postgres: StartedPostgreSqlContainer | undefined;
+let baseConnectionString: string | undefined;
 let pool: Pool | undefined;
 let shapePool: Pool | undefined;
 
@@ -182,6 +183,7 @@ const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'company-scenario-create-requests',
   'business-time-comparison-lineage',
   'internal-economics-policy-runs',
+  'internal-economics-certification',
 ] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
@@ -433,11 +435,11 @@ function shapeValueForMismatchKey(catalog: CatalogSnapshot, key: string): ShapeD
 }
 
 function connectionUriForDatabase(databaseName: string): string {
-  if (!postgres) {
-    throw new Error('Postgres container has not started');
+  if (!baseConnectionString) {
+    throw new Error('Postgres connection has not been initialized');
   }
 
-  const url = new URL(postgres.getConnectionUri());
+  const url = new URL(baseConnectionString);
   url.pathname = `/${databaseName}`;
   return url.toString();
 }
@@ -752,14 +754,17 @@ async function publicConstraints(activePool: Pool, constraintNames: readonly str
 
 describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
   beforeAll(async () => {
-    postgres = await new PostgreSqlContainer('pgvector/pgvector:pg16')
-      .withDatabase('test_db')
-      .withUsername('test_user')
-      .withPassword('test_password')
-      .withStartupTimeout(STARTUP_TIMEOUT_MS)
-      .start();
-
-    const connectionString = postgres.getConnectionUri();
+    let connectionString = process.env.TEST_DATABASE_URL;
+    if (!connectionString) {
+      postgres = await new PostgreSqlContainer('pgvector/pgvector:pg16')
+        .withDatabase('test_db')
+        .withUsername('test_user')
+        .withPassword('test_password')
+        .withStartupTimeout(STARTUP_TIMEOUT_MS)
+        .start();
+      connectionString = postgres.getConnectionUri();
+    }
+    baseConnectionString = connectionString;
     await runMigrationsWithConnectionString(connectionString);
     pool = new Pool({ connectionString, max: 1 });
   }, STARTUP_TIMEOUT_MS * 2);
@@ -1020,12 +1025,12 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
   });
 
   it('smoke-runs the s8.1 operator-seam audit script against the journal clone', async () => {
-    expect(postgres).toBeDefined();
+    expect(baseConnectionString).toBeDefined();
     const outPath = path.join(os.tmpdir(), `s81-audit-smoke-${process.pid}-${Date.now()}.json`);
 
     await execFileAsync('node', ['scripts/audit-prod-operator-seam.mjs', '--out', outPath], {
       cwd: process.cwd(),
-      env: { ...process.env, DATABASE_URL: postgres!.getConnectionUri() },
+      env: { ...process.env, DATABASE_URL: baseConnectionString! },
     });
 
     const artifact = JSON.parse(await readFile(outPath, 'utf8')) as {
@@ -1125,12 +1130,12 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
     'recovers a production-shaped database with no investment_rounds and replays cleanly',
     async () => {
       expect(pool).toBeDefined();
-      expect(postgres).toBeDefined();
+      expect(baseConnectionString).toBeDefined();
 
       await pool!.query(`DROP DATABASE IF EXISTS "${INVESTMENT_ROUNDS_RECOVERY_DATABASE}"`);
       await pool!.query(`CREATE DATABASE "${INVESTMENT_ROUNDS_RECOVERY_DATABASE}"`);
 
-      const recoveryUrl = new URL(postgres!.getConnectionUri());
+      const recoveryUrl = new URL(baseConnectionString!);
       recoveryUrl.pathname = `/${INVESTMENT_ROUNDS_RECOVERY_DATABASE}`;
       let recoveryPool: Pool | undefined;
 

@@ -232,8 +232,14 @@ export const internalLpEconomicsRuns = pgTable(
       length: 50,
     }).$type<'INTERNAL_LP_ECONOMICS'>(),
     runState: varchar('run_state', { length: 16 }).notNull().$type<'completed' | 'failed'>(),
-    /** P-D5: `available` is DB-unreachable until the certification act. */
-    resultStatus: varchar('result_status', { length: 16 }).$type<'indicative' | 'unavailable'>(),
+    /** Null is legacy-only and requires calculation-contract registry verification. */
+    calculationContractVersion: text('calculation_contract_version').$type<
+      'lp-economics/1.0.0' | 'lp-economics/1.1.0'
+    >(),
+    /** Trust-Spine PR1: all certified V1.1 trust states are representable. */
+    resultStatus: varchar('result_status', { length: 16 }).$type<
+      'available' | 'indicative' | 'unavailable'
+    >(),
     failureCode: text('failure_code'),
     failureContext: jsonb('failure_context').$type<Record<string, unknown>>(),
     /** Pinned basis clock (D9): evaluation time is basis, never now(). */
@@ -300,7 +306,7 @@ export const internalLpEconomicsRuns = pgTable(
     ),
     resultStatusCheck: check(
       'internal_lp_economics_runs_result_status_check',
-      sql`${table.resultStatus} IS NULL OR ${table.resultStatus} IN ('indicative','unavailable')`
+      sql`${table.resultStatus} IS NULL OR ${table.resultStatus} IN ('available','indicative','unavailable')`
     ),
     terminalModeCheck: check(
       'internal_lp_economics_runs_terminal_mode_check',

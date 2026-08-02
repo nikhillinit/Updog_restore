@@ -41,6 +41,8 @@ interface DropObject {
 
 interface Manifest {
   name: string;
+  order?: number;
+  missingTablePolicy?: 'create_or_repair' | 'existing_table_required';
   sqlFiles?: string[];
   allowedCreateTables?: string[];
   expectedTables?: ManifestTable[];
@@ -140,6 +142,39 @@ describe('prod-schema manifest sentinels', () => {
       '20-company-scenario-create-requests.json',
       '21-business-time-comparison-lineage.json',
       '22-internal-economics-policy-runs.json',
+      '23-internal-economics-certification.json',
+    ]);
+  });
+
+  it('pins manifest 23 to additive certification DDL on the existing run table', () => {
+    const certification = manifests.find(
+      (entry) => entry.file === '23-internal-economics-certification.json'
+    );
+    expect(certification).toBeDefined();
+    expect(certification!.manifest).toMatchObject({
+      name: 'internal-economics-certification',
+      order: 23,
+      missingTablePolicy: 'existing_table_required',
+      sqlFiles: ['migrations/0046_internal_economics_certification.sql'],
+      allowedCreateTables: [],
+    });
+
+    const runTable = certification!.manifest.expectedTables?.find(
+      (table) => table.name === 'internal_lp_economics_runs'
+    );
+    expect(runTable).toMatchObject({
+      columns: [{ name: 'calculation_contract_version', type: 'text', nullable: true }],
+      constraints: ['internal_lp_economics_runs_result_status_check'],
+    });
+
+    const replacement = certification!.manifest.applyPolicy?.allowConstraintReplacements?.find(
+      (candidate) => candidate.name === 'internal_lp_economics_runs_result_status_check'
+    );
+    expect(replacement?.table).toBe('internal_lp_economics_runs');
+    expect(replacement?.expectedDefinition.stringLiterals).toEqual([
+      'available',
+      'indicative',
+      'unavailable',
     ]);
   });
 
