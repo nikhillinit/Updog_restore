@@ -41,12 +41,24 @@ interface TriggerDefinition {
   expectedDefinition: ExpectedDefinition;
 }
 
+interface IndexDefinition {
+  name: string;
+  expectedDefinition: ExpectedDefinition;
+}
+
+interface ConstraintDefinition {
+  name: string;
+  expectedDefinition: ExpectedDefinition;
+}
+
 interface ManifestTable {
   name: string;
   sharedTable?: boolean;
   columns?: Array<{ name: string; type?: string; nullable: boolean }>;
   constraints?: string[];
+  constraintDefinitions?: ConstraintDefinition[];
   indexes?: string[];
+  indexDefinitions?: IndexDefinition[];
   triggerDefinitions?: TriggerDefinition[];
 }
 
@@ -69,6 +81,20 @@ function loadManifest22(): Manifest {
         'scripts',
         'prod-schema-manifests',
         '22-internal-economics-policy-runs.json'
+      ),
+      'utf8'
+    )
+  ) as Manifest;
+}
+
+function loadManifest24(): Manifest {
+  return JSON.parse(
+    fs.readFileSync(
+      path.join(
+        repoRoot,
+        'scripts',
+        'prod-schema-manifests',
+        '24-internal-economics-linkage.json'
       ),
       'utf8'
     )
@@ -160,14 +186,18 @@ function matchingCatalog(manifest: Manifest): Required<MockCatalog> {
       (table.constraints ?? []).map((conname) => ({
         table_name: table.name,
         conname,
-        definition: '',
+        definition:
+          table.constraintDefinitions?.find((definition) => definition.name === conname)
+            ?.expectedDefinition.exactDefinition ?? '',
       }))
     ),
     indexes: tables.flatMap((table) =>
       (table.indexes ?? []).map((indexname) => ({
         tablename: table.name,
         indexname,
-        indexdef: '',
+        indexdef:
+          table.indexDefinitions?.find((definition) => definition.name === indexname)
+            ?.expectedDefinition.exactDefinition ?? '',
       }))
     ),
     triggers: tables.flatMap((table) =>
@@ -424,5 +454,62 @@ describe('manifest 22 trigger/function audit (T-A5)', () => {
     const client = createMockClient({ presentTables: ['internal_lp_economics_runs'] });
 
     await expect(auditManifest(client, duplicate)).rejects.toThrow(ReconcileError);
+  });
+});
+
+describe('manifest 24 economics-linkage trigger/function audit', () => {
+  const manifest = loadManifest24();
+
+  it('pins the reused immutable function and task-evidence update trigger', () => {
+    const evidence = manifest.expectedTables?.find((table) => table.name === 'task_evidence_links');
+    expect(evidence?.triggerDefinitions).toEqual([
+      expect.objectContaining({
+        name: 'task_evidence_links_forbid_update_trigger',
+        expectedDefinition: expect.objectContaining({
+          exactDefinition:
+            'CREATE TRIGGER task_evidence_links_forbid_update_trigger BEFORE UPDATE ON public.task_evidence_links FOR EACH ROW EXECUTE FUNCTION internal_economics_forbid_update()',
+        }),
+      }),
+    ]);
+    expect(manifest.functionDefinitions?.map((definition) => definition.name)).toEqual([
+      'internal_economics_forbid_update',
+    ]);
+  });
+
+  it('pins every linkage constraint definition', () => {
+    for (const table of manifest.expectedTables ?? []) {
+      expect(
+        table.constraintDefinitions?.map((definition) => definition.name).sort(),
+        `${table.name} constraint definitions`
+      ).toEqual([...(table.constraints ?? [])].sort());
+    }
+  });
+
+  it('REFUSES-FOR-HUMAN before the migrator-owned trigger migration and SKIPs once catalog pins match', async () => {
+    const catalog = matchingCatalog(manifest);
+    const before = await auditManifest(
+      createMockClient({
+        ...catalog,
+        presentTables: [
+          'internal_analysis_drafts',
+          'internal_analysis_references',
+          'tasks',
+        ],
+        triggers: [],
+      }),
+      manifest
+    );
+
+    expect(before.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+    const evidenceBefore = before.objects.find((object) => object.table === 'task_evidence_links');
+    expect(
+      evidenceBefore?.deltas.some(
+        (delta: { kind: string }) => delta.kind === 'missing-trigger'
+      )
+    ).toBe(true);
+
+    const after = await auditManifest(createMockClient(catalog), manifest);
+    expect(after.action).toBe(ACTION_SKIP);
+    expect(after.objects.every((object) => object.action === ACTION_SKIP)).toBe(true);
   });
 });

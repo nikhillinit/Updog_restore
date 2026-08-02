@@ -57,6 +57,7 @@ const expectedJournaledDriftPatchFiles = [
   '0044_internal_analysis.sql',
   '0045_internal_economics_policy_runs.sql',
   '0046_internal_economics_certification.sql',
+  '0047_internal_economics_linkage.sql',
 ].sort();
 
 afterEach(() => {
@@ -179,6 +180,29 @@ describe('migration ledger helpers', () => {
     expect(entry).toMatchObject({
       idx: 47,
       tag: '0046_internal_economics_certification',
+      breakpoints: true,
+    });
+  });
+
+  it('pins internal economics linkage migration to its own journal index 48 entry', () => {
+    const rawJournal = JSON.parse(
+      fs.readFileSync(path.join(repoRoot, 'migrations', 'meta', '_journal.json'), 'utf8')
+    ) as {
+      entries: Array<{
+        idx: number;
+        version?: string;
+        tag: string;
+        breakpoints: boolean;
+      }>;
+    };
+    const entry = rawJournal.entries.find(
+      (candidate) => candidate.tag === '0047_internal_economics_linkage'
+    );
+
+    expect(entry).toMatchObject({
+      idx: 48,
+      version: '7',
+      tag: '0047_internal_economics_linkage',
       breakpoints: true,
     });
   });
