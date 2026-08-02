@@ -282,6 +282,22 @@ describe('internal-economics dual-runtime receipt parity', () => {
     expect(service.getLpEconomicsRunReceipt).not.toHaveBeenCalled();
   });
 
+  it('returns the same canonical run parameter error on both surfaces', async () => {
+    const authorization = await authorizationHeader('analyst');
+
+    for (const surface of surfaces) {
+      const response = await request(surface.app)
+        .get('/api/funds/1/internal-economics/runs/01')
+        .set('Authorization', authorization)
+        .expect(400);
+      expect(response.body, surface.name).toEqual({
+        error: 'Invalid run ID',
+        message: 'Run ID must be a canonical positive integer',
+      });
+    }
+    expect(service.getLpEconomicsRunReceipt).not.toHaveBeenCalled();
+  });
+
   it('returns the same typed 404 body on both surfaces', async () => {
     const { LpEconomicsRunServiceError } =
       await import('../../../server/services/internal-economics/lp-economics-run-service');
@@ -328,5 +344,43 @@ describe('internal-economics dual-runtime receipt parity', () => {
         message: 'Persisted run version tuple is unsupported.',
       });
     }
+  });
+
+  it('returns the same ownership-guard 404 body on both surfaces', async () => {
+    const { LpEconomicsRunServiceError } =
+      await import('../../../server/services/internal-economics/lp-economics-run-service');
+    service.getLpEconomicsRunReceipt.mockRejectedValue(
+      new LpEconomicsRunServiceError(
+        404,
+        'FUND_SCOPE_NOT_FOUND',
+        'The requested resource was not found in this fund.'
+      )
+    );
+    const authorization = await authorizationHeader('admin');
+
+    for (const surface of surfaces) {
+      const response = await request(surface.app)
+        .get('/api/funds/1/internal-economics/runs/9')
+        .set('Authorization', authorization)
+        .expect(404);
+      expect(response.body, surface.name).toEqual({
+        error: 'FUND_SCOPE_NOT_FOUND',
+        message: 'The requested resource was not found in this fund.',
+      });
+      expect(response.body, surface.name).not.toHaveProperty('ref');
+    }
+  });
+
+  it('leaves the successor POST route unmounted on both surfaces', async () => {
+    const authorization = await authorizationHeader('admin');
+
+    for (const surface of surfaces) {
+      await request(surface.app)
+        .post('/api/funds/1/internal-economics/runs')
+        .set('Authorization', authorization)
+        .send({})
+        .expect(404);
+    }
+    expect(service.getLpEconomicsRunReceipt).not.toHaveBeenCalled();
   });
 });

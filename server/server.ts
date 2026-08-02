@@ -16,6 +16,7 @@ import { cspReportRoute } from './routes/public/csp-report';
 // import { flagsRoute } from './routes/public/flags';
 import cors from 'cors';
 import { requestId } from './middleware/requestId.js';
+import { requestLoggingMiddleware } from './middleware/request-logging.js';
 import { shutdownGuard } from './middleware/shutdownGuard.js';
 import { rateLimitDetailed } from './middleware/rateLimitDetailed.js';
 import { firstString } from './lib/request-values';
@@ -185,51 +186,7 @@ export async function createServer(
   // app.use("/api", flagsRoute);
 
   // Request logging middleware with version
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    const start = Date.now();
-    const path = req.path;
-    let capturedJsonResponse: unknown;
-
-    const originalResJson = res.json;
-    res.json = function (bodyJson: Parameters<typeof originalResJson>[0]) {
-      capturedJsonResponse = bodyJson;
-      return originalResJson.call(res, bodyJson);
-    };
-
-    res.on('finish', () => {
-      const duration = Date.now() - start;
-      if (path.startsWith('/api')) {
-        const version = config.APP_VERSION;
-
-        let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms [v${version}]`;
-        if (capturedJsonResponse) {
-          logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-        }
-
-        if (logLine.length > 80) {
-          logLine = `${logLine.slice(0, 79)}…`;
-        }
-
-        log.info(
-          {
-            timestamp: new Date().toISOString(),
-            service: 'fund-platform-api',
-            version,
-            environment: config.NODE_ENV,
-            method: req.method,
-            path,
-            statusCode: res.statusCode,
-            duration,
-            requestId: req.requestId,
-            response: capturedJsonResponse,
-          },
-          logLine
-        );
-      }
-    });
-
-    next();
-  });
+  app.use(requestLoggingMiddleware(config, log));
 
   // Rate limiter: pass store; undefined => memory store (no redis)
   app.use(

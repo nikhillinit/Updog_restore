@@ -30,6 +30,7 @@ import {
   LP_ECONOMICS_RUN_METHODOLOGY_VERSION,
   MAX_CASH_ASSEMBLY_PERIOD_COUNT,
   MAX_CASH_ASSEMBLY_TOTAL_EVENT_COUNT,
+  LpEconomicsRunServiceError,
   executeLpEconomicsRun as executeLpEconomicsRunService,
   getLpEconomicsRunReceipt as getLpEconomicsRunReceiptService,
 } from '../../../../server/services/internal-economics/lp-economics-run-service';
@@ -260,9 +261,7 @@ async function executeLpEconomicsRun(
   return {
     run: run as unknown as InternalLpEconomicsRunRow,
     result:
-      execution.receipt.outcome.runState === 'completed'
-        ? execution.receipt.outcome.result
-        : null,
+      execution.receipt.outcome.runState === 'completed' ? execution.receipt.outcome.result : null,
   };
 }
 
@@ -1587,13 +1586,18 @@ describe('getRunWithResult -- T-C9 lineage read joins + type/ownership', () => {
       database: fakeDb.asDatabase(),
     });
 
-    await expect(
-      getRunWithResult({
-        fundId: FUND_ID + 1,
-        runId: receipt.run.id,
-        database: fakeDb.asDatabase(),
-      })
-    ).rejects.toMatchObject({ code: 'FUND_SCOPE_NOT_FOUND' });
+    const error = await getRunWithResult({
+      fundId: FUND_ID + 1,
+      runId: receipt.run.id,
+      database: fakeDb.asDatabase(),
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(LpEconomicsRunServiceError);
+    expect(error).toMatchObject({
+      statusCode: 404,
+      code: 'FUND_SCOPE_NOT_FOUND',
+      message: 'The requested resource was not found in this fund.',
+    });
   });
 
   it('returns a null result for a failed run', async () => {

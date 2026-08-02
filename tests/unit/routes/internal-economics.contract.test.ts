@@ -237,4 +237,24 @@ describe('internal-economics receipt route contract', () => {
       expect(response.body).not.toHaveProperty('details');
     }
   );
+
+  it('maps the ownership guard 404 without leaking the scoped reference', async () => {
+    service.getLpEconomicsRunReceipt.mockRejectedValue(
+      new LpEconomicsRunServiceError(
+        404,
+        'FUND_SCOPE_NOT_FOUND',
+        'The requested resource was not found in this fund.'
+      )
+    );
+
+    const response = await request(buildApp())
+      .get('/api/funds/1/internal-economics/runs/9')
+      .expect(404);
+
+    expect(response.body).toEqual({
+      error: 'FUND_SCOPE_NOT_FOUND',
+      message: 'The requested resource was not found in this fund.',
+    });
+    expect(response.body).not.toHaveProperty('ref');
+  });
 });

@@ -209,6 +209,7 @@ export type LpEconomicsRunServiceErrorCode =
   | 'FACTS_SNAPSHOT_NOT_FOUND'
   | 'PLAN_VERSION_NOT_FOUND'
   | 'FORECAST_SNAPSHOT_NOT_FOUND'
+  | 'FUND_SCOPE_NOT_FOUND'
   | 'RUN_NOT_FOUND'
   | 'RUN_RESULT_SNAPSHOT_MISSING'
   | 'SOURCE_CONFIG_VERSION_DRIFTED'
@@ -490,11 +491,18 @@ export async function getLpEconomicsRunReceipt(
 ): Promise<InternalLpEconomicsRunReceiptV1> {
   const database = opts.database ?? db;
 
-  await assertOwnedByFund({
-    db: database as unknown as FundScopedOwnershipDatabase,
-    fundId: opts.fundId,
-    ref: { kind: 'lp_economics_run', id: opts.runId },
-  });
+  try {
+    await assertOwnedByFund({
+      db: database as unknown as FundScopedOwnershipDatabase,
+      fundId: opts.fundId,
+      ref: { kind: 'lp_economics_run', id: opts.runId },
+    });
+  } catch (error) {
+    if (error instanceof FundScopeError) {
+      throw new LpEconomicsRunServiceError(404, error.code, error.message);
+    }
+    throw error;
+  }
 
   const [run] = await database
     .select()

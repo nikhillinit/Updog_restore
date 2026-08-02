@@ -13,5 +13,12 @@ describe('internal-economics route sensitive-log sentinel', () => {
     expect(source).not.toMatch(/\b(?:logger|console)\b/);
     expect(source).not.toMatch(/\b(?:log|warn|error|info|debug)\s*\(/);
     expect(source).not.toMatch(/(?:telemetry|metrics?)\s*\./);
+    expect(source).not.toMatch(/fund-scoped-ownership/);
+  });
+
+  it('installs the sensitive-response-aware logger in the production server', async () => {
+    const source = await readFile(path.resolve(process.cwd(), 'server/server.ts'), 'utf8');
+
+    expect(source).toContain('app.use(requestLoggingMiddleware(config, log));');
   });
 });
