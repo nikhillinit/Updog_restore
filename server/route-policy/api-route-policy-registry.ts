@@ -1828,6 +1828,30 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     notes:
       'Task 11 direct position valuation command creates direct-position FMV marks; route handler mounting is deferred to Task 11C.',
   },
+  {
+    id: 'api:get:/api/funds/:fundId/internal-economics/runs/:runId',
+    method: 'GET',
+    path: '/api/funds/:fundId/internal-economics/runs/:runId',
+    lifecycle: 'durable_crud',
+    governanceRef: '/fund-model-results/:fundId/internal-analysis',
+    surface: 'internal-economics-run-read-api',
+    owner: ownerForFinancialSurface('fund_modeling'),
+    telemetryKey: telemetryKeyForRoute(
+      'api.route',
+      '/api/funds/:fundId/internal-economics/runs/:runId'
+    ),
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_fund_access_and_role',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'immutable_run_receipt_read',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes:
+      'Investment-team-only read of one immutable internal LP economics run receipt. This surface is not an LP route or an export.',
+  },
   ...(
     [
       ['GET', '/api/funds/:fundId/internal-analysis/drafts', 'List revisable analysis drafts.'],
@@ -2089,4 +2113,5 @@ export const COMMON_API_ROUTE_POLICY_IDS = {
     'api:get:/api/funds/:fundId/investment-ledger/position-valuations',
     'api:post:/api/funds/:fundId/investment-ledger/position-valuations',
   ],
+  'internal-economics': ['api:get:/api/funds/:fundId/internal-economics/runs/:runId'],
 } as const satisfies Record<FinancialCommonApiRouteId, readonly string[]>;

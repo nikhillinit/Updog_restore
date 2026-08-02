@@ -155,6 +155,7 @@ describe('canonical common API route manifest', () => {
         "lp-reporting-metric-runs:<bare>",
         "backtesting:/api/backtesting",
         "investment-ledger:<bare>",
+        "internal-economics:/api",
         "internal-analysis:/api",
       ]
     `);
@@ -193,6 +194,51 @@ describe('canonical common API route manifest', () => {
         'api:post:/api/funds/:fundId/investment-ledger/position-valuations',
       ])
     );
+  });
+
+  it('registers the internal-economics receipt router on both runtimes with strict governance metadata', () => {
+    const entry = COMMON_API_ROUTE_MANIFEST.find(
+      (candidate) => candidate.id === 'internal-economics'
+    );
+
+    expect(entry).toMatchObject({
+      sourceModule: './routes/internal-economics.js',
+      mountPath: '/api',
+      authBoundary: 'router_local',
+      fundScope: 'path',
+      financial: true,
+      migrationParity: {
+        kind: 'c1',
+        tables: [
+          'internal_lp_economics_runs',
+          'internal_economics_policy_versions',
+          'internal_capital_envelope_versions',
+        ],
+      },
+      owner: 'gp-team',
+      probe: {
+        method: 'GET',
+        path: '/api/funds/abc/internal-economics/runs/1',
+        expectedStatus: 400,
+        authenticated: true,
+      },
+    });
+    expect(entry?.schemaTables).toEqual(
+      expect.arrayContaining([
+        'internal_lp_economics_runs',
+        'internal_economics_policy_versions',
+        'internal_capital_envelope_versions',
+        'financial_facts_snapshots',
+        'current_plan_versions',
+        'fund_snapshots',
+        'funds',
+      ])
+    );
+    expect(COMMON_ROUTE_SURFACE_ORDER.make_app).toContain('internal-economics');
+    expect(COMMON_ROUTE_SURFACE_ORDER.register_routes).toContain('internal-economics');
+    expect(COMMON_API_ROUTE_POLICY_IDS['internal-economics']).toEqual([
+      'api:get:/api/funds/:fundId/internal-economics/runs/:runId',
+    ]);
   });
 
   it('snapshots intentional runtime-specific mounts and gates', () => {

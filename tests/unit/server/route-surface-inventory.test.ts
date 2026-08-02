@@ -128,6 +128,22 @@ const routeSurfaceInventory = {
     intent:
       'Fund-scoped reallocation router (preview + commit) mounted on both active bootstrap surfaces; guarded by parseFundIdParam + enforceProvidedFundScope.',
   },
+  'internal-economics': {
+    surfaceStatus: 'both',
+    registerRoutesMount: '/api/funds/:fundId/internal-economics/runs/:runId',
+    makeAppMount: '/api/funds/:fundId/internal-economics/runs/:runId',
+    exposure: 'protected',
+    endpoints: [
+      {
+        method: 'GET',
+        path: '/api/funds/:fundId/internal-economics/runs/:runId',
+        mountSurfaces: ['registerRoutes', 'makeApp'],
+        authPosture: 'protected',
+      },
+    ],
+    intent:
+      'Immutable internal LP economics receipt read mounted through the common router on both bootstrap surfaces.',
+  },
   'api-docs': {
     surfaceStatus: 'makeApp-only-intentional',
     makeAppMount: '/api-docs',
@@ -539,6 +555,21 @@ describe('route surface inventory', () => {
       registerRoutesMount: '/api/funds/:fundId/reallocation/*',
       makeAppMount: '/api/funds/:fundId/reallocation/*',
       exposure: 'protected',
+    });
+
+    expect(routeSurfaceInventory['internal-economics']).toMatchObject({
+      surfaceStatus: 'both',
+      registerRoutesMount: '/api/funds/:fundId/internal-economics/runs/:runId',
+      makeAppMount: '/api/funds/:fundId/internal-economics/runs/:runId',
+      exposure: 'protected',
+      endpoints: [
+        {
+          method: 'GET',
+          path: '/api/funds/:fundId/internal-economics/runs/:runId',
+          mountSurfaces: ['registerRoutes', 'makeApp'],
+          authPosture: 'protected',
+        },
+      ],
     });
 
     expect(routeSurfaceInventory['api-docs']).toMatchObject({

@@ -25,6 +25,7 @@ import fundScenarioSetsRouter from './fund-scenario-sets.js';
 import fundsRouter from './funds.js';
 import graduationRouter from './graduation.js';
 import internalAnalysisRouter from './internal-analysis.js';
+import internalEconomicsRouter from './internal-economics.js';
 import investmentLedgerRouter from './investment-ledger.js';
 import investmentsRouter from './investments.js';
 import liquidityRouter from './liquidity.js';
@@ -105,6 +106,7 @@ export const COMMON_ROUTE_IMPLEMENTATIONS: Record<CommonApiRouteId, RouteMountIm
   'lp-reporting-metric-runs': at(null, lpReportingMetricRunsRouter),
   backtesting: at('/api/backtesting', backtestingRouter),
   'investment-ledger': at(null, investmentLedgerRouter),
+  'internal-economics': at('/api', internalEconomicsRouter),
   'internal-analysis': at('/api', internalAnalysisRouter),
 } satisfies Record<CommonApiRouteId, RouteMountImplementation>;
 
@@ -153,6 +155,7 @@ export const COMMON_ROUTE_SURFACE_ORDER = {
     'variance',
     'timeline',
     'investment-ledger',
+    'internal-economics',
     'internal-analysis',
   ] as const satisfies readonly CommonApiRouteId[],
 } as const;

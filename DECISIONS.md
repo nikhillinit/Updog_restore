@@ -6304,6 +6304,21 @@ remove or redesign the separately isolated LP portal.
   three-role model can be marked fully implemented; the phrase "analytical
   support" is not a blanket mutation grant.
 
+#### Internal LP economics execution
+
+- Executing an internal LP economics run is analytical scenario work. Admin,
+  partner, and analyst may execute and read runs when canonical authentication,
+  fund scope, and investment-team role checks pass.
+- Authoring economics policy, attesting or changing the legal capital envelope,
+  applying a run to official configuration or decisions, and producing a
+  qualified export remain consequential actions. Those surfaces require their
+  own partner/admin classification before implementation.
+- LP, service, viewer, operator, unknown-role, and anonymous identities remain
+  excluded from internal LP economics run routes. Run receipts are internal,
+  immutable lineage records; they are neither LP portal responses nor exports.
+- This addendum classifies run execution and receipt reads only. It does not
+  claim the broader consequential-mutation inventory is complete.
+
 #### LP report exports
 
 - The eight GP-side qualified report render/export routes remain restricted to
