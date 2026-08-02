@@ -121,14 +121,16 @@ import {
   LpEconomicsResultV1Schema,
   OPENING_STATE_CONTRACT_V1_INELIGIBLE_DETAIL,
   OPENING_STATE_INELIGIBLE_FIELDS_V1,
-  buildLpEconomicsEventIdV1,
-  sortAndDedupeLpEconomicsReasonsV1,
   type LpEconomicsIrrBasisV1,
   type LpEconomicsResultV1,
   type LpEconomicsRunUnavailabilityReasonV1,
   type LpEconomicsTotalsV1,
   type LpEconomicsWaterfallEventV1,
 } from '../../../shared/contracts/internal-economics/lp-economics-run-v1.contract';
+import {
+  buildLpEconomicsEventIdV1,
+  sortAndDedupeLpEconomicsReasonsV1,
+} from '../../../shared/contracts/internal-economics/lp-economics-run-v1.hash';
 import {
   LP_ECONOMICS_RUN_CONTRACT_VERSION_V1_1,
   LpEconomicsIndicativeReasonV1_1Schema,
