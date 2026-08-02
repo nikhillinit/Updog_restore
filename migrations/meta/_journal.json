@@ -337,6 +337,13 @@
       "when": 1785454800000,
       "tag": "0046_internal_economics_certification",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1785541200000,
+      "tag": "0047_internal_economics_linkage",
+      "breakpoints": true
     }
   ]
 }

@@ -160,6 +160,14 @@ const INTERNAL_ECONOMICS_MANIFEST_TABLES = [
   'internal_lp_economics_runs',
   'fund_snapshots',
 ] as const;
+// M24 (24-internal-economics-linkage): fail-closed analysis economics pins
+// and immutable task-evidence links (journal 0047).
+const INTERNAL_ECONOMICS_LINKAGE_MANIFEST_TABLES = [
+  'internal_analysis_drafts',
+  'internal_analysis_references',
+  'tasks',
+  'task_evidence_links',
+] as const;
 const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'M1-cohort',
   'M2-fund-moic',
@@ -184,6 +192,7 @@ const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'business-time-comparison-lineage',
   'internal-economics-policy-runs',
   'internal-economics-certification',
+  'internal-economics-linkage',
 ] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
@@ -827,6 +836,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...COMPANY_SCENARIO_CREATE_REQUEST_MANIFEST_TABLES,
         ...BUSINESS_TIME_COMPARISON_LINEAGE_MANIFEST_TABLES,
         ...INTERNAL_ECONOMICS_MANIFEST_TABLES,
+        ...INTERNAL_ECONOMICS_LINKAGE_MANIFEST_TABLES,
       ])
     );
 

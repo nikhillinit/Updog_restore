@@ -221,8 +221,8 @@ function validateManifest(manifest) {
   validateApplyPolicy(manifest);
 }
 
-/** Shared shape contract for indexDefinitions / triggerDefinitions /
- * functionDefinitions expected-definition pins. */
+/** Shared shape contract for constraintDefinitions / indexDefinitions /
+ * triggerDefinitions / functionDefinitions expected-definition pins. */
 function isValidExpectedDefinition(expectedDefinition) {
   return (
     Boolean(expectedDefinition) &&
@@ -264,13 +264,13 @@ function validateFunctionDefinitions(manifest) {
 function validateExpectedTables(manifest) {
   for (const table of manifest?.expectedTables ?? []) {
     const indexes = new Set(table.indexes ?? []);
-    const seenDefinitions = new Set();
+    const seenIndexDefinitions = new Set();
 
     for (const indexDefinition of table.indexDefinitions ?? []) {
       assertSafeIdentifier(String(indexDefinition.name ?? ''));
       if (
         !indexes.has(indexDefinition.name) ||
-        seenDefinitions.has(indexDefinition.name) ||
+        seenIndexDefinitions.has(indexDefinition.name) ||
         !isValidExpectedDefinition(indexDefinition.expectedDefinition)
       ) {
         throw new ReconcileError(
@@ -283,7 +283,29 @@ function validateExpectedTables(manifest) {
           }
         );
       }
-      seenDefinitions.add(indexDefinition.name);
+      seenIndexDefinitions.add(indexDefinition.name);
+    }
+
+    const constraints = new Set(table.constraints ?? []);
+    const seenConstraintDefinitions = new Set();
+    for (const constraintDefinition of table.constraintDefinitions ?? []) {
+      assertSafeIdentifier(String(constraintDefinition.name ?? ''));
+      if (
+        !constraints.has(constraintDefinition.name) ||
+        seenConstraintDefinitions.has(constraintDefinition.name) ||
+        !isValidExpectedDefinition(constraintDefinition.expectedDefinition)
+      ) {
+        throw new ReconcileError(
+          `Manifest ${manifestLabel(manifest)} constraintDefinitions target ${table.name}.${String(constraintDefinition.name)} must name an expected constraint exactly once and provide an exact definition, ordered fragments, and string literals`,
+          {
+            kind: 'invalid-constraint-definition',
+            manifest: manifestLabel(manifest),
+            table: table.name,
+            name: constraintDefinition.name,
+          }
+        );
+      }
+      seenConstraintDefinitions.add(constraintDefinition.name);
     }
 
     const seenTriggers = new Set();
@@ -831,7 +853,7 @@ async function auditFunctionDefinitions(client, functionDefinitions, missingTabl
         humanReviewRequired: true,
       });
     } else if (
-      !indexDefinitionMatches(matches[0].definition, functionDefinition.expectedDefinition)
+      !definitionMatches(matches[0].definition, functionDefinition.expectedDefinition)
     ) {
       deltas.push({
         kind: 'function-definition-mismatch',
@@ -1289,12 +1311,31 @@ async function auditTable({
     }
   }
 
+  for (const constraintDefinition of expectedTable.constraintDefinitions ?? []) {
+    const constraint = constraints.find(
+      (row) => row.conname === pgIdentifier(constraintDefinition.name)
+    );
+    if (
+      constraint &&
+      !definitionMatches(constraint.definition, constraintDefinition.expectedDefinition)
+    ) {
+      deltas.push({
+        kind: 'constraint-definition-mismatch',
+        name: constraintDefinition.name,
+        expected: constraintDefinition.expectedDefinition,
+        actual: constraint.definition,
+        additiveSafe: false,
+        humanReviewRequired: true,
+      });
+    }
+  }
+
   for (const indexDefinition of expectedTable.indexDefinitions ?? []) {
     const index = indexes.find(
       (row) =>
         row.indexname === pgIdentifier(indexDefinition.name) && row.tablename === expectedTable.name
     );
-    if (index && !indexDefinitionMatches(index.indexdef, indexDefinition.expectedDefinition)) {
+    if (index && !definitionMatches(index.indexdef, indexDefinition.expectedDefinition)) {
       deltas.push({
         kind: 'index-definition-mismatch',
         name: indexDefinition.name,
@@ -1400,7 +1441,7 @@ function constraintDefinitionMatches(actualDefinition, expectedDefinition) {
   );
 }
 
-function indexDefinitionMatches(actualDefinition, expectedDefinition) {
+function definitionMatches(actualDefinition, expectedDefinition) {
   if (typeof actualDefinition !== 'string') return false;
 
   const normalizedDefinition = normalizeSqlDefinition(actualDefinition);
@@ -1459,7 +1500,7 @@ function triggerDefinitionDeltas(expectedTable, triggers) {
       });
       continue;
     }
-    if (!indexDefinitionMatches(trigger.definition, triggerDefinition.expectedDefinition)) {
+    if (!definitionMatches(trigger.definition, triggerDefinition.expectedDefinition)) {
       deltas.push({
         kind: 'trigger-definition-mismatch',
         name: triggerDefinition.name,

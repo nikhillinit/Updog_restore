@@ -317,6 +317,10 @@ describe('prod schema apply policy', () => {
       // 0034 precedent — audit-visible, human-reconciled — see the dedicated
       // refusal pin below and the REFUSE-FOR-HUMAN trigger audit.
       'internal-economics-policy-runs',
+      // Trust-Spine PR4 0047 relies on its migrator-owned transaction and
+      // replays its immutable task-evidence trigger with DROP TRIGGER IF EXISTS. The
+      // trigger delta must stay audit-visible and human-reconciled.
+      'internal-economics-linkage',
     ]);
     const applyingManifestNames = new Set(
       manifests
@@ -354,6 +358,17 @@ describe('prod schema apply policy', () => {
       assertApplyPolicyForManifests({
         manifests,
         applyingManifestNames: new Set(['internal-economics-policy-runs']),
+      })
+    ).toThrow(ReconcileError);
+  });
+
+  it('refuses automated apply for migrator-owned internal economics linkage', async () => {
+    const manifests = await loadManifests();
+
+    expect(() =>
+      assertApplyPolicyForManifests({
+        manifests,
+        applyingManifestNames: new Set(['internal-economics-linkage']),
       })
     ).toThrow(ReconcileError);
   });

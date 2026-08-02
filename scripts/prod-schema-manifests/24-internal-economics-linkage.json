@@ -1,0 +1,252 @@
+{
+  "name": "internal-economics-linkage",
+  "order": 24,
+  "description": "Trust-Spine PR4 migration 0047: fail-closed analysis economics ownership FKs, task composite ownership, and immutable typed task-evidence links. Drizzle owns the transaction spanning this journaled migration and its ledger write. The preflight and trigger replacement require an operator to apply the journaled migration manually; reconciliation then audits to SKIP only when the exact catalog surface exists.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0047_internal_economics_linkage.sql"],
+  "allowedCreateTables": ["task_evidence_links"],
+  "functionDefinitions": [
+    {
+      "name": "internal_economics_forbid_update",
+      "expectedDefinition": {
+        "exactDefinition": "CREATE OR REPLACE FUNCTION public.internal_economics_forbid_update()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n  RAISE EXCEPTION 'immutable_row_update_forbidden: %', TG_TABLE_NAME;\nEND;\n$function$\n",
+        "orderedFragments": [
+          "CREATE OR REPLACE FUNCTION public.internal_economics_forbid_update()",
+          "RETURNS trigger",
+          "LANGUAGE plpgsql",
+          "RAISE EXCEPTION",
+          "TG_TABLE_NAME"
+        ],
+        "stringLiterals": ["immutable_row_update_forbidden: %"]
+      }
+    }
+  ],
+  "expectedTables": [
+    {
+      "name": "internal_analysis_drafts",
+      "sharedTable": true,
+      "columns": [],
+      "constraints": ["internal_analysis_drafts_economics_reference_fund_fk"],
+      "constraintDefinitions": [
+        {
+          "name": "internal_analysis_drafts_economics_reference_fund_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (economics_reference_id, fund_id) REFERENCES internal_lp_economics_runs(id, fund_id) ON DELETE RESTRICT",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(economics_reference_id, fund_id)",
+              "REFERENCES internal_lp_economics_runs(id, fund_id)",
+              "ON DELETE RESTRICT"
+            ],
+            "stringLiterals": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "internal_analysis_references",
+      "sharedTable": true,
+      "columns": [],
+      "constraints": ["internal_analysis_references_economics_reference_fund_fk"],
+      "constraintDefinitions": [
+        {
+          "name": "internal_analysis_references_economics_reference_fund_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (economics_reference_id, fund_id) REFERENCES internal_lp_economics_runs(id, fund_id) ON DELETE RESTRICT",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(economics_reference_id, fund_id)",
+              "REFERENCES internal_lp_economics_runs(id, fund_id)",
+              "ON DELETE RESTRICT"
+            ],
+            "stringLiterals": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "tasks",
+      "sharedTable": true,
+      "columns": [],
+      "constraints": ["tasks_id_fund_unique"],
+      "constraintDefinitions": [
+        {
+          "name": "tasks_id_fund_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (id, fund_id)",
+            "orderedFragments": ["UNIQUE", "(id, fund_id)"],
+            "stringLiterals": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "task_evidence_links",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "task_id", "type": "integer", "nullable": false },
+        { "name": "target_kind", "type": "varchar", "nullable": false },
+        { "name": "analysis_reference_id", "type": "integer", "nullable": true },
+        { "name": "economics_run_id", "type": "integer", "nullable": true },
+        { "name": "idempotency_key", "type": "varchar", "nullable": false },
+        { "name": "request_hash", "type": "varchar", "nullable": false },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "task_evidence_links_pkey",
+        "task_evidence_links_fund_id_funds_id_fk",
+        "task_evidence_links_task_fund_fk",
+        "task_evidence_links_analysis_reference_fund_fk",
+        "task_evidence_links_economics_run_fund_fk",
+        "task_evidence_links_created_by_fk",
+        "task_evidence_links_fund_task_idempotency_unique",
+        "task_evidence_links_target_kind_check",
+        "task_evidence_links_target_coupling_check"
+      ],
+      "constraintDefinitions": [
+        {
+          "name": "task_evidence_links_pkey",
+          "expectedDefinition": {
+            "exactDefinition": "PRIMARY KEY (id)",
+            "orderedFragments": ["PRIMARY KEY", "(id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "task_evidence_links_fund_id_funds_id_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (fund_id) REFERENCES funds(id) ON DELETE CASCADE",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(fund_id)",
+              "REFERENCES funds(id)",
+              "ON DELETE CASCADE"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "task_evidence_links_task_fund_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (task_id, fund_id) REFERENCES tasks(id, fund_id) ON DELETE CASCADE",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(task_id, fund_id)",
+              "REFERENCES tasks(id, fund_id)",
+              "ON DELETE CASCADE"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "task_evidence_links_analysis_reference_fund_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (analysis_reference_id, fund_id) REFERENCES internal_analysis_references(id, fund_id) ON DELETE RESTRICT",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(analysis_reference_id, fund_id)",
+              "REFERENCES internal_analysis_references(id, fund_id)",
+              "ON DELETE RESTRICT"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "task_evidence_links_economics_run_fund_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (economics_run_id, fund_id) REFERENCES internal_lp_economics_runs(id, fund_id) ON DELETE RESTRICT",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(economics_run_id, fund_id)",
+              "REFERENCES internal_lp_economics_runs(id, fund_id)",
+              "ON DELETE RESTRICT"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "task_evidence_links_created_by_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (created_by) REFERENCES users(id)",
+            "orderedFragments": ["FOREIGN KEY", "(created_by)", "REFERENCES users(id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "task_evidence_links_fund_task_idempotency_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (fund_id, task_id, idempotency_key)",
+            "orderedFragments": ["UNIQUE", "(fund_id, task_id, idempotency_key)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "task_evidence_links_target_kind_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((target_kind)::text = ANY ((ARRAY['analysis_reference'::character varying, 'internal_economics_run'::character varying])::text[])))",
+            "orderedFragments": [
+              "CHECK",
+              "(target_kind)::text",
+              "ANY",
+              "'analysis_reference'::character varying",
+              "'internal_economics_run'::character varying"
+            ],
+            "stringLiterals": ["analysis_reference", "internal_economics_run"]
+          }
+        },
+        {
+          "name": "task_evidence_links_target_coupling_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((((target_kind)::text = 'analysis_reference'::text) AND (analysis_reference_id IS NOT NULL) AND (economics_run_id IS NULL)) OR (((target_kind)::text = 'internal_economics_run'::text) AND (economics_run_id IS NOT NULL) AND (analysis_reference_id IS NULL))))",
+            "orderedFragments": [
+              "CHECK",
+              "(target_kind)::text",
+              "'analysis_reference'::text",
+              "analysis_reference_id IS NOT NULL",
+              "economics_run_id IS NULL",
+              "'internal_economics_run'::text",
+              "economics_run_id IS NOT NULL",
+              "analysis_reference_id IS NULL"
+            ],
+            "stringLiterals": ["analysis_reference", "internal_economics_run"]
+          }
+        }
+      ],
+      "indexes": ["idx_task_evidence_links_fund_task_id"],
+      "indexDefinitions": [
+        {
+          "name": "idx_task_evidence_links_fund_task_id",
+          "expectedDefinition": {
+            "exactDefinition": "CREATE INDEX idx_task_evidence_links_fund_task_id ON public.task_evidence_links USING btree (fund_id, task_id, id)",
+            "orderedFragments": [
+              "CREATE INDEX",
+              "ON public.task_evidence_links",
+              "USING btree",
+              "fund_id",
+              "task_id",
+              "id"
+            ],
+            "stringLiterals": []
+          }
+        }
+      ],
+      "triggerDefinitions": [
+        {
+          "name": "task_evidence_links_forbid_update_trigger",
+          "expectedDefinition": {
+            "exactDefinition": "CREATE TRIGGER task_evidence_links_forbid_update_trigger BEFORE UPDATE ON public.task_evidence_links FOR EACH ROW EXECUTE FUNCTION internal_economics_forbid_update()",
+            "orderedFragments": [
+              "CREATE TRIGGER",
+              "BEFORE UPDATE ON public.task_evidence_links",
+              "FOR EACH ROW",
+              "EXECUTE FUNCTION internal_economics_forbid_update()"
+            ],
+            "stringLiterals": []
+          }
+        }
+      ]
+    }
+  ]
+}

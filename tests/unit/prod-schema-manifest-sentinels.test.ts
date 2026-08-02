@@ -30,6 +30,14 @@ interface ManifestTable {
     nullable: boolean;
   }>;
   constraints?: string[];
+  constraintDefinitions?: Array<{
+    name: string;
+    expectedDefinition: {
+      exactDefinition: string;
+      orderedFragments: string[];
+      stringLiterals: string[];
+    };
+  }>;
   indexes?: string[];
 }
 
@@ -143,6 +151,7 @@ describe('prod-schema manifest sentinels', () => {
       '21-business-time-comparison-lineage.json',
       '22-internal-economics-policy-runs.json',
       '23-internal-economics-certification.json',
+      '24-internal-economics-linkage.json',
     ]);
   });
 
@@ -176,6 +185,61 @@ describe('prod-schema manifest sentinels', () => {
       'indicative',
       'unavailable',
     ]);
+  });
+
+  it('pins manifest 24 to migrator-owned economics ownership and immutable task evidence', () => {
+    const linkage = manifests.find((entry) => entry.file === '24-internal-economics-linkage.json');
+    expect(linkage).toBeDefined();
+    expect(linkage!.manifest).toMatchObject({
+      name: 'internal-economics-linkage',
+      order: 24,
+      missingTablePolicy: 'create_or_repair',
+      sqlFiles: ['migrations/0047_internal_economics_linkage.sql'],
+      allowedCreateTables: ['task_evidence_links'],
+    });
+    expect(linkage!.manifest.expectedTables?.map((table) => table.name)).toEqual([
+      'internal_analysis_drafts',
+      'internal_analysis_references',
+      'tasks',
+      'task_evidence_links',
+    ]);
+
+    const evidence = linkage!.manifest.expectedTables?.find(
+      (table) => table.name === 'task_evidence_links'
+    );
+    expect(evidence?.constraints).toEqual(
+      expect.arrayContaining([
+        'task_evidence_links_task_fund_fk',
+        'task_evidence_links_analysis_reference_fund_fk',
+        'task_evidence_links_economics_run_fund_fk',
+        'task_evidence_links_target_coupling_check',
+      ])
+    );
+    for (const table of linkage!.manifest.expectedTables ?? []) {
+      expect(table.constraintDefinitions?.map((definition) => definition.name).sort()).toEqual(
+        [...(table.constraints ?? [])].sort()
+      );
+    }
+    expect(evidence?.indexes).toEqual(['idx_task_evidence_links_fund_task_id']);
+
+    const sql = fs.readFileSync(
+      path.join(repoRoot, 'migrations', '0047_internal_economics_linkage.sql'),
+      'utf8'
+    );
+    expect(sql).toMatch(/^--\s+@drift-patch\b/m);
+    expect(sql).toMatch(/^--\s+Reason:\s+\S/m);
+    const firstExecutableStatement = sql
+      .split('--> statement-breakpoint')[0]!
+      .split('\n')
+      .filter((line) => !line.trim().startsWith('--'))
+      .join('\n')
+      .trim();
+    expect(firstExecutableStatement).toMatch(/^LOCK TABLE/);
+    expect(sql).not.toMatch(/^\s*(?:BEGIN|COMMIT);\s*$/m);
+    expect(sql.indexOf('internal_economics_linkage_preflight_failed')).toBeGreaterThan(
+      sql.indexOf('LOCK TABLE')
+    );
+    expect(sql).toContain('CREATE TRIGGER "task_evidence_links_forbid_update_trigger"');
   });
 
   it('every referenced sqlFile exists in the repo', () => {

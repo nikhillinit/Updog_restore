@@ -319,6 +319,61 @@ const definitionAwareIndexManifest = {
   ],
 };
 
+const linkageForeignKeyExpectedDefinition = {
+  exactDefinition:
+    'FOREIGN KEY (economics_reference_id, fund_id) REFERENCES internal_lp_economics_runs(id, fund_id) ON DELETE RESTRICT',
+  orderedFragments: [
+    'FOREIGN KEY',
+    '(economics_reference_id, fund_id)',
+    'REFERENCES internal_lp_economics_runs(id, fund_id)',
+    'ON DELETE RESTRICT',
+  ],
+  stringLiterals: [],
+};
+const taskOwnershipUniqueExpectedDefinition = {
+  exactDefinition: 'UNIQUE (id, fund_id)',
+  orderedFragments: ['UNIQUE', '(id, fund_id)'],
+  stringLiterals: [],
+};
+const targetCouplingExpectedDefinition = {
+  exactDefinition:
+    "CHECK ((target_kind = 'analysis_reference' AND analysis_reference_id IS NOT NULL AND economics_run_id IS NULL) OR (target_kind = 'internal_economics_run' AND economics_run_id IS NOT NULL AND analysis_reference_id IS NULL))",
+  orderedFragments: [
+    'CHECK',
+    "target_kind = 'analysis_reference'",
+    'analysis_reference_id IS NOT NULL',
+    'economics_run_id IS NULL',
+    "target_kind = 'internal_economics_run'",
+    'economics_run_id IS NOT NULL',
+    'analysis_reference_id IS NULL',
+  ],
+  stringLiterals: ['analysis_reference', 'internal_economics_run'],
+};
+
+function definitionAwareConstraintManifest(
+  table: string,
+  name: string,
+  expectedDefinition: {
+    exactDefinition: string;
+    orderedFragments: string[];
+    stringLiterals: string[];
+  }
+) {
+  return {
+    name: 'definition-aware-constraint-fixture',
+    missingTablePolicy: MISSING_TABLE_POLICY_EXISTING_REQUIRED,
+    expectedTables: [
+      {
+        name: table,
+        columns: [],
+        constraints: [name],
+        constraintDefinitions: [{ name, expectedDefinition }],
+        indexes: [],
+      },
+    ],
+  };
+}
+
 describe('reconcile-prod-schema runner helpers', () => {
   it('defaults to audit-only mode', () => {
     expect(parseReconcileArgs([])).toMatchObject({
@@ -398,6 +453,54 @@ describe('reconcile-prod-schema runner helpers', () => {
                     orderedFragments: ['CREATE INDEX'],
                     stringLiterals: [],
                   },
+                },
+              ],
+            },
+          ],
+        },
+        []
+      )
+    ).toThrow(ReconcileError);
+  });
+
+  it('requires constraint definitions to target a named expected constraint exactly once', () => {
+    expect(() =>
+      validateManifestSql(
+        {
+          name: 'bad-constraint-definition-fixture',
+          expectedTables: [
+            {
+              name: 'tasks',
+              constraints: ['tasks_id_fund_unique'],
+              constraintDefinitions: [
+                {
+                  name: 'other_constraint',
+                  expectedDefinition: taskOwnershipUniqueExpectedDefinition,
+                },
+              ],
+            },
+          ],
+        },
+        []
+      )
+    ).toThrow(ReconcileError);
+
+    expect(() =>
+      validateManifestSql(
+        {
+          name: 'duplicate-constraint-definition-fixture',
+          expectedTables: [
+            {
+              name: 'tasks',
+              constraints: ['tasks_id_fund_unique'],
+              constraintDefinitions: [
+                {
+                  name: 'tasks_id_fund_unique',
+                  expectedDefinition: taskOwnershipUniqueExpectedDefinition,
+                },
+                {
+                  name: 'tasks_id_fund_unique',
+                  expectedDefinition: taskOwnershipUniqueExpectedDefinition,
                 },
               ],
             },
@@ -708,6 +811,76 @@ describe('reconcile-prod-schema shape decisions', () => {
     expect(audit.action).toBe(ACTION_APPLY_MISSING_DDL);
     expect(audit.objects.find((object) => object.table === 'ledger_rows')?.deltas).toEqual([
       { kind: 'missing-constraint', name: sameName, additiveSafe: true },
+    ]);
+  });
+
+  it.each([
+    [
+      'a same-named FK with the wrong target',
+      'FOREIGN KEY (economics_reference_id, fund_id) REFERENCES archived_economics_runs(id, fund_id) ON DELETE RESTRICT',
+    ],
+    [
+      'a same-named FK with the wrong delete action',
+      'FOREIGN KEY (economics_reference_id, fund_id) REFERENCES internal_lp_economics_runs(id, fund_id) ON DELETE CASCADE',
+    ],
+  ])('REFUSES-FOR-HUMAN for %s', async (_case, actualDefinition) => {
+    const table = 'internal_analysis_drafts';
+    const name = 'internal_analysis_drafts_economics_reference_fund_fk';
+    const audit = await auditManifest(
+      createMockClient({
+        presentTables: [table],
+        constraints: [{ table_name: table, conname: name, definition: actualDefinition }],
+      }),
+      definitionAwareConstraintManifest(table, name, linkageForeignKeyExpectedDefinition)
+    );
+
+    expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+    expect(audit.objects[0]?.deltas).toEqual([
+      {
+        kind: 'constraint-definition-mismatch',
+        name,
+        expected: linkageForeignKeyExpectedDefinition,
+        actual: actualDefinition,
+        additiveSafe: false,
+        humanReviewRequired: true,
+      },
+    ]);
+  });
+
+  it('REFUSES-FOR-HUMAN for a same-named unique constraint with wrong column order', async () => {
+    const table = 'tasks';
+    const name = 'tasks_id_fund_unique';
+    const actualDefinition = 'UNIQUE (fund_id, id)';
+    const audit = await auditManifest(
+      createMockClient({
+        presentTables: [table],
+        constraints: [{ table_name: table, conname: name, definition: actualDefinition }],
+      }),
+      definitionAwareConstraintManifest(table, name, taskOwnershipUniqueExpectedDefinition)
+    );
+
+    expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+    expect(audit.objects[0]?.deltas.map((delta) => delta.kind)).toEqual([
+      'constraint-definition-mismatch',
+    ]);
+  });
+
+  it('REFUSES-FOR-HUMAN for a same-named task-evidence coupling check with wrong semantics', async () => {
+    const table = 'task_evidence_links';
+    const name = 'task_evidence_links_target_coupling_check';
+    const actualDefinition =
+      "CHECK ((target_kind = 'analysis_reference' AND analysis_reference_id IS NULL AND economics_run_id IS NULL) OR (target_kind = 'internal_economics_run' AND economics_run_id IS NOT NULL AND analysis_reference_id IS NULL))";
+    const audit = await auditManifest(
+      createMockClient({
+        presentTables: [table],
+        constraints: [{ table_name: table, conname: name, definition: actualDefinition }],
+      }),
+      definitionAwareConstraintManifest(table, name, targetCouplingExpectedDefinition)
+    );
+
+    expect(audit.action).toBe(ACTION_REFUSE_FOR_HUMAN);
+    expect(audit.objects[0]?.deltas.map((delta) => delta.kind)).toEqual([
+      'constraint-definition-mismatch',
     ]);
   });
 

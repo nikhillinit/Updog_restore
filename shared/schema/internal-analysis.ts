@@ -23,6 +23,7 @@ import type {
 import { sourceObservations } from './financial-observations';
 import { financialFactsSnapshots } from './financial-facts-snapshots';
 import { funds, fundSnapshots } from './fund';
+import { internalLpEconomicsRuns } from './internal-economics';
 import { users } from './user';
 
 /**
@@ -38,8 +39,8 @@ import { users } from './user';
  * forecast pin: `fund_snapshots` has no `(id, fund_id)` sibling key, so that FK is
  * plain and ownership is enforced in code via `assertOwnedByFund` (defect D29).
  *
- * FK names are declared explicitly so the journaled migration (0044) and a Drizzle
- * push produce byte-identical catalog constraint names.
+ * FK names are declared explicitly so the journaled migrations (0044/0047) and
+ * a Drizzle push produce byte-identical catalog constraint names.
  */
 export const internalAnalysisDrafts = pgTable(
   'internal_analysis_drafts',
@@ -52,7 +53,7 @@ export const internalAnalysisDrafts = pgTable(
     knowledgeCutoff: timestamp('knowledge_cutoff', { withTimezone: true }).notNull(),
     financialFactsSnapshotId: integer('financial_facts_snapshot_id').notNull(),
     forecastFundSnapshotId: integer('forecast_fund_snapshot_id'),
-    /** Wave E/F attachments -- unconstrained until those tables exist. */
+    /** Reserve remains unconstrained; economics is fund-scoped by 0047. */
     reserveReferenceId: integer('reserve_reference_id'),
     economicsReferenceId: integer('economics_reference_id'),
     /**
@@ -88,6 +89,11 @@ export const internalAnalysisDrafts = pgTable(
       foreignColumns: [fundSnapshots.id],
       name: 'internal_analysis_drafts_forecast_snapshot_fk',
     }),
+    economicsReferenceFundFk: foreignKey({
+      columns: [table.economicsReferenceId, table.fundId],
+      foreignColumns: [internalLpEconomicsRuns.id, internalLpEconomicsRuns.fundId],
+      name: 'internal_analysis_drafts_economics_reference_fund_fk',
+    }).onDelete('restrict'),
     createdByFk: foreignKey({
       columns: [table.createdBy],
       foreignColumns: [users.id],
@@ -165,6 +171,11 @@ export const internalAnalysisReferences = pgTable(
       foreignColumns: [fundSnapshots.id],
       name: 'internal_analysis_references_forecast_snapshot_fk',
     }),
+    economicsReferenceFundFk: foreignKey({
+      columns: [table.economicsReferenceId, table.fundId],
+      foreignColumns: [internalLpEconomicsRuns.id, internalLpEconomicsRuns.fundId],
+      name: 'internal_analysis_references_economics_reference_fund_fk',
+    }).onDelete('restrict'),
     supersedesFundFk: foreignKey({
       columns: [table.supersedesReferenceId, table.fundId],
       foreignColumns: [table.id, table.fundId],
