@@ -82,6 +82,23 @@ export interface ConstructionForecast {
     lifecycleStage: ReturnType<typeof getLifecycleStage>;
     isConstruction: boolean;
   };
+
+  /**
+   * Fee audit data. Present only when the config gives a fee profile.
+   * `retroactiveCatchUp` reports the fee profile catch-up. It is not the
+   * GP carry catch-up of the distribution waterfall.
+   */
+  feeAudit?: {
+    totalManagementFees: Decimal;
+    retroactiveCatchUp: {
+      applied: boolean;
+      totalFees: Decimal;
+      /** Quarters in which the catch-up changed the management fee */
+      quarters: number[];
+      /** Missed months that the catch-up charged */
+      months: number;
+    };
+  };
 }
 
 /**
@@ -119,6 +136,7 @@ export class ConstructionForecastCalculator {
 
     // Compute fee basis timeline if fee profile provided
     let feeTimelinePerPeriod = Array.from({ length: numQuarters + 1 }, () => new Decimal(0));
+    let feeAudit: ConstructionForecast['feeAudit'];
     if (feeProfile) {
       const feeBasisConfig: FeeBasisConfig = {
         fundSize,
@@ -130,6 +148,19 @@ export class ConstructionForecastCalculator {
       feeTimelinePerPeriod = feeBasisTimeline.periods.map(
         (period) => period.managementFees
       ) as Decimal[];
+
+      const catchUpPeriods = feeBasisTimeline.periods.filter(
+        (period) => period.retroactiveCatchUpMonths > 0
+      );
+      feeAudit = {
+        totalManagementFees: feeBasisTimeline.totalFees,
+        retroactiveCatchUp: {
+          applied: catchUpPeriods.length > 0,
+          totalFees: feeBasisTimeline.totalRetroactiveCatchUpFees,
+          quarters: catchUpPeriods.map((period) => period.quarter),
+          months: catchUpPeriods.reduce((sum, period) => sum + period.retroactiveCatchUpMonths, 0),
+        },
+      };
     }
 
     // Configure J-curve computation
@@ -201,6 +232,7 @@ export class ConstructionForecastCalculator {
         lifecycleStage,
         isConstruction,
       },
+      ...(feeAudit ? { feeAudit } : {}),
     };
   }
 

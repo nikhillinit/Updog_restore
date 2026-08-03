@@ -129,6 +129,90 @@ export const FeeHolidaySchema = z.object({
 export type FeeHoliday = z.infer<typeof FeeHolidaySchema>;
 
 /**
+ * Retroactive fee catch-up policy (fee profile setting)
+ *
+ * When fees start later than the date from which the fund agreement lets the
+ * manager accrue them, this policy charges the missed months in the first
+ * month that fees are chargeable.
+ *
+ * IMPORTANT: This is a management fee setting. It is not the GP carry catch-up
+ * of the distribution waterfall (see `shared/schemas/waterfall-policy.ts`).
+ * The two settings are independent. Do not derive one from the other.
+ *
+ * Months in a fee holiday are waived. The policy does not charge them.
+ */
+export const RetroactiveFeeCatchUpPolicySchema = z.object({
+  /** Enable retroactive management fee catch-up */
+  enabled: z.boolean().default(false),
+
+  /** Month from fund inception when fee accrual starts (inclusive) */
+  accrualStartMonth: z.number().int().min(0).default(0),
+
+  /** Optional limit on the number of missed months that the catch-up charges */
+  maxCatchUpMonths: z.number().int().positive().optional(),
+});
+
+export type RetroactiveFeeCatchUpPolicy = z.infer<typeof RetroactiveFeeCatchUpPolicySchema>;
+
+/**
+ * Default policy for profiles that do not declare the setting.
+ * Existing funds keep their current fee amounts because it is disabled.
+ */
+export const DEFAULT_RETROACTIVE_FEE_CATCH_UP: RetroactiveFeeCatchUpPolicy = {
+  enabled: false,
+  accrualStartMonth: 0,
+};
+
+const RETROACTIVE_PERIOD_FLOW_ERROR =
+  'Retroactive fee catch-up requires historical monthly bases, which a period-flow basis does not provide';
+
+function isFeeHolidayMonthInSchedule(
+  feeHolidays: FeeHoliday[] | undefined,
+  month: number
+): boolean {
+  return (feeHolidays ?? []).some((holiday) => {
+    const holidayEnd = holiday.startMonth + holiday.durationMonths;
+    return month >= holiday.startMonth && month < holidayEnd;
+  });
+}
+
+function getActiveFeeTiers(tiers: FeeTier[], month: number): FeeTier[] {
+  const year = Math.floor(month / 12) + 1;
+  return tiers.filter((tier) => year >= tier.startYear && (!tier.endYear || year <= tier.endYear));
+}
+
+function resolveCatchUpValidationState(
+  tiers: FeeTier[],
+  feeHolidays: FeeHoliday[] | undefined,
+  accrualStartMonth: number
+): { applicableTiers: FeeTier[]; missedMonths: number } | undefined {
+  const tierEndMonths = tiers.map((tier) =>
+    tier.endYear ? tier.endYear * 12 : (tier.startYear + 1) * 12
+  );
+  const holidayEndMonths = (feeHolidays ?? []).map(
+    (holiday) => holiday.startMonth + holiday.durationMonths
+  );
+  const horizonMonth = Math.max(0, ...tierEndMonths, ...holidayEndMonths);
+
+  for (let month = Math.max(0, accrualStartMonth); month <= horizonMonth; month++) {
+    const applicableTiers = getActiveFeeTiers(tiers, month);
+    if (applicableTiers.length === 0 || isFeeHolidayMonthInSchedule(feeHolidays, month)) {
+      continue;
+    }
+
+    let missedMonths = 0;
+    for (let missedMonth = accrualStartMonth; missedMonth < month; missedMonth++) {
+      if (!isFeeHolidayMonthInSchedule(feeHolidays, missedMonth)) {
+        missedMonths++;
+      }
+    }
+    return { applicableTiers, missedMonths };
+  }
+
+  return undefined;
+}
+
+/**
  * Complete fee profile
  */
 export const FeeProfileSchema = z
@@ -150,7 +234,56 @@ export const FeeProfileSchema = z
 
     /** Fee holidays */
     feeHolidays: z.array(FeeHolidaySchema).optional(),
+
+    /**
+     * Retroactive management fee catch-up.
+     * This is not the GP carry catch-up of the distribution waterfall.
+     */
+    retroactiveFeeCatchUp: RetroactiveFeeCatchUpPolicySchema.optional(),
   })
+  .refine(
+    (data) => {
+      // Fee accrual cannot start after the first fee tier starts.
+      const policy = data.retroactiveFeeCatchUp;
+      if (!policy || !policy.enabled) {
+        return true;
+      }
+      const firstTier = data.tiers[0];
+      if (!firstTier) {
+        return true;
+      }
+      return policy.accrualStartMonth <= (firstTier.startYear - 1) * 12;
+    },
+    {
+      message:
+        'Fee profile retroactive fee catch-up requires an accrual start month at or before the first fee tier',
+      path: ['retroactiveFeeCatchUp', 'accrualStartMonth'],
+    }
+  )
+  .refine(
+    (data) => {
+      const policy = data.retroactiveFeeCatchUp;
+      if (!policy?.enabled) {
+        return true;
+      }
+
+      const state = resolveCatchUpValidationState(
+        data.tiers,
+        data.feeHolidays,
+        policy.accrualStartMonth
+      );
+
+      return (
+        !state ||
+        state.missedMonths === 0 ||
+        state.applicableTiers.every((tier) => !isPeriodFlowFeeBasis(tier.basis))
+      );
+    },
+    {
+      message: RETROACTIVE_PERIOD_FLOW_ERROR,
+      path: ['retroactiveFeeCatchUp'],
+    }
+  )
   .refine(
     (data) => {
       // Validate tiers are sorted by startYear
@@ -196,40 +329,159 @@ export interface FeeCalculationContext {
 }
 
 /**
- * Calculate management fees for a given period
- *
- * @param profile - Fee profile with its tiers, holidays, and caps
- * @param context - Basis amounts for the current period
- * @param periodMonths - Length of the period in months (default 1, one month)
- *
- * Capital-stock tiers charge the annual rate pro-rated by the period length,
- * because the basis is a balance that is held through the whole period.
- * Period-flow tiers (see `isPeriodFlowFeeBasis`) charge the annual rate once on
- * the amount that moved during the period, with no pro-rating: the amount is
- * already confined to that period, so pro-rating it a second time would make
- * the total fee depend on the modeling granularity.
+ * Options for the management fee breakdown
  */
-export function calculateManagementFees(
-  profile: FeeProfile,
-  context: FeeCalculationContext,
-  periodMonths = 1
-): Decimal {
-  let totalFees = new Decimal(0);
-  const currentYear = Math.floor(context.currentMonth / 12) + 1;
+export interface ManagementFeeBreakdownOptions {
+  /**
+   * Length in months of the reporting period that starts at
+   * `context.currentMonth`. The one-time retroactive catch-up is charged in the
+   * period that contains the first chargeable month. Defaults to 1 month.
+   */
+  periodMonths?: number;
+}
 
-  // Check if in fee holiday
-  if (profile.feeHolidays) {
-    const inHoliday = profile.feeHolidays.some((holiday) => {
-      const holidayEnd = holiday.startMonth + holiday.durationMonths;
-      return context.currentMonth >= holiday.startMonth && context.currentMonth < holidayEnd;
-    });
-    if (inHoliday) return new Decimal(0);
+/**
+ * Management fee breakdown for one period
+ */
+export interface ManagementFeeBreakdown {
+  /** Recurring fee for the reporting period */
+  recurringFees: Decimal;
+
+  /** One-time retroactive fee catch-up charged in this period */
+  retroactiveCatchUpFees: Decimal;
+
+  /** Number of missed months that the catch-up charges */
+  retroactiveCatchUpMonths: number;
+}
+
+/**
+ * Get the retroactive fee catch-up policy of a profile.
+ * Profiles that do not declare the policy get the disabled default, thus
+ * existing funds keep their current fee amounts.
+ */
+export function resolveRetroactiveFeeCatchUpPolicy(
+  profile: FeeProfile
+): RetroactiveFeeCatchUpPolicy {
+  return profile.retroactiveFeeCatchUp ?? DEFAULT_RETROACTIVE_FEE_CATCH_UP;
+}
+
+/**
+ * Tell if a month is in a fee holiday
+ */
+function isFeeHolidayMonth(profile: FeeProfile, month: number): boolean {
+  return isFeeHolidayMonthInSchedule(profile.feeHolidays, month);
+}
+
+/**
+ * Tell if at least one fee tier is active in a month
+ */
+function hasActiveTier(profile: FeeProfile, month: number): boolean {
+  return getActiveFeeTiers(profile.tiers, month).length > 0;
+}
+
+/**
+ * Tell if fees are chargeable in a month
+ */
+function isChargeableMonth(profile: FeeProfile, month: number): boolean {
+  return hasActiveTier(profile, month) && !isFeeHolidayMonth(profile, month);
+}
+
+/**
+ * Last month that the profile can describe. Used to bound the month scan.
+ */
+function resolveProfileHorizonMonth(profile: FeeProfile): number {
+  const tierEndMonths = profile.tiers.map((tier) =>
+    tier.endYear ? tier.endYear * 12 : (tier.startYear + 1) * 12
+  );
+  const holidayEndMonths = (profile.feeHolidays ?? []).map(
+    (holiday) => holiday.startMonth + holiday.durationMonths
+  );
+  return Math.max(0, ...tierEndMonths, ...holidayEndMonths);
+}
+
+/**
+ * Find the first month at or after `fromMonth` in which fees are chargeable
+ *
+ * @returns The month, or undefined when the profile never charges fees again
+ */
+function resolveFirstChargeableMonth(profile: FeeProfile, fromMonth: number): number | undefined {
+  const horizonMonth = resolveProfileHorizonMonth(profile);
+  for (let month = Math.max(0, fromMonth); month <= horizonMonth; month++) {
+    if (isChargeableMonth(profile, month)) {
+      return month;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Count the missed months that the retroactive fee catch-up charges
+ *
+ * A month is missed when it is at or after the accrual start, before the first
+ * chargeable month, and no fee holiday waives it.
+ *
+ * @param profile - Fee profile
+ * @param currentMonth - First month of the reporting period
+ * @param periodMonths - Length of the reporting period in months
+ * @returns Number of missed months, or 0 when the period does not contain the
+ *          first chargeable month
+ */
+export function resolveRetroactiveFeeCatchUpMonths(
+  profile: FeeProfile,
+  currentMonth: number,
+  periodMonths = 1
+): number {
+  const policy = resolveRetroactiveFeeCatchUpPolicy(profile);
+  if (!policy.enabled) {
+    return 0;
   }
 
-  // Calculate fees from active tiers
+  const firstChargeableMonth = resolveFirstChargeableMonth(profile, policy.accrualStartMonth);
+  if (firstChargeableMonth === undefined) {
+    return 0;
+  }
+
+  // Charge the catch-up only in the period that contains the first fee month.
+  const periodEnd = currentMonth + Math.max(1, periodMonths);
+  if (firstChargeableMonth < currentMonth || firstChargeableMonth >= periodEnd) {
+    return 0;
+  }
+
+  let missedMonths = 0;
+  for (let month = policy.accrualStartMonth; month < firstChargeableMonth; month++) {
+    if (!isFeeHolidayMonth(profile, month)) {
+      missedMonths++;
+    }
+  }
+
+  return policy.maxCatchUpMonths === undefined
+    ? missedMonths
+    : Math.min(missedMonths, policy.maxCatchUpMonths);
+}
+
+/**
+ * Calculate recurring fees for a reporting period
+ *
+ * @param profile - Fee profile
+ * @param context - Basis amounts of the reporting period
+ * @param month - Month that selects the tiers and fee holidays
+ * @param periodMonths - Reporting-period length in months
+ */
+function calculateTierFeesForPeriod(
+  profile: FeeProfile,
+  context: FeeCalculationContext,
+  month: number,
+  periodMonths: number
+): Decimal {
+  if (isFeeHolidayMonth(profile, month)) {
+    return new Decimal(0);
+  }
+
+  const year = Math.floor(month / 12) + 1;
+  let totalFees = new Decimal(0);
+
   for (const tier of profile.tiers) {
-    const tierActive =
-      currentYear >= tier.startYear && (!tier.endYear || currentYear <= tier.endYear);
+    const tierActive = year >= tier.startYear && (!tier.endYear || year <= tier.endYear);
 
     if (!tierActive) continue;
 
@@ -257,6 +509,82 @@ export function calculateManagementFees(
   }
 
   return totalFees;
+}
+
+/**
+ * Calculate the management fee parts of a period
+ *
+ * The retroactive catch-up uses the basis amounts of the reporting period and
+ * the tier that is active in the first chargeable month. A zero basis therefore
+ * gives a zero catch-up.
+ *
+ * @param profile - Fee profile
+ * @param context - Fee calculation context
+ * @param options - Reporting period options
+ * @returns Recurring fee and retroactive catch-up fee for the period
+ */
+export function calculateManagementFeeBreakdown(
+  profile: FeeProfile,
+  context: FeeCalculationContext,
+  options: ManagementFeeBreakdownOptions = {}
+): ManagementFeeBreakdown {
+  const periodMonths = options.periodMonths ?? 1;
+  const recurringFees = calculateTierFeesForPeriod(
+    profile,
+    context,
+    context.currentMonth,
+    periodMonths
+  );
+
+  const retroactiveCatchUpMonths = resolveRetroactiveFeeCatchUpMonths(
+    profile,
+    context.currentMonth,
+    periodMonths
+  );
+
+  let retroactiveCatchUpFees = new Decimal(0);
+  if (retroactiveCatchUpMonths > 0) {
+    const policy = resolveRetroactiveFeeCatchUpPolicy(profile);
+    const firstChargeableMonth = resolveFirstChargeableMonth(profile, policy.accrualStartMonth);
+    if (firstChargeableMonth !== undefined) {
+      const hasPeriodFlowTier = getActiveFeeTiers(profile.tiers, firstChargeableMonth).some((tier) =>
+        isPeriodFlowFeeBasis(tier.basis)
+      );
+      if (hasPeriodFlowTier) {
+        throw new Error(RETROACTIVE_PERIOD_FLOW_ERROR);
+      }
+
+      const catchUpMonthlyFee = calculateTierFeesForPeriod(
+        profile,
+        context,
+        firstChargeableMonth,
+        1
+      );
+      retroactiveCatchUpFees = catchUpMonthlyFee.times(retroactiveCatchUpMonths);
+    }
+  }
+
+  return {
+    recurringFees,
+    retroactiveCatchUpFees,
+    retroactiveCatchUpMonths,
+  };
+}
+
+/**
+ * Calculate management fees for a given period
+ *
+ * @param periodMonths - Reporting-period length in months
+ * @returns Recurring fee for the reporting period.
+ *          Use `calculateManagementFeeBreakdown` to get the retroactive
+ *          fee catch-up of the period.
+ */
+export function calculateManagementFees(
+  profile: FeeProfile,
+  context: FeeCalculationContext,
+  periodMonths = 1
+): Decimal {
+  return calculateTierFeesForPeriod(profile, context, context.currentMonth, periodMonths);
 }
 
 /**

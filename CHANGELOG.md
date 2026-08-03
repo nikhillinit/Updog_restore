@@ -60,6 +60,19 @@ and this project adheres to
   in `tests/fixtures/economics/period-grain-before-after.json`, and the
   quarterly waterfall truth cases pass unchanged.
 
+- **Retroactive fee catch-up is now an explicit fee profile setting (issue
+  #1312).** `FeeProfileSchema` accepts an optional `retroactiveFeeCatchUp`
+  policy (`enabled`, `accrualStartMonth`, `maxCatchUpMonths`). When it is
+  enabled, the first chargeable fee month also charges the months that accrued
+  from the accrual start, with fee holiday months waived.
+  `calculateManagementFeeBreakdown` separates the recurring fee from the
+  one-time catch-up, `computeFeeBasisTimeline` reports the catch-up per quarter,
+  and the construction forecast carries a `feeAudit` block that tells when the
+  catch-up changed an amount. The setting is distinct from the GP carry catch-up
+  of the distribution waterfall: waterfall configuration and allocations do not
+  change. Profiles that do not declare the policy keep the disabled default,
+  thus existing funds keep their current fee amounts.
+
 ### Changed (2026-08-03)
 
 - **Public dual-waterfall vocabulary restored; silent coercion removed (issue
