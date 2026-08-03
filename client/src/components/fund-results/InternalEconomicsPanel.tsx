@@ -142,11 +142,14 @@ function reasonLines(slot: InternalEconomicsPanelSlot): string[] {
   if (slot.state === 'error') return [`Read error: ${slot.error.message}`];
   if (slot.state !== 'ready') return [];
   if (slot.receipt.outcome.runState === 'failed') {
-    return [`Failure: ${slot.receipt.outcome.failure.code}`];
+    const failure = slot.receipt.outcome.failure;
+    return [`Failure: ${failure.code}; context=${JSON.stringify(failure.context)}`];
   }
-  return slot.receipt.outcome.result.reasons.map((reason) =>
-    reason.detail === undefined ? reason.code : `${reason.code}: ${reason.detail}`
-  );
+  return slot.receipt.outcome.result.reasons.map((reason) => {
+    const detail = reason.detail === undefined ? '' : `: ${reason.detail}`;
+    const context = reason.context === undefined ? '' : `; context=${JSON.stringify(reason.context)}`;
+    return `${reason.code}${detail}${context}`;
+  });
 }
 
 function runStatus(slot: InternalEconomicsPanelSlot): string {
@@ -169,6 +172,14 @@ function appendSlotEvidence(
 ): void {
   lines.push(`${label}:`);
   lines.push(`Pin: ${group === null ? 'None' : `${sourceLabel(group.primaryPin)} (${group.primaryPin.periodStart} to ${group.primaryPin.periodEnd})`}`);
+  if (group !== null) {
+    lines.push('Pin lineage:');
+    for (const pin of group.pins) {
+      lines.push(
+        `  ${sourceLabel(pin)}; facts snapshot ID=${pin.analysisFactsSnapshotId}; as of=${pin.knowledgeCutoff}`
+      );
+    }
+  }
   lines.push(`Run ID: ${slot.runId ?? 'None'}`);
   lines.push(`Analysis facts snapshot ID: ${group?.primaryPin.analysisFactsSnapshotId ?? 'None'}`);
   lines.push(`As of: ${group?.primaryPin.knowledgeCutoff ?? 'Unavailable'}`);
@@ -363,7 +374,7 @@ export function InternalEconomicsPanel({
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-left text-sm">
           <caption className="mb-2 text-left font-semibold text-pov-charcoal">Receipt provenance comparison</caption>
-          <thead><tr className="border-b border-beige-200"><th scope="col" className="p-2">Provenance field</th><th scope="col" className="p-2">Baseline</th><th scope="col" className="p-2">Comparison</th><th scope="col" className="p-2">Comparison</th></tr></thead>
+          <thead><tr className="border-b border-beige-200"><th scope="col" className="p-2">Provenance field</th><th scope="col" className="p-2">Baseline</th><th scope="col" className="p-2">Comparison</th><th scope="col" className="p-2">Same or changed</th></tr></thead>
           <tbody>
             {PROVENANCE.map((field) => {
               const baselineReceipt = readyReceipt(baseline);
