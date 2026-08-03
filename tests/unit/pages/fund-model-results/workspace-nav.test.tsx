@@ -1,7 +1,7 @@
 /**
  * Workspace navigation row (Plan 9 Wave 9B1, D-F.2/D-F.5).
  *
- * Pins the six-item contract: labels, hrefs, nav-item ORDER (Portfolio
+ * Pins the seven-item contract: labels, hrefs, nav-item ORDER (Portfolio
  * Actuals BEFORE Reserves), per-surface active state, disabled-with-reason
  * gating (D-C), and the static basis indicator (D-E).
  */
@@ -32,7 +32,7 @@ function renderNav(props?: Partial<React.ComponentProps<typeof WorkspaceNav>>) {
 }
 
 describe('workspaceNavItems', () => {
-  it('produces the six-destination contract with fund-carrying hrefs', () => {
+  it('produces the seven-destination contract with fund-carrying hrefs', () => {
     const items = workspaceNavItems('42');
 
     expect(items.map((item) => [item.label, item.href])).toEqual([
@@ -40,6 +40,7 @@ describe('workspaceNavItems', () => {
       ['Forecast', '/financial-modeling?fundId=42'],
       ['Portfolio Actuals', '/portfolio?tab=reserve-planning&fundId=42'],
       ['Reserves', '/fund-model-results/42/moic-analysis'],
+      ['Economics', '/fund-model-results/42/analysis'],
       ['Scenarios', '/fund-model-results/42/scenarios'],
       ['Reports', '/fund-model-results/42/reports'],
     ]);
@@ -55,7 +56,7 @@ describe('workspaceNavItems', () => {
     const items = workspaceNavItems(null);
     const byKey = new Map(items.map((item) => [item.key, item]));
 
-    for (const key of ['summary', 'reserves', 'scenarios', 'reports'] as const) {
+    for (const key of ['summary', 'reserves', 'analysis', 'scenarios', 'reports'] as const) {
       expect(byKey.get(key)?.href).toBeNull();
       expect(byKey.get(key)?.disabledReason).toBe('Select a fund to open this view');
     }
@@ -68,7 +69,7 @@ describe('workspaceNavItems', () => {
 describe('WorkspaceNav', () => {
   afterEach(() => cleanup());
 
-  it('renders fund context plus all six destinations as underlined links', () => {
+  it('renders fund context plus all seven destinations as underlined links', () => {
     renderNav();
 
     expect(screen.getByTestId('workspace-nav-fund')).toHaveTextContent('Fund Forty Two');
@@ -79,6 +80,7 @@ describe('WorkspaceNav', () => {
       'Forecast',
       'Portfolio Actuals',
       'Reserves',
+      'Economics',
       'Scenarios',
       'Reports',
     ]);
@@ -92,6 +94,7 @@ describe('WorkspaceNav', () => {
     ['forecast', 'Forecast'],
     ['portfolio-actuals', 'Portfolio Actuals'],
     ['reserves', 'Reserves'],
+    ['analysis', 'Economics'],
     ['scenarios', 'Scenarios'],
     ['reports', 'Reports'],
   ])('marks only the active destination with aria-current on the %s surface', (key, label) => {
@@ -109,7 +112,7 @@ describe('WorkspaceNav', () => {
   it('renders gated destinations disabled with visible reasons, never dead links', () => {
     renderNav({ fundId: null, active: 'forecast' });
 
-    for (const key of ['summary', 'reserves', 'scenarios', 'reports']) {
+    for (const key of ['summary', 'reserves', 'analysis', 'scenarios', 'reports']) {
       const disabled = screen.getByTestId(`workspace-nav-${key}-disabled`);
       expect(disabled).toHaveAttribute('aria-disabled', 'true');
       expect(disabled).toHaveTextContent('Select a fund to open this view');
