@@ -138,6 +138,10 @@ const INTERNAL_ANALYSIS_MANIFEST_TABLES = [
   'internal_narrative_drafts',
   'internal_narrative_claims',
   'internal_analysis_notes',
+  'quarterly_review_rosters',
+  'quarterly_review_companies',
+  'quarterly_review_items',
+  'quarterly_review_command_receipts',
 ] as const;
 const USER_IDENTITY_GRANTS_REVOCATION_MANIFEST_TABLES = [
   'users',
@@ -168,6 +172,13 @@ const INTERNAL_ECONOMICS_LINKAGE_MANIFEST_TABLES = [
   'tasks',
   'task_evidence_links',
 ] as const;
+const QUARTERLY_REVIEW_WORKFLOW_MANIFEST_TABLES = [
+  'portfoliocompanies',
+  'quarterly_review_rosters',
+  'quarterly_review_companies',
+  'quarterly_review_items',
+  'quarterly_review_command_receipts',
+] as const;
 const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'M1-cohort',
   'M2-fund-moic',
@@ -193,6 +204,7 @@ const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'internal-economics-policy-runs',
   'internal-economics-certification',
   'internal-economics-linkage',
+  'quarterly-review-workflow',
 ] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
@@ -837,6 +849,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...BUSINESS_TIME_COMPARISON_LINEAGE_MANIFEST_TABLES,
         ...INTERNAL_ECONOMICS_MANIFEST_TABLES,
         ...INTERNAL_ECONOMICS_LINKAGE_MANIFEST_TABLES,
+        ...QUARTERLY_REVIEW_WORKFLOW_MANIFEST_TABLES,
       ])
     );
 

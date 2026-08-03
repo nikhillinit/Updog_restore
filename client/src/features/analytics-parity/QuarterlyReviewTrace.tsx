@@ -7,6 +7,7 @@ import type { FundResultsComparisonV1 } from '@shared/contracts/fund-results-com
 import type { FundResultsReadV1 } from '@shared/contracts/fund-results-v1.contract';
 import {
   buildQuarterlyReviewTrace,
+  buildQuarterlyReviewWorkflowAction,
   type AnalyticsTraceAction,
   type AnalyticsTraceStatus,
 } from './quarterly-review-trace';
@@ -58,6 +59,7 @@ function TraceActionLink({ action }: { action: AnalyticsTraceAction }) {
 
 export function QuarterlyReviewTrace({ results, comparison, fundId }: QuarterlyReviewTraceProps) {
   const trace = buildQuarterlyReviewTrace(results, comparison, fundId);
+  const workflowAction = buildQuarterlyReviewWorkflowAction(fundId);
 
   return (
     <section
@@ -74,9 +76,12 @@ export function QuarterlyReviewTrace({ results, comparison, fundId }: QuarterlyR
             Source-labeled answers for the mounted quarterly review workflow.
           </p>
         </div>
-        <Badge variant="outline" className="border-beige-200 text-charcoal-500 md:mt-1">
-          Tranche 6
-        </Badge>
+        <div className="flex flex-wrap items-center gap-2 md:mt-1">
+          <TraceActionLink action={workflowAction} />
+          <Badge variant="outline" className="border-beige-200 text-charcoal-500">
+            Tranche 6
+          </Badge>
+        </div>
       </div>
 
       <div className="divide-y divide-beige-200">

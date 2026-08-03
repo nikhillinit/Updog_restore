@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import request from 'supertest';
@@ -10,17 +12,25 @@ const service = vi.hoisted(() => ({
   listRevisionEvents: vi.fn(),
   createDraftForPeriod: vi.fn(),
   replaceDraftEconomicsReference: vi.fn(),
+  replaceDraftEconomicsReferenceWithReceipt: vi.fn(),
   refreshDraft: vi.fn(),
+  refreshDraftWithReceipt: vi.fn(),
   saveDraft: vi.fn(),
+  saveDraftWithReceipt: vi.fn(),
   startCorrectionDraft: vi.fn(),
   listReferences: vi.fn(),
   planQuarterlyDrafts: vi.fn(),
+  getCurrentQuarterlyReview: vi.fn(),
+  executeQuarterlyReviewItemCommand: vi.fn(),
+  executeQuarterlyReviewWaiverCommand: vi.fn(),
 }));
 
 const authState = vi.hoisted(() => ({
   authenticated: true,
   fundAccess: true,
   calls: [] as string[],
+  role: 'admin',
+  carrier: 'user' as 'user' | 'context',
 }));
 
 vi.mock('express-rate-limit', () => ({
@@ -31,7 +41,17 @@ vi.mock('../../../server/lib/auth/jwt', () => ({
   requireAuth: () => (req: Request, res: Response, next: NextFunction) => {
     authState.calls.push('requireAuth');
     if (!authState.authenticated) return res.sendStatus(401);
-    req.user = { id: 7, sub: '7', role: 'admin', roles: ['admin'], fundIds: [1] } as never;
+    if (authState.carrier === 'user') {
+      req.user = {
+        id: 7,
+        sub: '7',
+        role: authState.role,
+        roles: [authState.role],
+        fundIds: [1],
+      } as never;
+    } else {
+      req.context = { userId: 7, role: authState.role } as never;
+    }
     next();
   },
   requireFundAccess: (_req: Request, res: Response, next: NextFunction) => {
@@ -39,8 +59,36 @@ vi.mock('../../../server/lib/auth/jwt', () => ({
     if (!authState.fundAccess) return res.sendStatus(403);
     next();
   },
+  requireWriteRole:
+    (roles: readonly string[]) => (req: Request, res: Response, next: NextFunction) => {
+      authState.calls.push(`requireWriteRole:${roles.join(',')}`);
+      const role = req.user?.role ?? req.context?.role;
+      if (typeof role !== 'string' || !roles.includes(role)) return res.sendStatus(403);
+      next();
+    },
   requireRole: () => (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
+
+vi.mock('../../../server/services/internal-analysis/quarterly-review-service', () => {
+  class MockQuarterlyReviewServiceError extends Error {
+    constructor(
+      readonly statusCode: number,
+      readonly code: string,
+      message: string,
+      readonly details?: unknown
+    ) {
+      super(message);
+    }
+  }
+  return {
+    QuarterlyReviewServiceError: MockQuarterlyReviewServiceError,
+    createQuarterlyReviewPorts: () => ({
+      getCurrentReview: service.getCurrentQuarterlyReview,
+    }),
+    executeQuarterlyReviewItemCommand: service.executeQuarterlyReviewItemCommand,
+    executeQuarterlyReviewWaiverCommand: service.executeQuarterlyReviewWaiverCommand,
+  };
+});
 
 vi.mock('../../../server/services/internal-analysis/analysis-checkpoint-service', async () => {
   class MockAnalysisCheckpointServiceError extends Error {
@@ -73,8 +121,11 @@ vi.mock('../../../server/services/internal-analysis/analysis-checkpoint-service'
     }),
     createDraftForPeriod: service.createDraftForPeriod,
     replaceDraftEconomicsReference: service.replaceDraftEconomicsReference,
+    replaceDraftEconomicsReferenceWithReceipt: service.replaceDraftEconomicsReferenceWithReceipt,
     refreshDraft: service.refreshDraft,
+    refreshDraftWithReceipt: service.refreshDraftWithReceipt,
     saveDraft: service.saveDraft,
+    saveDraftWithReceipt: service.saveDraftWithReceipt,
     startCorrectionDraft: service.startCorrectionDraft,
     listReferences: service.listReferences,
     planQuarterlyDrafts: service.planQuarterlyDrafts,
@@ -83,6 +134,7 @@ vi.mock('../../../server/services/internal-analysis/analysis-checkpoint-service'
 
 import internalAnalysisRouter from '../../../server/routes/internal-analysis';
 import { AnalysisCheckpointServiceError } from '../../../server/services/internal-analysis/analysis-checkpoint-service';
+import { QuarterlyReviewServiceError } from '../../../server/services/internal-analysis/quarterly-review-service';
 
 const PERIOD = {
   periodKind: 'quarterly' as const,
@@ -146,10 +198,386 @@ beforeEach(() => {
   authState.authenticated = true;
   authState.fundAccess = true;
   authState.calls = [];
+  authState.role = 'admin';
+  authState.carrier = 'user';
   for (const mock of Object.values(service)) mock.mockReset();
 });
 
 describe('internal-analysis route contract', () => {
+  it.each([
+    {
+      name: 'item update',
+      send: (key: string) =>
+        request(buildApp())
+          .patch('/api/funds/1/internal-analysis/drafts/3/quarterly-review/companies/20/items/kpis')
+          .set('If-Match', 'W/"item"')
+          .set('Idempotency-Key', key)
+          .send({ state: 'reviewed_no_change', note: 'Reviewed' }),
+      serviceMock: service.executeQuarterlyReviewItemCommand,
+    },
+    {
+      name: 'waiver',
+      send: (key: string) =>
+        request(buildApp())
+          .post('/api/funds/1/internal-analysis/drafts/3/quarterly-review/companies/20/waiver')
+          .set('If-Match', 'W/"company"')
+          .set('Idempotency-Key', key)
+          .send({ reason: 'Reviewed by waiver authority' }),
+      serviceMock: service.executeQuarterlyReviewWaiverCommand,
+    },
+    {
+      name: 'economics-reference replacement',
+      send: (key: string) =>
+        request(buildApp())
+          .patch('/api/funds/1/internal-analysis/drafts/3/economics-reference')
+          .set('If-Match', 'W/"draft"')
+          .set('Idempotency-Key', key)
+          .send({ economicsReferenceId: null }),
+      serviceMock: service.replaceDraftEconomicsReferenceWithReceipt,
+    },
+    {
+      name: 'refresh',
+      send: (key: string) =>
+        request(buildApp())
+          .post('/api/funds/1/internal-analysis/drafts/3/refresh')
+          .set('If-Match', 'W/"draft"')
+          .set('Idempotency-Key', key)
+          .send({}),
+      serviceMock: service.refreshDraftWithReceipt,
+    },
+    {
+      name: 'save',
+      send: (key: string) =>
+        request(buildApp())
+          .post('/api/funds/1/internal-analysis/drafts/3/save')
+          .set('If-Match', 'W/"draft"')
+          .set('Idempotency-Key', key)
+          .send({ acknowledgeMixedBasis: false }),
+      serviceMock: service.saveDraftWithReceipt,
+    },
+  ])(
+    'rejects blank and oversized Idempotency-Key before $name service work',
+    async ({ send, serviceMock }) => {
+      for (const invalidKey of ['', 'x'.repeat(129)]) {
+        const response = await send(invalidKey);
+
+        expect(response.status).toBe(400);
+        expect(response.body).toEqual({
+          error: 'INVALID_IDEMPOTENCY_KEY',
+          message: 'Idempotency-Key must contain 1 to 128 RFC token characters.',
+        });
+      }
+      expect(serviceMock).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each(['user', 'context'] as const)(
+    'allows exact item write roles and denies non-writers through %s carrier',
+    async (carrier) => {
+      authState.carrier = carrier;
+      service.executeQuarterlyReviewItemCommand.mockResolvedValue({
+        receiptId: 80,
+        operation: 'review_item_update',
+        draftId: 3,
+        targetId: 30,
+        resultingRowVersion: 2,
+      });
+      for (const role of ['partner', 'admin', 'analyst']) {
+        authState.role = role;
+        await request(buildApp())
+          .patch('/api/funds/1/internal-analysis/drafts/3/quarterly-review/companies/20/items/kpis')
+          .set('If-Match', 'W/"item"')
+          .set('Idempotency-Key', `item-${carrier}-${role}`)
+          .send({ state: 'reviewed_no_change', note: 'Reviewed' })
+          .expect(200);
+      }
+      for (const role of ['viewer', 'operator', 'service']) {
+        authState.role = role;
+        await request(buildApp())
+          .patch('/api/funds/1/internal-analysis/drafts/3/quarterly-review/companies/20/items/kpis')
+          .set('If-Match', 'W/"item"')
+          .set('Idempotency-Key', `item-${carrier}-${role}`)
+          .send({ state: 'reviewed_no_change', note: 'Reviewed' })
+          .expect(403);
+      }
+    }
+  );
+
+  it.each(['user', 'context'] as const)(
+    'enforces investment-team roles on every draft command through %s carrier',
+    async (carrier) => {
+      authState.carrier = carrier;
+      service.createDraftForPeriod.mockResolvedValue(draftRecord());
+      service.startCorrectionDraft.mockResolvedValue(draftRecord());
+      service.refreshDraftWithReceipt.mockResolvedValue({
+        receiptId: 70,
+        operation: 'draft_refresh',
+        draftId: 3,
+        targetId: 3,
+        resultingDraftVersion: 2,
+      });
+      service.replaceDraftEconomicsReferenceWithReceipt.mockResolvedValue({
+        receiptId: 71,
+        operation: 'economics_reference_replace',
+        draftId: 3,
+        targetId: 3,
+        resultingDraftVersion: 2,
+      });
+      service.saveDraftWithReceipt.mockResolvedValue(referenceRecord());
+
+      for (const role of ['partner', 'admin', 'analyst', 'viewer', 'operator', 'service']) {
+        authState.role = role;
+        const expectedWriteStatus = ['partner', 'admin', 'analyst'].includes(role) ? 200 : 403;
+        const expectedCreateStatus = expectedWriteStatus === 200 ? 201 : 403;
+
+        await request(buildApp())
+          .post('/api/funds/1/internal-analysis/drafts')
+          .send({
+            periodKind: 'quarterly',
+            periodStart: '2026-04-01',
+            periodEnd: '2026-06-30',
+          })
+          .expect(expectedCreateStatus);
+        await request(buildApp())
+          .post('/api/funds/1/internal-analysis/references/9/drafts')
+          .expect(expectedCreateStatus);
+        await request(buildApp())
+          .post('/api/funds/1/internal-analysis/drafts/3/refresh')
+          .set('If-Match', 'W/"draft"')
+          .set('Idempotency-Key', `refresh-${carrier}-${role}`)
+          .expect(expectedWriteStatus);
+        await request(buildApp())
+          .patch('/api/funds/1/internal-analysis/drafts/3/economics-reference')
+          .set('If-Match', 'W/"draft"')
+          .set('Idempotency-Key', `economics-${carrier}-${role}`)
+          .send({ economicsReferenceId: null })
+          .expect(expectedWriteStatus);
+        await request(buildApp())
+          .post('/api/funds/1/internal-analysis/drafts/3/save')
+          .set('If-Match', 'W/"draft"')
+          .set('Idempotency-Key', `save-${carrier}-${role}`)
+          .send({ acknowledgeMixedBasis: false })
+          .expect(expectedCreateStatus);
+      }
+    }
+  );
+
+  it('maps corrupt quarterly review GET to safe 409 details plus current draft ETag', async () => {
+    service.getCurrentQuarterlyReview.mockRejectedValue(
+      new QuarterlyReviewServiceError(409, 'QUARTERLY_REVIEW_ROSTER_CORRUPT', 'Corrupt roster', {
+        draftId: 3,
+        draftVersion: 2,
+        financialFactsSnapshotId: 41,
+        expectedCompanyCount: 2,
+        actualCompanyCount: 1,
+      })
+    );
+
+    const response = await request(buildApp()).get(
+      '/api/funds/1/internal-analysis/drafts/3/quarterly-review'
+    );
+
+    expect(response.status).toBe(409);
+    expect(response.headers['etag']).toMatch(/^W\/"[a-f0-9]{16}"$/);
+    expect(response.body).toEqual({
+      error: 'QUARTERLY_REVIEW_ROSTER_CORRUPT',
+      message: 'Corrupt roster',
+      details: {
+        draftId: 3,
+        draftVersion: 2,
+        financialFactsSnapshotId: 41,
+        expectedCompanyCount: 2,
+        actualCompanyCount: 1,
+      },
+    });
+  });
+
+  it('adds current draft ETag to corrupt economics, item, waiver, and save responses', async () => {
+    const details = {
+      draftId: 3,
+      draftVersion: 2,
+      financialFactsSnapshotId: 41,
+      expectedCompanyCount: 2,
+      actualCompanyCount: 1,
+    };
+    const checkpointError = () =>
+      new AnalysisCheckpointServiceError(
+        409,
+        'QUARTERLY_REVIEW_ROSTER_CORRUPT',
+        'Corrupt roster',
+        details
+      );
+    const reviewError = () =>
+      new QuarterlyReviewServiceError(
+        409,
+        'QUARTERLY_REVIEW_ROSTER_CORRUPT',
+        'Corrupt roster',
+        details
+      );
+    service.replaceDraftEconomicsReferenceWithReceipt.mockRejectedValueOnce(checkpointError());
+    service.executeQuarterlyReviewItemCommand.mockRejectedValueOnce(reviewError());
+    service.executeQuarterlyReviewWaiverCommand.mockRejectedValueOnce(reviewError());
+    service.saveDraftWithReceipt.mockRejectedValueOnce(checkpointError());
+
+    const responses = await Promise.all([
+      request(buildApp())
+        .patch('/api/funds/1/internal-analysis/drafts/3/economics-reference')
+        .set('If-Match', 'W/"draft"')
+        .set('Idempotency-Key', 'corrupt-economics')
+        .send({ economicsReferenceId: 9 }),
+      request(buildApp())
+        .patch('/api/funds/1/internal-analysis/drafts/3/quarterly-review/companies/20/items/kpis')
+        .set('If-Match', 'W/"item"')
+        .set('Idempotency-Key', 'corrupt-item')
+        .send({ state: 'reviewed_no_change', note: 'Reviewed' }),
+      request(buildApp())
+        .post('/api/funds/1/internal-analysis/drafts/3/quarterly-review/companies/20/waiver')
+        .set('If-Match', 'W/"company"')
+        .set('Idempotency-Key', 'corrupt-waiver')
+        .send({ reason: 'Waiver reason' }),
+      request(buildApp())
+        .post('/api/funds/1/internal-analysis/drafts/3/save')
+        .set('If-Match', 'W/"draft"')
+        .set('Idempotency-Key', 'corrupt-save')
+        .send({ acknowledgeMixedBasis: false }),
+    ]);
+
+    for (const response of responses) {
+      expect(response.status).toBe(409);
+      expect(response.body.error).toBe('QUARTERLY_REVIEW_ROSTER_CORRUPT');
+      expect(response.headers['etag']).toMatch(/^W\/"[a-f0-9]{16}"$/);
+    }
+  });
+
+  it('adds current draft ETag to stale quarterly-review basis conflicts', async () => {
+    const details = {
+      draftId: 3,
+      draftVersion: 2,
+      financialFactsSnapshotId: 42,
+    };
+    service.executeQuarterlyReviewItemCommand.mockRejectedValueOnce(
+      new QuarterlyReviewServiceError(
+        412,
+        'QUARTERLY_REVIEW_BASIS_CONFLICT',
+        'Quarterly review basis changed since it was read.',
+        details
+      )
+    );
+
+    const response = await request(buildApp())
+      .patch('/api/funds/1/internal-analysis/drafts/3/quarterly-review/companies/20/items/kpis')
+      .set('If-Match', 'W/"item"')
+      .set('Idempotency-Key', 'stale-basis')
+      .send({ state: 'reviewed_no_change', note: 'Reviewed' });
+
+    expect(response.status).toBe(412);
+    expect(response.body.error).toBe('QUARTERLY_REVIEW_BASIS_CONFLICT');
+    expect(response.headers['etag']).toBe(
+      `W/"${createHash('sha256')
+        .update('internal-analysis-draft:1:3:2')
+        .digest('hex')
+        .slice(0, 16)}"`
+    );
+  });
+
+  it.each([
+    {
+      name: 'item update',
+      send: () =>
+        request(buildApp())
+          .patch(
+            `/api/funds/1/internal-analysis/drafts/3/quarterly-review/companies/${Number.MAX_SAFE_INTEGER}/items/kpis`
+          )
+          .set('If-Match', 'W/"item"')
+          .set('Idempotency-Key', 'item-out-of-range')
+          .send({ state: 'reviewed_no_change', note: 'Reviewed' }),
+      serviceMock: service.executeQuarterlyReviewItemCommand,
+    },
+    {
+      name: 'waiver',
+      send: () =>
+        request(buildApp())
+          .post(
+            `/api/funds/1/internal-analysis/drafts/3/quarterly-review/companies/${Number.MAX_SAFE_INTEGER}/waiver`
+          )
+          .set('If-Match', 'W/"company"')
+          .set('Idempotency-Key', 'waiver-out-of-range')
+          .send({ reason: 'Reviewed by waiver authority' }),
+      serviceMock: service.executeQuarterlyReviewWaiverCommand,
+    },
+  ])(
+    'rejects PostgreSQL-integer overflow before $name service work',
+    async ({ send, serviceMock }) => {
+      const response = await send();
+
+      expect(response.status).toBe(400);
+      expect(serviceMock).not.toHaveBeenCalled();
+    }
+  );
+
+  it('rejects oversized followUpTaskId before quarterly-review item service work', async () => {
+    const response = await request(buildApp())
+      .patch('/api/funds/1/internal-analysis/drafts/3/quarterly-review/companies/20/items/kpis')
+      .set('If-Match', 'W/"item"')
+      .set('Idempotency-Key', 'follow-up-overflow')
+      .send({
+        state: 'changed',
+        note: 'Updated assumptions.',
+        changeReference: {
+          kind: 'internal_route',
+          path: '/portfolio/company/100',
+          label: 'Company detail',
+        },
+        followUpTaskId: 2_147_483_648,
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('invalid_quarterly_review_item_request');
+    expect(service.executeQuarterlyReviewItemCommand).not.toHaveBeenCalled();
+  });
+
+  it.each(['user', 'context'] as const)(
+    'allows waiver only to partner/admin through %s carrier',
+    async (carrier) => {
+      authState.carrier = carrier;
+      service.executeQuarterlyReviewWaiverCommand.mockResolvedValue({
+        receiptId: 81,
+        operation: 'company_waive',
+        draftId: 3,
+        targetId: 20,
+        resultingRowVersion: 2,
+      });
+      for (const role of ['partner', 'admin']) {
+        authState.role = role;
+        await request(buildApp())
+          .post('/api/funds/1/internal-analysis/drafts/3/quarterly-review/companies/20/waiver')
+          .set('If-Match', 'W/"company"')
+          .set('Idempotency-Key', `waiver-${carrier}-${role}`)
+          .send({ reason: 'Reviewed by waiver authority' })
+          .expect(200);
+      }
+      for (const role of ['analyst', 'viewer', 'operator', 'service']) {
+        authState.role = role;
+        await request(buildApp())
+          .post('/api/funds/1/internal-analysis/drafts/3/quarterly-review/companies/20/waiver')
+          .set('If-Match', 'W/"company"')
+          .set('Idempotency-Key', `waiver-${carrier}-${role}`)
+          .send({ reason: 'Not authorized' })
+          .expect(403);
+      }
+    }
+  );
+
+  it('restricts interactive draft creation to exact investment-team write roles', async () => {
+    service.createDraftForPeriod.mockResolvedValue(draftRecord());
+
+    await request(buildApp())
+      .post('/api/funds/1/internal-analysis/drafts')
+      .send({ periodKind: 'quarterly', periodStart: '2026-04-01', periodEnd: '2026-06-30' });
+
+    expect(authState.calls).toContain('requireWriteRole:partner,admin,analyst');
+  });
+
   it('rejects a non-numeric fund ID on every route before service work', async () => {
     const app = buildApp();
 
@@ -177,6 +605,16 @@ describe('internal-analysis route contract', () => {
     }
   });
 
+  it('rejects PostgreSQL-integer fundId overflow before quarterly-review service work', async () => {
+    const response = await request(buildApp()).get(
+      '/api/funds/2147483648/internal-analysis/drafts/3/quarterly-review'
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Invalid parameter');
+    expect(service.getCurrentQuarterlyReview).not.toHaveBeenCalled();
+  });
+
   it('rejects a non-numeric draft or reference ID before service work', async () => {
     const app = buildApp();
 
@@ -197,6 +635,81 @@ describe('internal-analysis route contract', () => {
     }
     expect(service.getDraftById).not.toHaveBeenCalled();
     expect(service.getReferenceById).not.toHaveBeenCalled();
+  });
+
+  it('rejects PostgreSQL-integer referenceId overflow before detail or correction service work', async () => {
+    const app = buildApp();
+    const responses = await Promise.all([
+      request(app).get('/api/funds/1/internal-analysis/references/2147483648'),
+      request(app).post('/api/funds/1/internal-analysis/references/2147483648/drafts').send({}),
+    ]);
+
+    for (const response of responses) {
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('Invalid parameter');
+    }
+    expect(service.getReferenceById).not.toHaveBeenCalled();
+    expect(service.startCorrectionDraft).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      name: 'quarterly review GET',
+      send: () =>
+        request(buildApp()).get(
+          '/api/funds/1/internal-analysis/drafts/2147483648/quarterly-review'
+        ),
+      serviceMock: service.getCurrentQuarterlyReview,
+    },
+    {
+      name: 'economics-reference replacement',
+      send: () =>
+        request(buildApp())
+          .patch('/api/funds/1/internal-analysis/drafts/2147483648/economics-reference')
+          .set('If-Match', 'W/"draft"')
+          .set('Idempotency-Key', 'econ-draft-overflow')
+          .send({ economicsReferenceId: null }),
+      serviceMock: service.replaceDraftEconomicsReferenceWithReceipt,
+    },
+    {
+      name: 'refresh',
+      send: () =>
+        request(buildApp())
+          .post('/api/funds/1/internal-analysis/drafts/2147483648/refresh')
+          .set('If-Match', 'W/"draft"')
+          .set('Idempotency-Key', 'refresh-draft-overflow')
+          .send({}),
+      serviceMock: service.refreshDraftWithReceipt,
+    },
+    {
+      name: 'save',
+      send: () =>
+        request(buildApp())
+          .post('/api/funds/1/internal-analysis/drafts/2147483648/save')
+          .set('If-Match', 'W/"draft"')
+          .set('Idempotency-Key', 'save-draft-overflow')
+          .send({ acknowledgeMixedBasis: false }),
+      serviceMock: service.saveDraftWithReceipt,
+    },
+  ])(
+    'rejects PostgreSQL-integer draftId overflow before $name service work',
+    async ({ send, serviceMock }) => {
+      const response = await send();
+
+      expect(response.status).toBe(400);
+      expect(serviceMock).not.toHaveBeenCalled();
+    }
+  );
+
+  it('rejects PostgreSQL-integer economicsReferenceId overflow before service work', async () => {
+    const response = await request(buildApp())
+      .patch('/api/funds/1/internal-analysis/drafts/3/economics-reference')
+      .set('If-Match', 'W/"draft"')
+      .set('Idempotency-Key', 'econ-target-overflow')
+      .send({ economicsReferenceId: 2_147_483_648 });
+
+    expect(response.status).toBe(400);
+    expect(service.replaceDraftEconomicsReferenceWithReceipt).not.toHaveBeenCalled();
   });
 
   it('enforces requireAuth and requireFundAccess on every route', async () => {
@@ -283,65 +796,76 @@ describe('internal-analysis route contract', () => {
     });
 
     it('rejects a stale economics-reference ETag before mutation (412)', async () => {
-      service.getDraftById.mockResolvedValue(draftRecord({ version: 2 }));
+      service.replaceDraftEconomicsReferenceWithReceipt.mockRejectedValue(
+        new AnalysisCheckpointServiceError(412, 'DRAFT_VERSION_CONFLICT', 'Stale')
+      );
 
       const response = await request(buildApp())
         .patch('/api/funds/1/internal-analysis/drafts/3/economics-reference')
         .set('If-Match', 'W/"0000000000000000"')
+        .set('Idempotency-Key', 'econ-stale')
         .send({ economicsReferenceId: 9 });
 
       expect(response.status).toBe(412);
-      expect(service.replaceDraftEconomicsReference).not.toHaveBeenCalled();
+      expect(service.replaceDraftEconomicsReferenceWithReceipt).toHaveBeenCalledOnce();
     });
 
     it.each([{ economicsReferenceId: 9 }, { economicsReferenceId: null }])(
       'replaces economics reference and rotates ETag for $economicsReferenceId',
       async (body) => {
         const before = await readDraftETag();
-        service.getDraftById.mockResolvedValue(draftRecord());
-        service.replaceDraftEconomicsReference.mockResolvedValue(
-          draftRecord({ version: 2, economicsReferenceId: body.economicsReferenceId })
-        );
+        service.replaceDraftEconomicsReferenceWithReceipt.mockResolvedValue({
+          receiptId: 71,
+          operation: 'economics_reference_replace',
+          draftId: 3,
+          targetId: 3,
+          resultingDraftVersion: 2,
+        });
 
         const response = await request(buildApp())
           .patch('/api/funds/1/internal-analysis/drafts/3/economics-reference')
           .set('If-Match', before)
+          .set('Idempotency-Key', `econ-${String(body.economicsReferenceId)}`)
           .send(body);
 
         expect(response.status).toBe(200);
-        expect(response.headers['etag']).not.toBe(before);
-        expect(response.body.draft.version).toBe(2);
-        expect(response.body.draft.basis.economicsReferenceId).toBe(body.economicsReferenceId);
-        expect(service.replaceDraftEconomicsReference).toHaveBeenCalledWith(expect.anything(), {
-          fundId: 1,
-          draftId: 3,
-          expectedVersion: 1,
-          economicsReferenceId: body.economicsReferenceId,
-        });
+        expect(response.body.result.resultingDraftVersion).toBe(2);
+        expect(service.replaceDraftEconomicsReferenceWithReceipt).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            fundId: 1,
+            draftId: 3,
+            economicsReferenceId: body.economicsReferenceId,
+          })
+        );
       }
     );
 
-    it('rejects retry with the consumed economics-reference ETag', async () => {
+    it('replays retry with the consumed economics-reference ETag and caller key', async () => {
       const before = await readDraftETag();
-      service.getDraftById.mockResolvedValue(draftRecord());
-      service.replaceDraftEconomicsReference.mockResolvedValue(
-        draftRecord({ version: 2, economicsReferenceId: 9 })
-      );
+      service.replaceDraftEconomicsReferenceWithReceipt.mockResolvedValue({
+        receiptId: 71,
+        operation: 'economics_reference_replace',
+        draftId: 3,
+        targetId: 3,
+        resultingDraftVersion: 2,
+      });
 
       await request(buildApp())
         .patch('/api/funds/1/internal-analysis/drafts/3/economics-reference')
         .set('If-Match', before)
+        .set('Idempotency-Key', 'econ-replay')
         .send({ economicsReferenceId: 9 })
         .expect(200);
 
-      service.getDraftById.mockResolvedValue(draftRecord({ version: 2, economicsReferenceId: 9 }));
       const retry = await request(buildApp())
         .patch('/api/funds/1/internal-analysis/drafts/3/economics-reference')
         .set('If-Match', before)
+        .set('Idempotency-Key', 'econ-replay')
         .send({ economicsReferenceId: 9 });
 
-      expect(retry.status).toBe(412);
-      expect(service.replaceDraftEconomicsReference).toHaveBeenCalledTimes(1);
+      expect(retry.status).toBe(200);
+      expect(retry.body.result.receiptId).toBe(71);
     });
 
     it('requires If-Match on refresh and save (428)', async () => {
@@ -363,54 +887,86 @@ describe('internal-analysis route contract', () => {
     });
 
     it('rejects a stale ETag with 412 and never touches the service', async () => {
-      service.getDraftById.mockResolvedValue(draftRecord({ version: 2 }));
+      service.refreshDraftWithReceipt.mockRejectedValue(
+        new AnalysisCheckpointServiceError(412, 'DRAFT_VERSION_CONFLICT', 'Stale')
+      );
 
       const response = await request(buildApp())
         .post('/api/funds/1/internal-analysis/drafts/3/refresh')
         .set('If-Match', 'W/"0000000000000000"')
+        .set('Idempotency-Key', 'refresh-stale')
         .send({});
 
       expect(response.status).toBe(412);
-      expect(response.body.error).toBe('PRECONDITION_FAILED');
-      expect(service.refreshDraft).not.toHaveBeenCalled();
+      expect(response.body.error).toBe('DRAFT_VERSION_CONFLICT');
     });
 
     it('rotates the ETag when a refresh advances the basis', async () => {
       const before = await readDraftETag();
 
-      service.getDraftById.mockResolvedValue(draftRecord({ version: 1 }));
-      service.refreshDraft.mockResolvedValue(
-        draftRecord({ version: 2, financialFactsSnapshotId: 42, forecastFundSnapshotId: 903 })
-      );
+      service.refreshDraftWithReceipt.mockResolvedValue({
+        receiptId: 72,
+        operation: 'draft_refresh',
+        draftId: 3,
+        targetId: 3,
+        resultingDraftVersion: 2,
+      });
 
       const response = await request(buildApp())
         .post('/api/funds/1/internal-analysis/drafts/3/refresh')
         .set('If-Match', before)
+        .set('Idempotency-Key', 'refresh-success')
         .send({});
 
       expect(response.status).toBe(200);
-      expect(response.headers['etag']).not.toBe(before);
-      expect(response.body.draft.version).toBe(2);
-      expect(response.body.draft.basis.financialFactsSnapshotId).toBe(42);
-      expect(service.refreshDraft).toHaveBeenCalledWith(
+      expect(response.body.result.resultingDraftVersion).toBe(2);
+      expect(service.refreshDraftWithReceipt).toHaveBeenCalledWith(
         expect.anything(),
-        expect.objectContaining({ fundId: 1, draftId: 3, expectedVersion: 1 })
+        expect.objectContaining({ fundId: 1, draftId: 3 })
       );
+    });
+
+    it('requires Idempotency-Key on refresh after a valid If-Match', async () => {
+      const etag = await readDraftETag();
+      service.getDraftById.mockResolvedValue(draftRecord());
+
+      const response = await request(buildApp())
+        .post('/api/funds/1/internal-analysis/drafts/3/refresh')
+        .set('If-Match', etag)
+        .send({});
+
+      expect(response.status).toBe(428);
+      expect(response.body.error).toBe('PRECONDITION_REQUIRED');
+      expect(service.refreshDraftWithReceipt).not.toHaveBeenCalled();
     });
 
     it('accepts a matching ETag on save', async () => {
       const etag = await readDraftETag();
       service.getDraftById.mockResolvedValue(draftRecord());
-      service.saveDraft.mockResolvedValue(referenceRecord());
+      service.saveDraftWithReceipt.mockResolvedValue(referenceRecord());
+
+      const response = await request(buildApp())
+        .post('/api/funds/1/internal-analysis/drafts/3/save')
+        .set('If-Match', etag)
+        .set('Idempotency-Key', 'save-success')
+        .send({ acknowledgeMixedBasis: false });
+
+      expect(response.status).toBe(201);
+      expect(response.body.reference.referenceId).toBe(11);
+      expect(response.body.reference.mixedBasisAtSave).toBe(false);
+    });
+
+    it('requires Idempotency-Key on save after a valid If-Match', async () => {
+      const etag = await readDraftETag();
+      service.getDraftById.mockResolvedValue(draftRecord());
 
       const response = await request(buildApp())
         .post('/api/funds/1/internal-analysis/drafts/3/save')
         .set('If-Match', etag)
         .send({ acknowledgeMixedBasis: false });
 
-      expect(response.status).toBe(201);
-      expect(response.body.reference.referenceId).toBe(11);
-      expect(response.body.reference.mixedBasisAtSave).toBe(false);
+      expect(response.status).toBe(428);
+      expect(service.saveDraftWithReceipt).not.toHaveBeenCalled();
     });
   });
 
@@ -439,13 +995,14 @@ describe('internal-analysis route contract', () => {
   ] as const)('maps economics-reference service error %s %s', async (statusCode, code) => {
     const etag = await readDraftETag();
     service.getDraftById.mockResolvedValue(draftRecord());
-    service.replaceDraftEconomicsReference.mockRejectedValue(
+    service.replaceDraftEconomicsReferenceWithReceipt.mockRejectedValue(
       new AnalysisCheckpointServiceError(statusCode, code, 'Rejected')
     );
 
     const response = await request(buildApp())
       .patch('/api/funds/1/internal-analysis/drafts/3/economics-reference')
       .set('If-Match', etag)
+      .set('Idempotency-Key', `econ-error-${code}`)
       .send({ economicsReferenceId: 9 });
 
     expect(response.status).toBe(statusCode);
@@ -455,7 +1012,7 @@ describe('internal-analysis route contract', () => {
   it('maps MIXED_FACTS_BASIS to 409 with the mismatch details', async () => {
     const etag = await readDraftETag();
     service.getDraftById.mockResolvedValue(draftRecord());
-    service.saveDraft.mockRejectedValue(
+    service.saveDraftWithReceipt.mockRejectedValue(
       new AnalysisCheckpointServiceError(
         409,
         'MIXED_FACTS_BASIS',
@@ -470,6 +1027,7 @@ describe('internal-analysis route contract', () => {
     const response = await request(buildApp())
       .post('/api/funds/1/internal-analysis/drafts/3/save')
       .set('If-Match', etag)
+      .set('Idempotency-Key', 'save-mixed-error')
       .send({});
 
     expect(response.status).toBe(409);
@@ -480,18 +1038,19 @@ describe('internal-analysis route contract', () => {
   it('passes an explicit mixed-basis acknowledgement through to the service', async () => {
     const etag = await readDraftETag();
     service.getDraftById.mockResolvedValue(draftRecord());
-    service.saveDraft.mockResolvedValue(referenceRecord({ mixedBasisAtSave: true }));
+    service.saveDraftWithReceipt.mockResolvedValue(referenceRecord({ mixedBasisAtSave: true }));
 
     const response = await request(buildApp())
       .post('/api/funds/1/internal-analysis/drafts/3/save')
       .set('If-Match', etag)
+      .set('Idempotency-Key', 'save-mixed-ack')
       .send({ acknowledgeMixedBasis: true });
 
     expect(response.status).toBe(201);
     expect(response.body.reference.mixedBasisAtSave).toBe(true);
-    expect(service.saveDraft).toHaveBeenCalledWith(
+    expect(service.saveDraftWithReceipt).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ acknowledgeMixedBasis: true })
+      expect.objectContaining({ acknowledgeMixedBasis: true, idempotencyKey: 'save-mixed-ack' })
     );
   });
 
@@ -506,7 +1065,7 @@ describe('internal-analysis route contract', () => {
 
     expect(response.status).toBe(400);
     expect(response.body.error).toBe('invalid_analysis_save_request');
-    expect(service.saveDraft).not.toHaveBeenCalled();
+    expect(service.saveDraftWithReceipt).not.toHaveBeenCalled();
   });
 
   describe('draft creation', () => {

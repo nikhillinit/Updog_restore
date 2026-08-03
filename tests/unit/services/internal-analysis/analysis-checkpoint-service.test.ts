@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -5,6 +7,7 @@ import {
   quarterlyDedupeKey,
   type AnalysisPeriod,
 } from '../../../../shared/contracts/internal-analysis/analysis-reference-snapshot-v1.contract';
+import type { QuarterlyReviewCommandResult } from '../../../../shared/contracts/internal-analysis/quarterly-review-v1.contract';
 import {
   AnalysisCheckpointServiceError,
   QUARTERLY_ANALYSIS_JOB_TYPE,
@@ -19,8 +22,11 @@ import {
   listReferences,
   planQuarterlyDrafts,
   replaceDraftEconomicsReference,
+  replaceDraftEconomicsReferenceWithReceipt,
   refreshDraft,
+  refreshDraftWithReceipt,
   saveDraft,
+  saveDraftWithReceipt,
   selectTerminalReferences,
   startCorrectionDraft,
 } from '../../../../server/services/internal-analysis/analysis-checkpoint-service';
@@ -29,6 +35,13 @@ const Q2_2026 = quarterPeriod(2026, 2);
 const Q1_2026 = quarterPeriod(2026, 1);
 const FUND = 7;
 const OTHER_FUND = 8;
+
+function etagForDraft(draft: DraftRecord): string {
+  return `W/"${createHash('sha256')
+    .update(`internal-analysis-draft:${draft.fundId}:${draft.draftId}:${draft.version}`)
+    .digest('hex')
+    .slice(0, 16)}"`;
+}
 
 interface RevisionEvent {
   fundId: number;
@@ -46,6 +59,7 @@ interface RevisionEvent {
 class FakePorts implements AnalysisCheckpointPorts {
   drafts: DraftRecord[] = [];
   references: ReferenceRecord[] = [];
+  receipts = new Map<string, { requestHash: string; result: QuarterlyReviewCommandResult }>();
   events: RevisionEvent[] = [];
   enqueued: Array<{ fundId: number; dedupeKey: string }> = [];
   fundIds = [FUND];
@@ -60,6 +74,8 @@ class FakePorts implements AnalysisCheckpointPorts {
     { fundId: number; runState: 'completed' | 'failed'; factsSnapshotId: number }
   >();
   rebuildCalls: Array<{ fundId: number; asOfDate: string; idempotencyKey: string }> = [];
+  insertDraftWithRosterCalls = 0;
+  mutateOpenDraftWithRosterCalls: Array<'refresh' | 'economics_reference_replace'> = [];
 
   /** Mirrors the fund-scoped idempotency uniques the real tables enforce. */
   private draftKeys = new Map<number, string>();
@@ -102,7 +118,7 @@ class FakePorts implements AnalysisCheckpointPorts {
     return found ? { ...found } : null;
   }
 
-  async insertDraft(input: Parameters<AnalysisCheckpointPorts['insertDraft']>[0]) {
+  async insertDraft(input: Parameters<AnalysisCheckpointPorts['insertDraftWithRoster']>[0]) {
     // Mirrors internal_analysis_drafts_fund_idempotency_unique. Without this the
     // fake silently accepted the correction-draft key collision that the real
     // table rejects.
@@ -136,7 +152,19 @@ class FakePorts implements AnalysisCheckpointPorts {
     return draft;
   }
 
-  async updateDraftBasis(input: Parameters<AnalysisCheckpointPorts['updateDraftBasis']>[0]) {
+  async insertDraftWithRoster(
+    input: Parameters<AnalysisCheckpointPorts['insertDraftWithRoster']>[0]
+  ) {
+    this.insertDraftWithRosterCalls += 1;
+    return this.insertDraft(input);
+  }
+
+  async updateDraftBasis(
+    input: Extract<
+      Parameters<AnalysisCheckpointPorts['mutateOpenDraftWithRoster']>[0],
+      { operation: 'refresh' }
+    >['mutation']
+  ) {
     const draft = this.findDraft(input.fundId, input.draftId);
     if (!draft || draft.savedAt !== null || draft.version !== input.expectedVersion) {
       throw new AnalysisCheckpointServiceError(
@@ -152,6 +180,87 @@ class FakePorts implements AnalysisCheckpointPorts {
     draft.version += 1;
     draft.updatedAt = this.tick();
     return { ...draft };
+  }
+
+  async mutateOpenDraftWithRoster(
+    input:
+      | {
+          operation: 'refresh';
+          mutation: Extract<
+            Parameters<AnalysisCheckpointPorts['mutateOpenDraftWithRoster']>[0],
+            { operation: 'refresh' }
+          >['mutation'];
+        }
+      | {
+          operation: 'economics_reference_replace';
+          mutation: Extract<
+            Parameters<AnalysisCheckpointPorts['mutateOpenDraftWithRoster']>[0],
+            { operation: 'economics_reference_replace' }
+          >['mutation'];
+        }
+  ) {
+    this.mutateOpenDraftWithRosterCalls.push(input.operation);
+    if (input.command) {
+      const replay = this.receipts.get(input.command.idempotencyKey);
+      if (replay) {
+        if (replay.requestHash !== input.command.requestHash) {
+          throw new AnalysisCheckpointServiceError(
+            409,
+            'IDEMPOTENCY_KEY_REUSE',
+            'Idempotency-Key was already used.'
+          );
+        }
+        const replayDraft = await this.getDraftById(input.mutation.fundId, input.mutation.draftId);
+        if (!replayDraft) {
+          throw new AnalysisCheckpointServiceError(
+            404,
+            'DRAFT_NOT_FOUND',
+            'Analysis draft not found.'
+          );
+        }
+        return { draft: replayDraft, result: replay.result };
+      }
+    }
+    const current = await this.getDraftById(input.mutation.fundId, input.mutation.draftId);
+    const draft =
+      input.operation === 'economics_reference_replace' &&
+      current?.economicsReferenceId === input.mutation.economicsReferenceId
+        ? current
+        : await (input.operation === 'refresh'
+            ? this.updateDraftBasis(input.mutation)
+            : this.replaceDraftEconomicsReference(input.mutation));
+    if (input.operation === 'refresh') {
+      this.events.push({
+        fundId: draft.fundId,
+        draftId: draft.draftId,
+        referenceId: null,
+        eventType: 'refreshed',
+        detail: {
+          knowledgeCutoff: draft.knowledgeCutoff.toISOString(),
+          financialFactsSnapshotId: draft.financialFactsSnapshotId,
+          forecastFundSnapshotId: draft.forecastFundSnapshotId,
+          economicsReferenceCleared: current?.economicsReferenceId !== null,
+          version: draft.version,
+        },
+      });
+    }
+    if (!input.command) return { draft, result: null };
+    const result: QuarterlyReviewCommandResult = {
+      receiptId: this.receipts.size + 1,
+      operation: input.operation === 'refresh' ? 'draft_refresh' : 'economics_reference_replace',
+      draftId: draft.draftId,
+      targetId: draft.draftId,
+      resultingDraftVersion: draft.version,
+    };
+    this.receipts.set(input.command.idempotencyKey, {
+      requestHash: input.command.requestHash,
+      result,
+    });
+    return { draft, result };
+  }
+
+  async findQuarterlyReviewReceipt(_fundId: number, idempotencyKey: string) {
+    return this.receipts.get(idempotencyKey) ?? null;
   }
 
   async listDrafts(fundId: number) {
@@ -204,7 +313,10 @@ class FakePorts implements AnalysisCheckpointPorts {
   }
 
   async replaceDraftEconomicsReference(
-    input: Parameters<AnalysisCheckpointPorts['replaceDraftEconomicsReference']>[0]
+    input: Extract<
+      Parameters<AnalysisCheckpointPorts['mutateOpenDraftWithRoster']>[0],
+      { operation: 'economics_reference_replace' }
+    >['mutation']
   ) {
     if (input.economicsReferenceId !== null) {
       const run = this.economicsRuns.get(input.economicsReferenceId);
@@ -288,6 +400,50 @@ class FakePorts implements AnalysisCheckpointPorts {
     };
     this.references.push(reference);
     this.referenceKeys.set(reference.referenceId, input.idempotencyKey);
+    if (input.mixedBasisAtSave) {
+      this.events.push({
+        fundId: input.fundId,
+        draftId: input.draft.draftId,
+        referenceId: reference.referenceId,
+        eventType: 'mixed_basis_acknowledged',
+        detail: {
+          financialFactsSnapshotId: input.draft.financialFactsSnapshotId,
+          mismatches: [
+            {
+              component: 'forecast',
+              id: input.draft.forecastFundSnapshotId,
+              financialFactsSnapshotId:
+                input.draft.forecastFundSnapshotId === null
+                  ? null
+                  : (this.forecastBasis.get(input.draft.forecastFundSnapshotId) ?? null),
+            },
+          ],
+        },
+      });
+    }
+    this.events.push({
+      fundId: input.fundId,
+      draftId: input.draft.draftId,
+      referenceId: reference.referenceId,
+      eventType: 'saved',
+      detail: {
+        period: input.draft.period,
+        financialFactsSnapshotId: input.draft.financialFactsSnapshotId,
+        mixedBasisAtSave: input.mixedBasisAtSave,
+        supersedesReferenceId: input.supersedesReferenceId,
+      },
+    });
+    if (input.command) {
+      this.receipts.set(input.command.idempotencyKey, {
+        requestHash: input.command.requestHash,
+        result: {
+          receiptId: this.receipts.size + 1,
+          operation: 'draft_save',
+          draftId: input.draft.draftId,
+          targetId: reference.referenceId,
+        },
+      });
+    }
     return reference;
   }
 
@@ -451,6 +607,16 @@ describe('analysis checkpoint service', () => {
   });
 
   describe('createDraftForPeriod', () => {
+    it('creates draft v1 only through insertDraftWithRoster', async () => {
+      await createDraftForPeriod(ports, {
+        fundId: FUND,
+        period: Q2_2026,
+        actorId: 5,
+      });
+
+      expect(ports.insertDraftWithRosterCalls).toBe(1);
+    });
+
     it('builds a draft on a freshly minted basis and logs the creation', async () => {
       const draft = await createDraftForPeriod(ports, {
         fundId: FUND,
@@ -487,10 +653,105 @@ describe('analysis checkpoint service', () => {
       expect(replay.draftId).toBe(first.draftId);
       expect(ports.drafts).toHaveLength(1);
       expect(ports.rebuildCalls).toHaveLength(1);
+      expect(ports.insertDraftWithRosterCalls).toBe(1);
+    });
+
+    it('returns a legacy open conflict without implicitly seeding a roster', async () => {
+      const legacy: DraftRecord = {
+        draftId: 99,
+        fundId: FUND,
+        period: Q2_2026,
+        knowledgeCutoff: new Date('2026-07-01T00:00:00.000Z'),
+        financialFactsSnapshotId: 40,
+        forecastFundSnapshotId: null,
+        reserveReferenceId: null,
+        economicsReferenceId: null,
+        sourceReferenceId: null,
+        savedAt: null,
+        version: 1,
+        createdAt: new Date('2026-07-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-07-01T00:00:00.000Z'),
+      };
+      ports.drafts.push(legacy);
+
+      const returned = await createDraftForPeriod(ports, {
+        fundId: FUND,
+        period: Q2_2026,
+        actorId: 5,
+      });
+
+      expect(returned.draftId).toBe(99);
+      expect(ports.insertDraftWithRosterCalls).toBe(0);
+      expect(ports.rebuildCalls).toHaveLength(0);
     });
   });
 
   describe('refreshDraft', () => {
+    it('replays exact refresh receipt before stale ETag and rebuild work', async () => {
+      const draft = await createDraftForPeriod(ports, {
+        fundId: FUND,
+        period: Q2_2026,
+        actorId: 5,
+      });
+      const input = {
+        fundId: FUND,
+        draftId: draft.draftId,
+        actorId: 5,
+        idempotencyKey: 'refresh-replay',
+        rawIfMatch: etagForDraft(draft),
+      };
+
+      const first = await refreshDraftWithReceipt(ports, input);
+      const replay = await refreshDraftWithReceipt(ports, input);
+
+      expect(replay).toEqual(first);
+      expect(ports.rebuildCalls).toHaveLength(2); // create basis + one refresh basis
+      expect(ports.drafts[0]?.version).toBe(2);
+      expect(ports.events.filter((event) => event.eventType === 'refreshed')).toHaveLength(1);
+    });
+
+    it('rejects refresh caller-key hash conflict before current-state validation', async () => {
+      const draft = await createDraftForPeriod(ports, {
+        fundId: FUND,
+        period: Q2_2026,
+        actorId: 5,
+      });
+      await refreshDraftWithReceipt(ports, {
+        fundId: FUND,
+        draftId: draft.draftId,
+        actorId: 5,
+        idempotencyKey: 'refresh-conflict',
+        rawIfMatch: etagForDraft(draft),
+      });
+
+      await expect(
+        refreshDraftWithReceipt(ports, {
+          fundId: FUND,
+          draftId: draft.draftId,
+          actorId: 5,
+          idempotencyKey: 'refresh-conflict',
+          rawIfMatch: 'W/"different"',
+        })
+      ).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSE', statusCode: 409 });
+    });
+
+    it('routes every refresh transition through mutateOpenDraftWithRoster', async () => {
+      const draft = await createDraftForPeriod(ports, {
+        fundId: FUND,
+        period: Q2_2026,
+        actorId: null,
+      });
+
+      await refreshDraft(ports, {
+        fundId: FUND,
+        draftId: draft.draftId,
+        expectedVersion: draft.version,
+        actorId: 5,
+      });
+
+      expect(ports.mutateOpenDraftWithRosterCalls).toEqual(['refresh']);
+    });
+
     it('advances the cutoff and rebuilds every consumer from ONE new basis (D6)', async () => {
       const draft = await createDraftForPeriod(ports, {
         fundId: FUND,
@@ -619,11 +880,71 @@ describe('analysis checkpoint service', () => {
   });
 
   describe('replaceDraftEconomicsReference', () => {
+    it('receipts same-value economics without rotating draft version and replays exactly', async () => {
+      const draft = await createDraftForPeriod(ports, {
+        fundId: FUND,
+        period: Q2_2026,
+        actorId: 5,
+      });
+      ports.economicsRuns.set(88, {
+        fundId: FUND,
+        runState: 'completed',
+        factsSnapshotId: draft.financialFactsSnapshotId,
+      });
+      await replaceDraftEconomicsReferenceWithReceipt(ports, {
+        fundId: FUND,
+        draftId: draft.draftId,
+        economicsReferenceId: 88,
+        actorId: 5,
+        idempotencyKey: 'econ-attach',
+        rawIfMatch: etagForDraft(draft),
+      });
+      const attached = await ports.getDraftById(FUND, draft.draftId);
+      expect(attached).not.toBeNull();
+      const input = {
+        fundId: FUND,
+        draftId: draft.draftId,
+        economicsReferenceId: 88,
+        actorId: 5,
+        idempotencyKey: 'econ-noop',
+        rawIfMatch: etagForDraft(attached as DraftRecord),
+      };
+
+      const first = await replaceDraftEconomicsReferenceWithReceipt(ports, input);
+      const replay = await replaceDraftEconomicsReferenceWithReceipt(ports, input);
+
+      expect(first.resultingDraftVersion).toBe(2);
+      expect(replay).toEqual(first);
+      expect(ports.drafts[0]?.version).toBe(2);
+    });
+
+    it('routes economics transitions through mutateOpenDraftWithRoster', async () => {
+      const draft = await createDraftForPeriod(ports, {
+        fundId: FUND,
+        period: Q2_2026,
+        actorId: null,
+      });
+      ports.economicsRuns.set(88, {
+        fundId: FUND,
+        runState: 'completed',
+        factsSnapshotId: draft.financialFactsSnapshotId,
+      });
+
+      await replaceDraftEconomicsReference(ports, {
+        fundId: FUND,
+        draftId: draft.draftId,
+        expectedVersion: draft.version,
+        economicsReferenceId: 88,
+      });
+
+      expect(ports.mutateOpenDraftWithRosterCalls).toEqual(['economics_reference_replace']);
+    });
+
     async function openDraft() {
       return createDraftForPeriod(ports, { fundId: FUND, period: Q2_2026, actorId: 5 });
     }
 
-    it('attaches, replaces with the same value, and clears as three mutations', async () => {
+    it('attaches, treats the same value as a no-op, and clears', async () => {
       const draft = await openDraft();
       ports.economicsRuns.set(21, {
         fundId: FUND,
@@ -646,13 +967,13 @@ describe('analysis checkpoint service', () => {
       const cleared = await replaceDraftEconomicsReference(ports, {
         fundId: FUND,
         draftId: draft.draftId,
-        expectedVersion: 3,
+        expectedVersion: 2,
         economicsReferenceId: null,
       });
 
       expect(attached).toMatchObject({ economicsReferenceId: 21, version: 2 });
-      expect(sameValue).toMatchObject({ economicsReferenceId: 21, version: 3 });
-      expect(cleared).toMatchObject({ economicsReferenceId: null, version: 4 });
+      expect(sameValue).toMatchObject({ economicsReferenceId: 21, version: 2 });
+      expect(cleared).toMatchObject({ economicsReferenceId: null, version: 3 });
       expect(cleared.updatedAt.getTime()).toBeGreaterThan(sameValue.updatedAt.getTime());
     });
 
@@ -711,6 +1032,88 @@ describe('analysis checkpoint service', () => {
   });
 
   describe('saveDraft', () => {
+    it('replays a save receipt before rejecting the now-saved draft', async () => {
+      const draft = await createDraftForPeriod(ports, {
+        fundId: FUND,
+        period: Q2_2026,
+        actorId: 5,
+      });
+      const rawIfMatch = etagForDraft(draft);
+
+      const first = await saveDraftWithReceipt(ports, {
+        fundId: FUND,
+        draftId: draft.draftId,
+        acknowledgeMixedBasis: false,
+        actorId: 5,
+        idempotencyKey: 'save-replay',
+        rawIfMatch,
+      });
+      const replay = await saveDraftWithReceipt(ports, {
+        fundId: FUND,
+        draftId: draft.draftId,
+        acknowledgeMixedBasis: false,
+        actorId: 5,
+        idempotencyKey: 'save-replay',
+        rawIfMatch,
+      });
+
+      expect(replay.referenceId).toBe(first.referenceId);
+      expect(ports.references).toHaveLength(1);
+      expect(ports.events.filter((event) => event.eventType === 'saved')).toHaveLength(1);
+    });
+
+    it('records one saved revision event when identical saves race into commit', async () => {
+      const draft = await createDraftForPeriod(ports, {
+        fundId: FUND,
+        period: Q2_2026,
+        actorId: 5,
+      });
+      const input = {
+        fundId: FUND,
+        draftId: draft.draftId,
+        acknowledgeMixedBasis: false,
+        actorId: 5,
+        idempotencyKey: 'save-concurrent-replay',
+        rawIfMatch: etagForDraft(draft),
+      };
+
+      const results = await Promise.all([
+        saveDraftWithReceipt(ports, input),
+        saveDraftWithReceipt(ports, input),
+      ]);
+
+      expect(results[0]?.referenceId).toBe(results[1]?.referenceId);
+      expect(ports.events.filter((event) => event.eventType === 'saved')).toHaveLength(1);
+    });
+
+    it('rejects save key reuse with different caller body', async () => {
+      const draft = await createDraftForPeriod(ports, {
+        fundId: FUND,
+        period: Q2_2026,
+        actorId: 5,
+      });
+      const rawIfMatch = etagForDraft(draft);
+      await saveDraftWithReceipt(ports, {
+        fundId: FUND,
+        draftId: draft.draftId,
+        acknowledgeMixedBasis: false,
+        actorId: 5,
+        idempotencyKey: 'save-conflict',
+        rawIfMatch,
+      });
+
+      await expect(
+        saveDraftWithReceipt(ports, {
+          fundId: FUND,
+          draftId: draft.draftId,
+          acknowledgeMixedBasis: true,
+          actorId: 5,
+          idempotencyKey: 'save-conflict',
+          rawIfMatch,
+        })
+      ).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSE', statusCode: 409 });
+    });
+
     async function openDraft() {
       return createDraftForPeriod(ports, { fundId: FUND, period: Q2_2026, actorId: 5 });
     }
