@@ -324,6 +324,20 @@ describe('route policy coverage', () => {
     }
   });
 
+  it('classifies the internal economics workspace as fund-scoped and non-exportable', () => {
+    const policy = expectPolicy('/fund-model-results/:fundId/analysis');
+
+    expect(policy.governanceRef).toBe('/fund-model-results/:fundId/analysis');
+    expect(policy.financialSurface).toBe('fund_modeling');
+    expect(policy.apiAuthBoundary).toBe('require_auth_and_fund_access');
+    expect(policy.fundScopeMode).toBe('route_param_fund_id');
+    expect(policy.workflowRequirement).toBe('fund_scope_verified');
+    expect(policy.exportPolicy).toBe('not_exportable');
+    expect(policy.provenanceRequired).toBe(true);
+    expect(policy.staleBlocksExport).toBe(false);
+    expect(policy.humanReviewRequired).toBe(true);
+  });
+
   it('covers LP financial routes with the LP auth boundary', () => {
     const lpGovernanceEntries = ROUTE_GOVERNANCE_REGISTRY.filter(
       (entry) => entry.surface === 'lp-route'
