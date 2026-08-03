@@ -18,6 +18,8 @@ export interface InternalEconomicsPin {
   sourceId: number;
   runId: number;
   period: AnalysisPeriod;
+  periodStart: string;
+  periodEnd: string;
   createdAt: string;
   knowledgeCutoff: string;
   analysisFactsSnapshotId: number;
@@ -36,15 +38,17 @@ export interface InternalEconomicsSelection {
 }
 
 export type InternalEconomicsSelectionSlot = 'baseline' | 'current';
-export type InternalEconomicsReceiptSlot =
-  | { status: 'empty'; runId: null; receipt: null; error: null }
-  | { status: 'pending'; runId: number; receipt: null; error: null }
-  | { status: 'ready'; runId: number; receipt: InternalLpEconomicsRunReceiptV1; error: null }
-  | { status: 'error'; runId: number; receipt: null; error: Error };
+export type InternalEconomicsSlot =
+  | { state: 'empty'; runId: null; receipt: null; error: null }
+  | { state: 'pending'; runId: number; receipt: null; error: null }
+  | { state: 'ready'; runId: number; receipt: InternalLpEconomicsRunReceiptV1; error: null }
+  | { state: 'error'; runId: number; receipt: null; error: Error };
+
+export type InternalEconomicsReceiptSlot = InternalEconomicsSlot;
 
 export interface InternalEconomicsResult {
-  baseline: InternalEconomicsReceiptSlot;
-  current: InternalEconomicsReceiptSlot;
+  baseline: InternalEconomicsSlot;
+  current: InternalEconomicsSlot;
 }
 
 export const internalEconomicsReceiptQueryKey = (fundId: number, runId: number) =>
@@ -81,6 +85,8 @@ export function projectInternalEconomicsPins(
         sourceId: draft.draftId,
         runId,
         period: draft.period,
+        periodStart: draft.period.periodStart,
+        periodEnd: draft.period.periodEnd,
         createdAt: draft.createdAt,
         knowledgeCutoff: draft.basis.knowledgeCutoff,
         analysisFactsSnapshotId: draft.basis.financialFactsSnapshotId,
@@ -98,6 +104,8 @@ export function projectInternalEconomicsPins(
         sourceId: reference.referenceId,
         runId,
         period: reference.period,
+        periodStart: reference.period.periodStart,
+        periodEnd: reference.period.periodEnd,
         createdAt: reference.createdAt,
         knowledgeCutoff: reference.basis.knowledgeCutoff,
         analysisFactsSnapshotId: reference.basis.financialFactsSnapshotId,
@@ -174,11 +182,11 @@ export function selectInternalEconomicsRun(
 function toReceiptSlot(
   runId: number | null,
   query: UseQueryResult<InternalLpEconomicsRunReceiptV1, Error> | undefined
-): InternalEconomicsReceiptSlot {
-  if (runId === null) return { status: 'empty', runId: null, receipt: null, error: null };
-  if (query?.data) return { status: 'ready', runId, receipt: query.data, error: null };
-  if (query?.error) return { status: 'error', runId, receipt: null, error: query.error };
-  return { status: 'pending', runId, receipt: null, error: null };
+): InternalEconomicsSlot {
+  if (runId === null) return { state: 'empty', runId: null, receipt: null, error: null };
+  if (query?.data) return { state: 'ready', runId, receipt: query.data, error: null };
+  if (query?.error) return { state: 'error', runId, receipt: null, error: query.error };
+  return { state: 'pending', runId, receipt: null, error: null };
 }
 
 export function useInternalEconomics(
