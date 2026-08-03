@@ -19,6 +19,7 @@ import { useFundTuple, useFundAction } from '@/stores/useFundSelector';
 import { useFundContext } from '@/contexts/FundContext';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
 import type { FeeProfile, FeeTier, FundExpense, FeeBasis } from '@/stores/fundStore';
+import { getFeeBasisOptions } from '@/lib/fees';
 
 interface WaterfallTier {
   id: string;
@@ -136,44 +137,8 @@ export default function DistributionsStep() {
     addFundExpense(newExpense);
   };
 
-  // Fee basis options with descriptions
-  const feeBasisOptions: { value: FeeBasis; label: string; description: string }[] = [
-    {
-      value: 'committed_capital',
-      label: 'Committed Capital',
-      description: 'Fee charged on total committed capital by LPs',
-    },
-    {
-      value: 'called_capital_period',
-      label: 'Called Capital Each Period',
-      description: 'Fee charged on called capital in that period',
-    },
-    {
-      value: 'gross_cumulative_called',
-      label: 'Gross Cumulative Called Capital',
-      description: 'Fee charged on cumulative called capital to date',
-    },
-    {
-      value: 'net_cumulative_called',
-      label: 'Net Cumulative Called Capital',
-      description: 'Fee charged on cumulative called capital less capital returned to LPs',
-    },
-    {
-      value: 'cumulative_invested',
-      label: 'Cumulative Invested Capital',
-      description: 'Fee charged on cumulative invested capital (initial + follow-on) to date',
-    },
-    {
-      value: 'fair_market_value',
-      label: 'Fair Market Value',
-      description: 'Fee charged on fair market value of active investments each period',
-    },
-    {
-      value: 'unrealized_investments',
-      label: 'Unrealized Investments',
-      description: 'Fee charged on total cost basis of unrealized active investments',
-    },
-  ];
+  // Fee basis options with descriptions (labels come from the shared fee library)
+  const feeBasisOptions = getFeeBasisOptions();
 
   return (
     <ModernStepContainer

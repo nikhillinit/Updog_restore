@@ -244,9 +244,9 @@ describe('ReviewStep single-submit via finalize', () => {
           feeTiers: [
             {
               id: 'legacy-tier',
-              name: 'Period called fee',
+              name: 'Unknown basis fee',
               percentage: 2,
-              feeBasis: 'called_capital_period',
+              feeBasis: 'net_asset_value',
               startMonth: 1,
             },
           ],
@@ -313,9 +313,9 @@ describe('ReviewStep single-submit via finalize', () => {
           feeTiers: [
             {
               id: 'legacy-tier',
-              name: 'Period called fee',
+              name: 'Unknown basis fee',
               percentage: 2,
-              feeBasis: 'called_capital_period',
+              feeBasis: 'net_asset_value',
               startMonth: 1,
             },
           ],

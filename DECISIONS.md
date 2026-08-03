@@ -9946,3 +9946,106 @@ wizard/draft selection and persistence remain unwidened, frozen KPI selector v1
 remains American-semantic with its legacy input normalization, ADR-066 requires
 `deal_by_deal` for activation, and #1285 keeps #1291 and #1308 parked.
 Whole-fund results must not be presented as certified until those gates close.
+
+## ADR-069: Monthly Canonical Accrual Grain for Fund Economics (Issue #1311)
+
+**Date:** 2026-08-03 **Status:** Accepted **Tags:** #economics #period-grain
+#fees #preferred-return #numerical-model
+
+**Related:**
+[ADR-006 (Fee Calculation Standards)](docs/adr/ADR-006-fee-calculation-standards.md),
+ADR-064, ADR-065, parent issue #1171
+
+### Context
+
+Economics amounts were accrued at two different resolutions with no recorded
+authority. The GP economics engine (`shared/lib/economics/economics-engine.ts`)
+accrued fees, expenses, and preferred return once per year with an implicit
+annual grain. The internal-economics cash assembly
+(`shared/lib/internal-economics/`) works on a quarterly grid, and the quarterly
+waterfall truth cases are pinned to it. Nothing stated which grain was
+authoritative, how a rate becomes a period amount, or what a stub period
+accrues.
+
+Period resolution is a numerical-model decision, not a presentation choice: at
+an 8 percent hurdle on a 50,000,000 USD unreturned balance, one year of
+preferred return is 4,000,000 USD annually but 4,149,975.34 USD if the same
+nominal rate is compounded monthly. Over ten years the gap reaches 3,035,761.86
+USD.
+
+### Decision
+
+1. **The authoritative accrual grain is MONTHLY.** Quarterly and annual are
+   aggregation grains only. One quarter is exactly 3 canonical months and one
+   year is exactly 12 canonical months.
+2. **One canonical period representation.** `EconomicsCanonicalPeriodV1` in
+   `shared/contracts/economics-period-v1.contract.ts` carries grain, index,
+   period bounds, months covered, day counts, proration factor, year fraction,
+   and a partial flag. `shared/lib/economics/period-model-v1.ts` is the only
+   place that builds, prorates, and regroups periods.
+3. **Dating.** Periods are anniversary-based on a single anchor date. Period `n`
+   starts on the anchor plus `(n - 1) * monthsPerPeriod` months and ends the day
+   before the next period starts. Every boundary is derived from the anchor, so
+   periods stay contiguous even when month-end clamping applies (31 January plus
+   one month is 28 February).
+4. **Rate application uses effective rates.** Simple accrual is `r * t`;
+   compounded accrual is `(1 + r)^t - 1`, where `t` is the period year fraction.
+   This makes accrual grain-invariant: twelve canonical months accrue exactly
+   what one annual period accrues.
+5. **Proration is measured in canonical months, not days.** A partial period has
+   `prorationFactor = monthsCovered / monthsPerPeriod` and
+   `yearFraction = monthsCovered / 12`. Day counts are reported as metadata
+   only. Day-count proration was rejected because it disagrees with the monthly
+   grid: a six-month stub of a leap year is 182/366 of a year by days but 6/12
+   by months, and the monthly grid answers 6/12. On a 100,000,000 USD fund at 2
+   percent, the two rules differ by 5,464.48 USD for one stub.
+6. **Aggregation cannot change a calculated amount.** Flows sum, period-end
+   stocks keep the last value, period-start stocks keep the first value, and
+   ratios (DPI, RVPI, TVPI, IRR) are refused by the aggregator and must be
+   recomputed from aggregated components. Regrouping to a finer grain is refused
+   outright.
+
+### Rejected alternatives
+
+- **Nominal-rate division with periodic compounding** (`(1 + r/n)^(n*t) - 1`).
+  Rejected: the accrued amount rises with the accrual frequency, so a
+  reporting-grain change would silently move served numbers. Quantified in
+  `tests/fixtures/economics/period-grain-before-after.json`.
+- **Actual/actual day-count proration.** Rejected as above (item 5).
+- **Annual as the authoritative grain.** Rejected: it cannot express a stub
+  period or a mid-year step-down, and it does not compose with the quarterly
+  internal-economics grid.
+
+### Composition with the quarterly waterfall truth cases
+
+The canonical grid anchored on 1 January reproduces exact calendar quarters,
+verified against `isExactCalendarQuarterV1`, and each calendar quarter is
+covered by exactly three canonical months. The quarterly waterfall truth cases
+therefore sit on the canonical grid unchanged. `TZ=UTC npm run phoenix:truth`
+passes 336/336 with no case edits.
+
+### Served-number impact and activation
+
+No served number changes. The GP economics engine now derives its annual rows
+from the canonical grid, but because a year is 12 canonical months and rate
+application is grain-invariant, every amount is byte-identical to the pre-change
+engine. The evidence is
+`tests/fixtures/economics/period-grain-before-after.json`, which records the
+complete before and after annual rows and summary for a representative fund plus
+a per-field delta table that is zero throughout. The before side was captured by
+running the same input against the engine at commit `a3f4ed1`.
+
+Because no served number moves, no migration or backfill is required and no
+activation gate is needed. Persisted `EconomicsResultV1` snapshots stay
+readable: the only contract change is two optional row fields, `periodStart` and
+`periodEnd`, which older snapshots simply omit. A future change that moves the
+engine to true intra-year monthly accrual (calls, exits, and NAV inside the
+year) would move served numbers and requires its own ADR, fixtures, and
+activation gate; this ADR does not authorize it.
+
+### Reviewer sign-off
+
+Required per `CLAUDE.md`: `xirr-fees-validator` (fees and timing),
+`waterfall-specialist` (preferred return and carry), and
+`phoenix-precision-guardian` (Decimal precision of the year fraction). Sign-off
+is recorded on the pull request, not here.
