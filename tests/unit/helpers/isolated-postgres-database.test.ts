@@ -7,6 +7,17 @@ class FakePool extends EventEmitter {
   readonly end = vi.fn(async () => undefined);
 }
 
+function createDeferred(): {
+  readonly promise: Promise<void>;
+  readonly resolve: () => void;
+} {
+  let resolve = () => undefined;
+  const promise = new Promise<void>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 describe('isolated Postgres database cleanup', () => {
   it('tolerates administrator termination only while forced cleanup is active', async () => {
     const pool = new FakePool();
@@ -62,5 +73,42 @@ describe('isolated Postgres database cleanup', () => {
     await expect(managedPool.dropDatabase({ query }, 'isolated_database')).rejects.toThrow(
       dropError
     );
+  });
+
+  it('preserves pool shutdown and database drop failures together', async () => {
+    const pool = new FakePool();
+    const shutdownError = new Error('pool shutdown failed');
+    const dropError = new Error('database drop failed');
+    pool.end.mockRejectedValueOnce(shutdownError);
+    const managedPool = manageIsolatedDatabasePool(pool);
+    const query = vi.fn(async () => Promise.reject(dropError));
+
+    const rejection = await managedPool
+      .dropDatabase({ query }, 'isolated_database')
+      .catch((error: unknown) => error);
+
+    expect(rejection).toBeInstanceOf(AggregateError);
+    expect((rejection as AggregateError).errors).toEqual([shutdownError, dropError]);
+  });
+
+  it('waits for pool drain before beginning the forced database drop', async () => {
+    const pool = new FakePool();
+    const poolEnd = createDeferred();
+    const databaseDrop = createDeferred();
+    pool.end.mockImplementationOnce(() => poolEnd.promise);
+    const managedPool = manageIsolatedDatabasePool(pool);
+    const query = vi.fn(() => databaseDrop.promise);
+
+    const cleanup = managedPool.dropDatabase({ query }, 'isolated_database');
+    await Promise.resolve();
+
+    expect(query).not.toHaveBeenCalled();
+
+    poolEnd.resolve();
+    await vi.waitFor(() => expect(query).toHaveBeenCalledOnce());
+    expect(query).toHaveBeenCalledWith('DROP DATABASE IF EXISTS "isolated_database" WITH (FORCE)');
+
+    databaseDrop.resolve();
+    await expect(cleanup).resolves.toBeUndefined();
   });
 });

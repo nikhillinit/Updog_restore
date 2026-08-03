@@ -49,12 +49,19 @@ export function manageIsolatedDatabasePool<TPool extends PoolLifecycle>(
           adminPool.query(`DROP DATABASE IF EXISTS ${escapeIdentifier(databaseName)} WITH (FORCE)`),
         ]);
         const poolEnd = poolEndResult[0];
-        if (poolEnd.status === 'rejected' && !isExpectedPostgresStopError(poolEnd.reason)) {
-          throw poolEnd.reason;
-        }
         const drop = dropResult[0];
+        const unexpectedFailures: unknown[] = [];
+        if (poolEnd.status === 'rejected' && !isExpectedPostgresStopError(poolEnd.reason)) {
+          unexpectedFailures.push(poolEnd.reason);
+        }
         if (drop.status === 'rejected') {
-          throw drop.reason;
+          unexpectedFailures.push(drop.reason);
+        }
+        if (unexpectedFailures.length > 1) {
+          throw new AggregateError(unexpectedFailures, 'Isolated database cleanup failed');
+        }
+        if (unexpectedFailures.length === 1) {
+          throw unexpectedFailures[0];
         }
       } finally {
         isDroppingDatabase = false;
