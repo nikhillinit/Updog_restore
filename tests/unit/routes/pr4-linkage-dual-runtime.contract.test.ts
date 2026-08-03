@@ -167,6 +167,8 @@ beforeAll(async () => {
   const registerRoutesApp = express();
   registerRoutesApp.set('trust proxy', false);
   registerRoutesApp.use(express.json({ limit: '1mb' }));
+  const { requireSecureContext } = await import('../../../server/lib/secure-context');
+  registerRoutesApp.use('/api', requireSecureContext);
   const { registerRoutes } = await import('../../../server/routes');
   registerRoutesServer = await registerRoutes(registerRoutesApp);
   surfaces = [
@@ -213,7 +215,15 @@ describe('PR4 linkage dual-runtime parity', () => {
       .send({ target: evidenceLink.target })
       .expect(401);
 
-    await request(surfaces[0]!.app).get('/api/funds/1/tasks/10/evidence-links').expect(401);
+    const unauthenticatedListResponses = await Promise.all(
+      surfaces.map((surface) => request(surface.app).get('/api/funds/1/tasks/10/evidence-links'))
+    );
+    expect(
+      unauthenticatedListResponses.map((response) => response.status),
+      'both fully composed runtime surfaces'
+    ).toEqual([401, 401]);
+    expect(unauthenticatedListResponses[1]?.body).toEqual(unauthenticatedListResponses[0]?.body);
+    expect(evidenceService.listTaskEvidenceLinks).not.toHaveBeenCalled();
   });
 
   it('rotates economics-pin ETags identically', async () => {

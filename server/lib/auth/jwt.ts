@@ -287,7 +287,10 @@ export const requireAuth = () => async (req: Request, res: Response, next: NextF
       }
 
       authMetrics.jwtMissingToken.inc?.();
-      return res.sendStatus(401);
+      return res.status(401).json({
+        error: 'unauthorized',
+        message: 'Valid JWT token required',
+      });
     }
 
     assignUserFromClaims(req, verified.claims);
