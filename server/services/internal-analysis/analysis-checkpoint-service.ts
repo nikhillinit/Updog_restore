@@ -22,7 +22,7 @@
  */
 import { createHash } from 'node:crypto';
 
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import {
   ANALYSIS_REFERENCE_CONTRACT_VERSION,
@@ -38,7 +38,19 @@ import {
   internalAnalysisDrafts,
   internalAnalysisReferences,
   internalAnalysisRevisionEvents,
+  quarterlyReviewCompanies,
+  quarterlyReviewCommandReceipts,
+  quarterlyReviewItems,
+  quarterlyReviewRosters,
 } from '../../../shared/schema/internal-analysis';
+import { portfolioCompanies } from '../../../shared/schema/portfolio';
+import { isLivePortfolioCompany } from '../../../shared/lib/portfolio-company-status';
+import {
+  QUARTERLY_REVIEW_CATEGORIES,
+  QUARTERLY_REVIEW_CONTRACT_VERSION,
+  type QuarterlyReviewCommandResult,
+} from '../../../shared/contracts/internal-analysis/quarterly-review-v1.contract';
+import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
 import { internalLpEconomicsRuns } from '../../../shared/schema/internal-economics';
 import { jobOutbox, type JobOutbox } from '@shared/schema';
 import { db } from '../../db';
@@ -51,6 +63,7 @@ import { financialFactsSnapshots } from '../../../shared/schema/financial-facts-
 import { funds, fundSnapshots } from '../../../shared/schema/fund';
 import { buildFinancialFactsSnapshot } from '../financial-facts-snapshot-service';
 import { runCurrentForecastV2WithReceipt } from '../current-forecast-v2-service';
+import { weakETag } from '../../lib/http-preconditions';
 
 const log = logger.child({ module: 'internal-analysis-checkpoint' });
 
@@ -201,32 +214,61 @@ export interface RebuiltBasis {
   forecastFundSnapshotId: number | null;
 }
 
+export interface InsertDraftWithRosterInput {
+  fundId: number;
+  period: AnalysisPeriod;
+  basis: RebuiltBasis;
+  sourceReferenceId: number | null;
+  actorId: number | null;
+  idempotencyKey: string;
+}
+
+export type OpenDraftMutation =
+  | {
+      operation: 'refresh';
+      mutation: {
+        fundId: number;
+        draftId: number;
+        expectedVersion: number;
+        basis: RebuiltBasis;
+        actorId: number | null;
+      };
+      command?: DraftCommandContext;
+    }
+  | {
+      operation: 'economics_reference_replace';
+      mutation: {
+        fundId: number;
+        draftId: number;
+        expectedVersion: number;
+        economicsReferenceId: number | null;
+      };
+      command?: DraftCommandContext;
+    };
+
+export interface DraftCommandContext {
+  idempotencyKey: string;
+  requestHash: string;
+  actorId: number;
+}
+
+export interface DraftMutationOutcome {
+  draft: DraftRecord;
+  result: QuarterlyReviewCommandResult | null;
+}
+
 export interface AnalysisCheckpointPorts {
   /** Funds a quarterly draft should be planned for. */
   listActiveFundIds(): Promise<number[]>;
   getOpenDraft(fundId: number, period: AnalysisPeriod): Promise<DraftRecord | null>;
   getDraftById(fundId: number, draftId: number): Promise<DraftRecord | null>;
   listDrafts(fundId: number): Promise<DraftRecord[]>;
-  insertDraft(input: {
-    fundId: number;
-    period: AnalysisPeriod;
-    basis: RebuiltBasis;
-    sourceReferenceId: number | null;
-    actorId: number | null;
-    idempotencyKey: string;
-  }): Promise<DraftRecord>;
-  updateDraftBasis(input: {
-    fundId: number;
-    draftId: number;
-    expectedVersion: number;
-    basis: RebuiltBasis;
-  }): Promise<DraftRecord>;
-  replaceDraftEconomicsReference(input: {
-    fundId: number;
-    draftId: number;
-    expectedVersion: number;
-    economicsReferenceId: number | null;
-  }): Promise<DraftRecord>;
+  insertDraftWithRoster(input: InsertDraftWithRosterInput): Promise<DraftRecord>;
+  mutateOpenDraftWithRoster(input: OpenDraftMutation): Promise<DraftMutationOutcome>;
+  findQuarterlyReviewReceipt(
+    fundId: number,
+    idempotencyKey: string
+  ): Promise<{ requestHash: string; result: QuarterlyReviewCommandResult } | null>;
   /**
    * Insert the reference AND close its draft atomically, under the draft's
    * expected version. Splitting these lets a concurrent refresh land between the
@@ -234,16 +276,20 @@ export interface AnalysisCheckpointPorts {
    * draft no longer has; a crash between them would strand an open draft whose
    * retry then collides with the reference idempotency key. Implementations MUST
    * do both in one transaction, MUST guard on `version` and `savedAt IS NULL`,
-   * and MUST return the existing reference on idempotent replay.
+   * and MUST return the existing reference on idempotent replay. The first
+   * successful commit MUST also append its save revision events in that same
+   * transaction; an exact replay MUST NOT append them again.
    */
   commitReference(input: {
     fundId: number;
     draft: DraftRecord;
     expectedVersion: number;
     mixedBasisAtSave: boolean;
+    mismatches: PinnedComponentBasis[];
     supersedesReferenceId: number | null;
     actorId: number | null;
     idempotencyKey: string;
+    command?: DraftCommandContext;
   }): Promise<ReferenceRecord>;
   /**
    * Build ONE canonical facts snapshot at the advanced cutoff and rebuild every
@@ -347,7 +393,7 @@ export async function createDraftForPeriod(
     idempotencyKey,
   });
 
-  const draft = await ports.insertDraft({
+  const draft = await ports.insertDraftWithRoster({
     fundId: input.fundId,
     period: input.period,
     basis,
@@ -400,26 +446,15 @@ export async function refreshDraft(
     idempotencyKey: `${draftIdempotencyKey(input.fundId, draft.period, draft.sourceReferenceId)}:v${draft.version + 1}`,
   });
 
-  const refreshed = await ports.updateDraftBasis({
-    fundId: input.fundId,
-    draftId: input.draftId,
-    expectedVersion: input.expectedVersion,
-    basis,
-  });
-
-  await ports.recordRevisionEvent({
-    fundId: input.fundId,
-    draftId: input.draftId,
-    referenceId: null,
-    eventType: 'refreshed',
-    detail: {
-      knowledgeCutoff: basis.knowledgeCutoff.toISOString(),
-      financialFactsSnapshotId: basis.financialFactsSnapshotId,
-      forecastFundSnapshotId: basis.forecastFundSnapshotId,
-      economicsReferenceCleared: draft.economicsReferenceId !== null,
-      version: refreshed.version,
+  const { draft: refreshed } = await ports.mutateOpenDraftWithRoster({
+    operation: 'refresh',
+    mutation: {
+      fundId: input.fundId,
+      draftId: input.draftId,
+      expectedVersion: input.expectedVersion,
+      basis,
+      actorId: input.actorId,
     },
-    actorId: input.actorId,
   });
 
   return refreshed;
@@ -454,7 +489,141 @@ export async function replaceDraftEconomicsReference(
     );
   }
 
-  return ports.replaceDraftEconomicsReference(input);
+  const outcome = await ports.mutateOpenDraftWithRoster({
+    operation: 'economics_reference_replace',
+    mutation: input,
+  });
+  return outcome.draft;
+}
+
+function draftCommandRequestHash(input: {
+  operation: 'draft_refresh' | 'economics_reference_replace' | 'draft_save';
+  fundId: number;
+  draftId: number;
+  rawIfMatch: string;
+  body: Record<string, unknown>;
+}): string {
+  return canonicalSha256({
+    operation: input.operation,
+    contractVersion: QUARTERLY_REVIEW_CONTRACT_VERSION,
+    fundId: input.fundId,
+    draftId: input.draftId,
+    rawIfMatch: input.rawIfMatch,
+    body: input.body,
+  });
+}
+
+async function replayDraftCommand(
+  ports: AnalysisCheckpointPorts,
+  input: { fundId: number; idempotencyKey: string; requestHash: string }
+): Promise<QuarterlyReviewCommandResult | null> {
+  const receipt = await ports.findQuarterlyReviewReceipt(input.fundId, input.idempotencyKey);
+  if (receipt === null) return null;
+  if (receipt.requestHash !== input.requestHash) {
+    throw new AnalysisCheckpointServiceError(
+      409,
+      'IDEMPOTENCY_KEY_REUSE',
+      'Idempotency-Key was already used for a different quarterly review command.'
+    );
+  }
+  return receipt.result;
+}
+
+function assertDraftCommandETag(draft: DraftRecord, rawIfMatch: string): void {
+  const current = weakETag(
+    `internal-analysis-draft:${draft.fundId}:${draft.draftId}:${draft.version}`
+  );
+  if (current !== rawIfMatch) {
+    throw new AnalysisCheckpointServiceError(
+      412,
+      'DRAFT_VERSION_CONFLICT',
+      'The draft changed since it was read.'
+    );
+  }
+}
+
+export async function refreshDraftWithReceipt(
+  ports: AnalysisCheckpointPorts,
+  input: {
+    fundId: number;
+    draftId: number;
+    actorId: number;
+    idempotencyKey: string;
+    rawIfMatch: string;
+  }
+): Promise<QuarterlyReviewCommandResult> {
+  const requestHash = draftCommandRequestHash({
+    operation: 'draft_refresh',
+    fundId: input.fundId,
+    draftId: input.draftId,
+    rawIfMatch: input.rawIfMatch,
+    body: {},
+  });
+  const replay = await replayDraftCommand(ports, { ...input, requestHash });
+  if (replay !== null) return replay;
+  const draft = await ports.getDraftById(input.fundId, input.draftId);
+  if (draft === null) {
+    throw new AnalysisCheckpointServiceError(404, 'DRAFT_NOT_FOUND', 'Analysis draft not found.');
+  }
+  assertDraftCommandETag(draft, input.rawIfMatch);
+  const basis = await ports.rebuildBasis({
+    fundId: input.fundId,
+    asOfDate: draftAsOfDate(draft.period),
+    actorId: input.actorId,
+    idempotencyKey: `${draftIdempotencyKey(input.fundId, draft.period, draft.sourceReferenceId)}:v${draft.version + 1}`,
+  });
+  const outcome = await ports.mutateOpenDraftWithRoster({
+    operation: 'refresh',
+    mutation: {
+      fundId: input.fundId,
+      draftId: input.draftId,
+      expectedVersion: draft.version,
+      basis,
+      actorId: input.actorId,
+    },
+    command: { idempotencyKey: input.idempotencyKey, requestHash, actorId: input.actorId },
+  });
+  if (outcome.result === null) throw new Error('Draft refresh receipt was not persisted.');
+  return outcome.result;
+}
+
+export async function replaceDraftEconomicsReferenceWithReceipt(
+  ports: AnalysisCheckpointPorts,
+  input: {
+    fundId: number;
+    draftId: number;
+    economicsReferenceId: number | null;
+    actorId: number;
+    idempotencyKey: string;
+    rawIfMatch: string;
+  }
+): Promise<QuarterlyReviewCommandResult> {
+  const body = { economicsReferenceId: input.economicsReferenceId };
+  const requestHash = draftCommandRequestHash({
+    operation: 'economics_reference_replace',
+    fundId: input.fundId,
+    draftId: input.draftId,
+    rawIfMatch: input.rawIfMatch,
+    body,
+  });
+  const replay = await replayDraftCommand(ports, { ...input, requestHash });
+  if (replay !== null) return replay;
+  const draft = await ports.getDraftById(input.fundId, input.draftId);
+  if (draft === null)
+    throw new AnalysisCheckpointServiceError(404, 'DRAFT_NOT_FOUND', 'Analysis draft not found.');
+  assertDraftCommandETag(draft, input.rawIfMatch);
+  const outcome = await ports.mutateOpenDraftWithRoster({
+    operation: 'economics_reference_replace',
+    mutation: {
+      fundId: input.fundId,
+      draftId: input.draftId,
+      expectedVersion: draft.version,
+      economicsReferenceId: input.economicsReferenceId,
+    },
+    command: { idempotencyKey: input.idempotencyKey, requestHash, actorId: input.actorId },
+  });
+  if (outcome.result === null) throw new Error('Economics-reference receipt was not persisted.');
+  return outcome.result;
 }
 
 /** The components actually pinned on a draft, paired with their persisted basis. */
@@ -546,39 +715,84 @@ export async function saveDraft(
     draft,
     expectedVersion: input.expectedVersion,
     mixedBasisAtSave,
+    mismatches: coherence.mismatches,
     supersedesReferenceId: draft.sourceReferenceId,
     actorId: input.actorId,
     idempotencyKey: referenceIdempotencyKey(input.fundId, draft.draftId, draft.version),
   });
 
-  if (mixedBasisAtSave) {
-    await ports.recordRevisionEvent({
-      fundId: input.fundId,
-      draftId: draft.draftId,
-      referenceId: reference.referenceId,
-      eventType: 'mixed_basis_acknowledged',
-      detail: {
-        financialFactsSnapshotId: draft.financialFactsSnapshotId,
-        mismatches: coherence.mismatches,
-      },
-      actorId: input.actorId,
-    });
+  return reference;
+}
+
+export async function saveDraftWithReceipt(
+  ports: AnalysisCheckpointPorts,
+  input: {
+    fundId: number;
+    draftId: number;
+    acknowledgeMixedBasis: boolean;
+    actorId: number;
+    idempotencyKey: string;
+    rawIfMatch: string;
+  }
+): Promise<ReferenceRecord> {
+  const body = { acknowledgeMixedBasis: input.acknowledgeMixedBasis };
+  const requestHash = draftCommandRequestHash({
+    operation: 'draft_save',
+    fundId: input.fundId,
+    draftId: input.draftId,
+    rawIfMatch: input.rawIfMatch,
+    body,
+  });
+  const replay = await replayDraftCommand(ports, { ...input, requestHash });
+  if (replay !== null) {
+    const reference = await ports.getReferenceById(input.fundId, replay.targetId);
+    if (reference === null) {
+      throw new AnalysisCheckpointServiceError(
+        409,
+        'QUARTERLY_REVIEW_RECEIPT_CORRUPT',
+        'Save receipt reference could not be resolved.'
+      );
+    }
+    return reference;
   }
 
-  await ports.recordRevisionEvent({
+  const draft = await ports.getDraftById(input.fundId, input.draftId);
+  if (draft === null) {
+    throw new AnalysisCheckpointServiceError(404, 'DRAFT_NOT_FOUND', 'Analysis draft not found.');
+  }
+  assertDraftCommandETag(draft, input.rawIfMatch);
+  if (draft.savedAt !== null) {
+    throw new AnalysisCheckpointServiceError(
+      409,
+      'DRAFT_ALREADY_SAVED',
+      'This draft has already been saved.'
+    );
+  }
+  const components = await readPinnedComponentBases(ports, draft);
+  const coherence = classifyBundleCoherence(draft.financialFactsSnapshotId, components);
+  if (!coherence.coherent && !input.acknowledgeMixedBasis) {
+    throw new AnalysisCheckpointServiceError(
+      409,
+      MIXED_FACTS_BASIS,
+      'Pinned components do not all resolve to the draft facts basis.',
+      {
+        financialFactsSnapshotId: draft.financialFactsSnapshotId,
+        mismatches: coherence.mismatches,
+      }
+    );
+  }
+  const mixedBasisAtSave = !coherence.coherent;
+  const reference = await ports.commitReference({
     fundId: input.fundId,
-    draftId: draft.draftId,
-    referenceId: reference.referenceId,
-    eventType: 'saved',
-    detail: {
-      period: draft.period,
-      financialFactsSnapshotId: draft.financialFactsSnapshotId,
-      mixedBasisAtSave,
-      supersedesReferenceId: reference.supersedesReferenceId,
-    },
+    draft,
+    expectedVersion: draft.version,
+    mixedBasisAtSave,
+    mismatches: coherence.mismatches,
+    supersedesReferenceId: draft.sourceReferenceId,
     actorId: input.actorId,
+    idempotencyKey: referenceIdempotencyKey(input.fundId, draft.draftId, draft.version),
+    command: { idempotencyKey: input.idempotencyKey, requestHash, actorId: input.actorId },
   });
-
   return reference;
 }
 
@@ -682,6 +896,74 @@ export function toReferenceContract(reference: ReferenceRecord): AnalysisReferen
 // ---------------------------------------------------------------------------
 
 type Database = typeof db;
+type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
+
+async function seedQuarterlyReviewRoster(
+  tx: Transaction,
+  draft: DraftRecord,
+  actorId: number | null
+): Promise<number> {
+  const companyRows = await tx
+    .select({ id: portfolioCompanies.id, status: portfolioCompanies.status })
+    .from(portfolioCompanies)
+    .where(eq(portfolioCompanies.fundId, draft.fundId))
+    .orderBy(portfolioCompanies.id);
+  const liveCompanies = companyRows.filter(isLivePortfolioCompany);
+  const [roster] = await tx
+    .insert(quarterlyReviewRosters)
+    .values({
+      fundId: draft.fundId,
+      analysisDraftId: draft.draftId,
+      draftVersion: draft.version,
+      financialFactsSnapshotId: draft.financialFactsSnapshotId,
+      companyCount: liveCompanies.length,
+      createdBy: actorId,
+    })
+    .returning({ id: quarterlyReviewRosters.id });
+  if (!roster) {
+    throw new AnalysisCheckpointServiceError(
+      500,
+      'QUARTERLY_REVIEW_ROSTER_WRITE_FAILED',
+      'Failed to persist quarterly review roster.'
+    );
+  }
+  if (liveCompanies.length === 0) return roster.id;
+
+  const reviewCompanies = await tx
+    .insert(quarterlyReviewCompanies)
+    .values(
+      liveCompanies.map((company) => ({
+        fundId: draft.fundId,
+        quarterlyReviewRosterId: roster.id,
+        portfolioCompanyId: company.id,
+      }))
+    )
+    .returning({ id: quarterlyReviewCompanies.id });
+  await tx.insert(quarterlyReviewItems).values(
+    reviewCompanies.flatMap((company) =>
+      QUARTERLY_REVIEW_CATEGORIES.map((category) => ({
+        fundId: draft.fundId,
+        quarterlyReviewCompanyId: company.id,
+        category,
+      }))
+    )
+  );
+  return roster.id;
+}
+
+function toQuarterlyReviewCommandResult(
+  row: typeof quarterlyReviewCommandReceipts.$inferSelect
+): QuarterlyReviewCommandResult {
+  return {
+    receiptId: row.id,
+    operation: row.operation as QuarterlyReviewCommandResult['operation'],
+    draftId: row.analysisDraftId,
+    targetId:
+      row.resultItemId ?? row.resultCompanyId ?? row.resultReferenceId ?? row.analysisDraftId,
+    ...(row.resultDraftVersion === null ? {} : { resultingDraftVersion: row.resultDraftVersion }),
+    ...(row.resultRowVersion === null ? {} : { resultingRowVersion: row.resultRowVersion }),
+  };
+}
 
 function toPeriod(row: {
   periodKind: string;
@@ -778,163 +1060,315 @@ export function createAnalysisCheckpointPorts(database: Database = db): Analysis
       return rows.map(toDraftRecord);
     },
 
-    async insertDraft(input) {
-      if (input.sourceReferenceId !== null) {
-        await assertOwnedByFund({
-          db: database as unknown as FundScopedOwnershipDatabase,
-          fundId: input.fundId,
-          ref: { kind: 'analysis_reference', id: input.sourceReferenceId },
-        });
-      }
-      if (input.basis.forecastFundSnapshotId !== null) {
-        await assertOwnedByFund({
-          db: database as unknown as FundScopedOwnershipDatabase,
-          fundId: input.fundId,
-          ref: { kind: 'fund_snapshot', id: input.basis.forecastFundSnapshotId },
-        });
-      }
+    async insertDraftWithRoster(input) {
+      return database.transaction(async (tx) => {
+        if (input.sourceReferenceId !== null) {
+          await assertOwnedByFund({
+            db: tx as unknown as FundScopedOwnershipDatabase,
+            fundId: input.fundId,
+            ref: { kind: 'analysis_reference', id: input.sourceReferenceId },
+          });
+        }
+        if (input.basis.forecastFundSnapshotId !== null) {
+          await assertOwnedByFund({
+            db: tx as unknown as FundScopedOwnershipDatabase,
+            fundId: input.fundId,
+            ref: { kind: 'fund_snapshot', id: input.basis.forecastFundSnapshotId },
+          });
+        }
 
-      const inserted = await database
-        .insert(internalAnalysisDrafts)
-        .values({
-          fundId: input.fundId,
-          periodKind: input.period.periodKind,
-          periodStart: input.period.periodStart,
-          periodEnd: input.period.periodEnd,
-          knowledgeCutoff: input.basis.knowledgeCutoff,
-          financialFactsSnapshotId: input.basis.financialFactsSnapshotId,
-          forecastFundSnapshotId: input.basis.forecastFundSnapshotId,
-          sourceReferenceId: input.sourceReferenceId,
-          createdBy: input.actorId,
-          idempotencyKey: input.idempotencyKey,
-          requestHash: sha256Hex(input.idempotencyKey),
-        })
-        .returning();
+        const inserted = await tx
+          .insert(internalAnalysisDrafts)
+          .values({
+            fundId: input.fundId,
+            periodKind: input.period.periodKind,
+            periodStart: input.period.periodStart,
+            periodEnd: input.period.periodEnd,
+            knowledgeCutoff: input.basis.knowledgeCutoff,
+            financialFactsSnapshotId: input.basis.financialFactsSnapshotId,
+            forecastFundSnapshotId: input.basis.forecastFundSnapshotId,
+            sourceReferenceId: input.sourceReferenceId,
+            createdBy: input.actorId,
+            idempotencyKey: input.idempotencyKey,
+            requestHash: sha256Hex(input.idempotencyKey),
+          })
+          .onConflictDoNothing()
+          .returning();
 
-      const row = inserted[0];
-      if (!row) {
-        throw new AnalysisCheckpointServiceError(
-          500,
-          'DRAFT_WRITE_FAILED',
-          'Failed to persist the analysis draft.'
-        );
-      }
-      return toDraftRecord(row);
+        const row = inserted[0];
+        if (!row) {
+          const [existing] = await tx
+            .select()
+            .from(internalAnalysisDrafts)
+            .where(
+              and(
+                eq(internalAnalysisDrafts.fundId, input.fundId),
+                eq(internalAnalysisDrafts.periodStart, input.period.periodStart),
+                eq(internalAnalysisDrafts.periodEnd, input.period.periodEnd),
+                isNull(internalAnalysisDrafts.savedAt)
+              )
+            )
+            .limit(1);
+          if (existing) return toDraftRecord(existing);
+          throw new AnalysisCheckpointServiceError(
+            500,
+            'DRAFT_WRITE_FAILED',
+            'Failed to persist the analysis draft.'
+          );
+        }
+        const draft = toDraftRecord(row);
+        await seedQuarterlyReviewRoster(tx, draft, input.actorId);
+        return draft;
+      });
     },
 
-    async updateDraftBasis(input) {
-      const updated = await database
-        .update(internalAnalysisDrafts)
-        .set({
-          knowledgeCutoff: input.basis.knowledgeCutoff,
-          financialFactsSnapshotId: input.basis.financialFactsSnapshotId,
-          forecastFundSnapshotId: input.basis.forecastFundSnapshotId,
-          economicsReferenceId: null,
-          version: sql`${internalAnalysisDrafts.version} + 1`,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(internalAnalysisDrafts.id, input.draftId),
-            eq(internalAnalysisDrafts.fundId, input.fundId),
-            eq(internalAnalysisDrafts.version, input.expectedVersion),
-            isNull(internalAnalysisDrafts.savedAt)
-          )
-        )
-        .returning();
-
-      const row = updated[0];
-      if (!row) {
-        throw new AnalysisCheckpointServiceError(
-          412,
-          'DRAFT_VERSION_CONFLICT',
-          'The draft changed since it was read.',
-          { expectedVersion: input.expectedVersion }
-        );
-      }
-      return toDraftRecord(row);
-    },
-
-    async replaceDraftEconomicsReference(input) {
-      if (input.economicsReferenceId !== null) {
-        const [run] = await database
-          .select({ runState: internalLpEconomicsRuns.runState })
-          .from(internalLpEconomicsRuns)
+    async mutateOpenDraftWithRoster(input) {
+      const mutation = input.mutation;
+      return database.transaction(async (tx) => {
+        const [lockedRow] = await tx
+          .select()
+          .from(internalAnalysisDrafts)
           .where(
             and(
-              eq(internalLpEconomicsRuns.id, input.economicsReferenceId),
-              eq(internalLpEconomicsRuns.fundId, input.fundId)
+              eq(internalAnalysisDrafts.id, mutation.draftId),
+              eq(internalAnalysisDrafts.fundId, mutation.fundId)
             )
           )
+          .for('update')
           .limit(1);
-
-        if (!run) {
+        if (!lockedRow) {
           throw new AnalysisCheckpointServiceError(
             404,
-            'ECONOMICS_RUN_NOT_FOUND',
-            'Economics run not found.'
+            'DRAFT_NOT_FOUND',
+            'Analysis draft not found.'
           );
         }
-        if (run.runState !== 'completed') {
+
+        const locked = toDraftRecord(lockedRow);
+        if (input.command) {
+          const [receipt] = await tx
+            .select()
+            .from(quarterlyReviewCommandReceipts)
+            .where(
+              and(
+                eq(quarterlyReviewCommandReceipts.fundId, mutation.fundId),
+                eq(quarterlyReviewCommandReceipts.idempotencyKey, input.command.idempotencyKey)
+              )
+            )
+            .limit(1);
+          if (receipt) {
+            if (receipt.requestHash !== input.command.requestHash) {
+              throw new AnalysisCheckpointServiceError(
+                409,
+                'IDEMPOTENCY_KEY_REUSE',
+                'Idempotency-Key was already used for a different quarterly review command.'
+              );
+            }
+            return { draft: locked, result: toQuarterlyReviewCommandResult(receipt) };
+          }
+        }
+        if (locked.savedAt !== null) {
           throw new AnalysisCheckpointServiceError(
             409,
-            'ECONOMICS_RUN_NOT_COMPLETED',
-            'Only completed economics runs can be attached.'
+            'DRAFT_ALREADY_SAVED',
+            'A saved draft is immutable. Start a new draft from its reference to correct it.'
           );
         }
-      }
+        if (locked.version !== mutation.expectedVersion) {
+          throw new AnalysisCheckpointServiceError(
+            412,
+            'DRAFT_VERSION_CONFLICT',
+            'The draft changed since it was read.',
+            { expectedVersion: mutation.expectedVersion, currentVersion: locked.version }
+          );
+        }
 
-      const updated = await database
-        .update(internalAnalysisDrafts)
-        .set({
-          economicsReferenceId: input.economicsReferenceId,
-          version: sql`${internalAnalysisDrafts.version} + 1`,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(internalAnalysisDrafts.id, input.draftId),
-            eq(internalAnalysisDrafts.fundId, input.fundId),
-            eq(internalAnalysisDrafts.version, input.expectedVersion),
-            isNull(internalAnalysisDrafts.savedAt)
+        let updateValues;
+        let currentRosterId: number | null = null;
+        if (input.operation === 'economics_reference_replace') {
+          const economicsMutation = input.mutation;
+          const [roster] = await tx
+            .select()
+            .from(quarterlyReviewRosters)
+            .where(
+              and(
+                eq(quarterlyReviewRosters.analysisDraftId, locked.draftId),
+                eq(quarterlyReviewRosters.fundId, locked.fundId),
+                eq(quarterlyReviewRosters.draftVersion, locked.version),
+                eq(quarterlyReviewRosters.financialFactsSnapshotId, locked.financialFactsSnapshotId)
+              )
+            )
+            .limit(1);
+          if (!roster) {
+            throw new AnalysisCheckpointServiceError(
+              409,
+              'QUARTERLY_REVIEW_ROSTER_MISSING',
+              'Quarterly review requires refresh.'
+            );
+          }
+          const members = await tx
+            .select({ id: quarterlyReviewCompanies.id })
+            .from(quarterlyReviewCompanies)
+            .where(
+              and(
+                eq(quarterlyReviewCompanies.fundId, locked.fundId),
+                eq(quarterlyReviewCompanies.quarterlyReviewRosterId, roster.id)
+              )
+            );
+          if (members.length !== roster.companyCount) {
+            throw new AnalysisCheckpointServiceError(
+              409,
+              'QUARTERLY_REVIEW_ROSTER_CORRUPT',
+              'Quarterly review roster membership does not match its marker.',
+              {
+                draftId: locked.draftId,
+                draftVersion: locked.version,
+                financialFactsSnapshotId: locked.financialFactsSnapshotId,
+                expectedCompanyCount: roster.companyCount,
+                actualCompanyCount: members.length,
+              }
+            );
+          }
+          currentRosterId = roster.id;
+          if (locked.economicsReferenceId === economicsMutation.economicsReferenceId) {
+            if (!input.command) return { draft: locked, result: null };
+            const [receipt] = await tx
+              .insert(quarterlyReviewCommandReceipts)
+              .values({
+                fundId: locked.fundId,
+                analysisDraftId: locked.draftId,
+                rosterId: roster.id,
+                operation: 'economics_reference_replace',
+                idempotencyKey: input.command.idempotencyKey,
+                requestHash: input.command.requestHash,
+                responseStatus: 200,
+                resultKind: 'draft',
+                resultDraftVersion: locked.version,
+                actorId: input.command.actorId,
+              })
+              .returning();
+            if (!receipt) throw new Error('Economics receipt write failed.');
+            return { draft: locked, result: toQuarterlyReviewCommandResult(receipt) };
+          }
+          if (economicsMutation.economicsReferenceId !== null) {
+            const [run] = await tx
+              .select({ runState: internalLpEconomicsRuns.runState })
+              .from(internalLpEconomicsRuns)
+              .where(
+                and(
+                  eq(internalLpEconomicsRuns.id, economicsMutation.economicsReferenceId),
+                  eq(internalLpEconomicsRuns.fundId, economicsMutation.fundId)
+                )
+              )
+              .limit(1);
+            if (!run) {
+              throw new AnalysisCheckpointServiceError(
+                404,
+                'ECONOMICS_RUN_NOT_FOUND',
+                'Economics run not found.'
+              );
+            }
+            if (run.runState !== 'completed') {
+              throw new AnalysisCheckpointServiceError(
+                409,
+                'ECONOMICS_RUN_NOT_COMPLETED',
+                'Only completed economics runs can be attached.'
+              );
+            }
+          }
+          updateValues = {
+            economicsReferenceId: economicsMutation.economicsReferenceId,
+            version: sql`${internalAnalysisDrafts.version} + 1`,
+            updatedAt: new Date(),
+          };
+        } else {
+          const refreshMutation = input.mutation;
+          updateValues = {
+            knowledgeCutoff: refreshMutation.basis.knowledgeCutoff,
+            financialFactsSnapshotId: refreshMutation.basis.financialFactsSnapshotId,
+            forecastFundSnapshotId: refreshMutation.basis.forecastFundSnapshotId,
+            economicsReferenceId: null,
+            version: sql`${internalAnalysisDrafts.version} + 1`,
+            updatedAt: new Date(),
+          };
+        }
+
+        const updated = await tx
+          .update(internalAnalysisDrafts)
+          .set(updateValues)
+          .where(
+            and(
+              eq(internalAnalysisDrafts.id, mutation.draftId),
+              eq(internalAnalysisDrafts.fundId, mutation.fundId),
+              eq(internalAnalysisDrafts.version, mutation.expectedVersion),
+              isNull(internalAnalysisDrafts.savedAt)
+            )
           )
-        )
-        .returning();
+          .returning();
 
-      const row = updated[0];
-      if (row) return toDraftRecord(row);
+        const row = updated[0];
+        if (!row) {
+          throw new AnalysisCheckpointServiceError(
+            412,
+            'DRAFT_VERSION_CONFLICT',
+            'The draft changed since it was read.',
+            { expectedVersion: mutation.expectedVersion }
+          );
+        }
+        const draft = toDraftRecord(row);
+        const rosterId = await seedQuarterlyReviewRoster(tx, draft, input.command?.actorId ?? null);
+        if (input.operation === 'refresh') {
+          await tx.insert(internalAnalysisRevisionEvents).values({
+            fundId: draft.fundId,
+            draftId: draft.draftId,
+            referenceId: null,
+            eventType: 'refreshed',
+            detail: {
+              knowledgeCutoff: draft.knowledgeCutoff.toISOString(),
+              financialFactsSnapshotId: draft.financialFactsSnapshotId,
+              forecastFundSnapshotId: draft.forecastFundSnapshotId,
+              economicsReferenceCleared: locked.economicsReferenceId !== null,
+              version: draft.version,
+            },
+            actorId: input.mutation.actorId,
+          });
+        }
+        if (!input.command) return { draft, result: null };
+        const [receipt] = await tx
+          .insert(quarterlyReviewCommandReceipts)
+          .values({
+            fundId: draft.fundId,
+            analysisDraftId: draft.draftId,
+            rosterId: input.operation === 'refresh' ? rosterId : (rosterId ?? currentRosterId),
+            operation:
+              input.operation === 'refresh' ? 'draft_refresh' : 'economics_reference_replace',
+            idempotencyKey: input.command.idempotencyKey,
+            requestHash: input.command.requestHash,
+            responseStatus: 200,
+            resultKind: 'draft',
+            resultDraftVersion: draft.version,
+            actorId: input.command.actorId,
+          })
+          .returning();
+        if (!receipt) throw new Error('Draft transition receipt write failed.');
+        return { draft, result: toQuarterlyReviewCommandResult(receipt) };
+      });
+    },
 
-      const [currentRow] = await database
+    async findQuarterlyReviewReceipt(fundId, idempotencyKey) {
+      const [receipt] = await database
         .select()
-        .from(internalAnalysisDrafts)
+        .from(quarterlyReviewCommandReceipts)
         .where(
           and(
-            eq(internalAnalysisDrafts.id, input.draftId),
-            eq(internalAnalysisDrafts.fundId, input.fundId)
+            eq(quarterlyReviewCommandReceipts.fundId, fundId),
+            eq(quarterlyReviewCommandReceipts.idempotencyKey, idempotencyKey)
           )
         )
         .limit(1);
-      if (!currentRow) {
-        throw new AnalysisCheckpointServiceError(
-          404,
-          'DRAFT_NOT_FOUND',
-          'Analysis draft not found.'
-        );
-      }
-      const current = toDraftRecord(currentRow);
-      if (current.savedAt !== null) {
-        throw new AnalysisCheckpointServiceError(
-          409,
-          'DRAFT_ALREADY_SAVED',
-          'A saved draft is immutable. Start a new draft from its reference to correct it.'
-        );
-      }
-      throw new AnalysisCheckpointServiceError(
-        412,
-        'DRAFT_VERSION_CONFLICT',
-        'The draft changed since it was read.',
-        { expectedVersion: input.expectedVersion, currentVersion: current.version }
-      );
+      return receipt
+        ? { requestHash: receipt.requestHash, result: toQuarterlyReviewCommandResult(receipt) }
+        : null;
     },
 
     async rebuildBasis(input) {
@@ -1033,9 +1467,188 @@ export function createAnalysisCheckpointPorts(database: Database = db): Analysis
 
     async commitReference(input) {
       return database.transaction(async (tx) => {
-        // Close the draft FIRST, under its expected version. This takes the row
-        // lock, so a concurrent refresh either already won (version mismatch
-        // here) or blocks until commit and then fails its own guard.
+        const [lockedDraft] = await tx
+          .select()
+          .from(internalAnalysisDrafts)
+          .where(
+            and(
+              eq(internalAnalysisDrafts.id, input.draft.draftId),
+              eq(internalAnalysisDrafts.fundId, input.fundId)
+            )
+          )
+          .for('update')
+          .limit(1);
+        if (!lockedDraft) {
+          throw new AnalysisCheckpointServiceError(
+            404,
+            'DRAFT_NOT_FOUND',
+            'Analysis draft not found.'
+          );
+        }
+
+        if (input.command) {
+          const [receipt] = await tx
+            .select()
+            .from(quarterlyReviewCommandReceipts)
+            .where(
+              and(
+                eq(quarterlyReviewCommandReceipts.fundId, input.fundId),
+                eq(quarterlyReviewCommandReceipts.idempotencyKey, input.command.idempotencyKey)
+              )
+            )
+            .limit(1);
+          if (receipt) {
+            if (receipt.requestHash !== input.command.requestHash) {
+              throw new AnalysisCheckpointServiceError(
+                409,
+                'IDEMPOTENCY_KEY_REUSE',
+                'Idempotency-Key was already used for a different quarterly review command.'
+              );
+            }
+            if (receipt.resultReferenceId === null) {
+              throw new AnalysisCheckpointServiceError(
+                409,
+                'QUARTERLY_REVIEW_RECEIPT_CORRUPT',
+                'Save receipt has no reference result.'
+              );
+            }
+            const [existingReference] = await tx
+              .select()
+              .from(internalAnalysisReferences)
+              .where(
+                and(
+                  eq(internalAnalysisReferences.id, receipt.resultReferenceId),
+                  eq(internalAnalysisReferences.fundId, input.fundId)
+                )
+              )
+              .limit(1);
+            if (!existingReference) {
+              throw new AnalysisCheckpointServiceError(
+                409,
+                'QUARTERLY_REVIEW_RECEIPT_CORRUPT',
+                'Save receipt reference could not be resolved.'
+              );
+            }
+            return toReferenceRecord(existingReference);
+          }
+        }
+
+        if (lockedDraft.savedAt !== null || lockedDraft.version !== input.expectedVersion) {
+          throw new AnalysisCheckpointServiceError(
+            lockedDraft.savedAt !== null ? 409 : 412,
+            lockedDraft.savedAt !== null ? 'DRAFT_ALREADY_SAVED' : 'DRAFT_VERSION_CONFLICT',
+            lockedDraft.savedAt !== null
+              ? 'This draft has already been saved.'
+              : 'The draft changed since it was read.',
+            { expectedVersion: input.expectedVersion, currentVersion: lockedDraft.version }
+          );
+        }
+
+        const [roster] = await tx
+          .select()
+          .from(quarterlyReviewRosters)
+          .where(
+            and(
+              eq(quarterlyReviewRosters.analysisDraftId, lockedDraft.id),
+              eq(quarterlyReviewRosters.fundId, input.fundId),
+              eq(quarterlyReviewRosters.draftVersion, lockedDraft.version),
+              eq(
+                quarterlyReviewRosters.financialFactsSnapshotId,
+                lockedDraft.financialFactsSnapshotId
+              )
+            )
+          )
+          .limit(1)
+          .for('update');
+        if (!roster) {
+          throw new AnalysisCheckpointServiceError(
+            409,
+            'QUARTERLY_REVIEW_ROSTER_MISSING',
+            'Quarterly review requires refresh.',
+            {
+              draftId: lockedDraft.id,
+              draftVersion: lockedDraft.version,
+              financialFactsSnapshotId: lockedDraft.financialFactsSnapshotId,
+            }
+          );
+        }
+
+        const companies = await tx
+          .select()
+          .from(quarterlyReviewCompanies)
+          .where(
+            and(
+              eq(quarterlyReviewCompanies.fundId, input.fundId),
+              eq(quarterlyReviewCompanies.quarterlyReviewRosterId, roster.id)
+            )
+          )
+          .orderBy(quarterlyReviewCompanies.id)
+          .for('update');
+        if (companies.length !== roster.companyCount) {
+          throw new AnalysisCheckpointServiceError(
+            409,
+            'QUARTERLY_REVIEW_ROSTER_CORRUPT',
+            'Quarterly review roster membership does not match its marker.',
+            {
+              draftId: lockedDraft.id,
+              draftVersion: lockedDraft.version,
+              financialFactsSnapshotId: lockedDraft.financialFactsSnapshotId,
+              expectedCompanyCount: roster.companyCount,
+              actualCompanyCount: companies.length,
+            }
+          );
+        }
+
+        const items =
+          companies.length === 0
+            ? []
+            : await tx
+                .select()
+                .from(quarterlyReviewItems)
+                .where(
+                  and(
+                    eq(quarterlyReviewItems.fundId, input.fundId),
+                    inArray(
+                      quarterlyReviewItems.quarterlyReviewCompanyId,
+                      companies.map((company) => company.id)
+                    )
+                  )
+                )
+                .orderBy(quarterlyReviewItems.id)
+                .for('update');
+        const pendingCompanies = companies.flatMap((company) => {
+          if (company.waivedAt !== null) return [];
+          const stateByCategory = new Map(
+            items
+              .filter((item) => item.quarterlyReviewCompanyId === company.id)
+              .map((item) => [item.category, item.state] as const)
+          );
+          const pendingCategories = QUARTERLY_REVIEW_CATEGORIES.filter(
+            (category) => (stateByCategory.get(category) ?? 'pending') === 'pending'
+          );
+          return pendingCategories.length === 0
+            ? []
+            : [{ companyId: company.id, pendingCategories: [...pendingCategories] }];
+        });
+        if (pendingCompanies.length > 0) {
+          throw new AnalysisCheckpointServiceError(
+            409,
+            'QUARTERLY_REVIEW_INCOMPLETE',
+            'Quarterly review is incomplete.',
+            {
+              draftId: lockedDraft.id,
+              draftVersion: lockedDraft.version,
+              financialFactsSnapshotId: lockedDraft.financialFactsSnapshotId,
+              pendingCompanyCount: pendingCompanies.length,
+              pendingItemCount: pendingCompanies.reduce(
+                (count, company) => count + company.pendingCategories.length,
+                0
+              ),
+              companies: pendingCompanies,
+            }
+          );
+        }
+
         const closed = await tx
           .update(internalAnalysisDrafts)
           .set({ savedAt: new Date(), updatedAt: new Date() })
@@ -1050,20 +1663,6 @@ export function createAnalysisCheckpointPorts(database: Database = db): Analysis
           .returning();
 
         if (!closed[0]) {
-          // Either the draft moved on, or a previous attempt already closed it.
-          // Replay is idempotent: hand back the reference that attempt produced.
-          const [existing] = await tx
-            .select()
-            .from(internalAnalysisReferences)
-            .where(
-              and(
-                eq(internalAnalysisReferences.fundId, input.fundId),
-                eq(internalAnalysisReferences.idempotencyKey, input.idempotencyKey)
-              )
-            )
-            .limit(1);
-          if (existing) return toReferenceRecord(existing);
-
           throw new AnalysisCheckpointServiceError(
             412,
             'DRAFT_VERSION_CONFLICT',
@@ -1101,6 +1700,57 @@ export function createAnalysisCheckpointPorts(database: Database = db): Analysis
             'Failed to persist the analysis reference.'
           );
         }
+        if (input.command) {
+          const [receipt] = await tx
+            .insert(quarterlyReviewCommandReceipts)
+            .values({
+              fundId: input.fundId,
+              analysisDraftId: input.draft.draftId,
+              rosterId: roster.id,
+              operation: 'draft_save',
+              idempotencyKey: input.command.idempotencyKey,
+              requestHash: input.command.requestHash,
+              responseStatus: 201,
+              resultKind: 'reference',
+              resultReferenceId: row.id,
+              actorId: input.command.actorId,
+            })
+            .returning({ id: quarterlyReviewCommandReceipts.id });
+          if (!receipt) {
+            throw new AnalysisCheckpointServiceError(
+              500,
+              'QUARTERLY_REVIEW_RECEIPT_WRITE_FAILED',
+              'Failed to persist save receipt.'
+            );
+          }
+        }
+
+        if (input.mixedBasisAtSave) {
+          await tx.insert(internalAnalysisRevisionEvents).values({
+            fundId: input.fundId,
+            draftId: input.draft.draftId,
+            referenceId: row.id,
+            eventType: 'mixed_basis_acknowledged',
+            detail: {
+              financialFactsSnapshotId: input.draft.financialFactsSnapshotId,
+              mismatches: input.mismatches,
+            },
+            actorId: input.actorId,
+          });
+        }
+        await tx.insert(internalAnalysisRevisionEvents).values({
+          fundId: input.fundId,
+          draftId: input.draft.draftId,
+          referenceId: row.id,
+          eventType: 'saved',
+          detail: {
+            period: input.draft.period,
+            financialFactsSnapshotId: input.draft.financialFactsSnapshotId,
+            mixedBasisAtSave: input.mixedBasisAtSave,
+            supersedesReferenceId: input.supersedesReferenceId,
+          },
+          actorId: input.actorId,
+        });
         return toReferenceRecord(row);
       });
     },

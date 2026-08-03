@@ -159,6 +159,29 @@ describe('internal-analysis makeApp surface', () => {
     expect(response.status).toBe(400);
   }, 30_000);
 
+  it('mounts quarterly-review read, item, and waiver routes on the same surface', async () => {
+    const app = await makeAppWithTestAuth();
+    const authorization = await authorizationHeader();
+    const responses = await Promise.all([
+      request(app)
+        .get('/api/funds/abc/internal-analysis/drafts/3/quarterly-review')
+        .set('Authorization', authorization),
+      request(app)
+        .patch('/api/funds/abc/internal-analysis/drafts/3/quarterly-review/companies/4/items/kpis')
+        .set('Authorization', authorization)
+        .send({}),
+      request(app)
+        .post('/api/funds/abc/internal-analysis/drafts/3/quarterly-review/companies/4/waiver')
+        .set('Authorization', authorization)
+        .send({}),
+    ]);
+
+    for (const response of responses) {
+      expect(response.status).not.toBe(404);
+      expect(response.status).toBe(400);
+    }
+  }, 30_000);
+
   it('returns 401 for an unauthenticated narrative generate (Task 19)', async () => {
     const response = await request(await makeAppWithTestAuth())
       .post('/api/funds/7/internal-analysis/narratives/generate')

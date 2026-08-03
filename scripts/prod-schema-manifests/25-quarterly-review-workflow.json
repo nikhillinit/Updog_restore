@@ -1,0 +1,616 @@
+{
+  "name": "quarterly-review-workflow",
+  "order": 25,
+  "description": "Issue #1301 quarterly-review exact-basis rosters, company/item checklist state, and immutable HTTP command receipts.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0048_quarterly_review_workflow.sql"],
+  "allowedCreateTables": [
+    "quarterly_review_rosters",
+    "quarterly_review_companies",
+    "quarterly_review_items",
+    "quarterly_review_command_receipts"
+  ],
+  "functionDefinitions": [
+    {
+      "name": "quarterly_review_command_receipts_forbid_update",
+      "expectedDefinition": {
+        "exactDefinition": "CREATE OR REPLACE FUNCTION public.quarterly_review_command_receipts_forbid_update()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n  RAISE EXCEPTION 'quarterly_review_command_receipts are immutable';\nEND $function$\n",
+        "orderedFragments": [
+          "CREATE OR REPLACE FUNCTION public.quarterly_review_command_receipts_forbid_update()",
+          "RETURNS trigger",
+          "LANGUAGE plpgsql",
+          "RAISE EXCEPTION"
+        ],
+        "stringLiterals": ["quarterly_review_command_receipts are immutable"]
+      }
+    }
+  ],
+  "expectedTables": [
+    {
+      "name": "portfoliocompanies",
+      "sharedTable": true,
+      "columns": [],
+      "constraints": ["portfoliocompanies_id_fund_unique"],
+      "constraintDefinitions": [
+        {
+          "name": "portfoliocompanies_id_fund_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (id, fund_id)",
+            "orderedFragments": ["UNIQUE", "(id, fund_id)"],
+            "stringLiterals": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "quarterly_review_rosters",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "analysis_draft_id", "type": "integer", "nullable": false },
+        { "name": "draft_version", "type": "integer", "nullable": false },
+        {
+          "name": "financial_facts_snapshot_id",
+          "type": "integer",
+          "nullable": false
+        },
+        { "name": "company_count", "type": "integer", "nullable": false },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "quarterly_review_rosters_pkey",
+        "quarterly_review_rosters_fund_id_funds_id_fk",
+        "quarterly_review_rosters_draft_fund_fk",
+        "quarterly_review_rosters_facts_fund_fk",
+        "quarterly_review_rosters_created_by_fk",
+        "quarterly_review_rosters_id_fund_unique",
+        "quarterly_review_rosters_exact_basis_unique",
+        "quarterly_review_rosters_company_count_check"
+      ],
+      "constraintDefinitions": [
+        {
+          "name": "quarterly_review_rosters_pkey",
+          "expectedDefinition": {
+            "exactDefinition": "PRIMARY KEY (id)",
+            "orderedFragments": ["PRIMARY KEY", "(id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_rosters_fund_id_funds_id_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (fund_id) REFERENCES funds(id) ON DELETE CASCADE",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(fund_id)",
+              "REFERENCES funds(id)",
+              "ON DELETE CASCADE"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_rosters_draft_fund_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (analysis_draft_id, fund_id) REFERENCES internal_analysis_drafts(id, fund_id) ON DELETE CASCADE",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(analysis_draft_id, fund_id)",
+              "REFERENCES internal_analysis_drafts(id, fund_id)",
+              "ON DELETE CASCADE"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_rosters_facts_fund_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (financial_facts_snapshot_id, fund_id) REFERENCES financial_facts_snapshots(id, fund_id) ON DELETE RESTRICT",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(financial_facts_snapshot_id, fund_id)",
+              "REFERENCES financial_facts_snapshots(id, fund_id)",
+              "ON DELETE RESTRICT"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_rosters_created_by_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(created_by)",
+              "REFERENCES users(id)",
+              "ON DELETE RESTRICT"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_rosters_id_fund_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (id, fund_id)",
+            "orderedFragments": ["UNIQUE", "(id, fund_id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_rosters_exact_basis_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (analysis_draft_id, draft_version, financial_facts_snapshot_id)",
+            "orderedFragments": [
+              "UNIQUE",
+              "(analysis_draft_id, draft_version, financial_facts_snapshot_id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_rosters_company_count_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK ((company_count >= 0))",
+            "orderedFragments": ["CHECK", "company_count", ">= 0"],
+            "stringLiterals": []
+          }
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "quarterly_review_companies",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        {
+          "name": "quarterly_review_roster_id",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "portfolio_company_id",
+          "type": "integer",
+          "nullable": false
+        },
+        { "name": "waived_at", "type": "timestamptz", "nullable": true },
+        { "name": "waived_by", "type": "integer", "nullable": true },
+        { "name": "waiver_reason", "type": "text", "nullable": true },
+        { "name": "version", "type": "integer", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false },
+        { "name": "updated_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "quarterly_review_companies_pkey",
+        "quarterly_review_companies_fund_id_funds_id_fk",
+        "quarterly_review_companies_roster_fund_fk",
+        "quarterly_review_companies_portfolio_company_fund_fk",
+        "quarterly_review_companies_waived_by_fk",
+        "quarterly_review_companies_id_fund_unique",
+        "quarterly_review_companies_roster_company_unique",
+        "quarterly_review_companies_waiver_coupling_check",
+        "quarterly_review_companies_version_check"
+      ],
+      "constraintDefinitions": [
+        {
+          "name": "quarterly_review_companies_pkey",
+          "expectedDefinition": {
+            "exactDefinition": "PRIMARY KEY (id)",
+            "orderedFragments": ["PRIMARY KEY", "(id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_companies_fund_id_funds_id_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (fund_id) REFERENCES funds(id) ON DELETE CASCADE",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(fund_id)",
+              "REFERENCES funds(id)",
+              "ON DELETE CASCADE"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_companies_roster_fund_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (quarterly_review_roster_id, fund_id) REFERENCES quarterly_review_rosters(id, fund_id) ON DELETE CASCADE",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(quarterly_review_roster_id, fund_id)",
+              "REFERENCES quarterly_review_rosters(id, fund_id)",
+              "ON DELETE CASCADE"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_companies_portfolio_company_fund_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (portfolio_company_id, fund_id) REFERENCES portfoliocompanies(id, fund_id) ON DELETE RESTRICT",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(portfolio_company_id, fund_id)",
+              "REFERENCES portfoliocompanies(id, fund_id)",
+              "ON DELETE RESTRICT"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_companies_waived_by_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (waived_by) REFERENCES users(id) ON DELETE RESTRICT",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(waived_by)",
+              "REFERENCES users(id)",
+              "ON DELETE RESTRICT"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_companies_id_fund_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (id, fund_id)",
+            "orderedFragments": ["UNIQUE", "(id, fund_id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_companies_roster_company_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (quarterly_review_roster_id, portfolio_company_id)",
+            "orderedFragments": [
+              "UNIQUE",
+              "(quarterly_review_roster_id, portfolio_company_id)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_companies_waiver_coupling_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((num_nonnulls(waived_at, waived_by, waiver_reason) = 0) OR ((num_nonnulls(waived_at, waived_by, waiver_reason) = 3) AND (length(btrim(waiver_reason)) > 0))))",
+            "orderedFragments": [
+              "CHECK",
+              "num_nonnulls(waived_at, waived_by, waiver_reason) = 0",
+              "num_nonnulls(waived_at, waived_by, waiver_reason) = 3",
+              "length(btrim(waiver_reason)) > 0"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_companies_version_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK ((version >= 1))",
+            "orderedFragments": ["CHECK", "version", ">= 1"],
+            "stringLiterals": []
+          }
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "quarterly_review_items",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        {
+          "name": "quarterly_review_company_id",
+          "type": "integer",
+          "nullable": false
+        },
+        { "name": "category", "type": "varchar", "nullable": false },
+        { "name": "state", "type": "varchar", "nullable": false },
+        { "name": "note", "type": "text", "nullable": true },
+        { "name": "reviewed_by", "type": "integer", "nullable": true },
+        { "name": "reviewed_at", "type": "timestamptz", "nullable": true },
+        { "name": "change_ref_kind", "type": "varchar", "nullable": true },
+        { "name": "change_ref_path", "type": "varchar", "nullable": true },
+        { "name": "change_ref_label", "type": "varchar", "nullable": true },
+        { "name": "follow_up_task_id", "type": "integer", "nullable": true },
+        { "name": "version", "type": "integer", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false },
+        { "name": "updated_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "quarterly_review_items_pkey",
+        "quarterly_review_items_fund_id_funds_id_fk",
+        "quarterly_review_items_company_fund_fk",
+        "quarterly_review_items_reviewed_by_fk",
+        "quarterly_review_items_follow_up_task_fund_fk",
+        "quarterly_review_items_company_category_unique",
+        "quarterly_review_items_category_check",
+        "quarterly_review_items_state_check",
+        "quarterly_review_items_state_coupling_check",
+        "quarterly_review_items_version_check"
+      ],
+      "constraintDefinitions": [
+        {
+          "name": "quarterly_review_items_pkey",
+          "expectedDefinition": {
+            "exactDefinition": "PRIMARY KEY (id)",
+            "orderedFragments": ["PRIMARY KEY", "(id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_items_fund_id_funds_id_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (fund_id) REFERENCES funds(id) ON DELETE CASCADE",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(fund_id)",
+              "REFERENCES funds(id)",
+              "ON DELETE CASCADE"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_items_company_fund_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (quarterly_review_company_id, fund_id) REFERENCES quarterly_review_companies(id, fund_id) ON DELETE CASCADE",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(quarterly_review_company_id, fund_id)",
+              "REFERENCES quarterly_review_companies(id, fund_id)",
+              "ON DELETE CASCADE"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_items_reviewed_by_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE RESTRICT",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(reviewed_by)",
+              "REFERENCES users(id)",
+              "ON DELETE RESTRICT"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_items_follow_up_task_fund_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (follow_up_task_id, fund_id) REFERENCES tasks(id, fund_id) ON DELETE RESTRICT",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(follow_up_task_id, fund_id)",
+              "REFERENCES tasks(id, fund_id)",
+              "ON DELETE RESTRICT"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_items_company_category_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (quarterly_review_company_id, category)",
+            "orderedFragments": [
+              "UNIQUE",
+              "(quarterly_review_company_id, category)"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_items_category_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((category)::text = ANY ((ARRAY['cases_probabilities'::character varying, 'kpis'::character varying, 'valuation_fmv'::character varying, 'reserve_plan'::character varying, 'qualitative_risks'::character varying])::text[])))",
+            "orderedFragments": [
+              "CHECK",
+              "category",
+              "cases_probabilities",
+              "qualitative_risks"
+            ],
+            "stringLiterals": [
+              "cases_probabilities",
+              "kpis",
+              "valuation_fmv",
+              "reserve_plan",
+              "qualitative_risks"
+            ]
+          }
+        },
+        {
+          "name": "quarterly_review_items_state_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((state)::text = ANY ((ARRAY['pending'::character varying, 'changed'::character varying, 'reviewed_no_change'::character varying])::text[])))",
+            "orderedFragments": [
+              "CHECK",
+              "state",
+              "pending",
+              "reviewed_no_change"
+            ],
+            "stringLiterals": ["pending", "changed", "reviewed_no_change"]
+          }
+        },
+        {
+          "name": "quarterly_review_items_state_coupling_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((((state)::text = 'pending'::text) AND (num_nonnulls(note, reviewed_by, reviewed_at, change_ref_kind, change_ref_path, change_ref_label, follow_up_task_id) = 0)) OR (((state)::text = 'reviewed_no_change'::text) AND (note IS NOT NULL) AND (length(btrim(note)) > 0) AND (reviewed_by IS NOT NULL) AND (reviewed_at IS NOT NULL) AND (num_nonnulls(change_ref_kind, change_ref_path, change_ref_label, follow_up_task_id) = 0)) OR (((state)::text = 'changed'::text) AND (note IS NOT NULL) AND (length(btrim(note)) > 0) AND (reviewed_by IS NOT NULL) AND (reviewed_at IS NOT NULL) AND (change_ref_kind IS NOT NULL) AND ((change_ref_kind)::text = 'internal_route'::text) AND (change_ref_path IS NOT NULL) AND (change_ref_label IS NOT NULL))))",
+            "orderedFragments": [
+              "CHECK",
+              "state",
+              "change_ref_kind IS NOT NULL",
+              "internal_route",
+              "change_ref_path IS NOT NULL",
+              "change_ref_label IS NOT NULL"
+            ],
+            "stringLiterals": [
+              "pending",
+              "reviewed_no_change",
+              "changed",
+              "internal_route"
+            ]
+          }
+        },
+        {
+          "name": "quarterly_review_items_version_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK ((version >= 1))",
+            "orderedFragments": ["CHECK", "version", ">= 1"],
+            "stringLiterals": []
+          }
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "quarterly_review_command_receipts",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "analysis_draft_id", "type": "integer", "nullable": false },
+        { "name": "roster_id", "type": "integer", "nullable": false },
+        { "name": "operation", "type": "varchar", "nullable": false },
+        { "name": "idempotency_key", "type": "varchar", "nullable": false },
+        { "name": "request_hash", "type": "varchar", "nullable": false },
+        { "name": "response_status", "type": "integer", "nullable": false },
+        { "name": "result_kind", "type": "varchar", "nullable": false },
+        { "name": "result_item_id", "type": "integer", "nullable": true },
+        { "name": "result_company_id", "type": "integer", "nullable": true },
+        { "name": "result_reference_id", "type": "integer", "nullable": true },
+        { "name": "result_draft_version", "type": "integer", "nullable": true },
+        { "name": "result_row_version", "type": "integer", "nullable": true },
+        { "name": "actor_id", "type": "integer", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "quarterly_review_command_receipts_pkey",
+        "quarterly_review_command_receipts_draft_fund_fk",
+        "quarterly_review_command_receipts_roster_fund_fk",
+        "quarterly_review_command_receipts_actor_fk",
+        "quarterly_review_command_receipts_fund_idempotency_unique",
+        "quarterly_review_command_receipts_operation_check",
+        "quarterly_review_command_receipts_result_coupling_check"
+      ],
+      "constraintDefinitions": [
+        {
+          "name": "quarterly_review_command_receipts_pkey",
+          "expectedDefinition": {
+            "exactDefinition": "PRIMARY KEY (id)",
+            "orderedFragments": ["PRIMARY KEY", "(id)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_command_receipts_draft_fund_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (analysis_draft_id, fund_id) REFERENCES internal_analysis_drafts(id, fund_id) ON DELETE CASCADE",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(analysis_draft_id, fund_id)",
+              "REFERENCES internal_analysis_drafts(id, fund_id)",
+              "ON DELETE CASCADE"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_command_receipts_roster_fund_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (roster_id, fund_id) REFERENCES quarterly_review_rosters(id, fund_id) ON DELETE CASCADE",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(roster_id, fund_id)",
+              "REFERENCES quarterly_review_rosters(id, fund_id)",
+              "ON DELETE CASCADE"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_command_receipts_actor_fk",
+          "expectedDefinition": {
+            "exactDefinition": "FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE RESTRICT",
+            "orderedFragments": [
+              "FOREIGN KEY",
+              "(actor_id)",
+              "REFERENCES users(id)",
+              "ON DELETE RESTRICT"
+            ],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_command_receipts_fund_idempotency_unique",
+          "expectedDefinition": {
+            "exactDefinition": "UNIQUE (fund_id, idempotency_key)",
+            "orderedFragments": ["UNIQUE", "(fund_id, idempotency_key)"],
+            "stringLiterals": []
+          }
+        },
+        {
+          "name": "quarterly_review_command_receipts_operation_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((operation)::text = ANY ((ARRAY['draft_refresh'::character varying, 'economics_reference_replace'::character varying, 'review_item_update'::character varying, 'company_waive'::character varying, 'draft_save'::character varying])::text[])))",
+            "orderedFragments": [
+              "CHECK",
+              "operation",
+              "draft_refresh",
+              "draft_save"
+            ],
+            "stringLiterals": [
+              "draft_refresh",
+              "economics_reference_replace",
+              "review_item_update",
+              "company_waive",
+              "draft_save"
+            ]
+          }
+        },
+        {
+          "name": "quarterly_review_command_receipts_result_coupling_check",
+          "expectedDefinition": {
+            "exactDefinition": "CHECK (((((operation)::text = ANY ((ARRAY['draft_refresh'::character varying, 'economics_reference_replace'::character varying])::text[])) AND ((result_kind)::text = 'draft'::text) AND (response_status = 200) AND (result_draft_version IS NOT NULL) AND (num_nonnulls(result_item_id, result_company_id, result_reference_id, result_row_version) = 0)) OR (((operation)::text = 'review_item_update'::text) AND ((result_kind)::text = 'item'::text) AND (response_status = 200) AND (result_item_id IS NOT NULL) AND (result_row_version IS NOT NULL) AND (num_nonnulls(result_company_id, result_reference_id, result_draft_version) = 0)) OR (((operation)::text = 'company_waive'::text) AND ((result_kind)::text = 'company'::text) AND (response_status = 200) AND (result_company_id IS NOT NULL) AND (result_row_version IS NOT NULL) AND (num_nonnulls(result_item_id, result_reference_id, result_draft_version) = 0)) OR (((operation)::text = 'draft_save'::text) AND ((result_kind)::text = 'reference'::text) AND (response_status = 201) AND (result_reference_id IS NOT NULL) AND (num_nonnulls(result_item_id, result_company_id, result_draft_version, result_row_version) = 0))))",
+            "orderedFragments": [
+              "CHECK",
+              "operation",
+              "result_kind",
+              "response_status",
+              "result_reference_id"
+            ],
+            "stringLiterals": [
+              "draft_refresh",
+              "economics_reference_replace",
+              "draft",
+              "review_item_update",
+              "item",
+              "company_waive",
+              "company",
+              "draft_save",
+              "reference"
+            ]
+          }
+        }
+      ],
+      "indexes": [],
+      "triggerDefinitions": [
+        {
+          "name": "quarterly_review_command_receipts_forbid_update",
+          "expectedDefinition": {
+            "exactDefinition": "CREATE TRIGGER quarterly_review_command_receipts_forbid_update BEFORE UPDATE ON public.quarterly_review_command_receipts FOR EACH ROW EXECUTE FUNCTION quarterly_review_command_receipts_forbid_update()",
+            "orderedFragments": [
+              "CREATE TRIGGER quarterly_review_command_receipts_forbid_update",
+              "BEFORE UPDATE ON public.quarterly_review_command_receipts",
+              "FOR EACH ROW",
+              "EXECUTE FUNCTION quarterly_review_command_receipts_forbid_update()"
+            ],
+            "stringLiterals": []
+          }
+        }
+      ]
+    }
+  ]
+}

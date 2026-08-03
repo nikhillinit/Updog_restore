@@ -5,9 +5,11 @@ import jwt from 'jsonwebtoken';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { weakETag } from '../../../server/lib/http-preconditions';
+
 const analysisService = vi.hoisted(() => ({
   getDraftById: vi.fn(),
-  replaceDraftEconomicsReference: vi.fn(),
+  replaceDraftEconomicsReferenceWithReceipt: vi.fn(),
 }));
 
 const evidenceService = vi.hoisted(() => ({
@@ -24,7 +26,8 @@ vi.mock('../../../server/services/internal-analysis/analysis-checkpoint-service'
     createAnalysisCheckpointPorts: () => ({
       getDraftById: analysisService.getDraftById,
     }),
-    replaceDraftEconomicsReference: analysisService.replaceDraftEconomicsReference,
+    replaceDraftEconomicsReferenceWithReceipt:
+      analysisService.replaceDraftEconomicsReferenceWithReceipt,
   };
 });
 
@@ -212,12 +215,13 @@ afterAll(async () => {
 beforeEach(() => {
   analysisService.getDraftById.mockReset();
   analysisService.getDraftById.mockResolvedValue(draft);
-  analysisService.replaceDraftEconomicsReference.mockReset();
-  analysisService.replaceDraftEconomicsReference.mockResolvedValue({
-    ...draft,
-    economicsReferenceId: 9,
-    version: 2,
-    updatedAt: new Date('2026-08-01T12:00:00.000Z'),
+  analysisService.replaceDraftEconomicsReferenceWithReceipt.mockReset();
+  analysisService.replaceDraftEconomicsReferenceWithReceipt.mockResolvedValue({
+    receiptId: 71,
+    operation: 'economics_reference_replace',
+    draftId: 3,
+    targetId: 3,
+    resultingDraftVersion: 2,
   });
   evidenceService.createTaskEvidenceLink.mockReset();
   evidenceService.listTaskEvidenceLinks.mockReset();
@@ -284,11 +288,14 @@ describe('PR4 linkage dual-runtime parity', () => {
         .patch('/api/funds/1/internal-analysis/drafts/3/economics-reference')
         .set('Authorization', authorization)
         .set('If-Match', detail.headers['etag'] as string)
+        .set('Idempotency-Key', `economics-${surface.name}`)
         .send({ economicsReferenceId: 9 })
         .expect(200);
 
-      expect(response.headers['etag'], surface.name).not.toBe(detail.headers['etag']);
-      expect(response.body.draft.basis.economicsReferenceId, surface.name).toBe(9);
+      expect(response.headers['etag'], surface.name).toBe(
+        weakETag('internal-analysis-draft:1:3:2')
+      );
+      expect(response.body.result.resultingDraftVersion, surface.name).toBe(2);
     }
   });
 

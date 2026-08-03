@@ -29,6 +29,11 @@ import {
   QuarterlyDraftRunRequestSchema,
 } from '../../shared/contracts/internal-analysis/analysis-reference-snapshot-v1.contract';
 import {
+  QuarterlyReviewCategorySchema,
+  QuarterlyReviewItemMutationSchema,
+  QuarterlyReviewWaiverMutationSchema,
+} from '../../shared/contracts/internal-analysis/quarterly-review-v1.contract';
+import {
   NarrativeGenerateRequestSchema,
   NarrativeNoteCreateRequestSchema,
   NarrativeReviseRequestSchema,
@@ -46,10 +51,11 @@ import {
   toNoteContract,
 } from '../services/internal-analysis/internal-narrative-draft-service';
 
-import { requireAuth, requireFundAccess, requireRole } from '../lib/auth/jwt.js';
+import { requireAuth, requireFundAccess, requireRole, requireWriteRole } from '../lib/auth/jwt.js';
 import { FundScopeError } from '../lib/fund-scoped-ownership';
-import { assertNotModified, setETagHeaders, weakETag } from '../lib/http-preconditions';
+import { setETagHeaders, weakETag } from '../lib/http-preconditions';
 import { IdempotentCommandError } from '../lib/idempotent-command';
+import { parseInternalEconomicsIdempotencyKey } from '../lib/internal-economics-idempotency-key.js';
 import { handleNumberParseError } from '../lib/number-parse-error';
 import { createRouteLogger } from '../lib/route-logger.js';
 import {
@@ -59,16 +65,29 @@ import {
   createDraftForPeriod,
   listReferences,
   planQuarterlyDrafts,
-  replaceDraftEconomicsReference,
-  refreshDraft,
-  saveDraft,
+  replaceDraftEconomicsReferenceWithReceipt,
+  refreshDraftWithReceipt,
+  saveDraftWithReceipt,
   startCorrectionDraft,
   toDraftContract,
   toReferenceContract,
 } from '../services/internal-analysis/analysis-checkpoint-service';
+import {
+  QuarterlyReviewServiceError,
+  createQuarterlyReviewPorts,
+  executeQuarterlyReviewItemCommand,
+  executeQuarterlyReviewWaiverCommand,
+} from '../services/internal-analysis/quarterly-review-service';
 
 const routeLog = createRouteLogger('internal-analysis');
 const router = Router();
+const INTERNAL_ANALYSIS_WRITE_ROLES = ['partner', 'admin', 'analyst'] as const;
+const QUARTERLY_REVIEW_WAIVER_ROLES = ['partner', 'admin'] as const;
+const POSTGRES_INT_MAX = 2_147_483_647;
+
+function isPositivePostgresInt(value: number): boolean {
+  return Number.isInteger(value) && value >= 1 && value <= POSTGRES_INT_MAX;
+}
 
 const readLimiter = rateLimit({
   windowMs: 60_000,
@@ -86,7 +105,11 @@ const writeLimiter = rateLimit({
 
 function validateFundIdParam(req: Request, res: Response, next: NextFunction) {
   try {
-    toNumber(req.params['fundId'], 'fundId', { integer: true, min: 1 });
+    toNumber(req.params['fundId'], 'fundId', {
+      integer: true,
+      min: 1,
+      max: POSTGRES_INT_MAX,
+    });
     next();
   } catch (error) {
     if (handleNumberParseError(error, res, 'Invalid parameter')) return;
@@ -103,14 +126,18 @@ function routeHandler(
 }
 
 function fundIdOf(req: Request): number {
-  return toNumber(req.params['fundId'], 'fundId', { integer: true, min: 1 });
+  return toNumber(req.params['fundId'], 'fundId', {
+    integer: true,
+    min: 1,
+    max: POSTGRES_INT_MAX,
+  });
 }
 
 function actorIdOf(req: Request): number | null {
-  const raw = req.user?.id ?? req.user?.sub;
+  const raw = req.user?.id ?? req.user?.sub ?? req.context?.userId;
   if (raw === undefined || raw === null) return null;
   const parsed = Number(raw);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  return isPositivePostgresInt(parsed) ? parsed : null;
 }
 
 /**
@@ -119,30 +146,46 @@ function actorIdOf(req: Request): number | null {
  * folded in.
  */
 function draftETag(draft: DraftRecord): string {
-  return weakETag(`internal-analysis-draft:${draft.fundId}:${draft.draftId}:${draft.version}`);
+  return draftVersionETag(draft.fundId, draft.draftId, draft.version);
 }
 
-/** Resolve the draft an `If-Match`-guarded write targets, or answer 404/428/412. */
-async function requireFreshDraft(
-  req: Request,
-  fundId: number,
-  draftId: number
-): Promise<DraftRecord> {
-  const ports = createAnalysisCheckpointPorts();
-  const draft = await ports.getDraftById(fundId, draftId);
-  if (draft === null) {
-    throw new AnalysisCheckpointServiceError(404, 'DRAFT_NOT_FOUND', 'Analysis draft not found.');
+function draftVersionETag(fundId: number, draftId: number, version: number): string {
+  return weakETag(`internal-analysis-draft:${fundId}:${draftId}:${version}`);
+}
+
+function respondToTypedError(error: unknown, res: Response, context?: { fundId: number }): boolean {
+  const typed = error as { code?: unknown; details?: unknown } | null;
+  if (
+    (typed?.code === 'QUARTERLY_REVIEW_ROSTER_CORRUPT' ||
+      typed?.code === 'QUARTERLY_REVIEW_BASIS_CONFLICT') &&
+    context
+  ) {
+    const details = typed.details as { draftId?: unknown; draftVersion?: unknown } | undefined;
+    if (typeof details?.draftId === 'number' && typeof details.draftVersion === 'number') {
+      setETagHeaders(
+        res,
+        weakETag(
+          `internal-analysis-draft:${context.fundId}:${details.draftId}:${details.draftVersion}`
+        )
+      );
+    }
   }
-  // Throws 428 when If-Match is absent, 412 when it no longer matches.
-  assertNotModified(draftETag(draft), req.header('If-Match'));
-  return draft;
-}
-
-function respondToTypedError(error: unknown, res: Response): boolean {
   if (
     error instanceof AnalysisCheckpointServiceError ||
-    error instanceof InternalNarrativeServiceError
+    error instanceof InternalNarrativeServiceError ||
+    error instanceof QuarterlyReviewServiceError
   ) {
+    if (
+      error.code === 'QUARTERLY_REVIEW_INCOMPLETE' ||
+      error.code === 'QUARTERLY_REVIEW_ROSTER_CORRUPT'
+    ) {
+      routeLog.warn('Quarterly review command rejected by integrity gate', {
+        event: 'quarterly-review.command-rejected',
+        code: error.code,
+        fundId: context?.fundId,
+        details: error.details,
+      });
+    }
     res.status(error.statusCode).json({
       error: error.code,
       message: error.message,
@@ -173,6 +216,36 @@ function respondToTypedError(error: unknown, res: Response): boolean {
   return false;
 }
 
+function requiredCommandHeader(req: Request, name: 'If-Match' | 'Idempotency-Key'): string {
+  if (name === 'Idempotency-Key') {
+    const parsed = parseInternalEconomicsIdempotencyKey(req.headers['idempotency-key']);
+    if (parsed.kind === 'missing') {
+      throw new AnalysisCheckpointServiceError(
+        428,
+        'PRECONDITION_REQUIRED',
+        'Idempotency-Key header is required.'
+      );
+    }
+    if (parsed.kind === 'invalid') {
+      throw new AnalysisCheckpointServiceError(
+        400,
+        'INVALID_IDEMPOTENCY_KEY',
+        'Idempotency-Key must contain 1 to 128 RFC token characters.'
+      );
+    }
+    return parsed.value;
+  }
+  const value = req.header(name);
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new AnalysisCheckpointServiceError(
+      428,
+      'PRECONDITION_REQUIRED',
+      `${name} header is required.`
+    );
+  }
+  return value;
+}
+
 router.get(
   '/funds/:fundId/internal-analysis/drafts',
   readLimiter,
@@ -195,7 +268,7 @@ router.get(
   routeHandler(async (req: Request, res: Response) => {
     const fundId = fundIdOf(req);
     const draftId = Number(req.params['draftId']);
-    if (!Number.isInteger(draftId) || draftId < 1) {
+    if (!isPositivePostgresInt(draftId)) {
       return res.status(400).json({ error: 'Invalid parameter', message: 'Invalid draftId' });
     }
 
@@ -212,12 +285,134 @@ router.get(
   })
 );
 
+router.get(
+  '/funds/:fundId/internal-analysis/drafts/:draftId/quarterly-review',
+  readLimiter,
+  requireAuth(),
+  validateFundIdParam,
+  requireFundAccess,
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = fundIdOf(req);
+    const draftId = Number(req.params['draftId']);
+    if (!isPositivePostgresInt(draftId)) {
+      return res.status(400).json({ error: 'Invalid parameter', message: 'Invalid draftId' });
+    }
+    try {
+      const review = await createQuarterlyReviewPorts().getCurrentReview(fundId, draftId);
+      res.setHeader('Cache-Control', 'private, no-store');
+      if (typeof review['draftEtag'] === 'string') res.setHeader('ETag', review['draftEtag']);
+      return res.json(review);
+    } catch (error) {
+      if (respondToTypedError(error, res, { fundId })) return undefined;
+      throw error;
+    }
+  })
+);
+
+router.patch(
+  '/funds/:fundId/internal-analysis/drafts/:draftId/quarterly-review/companies/:companyId/items/:category',
+  writeLimiter,
+  requireAuth(),
+  validateFundIdParam,
+  requireFundAccess,
+  requireWriteRole(INTERNAL_ANALYSIS_WRITE_ROLES),
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = fundIdOf(req);
+    const draftId = Number(req.params['draftId']);
+    const companyId = Number(req.params['companyId']);
+    const category = QuarterlyReviewCategorySchema.safeParse(req.params['category']);
+    const body = QuarterlyReviewItemMutationSchema.safeParse(req.body);
+    if (
+      !isPositivePostgresInt(draftId) ||
+      !isPositivePostgresInt(companyId) ||
+      !category.success ||
+      !body.success
+    ) {
+      return res
+        .status(400)
+        .json({
+          error: 'invalid_quarterly_review_item_request',
+          message: 'Invalid quarterly review item request.',
+        });
+    }
+    try {
+      const actorId = actorIdOf(req);
+      if (actorId === null)
+        throw new QuarterlyReviewServiceError(
+          403,
+          'QUARTERLY_REVIEW_ACTOR_FORBIDDEN',
+          'Numeric actor identity is required.'
+        );
+      const result = await executeQuarterlyReviewItemCommand(createQuarterlyReviewPorts(), {
+        fundId,
+        draftId,
+        companyId,
+        category: category.data,
+        actorId,
+        idempotencyKey: requiredCommandHeader(req, 'Idempotency-Key'),
+        rawIfMatch: requiredCommandHeader(req, 'If-Match'),
+        body: body.data,
+      });
+      return res.json({ result });
+    } catch (error) {
+      if (respondToTypedError(error, res, { fundId })) return undefined;
+      throw error;
+    }
+  })
+);
+
+router.post(
+  '/funds/:fundId/internal-analysis/drafts/:draftId/quarterly-review/companies/:companyId/waiver',
+  writeLimiter,
+  requireAuth(),
+  validateFundIdParam,
+  requireFundAccess,
+  requireWriteRole(QUARTERLY_REVIEW_WAIVER_ROLES),
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = fundIdOf(req);
+    const draftId = Number(req.params['draftId']);
+    const companyId = Number(req.params['companyId']);
+    const body = QuarterlyReviewWaiverMutationSchema.safeParse(req.body);
+    if (!isPositivePostgresInt(draftId) || !isPositivePostgresInt(companyId) || !body.success) {
+      return res
+        .status(400)
+        .json({
+          error: 'invalid_quarterly_review_waiver_request',
+          message: 'Invalid quarterly review waiver request.',
+        });
+    }
+    try {
+      const actorId = actorIdOf(req);
+      if (actorId === null)
+        throw new QuarterlyReviewServiceError(
+          403,
+          'QUARTERLY_REVIEW_ACTOR_FORBIDDEN',
+          'Numeric actor identity is required.'
+        );
+      const result = await executeQuarterlyReviewWaiverCommand(createQuarterlyReviewPorts(), {
+        fundId,
+        draftId,
+        companyId,
+        actorId,
+        idempotencyKey: requiredCommandHeader(req, 'Idempotency-Key'),
+        rawIfMatch: requiredCommandHeader(req, 'If-Match'),
+        body: body.data,
+      });
+      return res.json({ result });
+    } catch (error) {
+      if (respondToTypedError(error, res, { fundId })) return undefined;
+      throw error;
+    }
+  })
+);
+
 router.post(
   '/funds/:fundId/internal-analysis/drafts',
   writeLimiter,
   requireAuth(),
   validateFundIdParam,
   requireFundAccess,
+  requireWriteRole(INTERNAL_ANALYSIS_WRITE_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const fundId = fundIdOf(req);
     const parsed = AnalysisDraftCreateRequestSchema.safeParse(req.body);
@@ -247,7 +442,7 @@ router.post(
       setETagHeaders(res, draftETag(draft));
       return res.status(201).json({ draft: toDraftContract(draft) });
     } catch (error) {
-      if (respondToTypedError(error, res)) return undefined;
+      if (respondToTypedError(error, res, { fundId })) return undefined;
       routeLog.error({ err: error, fundId }, 'Failed to create analysis draft');
       throw error;
     }
@@ -260,15 +455,15 @@ router.patch(
   requireAuth(),
   validateFundIdParam,
   requireFundAccess,
+  requireWriteRole(INTERNAL_ANALYSIS_WRITE_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const fundId = fundIdOf(req);
     const draftId = Number(req.params['draftId']);
-    if (!Number.isInteger(draftId) || draftId < 1) {
+    if (!isPositivePostgresInt(draftId)) {
       return res.status(400).json({ error: 'Invalid parameter', message: 'Invalid draftId' });
     }
 
     try {
-      const current = await requireFreshDraft(req, fundId, draftId);
       const parsed = AnalysisDraftEconomicsReferencePatchRequestSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({
@@ -277,17 +472,38 @@ router.patch(
           details: parsed.error.flatten(),
         });
       }
+      if (
+        parsed.data.economicsReferenceId !== null &&
+        !isPositivePostgresInt(parsed.data.economicsReferenceId)
+      ) {
+        return res.status(400).json({
+          error: 'invalid_analysis_economics_reference_request',
+          message: 'Invalid analysis economics-reference request',
+        });
+      }
 
-      const updated = await replaceDraftEconomicsReference(createAnalysisCheckpointPorts(), {
-        fundId,
-        draftId,
-        expectedVersion: current.version,
-        economicsReferenceId: parsed.data.economicsReferenceId,
-      });
-      setETagHeaders(res, draftETag(updated));
-      return res.json({ draft: toDraftContract(updated) });
+      const actorId = actorIdOf(req);
+      if (actorId === null) {
+        throw new AnalysisCheckpointServiceError(403, 'ACTOR_REQUIRED', 'Numeric actor required.');
+      }
+      const result = await replaceDraftEconomicsReferenceWithReceipt(
+        createAnalysisCheckpointPorts(),
+        {
+          fundId,
+          draftId,
+          economicsReferenceId: parsed.data.economicsReferenceId,
+          actorId,
+          idempotencyKey: requiredCommandHeader(req, 'Idempotency-Key'),
+          rawIfMatch: requiredCommandHeader(req, 'If-Match'),
+        }
+      );
+      if (result.resultingDraftVersion === undefined) {
+        throw new Error('Economics-reference receipt omitted resulting draft version.');
+      }
+      setETagHeaders(res, draftVersionETag(fundId, draftId, result.resultingDraftVersion));
+      return res.json({ result });
     } catch (error) {
-      if (respondToTypedError(error, res)) return undefined;
+      if (respondToTypedError(error, res, { fundId })) return undefined;
       routeLog.error(
         { err: error, fundId, draftId },
         'Failed to replace analysis draft economics reference'
@@ -303,26 +519,29 @@ router.post(
   requireAuth(),
   validateFundIdParam,
   requireFundAccess,
+  requireWriteRole(INTERNAL_ANALYSIS_WRITE_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const fundId = fundIdOf(req);
     const draftId = Number(req.params['draftId']);
-    if (!Number.isInteger(draftId) || draftId < 1) {
+    if (!isPositivePostgresInt(draftId)) {
       return res.status(400).json({ error: 'Invalid parameter', message: 'Invalid draftId' });
     }
 
     try {
-      const current = await requireFreshDraft(req, fundId, draftId);
-      const refreshed = await refreshDraft(createAnalysisCheckpointPorts(), {
+      const actorId = actorIdOf(req);
+      if (actorId === null) {
+        throw new AnalysisCheckpointServiceError(403, 'ACTOR_REQUIRED', 'Numeric actor required.');
+      }
+      const result = await refreshDraftWithReceipt(createAnalysisCheckpointPorts(), {
         fundId,
         draftId,
-        expectedVersion: current.version,
-        actorId: actorIdOf(req),
+        actorId,
+        idempotencyKey: requiredCommandHeader(req, 'Idempotency-Key'),
+        rawIfMatch: requiredCommandHeader(req, 'If-Match'),
       });
-      // Refresh advanced the cutoff and repinned every consumer, so the ETag rotates.
-      setETagHeaders(res, draftETag(refreshed));
-      return res.json({ draft: toDraftContract(refreshed) });
+      return res.json({ result });
     } catch (error) {
-      if (respondToTypedError(error, res)) return undefined;
+      if (respondToTypedError(error, res, { fundId })) return undefined;
       routeLog.error({ err: error, fundId, draftId }, 'Failed to refresh analysis draft');
       throw error;
     }
@@ -335,10 +554,11 @@ router.post(
   requireAuth(),
   validateFundIdParam,
   requireFundAccess,
+  requireWriteRole(INTERNAL_ANALYSIS_WRITE_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const fundId = fundIdOf(req);
     const draftId = Number(req.params['draftId']);
-    if (!Number.isInteger(draftId) || draftId < 1) {
+    if (!isPositivePostgresInt(draftId)) {
       return res.status(400).json({ error: 'Invalid parameter', message: 'Invalid draftId' });
     }
 
@@ -352,17 +572,21 @@ router.post(
     }
 
     try {
-      const current = await requireFreshDraft(req, fundId, draftId);
-      const reference = await saveDraft(createAnalysisCheckpointPorts(), {
+      const actorId = actorIdOf(req);
+      if (actorId === null) {
+        throw new AnalysisCheckpointServiceError(403, 'ACTOR_REQUIRED', 'Numeric actor required.');
+      }
+      const reference = await saveDraftWithReceipt(createAnalysisCheckpointPorts(), {
         fundId,
         draftId,
-        expectedVersion: current.version,
         acknowledgeMixedBasis: parsed.data.acknowledgeMixedBasis,
-        actorId: actorIdOf(req),
+        actorId,
+        idempotencyKey: requiredCommandHeader(req, 'Idempotency-Key'),
+        rawIfMatch: requiredCommandHeader(req, 'If-Match'),
       });
       return res.status(201).json({ reference: toReferenceContract(reference) });
     } catch (error) {
-      if (respondToTypedError(error, res)) return undefined;
+      if (respondToTypedError(error, res, { fundId })) return undefined;
       routeLog.error({ err: error, fundId, draftId }, 'Failed to save analysis draft');
       throw error;
     }
@@ -399,7 +623,7 @@ router.get(
   routeHandler(async (req: Request, res: Response) => {
     const fundId = fundIdOf(req);
     const referenceId = Number(req.params['referenceId']);
-    if (!Number.isInteger(referenceId) || referenceId < 1) {
+    if (!isPositivePostgresInt(referenceId)) {
       return res.status(400).json({ error: 'Invalid parameter', message: 'Invalid referenceId' });
     }
 
@@ -427,10 +651,11 @@ router.post(
   requireAuth(),
   validateFundIdParam,
   requireFundAccess,
+  requireWriteRole(INTERNAL_ANALYSIS_WRITE_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const fundId = fundIdOf(req);
     const referenceId = Number(req.params['referenceId']);
-    if (!Number.isInteger(referenceId) || referenceId < 1) {
+    if (!isPositivePostgresInt(referenceId)) {
       return res.status(400).json({ error: 'Invalid parameter', message: 'Invalid referenceId' });
     }
 

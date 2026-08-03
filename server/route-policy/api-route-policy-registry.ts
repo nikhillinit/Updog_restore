@@ -1894,6 +1894,21 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
         'Read one draft; the response ETag is what a refresh or save must echo in If-Match.',
       ],
       [
+        'GET',
+        '/api/funds/:fundId/internal-analysis/drafts/:draftId/quarterly-review',
+        'Read exact-basis internal quarterly review roster and completion state.',
+      ],
+      [
+        'PATCH',
+        '/api/funds/:fundId/internal-analysis/drafts/:draftId/quarterly-review/companies/:companyId/items/:category',
+        'Update one exact-basis quarterly review item with immutable command receipt.',
+      ],
+      [
+        'POST',
+        '/api/funds/:fundId/internal-analysis/drafts/:draftId/quarterly-review/companies/:companyId/waiver',
+        'Apply terminal partner/admin waiver with immutable command receipt.',
+      ],
+      [
         'POST',
         '/api/funds/:fundId/internal-analysis/drafts',
         'Create a manual-period draft; quarterly drafts come from the job_outbox planner.',

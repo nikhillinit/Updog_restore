@@ -4,11 +4,7 @@ import type { FundResultsReadV1 } from '@shared/contracts/fund-results-v1.contra
 export type AnalyticsTraceStatus = 'available' | 'pending' | 'unavailable' | 'linked' | 'deferred';
 
 export type QuarterlyReviewTraceItemId =
-  | 'plan'
-  | 'segment-gap'
-  | 'follow-on'
-  | 'what-if'
-  | 'lp-output';
+  'plan' | 'segment-gap' | 'follow-on' | 'what-if' | 'lp-output';
 
 export interface AnalyticsTraceAction {
   label: string;
@@ -35,6 +31,13 @@ export interface DeferredParityItem {
 export interface QuarterlyReviewTrace {
   items: QuarterlyReviewTraceItem[];
   deferred: DeferredParityItem[];
+}
+
+export function buildQuarterlyReviewWorkflowAction(fundId: string): AnalyticsTraceAction {
+  return {
+    label: 'Open quarterly review',
+    href: `/fund-model-results/${encodeURIComponent(fundId)}/internal-analysis`,
+  };
 }
 
 type TraceSection = {

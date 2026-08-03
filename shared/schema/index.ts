@@ -30,3 +30,4 @@ export * from './financial-observations';
 export * from './investment-ledger';
 export * from './investment-positions';
 export * from './vehicle-financing-participations';
+export * from './internal-analysis';

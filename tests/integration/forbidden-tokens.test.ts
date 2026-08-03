@@ -2,8 +2,11 @@
  * Forbidden Tokens Integration Test
  *
  * Validates that no forbidden legacy features appear in the codebase:
- * - European waterfall logic
- * - Line of Credit functionality
+ * - Line of Credit functionality (eight bans)
+ *
+ * The whole-fund waterfall vocabulary is NOT forbidden: ADR-068 restored it as
+ * public product vocabulary. This suite pins that restoration so a later sweep
+ * cannot silently re-ban the term.
  *
  * Tests both compile-time type guards and runtime validation.
  */
@@ -13,11 +16,27 @@ import { glob } from 'glob';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
+  DEFAULT_WATERFALL_TYPE,
   FORBIDDEN_TOKENS,
   WaterfallTypeSchema,
   validateNoForbiddenKeys,
-  type _forbiddenKeysGuard,
 } from '@shared/types/forbidden-features';
+
+/**
+ * The eight Line-of-Credit bans. ADR-068 narrowed FORBIDDEN_TOKENS to exactly
+ * these; every one must survive and every one must be reachable by the runtime
+ * scanner.
+ */
+const LINE_OF_CREDIT_BANS = [
+  'lineOfCredit',
+  'locRate',
+  'locCap',
+  'locDraw',
+  'locRepay',
+  'locDrawRules',
+  'locRepayRules',
+  'useLineOfCredit',
+] as const;
 
 interface Violation {
   file: string;
@@ -91,7 +110,7 @@ describe('Forbidden Features Protection', () => {
         .map((v) => `  ${v.file}:${v.line} - "${v.token}"\n    ${v.context}`)
         .join('\n\n');
 
-      console.error(`\n❌ Found ${violations.length} forbidden token(s):\n`);
+      console.error(`\nFAIL: Found ${violations.length} forbidden token(s):\n`);
       console.error(report);
     }
 
@@ -106,7 +125,7 @@ describe('Forbidden Features Protection', () => {
       managementFee: 0.02,
       carriedInterest: 0.2,
       vintage: 2024,
-      distribution: 'american', // Not 'european'
+      distribution: 'american', // Scanner checks key names, not values
       investments: [
         {
           name: 'Company A',
@@ -123,49 +142,63 @@ describe('Forbidden Features Protection', () => {
   });
 
   it('runtime: validateNoForbiddenKeys detects violations', () => {
-    // Schema with forbidden keys
+    // Every Line-of-Credit ban gets exercised through the runtime scanner, not
+    // just a sample: ADR-068 narrowed the token set, so the scanner's coverage
+    // of what survived is the thing worth pinning.
     const badSchema = {
       fundName: 'Test Fund',
       lineOfCredit: {
-        // FORBIDDEN
-        locRate: 0.05, // FORBIDDEN
-        locCap: 10000000, // FORBIDDEN
+        locRate: 0.05,
+        locCap: 10000000,
+        locDraw: 1000000,
+        locRepay: 500000,
+        locDrawRules: { trigger: 'call' },
+        locRepayRules: { trigger: 'exit' },
       },
-      useLineOfCredit: true, // FORBIDDEN
+      useLineOfCredit: true,
     };
 
     const result = validateNoForbiddenKeys(badSchema, 'badSchema');
 
     expect(result.isValid).toBe(false);
-    expect(result.foundKeys.length).toBeGreaterThan(0);
 
-    // Should find at least lineOfCredit and useLineOfCredit
     const foundTokens = result.foundKeys.map((k) => k.split(' ')[0].split('.').pop());
-    expect(foundTokens).toContain('lineOfCredit');
-    expect(foundTokens).toContain('useLineOfCredit');
+    for (const token of LINE_OF_CREDIT_BANS) {
+      expect(foundTokens, `scanner missed the ${token} ban`).toContain(token);
+    }
   });
 
-  it('compile-time: type guard prevents usage', () => {
-    // Verify the type guard can be imported (compile-time check)
-    type TestGuard = _forbiddenKeysGuard; // TypeScript will error if type doesn't exist
-
-    // Suppress unused variable warning
-    const _: TestGuard | undefined = undefined;
-    expect(_).toBeUndefined();
-
-    // Verify all tokens are present
-    expect(FORBIDDEN_TOKENS).toHaveLength(9);
-
-    // Verify specific critical tokens
-    expect(FORBIDDEN_TOKENS).toContain('european');
-    expect(FORBIDDEN_TOKENS).toContain('lineOfCredit');
-    expect(FORBIDDEN_TOKENS).toContain('locRate');
-    expect(FORBIDDEN_TOKENS).toContain('useLineOfCredit');
+  it('policy: every Line-of-Credit ban survives (ADR-068 narrowing)', () => {
+    // Containment, not equality: removing a ban must fail this test, while
+    // ADDING a future Line-of-Credit ban is a strengthening and must not.
+    // Token ordering is deliberately not made load-bearing.
+    for (const token of LINE_OF_CREDIT_BANS) {
+      expect([...FORBIDDEN_TOKENS]).toContain(token);
+    }
   });
 
-  it('runtime: WaterfallTypeSchema migrates legacy values', () => {
+  it('policy: whole-fund vocabulary is no longer a forbidden token (ADR-068)', () => {
+    expect([...FORBIDDEN_TOKENS]).not.toContain('european');
+
+    // The scanner matches key names, so the restored term is exercised as a key
+    // here on purpose. This assertion fails if the token is ever re-banned.
+    expect(validateNoForbiddenKeys({ european: true }, 'restoredVocabulary').isValid).toBe(true);
+  });
+
+  it('runtime: WaterfallTypeSchema preserves caller intent for both values', () => {
     expect(WaterfallTypeSchema.parse('american')).toBe('american');
-    expect(WaterfallTypeSchema.parse('european')).toBe('american');
+    expect(WaterfallTypeSchema.parse('european')).toBe('european');
+  });
+
+  it('runtime: WaterfallTypeSchema rejects unknown values', () => {
     expect(() => WaterfallTypeSchema.parse('foo')).toThrow();
+    expect(() => WaterfallTypeSchema.parse('AMERICAN')).toThrow();
+    expect(() => WaterfallTypeSchema.parse('whole_fund')).toThrow();
+    expect(() => WaterfallTypeSchema.parse('deal_by_deal')).toThrow();
+  });
+
+  it('runtime: American is the recorded default waterfall type', () => {
+    expect(DEFAULT_WATERFALL_TYPE).toBe('american');
+    expect(WaterfallTypeSchema.parse(DEFAULT_WATERFALL_TYPE)).toBe('american');
   });
 });
