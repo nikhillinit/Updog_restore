@@ -156,6 +156,64 @@ describe('GP economics engine', () => {
     ).toThrow(EconomicsInputValidationError);
   });
 
+  it('charges the called-capital-each-period basis on the current period call only', () => {
+    const result = runEconomicsModel(
+      baseDraft({
+        economicsAssumptions: {
+          ...baseAssumptions(),
+          feeModel: {
+            source: 'economics_override',
+            tiers: [
+              {
+                id: 'period-called-fee',
+                name: 'Called capital each period fee',
+                rate: 0.02,
+                basis: 'called_capital_period',
+                startYear: 1,
+              },
+            ],
+          },
+        },
+      })
+    );
+
+    // 100M over 10 years calls 10M each year, so the fee is flat at 2% of 10M.
+    expect(result.annual[0]?.feesPaidToManager).toBe(200_000);
+    expect(result.annual[4]?.feesPaidToManager).toBe(200_000);
+    expect(result.annual[9]?.feesPaidToManager).toBe(200_000);
+    expect(result.summary.totalManagementFees).toBe(2_000_000);
+    expect(result.checks.passed).toBe(true);
+  });
+
+  it('accepts the called-capital-each-period basis from a legacy fee profile', () => {
+    const result = runEconomicsModel(
+      baseDraft({
+        feeProfiles: [
+          {
+            id: 'legacy-profile',
+            name: 'Legacy profile',
+            feeTiers: [
+              {
+                id: 'legacy-tier',
+                name: 'Period called fee',
+                percentage: 2,
+                feeBasis: 'called_capital_period',
+                startMonth: 1,
+              },
+            ],
+          },
+        ],
+        economicsAssumptions: {
+          ...baseAssumptions(),
+          feeModel: { source: 'legacy_fee_profiles' },
+        },
+      })
+    );
+
+    expect(result.annual[0]?.feesPaidToManager).toBe(200_000);
+    expect(result.summary.totalManagementFees).toBe(2_000_000);
+  });
+
   it('rejects unsupported legacy fee basis aliases', () => {
     expect(() =>
       runEconomicsModel(
@@ -167,9 +225,9 @@ describe('GP economics engine', () => {
               feeTiers: [
                 {
                   id: 'legacy-tier',
-                  name: 'Period called fee',
+                  name: 'Unknown basis fee',
                   percentage: 2,
-                  feeBasis: 'called_capital_period',
+                  feeBasis: 'net_asset_value' as 'committed_capital',
                   startMonth: 1,
                 },
               ],

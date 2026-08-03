@@ -100,7 +100,7 @@ validation and clear calculation semantics.
 
 ### 1. Fee Basis Type System
 
-**Decision:** Support 6 distinct fee basis types as discriminated union
+**Decision:** Support 7 distinct fee basis types as discriminated union
 
 **Rationale:**
 
@@ -113,27 +113,47 @@ stages:
    - **LP View**: "We pay fees on what we committed, regardless of deployment"
    - **Example**: $100M fund, 2% = $2M/year regardless of capital called
 
-2. **`called_capital_cumulative`** (Deployment-Linked)
+2. **`called_capital_period`** (Called Capital Each Period)
+   - **When**: Funds that charge the fee on each drawdown as it occurs
+   - **Economics**: The basis is the net capital called **during** the period,
+     not the capital called to date. A period with no call carries no fee.
+   - **LP View**: "We pay a fee on each drawdown, once, in the period of the
+     drawdown"
+   - **Example**: $100M fund calling $10M per year at 2% -> $200K each year
+   - **Period boundary**: Half-open interval `[periodStart, periodEnd)`. A call
+     dated on the period start belongs to that period; a call dated on the
+     period end belongs to the next period. Each call therefore counts exactly
+     once across a contiguous timeline.
+   - **Adjustments and negatives**: A call adjustment (a rebate or a corrected
+     over-call) is a negative amount dated in the period that carries the
+     correction, and it nets against the calls of that same period. The period
+     basis is floored at zero, so an adjustment larger than the period's calls
+     gives a zero basis, never a negative fee. The excess does not carry back to
+     an earlier period nor forward to a later one; each period stands alone.
+   - **Implementation**:
+     [`shared/lib/economics/called-capital-period.ts`](https://github.com/nikhillinit/Updog_restore/blob/main/shared/lib/economics/called-capital-period.ts)
+
+3. **`called_capital_cumulative`** (Deployment-Linked)
    - **When**: Funds with slow deployment curves
    - **Economics**: LPs only pay on capital actually called
    - **LP View**: "We don't pay fees on dry powder sitting in our accounts"
    - **Example**: $2M called in Year 1 → $2M × 2% = $40K (vs. $2M on committed)
 
-3. **`called_capital_net_of_returns`** (European-Style)
+4. **`called_capital_net_of_returns`** (European-Style)
    - **When**: European funds, alignment-focused structures
    - **Economics**: Fees reduce as distributions return capital
    - **LP View**: "Once capital returns, we stop paying fees on it"
    - **Example**: $50M called, $20M distributed → fee on $30M net
    - **Complexity**: Requires distribution tracking, can cause fee volatility
 
-4. **`invested_capital`** (Deployed Basis)
+5. **`invested_capital`** (Deployed Basis)
    - **When**: Years 6+ (harvest period), or funds with reserves
    - **Economics**: Fees on actively managed portfolio only
    - **LP View**: "Pay for portfolio management, not reserve management"
    - **Example**: $80M invested of $100M committed → fees on $80M
    - **Gotcha**: Excludes recycled/reserve capital not yet deployed
 
-5. **`fair_market_value`** (NAV-Based)
+6. **`fair_market_value`** (NAV-Based)
    - **When**: Years 6+ (some modern structures)
    - **Economics**: Fees scale with portfolio value growth
    - **LP View**: "Pay proportional to value GP is managing"
@@ -141,7 +161,7 @@ stages:
    - **Volatility**: Fees fluctuate with markups/downs (can be capped)
    - **Alignment**: GP benefits from value creation, not just deployment
 
-6. **`unrealized_cost`** (Unrealized Basis)
+7. **`unrealized_cost`** (Unrealized Basis)
    - **When**: Late-stage harvesting (years 8+)
    - **Economics**: Fees decline as exits realize value
    - **LP View**: "Stop paying fees on exited positions"
@@ -155,6 +175,7 @@ stages:
 ```typescript
 export const FeeBasisType = z.enum([
   'committed_capital',
+  'called_capital_period',
   'called_capital_cumulative',
   'called_capital_net_of_returns',
   'invested_capital',
@@ -175,6 +196,8 @@ function getBasisAmount(
   switch (basis) {
     case 'committed_capital':
       return context.committedCapital;
+    case 'called_capital_period':
+      return context.calledCapitalPeriod;
     case 'called_capital_cumulative':
       return context.calledCapitalCumulative;
     case 'called_capital_net_of_returns':

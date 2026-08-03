@@ -12,6 +12,7 @@
 import Decimal from '@shared/lib/decimal-config';
 import type { FeeProfile, FeeBasisType, FeeCalculationContext } from '@shared/schemas/fee-profile';
 import { calculateManagementFees, calculateRecyclableFees } from '@shared/schemas/fee-profile';
+import { calledCapitalPeriodFromCumulative } from '@shared/lib/economics/called-capital-period';
 
 /**
  * Fee basis data for a single period (quarter)
@@ -22,6 +23,9 @@ export interface FeeBasisPeriod {
 
   /** Committed capital (fund size) */
   committedCapital: Decimal;
+
+  /** Net capital called during this quarter only, floored at zero */
+  calledCapitalPeriod: Decimal;
 
   /** Called capital cumulative */
   calledCapitalCumulative: Decimal;
@@ -119,9 +123,16 @@ export function computeFeeBasisTimeline(config: FeeBasisConfig): FeeBasisTimelin
     const fmv = config.fmvSchedule?.[q] ?? new Decimal(0);
     const unrealizedCost = config.unrealizedCostSchedule?.[q] ?? new Decimal(0);
 
-    // Update cumulatives
+    // Update cumulatives (schedules are cumulative by quarter)
+    const previousCalledCapital = cumulativeCalledCapital;
     cumulativeCalledCapital = calledCapital;
     cumulativeDistributions = distributions;
+
+    // Capital called during this quarter alone; a downward adjustment floors at zero
+    const calledCapitalPeriod = calledCapitalPeriodFromCumulative(
+      previousCalledCapital,
+      cumulativeCalledCapital
+    );
 
     // Calculate capital net of returns
     const calledNetOfReturns = cumulativeCalledCapital.minus(cumulativeDistributions);
@@ -133,6 +144,7 @@ export function computeFeeBasisTimeline(config: FeeBasisConfig): FeeBasisTimelin
     if (feeProfile) {
       const context: FeeCalculationContext = {
         committedCapital: fundSize,
+        calledCapitalPeriod,
         calledCapitalCumulative: cumulativeCalledCapital,
         calledCapitalNetOfReturns: calledNetOfReturns,
         investedCapital,
@@ -157,6 +169,7 @@ export function computeFeeBasisTimeline(config: FeeBasisConfig): FeeBasisTimelin
     periods.push({
       quarter: q,
       committedCapital: fundSize,
+      calledCapitalPeriod,
       calledCapitalCumulative: cumulativeCalledCapital,
       calledCapitalNetOfReturns: calledNetOfReturns,
       investedCapital,
@@ -185,6 +198,8 @@ export function resolveFeeBasis(basisType: FeeBasisType, period: FeeBasisPeriod)
   switch (basisType) {
     case 'committed_capital':
       return period.committedCapital;
+    case 'called_capital_period':
+      return period.calledCapitalPeriod;
     case 'called_capital_cumulative':
       return period.calledCapitalCumulative;
     case 'called_capital_net_of_returns':

@@ -6,6 +6,8 @@ const PositiveYearSchema = z.number().int().positive();
 
 export const EconomicsFeeBasisSchema = z.enum([
   'committed_capital',
+  /** Capital called during the period itself; see shared/lib/economics/called-capital-period.ts */
+  'called_capital_period',
   'called_capital_cumulative',
   'called_capital_net_of_returns',
   'invested_capital',

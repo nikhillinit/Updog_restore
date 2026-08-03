@@ -21,6 +21,25 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-08-03)
+
+- **"Called Capital Each Period" management-fee basis (#1310, ADR-006).** The
+  `called_capital_period` basis is now first-class in the economics contract,
+  the economics engine, the `FeeProfile` schema, and the quarterly fee-basis
+  timeline in `shared/lib/fund-math.ts`. The basis is the net capital called
+  during the period itself, not the capital called to date: a period with no
+  call carries no fee. The period is the half-open interval
+  `[periodStart, periodEnd)`, so a boundary-dated call belongs to the period
+  that starts on that boundary. A call adjustment nets against the calls of the
+  same period, and the period basis is floored at zero - it never produces a
+  negative fee and never carries back or forward. The definition lives in one
+  place, `shared/lib/economics/called-capital-period.ts`, and both the engine
+  and the timeline call it. Before this change the economics engine rejected the
+  basis with `Unsupported economics fee basis` even though the wizard and the
+  fund-draft contract already offered it. No existing fee basis changes value;
+  the economics result contract is unchanged, so result hashes for existing
+  configurations are unaffected.
+
 ### Added (2026-07-23)
 
 - **Current-forecast serving plane wired into the dual forecast, dormant

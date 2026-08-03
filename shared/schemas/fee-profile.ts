@@ -12,6 +12,7 @@ import { ZodPercentage, ZodPositiveDecimal } from './decimal-zod';
  */
 export const FeeBasisTypeSchema = z.enum([
   'committed_capital', // Total fund commitment
+  'called_capital_period', // Capital called during this period only
   'called_capital_cumulative', // All capital called to date
   'called_capital_net_of_returns', // Called capital minus distributions
   'invested_capital', // Capital deployed in investments
@@ -145,6 +146,12 @@ export type FeeProfile = z.infer<typeof FeeProfileSchema>;
  */
 export interface FeeCalculationContext {
   committedCapital: Decimal;
+  /**
+   * Net capital called during the current period only, floored at zero.
+   * See `shared/lib/economics/called-capital-period.ts` for the definition of
+   * the period boundary and of call-adjustment treatment.
+   */
+  calledCapitalPeriod: Decimal;
   calledCapitalCumulative: Decimal;
   calledCapitalNetOfReturns: Decimal;
   investedCapital: Decimal;
@@ -207,6 +214,8 @@ function getBasisAmount(basis: FeeBasisType, context: FeeCalculationContext): De
   switch (basis) {
     case 'committed_capital':
       return context.committedCapital;
+    case 'called_capital_period':
+      return context.calledCapitalPeriod;
     case 'called_capital_cumulative':
       return context.calledCapitalCumulative;
     case 'called_capital_net_of_returns':
