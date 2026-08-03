@@ -36,6 +36,7 @@ const FundModelResultsReports = React.lazy(() => import('@/pages/fund-model-resu
 const FundModelResultsInternalAnalysis = React.lazy(
   () => import('@/pages/fund-model-results-internal-analysis')
 );
+const FundModelResultsAnalysis = React.lazy(() => import('@/pages/fund-model-results-analysis'));
 const FinancialModelingPage = React.lazy(() => import('@/pages/financial-modeling'));
 const ForecastingPage = React.lazy(() => import('@/pages/forecasting'));
 const ModelResultsPage = React.lazy(() => import('@/pages/model-results'));
@@ -91,6 +92,7 @@ const APP_ROUTE_COMPONENTS: Record<
   '/fund-model-results/:fundId/moic-analysis': FundModelResultsMoicAnalysis,
   '/fund-model-results/:fundId/reports': FundModelResultsReports,
   '/fund-model-results/:fundId/internal-analysis': FundModelResultsInternalAnalysis,
+  '/fund-model-results/:fundId/analysis': FundModelResultsAnalysis,
   '/fund-model-results/:fundId': FundModelResults,
   '/sensitivity-analysis': SensitivityAnalysisPage,
   '/reports': Reports,
