@@ -2,8 +2,11 @@
  * Forbidden Tokens Integration Test
  *
  * Validates that no forbidden legacy features appear in the codebase:
- * - European waterfall logic
- * - Line of Credit functionality
+ * - Line of Credit functionality (eight bans)
+ *
+ * The whole-fund waterfall vocabulary is NOT forbidden: ADR-068 restored it as
+ * public product vocabulary. This suite pins that restoration so a later sweep
+ * cannot silently re-ban the term.
  *
  * Tests both compile-time type guards and runtime validation.
  */
@@ -13,6 +16,7 @@ import { glob } from 'glob';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import {
+  DEFAULT_WATERFALL_TYPE,
   FORBIDDEN_TOKENS,
   WaterfallTypeSchema,
   validateNoForbiddenKeys,
@@ -106,7 +110,7 @@ describe('Forbidden Features Protection', () => {
       managementFee: 0.02,
       carriedInterest: 0.2,
       vintage: 2024,
-      distribution: 'american', // Not 'european'
+      distribution: 'american', // Scanner checks key names, not values
       investments: [
         {
           name: 'Company A',
@@ -154,18 +158,44 @@ describe('Forbidden Features Protection', () => {
     expect(_).toBeUndefined();
 
     // Verify all tokens are present
-    expect(FORBIDDEN_TOKENS).toHaveLength(9);
+    expect(FORBIDDEN_TOKENS).toHaveLength(8);
 
-    // Verify specific critical tokens
-    expect(FORBIDDEN_TOKENS).toContain('european');
-    expect(FORBIDDEN_TOKENS).toContain('lineOfCredit');
-    expect(FORBIDDEN_TOKENS).toContain('locRate');
-    expect(FORBIDDEN_TOKENS).toContain('useLineOfCredit');
+    // Verify all eight Line-of-Credit bans survive (ADR-068 narrowed the set to
+    // Line of Credit only; it did not weaken any Line-of-Credit ban)
+    expect([...FORBIDDEN_TOKENS]).toEqual([
+      'lineOfCredit',
+      'locRate',
+      'locCap',
+      'locDraw',
+      'locRepay',
+      'locDrawRules',
+      'locRepayRules',
+      'useLineOfCredit',
+    ]);
   });
 
-  it('runtime: WaterfallTypeSchema migrates legacy values', () => {
+  it('policy: whole-fund vocabulary is no longer a forbidden token (ADR-068)', () => {
+    expect([...FORBIDDEN_TOKENS]).not.toContain('european');
+
+    // The runtime key scanner must not flag the restored vocabulary either
+    const policySelection = { waterfallType: 'european' as const };
+    expect(validateNoForbiddenKeys(policySelection, 'policySelection').isValid).toBe(true);
+  });
+
+  it('runtime: WaterfallTypeSchema preserves caller intent for both values', () => {
     expect(WaterfallTypeSchema.parse('american')).toBe('american');
-    expect(WaterfallTypeSchema.parse('european')).toBe('american');
+    expect(WaterfallTypeSchema.parse('european')).toBe('european');
+  });
+
+  it('runtime: WaterfallTypeSchema rejects unknown values', () => {
     expect(() => WaterfallTypeSchema.parse('foo')).toThrow();
+    expect(() => WaterfallTypeSchema.parse('AMERICAN')).toThrow();
+    expect(() => WaterfallTypeSchema.parse('whole_fund')).toThrow();
+    expect(() => WaterfallTypeSchema.parse('deal_by_deal')).toThrow();
+  });
+
+  it('runtime: American is the recorded default waterfall type', () => {
+    expect(DEFAULT_WATERFALL_TYPE).toBe('american');
+    expect(WaterfallTypeSchema.parse(DEFAULT_WATERFALL_TYPE)).toBe('american');
   });
 });

@@ -9588,14 +9588,14 @@ clawback) is adopted provisionally as the v1 simplified carry assumption.
 
 PLAN_61 held an open ask (G1, issue #1285) to confirm the fund's actual LPA
 carry basis, gating the whole-fund waterfall slice (#1291) as a conditional
-pre-Wave-I critical-path ticket. The managing partner's v1 product
-specification requires only a "simplified carry/waterfall assumption" for v1,
-and the codebase's only tested convention is deal-by-deal American (ADR-004
-removed whole-fund mechanics for zero usage; the live engine hardcodes
-`clawbackPaid = 0`). Grilling pass 2 (2026-08-03) put the choice to the
-managing partner, who elected to adopt the default provisionally and defer
-the whole-fund build. This resolves the prior pass's ADR-cand-1 by adopted
-default rather than by LPA confirmation.
+pre-Wave-I critical-path ticket. The managing partner's v1 product specification
+requires only a "simplified carry/waterfall assumption" for v1, and the
+codebase's only tested convention is deal-by-deal American (ADR-004 removed
+whole-fund mechanics for zero usage; the live engine hardcodes
+`clawbackPaid = 0`). Grilling pass 2 (2026-08-03) put the choice to the managing
+partner, who elected to adopt the default provisionally and defer the whole-fund
+build. This resolves the prior pass's ADR-cand-1 by adopted default rather than
+by LPA confirmation.
 
 ### Decision
 
@@ -9612,52 +9612,261 @@ default rather than by LPA confirmation.
 
 ### Consequences
 
-The critical path shortens by one conditional ticket, and the standing P0
-HITL bottleneck moves from #1285 to #1284's prototype review. The risk
-accepted is a late LPA surprise: if the LPA is whole-fund, truth-case
-authoring lands post-activation rather than before it, which is acceptable
-because internal economics results remain indicative and internal-only.
+The critical path shortens by one conditional ticket, and the standing P0 HITL
+bottleneck moves from #1285 to #1284's prototype review. The risk accepted is a
+late LPA surprise: if the LPA is whole-fund, truth-case authoring lands
+post-activation rather than before it, which is acceptable because internal
+economics results remain indicative and internal-only.
 
 ## ADR-067: Operating Decisions Lifecycle — Deferred Status, Outcome Distinct from Recommendation, Follow-Up Fields (Grilling GR2-5)
 
 **Date:** 2026-08-03 **Status:** [ACCEPTED] Accepted **Decision:** Extend the
 Wave H `operating_decisions` schema (issue #1289, before any code exists) from
-`proposed -> accepted | rejected` to `proposed -> accepted | rejected |
-deferred`, add outcome columns recorded distinct from the recommendation, and
-require follow-up owner/date when a decision is deferred or its outcome is
-conditional.
+`proposed -> accepted | rejected` to
+`proposed -> accepted | rejected | deferred`, add outcome columns recorded
+distinct from the recommendation, and require follow-up owner/date when a
+decision is deferred or its outcome is conditional.
 
 ### Context
 
 Grilling pass 2 reviewed the ticketed decision model against the managing
-partner's v1 product specification, whose decision standard treats the
-outcome ("$250k follow-on funded") as distinct from the recommendation
-("approve follow-on"), includes a deferred state, and requires follow-up
-owner and date for deferred or conditional outcomes. Document-authority
-ruling GR2-1 applies: repo docs govern, but the spec is the product-essence
-synthesis and sharpens fuzzy areas when the change serves team utility
-without over-engineering. Amending the greenfield schema now costs a few
-columns and CHECK constraints; retrofitting after #1289 ships would cost an
-additive migration plus a contract version bump immediately after activation.
+partner's v1 product specification, whose decision standard treats the outcome
+("$250k follow-on funded") as distinct from the recommendation ("approve
+follow-on"), includes a deferred state, and requires follow-up owner and date
+for deferred or conditional outcomes. Document-authority ruling GR2-1 applies:
+repo docs govern, but the spec is the product-essence synthesis and sharpens
+fuzzy areas when the change serves team utility without over-engineering.
+Amending the greenfield schema now costs a few columns and CHECK constraints;
+retrofitting after #1289 ships would cost an additive migration plus a contract
+version bump immediately after activation.
 
 ### Decision
 
-- Lifecycle: `proposed -> accepted | rejected | deferred`. Accepted and
-  rejected remain immutable (changes create a superseding row). Deferred is
-  re-openable to accepted, rejected, or superseded.
-- Outcome: text plus recorded-at and actor, immutable once recorded; changing
-  an outcome requires a superseding decision row. Schema permits NULL; the
-  service (#1290) surfaces accepted-without-outcome as an explicit
-  outcome-missing state rather than completeness.
+- Lifecycle: `proposed -> accepted | rejected | deferred`. Accepted and rejected
+  remain immutable (changes create a superseding row). Deferred is re-openable
+  to accepted, rejected, or superseded.
+- Outcome: text plus recorded-at and actor, immutable once recorded; changing an
+  outcome requires a superseding decision row. Schema permits NULL; the service
+  (#1290) surfaces accepted-without-outcome as an explicit outcome-missing state
+  rather than completeness.
 - Follow-up: owner and date columns, CHECK-enforced NOT NULL when status is
   `deferred`.
-- UI (#1293) renders outcome as a separately labeled field and shows
-  follow-up on deferred rows; "Approved" is never presented as the outcome.
+- UI (#1293) renders outcome as a separately labeled field and shows follow-up
+  on deferred rows; "Approved" is never presented as the outcome.
 
 ### Consequences
 
-The Wave H decision spine matches the operating standard the team will
-actually run (recommendation, approval, outcome, follow-up) without a second
-schema pass. The added complexity is bounded to three columns, one lifecycle
-value, and their tests; no new tables, routes beyond #1290's planned surface,
-or approval hierarchy are introduced.
+The Wave H decision spine matches the operating standard the team will actually
+run (recommendation, approval, outcome, follow-up) without a second schema pass.
+The added complexity is bounded to three columns, one lifecycle value, and their
+tests; no new tables, routes beyond #1290's planned surface, or approval
+hierarchy are introduced.
+
+## ADR-068: Public Dual-Waterfall Vocabulary Restored — Honest Two-Value Enum, American Default, Whole-Fund Selectable but Not Activation-Certified (Wave W, issue #1304)
+
+**Date:** 2026-08-03 **Status:** [ACCEPTED] Accepted **Decision:** Restore
+whole-fund (European) as public, user-selectable product vocabulary alongside
+deal-by-deal (American); replace the silent European-to-American coercion with a
+two-value enum that preserves caller intent and rejects unknown values; narrow
+the forbidden-token set to the eight Line-of-Credit bans only. American remains
+the default and the only activation-certified template. This ADR is the live
+tail that reconciles ADR-004, ADR-064, ADR-065, GR2-3, and Gate 0D.
+
+### Context
+
+Five governing records had drifted apart on what "European" means, and the code
+had drifted from all five.
+
+- **ADR-004** (2025-10-27, amended 2026-01-04) fixes the canonical naming table:
+  AMERICAN = deal-by-deal, EUROPEAN = whole-fund. It records the January 2026
+  removal of the whole-fund calculator (PR #339, zero usage confirmed) and
+  explicitly anticipates re-addition as an additive discriminated-union branch.
+  It never bans the vocabulary; it records that one implementation was removed.
+- **ADR-064** authorizes internal whole-fund modeling, and **ADR-065** ships
+  internal deal-by-deal V1. Both live in the internal economics vocabulary
+  (`whole_fund` / `deal_by_deal`), deliberately separate from the public terms.
+- **GR2-3** (grilling pass 2, recorded as **ADR-066**) adopts deal-by-deal
+  American provisionally as the v1 carry convention, requires the `deal_by_deal`
+  template only for CurrentForecastV2 activation, parks #1291, and stops #1285
+  from gating work.
+- **Gate 0D** (issue #1171, 2026-07-29 BLOCKED-EXTERNAL comment) parks
+  whole-fund reintroduction behind two gates: business re-approval AND LPA terms
+  confirmation.
+
+The code implemented none of this. `shared/types/forbidden-features.ts` listed
+`european` as a forbidden token beside the eight Line-of-Credit bans, conflating
+"one calculator was removed for zero usage" with "this word is banned", and its
+`WaterfallTypeSchema` silently rewrote `european` to `american`. Silent coercion
+is the sharper defect: a fund that submitted a whole-fund selection was stored,
+served, and reported as deal-by-deal, indistinguishable from a fund that chose
+deal-by-deal. The system destroyed user intent and produced no signal that it
+had done so.
+
+### Decision
+
+**Vocabulary.** Two public, user-selectable values, both preserved exactly as
+supplied:
+
+| Public value | Industry alias | Status                                                    |
+| ------------ | -------------- | --------------------------------------------------------- |
+| `american`   | Deal-by-deal   | Default; the only activation-certified template (ADR-066) |
+| `european`   | Whole-fund     | Selectable; not activation-certified                      |
+
+ADR-004's canonical naming table is unchanged and remains authoritative for the
+term-to-alias mapping. The internal economics vocabulary (`whole_fund` /
+`deal_by_deal`, ADR-064/065) is unchanged and stays separate; the sanctioned
+public-to-internal bridge is the single adapter built under #1305, never an
+import of the public schema into an internal contract.
+
+**Schema.** `WaterfallTypeSchema` becomes `z.enum(['american', 'european'])`. No
+coercion, no transform, no silent rewrite. Unknown values produce a structured
+Zod validation error. `DEFAULT_WATERFALL_TYPE` records American as the default
+in one place rather than scattering the literal.
+
+**Forbidden tokens.** `european` leaves `FORBIDDEN_TOKENS`. All eight
+Line-of-Credit bans (`lineOfCredit`, `locRate`, `locCap`, `locDraw`, `locRepay`,
+`locDrawRules`, `locRepayRules`, `useLineOfCredit`) and both their guards — the
+compile-time `_forbiddenKeysGuard` type and the runtime
+`validateNoForbiddenKeys` scanner — are preserved unchanged and unweakened.
+`tests/integration/forbidden-tokens.test.ts` now pins the exact eight-token list
+and asserts the whole-fund term is absent, so neither the restoration nor the
+Line-of-Credit bans can drift by a later sweep.
+
+**Gate 0D business re-approval.** Recorded as satisfied for modeling vocabulary
+and calculators, and only for those. The instrument is the Wave W ticket trail
+(#1304 through #1309), authored by the managing partner on 2026-08-03, which
+directs restoration of the vocabulary, the Decimal-native calculators, and the
+per-fund selection UI. This closes the business-approval half of the Gate 0D
+pair. It does NOT authorize whole-fund results as an activation-certified or
+LP-facing basis; ADR-066 continues to require `deal_by_deal` alone for
+activation evidence.
+
+**#1285's narrowed per-fund role.** The LPA carry-basis question (#1285) remains
+open and remains a HITL item, but its scope is now strictly narrower than either
+Gate 0D or GR2-3 left it. It no longer decides whether the whole-fund vocabulary
+exists — this ADR decides that, and the answer is yes. It no longer gates any
+Wave W ticket. It decides one thing: which template a given fund is configured
+with per fund. A whole-fund LPA answer changes that fund's selection and
+re-enters #1291 for truth-case certification; it does not reverse this ADR. This
+supersedes the Gate 0D framing in which the LPA answer was a precondition for
+the vocabulary itself.
+
+**Side-trail sequencing.** Wave W (#1304 -> #1305 -> #1306/#1307 -> #1308 ->
+#1309, with #1291 as W-C) is a side trail. It does not sit on the activation
+critical path (#1286/#1288/#1293 -> #1294 -> #1295 -> #1296 -> #1297 -> #1298 ->
+#1299) and it does not touch the GR2-4 side trail (#1300, #1301). Wave W runs
+parallel to activation work and must never reorder it.
+
+**Merge fence and held-remainder step-up.** Each Wave W ticket merges before the
+first #1298 soak window, or it holds. A ticket that misses the fence does not
+merge into the soak; its remainder steps up to the post-activation horizon and
+re-enters after #1299's flip decision. The fence is per ticket, not per wave: an
+already-merged prefix of the trail stays merged, and only the held remainder
+steps up. This ADR is the trail's enabling prefactor and is therefore the first
+ticket subject to the fence.
+
+**No schema migration.** This change is vocabulary and validation only. No
+migration is introduced, no column type is altered, and no stored value is
+rewritten.
+
+### Ledger ordering
+
+ADR-066 and ADR-067 were authored on `claude/roadmap-review-refinement-axvy6g`
+(commit `fe17315`, docs-only, 87 lines) and had not merged when this ticket came
+up. Rather than author around them and risk a number collision, this branch
+absorbs that commit by cherry-pick, preserving its authorship, its text, and its
+ADR-066/067 numbering verbatim. This ADR then takes the live tail at 068. If the
+originating branch later merges, its DECISIONS.md change is an identical no-op;
+if it stalls, the rulings are durable here regardless. Per D8, the number was
+renumbered from the live tail at authoring time, not hardcoded.
+
+### Historical verification scripts
+
+`scripts/verify-european-waterfalls.mjs` and
+`scripts/verify-european-waterfalls.sql` (the PR #339 zero-usage evidence) were
+re-read. **A development or staging check is not possible as they stand, and
+production was not queried.** Findings, recorded rather than fixed — repairing
+these scripts is out of this ticket's scope:
+
+1. Both scripts query `fund_models` (`.waterfall` and `.state`). No migration in
+   `migrations/` creates that table; it survives only in
+   `server/demo-seeds.sql`. Two of the three checks target a table the current
+   schema does not have.
+2. The `.mjs` wrapper wraps each query in `.catch()` returning a zero count, so
+   a missing table reports as "0 European rows found" and the script exits 0.
+   Against the current schema it produces a false clean, not an error. Any
+   future run must treat a zero from those two queries as unproven, not clean.
+3. `fundconfigs` does exist; its JSONB `config` scan is the only check that
+   still resolves.
+4. The scripts' docstring advertises `npm run verify:european`. No such script
+   exists in `package.json`.
+5. No development or staging database is reachable here: `DATABASE_URL` is
+   unset, `.env.development` points at a mock DSN, and `.env.staging.example` is
+   a template. A staging check would first need the scripts repointed at
+   `fundconfigs` and current fund-config storage, the swallow-to-zero catch
+   removed, and staging credentials supplied under separate authorization.
+
+No production query was made and no production authorization was sought or used.
+
+### Specialist review
+
+Both reviews required by #1304 were run against this branch on 2026-08-03 and
+both returned APPROVE.
+
+- **`waterfall-specialist`** — APPROVE, no blocking findings. Confirmed the
+  AMERICAN/deal-by-deal and EUROPEAN/whole-fund mapping is stated consistently
+  across the schema JSDoc, ADR-068, and the ADR-004 amendment; confirmed
+  ADR-004's canonical naming table is unchanged byte-for-byte and that the
+  superseded-statements list touches only implementation-status prose, not the
+  table or the rounding contract; confirmed the internal/public vocabulary
+  boundary holds. Traced the persistence question and found no live route by
+  which a whole-fund selection can be stored or served before #1305 — the
+  finding recorded under "Blast radius" above. One non-blocking nit (a stale
+  inline test comment) was fixed before commit.
+- **`phoenix-precision-guardian`** — APPROVE, no blocking findings. Verified the
+  type widening from a single literal to a union is genuine and is not absorbed
+  by an `any` or a cast anywhere (`npm run check`: 0 errors across client,
+  server, and shared); verified the enum truly rejects unknown values rather
+  than degrading to a permissive string; verified all eight Line-of-Credit bans
+  survive in order and that both guards remain functional — the compile-time
+  `_forbiddenKeysGuard` derives from the token array and is unaffected by the
+  arity change, and the runtime scanner still flags Line-of-Credit keys while no
+  longer flagging the restored vocabulary; confirmed `DEFAULT_WATERFALL_TYPE` is
+  annotated to the union and not widened to `string`. No numeric or precision
+  surface was touched.
+
+Evidence at review time: `npm run check` 0 errors; full suite 11,489 passed / 90
+skipped across 930 files; `npm run phoenix:truth` 336 passed across 16 files;
+`tests/integration/forbidden-tokens.test.ts` 8 passed under
+`vitest.config.int.ts`.
+
+### Consequences
+
+A user's whole-fund selection is preserved instead of silently rewritten, which
+is a correctness repair, not only a vocabulary one. #1305 can now restore the
+calculators against an honest enum, and #1306 can offer a real choice. The
+public type widens from a single literal to a union; typecheck across client,
+server, and shared confirms no consumer depended on the narrower literal, and
+existing American behavior is unchanged.
+
+**Blast radius, recorded for #1305 and #1306.** The restored enum is one of
+several waterfall type declarations, and the others are deliberately left alone
+by this ticket. The live fund-config schemas — `WaterfallSchema` in
+`shared/types.ts` (`z.literal('AMERICAN')`) and
+`DistributionWaterfallSchema.waterfallType` in
+`shared/schemas/cashflow-schema.ts` (`z.enum(['AMERICAN'])`) — still accept
+deal-by-deal only. `shared/contracts/kpi-selector.contract.ts` consumes the
+restored enum but is a frozen v1.0 spec with no live callers. There is therefore
+no route or persistence path today by which a caller can store or serve a
+whole-fund selection off the back of this ADR; the vocabulary is restored ahead
+of the surfaces that use it, by design. #1305 and #1306 must widen those
+fund-config schemas explicitly, and must give `kpi-selector.contract.ts` either
+real whole-fund handling or an explicit rejection, before wiring it to anything
+live.
+
+The risk accepted is that whole-fund becomes selectable in the vocabulary before
+#1291 certifies whole-fund truth cases. It is bounded by ADR-066's activation
+rule (`deal_by_deal` only), by #1308 holding the widened activation-lane
+contract behind the soak fence, and by internal economics results staying
+indicative and internal-only per ADR-065. Whole-fund results must not be
+presented as certified until #1291 closes.

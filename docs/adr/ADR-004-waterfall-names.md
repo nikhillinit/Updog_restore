@@ -1,12 +1,21 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-08-03
 ---
 
 # ADR-004: Waterfall Calculation Naming and Rounding Contract
 
-**Status:** Accepted **Date:** 2025-10-27 **Decision Makers:** Technical Team
-**Tags:** #waterfall #nomenclature #rounding #excel-parity
+**Status:** Accepted, amended 2026-08-03 by ADR-068 **Date:** 2025-10-27
+**Decision Makers:** Technical Team **Tags:** #waterfall #nomenclature #rounding
+#excel-parity
+
+> **Amendment notice (2026-08-03).** The canonical naming table below is
+> unchanged and remains authoritative. What changed is the status of the
+> EUROPEAN / whole-fund row's implementation: it is being restored as public,
+> user-selectable vocabulary. See
+> [Amendment: dual-waterfall restoration (ADR-068)](#amendment-dual-waterfall-restoration-adr-068)
+> at the end of this document, and `DECISIONS.md` ADR-068 for the governing
+> record. The rounding contract is untouched.
 
 ---
 
@@ -339,13 +348,89 @@ precision and readability
 
 ---
 
+## Amendment: dual-waterfall restoration (ADR-068)
+
+**Date:** 2026-08-03 **Governing record:** `DECISIONS.md` ADR-068 **Trail:**
+issues #1304 through #1309 (Wave W), parent #1171
+
+This ADR's canonical naming table is **unchanged**. AMERICAN still means
+deal-by-deal and EUROPEAN still means whole-fund. The rounding contract, the
+Excel ROUND semantics, and the validation suite are untouched. What this
+amendment changes is the implementation status recorded in the table's EUROPEAN
+row and the type-system posture around the term.
+
+### What changed
+
+- **Both terms are public, user-selectable vocabulary.** AMERICAN / deal-by-deal
+  and EUROPEAN / whole-fund are both offered. AMERICAN remains the default and
+  is the **only activation-certified template** (ADR-066 / GR2-3). EUROPEAN is
+  selectable but not activation-certified until #1291 certifies whole-fund truth
+  cases.
+- **Silent coercion removed.** The public `WaterfallTypeSchema` previously
+  rewrote `european` to `american` without signal, destroying caller intent and
+  making a whole-fund selection indistinguishable from a deal-by-deal one. It is
+  now an honest two-value enum that preserves what the caller supplied and
+  rejects unknown values with a structured error.
+- **Forbidden-token set narrowed.** `european` is no longer a forbidden token.
+  All eight Line-of-Credit bans and both their guards (compile-time type guard
+  and runtime key scanner) are preserved unchanged.
+- **No schema migration.** Vocabulary and validation only.
+
+### Governance state recorded
+
+- **Gate 0D business re-approval** (issue #1171, 2026-07-29 BLOCKED-EXTERNAL
+  comment): satisfied for modeling vocabulary and calculators only, by the Wave
+  W ticket trail. Not an authorization to present whole-fund results as
+  certified or LP-facing.
+- **#1285 narrowed to a per-fund role**: the LPA carry-basis question stays open
+  and stays HITL, but now decides only which template a given fund is configured
+  with. It no longer decides whether the vocabulary exists and no longer gates
+  Wave W.
+- **Side-trail sequencing**: Wave W runs parallel to the activation critical
+  path (#1294 through #1299) and does not touch the GR2-4 side trail (#1300,
+  #1301).
+- **Merge fence and held-remainder step-up**: each Wave W ticket merges before
+  the first #1298 soak window or it holds; a held remainder steps up to the
+  post-activation horizon and re-enters after #1299's flip decision. The fence
+  is per ticket, so a merged prefix stays merged.
+- **Historical verification scripts**: `scripts/verify-european-waterfalls.mjs`
+  and `.sql` were re-read. A development or staging check is **not possible** as
+  they stand — two of three queries target `fund_models`, a table no migration
+  creates, and the `.mjs` wrapper reports a missing table as a zero count rather
+  than an error, producing a false clean. No development or staging database is
+  reachable (no `DATABASE_URL`, mock DSN in `.env.development`, template-only
+  `.env.staging.example`). Production was not queried and no production
+  authorization was sought. Details in ADR-068.
+
+### Superseded statements in this document
+
+The following statements above are historical as of 2026-08-03 and are retained
+for the record rather than edited in place:
+
+- "WARNING: European Waterfall Removed" (Consequences / Negative) — the removal
+  happened in January 2026 and is accurately recorded; restoration is now in
+  progress under Wave W.
+- "European Future: Can be added in Phase 4 (Q2 2026) if demand emerges"
+  (Mitigation) — superseded. Restoration proceeds under ADR-068, not Phase 4.
+- "Current State (October 2025) ... Implemented: AMERICAN waterfall only" and
+  "Type System: `z.literal('AMERICAN')`" (Implementation) — superseded by the
+  two-value enum; the whole-fund calculator returns under #1305.
+- "Migration Path ... Future: EUROPEAN waterfall support (Phase 4, Q2 2026 if
+  demand emerges)" (Implementation) — superseded as above. The prediction that
+  re-addition would be **additive** (a new discriminated-union branch, leaving
+  existing AMERICAN calculations unaffected) holds and is the approach #1305
+  takes.
+
+---
+
 ## Changelog
 
-| Date       | Change                                                         | Author                  |
-| ---------- | -------------------------------------------------------------- | ----------------------- |
-| 2025-10-27 | Initial ADR creation with rounding contract and validation     | Phase 3 NotebookLM Team |
-| 2025-10-27 | Document European waterfall removal (commit ebd963a)           | Phase 3 NotebookLM Team |
-| 2026-01-04 | Update European status to "Removed" (PR #339, commit 404df43c) | Claude Code             |
+| Date       | Change                                                                             | Author                  |
+| ---------- | ---------------------------------------------------------------------------------- | ----------------------- |
+| 2025-10-27 | Initial ADR creation with rounding contract and validation                         | Phase 3 NotebookLM Team |
+| 2025-10-27 | Document European waterfall removal (commit ebd963a)                               | Phase 3 NotebookLM Team |
+| 2026-01-04 | Update European status to "Removed" (PR #339, commit 404df43c)                     | Claude Code             |
+| 2026-08-03 | Amend status: dual-waterfall vocabulary restored per ADR-068 (issue #1304, Wave W) | Claude Code             |
 
 ---
 

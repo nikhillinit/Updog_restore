@@ -21,6 +21,24 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-08-03)
+
+- **Public dual-waterfall vocabulary restored; silent coercion removed (issue
+  #1304, ADR-068).** `WaterfallTypeSchema` in
+  `shared/types/forbidden-features.ts` is now an honest two-value enum
+  (`american` | `european`) that preserves caller intent and rejects unknown
+  values. It previously rewrote `european` to `american` without signal, which
+  made a user's whole-fund selection indistinguishable from a deal-by-deal one.
+  `european` is no longer a forbidden token; all eight Line-of-Credit bans and
+  both their guards (compile-time type guard and runtime key scanner) are
+  preserved unchanged, and the test suite now pins the exact eight-token list.
+  American stays the default and the only activation-certified template
+  (ADR-066). ADR-004 is amended without changing its canonical naming table.
+  Vocabulary and validation only: no schema migration, no calculator change, and
+  the live fund-config schemas still accept deal-by-deal only until #1305.
+  ADR-066/067 were absorbed by cherry-pick from a stalled branch to resolve
+  ledger ordering before ADR-068 took the live tail.
+
 ### Added (2026-07-23)
 
 - **Current-forecast serving plane wired into the dual forecast, dormant
