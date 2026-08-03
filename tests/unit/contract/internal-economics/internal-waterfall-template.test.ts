@@ -30,14 +30,15 @@ describe('InternalWaterfallTemplateSchema (Task 16.0 governance contract)', () =
     expect(() => InternalWaterfallTemplateSchema.parse('american')).toThrow();
   });
 
-  it('rejects the banned legacy value instead of coercing it', () => {
-    // The public WaterfallTypeSchema migrates this value to 'american'. The
-    // internal enum must reject it outright: no round-trip semantics. This
-    // file lives under tests/, outside the token scanner's globs.
+  it('rejects the public whole-fund label instead of translating it', () => {
+    // The public WaterfallTypeSchema accepts this value (ADR-068). The internal
+    // enum must still reject it outright: no round-trip semantics, and the
+    // vocabularies stay separate. This file lives under tests/, outside the
+    // token scanner's globs.
     expect(() => InternalWaterfallTemplateSchema.parse('european')).toThrow();
   });
 
-  it('never imports or references the coercing public schema', () => {
+  it('never imports or references the public vocabulary schema', () => {
     const source = fs.readFileSync(CONTRACT_PATH, 'utf8');
     // Strip block comments first: the file's header JSDoc legitimately names
     // both terms in prose explaining why the executable code must not use
