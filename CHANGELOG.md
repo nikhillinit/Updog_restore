@@ -72,6 +72,16 @@ and this project adheres to
   of the distribution waterfall: waterfall configuration and allocations do not
   change. Profiles that do not declare the policy keep the disabled default,
   thus existing funds keep their current fee amounts.
+- **Fee schedule control in the modeling wizard (issue #1312).** The fee step
+  carries a "Fees begin in fund year" field and a retroactive fee catch-up panel
+  with an accrual start and an optional month limit. The panel shows a
+  truth-first proof strip: the charged percentage of the fee basis, the missed
+  months, the monthly rate, the limit, and the assumption. The numbers come from
+  the shared fee engine through
+  `client/src/lib/retroactive-fee-catch-up-preview.ts`, thus the screen cannot
+  drift from the model. The switch stays disabled while fees begin in fund
+  year 1. The visual language follows DESIGN.md: presson tokens, charcoal ink on
+  warm sand, tabular numerals, and motion behind `motion-safe`.
 
 ### Changed (2026-08-03)
 
