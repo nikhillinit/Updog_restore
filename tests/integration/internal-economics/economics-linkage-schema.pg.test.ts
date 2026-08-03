@@ -43,6 +43,7 @@ const createdDatabases: string[] = [];
 
 const PRE_LINKAGE_MIGRATION_TAG = '0046_internal_economics_certification';
 const LINKAGE_MIGRATION_TAG = '0047_internal_economics_linkage';
+const QUARTERLY_REVIEW_MIGRATION_TAG = '0048_quarterly_review_workflow';
 const LINKAGE_MIGRATION_FILE = path.join(
   process.cwd(),
   'migrations',
@@ -1381,11 +1382,23 @@ describe.skipIf(skipIfNoDocker)('internal economics linkage PostgreSQL proof', (
     });
   }, 120_000);
 
-  it('pins only completed same-fund economics runs with guarded version rotation', async () => {
-    const { connectionString } = await createMigratedDatabase('pin_service');
+  it('pins only completed same-fund economics runs with guarded version rotation and no-op stability', async () => {
+    const { connectionString } = await createMigratedDatabase(
+      'pin_service',
+      QUARTERLY_REVIEW_MIGRATION_TAG
+    );
 
     await withPool(connectionString, async (pool) => {
       const basis = await seedLinkageBasis(pool, 'pin-service');
+      await pool.query(
+        `
+          INSERT INTO quarterly_review_rosters (
+            fund_id, analysis_draft_id, draft_version, financial_facts_snapshot_id,
+            company_count, created_by
+          ) VALUES ($1, $2, 1, $3, 0, $4)
+        `,
+        [basis.fundId, basis.draftId, basis.factsSnapshotId, basis.userId]
+      );
       const completedRunId = await insertRun(pool, basis, {
         idempotencyKey: 'pin-completed',
         runState: 'completed',
@@ -1411,12 +1424,12 @@ describe.skipIf(skipIfNoDocker)('internal economics linkage PostgreSQL proof', (
       });
 
       expect(attached).toMatchObject({ economicsReferenceId: completedRunId, version: 2 });
-      expect(sameValue).toMatchObject({ economicsReferenceId: completedRunId, version: 3 });
+      expect(sameValue).toMatchObject({ economicsReferenceId: completedRunId, version: 2 });
       await expect(
         replaceDraftEconomicsReference(ports, {
           fundId: basis.fundId,
           draftId: basis.draftId,
-          expectedVersion: 2,
+          expectedVersion: 1,
           economicsReferenceId: null,
         })
       ).rejects.toMatchObject({ statusCode: 412, code: 'DRAFT_VERSION_CONFLICT' });
@@ -1424,7 +1437,7 @@ describe.skipIf(skipIfNoDocker)('internal economics linkage PostgreSQL proof', (
         replaceDraftEconomicsReference(ports, {
           fundId: basis.fundId,
           draftId: basis.draftId,
-          expectedVersion: 3,
+          expectedVersion: 2,
           economicsReferenceId: failedRunId,
         })
       ).rejects.toMatchObject({ statusCode: 409, code: 'ECONOMICS_RUN_NOT_COMPLETED' });
@@ -1432,7 +1445,7 @@ describe.skipIf(skipIfNoDocker)('internal economics linkage PostgreSQL proof', (
         replaceDraftEconomicsReference(ports, {
           fundId: basis.fundId,
           draftId: basis.draftId,
-          expectedVersion: 3,
+          expectedVersion: 2,
           economicsReferenceId: completedRunId + 1_000_000,
         })
       ).rejects.toMatchObject({ statusCode: 404, code: 'ECONOMICS_RUN_NOT_FOUND' });
@@ -1452,7 +1465,7 @@ describe.skipIf(skipIfNoDocker)('internal economics linkage PostgreSQL proof', (
         replaceDraftEconomicsReference(ports, {
           fundId: basis.fundId,
           draftId: basis.draftId,
-          expectedVersion: 3,
+          expectedVersion: 2,
           economicsReferenceId: null,
         })
       ).rejects.toMatchObject({ statusCode: 409, code: 'DRAFT_ALREADY_SAVED' });

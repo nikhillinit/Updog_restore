@@ -22,9 +22,11 @@ import { AlertTriangle, Info } from 'lucide-react';
 
 import type { AnalysisReferenceV1 } from '@shared/contracts/internal-analysis/analysis-reference-snapshot-v1.contract';
 import type { NarrativeAnchor } from '@shared/contracts/internal-analysis/internal-narrative-draft-v1.contract';
+import { QuarterlyReviewPanel } from '@/components/internal-analysis/QuarterlyReviewPanel';
 import { InternalNarrativePanel } from '@/components/fund-results/InternalNarrativePanel';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFundContext } from '@/contexts/FundContext';
+import { useAuthSession } from '@/lib/auth-session';
 import { useInternalAnalysis } from '@/hooks/useInternalAnalysis';
 import { WorkspaceBasisIndicator, WorkspaceNav } from '@/pages/fund-model-results/workspace-nav';
 
@@ -140,6 +142,7 @@ export function ReferenceCard({ reference }: { reference: AnalysisReferenceV1 })
 
 function InternalAnalysisContent({ fundId }: { fundId: number }) {
   const { drafts, references, isLoading, error } = useInternalAnalysis(fundId);
+  const authSession = useAuthSession();
   const openDrafts = drafts.filter((draft) => draft.savedAt === null);
   // Anchor the narrative to the terminal reference, else the latest open draft.
   const firstReference = references[0];
@@ -197,6 +200,11 @@ function InternalAnalysisContent({ fundId }: { fundId: number }) {
                       revision {draft.version}, facts snapshot{' '}
                       {draft.basis.financialFactsSnapshotId}
                     </span>
+                    <QuarterlyReviewPanel
+                      fundId={fundId}
+                      draftId={draft.draftId}
+                      userRole={authSession.data?.user.role}
+                    />
                   </li>
                 ))}
               </ul>
