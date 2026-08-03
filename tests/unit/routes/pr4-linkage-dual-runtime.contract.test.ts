@@ -1,6 +1,7 @@
 import express from 'express';
 import type { Express } from 'express';
 import type { Server } from 'node:http';
+import jwt from 'jsonwebtoken';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -11,6 +12,7 @@ const analysisService = vi.hoisted(() => ({
 
 const evidenceService = vi.hoisted(() => ({
   createTaskEvidenceLink: vi.fn(),
+  listTaskEvidenceLinks: vi.fn(),
 }));
 
 vi.mock('../../../server/services/internal-analysis/analysis-checkpoint-service', async () => {
@@ -33,6 +35,7 @@ vi.mock('../../../server/services/operating-objects/task-evidence-link-service',
   return {
     ...actual,
     createTaskEvidenceLink: evidenceService.createTaskEvidenceLink,
+    listTaskEvidenceLinks: evidenceService.listTaskEvidenceLinks,
   };
 });
 
@@ -95,6 +98,15 @@ const evidenceLink = {
   createdAt: '2026-08-01T12:00:00.000Z',
 };
 
+const economicsEvidenceLink = {
+  contractVersion: 'task-evidence-link/1.0.0' as const,
+  linkId: 32,
+  fundId: 1,
+  taskId: 10,
+  target: { kind: 'internal_economics_run' as const, id: 12 },
+  createdAt: '2026-08-01T13:00:00.000Z',
+};
+
 type Surface = { name: 'makeApp' | 'registerRoutes'; app: Express };
 let surfaces: readonly Surface[] = [];
 let registerRoutesServer: Server | undefined;
@@ -140,6 +152,28 @@ async function authorizationHeader(
   })}`;
 }
 
+function invalidAuthorizationHeader(kind: 'expired' | 'bad-signature'): string {
+  const payload = {
+    sub: '9',
+    email: 'pr4-linkage@example.com',
+    role: 'admin',
+    fundIds: [1],
+  };
+  const options = {
+    algorithm: 'HS256' as const,
+    issuer: process.env.JWT_ISSUER,
+    audience: process.env.JWT_AUDIENCE,
+  };
+  const token =
+    kind === 'expired'
+      ? jwt.sign(payload, process.env.JWT_SECRET!, { ...options, expiresIn: -1 })
+      : jwt.sign(payload, 'wrong-signature-secret'.repeat(2), {
+          ...options,
+          expiresIn: '1h',
+        });
+  return `Bearer ${token}`;
+}
+
 async function closeServer(server: Server | undefined) {
   if (!server?.listening) return;
   await new Promise<void>((resolve, reject) => {
@@ -156,6 +190,8 @@ beforeAll(async () => {
   const registerRoutesApp = express();
   registerRoutesApp.set('trust proxy', false);
   registerRoutesApp.use(express.json({ limit: '1mb' }));
+  const { requireSecureContext } = await import('../../../server/lib/secure-context');
+  registerRoutesApp.use('/api', requireSecureContext);
   const { registerRoutes } = await import('../../../server/routes');
   registerRoutesServer = await registerRoutes(registerRoutesApp);
   surfaces = [
@@ -184,6 +220,7 @@ beforeEach(() => {
     updatedAt: new Date('2026-08-01T12:00:00.000Z'),
   });
   evidenceService.createTaskEvidenceLink.mockReset();
+  evidenceService.listTaskEvidenceLinks.mockReset();
 });
 
 describe('PR4 linkage dual-runtime parity', () => {
@@ -200,7 +237,41 @@ describe('PR4 linkage dual-runtime parity', () => {
       .set('Idempotency-Key', 'evidence-1')
       .send({ target: evidenceLink.target })
       .expect(401);
+
+    const unauthenticatedListResponses = await Promise.all(
+      surfaces.map((surface) => request(surface.app).get('/api/funds/1/tasks/10/evidence-links'))
+    );
+    expect(
+      unauthenticatedListResponses.map((response) => response.status),
+      'both fully composed runtime surfaces'
+    ).toEqual([401, 401]);
+    expect(unauthenticatedListResponses[1]?.body).toEqual(unauthenticatedListResponses[0]?.body);
+    expect(evidenceService.listTaskEvidenceLinks).not.toHaveBeenCalled();
   });
+
+  it.each(['expired', 'bad-signature'] as const)(
+    'returns canonical authorization response for %s tokens on both runtimes',
+    async (kind) => {
+      const responses = await Promise.all(
+        surfaces.map((surface) =>
+          request(surface.app)
+            .get('/api/funds/1/tasks/10/evidence-links')
+            .set('Authorization', invalidAuthorizationHeader(kind))
+        )
+      );
+
+      expect(
+        responses.map((response) => response.status),
+        'both fully composed runtime surfaces'
+      ).toEqual([401, 401]);
+      expect(responses[0]?.body).toEqual({
+        error: 'unauthorized',
+        message: 'Valid JWT token required',
+      });
+      expect(responses[1]?.body).toEqual(responses[0]?.body);
+      expect(evidenceService.listTaskEvidenceLinks).not.toHaveBeenCalled();
+    }
+  );
 
   it('rotates economics-pin ETags identically', async () => {
     const authorization = await authorizationHeader();
@@ -259,5 +330,75 @@ describe('PR4 linkage dual-runtime parity', () => {
       expect(response.status, `${surface.name} ${JSON.stringify(response.body)}`).toBe(403);
     }
     expect(evidenceService.createTaskEvidenceLink).not.toHaveBeenCalled();
+  });
+
+  it('lists both strict evidence target variants identically on both runtimes', async () => {
+    const authorization = await authorizationHeader();
+    const expected = { data: [evidenceLink, economicsEvidenceLink] };
+
+    for (const surface of surfaces) {
+      evidenceService.listTaskEvidenceLinks.mockResolvedValueOnce(expected.data);
+      const response = await request(surface.app)
+        .get('/api/funds/1/tasks/10/evidence-links')
+        .set('Authorization', authorization)
+        .expect(200);
+
+      expect(response.body, surface.name).toEqual(expected);
+      expect(response.headers['cache-control'], surface.name).toBe('private, no-store');
+    }
+    expect(evidenceService.listTaskEvidenceLinks).toHaveBeenNthCalledWith(1, 1, 10);
+    expect(evidenceService.listTaskEvidenceLinks).toHaveBeenNthCalledWith(2, 1, 10);
+  });
+
+  it.each(['cursor=31', 'limit=10', 'unexpected=value'])(
+    'rejects unsupported list query %s before service work on both runtimes',
+    async (query) => {
+      const authorization = await authorizationHeader();
+      for (const surface of surfaces) {
+        const response = await request(surface.app)
+          .get(`/api/funds/1/tasks/10/evidence-links?${query}`)
+          .set('Authorization', authorization)
+          .expect(400);
+        expect(response.body, surface.name).toEqual({
+          error: 'INVALID_TASK_EVIDENCE_LINK_QUERY',
+          message: 'Task evidence link listing does not accept query parameters.',
+        });
+      }
+      expect(evidenceService.listTaskEvidenceLinks).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    ['/api/funds/0/tasks/10/evidence-links', { error: 'Invalid fund ID' }],
+    ['/api/funds/1/tasks/00/evidence-links', { error: 'Invalid task ID' }],
+  ])('rejects malformed list identity %s identically', async (path, expectedBody) => {
+    const authorization = await authorizationHeader();
+    for (const surface of surfaces) {
+      const response = await request(surface.app)
+        .get(path)
+        .set('Authorization', authorization)
+        .expect(400);
+      expect(response.body, surface.name).toEqual(expectedBody);
+    }
+    expect(evidenceService.listTaskEvidenceLinks).not.toHaveBeenCalled();
+  });
+
+  it('allows cross-fund team-member reads but keeps non-team readers fund-scoped', async () => {
+    const teamAuthorization = await authorizationHeader([2], 'analyst');
+    const lpAuthorization = await authorizationHeader([2], 'lp');
+
+    for (const surface of surfaces) {
+      evidenceService.listTaskEvidenceLinks.mockResolvedValueOnce([]);
+      await request(surface.app)
+        .get('/api/funds/1/tasks/10/evidence-links')
+        .set('Authorization', teamAuthorization)
+        .expect(200, { data: [] });
+
+      await request(surface.app)
+        .get('/api/funds/1/tasks/10/evidence-links')
+        .set('Authorization', lpAuthorization)
+        .expect(403);
+    }
+    expect(evidenceService.listTaskEvidenceLinks).toHaveBeenCalledTimes(2);
   });
 });

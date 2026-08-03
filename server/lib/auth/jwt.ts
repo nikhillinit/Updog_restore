@@ -23,6 +23,7 @@ import {
   extractRequestCredential,
   requestCredentialError,
   RequestCredentialError,
+  sendUnauthorizedResponse,
   type VerifiedRequestCredential,
 } from './request-credentials';
 
@@ -287,7 +288,7 @@ export const requireAuth = () => async (req: Request, res: Response, next: NextF
       }
 
       authMetrics.jwtMissingToken.inc?.();
-      return res.sendStatus(401);
+      return sendUnauthorizedResponse(res);
     }
 
     assignUserFromClaims(req, verified.claims);
@@ -300,7 +301,7 @@ export const requireAuth = () => async (req: Request, res: Response, next: NextF
     }
     console.warn('JWT verification failed', getJwtErrorDetails(err));
     authMetrics.jwtVerificationFailed.inc?.();
-    return res.sendStatus(401);
+    return sendUnauthorizedResponse(res);
   }
 };
 

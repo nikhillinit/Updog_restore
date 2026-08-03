@@ -7,7 +7,11 @@ import {
   TaskResponseSchema,
   type TaskResponse,
 } from '@shared/contracts/operating-objects/task.contract';
-import { TaskEvidenceLinkCreateRequestSchema } from '@shared/contracts/operating-objects/task-evidence-link.contract';
+import {
+  TaskEvidenceLinkCreateRequestSchema,
+  TaskEvidenceLinkListQuerySchema,
+  TaskEvidenceLinkListResponseSchema,
+} from '@shared/contracts/operating-objects/task-evidence-link.contract';
 import type { Task } from '@shared/schema/operating-objects';
 import { firstString } from '../lib/request-values';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
@@ -23,6 +27,7 @@ import {
 import {
   TaskEvidenceLinkServiceError,
   createTaskEvidenceLink,
+  listTaskEvidenceLinks,
 } from '../services/operating-objects/task-evidence-link-service';
 
 const router = Router();
@@ -104,6 +109,42 @@ router['get']('/api/funds/:fundId/tasks', async (req: Request, res: Response) =>
     return res.status(500).json({ error: 'Failed to list tasks' });
   }
 });
+
+router['get'](
+  '/api/funds/:fundId/tasks/:taskId/evidence-links',
+  async (req: Request, res: Response) => {
+    try {
+      const fundId = parseFundIdParam(firstString(req.params['fundId']));
+      if (fundId === null) {
+        return res.status(400).json({ error: 'Invalid fund ID' });
+      }
+      const taskId = parseFundIdParam(firstString(req.params['taskId']));
+      if (taskId === null) {
+        return res.status(400).json({ error: 'Invalid task ID' });
+      }
+      const parsedQuery = TaskEvidenceLinkListQuerySchema.safeParse(req.query);
+      if (!parsedQuery.success) {
+        return res.status(400).json({
+          error: 'INVALID_TASK_EVIDENCE_LINK_QUERY',
+          message: 'Task evidence link listing does not accept query parameters.',
+        });
+      }
+      if (!(await enforceProvidedFundScope(req, res, fundId))) {
+        return;
+      }
+
+      const data = await listTaskEvidenceLinks(fundId, taskId);
+      const response = TaskEvidenceLinkListResponseSchema.parse({ data });
+      res.setHeader('Cache-Control', 'private, no-store');
+      return res.status(200).json(response);
+    } catch (error) {
+      if (error instanceof TaskEvidenceLinkServiceError) {
+        return res.status(error.statusCode).json({ error: error.code, message: error.message });
+      }
+      return res.status(500).json({ error: 'Failed to list task evidence links' });
+    }
+  }
+);
 
 router['post'](
   '/api/funds/:fundId/tasks/:taskId/evidence-links',

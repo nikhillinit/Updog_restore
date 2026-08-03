@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   TASK_EVIDENCE_LINK_CONTRACT_VERSION,
   TaskEvidenceLinkCreateRequestSchema,
+  TaskEvidenceLinkListQuerySchema,
+  TaskEvidenceLinkListResponseSchema,
   TaskEvidenceLinkV1Schema,
 } from '../../../../shared/contracts/operating-objects/task-evidence-link.contract';
 
@@ -46,6 +48,31 @@ describe('task-evidence-link/1.0.0 contract', () => {
         persistenceRow: {},
         transaction: {},
       }).success
+    ).toBe(false);
+  });
+
+  it('accepts only an empty list query', () => {
+    expect(TaskEvidenceLinkListQuerySchema.parse({})).toEqual({});
+    expect(TaskEvidenceLinkListQuerySchema.safeParse({ cursor: '31' }).success).toBe(false);
+    expect(TaskEvidenceLinkListQuerySchema.safeParse({ limit: '10' }).success).toBe(false);
+    expect(TaskEvidenceLinkListQuerySchema.safeParse({ unexpected: 'value' }).success).toBe(false);
+  });
+
+  it('publishes evidence links only inside a strict data envelope', () => {
+    const evidenceLink = {
+      contractVersion: TASK_EVIDENCE_LINK_CONTRACT_VERSION,
+      linkId: 31,
+      fundId: 1,
+      taskId: 2,
+      target: { kind: 'internal_economics_run' as const, id: 12 },
+      createdAt: '2026-08-01T12:00:00.000Z',
+    };
+
+    expect(TaskEvidenceLinkListResponseSchema.parse({ data: [evidenceLink] })).toEqual({
+      data: [evidenceLink],
+    });
+    expect(
+      TaskEvidenceLinkListResponseSchema.safeParse({ data: [evidenceLink], cursor: '31' }).success
     ).toBe(false);
   });
 });

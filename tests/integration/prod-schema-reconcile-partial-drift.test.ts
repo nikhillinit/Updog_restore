@@ -15,6 +15,7 @@ import {
   splitSqlStatements,
 } from '../../scripts/reconcile-prod-schema.mjs';
 import { assertApplyPolicyForManifests } from '../../scripts/prod-schema-apply-policy.mjs';
+import { createIsolatedDatabasePool } from '../helpers/isolated-postgres-database';
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
 
 const STARTUP_TIMEOUT_MS = 90_000;
@@ -131,18 +132,16 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
         baseConnectionString,
         databaseName
       );
-      let isolatedPool: Pool | undefined;
-
       await activePool.query(`DROP DATABASE IF EXISTS ${databaseName} WITH (FORCE)`);
       await activePool.query(`CREATE DATABASE ${databaseName}`);
+      const isolatedDatabase = createIsolatedDatabasePool(databaseConnectionString);
+      const isolatedPool = isolatedDatabase.pool;
 
       try {
         await runMigrationsWithConnectionString(
           databaseConnectionString,
           '0030_allocation_scenarios_reconcile_drift'
         );
-        isolatedPool = new Pool({ connectionString: databaseConnectionString, max: 1 });
-
         const result = await runReconciliation({
           client: isolatedPool,
           manifests: [manifest],
@@ -223,8 +222,7 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
         });
         expect(replay.applied).toEqual([]);
       } finally {
-        await isolatedPool?.end();
-        await activePool.query(`DROP DATABASE IF EXISTS ${databaseName} WITH (FORCE)`);
+        await isolatedDatabase.dropDatabase(activePool, databaseName);
       }
     },
     TEST_TIMEOUT_MS * 2
@@ -243,18 +241,16 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
         baseConnectionString,
         databaseName
       );
-      let isolatedPool: Pool | undefined;
-
       await activePool.query(`DROP DATABASE IF EXISTS ${databaseName} WITH (FORCE)`);
       await activePool.query(`CREATE DATABASE ${databaseName}`);
+      const isolatedDatabase = createIsolatedDatabasePool(databaseConnectionString);
+      const isolatedPool = isolatedDatabase.pool;
 
       try {
         await runMigrationsWithConnectionString(
           databaseConnectionString,
           '0032_scenario_case_seed_provenance'
         );
-        isolatedPool = new Pool({ connectionString: databaseConnectionString, max: 1 });
-
         const result = await runReconciliation({
           client: isolatedPool,
           manifests: [manifest],
@@ -277,8 +273,7 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
         });
         expect(replay.applied).toEqual([]);
       } finally {
-        await isolatedPool?.end();
-        await activePool.query(`DROP DATABASE IF EXISTS ${databaseName} WITH (FORCE)`);
+        await isolatedDatabase.dropDatabase(activePool, databaseName);
       }
     },
     TEST_TIMEOUT_MS * 2
@@ -294,18 +289,16 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
         baseConnectionString,
         databaseName
       );
-      let isolatedPool: Pool | undefined;
-
       await activePool.query(`DROP DATABASE IF EXISTS ${databaseName} WITH (FORCE)`);
       await activePool.query(`CREATE DATABASE ${databaseName}`);
+      const isolatedDatabase = createIsolatedDatabasePool(databaseConnectionString);
+      const isolatedPool = isolatedDatabase.pool;
 
       try {
         await runMigrationsWithConnectionString(
           databaseConnectionString,
           '0033_company_scenario_create_requests'
         );
-        isolatedPool = new Pool({ connectionString: databaseConnectionString, max: 1 });
-
         const legacyIndex = await isolatedPool.query<{ definition: string }>(`
           SELECT pg_get_indexdef('public.fund_scenario_calc_runs_active_dedup_idx'::regclass)
             AS definition
@@ -388,8 +381,7 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
         `);
         expect(unchangedIndex.rows[0]?.definition).not.toContain('COALESCE(hash_kind');
       } finally {
-        await isolatedPool?.end();
-        await activePool.query(`DROP DATABASE IF EXISTS ${databaseName} WITH (FORCE)`);
+        await isolatedDatabase.dropDatabase(activePool, databaseName);
       }
     },
     TEST_TIMEOUT_MS * 2
@@ -404,17 +396,16 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
         baseConnectionString,
         databaseName
       );
-      let isolatedPool: Pool | undefined;
-
       await activePool.query(`DROP DATABASE IF EXISTS ${databaseName} WITH (FORCE)`);
       await activePool.query(`CREATE DATABASE ${databaseName}`);
+      const isolatedDatabase = createIsolatedDatabasePool(databaseConnectionString);
+      const isolatedPool = isolatedDatabase.pool;
 
       try {
         await runMigrationsWithConnectionString(
           databaseConnectionString,
           '0035_substrate_shadow_reconciliations'
         );
-        isolatedPool = new Pool({ connectionString: databaseConnectionString, max: 1 });
         const manifests = ((await loadManifests()) as Manifest[]).filter(
           (manifest) => manifest.order <= 21
         );
@@ -573,8 +564,7 @@ describe.skipIf(skipIfNoDocker)('prod schema partial-drift reconciliation', () =
           WHERE name = 'Prod-like reconcile fund'
         `);
       } finally {
-        await isolatedPool?.end();
-        await activePool.query(`DROP DATABASE IF EXISTS ${databaseName} WITH (FORCE)`);
+        await isolatedDatabase.dropDatabase(activePool, databaseName);
       }
     },
     TEST_TIMEOUT_MS * 2

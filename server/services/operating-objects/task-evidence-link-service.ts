@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 
 import {
   TASK_EVIDENCE_LINK_CONTRACT_VERSION,
@@ -92,6 +92,37 @@ export function toTaskEvidenceLinkContract(row: TaskEvidenceLinkRecord): TaskEvi
   });
 }
 
+async function assertTaskOwnedByFund(
+  database: TaskEvidenceDatabase,
+  fundId: number,
+  taskId: number
+): Promise<void> {
+  const [task] = await database
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(and(eq(tasks.id, taskId), eq(tasks.fundId, fundId)))
+    .limit(1);
+  if (!task) {
+    throw new TaskEvidenceLinkServiceError(404, 'TASK_NOT_FOUND', 'Task not found.');
+  }
+}
+
+export async function listTaskEvidenceLinks(
+  fundId: number,
+  taskId: number,
+  options: { database?: TaskEvidenceDatabase } = {}
+): Promise<TaskEvidenceLinkV1[]> {
+  const database = options.database ?? db;
+  await assertTaskOwnedByFund(database, fundId, taskId);
+  const rows = await database
+    .select()
+    .from(taskEvidenceLinks)
+    .where(and(eq(taskEvidenceLinks.fundId, fundId), eq(taskEvidenceLinks.taskId, taskId)))
+    .orderBy(asc(taskEvidenceLinks.id))
+    .limit(100);
+  return rows.map(toTaskEvidenceLinkContract);
+}
+
 export async function createTaskEvidenceLinkWithPorts(
   ports: TaskEvidenceLinkPorts,
   input: CreateTaskEvidenceLinkInput
@@ -116,14 +147,7 @@ export async function createTaskEvidenceLinkWithPorts(
 function createTaskEvidenceLinkPorts(database: TaskEvidenceDatabase): TaskEvidenceLinkPorts {
   return {
     async assertTaskOwned(fundId, taskId) {
-      const [task] = await database
-        .select({ id: tasks.id })
-        .from(tasks)
-        .where(and(eq(tasks.id, taskId), eq(tasks.fundId, fundId)))
-        .limit(1);
-      if (!task) {
-        throw new TaskEvidenceLinkServiceError(404, 'TASK_NOT_FOUND', 'Task not found.');
-      }
+      await assertTaskOwnedByFund(database, fundId, taskId);
     },
 
     async assertTargetOwned(fundId, target) {
