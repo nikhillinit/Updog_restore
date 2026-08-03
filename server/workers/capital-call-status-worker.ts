@@ -86,6 +86,7 @@ const CALL_STATUS = {
 const REMINDER_DAYS = [7, 3, 1, 0]; // Days before due date to send reminders
 const GRACE_PERIOD_DAYS = 3; // Days after due date before marking overdue
 const CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+const CAPITAL_CALL_STATUS_SCHEDULER_ID = 'capital-call-status-hourly';
 
 // ============================================================================
 // WORKER CLASS
@@ -623,17 +624,15 @@ export class CapitalCallStatusWorker {
    * Schedule recurring status checks
    */
   private async scheduleRecurringChecks(): Promise<void> {
-    // Add a repeatable job
-    await this.queue.add(
-      'scheduled-check',
+    await this.queue.upsertJobScheduler(
+      CAPITAL_CALL_STATUS_SCHEDULER_ID,
+      { every: CHECK_INTERVAL_MS },
       {
-        type: 'scheduled-check',
-        timestamp: new Date(),
-        reason: 'recurring-check',
-      },
-      {
-        repeat: {
-          every: CHECK_INTERVAL_MS,
+        name: 'scheduled-check',
+        data: {
+          type: 'scheduled-check',
+          timestamp: new Date(),
+          reason: 'recurring-check',
         },
       }
     );

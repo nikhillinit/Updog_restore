@@ -1,7 +1,6 @@
 #!/usr/bin/env ts-node
 
-import { Queue, Worker, QueueScheduler } from 'bullmq';
-import { createServer } from 'http';
+import { Queue } from 'bullmq';
 import express from 'express';
 import { reserveWorker } from '../workers/reserve-worker';
 import { pacingWorker } from '../workers/pacing-worker';
@@ -19,13 +18,6 @@ const queues = {
   reserve: new Queue('reserve:calc', { connection }),
   pacing: new Queue('pacing:calc', { connection }),
   cohort: new Queue('cohort:calc', { connection }),
-};
-
-// Initialize queue schedulers for delayed jobs
-const schedulers = {
-  reserve: new QueueScheduler('reserve:calc', { connection }),
-  pacing: new QueueScheduler('pacing:calc', { connection }),
-  cohort: new QueueScheduler('cohort:calc', { connection }),
 };
 
 // Health check server
@@ -47,23 +39,12 @@ app.get('/health', async (req, res) => {
 // Graceful shutdown
 process.on('SIGINT', async () => {
   logger.info('Shutting down orchestrator...');
-  
-  // Close workers
-  await Promise.all([
-    reserveWorker.close(),
-    pacingWorker.close(),
-    cohortWorker.close(),
-  ]);
 
-  // Close schedulers
-  await Promise.all(
-    Object.values(schedulers).map(s => s.close())
-  );
+  // Close workers
+  await Promise.all([reserveWorker.close(), pacingWorker.close(), cohortWorker.close()]);
 
   // Close queues
-  await Promise.all(
-    Object.values(queues).map(q => q.close())
-  );
+  await Promise.all(Object.values(queues).map((q) => q.close()));
 
   process.exit(0);
 });

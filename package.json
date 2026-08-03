@@ -179,7 +179,7 @@
     "baseline-browser-mapping": "2.11.8",
     "bcryptjs": "3.0.3",
     "body-parser": "^2.3.0",
-    "bullmq": "5.81.2",
+    "bullmq": "6.0.2",
     "chalk": "^6.0.0",
     "chart.js": "^4.5.0",
     "class-variance-authority": "^0.7.1",
