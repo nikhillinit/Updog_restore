@@ -152,12 +152,19 @@ describe('requireAuth middleware', () => {
       user: undefined,
     } as unknown as Request;
     const sendStatus = vi.fn();
-    const res = { sendStatus } as unknown as Response;
+    const json = vi.fn();
+    const status = vi.fn().mockReturnValue({ json });
+    const res = { sendStatus, status } as unknown as Response;
     const next = vi.fn() as unknown as NextFunction;
 
     await requireAuth()(req, res, next);
 
-    expect(sendStatus).toHaveBeenCalledWith(401);
+    expect(status).toHaveBeenCalledWith(401);
+    expect(json).toHaveBeenCalledWith({
+      error: 'unauthorized',
+      message: 'Valid JWT token required',
+    });
+    expect(sendStatus).not.toHaveBeenCalled();
     expect(next).not.toHaveBeenCalled();
   });
 });
