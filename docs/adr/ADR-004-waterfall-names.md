@@ -12,7 +12,8 @@ last_updated: 2026-08-03
 > **Amendment notice (2026-08-03).** The canonical naming table below is
 > unchanged and remains authoritative. What changed is the status of the
 > EUROPEAN / whole-fund row's implementation: it is being restored as public,
-> user-selectable vocabulary. See
+> parseable vocabulary. Live wizard/draft selection and persistence remain
+> American-only. See
 > [Amendment: dual-waterfall restoration (ADR-068)](#amendment-dual-waterfall-restoration-adr-068)
 > at the end of this document, and `DECISIONS.md` ADR-068 for the governing
 > record. The rounding contract is untouched.
@@ -361,22 +362,23 @@ row and the type-system posture around the term.
 
 ### What changed
 
-- **Both terms are public, user-selectable vocabulary.** AMERICAN / deal-by-deal
-  and EUROPEAN / whole-fund are both offered. AMERICAN remains the default and
-  is the **only activation-certified template** (ADR-066 / GR2-3). EUROPEAN is
-  selectable but not activation-certified until #1291 certifies whole-fund truth
-  cases.
+- **Both terms are public vocabulary.** AMERICAN / deal-by-deal and EUROPEAN /
+  whole-fund are both accepted by the standalone public vocabulary schema.
+  AMERICAN remains the default and the **only activation-certified template**
+  (ADR-066 / GR2-3). EUROPEAN is not yet selectable or persistable through live
+  wizard/draft contracts and is not activation-certified.
 - **Silent coercion removed.** The public `WaterfallTypeSchema` previously
   rewrote `european` to `american` without signal, destroying caller intent and
-  making a whole-fund selection indistinguishable from a deal-by-deal one. It is
-  now an honest two-value enum that preserves what the caller supplied and
-  rejects unknown values with a structured error.
+  making a whole-fund value indistinguishable from a deal-by-deal one. It is now
+  an honest two-value enum that preserves what the caller supplied and rejects
+  unknown values with a structured error.
 - **Forbidden-token set narrowed.** `european` is no longer a forbidden token.
-  All eight Line-of-Credit bans and both their guards (compile-time type guard
-  and runtime key scanner) are preserved unchanged.
+  All eight Line-of-Credit bans remain under the runtime/source scanner. A
+  typecheck-evaluated deep-key assertion protects frozen KPI v1 public contracts
+  instead of the former unconsumed type alias.
 - **No schema migration.** Vocabulary and validation only. The live persisted
   schema (`FundDraftWriteV1.waterfallType`) and the peripheral fund-config
-  schemas still accept deal-by-deal only; #1305 widens them.
+  schemas still accept deal-by-deal only; later Wave-W work owns any widening.
 - **A third public term, `hybrid`, already ships** on the scenario-methodology
   surface. It is a genuine third structure, not an alias for whole-fund: this
   document's own non-goals list defines Hybrid Models as
@@ -391,13 +393,12 @@ row and the type-system posture around the term.
 ### Governance state recorded
 
 - **Gate 0D business re-approval** (issue #1171, 2026-07-29 BLOCKED-EXTERNAL
-  comment): satisfied for modeling vocabulary and calculators only, by the Wave
-  W ticket trail. Not an authorization to present whole-fund results as
-  certified or LP-facing.
-- **#1285 narrowed to a per-fund role**: the LPA carry-basis question stays open
-  and stays HITL, but now decides only which template a given fund is configured
-  with. It no longer decides whether the vocabulary exists and no longer gates
-  Wave W.
+  comment): satisfied for public vocabulary restoration only. It does not
+  authorize a live whole-fund calculator, wizard/draft selection, persistence,
+  activation certification, or LP-facing results.
+- **#1285 narrowed but remains binding**: the LPA carry-basis question no longer
+  gates the v1 activation critical path or public vocabulary. It remains the
+  conditional business gate for parked #1291 and therefore #1308.
 - **Side-trail sequencing**: Wave W runs parallel to the activation critical
   path (#1294 through #1299) and does not touch the GR2-4 side trail (#1300,
   #1301).
@@ -425,13 +426,14 @@ for the record rather than edited in place:
 - "European Future: Can be added in Phase 4 (Q2 2026) if demand emerges"
   (Mitigation) — superseded. Restoration proceeds under ADR-068, not Phase 4.
 - "Current State (October 2025) ... Implemented: AMERICAN waterfall only" and
-  "Type System: `z.literal('AMERICAN')`" (Implementation) — superseded by the
-  two-value enum; the whole-fund calculator returns under #1305.
+  "Type System: `z.literal('AMERICAN')`" (Implementation) — superseded only for
+  the standalone public vocabulary schema. Live wizard/draft contracts and
+  frozen KPI selector v1 remain American-only.
 - "Migration Path ... Future: EUROPEAN waterfall support (Phase 4, Q2 2026 if
   demand emerges)" (Implementation) — superseded as above. The prediction that
   re-addition would be **additive** (a new discriminated-union branch, leaving
-  existing AMERICAN calculations unaffected) holds and is the approach #1305
-  takes.
+  existing AMERICAN calculations unaffected) remains a requirement for later
+  Wave-W implementation.
 
 ---
 

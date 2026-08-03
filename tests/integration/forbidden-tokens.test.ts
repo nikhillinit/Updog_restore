@@ -20,7 +20,6 @@ import {
   FORBIDDEN_TOKENS,
   WaterfallTypeSchema,
   validateNoForbiddenKeys,
-  type _forbiddenKeysGuard,
 } from '@shared/types/forbidden-features';
 
 /**
@@ -167,15 +166,6 @@ describe('Forbidden Features Protection', () => {
     for (const token of LINE_OF_CREDIT_BANS) {
       expect(foundTokens, `scanner missed the ${token} ban`).toContain(token);
     }
-  });
-
-  it('compile-time: type guard prevents usage', () => {
-    // Verify the type guard can be imported (compile-time check)
-    type TestGuard = _forbiddenKeysGuard; // TypeScript will error if type doesn't exist
-
-    // Suppress unused variable warning
-    const _: TestGuard | undefined = undefined;
-    expect(_).toBeUndefined();
   });
 
   it('policy: every Line-of-Credit ban survives (ADR-068 narrowing)', () => {

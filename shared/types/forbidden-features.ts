@@ -34,14 +34,15 @@ export const FORBIDDEN_TOKENS = [
 /**
  * Public waterfall vocabulary (ADR-004 canonical naming, ADR-068 restoration).
  *
- * Two user-selectable values, both preserved exactly as supplied:
+ * Two public vocabulary values, both preserved exactly as supplied:
  * - `american` — deal-by-deal carry. The default, and the only
  *   activation-certified template (ADR-066 / GR2-3).
- * - `european` — whole-fund carry. Selectable, not activation-certified.
+ * - `european` — whole-fund carry. Not yet selectable or persistable through
+ *   live wizard/draft contracts, and not activation-certified.
  *
  * This is an honest two-value enum, not a coercion. The previous schema
  * silently rewrote `european` to `american`, which discarded caller intent and
- * made a user's whole-fund selection indistinguishable from a deal-by-deal one.
+ * made a caller's whole-fund value indistinguishable from a deal-by-deal one.
  * Any value outside the two produces a structured Zod validation error.
  */
 export const WaterfallTypeSchema = z.enum(['american', 'european']);
@@ -63,13 +64,34 @@ export const DEFAULT_WATERFALL_TYPE: WaterfallType = 'american';
  */
 export type ForbiddenKeys = (typeof FORBIDDEN_TOKENS)[number];
 
+type ForbiddenKeyPaths<T> = T extends
+  string | number | boolean | bigint | symbol | null | undefined | Date
+  ? never
+  : T extends readonly (infer Item)[]
+    ? ForbiddenKeyPaths<Item>
+    : T extends (...args: never[]) => unknown
+      ? never
+      : T extends object
+        ? {
+            [Key in keyof T & string]: Key extends ForbiddenKeys
+              ? Key
+              : ForbiddenKeyPaths<NonNullable<T[Key]>> extends infer NestedPath
+                ? NestedPath extends string
+                  ? `${Key}.${NestedPath}`
+                  : never
+                : never;
+          }[keyof T & string]
+        : never;
+
 /**
- * Compile-time type guard to prevent usage of forbidden keys
- * This will cause a TypeScript error if any forbidden key is used as a type
+ * Compile-time assertion used by protected public contracts.
  *
- * @ts-expect-error - This is intentionally an error to prevent forbidden key usage
+ * A value declared as `AssertNoForbiddenContractKeys<Contract> = true` fails
+ * typecheck when any forbidden key appears at any nested contract path.
  */
-export type _forbiddenKeysGuard = Record<ForbiddenKeys, never>;
+export type AssertNoForbiddenContractKeys<Contract> = [ForbiddenKeyPaths<Contract>] extends [never]
+  ? true
+  : never;
 
 /**
  * Runtime validation to detect forbidden keys in objects

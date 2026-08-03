@@ -9611,20 +9611,20 @@ by LPA confirmation.
   template only; no whole-fund truth cases gate activation.
 - #1291 is parked, not closed: its close-as-not-planned path requires a
   confirmed deal-by-deal LPA, which is still pending on #1285.
-- #1285 remains open for LPA verification but no longer gates any work. If
-  verification reverses the default to whole-fund, #1291 re-enters the
-  pre-Wave-I path and this amendment is superseded.
-- Whole-fund reintroduction requires BOTH the LPA answer AND the business
-  re-approval gate recorded on #1171 (2026-07-29 BLOCKED-EXTERNAL comment,
-  ADR-004 / Gate 0D); the second gate was previously untracked on #1285.
+- #1285 remains open for LPA verification. It no longer gates the v1 activation
+  critical path, but it remains the conditional business gate for parked #1291
+  and therefore #1308. Neither ticket joins the v1 critical path while parked.
+- Public vocabulary restoration does not wait on #1285. Whole-fund truth-case
+  certification and activation-lane widening still require the #1285 decision
+  through #1291 and #1308.
 
 ### Consequences
 
-The critical path shortens by one conditional ticket, and the standing P0 HITL
-bottleneck moves from #1285 to #1284's prototype review. The risk accepted is a
-late LPA surprise: if the LPA is whole-fund, truth-case authoring lands
-post-activation rather than before it, which is acceptable because internal
-economics results remain indicative and internal-only.
+The v1 critical path excludes the parked whole-fund branch, and its standing P0
+HITL bottleneck moves from #1285 to #1284's prototype review. #1285 still
+controls whether #1291 and its dependent #1308 may proceed. The risk accepted is
+that whole-fund certification and widening may land post-activation; internal
+economics results remain indicative and internal-only meanwhile.
 
 ## ADR-067: Operating Decisions Lifecycle — Deferred Status, Outcome Distinct from Recommendation, Follow-Up Fields (Grilling GR2-5)
 
@@ -9670,15 +9670,16 @@ The added complexity is bounded to three columns, one lifecycle value, and their
 tests; no new tables, routes beyond #1290's planned surface, or approval
 hierarchy are introduced.
 
-## ADR-068: Public Dual-Waterfall Vocabulary Restored — Honest Two-Value Enum, American Default, Whole-Fund Selectable but Not Activation-Certified (Wave W, issue #1304)
+## ADR-068: Public Dual-Waterfall Vocabulary Restored — Honest Two-Value Enum, American Default, Live Selection Deferred (Wave W, issue #1304)
 
 **Date:** 2026-08-03 **Status:** [ACCEPTED] Accepted **Decision:** Restore
-whole-fund (European) as public, user-selectable product vocabulary alongside
-deal-by-deal (American); replace the silent European-to-American coercion with a
-two-value enum that preserves caller intent and rejects unknown values; narrow
-the forbidden-token set to the eight Line-of-Credit bans only. American remains
-the default and the only activation-certified template. This ADR is the live
-tail that reconciles ADR-004, ADR-064, ADR-065, GR2-3, and Gate 0D.
+whole-fund (European) as public product vocabulary alongside deal-by-deal
+(American); replace the silent European-to-American coercion with a two-value
+enum that preserves caller intent and rejects unknown values; narrow the
+forbidden-token set to the eight Line-of-Credit bans only. Live wizard/draft
+selection and persistence remain American-only. American remains the default and
+the only activation-certified template. This ADR is the live tail that
+reconciles ADR-004, ADR-064, ADR-065, GR2-3, and Gate 0D.
 
 ### Context
 
@@ -9695,8 +9696,9 @@ had drifted from all five.
   (`whole_fund` / `deal_by_deal`), deliberately separate from the public terms.
 - **GR2-3** (grilling pass 2, recorded as **ADR-066**) adopts deal-by-deal
   American provisionally as the v1 carry convention, requires the `deal_by_deal`
-  template only for CurrentForecastV2 activation, parks #1291, and stops #1285
-  from gating work.
+  template only for CurrentForecastV2 activation, and parks #1291. #1285 no
+  longer gates the v1 critical path, but remains the conditional business gate
+  for #1291 and therefore #1308.
 - **Gate 0D** (issue #1171, 2026-07-29 BLOCKED-EXTERNAL comment) parks
   whole-fund reintroduction behind two gates: business re-approval AND LPA terms
   confirmation.
@@ -9705,20 +9707,20 @@ The code implemented none of this. `shared/types/forbidden-features.ts` listed
 `european` as a forbidden token beside the eight Line-of-Credit bans, conflating
 "one calculator was removed for zero usage" with "this word is banned", and its
 `WaterfallTypeSchema` silently rewrote `european` to `american`. Silent coercion
-is the sharper defect: a fund that submitted a whole-fund selection was stored,
-served, and reported as deal-by-deal, indistinguishable from a fund that chose
-deal-by-deal. The system destroyed user intent and produced no signal that it
-had done so.
+is the sharper defect: any direct caller lost the distinction between a
+whole-fund value and a deal-by-deal value. The live wizard/draft contracts do
+not import this schema and do not accept European, so this ADR does not claim a
+live whole-fund selection was stored or served.
 
 ### Decision
 
 **Vocabulary.** Two values in `WaterfallTypeSchema`, both preserved exactly as
 supplied:
 
-| Public value | Industry alias | Status                                                    |
-| ------------ | -------------- | --------------------------------------------------------- |
-| `american`   | Deal-by-deal   | Default; the only activation-certified template (ADR-066) |
-| `european`   | Whole-fund     | Selectable; not activation-certified                      |
+| Public value | Industry alias | Status                                                               |
+| ------------ | -------------- | -------------------------------------------------------------------- |
+| `american`   | Deal-by-deal   | Default; only activation-certified template (ADR-066)                |
+| `european`   | Whole-fund     | Public vocabulary; no live wizard/draft selection or persistence yet |
 
 This table governs `WaterfallTypeSchema` only. It is NOT the complete inventory
 of user-facing waterfall terms: a third term, `hybrid`, already ships on the
@@ -9742,9 +9744,11 @@ converge on, not a completed de-duplication.
 
 **Forbidden tokens.** `european` leaves `FORBIDDEN_TOKENS`. All eight
 Line-of-Credit bans (`lineOfCredit`, `locRate`, `locCap`, `locDraw`, `locRepay`,
-`locDrawRules`, `locRepayRules`, `useLineOfCredit`) and both their guards — the
-compile-time `_forbiddenKeysGuard` type and the runtime
-`validateNoForbiddenKeys` scanner — are preserved unchanged and unweakened.
+`locDrawRules`, `locRepayRules`, `useLineOfCredit`) remain under the runtime
+`validateNoForbiddenKeys` scanner and source-token integration scan. The former
+unconsumed `_forbiddenKeysGuard` alias is replaced by
+`AssertNoForbiddenContractKeys`, imported by the frozen KPI selector v1 module
+and evaluated by `npm run check` against its public input/output contracts.
 `tests/integration/forbidden-tokens.test.ts` now asserts every one of the eight
 bans is present and that each is reachable by the runtime scanner, and asserts
 the whole-fund term is absent from both the list and the scanner, so neither the
@@ -9752,30 +9756,28 @@ restoration nor the Line-of-Credit bans can drift by a later sweep. Containment
 rather than equality is asserted on purpose: removing a ban fails the test,
 while adding a future Line-of-Credit ban is a strengthening and does not.
 
-**Gate 0D business re-approval.** Recorded as satisfied for modeling vocabulary
-and calculators, and only for those. The instrument is the Wave W ticket trail
-(#1304 through #1309), authored by the managing partner on 2026-08-03, which
-directs restoration of the vocabulary, the Decimal-native calculators, and the
-per-fund selection UI. This closes the business-approval half of the Gate 0D
-pair. It does NOT authorize whole-fund results as an activation-certified or
-LP-facing basis; ADR-066 continues to require `deal_by_deal` alone for
+**Gate 0D business re-approval.** Recorded as satisfied for public vocabulary
+restoration only. It does not authorize a live whole-fund calculator,
+wizard/draft selection, persistence, activation certification, or LP-facing
+results. #1285 remains the conditional business gate for parked #1291 and its
+dependent #1308. ADR-066 continues to require `deal_by_deal` alone for v1
 activation evidence.
 
 **#1285's narrowed per-fund role.** The LPA carry-basis question (#1285) remains
 open and remains a HITL item, but its scope is now strictly narrower than either
 Gate 0D or GR2-3 left it. It no longer decides whether the whole-fund vocabulary
-exists — this ADR decides that, and the answer is yes. It no longer gates any
-Wave W ticket. It decides one thing: which template a given fund is configured
-with per fund. A whole-fund LPA answer changes that fund's selection and
-re-enters #1291 for truth-case certification; it does not reverse this ADR. This
-supersedes the Gate 0D framing in which the LPA answer was a precondition for
-the vocabulary itself.
+exists — this ADR decides that, and the answer is yes — and it does not gate the
+v1 activation critical path. It remains the conditional business gate for parked
+#1291 and therefore #1308. Its answer determines whether whole-fund truth-case
+certification and activation-lane widening may proceed; it does not reverse this
+vocabulary ADR.
 
 **Side-trail sequencing.** Wave W (#1304 -> #1305 -> #1306/#1307 -> #1308 ->
 #1309, with #1291 as W-C) is a side trail. It does not sit on the activation
 critical path (#1286/#1288/#1293 -> #1294 -> #1295 -> #1296 -> #1297 -> #1298 ->
 #1299) and it does not touch the GR2-4 side trail (#1300, #1301). Wave W runs
-parallel to activation work and must never reorder it.
+parallel to activation work and must never reorder it. #1291 and #1308 remain
+parked behind #1285 without joining that critical path.
 
 **Merge fence and held-remainder step-up.** Each Wave W ticket merges before the
 first #1298 soak window, or it holds. A ticket that misses the fence does not
@@ -9828,58 +9830,20 @@ these scripts is out of this ticket's scope:
 
 No production query was made and no production authorization was sought or used.
 
-### Specialist review
+### Specialist review gate
 
-Both reviews required by #1304 were run against this branch on 2026-08-03 and
-both returned APPROVE.
-
-- **`waterfall-specialist`** — APPROVE, no blocking findings. Confirmed the
-  AMERICAN/deal-by-deal and EUROPEAN/whole-fund mapping is stated consistently
-  across the schema JSDoc, ADR-068, and the ADR-004 amendment; confirmed
-  ADR-004's canonical naming table is unchanged byte-for-byte and that the
-  superseded-statements list touches only implementation-status prose, not the
-  table or the rounding contract; confirmed the internal/public vocabulary
-  boundary holds. Traced the persistence question and found no live route by
-  which a whole-fund selection can be stored or served before #1305. One
-  non-blocking nit (a stale inline test comment) was fixed before commit.
-- **`phoenix-precision-guardian`** — APPROVE, no blocking findings. Verified the
-  type widening from a single literal to a union is genuine and is not absorbed
-  by an `any` or a cast anywhere (`npm run check`: 0 errors across client,
-  server, and shared); verified the enum truly rejects unknown values rather
-  than degrading to a permissive string; verified all eight Line-of-Credit bans
-  survive in order and that both guards remain functional — the compile-time
-  `_forbiddenKeysGuard` derives from the token array and is unaffected by the
-  arity change, and the runtime scanner still flags Line-of-Credit keys while no
-  longer flagging the restored vocabulary; confirmed `DEFAULT_WATERFALL_TYPE` is
-  annotated to the union and not widened to `string`. No numeric or precision
-  surface was touched.
-
-A third, general `code-reviewer` pass ran after those two and returned
-approve-with-follow-ups. Its material findings were in this ADR's prose, not in
-the code, and are corrected here rather than left for a follow-up: the
-blast-radius inventory originally named two peripheral schemas and missed
-`FundDraftWriteV1` — the schema that actually persists waterfall type — and it
-missed the shipped `hybrid` vocabulary entirely. Both are now recorded below,
-along with the uppercase/lowercase mismatch between the restored enum and the
-peripheral schemas. Its test-quality findings were also applied: one assertion
-that could not fail was made meaningful, the token-set assertion was changed so
-that adding a Line-of-Credit ban does not fail a test whose stated purpose is to
-catch removals, and the runtime scanner is now exercised against all eight bans
-rather than two, which is what makes this ADR's "both guards pinned" claim true.
-
-Evidence at review time: `npm run check` 0 errors; full suite 11,489 passed / 90
-skipped across 930 files; `npm run phoenix:truth` 336 passed across 16 files;
-`tests/integration/forbidden-tokens.test.ts` passing under
-`vitest.config.int.ts`.
+Architecture text does not substitute for review evidence. Merge requires
+independently attributable final-head reviews from `waterfall-specialist` and
+`phoenix-precision-guardian`, recorded on the GitHub pull request. Local or
+pre-final-head review prose is non-authoritative.
 
 ### Consequences
 
-A user's whole-fund selection is preserved instead of silently rewritten, which
-is a correctness repair, not only a vocabulary one. #1305 can now restore the
-calculators against an honest enum, and #1306 can offer a real choice. The
-public type widens from a single literal to a union; typecheck across client,
-server, and shared confirms no consumer depended on the narrower literal, and
-existing American behavior is unchanged.
+A caller of the standalone public vocabulary schema now retains a whole-fund
+value instead of receiving a silent rewrite. No live wizard/draft selection or
+persistence path is widened by this ADR. Later Wave-W work may build against the
+honest enum only after its dependency gates pass. Existing live American
+behavior is unchanged.
 
 **Blast radius, recorded for #1305 and #1306.** The restored enum is one of four
 waterfall type declarations in the repo. The other three are deliberately left
@@ -9904,11 +9868,11 @@ is restored ahead of the surfaces that use it, by design.
    **casing mismatch**: these are uppercase, matching ADR-004's canonical table,
    while the restored enum and the draft contract are lowercase. Any #1305
    bridge must case-map, not merely widen.
-3. **`shared/contracts/kpi-selector.contract.ts`** consumes the restored enum
-   directly. It is a frozen v1.0 spec whose only importer
-   (`client/src/adapters/kpiAdapter.ts`) is itself unreferenced, so the widening
-   has no live effect — but it must get real whole-fund handling or an explicit
-   rejection before it is wired to anything.
+3. **`shared/contracts/kpi-selector.contract.ts`** is a frozen v1.0 spec and is
+   pinned to its own `z.literal('american')`. It does not import the restored
+   enum, so public vocabulary widening cannot change its inputs or outputs
+   transitively. A versioned successor is required for future whole-fund KPI
+   semantics.
 
 **The shipped `hybrid` vocabulary is a genuine third structure, not an alias.
 #1306 must reconcile it; this ADR does not fold it in.** A third public
@@ -9949,8 +9913,8 @@ with "GP economics P0 supports american waterfall only",
 `z.literal('american')`, and `HybridWaterfallPolicyV1` exists in the design
 document only — no `hybridPolicy`, `returnCapitalScope`, `prefScope`,
 `catchUpScope`, or `carryScope` appears anywhere in `shared/`, `server/`, or
-`client/`. It is a selectable dead option today, the same state `european` is in
-until #1305 lands.
+`client/`. It is a selectable dead option today. European is different: it is
+public vocabulary but is not accepted by the live wizard/draft contract at all.
 
 **Two defects follow, for #1306.**
 
@@ -9972,9 +9936,9 @@ table covers `WaterfallTypeSchema` alone, and any future work that treats
 `hybrid` as a synonym for whole-fund is proceeding against both ADR-004's
 non-goals list and the gp-economics design.
 
-The risk accepted is that whole-fund becomes selectable in the vocabulary before
-#1291 certifies whole-fund truth cases. It is bounded by ADR-066's activation
-rule (`deal_by_deal` only), by #1308 holding the widened activation-lane
-contract behind the soak fence, and by internal economics results staying
-indicative and internal-only per ADR-065. Whole-fund results must not be
-presented as certified until #1291 closes.
+The risk accepted is that the standalone public vocabulary schema can parse a
+whole-fund value before #1291 certifies whole-fund truth cases. Live
+wizard/draft selection and persistence remain unwidened, frozen KPI selector v1
+remains American-only, ADR-066 requires `deal_by_deal` for activation, and #1285
+keeps #1291 and #1308 parked. Whole-fund results must not be presented as
+certified until those gates close.

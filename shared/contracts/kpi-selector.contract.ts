@@ -12,9 +12,16 @@
  */
 
 import { z } from 'zod';
-import { WaterfallTypeSchema } from '../types/forbidden-features';
+import type { AssertNoForbiddenContractKeys } from '../types/forbidden-features';
 
-export { WaterfallTypeSchema };
+/**
+ * Frozen KPI selector v1 waterfall semantic.
+ *
+ * Public waterfall vocabulary is wider, but this v1 contract has always
+ * calculated American/deal-by-deal results only. Keep the schema local so a
+ * public vocabulary change cannot widen frozen input or output transitively.
+ */
+export const WaterfallTypeSchema = z.literal('american');
 
 // ============================================================================
 // CORE DATA TYPES
@@ -229,3 +236,15 @@ export const KPIErrorSchema = z.object({
 });
 
 export type KPIError = z.infer<typeof KPIErrorSchema>;
+
+/**
+ * Typecheck-evaluated guard for frozen KPI selector v1 public contracts.
+ * Adding a forbidden key at any nested path changes this type to `never` and
+ * fails `npm run check` at this declaration.
+ */
+export const KPI_SELECTOR_V1_FORBIDDEN_KEYS_TYPECHECK: AssertNoForbiddenContractKeys<{
+  response: KPIResponse;
+  ledger: FundLedger;
+  request: KPIRequest;
+  error: KPIError;
+}> = true;
