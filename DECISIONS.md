@@ -9574,3 +9574,90 @@ result snapshot has `calc_version=lp-economics/1.0.0` or a failed row has no
 result snapshot. Every other null tuple fails closed with
 `UNSUPPORTED_CALCULATION_CONTRACT_VERSION`. This addendum fulfills ADR-065/D-11;
 it does not reverse P-D5.
+
+## ADR-066: PLAN_61 Acceptance-Matrix Amendment — deal_by_deal Only for Activation (Grilling GR2-3)
+
+**Date:** 2026-08-03 **Status:** [ACCEPTED] Accepted **Decision:** Amend the
+PLAN_61 acceptance matrix so CurrentForecastV2 activation requires the
+`deal_by_deal` waterfall template only. The recorded default carry convention
+(deal-by-deal American, no hurdle, 100% GP catch-up to a 20% carry split, no
+clawback) is adopted provisionally as the v1 simplified carry assumption.
+`whole_fund` moves to the post-activation horizon.
+
+### Context
+
+PLAN_61 held an open ask (G1, issue #1285) to confirm the fund's actual LPA
+carry basis, gating the whole-fund waterfall slice (#1291) as a conditional
+pre-Wave-I critical-path ticket. The managing partner's v1 product
+specification requires only a "simplified carry/waterfall assumption" for v1,
+and the codebase's only tested convention is deal-by-deal American (ADR-004
+removed whole-fund mechanics for zero usage; the live engine hardcodes
+`clawbackPaid = 0`). Grilling pass 2 (2026-08-03) put the choice to the
+managing partner, who elected to adopt the default provisionally and defer
+the whole-fund build. This resolves the prior pass's ADR-cand-1 by adopted
+default rather than by LPA confirmation.
+
+### Decision
+
+- Activation evidence (Wave I package, #1297) requires the `deal_by_deal`
+  template only; no whole-fund truth cases gate activation.
+- #1291 is parked, not closed: its close-as-not-planned path requires a
+  confirmed deal-by-deal LPA, which is still pending on #1285.
+- #1285 remains open for LPA verification but no longer gates any work. If
+  verification reverses the default to whole-fund, #1291 re-enters the
+  pre-Wave-I path and this amendment is superseded.
+- Whole-fund reintroduction requires BOTH the LPA answer AND the business
+  re-approval gate recorded on #1171 (2026-07-29 BLOCKED-EXTERNAL comment,
+  ADR-004 / Gate 0D); the second gate was previously untracked on #1285.
+
+### Consequences
+
+The critical path shortens by one conditional ticket, and the standing P0
+HITL bottleneck moves from #1285 to #1284's prototype review. The risk
+accepted is a late LPA surprise: if the LPA is whole-fund, truth-case
+authoring lands post-activation rather than before it, which is acceptable
+because internal economics results remain indicative and internal-only.
+
+## ADR-067: Operating Decisions Lifecycle — Deferred Status, Outcome Distinct from Recommendation, Follow-Up Fields (Grilling GR2-5)
+
+**Date:** 2026-08-03 **Status:** [ACCEPTED] Accepted **Decision:** Extend the
+Wave H `operating_decisions` schema (issue #1289, before any code exists) from
+`proposed -> accepted | rejected` to `proposed -> accepted | rejected |
+deferred`, add outcome columns recorded distinct from the recommendation, and
+require follow-up owner/date when a decision is deferred or its outcome is
+conditional.
+
+### Context
+
+Grilling pass 2 reviewed the ticketed decision model against the managing
+partner's v1 product specification, whose decision standard treats the
+outcome ("$250k follow-on funded") as distinct from the recommendation
+("approve follow-on"), includes a deferred state, and requires follow-up
+owner and date for deferred or conditional outcomes. Document-authority
+ruling GR2-1 applies: repo docs govern, but the spec is the product-essence
+synthesis and sharpens fuzzy areas when the change serves team utility
+without over-engineering. Amending the greenfield schema now costs a few
+columns and CHECK constraints; retrofitting after #1289 ships would cost an
+additive migration plus a contract version bump immediately after activation.
+
+### Decision
+
+- Lifecycle: `proposed -> accepted | rejected | deferred`. Accepted and
+  rejected remain immutable (changes create a superseding row). Deferred is
+  re-openable to accepted, rejected, or superseded.
+- Outcome: text plus recorded-at and actor, immutable once recorded; changing
+  an outcome requires a superseding decision row. Schema permits NULL; the
+  service (#1290) surfaces accepted-without-outcome as an explicit
+  outcome-missing state rather than completeness.
+- Follow-up: owner and date columns, CHECK-enforced NOT NULL when status is
+  `deferred`.
+- UI (#1293) renders outcome as a separately labeled field and shows
+  follow-up on deferred rows; "Approved" is never presented as the outcome.
+
+### Consequences
+
+The Wave H decision spine matches the operating standard the team will
+actually run (recommendation, approval, outcome, follow-up) without a second
+schema pass. The added complexity is bounded to three columns, one lifecycle
+value, and their tests; no new tables, routes beyond #1290's planned surface,
+or approval hierarchy are introduced.
