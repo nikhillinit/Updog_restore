@@ -13,6 +13,7 @@ import {
   type EconomicsResultV1,
   type EconomicsSummaryV1,
 } from '@shared/contracts/economics-v1.contract';
+import { calledCapitalPeriodFromCumulative } from '@shared/lib/economics/called-capital-period';
 import type { EconomicsCanonicalPeriodV1 } from '@shared/contracts/economics-period-v1.contract';
 import {
   CANONICAL_ECONOMICS_ACCRUAL_GRAIN,
@@ -65,6 +66,8 @@ interface NormalizedEconomicsConfig {
 
 interface FeeBasisContext {
   committedCapital: Decimal;
+  /** Net capital called during this period only, floored at zero. */
+  calledCapitalPeriod: Decimal;
   calledCapitalCumulative: Decimal;
   calledCapitalNetOfReturns: Decimal;
   investedCapital: Decimal;
@@ -377,6 +380,8 @@ function amountForFeeBasis(basis: EconomicsFeeBasis, context: FeeBasisContext): 
   switch (basis) {
     case 'committed_capital':
       return context.committedCapital;
+    case 'called_capital_period':
+      return context.calledCapitalPeriod;
     case 'called_capital_cumulative':
       return context.calledCapitalCumulative;
     case 'called_capital_net_of_returns':
@@ -786,11 +791,16 @@ export function runEconomicsModel(input: FundDraftWriteV1): EconomicsResultV1 {
     const gpCommitmentCalls = Decimal.min(requestedGpCommitmentCall, remainingGpCommitment);
     const lpCapitalCalls = totalCapitalCall.minus(gpCommitmentCalls);
     gpCommitmentCalledToDate = gpCommitmentCalledToDate.plus(gpCommitmentCalls);
+    const previousCalledCapitalCumulative = calledCapitalCumulative;
     calledCapitalCumulative = calledCapitalCumulative.plus(totalCapitalCall);
     unreturnedCapital = unreturnedCapital.plus(totalCapitalCall);
 
     const feeBasisContext: FeeBasisContext = {
       committedCapital: config.fundSize,
+      calledCapitalPeriod: calledCapitalPeriodFromCumulative(
+        previousCalledCapitalCumulative,
+        calledCapitalCumulative
+      ),
       calledCapitalCumulative,
       calledCapitalNetOfReturns: Decimal.max(
         new Decimal(0),
