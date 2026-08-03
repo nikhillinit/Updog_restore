@@ -14,6 +14,14 @@ import {
   type EconomicsSummaryV1,
 } from '@shared/contracts/economics-v1.contract';
 import { calledCapitalPeriodFromCumulative } from '@shared/lib/economics/called-capital-period';
+import type { EconomicsCanonicalPeriodV1 } from '@shared/contracts/economics-period-v1.contract';
+import {
+  CANONICAL_ECONOMICS_ACCRUAL_GRAIN,
+  aggregateEconomicsPeriodRowsV1,
+  buildEconomicsPeriodSeriesV1,
+  monthsPerPeriodV1,
+  periodRateV1,
+} from '@shared/lib/economics/period-model-v1';
 
 export interface EconomicsValidationIssue {
   path: string[];
@@ -387,26 +395,46 @@ function amountForFeeBasis(basis: EconomicsFeeBasis, context: FeeBasisContext): 
   }
 }
 
-function calculateManagementFeeForYear(
+/**
+ * Management fee accrued over one canonical period.
+ *
+ * Fee tiers carry annual rates. The rate is converted to the period rate by
+ * the canonical period model (ADR-069), so a complete year accrues the full
+ * annual rate and a partial period accrues its prorated share.
+ */
+function calculateManagementFeeForPeriod(
   year: number,
+  period: EconomicsCanonicalPeriodV1,
   tiers: EconomicsFeeTierV1[],
   context: FeeBasisContext
 ): Decimal {
   return tiers.reduce((total, tier) => {
     const active = year >= tier.startYear && (tier.endYear == null || year <= tier.endYear);
     if (!active) return total;
-    return total.plus(amountForFeeBasis(tier.basis, context).times(tier.rate));
+    return total.plus(
+      amountForFeeBasis(tier.basis, context).times(periodRateV1(tier.rate, period, 'simple'))
+    );
   }, new Decimal(0));
 }
 
-function calculateExpenseForYear(year: number, expenses: EconomicsExpenseV1[]): Decimal {
+/**
+ * Fund expenses accrued over one canonical period. Expense amounts are annual
+ * and are prorated by the period year fraction.
+ */
+function calculateExpenseForPeriod(
+  year: number,
+  period: EconomicsCanonicalPeriodV1,
+  expenses: EconomicsExpenseV1[]
+): Decimal {
   return expenses.reduce((total, expense) => {
     const active =
       year >= expense.startYear && (expense.endYear == null || year <= expense.endYear);
     if (!active) return total;
     const growthYears = Math.max(0, year - expense.startYear);
     const multiplier = new Decimal(1).plus(expense.growthRate ?? 0).pow(growthYears);
-    return total.plus(asDecimal(expense.amount).times(multiplier));
+    return total.plus(
+      asDecimal(expense.amount).times(multiplier).times(new Decimal(period.yearFraction))
+    );
   }, new Decimal(0));
 }
 
@@ -695,6 +723,32 @@ function validateInvariants(rows: EconomicsAnnualRowV1[]): EconomicsInvariantRep
   };
 }
 
+/**
+ * Reporting periods for the annual rows, derived from the canonical accrual
+ * grid (ADR-069).
+ *
+ * The engine accrues on the canonical monthly grid anchored on 1 January of
+ * the vintage year and reports one row per aggregated year. Because a year is
+ * exactly 12 canonical months and rate application is grain-invariant, this
+ * regrouping cannot change an accrued amount.
+ */
+function buildReportingPeriods(config: NormalizedEconomicsConfig): EconomicsCanonicalPeriodV1[] {
+  const anchorDate = `${String(config.vintageYear).padStart(4, '0')}-01-01`;
+  const horizonMonths = config.fundLifeYears * monthsPerPeriodV1('annual');
+  const accrualSeries = buildEconomicsPeriodSeriesV1({
+    anchorDate,
+    grain: CANONICAL_ECONOMICS_ACCRUAL_GRAIN,
+    horizonMonths,
+  });
+
+  return aggregateEconomicsPeriodRowsV1({
+    series: accrualSeries,
+    rows: accrualSeries.periods.map(() => ({})),
+    targetGrain: 'annual',
+    fields: {},
+  }).map((group) => group.period);
+}
+
 export function runEconomicsModel(input: FundDraftWriteV1): EconomicsResultV1 {
   if (!hasEconomicsAssumptions(input)) {
     throw new EconomicsInputValidationError([
@@ -706,6 +760,7 @@ export function runEconomicsModel(input: FundDraftWriteV1): EconomicsResultV1 {
   const totalInvestableCost = config.fundSize;
   const annualCall = config.fundSize.div(config.fundLifeYears);
   const gpShare = config.gpCommitmentPct;
+  const reportingPeriods = buildReportingPeriods(config);
 
   let beginningCash = new Decimal(0);
   let calledCapitalCumulative = new Decimal(0);
@@ -724,6 +779,7 @@ export function runEconomicsModel(input: FundDraftWriteV1): EconomicsResultV1 {
   const rows: EconomicsAnnualRowV1[] = [];
 
   for (let year = 1; year <= config.fundLifeYears; year++) {
+    const period = reportingPeriods[year - 1]!;
     const totalCapitalCall = annualCall;
     const requestedGpCommitmentCall = config.gpCallSchedule
       ? config.gpCommitmentAmount.times(config.gpCallSchedule[year - 1] ?? 0)
@@ -754,8 +810,13 @@ export function runEconomicsModel(input: FundDraftWriteV1): EconomicsResultV1 {
       fairMarketValue: grossNav,
       unrealizedCost,
     };
-    const feesPaidToManager = calculateManagementFeeForYear(year, config.feeTiers, feeBasisContext);
-    const expensesPaid = calculateExpenseForYear(year, config.expenses);
+    const feesPaidToManager = calculateManagementFeeForPeriod(
+      year,
+      period,
+      config.feeTiers,
+      feeBasisContext
+    );
+    const expensesPaid = calculateExpenseForPeriod(year, period, config.expenses);
     cumulativeEligibleFees = cumulativeEligibleFees.plus(feesPaidToManager);
 
     const grossExitProceeds = calculateGrossExitProceeds(year, config, totalInvestableCost);
@@ -778,7 +839,13 @@ export function runEconomicsModel(input: FundDraftWriteV1): EconomicsResultV1 {
     const prefAccrual =
       config.waterfall.prefType === 'none'
         ? new Decimal(0)
-        : prefAccrualBase.times(config.waterfall.hurdleRate);
+        : prefAccrualBase.times(
+            periodRateV1(
+              config.waterfall.hurdleRate,
+              period,
+              config.waterfall.prefType === 'compounded' ? 'compounded' : 'simple'
+            )
+          );
     prefBalance = prefBalance.plus(prefAccrual);
 
     const waterfall = allocateWaterfall({
@@ -850,6 +917,8 @@ export function runEconomicsModel(input: FundDraftWriteV1): EconomicsResultV1 {
 
     rows.push({
       year,
+      periodStart: period.periodStart,
+      periodEnd: period.periodEnd,
       lpCapitalCalls: toMoney(lpCapitalCalls),
       gpCommitmentCalls: toMoney(gpCommitmentCalls),
       grossExitProceeds: toMoney(grossExitProceeds),

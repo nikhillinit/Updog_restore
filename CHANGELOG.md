@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-05-20
+last_updated: 2026-08-03
 owner: Core Team
 review_cadence: P7D
 ---
@@ -44,6 +44,42 @@ and this project adheres to
   even though the wizard and the fund-draft contract already offered it. No
   existing fee basis changes value; the economics result contract is unchanged,
   so result hashes for existing configurations are unaffected.
+- **Canonical economics period model, monthly accrual grain (issue #1311,
+  ADR-069).** Economics now has one authoritative period representation:
+  `EconomicsCanonicalPeriodV1` plus `shared/lib/economics/period-model-v1.ts`
+  own period dating, proration, rate application, and aggregation. Monthly is
+  the authoritative accrual grain; quarterly and annual are aggregation grains
+  only. Rates apply as effective rates (`r * t` simple, `(1 + r)^t - 1`
+  compounded) and partial periods prorate by canonical months, so accrual is
+  grain-invariant and a reporting-grain change cannot move a served number. The
+  aggregator sums flows, keeps boundary stocks, and refuses to aggregate ratios
+  or to split into a finer grain. The GP economics engine now derives its annual
+  rows from the canonical grid and dates each row with `periodStart`/`periodEnd`
+  (both optional in the contract, so older snapshots stay readable). No served
+  number changes: complete before/after rows and a zero delta table are recorded
+  in `tests/fixtures/economics/period-grain-before-after.json`, and the
+  quarterly waterfall truth cases pass unchanged.
+
+### Changed (2026-08-03)
+
+- **Public dual-waterfall vocabulary restored; silent coercion removed (issue
+  #1304, ADR-068).** `WaterfallTypeSchema` in
+  `shared/types/forbidden-features.ts` is now an honest two-value enum
+  (`american` | `european`) that preserves caller intent and rejects unknown
+  values. It previously rewrote `european` to `american` without signal, which
+  made a caller's whole-fund value indistinguishable from a deal-by-deal one.
+  `european` is no longer a forbidden token; all eight Line-of-Credit bans and
+  the runtime/source scanner remain enforced. A typecheck-evaluated deep-key
+  assertion now protects frozen KPI v1 public contracts instead of the former
+  unconsumed type alias, and tests pin all eight bans. American stays the
+  default and the only activation-certified template (ADR-066). ADR-004 is
+  amended without changing its canonical naming table. Vocabulary and validation
+  only: no schema migration, no calculator change, and no live wizard/draft
+  selection or persistence path accepts European yet. Frozen KPI selector v1
+  remains American-semantic while preserving its legacy `european`-to-`american`
+  input normalization locally; later Wave-W work owns versioned widening.
+  ADR-066/067 were absorbed by cherry-pick from a stalled branch to resolve
+  ledger ordering before ADR-068 took the live tail.
 
 ### Added (2026-07-23)
 

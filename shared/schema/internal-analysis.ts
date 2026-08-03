@@ -24,6 +24,8 @@ import { sourceObservations } from './financial-observations';
 import { financialFactsSnapshots } from './financial-facts-snapshots';
 import { funds, fundSnapshots } from './fund';
 import { internalLpEconomicsRuns } from './internal-economics';
+import { tasks } from './operating-objects';
+import { portfolioCompanies } from './portfolio';
 import { users } from './user';
 
 /**
@@ -469,6 +471,211 @@ export const internalAnalysisNotes = pgTable(
   })
 );
 
+export const quarterlyReviewRosters = pgTable(
+  'quarterly_review_rosters',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id').notNull(),
+    analysisDraftId: integer('analysis_draft_id').notNull(),
+    draftVersion: integer('draft_version').notNull(),
+    financialFactsSnapshotId: integer('financial_facts_snapshot_id').notNull(),
+    companyCount: integer('company_count').notNull(),
+    createdBy: integer('created_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    fundFk: foreignKey({
+      columns: [table.fundId],
+      foreignColumns: [funds.id],
+      name: 'quarterly_review_rosters_fund_id_funds_id_fk',
+    }).onDelete('cascade'),
+    draftFundFk: foreignKey({
+      columns: [table.analysisDraftId, table.fundId],
+      foreignColumns: [internalAnalysisDrafts.id, internalAnalysisDrafts.fundId],
+      name: 'quarterly_review_rosters_draft_fund_fk',
+    }).onDelete('cascade'),
+    factsFundFk: foreignKey({
+      columns: [table.financialFactsSnapshotId, table.fundId],
+      foreignColumns: [financialFactsSnapshots.id, financialFactsSnapshots.fundId],
+      name: 'quarterly_review_rosters_facts_fund_fk',
+    }).onDelete('restrict'),
+    createdByFk: foreignKey({
+      columns: [table.createdBy],
+      foreignColumns: [users.id],
+      name: 'quarterly_review_rosters_created_by_fk',
+    }).onDelete('restrict'),
+    idFundUnique: unique('quarterly_review_rosters_id_fund_unique').on(table.id, table.fundId),
+    exactBasisUnique: unique('quarterly_review_rosters_exact_basis_unique').on(
+      table.analysisDraftId,
+      table.draftVersion,
+      table.financialFactsSnapshotId
+    ),
+    companyCountCheck: check(
+      'quarterly_review_rosters_company_count_check',
+      sql`${table.companyCount} >= 0`
+    ),
+  })
+);
+
+export const quarterlyReviewCompanies = pgTable(
+  'quarterly_review_companies',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id').notNull(),
+    quarterlyReviewRosterId: integer('quarterly_review_roster_id').notNull(),
+    portfolioCompanyId: integer('portfolio_company_id').notNull(),
+    waivedAt: timestamp('waived_at', { withTimezone: true }),
+    waivedBy: integer('waived_by'),
+    waiverReason: text('waiver_reason'),
+    version: integer('version').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    fundFk: foreignKey({
+      columns: [table.fundId],
+      foreignColumns: [funds.id],
+      name: 'quarterly_review_companies_fund_id_funds_id_fk',
+    }).onDelete('cascade'),
+    rosterFundFk: foreignKey({
+      columns: [table.quarterlyReviewRosterId, table.fundId],
+      foreignColumns: [quarterlyReviewRosters.id, quarterlyReviewRosters.fundId],
+      name: 'quarterly_review_companies_roster_fund_fk',
+    }).onDelete('cascade'),
+    portfolioCompanyFundFk: foreignKey({
+      columns: [table.portfolioCompanyId, table.fundId],
+      foreignColumns: [portfolioCompanies.id, portfolioCompanies.fundId],
+      name: 'quarterly_review_companies_portfolio_company_fund_fk',
+    }).onDelete('restrict'),
+    waivedByFk: foreignKey({
+      columns: [table.waivedBy],
+      foreignColumns: [users.id],
+      name: 'quarterly_review_companies_waived_by_fk',
+    }).onDelete('restrict'),
+    idFundUnique: unique('quarterly_review_companies_id_fund_unique').on(table.id, table.fundId),
+    rosterCompanyUnique: unique('quarterly_review_companies_roster_company_unique').on(
+      table.quarterlyReviewRosterId,
+      table.portfolioCompanyId
+    ),
+    waiverCouplingCheck: check(
+      'quarterly_review_companies_waiver_coupling_check',
+      sql`(num_nonnulls(${table.waivedAt}, ${table.waivedBy}, ${table.waiverReason}) = 0) OR (num_nonnulls(${table.waivedAt}, ${table.waivedBy}, ${table.waiverReason}) = 3 AND length(btrim(${table.waiverReason})) > 0)`
+    ),
+    versionCheck: check('quarterly_review_companies_version_check', sql`${table.version} >= 1`),
+  })
+);
+
+export const quarterlyReviewItems = pgTable(
+  'quarterly_review_items',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id').notNull(),
+    quarterlyReviewCompanyId: integer('quarterly_review_company_id').notNull(),
+    category: varchar('category', { length: 32 }).notNull(),
+    state: varchar('state', { length: 24 }).notNull().default('pending'),
+    note: text('note'),
+    reviewedBy: integer('reviewed_by'),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+    changeRefKind: varchar('change_ref_kind', { length: 32 }),
+    changeRefPath: varchar('change_ref_path', { length: 512 }),
+    changeRefLabel: varchar('change_ref_label', { length: 120 }),
+    followUpTaskId: integer('follow_up_task_id'),
+    version: integer('version').notNull().default(1),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    fundFk: foreignKey({
+      columns: [table.fundId],
+      foreignColumns: [funds.id],
+      name: 'quarterly_review_items_fund_id_funds_id_fk',
+    }).onDelete('cascade'),
+    companyFundFk: foreignKey({
+      columns: [table.quarterlyReviewCompanyId, table.fundId],
+      foreignColumns: [quarterlyReviewCompanies.id, quarterlyReviewCompanies.fundId],
+      name: 'quarterly_review_items_company_fund_fk',
+    }).onDelete('cascade'),
+    reviewedByFk: foreignKey({
+      columns: [table.reviewedBy],
+      foreignColumns: [users.id],
+      name: 'quarterly_review_items_reviewed_by_fk',
+    }).onDelete('restrict'),
+    followUpTaskFundFk: foreignKey({
+      columns: [table.followUpTaskId, table.fundId],
+      foreignColumns: [tasks.id, tasks.fundId],
+      name: 'quarterly_review_items_follow_up_task_fund_fk',
+    }).onDelete('restrict'),
+    companyCategoryUnique: unique('quarterly_review_items_company_category_unique').on(
+      table.quarterlyReviewCompanyId,
+      table.category
+    ),
+    categoryCheck: check(
+      'quarterly_review_items_category_check',
+      sql`${table.category} IN ('cases_probabilities','kpis','valuation_fmv','reserve_plan','qualitative_risks')`
+    ),
+    stateCheck: check(
+      'quarterly_review_items_state_check',
+      sql`${table.state} IN ('pending','changed','reviewed_no_change')`
+    ),
+    stateCouplingCheck: check(
+      'quarterly_review_items_state_coupling_check',
+      sql`(${table.state} = 'pending' AND num_nonnulls(${table.note}, ${table.reviewedBy}, ${table.reviewedAt}, ${table.changeRefKind}, ${table.changeRefPath}, ${table.changeRefLabel}, ${table.followUpTaskId}) = 0) OR (${table.state} = 'reviewed_no_change' AND ${table.note} IS NOT NULL AND length(btrim(${table.note})) > 0 AND ${table.reviewedBy} IS NOT NULL AND ${table.reviewedAt} IS NOT NULL AND num_nonnulls(${table.changeRefKind}, ${table.changeRefPath}, ${table.changeRefLabel}, ${table.followUpTaskId}) = 0) OR (${table.state} = 'changed' AND ${table.note} IS NOT NULL AND length(btrim(${table.note})) > 0 AND ${table.reviewedBy} IS NOT NULL AND ${table.reviewedAt} IS NOT NULL AND ${table.changeRefKind} IS NOT NULL AND ${table.changeRefKind} = 'internal_route' AND ${table.changeRefPath} IS NOT NULL AND ${table.changeRefLabel} IS NOT NULL)`
+    ),
+    versionCheck: check('quarterly_review_items_version_check', sql`${table.version} >= 1`),
+  })
+);
+
+export const quarterlyReviewCommandReceipts = pgTable(
+  'quarterly_review_command_receipts',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id').notNull(),
+    analysisDraftId: integer('analysis_draft_id').notNull(),
+    rosterId: integer('roster_id').notNull(),
+    operation: varchar('operation', { length: 40 }).notNull(),
+    idempotencyKey: varchar('idempotency_key', { length: 128 }).notNull(),
+    requestHash: varchar('request_hash', { length: 64 }).notNull(),
+    responseStatus: integer('response_status').notNull(),
+    resultKind: varchar('result_kind', { length: 16 }).notNull(),
+    resultItemId: integer('result_item_id'),
+    resultCompanyId: integer('result_company_id'),
+    resultReferenceId: integer('result_reference_id'),
+    resultDraftVersion: integer('result_draft_version'),
+    resultRowVersion: integer('result_row_version'),
+    actorId: integer('actor_id').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    draftFundFk: foreignKey({
+      columns: [table.analysisDraftId, table.fundId],
+      foreignColumns: [internalAnalysisDrafts.id, internalAnalysisDrafts.fundId],
+      name: 'quarterly_review_command_receipts_draft_fund_fk',
+    }).onDelete('cascade'),
+    rosterFundFk: foreignKey({
+      columns: [table.rosterId, table.fundId],
+      foreignColumns: [quarterlyReviewRosters.id, quarterlyReviewRosters.fundId],
+      name: 'quarterly_review_command_receipts_roster_fund_fk',
+    }).onDelete('cascade'),
+    actorFk: foreignKey({
+      columns: [table.actorId],
+      foreignColumns: [users.id],
+      name: 'quarterly_review_command_receipts_actor_fk',
+    }).onDelete('restrict'),
+    fundIdempotencyUnique: unique('quarterly_review_command_receipts_fund_idempotency_unique').on(
+      table.fundId,
+      table.idempotencyKey
+    ),
+    operationCheck: check(
+      'quarterly_review_command_receipts_operation_check',
+      sql`${table.operation} IN ('draft_refresh','economics_reference_replace','review_item_update','company_waive','draft_save')`
+    ),
+    resultCouplingCheck: check(
+      'quarterly_review_command_receipts_result_coupling_check',
+      sql`(${table.operation} IN ('draft_refresh','economics_reference_replace') AND ${table.resultKind} = 'draft' AND ${table.responseStatus} = 200 AND ${table.resultDraftVersion} IS NOT NULL AND num_nonnulls(${table.resultItemId}, ${table.resultCompanyId}, ${table.resultReferenceId}, ${table.resultRowVersion}) = 0) OR (${table.operation} = 'review_item_update' AND ${table.resultKind} = 'item' AND ${table.responseStatus} = 200 AND ${table.resultItemId} IS NOT NULL AND ${table.resultRowVersion} IS NOT NULL AND num_nonnulls(${table.resultCompanyId}, ${table.resultReferenceId}, ${table.resultDraftVersion}) = 0) OR (${table.operation} = 'company_waive' AND ${table.resultKind} = 'company' AND ${table.responseStatus} = 200 AND ${table.resultCompanyId} IS NOT NULL AND ${table.resultRowVersion} IS NOT NULL AND num_nonnulls(${table.resultItemId}, ${table.resultReferenceId}, ${table.resultDraftVersion}) = 0) OR (${table.operation} = 'draft_save' AND ${table.resultKind} = 'reference' AND ${table.responseStatus} = 201 AND ${table.resultReferenceId} IS NOT NULL AND num_nonnulls(${table.resultItemId}, ${table.resultCompanyId}, ${table.resultDraftVersion}, ${table.resultRowVersion}) = 0)`
+    ),
+  })
+);
+
 export type InternalAnalysisDraftRow = typeof internalAnalysisDrafts.$inferSelect;
 export type InsertInternalAnalysisDraftRow = typeof internalAnalysisDrafts.$inferInsert;
 export type InternalAnalysisReferenceRow = typeof internalAnalysisReferences.$inferSelect;
@@ -482,3 +689,7 @@ export type InternalNarrativeClaimRow = typeof internalNarrativeClaims.$inferSel
 export type InsertInternalNarrativeClaimRow = typeof internalNarrativeClaims.$inferInsert;
 export type InternalAnalysisNoteRow = typeof internalAnalysisNotes.$inferSelect;
 export type InsertInternalAnalysisNoteRow = typeof internalAnalysisNotes.$inferInsert;
+export type QuarterlyReviewRosterRow = typeof quarterlyReviewRosters.$inferSelect;
+export type QuarterlyReviewCompanyRow = typeof quarterlyReviewCompanies.$inferSelect;
+export type QuarterlyReviewItemRow = typeof quarterlyReviewItems.$inferSelect;
+export type QuarterlyReviewCommandReceiptRow = typeof quarterlyReviewCommandReceipts.$inferSelect;

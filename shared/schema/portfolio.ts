@@ -62,6 +62,7 @@ export const portfolioCompanies = pgTable(
     allocationVersion: integer('allocation_version').default(1).notNull(),
   },
   (table) => ({
+    idFundUnique: unique('portfoliocompanies_id_fund_unique').on(table.id, table.fundId),
     exitProbabilityCheck: check(
       'portfoliocompanies_exit_probability_check',
       sql`${table.exitProbability} IS NULL OR (${table.exitProbability} >= 0 AND ${table.exitProbability} <= 1)`
