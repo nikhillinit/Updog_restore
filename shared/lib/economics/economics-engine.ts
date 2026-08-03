@@ -394,7 +394,7 @@ function amountForFeeBasis(basis: EconomicsFeeBasis, context: FeeBasisContext): 
  * Management fee accrued over one canonical period.
  *
  * Fee tiers carry annual rates. The rate is converted to the period rate by
- * the canonical period model (ADR-066), so a complete year accrues the full
+ * the canonical period model (ADR-069), so a complete year accrues the full
  * annual rate and a partial period accrues its prorated share.
  */
 function calculateManagementFeeForPeriod(
@@ -720,7 +720,7 @@ function validateInvariants(rows: EconomicsAnnualRowV1[]): EconomicsInvariantRep
 
 /**
  * Reporting periods for the annual rows, derived from the canonical accrual
- * grid (ADR-066).
+ * grid (ADR-069).
  *
  * The engine accrues on the canonical monthly grid anchored on 1 January of
  * the vintage year and reports one row per aggregated year. Because a year is

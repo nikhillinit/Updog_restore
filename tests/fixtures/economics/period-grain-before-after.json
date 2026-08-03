@@ -1,8 +1,8 @@
 {
   "fixtureVersion": "economics-period-grain-before-after/1.0.0",
-  "adr": "ADR-066",
+  "adr": "ADR-069",
   "issue": "https://github.com/nikhillinit/Updog_restore/issues/1311",
-  "description": "Before/after evidence for the annual-versus-monthly economics period resolution. \"Before\" is the pre-ADR-066 engine at commit a3f4ed1; \"after\" is the same engine driven by the canonical monthly accrual grid.",
+  "description": "Before/after evidence for the annual-versus-monthly economics period resolution. \"Before\" is the pre-ADR-069 engine at commit a3f4ed1; \"after\" is the same engine driven by the canonical monthly accrual grid.",
   "scenario": {
     "fundName": "Grain Proof Fund",
     "fundSizeUsd": 100000000,

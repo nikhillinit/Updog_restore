@@ -24,7 +24,7 @@ and this project adheres to
 ### Added (2026-08-03)
 
 - **Canonical economics period model, monthly accrual grain (issue #1311,
-  ADR-066).** Economics now has one authoritative period representation:
+  ADR-069).** Economics now has one authoritative period representation:
   `EconomicsCanonicalPeriodV1` plus `shared/lib/economics/period-model-v1.ts`
   own period dating, proration, rate application, and aggregation. Monthly is
   the authoritative accrual grain; quarterly and annual are aggregation grains

@@ -1,7 +1,7 @@
 /**
  * period-grain-resolution.test.ts
  *
- * Truth cases for ADR-066 (annual versus monthly economics period
+ * Truth cases for ADR-069 (annual versus monthly economics period
  * resolution).
  *
  * Three properties are proven here:
@@ -65,7 +65,7 @@ function money(value: Decimal): string {
   return value.toDecimalPlaces(2).toString();
 }
 
-describe('economics period grain resolution (ADR-066)', () => {
+describe('economics period grain resolution (ADR-069)', () => {
   describe('grain invariance of the chosen convention', () => {
     it('accrues the same management fee at every grain over a whole year', () => {
       const annual = accrueFees('annual', 12);

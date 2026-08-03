@@ -7,7 +7,7 @@ import { z } from 'zod';
  *
  * Authority
  * ---------
- * ADR-066 fixes MONTHLY as the authoritative accrual grain for economics.
+ * ADR-069 fixes MONTHLY as the authoritative accrual grain for economics.
  * Quarterly and annual are aggregation (presentation) grains only: every
  * quarter is exactly 3 canonical months and every year is exactly 12
  * canonical months, so aggregation is a pure regrouping of accrued amounts

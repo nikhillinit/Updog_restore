@@ -1,7 +1,7 @@
 /**
  * period-model-v1.ts
  *
- * The one canonical period model for fund economics (ADR-066).
+ * The one canonical period model for fund economics (ADR-069).
  *
  * Responsibilities
  * ----------------

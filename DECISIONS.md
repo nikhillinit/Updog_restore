@@ -9575,7 +9575,7 @@ result snapshot. Every other null tuple fails closed with
 `UNSUPPORTED_CALCULATION_CONTRACT_VERSION`. This addendum fulfills ADR-065/D-11;
 it does not reverse P-D5.
 
-## ADR-066: Monthly Canonical Accrual Grain for Fund Economics (Issue #1311)
+## ADR-069: Monthly Canonical Accrual Grain for Fund Economics (Issue #1311)
 
 **Date:** 2026-08-03 **Status:** Accepted **Tags:** #economics #period-grain
 #fees #preferred-return #numerical-model
