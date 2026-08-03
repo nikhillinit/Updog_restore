@@ -148,6 +148,8 @@ export type FundState = {
 
   // Capital Structure
   gpCommitment?: number;
+  /** Ratio from 0 to 1 of GP commitment satisfied through non-cash fee offsets. */
+  fundedFromFeesPct: number;
   lpClasses: LPClass[];
   lps: LP[];
 
@@ -202,7 +204,9 @@ export type FundState = {
   ) => void;
 
   // Capital Structure actions
-  updateCapitalStructure: (patch: Partial<Pick<FundState, 'gpCommitment'>>) => void;
+  updateCapitalStructure: (
+    patch: Partial<Pick<FundState, 'gpCommitment' | 'fundedFromFeesPct'>>
+  ) => void;
   addLPClass: (lpClass: LPClass) => void;
   updateLPClass: (id: string, patch: Partial<LPClass>) => void;
   removeLPClass: (id: string) => void;
@@ -328,7 +332,7 @@ type FundBasicsPatch = Partial<
     | 'carriedInterest'
   >
 >;
-type CapitalStructurePatch = Partial<Pick<FundState, 'gpCommitment'>>;
+type CapitalStructurePatch = Partial<Pick<FundState, 'gpCommitment' | 'fundedFromFeesPct'>>;
 type DistributionsPatch = Partial<
   Pick<
     FundState,
@@ -358,12 +362,15 @@ const sectorProfileUnchanged = (
 ): previous is SectorProfile =>
   Boolean(
     previous &&
-      previous.name === profile.name &&
-      eq(previous.targetPercentage, profile.targetPercentage) &&
-      previous.description === profile.description
+    previous.name === profile.name &&
+    eq(previous.targetPercentage, profile.targetPercentage) &&
+    previous.description === profile.description
   );
 
-function normalizeSectorProfile(sp: SectorProfile, previous: SectorProfile | undefined): SectorProfile {
+function normalizeSectorProfile(
+  sp: SectorProfile,
+  previous: SectorProfile | undefined
+): SectorProfile {
   const profile = {
     id: sp.id,
     name: resolveTrimmedText(sp.name, previous?.name),
@@ -394,9 +401,9 @@ const allocationUnchanged = (
 ): previous is Allocation =>
   Boolean(
     previous &&
-      previous.category === allocation.category &&
-      eq(previous.percentage, allocation.percentage) &&
-      previous.description === allocation.description
+    previous.category === allocation.category &&
+    eq(previous.percentage, allocation.percentage) &&
+    previous.description === allocation.description
   );
 
 function normalizeAllocation(a: Allocation, previous: Allocation | undefined): Allocation {
@@ -500,6 +507,7 @@ function createFundStore() {
           isEvergreen: false,
 
           // Capital Structure defaults
+          fundedFromFeesPct: 0,
           lpClasses: [],
           lps: [],
 

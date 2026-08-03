@@ -46,6 +46,7 @@ export const DRAFT_CONFIG_FIELDS = [
   'fundLife',
   'investmentPeriod',
   'gpCommitment',
+  'fundedFromFeesPct',
   'lpClasses',
   'lps',
   'stages',

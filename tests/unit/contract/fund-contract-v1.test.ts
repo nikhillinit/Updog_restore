@@ -9,6 +9,7 @@ import { describe, it, expect } from 'vitest';
 import { FundCreateV1Schema } from '@shared/contracts/fund-create-v1.contract';
 import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
 import { FundErrorV1Schema } from '@shared/contracts/fund-error-v1.contract';
+import { GPCommitmentSchema } from '@shared/schemas/waterfall-policy';
 import {
   validCreatePayload,
   validCreatePayloadWithEngine,
@@ -157,6 +158,63 @@ describe('FundDraftWriteV1Schema', () => {
       investmentPeriod: 0,
     });
     expect(result.success).toBe(false);
+  });
+
+  it('accepts a cashless GP commitment percentage ratio from 0 through 1', () => {
+    expect(
+      FundDraftWriteV1Schema.safeParse({
+        ...minimalDraftPayload,
+        fundedFromFeesPct: 0,
+      }).success
+    ).toBe(true);
+    expect(
+      FundDraftWriteV1Schema.safeParse({
+        ...minimalDraftPayload,
+        fundedFromFeesPct: 0.4,
+      }).success
+    ).toBe(true);
+    expect(
+      FundDraftWriteV1Schema.safeParse({
+        ...minimalDraftPayload,
+        fundedFromFeesPct: 1,
+      }).success
+    ).toBe(true);
+  });
+
+  it('rejects cashless GP commitment percentages outside 0 through 1', () => {
+    expect(
+      FundDraftWriteV1Schema.safeParse({
+        ...minimalDraftPayload,
+        fundedFromFeesPct: -0.000001,
+      }).success
+    ).toBe(false);
+    expect(
+      FundDraftWriteV1Schema.safeParse({
+        ...minimalDraftPayload,
+        fundedFromFeesPct: 1.000001,
+      }).success
+    ).toBe(false);
+  });
+
+  it('does not materialize cashless GP commitment defaults in existing drafts', () => {
+    expect(FundDraftWriteV1Schema.parse(minimalDraftPayload)).toEqual(minimalDraftPayload);
+  });
+
+  it('replaces the waterfall funded-from-fees boolean with one percentage ratio', () => {
+    const parsed = GPCommitmentSchema.parse({
+      percentage: 0.02,
+      basis: 'committed_capital',
+      fundedFromFeesPct: 0.4,
+    });
+
+    expect(parsed.fundedFromFeesPct.toString()).toBe('0.4');
+    expect(
+      GPCommitmentSchema.safeParse({
+        percentage: 0.02,
+        basis: 'committed_capital',
+        fundedFromFees: true,
+      }).success
+    ).toBe(false);
   });
 
   it('rejects unknown keys (.strict())', () => {

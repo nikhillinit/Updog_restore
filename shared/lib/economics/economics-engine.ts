@@ -60,6 +60,8 @@ interface NormalizedEconomicsConfig {
   recycling: NonNullable<EconomicsAssumptionsV1['recyclingModel']>;
   waterfall: NonNullable<EconomicsAssumptionsV1['waterfallModel']>;
   gpCommitmentAmount: Decimal;
+  gpCashCommitmentAmount: Decimal;
+  fundedFromFeesPct: Decimal;
   gpCommitmentPct: Decimal;
   gpParticipatesInInvestmentReturns: boolean;
   gpCallSchedule: number[] | null;
@@ -391,6 +393,8 @@ export function normalizeEconomicsConfig(input: FundDraftWriteV1): NormalizedEco
 
   const gpCommitmentAmount = Decimal.min(Decimal.max(commitmentAmount, new Decimal(0)), fundSize);
   const gpCommitmentPct = fundSize.gt(0) ? gpCommitmentAmount.div(fundSize) : new Decimal(0);
+  const fundedFromFeesPct = asDecimal(input.fundedFromFeesPct ?? 0);
+  const gpCashCommitmentAmount = gpCommitmentAmount.times(new Decimal(1).minus(fundedFromFeesPct));
 
   return {
     fundSize,
@@ -403,6 +407,8 @@ export function normalizeEconomicsConfig(input: FundDraftWriteV1): NormalizedEco
     recycling: assumptions.recyclingModel ?? defaultRecycling(input),
     waterfall: assumptions.waterfallModel ?? defaultWaterfall(input),
     gpCommitmentAmount,
+    gpCashCommitmentAmount,
+    fundedFromFeesPct,
     gpCommitmentPct,
     gpParticipatesInInvestmentReturns: gpModel?.participatesInInvestmentReturns ?? true,
     gpCallSchedule: gpModel?.callSchedule ?? null,
@@ -819,8 +825,10 @@ export function runEconomicsModel(input: FundDraftWriteV1): EconomicsResultV1 {
   }
 
   const config = normalizeEconomicsConfig(input);
-  const totalInvestableCost = config.fundSize;
-  const annualCall = config.fundSize.div(config.fundLifeYears);
+  const lpCommitmentAmount = config.fundSize.minus(config.gpCommitmentAmount);
+  const totalInvestableCost = lpCommitmentAmount.plus(config.gpCashCommitmentAmount);
+  const annualContractualCapitalCall = config.fundSize.div(config.fundLifeYears);
+  const annualContractualGpCall = config.gpCommitmentAmount.div(config.fundLifeYears);
   const gpShare = config.gpCommitmentPct;
   const reportingPeriods = buildReportingPeriods(config);
 
@@ -842,19 +850,26 @@ export function runEconomicsModel(input: FundDraftWriteV1): EconomicsResultV1 {
 
   for (let year = 1; year <= config.fundLifeYears; year++) {
     const period = reportingPeriods[year - 1]!;
-    const totalCapitalCall = annualCall;
-    const requestedGpCommitmentCall = config.gpCallSchedule
+    const requestedContractualGpCall = config.gpCallSchedule
       ? config.gpCommitmentAmount.times(config.gpCallSchedule[year - 1] ?? 0)
-      : totalCapitalCall.times(gpShare);
+      : annualContractualGpCall;
     const remainingGpCommitment = Decimal.max(
       new Decimal(0),
       config.gpCommitmentAmount.minus(gpCommitmentCalledToDate)
     );
-    const gpCommitmentCalls = Decimal.min(requestedGpCommitmentCall, remainingGpCommitment);
-    const lpCapitalCalls = totalCapitalCall.minus(gpCommitmentCalls);
-    gpCommitmentCalledToDate = gpCommitmentCalledToDate.plus(gpCommitmentCalls);
+    const contractualGpCall = Decimal.min(requestedContractualGpCall, remainingGpCommitment);
+    const gpCommitmentCalls = contractualGpCall.times(
+      new Decimal(1).minus(config.fundedFromFeesPct)
+    );
+    const lpCapitalCalls = annualContractualCapitalCall.minus(contractualGpCall);
+    // Cash only. The deemed (fee-funded) portion never enters the fund cash ledger.
+    const totalCapitalCall = lpCapitalCalls.plus(gpCommitmentCalls);
+    gpCommitmentCalledToDate = gpCommitmentCalledToDate.plus(contractualGpCall);
     const previousCalledCapitalCumulative = calledCapitalCumulative;
-    calledCapitalCumulative = calledCapitalCumulative.plus(totalCapitalCall);
+    // Fee basis stays on the contractual amount; that is a separate question (ADR-070).
+    calledCapitalCumulative = calledCapitalCumulative.plus(annualContractualCapitalCall);
+    // ADR-070 Decisions 4 and 5: return of capital and preferred return accrue on
+    // cash-contributed capital only, so the deemed portion is excluded from this base.
     unreturnedCapital = unreturnedCapital.plus(totalCapitalCall);
 
     const feeBasisContext: FeeBasisContext = {

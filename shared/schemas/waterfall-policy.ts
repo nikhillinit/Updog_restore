@@ -45,16 +45,18 @@ export type WaterfallTier = z.infer<typeof WaterfallTierSchema>;
 /**
  * GP commitment structure
  */
-export const GPCommitmentSchema = z.object({
-  /** GP commitment as % of fund */
-  percentage: ZodPercentage,
+export const GPCommitmentSchema = z
+  .object({
+    /** GP commitment as % of fund */
+    percentage: ZodPercentage,
 
-  /** Basis for commitment */
-  basis: z.enum(['committed_capital', 'management_fees', 'carry']),
+    /** Basis for commitment */
+    basis: z.enum(['committed_capital', 'management_fees', 'carry']),
 
-  /** Whether GP commitment funded from fee offsets */
-  fundedFromFees: z.boolean().default(false),
-});
+    /** Fraction of GP commitment funded from fee offsets rather than cash */
+    fundedFromFeesPct: ZodPercentage.default(new Decimal(0)),
+  })
+  .strict();
 
 export type GPCommitment = z.infer<typeof GPCommitmentSchema>;
 

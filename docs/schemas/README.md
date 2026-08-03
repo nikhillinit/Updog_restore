@@ -175,7 +175,7 @@ const europeanWaterfall = {
   gpCommitment: {
     percentage: new Decimal(0.01), // 1% GP commit
     basis: 'committed_capital',
-    fundedFromFees: false
+    fundedFromFeesPct: new Decimal(0)
   },
   clawback: {
     enabled: true,

@@ -170,6 +170,96 @@ describe('GP economics engine', () => {
     expect(result.checks.passed).toBe(true);
   });
 
+  it('keeps explicit zero cashless GP commitment outputs identical to omission', () => {
+    const omitted = runEconomicsModel(baseDraft());
+    const explicitZero = runEconomicsModel(baseDraft({ fundedFromFeesPct: 0 }));
+
+    expect(explicitZero).toEqual(omitted);
+  });
+
+  it('excludes cashless GP commitment from calls while preserving period reconciliation', () => {
+    const result = runEconomicsModel(
+      baseDraft({
+        fundedFromFeesPct: 0.25,
+      })
+    );
+
+    expect(result.annual[0]?.lpCapitalCalls).toBe(9_000_000);
+    expect(result.annual[0]?.gpCommitmentCalls).toBe(750_000);
+    expect(result.annual[9]?.gpCommitmentCalls).toBe(750_000);
+    expect(result.summary.totalGpCommitmentCalled).toBe(7_500_000);
+    expect(result.checks.passed).toBe(true);
+  });
+
+  it('keeps deemed GP commitment in the waterfall capital account', () => {
+    const result = runEconomicsModel(
+      baseDraft({
+        fundLife: 1,
+        investmentPeriod: 1,
+        fundedFromFeesPct: 1,
+        economicsAssumptions: {
+          ...baseAssumptions(),
+          timeline: {
+            fundLifeYears: 1,
+            period: 'annual',
+            vintageYear: 2026,
+          },
+          feeModel: {
+            source: 'legacy_fee_profiles',
+            defaultRate: 0.000001,
+            defaultBasis: 'committed_capital',
+          },
+          exitModel: {
+            mode: 'cohort',
+            cohort: {
+              exitDistributionByYear: [1],
+              grossMultiple: 2,
+              lossRatio: 0,
+            },
+          },
+          waterfallModel: {
+            ...baseAssumptions().waterfallModel,
+            hurdleRate: 0,
+            prefType: 'none',
+            prefCatchUp: false,
+            clawbackEnabled: false,
+          },
+        },
+      })
+    );
+
+    expect(result.annual[0]?.lpCapitalCalls).toBe(90_000_000);
+    expect(result.annual[0]?.gpCommitmentCalls).toBe(0);
+    expect(result.annual[0]?.gpCarryDistributed).toBe(16_000_000);
+    expect(result.checks.passed).toBe(true);
+  });
+
+  it('does not use cashless GP contribution to reduce called-capital fee bases', () => {
+    const assumptions: NonNullable<FundDraftWriteV1['economicsAssumptions']> = {
+      ...baseAssumptions(),
+      feeModel: {
+        source: 'economics_override',
+        tiers: [
+          {
+            id: 'called-fee',
+            name: 'Called capital fee',
+            rate: 0.02,
+            basis: 'called_capital_cumulative',
+            startYear: 1,
+          },
+        ],
+      },
+    };
+    const cash = runEconomicsModel(baseDraft({ economicsAssumptions: assumptions }));
+    const cashless = runEconomicsModel(
+      baseDraft({ economicsAssumptions: assumptions, fundedFromFeesPct: 0.25 })
+    );
+
+    expect(cashless.annual.map((row) => row.feesPaidToManager)).toEqual(
+      cash.annual.map((row) => row.feesPaidToManager)
+    );
+  });
+
   it('rejects legacy hybrid waterfalls for economics P0', () => {
     const assumptionsWithoutWaterfall = {
       ...baseAssumptions(),

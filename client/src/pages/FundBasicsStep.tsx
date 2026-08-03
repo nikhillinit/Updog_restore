@@ -30,6 +30,7 @@ export default function FundBasicsStep() {
   const investmentPeriod = useFundSelector((s) => s.investmentPeriod);
   const managementFeeRate = useFundSelector((s) => s.managementFeeRate);
   const carriedInterest = useFundSelector((s) => s.carriedInterest);
+  const fundedFromFeesPct = useFundSelector((s) => s.fundedFromFeesPct);
   const establishmentDate = useFundSelector((s) => s.establishmentDate);
   const modelInputsAsOfDate = useFundSelector((s) => s.modelInputsAsOfDate);
   const vintageYear = useFundSelector((s) => s.vintageYear);
@@ -39,6 +40,7 @@ export default function FundBasicsStep() {
 
   // Actions
   const updateFundBasics = useFundAction((s) => s.updateFundBasics);
+  const updateCapitalStructure = useFundAction((s) => s.updateCapitalStructure);
   const setDraftFundId = useFundAction((s) => s.setDraftFundId);
   const setDraftServerReady = useFundAction((s) => s.setDraftServerReady);
   const { currentFund, setCurrentFund } = useFundContext();
@@ -183,7 +185,10 @@ export default function FundBasicsStep() {
         {/* Fund Structure Section */}
         <div className="space-y-6">
           <div className="space-y-3">
-            <Label htmlFor="fund-name" className="text-sm font-poppins font-medium text-pov-charcoal">
+            <Label
+              htmlFor="fund-name"
+              className="text-sm font-poppins font-medium text-pov-charcoal"
+            >
               Fund Name *
             </Label>
             <Input
@@ -325,6 +330,19 @@ export default function FundBasicsStep() {
               max={50}
               step={1}
               help="GP performance fee (typically 20%)"
+            />
+
+            <NumericInput
+              label="Cashless GP Contribution"
+              value={fundedFromFeesPct * 100}
+              onChange={(value: number | undefined) =>
+                updateCapitalStructure({ fundedFromFeesPct: (value ?? 0) / 100 })
+              }
+              mode="percentage"
+              min={0}
+              max={100}
+              step={1}
+              help="Percentage of GP commitment satisfied through non-cash fee offsets"
             />
           </div>
         </WizardCard>
