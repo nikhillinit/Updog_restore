@@ -17,6 +17,9 @@ describe('database-backed idempotency route classification', () => {
     ['POST', '/api/FUNDS/1/INTERNAL-ECONOMICS/RUNS'],
     ['POST', '/api/funds/1/internal-economics/runs/'],
     ['POST', '/api/FUNDS/1/INTERNAL-ECONOMICS/RUNS/?mode=create#receipt'],
+    ['POST', '/api/funds/1/tasks/2/evidence-links'],
+    ['POST', '/api/funds/0/tasks/00/evidence-links?mode=create'],
+    ['POST', '/api/FUNDS/1/TASKS/2/EVIDENCE-LINKS/'],
   ])('matches %s %s', (method, path) => {
     expect(isDatabaseBackedIdempotencyRoute(method, path)).toBe(true);
   });
@@ -33,6 +36,11 @@ describe('database-backed idempotency route classification', () => {
     ['POST', '/api/funds/1/internal-economics/runs-near'],
     ['POST', '/api/funds/1/internal-economics/runs-near?mode=create'],
     ['POST', '/prefix/api/funds/1/internal-economics/runs'],
+    ['GET', '/api/funds/1/tasks/2/evidence-links'],
+    ['post', '/api/funds/1/tasks/2/evidence-links'],
+    ['POST', '/api/funds/1/tasks/2/evidence-links/extra'],
+    ['POST', '/api/funds/1/tasks/2/evidence-link'],
+    ['POST', '/prefix/api/funds/1/tasks/2/evidence-links'],
   ])('does not match %s %s', (method, path) => {
     expect(isDatabaseBackedIdempotencyRoute(method, path)).toBe(false);
   });
@@ -105,5 +113,32 @@ describe('generic idempotency cache bypass', () => {
     expect(second.status).toBe(201);
     expect(second.headers['idempotency-replay']).toBe('true');
     expect(calls).toBe(1);
+  });
+
+  it('bypasses generic cache only for exact task-evidence creation', async () => {
+    const app = express();
+    let calls = 0;
+
+    app.use(express.json());
+    app.use(idempotency());
+    app.post('/api/funds/:fundId/tasks/:taskId/evidence-links', (_req, res) => {
+      calls += 1;
+      res.status(201).json({ calls });
+    });
+
+    const first = await request(app)
+      .post('/api/funds/1/tasks/2/evidence-links')
+      .set('Idempotency-Key', 'database-backed-evidence')
+      .send({ target: { kind: 'analysis_reference', id: 11 } });
+    const second = await request(app)
+      .post('/api/funds/1/tasks/2/evidence-links')
+      .set('Idempotency-Key', 'database-backed-evidence')
+      .send({ target: { kind: 'analysis_reference', id: 11 } });
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    expect(first.headers['idempotency-replay']).toBeUndefined();
+    expect(second.headers['idempotency-replay']).toBeUndefined();
+    expect(calls).toBe(2);
   });
 });

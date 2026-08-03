@@ -7,16 +7,23 @@ import {
   TaskResponseSchema,
   type TaskResponse,
 } from '@shared/contracts/operating-objects/task.contract';
+import { TaskEvidenceLinkCreateRequestSchema } from '@shared/contracts/operating-objects/task-evidence-link.contract';
 import type { Task } from '@shared/schema/operating-objects';
 import { firstString } from '../lib/request-values';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { parseETag, rowVersionETag } from '../lib/http-preconditions';
+import { IdempotentCommandError } from '../lib/idempotent-command';
+import { parseInternalEconomicsIdempotencyKey } from '../lib/internal-economics-idempotency-key';
 import {
   createTask,
   listTasksForFund,
   loadTask,
   updateTask,
 } from '../services/operating-objects/task-service';
+import {
+  TaskEvidenceLinkServiceError,
+  createTaskEvidenceLink,
+} from '../services/operating-objects/task-evidence-link-service';
 
 const router = Router();
 
@@ -97,6 +104,65 @@ router['get']('/api/funds/:fundId/tasks', async (req: Request, res: Response) =>
     return res.status(500).json({ error: 'Failed to list tasks' });
   }
 });
+
+router['post'](
+  '/api/funds/:fundId/tasks/:taskId/evidence-links',
+  async (req: Request, res: Response) => {
+    try {
+      const fundId = parseFundIdParam(firstString(req.params['fundId']));
+      if (fundId === null) {
+        return res.status(400).json({ error: 'Invalid fund ID' });
+      }
+      const taskId = parseFundIdParam(firstString(req.params['taskId']));
+      if (taskId === null) {
+        return res.status(400).json({ error: 'Invalid task ID' });
+      }
+      if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+        return;
+      }
+
+      const parsedKey = parseInternalEconomicsIdempotencyKey(req.headers['idempotency-key']);
+      if (parsedKey.kind === 'missing') {
+        return res.status(428).json({
+          error: 'IDEMPOTENCY_KEY_REQUIRED',
+          message: 'Idempotency-Key header is required.',
+        });
+      }
+      if (parsedKey.kind === 'invalid') {
+        return res.status(400).json({
+          error: 'INVALID_IDEMPOTENCY_KEY',
+          message: 'Idempotency-Key must contain 1 to 128 RFC token characters.',
+        });
+      }
+
+      const parsedBody = TaskEvidenceLinkCreateRequestSchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        return res.status(400).json({
+          error: 'INVALID_TASK_EVIDENCE_LINK_BODY',
+          message: 'Request body does not satisfy the task evidence contract.',
+        });
+      }
+
+      const result = await createTaskEvidenceLink({
+        fundId,
+        taskId,
+        target: parsedBody.data.target,
+        actorId: resolveActorId(req),
+        idempotencyKey: parsedKey.value,
+      });
+      res.setHeader('Cache-Control', 'private, no-store');
+      return res.status(result.replayed ? 200 : 201).json(result.evidenceLink);
+    } catch (error) {
+      if (error instanceof TaskEvidenceLinkServiceError) {
+        return res.status(error.statusCode).json({ error: error.code, message: error.message });
+      }
+      if (error instanceof IdempotentCommandError) {
+        return res.status(error.status).json({ error: error.code, message: error.message });
+      }
+      return res.status(500).json({ error: 'Failed to create task evidence link' });
+    }
+  }
+);
 
 // Edit fields + status under optimistic concurrency. Error order mirrors
 // cash-flow-events: parse (400) -> scope (403) -> If-Match present (428) -> body

@@ -635,7 +635,13 @@ export const COMMON_API_ROUTE_MANIFEST = [
     fundScope: 'path',
     financial: true,
     migrationParity: { kind: 'c1', tables: ['tasks'] },
-    schemaTables: ['tasks', 'funds'],
+    schemaTables: [
+      'tasks',
+      'task_evidence_links',
+      'internal_analysis_references',
+      'internal_lp_economics_runs',
+      'funds',
+    ],
     owner: 'gp-team',
     probe: {
       method: 'GET',
@@ -1027,6 +1033,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
       'internal_analysis_drafts',
       'internal_analysis_references',
       'internal_analysis_revision_events',
+      'internal_lp_economics_runs',
       'financial_facts_snapshots',
       'fund_snapshots',
       'job_outbox',

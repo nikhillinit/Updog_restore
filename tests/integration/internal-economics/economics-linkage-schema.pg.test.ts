@@ -9,6 +9,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
@@ -27,6 +28,11 @@ import {
   getMigrationStateFromConnectionString,
   runMigrationsWithConnectionString,
 } from '../../helpers/testcontainers-migration';
+import {
+  createAnalysisCheckpointPorts,
+  replaceDraftEconomicsReference,
+} from '../../../server/services/internal-analysis/analysis-checkpoint-service';
+import { createTaskEvidenceLink } from '../../../server/services/operating-objects/task-evidence-link-service';
 
 const skipIfNoDocker =
   !process.env.TEST_DATABASE_URL && !process.env.CI && process.platform === 'win32';
@@ -1369,6 +1375,156 @@ describe.skipIf(skipIfNoDocker)('internal economics linkage PostgreSQL proof', (
       expect(
         after.objects.every((object: { deltas: unknown[] }) => object.deltas.length === 0)
       ).toBe(true);
+    });
+  }, 120_000);
+
+  it('pins only completed same-fund economics runs with guarded version rotation', async () => {
+    const { connectionString } = await createMigratedDatabase('pin_service');
+
+    await withPool(connectionString, async (pool) => {
+      const basis = await seedLinkageBasis(pool, 'pin-service');
+      const completedRunId = await insertRun(pool, basis, {
+        idempotencyKey: 'pin-completed',
+        runState: 'completed',
+      });
+      const failedRunId = await insertRun(pool, basis, {
+        idempotencyKey: 'pin-failed',
+        runState: 'failed',
+      });
+      const database = drizzle(pool, { logger: false }) as never;
+      const ports = createAnalysisCheckpointPorts(database);
+
+      const attached = await replaceDraftEconomicsReference(ports, {
+        fundId: basis.fundId,
+        draftId: basis.draftId,
+        expectedVersion: 1,
+        economicsReferenceId: completedRunId,
+      });
+      const sameValue = await replaceDraftEconomicsReference(ports, {
+        fundId: basis.fundId,
+        draftId: basis.draftId,
+        expectedVersion: 2,
+        economicsReferenceId: completedRunId,
+      });
+
+      expect(attached).toMatchObject({ economicsReferenceId: completedRunId, version: 2 });
+      expect(sameValue).toMatchObject({ economicsReferenceId: completedRunId, version: 3 });
+      await expect(
+        replaceDraftEconomicsReference(ports, {
+          fundId: basis.fundId,
+          draftId: basis.draftId,
+          expectedVersion: 2,
+          economicsReferenceId: null,
+        })
+      ).rejects.toMatchObject({ statusCode: 412, code: 'DRAFT_VERSION_CONFLICT' });
+      await expect(
+        replaceDraftEconomicsReference(ports, {
+          fundId: basis.fundId,
+          draftId: basis.draftId,
+          expectedVersion: 3,
+          economicsReferenceId: failedRunId,
+        })
+      ).rejects.toMatchObject({ statusCode: 409, code: 'ECONOMICS_RUN_NOT_COMPLETED' });
+      await expect(
+        replaceDraftEconomicsReference(ports, {
+          fundId: basis.fundId,
+          draftId: basis.draftId,
+          expectedVersion: 3,
+          economicsReferenceId: completedRunId + 1_000_000,
+        })
+      ).rejects.toMatchObject({ statusCode: 404, code: 'ECONOMICS_RUN_NOT_FOUND' });
+
+      expect(
+        await ports.readComponentBasis({
+          fundId: basis.fundId,
+          component: 'economics',
+          id: completedRunId,
+        })
+      ).toBe(basis.factsSnapshotId);
+
+      await pool.query('UPDATE internal_analysis_drafts SET saved_at = NOW() WHERE id = $1', [
+        basis.draftId,
+      ]);
+      await expect(
+        replaceDraftEconomicsReference(ports, {
+          fundId: basis.fundId,
+          draftId: basis.draftId,
+          expectedVersion: 3,
+          economicsReferenceId: null,
+        })
+      ).rejects.toMatchObject({ statusCode: 409, code: 'DRAFT_ALREADY_SAVED' });
+    });
+  }, 120_000);
+
+  it('creates task evidence once under replay, conflict, concurrency, and cross-actor retry', async () => {
+    const { connectionString } = await createMigratedDatabase('evidence_service');
+
+    await withPool(connectionString, async (pool) => {
+      const basis = await seedLinkageBasis(pool, 'evidence-service');
+      const runId = await insertRun(pool, basis, {
+        idempotencyKey: 'evidence-run',
+        runState: 'failed',
+      });
+      const database = drizzle(pool, { logger: false }) as never;
+      const common = {
+        fundId: basis.fundId,
+        taskId: basis.taskId,
+        target: { kind: 'analysis_reference' as const, id: basis.referenceId },
+        actorId: basis.userId,
+        idempotencyKey: 'evidence-create',
+      };
+
+      const created = await createTaskEvidenceLink(common, { database });
+      const crossActorReplay = await createTaskEvidenceLink(
+        { ...common, actorId: null },
+        { database }
+      );
+
+      expect(created.replayed).toBe(false);
+      expect(crossActorReplay).toEqual({ ...created, replayed: true });
+      expect(Object.keys(created.evidenceLink).sort()).toEqual(
+        ['contractVersion', 'createdAt', 'fundId', 'linkId', 'target', 'taskId'].sort()
+      );
+      await expect(
+        createTaskEvidenceLink(
+          {
+            ...common,
+            target: { kind: 'internal_economics_run', id: runId },
+          },
+          { database }
+        )
+      ).rejects.toMatchObject({ status: 409, code: 'IDEMPOTENCY_KEY_REUSE' });
+
+      const concurrent = await Promise.all(
+        Array.from({ length: 8 }, () =>
+          createTaskEvidenceLink({ ...common, idempotencyKey: 'evidence-concurrent' }, { database })
+        )
+      );
+      expect(new Set(concurrent.map((result) => result.evidenceLink.linkId)).size).toBe(1);
+      expect(concurrent.filter((result) => !result.replayed)).toHaveLength(1);
+
+      const persisted = await pool.query<{
+        count: number;
+        created_by: number | null;
+        idempotency_key: string;
+      }>(
+        'SELECT count(*) OVER ()::integer AS count, created_by, idempotency_key ' +
+          'FROM task_evidence_links WHERE fund_id = $1 AND task_id = $2 ORDER BY id',
+        [basis.fundId, basis.taskId]
+      );
+      expect(persisted.rows).toHaveLength(2);
+      expect(persisted.rows[0]).toMatchObject({
+        count: 2,
+        created_by: basis.userId,
+        idempotency_key: 'evidence-create',
+      });
+
+      await expect(
+        createTaskEvidenceLink(
+          { ...common, fundId: basis.fundId + 1, idempotencyKey: 'cross-fund' },
+          { database }
+        )
+      ).rejects.toMatchObject({ statusCode: 404 });
     });
   }, 120_000);
 });

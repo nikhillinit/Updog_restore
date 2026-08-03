@@ -244,6 +244,26 @@ describe('canonical common API route manifest', () => {
     ]);
   });
 
+  it('registers PR4 economics pins and task evidence persistence on common runtimes', () => {
+    const analysis = COMMON_API_ROUTE_MANIFEST.find((entry) => entry.id === 'internal-analysis');
+    const tasks = COMMON_API_ROUTE_MANIFEST.find((entry) => entry.id === 'operating-object-tasks');
+
+    expect(COMMON_API_ROUTE_POLICY_IDS['internal-analysis']).toContain(
+      'api:patch:/api/funds/:fundId/internal-analysis/drafts/:draftId/economics-reference'
+    );
+    expect(analysis?.schemaTables).toEqual(
+      expect.arrayContaining(['internal_analysis_drafts', 'internal_lp_economics_runs'])
+    );
+    expect(tasks?.schemaTables).toEqual(
+      expect.arrayContaining([
+        'tasks',
+        'task_evidence_links',
+        'internal_analysis_references',
+        'internal_lp_economics_runs',
+      ])
+    );
+  });
+
   it('bypasses database-backed internal-economics creation before generic idempotency', async () => {
     const source = await readFile(path.resolve(process.cwd(), 'server/server.ts'), 'utf8');
     const compositionStart = source.indexOf(

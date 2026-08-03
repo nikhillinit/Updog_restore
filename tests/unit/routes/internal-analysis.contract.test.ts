@@ -9,6 +9,7 @@ const service = vi.hoisted(() => ({
   getReferenceById: vi.fn(),
   listRevisionEvents: vi.fn(),
   createDraftForPeriod: vi.fn(),
+  replaceDraftEconomicsReference: vi.fn(),
   refreshDraft: vi.fn(),
   saveDraft: vi.fn(),
   startCorrectionDraft: vi.fn(),
@@ -71,6 +72,7 @@ vi.mock('../../../server/services/internal-analysis/analysis-checkpoint-service'
       listRevisionEvents: service.listRevisionEvents,
     }),
     createDraftForPeriod: service.createDraftForPeriod,
+    replaceDraftEconomicsReference: service.replaceDraftEconomicsReference,
     refreshDraft: service.refreshDraft,
     saveDraft: service.saveDraft,
     startCorrectionDraft: service.startCorrectionDraft,
@@ -155,6 +157,9 @@ describe('internal-analysis route contract', () => {
       request(app).get('/api/funds/abc/internal-analysis/drafts'),
       request(app).get('/api/funds/abc/internal-analysis/drafts/3'),
       request(app).post('/api/funds/abc/internal-analysis/drafts').send({}),
+      request(app)
+        .patch('/api/funds/abc/internal-analysis/drafts/3/economics-reference')
+        .send({ economicsReferenceId: 9 }),
       request(app).post('/api/funds/abc/internal-analysis/drafts/3/refresh').send({}),
       request(app).post('/api/funds/abc/internal-analysis/drafts/3/save').send({}),
       request(app).get('/api/funds/abc/internal-analysis/references'),
@@ -177,6 +182,9 @@ describe('internal-analysis route contract', () => {
 
     const responses = await Promise.all([
       request(app).get('/api/funds/1/internal-analysis/drafts/abc'),
+      request(app)
+        .patch('/api/funds/1/internal-analysis/drafts/abc/economics-reference')
+        .send({ economicsReferenceId: 9 }),
       request(app).post('/api/funds/1/internal-analysis/drafts/abc/refresh').send({}),
       request(app).post('/api/funds/1/internal-analysis/drafts/abc/save').send({}),
       request(app).get('/api/funds/1/internal-analysis/references/abc'),
@@ -262,6 +270,80 @@ describe('internal-analysis route contract', () => {
   });
 
   describe('If-Match preconditions', () => {
+    it('requires If-Match on economics-reference replacement (428)', async () => {
+      service.getDraftById.mockResolvedValue(draftRecord());
+
+      const response = await request(buildApp())
+        .patch('/api/funds/1/internal-analysis/drafts/3/economics-reference')
+        .send({ economicsReferenceId: 9 });
+
+      expect(response.status).toBe(428);
+      expect(response.body.error).toBe('PRECONDITION_REQUIRED');
+      expect(service.replaceDraftEconomicsReference).not.toHaveBeenCalled();
+    });
+
+    it('rejects a stale economics-reference ETag before mutation (412)', async () => {
+      service.getDraftById.mockResolvedValue(draftRecord({ version: 2 }));
+
+      const response = await request(buildApp())
+        .patch('/api/funds/1/internal-analysis/drafts/3/economics-reference')
+        .set('If-Match', 'W/"0000000000000000"')
+        .send({ economicsReferenceId: 9 });
+
+      expect(response.status).toBe(412);
+      expect(service.replaceDraftEconomicsReference).not.toHaveBeenCalled();
+    });
+
+    it.each([{ economicsReferenceId: 9 }, { economicsReferenceId: null }])(
+      'replaces economics reference and rotates ETag for $economicsReferenceId',
+      async (body) => {
+        const before = await readDraftETag();
+        service.getDraftById.mockResolvedValue(draftRecord());
+        service.replaceDraftEconomicsReference.mockResolvedValue(
+          draftRecord({ version: 2, economicsReferenceId: body.economicsReferenceId })
+        );
+
+        const response = await request(buildApp())
+          .patch('/api/funds/1/internal-analysis/drafts/3/economics-reference')
+          .set('If-Match', before)
+          .send(body);
+
+        expect(response.status).toBe(200);
+        expect(response.headers['etag']).not.toBe(before);
+        expect(response.body.draft.version).toBe(2);
+        expect(response.body.draft.basis.economicsReferenceId).toBe(body.economicsReferenceId);
+        expect(service.replaceDraftEconomicsReference).toHaveBeenCalledWith(expect.anything(), {
+          fundId: 1,
+          draftId: 3,
+          expectedVersion: 1,
+          economicsReferenceId: body.economicsReferenceId,
+        });
+      }
+    );
+
+    it('rejects retry with the consumed economics-reference ETag', async () => {
+      const before = await readDraftETag();
+      service.getDraftById.mockResolvedValue(draftRecord());
+      service.replaceDraftEconomicsReference.mockResolvedValue(
+        draftRecord({ version: 2, economicsReferenceId: 9 })
+      );
+
+      await request(buildApp())
+        .patch('/api/funds/1/internal-analysis/drafts/3/economics-reference')
+        .set('If-Match', before)
+        .send({ economicsReferenceId: 9 })
+        .expect(200);
+
+      service.getDraftById.mockResolvedValue(draftRecord({ version: 2, economicsReferenceId: 9 }));
+      const retry = await request(buildApp())
+        .patch('/api/funds/1/internal-analysis/drafts/3/economics-reference')
+        .set('If-Match', before)
+        .send({ economicsReferenceId: 9 });
+
+      expect(retry.status).toBe(412);
+      expect(service.replaceDraftEconomicsReference).toHaveBeenCalledTimes(1);
+    });
+
     it('requires If-Match on refresh and save (428)', async () => {
       service.getDraftById.mockResolvedValue(draftRecord());
 
@@ -330,6 +412,44 @@ describe('internal-analysis route contract', () => {
       expect(response.body.reference.referenceId).toBe(11);
       expect(response.body.reference.mixedBasisAtSave).toBe(false);
     });
+  });
+
+  it.each([
+    {},
+    { economicsReferenceId: 0 },
+    { economicsReferenceId: '9' },
+    { economicsReferenceId: 9, unexpected: true },
+  ])('rejects an invalid economics-reference body %#', async (body) => {
+    const etag = await readDraftETag();
+    const response = await request(buildApp())
+      .patch('/api/funds/1/internal-analysis/drafts/3/economics-reference')
+      .set('If-Match', etag)
+      .send(body);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('invalid_analysis_economics_reference_request');
+    expect(service.replaceDraftEconomicsReference).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [404, 'ECONOMICS_RUN_NOT_FOUND'],
+    [409, 'ECONOMICS_RUN_NOT_COMPLETED'],
+    [409, 'DRAFT_ALREADY_SAVED'],
+    [412, 'DRAFT_VERSION_CONFLICT'],
+  ] as const)('maps economics-reference service error %s %s', async (statusCode, code) => {
+    const etag = await readDraftETag();
+    service.getDraftById.mockResolvedValue(draftRecord());
+    service.replaceDraftEconomicsReference.mockRejectedValue(
+      new AnalysisCheckpointServiceError(statusCode, code, 'Rejected')
+    );
+
+    const response = await request(buildApp())
+      .patch('/api/funds/1/internal-analysis/drafts/3/economics-reference')
+      .set('If-Match', etag)
+      .send({ economicsReferenceId: 9 });
+
+    expect(response.status).toBe(statusCode);
+    expect(response.body.error).toBe(code);
   });
 
   it('maps MIXED_FACTS_BASIS to 409 with the mismatch details', async () => {

@@ -18,6 +18,7 @@ import {
   draftIdempotencyKey,
   listReferences,
   planQuarterlyDrafts,
+  replaceDraftEconomicsReference,
   refreshDraft,
   saveDraft,
   selectTerminalReferences,
@@ -54,6 +55,10 @@ class FakePorts implements AnalysisCheckpointPorts {
   nextForecastId = 900;
   /** Persisted basis per forecast fund_snapshot id -- the coherence oracle. */
   forecastBasis = new Map<number, number | null>();
+  economicsRuns = new Map<
+    number,
+    { fundId: number; runState: 'completed' | 'failed'; factsSnapshotId: number }
+  >();
   rebuildCalls: Array<{ fundId: number; asOfDate: string; idempotencyKey: string }> = [];
 
   /** Mirrors the fund-scoped idempotency uniques the real tables enforce. */
@@ -143,6 +148,7 @@ class FakePorts implements AnalysisCheckpointPorts {
     draft.knowledgeCutoff = input.basis.knowledgeCutoff;
     draft.financialFactsSnapshotId = input.basis.financialFactsSnapshotId;
     draft.forecastFundSnapshotId = input.basis.forecastFundSnapshotId;
+    draft.economicsReferenceId = null;
     draft.version += 1;
     draft.updatedAt = this.tick();
     return { ...draft };
@@ -190,7 +196,57 @@ class FakePorts implements AnalysisCheckpointPorts {
 
   async readComponentBasis(input: { fundId: number; component: PinnedComponentKind; id: number }) {
     if (input.component === 'forecast') return this.forecastBasis.get(input.id) ?? null;
+    if (input.component === 'economics') {
+      const run = this.economicsRuns.get(input.id);
+      return run?.fundId === input.fundId ? run.factsSnapshotId : null;
+    }
     return null;
+  }
+
+  async replaceDraftEconomicsReference(
+    input: Parameters<AnalysisCheckpointPorts['replaceDraftEconomicsReference']>[0]
+  ) {
+    if (input.economicsReferenceId !== null) {
+      const run = this.economicsRuns.get(input.economicsReferenceId);
+      if (!run || run.fundId !== input.fundId) {
+        throw new AnalysisCheckpointServiceError(
+          404,
+          'ECONOMICS_RUN_NOT_FOUND',
+          'Economics run not found.'
+        );
+      }
+      if (run.runState !== 'completed') {
+        throw new AnalysisCheckpointServiceError(
+          409,
+          'ECONOMICS_RUN_NOT_COMPLETED',
+          'Only completed economics runs can be attached.'
+        );
+      }
+    }
+
+    const draft = this.findDraft(input.fundId, input.draftId);
+    if (!draft) {
+      throw new AnalysisCheckpointServiceError(404, 'DRAFT_NOT_FOUND', 'Analysis draft not found.');
+    }
+    if (draft.savedAt !== null) {
+      throw new AnalysisCheckpointServiceError(
+        409,
+        'DRAFT_ALREADY_SAVED',
+        'Saved draft is immutable.'
+      );
+    }
+    if (draft.version !== input.expectedVersion) {
+      throw new AnalysisCheckpointServiceError(
+        412,
+        'DRAFT_VERSION_CONFLICT',
+        'The draft changed since it was read.'
+      );
+    }
+
+    draft.economicsReferenceId = input.economicsReferenceId;
+    draft.version += 1;
+    draft.updatedAt = this.tick();
+    return { ...draft };
   }
 
   /**
@@ -488,6 +544,37 @@ describe('analysis checkpoint service', () => {
       });
 
       expect(ports.events.map((event) => event.eventType)).toEqual(['created', 'refreshed']);
+      expect(ports.events.at(-1)?.detail).toMatchObject({ economicsReferenceCleared: false });
+    });
+
+    it('clears an economics pin in the same refresh mutation and records it', async () => {
+      const draft = await createDraftForPeriod(ports, {
+        fundId: FUND,
+        period: Q2_2026,
+        actorId: null,
+      });
+      ports.economicsRuns.set(21, {
+        fundId: FUND,
+        runState: 'completed',
+        factsSnapshotId: draft.financialFactsSnapshotId,
+      });
+      await replaceDraftEconomicsReference(ports, {
+        fundId: FUND,
+        draftId: draft.draftId,
+        expectedVersion: 1,
+        economicsReferenceId: 21,
+      });
+
+      const refreshed = await refreshDraft(ports, {
+        fundId: FUND,
+        draftId: draft.draftId,
+        expectedVersion: 2,
+        actorId: null,
+      });
+
+      expect(refreshed.economicsReferenceId).toBeNull();
+      expect(refreshed.version).toBe(3);
+      expect(ports.events.at(-1)?.detail).toMatchObject({ economicsReferenceCleared: true });
     });
 
     it('rejects a stale expected version', async () => {
@@ -531,6 +618,98 @@ describe('analysis checkpoint service', () => {
     });
   });
 
+  describe('replaceDraftEconomicsReference', () => {
+    async function openDraft() {
+      return createDraftForPeriod(ports, { fundId: FUND, period: Q2_2026, actorId: 5 });
+    }
+
+    it('attaches, replaces with the same value, and clears as three mutations', async () => {
+      const draft = await openDraft();
+      ports.economicsRuns.set(21, {
+        fundId: FUND,
+        runState: 'completed',
+        factsSnapshotId: draft.financialFactsSnapshotId,
+      });
+
+      const attached = await replaceDraftEconomicsReference(ports, {
+        fundId: FUND,
+        draftId: draft.draftId,
+        expectedVersion: 1,
+        economicsReferenceId: 21,
+      });
+      const sameValue = await replaceDraftEconomicsReference(ports, {
+        fundId: FUND,
+        draftId: draft.draftId,
+        expectedVersion: 2,
+        economicsReferenceId: 21,
+      });
+      const cleared = await replaceDraftEconomicsReference(ports, {
+        fundId: FUND,
+        draftId: draft.draftId,
+        expectedVersion: 3,
+        economicsReferenceId: null,
+      });
+
+      expect(attached).toMatchObject({ economicsReferenceId: 21, version: 2 });
+      expect(sameValue).toMatchObject({ economicsReferenceId: 21, version: 3 });
+      expect(cleared).toMatchObject({ economicsReferenceId: null, version: 4 });
+      expect(cleared.updatedAt.getTime()).toBeGreaterThan(sameValue.updatedAt.getTime());
+    });
+
+    it.each([
+      ['missing', undefined, 404, 'ECONOMICS_RUN_NOT_FOUND'],
+      [
+        'cross-fund',
+        { fundId: OTHER_FUND, runState: 'completed' as const, factsSnapshotId: 100 },
+        404,
+        'ECONOMICS_RUN_NOT_FOUND',
+      ],
+      [
+        'failed',
+        { fundId: FUND, runState: 'failed' as const, factsSnapshotId: 100 },
+        409,
+        'ECONOMICS_RUN_NOT_COMPLETED',
+      ],
+    ])('rejects a %s target', async (_label, run, statusCode, code) => {
+      const draft = await openDraft();
+      if (run) ports.economicsRuns.set(21, run);
+
+      await expect(
+        replaceDraftEconomicsReference(ports, {
+          fundId: FUND,
+          draftId: draft.draftId,
+          expectedVersion: 1,
+          economicsReferenceId: 21,
+        })
+      ).rejects.toMatchObject({ statusCode, code });
+    });
+
+    it('rejects a saved draft without changing the pin', async () => {
+      const draft = await openDraft();
+      ports.economicsRuns.set(21, {
+        fundId: FUND,
+        runState: 'completed',
+        factsSnapshotId: draft.financialFactsSnapshotId,
+      });
+      await saveDraft(ports, {
+        fundId: FUND,
+        draftId: draft.draftId,
+        expectedVersion: 1,
+        acknowledgeMixedBasis: false,
+        actorId: 5,
+      });
+
+      await expect(
+        replaceDraftEconomicsReference(ports, {
+          fundId: FUND,
+          draftId: draft.draftId,
+          expectedVersion: 1,
+          economicsReferenceId: 21,
+        })
+      ).rejects.toMatchObject({ statusCode: 409, code: 'DRAFT_ALREADY_SAVED' });
+    });
+  });
+
   describe('saveDraft', () => {
     async function openDraft() {
       return createDraftForPeriod(ports, { fundId: FUND, period: Q2_2026, actorId: 5 });
@@ -551,6 +730,32 @@ describe('analysis checkpoint service', () => {
       expect(reference.supersedesReferenceId).toBeNull();
       expect(reference.financialFactsSnapshotId).toBe(draft.financialFactsSnapshotId);
       expect(ports.events.at(-1)?.eventType).toBe('saved');
+    });
+
+    it('copies the economics pin into the immutable reference and compares its facts basis', async () => {
+      const draft = await openDraft();
+      ports.economicsRuns.set(21, {
+        fundId: FUND,
+        runState: 'completed',
+        factsSnapshotId: draft.financialFactsSnapshotId,
+      });
+      await replaceDraftEconomicsReference(ports, {
+        fundId: FUND,
+        draftId: draft.draftId,
+        expectedVersion: 1,
+        economicsReferenceId: 21,
+      });
+
+      const reference = await saveDraft(ports, {
+        fundId: FUND,
+        draftId: draft.draftId,
+        expectedVersion: 2,
+        acknowledgeMixedBasis: false,
+        actorId: 5,
+      });
+
+      expect(reference.economicsReferenceId).toBe(21);
+      expect(reference.mixedBasisAtSave).toBe(false);
     });
 
     it('closes the draft so it can no longer be refreshed or re-saved', async () => {
