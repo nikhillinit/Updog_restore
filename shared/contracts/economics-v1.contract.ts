@@ -201,6 +201,12 @@ export const EconomicsInvariantReportV1Schema = z
 export const EconomicsAnnualRowV1Schema = z
   .object({
     year: z.number().int().positive(),
+    /**
+     * Canonical period bounds for the row (ADR-066). Optional so snapshots
+     * persisted before the canonical period model remain readable.
+     */
+    periodStart: z.string().date().optional(),
+    periodEnd: z.string().date().optional(),
     lpCapitalCalls: NonNegativeMoneySchema,
     gpCommitmentCalls: NonNegativeMoneySchema,
     grossExitProceeds: NonNegativeMoneySchema,
