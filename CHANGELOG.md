@@ -21,6 +21,24 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-08-03)
+
+- **Canonical economics period model, monthly accrual grain (issue #1311,
+  ADR-069).** Economics now has one authoritative period representation:
+  `EconomicsCanonicalPeriodV1` plus `shared/lib/economics/period-model-v1.ts`
+  own period dating, proration, rate application, and aggregation. Monthly is
+  the authoritative accrual grain; quarterly and annual are aggregation grains
+  only. Rates apply as effective rates (`r * t` simple, `(1 + r)^t - 1`
+  compounded) and partial periods prorate by canonical months, so accrual is
+  grain-invariant and a reporting-grain change cannot move a served number. The
+  aggregator sums flows, keeps boundary stocks, and refuses to aggregate ratios
+  or to split into a finer grain. The GP economics engine now derives its annual
+  rows from the canonical grid and dates each row with `periodStart`/`periodEnd`
+  (both optional in the contract, so older snapshots stay readable). No served
+  number changes: complete before/after rows and a zero delta table are recorded
+  in `tests/fixtures/economics/period-grain-before-after.json`, and the
+  quarterly waterfall truth cases pass unchanged.
+
 ### Changed (2026-08-03)
 
 - **Public dual-waterfall vocabulary restored; silent coercion removed (issue
