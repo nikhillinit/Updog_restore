@@ -1482,6 +1482,7 @@ describe('FundModelResultsPage (server-backed)', () => {
       'Forecast',
       'Portfolio Actuals',
       'Reserves',
+      'Economics',
       'Scenarios',
       'Reports',
     ]);

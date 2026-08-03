@@ -311,6 +311,18 @@ const GOVERNANCE_ROUTE_POLICY_DECISIONS: Readonly<Record<string, RoutePolicyDeci
     humanReviewRequired: true,
     performanceBudgetMs: null,
   },
+  '/fund-model-results/:fundId/analysis': {
+    lifecycle: 'durable_crud',
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+  },
   '/sensitivity-analysis': {
     lifecycle: 'durable_crud',
     financialSurface: 'fund_modeling',
