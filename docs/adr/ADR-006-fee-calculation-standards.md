@@ -130,8 +130,24 @@ stages:
      basis is floored at zero, so an adjustment larger than the period's calls
      gives a zero basis, never a negative fee. The excess does not carry back to
      an earlier period nor forward to a later one; each period stands alone.
+   - **Rate application**: This basis is a flow, not a balance. The annual rate
+     is applied once to the amount that moved during the period, and it is NOT
+     pro-rated by the period length. Pro-rating a flow makes the total fee
+     depend on the modeling granularity: the same $100M of calls would give $2M
+     of fees when modeled annually and $500K when modeled quarterly. Every other
+     basis is a balance held through the period and stays pro-rated. See
+     `isPeriodFlowFeeBasis` in `shared/schemas/fee-profile.ts`.
+   - **Not valid for the recycling cap**: `FeeRecyclingPolicy.basis` accepts
+     capital-stock bases only (`FeeCapitalStockBasisSchema`). A recycling cap
+     set against a flow would fall to zero in every period with no call.
    - **Implementation**:
-     [`shared/lib/economics/called-capital-period.ts`](https://github.com/nikhillinit/Updog_restore/blob/main/shared/lib/economics/called-capital-period.ts)
+     [`shared/lib/economics/called-capital-period.ts`](https://github.com/nikhillinit/Updog_restore/blob/main/shared/lib/economics/called-capital-period.ts).
+     `calledCapitalForPeriod` is the reference form and holds the period
+     boundary and adjustment rules against dated call events; the truth cases
+     exercise it. Both production paths currently receive a cumulative
+     called-capital schedule rather than dated events, so they call
+     `calledCapitalPeriodFromCumulative`, which is the same rule expressed as
+     the increment between two consecutive period ends.
 
 3. **`called_capital_cumulative`** (Deployment-Linked)
    - **When**: Funds with slow deployment curves

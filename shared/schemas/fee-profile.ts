@@ -23,6 +23,41 @@ export const FeeBasisTypeSchema = z.enum([
 export type FeeBasisType = z.infer<typeof FeeBasisTypeSchema>;
 
 /**
+ * Capital-stock fee bases: balances that persist through the period.
+ *
+ * `called_capital_period` is deliberately absent. It is a flow, not a stock,
+ * so it cannot cap a recycling balance in a meaningful way: a period with no
+ * capital call would give a cap of zero.
+ */
+export const FeeCapitalStockBasisSchema = z.enum([
+  'committed_capital',
+  'called_capital_cumulative',
+  'called_capital_net_of_returns',
+  'invested_capital',
+  'fair_market_value',
+  'unrealized_cost',
+]);
+
+export type FeeCapitalStockBasis = z.infer<typeof FeeCapitalStockBasisSchema>;
+
+/**
+ * Fee bases that measure a flow during the period rather than a balance held
+ * through it. The fee rate for these is NOT pro-rated by period length: the
+ * amount already belongs to one period only, so pro-rating it would make the
+ * total fee depend on the modeling granularity.
+ */
+const PERIOD_FLOW_BASES: ReadonlySet<FeeBasisType> = new Set<FeeBasisType>([
+  'called_capital_period',
+]);
+
+/**
+ * True when the basis measures capital that moves during the period.
+ */
+export function isPeriodFlowFeeBasis(basis: FeeBasisType): boolean {
+  return PERIOD_FLOW_BASES.has(basis);
+}
+
+/**
  * Single fee tier with basis, rate, and timing
  */
 export const FeeTierSchema = z.object({
@@ -61,8 +96,8 @@ export const FeeRecyclingPolicySchema = z
     /** Term during which fees can be recycled (months) */
     recyclingTermMonths: z.number().int().positive(),
 
-    /** Basis for fee recycling cap */
-    basis: FeeBasisTypeSchema.default('committed_capital'),
+    /** Basis for fee recycling cap (capital-stock bases only) */
+    basis: FeeCapitalStockBasisSchema.default('committed_capital'),
 
     /** Proactively assume recycling up to cap (for forecasting) */
     anticipatedRecycling: z.boolean().default(false),
@@ -162,10 +197,22 @@ export interface FeeCalculationContext {
 
 /**
  * Calculate management fees for a given period
+ *
+ * @param profile - Fee profile with its tiers, holidays, and caps
+ * @param context - Basis amounts for the current period
+ * @param periodMonths - Length of the period in months (default 1, one month)
+ *
+ * Capital-stock tiers charge the annual rate pro-rated by the period length,
+ * because the basis is a balance that is held through the whole period.
+ * Period-flow tiers (see `isPeriodFlowFeeBasis`) charge the annual rate once on
+ * the amount that moved during the period, with no pro-rating: the amount is
+ * already confined to that period, so pro-rating it a second time would make
+ * the total fee depend on the modeling granularity.
  */
 export function calculateManagementFees(
   profile: FeeProfile,
-  context: FeeCalculationContext
+  context: FeeCalculationContext,
+  periodMonths = 1
 ): Decimal {
   let totalFees = new Decimal(0);
   const currentYear = Math.floor(context.currentMonth / 12) + 1;
@@ -188,9 +235,14 @@ export function calculateManagementFees(
 
     // Get basis amount
     const basisAmount = getBasisAmount(tier.basis, context);
+    const isFlowBasis = isPeriodFlowFeeBasis(tier.basis);
 
-    // Calculate tier fees (annualized, so divide by 12 for monthly)
-    let tierFees = basisAmount.times(tier.annualRatePercent).div(12);
+    // Flow bases charge the annual rate once on the period amount. Stock bases
+    // are annualized, so divide by 12 for monthly and scale to the period after
+    // the caps, which are expressed per month.
+    let tierFees = isFlowBasis
+      ? basisAmount.times(tier.annualRatePercent)
+      : basisAmount.times(tier.annualRatePercent).div(12);
 
     // Apply caps if present
     if (tier.capPercent) {
@@ -201,7 +253,7 @@ export function calculateManagementFees(
       tierFees = Decimal.min(tierFees, tier.capAmount);
     }
 
-    totalFees = totalFees.plus(tierFees);
+    totalFees = totalFees.plus(isFlowBasis ? tierFees : tierFees.times(periodMonths));
   }
 
   return totalFees;

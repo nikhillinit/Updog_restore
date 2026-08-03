@@ -52,12 +52,31 @@ describe('computeFeeBasisTimeline - called_capital_period', () => {
     // A downward adjustment floors the period basis at zero, never a negative fee
     expect(timeline.periods[3]?.calledCapitalPeriod.toNumber()).toBe(0);
 
-    // Quarterly fee = period call x annual rate / 4
+    // Quarterly fee = period call x annual rate, with no pro-rating: the call
+    // belongs to that quarter alone, so the fee does not depend on how long the
+    // period is.
     expect(timeline.periods[0]?.managementFees.toNumber()).toBe(0);
-    expect(timeline.periods[1]?.managementFees.toNumber()).toBe(100_000);
-    expect(timeline.periods[2]?.managementFees.toNumber()).toBe(50_000);
+    expect(timeline.periods[1]?.managementFees.toNumber()).toBe(400_000);
+    expect(timeline.periods[2]?.managementFees.toNumber()).toBe(200_000);
     expect(timeline.periods[3]?.managementFees.toNumber()).toBe(0);
-    expect(timeline.totalFees.toNumber()).toBe(150_000);
+    expect(timeline.totalFees.toNumber()).toBe(600_000);
+  });
+
+  it('gives the same total fee as the annual engine for the same call schedule', () => {
+    // A fund that calls 10M per year at 2% pays 200K per year on this basis.
+    // Modeling the same calls quarterly must not change the total.
+    const quarterlyCumulative = Array.from({ length: 8 }, (_, quarter) =>
+      new Decimal(10_000_000).times(Math.floor(quarter / 4) + 1)
+    );
+
+    const timeline = computeFeeBasisTimeline({
+      fundSize: new Decimal(100_000_000),
+      numQuarters: 8,
+      feeProfile: periodBasisProfile(),
+      calledCapitalSchedule: quarterlyCumulative,
+    });
+
+    expect(timeline.totalFees.toNumber()).toBe(400_000);
   });
 
   it('charges nothing when the fund calls no capital', () => {

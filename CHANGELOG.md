@@ -34,11 +34,16 @@ and this project adheres to
   same period, and the period basis is floored at zero - it never produces a
   negative fee and never carries back or forward. The definition lives in one
   place, `shared/lib/economics/called-capital-period.ts`, and both the engine
-  and the timeline call it. Before this change the economics engine rejected the
-  basis with `Unsupported economics fee basis` even though the wizard and the
-  fund-draft contract already offered it. No existing fee basis changes value;
-  the economics result contract is unchanged, so result hashes for existing
-  configurations are unaffected.
+  and the timeline call it. Because the basis is a flow and not a balance, the
+  annual rate is applied once to the period amount and is not pro-rated by
+  period length; otherwise the same call schedule would give a different total
+  fee when modeled quarterly instead of annually. Every other basis stays
+  pro-rated, and `FeeRecyclingPolicy.basis` now accepts capital-stock bases
+  only, so a recycling cap cannot be set against a flow. Before this change the
+  economics engine rejected the basis with `Unsupported economics fee basis`
+  even though the wizard and the fund-draft contract already offered it. No
+  existing fee basis changes value; the economics result contract is unchanged,
+  so result hashes for existing configurations are unaffected.
 
 ### Added (2026-07-23)
 

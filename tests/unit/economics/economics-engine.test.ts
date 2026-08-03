@@ -214,6 +214,49 @@ describe('GP economics engine', () => {
     expect(result.summary.totalManagementFees).toBe(2_000_000);
   });
 
+  // Guards the class of gap that #1310 reported: a fee basis that the
+  // fund-draft contract offers but the economics engine cannot normalize.
+  const draftFeeBases = [
+    'committed_capital',
+    'called_capital_period',
+    'gross_cumulative_called',
+    'net_cumulative_called',
+    'cumulative_invested',
+    'fair_market_value',
+    'unrealized_investments',
+  ] as const;
+
+  it.each(draftFeeBases)(
+    'accepts the %s fee basis offered by the fund-draft contract',
+    (feeBasis) => {
+      const result = runEconomicsModel(
+        baseDraft({
+          feeProfiles: [
+            {
+              id: 'legacy-profile',
+              name: 'Legacy profile',
+              feeTiers: [
+                {
+                  id: 'legacy-tier',
+                  name: `${feeBasis} fee`,
+                  percentage: 2,
+                  feeBasis,
+                  startMonth: 1,
+                },
+              ],
+            },
+          ],
+          economicsAssumptions: {
+            ...baseAssumptions(),
+            feeModel: { source: 'legacy_fee_profiles' },
+          },
+        })
+      );
+
+      expect(result.summary.totalManagementFees).toBeGreaterThanOrEqual(0);
+    }
+  );
+
   it('rejects unsupported legacy fee basis aliases', () => {
     expect(() =>
       runEconomicsModel(

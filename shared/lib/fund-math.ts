@@ -14,6 +14,9 @@ import type { FeeProfile, FeeBasisType, FeeCalculationContext } from '@shared/sc
 import { calculateManagementFees, calculateRecyclableFees } from '@shared/schemas/fee-profile';
 import { calledCapitalPeriodFromCumulative } from '@shared/lib/economics/called-capital-period';
 
+/** Months in one quarterly period of the fee-basis timeline */
+const QUARTER_MONTHS = 3;
+
 /**
  * Fee basis data for a single period (quarter)
  */
@@ -153,9 +156,10 @@ export function computeFeeBasisTimeline(config: FeeBasisConfig): FeeBasisTimelin
         currentMonth: q * 3, // Convert quarters to months
       };
 
-      // Calculate management fees for the quarter (3 months)
-      const monthlyFees = calculateManagementFees(feeProfile, context);
-      managementFees = monthlyFees.times(3);
+      // Calculate management fees for the quarter (3 months). Stock bases are
+      // pro-rated over the 3 months; period-flow bases are charged once on the
+      // amount that moved during the quarter.
+      managementFees = calculateManagementFees(feeProfile, context, QUARTER_MONTHS);
 
       cumulativeFeesPaid = cumulativeFeesPaid.plus(managementFees);
 
