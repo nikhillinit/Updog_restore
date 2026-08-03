@@ -326,9 +326,9 @@ export function InternalEconomicsPanel({
   };
 
   return (
-    <section aria-labelledby="internal-economics-heading" className="space-y-5 rounded-lg border border-beige-200 bg-white p-4">
+    <section aria-labelledby="internal-economics-panel-heading" className="space-y-5 rounded-lg border border-beige-200 bg-white p-4">
       <div>
-        <h2 id="internal-economics-heading" className="text-lg font-semibold text-pov-charcoal">Internal economics comparison</h2>
+        <h2 id="internal-economics-panel-heading" className="text-lg font-semibold text-pov-charcoal">Internal economics comparison</h2>
         <p className="mt-1 text-sm text-presson-textMuted">{INTERNAL_ECONOMICS_NOTICE}</p>
       </div>
 
