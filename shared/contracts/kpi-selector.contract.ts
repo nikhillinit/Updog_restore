@@ -17,11 +17,14 @@ import type { AssertNoForbiddenContractKeys } from '../types/forbidden-features'
 /**
  * Frozen KPI selector v1 waterfall semantic.
  *
- * Public waterfall vocabulary is wider, but this v1 contract has always
- * calculated American/deal-by-deal results only. Keep the schema local so a
- * public vocabulary change cannot widen frozen input or output transitively.
+ * This contract has always calculated American/deal-by-deal results. Its frozen
+ * compatibility envelope also accepted the legacy `european` token and
+ * normalized it to `american`. Keep that normalization local so public
+ * vocabulary changes cannot widen v1 inputs or outputs transitively.
  */
-export const WaterfallTypeSchema = z.literal('american');
+export const WaterfallTypeSchema = z
+  .literal('american')
+  .or(z.literal('european').transform(() => 'american' as const));
 
 // ============================================================================
 // CORE DATA TYPES

@@ -9740,7 +9740,10 @@ Zod validation error. `DEFAULT_WATERFALL_TYPE` is added as the single place the
 default is recorded. It has no production consumer yet — the literal is still
 written directly in `client/src/schemas/modeling-wizard.schemas.ts` and
 `client/src/stores/fundStore.ts`. It is an intent record for #1305/#1306 to
-converge on, not a completed de-duplication.
+converge on, not a completed de-duplication. This decision governs the
+standalone public schema. Frozen KPI selector v1 retains a local compatibility
+schema that accepts `european` and normalizes it to `american`; it does not
+import or inherit the widened public enum.
 
 **Forbidden tokens.** `european` leaves `FORBIDDEN_TOKENS`. All eight
 Line-of-Credit bans (`lineOfCredit`, `locRate`, `locCap`, `locDraw`, `locRepay`,
@@ -9869,10 +9872,11 @@ is restored ahead of the surfaces that use it, by design.
    while the restored enum and the draft contract are lowercase. Any #1305
    bridge must case-map, not merely widen.
 3. **`shared/contracts/kpi-selector.contract.ts`** is a frozen v1.0 spec and is
-   pinned to its own `z.literal('american')`. It does not import the restored
-   enum, so public vocabulary widening cannot change its inputs or outputs
-   transitively. A versioned successor is required for future whole-fund KPI
-   semantics.
+   pinned to a local compatibility schema that accepts `american` and preserves
+   the legacy `european`-to-`american` normalization. Its inferred output
+   remains American-only. It does not import the restored enum, so public
+   vocabulary widening cannot change its inputs or outputs transitively. A
+   versioned successor is required for future whole-fund KPI semantics.
 
 **The shipped `hybrid` vocabulary is a genuine third structure, not an alias.
 #1306 must reconcile it; this ADR does not fold it in.** A third public
@@ -9939,6 +9943,6 @@ non-goals list and the gp-economics design.
 The risk accepted is that the standalone public vocabulary schema can parse a
 whole-fund value before #1291 certifies whole-fund truth cases. Live
 wizard/draft selection and persistence remain unwidened, frozen KPI selector v1
-remains American-only, ADR-066 requires `deal_by_deal` for activation, and #1285
-keeps #1291 and #1308 parked. Whole-fund results must not be presented as
-certified until those gates close.
+remains American-semantic with its legacy input normalization, ADR-066 requires
+`deal_by_deal` for activation, and #1285 keeps #1291 and #1308 parked.
+Whole-fund results must not be presented as certified until those gates close.

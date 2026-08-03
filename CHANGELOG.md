@@ -37,7 +37,8 @@ and this project adheres to
   amended without changing its canonical naming table. Vocabulary and validation
   only: no schema migration, no calculator change, and no live wizard/draft
   selection or persistence path accepts European yet. Frozen KPI selector v1
-  remains explicitly American-only; later Wave-W work owns live widening.
+  remains American-semantic while preserving its legacy `european`-to-`american`
+  input normalization locally; later Wave-W work owns versioned widening.
   ADR-066/067 were absorbed by cherry-pick from a stalled branch to resolve
   ledger ordering before ADR-068 took the live tail.
 

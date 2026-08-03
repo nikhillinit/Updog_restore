@@ -5,7 +5,7 @@ import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.co
 import { WaterfallTypeSchema as PublicWaterfallTypeSchema } from '@shared/types/forbidden-features';
 
 describe('public waterfall vocabulary boundary', () => {
-  it('restores European only in the standalone public vocabulary schema', () => {
+  it('restores European as a distinct standalone public vocabulary value', () => {
     expect(PublicWaterfallTypeSchema.parse('american')).toBe('american');
     expect(PublicWaterfallTypeSchema.parse('european')).toBe('european');
   });

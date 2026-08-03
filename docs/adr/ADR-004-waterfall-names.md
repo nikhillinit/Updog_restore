@@ -371,7 +371,9 @@ row and the type-system posture around the term.
   rewrote `european` to `american` without signal, destroying caller intent and
   making a whole-fund value indistinguishable from a deal-by-deal one. It is now
   an honest two-value enum that preserves what the caller supplied and rejects
-  unknown values with a structured error.
+  unknown values with a structured error. Frozen KPI selector v1 keeps its own
+  legacy `european`-to-`american` input normalization for compatibility while
+  remaining American-semantic and independent of the public enum.
 - **Forbidden-token set narrowed.** `european` is no longer a forbidden token.
   All eight Line-of-Credit bans remain under the runtime/source scanner. A
   typecheck-evaluated deep-key assertion protects frozen KPI v1 public contracts
@@ -428,7 +430,8 @@ for the record rather than edited in place:
 - "Current State (October 2025) ... Implemented: AMERICAN waterfall only" and
   "Type System: `z.literal('AMERICAN')`" (Implementation) — superseded only for
   the standalone public vocabulary schema. Live wizard/draft contracts and
-  frozen KPI selector v1 remain American-only.
+  frozen KPI selector v1 remain American-semantic; KPI v1 still accepts and
+  normalizes its legacy `european` input token for backward compatibility.
 - "Migration Path ... Future: EUROPEAN waterfall support (Phase 4, Q2 2026 if
   demand emerges)" (Implementation) — superseded as above. The prediction that
   re-addition would be **additive** (a new discriminated-union branch, leaving

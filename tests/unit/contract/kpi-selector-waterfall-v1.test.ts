@@ -8,19 +8,21 @@ import {
 } from '@shared/contracts/kpi-selector.contract';
 
 describe('KPI selector frozen v1 waterfall contract', () => {
-  it('keeps its exported waterfall schema American-only', () => {
+  it('preserves legacy European input coercion to American', () => {
     expect(WaterfallTypeSchema.parse('american')).toBe('american');
-    expect(() => WaterfallTypeSchema.parse('european')).toThrow();
+    expect(WaterfallTypeSchema.parse('european')).toBe('american');
   });
 
-  it('does not widen ledger input or waterfall preview transitively', () => {
+  it('keeps ledger input and waterfall preview American-semantic without transitive widening', () => {
     const ledgerWaterfallType = FundLedgerSchema.shape.waterfallType;
     const previewWaterfallType = KPIResponseSchema.shape.waterfall.unwrap().shape.type;
 
     expect(ledgerWaterfallType.parse('american')).toBe('american');
     expect(previewWaterfallType.parse('american')).toBe('american');
-    expect(() => ledgerWaterfallType.parse('european')).toThrow();
-    expect(() => previewWaterfallType.parse('european')).toThrow();
+    expect(ledgerWaterfallType.parse('european')).toBe('american');
+    expect(previewWaterfallType.parse('european')).toBe('american');
+    expect(() => ledgerWaterfallType.parse('hybrid')).toThrow();
+    expect(() => previewWaterfallType.parse('hybrid')).toThrow();
   });
 
   it('loads the typecheck-evaluated forbidden-key assertion', () => {
