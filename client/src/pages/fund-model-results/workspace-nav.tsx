@@ -1,8 +1,8 @@
 /**
  * Workspace navigation row (Plan 9 Wave 9B1, D-F.2/D-F.5).
  *
- * The ONE persistent hub-and-spokes row mounted on all six GP workspace
- * destinations: fund context + six underlined text links (ink active state,
+ * The ONE persistent hub-and-spokes row mounted on all seven GP workspace
+ * destinations: fund context + seven underlined text links (ink active state,
  * no tabs/pills/status hues) + the static basis/overlay indicator (D-E: no
  * surface supports live basis switching at launch) + at most one primary
  * action. Fund-scoped destinations without a resolved fund render
@@ -16,7 +16,13 @@ import { Link } from 'wouter';
 import { ForecastBasisControl } from '@/components/fund-results';
 
 export type WorkspaceNavKey =
-  'summary' | 'forecast' | 'portfolio-actuals' | 'reserves' | 'scenarios' | 'reports';
+  | 'summary'
+  | 'forecast'
+  | 'portfolio-actuals'
+  | 'reserves'
+  | 'analysis'
+  | 'scenarios'
+  | 'reports';
 
 export interface WorkspaceNavItem {
   key: WorkspaceNavKey;
@@ -59,6 +65,7 @@ export function workspaceNavItems(fundId: string | null): WorkspaceNavItem[] {
       label: 'Reserves',
       ...fundScoped(`/fund-model-results/${fundId}/moic-analysis`),
     },
+    { key: 'analysis', label: 'Economics', ...fundScoped(`/fund-model-results/${fundId}/analysis`) },
     {
       key: 'scenarios',
       label: 'Scenarios',

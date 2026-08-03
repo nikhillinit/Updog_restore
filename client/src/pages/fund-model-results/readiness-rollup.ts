@@ -32,7 +32,7 @@ export type ScenariosSection = FundResultsReadV1['sections']['scenarios'];
 export type ReadinessSourceInput<T> =
   { kind: 'loading' } | { kind: 'error'; message: string | null } | { kind: 'data'; data: T };
 
-export type ReadinessRowKey = Exclude<WorkspaceNavKey, 'summary'>;
+export type ReadinessRowKey = Exclude<WorkspaceNavKey, 'summary' | 'analysis'>;
 
 export interface ReadinessRollupRow {
   key: ReadinessRowKey;
