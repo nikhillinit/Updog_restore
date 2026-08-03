@@ -374,7 +374,13 @@ row and the type-system posture around the term.
 - **Forbidden-token set narrowed.** `european` is no longer a forbidden token.
   All eight Line-of-Credit bans and both their guards (compile-time type guard
   and runtime key scanner) are preserved unchanged.
-- **No schema migration.** Vocabulary and validation only.
+- **No schema migration.** Vocabulary and validation only. The live persisted
+  schema (`FundDraftWriteV1.waterfallType`) and the peripheral fund-config
+  schemas still accept deal-by-deal only; #1305 widens them.
+- **A third public term, `hybrid` ("Hybrid (fund-level)"), already ships** on
+  the scenario-methodology surface and is deliberately NOT ruled on by ADR-068.
+  #1306 must reconcile it against EUROPEAN / whole-fund. See ADR-068 for the
+  evidence and the two candidate rulings.
 
 ### Governance state recorded
 

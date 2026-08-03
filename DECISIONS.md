@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-07-28
+last_updated: 2026-08-03
 owner: Core Team
 review_cadence: P90D
 ---
@@ -9159,6 +9159,14 @@ distinct review lenses.
 
 ## ADR-064: Authorize Internal Whole-Fund Waterfall Modeling (PLAN_61 Task 16.0)
 
+> **Superseded in part by ADR-068 (2026-08-03).** ADR-064's core decision — a
+> distinct internal vocabulary that never round-trips the public schema — still
+> holds and is reaffirmed. What no longer holds is its description of the public
+> surface: `'european'` is no longer a banned token, and `WaterfallTypeSchema`
+> no longer coerces. The line-number citations into
+> `shared/types/forbidden-features.ts` below are stale. Text retained as
+> authored.
+
 **Date:** 2026-07-29 **Status:** [ACCEPTED] Accepted **Decision:** Authorize
 whole-fund carry mechanics for internal modeling under the template name
 `whole_fund`, expressed by the new internal contract
@@ -9704,13 +9712,20 @@ had done so.
 
 ### Decision
 
-**Vocabulary.** Two public, user-selectable values, both preserved exactly as
+**Vocabulary.** Two values in `WaterfallTypeSchema`, both preserved exactly as
 supplied:
 
 | Public value | Industry alias | Status                                                    |
 | ------------ | -------------- | --------------------------------------------------------- |
 | `american`   | Deal-by-deal   | Default; the only activation-certified template (ADR-066) |
 | `european`   | Whole-fund     | Selectable; not activation-certified                      |
+
+This table governs `WaterfallTypeSchema` only. A third public term, `hybrid`
+("Hybrid (fund-level)"), already ships on the scenario-methodology surface and
+is NOT ruled on here; see "Unreconciled: the shipped `hybrid` vocabulary" under
+Consequences. Until #1306 rules on it, this table is not the complete inventory
+of user-facing waterfall terms, and no surface may offer both `hybrid` and
+`european` at once.
 
 ADR-004's canonical naming table is unchanged and remains authoritative for the
 term-to-alias mapping. The internal economics vocabulary (`whole_fund` /
@@ -9720,17 +9735,23 @@ import of the public schema into an internal contract.
 
 **Schema.** `WaterfallTypeSchema` becomes `z.enum(['american', 'european'])`. No
 coercion, no transform, no silent rewrite. Unknown values produce a structured
-Zod validation error. `DEFAULT_WATERFALL_TYPE` records American as the default
-in one place rather than scattering the literal.
+Zod validation error. `DEFAULT_WATERFALL_TYPE` is added as the single place the
+default is recorded. It has no production consumer yet — the literal is still
+written directly in `client/src/schemas/modeling-wizard.schemas.ts` and
+`client/src/stores/fundStore.ts`. It is an intent record for #1305/#1306 to
+converge on, not a completed de-duplication.
 
 **Forbidden tokens.** `european` leaves `FORBIDDEN_TOKENS`. All eight
 Line-of-Credit bans (`lineOfCredit`, `locRate`, `locCap`, `locDraw`, `locRepay`,
 `locDrawRules`, `locRepayRules`, `useLineOfCredit`) and both their guards — the
 compile-time `_forbiddenKeysGuard` type and the runtime
 `validateNoForbiddenKeys` scanner — are preserved unchanged and unweakened.
-`tests/integration/forbidden-tokens.test.ts` now pins the exact eight-token list
-and asserts the whole-fund term is absent, so neither the restoration nor the
-Line-of-Credit bans can drift by a later sweep.
+`tests/integration/forbidden-tokens.test.ts` now asserts every one of the eight
+bans is present and that each is reachable by the runtime scanner, and asserts
+the whole-fund term is absent from both the list and the scanner, so neither the
+restoration nor the Line-of-Credit bans can drift by a later sweep. Containment
+rather than equality is asserted on purpose: removing a ban fails the test,
+while adding a future Line-of-Credit ban is a strengthening and does not.
 
 **Gate 0D business re-approval.** Recorded as satisfied for modeling vocabulary
 and calculators, and only for those. The instrument is the Wave W ticket trail
@@ -9820,9 +9841,8 @@ both returned APPROVE.
   superseded-statements list touches only implementation-status prose, not the
   table or the rounding contract; confirmed the internal/public vocabulary
   boundary holds. Traced the persistence question and found no live route by
-  which a whole-fund selection can be stored or served before #1305 — the
-  finding recorded under "Blast radius" above. One non-blocking nit (a stale
-  inline test comment) was fixed before commit.
+  which a whole-fund selection can be stored or served before #1305. One
+  non-blocking nit (a stale inline test comment) was fixed before commit.
 - **`phoenix-precision-guardian`** — APPROVE, no blocking findings. Verified the
   type widening from a single literal to a union is genuine and is not absorbed
   by an `any` or a cast anywhere (`npm run check`: 0 errors across client,
@@ -9835,9 +9855,22 @@ both returned APPROVE.
   annotated to the union and not widened to `string`. No numeric or precision
   surface was touched.
 
+A third, general `code-reviewer` pass ran after those two and returned
+approve-with-follow-ups. Its material findings were in this ADR's prose, not in
+the code, and are corrected here rather than left for a follow-up: the
+blast-radius inventory originally named two peripheral schemas and missed
+`FundDraftWriteV1` — the schema that actually persists waterfall type — and it
+missed the shipped `hybrid` vocabulary entirely. Both are now recorded below,
+along with the uppercase/lowercase mismatch between the restored enum and the
+peripheral schemas. Its test-quality findings were also applied: one assertion
+that could not fail was made meaningful, the token-set assertion was changed so
+that adding a Line-of-Credit ban does not fail a test whose stated purpose is to
+catch removals, and the runtime scanner is now exercised against all eight bans
+rather than two, which is what makes this ADR's "both guards pinned" claim true.
+
 Evidence at review time: `npm run check` 0 errors; full suite 11,489 passed / 90
 skipped across 930 files; `npm run phoenix:truth` 336 passed across 16 files;
-`tests/integration/forbidden-tokens.test.ts` 8 passed under
+`tests/integration/forbidden-tokens.test.ts` passing under
 `vitest.config.int.ts`.
 
 ### Consequences
@@ -9849,20 +9882,64 @@ public type widens from a single literal to a union; typecheck across client,
 server, and shared confirms no consumer depended on the narrower literal, and
 existing American behavior is unchanged.
 
-**Blast radius, recorded for #1305 and #1306.** The restored enum is one of
-several waterfall type declarations, and the others are deliberately left alone
-by this ticket. The live fund-config schemas — `WaterfallSchema` in
-`shared/types.ts` (`z.literal('AMERICAN')`) and
-`DistributionWaterfallSchema.waterfallType` in
-`shared/schemas/cashflow-schema.ts` (`z.enum(['AMERICAN'])`) — still accept
-deal-by-deal only. `shared/contracts/kpi-selector.contract.ts` consumes the
-restored enum but is a frozen v1.0 spec with no live callers. There is therefore
-no route or persistence path today by which a caller can store or serve a
-whole-fund selection off the back of this ADR; the vocabulary is restored ahead
-of the surfaces that use it, by design. #1305 and #1306 must widen those
-fund-config schemas explicitly, and must give `kpi-selector.contract.ts` either
-real whole-fund handling or an explicit rejection, before wiring it to anything
-live.
+**Blast radius, recorded for #1305 and #1306.** The restored enum is one of four
+waterfall type declarations in the repo. The other three are deliberately left
+alone by this ticket, and #1305/#1306 must handle each explicitly. None of them
+accepts a whole-fund value today, which is why no route or persistence path can
+store or serve a whole-fund selection off the back of this ADR: the vocabulary
+is restored ahead of the surfaces that use it, by design.
+
+1. **The live persisted schema** is `FundDraftWriteV1.waterfallType` in
+   `shared/contracts/fund-draft-write-v1.contract.ts`
+   (`z.enum(['american', 'hybrid']).optional()`). This is the declaration that
+   actually carries waterfall type through the draft, finalize, scenario, and
+   persistence paths — consumed by `economics-calculation-service`,
+   `fund-scenario-calculation-service`, `current-plan-version-service`,
+   `fund-results-read-service`, `fund-persistence-service`, and
+   `metrics-aggregator`, and re-exported through `fund-finalize-v1.contract.ts`
+   and `fund-scenario-sets-v1.contract.ts`. This is the primary widening target
+   for #1305.
+2. **Peripheral fund-config schemas**: `WaterfallSchema` in `shared/types.ts`
+   (`z.literal('AMERICAN')`) and `DistributionWaterfallSchema.waterfallType` in
+   `shared/schemas/cashflow-schema.ts` (`z.enum(['AMERICAN'])`). Note the
+   **casing mismatch**: these are uppercase, matching ADR-004's canonical table,
+   while the restored enum and the draft contract are lowercase. Any #1305
+   bridge must case-map, not merely widen.
+3. **`shared/contracts/kpi-selector.contract.ts`** consumes the restored enum
+   directly. It is a frozen v1.0 spec whose only importer
+   (`client/src/adapters/kpiAdapter.ts`) is itself unreferenced, so the widening
+   has no live effect — but it must get real whole-fund handling or an explicit
+   rejection before it is wired to anything.
+
+**Unreconciled: the shipped `hybrid` vocabulary. #1306 must resolve this.** A
+third public waterfall term already ships and this ADR does not rule on it.
+`CreateMethodologyScenarioModal.tsx` presents a user-facing selector with
+exactly two options, "American (deal-by-deal)" and **"Hybrid (fund-level)"**,
+backed by `z.enum(['american', 'hybrid'])`, by
+`fundStore.waterfallType?: 'american' | 'hybrid'`, and by the draft contract
+above. "Fund-level" is what ADR-004's canonical table calls whole-fund, so on
+its label `hybrid` occupies the same conceptual slot this ADR restores as
+`european`. It is also in the same implementation state: selectable but not
+computable — `economics-engine.ts` rejects it with "GP economics P0 supports
+american waterfall only", and `fund-store-adapters.ts` returns undefined
+economics for it.
+
+This ADR does not silently declare them aliases, because collapsing two
+user-facing terms is a product-vocabulary decision above this ticket's scope,
+and the possibility that `hybrid` was intended as a genuine third structure
+(neither pure deal-by-deal nor pure whole-fund) cannot be ruled out from the
+code alone. #1306 must choose explicitly and record the choice:
+
+- **(a)** `hybrid` is whole-fund under an older label — rename it to `european`,
+  migrate any stored value, and ship one selector; or
+- **(b)** `hybrid` is a distinct third structure — then ADR-068's two-value
+  table is incomplete and the enum needs a third member with its own definition,
+  truth cases, and activation posture.
+
+The recommendation from this ticket is **(a)**: the labels already say the same
+thing to a user, and shipping both would present two controls for one concept.
+Until #1306 rules, no surface may offer both `hybrid` and `european` in the same
+selector.
 
 The risk accepted is that whole-fund becomes selectable in the vocabulary before
 #1291 certifies whole-fund truth cases. It is bounded by ADR-066's activation

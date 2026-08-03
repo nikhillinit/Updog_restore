@@ -23,6 +23,22 @@ import {
   type _forbiddenKeysGuard,
 } from '@shared/types/forbidden-features';
 
+/**
+ * The eight Line-of-Credit bans. ADR-068 narrowed FORBIDDEN_TOKENS to exactly
+ * these; every one must survive and every one must be reachable by the runtime
+ * scanner.
+ */
+const LINE_OF_CREDIT_BANS = [
+  'lineOfCredit',
+  'locRate',
+  'locCap',
+  'locDraw',
+  'locRepay',
+  'locDrawRules',
+  'locRepayRules',
+  'useLineOfCredit',
+] as const;
+
 interface Violation {
   file: string;
   token: string;
@@ -95,7 +111,7 @@ describe('Forbidden Features Protection', () => {
         .map((v) => `  ${v.file}:${v.line} - "${v.token}"\n    ${v.context}`)
         .join('\n\n');
 
-      console.error(`\n❌ Found ${violations.length} forbidden token(s):\n`);
+      console.error(`\nFAIL: Found ${violations.length} forbidden token(s):\n`);
       console.error(report);
     }
 
@@ -127,26 +143,30 @@ describe('Forbidden Features Protection', () => {
   });
 
   it('runtime: validateNoForbiddenKeys detects violations', () => {
-    // Schema with forbidden keys
+    // Every Line-of-Credit ban gets exercised through the runtime scanner, not
+    // just a sample: ADR-068 narrowed the token set, so the scanner's coverage
+    // of what survived is the thing worth pinning.
     const badSchema = {
       fundName: 'Test Fund',
       lineOfCredit: {
-        // FORBIDDEN
-        locRate: 0.05, // FORBIDDEN
-        locCap: 10000000, // FORBIDDEN
+        locRate: 0.05,
+        locCap: 10000000,
+        locDraw: 1000000,
+        locRepay: 500000,
+        locDrawRules: { trigger: 'call' },
+        locRepayRules: { trigger: 'exit' },
       },
-      useLineOfCredit: true, // FORBIDDEN
+      useLineOfCredit: true,
     };
 
     const result = validateNoForbiddenKeys(badSchema, 'badSchema');
 
     expect(result.isValid).toBe(false);
-    expect(result.foundKeys.length).toBeGreaterThan(0);
 
-    // Should find at least lineOfCredit and useLineOfCredit
     const foundTokens = result.foundKeys.map((k) => k.split(' ')[0].split('.').pop());
-    expect(foundTokens).toContain('lineOfCredit');
-    expect(foundTokens).toContain('useLineOfCredit');
+    for (const token of LINE_OF_CREDIT_BANS) {
+      expect(foundTokens, `scanner missed the ${token} ban`).toContain(token);
+    }
   });
 
   it('compile-time: type guard prevents usage', () => {
@@ -156,30 +176,23 @@ describe('Forbidden Features Protection', () => {
     // Suppress unused variable warning
     const _: TestGuard | undefined = undefined;
     expect(_).toBeUndefined();
+  });
 
-    // Verify all tokens are present
-    expect(FORBIDDEN_TOKENS).toHaveLength(8);
-
-    // Verify all eight Line-of-Credit bans survive (ADR-068 narrowed the set to
-    // Line of Credit only; it did not weaken any Line-of-Credit ban)
-    expect([...FORBIDDEN_TOKENS]).toEqual([
-      'lineOfCredit',
-      'locRate',
-      'locCap',
-      'locDraw',
-      'locRepay',
-      'locDrawRules',
-      'locRepayRules',
-      'useLineOfCredit',
-    ]);
+  it('policy: every Line-of-Credit ban survives (ADR-068 narrowing)', () => {
+    // Containment, not equality: removing a ban must fail this test, while
+    // ADDING a future Line-of-Credit ban is a strengthening and must not.
+    // Token ordering is deliberately not made load-bearing.
+    for (const token of LINE_OF_CREDIT_BANS) {
+      expect([...FORBIDDEN_TOKENS]).toContain(token);
+    }
   });
 
   it('policy: whole-fund vocabulary is no longer a forbidden token (ADR-068)', () => {
     expect([...FORBIDDEN_TOKENS]).not.toContain('european');
 
-    // The runtime key scanner must not flag the restored vocabulary either
-    const policySelection = { waterfallType: 'european' as const };
-    expect(validateNoForbiddenKeys(policySelection, 'policySelection').isValid).toBe(true);
+    // The scanner matches key names, so the restored term is exercised as a key
+    // here on purpose. This assertion fails if the token is ever re-banned.
+    expect(validateNoForbiddenKeys({ european: true }, 'restoredVocabulary').isValid).toBe(true);
   });
 
   it('runtime: WaterfallTypeSchema preserves caller intent for both values', () => {
