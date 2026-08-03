@@ -377,10 +377,16 @@ row and the type-system posture around the term.
 - **No schema migration.** Vocabulary and validation only. The live persisted
   schema (`FundDraftWriteV1.waterfallType`) and the peripheral fund-config
   schemas still accept deal-by-deal only; #1305 widens them.
-- **A third public term, `hybrid` ("Hybrid (fund-level)"), already ships** on
-  the scenario-methodology surface and is deliberately NOT ruled on by ADR-068.
-  #1306 must reconcile it against EUROPEAN / whole-fund. See ADR-068 for the
-  evidence and the two candidate rulings.
+- **A third public term, `hybrid`, already ships** on the scenario-methodology
+  surface. It is a genuine third structure, not an alias for whole-fund: this
+  document's own non-goals list defines Hybrid Models as
+  "AMERICAN-with-EUROPEAN-tiers", and
+  `docs/plans/2026-05-08-gp-economics-extension-design.md` specifies
+  `HybridWaterfallPolicyV1` as four independent per-tier scope switches
+  (`returnCapitalScope`, `prefScope`, `catchUpScope`, `carryScope`, each
+  `'deal' | 'whole_fund'`). AMERICAN and EUROPEAN are its degenerate corners.
+  Its shipped selector label, "Hybrid (fund-level)", is therefore misleading.
+  #1306 reconciles the surface; see ADR-068 for the evidence.
 
 ### Governance state recorded
 

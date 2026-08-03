@@ -9720,12 +9720,11 @@ supplied:
 | `american`   | Deal-by-deal   | Default; the only activation-certified template (ADR-066) |
 | `european`   | Whole-fund     | Selectable; not activation-certified                      |
 
-This table governs `WaterfallTypeSchema` only. A third public term, `hybrid`
-("Hybrid (fund-level)"), already ships on the scenario-methodology surface and
-is NOT ruled on here; see "Unreconciled: the shipped `hybrid` vocabulary" under
-Consequences. Until #1306 rules on it, this table is not the complete inventory
-of user-facing waterfall terms, and no surface may offer both `hybrid` and
-`european` at once.
+This table governs `WaterfallTypeSchema` only. It is NOT the complete inventory
+of user-facing waterfall terms: a third term, `hybrid`, already ships on the
+scenario-methodology surface and is a genuine third structure — a per-tier
+mixture of the two, of which these two rows are the degenerate corners. See "The
+shipped `hybrid` vocabulary" under Consequences. #1306 reconciles it.
 
 ADR-004's canonical naming table is unchanged and remains authoritative for the
 term-to-alias mapping. The internal economics vocabulary (`whole_fund` /
@@ -9911,35 +9910,67 @@ is restored ahead of the surfaces that use it, by design.
    has no live effect — but it must get real whole-fund handling or an explicit
    rejection before it is wired to anything.
 
-**Unreconciled: the shipped `hybrid` vocabulary. #1306 must resolve this.** A
-third public waterfall term already ships and this ADR does not rule on it.
-`CreateMethodologyScenarioModal.tsx` presents a user-facing selector with
-exactly two options, "American (deal-by-deal)" and **"Hybrid (fund-level)"**,
-backed by `z.enum(['american', 'hybrid'])`, by
-`fundStore.waterfallType?: 'american' | 'hybrid'`, and by the draft contract
-above. "Fund-level" is what ADR-004's canonical table calls whole-fund, so on
-its label `hybrid` occupies the same conceptual slot this ADR restores as
-`european`. It is also in the same implementation state: selectable but not
-computable — `economics-engine.ts` rejects it with "GP economics P0 supports
-american waterfall only", and `fund-store-adapters.ts` returns undefined
-economics for it.
+**The shipped `hybrid` vocabulary is a genuine third structure, not an alias.
+#1306 must reconcile it; this ADR does not fold it in.** A third public
+waterfall term already ships. `CreateMethodologyScenarioModal.tsx` presents a
+selector with exactly two options, "American (deal-by-deal)" and "Hybrid
+(fund-level)", backed by `z.enum(['american', 'hybrid'])` in the draft contract
+and in `fund-results-v1.contract.ts`, and by
+`fundStore.waterfallType?: 'american' | 'hybrid'`.
 
-This ADR does not silently declare them aliases, because collapsing two
-user-facing terms is a product-vocabulary decision above this ticket's scope,
-and the possibility that `hybrid` was intended as a genuine third structure
-(neither pure deal-by-deal nor pure whole-fund) cannot be ruled out from the
-code alone. #1306 must choose explicitly and record the choice:
+The term's label invites the reading that `hybrid` is whole-fund under an older
+name. **That reading is wrong**, and two independent records in this repo define
+it as a mixture of the two structures rather than as either one:
 
-- **(a)** `hybrid` is whole-fund under an older label — rename it to `european`,
-  migrate any stored value, and ship one selector; or
-- **(b)** `hybrid` is a distinct third structure — then ADR-068's two-value
-  table is incomplete and the enum needs a third member with its own definition,
-  truth cases, and activation posture.
+1. **ADR-004's own non-goals list** defines the term directly: "Hybrid Models:
+   No AMERICAN-with-EUROPEAN-tiers support". A mixture of American and European
+   tiers, declared out of scope — not a synonym for whole-fund.
+2. **`docs/plans/2026-05-08-gp-economics-extension-design.md`** specifies
+   `HybridWaterfallPolicyV1` as four independent per-tier scope switches:
+   `returnCapitalScope`, `prefScope`, `catchUpScope`, and `carryScope`, each
+   `'deal' | 'whole_fund'`. That is a per-tier mixture with 16 expressible
+   combinations. The same document states that P0 "intentionally excludes
+   `european` ... the current draft/results contracts only support
+   American/hybrid semantics", and routes European through a separate P1b gate —
+   the gate this Wave W trail is executing.
 
-The recommendation from this ticket is **(a)**: the labels already say the same
-thing to a user, and shipping both would present two controls for one concept.
-Until #1306 rules, no surface may offer both `hybrid` and `european` in the same
-selector.
+On that specification, `american` and `european` are the two degenerate corners
+of `hybrid`: all four scopes `deal` gives deal-by-deal, all four `whole_fund`
+gives whole-fund. The general form subsumes both. Collapsing `hybrid` into
+`european`, as an earlier draft of this ADR recommended, would have destroyed a
+designed generalization and mislabeled a 16-combination structure as one of its
+corners. That recommendation is withdrawn.
+
+Current implementation state: `hybrid` is accepted at the input boundaries
+listed above but is not computable anywhere. `economics-engine.ts` rejects it
+with "GP economics P0 supports american waterfall only",
+`fund-store-adapters.ts` returns undefined economics for it,
+`WaterfallAssumptionsV1Schema.type` in `economics-v1.contract.ts` is still
+`z.literal('american')`, and `HybridWaterfallPolicyV1` exists in the design
+document only — no `hybridPolicy`, `returnCapitalScope`, `prefScope`,
+`catchUpScope`, or `carryScope` appears anywhere in `shared/`, `server/`, or
+`client/`. It is a selectable dead option today, the same state `european` is in
+until #1305 lands.
+
+**Two defects follow, for #1306.**
+
+- **The selector label is wrong.** "Hybrid (fund-level)" describes a per-tier
+  configurable structure as though its scope were fixed at fund level. A user
+  choosing it today is told it means whole-fund. The parenthetical should say
+  mixed or per-tier scope, not fund-level.
+- **`european` and `hybrid` must not be offered as unrelated peers.** They are
+  not two competing options; one is a preset of the other. #1306 should decide
+  how to present that relationship — most plainly, named presets (American,
+  European) over a general per-tier engine, with `hybrid` as the custom case.
+  Users expect the named industry terms, and this ticket's mandate is to restore
+  them; the general form should sit behind them rather than beside them.
+
+Neither defect is resolved here, because both are product-surface decisions
+belonging to #1306 and neither is required to restore the vocabulary. What this
+ADR fixes is the record: `hybrid` is a third structure, ADR-068's two-value
+table covers `WaterfallTypeSchema` alone, and any future work that treats
+`hybrid` as a synonym for whole-fund is proceeding against both ADR-004's
+non-goals list and the gp-economics design.
 
 The risk accepted is that whole-fund becomes selectable in the vocabulary before
 #1291 certifies whole-fund truth cases. It is bounded by ADR-066's activation
