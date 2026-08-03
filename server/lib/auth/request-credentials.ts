@@ -1,4 +1,4 @@
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 
 import type { JWTClaims } from './jwt';
 
@@ -25,6 +25,13 @@ export class RequestCredentialError extends Error {
     this.name = 'RequestCredentialError';
     this.code = code;
   }
+}
+
+export function sendUnauthorizedResponse(res: Response): Response {
+  return res.status(401).json({
+    error: 'unauthorized',
+    message: 'Valid JWT token required',
+  });
 }
 
 type CookieReadResult =

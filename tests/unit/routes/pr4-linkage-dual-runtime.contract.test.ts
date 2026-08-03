@@ -1,6 +1,7 @@
 import express from 'express';
 import type { Express } from 'express';
 import type { Server } from 'node:http';
+import jwt from 'jsonwebtoken';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -151,6 +152,28 @@ async function authorizationHeader(
   })}`;
 }
 
+function invalidAuthorizationHeader(kind: 'expired' | 'bad-signature'): string {
+  const payload = {
+    sub: '9',
+    email: 'pr4-linkage@example.com',
+    role: 'admin',
+    fundIds: [1],
+  };
+  const options = {
+    algorithm: 'HS256' as const,
+    issuer: process.env.JWT_ISSUER,
+    audience: process.env.JWT_AUDIENCE,
+  };
+  const token =
+    kind === 'expired'
+      ? jwt.sign(payload, process.env.JWT_SECRET!, { ...options, expiresIn: -1 })
+      : jwt.sign(payload, 'wrong-signature-secret'.repeat(2), {
+          ...options,
+          expiresIn: '1h',
+        });
+  return `Bearer ${token}`;
+}
+
 async function closeServer(server: Server | undefined) {
   if (!server?.listening) return;
   await new Promise<void>((resolve, reject) => {
@@ -225,6 +248,30 @@ describe('PR4 linkage dual-runtime parity', () => {
     expect(unauthenticatedListResponses[1]?.body).toEqual(unauthenticatedListResponses[0]?.body);
     expect(evidenceService.listTaskEvidenceLinks).not.toHaveBeenCalled();
   });
+
+  it.each(['expired', 'bad-signature'] as const)(
+    'returns canonical authorization response for %s tokens on both runtimes',
+    async (kind) => {
+      const responses = await Promise.all(
+        surfaces.map((surface) =>
+          request(surface.app)
+            .get('/api/funds/1/tasks/10/evidence-links')
+            .set('Authorization', invalidAuthorizationHeader(kind))
+        )
+      );
+
+      expect(
+        responses.map((response) => response.status),
+        'both fully composed runtime surfaces'
+      ).toEqual([401, 401]);
+      expect(responses[0]?.body).toEqual({
+        error: 'unauthorized',
+        message: 'Valid JWT token required',
+      });
+      expect(responses[1]?.body).toEqual(responses[0]?.body);
+      expect(evidenceService.listTaskEvidenceLinks).not.toHaveBeenCalled();
+    }
+  );
 
   it('rotates economics-pin ETags identically', async () => {
     const authorization = await authorizationHeader();

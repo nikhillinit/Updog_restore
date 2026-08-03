@@ -8,7 +8,7 @@ import { db } from '../db.js';
 import { sql } from 'drizzle-orm';
 import { firstString } from './request-values';
 import { principalFromUser } from './auth/principal';
-import { RequestCredentialError } from './auth/request-credentials';
+import { RequestCredentialError, sendUnauthorizedResponse } from './auth/request-credentials';
 
 export interface UserContext {
   userId: string; // JWT 'sub' claim
@@ -83,10 +83,7 @@ export async function requireSecureContext(
     const context = await extractUserContext(req);
 
     if (!context) {
-      res.status(401).json({
-        error: 'unauthorized',
-        message: 'Valid JWT token required',
-      });
+      sendUnauthorizedResponse(res);
       return;
     }
 
