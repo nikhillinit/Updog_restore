@@ -11,6 +11,7 @@ const analysisService = vi.hoisted(() => ({
 
 const evidenceService = vi.hoisted(() => ({
   createTaskEvidenceLink: vi.fn(),
+  listTaskEvidenceLinks: vi.fn(),
 }));
 
 vi.mock('../../../server/services/internal-analysis/analysis-checkpoint-service', async () => {
@@ -33,6 +34,7 @@ vi.mock('../../../server/services/operating-objects/task-evidence-link-service',
   return {
     ...actual,
     createTaskEvidenceLink: evidenceService.createTaskEvidenceLink,
+    listTaskEvidenceLinks: evidenceService.listTaskEvidenceLinks,
   };
 });
 
@@ -93,6 +95,15 @@ const evidenceLink = {
   taskId: 10,
   target: { kind: 'analysis_reference' as const, id: 11 },
   createdAt: '2026-08-01T12:00:00.000Z',
+};
+
+const economicsEvidenceLink = {
+  contractVersion: 'task-evidence-link/1.0.0' as const,
+  linkId: 32,
+  fundId: 1,
+  taskId: 10,
+  target: { kind: 'internal_economics_run' as const, id: 12 },
+  createdAt: '2026-08-01T13:00:00.000Z',
 };
 
 type Surface = { name: 'makeApp' | 'registerRoutes'; app: Express };
@@ -184,6 +195,7 @@ beforeEach(() => {
     updatedAt: new Date('2026-08-01T12:00:00.000Z'),
   });
   evidenceService.createTaskEvidenceLink.mockReset();
+  evidenceService.listTaskEvidenceLinks.mockReset();
 });
 
 describe('PR4 linkage dual-runtime parity', () => {
@@ -200,6 +212,8 @@ describe('PR4 linkage dual-runtime parity', () => {
       .set('Idempotency-Key', 'evidence-1')
       .send({ target: evidenceLink.target })
       .expect(401);
+
+    await request(surfaces[0]!.app).get('/api/funds/1/tasks/10/evidence-links').expect(401);
   });
 
   it('rotates economics-pin ETags identically', async () => {
@@ -259,5 +273,75 @@ describe('PR4 linkage dual-runtime parity', () => {
       expect(response.status, `${surface.name} ${JSON.stringify(response.body)}`).toBe(403);
     }
     expect(evidenceService.createTaskEvidenceLink).not.toHaveBeenCalled();
+  });
+
+  it('lists both strict evidence target variants identically on both runtimes', async () => {
+    const authorization = await authorizationHeader();
+    const expected = { data: [evidenceLink, economicsEvidenceLink] };
+
+    for (const surface of surfaces) {
+      evidenceService.listTaskEvidenceLinks.mockResolvedValueOnce(expected.data);
+      const response = await request(surface.app)
+        .get('/api/funds/1/tasks/10/evidence-links')
+        .set('Authorization', authorization)
+        .expect(200);
+
+      expect(response.body, surface.name).toEqual(expected);
+      expect(response.headers['cache-control'], surface.name).toBe('private, no-store');
+    }
+    expect(evidenceService.listTaskEvidenceLinks).toHaveBeenNthCalledWith(1, 1, 10);
+    expect(evidenceService.listTaskEvidenceLinks).toHaveBeenNthCalledWith(2, 1, 10);
+  });
+
+  it.each(['cursor=31', 'limit=10', 'unexpected=value'])(
+    'rejects unsupported list query %s before service work on both runtimes',
+    async (query) => {
+      const authorization = await authorizationHeader();
+      for (const surface of surfaces) {
+        const response = await request(surface.app)
+          .get(`/api/funds/1/tasks/10/evidence-links?${query}`)
+          .set('Authorization', authorization)
+          .expect(400);
+        expect(response.body, surface.name).toEqual({
+          error: 'INVALID_TASK_EVIDENCE_LINK_QUERY',
+          message: 'Task evidence link listing does not accept query parameters.',
+        });
+      }
+      expect(evidenceService.listTaskEvidenceLinks).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    ['/api/funds/0/tasks/10/evidence-links', { error: 'Invalid fund ID' }],
+    ['/api/funds/1/tasks/00/evidence-links', { error: 'Invalid task ID' }],
+  ])('rejects malformed list identity %s identically', async (path, expectedBody) => {
+    const authorization = await authorizationHeader();
+    for (const surface of surfaces) {
+      const response = await request(surface.app)
+        .get(path)
+        .set('Authorization', authorization)
+        .expect(400);
+      expect(response.body, surface.name).toEqual(expectedBody);
+    }
+    expect(evidenceService.listTaskEvidenceLinks).not.toHaveBeenCalled();
+  });
+
+  it('allows cross-fund team-member reads but keeps non-team readers fund-scoped', async () => {
+    const teamAuthorization = await authorizationHeader([2], 'analyst');
+    const lpAuthorization = await authorizationHeader([2], 'lp');
+
+    for (const surface of surfaces) {
+      evidenceService.listTaskEvidenceLinks.mockResolvedValueOnce([]);
+      await request(surface.app)
+        .get('/api/funds/1/tasks/10/evidence-links')
+        .set('Authorization', teamAuthorization)
+        .expect(200, { data: [] });
+
+      await request(surface.app)
+        .get('/api/funds/1/tasks/10/evidence-links')
+        .set('Authorization', lpAuthorization)
+        .expect(403);
+    }
+    expect(evidenceService.listTaskEvidenceLinks).toHaveBeenCalledTimes(2);
   });
 });

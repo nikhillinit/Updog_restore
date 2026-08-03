@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 
 import {
   TASK_EVIDENCE_LINK_CONTRACT_VERSION,
@@ -90,6 +90,21 @@ export function toTaskEvidenceLinkContract(row: TaskEvidenceLinkRecord): TaskEvi
     target: targetFromRow(row),
     createdAt: row.createdAt.toISOString(),
   });
+}
+
+export async function listTaskEvidenceLinks(
+  fundId: number,
+  taskId: number,
+  options: { database?: TaskEvidenceDatabase } = {}
+): Promise<TaskEvidenceLinkV1[]> {
+  const database = options.database ?? db;
+  const rows = await database
+    .select()
+    .from(taskEvidenceLinks)
+    .where(and(eq(taskEvidenceLinks.fundId, fundId), eq(taskEvidenceLinks.taskId, taskId)))
+    .orderBy(asc(taskEvidenceLinks.id))
+    .limit(100);
+  return rows.map(toTaskEvidenceLinkContract);
 }
 
 export async function createTaskEvidenceLinkWithPorts(

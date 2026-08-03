@@ -32,7 +32,10 @@ import {
   createAnalysisCheckpointPorts,
   replaceDraftEconomicsReference,
 } from '../../../server/services/internal-analysis/analysis-checkpoint-service';
-import { createTaskEvidenceLink } from '../../../server/services/operating-objects/task-evidence-link-service';
+import {
+  createTaskEvidenceLink,
+  listTaskEvidenceLinks,
+} from '../../../server/services/operating-objects/task-evidence-link-service';
 
 const skipIfNoDocker =
   !process.env.TEST_DATABASE_URL && !process.env.CI && process.platform === 'win32';
@@ -1503,6 +1506,35 @@ describe.skipIf(skipIfNoDocker)('internal economics linkage PostgreSQL proof', (
       expect(new Set(concurrent.map((result) => result.evidenceLink.linkId)).size).toBe(1);
       expect(concurrent.filter((result) => !result.replayed)).toHaveLength(1);
 
+      const economics = await createTaskEvidenceLink(
+        {
+          ...common,
+          target: { kind: 'internal_economics_run', id: runId },
+          idempotencyKey: 'evidence-economics',
+        },
+        { database }
+      );
+      const listed = await listTaskEvidenceLinks(basis.fundId, basis.taskId, { database });
+      expect(listed.map((link) => link.linkId)).toEqual([
+        created.evidenceLink.linkId,
+        concurrent[0]!.evidenceLink.linkId,
+        economics.evidenceLink.linkId,
+      ]);
+      expect(listed.map((link) => link.target)).toEqual([
+        { kind: 'analysis_reference', id: basis.referenceId },
+        { kind: 'analysis_reference', id: basis.referenceId },
+        { kind: 'internal_economics_run', id: runId },
+      ]);
+      expect(
+        listed.every(
+          (link) =>
+            Object.keys(link).sort().join(',') ===
+            ['contractVersion', 'createdAt', 'fundId', 'linkId', 'target', 'taskId']
+              .sort()
+              .join(',')
+        )
+      ).toBe(true);
+
       const persisted = await pool.query<{
         count: number;
         created_by: number | null;
@@ -1512,9 +1544,9 @@ describe.skipIf(skipIfNoDocker)('internal economics linkage PostgreSQL proof', (
           'FROM task_evidence_links WHERE fund_id = $1 AND task_id = $2 ORDER BY id',
         [basis.fundId, basis.taskId]
       );
-      expect(persisted.rows).toHaveLength(2);
+      expect(persisted.rows).toHaveLength(3);
       expect(persisted.rows[0]).toMatchObject({
-        count: 2,
+        count: 3,
         created_by: basis.userId,
         idempotency_key: 'evidence-create',
       });
