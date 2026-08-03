@@ -6,6 +6,8 @@ const PositiveYearSchema = z.number().int().positive();
 
 export const EconomicsFeeBasisSchema = z.enum([
   'committed_capital',
+  /** Capital called during the period itself; see shared/lib/economics/called-capital-period.ts */
+  'called_capital_period',
   'called_capital_cumulative',
   'called_capital_net_of_returns',
   'invested_capital',
@@ -201,6 +203,12 @@ export const EconomicsInvariantReportV1Schema = z
 export const EconomicsAnnualRowV1Schema = z
   .object({
     year: z.number().int().positive(),
+    /**
+     * Canonical period bounds for the row (ADR-069). Optional so snapshots
+     * persisted before the canonical period model remain readable.
+     */
+    periodStart: z.string().date().optional(),
+    periodEnd: z.string().date().optional(),
     lpCapitalCalls: NonNegativeMoneySchema,
     gpCommitmentCalls: NonNegativeMoneySchema,
     grossExitProceeds: NonNegativeMoneySchema,

@@ -21,6 +21,45 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-08-03)
+
+- **"Called Capital Each Period" management-fee basis (#1310, ADR-006).** The
+  `called_capital_period` basis is now first-class in the economics contract,
+  the economics engine, the `FeeProfile` schema, and the quarterly fee-basis
+  timeline in `shared/lib/fund-math.ts`. The basis is the net capital called
+  during the period itself, not the capital called to date: a period with no
+  call carries no fee. The period is the half-open interval
+  `[periodStart, periodEnd)`, so a boundary-dated call belongs to the period
+  that starts on that boundary. A call adjustment nets against the calls of the
+  same period, and the period basis is floored at zero - it never produces a
+  negative fee and never carries back or forward. The definition lives in one
+  place, `shared/lib/economics/called-capital-period.ts`, and both the engine
+  and the timeline call it. Because the basis is a flow and not a balance, the
+  annual rate is applied once to the period amount and is not pro-rated by
+  period length; otherwise the same call schedule would give a different total
+  fee when modeled quarterly instead of annually. Every other basis stays
+  pro-rated, and `FeeRecyclingPolicy.basis` now accepts capital-stock bases
+  only, so a recycling cap cannot be set against a flow. Before this change the
+  economics engine rejected the basis with `Unsupported economics fee basis`
+  even though the wizard and the fund-draft contract already offered it. No
+  existing fee basis changes value; the economics result contract is unchanged,
+  so result hashes for existing configurations are unaffected.
+- **Canonical economics period model, monthly accrual grain (issue #1311,
+  ADR-069).** Economics now has one authoritative period representation:
+  `EconomicsCanonicalPeriodV1` plus `shared/lib/economics/period-model-v1.ts`
+  own period dating, proration, rate application, and aggregation. Monthly is
+  the authoritative accrual grain; quarterly and annual are aggregation grains
+  only. Rates apply as effective rates (`r * t` simple, `(1 + r)^t - 1`
+  compounded) and partial periods prorate by canonical months, so accrual is
+  grain-invariant and a reporting-grain change cannot move a served number. The
+  aggregator sums flows, keeps boundary stocks, and refuses to aggregate ratios
+  or to split into a finer grain. The GP economics engine now derives its annual
+  rows from the canonical grid and dates each row with `periodStart`/`periodEnd`
+  (both optional in the contract, so older snapshots stay readable). No served
+  number changes: complete before/after rows and a zero delta table are recorded
+  in `tests/fixtures/economics/period-grain-before-after.json`, and the
+  quarterly waterfall truth cases pass unchanged.
+
 ### Changed (2026-08-03)
 
 - **Public dual-waterfall vocabulary restored; silent coercion removed (issue
