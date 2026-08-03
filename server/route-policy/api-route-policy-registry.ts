@@ -1977,6 +1977,56 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     [
       [
         'GET',
+        '/api/funds/:fundId/kpi-observations',
+        'List collected KPI observations for a fund, filtered by company, metric, basis, review state, or period.',
+      ],
+      [
+        'GET',
+        '/api/funds/:fundId/kpi-observations/:observationId',
+        'Read one observation; the response ETag is what a review must echo in If-Match.',
+      ],
+      [
+        'POST',
+        '/api/funds/:fundId/kpi-observations',
+        'Record one manually entered observation under a required Idempotency-Key.',
+      ],
+      [
+        'POST',
+        '/api/funds/:fundId/kpi-observations/imports',
+        'Import a fixed-template CSV batch; each row lands through the same idempotent command.',
+      ],
+      [
+        'PATCH',
+        '/api/funds/:fundId/kpi-observations/:observationId/review',
+        'Record a reviewer decision under If-Match optimistic locking.',
+      ],
+    ] as const
+  ).map(([method, path, notes]): RoutePolicyEntry => ({
+    id: `api:${method.toLowerCase()}:${path}`,
+    method,
+    path,
+    lifecycle: 'durable_crud',
+    governanceRef: '/portfolio',
+    surface: 'kpi-observations-api',
+    owner: ownerForFinancialSurface('portfolio_management'),
+    telemetryKey: telemetryKeyForRoute('api.route', path),
+    financialSurface: 'portfolio_management',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_and_idempotency_verified',
+    // Internal KPI collection is internal-only and CSV-first: no company-facing
+    // request form, no recipient, no send, and no export path at all (GR2-4a).
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes: `Issue #1300. ${notes}`,
+  })),
+  ...(
+    [
+      [
+        'GET',
         '/api/funds/:fundId/internal-analysis/narratives',
         'Read the terminal source-linked narrative for an anchor (draft or reference).',
       ],
@@ -2140,6 +2190,13 @@ export const COMMON_API_ROUTE_POLICY_IDS = {
   reallocation: ['client:/portfolio'],
   'cash-flow-events': ['client:/lp-reporting/ledger'],
   'operating-object-tasks': ['client:/dashboard'],
+  'kpi-observations': [
+    'api:get:/api/funds/:fundId/kpi-observations',
+    'api:get:/api/funds/:fundId/kpi-observations/:observationId',
+    'api:post:/api/funds/:fundId/kpi-observations',
+    'api:post:/api/funds/:fundId/kpi-observations/imports',
+    'api:patch:/api/funds/:fundId/kpi-observations/:observationId/review',
+  ],
   'deal-pipeline': ['client:/pipeline'],
   'cohort-analysis': ['client:/portfolio'],
   sensitivity: ['client:/sensitivity-analysis'],

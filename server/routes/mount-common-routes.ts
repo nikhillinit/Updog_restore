@@ -28,6 +28,7 @@ import internalAnalysisRouter from './internal-analysis.js';
 import internalEconomicsRouter from './internal-economics.js';
 import investmentLedgerRouter from './investment-ledger.js';
 import investmentsRouter from './investments.js';
+import kpiObservationsRouter from './kpi-observations.js';
 import liquidityRouter from './liquidity.js';
 import lpApiRouter from './lp-api.js';
 import lpCapitalCallsRouter from './lp-capital-calls.js';
@@ -94,6 +95,7 @@ export const COMMON_ROUTE_IMPLEMENTATIONS: Record<CommonApiRouteId, RouteMountIm
   reallocation: at(null, reallocationRouter),
   'cash-flow-events': at(null, cashFlowEventsRouter),
   'operating-object-tasks': at(null, operatingObjectTasksRouter),
+  'kpi-observations': at(null, kpiObservationsRouter),
   'deal-pipeline': at('/api/deals', dealPipelineRouter),
   'cohort-analysis': at('/api/cohorts', cohortAnalysisRouter),
   sensitivity: at('/api', sensitivityRouter),
@@ -139,6 +141,7 @@ export const COMMON_ROUTE_SURFACE_ORDER = {
     'reallocation',
     'cash-flow-events',
     'operating-object-tasks',
+    'kpi-observations',
     'fund-metrics',
     'dual-forecast',
     'performance-api',

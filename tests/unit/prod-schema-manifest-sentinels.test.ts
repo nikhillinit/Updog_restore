@@ -153,6 +153,7 @@ describe('prod-schema manifest sentinels', () => {
       '23-internal-economics-certification.json',
       '24-internal-economics-linkage.json',
       '25-quarterly-review-workflow.json',
+      '26-kpi-observations.json',
     ]);
   });
 

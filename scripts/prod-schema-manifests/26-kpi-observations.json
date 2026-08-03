@@ -1,0 +1,67 @@
+{
+  "name": "kpi-observations",
+  "order": 25,
+  "description": "Issue #1300 migration 0049: the internal KPI collection table behind /api/funds/:fundId/kpi-observations. Purely additive - one table and one index, no existing catalog object touched - so it carries no drift patch and no trigger or function DDL.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0049_kpi_observations.sql"],
+  "allowedCreateTables": ["kpi_observations"],
+  "expectedTables": [
+    {
+      "name": "kpi_observations",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        {
+          "name": "portfolio_company_id",
+          "type": "integer",
+          "nullable": false
+        },
+        { "name": "metric", "type": "varchar", "nullable": false },
+        { "name": "period_start", "type": "date", "nullable": false },
+        { "name": "period_end", "type": "date", "nullable": false },
+        { "name": "basis", "type": "varchar", "nullable": false },
+        { "name": "value_kind", "type": "varchar", "nullable": false },
+        { "name": "value_amount", "type": "numeric", "nullable": true },
+        { "name": "value_date", "type": "date", "nullable": true },
+        { "name": "value_text", "type": "text", "nullable": true },
+        { "name": "company_kpi_label", "type": "varchar", "nullable": true },
+        { "name": "source", "type": "varchar", "nullable": false },
+        { "name": "source_label", "type": "varchar", "nullable": true },
+        { "name": "comment", "type": "text", "nullable": true },
+        { "name": "submitted_at", "type": "timestamptz", "nullable": false },
+        { "name": "review_status", "type": "varchar", "nullable": false },
+        { "name": "review_comment", "type": "text", "nullable": true },
+        { "name": "reviewed_by", "type": "integer", "nullable": true },
+        { "name": "reviewed_at", "type": "timestamptz", "nullable": true },
+        { "name": "version", "type": "integer", "nullable": false },
+        { "name": "idempotency_key", "type": "varchar", "nullable": false },
+        { "name": "request_hash", "type": "varchar", "nullable": false },
+        { "name": "created_by", "type": "integer", "nullable": true },
+        { "name": "created_at", "type": "timestamptz", "nullable": false },
+        { "name": "updated_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "kpi_observations_pkey",
+        "kpi_observations_fund_id_funds_id_fk",
+        "kpi_observations_portfolio_company_id_fk",
+        "kpi_observations_reviewed_by_fk",
+        "kpi_observations_created_by_fk",
+        "kpi_observations_id_fund_unique",
+        "kpi_observations_fund_idempotency_unique",
+        "kpi_observations_metric_check",
+        "kpi_observations_basis_check",
+        "kpi_observations_source_check",
+        "kpi_observations_review_status_check",
+        "kpi_observations_value_kind_check",
+        "kpi_observations_value_coupling_check",
+        "kpi_observations_metric_value_kind_check",
+        "kpi_observations_non_negative_value_check",
+        "kpi_observations_company_kpi_label_check",
+        "kpi_observations_period_order_check",
+        "kpi_observations_version_check",
+        "kpi_observations_review_coupling_check"
+      ],
+      "indexes": ["idx_kpi_observations_fund_company_period"]
+    }
+  ]
+}

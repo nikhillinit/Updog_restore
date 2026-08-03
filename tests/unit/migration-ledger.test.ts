@@ -59,6 +59,7 @@ const expectedJournaledDriftPatchFiles = [
   '0046_internal_economics_certification.sql',
   '0047_internal_economics_linkage.sql',
   '0048_quarterly_review_workflow.sql',
+  '0049_kpi_observations.sql',
 ].sort();
 
 afterEach(() => {
