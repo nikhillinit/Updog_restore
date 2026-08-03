@@ -8,6 +8,10 @@ const fundScopeState = vi.hoisted(() => ({
   enforceProvidedFundScope: vi.fn(async (_req: Request, _res: Response, _fundId: number) => true),
 }));
 
+const evidenceService = vi.hoisted(() => ({
+  createTaskEvidenceLink: vi.fn(),
+}));
+
 const dbState = vi.hoisted(() => {
   const state = {
     insertResult: [] as unknown[],
@@ -52,7 +56,27 @@ vi.mock('../../../server/lib/auth/provided-fund-scope', () => ({
 
 vi.mock('../../../server/db', () => ({ db: dbState.db }));
 
+vi.mock('../../../server/services/operating-objects/task-evidence-link-service', () => {
+  class MockTaskEvidenceLinkServiceError extends Error {
+    readonly status: number;
+    constructor(
+      readonly statusCode: number,
+      readonly code: string,
+      message: string
+    ) {
+      super(message);
+      this.status = statusCode;
+    }
+  }
+  return {
+    TaskEvidenceLinkServiceError: MockTaskEvidenceLinkServiceError,
+    createTaskEvidenceLink: evidenceService.createTaskEvidenceLink,
+  };
+});
+
 import tasksRouter from '../../../server/routes/operating-object-tasks';
+import { IdempotentCommandError } from '../../../server/lib/idempotent-command';
+import { TaskEvidenceLinkServiceError } from '../../../server/services/operating-objects/task-evidence-link-service';
 
 function makeApp() {
   const app = express();
@@ -389,5 +413,146 @@ describe('operating-object tasks PATCH route', () => {
       .set('If-Match', etagFor('1'))
       .send({ title: 'x' });
     expect(res.status).toBe(404);
+  });
+});
+
+describe('operating-object task evidence POST route', () => {
+  const publicLink = {
+    contractVersion: 'task-evidence-link/1.0.0',
+    linkId: 31,
+    fundId: 1,
+    taskId: 10,
+    target: { kind: 'analysis_reference', id: 11 },
+    createdAt: '2026-08-01T12:00:00.000Z',
+  } as const;
+
+  beforeEach(() => {
+    fundScopeState.enforceProvidedFundScope.mockReset();
+    fundScopeState.enforceProvidedFundScope.mockResolvedValue(true);
+    evidenceService.createTaskEvidenceLink.mockReset();
+    evidenceService.createTaskEvidenceLink.mockResolvedValue({
+      evidenceLink: publicLink,
+      replayed: false,
+    });
+  });
+
+  it.each([
+    ['/api/funds/01/tasks/10/evidence-links', 'Invalid fund ID'],
+    ['/api/funds/1/tasks/01/evidence-links', 'Invalid task ID'],
+  ])('rejects non-canonical path %s', async (path, error) => {
+    const response = await request(makeApp())
+      .post(path)
+      .set('Idempotency-Key', 'evidence-1')
+      .send({ target: { kind: 'analysis_reference', id: 11 } });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe(error);
+    expect(evidenceService.createTaskEvidenceLink).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 before target lookup when request-fund access is missing', async () => {
+    denyOnce();
+    const response = await request(makeApp())
+      .post('/api/funds/2/tasks/10/evidence-links')
+      .set('Idempotency-Key', 'evidence-1')
+      .send({ target: { kind: 'analysis_reference', id: 11 } });
+
+    expect(response.status).toBe(403);
+    expect(evidenceService.createTaskEvidenceLink).not.toHaveBeenCalled();
+  });
+
+  it('requires and validates Idempotency-Key', async () => {
+    const missing = await request(makeApp())
+      .post('/api/funds/1/tasks/10/evidence-links')
+      .send({ target: { kind: 'analysis_reference', id: 11 } });
+    const malformed = await request(makeApp())
+      .post('/api/funds/1/tasks/10/evidence-links')
+      .set('Idempotency-Key', 'bad key')
+      .send({ target: { kind: 'analysis_reference', id: 11 } });
+
+    expect(missing.status).toBe(428);
+    expect(missing.body.error).toBe('IDEMPOTENCY_KEY_REQUIRED');
+    expect(malformed.status).toBe(400);
+    expect(malformed.body.error).toBe('INVALID_IDEMPOTENCY_KEY');
+  });
+
+  it.each([
+    {},
+    { target: { kind: 'analysis_draft', id: 11 } },
+    { target: { kind: 'analysis_reference', id: 0 } },
+    { target: { kind: 'analysis_reference', id: 11 }, extra: true },
+  ])('rejects invalid strict evidence body %#', async (body) => {
+    const response = await request(makeApp())
+      .post('/api/funds/1/tasks/10/evidence-links')
+      .set('Idempotency-Key', 'evidence-1')
+      .send(body);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('INVALID_TASK_EVIDENCE_LINK_BODY');
+    expect(evidenceService.createTaskEvidenceLink).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ kind: 'analysis_reference', id: 11 }, 201],
+    [{ kind: 'internal_economics_run', id: 12 }, 201],
+  ] as const)('creates target $kind with strict response', async (target, status) => {
+    evidenceService.createTaskEvidenceLink.mockResolvedValue({
+      evidenceLink: { ...publicLink, target },
+      replayed: false,
+    });
+
+    const response = await request(makeApp())
+      .post('/api/funds/1/tasks/10/evidence-links')
+      .set('Idempotency-Key', ' evidence-1 ')
+      .send({ target });
+
+    expect(response.status).toBe(status);
+    expect(response.body).toEqual({ ...publicLink, target });
+    expect(response.headers['location']).toBeUndefined();
+    expect(evidenceService.createTaskEvidenceLink).toHaveBeenCalledWith({
+      fundId: 1,
+      taskId: 10,
+      target,
+      actorId: null,
+      idempotencyKey: 'evidence-1',
+    });
+  });
+
+  it('returns 200 for identical replay', async () => {
+    evidenceService.createTaskEvidenceLink.mockResolvedValue({
+      evidenceLink: publicLink,
+      replayed: true,
+    });
+
+    const response = await request(makeApp())
+      .post('/api/funds/1/tasks/10/evidence-links')
+      .set('Idempotency-Key', 'evidence-1')
+      .send({ target: publicLink.target });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(publicLink);
+  });
+
+  it.each([
+    [
+      new TaskEvidenceLinkServiceError(404, 'EVIDENCE_TARGET_NOT_FOUND', 'Target not found.'),
+      404,
+      'EVIDENCE_TARGET_NOT_FOUND',
+    ],
+    [
+      new IdempotentCommandError(409, 'IDEMPOTENCY_KEY_REUSE', 'Key conflict.'),
+      409,
+      'IDEMPOTENCY_KEY_REUSE',
+    ],
+  ] as const)('maps typed service failures', async (error, status, code) => {
+    evidenceService.createTaskEvidenceLink.mockRejectedValue(error);
+
+    const response = await request(makeApp())
+      .post('/api/funds/1/tasks/10/evidence-links')
+      .set('Idempotency-Key', 'evidence-1')
+      .send({ target: publicLink.target });
+
+    expect(response.status).toBe(status);
+    expect(response.body.error).toBe(code);
   });
 });

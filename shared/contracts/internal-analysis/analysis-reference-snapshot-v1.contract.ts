@@ -267,6 +267,12 @@ export const AnalysisDraftCreateRequestSchema = z
 
 export const AnalysisDraftRefreshRequestSchema = z.object({}).strict();
 
+export const AnalysisDraftEconomicsReferencePatchRequestSchema = z
+  .object({
+    economicsReferenceId: PositiveIntSchema.nullable(),
+  })
+  .strict();
+
 export const AnalysisDraftSaveRequestSchema = z
   .object({
     /**
@@ -333,6 +339,9 @@ export type AnalysisDraftV1 = z.infer<typeof AnalysisDraftV1Schema>;
 export type AnalysisReferenceV1 = z.infer<typeof AnalysisReferenceV1Schema>;
 export type AnalysisRevisionEventV1 = z.infer<typeof AnalysisRevisionEventV1Schema>;
 export type AnalysisDraftCreateRequest = z.output<typeof AnalysisDraftCreateRequestSchema>;
+export type AnalysisDraftEconomicsReferencePatchRequest = z.infer<
+  typeof AnalysisDraftEconomicsReferencePatchRequestSchema
+>;
 export type AnalysisDraftSaveRequest = z.output<typeof AnalysisDraftSaveRequestSchema>;
 export type QuarterlyDraftRunRequest = z.infer<typeof QuarterlyDraftRunRequestSchema>;
 export type AnalysisDraftListResponse = z.infer<typeof AnalysisDraftListResponseSchema>;

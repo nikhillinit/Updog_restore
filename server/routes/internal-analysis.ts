@@ -23,6 +23,7 @@ import rateLimit from 'express-rate-limit';
 import { toNumber } from '@shared/number';
 import {
   AnalysisDraftCreateRequestSchema,
+  AnalysisDraftEconomicsReferencePatchRequestSchema,
   AnalysisDraftSaveRequestSchema,
   AnalysisPeriodSchema,
   QuarterlyDraftRunRequestSchema,
@@ -58,6 +59,7 @@ import {
   createDraftForPeriod,
   listReferences,
   planQuarterlyDrafts,
+  replaceDraftEconomicsReference,
   refreshDraft,
   saveDraft,
   startCorrectionDraft,
@@ -247,6 +249,49 @@ router.post(
     } catch (error) {
       if (respondToTypedError(error, res)) return undefined;
       routeLog.error({ err: error, fundId }, 'Failed to create analysis draft');
+      throw error;
+    }
+  })
+);
+
+router.patch(
+  '/funds/:fundId/internal-analysis/drafts/:draftId/economics-reference',
+  writeLimiter,
+  requireAuth(),
+  validateFundIdParam,
+  requireFundAccess,
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = fundIdOf(req);
+    const draftId = Number(req.params['draftId']);
+    if (!Number.isInteger(draftId) || draftId < 1) {
+      return res.status(400).json({ error: 'Invalid parameter', message: 'Invalid draftId' });
+    }
+
+    try {
+      const current = await requireFreshDraft(req, fundId, draftId);
+      const parsed = AnalysisDraftEconomicsReferencePatchRequestSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: 'invalid_analysis_economics_reference_request',
+          message: 'Invalid analysis economics-reference request',
+          details: parsed.error.flatten(),
+        });
+      }
+
+      const updated = await replaceDraftEconomicsReference(createAnalysisCheckpointPorts(), {
+        fundId,
+        draftId,
+        expectedVersion: current.version,
+        economicsReferenceId: parsed.data.economicsReferenceId,
+      });
+      setETagHeaders(res, draftETag(updated));
+      return res.json({ draft: toDraftContract(updated) });
+    } catch (error) {
+      if (respondToTypedError(error, res)) return undefined;
+      routeLog.error(
+        { err: error, fundId, draftId },
+        'Failed to replace analysis draft economics reference'
+      );
       throw error;
     }
   })

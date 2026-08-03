@@ -39,6 +39,7 @@ import {
   internalAnalysisReferences,
   internalAnalysisRevisionEvents,
 } from '../../../shared/schema/internal-analysis';
+import { internalLpEconomicsRuns } from '../../../shared/schema/internal-economics';
 import { jobOutbox, type JobOutbox } from '@shared/schema';
 import { db } from '../../db';
 import {
@@ -219,6 +220,12 @@ export interface AnalysisCheckpointPorts {
     draftId: number;
     expectedVersion: number;
     basis: RebuiltBasis;
+  }): Promise<DraftRecord>;
+  replaceDraftEconomicsReference(input: {
+    fundId: number;
+    draftId: number;
+    expectedVersion: number;
+    economicsReferenceId: number | null;
   }): Promise<DraftRecord>;
   /**
    * Insert the reference AND close its draft atomically, under the draft's
@@ -409,12 +416,45 @@ export async function refreshDraft(
       knowledgeCutoff: basis.knowledgeCutoff.toISOString(),
       financialFactsSnapshotId: basis.financialFactsSnapshotId,
       forecastFundSnapshotId: basis.forecastFundSnapshotId,
+      economicsReferenceCleared: draft.economicsReferenceId !== null,
       version: refreshed.version,
     },
     actorId: input.actorId,
   });
 
   return refreshed;
+}
+
+export async function replaceDraftEconomicsReference(
+  ports: AnalysisCheckpointPorts,
+  input: {
+    fundId: number;
+    draftId: number;
+    expectedVersion: number;
+    economicsReferenceId: number | null;
+  }
+): Promise<DraftRecord> {
+  const draft = await ports.getDraftById(input.fundId, input.draftId);
+  if (draft === null) {
+    throw new AnalysisCheckpointServiceError(404, 'DRAFT_NOT_FOUND', 'Analysis draft not found.');
+  }
+  if (draft.savedAt !== null) {
+    throw new AnalysisCheckpointServiceError(
+      409,
+      'DRAFT_ALREADY_SAVED',
+      'A saved draft is immutable. Start a new draft from its reference to correct it.'
+    );
+  }
+  if (draft.version !== input.expectedVersion) {
+    throw new AnalysisCheckpointServiceError(
+      412,
+      'DRAFT_VERSION_CONFLICT',
+      'The draft changed since it was read.',
+      { expectedVersion: input.expectedVersion, currentVersion: draft.version }
+    );
+  }
+
+  return ports.replaceDraftEconomicsReference(input);
 }
 
 /** The components actually pinned on a draft, paired with their persisted basis. */
@@ -789,6 +829,7 @@ export function createAnalysisCheckpointPorts(database: Database = db): Analysis
           knowledgeCutoff: input.basis.knowledgeCutoff,
           financialFactsSnapshotId: input.basis.financialFactsSnapshotId,
           forecastFundSnapshotId: input.basis.forecastFundSnapshotId,
+          economicsReferenceId: null,
           version: sql`${internalAnalysisDrafts.version} + 1`,
           updatedAt: new Date(),
         })
@@ -812,6 +853,88 @@ export function createAnalysisCheckpointPorts(database: Database = db): Analysis
         );
       }
       return toDraftRecord(row);
+    },
+
+    async replaceDraftEconomicsReference(input) {
+      if (input.economicsReferenceId !== null) {
+        const [run] = await database
+          .select({ runState: internalLpEconomicsRuns.runState })
+          .from(internalLpEconomicsRuns)
+          .where(
+            and(
+              eq(internalLpEconomicsRuns.id, input.economicsReferenceId),
+              eq(internalLpEconomicsRuns.fundId, input.fundId)
+            )
+          )
+          .limit(1);
+
+        if (!run) {
+          throw new AnalysisCheckpointServiceError(
+            404,
+            'ECONOMICS_RUN_NOT_FOUND',
+            'Economics run not found.'
+          );
+        }
+        if (run.runState !== 'completed') {
+          throw new AnalysisCheckpointServiceError(
+            409,
+            'ECONOMICS_RUN_NOT_COMPLETED',
+            'Only completed economics runs can be attached.'
+          );
+        }
+      }
+
+      const updated = await database
+        .update(internalAnalysisDrafts)
+        .set({
+          economicsReferenceId: input.economicsReferenceId,
+          version: sql`${internalAnalysisDrafts.version} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(internalAnalysisDrafts.id, input.draftId),
+            eq(internalAnalysisDrafts.fundId, input.fundId),
+            eq(internalAnalysisDrafts.version, input.expectedVersion),
+            isNull(internalAnalysisDrafts.savedAt)
+          )
+        )
+        .returning();
+
+      const row = updated[0];
+      if (row) return toDraftRecord(row);
+
+      const [currentRow] = await database
+        .select()
+        .from(internalAnalysisDrafts)
+        .where(
+          and(
+            eq(internalAnalysisDrafts.id, input.draftId),
+            eq(internalAnalysisDrafts.fundId, input.fundId)
+          )
+        )
+        .limit(1);
+      if (!currentRow) {
+        throw new AnalysisCheckpointServiceError(
+          404,
+          'DRAFT_NOT_FOUND',
+          'Analysis draft not found.'
+        );
+      }
+      const current = toDraftRecord(currentRow);
+      if (current.savedAt !== null) {
+        throw new AnalysisCheckpointServiceError(
+          409,
+          'DRAFT_ALREADY_SAVED',
+          'A saved draft is immutable. Start a new draft from its reference to correct it.'
+        );
+      }
+      throw new AnalysisCheckpointServiceError(
+        412,
+        'DRAFT_VERSION_CONFLICT',
+        'The draft changed since it was read.',
+        { expectedVersion: input.expectedVersion, currentVersion: current.version }
+      );
     },
 
     async rebuildBasis(input) {
@@ -891,8 +1014,20 @@ export function createAnalysisCheckpointPorts(database: Database = db): Analysis
         if (typeof raw === 'number' && Number.isInteger(raw)) return raw;
         return null;
       }
-      // Waves E/F have not landed: a pinned reserve or economics run cannot have a
-      // readable basis yet, so it can only ever be reported as unproven.
+      if (input.component === 'economics') {
+        const rows = await database
+          .select({ factsSnapshotId: internalLpEconomicsRuns.factsSnapshotId })
+          .from(internalLpEconomicsRuns)
+          .where(
+            and(
+              eq(internalLpEconomicsRuns.id, input.id),
+              eq(internalLpEconomicsRuns.fundId, input.fundId)
+            )
+          )
+          .limit(1);
+        return rows[0]?.factsSnapshotId ?? null;
+      }
+      // Reserve linkage has not landed, so its basis remains unproven.
       return null;
     },
 

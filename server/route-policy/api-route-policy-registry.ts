@@ -1887,6 +1887,11 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
         'Create a manual-period draft; quarterly drafts come from the job_outbox planner.',
       ],
       [
+        'PATCH',
+        '/api/funds/:fundId/internal-analysis/drafts/:draftId/economics-reference',
+        'Attach or clear one completed same-fund economics run under the draft If-Match.',
+      ],
+      [
         'POST',
         '/api/funds/:fundId/internal-analysis/drafts/:draftId/refresh',
         'Advance the cutoff and repin every consumer from ONE facts snapshot (D6); rotates the ETag.',
@@ -2064,6 +2069,7 @@ export const COMMON_API_ROUTE_POLICY_IDS = {
     'api:get:/api/funds/:fundId/internal-analysis/drafts',
     'api:get:/api/funds/:fundId/internal-analysis/drafts/:draftId',
     'api:post:/api/funds/:fundId/internal-analysis/drafts',
+    'api:patch:/api/funds/:fundId/internal-analysis/drafts/:draftId/economics-reference',
     'api:post:/api/funds/:fundId/internal-analysis/drafts/:draftId/refresh',
     'api:post:/api/funds/:fundId/internal-analysis/drafts/:draftId/save',
     'api:get:/api/funds/:fundId/internal-analysis/references',
