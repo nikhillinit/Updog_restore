@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-07-10
+last_updated: 2026-08-04
 ---
 
 # Architecture Decision Records (ADRs)
@@ -26,30 +26,31 @@ this file is the deep-dive.
 
 ## Index
 
-| ADR                                                 | Title                                                        | Status      |
-| --------------------------------------------------- | ------------------------------------------------------------ | ----------- |
-| [0001](0001-evaluator-metrics.md)                   | Evaluator Metrics for AI Agents                              | Accepted    |
-| [0002](0002-token-budgeting.md)                     | Token Budgeting Strategy                                     | Accepted    |
-| [0003](0003-streaming-architecture.md)              | Streaming Architecture for Long-Running Operations           | Accepted    |
-| [004](ADR-004-waterfall-names.md)                   | Waterfall Distribution Names                                 | Accepted    |
-| [005](ADR-005-xirr-excel-parity.md)                 | XIRR Excel Parity                                            | Accepted    |
-| [006](ADR-006-fee-calculation-standards.md)         | Fee Calculation Standards                                    | Accepted    |
-| [007](ADR-007-exit-recycling-policy.md)             | Exit Recycling Policy                                        | Accepted    |
-| [008](ADR-008-capital-allocation-policy.md)         | Capital Allocation Policy                                    | Accepted    |
-| [009](ADR-009-RESERVED.md)                          | Reserved                                                     | Reserved    |
-| [010](ADR-010-xirr-day-count-and-bounds.md)         | XIRR Day-Count and Bounds Reconciliation                     | Accepted    |
-| [011](ADR-011-decimal-string-api-convention.md)     | Decimal-String API Convention for Money Fields               | Accepted    |
-| [013](ADR-013-scenario-comparison-activation.md)    | Scenario Comparison Activation                               | Superseded  |
-| [014](ADR-014-snapshot-governance.md)               | Snapshot Governance                                          | Accepted    |
-| [015](ADR-015-XIRR-BOUNDED-RATES.md)                | XIRR Bounded Rate Strategy                                   | Accepted    |
-| [017](ADR-017-monte-carlo-validation-strategy.md)   | Monte Carlo Validation Strategy                              | Accepted    |
-| [018](ADR-018-stage-normalization-v2.md)            | Typed Stage Normalization & Statistical Monte Carlo Testing  | Implemented |
-| [019](ADR-019-mem0-integration.md)                  | mem0 Integration for AI Agent Memory Management              | Proposed    |
-| [020](ADR-020-analysis-cohort-boundary.md)          | Analysis Cohort Boundary                                     | Accepted    |
-| [021](ADR-021-runtime-authority.md)                 | Runtime Authority for Contract-Integrity Work                | Accepted    |
-| [022](ADR-022-fund-scenario-architecture.md)        | Fund-Results Scenario Architecture                           | Implemented |
-| [023](ADR-023-investment-event-persistence.md)      | Investment Event Persistence Backbone (Rounds First Tranche) | Accepted    |
-| [033](ADR-033-marginal-next-dollar-reserve-moic.md) | Marginal Next-Dollar Reserve MOIC Model                      | Accepted    |
+| ADR                                                       | Title                                                        | Status      |
+| --------------------------------------------------------- | ------------------------------------------------------------ | ----------- |
+| [0001](0001-evaluator-metrics.md)                         | Evaluator Metrics for AI Agents                              | Accepted    |
+| [0002](0002-token-budgeting.md)                           | Token Budgeting Strategy                                     | Accepted    |
+| [0003](0003-streaming-architecture.md)                    | Streaming Architecture for Long-Running Operations           | Accepted    |
+| [004](ADR-004-waterfall-names.md)                         | Waterfall Distribution Names                                 | Accepted    |
+| [005](ADR-005-xirr-excel-parity.md)                       | XIRR Excel Parity                                            | Accepted    |
+| [006](ADR-006-fee-calculation-standards.md)               | Fee Calculation Standards                                    | Accepted    |
+| [007](ADR-007-exit-recycling-policy.md)                   | Exit Recycling Policy                                        | Accepted    |
+| [008](ADR-008-capital-allocation-policy.md)               | Capital Allocation Policy                                    | Accepted    |
+| [009](ADR-009-RESERVED.md)                                | Reserved                                                     | Reserved    |
+| [010](ADR-010-xirr-day-count-and-bounds.md)               | XIRR Day-Count and Bounds Reconciliation                     | Accepted    |
+| [011](ADR-011-decimal-string-api-convention.md)           | Decimal-String API Convention for Money Fields               | Accepted    |
+| [013](ADR-013-scenario-comparison-activation.md)          | Scenario Comparison Activation                               | Superseded  |
+| [014](ADR-014-snapshot-governance.md)                     | Snapshot Governance                                          | Accepted    |
+| [015](ADR-015-XIRR-BOUNDED-RATES.md)                      | XIRR Bounded Rate Strategy                                   | Accepted    |
+| [017](ADR-017-monte-carlo-validation-strategy.md)         | Monte Carlo Validation Strategy                              | Accepted    |
+| [018](ADR-018-stage-normalization-v2.md)                  | Typed Stage Normalization & Statistical Monte Carlo Testing  | Implemented |
+| [019](ADR-019-mem0-integration.md)                        | mem0 Integration for AI Agent Memory Management              | Proposed    |
+| [020](ADR-020-analysis-cohort-boundary.md)                | Analysis Cohort Boundary                                     | Accepted    |
+| [021](ADR-021-runtime-authority.md)                       | Runtime Authority for Contract-Integrity Work                | Accepted    |
+| [022](ADR-022-fund-scenario-architecture.md)              | Fund-Results Scenario Architecture                           | Implemented |
+| [023](ADR-023-investment-event-persistence.md)            | Investment Event Persistence Backbone (Rounds First Tranche) | Accepted    |
+| [033](ADR-033-marginal-next-dollar-reserve-moic.md)       | Marginal Next-Dollar Reserve MOIC Model                      | Accepted    |
+| [070](ADR-070-cashless-gp-commitments-and-fee-waivers.md) | Cashless GP Commitments and Fee Waivers                      | Accepted    |
 
 ## What is an ADR?
 

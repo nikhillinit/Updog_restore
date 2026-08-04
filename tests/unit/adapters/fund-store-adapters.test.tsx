@@ -36,6 +36,7 @@ const baseState: Parameters<typeof fundStoreToCreateV1>[0] = {
   fundLife: 10,
   investmentPeriod: 5,
   gpCommitment: 2_500_000,
+  fundedFromFeesPct: 0,
   lpClasses: [],
   lps: [],
   stages: [{ id: 'stg-1', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
@@ -92,6 +93,7 @@ const hydrationDefaults = {
   allowFutureRecycling: false,
   feeProfiles: [],
   fundExpenses: [],
+  fundedFromFeesPct: 0,
 };
 
 describe('fundStoreToCreateV1', () => {
@@ -177,6 +179,37 @@ describe('fundStoreToDraftWriteV1', () => {
     expect(parsed.success).toBe(true);
   });
 
+  it('preserves cashless GP commitment percentage through save, load, and finalize', () => {
+    const state = { ...baseState, fundedFromFeesPct: 0.4 };
+
+    const draft = fundStoreToDraftWriteV1(state);
+    expect(draft.fundedFromFeesPct).toBe(0.4);
+
+    const hydrated = fundDraftWriteV1ToStoreHydrationPatch(draft, hydrationDefaults);
+    expect(hydrated.fundedFromFeesPct).toBe(0.4);
+
+    const finalized = fundStoreToFinalizeV1(state);
+    expect(finalized.fundedFromFeesPct).toBe(0.4);
+    expect(FundFinalizeV1Schema.safeParse(finalized).success).toBe(true);
+  });
+
+  it('hydrates an omitted cashless GP commitment percentage as zero', () => {
+    const hydrated = fundDraftWriteV1ToStoreHydrationPatch(
+      { fundName: 'Existing Fund' },
+      hydrationDefaults
+    );
+
+    expect(hydrated.fundedFromFeesPct).toBe(0);
+  });
+
+  it('does not materialize the zero default when an old draft is hydrated and saved', () => {
+    const oldDraft = { fundName: 'Existing Fund' };
+    const hydrated = fundDraftWriteV1ToStoreHydrationPatch(oldDraft, hydrationDefaults);
+    const saved = fundStoreToDraftWriteV1({ ...baseState, ...hydrated });
+
+    expect(saved.fundedFromFeesPct).toBeUndefined();
+  });
+
   it('derives economics assumptions while preserving legacy draft fields', () => {
     const result = fundStoreToDraftWriteV1(
       {
@@ -248,9 +281,9 @@ describe('fundStoreToDraftWriteV1', () => {
 describe('fundStoreToFinalizeV1', () => {
   it('requires and preserves the owner-authored model inputs date', () => {
     expect(fundStoreToFinalizeV1(baseState).modelInputsAsOfDate).toBe('2026-06-30');
-    expect(() =>
-      fundStoreToFinalizeV1({ ...baseState, modelInputsAsOfDate: undefined })
-    ).toThrow('Model inputs as-of date is required before publishing');
+    expect(() => fundStoreToFinalizeV1({ ...baseState, modelInputsAsOfDate: undefined })).toThrow(
+      'Model inputs as-of date is required before publishing'
+    );
   });
 
   it('includes authoritative draftFundId when the server draft is ready', () => {

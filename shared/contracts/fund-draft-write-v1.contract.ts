@@ -213,6 +213,8 @@ export const FundDraftWriteV1Schema = z
     fundLife: z.number().positive().optional(),
     investmentPeriod: z.number().positive().optional(),
     gpCommitment: z.number().optional(),
+    /** Fraction of GP commitment satisfied through non-cash fee-funded contribution. */
+    fundedFromFeesPct: z.number().min(0).max(1).optional(),
 
     // Capital Structure
     lpClasses: uniqueIds(z.array(LPClassSchema), 'lpClasses').optional(),

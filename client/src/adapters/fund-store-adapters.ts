@@ -28,6 +28,7 @@ type FundStateSlice = Pick<
   | 'fundLife'
   | 'investmentPeriod'
   | 'gpCommitment'
+  | 'fundedFromFeesPct'
   | 'lpClasses'
   | 'lps'
   | 'stages'
@@ -75,6 +76,7 @@ type DraftHydrationDefaults = Pick<
   | 'feeProfiles'
   | 'fundExpenses'
   | 'economicsAssumptions'
+  | 'fundedFromFeesPct'
 >;
 
 type DraftLPClass = NonNullable<FundDraftWriteV1['lpClasses']>[number];
@@ -347,6 +349,9 @@ export function fundStoreToDraftWriteV1(
   if (state.fundLife != null) draft.fundLife = state.fundLife;
   if (state.investmentPeriod != null) draft.investmentPeriod = state.investmentPeriod;
   if (state.gpCommitment != null) draft.gpCommitment = state.gpCommitment;
+  if (state.fundedFromFeesPct !== 0) {
+    draft.fundedFromFeesPct = state.fundedFromFeesPct;
+  }
 
   // Capital Structure
   if (state.lpClasses.length > 0) draft.lpClasses = state.lpClasses;
@@ -433,6 +438,7 @@ export function fundDraftWriteV1ToStoreHydrationPatch(
     ...spreadIfDefined('fundLife', draft.fundLife),
     ...spreadIfDefined('investmentPeriod', draft.investmentPeriod),
     ...spreadIfDefined('gpCommitment', draft.gpCommitment),
+    fundedFromFeesPct: draft.fundedFromFeesPct ?? defaults.fundedFromFeesPct,
     ...spreadIfDefined('waterfallType', draft.waterfallType ?? defaults.waterfallType),
     ...spreadIfDefined('recyclingEnabled', draft.recyclingEnabled ?? defaults.recyclingEnabled),
     ...spreadIfDefined('recyclingType', draft.recyclingType ?? defaults.recyclingType),
@@ -488,6 +494,9 @@ export function fundStoreToFinalizeV1(
   if (state.fundLife != null) result.fundLife = state.fundLife;
   if (state.investmentPeriod != null) result.investmentPeriod = state.investmentPeriod;
   if (state.gpCommitment != null) result.gpCommitment = state.gpCommitment;
+  if (state.fundedFromFeesPct !== 0) {
+    result.fundedFromFeesPct = state.fundedFromFeesPct;
+  }
 
   // Capital Structure
   if (state.lpClasses.length > 0) result.lpClasses = state.lpClasses;

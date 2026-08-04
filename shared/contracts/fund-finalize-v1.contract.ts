@@ -90,6 +90,8 @@ export const FundFinalizeV1Schema = z
     investmentPeriod: draftConfigFields.shape.investmentPeriod,
     /** GP commitment amount */
     gpCommitment: draftConfigFields.shape.gpCommitment,
+    /** Fraction of GP commitment satisfied through non-cash fee-funded contribution */
+    fundedFromFeesPct: draftConfigFields.shape.fundedFromFeesPct,
 
     // Capital Structure
     lpClasses: draftConfigFields.shape.lpClasses,

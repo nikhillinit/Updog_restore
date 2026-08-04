@@ -84,6 +84,20 @@ describe('PUT /api/funds/:id/draft validation', () => {
     expect(putRes.status).not.toBe(400);
   });
 
+  it('preserves cashless GP commitment percentage through save and load', async () => {
+    const putRes = await request(app).put('/api/funds/1/draft').send({
+      fundName: 'Cashless GP Fund',
+      gpCommitment: 2_000_000,
+      fundedFromFeesPct: 0.4,
+    });
+
+    expect(putRes.status).toBe(200);
+
+    const getRes = await request(app).get('/api/funds/1/draft');
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.config?.fundedFromFeesPct).toBe(0.4);
+  });
+
   it('rejects duplicate IDs in stage arrays', async () => {
     const putRes = await request(app)
       .put('/api/funds/1/draft')

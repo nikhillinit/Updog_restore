@@ -18,6 +18,7 @@ vi.mock('@/contexts/FundContext', () => ({
 }));
 
 const mockUpdateFundBasics = vi.fn();
+const mockUpdateCapitalStructure = vi.fn();
 const mockSetDraftFundId = vi.fn((fundId: number | null) => {
   mockFundState.draftFundId = fundId;
 });
@@ -36,6 +37,7 @@ const mockFundState = {
   fundLife: 10,
   investmentPeriod: 5,
   gpCommitment: 2_500_000,
+  fundedFromFeesPct: 0,
   lpClasses: [],
   lps: [],
   stages: [{ id: 'stg-1', name: 'Seed', graduate: 30, exit: 10, months: 18 }],
@@ -69,12 +71,14 @@ vi.mock('@/stores/useFundSelector', () => ({
   useFundAction: (
     selector: (actions: {
       updateFundBasics: typeof mockUpdateFundBasics;
+      updateCapitalStructure: typeof mockUpdateCapitalStructure;
       setDraftFundId: typeof mockSetDraftFundId;
       setDraftServerReady: typeof mockSetDraftServerReady;
     }) => unknown
   ) =>
     selector({
       updateFundBasics: mockUpdateFundBasics,
+      updateCapitalStructure: mockUpdateCapitalStructure,
       setDraftFundId: mockSetDraftFundId,
       setDraftServerReady: mockSetDraftServerReady,
     }),
@@ -119,6 +123,7 @@ describe('FundBasicsStep bootstrap identity', () => {
     mockNavigate.mockReset();
     mockSetCurrentFund.mockReset();
     mockUpdateFundBasics.mockReset();
+    mockUpdateCapitalStructure.mockReset();
     mockSetDraftFundId.mockClear();
     mockSetDraftServerReady.mockClear();
     mockFundState.fundName = 'Bootstrap Fund';
@@ -129,6 +134,7 @@ describe('FundBasicsStep bootstrap identity', () => {
     mockFundState.establishmentDate = '2026-01-15';
     mockFundState.fundLife = 10;
     mockFundState.investmentPeriod = 5;
+    mockFundState.fundedFromFeesPct = 0;
     mockFundState.draftFundId = null;
     mockFundState.draftServerReady = false;
     mockCreateFund.mockReset().mockResolvedValue({
@@ -171,6 +177,17 @@ describe('FundBasicsStep bootstrap identity', () => {
       );
       expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
     }, FULL_SUITE_WAIT_OPTIONS);
+  });
+
+  it('records cashless GP contribution as a percentage of GP commitment', async () => {
+    const user = userEvent.setup();
+    render(<FundBasicsStep />);
+
+    const input = screen.getByLabelText('Cashless GP Contribution');
+    await user.clear(input);
+    await user.type(input, '40');
+
+    expect(mockUpdateCapitalStructure).toHaveBeenLastCalledWith({ fundedFromFeesPct: 0.4 });
   });
 
   it('reuses an existing draft identity and saves it when the server snapshot is not ready yet', async () => {

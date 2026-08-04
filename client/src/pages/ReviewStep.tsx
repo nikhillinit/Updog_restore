@@ -77,6 +77,7 @@ export default function ReviewStep() {
   const carriedInterest = useFundSelector((s) => s.carriedInterest);
   const vintageYear = useFundSelector((s) => s.vintageYear);
   const fundLife = useFundSelector((s) => s.fundLife);
+  const fundedFromFeesPct = useFundSelector((s) => s.fundedFromFeesPct);
   const establishmentDate = useFundSelector((s) => s.establishmentDate);
   const modelInputsAsOfDate = useFundSelector((s) => s.modelInputsAsOfDate);
   const stages = useFundSelector((s) => s.stages);
@@ -85,6 +86,7 @@ export default function ReviewStep() {
   const _economicsDryRunRevision = useFundTuple((s) => [
     s.investmentPeriod,
     s.gpCommitment,
+    s.fundedFromFeesPct,
     s.waterfallTiers,
     s.recyclingType,
     s.recyclingCap,
@@ -160,6 +162,12 @@ export default function ReviewStep() {
             status: carriedInterest != null ? 'ok' : 'warning',
             stepNumber: 1,
           },
+          {
+            label: 'Cashless GP Contribution',
+            value: `${(fundedFromFeesPct * 100).toFixed(0)}%`,
+            status: 'ok',
+            stepNumber: 1,
+          },
         ],
       },
       {
@@ -199,6 +207,7 @@ export default function ReviewStep() {
     fundLife,
     managementFeeRate,
     carriedInterest,
+    fundedFromFeesPct,
     stages,
     waterfallType,
     recyclingEnabled,

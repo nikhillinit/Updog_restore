@@ -5,7 +5,53 @@ import {
   EconomicsInputValidationError,
   runEconomicsModel,
 } from '@shared/lib/economics/economics-engine';
+import { Decimal, roundCurrency, sum } from '@shared/lib/decimal-utils';
 import type { EconomicsFeeTierV1 } from '@shared/contracts/economics-v1.contract';
+
+const GP_COMMITMENT_TRUTH_CASE = {
+  fundSize: 100_000_000,
+  contractualGpCommitment: 10_000_000,
+  hurdleRate: 0.1,
+  grossMultiple: 2,
+  carryPct: 0.2,
+  feeRate: 0.1,
+} as const;
+
+const GP_COMMITMENT_SCENARIOS = [
+  {
+    name: 'full-cash',
+    fundedFromFeesPct: 0,
+    expectedGpReturnOfCapital: 10_000_000,
+    expectedGpPreferredReturn: 1_000_000,
+    expectedGpResidual: 7_200_000,
+    expectedGpInvestmentDistributions: 18_200_000,
+  },
+  {
+    name: 'partial-deemed',
+    fundedFromFeesPct: 0.25,
+    expectedGpReturnOfCapital: 7_500_000,
+    expectedGpPreferredReturn: 750_000,
+    expectedGpResidual: 7_020_000,
+    expectedGpInvestmentDistributions: 15_270_000,
+  },
+  {
+    name: 'fully-deemed',
+    fundedFromFeesPct: 1,
+    expectedGpReturnOfCapital: 0,
+    expectedGpPreferredReturn: 0,
+    expectedGpResidual: 6_480_000,
+    expectedGpInvestmentDistributions: 6_480_000,
+  },
+] as const;
+
+const GP_AGGREGATE_ROUNDING_CASE = {
+  fundSize: 1_000,
+  contractualGpCommitment: 100.004,
+  hurdleRate: 0.01,
+  grossMultiple: 1.31,
+  carryPct: 0.2,
+  feeRate: 0.000001,
+} as const;
 
 describe('GP economics engine', () => {
   it('calculates flat committed-capital management fees', () => {
@@ -168,6 +214,211 @@ describe('GP economics engine', () => {
     expect(result.annual[2]?.gpCommitmentCalls).toBe(0);
     expect(result.summary.totalGpCommitmentCalled).toBe(10_000_000);
     expect(result.checks.passed).toBe(true);
+  });
+
+  it('keeps explicit zero cashless GP commitment outputs identical to omission', () => {
+    const omitted = runEconomicsModel(baseDraft());
+    const explicitZero = runEconomicsModel(baseDraft({ fundedFromFeesPct: 0 }));
+
+    expect(explicitZero).toEqual(omitted);
+  });
+
+  it('excludes cashless GP commitment from calls while preserving period reconciliation', () => {
+    const result = runEconomicsModel(
+      baseDraft({
+        fundedFromFeesPct: 0.25,
+      })
+    );
+
+    expect(result.annual[0]?.lpCapitalCalls).toBe(9_000_000);
+    expect(result.annual[0]?.gpCommitmentCalls).toBe(750_000);
+    expect(result.annual[9]?.gpCommitmentCalls).toBe(750_000);
+    expect(result.summary.totalGpCommitmentCalled).toBe(7_500_000);
+    expect(result.checks.passed).toBe(true);
+  });
+
+  it.each(GP_COMMITMENT_SCENARIOS)(
+    'uses cash-only return-of-capital and preferred-return bases for $name GP commitment',
+    ({
+      fundedFromFeesPct,
+      expectedGpReturnOfCapital,
+      expectedGpPreferredReturn,
+      expectedGpResidual,
+      expectedGpInvestmentDistributions,
+    }) => {
+      const gpCashContribution =
+        GP_COMMITMENT_TRUTH_CASE.contractualGpCommitment * (1 - fundedFromFeesPct);
+      const gpDeemedContribution =
+        GP_COMMITMENT_TRUTH_CASE.contractualGpCommitment - gpCashContribution;
+      const lpCashContribution =
+        GP_COMMITMENT_TRUTH_CASE.fundSize - GP_COMMITMENT_TRUTH_CASE.contractualGpCommitment;
+      const cashReturnOfCapitalBase = lpCashContribution + gpCashContribution;
+      const cashPreferredReturn = cashReturnOfCapitalBase * GP_COMMITMENT_TRUTH_CASE.hurdleRate;
+      const grossExitProceeds = cashReturnOfCapitalBase * GP_COMMITMENT_TRUTH_CASE.grossMultiple;
+      const profitAfterCashHurdle =
+        grossExitProceeds - cashReturnOfCapitalBase - cashPreferredReturn;
+      const expectedLpCapitalCalls = roundCurrency(lpCashContribution);
+      const expectedGpCommitmentCalls = roundCurrency(gpCashContribution);
+      const expectedGrossExitProceeds = roundCurrency(grossExitProceeds);
+      const expectedFeesPaidToManager = roundCurrency(
+        GP_COMMITMENT_TRUTH_CASE.fundSize * GP_COMMITMENT_TRUTH_CASE.feeRate
+      );
+      const expectedGpDeemedContribution = roundCurrency(gpDeemedContribution);
+      const expectedGpCarryDistributed = roundCurrency(
+        profitAfterCashHurdle * GP_COMMITMENT_TRUTH_CASE.carryPct
+      );
+      // Annual output exposes the three GP waterfall tiers only as this aggregate. These
+      // independent fixture constants pin cash-only capital and preferred attribution while
+      // retaining full contractual ownership for residual investment profit.
+      expect(
+        sum([expectedGpReturnOfCapital, expectedGpPreferredReturn, expectedGpResidual]).toNumber()
+      ).toBe(expectedGpInvestmentDistributions);
+
+      const result = runEconomicsModel(gpCommitmentTruthCaseDraft(fundedFromFeesPct));
+      const row = result.annual[0];
+
+      if (!row) {
+        throw new Error('Expected one annual row for the GP commitment truth case');
+      }
+
+      expect(row.lpCapitalCalls).toBe(expectedLpCapitalCalls);
+      expect(row.gpCommitmentCalls).toBe(expectedGpCommitmentCalls);
+      expect(row.grossExitProceeds).toBe(expectedGrossExitProceeds);
+      expect(row.feesPaidToManager).toBe(expectedFeesPaidToManager);
+      expect(row.gpInvestmentDistributions).toBe(expectedGpInvestmentDistributions);
+      expect(row.gpCarryDistributed).toBe(expectedGpCarryDistributed);
+
+      const actualGpDeemedContribution = roundCurrency(
+        GP_COMMITMENT_TRUTH_CASE.contractualGpCommitment - row.gpCommitmentCalls
+      );
+      expect(actualGpDeemedContribution).toBe(expectedGpDeemedContribution);
+
+      if (fundedFromFeesPct === 1) {
+        // This fixture deliberately sets one year of actual fee income equal to the full
+        // deemed commitment; ADR-070 does not infer this equality for other fee profiles.
+        expect(row.feesPaidToManager).toBe(actualGpDeemedContribution);
+      } else if (fundedFromFeesPct === 0) {
+        expect(actualGpDeemedContribution).toBe(0);
+      }
+
+      if (gpDeemedContribution > 0) {
+        const carryIfDeemedAccruedReturnOfCapitalAndPref =
+          (grossExitProceeds -
+            GP_COMMITMENT_TRUTH_CASE.fundSize -
+            GP_COMMITMENT_TRUTH_CASE.fundSize * GP_COMMITMENT_TRUTH_CASE.hurdleRate) *
+          GP_COMMITMENT_TRUTH_CASE.carryPct;
+
+        expect(row.gpCarryDistributed).toBeGreaterThan(
+          roundCurrency(carryIfDeemedAccruedReturnOfCapitalAndPref)
+        );
+      }
+
+      expect(result.checks.passed).toBe(true);
+    }
+  );
+
+  it('rounds GP investment distributions once at the public aggregate boundary', () => {
+    const fundSize = new Decimal(GP_AGGREGATE_ROUNDING_CASE.fundSize);
+    const contractualGpCommitment = new Decimal(GP_AGGREGATE_ROUNDING_CASE.contractualGpCommitment);
+    const hurdleRate = new Decimal(GP_AGGREGATE_ROUNDING_CASE.hurdleRate);
+    const grossMultiple = new Decimal(GP_AGGREGATE_ROUNDING_CASE.grossMultiple);
+    const carryPct = new Decimal(GP_AGGREGATE_ROUNDING_CASE.carryPct);
+    const gpCashInvestmentShare = contractualGpCommitment.div(fundSize);
+    const rawGpReturnOfCapital = fundSize.times(gpCashInvestmentShare);
+    const rawGpPreferredReturn = fundSize.times(hurdleRate).times(gpCashInvestmentShare);
+    const profitAfterHurdle = fundSize
+      .times(grossMultiple)
+      .minus(fundSize)
+      .minus(fundSize.times(hurdleRate));
+    const rawGpResidual = profitAfterHurdle
+      .times(new Decimal(1).minus(carryPct))
+      .times(gpCashInvestmentShare);
+    const rawGpLeaves = [rawGpReturnOfCapital, rawGpPreferredReturn, rawGpResidual];
+
+    expect(rawGpLeaves.map((value) => value.toString())).toEqual([
+      '100.004',
+      '1.00004',
+      '24.00096',
+    ]);
+    // Leaf-first rounding would produce 100.00 + 1.00 + 24.00 = 125.00.
+    expect(sum(rawGpLeaves.map((value) => roundCurrency(value))).toNumber()).toBe(125);
+    const rawGpAggregate = sum(rawGpLeaves);
+    expect(rawGpAggregate.toString()).toBe('125.005');
+    expect(roundCurrency(rawGpAggregate)).toBe(125.01);
+
+    const result = runEconomicsModel(gpCommitmentTruthCaseDraft(0, GP_AGGREGATE_ROUNDING_CASE));
+
+    expect(result.annual[0]?.gpInvestmentDistributions).toBe(125.01);
+    expect(result.checks.passed).toBe(true);
+  });
+
+  it('keeps deemed GP commitment in the waterfall capital account', () => {
+    const result = runEconomicsModel(
+      baseDraft({
+        fundLife: 1,
+        investmentPeriod: 1,
+        fundedFromFeesPct: 1,
+        economicsAssumptions: {
+          ...baseAssumptions(),
+          timeline: {
+            fundLifeYears: 1,
+            period: 'annual',
+            vintageYear: 2026,
+          },
+          feeModel: {
+            source: 'legacy_fee_profiles',
+            defaultRate: GP_COMMITMENT_TRUTH_CASE.feeRate,
+            defaultBasis: 'committed_capital',
+          },
+          exitModel: {
+            mode: 'cohort',
+            cohort: {
+              exitDistributionByYear: [1],
+              grossMultiple: 2,
+              lossRatio: 0,
+            },
+          },
+          waterfallModel: {
+            ...baseAssumptions().waterfallModel,
+            hurdleRate: 0,
+            prefType: 'none',
+            prefCatchUp: false,
+            clawbackEnabled: false,
+          },
+        },
+      })
+    );
+
+    expect(result.annual[0]?.lpCapitalCalls).toBe(90_000_000);
+    expect(result.annual[0]?.gpCommitmentCalls).toBe(0);
+    expect(result.annual[0]?.gpCarryDistributed).toBe(18_000_000);
+    expect(result.checks.passed).toBe(true);
+  });
+
+  it('does not use cashless GP contribution to reduce called-capital fee bases', () => {
+    const assumptions: NonNullable<FundDraftWriteV1['economicsAssumptions']> = {
+      ...baseAssumptions(),
+      feeModel: {
+        source: 'economics_override',
+        tiers: [
+          {
+            id: 'called-fee',
+            name: 'Called capital fee',
+            rate: 0.02,
+            basis: 'called_capital_cumulative',
+            startYear: 1,
+          },
+        ],
+      },
+    };
+    const cash = runEconomicsModel(baseDraft({ economicsAssumptions: assumptions }));
+    const cashless = runEconomicsModel(
+      baseDraft({ economicsAssumptions: assumptions, fundedFromFeesPct: 0.25 })
+    );
+
+    expect(cashless.annual.map((row) => row.feesPaidToManager)).toEqual(
+      cash.annual.map((row) => row.feesPaidToManager)
+    );
   });
 
   it('rejects legacy hybrid waterfalls for economics P0', () => {
@@ -352,6 +603,65 @@ function baseDraft(overrides: Partial<FundDraftWriteV1> = {}): FundDraftWriteV1 
     economicsAssumptions: baseAssumptions(),
     ...overrides,
   };
+}
+
+function gpCommitmentTruthCaseDraft(
+  fundedFromFeesPct: number,
+  fixture: {
+    fundSize: number;
+    contractualGpCommitment: number;
+    hurdleRate: number;
+    grossMultiple: number;
+    carryPct: number;
+    feeRate: number;
+  } = GP_COMMITMENT_TRUTH_CASE
+): FundDraftWriteV1 {
+  const assumptions = baseAssumptions();
+
+  if (!assumptions.waterfallModel) {
+    throw new Error('Expected base economics assumptions to include a waterfall model');
+  }
+
+  return baseDraft({
+    fundSize: fixture.fundSize,
+    gpCommitment: fixture.contractualGpCommitment,
+    fundedFromFeesPct,
+    fundLife: 1,
+    investmentPeriod: 1,
+    economicsAssumptions: {
+      ...assumptions,
+      timeline: {
+        fundLifeYears: 1,
+        period: 'annual',
+        vintageYear: 2026,
+      },
+      feeModel: {
+        source: 'legacy_fee_profiles',
+        defaultRate: fixture.feeRate,
+        defaultBasis: 'committed_capital',
+      },
+      exitModel: {
+        mode: 'cohort',
+        cohort: {
+          exitDistributionByYear: [1],
+          grossMultiple: fixture.grossMultiple,
+          lossRatio: 0,
+        },
+      },
+      waterfallModel: {
+        ...assumptions.waterfallModel,
+        carryPct: fixture.carryPct,
+        hurdleRate: fixture.hurdleRate,
+        prefType: 'simple',
+        prefCatchUp: false,
+        clawbackEnabled: false,
+      },
+      gpCommitmentModel: {
+        commitmentAmount: fixture.contractualGpCommitment,
+        participatesInInvestmentReturns: true,
+      },
+    },
+  });
 }
 
 function baseAssumptions(): NonNullable<FundDraftWriteV1['economicsAssumptions']> {
