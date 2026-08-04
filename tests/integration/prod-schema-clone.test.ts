@@ -179,6 +179,7 @@ const QUARTERLY_REVIEW_WORKFLOW_MANIFEST_TABLES = [
   'quarterly_review_items',
   'quarterly_review_command_receipts',
 ] as const;
+const KPI_OBSERVATIONS_MANIFEST_TABLES = ['kpi_observations'] as const;
 const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'M1-cohort',
   'M2-fund-moic',
@@ -205,6 +206,7 @@ const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'internal-economics-certification',
   'internal-economics-linkage',
   'quarterly-review-workflow',
+  'kpi-observations',
 ] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
@@ -850,6 +852,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...INTERNAL_ECONOMICS_MANIFEST_TABLES,
         ...INTERNAL_ECONOMICS_LINKAGE_MANIFEST_TABLES,
         ...QUARTERLY_REVIEW_WORKFLOW_MANIFEST_TABLES,
+        ...KPI_OBSERVATIONS_MANIFEST_TABLES,
       ])
     );
 
