@@ -3,7 +3,7 @@ status: ACTIVE
 last_updated: 2026-08-03
 ---
 
-# ADR-035: Cashless GP Commitments and Fee Waivers
+# ADR-070: Cashless GP Commitments and Fee Waivers
 
 **Status:** Accepted **Date:** 2026-08-03 **Issue:**
 [#1314](https://github.com/nikhillinit/Updog_restore/issues/1314)
@@ -73,8 +73,9 @@ GPDeemedContribution_t
 ```
 
 Only the cash portion enters the fund cash ledger. The deemed portion remains in
-the GP capital account and preserves the GP's investment-return and waterfall
-ownership based on the full contractual commitment.
+the GP capital account. Full contractual investment-return and waterfall
+ownership applies to residual/profit participation; it does not give deemed
+capital a return-of-capital or preferred-return allocation.
 
 Period cash reconciliation is:
 
@@ -138,6 +139,70 @@ requirement. LP-only populations therefore require a versioned semantic. That
 work is tracked in
 [#1321](https://github.com/nikhillinit/Updog_restore/issues/1321).
 
+## Decision 4: Return of capital uses cash-contributed capital only
+
+The return-of-capital base includes only `LPCashContribution` and
+`GPCashContribution`. It excludes `GPDeemedContribution` entirely. The deemed
+portion is never repaid through a return-of-capital distribution, at any tier,
+under either waterfall basis.
+
+```text
+ReturnOfCapitalBase_t = LPCashContribution_t + GPCashContribution_t
+```
+
+**Confidence:** High. This follows from Decision 2's cash-conservation boundary
+and is not a new policy choice.
+
+## Decision 5: Preferred return accrues on cash-contributed capital only
+
+`GPDeemedContribution` never accrues preferred return and is excluded from the
+hurdle accrual base under both supported bases: European whole-fund and American
+deal-by-deal. The cash-only principle is basis-agnostic.
+
+Whether GP **cash** co-investment accrues preferred return pari passu with LP
+capital is explicitly out of scope. Many LPAs exclude GP capital from preferred
+return regardless of cashless mechanics because GP capital is compensated via
+carry. That question predates cashless GP commitments. This ADR neither resolves
+it nor recommends a treatment.
+
+The current economics engine already allocates preferred return to GP cash
+co-investment. Under that existing static ownership model, only the GP cash
+investment share participates. Preserving that behavior does not settle the
+broader LPA policy question above.
+
+## Decision 6: Clawback capital base and obligation are cash-only
+
+`GPDeemedContribution` does not count toward the capital base used to compute
+the LP-required floor or the fund-profit basis that sizes carry and clawback.
+
+`GPDeemedContribution` also may not satisfy a clawback obligation. Clawback is
+paid in cash or drawn from escrow or other security under
+`ClawbackPolicySchema.securityRequired`; it is never satisfied by writing down
+the deemed balance.
+
+This ruling is intentionally explicit because its failure direction is reversed
+from Decisions 4 and 5. Including deemed capital in the clawback capital base
+would shrink apparent profit and increase GP clawback exposure.
+
+**Confidence:** High for the obligation rule. Medium for the capital-base rule,
+because which capital pool sizes the clawback profit basis is a pre-existing,
+orthogonal question.
+
+## Capital taxonomy for issue #1320
+
+These are three distinct quantities. Downstream code uses exactly one per
+computation and never substitutes another.
+
+| Quantity                                  | Feeds                                                                                                                                                                                                                                                                                       |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| (i) Contractual GP commitment             | Sizing input only: multiplicand for the cash/deemed split, and the basis for GP ownership and profit-split percentage. Never directly a cash-flow, return-of-capital, preferred-return, or clawback input.                                                                                  |
+| (ii) GP cash contribution                 | Fund cash ledger and reconciliation; GP net IRR outflows; return-of-capital base (Decision 4); preferred-return accrual base if GP cash participates at all (Decision 5, orthogonal); clawback capital base (Decision 6a); sole GP-side source of cash to satisfy a clawback (Decision 6b). |
+| (iii) GP deemed (fee-funded) contribution | GP capital-account balance and GP ownership and carry-split percentage only. Never any cash-flow series, any IRR, the return-of-capital base, the preferred-return accrual base, or the clawback base or obligation.                                                                        |
+
+If #1320 needs "GP capital" for anything not listed above, the calculation is
+underspecified by this ADR and needs a new Decision, not a default to whichever
+quantity happens to be in scope.
+
 ## Canonical field and compatibility
 
 `fundedFromFeesPct` is the single canonical persisted ratio, from `0` through
@@ -158,6 +223,32 @@ Compatibility rules:
 
 Avoiding a draft-schema default is intentional: parsing an old draft must not
 change its serialized shape or configuration hash.
+
+### Strict waterfall-schema compatibility proof
+
+Adding `.strict()` to `GPCommitmentSchema` does not require a legacy-key shim
+because the waterfall-policy schema has no persistence or database write path.
+The production schema graph embeds `GPCommitmentSchema` only as `gpCommitment`
+inside `WaterfallPolicySchema`. A contract test imports `GPCommitmentSchema`
+directly to verify parsing behavior. `WaterfallPolicySchema` is consumed by
+`ExtendedFundModelInputsSchema` and by an evaluation-only AI harness; neither is
+a server or application persistence surface. `ExtendedFundModelInputs` otherwise
+appears only in its schema barrel, type-only example data, and the type-only
+client `schema-adapter`, which has no runtime importers. There are no
+server-side references and no database write path.
+
+On `main`, the legacy `fundedFromFees` key existed only in
+`shared/schemas/waterfall-policy.ts`,
+`shared/schemas/examples/standard-fund.ts`, and `docs/schemas/README.md`. This
+change updates all three. No persisted payload could therefore carry the legacy
+key, and no compatibility shim is required.
+
+Defaulting differs intentionally by boundary. `FundDraftWriteV1` keeps
+`fundedFromFeesPct` optional and does not materialize a default, preserving an
+old draft's serialized shape and configuration hash. Parsing an embedded
+`gpCommitment` through `GPCommitmentSchema` does materialize `new Decimal(0)`.
+That isolated waterfall-policy schema has no persistence path, so its parse-time
+default does not mutate stored drafts.
 
 ## Internal LP economics known defect
 

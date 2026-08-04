@@ -577,6 +577,7 @@ function allocateWaterfall(params: {
   unreturnedCapital: Decimal;
   prefBalance: Decimal;
   waterfall: NormalizedEconomicsConfig['waterfall'];
+  gpCashInvestmentShare: Decimal;
   gpShare: Decimal;
   gpParticipates: boolean;
   escrowBalance: Decimal;
@@ -587,6 +588,7 @@ function allocateWaterfall(params: {
     unreturnedCapital,
     prefBalance,
     waterfall,
+    gpCashInvestmentShare,
     gpShare,
     gpParticipates,
     escrowBalance,
@@ -596,11 +598,15 @@ function allocateWaterfall(params: {
   let remaining = distributableProceeds;
   const returnedCapital = Decimal.min(remaining, unreturnedCapital);
   remaining = remaining.minus(returnedCapital);
-  const capitalSplit = allocateInvestorAmount(returnedCapital, gpShare, gpParticipates);
+  const capitalSplit = allocateInvestorAmount(
+    returnedCapital,
+    gpCashInvestmentShare,
+    gpParticipates
+  );
 
   const prefPaid = Decimal.min(remaining, prefBalance);
   remaining = remaining.minus(prefPaid);
-  const prefSplit = allocateInvestorAmount(prefPaid, gpShare, gpParticipates);
+  const prefSplit = allocateInvestorAmount(prefPaid, gpCashInvestmentShare, gpParticipates);
 
   let gpCarry = new Decimal(0);
   if (waterfall.prefCatchUp && waterfall.catchUpRate > 0 && prefPaid.gt(0)) {
@@ -830,6 +836,9 @@ export function runEconomicsModel(input: FundDraftWriteV1): EconomicsResultV1 {
   const annualContractualCapitalCall = config.fundSize.div(config.fundLifeYears);
   const annualContractualGpCall = config.gpCommitmentAmount.div(config.fundLifeYears);
   const gpShare = config.gpCommitmentPct;
+  const gpCashInvestmentShare = totalInvestableCost.gt(0)
+    ? config.gpCashCommitmentAmount.div(totalInvestableCost)
+    : new Decimal(0);
   const reportingPeriods = buildReportingPeriods(config);
 
   let beginningCash = new Decimal(0);
@@ -930,6 +939,7 @@ export function runEconomicsModel(input: FundDraftWriteV1): EconomicsResultV1 {
       unreturnedCapital,
       prefBalance,
       waterfall: config.waterfall,
+      gpCashInvestmentShare,
       gpShare,
       gpParticipates: config.gpParticipatesInInvestmentReturns,
       escrowBalance,
