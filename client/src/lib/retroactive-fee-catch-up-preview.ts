@@ -97,6 +97,7 @@ function buildPreviewProfile(input: RetroactiveFeeCatchUpPreviewInput): FeeProfi
 function buildPreviewContext(currentMonth: number): FeeCalculationContext {
   return {
     committedCapital: NOMINAL_BASIS,
+    calledCapitalPeriod: NOMINAL_BASIS,
     calledCapitalCumulative: NOMINAL_BASIS,
     calledCapitalNetOfReturns: NOMINAL_BASIS,
     investedCapital: NOMINAL_BASIS,
@@ -141,7 +142,7 @@ export function previewRetroactiveFeeCatchUp(
     missedMonths,
     chargedMonths,
     cappedMonths: Math.max(0, missedMonths - chargedMonths),
-    monthlyPercentOfBasis: breakdown.monthlyFees.toNumber(),
+    monthlyPercentOfBasis: breakdown.recurringFees.toNumber(),
     catchUpPercentOfBasis: breakdown.retroactiveCatchUpFees.toNumber(),
   };
 }

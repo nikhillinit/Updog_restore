@@ -149,8 +149,8 @@ export class ConstructionForecastCalculator {
         (period) => period.managementFees
       ) as Decimal[];
 
-      const catchUpPeriods = feeBasisTimeline.periods.filter(
-        (period) => period.retroactiveCatchUpMonths > 0
+      const catchUpPeriods = feeBasisTimeline.periods.filter((period) =>
+        period.retroactiveCatchUpFees.gt(0)
       );
       feeAudit = {
         totalManagementFees: feeBasisTimeline.totalFees,

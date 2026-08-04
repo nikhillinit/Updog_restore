@@ -55,6 +55,7 @@ function makeContext(
 ): FeeCalculationContext {
   return {
     committedCapital: FUND_SIZE,
+    calledCapitalPeriod: new Decimal(0),
     calledCapitalCumulative: new Decimal(0),
     calledCapitalNetOfReturns: new Decimal(0),
     investedCapital: new Decimal(0),
@@ -105,6 +106,59 @@ describe('Retroactive fee catch-up - configuration and validation', () => {
       expect(message).not.toContain('carry');
     }
   });
+
+  it('fails closed when catch-up requires a period-flow basis without monthly history', () => {
+    const profile: FeeProfile = {
+      id: 'period-flow-catch-up',
+      name: 'Period-flow catch-up',
+      tiers: [
+        {
+          basis: 'called_capital_period',
+          annualRatePercent: ANNUAL_RATE,
+          startYear: 3,
+        },
+      ],
+      retroactiveFeeCatchUp: { enabled: true, accrualStartMonth: 0 },
+    };
+
+    const parsed = FeeProfileSchema.safeParse(profile);
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues).toContainEqual(
+        expect.objectContaining({
+          message:
+            'Retroactive fee catch-up requires historical monthly bases, which a period-flow basis does not provide',
+          path: ['retroactiveFeeCatchUp'],
+        })
+      );
+    }
+
+    expect(() =>
+      calculateManagementFeeBreakdown(
+        profile,
+        makeContext(24, { calledCapitalPeriod: new Decimal(10_000_000) })
+      )
+    ).toThrow(
+      'Retroactive fee catch-up requires historical monthly bases, which a period-flow basis does not provide'
+    );
+  });
+
+  it('keeps prospective-only period-flow fees available', () => {
+    const parsed = FeeProfileSchema.safeParse({
+      id: 'period-flow-prospective',
+      name: 'Period-flow prospective',
+      tiers: [
+        {
+          basis: 'called_capital_period',
+          annualRatePercent: ANNUAL_RATE,
+          startYear: 3,
+        },
+      ],
+      retroactiveFeeCatchUp: { enabled: true, accrualStartMonth: 24 },
+    });
+
+    expect(parsed.success).toBe(true);
+  });
 });
 
 describe('Retroactive fee catch-up - truth cases', () => {
@@ -114,7 +168,7 @@ describe('Retroactive fee catch-up - truth cases', () => {
 
     expect(breakdown.retroactiveCatchUpMonths).toBe(0);
     expect(breakdown.retroactiveCatchUpFees.toNumber()).toBe(0);
-    expect(breakdown.monthlyFees.toNumber()).toBeCloseTo(MONTHLY_FEE.toNumber(), 6);
+    expect(breakdown.recurringFees.toNumber()).toBeCloseTo(MONTHLY_FEE.toNumber(), 6);
     expect(calculateManagementFees(profile, makeContext(24)).toNumber()).toBeCloseTo(
       MONTHLY_FEE.toNumber(),
       6
@@ -146,7 +200,7 @@ describe('Retroactive fee catch-up - truth cases', () => {
     const profile = makeLateStartProfile({ enabled: true, accrualStartMonth: 0 });
     const breakdown = calculateManagementFeeBreakdown(profile, makeContext(12));
 
-    expect(breakdown.monthlyFees.toNumber()).toBe(0);
+    expect(breakdown.recurringFees.toNumber()).toBe(0);
     expect(breakdown.retroactiveCatchUpFees.toNumber()).toBe(0);
   });
 
@@ -192,7 +246,7 @@ describe('Retroactive fee catch-up - truth cases', () => {
 
     expect(breakdown.retroactiveCatchUpMonths).toBe(24);
     expect(breakdown.retroactiveCatchUpFees.toNumber()).toBe(0);
-    expect(breakdown.monthlyFees.toNumber()).toBe(0);
+    expect(breakdown.recurringFees.toNumber()).toBe(0);
   });
 
   it('CASE fee holiday: waived months are not caught up', () => {
@@ -221,6 +275,47 @@ describe('Retroactive fee catch-up - truth cases', () => {
     const profile = makeLateStartProfile({ enabled: true, accrualStartMonth: 0 });
 
     expect(resolveRetroactiveFeeCatchUpMonths(profile, 240)).toBe(0);
+  });
+
+  it('charges a period-flow tier once for the period', () => {
+    const profile: FeeProfile = {
+      id: 'period-flow',
+      name: 'Period-flow fee',
+      tiers: [
+        {
+          basis: 'called_capital_period',
+          annualRatePercent: ANNUAL_RATE,
+          startYear: 1,
+        },
+      ],
+    };
+    const context = makeContext(0, { calledCapitalPeriod: new Decimal(10_000_000) });
+
+    const breakdown = calculateManagementFeeBreakdown(profile, context, { periodMonths: 3 });
+
+    expect(breakdown.recurringFees.toNumber()).toBe(200_000);
+    expect(calculateManagementFees(profile, context, 3).toNumber()).toBe(200_000);
+  });
+
+  it('prorates a stock-basis tier across the reporting period', () => {
+    const profile: FeeProfile = {
+      id: 'stock-period',
+      name: 'Stock-basis fee',
+      tiers: [
+        {
+          basis: 'committed_capital',
+          annualRatePercent: ANNUAL_RATE,
+          startYear: 1,
+        },
+      ],
+    };
+
+    const breakdown = calculateManagementFeeBreakdown(profile, makeContext(0), {
+      periodMonths: 3,
+    });
+
+    expect(breakdown.recurringFees.toNumber()).toBe(500_000);
+    expect(calculateManagementFees(profile, makeContext(0), 3).toNumber()).toBe(500_000);
   });
 });
 

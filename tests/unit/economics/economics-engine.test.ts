@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { FundDraftWriteV1 } from '@shared/contracts/fund-draft-write-v1.contract';
 import {
+  assertEconomicsFeeGridSupported,
   EconomicsInputValidationError,
   runEconomicsModel,
 } from '@shared/lib/economics/economics-engine';
+import type { EconomicsFeeTierV1 } from '@shared/contracts/economics-v1.contract';
 
 describe('GP economics engine', () => {
   it('calculates flat committed-capital management fees', () => {
@@ -73,6 +75,44 @@ describe('GP economics engine', () => {
     expect(result.annual[0]?.feesPaidToManager).toBe(200_000);
     expect(result.annual[4]?.feesPaidToManager).toBe(1_000_000);
     expect(result.annual[9]?.feesPaidToManager).toBe(2_000_000);
+  });
+
+  it('rejects fee profiles whose retroactive catch-up would be silently omitted', () => {
+    const feeProfileWithCatchUp = {
+      id: 'retroactive-fee-profile',
+      name: 'Retroactive fee profile',
+      feeTiers: [
+        {
+          id: 'committed-fee',
+          name: 'Committed capital fee',
+          percentage: 2,
+          feeBasis: 'committed_capital' as const,
+          startMonth: 1,
+        },
+      ],
+      retroactiveFeeCatchUp: { enabled: true, accrualStartMonth: 0 },
+    };
+
+    expect(() => runEconomicsModel(baseDraft({ feeProfiles: [feeProfileWithCatchUp] }))).toThrow(
+      'feeProfiles.0.retroactiveFeeCatchUp: GP economics does not support retroactive management fee catch-up; returning a result would omit the catch-up'
+    );
+  });
+
+  it('rejects period-flow fee bases on sub-annual economics grids', () => {
+    const tiers = [
+      {
+        id: 'period-flow-fee',
+        name: 'Period flow fee',
+        rate: 0.02,
+        basis: 'called_capital_period',
+        startYear: 1,
+      },
+    ] satisfies EconomicsFeeTierV1[];
+
+    expect(() => assertEconomicsFeeGridSupported({ yearFraction: '0.25' }, tiers)).toThrow(
+      'feeModel.tiers.0.basis: Period-flow fee bases require an annual economics grid because this engine prorates every fee basis on sub-annual periods'
+    );
+    expect(() => assertEconomicsFeeGridSupported({ yearFraction: '1' }, tiers)).not.toThrow();
   });
 
   it('caps recycled proceeds before waterfall distributions', () => {

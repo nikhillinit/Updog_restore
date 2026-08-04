@@ -13,13 +13,16 @@ import type { FeeProfile } from '@shared/schemas/fee-profile';
 
 const FUND_SIZE = new Decimal(100_000_000);
 
-function makeProfile(enabled: boolean): FeeProfile {
+function makeProfile(
+  enabled: boolean,
+  basis: FeeProfile['tiers'][number]['basis'] = 'committed_capital'
+): FeeProfile {
   return {
     id: 'late-start',
     name: 'Late start 2%',
     tiers: [
       {
-        basis: 'committed_capital',
+        basis,
         annualRatePercent: new Decimal(0.02),
         startYear: 3,
         endYear: 10,
@@ -56,6 +59,20 @@ describe('ConstructionForecastCalculator - fee audit', () => {
     });
 
     expect(forecast.feeAudit?.retroactiveCatchUp.applied).toBe(false);
+    expect(forecast.feeAudit?.retroactiveCatchUp.totalFees.toNumber()).toBe(0);
+  });
+
+  it('does not report a zero-dollar catch-up as applied', () => {
+    const forecast = ConstructionForecastCalculator.generateForecast({
+      fundSize: FUND_SIZE,
+      establishmentDate: '2024-01-01',
+      targetTVPI: 2.5,
+      feeProfile: makeProfile(true, 'called_capital_cumulative'),
+    });
+
+    expect(forecast.feeAudit?.retroactiveCatchUp.applied).toBe(false);
+    expect(forecast.feeAudit?.retroactiveCatchUp.quarters).toEqual([]);
+    expect(forecast.feeAudit?.retroactiveCatchUp.months).toBe(0);
     expect(forecast.feeAudit?.retroactiveCatchUp.totalFees.toNumber()).toBe(0);
   });
 
