@@ -17,6 +17,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { feesExpensesSchema, type FeesExpensesInput } from '@/schemas/modeling-wizard.schemas';
+import {
+  RetroactiveFeeCatchUpPanel,
+  type RetroactiveFeeCatchUpValue,
+} from './fees/RetroactiveFeeCatchUpPanel';
 
 export interface FeesExpensesStepProps {
   initialData?: Partial<FeesExpensesInput>;
@@ -33,13 +37,21 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
     formState: { errors },
   } = useForm<FeesExpensesInput>({
     resolver: zodResolver(feesExpensesSchema),
-    defaultValues: initialData || {
+    // Fee schedule fields carry an explicit default, thus a saved draft that
+    // predates them keeps its current fee behavior.
+    defaultValues: {
+      ...initialData,
       managementFee: {
-        rate: 2.0,
-        basis: 'committed',
-        stepDown: { enabled: false },
+        rate: initialData?.managementFee?.rate ?? 2.0,
+        basis: initialData?.managementFee?.basis ?? 'committed',
+        firstFeeYear: initialData?.managementFee?.firstFeeYear ?? 1,
+        stepDown: initialData?.managementFee?.stepDown ?? { enabled: false },
       },
-      adminExpenses: {
+      retroactiveFeeCatchUp: initialData?.retroactiveFeeCatchUp ?? {
+        enabled: false,
+        accrualStartMonth: 0,
+      },
+      adminExpenses: initialData?.adminExpenses ?? {
         annualAmount: 0,
         growthRate: 3,
       },
@@ -52,6 +64,28 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
   }>({});
 
   const stepDownEnabled = watch('managementFee.stepDown.enabled');
+  const feeRate = watch('managementFee.rate');
+  const feeBasis = watch('managementFee.basis');
+  const firstFeeYear = watch('managementFee.firstFeeYear');
+  const catchUp = watch('retroactiveFeeCatchUp');
+
+  // Retroactive fee catch-up: a fee setting, not the GP carry catch-up.
+  const catchUpValue: RetroactiveFeeCatchUpValue = {
+    enabled: catchUp?.enabled ?? false,
+    accrualStartMonth: catchUp?.accrualStartMonth ?? 0,
+    maxCatchUpMonths: catchUp?.maxCatchUpMonths,
+  };
+
+  const handleCatchUpChange = (patch: Partial<RetroactiveFeeCatchUpValue>) => {
+    const next = { ...catchUpValue, ...patch };
+    setValue('retroactiveFeeCatchUp.enabled', next.enabled, { shouldValidate: true });
+    setValue('retroactiveFeeCatchUp.accrualStartMonth', next.accrualStartMonth, {
+      shouldValidate: true,
+    });
+    setValue('retroactiveFeeCatchUp.maxCatchUpMonths', next.maxCatchUpMonths, {
+      shouldValidate: true,
+    });
+  };
 
   // Auto-save valid edits without depending on watch() object identity across renders.
   React.useEffect(() => {
@@ -148,6 +182,26 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
           </div>
         </div>
 
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="firstFeeYear" className="font-poppins">
+              Fees Begin in Fund Year
+            </Label>
+            <Input
+              id="firstFeeYear"
+              type="number"
+              min={1}
+              step={1}
+              {...register('managementFee.firstFeeYear', { valueAsNumber: true })}
+              placeholder="e.g., 1"
+              className="mt-2 tabular-nums"
+            />
+            {errors.managementFee?.firstFeeYear && (
+              <p className="text-sm text-error mt-1">{errors.managementFee.firstFeeYear.message}</p>
+            )}
+          </div>
+        </div>
+
         <div className="space-y-4 p-4 bg-charcoal-50 rounded-lg">
           <div className="flex items-center space-x-3">
             <Switch
@@ -200,6 +254,19 @@ export function FeesExpensesStep({ initialData, onSave }: FeesExpensesStepProps)
             </div>
           )}
         </div>
+
+        <RetroactiveFeeCatchUpPanel
+          rate={typeof feeRate === 'number' ? feeRate : 0}
+          basis={feeBasis ?? 'committed'}
+          firstFeeYear={typeof firstFeeYear === 'number' ? firstFeeYear : 1}
+          value={catchUpValue}
+          onChange={handleCatchUpChange}
+          errors={{
+            enabled: errors.retroactiveFeeCatchUp?.enabled?.message,
+            accrualStartMonth: errors.retroactiveFeeCatchUp?.accrualStartMonth?.message,
+            maxCatchUpMonths: errors.retroactiveFeeCatchUp?.maxCatchUpMonths?.message,
+          }}
+        />
       </div>
 
       <div className="space-y-6 pt-6 border-t border-charcoal-200">

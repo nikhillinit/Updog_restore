@@ -161,6 +161,14 @@ export function validateLegacyCompatibility(extended: ExtendedFundModelInputs): 
     );
   }
 
+  // Check for retroactive fee catch-up (fee profile setting, not GP carry catch-up)
+  if (extended.feeProfile.retroactiveFeeCatchUp?.enabled) {
+    warnings.push(
+      'Legacy engine does not support retroactive fee catch-up. ' +
+        'Missed fee months will not be charged.'
+    );
+  }
+
   // Check for fractional company counts
   if (!extended.stageProfile.initialPortfolioSize.isInteger()) {
     warnings.push(

@@ -22,6 +22,7 @@ import {
   monthsPerPeriodV1,
   periodRateV1,
 } from '@shared/lib/economics/period-model-v1';
+import { isPeriodFlowFeeBasis } from '@shared/schemas/fee-profile';
 
 export interface EconomicsValidationIssue {
   path: string[];
@@ -299,7 +300,39 @@ export function hasEconomicsAssumptions(input: FundDraftWriteV1): boolean {
   return input.economicsAssumptions != null;
 }
 
+/**
+ * Dormancy note: This guard is intentionally unreachable on current paths.
+ * `FundDraftWriteV1`'s `FeeProfileSchema` in
+ * `shared/contracts/fund-draft-write-v1.contract.ts` is `.strict()`, uses
+ * `feeTiers` not `tiers`, and carries no `retroactiveFeeCatchUp` key.
+ * `server/services/economics-calculation-service.ts` parses with it before
+ * `runEconomicsModel`. Keep this guard as a defence against future contract
+ * widening; removal by unification is tracked in issue #1338.
+ */
+function assertNoRetroactiveFeeCatchUp(input: FundDraftWriteV1): void {
+  const profileIndex = input.feeProfiles?.findIndex(
+    (profile) =>
+      'retroactiveFeeCatchUp' in profile &&
+      profile.retroactiveFeeCatchUp != null &&
+      typeof profile.retroactiveFeeCatchUp === 'object' &&
+      'enabled' in profile.retroactiveFeeCatchUp &&
+      profile.retroactiveFeeCatchUp.enabled === true
+  );
+  if (profileIndex === undefined || profileIndex < 0) {
+    return;
+  }
+
+  throw new EconomicsInputValidationError([
+    issue(
+      ['feeProfiles', String(profileIndex), 'retroactiveFeeCatchUp'],
+      'GP economics does not support retroactive management fee catch-up; returning a result would omit the catch-up'
+    ),
+  ]);
+}
+
 export function normalizeEconomicsConfig(input: FundDraftWriteV1): NormalizedEconomicsConfig {
+  assertNoRetroactiveFeeCatchUp(input);
+
   const assumptionsResult = EconomicsAssumptionsV1Schema.safeParse(input.economicsAssumptions);
   if (!assumptionsResult.success) {
     throw new EconomicsInputValidationError(
@@ -401,13 +434,42 @@ function amountForFeeBasis(basis: EconomicsFeeBasis, context: FeeBasisContext): 
  * Fee tiers carry annual rates. The rate is converted to the period rate by
  * the canonical period model (ADR-069), so a complete year accrues the full
  * annual rate and a partial period accrues its prorated share.
+ *
+ * Dormancy note: This guard is intentionally unreachable on current paths.
+ * `TimelineAssumptionsV1Schema` in
+ * `shared/contracts/economics-v1.contract.ts:21` pins
+ * `period: z.literal('annual')`, and `buildReportingPeriods` uses
+ * `targetGrain: 'annual'`, so `yearFraction` is always 1. Keep this guard as a
+ * defence against future contract widening; removal by unification is tracked
+ * in issue #1338.
  */
+export function assertEconomicsFeeGridSupported(
+  period: Pick<EconomicsCanonicalPeriodV1, 'yearFraction'>,
+  tiers: readonly EconomicsFeeTierV1[]
+): void {
+  if (new Decimal(period.yearFraction).eq(1)) {
+    return;
+  }
+
+  const periodFlowTierIndex = tiers.findIndex((tier) => isPeriodFlowFeeBasis(tier.basis));
+  if (periodFlowTierIndex >= 0) {
+    throw new EconomicsInputValidationError([
+      issue(
+        ['feeModel', 'tiers', String(periodFlowTierIndex), 'basis'],
+        'Period-flow fee bases require an annual economics grid because this engine prorates every fee basis on sub-annual periods'
+      ),
+    ]);
+  }
+}
+
 function calculateManagementFeeForPeriod(
   year: number,
   period: EconomicsCanonicalPeriodV1,
   tiers: EconomicsFeeTierV1[],
   context: FeeBasisContext
 ): Decimal {
+  assertEconomicsFeeGridSupported(period, tiers);
+
   return tiers.reduce((total, tier) => {
     const active = year >= tier.startYear && (tier.endYear == null || year <= tier.endYear);
     if (!active) return total;

@@ -630,6 +630,38 @@ export const feeRecyclingSchema = z.object({
 export type FeeRecycling = z.infer<typeof feeRecyclingSchema>;
 
 /**
+ * Retroactive management fee catch-up configuration
+ *
+ * When fees begin after fund year 1, this setting charges the months that
+ * accrued before the first fee period.
+ *
+ * IMPORTANT: This is a management fee setting. It is not the GP carry catch-up
+ * of the distribution waterfall. The two settings are independent.
+ */
+export const retroactiveFeeCatchUpSchema = z.object({
+  /** Charge the missed fee months in the first fee period */
+  enabled: z.boolean().default(false),
+
+  /** Month from fund inception when fee accrual starts */
+  accrualStartMonth: z
+    .number()
+    .int('Accrual start month must be a whole number')
+    .min(0, 'Accrual start month cannot be negative')
+    .max(120, 'Accrual start month cannot exceed 120 months (10 years)')
+    .default(0),
+
+  /** Optional limit on the number of missed months that the catch-up charges */
+  maxCatchUpMonths: z
+    .number()
+    .int('Catch-up limit must be a whole number of months')
+    .min(1, 'Catch-up limit must be at least 1 month')
+    .max(120, 'Catch-up limit cannot exceed 120 months (10 years)')
+    .optional(),
+});
+
+export type RetroactiveFeeCatchUp = z.infer<typeof retroactiveFeeCatchUpSchema>;
+
+/**
  * Complete fees & expenses schema
  */
 export const feesExpensesSchema = z
@@ -644,6 +676,14 @@ export const feesExpensesSchema = z
 
       /** Fee basis - what the percentage applies to */
       basis: feeBasisSchema,
+
+      /** First fund year in which the fund charges management fees */
+      firstFeeYear: z
+        .number()
+        .int('First fee year must be a whole number')
+        .min(1, 'First fee year must be at least 1')
+        .max(10, 'First fee year cannot exceed 10')
+        .optional(),
 
       /** Optional step-down configuration */
       stepDown: z
@@ -665,6 +705,12 @@ export const feesExpensesSchema = z
     /** Fee recycling configuration (optional) */
     feeRecycling: feeRecyclingSchema.optional(),
 
+    /**
+     * Retroactive management fee catch-up (optional).
+     * This is a fee setting. It is not the GP carry catch-up of the waterfall.
+     */
+    retroactiveFeeCatchUp: retroactiveFeeCatchUpSchema.optional(),
+
     /** Administrative expenses */
     adminExpenses: z.object({
       /** Annual admin expense amount ($M) */
@@ -678,6 +724,27 @@ export const feesExpensesSchema = z
     }),
   })
   .superRefine((data, ctx) => {
+    // Validate retroactive fee catch-up (fee setting, not GP carry catch-up)
+    if (data.retroactiveFeeCatchUp?.enabled) {
+      const firstFeeYear = data.managementFee.firstFeeYear ?? 1;
+      const firstFeeMonth = (firstFeeYear - 1) * 12;
+
+      if (firstFeeMonth === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'Retroactive fee catch-up needs fees to begin after fund year 1. There are no missed fee months to charge.',
+          path: ['retroactiveFeeCatchUp', 'enabled'],
+        });
+      } else if ((data.retroactiveFeeCatchUp.accrualStartMonth ?? 0) >= firstFeeMonth) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Fee accrual must start before the first fee month (month ${firstFeeMonth})`,
+          path: ['retroactiveFeeCatchUp', 'accrualStartMonth'],
+        });
+      }
+    }
+
     // Validate step-down configuration
     if (data.managementFee.stepDown?.enabled) {
       if (!data.managementFee.stepDown.afterYear) {

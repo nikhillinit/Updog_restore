@@ -11,7 +11,10 @@
 
 import Decimal from '@shared/lib/decimal-config';
 import type { FeeProfile, FeeBasisType, FeeCalculationContext } from '@shared/schemas/fee-profile';
-import { calculateManagementFees, calculateRecyclableFees } from '@shared/schemas/fee-profile';
+import {
+  calculateManagementFeeBreakdown,
+  calculateRecyclableFees,
+} from '@shared/schemas/fee-profile';
 import { calledCapitalPeriodFromCumulative } from '@shared/lib/economics/called-capital-period';
 
 /** Months in one quarterly period of the fee-basis timeline */
@@ -50,6 +53,15 @@ export interface FeeBasisPeriod {
 
   /** Recyclable fees available */
   recyclableFees: Decimal;
+
+  /**
+   * Part of `managementFees` that comes from the retroactive fee catch-up of
+   * the fee profile. This is not the GP carry catch-up of the waterfall.
+   */
+  retroactiveCatchUpFees: Decimal;
+
+  /** Number of missed months that the retroactive fee catch-up charges */
+  retroactiveCatchUpMonths: number;
 }
 
 /**
@@ -64,6 +76,9 @@ export interface FeeBasisTimeline {
 
   /** Total recyclable fees */
   totalRecyclable: Decimal;
+
+  /** Total retroactive fee catch-up over timeline */
+  totalRetroactiveCatchUpFees: Decimal;
 }
 
 /**
@@ -114,6 +129,7 @@ export function computeFeeBasisTimeline(config: FeeBasisConfig): FeeBasisTimelin
   const periods: FeeBasisPeriod[] = [];
   let totalFees = new Decimal(0);
   let totalRecyclable = new Decimal(0);
+  let totalRetroactiveCatchUp = new Decimal(0);
   let cumulativeCalledCapital = new Decimal(0);
   let cumulativeDistributions = new Decimal(0);
   let cumulativeFeesPaid = new Decimal(0);
@@ -143,6 +159,8 @@ export function computeFeeBasisTimeline(config: FeeBasisConfig): FeeBasisTimelin
     // Calculate fees if profile provided
     let managementFees = new Decimal(0);
     let recyclableFees = new Decimal(0);
+    let retroactiveCatchUpFees = new Decimal(0);
+    let retroactiveCatchUpMonths = 0;
 
     if (feeProfile) {
       const context: FeeCalculationContext = {
@@ -156,10 +174,15 @@ export function computeFeeBasisTimeline(config: FeeBasisConfig): FeeBasisTimelin
         currentMonth: q * 3, // Convert quarters to months
       };
 
-      // Calculate management fees for the quarter (3 months). Stock bases are
-      // pro-rated over the 3 months; period-flow bases are charged once on the
-      // amount that moved during the quarter.
-      managementFees = calculateManagementFees(feeProfile, context, QUARTER_MONTHS);
+      // Calculate management fees for the quarter. Stock bases are pro-rated
+      // across all 3 months; period-flow bases are charged once on the amount
+      // that moved during the quarter. Catch-up is a separate one-time amount.
+      const breakdown = calculateManagementFeeBreakdown(feeProfile, context, {
+        periodMonths: QUARTER_MONTHS,
+      });
+      retroactiveCatchUpFees = breakdown.retroactiveCatchUpFees;
+      retroactiveCatchUpMonths = breakdown.retroactiveCatchUpMonths;
+      managementFees = breakdown.recurringFees.plus(retroactiveCatchUpFees);
 
       cumulativeFeesPaid = cumulativeFeesPaid.plus(managementFees);
 
@@ -168,6 +191,7 @@ export function computeFeeBasisTimeline(config: FeeBasisConfig): FeeBasisTimelin
 
       totalFees = totalFees.plus(managementFees);
       totalRecyclable = totalRecyclable.plus(recyclableFees);
+      totalRetroactiveCatchUp = totalRetroactiveCatchUp.plus(retroactiveCatchUpFees);
     }
 
     periods.push({
@@ -181,6 +205,8 @@ export function computeFeeBasisTimeline(config: FeeBasisConfig): FeeBasisTimelin
       unrealizedCost,
       managementFees,
       recyclableFees,
+      retroactiveCatchUpFees,
+      retroactiveCatchUpMonths,
     });
   }
 
@@ -188,6 +214,7 @@ export function computeFeeBasisTimeline(config: FeeBasisConfig): FeeBasisTimelin
     periods,
     totalFees,
     totalRecyclable,
+    totalRetroactiveCatchUpFees: totalRetroactiveCatchUp,
   };
 }
 

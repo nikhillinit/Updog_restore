@@ -60,6 +60,29 @@ and this project adheres to
   in `tests/fixtures/economics/period-grain-before-after.json`, and the
   quarterly waterfall truth cases pass unchanged.
 
+- **Retroactive fee catch-up is now an explicit fee profile setting (issue
+  #1312).** `FeeProfileSchema` accepts an optional `retroactiveFeeCatchUp`
+  policy (`enabled`, `accrualStartMonth`, `maxCatchUpMonths`). When it is
+  enabled, the first chargeable fee month also charges the months that accrued
+  from the accrual start, with fee holiday months waived.
+  `calculateManagementFeeBreakdown` separates the recurring fee from the
+  one-time catch-up, `computeFeeBasisTimeline` reports the catch-up per quarter,
+  and the construction forecast carries a `feeAudit` block that tells when the
+  catch-up changed an amount. The setting is distinct from the GP carry catch-up
+  of the distribution waterfall: waterfall configuration and allocations do not
+  change. Profiles that do not declare the policy keep the disabled default,
+  thus existing funds keep their current fee amounts.
+- **Fee schedule control in the modeling wizard (issue #1312).** The fee step
+  carries a "Fees begin in fund year" field and a retroactive fee catch-up panel
+  with an accrual start and an optional month limit. The panel shows a
+  truth-first proof strip: the charged percentage of the fee basis, the missed
+  months, the monthly rate, the limit, and the assumption. The numbers come from
+  the shared fee engine through
+  `client/src/lib/retroactive-fee-catch-up-preview.ts`, thus the screen cannot
+  drift from the model. The switch stays disabled while fees begin in fund
+  year 1. The visual language follows DESIGN.md: presson tokens, charcoal ink on
+  warm sand, tabular numerals, and motion behind `motion-safe`.
+
 ### Changed (2026-08-03)
 
 - **Public dual-waterfall vocabulary restored; silent coercion removed (issue
