@@ -1,6 +1,6 @@
 {
   "name": "kpi-observations",
-  "order": 25,
+  "order": 26,
   "description": "Issue #1300 migration 0049: the internal KPI collection table behind /api/funds/:fundId/kpi-observations. Purely additive - one table and one index, no existing catalog object touched - so it carries no drift patch and no trigger or function DDL.",
   "missingTablePolicy": "create_or_repair",
   "sqlFiles": ["migrations/0049_kpi_observations.sql"],
