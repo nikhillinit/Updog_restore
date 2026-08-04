@@ -84,4 +84,40 @@ describe('previewRetroactiveFeeCatchUp', () => {
     // Accrual after the first fee month has no meaning
     expect(previewRetroactiveFeeCatchUp({ ...base, accrualStartMonth: 36 })).toBeNull();
   });
+
+  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    'rejects maxCatchUpMonths=%s before a negative catch-up fee can be exposed',
+    (maxCatchUpMonths) => {
+      const preview = previewRetroactiveFeeCatchUp({
+        rate: 2,
+        basis: 'committed',
+        firstFeeYear: 3,
+        enabled: true,
+        accrualStartMonth: 0,
+        maxCatchUpMonths,
+      });
+
+      expect(preview).toBeNull();
+    }
+  );
+
+  it('returns only non-negative catch-up values for a valid limit', () => {
+    const preview = previewRetroactiveFeeCatchUp({
+      rate: 2,
+      basis: 'committed',
+      firstFeeYear: 3,
+      enabled: true,
+      accrualStartMonth: 0,
+      maxCatchUpMonths: 6,
+    });
+
+    if (preview === null) {
+      throw new Error('Expected a preview for a valid catch-up limit');
+    }
+
+    expect(preview.catchUpPercentOfBasis).toBeGreaterThanOrEqual(0);
+    expect(preview.monthlyPercentOfBasis).toBeGreaterThanOrEqual(0);
+    expect(preview.chargedMonths).toBeGreaterThanOrEqual(0);
+    expect(preview.cappedMonths).toBeGreaterThanOrEqual(0);
+  });
 });

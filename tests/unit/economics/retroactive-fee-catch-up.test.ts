@@ -297,6 +297,24 @@ describe('Retroactive fee catch-up - truth cases', () => {
     expect(calculateManagementFees(profile, context, 3).toNumber()).toBe(200_000);
   });
 
+  it('waives a period-flow tier in proportion to fee-holiday months', () => {
+    const profile: FeeProfile = {
+      id: 'period-flow-holiday',
+      name: 'Period-flow fee with holiday',
+      tiers: [
+        {
+          basis: 'called_capital_period',
+          annualRatePercent: ANNUAL_RATE,
+          startYear: 1,
+        },
+      ],
+      feeHolidays: [{ startMonth: 0, durationMonths: 2 }],
+    };
+    const context = makeContext(0, { calledCapitalPeriod: new Decimal(10_000_000) });
+
+    expect(calculateManagementFees(profile, context, 3).toNumber()).toBeCloseTo(200_000 / 3, 10);
+  });
+
   it('prorates a stock-basis tier across the reporting period', () => {
     const profile: FeeProfile = {
       id: 'stock-period',
@@ -316,6 +334,190 @@ describe('Retroactive fee catch-up - truth cases', () => {
 
     expect(breakdown.recurringFees.toNumber()).toBe(500_000);
     expect(calculateManagementFees(profile, makeContext(0), 3).toNumber()).toBe(500_000);
+  });
+
+  it.each([1.5, 0.5, 2.25])(
+    'keeps fractional reporting period %s at its exact length',
+    (periodMonths) => {
+      const profile: FeeProfile = {
+        id: 'fractional-stock-period',
+        name: 'Fractional stock-basis fee',
+        tiers: [
+          {
+            basis: 'committed_capital',
+            annualRatePercent: ANNUAL_RATE,
+            startYear: 1,
+          },
+        ],
+      };
+
+      expect(
+        calculateManagementFees(profile, makeContext(0), periodMonths).eq(
+          MONTHLY_FEE.times(periodMonths)
+        )
+      ).toBe(true);
+    }
+  );
+
+  it('keeps non-dyadic fractional reporting periods Decimal-exact', () => {
+    const profile: FeeProfile = {
+      id: 'non-dyadic-fractional-stock-period',
+      name: 'Non-dyadic fractional stock-basis fee',
+      tiers: [
+        {
+          basis: 'committed_capital',
+          annualRatePercent: ANNUAL_RATE,
+          startYear: 1,
+        },
+      ],
+    };
+
+    expect(calculateManagementFees(profile, makeContext(0), 1.1).eq(MONTHLY_FEE.times('1.1'))).toBe(
+      true
+    );
+  });
+
+  it('preserves a positive fractional period below integer-noise tolerance', () => {
+    const profile = makeLateStartProfile();
+    const periodMonths = Number.EPSILON / 2;
+
+    expect(
+      calculateManagementFees(profile, makeContext(24), periodMonths).eq(
+        MONTHLY_FEE.times(periodMonths)
+      )
+    ).toBe(true);
+  });
+
+  it('treats integer-adjacent period noise as a whole-month period', () => {
+    const profile: FeeProfile = {
+      id: 'whole-period-holiday',
+      name: 'Whole-period fee holiday',
+      tiers: [
+        {
+          basis: 'committed_capital',
+          annualRatePercent: ANNUAL_RATE,
+          startYear: 1,
+        },
+      ],
+      feeHolidays: [{ startMonth: 0, durationMonths: 3 }],
+    };
+
+    expect(calculateManagementFees(profile, makeContext(0), 3.0000000000000004).isZero()).toBe(
+      true
+    );
+  });
+
+  it('charges catch-up once across adjacent integer-adjacent periods', () => {
+    const profile = makeLateStartProfile({ enabled: true, accrualStartMonth: 0 });
+    const periodMonths = 3.0000000000000004;
+
+    const catchUpMonths = [21, 24].map((currentMonth) =>
+      resolveRetroactiveFeeCatchUpMonths(profile, currentMonth, periodMonths)
+    );
+
+    expect(catchUpMonths).toEqual([0, 24]);
+    expect(catchUpMonths.filter((months) => months > 0)).toHaveLength(1);
+  });
+
+  it.each([
+    ['annual', 12.000000000000004, 0],
+    ['semiannual', 6.000000000000002, 6],
+  ])(
+    'charges catch-up once across adjacent %s periods with two-ULP noise',
+    (_periodName, periodMonths, previousPeriodStart) => {
+      const profile: FeeProfile = {
+        id: 'two-ulp-period',
+        name: 'Two-ULP reporting period',
+        tiers: [
+          {
+            basis: 'committed_capital',
+            annualRatePercent: ANNUAL_RATE,
+            startYear: 2,
+          },
+        ],
+        retroactiveFeeCatchUp: { enabled: true, accrualStartMonth: 0 },
+      };
+
+      const catchUpMonths = [previousPeriodStart, 12].map((currentMonth) =>
+        resolveRetroactiveFeeCatchUpMonths(profile, currentMonth, periodMonths)
+      );
+
+      expect(catchUpMonths).toEqual([0, 12]);
+      expect(catchUpMonths.filter((months) => months > 0)).toHaveLength(1);
+    }
+  );
+
+  it('does not widen a fractional catch-up period to a full month', () => {
+    const profile = makeLateStartProfile({ enabled: true, accrualStartMonth: 0 });
+
+    expect(resolveRetroactiveFeeCatchUpMonths(profile, 23.5, 0.5)).toBe(0);
+  });
+
+  it('keeps a no-holiday period-flow fee bit-identical', () => {
+    const calledCapitalPeriod = new Decimal('9999999999999999999999999999');
+    const profile: FeeProfile = {
+      id: 'period-flow-no-holiday-identity',
+      name: 'Period-flow fee identity',
+      tiers: [
+        {
+          basis: 'called_capital_period',
+          annualRatePercent: new Decimal(1),
+          startYear: 1,
+        },
+      ],
+    };
+
+    expect(
+      calculateManagementFees(profile, makeContext(0, { calledCapitalPeriod }), 3).eq(
+        calledCapitalPeriod
+      )
+    ).toBe(true);
+  });
+
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    'rejects invalid periodMonths=%s',
+    (periodMonths) => {
+      const profile = makeLateStartProfile();
+      const context = makeContext(24);
+
+      expect(() => calculateManagementFees(profile, context, periodMonths)).toThrow(
+        'periodMonths must be a positive finite number'
+      );
+      expect(() => calculateManagementFees(profile, context, periodMonths)).toThrowError(
+        RangeError
+      );
+      expect(() => calculateManagementFeeBreakdown(profile, context, { periodMonths })).toThrow(
+        'periodMonths must be a positive finite number'
+      );
+      expect(() =>
+        resolveRetroactiveFeeCatchUpMonths(profile, context.currentMonth, periodMonths)
+      ).toThrow('periodMonths must be a positive finite number');
+      expect(() =>
+        resolveRetroactiveFeeCatchUpMonths(profile, context.currentMonth, periodMonths)
+      ).toThrowError(RangeError);
+    }
+  );
+
+  it('charges chargeable months in a quarter that starts during a fee holiday', () => {
+    const profile: FeeProfile = {
+      ...makeLateStartProfile({ enabled: true, accrualStartMonth: 0 }),
+      feeHolidays: [{ startMonth: 24, durationMonths: 2 }],
+    };
+
+    const breakdown = calculateManagementFeeBreakdown(profile, makeContext(24), {
+      periodMonths: 3,
+    });
+
+    expect(breakdown.recurringFees.toNumber()).toBeCloseTo(MONTHLY_FEE.toNumber(), 6);
+    expect(breakdown.retroactiveCatchUpMonths).toBe(24);
+    expect(breakdown.retroactiveCatchUpFees.toNumber()).toBeCloseTo(
+      MONTHLY_FEE.times(24).toNumber(),
+      6
+    );
+    expect(breakdown.recurringFees.plus(breakdown.retroactiveCatchUpFees).toNumber()).toBeCloseTo(
+      MONTHLY_FEE.times(25).toNumber(),
+      6
+    );
   });
 });
 

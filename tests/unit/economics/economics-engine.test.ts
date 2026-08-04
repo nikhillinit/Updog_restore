@@ -77,7 +77,7 @@ describe('GP economics engine', () => {
     expect(result.annual[9]?.feesPaidToManager).toBe(2_000_000);
   });
 
-  it('rejects fee profiles whose retroactive catch-up would be silently omitted', () => {
+  it('rejects enabled fee catch-up but allows a disabled configuration', () => {
     const feeProfileWithCatchUp = {
       id: 'retroactive-fee-profile',
       name: 'Retroactive fee profile',
@@ -92,6 +92,19 @@ describe('GP economics engine', () => {
       ],
       retroactiveFeeCatchUp: { enabled: true, accrualStartMonth: 0 },
     };
+
+    expect(() =>
+      runEconomicsModel(
+        baseDraft({
+          feeProfiles: [
+            {
+              ...feeProfileWithCatchUp,
+              retroactiveFeeCatchUp: { enabled: false, accrualStartMonth: 0 },
+            },
+          ],
+        })
+      )
+    ).not.toThrow();
 
     expect(() => runEconomicsModel(baseDraft({ feeProfiles: [feeProfileWithCatchUp] }))).toThrow(
       'feeProfiles.0.retroactiveFeeCatchUp: GP economics does not support retroactive management fee catch-up; returning a result would omit the catch-up'

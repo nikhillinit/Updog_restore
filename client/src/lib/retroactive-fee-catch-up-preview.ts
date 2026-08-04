@@ -125,6 +125,12 @@ export function previewRetroactiveFeeCatchUp(
   if (!Number.isInteger(input.accrualStartMonth) || input.accrualStartMonth < 0) {
     return null;
   }
+  if (
+    input.maxCatchUpMonths !== undefined &&
+    (!Number.isInteger(input.maxCatchUpMonths) || input.maxCatchUpMonths <= 0)
+  ) {
+    return null;
+  }
 
   const firstFeeMonth = (input.firstFeeYear - 1) * 12;
   if (input.accrualStartMonth > firstFeeMonth) {

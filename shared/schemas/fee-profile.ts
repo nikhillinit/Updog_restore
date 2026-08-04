@@ -7,6 +7,10 @@ import { z } from 'zod';
 import Decimal from '@shared/lib/decimal-config';
 import { ZodPercentage, ZodPositiveDecimal } from './decimal-zod';
 
+// Absorbs accumulated float noise in a computed period length while staying far
+// below any real fractional period.
+const PERIOD_LENGTH_SNAP_ULPS = 4;
+
 /**
  * Fee calculation bases (what the fee percentage applies to)
  */
@@ -335,7 +339,8 @@ export interface ManagementFeeBreakdownOptions {
   /**
    * Length in months of the reporting period that starts at
    * `context.currentMonth`. The one-time retroactive catch-up is charged in the
-   * period that contains the first chargeable month. Defaults to 1 month.
+   * period that contains the first chargeable month. Must be positive and
+   * finite. Defaults to 1 month.
    */
   periodMonths?: number;
 }
@@ -415,6 +420,26 @@ function resolveFirstChargeableMonth(profile: FeeProfile, fromMonth: number): nu
 }
 
 /**
+ * Validate and normalize the reporting-period length.
+ *
+ * Rejects non-positive or non-finite values and snaps accumulated floating-point
+ * noise near a whole month. This is the single source of the reporting-period
+ * length for both recurring fees and retroactive catch-up fees.
+ */
+function resolvePeriodLength(periodMonths: number): number {
+  if (!Number.isFinite(periodMonths) || periodMonths <= 0) {
+    throw new RangeError('periodMonths must be a positive finite number');
+  }
+
+  const nearestWholeMonth = Math.round(periodMonths);
+  return nearestWholeMonth > 0 &&
+    Math.abs(periodMonths - nearestWholeMonth) <=
+      PERIOD_LENGTH_SNAP_ULPS * Number.EPSILON * Math.max(1, Math.abs(periodMonths))
+    ? nearestWholeMonth
+    : periodMonths;
+}
+
+/**
  * Count the missed months that the retroactive fee catch-up charges
  *
  * A month is missed when it is at or after the accrual start, before the first
@@ -431,6 +456,7 @@ export function resolveRetroactiveFeeCatchUpMonths(
   currentMonth: number,
   periodMonths = 1
 ): number {
+  const periodLength = resolvePeriodLength(periodMonths);
   const policy = resolveRetroactiveFeeCatchUpPolicy(profile);
   if (!policy.enabled) {
     return 0;
@@ -442,7 +468,7 @@ export function resolveRetroactiveFeeCatchUpMonths(
   }
 
   // Charge the catch-up only in the period that contains the first fee month.
-  const periodEnd = currentMonth + Math.max(1, periodMonths);
+  const periodEnd = currentMonth + periodLength;
   if (firstChargeableMonth < currentMonth || firstChargeableMonth >= periodEnd) {
     return 0;
   }
@@ -464,7 +490,7 @@ export function resolveRetroactiveFeeCatchUpMonths(
  *
  * @param profile - Fee profile
  * @param context - Basis amounts of the reporting period
- * @param month - Month that selects the tiers and fee holidays
+ * @param month - First month of the reporting period; selects the active tiers
  * @param periodMonths - Reporting-period length in months
  */
 function calculateTierFeesForPeriod(
@@ -473,7 +499,16 @@ function calculateTierFeesForPeriod(
   month: number,
   periodMonths: number
 ): Decimal {
-  if (isFeeHolidayMonth(profile, month)) {
+  const normalizedPeriodMonths = resolvePeriodLength(periodMonths);
+  const periodLength = new Decimal(normalizedPeriodMonths);
+  let chargeableMonths = new Decimal(0);
+  for (let offset = 0; offset < normalizedPeriodMonths; offset++) {
+    if (!isFeeHolidayMonth(profile, month + offset)) {
+      chargeableMonths = chargeableMonths.plus(Decimal.min(1, periodLength.minus(offset)));
+    }
+  }
+
+  if (chargeableMonths.isZero()) {
     return new Decimal(0);
   }
 
@@ -505,7 +540,13 @@ function calculateTierFeesForPeriod(
       tierFees = Decimal.min(tierFees, tier.capAmount);
     }
 
-    totalFees = totalFees.plus(isFlowBasis ? tierFees : tierFees.times(periodMonths));
+    totalFees = totalFees.plus(
+      isFlowBasis
+        ? chargeableMonths.eq(periodLength)
+          ? tierFees
+          : tierFees.times(chargeableMonths).div(periodLength)
+        : tierFees.times(chargeableMonths)
+    );
   }
 
   return totalFees;
@@ -522,6 +563,7 @@ function calculateTierFeesForPeriod(
  * @param context - Fee calculation context
  * @param options - Reporting period options
  * @returns Recurring fee and retroactive catch-up fee for the period
+ * @throws {RangeError} If `options.periodMonths` is not positive and finite
  */
 export function calculateManagementFeeBreakdown(
   profile: FeeProfile,
@@ -547,8 +589,8 @@ export function calculateManagementFeeBreakdown(
     const policy = resolveRetroactiveFeeCatchUpPolicy(profile);
     const firstChargeableMonth = resolveFirstChargeableMonth(profile, policy.accrualStartMonth);
     if (firstChargeableMonth !== undefined) {
-      const hasPeriodFlowTier = getActiveFeeTiers(profile.tiers, firstChargeableMonth).some((tier) =>
-        isPeriodFlowFeeBasis(tier.basis)
+      const hasPeriodFlowTier = getActiveFeeTiers(profile.tiers, firstChargeableMonth).some(
+        (tier) => isPeriodFlowFeeBasis(tier.basis)
       );
       if (hasPeriodFlowTier) {
         throw new Error(RETROACTIVE_PERIOD_FLOW_ERROR);
@@ -574,10 +616,11 @@ export function calculateManagementFeeBreakdown(
 /**
  * Calculate management fees for a given period
  *
- * @param periodMonths - Reporting-period length in months
+ * @param periodMonths - Positive, finite reporting-period length in months
  * @returns Recurring fee for the reporting period.
  *          Use `calculateManagementFeeBreakdown` to get the retroactive
  *          fee catch-up of the period.
+ * @throws {RangeError} If `periodMonths` is not positive and finite
  */
 export function calculateManagementFees(
   profile: FeeProfile,

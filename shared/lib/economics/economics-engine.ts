@@ -300,9 +300,23 @@ export function hasEconomicsAssumptions(input: FundDraftWriteV1): boolean {
   return input.economicsAssumptions != null;
 }
 
+/**
+ * Dormancy note: This guard is intentionally unreachable on current paths.
+ * `FundDraftWriteV1`'s `FeeProfileSchema` in
+ * `shared/contracts/fund-draft-write-v1.contract.ts` is `.strict()`, uses
+ * `feeTiers` not `tiers`, and carries no `retroactiveFeeCatchUp` key.
+ * `server/services/economics-calculation-service.ts` parses with it before
+ * `runEconomicsModel`. Keep this guard as a defence against future contract
+ * widening; removal by unification is tracked in issue #1338.
+ */
 function assertNoRetroactiveFeeCatchUp(input: FundDraftWriteV1): void {
   const profileIndex = input.feeProfiles?.findIndex(
-    (profile) => 'retroactiveFeeCatchUp' in profile && profile.retroactiveFeeCatchUp != null
+    (profile) =>
+      'retroactiveFeeCatchUp' in profile &&
+      profile.retroactiveFeeCatchUp != null &&
+      typeof profile.retroactiveFeeCatchUp === 'object' &&
+      'enabled' in profile.retroactiveFeeCatchUp &&
+      profile.retroactiveFeeCatchUp.enabled === true
   );
   if (profileIndex === undefined || profileIndex < 0) {
     return;
@@ -420,6 +434,14 @@ function amountForFeeBasis(basis: EconomicsFeeBasis, context: FeeBasisContext): 
  * Fee tiers carry annual rates. The rate is converted to the period rate by
  * the canonical period model (ADR-069), so a complete year accrues the full
  * annual rate and a partial period accrues its prorated share.
+ *
+ * Dormancy note: This guard is intentionally unreachable on current paths.
+ * `TimelineAssumptionsV1Schema` in
+ * `shared/contracts/economics-v1.contract.ts:21` pins
+ * `period: z.literal('annual')`, and `buildReportingPeriods` uses
+ * `targetGrain: 'annual'`, so `yearFraction` is always 1. Keep this guard as a
+ * defence against future contract widening; removal by unification is tracked
+ * in issue #1338.
  */
 export function assertEconomicsFeeGridSupported(
   period: Pick<EconomicsCanonicalPeriodV1, 'yearFraction'>,
