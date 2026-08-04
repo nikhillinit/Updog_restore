@@ -143,6 +143,7 @@ describe('canonical common API route manifest', () => {
         "reallocation:<bare>",
         "cash-flow-events:<bare>",
         "operating-object-tasks:<bare>",
+        "kpi-observations:<bare>",
         "deal-pipeline:/api/deals",
         "cohort-analysis:/api/cohorts",
         "sensitivity:/api",

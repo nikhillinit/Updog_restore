@@ -351,6 +351,13 @@
       "when": 1785627600000,
       "tag": "0048_quarterly_review_workflow",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1785714000000,
+      "tag": "0049_kpi_observations",
+      "breakpoints": true
     }
   ]
 }

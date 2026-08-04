@@ -651,6 +651,25 @@ export const COMMON_API_ROUTE_MANIFEST = [
     },
   },
   {
+    id: 'kpi-observations',
+    sourceModule: './routes/kpi-observations.js',
+    // The router declares full `/api/...` paths (operating-object-tasks style),
+    // so it mounts bare.
+    mountPath: null,
+    authBoundary: 'global_authenticated',
+    fundScope: 'path',
+    financial: true,
+    migrationParity: { kind: 'c1', tables: ['kpi_observations'] },
+    schemaTables: ['kpi_observations', 'portfoliocompanies', 'funds', 'users'],
+    owner: 'gp-team',
+    probe: {
+      method: 'GET',
+      path: '/api/funds/abc/kpi-observations',
+      expectedStatus: 400,
+      authenticated: true,
+    },
+  },
+  {
     id: 'deal-pipeline',
     sourceModule: './routes/deal-pipeline.js',
     mountPath: '/api/deals',

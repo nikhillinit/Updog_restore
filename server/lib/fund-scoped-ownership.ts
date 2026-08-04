@@ -11,6 +11,7 @@ import {
 } from '../../shared/schema/internal-economics';
 import { financingEvents, financingTranches } from '../../shared/schema/investment-ledger';
 import { vehicles } from '../../shared/schema/lp-reporting-evidence';
+import { portfolioCompanies } from '../../shared/schema/portfolio';
 import { vehicleFinancingParticipations } from '../../shared/schema/vehicle-financing-participations';
 
 export type FundScopedReference = {
@@ -25,7 +26,8 @@ export type FundScopedReference = {
     | 'participation'
     | 'capital_envelope_version'
     | 'economics_policy_version'
-    | 'lp_economics_run';
+    | 'lp_economics_run'
+    | 'portfolio_company';
   id: string | number;
 };
 
@@ -246,6 +248,22 @@ export async function assertOwnedByFund(opts: {
       .where(
         and(eq(internalLpEconomicsRuns.id, id), eq(internalLpEconomicsRuns.fundId, opts.fundId))
       )
+      .limit(1);
+
+    if (rows.length === 0) {
+      throw new FundScopeError(opts.ref);
+    }
+    return;
+  }
+
+  // `portfoliocompanies` has a nullable fund_id and no (id, fund_id) sibling key,
+  // so a KPI observation's company FK is plain and this is the only same-fund
+  // check on it (issue #1300).
+  if (opts.ref.kind === 'portfolio_company') {
+    const rows = await opts.db
+      .select({ id: portfolioCompanies.id })
+      .from(portfolioCompanies)
+      .where(and(eq(portfolioCompanies.id, id), eq(portfolioCompanies.fundId, opts.fundId)))
       .limit(1);
 
     if (rows.length === 0) {
