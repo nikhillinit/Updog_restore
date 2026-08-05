@@ -1,7 +1,9 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 
 import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
 import { IdempotentCommandError } from '../../../server/lib/idempotent-command';
+import { NEON_HTTP_TRANSACTION_UNSUPPORTED_MESSAGE } from '../../../server/lib/transaction-support';
 import {
   CURRENT_FORECAST_ACTIVATE_ROUTE,
   CURRENT_FORECAST_REFERENCE_CONTRACT_VERSION,
@@ -71,6 +73,7 @@ function makeDatabase(executeRows: unknown[][]) {
     database: database as unknown as CurrentForecastReferenceDatabase,
     tx,
     database_raw: database,
+    transaction: database.transaction,
   };
 }
 
@@ -86,20 +89,22 @@ function expectedRequestHash(extra: Record<string, unknown> = {}) {
 }
 
 describe('currentForecastReferenceIdempotencyKey', () => {
-  it('builds the deterministic cfref key', () => {
-    expect(
-      currentForecastReferenceIdempotencyKey({
-        fundId: 7,
-        inputHash: INPUT_HASH,
-        resultHash: RESULT_HASH,
-      })
-    ).toBe(`cfref:7:${INPUT_HASH}:${RESULT_HASH}`);
+  it('builds a deterministic bounded cfref key', () => {
+    const digest = createHash('sha256').update(`${INPUT_HASH}:${RESULT_HASH}`).digest('hex');
+    const key = currentForecastReferenceIdempotencyKey({
+      fundId: 7,
+      inputHash: INPUT_HASH,
+      resultHash: RESULT_HASH,
+    });
+
+    expect(key).toBe(`cfref:7:${digest}`);
+    expect(key).toHaveLength(7 + 1 + 64);
   });
 });
 
 describe('createCandidateCurrentForecastReference', () => {
   it('inserts a candidate row and returns the mapped record', async () => {
-    const { database, database_raw } = makeDatabase([[snakeRow()]]);
+    const { database, tx } = makeDatabase([[snakeRow()]]);
 
     const result = await createCandidateCurrentForecastReference({
       fundId: 7,
@@ -118,7 +123,7 @@ describe('createCandidateCurrentForecastReference', () => {
       inputHash: INPUT_HASH,
       resultHash: RESULT_HASH,
     });
-    expect(database_raw.execute).toHaveBeenCalledTimes(1);
+    expect(tx.execute).toHaveBeenCalledTimes(1);
   });
 
   it('replays an existing row when the same request is re-issued', async () => {
@@ -150,6 +155,23 @@ describe('createCandidateCurrentForecastReference', () => {
       code: 'IDEMPOTENCY_KEY_REUSE',
     });
     expect(IdempotentCommandError).toBeDefined();
+  });
+
+  it('falls back to the plain executor for neon-http transactionless mode', async () => {
+    const { database, transaction, database_raw } = makeDatabase([[snakeRow()]]);
+    transaction.mockRejectedValueOnce(new Error(NEON_HTTP_TRANSACTION_UNSUPPORTED_MESSAGE));
+
+    const result = await createCandidateCurrentForecastReference({
+      fundId: 7,
+      basis,
+      idempotencyKey: 'key-1',
+      database,
+    });
+
+    expect(result.replayed).toBe(false);
+    expect(result.row.id).toBe(42);
+    expect(transaction).toHaveBeenCalledOnce();
+    expect(database_raw.execute).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -269,7 +291,7 @@ describe('createRollbackCurrentForecastReference', () => {
       idempotency_key: 'admin-rollback-1',
       reason: 'roll back to pre-incident head',
     });
-    const { database, database_raw } = makeDatabase([[sourceRow], [insertedRow]]);
+    const { database, tx, database_raw } = makeDatabase([[sourceRow], [insertedRow]]);
 
     const result = await createRollbackCurrentForecastReference({
       fundId: 7,
@@ -286,7 +308,8 @@ describe('createRollbackCurrentForecastReference', () => {
       candidate: true,
       reason: 'roll back to pre-incident head',
     });
-    expect(database_raw.execute).toHaveBeenCalledTimes(2);
+    expect(database_raw.execute).toHaveBeenCalledTimes(1);
+    expect(tx.execute).toHaveBeenCalledTimes(1);
   });
 
   it('404s when the source reference does not exist for the fund', async () => {
@@ -587,7 +610,11 @@ describe('verifyGreenCandidateWithLedger', () => {
   });
 
   it('flags unexplained divergences (failed shadow rows block green, P3)', async () => {
-    const executor = makeExecutor([[{ id: 5 }], [{ reconciliation_status: 'match' }], [{ id: 8 }]]);
+    const executor = makeExecutor([
+      [{ id: 5 }],
+      [{ reconciliation_status: 'match' }],
+      [{ substrate_state: 'failed', reconciliation_status: 'mismatch' }],
+    ]);
 
     expect(
       await verifyGreenCandidateWithLedger({

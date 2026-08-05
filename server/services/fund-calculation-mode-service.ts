@@ -123,6 +123,7 @@ export interface CalculationModeStrategy<TSources> {
   calculationKey: string;
   modeRoute: string;
   residencyDaysRequired: number;
+  shadowRequiresAccepted?: boolean;
   loadSources(fundId: number, database: FundCalculationModeDatabase, now: Date): Promise<TSources>;
   sourceInputHash(sources: TSources): string;
   factsAvailable(sources: TSources): boolean;
@@ -568,7 +569,11 @@ function buildModePreview<TSources>(
   if (killSwitchActive) {
     blockers.push('kill_switch_active');
   }
-  if (configuredMode !== 'off' && !params.row?.last_reconciliation_run_id) {
+  if (
+    configuredMode !== 'off' &&
+    strategy.shadowRequiresAccepted !== false &&
+    !params.row?.last_reconciliation_run_id
+  ) {
     blockers.push('accepted_reconciliation_required');
   }
   if (configuredMode !== 'off' && unreconciledEditsPresent) {
@@ -679,6 +684,7 @@ const currentForecastCalculationModeStrategy: CalculationModeStrategy<CurrentFor
     calculationKey: CURRENT_FORECAST_CALCULATION_KEY,
     modeRoute: CURRENT_FORECAST_MODE_ROUTE,
     residencyDaysRequired: CURRENT_FORECAST_MODE_RESIDENCY_DAYS_REQUIRED,
+    shadowRequiresAccepted: false,
     loadSources: async () => ({
       sourceInputHash: canonicalSha256({
         calculationKey: CURRENT_FORECAST_CALCULATION_KEY,
@@ -909,9 +915,11 @@ async function updateFundCalculationMode<TSources>(
 
     let nextShadowStartedAt: Date | null = null;
     if (params.configuredMode === 'shadow') {
-      const blockers = strategy.validateAccepted(accepted, sources);
-      if (blockers.length > 0) {
-        throw new FundCalculationModeBlockedError(blockers);
+      if (strategy.shadowRequiresAccepted !== false) {
+        const blockers = strategy.validateAccepted(accepted, sources);
+        if (blockers.length > 0) {
+          throw new FundCalculationModeBlockedError(blockers);
+        }
       }
 
       const existingStartedAt = toDate(existing?.shadow_started_at ?? null);

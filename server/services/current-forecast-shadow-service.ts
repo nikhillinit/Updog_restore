@@ -21,8 +21,9 @@ import {
  * Review pins honored here:
  * - P3: non-value-producing runs persist as `reconciliation_status='mismatch'`
  *   with a typed reason (`unavailable` -> `facts_gap`/`unavailable_expected`);
- *   `failed` persists as `mismatch` with NO typed reason — it is by definition
- *   an UNEXPLAINED divergence and blocks green.
+ *   `failed` persists as `mismatch` with no typed reason — it is by definition
+ *   an UNEXPLAINED divergence and blocks green. Failed rows still carry a
+ *   deterministic basis marker in `mismatches` for reconstruction.
  * - P4: the writer never emits `configured_mode`/`effective_mode` outside
  *   `off|shadow|on` ('held' is a resolver/serving state, not a ledger mode) —
  *   enforced by {@link assertLedgerMode}.
@@ -68,6 +69,8 @@ export interface CurrentForecastShadowBaseExpectation {
 export interface CurrentForecastShadowBase {
   name: string;
   fundId: number;
+  /** Durable identity marker used when a failed run has no engine hashes. */
+  basisDescriptor?: string;
   referenceBasis: {
     fundSnapshotId: number;
     currentPlanVersionId: number;
@@ -109,6 +112,19 @@ function corpusRunIdentityHash(base: CurrentForecastShadowBase): string {
     corpusBase: base.name,
     fundId: base.fundId,
   });
+}
+
+function failureBasisDescriptor(base: CurrentForecastShadowBase): string {
+  return (
+    base.basisDescriptor ??
+    `basis:facts=${base.referenceBasis.financialFactsSnapshotId};plan=${
+      base.referenceBasis.currentPlanVersionId > 0
+        ? base.referenceBasis.currentPlanVersionId
+        : 'unknown'
+    };snapshot=${
+      base.referenceBasis.fundSnapshotId > 0 ? base.referenceBasis.fundSnapshotId : 'unknown'
+    };name=${base.name}`
+  );
 }
 
 export interface BuildCurrentForecastShadowRecordParams {
@@ -185,7 +201,7 @@ export function buildCurrentForecastShadowRecord(params: BuildCurrentForecastSha
     inputHash: result?.inputHash ?? corpusRunIdentityHash(base),
     resultHash,
     assumptionsHash: result?.assumptionsHash ?? corpusRunIdentityHash(base),
-    mismatches: [...mismatchReasons],
+    mismatches: substrateState === 'failed' ? [failureBasisDescriptor(base)] : [...mismatchReasons],
   };
 
   return {
@@ -204,14 +220,36 @@ export function buildCurrentForecastShadowRecord(params: BuildCurrentForecastSha
 
 /** Default append-only writer (substrate-writer shape: idempotent, no rethrow filtering). */
 export async function persistCurrentForecastShadowReconciliation(
-  record: InsertSubstrateShadowReconciliation
+  record: InsertSubstrateShadowReconciliation,
+  database: typeof db = db
 ): Promise<void> {
-  await db.insert(substrateShadowReconciliations).values(record).onConflictDoNothing();
+  await database.insert(substrateShadowReconciliations).values(record).onConflictDoNothing();
 }
 
 export type PersistCurrentForecastShadowReconciliationFn = (
   record: InsertSubstrateShadowReconciliation
 ) => Promise<void>;
+
+/** Persist a non-engine failure without allowing duplicate retries to resurrect it. */
+export async function persistCurrentForecastShadowFailure(params: {
+  base: CurrentForecastShadowBase;
+  error?: unknown;
+  reason?: string;
+  persist?: PersistCurrentForecastShadowReconciliationFn;
+}): Promise<void> {
+  const persist = params.persist ?? persistCurrentForecastShadowReconciliation;
+  const basisDescriptor = failureBasisDescriptor(params.base);
+  const { record } = buildCurrentForecastShadowRecord({
+    base: params.base,
+    result: null,
+    ...(params.error === undefined ? {} : { error: params.error }),
+    modes: { configuredMode: 'shadow', effectiveMode: 'shadow', killSwitchActive: false },
+  });
+  await persist({
+    ...record,
+    mismatches: [basisDescriptor, ...(params.reason === undefined ? [] : [params.reason])],
+  });
+}
 
 export type CreateCurrentForecastReferenceFn = (params: {
   fundId: number;

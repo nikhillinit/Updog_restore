@@ -26,6 +26,10 @@ import {
   updateCurrentForecastCalculationMode,
 } from '../services/fund-calculation-mode-service';
 import {
+  CurrentForecastResumePreCutoverError,
+  resumeCurrentForecast,
+} from '../services/current-forecast-resume-command';
+import {
   CurrentForecastActivationBlockedError,
   CurrentForecastReferenceError,
   activateCurrentForecast,
@@ -68,6 +72,12 @@ const CurrentForecastModeUpdateBodySchema = z
     expectedVersion: z.number().int().nonnegative(),
     configuredMode: z.enum(['off', 'shadow', 'on']),
     killSwitchActive: z.boolean().optional(),
+  })
+  .strict();
+
+const CurrentForecastResumeBodySchema = z
+  .object({
+    expectedVersion: z.number().int().nonnegative(),
   })
   .strict();
 
@@ -328,6 +338,63 @@ router.put(
           message: error.message,
           blockers: error.blockers,
         });
+      }
+      if (
+        error instanceof FundCalculationModeIdempotencyConflictError ||
+        error instanceof FundCalculationModeInProgressError
+      ) {
+        return res.status(409).json({ error: error.code, message: error.message });
+      }
+      throw error;
+    }
+  })
+);
+
+router.post(
+  '/admin/funds/:fundId/calculation-modes/current-forecast/resume',
+  currentForecastWriteLimiter,
+  requireAuth(),
+  validateFundIdParam,
+  requireFundAccess,
+  requireRole('admin'),
+  routeHandler(async (req: Request, res: Response) => {
+    const fundId = toNumber(req.params['fundId'], 'fundId', { integer: true, min: 1 });
+    const idempotencyKey = req.header('Idempotency-Key')?.trim();
+    if (!idempotencyKey) {
+      return res.status(428).json({
+        error: 'idempotency_key_required',
+        message: 'Idempotency-Key header is required',
+      });
+    }
+
+    const parsedBody = CurrentForecastResumeBodySchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      return res.status(400).json({
+        error: 'invalid_resume_request',
+        message: 'Current forecast resume request is invalid',
+        details: parsedBody.error.format(),
+      });
+    }
+
+    try {
+      const result = await resumeCurrentForecast({
+        fundId,
+        expectedVersion: parsedBody.data.expectedVersion,
+        idempotencyKey,
+        actorId: actorId(req),
+      });
+      return res.status(200).json({ ...result.response, replayed: result.replayed });
+    } catch (error) {
+      if (error instanceof FundCalculationModeVersionConflictError) {
+        return res.status(409).json({
+          error: error.code,
+          message: error.message,
+          expectedVersion: error.expectedVersion,
+          actualVersion: error.actualVersion,
+        });
+      }
+      if (error instanceof CurrentForecastResumePreCutoverError) {
+        return res.status(409).json({ error: error.code, message: error.message });
       }
       if (
         error instanceof FundCalculationModeIdempotencyConflictError ||

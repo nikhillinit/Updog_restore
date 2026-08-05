@@ -77,22 +77,10 @@
       "reExportingBarrels": [],
       "allowedConsumers": [
         {
-          "file": "server/routes/dual-forecast.ts",
-          "consumer": "dual_forecast_api",
+          "file": "server/services/current-forecast-serving-seam.ts",
+          "consumer": "current_forecast_serving_seam",
           "disposition": "migrate_to_v2",
-          "note": "getDualForecast(fundId) — migrates to current_forecast_v2."
-        },
-        {
-          "file": "server/routes/fund-metrics.ts",
-          "consumer": "fund_results_current_forecast",
-          "disposition": "migrate_to_v2",
-          "note": "getUnifiedMetrics current-forecast surface — migrates to current_forecast_v2."
-        },
-        {
-          "file": "server/services/h9-artifact-invalidation-service.ts",
-          "consumer": "h9_artifact_invalidation",
-          "disposition": "migrate_to_v2",
-          "note": "Calls metricsAggregator.invalidateCache; follows the facade to v2."
+          "note": "Sole delegating V2 serving seam; retired with the metricsAggregator facade."
         }
       ]
     }

@@ -31,6 +31,18 @@ paths = [
 ]
 
 [[allowlists]]
+description = "Allow deterministic current-forecast shadow idempotency fixture"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''^\s*idempotencyKey:\s*'forecast-shadow-1',$'''
+]
+paths = [
+  '''^tests/unit/services/fund-calculation-mode-service\.current-forecast\.test\.ts$'''
+]
+
+[[allowlists]]
 description = "Allow historical negative-control fixture template from blocking repo-history scans"
 targetRules = ["updog-negative-control-token"]
 condition = "AND"

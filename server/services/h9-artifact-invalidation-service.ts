@@ -1,4 +1,4 @@
-import { metricsAggregator } from './metrics-aggregator';
+import { invalidateCurrentForecastCache } from './current-forecast-serving-seam';
 import { logger } from '../lib/logger';
 
 const log = logger.child({ service: 'h9-artifact-invalidation' });
@@ -22,7 +22,7 @@ const log = logger.child({ service: 'h9-artifact-invalidation' });
  */
 export async function invalidateH9Artifacts(fundId: number): Promise<void> {
   try {
-    await metricsAggregator.invalidateCache(fundId);
+    await invalidateCurrentForecastCache(fundId);
   } catch (error) {
     log.warn({ fundId, err: error }, 'H9 artifact invalidation failed (best-effort)');
   }

@@ -10049,3 +10049,101 @@ Required per `CLAUDE.md`: `xirr-fees-validator` (fees and timing),
 `waterfall-specialist` (preferred return and carry), and
 `phoenix-precision-guardian` (Decimal precision of the year fraction). Sign-off
 is recorded on the pull request, not here.
+
+## ADR-071: Current-Forecast Activation Recovery and Decisive Shadow Gating (Issue #1299-R / NEW-A)
+
+**Date:** 2026-08-04 **Status:** Accepted **Tags:** #current-forecast
+#activation #shadow-soak #idempotency #recovery
+
+**Related:** ADR-057, ADR-058, ADR-060,
+`F_1.0.0_activation-blockers-runtime.plan.md`
+
+### Context
+
+Current-forecast V2 needed an operational path from post-cutover `held` back to
+live V2 serving. The held state is intentional containment: kill switch,
+configured `off`, configured `shadow`, or a serving failure must continue to
+serve the pinned pointer and must never fall back to the legacy lane. Repeating
+activation would violate the one-way activation contract. Separately, shadow
+observations include non-decisive `unavailable` and `indicative` states, so a
+gate that treated every mismatch row as a permanent failure would block on
+expected availability gaps and duplicate retries.
+
+The runtime also exposed two persistence-boundary defects. The deterministic
+candidate-reference key could exceed its database column limit, and the V2
+engine identity string was too long for the existing
+`fund_snapshots.calc_version` `varchar(20)` column even though readers select by
+snapshot type and never use that column for identity.
+
+### Decision
+
+1. **Resume is the only post-cutover recovery mechanism.** The dedicated
+   `POST /api/admin/funds/:fundId/calculation-modes/current-forecast/resume`
+   command runs in one transaction through the `fund_calculation_mode_requests`
+   idempotency ledger, locks the mode row with `FOR UPDATE`, and requires
+   `expectedVersion` to match. It requires both `activated_at` and
+   `cutover_reference_id` to be non-null, otherwise it returns a 409 pre-cutover
+   rejection. The one write sets `configured_mode = 'on'` and
+   `kill_switch_active = false`, increments the version, and leaves every
+   activation and pointer field unchanged. A fresh activation key after cutover
+   returns 409; replaying a completed activation with the same key returns 200
+   with `replayed: true`. Pointer advance and rollback references are lifecycle
+   operations, never recovery mechanisms.
+
+2. **Use latest decisive observation gating.** A row is decisive only when
+   `substrate_state = 'failed'`, or when `substrate_state = 'available'` and
+   `reconciliation_status` is `match` or `mismatch`. Select the latest fund/key
+   row by `observed_at DESC, id DESC`. The gate blocks unless that latest
+   decisive row is `available` + `match`. `unavailable` and `indicative` rows
+   are skipped; no decisive row adds no divergence blocker. A later exact-basis
+   success supersedes an earlier failure, while a later decisive failure blocks
+   again. Conflict-tolerant append-only persistence prevents duplicate retries
+   from changing the observation clock. This is a state-qualified rule because
+   the writer stamps `mismatch` on unavailable and failed rows.
+
+3. **Bound candidate idempotency keys.**
+   `currentForecastReferenceIdempotencyKey` is
+   `cfref:{fundId}:{sha256(inputHash + ':' + resultHash)}`. The digest preserves
+   exact-basis identity while keeping the key within the existing database
+   limit; no migration is required.
+
+4. **Keep storage identity separate from engine identity.**
+   `CURRENT_FORECAST_V2_CALC_VERSION = 'cf-v2/1.0.0'` is used only for the
+   `fund_snapshots.calc_version` storage column, which is `varchar(20)`.
+   `ENGINE_VERSION` remains the full `current-forecast-v2-engine/1.0.0` value
+   everywhere else, including receipts, hashes, and versioned contracts. No
+   column widening or migration is needed.
+
+### Consequences
+
+- The resume route is admin-only, fund-scoped, rate-limited, idempotent, and
+  policy-registered. It cannot activate a pre-cutover fund or mutate the served
+  pointer.
+- Shadow soak evidence must include exact-basis replay results, available
+  coverage, unexplained divergences, and the latest decisive observation. It
+  must not use legacy numeric parity as a criterion; ADR-057 remains governing.
+- Retry recovery is organic: fix the source or runtime problem and allow the
+  next facts commit or analysis checkpoint to produce a new observation.
+- The bounded storage constant fixes the latent real-Postgres snapshot insert
+  failure while preserving the engine version used by receipts and hashes.
+
+### Rejected alternatives
+
+- Re-running activation to recover `held`: rejected because activation is a
+  one-way latch and a fresh key must remain a 409.
+- Advancing the served pointer or creating a rollback reference to recover
+  `held`: rejected because those operations change reference lifecycle, not
+  activation state.
+- Treating every `mismatch` row as decisive: rejected because state-qualified
+  unavailable rows represent expected non-value-producing outcomes.
+- Widening `fund_snapshots.calc_version` or truncating `ENGINE_VERSION`:
+  rejected because the migrated schema is fixed and engine identity is part of
+  receipt/hash/contract semantics.
+
+### Evidence
+
+The implementation is covered by the current-forecast reference, shadow,
+activation-gate, resume-command, route, facts-commit, and checkpoint tests.
+Operational execution of the four seven-day shadow windows is owned by the
+`docs/runbooks/current-forecast-shadow-soak.md` runbook and the follow-on soak
+plan; this ADR does not authorize production activation.

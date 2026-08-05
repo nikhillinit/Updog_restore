@@ -14,12 +14,14 @@ import { substrateShadowReconciliations } from '../../../shared/schema';
 import {
   buildCurrentForecastShadowRecord,
   evaluateCurrentForecastShadowGreen,
+  persistCurrentForecastShadowFailure,
   persistCurrentForecastShadowReconciliation,
   runCurrentForecastShadowBase,
   type CurrentForecastShadowBase,
   type CurrentForecastShadowModes,
   type CurrentForecastShadowOutcome,
 } from '../../../server/services/current-forecast-shadow-service';
+import { currentForecastReferenceIdempotencyKey } from '../../../server/services/current-forecast-reference-service';
 import {
   CURRENT_FORECAST_REPLAY_CORPUS,
   type CurrentForecastReplayCorpusEntry,
@@ -217,7 +219,7 @@ describe('buildCurrentForecastShadowRecord', () => {
     expect(outcome.unexplained).toBe(false);
   });
 
-  it('persists a thrown run as failed + mismatch with NO typed reason (unexplained, P3)', () => {
+  it('persists a thrown run as failed + basis marker with NO typed reason (unexplained, P3)', () => {
     const entry = corpusEntry('case-blocked');
     const { record, outcome } = buildCurrentForecastShadowRecord({
       base: toShadowBase(entry),
@@ -230,7 +232,7 @@ describe('buildCurrentForecastShadowRecord', () => {
       substrateState: 'failed',
       reconciliationStatus: 'mismatch',
       resultHash: null,
-      mismatches: [],
+      mismatches: ['basis:facts=31;plan=911;snapshot=901;name=case-blocked'],
     });
     expect(record.inputHash).toMatch(/^[a-f0-9]{64}$/);
     expect(outcome).toMatchObject({ replayConsistent: false, unexplained: true });
@@ -246,6 +248,46 @@ describe('buildCurrentForecastShadowRecord', () => {
         modes: { ...SHADOW_MODES, effectiveMode: 'held' as never },
       })
     ).toThrowError(/off\|shadow\|on/);
+  });
+});
+
+describe('persistCurrentForecastShadowFailure', () => {
+  it('keeps failures for same facts and clock distinct across plan bases', async () => {
+    const persisted: Array<{ inputHash: string; mismatches: string[] }> = [];
+    const persist = vi.fn(async (record: { inputHash: string; mismatches: string[] }) => {
+      persisted.push(record);
+    });
+
+    for (const planId of [45, 46]) {
+      await persistCurrentForecastShadowFailure({
+        base: {
+          name: `facts:31:plan:${planId}:snapshot:901:clock:2026-06-30T00:00:00.000Z`,
+          basisDescriptor: `basis:facts=31;plan=${planId};snapshot=901;clock=2026-06-30T00:00:00.000Z`,
+          fundId: 7,
+          referenceBasis: {
+            fundSnapshotId: 901,
+            currentPlanVersionId: planId,
+            financialFactsSnapshotId: 31,
+          },
+          expected: {
+            status: 'failed',
+            inputHash: null,
+            resultHash: null,
+            methodologyVersion: 'cohort-projection-v2/1.0.0',
+            mismatchReasons: [],
+          },
+        },
+        reason: 'timeout',
+        persist,
+      });
+    }
+
+    expect(persisted).toHaveLength(2);
+    expect(persisted[0]?.inputHash).not.toBe(persisted[1]?.inputHash);
+    expect(persisted[0]?.mismatches).toContain(
+      'basis:facts=31;plan=45;snapshot=901;clock=2026-06-30T00:00:00.000Z'
+    );
+    expect(persisted[0]?.mismatches).toContain('timeout');
   });
 });
 
@@ -298,7 +340,11 @@ describe('runCurrentForecastShadowBase', () => {
         engineVersion: 'current-forecast-v2-engine/1.0.0',
         methodologyVersion: 'cohort-projection-v2/1.0.0',
       },
-      idempotencyKey: `cfref:${entry.input.fundId}:${entry.expected.inputHash}:${entry.expected.resultHash}`,
+      idempotencyKey: currentForecastReferenceIdempotencyKey({
+        fundId: entry.input.fundId,
+        inputHash: entry.expected.inputHash!,
+        resultHash: entry.expected.resultHash!,
+      }),
     });
   });
 

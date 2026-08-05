@@ -12,7 +12,10 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { metricsAggregator } from '../services/metrics-aggregator';
+import {
+  getUnifiedMetrics,
+  invalidateCurrentForecastCache,
+} from '../services/current-forecast-serving-seam';
 import type { UnifiedFundMetrics, MetricsCalculationError } from '@shared/types/metrics';
 import { toNumber } from '@shared/number';
 import { requireAuth, requireFundAccess } from '../lib/auth/jwt';
@@ -104,7 +107,7 @@ router['get'](
       }
 
       // Get unified metrics
-      const metrics: UnifiedFundMetrics = await metricsAggregator.getUnifiedMetrics(fundId, {
+      const metrics: UnifiedFundMetrics = await getUnifiedMetrics(fundId, {
         skipCache,
         skipProjections,
       });
@@ -173,7 +176,7 @@ router['post'](
         });
       }
 
-      await metricsAggregator.invalidateCache(fundId);
+      await invalidateCurrentForecastCache(fundId);
 
       // 204 No Content - successful invalidation, no body needed
       return res.status(204).end();
