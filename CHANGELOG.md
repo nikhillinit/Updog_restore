@@ -21,6 +21,25 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-08-04)
+
+- **Current-forecast activation-blocker runtime landed (#1325, NEW-A,
+  #1299-R).** The remaining current-forecast serving consumers now use the
+  dedicated seam; `off -> shadow` is reachable for current-forecast only, and
+  facts commits and analysis checkpoints invoke the bounded shadow trigger with
+  pinned receipts. The admin resume/re-arm command and route recover
+  post-cutover `held` state by clearing configured-off/configured-shadow and
+  kill-switch controls without moving the served pointer. The inert
+  `enable_current_forecast_v2` registry flag was removed; mode/reference state
+  is the activation control plane.
+- **Current-forecast persistence bounds corrected.** Candidate reference
+  idempotency keys now use
+  `cfref:{fundId}:{sha256(inputHash + ':' + resultHash)}`. V2 fund snapshots
+  store `CURRENT_FORECAST_V2_CALC_VERSION = 'cf-v2/1.0.0'` in the existing
+  `fund_snapshots.calc_version` `varchar(20)` column; the full `ENGINE_VERSION`
+  remains unchanged for receipts, hashes, and contracts. This fixes the latent
+  production insert failure without widening the column.
+
 ### Added (2026-08-03)
 
 - **"Called Capital Each Period" management-fee basis (#1310, ADR-006).** The

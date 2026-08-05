@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { NextFunction, Request, Response } from 'express';
-import { metricsAggregator } from '../services/metrics-aggregator';
+import { getDualForecast } from '../services/current-forecast-serving-seam';
 import { DualForecastResponseSchema } from '@shared/contracts/dual-forecast/dual-forecast-response.contract';
 import type { MetricsCalculationError } from '@shared/types/metrics';
 import { toNumber } from '@shared/number';
@@ -35,7 +35,7 @@ router['get'](
       const fundIdParam = req.params['fundId'];
       const fundId = toNumber(fundIdParam, 'fundId', { integer: true, min: 1 });
 
-      const dualForecast = await metricsAggregator.getDualForecast(fundId);
+      const dualForecast = await getDualForecast(fundId);
 
       // Egress contract parse (ADR-031): a contract-invalid payload is a
       // defect, not staleness, so it fails loudly instead of shipping.

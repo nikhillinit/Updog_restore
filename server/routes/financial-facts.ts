@@ -23,6 +23,7 @@ import {
   getLatestFinancialFactsSnapshot,
 } from '../services/financial-facts-snapshot-service';
 import { OpeningAccountingStateArtifactError } from '../services/financial-facts/opening-accounting-state-artifact';
+import { triggerCurrentForecastShadowForFacts } from '../services/current-forecast-shadow-trigger';
 
 const routeLog = createRouteLogger('financial-facts');
 const router = Router();
@@ -167,6 +168,13 @@ router.post(
               openingAccountingStateArtifactId: parsedBody.data.openingAccountingStateArtifactId,
             }),
       });
+      try {
+        await triggerCurrentForecastShadowForFacts({ fundId, snapshot });
+      } catch (error) {
+        // Shadow is observational; a trigger implementation or persistence
+        // failure must never turn a committed facts snapshot into an API error.
+        routeLog.error({ err: error, fundId }, 'Current-forecast shadow trigger failed');
+      }
       return res.status(200).json(snapshot);
     } catch (error) {
       if (

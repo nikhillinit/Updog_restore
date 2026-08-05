@@ -67,4 +67,32 @@ describe('current-forecast calculation mode service', () => {
     });
     expect(tx.execute).toHaveBeenCalledTimes(4);
   });
+
+  it('enters shadow without an accepted reconciliation and starts residency', async () => {
+    const { database } = makeDatabase([
+      [{ id: 100 }],
+      [modeRow()],
+      [modeRow({ configured_mode: 'shadow', shadow_started_at: now, version: 2 })],
+      [],
+    ]);
+
+    const result = await updateCurrentForecastCalculationMode({
+      fundId: 7,
+      expectedVersion: 1,
+      configuredMode: 'shadow',
+      idempotencyKey: 'forecast-shadow-1',
+      actorId: 42,
+      database: database as never,
+      now,
+    });
+
+    expect(result.response).toMatchObject({
+      configuredMode: 'shadow',
+      effectiveMode: 'shadow',
+      shadowStartedAt: now.toISOString(),
+      residencyStatus: 'pending',
+    });
+    expect(result.response.blockers).not.toContain('accepted_reconciliation_required');
+    expect(result.replayed).toBe(false);
+  });
 });

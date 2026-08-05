@@ -1455,6 +1455,31 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
       'Express middleware enforces fund access and admin role; route-policy verification allows this scoped admin financial-control API.',
   },
   {
+    id: 'api:post:/api/admin/funds/:fundId/calculation-modes/current-forecast/resume',
+    method: 'POST',
+    path: '/api/admin/funds/:fundId/calculation-modes/current-forecast/resume',
+    lifecycle: 'durable_crud',
+    governanceRef: '/fund-model-results/:fundId',
+    surface: 'current-forecast-resume-admin-api',
+    owner: 'analytics',
+    telemetryKey: telemetryKeyForRoute(
+      'api.route',
+      '/api/admin/funds/:fundId/calculation-modes/current-forecast/resume'
+    ),
+    // TODO(13): replace with a current_forecast surface when the policy type supports it.
+    financialSurface: 'moic_reserves',
+    apiAuthBoundary: 'admin_only',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'admin_mode_update_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes:
+      'Idempotent post-activation recovery command: clears held controls without advancing or rolling back the served pointer.',
+  },
+  {
     id: 'api:post:/api/admin/funds/:fundId/current-forecast/references',
     method: 'POST',
     path: '/api/admin/funds/:fundId/current-forecast/references',
@@ -2164,6 +2189,7 @@ export const COMMON_API_ROUTE_POLICY_IDS = {
     'api:post:/api/funds/:fundId/current-plan-versions',
     'api:post:/api/funds/:fundId/current-forecast/runs',
     'api:put:/api/admin/funds/:fundId/calculation-modes/current-forecast',
+    'api:post:/api/admin/funds/:fundId/calculation-modes/current-forecast/resume',
     'api:post:/api/admin/funds/:fundId/current-forecast/references',
     'api:post:/api/admin/funds/:fundId/current-forecast/activate',
   ],

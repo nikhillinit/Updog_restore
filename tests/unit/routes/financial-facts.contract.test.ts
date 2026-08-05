@@ -29,6 +29,10 @@ const service = vi.hoisted(() => ({
   getLatestFinancialFactsSnapshot: vi.fn(),
 }));
 
+const shadowTrigger = vi.hoisted(() => ({
+  triggerCurrentForecastShadowForFacts: vi.fn(),
+}));
+
 const rateLimiterState = vi.hoisted(() => ({
   configs: [] as unknown[],
 }));
@@ -76,6 +80,8 @@ vi.mock('../../../server/services/financial-facts-snapshot-service', () => {
     getLatestFinancialFactsSnapshot: service.getLatestFinancialFactsSnapshot,
   };
 });
+
+vi.mock('../../../server/services/current-forecast-shadow-trigger', () => shadowTrigger);
 
 import financialFactsRouter from '../../../server/routes/financial-facts';
 
@@ -261,6 +267,7 @@ function buildApp() {
 beforeEach(() => {
   vi.clearAllMocks();
   service.getLatestFinancialFactsSnapshot.mockResolvedValue(null);
+  shadowTrigger.triggerCurrentForecastShadowForFacts.mockResolvedValue(undefined);
 
   const stored = new Map<string, { request: string; snapshot: FinancialFactsSnapshotV1 }>();
   service.buildFinancialFactsSnapshot.mockImplementation(
@@ -425,6 +432,40 @@ describe('financial-facts route contract', () => {
     expect(service.buildFinancialFactsSnapshot).toHaveBeenCalledWith(
       expect.objectContaining({ openingAccountingStateArtifactId: 42 })
     );
+  });
+
+  it('POST invokes shadow trigger after facts snapshot commit and awaits it', async () => {
+    let triggerSettled = false;
+    shadowTrigger.triggerCurrentForecastShadowForFacts.mockImplementationOnce(async () => {
+      await Promise.resolve();
+      triggerSettled = true;
+    });
+
+    const response = await request(buildApp())
+      .post('/api/admin/funds/1/financial-facts/snapshots')
+      .set('Idempotency-Key', 'trigger-shadow-import')
+      .send({ asOfDate: '2026-07-21' });
+
+    expect(response.status).toBe(200);
+    expect(triggerSettled).toBe(true);
+    expect(shadowTrigger.triggerCurrentForecastShadowForFacts).toHaveBeenCalledWith({
+      fundId: 1,
+      snapshot: expect.objectContaining({ snapshotInputHash: 'b'.repeat(64) }),
+    });
+  });
+
+  it('POST keeps committed facts success when shadow trigger fails', async () => {
+    shadowTrigger.triggerCurrentForecastShadowForFacts.mockRejectedValueOnce(
+      new Error('shadow persistence unavailable')
+    );
+
+    const response = await request(buildApp())
+      .post('/api/admin/funds/1/financial-facts/snapshots')
+      .set('Idempotency-Key', 'trigger-shadow-failure')
+      .send({ asOfDate: '2026-07-21' });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ fundId: 1, snapshotInputHash: 'b'.repeat(64) });
   });
 
   it('POST omits the opening accounting-state artifact pin when not supplied', async () => {

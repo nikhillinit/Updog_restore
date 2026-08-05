@@ -1,12 +1,13 @@
 import { randomUUID } from 'node:crypto';
 
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 
 import { db } from '../db';
 import { assertOwnedByFund, type FundScopedOwnershipDatabase } from '../lib/fund-scoped-ownership';
+import { runWithTransactionFallback } from '../lib/transaction-support';
 import {
   CurrentForecastV2InputSchema,
-  ENGINE_VERSION,
+  CurrentForecastV2Schema,
   type CurrentForecastV2,
 } from '../../shared/contracts/current-forecast-v2.contract';
 import {
@@ -30,8 +31,14 @@ import {
 import { fundSnapshots } from '../../shared/schema/fund';
 import { getLatestFinancialFactsSnapshot } from './financial-facts-snapshot-service';
 
-type CurrentForecastDatabase = typeof db;
+export type CurrentForecastDatabase = typeof db;
+type CurrentForecastTransaction = Parameters<
+  Parameters<CurrentForecastDatabase['transaction']>[0]
+>[0];
 type FactsWithId = PersistedFinancialFactsSnapshotV1 & { readonly id: number };
+
+/** Stored in fund_snapshots.calc_version (varchar(20)); ENGINE_VERSION remains the engine identity. */
+export const CURRENT_FORECAST_V2_CALC_VERSION = 'cf-v2/1.0.0' as const;
 
 export type CurrentForecastV2ServiceErrorCode =
   | 'NO_CURRENT_PLAN_VERSION'
@@ -185,6 +192,25 @@ async function loadCurrentPlanVersion(
   return row;
 }
 
+/** Resolve current-plan identity without starting forecast evaluation. */
+export async function resolveCurrentForecastPlanVersionId(params: {
+  fundId: number;
+  database?: CurrentForecastDatabase;
+}): Promise<number | null> {
+  const database = params.database ?? db;
+  const [row] = await database
+    .select({ id: currentPlanVersions.id })
+    .from(currentPlanVersions)
+    .where(
+      and(
+        eq(currentPlanVersions.fundId, params.fundId),
+        isNull(currentPlanVersions.supersededByVersionId)
+      )
+    )
+    .limit(1);
+  return row?.id ?? null;
+}
+
 async function loadFactsSnapshot(
   input: RunCurrentForecastV2Input,
   database: CurrentForecastDatabase
@@ -282,7 +308,7 @@ export async function runCurrentForecastV2WithReceipt(
       state: null,
       scenarioSetId: null,
       snapshotTime: new Date(input.clock),
-      calcVersion: ENGINE_VERSION,
+      calcVersion: CURRENT_FORECAST_V2_CALC_VERSION,
       correlationId: randomUUID(),
     })
     .returning({ id: fundSnapshots.id });
@@ -296,4 +322,99 @@ export async function runCurrentForecastV2WithReceipt(
   }
 
   return { result, fundSnapshotId: inserted.id };
+}
+
+function currentForecastReceiptPredicate(input: {
+  fundId: number;
+  financialFactsSnapshotId: number;
+  currentPlanVersionId: number;
+  clock: string;
+}) {
+  return and(
+    eq(fundSnapshots.fundId, input.fundId),
+    eq(fundSnapshots.type, 'CURRENT_FORECAST_V2'),
+    sql`${fundSnapshots.payload}->>'financialFactsSnapshotId' = ${String(input.financialFactsSnapshotId)}`,
+    sql`${fundSnapshots.payload}->>'currentPlanVersionId' = ${String(input.currentPlanVersionId)}`,
+    eq(fundSnapshots.snapshotTime, new Date(input.clock))
+  );
+}
+
+async function findCurrentForecastV2Receipt(
+  input: {
+    fundId: number;
+    financialFactsSnapshotId: number;
+    currentPlanVersionId: number;
+    clock: string;
+  },
+  database: CurrentForecastDatabase
+): Promise<RunCurrentForecastV2Receipt | null> {
+  const [row] = await database
+    .select({ id: fundSnapshots.id, payload: fundSnapshots.payload })
+    .from(fundSnapshots)
+    .where(currentForecastReceiptPredicate(input))
+    .orderBy(asc(fundSnapshots.id))
+    .limit(1);
+
+  if (!row) return null;
+  return {
+    result: CurrentForecastV2Schema.parse(row.payload),
+    fundSnapshotId: row.id,
+  };
+}
+
+/**
+ * Pin one baseline receipt for an exact facts/plan/clock basis. The advisory
+ * lock is transaction-scoped, so concurrent callers serialize without adding
+ * a schema constraint. When neon-http cannot open a transaction, the advisory
+ * lock is skipped because it is xact-scoped; select-before-insert plus the
+ * lowest-snapshot-id lookup remains defense-in-depth for duplicate receipts.
+ */
+export async function getOrCreateCurrentForecastV2WithReceipt(
+  input: RunCurrentForecastV2Input
+): Promise<RunCurrentForecastV2Receipt> {
+  const database = input.database ?? db;
+
+  return runWithTransactionFallback<
+    CurrentForecastDatabase,
+    CurrentForecastTransaction,
+    RunCurrentForecastV2Receipt
+  >(database, async (transaction, context) => {
+    const planRow = await loadCurrentPlanVersion(input, transaction);
+    const factsRow = await loadFactsSnapshot(input, transaction);
+    const basis = {
+      fundId: input.fundId,
+      financialFactsSnapshotId: factsRow.id,
+      currentPlanVersionId: planRow.id,
+      clock: input.clock,
+    };
+    const basisTuple = JSON.stringify([
+      basis.fundId,
+      basis.financialFactsSnapshotId,
+      basis.currentPlanVersionId,
+      basis.clock,
+    ]);
+
+    if (context.transactional) {
+      await transaction.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtextextended(${basisTuple}, 0::bigint))`
+      );
+    }
+
+    const existing = await findCurrentForecastV2Receipt(basis, transaction);
+    if (existing) return existing;
+
+    const created = await runCurrentForecastV2WithReceipt({
+      ...input,
+      currentPlanVersionId: String(planRow.id),
+      financialFactsSnapshotId: String(factsRow.id),
+      database: transaction,
+    });
+
+    if (!context.transactional) {
+      // Autocommit callers can race after the select; return the lowest id if
+      // another caller inserted the same exact basis first.
+      return (await findCurrentForecastV2Receipt(basis, transaction)) ?? created;
+    }
+    return created;
+  });
 }

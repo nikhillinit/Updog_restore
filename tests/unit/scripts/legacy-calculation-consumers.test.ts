@@ -36,6 +36,12 @@ describe('legacy-calculation-consumers guard', () => {
       source: "import { metricsAggregator } from '@server/services/metrics-aggregator';",
       entryClass: 'legacy_backed_facades',
     },
+    {
+      name: 'facade import from a retired #1325 consumer',
+      filePath: 'server/routes/dual-forecast.ts',
+      source: "import { metricsAggregator } from '../services/metrics-aggregator';",
+      entryClass: 'legacy_backed_facades',
+    },
   ])('flags a new $name', ({ filePath, source, entryClass }) => {
     const result = analyze([{ filePath, source }], manifest);
 
@@ -92,15 +98,7 @@ describe('legacy-calculation-consumers guard', () => {
         "export { CohortEngine, generateCohortSummary, compareCohorts } from './CohortEngine';",
     },
     {
-      filePath: 'server/routes/dual-forecast.ts',
-      source: "import { metricsAggregator } from '../services/metrics-aggregator';",
-    },
-    {
-      filePath: 'server/routes/fund-metrics.ts',
-      source: "import { metricsAggregator } from '../services/metrics-aggregator';",
-    },
-    {
-      filePath: 'server/services/h9-artifact-invalidation-service.ts',
+      filePath: 'server/services/current-forecast-serving-seam.ts',
       source: "import { metricsAggregator } from './metrics-aggregator';",
     },
   ])('allows declared consumer $filePath', ({ filePath, source }) => {

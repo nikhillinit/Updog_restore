@@ -1,8 +1,10 @@
+import { createHash } from 'node:crypto';
 import { sql, type SQL } from 'drizzle-orm';
 
 import { db } from '../db';
 import { canonicalSha256 } from '../../shared/lib/canonical-hash';
 import { runIdempotentCommand } from '../lib/idempotent-command';
+import { runWithTransactionFallback } from '../lib/transaction-support';
 import { CURRENT_FORECAST_CALCULATION_KEY } from './current-forecast-calc-mode-resolver';
 import {
   FundCalculationModeIdempotencyConflictError,
@@ -23,6 +25,9 @@ import {
 export const CURRENT_FORECAST_REFERENCE_CONTRACT_VERSION = 'current-forecast-reference-v1';
 
 export type CurrentForecastReferenceDatabase = typeof db;
+type CurrentForecastReferenceTransaction = Parameters<
+  Parameters<CurrentForecastReferenceDatabase['transaction']>[0]
+>[0];
 type Executor = {
   execute: (query: SQL) => Promise<unknown>;
 };
@@ -75,7 +80,10 @@ export function currentForecastReferenceIdempotencyKey(params: {
   inputHash: string;
   resultHash: string;
 }): string {
-  return `cfref:${params.fundId}:${params.inputHash}:${params.resultHash}`;
+  const basisHash = createHash('sha256')
+    .update(`${params.inputHash}:${params.resultHash}`)
+    .digest('hex');
+  return `cfref:${params.fundId}:${basisHash}`;
 }
 
 type ReferenceRow = {
@@ -162,22 +170,29 @@ export async function createCandidateCurrentForecastReference(
   const createdBy = params.createdBy ?? null;
   const { basis } = params;
 
-  const result = await runIdempotentCommand<CurrentForecastReferenceRecord>({
-    db: database,
-    fundId: params.fundId,
-    idempotencyKey: params.idempotencyKey,
-    contractVersion: CURRENT_FORECAST_REFERENCE_CONTRACT_VERSION,
-    request: {
+  const result = await runWithTransactionFallback<
+    CurrentForecastReferenceDatabase,
+    CurrentForecastReferenceTransaction,
+    { row: CurrentForecastReferenceRecord; replayed: boolean }
+  >(database, async (executor) =>
+    runIdempotentCommand<CurrentForecastReferenceRecord>({
+      // The candidate insert is ON CONFLICT-idempotent. In neon-http fallback
+      // mode this callback runs against the plain executor with autocommit.
+      db: executor,
       fundId: params.fundId,
+      idempotencyKey: params.idempotencyKey,
       contractVersion: CURRENT_FORECAST_REFERENCE_CONTRACT_VERSION,
-      ...basis,
-      reason,
-      sourceReferenceId: params.sourceReferenceId ?? null,
-    },
-    insert: async (requestHash) => {
-      const rows = await executeRows<ReferenceRow>(
-        database,
-        sql`
+      request: {
+        fundId: params.fundId,
+        contractVersion: CURRENT_FORECAST_REFERENCE_CONTRACT_VERSION,
+        ...basis,
+        reason,
+        sourceReferenceId: params.sourceReferenceId ?? null,
+      },
+      insert: async (requestHash) => {
+        const rows = await executeRows<ReferenceRow>(
+          executor,
+          sql`
           INSERT INTO current_forecast_references
             (fund_id, calculation_key, fund_snapshot_id, current_plan_version_id,
              financial_facts_snapshot_id, input_hash, result_hash, assumptions_hash,
@@ -191,26 +206,27 @@ export async function createCandidateCurrentForecastReference(
              ${createdBy}, ${params.idempotencyKey}, ${requestHash})
           ON CONFLICT (fund_id, idempotency_key) DO NOTHING
           RETURNING ${REFERENCE_COLUMNS}
-        `
-      );
-      const row = rows[0];
-      return row ? toRecord(row) : null;
-    },
-    loadExisting: async () => {
-      const rows = await executeRows<ReferenceRow>(
-        database,
-        sql`
+          `
+        );
+        const row = rows[0];
+        return row ? toRecord(row) : null;
+      },
+      loadExisting: async () => {
+        const rows = await executeRows<ReferenceRow>(
+          executor,
+          sql`
           SELECT ${REFERENCE_COLUMNS}
           FROM current_forecast_references
           WHERE fund_id = ${params.fundId}
             AND idempotency_key = ${params.idempotencyKey}
           LIMIT 1
-        `
-      );
-      const row = rows[0];
-      return row ? { row: toRecord(row), requestHash: row.request_hash } : null;
-    },
-  });
+          `
+        );
+        const row = rows[0];
+        return row ? { row: toRecord(row), requestHash: row.request_hash } : null;
+      },
+    })
+  );
 
   return result;
 }
@@ -454,8 +470,10 @@ export type VerifyGreenCandidateFn = (params: {
  * Default green-candidate verification against the durable ledgers: the
  * reference must still be a live candidate, a fund-owned CURRENT_FORECAST_V2
  * snapshot must exist, the exact basis hash must have a green shadow `match`
- * replay, and the fund must carry zero `failed` shadow rows (P3: `failed` is by
- * definition an UNEXPLAINED divergence and blocks green).
+ * replay, and the fund's latest decisive shadow observation must be an
+ * available+match replay. Non-decisive unavailable/indicative observations are
+ * intentionally skipped; a later decisive success supersedes an earlier
+ * failure.
  */
 export const verifyGreenCandidateWithLedger: VerifyGreenCandidateFn = async ({
   executor,
@@ -498,18 +516,32 @@ export const verifyGreenCandidateWithLedger: VerifyGreenCandidateFn = async ({
     blockers.push('shadow_green_required');
   }
 
-  const failed = await executeRows<{ id: number }>(
+  const latestDecisive = await executeRows<{
+    substrate_state: string;
+    reconciliation_status: string;
+  }>(
     executor,
     sql`
-      SELECT id
+      SELECT substrate_state, reconciliation_status
       FROM substrate_shadow_reconciliations
       WHERE fund_id = ${fundId}
         AND calculation_key = ${CURRENT_FORECAST_CALCULATION_KEY}
-        AND substrate_state = 'failed'
+        AND (
+          substrate_state = 'failed'
+          OR (
+            substrate_state = 'available'
+            AND reconciliation_status IN ('match', 'mismatch')
+          )
+        )
+      ORDER BY observed_at DESC, id DESC
       LIMIT 1
     `
   );
-  if (failed.length > 0) {
+  const latest = latestDecisive[0];
+  if (
+    latest !== undefined &&
+    (latest.substrate_state !== 'available' || latest.reconciliation_status !== 'match')
+  ) {
     blockers.push('unexplained_divergence_present');
   }
 
@@ -549,7 +581,10 @@ function activationResponseFromLedger(value: unknown): CurrentForecastActivation
  * `activated_at` + `cutover_reference_id` AND flips the chosen candidate to
  * `candidate = false` (P2) — arming the accepted-head partial unique. The mode
  * route never writes `on` for this key; only this command does, so the
- * activation event is by construction written in the same transaction.
+ * activation event is by construction written in the same transaction. This
+ * is a one-way latch: a fresh-key repeat returns 409 (`already_activated`),
+ * while a same-key retry replays 200. Pointer advance and rollback are never
+ * recovery mechanisms; post-activation recovery clears held controls only.
  */
 export async function activateCurrentForecast(params: {
   fundId: number;

@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import type { db } from '../../../server/db';
 import {
+  CURRENT_FORECAST_V2_CALC_VERSION,
   CurrentForecastV2ServiceError,
+  getOrCreateCurrentForecastV2WithReceipt,
   runCurrentForecastV2,
   runCurrentForecastV2WithReceipt,
 } from '../../../server/services/current-forecast-v2-service';
-import { ENGINE_VERSION } from '../../../shared/contracts/current-forecast-v2.contract';
+import { NEON_HTTP_TRANSACTION_UNSUPPORTED_MESSAGE } from '../../../server/lib/transaction-support';
 import { currentPlanVersions } from '../../../shared/schema/current-plans';
 import { financialFactsSnapshots } from '../../../shared/schema/financial-facts-snapshots';
 import { fundSnapshots } from '../../../shared/schema/fund';
@@ -34,9 +36,13 @@ class FakeCurrentForecastDb {
   readonly planRows: CurrentPlanRow[] = [currentPlanRow()];
   readonly factsRows: FactsRow[] = [factsRow()];
   readonly insertedSnapshots: FundSnapshotInsert[] = [];
+  readonly snapshotRows: Array<{ id: number; payload: unknown }> = [];
+  readonly advisoryLocks: unknown[] = [];
+  private transactionQueue: Promise<void> = Promise.resolve();
   planOwnershipAllowed = true;
   factsOwnershipAllowed = true;
   returnEmptyInsert = false;
+  transactionError: Error | null = null;
 
   asDatabase(): CurrentForecastDatabase {
     return this as unknown as CurrentForecastDatabase;
@@ -62,6 +68,7 @@ class FakeCurrentForecastDb {
             : this.factsRows;
           return queryRows(rows);
         }
+        if (table === fundSnapshots) return queryRows(this.snapshotRows);
         return queryRows([]);
       },
     };
@@ -74,10 +81,31 @@ class FakeCurrentForecastDb {
           if (table !== fundSnapshots) return [];
           this.insertedSnapshots.push(values);
           if (this.returnEmptyInsert) return [];
-          return [{ id: this.insertedSnapshots.length }];
+          const id = this.insertedSnapshots.length;
+          this.snapshotRows.push({ id, payload: values.payload });
+          return [{ id }];
         },
       }),
     };
+  }
+
+  async execute(query: unknown): Promise<void> {
+    this.advisoryLocks.push(query);
+  }
+
+  async transaction<T>(callback: (transaction: this) => Promise<T>): Promise<T> {
+    if (this.transactionError !== null) throw this.transactionError;
+    const previous = this.transactionQueue;
+    let release!: () => void;
+    this.transactionQueue = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    try {
+      return await callback(this);
+    } finally {
+      release();
+    }
   }
 }
 
@@ -100,9 +128,43 @@ describe('current forecast v2 service', () => {
       state: null,
       scenarioSetId: null,
       snapshotTime: new Date(clock),
-      calcVersion: ENGINE_VERSION,
+      calcVersion: CURRENT_FORECAST_V2_CALC_VERSION,
       correlationId: expect.any(String),
     });
+  });
+
+  it('serializes concurrent exact-basis baseline callers and reuses the receipt', async () => {
+    const fakeDb = new FakeCurrentForecastDb();
+    const input = {
+      fundId: 1,
+      clock: '2026-07-22T18:24:32.051Z',
+      database: fakeDb.asDatabase(),
+    };
+
+    const [first, second] = await Promise.all([
+      getOrCreateCurrentForecastV2WithReceipt(input),
+      getOrCreateCurrentForecastV2WithReceipt(input),
+    ]);
+
+    expect(first.fundSnapshotId).toBe(1);
+    expect(second.fundSnapshotId).toBe(1);
+    expect(fakeDb.insertedSnapshots).toHaveLength(1);
+    expect(fakeDb.advisoryLocks).toHaveLength(2);
+  });
+
+  it('falls back to autocommit when neon-http does not support transactions', async () => {
+    const fakeDb = new FakeCurrentForecastDb();
+    fakeDb.transactionError = new Error(NEON_HTTP_TRANSACTION_UNSUPPORTED_MESSAGE);
+
+    const receipt = await getOrCreateCurrentForecastV2WithReceipt({
+      fundId: 1,
+      clock: '2026-07-22T18:24:32.051Z',
+      database: fakeDb.asDatabase(),
+    });
+
+    expect(receipt.fundSnapshotId).toBe(1);
+    expect(fakeDb.insertedSnapshots).toHaveLength(1);
+    expect(fakeDb.advisoryLocks).toHaveLength(0);
   });
 
   it('exposes an internal receipt seam without changing the public forecast result', async () => {

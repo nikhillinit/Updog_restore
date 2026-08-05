@@ -62,7 +62,11 @@ import { logger } from '../../lib/logger';
 import { financialFactsSnapshots } from '../../../shared/schema/financial-facts-snapshots';
 import { funds, fundSnapshots } from '../../../shared/schema/fund';
 import { buildFinancialFactsSnapshot } from '../financial-facts-snapshot-service';
-import { runCurrentForecastV2WithReceipt } from '../current-forecast-v2-service';
+import {
+  resolveCurrentForecastPlanVersionId,
+  runCurrentForecastV2WithReceipt,
+} from '../current-forecast-v2-service';
+import { triggerCurrentForecastShadow } from '../current-forecast-shadow-trigger';
 import { weakETag } from '../../lib/http-preconditions';
 
 const log = logger.child({ module: 'internal-analysis-checkpoint' });
@@ -1408,22 +1412,74 @@ export function createAnalysisCheckpointPorts(database: Database = db): Analysis
 
       // ...and every consumer rebuilt from that same snapshot (defect D6).
       let forecastFundSnapshotId: number | null = null;
+      let failurePlanVersionId: number | undefined;
+      try {
+        const planVersionId = await resolveCurrentForecastPlanVersionId({
+          fundId: input.fundId,
+          database,
+        });
+        // Zero is an internal sentinel rendered as plan=none for a fund with
+        // no current plan; omitted means the identity lookup itself failed.
+        failurePlanVersionId = planVersionId ?? 0;
+      } catch (planLookupError) {
+        log.warn(
+          { err: planLookupError, fundId: input.fundId },
+          'Current-forecast plan identity lookup failed before checkpoint rebuild'
+        );
+      }
       try {
         const receipt = await runCurrentForecastV2WithReceipt({
           fundId: input.fundId,
           financialFactsSnapshotId: String(snapshotRow.id),
           clock: knowledgeCutoff.toISOString(),
+          // Pin execution to the same plan identity recorded for failure
+          // persistence, so a concurrent plan replacement cannot make the
+          // failed row name a different plan than the one that executed.
+          ...(failurePlanVersionId === undefined || failurePlanVersionId === 0
+            ? {}
+            : { currentPlanVersionId: String(failurePlanVersionId) }),
           database,
         });
         forecastFundSnapshotId = receipt.fundSnapshotId;
+        try {
+          await triggerCurrentForecastShadow({
+            fundId: input.fundId,
+            financialFactsSnapshotId: snapshotRow.id,
+            clock: knowledgeCutoff.toISOString(),
+            receipt,
+            database,
+          });
+        } catch (shadowError) {
+          log.error(
+            { err: shadowError, fundId: input.fundId },
+            'Current-forecast shadow trigger failed after checkpoint rebuild'
+          );
+        }
       } catch (error) {
         // A fund without an accepted current plan has no forecast to pin yet. The
-        // reference is still valid on its facts basis alone; the panel renders the
-        // absence rather than fabricating a number.
+        // reference is still valid on its facts basis alone; record the shadow
+        // failure while leaving the forecast pin empty.
         log.warn(
           { err: error, fundId: input.fundId },
           'Current-forecast rebuild unavailable; leaving the forecast pin empty'
         );
+        try {
+          await triggerCurrentForecastShadow({
+            fundId: input.fundId,
+            financialFactsSnapshotId: snapshotRow.id,
+            clock: knowledgeCutoff.toISOString(),
+            error,
+            ...(failurePlanVersionId === undefined
+              ? {}
+              : { currentPlanVersionId: failurePlanVersionId }),
+            database,
+          });
+        } catch (shadowError) {
+          log.error(
+            { err: shadowError, fundId: input.fundId },
+            'Current-forecast shadow failure could not be recorded'
+          );
+        }
       }
 
       return {

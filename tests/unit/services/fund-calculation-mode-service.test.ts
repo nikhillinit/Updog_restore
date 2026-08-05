@@ -190,6 +190,28 @@ describe('fund calculation mode service', () => {
     expect(tx.execute).toHaveBeenCalledTimes(5);
   });
 
+  it('keeps MOIC shadow mode gated by an accepted reconciliation', async () => {
+    const { database } = makeDatabase([
+      [{ id: 100 }],
+      [
+        modeRow({
+          configured_mode: 'off',
+          last_reconciliation_run_id: null,
+          last_moic_source_input_hash: null,
+          last_candidate_output_hash: null,
+        }),
+      ],
+    ]);
+
+    await expect(
+      updateFundMoicCalculationMode({
+        ...baseUpdate,
+        configuredMode: 'shadow',
+        database: database as never,
+      })
+    ).rejects.toMatchObject({ blockers: ['accepted_reconciliation_required'] });
+  });
+
   it('rejects first write when expectedVersion is not 0', async () => {
     const { database } = makeDatabase([[{ id: 100 }], []]);
 
