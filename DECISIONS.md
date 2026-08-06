@@ -10147,3 +10147,74 @@ activation-gate, resume-command, route, facts-commit, and checkpoint tests.
 Operational execution of the four seven-day shadow windows is owned by the
 `docs/runbooks/current-forecast-shadow-soak.md` runbook and the follow-on soak
 plan; this ADR does not authorize production activation.
+
+## ADR-072: Effective-Role and Capability Authorization Model (F_1.2.2 / G1 Repair)
+
+**Date:** 2026-08-06 **Status:** Accepted **Tags:** #auth #authorization
+#roles #capabilities #websocket #g1
+
+**Related:** `F_1.2.2_g1-matrix-repair.plan.md`, G1 review 2026-08-06,
+`shared/auth/effective-roles.ts`
+
+### Context
+
+The G1 surface-contract review found runtime authorization inconsistent with
+the persisted role model. Persisted roles are exactly
+`admin, partner, analyst, operator, viewer, service`
+(`shared/schema/user.ts`), yet route guards referenced non-persistable labels
+(`flag_read`, `flag_admin`, `reserve_admin`) that no login-issued token can
+carry, making those routes unreachable; the flag kill-switch and flag-history
+routes had no role guard at all, so any authenticated user could disable every
+feature flag; `requireRole`/`requireAnyRole` read only `req.user` and therefore
+403'd unconditionally on the `createServer` surface, which sets `req.context`;
+role arrays were duplicated per route file; the reserve-approval router that
+enforced two signatures was dead code while the live guard
+(`server/lib/approvals-guard.ts`) defaulted to two signatures nobody could
+provide through product surfaces; and `/ws/portfolio-metrics` accepted every
+upgrade and arbitrary subscriptions unauthenticated.
+
+### Decision
+
+1. **One shared module** — `shared/auth/effective-roles.ts` (pure TS, no node
+   builtins, client-bundle safe) is the single source of truth: canonical
+   roles `admin, partner, analyst, service`; legacy aliases
+   `operator -> partner`, `viewer -> analyst`; capabilities
+   `flag_read`/`flag_admin` granted to `admin`, `reserve_admin` granted to
+   `partner` and inherited by `admin` (admin is the global superset). Shared
+   write-role tuples `TEAM_WRITE_ROLES` (`partner, admin, analyst`) and
+   `PARTNER_WRITE_ROLES` (`partner, admin`) replace per-file arrays.
+2. **Surface-portable guards** — `requireRole`, `requireAnyRole`, and
+   `requireWriteRole` read `req.user?.role ?? req.context?.role` and compare
+   effective roles, so legacy `operator`/`viewer` tokens authorize as
+   `partner`/`analyst` on both HTTP surfaces. `requireRole` remains an
+   exact-effective-match (admin is not implicitly every role); admin
+   supersetting is expressed through capabilities only. A new
+   `requireCapability(capability)` middleware replaces every guard that named
+   a non-persistable label. Capability strings are not roles: a token whose
+   role literally says `flag_admin` authorizes nothing.
+3. **Deliberate tightenings** — flag kill-switch (POST/DELETE) and flag
+   history acquire `requireCapability('flag_admin')` (effective Admin);
+   PATCH `/api/admin/flags/:key` becomes reachable by real admin tokens.
+   Reserve approval completes on the first valid signature
+   (`DEFAULT_MIN_APPROVALS = 1`) and the requester may sign their own
+   request; the dead v1 reserve-approvals router is aligned to the same
+   constants and capabilities but stays unmounted.
+4. **WebSocket enforcement** — `/ws/portfolio-metrics` upgrades authenticate
+   via the canonical credential contract (Bearer or session cookie; cookie
+   upgrades additionally require an allowed Origin) using
+   `verifyAccessTokenAsync`, integrated callback-style because `ws` 8.x
+   treats a returned Promise from one-arg `verifyClient` as truthy (silent
+   bypass); the local `ws` typing now only admits the callback form.
+   Subscriptions are authorized per channel: metrics requires an in-scope
+   `fundId`; scenario/forecast/simulation channels resolve their entity to
+   the owning fund before `resolveFundScope`; unscoped or unresolvable
+   requests are rejected. The dev-dashboard socket stays development-only.
+
+### Consequences
+
+Legacy tokens keep working with their canonical meaning; no persisted-role
+migration. Previously-permissive kill-switch/history behavior is intentionally
+broken (internal tool, team of ~5). The surface-contract matrix regenerates
+its auth classifications from these fixed guards in F_1.2.2 PR3; matrix
+source-hash staleness between PR1/PR2 and PR3 is expected and scoped in the
+audit gate test until regeneration.

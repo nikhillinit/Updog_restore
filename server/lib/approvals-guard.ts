@@ -1,6 +1,6 @@
 /**
  * Server-side approval guard for policy enforcement
- * Ensures dual approval is required before any reserve strategy execution
+ * Ensures required approval is present before any reserve strategy execution
  */
 
 import { db } from '../db.js';
@@ -11,6 +11,8 @@ import { reserveApprovals } from '../../shared/schemas/reserve-approvals.js';
 
 // Initialize rate limiter for approval creation
 const approvalRateLimiter = new ApprovalRateLimiter(3, 60000); // 3 requests per minute
+
+export const DEFAULT_MIN_APPROVALS = 1;
 
 export interface ApprovalVerificationOptions {
   strategyId: string;
@@ -45,7 +47,12 @@ export function computeStrategyHash(strategyData: unknown): string {
 export async function verifyApproval(
   options: ApprovalVerificationOptions
 ): Promise<ApprovalVerificationResult> {
-  const { strategyId, inputsHash, minApprovals = 2, requireDistinctPartners = true } = options;
+  const {
+    strategyId,
+    inputsHash,
+    minApprovals = DEFAULT_MIN_APPROVALS,
+    requireDistinctPartners = true,
+  } = options;
 
   try {
     // Find matching approval request
@@ -113,8 +120,10 @@ export async function verifyApproval(
       };
     }
 
-    // Validate distinct partners if required
-    if (requireDistinctPartners) {
+    // Validate distinct partners if required. validateDistinctSigners requires
+    // two unique signers, so it only applies at thresholds above one — at the
+    // default single-signature threshold there is nothing to distinguish.
+    if (requireDistinctPartners && minApprovals > 1) {
       // Enhanced validation: check actual partner ID uniqueness from partners table
       const validation = validateDistinctSigners(
         signatures.rows.map((s: Record<string, unknown>) => ({

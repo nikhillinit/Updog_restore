@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from 'express';
 import { db } from '../db';
+import { PARTNER_WRITE_ROLES } from '@shared/auth/effective-roles';
 import { funds, fundConfigs, fundEvents, fundSnapshots } from '@shared/schema';
 import { eq, and, desc, max, isNull } from 'drizzle-orm';
 import type { ApiError } from '@shared/types';
@@ -11,7 +12,6 @@ import { createRouteLogger } from '../lib/route-logger.js';
 import { requireWriteRole } from '../lib/auth/jwt.js';
 
 const routeLog = createRouteLogger('fund-config');
-const WRITE_CONFIG_ROLES = ['partner', 'admin'] as const;
 
 const queueConfig = getQueueConfig();
 const connection = (() => {
@@ -98,7 +98,7 @@ export function registerFundConfigRoutes(app: Express) {
   // Atomic finalize: create fund + save config + publish in one call
   app.post(
     '/api/funds/finalize',
-    requireWriteRole(WRITE_CONFIG_ROLES),
+    requireWriteRole(PARTNER_WRITE_ROLES),
     idempotency,
     async (req: Request, res: Response) => {
       try {
@@ -150,7 +150,7 @@ export function registerFundConfigRoutes(app: Express) {
   // Save draft configuration (upsert: UPDATE if draft exists, INSERT if not)
   app.put(
     '/api/funds/:id/draft',
-    requireWriteRole(WRITE_CONFIG_ROLES),
+    requireWriteRole(PARTNER_WRITE_ROLES),
     async (req: Request, res: Response) => {
       try {
         const fundId = await getScopedFundId(req, res);
@@ -310,7 +310,7 @@ export function registerFundConfigRoutes(app: Express) {
   // Publish configuration (delegates to FundPersistenceService)
   app.post(
     '/api/funds/:id/publish',
-    requireWriteRole(WRITE_CONFIG_ROLES),
+    requireWriteRole(PARTNER_WRITE_ROLES),
     async (req: Request, res: Response) => {
       try {
         const fundId = await getScopedFundId(req, res);
@@ -362,7 +362,7 @@ export function registerFundConfigRoutes(app: Express) {
   // Recalculate published configuration
   app.post(
     '/api/funds/:id/recalculate',
-    requireWriteRole(WRITE_CONFIG_ROLES),
+    requireWriteRole(PARTNER_WRITE_ROLES),
     async (req: Request, res: Response) => {
       try {
         const fundId = await getScopedFundId(req, res);

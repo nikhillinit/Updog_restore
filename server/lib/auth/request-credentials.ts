@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import type { IncomingMessage } from 'node:http';
 
 import type { JWTClaims } from './jwt';
 
@@ -39,13 +40,11 @@ type CookieReadResult =
   | { kind: 'value'; value: string }
   | { kind: 'invalid'; reason: 'malformed_cookie' | 'duplicate_cookie' };
 
-/**
- * Read one cookie without adding cookie-parser as a dependency. Duplicate names
- * are rejected so a Domain cookie cannot silently shadow the host-only session.
- */
-export function readSingleCookie(req: Request, cookieName: string): CookieReadResult {
-  const rawCookie = req.headers?.cookie;
+type HeaderValue = string | string[] | undefined;
+
+function readSingleCookieHeader(rawCookie: HeaderValue, cookieName: string): CookieReadResult {
   if (rawCookie === undefined) return { kind: 'missing' };
+  if (Array.isArray(rawCookie)) return { kind: 'invalid', reason: 'malformed_cookie' };
 
   let found: string | undefined;
   for (const rawPart of rawCookie.split(';')) {
@@ -73,18 +72,30 @@ export function readSingleCookie(req: Request, cookieName: string): CookieReadRe
   return found === undefined ? { kind: 'missing' } : { kind: 'value', value: found };
 }
 
-/** Canonical source classifier for user JWT authentication. */
-export function extractRequestCredential(req: Request): RequestCredential {
-  const authorization = req.header('authorization');
+/**
+ * Read one cookie without adding cookie-parser as a dependency. Duplicate names
+ * are rejected so a Domain cookie cannot silently shadow the host-only session.
+ */
+export function readSingleCookie(req: Request, cookieName: string): CookieReadResult {
+  return readSingleCookieHeader(req.headers?.cookie, cookieName);
+}
+
+function extractCredentialFromHeaders(
+  authorization: HeaderValue,
+  rawCookie: HeaderValue
+): RequestCredential {
   let bearerToken: string | undefined;
 
+  if (Array.isArray(authorization)) {
+    return { kind: 'invalid', reason: 'malformed_bearer' };
+  }
   if (authorization !== undefined) {
     const match = /^Bearer ([^\s,]+)$/.exec(authorization);
     if (!match?.[1]) return { kind: 'invalid', reason: 'malformed_bearer' };
     bearerToken = match[1];
   }
 
-  const cookie = readSingleCookie(req, SESSION_COOKIE_NAME);
+  const cookie = readSingleCookieHeader(rawCookie, SESSION_COOKIE_NAME);
   if (cookie.kind === 'invalid') return cookie;
 
   const cookieToken = cookie.kind === 'value' ? cookie.value : undefined;
@@ -92,6 +103,18 @@ export function extractRequestCredential(req: Request): RequestCredential {
   if (bearerToken !== undefined) return { kind: 'bearer', token: bearerToken };
   if (cookieToken !== undefined) return { kind: 'cookie', token: cookieToken };
   return { kind: 'none' };
+}
+
+/** Canonical source classifier for user JWT authentication. */
+export function extractRequestCredential(req: Request): RequestCredential {
+  return extractCredentialFromHeaders(req.header('authorization'), req.headers?.cookie);
+}
+
+/** Same credential contract adapted to a Node HTTP upgrade request. */
+export function extractUpgradeRequestCredential(
+  req: Pick<IncomingMessage, 'headers'>
+): RequestCredential {
+  return extractCredentialFromHeaders(req.headers.authorization, req.headers.cookie);
 }
 
 export function requestCredentialError(credential: RequestCredential): RequestCredentialError {

@@ -4060,6 +4060,18 @@
       "isStale": true,
       "lastUpdated": null,
       "owner": null,
+      "path": "docs/1-plans/F_1.2.2_g1-matrix-repair.plan.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
       "path": "docs/2-changelog/changelog_table.md",
       "staleDays": 999,
       "status": "UNKNOWN"
@@ -13865,14 +13877,14 @@
       "REFERENCE": 8,
       "STALE-VALIDATION": 1,
       "TRACKED (not scheduled)": 1,
-      "UNKNOWN": 156,
+      "UNKNOWN": 157,
       "VERIFIED": 13,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 62,
-    "stale_docs": 478,
-    "total_docs": 708
+    "missing_frontmatter": 63,
+    "stale_docs": 479,
+    "total_docs": 709
   },
   "version": "2.0"
 }
