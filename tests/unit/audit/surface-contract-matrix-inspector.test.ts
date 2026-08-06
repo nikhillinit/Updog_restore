@@ -86,10 +86,21 @@ describe('surface contract matrix runtime inspector', () => {
         expect(
           rumRoutes.some((route) => route.site === 'server/routes/metrics-rum-ingress.ts:28')
         ).toBe(true);
-        expect(rumRoutes.some((route) => route.site === 'server/routes/metrics-rum.ts:112')).toBe(
+      expect(rumRoutes.some((route) => route.site === 'server/routes/metrics-rum.ts:112')).toBe(
           true
         );
       }
+
+      const createServerRoutes = document.surfaces.find((surface) => surface.name === 'create_server').routes;
+      const preBoundaryMetrics = createServerRoutes.filter(
+        (route) => route.method === 'GET'
+          && route.path === '/api/metrics'
+          && route.site === 'server/routes/metrics-endpoint.ts:19'
+          && route.role === 'handler',
+      );
+      expect(preBoundaryMetrics.length).toBeGreaterThan(0);
+      expect(preBoundaryMetrics.every((route) => route.outer_mount_site === 'server/server.ts:202')).toBe(true);
+      expect(preBoundaryMetrics.every((route) => Number.isInteger(route.outer_mount_order))).toBe(true);
 
       const rootRoute = document.routes.find(
         (route) => route.method === 'GET' && route.path === '/'

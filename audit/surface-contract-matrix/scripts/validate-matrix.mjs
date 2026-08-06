@@ -9,6 +9,9 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import {
   AUTH_IDENTITY_PERSONA_MAPPING,
   AUTH_ROLE_PERSONA_MAPPING,
+  DormantCandidatesSchema,
+  OrphansSchema,
+  RequirementsDocumentSchema,
   RuntimeExclusionsSchema,
   ListenerDispositionsSchema,
   SurfaceMatrixDocumentSchema,
@@ -244,7 +247,7 @@ export function matchRequirementFamilies(requirements, rows) {
   });
 }
 
-export function closureReport({ document, requirements, listeners, candidates, exclusions, orphans, discoveredRoles } = {}) {
+export function closureReport({ document, requirements, listeners, candidates, exclusions, orphans, discoveredRoles, inventory } = {}) {
   const rows = document.rows;
   const matchedFamilies = matchRequirementFamilies(requirements, rows);
   const unknownRequired = rows.filter((row) => row.classification === 'classified' && (
@@ -261,6 +264,18 @@ export function closureReport({ document, requirements, listeners, candidates, e
   const missingClosureFields = rows.filter((row) => row.decision === 'keep-and-prove' && row.proven_reachability === 'none' && (
     !row.closure_owner || !row.closure_gate || !row.closure_acceptance
   )).map((row) => row.id);
+  const coverageGaps = coverageObligations(document)
+    .filter((obligation) => obligation.status === 'gap')
+    .map((obligation) => obligation.key);
+  const unresolvedRoles = rows.flatMap((row) => (row.auth_roles ?? [])
+    .filter((role) => role === 'unresolved' || AUTH_IDENTITY_PERSONA_MAPPING[role]?.decided !== true)
+    .map((role) => `${row.id}:${role}`));
+  const unresolvedDispositions = [
+    ...unresolvedListeners,
+    ...unresolvedCandidates,
+    ...unresolvedOrphans,
+    ...unresolvedExclusions,
+  ].sort((left, right) => left.localeCompare(right));
   const familyIssues = matchedFamilies.filter((family) => {
     if (family.matched_ids.length === 0) return !(family.optional_when_absent && family.absence_evidence?.status === 'approved');
     return family.matched_ids.some((id) => document.rows.find((row) => row.id === id)?.decision_status !== 'approved');
@@ -273,9 +288,13 @@ export function closureReport({ document, requirements, listeners, candidates, e
     unresolved_candidates: unresolvedCandidates,
     unresolved_orphans: unresolvedOrphans,
     unresolved_exclusions: unresolvedExclusions,
+    dispositions: unresolvedDispositions,
     undecided_persona_roles: undecidedRoles,
+    roles: unresolvedRoles,
     requirement_families: familyIssues,
     missing_closure_fields: missingClosureFields,
+    coverage_obligations: coverageGaps,
+    source_fingerprints: validateApprovedSourceFingerprints(document, inventory),
   };
   return { passed: Object.values(issues).every((values) => values.length === 0), issues, families: matchedFamilies };
 }
@@ -326,15 +345,65 @@ const confirmedExposureEvidence = (row, exposure) => {
     && item.runtime === exposure.runtime
     && typeof item.assertion_evidence === 'string'
     && item.assertion_evidence.length > 0
-    && typeof item.test_file_sha256 === 'string'
-    && item.test_file_sha256.length > 0);
+    && /^[0-9a-f]{64}$/i.test(String(item.test_file_sha256 ?? '')));
 };
 
-const hasCoverageAttestation = (document, row, exposure) =>
-  document.coverage_review?.[`${row.id}|${exposure.deployment}|${exposure.runtime}`]?.test_coverage === 'none-reviewed';
+const hasStableTestHash = (value) => typeof value === 'string' && /^[0-9a-f]{64}$/i.test(value);
 
-export function validateRowIntegrity({ document } = {}) {
+const hasCoverageAttestation = (document, row, exposure) =>
+  document.coverage_review?.[`${row.id}|${exposure.deployment}|${exposure.runtime}`]?.test_coverage === 'none-reviewed'
+  && document.coverage_review?.[`${row.id}|${exposure.deployment}|${exposure.runtime}`]?.contract_fingerprint === contractFingerprint(row)
+  && typeof document.coverage_review?.[`${row.id}|${exposure.deployment}|${exposure.runtime}`]?.evidence === 'string'
+  && document.coverage_review[`${row.id}|${exposure.deployment}|${exposure.runtime}`].evidence.length > 0;
+
+export const coverageObligations = (document) => (document?.rows ?? []).flatMap((row) => (row.exposures ?? []).map((exposure) => {
+  const key = `${row.id}|${exposure.deployment}|${exposure.runtime}`;
+  const review = document.coverage_review?.[key];
+  const evidence = [...(row.test_evidence?.derived ?? []), ...(row.test_evidence?.manual ?? [])]
+    .filter((item) => item.assertion_confirmed === true
+      && item.deployment === exposure.deployment
+      && item.runtime === exposure.runtime
+      && typeof item.assertion_evidence === 'string'
+      && item.assertion_evidence.length > 0
+      && hasStableTestHash(item.test_file_sha256));
+  const confirmed = evidence.length > 0;
+  const attested = hasCoverageAttestation(document, row, exposure);
+  return {
+    key,
+    row_id: row.id,
+    deployment: exposure.deployment,
+    runtime: exposure.runtime,
+    contract_fingerprint: review?.contract_fingerprint ?? contractFingerprint(row),
+    status: confirmed ? 'confirmed' : attested ? 'none-reviewed' : 'gap',
+    attestation: review?.test_coverage ?? 'unreviewed',
+    evidence,
+    review_evidence: review?.evidence,
+  };
+}));
+
+const validateApprovedSourceFingerprints = (document, inventory) => {
+  if (!inventory) return [];
   const errors = [];
+  for (const row of document?.rows ?? []) {
+    if (row.decision_status !== 'approved') continue;
+    for (const entry of row.approved_source_hashes ?? []) {
+      const match = String(entry).match(/^(.*)=([0-9a-f]{64})$/i);
+      if (!match) {
+        errors.push(`approved source fingerprint malformed: ${row.id}:${entry}`);
+        continue;
+      }
+      const [sourcePath, expectedHash] = match.slice(1);
+      const currentHash = inventory.source_hashes?.[sourcePath];
+      if (!currentHash) errors.push(`approved source fingerprint missing from inventory: ${row.id}:${sourcePath}`);
+      else if (currentHash !== expectedHash) errors.push(`approved source fingerprint stale: ${row.id}:${sourcePath}`);
+    }
+  }
+  return errors;
+};
+
+export function validateRowIntegrity({ document, inventory } = {}) {
+  const errors = [];
+  errors.push(...validateApprovedSourceFingerprints(document, inventory));
   for (const [key, review] of Object.entries(document?.coverage_review ?? {})) {
     const [rowId, deployment, runtime, ...extra] = key.split('|');
     const row = document.rows.find((entry) => entry.id === rowId);
@@ -348,7 +417,7 @@ export function validateRowIntegrity({ document } = {}) {
     for (const evidence of [...(row.test_evidence?.derived ?? []), ...(row.test_evidence?.manual ?? [])]) {
       if (!evidence.assertion_confirmed) continue;
       const filePath = String(evidence.assertion_evidence ?? '').split(':', 1)[0];
-      if (!evidence.deployment || !evidence.runtime || !filePath || !evidence.test_file_sha256) {
+      if (!evidence.deployment || !evidence.runtime || !filePath || !hasStableTestHash(evidence.test_file_sha256)) {
         errors.push(`confirmed test evidence fields incomplete: ${row.id}`);
         continue;
       }
@@ -384,13 +453,13 @@ export function validateClosedPhaseInvariants({ document, requirements, families
 export async function validateMatrix({ writeMetadata = true } = {}) {
   const document = SurfaceMatrixDocumentSchema.parse(readJson(matrixFile));
   const inventory = SourceInventorySchema.parse(readJson(inventoryFile));
-  const requirements = readJson(requirementsFile);
+  const requirements = RequirementsDocumentSchema.parse(readJson(requirementsFile));
   const policyModule = await import(pathToFileURL(path.join(repoRoot, 'server/route-policy/api-route-policy-registry.ts')).href);
   const governanceModule = await import(pathToFileURL(path.join(repoRoot, 'shared/routes/route-governance-registry.ts')).href);
   const listeners = ListenerDispositionsSchema.parse(readJson(path.join(matrixDir, 'listener-dispositions.json')));
-  const candidates = readJson(path.join(matrixDir, 'dormant-candidates.json'));
+  const candidates = DormantCandidatesSchema.parse(readJson(path.join(matrixDir, 'dormant-candidates.json')));
   const exclusions = RuntimeExclusionsSchema.parse(readJson(path.join(matrixDir, 'runtime-exclusions.json')));
-  const orphans = readJson(path.join(matrixDir, 'orphans.json'));
+  const orphans = OrphansSchema.parse(readJson(path.join(matrixDir, 'orphans.json')));
   const errors = [];
   if (Object.prototype.hasOwnProperty.call(document, 'orphans')) errors.push('matrix.json must not embed orphans; orphans.json is authoritative');
   validateMappings(document, inventory, errors);
@@ -414,10 +483,14 @@ export async function validateMatrix({ writeMetadata = true } = {}) {
   if (stableJson(discoveredDormant.map((candidate) => candidate.path)) !== stableJson(candidates.map((candidate) => candidate.path).sort((left, right) => left.localeCompare(right)))) errors.push('dormant candidate set drift');
   const queueFindings = scanBullmqConstructors({ rootDir: repoRoot });
   for (const finding of queueFindings) if (!document.rows.some((row) => row.id === canonicalRowId(`worker:${finding.queue_name}`))) errors.push(`BullMQ constructor missing row: ${finding.queue_name}`);
-  errors.push(...validateRowIntegrity({ document }));
+  errors.push(...validateRowIntegrity({ document, inventory }));
   const families = matchRequirementFamilies(requirements, document.rows);
   for (const family of families) if (family.matched_ids.length === 0 && !(family.optional_when_absent && family.absence_evidence)) errors.push(`requirement family is empty: ${family.id}`);
+  const closure = closureReport({ document, requirements, listeners, candidates, exclusions, orphans, inventory });
   if (document.phase === 'closed') {
+    for (const [issue, values] of Object.entries(closure.issues)) {
+      if (values.length > 0) errors.push(`closed matrix closure ${issue}: ${values.join(', ')}`);
+    }
     errors.push(...validateClosedPhaseInvariants({ document, requirements, families }));
     if (errors.some((message) => message.includes('fingerprint mismatch'))) {
       errors.push('closed off-row fingerprint gate failed');
@@ -439,7 +512,7 @@ export async function validateMatrix({ writeMetadata = true } = {}) {
     const updated = { ...document, validation };
     fs.writeFileSync(matrixFile, `${JSON.stringify(updated, null, 2)}\n`);
   }
-  return { document: { ...document, validation }, inventory, validation, closure: closureReport({ document, requirements, listeners, candidates, exclusions, orphans }) };
+  return { document: { ...document, validation }, inventory, validation, closure };
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === thisFile) {

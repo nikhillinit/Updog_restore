@@ -40,17 +40,18 @@ export const PersonaSchema = enumSchema(PERSONA_VALUES);
 // identities are decided, while roles whose product persona is a human G1
 // decision remain explicitly undecided and therefore suggest `unknown`.
 const authMappingEntry = (persona, decided, evidence) => Object.freeze({ persona, decided, evidence });
+const G1_PERSONA_EVIDENCE = 'G1 review 2026-08-06; shared/auth/effective-roles.ts';
 export const AUTH_ROLE_PERSONA_MAPPING = Object.freeze({
   admin: authMappingEntry('admin', true, 'shared/schema/user.ts USER_ROLES'),
   partner: authMappingEntry('gp', true, 'shared/schema/user.ts USER_ROLES'),
   analyst: authMappingEntry('analyst', true, 'shared/schema/user.ts USER_ROLES'),
   lp: authMappingEntry('lp', true, 'server/middleware/requireLPAccess.ts role guard'),
-  operator: authMappingEntry('unknown', false, 'G1 persona decision required'),
-  viewer: authMappingEntry('unknown', false, 'G1 persona decision required'),
+  operator: authMappingEntry('gp', true, G1_PERSONA_EVIDENCE),
+  viewer: authMappingEntry('analyst', true, G1_PERSONA_EVIDENCE),
   service: authMappingEntry('service', true, 'shared/schema/user.ts USER_ROLES'),
-  flag_read: authMappingEntry('unknown', false, 'G1 capability-role persona decision required'),
-  flag_admin: authMappingEntry('unknown', false, 'G1 capability-role persona decision required'),
-  reserve_admin: authMappingEntry('unknown', false, 'G1 capability-role persona decision required'),
+  flag_read: authMappingEntry('admin', true, G1_PERSONA_EVIDENCE),
+  flag_admin: authMappingEntry('admin', true, G1_PERSONA_EVIDENCE),
+  reserve_admin: authMappingEntry('gp', true, G1_PERSONA_EVIDENCE),
 });
 export const AUTH_PERSONA_MAPPING = AUTH_ROLE_PERSONA_MAPPING;
 export const AUTH_IDENTITY_PERSONA_MAPPING = Object.freeze({
@@ -191,8 +192,8 @@ export const ROW_ENUMS = Object.freeze({
   test_layer: TEST_LAYER_VALUES,
 });
 
-export const SOURCE_INVENTORY_SCHEMA_VERSION = '1.0.0';
-export const MATRIX_SCHEMA_VERSION = '1.0.0';
+export const SOURCE_INVENTORY_SCHEMA_VERSION = '1.1.0';
+export const MATRIX_SCHEMA_VERSION = '1.1.0';
 
 const nonEmptyString = z.string().min(1);
 const jsonValue = z.unknown();
@@ -260,6 +261,7 @@ export const ExposureSchema = z
     ingresses: z.array(IngressSchema),
     conditions: z.array(jsonValue),
     definitions: z.array(DefinitionSchema),
+    auth_evidence: z.array(AuthEvidenceSchema).optional(),
     boot_status: BootStatusSchema,
     boot_evidence: BootEvidenceSchema,
   })
@@ -321,11 +323,15 @@ export const CONTRACT_FINGERPRINT_FIELDS = freezeValues([
   'exposures[].boot_evidence.result',
   'exposures[].definitions[].role',
   'exposures[].definitions[].effective_mount_order',
+  'exposures[].auth_evidence[]',
   'reachability',
   'proven_reachability',
   'interface',
   'queue_roles',
   'auth_roles[]',
+  'auth_evidence[]',
+  'effective_auth',
+  'dormant_disposition',
   'behavior_flags[]',
   'personas[]',
   'persistence',
@@ -402,6 +408,14 @@ export const SurfaceRowSchema = z
     owner: OwnerSchema,
     evidence: z.array(evidenceSchema),
     source_mapping: z.record(z.string(), jsonValue).optional(),
+    route_kind: nonEmptyString.optional(),
+    route_category: nonEmptyString.optional(),
+    archived_placeholder: z.boolean().optional(),
+    legacy: z.boolean().optional(),
+    redirect_target: nonEmptyString.optional(),
+    anonymous_reachability: nonEmptyString.optional(),
+    dormant_disposition: jsonValue.optional(),
+    effective_auth: z.record(z.string(), jsonValue).optional(),
     queue_roles: QueueRolesSchema,
     auth_roles: z.array(nonEmptyString),
     auth_evidence: z.array(AuthEvidenceSchema).optional(),
@@ -450,6 +464,45 @@ export const SourceInventorySchema = z
     row_to_sources: z.record(z.string(), z.array(nonEmptyString)),
   })
   .passthrough();
+
+const ReviewValueSchema = z.union([nonEmptyString, z.record(z.string(), jsonValue)]);
+const ReviewRowSchema = z
+  .object({
+    row_id: nonEmptyString.optional(),
+    contract_fingerprint: nonEmptyString.optional(),
+    source_fingerprints: z.array(nonEmptyString).optional(),
+    cohort_id: nonEmptyString.optional(),
+    decision: DecisionSchema.optional(),
+    reviewed_fields: z.record(z.string(), jsonValue).optional(),
+    semantic_fields: z.record(z.string(), jsonValue).optional(),
+    exposure_attestations: z.record(z.string(), jsonValue).optional(),
+    evidence: z.array(ReviewValueSchema).optional(),
+  })
+  .passthrough();
+const ReviewCollectionSchema = z.union([
+  z.array(ReviewRowSchema),
+  z.record(z.string(), ReviewRowSchema),
+]);
+
+/** Tracked G1 authority manifest consumed by the approval pass in PR2. */
+export const G1ReviewManifestSchema = z
+  .object({
+    schema_version: nonEmptyString,
+    review_id: nonEmptyString.optional(),
+    snapshot_id: nonEmptyString.optional(),
+    source_fingerprints: z.record(z.string(), nonEmptyString).optional(),
+    rows: ReviewCollectionSchema.optional(),
+    role_mappings: z.record(z.string(), jsonValue).optional(),
+    persona_mappings: z.record(z.string(), jsonValue).optional(),
+    cohorts: z.record(z.string(), jsonValue).optional(),
+    off_row_dispositions: z.record(z.string(), jsonValue).optional(),
+    closure: z.record(z.string(), jsonValue).optional(),
+    exposure_attestations: z.record(z.string(), jsonValue).optional(),
+    approver_id: nonEmptyString.optional(),
+    evidence_ref: nonEmptyString.optional(),
+  })
+  .strict();
+export const G1ReviewManifest = G1ReviewManifestSchema;
 
 export const LISTENER_DISPOSITION_VALUES = freezeValues([
   'product-surface',
@@ -508,6 +561,38 @@ export const RuntimeExclusionSchema = z
     message: 'runtime exclusion requires id, exclusion_id, or layer_id',
   });
 export const RuntimeExclusionsSchema = z.array(RuntimeExclusionSchema);
+
+// Off-row artifacts retain source-derived fields that vary by discovery
+// provider, so schemas validate review-owned fields while allowing provider-
+// specific evidence through passthrough fields.
+export const DormantCandidateSchema = z
+  .object({
+    id: nonEmptyString.optional(),
+    path: nonEmptyString,
+    exists: z.boolean().optional(),
+    importer_evidence: z.array(jsonValue).optional(),
+    disposition: nonEmptyString.optional(),
+    decision_status: DecisionStatusSchema.optional(),
+    decision_evidence: jsonValue.optional(),
+    contract_fingerprint: z.string().regex(/^[0-9a-f]{64}$/).optional(),
+  })
+  .passthrough();
+export const DormantCandidatesSchema = z.array(DormantCandidateSchema);
+export const OrphanSchema = z
+  .object({
+    id: nonEmptyString,
+    resolution: nonEmptyString.optional(),
+    decision_status: DecisionStatusSchema.optional(),
+    decision_evidence: jsonValue.optional(),
+    resolution_evidence: jsonValue.optional(),
+    resolution_fingerprint: z.string().regex(/^[0-9a-f]{64}$/).optional(),
+    contract_fingerprint: z.string().regex(/^[0-9a-f]{64}$/).optional(),
+  })
+  .passthrough();
+export const OrphansSchema = z.array(OrphanSchema);
+export const RequirementsDocumentSchema = z
+  .object({ families: z.array(z.record(z.string(), jsonValue)) })
+  .passthrough();
 
 export const SurfaceMatrixDocument = SurfaceMatrixDocumentSchema;
 export const SurfaceRow = SurfaceRowSchema;
@@ -777,7 +862,7 @@ const stripQueueRoleSite = (entry) => {
   return copy;
 };
 
-const contractFingerprintPayload = (row) => ({
+export const contractFingerprintPayload = (row) => ({
   exposures: exposuresFor(row).map((exposure) => ({
     deployment: exposure.deployment,
     runtime: exposure.runtime,
@@ -793,6 +878,10 @@ const contractFingerprintPayload = (row) => ({
       role: definition.role,
       effective_mount_order: definition.effective_mount_order,
     })),
+    // Auth evidence is semantic contract state. File and line fields are
+    // removed by stableValue, while boundary/role/effect changes remain
+    // fingerprinted.
+    auth_evidence: stableValue(exposure.auth_evidence ?? []),
   })),
   reachability: row?.reachability,
   proven_reachability: row?.proven_reachability,
@@ -808,6 +897,15 @@ const contractFingerprintPayload = (row) => ({
       : row?.queue_roles,
   ),
   auth_roles: stableValue(row?.auth_roles),
+  auth_evidence: stableValue([
+    ...(row?.auth_evidence ?? []),
+    ...exposuresFor(row).flatMap((exposure) => exposure.auth_evidence ?? []),
+  ]),
+  // Fingerprint normalized reviewed auth state directly. Derived auth roles
+  // and evidence remain separate fields, but a reviewed effective-auth edit
+  // must independently invalidate any approval.
+  effective_auth: stableValue(row?.effective_auth),
+  dormant_disposition: row?.dormant_disposition ?? row?.machine_suggestions?.dormant_disposition,
   behavior_flags: stableValue(row?.behavior_flags),
   personas: stableValue(row?.personas),
   persistence: row?.persistence,
@@ -897,6 +995,17 @@ const sourceLineText = (source, offset) => {
 
 const AUTH_SOURCE_EXTENSIONS = new Set(['.ts', '.js', '.mjs', '.cjs']);
 const AUTH_SOURCE_PREFIXES = ['server/routes/', 'server/middleware/'];
+export const AUTH_TRUTH_SOURCE_PATTERNS = Object.freeze([
+  'shared/auth/effective-roles.ts',
+  'server/lib/auth/jwt.ts',
+  'server/lib/auth/revocation.ts',
+  'server/lib/public-api-boundary.ts',
+  'server/websocket/**',
+]);
+const AUTH_TRUTH_SOURCE_FILES = new Set(AUTH_TRUTH_SOURCE_PATTERNS.filter((pattern) => !pattern.endsWith('/**')));
+
+const isAuthTruthSource = (filePath) => AUTH_TRUTH_SOURCE_FILES.has(filePath)
+  || filePath.startsWith('server/websocket/');
 
 const normalizeAuthSources = (suppliedSources) => {
   if (!suppliedSources) return undefined;
@@ -919,7 +1028,7 @@ const authSourceEntries = (options = {}) => {
   const files = trackedRepositoryFiles(rootDir, optionTrackedFiles(options));
   return files
     .filter((filePath) => AUTH_SOURCE_EXTENSIONS.has(extname(filePath).toLowerCase()))
-    .filter((filePath) => AUTH_SOURCE_PREFIXES.some((prefix) => filePath.startsWith(prefix)))
+    .filter((filePath) => AUTH_SOURCE_PREFIXES.some((prefix) => filePath.startsWith(prefix)) || isAuthTruthSource(filePath))
     .filter((filePath) => !isExcludedRuntimePath(filePath))
     .map((filePath) => [filePath, fs.readFileSync(resolve(rootDir, filePath), 'utf8')]);
 };

@@ -4,10 +4,17 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import {
+  AUTH_IDENTITY_PERSONA_MAPPING,
+  CONTRACT_FINGERPRINT_FIELDS,
+  DormantCandidatesSchema,
   ListenerDispositionsSchema,
+  OrphansSchema,
+  RequirementsDocumentSchema,
   RuntimeExclusionsSchema,
   SurfaceMatrixDocumentSchema,
+  contractFingerprintPayload,
 } from '../matrix-schema.mjs';
+import { coverageObligations } from './validate-matrix.mjs';
 
 const scriptPath = fileURLToPath(import.meta.url);
 export const matrixDir = path.resolve(path.dirname(scriptPath), '..');
@@ -33,6 +40,141 @@ const evidenceText = (value) => {
 const lifecycle = (artifact) => artifact?.decision_status ?? artifact?.status ?? 'proposed';
 
 const rowEvidence = (row) => (row.evidence ?? []).map(evidenceText).join('; ') || '—';
+
+const fingerprintFieldValue = (payload, field) => {
+  const segments = field.split('.');
+  const select = (value, remaining) => {
+    if (remaining.length === 0) return value;
+    const [segment, ...rest] = remaining;
+    if (segment.endsWith('[]')) {
+      const collection = value?.[segment.slice(0, -2)];
+      return Array.isArray(collection) ? collection.map((entry) => select(entry, rest)) : [];
+    }
+    return select(value?.[segment], rest);
+  };
+  return select(payload, segments);
+};
+
+const renderFingerprintPayload = (rows) => {
+  const lines = [
+    '## Contract fingerprint payload',
+    '',
+    `Schema-defined fingerprint fields: **${CONTRACT_FINGERPRINT_FIELDS.length}**.`,
+    '',
+    '| Row | Fingerprint field | Value |',
+    '| --- | --- | --- |',
+  ];
+  for (const row of [...rows].sort((left, right) => left.id.localeCompare(right.id))) {
+    const payload = contractFingerprintPayload(row);
+    for (const field of CONTRACT_FINGERPRINT_FIELDS) {
+      lines.push(`| ${markdownCell(row.id)} | ${markdownCell(field)} | ${markdownCell(evidenceText(fingerprintFieldValue(payload, field)))} |`);
+    }
+  }
+  lines.push('');
+  return lines;
+};
+
+const renderApprovalFields = (rows) => {
+  const lines = [
+    '## Approval and closure fields',
+    '',
+    '| Row | Seam override | Personas | Persistence | Destructive | Environment | Classification | Decision override | Decision | Decision status | Decision evidence | Owner | Closure owner | Closure gate | Closure acceptance | Dormant disposition | Anonymous reachability | Effective auth | Row auth evidence | Exposure auth evidence | Manual test evidence | Contract fingerprint | Approved source hashes |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+  ];
+  for (const row of [...rows].sort((left, right) => left.id.localeCompare(right.id))) {
+    const exposureAuth = (row.exposures ?? [])
+      .map((exposure) => `${exposure.deployment}/${exposure.runtime}: ${evidenceText(exposure.auth_evidence ?? [])}`)
+      .join('<br>');
+    lines.push(`| ${markdownCell(row.id)} | ${markdownCell(row.seam_override)} | ${markdownCell((row.personas ?? []).join(', '))} | ${markdownCell(row.persistence)} | ${markdownCell(row.destructive)} | ${markdownCell(row.environment)} | ${markdownCell(row.classification)} | ${markdownCell(row.decision_override)} | ${markdownCell(row.decision)} | ${markdownCell(row.decision_status)} | ${markdownCell(evidenceText(row.decision_evidence))} | ${markdownCell(row.owner)} | ${markdownCell(row.closure_owner)} | ${markdownCell(row.closure_gate)} | ${markdownCell(row.closure_acceptance)} | ${markdownCell(evidenceText(row.dormant_disposition))} | ${markdownCell(row.anonymous_reachability)} | ${markdownCell(evidenceText(row.effective_auth))} | ${markdownCell(evidenceText(row.auth_evidence ?? []))} | ${markdownCell(exposureAuth)} | ${markdownCell((row.test_evidence?.manual ?? []).map(evidenceText).join('<br>'))} | ${markdownCell(row.contract_fingerprint)} | ${markdownCell((row.approved_source_hashes ?? []).join('<br>'))} |`);
+  }
+  lines.push('');
+  return lines;
+};
+
+const renderCoverageObligations = (document) => {
+  const obligations = coverageObligations(document);
+  const counts = Object.fromEntries(['confirmed', 'none-reviewed', 'gap'].map((status) => [
+    status,
+    obligations.filter((obligation) => obligation.status === status).length,
+  ]));
+  const lines = [
+    '## Coverage obligations',
+    '',
+    `Exposure obligations: **${obligations.length}** (confirmed: **${counts.confirmed}**, none-reviewed: **${counts['none-reviewed']}**, gaps: **${counts.gap}**).`,
+    '',
+    '| Row | Deployment | Runtime | Status | Attestation | Contract fingerprint | Test evidence / review evidence |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
+  ];
+  for (const obligation of obligations.sort((left, right) => left.key.localeCompare(right.key))) {
+    const evidence = obligation.evidence.map((item) => `${item.assertion_evidence} (${item.test_file_sha256})`);
+    if (obligation.review_evidence) evidence.push(`review: ${evidenceText(obligation.review_evidence)}`);
+    lines.push(`| ${markdownCell(obligation.row_id)} | ${markdownCell(obligation.deployment)} | ${markdownCell(obligation.runtime)} | ${markdownCell(obligation.status)} | ${markdownCell(obligation.attestation)} | ${markdownCell(obligation.contract_fingerprint)} | ${markdownCell(evidence.join('<br>'))} |`);
+  }
+  lines.push('');
+  return lines;
+};
+
+const renderPersonaMapping = () => {
+  const lines = [
+    '## Persona mapping',
+    '',
+    '| Auth identity | Matrix persona | Decided | Evidence |',
+    '| --- | --- | --- | --- |',
+  ];
+  for (const [role, mapping] of Object.entries(AUTH_IDENTITY_PERSONA_MAPPING).sort(([left], [right]) => left.localeCompare(right))) {
+    lines.push(`| ${markdownCell(role)} | ${markdownCell(mapping.persona)} | ${markdownCell(mapping.decided ? 'yes' : 'no')} | ${markdownCell(mapping.evidence)} |`);
+  }
+  lines.push('');
+  return lines;
+};
+
+const renderClassificationCompleteness = (rows) => {
+  const count = (predicate) => rows.filter(predicate).length;
+  const counters = [
+    ['Rows', rows.length],
+    ['Classified', count((row) => row.classification === 'classified')],
+    ['Unclassified', count((row) => row.classification === 'unclassified')],
+    ['Proposed decisions', count((row) => row.decision_status === 'proposed')],
+    ['Approved decisions', count((row) => row.decision_status === 'approved')],
+    ['Unknown personas', count((row) => (row.personas ?? []).includes('unknown'))],
+    ['Unknown persistence', count((row) => ['unknown', 'unassigned'].includes(row.persistence))],
+    ['Unknown destructive state', count((row) => ['unknown', 'unassigned'].includes(row.destructive))],
+    ['Unknown environment', count((row) => row.environment === 'unknown')],
+    ['Unassigned owners', count((row) => row.owner === 'unassigned')],
+    ['Missing closure fields', count((row) => row.decision === 'keep-and-prove' && row.proven_reachability === 'none'
+      && (!row.closure_owner || !row.closure_gate || !row.closure_acceptance))],
+  ];
+  return [
+    '## Classification completeness',
+    '',
+    '| Counter | Count |',
+    '| --- | ---: |',
+    ...counters.map(([label, value]) => `| ${label} | ${value} |`),
+    '',
+  ];
+};
+
+const renderCoverageGaps = (document) => {
+  const gaps = coverageObligations(document).filter((obligation) => obligation.status === 'gap');
+  const lines = [
+    '## Coverage gaps',
+    '',
+    'This standing section is evaluated during ordinary authoring as well as tentative closure.',
+    '',
+    `Unresolved exposure obligations: **${gaps.length}**.`,
+    '',
+  ];
+  if (gaps.length === 0) {
+    lines.push('- None.', '');
+    return lines;
+  }
+  lines.push('| Row | Deployment | Runtime | Required resolution |', '| --- | --- | --- | --- |');
+  for (const gap of gaps.sort((left, right) => left.key.localeCompare(right.key))) {
+    lines.push(`| ${markdownCell(gap.row_id)} | ${markdownCell(gap.deployment)} | ${markdownCell(gap.runtime)} | Confirmed test evidence with stable hash or reviewed none-reviewed attestation |`);
+  }
+  lines.push('');
+  return lines;
+};
 
 const renderRows = (rows) => {
   const groups = new Map();
@@ -94,12 +236,12 @@ const renderOffRowDecisions = ({ matrix, requirements, listeners, candidates, ex
 
 export function renderMatrix({ matrix, requirements, listeners, candidates, exclusions, orphans } = {}) {
   const document = SurfaceMatrixDocumentSchema.parse(matrix ?? json('matrix.json', undefined));
-  const requirementDocument = requirements ?? json('requirements.json', { families: [] });
+  const requirementDocument = RequirementsDocumentSchema.parse(requirements ?? json('requirements.json', { families: [] }));
   const listenerDocument = listeners ?? json('listener-dispositions.json', []);
-  const candidateDocument = candidates ?? json('dormant-candidates.json', []);
+  const candidateDocument = DormantCandidatesSchema.parse(candidates ?? json('dormant-candidates.json', []));
   const exclusionDocument = RuntimeExclusionsSchema.parse(exclusions ?? json('runtime-exclusions.json', []));
   // orphans.json is authoritative. Matrix rows never carry a second orphan copy.
-  const orphanDocument = orphans ?? json('orphans.json', []);
+  const orphanDocument = OrphansSchema.parse(orphans ?? json('orphans.json', []));
   const lines = [
     '# Surface Contract Matrix',
     '',
@@ -110,6 +252,12 @@ export function renderMatrix({ matrix, requirements, listeners, candidates, excl
     '## Contract rows',
     '',
     ...renderRows(document.rows),
+    ...renderApprovalFields(document.rows),
+    ...renderFingerprintPayload(document.rows),
+    ...renderCoverageObligations(document),
+    ...renderPersonaMapping(),
+    ...renderClassificationCompleteness(document.rows),
+    ...renderCoverageGaps(document),
     ...renderOffRowDecisions({
       matrix: document,
       requirements: requirementDocument,
