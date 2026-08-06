@@ -321,7 +321,7 @@ const railwayApiProof = async () => {
 };
 
 const railwayWorkerProof = async () => {
-  const command_or_artifact = 'docker build -f Dockerfile.worker; docker run Dockerfile.worker with Redis container on isolated network';
+  const command_or_artifact = 'docker build -f Dockerfile.worker; docker run Dockerfile.worker with Redis and PostgreSQL containers on isolated network';
   const probe = 'Dockerfile.worker image runs fund-scenario-calc worker; GET /health /live /ready /metrics /stats through mapped port; expected HTTP 2xx; 404/405 are failures';
   if (!dockerAvailable()) {
     return evidence({
@@ -336,9 +336,11 @@ const railwayWorkerProof = async () => {
   const image = 'surface-matrix-worker-proof:local';
   const network = 'surface-matrix-worker-proof-net';
   const redisName = 'surface-matrix-worker-redis-proof';
+  const postgresName = 'surface-matrix-worker-postgres-proof';
   const workerName = 'surface-matrix-worker-proof';
   dockerCleanup(workerName);
   dockerCleanup(redisName);
+  dockerCleanup(postgresName);
   dockerCleanup(network, 'network');
   try {
     const networkCreate = commandResult('docker', ['network', 'create', network], proofEnv(), 30_000);
@@ -361,6 +363,27 @@ const railwayWorkerProof = async () => {
     }
     if (!redisReady) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: 'Redis proof container did not become ready; worker proof was not faked' });
 
+    const postgres = commandResult('docker', [
+      'run', '-d', '--rm', '--name', postgresName, '--network', network,
+      '-e', 'POSTGRES_USER=surface-proof',
+      '-e', 'POSTGRES_PASSWORD=surface-proof',
+      '-e', 'POSTGRES_DB=surface_proof',
+      'postgres:16-alpine',
+    ], proofEnv(), 120_000);
+    if (!postgres.ok) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('PostgreSQL proof container startup', postgres) });
+
+    let postgresReady = false;
+    const postgresDeadline = Date.now() + 60_000;
+    while (Date.now() < postgresDeadline) {
+      const ready = commandResult('docker', ['exec', postgresName, 'pg_isready', '-U', 'surface-proof', '-d', 'surface_proof'], proofEnv(), 10_000);
+      if (ready.ok) {
+        postgresReady = true;
+        break;
+      }
+      await pause(250);
+    }
+    if (!postgresReady) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: 'PostgreSQL proof container did not become ready; worker proof was not faked' });
+
     const imageBuild = commandResult('docker', ['build', '-f', 'Dockerfile.worker', '-t', image, '.'], proofEnv(), 600_000);
     if (!imageBuild.ok) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('Dockerfile.worker image build', imageBuild) });
 
@@ -375,6 +398,7 @@ const railwayWorkerProof = async () => {
         '-e', 'ENABLE_QUEUES=1',
         '-e', `QUEUE_REDIS_URL=redis://${redisName}:6379`,
         '-e', `REDIS_URL=redis://${redisName}:6379`,
+        '-e', `DATABASE_URL=postgresql://surface-proof:surface-proof@${postgresName}:5432/surface_proof`,
         image,
       ],
       env: proofEnv(),
@@ -393,6 +417,7 @@ const railwayWorkerProof = async () => {
   } finally {
     dockerCleanup(workerName);
     dockerCleanup(redisName);
+    dockerCleanup(postgresName);
     dockerCleanup(network, 'network');
   }
 };

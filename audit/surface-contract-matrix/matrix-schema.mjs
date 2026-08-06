@@ -118,6 +118,7 @@ export const ENVIRONMENT_VALUES = freezeValues([
   'prod-safe',
   'staged-only',
   'local-only',
+  'development-only',
   'unknown',
 ]);
 export const EnvironmentSchema = enumSchema(ENVIRONMENT_VALUES);

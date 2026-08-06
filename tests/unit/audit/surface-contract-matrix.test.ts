@@ -10,6 +10,7 @@ import { API_RUNTIME_SPECIFIC_MANIFEST } from '../../../shared/routes/api-runtim
 
 import {
   AUTH_IDENTITY_PERSONA_MAPPING,
+  EnvironmentSchema,
   ListenerDispositionsSchema,
   RuntimeExclusionsSchema,
   SourceInventorySchema,
@@ -66,6 +67,16 @@ const fileMatches = (file: string, pattern: string) =>
           : pattern === 'ml-service/**' && file.startsWith('ml-service/');
 
 describe('surface contract matrix CI gate', () => {
+  it('keeps the seeded development-only classification valid', () => {
+    const seedScript = fs.readFileSync(
+      path.join(matrixDir, 'scripts/seed-matrix.mjs'),
+      'utf8'
+    );
+
+    expect(seedScript).toContain("environment: 'development-only'");
+    expect(EnvironmentSchema.parse('development-only')).toBe('development-only');
+  });
+
   it('validates tracked artifacts, discovery sets, hashes, requirements, and render determinism', async () => {
     const matrix = SurfaceMatrixDocumentSchema.parse(readJson('matrix.json'));
     const inventory = SourceInventorySchema.parse(readJson('source-inventory.json'));
