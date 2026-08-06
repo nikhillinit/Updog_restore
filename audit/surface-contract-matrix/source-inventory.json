@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "snapshot_id": "snapshot:dfedfb0c775e750a70fcf33b03ddf50b9515891e43a5a4835eac73c970b7db8f",
+  "snapshot_id": "snapshot:a59d80de4801e24bbec98a222321bf3b621f2dd3c807309304af74110541a80b",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -480,7 +480,7 @@
     "api/[...slug].ts": "2b45faee7726ceca4df08b8bed599ba2713697255411f594df7ef067db28000e",
     "api/telemetry/wizard.ts": "055e2fb386041bc22fea7ce410e4b27f536a4cfab204da13804ca6c270cf901d",
     "audit/surface-contract-matrix/boot-proofs.json": "abf34b839f3bed6be31190bd8a18ad5dd3b6444f43a725c2a16aa9be405b6e0f",
-    "audit/surface-contract-matrix/matrix-schema.mjs": "533a40f3caf23d989f22cd2533554783cea7dfee1ea9f6f5252d0d387f776d39",
+    "audit/surface-contract-matrix/matrix-schema.mjs": "94c011933a33b90c6de6a7ed261de3d56be62ed4580bf7cc7b217061d9f40516",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "446aad251b4b58d5546e50cf5f3d493f47d9a618a5b2f77db52064dd14a177d8",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "3d6c260813519a83bd0888370772a11f8d719d5b36e7b2b1352e584845cf7065",
     "audit/surface-contract-matrix/scripts/classify-pass.mjs": "0fd90ebc7bd5c465d76debc19e16c161597505c857266baec3e7e2ca68fe643b",
@@ -631,8 +631,12 @@
     "shared/routes/route-governance-registry.ts#normalized-runtime-export": "2cf271d9243d70a053d3f5bd020bf01d8d26373ae281a70307337b68f01ddd8b"
   },
   "source_to_rows": {
-    "api/telemetry/wizard.ts": ["api-fn:ANY:/api/telemetry/wizard"],
-    "vercel.json functions.api/**/*.ts": ["api-fn:ANY:/api/telemetry/wizard"],
+    "api/telemetry/wizard.ts": [
+      "api-fn:ANY:/api/telemetry/wizard"
+    ],
+    "vercel.json functions.api/**/*.ts": [
+      "api-fn:ANY:/api/telemetry/wizard"
+    ],
     "server/routes/cashflow.ts": [
       "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
       "api:GET:/api/cashflow/:fundId/capital-calls",
@@ -724,7 +728,9 @@
       "api:POST:/api/monte-carlo/simulate",
       "api:POST:/api/monte-carlo/simulate/async"
     ],
-    "api:DELETE:/api/monte-carlo/cache": ["api:DELETE:/api/monte-carlo/cache"],
+    "api:DELETE:/api/monte-carlo/cache": [
+      "api:DELETE:/api/monte-carlo/cache"
+    ],
     "server/routes/portfolio-intelligence.ts": [
       "api:DELETE:/api/portfolio/strategies/:id",
       "api:GET:/api/portfolio/forecasts/:scenarioId",
@@ -756,27 +762,41 @@
       "api:POST:/api/public/shares/:shareId/verify",
       "api:POST:/api/shares"
     ],
-    "api:DELETE:/api/shares/:shareId": ["api:DELETE:/api/shares/:shareId"],
-    "server/server.ts": ["api:GET:/"],
+    "api:DELETE:/api/shares/:shareId": [
+      "api:DELETE:/api/shares/:shareId"
+    ],
+    "server/server.ts": [
+      "api:GET:/"
+    ],
     "server/app.ts": [
       "api:GET:/api-docs",
       "api:GET:/api-docs.json",
       "api:GET:/api/version"
     ],
-    "api:GET:/api-docs": ["api:GET:/api-docs"],
-    "api:GET:/api-docs.json": ["api:GET:/api-docs.json"],
+    "api:GET:/api-docs": [
+      "api:GET:/api-docs"
+    ],
+    "api:GET:/api-docs.json": [
+      "api:GET:/api-docs.json"
+    ],
     "server/routes/activities.ts": [
       "api:GET:/api/activities",
       "api:POST:/api/activities"
     ],
-    "api:GET:/api/activities": ["api:GET:/api/activities"],
+    "api:GET:/api/activities": [
+      "api:GET:/api/activities"
+    ],
     "server/routes/admin/engine.ts": [
       "api:GET:/api/admin/engine/guard",
       "api:GET:/api/admin/engine/status",
       "api:POST:/api/admin/engine/guard"
     ],
-    "api:GET:/api/admin/engine/guard": ["api:GET:/api/admin/engine/guard"],
-    "api:GET:/api/admin/engine/status": ["api:GET:/api/admin/engine/status"],
+    "api:GET:/api/admin/engine/guard": [
+      "api:GET:/api/admin/engine/guard"
+    ],
+    "api:GET:/api/admin/engine/status": [
+      "api:GET:/api/admin/engine/status"
+    ],
     "server/routes/ai.ts": [
       "api:GET:/api/ai/usage",
       "api:POST:/api/ai/ask",
@@ -784,15 +804,21 @@
       "api:POST:/api/ai/consensus",
       "api:POST:/api/ai/debate"
     ],
-    "api:GET:/api/ai/usage": ["api:GET:/api/ai/usage"],
+    "api:GET:/api/ai/usage": [
+      "api:GET:/api/ai/usage"
+    ],
     "server/routes/auth.ts": [
       "api:GET:/api/auth/csrf",
       "api:GET:/api/auth/session",
       "api:POST:/api/auth/login",
       "api:POST:/api/auth/logout"
     ],
-    "api:GET:/api/auth/csrf": ["api:GET:/api/auth/csrf"],
-    "api:GET:/api/auth/session": ["api:GET:/api/auth/session"],
+    "api:GET:/api/auth/csrf": [
+      "api:GET:/api/auth/csrf"
+    ],
+    "api:GET:/api/auth/session": [
+      "api:GET:/api/auth/session"
+    ],
     "server/routes/backtesting.ts": [
       "api:GET:/api/backtesting/fund/:fundId/history",
       "api:GET:/api/backtesting/jobs/:jobId",
@@ -823,7 +849,9 @@
       "api:POST:/api/cache/invalidate",
       "api:POST:/api/cache/warm"
     ],
-    "api:GET:/api/cache/stats": ["api:GET:/api/cache/stats"],
+    "api:GET:/api/cache/stats": [
+      "api:GET:/api/cache/stats"
+    ],
     "api:GET:/api/cashflow/:fundId/capital-calls": [
       "api:GET:/api/cashflow/:fundId/capital-calls"
     ],
@@ -844,7 +872,9 @@
       "api:GET:/api/pacing/summary",
       "api:GET:/api/reserves/:fundId"
     ],
-    "api:GET:/api/cohorts/analysis": ["api:GET:/api/cohorts/analysis"],
+    "api:GET:/api/cohorts/analysis": [
+      "api:GET:/api/cohorts/analysis"
+    ],
     "server/routes/cohort-analysis.ts": [
       "api:GET:/api/cohorts/definitions",
       "api:GET:/api/cohorts/unmapped",
@@ -853,8 +883,12 @@
       "api:POST:/api/cohorts/sector-mappings",
       "api:POST:/api/cohorts/seed"
     ],
-    "api:GET:/api/cohorts/definitions": ["api:GET:/api/cohorts/definitions"],
-    "api:GET:/api/cohorts/unmapped": ["api:GET:/api/cohorts/unmapped"],
+    "api:GET:/api/cohorts/definitions": [
+      "api:GET:/api/cohorts/definitions"
+    ],
+    "api:GET:/api/cohorts/unmapped": [
+      "api:GET:/api/cohorts/unmapped"
+    ],
     "api:GET:/api/companies/:companyId/scenarios": [
       "api:GET:/api/companies/:companyId/scenarios"
     ],
@@ -867,20 +901,30 @@
     "api:GET:/api/dashboard-summary/:fundId": [
       "api:GET:/api/dashboard-summary/:fundId"
     ],
-    "api:GET:/api/deals/:id/diligence": ["api:GET:/api/deals/:id/diligence"],
-    "api:GET:/api/deals/opportunities": ["api:GET:/api/deals/opportunities"],
+    "api:GET:/api/deals/:id/diligence": [
+      "api:GET:/api/deals/:id/diligence"
+    ],
+    "api:GET:/api/deals/opportunities": [
+      "api:GET:/api/deals/opportunities"
+    ],
     "api:GET:/api/deals/opportunities/:id": [
       "api:GET:/api/deals/opportunities/:id"
     ],
-    "api:GET:/api/deals/pipeline": ["api:GET:/api/deals/pipeline"],
-    "api:GET:/api/deals/stages": ["api:GET:/api/deals/stages"],
+    "api:GET:/api/deals/pipeline": [
+      "api:GET:/api/deals/pipeline"
+    ],
+    "api:GET:/api/deals/stages": [
+      "api:GET:/api/deals/stages"
+    ],
     "server/routes/dev-dashboard.ts": [
       "api:GET:/api/dev-dashboard/health",
       "api:POST:/api/dev-dashboard/fix/build",
       "api:POST:/api/dev-dashboard/fix/tests",
       "api:POST:/api/dev-dashboard/fix/typescript"
     ],
-    "api:GET:/api/dev-dashboard/health": ["api:GET:/api/dev-dashboard/health"],
+    "api:GET:/api/dev-dashboard/health": [
+      "api:GET:/api/dev-dashboard/health"
+    ],
     "server/routes/error-budget.ts": [
       "api:GET:/api/error-budget",
       "api:GET:/api/error-budget/:slo",
@@ -888,8 +932,12 @@
       "api:GET:/api/error-budget/gate/status",
       "api:POST:/api/error-budget/config/slos"
     ],
-    "api:GET:/api/error-budget": ["api:GET:/api/error-budget"],
-    "api:GET:/api/error-budget/:slo": ["api:GET:/api/error-budget/:slo"],
+    "api:GET:/api/error-budget": [
+      "api:GET:/api/error-budget"
+    ],
+    "api:GET:/api/error-budget/:slo": [
+      "api:GET:/api/error-budget/:slo"
+    ],
     "api:GET:/api/error-budget/config/slos": [
       "api:GET:/api/error-budget/config/slos"
     ],
@@ -900,27 +948,39 @@
       "api:GET:/api/events/fund/:fundId",
       "api:GET:/api/events/simulation/:simulationId"
     ],
-    "api:GET:/api/events/fund/:fundId": ["api:GET:/api/events/fund/:fundId"],
+    "api:GET:/api/events/fund/:fundId": [
+      "api:GET:/api/events/fund/:fundId"
+    ],
     "api:GET:/api/events/simulation/:simulationId": [
       "api:GET:/api/events/simulation/:simulationId"
     ],
-    "api:GET:/api/flags": ["api:GET:/api/flags"],
-    "api:GET:/api/flags/admin": ["api:GET:/api/flags/admin"],
+    "api:GET:/api/flags": [
+      "api:GET:/api/flags"
+    ],
+    "api:GET:/api/flags/admin": [
+      "api:GET:/api/flags/admin"
+    ],
     "api:GET:/api/flags/admin/:key/history": [
       "api:GET:/api/flags/admin/:key/history"
     ],
-    "api:GET:/api/flags/status": ["api:GET:/api/flags/status"],
+    "api:GET:/api/flags/status": [
+      "api:GET:/api/flags/status"
+    ],
     "server/routes/fund-metrics-legacy.ts": [
       "api:GET:/api/fund-metrics/:fundId"
     ],
-    "api:GET:/api/fund-metrics/:fundId": ["api:GET:/api/fund-metrics/:fundId"],
+    "api:GET:/api/fund-metrics/:fundId": [
+      "api:GET:/api/fund-metrics/:fundId"
+    ],
     "server/routes/funds.ts": [
       "api:GET:/api/funds",
       "api:GET:/api/funds/:id",
       "api:POST:/api/funds",
       "api:POST:/api/funds/calculate"
     ],
-    "api:GET:/api/funds": ["api:GET:/api/funds"],
+    "api:GET:/api/funds": [
+      "api:GET:/api/funds"
+    ],
     "server/routes/fund-actuals.ts": [
       "api:GET:/api/funds/:fundId/actuals/facts"
     ],
@@ -1270,13 +1330,21 @@
       "api:POST:/api/funds/:fundId/tasks",
       "api:POST:/api/funds/:fundId/tasks/:taskId/evidence-links"
     ],
-    "api:GET:/api/funds/:fundId/tasks": ["api:GET:/api/funds/:fundId/tasks"],
+    "api:GET:/api/funds/:fundId/tasks": [
+      "api:GET:/api/funds/:fundId/tasks"
+    ],
     "api:GET:/api/funds/:fundId/tasks/:taskId/evidence-links": [
       "api:GET:/api/funds/:fundId/tasks/:taskId/evidence-links"
     ],
-    "api:GET:/api/funds/:id": ["api:GET:/api/funds/:id"],
-    "api:GET:/api/funds/:id/alerts": ["api:GET:/api/funds/:id/alerts"],
-    "api:GET:/api/funds/:id/baselines": ["api:GET:/api/funds/:id/baselines"],
+    "api:GET:/api/funds/:id": [
+      "api:GET:/api/funds/:id"
+    ],
+    "api:GET:/api/funds/:id/alerts": [
+      "api:GET:/api/funds/:id/alerts"
+    ],
+    "api:GET:/api/funds/:id/baselines": [
+      "api:GET:/api/funds/:id/baselines"
+    ],
     "server/routes/fund-config.ts": [
       "api:GET:/api/funds/:id/draft",
       "api:GET:/api/funds/:id/lifecycle-history",
@@ -1292,12 +1360,18 @@
       "worker:pacing-calc",
       "worker:reserve-calc"
     ],
-    "api:GET:/api/funds/:id/draft": ["api:GET:/api/funds/:id/draft"],
+    "api:GET:/api/funds/:id/draft": [
+      "api:GET:/api/funds/:id/draft"
+    ],
     "api:GET:/api/funds/:id/lifecycle-history": [
       "api:GET:/api/funds/:id/lifecycle-history"
     ],
-    "api:GET:/api/funds/:id/reserves": ["api:GET:/api/funds/:id/reserves"],
-    "api:GET:/api/funds/:id/results": ["api:GET:/api/funds/:id/results"],
+    "api:GET:/api/funds/:id/reserves": [
+      "api:GET:/api/funds/:id/reserves"
+    ],
+    "api:GET:/api/funds/:id/results": [
+      "api:GET:/api/funds/:id/results"
+    ],
     "api:GET:/api/funds/:id/results-comparison": [
       "api:GET:/api/funds/:id/results-comparison"
     ],
@@ -1314,7 +1388,9 @@
     "api:GET:/api/funds/:id/sensitivity/runs/:runId": [
       "api:GET:/api/funds/:id/sensitivity/runs/:runId"
     ],
-    "api:GET:/api/funds/:id/state": ["api:GET:/api/funds/:id/state"],
+    "api:GET:/api/funds/:id/state": [
+      "api:GET:/api/funds/:id/state"
+    ],
     "api:GET:/api/funds/:id/variance-dashboard": [
       "api:GET:/api/funds/:id/variance-dashboard"
     ],
@@ -1328,7 +1404,9 @@
       "api:GET:/api/graduation/defaults",
       "api:POST:/api/graduation/project"
     ],
-    "api:GET:/api/graduation/defaults": ["api:GET:/api/graduation/defaults"],
+    "api:GET:/api/graduation/defaults": [
+      "api:GET:/api/graduation/defaults"
+    ],
     "server/routes/health.ts": [
       "api:GET:/api/health",
       "api:GET:/api/health/alerts",
@@ -1348,15 +1426,33 @@
       "api:GET:/healthz",
       "api:GET:/readyz"
     ],
-    "api:GET:/api/health": ["api:GET:/api/health"],
-    "api:GET:/api/health/alerts": ["api:GET:/api/health/alerts"],
-    "api:GET:/api/health/cache": ["api:GET:/api/health/cache"],
-    "api:GET:/api/health/db": ["api:GET:/api/health/db"],
-    "api:GET:/api/health/live": ["api:GET:/api/health/live"],
-    "api:GET:/api/health/migrations": ["api:GET:/api/health/migrations"],
-    "api:GET:/api/health/queues": ["api:GET:/api/health/queues"],
-    "api:GET:/api/health/ready": ["api:GET:/api/health/ready"],
-    "api:GET:/api/health/schema": ["api:GET:/api/health/schema"],
+    "api:GET:/api/health": [
+      "api:GET:/api/health"
+    ],
+    "api:GET:/api/health/alerts": [
+      "api:GET:/api/health/alerts"
+    ],
+    "api:GET:/api/health/cache": [
+      "api:GET:/api/health/cache"
+    ],
+    "api:GET:/api/health/db": [
+      "api:GET:/api/health/db"
+    ],
+    "api:GET:/api/health/live": [
+      "api:GET:/api/health/live"
+    ],
+    "api:GET:/api/health/migrations": [
+      "api:GET:/api/health/migrations"
+    ],
+    "api:GET:/api/health/queues": [
+      "api:GET:/api/health/queues"
+    ],
+    "api:GET:/api/health/ready": [
+      "api:GET:/api/health/ready"
+    ],
+    "api:GET:/api/health/schema": [
+      "api:GET:/api/health/schema"
+    ],
     "api:GET:/api/health/workers/:workerType": [
       "api:GET:/api/health/workers/:workerType"
     ],
@@ -1372,8 +1468,12 @@
       "api:POST:/api/investments/:id/cases",
       "api:POST:/api/investments/:id/rounds"
     ],
-    "api:GET:/api/investments": ["api:GET:/api/investments"],
-    "api:GET:/api/investments/:id": ["api:GET:/api/investments/:id"],
+    "api:GET:/api/investments": [
+      "api:GET:/api/investments"
+    ],
+    "api:GET:/api/investments/:id": [
+      "api:GET:/api/investments/:id"
+    ],
     "api:GET:/api/investments/:id/rounds": [
       "api:GET:/api/investments/:id/rounds"
     ],
@@ -1395,14 +1495,18 @@
       "api:POST:/api/lp/reports/generate",
       "api:PUT:/api/lp/settings"
     ],
-    "api:GET:/api/lp/capital-account": ["api:GET:/api/lp/capital-account"],
+    "api:GET:/api/lp/capital-account": [
+      "api:GET:/api/lp/capital-account"
+    ],
     "server/routes/lp-capital-calls.ts": [
       "api:GET:/api/lp/capital-calls",
       "api:GET:/api/lp/capital-calls/:callId",
       "api:GET:/api/lp/capital-calls/:callId/wire-instructions",
       "api:POST:/api/lp/capital-calls/:callId/payment"
     ],
-    "api:GET:/api/lp/capital-calls": ["api:GET:/api/lp/capital-calls"],
+    "api:GET:/api/lp/capital-calls": [
+      "api:GET:/api/lp/capital-calls"
+    ],
     "api:GET:/api/lp/capital-calls/:callId": [
       "api:GET:/api/lp/capital-calls/:callId"
     ],
@@ -1415,7 +1519,9 @@
       "api:GET:/api/lp/distributions/summary",
       "api:GET:/api/lp/distributions/tax-summary/:year"
     ],
-    "api:GET:/api/lp/distributions": ["api:GET:/api/lp/distributions"],
+    "api:GET:/api/lp/distributions": [
+      "api:GET:/api/lp/distributions"
+    ],
     "api:GET:/api/lp/distributions/:distributionId": [
       "api:GET:/api/lp/distributions/:distributionId"
     ],
@@ -1431,22 +1537,30 @@
       "api:GET:/api/lp/documents/:documentId/download",
       "api:GET:/api/lp/documents/search"
     ],
-    "api:GET:/api/lp/documents": ["api:GET:/api/lp/documents"],
+    "api:GET:/api/lp/documents": [
+      "api:GET:/api/lp/documents"
+    ],
     "api:GET:/api/lp/documents/:documentId": [
       "api:GET:/api/lp/documents/:documentId"
     ],
     "api:GET:/api/lp/documents/:documentId/download": [
       "api:GET:/api/lp/documents/:documentId/download"
     ],
-    "api:GET:/api/lp/documents/search": ["api:GET:/api/lp/documents/search"],
+    "api:GET:/api/lp/documents/search": [
+      "api:GET:/api/lp/documents/search"
+    ],
     "api:GET:/api/lp/funds/:fundId/detail": [
       "api:GET:/api/lp/funds/:fundId/detail"
     ],
     "api:GET:/api/lp/funds/:fundId/holdings": [
       "api:GET:/api/lp/funds/:fundId/holdings"
     ],
-    "server/routes/lp-health.ts": ["api:GET:/api/lp/health"],
-    "api:GET:/api/lp/health": ["api:GET:/api/lp/health"],
+    "server/routes/lp-health.ts": [
+      "api:GET:/api/lp/health"
+    ],
+    "api:GET:/api/lp/health": [
+      "api:GET:/api/lp/health"
+    ],
     "server/routes/lp-notifications.ts": [
       "api:GET:/api/lp/notifications",
       "api:GET:/api/lp/notifications/preferences",
@@ -1455,30 +1569,46 @@
       "api:POST:/api/lp/notifications/read-all",
       "api:PUT:/api/lp/notifications/preferences"
     ],
-    "api:GET:/api/lp/notifications": ["api:GET:/api/lp/notifications"],
+    "api:GET:/api/lp/notifications": [
+      "api:GET:/api/lp/notifications"
+    ],
     "api:GET:/api/lp/notifications/preferences": [
       "api:GET:/api/lp/notifications/preferences"
     ],
     "api:GET:/api/lp/notifications/unread-count": [
       "api:GET:/api/lp/notifications/unread-count"
     ],
-    "api:GET:/api/lp/performance": ["api:GET:/api/lp/performance"],
+    "api:GET:/api/lp/performance": [
+      "api:GET:/api/lp/performance"
+    ],
     "api:GET:/api/lp/performance/benchmark": [
       "api:GET:/api/lp/performance/benchmark"
     ],
-    "api:GET:/api/lp/profile": ["api:GET:/api/lp/profile"],
-    "api:GET:/api/lp/reports": ["api:GET:/api/lp/reports"],
-    "api:GET:/api/lp/reports/:reportId": ["api:GET:/api/lp/reports/:reportId"],
+    "api:GET:/api/lp/profile": [
+      "api:GET:/api/lp/profile"
+    ],
+    "api:GET:/api/lp/reports": [
+      "api:GET:/api/lp/reports"
+    ],
+    "api:GET:/api/lp/reports/:reportId": [
+      "api:GET:/api/lp/reports/:reportId"
+    ],
     "api:GET:/api/lp/reports/:reportId/download": [
       "api:GET:/api/lp/reports/:reportId/download"
     ],
-    "api:GET:/api/lp/settings": ["api:GET:/api/lp/settings"],
-    "api:GET:/api/lp/summary": ["api:GET:/api/lp/summary"],
+    "api:GET:/api/lp/settings": [
+      "api:GET:/api/lp/settings"
+    ],
+    "api:GET:/api/lp/summary": [
+      "api:GET:/api/lp/summary"
+    ],
     "server/routes/metrics-endpoint.ts": [
       "api:GET:/api/metrics",
       "api:GET:/metrics"
     ],
-    "api:GET:/api/metrics": ["api:GET:/api/metrics"],
+    "api:GET:/api/metrics": [
+      "api:GET:/api/metrics"
+    ],
     "server/routes/metrics-rum.ts": [
       "api:GET:/api/metrics/rum",
       "api:GET:/api/metrics/rum/health",
@@ -1487,12 +1617,18 @@
       "api:POST:/api/metrics/rum",
       "api:POST:/metrics/rum"
     ],
-    "api:GET:/api/metrics/rum": ["api:GET:/api/metrics/rum"],
-    "api:GET:/api/metrics/rum/health": ["api:GET:/api/metrics/rum/health"],
+    "api:GET:/api/metrics/rum": [
+      "api:GET:/api/metrics/rum"
+    ],
+    "api:GET:/api/metrics/rum/health": [
+      "api:GET:/api/metrics/rum/health"
+    ],
     "api:GET:/api/monte-carlo/funds/:fundId/simulate": [
       "api:GET:/api/monte-carlo/funds/:fundId/simulate"
     ],
-    "api:GET:/api/monte-carlo/health": ["api:GET:/api/monte-carlo/health"],
+    "api:GET:/api/monte-carlo/health": [
+      "api:GET:/api/monte-carlo/health"
+    ],
     "api:GET:/api/monte-carlo/jobs/:jobId": [
       "api:GET:/api/monte-carlo/jobs/:jobId"
     ],
@@ -1502,9 +1638,15 @@
     "api:GET:/api/monte-carlo/performance": [
       "api:GET:/api/monte-carlo/performance"
     ],
-    "server/routes/operations.ts": ["api:GET:/api/operations/:key"],
-    "api:GET:/api/operations/:key": ["api:GET:/api/operations/:key"],
-    "api:GET:/api/pacing/summary": ["api:GET:/api/pacing/summary"],
+    "server/routes/operations.ts": [
+      "api:GET:/api/operations/:key"
+    ],
+    "api:GET:/api/operations/:key": [
+      "api:GET:/api/operations/:key"
+    ],
+    "api:GET:/api/pacing/summary": [
+      "api:GET:/api/pacing/summary"
+    ],
     "server/routes/performance-metrics.ts": [
       "api:GET:/api/performance/alerts",
       "api:GET:/api/performance/monte-carlo",
@@ -1513,26 +1655,38 @@
       "api:GET:/api/performance/summary",
       "api:POST:/api/performance/simulate"
     ],
-    "api:GET:/api/performance/alerts": ["api:GET:/api/performance/alerts"],
+    "api:GET:/api/performance/alerts": [
+      "api:GET:/api/performance/alerts"
+    ],
     "api:GET:/api/performance/monte-carlo": [
       "api:GET:/api/performance/monte-carlo"
     ],
     "api:GET:/api/performance/operations": [
       "api:GET:/api/performance/operations"
     ],
-    "api:GET:/api/performance/realtime": ["api:GET:/api/performance/realtime"],
-    "api:GET:/api/performance/summary": ["api:GET:/api/performance/summary"],
+    "api:GET:/api/performance/realtime": [
+      "api:GET:/api/performance/realtime"
+    ],
+    "api:GET:/api/performance/summary": [
+      "api:GET:/api/performance/summary"
+    ],
     "server/routes/portfolio-companies.ts": [
       "api:GET:/api/portfolio-companies",
       "api:GET:/api/portfolio-companies/:id",
       "api:POST:/api/portfolio-companies"
     ],
-    "api:GET:/api/portfolio-companies": ["api:GET:/api/portfolio-companies"],
+    "api:GET:/api/portfolio-companies": [
+      "api:GET:/api/portfolio-companies"
+    ],
     "api:GET:/api/portfolio-companies/:id": [
       "api:GET:/api/portfolio-companies/:id"
     ],
-    "server/routes/portfolio-overview.ts": ["api:GET:/api/portfolio-overview"],
-    "api:GET:/api/portfolio-overview": ["api:GET:/api/portfolio-overview"],
+    "server/routes/portfolio-overview.ts": [
+      "api:GET:/api/portfolio-overview"
+    ],
+    "api:GET:/api/portfolio-overview": [
+      "api:GET:/api/portfolio-overview"
+    ],
     "api:GET:/api/portfolio/forecasts/:scenarioId": [
       "api:GET:/api/portfolio/forecasts/:scenarioId"
     ],
@@ -1548,12 +1702,18 @@
     "api:GET:/api/portfolio/strategies/:fundId": [
       "api:GET:/api/portfolio/strategies/:fundId"
     ],
-    "api:GET:/api/portfolio/templates": ["api:GET:/api/portfolio/templates"],
+    "api:GET:/api/portfolio/templates": [
+      "api:GET:/api/portfolio/templates"
+    ],
     "api:GET:/api/public/shares/:shareId": [
       "api:GET:/api/public/shares/:shareId"
     ],
-    "api:GET:/api/reserves/:fundId": ["api:GET:/api/reserves/:fundId"],
-    "api:GET:/api/shares": ["api:GET:/api/shares"],
+    "api:GET:/api/reserves/:fundId": [
+      "api:GET:/api/reserves/:fundId"
+    ],
+    "api:GET:/api/shares": [
+      "api:GET:/api/shares"
+    ],
     "api:GET:/api/shares/:shareId/analytics": [
       "api:GET:/api/shares/:shareId/analytics"
     ],
@@ -1564,7 +1724,9 @@
       "api:GET:/api/timeline/events/latest",
       "api:POST:/api/timeline/:fundId/snapshot"
     ],
-    "api:GET:/api/timeline/:fundId": ["api:GET:/api/timeline/:fundId"],
+    "api:GET:/api/timeline/:fundId": [
+      "api:GET:/api/timeline/:fundId"
+    ],
     "api:GET:/api/timeline/:fundId/compare": [
       "api:GET:/api/timeline/:fundId/compare"
     ],
@@ -1579,24 +1741,48 @@
       "api:GET:/api/v1/reserves/constrained/reconciliations",
       "api:POST:/api/v1/reserves/calculate"
     ],
-    "api:GET:/api/v1/reserves/config": ["api:GET:/api/v1/reserves/config"],
+    "api:GET:/api/v1/reserves/config": [
+      "api:GET:/api/v1/reserves/config"
+    ],
     "api:GET:/api/v1/reserves/constrained/reconciliations": [
       "api:GET:/api/v1/reserves/constrained/reconciliations"
     ],
-    "api:GET:/api/version": ["api:GET:/api/version"],
-    "api:GET:/health": ["api:GET:/health"],
-    "api:GET:/health/detailed": ["api:GET:/health/detailed"],
-    "api:GET:/health/detailed-json": ["api:GET:/health/detailed-json"],
-    "api:GET:/health/inflight": ["api:GET:/health/inflight"],
-    "api:GET:/healthz": ["api:GET:/healthz"],
-    "api:GET:/metrics": ["api:GET:/metrics"],
-    "api:GET:/metrics/rum": ["api:GET:/metrics/rum"],
-    "api:GET:/metrics/rum/health": ["api:GET:/metrics/rum/health"],
-    "api:GET:/readyz": ["api:GET:/readyz"],
+    "api:GET:/api/version": [
+      "api:GET:/api/version"
+    ],
+    "api:GET:/health": [
+      "api:GET:/health"
+    ],
+    "api:GET:/health/detailed": [
+      "api:GET:/health/detailed"
+    ],
+    "api:GET:/health/detailed-json": [
+      "api:GET:/health/detailed-json"
+    ],
+    "api:GET:/health/inflight": [
+      "api:GET:/health/inflight"
+    ],
+    "api:GET:/healthz": [
+      "api:GET:/healthz"
+    ],
+    "api:GET:/metrics": [
+      "api:GET:/metrics"
+    ],
+    "api:GET:/metrics/rum": [
+      "api:GET:/metrics/rum"
+    ],
+    "api:GET:/metrics/rum/health": [
+      "api:GET:/metrics/rum/health"
+    ],
+    "api:GET:/readyz": [
+      "api:GET:/readyz"
+    ],
     "api:PATCH:/api/companies/:companyId/scenarios/:scenarioId": [
       "api:PATCH:/api/companies/:companyId/scenarios/:scenarioId"
     ],
-    "api:PATCH:/api/flags/admin/:key": ["api:PATCH:/api/flags/admin/:key"],
+    "api:PATCH:/api/flags/admin/:key": [
+      "api:PATCH:/api/flags/admin/:key"
+    ],
     "api:PATCH:/api/funds/:fundId/allocation-scenarios/:scenarioId": [
       "api:PATCH:/api/funds/:fundId/allocation-scenarios/:scenarioId"
     ],
@@ -1621,9 +1807,15 @@
     "api:PATCH:/api/funds/:fundId/tasks/:taskId": [
       "api:PATCH:/api/funds/:fundId/tasks/:taskId"
     ],
-    "api:PATCH:/api/shares/:shareId": ["api:PATCH:/api/shares/:shareId"],
-    "api:POST:/api/activities": ["api:POST:/api/activities"],
-    "api:POST:/api/admin/engine/guard": ["api:POST:/api/admin/engine/guard"],
+    "api:PATCH:/api/shares/:shareId": [
+      "api:PATCH:/api/shares/:shareId"
+    ],
+    "api:POST:/api/activities": [
+      "api:POST:/api/activities"
+    ],
+    "api:POST:/api/admin/engine/guard": [
+      "api:POST:/api/admin/engine/guard"
+    ],
     "api:POST:/api/admin/funds/:fundId/calculation-modes/current-forecast/resume": [
       "api:POST:/api/admin/funds/:fundId/calculation-modes/current-forecast/resume"
     ],
@@ -1642,27 +1834,45 @@
     "api:POST:/api/admin/funds/:fundId/moic/reconciliations": [
       "api:POST:/api/admin/funds/:fundId/moic/reconciliations"
     ],
-    "api:POST:/api/ai/ask": ["api:POST:/api/ai/ask"],
-    "api:POST:/api/ai/collaborate": ["api:POST:/api/ai/collaborate"],
-    "api:POST:/api/ai/consensus": ["api:POST:/api/ai/consensus"],
-    "api:POST:/api/ai/debate": ["api:POST:/api/ai/debate"],
+    "api:POST:/api/ai/ask": [
+      "api:POST:/api/ai/ask"
+    ],
+    "api:POST:/api/ai/collaborate": [
+      "api:POST:/api/ai/collaborate"
+    ],
+    "api:POST:/api/ai/consensus": [
+      "api:POST:/api/ai/consensus"
+    ],
+    "api:POST:/api/ai/debate": [
+      "api:POST:/api/ai/debate"
+    ],
     "api:POST:/api/alerts/:alertId/acknowledge": [
       "api:POST:/api/alerts/:alertId/acknowledge"
     ],
     "api:POST:/api/alerts/:alertId/resolve": [
       "api:POST:/api/alerts/:alertId/resolve"
     ],
-    "api:POST:/api/auth/login": ["api:POST:/api/auth/login"],
-    "api:POST:/api/auth/logout": ["api:POST:/api/auth/logout"],
+    "api:POST:/api/auth/login": [
+      "api:POST:/api/auth/login"
+    ],
+    "api:POST:/api/auth/logout": [
+      "api:POST:/api/auth/logout"
+    ],
     "api:POST:/api/backtesting/compare-scenarios": [
       "api:POST:/api/backtesting/compare-scenarios"
     ],
-    "api:POST:/api/backtesting/run": ["api:POST:/api/backtesting/run"],
+    "api:POST:/api/backtesting/run": [
+      "api:POST:/api/backtesting/run"
+    ],
     "api:POST:/api/backtesting/run/async": [
       "api:POST:/api/backtesting/run/async"
     ],
-    "api:POST:/api/cache/invalidate": ["api:POST:/api/cache/invalidate"],
-    "api:POST:/api/cache/warm": ["api:POST:/api/cache/warm"],
+    "api:POST:/api/cache/invalidate": [
+      "api:POST:/api/cache/invalidate"
+    ],
+    "api:POST:/api/cache/warm": [
+      "api:POST:/api/cache/warm"
+    ],
     "server/routes/calculations.ts": [
       "api:POST:/api/calculations/export-csv",
       "api:POST:/api/calculations/run"
@@ -1670,7 +1880,9 @@
     "api:POST:/api/calculations/export-csv": [
       "api:POST:/api/calculations/export-csv"
     ],
-    "api:POST:/api/calculations/run": ["api:POST:/api/calculations/run"],
+    "api:POST:/api/calculations/run": [
+      "api:POST:/api/calculations/run"
+    ],
     "server/routes/capital-allocation.ts": [
       "api:POST:/api/capital-allocation/calculate",
       "api:POST:/api/capital-allocation/validate"
@@ -1690,23 +1902,39 @@
     "api:POST:/api/cashflow/:fundId/transactions": [
       "api:POST:/api/cashflow/:fundId/transactions"
     ],
-    "api:POST:/api/cohorts/analyze": ["api:POST:/api/cohorts/analyze"],
-    "api:POST:/api/cohorts/definitions": ["api:POST:/api/cohorts/definitions"],
+    "api:POST:/api/cohorts/analyze": [
+      "api:POST:/api/cohorts/analyze"
+    ],
+    "api:POST:/api/cohorts/definitions": [
+      "api:POST:/api/cohorts/definitions"
+    ],
     "api:POST:/api/cohorts/sector-mappings": [
       "api:POST:/api/cohorts/sector-mappings"
     ],
-    "api:POST:/api/cohorts/seed": ["api:POST:/api/cohorts/seed"],
+    "api:POST:/api/cohorts/seed": [
+      "api:POST:/api/cohorts/seed"
+    ],
     "api:POST:/api/companies/:companyId/reserves/optimize": [
       "api:POST:/api/companies/:companyId/reserves/optimize"
     ],
     "api:POST:/api/companies/:companyId/scenarios": [
       "api:POST:/api/companies/:companyId/scenarios"
     ],
-    "server/routes/public/csp-report.ts": ["api:POST:/api/csp-violations"],
-    "api:POST:/api/csp-violations": ["api:POST:/api/csp-violations"],
-    "api:POST:/api/deals/:id/diligence": ["api:POST:/api/deals/:id/diligence"],
-    "api:POST:/api/deals/:id/stage": ["api:POST:/api/deals/:id/stage"],
-    "api:POST:/api/deals/opportunities": ["api:POST:/api/deals/opportunities"],
+    "server/routes/public/csp-report.ts": [
+      "api:POST:/api/csp-violations"
+    ],
+    "api:POST:/api/csp-violations": [
+      "api:POST:/api/csp-violations"
+    ],
+    "api:POST:/api/deals/:id/diligence": [
+      "api:POST:/api/deals/:id/diligence"
+    ],
+    "api:POST:/api/deals/:id/stage": [
+      "api:POST:/api/deals/:id/stage"
+    ],
+    "api:POST:/api/deals/opportunities": [
+      "api:POST:/api/deals/opportunities"
+    ],
     "api:POST:/api/deals/opportunities/bulk/archive": [
       "api:POST:/api/deals/opportunities/bulk/archive"
     ],
@@ -1734,7 +1962,9 @@
     "api:POST:/api/flags/admin/kill-switch": [
       "api:POST:/api/flags/admin/kill-switch"
     ],
-    "api:POST:/api/funds": ["api:POST:/api/funds"],
+    "api:POST:/api/funds": [
+      "api:POST:/api/funds"
+    ],
     "api:POST:/api/funds/:fundId/allocation-scenarios": [
       "api:POST:/api/funds/:fundId/allocation-scenarios"
     ],
@@ -1931,7 +2161,9 @@
     "api:POST:/api/funds/:fundId/scenario-sets/reserve-optimization": [
       "api:POST:/api/funds/:fundId/scenario-sets/reserve-optimization"
     ],
-    "api:POST:/api/funds/:fundId/tasks": ["api:POST:/api/funds/:fundId/tasks"],
+    "api:POST:/api/funds/:fundId/tasks": [
+      "api:POST:/api/funds/:fundId/tasks"
+    ],
     "api:POST:/api/funds/:fundId/tasks/:taskId/evidence-links": [
       "api:POST:/api/funds/:fundId/tasks/:taskId/evidence-links"
     ],
@@ -1941,11 +2173,15 @@
     "api:POST:/api/funds/:id/alerts/cleanup-superseded": [
       "api:POST:/api/funds/:id/alerts/cleanup-superseded"
     ],
-    "api:POST:/api/funds/:id/baselines": ["api:POST:/api/funds/:id/baselines"],
+    "api:POST:/api/funds/:id/baselines": [
+      "api:POST:/api/funds/:id/baselines"
+    ],
     "api:POST:/api/funds/:id/baselines/:baselineId/set-default": [
       "api:POST:/api/funds/:id/baselines/:baselineId/set-default"
     ],
-    "api:POST:/api/funds/:id/publish": ["api:POST:/api/funds/:id/publish"],
+    "api:POST:/api/funds/:id/publish": [
+      "api:POST:/api/funds/:id/publish"
+    ],
     "api:POST:/api/funds/:id/recalculate": [
       "api:POST:/api/funds/:id/recalculate"
     ],
@@ -1964,10 +2200,18 @@
     "api:POST:/api/funds/:id/variance-reports": [
       "api:POST:/api/funds/:id/variance-reports"
     ],
-    "api:POST:/api/funds/calculate": ["api:POST:/api/funds/calculate"],
-    "api:POST:/api/funds/finalize": ["api:POST:/api/funds/finalize"],
-    "api:POST:/api/graduation/project": ["api:POST:/api/graduation/project"],
-    "api:POST:/api/investments": ["api:POST:/api/investments"],
+    "api:POST:/api/funds/calculate": [
+      "api:POST:/api/funds/calculate"
+    ],
+    "api:POST:/api/funds/finalize": [
+      "api:POST:/api/funds/finalize"
+    ],
+    "api:POST:/api/graduation/project": [
+      "api:POST:/api/graduation/project"
+    ],
+    "api:POST:/api/investments": [
+      "api:POST:/api/investments"
+    ],
     "api:POST:/api/investments/:id/cases": [
       "api:POST:/api/investments/:id/cases"
     ],
@@ -1980,8 +2224,12 @@
       "api:POST:/api/liquidity/optimize-calls",
       "api:POST:/api/liquidity/stress-test"
     ],
-    "api:POST:/api/liquidity/analyze": ["api:POST:/api/liquidity/analyze"],
-    "api:POST:/api/liquidity/forecast": ["api:POST:/api/liquidity/forecast"],
+    "api:POST:/api/liquidity/analyze": [
+      "api:POST:/api/liquidity/analyze"
+    ],
+    "api:POST:/api/liquidity/forecast": [
+      "api:POST:/api/liquidity/forecast"
+    ],
     "api:POST:/api/liquidity/optimize-calls": [
       "api:POST:/api/liquidity/optimize-calls"
     ],
@@ -1997,13 +2245,19 @@
     "api:POST:/api/lp/notifications/read-all": [
       "api:POST:/api/lp/notifications/read-all"
     ],
-    "api:POST:/api/lp/reports/generate": ["api:POST:/api/lp/reports/generate"],
+    "api:POST:/api/lp/reports/generate": [
+      "api:POST:/api/lp/reports/generate"
+    ],
     "server/routes/metrics-rum-ingress.ts": [
       "api:POST:/api/metrics/rum",
       "api:POST:/metrics/rum"
     ],
-    "api:POST:/api/metrics/rum": ["api:POST:/api/metrics/rum"],
-    "api:POST:/api/monte-carlo/batch": ["api:POST:/api/monte-carlo/batch"],
+    "api:POST:/api/metrics/rum": [
+      "api:POST:/api/metrics/rum"
+    ],
+    "api:POST:/api/monte-carlo/batch": [
+      "api:POST:/api/monte-carlo/batch"
+    ],
     "api:POST:/api/monte-carlo/multi-environment": [
       "api:POST:/api/monte-carlo/multi-environment"
     ],
@@ -2016,8 +2270,12 @@
     "api:POST:/api/performance/simulate": [
       "api:POST:/api/performance/simulate"
     ],
-    "api:POST:/api/portfolio-companies": ["api:POST:/api/portfolio-companies"],
-    "api:POST:/api/portfolio/forecasts": ["api:POST:/api/portfolio/forecasts"],
+    "api:POST:/api/portfolio-companies": [
+      "api:POST:/api/portfolio-companies"
+    ],
+    "api:POST:/api/portfolio/forecasts": [
+      "api:POST:/api/portfolio/forecasts"
+    ],
     "api:POST:/api/portfolio/forecasts/validate": [
       "api:POST:/api/portfolio/forecasts/validate"
     ],
@@ -2030,7 +2288,9 @@
     "api:POST:/api/portfolio/reserves/optimize": [
       "api:POST:/api/portfolio/reserves/optimize"
     ],
-    "api:POST:/api/portfolio/scenarios": ["api:POST:/api/portfolio/scenarios"],
+    "api:POST:/api/portfolio/scenarios": [
+      "api:POST:/api/portfolio/scenarios"
+    ],
     "api:POST:/api/portfolio/scenarios/:id/simulate": [
       "api:POST:/api/portfolio/scenarios/:id/simulate"
     ],
@@ -2043,14 +2303,18 @@
     "api:POST:/api/public/shares/:shareId/verify": [
       "api:POST:/api/public/shares/:shareId/verify"
     ],
-    "api:POST:/api/shares": ["api:POST:/api/shares"],
+    "api:POST:/api/shares": [
+      "api:POST:/api/shares"
+    ],
     "api:POST:/api/timeline/:fundId/snapshot": [
       "api:POST:/api/timeline/:fundId/snapshot"
     ],
     "api:POST:/api/v1/reserves/calculate": [
       "api:POST:/api/v1/reserves/calculate"
     ],
-    "api:POST:/metrics/rum": ["api:POST:/metrics/rum"],
+    "api:POST:/metrics/rum": [
+      "api:POST:/metrics/rum"
+    ],
     "api:PUT:/api/admin/funds/:fundId/calculation-modes/current-forecast": [
       "api:PUT:/api/admin/funds/:fundId/calculation-modes/current-forecast"
     ],
@@ -2066,11 +2330,15 @@
     "api:PUT:/api/deals/opportunities/:id": [
       "api:PUT:/api/deals/opportunities/:id"
     ],
-    "api:PUT:/api/funds/:id/draft": ["api:PUT:/api/funds/:id/draft"],
+    "api:PUT:/api/funds/:id/draft": [
+      "api:PUT:/api/funds/:id/draft"
+    ],
     "api:PUT:/api/lp/notifications/preferences": [
       "api:PUT:/api/lp/notifications/preferences"
     ],
-    "api:PUT:/api/lp/settings": ["api:PUT:/api/lp/settings"],
+    "api:PUT:/api/lp/settings": [
+      "api:PUT:/api/lp/settings"
+    ],
     "api:PUT:/api/portfolio/strategies/:id": [
       "api:PUT:/api/portfolio/strategies/:id"
     ],
@@ -2084,9 +2352,15 @@
       "client:/portal/:rest*",
       "client:/shared/:shareId"
     ],
-    "croute:/": ["client:/"],
-    "croute:/admin/ui-catalog": ["client:/admin/ui-catalog"],
-    "croute:/analytics-legacy": ["client:/analytics-legacy"],
+    "croute:/": [
+      "client:/"
+    ],
+    "croute:/admin/ui-catalog": [
+      "client:/admin/ui-catalog"
+    ],
+    "croute:/analytics-legacy": [
+      "client:/analytics-legacy"
+    ],
     "client/src/app/app-routes.tsx": [
       "client:/dashboard",
       "client:/financial-modeling",
@@ -2119,9 +2393,15 @@
       "client:/settings",
       "client:/variance-tracking"
     ],
-    "croute:/dashboard": ["client:/dashboard"],
-    "croute:/financial-modeling": ["client:/financial-modeling"],
-    "croute:/forecasting": ["client:/forecasting"],
+    "croute:/dashboard": [
+      "client:/dashboard"
+    ],
+    "croute:/financial-modeling": [
+      "client:/financial-modeling"
+    ],
+    "croute:/forecasting": [
+      "client:/forecasting"
+    ],
     "croute:/fund-model-results/:fundId": [
       "client:/fund-model-results/:fundId"
     ],
@@ -2140,8 +2420,12 @@
     "croute:/fund-model-results/:fundId/scenarios": [
       "client:/fund-model-results/:fundId/scenarios"
     ],
-    "croute:/fund-setup": ["client:/fund-setup"],
-    "croute:/help": ["client:/help"],
+    "croute:/fund-setup": [
+      "client:/fund-setup"
+    ],
+    "croute:/help": [
+      "client:/help"
+    ],
     "shared/routes/app-route-definitions.ts": [
       "client:/investments",
       "client:/kpi-manager",
@@ -2149,43 +2433,105 @@
       "client:/moic-analysis",
       "client:/planning"
     ],
-    "croute:/investments": ["client:/investments"],
-    "croute:/kpi-manager": ["client:/kpi-manager"],
-    "croute:/kpi-submission": ["client:/kpi-submission"],
-    "croute:/login": ["client:/login"],
-    "croute:/lp": ["client:/lp"],
-    "croute:/lp-reporting/imports": ["client:/lp-reporting/imports"],
-    "croute:/lp-reporting/ledger": ["client:/lp-reporting/ledger"],
-    "croute:/lp-reporting/metrics": ["client:/lp-reporting/metrics"],
-    "croute:/lp-reporting/valuations": ["client:/lp-reporting/valuations"],
-    "croute:/lp/capital-account": ["client:/lp/capital-account"],
-    "croute:/lp/dashboard": ["client:/lp/dashboard"],
-    "croute:/lp/fund-detail/:fundId": ["client:/lp/fund-detail/:fundId"],
-    "croute:/lp/performance": ["client:/lp/performance"],
-    "croute:/lp/reports": ["client:/lp/reports"],
-    "croute:/lp/settings": ["client:/lp/settings"],
-    "croute:/model-results": ["client:/model-results"],
-    "croute:/moic-analysis": ["client:/moic-analysis"],
-    "croute:/performance": ["client:/performance"],
-    "croute:/pipeline": ["client:/pipeline"],
-    "croute:/planning": ["client:/planning"],
-    "croute:/planning-legacy": ["client:/planning-legacy"],
-    "croute:/portal/:rest*": ["client:/portal/:rest*"],
-    "croute:/portfolio": ["client:/portfolio"],
-    "croute:/portfolio/company/:id": ["client:/portfolio/company/:id"],
-    "croute:/reports": ["client:/reports"],
-    "croute:/sensitivity-analysis": ["client:/sensitivity-analysis"],
-    "croute:/settings": ["client:/settings"],
-    "croute:/shared/:shareId": ["client:/shared/:shareId"],
-    "croute:/variance-tracking": ["client:/variance-tracking"],
+    "croute:/investments": [
+      "client:/investments"
+    ],
+    "croute:/kpi-manager": [
+      "client:/kpi-manager"
+    ],
+    "croute:/kpi-submission": [
+      "client:/kpi-submission"
+    ],
+    "croute:/login": [
+      "client:/login"
+    ],
+    "croute:/lp": [
+      "client:/lp"
+    ],
+    "croute:/lp-reporting/imports": [
+      "client:/lp-reporting/imports"
+    ],
+    "croute:/lp-reporting/ledger": [
+      "client:/lp-reporting/ledger"
+    ],
+    "croute:/lp-reporting/metrics": [
+      "client:/lp-reporting/metrics"
+    ],
+    "croute:/lp-reporting/valuations": [
+      "client:/lp-reporting/valuations"
+    ],
+    "croute:/lp/capital-account": [
+      "client:/lp/capital-account"
+    ],
+    "croute:/lp/dashboard": [
+      "client:/lp/dashboard"
+    ],
+    "croute:/lp/fund-detail/:fundId": [
+      "client:/lp/fund-detail/:fundId"
+    ],
+    "croute:/lp/performance": [
+      "client:/lp/performance"
+    ],
+    "croute:/lp/reports": [
+      "client:/lp/reports"
+    ],
+    "croute:/lp/settings": [
+      "client:/lp/settings"
+    ],
+    "croute:/model-results": [
+      "client:/model-results"
+    ],
+    "croute:/moic-analysis": [
+      "client:/moic-analysis"
+    ],
+    "croute:/performance": [
+      "client:/performance"
+    ],
+    "croute:/pipeline": [
+      "client:/pipeline"
+    ],
+    "croute:/planning": [
+      "client:/planning"
+    ],
+    "croute:/planning-legacy": [
+      "client:/planning-legacy"
+    ],
+    "croute:/portal/:rest*": [
+      "client:/portal/:rest*"
+    ],
+    "croute:/portfolio": [
+      "client:/portfolio"
+    ],
+    "croute:/portfolio/company/:id": [
+      "client:/portfolio/company/:id"
+    ],
+    "croute:/reports": [
+      "client:/reports"
+    ],
+    "croute:/sensitivity-analysis": [
+      "client:/sensitivity-analysis"
+    ],
+    "croute:/settings": [
+      "client:/settings"
+    ],
+    "croute:/shared/:shareId": [
+      "client:/shared/:shareId"
+    ],
+    "croute:/variance-tracking": [
+      "client:/variance-tracking"
+    ],
     "client/src/components/investments/portfolio-company-detail.tsx": [
       "dormant:client/src/components/investments/portfolio-company-detail.tsx"
     ],
-    "client/src/pages/v2/cash.tsx": ["dormant:client/src/pages/v2/cash.tsx"],
+    "client/src/pages/v2/cash.tsx": [
+      "dormant:client/src/pages/v2/cash.tsx"
+    ],
     "client/src/pages/v2/company.tsx": [
       "dormant:client/src/pages/v2/company.tsx"
     ],
-    "client/src/pages/v2/exits.tsx": ["dormant:client/src/pages/v2/exits.tsx"],
+    "client/src/pages/v2/exits.tsx": [
+      "dormant:client/src/pages/v2/exits.tsx"
+    ],
     "client/src/pages/v2/insights.tsx": [
       "dormant:client/src/pages/v2/insights.tsx"
     ],
@@ -2198,7 +2544,9 @@
     "client/src/pages/v2/scenarios.tsx": [
       "dormant:client/src/pages/v2/scenarios.tsx"
     ],
-    "client/src/pages/v2/today.tsx": ["dormant:client/src/pages/v2/today.tsx"],
+    "client/src/pages/v2/today.tsx": [
+      "dormant:client/src/pages/v2/today.tsx"
+    ],
     "server/routes.ts": [
       "event:calc-run-completion",
       "scheduler:artifact-retention",
@@ -2206,7 +2554,9 @@
       "scheduler:variance-alert-automation",
       "ws:setup-websocket-servers"
     ],
-    "server/routes.ts:40": ["event:calc-run-completion"],
+    "server/routes.ts:40": [
+      "event:calc-run-completion"
+    ],
     "ml-service/app.py": [
       "listener:ml-reserve:GET:/health",
       "listener:ml-reserve:GET:/model/info",
@@ -2220,10 +2570,18 @@
       "listener:worker-health:GET:/ready",
       "listener:worker-health:GET:/stats"
     ],
-    "server/routes.ts:44": ["scheduler:artifact-retention"],
-    "server/routes.ts:46": ["scheduler:internal-analysis-checkpoint"],
-    "server/routes.ts:42": ["scheduler:variance-alert-automation"],
-    "server/queues/backtesting-queue.ts": ["worker:backtesting-jobs"],
+    "server/routes.ts:44": [
+      "scheduler:artifact-retention"
+    ],
+    "server/routes.ts:46": [
+      "scheduler:internal-analysis-checkpoint"
+    ],
+    "server/routes.ts:42": [
+      "scheduler:variance-alert-automation"
+    ],
+    "server/queues/backtesting-queue.ts": [
+      "worker:backtesting-jobs"
+    ],
     "server/queues/registry.ts": [
       "worker:backtesting-jobs",
       "worker:cohort-calc",
@@ -2237,32 +2595,54 @@
     "server/workers/capital-call-status-worker.ts": [
       "worker:capital-call-status"
     ],
-    "workers/cohort-worker.ts": ["worker:cohort-calc"],
-    "server/middleware/asyncErrorHandler.ts": ["worker:error-tracking"],
+    "workers/cohort-worker.ts": [
+      "worker:cohort-calc"
+    ],
+    "server/middleware/asyncErrorHandler.ts": [
+      "worker:error-tracking"
+    ],
     "server/queues/fund-scenario-calc-worker-init.ts": [
       "worker:fund-scenario-calc"
     ],
     "server/services/fund-scenario-calc-queue-service.ts": [
       "worker:fund-scenario-calc"
     ],
-    "workers/fund-scenario-calc-worker.ts": ["worker:fund-scenario-calc"],
-    "server/queues/report-generation-queue.ts": ["worker:lp-report-generation"],
+    "workers/fund-scenario-calc-worker.ts": [
+      "worker:fund-scenario-calc"
+    ],
+    "server/queues/report-generation-queue.ts": [
+      "worker:lp-report-generation"
+    ],
     "server/workers/lp-materialized-view-refresh.ts": [
       "worker:lp-view-refresh"
     ],
-    "server/queues/simulation-queue.ts": ["worker:monte-carlo-simulations"],
-    "workers/pacing-worker.ts": ["worker:pacing-calc"],
-    "workers/reserve-worker.ts": ["worker:reserve-calc"],
-    "server/services/CacheWarmingService.ts": ["worker:scenario-generation"],
-    "server/workers/scenarioGeneratorWorker.ts": ["worker:scenario-generation"],
-    "server/routes.ts:153": ["ws:setup-websocket-servers"],
+    "server/queues/simulation-queue.ts": [
+      "worker:monte-carlo-simulations"
+    ],
+    "workers/pacing-worker.ts": [
+      "worker:pacing-calc"
+    ],
+    "workers/reserve-worker.ts": [
+      "worker:reserve-calc"
+    ],
+    "server/services/CacheWarmingService.ts": [
+      "worker:scenario-generation"
+    ],
+    "server/workers/scenarioGeneratorWorker.ts": [
+      "worker:scenario-generation"
+    ],
+    "server/routes.ts:153": [
+      "ws:setup-websocket-servers"
+    ],
     "manifest:auth": [
       "api:GET:/api/auth/csrf",
       "api:GET:/api/auth/session",
       "api:POST:/api/auth/login",
       "api:POST:/api/auth/logout"
     ],
-    "manifest-source:server/routes/auth.ts": ["api:GET:/api/auth/csrf"],
+    "manifest-source:server/routes/auth.ts": [
+      "api:GET:/api/auth/csrf"
+    ],
     "manifest:flags": [
       "api:DELETE:/api/flags/admin/kill-switch",
       "api:GET:/api/flags",
@@ -2275,15 +2655,21 @@
     "manifest-source:server/routes/flags.ts": [
       "api:DELETE:/api/flags/admin/kill-switch"
     ],
-    "manifest:dual-forecast": ["api:GET:/api/funds/:fundId/dual-forecast"],
+    "manifest:dual-forecast": [
+      "api:GET:/api/funds/:fundId/dual-forecast"
+    ],
     "manifest-source:server/routes/dual-forecast.ts": [
       "api:GET:/api/funds/:fundId/dual-forecast"
     ],
-    "manifest:dashboard-summary": ["api:GET:/api/dashboard-summary/:fundId"],
+    "manifest:dashboard-summary": [
+      "api:GET:/api/dashboard-summary/:fundId"
+    ],
     "manifest-source:server/routes/dashboard-summary.ts": [
       "api:GET:/api/dashboard-summary/:fundId"
     ],
-    "manifest:fund-actuals": ["api:GET:/api/funds/:fundId/actuals/facts"],
+    "manifest:fund-actuals": [
+      "api:GET:/api/funds/:fundId/actuals/facts"
+    ],
     "manifest-source:server/routes/fund-actuals.ts": [
       "api:GET:/api/funds/:fundId/actuals/facts"
     ],
@@ -2312,7 +2698,9 @@
       "api:POST:/api/funds",
       "api:POST:/api/funds/calculate"
     ],
-    "manifest-source:server/routes/funds.ts": ["api:GET:/api/funds"],
+    "manifest-source:server/routes/funds.ts": [
+      "api:GET:/api/funds"
+    ],
     "manifest:fund-metrics": [
       "api:GET:/api/funds/:fundId/metrics",
       "api:POST:/api/funds/:fundId/metrics/invalidate"
@@ -2340,7 +2728,9 @@
     "manifest-source:server/routes/portfolio-companies.ts": [
       "api:GET:/api/portfolio-companies"
     ],
-    "manifest:portfolio-overview": ["api:GET:/api/portfolio-overview"],
+    "manifest:portfolio-overview": [
+      "api:GET:/api/portfolio-overview"
+    ],
     "manifest-source:server/routes/portfolio-overview.ts": [
       "api:GET:/api/portfolio-overview"
     ],
@@ -2749,8 +3139,12 @@
     "manifest-source:server/routes/internal-analysis.ts": [
       "api:GET:/api/funds/:fundId/internal-analysis/drafts"
     ],
-    "runtime-manifest:make-app-health": ["api:GET:/api/health"],
-    "runtime-source:server/routes/health.ts": ["api:GET:/api/health"],
+    "runtime-manifest:make-app-health": [
+      "api:GET:/api/health"
+    ],
+    "runtime-source:server/routes/health.ts": [
+      "api:GET:/api/health"
+    ],
     "runtime-manifest:make-app-reserves-v1": [
       "api:GET:/api/v1/reserves/config"
     ],
@@ -2769,27 +3163,45 @@
     "runtime-source:server/routes/calculations.ts": [
       "api:POST:/api/calculations/export-csv"
     ],
-    "runtime-manifest:make-app-ai": ["api:GET:/api/ai/usage"],
-    "runtime-source:server/routes/ai.ts": ["api:GET:/api/ai/usage"],
+    "runtime-manifest:make-app-ai": [
+      "api:GET:/api/ai/usage"
+    ],
+    "runtime-source:server/routes/ai.ts": [
+      "api:GET:/api/ai/usage"
+    ],
     "runtime-manifest:make-app-scenario-analysis": [
       "api:DELETE:/api/companies/:companyId/scenarios/:scenarioId"
     ],
     "runtime-source:server/routes/scenario-analysis.ts": [
       "api:DELETE:/api/companies/:companyId/scenarios/:scenarioId"
     ],
-    "runtime-manifest:make-app-rum-ingress": ["api:POST:/api/metrics/rum"],
+    "runtime-manifest:make-app-rum-ingress": [
+      "api:POST:/api/metrics/rum"
+    ],
     "runtime-source:server/routes/metrics-rum-ingress.ts": [
       "api:POST:/api/metrics/rum"
     ],
-    "runtime-manifest:make-app-rum": ["api:GET:/api/metrics/rum"],
-    "runtime-source:server/routes/metrics-rum.ts": ["api:GET:/api/metrics/rum"],
-    "runtime-manifest:make-app-metrics": ["api:GET:/api/metrics"],
+    "runtime-manifest:make-app-rum": [
+      "api:GET:/api/metrics/rum"
+    ],
+    "runtime-source:server/routes/metrics-rum.ts": [
+      "api:GET:/api/metrics/rum"
+    ],
+    "runtime-manifest:make-app-metrics": [
+      "api:GET:/api/metrics"
+    ],
     "runtime-source:server/routes/metrics-endpoint.ts": [
       "api:GET:/api/metrics"
     ],
-    "runtime-manifest:register-routes-health": ["api:GET:/api/health"],
-    "runtime-manifest:register-routes-activities": ["api:GET:/api/activities"],
-    "runtime-source:server/routes/activities.ts": ["api:GET:/api/activities"],
+    "runtime-manifest:register-routes-health": [
+      "api:GET:/api/health"
+    ],
+    "runtime-manifest:register-routes-activities": [
+      "api:GET:/api/activities"
+    ],
+    "runtime-source:server/routes/activities.ts": [
+      "api:GET:/api/activities"
+    ],
     "runtime-manifest:register-routes-fund-metrics-legacy": [
       "api:GET:/api/fund-metrics/:fundId"
     ],
@@ -2814,8 +3226,12 @@
     "runtime-source:server/routes/monte-carlo.ts": [
       "api:DELETE:/api/monte-carlo/cache"
     ],
-    "runtime-manifest:register-routes-cache": ["api:GET:/api/cache/stats"],
-    "runtime-source:server/routes/cache.ts": ["api:GET:/api/cache/stats"],
+    "runtime-manifest:register-routes-cache": [
+      "api:GET:/api/cache/stats"
+    ],
+    "runtime-source:server/routes/cache.ts": [
+      "api:GET:/api/cache/stats"
+    ],
     "runtime-manifest:register-routes-performance-metrics": [
       "api:GET:/api/performance/alerts"
     ],
@@ -2828,8 +3244,12 @@
     "runtime-source:server/routes/sse-events.ts": [
       "api:GET:/api/events/fund/:fundId"
     ],
-    "runtime-manifest:register-routes-lp-health": ["api:GET:/api/lp/health"],
-    "runtime-source:server/routes/lp-health.ts": ["api:GET:/api/lp/health"],
+    "runtime-manifest:register-routes-lp-health": [
+      "api:GET:/api/lp/health"
+    ],
+    "runtime-source:server/routes/lp-health.ts": [
+      "api:GET:/api/lp/health"
+    ],
     "runtime-manifest:register-routes-admin-engine": [
       "api:GET:/api/admin/engine/guard"
     ],
@@ -2842,7 +3262,9 @@
     "runtime-source:server/routes/portfolio-intelligence.ts": [
       "api:DELETE:/api/portfolio/strategies/:id"
     ],
-    "runtime-manifest:register-routes-metrics": ["api:GET:/api/metrics"],
+    "runtime-manifest:register-routes-metrics": [
+      "api:GET:/api/metrics"
+    ],
     "runtime-manifest:register-routes-error-budget": [
       "api:GET:/api/error-budget"
     ],
@@ -2858,16 +3280,36 @@
     "runtime-manifest:register-routes-websocket-setup": [
       "ws:setup-websocket-servers"
     ],
-    "runtime-source:server/websocket/index.ts": ["ws:setup-websocket-servers"],
-    "policy:client:/shared/:shareId": ["client:/shared/:shareId"],
-    "policy:client:/fund-setup": ["client:/fund-setup"],
-    "policy:client:/dashboard": ["client:/dashboard"],
-    "policy:client:/portfolio/company/:id": ["client:/portfolio/company/:id"],
-    "policy:client:/portfolio": ["client:/portfolio"],
-    "policy:client:/performance": ["client:/performance"],
-    "policy:client:/forecasting": ["client:/forecasting"],
-    "policy:client:/financial-modeling": ["client:/financial-modeling"],
-    "policy:client:/model-results": ["client:/model-results"],
+    "runtime-source:server/websocket/index.ts": [
+      "ws:setup-websocket-servers"
+    ],
+    "policy:client:/shared/:shareId": [
+      "client:/shared/:shareId"
+    ],
+    "policy:client:/fund-setup": [
+      "client:/fund-setup"
+    ],
+    "policy:client:/dashboard": [
+      "client:/dashboard"
+    ],
+    "policy:client:/portfolio/company/:id": [
+      "client:/portfolio/company/:id"
+    ],
+    "policy:client:/portfolio": [
+      "client:/portfolio"
+    ],
+    "policy:client:/performance": [
+      "client:/performance"
+    ],
+    "policy:client:/forecasting": [
+      "client:/forecasting"
+    ],
+    "policy:client:/financial-modeling": [
+      "client:/financial-modeling"
+    ],
+    "policy:client:/model-results": [
+      "client:/model-results"
+    ],
     "policy:client:/fund-model-results/:fundId/scenarios": [
       "client:/fund-model-results/:fundId/scenarios"
     ],
@@ -2886,22 +3328,48 @@
     "policy:client:/fund-model-results/:fundId": [
       "client:/fund-model-results/:fundId"
     ],
-    "policy:client:/sensitivity-analysis": ["client:/sensitivity-analysis"],
-    "policy:client:/reports": ["client:/reports"],
-    "policy:client:/variance-tracking": ["client:/variance-tracking"],
-    "policy:client:/pipeline": ["client:/pipeline"],
-    "policy:client:/lp-reporting/ledger": ["client:/lp-reporting/ledger"],
+    "policy:client:/sensitivity-analysis": [
+      "client:/sensitivity-analysis"
+    ],
+    "policy:client:/reports": [
+      "client:/reports"
+    ],
+    "policy:client:/variance-tracking": [
+      "client:/variance-tracking"
+    ],
+    "policy:client:/pipeline": [
+      "client:/pipeline"
+    ],
+    "policy:client:/lp-reporting/ledger": [
+      "client:/lp-reporting/ledger"
+    ],
     "policy:client:/lp-reporting/valuations": [
       "client:/lp-reporting/valuations"
     ],
-    "policy:client:/lp-reporting/metrics": ["client:/lp-reporting/metrics"],
-    "policy:client:/lp-reporting/imports": ["client:/lp-reporting/imports"],
-    "policy:client:/lp/dashboard": ["client:/lp/dashboard"],
-    "policy:client:/lp/fund-detail/:fundId": ["client:/lp/fund-detail/:fundId"],
-    "policy:client:/lp/capital-account": ["client:/lp/capital-account"],
-    "policy:client:/lp/performance": ["client:/lp/performance"],
-    "policy:client:/lp/reports": ["client:/lp/reports"],
-    "policy:client:/lp/settings": ["client:/lp/settings"],
+    "policy:client:/lp-reporting/metrics": [
+      "client:/lp-reporting/metrics"
+    ],
+    "policy:client:/lp-reporting/imports": [
+      "client:/lp-reporting/imports"
+    ],
+    "policy:client:/lp/dashboard": [
+      "client:/lp/dashboard"
+    ],
+    "policy:client:/lp/fund-detail/:fundId": [
+      "client:/lp/fund-detail/:fundId"
+    ],
+    "policy:client:/lp/capital-account": [
+      "client:/lp/capital-account"
+    ],
+    "policy:client:/lp/performance": [
+      "client:/lp/performance"
+    ],
+    "policy:client:/lp/reports": [
+      "client:/lp/reports"
+    ],
+    "policy:client:/lp/settings": [
+      "client:/lp/settings"
+    ],
     "policy:api:post:/api/portfolio/strategies": [
       "api:POST:/api/portfolio/strategies"
     ],
@@ -3235,20 +3703,48 @@
     "policy:api:post:/api/funds/:fundId/internal-analysis/notes": [
       "api:POST:/api/funds/:fundId/internal-analysis/notes"
     ],
-    "governance:/": ["client:/"],
-    "governance:/analytics-legacy": ["client:/analytics-legacy"],
-    "governance:/planning-legacy": ["client:/planning-legacy"],
-    "governance:/shared/:shareId": ["client:/shared/:shareId"],
-    "governance:/portal/:rest*": ["client:/portal/:rest*"],
-    "governance:/admin/ui-catalog": ["client:/admin/ui-catalog"],
-    "governance:/fund-setup": ["client:/fund-setup"],
-    "governance:/dashboard": ["client:/dashboard"],
-    "governance:/portfolio/company/:id": ["client:/portfolio/company/:id"],
-    "governance:/portfolio": ["client:/portfolio"],
-    "governance:/performance": ["client:/performance"],
-    "governance:/forecasting": ["client:/forecasting"],
-    "governance:/financial-modeling": ["client:/financial-modeling"],
-    "governance:/model-results": ["client:/model-results"],
+    "governance:/": [
+      "client:/"
+    ],
+    "governance:/analytics-legacy": [
+      "client:/analytics-legacy"
+    ],
+    "governance:/planning-legacy": [
+      "client:/planning-legacy"
+    ],
+    "governance:/shared/:shareId": [
+      "client:/shared/:shareId"
+    ],
+    "governance:/portal/:rest*": [
+      "client:/portal/:rest*"
+    ],
+    "governance:/admin/ui-catalog": [
+      "client:/admin/ui-catalog"
+    ],
+    "governance:/fund-setup": [
+      "client:/fund-setup"
+    ],
+    "governance:/dashboard": [
+      "client:/dashboard"
+    ],
+    "governance:/portfolio/company/:id": [
+      "client:/portfolio/company/:id"
+    ],
+    "governance:/portfolio": [
+      "client:/portfolio"
+    ],
+    "governance:/performance": [
+      "client:/performance"
+    ],
+    "governance:/forecasting": [
+      "client:/forecasting"
+    ],
+    "governance:/financial-modeling": [
+      "client:/financial-modeling"
+    ],
+    "governance:/model-results": [
+      "client:/model-results"
+    ],
     "governance:/fund-model-results/:fundId/scenarios": [
       "client:/fund-model-results/:fundId/scenarios"
     ],
@@ -3267,35 +3763,93 @@
     "governance:/fund-model-results/:fundId": [
       "client:/fund-model-results/:fundId"
     ],
-    "governance:/sensitivity-analysis": ["client:/sensitivity-analysis"],
-    "governance:/reports": ["client:/reports"],
-    "governance:/variance-tracking": ["client:/variance-tracking"],
-    "governance:/pipeline": ["client:/pipeline"],
-    "governance:/lp-reporting/ledger": ["client:/lp-reporting/ledger"],
-    "governance:/lp-reporting/valuations": ["client:/lp-reporting/valuations"],
-    "governance:/lp-reporting/metrics": ["client:/lp-reporting/metrics"],
-    "governance:/lp-reporting/imports": ["client:/lp-reporting/imports"],
-    "governance:/settings": ["client:/settings"],
-    "governance:/help": ["client:/help"],
-    "governance:/planning": ["client:/planning"],
-    "governance:/moic-analysis": ["client:/moic-analysis"],
-    "governance:/kpi-manager": ["client:/kpi-manager"],
-    "governance:/kpi-submission": ["client:/kpi-submission"],
-    "governance:/investments": ["client:/investments"],
-    "governance:/lp/dashboard": ["client:/lp/dashboard"],
-    "governance:/lp/fund-detail/:fundId": ["client:/lp/fund-detail/:fundId"],
-    "governance:/lp/capital-account": ["client:/lp/capital-account"],
-    "governance:/lp/performance": ["client:/lp/performance"],
-    "governance:/lp/reports": ["client:/lp/reports"],
-    "governance:/lp/settings": ["client:/lp/settings"],
-    "QUEUE_CATALOG:simulation": ["worker:monte-carlo-simulations"],
-    "QUEUE_CATALOG:report": ["worker:lp-report-generation"],
-    "QUEUE_CATALOG:backtesting": ["worker:backtesting-jobs"],
-    "QUEUE_CATALOG:reserve-calc": ["worker:reserve-calc"],
-    "QUEUE_CATALOG:fund-scenario-calc": ["worker:fund-scenario-calc"],
-    "QUEUE_CATALOG:pacing-calc": ["worker:pacing-calc"],
-    "QUEUE_CATALOG:cohort-calc": ["worker:cohort-calc"],
-    "QUEUE_CATALOG:economics-calc": ["worker:economics-calc"]
+    "governance:/sensitivity-analysis": [
+      "client:/sensitivity-analysis"
+    ],
+    "governance:/reports": [
+      "client:/reports"
+    ],
+    "governance:/variance-tracking": [
+      "client:/variance-tracking"
+    ],
+    "governance:/pipeline": [
+      "client:/pipeline"
+    ],
+    "governance:/lp-reporting/ledger": [
+      "client:/lp-reporting/ledger"
+    ],
+    "governance:/lp-reporting/valuations": [
+      "client:/lp-reporting/valuations"
+    ],
+    "governance:/lp-reporting/metrics": [
+      "client:/lp-reporting/metrics"
+    ],
+    "governance:/lp-reporting/imports": [
+      "client:/lp-reporting/imports"
+    ],
+    "governance:/settings": [
+      "client:/settings"
+    ],
+    "governance:/help": [
+      "client:/help"
+    ],
+    "governance:/planning": [
+      "client:/planning"
+    ],
+    "governance:/moic-analysis": [
+      "client:/moic-analysis"
+    ],
+    "governance:/kpi-manager": [
+      "client:/kpi-manager"
+    ],
+    "governance:/kpi-submission": [
+      "client:/kpi-submission"
+    ],
+    "governance:/investments": [
+      "client:/investments"
+    ],
+    "governance:/lp/dashboard": [
+      "client:/lp/dashboard"
+    ],
+    "governance:/lp/fund-detail/:fundId": [
+      "client:/lp/fund-detail/:fundId"
+    ],
+    "governance:/lp/capital-account": [
+      "client:/lp/capital-account"
+    ],
+    "governance:/lp/performance": [
+      "client:/lp/performance"
+    ],
+    "governance:/lp/reports": [
+      "client:/lp/reports"
+    ],
+    "governance:/lp/settings": [
+      "client:/lp/settings"
+    ],
+    "QUEUE_CATALOG:simulation": [
+      "worker:monte-carlo-simulations"
+    ],
+    "QUEUE_CATALOG:report": [
+      "worker:lp-report-generation"
+    ],
+    "QUEUE_CATALOG:backtesting": [
+      "worker:backtesting-jobs"
+    ],
+    "QUEUE_CATALOG:reserve-calc": [
+      "worker:reserve-calc"
+    ],
+    "QUEUE_CATALOG:fund-scenario-calc": [
+      "worker:fund-scenario-calc"
+    ],
+    "QUEUE_CATALOG:pacing-calc": [
+      "worker:pacing-calc"
+    ],
+    "QUEUE_CATALOG:cohort-calc": [
+      "worker:cohort-calc"
+    ],
+    "QUEUE_CATALOG:economics-calc": [
+      "worker:economics-calc"
+    ]
   },
   "row_to_sources": {
     "api-fn:ANY:/api/telemetry/wizard": [
@@ -3352,9 +3906,17 @@
       "manifest:shares",
       "server/routes/shares.ts"
     ],
-    "api:GET:/": ["server/server.ts"],
-    "api:GET:/api-docs": ["api:GET:/api-docs", "server/app.ts"],
-    "api:GET:/api-docs.json": ["api:GET:/api-docs.json", "server/app.ts"],
+    "api:GET:/": [
+      "server/server.ts"
+    ],
+    "api:GET:/api-docs": [
+      "api:GET:/api-docs",
+      "server/app.ts"
+    ],
+    "api:GET:/api-docs.json": [
+      "api:GET:/api-docs.json",
+      "server/app.ts"
+    ],
     "api:GET:/api/activities": [
       "api:GET:/api/activities",
       "runtime-manifest:register-routes-activities",
@@ -4370,7 +4932,10 @@
       "server/app.ts",
       "server/routes/health.ts"
     ],
-    "api:GET:/health": ["api:GET:/health", "server/routes/health.ts"],
+    "api:GET:/health": [
+      "api:GET:/health",
+      "server/routes/health.ts"
+    ],
     "api:GET:/health/detailed": [
       "api:GET:/health/detailed",
       "server/routes/health.ts"
@@ -4383,7 +4948,10 @@
       "api:GET:/health/inflight",
       "server/routes/health.ts"
     ],
-    "api:GET:/healthz": ["api:GET:/healthz", "server/routes/health.ts"],
+    "api:GET:/healthz": [
+      "api:GET:/healthz",
+      "server/routes/health.ts"
+    ],
     "api:GET:/metrics": [
       "api:GET:/metrics",
       "server/routes/metrics-endpoint.ts"
@@ -4396,7 +4964,10 @@
       "api:GET:/metrics/rum/health",
       "server/routes/metrics-rum.ts"
     ],
-    "api:GET:/readyz": ["api:GET:/readyz", "server/routes/health.ts"],
+    "api:GET:/readyz": [
+      "api:GET:/readyz",
+      "server/routes/health.ts"
+    ],
     "api:PATCH:/api/companies/:companyId/scenarios/:scenarioId": [
       "api:PATCH:/api/companies/:companyId/scenarios/:scenarioId",
       "server/routes/scenario-analysis.ts"
@@ -4498,7 +5069,10 @@
       "manifest:fund-moic",
       "server/routes/fund-moic.ts"
     ],
-    "api:POST:/api/ai/ask": ["api:POST:/api/ai/ask", "server/routes/ai.ts"],
+    "api:POST:/api/ai/ask": [
+      "api:POST:/api/ai/ask",
+      "server/routes/ai.ts"
+    ],
     "api:POST:/api/ai/collaborate": [
       "api:POST:/api/ai/collaborate",
       "server/routes/ai.ts"
@@ -5332,7 +5906,11 @@
       "policy:api:put:/api/portfolio/strategies/:id",
       "server/routes/portfolio-intelligence.ts"
     ],
-    "client:/": ["client/src/app/app-router.tsx", "croute:/", "governance:/"],
+    "client:/": [
+      "client/src/app/app-router.tsx",
+      "croute:/",
+      "governance:/"
+    ],
     "client:/admin/ui-catalog": [
       "client/src/app/app-router.tsx",
       "croute:/admin/ui-catalog",
@@ -5423,8 +6001,14 @@
       "governance:/kpi-submission",
       "shared/routes/app-route-definitions.ts"
     ],
-    "client:/login": ["client/src/app/app-router.tsx", "croute:/login"],
-    "client:/lp": ["client/src/app/app-router.tsx", "croute:/lp"],
+    "client:/login": [
+      "client/src/app/app-router.tsx",
+      "croute:/login"
+    ],
+    "client:/lp": [
+      "client/src/app/app-router.tsx",
+      "croute:/lp"
+    ],
     "client:/lp-reporting/imports": [
       "client/src/app/app-routes.tsx",
       "croute:/lp-reporting/imports",
@@ -5567,11 +6151,15 @@
     "dormant:client/src/components/investments/portfolio-company-detail.tsx": [
       "client/src/components/investments/portfolio-company-detail.tsx"
     ],
-    "dormant:client/src/pages/v2/cash.tsx": ["client/src/pages/v2/cash.tsx"],
+    "dormant:client/src/pages/v2/cash.tsx": [
+      "client/src/pages/v2/cash.tsx"
+    ],
     "dormant:client/src/pages/v2/company.tsx": [
       "client/src/pages/v2/company.tsx"
     ],
-    "dormant:client/src/pages/v2/exits.tsx": ["client/src/pages/v2/exits.tsx"],
+    "dormant:client/src/pages/v2/exits.tsx": [
+      "client/src/pages/v2/exits.tsx"
+    ],
     "dormant:client/src/pages/v2/insights.tsx": [
       "client/src/pages/v2/insights.tsx"
     ],
@@ -5584,18 +6172,44 @@
     "dormant:client/src/pages/v2/scenarios.tsx": [
       "client/src/pages/v2/scenarios.tsx"
     ],
-    "dormant:client/src/pages/v2/today.tsx": ["client/src/pages/v2/today.tsx"],
-    "event:calc-run-completion": ["server/routes.ts", "server/routes.ts:40"],
-    "listener:ml-reserve:GET:/health": ["ml-service/app.py"],
-    "listener:ml-reserve:GET:/model/info": ["ml-service/app.py"],
-    "listener:ml-reserve:POST:/predict": ["ml-service/app.py"],
-    "listener:ml-reserve:POST:/train": ["ml-service/app.py"],
-    "listener:worker-health:GET:/health": ["workers/health-server.ts"],
-    "listener:worker-health:GET:/live": ["workers/health-server.ts"],
-    "listener:worker-health:GET:/metrics": ["workers/health-server.ts"],
-    "listener:worker-health:GET:/ready": ["workers/health-server.ts"],
-    "listener:worker-health:GET:/stats": ["workers/health-server.ts"],
-    "scheduler:artifact-retention": ["server/routes.ts", "server/routes.ts:44"],
+    "dormant:client/src/pages/v2/today.tsx": [
+      "client/src/pages/v2/today.tsx"
+    ],
+    "event:calc-run-completion": [
+      "server/routes.ts",
+      "server/routes.ts:40"
+    ],
+    "listener:ml-reserve:GET:/health": [
+      "ml-service/app.py"
+    ],
+    "listener:ml-reserve:GET:/model/info": [
+      "ml-service/app.py"
+    ],
+    "listener:ml-reserve:POST:/predict": [
+      "ml-service/app.py"
+    ],
+    "listener:ml-reserve:POST:/train": [
+      "ml-service/app.py"
+    ],
+    "listener:worker-health:GET:/health": [
+      "workers/health-server.ts"
+    ],
+    "listener:worker-health:GET:/live": [
+      "workers/health-server.ts"
+    ],
+    "listener:worker-health:GET:/metrics": [
+      "workers/health-server.ts"
+    ],
+    "listener:worker-health:GET:/ready": [
+      "workers/health-server.ts"
+    ],
+    "listener:worker-health:GET:/stats": [
+      "workers/health-server.ts"
+    ],
+    "scheduler:artifact-retention": [
+      "server/routes.ts",
+      "server/routes.ts:44"
+    ],
     "scheduler:internal-analysis-checkpoint": [
       "server/routes.ts",
       "server/routes.ts:46"
@@ -5622,7 +6236,9 @@
       "QUEUE_CATALOG:economics-calc",
       "server/queues/registry.ts"
     ],
-    "worker:error-tracking": ["server/middleware/asyncErrorHandler.ts"],
+    "worker:error-tracking": [
+      "server/middleware/asyncErrorHandler.ts"
+    ],
     "worker:fund-scenario-calc": [
       "QUEUE_CATALOG:fund-scenario-calc",
       "server/queues/fund-scenario-calc-worker-init.ts",
@@ -5692,7 +6308,9 @@
       "api/[...slug].ts",
       "api/telemetry/wizard.ts"
     ],
-    "boot-proof-output": ["audit/surface-contract-matrix/boot-proofs.json"],
+    "boot-proof-output": [
+      "audit/surface-contract-matrix/boot-proofs.json"
+    ],
     "authoring-tooling": [
       "audit/surface-contract-matrix/matrix-schema.mjs",
       "audit/surface-contract-matrix/scripts/approve-matrix.mjs",
@@ -5913,7 +6531,9 @@
       "workers/pacing-worker.ts",
       "workers/reserve-worker.ts"
     ],
-    "normalized-package-scripts": ["package.json#scripts"],
+    "normalized-package-scripts": [
+      "package.json#scripts"
+    ],
     "normalized-registry-exports": [
       "shared/routes/api-route-manifest.ts#normalized-runtime-export",
       "shared/routes/api-runtime-specific-manifest.ts#normalized-runtime-export",
@@ -5921,7 +6541,7 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:dfedfb0c775e750a70fcf33b03ddf50b9515891e43a5a4835eac73c970b7db8f"
+      "snapshot:a59d80de4801e24bbec98a222321bf3b621f2dd3c807309304af74110541a80b"
     ]
   },
   "kg_counts": {

@@ -2,7 +2,7 @@
 
 Phase: **authoring**
 Schema: **1.0.0**
-Provenance: git **d030a803bcb52da567a34a6282a51de3991bb7d2**, KG snapshot **snapshot:dfedfb0c775e750a70fcf33b03ddf50b9515891e43a5a4835eac73c970b7db8f**
+Provenance: git **417d7e90529164fce2111de6b9356e4c212d7a82**, KG snapshot **snapshot:a59d80de4801e24bbec98a222321bf3b621f2dd3c807309304af74110541a80b**
 
 ## Contract rows
 

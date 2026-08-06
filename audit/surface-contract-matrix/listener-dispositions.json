@@ -3,7 +3,10 @@
     "candidate_path": "Dockerfile",
     "listener_id": "dockerfile-root",
     "fingerprint": "ca8a56775447ca16f0b7edc8e4b8dbe682ff0b265e31c7becf3f4ac9ae0db3d4",
-    "evidence": ["Dockerfile:56", "Dockerfile:65"],
+    "evidence": [
+      "Dockerfile:56",
+      "Dockerfile:65"
+    ],
     "disposition": "product-surface",
     "row_namespace": "api",
     "route_extraction_strategy": "container-entrypoint-evidence",
@@ -24,7 +27,10 @@
     "candidate_path": "Dockerfile.railway",
     "listener_id": "dockerfile-railway",
     "fingerprint": "3b2f984074821655b9efcb80581659c3e3d4fd5055bd02a9bec62977b082d4c2",
-    "evidence": ["Dockerfile.railway:41", "Dockerfile.railway:45"],
+    "evidence": [
+      "Dockerfile.railway:41",
+      "Dockerfile.railway:45"
+    ],
     "disposition": "product-surface",
     "row_namespace": "api",
     "route_extraction_strategy": "container-entrypoint-evidence",
@@ -45,7 +51,10 @@
     "candidate_path": "Dockerfile.simple",
     "listener_id": "dockerfile-simple",
     "fingerprint": "d242dc09029a44542b41578e5f35e1a1e77e6e53b1915dfc071af630b098439b",
-    "evidence": ["Dockerfile.simple:32", "Dockerfile.simple:36"],
+    "evidence": [
+      "Dockerfile.simple:32",
+      "Dockerfile.simple:36"
+    ],
     "disposition": "product-surface",
     "row_namespace": "api",
     "route_extraction_strategy": "container-entrypoint-evidence",
@@ -66,7 +75,10 @@
     "candidate_path": "Dockerfile.worker",
     "listener_id": "dockerfile-worker",
     "fingerprint": "8d2d97532e34ebee1b2ac7bed6ac11cef39c3b3e3ad0cddf7e675c81d6ded08e",
-    "evidence": ["Dockerfile.worker:158", "Dockerfile.worker:170"],
+    "evidence": [
+      "Dockerfile.worker:158",
+      "Dockerfile.worker:170"
+    ],
     "disposition": "product-surface",
     "row_namespace": "api",
     "route_extraction_strategy": "container-entrypoint-evidence",
@@ -87,7 +99,10 @@
     "candidate_path": "ml-service/app.py",
     "listener_id": "ml-reserve",
     "fingerprint": "a8be800a377a4f96aa032578e429958e0ed4200a47d79bdf2d1581712987433d",
-    "evidence": ["ml-service/app.py:26", "ml-service/app.py:427"],
+    "evidence": [
+      "ml-service/app.py:26",
+      "ml-service/app.py:427"
+    ],
     "disposition": "product-surface",
     "row_namespace": "listener",
     "route_extraction_strategy": "literal-route-registration",
@@ -108,7 +123,9 @@
     "candidate_path": "ml-service/Dockerfile",
     "listener_id": "dockerfile-ml-reserve",
     "fingerprint": "47dffcac3e12c2defa74f8b271e8c1402f8681eac0fdcdab9e50ccdb48789d44",
-    "evidence": ["ml-service/Dockerfile:35"],
+    "evidence": [
+      "ml-service/Dockerfile:35"
+    ],
     "disposition": "product-surface",
     "row_namespace": "listener",
     "route_extraction_strategy": "container-entrypoint-evidence",
@@ -168,7 +185,10 @@
     "candidate_path": "server/bootstrap.ts",
     "listener_id": "server-bootstrap",
     "fingerprint": "ff2139dd6b19d303f689aba9382c158296c7ca09865bd1859659340444854be0",
-    "evidence": ["server/bootstrap.ts:47", "server/bootstrap.ts:54"],
+    "evidence": [
+      "server/bootstrap.ts:47",
+      "server/bootstrap.ts:54"
+    ],
     "disposition": "product-surface",
     "row_namespace": "api",
     "route_extraction_strategy": "existing-api-row-mapping",
@@ -189,7 +209,9 @@
     "candidate_path": "server/index.ts",
     "listener_id": "server-index",
     "fingerprint": "7ad04ea7635e25c9ee93679d250cb05d096b40c8fbca2c59620182e6c5bfa685",
-    "evidence": ["server/index.ts:13"],
+    "evidence": [
+      "server/index.ts:13"
+    ],
     "disposition": "product-surface",
     "row_namespace": "api",
     "route_extraction_strategy": "existing-api-row-mapping",
@@ -227,7 +249,9 @@
     "candidate_path": "workers/health-server.ts",
     "listener_id": "worker-health",
     "fingerprint": "9109dc55ee3895d5a3d76014f825447c111b2b6f79f39e5154fbe13fdc6829f2",
-    "evidence": ["workers/health-server.ts:204"],
+    "evidence": [
+      "workers/health-server.ts:204"
+    ],
     "disposition": "product-surface",
     "row_namespace": "listener",
     "route_extraction_strategy": "literal-route-registration",

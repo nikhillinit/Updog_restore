@@ -6,7 +6,9 @@
       "id": "dormant:client/src/pages/admin/telemetry.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -14,7 +16,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/admin/telemetry.tsx"],
+      "evidence": [
+        "client/src/pages/admin/telemetry.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/admin/telemetry.tsx",
         "importer_evidence": [],
@@ -52,7 +56,9 @@
       "id": "dormant:client/src/pages/analytics.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -60,7 +66,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/analytics.tsx"],
+      "evidence": [
+        "client/src/pages/analytics.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/analytics.tsx",
         "importer_evidence": [],
@@ -98,7 +106,9 @@
       "id": "dormant:client/src/pages/CompanyDetail.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -106,7 +116,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/CompanyDetail.tsx"],
+      "evidence": [
+        "client/src/pages/CompanyDetail.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/CompanyDetail.tsx",
         "importer_evidence": [],
@@ -144,7 +156,9 @@
       "id": "dormant:client/src/pages/CustomFields.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -152,7 +166,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/CustomFields.tsx"],
+      "evidence": [
+        "client/src/pages/CustomFields.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/CustomFields.tsx",
         "importer_evidence": [],
@@ -190,7 +206,9 @@
       "id": "dormant:client/src/pages/ExitRecyclingStep.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -198,7 +216,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/ExitRecyclingStep.tsx"],
+      "evidence": [
+        "client/src/pages/ExitRecyclingStep.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/ExitRecyclingStep.tsx",
         "importer_evidence": [],
@@ -236,7 +256,9 @@
       "id": "dormant:client/src/pages/InvestmentRoundsStep.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -244,7 +266,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/InvestmentRoundsStep.tsx"],
+      "evidence": [
+        "client/src/pages/InvestmentRoundsStep.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/InvestmentRoundsStep.tsx",
         "importer_evidence": [],
@@ -282,7 +306,9 @@
       "id": "dormant:client/src/pages/investments-table.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -290,7 +316,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/investments-table.tsx"],
+      "evidence": [
+        "client/src/pages/investments-table.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/investments-table.tsx",
         "importer_evidence": [],
@@ -328,7 +356,9 @@
       "id": "dormant:client/src/pages/investments.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -336,7 +366,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/investments.tsx"],
+      "evidence": [
+        "client/src/pages/investments.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/investments.tsx",
         "importer_evidence": [],
@@ -374,7 +406,9 @@
       "id": "dormant:client/src/pages/kpi-manager/index.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -382,7 +416,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/kpi-manager/index.tsx"],
+      "evidence": [
+        "client/src/pages/kpi-manager/index.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/kpi-manager/index.tsx",
         "importer_evidence": [],
@@ -420,7 +456,9 @@
       "id": "dormant:client/src/pages/kpi-manager/KpiDefinitionModal.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -428,7 +466,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/kpi-manager/KpiDefinitionModal.tsx"],
+      "evidence": [
+        "client/src/pages/kpi-manager/KpiDefinitionModal.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/kpi-manager/KpiDefinitionModal.tsx",
         "importer_evidence": [],
@@ -466,7 +506,9 @@
       "id": "dormant:client/src/pages/kpi-manager/KpiTabs.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -474,7 +516,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/kpi-manager/KpiTabs.tsx"],
+      "evidence": [
+        "client/src/pages/kpi-manager/KpiTabs.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/kpi-manager/KpiTabs.tsx",
         "importer_evidence": [],
@@ -512,7 +556,9 @@
       "id": "dormant:client/src/pages/kpi-manager/panes/AnalyticsPane.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -520,7 +566,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/kpi-manager/panes/AnalyticsPane.tsx"],
+      "evidence": [
+        "client/src/pages/kpi-manager/panes/AnalyticsPane.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/kpi-manager/panes/AnalyticsPane.tsx",
         "importer_evidence": [],
@@ -558,7 +606,9 @@
       "id": "dormant:client/src/pages/kpi-manager/panes/OverviewPane.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -566,7 +616,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/kpi-manager/panes/OverviewPane.tsx"],
+      "evidence": [
+        "client/src/pages/kpi-manager/panes/OverviewPane.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/kpi-manager/panes/OverviewPane.tsx",
         "importer_evidence": [],
@@ -604,7 +656,9 @@
       "id": "dormant:client/src/pages/kpi-manager/panes/SettingsPane.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -612,7 +666,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/kpi-manager/panes/SettingsPane.tsx"],
+      "evidence": [
+        "client/src/pages/kpi-manager/panes/SettingsPane.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/kpi-manager/panes/SettingsPane.tsx",
         "importer_evidence": [],
@@ -650,7 +706,9 @@
       "id": "dormant:client/src/pages/kpi-manager/tabs-config.ts",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -658,7 +716,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/kpi-manager/tabs-config.ts"],
+      "evidence": [
+        "client/src/pages/kpi-manager/tabs-config.ts"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/kpi-manager/tabs-config.ts",
         "importer_evidence": [],
@@ -696,7 +756,9 @@
       "id": "dormant:client/src/pages/kpi-manager/useKpiManager.ts",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -704,7 +766,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/kpi-manager/useKpiManager.ts"],
+      "evidence": [
+        "client/src/pages/kpi-manager/useKpiManager.ts"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/kpi-manager/useKpiManager.ts",
         "importer_evidence": [],
@@ -742,7 +806,9 @@
       "id": "dormant:client/src/pages/kpi-manager/useModalState.ts",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -750,7 +816,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/kpi-manager/useModalState.ts"],
+      "evidence": [
+        "client/src/pages/kpi-manager/useModalState.ts"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/kpi-manager/useModalState.ts",
         "importer_evidence": [],
@@ -788,7 +856,9 @@
       "id": "dormant:client/src/pages/kpi-submission.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -796,7 +866,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/kpi-submission.tsx"],
+      "evidence": [
+        "client/src/pages/kpi-submission.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/kpi-submission.tsx",
         "importer_evidence": [],
@@ -834,7 +906,9 @@
       "id": "dormant:client/src/pages/notion-integration.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -842,7 +916,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/notion-integration.tsx"],
+      "evidence": [
+        "client/src/pages/notion-integration.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/notion-integration.tsx",
         "importer_evidence": [],
@@ -880,7 +956,9 @@
       "id": "dormant:client/src/pages/partial-sales.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -888,7 +966,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/partial-sales.tsx"],
+      "evidence": [
+        "client/src/pages/partial-sales.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/partial-sales.tsx",
         "importer_evidence": [],
@@ -926,7 +1006,9 @@
       "id": "dormant:client/src/pages/planning.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -934,7 +1016,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/planning.tsx"],
+      "evidence": [
+        "client/src/pages/planning.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/planning.tsx",
         "importer_evidence": [],
@@ -972,7 +1056,9 @@
       "id": "dormant:client/src/pages/portfolio-company-detail.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -980,7 +1066,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/portfolio-company-detail.tsx"],
+      "evidence": [
+        "client/src/pages/portfolio-company-detail.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/portfolio-company-detail.tsx",
         "importer_evidence": [],
@@ -1018,7 +1106,9 @@
       "id": "dormant:client/src/pages/portfolio-constructor.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -1026,7 +1116,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/portfolio-constructor.tsx"],
+      "evidence": [
+        "client/src/pages/portfolio-constructor.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/portfolio-constructor.tsx",
         "importer_evidence": [],
@@ -1064,7 +1156,9 @@
       "id": "dormant:client/src/pages/return-the-fund.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -1072,7 +1166,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/return-the-fund.tsx"],
+      "evidence": [
+        "client/src/pages/return-the-fund.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/return-the-fund.tsx",
         "importer_evidence": [],
@@ -1110,7 +1206,9 @@
       "id": "dormant:client/src/pages/secondary-market.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -1118,7 +1216,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/secondary-market.tsx"],
+      "evidence": [
+        "client/src/pages/secondary-market.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/secondary-market.tsx",
         "importer_evidence": [],
@@ -1156,7 +1256,9 @@
       "id": "dormant:client/src/pages/time-travel.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -1164,7 +1266,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/time-travel.tsx"],
+      "evidence": [
+        "client/src/pages/time-travel.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/time-travel.tsx",
         "importer_evidence": [],
@@ -1202,7 +1306,9 @@
       "id": "dormant:client/src/pages/WaterfallStep.tsx",
       "seam": "dormant-ui",
       "interface": "dormant-ui",
-      "personas": ["unknown"],
+      "personas": [
+        "unknown"
+      ],
       "reachability": "dormant",
       "proven_reachability": "none",
       "exposures": [],
@@ -1210,7 +1316,9 @@
       "destructive": "unknown",
       "environment": "unknown",
       "owner": "unassigned",
-      "evidence": ["client/src/pages/WaterfallStep.tsx"],
+      "evidence": [
+        "client/src/pages/WaterfallStep.tsx"
+      ],
       "source_mapping": {
         "candidate_path": "client/src/pages/WaterfallStep.tsx",
         "importer_evidence": [],

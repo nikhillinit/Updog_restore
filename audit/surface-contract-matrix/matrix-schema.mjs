@@ -1886,8 +1886,16 @@ const sourceWithoutTypeImports = (source) =>
       match.replaceAll(/[^\n]/g, ' '),
     )
     .replace(
-      /\bimport\s*\{\s*(?:type\s+[A-Za-z_$][\w$]*\s*,?\s*)+\}\s*from\s*(['"])[^'"]+\1\s*;?/g,
-      (match) => match.replaceAll(/[^\n]/g, ' '),
+      /\bimport\s*\{([^}]*)\}\s*from\s*(['"])[^'"]+\2\s*;?/g,
+      (match, namedList) => {
+        // Deterministic token check: blank the statement only when every
+        // named import is an inline `type X`. Avoids the nested-quantifier
+        // regex that catastrophically backtracked on malformed input.
+        const entries = namedList.split(',').map((entry) => entry.trim()).filter(Boolean);
+        const allTypeImports = entries.length > 0
+          && entries.every((entry) => /^type\s+[A-Za-z_$][\w$]*$/.test(entry));
+        return allTypeImports ? match.replaceAll(/[^\n]/g, ' ') : match;
+      },
     );
 
 const clientImportSpecifiers = (source) => {
