@@ -1,6 +1,6 @@
 import express from 'express';
 import { logger } from '../lib/logger';
-import { metrics } from '../lib/metrics';
+import { getMetrics } from '../lib/metrics';
 import { Worker } from 'bullmq';
 
 interface WorkerHealthStatus {
@@ -176,8 +176,8 @@ export function createHealthServer(port: number = 9000): express.Application {
   // Metrics endpoint (Prometheus format)
   app.get('/metrics', async (req, res) => {
     try {
-      const metricsText = await metrics.register.metrics();
-      res.set('Content-Type', metrics.register.contentType);
+      const metricsText = await getMetrics();
+      res.type('text/plain');
       res.send(metricsText);
     } catch (error) {
       logger.error('Failed to export metrics', error as Error);
