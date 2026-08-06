@@ -11,16 +11,16 @@ last_updated: 2026-08-06
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 706 |
-| Stale Documents | 476 |
-| Missing Frontmatter | 60 |
+| Total Documents | 708 |
+| Stale Documents | 478 |
+| Missing Frontmatter | 62 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 451 |
-| UNKNOWN | 154 |
+| UNKNOWN | 156 |
 | DRAFT | 34 |
 | HISTORICAL | 22 |
 | VERIFIED | 13 |
@@ -58,7 +58,9 @@ Documents that need review (older than their cadence threshold):
 | `docs/1-plans/F_1.2.1_ws1-surface-contract-matrix.plan.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/changelog_table.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w1_v1.4.0.md` | Never | 999 | No | Unassigned |
+| `docs/2-changelog/w1_v1.4.1.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w1_v1.4.0.md` | Never | 999 | No | Unassigned |
+| `docs/3-code-review/CR_w1_v1.4.1.md` | Never | 999 | No | Unassigned |
 | `docs/ARCHI.md` | Never | 999 | No | Unassigned |
 | `docs/CA-PACING-ORACLE.md` | Never | 999 | No | Unassigned |
 | `docs/CRITICAL-REVIEW-secondary-surface-governance.md` | Never | 999 | No | Unassigned |
@@ -94,10 +96,8 @@ Documents that need review (older than their cadence threshold):
 | `docs/skills/REFL-027-redundant-any-on-inferred-callbacks.md` | Never | 999 | No | Unassigned |
 | `docs/skills/REFL-028-duck-type-context-access.md` | Never | 999 | No | Unassigned |
 | `docs/skills/REFL-029-secrets-in-workflow-if-expressions.md` | Never | 999 | No | Unassigned |
-| `docs/skills/REFL-039-transport-failure-must-not-invert-model-roles.md` | Never | 999 | No | Unassigned |
-| `docs/skills/REFL-040-cross-worktree-attribution-requires-environment-parity.md` | Never | 999 | No | Unassigned |
 
-*...and 426 more stale documents.*
+*...and 428 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -211,7 +211,9 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/1-plans/F_1.2.1_ws1-surface-contract-matrix.plan.md`
 - [ ] `docs/2-changelog/changelog_table.md`
 - [ ] `docs/2-changelog/w1_v1.4.0.md`
+- [ ] `docs/2-changelog/w1_v1.4.1.md`
 - [ ] `docs/3-code-review/CR_w1_v1.4.0.md`
+- [ ] `docs/3-code-review/CR_w1_v1.4.1.md`
 - [ ] `docs/ARCHI.md`
 - [ ] `docs/CA-PACING-ORACLE.md`
 - [ ] `docs/CRITICAL-REVIEW-secondary-surface-governance.md`

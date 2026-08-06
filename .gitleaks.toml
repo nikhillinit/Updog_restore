@@ -43,6 +43,18 @@ paths = [
 ]
 
 [[allowlists]]
+description = "Surface-contract-matrix generated artifacts store sha256 content digests of tracked source files; path-like keys (auth.ts, lp-api.ts) plus 64-hex values trip generic-api-key but are hashes, not credentials"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''^\s*"[^"]{1,240}(?:=|":\s*")[0-9a-f]{64}",?$'''
+]
+paths = [
+  '''^audit/surface-contract-matrix/(?:matrix|source-inventory)\.json$'''
+]
+
+[[allowlists]]
 description = "Allow historical negative-control fixture template from blocking repo-history scans"
 targetRules = ["updog-negative-control-token"]
 condition = "AND"
