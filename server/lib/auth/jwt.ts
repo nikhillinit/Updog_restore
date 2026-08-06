@@ -13,6 +13,7 @@ import { randomUUID } from 'node:crypto';
 import type { Algorithm, JwtPayload, SignOptions } from 'jsonwebtoken';
 import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
+import { effectiveRoleOf, hasCapability, type Capability } from '@shared/auth/effective-roles';
 import { parseFundIdParam } from '@shared/number';
 import { getConfig } from '../../config';
 import { authMetrics } from '../../telemetry';
@@ -305,16 +306,44 @@ export const requireAuth = () => async (req: Request, res: Response, next: NextF
   }
 };
 
+function requestRoles(req: Request): readonly string[] {
+  const role = req.user?.role ?? req.context?.role;
+  return Array.isArray(role) ? role : typeof role === 'string' ? [role] : [];
+}
+
 export const requireRole = (role: string) => (req: Request, res: Response, next: NextFunction) => {
-  const user = req.user;
-  if (!user || user.role !== role) return res.sendStatus(403);
+  const requiredRole = effectiveRoleOf(role);
+  if (
+    requiredRole === undefined ||
+    !requestRoles(req).some((rawRole) => effectiveRoleOf(rawRole) === requiredRole)
+  ) {
+    return res.sendStatus(403);
+  }
   next();
 };
 
 export const requireAnyRole =
   (roles: readonly string[]) => (req: Request, res: Response, next: NextFunction) => {
-    const role = req.user?.role;
-    if (typeof role !== 'string' || !roles.includes(role)) return res.sendStatus(403);
+    const requiredRoles = roles
+      .map((role) => effectiveRoleOf(role))
+      .filter((role): role is NonNullable<typeof role> => role !== undefined);
+    if (
+      requiredRoles.length === 0 ||
+      !requestRoles(req).some((rawRole) => {
+        const effectiveRole = effectiveRoleOf(rawRole);
+        return effectiveRole !== undefined && requiredRoles.includes(effectiveRole);
+      })
+    ) {
+      return res.sendStatus(403);
+    }
+    next();
+  };
+
+export const requireCapability =
+  (capability: Capability) => (req: Request, res: Response, next: NextFunction) => {
+    if (!requestRoles(req).some((role) => hasCapability(role, capability))) {
+      return res.sendStatus(403);
+    }
     next();
   };
 
@@ -322,8 +351,18 @@ export const requireAnyRole =
 // makeApp -> req.user.role ; createServer/dev/Docker -> req.context.role.
 export const requireWriteRole =
   (roles: readonly string[]) => (req: Request, res: Response, next: NextFunction) => {
-    const role = req.user?.role ?? req.context?.role;
-    if (typeof role !== 'string' || !roles.includes(role)) return res.sendStatus(403);
+    const requiredRoles = roles
+      .map((role) => effectiveRoleOf(role))
+      .filter((role): role is NonNullable<typeof role> => role !== undefined);
+    if (
+      requiredRoles.length === 0 ||
+      !requestRoles(req).some((rawRole) => {
+        const effectiveRole = effectiveRoleOf(rawRole);
+        return effectiveRole !== undefined && requiredRoles.includes(effectiveRole);
+      })
+    ) {
+      return res.sendStatus(403);
+    }
     next();
   };
 

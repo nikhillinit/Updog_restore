@@ -181,22 +181,30 @@ describe('GET /api/v1/reserves/constrained/reconciliations (ADR-051)', () => {
     expect(res.body.observations).toHaveLength(2);
   });
 
-  it('403 for a non-team caller without an explicit grant on the fund', async () => {
+  it('403 for an unknown-role caller without an explicit grant on the fund', async () => {
     const res = await request(app)
       .get(`${ROUTE}?fundId=1`)
-      .set('Authorization', bearer({ sub: 'recon-read-viewer', role: 'viewer', fundIds: [2] }));
+      .set('Authorization', bearer({ sub: 'recon-read-unknown', role: 'unknown', fundIds: [2] }));
 
     expect(res.status).toBe(403);
     expect(res.body.error).toBe('Forbidden');
   });
 
-  it('200 for a non-team caller WITH an explicit grant (strict fund scope allow path)', async () => {
+  it('200 for an unknown-role caller WITH an explicit grant (strict fund scope allow path)', async () => {
     const res = await request(app)
       .get(`${ROUTE}?fundId=1`)
-      .set('Authorization', bearer({ sub: 'recon-read-viewer', role: 'viewer', fundIds: [1] }));
+      .set('Authorization', bearer({ sub: 'recon-read-unknown', role: 'unknown', fundIds: [1] }));
 
     expect(res.status).toBe(200);
     expect(res.body.observations).toEqual([]);
+  });
+
+  it.each(['viewer', 'operator'])('allows %s through effective team membership', async (role) => {
+    const res = await request(app)
+      .get(`${ROUTE}?fundId=1`)
+      .set('Authorization', bearer({ sub: `recon-read-${role}`, role, fundIds: [2] }));
+
+    expect(res.status).toBe(200);
   });
 
   it('403 for an LP-affiliated caller even with a team-like role', async () => {

@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 const TARGET_FUND_ID = 1;
 const ROLES = ['viewer', 'operator', 'service', 'analyst', 'partner', 'admin'] as const;
+const NON_TEAM_ROLES = ['lp'] as const;
 
 type Role = (typeof ROLES)[number];
 type RoleSet = 'config' | 'scenario';
@@ -166,7 +167,7 @@ const ENV_KEYS = [
 ] as const;
 
 const originalEnv = new Map<string, string | undefined>();
-const authorizationHeaders = new Map<Role, string>();
+const authorizationHeaders = new Map<string, string>();
 
 let app: express.Express;
 let requireWriteRole: (roles: readonly string[]) => express.RequestHandler;
@@ -230,8 +231,8 @@ function issueRequest(route: GatedRoute) {
 }
 
 function expectedOutcome(role: Role, roleSet: RoleSet): 'allowed' | 'forbidden' {
-  if (role === 'admin' || role === 'partner') return 'allowed';
-  if (role === 'analyst' && roleSet === 'scenario') return 'allowed';
+  if (role === 'admin' || role === 'partner' || role === 'operator') return 'allowed';
+  if ((role === 'analyst' || role === 'viewer') && roleSet === 'scenario') return 'allowed';
   return 'forbidden';
 }
 
@@ -264,6 +265,21 @@ beforeAll(async () => {
     });
     authorizationHeaders.set(role, `Bearer ${token}`);
   }
+
+  const lpToken = auth.signToken({
+    sub: 'lp-1',
+    email: 'lp@example.com',
+    role: 'lp',
+    fundIds: [TARGET_FUND_ID],
+  });
+  authorizationHeaders.set('lp', `Bearer ${lpToken}`);
+
+  const noRoleToken = auth.signToken({
+    sub: 'no-role-1',
+    email: 'no-role@example.com',
+    fundIds: [TARGET_FUND_ID],
+  });
+  authorizationHeaders.set('no-role', `Bearer ${noRoleToken}`);
 });
 
 afterAll(() => {
@@ -285,6 +301,19 @@ describe('write-route-role-gating', () => {
     expect(response.status).not.toBe(401);
     expect(response.status).not.toBe(403);
   });
+
+  it.each([...NON_TEAM_ROLES, 'no-role'] as const)(
+    '%s is forbidden for every write route',
+    async (role) => {
+      const authorization = authorizationHeaders.get(role);
+      if (!authorization) throw new Error(`Missing authorization header for ${role}`);
+
+      for (const route of GATED_ROUTES) {
+        const response = await issueRequest(route).set('Authorization', authorization).send({});
+        expect(response.status, `${role} on ${route.name}`).toBe(403);
+      }
+    }
+  );
 
   it('returns 401 before role gating for an unauthenticated write', async () => {
     const route = GATED_ROUTES.find((candidate) => candidate.name === 'create allocation scenario');

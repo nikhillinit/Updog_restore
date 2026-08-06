@@ -5,9 +5,21 @@
  * Handles live updates for simulations, forecasts, and scenario metrics.
  */
 
-import type { Server as HTTPServer } from 'http';
+import { eq } from 'drizzle-orm';
+import type { Request } from 'express';
+import type { IncomingMessage, Server as HTTPServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { z } from 'zod';
+import {
+  monteCarloSimulations,
+  performanceForecasts,
+  portfolioScenarios,
+} from '@shared/schema';
+import { db } from '../db';
+import { verifyAccessTokenAsync, userFromClaims } from '../lib/auth/jwt';
+import { extractUpgradeRequestCredential } from '../lib/auth/request-credentials';
+import { resolveFundScope } from '../lib/auth/fund-scope';
+import { isTeamMemberUser, principalFromUser, type RequestPrincipal } from '../lib/auth/principal';
 import { logger } from '../logger';
 
 // Message schemas
@@ -27,10 +39,109 @@ const UnsubscribeSchema = z.object({
 
 type Channel = 'metrics' | 'simulation' | 'scenario' | 'forecast';
 
+type ChannelAuthorizationRequest = {
+  channel: Channel;
+  fundId?: number | undefined;
+  entityId?: string | undefined;
+};
+
 interface ClientSubscription {
   channels: Set<string>;
   ws: WebSocket;
   lastPing: number;
+  principal: RequestPrincipal;
+  /** Universal team READ (subscriptions are reads) — mirrors isSafeReadMethod + isTeamMemberUser middleware layering. */
+  teamRead: boolean;
+}
+
+interface UpgradeAuthorization {
+  principal: RequestPrincipal;
+  teamRead: boolean;
+}
+
+type UpgradeVerificationInfo = {
+  origin: string;
+  secure: boolean;
+  req: IncomingMessage;
+};
+
+type UpgradeVerificationDone = (verified: boolean, code?: number, message?: string) => void;
+
+class UpgradeRejectedError extends Error {
+  constructor(
+    readonly statusCode: number,
+    message: string
+  ) {
+    super(message);
+    this.name = 'UpgradeRejectedError';
+  }
+}
+
+function firstHeaderValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function parseOrigin(value: string): string | null {
+  try {
+    const origin = new URL(value);
+    if (
+      (origin.protocol !== 'http:' && origin.protocol !== 'https:') ||
+      origin.username ||
+      origin.password ||
+      origin.pathname !== '/' ||
+      origin.search ||
+      origin.hash
+    ) {
+      return null;
+    }
+    return origin.origin;
+  } catch {
+    return null;
+  }
+}
+
+function configuredOrigins(): Set<string> {
+  const values = [process.env['ALLOWED_ORIGINS'], process.env['CORS_ORIGIN']]
+    .filter((value): value is string => value !== undefined)
+    .flatMap((value) => value.split(','))
+    .map((value) => parseOrigin(value.trim()))
+    .filter((value): value is string => value !== null);
+  return new Set(values);
+}
+
+function isAllowedCookieOrigin(req: IncomingMessage): boolean {
+  const rawOrigin = req.headers.origin;
+  if (rawOrigin === undefined || Array.isArray(rawOrigin)) return false;
+
+  const origin = parseOrigin(rawOrigin);
+  if (!origin) return false;
+
+  if (configuredOrigins().has(origin)) return true;
+
+  if (
+    process.env['NODE_ENV'] !== 'production' &&
+    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+  ) {
+    return true;
+  }
+
+  const host = firstHeaderValue(req.headers['x-forwarded-host']) ?? req.headers.host;
+  if (!host) return false;
+  const forwardedProtocol = firstHeaderValue(req.headers['x-forwarded-proto']);
+  const isEncrypted = (req.socket as { encrypted?: boolean }).encrypted === true;
+  const protocol =
+    forwardedProtocol?.split(',')[0]?.trim() || (isEncrypted ? 'https' : 'http');
+  return parseOrigin(`${protocol}://${host}`) === origin;
+}
+
+function requestAdapterForClaims(req: IncomingMessage): Request {
+  return {
+    ip: req.socket.remoteAddress ?? 'unknown',
+    header(name: string): string | undefined {
+      const value = req.headers[name.toLowerCase()];
+      return typeof value === 'string' ? value : undefined;
+    },
+  } as Request;
 }
 
 function isPingMessage(message: unknown): message is { type: 'ping' } {
@@ -43,12 +154,16 @@ export class PortfolioMetricsWebSocket {
   private wss: WebSocketServer;
   private clients = new Map<WebSocket, ClientSubscription>();
   private channelSubscribers = new Map<string, Set<WebSocket>>();
+  private upgradePrincipals = new WeakMap<IncomingMessage, UpgradeAuthorization>();
   private heartbeatInterval: NodeJS.Timeout | null = null;
 
   constructor(server: HTTPServer) {
     this.wss = new WebSocketServer({
       server,
       path: '/ws/portfolio-metrics',
+      verifyClient: (info: UpgradeVerificationInfo, done: UpgradeVerificationDone) => {
+        void this.verifyUpgrade(info.req, done);
+      },
     });
 
     this.wss.on('connection', this.handleConnection.bind(this));
@@ -57,11 +172,52 @@ export class PortfolioMetricsWebSocket {
     logger.info('[PortfolioMetricsWS] WebSocket server initialized on /ws/portfolio-metrics');
   }
 
-  private handleConnection(ws: WebSocket) {
+  private async verifyUpgrade(req: IncomingMessage, done: UpgradeVerificationDone): Promise<void> {
+    try {
+      const credential = extractUpgradeRequestCredential(req);
+      if (
+        credential.kind === 'none' ||
+        credential.kind === 'invalid' ||
+        credential.kind === 'ambiguous'
+      ) {
+        throw new UpgradeRejectedError(401, 'Unauthorized');
+      }
+
+      if (credential.kind === 'cookie' && !isAllowedCookieOrigin(req)) {
+        throw new UpgradeRejectedError(403, 'Forbidden');
+      }
+
+      const claims = await verifyAccessTokenAsync(credential.token);
+      const user = userFromClaims(requestAdapterForClaims(req), claims);
+      this.upgradePrincipals.set(req, {
+        principal: principalFromUser(user),
+        teamRead: isTeamMemberUser(user),
+      });
+      done(true);
+    } catch (error: unknown) {
+      const statusCode = error instanceof UpgradeRejectedError ? error.statusCode : 401;
+      logger.warn('[PortfolioMetricsWS] Upgrade rejected', {
+        statusCode,
+        reason: error instanceof Error ? error.message : String(error),
+      });
+      done(false, statusCode, statusCode === 403 ? 'Forbidden' : 'Unauthorized');
+    }
+  }
+
+  private handleConnection(ws: WebSocket, request: IncomingMessage) {
+    const authorization = this.upgradePrincipals.get(request);
+    this.upgradePrincipals.delete(request);
+    if (!authorization) {
+      ws.close(1008, 'Unauthorized');
+      return;
+    }
+
     const subscription: ClientSubscription = {
       channels: new Set(),
       ws,
       lastPing: Date.now(),
+      principal: authorization.principal,
+      teamRead: authorization.teamRead,
     };
     this.clients.set(ws, subscription);
 
@@ -90,20 +246,33 @@ export class PortfolioMetricsWebSocket {
   }
 
   private handleMessage(ws: WebSocket, data: unknown) {
-    try {
-      const message = JSON.parse(String(data)) as unknown;
+    void this.handleMessageAsync(ws, data);
+  }
 
+  private async handleMessageAsync(ws: WebSocket, data: unknown): Promise<void> {
+    let message: unknown;
+    try {
+      message = JSON.parse(String(data)) as unknown;
+    } catch {
+      this.sendToClient(ws, {
+        type: 'error',
+        message: 'Invalid message format',
+      });
+      return;
+    }
+
+    try {
       // Handle subscribe
       const subscribeResult = SubscribeSchema.safeParse(message);
       if (subscribeResult.success) {
-        this.handleSubscribe(ws, subscribeResult.data);
+        await this.handleSubscribe(ws, subscribeResult.data);
         return;
       }
 
       // Handle unsubscribe
       const unsubscribeResult = UnsubscribeSchema.safeParse(message);
       if (unsubscribeResult.success) {
-        this.handleUnsubscribe(ws, unsubscribeResult.data);
+        await this.handleUnsubscribe(ws, unsubscribeResult.data);
         return;
       }
 
@@ -121,19 +290,33 @@ export class PortfolioMetricsWebSocket {
         type: 'error',
         message: 'Unknown message type',
       });
-    } catch {
+    } catch (error: unknown) {
+      logger.error('[PortfolioMetricsWS] Subscription handling failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
       this.sendToClient(ws, {
         type: 'error',
-        message: 'Invalid message format',
+        message: 'Subscription service unavailable',
       });
     }
   }
 
-  private handleSubscribe(ws: WebSocket, data: z.infer<typeof SubscribeSchema>) {
-    const channelKey = this.getChannelKey(data.channel, data.fundId, data.entityId);
+  private async handleSubscribe(
+    ws: WebSocket,
+    data: z.infer<typeof SubscribeSchema>
+  ): Promise<void> {
     const client = this.clients.get(ws);
 
     if (!client) return;
+
+    const channelKey = await this.getAuthorizedChannelKey(client, data);
+    if (!channelKey) {
+      this.sendToClient(ws, {
+        type: 'error',
+        message: 'Subscription is not authorized',
+      });
+      return;
+    }
 
     // Add to client's subscriptions
     client.channels.add(channelKey);
@@ -156,11 +339,22 @@ export class PortfolioMetricsWebSocket {
     });
   }
 
-  private handleUnsubscribe(ws: WebSocket, data: z.infer<typeof UnsubscribeSchema>) {
-    const channelKey = this.getChannelKey(data.channel, data.fundId, data.entityId);
+  private async handleUnsubscribe(
+    ws: WebSocket,
+    data: z.infer<typeof UnsubscribeSchema>
+  ): Promise<void> {
     const client = this.clients.get(ws);
 
     if (!client) return;
+
+    const channelKey = await this.getAuthorizedChannelKey(client, data);
+    if (!channelKey) {
+      this.sendToClient(ws, {
+        type: 'error',
+        message: 'Subscription is not authorized',
+      });
+      return;
+    }
 
     // Remove from client's subscriptions
     client.channels.delete(channelKey);
@@ -179,6 +373,56 @@ export class PortfolioMetricsWebSocket {
       channel: channelKey,
       timestamp: new Date().toISOString(),
     });
+  }
+
+  private async getAuthorizedChannelKey(
+    client: ClientSubscription,
+    data: ChannelAuthorizationRequest
+  ): Promise<string | null> {
+    const fundId = await this.resolveChannelFundId(data);
+    if (fundId === null) return null;
+    // Subscriptions are reads: universal team READ applies alongside strict
+    // fund-scope grants, mirroring the isSafeReadMethod + isTeamMemberUser
+    // middleware layering on the HTTP surfaces.
+    if (!client.teamRead && resolveFundScope(client.principal, fundId) !== 'allow') {
+      return null;
+    }
+    return this.getChannelKey(data.channel, data.fundId, data.entityId);
+  }
+
+  private async resolveChannelFundId(
+    data: ChannelAuthorizationRequest
+  ): Promise<number | null> {
+    if (data.channel === 'metrics') {
+      return data.entityId === undefined ? (data.fundId ?? null) : null;
+    }
+
+    if (data.entityId === undefined || data.fundId !== undefined) return null;
+
+    if (data.channel === 'scenario') {
+      const [scenario] = await db
+        .select({ fundId: portfolioScenarios.fundId })
+        .from(portfolioScenarios)
+        .where(eq(portfolioScenarios.id, data.entityId))
+        .limit(1);
+      return scenario?.fundId ?? null;
+    }
+
+    if (data.channel === 'forecast') {
+      const [forecast] = await db
+        .select({ fundId: performanceForecasts.fundId })
+        .from(performanceForecasts)
+        .where(eq(performanceForecasts.id, data.entityId))
+        .limit(1);
+      return forecast?.fundId ?? null;
+    }
+
+    const [simulation] = await db
+      .select({ fundId: monteCarloSimulations.fundId })
+      .from(monteCarloSimulations)
+      .where(eq(monteCarloSimulations.id, data.entityId))
+      .limit(1);
+    return simulation?.fundId ?? null;
   }
 
   private handleDisconnect(ws: WebSocket) {

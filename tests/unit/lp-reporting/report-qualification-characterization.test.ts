@@ -740,7 +740,7 @@ describe('LP report export authorization', () => {
     }
   });
 
-  it.each(['viewer', 'analyst', 'operator'])(
+  it.each(['viewer', 'analyst'])(
     'returns 403 for the %s role across all eight export routes',
     async (role) => {
       const authorization = await authorizationHeader(role, [1]);
@@ -754,6 +754,7 @@ describe('LP report export authorization', () => {
   it.each([
     ['partner', []],
     ['admin', []],
+    ['operator', []],
   ] as const)(
     'returns 200 for an authorized %s across all eight export routes',
     async (role, grants) => {

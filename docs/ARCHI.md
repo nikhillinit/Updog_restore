@@ -243,6 +243,18 @@ Per-route auth/governance is separately declared in
 `humanReviewRequired`, `performanceBudgetMs`), validated by
 `npm run policy:verify`.
 
+Role authorization is centralized in `shared/auth/effective-roles.ts`
+(ADR-072): canonical roles `admin/partner/analyst/service`, legacy aliases
+`operator -> partner` and `viewer -> analyst`, and capabilities
+(`flag_read`/`flag_admin` -> admin, `reserve_admin` -> partner, admin
+superset). Guards in `server/lib/auth/jwt.ts` (`requireRole`,
+`requireAnyRole`, `requireWriteRole`, `requireCapability`) read
+`req.user?.role ?? req.context?.role`, so they work on both surfaces; role
+arrays in route files import `TEAM_WRITE_ROLES`/`PARTNER_WRITE_ROLES` from
+the shared module. `/ws/portfolio-metrics` upgrades are authenticated
+(callback-style `verifyClient` — never one-arg async, `ws` treats a returned
+Promise as truthy) and subscriptions are fund-scope authorized.
+
 **Rule for any new route**: manifest entry
 (`shared/routes/api-route-manifest.ts`) + impl-map entry
 (`mount-common-routes.ts`) + group-slice on **both** surfaces + a route-policy

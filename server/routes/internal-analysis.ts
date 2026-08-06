@@ -20,6 +20,7 @@ import { Router } from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 
+import { PARTNER_WRITE_ROLES, TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
 import { toNumber } from '@shared/number';
 import {
   AnalysisDraftCreateRequestSchema,
@@ -81,8 +82,6 @@ import {
 
 const routeLog = createRouteLogger('internal-analysis');
 const router = Router();
-const INTERNAL_ANALYSIS_WRITE_ROLES = ['partner', 'admin', 'analyst'] as const;
-const QUARTERLY_REVIEW_WAIVER_ROLES = ['partner', 'admin'] as const;
 const POSTGRES_INT_MAX = 2_147_483_647;
 
 function isPositivePostgresInt(value: number): boolean {
@@ -315,7 +314,7 @@ router.patch(
   requireAuth(),
   validateFundIdParam,
   requireFundAccess,
-  requireWriteRole(INTERNAL_ANALYSIS_WRITE_ROLES),
+  requireWriteRole(TEAM_WRITE_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const fundId = fundIdOf(req);
     const draftId = Number(req.params['draftId']);
@@ -367,7 +366,7 @@ router.post(
   requireAuth(),
   validateFundIdParam,
   requireFundAccess,
-  requireWriteRole(QUARTERLY_REVIEW_WAIVER_ROLES),
+  requireWriteRole(PARTNER_WRITE_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const fundId = fundIdOf(req);
     const draftId = Number(req.params['draftId']);
@@ -412,7 +411,7 @@ router.post(
   requireAuth(),
   validateFundIdParam,
   requireFundAccess,
-  requireWriteRole(INTERNAL_ANALYSIS_WRITE_ROLES),
+  requireWriteRole(TEAM_WRITE_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const fundId = fundIdOf(req);
     const parsed = AnalysisDraftCreateRequestSchema.safeParse(req.body);
@@ -455,7 +454,7 @@ router.patch(
   requireAuth(),
   validateFundIdParam,
   requireFundAccess,
-  requireWriteRole(INTERNAL_ANALYSIS_WRITE_ROLES),
+  requireWriteRole(TEAM_WRITE_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const fundId = fundIdOf(req);
     const draftId = Number(req.params['draftId']);
@@ -519,7 +518,7 @@ router.post(
   requireAuth(),
   validateFundIdParam,
   requireFundAccess,
-  requireWriteRole(INTERNAL_ANALYSIS_WRITE_ROLES),
+  requireWriteRole(TEAM_WRITE_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const fundId = fundIdOf(req);
     const draftId = Number(req.params['draftId']);
@@ -554,7 +553,7 @@ router.post(
   requireAuth(),
   validateFundIdParam,
   requireFundAccess,
-  requireWriteRole(INTERNAL_ANALYSIS_WRITE_ROLES),
+  requireWriteRole(TEAM_WRITE_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const fundId = fundIdOf(req);
     const draftId = Number(req.params['draftId']);
@@ -651,7 +650,7 @@ router.post(
   requireAuth(),
   validateFundIdParam,
   requireFundAccess,
-  requireWriteRole(INTERNAL_ANALYSIS_WRITE_ROLES),
+  requireWriteRole(TEAM_WRITE_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const fundId = fundIdOf(req);
     const referenceId = Number(req.params['referenceId']);

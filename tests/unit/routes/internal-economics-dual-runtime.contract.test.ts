@@ -234,8 +234,6 @@ describe('internal-economics dual-runtime receipt parity', () => {
 
   it.each([
     ['service', undefined],
-    ['viewer', undefined],
-    ['operator', undefined],
     ['unknown', undefined],
     ['lp', 41],
   ])(
@@ -257,7 +255,7 @@ describe('internal-economics dual-runtime receipt parity', () => {
     }
   );
 
-  it.each(['admin', 'partner', 'analyst'])(
+  it.each(['admin', 'partner', 'analyst', 'viewer', 'operator'])(
     'allows %s to read fund 2 with token fundIds [1] identically on both surfaces',
     async (role) => {
       const receiptForFundTwo = { ...RECEIPT, fundId: 2 };
@@ -432,6 +430,8 @@ describe('internal-economics dual-runtime receipt parity', () => {
     ['admin', 2, [1], 201],
     ['partner', 1, [1], 201],
     ['analyst', 1, [1], 201],
+    ['operator', 1, [1], 201],
+    ['viewer', 1, [1], 201],
     ['partner', 2, [1], 403],
     ['analyst', 2, [1], 403],
   ] as const)(
@@ -455,8 +455,6 @@ describe('internal-economics dual-runtime receipt parity', () => {
 
   it.each([
     ['service', undefined],
-    ['viewer', undefined],
-    ['operator', undefined],
     ['unknown', undefined],
     ['lp', 41],
   ])('denies excluded POST role=%s lpId=%s on both surfaces before service', async (role, lpId) => {

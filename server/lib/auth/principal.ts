@@ -10,6 +10,8 @@
  * Additive: NOT yet wired into route guards. Routes migrate to
  * `resolveFundScope()` in follow-up tranches (PR-7b onward).
  */
+import { isTeamRole } from '@shared/auth/effective-roles';
+
 export type RequestPrincipal =
   | { readonly kind: 'admin' }
   | { readonly kind: 'service' }
@@ -40,8 +42,5 @@ export function principalFromUser(user: Express.User | undefined): RequestPrinci
  * principals do not inherit investment-team visibility.
  */
 export function isTeamMemberUser(user: Express.User | undefined): boolean {
-  return (
-    user?.lpId == null &&
-    (user?.role === 'admin' || user?.role === 'partner' || user?.role === 'analyst')
-  );
+  return user?.lpId == null && isTeamRole(user?.role);
 }

@@ -152,7 +152,7 @@ describe('internal-economics receipt route contract', () => {
     expect(service.getLpEconomicsRunReceipt).not.toHaveBeenCalled();
   });
 
-  it.each(['admin', 'partner', 'analyst'])(
+  it.each(['admin', 'partner', 'analyst', 'viewer', 'operator'])(
     'allows the interactive investment-team role %s to read any fund',
     async (role) => {
       authState.role = role;
@@ -174,8 +174,6 @@ describe('internal-economics receipt route contract', () => {
 
   it.each([
     ['service', undefined],
-    ['viewer', undefined],
-    ['operator', undefined],
     ['unknown', undefined],
     ['partner', 41],
   ])(
@@ -366,8 +364,6 @@ describe('internal-economics run creation route contract', () => {
 
   it.each([
     ['service', undefined],
-    ['viewer', undefined],
-    ['operator', undefined],
     ['unknown', undefined],
     ['partner', 41],
   ])(
