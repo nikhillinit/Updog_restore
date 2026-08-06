@@ -1,0 +1,77 @@
+{
+  "schema_version": "1.0.0",
+  "proofs": [
+    {
+      "deployment": "ml-service-local",
+      "boot_status": "unproven",
+      "boot_evidence": {
+        "command_or_artifact": "Dockerfile ml-service/Dockerfile with uvicorn app:app --host 0.0.0.0 --port 8088",
+        "probe": "GET /health and GET /model/info expect 2xx; POST /predict and POST /train send {} and expect 422 validation; 404/405 are failures",
+        "result": "docker unavailable",
+        "observed_at": "proof:3f33b4eb3bf71899336c78e2ba9121fcb07a361799a15dcd028d9640232b50df"
+      }
+    },
+    {
+      "deployment": "railway-api",
+      "boot_status": "failed",
+      "boot_evidence": {
+        "command_or_artifact": "npm run build:prod; Dockerfile.railway ENTRYPOINT [\"dumb-init\",\"--\"] + CMD [\"node\",\"dist/index.js\"]",
+        "probe": "GET /health; expected HTTP 2xx; 404/405 are failures",
+        "result": "docker unavailable; exact dist/index.js CMD exited with no HTTP listener (bootstrap() is not invoked)",
+        "observed_at": "proof:f367e3eacd574c647079b0560010f3e117da420358b1e92515f34e12ea0ca3da"
+      }
+    },
+    {
+      "deployment": "railway-web",
+      "boot_status": "unproven",
+      "boot_evidence": {
+        "command_or_artifact": "npm run build:web plus proven railway-api listener",
+        "probe": "GET actual emitted hashed SPA asset and GET /fund-setup; expected HTTP 2xx; 404/405 are failures",
+        "result": "dependency railway-api is failed; Railway web proof not executable",
+        "observed_at": "proof:8a33519656b948c71dbdfaf62a7b8493cac77d7dd27a138cf6844be4c9235711"
+      }
+    },
+    {
+      "deployment": "railway-worker",
+      "boot_status": "failed",
+      "boot_evidence": {
+        "command_or_artifact": "npm run build:workers; Dockerfile.worker ENTRYPOINT [\"dumb-init\",\"--\"] + CMD node dist/workers/${WORKER_TYPE}-worker.js",
+        "probe": "GET /health /live /ready /metrics /stats; expected HTTP 2xx; 404/405 are failures; child identity must match worker entrypoint",
+        "result": "Redis consumer registration failed: connection refused at hermetic mock endpoint",
+        "observed_at": "proof:641a182542f7d1e506a5da2c859c0ea8246c4087479bc6a8bdeef490553a8d82"
+      }
+    },
+    {
+      "deployment": "vercel-api",
+      "runtime": "make_app",
+      "boot_status": "proven",
+      "boot_evidence": {
+        "command_or_artifact": "node scripts/build-vercel-api.mjs; import api/_app.generated.mjs and construct makeApp()",
+        "probe": "in-process makeApp() construction from Vercel API bundle; no listener",
+        "result": "makeApp constructed from built bundle",
+        "observed_at": "proof:c5e1f8478838cdab57b96b60c4e2fa4d94b40c9219b6b04cdb501a8a10957ec9"
+      }
+    },
+    {
+      "deployment": "vercel-api",
+      "runtime": "vercel_function",
+      "boot_status": "unproven",
+      "boot_evidence": {
+        "command_or_artifact": "source import api/telemetry/wizard.ts",
+        "probe": "default handler export shape; structural evidence only, no Vercel invocation",
+        "result": "handler export verified; Vercel build-output proof intentionally not executed",
+        "observed_at": "proof:5bdc0383b1a4f58afae641d40e2b10200b275cbe0c718d9f446d040e8e879c14"
+      }
+    },
+    {
+      "deployment": "vercel-web",
+      "boot_status": "proven",
+      "boot_evidence": {
+        "command_or_artifact": "npm run build:web; dist/public/index.html",
+        "probe": "emitted SPA entry HTML references its actual hashed JavaScript bundle",
+        "result": "SPA entry references emitted bundle",
+        "observed_at": "proof:9dd9af602e23b702aa20a1418845f77e79f69f973c3ff83788a7b50e23aa26e0"
+      }
+    }
+  ]
+}

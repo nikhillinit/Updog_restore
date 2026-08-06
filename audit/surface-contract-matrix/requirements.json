@@ -1,0 +1,174 @@
+{
+  "schema_version": "1.0.0",
+  "selector_syntax": {
+    "seam": "exact seam string equality",
+    "pattern": "anchored regular expression over canonical row id; no substring matching",
+    "explicit": "curated canonical row id list with an evidence note"
+  },
+  "families": [
+    {
+      "id": "current-forecast-commands",
+      "label": "Current-forecast commands",
+      "selector": {
+        "kind": "seam",
+        "value": "current-forecast"
+      },
+      "evidence": "Current-forecast route seam in tracked runtime and policy registries."
+    },
+    {
+      "id": "fee-catch-up-ui",
+      "label": "Fee catch-up UI",
+      "selector": {
+        "kind": "explicit",
+        "ids": ["client:/fund-setup"]
+      },
+      "evidence": "Fund setup wizard carries the fee catch-up controls and review state."
+    },
+    {
+      "id": "subannual-flow-fee",
+      "label": "Subannual flow-fee",
+      "selector": {
+        "kind": "explicit",
+        "ids": [
+          "client:/fund-setup",
+          "api:POST:/api/funds/:fundId/internal-economics/runs",
+          "api:GET:/api/funds/:fundId/internal-economics/runs/:runId"
+        ]
+      },
+      "evidence": "Wizard inputs and internal-economics run/read endpoints carry subannual fee behavior."
+    },
+    {
+      "id": "cashless-gp-lp-class",
+      "label": "Cashless GP/LP class",
+      "selector": {
+        "kind": "explicit",
+        "ids": [
+          "client:/fund-setup",
+          "api:POST:/api/funds/:fundId/internal-economics/runs"
+        ]
+      },
+      "evidence": "Fund setup plus the internal-economics run endpoint carry GP/LP class inputs."
+    },
+    {
+      "id": "wave-h",
+      "label": "Wave H",
+      "selector": {
+        "kind": "explicit",
+        "ids": ["client:/fund-model-results/:fundId/internal-analysis"]
+      },
+      "evidence": "Internal-analysis results route is the Wave H product surface."
+    },
+    {
+      "id": "wp-l4",
+      "label": "WP-L4 (where present)",
+      "selector": {
+        "kind": "explicit",
+        "ids": []
+      },
+      "optional_when_absent": true,
+      "absence_evidence": {
+        "status": "proposed",
+        "search_selector": "canonical row ids and tracked route registries containing WP-L4 or L4",
+        "result": "No WP-L4 row is present in this snapshot.",
+        "evidence": "Authoring-time absence; G1 approval required before closed phase."
+      },
+      "evidence": "WP-L4 is optional when absent from the tracked repository."
+    },
+    {
+      "id": "kpi-manager",
+      "label": "KPI manager",
+      "selector": {
+        "kind": "explicit",
+        "ids": [
+          "api:GET:/api/funds/:fundId/kpi-observations",
+          "api:GET:/api/funds/:fundId/kpi-observations/:observationId",
+          "api:PATCH:/api/funds/:fundId/kpi-observations/:observationId/review",
+          "api:POST:/api/funds/:fundId/kpi-observations",
+          "api:POST:/api/funds/:fundId/kpi-observations/imports",
+          "client:/kpi-manager",
+          "client:/kpi-submission"
+        ]
+      },
+      "evidence": "KPI observation API rows (#1326 backend) plus the kpi-manager and kpi-submission client routes; the dormant pages/kpi-manager UI candidates are tracked in dormant-candidates.json pending G1 disposition."
+    },
+    {
+      "id": "pages-v2",
+      "label": "pages/v2 quarantine",
+      "selector": {
+        "kind": "pattern",
+        "pattern": "^dormant:client/src/pages/v2/.*$"
+      },
+      "evidence": "All tracked pages/v2 screen exports are deterministic dormant rows."
+    },
+    {
+      "id": "docker-only",
+      "label": "Docker-only set",
+      "selector": {
+        "kind": "explicit",
+        "ids": [
+          "api:DELETE:/api/monte-carlo/cache",
+          "api:DELETE:/api/portfolio/strategies/:id",
+          "api:GET:/",
+          "api:GET:/api/activities",
+          "api:GET:/api/admin/engine/guard",
+          "api:GET:/api/admin/engine/status",
+          "api:GET:/api/cache/stats",
+          "api:GET:/api/cohorts/analysis",
+          "api:GET:/api/dev-dashboard/health",
+          "api:GET:/api/error-budget",
+          "api:GET:/api/error-budget/:slo",
+          "api:GET:/api/error-budget/config/slos",
+          "api:GET:/api/error-budget/gate/status",
+          "api:GET:/api/events/fund/:fundId",
+          "api:GET:/api/events/simulation/:simulationId",
+          "api:GET:/api/fund-metrics/:fundId",
+          "api:GET:/api/lp/health",
+          "api:GET:/api/monte-carlo/funds/:fundId/simulate",
+          "api:GET:/api/monte-carlo/health",
+          "api:GET:/api/monte-carlo/jobs/:jobId",
+          "api:GET:/api/monte-carlo/jobs/:jobId/stream",
+          "api:GET:/api/monte-carlo/performance",
+          "api:GET:/api/operations/:key",
+          "api:GET:/api/pacing/summary",
+          "api:GET:/api/performance/alerts",
+          "api:GET:/api/performance/monte-carlo",
+          "api:GET:/api/performance/operations",
+          "api:GET:/api/performance/realtime",
+          "api:GET:/api/performance/summary",
+          "api:GET:/api/portfolio/forecasts/:scenarioId",
+          "api:GET:/api/portfolio/metrics/:scenarioId",
+          "api:GET:/api/portfolio/reserves/strategies/:fundId",
+          "api:GET:/api/portfolio/scenarios/:fundId",
+          "api:GET:/api/portfolio/strategies/:fundId",
+          "api:GET:/api/portfolio/templates",
+          "api:GET:/api/reserves/:fundId",
+          "api:POST:/api/activities",
+          "api:POST:/api/admin/engine/guard",
+          "api:POST:/api/cache/invalidate",
+          "api:POST:/api/cache/warm",
+          "api:POST:/api/csp-violations",
+          "api:POST:/api/dev-dashboard/fix/build",
+          "api:POST:/api/dev-dashboard/fix/tests",
+          "api:POST:/api/dev-dashboard/fix/typescript",
+          "api:POST:/api/error-budget/config/slos",
+          "api:POST:/api/monte-carlo/batch",
+          "api:POST:/api/monte-carlo/multi-environment",
+          "api:POST:/api/monte-carlo/simulate",
+          "api:POST:/api/monte-carlo/simulate/async",
+          "api:POST:/api/performance/simulate",
+          "api:POST:/api/portfolio/forecasts",
+          "api:POST:/api/portfolio/forecasts/validate",
+          "api:POST:/api/portfolio/quick-scenario",
+          "api:POST:/api/portfolio/reserves/backtest",
+          "api:POST:/api/portfolio/reserves/optimize",
+          "api:POST:/api/portfolio/scenarios",
+          "api:POST:/api/portfolio/scenarios/:id/simulate",
+          "api:POST:/api/portfolio/scenarios/compare",
+          "api:POST:/api/portfolio/strategies",
+          "api:PUT:/api/portfolio/strategies/:id"
+        ]
+      },
+      "evidence": "Derived from matrix rows whose only exposures are railway-api register_routes (the registerRoutes-only routers per ARCHI section 3, expanded to endpoint rows; 60 ids at seed time, re-derived on drift by CI set-equality)."
+    }
+  ]
+}

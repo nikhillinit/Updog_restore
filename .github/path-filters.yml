@@ -73,6 +73,13 @@ not_auto_docs:
   - '!docs/skills/WIZARD_INDEX.md'
 
 code:
+  - 'audit/surface-contract-matrix/**'
+  - 'vercel.json'
+  - '.vercelignore'
+  - '.dockerignore'
+  - 'railway.toml'
+  - 'railway.worker.toml'
+  - 'Dockerfile*'
   - '**/*.ts'
   - '**/*.tsx'
   - '**/*.js'

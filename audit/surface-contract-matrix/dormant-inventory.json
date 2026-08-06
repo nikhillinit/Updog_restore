@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0.0",
+  "entries": [
+    {
+      "path": "client/src/components/investments/portfolio-company-detail.tsx",
+      "disposition": "promote",
+      "evidence": "Known dead-wired edit surface from WS3 inventory."
+    }
+  ]
+}
