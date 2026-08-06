@@ -109,6 +109,19 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # The surface-matrix CI gate compares against the event's prior blob.
+          # Full history makes both PR base SHAs and push-before SHAs available.
+          fetch-depth: 0
+
+      - name: Export surface-matrix prior ref
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "SURFACE_MATRIX_PRIOR_REF=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_ENV"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "SURFACE_MATRIX_PRIOR_REF=${{ github.event.before }}" >> "$GITHUB_ENV"
+          fi
 
       - name: Setup Node environment
         uses: ./.github/actions/setup-node-env

@@ -1,0 +1,242 @@
+[
+  {
+    "candidate_path": "Dockerfile",
+    "listener_id": "dockerfile-root",
+    "fingerprint": "ca8a56775447ca16f0b7edc8e4b8dbe682ff0b265e31c7becf3f4ac9ae0db3d4",
+    "evidence": ["Dockerfile:56", "Dockerfile:65"],
+    "disposition": "product-surface",
+    "row_namespace": "api",
+    "route_extraction_strategy": "container-entrypoint-evidence",
+    "detected_listener_patterns": [
+      {
+        "kind": "container-http-entrypoint",
+        "line": 56,
+        "text": "CMD node -e \"require('http').get('http://localhost:3000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))\""
+      },
+      {
+        "kind": "container-http-entrypoint",
+        "line": 65,
+        "text": "CMD [\"node\", \"dist/index.js\"]"
+      }
+    ]
+  },
+  {
+    "candidate_path": "Dockerfile.railway",
+    "listener_id": "dockerfile-railway",
+    "fingerprint": "3b2f984074821655b9efcb80581659c3e3d4fd5055bd02a9bec62977b082d4c2",
+    "evidence": ["Dockerfile.railway:41", "Dockerfile.railway:45"],
+    "disposition": "product-surface",
+    "row_namespace": "api",
+    "route_extraction_strategy": "container-entrypoint-evidence",
+    "detected_listener_patterns": [
+      {
+        "kind": "container-http-entrypoint",
+        "line": 41,
+        "text": "CMD node -e \"require('http').get('http://localhost:' + (process.env.PORT || 3000) + '/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))\""
+      },
+      {
+        "kind": "container-http-entrypoint",
+        "line": 45,
+        "text": "CMD [\"node\", \"dist/index.js\"]"
+      }
+    ]
+  },
+  {
+    "candidate_path": "Dockerfile.simple",
+    "listener_id": "dockerfile-simple",
+    "fingerprint": "d242dc09029a44542b41578e5f35e1a1e77e6e53b1915dfc071af630b098439b",
+    "evidence": ["Dockerfile.simple:32", "Dockerfile.simple:36"],
+    "disposition": "product-surface",
+    "row_namespace": "api",
+    "route_extraction_strategy": "container-entrypoint-evidence",
+    "detected_listener_patterns": [
+      {
+        "kind": "container-http-entrypoint",
+        "line": 32,
+        "text": "CMD node -e \"require('http').get('http://localhost:3000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))\""
+      },
+      {
+        "kind": "container-http-entrypoint",
+        "line": 36,
+        "text": "CMD [\"node\", \"dist/index.js\"]"
+      }
+    ]
+  },
+  {
+    "candidate_path": "Dockerfile.worker",
+    "listener_id": "dockerfile-worker",
+    "fingerprint": "8d2d97532e34ebee1b2ac7bed6ac11cef39c3b3e3ad0cddf7e675c81d6ded08e",
+    "evidence": ["Dockerfile.worker:158", "Dockerfile.worker:170"],
+    "disposition": "product-surface",
+    "row_namespace": "api",
+    "route_extraction_strategy": "container-entrypoint-evidence",
+    "detected_listener_patterns": [
+      {
+        "kind": "container-http-entrypoint",
+        "line": 158,
+        "text": "CMD node /app/healthcheck.js"
+      },
+      {
+        "kind": "container-http-entrypoint",
+        "line": 170,
+        "text": "CMD node dist/workers/${WORKER_TYPE}-worker.js"
+      }
+    ]
+  },
+  {
+    "candidate_path": "ml-service/app.py",
+    "listener_id": "ml-reserve",
+    "fingerprint": "a8be800a377a4f96aa032578e429958e0ed4200a47d79bdf2d1581712987433d",
+    "evidence": ["ml-service/app.py:26", "ml-service/app.py:427"],
+    "disposition": "product-surface",
+    "row_namespace": "listener",
+    "route_extraction_strategy": "literal-route-registration",
+    "detected_listener_patterns": [
+      {
+        "kind": "python-app-creation",
+        "line": 26,
+        "text": "app = FastAPI(title=\"Reserve ML Service\", version=\"1.0.0\")"
+      },
+      {
+        "kind": "uvicorn-run",
+        "line": 427,
+        "text": "uvicorn.run(app, host=host, port=port)"
+      }
+    ]
+  },
+  {
+    "candidate_path": "ml-service/Dockerfile",
+    "listener_id": "dockerfile-ml-reserve",
+    "fingerprint": "47dffcac3e12c2defa74f8b271e8c1402f8681eac0fdcdab9e50ccdb48789d44",
+    "evidence": ["ml-service/Dockerfile:35"],
+    "disposition": "product-surface",
+    "row_namespace": "listener",
+    "route_extraction_strategy": "container-entrypoint-evidence",
+    "detected_listener_patterns": [
+      {
+        "kind": "container-http-entrypoint",
+        "line": 35,
+        "text": "CMD [\"uvicorn\", \"app:app\", \"--host\", \"0.0.0.0\", \"--port\", \"8088\", \"--workers\", \"1\"]"
+      }
+    ]
+  },
+  {
+    "candidate_path": "scripts/ai-tools/metrics-server.js",
+    "listener_id": "tooling-scripts-ai-tools-metrics-server-js",
+    "fingerprint": "3c5bc504de7ebb48897e721524d44238545f20d67283e08366ef07174d6186b2",
+    "evidence": [
+      {
+        "file": "scripts/ai-tools/metrics-server.js",
+        "line": 52,
+        "pattern": "node-listen",
+        "text": "const server = app.listen(PORT, () => {"
+      }
+    ],
+    "disposition": "non-product-tooling",
+    "rationale": "Local development or orchestration listener; not a product deployment surface.",
+    "detected_listener_patterns": [
+      {
+        "kind": "node-listen",
+        "line": 52,
+        "text": "const server = app.listen(PORT, () => {"
+      }
+    ]
+  },
+  {
+    "candidate_path": "scripts/orchestrate.ts",
+    "listener_id": "tooling-scripts-orchestrate-ts",
+    "fingerprint": "1644a5434ff023ed6bd50e1789ac07eedc9264ceb46042d50ee8757a2e24df3c",
+    "evidence": [
+      {
+        "file": "scripts/orchestrate.ts",
+        "line": 54,
+        "pattern": "node-listen",
+        "text": "app.listen(PORT, () => {"
+      }
+    ],
+    "disposition": "non-product-tooling",
+    "rationale": "Local development or orchestration listener; not a product deployment surface.",
+    "detected_listener_patterns": [
+      {
+        "kind": "node-listen",
+        "line": 54,
+        "text": "app.listen(PORT, () => {"
+      }
+    ]
+  },
+  {
+    "candidate_path": "server/bootstrap.ts",
+    "listener_id": "server-bootstrap",
+    "fingerprint": "ff2139dd6b19d303f689aba9382c158296c7ca09865bd1859659340444854be0",
+    "evidence": ["server/bootstrap.ts:47", "server/bootstrap.ts:54"],
+    "disposition": "product-surface",
+    "row_namespace": "api",
+    "route_extraction_strategy": "existing-api-row-mapping",
+    "detected_listener_patterns": [
+      {
+        "kind": "node-http-server-creation",
+        "line": 47,
+        "text": "const server = await createServer(cfg, providers);"
+      },
+      {
+        "kind": "node-listen",
+        "line": 54,
+        "text": "server.listen(cfg.PORT, () => {"
+      }
+    ]
+  },
+  {
+    "candidate_path": "server/index.ts",
+    "listener_id": "server-index",
+    "fingerprint": "7ad04ea7635e25c9ee93679d250cb05d096b40c8fbca2c59620182e6c5bfa685",
+    "evidence": ["server/index.ts:13"],
+    "disposition": "product-surface",
+    "row_namespace": "api",
+    "route_extraction_strategy": "existing-api-row-mapping",
+    "detected_listener_patterns": [
+      {
+        "kind": "node-listen",
+        "line": 13,
+        "text": "app.listen(port, host, () => log.info({ host, port }, 'api listening'));"
+      }
+    ]
+  },
+  {
+    "candidate_path": "server/observability/metrics-demo.ts",
+    "listener_id": "tooling-server-observability-metrics-demo-ts",
+    "fingerprint": "321b1185e3aba909f1205b0058b7b53e3a6ffdb2e539a5d630446e53d03a7059",
+    "evidence": [
+      {
+        "file": "server/observability/metrics-demo.ts",
+        "line": 16,
+        "pattern": "node-listen",
+        "text": "app.listen(port, () => {"
+      }
+    ],
+    "disposition": "non-product-tooling",
+    "rationale": "Local development or orchestration listener; not a product deployment surface.",
+    "detected_listener_patterns": [
+      {
+        "kind": "node-listen",
+        "line": 16,
+        "text": "app.listen(port, () => {"
+      }
+    ]
+  },
+  {
+    "candidate_path": "workers/health-server.ts",
+    "listener_id": "worker-health",
+    "fingerprint": "9109dc55ee3895d5a3d76014f825447c111b2b6f79f39e5154fbe13fdc6829f2",
+    "evidence": ["workers/health-server.ts:204"],
+    "disposition": "product-surface",
+    "row_namespace": "listener",
+    "route_extraction_strategy": "literal-route-registration",
+    "detected_listener_patterns": [
+      {
+        "kind": "node-listen",
+        "line": 204,
+        "text": "app.listen(port, () => {"
+      }
+    ]
+  }
+]

@@ -46,7 +46,9 @@ tmpclaude-*-cwd
 .claude/locks/
 .claude/scheduled_tasks.lock
 .audit/
-audit/
+audit/*
+!audit/surface-contract-matrix/
+!audit/surface-contract-matrix/**
 
 # Runtime data
 pids
