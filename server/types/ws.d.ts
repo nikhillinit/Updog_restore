@@ -35,7 +35,10 @@ declare module 'ws' {
       port?: number;
       backlog?: number;
       server?: any;
-      verifyClient?: (info: { origin: string; secure: boolean; req: IncomingMessage }) => boolean | Promise<boolean>;
+      verifyClient?: (
+        info: { origin: string; secure: boolean; req: IncomingMessage },
+        done: (verified: boolean, code?: number, message?: string) => void
+      ) => void;
       handleProtocols?: (protocols: string[], request: IncomingMessage) => string | false;
       path?: string;
       noServer?: boolean;

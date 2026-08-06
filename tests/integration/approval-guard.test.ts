@@ -5,6 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
+  DEFAULT_MIN_APPROVALS,
   verifyApproval,
   computeStrategyHash,
   requiresApproval,
@@ -84,7 +85,7 @@ describe('Approval Guard - Policy Before Compute', () => {
       const result = await verifyApproval({
         strategyId: 'non-existent',
         inputsHash: 'abc123',
-        minApprovals: 2,
+        minApprovals: DEFAULT_MIN_APPROVALS,
       });
 
       expect(result.ok).toBe(false);
@@ -97,7 +98,7 @@ describe('Approval Guard - Policy Before Compute', () => {
       const options = {
         strategyId: 'test-strategy',
         inputsHash: computeStrategyHash({ test: 'data' }),
-        minApprovals: 2,
+        minApprovals: DEFAULT_MIN_APPROVALS,
         requireDistinctPartners: true,
       };
 
@@ -177,7 +178,7 @@ describe('Approval Guard - Policy Before Compute', () => {
       const verification = await verifyApproval({
         strategyId: 'test',
         inputsHash: 'hash',
-        minApprovals: 2,
+        minApprovals: DEFAULT_MIN_APPROVALS,
         requireDistinctPartners: true,
       });
 
@@ -194,7 +195,7 @@ describe('Approval Guard - Policy Before Compute', () => {
       const verification = await verifyApproval({
         strategyId: 'test',
         inputsHash: 'hash',
-        minApprovals: 2,
+        minApprovals: DEFAULT_MIN_APPROVALS,
         expiresAfterHours: 72,
       });
 

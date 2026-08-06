@@ -1,13 +1,14 @@
 /**
- * Reserve Strategy Dual Approval API
- * Requires both partners to approve changes to reserve strategies
+ * Reserve Strategy Approval API
+ * Requires partner approval for changes to reserve strategies
  */
 
 import type { Request, Response } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
-import { requireAuth, requireRole } from '../../lib/auth/jwt.js';
+import { requireAuth, requireCapability } from '../../lib/auth/jwt.js';
+import { DEFAULT_MIN_APPROVALS } from '../../lib/approvals-guard.js';
 import { db } from '../../db';
 import {
   reserveApprovals,
@@ -76,7 +77,7 @@ const createApprovalSchema = z.object({
 /**
  * POST /api/v1/reserve-approvals - Create new approval request
  */
-router['post']('/', requireRole('reserve_admin'), async (req: Request, res: Response) => {
+router['post']('/', requireCapability('reserve_admin'), async (req: Request, res: Response) => {
   try {
     const userEmail = getRequestUserEmail(req);
     if (!userEmail) {
@@ -147,9 +148,9 @@ router['post']('/', requireRole('reserve_admin'), async (req: Request, res: Resp
       success: true,
       approvalId: approval.id,
       expiresAt,
-      requiredApprovals: 2,
+      requiredApprovals: DEFAULT_MIN_APPROVALS,
       notifiedPartners: partners.length,
-      message: 'Approval request created. Both partners must approve within 72 hours.',
+      message: 'Approval request created. One partner must approve within 72 hours.',
     });
   } catch (error) {
     routeLog.error('Error creating approval request:', error);
@@ -191,7 +192,7 @@ router['get']('/', async (req: Request, res: Response) => {
           ...approval,
           signatures,
           signatureCount,
-          remainingApprovals: 2 - signatureCount,
+          remainingApprovals: DEFAULT_MIN_APPROVALS - signatureCount,
         };
       })
     );
@@ -243,7 +244,7 @@ router['get']('/:id', async (req: Request, res: Response) => {
       auditLog,
       canSign: await canPartnerSign(userEmail, id),
       isExpired: approval.expiresAt < new Date(),
-      isApproved: signatures.length >= 2,
+      isApproved: signatures.length >= DEFAULT_MIN_APPROVALS,
     });
   } catch (error) {
     routeLog.error('Error fetching approval:', error);
@@ -259,7 +260,7 @@ const signApprovalSchema = z.object({
   verificationCode: z.string().optional(),
 });
 
-router['post']('/:id/sign', requireRole('partner'), async (req: Request, res: Response) => {
+router['post']('/:id/sign', requireCapability('reserve_admin'), async (req: Request, res: Response) => {
   try {
     const userEmail = getRequestUserEmail(req);
     if (!userEmail) {
@@ -356,13 +357,13 @@ router['post']('/:id/sign', requireRole('partner'), async (req: Request, res: Re
       userAgent: req.headers['user-agent'],
     });
 
-    // Check if this completes the approval (need 2 signatures)
+    // Check if this completes the approval.
     const signatureCount = await db.$count(
       approvalSignatures,
       eq(approvalSignatures.approvalId, id)
     );
 
-    if (signatureCount >= 2) {
+    if (signatureCount >= DEFAULT_MIN_APPROVALS) {
       // Mark as approved and execute
       await db
         .update(reserveApprovals)
@@ -390,7 +391,7 @@ router['post']('/:id/sign', requireRole('partner'), async (req: Request, res: Re
       res.json({
         success: true,
         message: 'Approval signed successfully',
-        remainingApprovals: 2 - signatureCount,
+        remainingApprovals: DEFAULT_MIN_APPROVALS - signatureCount,
         status: 'pending',
       });
     }
@@ -408,7 +409,7 @@ const rejectionSchema = z.object({
   reason: z.string().min(10),
 });
 
-router['post']('/:id/reject', requireRole('partner'), async (req: Request, res: Response) => {
+router['post']('/:id/reject', requireCapability('reserve_admin'), async (req: Request, res: Response) => {
   try {
     const userEmail = getRequestUserEmail(req);
     if (!userEmail) {

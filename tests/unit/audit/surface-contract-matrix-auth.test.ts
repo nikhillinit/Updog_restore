@@ -35,29 +35,21 @@ describe('surface contract matrix auth persona mapping', () => {
   it('discovers current enum, capability, and LP guard roles from tracked sources', () => {
     const discovered = discoverAuthRoleEvidence({ rootDir: process.cwd() });
     expect(discovered.roles).toEqual(
-      expect.arrayContaining([
-        'admin',
-        'analyst',
-        'flag_admin',
-        'flag_read',
-        'lp',
-        'operator',
-        'partner',
-        'reserve_admin',
-        'service',
-        'viewer',
-      ])
+      expect.arrayContaining(['admin', 'analyst', 'lp', 'operator', 'partner', 'service', 'viewer'])
+    );
+    expect(discovered.roles).not.toEqual(
+      expect.arrayContaining(['flag_admin', 'flag_read', 'reserve_admin'])
     );
     expect(() => assertAuthRoleMappingExhaustive(discovered.roles)).not.toThrow();
   });
 
   it('recognizes bracket-notation route registrations', () => {
     const evidence = extractAuthRoleEvidenceForRoute(
-      `adminRouter['get']('/', requireRole('flag_read'), handler);`,
+      `adminRouter['get']('/', requireRole('partner'), handler);`,
       'server/routes/flags.ts',
       { method: 'GET', registrationLines: [1] }
     );
-    expect(evidence.map((entry) => entry.role)).toContain('flag_read');
+    expect(evidence.map((entry) => entry.role)).toContain('partner');
   });
 
   it('keeps route-local evidence isolated for login and public share verification', () => {

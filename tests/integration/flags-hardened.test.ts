@@ -94,8 +94,8 @@ describe('Hardened Flag System', () => {
     );
   }
 
-  // Token factories matching the current flag-route contract
-  const adminToken = () => createToken('flag_admin', ['flag_read', 'flag_admin']);
+  // Capability strings are not persisted roles; admin is granted flag capabilities.
+  const adminToken = () => createToken('admin', ['admin']);
   const readToken = () => createToken('flag_read', ['flag_read']);
   const userToken = () => createToken('user', []);
 
@@ -148,7 +148,7 @@ describe('Hardened Flag System', () => {
       expect(response.status).toBe(401);
     });
 
-    it('should accept valid read token for admin reads', async () => {
+    it('should reject capability strings used as persisted roles', async () => {
       const response = await server
         .request()
         .get('/api/flags/admin')
@@ -156,7 +156,7 @@ describe('Hardened Flag System', () => {
 
       // Skip if rate limited
       if (response.status === 429) return;
-      expect([200, 401, 500].includes(response.status)).toBe(true); // 500 OK if DB not set up
+      expect(response.status).toBe(403);
     });
 
     it('should enforce RBAC - read-only tokens cannot write', async () => {

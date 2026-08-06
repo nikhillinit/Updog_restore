@@ -17,7 +17,7 @@ import {
   activateKillSwitch,
   type FlagValue,
 } from '../lib/flags.js';
-import { requireAuth, requireRole } from '../lib/auth/jwt.js';
+import { requireAuth, requireCapability } from '../lib/auth/jwt.js';
 import { extractRequestCredential } from '../lib/auth/request-credentials.js';
 import { z } from 'zod';
 import { firstString } from '../lib/request-values';
@@ -184,7 +184,7 @@ function createAdminRouter(): Router {
   /**
    * GET /api/admin/flags - Get all flags with version for admin
    */
-  adminRouter['get']('/', requireRole('flag_read'), async (req: Request, res: Response) => {
+  adminRouter['get']('/', requireCapability('flag_read'), async (req: Request, res: Response) => {
     try {
       const version = await getFlagsVersion();
       const hash = await getFlagsHash();
@@ -206,7 +206,7 @@ function createAdminRouter(): Router {
     }
   });
 
-  adminRouter.patch('/:key', requireRole('flag_admin'), async (req: Request, res: Response) => {
+  adminRouter.patch('/:key', requireCapability('flag_admin'), async (req: Request, res: Response) => {
     try {
       const key = firstString(req.params['key']);
       const validation = updateFlagSchema.safeParse(req.body);
@@ -302,7 +302,7 @@ function createAdminRouter(): Router {
   /**
    * GET /api/admin/flags/:key/history - Get flag history
    */
-  adminRouter['get']('/:key/history', async (req: Request, res: Response) => {
+  adminRouter['get']('/:key/history', requireCapability('flag_admin'), async (req: Request, res: Response) => {
     try {
       const key = firstString(req.params['key']);
       if (!key) {
@@ -324,7 +324,7 @@ function createAdminRouter(): Router {
   /**
    * POST /api/admin/flags/kill-switch - Emergency kill switch
    */
-  adminRouter.post('/kill-switch', (req: Request, res: Response) => {
+  adminRouter.post('/kill-switch', requireCapability('flag_admin'), (req: Request, res: Response) => {
     try {
       activateKillSwitch();
 
@@ -343,7 +343,7 @@ function createAdminRouter(): Router {
   /**
    * DELETE /api/admin/flags/kill-switch - Deactivate kill switch
    */
-  adminRouter.delete('/kill-switch', (req: Request, res: Response) => {
+  adminRouter.delete('/kill-switch', requireCapability('flag_admin'), (req: Request, res: Response) => {
     try {
       delete process.env['FLAGS_DISABLED_ALL'];
 

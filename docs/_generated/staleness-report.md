@@ -11,16 +11,16 @@ last_updated: 2026-08-06
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 708 |
-| Stale Documents | 478 |
-| Missing Frontmatter | 62 |
+| Total Documents | 709 |
+| Stale Documents | 479 |
+| Missing Frontmatter | 63 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 451 |
-| UNKNOWN | 156 |
+| UNKNOWN | 157 |
 | DRAFT | 34 |
 | HISTORICAL | 22 |
 | VERIFIED | 13 |
@@ -56,6 +56,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/1-plans/F_1.0.0_activation-blockers-runtime.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.2.0_v1.4-release-proof-activation.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.2.1_ws1-surface-contract-matrix.plan.md` | Never | 999 | No | Unassigned |
+| `docs/1-plans/F_1.2.2_g1-matrix-repair.plan.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/changelog_table.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w1_v1.4.0.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w1_v1.4.1.md` | Never | 999 | No | Unassigned |
@@ -95,9 +96,8 @@ Documents that need review (older than their cadence threshold):
 | `docs/skills/REFL-023-math-random-in-production-identifiers.md` | Never | 999 | No | Unassigned |
 | `docs/skills/REFL-027-redundant-any-on-inferred-callbacks.md` | Never | 999 | No | Unassigned |
 | `docs/skills/REFL-028-duck-type-context-access.md` | Never | 999 | No | Unassigned |
-| `docs/skills/REFL-029-secrets-in-workflow-if-expressions.md` | Never | 999 | No | Unassigned |
 
-*...and 428 more stale documents.*
+*...and 429 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -209,6 +209,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/1-plans/F_1.0.0_activation-blockers-runtime.plan.md`
 - [ ] `docs/1-plans/F_1.2.0_v1.4-release-proof-activation.plan.md`
 - [ ] `docs/1-plans/F_1.2.1_ws1-surface-contract-matrix.plan.md`
+- [ ] `docs/1-plans/F_1.2.2_g1-matrix-repair.plan.md`
 - [ ] `docs/2-changelog/changelog_table.md`
 - [ ] `docs/2-changelog/w1_v1.4.0.md`
 - [ ] `docs/2-changelog/w1_v1.4.1.md`

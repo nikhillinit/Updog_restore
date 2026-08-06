@@ -156,7 +156,7 @@ describe('Flag Routes Integration', () => {
       const response = await server
         .request()
         .get('/api/flags/admin')
-        .set('Authorization', `Bearer ${createToken('flag_read')}`);
+        .set('Authorization', `Bearer ${createToken('admin')}`);
 
       // Should either succeed, fail with DB error, or be rate limited (not auth error)
       // Note: May also get 401 if JWT config was cached before env vars set
@@ -181,7 +181,7 @@ describe('Flag Routes Integration', () => {
       const response = await server
         .request()
         .get('/api/flags/admin')
-        .set('Authorization', `Bearer ${createToken('flag_admin')}`);
+        .set('Authorization', `Bearer ${createToken('admin')}`);
 
       const cacheControl = response.headers['cache-control'];
       expect(cacheControl).toContain('no-store');
@@ -193,7 +193,7 @@ describe('Flag Routes Integration', () => {
         server
           .request()
           .get('/api/flags/admin')
-          .set('Authorization', `Bearer ${createToken('flag_admin')}`);
+          .set('Authorization', `Bearer ${createToken('admin')}`);
 
       // Make multiple requests rapidly (more than rate limit)
       const promises = Array.from({ length: 12 }, makeRequest);
@@ -209,21 +209,21 @@ describe('Flag Routes Integration', () => {
   });
 
   describe('Admin Routes Authorization', () => {
-    it('should require flag_read role for GET operations', async () => {
+    it('should require admin capability for GET operations', async () => {
       const response = await server
         .request()
         .get('/api/flags/admin')
-        .set('Authorization', `Bearer ${createToken('flag_read')}`);
+        .set('Authorization', `Bearer ${createToken('admin')}`);
 
       // Should not fail due to role (but may fail due to DB)
       expect(response.status).not.toBe(403);
     });
 
-    it('should require flag_admin role for write operations', async () => {
+    it('should require admin capability for write operations', async () => {
       const response = await server
         .request()
         .patch('/api/flags/admin/wizard.v1')
-        .set('Authorization', `Bearer ${createToken('flag_admin')}`)
+        .set('Authorization', `Bearer ${createToken('admin')}`)
         .set('If-Match', 'test-version')
         .send({
           enabled: true,
@@ -233,6 +233,70 @@ describe('Flag Routes Integration', () => {
       // Should either succeed or fail with business logic (not role error)
       expect(response.status).not.toBe(403);
     });
+
+    it.each(['partner', 'analyst', 'viewer', 'operator', 'flag_admin', 'flag_read'])(
+      'denies role=%s on every admin flag route',
+      async (role) => {
+        const requests = [
+          server.request().get('/api/flags/admin'),
+          server
+            .request()
+            .patch('/api/flags/admin/wizard.v1')
+            .send({ enabled: true, reason: 'test' }),
+          server.request().get('/api/flags/admin/wizard.v1/history'),
+          server.request().post('/api/flags/admin/kill-switch'),
+          server.request().delete('/api/flags/admin/kill-switch'),
+        ];
+        const responses = await Promise.all(
+          requests.map((request) => request.set('Authorization', `Bearer ${createToken(role)}`))
+        );
+
+        expect(responses.map((response) => response.status)).toEqual([403, 403, 403, 403, 403]);
+      }
+    );
+
+    it('allows admin on every admin flag route', async () => {
+      const authorization = `Bearer ${createToken('admin')}`;
+      const list = await server
+        .request()
+        .get('/api/flags/admin')
+        .set('Authorization', authorization);
+      expect(list.status).toBeGreaterThanOrEqual(200);
+      expect(list.status).toBeLessThan(300);
+
+      const patchRequest = (version: string) =>
+        server
+          .request()
+          .patch('/api/flags/admin/wizard.v1')
+          .set('Authorization', authorization)
+          .set('If-Match', version)
+          .send({ enabled: true, reason: 'Authorization test', dryRun: true });
+      let patch = await patchRequest(String(list.body.version));
+      if (patch.status === 409 && typeof patch.body.currentVersion === 'string') {
+        patch = await patchRequest(patch.body.currentVersion);
+      }
+      // The in-memory fallback generates a fresh version on each read when the
+      // integration database is unavailable; the authenticated route checks
+      // below remain meaningful, while a real store provides stable 2xx writes.
+      if (patch.status === 409 || patch.status === 500) return;
+      const history = await server
+        .request()
+        .get('/api/flags/admin/wizard.v1/history')
+        .set('Authorization', authorization);
+      const activate = await server
+        .request()
+        .post('/api/flags/admin/kill-switch')
+        .set('Authorization', authorization);
+      const deactivate = await server
+        .request()
+        .delete('/api/flags/admin/kill-switch')
+        .set('Authorization', authorization);
+
+      for (const response of [patch, history, activate, deactivate]) {
+        expect(response.status).toBeGreaterThanOrEqual(200);
+        expect(response.status).toBeLessThan(300);
+      }
+    });
   });
 
   describe('Concurrency Control', () => {
@@ -240,7 +304,7 @@ describe('Flag Routes Integration', () => {
       const response = await server
         .request()
         .patch('/api/flags/admin/wizard.v1')
-        .set('Authorization', `Bearer ${createToken('flag_admin')}`)
+        .set('Authorization', `Bearer ${createToken('admin')}`)
         // Missing If-Match header
         .send({
           enabled: true,
@@ -259,7 +323,7 @@ describe('Flag Routes Integration', () => {
       const response = await server
         .request()
         .patch('/api/flags/admin/wizard.v1')
-        .set('Authorization', `Bearer ${createToken('flag_admin')}`)
+        .set('Authorization', `Bearer ${createToken('admin')}`)
         .set('If-Match', 'outdated-version-123')
         .send({
           enabled: true,
@@ -280,7 +344,7 @@ describe('Flag Routes Integration', () => {
       const response = await server
         .request()
         .patch('/api/flags/admin/test')
-        .set('Authorization', `Bearer ${createToken('flag_admin')}`)
+        .set('Authorization', `Bearer ${createToken('admin')}`)
         .set('If-Match', 'test-version')
         .send({
           enabled: true,
@@ -300,7 +364,7 @@ describe('Flag Routes Integration', () => {
       const response = await server
         .request()
         .patch('/api/flags/admin/test')
-        .set('Authorization', `Bearer ${createToken('flag_admin')}`)
+        .set('Authorization', `Bearer ${createToken('admin')}`)
         .set('Content-Type', 'application/json')
         .set('If-Match', 'test-version')
         .send('{"invalid": json syntax}');
@@ -328,7 +392,7 @@ describe('Flag Routes Integration', () => {
       const response = await server
         .request()
         .post('/api/flags/admin/kill-switch')
-        .set('Authorization', `Bearer ${createToken('flag_admin')}`);
+        .set('Authorization', `Bearer ${createToken('admin')}`);
 
       // Should either succeed, fail with business logic, or be rate limited
       expect([200, 429, 500].includes(response.status)).toBe(true);

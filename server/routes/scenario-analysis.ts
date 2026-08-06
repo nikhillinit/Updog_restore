@@ -9,6 +9,7 @@ import { Router } from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
+import { TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
 import { db } from '../db';
 import {
   FundCompanyActualsCurrencyStatusSchema,
@@ -55,7 +56,6 @@ import {
 } from '../services/scenarios/company-scenario-create-service';
 
 const routeLog = createRouteLogger('scenario-analysis');
-const WRITE_SCENARIO_ROLES = ['partner', 'admin', 'analyst'] as const;
 
 const router = Router();
 
@@ -426,7 +426,7 @@ router['get'](
 router['post'](
   '/funds/:fundId/scenario-analysis/scenarios/:scenarioId/cases/from-seed',
   requireAuth(),
-  requireWriteRole(WRITE_SCENARIO_ROLES),
+  requireWriteRole(TEAM_WRITE_ROLES),
   validateScenarioSeedFundId,
   requireFundAccess,
   validateScenarioIdParam,
@@ -753,7 +753,7 @@ router['get'](
 router['post'](
   '/companies/:companyId/scenarios',
   requireAuth(),
-  requireWriteRole(WRITE_SCENARIO_ROLES),
+  requireWriteRole(TEAM_WRITE_ROLES),
   extractUserId,
   async (req: Request, res: Response) => {
     try {
@@ -829,7 +829,7 @@ router['post'](
 router['patch'](
   '/companies/:companyId/scenarios/:scenarioId',
   requireAuth(),
-  requireWriteRole(WRITE_SCENARIO_ROLES),
+  requireWriteRole(TEAM_WRITE_ROLES),
   extractUserId,
   async (req: Request, res: Response) => {
     try {
@@ -981,7 +981,7 @@ router['patch'](
 router['delete'](
   '/companies/:companyId/scenarios/:scenarioId',
   requireAuth(),
-  requireWriteRole(WRITE_SCENARIO_ROLES),
+  requireWriteRole(TEAM_WRITE_ROLES),
   extractUserId,
   async (req: Request, res: Response) => {
     try {

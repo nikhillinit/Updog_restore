@@ -2,6 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import crypto from 'node:crypto';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
+import { TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
 import {
   ArchiveFundScenarioSetV1Schema,
   CreateFundScenarioSetV1Schema,
@@ -40,8 +41,6 @@ const scenarioSetReadLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-
-const WRITE_SCENARIO_ROLES = ['partner', 'admin', 'analyst'] as const;
 
 interface HttpError extends Error {
   statusCode?: number;
@@ -183,7 +182,7 @@ router.post(
   '/funds/:fundId/scenario-sets',
   scenarioSetWriteLimiter,
   requireAuth(),
-  requireWriteRole(WRITE_SCENARIO_ROLES),
+  requireWriteRole(TEAM_WRITE_ROLES),
   requireFundAccess,
   routeHandler(async (req: Request, res: Response) => {
     const fundId = parseFundId(req, res);
@@ -208,7 +207,7 @@ router.post(
   '/funds/:fundId/scenario-sets/reserve-optimization',
   scenarioSetWriteLimiter,
   requireAuth(),
-  requireWriteRole(WRITE_SCENARIO_ROLES),
+  requireWriteRole(TEAM_WRITE_ROLES),
   requireFundAccess,
   routeHandler(async (req: Request, res: Response) => {
     const fundId = parseFundId(req, res);
@@ -236,7 +235,7 @@ router.post(
   '/funds/:fundId/scenario-sets/:scenarioSetId/calculate',
   scenarioSetWriteLimiter,
   requireAuth(),
-  requireWriteRole(WRITE_SCENARIO_ROLES),
+  requireWriteRole(TEAM_WRITE_ROLES),
   requireFundAccess,
   routeHandler(async (req: Request, res: Response) => {
     const fundId = parseFundId(req, res);
@@ -254,7 +253,7 @@ router.post(
   '/funds/:fundId/scenario-sets/:scenarioSetId/calculate-reserve',
   scenarioSetWriteLimiter,
   requireAuth(),
-  requireWriteRole(WRITE_SCENARIO_ROLES),
+  requireWriteRole(TEAM_WRITE_ROLES),
   requireFundAccess,
   routeHandler(async (req: Request, res: Response) => {
     const fundId = parseFundId(req, res);
@@ -340,7 +339,7 @@ router.post(
   '/funds/:fundId/scenario-sets/:scenarioSetId/archive',
   scenarioSetWriteLimiter,
   requireAuth(),
-  requireWriteRole(WRITE_SCENARIO_ROLES),
+  requireWriteRole(TEAM_WRITE_ROLES),
   requireFundAccess,
   routeHandler(async (req: Request, res: Response) => {
     const fundId = parseFundId(req, res);

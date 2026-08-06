@@ -266,9 +266,8 @@ describe('marginal reserve MOIC rankings route', () => {
   it.each([
     ['LP-carrying admin', { id: 101, role: 'admin', fundIds: [1], lpId: 1 }],
     ['ordinary LP with fund access', { id: 101, role: 'user', fundIds: [1], lpId: 1 }],
-    ['viewer', { id: 101, role: 'viewer', fundIds: [1] }],
-    ['operator', { id: 101, role: 'operator', fundIds: [1] }],
     ['service', { id: 101, role: 'service', fundIds: [1] }],
+    ['unknown', { id: 101, role: 'unknown', fundIds: [1] }],
   ])('rejects %s before every route service read', async (_label, user) => {
     authState.user = user;
 
@@ -278,7 +277,7 @@ describe('marginal reserve MOIC rankings route', () => {
     expectNoRouteReads();
   });
 
-  it.each(['admin', 'partner', 'analyst'])('allows a non-LP %s', async (role) => {
+  it.each(['admin', 'partner', 'analyst', 'operator', 'viewer'])('allows a non-LP %s', async (role) => {
     authState.user = { id: 101, role, fundIds: [1] };
 
     const response = await getRankings();
@@ -562,8 +561,7 @@ describe('reserve intelligence run routes', () => {
 
   it.each([
     ['LP', { id: 101, role: 'user', fundIds: [1], lpId: 1 }],
-    ['viewer', { id: 101, role: 'viewer', fundIds: [1] }],
-    ['operator', { id: 101, role: 'operator', fundIds: [1] }],
+    ['unknown', { id: 101, role: 'unknown', fundIds: [1] }],
   ])('rejects %s principals before service work', async (_label, user) => {
     authState.user = user;
 
@@ -577,7 +575,7 @@ describe('reserve intelligence run routes', () => {
     expect(svc.getLatestDynamicReserveIntelligenceRun).not.toHaveBeenCalled();
   });
 
-  it.each(['analyst', 'partner'])(
+  it.each(['analyst', 'partner', 'viewer', 'operator'])(
     'allows %s universal safe reads but requires an explicit fund grant for POST',
     async (role) => {
       authState.user = { id: 101, role, fundIds: [2] };
@@ -592,7 +590,7 @@ describe('reserve intelligence run routes', () => {
     }
   );
 
-  it.each(['admin', 'analyst', 'partner'])(
+  it.each(['admin', 'analyst', 'partner', 'viewer', 'operator'])(
     'allows a fund-scoped %s command and returns 201 for a new run',
     async (role) => {
       authState.user = { id: 101, role, fundIds: [1] };
