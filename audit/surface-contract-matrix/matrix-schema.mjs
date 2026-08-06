@@ -1886,7 +1886,7 @@ const sourceWithoutTypeImports = (source) =>
       match.replaceAll(/[^\n]/g, ' '),
     )
     .replace(
-      /\bimport\s*\{([^}]*)\}\s*from\s*(['"])[^'"]+\2\s*;?/g,
+      /\bimport\s*\{([^}]*)\}\s*from\s*(?:'[^'\n]*'|"[^"\n]*")\s*;?/g,
       (match, namedList) => {
         // Deterministic token check: blank the statement only when every
         // named import is an inline `type X`. Avoids the nested-quantifier

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "snapshot_id": "snapshot:a59d80de4801e24bbec98a222321bf3b621f2dd3c807309304af74110541a80b",
+  "snapshot_id": "snapshot:3897018e401aba35a8d8d1a88439f27e283e6119afd3538d3e02b78ef19a10a4",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -480,7 +480,7 @@
     "api/[...slug].ts": "2b45faee7726ceca4df08b8bed599ba2713697255411f594df7ef067db28000e",
     "api/telemetry/wizard.ts": "055e2fb386041bc22fea7ce410e4b27f536a4cfab204da13804ca6c270cf901d",
     "audit/surface-contract-matrix/boot-proofs.json": "abf34b839f3bed6be31190bd8a18ad5dd3b6444f43a725c2a16aa9be405b6e0f",
-    "audit/surface-contract-matrix/matrix-schema.mjs": "94c011933a33b90c6de6a7ed261de3d56be62ed4580bf7cc7b217061d9f40516",
+    "audit/surface-contract-matrix/matrix-schema.mjs": "52b54da71f1346c2c1b89a4d5a4583d8382d536d9943f36193e0514b72caf0e7",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "446aad251b4b58d5546e50cf5f3d493f47d9a618a5b2f77db52064dd14a177d8",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "3d6c260813519a83bd0888370772a11f8d719d5b36e7b2b1352e584845cf7065",
     "audit/surface-contract-matrix/scripts/classify-pass.mjs": "0fd90ebc7bd5c465d76debc19e16c161597505c857266baec3e7e2ca68fe643b",
@@ -6541,7 +6541,7 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:a59d80de4801e24bbec98a222321bf3b621f2dd3c807309304af74110541a80b"
+      "snapshot:3897018e401aba35a8d8d1a88439f27e283e6119afd3538d3e02b78ef19a10a4"
     ]
   },
   "kg_counts": {
