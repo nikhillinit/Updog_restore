@@ -21,6 +21,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-08-07)
+
+- **Governed journaled production recovery and post-promotion driver-log gate
+  (ADR-074).** A manually dispatched, exact-live-`main` workflow now audits or,
+  with separate production-schema approval and a restore-point reference,
+  applies only the contiguous Drizzle migration range `0045`-`0049`. The runner
+  rejects partial or unexpected ledger states, uses the existing schema advisory
+  lock, delegates target DDL plus five ledger writes to one Drizzle transaction,
+  and requires the target manifests to reconcile cleanly after apply. Production
+  release remains separately dispatched and now finishes its authenticated
+  post-promotion smoke with a bounded Vercel log query that fails on Neon pool
+  errors, database fetch failures, or neon-http transaction-support errors; the
+  workflow does not upload raw runtime logs.
+
 ### Fixed (2026-08-07)
 
 - **Vercel transaction support restored (F_1.2.4 WS2 G3, ADR-073, v1.5.0).**
