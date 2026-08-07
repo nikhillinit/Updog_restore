@@ -110,6 +110,31 @@ jobs:
           rm reports/recovery.raw
           exit "$STATUS"
 
+      - name: Re-fence live main before recovery apply
+        if: inputs.mode == 'apply'
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "expected_sha must be a lowercase full commit SHA; production recovery is blocked."
+            exit 1
+          fi
+          if ! LIVE_MAIN="$(gh api "repos/${REPO}/commits/main" --jq '.sha')"; then
+            echo "Unable to re-resolve current main SHA; production recovery is blocked."
+            exit 1
+          fi
+          if [[ ! "$LIVE_MAIN" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Current main SHA has an unexpected shape; production recovery is blocked."
+            exit 1
+          fi
+          if [[ "$LIVE_MAIN" != "$EXPECTED_SHA" ]]; then
+            echo "main changed after initial validation; production recovery is blocked."
+            exit 1
+          fi
+
       - name: Apply journaled recovery
         if: inputs.mode == 'apply'
         env:

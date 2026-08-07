@@ -6,6 +6,15 @@ describe('Vercel driver log gate', () => {
     expect(assertDriverLogsClean('{"message":"health probe complete"}\n')).toEqual({ lines: 1 });
   });
 
+  it('rejects a forbidden signature after more than 100 unrelated entries', () => {
+    const entries = Array.from({ length: 101 }, (_, index) =>
+      JSON.stringify({ message: `health probe complete ${index}` })
+    );
+    entries.push(JSON.stringify({ message: 'request failed: Neon pool error' }));
+
+    expect(() => assertDriverLogsClean(entries.join('\n'))).toThrow(/Neon pool error/i);
+  });
+
   for (const signature of [
     'Neon pool error',
     'fetch failed',

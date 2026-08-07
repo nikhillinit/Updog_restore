@@ -433,9 +433,19 @@ jobs:
           : "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
           runtime_log="$RUNNER_TEMP/vercel-runtime.jsonl"
           trap 'rm -f "$runtime_log"' EXIT
-          npx --yes vercel@55.0.0 logs "$PRODUCTION_URL" \
-            --environment production \
-            --since "$LOG_WINDOW_START" \
-            --json \
-            --no-color > "$runtime_log"
-          node scripts/assert-vercel-driver-log-clean.mjs "$runtime_log"
+          signature_queries=(
+            '"Neon pool error"'
+            '"fetch failed"'
+            '"No transactions support in neon-http driver"'
+          )
+          for signature_query in "${signature_queries[@]}"; do
+            npx --yes vercel@55.0.0 logs "$PRODUCTION_URL" \
+              --environment production \
+              --since "$LOG_WINDOW_START" \
+              --query "$signature_query" \
+              --limit 1 \
+              --no-follow \
+              --json \
+              --no-color > "$runtime_log"
+            node scripts/assert-vercel-driver-log-clean.mjs "$runtime_log"
+          done

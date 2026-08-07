@@ -3678,6 +3678,19 @@ describe('required CI fails closed', () => {
     expect(scripts).toContain('npm install -g npm@10.9.2');
     expect(scripts).toContain('npm ci --prefer-offline --no-audit');
 
+    const recoverySteps = workflow.jobs?.recover?.steps ?? [];
+    const applyIndex = recoverySteps.findIndex((step) => step.name === 'Apply journaled recovery');
+    expect(applyIndex).toBeGreaterThan(0);
+    const applyFence = recoverySteps[applyIndex - 1];
+    expect(applyFence?.name).toBe('Re-fence live main before recovery apply');
+    expect(applyFence?.if).toBe("inputs.mode == 'apply'");
+    expect(applyFence?.env?.EXPECTED_SHA).toBe('${{ inputs.expected_sha }}');
+    expect(applyFence?.env?.GH_TOKEN).toBe('${{ github.token }}');
+    expect(applyFence?.env?.REPO).toBe('${{ github.repository }}');
+    expect(applyFence?.run).toContain('gh api "repos/${REPO}/commits/main" --jq \'.sha\'');
+    expect(applyFence?.run).toContain('[[ ! "$LIVE_MAIN" =~ ^[0-9a-f]{40}$ ]]');
+    expect(applyFence?.run).toContain('[[ "$LIVE_MAIN" != "$EXPECTED_SHA" ]]');
+
     const upload = workflow.jobs?.recover?.steps?.find((step) =>
       step.uses?.startsWith('actions/upload-artifact@')
     );
@@ -3897,6 +3910,25 @@ describe('required CI fails closed', () => {
     expect(driverLogGate?.run).toContain('--since "$LOG_WINDOW_START"');
     expect(driverLogGate?.run).toContain('--json');
     expect(driverLogGate?.run).toContain('--no-color');
+    expect(driverLogGate?.run).toContain('--no-follow');
+    expect(driverLogGate?.run).toContain('--limit 1');
+    expect(driverLogGate?.run).toContain('--query "$signature_query"');
+    for (const signature of [
+      'Neon pool error',
+      'fetch failed',
+      'No transactions support in neon-http driver',
+    ]) {
+      expect(driverLogGate?.run).toContain(`'"${signature}"'`);
+    }
+    const driverLogCommands = vercelCommandTokens(driverLogGate?.run ?? '').filter((tokens) =>
+      tokens.includes('logs')
+    );
+    expect(driverLogCommands).toHaveLength(1);
+    for (const tokens of driverLogCommands) {
+      expect(tokens).toContain('--query');
+      expect(tokens).toContain('--no-follow');
+      expect(tokens[tokens.indexOf('--limit') + 1]).toBe('1');
+    }
     expect(driverLogGate?.run).toContain('trap \'rm -f "$runtime_log"\' EXIT');
     expect(driverLogGate?.run).toContain(
       'node scripts/assert-vercel-driver-log-clean.mjs "$runtime_log"'
