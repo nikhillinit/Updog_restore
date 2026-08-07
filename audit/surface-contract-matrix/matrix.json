@@ -93506,7 +93506,7 @@
       "contract_fingerprint": "88789ff31c651df75400bb97eb3036adba8229edee0fe01f919801b16e90b272",
       "approved_source_hashes": [
         "server/routes/fund-config.ts=5f4f424ef42c0e0293320b7a3cd4810b31bd965389ab9367cb5f8b595db5eaff",
-        "workers/cohort-worker.ts=ac6e3cf95398c591b2d06540d6f12e7a1a9a43ac6715d84c08e46c96b6bfb8f1"
+        "workers/cohort-worker.ts=aa05a747b0a8605eb23264cd2149b0cf737b0f0f4a8d092fa57e0e32c416e187"
       ],
       "machine_suggestions": {
         "owner": "unassigned",
@@ -93810,7 +93810,7 @@
       "closure_acceptance": "worker container boot + queue-consumer registration + health probes: Dockerfile.worker boots with Redis/PostgreSQL, named BullMQ consumer registers, and /health,/live,/ready,/metrics,/stats respond successfully.",
       "contract_fingerprint": "34a0f5c46f1217ddc74226ec7e48f3a7db5207cb71ae21b779bb82be5f92b1c0",
       "approved_source_hashes": [
-        "workers/fund-scenario-calc-worker.ts=d1477402a37cb3f82753e6dc28e428df98f4d0fc9641748df2cb64cdbd4de672"
+        "workers/fund-scenario-calc-worker.ts=a65cd97adff6b0d027fe1e5e9002b2b3b66097b43436ea4a0a6988833a05830a"
       ],
       "machine_suggestions": {
         "owner": "unassigned",
@@ -94415,7 +94415,7 @@
       "contract_fingerprint": "717626833fc541623b6b6a8189e9db8c47b7e0b44d39d17b03b78210fbee4b75",
       "approved_source_hashes": [
         "server/routes/fund-config.ts=5f4f424ef42c0e0293320b7a3cd4810b31bd965389ab9367cb5f8b595db5eaff",
-        "workers/pacing-worker.ts=7280c9f767f1a8658396d7118235d4bfe4da4e48818ccfe02c88ea26c15dfe38"
+        "workers/pacing-worker.ts=150b9639a3ad28e49023ac13489380d0c021120cfc17e750be9a4018d395d0d7"
       ],
       "machine_suggestions": {
         "owner": "unassigned",
@@ -94547,7 +94547,7 @@
       "contract_fingerprint": "717626833fc541623b6b6a8189e9db8c47b7e0b44d39d17b03b78210fbee4b75",
       "approved_source_hashes": [
         "server/routes/fund-config.ts=5f4f424ef42c0e0293320b7a3cd4810b31bd965389ab9367cb5f8b595db5eaff",
-        "workers/reserve-worker.ts=268c4e72a8d6041f1690b36b9a4300463c3a3ecd74ca2d90b609c0b47f28bbe5"
+        "workers/reserve-worker.ts=2ca51a73020b0e34e166389f7779dcbe9d0d66af429d4e78bb9ccb96c846518a"
       ],
       "machine_suggestions": {
         "owner": "unassigned",
@@ -94682,7 +94682,7 @@
       "contract_fingerprint": "c43bcff268d31ffa41384ffd5c2e317756c973eca24bdf4a87a6ebdf95ed5e09",
       "approved_source_hashes": [
         "server/services/CacheWarmingService.ts=5ae86364d4e617a001425143f4136f50ea1afb0d2c91123dd8913038abaaabb2",
-        "server/workers/scenarioGeneratorWorker.ts=3bf48cb9217760fc2b51243f604fafb5a103b64715dc4826b837609f58d640f4"
+        "server/workers/scenarioGeneratorWorker.ts=59cd2ff2b4f5f86cec91800c5c821dfc60f3c7ae94b5bde68888ce7434f26cce"
       ],
       "machine_suggestions": {
         "owner": "unassigned",
@@ -99265,7 +99265,7 @@
       "server/websocket/portfolio-metrics.ts": "9c331deb7f137d62b5723d55529f949aa7c5c779c92d34bc7f1b2669ec4f7c59",
       "server/workers/capital-call-status-worker.ts": "2ba8ef7a26710cce814c6ccb1bb19019d231e0a107a2324af461665c7dabadf1",
       "server/workers/lp-materialized-view-refresh.ts": "5de164980fc2d19298d80c4090a660eb77e90ded8d3549361404c7a0b4644224",
-      "server/workers/scenarioGeneratorWorker.ts": "3bf48cb9217760fc2b51243f604fafb5a103b64715dc4826b837609f58d640f4",
+      "server/workers/scenarioGeneratorWorker.ts": "59cd2ff2b4f5f86cec91800c5c821dfc60f3c7ae94b5bde68888ce7434f26cce",
       "shared/auth/effective-roles.ts": "137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6",
       "shared/routes/api-route-manifest.ts": "bbb30787396be3f376adf3047cc6db79c1bed9f29f3956c5ed61241d62c45b59",
       "shared/routes/api-runtime-specific-manifest.ts": "0daa50b7d7d569e6068a8e6998e57b3a6b3c76effa5a3834d53302c60b566805",
@@ -99273,15 +99273,16 @@
       "shared/routes/route-governance-registry.ts": "07c1e15b2f1c343320125eac20ff75e55c6c7f63fa2b1d578aba9eadd8c76928",
       "vercel.json": "4304014b77ad44d55a09c1349c01dc389bd84f561556dc8fc96a084cc618d491",
       "vite.config.ts": "44f0745da9cf4aa73c55447b22dc8c5e9dd34bbd06b760899e00908ba08b18ad",
-      "workers/cohort-worker.ts": "ac6e3cf95398c591b2d06540d6f12e7a1a9a43ac6715d84c08e46c96b6bfb8f1",
+      "workers/cohort-worker.ts": "aa05a747b0a8605eb23264cd2149b0cf737b0f0f4a8d092fa57e0e32c416e187",
       "workers/dlq.ts": "4ab16ca234a24130b20abfcc78cdf9b6a159f5104fb682cc390adccbc0acedae",
       "workers/fund-scenario-calc-handler.ts": "5b42677050f8fb53451777d312899a9823230c298d40dc7e9a6c4b2b1f9b3cc8",
-      "workers/fund-scenario-calc-worker-harness.ts": "b8f455cac78c2f3ae6152c4f3a82daea6890b164f946d6c8639047cdc05951d3",
-      "workers/fund-scenario-calc-worker.ts": "d1477402a37cb3f82753e6dc28e428df98f4d0fc9641748df2cb64cdbd4de672",
+      "workers/fund-scenario-calc-worker-harness.ts": "763aa8da2ded957ac0d0d99b8a2deac5aa45d53f1a9c66a2b1abc71d92cba96b",
+      "workers/fund-scenario-calc-worker.ts": "a65cd97adff6b0d027fe1e5e9002b2b3b66097b43436ea4a0a6988833a05830a",
       "workers/health-server.ts": "ab00f7448991e36fea49d043157b66e0425a9b3f18fcceb00783b0e14ccca2ee",
       "workers/pacing-worker-support.ts": "78a9463576d1a13ee0f00944ee78be7e89fce1802dcccda8c974a03f6a9978cb",
-      "workers/pacing-worker.ts": "7280c9f767f1a8658396d7118235d4bfe4da4e48818ccfe02c88ea26c15dfe38",
-      "workers/reserve-worker.ts": "268c4e72a8d6041f1690b36b9a4300463c3a3ecd74ca2d90b609c0b47f28bbe5",
+      "workers/pacing-worker.ts": "150b9639a3ad28e49023ac13489380d0c021120cfc17e750be9a4018d395d0d7",
+      "workers/queue-error-logging.ts": "bed9f895c4c0a6effea3aeffc59fb7a25e635c0c16d486be3fc4e72dba780595",
+      "workers/reserve-worker.ts": "2ca51a73020b0e34e166389f7779dcbe9d0d66af429d4e78bb9ccb96c846518a",
       "package.json#scripts": "734874fa45c4fbbc0238901ab94c153d1416df1d1078ab8fcebdcf045143448e",
       "shared/routes/api-route-manifest.ts#normalized-runtime-export": "9116de446fb696cd9ada74c11033f25c422bb5be30410d839ea23cb76b07b314",
       "shared/routes/api-runtime-specific-manifest.ts#normalized-runtime-export": "f7ec3dfc046d32b5e3622f1d6ae98b1c7b6479bedf7b20296f1b920fd0a19c15",
