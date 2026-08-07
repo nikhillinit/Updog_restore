@@ -1,7 +1,6 @@
 [
   {
     "id": "dormant:client/src/pages/admin/telemetry.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/admin/telemetry.tsx",
       "seam": "dormant-ui",
@@ -44,14 +43,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "f0030e0f58de0d2c5415b7c5ea8d7e1a71e9e64f38b29c2fc94a5e8d96c78dae"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/analytics.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/analytics.tsx",
       "seam": "dormant-ui",
@@ -94,14 +89,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "38973fcf53ec1a16f517ce535d288c4eae1ae06c9e5342be450f971c2ebcec5c"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/CompanyDetail.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/CompanyDetail.tsx",
       "seam": "dormant-ui",
@@ -144,14 +135,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "07f4fae133df72d6eff3949f3bd6e11353c464fa9480570b44392d63f3dd54ea"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/CustomFields.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/CustomFields.tsx",
       "seam": "dormant-ui",
@@ -194,14 +181,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "e7d445d6b39556c4f6e3ddc6d1a2cd0e8df890970de8241e8eb49d62f80d3023"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/ExitRecyclingStep.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/ExitRecyclingStep.tsx",
       "seam": "dormant-ui",
@@ -244,14 +227,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "fe767c22be24a2f7dcce0312bd2082a2a43eb796e60d69e46e9408d58b92412e"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/InvestmentRoundsStep.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/InvestmentRoundsStep.tsx",
       "seam": "dormant-ui",
@@ -294,14 +273,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "4d523fe86ee8b5db4ec24c18d252534d8878e3f1763278182ddc08dc5cad636d"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/investments-table.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/investments-table.tsx",
       "seam": "dormant-ui",
@@ -344,14 +319,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "ca701c13bfba9bdab08744aa24089861270048ffc1d5e7b187f5e7169a4f9851"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/investments.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/investments.tsx",
       "seam": "dormant-ui",
@@ -394,14 +365,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "fbe0f67b95577417109e782ea86ab807bf3b8cb49f64ed740f85552ff5d3781b"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/index.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-manager/index.tsx",
       "seam": "dormant-ui",
@@ -444,14 +411,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "7ec8905c801522cc0c8823a503816f500d53ad98494018088f35df07f5982ae6"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/KpiDefinitionModal.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-manager/KpiDefinitionModal.tsx",
       "seam": "dormant-ui",
@@ -494,14 +457,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "a90c8aa8e03a177958f8a6ab18414e2218bc560806c363095bfba2917008b006"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/KpiTabs.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-manager/KpiTabs.tsx",
       "seam": "dormant-ui",
@@ -544,14 +503,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "0a97c0994b1f49d5c5b386999eb26b608cabcbc08970b646512c20a7a5fb1201"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/panes/AnalyticsPane.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-manager/panes/AnalyticsPane.tsx",
       "seam": "dormant-ui",
@@ -594,14 +549,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "ec0da1dbf7a5833725958add3339a8672c2a9b83e2daaba618f80647a87d49f8"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/panes/OverviewPane.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-manager/panes/OverviewPane.tsx",
       "seam": "dormant-ui",
@@ -644,14 +595,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "b9bbd13628ad862e6f11aa0236fe6544431bb063cbad88f32af911baa150a720"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/panes/SettingsPane.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-manager/panes/SettingsPane.tsx",
       "seam": "dormant-ui",
@@ -694,14 +641,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "71810307308781cfa4bafc505a31e04c3baeefa160f62690dc0a5a76c5d58839"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/tabs-config.ts",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-manager/tabs-config.ts",
       "seam": "dormant-ui",
@@ -744,14 +687,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "a83ba10fda5e68831bd7180174877147706db4d601ce4c11d41cf0db90f63838"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/useKpiManager.ts",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-manager/useKpiManager.ts",
       "seam": "dormant-ui",
@@ -794,14 +733,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "f157cbf879b52044e56807ce3f3825cdf3ac22467df8ffdbe0d5c2126989ea04"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/useModalState.ts",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-manager/useModalState.ts",
       "seam": "dormant-ui",
@@ -844,14 +779,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "694ab267c09efbe5470a27953bf4aa2ee5c00af9266961dafb22507f4b6c7b26"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/kpi-submission.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-submission.tsx",
       "seam": "dormant-ui",
@@ -894,14 +825,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "36218727f9ec6c53b162813e83a7a9e01c0939099704045fd6b1dbd018c415bd"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/notion-integration.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/notion-integration.tsx",
       "seam": "dormant-ui",
@@ -944,14 +871,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "a428fca6b436eb9642a2b0c3394bcaab7a77238d160eba40487b86032d9c37b6"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/partial-sales.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/partial-sales.tsx",
       "seam": "dormant-ui",
@@ -994,14 +917,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "f36a0c421e237b5d136df4d413d72269146a9faf50592a3ee33f3603454122f6"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/planning.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/planning.tsx",
       "seam": "dormant-ui",
@@ -1044,14 +963,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "7c35f5ba52631284a00efc6f1b85b6acace53691be17110b1451aedc78dec437"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/portfolio-company-detail.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/portfolio-company-detail.tsx",
       "seam": "dormant-ui",
@@ -1094,14 +1009,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "d9f1149c29323ba2d290a6c75a3d898e91c04761db8b0fed3e717ef3cb0a65f0"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/portfolio-constructor.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/portfolio-constructor.tsx",
       "seam": "dormant-ui",
@@ -1144,14 +1055,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "a319bbd829d0f9d4fd89aac2e5ba5f7a3cb548944388feb27d8a93edd3516b15"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/return-the-fund.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/return-the-fund.tsx",
       "seam": "dormant-ui",
@@ -1194,14 +1101,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "31c787b24da11f3293a811251e7165e5f06a3b21ad543483c9513d5bc1d3bf21"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/secondary-market.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/secondary-market.tsx",
       "seam": "dormant-ui",
@@ -1244,14 +1147,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "4115b6b6d9002f3a5efdfa75fedc7d33b3584f7cd2771c6e6d96de1d41c5dfd9"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/time-travel.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/time-travel.tsx",
       "seam": "dormant-ui",
@@ -1294,14 +1193,10 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "acd4a3dab29766e4758b86cf6a537bc67c23b0994bd409db4b153e68bbe84c70"
+    "decision_status": "proposed"
   },
   {
     "id": "dormant:client/src/pages/WaterfallStep.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/WaterfallStep.tsx",
       "seam": "dormant-ui",
@@ -1344,9 +1239,145 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "f2a3a9f5c0dd90b2f2ce04bfc94c7b9f2a4b2faa41a7f1abfb1ece1af6e0afe7"
+    "decision_status": "proposed"
+  },
+  {
+    "id": "ws:setup-websocket-servers",
+    "resolution": "unresolved",
+    "vanished_row": {
+      "id": "ws:setup-websocket-servers",
+      "seam": "websocket",
+      "interface": "websocket",
+      "personas": [
+        "unknown"
+      ],
+      "reachability": "railway",
+      "proven_reachability": "none",
+      "exposures": [
+        {
+          "deployment": "railway-api",
+          "runtime": "websocket_server",
+          "mount_evidence": "server/routes.ts:153",
+          "ingresses": [],
+          "conditions": [],
+          "definitions": [
+            {
+              "site": "server/routes.ts:153",
+              "role": "handler",
+              "effective_mount_order": 0
+            }
+          ],
+          "boot_status": "failed",
+          "boot_evidence": {
+            "command_or_artifact": "npm run build:prod; Dockerfile.railway ENTRYPOINT [\"dumb-init\",\"--\"] + CMD [\"node\",\"dist/index.js\"]",
+            "probe": "GET /health; expected HTTP 2xx; 404/405 are failures",
+            "result": "docker unavailable; exact dist/index.js CMD exited with no HTTP listener (bootstrap() is not invoked)",
+            "observed_at": "proof:f367e3eacd574c647079b0560010f3e117da420358b1e92515f34e12ea0ca3da"
+          }
+        }
+      ],
+      "persistence": "unknown",
+      "destructive": "unknown",
+      "environment": "unknown",
+      "owner": "unassigned",
+      "evidence": [
+        "server/routes.ts:153"
+      ],
+      "source_mapping": {
+        "registration": "server/routes.ts:153"
+      },
+      "queue_roles": {
+        "producers": [],
+        "consumers": []
+      },
+      "auth_roles": [],
+      "auth_evidence": [],
+      "behavior_flags": [],
+      "test_evidence": {
+        "derived": [
+          {
+            "row": "ws:setup-websocket-servers",
+            "deployment": "railway-api",
+            "runtime": "websocket_server",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/allocations-keyset-cursor-db.test.ts:1",
+            "assertion_confirmed": false,
+            "test_file_sha256": "88598acaf0e6f0f1e723a71028d924c1ea593232f8793a1a987a7c6234cc0d1f"
+          },
+          {
+            "row": "ws:setup-websocket-servers",
+            "deployment": "railway-api",
+            "runtime": "websocket_server",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/core-summary-routes.test.ts:1",
+            "assertion_confirmed": false,
+            "test_file_sha256": "a09a98629b44d7eadc7a77f98aa034e675a67d9383890fe96db6a3c6ee854faf"
+          },
+          {
+            "row": "ws:setup-websocket-servers",
+            "deployment": "railway-api",
+            "runtime": "websocket_server",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/dashboard-summary-route.test.ts:1",
+            "assertion_confirmed": false,
+            "test_file_sha256": "cf6c30913aba69a6f9bcc03807ce2d4b93ff5f171e25c509a807c0abf0a6b930"
+          },
+          {
+            "row": "ws:setup-websocket-servers",
+            "deployment": "railway-api",
+            "runtime": "websocket_server",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/lp-api.test.ts:1",
+            "assertion_confirmed": false,
+            "test_file_sha256": "93cdada4efbc06eeca6dd9c1adb4378d56a2fad57ad4082c1c6bd464a025bc34"
+          },
+          {
+            "row": "ws:setup-websocket-servers",
+            "deployment": "railway-api",
+            "runtime": "websocket_server",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/operations-endpoint.quarantine.test.ts:1",
+            "assertion_confirmed": false,
+            "test_file_sha256": "f991b6548b26b1df509e6e84be05e40793402bbdcc1b0a9af76d288462ad9da1"
+          },
+          {
+            "row": "ws:setup-websocket-servers",
+            "deployment": "railway-api",
+            "runtime": "websocket_server",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/performance-api.test.ts:1",
+            "assertion_confirmed": false,
+            "test_file_sha256": "b0a3a756f6fd2b0ed615a6932f802debb24a05d48c13e231349dba9966aca29e"
+          },
+          {
+            "row": "ws:setup-websocket-servers",
+            "deployment": "railway-api",
+            "runtime": "websocket_server",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/portfolio-activity-routes.test.ts:1",
+            "assertion_confirmed": false,
+            "test_file_sha256": "c7f895d43fac2aa21f611b96670ceca3bd9ced41a5ea2db6d2ae1d72febb24ba"
+          },
+          {
+            "row": "ws:setup-websocket-servers",
+            "deployment": "railway-api",
+            "runtime": "websocket_server",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/storage-health-mode.test.ts:1",
+            "assertion_confirmed": false,
+            "test_file_sha256": "0257f0c41b9c01c21f349fb1b239a0894094f85c554dae575a32a8e699cefc66"
+          }
+        ],
+        "manual": []
+      },
+      "classification": "unclassified",
+      "decision": "keep-and-prove",
+      "decision_suggestion": "keep-and-prove",
+      "decision_status": "proposed",
+      "contract_fingerprint": "fc50ad8bb94ea37ff7ec0114e91cbabbd8b7968e6725b6d03648328f29b1a608",
+      "approved_source_hashes": [],
+      "machine_suggestions": {}
+    },
+    "last_contract_fingerprint": "fc50ad8bb94ea37ff7ec0114e91cbabbd8b7968e6725b6d03648328f29b1a608"
   }
 ]
