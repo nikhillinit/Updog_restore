@@ -1,6 +1,9 @@
 {
   "$schema": "./schemas/large-file-allowlist.schema.json",
   "description": "Files and patterns allowed to exceed the 10MB size limit",
-  "files": ["audit/surface-contract-matrix/matrix.json"],
+  "files": [
+    "audit/surface-contract-matrix/g1-review.json",
+    "audit/surface-contract-matrix/matrix.json"
+  ],
   "patterns": ["^assets/videos/", "\\.wasm$"]
 }

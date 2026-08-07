@@ -125,6 +125,8 @@ const PUBLIC_API_EXACT_PATHS = new Set([
   '/flags/status',
 ]);
 const PUBLIC_NON_API_EXACT_PATHS = new Set([
+  '/api-docs',
+  '/api-docs.json',
   '/healthz',
   '/readyz',
   '/health',
@@ -332,6 +334,7 @@ const applyBootProofs = (rows, bootProofDocument) => {
     const proven = new Set();
     for (const exposure of row.exposures) {
       if (exposure.boot_status !== 'proven') continue;
+      if (row.interface === 'http-api' && (exposure.ingresses ?? []).length === 0) continue;
       if (row.interface === 'client-route' && ['vercel-web', 'railway-web'].includes(exposure.deployment)) {
         proven.add('client');
       } else if (exposure.deployment === 'vercel-api') {
@@ -459,10 +462,10 @@ const globalAuthEvidenceForExposure = ({ exposure, method, routePath }) => {
   const precedingSources = GLOBAL_BOUNDARY_PRECEDING_SOURCES_BY_RUNTIME[exposure.runtime] ?? new Set();
   const hasPreBoundaryDefinition = definitions.some((definition) => {
     const source = sourceFileForDefinition(definition);
-    if (!precedingSources.has(source)) return false;
-    if (exposure.runtime === 'create_server' && source === 'server/server.ts') {
+    if (source === boundary.file) {
       return definitionLine(definition) > 0 && definitionLine(definition) < boundary.line;
     }
+    if (!precedingSources.has(source)) return false;
     return true;
   });
   if (hasPreBoundaryDefinition) return [];
@@ -565,10 +568,16 @@ const authSuggestionFor = ({
     evidence.push(...exposure.auth_evidence);
   }
   const boundary = policyAuthBoundary(manifest, policy);
-  const roles = sortedUnique([
-    ...evidence.map((entry) => entry.role).filter(Boolean),
-    ...authBoundaryRoles(boundary),
-  ]);
+  const evidenceRoles = evidence.map((entry) => entry.role).filter(Boolean);
+  let roles = sortedUnique([...evidenceRoles, ...authBoundaryRoles(boundary)]);
+  // An `and_role` policy boundary injects the unresolved sentinel meaning
+  // "role-gated, roles unknown". Concrete guard-role evidence satisfies that
+  // demand; keep the sentinel only when the guards themselves are unresolved
+  // or no role evidence exists at all (fail closed).
+  const guardRoles = evidenceRoles.filter((role) => role !== AUTH_UNRESOLVED_ROLE);
+  if (!evidenceRoles.includes(AUTH_UNRESOLVED_ROLE) && guardRoles.length > 0) {
+    roles = roles.filter((role) => role !== AUTH_UNRESOLVED_ROLE);
+  }
   const mappedRoles = roles.filter((role) => role !== AUTH_UNRESOLVED_ROLE);
   const personas = suggestedPersonasForAuthRoles(mappedRoles);
   if (roles.includes(AUTH_UNRESOLVED_ROLE)) personas.push('unknown');
@@ -928,8 +937,10 @@ const makeApiRows = ({ nodes, edges, runtimeIndex, snapshotId }) => {
     });
     const persistenceSuggestion = persistenceSuggestionFor(node.method, policy);
     const safeMethod = ['GET', 'HEAD', 'OPTIONS'].includes(String(node.method).toUpperCase());
-    const hasVercelExposure = exposures.some((exposure) => exposure.deployment === 'vercel-api');
-    const hasRailwayExposure = exposures.some((exposure) => exposure.deployment === 'railway-api');
+    const hasVercelExposure = exposures.some((exposure) =>
+      exposure.deployment === 'vercel-api' && (exposure.ingresses ?? []).length > 0);
+    const hasRailwayExposure = exposures.some((exposure) =>
+      exposure.deployment === 'railway-api' && (exposure.ingresses ?? []).length > 0);
     const reachability = manifest && hasVercelExposure && hasRailwayExposure
       ? 'both'
       : hasVercelExposure ? 'vercel'

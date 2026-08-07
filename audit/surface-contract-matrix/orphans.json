@@ -1,7 +1,6 @@
 [
   {
     "id": "dormant:client/src/pages/admin/telemetry.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/admin/telemetry.tsx",
       "seam": "dormant-ui",
@@ -44,14 +43,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "f0030e0f58de0d2c5415b7c5ea8d7e1a71e9e64f38b29c2fc94a5e8d96c78dae"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/admin/telemetry.tsx is superseded by dormant-candidates entry client/src/pages/admin/telemetry.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/admin/telemetry.tsx is superseded by dormant-candidates entry client/src/pages/admin/telemetry.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "c0193c320cae2b05d91d8ea6b55d3d8f1704e72b5b4d55ec3bc2024ba04ee2fc",
+    "contract_fingerprint": "c0193c320cae2b05d91d8ea6b55d3d8f1704e72b5b4d55ec3bc2024ba04ee2fc"
   },
   {
     "id": "dormant:client/src/pages/analytics.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/analytics.tsx",
       "seam": "dormant-ui",
@@ -94,14 +94,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "38973fcf53ec1a16f517ce535d288c4eae1ae06c9e5342be450f971c2ebcec5c"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/analytics.tsx is superseded by dormant-candidates entry client/src/pages/analytics.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/analytics.tsx is superseded by dormant-candidates entry client/src/pages/analytics.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "2cced8122c7c4adad1320774d7da7ddf81009fc05a6a84c79101a312af3ce6cd",
+    "contract_fingerprint": "2cced8122c7c4adad1320774d7da7ddf81009fc05a6a84c79101a312af3ce6cd"
   },
   {
     "id": "dormant:client/src/pages/CompanyDetail.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/CompanyDetail.tsx",
       "seam": "dormant-ui",
@@ -144,14 +145,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "07f4fae133df72d6eff3949f3bd6e11353c464fa9480570b44392d63f3dd54ea"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/CompanyDetail.tsx is superseded by dormant-candidates entry client/src/pages/CompanyDetail.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/CompanyDetail.tsx is superseded by dormant-candidates entry client/src/pages/CompanyDetail.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "17b3abe02468f44648c27bfec8d2ef91ef5cd7b54ee815e48f3c7525b59b5d29",
+    "contract_fingerprint": "17b3abe02468f44648c27bfec8d2ef91ef5cd7b54ee815e48f3c7525b59b5d29"
   },
   {
     "id": "dormant:client/src/pages/CustomFields.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/CustomFields.tsx",
       "seam": "dormant-ui",
@@ -194,14 +196,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "e7d445d6b39556c4f6e3ddc6d1a2cd0e8df890970de8241e8eb49d62f80d3023"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/CustomFields.tsx is superseded by dormant-candidates entry client/src/pages/CustomFields.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/CustomFields.tsx is superseded by dormant-candidates entry client/src/pages/CustomFields.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "15736171fcc81ffbd9225971b6f70306ef3c9812a1b8fa652c1defb13f5c1f81",
+    "contract_fingerprint": "15736171fcc81ffbd9225971b6f70306ef3c9812a1b8fa652c1defb13f5c1f81"
   },
   {
     "id": "dormant:client/src/pages/ExitRecyclingStep.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/ExitRecyclingStep.tsx",
       "seam": "dormant-ui",
@@ -244,14 +247,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "fe767c22be24a2f7dcce0312bd2082a2a43eb796e60d69e46e9408d58b92412e"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/ExitRecyclingStep.tsx is superseded by dormant-candidates entry client/src/pages/ExitRecyclingStep.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/ExitRecyclingStep.tsx is superseded by dormant-candidates entry client/src/pages/ExitRecyclingStep.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "36bac20a92a3650a7971f456300441fa837a540bb39126a8f65ebeb0a5a6cc47",
+    "contract_fingerprint": "36bac20a92a3650a7971f456300441fa837a540bb39126a8f65ebeb0a5a6cc47"
   },
   {
     "id": "dormant:client/src/pages/InvestmentRoundsStep.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/InvestmentRoundsStep.tsx",
       "seam": "dormant-ui",
@@ -294,14 +298,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "4d523fe86ee8b5db4ec24c18d252534d8878e3f1763278182ddc08dc5cad636d"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/InvestmentRoundsStep.tsx is superseded by dormant-candidates entry client/src/pages/InvestmentRoundsStep.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/InvestmentRoundsStep.tsx is superseded by dormant-candidates entry client/src/pages/InvestmentRoundsStep.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "3cd90dc008394519fdd06f3ffbb31dc7f1ed6447ddb5853882b0953fa098b7b1",
+    "contract_fingerprint": "3cd90dc008394519fdd06f3ffbb31dc7f1ed6447ddb5853882b0953fa098b7b1"
   },
   {
     "id": "dormant:client/src/pages/investments-table.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/investments-table.tsx",
       "seam": "dormant-ui",
@@ -344,14 +349,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "ca701c13bfba9bdab08744aa24089861270048ffc1d5e7b187f5e7169a4f9851"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/investments-table.tsx is superseded by dormant-candidates entry client/src/pages/investments-table.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/investments-table.tsx is superseded by dormant-candidates entry client/src/pages/investments-table.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "d5f53946009c2613cf053b406dd14f00e9a250c34be825a23a544df541fd3517",
+    "contract_fingerprint": "d5f53946009c2613cf053b406dd14f00e9a250c34be825a23a544df541fd3517"
   },
   {
     "id": "dormant:client/src/pages/investments.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/investments.tsx",
       "seam": "dormant-ui",
@@ -394,14 +400,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "fbe0f67b95577417109e782ea86ab807bf3b8cb49f64ed740f85552ff5d3781b"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/investments.tsx is superseded by dormant-candidates entry client/src/pages/investments.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/investments.tsx is superseded by dormant-candidates entry client/src/pages/investments.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "dba22fb418691999b6d95ced4f134c9839a7fb0dff4ed469fa77b8de0ac12736",
+    "contract_fingerprint": "dba22fb418691999b6d95ced4f134c9839a7fb0dff4ed469fa77b8de0ac12736"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/index.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-manager/index.tsx",
       "seam": "dormant-ui",
@@ -444,14 +451,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "7ec8905c801522cc0c8823a503816f500d53ad98494018088f35df07f5982ae6"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-manager/index.tsx is superseded by dormant-candidates entry client/src/pages/kpi-manager/index.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-manager/index.tsx is superseded by dormant-candidates entry client/src/pages/kpi-manager/index.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "56610976fd81f3ad7834454231d744e5446733f366528d77a38a103a62c79fa0",
+    "contract_fingerprint": "56610976fd81f3ad7834454231d744e5446733f366528d77a38a103a62c79fa0"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/KpiDefinitionModal.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-manager/KpiDefinitionModal.tsx",
       "seam": "dormant-ui",
@@ -494,14 +502,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "a90c8aa8e03a177958f8a6ab18414e2218bc560806c363095bfba2917008b006"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-manager/KpiDefinitionModal.tsx is superseded by dormant-candidates entry client/src/pages/kpi-manager/KpiDefinitionModal.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-manager/KpiDefinitionModal.tsx is superseded by dormant-candidates entry client/src/pages/kpi-manager/KpiDefinitionModal.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "f685c3eb5cbbbd0f79c4a17716b98bfed7661b4d18465718e280bba85bb377ea",
+    "contract_fingerprint": "f685c3eb5cbbbd0f79c4a17716b98bfed7661b4d18465718e280bba85bb377ea"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/KpiTabs.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-manager/KpiTabs.tsx",
       "seam": "dormant-ui",
@@ -544,14 +553,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "0a97c0994b1f49d5c5b386999eb26b608cabcbc08970b646512c20a7a5fb1201"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-manager/KpiTabs.tsx is superseded by dormant-candidates entry client/src/pages/kpi-manager/KpiTabs.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-manager/KpiTabs.tsx is superseded by dormant-candidates entry client/src/pages/kpi-manager/KpiTabs.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "6c59968b7b4ea43f5879e3be0a3deb9e9ad731a57d7de5c11a515e0b8ecbc668",
+    "contract_fingerprint": "6c59968b7b4ea43f5879e3be0a3deb9e9ad731a57d7de5c11a515e0b8ecbc668"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/panes/AnalyticsPane.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-manager/panes/AnalyticsPane.tsx",
       "seam": "dormant-ui",
@@ -594,14 +604,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "ec0da1dbf7a5833725958add3339a8672c2a9b83e2daaba618f80647a87d49f8"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-manager/panes/AnalyticsPane.tsx is superseded by dormant-candidates entry client/src/pages/kpi-manager/panes/AnalyticsPane.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-manager/panes/AnalyticsPane.tsx is superseded by dormant-candidates entry client/src/pages/kpi-manager/panes/AnalyticsPane.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "75804972d9a3bcfab9d256726316d3bdb7346a580f1216a64c91ea6025d55646",
+    "contract_fingerprint": "75804972d9a3bcfab9d256726316d3bdb7346a580f1216a64c91ea6025d55646"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/panes/OverviewPane.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-manager/panes/OverviewPane.tsx",
       "seam": "dormant-ui",
@@ -644,14 +655,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "b9bbd13628ad862e6f11aa0236fe6544431bb063cbad88f32af911baa150a720"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-manager/panes/OverviewPane.tsx is superseded by dormant-candidates entry client/src/pages/kpi-manager/panes/OverviewPane.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-manager/panes/OverviewPane.tsx is superseded by dormant-candidates entry client/src/pages/kpi-manager/panes/OverviewPane.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "bea681485e519a0d47d32e52b939a4fd1ef1eed532972d528517f264ce907fb3",
+    "contract_fingerprint": "bea681485e519a0d47d32e52b939a4fd1ef1eed532972d528517f264ce907fb3"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/panes/SettingsPane.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-manager/panes/SettingsPane.tsx",
       "seam": "dormant-ui",
@@ -694,14 +706,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "71810307308781cfa4bafc505a31e04c3baeefa160f62690dc0a5a76c5d58839"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-manager/panes/SettingsPane.tsx is superseded by dormant-candidates entry client/src/pages/kpi-manager/panes/SettingsPane.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-manager/panes/SettingsPane.tsx is superseded by dormant-candidates entry client/src/pages/kpi-manager/panes/SettingsPane.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "bb0448e0a244561728df429710be437d83e917ad63ff5c3eedc3120ced3888ff",
+    "contract_fingerprint": "bb0448e0a244561728df429710be437d83e917ad63ff5c3eedc3120ced3888ff"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/tabs-config.ts",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-manager/tabs-config.ts",
       "seam": "dormant-ui",
@@ -744,14 +757,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "a83ba10fda5e68831bd7180174877147706db4d601ce4c11d41cf0db90f63838"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-manager/tabs-config.ts is superseded by dormant-candidates entry client/src/pages/kpi-manager/tabs-config.ts with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-manager/tabs-config.ts is superseded by dormant-candidates entry client/src/pages/kpi-manager/tabs-config.ts with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "b1e693833a9077506969fb10f4a61341152f4f4bb7495581df8b5332d835d22d",
+    "contract_fingerprint": "b1e693833a9077506969fb10f4a61341152f4f4bb7495581df8b5332d835d22d"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/useKpiManager.ts",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-manager/useKpiManager.ts",
       "seam": "dormant-ui",
@@ -794,14 +808,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "f157cbf879b52044e56807ce3f3825cdf3ac22467df8ffdbe0d5c2126989ea04"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-manager/useKpiManager.ts is superseded by dormant-candidates entry client/src/pages/kpi-manager/useKpiManager.ts with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-manager/useKpiManager.ts is superseded by dormant-candidates entry client/src/pages/kpi-manager/useKpiManager.ts with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "42c9b2f9ab39f375f7acae9abfadaea2d506372ecb15812afc29566c3b89ce59",
+    "contract_fingerprint": "42c9b2f9ab39f375f7acae9abfadaea2d506372ecb15812afc29566c3b89ce59"
   },
   {
     "id": "dormant:client/src/pages/kpi-manager/useModalState.ts",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-manager/useModalState.ts",
       "seam": "dormant-ui",
@@ -844,14 +859,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "694ab267c09efbe5470a27953bf4aa2ee5c00af9266961dafb22507f4b6c7b26"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-manager/useModalState.ts is superseded by dormant-candidates entry client/src/pages/kpi-manager/useModalState.ts with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-manager/useModalState.ts is superseded by dormant-candidates entry client/src/pages/kpi-manager/useModalState.ts with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "536d5b474b5520546889bd609ee21c01d465b0ef4684c0c5a790b734cb9ce5e7",
+    "contract_fingerprint": "536d5b474b5520546889bd609ee21c01d465b0ef4684c0c5a790b734cb9ce5e7"
   },
   {
     "id": "dormant:client/src/pages/kpi-submission.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/kpi-submission.tsx",
       "seam": "dormant-ui",
@@ -894,14 +910,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "36218727f9ec6c53b162813e83a7a9e01c0939099704045fd6b1dbd018c415bd"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-submission.tsx is superseded by dormant-candidates entry client/src/pages/kpi-submission.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/kpi-submission.tsx is superseded by dormant-candidates entry client/src/pages/kpi-submission.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "09f397387d085051c6d2fdf86599b90e2f5bb57d88834fac0820992c87f43e56",
+    "contract_fingerprint": "09f397387d085051c6d2fdf86599b90e2f5bb57d88834fac0820992c87f43e56"
   },
   {
     "id": "dormant:client/src/pages/notion-integration.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/notion-integration.tsx",
       "seam": "dormant-ui",
@@ -944,14 +961,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "a428fca6b436eb9642a2b0c3394bcaab7a77238d160eba40487b86032d9c37b6"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/notion-integration.tsx is superseded by dormant-candidates entry client/src/pages/notion-integration.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/notion-integration.tsx is superseded by dormant-candidates entry client/src/pages/notion-integration.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "9dee031f6ce9295e36601de9710d3bb4dffe72c72167726134f5d7f5fd7a9d4d",
+    "contract_fingerprint": "9dee031f6ce9295e36601de9710d3bb4dffe72c72167726134f5d7f5fd7a9d4d"
   },
   {
     "id": "dormant:client/src/pages/partial-sales.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/partial-sales.tsx",
       "seam": "dormant-ui",
@@ -994,14 +1012,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "f36a0c421e237b5d136df4d413d72269146a9faf50592a3ee33f3603454122f6"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/partial-sales.tsx is superseded by dormant-candidates entry client/src/pages/partial-sales.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/partial-sales.tsx is superseded by dormant-candidates entry client/src/pages/partial-sales.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "be401ffb755d0aa36e991873e57d8a5134ea085af10d05856ef834cc02408f2b",
+    "contract_fingerprint": "be401ffb755d0aa36e991873e57d8a5134ea085af10d05856ef834cc02408f2b"
   },
   {
     "id": "dormant:client/src/pages/planning.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/planning.tsx",
       "seam": "dormant-ui",
@@ -1044,14 +1063,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "7c35f5ba52631284a00efc6f1b85b6acace53691be17110b1451aedc78dec437"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/planning.tsx is superseded by dormant-candidates entry client/src/pages/planning.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/planning.tsx is superseded by dormant-candidates entry client/src/pages/planning.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "2ae9eda8384caa0180616d202d8c48ed98789e990a583cd5622f636a40e10c40",
+    "contract_fingerprint": "2ae9eda8384caa0180616d202d8c48ed98789e990a583cd5622f636a40e10c40"
   },
   {
     "id": "dormant:client/src/pages/portfolio-company-detail.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/portfolio-company-detail.tsx",
       "seam": "dormant-ui",
@@ -1094,14 +1114,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "d9f1149c29323ba2d290a6c75a3d898e91c04761db8b0fed3e717ef3cb0a65f0"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: stale page row no longer exists; current implementation is client/src/components/investments/portfolio-company-detail.tsx and is not an independently routed page.",
+    "resolution_evidence": "Individually reviewed: stale page row no longer exists; current implementation is client/src/components/investments/portfolio-company-detail.tsx and is not an independently routed page.",
+    "resolution_fingerprint": "6e3d73d02fe7446002350a932720ddb341a61df3c973d4d37340f59dfe1255bc",
+    "contract_fingerprint": "6e3d73d02fe7446002350a932720ddb341a61df3c973d4d37340f59dfe1255bc"
   },
   {
     "id": "dormant:client/src/pages/portfolio-constructor.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/portfolio-constructor.tsx",
       "seam": "dormant-ui",
@@ -1144,14 +1165,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "a319bbd829d0f9d4fd89aac2e5ba5f7a3cb548944388feb27d8a93edd3516b15"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/portfolio-constructor.tsx is superseded by dormant-candidates entry client/src/pages/portfolio-constructor.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/portfolio-constructor.tsx is superseded by dormant-candidates entry client/src/pages/portfolio-constructor.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "c4a78f27323a4f708aa996b7254761beda488a9b487054410981924c792c9bc2",
+    "contract_fingerprint": "c4a78f27323a4f708aa996b7254761beda488a9b487054410981924c792c9bc2"
   },
   {
     "id": "dormant:client/src/pages/return-the-fund.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/return-the-fund.tsx",
       "seam": "dormant-ui",
@@ -1194,14 +1216,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "31c787b24da11f3293a811251e7165e5f06a3b21ad543483c9513d5bc1d3bf21"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/return-the-fund.tsx is superseded by dormant-candidates entry client/src/pages/return-the-fund.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/return-the-fund.tsx is superseded by dormant-candidates entry client/src/pages/return-the-fund.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "54a1b008a87594f31953bc4eabc4a08ac26fd6982b20215b7de9040f299d2b08",
+    "contract_fingerprint": "54a1b008a87594f31953bc4eabc4a08ac26fd6982b20215b7de9040f299d2b08"
   },
   {
     "id": "dormant:client/src/pages/secondary-market.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/secondary-market.tsx",
       "seam": "dormant-ui",
@@ -1244,14 +1267,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "4115b6b6d9002f3a5efdfa75fedc7d33b3584f7cd2771c6e6d96de1d41c5dfd9"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/secondary-market.tsx is superseded by dormant-candidates entry client/src/pages/secondary-market.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/secondary-market.tsx is superseded by dormant-candidates entry client/src/pages/secondary-market.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "40904858f1ade256737670bc737364ec3755e08ada6dabf27c83e72f1955314f",
+    "contract_fingerprint": "40904858f1ade256737670bc737364ec3755e08ada6dabf27c83e72f1955314f"
   },
   {
     "id": "dormant:client/src/pages/time-travel.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/time-travel.tsx",
       "seam": "dormant-ui",
@@ -1294,14 +1318,15 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "acd4a3dab29766e4758b86cf6a537bc67c23b0994bd409db4b153e68bbe84c70"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/time-travel.tsx is superseded by dormant-candidates entry client/src/pages/time-travel.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/time-travel.tsx is superseded by dormant-candidates entry client/src/pages/time-travel.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "10e8c3367dc86a837c1e4a4bfefc5f2c37b3060b8fe7bb6a5bbc83bfbe2b40bd",
+    "contract_fingerprint": "10e8c3367dc86a837c1e4a4bfefc5f2c37b3060b8fe7bb6a5bbc83bfbe2b40bd"
   },
   {
     "id": "dormant:client/src/pages/WaterfallStep.tsx",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "dormant:client/src/pages/WaterfallStep.tsx",
       "seam": "dormant-ui",
@@ -1344,9 +1369,154 @@
         "disposition": "not-surface"
       }
     },
-    "last_contract_fingerprint": "c9c953e4ed52451d4a8d1fb4d2005a5c51b188615ed916e37b755dcf67f4f5c0",
-    "resolution_evidence": "Mechanical cleanup of stale dormant row from this uncommitted seed lane; no approval was attached.",
-    "decision_status": "proposed",
-    "resolution_fingerprint": "f2a3a9f5c0dd90b2f2ce04bfc94c7b9f2a4b2faa41a7f1abfb1ece1af6e0afe7"
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: vanished row dormant:client/src/pages/WaterfallStep.tsx is superseded by dormant-candidates entry client/src/pages/WaterfallStep.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_evidence": "Individually reviewed: vanished row dormant:client/src/pages/WaterfallStep.tsx is superseded by dormant-candidates entry client/src/pages/WaterfallStep.tsx with zero importer/router evidence; prune duplicate row representation.",
+    "resolution_fingerprint": "8caae17969310213ed57b27ac4503f707f0d4869c7a131edd071cbb63df93a17",
+    "contract_fingerprint": "8caae17969310213ed57b27ac4503f707f0d4869c7a131edd071cbb63df93a17"
+  },
+  {
+    "id": "ws:setup-websocket-servers",
+    "vanished_row": {
+      "id": "ws:setup-websocket-servers",
+      "seam": "websocket",
+      "interface": "websocket",
+      "personas": [
+        "unknown"
+      ],
+      "reachability": "railway",
+      "proven_reachability": "none",
+      "exposures": [
+        {
+          "deployment": "railway-api",
+          "runtime": "websocket_server",
+          "mount_evidence": "server/routes.ts:153",
+          "ingresses": [],
+          "conditions": [],
+          "definitions": [
+            {
+              "site": "server/routes.ts:153",
+              "role": "handler",
+              "effective_mount_order": 0
+            }
+          ],
+          "boot_status": "failed",
+          "boot_evidence": {
+            "command_or_artifact": "npm run build:prod; Dockerfile.railway ENTRYPOINT [\"dumb-init\",\"--\"] + CMD [\"node\",\"dist/index.js\"]",
+            "probe": "GET /health; expected HTTP 2xx; 404/405 are failures",
+            "result": "docker unavailable; exact dist/index.js CMD exited with no HTTP listener (bootstrap() is not invoked)",
+            "observed_at": "proof:f367e3eacd574c647079b0560010f3e117da420358b1e92515f34e12ea0ca3da"
+          }
+        }
+      ],
+      "persistence": "unknown",
+      "destructive": "unknown",
+      "environment": "unknown",
+      "owner": "unassigned",
+      "evidence": [
+        "server/routes.ts:153"
+      ],
+      "source_mapping": {
+        "registration": "server/routes.ts:153"
+      },
+      "queue_roles": {
+        "producers": [],
+        "consumers": []
+      },
+      "auth_roles": [],
+      "auth_evidence": [],
+      "behavior_flags": [],
+      "test_evidence": {
+        "derived": [
+          {
+            "row": "ws:setup-websocket-servers",
+            "deployment": "railway-api",
+            "runtime": "websocket_server",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/allocations-keyset-cursor-db.test.ts:1",
+            "assertion_confirmed": false,
+            "test_file_sha256": "88598acaf0e6f0f1e723a71028d924c1ea593232f8793a1a987a7c6234cc0d1f"
+          },
+          {
+            "row": "ws:setup-websocket-servers",
+            "deployment": "railway-api",
+            "runtime": "websocket_server",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/core-summary-routes.test.ts:1",
+            "assertion_confirmed": false,
+            "test_file_sha256": "a09a98629b44d7eadc7a77f98aa034e675a67d9383890fe96db6a3c6ee854faf"
+          },
+          {
+            "row": "ws:setup-websocket-servers",
+            "deployment": "railway-api",
+            "runtime": "websocket_server",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/dashboard-summary-route.test.ts:1",
+            "assertion_confirmed": false,
+            "test_file_sha256": "cf6c30913aba69a6f9bcc03807ce2d4b93ff5f171e25c509a807c0abf0a6b930"
+          },
+          {
+            "row": "ws:setup-websocket-servers",
+            "deployment": "railway-api",
+            "runtime": "websocket_server",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/lp-api.test.ts:1",
+            "assertion_confirmed": false,
+            "test_file_sha256": "93cdada4efbc06eeca6dd9c1adb4378d56a2fad57ad4082c1c6bd464a025bc34"
+          },
+          {
+            "row": "ws:setup-websocket-servers",
+            "deployment": "railway-api",
+            "runtime": "websocket_server",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/operations-endpoint.quarantine.test.ts:1",
+            "assertion_confirmed": false,
+            "test_file_sha256": "f991b6548b26b1df509e6e84be05e40793402bbdcc1b0a9af76d288462ad9da1"
+          },
+          {
+            "row": "ws:setup-websocket-servers",
+            "deployment": "railway-api",
+            "runtime": "websocket_server",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/performance-api.test.ts:1",
+            "assertion_confirmed": false,
+            "test_file_sha256": "b0a3a756f6fd2b0ed615a6932f802debb24a05d48c13e231349dba9966aca29e"
+          },
+          {
+            "row": "ws:setup-websocket-servers",
+            "deployment": "railway-api",
+            "runtime": "websocket_server",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/portfolio-activity-routes.test.ts:1",
+            "assertion_confirmed": false,
+            "test_file_sha256": "c7f895d43fac2aa21f611b96670ceca3bd9ced41a5ea2db6d2ae1d72febb24ba"
+          },
+          {
+            "row": "ws:setup-websocket-servers",
+            "deployment": "railway-api",
+            "runtime": "websocket_server",
+            "layer": "integration",
+            "assertion_evidence": "tests/integration/storage-health-mode.test.ts:1",
+            "assertion_confirmed": false,
+            "test_file_sha256": "0257f0c41b9c01c21f349fb1b239a0894094f85c554dae575a32a8e699cefc66"
+          }
+        ],
+        "manual": []
+      },
+      "classification": "unclassified",
+      "decision": "keep-and-prove",
+      "decision_suggestion": "keep-and-prove",
+      "decision_status": "proposed",
+      "contract_fingerprint": "fc50ad8bb94ea37ff7ec0114e91cbabbd8b7968e6725b6d03648328f29b1a608",
+      "approved_source_hashes": [],
+      "machine_suggestions": {}
+    },
+    "decision_status": "approved",
+    "resolution": "pruned",
+    "decision_evidence": "Individually reviewed: aggregate websocket row was superseded by ws:dev-dashboard and ws:portfolio-metrics, each present in fresh matrix with separate auth/runtime evidence.",
+    "resolution_evidence": "Individually reviewed: aggregate websocket row was superseded by ws:dev-dashboard and ws:portfolio-metrics, each present in fresh matrix with separate auth/runtime evidence.",
+    "resolution_fingerprint": "c67632ac09afd658f2e7d834aa96fd240a075bea0f7017d6cf23ee7dec766a3c",
+    "contract_fingerprint": "c67632ac09afd658f2e7d834aa96fd240a075bea0f7017d6cf23ee7dec766a3c"
   }
 ]

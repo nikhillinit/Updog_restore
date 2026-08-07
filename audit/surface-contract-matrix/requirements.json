@@ -1,10 +1,4 @@
 {
-  "schema_version": "1.0.0",
-  "selector_syntax": {
-    "seam": "exact seam string equality",
-    "pattern": "anchored regular expression over canonical row id; no substring matching",
-    "explicit": "curated canonical row id list with an evidence note"
-  },
   "families": [
     {
       "id": "current-forecast-commands",
@@ -20,7 +14,9 @@
       "label": "Fee catch-up UI",
       "selector": {
         "kind": "explicit",
-        "ids": ["client:/fund-setup"]
+        "ids": [
+          "client:/fund-setup"
+        ]
       },
       "evidence": "Fund setup wizard carries the fee catch-up controls and review state."
     },
@@ -54,7 +50,9 @@
       "label": "Wave H",
       "selector": {
         "kind": "explicit",
-        "ids": ["client:/fund-model-results/:fundId/internal-analysis"]
+        "ids": [
+          "client:/fund-model-results/:fundId/internal-analysis"
+        ]
       },
       "evidence": "Internal-analysis results route is the Wave H product surface."
     },
@@ -67,10 +65,11 @@
       },
       "optional_when_absent": true,
       "absence_evidence": {
-        "status": "proposed",
+        "status": "approved",
         "search_selector": "canonical row ids and tracked route registries containing WP-L4 or L4",
         "result": "No WP-L4 row is present in this snapshot.",
-        "evidence": "Authoring-time absence; G1 approval required before closed phase."
+        "evidence": "Delegated solo G1 review: fresh canonical row ids and tracked route registries contain no WP-L4 or L4 surface; optional-when-absent condition accepted.",
+        "fingerprint": "b254332426db3893a93060259d7b7ec46980b090b9f1239b5803879e18c3c1b6"
       },
       "evidence": "WP-L4 is optional when absent from the tracked repository."
     },
@@ -170,5 +169,11 @@
       },
       "evidence": "Derived from matrix rows whose only exposures are railway-api register_routes (the registerRoutes-only routers per ARCHI section 3, expanded to endpoint rows; 60 ids at seed time, re-derived on drift by CI set-equality)."
     }
-  ]
+  ],
+  "schema_version": "1.0.0",
+  "selector_syntax": {
+    "seam": "exact seam string equality",
+    "pattern": "anchored regular expression over canonical row id; no substring matching",
+    "explicit": "curated canonical row id list with an evidence note"
+  }
 }

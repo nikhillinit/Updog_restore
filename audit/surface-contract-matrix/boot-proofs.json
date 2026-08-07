@@ -35,10 +35,10 @@
       "deployment": "railway-worker",
       "boot_status": "failed",
       "boot_evidence": {
-        "command_or_artifact": "npm run build:workers; Dockerfile.worker ENTRYPOINT [\"dumb-init\",\"--\"] + CMD node dist/workers/${WORKER_TYPE}-worker.js",
-        "probe": "GET /health /live /ready /metrics /stats; expected HTTP 2xx; 404/405 are failures; child identity must match worker entrypoint",
-        "result": "Redis consumer registration failed: connection refused at hermetic mock endpoint",
-        "observed_at": "proof:641a182542f7d1e506a5da2c859c0ea8246c4087479bc6a8bdeef490553a8d82"
+        "command_or_artifact": "docker build -f Dockerfile.worker; docker run Dockerfile.worker with Redis and PostgreSQL containers on isolated network",
+        "probe": "Dockerfile.worker image runs fund-scenario-calc worker; GET /health /live /ready /metrics /stats through mapped port; expected HTTP 2xx; 404/405 are failures",
+        "result": "docker unavailable: docker info could not access a daemon; worker proof was not faked",
+        "observed_at": "proof:f5fe1057fe77148cb1ca036b4215f7539a843115910139f22152b1fb3cc1bd15"
       }
     },
     {
@@ -55,12 +55,12 @@
     {
       "deployment": "vercel-api",
       "runtime": "vercel_function",
-      "boot_status": "unproven",
+      "boot_status": "failed",
       "boot_evidence": {
-        "command_or_artifact": "source import api/telemetry/wizard.ts",
-        "probe": "default handler export shape; structural evidence only, no Vercel invocation",
-        "result": "handler export verified; Vercel build-output proof intentionally not executed",
-        "observed_at": "proof:5bdc0383b1a4f58afae641d40e2b10200b275cbe0c718d9f446d040e8e879c14"
+        "command_or_artifact": "vercel build; .vercel/output/functions/**/*.func/index.(js|mjs|cjs)",
+        "probe": "enumerate every real Vercel build-output function and invoke its callable handler once",
+        "result": "Vercel build-output generation failed by timeout",
+        "observed_at": "proof:ae55211ffdfbb4276b64dbcfbfe9372c79f7c58e2a605ebe4347f4cc1c6daac1"
       }
     },
     {
