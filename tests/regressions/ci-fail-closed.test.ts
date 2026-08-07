@@ -3622,6 +3622,70 @@ describe('required CI fails closed', () => {
     expect(fullScripts).not.toContain('--reuse-ci-gates');
   });
 
+  it('governs manual journaled production schema recovery at exact current main', async () => {
+    const workflow = await readWorkflow('prod-journaled-migrate-0045-0049.yml');
+    const scripts = allRunScripts(workflow).join('\n');
+    const dispatch = workflow.on?.workflow_dispatch as
+      | {
+          inputs?: Record<
+            string,
+            {
+              default?: string;
+              options?: string[];
+              required?: boolean;
+              type?: string;
+            }
+          >;
+        }
+      | undefined;
+
+    expect(Object.keys(workflow.on ?? {})).toEqual(['workflow_dispatch']);
+    expect(dispatch?.inputs?.expected_sha?.required).toBe(true);
+    expect(dispatch?.inputs?.mode).toMatchObject({
+      default: 'audit',
+      options: ['audit', 'apply'],
+      type: 'choice',
+    });
+    expect(dispatch?.inputs?.restore_point_reference?.required).toBe(true);
+    expect(workflow.jobs?.recover?.environment).toBe('production-schema');
+
+    expect(scripts).toContain('node scripts/run-prod-journaled-migrations.mjs');
+    expect(scripts).toContain('node scripts/run-prod-journaled-migrations.mjs --apply --yes');
+    expect(scripts).toContain('refs/heads/main');
+    expect(scripts).toContain('GITHUB_SHA');
+    expect(scripts).toContain('repos/${REPO}/commits/main');
+    expect(scripts).toContain('READ_ONLY_AUDIT');
+    expect(scripts).toContain('reports/recovery.raw');
+    expect(scripts).toContain(
+      's/^Target database: .* user=.*/Target database: [REDACTED] user=[REDACTED]/'
+    );
+    expect(scripts).toContain('s#postgres(ql)?://[^[:space:]]+#[REDACTED_DATABASE_URL]#g');
+    expect(scripts).toContain('rm reports/recovery.raw');
+    expect(scripts).not.toContain('release-production.yml');
+    expect(scripts).not.toContain('vercel promote');
+
+    const checkout = workflow.jobs?.recover?.steps?.find((step) =>
+      step.uses?.startsWith('actions/checkout@')
+    );
+    expect(checkout?.uses).toBe('actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0');
+    expect(checkout?.with?.ref).toBe('${{ inputs.expected_sha }}');
+
+    const setupNode = workflow.jobs?.recover?.steps?.find((step) =>
+      step.uses?.startsWith('actions/setup-node@')
+    );
+    expect(setupNode?.uses).toBe('actions/setup-node@820762786026740c76f36085b0efc47a31fe5020');
+    expect(setupNode?.with?.['node-version']).toBe('20.19.0');
+    expect(scripts).toContain('npm install -g npm@10.9.2');
+    expect(scripts).toContain('npm ci --prefer-offline --no-audit');
+
+    const upload = workflow.jobs?.recover?.steps?.find((step) =>
+      step.uses?.startsWith('actions/upload-artifact@')
+    );
+    expect(upload?.if).toBe('always()');
+    expect(upload?.with?.path).toBe('reports/*.txt');
+    expect(upload?.with?.['retention-days']).toBe(14);
+  });
+
   // This guard intentionally scans every tracked automation surface. Under the
   // full Linux unit-fast shard, concurrent repository I/O can exceed Vitest's
   // 30-second default even though the same scan is fast in isolation.

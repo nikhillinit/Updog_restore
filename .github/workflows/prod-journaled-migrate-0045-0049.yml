@@ -1,0 +1,137 @@
+name: Production Journaled Migration 0045-0049
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact current main SHA containing reviewed recovery runner
+        type: string
+        required: true
+      mode:
+        description: Read-only audit or explicitly approved apply
+        type: choice
+        options:
+          - audit
+          - apply
+        default: audit
+      restore_point_reference:
+        description: Neon restore-point or branch reference; READ_ONLY_AUDIT for audit mode
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prod-schema-reconcile
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production-schema
+
+    steps:
+      - name: Require exact current main SHA
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Production recovery must run from refs/heads/main."
+            exit 1
+          fi
+          if [[ ! "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ || "$GITHUB_SHA" != "$EXPECTED_SHA" ]]; then
+            echo "expected_sha must equal GITHUB_SHA and be a lowercase full commit SHA."
+            exit 1
+          fi
+          if ! LIVE_MAIN="$(gh api "repos/${REPO}/commits/main" --jq '.sha')"; then
+            echo "Unable to resolve current main SHA; production recovery is blocked."
+            exit 1
+          fi
+          if [[ ! "$LIVE_MAIN" =~ ^[0-9a-f]{40}$ || "$LIVE_MAIN" != "$EXPECTED_SHA" ]]; then
+            echo "expected_sha does not equal current main; production recovery is blocked."
+            exit 1
+          fi
+
+      - name: Validate recovery authorization
+        env:
+          MODE: ${{ inputs.mode }}
+          RESTORE_POINT_REFERENCE: ${{ inputs.restore_point_reference }}
+        run: |
+          if [[ "$MODE" == "apply" && "$RESTORE_POINT_REFERENCE" == "READ_ONLY_AUDIT" ]]; then
+            echo "Apply mode requires an approved restore-point or branch reference."
+            exit 1
+          fi
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 0
+
+      - name: Verify checked-out commit SHA
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          if [[ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]]; then
+            echo "Checked-out SHA does not match expected_sha."
+            exit 1
+          fi
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+
+      - name: Align npm with packageManager
+        run: npm install -g npm@10.9.2
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Run recovery audit
+        if: inputs.mode == 'audit'
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          mkdir -p reports
+          set +e
+          node scripts/run-prod-journaled-migrations.mjs > reports/recovery.raw 2>&1
+          STATUS=$?
+          set -e
+          sed -E \
+            -e 's/^Target database: .* user=.*/Target database: [REDACTED] user=[REDACTED]/' \
+            -e 's#postgres(ql)?://[^[:space:]]+#[REDACTED_DATABASE_URL]#g' \
+            reports/recovery.raw > reports/recovery.txt
+          rm reports/recovery.raw
+          exit "$STATUS"
+
+      - name: Apply journaled recovery
+        if: inputs.mode == 'apply'
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          mkdir -p reports
+          set +e
+          node scripts/run-prod-journaled-migrations.mjs --apply --yes > reports/recovery.raw 2>&1
+          STATUS=$?
+          set -e
+          sed -E \
+            -e 's/^Target database: .* user=.*/Target database: [REDACTED] user=[REDACTED]/' \
+            -e 's#postgres(ql)?://[^[:space:]]+#[REDACTED_DATABASE_URL]#g' \
+            reports/recovery.raw > reports/recovery.txt
+          rm reports/recovery.raw
+          exit "$STATUS"
+
+      - name: Upload redacted recovery report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: prod-journaled-migration-0045-0049-${{ github.run_id }}-${{ inputs.mode }}
+          path: reports/*.txt
+          if-no-files-found: warn
+          retention-days: 14
