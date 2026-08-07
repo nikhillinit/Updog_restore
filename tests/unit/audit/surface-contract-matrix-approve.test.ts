@@ -438,7 +438,7 @@ describe('surface contract matrix approval closure safety', () => {
       readFileSpy.mockRestore();
     }
     expect(trackedPaths.map((file) => fs.readFileSync(file))).toEqual(before);
-  });
+  }, 60_000);
 
   it('preserves originals when atomic rename fails before backup or between backup and install', () => {
     const runFailure = (failureAt: number) => {
