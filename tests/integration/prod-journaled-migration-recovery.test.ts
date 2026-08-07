@@ -3,7 +3,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { loadManifests, runReconciliation } from '../../scripts/reconcile-prod-schema.mjs';
 import {
+  assertAcceptedTargetAuditVector,
   parseRecoveryArgs,
+  runRecoveryCli,
   runProdJournaledMigrationRecovery,
 } from '../../scripts/run-prod-journaled-migrations.mjs';
 import {
@@ -33,6 +35,13 @@ const TARGET_TABLES = [
   'quarterly_review_items',
   'quarterly_review_command_receipts',
   'kpi_observations',
+];
+const EXPECTED_COMPLETE_AUDITS = [
+  { manifest: 'internal-economics-policy-runs', action: 'SKIP' },
+  { manifest: 'internal-economics-certification', action: 'SKIP' },
+  { manifest: 'internal-economics-linkage', action: 'SKIP' },
+  { manifest: 'quarterly-review-workflow', action: 'SKIP' },
+  { manifest: 'kpi-observations', action: 'SKIP' },
 ];
 
 const skipIfNoDocker =
@@ -178,6 +187,65 @@ describe.skipIf(skipIfNoDocker)('journaled production migration recovery Postgre
       })
     ).rejects.toThrow(/pooled database URL/);
   });
+
+  it('requires the exact ordered five-manifest all-SKIP vector for complete state', () => {
+    expect(() =>
+      assertAcceptedTargetAuditVector({
+        ledgerState: 'complete',
+        audits: EXPECTED_COMPLETE_AUDITS,
+      })
+    ).not.toThrow();
+
+    const malformedVectors = [
+      [],
+      EXPECTED_COMPLETE_AUDITS.slice(0, -1),
+      [
+        ...EXPECTED_COMPLETE_AUDITS.slice(0, -1),
+        { manifest: 'renamed-kpi-observations', action: 'SKIP' },
+      ],
+      [
+        EXPECTED_COMPLETE_AUDITS[1],
+        EXPECTED_COMPLETE_AUDITS[0],
+        ...EXPECTED_COMPLETE_AUDITS.slice(2),
+      ],
+      [...EXPECTED_COMPLETE_AUDITS.slice(0, -1), EXPECTED_COMPLETE_AUDITS[3]],
+    ];
+
+    for (const audits of malformedVectors) {
+      expect(() => assertAcceptedTargetAuditVector({ ledgerState: 'complete', audits })).toThrow(
+        /not recoverable/
+      );
+    }
+  });
+
+  it('classifies CLI connection and authentication failures without leaking endpoint details', async () => {
+    const refusedUrl = new URL('postgres://leaky_user:leaky_password@127.0.0.1:1/leaky_db');
+    const refusedError = captureOutput();
+    await expect(
+      runRecoveryCli({
+        argv: [],
+        env: { DATABASE_URL: refusedUrl.toString() },
+        stdout: captureOutput(),
+        stderr: refusedError,
+      })
+    ).resolves.toBe(1);
+    expect(refusedError.text()).toContain('Database connection failed (ECONNREFUSED)');
+    expectOutputExcludesUrl(refusedError.text(), refusedUrl);
+
+    const authUrl = new URL(testDatabaseConnectionString());
+    authUrl.password = 'leaky_wrong_password';
+    const authError = captureOutput();
+    await expect(
+      runRecoveryCli({
+        argv: [],
+        env: { DATABASE_URL: authUrl.toString() },
+        stdout: captureOutput(),
+        stderr: authError,
+      })
+    ).resolves.toBe(1);
+    expect(authError.text()).toContain('PostgreSQL recovery failed (SQLSTATE 28P01)');
+    expectOutputExcludesUrl(authError.text(), authUrl);
+  });
 });
 
 async function createProductionShapedDatabase(suffix: string): Promise<string> {
@@ -219,6 +287,12 @@ function captureOutput(): { write(chunk: string): boolean; text(): string } {
       return chunks.join('');
     },
   };
+}
+
+function expectOutputExcludesUrl(output: string, url: URL): void {
+  expect(output).not.toContain(url.hostname);
+  expect(output).not.toContain(url.username);
+  expect(output).not.toContain(url.password);
 }
 
 function testDatabaseConnectionString(): string {
