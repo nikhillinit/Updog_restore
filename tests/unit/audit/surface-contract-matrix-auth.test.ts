@@ -27,9 +27,11 @@ describe('surface contract matrix auth persona mapping', () => {
   });
 
   it('maps decided identities and exposes undecided roles as unknown', () => {
+    // G1 locked persona table decides operator -> partner alias and flag_*
+    // capabilities; reserve_admin inherits partner's mapping through admin.
     expect(
       suggestedPersonasForAuthRoles(['admin', 'partner', 'operator', 'flag_read', 'lpId'])
-    ).toEqual(['admin', 'gp', 'lp', 'unknown']);
+    ).toEqual(['admin', 'gp', 'lp']);
   });
 
   it('discovers current enum, capability, and LP guard roles from tracked sources', () => {

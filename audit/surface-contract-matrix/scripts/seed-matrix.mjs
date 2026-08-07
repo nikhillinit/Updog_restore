@@ -35,6 +35,7 @@ import {
   mergeMatrix,
   proposeDecision,
   scanBullmqConstructors,
+  AUTH_TRUTH_SOURCE_PATTERNS,
   SOURCE_INVENTORY_SCHEMA_VERSION,
   SurfaceMatrixDocumentSchema,
   suggestedPersonasForAuthRoles,
@@ -52,7 +53,6 @@ const dormantCandidatesPath = path.join(matrixDir, 'dormant-candidates.json');
 const dormantInventoryPath = path.join(matrixDir, 'dormant-inventory.json');
 const runtimeExclusionsPath = path.join(matrixDir, 'runtime-exclusions.json');
 const conditionOverridesPath = path.join(matrixDir, 'condition-overrides.json');
-const authOverridesPath = path.join(matrixDir, 'auth-overrides.json');
 const definitionOverridesPath = path.join(matrixDir, 'definition-overrides.json');
 const orphansPath = path.join(matrixDir, 'orphans.json');
 
@@ -68,7 +68,69 @@ const REGISTRATION_GATES = [
 ];
 
 const API_NODE_TYPES = new Set(['APIEndpoint', 'ClientRoute', 'WorkerJob']);
-const ROUTE_EDGE_TYPES = new Set(['MOUNTS', 'EXPOSES', 'DEFINES']);
+const ROUTE_EDGE_TYPES = new Set([
+  'MOUNTS',
+  'EXPOSES',
+  'DEFINES',
+  'GUARDS',
+  'MIDDLEWARE',
+  'AUTHENTICATES',
+  'PROTECTS',
+]);
+const GLOBAL_AUTH_BOUNDARIES = Object.freeze({
+  make_app: Object.freeze({
+    boundary: 'global_authenticated',
+    file: 'server/app.ts',
+    line: 175,
+    middleware: 'requireApiAuth',
+  }),
+  create_server: Object.freeze({
+    boundary: 'global_authenticated',
+    file: 'server/server.ts',
+    line: 215,
+    middleware: 'requireSecureContext',
+  }),
+  register_routes: Object.freeze({
+    boundary: 'global_authenticated',
+    boundary_scope: 'create_server',
+    file: 'server/server.ts',
+    line: 215,
+    middleware: 'requireSecureContext',
+  }),
+});
+// Registration order differs by runtime. make_app mounts these modules before
+// its /api auth boundary; create_server applies requireSecureContext before
+// registerRoutes mounts the same modules. Keep the exception set exposure-
+// scoped so Railway health routes retain secure-context evidence.
+const GLOBAL_BOUNDARY_PRECEDING_SOURCES_BY_RUNTIME = Object.freeze({
+  make_app: new Set([
+    'server/routes/health.ts',
+    'server/routes/metrics.ts',
+    'server/routes/metrics-rum.ts',
+    'server/routes/metrics-rum-ingress.ts',
+    'server/routes/public/csp-report.ts',
+  ]),
+  // create_server mounts CSP/metrics/RUM directly in server/server.ts before
+  // the requireSecureContext middleware. The line-order check below keeps
+  // later server.ts registrations in the protected phase.
+  create_server: new Set(['server/server.ts']),
+});
+const PUBLIC_API_EXACT_PATHS = new Set([
+  '/healthz',
+  '/readyz',
+  '/health',
+  '/health/ready',
+  '/health/live',
+  '/flags',
+  '/flags/status',
+]);
+const PUBLIC_NON_API_EXACT_PATHS = new Set([
+  '/healthz',
+  '/readyz',
+  '/health',
+  '/health/ready',
+  '/health/live',
+]);
 const RUNTIME_SOURCE_UNIVERSE = [
   'server/routes/**/*.ts',
   'server/app.ts',
@@ -213,10 +275,17 @@ const makeExposure = ({
   conditions = [],
   snapshotId,
   boot = {},
+  authEvidence = [],
+  outer_mount_site: outerMountSite,
+  outer_mount_order: outerMountOrder,
 }) => ({
   deployment,
   runtime,
   mount_evidence: asEvidence(mountEvidence),
+  ...(outerMountSite ? {
+    outer_mount_site: asEvidence(outerMountSite),
+    outer_mount_order: Number.isFinite(outerMountOrder) ? Math.max(0, outerMountOrder) : 0,
+  } : {}),
   // The profile fan-out observes the same registration once per profile and
   // fs-variant; exposures store the deduped union, ordered deterministically.
   ingresses: dedupeBy(ingresses, (ingress) => `${ingress.external_path}|${ingress.express_path}`)
@@ -233,6 +302,8 @@ const makeExposure = ({
     ),
   boot_status: 'unproven',
   boot_evidence: bootEvidence(deployment, runtime, snapshotId, boot),
+  auth_evidence: dedupeBy(authEvidence, (entry) => JSON.stringify(entry))
+    .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
 });
 
 const emptyQueueRoles = () => ({ producers: [], consumers: [] });
@@ -305,12 +376,123 @@ const policyAuthBoundary = (manifest, policy) => String(
 const authBoundaryRoles = (boundary) => {
   if (boundary === 'admin_only') return ['admin'];
   if (boundary === 'require_auth_and_lp_access') return ['lpId'];
-  if (boundary === 'signed_public_share') return ['public'];
+  if (boundary === 'public' || boundary === 'signed_public_share') return ['public'];
   if (boundary.includes('and_role')) return [AUTH_UNRESOLVED_ROLE];
   return [];
 };
 
-const authEvidenceForDefinitions = (definitions, manifest, policy) => {
+const routePathForGlobalBoundary = (routePath) => {
+  const pathValue = String(routePath ?? '');
+  if (!pathValue.startsWith('/api')) return undefined;
+  const mountRelative = pathValue.slice('/api'.length) || '/';
+  return mountRelative.startsWith('/') ? mountRelative : `/${mountRelative}`;
+};
+
+const isPublicApiPath = (method, routePath) => {
+  const mountRelative = routePathForGlobalBoundary(routePath);
+  if (!mountRelative) return false;
+  const normalizedMethod = String(method ?? '').toUpperCase();
+  if (PUBLIC_API_EXACT_PATHS.has(mountRelative)) return true;
+  if (normalizedMethod === 'GET' && /^\/public\/shares\/[^/]+$/.test(mountRelative)) return true;
+  if (normalizedMethod === 'POST' && /^\/public\/shares\/[^/]+\/verify$/.test(mountRelative)) return true;
+  if (normalizedMethod === 'POST' && mountRelative === '/auth/login') return true;
+  if (normalizedMethod === 'GET' && mountRelative === '/auth/csrf') return true;
+  return false;
+};
+
+const sourceFileForDefinition = (definition) => definitionFile(definition?.site);
+
+const definitionSource = (definition) => {
+  const filePath = sourceFileForDefinition(definition);
+  if (!filePath) return undefined;
+  const sourcePath = path.join(repoRoot, filePath);
+  return fs.existsSync(sourcePath) ? fs.readFileSync(sourcePath, 'utf8') : undefined;
+};
+
+const sourceWindowAtLine = (source, line, radius = 80) => {
+  const lines = String(source ?? '').split('\n');
+  const start = Math.max(0, Number(line ?? 1) - 1);
+  return lines.slice(start, start + radius).join('\n');
+};
+
+const localGuardEvidenceForDefinition = (definition) => {
+  const source = definitionSource(definition);
+  if (!source || definition?.role !== 'guard') return [];
+  const siteLine = definitionLine(definition);
+  const window = sourceWindowAtLine(source, siteLine);
+  const evidence = [];
+  const add = (entry) => evidence.push({
+    kind: 'guard',
+    file: sourceFileForDefinition(definition),
+    line: siteLine,
+    ...entry,
+  });
+
+  if (/\brequireAuth\s*\(/.test(window)
+    || /\brequireHealthKeyOrAuth\b/.test(window)
+    || /\bauthenticateHealthDiagnostics\b/.test(window)) {
+    add({
+      boundary: 'authenticated',
+      evidence: `${sourceFileForDefinition(definition)}:${siteLine} route-local authentication middleware`,
+    });
+  }
+  if (/\brequireLP(?:Fund)?Access\b/.test(window)) {
+    add({
+      role: 'lp',
+      boundary: 'lp_access',
+      evidence: `${sourceFileForDefinition(definition)}:${siteLine} LP access middleware`,
+    });
+  }
+  return evidence;
+};
+
+const globalAuthEvidenceForExposure = ({ exposure, method, routePath }) => {
+  const boundary = GLOBAL_AUTH_BOUNDARIES[exposure.runtime];
+  if (!boundary || !routePathForGlobalBoundary(routePath) || isPublicApiPath(method, routePath)) return [];
+  const outerMountFile = definitionFile(exposure.outer_mount_site);
+  const outerMountLine = definitionLine({ site: exposure.outer_mount_site });
+  if (exposure.runtime === 'create_server'
+    && outerMountFile === 'server/server.ts'
+    && outerMountLine > 0
+    && outerMountLine < boundary.line) return [];
+  const definitions = exposure.definitions ?? [];
+  const precedingSources = GLOBAL_BOUNDARY_PRECEDING_SOURCES_BY_RUNTIME[exposure.runtime] ?? new Set();
+  const hasPreBoundaryDefinition = definitions.some((definition) => {
+    const source = sourceFileForDefinition(definition);
+    if (!precedingSources.has(source)) return false;
+    if (exposure.runtime === 'create_server' && source === 'server/server.ts') {
+      return definitionLine(definition) > 0 && definitionLine(definition) < boundary.line;
+    }
+    return true;
+  });
+  if (hasPreBoundaryDefinition) return [];
+  return [{
+    kind: 'policy-boundary',
+    boundary: boundary.boundary,
+    boundary_scope: boundary.boundary_scope || exposure.runtime,
+    middleware: boundary.middleware,
+    file: boundary.file,
+    line: boundary.line,
+    evidence: `${boundary.file}:${boundary.line} ${boundary.middleware} precedes protected ${exposure.runtime} routes`,
+  }];
+};
+
+const publicApiEvidenceForExposure = ({ method, routePath }) => {
+  const normalizedPath = String(routePath ?? '');
+  const publicPath = isPublicApiPath(method, routePath)
+    || PUBLIC_NON_API_EXACT_PATHS.has(normalizedPath)
+    || (String(method ?? '').toUpperCase() === 'POST' && normalizedPath === '/metrics/rum');
+  if (!publicPath) return [];
+  return [{
+    kind: 'policy-boundary',
+    boundary: 'public',
+    file: 'server/lib/public-api-boundary.ts',
+    line: 19,
+    evidence: 'server/lib/public-api-boundary.ts isPublicApiPath public exemption',
+  }];
+};
+
+const authEvidenceForDefinitions = (definitions, manifest, policy, { includePolicyBoundary = true } = {}) => {
   const evidence = [];
   const definitionsByFile = new Map();
   for (const definition of definitions ?? []) {
@@ -328,10 +510,10 @@ const authEvidenceForDefinitions = (definitions, manifest, policy) => {
       path: fileDefinitions[0]?.path,
       registrationLines: fileDefinitions.map(definitionLine).filter(Boolean),
     });
-    evidence.push(...routeEvidence);
+    evidence.push(...routeEvidence, ...fileDefinitions.flatMap(localGuardEvidenceForDefinition));
   }
   const boundary = policyAuthBoundary(manifest, policy);
-  if (boundary) {
+  if (boundary && includePolicyBoundary) {
     evidence.push({
       kind: 'policy-boundary',
       boundary,
@@ -342,13 +524,46 @@ const authEvidenceForDefinitions = (definitions, manifest, policy) => {
     .sort((left, right) => `${left.file ?? ''}:${left.line ?? 0}:${left.role ?? ''}`.localeCompare(`${right.file ?? ''}:${right.line ?? 0}:${right.role ?? ''}`));
 };
 
-const authSuggestionFor = ({ manifest, policy, definitions, method, path: routePath }) => {
+const authSuggestionFor = ({
+  manifest,
+  policy,
+  definitions,
+  exposures = [],
+  additionalAuthEvidence = [],
+  method,
+  path: routePath,
+}) => {
   const routeDefinitions = (definitions ?? []).map((definition) => ({
     ...definition,
     method,
     path: routePath,
   }));
-  const evidence = authEvidenceForDefinitions(routeDefinitions, manifest, policy);
+  const evidence = exposures.length > 0
+    ? []
+    : authEvidenceForDefinitions(routeDefinitions, manifest, policy);
+  evidence.push(...additionalAuthEvidence);
+  for (const exposure of exposures) {
+    const exposureDefinitions = (exposure.definitions ?? []).map((definition) => ({
+      ...definition,
+      method,
+      path: routePath,
+    }));
+    const localEvidence = authEvidenceForDefinitions(exposureDefinitions, undefined, undefined, {
+      includePolicyBoundary: false,
+    });
+    const globalEvidence = globalAuthEvidenceForExposure({ exposure, method, routePath });
+    const publicEvidence = publicApiEvidenceForExposure({ method, routePath });
+    const scopedAdditionalEvidence = additionalAuthEvidence.filter((entry) =>
+      (!entry.runtime && !entry.surface)
+      || entry.runtime === exposure.runtime
+      || entry.surface === exposure.runtime
+      || entry.surface === (exposure.runtime === 'register_routes' ? 'create_server' : exposure.runtime));
+    exposure.auth_evidence = dedupeBy(
+      [...localEvidence, ...globalEvidence, ...publicEvidence, ...scopedAdditionalEvidence],
+      (entry) => JSON.stringify(entry),
+    ).sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+    evidence.push(...exposure.auth_evidence);
+  }
   const boundary = policyAuthBoundary(manifest, policy);
   const roles = sortedUnique([
     ...evidence.map((entry) => entry.role).filter(Boolean),
@@ -357,9 +572,12 @@ const authSuggestionFor = ({ manifest, policy, definitions, method, path: routeP
   const mappedRoles = roles.filter((role) => role !== AUTH_UNRESOLVED_ROLE);
   const personas = suggestedPersonasForAuthRoles(mappedRoles);
   if (roles.includes(AUTH_UNRESOLVED_ROLE)) personas.push('unknown');
+  const dedupedEvidence = dedupeBy(evidence, (entry) => JSON.stringify(entry))
+    .sort((left, right) => `${left.file ?? ''}:${left.line ?? 0}:${left.role ?? ''}:${left.boundary ?? ''}`
+      .localeCompare(`${right.file ?? ''}:${right.line ?? 0}:${right.role ?? ''}:${right.boundary ?? ''}`));
   return {
     auth_roles: roles,
-    auth_evidence: evidence,
+    auth_evidence: dedupedEvidence,
     personas: sortedUnique(personas),
     unresolved: roles.includes(AUTH_UNRESOLVED_ROLE),
     undecided_roles: mappedRoles.filter((role) => suggestedPersonasForAuthRoles([role]).includes('unknown')),
@@ -427,6 +645,36 @@ const edgeMountsByRow = (edges) => {
     const mounts = result.get(target) ?? [];
     mounts.push(edge);
     result.set(target, mounts);
+  }
+  return result;
+};
+
+const edgeAuthEvidenceByRow = (edges) => {
+  const result = new Map();
+  const authEdgeTypes = new Set(['GUARDS', 'MIDDLEWARE', 'AUTHENTICATES', 'PROTECTS']);
+  for (const edge of edges) {
+    if (!authEdgeTypes.has(edge.type)) continue;
+    const rowId = [edge.to, edge.from]
+      .filter((value) => String(value ?? '').startsWith('api:'))
+      .map(canonicalRowId)[0];
+    if (!rowId) continue;
+    const site = sourceSite(edge);
+    const line = definitionLine({ site });
+    const evidence = {
+      kind: 'guard',
+      role: edge.role || edge.auth_role || edge.guard_role || edge.required_role,
+      boundary: edge.boundary || edge.auth_boundary || edge.middleware,
+      ...(site ? { file: definitionFile(site) } : {}),
+      ...(line > 0 ? { line } : {}),
+      evidence: site || `${edge.type} edge in knowledge graph`,
+      ...(edge.surface ? { surface: edge.surface } : {}),
+      ...(edge.runtime ? { runtime: edge.runtime } : {}),
+    };
+    if (!evidence.role) delete evidence.role;
+    if (!evidence.boundary) delete evidence.boundary;
+    const entries = result.get(rowId) ?? [];
+    entries.push(evidence);
+    result.set(rowId, entries);
   }
   return result;
 };
@@ -560,12 +808,14 @@ const collectRuntimeDocuments = () => {
 const makeApiRows = ({ nodes, edges, runtimeIndex, snapshotId }) => {
   const definitionsByRow = edgeDefinitionsByRow(edges);
   const mountsByRow = edgeMountsByRow(edges);
+  const authEvidenceByRow = edgeAuthEvidenceByRow(edges);
   const rows = new Map();
   const runtimeRows = new Map();
   for (const [key, observations] of runtimeIndex.observations) {
     if (!key.includes('|api:')) continue;
     const id = key.slice(key.indexOf('|') + 1);
-    runtimeRows.set(id, observations);
+    const current = runtimeRows.get(id) ?? [];
+    runtimeRows.set(id, [...current, ...observations]);
   }
 
   const apiNodes = [...nodes.values()].filter((node) => node.type === 'APIEndpoint');
@@ -581,19 +831,21 @@ const makeApiRows = ({ nodes, edges, runtimeIndex, snapshotId }) => {
     for (const entry of edgeDefinitions) {
       definitions.push(definitionFromSite(entry.site, 'handler', entry.edge.line_start ?? 0));
     }
-    // The create_server surface splits by registration phase: routes whose
-    // terminal handler registers from server/server.ts belong to the outer
-    // composition (runtime create_server); everything else registers during
-    // the nested registerRoutes phase (runtime register_routes). Proposal
-    // rules key off this distinction.
-    const createServerObservations = observations.filter((observation) => observation.surface !== 'make_app');
-    const outerComposition = createServerObservations.some(
-      (observation) => observation.role === 'handler' && String(observation.site ?? '').startsWith('server/server.ts'),
-    );
     for (const observation of observations) {
+      const outerMountIsCreateServer = String(observation.outer_mount_site ?? '').startsWith('server/server.ts');
+      const outerComposition = observations.some((candidate) => candidate.surface !== 'make_app'
+        && (String(candidate.outer_mount_site ?? '').startsWith('server/server.ts')
+          || (!candidate.outer_mount_site
+            && candidate.role === 'handler'
+            && String(candidate.site ?? '').startsWith('server/server.ts'))));
       const runtime = observation.surface === 'make_app'
         ? { deployment: 'vercel-api', runtime: 'make_app' }
-        : { deployment: 'railway-api', runtime: outerComposition ? 'create_server' : 'register_routes' };
+        : {
+          deployment: 'railway-api',
+          runtime: observation.outer_mount_site
+            ? (outerMountIsCreateServer ? 'create_server' : 'register_routes')
+            : (outerComposition ? 'create_server' : 'register_routes'),
+        };
       const key = `${runtime.deployment}|${runtime.runtime}`;
       const item = exposuresByKey.get(key) ?? {
         ...runtime,
@@ -601,6 +853,10 @@ const makeApiRows = ({ nodes, edges, runtimeIndex, snapshotId }) => {
         conditions: [],
         ingresses: [],
         mountEvidence: `${observation.site} runtime registration`,
+        ...(observation.outer_mount_site ? {
+          outer_mount_site: observation.outer_mount_site,
+          outer_mount_order: observation.outer_mount_order,
+        } : {}),
       };
       item.definitions.push(definitionFromSite(observation.site, observation.role, observation.order));
       item.conditions.push(...(runtimeIndex.conditions.get(`${observation.surface}|${id}`) ?? []));
@@ -665,16 +921,19 @@ const makeApiRows = ({ nodes, edges, runtimeIndex, snapshotId }) => {
       manifest,
       policy,
       definitions: observedDefinitions.length > 0 ? observedDefinitions : definitions,
+      exposures,
+      additionalAuthEvidence: authEvidenceByRow.get(id) ?? [],
       method: node.method,
       path: node.path || id.replace(/^api:[A-Z]+/, ''),
     });
     const persistenceSuggestion = persistenceSuggestionFor(node.method, policy);
     const safeMethod = ['GET', 'HEAD', 'OPTIONS'].includes(String(node.method).toUpperCase());
-    const reachability = exposures.some((exposure) => exposure.deployment === 'vercel-api')
-      && exposures.some((exposure) => exposure.deployment === 'railway-api')
+    const hasVercelExposure = exposures.some((exposure) => exposure.deployment === 'vercel-api');
+    const hasRailwayExposure = exposures.some((exposure) => exposure.deployment === 'railway-api');
+    const reachability = manifest && hasVercelExposure && hasRailwayExposure
       ? 'both'
-      : exposures.some((exposure) => exposure.deployment === 'vercel-api') ? 'vercel'
-        : exposures.some((exposure) => exposure.deployment === 'railway-api') ? 'railway' : 'local';
+      : hasVercelExposure ? 'vercel'
+        : hasRailwayExposure ? 'railway' : 'local';
     const sourceEvidence = sortedUnique([
       node.source_path ? `${node.source_path}:${node.line_start ?? 1}` : undefined,
       ...edgeDefinitions.map((entry) => entry.site),
@@ -750,6 +1009,25 @@ const makeClientRows = ({ nodes, snapshotId }) => {
   for (const node of [...nodes.values()].filter((item) => item.type === 'ClientRoute')) {
     const id = canonicalRowId(`client:${node.path}`);
     const governance = governanceByPath.get(node.path);
+    const isLpRoute = node.path === '/lp' || governance?.surface === 'lp-route';
+    const isArchivedRedirect = governance?.surface === 'archived-placeholder'
+      || governance?.surface === 'legacy-redirect';
+    const isCanonicalMoic = node.path === '/fund-model-results/:fundId/moic-analysis';
+    const isLegacyMoic = node.path === '/moic-analysis';
+    const lifecycleCondition = isLpRoute
+      ? [{
+        gate: 'enable_lp_reporting',
+        enabled: false,
+        source: 'client/src/app/app-router.tsx:129',
+        reason: 'LP dashboard routes mount only when enable_lp_reporting is enabled',
+      }]
+      : [];
+    const routeKind = isArchivedRedirect
+      ? governance.surface
+      : isCanonicalMoic ? 'canonical' : isLegacyMoic ? 'legacy-redirect' : governance?.surface;
+    const redirectTarget = isLegacyMoic
+      ? '/model-results'
+      : governance?.redirectTarget;
     const governanceOwner = governance?.surface === 'lp-route' || node.path.startsWith('/lp')
       ? 'lp-reporting'
       : governance?.surface === 'admin-gated' ? 'platform' : undefined;
@@ -770,6 +1048,7 @@ const makeClientRows = ({ nodes, snapshotId }) => {
             express_path: node.path,
             rewrite_evidence: 'vercel.json SPA deployment topology',
           }],
+          conditions: lifecycleCondition,
           snapshotId,
         }),
         makeExposure({
@@ -782,13 +1061,26 @@ const makeClientRows = ({ nodes, snapshotId }) => {
             express_path: node.path,
             rewrite_evidence: 'railway.toml web deployment topology',
           }],
+          conditions: lifecycleCondition,
           snapshotId,
         }),
       ],
       evidence: [asEvidence(sourceSite(node))],
       owner: governanceOwner || 'unassigned',
       source_mapping: { kg_node: node.id, route_path: node.path, component: node.component },
-      machine_suggestions: { owner: governanceOwner || 'unassigned', governance: governance?.surface },
+      route_kind: routeKind,
+      route_category: isArchivedRedirect ? 'compatibility-surface' : 'live-product-route',
+      archived_placeholder: governance?.surface === 'archived-placeholder',
+      legacy: governance?.surface === 'legacy-redirect' || isLegacyMoic,
+      ...(redirectTarget ? { redirect_target: redirectTarget } : {}),
+      machine_suggestions: {
+        owner: governanceOwner || 'unassigned',
+        governance: governance?.surface,
+        lifecycle: isArchivedRedirect ? 'compatibility-surface' : 'live-product-route',
+        ...(isLpRoute ? { feature_flag: 'enable_lp_reporting', flag_default: false } : {}),
+        ...(isCanonicalMoic ? { moic_route: 'canonical' } : {}),
+        ...(isLegacyMoic ? { moic_route: 'redirect', redirect_target: '/model-results' } : {}),
+      },
     }));
   }
   return rows;
@@ -926,14 +1218,6 @@ const makeWorkerRows = ({ nodes, findings, snapshotId, httpRows = [], background
       if (finding.kind === 'queue') roles.producers.push(role);
       else roles.consumers.push(role);
     }
-    if (data.catalog?.healthMode === 'producer' && roles.producers.length === 0) {
-      roles.producers.push({
-        site: 'server/queues/registry.ts',
-        ...queueSiteTopology('server/queues/registry.ts', topology),
-        triggering_row_ids: triggeringRowsForSite('server/queues/registry.ts', httpRows, backgroundRows, topology),
-        triggering_row_ids_reason: triggeringReason('server/queues/registry.ts', triggeringRowsForSite('server/queues/registry.ts', httpRows, backgroundRows, topology)),
-      });
-    }
     if (data.catalog?.healthMode === 'worker' && roles.consumers.length === 0 && node) {
       roles.consumers.push({
         site: sourceSite(node),
@@ -990,7 +1274,6 @@ const makeBackgroundRows = (snapshotId) => {
     ['scheduler:artifact-retention', 'artifact-retention', 'server/routes.ts:44'],
     ['scheduler:internal-analysis-checkpoint', 'internal-analysis-checkpoint', 'server/routes.ts:46'],
     ['event:calc-run-completion', 'calc-run-completion', 'server/routes.ts:40'],
-    ['ws:setup-websocket-servers', 'websocket', 'server/routes.ts:153'],
   ];
   const rows = new Map();
   for (const [id, seam, site] of definitions) {
@@ -1011,6 +1294,67 @@ const makeBackgroundRows = (snapshotId) => {
       })],
       evidence: [site],
       source_mapping: { registration: site },
+    }));
+  }
+  const websocketRows = [
+    {
+      id: 'ws:portfolio-metrics',
+      seam: 'portfolio-metrics',
+      path: '/ws/portfolio-metrics',
+      sourceFile: 'server/websocket/portfolio-metrics.ts',
+      authEvidence: [{
+        kind: 'policy-boundary',
+        boundary: 'authenticated_and_fund_channel_authorized',
+        file: 'server/websocket/portfolio-metrics.ts',
+        line: 1,
+        evidence: 'portfolio metrics WebSocket requires authenticated fund/channel authorization',
+      }],
+    },
+    {
+      id: 'ws:dev-dashboard',
+      seam: 'dev-dashboard',
+      path: '/socket.io/dev-dashboard',
+      sourceFile: 'server/websocket/dev-dashboard.ts',
+      conditions: [{ NODE_ENV: 'development' }],
+      authEvidence: [],
+    },
+  ];
+  for (const websocket of websocketRows) {
+    rows.set(websocket.id, makeRow({
+      id: websocket.id,
+      seam: websocket.seam,
+      interface: 'websocket',
+      reachability: 'railway',
+      proven_reachability: 'none',
+      personas: ['system'],
+      exposures: [makeExposure({
+        deployment: 'railway-api',
+        runtime: 'websocket_server',
+        mountEvidence: 'server/routes.ts:153',
+        definitions: [definitionFromSite(`server/routes.ts:153`, 'handler', 0)],
+        ingresses: [{
+          external_path: websocket.path,
+          express_path: websocket.path,
+          rewrite_evidence: `${websocket.sourceFile} WebSocket server path`,
+        }],
+        conditions: websocket.conditions ?? [],
+        authEvidence: websocket.authEvidence,
+        snapshotId,
+      })],
+      auth_evidence: websocket.authEvidence,
+      evidence: ['server/routes.ts:153', `${websocket.sourceFile}:1`],
+      source_mapping: {
+        registration: 'server/routes.ts:153',
+        source_file: websocket.sourceFile,
+        websocket_path: websocket.path,
+      },
+      machine_suggestions: {
+        owner: 'unassigned',
+        websocket_path: websocket.path,
+        ...(websocket.id === 'ws:portfolio-metrics'
+          ? { auth_requirement: 'authenticated_and_fund_channel_authorized' }
+          : { environment: 'development-only' }),
+      },
     }));
   }
   return rows;
@@ -1221,18 +1565,54 @@ const addOrphanRows = (rows, orphanDocument, snapshotId) => {
   }
 };
 
-const authOverridesForRows = (rows, existing) => {
-  const generated = {};
-  for (const row of rows.values()) {
-    if (row.interface !== 'http-api' || !row.machine_suggestions?.unresolved_auth) continue;
-    generated[row.id] = {
-      row_id: row.id,
-      status: 'unresolved',
-      contract_fingerprint: row.contract_fingerprint,
-      evidence: (row.auth_evidence ?? []).filter((entry) => entry.kind === 'unresolved' || entry.kind === 'policy-boundary'),
-    };
+const rowRoutePath = (row) => row.id.startsWith('client:')
+  ? row.source_mapping?.route_path || row.id.slice('client:'.length)
+  : row.id.match(/^api:[A-Z]+:(.*)$/)?.[1];
+
+const isAnonymousSharingPath = (row) => {
+  const routePath = String(rowRoutePath(row) ?? '');
+  return /^(?:\/shared(?:\/|$)|\/portal(?:\/|$)|\/api\/public\/shares(?:\/|$))/.test(routePath);
+};
+
+const hasDocumentedAnonymousPolicyException = (row) => {
+  const routePath = String(rowRoutePath(row) ?? '');
+  if (row.interface === 'client-route') {
+    return governanceByPath.get(routePath)?.surface === 'public-contract';
   }
-  return { ...generated, ...(existing && typeof existing === 'object' && !Array.isArray(existing) ? existing : {}) };
+  const manifestIds = row.source_mapping?.manifest_ids ?? [];
+  return manifestIds.some((id) => COMMON_API_ROUTE_MANIFEST.find((entry) => entry.id === id)?.authBoundary === 'public');
+};
+
+const applyInternalOnlyDefaults = (rows) => {
+  for (const row of rows.values()) {
+    const routePath = String(rowRoutePath(row) ?? '');
+    const lpApi = row.interface === 'http-api'
+      && /^\/api\/lp(?:\/|$)/.test(routePath)
+      && !hasDocumentedAnonymousPolicyException(row);
+    const anonymousSharing = isAnonymousSharingPath(row)
+      && !hasDocumentedAnonymousPolicyException(row);
+    if (!lpApi && !anonymousSharing) {
+      if (isAnonymousSharingPath(row)) {
+        row.machine_suggestions = {
+          ...row.machine_suggestions,
+          anonymous_policy_exception: true,
+        };
+      }
+      continue;
+    }
+
+    row.machine_suggestions = {
+      ...row.machine_suggestions,
+      internal_only_default: true,
+      internal_only_reason: lpApi
+        ? 'LP API surface is disabled by default with enable_lp_reporting=false; anonymous reachability is excluded.'
+        : 'Anonymous sharing surface has no documented public-policy exception.',
+    };
+    row.behavior_flags = sortedUnique([...(row.behavior_flags ?? []), 'internal-only-default']);
+    // Preserve structural route evidence while making the anonymous/default
+    // exposure state explicit for downstream authoring and review.
+    row.anonymous_reachability = 'excluded-unreachable';
+  }
 };
 
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
@@ -1277,6 +1657,10 @@ const sourceHashes = ({ nodes, snapshotId }) => {
   for (const pattern of RUNTIME_SOURCE_UNIVERSE) {
     for (const file of trackedFiles().filter((candidate) => fileMatches(candidate, pattern))) include(file, `universe:${pattern}`);
   }
+  for (const file of trackedFiles().filter((candidate) => AUTH_TRUTH_SOURCE_PATTERNS.some((pattern) =>
+    pattern.endsWith('/**') ? candidate.startsWith(pattern.slice(0, -3)) : candidate === pattern))) {
+    include(file, 'auth-truth');
+  }
   for (const file of fs.readdirSync(path.join(matrixDir, 'scripts'))
     .filter((candidate) => candidate.endsWith('.mjs'))
     .map((candidate) => `audit/surface-contract-matrix/scripts/${candidate}`)) {
@@ -1320,9 +1704,10 @@ const sourceHashes = ({ nodes, snapshotId }) => {
   return { sourceHashesMap, sourceMembership };
 };
 
-const definingSourceHashesForRow = (row, sourceHashesMap) => {
+const definingSourceHashesForRow = (row, sourceHashesMap, rowToSources = {}) => {
   const values = [];
   const mapping = row.source_mapping ?? {};
+  const dependentSources = new Set(rowToSources[row.id] ?? []);
   const explicitSources = [
     mapping.function_file,
     mapping.candidate_path,
@@ -1331,15 +1716,17 @@ const definingSourceHashesForRow = (row, sourceHashesMap) => {
   ].filter(Boolean).map((value) => String(value).split(':')[0]);
   for (const [key, hash] of Object.entries(sourceHashesMap)) {
     if (key.includes('#')) continue;
-    if (explicitSources.includes(key) || (row.evidence ?? []).some((evidence) => String(evidence).startsWith(`${key}:`))) {
+    if (explicitSources.includes(key)
+      || dependentSources.has(key)
+      || (row.evidence ?? []).some((evidence) => String(evidence).startsWith(`${key}:`))) {
       values.push(`${key}=${hash}`);
     }
   }
   return values.sort((left, right) => left.localeCompare(right));
 };
 
-const applyDefiningSourceHashes = (rows, sourceHashesMap) => {
-  for (const row of rows.values()) row.approved_source_hashes = definingSourceHashesForRow(row, sourceHashesMap);
+const applyDefiningSourceHashes = (rows, sourceHashesMap, rowToSources) => {
+  for (const row of rows.values()) row.approved_source_hashes = definingSourceHashesForRow(row, sourceHashesMap, rowToSources);
 };
 
 const sourcePathCandidatesForRow = (row) => [
@@ -1442,6 +1829,43 @@ const sourceMappings = ({ rows, commonManifest, runtimeManifest, policyRegistry,
     if (!rowSources.includes(source)) rowSources.push(source);
     rowToSources[rowId] = rowSources;
   };
+  const authTruthFiles = new Set([...trackedSet].filter((filePath) => AUTH_TRUTH_SOURCE_PATTERNS.some((pattern) =>
+    pattern.endsWith('/**') ? filePath.startsWith(pattern.slice(0, -3)) : filePath === pattern)));
+  const authTruthDependenciesForRow = (row) => {
+    const exposures = row.exposures ?? [];
+    const authEvidence = [
+      ...(row.auth_evidence ?? []),
+      ...exposures.flatMap((exposure) => exposure.auth_evidence ?? []),
+    ];
+    const roles = row.auth_roles ?? [];
+    const protectedAuth = roles.some((role) => role !== 'public')
+      || authEvidence.some((entry) => entry.boundary && entry.boundary !== 'public');
+    const dependencies = new Set();
+    for (const entry of authEvidence) {
+      const source = String(entry.file ?? '').replace(/:\d+$/, '');
+      if (trackedSet.has(source)) dependencies.add(source);
+    }
+    if (protectedAuth) {
+      for (const source of [
+        'shared/auth/effective-roles.ts',
+        'server/lib/auth/jwt.ts',
+        'server/lib/auth/revocation.ts',
+      ]) {
+        if (authTruthFiles.has(source)) dependencies.add(source);
+      }
+    }
+    // Every API auth decision evaluates the public-path exemption before its
+    // protected branch, so both public and protected API rows depend on this
+    // boundary implementation.
+    if (row.interface === 'http-api' && (authEvidence.length > 0 || roles.length > 0)
+      && authTruthFiles.has('server/lib/public-api-boundary.ts')) {
+      dependencies.add('server/lib/public-api-boundary.ts');
+    }
+    if (row.interface === 'websocket' || authEvidence.some((entry) => String(entry.file ?? '').startsWith('server/websocket/'))) {
+      for (const source of authTruthFiles) if (source.startsWith('server/websocket/')) dependencies.add(source);
+    }
+    return dependencies;
+  };
   const policyRowId = (entry) => entry.id?.startsWith('client:')
     ? canonicalRowId(entry.id)
     : canonicalRowId(`api:${entry.method}:${entry.path}`);
@@ -1451,6 +1875,7 @@ const sourceMappings = ({ rows, commonManifest, runtimeManifest, policyRegistry,
     for (const source of row.source_mapping?.function_file ? [row.source_mapping.function_file] : []) add(source, rowId);
     for (const source of row.source_mapping?.candidate_path ? [row.source_mapping.candidate_path] : []) add(source, rowId);
     for (const source of row.source_mapping?.registration ? [row.source_mapping.registration] : []) add(source, rowId);
+    for (const source of authTruthDependenciesForRow(row)) add(source, rowId);
   }
   for (const entry of commonManifest) {
     const source = manifestSourcePath(entry.sourceModule);
@@ -1458,13 +1883,16 @@ const sourceMappings = ({ rows, commonManifest, runtimeManifest, policyRegistry,
     if (source) add(`manifest-source:${source}`, [...rows.values()].find((row) => row.source_mapping?.source_module === entry.sourceModule)?.id);
   }
   for (const entry of runtimeManifest) {
-    const rowId = entry.id === 'register-routes-websocket-setup'
-      ? canonicalRowId('ws:setup-websocket-servers')
-      : [...rows.values()].find((row) => row.source_mapping?.runtime_specific_ids?.includes(entry.id))?.id;
-    if (!rowId || !rows.has(rowId)) throw new Error(`Runtime manifest entry has no canonical matrix row: ${entry.id}`);
-    add(`runtime-manifest:${entry.id}`, rowId);
+    const rowIds = entry.id === 'register-routes-websocket-setup'
+      ? [...rows.values()]
+        .filter((row) => row.interface === 'websocket')
+        .map((row) => row.id)
+      : [[...rows.values()].find((row) => row.source_mapping?.runtime_specific_ids?.includes(entry.id))?.id]
+        .filter(Boolean);
+    if (rowIds.length === 0) throw new Error(`Runtime manifest entry has no canonical matrix row: ${entry.id}`);
+    for (const rowId of rowIds) add(`runtime-manifest:${entry.id}`, rowId);
     const source = manifestSourcePath(entry.sourceModule);
-    if (source) add(`runtime-source:${source}`, rowId);
+    for (const rowId of rowIds) if (source) add(`runtime-source:${source}`, rowId);
   }
   for (const entry of policyRegistry) {
     const id = policyRowId(entry);
@@ -1562,15 +1990,23 @@ const seed = async () => {
     dormantInventory,
     orphanDocument,
   });
+  applyInternalOnlyDefaults(rows);
   applyBootProofs(rows, bootProofDocument);
   const hashes = sourceHashes({ nodes: kg.nodes, snapshotId: kg.manifest.snapshot_id });
-  applyDefiningSourceHashes(rows, hashes.sourceHashesMap);
+  const definingMappings = sourceMappings({
+    rows,
+    commonManifest: COMMON_API_ROUTE_MANIFEST,
+    runtimeManifest: API_RUNTIME_SPECIFIC_MANIFEST,
+    policyRegistry: API_ROUTE_POLICY_REGISTRY,
+    governanceRegistry: ROUTE_GOVERNANCE_REGISTRY,
+    queueCatalog: QUEUE_CATALOG,
+  });
+  applyDefiningSourceHashes(rows, hashes.sourceHashesMap, definingMappings.rowToSources);
   // KG TESTS edges are import-level evidence only. They seed derived[] with
   // assertion_confirmed:false; classification or G1 review must confirm any
   // item before it can satisfy an exposure coverage gate.
   await derivedTestEvidence(rows);
   const prunedOrphans = pruneStaleDormantOrphans(orphanDocument, rows);
-  const existingAuthOverrides = readJson(authOverridesPath, {});
   const seededDocument = SurfaceMatrixDocumentSchema.parse({
     schema_version: MATRIX_SCHEMA_VERSION,
     phase: previous?.phase === 'closed' ? 'closed' : 'authoring',
@@ -1591,7 +2027,6 @@ const seed = async () => {
   }), seededDocument);
   const matrixArtifact = { ...matrix };
   delete matrixArtifact.orphans;
-  const authOverrides = authOverridesForRows(new Map(matrix.rows.map((row) => [row.id, row])), existingAuthOverrides);
   const mappings = sourceMappings({
     rows: new Map(matrix.rows.map((row) => [row.id, row])),
     commonManifest: COMMON_API_ROUTE_MANIFEST,
@@ -1618,7 +2053,6 @@ const seed = async () => {
   writeJson(dormantInventoryPath, dormantInventory);
   writeJson(runtimeExclusionsPath, readJson(runtimeExclusionsPath, []));
   writeJson(conditionOverridesPath, readJson(conditionOverridesPath, {}));
-  writeJson(authOverridesPath, authOverrides);
   writeJson(definitionOverridesPath, readJson(definitionOverridesPath, {}));
   writeJson(orphansPath, matrix.orphans ?? []);
   writeJson(inventoryPath, inventory);

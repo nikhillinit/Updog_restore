@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { Buffer } from 'node:buffer';
 import http from 'node:http';
 import net from 'node:net';
 import { createHash } from 'node:crypto';
@@ -90,9 +91,6 @@ const commandResult = (command, args, env, timeout = 180_000) => {
 
 const npmResult = (script, env, timeout = 180_000) => commandResult('npm', ['run', script], env, timeout);
 
-const resultText = (text) => String(text ?? '').toLowerCase();
-const redisFailure = (childOutput) => /econnrefused|redis.*(connect|connection)|connection.*redis/.test(resultText(childOutput));
-
 const tcpReachable = (host, port) => new Promise((resolve) => {
   const socket = net.createConnection({ host, port });
   const finish = (reachable) => {
@@ -138,13 +136,22 @@ const probeHttp = (port, specification) => new Promise((resolve) => {
     timeout: 150,
     headers: specification.body === undefined ? undefined : { 'content-type': 'application/json' },
   }, (response) => {
-    response.resume();
+    const chunks = [];
+    response.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
     response.once('end', () => resolve({
       path: specification.path,
       method: specification.method ?? 'GET',
       status: response.statusCode ?? 0,
       ok: expected.includes(response.statusCode ?? 0),
       expected_statuses: expected,
+      body: Buffer.concat(chunks).toString('utf8'),
+      body_json: (() => {
+        try {
+          return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        } catch {
+          return undefined;
+        }
+      })(),
     }));
   });
   request.on('error', () => resolve({ path: specification.path, method: specification.method ?? 'GET', status: null, ok: false, expected_statuses: expected }));
@@ -186,7 +193,8 @@ const runHttpProcess = async ({ command, args, env, port, paths, containerName }
   let actualPort = port;
   let childAliveAtProbe = false;
   let socketOwnedByChild = false;
-  for (let attempt = 0; attempt < 24; attempt += 1) {
+  const readinessDeadline = Date.now() + 60_000;
+  while (Date.now() < readinessDeadline) {
     if (actualPort === 0) actualPort = listeningPortsForPid(child.pid)[0] ?? 0;
     if (actualPort > 0) {
       childAliveAtProbe = child.exitCode === null && child.signalCode === null;
@@ -197,7 +205,7 @@ const runHttpProcess = async ({ command, args, env, port, paths, containerName }
     }
     if (statuses.length === paths.length && paths.length > 0 && statuses.every((status) => status.ok)) break;
     if (child.exitCode !== null || child.signalCode !== null) break;
-    await pause(50);
+    await pause(250);
   }
   childAliveAtProbe = child.exitCode === null && child.signalCode === null;
   socketOwnedByChild = actualPort > 0 && socketOwnerPid(actualPort, containerName) === (containerName ? dockerContainerPid(containerName) : child.pid);
@@ -251,6 +259,24 @@ const failureSummary = (result, fallback) => {
 
 const dockerAvailable = () => commandResult('docker', ['info'], proofEnv(), 10_000).ok;
 
+const dockerCleanup = (name, kind = 'container') => {
+  const args = kind === 'network' ? ['network', 'rm', name] : ['rm', '-f', name];
+  commandResult('docker', args, proofEnv(), 20_000);
+};
+
+const dockerFailure = (label, result) => {
+  const output = `${result.stderr ?? ''}\n${result.stdout ?? ''}`.trim().replaceAll(/\s+/g, ' ');
+  return `${label} failed${result.status === null ? ' by timeout' : ` with status ${result.status ?? result.signal ?? 'unknown'}`}${output ? `: ${output.slice(0, 600)}` : ''}`;
+};
+
+export const workerConsumerIsHealthy = ({ health, stats }) => {
+  const expectedWorker = health?.workers?.find((worker) => worker.name === 'fund-scenario-calc');
+  const expectedStats = stats?.workers?.find((worker) => worker.name === 'fund-scenario-calc');
+  return Boolean(expectedWorker && expectedStats
+    && expectedWorker.status === 'healthy'
+    && expectedWorker.isRunning === true);
+};
+
 const dockerfileLine = (file, keyword) => fs.readFileSync(path.join(repoRoot, file), 'utf8')
   .split('\n')
   .find((line) => line.trim().toUpperCase().startsWith(keyword));
@@ -295,26 +321,105 @@ const railwayApiProof = async () => {
 };
 
 const railwayWorkerProof = async () => {
-  const command_or_artifact = 'npm run build:workers; Dockerfile.worker ENTRYPOINT ["dumb-init","--"] + CMD node dist/workers/${WORKER_TYPE}-worker.js';
-  const probe = 'GET /health /live /ready /metrics /stats; expected HTTP 2xx; 404/405 are failures; child identity must match worker entrypoint';
-  const workerEnv = proofEnv({ NODE_ENV: 'production', _EXPLICIT_NODE_ENV: '1', ENABLE_QUEUES: '1', _EXPLICIT_ENABLE_QUEUES: '1', WORKER_TYPE: 'fund-scenario-calc', WORKER_HEALTH_PORT: '0', PORT: '0', _EXPLICIT_PORT: '1' });
-  const build = npmResult('build:workers', workerEnv);
-  if (!build.ok) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: failedBuildResult('build:workers', build) });
-  const run = await runHttpProcess({
-    command: process.execPath,
-    args: ['dist/workers/fund-scenario-calc-worker.js'],
-    env: workerEnv,
-    port: 0,
-    paths: HEALTH_PATHS.map((requestPath) => ({ path: requestPath, method: 'GET' })),
-  });
-  const allPaths = run.proven;
-  const redisUnavailable = !(await tcpReachable('127.0.0.1', 6399)) || redisFailure(run.output);
-  const result = redisUnavailable
-    ? 'Redis consumer registration failed: connection refused at hermetic mock endpoint'
-    : allPaths
-      ? 'worker health listener responded on all five paths and consumer process remained active'
-      : 'worker did not expose all five health paths before timeout';
-  return evidence({ deployment: 'railway-worker', boot_status: allPaths && !redisUnavailable ? 'proven' : 'failed', command_or_artifact, probe, result });
+  const command_or_artifact = 'docker build -f Dockerfile.worker; docker run Dockerfile.worker with Redis and PostgreSQL containers on isolated network';
+  const probe = 'Dockerfile.worker image runs fund-scenario-calc worker; GET /health /live /ready /metrics /stats through mapped port; expected HTTP 2xx; 404/405 are failures';
+  if (!dockerAvailable()) {
+    return evidence({
+      deployment: 'railway-worker',
+      boot_status: 'failed',
+      command_or_artifact,
+      probe,
+      result: 'docker unavailable: docker info could not access a daemon; worker proof was not faked',
+    });
+  }
+
+  const image = 'surface-matrix-worker-proof:local';
+  const network = 'surface-matrix-worker-proof-net';
+  const redisName = 'surface-matrix-worker-redis-proof';
+  const postgresName = 'surface-matrix-worker-postgres-proof';
+  const workerName = 'surface-matrix-worker-proof';
+  dockerCleanup(workerName);
+  dockerCleanup(redisName);
+  dockerCleanup(postgresName);
+  dockerCleanup(network, 'network');
+  try {
+    const networkCreate = commandResult('docker', ['network', 'create', network], proofEnv(), 30_000);
+    if (!networkCreate.ok) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('worker proof network creation', networkCreate) });
+
+    const redis = commandResult('docker', [
+      'run', '-d', '--rm', '--name', redisName, '--network', network, 'redis:7-alpine',
+    ], proofEnv(), 120_000);
+    if (!redis.ok) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('Redis proof container startup', redis) });
+
+    let redisReady = false;
+    const redisDeadline = Date.now() + 60_000;
+    while (Date.now() < redisDeadline) {
+      const ping = commandResult('docker', ['exec', redisName, 'redis-cli', 'ping'], proofEnv(), 10_000);
+      if (ping.ok && ping.stdout.trim() === 'PONG') {
+        redisReady = true;
+        break;
+      }
+      await pause(250);
+    }
+    if (!redisReady) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: 'Redis proof container did not become ready; worker proof was not faked' });
+
+    const postgres = commandResult('docker', [
+      'run', '-d', '--rm', '--name', postgresName, '--network', network,
+      '-e', 'POSTGRES_USER=surface-proof',
+      '-e', 'POSTGRES_PASSWORD=surface-proof',
+      '-e', 'POSTGRES_DB=surface_proof',
+      'postgres:16-alpine',
+    ], proofEnv(), 120_000);
+    if (!postgres.ok) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('PostgreSQL proof container startup', postgres) });
+
+    let postgresReady = false;
+    const postgresDeadline = Date.now() + 60_000;
+    while (Date.now() < postgresDeadline) {
+      const ready = commandResult('docker', ['exec', postgresName, 'pg_isready', '-U', 'surface-proof', '-d', 'surface_proof'], proofEnv(), 10_000);
+      if (ready.ok) {
+        postgresReady = true;
+        break;
+      }
+      await pause(250);
+    }
+    if (!postgresReady) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: 'PostgreSQL proof container did not become ready; worker proof was not faked' });
+
+    const imageBuild = commandResult('docker', ['build', '-f', 'Dockerfile.worker', '-t', image, '.'], proofEnv(), 600_000);
+    if (!imageBuild.ok) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('Dockerfile.worker image build', imageBuild) });
+
+    const run = await runHttpProcess({
+      command: 'docker',
+      args: [
+        'run', '--rm', '--name', workerName, '--network', network,
+        '-p', `${PORTS.worker}:9000`,
+        '-e', 'NODE_ENV=production',
+        '-e', 'WORKER_TYPE=fund-scenario-calc',
+        '-e', 'WORKER_HEALTH_PORT=9000',
+        '-e', 'ENABLE_QUEUES=1',
+        '-e', `QUEUE_REDIS_URL=redis://${redisName}:6379`,
+        '-e', `REDIS_URL=redis://${redisName}:6379`,
+        '-e', `DATABASE_URL=postgresql://surface-proof:surface-proof@${postgresName}:5432/surface_proof`,
+        image,
+      ],
+      env: proofEnv(),
+      port: PORTS.worker,
+      containerName: workerName,
+      paths: HEALTH_PATHS.map((requestPath) => ({ path: requestPath, method: 'GET' })),
+    });
+    const health = run.statuses.find((status) => status.path === '/health')?.body_json;
+    const stats = run.statuses.find((status) => status.path === '/stats')?.body_json;
+    const consumerRegistered = workerConsumerIsHealthy({ health, stats });
+    const proven = run.proven && consumerRegistered;
+    const result = proven
+      ? 'Dockerfile.worker image stayed alive, Redis connected, and fund-scenario-calc consumer was healthy and registered in /health and /stats'
+      : `Dockerfile.worker container proof failed${!consumerRegistered ? ': /health and /stats did not report a running fund-scenario-calc consumer' : ''}${run.output ? `: ${run.output.trim().replaceAll(/\s+/g, ' ').slice(0, 600)}` : ''}`;
+    return evidence({ deployment: 'railway-worker', boot_status: proven ? 'proven' : 'failed', command_or_artifact, probe, result });
+  } finally {
+    dockerCleanup(workerName);
+    dockerCleanup(redisName);
+    dockerCleanup(postgresName);
+    dockerCleanup(network, 'network');
+  }
 };
 
 const runNodeProbe = (code, env, useTsx = false) => commandResult(useTsx ? path.join(repoRoot, 'node_modules/.bin/tsx') : process.execPath,
@@ -330,12 +435,123 @@ const vercelApiProof = async () => {
   return evidence({ deployment: 'vercel-api', runtime: 'make_app', boot_status: construction.ok ? 'proven' : 'failed', command_or_artifact, probe, result: construction.ok ? 'makeApp constructed from built bundle' : failureSummary(construction, 'built bundle makeApp construction failed') });
 };
 
+const filesUnder = (root) => {
+  if (!fs.existsSync(root)) return [];
+  const files = [];
+  const visit = (current) => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const absolute = path.join(current, entry.name);
+      if (entry.isDirectory()) visit(absolute);
+      else files.push(absolute);
+    }
+  };
+  visit(root);
+  return files.sort((left, right) => left.localeCompare(right));
+};
+
+const vercelBuildOutputFunctions = () => {
+  const functionsRoot = path.join(repoRoot, '.vercel', 'output', 'functions');
+  const functionDirectories = [...new Set(filesUnder(functionsRoot)
+    .filter((file) => path.basename(path.dirname(file)).endsWith('.func'))
+    .map((file) => path.dirname(file)))].sort((left, right) => left.localeCompare(right));
+  return functionDirectories.map((directory) => {
+    const entry = filesUnder(directory).find((file) => ['index.js', 'index.mjs', 'index.cjs'].includes(path.basename(file)));
+    return {
+      name: path.relative(functionsRoot, directory).replace(/\.func$/, '').split(path.sep).join('/'),
+      directory,
+      entry,
+    };
+  });
+};
+
+export const mockVercelResponse = () => {
+  const response = {
+    statusCode: 200,
+    headers: {},
+    writableEnded: false,
+    finished: false,
+    setHeader(name, value) { this.headers[String(name).toLowerCase()] = value; return this; },
+    getHeader(name) { return this.headers[String(name).toLowerCase()]; },
+    removeHeader(name) { delete this.headers[String(name).toLowerCase()]; },
+    writeHead(statusCode, headers = {}) { this.statusCode = statusCode; Object.assign(this.headers, headers); return this; },
+    status(statusCode) { this.statusCode = statusCode; return this; },
+    json() { this.writableEnded = true; this.finished = true; return this; },
+    send() { this.writableEnded = true; this.finished = true; return this; },
+    write() { return true; },
+    end() { this.writableEnded = true; this.finished = true; return this; },
+    on() { return this; },
+    once() { return this; },
+  };
+  return response;
+};
+
+const waitForVercelResponse = async (response, timeout = 20_000) => {
+  const deadline = Date.now() + timeout;
+  while (!response.writableEnded && !response.finished && Date.now() < deadline) await pause(25);
+  if (!response.writableEnded && !response.finished) throw new Error('function response did not complete before timeout');
+};
+
+export const invokeVercelFunction = async ({ name, entry, responseTimeout = 20_000 }) => {
+  if (!entry) return { name, ok: false, result: 'build-output function has no index entrypoint' };
+  try {
+    const imported = await import(pathToFileURL(entry).href);
+    const handler = imported.default ?? imported.handler;
+    if (typeof handler !== 'function') return { name, ok: false, result: 'build-output function has no callable default/handler export' };
+    const request = {
+      method: 'GET',
+      url: name.startsWith('api/') ? `/${name}` : `/${name}`,
+      originalUrl: name.startsWith('api/') ? `/${name}` : `/${name}`,
+      headers: { host: '127.0.0.1' },
+      query: {},
+      body: {},
+      socket: { remoteAddress: '127.0.0.1' },
+      on() { return this; },
+      once() { return this; },
+    };
+    const response = mockVercelResponse();
+    let timeoutHandle;
+    try {
+      await new Promise((resolve, reject) => {
+        timeoutHandle = globalThis.setTimeout(
+          () => reject(new Error('function invocation timed out')),
+          responseTimeout,
+        );
+        Promise.resolve()
+          .then(() => handler(request, response))
+          .then(() => waitForVercelResponse(response, responseTimeout))
+          .then(resolve, reject);
+      });
+    } finally {
+      if (timeoutHandle) globalThis.clearTimeout(timeoutHandle);
+    }
+    const completed = response.writableEnded || response.finished;
+    const acceptableStatus = Number.isInteger(response.statusCode)
+      && response.statusCode >= 200
+      && response.statusCode < 500;
+    if (!completed || !acceptableStatus) {
+      return {
+        name,
+        ok: false,
+        result: `function response incomplete or unacceptable: completed=${completed} status=${response.statusCode}`,
+      };
+    }
+    return { name, ok: true, result: `invoked build-output function; completed response status ${response.statusCode}` };
+  } catch (error) {
+    return { name, ok: false, result: `invocation failed: ${error instanceof Error ? error.message : String(error)}` };
+  }
+};
+
 const vercelFunctionProof = async () => {
-  const command_or_artifact = 'source import api/telemetry/wizard.ts';
-  const probe = 'default handler export shape; structural evidence only, no Vercel invocation';
-  const code = `const imported = await import(${JSON.stringify(pathToFileURL(path.join(repoRoot, 'api/telemetry/wizard.ts')).href)}); if (typeof imported.default !== 'function') throw new Error('handler export missing');`;
-  const structural = runNodeProbe(code, proofEnv(), true);
-  return evidence({ deployment: 'vercel-api', runtime: 'vercel_function', boot_status: structural.ok ? 'unproven' : 'failed', command_or_artifact, probe, result: structural.ok ? 'handler export verified; Vercel build-output proof intentionally not executed' : failureSummary(structural, 'source handler import failed') });
+  const command_or_artifact = 'vercel build; .vercel/output/functions/**/*.func/index.(js|mjs|cjs)';
+  const probe = 'enumerate every real Vercel build-output function and invoke its callable handler once';
+  const build = commandResult('vercel', ['build', '--yes'], proofEnv(), 600_000);
+  if (!build.ok) return evidence({ deployment: 'vercel-api', runtime: 'vercel_function', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('Vercel build-output generation', build) });
+  const functions = vercelBuildOutputFunctions();
+  if (functions.length === 0) return evidence({ deployment: 'vercel-api', runtime: 'vercel_function', boot_status: 'failed', command_or_artifact, probe, result: 'Vercel build completed but emitted no .vercel/output/functions entries' });
+  const invocations = await Promise.all(functions.map(invokeVercelFunction));
+  const failed = invocations.filter((invocation) => !invocation.ok);
+  const result = `invoked ${invocations.length} build-output function(s): ${invocations.map((invocation) => `${invocation.name}=${invocation.ok ? 'ok' : 'failed'}`).join(', ')}${failed.length > 0 ? `; ${failed.map((invocation) => invocation.result).join('; ')}` : ''}`;
+  return evidence({ deployment: 'vercel-api', runtime: 'vercel_function', boot_status: failed.length === 0 ? 'proven' : 'failed', command_or_artifact, probe, result });
 };
 
 const vercelWebProof = async () => {

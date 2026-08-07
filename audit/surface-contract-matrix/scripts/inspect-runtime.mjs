@@ -397,6 +397,7 @@ function routeDefinitions({
   prefix,
   surface,
   includeLocalGuards,
+  outerMount,
 }) {
   const route = layer.route;
   const registration = registrationFor(instrumentation, layer);
@@ -423,6 +424,10 @@ function routeDefinitions({
         sequence: guardRegistration.sequence,
         site: guardRegistration.site.site,
         surface,
+        ...(outerMount ? {
+          outer_mount_site: outerMount.site,
+          outer_mount_order: outerMount.order,
+        } : {}),
       });
     }
   }
@@ -448,6 +453,10 @@ function routeDefinitions({
         handler_index: handlerIndex,
         site: registrationSite,
         surface,
+        ...(outerMount ? {
+          outer_mount_site: outerMount.site,
+          outer_mount_order: outerMount.order,
+        } : {}),
       });
     }
   });
@@ -466,6 +475,10 @@ function routeDefinitions({
         sequence: parameter.sequence,
         site: parameter.site.site,
         surface,
+        ...(outerMount ? {
+          outer_mount_site: outerMount.site,
+          outer_mount_order: outerMount.order,
+        } : {}),
       });
     }
   }
@@ -473,7 +486,7 @@ function routeDefinitions({
   return definitions;
 }
 
-function walkRouter({ instrumentation, router, prefix = '', surface, ancestors = new Set() }) {
+function walkRouter({ instrumentation, router, prefix = '', surface, ancestors = new Set(), outerMount }) {
   if (!router || ancestors.has(router)) return [];
   const nextAncestors = new Set(ancestors);
   nextAncestors.add(router);
@@ -491,6 +504,7 @@ function walkRouter({ instrumentation, router, prefix = '', surface, ancestors =
           prefix,
           surface,
           includeLocalGuards: ancestors.size > 0,
+          outerMount,
         }),
       );
       return;
@@ -498,6 +512,10 @@ function walkRouter({ instrumentation, router, prefix = '', surface, ancestors =
     if (layer.handle?.stack) {
       const registration = registrationFor(instrumentation, layer);
       const mountPath = registration?.method === 'use' ? registration.path : '';
+      const nextOuterMount = outerMount || (registration?.site ? {
+        site: registration.site.site,
+        order: registration.sequence,
+      } : undefined);
       routes.push(
         ...walkRouter({
           instrumentation,
@@ -505,6 +523,7 @@ function walkRouter({ instrumentation, router, prefix = '', surface, ancestors =
           prefix: joinRoutePath(prefix, mountPath),
           surface,
           ancestors: nextAncestors,
+          outerMount: nextOuterMount,
         }),
       );
     }

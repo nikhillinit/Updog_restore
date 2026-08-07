@@ -45,35 +45,68 @@ tracked `boot-proofs.json` input consumed by `seed-matrix.mjs`:
 | Deployment         | Artifact / command                                                    | Probe and success condition                                                              |
 | ------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | `railway-api`      | `npm run build:prod`; exact `Dockerfile.railway` `ENTRYPOINT` + `CMD` | HTTP listener on `/health`; no-listener is recorded as failed                            |
-| `railway-worker`   | `npm run build:workers`; `Dockerfile.worker` worker command           | Consumer registration plus `/health`, `/live`, `/ready`, `/metrics`, `/stats`            |
+| `railway-worker`   | `Dockerfile.worker` image with Redis on isolated Docker network       | Container consumer registration plus `/health`, `/live`, `/ready`, `/metrics`, `/stats`  |
 | `vercel-api`       | `scripts/build-vercel-api.mjs`; import built bundle                   | `makeApp()` constructs without listening                                                 |
-| `vercel-function`  | Source-import enabled `api/**/*.ts` handler                           | Structural export evidence only; remains `unproven` without Vercel build output          |
+| `vercel-function`  | `vercel build`; `.vercel/output/functions/**/*.func` entries          | Every emitted function entrypoint is invoked; unavailable tooling records `failed`      |
 | `vercel-web`       | `npm run build:web`                                                   | `dist/public/index.html` references emitted JavaScript bundle                            |
 | `railway-web`      | SPA build plus proven Railway API                                     | Asset and deep-link probe through proven API listener                                    |
 | `ml-service-local` | `ml-service/Dockerfile` when Docker daemon is available               | Four FastAPI paths respond; otherwise records `unproven` with Docker availability result |
 
 ## Exact regeneration commands
 
-Run from repository root, in this order, after tracked source changes:
+Run from repository root, in this order, after tracked source changes. The
+regeneration chain starts with `--fresh`: it discards row/off-row human review
+state before rebuilding source-derived artifacts.
 
 ```sh
+set -eu
+
 npm install
 npm ls
+npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --fresh --review-file audit/surface-contract-matrix/g1-review.json
 node audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs
 node audit/surface-contract-matrix/scripts/boot-proof.mjs
+SEED_SNAPSHOT="$(mktemp -d)"
+cleanup() {
+  rm -rf "$SEED_SNAPSHOT"
+}
+trap cleanup EXIT HUP INT TERM
 npx tsx audit/surface-contract-matrix/scripts/seed-matrix.mjs
+for artifact in matrix.json source-inventory.json listener-dispositions.json dormant-candidates.json dormant-inventory.json runtime-exclusions.json condition-overrides.json definition-overrides.json orphans.json; do
+  cp "audit/surface-contract-matrix/$artifact" "$SEED_SNAPSHOT/$artifact"
+done
+npx tsx audit/surface-contract-matrix/scripts/seed-matrix.mjs
+for artifact in matrix.json source-inventory.json listener-dispositions.json dormant-candidates.json dormant-inventory.json runtime-exclusions.json condition-overrides.json definition-overrides.json orphans.json; do
+  cmp "$SEED_SNAPSHOT/$artifact" "audit/surface-contract-matrix/$artifact" || {
+    echo "seed output mismatch: $artifact" >&2
+    exit 1
+  }
+done
+npx tsx audit/surface-contract-matrix/scripts/classify-pass.mjs
 npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs
 npx tsx audit/surface-contract-matrix/scripts/render-matrix.mjs
 ```
 
-For G1 approval, use the sole approval mutation path. It must regenerate the
-review artifact in the same invocation:
+The two seed runs must produce byte-identical artifacts. Preserve the first
+run's output files in a temporary directory and compare them with the second
+run before classification; do not approve or close G1 while that comparison
+differs.
+
+After regeneration, initialize and edit the tracked manifest. Seed never reads
+this file; approval is the only consumer of human decisions:
 
 ```sh
-npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --dry-run --seam <seam> --evidence <reference>
-npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --row <canonical-row-id> --evidence <reference>
-npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --close-g1 --evidence <reference>
+npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs init-review --review-file audit/surface-contract-matrix/g1-review.json
+npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver <id> --evidence <reference> --dry-run
+npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver <id> --evidence <reference>
+npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver <id> --evidence <reference> --close-g1
 ```
+
+`--approver` must equal manifest `approver_id`; `--evidence` must equal
+manifest `evidence_ref`. Direct `--row` and `--seam` mutation flags are not
+supported. Every non-dry-run approval validates source/inventory, off-row
+fingerprints, row integrity, roles, closure, and coverage in memory before an
+atomic multi-file swap. A rename failure rolls back the complete prior set.
 
 Final local gates:
 
