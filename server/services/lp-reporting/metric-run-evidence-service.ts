@@ -27,7 +27,6 @@ import {
   type InsertEvidenceRecord,
   type LpMetricRun,
 } from '@shared/schema/lp-reporting-evidence';
-import { users } from '@shared/schema/user';
 import { MetricRunCommitError } from './metric-run-commit-service';
 
 type MetricRunEvidenceDatabase = typeof db;
@@ -46,49 +45,88 @@ export interface MetricRunEvidenceListInput {
 
 interface MetricRunEvidenceServiceOptions {
   database?: MetricRunEvidenceDatabase;
-  skipTransaction?: boolean;
 }
 
 type MetricRunLookupRow = Pick<LpMetricRun, 'id' | 'fundId' | 'status'>;
-type TransactionCapableDatabase = MetricRunEvidenceDatabase & {
-  transaction?: <TResult>(
-    callback: (tx: MetricRunEvidenceDatabase) => Promise<TResult>
-  ) => Promise<TResult>;
-};
 type ExecuteCapableDatabase = MetricRunEvidenceDatabase & {
   execute?: (query: unknown) => Promise<unknown>;
 };
+type SqlResult<T> = { rows: T[] };
+type SqlRow = Record<string, unknown> & {
+  id?: unknown;
+  fund_id?: unknown;
+  valuation_mark_id?: unknown;
+  company_id?: unknown;
+  metric_run_id?: unknown;
+  narrative_run_id?: unknown;
+  idempotency_key?: unknown;
+  evidence_source?: unknown;
+  source_date?: unknown;
+  received_date?: unknown;
+  expiration_date?: unknown;
+  confidence_level?: unknown;
+  materiality_level?: unknown;
+  confidentiality?: unknown;
+  redaction_required?: unknown;
+  document_hash?: unknown;
+  valuation_policy_version?: unknown;
+  description?: unknown;
+  internal_notes?: unknown;
+  lp_objection?: unknown;
+  attachments?: unknown;
+  uploaded_by?: unknown;
+  approved_by?: unknown;
+  approved_at?: unknown;
+  created_at?: unknown;
+  updated_at?: unknown;
+};
 
-const EDITABLE_METRIC_RUN_STATUSES = new Set(['draft']);
-
-function withTransaction<TResult>(
-  database: MetricRunEvidenceDatabase,
-  skipTransaction: boolean,
-  callback: (tx: MetricRunEvidenceDatabase) => Promise<TResult>
-): Promise<TResult> {
-  const transactionCapable = database as TransactionCapableDatabase;
-  if (!skipTransaction && typeof transactionCapable.transaction === 'function') {
-    return transactionCapable.transaction((tx) => callback(tx));
-  }
-  return callback(database);
-}
-
-async function lockMetricRunRow(
-  database: MetricRunEvidenceDatabase,
-  fundId: number,
-  metricRunId: number
-): Promise<void> {
+async function executeRows<T>(database: MetricRunEvidenceDatabase, query: unknown): Promise<T[]> {
   const executeCapable = database as ExecuteCapableDatabase;
   if (typeof executeCapable.execute !== 'function') {
-    return;
+    throw new MetricRunCommitError(
+      500,
+      'METRIC_RUN_DATABASE_UNAVAILABLE',
+      'Metric-run database executor is unavailable.'
+    );
   }
-  await executeCapable.execute(sql`
-    SELECT id
-      FROM lp_metric_runs
-     WHERE fund_id = ${fundId}
-       AND id = ${metricRunId}
-     FOR UPDATE
-  `);
+  return ((await executeCapable.execute(query)) as SqlResult<T>).rows;
+}
+
+function evidenceFromJson(value: unknown): EvidenceRecord {
+  if (typeof value !== 'object' || value === null) {
+    throw new MetricRunCommitError(500, 'EVIDENCE_ROW_INVALID', 'Evidence SQL result was invalid.');
+  }
+  const row = value as SqlRow;
+  return {
+    id: Number(row.id),
+    fundId: Number(row.fund_id),
+    valuationMarkId: row.valuation_mark_id === null ? null : Number(row.valuation_mark_id),
+    companyId: row.company_id === null ? null : Number(row.company_id),
+    metricRunId: row.metric_run_id === null ? null : Number(row.metric_run_id),
+    narrativeRunId: row.narrative_run_id === null ? null : Number(row.narrative_run_id),
+    idempotencyKey: row.idempotency_key === null ? null : String(row.idempotency_key),
+    evidenceSource: String(row.evidence_source) as EvidenceRecord['evidenceSource'],
+    sourceDate: String(row.source_date),
+    receivedDate: row.received_date === null ? null : String(row.received_date),
+    expirationDate: row.expiration_date === null ? null : String(row.expiration_date),
+    confidenceLevel: String(row.confidence_level) as EvidenceRecord['confidenceLevel'],
+    materialityLevel: String(row.materiality_level) as EvidenceRecord['materialityLevel'],
+    confidentiality: String(row.confidentiality) as EvidenceRecord['confidentiality'],
+    redactionRequired: Boolean(row.redaction_required),
+    documentHash: row.document_hash === null ? null : String(row.document_hash),
+    valuationPolicyVersion:
+      row.valuation_policy_version === null ? null : String(row.valuation_policy_version),
+    description: row.description === null ? null : String(row.description),
+    internalNotes: row.internal_notes === null ? null : String(row.internal_notes),
+    lpObjection: row.lp_objection === null ? null : String(row.lp_objection),
+    attachments: row.attachments,
+    uploadedBy: row.uploaded_by === null ? null : Number(row.uploaded_by),
+    approvedBy: row.approved_by === null ? null : Number(row.approved_by),
+    approvedAt: row.approved_at === null ? null : new Date(String(row.approved_at)),
+    createdAt: row.created_at === null ? null : new Date(String(row.created_at)),
+    updatedAt: row.updated_at === null ? null : new Date(String(row.updated_at)),
+  };
 }
 
 function isoDateTime(value: Date | string | null | undefined, field: string): string {
@@ -115,24 +153,6 @@ function isoDay(value: Date | string | null | undefined): string | null {
   return null;
 }
 
-async function assertUserExists(
-  database: MetricRunEvidenceDatabase,
-  userId: number
-): Promise<void> {
-  const rows = await database
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
-  if (!rows[0]) {
-    throw new MetricRunCommitError(
-      401,
-      'AUTH_USER_ID_UNRESOLVED',
-      'Authenticated user could not be resolved to a numeric users.id.'
-    );
-  }
-}
-
 async function loadMetricRun(
   database: MetricRunEvidenceDatabase,
   fundId: number,
@@ -156,17 +176,6 @@ async function loadMetricRun(
     );
   }
   return row as MetricRunLookupRow;
-}
-
-function assertMetricRunEditable(metricRun: MetricRunLookupRow): void {
-  if (!EDITABLE_METRIC_RUN_STATUSES.has(metricRun.status)) {
-    throw new MetricRunCommitError(
-      409,
-      'METRIC_RUN_NOT_EDITABLE',
-      'Evidence records can only be added to draft metric runs.',
-      { status: metricRun.status }
-    );
-  }
 }
 
 function toMetricRunEvidenceRecord(row: EvidenceRecord): MetricRunEvidenceRecord {
@@ -271,49 +280,110 @@ export async function createMetricRunEvidence(
   options: MetricRunEvidenceServiceOptions = {}
 ): Promise<MetricRunEvidenceCreateResponse> {
   const database = options.database ?? db;
-  return withTransaction(database, options.skipTransaction === true, async (tx) => {
-    const body = MetricRunEvidenceCreateRequestSchema.parse(input.body);
-    await lockMetricRunRow(tx, input.fundId, input.metricRunId);
-    const metricRun = await loadMetricRun(tx, input.fundId, input.metricRunId);
-    assertMetricRunEditable(metricRun);
-    await assertUserExists(tx, input.userId);
-
-    const existing = await findEvidenceByIdempotencyKey(
-      tx,
-      input.fundId,
-      input.metricRunId,
-      body.idempotencyKey
+  const body = MetricRunEvidenceCreateRequestSchema.parse(input.body);
+  const values = evidenceInsertValues({ ...input, body });
+  type EvidenceMutationRow = {
+    metric_exists: boolean;
+    actual_status: string | null;
+    user_exists: boolean;
+    existing_evidence_id: number | null;
+    inserted_row: unknown;
+  };
+  const rows = await executeRows<EvidenceMutationRow>(
+    database,
+    sql`
+    WITH metric_run_row AS (
+      SELECT id, status
+        FROM lp_metric_runs
+       WHERE fund_id = ${input.fundId}::integer AND id = ${input.metricRunId}::integer
+       FOR UPDATE
+    ),
+    guard AS (
+      SELECT mr.id, mr.status, true::boolean AS metric_exists,
+             EXISTS (SELECT 1 FROM users u WHERE u.id = ${input.userId}::integer) AS user_exists,
+             (SELECT e.id FROM evidence_records e
+               WHERE e.fund_id = ${input.fundId}::integer
+                 AND e.metric_run_id = ${input.metricRunId}::integer
+                 AND e.idempotency_key = ${body.idempotencyKey}::varchar
+               LIMIT 1) AS existing_evidence_id
+        FROM metric_run_row mr
+      UNION ALL
+      SELECT NULL::integer, NULL::varchar, false::boolean, false::boolean, NULL::integer
+       WHERE NOT EXISTS (SELECT 1 FROM metric_run_row)
+    ),
+    inserted AS (
+      INSERT INTO evidence_records (
+        fund_id, metric_run_id, idempotency_key, evidence_source, source_date,
+        received_date, expiration_date, confidence_level, materiality_level,
+        confidentiality, redaction_required, document_hash, valuation_policy_version,
+        description, internal_notes, lp_objection, attachments, uploaded_by
+      )
+      SELECT ${values.fundId}::integer, ${values.metricRunId}::integer, ${values.idempotencyKey ?? null}::varchar,
+             ${values.evidenceSource}::varchar, ${values.sourceDate}::date,
+             ${values.receivedDate ?? null}::date, ${values.expirationDate ?? null}::date,
+             ${values.confidenceLevel}::varchar, ${values.materialityLevel}::varchar,
+             ${values.confidentiality}::varchar, ${values.redactionRequired}::boolean,
+             ${values.documentHash ?? null}::varchar, ${values.valuationPolicyVersion ?? null}::varchar,
+             ${values.description ?? null}::text, ${values.internalNotes ?? null}::text,
+             ${values.lpObjection ?? null}::text, ${JSON.stringify(values.attachments ?? [])}::jsonb,
+             ${values.uploadedBy ?? null}::integer
+        FROM guard
+       WHERE guard.metric_exists AND guard.status = 'draft'::varchar
+         AND guard.user_exists AND guard.existing_evidence_id IS NULL
+      ON CONFLICT DO NOTHING
+      RETURNING *
+    )
+    SELECT guard.metric_exists, guard.status AS actual_status, guard.user_exists,
+           guard.existing_evidence_id, to_jsonb(inserted) AS inserted_row
+      FROM guard LEFT JOIN inserted ON true
+  `
+  );
+  const row = rows[0];
+  if (!row)
+    throw new MetricRunCommitError(
+      500,
+      'METRIC_RUN_EVIDENCE_CONFLICT',
+      'Evidence create returned no guard row.'
     );
-    if (existing) {
-      return { record: toMetricRunEvidenceRecord(existing), inserted: false };
-    }
-
-    const inserted = await tx
-      .insert(evidenceRecords)
-      .values(evidenceInsertValues({ ...input, body }))
-      .onConflictDoNothing()
-      .returning();
-    const insertedRow = (inserted as EvidenceRecord[])[0];
-    if (insertedRow) {
-      return { record: toMetricRunEvidenceRecord(insertedRow), inserted: true };
-    }
-
-    const racedExisting = await findEvidenceByIdempotencyKey(
-      tx,
-      input.fundId,
-      input.metricRunId,
-      body.idempotencyKey
+  if (!row.metric_exists) {
+    throw new MetricRunCommitError(
+      404,
+      'METRIC_RUN_NOT_FOUND',
+      'Metric run was not found for this fund.'
     );
-    if (racedExisting) {
-      return { record: toMetricRunEvidenceRecord(racedExisting), inserted: false };
-    }
-
+  }
+  if (row.actual_status !== 'draft') {
     throw new MetricRunCommitError(
       409,
-      'METRIC_RUN_EVIDENCE_CONFLICT',
-      'Evidence create conflicted but no existing row could be loaded.'
+      'METRIC_RUN_NOT_EDITABLE',
+      'Evidence records can only be added to draft metric runs.',
+      { status: row.actual_status }
     );
-  });
+  }
+  if (!row.user_exists) {
+    throw new MetricRunCommitError(
+      401,
+      'AUTH_USER_ID_UNRESOLVED',
+      'Authenticated user could not be resolved to a numeric users.id.'
+    );
+  }
+  if (row.inserted_row)
+    return {
+      record: toMetricRunEvidenceRecord(evidenceFromJson(row.inserted_row)),
+      inserted: true,
+    };
+  const existing = await findEvidenceByIdempotencyKey(
+    database,
+    input.fundId,
+    input.metricRunId,
+    body.idempotencyKey
+  );
+  if (existing) return { record: toMetricRunEvidenceRecord(existing), inserted: false };
+  throw new MetricRunCommitError(
+    409,
+    'METRIC_RUN_EVIDENCE_CONFLICT',
+    'Evidence create conflicted but no existing row could be loaded.'
+  );
 }
 
 export async function listMetricRunEvidence(

@@ -117,15 +117,121 @@ function evidenceRowFromInsert(row: InsertEvidenceRecord): EvidenceRecord {
   });
 }
 
+function sqlEvidence(row: EvidenceRecord): Record<string, unknown> {
+  return {
+    id: row.id,
+    fund_id: row.fundId,
+    valuation_mark_id: row.valuationMarkId,
+    company_id: row.companyId,
+    metric_run_id: row.metricRunId,
+    narrative_run_id: row.narrativeRunId,
+    idempotency_key: row.idempotencyKey,
+    evidence_source: row.evidenceSource,
+    source_date: row.sourceDate,
+    received_date: row.receivedDate,
+    expiration_date: row.expirationDate,
+    confidence_level: row.confidenceLevel,
+    materiality_level: row.materialityLevel,
+    confidentiality: row.confidentiality,
+    redaction_required: row.redactionRequired,
+    document_hash: row.documentHash,
+    valuation_policy_version: row.valuationPolicyVersion,
+    description: row.description,
+    internal_notes: row.internalNotes,
+    lp_objection: row.lpObjection,
+    attachments: row.attachments,
+    uploaded_by: row.uploadedBy,
+    approved_by: row.approvedBy,
+    approved_at: row.approvedAt,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt,
+  };
+}
+
+function stringParameters(query: unknown): string[] {
+  const chunks = (query as { queryChunks?: unknown[] }).queryChunks ?? [];
+  return chunks.filter((chunk): chunk is string => typeof chunk === 'string');
+}
+
 function makeDatabase(): typeof db {
   return {
     transaction: async (callback: (tx: typeof db) => Promise<unknown>) => {
       state.operations.push('transaction');
       return callback(makeDatabase());
     },
-    execute: async () => {
-      state.operations.push('lock-parent');
-      return [];
+    execute: async (query: unknown) => {
+      state.operations.push('statement');
+      const metricRun = state.metricRuns.find((row) => row.id === 11 && row.fundId === 1);
+      const strings = stringParameters(query);
+      const idempotencyKey =
+        strings.find((value) => value.startsWith('metric-run-11-')) ?? 'metric-run-11-evidence-0';
+      const existing = state.evidence.find(
+        (row) => row.fundId === 1 && row.metricRunId === 11 && row.idempotencyKey === idempotencyKey
+      );
+      if (!metricRun)
+        return {
+          rows: [
+            {
+              metric_exists: false,
+              actual_status: null,
+              user_exists: false,
+              existing_evidence_id: null,
+              inserted_row: null,
+            },
+          ],
+        };
+      const insertValues: InsertEvidenceRecord = {
+        fundId: 1,
+        metricRunId: 11,
+        idempotencyKey,
+        evidenceSource: 'board_update',
+        sourceDate: '2026-03-31',
+        confidenceLevel: 'medium',
+        materialityLevel: strings.includes('high') ? 'high' : 'medium',
+        confidentiality: 'internal',
+        redactionRequired: false,
+        attachments: [],
+        uploadedBy: 7,
+        ...(strings.includes('Q1 board materials') && { description: 'Q1 board materials' }),
+      };
+      if (
+        metricRun.status !== 'draft' ||
+        state.users.length === 0 ||
+        existing ||
+        state.dropNextInsert
+      ) {
+        if (state.dropNextInsert && state.raceExistingOnInsertDrop) {
+          const raced = evidenceRowFromInsert(insertValues);
+          state.evidence.push(raced);
+          state.insertValues.push(insertValues);
+          state.dropNextInsert = false;
+        }
+        return {
+          rows: [
+            {
+              metric_exists: true,
+              actual_status: metricRun.status,
+              user_exists: state.users.length > 0,
+              existing_evidence_id: existing?.id ?? null,
+              inserted_row: null,
+            },
+          ],
+        };
+      }
+      state.insertValues.push(insertValues);
+      const inserted = evidenceRowFromInsert(insertValues);
+      state.evidence.push(inserted);
+      return {
+        rows: [
+          {
+            metric_exists: true,
+            actual_status: metricRun.status,
+            user_exists: true,
+            existing_evidence_id: null,
+            inserted_row: sqlEvidence(inserted),
+          },
+        ],
+      };
     },
     select: () => ({
       from: (table: unknown) => ({
@@ -203,7 +309,7 @@ describe('createMetricRunEvidence', () => {
     expect(state.insertValues[0]?.companyId).toBeUndefined();
     expect(state.insertValues[0]?.narrativeRunId).toBeUndefined();
     expect(state.insertValues[0]?.approvedBy).toBeUndefined();
-    expect(state.operations).toEqual(['transaction', 'lock-parent']);
+    expect(state.operations).toEqual(['statement']);
   });
 
   it('returns an existing row without inserting when the idempotency key was already used', async () => {

@@ -1,14 +1,13 @@
 /**
  * Database configuration with automatic serverless optimization.
- * Uses HTTP driver on Vercel, node-postgres for local Postgres, and
+ * Uses Neon WebSocket pool on Vercel, node-postgres for local Postgres, and
  * Neon WebSocket pool for remote Neon-style connection strings.
  */
 
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { Pool as NodePostgresPool, PoolClient as NodePostgresPoolClient } from 'pg';
-import { neon as createNeonHttpClient } from '@neondatabase/serverless';
-import { drizzle as drizzleNeonHttp } from 'drizzle-orm/neon-http';
 import { createRequire } from 'node:module';
+import { logger } from './lib/logger';
 import { getStorageConfigurationError, resolveStorageBootMode } from './storage-runtime-policy';
 import { combinedSchema, type CombinedSchema } from './db-schema';
 import { shouldUseNodePostgresDriver } from './db-driver-selection';
@@ -59,20 +58,29 @@ if (storageBootMode === 'test-mock-db' || storageBootMode === 'explicit-memory')
   db = await loadDatabaseMock();
   pool = null;
 } else if (isVercel) {
-  // Use HTTP driver for Vercel (no persistent connections)
-  const DATABASE_URL = process.env['DATABASE_URL'] || process.env['NEON_DATABASE_URL'];
+  // Use Neon WebSocket pool for Vercel transaction support.
+  const connectionString = process.env['DATABASE_URL'] || process.env['NEON_DATABASE_URL'];
 
-  if (!DATABASE_URL) {
+  if (!connectionString) {
     throw new Error('DATABASE_URL or NEON_DATABASE_URL environment variable is required');
   }
 
-  const sql = createNeonHttpClient(DATABASE_URL);
-  db = drizzleNeonHttp(sql, {
-    schema: combinedSchema,
-  }) as unknown as NodePgDatabase<CombinedSchema>;
+  const { Pool, neonConfig } = await import('@neondatabase/serverless');
+  const { drizzle } = await import('drizzle-orm/neon-serverless');
+  const ws = await import('ws');
 
-  // No pool in HTTP mode
-  pool = null;
+  // The ws module namespace is not the constructor; passing it makes every
+  // non-localhost WebSocket connection fail with "fetch failed".
+  neonConfig.webSocketConstructor = ws.default;
+
+  const neonPool = new Pool({ connectionString });
+  // Idle WebSocket failures emit 'error' on the pool; unhandled, they crash
+  // the process. Surface them without dying - the pool replaces connections.
+  neonPool.on('error', (error: Error) => {
+    logger.error({ err: error }, 'Neon pool error (Vercel)');
+  });
+  pool = neonPool;
+  db = drizzle(neonPool, { schema: combinedSchema });
 } else {
   const connectionString = process.env['DATABASE_URL'] || process.env['NEON_DATABASE_URL'];
   if (!connectionString) {
@@ -100,11 +108,15 @@ if (storageBootMode === 'test-mock-db' || storageBootMode === 'explicit-memory')
     const { drizzle } = await import('drizzle-orm/neon-serverless');
     const ws = await import('ws');
 
-    neonConfig.webSocketConstructor = ws;
+    // See the Vercel branch above: the constructor lives on ws.default.
+    neonConfig.webSocketConstructor = ws.default;
 
-    pool = new Pool({ connectionString });
-    // @ts-expect-error - Neon Pool type doesn't perfectly align with drizzle neon-serverless signature
-    db = drizzle(pool, { schema: combinedSchema });
+    const neonPool = new Pool({ connectionString });
+    neonPool.on('error', (error: Error) => {
+      logger.error({ err: error }, 'Neon pool error');
+    });
+    pool = neonPool;
+    db = drizzle(neonPool, { schema: combinedSchema });
   }
 }
 

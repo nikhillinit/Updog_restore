@@ -349,20 +349,31 @@ describe('activateCurrentForecast', () => {
   }
 
   it('atomically writes on + activated_at + pointer and flips the candidate (P2)', async () => {
-    const { database, tx } = makeDatabase([
-      [{ id: 1 }],
+    const { database, database_raw } = makeDatabase([
+      [],
       [dormantModeRow],
       [snakeRow({ id: 42 })],
-      [],
-      [],
       [
         {
-          cutover_reference_id: 42,
-          version: 4,
-          activated_at: '2026-07-22T00:00:00.000Z',
+          mode_exists: true,
+          version_matches: true,
+          actual_version: 3,
+          activated_at: null,
+          kill_switch_active: false,
+          reference_exists: true,
+          reference_eligible: true,
+          existing_request_id: null,
+          mode_write_id: 9,
+          claim_id: 1,
+          claim_response_body: {
+            calculationKey: 'current_forecast',
+            configuredMode: 'on',
+            activatedAt: '2026-07-22T00:00:00.000Z',
+            cutoverReferenceId: 42,
+            version: 4,
+          },
         },
       ],
-      [],
     ]);
 
     const result = await activateCurrentForecast({
@@ -383,9 +394,7 @@ describe('activateCurrentForecast', () => {
       cutoverReferenceId: 42,
       version: 4,
     });
-    // claim, lock, reference load, supersede, candidate flip, mode update,
-    // ledger completion -- ALL on the one transaction (P2 atomicity).
-    expect(tx.execute).toHaveBeenCalledTimes(7);
+    expect(database_raw.execute).toHaveBeenCalledTimes(4);
   });
 
   it('replays a completed activation without re-writing', async () => {
@@ -396,8 +405,7 @@ describe('activateCurrentForecast', () => {
       cutoverReferenceId: 42,
       version: 4,
     };
-    const { database, tx } = makeDatabase([
-      [],
+    const { database, database_raw } = makeDatabase([
       [
         {
           request_hash: activationRequestHash(),
@@ -419,12 +427,11 @@ describe('activateCurrentForecast', () => {
 
     expect(result.replayed).toBe(true);
     expect(result.response).toEqual(stored);
-    expect(tx.execute).toHaveBeenCalledTimes(2);
+    expect(database_raw.execute).toHaveBeenCalledTimes(1);
   });
 
   it('rejects idempotency-key reuse with a different activation request', async () => {
     const { database } = makeDatabase([
-      [],
       [{ request_hash: 'different', response_body: null, status: 'completed' }],
     ]);
 
@@ -442,7 +449,7 @@ describe('activateCurrentForecast', () => {
   });
 
   it('throws a version conflict on a stale expectedVersion', async () => {
-    const { database } = makeDatabase([[{ id: 1 }], [{ ...dormantModeRow, version: 5 }]]);
+    const { database } = makeDatabase([[], [{ ...dormantModeRow, version: 5 }]]);
 
     await expect(
       activateCurrentForecast({
@@ -459,7 +466,7 @@ describe('activateCurrentForecast', () => {
 
   it('refuses to activate twice', async () => {
     const { database } = makeDatabase([
-      [{ id: 1 }],
+      [],
       [{ ...dormantModeRow, activated_at: '2026-07-01T00:00:00.000Z' }],
     ]);
 
@@ -477,7 +484,7 @@ describe('activateCurrentForecast', () => {
   });
 
   it('blocks on green-candidate blockers without writing', async () => {
-    const { database, tx } = makeDatabase([[{ id: 1 }], [dormantModeRow], [snakeRow({ id: 42 })]]);
+    const { database } = makeDatabase([[], [dormantModeRow], [snakeRow({ id: 42 })]]);
 
     await expect(
       activateCurrentForecast({
@@ -493,12 +500,11 @@ describe('activateCurrentForecast', () => {
       name: 'CurrentForecastActivationBlockedError',
       blockers: ['shadow_green_required'],
     });
-    expect(tx.execute).toHaveBeenCalledTimes(3);
   });
 
   it('includes kill_switch_active among activation blockers', async () => {
     const { database } = makeDatabase([
-      [{ id: 1 }],
+      [],
       [{ ...dormantModeRow, kill_switch_active: true }],
       [snakeRow({ id: 42 })],
     ]);
@@ -520,7 +526,7 @@ describe('activateCurrentForecast', () => {
   });
 
   it('404s a missing reference', async () => {
-    const { database } = makeDatabase([[{ id: 1 }], [dormantModeRow], []]);
+    const { database } = makeDatabase([[], [dormantModeRow], []]);
 
     await expect(
       activateCurrentForecast({

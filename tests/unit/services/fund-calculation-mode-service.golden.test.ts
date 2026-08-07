@@ -62,16 +62,13 @@ function sourceBundle(): FundMoicRankingSources {
 function makeDatabase(executeRows: unknown[][]) {
   const queue = [...executeRows];
   const executed: Array<{ sql: string; params: unknown[] }> = [];
-  const tx = {
+  // The claim-last rewrite executes statements directly on the database
+  // handle (no callback transaction), so the double exposes execute there.
+  const database = {
     execute: vi.fn(async (query: SQL) => {
       executed.push(dialect.sqlToQuery(query));
       return { rows: queue.shift() ?? [] };
     }),
-  };
-  const database = {
-    transaction: vi.fn(async (callback: (transaction: typeof tx) => Promise<unknown>) =>
-      callback(tx)
-    ),
   };
 
   return { database, executed };
@@ -89,8 +86,9 @@ describe('fund calculation mode service MOIC golden contract', () => {
       acceptedReconciliationRunId: 55,
     } as const;
     const { database, executed } = makeDatabase([
-      [{ id: 100 }],
+      // 1: read-only mode-row preflight (row absent, expectedVersion 0)
       [],
+      // 2: loadCompletedAccepted for run 55
       [
         {
           id: 55,
@@ -98,19 +96,16 @@ describe('fund calculation mode service MOIC golden contract', () => {
           candidate_output_hash: 'candidate-output-a',
         },
       ],
+      // 3: the single claim-last CTE statement
       [
         {
-          id: 1,
-          configured_mode: 'shadow',
-          kill_switch_active: false,
-          shadow_started_at: NOW,
-          last_reconciliation_run_id: 55,
-          last_moic_source_input_hash: 'source-hash-a',
-          last_candidate_output_hash: 'candidate-output-a',
-          version: 1,
+          mode_exists: false,
+          actual_version: null,
+          existing_request_id: null,
+          mode_write_id: 1,
+          claim_id: 100,
         },
       ],
-      [],
     ]);
 
     const result = await updateFundMoicCalculationMode({
@@ -126,13 +121,10 @@ describe('fund calculation mode service MOIC golden contract', () => {
     });
 
     expect(canonicalSha256(requestPreimage)).toBe(GOLDEN_REQUEST_HASH);
-    expect(executed[0]?.params).toEqual([
-      7,
-      CALCULATION_KEY,
-      'golden-idempotency-key',
-      GOLDEN_REQUEST_HASH,
-      42,
-    ]);
+    // The claim-last CTE statement carries the golden request hash and the
+    // idempotency key verbatim.
+    expect(executed[2]?.params).toContain(GOLDEN_REQUEST_HASH);
+    expect(executed[2]?.params).toContain('golden-idempotency-key');
     expect(result.response).toEqual({
       calculationKey: CALCULATION_KEY,
       configuredMode: 'shadow',

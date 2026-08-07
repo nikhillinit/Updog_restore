@@ -1,17 +1,34 @@
 /** Exact neon-http driver error emitted when transactions are unavailable. */
 export const NEON_HTTP_TRANSACTION_UNSUPPORTED_MESSAGE =
   'No transactions support in neon-http driver';
+const NEON_HTTP_TRANSACTION_ERROR_CHANGED_MESSAGE =
+  'neon-http driver transaction error changed shape; update transaction-support pin';
 
 type TransactionalDatabase<TTransaction> = {
   transaction<T>(callback: (transaction: TTransaction) => Promise<T>): Promise<T>;
 };
+
+/** Execute callback in driver transaction. Transaction failures propagate. */
+export function runInTransaction<TTransaction, TResult>(
+  database: TransactionalDatabase<TTransaction>,
+  callback: (transaction: TTransaction) => Promise<TResult>
+): Promise<TResult> {
+  return database.transaction(callback);
+}
 
 export interface TransactionExecutionContext {
   transactional: boolean;
 }
 
 function isNeonHttpTransactionUnsupported(error: unknown): boolean {
-  return error instanceof Error && error.message === NEON_HTTP_TRANSACTION_UNSUPPORTED_MESSAGE;
+  if (!(error instanceof Error)) return false;
+  if (error.message === NEON_HTTP_TRANSACTION_UNSUPPORTED_MESSAGE) return true;
+
+  const normalizedMessage = error.message.toLowerCase();
+  if (normalizedMessage.includes('transaction') && normalizedMessage.includes('neon-http')) {
+    throw new Error(NEON_HTTP_TRANSACTION_ERROR_CHANGED_MESSAGE, { cause: error });
+  }
+  return false;
 }
 
 /**

@@ -49,49 +49,162 @@ export interface MetricRunDetailInput {
 
 interface MetricRunLifecycleServiceOptions {
   database?: MetricRunLifecycleDatabase;
-  skipTransaction?: boolean;
 }
-
-type TransactionCapableDatabase = MetricRunLifecycleDatabase & {
-  transaction?: <TResult>(
-    callback: (tx: MetricRunLifecycleDatabase) => Promise<TResult>
-  ) => Promise<TResult>;
-};
 
 type ExecuteCapableDatabase = MetricRunLifecycleDatabase & {
   execute?: (query: unknown) => Promise<unknown>;
 };
+type SqlRow = Record<string, unknown> & {
+  id?: unknown;
+  fund_id?: unknown;
+  vehicle_id?: unknown;
+  as_of_date?: unknown;
+  run_type?: unknown;
+  perspective?: unknown;
+  status?: unknown;
+  inputs_hash?: unknown;
+  source_event_ids?: unknown;
+  source_mark_ids?: unknown;
+  source_evidence_ids?: unknown;
+  results_json?: unknown;
+  diagnostics_json?: unknown;
+  methodology_version?: unknown;
+  calculation_version?: unknown;
+  generated_by?: unknown;
+  approved_by?: unknown;
+  approved_at?: unknown;
+  locked_by?: unknown;
+  locked_at?: unknown;
+  exported_at?: unknown;
+  version?: unknown;
+  created_at?: unknown;
+  updated_at?: unknown;
+};
+type SqlResult<T> = { rows: T[] };
 
 const IdArraySchema = z.array(z.number().int().positive());
 
-function withTransaction<TResult>(
-  database: MetricRunLifecycleDatabase,
-  skipTransaction: boolean,
-  callback: (tx: MetricRunLifecycleDatabase) => Promise<TResult>
-): Promise<TResult> {
-  const transactionCapable = database as TransactionCapableDatabase;
-  if (!skipTransaction && typeof transactionCapable.transaction === 'function') {
-    return transactionCapable.transaction((tx) => callback(tx));
-  }
-  return callback(database);
-}
-
-async function lockMetricRunRow(
-  database: MetricRunLifecycleDatabase,
-  fundId: number,
-  metricRunId: number
-): Promise<void> {
+async function executeRows<T>(database: MetricRunLifecycleDatabase, query: unknown): Promise<T[]> {
   const executeCapable = database as ExecuteCapableDatabase;
   if (typeof executeCapable.execute !== 'function') {
-    return;
+    throw new MetricRunCommitError(
+      500,
+      'METRIC_RUN_DATABASE_UNAVAILABLE',
+      'Metric-run database executor is unavailable.'
+    );
   }
-  await executeCapable.execute(sql`
-    SELECT id
-      FROM lp_metric_runs
-     WHERE fund_id = ${fundId}
-       AND id = ${metricRunId}
-     FOR UPDATE
-  `);
+  return ((await executeCapable.execute(query)) as SqlResult<T>).rows;
+}
+
+function jsonObject(value: unknown): SqlRow | null {
+  return typeof value === 'object' && value !== null ? (value as SqlRow) : null;
+}
+
+function metricRunFromJson(value: unknown): LpMetricRun {
+  const row = jsonObject(value);
+  if (!row)
+    throw new MetricRunCommitError(
+      500,
+      'METRIC_RUN_ROW_INVALID',
+      'Metric-run SQL result was invalid.'
+    );
+  return {
+    id: Number(row.id),
+    fundId: Number(row.fund_id),
+    vehicleId: row.vehicle_id === null ? null : Number(row.vehicle_id),
+    asOfDate: String(row.as_of_date),
+    runType: row.run_type as LpMetricRun['runType'],
+    perspective: row.perspective as LpMetricRun['perspective'],
+    status: row.status as LpMetricRun['status'],
+    inputsHash: String(row.inputs_hash),
+    sourceEventIds: row.source_event_ids,
+    sourceMarkIds: row.source_mark_ids,
+    sourceEvidenceIds: row.source_evidence_ids,
+    resultsJson: row.results_json,
+    diagnosticsJson: row.diagnostics_json,
+    methodologyVersion: String(row.methodology_version),
+    calculationVersion: String(row.calculation_version),
+    generatedBy: row.generated_by === null ? null : Number(row.generated_by),
+    approvedBy: row.approved_by === null ? null : Number(row.approved_by),
+    approvedAt: row.approved_at === null ? null : (String(row.approved_at) as unknown as Date),
+    lockedBy: row.locked_by === null ? null : Number(row.locked_by),
+    lockedAt: row.locked_at === null ? null : (String(row.locked_at) as unknown as Date),
+    exportedAt: row.exported_at === null ? null : (String(row.exported_at) as unknown as Date),
+    version: Number(row.version),
+    createdAt: row.created_at === null ? null : (String(row.created_at) as unknown as Date),
+    updatedAt: row.updated_at === null ? null : (String(row.updated_at) as unknown as Date),
+  };
+}
+
+interface MetricRunMutationRow extends SqlRow {
+  metric_exists: boolean;
+  actual_status: string | null;
+  actual_version: number | null;
+  evidence_ids: unknown;
+  guard_row: unknown;
+  updated_row: unknown;
+}
+
+async function executeMetricRunMutation(
+  database: MetricRunLifecycleDatabase,
+  input: MetricRunLifecycleInput,
+  transition: 'approve' | 'lock'
+): Promise<MetricRunMutationRow> {
+  const expectedStatus = transition === 'approve' ? 'draft' : 'approved';
+  const setClause =
+    transition === 'approve'
+      ? sql`status = 'approved', approved_by = ${input.userId}::integer, approved_at = now(), source_evidence_ids = guard.evidence_ids`
+      : sql`status = 'locked', locked_by = ${input.userId}::integer, locked_at = now()`;
+  const rows = await executeRows<MetricRunMutationRow>(
+    database,
+    sql`
+    WITH metric_run_row AS (
+      SELECT id, fund_id, vehicle_id, as_of_date, run_type, perspective, status,
+             inputs_hash, source_event_ids, source_mark_ids, source_evidence_ids,
+             results_json, diagnostics_json, methodology_version, calculation_version,
+             generated_by, approved_by, approved_at, locked_by, locked_at,
+             exported_at, version, created_at, updated_at
+        FROM lp_metric_runs
+       WHERE fund_id = ${input.fundId}::integer AND id = ${input.metricRunId}::integer
+       FOR UPDATE
+    ),
+    guard AS (
+      SELECT mr.*, true::boolean AS metric_exists,
+             COALESCE((SELECT jsonb_agg(e.id ORDER BY e.id) FROM evidence_records e
+                        WHERE e.fund_id = mr.fund_id AND e.metric_run_id = mr.id), '[]'::jsonb) AS evidence_ids
+        FROM metric_run_row mr
+      UNION ALL
+      SELECT ${input.metricRunId}::integer, ${input.fundId}::integer, NULL::integer, NULL::date,
+             NULL::varchar, NULL::varchar, NULL::varchar, NULL::varchar, '[]'::jsonb, '[]'::jsonb,
+             '[]'::jsonb, '{}'::jsonb, '{}'::jsonb, NULL::varchar, NULL::varchar,
+             NULL::integer, NULL::integer, NULL::timestamptz, NULL::integer, NULL::timestamptz,
+             NULL::timestamptz, NULL::integer, NULL::timestamptz, NULL::timestamptz,
+             false::boolean, '[]'::jsonb
+       WHERE NOT EXISTS (SELECT 1 FROM metric_run_row)
+    ),
+    updated AS (
+      UPDATE lp_metric_runs AS run
+         SET ${setClause}, version = ${input.expectedVersion + 1}::integer, updated_at = now()
+        FROM guard
+       WHERE guard.metric_exists AND guard.status = ${expectedStatus}::varchar
+         AND guard.version = ${input.expectedVersion}::integer
+         ${transition === 'approve' ? sql`AND jsonb_array_length(guard.evidence_ids) > 0` : sql``}
+         AND run.id = guard.id AND run.fund_id = guard.fund_id
+       RETURNING run.*
+    )
+    SELECT guard.metric_exists, guard.status AS actual_status, guard.version AS actual_version,
+           guard.evidence_ids, to_jsonb(guard) AS guard_row, to_jsonb(updated) AS updated_row
+      FROM guard LEFT JOIN updated ON true
+  `
+  );
+  const row = rows[0];
+  if (!row)
+    throw new MetricRunCommitError(
+      500,
+      'METRIC_RUN_MUTATION_INVALID',
+      'Metric-run mutation returned no guard row.'
+    );
+  return row;
 }
 
 function isoDateTime(value: Date | string | null | undefined): string | null {
@@ -285,74 +398,41 @@ export async function approveMetricRun(
   options: MetricRunLifecycleServiceOptions = {}
 ): Promise<MetricRunLifecycleResponse> {
   const database = options.database ?? db;
-  return withTransaction(database, options.skipTransaction === true, async (tx) => {
-    await lockMetricRunRow(tx, input.fundId, input.metricRunId);
-    const metricRun = await loadMetricRun(tx, input.fundId, input.metricRunId);
-    if (isSameApproveRetry(metricRun, input)) {
-      return MetricRunLifecycleResponseSchema.parse({
-        metricRun: await loadDetail(tx, input.fundId, input.metricRunId),
-        changed: false,
-      });
-    }
-    if (metricRun.status !== 'draft') {
-      throw statusConflict(metricRun.status, 'draft');
-    }
-    assertExpectedVersion(normalizeVersion(metricRun.version), input.expectedVersion);
-
-    const evidenceIds = await loadEvidenceIds(tx, input.fundId, input.metricRunId);
-    if (evidenceIds.length === 0) {
-      throw new MetricRunCommitError(
-        409,
-        'METRIC_RUN_EVIDENCE_REQUIRED',
-        'At least one evidence record is required before approval.'
-      );
-    }
-
-    const now = new Date();
-    const updatedRows = await tx
-      .update(lpMetricRuns)
-      .set({
-        status: 'approved',
-        approvedBy: input.userId,
-        approvedAt: now,
-        sourceEvidenceIds: evidenceIds,
-        version: input.expectedVersion + 1,
-        updatedAt: now,
-      })
-      .where(
-        and(
-          eq(lpMetricRuns.fundId, input.fundId),
-          eq(lpMetricRuns.id, input.metricRunId),
-          eq(lpMetricRuns.status, 'draft'),
-          eq(lpMetricRuns.version, input.expectedVersion)
-        )
-      )
-      .returning();
-
-    const updated = (updatedRows as LpMetricRun[])[0];
-    if (!updated) {
-      const current = await loadMetricRun(tx, input.fundId, input.metricRunId);
-      if (isSameApproveRetry(current, input)) {
-        return MetricRunLifecycleResponseSchema.parse({
-          metricRun: await loadDetail(tx, input.fundId, input.metricRunId),
-          changed: false,
-        });
-      }
-      if (current.status !== 'draft') {
-        throw statusConflict(current.status, 'draft');
-      }
-      assertExpectedVersion(normalizeVersion(current.version), input.expectedVersion);
-      throw new MetricRunCommitError(
-        409,
-        'METRIC_RUN_STATUS_CONFLICT',
-        'Metric run approval conflicted with another lifecycle update.'
-      );
-    }
-
+  const row = await executeMetricRunMutation(database, input, 'approve');
+  if (!row.metric_exists) {
+    throw new MetricRunCommitError(
+      404,
+      'METRIC_RUN_NOT_FOUND',
+      'Metric run was not found for this fund.'
+    );
+  }
+  const metricRun = metricRunFromJson(row.guard_row);
+  const evidenceIds = normalizeIdArray(row.evidence_ids);
+  if (isSameApproveRetry(metricRun, input)) {
     return MetricRunLifecycleResponseSchema.parse({
-      metricRun: toMetricRunDetail(updated, evidenceIds),
-      changed: true,
+      metricRun: toMetricRunDetail(metricRun, evidenceIds),
+      changed: false,
     });
+  }
+  if (metricRun.status !== 'draft') throw statusConflict(metricRun.status, 'draft');
+  assertExpectedVersion(normalizeVersion(metricRun.version), input.expectedVersion);
+  if (evidenceIds.length === 0) {
+    throw new MetricRunCommitError(
+      409,
+      'METRIC_RUN_EVIDENCE_REQUIRED',
+      'At least one evidence record is required before approval.'
+    );
+  }
+  if (!row.updated_row) {
+    throw new MetricRunCommitError(
+      409,
+      'METRIC_RUN_STATUS_CONFLICT',
+      'Metric run approval conflicted with another lifecycle update.'
+    );
+  }
+  return MetricRunLifecycleResponseSchema.parse({
+    metricRun: toMetricRunDetail(metricRunFromJson(row.updated_row), evidenceIds),
+    changed: true,
   });
 }
 
@@ -361,64 +441,34 @@ export async function lockMetricRun(
   options: MetricRunLifecycleServiceOptions = {}
 ): Promise<MetricRunLifecycleResponse> {
   const database = options.database ?? db;
-  return withTransaction(database, options.skipTransaction === true, async (tx) => {
-    await lockMetricRunRow(tx, input.fundId, input.metricRunId);
-    const metricRun = await loadMetricRun(tx, input.fundId, input.metricRunId);
-    if (isSameLockRetry(metricRun, input)) {
-      return MetricRunLifecycleResponseSchema.parse({
-        metricRun: await loadDetail(tx, input.fundId, input.metricRunId),
-        changed: false,
-      });
-    }
-    if (metricRun.status !== 'approved') {
-      throw statusConflict(metricRun.status, 'approved');
-    }
-    assertExpectedVersion(normalizeVersion(metricRun.version), input.expectedVersion);
-
-    const now = new Date();
-    const updatedRows = await tx
-      .update(lpMetricRuns)
-      .set({
-        status: 'locked',
-        lockedBy: input.userId,
-        lockedAt: now,
-        version: input.expectedVersion + 1,
-        updatedAt: now,
-      })
-      .where(
-        and(
-          eq(lpMetricRuns.fundId, input.fundId),
-          eq(lpMetricRuns.id, input.metricRunId),
-          eq(lpMetricRuns.status, 'approved'),
-          eq(lpMetricRuns.version, input.expectedVersion)
-        )
-      )
-      .returning();
-
-    const updated = (updatedRows as LpMetricRun[])[0];
-    if (!updated) {
-      const current = await loadMetricRun(tx, input.fundId, input.metricRunId);
-      if (isSameLockRetry(current, input)) {
-        return MetricRunLifecycleResponseSchema.parse({
-          metricRun: await loadDetail(tx, input.fundId, input.metricRunId),
-          changed: false,
-        });
-      }
-      if (current.status !== 'approved') {
-        throw statusConflict(current.status, 'approved');
-      }
-      assertExpectedVersion(normalizeVersion(current.version), input.expectedVersion);
-      throw new MetricRunCommitError(
-        409,
-        'METRIC_RUN_STATUS_CONFLICT',
-        'Metric run lock conflicted with another lifecycle update.'
-      );
-    }
-
-    const evidenceIds = await loadEvidenceIds(tx, input.fundId, input.metricRunId);
+  const row = await executeMetricRunMutation(database, input, 'lock');
+  if (!row.metric_exists) {
+    throw new MetricRunCommitError(
+      404,
+      'METRIC_RUN_NOT_FOUND',
+      'Metric run was not found for this fund.'
+    );
+  }
+  const metricRun = metricRunFromJson(row.guard_row);
+  const evidenceIds = normalizeIdArray(row.evidence_ids);
+  if (isSameLockRetry(metricRun, input)) {
     return MetricRunLifecycleResponseSchema.parse({
-      metricRun: toMetricRunDetail(updated, evidenceIds),
-      changed: true,
+      metricRun: toMetricRunDetail(metricRun, evidenceIds),
+      changed: false,
     });
+  }
+  if (metricRun.status !== 'approved') throw statusConflict(metricRun.status, 'approved');
+  assertExpectedVersion(normalizeVersion(metricRun.version), input.expectedVersion);
+  if (!row.updated_row) {
+    throw new MetricRunCommitError(
+      409,
+      'METRIC_RUN_STATUS_CONFLICT',
+      'Metric run lock conflicted with another lifecycle update.'
+    );
+  }
+  const updated = metricRunFromJson(row.updated_row);
+  return MetricRunLifecycleResponseSchema.parse({
+    metricRun: toMetricRunDetail(updated, normalizeIdArray(updated.sourceEvidenceIds)),
+    changed: true,
   });
 }

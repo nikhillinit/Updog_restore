@@ -113,15 +113,108 @@ function rowsFor(table: unknown): unknown[] {
   return [];
 }
 
+function sqlMetric(row: LpMetricRun, evidenceIds: number[]): Record<string, unknown> {
+  return {
+    id: row.id,
+    fund_id: row.fundId,
+    vehicle_id: row.vehicleId,
+    as_of_date: row.asOfDate,
+    run_type: row.runType,
+    perspective: row.perspective,
+    status: row.status,
+    inputs_hash: row.inputsHash,
+    source_event_ids: row.sourceEventIds,
+    source_mark_ids: row.sourceMarkIds,
+    source_evidence_ids: row.sourceEvidenceIds,
+    results_json: row.resultsJson,
+    diagnostics_json: row.diagnosticsJson,
+    methodology_version: row.methodologyVersion,
+    calculation_version: row.calculationVersion,
+    generated_by: row.generatedBy,
+    approved_by: row.approvedBy,
+    approved_at: row.approvedAt,
+    locked_by: row.lockedBy,
+    locked_at: row.lockedAt,
+    exported_at: row.exportedAt,
+    version: row.version,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt,
+    evidence_ids: evidenceIds,
+  };
+}
+
+function lastNumericParameter(query: unknown): number | undefined {
+  const chunks = (query as { queryChunks?: unknown[] }).queryChunks ?? [];
+  return [...chunks].reverse().find((chunk): chunk is number => typeof chunk === 'number');
+}
+
 function makeDatabase(): typeof db {
   return {
     transaction: async (callback: (tx: typeof db) => Promise<unknown>) => {
       state.operations.push('transaction');
       return callback(makeDatabase());
     },
-    execute: async () => {
-      state.operations.push('lock-parent');
-      return [];
+    execute: async (query: unknown) => {
+      state.operations.push('statement');
+      const current = state.metricRuns.find((row) => row.id === 11 && row.fundId === 1);
+      const expectedVersion = lastNumericParameter(query);
+      const evidenceIds = state.evidence
+        .filter((row) => row.fundId === 1 && row.metricRunId === 11)
+        .map((row) => row.id);
+      if (!current)
+        return {
+          rows: [
+            {
+              metric_exists: false,
+              actual_status: null,
+              actual_version: null,
+              evidence_ids: [],
+              guard_row: null,
+              updated_row: null,
+            },
+          ],
+        };
+      const transition = current.status === 'draft' ? 'approve' : 'lock';
+      const valid =
+        current.version === expectedVersion &&
+        ((transition === 'approve' && current.status === 'draft' && evidenceIds.length > 0) ||
+          (transition === 'lock' && current.status === 'approved'));
+      const guard = sqlMetric(current, evidenceIds);
+      if (!valid)
+        return {
+          rows: [
+            {
+              metric_exists: true,
+              actual_status: current.status,
+              actual_version: current.version,
+              evidence_ids: evidenceIds,
+              guard_row: guard,
+              updated_row: null,
+            },
+          ],
+        };
+      const userId = transition === 'lock' ? 8 : 7;
+      const updated = {
+        ...current,
+        status: transition === 'approve' ? 'approved' : 'locked',
+        version: current.version + 1,
+        ...(transition === 'approve'
+          ? { approvedBy: userId, approvedAt: now, sourceEvidenceIds: evidenceIds }
+          : { lockedBy: userId, lockedAt: now }),
+      } as LpMetricRun;
+      state.metricRuns = [updated];
+      return {
+        rows: [
+          {
+            metric_exists: true,
+            actual_status: current.status,
+            actual_version: current.version,
+            evidence_ids: evidenceIds,
+            guard_row: guard,
+            updated_row: sqlMetric(updated, evidenceIds),
+          },
+        ],
+      };
     },
     select: () => ({
       from: (table: unknown) => ({
@@ -189,7 +282,7 @@ describe('approveMetricRun', () => {
     expect(result.metricRun.approvedBy).toBe(7);
     expect(result.metricRun.sourceEvidenceIds).toEqual([1000, 1001]);
     expect(result.metricRun.evidenceCount).toBe(2);
-    expect(state.operations).toEqual(['transaction', 'lock-parent']);
+    expect(state.operations).toEqual(['statement']);
   });
 
   it('rejects approval without evidence', async () => {

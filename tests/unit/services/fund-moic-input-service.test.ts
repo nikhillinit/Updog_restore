@@ -36,10 +36,12 @@ function requestHashFor(params: {
 
 function makeDatabase(executeRows: unknown[][]) {
   const queue = [...executeRows];
+  const execute = vi.fn(async () => ({ rows: queue.shift() ?? [] }));
   const tx = {
-    execute: vi.fn(async () => ({ rows: queue.shift() ?? [] })),
+    execute,
   };
   const database = {
+    execute,
     transaction: vi.fn(async (callback: (transaction: typeof tx) => Promise<unknown>) =>
       callback(tx)
     ),
@@ -58,15 +60,29 @@ const baseParams = {
   actorId: 42,
 };
 
+function moicMutation(overrides: Record<string, unknown> = {}) {
+  return [
+    {
+      company_exists: true,
+      actual_version: 3,
+      claim_id: 1,
+      completed_id: 1,
+      deleted_id: null,
+      response_body: {
+        fundId: 7,
+        companyId: 12,
+        allocationVersion: 4,
+        exitProbability: 0.8,
+        exitMoicBps: 35000,
+      },
+      ...overrides,
+    },
+  ];
+}
+
 describe('fund MOIC input service', () => {
   it('claims the idempotency row, updates inputs, increments version, and audits once', async () => {
-    const { database, tx } = makeDatabase([
-      [{ id: 1 }],
-      [{ allocation_version: 3 }],
-      [{ allocation_version: 4, exit_probability: '0.800000', exit_moic_bps: 35000 }],
-      [],
-      [],
-    ]);
+    const { database, tx } = makeDatabase([moicMutation()]);
 
     const result = await updateFundMoicInputs({ ...baseParams, database: database as never });
 
@@ -80,7 +96,7 @@ describe('fund MOIC input service', () => {
       },
       replayed: false,
     });
-    expect(tx.execute).toHaveBeenCalledTimes(5);
+    expect(tx.execute).toHaveBeenCalledTimes(1);
   });
 
   it('treats the same idempotency key on a different company as an independent update', async () => {
@@ -89,11 +105,15 @@ describe('fund MOIC input service', () => {
     );
 
     const { database, tx } = makeDatabase([
-      [{ id: 2 }],
-      [{ allocation_version: 3 }],
-      [{ allocation_version: 4, exit_probability: '0.800000', exit_moic_bps: 35000 }],
-      [],
-      [],
+      moicMutation({
+        response_body: {
+          fundId: 7,
+          companyId: 13,
+          allocationVersion: 4,
+          exitProbability: 0.8,
+          exitMoicBps: 35000,
+        },
+      }),
     ]);
 
     const result = await updateFundMoicInputs({
@@ -112,7 +132,7 @@ describe('fund MOIC input service', () => {
       },
       replayed: false,
     });
-    expect(tx.execute).toHaveBeenCalledTimes(5);
+    expect(tx.execute).toHaveBeenCalledTimes(1);
   });
 
   it('replays a completed idempotency ledger response without updating again', async () => {
@@ -124,7 +144,7 @@ describe('fund MOIC input service', () => {
       exitMoicBps: 35000,
     };
     const { database, tx } = makeDatabase([
-      [],
+      moicMutation({ claim_id: null, completed_id: null }),
       [
         {
           request_hash: requestHashFor(baseParams),
@@ -142,7 +162,7 @@ describe('fund MOIC input service', () => {
 
   it('conflicts when the same key is reused with a different request hash', async () => {
     const { database } = makeDatabase([
-      [],
+      moicMutation({ claim_id: null, completed_id: null }),
       [
         {
           request_hash: requestHashFor({ ...baseParams, exitProbability: 0.7 }),
@@ -159,7 +179,7 @@ describe('fund MOIC input service', () => {
 
   it('returns an in-progress error for a matching pending idempotency row', async () => {
     const { database } = makeDatabase([
-      [],
+      moicMutation({ claim_id: null, completed_id: null }),
       [
         {
           request_hash: requestHashFor(baseParams),
@@ -175,7 +195,15 @@ describe('fund MOIC input service', () => {
   });
 
   it('returns not found for the wrong fund/company pair', async () => {
-    const { database } = makeDatabase([[{ id: 1 }], []]);
+    const { database } = makeDatabase([
+      moicMutation({
+        company_exists: false,
+        actual_version: null,
+        claim_id: null,
+        completed_id: null,
+      }),
+      [],
+    ]);
 
     await expect(
       updateFundMoicInputs({ ...baseParams, database: database as never })
@@ -183,7 +211,10 @@ describe('fund MOIC input service', () => {
   });
 
   it('returns stale version when allocationVersion does not match expectedVersion', async () => {
-    const { database } = makeDatabase([[{ id: 1 }], [{ allocation_version: 5 }]]);
+    const { database } = makeDatabase([
+      moicMutation({ actual_version: 5, claim_id: null, completed_id: null }),
+      [],
+    ]);
     const promise = updateFundMoicInputs({ ...baseParams, database: database as never });
 
     await expect(promise).rejects.toMatchObject({

@@ -11,16 +11,16 @@ last_updated: 2026-08-07
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 709 |
-| Stale Documents | 479 |
-| Missing Frontmatter | 63 |
+| Total Documents | 716 |
+| Stale Documents | 486 |
+| Missing Frontmatter | 70 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 451 |
-| UNKNOWN | 157 |
+| UNKNOWN | 164 |
 | DRAFT | 34 |
 | HISTORICAL | 22 |
 | VERIFIED | 13 |
@@ -54,14 +54,20 @@ Documents that need review (older than their cadence threshold):
 | `DIRECTORY_DELETION_INVESTIGATION.md` | Never | 999 | No | Unassigned |
 | `TODOS.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.0.0_activation-blockers-runtime.plan.md` | Never | 999 | No | Unassigned |
+| `docs/1-plans/F_1.1.0_wave-h-context-rail-decisions.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.2.0_v1.4-release-proof-activation.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.2.1_ws1-surface-contract-matrix.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.2.2_g1-matrix-repair.plan.md` | Never | 999 | No | Unassigned |
+| `docs/1-plans/F_1.2.4_ws2-transaction-audit-repair.plan.md` | Never | 999 | No | Unassigned |
+| `docs/1-plans/F_1.3.0_fee-economics-convergence.plan.md` | Never | 999 | No | Unassigned |
+| `docs/1-plans/F_1.4.0_post-activation-epics.plan.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/changelog_table.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w1_v1.4.0.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w1_v1.4.1.md` | Never | 999 | No | Unassigned |
+| `docs/2-changelog/w1_v1.5.0.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w1_v1.4.0.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w1_v1.4.1.md` | Never | 999 | No | Unassigned |
+| `docs/3-code-review/CR_w1_v1.5.0.md` | Never | 999 | No | Unassigned |
 | `docs/ARCHI.md` | Never | 999 | No | Unassigned |
 | `docs/CA-PACING-ORACLE.md` | Never | 999 | No | Unassigned |
 | `docs/CRITICAL-REVIEW-secondary-surface-governance.md` | Never | 999 | No | Unassigned |
@@ -71,6 +77,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/agents/domain.md` | Never | 999 | No | Unassigned |
 | `docs/agents/issue-tracker.md` | Never | 999 | No | Unassigned |
 | `docs/agents/triage-labels.md` | Never | 999 | No | Unassigned |
+| `docs/audits/F_1.2.4-transaction-reachability-audit.md` | Never | 999 | No | Unassigned |
 | `docs/design/implementation/action-scope-grammar.md` | Never | 999 | No | Unassigned |
 | `docs/design/updog-design-philosophy-v3.1.1-implementation-notes.md` | Never | 999 | No | Unassigned |
 | `docs/phase2-calibration-benchmarks.md` | Never | 999 | No | Unassigned |
@@ -89,15 +96,8 @@ Documents that need review (older than their cadence threshold):
 | `docs/skills/REFL-012-fire-and-forget-async-creates-race-conditions.md` | Never | 999 | No | Unassigned |
 | `docs/skills/REFL-013-router-substring-matching-causes-false-positives.md` | Never | 999 | No | Unassigned |
 | `docs/skills/REFL-014-test-key-reuse-across-test-cases.md` | Never | 999 | YES - verify! | Unassigned |
-| `docs/skills/REFL-015-postgresql-service-missing-test-database.md` | Never | 999 | YES - verify! | Unassigned |
-| `docs/skills/REFL-017-ci-workflow-permission-errors.md` | Never | 999 | No | Unassigned |
-| `docs/skills/REFL-019-k1-template-drops-data-footnotes.md` | Never | 999 | No | Unassigned |
-| `docs/skills/REFL-022-prometheus-metrics-duplicate-registration.md` | Never | 999 | No | Unassigned |
-| `docs/skills/REFL-023-math-random-in-production-identifiers.md` | Never | 999 | No | Unassigned |
-| `docs/skills/REFL-027-redundant-any-on-inferred-callbacks.md` | Never | 999 | No | Unassigned |
-| `docs/skills/REFL-028-duck-type-context-access.md` | Never | 999 | No | Unassigned |
 
-*...and 429 more stale documents.*
+*...and 436 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -207,14 +207,20 @@ Documents without proper YAML frontmatter:
 - [ ] `DIRECTORY_DELETION_INVESTIGATION.md`
 - [ ] `TODOS.md`
 - [ ] `docs/1-plans/F_1.0.0_activation-blockers-runtime.plan.md`
+- [ ] `docs/1-plans/F_1.1.0_wave-h-context-rail-decisions.plan.md`
 - [ ] `docs/1-plans/F_1.2.0_v1.4-release-proof-activation.plan.md`
 - [ ] `docs/1-plans/F_1.2.1_ws1-surface-contract-matrix.plan.md`
 - [ ] `docs/1-plans/F_1.2.2_g1-matrix-repair.plan.md`
+- [ ] `docs/1-plans/F_1.2.4_ws2-transaction-audit-repair.plan.md`
+- [ ] `docs/1-plans/F_1.3.0_fee-economics-convergence.plan.md`
+- [ ] `docs/1-plans/F_1.4.0_post-activation-epics.plan.md`
 - [ ] `docs/2-changelog/changelog_table.md`
 - [ ] `docs/2-changelog/w1_v1.4.0.md`
 - [ ] `docs/2-changelog/w1_v1.4.1.md`
+- [ ] `docs/2-changelog/w1_v1.5.0.md`
 - [ ] `docs/3-code-review/CR_w1_v1.4.0.md`
 - [ ] `docs/3-code-review/CR_w1_v1.4.1.md`
+- [ ] `docs/3-code-review/CR_w1_v1.5.0.md`
 - [ ] `docs/ARCHI.md`
 - [ ] `docs/CA-PACING-ORACLE.md`
 - [ ] `docs/CRITICAL-REVIEW-secondary-surface-governance.md`
@@ -224,6 +230,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/agents/domain.md`
 - [ ] `docs/agents/issue-tracker.md`
 - [ ] `docs/agents/triage-labels.md`
+- [ ] `docs/audits/F_1.2.4-transaction-reachability-audit.md`
 - [ ] `docs/design/implementation/action-scope-grammar.md`
 - [ ] `docs/design/updog-design-philosophy-v3.1.1-implementation-notes.md`
 - [ ] `docs/phase2-calibration-benchmarks.md`
