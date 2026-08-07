@@ -99271,7 +99271,7 @@
       "shared/routes/api-runtime-specific-manifest.ts": "0daa50b7d7d569e6068a8e6998e57b3a6b3c76effa5a3834d53302c60b566805",
       "shared/routes/app-route-definitions.ts": "72ac7651f290aea940432af3ffde06746f8ce7b3b7a198e6ad718d336c673a0b",
       "shared/routes/route-governance-registry.ts": "07c1e15b2f1c343320125eac20ff75e55c6c7f63fa2b1d578aba9eadd8c76928",
-        "vercel.json": "3350f3fa3237c2df1d7f8d08c4dc7c59433e20543e8241fe7d410613c12d8744",
+      "vercel.json": "3350f3fa3237c2df1d7f8d08c4dc7c59433e20543e8241fe7d410613c12d8744",
       "vite.config.ts": "44f0745da9cf4aa73c55447b22dc8c5e9dd34bbd06b760899e00908ba08b18ad",
       "workers/cohort-worker.ts": "aa05a747b0a8605eb23264cd2149b0cf737b0f0f4a8d092fa57e0e32c416e187",
       "workers/dlq.ts": "4ab16ca234a24130b20abfcc78cdf9b6a159f5104fb682cc390adccbc0acedae",
@@ -99402,7 +99402,7 @@
   "validation": {
     "passed": true,
     "kg": {
-      "snapshot_id": "snapshot:efbe3b00a1eb85f75909cf93bde643756c7d1a5ba5a2b8ebca23a9876cf9f449",
+      "snapshot_id": "snapshot:627c75cf7b28853accf5e23bac9f03c29d86d16fee0ae1402762c81bab9cd234",
       "counts": {
         "APIEndpoint": 390,
         "ClientRoute": 43,
