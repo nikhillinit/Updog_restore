@@ -3756,7 +3756,16 @@ describe('required CI fails closed', () => {
       'promote',
       'post-promotion-smoke',
     ]);
-    expect(normalizeNeeds(releaseWorkflow.jobs?.['validate-target']?.needs)).toEqual([]);
+    const validateTarget = releaseWorkflow.jobs?.['validate-target'];
+    expect(normalizeNeeds(validateTarget?.needs)).toEqual([]);
+    expect(validateTarget?.outputs?.log_window_start).toBe(
+      '${{ steps.target.outputs.log_window_start }}'
+    );
+    const validateTargetStep = validateTarget?.steps?.find(
+      (step) => step.name === 'Require exact current main SHA'
+    );
+    expect(validateTargetStep?.id).toBe('target');
+    expect(validateTargetStep?.run).toContain("log_window_start=$(date -u +'%Y-%m-%dT%H:%M:%SZ')");
     expect(normalizeNeeds(releaseWorkflow.jobs?.['release-proof']?.needs)).toEqual([
       'validate-target',
     ]);
@@ -3860,10 +3869,47 @@ describe('required CI fails closed', () => {
       'validate-deployment',
     ]);
     const postPromotionSmoke = releaseWorkflow.jobs?.['post-promotion-smoke'];
-    expect(normalizeNeeds(postPromotionSmoke?.needs)).toEqual(['promote']);
+    expect(normalizeNeeds(postPromotionSmoke?.needs)).toEqual(['promote', 'validate-target']);
     expect(JSON.stringify(postPromotionSmoke?.steps ?? [])).not.toContain(
       'VERCEL_AUTOMATION_BYPASS_SECRET'
     );
+    const postPromotionSteps = postPromotionSmoke?.steps ?? [];
+    const authenticatedSmokeIndex = postPromotionSteps.findIndex(
+      (step) => step.name === 'Run authenticated production smoke'
+    );
+    const driverLogGateIndex = postPromotionSteps.findIndex(
+      (step) => step.name === 'Require clean Vercel database-driver log window'
+    );
+    expect(driverLogGateIndex).toBeGreaterThan(authenticatedSmokeIndex);
+    const driverLogGate = postPromotionSteps[driverLogGateIndex];
+    expect(driverLogGate?.env?.LOG_WINDOW_START).toBe(
+      '${{ needs.validate-target.outputs.log_window_start }}'
+    );
+    expect(driverLogGate?.env?.PRODUCTION_URL).toBe('${{ vars.PRODUCTION_URL }}');
+    expect(driverLogGate?.env?.VERCEL_TOKEN).toBe('${{ secrets.VERCEL_TOKEN }}');
+    expect(driverLogGate?.env?.VERCEL_ORG_ID).toBe('${{ vars.VERCEL_ORG_ID }}');
+    expect(driverLogGate?.env?.VERCEL_PROJECT_ID).toBe('${{ vars.VERCEL_PROJECT_ID }}');
+    expect(driverLogGate?.run).toContain('LOG_WINDOW_START is required');
+    expect(driverLogGate?.run).toContain('PRODUCTION_URL is required');
+    expect(driverLogGate?.run).toContain('VERCEL_TOKEN is required');
+    expect(driverLogGate?.run).toContain('npx --yes vercel@55.0.0 logs "$PRODUCTION_URL"');
+    expect(driverLogGate?.run).toContain('--environment production');
+    expect(driverLogGate?.run).toContain('--since "$LOG_WINDOW_START"');
+    expect(driverLogGate?.run).toContain('--json');
+    expect(driverLogGate?.run).toContain('--no-color');
+    expect(driverLogGate?.run).toContain('trap \'rm -f "$runtime_log"\' EXIT');
+    expect(driverLogGate?.run).toContain(
+      'node scripts/assert-vercel-driver-log-clean.mjs "$runtime_log"'
+    );
+    expect(JSON.stringify(postPromotionSmoke?.steps ?? [])).not.toContain('upload-artifact');
+
+    const driverLogParserTest = await readFile(
+      path.join(process.cwd(), 'tests/unit/scripts/assert-vercel-driver-log-clean.test.mjs'),
+      'utf8'
+    );
+    expect(driverLogParserTest).toContain('Neon pool error');
+    expect(driverLogParserTest).toContain('fetch failed');
+    expect(driverLogParserTest).toContain('No transactions support in neon-http driver');
 
     const identityScripts = allRunScripts({
       jobs: { identity: releaseWorkflow.jobs?.['validate-deployment'] ?? {} },
