@@ -9,29 +9,31 @@ import type { Express } from 'express';
 // Lazy-load the app to handle potential ESM/CJS issues
 let app: Express | undefined;
 
-async function getApp() {
-  if (!app) {
-    // Import the pre-bundled server app (api/_app.generated.mjs), produced by
-    // scripts/build-vercel-api.mjs during the Vercel build. We bundle because
-    // the raw server source uses extensionless relative imports and @shared/*
-    // aliases that fail under Node's ESM resolver when @vercel/node ships the
-    // files individually; esbuild resolves both at bundle time.
-    const appModule = await import('./_app.generated.mjs');
-    const makeApp = appModule.makeApp ?? appModule.default;
+async function getApp(): Promise<Express> {
+  if (app) return app;
 
-    if (!makeApp) {
-      throw new Error('Could not find makeApp export from _app.generated.mjs');
-    }
+  // Import the pre-bundled server app (api/_app.generated.mjs), produced by
+  // scripts/build-vercel-api.mjs during the Vercel build. We bundle because
+  // the raw server source uses extensionless relative imports and @shared/*
+  // aliases that fail under Node's ESM resolver when @vercel/node ships the
+  // files individually; esbuild resolves both at bundle time.
+  const appModule = await import('./_app.generated.mjs');
+  const makeApp = appModule.makeApp ?? appModule.default;
 
-    app = makeApp();
-
-    // Additional production optimizations for Vercel
-    if (process.env['VERCEL']) {
-      app.disable('x-powered-by');
-      app.set('trust proxy', 1);
-    }
+  if (!makeApp) {
+    throw new Error('Could not find makeApp export from _app.generated.mjs');
   }
-  return app;
+
+  const initializedApp = makeApp();
+
+  // Additional production optimizations for Vercel
+  if (process.env['VERCEL']) {
+    initializedApp.disable('x-powered-by');
+    initializedApp.set('trust proxy', 1);
+  }
+
+  app = initializedApp;
+  return initializedApp;
 }
 
 /**
