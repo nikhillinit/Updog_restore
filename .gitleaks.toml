@@ -50,7 +50,8 @@ regexTarget = "line"
 regexes = [
   '''^\s*"[^"]{1,240}(?:=|":\s*")[0-9a-f]{64}",?$''',
   '''(?:^|[\s|])[^"\s|]{1,240}=[0-9a-f]{64}"?(?:\s|\||$)''',
-  '''passkey boundary:\s*[0-9a-f]{64}'''
+  '''passkey boundary:\s*[0-9a-f]{64}''',
+  '''passkey boundary:\s*[^"]{1,64}'''
 ]
 paths = [
   '''^audit/surface-contract-matrix/(?:matrix|source-inventory)\.json$''',

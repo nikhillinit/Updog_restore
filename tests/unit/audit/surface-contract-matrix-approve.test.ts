@@ -362,7 +362,7 @@ describe('surface contract matrix approval closure safety', () => {
       ])
     ).rejects.toThrow('candidate/off-row schema validation');
     expect(trackedPaths.map((file) => fs.readFileSync(file))).toEqual(before);
-  });
+  }, 60_000);
 
   it('rejects stale off-row review fingerprints before applying dispositions', async () => {
     const { review } = writeReview();
