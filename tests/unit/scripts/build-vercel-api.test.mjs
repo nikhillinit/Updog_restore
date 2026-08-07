@@ -52,6 +52,32 @@ describe('build-vercel-api', () => {
     expect(bundleState.hasRequire2).toBe(false);
     expect(bundleState.hasRequire).toBe(false);
     expect(bundleState.mentionsNeonHttp).toBe(true);
+
+    const typecheck = spawnSync(
+      process.execPath,
+      [
+        resolve(root, 'node_modules/typescript/bin/tsc'),
+        '--noEmit',
+        '--strict',
+        '--skipLibCheck',
+        '--target',
+        'ES2022',
+        '--module',
+        'ESNext',
+        '--moduleResolution',
+        'Bundler',
+        '--types',
+        'node',
+        resolve(root, 'api/[...slug].ts'),
+      ],
+      {
+        cwd: root,
+        encoding: 'utf8',
+        timeout: 15000,
+      }
+    );
+
+    expect(typecheck.status, typecheck.stderr || typecheck.stdout).toBe(0);
   }, 60000);
 
   it('imports the built Vercel app without blocking on async module initialization', () => {

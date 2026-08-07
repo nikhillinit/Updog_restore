@@ -99127,7 +99127,7 @@
       ".dockerignore": "5ec5fd9ba5605180f60c7ebdfbafa37bcbee0e743d16504c79c51b0b088dfba4",
       ".vercelignore": "e5ecda625e91bc51d1bd68adae5403a46546709d580626b21a39be07267940da",
       "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
-      "api/[...slug].ts": "2b45faee7726ceca4df08b8bed599ba2713697255411f594df7ef067db28000e",
+      "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
       "api/telemetry/wizard.ts": "055e2fb386041bc22fea7ce410e4b27f536a4cfab204da13804ca6c270cf901d",
       "audit/surface-contract-matrix/boot-proofs.json": "a1c0dc75af88e52f96aab8e082d71be2eb08e12df520738ea0824679981505aa",
       "audit/surface-contract-matrix/matrix-schema.mjs": "b7f61213bf8e1f0db8d5bd28c15c1867f8909b5a68bfacf0871d1f42c422b3ba",
