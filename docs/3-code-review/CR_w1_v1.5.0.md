@@ -84,28 +84,27 @@ None.
 
 - **Unhandled Neon Pool errors — addressed.** Previous finding: “New Vercel Neon
   Pool lacks an error listener.” Both Neon pool branches now attach non-fatal
-  `error` handlers through `logger.error`:
-  [server/db.ts:79](/Users/nikhil/code/Updog_restore/server/db.ts:79) and
-  [server/db.ts:115](/Users/nikhil/code/Updog_restore/server/db.ts:115).
+  `error` handlers through `logger.error`: [server/db.ts:79](../../server/db.ts)
+  and [server/db.ts:115](../../server/db.ts).
 
 - **Potential narrative/report-package lock-order inversion — addressed.**
   Previous finding: “Metric and narrative `FOR UPDATE` CTEs are independent,
   permitting lock inversion against report-package assembly.” Narrative approval
   now forces the metric row dependency before acquiring the narrative lock:
-  [narrative-run-service.ts:164](/Users/nikhil/code/Updog_restore/server/services/lp-reporting/narrative-run-service.ts:164),
-  [narrative-run-service.ts:177](/Users/nikhil/code/Updog_restore/server/services/lp-reporting/narrative-run-service.ts:177),
+  [narrative-run-service.ts:164](../../server/services/lp-reporting/narrative-run-service.ts),
+  [narrative-run-service.ts:177](../../server/services/lp-reporting/narrative-run-service.ts),
   and
-  [narrative-run-service.ts:182](/Users/nikhil/code/Updog_restore/server/services/lp-reporting/narrative-run-service.ts:182).
+  [narrative-run-service.ts:182](../../server/services/lp-reporting/narrative-run-service.ts).
 
 - **Activation timestamp representation drift — addressed.** PostgreSQL JSONB
   timestamp rendering could differ from the canonical `Date.toISOString()`
   response. `activationResponseFromLedger` now validates and normalizes
   `activatedAt`, with both replay and fresh-result paths routed through it:
-  [current-forecast-reference-service.ts:589](/Users/nikhil/code/Updog_restore/server/services/current-forecast-reference-service.ts:589),
-  [current-forecast-reference-service.ts:597](/Users/nikhil/code/Updog_restore/server/services/current-forecast-reference-service.ts:597),
-  [current-forecast-reference-service.ts:633](/Users/nikhil/code/Updog_restore/server/services/current-forecast-reference-service.ts:633),
+  [current-forecast-reference-service.ts:589](../../server/services/current-forecast-reference-service.ts),
+  [current-forecast-reference-service.ts:597](../../server/services/current-forecast-reference-service.ts),
+  [current-forecast-reference-service.ts:633](../../server/services/current-forecast-reference-service.ts),
   and
-  [current-forecast-reference-service.ts:870](/Users/nikhil/code/Updog_restore/server/services/current-forecast-reference-service.ts:870).
+  [current-forecast-reference-service.ts:870](../../server/services/current-forecast-reference-service.ts).
 
 ### Minor Issues
 
@@ -118,20 +117,20 @@ None.
   predicates could produce an erroneous `409` after lock waiting. The plan’s
   pre-authorized escalation clause covers the callback-transaction
   implementation:
-  [plan.md:227](/Users/nikhil/code/Updog_restore/docs/1-plans/F_1.2.4_ws2-transaction-audit-repair.plan.md:227),
-  [plan.md:462](/Users/nikhil/code/Updog_restore/docs/1-plans/F_1.2.4_ws2-transaction-audit-repair.plan.md:462),
+  [plan.md:227](../../docs/1-plans/F_1.2.4_ws2-transaction-audit-repair.plan.md),
+  [plan.md:462](../../docs/1-plans/F_1.2.4_ws2-transaction-audit-repair.plan.md),
   and
-  [audit.md:79](/Users/nikhil/code/Updog_restore/docs/audits/F_1.2.4-transaction-reachability-audit.md:79).
+  [audit.md:79](../../docs/audits/F_1.2.4-transaction-reachability-audit.md).
   Implementation remains transactional at
-  [current-forecast-reference-service.ts:335](/Users/nikhil/code/Updog_restore/server/services/current-forecast-reference-service.ts:335)
+  [current-forecast-reference-service.ts:335](../../server/services/current-forecast-reference-service.ts)
   and
-  [current-forecast-reference-service.ts:352](/Users/nikhil/code/Updog_restore/server/services/current-forecast-reference-service.ts:352).
+  [current-forecast-reference-service.ts:352](../../server/services/current-forecast-reference-service.ts).
   Neon tests pin the HTTP-driver limitation, WebSocket success, and concurrent
   both-succeed contract at
-  [neon-lane.test.ts:399](/Users/nikhil/code/Updog_restore/tests/integration/neon-http/neon-lane.test.ts:399),
-  [neon-lane.test.ts:417](/Users/nikhil/code/Updog_restore/tests/integration/neon-http/neon-lane.test.ts:417),
+  [neon-lane.test.ts:399](../../tests/integration/neon-http/neon-lane.test.ts),
+  [neon-lane.test.ts:417](../../tests/integration/neon-http/neon-lane.test.ts),
   and
-  [neon-lane.test.ts:734](/Users/nikhil/code/Updog_restore/tests/integration/neon-http/neon-lane.test.ts:734).
+  [neon-lane.test.ts:734](../../tests/integration/neon-http/neon-lane.test.ts).
 
 ---
 
