@@ -2966,15 +2966,15 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-05-20",
+        "last_updated": "2026-08-07",
         "status": "ACTIVE"
       },
       "hasExecutionClaims": false,
       "isStale": false,
-      "lastUpdated": "2026-05-20",
+      "lastUpdated": "2026-08-07",
       "owner": null,
       "path": "AGENTS.md",
-      "staleDays": 79,
+      "staleDays": 0,
       "status": "ACTIVE"
     },
     {
@@ -4036,6 +4036,18 @@
       "isStale": true,
       "lastUpdated": null,
       "owner": null,
+      "path": "docs/1-plans/F_1.1.0_wave-h-context-rail-decisions.plan.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
       "path": "docs/1-plans/F_1.2.0_v1.4-release-proof-activation.plan.md",
       "staleDays": 999,
       "status": "UNKNOWN"
@@ -4061,6 +4073,42 @@
       "lastUpdated": null,
       "owner": null,
       "path": "docs/1-plans/F_1.2.2_g1-matrix-repair.plan.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/1-plans/F_1.2.4_ws2-transaction-audit-repair.plan.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/1-plans/F_1.3.0_fee-economics-convergence.plan.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/1-plans/F_1.4.0_post-activation-epics.plan.md",
       "staleDays": 999,
       "status": "UNKNOWN"
     },
@@ -5784,6 +5832,18 @@
       "path": "docs/array-safety-adoption-guide.md",
       "staleDays": 200,
       "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/audits/F_1.2.4-transaction-reachability-audit.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
     },
     {
       "docType": "doc",
@@ -13877,14 +13937,14 @@
       "REFERENCE": 8,
       "STALE-VALIDATION": 1,
       "TRACKED (not scheduled)": 1,
-      "UNKNOWN": 157,
+      "UNKNOWN": 162,
       "VERIFIED": 13,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 63,
-    "stale_docs": 479,
-    "total_docs": 709
+    "missing_frontmatter": 68,
+    "stale_docs": 484,
+    "total_docs": 714
   },
   "version": "2.0"
 }

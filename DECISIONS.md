@@ -10150,25 +10150,25 @@ plan; this ADR does not authorize production activation.
 
 ## ADR-072: Effective-Role and Capability Authorization Model (F_1.2.2 / G1 Repair)
 
-**Date:** 2026-08-06 **Status:** Accepted **Tags:** #auth #authorization
-#roles #capabilities #websocket #g1
+**Date:** 2026-08-06 **Status:** Accepted **Tags:** #auth #authorization #roles
+#capabilities #websocket #g1
 
 **Related:** `F_1.2.2_g1-matrix-repair.plan.md`, G1 review 2026-08-06,
 `shared/auth/effective-roles.ts`
 
 ### Context
 
-The G1 surface-contract review found runtime authorization inconsistent with
-the persisted role model. Persisted roles are exactly
-`admin, partner, analyst, operator, viewer, service`
-(`shared/schema/user.ts`), yet route guards referenced non-persistable labels
-(`flag_read`, `flag_admin`, `reserve_admin`) that no login-issued token can
-carry, making those routes unreachable; the flag kill-switch and flag-history
-routes had no role guard at all, so any authenticated user could disable every
-feature flag; `requireRole`/`requireAnyRole` read only `req.user` and therefore
-403'd unconditionally on the `createServer` surface, which sets `req.context`;
-role arrays were duplicated per route file; the reserve-approval router that
-enforced two signatures was dead code while the live guard
+The G1 surface-contract review found runtime authorization inconsistent with the
+persisted role model. Persisted roles are exactly
+`admin, partner, analyst, operator, viewer, service` (`shared/schema/user.ts`),
+yet route guards referenced non-persistable labels (`flag_read`, `flag_admin`,
+`reserve_admin`) that no login-issued token can carry, making those routes
+unreachable; the flag kill-switch and flag-history routes had no role guard at
+all, so any authenticated user could disable every feature flag;
+`requireRole`/`requireAnyRole` read only `req.user` and therefore 403'd
+unconditionally on the `createServer` surface, which sets `req.context`; role
+arrays were duplicated per route file; the reserve-approval router that enforced
+two signatures was dead code while the live guard
 (`server/lib/approvals-guard.ts`) defaulted to two signatures nobody could
 provide through product surfaces; and `/ws/portfolio-metrics` accepted every
 upgrade and arbitrary subscriptions unauthenticated.
@@ -10176,45 +10176,102 @@ upgrade and arbitrary subscriptions unauthenticated.
 ### Decision
 
 1. **One shared module** — `shared/auth/effective-roles.ts` (pure TS, no node
-   builtins, client-bundle safe) is the single source of truth: canonical
-   roles `admin, partner, analyst, service`; legacy aliases
-   `operator -> partner`, `viewer -> analyst`; capabilities
-   `flag_read`/`flag_admin` granted to `admin`, `reserve_admin` granted to
-   `partner` and inherited by `admin` (admin is the global superset). Shared
-   write-role tuples `TEAM_WRITE_ROLES` (`partner, admin, analyst`) and
-   `PARTNER_WRITE_ROLES` (`partner, admin`) replace per-file arrays.
+   builtins, client-bundle safe) is the single source of truth: canonical roles
+   `admin, partner, analyst, service`; legacy aliases `operator -> partner`,
+   `viewer -> analyst`; capabilities `flag_read`/`flag_admin` granted to
+   `admin`, `reserve_admin` granted to `partner` and inherited by `admin` (admin
+   is the global superset). Shared write-role tuples `TEAM_WRITE_ROLES`
+   (`partner, admin, analyst`) and `PARTNER_WRITE_ROLES` (`partner, admin`)
+   replace per-file arrays.
 2. **Surface-portable guards** — `requireRole`, `requireAnyRole`, and
    `requireWriteRole` read `req.user?.role ?? req.context?.role` and compare
    effective roles, so legacy `operator`/`viewer` tokens authorize as
    `partner`/`analyst` on both HTTP surfaces. `requireRole` remains an
    exact-effective-match (admin is not implicitly every role); admin
    supersetting is expressed through capabilities only. A new
-   `requireCapability(capability)` middleware replaces every guard that named
-   a non-persistable label. Capability strings are not roles: a token whose
-   role literally says `flag_admin` authorizes nothing.
-3. **Deliberate tightenings** — flag kill-switch (POST/DELETE) and flag
-   history acquire `requireCapability('flag_admin')` (effective Admin);
-   PATCH `/api/admin/flags/:key` becomes reachable by real admin tokens.
-   Reserve approval completes on the first valid signature
-   (`DEFAULT_MIN_APPROVALS = 1`) and the requester may sign their own
-   request; the dead v1 reserve-approvals router is aligned to the same
-   constants and capabilities but stays unmounted.
-4. **WebSocket enforcement** — `/ws/portfolio-metrics` upgrades authenticate
-   via the canonical credential contract (Bearer or session cookie; cookie
-   upgrades additionally require an allowed Origin) using
-   `verifyAccessTokenAsync`, integrated callback-style because `ws` 8.x
-   treats a returned Promise from one-arg `verifyClient` as truthy (silent
-   bypass); the local `ws` typing now only admits the callback form.
-   Subscriptions are authorized per channel: metrics requires an in-scope
-   `fundId`; scenario/forecast/simulation channels resolve their entity to
-   the owning fund before `resolveFundScope`; unscoped or unresolvable
-   requests are rejected. The dev-dashboard socket stays development-only.
+   `requireCapability(capability)` middleware replaces every guard that named a
+   non-persistable label. Capability strings are not roles: a token whose role
+   literally says `flag_admin` authorizes nothing.
+3. **Deliberate tightenings** — flag kill-switch (POST/DELETE) and flag history
+   acquire `requireCapability('flag_admin')` (effective Admin); PATCH
+   `/api/admin/flags/:key` becomes reachable by real admin tokens. Reserve
+   approval completes on the first valid signature (`DEFAULT_MIN_APPROVALS = 1`)
+   and the requester may sign their own request; the dead v1 reserve-approvals
+   router is aligned to the same constants and capabilities but stays unmounted.
+4. **WebSocket enforcement** — `/ws/portfolio-metrics` upgrades authenticate via
+   the canonical credential contract (Bearer or session cookie; cookie upgrades
+   additionally require an allowed Origin) using `verifyAccessTokenAsync`,
+   integrated callback-style because `ws` 8.x treats a returned Promise from
+   one-arg `verifyClient` as truthy (silent bypass); the local `ws` typing now
+   only admits the callback form. Subscriptions are authorized per channel:
+   metrics requires an in-scope `fundId`; scenario/forecast/simulation channels
+   resolve their entity to the owning fund before `resolveFundScope`; unscoped
+   or unresolvable requests are rejected. The dev-dashboard socket stays
+   development-only.
 
 ### Consequences
 
 Legacy tokens keep working with their canonical meaning; no persisted-role
 migration. Previously-permissive kill-switch/history behavior is intentionally
-broken (internal tool, team of ~5). The surface-contract matrix regenerates
-its auth classifications from these fixed guards in F_1.2.2 PR3; matrix
-source-hash staleness between PR1/PR2 and PR3 is expected and scoped in the
-audit gate test until regeneration.
+broken (internal tool, team of ~5). The surface-contract matrix regenerates its
+auth classifications from these fixed guards in F_1.2.2 PR3; matrix source-hash
+staleness between PR1/PR2 and PR3 is expected and scoped in the audit gate test
+until regeneration.
+
+## ADR-073: Per-Path Transaction Architecture for the Vercel neon-http Surface (F_1.2.4 / G2)
+
+**Date:** 2026-08-07 **Status:** Accepted **Tags:** #transactions #neon-http
+#vercel #drizzle #g2
+
+**Related:** `docs/1-plans/F_1.2.4_ws2-transaction-audit-repair.plan.md`,
+`docs/audits/F_1.2.4-transaction-reachability-audit.md`, master plan F_1.2.0
+WS2, master "Decisions Locked" 2 (audit-first mixed, 2026-08-05)
+
+### Context
+
+Vercel production runs the Drizzle neon-http driver (`server/db.ts`), whose
+`database.transaction()` throws at call time. The G2 reachability audit (derived
+fresh at `main @ fcdee4cf`) classified all 45 `.transaction(` files / 68
+entry-point rows with zero unclassified: **30 class-(a)** rows
+(Vercel-reachable, callback fits one SQL statement), **28 class-(b)** rows
+(Vercel-reachable, genuinely multi-statement — several structurally
+CTE-impossible: `pg_advisory_xact_lock` correctness guards, repeatable-read
+isolation, per-row loops, CSV parsing inside callbacks), **10 class-(c)** rows
+(Railway-only, unreachable, or CLI-only). Every (a)/(b) row is broken in
+production today; two (scenario create paths) are mounted only on Vercel and
+have no working surface at all; the planning-FMV path additionally bricks its
+idempotency key permanently (stuck `pending` request row). A local neon-proxy
+container spike passed 5/5 fidelity checks, including a byte-identical driver
+error string and single-statement CTE atomicity.
+
+### Decision (user-ratified at G2, 2026-08-07)
+
+1. **G2-1**: `advanceCurrentForecastPointer` (zero non-test callers) is
+   **retained** in P0 repair scope as repair-for-activation-lifecycle.
+2. **G2-2**: class (b) is resolved by a **surface-scoped driver switch** —
+   Vercel moves from neon-http to a transaction-capable driver (e.g. Neon
+   WebSocket `Pool`) in `server/db.ts` runtime selection. The P0 CTE rewrites
+   proceed anyway (round-trip efficiency + guard-fenced semantics). The audit
+   satisfied the locked architecture's broad-need evidence bar for this switch.
+   Non-interactive `sql.transaction([...])` batches remain available as a
+   complement for static statement lists but do not replace the switch.
+3. **G2-3**: the scenario-analysis Vercel-only mount asymmetry is **acknowledged
+   and recorded** for the surface-contract program (WS5/G3); WS2 repairs
+   transactions only.
+4. **G2-4**: all **30 class-(a) rows are ratified** for Phase 2 single-statement
+   CTE rewrite under the plan's claim-atomicity and guard-leads-the-chain
+   invariants; per-row caveats (advisory-lock drops backstopped by constraints,
+   error-code granularity preserved via discriminating CTE columns) travel with
+   the rows. Any row that proves un-fenceable during implementation escalates
+   back to the user — never sequential-autocommit emulation.
+
+### Consequences
+
+Phase 2 executes against a ratified classification: real-Neon proxy test lane
+(container approach proven), P0 rewrites, LP `withTransaction` helper
+consolidation (the `skipTransaction` escape hatch has zero callers and is
+retired), `transaction-support.ts` durable error detection + fallback guardrail,
+and the driver switch with both drivers proven in the lane. Class-(c) exclusions
+are documented, not rewritten; dead-code findings
+(`secure-context.executeWithContext` chain, internal-economics version creators,
+non-receipt checkpoint variants) are cleanup candidates, not repairs.
