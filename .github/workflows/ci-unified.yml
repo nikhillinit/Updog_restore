@@ -52,6 +52,7 @@ jobs:
       pr_security: ${{ steps.filter.outputs.pr_security }}
       security_tests: ${{ steps.filter.outputs.security_tests }}
       test_quarantine: ${{ steps.filter.outputs.test_quarantine }}
+      neon_lane: ${{ steps.filter.outputs.neon_lane }}
       auto_docs_only: ${{ steps.filter.outputs.auto_docs == 'true' && steps.filter.outputs.not_auto_docs == 'false' }}
       heavy_ci_relevant: ${{ steps.filter.outputs.code == 'true' || steps.filter.outputs.dependency == 'true' || steps.filter.outputs.schema == 'true' }}
     steps:
@@ -729,6 +730,27 @@ jobs:
               });
             }
 
+  neon-lane:
+    name: Neon Transaction Lane
+    needs: [changes, check]
+    if: |
+      !cancelled() &&
+      (needs.changes.outputs.neon_lane == 'true' ||
+       github.event.inputs.run_full_suite == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TZ: UTC
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+
+      - name: Run real Neon transaction lane
+        run: npx vitest run -c vitest.config.neon.ts
+
   gate:
     name: CI Gate Status
     needs:
@@ -744,6 +766,7 @@ jobs:
       - security-tests
       - memory-mode
       - guards
+      - neon-lane
       - secret-scan
     if: always()
     runs-on: ubuntu-latest
@@ -770,6 +793,7 @@ jobs:
           pr_security_result="${{ needs.pr-light-security.result }}"
           security_tests_result="${{ needs.security-tests.result }}"
           memory_result="${{ needs.memory-mode.result }}"
+          neon_lane_result="${{ needs.neon-lane.result }}"
           secret_scan_result="${{ needs.secret-scan.result }}"
 
           heavy_expected=false
@@ -802,6 +826,7 @@ jobs:
           pr_security_expected="${{ github.event.inputs.enable_security == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && needs.changes.outputs.pr_security == 'true') }}"
           security_tests_expected="${{ github.event.inputs.enable_security == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && (needs.changes.outputs.security_tests == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run:security')))) }}"
           memory_expected="${{ github.event.inputs.enable_memory_mode == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[memory]')) }}"
+          neon_expected="${{ needs.changes.outputs.neon_lane == 'true' || github.event.inputs.run_full_suite == 'true' }}"
           if [[ "$check_expected" != "true" ]]; then
             if [[ "$security_tests_expected" == "true" || "$memory_expected" == "true" ]]; then
               check_expected=true
@@ -840,6 +865,7 @@ jobs:
           require_result "PR light security" "$pr_security_result" "$pr_security_expected"
           require_result "Security tests" "$security_tests_result" "$security_tests_expected"
           require_result "Memory mode" "$memory_result" "$memory_expected"
+          require_result "Neon transaction lane" "$neon_lane_result" "$neon_expected"
           require_result "Secret scan" "$secret_scan_result" "true"
 
           {
@@ -858,6 +884,7 @@ jobs:
             echo "| pr-light-security | $pr_security_result | $pr_security_expected |"
             echo "| security-tests | $security_tests_result | $security_tests_expected |"
             echo "| memory-mode | $memory_result | $memory_expected |"
+            echo "| neon-lane | $neon_lane_result | $neon_expected |"
             echo "| secret-scan | $secret_scan_result | true |"
             echo "| heavy-ci-relevant | $heavy_ci_relevant | informational |"
             echo "| auto-docs-only | $auto_docs_only | informational |"
@@ -893,6 +920,7 @@ jobs:
             | PR light security | ${{ needs.pr-light-security.result }} |
             | Security tests | ${{ needs.security-tests.result }} |
             | Memory mode | ${{ needs.memory-mode.result }} |
+            | Neon transaction lane | ${{ needs.neon-lane.result }} |
             | Guards | ${{ needs.guards.result }} |
             | Secret scan | ${{ needs.secret-scan.result }} |
 

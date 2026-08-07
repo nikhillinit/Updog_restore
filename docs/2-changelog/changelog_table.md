@@ -2,6 +2,7 @@
 
 | Version | Week | Commit Message                                                                                             |
 | ------- | ---- | ---------------------------------------------------------------------------------------------------------- |
+| `1.5.0` | 1    | feat(transactions): WS2 G3 - Vercel driver switch, claim-last CTE repairs, real-Neon test lane             |
 | `1.4.1` | 1    | feat(audit): WS1 surface contract matrix - 470-row release-proof surface inventory, validators, G1 tooling |
 | `1.4.0` | 1    | feat(current-forecast): pre-soak v2 runtime - shadow wiring, activation latch, resume/re-arm               |
 | `1.3.3` | 1    | chore: initialize TRIP workflow                                                                            |
@@ -12,6 +13,15 @@
 - **Commit Message**: One-line description of the change (conventional commits)
 
 # Changelog Summary
+
+- **v1.5.0 (WS2 Transaction Repair - Week 1, 07-08-2026)**:
+  - **Driver switch**: Vercel runtime moves neon-http -> Neon WebSocket Pool
+    (transactions work in prod); `ws.default` constructor fix in both branches
+  - **Repairs**: claim-last single-CTE rewrites (mode update, activation, MOIC
+    inputs, 6 LP paths); pointer advance kept transactional (class b); shared
+    `runInTransaction`; `skipTransaction` retired
+  - **Proof**: real-Neon test lane (25 tests incl. concurrency contracts) as a
+    required CI check; pg-driver lifecycle proof; transaction-support guardrail
 
 - **v1.4.1 (WS1 Surface Contract Matrix - Week 1, 05-08-2026)**:
   - **Audit tooling**: `audit/surface-contract-matrix/` — 470-row surface

@@ -105,6 +105,14 @@ type ModeRow = {
   version: number;
 };
 
+type ModeMutationResult = {
+  mode_exists: boolean;
+  actual_version: number | null;
+  existing_request_id: number | null;
+  mode_write_id: number | null;
+  claim_id: number | null;
+};
+
 type ReconciliationRow = {
   id: number;
   candidate_input_hash: string;
@@ -447,32 +455,15 @@ function responseFromLedger<TSources>(
   throw new Error('Completed MOIC mode idempotency row has an invalid response body');
 }
 
-async function claimOrReplay<TSources>(
+async function readModeRequest<TSources>(
   strategy: CalculationModeStrategy<TSources>,
   params: {
-    tx: FundCalculationModeTransaction;
+    tx: Pick<FundCalculationModeTransaction, 'execute'>;
     fundId: number;
     idempotencyKey: string;
     requestHash: string;
-    actorId: number | null;
   }
-): Promise<{ claimed: true } | { claimed: false; response: GenericFundCalculationModePreview }> {
-  const claimed = await executeRows<{ id: number }>(
-    params.tx,
-    sql`
-      INSERT INTO fund_calculation_mode_requests
-        (fund_id, calculation_key, idempotency_key, request_hash, created_by, status)
-      VALUES
-        (${params.fundId}, ${strategy.calculationKey}, ${params.idempotencyKey}, ${params.requestHash}, ${params.actorId}, 'pending')
-      ON CONFLICT (fund_id, calculation_key, idempotency_key) DO NOTHING
-      RETURNING id
-    `
-  );
-
-  if (claimed.length > 0) {
-    return { claimed: true };
-  }
-
+): Promise<{ response: GenericFundCalculationModePreview; replayed: true } | null> {
   const existing = await executeRows<{
     request_hash: string;
     response_body: unknown;
@@ -491,7 +482,7 @@ async function claimOrReplay<TSources>(
 
   const row = existing[0];
   if (!row) {
-    throw new Error('Idempotency claim conflict did not return an existing MOIC mode request');
+    return null;
   }
   if (row.request_hash !== params.requestHash) {
     throw new FundCalculationModeIdempotencyConflictError(
@@ -502,7 +493,7 @@ async function claimOrReplay<TSources>(
     throw new FundCalculationModeInProgressError();
   }
 
-  return { claimed: false, response: responseFromLedger(strategy, row.response_body) };
+  return { response: responseFromLedger(strategy, row.response_body), replayed: true };
 }
 
 function toDate(value: Date | string | null): Date | null {
@@ -724,92 +715,6 @@ function validateOnTransition<TSources>(
   return [...new Set(blockers)].sort();
 }
 
-async function insertModeRow<TSources>(
-  strategy: CalculationModeStrategy<TSources>,
-  params: {
-    tx: FundCalculationModeTransaction;
-    fundId: number;
-    configuredMode: FundCalculationConfiguredMode;
-    killSwitchActive: boolean;
-    shadowStartedAt: Date | null;
-    accepted: AcceptedRef | null;
-    actorId: number | null;
-  }
-): Promise<ModeRow> {
-  const rows = await executeRows<ModeRow>(
-    params.tx,
-    sql`
-      INSERT INTO fund_calculation_modes
-        (fund_id, calculation_key, configured_mode, kill_switch_active,
-         shadow_started_at, last_reconciliation_run_id, last_moic_source_input_hash,
-         last_candidate_output_hash, version, updated_by, updated_at)
-      VALUES (
-        ${params.fundId},
-        ${strategy.calculationKey},
-        ${params.configuredMode},
-        ${params.killSwitchActive},
-        ${params.shadowStartedAt},
-        ${params.accepted?.id ?? null},
-        ${params.accepted?.candidate_input_hash ?? null},
-        ${params.accepted?.candidate_output_hash ?? null},
-        1,
-        ${params.actorId},
-        NOW()
-      )
-      ON CONFLICT (fund_id, calculation_key) DO NOTHING
-      RETURNING id, configured_mode, kill_switch_active, shadow_started_at,
-                last_reconciliation_run_id, last_moic_source_input_hash,
-                last_candidate_output_hash, version
-    `
-  );
-
-  const inserted = rows[0];
-  if (!inserted) {
-    throw new FundCalculationModeVersionConflictError(0, 1);
-  }
-  return inserted;
-}
-
-async function updateModeRow<TSources>(
-  strategy: CalculationModeStrategy<TSources>,
-  params: {
-    tx: FundCalculationModeTransaction;
-    row: ModeRow;
-    configuredMode: FundCalculationConfiguredMode;
-    killSwitchActive: boolean;
-    shadowStartedAt: Date | null;
-    accepted: AcceptedRef | null;
-    actorId: number | null;
-  }
-): Promise<ModeRow> {
-  const rows = await executeRows<ModeRow>(
-    params.tx,
-    sql`
-      UPDATE fund_calculation_modes
-      SET configured_mode = ${params.configuredMode},
-          kill_switch_active = ${params.killSwitchActive},
-          shadow_started_at = ${params.shadowStartedAt},
-          last_reconciliation_run_id = ${params.accepted?.id ?? null},
-          last_moic_source_input_hash = ${params.accepted?.candidate_input_hash ?? null},
-          last_candidate_output_hash = ${params.accepted?.candidate_output_hash ?? null},
-          version = version + 1,
-          updated_by = ${params.actorId},
-          updated_at = NOW()
-      WHERE id = ${params.row.id}
-        AND calculation_key = ${strategy.calculationKey}
-      RETURNING id, configured_mode, kill_switch_active, shadow_started_at,
-                last_reconciliation_run_id, last_moic_source_input_hash,
-                last_candidate_output_hash, version
-    `
-  );
-
-  const updated = rows[0];
-  if (!updated) {
-    throw new FundCalculationModeVersionConflictError(params.row.version, params.row.version + 1);
-  }
-  return updated;
-}
-
 type ResolveFundCalculationModeParams<TSources> = {
   fundId: number;
   sources?: TSources;
@@ -866,26 +771,14 @@ async function updateFundCalculationMode<TSources>(
     acceptedReconciliationRunId: params.acceptedReconciliationRunId ?? null,
   });
 
-  const result = await database.transaction(async (tx) => {
-    const claim = await claimOrReplay(strategy, {
-      tx,
-      fundId: params.fundId,
-      idempotencyKey: params.idempotencyKey,
-      requestHash,
-      actorId: params.actorId,
-    });
-    if (!claim.claimed) {
-      return { response: claim.response, replayed: true };
-    }
-
-    const existing = await loadModeRow(strategy, tx, params.fundId, true);
-    if (!existing && params.expectedVersion !== 0) {
-      throw new FundCalculationModeVersionConflictError(params.expectedVersion, 0);
-    }
-    if (existing && existing.version !== params.expectedVersion) {
-      throw new FundCalculationModeVersionConflictError(params.expectedVersion, existing.version);
-    }
-
+  const result = await (async (tx: FundCalculationModeDatabase) => {
+    // Read-only preflight supplies the values needed to build the response and
+    // business guards. The write CTE below repeats the version guard while
+    // holding the mode row lock, so stale preflight data cannot mutate state.
+    const existing = await loadModeRow(strategy, tx, params.fundId, false);
+    const versionMatches = existing
+      ? existing.version === params.expectedVersion
+      : params.expectedVersion === 0;
     const nextKillSwitchActive = params.killSwitchActive ?? existing?.kill_switch_active ?? false;
     let accepted: AcceptedRef | null =
       existing?.last_reconciliation_run_id &&
@@ -897,88 +790,216 @@ async function updateFundCalculationMode<TSources>(
             candidate_output_hash: existing.last_candidate_output_hash,
           }
         : null;
-
-    if (
-      params.acceptedReconciliationRunId !== undefined &&
-      params.acceptedReconciliationRunId !== null
-    ) {
-      accepted = await strategy.loadCompletedAccepted(
-        tx,
-        params.fundId,
-        params.acceptedReconciliationRunId
-      );
-      const blockers = strategy.validateAccepted(accepted, sources);
-      if (blockers.length > 0) {
-        throw new FundCalculationModeBlockedError(blockers);
-      }
-    }
+    const blockers: FundCalculationModeBlocker[] = [];
 
     let nextShadowStartedAt: Date | null = null;
-    if (params.configuredMode === 'shadow') {
-      if (strategy.shadowRequiresAccepted !== false) {
-        const blockers = strategy.validateAccepted(accepted, sources);
-        if (blockers.length > 0) {
-          throw new FundCalculationModeBlockedError(blockers);
+    if (versionMatches) {
+      if (
+        params.acceptedReconciliationRunId !== undefined &&
+        params.acceptedReconciliationRunId !== null
+      ) {
+        accepted = await strategy.loadCompletedAccepted(
+          tx as unknown as FundCalculationModeTransaction,
+          params.fundId,
+          params.acceptedReconciliationRunId
+        );
+        blockers.push(...strategy.validateAccepted(accepted, sources));
+      }
+
+      if (params.configuredMode === 'shadow') {
+        if (strategy.shadowRequiresAccepted !== false) {
+          blockers.push(...strategy.validateAccepted(accepted, sources));
         }
+
+        const existingStartedAt = toDate(existing?.shadow_started_at ?? null);
+        const sourceChanged =
+          existing?.last_moic_source_input_hash !== accepted?.candidate_input_hash;
+        nextShadowStartedAt =
+          existing?.configured_mode === 'shadow' && existingStartedAt && !sourceChanged
+            ? existingStartedAt
+            : now;
       }
 
-      const existingStartedAt = toDate(existing?.shadow_started_at ?? null);
-      const sourceChanged =
-        existing?.last_moic_source_input_hash !== accepted?.candidate_input_hash;
-      nextShadowStartedAt =
-        existing?.configured_mode === 'shadow' && existingStartedAt && !sourceChanged
-          ? existingStartedAt
-          : now;
-    }
-
-    if (params.configuredMode === 'on') {
-      const shadowStartedAt = toDate(existing?.shadow_started_at ?? null);
-      const blockers = validateOnTransition(strategy, {
-        accepted,
-        nextKillSwitchActive,
-        shadowStartedAt,
-        sources,
-        now,
-      });
-      if (blockers.length > 0) {
-        throw new FundCalculationModeBlockedError(blockers);
+      if (params.configuredMode === 'on') {
+        const shadowStartedAt = toDate(existing?.shadow_started_at ?? null);
+        blockers.push(
+          ...validateOnTransition(strategy, {
+            accepted,
+            nextKillSwitchActive,
+            shadowStartedAt,
+            sources,
+            now,
+          })
+        );
+        nextShadowStartedAt = shadowStartedAt;
       }
-      nextShadowStartedAt = shadowStartedAt;
     }
 
-    const row = existing
-      ? await updateModeRow(strategy, {
-          tx,
-          row: existing,
-          configuredMode: params.configuredMode,
-          killSwitchActive: nextKillSwitchActive,
-          shadowStartedAt: nextShadowStartedAt,
-          accepted,
-          actorId: params.actorId,
-        })
-      : await insertModeRow(strategy, {
-          tx,
-          fundId: params.fundId,
-          configuredMode: params.configuredMode,
-          killSwitchActive: nextKillSwitchActive,
-          shadowStartedAt: nextShadowStartedAt,
-          accepted,
-          actorId: params.actorId,
-        });
+    const uniqueBlockers = [...new Set(blockers)];
+    const predictedRow: ModeRow = existing
+      ? {
+          ...existing,
+          configured_mode: params.configuredMode,
+          kill_switch_active: nextKillSwitchActive,
+          shadow_started_at: nextShadowStartedAt,
+          last_reconciliation_run_id: accepted?.id ?? null,
+          last_moic_source_input_hash: accepted?.candidate_input_hash ?? null,
+          last_candidate_output_hash: accepted?.candidate_output_hash ?? null,
+          version: existing.version + 1,
+        }
+      : {
+          id: 0,
+          configured_mode: params.configuredMode,
+          kill_switch_active: nextKillSwitchActive,
+          shadow_started_at: nextShadowStartedAt,
+          last_reconciliation_run_id: accepted?.id ?? null,
+          last_moic_source_input_hash: accepted?.candidate_input_hash ?? null,
+          last_candidate_output_hash: accepted?.candidate_output_hash ?? null,
+          version: 1,
+        };
+    const response =
+      versionMatches && uniqueBlockers.length === 0
+        ? buildModePreview(strategy, { row: predictedRow, sources, now })
+        : null;
 
-    const response = buildModePreview(strategy, { row, sources, now });
-    await tx.execute(sql`
-      UPDATE fund_calculation_mode_requests
-      SET status = 'completed',
-          response_status = 200,
-          response_body = ${JSON.stringify(response)}::jsonb
-      WHERE fund_id = ${params.fundId}
-        AND calculation_key = ${strategy.calculationKey}
-        AND idempotency_key = ${params.idempotencyKey}
-    `);
+    // Ledger-row ordering: PostgreSQL data-modifying CTEs share one snapshot,
+    // so a CTE can never UPDATE a row another CTE inserted in the same
+    // statement. The idempotency row is therefore inserted LAST, already
+    // 'completed', fenced on the mutation CTE returning a row; the mutation is
+    // fenced on the guards plus the absence of an existing same-key request
+    // row. A fresh request row consequently never exists in 'pending' state,
+    // and a guard failure writes nothing at all.
+    const rows = await executeRows<ModeMutationResult>(
+      tx,
+      sql`
+        WITH mode_row AS (
+          SELECT id, version
+          FROM fund_calculation_modes
+          WHERE fund_id = ${params.fundId}
+            AND calculation_key = ${strategy.calculationKey}
+          FOR UPDATE
+        ),
+        mode_guard AS (
+          SELECT id, version, true::boolean AS mode_exists
+          FROM mode_row
+          UNION ALL
+          SELECT NULL::integer, NULL::integer, false::boolean
+          FROM (SELECT 1) AS missing
+          WHERE NOT EXISTS (SELECT 1 FROM mode_row)
+        ),
+        existing_request AS (
+          SELECT id
+          FROM fund_calculation_mode_requests
+          WHERE fund_id = ${params.fundId}
+            AND calculation_key = ${strategy.calculationKey}
+            AND idempotency_key = ${params.idempotencyKey}
+        ),
+        mode_write AS (
+          INSERT INTO fund_calculation_modes AS mode
+            (fund_id, calculation_key, configured_mode, kill_switch_active,
+             shadow_started_at, last_reconciliation_run_id, last_moic_source_input_hash,
+             last_candidate_output_hash, version, updated_by, updated_at)
+          SELECT
+            ${params.fundId},
+            ${strategy.calculationKey},
+            ${params.configuredMode},
+            ${nextKillSwitchActive},
+            ${nextShadowStartedAt},
+            ${accepted?.id ?? null},
+            ${accepted?.candidate_input_hash ?? null},
+            ${accepted?.candidate_output_hash ?? null},
+            1,
+            ${params.actorId},
+            NOW()
+          FROM mode_guard
+          WHERE ${uniqueBlockers.length === 0}
+            AND NOT EXISTS (SELECT 1 FROM existing_request)
+            AND (
+              (mode_exists AND version = ${params.expectedVersion})
+              OR (NOT mode_exists AND ${params.expectedVersion} = 0)
+            )
+          ON CONFLICT (fund_id, calculation_key) DO UPDATE
+          SET configured_mode = EXCLUDED.configured_mode,
+              kill_switch_active = EXCLUDED.kill_switch_active,
+              shadow_started_at = EXCLUDED.shadow_started_at,
+              last_reconciliation_run_id = EXCLUDED.last_reconciliation_run_id,
+              last_moic_source_input_hash = EXCLUDED.last_moic_source_input_hash,
+              last_candidate_output_hash = EXCLUDED.last_candidate_output_hash,
+              version = mode.version + 1,
+              updated_by = EXCLUDED.updated_by,
+              updated_at = NOW()
+          WHERE mode.version = ${params.expectedVersion}
+          RETURNING mode.id, mode.version
+        ),
+        claim AS (
+          INSERT INTO fund_calculation_mode_requests
+            (fund_id, calculation_key, idempotency_key, request_hash, created_by,
+             status, response_status, response_body)
+          SELECT
+            ${params.fundId},
+            ${strategy.calculationKey},
+            ${params.idempotencyKey},
+            ${requestHash},
+            ${params.actorId},
+            'completed',
+            200,
+            ${JSON.stringify(response ?? {})}::jsonb
+          FROM mode_write
+          ON CONFLICT (fund_id, calculation_key, idempotency_key) DO NOTHING
+          RETURNING id
+        )
+        SELECT
+          mode_guard.mode_exists,
+          mode_guard.version AS actual_version,
+          (SELECT id FROM existing_request) AS existing_request_id,
+          mode_write.id AS mode_write_id,
+          claim.id AS claim_id
+        FROM mode_guard
+        LEFT JOIN mode_write ON TRUE
+        LEFT JOIN claim ON TRUE
+      `
+    );
 
-    return { response, replayed: false };
-  });
+    const mutation = rows[0];
+    if (!mutation) {
+      throw new Error('Mode update CTE returned no guard result');
+    }
+
+    if (mutation.mode_write_id !== null && mutation.claim_id !== null && response) {
+      return { response, replayed: false };
+    }
+
+    // No mutation happened. Same-key request rows (pre-existing or committed
+    // by a concurrent winner) resolve via the ledger replay contract first.
+    const replay = await readModeRequest(strategy, {
+      tx,
+      fundId: params.fundId,
+      idempotencyKey: params.idempotencyKey,
+      requestHash,
+    });
+    if (replay) {
+      return replay;
+    }
+
+    const guardVersionMatches = mutation.mode_exists
+      ? mutation.actual_version === params.expectedVersion
+      : params.expectedVersion === 0;
+    if (!guardVersionMatches) {
+      throw new FundCalculationModeVersionConflictError(
+        params.expectedVersion,
+        mutation.actual_version ?? 0
+      );
+    }
+    if (uniqueBlockers.length > 0) {
+      throw new FundCalculationModeBlockedError(uniqueBlockers);
+    }
+    // Guard passed and no same-key row exists: a concurrent writer won the
+    // race between our statement's guard read and its write re-check.
+    throw new FundCalculationModeVersionConflictError(
+      params.expectedVersion,
+      params.expectedVersion + 1
+    );
+  })(database);
   if (!result.replayed) {
     await strategy.postCommit(params.fundId);
   }

@@ -6,6 +6,8 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import express, { type Request, type Response, type NextFunction } from 'express';
 import request from 'supertest';
+import { PgDialect } from 'drizzle-orm/pg-core';
+import type { SQL } from 'drizzle-orm';
 
 import {
   MetricRunCommitResponseSchema,
@@ -550,10 +552,309 @@ function rowsFor(table: { _kind?: string }): Array<Record<string, unknown>> {
   return [];
 }
 
+// ---------------------------------------------------------------------------
+// Raw-SQL execute router for the claim-last guarded CTE statements the LP
+// services now issue directly (v1.5.0). It simulates the statements' guard +
+// mutation semantics against dbState so route contracts stay testable.
+// ---------------------------------------------------------------------------
+const executeDialect = new PgDialect();
+
+function isoOrNull(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (value instanceof Date) return value.toISOString();
+  return String(value);
+}
+
+function snakeMetricRun(row: Record<string, unknown>): Record<string, unknown> {
+  return {
+    id: row['id'],
+    fund_id: row['fundId'],
+    vehicle_id: row['vehicleId'] ?? null,
+    as_of_date: row['asOfDate'],
+    run_type: row['runType'],
+    perspective: row['perspective'],
+    status: row['status'],
+    inputs_hash: row['inputsHash'],
+    source_event_ids: row['sourceEventIds'] ?? [],
+    source_mark_ids: row['sourceMarkIds'] ?? [],
+    source_evidence_ids: row['sourceEvidenceIds'] ?? [],
+    results_json: row['resultsJson'],
+    diagnostics_json: row['diagnosticsJson'],
+    methodology_version: row['methodologyVersion'],
+    calculation_version: row['calculationVersion'],
+    generated_by: row['generatedBy'] ?? null,
+    approved_by: row['approvedBy'] ?? null,
+    approved_at: isoOrNull(row['approvedAt']),
+    locked_by: row['lockedBy'] ?? null,
+    locked_at: isoOrNull(row['lockedAt']),
+    exported_at: isoOrNull(row['exportedAt']),
+    version: row['version'] ?? 1,
+    created_at: isoOrNull(row['createdAt']),
+    updated_at: isoOrNull(row['updatedAt']),
+  };
+}
+
+function snakeNarrative(row: MockNarrativeRow): Record<string, unknown> {
+  return {
+    id: row.id,
+    fund_id: row.fundId,
+    metric_run_id: row.metricRunId,
+    as_of_date: row.asOfDate,
+    narrative_type: row.narrativeType,
+    generated_text: row.generatedText,
+    edited_text: row.editedText,
+    status: row.status,
+    generated_by: row.generatedBy,
+    edited_by: row.editedBy,
+    reviewed_by: row.reviewedBy,
+    reviewed_at: isoOrNull(row.reviewedAt),
+    approved_by: row.approvedBy,
+    approved_at: isoOrNull(row.approvedAt),
+    exported_at: isoOrNull(row.exportedAt),
+    version: row.version,
+    created_at: isoOrNull(row.createdAt),
+    updated_at: isoOrNull(row.updatedAt),
+  };
+}
+
+function snakeEvidence(row: MockEvidenceRow): Record<string, unknown> {
+  return {
+    id: row.id,
+    fund_id: row.fundId,
+    valuation_mark_id: row.valuationMarkId,
+    company_id: row.companyId,
+    metric_run_id: row.metricRunId,
+    narrative_run_id: row.narrativeRunId,
+    idempotency_key: row.idempotencyKey,
+    evidence_source: row.evidenceSource,
+    source_date: row.sourceDate,
+    received_date: row.receivedDate,
+    expiration_date: row.expirationDate,
+    confidence_level: row.confidenceLevel,
+    materiality_level: row.materialityLevel,
+    confidentiality: row.confidentiality,
+    redaction_required: row.redactionRequired,
+    document_hash: row.documentHash,
+    valuation_policy_version: row.valuationPolicyVersion,
+    description: row.description,
+    internal_notes: row.internalNotes,
+    lp_objection: row.lpObjection,
+    attachments: row.attachments,
+    uploaded_by: row.uploadedBy,
+    approved_by: row.approvedBy,
+    approved_at: isoOrNull(row.approvedAt),
+    created_at: isoOrNull(row.createdAt),
+    updated_at: isoOrNull(row.updatedAt),
+  };
+}
+
+function mappedMetricRun(fundId: number, metricRunId: number): Record<string, unknown> | undefined {
+  return rowsFor({ _kind: 'lpMetricRuns' }).find(
+    (row) => row['id'] === metricRunId && row['fundId'] === fundId
+  );
+}
+
+function runLifecycleStatement(text: string, params: unknown[]): Record<string, unknown> {
+  const fundId = Number(params[0]);
+  const metricRunId = Number(params[1]);
+  const userId = Number(params[4]);
+  const expectedStatus = String(params[params.length - 2]);
+  const expectedVersion = Number(params[params.length - 1]);
+  const approve = text.includes("'approved'");
+  const mapped = mappedMetricRun(fundId, metricRunId);
+  if (!mapped) {
+    return {
+      metric_exists: false,
+      actual_status: null,
+      actual_version: null,
+      evidence_ids: [],
+      guard_row: null,
+      updated_row: null,
+    };
+  }
+  const evidenceIds = dbState.evidenceRecords
+    .filter((e) => e.fundId === fundId && e.metricRunId === metricRunId)
+    .map((e) => e.id)
+    .sort((a, b) => a - b);
+  const guardRow = { ...snakeMetricRun(mapped), evidence_ids: evidenceIds };
+  const version = Number(mapped['version'] ?? 1);
+  const pass =
+    mapped['status'] === expectedStatus &&
+    version === expectedVersion &&
+    (!approve || evidenceIds.length > 0);
+  let updatedRow: Record<string, unknown> | null = null;
+  if (pass) {
+    const now = new Date('2026-05-10T00:00:00Z');
+    const state = dbState.metricRuns.find((row) => row.id === metricRunId && row.fundId === fundId);
+    if (state) {
+      if (approve) {
+        state.status = 'approved';
+        state.approvedBy = userId;
+        state.approvedAt = now;
+        state.sourceEvidenceIds = evidenceIds;
+      } else {
+        state.status = 'locked';
+        state.lockedBy = userId;
+        state.lockedAt = now;
+      }
+      state.version = expectedVersion + 1;
+      state.updatedAt = now;
+    }
+    const remapped = mappedMetricRun(fundId, metricRunId);
+    updatedRow = remapped ? snakeMetricRun(remapped) : null;
+  }
+  return {
+    metric_exists: true,
+    actual_status: guardRow['status'],
+    actual_version: version,
+    evidence_ids: evidenceIds,
+    guard_row: guardRow,
+    updated_row: updatedRow,
+  };
+}
+
+function runNarrativeStatement(text: string, params: unknown[]): Record<string, unknown> {
+  const fundId = Number(params[0]);
+  const metricRunId = Number(params[1]);
+  const narrativeRunId = Number(params[4]);
+  const isEdit = text.includes('edited_text = ');
+  const userId = Number(isEdit ? params[9] : params[8]);
+  const editedText = isEdit ? (params[8] === null ? null : String(params[8])) : null;
+  const expectedStatus = String(params[params.length - 2]);
+  const expectedVersion = Number(params[params.length - 1]);
+  const isApprove = !isEdit && text.includes("'approved'");
+  const isReview = !isEdit && !isApprove;
+  const metricRun = dbState.metricRuns.find(
+    (row) => row.id === metricRunId && row.fundId === fundId
+  );
+  const narrative = dbState.narrativeRuns.find(
+    (row) => row.id === narrativeRunId && row.fundId === fundId && row.metricRunId === metricRunId
+  );
+  const base = {
+    metric_exists: Boolean(metricRun),
+    metric_status: metricRun ? metricRun.status : null,
+    narrative_exists: Boolean(narrative),
+    actual_status: narrative ? narrative.status : null,
+    actual_version: narrative ? narrative.version : null,
+    guard_row: narrative ? snakeNarrative(narrative) : null,
+    updated_row: null as Record<string, unknown> | null,
+  };
+  if (!metricRun || !narrative) return base;
+  const requiresEdited = text.includes('edited_text IS NOT NULL');
+  const editedOk =
+    !requiresEdited ||
+    (typeof narrative.editedText === 'string' && narrative.editedText.trim().length > 0);
+  const pass =
+    metricRun.status === 'locked' &&
+    narrative.status === expectedStatus &&
+    narrative.version === expectedVersion &&
+    editedOk;
+  if (pass) {
+    const now = new Date('2026-05-10T00:00:00Z');
+    if (isEdit) {
+      narrative.editedText = editedText;
+      narrative.editedBy = userId;
+    } else if (isReview) {
+      narrative.status = 'reviewed';
+      narrative.reviewedBy = userId;
+      narrative.reviewedAt = now;
+    } else {
+      narrative.status = 'approved';
+      narrative.approvedBy = userId;
+      narrative.approvedAt = now;
+    }
+    narrative.version = expectedVersion + 1;
+    narrative.updatedAt = now;
+    base.updated_row = snakeNarrative(narrative);
+  }
+  return base;
+}
+
+function runEvidenceStatement(params: unknown[]): Record<string, unknown> {
+  const fundId = Number(params[0]);
+  const metricRunId = Number(params[1]);
+  const userId = Number(params[2]);
+  const idempotencyKey = params[5] === null ? null : String(params[5]);
+  const metricRun = dbState.metricRuns.find(
+    (row) => row.id === metricRunId && row.fundId === fundId
+  );
+  const userExists = dbState.users.includes(userId);
+  const existing = idempotencyKey
+    ? dbState.evidenceRecords.find(
+        (row) =>
+          row.fundId === fundId &&
+          row.metricRunId === metricRunId &&
+          row.idempotencyKey === idempotencyKey
+      )
+    : undefined;
+  const base = {
+    metric_exists: Boolean(metricRun),
+    actual_status: metricRun ? metricRun.status : null,
+    user_exists: userExists,
+    existing_evidence_id: existing ? existing.id : null,
+    inserted_row: null as Record<string, unknown> | null,
+  };
+  const pass = Boolean(metricRun) && metricRun?.status === 'draft' && userExists && !existing;
+  if (!pass) return base;
+  if (dbState.dropNextInsert) {
+    dbState.dropNextInsert = false;
+    return base;
+  }
+  dbState.insertCalls += 1;
+  const values = params.slice(6);
+  const attachments = JSON.parse(String(values[16] ?? '[]')) as unknown[];
+  const evidenceRow: MockEvidenceRow = {
+    id: dbState.nextEvidenceId++,
+    fundId: Number(values[0]),
+    valuationMarkId: null,
+    companyId: null,
+    metricRunId: Number(values[1]),
+    narrativeRunId: null,
+    idempotencyKey: values[2] === null ? null : String(values[2]),
+    evidenceSource: String(values[3]),
+    sourceDate: String(values[4]),
+    receivedDate: values[5] === null ? null : String(values[5]),
+    expirationDate: values[6] === null ? null : String(values[6]),
+    confidenceLevel: String(values[7]),
+    materialityLevel: String(values[8]),
+    confidentiality: String(values[9]),
+    redactionRequired: Boolean(values[10]),
+    documentHash: values[11] === null ? null : String(values[11]),
+    valuationPolicyVersion: values[12] === null ? null : String(values[12]),
+    description: values[13] === null ? null : String(values[13]),
+    internalNotes: values[14] === null ? null : String(values[14]),
+    lpObjection: values[15] === null ? null : String(values[15]),
+    attachments,
+    uploadedBy: values[17] === null ? null : Number(values[17]),
+    approvedBy: null,
+    approvedAt: null,
+    createdAt: new Date('2026-05-10T00:00:00Z'),
+    updatedAt: new Date('2026-05-10T00:00:00Z'),
+  };
+  dbState.evidenceRecords.push(evidenceRow);
+  dbState.insertedEvidenceRows.push(evidenceRow);
+  base.inserted_row = snakeEvidence(evidenceRow);
+  return base;
+}
+
+function routeRawExecute(query: unknown): { rows: unknown[] } {
+  const { sql: text, params } = executeDialect.sqlToQuery(query as SQL);
+  if (text.includes('INSERT INTO evidence_records')) {
+    return { rows: [runEvidenceStatement(params)] };
+  }
+  if (text.includes('narrative_exists')) {
+    return { rows: [runNarrativeStatement(text, params)] };
+  }
+  if (text.includes('UPDATE lp_metric_runs') && text.includes('metric_exists')) {
+    return { rows: [runLifecycleStatement(text, params)] };
+  }
+  return { rows: [] };
+}
+
 vi.mock('../../../../server/db', () => {
   const dbMock = {
     transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback(dbMock)),
-    execute: vi.fn(async () => []),
+    execute: vi.fn(async (query: unknown) => routeRawExecute(query)),
     update: vi.fn((table: { _kind?: string }) => ({
       set: vi.fn((values: Record<string, unknown>) => ({
         where: vi.fn(() => ({

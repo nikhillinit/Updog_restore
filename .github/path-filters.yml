@@ -382,3 +382,15 @@ schema_tests:
   - 'tests/integration/scenarios/scenario-case-seed-persistence.test.ts'
   - 'tests/integration/scenarios/company-scenario-create-persistence.test.ts'
   - '.github/workflows/prod-schema-reconcile.yml'
+
+# Real Neon transaction-semantics proof lane.
+neon_lane:
+  - 'server/services/**'
+  - 'server/lib/transaction-support.ts'
+  - 'server/db.ts'
+  - 'tests/integration/neon-http/**'
+  - 'vitest.config.neon.ts'
+  - 'package.json'
+  - 'package-lock.json'
+  - '.github/workflows/ci-unified.yml'
+  - '.github/path-filters.yml'

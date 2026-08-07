@@ -9,6 +9,13 @@ const MOIC_INPUT_ROUTE = 'PUT /api/admin/funds/:fundId/moic-inputs/portfolio-com
 type FundMoicInputDatabase = typeof db;
 type FundMoicInputTransaction = Parameters<Parameters<FundMoicInputDatabase['transaction']>[0]>[0];
 type ExecuteResult<T> = { rows: T[] };
+type MoicInputMutationResult = {
+  company_exists: boolean;
+  actual_version: number | null;
+  existing_request_id: number | null;
+  claim_id: number | null;
+  response_body: unknown;
+};
 
 export interface FundMoicInputUpdateResponse {
   fundId: number;
@@ -97,30 +104,13 @@ function responseFromLedger(value: unknown): FundMoicInputUpdateResponse {
   throw new Error('Completed MOIC input idempotency row has an invalid response body');
 }
 
-async function claimOrReplay(params: {
-  tx: FundMoicInputTransaction;
+async function readMoicInputRequest(params: {
+  tx: Pick<FundMoicInputTransaction, 'execute'>;
   fundId: number;
   companyId: number;
   idempotencyKey: string;
   requestHash: string;
-  actorId: number | null;
-}): Promise<{ claimed: true } | { claimed: false; response: FundMoicInputUpdateResponse }> {
-  const claimed = await executeRows<{ id: number }>(
-    params.tx,
-    sql`
-      INSERT INTO fund_moic_input_update_requests
-        (fund_id, company_id, idempotency_key, request_hash, created_by, status)
-      VALUES
-        (${params.fundId}, ${params.companyId}, ${params.idempotencyKey}, ${params.requestHash}, ${params.actorId}, 'pending')
-      ON CONFLICT (fund_id, company_id, idempotency_key) DO NOTHING
-      RETURNING id
-    `
-  );
-
-  if (claimed.length > 0) {
-    return { claimed: true };
-  }
-
+}): Promise<{ response: FundMoicInputUpdateResponse; replayed: true } | null> {
   const existing = await executeRows<{
     request_hash: string;
     response_body: unknown;
@@ -139,7 +129,7 @@ async function claimOrReplay(params: {
 
   const row = existing[0];
   if (!row) {
-    throw new Error('Idempotency claim conflict did not return an existing MOIC input request');
+    return null;
   }
   if (row.request_hash !== params.requestHash) {
     throw new FundMoicInputIdempotencyConflictError(
@@ -150,7 +140,7 @@ async function claimOrReplay(params: {
     throw new FundMoicInputInProgressError();
   }
 
-  return { claimed: false, response: responseFromLedger(row.response_body) };
+  return { response: responseFromLedger(row.response_body), replayed: true };
 }
 
 export async function updateFundMoicInputs(params: {
@@ -166,101 +156,136 @@ export async function updateFundMoicInputs(params: {
   const database = params.database ?? db;
   const requestHash = requestHashFor(params);
 
-  const result = await database.transaction(async (tx) => {
-    const claim = await claimOrReplay({ ...params, tx, requestHash });
-    if (!claim.claimed) {
-      return { response: claim.response, replayed: true };
-    }
-
-    const lockedRows = await executeRows<{ allocation_version: number }>(
+  const result = await (async (tx: FundMoicInputDatabase) => {
+    const rows = await executeRows<MoicInputMutationResult>(
       tx,
       sql`
-        SELECT allocation_version
-        FROM portfoliocompanies
-        WHERE fund_id = ${params.fundId}
-          AND id = ${params.companyId}
-        FOR UPDATE
+        WITH company_row AS (
+          SELECT id, allocation_version
+          FROM portfoliocompanies
+          WHERE fund_id = ${params.fundId}
+            AND id = ${params.companyId}
+          FOR UPDATE
+        ),
+        company_guard AS (
+          SELECT id, allocation_version, true::boolean AS company_exists
+          FROM company_row
+          UNION ALL
+          SELECT NULL::integer, NULL::integer, false::boolean
+          FROM (SELECT 1) AS missing
+          WHERE NOT EXISTS (SELECT 1 FROM company_row)
+        ),
+        existing_request AS (
+          SELECT id
+          FROM fund_moic_input_update_requests
+          WHERE fund_id = ${params.fundId}
+            AND company_id = ${params.companyId}
+            AND idempotency_key = ${params.idempotencyKey}
+        ),
+        updated_company AS (
+          UPDATE portfoliocompanies AS company
+          SET exit_probability = ${params.exitProbability}::numeric,
+              exit_moic_bps = ${params.exitMoicBps}::integer,
+              allocation_version = company.allocation_version + 1,
+              last_allocation_at = NOW()
+          FROM company_guard
+          WHERE company_guard.company_exists
+            AND NOT EXISTS (SELECT 1 FROM existing_request)
+            AND company.id = company_guard.id
+            AND company.fund_id = ${params.fundId}
+            AND company.allocation_version = ${params.expectedVersion}
+          RETURNING company.allocation_version, company.exit_probability, company.exit_moic_bps
+        ),
+        event_insert AS (
+          INSERT INTO fund_events
+            (fund_id, event_type, payload, user_id, event_time, operation, entity_type, metadata)
+          SELECT
+            ${params.fundId}::integer,
+            'MOIC_INPUTS_UPDATED',
+            jsonb_build_object(
+              'companyId', ${params.companyId}::integer,
+              'exitProbability', updated_company.exit_probability,
+              'exitMoicBps', updated_company.exit_moic_bps,
+              'allocationVersion', updated_company.allocation_version
+            ),
+            ${params.actorId}::integer,
+            NOW(),
+            'UPDATE',
+            'portfolio_company_moic_inputs',
+            jsonb_build_object('route', ${MOIC_INPUT_ROUTE}::text)
+          FROM updated_company
+          RETURNING id
+        ),
+        claim AS (
+          INSERT INTO fund_moic_input_update_requests
+            (fund_id, company_id, idempotency_key, request_hash, created_by,
+             status, response_status, response_body)
+          SELECT
+            ${params.fundId}::integer,
+            ${params.companyId}::integer,
+            ${params.idempotencyKey},
+            ${requestHash},
+            ${params.actorId}::integer,
+            'completed',
+            200,
+            jsonb_build_object(
+              'fundId', ${params.fundId}::integer,
+              'companyId', ${params.companyId}::integer,
+              'allocationVersion', updated_company.allocation_version,
+              'exitProbability', updated_company.exit_probability,
+              'exitMoicBps', updated_company.exit_moic_bps
+            )
+          FROM updated_company
+          JOIN event_insert ON TRUE
+          ON CONFLICT (fund_id, company_id, idempotency_key) DO NOTHING
+          RETURNING id, response_body
+        )
+        SELECT
+          company_guard.company_exists,
+          company_guard.allocation_version AS actual_version,
+          (SELECT id FROM existing_request) AS existing_request_id,
+          claim.id AS claim_id,
+          claim.response_body
+        FROM company_guard
+        LEFT JOIN claim ON TRUE
       `
     );
 
-    const locked = lockedRows[0];
-    if (!locked) {
-      throw new FundMoicInputNotFoundError(params.fundId, params.companyId);
-    }
-    if (locked.allocation_version !== params.expectedVersion) {
-      throw new FundMoicInputVersionConflictError(
-        params.expectedVersion,
-        locked.allocation_version
-      );
+    const mutation = rows[0];
+    if (!mutation) {
+      throw new Error('MOIC input update CTE returned no guard result');
     }
 
-    const updatedRows = await executeRows<{
-      allocation_version: number;
-      exit_probability: string | number | null;
-      exit_moic_bps: number | null;
-    }>(
+    if (mutation.claim_id !== null) {
+      return { response: responseFromLedger(mutation.response_body), replayed: false };
+    }
+
+    // No mutation happened. Same-key request rows (pre-existing or committed
+    // by a concurrent winner) resolve via the ledger replay contract first.
+    const replay = await readMoicInputRequest({
       tx,
-      sql`
-        UPDATE portfoliocompanies
-        SET exit_probability = ${params.exitProbability},
-            exit_moic_bps = ${params.exitMoicBps},
-            allocation_version = allocation_version + 1,
-            last_allocation_at = NOW()
-        WHERE fund_id = ${params.fundId}
-          AND id = ${params.companyId}
-          AND allocation_version = ${params.expectedVersion}
-        RETURNING allocation_version, exit_probability, exit_moic_bps
-      `
-    );
-
-    const updated = updatedRows[0];
-    if (!updated) {
-      throw new FundMoicInputVersionConflictError(
-        params.expectedVersion,
-        locked.allocation_version
-      );
-    }
-
-    const response: FundMoicInputUpdateResponse = {
       fundId: params.fundId,
       companyId: params.companyId,
-      allocationVersion: updated.allocation_version,
-      exitProbability: updated.exit_probability === null ? null : Number(updated.exit_probability),
-      exitMoicBps: updated.exit_moic_bps,
-    };
+      idempotencyKey: params.idempotencyKey,
+      requestHash,
+    });
+    if (replay) {
+      return replay;
+    }
 
-    await tx.execute(sql`
-      INSERT INTO fund_events
-        (fund_id, event_type, payload, user_id, event_time, operation, entity_type, metadata)
-      VALUES (
-        ${params.fundId},
-        'MOIC_INPUTS_UPDATED',
-        ${JSON.stringify({
-          companyId: params.companyId,
-          exitProbability: params.exitProbability,
-          exitMoicBps: params.exitMoicBps,
-          allocationVersion: response.allocationVersion,
-        })}::jsonb,
-        ${params.actorId},
-        NOW(),
-        'UPDATE',
-        'portfolio_company_moic_inputs',
-        ${JSON.stringify({ route: MOIC_INPUT_ROUTE })}::jsonb
-      )
-    `);
-
-    await tx.execute(sql`
-      UPDATE fund_moic_input_update_requests
-      SET status = 'completed',
-          response_status = 200,
-          response_body = ${JSON.stringify(response)}::jsonb
-      WHERE fund_id = ${params.fundId}
-        AND company_id = ${params.companyId}
-        AND idempotency_key = ${params.idempotencyKey}
-    `);
-
-    return { response, replayed: false };
-  });
+    if (!mutation.company_exists) {
+      throw new FundMoicInputNotFoundError(params.fundId, params.companyId);
+    }
+    if (mutation.actual_version !== params.expectedVersion) {
+      throw new FundMoicInputVersionConflictError(
+        params.expectedVersion,
+        mutation.actual_version ?? params.expectedVersion + 1
+      );
+    }
+    // Guard passed and no same-key row exists: a concurrent writer won the
+    // race between our statement's guard read and its write re-check.
+    throw new FundMoicInputVersionConflictError(params.expectedVersion, params.expectedVersion + 1);
+  })(database);
   if (!result.replayed) {
     await invalidateH9Artifacts(params.fundId);
   }

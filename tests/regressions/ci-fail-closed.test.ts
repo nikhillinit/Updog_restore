@@ -2195,6 +2195,7 @@ const GATE_FEEDING_JOBS = [
   'security-tests',
   'memory-mode',
   'guards',
+  'neon-lane',
   'secret-scan',
 ];
 

@@ -154,15 +154,144 @@ function queryResult<T>(rows: T[]): Promise<T[]> & { limit: (count: number) => P
   return promise;
 }
 
+function sqlNarrative(row: NarrativeRun): Record<string, unknown> {
+  return {
+    id: row.id,
+    fund_id: row.fundId,
+    metric_run_id: row.metricRunId,
+    as_of_date: row.asOfDate,
+    narrative_type: row.narrativeType,
+    generated_text: row.generatedText,
+    edited_text: row.editedText,
+    status: row.status,
+    generated_by: row.generatedBy,
+    edited_by: row.editedBy,
+    reviewed_by: row.reviewedBy,
+    reviewed_at: row.reviewedAt,
+    approved_by: row.approvedBy,
+    approved_at: row.approvedAt,
+    exported_at: row.exportedAt,
+    version: row.version,
+    created_at: row.createdAt,
+    updated_at: row.updatedAt,
+  };
+}
+
+function sqlText(query: unknown): string {
+  const chunks = (query as { queryChunks?: unknown[] }).queryChunks ?? [];
+  return chunks
+    .map((chunk) => {
+      if (typeof chunk === 'object' && chunk !== null && 'value' in chunk) {
+        const value = (chunk as { value?: unknown }).value;
+        return Array.isArray(value) ? value.join(' ') : String(value ?? '');
+      }
+      if (typeof chunk === 'object' && chunk !== null && 'queryChunks' in chunk)
+        return sqlText(chunk);
+      return '';
+    })
+    .join(' ');
+}
+
+function lastNumericParameter(query: unknown): number | undefined {
+  const chunks = (query as { queryChunks?: unknown[] }).queryChunks ?? [];
+  return [...chunks].reverse().find((chunk): chunk is number => typeof chunk === 'number');
+}
+
+function stringParameters(query: unknown): string[] {
+  const chunks = (query as { queryChunks?: unknown[] }).queryChunks ?? [];
+  return chunks.flatMap((chunk) => {
+    if (typeof chunk === 'string') return [chunk];
+    if (typeof chunk === 'object' && chunk !== null && 'queryChunks' in chunk)
+      return stringParameters(chunk);
+    return [];
+  });
+}
+
 function makeDatabase(): typeof db {
   return {
     transaction: async (callback: (tx: typeof db) => Promise<unknown>) => {
       state.operations.push('transaction');
       return callback(makeDatabase());
     },
-    execute: async () => {
-      state.operations.push('lock-row');
-      return [];
+    execute: async (query: unknown) => {
+      state.operations.push('statement');
+      const metricRun = state.metricRuns.find((row) => row.id === 11 && row.fundId === 1);
+      const narrative = state.narratives.find(
+        (row) => row.id === 1000 && row.fundId === 1 && row.metricRunId === 11
+      );
+      if (!metricRun || !narrative)
+        return {
+          rows: [
+            {
+              metric_exists: Boolean(metricRun),
+              metric_status: metricRun?.status ?? null,
+              narrative_exists: Boolean(narrative),
+              actual_status: narrative?.status ?? null,
+              actual_version: narrative?.version ?? null,
+              guard_row: narrative ? sqlNarrative(narrative) : null,
+              updated_row: null,
+            },
+          ],
+        };
+      const text = sqlText(query);
+      const transition = text.includes("status = 'approved'")
+        ? 'approve'
+        : text.includes("status = 'reviewed'")
+          ? 'review'
+          : 'edit';
+      const expectedVersion = lastNumericParameter(query);
+      const validStatus =
+        transition === 'edit' || transition === 'review'
+          ? narrative.status === 'draft'
+          : narrative.status === 'reviewed';
+      const valid =
+        narrative.version === expectedVersion &&
+        validStatus &&
+        (transition === 'edit' || (narrative.editedText ?? '').trim().length > 0);
+      const guard = sqlNarrative(narrative);
+      if (!valid)
+        return {
+          rows: [
+            {
+              metric_exists: true,
+              metric_status: metricRun.status,
+              narrative_exists: true,
+              actual_status: narrative.status,
+              actual_version: narrative.version,
+              guard_row: guard,
+              updated_row: null,
+            },
+          ],
+        };
+      const updated = {
+        ...narrative,
+        ...(transition === 'edit'
+          ? {
+              editedText:
+                stringParameters(query)
+                  .find((value) => value.includes('copy') || value === 'edited')
+                  ?.trim() ?? 'edited',
+              editedBy: 7,
+            }
+          : transition === 'review'
+            ? { status: 'reviewed', reviewedBy: 7, reviewedAt: new Date('2026-05-10T03:00:00Z') }
+            : { status: 'approved', approvedBy: 7, approvedAt: new Date('2026-05-10T03:00:00Z') }),
+        version: narrative.version + 1,
+      } as NarrativeRun;
+      state.narratives = [updated];
+      return {
+        rows: [
+          {
+            metric_exists: true,
+            metric_status: metricRun.status,
+            narrative_exists: true,
+            actual_status: narrative.status,
+            actual_version: narrative.version,
+            guard_row: guard,
+            updated_row: sqlNarrative(updated),
+          },
+        ],
+      };
     },
     select: () => ({
       from: (table: unknown) => ({
@@ -495,7 +624,7 @@ describe('narrative lifecycle mutations', () => {
     expect(result.record.editedText).toBe('Reviewed copy');
     expect(result.record.editedBy).toBe(7);
     expect(result.record.version).toBe(2);
-    expect(state.operations).toEqual(['transaction', 'lock-row', 'lock-row']);
+    expect(state.operations).toEqual(['statement']);
   });
 
   it('returns changed false for same draft edit retries', async () => {
@@ -712,7 +841,7 @@ describe('narrative lifecycle mutations', () => {
       status: 409,
       code: 'METRIC_RUN_STATUS_CONFLICT',
     } satisfies Partial<MetricRunCommitError>);
-    expect(state.operations).toEqual(['transaction', 'lock-row', 'lock-row']);
+    expect(state.operations).toEqual(['statement']);
   });
 });
 

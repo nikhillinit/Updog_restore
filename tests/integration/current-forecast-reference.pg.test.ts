@@ -6,8 +6,11 @@ import * as schema from '@shared/schema';
 import {
   createCandidateCurrentForecastReference,
   currentForecastReferenceIdempotencyKey,
+  activateCurrentForecast,
+  advanceCurrentForecastPointer,
   type CurrentForecastReferenceDatabase,
 } from '../../server/services/current-forecast-reference-service';
+import { updateCurrentForecastCalculationMode } from '../../server/services/fund-calculation-mode-service';
 import {
   cleanupTestContainers,
   getPostgresConnectionString,
@@ -145,6 +148,98 @@ describe.skipIf(skipIfNoDocker)('current-forecast reference PostgreSQL proof', (
         [result.row.id]
       );
       expect(persisted.rows[0]?.idempotency_key).toBe(idempotencyKey);
+
+      const database = drizzle(pool, { schema }) as unknown as CurrentForecastReferenceDatabase;
+      const modeOff = await updateCurrentForecastCalculationMode({
+        fundId,
+        expectedVersion: 0,
+        configuredMode: 'off',
+        idempotencyKey: `mode-off-${fundId}`,
+        actorId: null,
+        sources: { sourceInputHash: `mode-source-${fundId}` },
+        now: new Date('2026-07-01T00:00:00.000Z'),
+        database,
+      });
+      expect(modeOff.response).toMatchObject({
+        calculationKey: 'current_forecast',
+        configuredMode: 'off',
+        version: 1,
+      });
+
+      const modeShadow = await updateCurrentForecastCalculationMode({
+        fundId,
+        expectedVersion: 1,
+        configuredMode: 'shadow',
+        idempotencyKey: `mode-shadow-${fundId}`,
+        actorId: null,
+        sources: { sourceInputHash: `mode-source-${fundId}` },
+        now: new Date('2026-07-01T00:00:00.000Z'),
+        database,
+      });
+      expect(modeShadow.response).toMatchObject({
+        calculationKey: 'current_forecast',
+        configuredMode: 'shadow',
+        version: 2,
+      });
+
+      const activation = await activateCurrentForecast({
+        fundId,
+        referenceId: result.row.id,
+        expectedVersion: 2,
+        idempotencyKey: `activate-${fundId}`,
+        actorId: null,
+        database,
+        verifyGreenCandidate: async () => [],
+      });
+      expect(activation.replayed).toBe(false);
+      expect(activation.response).toMatchObject({
+        calculationKey: 'current_forecast',
+        configuredMode: 'on',
+        cutoverReferenceId: result.row.id,
+        version: 3,
+      });
+
+      const next = await createCandidateCurrentForecastReference({
+        fundId,
+        basis: {
+          fundSnapshotId,
+          currentPlanVersionId: planVersionId,
+          financialFactsSnapshotId: factsSnapshotId,
+          inputHash: 'd'.repeat(64),
+          resultHash: 'e'.repeat(64),
+          assumptionsHash: 'f'.repeat(64),
+          engineVersion: 'current-forecast-v2-engine/1.0.0',
+          methodologyVersion: 'cohort-projection-v2/1.0.0',
+        },
+        idempotencyKey: `pointer-${fundId}`,
+        database,
+      });
+      const pointer = await advanceCurrentForecastPointer({
+        fundId,
+        referenceId: next.row.id,
+        actorId: null,
+        database,
+      });
+      expect(pointer).toEqual({ cutoverReferenceId: next.row.id, version: 4 });
+
+      const lifecycle = await pool.query<{
+        old_superseded_by: number | null;
+        new_candidate: boolean;
+        cutover_reference_id: number | null;
+      }>(
+        `
+          SELECT
+            (SELECT superseded_by_reference_id FROM current_forecast_references WHERE id = $1) AS old_superseded_by,
+            (SELECT candidate FROM current_forecast_references WHERE id = $2) AS new_candidate,
+            (SELECT cutover_reference_id FROM fund_calculation_modes WHERE fund_id = $3 AND calculation_key = 'current_forecast') AS cutover_reference_id
+        `,
+        [result.row.id, next.row.id, fundId]
+      );
+      expect(lifecycle.rows[0]).toEqual({
+        old_superseded_by: next.row.id,
+        new_candidate: false,
+        cutover_reference_id: next.row.id,
+      });
     });
   });
 });

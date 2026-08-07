@@ -18,6 +18,7 @@ import { createPlanningFmvOverride } from '../../../server/services/lp-reporting
 import { canonicalSha256 } from '@shared/lib/canonical-hash';
 
 const FUND_ID = 7;
+const NOW_ISO = '2026-06-25T00:00:00.000Z';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -110,15 +111,17 @@ describe('createRound -> H9 invalidation wiring', () => {
 
 // ---- MOIC inputs: updateFundMoicInputs --------------------------------------
 
-function transactionDb(replayed: boolean) {
-  // The mutation services do `return database.transaction(cb)`; the wiring must
-  // fire after the transaction resolves on a real (non-replayed) mutation. The
-  // mock resolves a canned result without invoking the callback, so no inner
-  // transaction internals need stubbing.
+function executeQueueDb(rowsPerStatement: unknown[][]) {
+  // The claim-last rewrites execute guarded CTE statements directly on the
+  // database handle (no callback transaction); the double replays canned rows
+  // per statement in order.
+  const queue = [...rowsPerStatement];
   return {
-    transaction: vi.fn(async () => ({ response: { ok: true }, replayed })),
+    execute: vi.fn(async () => ({ rows: queue.shift() ?? [] })),
   };
 }
+
+const MOIC_INPUT_ROUTE = 'PUT /api/admin/funds/:fundId/moic-inputs/portfolio-companies/:companyId';
 
 describe('updateFundMoicInputs -> H9 invalidation wiring', () => {
   const params = () => ({
@@ -130,15 +133,54 @@ describe('updateFundMoicInputs -> H9 invalidation wiring', () => {
     idempotencyKey: 'idem-inputs',
     actorId: 1,
   });
+  const moicResponse = () => ({
+    fundId: FUND_ID,
+    companyId: 1,
+    allocationVersion: 1,
+    exitProbability: null,
+    exitMoicBps: null,
+  });
 
   it('invalidates when the MOIC input update is applied', async () => {
-    await updateFundMoicInputs({ ...params(), database: transactionDb(false) as never });
+    const database = executeQueueDb([
+      [
+        {
+          company_exists: true,
+          actual_version: 0,
+          existing_request_id: null,
+          claim_id: 1,
+          response_body: moicResponse(),
+        },
+      ],
+    ]);
+    await updateFundMoicInputs({ ...params(), database: database as never });
 
     expect(invalidateH9Artifacts).toHaveBeenCalledWith(FUND_ID);
   });
 
   it('does NOT invalidate on an idempotent replay', async () => {
-    await updateFundMoicInputs({ ...params(), database: transactionDb(true) as never });
+    const input = params();
+    const requestHash = canonicalSha256({
+      route: MOIC_INPUT_ROUTE,
+      fundId: input.fundId,
+      companyId: input.companyId,
+      expectedVersion: input.expectedVersion,
+      exitProbability: input.exitProbability,
+      exitMoicBps: input.exitMoicBps,
+    });
+    const database = executeQueueDb([
+      [
+        {
+          company_exists: true,
+          actual_version: 1,
+          existing_request_id: 9,
+          claim_id: null,
+          response_body: null,
+        },
+      ],
+      [{ request_hash: requestHash, response_body: moicResponse(), status: 'completed' }],
+    ]);
+    await updateFundMoicInputs({ ...input, database: database as never });
 
     expect(invalidateH9Artifacts).not.toHaveBeenCalled();
   });
@@ -147,25 +189,79 @@ describe('updateFundMoicInputs -> H9 invalidation wiring', () => {
 // ---- calculation mode: updateFundMoicCalculationMode ------------------------
 
 describe('updateFundMoicCalculationMode -> H9 invalidation wiring', () => {
+  // 'off' mode carries no blockers, so the wiring path (not mode semantics)
+  // stays the thing under test after the claim-last rewrite.
   const params = () => ({
     fundId: FUND_ID,
     expectedVersion: 0,
-    configuredMode: 'shadow' as const,
+    configuredMode: 'off' as const,
     idempotencyKey: 'idem-mode',
     actorId: 1,
-    // Pass sources so the ranking fetch is skipped (callback never runs anyway).
-    sources: { moicSourceInputHash: 'h' } as never,
+    // Pass sources so the ranking fetch is skipped; the preview builder
+    // reads factsSource.status and the input summary.
+    sources: {
+      moicSourceInputHash: 'h',
+      factsSource: { status: 'available' },
+      moicInputSummary: { sourceVersion: 'v', inputHash: 'h', generatedAt: NOW_ISO },
+    } as never,
     now: new Date('2026-06-25T00:00:00.000Z'),
   });
 
   it('invalidates when the calculation-mode change is applied', async () => {
-    await updateFundMoicCalculationMode({ ...params(), database: transactionDb(false) as never });
+    const database = executeQueueDb([
+      // read-only mode-row preflight: absent
+      [],
+      // claim-last CTE statement: mutation + completed ledger row
+      [
+        {
+          mode_exists: false,
+          actual_version: null,
+          existing_request_id: null,
+          mode_write_id: 1,
+          claim_id: 2,
+        },
+      ],
+    ]);
+    await updateFundMoicCalculationMode({ ...params(), database: database as never });
 
     expect(invalidateH9Artifacts).toHaveBeenCalledWith(FUND_ID);
   });
 
   it('does NOT invalidate on an idempotent replay', async () => {
-    await updateFundMoicCalculationMode({ ...params(), database: transactionDb(true) as never });
+    const input = params();
+    const requestHash = canonicalSha256({
+      route: 'PUT /api/admin/funds/:fundId/calculation-modes/fund-moic-rankings',
+      fundId: input.fundId,
+      calculationKey: 'fund_moic_rankings_exit_probability',
+      expectedVersion: input.expectedVersion,
+      configuredMode: input.configuredMode,
+      killSwitchActive: null,
+      acceptedReconciliationRunId: null,
+    });
+    const database = executeQueueDb([
+      [],
+      [
+        {
+          mode_exists: false,
+          actual_version: null,
+          existing_request_id: 5,
+          mode_write_id: null,
+          claim_id: null,
+        },
+      ],
+      [
+        {
+          request_hash: requestHash,
+          response_body: {
+            calculationKey: 'fund_moic_rankings_exit_probability',
+            configuredMode: 'off',
+            version: 1,
+          },
+          status: 'completed',
+        },
+      ],
+    ]);
+    await updateFundMoicCalculationMode({ ...input, database: database as never });
 
     expect(invalidateH9Artifacts).not.toHaveBeenCalled();
   });

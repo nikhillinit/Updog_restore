@@ -104,17 +104,32 @@ function requestHashFor(params: {
 
 function makeDatabase(executeRows: unknown[][]) {
   const queue = [...executeRows];
+  const execute = vi.fn(async () => ({ rows: queue.shift() ?? [] }));
   const tx = {
-    execute: vi.fn(async () => ({ rows: queue.shift() ?? [] })),
+    execute,
   };
   const database = {
-    execute: vi.fn(async () => ({ rows: queue.shift() ?? [] })),
+    execute,
     transaction: vi.fn(async (callback: (transaction: typeof tx) => Promise<unknown>) =>
       callback(tx)
     ),
   };
 
   return { database, tx };
+}
+
+function modeMutation(overrides: Record<string, unknown> = {}) {
+  return [
+    {
+      mode_exists: true,
+      actual_version: 1,
+      claim_id: 100,
+      completed_id: 100,
+      deleted_id: null,
+      response_body: null,
+      ...overrides,
+    },
+  ];
 }
 
 const baseUpdate = {
@@ -151,7 +166,6 @@ describe('fund calculation mode service', () => {
 
   it('creates a missing row with expectedVersion 0 when entering shadow with a current reconciliation', async () => {
     const { database, tx } = makeDatabase([
-      [{ id: 100 }],
       [],
       [
         {
@@ -160,14 +174,7 @@ describe('fund calculation mode service', () => {
           candidate_output_hash: 'candidate-output-a',
         },
       ],
-      [
-        modeRow({
-          configured_mode: 'shadow',
-          shadow_started_at: now,
-          version: 1,
-        }),
-      ],
-      [],
+      modeMutation({ mode_exists: false, actual_version: null }),
     ]);
 
     const result = await updateFundMoicCalculationMode({
@@ -187,12 +194,11 @@ describe('fund calculation mode service', () => {
       currentSourceMatchesAccepted: true,
     });
     expect(result.replayed).toBe(false);
-    expect(tx.execute).toHaveBeenCalledTimes(5);
+    expect(tx.execute).toHaveBeenCalledTimes(3);
   });
 
   it('keeps MOIC shadow mode gated by an accepted reconciliation', async () => {
     const { database } = makeDatabase([
-      [{ id: 100 }],
       [
         modeRow({
           configured_mode: 'off',
@@ -201,6 +207,8 @@ describe('fund calculation mode service', () => {
           last_candidate_output_hash: null,
         }),
       ],
+      modeMutation({ claim_id: null, completed_id: null }),
+      [],
     ]);
 
     await expect(
@@ -213,7 +221,16 @@ describe('fund calculation mode service', () => {
   });
 
   it('rejects first write when expectedVersion is not 0', async () => {
-    const { database } = makeDatabase([[{ id: 100 }], []]);
+    const { database } = makeDatabase([
+      [],
+      modeMutation({
+        mode_exists: false,
+        actual_version: null,
+        claim_id: null,
+        completed_id: null,
+      }),
+      [],
+    ]);
 
     await expect(
       updateFundMoicCalculationMode({
@@ -226,7 +243,11 @@ describe('fund calculation mode service', () => {
   });
 
   it('blocks on before the seven-day shadow residency passes', async () => {
-    const { database } = makeDatabase([[{ id: 100 }], [modeRow({ shadow_started_at: now })]]);
+    const { database } = makeDatabase([
+      [modeRow({ shadow_started_at: now })],
+      modeMutation({ claim_id: null, completed_id: null }),
+      [],
+    ]);
 
     await expect(
       updateFundMoicCalculationMode({ ...baseUpdate, database: database as never })
@@ -236,7 +257,11 @@ describe('fund calculation mode service', () => {
   });
 
   it('blocks on when candidate source data is incomplete', async () => {
-    const { database } = makeDatabase([[{ id: 100 }], [modeRow()]]);
+    const { database } = makeDatabase([
+      [modeRow()],
+      modeMutation({ claim_id: null, completed_id: null }),
+      [],
+    ]);
 
     await expect(
       updateFundMoicCalculationMode({
@@ -256,9 +281,8 @@ describe('fund calculation mode service', () => {
 
   it('blocks an on transition when the facts source is unavailable', async () => {
     const { database } = makeDatabase([
-      [{ id: 100 }],
       [modeRow()],
-      [modeRow({ configured_mode: 'on', version: 2 })],
+      modeMutation({ claim_id: null, completed_id: null }),
       [],
     ]);
 
@@ -276,12 +300,7 @@ describe('fund calculation mode service', () => {
   });
 
   it('transitions to on after residency, current source, and complete inputs', async () => {
-    const { database } = makeDatabase([
-      [{ id: 100 }],
-      [modeRow()],
-      [modeRow({ configured_mode: 'on', shadow_started_at: oldShadow, version: 2 })],
-      [],
-    ]);
+    const { database } = makeDatabase([[modeRow()], modeMutation({ actual_version: 1 })]);
 
     const result = await updateFundMoicCalculationMode({
       ...baseUpdate,
@@ -299,10 +318,8 @@ describe('fund calculation mode service', () => {
 
   it('rolls back from on to off with kill switch without requiring a fresh reconciliation', async () => {
     const { database } = makeDatabase([
-      [{ id: 100 }],
       [modeRow({ configured_mode: 'on', version: 2 })],
-      [modeRow({ configured_mode: 'off', kill_switch_active: true, version: 3 })],
-      [],
+      modeMutation({ actual_version: 2 }),
     ]);
 
     const result = await updateFundMoicCalculationMode({
@@ -351,7 +368,6 @@ describe('fund calculation mode service', () => {
 
   it('resets shadow residency only when a shadow-mode accepted source hash changes', async () => {
     const { database } = makeDatabase([
-      [{ id: 100 }],
       [modeRow({ last_moic_source_input_hash: 'old-source-hash' })],
       [
         {
@@ -360,15 +376,7 @@ describe('fund calculation mode service', () => {
           candidate_output_hash: 'candidate-output-b',
         },
       ],
-      [
-        modeRow({
-          last_reconciliation_run_id: 56,
-          last_candidate_output_hash: 'candidate-output-b',
-          shadow_started_at: now,
-          version: 2,
-        }),
-      ],
-      [],
+      modeMutation({ actual_version: 1 }),
     ]);
 
     const result = await updateFundMoicCalculationMode({
@@ -401,6 +409,19 @@ describe('fund calculation mode service', () => {
       [],
       [
         {
+          id: 55,
+          candidate_input_hash: 'source-hash-a',
+          candidate_output_hash: 'candidate-output-a',
+        },
+      ],
+      modeMutation({
+        mode_exists: false,
+        actual_version: null,
+        claim_id: null,
+        completed_id: null,
+      }),
+      [
+        {
           request_hash: requestHashFor({
             fundId: 7,
             expectedVersion: 0,
@@ -422,12 +443,13 @@ describe('fund calculation mode service', () => {
     });
 
     expect(result).toEqual({ response, replayed: true });
-    expect(tx.execute).toHaveBeenCalledTimes(2);
+    expect(tx.execute).toHaveBeenCalledTimes(4);
   });
 
   it('conflicts or returns in-progress for non-winning idempotency claims', async () => {
     const conflict = makeDatabase([
-      [],
+      [modeRow()],
+      modeMutation({ claim_id: null, completed_id: null }),
       [
         {
           request_hash: requestHashFor({
@@ -445,7 +467,8 @@ describe('fund calculation mode service', () => {
     ).rejects.toBeInstanceOf(FundCalculationModeIdempotencyConflictError);
 
     const pending = makeDatabase([
-      [],
+      [modeRow()],
+      modeMutation({ claim_id: null, completed_id: null }),
       [
         {
           request_hash: requestHashFor({
@@ -470,6 +493,8 @@ describe('fund calculation mode service', () => {
     );
 
     expect(source).toContain('ON CONFLICT (fund_id, calculation_key, idempotency_key) DO NOTHING');
+    expect(source).toContain('ON CONFLICT (fund_id, calculation_key) DO UPDATE');
+    expect(source).toContain('WHERE mode.version = ${params.expectedVersion}');
     expect(source).toContain('RETURNING id');
     expect(source).toContain('FOR UPDATE');
   });

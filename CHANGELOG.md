@@ -21,6 +21,22 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed (2026-08-07)
+
+- **Vercel transaction support restored (F_1.2.4 WS2 G3, ADR-073, v1.5.0).**
+  Every `database.transaction(...)` reachable from the Vercel surface threw at
+  runtime (neon-http driver). The Vercel branch of `server/db.ts` now runs the
+  Neon WebSocket `Pool` driver (with the `ws.default` constructor fix both Neon
+  branches needed); P0 current-forecast/mode/MOIC and six LP-reporting mutations
+  were additionally rewritten as single guarded claim-last CTE statements
+  (idempotency ledger rows can no longer strand `pending`); pointer advance
+  keeps its callback transaction (class b, serial-order contract). New real-Neon
+  integration lane (`npm run test:neon`, required CI check) plus a pg-driver
+  lifecycle proof pin the semantics on both drivers; a new
+  `guard:transaction-support:check` guardrail fences the autocommit fallback.
+  planning-fmv unexpected errors now mark their idempotency row `failed` instead
+  of bricking the key (already-stranded prod rows: follow-up repair).
+
 ### Added (2026-08-04)
 
 - **Current-forecast activation-blocker runtime landed (#1325, NEW-A,

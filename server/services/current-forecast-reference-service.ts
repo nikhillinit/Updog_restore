@@ -330,6 +330,15 @@ function supersedeAcceptedHead(executor: Executor, fundId: number, referenceId: 
  * Advance the LIVE served pointer (P1) — legal ONLY while the mode row is
  * effective `on` post-cutover. Supersedes the old head BEFORE flipping the new
  * one (the accepted-head partial unique is checked per statement).
+ *
+ * Class (b) under ADR-073: the guard-fenced single-statement CTE cannot
+ * deliver the serial-order-equivalent both-succeed contract — under READ
+ * COMMITTED the losing statement's supersede CTE filters the new head on its
+ * pre-commit snapshot (candidate still true), so lock-wait re-evaluation
+ * never rescues it and the loser would surface a contract-violating 409
+ * (proven by the neon-lane concurrency test). Per the plan's pre-authorized
+ * escalation, this path keeps its callback transaction; the surface-scoped
+ * driver switch (server/db.ts) makes it work on Vercel.
  */
 export async function advanceCurrentForecastPointer(params: {
   fundId: number;
@@ -562,6 +571,20 @@ type ActivationLedgerRow = {
   status: 'pending' | 'completed';
 };
 
+type ActivationMutationResult = {
+  mode_exists: boolean;
+  version_matches: boolean;
+  actual_version: number | null;
+  activated_at: Date | string | null;
+  kill_switch_active: boolean;
+  reference_exists: boolean;
+  reference_eligible: boolean;
+  existing_request_id: number | null;
+  mode_write_id: number | null;
+  claim_id: number | null;
+  claim_response_body: unknown;
+};
+
 function activationResponseFromLedger(value: unknown): CurrentForecastActivationResponse {
   const parsed: unknown = typeof value === 'string' ? (JSON.parse(value) as unknown) : value;
   if (
@@ -570,9 +593,43 @@ function activationResponseFromLedger(value: unknown): CurrentForecastActivation
     (parsed as { calculationKey?: unknown }).calculationKey === CURRENT_FORECAST_CALCULATION_KEY &&
     (parsed as { configuredMode?: unknown }).configuredMode === 'on'
   ) {
-    return parsed as CurrentForecastActivationResponse;
+    const response = parsed as CurrentForecastActivationResponse;
+    // The ledger stores activatedAt as Postgres's jsonb timestamptz rendering
+    // (microseconds, +00:00 offset); the API contract is canonical
+    // Date.toISOString() form. Normalize on every read path.
+    return { ...response, activatedAt: new Date(response.activatedAt).toISOString() };
   }
   throw new Error('Completed current-forecast activation ledger row has an invalid response body');
+}
+
+async function readActivationRequest(
+  executor: Executor,
+  fundId: number,
+  idempotencyKey: string,
+  requestHash: string
+): Promise<{ response: CurrentForecastActivationResponse; replayed: true } | null> {
+  const existing = await executeRows<ActivationLedgerRow>(
+    executor,
+    sql`
+      SELECT request_hash, response_body, status
+      FROM fund_calculation_mode_requests
+      WHERE fund_id = ${fundId}::integer
+        AND calculation_key = ${CURRENT_FORECAST_CALCULATION_KEY}::text
+        AND idempotency_key = ${idempotencyKey}::text
+      LIMIT 1
+    `
+  );
+  const row = existing[0];
+  if (!row) return null;
+  if (row.request_hash !== requestHash) {
+    throw new FundCalculationModeIdempotencyConflictError(
+      'Idempotency-Key reused with a different current-forecast activation request'
+    );
+  }
+  if (row.status !== 'completed' || row.response_body === null) {
+    throw new FundCalculationModeInProgressError();
+  }
+  return { response: activationResponseFromLedger(row.response_body), replayed: true };
 }
 
 /**
@@ -604,130 +661,255 @@ export async function activateCurrentForecast(params: {
     expectedVersion: params.expectedVersion,
   });
 
-  return database.transaction(async (tx) => {
-    const claimed = await executeRows<{ id: number }>(
-      tx,
-      sql`
-        INSERT INTO fund_calculation_mode_requests
-          (fund_id, calculation_key, idempotency_key, request_hash, created_by, status)
-        VALUES
-          (${params.fundId}, ${CURRENT_FORECAST_CALCULATION_KEY}, ${params.idempotencyKey}, ${requestHash}, ${params.actorId}, 'pending')
-        ON CONFLICT (fund_id, calculation_key, idempotency_key) DO NOTHING
-        RETURNING id
-      `
+  const replay = await readActivationRequest(
+    database,
+    params.fundId,
+    params.idempotencyKey,
+    requestHash
+  );
+  if (replay) return replay;
+
+  // These reads are advisory only. The CTE below repeats the mode, latch, and
+  // candidate guards while holding the mode-row lock before any mutation.
+  const mode = await lockCurrentForecastModeRow(database, params.fundId);
+  if (!mode) {
+    throw new FundCalculationModeVersionConflictError(params.expectedVersion, 0);
+  }
+  if (mode.version !== params.expectedVersion) {
+    throw new FundCalculationModeVersionConflictError(params.expectedVersion, mode.version);
+  }
+  if (mode.activated_at !== null) {
+    throw new CurrentForecastReferenceError(
+      409,
+      'already_activated',
+      `Fund ${params.fundId} current-forecast is already activated.`
     );
-    if (claimed.length === 0) {
-      const existing = await executeRows<ActivationLedgerRow>(
-        tx,
-        sql`
-          SELECT request_hash, response_body, status
-          FROM fund_calculation_mode_requests
-          WHERE fund_id = ${params.fundId}
-            AND calculation_key = ${CURRENT_FORECAST_CALCULATION_KEY}
-            AND idempotency_key = ${params.idempotencyKey}
-          LIMIT 1
-        `
-      );
-      const row = existing[0];
-      if (!row) {
-        throw new Error('Activation idempotency claim conflict did not return an existing request');
-      }
-      if (row.request_hash !== requestHash) {
-        throw new FundCalculationModeIdempotencyConflictError(
-          'Idempotency-Key reused with a different current-forecast activation request'
-        );
-      }
-      if (row.status !== 'completed' || row.response_body === null) {
-        throw new FundCalculationModeInProgressError();
-      }
-      return { response: activationResponseFromLedger(row.response_body), replayed: true };
-    }
+  }
 
-    const mode = await lockCurrentForecastModeRow(tx, params.fundId);
-    if (!mode) {
-      throw new FundCalculationModeVersionConflictError(params.expectedVersion, 0);
-    }
-    if (mode.version !== params.expectedVersion) {
-      throw new FundCalculationModeVersionConflictError(params.expectedVersion, mode.version);
-    }
-    if (mode.activated_at !== null) {
-      throw new CurrentForecastReferenceError(
-        409,
-        'already_activated',
-        `Fund ${params.fundId} current-forecast is already activated.`
-      );
-    }
+  const reference = await loadReference(database, params.fundId, params.referenceId);
+  if (!reference) {
+    throw new CurrentForecastReferenceError(
+      404,
+      'reference_not_found',
+      `current_forecast_references row ${params.referenceId} does not exist for fund ${params.fundId}.`
+    );
+  }
 
-    const reference = await loadReference(tx, params.fundId, params.referenceId);
-    if (!reference) {
-      throw new CurrentForecastReferenceError(
-        404,
-        'reference_not_found',
-        `current_forecast_references row ${params.referenceId} does not exist for fund ${params.fundId}.`
-      );
-    }
+  const blockers = [
+    ...(mode.kill_switch_active ? ['kill_switch_active'] : []),
+    ...(await verifyGreenCandidate({ executor: database, fundId: params.fundId, reference })),
+  ];
+  if (blockers.length > 0) {
+    throw new CurrentForecastActivationBlockedError(blockers);
+  }
 
-    const blockers = [
-      ...(mode.kill_switch_active ? ['kill_switch_active'] : []),
-      ...(await verifyGreenCandidate({ executor: tx, fundId: params.fundId, reference })),
-    ];
-    if (blockers.length > 0) {
-      throw new CurrentForecastActivationBlockedError(blockers);
-    }
-
-    await supersedeAcceptedHead(tx, params.fundId, reference.id);
-    await tx.execute(sql`
-      UPDATE current_forecast_references
-      SET candidate = false
-      WHERE id = ${reference.id}
-    `);
-    const updated = await executeRows<{
-      cutover_reference_id: number;
-      version: number;
-      activated_at: Date | string;
-    }>(
-      tx,
-      sql`
-        UPDATE fund_calculation_modes
+  const rows = await executeRows<ActivationMutationResult>(
+    database,
+    sql`
+      WITH mode_row AS (
+        SELECT id, version, activated_at, kill_switch_active
+        FROM fund_calculation_modes
+        WHERE fund_id = ${params.fundId}::integer
+          AND calculation_key = ${CURRENT_FORECAST_CALCULATION_KEY}::text
+        FOR UPDATE
+      ),
+      mode_guard AS (
+        SELECT
+          mode_row.id AS mode_id,
+          mode_row.version AS actual_version,
+          mode_row.activated_at,
+          mode_row.kill_switch_active,
+          true::boolean AS mode_exists,
+          (mode_row.version = ${params.expectedVersion}::integer) AS version_matches,
+          (mode_row.activated_at IS NULL) AS latch_open,
+          reference_row.id AS reference_id,
+          (reference_row.id IS NOT NULL) AS reference_exists,
+          (
+            reference_row.id IS NOT NULL
+            AND reference_row.candidate
+            AND reference_row.superseded_by_reference_id IS NULL
+          ) AS reference_eligible
+        FROM mode_row
+        LEFT JOIN current_forecast_references AS reference_row
+          ON reference_row.fund_id = ${params.fundId}::integer
+         AND reference_row.id = ${params.referenceId}::integer
+        UNION ALL
+        SELECT
+          NULL::integer,
+          NULL::integer,
+          NULL::timestamptz,
+          false::boolean,
+          false::boolean,
+          false::boolean,
+          false::boolean,
+          NULL::integer,
+          false::boolean,
+          false::boolean
+        FROM (SELECT 1) AS missing
+        WHERE NOT EXISTS (SELECT 1 FROM mode_row)
+      ),
+      existing_request AS (
+        SELECT id
+        FROM fund_calculation_mode_requests
+        WHERE fund_id = ${params.fundId}::integer
+          AND calculation_key = ${CURRENT_FORECAST_CALCULATION_KEY}::text
+          AND idempotency_key = ${params.idempotencyKey}::text
+      ),
+      supersede AS (
+        UPDATE current_forecast_references AS old_head
+        SET superseded_by_reference_id = guard.reference_id
+        FROM mode_guard AS guard
+        WHERE guard.mode_exists
+          AND guard.version_matches
+          AND guard.latch_open
+          AND NOT guard.kill_switch_active
+          AND guard.reference_eligible
+          AND NOT EXISTS (SELECT 1 FROM existing_request)
+          AND old_head.fund_id = ${params.fundId}::integer
+          AND old_head.candidate = false
+          AND old_head.superseded_by_reference_id IS NULL
+          AND old_head.id <> guard.reference_id
+        RETURNING old_head.id AS superseded_id
+      ),
+      supersede_ready AS (
+        SELECT superseded_id
+        FROM supersede
+        UNION ALL
+        SELECT NULL::integer AS superseded_id
+        FROM mode_guard AS guard
+        WHERE guard.mode_exists
+          AND guard.version_matches
+          AND guard.latch_open
+          AND NOT guard.kill_switch_active
+          AND guard.reference_eligible
+          AND NOT EXISTS (SELECT 1 FROM existing_request)
+          AND NOT EXISTS (
+            SELECT 1
+            FROM current_forecast_references AS old_head
+            WHERE old_head.fund_id = ${params.fundId}::integer
+              AND old_head.candidate = false
+              AND old_head.superseded_by_reference_id IS NULL
+              AND old_head.id <> guard.reference_id
+          )
+      ),
+      candidate_flip AS (
+        UPDATE current_forecast_references AS target
+        SET candidate = false
+        FROM supersede_ready
+        CROSS JOIN mode_guard AS guard
+        WHERE guard.mode_exists
+          AND guard.version_matches
+          AND guard.latch_open
+          AND NOT guard.kill_switch_active
+          AND guard.reference_eligible
+          AND NOT EXISTS (SELECT 1 FROM existing_request)
+          AND target.fund_id = ${params.fundId}::integer
+          AND target.id = guard.reference_id
+          AND target.candidate
+          AND target.superseded_by_reference_id IS NULL
+        RETURNING target.id AS reference_id, guard.mode_id
+      ),
+      mode_write AS (
+        UPDATE fund_calculation_modes AS mode
         SET configured_mode = 'on',
             activated_at = NOW(),
-            cutover_reference_id = ${reference.id},
-            version = version + 1,
-            updated_by = ${params.actorId},
+            cutover_reference_id = flip.reference_id,
+            version = mode.version + 1,
+            updated_by = ${params.actorId}::integer,
             updated_at = NOW()
-        WHERE id = ${mode.id}
-        RETURNING cutover_reference_id, version, activated_at
-      `
-    );
-    const row = updated[0];
-    if (!row) {
-      throw new CurrentForecastReferenceError(
-        409,
-        'activation_conflict',
-        'The current-forecast mode row disappeared during activation.'
-      );
-    }
+        FROM candidate_flip AS flip
+        WHERE mode.id = flip.mode_id
+        RETURNING mode.id, mode.cutover_reference_id, mode.version, mode.activated_at
+      ),
+      claim AS (
+        INSERT INTO fund_calculation_mode_requests
+          (fund_id, calculation_key, idempotency_key, request_hash, created_by,
+           status, response_status, response_body)
+        SELECT
+          ${params.fundId}::integer,
+          ${CURRENT_FORECAST_CALCULATION_KEY}::text,
+          ${params.idempotencyKey}::text,
+          ${requestHash}::text,
+          ${params.actorId}::integer,
+          'completed',
+          200,
+          jsonb_build_object(
+            'calculationKey', ${CURRENT_FORECAST_CALCULATION_KEY}::text,
+            'configuredMode', 'on'::text,
+            'activatedAt', mode_write.activated_at,
+            'cutoverReferenceId', mode_write.cutover_reference_id,
+            'version', mode_write.version
+          )
+        FROM mode_write
+        ON CONFLICT (fund_id, calculation_key, idempotency_key) DO NOTHING
+        RETURNING id, response_body
+      )
+      SELECT
+        guard.mode_exists,
+        guard.version_matches,
+        guard.actual_version,
+        guard.activated_at,
+        guard.kill_switch_active,
+        guard.reference_exists,
+        guard.reference_eligible,
+        (SELECT id FROM existing_request) AS existing_request_id,
+        mode_write.id AS mode_write_id,
+        claim.id AS claim_id,
+        claim.response_body AS claim_response_body
+      FROM mode_guard AS guard
+      LEFT JOIN mode_write ON TRUE
+      LEFT JOIN claim ON TRUE
+    `
+  );
 
-    const response: CurrentForecastActivationResponse = {
-      calculationKey: CURRENT_FORECAST_CALCULATION_KEY,
-      configuredMode: 'on',
-      activatedAt:
-        row.activated_at instanceof Date
-          ? row.activated_at.toISOString()
-          : String(row.activated_at),
-      cutoverReferenceId: row.cutover_reference_id,
-      version: row.version,
+  const mutation = rows[0];
+  if (!mutation) {
+    throw new Error('Current-forecast activation CTE returned no guard result');
+  }
+  if (mutation.mode_write_id !== null && mutation.claim_id !== null) {
+    return {
+      response: activationResponseFromLedger(mutation.claim_response_body),
+      replayed: false,
     };
-    await tx.execute(sql`
-      UPDATE fund_calculation_mode_requests
-      SET status = 'completed',
-          response_status = 200,
-          response_body = ${JSON.stringify(response)}::jsonb
-      WHERE fund_id = ${params.fundId}
-        AND calculation_key = ${CURRENT_FORECAST_CALCULATION_KEY}
-        AND idempotency_key = ${params.idempotencyKey}
-    `);
+  }
 
-    return { response, replayed: false };
-  });
+  const concurrentReplay = await readActivationRequest(
+    database,
+    params.fundId,
+    params.idempotencyKey,
+    requestHash
+  );
+  if (concurrentReplay) return concurrentReplay;
+
+  if (!mutation.mode_exists || !mutation.version_matches) {
+    throw new FundCalculationModeVersionConflictError(
+      params.expectedVersion,
+      mutation.actual_version ?? 0
+    );
+  }
+  if (mutation.activated_at !== null) {
+    throw new CurrentForecastReferenceError(
+      409,
+      'already_activated',
+      `Fund ${params.fundId} current-forecast is already activated.`
+    );
+  }
+  if (!mutation.reference_exists) {
+    throw new CurrentForecastReferenceError(
+      404,
+      'reference_not_found',
+      `current_forecast_references row ${params.referenceId} does not exist for fund ${params.fundId}.`
+    );
+  }
+  if (mutation.kill_switch_active) {
+    throw new CurrentForecastActivationBlockedError(['kill_switch_active']);
+  }
+  if (!mutation.reference_eligible) {
+    throw new CurrentForecastActivationBlockedError(['activation_requires_green_candidate']);
+  }
+  throw new CurrentForecastReferenceError(
+    409,
+    'activation_conflict',
+    'The current-forecast mode row disappeared during activation.'
+  );
 }

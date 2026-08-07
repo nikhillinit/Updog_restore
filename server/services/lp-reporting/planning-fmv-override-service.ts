@@ -3,6 +3,7 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from '../../db';
 import { logger } from '../../lib/logger';
 import { generateLockKey } from '../../lib/locks';
+import { runInTransaction } from '../../lib/transaction-support';
 import type {
   PlanningFmvOverrideCreateRequest,
   PlanningFmvOverrideCreateResponse,
@@ -127,19 +128,6 @@ function toPlanningRecord(row: ValuationMark): PlanningFmvOverrideRecord {
     approvedAt: isoDateTime(row.approvedAt),
     createdAt: isoDateTime(row.createdAt),
   });
-}
-
-async function withTransaction<T>(
-  database: PlanningFmvDatabase,
-  operation: (transaction: PlanningFmvDatabase) => Promise<T>
-): Promise<T> {
-  const candidate = database as PlanningFmvDatabase & {
-    transaction?: (operation: (transaction: PlanningFmvDatabase) => Promise<T>) => Promise<T>;
-  };
-  if (typeof candidate.transaction === 'function') {
-    return candidate.transaction((transaction) => operation(transaction));
-  }
-  return operation(database);
 }
 
 async function acquirePlanningFmvLock(
@@ -336,7 +324,7 @@ async function writePlanningFmvMark(
   requestRow: PlanningFmvOverrideRequest,
   sourceHash: string
 ): Promise<PlanningFmvOverrideCreateResponse> {
-  return withTransaction(database, async (transaction) => {
+  return runInTransaction(database, async (transaction) => {
     await acquirePlanningFmvLock(transaction, input.fundId, input.body.companyId);
     await assertCompanyBelongsToFund(transaction, input.fundId, input.body.companyId);
 
@@ -468,6 +456,17 @@ export async function createPlanningFmvOverride(
         },
         'lp_reporting.planning_fmv_override.failed'
       );
+    } else {
+      const failureRecord = new PlanningFmvOverrideError(
+        500,
+        'planning_fmv_unexpected_error',
+        'Planning FMV override failed unexpectedly.'
+      );
+      try {
+        await markRequestFailed(database, pending.id, failureRecord);
+      } catch {
+        // Preserve original failure; request cleanup is best effort.
+      }
     }
     throw mappedError;
   }

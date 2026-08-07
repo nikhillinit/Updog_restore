@@ -13,6 +13,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '../../db';
+import { runInTransaction } from '../../lib/transaction-support';
 import {
   LpMetricRunDiagnosticsSchema,
   LpMetricRunResultsSchema,
@@ -60,7 +61,6 @@ export interface ReportPackageAssembleInput extends ReportPackageGetInput {
 
 interface ReportPackageServiceOptions {
   database?: ReportPackageDatabase;
-  skipTransaction?: boolean;
 }
 
 interface ValidatedSource {
@@ -71,12 +71,6 @@ interface ValidatedSource {
   sourceMarkIds: number[];
   evidenceRecordIds: number[];
 }
-
-type TransactionCapableDatabase = ReportPackageDatabase & {
-  transaction?: <TResult>(
-    callback: (tx: ReportPackageDatabase) => Promise<TResult>
-  ) => Promise<TResult>;
-};
 
 type ExecuteCapableDatabase = ReportPackageDatabase & {
   execute?: (query: unknown) => Promise<unknown>;
@@ -89,18 +83,6 @@ const NARRATIVE_TYPE_ORDER: NarrativeType[] = [
   'portfolio_update',
   'risk_disclosure',
 ];
-
-function withTransaction<TResult>(
-  database: ReportPackageDatabase,
-  skipTransaction: boolean,
-  callback: (tx: ReportPackageDatabase) => Promise<TResult>
-): Promise<TResult> {
-  const transactionCapable = database as TransactionCapableDatabase;
-  if (!skipTransaction && typeof transactionCapable.transaction === 'function') {
-    return transactionCapable.transaction((tx) => callback(tx));
-  }
-  return callback(database);
-}
 
 async function lockMetricRunRow(
   database: ReportPackageDatabase,
@@ -579,7 +561,7 @@ export async function assembleMetricRunReportPackage(
   const body = ReportPackageAssembleRequestSchema.parse(input.body);
   await assertUserExists(database, input.userId);
 
-  return withTransaction(database, options.skipTransaction === true, async (tx) => {
+  return runInTransaction(database, async (tx) => {
     await lockMetricRunRow(tx, input.fundId, input.metricRunId);
     const metricRun = await loadMetricRun(tx, input.fundId, input.metricRunId);
     assertMetricRunLocked(metricRun);

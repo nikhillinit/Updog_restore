@@ -21,11 +21,12 @@ function modeRow(overrides: Record<string, unknown> = {}) {
 
 function makeDatabase(executeRows: unknown[][]) {
   const queue = [...executeRows];
+  const execute = vi.fn(async () => ({ rows: queue.shift() ?? [] }));
   const tx = {
-    execute: vi.fn(async () => ({ rows: queue.shift() ?? [] })),
+    execute,
   };
   const database = {
-    execute: vi.fn(async () => ({ rows: queue.shift() ?? [] })),
+    execute,
     transaction: vi.fn(async (callback: (transaction: typeof tx) => Promise<unknown>) =>
       callback(tx)
     ),
@@ -34,9 +35,26 @@ function makeDatabase(executeRows: unknown[][]) {
   return { database, tx };
 }
 
+function modeMutation(overrides: Record<string, unknown> = {}) {
+  return [
+    {
+      mode_exists: true,
+      actual_version: 1,
+      claim_id: 100,
+      completed_id: 100,
+      deleted_id: null,
+      response_body: null,
+      ...overrides,
+    },
+  ];
+}
+
 describe('current-forecast calculation mode service', () => {
   it('creates the current_forecast row in off mode at version 1', async () => {
-    const { database, tx } = makeDatabase([[{ id: 100 }], [], [modeRow()], []]);
+    const { database, tx } = makeDatabase([
+      [],
+      modeMutation({ mode_exists: false, actual_version: null }),
+    ]);
 
     const result = await updateCurrentForecastCalculationMode({
       fundId: 7,
@@ -65,16 +83,11 @@ describe('current-forecast calculation mode service', () => {
       },
       replayed: false,
     });
-    expect(tx.execute).toHaveBeenCalledTimes(4);
+    expect(tx.execute).toHaveBeenCalledTimes(2);
   });
 
   it('enters shadow without an accepted reconciliation and starts residency', async () => {
-    const { database } = makeDatabase([
-      [{ id: 100 }],
-      [modeRow()],
-      [modeRow({ configured_mode: 'shadow', shadow_started_at: now, version: 2 })],
-      [],
-    ]);
+    const { database } = makeDatabase([[modeRow()], modeMutation({ actual_version: 1 })]);
 
     const result = await updateCurrentForecastCalculationMode({
       fundId: 7,
