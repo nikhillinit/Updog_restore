@@ -25,6 +25,7 @@ import type { ScenarioResult } from '@shared/core/optimization/ScenarioGenerator
 import { ScenarioMatrixCache } from '@shared/core/optimization/ScenarioMatrixCache';
 import type { ScenarioConfigWithMeta } from '@shared/core/optimization/ScenarioMatrixCache';
 import { logger } from '../logger';
+import { sanitizeQueueError } from '../lib/queue-error-sanitizer';
 
 /**
  * Worker configuration
@@ -112,7 +113,7 @@ async function persistMetrics(
     await redis.expire(`${metricsKey24h}:latencies`, 86400);
     await redis.expire(metricsKey7d, 604800); // 7 days
   } catch (error) {
-    logger.error('[ScenarioWorker] Metrics persistence error', error);
+    logger.error('[ScenarioWorker] Metrics persistence error', sanitizeQueueError(error));
     // Non-fatal - don't throw
   }
 }
@@ -206,7 +207,7 @@ export function createScenarioWorker(
       try {
         return await processScenarioJob(job, cache);
       } catch (error) {
-        logger.error(`[ScenarioWorker] Job ${job.id} failed`, error);
+        logger.error(`[ScenarioWorker] Job ${job.id} failed`, sanitizeQueueError(error));
         throw error;
       }
     },
@@ -242,12 +243,12 @@ export function createScenarioWorker(
   worker.on('failed', (job, error) => {
     console.error(
       `[ScenarioWorker] Job ${job?.id} failed after ${job?.attemptsMade} attempts:`,
-      error
+      sanitizeQueueError(error)
     );
   });
 
   worker.on('error', (error) => {
-    console.error('[ScenarioWorker] Worker error:', error);
+    console.error('[ScenarioWorker] Worker error:', sanitizeQueueError(error));
   });
 
   // Graceful shutdown
@@ -331,7 +332,7 @@ if (require.main === module) {
 
     logger.info('[ScenarioWorker] Standalone worker started with cache support');
   })().catch((error) => {
-    console.error('[ScenarioWorker] Failed to start worker:', error);
+    console.error('[ScenarioWorker] Failed to start worker:', sanitizeQueueError(error));
     process.exit(1);
   });
 }

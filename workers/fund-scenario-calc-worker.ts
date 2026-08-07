@@ -4,6 +4,7 @@ import { Worker } from 'bullmq';
 import { logger } from '../lib/logger';
 import { getQueueConnectionOptions, type QueueConnectionOptions } from '../server/config/features';
 import { createHealthServer, registerWorker } from './health-server';
+import { attachQueueErrorLogging } from './queue-error-logging';
 import {
   handleFundScenarioCalcJob,
   type FundScenarioCalcJobData,
@@ -48,7 +49,7 @@ export function createFundScenarioCalcWorker(input: {
   connection: QueueConnectionOptions;
   concurrency?: number;
 }): Worker<FundScenarioCalcJobData> {
-  return new Worker<FundScenarioCalcJobData>(
+  const worker = new Worker<FundScenarioCalcJobData>(
     FUND_SCENARIO_CALC_QUEUE_NAME,
     handleFundScenarioCalcJob,
     {
@@ -69,6 +70,8 @@ export function createFundScenarioCalcWorker(input: {
       },
     }
   );
+  attachQueueErrorLogging(worker, 'fund-scenario-calc worker');
+  return worker;
 }
 
 function installGracefulShutdown(worker: Worker<FundScenarioCalcJobData>): void {

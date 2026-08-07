@@ -51,6 +51,13 @@ vi.mock('bullmq', () => ({
       workerConstructorMock(...args);
     }
 
+    listeners = new Map<string, (error: Error) => void>();
+
+    on = (event: string, listener: (error: Error) => void) => {
+      this.listeners.set(event, listener);
+      return this;
+    };
+
     close = vi.fn();
   },
 }));
@@ -199,6 +206,31 @@ describe('fund scenario calc worker startup', () => {
     startFundScenarioCalcWorker();
 
     expect(createHealthServerMock).toHaveBeenCalledWith(19235);
+  });
+
+  it('attaches an error listener that logs sanitized errors without Redis command args', async () => {
+    const { startFundScenarioCalcWorker } =
+      await import('../../../workers/fund-scenario-calc-worker');
+
+    const runtime = startFundScenarioCalcWorker({ healthPort: 0 });
+    const listener = (
+      runtime.worker as unknown as { listeners: Map<string, (error: Error) => void> }
+    ).listeners.get('error');
+    expect(listener).toBeTypeOf('function');
+
+    const secret = 'redis-credential-sentinel';
+    const replyError = new Error('WRONGPASS invalid username-password pair or user is disabled');
+    replyError.name = 'ReplyError';
+    Object.assign(replyError, { command: { name: 'auth', args: ['default', secret] } });
+
+    listener!(replyError);
+
+    expect(loggerErrorMock).toHaveBeenCalledTimes(1);
+    const call = loggerErrorMock.mock.calls[0];
+    expect(call[0]).toContain('fund-scenario-calc worker');
+    expect(JSON.stringify(call)).toContain('WRONGPASS');
+    expect(JSON.stringify(call)).not.toContain(secret);
+    expect(JSON.stringify(call)).not.toContain('"command"');
   });
 
   it('fails fast when queue Redis is not configured', async () => {

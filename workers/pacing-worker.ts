@@ -2,6 +2,7 @@ import { Worker } from 'bullmq';
 import { logger } from '../lib/logger';
 import { withMetrics, metrics } from '../lib/metrics';
 import { registerWorker, createHealthServer } from './health-server';
+import { attachQueueErrorLogging } from './queue-error-logging';
 import { getConfig } from '../server/config';
 import { isFinalAttempt, markCalcRunFailed } from '../server/services/calc-run-tracking';
 import { runPacingCalculation } from '../server/services/pacing-calculation-service';
@@ -106,6 +107,8 @@ export const pacingWorker = new Worker<PacingJobData>(
     },
   }
 );
+
+attachQueueErrorLogging(pacingWorker, 'pacing-calc worker');
 
 registerWorker('pacing-calc', pacingWorker);
 
