@@ -48,10 +48,14 @@ targetRules = ["generic-api-key"]
 condition = "AND"
 regexTarget = "line"
 regexes = [
-  '''^\s*"[^"]{1,240}(?:=|":\s*")[0-9a-f]{64}",?$'''
+  '''^\s*"[^"]{1,240}(?:=|":\s*")[0-9a-f]{64}",?$''',
+  '''(?:^|[\s|])[^"\s|]{1,240}=[0-9a-f]{64}"?(?:\s|\||$)''',
+  '''passkey boundary:\s*[0-9a-f]{64}'''
 ]
 paths = [
-  '''^audit/surface-contract-matrix/(?:matrix|source-inventory)\.json$'''
+  '''^audit/surface-contract-matrix/(?:matrix|source-inventory)\.json$''',
+  '''^audit/surface-contract-matrix/g1-review\.json$''',
+  '''^audit/surface-contract-matrix/MATRIX\.md$'''
 ]
 
 [[allowlists]]
