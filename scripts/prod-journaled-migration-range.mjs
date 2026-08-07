@@ -66,6 +66,11 @@ export function classifyTargetLedgerState({ ledgerRows, targetEntries }) {
   if (ledgerTimestamps.some((timestamp) => timestamp > finalTargetTimestamp)) {
     throw new Error('Migration ledger contains a timestamp newer than 0049');
   }
+  if (ledgerTimestamps.some((timestamp) =>
+    timestamp > EXPECTED_BASELINE_CREATED_AT && !targetTimestampSet.has(timestamp)
+  )) {
+    throw new Error('Unexpected migration ledger timestamp');
+  }
 
   const targetCounts = new Map(targetTimestamps.map((timestamp) => [timestamp, 0]));
   for (const timestamp of ledgerTimestamps) {

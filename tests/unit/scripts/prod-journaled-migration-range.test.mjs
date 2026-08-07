@@ -11,6 +11,7 @@ import {
 
 const TARGET_WHENS = [1785368400000, 1785454800000, 1785541200000, 1785627600000, 1785714000000];
 const BASELINE_WHEN = 1775356800000;
+const FORBIDDEN_INTERMEDIATE_WHEN = 1775433600000;
 const temporaryDirectories = [];
 
 afterEach(async () => {
@@ -48,5 +49,14 @@ describe('production journaled migration recovery range', () => {
       ledgerRows: [{ created_at: String(TARGET_WHENS[0]) }],
       targetEntries,
     })).toThrow(/partial target migration ledger/i);
+  });
+
+  it('rejects a forbidden intermediate migration with a complete target range', async () => {
+    const targetEntries = await loadTargetMigrationRange({ migrationsDir: 'migrations' });
+    expect(() => classifyTargetLedgerState({
+      ledgerRows: [FORBIDDEN_INTERMEDIATE_WHEN, ...TARGET_WHENS]
+        .map((created_at) => ({ created_at: String(created_at) })),
+      targetEntries,
+    })).toThrow(/unexpected migration ledger timestamp/i);
   });
 });
