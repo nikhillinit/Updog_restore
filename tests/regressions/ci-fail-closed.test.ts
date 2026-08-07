@@ -3634,8 +3634,9 @@ describe('required CI fails closed', () => {
 
     const vercelConfig = JSON.parse(
       await readFile(path.join(process.cwd(), 'vercel.json'), 'utf8')
-    ) as { github?: { autoAlias?: boolean } };
+    ) as { github?: { autoAlias?: boolean }; installCommand?: string };
     expect(vercelConfig.github?.autoAlias).toBe(false);
+    expect(vercelConfig.installCommand).toBe('npm ci --include=dev');
 
     const automationSurfaces = await collectAutomationSurfaces();
     expect(automationSurfaces.some((surface) => surface.id.startsWith('workflow:'))).toBe(true);

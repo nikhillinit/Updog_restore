@@ -39,7 +39,7 @@ NODE_OPTIONS=--max-old-space-size=4096
 
 **Location**: Settings → Build & Development Settings
 
-- **Install Command**: `npm ci` (should match vercel.json)
+- **Install Command**: `npm ci --include=dev` (should match vercel.json)
 - **Build Command**: `npm run build` (should match vercel.json)
 - **Output Directory**: Leave empty (uses Vercel Build Output API)
 - **Framework Preset**: None/Other
@@ -62,7 +62,8 @@ If you want to skip PR preview builds:
    - [ ] Set Node.js version to `20.x` (Settings → General)
    - [ ] Add `NODE_OPTIONS=--max-old-space-size=4096` environment variable
          (Settings → Environment Variables)
-   - [ ] Verify build commands match vercel.json: `npm ci` and `npm run build`
+   - [ ] Verify build commands match vercel.json: `npm ci --include=dev` and
+         `npm run build`
 
 2. **Deploy with Clear Cache:**
    - [ ] Trigger new deployment with "Clear build cache" enabled

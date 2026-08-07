@@ -6,7 +6,7 @@
   "version": 2,
   "buildCommand": "npm run build:web && node scripts/build-vercel-api.mjs",
   "outputDirectory": "dist/public",
-  "installCommand": "npm ci",
+  "installCommand": "npm ci --include=dev",
   "framework": "vite",
 
   "functions": {
