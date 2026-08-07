@@ -2,6 +2,7 @@ import { Worker } from 'bullmq';
 import { logger } from '../lib/logger';
 import { withMetrics, metrics } from '../lib/metrics';
 import { registerWorker, createHealthServer } from './health-server';
+import { attachQueueErrorLogging } from './queue-error-logging';
 import { isFinalAttempt, markCalcRunFailed } from '../server/services/calc-run-tracking';
 import { runReserveCalculation } from '../server/services/reserve-calculation-service';
 
@@ -74,6 +75,8 @@ export const reserveWorker = new Worker(
     },
   }
 );
+
+attachQueueErrorLogging(reserveWorker, 'reserve-calc worker');
 
 registerWorker('reserve-calc', reserveWorker);
 

@@ -1,5 +1,6 @@
 import { Worker } from 'bullmq';
 import { logger } from '../lib/logger';
+import { attachQueueErrorLogging } from './queue-error-logging';
 import { resilientLimit } from '@shared/utils/resilientLimit';
 import { asyncRepl } from '../server/metrics';
 
@@ -84,3 +85,5 @@ export const cohortWorker = new Worker(
     concurrency: 5,
   }
 );
+
+attachQueueErrorLogging(cohortWorker, 'cohort-calc worker');

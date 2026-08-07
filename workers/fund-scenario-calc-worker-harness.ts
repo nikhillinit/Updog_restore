@@ -1,5 +1,6 @@
 import { QueueEvents } from 'bullmq';
 import { getQueueConnectionOptions, type QueueConnectionOptions } from '../server/config/features';
+import { attachQueueErrorLogging } from './queue-error-logging';
 import {
   FUND_SCENARIO_CALC_QUEUE_CONNECTION_ERROR,
   FUND_SCENARIO_CALC_QUEUE_NAME,
@@ -31,6 +32,7 @@ export async function startInProcessFundScenarioCalcWorkerHarness(
     healthPort: null,
   });
   const queueEvents = new QueueEvents(FUND_SCENARIO_CALC_QUEUE_NAME, { connection });
+  attachQueueErrorLogging(queueEvents, 'fund-scenario-calc queue events');
   await queueEvents.waitUntilReady();
 
   return {

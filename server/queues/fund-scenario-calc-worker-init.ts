@@ -1,6 +1,7 @@
 import { Worker, type Job } from 'bullmq';
 import type IORedis from 'ioredis';
 import { logger } from '../lib/logger.js';
+import { sanitizeQueueError } from '../lib/queue-error-sanitizer.js';
 import { getBullMQConnection } from './redis-connection.js';
 
 const QUEUE_NAME = 'fund-scenario-calc';
@@ -67,11 +68,14 @@ export async function initializeFundScenarioCalcWorker(
   });
 
   worker.on('failed', (job, error) => {
-    logger.error({ err: error, jobId: job?.id }, '[fund-scenario-calc] Worker failed job');
+    logger.error(
+      { err: sanitizeQueueError(error), jobId: job?.id },
+      '[fund-scenario-calc] Worker failed job'
+    );
   });
 
   worker.on('error', (error) => {
-    logger.error({ err: error }, '[fund-scenario-calc] Worker error');
+    logger.error({ err: sanitizeQueueError(error) }, '[fund-scenario-calc] Worker error');
   });
 
   logger.info('[fund-scenario-calc] In-process worker started');
