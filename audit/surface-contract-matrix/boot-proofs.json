@@ -3,12 +3,12 @@
   "proofs": [
     {
       "deployment": "ml-service-local",
-      "boot_status": "failed",
+      "boot_status": "unproven",
       "boot_evidence": {
         "command_or_artifact": "Dockerfile ml-service/Dockerfile with uvicorn app:app --host 0.0.0.0 --port 8088",
         "probe": "GET /health and GET /model/info expect 2xx; POST /predict and POST /train send {} and expect 422 validation; 404/405 are failures",
-        "result": "FastAPI path probe failed",
-        "observed_at": "proof:bf0a3ae1465c8f01aa03d6fb1878cbed50ae3850c5366280b70794e9db21a38b"
+        "result": "docker unavailable",
+        "observed_at": "proof:3f33b4eb3bf71899336c78e2ba9121fcb07a361799a15dcd028d9640232b50df"
       }
     },
     {
@@ -17,8 +17,8 @@
       "boot_evidence": {
         "command_or_artifact": "npm run build:prod; Dockerfile.railway ENTRYPOINT [\"dumb-init\",\"--\"] + CMD [\"node\",\"dist/index.js\"]",
         "probe": "GET /health; expected HTTP 2xx; 404/405 are failures",
-        "result": "Dockerfile.railway image build failed",
-        "observed_at": "proof:45615ecf7fbdbf901b219b843503a20d1f64df24d38195da0705aae564402f2b"
+        "result": "docker unavailable; exact dist/index.js CMD exited with no HTTP listener (bootstrap() is not invoked)",
+        "observed_at": "proof:f367e3eacd574c647079b0560010f3e117da420358b1e92515f34e12ea0ca3da"
       }
     },
     {
@@ -33,12 +33,12 @@
     },
     {
       "deployment": "railway-worker",
-      "boot_status": "proven",
+      "boot_status": "failed",
       "boot_evidence": {
         "command_or_artifact": "docker build -f Dockerfile.worker; docker run Dockerfile.worker with Redis and PostgreSQL containers on isolated network",
         "probe": "Dockerfile.worker image runs fund-scenario-calc worker; GET /health /live /ready /metrics /stats through mapped port; expected HTTP 2xx; 404/405 are failures",
-        "result": "Dockerfile.worker image stayed alive, Redis connected, and fund-scenario-calc consumer was healthy and registered in /health and /stats",
-        "observed_at": "proof:1197c46ab65c02da66a9934d908a6fc8e11b46e407a2993c65b4d711f7df2fa6"
+        "result": "docker unavailable: docker info could not access a daemon; worker proof was not faked",
+        "observed_at": "proof:f5fe1057fe77148cb1ca036b4215f7539a843115910139f22152b1fb3cc1bd15"
       }
     },
     {

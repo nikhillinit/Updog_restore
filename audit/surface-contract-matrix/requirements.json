@@ -65,10 +65,11 @@
       },
       "optional_when_absent": true,
       "absence_evidence": {
-        "status": "proposed",
+        "status": "approved",
         "search_selector": "canonical row ids and tracked route registries containing WP-L4 or L4",
         "result": "No WP-L4 row is present in this snapshot.",
-        "evidence": "Authoring-time absence; G1 approval required before closed phase."
+        "evidence": "Delegated solo G1 review: fresh canonical row ids and tracked route registries contain no WP-L4 or L4 surface; optional-when-absent condition accepted.",
+        "fingerprint": "b254332426db3893a93060259d7b7ec46980b090b9f1239b5803879e18c3c1b6"
       },
       "evidence": "WP-L4 is optional when absent from the tracked repository."
     },

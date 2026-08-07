@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { dirname, extname, relative, resolve } from 'node:path';
 import process from 'node:process';
 
+import ts from 'typescript';
 import { z } from 'zod';
 
 const freezeValues = (values) => Object.freeze([...values]);
@@ -705,7 +706,10 @@ const isProven = (exposure) => exposure?.boot_status === 'proven';
 const hasReleaseExposure = (row) =>
   exposuresFor(row).some(hasReleaseDeployment) || ['vercel', 'railway', 'both'].includes(row?.reachability);
 const hasProvenReleaseExposure = (row) =>
-  exposuresFor(row).some((exposure) => hasReleaseDeployment(exposure) && isProven(exposure)) ||
+  exposuresFor(row).some((exposure) =>
+    hasReleaseDeployment(exposure)
+    && isProven(exposure)
+    && (row?.interface !== 'http-api' || (exposure.ingresses ?? []).length > 0)) ||
   ['vercel', 'railway', 'both'].includes(row?.proven_reachability);
 
 const isDevelopmentOnly = (row) => {
@@ -1114,21 +1118,248 @@ export function extractAuthRoleEvidenceForRoute(source, filePath, options = {}) 
   return extractAuthRoleEvidenceFromSource(source, filePath, { ...options, ranges });
 }
 
-const roleArrayConstants = (source) => {
+const parsedAuthSources = new Map();
+const authSourceAnalyses = new Map();
+
+const parsedAuthSource = (source) => {
+  let parsed = parsedAuthSources.get(source);
+  if (!parsed) {
+    parsed = ts.createSourceFile(
+      'auth-source.tsx',
+      source,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TSX,
+    );
+    parsedAuthSources.set(source, parsed);
+  }
+  return parsed;
+};
+
+const unwrapExpression = (node) => {
+  let current = node;
+  while (
+    current
+    && (ts.isAsExpression(current)
+      || ts.isSatisfiesExpression(current)
+      || ts.isParenthesizedExpression(current)
+      || ts.isTypeAssertionExpression(current))
+  ) {
+    current = current.expression;
+  }
+  return current;
+};
+
+const literalArrayValues = (node) => {
+  const expression = unwrapExpression(node);
+  if (!expression || !ts.isArrayLiteralExpression(expression)) return undefined;
+  const values = [];
+  for (const element of expression.elements) {
+    const literal = unwrapExpression(element);
+    if (!literal || !ts.isStringLiteralLike(literal)) return undefined;
+    values.push(literal.text);
+  }
+  return values.length > 0 ? values : undefined;
+};
+
+const executionBlock = (node) => {
+  let current = node;
+  while (current && !ts.isSourceFile(current) && !ts.isBlock(current)) current = current.parent;
+  return current;
+};
+
+const directStatementBlock = (node) => {
+  let current = node;
+  while (current && !ts.isStatement(current)) current = current.parent;
+  if (!current || (!ts.isSourceFile(current.parent) && !ts.isBlock(current.parent))) return undefined;
+  return current.parent;
+};
+
+const isDirectAssignmentStatement = (node) => {
+  if (ts.isVariableDeclaration(node)) {
+    return ts.isVariableDeclarationList(node.parent) && ts.isVariableStatement(node.parent.parent);
+  }
+  if (!ts.isBinaryExpression(node)) return false;
+  let expression = node;
+  while (
+    expression.parent
+    && (ts.isParenthesizedExpression(expression.parent)
+      || ts.isAsExpression(expression.parent)
+      || ts.isSatisfiesExpression(expression.parent)
+      || ts.isTypeAssertionExpression(expression.parent))
+    && expression.parent.expression === expression
+  ) {
+    expression = expression.parent;
+  }
+  return ts.isExpressionStatement(expression.parent) && expression.parent.expression === expression;
+};
+
+const bundledInitializerName = (node) => {
+  let method = node;
+  while (method && !ts.isMethodDeclaration(method)) method = method.parent;
+  if (!method || !ts.isObjectLiteralExpression(method.parent)) return undefined;
+  const call = method.parent.parent;
+  if (!ts.isCallExpression(call) || call.expression.getText() !== '__esm') return undefined;
+  const declaration = call.parent;
+  if (!ts.isVariableDeclaration(declaration) || !ts.isIdentifier(declaration.name)) return undefined;
+  return declaration.name.text;
+};
+
+const authSourceAnalysis = (source) => {
+  let analysis = authSourceAnalyses.get(source);
+  if (analysis) return analysis;
+  const sourceFile = parsedAuthSource(source);
+  const assignments = [];
+  const callsByName = new Map();
+  const visit = (node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      assignments.push({ name: node.name.text, expression: node.initializer, node, offset: node.getStart(sourceFile) });
+    } else if (
+      ts.isBinaryExpression(node)
+      && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+      && ts.isIdentifier(node.left)
+    ) {
+      assignments.push({ name: node.left.text, expression: node.right, node, offset: node.getStart(sourceFile) });
+    }
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+      const calls = callsByName.get(node.expression.text) ?? [];
+      calls.push(node);
+      callsByName.set(node.expression.text, calls);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  analysis = { sourceFile, assignments, callsByName };
+  authSourceAnalyses.set(source, analysis);
+  return analysis;
+};
+
+const executionBlockAtOffset = (sourceFile, useOffset) => {
+  if (!Number.isFinite(useOffset)) return sourceFile;
+  return executionBlock(ts.getTokenAtPosition(sourceFile, useOffset));
+};
+
+const hasDominatingBundledInitCall = (analysis, initializerName, useOffset, useBlock) =>
+  (analysis.callsByName.get(initializerName) ?? []).some((call) =>
+    call.getStart(analysis.sourceFile) < useOffset && directStatementBlock(call) === useBlock);
+
+const isDominatingInitializer = (analysis, node, useOffset, useBlock) => {
+  if (node.getStart(analysis.sourceFile) >= useOffset) return false;
+  if (!isDirectAssignmentStatement(node)) return false;
+  const statementBlock = directStatementBlock(node);
+  if (statementBlock && (ts.isSourceFile(statementBlock) || statementBlock === useBlock)) return true;
+  const initializerName = bundledInitializerName(node);
+  return Boolean(
+    initializerName
+    && hasDominatingBundledInitCall(analysis, initializerName, useOffset, useBlock)
+  );
+};
+
+const staticAssignments = (source, useOffset = Number.POSITIVE_INFINITY) => {
+  const analysis = authSourceAnalysis(source);
+  const useBlock = executionBlockAtOffset(analysis.sourceFile, useOffset);
+  return analysis.assignments
+    .filter((assignment) => isDominatingInitializer(analysis, assignment.node, useOffset, useBlock));
+};
+
+const roleArrayConstants = (source, useOffset = Number.POSITIVE_INFINITY) => {
   const constants = new Map();
-  const pattern = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=;]+)?=\s*\[([\s\S]*?)\]/g;
-  for (const match of source.matchAll(pattern)) {
-    const values = stringLiterals(match[2]).map((literal) => literal.value);
-    if (values.length > 0) constants.set(match[1], { values, offset: match.index ?? 0 });
+  for (const assignment of staticAssignments(source, useOffset)) {
+    const values = literalArrayValues(assignment.expression);
+    if (values) constants.set(assignment.name, { values, offset: assignment.offset });
   }
   return constants;
+};
+
+const objectArrayConstant = (source, constantName, useOffset = Number.POSITIVE_INFINITY) => {
+  const assignment = staticAssignments(source, useOffset)
+    .filter((candidate) => candidate.name === constantName)
+    .at(-1);
+  const expression = unwrapExpression(assignment?.expression);
+  if (!expression || !ts.isObjectLiteralExpression(expression)) return undefined;
+  const values = new Map();
+  for (const property of expression.properties) {
+    if (!ts.isPropertyAssignment(property)) continue;
+    const name = ts.isIdentifier(property.name) || ts.isStringLiteralLike(property.name)
+      ? property.name.text
+      : undefined;
+    const roles = literalArrayValues(property.initializer);
+    if (name && roles) values.set(name, roles);
+  }
+  return values.size > 0 ? values : undefined;
+};
+
+const namedImportBindings = (source) => {
+  const bindings = new Map();
+  const pattern = /import\s*(?:type\s*)?\{([^}]*)\}\s*from\s*(['"])([^'"]+)\2/g;
+  for (const match of source.matchAll(pattern)) {
+    for (const clause of match[1].split(',')) {
+      const parts = clause.trim().split(/\s+as\s+/).map((part) => part.replace(/^type\s+/, '').trim());
+      const exported = parts[0];
+      const local = parts[1] ?? exported;
+      if (exported && local) bindings.set(local, { exported, specifier: match[3] });
+    }
+  }
+  return bindings;
+};
+
+const importCandidateRepoPaths = (rootDir, fromFile, specifier) => {
+  let base;
+  if (specifier.startsWith('@shared/')) base = resolve(rootDir, specifier.replace('@shared/', 'shared/'));
+  else if (specifier.startsWith('.')) base = resolve(rootDir, dirname(fromFile), specifier);
+  else return [];
+  const extensionless = base.replace(/\.(?:m?js|cjs|ts|tsx)$/, '');
+  return [base, `${extensionless}.ts`, `${extensionless}.tsx`, `${extensionless}.js`, `${extensionless}.mjs`]
+    .map((candidate) => toRepoPath(relative(rootDir, candidate)));
+};
+
+/**
+ * Resolve a role-array constant imported from another tracked source, so
+ * shared guard lists (for example shared/auth/effective-roles.ts) do not
+ * surface as unresolved auth evidence at every call site.
+ */
+const resolveImportedRoleConstant = (name, source, filePath, options = {}) => {
+  const binding = namedImportBindings(source).get(name);
+  if (!binding) return undefined;
+  const supplied = normalizeAuthSources(optionAuthSources(options));
+  const suppliedMap = supplied ? new Map(supplied) : undefined;
+  const rootDir = resolve(optionRootDir(options));
+  for (const repoPath of importCandidateRepoPaths(rootDir, toRepoPath(filePath), binding.specifier)) {
+    let moduleSource = suppliedMap?.get(repoPath);
+    if (moduleSource === undefined && suppliedMap) continue;
+    if (moduleSource === undefined) {
+      const absolute = resolve(rootDir, repoPath);
+      if (!fs.existsSync(absolute)) continue;
+      moduleSource = fs.readFileSync(absolute, 'utf8');
+    }
+    const constant = roleArrayConstants(moduleSource).get(binding.exported);
+    if (constant) return constant;
+  }
+  return undefined;
+};
+
+const capabilityGrantRoles = (capability, source, options, useOffset) => {
+  let grants = objectArrayConstant(source, 'CAPABILITY_GRANTS', useOffset);
+  if (!grants) {
+    const supplied = normalizeAuthSources(optionAuthSources(options));
+    const suppliedMap = supplied ? new Map(supplied) : undefined;
+    let moduleSource = suppliedMap?.get('shared/auth/effective-roles.ts');
+    if (moduleSource === undefined && !suppliedMap) {
+      const absolute = resolve(optionRootDir(options), 'shared/auth/effective-roles.ts');
+      if (fs.existsSync(absolute)) moduleSource = fs.readFileSync(absolute, 'utf8');
+    }
+    if (moduleSource !== undefined) {
+      grants = objectArrayConstant(moduleSource, 'CAPABILITY_GRANTS');
+    }
+  }
+  const grantedRoles = grants?.get(capability);
+  return grantedRoles ? [...new Set([...grantedRoles, 'admin'])] : undefined;
 };
 
 /** Extract literal role checks and statically resolvable role-list guards from one source. */
 export function extractAuthRoleEvidenceFromSource(source, filePath, options = {}) {
   const evidence = [];
   const defaultKind = options.kind ?? 'guard';
-  const constants = roleArrayConstants(source);
   const ranges = options.ranges;
   const inScope = (offset) => !ranges || ranges.some(([start, end]) => offset >= start && offset < end);
   const add = (role, offset, kind = defaultKind) => {
@@ -1142,68 +1373,102 @@ export function extractAuthRoleEvidenceFromSource(source, filePath, options = {}
     });
   };
 
-  const directCallPattern = /\b(?:requireRole|requireAnyRole|requireWriteRole)\s*\(\s*(['"])([^'"]+)\1/g;
-  for (const match of source.matchAll(directCallPattern)) {
-    if (inScope(match.index ?? 0)) add(match[2], match.index ?? 0, 'guard');
-  }
-
-  const listCallPattern = /\b(?:requireAnyRole|requireWriteRole)\s*\(\s*([A-Za-z_$][\w$]*)\s*\)/g;
-  for (const match of source.matchAll(listCallPattern)) {
-    if (!inScope(match.index ?? 0)) continue;
-    const constant = constants.get(match[1]);
-    if (constant) {
-      for (const role of constant.values) add(role, match.index ?? 0, 'guard');
-    } else {
-      evidence.push({
-        role: AUTH_UNRESOLVED_ROLE,
-        kind: 'unresolved',
-        file: toRepoPath(filePath),
-        line: sourceLineAt(source, match.index ?? 0),
-        evidence: sourceLineText(source, match.index ?? 0),
-      });
+  const unresolved = (offset) => evidence.push({
+    role: AUTH_UNRESOLVED_ROLE,
+    kind: 'unresolved',
+    file: toRepoPath(filePath),
+    line: sourceLineAt(source, offset),
+    evidence: sourceLineText(source, offset),
+  });
+  const analysis = authSourceAnalysis(source);
+  const guardNames = ['requireRole', 'requireAnyRole', 'requireWriteRole', 'requireCapability'];
+  const guardCalls = guardNames
+    .flatMap((name) => (analysis.callsByName.get(name) ?? []).map((call) => ({ name, call })))
+    .sort((left, right) => left.call.getStart(analysis.sourceFile) - right.call.getStart(analysis.sourceFile));
+  for (const { name, call } of guardCalls) {
+    const offset = call.getStart(analysis.sourceFile);
+    if (!inScope(offset)) continue;
+    const argument = unwrapExpression(call.arguments[0]);
+    if (name === 'requireCapability') {
+      if (!argument || !ts.isStringLiteralLike(argument)) {
+        unresolved(offset);
+        continue;
+      }
+      const roles = capabilityGrantRoles(argument.text, source, options, offset);
+      if (roles) {
+        for (const role of roles) add(role, offset, 'guard');
+      } else {
+        unresolved(offset);
+      }
+      continue;
     }
-  }
-
-  const inlineListPattern = /\b(?:requireAnyRole|requireWriteRole)\s*\(\s*\[([\s\S]*?)\]\s*\)/g;
-  for (const match of source.matchAll(inlineListPattern)) {
-    if (!inScope(match.index ?? 0)) continue;
-    const roles = stringLiterals(match[1]).map((literal) => literal.value);
-    if (roles.length === 0) {
-      evidence.push({
-        role: AUTH_UNRESOLVED_ROLE,
-        kind: 'unresolved',
-        file: toRepoPath(filePath),
-        line: sourceLineAt(source, match.index ?? 0),
-        evidence: sourceLineText(source, match.index ?? 0),
-      });
-    } else {
-      for (const role of roles) add(role, match.index ?? 0, 'guard');
+    if (argument && ts.isStringLiteralLike(argument)) {
+      add(argument.text, offset, 'guard');
+      continue;
     }
+    if ((name === 'requireAnyRole' || name === 'requireWriteRole') && argument) {
+      if (ts.isArrayLiteralExpression(argument)) {
+        const roles = literalArrayValues(argument);
+        if (roles) {
+          for (const role of roles) add(role, offset, 'guard');
+        } else {
+          unresolved(offset);
+        }
+        continue;
+      }
+      if (ts.isIdentifier(argument)) {
+        const constants = roleArrayConstants(source, offset);
+        const constant = constants.get(argument.text)
+          ?? resolveImportedRoleConstant(argument.text, source, filePath, options);
+        if (constant) {
+          for (const role of constant.values) add(role, offset, 'guard');
+        } else {
+          unresolved(offset);
+        }
+        continue;
+      }
+    }
+    unresolved(offset);
   }
 
-  const scalarCheckPattern = /\b(?:req|request|ctx|context|auth|session|currentUser|user)\s*(?:\?\.)?\s*(?:user\s*(?:\?\.)?\s*)?role\s*(?:===|!==|==|!=)\s*(['"])([^'"]+)\1/g;
-  for (const match of source.matchAll(scalarCheckPattern)) {
-    if (!inScope(match.index ?? 0)) continue;
-    if (/\btypeof\b/.test(sourceLineText(source, match.index ?? 0))) continue;
-    add(match[2], match.index ?? 0, 'handler');
-  }
-
-  const membershipPattern = /\b(?:roles|userRoles|user\.roles)\s*\.\s*includes\s*\(\s*(['"])([^'"]+)\1/g;
-  for (const match of source.matchAll(membershipPattern)) {
-    if (inScope(match.index ?? 0)) add(match[2], match.index ?? 0, 'handler');
-  }
-
-  const dynamicGuardPattern = /\brequireRole\s*\(\s*(?!['"])([^)]*)\)/g;
-  for (const match of source.matchAll(dynamicGuardPattern)) {
-    if (!inScope(match.index ?? 0)) continue;
-    evidence.push({
-      role: AUTH_UNRESOLVED_ROLE,
-      kind: 'unresolved',
-      file: toRepoPath(filePath),
-      line: sourceLineAt(source, match.index ?? 0),
-      evidence: sourceLineText(source, match.index ?? 0),
-    });
-  }
+  const normalizedExpressionText = (node) => node.getText(analysis.sourceFile)
+    .replaceAll(/\s/g, '')
+    .replaceAll('?.', '.');
+  const isScalarRoleExpression = (node) =>
+    /^(?:(?:req|request|ctx)(?:\.(?:user|context))?|(?:context|auth|session|currentUser|user)(?:\.user)?)\.role$/
+      .test(normalizedExpressionText(node));
+  const equalityOperators = new Set([
+    ts.SyntaxKind.EqualsEqualsToken,
+    ts.SyntaxKind.ExclamationEqualsToken,
+    ts.SyntaxKind.EqualsEqualsEqualsToken,
+    ts.SyntaxKind.ExclamationEqualsEqualsToken,
+  ]);
+  const visitRoleChecks = (node) => {
+    const offset = node.getStart(analysis.sourceFile);
+    if (inScope(offset) && ts.isBinaryExpression(node) && equalityOperators.has(node.operatorToken.kind)) {
+      const left = unwrapExpression(node.left);
+      const right = unwrapExpression(node.right);
+      if (left && right && isScalarRoleExpression(left) && ts.isStringLiteralLike(right)) {
+        add(right.text, offset, 'handler');
+      } else if (left && right && ts.isStringLiteralLike(left) && isScalarRoleExpression(right)) {
+        add(left.text, offset, 'handler');
+      }
+    }
+    if (
+      inScope(offset)
+      && ts.isCallExpression(node)
+      && ts.isPropertyAccessExpression(node.expression)
+      && node.expression.name.text === 'includes'
+    ) {
+      const receiver = normalizedExpressionText(node.expression.expression);
+      const argument = unwrapExpression(node.arguments[0]);
+      if (/^(?:roles|userRoles|user\.roles)$/.test(receiver) && argument && ts.isStringLiteralLike(argument)) {
+        add(argument.text, offset, 'handler');
+      }
+    }
+    ts.forEachChild(node, visitRoleChecks);
+  };
+  visitRoleChecks(analysis.sourceFile);
 
   return evidence
     .filter((entry, index, entries) => entries.findIndex((candidate) =>
@@ -1241,7 +1506,7 @@ export function discoverAuthRoleEvidence(options = {}) {
       roles.add('lp');
       evidence.push({ role: 'lp', kind: 'identity', file: filePath, evidence: 'lpId identity boundary' });
     }
-    for (const entry of extractAuthRoleEvidenceFromSource(source, filePath)) {
+    for (const entry of extractAuthRoleEvidenceFromSource(source, filePath, options)) {
       evidence.push(entry);
       if (entry.role !== AUTH_UNRESOLVED_ROLE) roles.add(entry.role);
     }

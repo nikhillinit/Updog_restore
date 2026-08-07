@@ -786,7 +786,7 @@ const initReview = async (args) => {
       id: entry.id,
       resolution: entry.resolution,
       decision_status: entry.decision_status ?? 'proposed',
-      resolution_fingerprint: entry.resolution_fingerprint,
+      resolution_fingerprint: entry.resolution_fingerprint ?? orphanResolutionFingerprint(entry),
     }])),
     requirements: Object.fromEntries((state.requirements.families ?? []).map((entry) => [entry.id, {
       id: entry.id,

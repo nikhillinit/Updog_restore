@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "snapshot_id": "snapshot:516e74dc1266c3b46fd8762787a49c436c4fd1af9a53f4b7a1f5e52b51d95c08",
+  "snapshot_id": "snapshot:efbe3b00a1eb85f75909cf93bde643756c7d1a5ba5a2b8ebca23a9876cf9f449",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -480,14 +480,14 @@
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "2b45faee7726ceca4df08b8bed599ba2713697255411f594df7ef067db28000e",
     "api/telemetry/wizard.ts": "055e2fb386041bc22fea7ce410e4b27f536a4cfab204da13804ca6c270cf901d",
-    "audit/surface-contract-matrix/boot-proofs.json": "f3831f85c867e1c48d3eb0bbdc2ab2d65993d916708118568b02f903f098fef8",
-    "audit/surface-contract-matrix/matrix-schema.mjs": "9ff0e63abad26552fbc770b1618951e7c04ea655d79bfd17493e5285dc42b1b9",
-    "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "5934ad3198e14b7b8743dfcc5ab1b6568938b1fc6c2368c811ccbeb95add607b",
+    "audit/surface-contract-matrix/boot-proofs.json": "a1c0dc75af88e52f96aab8e082d71be2eb08e12df520738ea0824679981505aa",
+    "audit/surface-contract-matrix/matrix-schema.mjs": "b7f61213bf8e1f0db8d5bd28c15c1867f8909b5a68bfacf0871d1f42c422b3ba",
+    "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "a315a93e765db5e8c78d00ccf4f9ca18ec89f83b807f65890ffa9437a424f213",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "7539fa35ecde0d2659632b6bafdbf610950e589468fd4ec380d3c277c9f3826e",
     "audit/surface-contract-matrix/scripts/classify-pass.mjs": "a2bd0a16e774af2283c7eaab5780adc755144cd53d474eafe037d75810c5ac41",
     "audit/surface-contract-matrix/scripts/inspect-runtime.mjs": "fa5ff8da3dca79d44de6c1985a6bb4c6839b8ca26cdee28c61be0c04d9eaf9d5",
     "audit/surface-contract-matrix/scripts/render-matrix.mjs": "8eb22f884914ba8acd4a45d0da8a36c0dd46adff610fa582e0df42029dc90a7c",
-    "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "7d92e1d041e3b7630f2e3659997419281965f9023596820d66be88ae06909a9b",
+    "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "7de34f6c90724d945083fe4608ffd2254459e954696d901b5f5e3dc72924d74f",
     "audit/surface-contract-matrix/scripts/validate-matrix.mjs": "43e2657846ed9da7b9ff8e1dcc866dbf3562bf2b30ad6a584917dcd7a8ead84a",
     "client/index.html": "0df45382b3b9f6728fa9ed66b432cac741eae938f4c360c9a9036f1ab3c922df",
     "client/src/App.tsx": "f20dc82c2e4ee45e7886f72b02ed4ed2d80953e21869e1dbba4b4223322a911b",
@@ -974,8 +974,6 @@
       "api:DELETE:/api/monte-carlo/cache",
       "api:DELETE:/api/portfolio/strategies/:id",
       "api:DELETE:/api/shares/:shareId",
-      "api:GET:/api-docs",
-      "api:GET:/api-docs.json",
       "api:GET:/api/activities",
       "api:GET:/api/admin/engine/guard",
       "api:GET:/api/admin/engine/status",
@@ -1347,8 +1345,6 @@
       "api:DELETE:/api/monte-carlo/cache",
       "api:DELETE:/api/portfolio/strategies/:id",
       "api:DELETE:/api/shares/:shareId",
-      "api:GET:/api-docs",
-      "api:GET:/api-docs.json",
       "api:GET:/api/activities",
       "api:GET:/api/admin/engine/guard",
       "api:GET:/api/admin/engine/status",
@@ -1720,8 +1716,6 @@
       "api:DELETE:/api/monte-carlo/cache",
       "api:DELETE:/api/portfolio/strategies/:id",
       "api:DELETE:/api/shares/:shareId",
-      "api:GET:/api-docs",
-      "api:GET:/api-docs.json",
       "api:GET:/api/activities",
       "api:GET:/api/admin/engine/guard",
       "api:GET:/api/admin/engine/status",
@@ -6121,18 +6115,12 @@
     "api:GET:/api-docs": [
       "api:GET:/api-docs",
       "server/app.ts",
-      "server/lib/auth/jwt.ts",
-      "server/lib/auth/revocation.ts",
-      "server/lib/public-api-boundary.ts",
-      "shared/auth/effective-roles.ts"
+      "server/lib/public-api-boundary.ts"
     ],
     "api:GET:/api-docs.json": [
       "api:GET:/api-docs.json",
       "server/app.ts",
-      "server/lib/auth/jwt.ts",
-      "server/lib/auth/revocation.ts",
-      "server/lib/public-api-boundary.ts",
-      "shared/auth/effective-roles.ts"
+      "server/lib/public-api-boundary.ts"
     ],
     "api:GET:/api/activities": [
       "api:GET:/api/activities",
@@ -10860,7 +10848,7 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:516e74dc1266c3b46fd8762787a49c436c4fd1af9a53f4b7a1f5e52b51d95c08"
+      "snapshot:efbe3b00a1eb85f75909cf93bde643756c7d1a5ba5a2b8ebca23a9876cf9f449"
     ]
   },
   "kg_counts": {
@@ -10870,14 +10858,14 @@
     "DatabaseTable": 147,
     "Dependency": 278,
     "Directory": 666,
-    "File": 4517,
+    "File": 4519,
     "Module": 47,
     "Repo": 1,
     "Route": 112,
     "Schema": 128,
     "Script": 102,
     "Symbol": 10180,
-    "Test": 1175,
+    "Test": 1176,
     "WorkerJob": 9
   },
   "runtime_observation_profiles": [

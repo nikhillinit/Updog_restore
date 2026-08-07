@@ -7,6 +7,7 @@ import {
   assertAuthRoleMappingExhaustive,
   discoverAuthRoleLiterals,
   discoverAuthRoleEvidence,
+  extractAuthRoleEvidenceFromSource,
   extractAuthRoleEvidenceForRoute,
   suggestedPersonasForAuthRoles,
 } from '../../../audit/surface-contract-matrix/matrix-schema.mjs';
@@ -43,6 +44,155 @@ describe('surface contract matrix auth persona mapping', () => {
       expect.arrayContaining(['flag_admin', 'flag_read', 'reserve_admin'])
     );
     expect(() => assertAuthRoleMappingExhaustive(discovered.roles)).not.toThrow();
+  });
+
+  it('resolves role-array constants imported from shared auth modules', () => {
+    const evidence = extractAuthRoleEvidenceForRoute(
+      [
+        `import { PARTNER_WRITE_ROLES } from '@shared/auth/effective-roles';`,
+        `router.post('/', requireWriteRole(PARTNER_WRITE_ROLES), handler);`,
+      ].join('\n'),
+      'server/routes/synthetic.ts',
+      {
+        method: 'POST',
+        registrationLines: [2],
+        sourceFiles: {
+          'shared/auth/effective-roles.ts': `export const PARTNER_WRITE_ROLES = ['partner', 'admin'] as const;`,
+        },
+      }
+    );
+    const roles = evidence.map((entry) => entry.role);
+    expect(roles).toEqual(expect.arrayContaining(['partner', 'admin']));
+    expect(roles).not.toContain('unresolved');
+  });
+
+  it('resolves lazy-init role constants in bundled sources', () => {
+    const evidence = extractAuthRoleEvidenceForRoute(
+      [
+        `var TEAM_WRITE_ROLES;`,
+        `TEAM_WRITE_ROLES = ['partner', 'admin', 'analyst'];`,
+        `router.post('/', requireWriteRole(TEAM_WRITE_ROLES), handler);`,
+      ].join('\n'),
+      'api/_app.generated.mjs',
+      { method: 'POST', registrationLines: [3] }
+    );
+    const roles = evidence.map((entry) => entry.role);
+    expect(roles).toEqual(expect.arrayContaining(['partner', 'admin', 'analyst']));
+    expect(roles).not.toContain('unresolved');
+  });
+
+  it('does not resolve a bundled role assignment that occurs after the guard', () => {
+    const evidence = extractAuthRoleEvidenceForRoute(
+      [
+        `var TEAM_WRITE_ROLES;`,
+        `router.post('/', requireWriteRole(TEAM_WRITE_ROLES), handler);`,
+        `TEAM_WRITE_ROLES = ['admin'];`,
+      ].join('\n'),
+      'api/_app.generated.mjs',
+      { method: 'POST', registrationLines: [2] }
+    );
+
+    expect(evidence.map((entry) => entry.role)).toContain('unresolved');
+    expect(evidence.map((entry) => entry.role)).not.toContain('admin');
+  });
+
+  it('ignores dead, commented, and string-contained bundled assignments', () => {
+    for (const misleadingAssignment of [
+      `if (false) TEAM_WRITE_ROLES = ['admin'];`,
+      `false && (TEAM_WRITE_ROLES = ['admin']);`,
+      `false ? (TEAM_WRITE_ROLES = ['admin']) : undefined;`,
+      `// TEAM_WRITE_ROLES = ['admin'];`,
+      `const note = "TEAM_WRITE_ROLES = ['admin']";`,
+    ]) {
+      const evidence = extractAuthRoleEvidenceForRoute(
+        [
+          `var TEAM_WRITE_ROLES;`,
+          misleadingAssignment,
+          `router.post('/', requireWriteRole(TEAM_WRITE_ROLES), handler);`,
+        ].join('\n'),
+        'api/_app.generated.mjs',
+        { method: 'POST', registrationLines: [3] }
+      );
+
+      expect(evidence.map((entry) => entry.role)).toContain('unresolved');
+      expect(evidence.map((entry) => entry.role)).not.toContain('admin');
+    }
+  });
+
+  it('ignores guard-like text in comments and string literals', () => {
+    for (const misleadingGuard of [
+      `/* requireCapability('flag_read') */`,
+      `const note = "requireRole('admin')";`,
+    ]) {
+      const evidence = extractAuthRoleEvidenceFromSource(
+        misleadingGuard,
+        'server/routes/synthetic.ts'
+      );
+
+      expect(evidence.map((entry) => entry.role)).not.toContain('admin');
+    }
+  });
+
+  it('extracts role checks from nested request context expressions', () => {
+    const evidence = extractAuthRoleEvidenceFromSource(
+      `if (req.context?.role === 'admin') return true;`,
+      'server/routes/synthetic.ts'
+    );
+
+    expect(evidence.map((entry) => entry.role)).toContain('admin');
+  });
+
+  it('resolves capability guards through tracked capability grants', () => {
+    const evidence = extractAuthRoleEvidenceForRoute(
+      `router.post('/', requireCapability('reserve_admin'), handler);`,
+      'server/routes/synthetic.ts',
+      {
+        method: 'POST',
+        registrationLines: [1],
+        sourceFiles: {
+          'shared/auth/effective-roles.ts': [
+            `export const CAPABILITY_GRANTS = {`,
+            `  flag_read: ['admin'],`,
+            `  flag_admin: ['admin'],`,
+            `  reserve_admin: ['partner'],`,
+            `} as const;`,
+          ].join('\n'),
+        },
+      }
+    );
+
+    expect(evidence.map((entry) => entry.role)).toEqual(
+      expect.arrayContaining(['partner', 'admin'])
+    );
+    expect(evidence.map((entry) => entry.role)).not.toContain('reserve_admin');
+    expect(evidence.map((entry) => entry.role)).not.toContain('unresolved');
+  });
+
+  it('treats supplied auth sources as authoritative when an imported module is omitted', () => {
+    const evidence = extractAuthRoleEvidenceForRoute(
+      [
+        `import { PARTNER_WRITE_ROLES } from '@shared/auth/effective-roles';`,
+        `router.post('/', requireWriteRole(PARTNER_WRITE_ROLES), handler);`,
+      ].join('\n'),
+      'server/routes/synthetic.ts',
+      { method: 'POST', registrationLines: [2], sourceFiles: {} }
+    );
+
+    expect(evidence.map((entry) => entry.role)).toContain('unresolved');
+    expect(evidence.map((entry) => entry.role)).not.toContain('partner');
+    expect(evidence.map((entry) => entry.role)).not.toContain('admin');
+  });
+
+  it('keeps unknown imported guard constants unresolved', () => {
+    const evidence = extractAuthRoleEvidenceForRoute(
+      [
+        `import { MYSTERY_ROLES } from './not-tracked';`,
+        `router.post('/', requireWriteRole(MYSTERY_ROLES), handler);`,
+      ].join('\n'),
+      'server/routes/synthetic.ts',
+      { method: 'POST', registrationLines: [2], sourceFiles: {} }
+    );
+    expect(evidence.map((entry) => entry.role)).toContain('unresolved');
   });
 
   it('recognizes bracket-notation route registrations', () => {

@@ -8,6 +8,7 @@ import {
   AUTH_IDENTITY_PERSONA_MAPPING,
   contractFingerprint,
   dormantCandidateFingerprint,
+  orphanResolutionFingerprint,
   SurfaceMatrixDocumentSchema,
 } from '../../../audit/surface-contract-matrix/matrix-schema.mjs';
 
@@ -296,16 +297,30 @@ describe('surface contract matrix approval closure safety', () => {
     ).rejects.toThrow(`Unsupported reviewed row field ${row.id}:auth_evidence`);
   });
 
-  it('initializes requirement review entries with absence fingerprints', async () => {
+  it('initializes requirement and orphan review entries with current fingerprints', async () => {
     await approveModule.approveMatrix(['init-review', '--review-file', temporaryReviewPath]);
     const review = JSON.parse(fs.readFileSync(temporaryReviewPath, 'utf8')) as {
-      off_row_dispositions?: { requirements?: Record<string, { contract_fingerprint?: string }> };
+      off_row_dispositions?: {
+        requirements?: Record<string, { contract_fingerprint?: string }>;
+        orphans?: Record<string, { resolution_fingerprint?: string }>;
+      };
     };
     const requirementEntries = Object.values(review.off_row_dispositions?.requirements ?? {});
     expect(requirementEntries.length).toBeGreaterThan(0);
     expect(
       requirementEntries.every((entry) => typeof entry.contract_fingerprint === 'string')
     ).toBe(true);
+    const orphanEntries = Object.values(review.off_row_dispositions?.orphans ?? {});
+    const trackedOrphans = JSON.parse(
+      fs.readFileSync(path.join(matrixDir, 'orphans.json'), 'utf8')
+    ) as Array<Record<string, unknown> & { id: string }>;
+    expect(orphanEntries.length).toBe(trackedOrphans.length);
+    expect(orphanEntries.every((entry) => typeof entry.resolution_fingerprint === 'string')).toBe(
+      true
+    );
+    expect(orphanEntries[0]?.resolution_fingerprint).toBe(
+      orphanResolutionFingerprint(trackedOrphans[0])
+    );
   });
 
   it('schema-validates mutated off-row artifacts before any write', async () => {
@@ -396,17 +411,32 @@ describe('surface contract matrix approval closure safety', () => {
       path.join(matrixDir, 'MATRIX.md'),
     ];
     const before = trackedPaths.map((file) => fs.readFileSync(file));
-    await expect(
-      approveModule.approveMatrix([
-        '--review-file',
-        temporaryReviewPath,
-        '--approver',
-        'fixture-approver',
-        '--evidence',
-        'fixture-evidence',
-        '--close-g1',
-      ])
-    ).rejects.toThrow('Approval validation failed');
+    const originalReadFileSync = fs.readFileSync.bind(fs);
+    const authoringMatrix = {
+      ...currentState().matrix,
+      phase: 'authoring',
+    };
+    const readFileSpy = vi.spyOn(fs, 'readFileSync').mockImplementation(((file, ...args) => {
+      if (path.resolve(String(file)) === matrixPath) {
+        return `${JSON.stringify(authoringMatrix, null, 2)}\n`;
+      }
+      return originalReadFileSync(file, ...args);
+    }) as typeof fs.readFileSync);
+    try {
+      await expect(
+        approveModule.approveMatrix([
+          '--review-file',
+          temporaryReviewPath,
+          '--approver',
+          'fixture-approver',
+          '--evidence',
+          'fixture-evidence',
+          '--close-g1',
+        ])
+      ).rejects.toThrow('Approval validation failed');
+    } finally {
+      readFileSpy.mockRestore();
+    }
     expect(trackedPaths.map((file) => fs.readFileSync(file))).toEqual(before);
   });
 
