@@ -33,7 +33,8 @@ const matrixPath = path.join(matrixDir, 'matrix.json');
 const inventoryPath = path.join(matrixDir, 'source-inventory.json');
 const temporaryReviewPath = path.join(matrixDir, '.g1-review-test.json');
 
-type ApproveModule = typeof import('../../../audit/surface-contract-matrix/scripts/approve-matrix.mjs');
+type ApproveModule =
+  typeof import('../../../audit/surface-contract-matrix/scripts/approve-matrix.mjs');
 let approveModule: ApproveModule;
 
 beforeAll(async () => {
@@ -66,22 +67,31 @@ function currentState() {
   return { matrix, inventory };
 }
 
-function rowSourceFingerprints(row: { id: string; source_mapping?: Record<string, unknown> }, inventory: ReturnType<typeof currentState>['inventory']) {
-  const sources = new Set([
-    ...(inventory.row_to_sources[row.id] ?? []),
-    row.source_mapping?.source_file,
-    row.source_mapping?.function_file,
-    row.source_mapping?.handler_file,
-  ].filter((value): value is string => typeof value === 'string'));
+function rowSourceFingerprints(
+  row: { id: string; source_mapping?: Record<string, unknown> },
+  inventory: ReturnType<typeof currentState>['inventory']
+) {
+  const sources = new Set(
+    [
+      ...(inventory.row_to_sources[row.id] ?? []),
+      row.source_mapping?.source_file,
+      row.source_mapping?.function_file,
+      row.source_mapping?.handler_file,
+    ].filter((value): value is string => typeof value === 'string')
+  );
   return [...sources]
     .sort((left, right) => left.localeCompare(right))
-    .map((source) => inventory.source_hashes[source] ? `${source}=${inventory.source_hashes[source]}` : undefined)
+    .map((source) =>
+      inventory.source_hashes[source] ? `${source}=${inventory.source_hashes[source]}` : undefined
+    )
     .filter((value): value is string => Boolean(value));
 }
 
 function writeReview(overrides: Record<string, unknown> = {}) {
   const { matrix, inventory } = currentState();
-  const row = matrix.rows.find((entry) => rowSourceFingerprints(entry, inventory).length > 0) ?? matrix.rows[0];
+  const row =
+    matrix.rows.find((entry) => rowSourceFingerprints(entry, inventory).length > 0) ??
+    matrix.rows[0];
   const review = {
     schema_version: '1.0.0',
     review_id: 'fixture-g1',
@@ -112,9 +122,12 @@ describe('surface contract matrix approval closure safety', () => {
   it('applies review-manifest row fields and recomputes dependent state in dry-run', async () => {
     const { row } = writeReview();
     const result = await approveModule.approveMatrix([
-      '--review-file', temporaryReviewPath,
-      '--approver', 'fixture-approver',
-      '--evidence', 'fixture-evidence',
+      '--review-file',
+      temporaryReviewPath,
+      '--approver',
+      'fixture-approver',
+      '--evidence',
+      'fixture-evidence',
       '--dry-run',
     ]);
     expect(result).toMatchObject({ command: 'approve', reviewed_rows: 1, manifest_rows: 1 });
@@ -125,10 +138,12 @@ describe('surface contract matrix approval closure safety', () => {
   it('binds none-reviewed coverage fingerprints after closure fields are applied', async () => {
     const { review, row } = writeReview();
     review.rows[row.id].reviewed_fields = {};
-    review.rows[row.id].exposure_attestations = Object.fromEntries((row.exposures ?? []).map((exposure) => [
-      `${exposure.deployment}|${exposure.runtime}`,
-      { test_coverage: 'none-reviewed', evidence: 'reviewed-none' },
-    ]));
+    review.rows[row.id].exposure_attestations = Object.fromEntries(
+      (row.exposures ?? []).map((exposure) => [
+        `${exposure.deployment}|${exposure.runtime}`,
+        { test_coverage: 'none-reviewed', evidence: 'reviewed-none' },
+      ])
+    );
     review.closure = {
       rows: {
         [row.id]: {
@@ -139,30 +154,41 @@ describe('surface contract matrix approval closure safety', () => {
       },
     };
     fs.writeFileSync(temporaryReviewPath, `${JSON.stringify(review, null, 2)}\n`);
-    const actualValidation = await vi.importActual<typeof import('../../../audit/surface-contract-matrix/scripts/validate-matrix.mjs')>(
-      '../../../audit/surface-contract-matrix/scripts/validate-matrix.mjs',
-    );
+    const actualValidation = await vi.importActual<
+      typeof import('../../../audit/surface-contract-matrix/scripts/validate-matrix.mjs')
+    >('../../../audit/surface-contract-matrix/scripts/validate-matrix.mjs');
     mocks.validateRowIntegrity.mockImplementation(actualValidation.validateRowIntegrity);
 
     const result = await approveModule.approveMatrix([
-      '--review-file', temporaryReviewPath,
-      '--approver', 'fixture-approver',
-      '--evidence', 'fixture-evidence',
+      '--review-file',
+      temporaryReviewPath,
+      '--approver',
+      'fixture-approver',
+      '--evidence',
+      'fixture-evidence',
       '--dry-run',
     ]);
     expect(result).toMatchObject({ reviewed_rows: 1, coverage_obligations: expect.any(Number) });
   });
 
   it('does not rebind prior coverage attestations when current manifest omits them', () => {
-    const source = fs.readFileSync(path.join(repoRoot, 'audit/surface-contract-matrix/scripts/approve-matrix.mjs'), 'utf8');
+    const source = fs.readFileSync(
+      path.join(repoRoot, 'audit/surface-contract-matrix/scripts/approve-matrix.mjs'),
+      'utf8'
+    );
     const start = source.indexOf('const bindCoverageFingerprints =');
     const end = source.indexOf('const reviewEntryByKey =', start);
     const body = `${source.slice(start, end)}\nglobalThis.__bindCoverageFingerprints = bindCoverageFingerprints;`;
-    const context = vm.createContext({ canonicalRowId: (value: string) => value, contractFingerprint });
+    const context = vm.createContext({
+      canonicalRowId: (value: string) => value,
+      contractFingerprint,
+    });
     new vm.Script(body).runInContext(context);
-    const bindCoverageFingerprints = (context as unknown as {
-      __bindCoverageFingerprints: (state: Record<string, unknown>, keys: Set<string>) => void;
-    }).__bindCoverageFingerprints;
+    const bindCoverageFingerprints = (
+      context as unknown as {
+        __bindCoverageFingerprints: (state: Record<string, unknown>, keys: Set<string>) => void;
+      }
+    ).__bindCoverageFingerprints;
     const { matrix } = currentState();
     const row = matrix.rows[0];
     const exposure = row.exposures[0];
@@ -172,63 +198,102 @@ describe('surface contract matrix approval closure safety', () => {
       matrix: {
         rows: [{ ...row, closure_owner: 'new-owner' }],
         coverage_review: {
-          [key]: { test_coverage: 'none-reviewed', contract_fingerprint: 'old-fingerprint', evidence: 'old-review' },
+          [key]: {
+            test_coverage: 'none-reviewed',
+            contract_fingerprint: 'old-fingerprint',
+            evidence: 'old-review',
+          },
         },
       },
-    } as { matrix: { rows: typeof matrix.rows; coverage_review: Record<string, { contract_fingerprint: string }> } };
+    } as {
+      matrix: {
+        rows: typeof matrix.rows;
+        coverage_review: Record<string, { contract_fingerprint: string }>;
+      };
+    };
     bindCoverageFingerprints(stale, new Set());
     expect(stale.matrix.coverage_review[key].contract_fingerprint).toBe('old-fingerprint');
   });
 
   it('rejects stale source fingerprints and CLI-vs-manifest identity mismatches', async () => {
     const { review } = writeReview({
-      source_fingerprints: { ...reviewSourceFingerprints(), 'package.json#scripts': '0'.repeat(64) },
+      source_fingerprints: {
+        ...reviewSourceFingerprints(),
+        'package.json#scripts': '0'.repeat(64),
+      },
     });
-    await expect(approveModule.approveMatrix([
-      '--review-file', temporaryReviewPath,
-      '--approver', 'fixture-approver',
-      '--evidence', 'fixture-evidence',
-      '--dry-run',
-    ])).rejects.toThrow('Review manifest source fingerprints or snapshot are stale');
+    await expect(
+      approveModule.approveMatrix([
+        '--review-file',
+        temporaryReviewPath,
+        '--approver',
+        'fixture-approver',
+        '--evidence',
+        'fixture-evidence',
+        '--dry-run',
+      ])
+    ).rejects.toThrow('Review manifest source fingerprints or snapshot are stale');
 
     fs.writeFileSync(temporaryReviewPath, `${JSON.stringify(review, null, 2)}\n`);
     const valid = writeReview();
-    await expect(approveModule.approveMatrix([
-      '--review-file', temporaryReviewPath,
-      '--approver', 'wrong-approver',
-      '--evidence', 'fixture-evidence',
-      '--dry-run',
-    ])).rejects.toThrow('--approver does not match manifest approver_id');
+    await expect(
+      approveModule.approveMatrix([
+        '--review-file',
+        temporaryReviewPath,
+        '--approver',
+        'wrong-approver',
+        '--evidence',
+        'fixture-evidence',
+        '--dry-run',
+      ])
+    ).rejects.toThrow('--approver does not match manifest approver_id');
     fs.writeFileSync(temporaryReviewPath, `${JSON.stringify(valid.review, null, 2)}\n`);
-    await expect(approveModule.approveMatrix([
-      '--review-file', temporaryReviewPath,
-      '--approver', 'fixture-approver',
-      '--evidence', 'wrong-evidence',
-      '--dry-run',
-    ])).rejects.toThrow('--evidence does not match manifest evidence_ref');
+    await expect(
+      approveModule.approveMatrix([
+        '--review-file',
+        temporaryReviewPath,
+        '--approver',
+        'fixture-approver',
+        '--evidence',
+        'wrong-evidence',
+        '--dry-run',
+      ])
+    ).rejects.toThrow('--evidence does not match manifest evidence_ref');
   });
 
   it('requires complete persona mappings identical to the locked G1 table', async () => {
-    const { review } = writeReview({ persona_mappings: { admin: AUTH_IDENTITY_PERSONA_MAPPING.admin } });
+    const { review } = writeReview({
+      persona_mappings: { admin: AUTH_IDENTITY_PERSONA_MAPPING.admin },
+    });
     fs.writeFileSync(temporaryReviewPath, `${JSON.stringify(review, null, 2)}\n`);
-    await expect(approveModule.approveMatrix([
-      '--review-file', temporaryReviewPath,
-      '--approver', 'fixture-approver',
-      '--evidence', 'fixture-evidence',
-      '--dry-run',
-    ])).rejects.toThrow('Persona mappings must be complete and match the locked G1 persona table');
+    await expect(
+      approveModule.approveMatrix([
+        '--review-file',
+        temporaryReviewPath,
+        '--approver',
+        'fixture-approver',
+        '--evidence',
+        'fixture-evidence',
+        '--dry-run',
+      ])
+    ).rejects.toThrow('Persona mappings must be complete and match the locked G1 persona table');
   });
 
   it('does not permit manifest edits to source-derived auth evidence', async () => {
     const { review, row } = writeReview();
     review.rows[row.id].reviewed_fields = { auth_evidence: [] };
     fs.writeFileSync(temporaryReviewPath, `${JSON.stringify(review, null, 2)}\n`);
-    await expect(approveModule.approveMatrix([
-      '--review-file', temporaryReviewPath,
-      '--approver', 'fixture-approver',
-      '--evidence', 'fixture-evidence',
-      '--dry-run',
-    ])).rejects.toThrow(`Unsupported reviewed row field ${row.id}:auth_evidence`);
+    await expect(
+      approveModule.approveMatrix([
+        '--review-file',
+        temporaryReviewPath,
+        '--approver',
+        'fixture-approver',
+        '--evidence',
+        'fixture-evidence',
+        '--dry-run',
+      ])
+    ).rejects.toThrow(`Unsupported reviewed row field ${row.id}:auth_evidence`);
   });
 
   it('initializes requirement review entries with absence fingerprints', async () => {
@@ -238,12 +303,16 @@ describe('surface contract matrix approval closure safety', () => {
     };
     const requirementEntries = Object.values(review.off_row_dispositions?.requirements ?? {});
     expect(requirementEntries.length).toBeGreaterThan(0);
-    expect(requirementEntries.every((entry) => typeof entry.contract_fingerprint === 'string')).toBe(true);
+    expect(
+      requirementEntries.every((entry) => typeof entry.contract_fingerprint === 'string')
+    ).toBe(true);
   });
 
   it('schema-validates mutated off-row artifacts before any write', async () => {
     const { review } = writeReview();
-    const candidates = JSON.parse(fs.readFileSync(path.join(matrixDir, 'dormant-candidates.json'), 'utf8')) as Array<Record<string, unknown> & { path: string }>;
+    const candidates = JSON.parse(
+      fs.readFileSync(path.join(matrixDir, 'dormant-candidates.json'), 'utf8')
+    ) as Array<Record<string, unknown> & { path: string }>;
     const candidate = candidates[0];
     if (!candidate) throw new Error('Expected dormant candidate fixture');
     review.off_row_dispositions = {
@@ -266,18 +335,25 @@ describe('surface contract matrix approval closure safety', () => {
       path.join(matrixDir, 'MATRIX.md'),
     ];
     const before = trackedPaths.map((file) => fs.readFileSync(file));
-    await expect(approveModule.approveMatrix([
-      '--review-file', temporaryReviewPath,
-      '--approver', 'fixture-approver',
-      '--evidence', 'fixture-evidence',
-      '--dry-run',
-    ])).rejects.toThrow('candidate/off-row schema validation');
+    await expect(
+      approveModule.approveMatrix([
+        '--review-file',
+        temporaryReviewPath,
+        '--approver',
+        'fixture-approver',
+        '--evidence',
+        'fixture-evidence',
+        '--dry-run',
+      ])
+    ).rejects.toThrow('candidate/off-row schema validation');
     expect(trackedPaths.map((file) => fs.readFileSync(file))).toEqual(before);
   });
 
   it('rejects stale off-row review fingerprints before applying dispositions', async () => {
     const { review } = writeReview();
-    const candidates = JSON.parse(fs.readFileSync(path.join(matrixDir, 'dormant-candidates.json'), 'utf8')) as Array<Record<string, unknown> & { path: string }>;
+    const candidates = JSON.parse(
+      fs.readFileSync(path.join(matrixDir, 'dormant-candidates.json'), 'utf8')
+    ) as Array<Record<string, unknown> & { path: string }>;
     const candidate = candidates[0];
     if (!candidate) throw new Error('Expected dormant candidate fixture');
     review.off_row_dispositions = {
@@ -290,12 +366,17 @@ describe('surface contract matrix approval closure safety', () => {
       },
     };
     fs.writeFileSync(temporaryReviewPath, `${JSON.stringify(review, null, 2)}\n`);
-    await expect(approveModule.approveMatrix([
-      '--review-file', temporaryReviewPath,
-      '--approver', 'fixture-approver',
-      '--evidence', 'fixture-evidence',
-      '--dry-run',
-    ])).rejects.toThrow('Off-row manifest fingerprint is stale candidates:');
+    await expect(
+      approveModule.approveMatrix([
+        '--review-file',
+        temporaryReviewPath,
+        '--approver',
+        'fixture-approver',
+        '--evidence',
+        'fixture-evidence',
+        '--dry-run',
+      ])
+    ).rejects.toThrow('Off-row manifest fingerprint is stale candidates:');
   });
 
   it('refuses writes when full pre-write validation reports a closure failure', async () => {
@@ -315,12 +396,17 @@ describe('surface contract matrix approval closure safety', () => {
       path.join(matrixDir, 'MATRIX.md'),
     ];
     const before = trackedPaths.map((file) => fs.readFileSync(file));
-    await expect(approveModule.approveMatrix([
-      '--review-file', temporaryReviewPath,
-      '--approver', 'fixture-approver',
-      '--evidence', 'fixture-evidence',
-      '--close-g1',
-    ])).rejects.toThrow('Approval validation failed');
+    await expect(
+      approveModule.approveMatrix([
+        '--review-file',
+        temporaryReviewPath,
+        '--approver',
+        'fixture-approver',
+        '--evidence',
+        'fixture-evidence',
+        '--close-g1',
+      ])
+    ).rejects.toThrow('Approval validation failed');
     expect(trackedPaths.map((file) => fs.readFileSync(file))).toEqual(before);
   });
 
@@ -334,9 +420,11 @@ describe('surface contract matrix approval closure safety', () => {
       let tempId = 0;
       let renameCount = 0;
       const fsApi = {
-        mkdtempSync: (prefix: string) => `${prefix}${tempId += 1}`,
+        mkdtempSync: (prefix: string) => `${prefix}${(tempId += 1)}`,
         mkdirSync: () => undefined,
-        writeFileSync: (file: string, value: string) => { files.set(file, value); },
+        writeFileSync: (file: string, value: string) => {
+          files.set(file, value);
+        },
         existsSync: (file: string) => files.has(file),
         renameSync: (from: string, to: string) => {
           renameCount += 1;
@@ -353,14 +441,16 @@ describe('surface contract matrix approval closure safety', () => {
         },
       };
       const before = new Map(files);
-      expect(() => approveModule.atomicWriteSet({
-        writes: [
-          [path.join(matrixDir, 'fixture-a.json'), 'new-a'],
-          [path.join(matrixDir, 'fixture-b.json'), 'new-b'],
-        ],
-        deletes: [path.join(matrixDir, 'fixture-c.json')],
-        fsApi,
-      })).toThrow('Atomic matrix transaction rolled back');
+      expect(() =>
+        approveModule.atomicWriteSet({
+          writes: [
+            [path.join(matrixDir, 'fixture-a.json'), 'new-a'],
+            [path.join(matrixDir, 'fixture-b.json'), 'new-b'],
+          ],
+          deletes: [path.join(matrixDir, 'fixture-c.json')],
+          fsApi,
+        })
+      ).toThrow('Atomic matrix transaction rolled back');
       expect(files).toEqual(before);
     };
 
@@ -370,7 +460,10 @@ describe('surface contract matrix approval closure safety', () => {
   });
 
   it('fresh reset clears row review fields in memory before write planning', () => {
-    const source = fs.readFileSync(path.join(repoRoot, 'audit/surface-contract-matrix/scripts/approve-matrix.mjs'), 'utf8');
+    const source = fs.readFileSync(
+      path.join(repoRoot, 'audit/surface-contract-matrix/scripts/approve-matrix.mjs'),
+      'utf8'
+    );
     const start = source.indexOf('const resetRowReview =');
     const end = source.indexOf('const validateCandidate =', start);
     const body = `${source.slice(start, end)}\nglobalThis.__freshState = freshState;`;
@@ -380,40 +473,87 @@ describe('surface contract matrix approval closure safety', () => {
       contractFingerprint,
     });
     new vm.Script(body).runInContext(context);
-    const freshState = (context as unknown as {
-      __freshState: (state: Record<string, unknown>) => Record<string, unknown>;
-    }).__freshState;
+    const freshState = (
+      context as unknown as {
+        __freshState: (state: Record<string, unknown>) => Record<string, unknown>;
+      }
+    ).__freshState;
     const state = {
       matrix: {
         phase: 'closed',
         coverage_review: { stale: true },
         g1_closure: { owner: 'old' },
-        rows: [{
-          id: 'api:GET:/fixture',
-          personas: ['admin'],
-          persistence: 'writes',
-          destructive: 'soft',
-          environment: 'staged-only',
-          owner: 'gp-team',
-          classification: 'classified',
-          decision: 'in-contract',
-          decision_suggestion: 'keep-and-prove',
-          decision_status: 'approved',
-          approved_source_hashes: ['old'],
-          decision_evidence: 'old',
-          seam_override: 'old',
-          closure_owner: 'old',
-          closure_gate: 'old',
-          closure_acceptance: 'old',
-          test_evidence: { derived: [], manual: [{ layer: 'unit' }] },
-          machine_suggestions: { personas: ['unknown'], persistence: 'unknown', destructive: 'unknown', owner: 'unassigned' },
-        }],
+        rows: [
+          {
+            id: 'api:GET:/fixture',
+            personas: ['admin'],
+            persistence: 'writes',
+            destructive: 'soft',
+            environment: 'staged-only',
+            owner: 'gp-team',
+            classification: 'classified',
+            decision: 'in-contract',
+            decision_suggestion: 'keep-and-prove',
+            decision_status: 'approved',
+            approved_source_hashes: ['old'],
+            decision_evidence: 'old',
+            seam_override: 'old',
+            closure_owner: 'old',
+            closure_gate: 'old',
+            closure_acceptance: 'old',
+            test_evidence: { derived: [], manual: [{ layer: 'unit' }] },
+            machine_suggestions: {
+              personas: ['unknown'],
+              persistence: 'unknown',
+              destructive: 'unknown',
+              owner: 'unassigned',
+            },
+          },
+        ],
       },
       listeners: [{ decision_status: 'approved', decision_evidence: 'old', fingerprint: 'old' }],
-      candidates: [{ disposition: 'promote', decision_status: 'approved', decision_evidence: 'old', contract_fingerprint: 'old' }],
-      exclusions: [{ id: 'old-exclusion', disposition: 'keep', resolution: 'retain', decision_status: 'approved', decision_evidence: 'old', disposition_evidence: 'old', resolution_evidence: 'old', contract_fingerprint: 'old', fingerprint: 'old' }],
-      orphans: [{ id: 'old-orphan', resolution: 'retained', decision_status: 'approved', decision_evidence: 'old', disposition: 'retain', disposition_evidence: 'old', resolution_evidence: 'old', resolution_fingerprint: 'old', contract_fingerprint: 'old', last_contract_fingerprint: 'old' }],
-      requirements: { families: [{ absence_evidence: { status: 'approved' } }] },
+      candidates: [
+        {
+          disposition: 'promote',
+          decision_status: 'approved',
+          decision_evidence: 'old',
+          contract_fingerprint: 'old',
+        },
+      ],
+      exclusions: [
+        {
+          id: 'old-exclusion',
+          disposition: 'keep',
+          resolution: 'retain',
+          decision_status: 'approved',
+          decision_evidence: 'old',
+          disposition_evidence: 'old',
+          resolution_evidence: 'old',
+          contract_fingerprint: 'old',
+          fingerprint: 'old',
+        },
+      ],
+      orphans: [
+        {
+          id: 'old-orphan',
+          resolution: 'retained',
+          decision_status: 'approved',
+          decision_evidence: 'old',
+          disposition: 'retain',
+          disposition_evidence: 'old',
+          resolution_evidence: 'old',
+          resolution_fingerprint: 'old',
+          contract_fingerprint: 'old',
+          last_contract_fingerprint: 'old',
+        },
+      ],
+      requirements: {
+        families: [
+          {
+            absence_evidence: { status: 'approved', fingerprint: 'old', result: 'No row present.' },
+          },
+        ],
+      },
     };
     const reset = freshState(state);
     const row = (reset.matrix as { rows: Array<Record<string, unknown>> }).rows[0];
@@ -432,22 +572,36 @@ describe('surface contract matrix approval closure safety', () => {
     expect(row.closure_owner).toBeUndefined();
     expect(reset.listeners).toEqual([]);
     expect((reset.candidates as Array<Record<string, unknown>>)[0].disposition).toBeUndefined();
-    expect((reset.candidates as Array<Record<string, unknown>>)[0].decision_evidence).toBeUndefined();
+    expect(
+      (reset.candidates as Array<Record<string, unknown>>)[0].decision_evidence
+    ).toBeUndefined();
     expect((reset.exclusions as Array<Record<string, unknown>>)[0].disposition).toBeUndefined();
     expect((reset.exclusions as Array<Record<string, unknown>>)[0].resolution).toBeUndefined();
-    expect((reset.exclusions as Array<Record<string, unknown>>)[0].decision_evidence).toBeUndefined();
+    expect(
+      (reset.exclusions as Array<Record<string, unknown>>)[0].decision_evidence
+    ).toBeUndefined();
     expect((reset.orphans as Array<Record<string, unknown>>)[0].resolution).toBeUndefined();
-    expect((reset.orphans as Array<Record<string, unknown>>)[0].resolution_evidence).toBeUndefined();
-    expect((reset.orphans as Array<Record<string, unknown>>)[0].last_contract_fingerprint).toBeUndefined();
-    expect((reset.requirements as { families: Array<Record<string, unknown>> }).families[0].absence_evidence).toBeUndefined();
+    expect(
+      (reset.orphans as Array<Record<string, unknown>>)[0].resolution_evidence
+    ).toBeUndefined();
+    expect(
+      (reset.orphans as Array<Record<string, unknown>>)[0].last_contract_fingerprint
+    ).toBeUndefined();
+    expect(
+      (reset.requirements as { families: Array<Record<string, unknown>> }).families[0]
+        .absence_evidence
+    ).toEqual({
+      status: 'proposed',
+      result: 'No row present.',
+    });
   });
 
   it('uses reset-safe validation before KG regeneration', async () => {
     mocks.validateMatrix.mockRejectedValue(new Error('knowledge graph unavailable'));
-    await expect(approveModule.approveMatrix([
-      '--fresh',
-      '--dry-run',
-    ])).resolves.toMatchObject({ command: 'fresh', dry_run: true });
+    await expect(approveModule.approveMatrix(['--fresh', '--dry-run'])).resolves.toMatchObject({
+      command: 'fresh',
+      dry_run: true,
+    });
     expect(mocks.validateMatrix).not.toHaveBeenCalled();
   });
 });

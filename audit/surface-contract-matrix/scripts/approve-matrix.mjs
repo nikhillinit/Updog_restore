@@ -634,7 +634,16 @@ const freshState = (state) => {
     delete entry.resolution_fingerprint;
     delete entry.contract_fingerprint;
   }
-  for (const family of next.requirements.families ?? []) delete family.absence_evidence;
+  // Absence evidence carries an authored proposal (selector, result, evidence)
+  // plus review state (status, fingerprint). Fresh discards only the review
+  // state; deleting the whole block would make validate-matrix reject every
+  // empty optional family before init-review can restore it.
+  for (const family of next.requirements.families ?? []) {
+    if (!family.absence_evidence) continue;
+    family.absence_evidence.status = 'proposed';
+    delete family.absence_evidence.fingerprint;
+    delete family.absence_evidence.contract_fingerprint;
+  }
   return next;
 };
 
