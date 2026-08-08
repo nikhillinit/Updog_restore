@@ -1576,7 +1576,7 @@ function summarizeAction(actions) {
   return ACTION_SKIP;
 }
 
-async function acquireAdvisoryLock(client) {
+export async function acquireAdvisoryLock(client) {
   const result = await client.query('SELECT pg_try_advisory_lock($1) AS acquired', [
     RECONCILE_LOCK_ID,
   ]);
@@ -1587,11 +1587,11 @@ async function acquireAdvisoryLock(client) {
   }
 }
 
-async function releaseAdvisoryLock(client) {
+export async function releaseAdvisoryLock(client) {
   await client.query('SELECT pg_advisory_unlock($1)', [RECONCILE_LOCK_ID]);
 }
 
-async function setApplyTimeouts(client) {
+export async function setApplyTimeouts(client) {
   await client.query("SET lock_timeout = '5s'");
   await client.query("SET statement_timeout = '5min'");
 }

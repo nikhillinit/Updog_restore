@@ -319,6 +319,7 @@ schema_tests:
   - 'tests/integration/fund-lifecycle-db.test.ts'
   - 'tests/integration/migration-drift.test.ts'
   - 'tests/integration/prod-schema-clone.test.ts'
+  - 'tests/integration/prod-journaled-migration-recovery.test.ts'
   - 'tests/integration/investment-scenario-capability.test.ts'
   - 'tests/integration/vehicle-financing-participations-real-pg.test.ts'
   - 'tests/integration/investment-ledger/position-conversion.pg.test.ts'

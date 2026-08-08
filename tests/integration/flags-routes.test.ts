@@ -5,7 +5,8 @@
  * @group integration
  */
 
-// Set JWT config BEFORE any imports to ensure modules pick up the test config
+// Set JWT config before loading the HTTP test server so route modules capture
+// the intended test configuration instead of a previously cached environment.
 const TEST_JWT_SECRET = 'test-secret-key-for-integration-tests';
 const originalJwtSecret = process.env.JWT_SECRET;
 const originalJwtAlg = process.env.JWT_ALG;
@@ -18,13 +19,18 @@ process.env._EXPLICIT_JWT_ALG = 'HS256';
 process.env.JWT_ISSUER = 'test-issuer';
 process.env.JWT_AUDIENCE = 'test-audience';
 
-import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
 import type { TestHttpServer } from '../helpers/test-http-server';
-import { createTestHttpServer } from '../helpers/test-http-server';
+import { getConfig } from '../../server/config';
 import jwt from 'jsonwebtoken';
 
 describe('Flag Routes Integration', () => {
   let server: TestHttpServer;
+  let createTestHttpServer: typeof import('../helpers/test-http-server').createTestHttpServer;
+
+  beforeAll(async () => {
+    ({ createTestHttpServer } = await import('../helpers/test-http-server'));
+  });
 
   afterAll(() => {
     // Restore original JWT config
@@ -76,17 +82,23 @@ describe('Flag Routes Integration', () => {
 
   // Helper to create valid JWT tokens for testing
   function createToken(role: string, sub: string = 'test-user'): string {
+    const config = getConfig();
+    if (config.JWT_ALG !== 'HS256') {
+      throw new Error(
+        `Flag route integration tests require HS256 JWT verification, received ${config.JWT_ALG}`
+      );
+    }
     return jwt.sign(
       {
         sub,
         role,
         email: `${sub}@test.com`,
       },
-      TEST_JWT_SECRET,
+      config.JWT_SECRET ?? TEST_JWT_SECRET,
       {
-        algorithm: 'HS256',
-        issuer: 'test-issuer',
-        audience: 'test-audience',
+        algorithm: config.JWT_ALG,
+        issuer: config.JWT_ISSUER,
+        audience: config.JWT_AUDIENCE,
         expiresIn: '1h',
       }
     );

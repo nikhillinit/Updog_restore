@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-08-03
+last_updated: 2026-08-07
 owner: Core Team
 review_cadence: P90D
 ---
@@ -10275,3 +10275,73 @@ and the driver switch with both drivers proven in the lane. Class-(c) exclusions
 are documented, not rewritten; dead-code findings
 (`secure-context.executeWithContext` chain, internal-economics version creators,
 non-receipt checkpoint variants) are cleanup candidates, not repairs.
+
+## ADR-074: Journaled Production Ledger Recovery for Migrations 0045-0049
+
+**Date:** 2026-08-07 **Status:** Accepted **Tags:** #production-schema #drizzle
+#migration-ledger #recovery
+
+### Context
+
+Production catalog reconciliation had applied and verified schema changes
+through migration `0044`, while `public.drizzle_migrations` stopped at the
+`0007` journal timestamp. The catalog therefore represented migrations
+`0008`-`0044`, but the Drizzle ledger did not. Those catalog objects arrived
+through production reconciliation and other governed apply mechanisms, not by
+Drizzle executing each missing journal entry. The next required schema changes
+were the contiguous journaled migrations `0045`-`0049`.
+
+Running Drizzle against the full migrations folder would treat `0008`-`0049` as
+pending and attempt to replay catalog changes already present in production.
+Inserting ledger rows for `0008`-`0044` without executing those migrations would
+instead manufacture execution history. Recovery needed to preserve the observed
+catalog and ledger histories while giving Drizzle an honest new high-water mark.
+
+### Decision
+
+1. Production recovery uses a fixed, contiguous, target-only migration folder
+   containing exactly `0045` through `0049`, copied from the canonical journal
+   in its authorized order. The runner refuses partial target ledgers,
+   unexpected intermediate timestamps, timestamps newer than `0049`, and
+   catalog/manifest states outside the accepted pre-apply or complete vectors.
+2. Drizzle owns one transaction spanning all five migration bodies and the five
+   corresponding `public.drizzle_migrations` inserts. Any target migration
+   failure rolls back both target DDL and all five ledger rows; replay after a
+   complete apply performs no additional migration work.
+3. Ledger gaps for `0008`-`0044` remain documented historical gaps. Recovery
+   does not fabricate rows that claim Drizzle executed migrations delivered by
+   other mechanisms.
+4. Future journaled migrations build from the resulting `0049` maximum ledger
+   timestamp. The recovery workflow and production release workflow remain
+   separate, manually dispatched actions: schema apply requires its own exact
+   live-`main` SHA, production-schema approval, and approved restore-point or
+   branch reference; release dispatch requires separate authorization for the
+   exact reviewed SHA.
+
+### Rejected alternatives
+
+- Insert synthetic `public.drizzle_migrations` rows for `0008`-`0044`: rejected
+  because the ledger would falsely attest that Drizzle executed migrations whose
+  catalog effects arrived through other mechanisms.
+- Run the full migrations folder from the `0007` ledger state: rejected because
+  Drizzle would attempt to replay `0008`-`0049` against a catalog already
+  reconciled through `0044`, creating collision and drift risk outside the
+  authorized recovery slice.
+
+### Consequences
+
+- Recovery advances the Drizzle ledger honestly and atomically from `0007` to
+  `0049` without replaying historical catalog work. Fixed range validation,
+  manifest vectors, advisory locking, and post-apply reconciliation make the
+  allowed state transition narrow and auditable.
+- Historical ledger gaps remain visible and require this ADR as operational
+  context. The runner is intentionally specific to `0045`-`0049`; it is not a
+  general repair mechanism and adds maintenance cost until this recovery is no
+  longer operationally relevant.
+- A failed target migration rolls back transaction-owned DDL and ledger writes.
+  Recovery from an apply that committed but later proves unsafe uses the
+  separately approved production restore point or branch procedure; this ADR
+  does not authorize ad hoc reverse migrations or production mutation.
+- Merging code or documentation authorizes neither schema apply nor release
+  dispatch. Each production action retains its own environment approval,
+  exact-SHA validation, and operator decision boundary.

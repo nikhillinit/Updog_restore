@@ -3622,6 +3622,83 @@ describe('required CI fails closed', () => {
     expect(fullScripts).not.toContain('--reuse-ci-gates');
   });
 
+  it('governs manual journaled production schema recovery at exact current main', async () => {
+    const workflow = await readWorkflow('prod-journaled-migrate-0045-0049.yml');
+    const scripts = allRunScripts(workflow).join('\n');
+    const dispatch = workflow.on?.workflow_dispatch as
+      | {
+          inputs?: Record<
+            string,
+            {
+              default?: string;
+              options?: string[];
+              required?: boolean;
+              type?: string;
+            }
+          >;
+        }
+      | undefined;
+
+    expect(Object.keys(workflow.on ?? {})).toEqual(['workflow_dispatch']);
+    expect(dispatch?.inputs?.expected_sha?.required).toBe(true);
+    expect(dispatch?.inputs?.mode).toMatchObject({
+      default: 'audit',
+      options: ['audit', 'apply'],
+      type: 'choice',
+    });
+    expect(dispatch?.inputs?.restore_point_reference?.required).toBe(true);
+    expect(workflow.jobs?.recover?.environment).toBe('production-schema');
+
+    expect(scripts).toContain('node scripts/run-prod-journaled-migrations.mjs');
+    expect(scripts).toContain('node scripts/run-prod-journaled-migrations.mjs --apply --yes');
+    expect(scripts).toContain('refs/heads/main');
+    expect(scripts).toContain('GITHUB_SHA');
+    expect(scripts).toContain('repos/${REPO}/commits/main');
+    expect(scripts).toContain('READ_ONLY_AUDIT');
+    expect(scripts).toContain('reports/recovery.raw');
+    expect(scripts).toContain(
+      's/^Target database: .* user=.*/Target database: [REDACTED] user=[REDACTED]/'
+    );
+    expect(scripts).toContain('s#postgres(ql)?://[^[:space:]]+#[REDACTED_DATABASE_URL]#g');
+    expect(scripts).toContain('rm reports/recovery.raw');
+    expect(scripts).not.toContain('release-production.yml');
+    expect(scripts).not.toContain('vercel promote');
+
+    const checkout = workflow.jobs?.recover?.steps?.find((step) =>
+      step.uses?.startsWith('actions/checkout@')
+    );
+    expect(checkout?.uses).toBe('actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0');
+    expect(checkout?.with?.ref).toBe('${{ inputs.expected_sha }}');
+
+    const setupNode = workflow.jobs?.recover?.steps?.find((step) =>
+      step.uses?.startsWith('actions/setup-node@')
+    );
+    expect(setupNode?.uses).toBe('actions/setup-node@820762786026740c76f36085b0efc47a31fe5020');
+    expect(setupNode?.with?.['node-version']).toBe('20.19.0');
+    expect(scripts).toContain('npm install -g npm@10.9.2');
+    expect(scripts).toContain('npm ci --prefer-offline --no-audit');
+
+    const recoverySteps = workflow.jobs?.recover?.steps ?? [];
+    const applyIndex = recoverySteps.findIndex((step) => step.name === 'Apply journaled recovery');
+    expect(applyIndex).toBeGreaterThan(0);
+    const applyFence = recoverySteps[applyIndex - 1];
+    expect(applyFence?.name).toBe('Re-fence live main before recovery apply');
+    expect(applyFence?.if).toBe("inputs.mode == 'apply'");
+    expect(applyFence?.env?.EXPECTED_SHA).toBe('${{ inputs.expected_sha }}');
+    expect(applyFence?.env?.GH_TOKEN).toBe('${{ github.token }}');
+    expect(applyFence?.env?.REPO).toBe('${{ github.repository }}');
+    expect(applyFence?.run).toContain('gh api "repos/${REPO}/commits/main" --jq \'.sha\'');
+    expect(applyFence?.run).toContain('[[ ! "$LIVE_MAIN" =~ ^[0-9a-f]{40}$ ]]');
+    expect(applyFence?.run).toContain('[[ "$LIVE_MAIN" != "$EXPECTED_SHA" ]]');
+
+    const upload = workflow.jobs?.recover?.steps?.find((step) =>
+      step.uses?.startsWith('actions/upload-artifact@')
+    );
+    expect(upload?.if).toBe('always()');
+    expect(upload?.with?.path).toBe('reports/*.txt');
+    expect(upload?.with?.['retention-days']).toBe(14);
+  });
+
   // This guard intentionally scans every tracked automation surface. Under the
   // full Linux unit-fast shard, concurrent repository I/O can exceed Vitest's
   // 30-second default even though the same scan is fast in isolation.
@@ -3692,7 +3769,16 @@ describe('required CI fails closed', () => {
       'promote',
       'post-promotion-smoke',
     ]);
-    expect(normalizeNeeds(releaseWorkflow.jobs?.['validate-target']?.needs)).toEqual([]);
+    const validateTarget = releaseWorkflow.jobs?.['validate-target'];
+    expect(normalizeNeeds(validateTarget?.needs)).toEqual([]);
+    expect(validateTarget?.outputs?.log_window_start).toBe(
+      '${{ steps.target.outputs.log_window_start }}'
+    );
+    const validateTargetStep = validateTarget?.steps?.find(
+      (step) => step.name === 'Require exact current main SHA'
+    );
+    expect(validateTargetStep?.id).toBe('target');
+    expect(validateTargetStep?.run).toContain("log_window_start=$(date -u +'%Y-%m-%dT%H:%M:%SZ')");
     expect(normalizeNeeds(releaseWorkflow.jobs?.['release-proof']?.needs)).toEqual([
       'validate-target',
     ]);
@@ -3796,10 +3882,66 @@ describe('required CI fails closed', () => {
       'validate-deployment',
     ]);
     const postPromotionSmoke = releaseWorkflow.jobs?.['post-promotion-smoke'];
-    expect(normalizeNeeds(postPromotionSmoke?.needs)).toEqual(['promote']);
+    expect(normalizeNeeds(postPromotionSmoke?.needs)).toEqual(['promote', 'validate-target']);
     expect(JSON.stringify(postPromotionSmoke?.steps ?? [])).not.toContain(
       'VERCEL_AUTOMATION_BYPASS_SECRET'
     );
+    const postPromotionSteps = postPromotionSmoke?.steps ?? [];
+    const authenticatedSmokeIndex = postPromotionSteps.findIndex(
+      (step) => step.name === 'Run authenticated production smoke'
+    );
+    const driverLogGateIndex = postPromotionSteps.findIndex(
+      (step) => step.name === 'Require clean Vercel database-driver log window'
+    );
+    expect(driverLogGateIndex).toBeGreaterThan(authenticatedSmokeIndex);
+    const driverLogGate = postPromotionSteps[driverLogGateIndex];
+    expect(driverLogGate?.env?.LOG_WINDOW_START).toBe(
+      '${{ needs.validate-target.outputs.log_window_start }}'
+    );
+    expect(driverLogGate?.env?.PRODUCTION_URL).toBe('${{ vars.PRODUCTION_URL }}');
+    expect(driverLogGate?.env?.VERCEL_TOKEN).toBe('${{ secrets.VERCEL_TOKEN }}');
+    expect(driverLogGate?.env?.VERCEL_ORG_ID).toBe('${{ vars.VERCEL_ORG_ID }}');
+    expect(driverLogGate?.env?.VERCEL_PROJECT_ID).toBe('${{ vars.VERCEL_PROJECT_ID }}');
+    expect(driverLogGate?.run).toContain('LOG_WINDOW_START is required');
+    expect(driverLogGate?.run).toContain('PRODUCTION_URL is required');
+    expect(driverLogGate?.run).toContain('VERCEL_TOKEN is required');
+    expect(driverLogGate?.run).toContain('npx --yes vercel@55.0.0 logs "$PRODUCTION_URL"');
+    expect(driverLogGate?.run).toContain('--environment production');
+    expect(driverLogGate?.run).toContain('--since "$LOG_WINDOW_START"');
+    expect(driverLogGate?.run).toContain('--json');
+    expect(driverLogGate?.run).toContain('--no-color');
+    expect(driverLogGate?.run).toContain('--no-follow');
+    expect(driverLogGate?.run).toContain('--limit 1');
+    expect(driverLogGate?.run).toContain('--query "$signature_query"');
+    for (const signature of [
+      'Neon pool error',
+      'fetch failed',
+      'No transactions support in neon-http driver',
+    ]) {
+      expect(driverLogGate?.run).toContain(`'"${signature}"'`);
+    }
+    const driverLogCommands = vercelCommandTokens(driverLogGate?.run ?? '').filter((tokens) =>
+      tokens.includes('logs')
+    );
+    expect(driverLogCommands).toHaveLength(1);
+    for (const tokens of driverLogCommands) {
+      expect(tokens).toContain('--query');
+      expect(tokens).toContain('--no-follow');
+      expect(tokens[tokens.indexOf('--limit') + 1]).toBe('1');
+    }
+    expect(driverLogGate?.run).toContain('trap \'rm -f "$runtime_log"\' EXIT');
+    expect(driverLogGate?.run).toContain(
+      'node scripts/assert-vercel-driver-log-clean.mjs "$runtime_log"'
+    );
+    expect(JSON.stringify(postPromotionSmoke?.steps ?? [])).not.toContain('upload-artifact');
+
+    const driverLogParserTest = await readFile(
+      path.join(process.cwd(), 'tests/unit/scripts/assert-vercel-driver-log-clean.test.mjs'),
+      'utf8'
+    );
+    expect(driverLogParserTest).toContain('Neon pool error');
+    expect(driverLogParserTest).toContain('fetch failed');
+    expect(driverLogParserTest).toContain('No transactions support in neon-http driver');
 
     const identityScripts = allRunScripts({
       jobs: { identity: releaseWorkflow.jobs?.['validate-deployment'] ?? {} },
