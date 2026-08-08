@@ -25,12 +25,29 @@ const service = vi.hoisted(() => ({
   executeQuarterlyReviewWaiverCommand: vi.fn(),
 }));
 
+const narrativeService = vi.hoisted(() => ({
+  appendNote: vi.fn(),
+  createInternalNarrativePorts: vi.fn(),
+  generateNarrative: vi.fn(),
+  reviseNarrative: vi.fn(),
+}));
+
 const authState = vi.hoisted(() => ({
   authenticated: true,
   fundAccess: true,
   calls: [] as string[],
   role: 'admin',
   carrier: 'user' as 'user' | 'context',
+}));
+
+const fundScopeState = vi.hoisted(() => ({
+  enforceProvidedFundScope: vi.fn(async (_req: Request, res: Response) => {
+    if (!authState.fundAccess) {
+      res.status(403).json({ error: 'Forbidden', code: 'FUND_ACCESS_DENIED' });
+      return false;
+    }
+    return true;
+  }),
 }));
 
 vi.mock('express-rate-limit', () => ({
@@ -67,6 +84,12 @@ vi.mock('../../../server/lib/auth/jwt', () => ({
       next();
     },
   requireRole: () => (_req: Request, _res: Response, next: NextFunction) => next(),
+  verifyRequestCredential: async () => null,
+  userFromClaims: () => ({}),
+}));
+
+vi.mock('../../../server/lib/auth/provided-fund-scope', () => ({
+  enforceProvidedFundScope: fundScopeState.enforceProvidedFundScope,
 }));
 
 vi.mock('../../../server/services/internal-analysis/quarterly-review-service', () => {
@@ -87,6 +110,19 @@ vi.mock('../../../server/services/internal-analysis/quarterly-review-service', (
     }),
     executeQuarterlyReviewItemCommand: service.executeQuarterlyReviewItemCommand,
     executeQuarterlyReviewWaiverCommand: service.executeQuarterlyReviewWaiverCommand,
+  };
+});
+
+vi.mock('../../../server/services/internal-analysis/internal-narrative-draft-service', async () => {
+  const actual = await vi.importActual<
+    typeof import('../../../server/services/internal-analysis/internal-narrative-draft-service')
+  >('../../../server/services/internal-analysis/internal-narrative-draft-service');
+  return {
+    ...actual,
+    appendNote: narrativeService.appendNote,
+    createInternalNarrativePorts: narrativeService.createInternalNarrativePorts,
+    generateNarrative: narrativeService.generateNarrative,
+    reviseNarrative: narrativeService.reviseNarrative,
   };
 });
 
@@ -200,10 +236,109 @@ beforeEach(() => {
   authState.calls = [];
   authState.role = 'admin';
   authState.carrier = 'user';
+  fundScopeState.enforceProvidedFundScope.mockClear();
   for (const mock of Object.values(service)) mock.mockReset();
+  for (const mock of Object.values(narrativeService)) mock.mockReset();
 });
 
 describe('internal-analysis route contract', () => {
+  it('denies restricted principals before narrative and note mutations', async () => {
+    authState.role = 'lp';
+
+    const responses = await Promise.all([
+      request(buildApp())
+        .post('/api/funds/1/internal-analysis/narratives/generate')
+        .send({ analysisDraftId: 3 }),
+      request(buildApp())
+        .post('/api/funds/1/internal-analysis/narratives/revise')
+        .send({
+          analysisDraftId: 3,
+          claims: [
+            {
+              body: 'Commentary',
+              authorship: 'user_authored_commentary',
+              source: null,
+            },
+          ],
+        }),
+      request(buildApp())
+        .post('/api/funds/1/internal-analysis/notes')
+        .send({ analysisDraftId: 3, body: 'Note' }),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([403, 403, 403]);
+    expect(narrativeService.generateNarrative).not.toHaveBeenCalled();
+    expect(narrativeService.reviseNarrative).not.toHaveBeenCalled();
+    expect(narrativeService.appendNote).not.toHaveBeenCalled();
+  });
+
+  it.each(['partner', 'admin', 'analyst'])(
+    'allows %s through narrative and note writes',
+    async (role) => {
+      authState.role = role;
+      const basis = {
+        financialFactsSnapshotId: 41,
+        knowledgeCutoff: new Date('2026-07-02T00:00:00.000Z'),
+        forecastFundSnapshotId: 902,
+      };
+      narrativeService.createInternalNarrativePorts.mockReturnValue({
+        getAnchorBasis: vi.fn().mockResolvedValue(basis),
+      });
+      narrativeService.generateNarrative.mockResolvedValue({
+        narrativeDraftId: 7,
+        fundId: 1,
+        anchor: { kind: 'analysis_draft', id: 3 },
+        revision: 1,
+        supersedesDraftId: null,
+        createdBy: 7,
+        createdAt: new Date('2026-07-03T00:00:00.000Z'),
+        claims: [],
+      });
+      narrativeService.reviseNarrative.mockResolvedValue({
+        narrativeDraftId: 8,
+        fundId: 1,
+        anchor: { kind: 'analysis_draft', id: 3 },
+        revision: 2,
+        supersedesDraftId: 7,
+        createdBy: 7,
+        createdAt: new Date('2026-07-03T00:00:00.000Z'),
+        claims: [],
+      });
+      narrativeService.appendNote.mockResolvedValue({
+        noteId: 9,
+        fundId: 1,
+        anchor: { kind: 'analysis_draft', id: 3 },
+        body: 'Note',
+        supersedesNoteId: null,
+        createdBy: 7,
+        createdAt: new Date('2026-07-03T00:00:00.000Z'),
+      });
+
+      const generate = await request(buildApp())
+        .post('/api/funds/1/internal-analysis/narratives/generate')
+        .send({ analysisDraftId: 3 });
+      const revise = await request(buildApp())
+        .post('/api/funds/1/internal-analysis/narratives/revise')
+        .send({
+          analysisDraftId: 3,
+          claims: [
+            {
+              body: 'Commentary',
+              authorship: 'user_authored_commentary',
+              source: null,
+            },
+          ],
+        });
+      const note = await request(buildApp())
+        .post('/api/funds/1/internal-analysis/notes')
+        .send({ analysisDraftId: 3, body: 'Note' });
+
+      expect(generate.status).toBe(201);
+      expect(revise.status).toBe(201);
+      expect(note.status).toBe(201);
+    }
+  );
+
   it.each([
     {
       name: 'item update',

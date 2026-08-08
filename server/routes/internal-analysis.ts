@@ -54,6 +54,7 @@ import {
 
 import { requireAuth, requireFundAccess, requireRole, requireWriteRole } from '../lib/auth/jwt.js';
 import { FundScopeError } from '../lib/fund-scoped-ownership';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { setETagHeaders, weakETag } from '../lib/http-preconditions';
 import { IdempotentCommandError } from '../lib/idempotent-command';
 import { parseInternalEconomicsIdempotencyKey } from '../lib/internal-economics-idempotency-key.js';
@@ -830,9 +831,12 @@ router.post(
   writeLimiter,
   requireAuth(),
   validateFundIdParam,
-  requireFundAccess,
+  requireWriteRole(TEAM_WRITE_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const fundId = fundIdOf(req);
+    if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+      return;
+    }
     const parsed = NarrativeGenerateRequestSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
       return res.status(400).json({
@@ -870,9 +874,12 @@ router.post(
   writeLimiter,
   requireAuth(),
   validateFundIdParam,
-  requireFundAccess,
+  requireWriteRole(TEAM_WRITE_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const fundId = fundIdOf(req);
+    if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+      return;
+    }
     const parsed = NarrativeReviseRequestSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
       return res.status(400).json({
@@ -934,9 +941,12 @@ router.post(
   writeLimiter,
   requireAuth(),
   validateFundIdParam,
-  requireFundAccess,
+  requireWriteRole(TEAM_WRITE_ROLES),
   routeHandler(async (req: Request, res: Response) => {
     const fundId = fundIdOf(req);
+    if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+      return;
+    }
     const parsed = NarrativeNoteCreateRequestSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
       return res.status(400).json({

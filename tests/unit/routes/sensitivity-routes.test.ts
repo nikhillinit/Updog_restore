@@ -255,6 +255,19 @@ describe('Sensitivity routes', () => {
   beforeEach(() => {
     app = express();
     app.use(express.json());
+    app.use((req, _res, next) => {
+      req.user = {
+        id: '42',
+        sub: '42',
+        email: 'admin@example.com',
+        role: 'admin',
+        roles: ['admin'],
+        fundIds: [1],
+        ip: '127.0.0.1',
+        userAgent: 'vitest',
+      };
+      next();
+    });
     app.use('/api', sensitivityRouter);
 
     vi.clearAllMocks();

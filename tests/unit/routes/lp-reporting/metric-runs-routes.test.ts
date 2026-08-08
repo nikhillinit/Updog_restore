@@ -136,6 +136,14 @@ vi.mock('../../../../server/lib/auth/jwt', () => ({
       }
       return next();
     },
+  requireWriteRole:
+    (roles: readonly string[]) => (req: Request, res: Response, next: NextFunction) => {
+      const user = (req as Request & { user?: { role?: string } }).user;
+      if (!user?.role || !roles.includes(user.role)) {
+        return res.sendStatus(403);
+      }
+      return next();
+    },
   requireFundAccess: (req: Request, res: Response, next: NextFunction) => {
     const fundIdParam = req.params['fundId'];
     if (!fundIdParam) {
@@ -165,6 +173,11 @@ vi.mock('../../../../server/lib/auth/jwt', () => ({
     }
     return next();
   },
+  // provided-fund-scope imports these from the mocked jwt module; a null
+  // credential routes it onto the test-env fallback that authorizes from
+  // the req.user this harness injects.
+  verifyRequestCredential: async () => null,
+  userFromClaims: () => ({}),
 }));
 
 interface MockEventRow {
@@ -3183,6 +3196,100 @@ describe('metric-run lifecycle routes', () => {
     expect(parsed.metricRun.status).toBe('locked');
     expect(parsed.metricRun.lockedBy).toBe(authState.userId);
     expect(parsed.metricRun.version).toBe(3);
+  });
+
+  it('denies restricted principals before metric-run lifecycle mutation', async () => {
+    authState.role = 'lp';
+    dbState.metricRuns.push({
+      id: 500,
+      fundId: 1,
+      runType: 'quarterly_report',
+      perspective: 'lp_net',
+      asOfDate: '2026-03-31',
+      status: 'draft',
+      inputsHash: 'a'.repeat(64),
+      version: 1,
+    });
+
+    const [approve, lock] = await Promise.all([
+      request(buildApp()).post('/api/funds/1/metric-runs/500/approve').send({ expectedVersion: 1 }),
+      request(buildApp()).post('/api/funds/1/metric-runs/500/lock').send({ expectedVersion: 1 }),
+    ]);
+
+    expect(approve.status).toBe(403);
+    expect(lock.status).toBe(403);
+    expect(dbState.metricRuns[0]?.status).toBe('draft');
+  });
+
+  it('returns 404 for a metric run that does not belong to the path fund', async () => {
+    authState.role = 'partner';
+    authState.fundIds = [1];
+    dbState.metricRuns.push({
+      id: 500,
+      fundId: 2,
+      runType: 'quarterly_report',
+      perspective: 'lp_net',
+      asOfDate: '2026-03-31',
+      status: 'draft',
+      inputsHash: 'a'.repeat(64),
+      version: 1,
+    });
+
+    const res = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/approve')
+      .send({ expectedVersion: 1 });
+
+    expect(res.status).toBe(404);
+    expect(dbState.metricRuns[0]?.status).toBe('draft');
+  });
+
+  it('allows partner through both metric-run lifecycle mutations', async () => {
+    authState.role = 'partner';
+    dbState.metricRuns.push({
+      id: 500,
+      fundId: 1,
+      runType: 'quarterly_report',
+      perspective: 'lp_net',
+      asOfDate: '2026-03-31',
+      status: 'draft',
+      inputsHash: 'a'.repeat(64),
+      version: 1,
+    });
+    dbState.evidenceRecords.push({
+      ...evidenceBody(),
+      id: 1000,
+      fundId: 1,
+      valuationMarkId: null,
+      companyId: null,
+      metricRunId: 500,
+      narrativeRunId: null,
+      receivedDate: null,
+      expirationDate: null,
+      confidenceLevel: 'medium',
+      confidentiality: 'internal',
+      redactionRequired: false,
+      documentHash: null,
+      valuationPolicyVersion: null,
+      internalNotes: null,
+      lpObjection: null,
+      attachments: [],
+      uploadedBy: authState.userId,
+      approvedBy: null,
+      approvedAt: null,
+      createdAt: new Date('2026-05-10T00:00:00Z'),
+      updatedAt: new Date('2026-05-10T00:00:00Z'),
+    } as MockEvidenceRow);
+
+    const approve = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/approve')
+      .send({ expectedVersion: 1 });
+    const lock = await request(buildApp())
+      .post('/api/funds/1/metric-runs/500/lock')
+      .send({ expectedVersion: 2 });
+
+    expect(approve.status).toBe(200);
+    expect(lock.status).toBe(200);
+    expect(dbState.metricRuns[0]?.status).toBe('locked');
   });
 });
 

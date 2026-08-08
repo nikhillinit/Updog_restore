@@ -31,9 +31,22 @@ vi.mock('../../../server/services/sensitivity-run-service', () => ({
 
 import sensitivityRouter from '../../../server/routes/sensitivity';
 
-function makeApp() {
+function makeApp(role = 'admin') {
   const app = express();
   app.use(express.json());
+  app.use((req, _res, next) => {
+    req.user = {
+      id: '42',
+      sub: '42',
+      email: `${role}@example.com`,
+      role,
+      roles: [role],
+      fundIds: [1],
+      ip: '127.0.0.1',
+      userAgent: 'vitest',
+    };
+    next();
+  });
   app.use(sensitivityRouter);
   app.use((_req, res) => res.status(404).json({ error: 'not_found' }));
   return app;
@@ -72,9 +85,33 @@ describe('sensitivity route contracts', () => {
     expect(fundScopeState.enforceProvidedFundScope).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      2
+      2,
+      { forWrite: true }
     );
     expect(serviceState.createPending).not.toHaveBeenCalled();
+  });
+
+  it('denies restricted principals before creating a one-way run', async () => {
+    const res = await request(makeApp('lp')).post('/funds/1/sensitivity/one-way').send({});
+
+    expect(res.status).toBe(403);
+    expect(fundScopeState.enforceProvidedFundScope).not.toHaveBeenCalled();
+    expect(serviceState.createPending).not.toHaveBeenCalled();
+  });
+
+  it.each(['partner', 'admin', 'analyst'])('allows %s to create a one-way run', async (role) => {
+    serviceState.createPending.mockResolvedValueOnce({ id: 1 });
+    const res = await request(makeApp(role))
+      .post('/funds/1/sensitivity/one-way')
+      .send({
+        variableId: 'reserve_pool_pct',
+        range: { min: 0.1, max: 0.4 },
+        steps: 4,
+        metricId: 'tvpi',
+      });
+
+    expect(res.status).not.toBe(403);
+    expect(serviceState.createPending).toHaveBeenCalledTimes(1);
   });
 
   it('POST two-way denies cross-fund scope before creating a run', async () => {

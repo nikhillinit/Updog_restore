@@ -131,25 +131,25 @@ function resetRedisMock() {
   redisState.redis.del.mockClear();
 }
 
-function makeUser(fundIds: number[] = [1]): Express.User {
+function makeUser(fundIds: number[] = [1], role = 'analyst'): Express.User {
   return {
     id: 'test-user',
     sub: 'test-user',
     email: 'test@example.com',
-    role: 'analyst',
-    roles: ['analyst'],
+    role,
+    roles: [role],
     fundIds,
     ip: '127.0.0.1',
     userAgent: 'vitest',
   };
 }
 
-function makeApp(fundIds: number[] = [1]) {
+function makeApp(fundIds: number[] = [1], role = 'analyst') {
   const app = express();
   app.use(requestId());
   app.use(express.json());
   app.use((req: Request, _res: Response, next: NextFunction) => {
-    req.user = makeUser(fundIds);
+    req.user = makeUser(fundIds, role);
     next();
   });
   app.use('/api/deals', dealPipelineRouter);
@@ -400,6 +400,183 @@ describe('deal pipeline route contracts', () => {
     expect(mockState.db.update).not.toHaveBeenCalled();
   });
 
+  it('denies restricted principals before any deal mutation across all write routes', async () => {
+    const deniedRequests = [
+      request(makeApp([1], 'lp'))
+        .put('/api/deals/opportunities/301')
+        .send({ companyName: 'Denied Co' }),
+      request(makeApp([1], 'lp')).delete('/api/deals/opportunities/301'),
+      request(makeApp([1], 'lp'))
+        .post('/api/deals/301/stage')
+        .send({ status: 'qualified' }),
+      request(makeApp([1], 'lp'))
+        .post('/api/deals/301/diligence')
+        .send({
+          category: 'Financial',
+          item: 'Review financials',
+          status: 'pending',
+          priority: 'medium',
+        }),
+      request(makeApp([1], 'lp'))
+        .post('/api/deals/opportunities/bulk/status')
+        .send({ dealIds: [301], status: 'qualified' }),
+      request(makeApp([1], 'lp'))
+        .post('/api/deals/opportunities/bulk/archive')
+        .send({ dealIds: [301] }),
+    ];
+
+    const responses = await Promise.all(deniedRequests);
+
+    expect(responses.map((response) => response.status)).toEqual([403, 403, 403, 403, 403, 403]);
+    expect(mockState.db.select).not.toHaveBeenCalled();
+    expect(mockState.db.insert).not.toHaveBeenCalled();
+    expect(mockState.db.update).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 for inaccessible ID-only writes before any mutation', async () => {
+    mockState.state.selectResults.push([], [], [], [], [], []);
+
+    const responses = await Promise.all([
+      request(makeApp()).put('/api/deals/opportunities/310').send({ companyName: 'Missing Co' }),
+      request(makeApp()).delete('/api/deals/opportunities/310'),
+      request(makeApp()).post('/api/deals/310/stage').send({ status: 'qualified' }),
+      request(makeApp()).post('/api/deals/310/diligence').send({
+        category: 'Financial',
+        item: 'Review financials',
+        status: 'pending',
+        priority: 'medium',
+      }),
+      request(makeApp())
+        .post('/api/deals/opportunities/bulk/status')
+        .send({ dealIds: [310], status: 'qualified' }),
+      request(makeApp()).post('/api/deals/opportunities/bulk/archive').send({ dealIds: [310] }),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([404, 404, 404, 404, 404, 404]);
+    expect(mockState.db.insert).not.toHaveBeenCalled();
+    expect(mockState.db.update).not.toHaveBeenCalled();
+  });
+
+  it('hides cross-fund ID-only resources while explicit fund scope stays forbidden', async () => {
+    mockState.state.selectResults.push([dealRow({ id: 311, fundId: 2 })]);
+    const idOnly = await request(makeApp([1]))
+      .post('/api/deals/311/stage')
+      .send({ status: 'qualified' });
+
+    const explicit = await request(makeApp([1]))
+      .put('/api/deals/opportunities/311')
+      .send({ fundId: 2, companyName: 'Denied Co' });
+
+    expect(idOnly.status).toBe(404);
+    expect(explicit.status).toBe(403);
+    expect(explicit.body).toMatchObject({
+      error: 'Forbidden',
+      code: 'FUND_ACCESS_DENIED',
+    });
+    expect(mockState.db.insert).not.toHaveBeenCalled();
+    expect(mockState.db.update).not.toHaveBeenCalled();
+  });
+
+  it('allows TEAM_WRITE_ROLES through all deal write guards', async () => {
+    const writeCases = [
+      {
+        setup: () => {
+          mockState.state.selectResults.push([dealRow({ id: 302 })], [dealRow({ id: 302 })]);
+          mockState.state.updateReturningResults.push([dealRow({ id: 302 })]);
+        },
+        invoke: (app: ReturnType<typeof express>) =>
+          request(app).put('/api/deals/opportunities/302').send({ companyName: 'Allowed Co' }),
+      },
+      {
+        setup: () => {
+          mockState.state.selectResults.push([dealRow({ id: 303 })], [dealRow({ id: 303 })]);
+          mockState.state.updateReturningResults.push([dealRow({ id: 303, status: 'passed' })]);
+        },
+        invoke: (app: ReturnType<typeof express>) =>
+          request(app).delete('/api/deals/opportunities/303'),
+      },
+      {
+        setup: () => {
+          mockState.state.selectResults.push([dealRow({ id: 304 })], [dealRow({ id: 304 })]);
+          mockState.state.updateReturningResults.push([dealRow({ id: 304, status: 'qualified' })]);
+        },
+        invoke: (app: ReturnType<typeof express>) =>
+          request(app).post('/api/deals/304/stage').send({ status: 'qualified' }),
+      },
+      {
+        setup: () => {
+          mockState.state.selectResults.push([dealRow({ id: 305 })], [dealRow({ id: 305 })]);
+          mockState.state.insertReturningResults.push([
+            { id: 1, opportunityId: 305, item: 'Review financials' },
+          ]);
+        },
+        invoke: (app: ReturnType<typeof express>) =>
+          request(app).post('/api/deals/305/diligence').send({
+            category: 'Financial',
+            item: 'Review financials',
+            status: 'pending',
+            priority: 'medium',
+          }),
+      },
+      {
+        setup: () => {
+          mockState.state.selectResults.push([dealRow({ id: 306 })], [dealRow({ id: 306 })]);
+          mockState.state.updateReturningResults.push([dealRow({ id: 306, status: 'qualified' })]);
+        },
+        invoke: (app: ReturnType<typeof express>) =>
+          request(app)
+            .post('/api/deals/opportunities/bulk/status')
+            .send({ dealIds: [306], status: 'qualified' }),
+      },
+      {
+        setup: () => {
+          mockState.state.selectResults.push([dealRow({ id: 307 })], [dealRow({ id: 307 })]);
+          mockState.state.updateReturningResults.push([dealRow({ id: 307, status: 'passed' })]);
+        },
+        invoke: (app: ReturnType<typeof express>) =>
+          request(app).post('/api/deals/opportunities/bulk/archive').send({ dealIds: [307] }),
+      },
+    ];
+
+    for (const role of ['analyst', 'partner', 'admin']) {
+      for (const writeCase of writeCases) {
+        resetDbMock();
+        resetRedisMock();
+        clearIdempotencyCache();
+        writeCase.setup();
+
+        const response = await writeCase.invoke(makeApp([1], role));
+        expect(response.status, `${role} should access deal write route`).toBeGreaterThanOrEqual(200);
+        expect(response.status, `${role} should access deal write route`).toBeLessThan(300);
+      }
+    }
+  });
+
+  it.each([
+    '/api/deals/opportunities/bulk/status',
+    '/api/deals/opportunities/bulk/archive',
+  ])('rejects mixed-fund bulk deal IDs atomically on %s', async (path) => {
+    mockState.state.selectResults.push([
+      dealRow({ id: 308, fundId: 1 }),
+      dealRow({ id: 309, fundId: 2 }),
+    ]);
+
+    const response = request(makeApp([1]))
+      .post(path)
+      .send(
+        path.endsWith('/status')
+          ? { dealIds: [308, 309], status: 'qualified' }
+          : { dealIds: [308, 309] }
+      );
+
+    const result = await response;
+
+    expect(result.status).toBe(400);
+    expect(result.body).toMatchObject({ error: 'mixed_fund_deals' });
+    expect(mockState.db.update).not.toHaveBeenCalled();
+    expect(mockState.db.insert).not.toHaveBeenCalled();
+  });
+
   it('replays create without duplicate deal or activity inserts', async () => {
     await expectIdempotentReplay({
       key: 'deal-create-once',
@@ -432,6 +609,7 @@ describe('deal pipeline route contracts', () => {
       key: 'deal-stage-once',
       arrange: () => {
         mockState.state.selectResults.push([dealRow({ id: 202, status: 'lead' })]);
+        mockState.state.selectResults.push([dealRow({ id: 202, status: 'lead' })]);
         mockState.state.updateReturningResults.push([dealRow({ id: 202, status: 'qualified' })]);
       },
       act: () =>
@@ -448,6 +626,7 @@ describe('deal pipeline route contracts', () => {
       key: 'deal-delete-once',
       arrange: () => {
         mockState.state.selectResults.push([dealRow({ id: 203, status: 'lead' })]);
+        mockState.state.selectResults.push([dealRow({ id: 203, status: 'lead' })]);
         mockState.state.updateReturningResults.push([dealRow({ id: 203, status: 'passed' })]);
       },
       act: () => request(makeApp()).delete('/api/deals/opportunities/203'),
@@ -460,6 +639,7 @@ describe('deal pipeline route contracts', () => {
     await expectIdempotentReplay({
       key: 'deal-bulk-status-once',
       arrange: () => {
+        mockState.state.selectResults.push([dealRow({ id: 204, status: 'lead' })]);
         mockState.state.selectResults.push([dealRow({ id: 204, status: 'lead' })]);
       },
       act: () =>
@@ -475,6 +655,7 @@ describe('deal pipeline route contracts', () => {
     await expectIdempotentReplay({
       key: 'deal-bulk-archive-once',
       arrange: () => {
+        mockState.state.selectResults.push([dealRow({ id: 205, status: 'lead' })]);
         mockState.state.selectResults.push([dealRow({ id: 205, status: 'lead' })]);
       },
       act: () =>

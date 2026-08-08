@@ -45,7 +45,9 @@ import {
   requireAnyRole,
   requireAuth,
   requireFundAccess,
+  requireWriteRole,
 } from '../../lib/auth/jwt';
+import { enforceProvidedFundScope } from '../../lib/auth/provided-fund-scope';
 import { firstString } from '../../lib/request-values';
 import {
   MetricRunCommitRequestSchema,
@@ -101,6 +103,7 @@ import {
 } from '../../services/lp-reporting/narrative-run-service';
 import {
   approveMetricRun,
+  getMetricRunOwnership,
   getLatestMetricRun,
   getMetricRunDetail,
   lockMetricRun,
@@ -137,6 +140,7 @@ import { getMetricRunReportPackageRenderModel } from '../../services/lp-reportin
 
 const router = Router();
 const EmptyRequestBodySchema = z.object({}).strict();
+const requirePartnerWrite = requireWriteRole(PARTNER_WRITE_ROLES);
 
 const metricRunLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -401,7 +405,7 @@ router.get(
 router.post(
   '/api/funds/:fundId/metric-runs/:metricRunId/approve',
   requireAuth(),
-  requireFundAccess,
+  requirePartnerWrite,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     const parsed = MetricRunApproveRequestSchema.safeParse(req.body);
@@ -413,9 +417,22 @@ router.post(
     }
 
     try {
+      const fundId = parseFundId(req);
+      const metricRunId = parseMetricRunId(req);
+      if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+        return;
+      }
+      const ownership = await getMetricRunOwnership({ fundId, metricRunId });
+      if (!ownership) {
+        throw new MetricRunCommitError(
+          404,
+          'METRIC_RUN_NOT_FOUND',
+          'Metric run was not found for this fund.'
+        );
+      }
       const result = await approveMetricRun({
-        fundId: parseFundId(req),
-        metricRunId: parseMetricRunId(req),
+        fundId: ownership.fundId,
+        metricRunId,
         userId: resolveAuthenticatedUserId(req),
         expectedVersion: parsed.data.expectedVersion,
       });
@@ -430,7 +447,7 @@ router.post(
 router.post(
   '/api/funds/:fundId/metric-runs/:metricRunId/lock',
   requireAuth(),
-  requireFundAccess,
+  requirePartnerWrite,
   metricRunLimiter,
   async (req: Request, res: Response) => {
     const parsed = MetricRunLockRequestSchema.safeParse(req.body);
@@ -442,9 +459,22 @@ router.post(
     }
 
     try {
+      const fundId = parseFundId(req);
+      const metricRunId = parseMetricRunId(req);
+      if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+        return;
+      }
+      const ownership = await getMetricRunOwnership({ fundId, metricRunId });
+      if (!ownership) {
+        throw new MetricRunCommitError(
+          404,
+          'METRIC_RUN_NOT_FOUND',
+          'Metric run was not found for this fund.'
+        );
+      }
       const result = await lockMetricRun({
-        fundId: parseFundId(req),
-        metricRunId: parseMetricRunId(req),
+        fundId: ownership.fundId,
+        metricRunId,
         userId: resolveAuthenticatedUserId(req),
         expectedVersion: parsed.data.expectedVersion,
       });

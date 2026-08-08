@@ -112,10 +112,12 @@ export interface BulkStatusInput {
   dealIds: number[];
   status: DealStatus;
   notes?: string | undefined;
+  fundId: number;
 }
 
 export interface BulkArchiveInput {
   dealIds: number[];
+  fundId: number;
 }
 
 type DealRow = typeof dealOpportunities.$inferSelect;
@@ -180,14 +182,36 @@ function dealNameCondition(companyNames: string[]): SQL<unknown> {
   )})`;
 }
 
-async function findDealById(id: number): Promise<DealRow | undefined> {
+async function findDealById(id: number, authoritativeFundId?: number): Promise<DealRow | undefined> {
+  const conditions = [eq(dealOpportunities.id, id)];
+  if (authoritativeFundId !== undefined) {
+    conditions.push(eq(dealOpportunities.fundId, authoritativeFundId));
+  }
+
   const [deal] = await db
     .select()
+    .from(dealOpportunities)
+    .where(and(...conditions))
+    .limit(1);
+
+  return deal;
+}
+
+export async function getDealOwnership(id: number) {
+  const [deal] = await db
+    .select({ id: dealOpportunities.id, fundId: dealOpportunities.fundId })
     .from(dealOpportunities)
     .where(eq(dealOpportunities.id, id))
     .limit(1);
 
   return deal;
+}
+
+export async function getDealOwnerships(ids: number[]) {
+  return db
+    .select({ id: dealOpportunities.id, fundId: dealOpportunities.fundId })
+    .from(dealOpportunities)
+    .where(inArray(dealOpportunities.id, ids));
 }
 
 export async function createDeal(data: CreateDealInput) {
@@ -316,8 +340,8 @@ export async function getDeal(id: number) {
   };
 }
 
-export async function updateDeal(id: number, data: UpdateDealInput) {
-  const existing = await findDealById(id);
+export async function updateDeal(id: number, authoritativeFundId: number, data: UpdateDealInput) {
+  const existing = await findDealById(id, authoritativeFundId);
 
   if (!existing) {
     return undefined;
@@ -326,14 +350,16 @@ export async function updateDeal(id: number, data: UpdateDealInput) {
   const [updated] = await db
     .update(dealOpportunities)
     .set(toDealUpdateValues(data))
-    .where(eq(dealOpportunities.id, id))
+    .where(
+      and(eq(dealOpportunities.id, id), eq(dealOpportunities.fundId, authoritativeFundId))
+    )
     .returning();
 
   return updated;
 }
 
-export async function archiveDeal(id: number) {
-  const existing = await findDealById(id);
+export async function archiveDeal(id: number, authoritativeFundId: number) {
+  const existing = await findDealById(id, authoritativeFundId);
 
   if (!existing) {
     return undefined;
@@ -345,8 +371,14 @@ export async function archiveDeal(id: number) {
       status: 'passed',
       updatedAt: new Date(),
     })
-    .where(eq(dealOpportunities.id, id))
+    .where(
+      and(eq(dealOpportunities.id, id), eq(dealOpportunities.fundId, authoritativeFundId))
+    )
     .returning();
+
+  if (!archived) {
+    return undefined;
+  }
 
   await db.insert(pipelineActivities).values({
     opportunityId: id,
@@ -359,8 +391,12 @@ export async function archiveDeal(id: number) {
   return archived;
 }
 
-export async function changeDealStage(id: number, input: StageChangeInput) {
-  const existing = await findDealById(id);
+export async function changeDealStage(
+  id: number,
+  authoritativeFundId: number,
+  input: StageChangeInput
+) {
+  const existing = await findDealById(id, authoritativeFundId);
 
   if (!existing) {
     return undefined;
@@ -373,8 +409,14 @@ export async function changeDealStage(id: number, input: StageChangeInput) {
       status: input.status,
       updatedAt: new Date(),
     })
-    .where(eq(dealOpportunities.id, id))
+    .where(
+      and(eq(dealOpportunities.id, id), eq(dealOpportunities.fundId, authoritativeFundId))
+    )
     .returning();
+
+  if (!updated) {
+    return undefined;
+  }
 
   await db.insert(pipelineActivities).values({
     opportunityId: id,
@@ -445,8 +487,12 @@ export async function getPipelineStages() {
     .orderBy(pipelineStages.orderIndex);
 }
 
-export async function createDiligenceItem(dealId: number, data: CreateDiligenceItemInput) {
-  const deal = await findDealById(dealId);
+export async function createDiligenceItem(
+  dealId: number,
+  authoritativeFundId: number,
+  data: CreateDiligenceItemInput
+) {
+  const deal = await findDealById(dealId, authoritativeFundId);
 
   if (!deal) {
     return undefined;
@@ -623,9 +669,18 @@ export async function bulkUpdateStatus(input: BulkStatusInput) {
   const failed: Array<{ id: number; reason: string }> = [];
 
   const existing = await db
-    .select({ id: dealOpportunities.id, status: dealOpportunities.status })
+    .select({
+      id: dealOpportunities.id,
+      status: dealOpportunities.status,
+      fundId: dealOpportunities.fundId,
+    })
     .from(dealOpportunities)
-    .where(inArray(dealOpportunities.id, input.dealIds));
+    .where(
+      and(
+        inArray(dealOpportunities.id, input.dealIds),
+        eq(dealOpportunities.fundId, input.fundId)
+      )
+    );
 
   const existingMap = new Map(existing.map((deal) => [deal.id, deal]));
 
@@ -644,7 +699,9 @@ export async function bulkUpdateStatus(input: BulkStatusInput) {
       await db
         .update(dealOpportunities)
         .set({ status: input.status, updatedAt: new Date() })
-        .where(eq(dealOpportunities.id, dealId));
+        .where(
+          and(eq(dealOpportunities.id, dealId), eq(dealOpportunities.fundId, input.fundId))
+        );
 
       await db.insert(pipelineActivities).values({
         opportunityId: dealId,
@@ -675,9 +732,15 @@ export async function bulkArchive(input: BulkArchiveInput) {
       id: dealOpportunities.id,
       companyName: dealOpportunities.companyName,
       status: dealOpportunities.status,
+      fundId: dealOpportunities.fundId,
     })
     .from(dealOpportunities)
-    .where(inArray(dealOpportunities.id, input.dealIds));
+    .where(
+      and(
+        inArray(dealOpportunities.id, input.dealIds),
+        eq(dealOpportunities.fundId, input.fundId)
+      )
+    );
 
   const existingMap = new Map(existing.map((deal) => [deal.id, deal]));
 
@@ -696,7 +759,9 @@ export async function bulkArchive(input: BulkArchiveInput) {
       await db
         .update(dealOpportunities)
         .set({ status: 'passed', updatedAt: new Date() })
-        .where(eq(dealOpportunities.id, dealId));
+        .where(
+          and(eq(dealOpportunities.id, dealId), eq(dealOpportunities.fundId, input.fundId))
+        );
 
       await db.insert(pipelineActivities).values({
         opportunityId: dealId,

@@ -39,9 +39,22 @@ vi.mock('../../../server/db', () => ({ db: dbState.db }));
 
 import cashFlowEventsRouter from '../../../server/routes/cash-flow-events';
 
-function makeApp() {
+function makeApp(role = 'admin') {
   const app = express();
   app.use(express.json());
+  app.use((req, _res, next) => {
+    req.user = {
+      id: '42',
+      sub: '42',
+      email: `${role}@example.com`,
+      role,
+      roles: [role],
+      fundIds: [1],
+      ip: '127.0.0.1',
+      userAgent: 'vitest',
+    };
+    next();
+  });
   app.use(cashFlowEventsRouter);
   app.use((_req, res) => res.status(404).json({ error: 'not_found' }));
   return app;
@@ -110,7 +123,8 @@ describe('cash-flow-events route contracts', () => {
     expect(fundScopeState.enforceProvidedFundScope).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      2
+      2,
+      { forWrite: true }
     );
     expect(dbState.db.insert).not.toHaveBeenCalled();
   });
@@ -150,6 +164,24 @@ describe('cash-flow-events route contracts', () => {
     expect(res.status).toBe(400);
     expect(res.body).toMatchObject({ error: 'Invalid request body' });
     expect(dbState.db.insert).not.toHaveBeenCalled();
+  });
+
+  it('denies restricted principals before creating a cash flow event', async () => {
+    const res = await request(makeApp('lp'))
+      .post('/api/funds/1/cash-flow-events')
+      .send(validBody(1));
+
+    expect(res.status).toBe(403);
+    expect(dbState.db.insert).not.toHaveBeenCalled();
+  });
+
+  it.each(['analyst', 'partner', 'admin'])('allows %s to create cash flow events', async (role) => {
+    dbState.state.insertResult = [dbRow()];
+    const res = await request(makeApp(role))
+      .post('/api/funds/1/cash-flow-events')
+      .send(validBody(1));
+    expect(res.status).toBe(201);
+    expect(dbState.db.insert).toHaveBeenCalledTimes(1);
   });
 
   it('GET lists events newest-first (pass-through of the indexed DESC query)', async () => {

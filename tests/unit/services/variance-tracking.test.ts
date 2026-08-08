@@ -610,7 +610,12 @@ describe('BaselineService', () => {
 
   describe('deactivateBaseline', () => {
     it('should deactivate baseline', async () => {
-      await service.deactivateBaseline('baseline-id');
+      mockDb.query.fundBaselines.findFirst.mockResolvedValue({
+        id: 'baseline-id',
+        fundId: 1,
+      });
+
+      await service.deactivateBaseline('baseline-id', 1);
 
       expect(mockDb.update).toHaveBeenCalledWith(expect.anything());
     });
@@ -1536,7 +1541,7 @@ describe('AlertManagementService', () => {
         triggeredAt: new Date(),
       });
 
-      await service.acknowledgeAlert('alert-id', 1, 'Investigating issue');
+      await service.acknowledgeAlert('alert-id', 1, 1, 'Investigating issue');
 
       // Verify update was called
       expect(mockDb.update).toHaveBeenCalled();
@@ -1555,7 +1560,7 @@ describe('AlertManagementService', () => {
         triggeredAt: new Date(Date.now() - 3600000), // 1 hour ago
       });
 
-      await service.resolveAlert('alert-id', 1, 'Issue resolved after portfolio rebalancing');
+      await service.resolveAlert('alert-id', 1, 1, 'Issue resolved after portfolio rebalancing');
 
       // Verify update was called
       expect(mockDb.update).toHaveBeenCalled();
