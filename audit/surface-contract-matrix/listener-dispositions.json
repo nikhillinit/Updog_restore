@@ -2,7 +2,7 @@
   {
     "candidate_path": "Dockerfile",
     "listener_id": "dockerfile-root",
-    "fingerprint": "ca8a56775447ca16f0b7edc8e4b8dbe682ff0b265e31c7becf3f4ac9ae0db3d4",
+    "fingerprint": "f557f7dd689a505a7c989723effe860d24d1fcd39f9e7a143d135bcd057a7dc8",
     "evidence": [
       "Dockerfile:56",
       "Dockerfile:65"

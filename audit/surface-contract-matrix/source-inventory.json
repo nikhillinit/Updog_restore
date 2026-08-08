@@ -502,7 +502,7 @@
     "client/src/pages/v2/portfolio.tsx": "442e18560a3ad25c8c461ef37cf748b05d494c7f2f302f170852957240b8d4c2",
     "client/src/pages/v2/scenarios.tsx": "f783378ab9ef3b1783eca2ff30087788ddeca81ea558433098c7f6ad7063c187",
     "client/src/pages/v2/today.tsx": "fb08a56d3bce71348145f524507d6ab1e9df84adefae7ac5e8feb2ecb8393116",
-    "Dockerfile": "96d57b64ade98aa931861c199020e4b5fb4e5745e53124e11636ec3cbbad378f",
+    "Dockerfile": "8f1a97cd1fa18373606e32f13352998c6c9ac00be55dcfd1c44c593ff9c20931",
     "Dockerfile.railway": "ca8800e99aabcc675fd6838619611f8dedaeec3530b3366b1a3652bd03d6e681",
     "Dockerfile.simple": "bfcbd376504c160cac0e5200b46db48579d65e857eba61a558fdc196919c34b7",
     "Dockerfile.worker": "bade9f62fae8feddf7a63b75a30f5550f510bd8bcb72ee3cb66fb070cd44a86b",
