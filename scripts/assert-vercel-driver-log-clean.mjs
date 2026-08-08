@@ -17,7 +17,14 @@ export function assertDriverLogsClean(jsonLines) {
     let searchable = line;
     try {
       const parsed = JSON.parse(line);
-      searchable = [parsed.message, parsed.text]
+      const nestedLogValues = Array.isArray(parsed.logs)
+        ? parsed.logs.flatMap((entry) => {
+            if (!entry || typeof entry !== 'object') return [];
+            return [entry.message, entry.text];
+          })
+        : [];
+
+      searchable = [parsed.message, parsed.text, ...nestedLogValues]
         .filter((value) => typeof value === 'string')
         .join('\n');
     } catch {
