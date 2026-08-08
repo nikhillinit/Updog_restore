@@ -21,6 +21,7 @@ process.env.JWT_AUDIENCE = 'test-audience';
 
 import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
 import type { TestHttpServer } from '../helpers/test-http-server';
+import { getConfig } from '../../server/config';
 import jwt from 'jsonwebtoken';
 
 describe('Flag Routes Integration', () => {
@@ -81,17 +82,23 @@ describe('Flag Routes Integration', () => {
 
   // Helper to create valid JWT tokens for testing
   function createToken(role: string, sub: string = 'test-user'): string {
+    const config = getConfig();
+    if (config.JWT_ALG !== 'HS256') {
+      throw new Error(
+        `Flag route integration tests require HS256 JWT verification, received ${config.JWT_ALG}`
+      );
+    }
     return jwt.sign(
       {
         sub,
         role,
         email: `${sub}@test.com`,
       },
-      TEST_JWT_SECRET,
+      config.JWT_SECRET ?? TEST_JWT_SECRET,
       {
-        algorithm: 'HS256',
-        issuer: 'test-issuer',
-        audience: 'test-audience',
+        algorithm: config.JWT_ALG,
+        issuer: config.JWT_ISSUER,
+        audience: config.JWT_AUDIENCE,
         expiresIn: '1h',
       }
     );
