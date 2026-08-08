@@ -29,7 +29,7 @@ export interface DealCursor {
 }
 
 export interface CreateDealInput {
-  fundId?: number | undefined;
+  fundId: number;
   companyName: string;
   sector: string;
   stage: string;
@@ -80,7 +80,9 @@ export interface CreateDiligenceItemInput {
   dueDate?: string | undefined;
 }
 
-export interface ImportDealRowInput extends Omit<CreateDealInput, 'status' | 'priority'> {
+// Import rows carry no fundId of their own -- the confirmed import's single
+// authoritative fundId is applied to every row.
+export interface ImportDealRowInput extends Omit<CreateDealInput, 'fundId' | 'status' | 'priority'> {
   status?: DealStatus | undefined;
   priority?: DealPriority | undefined;
 }
@@ -104,7 +106,7 @@ export interface PreviewImportInput {
 
 export interface ConfirmImportInput {
   rows: ImportDealRowInput[];
-  fundId?: number | undefined;
+  fundId: number;
   mode: 'skip_duplicates' | 'import_all';
 }
 
@@ -125,7 +127,7 @@ type DiligenceItemRow = typeof dueDiligenceItems.$inferSelect;
 
 function toDealInsertValues(data: CreateDealInput) {
   return {
-    fundId: data.fundId ?? null,
+    fundId: data.fundId,
     companyName: data.companyName,
     sector: data.sector,
     stage: data.stage,
@@ -639,12 +641,10 @@ export async function confirmImport(input: ConfirmImportInput) {
     try {
       const createInput: CreateDealInput = {
         ...row,
+        fundId: input.fundId,
         status: row.status ?? 'lead',
         priority: row.priority ?? 'medium',
       };
-      if (input.fundId !== undefined) {
-        createInput.fundId = input.fundId;
-      }
       await db.insert(dealOpportunities).values(toDealInsertValues(createInput));
       imported++;
     } catch (error) {

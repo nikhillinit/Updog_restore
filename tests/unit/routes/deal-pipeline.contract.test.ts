@@ -599,7 +599,7 @@ describe('deal pipeline route contracts', () => {
       act: () =>
         request(makeApp())
           .post('/api/deals/opportunities/import')
-          .send({ rows: [validDealPayload({ companyName: 'Import Co' })] }),
+          .send({ fundId: 1, rows: [validDealPayload({ companyName: 'Import Co' })] }),
       expectedInsertCount: 1,
       expectedUpdateCount: 0,
     });

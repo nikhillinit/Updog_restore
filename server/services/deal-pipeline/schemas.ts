@@ -114,7 +114,8 @@ export const ImportPreviewSchema = z.object({
 
 export const ImportConfirmSchema = z.object({
   rows: z.array(ImportRowSchema).min(1).max(1000),
-  fundId: z.number().int().positive().optional(),
+  // Required for the same reason as CreateDealSchema.fundId.
+  fundId: z.number().int().positive(),
   mode: z.enum(['skip_duplicates', 'import_all']).default('skip_duplicates'),
 });
 

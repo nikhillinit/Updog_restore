@@ -630,7 +630,7 @@ router['post']('/opportunities/import/preview', async (req: Request, res: Respon
  * POST /api/deals/opportunities/import
  * Bulk import validated rows. Supports skip_duplicates mode.
  */
-router['post']('/opportunities/import', idempotent, async (req: Request, res: Response) => {
+router['post']('/opportunities/import', requireTeamWrite, idempotent, async (req: Request, res: Response) => {
   const validation = ImportConfirmSchema.safeParse(req.body);
   if (!validation.success) {
     return res.status(400).json({
@@ -641,7 +641,7 @@ router['post']('/opportunities/import', idempotent, async (req: Request, res: Re
 
   try {
     const { rows, fundId, mode } = validation.data;
-    if (fundId !== undefined && !(await enforceProvidedFundScope(req, res, fundId))) {
+    if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
       return;
     }
 
