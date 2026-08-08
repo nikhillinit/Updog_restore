@@ -350,9 +350,7 @@ function failureMetadata(error: unknown): { code: string | null; message: string
   const code =
     typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
       ? error.code
-      : error instanceof Error
-        ? error.name
-        : null;
+      : null;
   return {
     code,
     message: error instanceof Error ? error.message : String(error),
