@@ -373,6 +373,12 @@ describe('surface contract matrix seed semantic regressions', () => {
         (entry) => entry.boundary === 'public'
       )
     ).toBe(true);
+    expect(publicShare.auth_evidence).toContainEqual(
+      expect.objectContaining({
+        kind: 'policy-boundary',
+        file: 'server/lib/public-api-boundary.ts',
+      })
+    );
 
     const health = seedRow(rows.get('api:GET:/api/health/detailed') ?? {});
     const healthByRuntime = new Map(
@@ -437,6 +443,112 @@ describe('surface contract matrix seed semantic regressions', () => {
       ],
     });
     expect(rows.get('api:GET:/api-docs')?.proven_reachability).toBe('none');
+  });
+
+  it.each([
+    {
+      name: 'API docs landing page uses its first handler registration',
+      method: 'GET',
+      routePath: '/api-docs',
+      sourcePath: 'server/app.ts',
+      surface: 'make_app',
+      observations: [
+        { site: 'server/app.ts:137', role: 'handler', order: 1 },
+      ],
+      expectedSite: 'server/app.ts:137',
+    },
+    {
+      name: 'API docs JSON uses its first handler registration',
+      method: 'GET',
+      routePath: '/api-docs.json',
+      sourcePath: 'server/app.ts',
+      surface: 'make_app',
+      observations: [
+        { site: 'server/app.ts:160', role: 'handler', order: 1 },
+      ],
+      expectedSite: 'server/app.ts:160',
+    },
+    {
+      name: 'POST RUM uses the parsed outer mount registration first',
+      method: 'POST',
+      routePath: '/metrics/rum',
+      sourcePath: 'server/routes/metrics-rum.ts',
+      surface: 'create_server',
+      observations: [
+        {
+          site: 'server/routes/metrics-rum.ts:115',
+          role: 'handler',
+          order: 2,
+          outerMountSite: 'server/server.ts:208',
+          outerMountOrder: 3,
+        },
+      ],
+      expectedSite: 'server/server.ts:208',
+    },
+    {
+      name: 'POST RUM falls back to its first handler when no outer mount exists',
+      method: 'POST',
+      routePath: '/metrics/rum',
+      sourcePath: 'server/routes/metrics-rum.ts',
+      surface: 'make_app',
+      observations: [
+        { site: 'server/routes/metrics-rum.ts:108', role: 'guard', order: 1 },
+        { site: 'server/routes/metrics-rum.ts:115', role: 'handler', order: 2 },
+      ],
+      expectedSite: 'server/routes/metrics-rum.ts:115',
+    },
+    {
+      name: 'POST RUM falls back to mount evidence without definitions',
+      method: 'POST',
+      routePath: '/metrics/rum',
+      sourcePath: 'server/routes/metrics-rum.ts',
+      surface: 'make_app',
+      observations: [
+        { site: 'server/routes/metrics-rum.ts:106', role: 'guard', order: 1 },
+      ],
+      expectedSite: 'server/routes/metrics-rum.ts:106',
+    },
+  ])('$name', async ({ method, routePath, sourcePath, surface, observations, expectedSite }) => {
+    const seed = await loadSeedInternals();
+    const id = `api:${method}:${routePath}`;
+    const routes = observations.map((observation) => routeObservation({
+      surface,
+      id,
+      method,
+      routePath,
+      site: observation.site,
+      role: observation.role,
+      order: observation.order,
+      ...(observation.outerMountSite
+        ? {
+            outerMountSite: observation.outerMountSite,
+            outerMountOrder: observation.outerMountOrder,
+          }
+        : {}),
+    }));
+    const runtimeIndex = seed.createRuntimeIndex([{ profile: 'default', fs_variant: 'static', routes }]);
+    const rows = seed.makeApiRows({
+      nodes: new Map([[id, apiNode(method, routePath, sourcePath)]]),
+      edges: [],
+      runtimeIndex,
+      snapshotId: 'synthetic-registration-provenance',
+    });
+    const row = seedRow(rows.get(id) ?? {});
+    const exposure = row.exposures[0];
+    expect(exposure).toBeDefined();
+    const registrationEvidence = exposure.auth_evidence.find(
+      (entry) => entry.boundary === 'public'
+    );
+    expect(registrationEvidence).toMatchObject({ kind: 'observed-registration' });
+    expect(registrationEvidence?.evidence).toContain(expectedSite);
+    expect(registrationEvidence?.file).toBe(expectedSite.split(':')[0]);
+    expect(registrationEvidence?.line).toBe(Number(expectedSite.split(':')[1]));
+    expect(exposure.auth_evidence).not.toContainEqual(
+      expect.objectContaining({
+        kind: 'policy-boundary',
+        file: 'server/lib/public-api-boundary.ts',
+      })
+    );
   });
 
   it('maps auth-truth source dependencies to protected, public, and websocket rows', async () => {
