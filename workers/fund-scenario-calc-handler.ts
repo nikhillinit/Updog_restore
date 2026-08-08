@@ -1,7 +1,10 @@
 import type { Job } from 'bullmq';
 import { logger } from '../lib/logger';
-import { metrics, withMetrics } from '../lib/metrics';
-import { runReserveScenarioCalculation } from '../server/services/fund-scenario-reserve-calculation-service';
+import { metrics } from '../lib/metrics';
+import {
+  isScenarioCalculationOwnershipLost,
+  runReserveScenarioCalculation,
+} from '../server/services/fund-scenario-reserve-calculation-service';
 
 export interface FundScenarioCalcJobData {
   fundId: number;
@@ -14,8 +17,31 @@ export interface FundScenarioCalcJobData {
   } | null;
 }
 
+async function withReserveScenarioMetrics<T>(callback: () => Promise<T>): Promise<T> {
+  const timer = metrics.engineLatency.startTimer({ engine: 'fund-scenario-reserve' });
+
+  try {
+    const result = await callback();
+    if (isScenarioCalculationOwnershipLost(result)) {
+      return result;
+    }
+
+    timer({ status: 'success' });
+    return result;
+  } catch (error) {
+    timer({ status: 'error' });
+    metrics.engineErrors.inc({
+      engine: 'fund-scenario-reserve',
+      error_type: error instanceof Error ? error.constructor.name : 'unknown',
+    });
+    throw error;
+  }
+}
+
 export async function handleFundScenarioCalcJob(
-  job: Pick<Job<FundScenarioCalcJobData>, 'id' | 'data'>
+  job: Pick<Job<FundScenarioCalcJobData>, 'id' | 'data'>,
+  _token?: string,
+  signal?: AbortSignal
 ) {
   const { fundId, scenarioSetId, correlationId, calculationMode, actor } = job.data;
 
@@ -32,15 +58,17 @@ export async function handleFundScenarioCalcJob(
       throw new Error(`Unsupported fund scenario calculation mode: ${calculationMode}`);
     }
 
-    return await withMetrics('fund-scenario-reserve', async () =>
+    const result = await withReserveScenarioMetrics(async () =>
       runReserveScenarioCalculation({
         fundId,
         scenarioSetId,
         correlationId,
         actor: actor ?? {},
         jobId: String(job.id),
+        signal,
       })
     );
+    return isScenarioCalculationOwnershipLost(result) ? undefined : result;
   } catch (error) {
     const err = error as Error;
     logger.error('Reserve scenario calculation failed', err, {
@@ -52,7 +80,12 @@ export async function handleFundScenarioCalcJob(
       errorMessage: err.message,
       errorStack: err.stack,
     });
-    metrics.counter('fund_scenario_reserve_calculation_failed_total', 1, {
+    const counter = (
+      metrics as unknown as {
+        counter?: (name: string, value: number, labels: Record<string, string>) => void;
+      }
+    ).counter;
+    counter?.('fund_scenario_reserve_calculation_failed_total', 1, {
       fundId: String(fundId),
       errorType: err.name,
     });
