@@ -281,6 +281,77 @@ const dockerfileLine = (file, keyword) => fs.readFileSync(path.join(repoRoot, fi
   .split('\n')
   .find((line) => line.trim().toUpperCase().startsWith(keyword));
 
+const railwayApiExpectedEntrypoint = Object.freeze(['dumb-init', '--']);
+const railwayApiExpectedCmd = Object.freeze(['node', 'dist/index.js']);
+
+const parseExecFormDirective = (value, keyword) => {
+  const line = String(value ?? '').trim();
+  if (!line.toUpperCase().startsWith(keyword)) return undefined;
+  const payload = line.slice(keyword.length).trim();
+  if (!payload.startsWith('[')) return undefined;
+  try {
+    const parsed = JSON.parse(payload);
+    return Array.isArray(parsed) && parsed.every((entry) => typeof entry === 'string')
+      ? parsed
+      : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+export const railwayApiDockerfileContractCheck = ({ entrypoint, cmd, content } = {}) => {
+  const dockerfile = String(content ?? '');
+  const resolvedEntrypoint = entrypoint ?? dockerfile.split('\n').find((line) => line.trim().toUpperCase().startsWith('ENTRYPOINT'));
+  const resolvedCmd = cmd ?? dockerfile.split('\n').find((line) => line.trim().toUpperCase().startsWith('CMD'));
+  const actualEntrypoint = parseExecFormDirective(resolvedEntrypoint, 'ENTRYPOINT');
+  const actualCmd = parseExecFormDirective(resolvedCmd, 'CMD');
+  const ok = JSON.stringify(actualEntrypoint) === JSON.stringify(railwayApiExpectedEntrypoint)
+    && JSON.stringify(actualCmd) === JSON.stringify(railwayApiExpectedCmd);
+  return {
+    ok,
+    expected: {
+      entrypoint: [...railwayApiExpectedEntrypoint],
+      cmd: [...railwayApiExpectedCmd],
+    },
+    actual: {
+      entrypoint: actualEntrypoint,
+      cmd: actualCmd,
+    },
+    result: ok
+      ? 'Dockerfile.railway ENTRYPOINT and CMD match the exact container launch contract'
+      : 'Dockerfile.railway ENTRYPOINT/CMD do not match the exact container launch contract',
+  };
+};
+
+export const railwayApiRuntimeOutcome = ({
+  dockerAvailable: hasDocker,
+  containerListener = false,
+  localListener,
+  listener,
+} = {}) => {
+  if (hasDocker !== true) {
+    const localObservation = localListener === true
+      ? 'local dist/index.js listener responded'
+      : localListener === false
+        ? 'local dist/index.js listener did not respond'
+        : 'local dist/index.js listener was not executed';
+    return {
+      boot_status: 'unproven',
+      result: `docker unavailable; ${localObservation}; Dockerfile.railway container contract remains unproven`,
+    };
+  }
+  const containerObserved = listener ?? containerListener;
+  return containerObserved
+    ? {
+        boot_status: 'proven',
+        result: 'HTTP listener responded from Dockerfile.railway container entrypoint',
+      }
+    : {
+        boot_status: 'failed',
+        result: 'Dockerfile.railway container executed but its HTTP listener did not satisfy the probe',
+      };
+};
+
 const railwayApiProof = async () => {
   const command_or_artifact = 'npm run build:prod; Dockerfile.railway ENTRYPOINT ["dumb-init","--"] + CMD ["node","dist/index.js"]';
   const probe = 'GET /health; expected HTTP 2xx; 404/405 are failures';
@@ -288,10 +359,12 @@ const railwayApiProof = async () => {
   if (!build.ok) return evidence({ deployment: 'railway-api', boot_status: 'failed', command_or_artifact, probe, result: failedBuildResult('build:prod', build) });
   const entrypoint = dockerfileLine('Dockerfile.railway', 'ENTRYPOINT');
   const cmd = dockerfileLine('Dockerfile.railway', 'CMD');
-  if (!entrypoint || !cmd) return evidence({ deployment: 'railway-api', boot_status: 'failed', command_or_artifact, probe, result: 'Dockerfile.railway ENTRYPOINT/CMD could not be resolved' });
+  const contract = railwayApiDockerfileContractCheck({ entrypoint, cmd });
+  if (!contract.ok) return evidence({ deployment: 'railway-api', boot_status: 'failed', command_or_artifact, probe, result: contract.result });
 
   let run;
-  if (dockerAvailable()) {
+  const hasDocker = dockerAvailable();
+  if (hasDocker) {
     const image = commandResult('docker', ['build', '-f', 'Dockerfile.railway', '-t', 'surface-matrix-railway-api-proof:local', '.'], proofEnv(), 300_000);
     if (!image.ok) return evidence({ deployment: 'railway-api', boot_status: 'failed', command_or_artifact, probe, result: 'Dockerfile.railway image build failed' });
     run = await runHttpProcess({
@@ -311,13 +384,12 @@ const railwayApiProof = async () => {
       paths: [{ path: '/health', method: 'GET' }],
     });
   }
-  const listener = run.proven;
-  const result = listener
-    ? 'HTTP listener responded from Dockerfile.railway entrypoint'
-    : dockerAvailable()
-      ? 'listener was not owned by Dockerfile.railway child or child exited before probe'
-      : 'docker unavailable; exact dist/index.js CMD exited with no HTTP listener (bootstrap() is not invoked)';
-  return evidence({ deployment: 'railway-api', boot_status: listener ? 'proven' : 'failed', command_or_artifact, probe, result });
+  const outcome = railwayApiRuntimeOutcome({
+    dockerAvailable: hasDocker,
+    containerListener: hasDocker ? run.proven : false,
+    localListener: hasDocker ? undefined : run.proven,
+  });
+  return evidence({ deployment: 'railway-api', boot_status: outcome.boot_status, command_or_artifact, probe, result: outcome.result });
 };
 
 const railwayWorkerProof = async () => {
@@ -326,10 +398,10 @@ const railwayWorkerProof = async () => {
   if (!dockerAvailable()) {
     return evidence({
       deployment: 'railway-worker',
-      boot_status: 'failed',
+      boot_status: 'unproven',
       command_or_artifact,
       probe,
-      result: 'docker unavailable: docker info could not access a daemon; worker proof was not faked',
+      result: 'docker unavailable: docker info could not access a daemon; worker proof was not executable',
     });
   }
 
