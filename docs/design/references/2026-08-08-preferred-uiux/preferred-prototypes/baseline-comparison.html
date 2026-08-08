@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Updog Restore — Baseline comparison</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --surface: #f2f2f2;
+      --fg: #292929;
+      --muted: #5a5a5a;
+      --border: #e0d8d1;
+      --accent: #292929;
+      --success: #127E3D;
+      --success-soft: color-mix(in srgb, var(--success) 12%, var(--bg));
+      --warning: #9C6F19;
+      --warning-soft: color-mix(in srgb, var(--warning) 12%, var(--bg));
+      --danger: #B00020;
+      --danger-soft: color-mix(in srgb, var(--danger) 10%, var(--bg));
+      --info: #2563EB;
+      --info-soft: color-mix(in srgb, var(--info) 10%, var(--bg));
+      --font-display: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+      --font-body: Poppins, system-ui, -apple-system, "Segoe UI", sans-serif;
+      --font-mono: "JetBrains Mono", "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 10px;
+      --radius-xl: 16px;
+      --radius-pill: 24px;
+      --shadow-sm: 0 1px 2px rgba(41, 41, 41, 0.06);
+      --shadow-md: 0 4px 12px rgba(41, 41, 41, 0.08);
+      --shadow-lg: 0 8px 24px rgba(41, 41, 41, 0.12);
+      --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-7: 28px; --space-8: 32px;
+      --duration-fast: 140ms; --duration-base: 180ms; --duration-slow: 220ms; --duration-pulse: 680ms;
+    }
+    * { box-sizing: border-box; }
+    html { color-scheme: light; }
+    body { margin: 0; min-width: 320px; min-height: 100vh; overflow-x: hidden; color: var(--fg); background: var(--bg); font-family: var(--font-body); font-size: 14px; line-height: 1.55; }
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    .skeleton { display: inline-block; min-height: 1em; border-radius: var(--radius-sm); background: var(--border); animation: sk var(--duration-pulse) ease-in-out infinite alternate; vertical-align: middle; }
+    @keyframes sk { from { opacity: .56; } to { opacity: 1; } }
+    .hydrated .delta-card, .hydrated .assumption-table, .hydrated .timeline { animation: fade var(--duration-fast) ease both; }
+    @keyframes fade { from { opacity: .45; } to { opacity: 1; } }
+
+    .shell { max-width: 1240px; margin: 0 auto; padding: 0 var(--space-6) var(--space-8); }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--border); }
+    .topbar-left { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+    .brand-mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: var(--radius-md); background: var(--fg); color: var(--bg); font-family: var(--font-display); font-weight: 700; font-size: 13px; letter-spacing: 0.02em; flex: 0 0 auto; }
+    .breadcrumb { display: flex; align-items: center; gap: var(--space-2); color: var(--muted); font-size: 12px; flex-wrap: wrap; }
+    .breadcrumb .slash { color: var(--border); }
+    .breadcrumb strong { color: var(--fg); font-weight: 600; }
+    .topbar-right { display: flex; align-items: center; gap: var(--space-3); flex: 0 0 auto; }
+    .status-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); font-size: 10px; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap; }
+    .status-chip .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+    .status-chip.flash { border-color: var(--success); background: var(--success-soft); color: var(--success); }
+    .text-link { padding: 0; border: 0; border-bottom: 1px solid var(--fg); background: transparent; color: var(--fg); cursor: pointer; font-size: 12px; font-weight: 600; }
+
+    .page-heading { padding: var(--space-6) 0 var(--space-4); }
+    .page-heading h1 { margin: 0; font-family: var(--font-display); font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+    .page-heading p { margin: var(--space-2) 0 0; max-width: 66ch; color: var(--muted); font-size: 13px; }
+    .compare-meta { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+    .version-pill { display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); font-size: 11px; }
+    .version-pill .vs { color: var(--muted); }
+    .version-pill b { font-family: var(--font-mono); font-weight: 600; }
+    .version-pill.baseline b { color: var(--muted); text-decoration: line-through; }
+    .version-pill.working { border-color: var(--fg); background: var(--fg); color: var(--bg); }
+    .version-pill.working b { color: var(--bg); }
+
+    .delta-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); margin: var(--space-4) 0 var(--space-6); }
+    .delta-card { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg); padding: var(--space-4); }
+    .delta-card .label { color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+    .delta-card .metric-kind { display: inline-block; margin-left: 6px; padding: 1px 5px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--muted); font-size: 9px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+    .delta-values { display: flex; align-items: baseline; gap: var(--space-2); margin-top: var(--space-2); }
+    .delta-baseline { font-family: var(--font-mono); font-size: 15px; color: var(--muted); }
+    .delta-arrow { color: var(--border); font-size: 14px; }
+    .delta-working { font-family: var(--font-mono); font-size: 22px; font-weight: 600; }
+    .delta-basis { display: block; margin-top: 3px; color: var(--muted); font-family: var(--font-mono); font-size: 10px; }
+    .delta-driver { display: block; margin-top: 6px; color: var(--muted); font-size: 10px; }
+    .delta-driver strong { font-weight: 600; color: var(--fg); }
+    .delta-chip { display: inline-flex; align-items: center; margin-top: var(--space-2); padding: 4px 7px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); font-family: var(--font-mono); font-size: 11px; font-weight: 600; }
+    .delta-chip .gap-val { color: var(--fg); }
+    .delta-chip .gap-basis { margin-left: 4px; color: var(--muted); font-weight: 400; }
+
+    .compare-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); gap: var(--space-5); align-items: start; }
+    .panel { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg); }
+    .panel-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--border); }
+    .panel-header h2 { margin: 0; font-family: var(--font-display); font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+    .panel-header p { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
+
+    .assumption-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .assumption-table thead th { padding: 10px var(--space-4); border-bottom: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; text-align: left; }
+    .assumption-table tbody tr { border-bottom: 1px solid var(--border); }
+    .assumption-table tbody tr:last-child { border-bottom: 0; }
+    .assumption-table tbody td { padding: 12px var(--space-4); vertical-align: middle; }
+    .assumption-name { font-weight: 600; }
+    .assumption-name small { display: block; color: var(--muted); font-weight: 400; font-size: 10px; }
+    .cell-baseline { font-family: var(--font-mono); color: var(--muted); }
+    .cell-working { font-family: var(--font-mono); font-weight: 600; }
+    .cell-delta { font-family: var(--font-mono); font-weight: 600; }
+    .cell-delta.flat { color: var(--muted); }
+    .cell-owner { white-space: nowrap; }
+    .cell-when { color: var(--muted); font-family: var(--font-mono); font-size: 11px; white-space: nowrap; }
+    .row-view { padding: 0; border: 0; border-bottom: 1px solid var(--fg); background: transparent; color: var(--fg); cursor: pointer; font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .row-reason { max-width: 30ch; color: var(--muted); font-size: 11px; }
+
+    .timeline { padding: var(--space-3) var(--space-5) var(--space-5); }
+    .timeline-item { position: relative; display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--border); }
+    .timeline-item:last-child { border-bottom: 0; }
+    .timeline-item::before { content: ""; position: absolute; top: 0; bottom: 0; left: 21px; width: 1px; background: var(--border); }
+    .timeline-item:first-child::before { top: 18px; }
+    .timeline-item:last-child::before { bottom: auto; height: 18px; }
+    .tl-dot { position: relative; z-index: 1; width: 11px; height: 11px; margin: 6px auto; border-radius: 50%; background: var(--fg); grid-column: 1; }
+    .tl-time { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+    .tl-body { grid-column: 2; margin-top: -2px; }
+    .tl-title { font-size: 12px; font-weight: 600; }
+    .tl-meta { margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .tl-reason { margin: 4px 0 6px; font-size: 11px; max-width: 40ch; }
+    .tl-diff { padding: 0; border: 0; border-bottom: 1px solid var(--fg); background: transparent; color: var(--fg); cursor: pointer; font-size: 11px; font-weight: 600; }
+
+    .chart-panel { margin-top: var(--space-5); }
+    .chart-panel .panel-header { align-items: center; }
+    .legend { display: flex; gap: var(--space-3); font-size: 10px; color: var(--muted); }
+    .legend i { display: inline-block; width: 10px; height: 10px; margin-right: 4px; border-radius: 2px; vertical-align: -1px; }
+    .legend .sw-baseline { background: var(--border); }
+    .legend .sw-working { background: var(--fg); }
+    .reserve-chart { padding: var(--space-4) var(--space-5) var(--space-5); }
+    .reserve-chart svg { width: 100%; height: auto; display: block; }
+    .reserve-chart text { font-family: var(--font-mono); font-size: 9px; fill: var(--muted); }
+    .chart-caption { margin: var(--space-2) 0 0; color: var(--muted); font-size: 10px; }
+
+    .copyable-block { margin-top: var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg); }
+    .copyable-block .panel-header { align-items: center; }
+    .copyable-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-3); align-items: center; padding: 12px 16px; border-top: 1px solid var(--border); background: var(--surface); }
+    .basis-line { margin: 0; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+    .basis-line code { font-family: var(--font-mono); }
+    .basis-line--degraded { color: var(--warning); }
+    body.baseline-error .delta-summary,
+    body.baseline-error .compare-grid,
+    body.baseline-error .chart-panel { display: none; }
+    .decision-notice { margin: 0; font-size: 10px; color: var(--muted); }
+    .copy-action { display: flex; align-items: center; gap: var(--space-2); }
+    .copy-action span { color: var(--muted); font-size: 10px; }
+    .button.small { min-height: 32px; padding: 0 12px; font-size: 11px; }
+
+    .empty-state { display: grid; place-items: center; gap: 4px; padding: var(--space-6); text-align: center; color: var(--muted); font-size: 12px; }
+    .empty-state strong { color: var(--fg); font-weight: 600; }
+
+    .source-error-banner { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin: var(--space-4) var(--space-5) var(--space-5); padding: 12px 14px; border: 1px solid var(--danger); border-radius: var(--radius-md); background: var(--danger-soft); }
+    .source-error-copy { font-size: 11px; }
+    .source-error-copy strong { display: block; margin-bottom: 2px; color: var(--danger); }
+    .source-error-copy span { color: var(--fg); }
+    .source-retry { min-height: 32px; padding: 0 12px; border: 1px solid var(--danger); border-radius: var(--radius-md); background: var(--bg); color: var(--danger); cursor: pointer; font-size: 11px; font-weight: 600; white-space: nowrap; }
+
+    .work-overlay { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: var(--space-5); }
+    .work-backdrop { position: absolute; inset: 0; background: rgba(41, 41, 41, 0.42); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); opacity: 0; transition: opacity var(--duration-base) ease; }
+    .work-overlay.open .work-backdrop { opacity: 1; }
+    .work-panel { position: relative; width: min(560px, 100%); max-height: min(80vh, 640px); overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg); box-shadow: var(--shadow-lg); transform: scale(.96); opacity: 0; transition: transform var(--duration-slow) ease, opacity var(--duration-slow) ease; }
+    .work-overlay.open .work-panel { transform: scale(1); opacity: 1; }
+    .work-panel-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--border); }
+    .work-panel-header h2 { margin: 0; font-family: var(--font-display); font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+    .work-panel-header p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .icon-button { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); color: var(--fg); cursor: pointer; }
+    .icon-button svg { width: 16px; height: 16px; }
+    .work-panel-body { padding: var(--space-4) var(--space-5) var(--space-5); }
+    .diff-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+    .proof-field { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+    .proof-field small { display: block; color: var(--muted); font-size: 9px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+    .proof-field b { font-family: var(--font-mono); font-size: 15px; font-weight: 600; }
+    .proof-field.wide { grid-column: 1 / -1; }
+    .reason-block { margin-top: var(--space-4); padding: 12px; border-left: 2px solid var(--fg); background: var(--surface); font-size: 12px; }
+    .reason-block strong { display: block; margin-bottom: 2px; font-family: var(--font-display); font-size: 11px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; }
+    .work-panel-footer { display: flex; justify-content: flex-end; gap: var(--space-2); padding: var(--space-3) var(--space-5); border-top: 1px solid var(--border); background: var(--surface); }
+    .button { min-height: 44px; padding: 0 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); color: var(--fg); cursor: pointer; font-size: 12px; font-weight: 600; }
+    .button.primary { border-color: var(--fg); background: var(--fg); color: var(--bg); }
+
+    @media (max-width: 900px) {
+      .compare-grid { grid-template-columns: 1fr; }
+      .delta-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 560px) {
+      .shell { padding: 0 var(--space-4) var(--space-6); }
+      .topbar { padding: var(--space-3) var(--space-4); }
+      .delta-summary { grid-template-columns: 1fr; }
+      .topbar-right .status-chip { display: none; }
+      .assumption-table thead { display: none; }
+      .assumption-table tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 12px var(--space-4); }
+      .assumption-table td { padding: 0; }
+      .assumption-name { grid-column: 1 / -1; }
+      .row-reason { grid-column: 1 / -1; }
+      .caption-owner { display: none; }
+      .timeline-item { grid-template-columns: 76px minmax(0, 1fr); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: 0.01ms !important; }
+      .work-panel { transform: none; opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar" data-od-id="comparison-topbar">
+    <div class="topbar-left">
+      <span class="brand-mark" data-od-id="updog-restore-brand">UR</span>
+      <nav class="breadcrumb" aria-label="Breadcrumb"><span>Fund I</span><span class="slash">/</span><span>Scenario review</span><span class="slash">/</span><strong>Baseline comparison</strong></nav>
+    </div>
+    <div class="topbar-right">
+      <span class="status-chip" id="saveStatus" role="status" aria-live="polite"><span class="status-dot"></span><span id="saveStatusText">Internal decision support</span></span>
+      <button class="text-link" id="backButton" type="button" data-od-id="back-to-review">Back to scenario review</button>
+    </div>
+  </header>
+
+  <main class="shell" id="compareMain" aria-busy="true">
+    <section class="page-heading" data-od-id="comparison-heading">
+      <h1>Baseline vs working draft</h1>
+      <p>Every input change between Draft 07 and Working Draft 08, with owner, time, and reason.</p>
+      <div class="compare-meta">
+        <span class="version-pill baseline">Baseline <b>Draft 07</b></span>
+        <span class="version-pill working">Working <b>Draft 08</b></span>
+        <span class="version-pill">Facts snapshot <b>b7c19e2</b></span>
+        <span class="version-pill">As of <b>August 6, 2026</b></span>
+      </div>
+    </section>
+
+    <section class="delta-summary" aria-label="Metric deltas versus baseline" data-od-id="delta-summary">
+      <article class="delta-card" data-od-id="delta-irr">
+        <span class="label">Net IRR<span class="metric-kind">Model</span></span>
+        <div class="delta-values"><span class="delta-baseline">19.6%</span><span class="delta-arrow">→</span><span class="delta-working">21.4%</span></div>
+        <span class="delta-chip"><span class="gap-val">↑ 1.8 pp</span></span>
+        <span class="delta-driver">Driver · <strong>exit multiple mix</strong></span>
+      </article>
+      <article class="delta-card" data-od-id="delta-tvpi">
+        <span class="label">Net TVPI<span class="metric-kind">Model</span></span>
+        <div class="delta-values"><span class="delta-baseline">2.22×</span><span class="delta-arrow">→</span><span class="delta-working">2.36×</span></div>
+        <span class="delta-chip"><span class="gap-val">↑ 0.14×</span></span>
+        <span class="delta-driver">Driver · <strong>exit distribution basis</strong></span>
+      </article>
+      <article class="delta-card" data-od-id="delta-reserve">
+        <span class="label">Follow-on reserve<span class="metric-kind">Input</span></span>
+        <div class="delta-values"><span class="delta-baseline">40%</span><span class="delta-arrow">→</span><span class="delta-working">42%</span></div>
+        <span class="delta-chip"><span class="gap-val">↑ 2 pp</span><span class="gap-basis">of committed</span></span>
+        <span class="delta-driver">Driver · <strong>Series B capacity</strong></span>
+      </article>
+      <article class="delta-card" data-od-id="delta-deployment">
+        <span class="label">Deployment period<span class="metric-kind">Input</span></span>
+        <div class="delta-values"><span class="delta-baseline">3.0 yrs</span><span class="delta-arrow">→</span><span class="delta-working">3.5 yrs</span></div>
+        <span class="delta-chip"><span class="gap-val">↑ 0.5 yrs</span></span>
+        <span class="delta-driver">Driver · <strong>Updated investment pace</strong></span>
+      </article>
+    </section>
+
+    <div class="compare-grid">
+      <section class="panel" data-od-id="assumption-comparison">
+        <div class="panel-header"><div><h2>Assumption comparison</h2><p>Every input difference between the baseline and the working draft.</p></div></div>
+        <div style="overflow-x:auto">
+          <table class="assumption-table" aria-label="Assumption differences versus baseline">
+            <thead><tr><th>Assumption</th><th>Draft 07</th><th>Draft 08</th><th>Δ</th><th>Owner</th><th>When</th><th>Why</th><th></th></tr></thead>
+            <tbody id="assumptionRows">
+            <tr><td colspan="8"><span class="skeleton" style="width:60%;min-height:14px"></span></td></tr>
+            <tr><td colspan="8"><span class="skeleton" style="width:48%;min-height:14px"></span></td></tr>
+          </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" data-od-id="diff-timeline">
+        <div class="panel-header"><div><h2>Assumption diff timeline</h2><p>Who changed what, when, and why.</p></div></div>
+        <div class="timeline" id="timelineList"><span class="skeleton" style="width:70%;min-height:14px"></span></div>
+      </section>
+    </div>
+
+    <section class="panel chart-panel" data-od-id="reserve-path-chart">
+      <div class="panel-header">
+        <div><h2>Follow-on reserve: baseline vs working draft</h2><p>Step change from baseline to working draft.</p></div>
+        <div class="legend"><span><i class="sw-baseline"></i>Draft 07</span><span><i class="sw-working"></i>Draft 08</span></div>
+      </div>
+      <div class="reserve-chart" id="reserveChart"></div>
+    </section>
+
+    <div class="source-error-banner" id="baselineErrorBanner" hidden data-od-id="baseline-error" role="alert">
+      <div class="source-error-copy"><strong>Baseline snapshot unavailable. Existing results are unchanged.</strong><span>The Draft 07 baseline record did not load. The last reviewed reference remains in use.</span></div>
+      <button class="source-retry" id="retryBaselineButton" type="button">Load baseline</button>
+    </div>
+
+    <section class="copyable-block" data-od-id="copyable-comparison-summary">
+      <div class="panel-header"><div><h2>Copy comparison reference</h2><p>Basis and notice stored with the numbers.</p></div></div>
+      <div class="copyable-footer">
+        <div>
+          <p class="basis-line" id="comparisonBasisLine">Facts snapshot b7c19e2 · As of August 6, 2026 · Draft 07 → Working Draft 08 · INTERNAL DECISION SUPPORT</p>
+          <p class="decision-notice">Internal decision support and communication preparation only. Not an official financial, accounting, tax, legal, compliance, or LP report.</p>
+        </div>
+        <div class="copy-action"><button class="button small" id="copyComparisonButton" type="button" data-od-id="copy-comparison-summary">Copy summary</button><span>Includes internal-use notice.</span></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="work-overlay" id="diffOverlay" hidden data-od-id="diff-detail-panel">
+    <div class="work-backdrop" data-panel-cancel></div>
+    <section class="work-panel" role="dialog" aria-modal="true" aria-labelledby="diffPanelTitle">
+      <header class="work-panel-header"><div><h2 id="diffPanelTitle">Assumption change</h2><p id="diffPanelMeta"></p></div><button class="icon-button" type="button" data-panel-cancel aria-label="Close detail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6 6 18"/></svg></button></header>
+      <div class="work-panel-body" id="diffPanelBody"></div>
+      <footer class="work-panel-footer"><button class="button" type="button" data-panel-cancel>Close</button><button class="button primary" type="button" id="diffPrimaryButton">Open in review</button></footer>
+    </section>
+  </div>
+
+  <script>
+    const BASELINE_DRAFT = 7;
+    const WORKING_DRAFT = 8;
+    const DECISION_NOTICE = "Internal decision support and communication preparation only. Not an official financial, accounting, tax, legal, compliance, or LP report.";
+    const byId = (id) => document.getElementById(id);
+    const esc = (v) => String(v).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const AS_OF = "2026-08-06";
+    function formatWhen(iso, asOfISO) {
+      const d = new Date(iso), a = new Date(asOfISO + "T00:00");
+      const days = Math.round((Date.UTC(a.getFullYear(), a.getMonth(), a.getDate()) - Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5);
+      const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      if (days === 0) return `Today · ${time}`;
+      if (days === 1) return `Yesterday · ${time}`;
+      return `${d.toLocaleDateString("en-US", { month: "long", day: "numeric" })} · ${time}`;
+    }
+
+    const rows = [
+      { key: "reserve", name: "Follow-on reserve", kind: "Input", unit: "% of committed", baseline: "40% of committed", working: "42% of committed", baselineVal: 40, workingVal: 42, owner: "Morgan", when: "2026-08-05T16:18", reason: "Preserved Series B capacity after the portfolio review.", detail: "The reserve was raised 40% → 42% of committed capital to preserve follow-on capacity for later-stage Series B rounds. The change flows into the investable allocation and lifts Net IRR and Net TVPI." },
+      { key: "years", name: "Deployment period", kind: "Input", unit: "yrs", baseline: "3.0 yrs", working: "3.5 yrs", baselineVal: 3.0, workingVal: 3.5, owner: "Nikhil", when: "2026-08-06T09:42", reason: "Aligned the Base case with the current investment pace.", detail: "Deployment extended from 3.0 to 3.5 years to align the Base case with the current investment pace. A longer average hold tempers Net IRR." },
+      { key: "irr-driver", name: "Exit multiple mix", kind: "Net IRR driver", baseline: "Base mix", working: "Higher-weight mix", diffText: "↑ 1.8 pp IRR", owner: "Nikhil", when: "2026-08-06T09:42", reason: "Rebased exit multiples on updated comps.", detail: "Exit multiple weights were re-weighted toward higher multiples. This is the driver, not an input change, that moves Net IRR." },
+      { key: "tvpi-driver", name: "Exit distribution basis", kind: "Net TVPI driver", baseline: "Cumulative", working: "In-period", diffText: "↑ 0.14× TVPI", owner: "Nikhil", when: "2026-08-06T09:42", reason: "Switched the distribution timing basis.", detail: "The distribution timing basis moved from cumulative to in-period receipts. This driver moves Net TVPI." }
+    ];
+
+    function deltaLabel(row) {
+      if (row.diffText) return row.diffText;
+      const diff = row.workingVal - row.baselineVal;
+      if (diff === 0) return "—";
+      const up = diff > 0;
+      const suffix = row.unit.includes("yrs") ? " yrs" : row.unit.includes("%") ? " pp" : row.unit.includes("$M") ? "M" : "";
+      return `${up ? "↑ " : "↓ "}${Math.abs(diff)}${suffix}`;
+    }
+    function deltaCell(row) {
+      const label = deltaLabel(row);
+      if (label === "—") return `<span class="cell-delta flat">—</span>`;
+      const up = label.startsWith("↑");
+      return `<span class="cell-delta ${up ? "up" : "down"}">${label}</span>`;
+    }
+
+    function renderAssumptionRows() {
+      if (!rows.length) {
+        byId("assumptionRows").innerHTML = `<tr><td colspan="8"><div class="empty-state"><strong>No input differences</strong><span>No input changes between Draft 07 and Working Draft 08.</span></div></td></tr>`;
+        return;
+      }
+      byId("assumptionRows").innerHTML = rows.map((row) => `
+        <tr data-row-key="${row.key}" data-od-id="assumption-row-${row.key}">
+          <td class="assumption-name">${esc(row.name)}<small>${esc(row.kind)} · ${esc(row.unit)}</small></td>
+          <td class="cell-baseline">${esc(row.baseline)}</td>
+          <td class="cell-working">${esc(row.working)}</td>
+          <td>${deltaCell(row)}</td>
+          <td class="cell-owner caption-owner">${esc(row.owner)}</td>
+          <td class="cell-when caption-owner">${esc(formatWhen(row.when, AS_OF))}</td>
+          <td class="row-reason">${esc(row.reason)}</td>
+          <td><button class="row-view" type="button" data-open-diff="${row.key}">View</button></td>
+        </tr>`).join("");
+    }
+
+    const timeline = [
+      { when: "2026-08-06T09:42", who: "Nikhil", change: "Exit multiple mix re-weighted; outputs recomputed", reason: "Rebased exit multiples on updated comps; Net IRR and Net TVPI recomputed.", key: "irr-driver" },
+      { when: "2026-08-06T09:42", who: "Nikhil", change: "Exit distribution basis switched to in-period", reason: "Switched the distribution timing basis; Net TVPI recomputed.", key: "tvpi-driver" },
+      { when: "2026-08-06T09:42", who: "Nikhil", change: "Deployment period 3.0 → 3.5 years", reason: "Aligned the Base case with the current investment pace.", key: "years" },
+      { when: "2026-08-05T16:18", who: "Morgan", change: "Follow-on reserve 40% → 42% of committed", reason: "Preserved Series B capacity after the portfolio review.", key: "reserve" }
+    ];
+
+    function renderTimeline() {
+      byId("timelineList").innerHTML = timeline.map((item, index) => `
+        <article class="timeline-item" data-od-id="timeline-diff-${index + 1}">
+          <div class="tl-dot" aria-hidden="true"></div>
+          <time class="tl-time">${esc(formatWhen(item.when, AS_OF))}</time>
+          <div class="tl-body">
+            <p class="tl-title">${esc(item.change)}</p>
+            <p class="tl-meta">Owner · ${esc(item.who)}</p>
+            <p class="tl-reason">${esc(item.reason)}</p>
+            <button class="tl-diff" type="button" data-open-timeline="${index}">View assumption diff</button>
+          </div>
+        </article>`).join("");
+    }
+
+    function renderChart() {
+      const w = 640, h = 200, padL = 34, padR = 20, padT = 16, padB = 26;
+      const pl = 40, ph = 42;
+      const x = (v) => padL + (v - pl) / (ph - pl) * (w - padL - padR);
+      const areas = [[40, 40], [42, 42]];
+      const area = areas.map(([b, c]) => `${x(b)},${padT} ${x(c)},${padT} ${x(c)},${h - padB} ${x(b)},${h - padB}`).join(" ");
+      const mid = x(41);
+      byId("reserveChart").innerHTML = `
+        <svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Follow-on reserve rises from 40% to 42% across the working draft">
+          <line x1="${padL}" y1="${h - padB}" x2="${w - padR}" y2="${h - padB}" stroke="var(--border)"/>
+          <line x1="${mid}" y1="${padT}" x2="${mid}" y2="${h - padB}" stroke="var(--border)" stroke-dasharray="3 3" opacity="0.6"/>
+          <text x="${padL}" y="${h - padB + 15}">Draft 07</text>
+          <text x="${w - padR - 40}" y="${h - padB + 15}">Working</text>
+          <text x="${padL}" y="${padT - 4}">40%</text>
+          <text x="${w - padR - 24}" y="${padT - 4}">42%</text>
+          <polygon points="${area}" fill="var(--warning-soft)" stroke="none"/>
+          <line x1="${padL}" y1="${padT}" x2="${mid}" y2="${padT}" stroke="var(--border)" stroke-width="2"/>
+          <line x1="${mid}" y1="${padT}" x2="${w - padR}" y2="${padT}" stroke="var(--fg)" stroke-width="2"/>
+        </svg>
+        <p class="chart-caption">Reserve share of committed capital across the working draft. The step change at the draft boundary is the entire diff; no intermediate values were published.</p>`;
+    }
+
+    let activeOverlay = null;
+    let invokingControl = null;
+    let savedScroll = 0;
+    function openDiff(key, invoker) {
+      const row = rows.find((r) => r.key === key);
+      if (!row) return;
+      invokingControl = invoker;
+      savedScroll = window.scrollY;
+      byId("diffPanelTitle").textContent = row.name;
+      byId("diffPanelMeta").textContent = `${row.owner} · ${formatWhen(row.when, AS_OF)}`;
+      byId("diffPanelBody").innerHTML = `
+        <div class="diff-grid">
+          <div class="proof-field"><small>Draft 07 baseline</small><b>${esc(row.baseline)}</b></div>
+          <div class="proof-field"><small>Draft 08 working</small><b>${esc(row.working)}</b></div>
+          <div class="proof-field"><small>Δ</small><b>${esc(deltaLabel(row))}</b></div>
+          <div class="proof-field"><small>Owner</small><b>${esc(row.owner)}</b></div>
+          <div class="proof-field wide"><small>When</small><b>${esc(row.when)}</b></div>
+          <div class="proof-field wide"><small>Assumption version</small><b>Draft ${WORKING_DRAFT} · snapshot b7c19e2</b></div>
+        </div>
+        <div class="reason-block"><strong>Why this differs</strong>${esc(row.detail || row.reason)}</div>`;
+      const overlay = byId("diffOverlay");
+      activeOverlay = overlay;
+      overlay.hidden = false;
+      document.body.classList.add("overlay-open");
+      requestAnimationFrame(() => { overlay.classList.add("open"); overlay.querySelector("button:not([disabled])")?.focus(); });
+    }
+    function closeOverlay() {
+      if (!activeOverlay) return;
+      const overlay = activeOverlay;
+      overlay.classList.remove("open");
+      const finish = () => { overlay.hidden = true; document.body.classList.remove("overlay-open"); window.scrollTo(0, savedScroll); activeOverlay = null; if (invokingControl) invokingControl.focus(); };
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) finish(); else setTimeout(finish, 200);
+    }
+
+    document.addEventListener("click", (event) => {
+      if (event.target.closest("[data-panel-cancel]")) { closeOverlay(); return; }
+      const diff = event.target.closest("[data-open-diff]");
+      if (diff) { openDiff(diff.dataset.openDiff, diff); return; }
+      const tl = event.target.closest("[data-open-timeline]");
+      if (tl) {
+        const item = timeline[Number(tl.dataset.openTimeline)];
+        const row = rows.find((r) => r.key === item.key);
+        if (row) openDiff(row.key, tl);
+      }
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && activeOverlay) { event.preventDefault(); closeOverlay(); }
+      if (activeOverlay && event.key === "Tab") {
+        const focusable = Array.from(activeOverlay.querySelectorAll("button:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])"));
+        if (!focusable.length) return;
+        const first = focusable[0], last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }
+    });
+
+    const textLink = (href, label) => `<a href="${href}" class="text-link" style="border-bottom:1px solid var(--fg)">${label}</a>`;
+    byId("backButton").addEventListener("click", () => { window.location.href = "fund-modeling-workspace.html"; });
+    byId("diffPrimaryButton").addEventListener("click", () => { window.location.href = "fund-modeling-workspace.html"; });
+
+    let baselineError = false;
+    function applyBaselineState() {
+      const banner = byId("baselineErrorBanner");
+      const basis = byId("comparisonBasisLine");
+      if (baselineError) {
+        document.body.classList.add("baseline-error");
+        banner.hidden = false;
+        basis.textContent = "Last reviewed reference · Facts snapshot a91f3c4 · As of August 2, 2026 · INTERNAL DECISION SUPPORT";
+        basis.classList.add("basis-line--degraded");
+      } else {
+        document.body.classList.remove("baseline-error");
+        banner.hidden = true;
+        basis.textContent = "Facts snapshot b7c19e2 · As of August 6, 2026 · Draft 07 → Working Draft 08 · INTERNAL DECISION SUPPORT";
+        basis.classList.remove("basis-line--degraded");
+      }
+    }
+
+    function copyComparison() {
+      const data = storeSummary();
+      const text = `Baseline vs working draft — Draft ${BASELINE_DRAFT} → Draft ${WORKING_DRAFT}\n${data}\nFacts snapshot b7c19e2 · As of August 6, 2026 · INTERNAL DECISION SUPPORT\n${DECISION_NOTICE}`;
+      copyText(text, "Comparison summary copied with basis and notice.");
+    }
+    function storeSummary() {
+      return rows.map((row) => {
+        const changed = !row.readonly && row.workingVal !== row.baselineVal;
+        return `${row.name}: ${row.baseline} → ${row.working}${changed ? ` (${deltaLabel(row)})` : ""}`;
+      }).join("\n") + `\nNet IRR 19.6% → 21.4% · Net TVPI 2.22× → 2.36×`;
+    }
+    function copyText(text, confirmation) {
+      if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(() => showNotice(confirmation));
+      else {
+        const area = document.createElement("textarea");
+        area.value = text;
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand("copy");
+        area.remove();
+        showNotice(confirmation);
+      }
+    }
+    function showNotice(message) {
+      const chip = byId("saveStatus");
+      byId("saveStatusText").textContent = message;
+      chip.classList.add("flash");
+      window.setTimeout(() => { byId("saveStatusText").textContent = "Internal decision support"; chip.classList.remove("flash"); }, 2600);
+    }
+    byId("copyComparisonButton").addEventListener("click", copyComparison);
+    byId("retryBaselineButton").addEventListener("click", () => {
+      baselineError = false;
+      applyBaselineState();
+      showNotice("Baseline loaded. Differences restored.");
+    });
+
+    applyBaselineState();
+    window.setTimeout(() => {
+      renderAssumptionRows();
+      renderTimeline();
+      renderChart();
+      byId("compareMain").setAttribute("aria-busy", "false");
+      document.body.classList.add("hydrated");
+    }, 140);
+  </script>
+</body>
+</html>

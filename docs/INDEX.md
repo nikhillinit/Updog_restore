@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: both
-last_updated: 2026-05-28
+last_updated: 2026-08-08
 categories: [documentation, navigation]
 keywords: [index, docs, navigation, routing, documentation]
 source_of_truth: true
@@ -17,7 +17,7 @@ maintenance:
 # Documentation Index
 
 **Purpose**: Central routing table for all project documentation **Audience**:
-Humans AND Agents **Last Updated**: 2026-05-28
+Humans AND Agents **Last Updated**: 2026-08-08
 
 ---
 
@@ -132,17 +132,19 @@ Hardening baseline)
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                                               | Description                                             | When to Use                                 |
-| -------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------- |
-| [DECISIONS.md](../DECISIONS.md)                                                        | Architectural Decision Records (ADRs)                   | Understanding technical rationale           |
-| [adr/](adr/)                                                                           | Standalone ADR files (15 files)                         | Architecture decisions outside DECISIONS.md |
-| [DEVELOPMENT_STRATEGY.md](DEVELOPMENT_STRATEGY.md)                                     | Long-term development strategy                          | Strategic planning                          |
-| [governance/cleanup-manifest.md](governance/cleanup-manifest.md)                       | Current cleanup candidate register                      | Before deletion/externalization cleanup     |
-| [governance/2026-05-19-refactor-roadmap.md](governance/2026-05-19-refactor-roadmap.md) | Active refactor roadmap and priority order              | Cleanup/refactor sequencing                 |
-| [MULTI-AI-DEVELOPMENT-WORKFLOW.md](MULTI-AI-DEVELOPMENT-WORKFLOW.md)                   | Multi-AI collaboration patterns                         | Leveraging multiple AIs                     |
-| [schema.md](schema.md)                                                                 | Database schema, relationships, and design patterns     | Understanding persisted data model          |
-| [IDEMPOTENCY_GUIDE.md](IDEMPOTENCY_GUIDE.md)                                           | Request deduplication and exactly-once processing guide | Designing safe write paths                  |
-| [RLS-DEVELOPMENT-GUIDE.md](RLS-DEVELOPMENT-GUIDE.md)                                   | Multi-tenant Row-Level Security development guide       | Building or testing tenant-scoped features  |
+| Document                                                                               | Description                                              | When to Use                                 |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------- |
+| [DECISIONS.md](../DECISIONS.md)                                                        | Architectural Decision Records (ADRs)                    | Understanding technical rationale           |
+| [DESIGN.md](../DESIGN.md)                                                              | Canonical product design contract and workspace baseline | Making visual or interaction decisions      |
+| [design/README.md](design/README.md)                                                   | Design doctrine, data audits, and reference routing      | Reviewing analytical and workspace UI       |
+| [adr/](adr/)                                                                           | Standalone ADR files (15 files)                          | Architecture decisions outside DECISIONS.md |
+| [DEVELOPMENT_STRATEGY.md](DEVELOPMENT_STRATEGY.md)                                     | Long-term development strategy                           | Strategic planning                          |
+| [governance/cleanup-manifest.md](governance/cleanup-manifest.md)                       | Current cleanup candidate register                       | Before deletion/externalization cleanup     |
+| [governance/2026-05-19-refactor-roadmap.md](governance/2026-05-19-refactor-roadmap.md) | Active refactor roadmap and priority order               | Cleanup/refactor sequencing                 |
+| [MULTI-AI-DEVELOPMENT-WORKFLOW.md](MULTI-AI-DEVELOPMENT-WORKFLOW.md)                   | Multi-AI collaboration patterns                          | Leveraging multiple AIs                     |
+| [schema.md](schema.md)                                                                 | Database schema, relationships, and design patterns      | Understanding persisted data model          |
+| [IDEMPOTENCY_GUIDE.md](IDEMPOTENCY_GUIDE.md)                                           | Request deduplication and exactly-once processing guide  | Designing safe write paths                  |
+| [RLS-DEVELOPMENT-GUIDE.md](RLS-DEVELOPMENT-GUIDE.md)                                   | Multi-tenant Row-Level Security development guide        | Building or testing tenant-scoped features  |
 
 **Key ADRs**:
 

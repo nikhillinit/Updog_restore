@@ -1,0 +1,2149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Updog Restore — Fund Model Review</title>
+  <style>
+    :root {
+      /* Base palette */
+      --bg: #ffffff;
+      --surface: #f2f2f2;
+      --fg: #292929;
+      --muted: #5a5a5a;
+      --border: #e0d8d1;
+      --accent: #292929;
+
+      /* State colors */
+      --success: #127E3D;
+      --success-soft: color-mix(in srgb, var(--success) 12%, var(--bg));
+      --warning: #9C6F19;
+      --warning-soft: color-mix(in srgb, var(--warning) 12%, var(--bg));
+      --danger: #B00020;
+      --danger-soft: color-mix(in srgb, var(--danger) 10%, var(--bg));
+      --info: #2563EB;
+      --info-soft: color-mix(in srgb, var(--info) 10%, var(--bg));
+
+      /* Typography */
+      --font-display: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+      --font-body: Poppins, system-ui, -apple-system, "Segoe UI", sans-serif;
+      --font-mono: "JetBrains Mono", "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+      /* Radii */
+      --radius-sm: 4px;
+      --radius-md: 6px;
+      --radius-lg: 10px;
+      --radius-xl: 16px;
+      --radius-pill: 24px;
+
+      /* Shadows */
+      --shadow-sm: 0 1px 2px rgba(41, 41, 41, 0.06);
+      --shadow-md: 0 4px 12px rgba(41, 41, 41, 0.08);
+      --shadow-lg: 0 8px 24px rgba(41, 41, 41, 0.12);
+
+      /* Spacing scale */
+      --space-1: 4px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-5: 20px;
+      --space-6: 24px;
+      --space-7: 28px;
+      --space-8: 32px;
+
+      /* Motion durations */
+      --duration-fast: 140ms;
+      --duration-base: 180ms;
+      --duration-slow: 220ms;
+      --duration-pulse: 680ms;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { color-scheme: light; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      overflow-x: hidden;
+      color: var(--fg);
+      background: var(--bg);
+      font-family: var(--font-body);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    button,
+    input,
+    select { font: inherit; }
+
+    button { color: inherit; }
+
+    button,
+    [role="tab"],
+    a { -webkit-tap-highlight-color: transparent; }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    a:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 3px solid var(--fg);
+      outline-offset: 3px;
+    }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    .skeleton { display: inline-block; min-height: 1em; border-radius: var(--radius-sm); background: var(--border); animation: skeleton-pulse var(--duration-pulse) ease-in-out infinite alternate; vertical-align: middle; }
+    .skeleton.value { width: 74%; min-height: 30px; }
+    .skeleton.pill { width: 58%; min-height: 22px; }
+    .skeleton.line { width: 64%; min-height: 12px; }
+    .skeleton.count { width: 28px; min-height: 28px; border-radius: var(--radius-pill); }
+    @keyframes skeleton-pulse { from { opacity: .56; } to { opacity: 1; } }
+    .is-loading .proof-tooltip { display: none; }
+    .is-loading .metric-provenance-link { visibility: hidden; }
+    .is-loading .proof-source-link { visibility: hidden; }
+    .is-loading .source-filter-button { color: var(--muted); cursor: wait; pointer-events: none; }
+    .is-loading .notice { border-color: var(--border); background: var(--surface); }
+    .is-loading .notice .text-button { color: var(--muted); cursor: wait; pointer-events: none; }
+    .hydrated .metric-value,
+    .hydrated .metric-delta,
+    .hydrated .metric-note,
+    .hydrated .scenario-values b,
+    .hydrated .rail-count-row strong { animation: hydrate-in var(--duration-fast) ease both; }
+    @keyframes hydrate-in { from { opacity: .45; } to { opacity: 1; } }
+
+    .app-shell {
+      display: grid;
+      grid-template-columns: 232px minmax(0, 1fr) 320px;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .brand {
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .workspace-switcher {
+      margin: 16px 12px 8px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+    }
+
+    .eyebrow {
+      margin: 0 0 4px;
+      color: var(--muted);
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .workspace-name {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-2);
+      font-weight: 600;
+    }
+
+    .nav-group { padding: 16px 12px 0; }
+
+    .nav-label {
+      margin: 0 8px 8px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .nav-list {
+      display: grid;
+      gap: var(--space-1);
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .nav-link {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 12px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      color: var(--muted);
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .nav-link svg { width: 17px; height: 17px; flex: 0 0 auto; }
+
+    .nav-link:hover {
+      color: var(--fg);
+      background: var(--surface);
+    }
+
+    .nav-link[aria-current="page"] {
+      color: var(--fg);
+      border-color: var(--border);
+      background: var(--surface);
+      font-weight: 600;
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 16px 20px 20px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .user-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--fg);
+      font-weight: 500;
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--fg);
+      color: var(--bg);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .main {
+      min-width: 0;
+      background: var(--bg);
+    }
+
+    .topbar {
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-5);
+      padding: 12px 28px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .breadcrumb strong { color: var(--fg); font-weight: 600; }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-chip {
+      min-height: 32px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      color: var(--muted);
+      background: var(--bg);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--fg);
+    }
+
+    .button {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-2);
+      padding: 0 15px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--bg);
+      color: var(--fg);
+      cursor: pointer;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      transition: background var(--duration-fast) ease, color var(--duration-fast) ease, border-color var(--duration-fast) ease, transform var(--duration-fast) ease;
+    }
+
+    .button:hover {
+      border-color: var(--fg);
+      background: var(--surface);
+    }
+
+    .button:active { transform: translateY(1px); }
+
+    .button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: var(--bg);
+    }
+
+    .button.primary:hover {
+      border-color: var(--fg);
+      background: var(--bg);
+      color: var(--fg);
+    }
+
+    .button.small { min-height: 44px; padding: 0 12px; font-size: 12px; }
+
+    .content { padding: 28px; }
+
+    .page-heading {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: var(--space-6);
+      margin-bottom: 16px;
+    }
+
+    h1,
+    h2,
+    h3 { font-family: var(--font-display); }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(22px, 2vw, 28px);
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+      font-weight: 600;
+    }
+
+    .draft-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.01em;
+    }
+
+    .scenario-tabs {
+      display: flex;
+      gap: var(--space-1);
+      padding: 4px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+    }
+
+    .scenario-tab {
+      min-height: 44px;
+      padding: 0 14px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      background: transparent;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .scenario-tab:hover { color: var(--fg); background: var(--bg); }
+
+    .scenario-tab[aria-selected="true"] {
+      color: var(--bg);
+      border-color: var(--fg);
+      background: var(--fg);
+    }
+
+    .notice {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: var(--space-5);
+      margin-bottom: 20px;
+      padding: 14px 16px;
+      border: 1px solid var(--warning);
+      border-radius: var(--radius-md);
+      background: var(--warning-soft);
+    }
+
+    .notice strong { display: block; margin-bottom: 2px; font-size: 13px; }
+    .notice p { margin: 0; color: var(--muted); font-size: 12px; }
+
+    .text-button {
+      min-height: 44px;
+      flex: 0 0 auto;
+      padding: 0;
+      border: 0;
+      border-bottom: 1px solid var(--fg);
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: visible;
+    }
+
+    .metric {
+      position: relative;
+      min-width: 0;
+      padding: 18px;
+      border-right: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .metric:last-child { border-right: 0; }
+
+    .metric-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-2);
+      margin-bottom: 14px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .metric-value {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: clamp(22px, 2.2vw, 30px);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      font-weight: 500;
+    }
+
+    .metric-delta {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      margin-top: 8px;
+      padding: 4px 7px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      background: var(--surface);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .metric-note { margin: 4px 0 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .metric-provenance-link { min-height: 44px; margin: 0; padding: 4px 0 0; border: 0; border-bottom: 1px solid var(--fg); background: transparent; color: var(--fg); cursor: pointer; font-size: 10px; line-height: 1.45; text-align: left; }
+
+    .proof-tooltip {
+      position: absolute;
+      z-index: 6;
+      top: calc(100% - 8px);
+      left: 12px;
+      width: min(268px, calc(100vw - 40px));
+      padding: 14px;
+      border: 1px solid var(--fg);
+      border-radius: var(--radius-md);
+      background: var(--fg);
+      color: var(--bg);
+      visibility: hidden;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity var(--duration-fast) ease, transform var(--duration-fast) ease;
+      pointer-events: none;
+    }
+
+    .metric:last-child .proof-tooltip { right: 12px; left: auto; }
+    .metric:hover,
+    .metric:focus { z-index: 7; }
+    .metric:hover .proof-tooltip,
+    .metric:focus-within .proof-tooltip { visibility: visible; opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .proof-tooltip strong { display: block; margin-bottom: 8px; font-family: var(--font-mono); font-size: 16px; }
+    .proof-grid { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 5px 10px; font-size: 10px; line-height: 1.45; }
+    .proof-grid dt { color: var(--border); }
+    .proof-grid dd { margin: 0; }
+    .proof-source-link { min-height: 44px; padding: 0; border: 0; border-bottom: 1px solid var(--bg); background: transparent; color: var(--bg); cursor: pointer; font-size: 10px; font-weight: 600; }
+    .proof-stale { display: inline-flex; align-items: center; gap: 5px; margin-left: 6px; padding: 2px 6px; border: 1px solid var(--warning); border-radius: var(--radius-sm); background: var(--warning-soft); color: var(--fg); font-weight: 600; }
+    .proof-stale i { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); }
+
+    .scenario-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    .scenario-column { min-width: 0; padding: 12px 14px 14px; border: 0; border-right: 1px solid var(--border); background: var(--bg); color: var(--fg); text-align: left; cursor: pointer; }
+    .scenario-column:last-child { border-right: 0; }
+    .scenario-column:hover { background: var(--surface); }
+    .scenario-column.active { background: var(--surface); }
+    .scenario-name { display: inline-flex; min-height: 26px; align-items: center; padding: 0 8px; border-radius: var(--radius-pill); font-size: 11px; font-weight: 600; }
+    .scenario-column.active .scenario-name { background: var(--fg); color: var(--bg); }
+    .scenario-values { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); margin-top: 10px; }
+    .scenario-values span { min-width: 0; }
+    .scenario-values small { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-1); color: var(--muted); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; }
+    .strip-kind { display: inline; color: var(--fg); font-style: normal; font-size: 8px; letter-spacing: .08em; }
+    .scenario-values b { display: block; margin-top: 2px; font-family: var(--font-mono); font-size: 12px; font-weight: 500; }
+
+    .workspace-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.85fr);
+      gap: var(--space-5);
+    }
+
+    .panel {
+      min-width: 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--bg);
+    }
+
+    .panel-header {
+      min-height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-title { margin: 0; font-size: 17px; line-height: 1.25; letter-spacing: -0.01em; font-weight: 600; }
+    .panel-subtitle { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+
+    [data-od-id="capital-allocation-panel"] { container-type: inline-size; }
+    .allocation { padding: 20px 18px; }
+    .capital-bridge { display: grid; gap: 22px; margin: 0; }
+    .bridge-heading { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); margin-bottom: 9px; }
+    .bridge-heading span { color: var(--muted); font-size: 12px; font-weight: 600; }
+    .bridge-heading strong { font-family: var(--font-mono); font-size: 15px; font-weight: 600; }
+    .committed-rail { position: relative; display: flex; height: 16px; margin-top: 24px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+    .committed-investable { height: 100%; background: var(--fg); transition: width var(--duration-slow) ease; }
+    .capital-segment { position: relative; min-width: 0; padding: 0; border: 0; border-radius: 0; cursor: help; }
+    .capital-segment:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
+    .fees-visual { height: 100%; border-left: 2px solid var(--bg); background: repeating-linear-gradient(135deg, var(--border) 0 3px, var(--surface) 3px 6px); transition: width var(--duration-slow) ease; }
+    .fees-segment { position: absolute; z-index: 3; top: 50%; right: 0; width: max(44px, var(--fees-width, 8%)); height: 44px; background: transparent; transform: translateY(-50%); }
+    .investable-edge { position: absolute; z-index: 2; top: -5px; bottom: -5px; width: 2px; background: var(--fg); transform: translateX(-1px); transition: left var(--duration-slow) ease; pointer-events: none; }
+    .investable-flag { position: absolute; right: 6px; bottom: calc(100% + 7px); min-width: max-content; font-family: var(--font-mono); font-size: 12px; font-weight: 600; }
+    .fees-label { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: 7px; color: var(--fg); font-family: var(--font-mono); font-size: 12px; font-weight: 600; }
+    .allocation-detail-link { min-height: 30px; padding: 0; border: 0; border-bottom: 1px solid var(--fg); background: transparent; color: var(--fg); cursor: pointer; font-family: inherit; font-size: inherit; font-weight: inherit; text-align: inherit; }
+    .allocation-label-grid { display: grid; gap: 0; margin-bottom: 9px; }
+    .allocation-direct-label { position: relative; min-width: 0; padding: 0 10px 8px; font-family: var(--font-mono); font-size: 12px; font-weight: 600; line-height: 1.45; text-align: center; }
+    .allocation-direct-label::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 1px; height: 6px; background: var(--fg); }
+    .investable-bar { display: flex; height: 44px; overflow: visible; border: 0; border-radius: var(--radius-sm); background: transparent; }
+    .investable-segment { position: relative; height: 44px; background: transparent; transition: width var(--duration-slow) ease; }
+    .investable-segment::before { content: ""; position: absolute; inset: 3px 0; border-top: 1px solid var(--fg); border-bottom: 1px solid var(--fg); background: var(--surface); }
+    .investable-segment:first-child::before { border-left: 1px solid var(--fg); border-radius: 4px 0 0 4px; background: var(--fg); }
+    .investable-segment:last-child::before { border-right: 1px solid var(--fg); border-radius: 0 4px 4px 0; background: var(--muted); }
+    .investable-segment + .investable-segment { border-left: 2px solid var(--bg); }
+    .bar-primary { background: var(--fg); }
+    .bar-secondary { background: var(--muted); }
+    .investable-segment.bar-primary,
+    .investable-segment.bar-secondary { background: transparent; }
+    .capital-segment-tooltip,
+    .scenario-allocation-tooltip { position: absolute; z-index: 8; left: 50%; bottom: calc(100% + 10px); width: 248px; padding: 12px; border: 1px solid var(--fg); border-radius: var(--radius-md); background: var(--fg); color: var(--bg); font-size: 11px; line-height: 1.55; text-align: left; visibility: hidden; opacity: 0; transform: translate(-50%, 4px); transition: opacity var(--duration-fast) ease, transform var(--duration-fast) ease; pointer-events: none; }
+    .capital-segment-tooltip strong,
+    .scenario-allocation-tooltip strong { display: block; margin-bottom: 5px; font-family: var(--font-mono); font-size: 13px; }
+    .capital-segment:hover .capital-segment-tooltip,
+    .capital-segment:focus-visible .capital-segment-tooltip,
+    .allocation-detail-link:hover .capital-segment-tooltip,
+    .allocation-detail-link:focus-visible .capital-segment-tooltip,
+    .scenario-allocation-row:hover .scenario-allocation-tooltip,
+    .scenario-allocation-row:focus-visible .scenario-allocation-tooltip { visibility: visible; opacity: 1; transform: translate(-50%, 0); }
+    .allocation-compact-rows { display: none; gap: var(--space-2); }
+    .allocation-compact-row { display: grid; grid-template-columns: minmax(140px, .9fr) minmax(150px, 1fr); gap: var(--space-3); align-items: center; }
+    .allocation-compact-row span { font-family: var(--font-mono); font-size: 12px; font-weight: 600; }
+    .allocation-compact-track { position: relative; height: 44px; display: flex; align-items: center; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); overflow: visible; cursor: help; }
+    .allocation-compact-track i { display: block; height: 32px; transition: width var(--duration-slow) ease; }
+    .scenario-allocation-table { display: grid; gap: 5px; margin-top: 24px; }
+    .scenario-allocation-head,
+    .scenario-allocation-row { display: grid; grid-template-columns: 70px minmax(110px, 1fr) 62px 74px; gap: var(--space-2); align-items: center; }
+    .scenario-allocation-head { color: var(--muted); font-size: 9px; line-height: 1.25; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+    .scenario-allocation-row { position: relative; min-height: 48px; width: 100%; padding: 7px 8px; border: 1px solid transparent; border-radius: var(--radius-md); background: var(--bg); color: var(--fg); cursor: pointer; text-align: left; }
+    .scenario-allocation-row:hover { border-color: var(--border); background: var(--surface); }
+    .scenario-allocation-row.active { border-color: var(--border); background: color-mix(in oklch, var(--border) 26%, var(--bg)); }
+    .scenario-allocation-name { font-size: 11px; font-weight: 600; }
+    .scenario-bridge { position: relative; display: flex; height: 18px; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; background: var(--surface); }
+    .scenario-bridge span { height: 100%; transition: width var(--duration-slow) ease; }
+    .scenario-bridge span + span { border-left: 2px solid var(--bg); }
+    .scenario-bridge .scenario-fees { background: repeating-linear-gradient(135deg, var(--border) 0 3px, var(--surface) 3px 6px); }
+    .scenario-edge { position: absolute; z-index: 2; top: -2px; bottom: -2px; width: 2px; background: var(--fg); transform: translateX(-1px); }
+    .scenario-allocation-value { font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-align: right; }
+    .scenario-allocation-value small { display: block; margin-top: 1px; font-family: var(--font-body); font-size: 8px; font-weight: 500; color: var(--muted); letter-spacing: .02em; }
+    .scenario-allocation-tooltip { bottom: calc(100% + 7px); }
+
+    .assumption-list { padding: 4px 18px 12px; }
+
+    .assumption-row {
+      min-height: 58px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: var(--space-5);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .assumption-row:last-child { border-bottom: 0; }
+    .assumption-name { font-size: 13px; font-weight: 500; }
+    .assumption-source { display: block; color: var(--muted); font-size: 11px; }
+    .assumption-value { font-family: var(--font-mono); font-size: 13px; font-weight: 500; }
+
+    .state-label {
+      padding: 4px 7px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--muted);
+      background: var(--surface);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .state-label.warning,
+    .state-label.stale { border-color: var(--warning); color: var(--fg); background: var(--warning); }
+    .state-label.attention { border-color: var(--danger); color: var(--fg); background: var(--danger-soft); }
+    .stale-cue { color: var(--fg); font-weight: 600; }
+    .stale-cue::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: var(--danger); }
+
+    .provenance-tree { padding: 14px 18px 18px; }
+    .source-group { position: relative; margin-bottom: 14px; }
+    .source-group:last-child { margin-bottom: 0; }
+    .source-node {
+      width: 100%;
+      min-height: 48px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      text-align: left;
+      cursor: pointer;
+    }
+    .source-node:hover { border-color: var(--fg); }
+    .source-node.stale { border-color: var(--warning); background: var(--warning-soft); }
+    .source-node.attention { border-color: var(--danger); background: var(--danger-soft); }
+    .source-node.error { border-color: var(--danger); background: var(--danger-soft); }
+    .source-node-main { min-width: 0; min-height: 44px; display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: center; gap: 10px; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+    .source-node-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; }
+    .source-refresh { min-height: 44px; padding: 0 4px; border: 0; border-bottom: 1px solid var(--fg); background: transparent; color: var(--fg); cursor: pointer; font-size: 10px; font-weight: 600; }
+    .source-action { min-height: 44px; padding: 0 4px; border: 0; border-bottom: 1px solid var(--fg); background: transparent; color: var(--fg); cursor: pointer; font-size: 10px; font-weight: 600; }
+    .source-node svg { width: 17px; height: 17px; }
+    .source-node-title { display: block; font-size: 11px; font-weight: 600; }
+    .source-node-meta { display: block; color: var(--muted); font-size: 9px; }
+    .source-branches { position: relative; display: grid; gap: 5px; margin: 6px 0 0 20px; padding-left: 18px; }
+    .source-branches::before { content: ""; position: absolute; top: 0; bottom: 16px; left: 5px; width: 1px; background: var(--border); }
+    .input-node { position: relative; min-height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 8px; border-bottom: 1px solid var(--border); font-size: 10px; }
+    .input-node::before { content: ""; position: absolute; top: 50%; left: -13px; width: 13px; height: 1px; background: var(--border); }
+    .input-node code { color: var(--muted); font-family: var(--font-mono); font-size: 9px; }
+    .input-node.stale { border-color: var(--warning); background: var(--warning-soft); }
+    .input-node.attention { border-color: var(--danger); background: var(--danger-soft); }
+    .source-error-banner {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      margin: 8px 0 0;
+      padding: 10px 12px;
+      border: 1px solid var(--danger);
+      border-radius: var(--radius-md);
+      background: var(--danger-soft);
+      font-size: 11px;
+    }
+    .source-error-copy { min-width: 0; }
+    .source-error-copy strong { display: block; font-family: var(--font-display); font-size: 12px; font-weight: 600; }
+    .source-error-copy span { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .source-retry {
+      min-height: 44px;
+      padding: 0 4px;
+      border: 0;
+      border-bottom: 1px solid var(--fg);
+      background: transparent;
+      color: var(--fg);
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .deviation-chip { display: inline-flex; align-items: center; max-width: 100%; margin-left: 6px; padding: 2px 5px; border: 1px solid var(--warning); border-radius: var(--radius-sm); background: var(--warning-soft); color: var(--fg); font-size: 8px; font-family: var(--font-body); font-weight: 600; }
+
+    .copyable-model-block { margin-bottom: 20px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg); }
+    .copyable-model-block .metrics-grid { margin: 0; border: 0; border-radius: 0; }
+    .copyable-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-3); align-items: center; padding: 10px 14px; border-top: 1px solid var(--border); background: var(--surface); }
+    .copy-action { display: grid; justify-items: end; gap: 3px; }
+    .copy-action span { color: var(--muted); font-size: 11px; }
+    .basis-line { margin: 0; font-family: var(--font-mono); font-size: 9px; color: var(--muted); }
+    .decision-notice { grid-column: 1 / -1; margin: 0; max-width: 90ch; color: var(--muted); font-size: 9px; line-height: 1.45; }
+
+    .timeline-panel { margin-top: 20px; }
+    .timeline { padding: 4px 18px 12px; }
+    .timeline-row { display: grid; grid-template-columns: 84px minmax(220px, 1.15fr) minmax(260px, 1fr); gap: 18px; align-items: start; padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .timeline-row:last-child { border-bottom: 0; }
+    .timeline-time { color: var(--muted); font-family: var(--font-mono); font-size: 10px; }
+    .timeline-title { font-size: 12px; font-weight: 600; }
+    .timeline-meta { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .timeline-change { font-family: var(--font-mono); font-size: 12px; }
+    .timeline-reason { margin: 0; font-size: 11px; }
+    .timeline-diff-button { min-height: 44px; padding: 0; border: 0; border-bottom: 1px solid var(--fg); background: transparent; color: var(--fg); cursor: pointer; font-size: 11px; font-weight: 600; text-align: left; }
+    .timeline-reason code { display: block; margin-top: 3px; color: var(--muted); font-family: var(--font-mono); font-size: 9px; }
+
+    .right-rail {
+      position: relative;
+      min-height: 100vh;
+      border-left: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .rail-header {
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      padding: 0 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .rail-header h2 { margin: 0; font-size: 16px; letter-spacing: -0.01em; font-weight: 600; }
+
+    .rail-section { padding: 20px; border-bottom: 1px solid var(--border); }
+    .rail-section h3 { margin: 0 0 14px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+
+    .completeness {
+      display: grid;
+      grid-template-columns: 64px minmax(0, 1fr);
+      align-items: center;
+      gap: 14px;
+    }
+
+    .completeness-score {
+      width: 64px;
+      height: 64px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--fg);
+      border-radius: var(--radius-md);
+      background: var(--fg);
+      color: var(--bg);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .completeness p { margin: 0; color: var(--muted); font-size: 12px; }
+    .completeness strong { display: block; margin-bottom: 3px; color: var(--fg); font-size: 13px; }
+    .completeness-dots { display: grid; gap: var(--space-2); margin-top: 14px; }
+    .dot-group { position: relative; min-height: 44px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 0; border: 0; border-bottom: 1px solid var(--border); background: transparent; color: var(--fg); cursor: pointer; text-align: left; }
+    .dot-group:last-child { border-bottom: 0; }
+    .dot-strip { display: flex; flex-wrap: wrap; gap: 3px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fg); }
+    .dot.stale { background: var(--warning); }
+    .dot.attention { background: var(--danger); }
+    .dot-group-label { font-size: 10px; font-weight: 600; }
+    .dot-tooltip { position: absolute; z-index: 9; right: 0; bottom: calc(100% + 4px); width: 214px; padding: 9px 10px; border: 1px solid var(--fg); border-radius: var(--radius-sm); background: var(--fg); color: var(--bg); font-size: 10px; line-height: 1.4; opacity: 0; pointer-events: none; transform: translateY(3px); transition: opacity var(--duration-fast) ease, transform var(--duration-fast) ease; visibility: hidden; }
+    .dot-group:hover .dot-tooltip,
+    .dot-group:focus-visible .dot-tooltip { visibility: visible; opacity: 1; transform: translateY(0); }
+    .count-chip { min-width: 28px; min-height: 28px; display: inline-grid; place-items: center; padding: 0 7px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); font-family: var(--font-mono); font-size: 11px; font-weight: 600; }
+    .count-chip.stale { border-color: var(--warning); background: var(--warning-soft); }
+    .count-chip.attention { border-color: var(--danger); background: var(--danger-soft); }
+    .banner-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .gap-chip { min-height: 44px; display: inline-flex; align-items: center; gap: 7px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--bg); color: var(--fg); cursor: pointer; font-size: 11px; font-weight: 600; }
+    .gap-chip .dot { flex: 0 0 auto; }
+    .gap-chip.stale { border-color: var(--warning); background: var(--warning-soft); }
+    .gap-chip.attention { border-color: var(--danger); background: var(--danger-soft); }
+    .rail-counts { display: grid; gap: 1px; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+    .rail-count-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: 10px 12px; background: var(--bg); font-size: 11px; }
+    .rail-count-row + .rail-count-row { border-top: 1px solid var(--border); }
+    .rail-count-row strong { font-family: var(--font-mono); font-size: 13px; }
+
+    .next-action { display: grid; gap: var(--space-2); }
+    .next-action-banner { display: grid; gap: var(--space-2); padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); }
+    .next-action-banner.warn { border-color: var(--warning); background: var(--warning-soft); }
+    .next-action-banner.attention { border-color: var(--danger); background: var(--danger-soft); }
+    .next-action-title { margin: 0; font-size: 12px; font-weight: 600; }
+    .next-action-meta { margin: 2px 0 0; color: var(--muted); font-size: 10px; }
+    .next-action-btn { min-height: 44px; padding: 0; border: 0; border-bottom: 1px solid var(--fg); background: transparent; color: var(--fg); cursor: pointer; font-size: 11px; font-weight: 600; text-align: left; }
+
+    .provenance-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+
+    .provenance-item {
+      display: grid;
+      grid-template-columns: 8px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+    }
+
+    .provenance-mark { width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: var(--fg); }
+    .provenance-mark.open { border: 1px solid var(--muted); background: var(--surface); }
+    .provenance-title { font-size: 12px; font-weight: 600; }
+    .provenance-detail { display: block; color: var(--muted); font-size: 11px; }
+
+    body.overlay-open { overflow: hidden; }
+    .work-overlay { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 24px; }
+    .work-overlay[hidden] { display: none; }
+    .work-backdrop { position: absolute; inset: 0; background: var(--muted); opacity: 0; backdrop-filter: blur(4px); transition: opacity var(--duration-base) ease; }
+    .work-panel { position: relative; z-index: 1; width: min(860px, calc(100vw - 32px)); max-height: calc(100vh - 48px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; border: 1px solid var(--fg); border-radius: var(--radius-lg); overflow: hidden; background: var(--bg); transform: scale(.96); opacity: 0; transition: transform var(--duration-base) ease, opacity var(--duration-base) ease; }
+    .work-overlay.open .work-backdrop { opacity: .48; }
+    .work-overlay.open .work-panel { transform: scale(1); opacity: 1; }
+    .work-panel-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); padding: 18px 20px 16px; border-bottom: 1px solid var(--border); }
+    .work-panel-header h2 { margin: 0; font-size: 22px; line-height: 1.2; letter-spacing: -0.01em; }
+    .work-panel-header p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+    .work-panel-body { overflow-y: auto; padding: 18px 20px 24px; }
+    .work-panel-footer { min-height: 68px; display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 12px 20px; border-top: 1px solid var(--border); background: var(--surface); }
+    .button:disabled { cursor: not-allowed; border-color: var(--border); background: var(--surface); color: var(--muted); }
+    .notice.ready { border-color: var(--border); background: var(--surface); }
+    .notice.ready .text-button { display: none; }
+    .discard-confirm { margin-right: auto; display: flex; align-items: center; gap: var(--space-2); font-size: 11px; font-weight: 600; }
+    .discard-confirm[hidden] { display: none; }
+    .work-list { display: grid; gap: var(--space-3); }
+    .work-row { position: relative; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); }
+    .work-row.source-missing { border-color: var(--danger); }
+    .work-row.source-stale { border-color: var(--warning); }
+    .work-row.dirty::before { content: ""; position: absolute; top: 14px; left: 14px; width: 7px; height: 7px; border-radius: 50%; background: var(--warning); }
+    .work-row-head { padding: 12px 14px 10px 30px; border-bottom: 1px solid var(--border); }
+    .work-row-title { margin: 0; font-size: 13px; font-weight: 600; }
+    .work-row-kind { display: block; margin-top: 2px; color: var(--muted); font-size: 9px; letter-spacing: .06em; text-transform: uppercase; }
+    .metadata-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 12px 14px; background: var(--surface); }
+    .compact-field { display: grid; gap: var(--space-1); }
+    .compact-field label { color: var(--muted); font-size: 9px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+    .compact-field input,
+    .compact-field select,
+    .editor-field input { width: 100%; min-height: 44px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--fg); }
+    .resolution-area { display: grid; gap: 10px; padding: 14px; }
+    .resolution-choices { display: flex; flex-wrap: wrap; gap: 6px; }
+    .choice-button { min-height: 44px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); cursor: pointer; font-size: 10px; font-weight: 600; }
+    .choice-button:hover { border-color: var(--fg); background: var(--surface); }
+    .choice-button.active { border-color: var(--fg); background: var(--fg); color: var(--bg); }
+    .resolution-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .resolution-fields:empty { display: none; }
+    .inline-error { margin: 0; color: var(--fg); font-size: 10px; font-weight: 600; }
+    .panel-success { padding: 28px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+    .panel-success h3 { margin: 0 0 6px; font-size: 18px; }
+    .panel-success p { margin: 0; color: var(--muted); font-size: 12px; }
+
+    .editor-list { display: grid; gap: var(--space-2); }
+    .editor-row { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(150px, .7fr); gap: 14px; align-items: start; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-md); }
+    .editor-row.dirty { border-color: var(--warning); }
+    .editor-source { margin: 0 0 8px; color: var(--muted); font-size: 10px; }
+    .editor-source strong { color: var(--fg); }
+    .editor-preview { margin: 0; color: var(--fg); font-family: var(--font-mono); font-size: 10px; font-weight: 600; }
+    .editor-field { display: grid; gap: 5px; }
+    .editor-field label { font-size: 11px; font-weight: 600; }
+    .reason-field { margin-top: 8px; }
+
+    .gate-list { display: grid; gap: var(--space-2); margin: 0 0 16px; padding: 0; list-style: none; }
+    .gate-row { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); font-size: 11px; }
+    .gate-row.warning { border-color: var(--warning); background: var(--warning-soft); }
+    .gate-icon { font-family: var(--font-mono); font-weight: 600; }
+    .publish-bundle-list { display: grid; gap: var(--space-2); margin: 0 0 16px; padding: 0; list-style: none; }
+    .publish-bundle-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); font-size: 12px; }
+    .publish-bundle-list span { color: var(--muted); }
+    .publish-bundle-list strong { font-family: var(--font-mono); font-size: 11px; font-weight: 600; }
+    .reference-lineage { margin: 0 0 10px; font-family: var(--font-mono); font-size: 11px; font-weight: 600; }
+    .reference-block { padding: 14px; border: 1px solid var(--fg); border-radius: var(--radius-md); background: var(--bg); }
+    .reference-numbers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); margin-bottom: 12px; }
+    .reference-numbers small { display: block; color: var(--muted); font-size: 8px; letter-spacing: .06em; text-transform: uppercase; }
+    .reference-numbers strong { display: block; margin-top: 2px; font-family: var(--font-mono); font-size: 15px; }
+    .acknowledgement { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: var(--space-2); align-items: start; margin-top: 14px; padding: 12px; border: 1px solid var(--warning); border-radius: var(--radius-md); background: var(--warning-soft); font-size: 11px; }
+    .acknowledgement input { width: 18px; height: 18px; margin: 1px 0 0; }
+    .publish-success { padding: 24px; border: 1px solid var(--fg); border-radius: var(--radius-md); background: var(--surface); }
+    .publish-success h3 { margin: 0 0 6px; font-size: 18px; }
+    .publish-success p { margin: 0; color: var(--muted); font-size: 11px; }
+
+    dialog {
+      width: min(520px, calc(100vw - 32px));
+      max-height: calc(100vh - 40px);
+      overflow: auto;
+      padding: 0;
+      border: 1px solid var(--fg);
+      border-radius: var(--radius-lg);
+      background: var(--bg);
+      color: var(--fg);
+    }
+
+    dialog::backdrop { background: var(--muted); opacity: 0.55; }
+
+    .dialog-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: var(--space-5);
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .dialog-header h2 { margin: 0; font-size: 22px; line-height: 1.2; letter-spacing: -0.01em; font-weight: 600; }
+    .dialog-header p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+
+    .icon-button {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--bg);
+      cursor: pointer;
+    }
+
+    .icon-button:hover { border-color: var(--fg); background: var(--surface); }
+    .icon-button svg { width: 18px; height: 18px; }
+
+    .dialog-body { display: grid; gap: var(--space-4); padding: 20px; }
+
+    .field { display: grid; gap: 6px; }
+    .field label { font-size: 12px; font-weight: 600; letter-spacing: 0.02em; }
+    .field-hint { color: var(--muted); font-size: 11px; }
+
+    .input-wrap { position: relative; }
+    .input-wrap input,
+    .field select {
+      width: 100%;
+      min-height: 46px;
+      padding: 0 48px 0 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font-mono);
+    }
+
+    .field select { padding-right: 12px; font-family: var(--font-body); }
+    .input-wrap input:hover,
+    .field select:hover { border-color: var(--muted); }
+    .input-suffix { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 12px; }
+
+    .validation {
+      display: none;
+      margin: 0;
+      color: var(--fg);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .validation.visible { display: block; }
+
+    .dialog-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .checklist { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+    .checklist li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 12px; }
+    .checklist svg { width: 18px; height: 18px; margin-top: 1px; }
+
+    .toast {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 10;
+      max-width: min(360px, calc(100vw - 32px));
+      padding: 14px 16px;
+      border: 1px solid var(--fg);
+      border-radius: var(--radius-md);
+      background: var(--fg);
+      color: var(--bg);
+      font-size: 12px;
+      font-weight: 600;
+      transform: translateY(140%);
+      transition: transform var(--duration-base) ease;
+    }
+
+    .toast.visible { transform: translateY(0); }
+    .toast a { color: var(--bg); font-weight: 600; }
+
+    .mobile-rail-toggle { display: none; }
+    .mobile-rail-toggle[aria-expanded="true"] { border-color: var(--fg); background: var(--fg); color: var(--bg); }
+
+    @container (max-width: 719px) {
+      .allocation-label-grid,
+      .investable-bar { display: none; }
+      .allocation-compact-rows { display: grid; }
+      .capital-segment-tooltip { left: auto; right: 0; transform: translate(0, 4px); }
+      .capital-segment:hover .capital-segment-tooltip,
+      .capital-segment:focus-visible .capital-segment-tooltip { transform: translate(0, 0); }
+      .scenario-allocation-head,
+      .scenario-allocation-row { grid-template-columns: 70px minmax(100px, 1fr) 58px 68px; gap: 7px; }
+    }
+
+    @media (max-width: 1180px) {
+      .app-shell { grid-template-columns: 208px minmax(0, 1fr); }
+      .right-rail {
+        position: fixed;
+        z-index: 5;
+        top: 0;
+        right: 0;
+        height: 100vh;
+        min-height: 0;
+        overflow-y: auto;
+        width: min(340px, 90vw);
+        transform: translateX(100%);
+        transition: transform var(--duration-base) ease;
+      }
+      .right-rail.open { transform: translateX(0); }
+      .mobile-rail-toggle { display: inline-flex; }
+    }
+
+    @media (max-width: 840px) {
+      .app-shell { display: block; }
+      .sidebar { position: static; height: auto; min-height: 0; border-right: 0; }
+      .brand { min-height: 64px; }
+      .workspace-switcher,
+      .nav-group,
+      .sidebar-footer { display: none; }
+      .topbar { min-height: 64px; padding: 10px 16px; }
+      .breadcrumb span:first-child,
+      .breadcrumb .slash { display: none; }
+      .status-chip { display: none; }
+      .content { padding: 20px 16px 28px; }
+      .page-heading { grid-template-columns: 1fr; }
+      .scenario-tabs { width: 100%; overflow-x: auto; }
+      .scenario-tab { flex: 1 0 auto; }
+      .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .metric:nth-child(2) { border-right: 0; }
+      .metric:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
+      .workspace-grid { grid-template-columns: 1fr; }
+      .scenario-values { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .timeline-row { grid-template-columns: 72px minmax(0, 1fr) minmax(140px, .8fr); }
+      .timeline-reason { grid-column: 2 / -1; }
+      .work-overlay { padding: 12px; }
+      .work-panel { width: calc(100vw - 24px); max-height: calc(100vh - 24px); }
+      .metadata-grid,
+      .resolution-fields { grid-template-columns: 1fr; }
+      .editor-row { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 520px) {
+      .topbar { align-items: flex-start; flex-wrap: wrap; gap: var(--space-2); }
+      .top-actions { width: 100%; }
+      .top-actions .button.primary { flex: 1; padding: 0 12px; }
+      .page-heading { gap: 18px; }
+      h1 { font-size: 22px; }
+      .notice { display: block; }
+      .notice .text-button { margin-top: 10px; }
+      .metrics-grid { grid-template-columns: 1fr; }
+      .metric { border-right: 0; border-bottom: 1px solid var(--border); }
+      .metric:nth-child(2) { border-bottom: 1px solid var(--border); }
+      .metric:last-child { border-bottom: 0; }
+      .panel-header { align-items: flex-start; }
+      .assumption-row { grid-template-columns: 1fr; gap: 2px; padding: 10px 0; }
+      .dialog-footer { flex-direction: column-reverse; }
+      .dialog-footer .button { width: 100%; }
+      .scenario-strip { grid-template-columns: 1fr; }
+      .scenario-column { border-right: 0; border-bottom: 1px solid var(--border); }
+      .scenario-column:last-child { border-bottom: 0; }
+      .scenario-values { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .scenario-allocation-head { display: none; }
+      .scenario-allocation-row { grid-template-columns: 1fr 1fr; gap: 7px 12px; }
+      .scenario-bridge { grid-column: 1 / -1; grid-row: 2; }
+      .scenario-allocation-value { text-align: left; }
+      .timeline-row { grid-template-columns: 1fr; gap: 5px; }
+      .timeline-reason { grid-column: auto; }
+      .proof-tooltip { top: calc(100% - 4px); right: 8px; left: 8px; width: auto; }
+      .copyable-footer { grid-template-columns: 1fr; }
+      .copy-action { justify-items: start; }
+      .decision-notice { grid-column: auto; }
+      .reference-numbers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .work-panel-footer { flex-wrap: wrap; }
+      .discard-confirm { width: 100%; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+      .work-panel { transform: none; }
+      .committed-investable,
+      .fees-visual,
+      .investable-edge,
+      .investable-segment,
+      .allocation-compact-track i,
+      .scenario-bridge span { transition: none !important; }
+      .skeleton { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell" id="appShell" data-od-id="fund-model-workspace">
+    <aside class="sidebar" data-od-id="primary-navigation">
+      <div class="brand" data-od-id="updog-restore-brand">
+        <span>Updog Restore</span>
+      </div>
+
+      <div class="workspace-switcher" data-od-id="workspace-switcher">
+        <p class="eyebrow">Workspace</p>
+        <div class="workspace-name"><span>Press On Ventures</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg></div>
+      </div>
+
+      <nav class="nav-group" aria-label="Primary">
+        <p class="nav-label">Model</p>
+        <ul class="nav-list">
+          <li><a class="nav-link" href="#overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>Overview</a></li>
+          <li><a class="nav-link" href="#scenarios" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 19V9m7 10V5m7 14v-7"/></svg>Scenarios</a></li>
+          <li><a class="nav-link" href="#portfolio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7h16v12H4zM8 7V4h8v3"/></svg>Portfolio</a></li>
+          <li><a class="nav-link" href="#sources"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3h9l3 3v15H6zM9 11h6M9 15h6"/></svg>Sources</a></li>
+        </ul>
+      </nav>
+
+      <nav class="nav-group" aria-label="Workspace">
+        <p class="nav-label">Workspace</p>
+        <ul class="nav-list">
+          <li><a class="nav-link" href="#activity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 8v5l3 2M21 12a9 9 0 1 1-9-9"/></svg>Activity</a></li>
+          <li><a class="nav-link" href="#settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1A7 7 0 0 0 15 6l-.3-2.5h-4L10.4 6a7 7 0 0 0-1.6 1.1l-2.3-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-1A7 7 0 0 0 10.4 18l.3 2.5h4L15 18a7 7 0 0 0 1.6-1.1l2.3 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/></svg>Settings</a></li>
+        </ul>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-row"><span class="avatar">NP</span><span>Nikhil<br><small>Model owner</small></span></div>
+      </div>
+    </aside>
+
+    <main class="main" data-od-id="scenario-review-main">
+      <header class="topbar" data-od-id="workspace-toolbar">
+        <div class="breadcrumb"><span>Fund I</span><span class="slash">/</span><strong>Scenario review</strong></div>
+        <div class="top-actions">
+          <span class="status-chip" id="saveStatus"><span class="status-dot"></span>All changes saved</span>
+          <button class="button mobile-rail-toggle" id="railToggle" type="button" aria-controls="provenanceRail" aria-expanded="false" aria-label="Open provenance map">Provenance</button>
+          <button class="button primary" id="publishButton" type="button" data-od-id="publish-model-cta" aria-haspopup="dialog" disabled aria-describedby="publishLoadingReason">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4m0 0L7 9m5-5 5 5M5 13v7h14v-7"/></svg>
+            <span>Loading review gates</span>
+          </button>
+          <span class="sr-only" id="publishLoadingReason">Review gates are loading; publishing is unavailable.</span>
+        </div>
+      </header>
+
+      <div class="content is-loading" id="decisionCanvas" aria-busy="true">
+        <section class="page-heading" data-od-id="scenario-review-heading">
+          <div>
+            <h1 data-od-id="scenario-review-title">Fund I scenario review</h1>
+            <div class="draft-meta"><span id="modelVersionLabel">Current working model · Draft 08</span><span id="modelUpdatedLabel">Updated today · 09:42</span><span>Illustrative model</span></div>
+          </div>
+          <div class="scenario-tabs" role="tablist" aria-label="Fund scenarios" data-od-id="scenario-tabs">
+            <button class="scenario-tab" type="button" role="tab" aria-selected="false" data-scenario="conservative">Conservative</button>
+            <button class="scenario-tab" type="button" role="tab" aria-selected="true" data-scenario="base">Base case</button>
+            <button class="scenario-tab" type="button" role="tab" aria-selected="false" data-scenario="growth">Growth</button>
+          </div>
+        </section>
+
+        <section class="notice" id="attentionBanner" data-od-id="attention-notice">
+          <div><strong id="bannerTitle"><span class="skeleton" style="width:220px;min-height:16px;display:inline-block"></span></strong><p id="bannerDetail"><span class="skeleton" style="width:340px;min-height:13px;display:inline-block"></span></p><div class="banner-chips" id="bannerChips" aria-label="Open review gaps"></div></div>
+          <button class="text-button" id="attentionButton" type="button" disabled>Review gaps</button>
+        </section>
+
+        <section class="copyable-model-block" id="canvasCopyBlock" data-od-id="copyable-model-summary">
+        <h3 class="panel-title" style="padding:18px 18px 0;margin:0">Key metrics</h3>
+        <div class="metrics-grid" aria-label="Illustrative model outputs" data-od-id="model-output-metrics">
+          <article class="metric" tabindex="0" aria-describedby="proof-irr" data-od-id="metric-net-irr">
+            <div class="metric-label"><span>Net IRR</span><span>Model</span></div><p class="metric-value" id="metricIrr"><span class="skeleton value" aria-hidden="true"></span></p><span class="metric-delta" id="metricIrrDelta"><span class="skeleton pill" aria-hidden="true"></span></span><p class="metric-note" id="metricIrrNote"><span class="skeleton line" aria-hidden="true"></span></p>
+            <div class="proof-tooltip" id="proof-irr" role="tooltip"><strong id="proofIrrValue"><span class="skeleton line" aria-hidden="true"></span></strong><dl class="proof-grid"><dt>Driver</dt><dd id="proofIrrDriver"><span class="skeleton line" aria-hidden="true"></span></dd><dt>Source</dt><dd><button class="proof-source-link" type="button" data-source-key="strategy"><span class="skeleton" style="width:120px;display:inline-block" aria-hidden="true"></span></button></dd><dt>As of</dt><dd id="proofIrrAsOf"><span class="skeleton line" aria-hidden="true"></span></dd><dt>Version</dt><dd id="proofIrrVersion"><span class="skeleton line" aria-hidden="true"></span></dd></dl></div>
+          </article>
+          <article class="metric" tabindex="0" aria-describedby="proof-tvpi" data-od-id="metric-net-tvpi">
+            <div class="metric-label"><span>Net TVPI</span><span>Model</span></div><p class="metric-value" id="metricTvpi"><span class="skeleton value" aria-hidden="true"></span></p><span class="metric-delta" id="metricTvpiDelta"><span class="skeleton pill" aria-hidden="true"></span></span><p class="metric-note" id="metricTvpiNote"><span class="skeleton line" aria-hidden="true"></span></p>
+            <div class="proof-tooltip" id="proof-tvpi" role="tooltip"><strong id="proofTvpiValue"><span class="skeleton line" aria-hidden="true"></span></strong><dl class="proof-grid"><dt>Driver</dt><dd id="proofTvpiDriver"><span class="skeleton line" aria-hidden="true"></span></dd><dt>Source</dt><dd><button class="proof-source-link" id="proofTvpiSource" type="button" data-source-key="construction"><span class="skeleton" style="width:140px;display:inline-block" aria-hidden="true"></span></button></dd><dt>As of</dt><dd id="proofTvpiAsOf"><span class="skeleton line" aria-hidden="true"></span></dd><dt>Version</dt><dd id="proofTvpiVersion"><span class="skeleton line" aria-hidden="true"></span></dd></dl></div>
+          </article>
+          <article class="metric" tabindex="0" aria-describedby="proof-reserve" id="metricReserveCard" data-od-id="metric-reserve">
+            <div class="metric-label"><span>Follow-on reserve</span><span>Input</span></div><p class="metric-value" id="metricReserve"><span class="skeleton value" aria-hidden="true"></span></p><span class="metric-delta" id="metricReserveDelta"><span class="skeleton pill" aria-hidden="true"></span></span><button class="metric-provenance-link" id="metricReserveSource" type="button" data-source-key="reserve"></button><p class="metric-note" id="metricReserveNote"><span class="skeleton line" aria-hidden="true"></span></p>
+            <div class="proof-tooltip" id="proof-reserve" role="tooltip"><strong id="proofReserveValue"><span class="skeleton line" aria-hidden="true"></span></strong><dl class="proof-grid"><dt>Driver</dt><dd id="proofReserveDriver"><span class="skeleton line" aria-hidden="true"></span></dd><dt>Source</dt><dd><button class="proof-source-link" type="button" data-source-key="reserve"><span class="skeleton" style="width:140px;display:inline-block" aria-hidden="true"></span></button></dd><dt>As of</dt><dd id="proofReserveAsOf"><span class="skeleton line" aria-hidden="true"></span></dd><dt>Version</dt><dd id="proofReserveVersion"><span class="skeleton line" aria-hidden="true"></span></dd></dl></div>
+          </article>
+          <article class="metric" tabindex="0" aria-describedby="proof-years" data-od-id="metric-deployment">
+            <div class="metric-label"><span>Deployment period</span><span>Input</span></div><p class="metric-value" id="metricYears"><span class="skeleton value" aria-hidden="true"></span></p><span class="metric-delta" id="metricYearsDelta"><span class="skeleton pill" aria-hidden="true"></span></span><button class="metric-provenance-link" id="metricYearsSource" type="button" data-source-key="policy"></button><p class="metric-note" id="metricYearsNote"><span class="skeleton line" aria-hidden="true"></span></p>
+            <div class="proof-tooltip" id="proof-years" role="tooltip"><strong id="proofYearsValue"><span class="skeleton line" aria-hidden="true"></span></strong><dl class="proof-grid"><dt>Driver</dt><dd id="proofYearsDriver"><span class="skeleton line" aria-hidden="true"></span></dd><dt>Source</dt><dd><button class="proof-source-link" type="button" data-source-key="policy"><span class="skeleton" style="width:100px;display:inline-block" aria-hidden="true"></span></button></dd><dt>As of</dt><dd id="proofYearsAsOf"><span class="skeleton line" aria-hidden="true"></span></dd><dt>Version</dt><dd id="proofYearsVersion"><span class="skeleton line" aria-hidden="true"></span></dd></dl></div>
+          </article>
+        </div>
+        <div class="copyable-footer">
+          <p class="basis-line" id="canvasBasisLine"><span class="skeleton line" aria-hidden="true"></span></p>
+          <div class="copy-action"><button class="button small" id="copyCanvasButton" type="button" data-od-id="copy-model-summary">Copy summary</button><span>Includes internal-use notice.</span></div>
+          <p class="decision-notice">Internal decision support and communication preparation only. Not an official financial, accounting, tax, legal, compliance, or LP report.</p>
+        </div>
+        </section>
+
+        <section class="scenario-strip" role="tablist" aria-label="Scenario delta comparison" data-od-id="scenario-delta-strip">
+          <button class="scenario-column" type="button" role="tab" aria-selected="false" data-scenario-column="conservative"><span class="scenario-name">Conservative</span><span class="scenario-values"><span><small><span>Net IRR</span><em class="strip-kind">Model</em></small><b data-strip-value="irr"><span class="skeleton line" aria-hidden="true"></span></b></span><span><small><span>TVPI</span><em class="strip-kind">Model</em></small><b data-strip-value="tvpi"><span class="skeleton line" aria-hidden="true"></span></b></span><span><small><span>Reserve</span><em class="strip-kind">Input</em></small><b data-strip-value="reserve"><span class="skeleton line" aria-hidden="true"></span></b></span><span><small><span>Deployment</span><em class="strip-kind">Input</em></small><b data-strip-value="years"><span class="skeleton line" aria-hidden="true"></span></b></span></span></button>
+          <button class="scenario-column active" type="button" role="tab" aria-selected="true" data-scenario-column="base"><span class="scenario-name">Base case</span><span class="scenario-values"><span><small><span>Net IRR</span><em class="strip-kind">Model</em></small><b data-strip-value="irr"><span class="skeleton line" aria-hidden="true"></span></b></span><span><small><span>TVPI</span><em class="strip-kind">Model</em></small><b data-strip-value="tvpi"><span class="skeleton line" aria-hidden="true"></span></b></span><span><small><span>Reserve</span><em class="strip-kind">Input</em></small><b data-strip-value="reserve"><span class="skeleton line" aria-hidden="true"></span></b></span><span><small><span>Deployment</span><em class="strip-kind">Input</em></small><b data-strip-value="years"><span class="skeleton line" aria-hidden="true"></span></b></span></span></button>
+          <button class="scenario-column" type="button" role="tab" aria-selected="false" data-scenario-column="growth"><span class="scenario-name">Growth</span><span class="scenario-values"><span><small><span>Net IRR</span><em class="strip-kind">Model</em></small><b data-strip-value="irr"><span class="skeleton line" aria-hidden="true"></span></b></span><span><small><span>TVPI</span><em class="strip-kind">Model</em></small><b data-strip-value="tvpi"><span class="skeleton line" aria-hidden="true"></span></b></span><span><small><span>Reserve</span><em class="strip-kind">Input</em></small><b data-strip-value="reserve"><span class="skeleton line" aria-hidden="true"></span></b></span><span><small><span>Deployment</span><em class="strip-kind">Input</em></small><b data-strip-value="years"><span class="skeleton line" aria-hidden="true"></span></b></span></span></button>
+        </section>
+
+        <div class="workspace-grid">
+          <section class="panel" data-od-id="capital-allocation-panel">
+            <div class="panel-header">
+              <div><h2 class="panel-title">Capital allocation</h2><p class="panel-subtitle">Active scenario with investable-capital threshold</p></div>
+              <button class="button small" id="editAssumptionsButton" type="button" data-od-id="edit-assumptions-control" aria-haspopup="dialog">Edit assumptions</button>
+            </div>
+            <div class="allocation">
+              <figure class="capital-bridge" data-od-id="capital-bridge">
+                <div class="bridge-tier">
+                  <div class="bridge-heading"><span>Committed capital</span><strong>$48.0M</strong></div>
+                  <div class="committed-rail" aria-label="Committed capital less fees and expenses">
+                    <span class="committed-investable" id="committedInvestable" style="width:92%"></span>
+                    <span class="fees-visual" id="feesVisual" style="width:8%"></span><button class="capital-segment fees-segment" id="feesSegment" type="button" style="--fees-width:8%" data-allocation-detail="fees" aria-describedby="tooltipFees"><span class="capital-segment-tooltip" id="tooltipFees" role="tooltip">Fees detail</span></button>
+                    <span class="investable-edge" id="investableEdge" style="left:92%"><span class="investable-flag" id="investableFlag">Investable $44.2M</span></span>
+                  </div>
+                  <div class="fees-label"><span id="feesLabel">Fees &amp; expenses $3.8M · 8% of committed</span></div>
+                </div>
+                <div class="bridge-tier">
+                  <div class="bridge-heading"><span>Investable allocation</span><strong id="investableValue">$44.2M</strong></div>
+                  <div class="allocation-label-grid" id="allocationLabelGrid"><button class="allocation-direct-label allocation-detail-link" id="initialDirectLabel" type="button" data-allocation-detail="initial" aria-describedby="tooltipInitialLink">Initial checks · $24.0M · 54.3% of investable<span class="capital-segment-tooltip" id="tooltipInitialLink" role="tooltip">Initial checks detail</span></button><button class="allocation-direct-label allocation-detail-link" id="reserveDirectLabel" type="button" data-allocation-detail="reserve" aria-describedby="tooltipReserveLink">Follow-on reserve · $20.2M · 45.7% of investable<span class="capital-segment-tooltip" id="tooltipReserveLink" role="tooltip">Follow-on reserve detail</span></button></div>
+                  <div class="investable-bar" id="activeAllocationBar" aria-label="Base case investable allocation">
+                    <button class="capital-segment investable-segment bar-primary" id="barInitial" type="button" aria-label="Initial checks segment"></button>
+                    <button class="capital-segment investable-segment bar-secondary" id="barReserve" type="button" aria-label="Follow-on reserve segment"></button>
+                  </div>
+                  <div class="allocation-compact-rows" id="allocationCompactRows" aria-label="Investable allocation detail">
+                    <div class="allocation-compact-row"><span id="compactInitialLabel">Initial checks</span><button class="allocation-compact-track" type="button" aria-label="Initial checks segment"><i class="bar-primary" id="compactInitialBar"></i></button></div>
+                    <div class="allocation-compact-row"><span id="compactReserveLabel">Follow-on reserve</span><button class="allocation-compact-track" type="button" aria-label="Follow-on reserve segment"><i class="bar-secondary" id="compactReserveBar"></i></button></div>
+                  </div>
+                </div>
+              </figure>
+              <div class="scenario-allocation-table" data-od-id="allocation-scenario-bars">
+                <div class="scenario-allocation-head" aria-hidden="true"><span>Scenario</span><span>Committed<br>breakdown</span><span>Initial checks<br>of investable</span><span>Follow-on reserve<br>of investable</span></div>
+                <div id="scenarioBars"></div>
+              </div>
+            </div>
+            <div class="assumption-list" aria-label="Key assumptions">
+              <div class="assumption-row"><div><span class="assumption-name">Initial portfolio count</span><span class="assumption-source" id="assumptionCompaniesSource"><span class="skeleton line" aria-hidden="true"></span></span></div><span class="assumption-value" id="assumptionCompanies"><span class="skeleton line" aria-hidden="true"></span></span></div>
+              <div class="assumption-row"><div><span class="assumption-name">Median initial check</span><span class="assumption-source" id="assumptionCheckSource"><span class="skeleton line" aria-hidden="true"></span></span></div><span class="assumption-value" id="assumptionCheck"><span class="skeleton line" aria-hidden="true"></span></span></div>
+              <div class="assumption-row"><div><span class="assumption-name">Follow-on reserve</span><span class="assumption-source" id="assumptionReserveSource"><span class="skeleton line" aria-hidden="true"></span></span></div><span class="assumption-value" id="assumptionReserve"><span class="skeleton line" aria-hidden="true"></span></span></div>
+              <div class="assumption-row"><div><span class="assumption-name">Deployment period</span><span class="assumption-source" id="assumptionYearsSource"><span class="skeleton line" aria-hidden="true"></span></span></div><span class="assumption-value" id="assumptionYears"><span class="skeleton line" aria-hidden="true"></span></span></div>
+              <div class="assumption-row"><div><span class="assumption-name">Fees &amp; expenses</span><span class="assumption-source" id="assumptionFeesSource"><span class="skeleton line" aria-hidden="true"></span></span></div><span class="assumption-value" id="assumptionFees"><span class="skeleton line" aria-hidden="true"></span></span></div>
+            </div>
+          </section>
+
+          <section class="panel" data-od-id="source-coverage-panel">
+            <div class="panel-header">
+              <div><h2 class="panel-title">Provenance map</h2><p class="panel-subtitle">Inputs connected to reviewed evidence</p></div>
+              <button class="text-button source-filter-button" id="sourceFilterButton" type="button" aria-pressed="false" aria-label="Loading provenance sources"><span class="skeleton line" style="width:84px;display:inline-block" aria-hidden="true"></span></button>
+            </div>
+            <div class="provenance-tree" id="provenanceTree"></div>
+          </section>
+        </div>
+
+        <section class="panel timeline-panel" data-od-id="assumption-diff-timeline">
+          <div class="panel-header"><div><h2 class="panel-title">Model change history</h2><p class="panel-subtitle">Illustrative history · what changed, who changed it, when, and why</p></div><span class="state-label" id="timelineVersionLabel">Working Draft 08</span></div>
+          <div class="timeline" id="timelineList"></div>
+        </section>
+      </div>
+    </main>
+
+    <aside class="right-rail" id="provenanceRail" data-od-id="provenance-rail" aria-label="Model status counts">
+      <div class="rail-header"><h2>Model status</h2><button class="icon-button mobile-rail-toggle" id="railClose" type="button" aria-label="Close status panel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+      <section class="rail-section" data-od-id="model-completeness">
+        <h3>Completeness</h3>
+        <div class="completeness"><div class="completeness-score" id="completenessScore"><span class="skeleton value" aria-hidden="true"></span></div><p><strong id="completenessCount"><span class="skeleton line" aria-hidden="true"></span></strong><span id="completenessDetail"><span class="skeleton line" aria-hidden="true"></span></span></p></div>
+        <div class="completeness-dots" id="completenessDots" aria-label="Completeness decomposition"></div>
+      </section>
+      <section class="rail-section" data-od-id="review-gates">
+        <h3>Review counts</h3>
+        <div class="rail-counts">
+          <div class="rail-count-row"><span>Open gaps</span><strong class="count-chip attention" id="railOpenGaps"><span class="skeleton count" aria-hidden="true"></span></strong></div>
+          <div class="rail-count-row"><span>Accepted warnings</span><strong class="count-chip" id="railAcceptedWarnings"><span class="skeleton count" aria-hidden="true"></span></strong></div>
+          <div class="rail-count-row"><span>Stale sources</span><strong class="count-chip stale" id="railStaleSources"><span class="skeleton count" aria-hidden="true"></span></strong></div>
+          <div class="rail-count-row"><span>Manual inputs</span><strong class="count-chip attention" id="railManualInputs"><span class="skeleton count" aria-hidden="true"></span></strong></div>
+        </div>
+      </section>
+      <section class="rail-section" data-od-id="rail-next-action">
+        <h3>Next best action</h3>
+        <div class="next-action" id="railNextAction" aria-live="polite"><span class="skeleton line" aria-hidden="true"></span></div>
+      </section>
+    </aside>
+  </div>
+
+  <div class="work-overlay" id="gapOverlay" hidden data-panel="gaps" data-od-id="gap-resolution-panel">
+    <div class="work-backdrop" data-panel-cancel></div>
+    <section class="work-panel" role="dialog" aria-modal="true" aria-labelledby="gapPanelTitle">
+      <header class="work-panel-header"><div><h2 id="gapPanelTitle">Resolve model gaps</h2><p>Assign ownership first, then choose a resolution. Resolutions apply on Save.</p></div><button class="icon-button" type="button" data-panel-cancel aria-label="Cancel and close gap resolution"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6 6 18"/></svg></button></header>
+      <div class="work-panel-body" id="gapPanelBody"></div>
+      <footer class="work-panel-footer"><div class="discard-confirm" id="gapDiscardConfirm" hidden><span>Discard every unsaved row?</span><button class="button small" type="button" data-keep-editing>Keep editing</button><button class="button small" type="button" data-discard-panel>Discard changes</button></div><button class="button" type="button" data-panel-cancel>Close</button><button class="button primary" id="saveGapsButton" type="button">Save resolutions</button></footer>
+    </section>
+  </div>
+
+  <div class="work-overlay" id="assumptionsOverlay" hidden data-panel="assumptions" data-od-id="assumptions-editor-panel">
+    <div class="work-backdrop" data-panel-cancel></div>
+    <section class="work-panel" role="dialog" aria-modal="true" aria-labelledby="assumptionsPanelTitle">
+      <header class="work-panel-header"><div><h2 id="assumptionsPanelTitle">Edit scenario assumptions</h2><p id="assumptionsPanelSubtitle">Source context stays attached to every value.</p></div><button class="icon-button" type="button" data-panel-cancel aria-label="Cancel and close assumptions editor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6 6 18"/></svg></button></header>
+      <div class="work-panel-body" id="assumptionsPanelBody"></div>
+      <footer class="work-panel-footer"><div class="discard-confirm" id="assumptionsDiscardConfirm" hidden><span>Discard every unsaved field?</span><button class="button small" type="button" data-keep-editing>Keep editing</button><button class="button small" type="button" data-discard-panel>Discard changes</button></div><button class="button" type="button" data-panel-cancel>Close</button><button class="button primary" id="saveAssumptionsButton" type="button">Save assumptions</button></footer>
+    </section>
+  </div>
+
+  <div class="work-overlay" id="publishOverlay" hidden data-panel="publish" data-od-id="publish-flow-panel">
+    <div class="work-backdrop" data-panel-cancel></div>
+    <section class="work-panel" role="dialog" aria-modal="true" aria-labelledby="publishPanelTitle">
+      <header class="work-panel-header"><div><h2 id="publishPanelTitle">Publish internal baseline</h2><p>Creates a baseline reference for future model comparisons. Review the bundle before publishing.</p></div><button class="icon-button" type="button" data-panel-cancel aria-label="Cancel and close publish flow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6 6 18"/></svg></button></header>
+      <div class="work-panel-body" id="publishPanelBody"></div>
+      <footer class="work-panel-footer"><button class="button" type="button" data-panel-cancel>Cancel</button><button class="button primary" id="confirmPublishButton" type="button">Publish internal baseline</button></footer>
+    </section>
+  </div>
+
+  <dialog id="evidenceDialog" aria-labelledby="evidenceDialogTitle">
+    <div class="dialog-header"><div><h2 id="evidenceDialogTitle">Source detail</h2><p id="evidenceDialogMeta">Review the evidence connected to this assumption.</p></div><button class="icon-button" type="button" data-close="evidenceDialog" aria-label="Close dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <div class="dialog-body" id="evidenceDialogBody"></div>
+    <div class="dialog-footer"><button class="button" type="button" data-close="evidenceDialog">Done</button></div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">Draft 08 published as internal baseline.</div>
+
+  <script>
+    const DECISION_NOTICE = "Internal decision support and communication preparation only. Not an official financial, accounting, tax, legal, compliance, or LP report.";
+    const TOTAL_CAPITAL = 48;
+    const TODAY = "August 6, 2026";
+    const byId = (id) => document.getElementById(id);
+    const clone = (value) => JSON.parse(JSON.stringify(value));
+    const escapeHtml = (value) => String(value).replace(/[&<>\"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[character]));
+
+    function formatWhen(iso, asOfISO) {
+      const d = new Date(iso), a = new Date(asOfISO + "T00:00");
+      const days = Math.round((Date.UTC(a.getFullYear(), a.getMonth(), a.getDate()) - Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5);
+      const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      if (days === 0) return `Today · ${time}`;
+      if (days === 1) return `Yesterday · ${time}`;
+      return `${d.toLocaleDateString("en-US", { month: "long", day: "numeric" })} · ${time}`;
+    }
+
+    const store = {
+      activeScenario: "base",
+      currentDraft: 8,
+      baselineDraft: 7,
+      published: false,
+      hydrated: false,
+      basisHash: "b7c19e2",
+      asOf: TODAY,
+      asOfISO: "2026-08-06",
+      sourceErrors: {},
+      sources: {
+        strategy: { title: "Fund strategy memo", status: "current", reviewedDays: 12, version: "January 2026", linked: 6 },
+        policy: { title: "Investment policy", status: "current", reviewedDays: 20, version: "Version 3.5", linked: 4 },
+        construction: { title: "Market construction workbook", status: "stale", reviewedDays: 124, threshold: 120, version: "Version 4.2", linked: 3 }
+      },
+      scenarios: {
+        conservative: scenario("Conservative", 15.8, 1.84, 7.0, 20, 1.1, 48, 4.0, 8, { irr: 19.6, tvpi: 2.22, reserve: 40, years: 3.0 }),
+        base: scenario("Base case", 21.4, 2.36, 8.5, 24, 1.0, 42, 3.5, 8, { irr: 19.6, tvpi: 2.22, reserve: 40, years: 3.0 }),
+        growth: scenario("Growth", 28.9, 3.10, 10.0, 28, 0.9, 36, 3.0, 8, { irr: 19.6, tvpi: 2.22, reserve: 40, years: 3.0 })
+      },
+      gaps: {
+        ownership: gap("Ownership at exit", "source-missing", "Nikhil", "2026-08-12"),
+        reserve: gap("Follow-on reserve", "source-missing", "Morgan", "2026-08-13"),
+        construction: gap("Market construction workbook", "source-stale", "Priya", "2026-08-10")
+      },
+      timeline: [
+        { when: "2026-08-06T09:42", who: "Nikhil", change: "Deployment period: 3.0 → 3.5 years", reason: "Aligned the Base case with the current investment pace." },
+        { when: "2026-08-05T16:18", who: "Morgan", change: "Follow-on reserve: 40% → 42%", reason: "Preserved Series B capacity after the portfolio review." },
+        { when: "2026-08-04T11:06", who: "Priya", change: "Market construction workbook linked", reason: "Replaced the prior exit distribution basis with version 4.2." }
+      ],
+      publication: null
+    };
+
+    function assumption(value, sourceKey) { return { value, sourceKey, manualReason: "" }; }
+    function scenario(label, irr, tvpi, ownership, companies, check, reserve, years, fees, baseline) {
+      return {
+        label, irr, tvpi, ownership, baseline: { ...baseline, companies, check, fees },
+        assumptions: {
+          companies: assumption(companies, "strategy"),
+          check: assumption(check, "strategy"),
+          reserve: assumption(reserve, "reserve"),
+          years: assumption(years, "policy"),
+          fees: assumption(fees, "policy")
+        }
+      };
+    }
+    function gap(label, kind, owner, due) { return { label, kind, owner, due, status: "Open", resolution: null }; }
+    function dollars(percent) { return `$${(TOTAL_CAPITAL * percent / 100).toFixed(1)}M`; }
+    function valueFor(key, data) { return key === "irr" ? data.irr : key === "tvpi" ? data.tvpi : data.assumptions[key].value; }
+    function openGaps() { return Object.values(store.gaps).filter((item) => !item.resolution); }
+    function sourceMissingGaps() { return Object.entries(store.gaps).filter(([, item]) => item.kind === "source-missing" && !item.resolution); }
+    function staleGaps() { return Object.entries(store.gaps).filter(([, item]) => item.kind === "source-stale" && !item.resolution); }
+    function acceptedWarnings() { return Object.values(store.gaps).filter((item) => item.resolution && ["warning", "manual"].includes(item.resolution.type)); }
+    function staleSources() { return Object.values(store.sources).filter((source) => source.status === "stale"); }
+    function manualInputs() {
+      const scenarioInputs = Object.values(store.scenarios[store.activeScenario].assumptions).filter((item) => item.sourceKey === "manual").length;
+      const otherInputs = Object.values(store.gaps).filter((item) => item.resolution?.type === "manual" && item.label !== "Follow-on reserve").length;
+      return scenarioInputs + otherInputs;
+    }
+    function warningItems() {
+      const items = new Map();
+      openGaps().forEach((item) => items.set(item.label, `${item.label}: resolution required`));
+      acceptedWarnings().forEach((item) => items.set(item.label, `${item.label}: ${item.resolution.type === "manual" ? "manual input" : "accepted warning"}`));
+      staleSources().forEach((source) => items.set(source.title, `${source.title}: reviewed ${source.reviewedDays} days ago; freshness threshold is ${source.threshold} days`));
+      return Array.from(items.values());
+    }
+    function sourceText(input) {
+      if (input.sourceKey === "manual") return `Manual input · ${input.manualReason}`;
+      if (input.sourceKey === "reserve") {
+        const gapItem = store.gaps.reserve;
+        if (gapItem.resolution?.type === "linked") return `${gapItem.resolution.source} · reviewed today`;
+        return "Source unavailable · needs attention";
+      }
+      const source = store.sources[input.sourceKey];
+      return `${source.title} · reviewed ${source.reviewedDays} days ago`;
+    }
+    function completeness() {
+      const current = 15 + Object.values(store.gaps).filter((item) => item.resolution?.type === "linked" || item.resolution?.type === "refreshed").length;
+      return { current, total: 18, percent: Math.round(current / 18 * 100) };
+    }
+    function markWorkingChange() {
+      if (store.published) {
+        store.currentDraft += 1;
+        store.published = false;
+      }
+    }
+    function appendTimeline(change, reason, who = "Nikhil") {
+      const now = new Date();
+      const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+      store.timeline.unshift({ when: formatWhen(`${store.asOfISO}T${time}`, store.asOfISO), who, change, reason });
+    }
+
+    function delta(metric, current, baseline) {
+      const difference = Number((current - baseline).toFixed(2));
+      const label = `Draft ${String(store.baselineDraft).padStart(2, "0")}`;
+      if (difference === 0) return { pill: `No change vs ${label}`, prose: `No change from ${label}.` };
+      const up = difference > 0;
+      const magnitude = Math.abs(difference);
+      const format = metric === "irr" || metric === "reserve" ? `${magnitude.toFixed(magnitude % 1 ? 1 : 0)} pp` : metric === "tvpi" ? `${magnitude.toFixed(2)}×` : `${magnitude.toFixed(1)} ${magnitude === 1 ? "year" : "years"}`;
+      const proseUnit = metric === "irr" || metric === "reserve" ? `${magnitude.toFixed(magnitude % 1 ? 1 : 0)} percentage ${magnitude === 1 ? "point" : "points"}` : metric === "tvpi" ? `${magnitude.toFixed(2)}×` : `${magnitude.toFixed(1)} ${magnitude === 1 ? "year" : "years"}`;
+      const proseDirection = metric === "years" ? (up ? "longer" : "shorter") : (up ? "higher" : "lower");
+      return { pill: `${up ? "↑" : "↓"} ${format} vs ${label}`, prose: `${proseUnit} ${proseDirection} than ${label}.` };
+    }
+
+    function renderAll() {
+      if (!store.hydrated) { renderLoading(); return; }
+      const canvas = byId("decisionCanvas");
+      canvas.classList.remove("is-loading");
+      canvas.classList.add("hydrated");
+      canvas.setAttribute("aria-busy", "false");
+      renderHeader();
+      renderBanner();
+      renderScenario();
+      renderRail();
+      renderProvenance();
+      renderTimeline();
+      renderSourceFilter();
+    }
+    function renderLoading() {
+      const canvas = byId("decisionCanvas");
+      canvas.classList.add("is-loading");
+      canvas.classList.remove("hydrated");
+      canvas.setAttribute("aria-busy", "true");
+      byId("attentionBanner").classList.remove("ready");
+      byId("bannerTitle").innerHTML = '<span class="skeleton" style="width:220px;min-height:16px;display:inline-block"></span>';
+      byId("bannerDetail").innerHTML = '<span class="skeleton" style="width:340px;min-height:13px;display:inline-block"></span>';
+      byId("bannerChips").innerHTML = "";
+      byId("attentionButton").disabled = true;
+      const publish = byId("publishButton");
+      publish.disabled = true;
+      publish.querySelector("span").textContent = "Loading review gates";
+      byId("saveStatus").innerHTML = '<span class="skeleton line" aria-hidden="true"></span>';
+      byId("sourceFilterButton").innerHTML = '<span class="skeleton line" style="width:84px;display:inline-block" aria-hidden="true"></span>';
+      byId("sourceFilterButton").setAttribute("aria-label", "Loading provenance sources");
+      ["Irr", "Tvpi", "Reserve", "Years"].forEach((name) => {
+        byId(`metric${name}`).innerHTML = '<span class="skeleton value" aria-hidden="true"></span>';
+        byId(`metric${name}Delta`).innerHTML = '<span class="skeleton pill" aria-hidden="true"></span>';
+      });
+      ["metricIrrNote", "metricTvpiNote", "metricYearsNote"].forEach((id) => byId(id).innerHTML = '<span class="skeleton line" aria-hidden="true"></span>');
+      byId("metricReserveSource").textContent = "";
+      byId("metricYearsSource").textContent = "";
+      byId("canvasBasisLine").innerHTML = '<span class="skeleton line" aria-hidden="true"></span>';
+      document.querySelectorAll("[data-strip-value]").forEach((node) => { node.innerHTML = '<span class="skeleton line" aria-hidden="true"></span>'; });
+      byId("completenessScore").innerHTML = '<span class="skeleton value" aria-hidden="true"></span>';
+      byId("completenessCount").innerHTML = '<span class="skeleton line" aria-hidden="true"></span>';
+      byId("completenessDetail").innerHTML = '<span class="skeleton line" aria-hidden="true"></span>';
+      byId("completenessDots").innerHTML = '<span class="skeleton line" aria-hidden="true"></span>';
+      ["railOpenGaps", "railAcceptedWarnings", "railStaleSources", "railManualInputs"].forEach((id) => byId(id).innerHTML = '<span class="skeleton count" aria-hidden="true"></span>');
+      byId("provenanceTree").innerHTML = "";
+    }
+    function renderHeader() {
+      const draft = `Draft ${String(store.currentDraft).padStart(2, "0")}`;
+      byId("modelVersionLabel").textContent = store.published ? `Published model · ${draft}` : `Current working model · ${draft}`;
+      byId("modelUpdatedLabel").textContent = store.published ? "Published today · internal baseline" : "Updated today · 09:42";
+      byId("saveStatus").innerHTML = `<span class="status-dot"></span>${store.published ? `${draft} published` : "Draft autosaved"}`;
+      const publishLabel = byId("publishButton").querySelector("span");
+      const open = openGaps().length;
+      const warnings = warningItems().length;
+      publishLabel.textContent = store.published ? `View published ${draft}` : open ? `Publish with warnings (${open} ${open === 1 ? "gap" : "gaps"})` : warnings ? `Publish with warnings (${warnings})` : "Publish model";
+      byId("publishButton").disabled = false;
+      byId("publishButton").setAttribute("aria-label", publishLabel.textContent);
+    }
+    function renderBanner() {
+      const open = openGaps().length;
+      const missing = sourceMissingGaps();
+      const stale = staleGaps();
+      const warnings = acceptedWarnings().length + staleSources().length;
+      byId("attentionButton").disabled = false;
+      byId("attentionBanner").classList.toggle("ready", open === 0 && warnings === 0);
+      if (open > 0) {
+        const missingCopy = missing.length === 1 ? "One assumption lacks a source" : `${missing.length} assumptions lack sources`;
+        const staleCopy = stale.length === 1 ? "one source is stale" : `${stale.length} sources are stale`;
+        byId("bannerTitle").textContent = `${missingCopy} · ${staleCopy} — ${open} ${open === 1 ? "gap" : "gaps"} before publish`;
+        byId("bannerDetail").textContent = "Open a gap to assign ownership and record a resolution.";
+        byId("attentionButton").textContent = "Review gaps";
+        byId("bannerChips").innerHTML = [...missing.map(([key, item]) => `<button class="gap-chip attention" type="button" data-gap-target="${key}"><span class="dot attention" aria-hidden="true"></span>${escapeHtml(item.label)} · source missing</button>`), ...stale.map(([key, item]) => `<button class="gap-chip stale" type="button" data-gap-target="${key}"><span class="dot stale" aria-hidden="true"></span>${escapeHtml(item.label)} · stale</button>`)].join("");
+      } else if (warnings > 0) {
+        byId("bannerTitle").textContent = "Publishable with warnings";
+        byId("bannerDetail").textContent = `${warnings} accepted or freshness ${warnings === 1 ? "warning travels" : "warnings travel"} with the internal reference.`;
+        byId("attentionButton").textContent = "Review warnings";
+        byId("bannerChips").innerHTML = acceptedWarnings().map((item) => `<button class="gap-chip attention" type="button" data-gap-target="${Object.keys(store.gaps).find((key) => store.gaps[key] === item)}"><span class="dot attention" aria-hidden="true"></span>${escapeHtml(item.label)} · accepted</button>`).join("");
+      } else {
+        byId("bannerTitle").textContent = "Ready to publish";
+        byId("bannerDetail").textContent = "All review gates are current and no warnings will travel with the reference.";
+        byId("bannerChips").innerHTML = "";
+      }
+    }
+    function renderScenario() {
+      const data = store.scenarios[store.activeScenario];
+      document.querySelectorAll(".scenario-tab").forEach((tab) => tab.setAttribute("aria-selected", String(tab.dataset.scenario === store.activeScenario)));
+      document.querySelectorAll("[data-scenario-column]").forEach((column) => {
+        const active = column.dataset.scenarioColumn === store.activeScenario;
+        column.classList.toggle("active", active);
+        column.setAttribute("aria-selected", String(active));
+        const scenarioData = store.scenarios[column.dataset.scenarioColumn];
+        const values = { irr: `${scenarioData.irr.toFixed(1)}%`, tvpi: `${scenarioData.tvpi.toFixed(2)}×`, reserve: `${scenarioData.assumptions.reserve.value}%`, years: `${scenarioData.assumptions.years.value.toFixed(1)} years` };
+        column.querySelectorAll("[data-strip-value]").forEach((node) => { node.textContent = values[node.dataset.stripValue]; });
+      });
+      const values = {
+        irr: { current: data.irr, shown: `${data.irr.toFixed(1)}%`, baseline: data.baseline.irr, driver: store.activeScenario === "conservative" ? "Deployment pace" : "Exit multiple mix" },
+        tvpi: { current: data.tvpi, shown: `${data.tvpi.toFixed(2)}×`, baseline: data.baseline.tvpi, driver: store.activeScenario === "conservative" ? "Lower exit ownership" : "Exit distribution basis" },
+        reserve: { current: data.assumptions.reserve.value, shown: `${data.assumptions.reserve.value}%`, baseline: data.baseline.reserve, driver: "Series B capacity" },
+        years: { current: data.assumptions.years.value, shown: `${data.assumptions.years.value.toFixed(1)} years`, baseline: data.baseline.years, driver: "Updated investment pace" }
+      };
+      Object.entries(values).forEach(([key, item]) => {
+        const name = key[0].toUpperCase() + key.slice(1);
+        const change = delta(key, item.current, item.baseline);
+        byId(`metric${name}`).textContent = item.shown;
+        byId(`metric${name}Delta`).textContent = change.pill;
+        byId(`proof${name}Value`).textContent = `${item.shown}. ${change.prose}`;
+        byId(`proof${name}Driver`).textContent = item.driver;
+      });
+      byId("metricReserveSource").textContent = sourceText(data.assumptions.reserve);
+      byId("metricYearsSource").textContent = sourceText(data.assumptions.years);
+      byId("metricIrrNote").textContent = `As of ${store.asOf} · scenario engine`;
+      byId("metricTvpiNote").textContent = `As of ${store.asOf} · scenario engine`;
+      byId("metricYearsNote").textContent = `As of ${store.asOf} · Investment policy`;
+      const reserveSource = store.gaps.reserve.resolution?.type === "linked" ? store.gaps.reserve.resolution.source : "Source unavailable";
+      byId("proofReserveAsOf").textContent = reserveSource === "Source unavailable" ? "Not available" : "Reviewed today";
+      byId("proofReserveVersion").textContent = reserveSource === "Source unavailable" ? `Working Draft ${String(store.currentDraft).padStart(2, "0")}` : reserveSource;
+      byId("proofYearsAsOf").textContent = `${store.sources.policy.reviewedDays} days ago`;
+      byId("proofYearsVersion").textContent = store.sources.policy.version;
+      const constructionStale = store.sources.construction.status === "stale";
+      byId("proofIrrAsOf").textContent = store.asOf;
+      byId("proofIrrVersion").textContent = "Scenario engine v3.2";
+      byId("proofTvpiAsOf").textContent = constructionStale ? `${store.sources.construction.reviewedDays} days ago` : store.asOf;
+      byId("proofTvpiVersion").textContent = store.sources.construction.version;
+      byId("proofTvpiSource").innerHTML = `Market construction workbook${constructionStale ? `<span class="proof-stale"><i aria-hidden="true"></i>${store.sources.construction.reviewedDays}d</span>` : ""}`;
+      const reserveValue = data.assumptions.reserve.value;
+      const reserveInvestableShare = reserveValue / (100 - data.assumptions.fees.value) * 100;
+      byId("metricReserveNote").textContent = `${reserveValue}% of committed · ${reserveInvestableShare.toFixed(1)}% of investable`;
+      byId("metricReserveCard").setAttribute("aria-label", `Follow-on reserve: ${reserveValue}% of committed capital, ${reserveInvestableShare.toFixed(1)}% of investable capital`);
+      renderAllocation(data);
+      renderAssumptionSummary(data);
+      renderBasis(data);
+    }
+    function renderAllocation(data) {
+      const reserve = data.assumptions.reserve.value;
+      const fees = data.assumptions.fees.value;
+      const initial = 100 - reserve - fees;
+      const investable = 100 - fees;
+      const initialInvestable = initial / investable * 100;
+      const reserveInvestable = reserve / investable * 100;
+      const draft = `Draft ${String(store.currentDraft).padStart(2, "0")}`;
+      byId("committedInvestable").style.width = `${investable}%`;
+      byId("feesVisual").style.width = `${fees}%`;
+      byId("feesSegment").style.setProperty("--fees-width", `${fees}%`);
+      byId("investableEdge").style.left = `${investable}%`;
+      byId("investableFlag").textContent = `Investable ${dollars(investable)}`;
+      byId("investableValue").textContent = dollars(investable);
+      byId("feesLabel").textContent = `Fees & expenses ${dollars(fees)} · ${fees}% of committed`;
+      byId("allocationLabelGrid").style.gridTemplateColumns = `${initialInvestable}% ${reserveInvestable}%`;
+      byId("initialDirectLabel").innerHTML = `Initial checks · ${dollars(initial)} · ${initialInvestable.toFixed(1)}% of investable<span class="capital-segment-tooltip" id="tooltipInitialLink" role="tooltip">${segmentProof("Initial checks", initial, initialInvestable, data.label, draft)}</span>`;
+      byId("reserveDirectLabel").innerHTML = `Follow-on reserve · ${dollars(reserve)} · ${reserveInvestable.toFixed(1)}% of investable<span class="capital-segment-tooltip" id="tooltipReserveLink" role="tooltip">${segmentProof("Follow-on reserve", reserve, reserveInvestable, data.label, draft)}</span>`;
+      byId("barInitial").style.width = `${initialInvestable}%`;
+      byId("barReserve").style.width = `${reserveInvestable}%`;
+      byId("barInitial").setAttribute("aria-label", `${data.label}: initial checks ${dollars(initial)} · ${initial}% of committed · ${initialInvestable.toFixed(1)}% of investable`);
+      byId("barReserve").setAttribute("aria-label", `${data.label}: follow-on reserve ${dollars(reserve)} · ${reserve}% of committed · ${reserveInvestable.toFixed(1)}% of investable`);
+      byId("compactInitialLabel").textContent = `Initial ${dollars(initial)} · ${initialInvestable.toFixed(1)}% investable`;
+      byId("compactReserveLabel").textContent = `Follow-on reserve ${dollars(reserve)} · ${reserveInvestable.toFixed(1)}% of investable`;
+      byId("compactInitialBar").style.width = `${initialInvestable}%`;
+      byId("compactReserveBar").style.width = `${reserveInvestable}%`;
+      byId("compactInitialBar").closest(".allocation-compact-track").setAttribute("aria-label", `Initial checks segment · ${initialInvestable.toFixed(1)}% of investable`);
+      byId("compactReserveBar").closest(".allocation-compact-track").setAttribute("aria-label", `Follow-on reserve segment · ${reserveInvestable.toFixed(1)}% of investable`);
+      byId("tooltipFees").innerHTML = `<strong>Fees & expenses · ${dollars(fees)}</strong>${fees}% of committed capital<br>${(fees / investable * 100).toFixed(1)}% of investable-capital equivalent · deducted before allocation<br>${escapeHtml(data.label)} scenario<br>Source · ${draft} plan inputs`;
+      byId("activeAllocationBar").setAttribute("aria-label", `${data.label} investable allocation: initial checks ${dollars(initial)}, ${initial}% of committed capital, ${initialInvestable.toFixed(1)}% of investable capital; follow-on reserve ${dollars(reserve)}, ${reserve}% of committed capital, ${reserveInvestable.toFixed(1)}% of investable capital.`);
+      byId("scenarioBars").innerHTML = Object.entries(store.scenarios).map(([key, scenarioData]) => {
+        const scenarioReserve = scenarioData.assumptions.reserve.value;
+        const scenarioFees = scenarioData.assumptions.fees.value;
+        const scenarioInitial = 100 - scenarioReserve - scenarioFees;
+        const scenarioInvestable = 100 - scenarioFees;
+        const scenarioInitialInvestable = scenarioInitial / scenarioInvestable * 100;
+        const scenarioReserveInvestable = scenarioReserve / scenarioInvestable * 100;
+        const tooltip = `<strong>${escapeHtml(scenarioData.label)} · ${dollars(scenarioInvestable)} investable</strong>Initial checks ${dollars(scenarioInitial)} · ${scenarioInitialInvestable.toFixed(1)}% of investable (${scenarioInitial}% committed)<br>Follow-on ${dollars(scenarioReserve)} · ${scenarioReserveInvestable.toFixed(1)}% of investable (${scenarioReserve}% committed)<br>Fees ${dollars(scenarioFees)} · ${scenarioFees}% committed<br>Source · ${draft} plan inputs`;
+        return `<button class="scenario-allocation-row ${key === store.activeScenario ? "active" : ""}" type="button" data-scenario-allocation="${key}" aria-pressed="${key === store.activeScenario}" aria-label="${escapeHtml(scenarioData.label)}: initial checks ${scenarioInitial}% of committed, ${scenarioInitialInvestable.toFixed(1)}% of investable; follow-on reserve ${scenarioReserve}% of committed, ${scenarioReserveInvestable.toFixed(1)}% of investable" data-od-id="allocation-row-${key}"><span class="scenario-allocation-name">${escapeHtml(scenarioData.label)}</span><span class="scenario-bridge" aria-hidden="true"><span class="bar-primary" style="width:${scenarioInitial}%"></span><span class="bar-secondary" style="width:${scenarioReserve}%"></span><span class="scenario-fees" style="width:${scenarioFees}%"></span><i class="scenario-edge" style="left:${scenarioInvestable}%"></i></span><span class="scenario-allocation-value">${scenarioInitialInvestable.toFixed(1)}%<small>${scenarioInitial}% committed</small></span><span class="scenario-allocation-value">${scenarioReserveInvestable.toFixed(1)}%<small>${scenarioReserve}% committed</small></span><span class="scenario-allocation-tooltip" role="tooltip">${tooltip}</span></button>`;
+      }).join("");
+    }
+    function segmentProof(label, committedPercent, investablePercent, scenarioLabel, draft) {
+      return `<strong>${escapeHtml(label)} · ${dollars(committedPercent)}</strong>${committedPercent}% of committed capital<br>${investablePercent.toFixed(1)}% of investable capital<br>${escapeHtml(scenarioLabel)} scenario<br>Source · ${draft} plan inputs`;
+    }
+    function renderAssumptionSummary(data) {
+      const output = {
+        Companies: `${data.assumptions.companies.value} companies`,
+        Check: `$${data.assumptions.check.value.toFixed(1)}M`,
+        Reserve: `${data.assumptions.reserve.value}%`,
+        Years: `${data.assumptions.years.value.toFixed(1)} years`,
+        Fees: `${data.assumptions.fees.value}%`
+      };
+      Object.entries(output).forEach(([name, value]) => {
+        const key = name.toLowerCase();
+        const input = data.assumptions[key];
+        byId(`assumption${name}`).textContent = value;
+        byId(`assumption${name}Source`).innerHTML = `${escapeHtml(sourceText(input))}${input.sourceKey === "manual" ? ` <span class="deviation-chip">manual · ${escapeHtml(input.manualReason)}</span>` : ""}`;
+      });
+    }
+    function renderBasis(data) {
+      byId("canvasBasisLine").textContent = `As of ${store.asOf} · snapshot ${store.basisHash} · Draft ${String(store.currentDraft).padStart(2, "0")} · INTERNAL DECISION SUPPORT`;
+    }
+    function renderRail() {
+      const score = completeness();
+      const stale = staleSources().length;
+      const attention = Math.max(0, score.total - score.current - stale);
+      byId("completenessScore").textContent = `${score.percent}%`;
+      byId("completenessCount").textContent = `${score.current} of ${score.total} inputs source-backed`;
+      byId("completenessDetail").textContent = score.current === score.total ? "All inputs have current reviewed evidence." : `${stale} stale · ${attention} source missing.`;
+      byId("completenessDots").innerHTML = `${dotGroup("current", score.current, "Source-backed", "strategy", "Current reviewed sources are present.")}${dotGroup("stale", stale, "Stale", "construction", "Reviewed evidence exceeds the 120-day freshness threshold.")}${dotGroup("attention", attention, "Source missing", "ownership", "No reviewed source is attached; choose a resolution.")}`;
+      byId("railOpenGaps").textContent = openGaps().length;
+      byId("railAcceptedWarnings").textContent = acceptedWarnings().length;
+      byId("railStaleSources").textContent = stale;
+      byId("railManualInputs").textContent = manualInputs();
+      byId("railNextAction").innerHTML = nextActionMarkup();
+    }
+    function nextActionMarkup() {
+      const missing = sourceMissingGaps();
+      const stale = staleGaps();
+      const open = openGaps().length;
+      if (open === 0) {
+        return `<div class="next-action-banner"><p class="next-action-title">No open gaps</p><p class="next-action-meta">All review gates are dispositioned. Ready to publish an internal baseline.</p></div>`;
+      }
+      const target = stale[0] || missing[0];
+      const [key, item] = target;
+      const state = item.kind === "source-stale" ? "stale" : "attention";
+      const verb = item.kind === "source-stale" ? "Refresh or relink the source" : "Assign ownership and link a source";
+      return `<div class="next-action-banner ${state === "stale" ? "warn" : "attention"}"><p class="next-action-title">${escapeHtml(item.label)}</p><p class="next-action-meta">${verb} · most urgent of ${open} open ${open === 1 ? "gap" : "gaps"}</p><button class="next-action-btn" type="button" data-gap-target="${escapeHtml(key)}">Resolve gap</button></div>`;
+    }
+    function dotGroup(state, count, label, target, tooltip) {
+      const dots = Array.from({ length: count }, () => `<i class="dot ${state === "current" ? "" : state}"></i>`).join("");
+      return `<button class="dot-group" type="button" data-dot-target="${target}" data-dot-state="${state}" aria-describedby="dot-tip-${state}"><span><span class="dot-strip" aria-hidden="true">${dots}</span><span class="dot-group-label">${count} ${label.toLowerCase()}</span></span><span class="count-chip ${state === "current" ? "" : state}">${count}</span><span class="dot-tooltip" id="dot-tip-${state}" role="tooltip">${escapeHtml(tooltip)}</span></button>`;
+    }
+    function renderProvenance() {
+      const groups = Object.entries(store.sources).map(([key, source]) => {
+        const status = source.status === "stale" ? "STALE" : "CURRENT";
+        const detail = source.status === "stale" ? `Reviewed ${source.reviewedDays} days ago · ${source.threshold}-day threshold exceeded` : `Reviewed ${source.reviewedDays} days ago · ${source.version}`;
+        return provenanceGroup(key, source.title, status, detail, `${source.linked} linked inputs`);
+      });
+      Object.entries(store.gaps).filter(([, item]) => item.kind === "source-missing" && item.resolution?.type !== "linked").forEach(([key, item]) => {
+        const resolution = item.resolution;
+        const detail = !resolution ? "Source unavailable · resolution required" : resolution.type === "manual" ? `Manual value · ${resolution.reason}` : `Accepted warning · ${resolution.reason}`;
+        groups.push(provenanceGroup(key, item.label, "ATTENTION", detail, resolution?.type === "manual" ? `<span class="deviation-chip">manual · ${escapeHtml(resolution.reason)}</span>` : "No reviewed source"));
+      });
+      byId("provenanceTree").innerHTML = [...groups.map((group) => group.card + (store.sourceErrors[group.key] ? errorBanner(group.key, store.sources[group.key], store.sourceErrors[group.key]) : ""))].join("");
+    }
+    function renderSourceFilter() {
+      const needsAttention = openGaps().length > 0 || staleSources().length > 0;
+      const button = byId("sourceFilterButton");
+      button.textContent = needsAttention ? "Review attention items" : "All sources reviewed";
+      button.removeAttribute("aria-pressed");
+      button.removeAttribute("aria-label");
+    }
+    function provenanceGroup(key, title, status, detail, inputDetail) {
+      const state = status === "STALE" ? "stale" : status === "ATTENTION" ? "attention" : "current";
+      const actions = status === "STALE" ? `<button class="source-refresh" type="button" data-refresh-source="${escapeHtml(key)}">Refresh source</button>` : status === "ATTENTION" ? `<button class="source-action" type="button" data-open-gap="${escapeHtml(key)}" data-gap-resolution="linked">Link source</button><button class="source-action" type="button" data-open-gap="${escapeHtml(key)}" data-gap-resolution="manual">Enter manual value</button>` : "";
+      return { key, card: `<article class="source-group" data-state="${state}" data-od-id="source-provenance-${escapeHtml(key)}"><div class="source-node ${state}"><button class="source-node-main evidence-trigger" type="button" data-source-key="${escapeHtml(key)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M6 3h9l3 3v15H6zM9 11h6M9 15h6"/></svg><span><span class="source-node-title">${escapeHtml(title)}</span><span class="source-node-meta">${escapeHtml(detail)}</span></span></button><span class="source-node-actions"><span class="state-label ${state}">${status}</span>${actions}</span></div><div class="source-branches"><div class="input-node ${state}"><span>${escapeHtml(title)} provenance</span><code>${inputDetail}</code></div></div></article>` };
+    }
+    function errorBanner(key, source, message) {
+      return `<div class="source-error-banner" data-source-error="${escapeHtml(key)}" role="alert" data-od-id="source-error-${escapeHtml(key)}"><div class="source-error-copy"><strong>Source unavailable. Existing results are unchanged.</strong><span>${escapeHtml(message)} The last reviewed version (${escapeHtml(source?.version || "n/a")}) remains in use.</span></div><button class="source-retry" type="button" data-retry-source="${escapeHtml(key)}">Refresh source</button></div>`;
+    }
+    function renderTimeline() {
+      byId("timelineVersionLabel").textContent = `${store.published ? "Published" : "Working"} Draft ${String(store.currentDraft).padStart(2, "0")}`;
+      byId("timelineList").innerHTML = store.timeline.map((item, index) => `<article class="timeline-row" data-od-id="model-change-${index + 1}"><time class="timeline-time">${escapeHtml(formatWhen(item.when, store.asOfISO))}</time><div><span class="timeline-title">${escapeHtml(item.change)}</span><span class="timeline-meta">Owner · ${escapeHtml(item.who)}</span></div><div><p class="timeline-reason">${escapeHtml(item.reason)}</p><button class="timeline-diff-button" type="button" data-timeline-index="${index}">View assumption diff</button></div></article>`).join("");
+    }
+
+    let activeOverlay = null;
+    let invokingControl = null;
+    let panelDraft = null;
+    let savedViewport = 0;
+    function openPanel(type, invoker, focusKey = "", presetResolution = "") {
+      invokingControl = invoker;
+      savedViewport = window.scrollY;
+      activeOverlay = byId(`${type}Overlay`);
+      if (type === "gap") {
+        prepareGapPanel();
+        if (focusKey && presetResolution && panelDraft.data[focusKey]) {
+          panelDraft.data[focusKey].resolution = { type: presetResolution };
+          panelDraft.dirty.add(focusKey);
+          renderGapPanel();
+        }
+      }
+      if (type === "assumptions") prepareAssumptionsPanel();
+      if (type === "publish") preparePublishPanel();
+      activeOverlay.hidden = false;
+      byId("appShell").inert = true;
+      document.body.classList.add("overlay-open");
+      requestAnimationFrame(() => {
+        activeOverlay.classList.add("open");
+        const target = focusKey
+          ? activeOverlay.querySelector(presetResolution ? `[data-gap-row="${focusKey}"] [data-resolution-field]` : `[data-gap-row="${focusKey}"] button, [data-gap-row="${focusKey}"] input, [data-gap-row="${focusKey}"] select`)
+          : activeOverlay.querySelector("button:not([disabled]), input:not([disabled]), select:not([disabled])");
+        if (target) target.focus();
+      });
+    }
+    function isDirty() { return panelDraft?.dirty?.size > 0; }
+    function requestClose() {
+      if (isDirty()) {
+        const confirm = activeOverlay.querySelector(".discard-confirm");
+        confirm.hidden = false;
+        confirm.querySelector("[data-keep-editing]").focus();
+        return;
+      }
+      closePanel();
+    }
+    function closePanel() {
+      if (!activeOverlay) return;
+      const overlay = activeOverlay;
+      overlay.classList.remove("open");
+      const finish = () => {
+        overlay.hidden = true;
+        byId("appShell").inert = false;
+        document.body.classList.remove("overlay-open");
+        window.scrollTo(0, savedViewport);
+        const focusTarget = invokingControl;
+        activeOverlay = null;
+        panelDraft = null;
+        invokingControl = null;
+        if (focusTarget) focusTarget.focus();
+      };
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) finish(); else window.setTimeout(finish, 180);
+    }
+    function trapFocus(event) {
+      if (!activeOverlay || event.key !== "Tab") return;
+      const focusable = Array.from(activeOverlay.querySelectorAll("button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])")).filter((node) => !node.closest("[hidden]"));
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+
+    function prepareGapPanel() {
+      panelDraft = { type: "gap", data: clone(store.gaps), dirty: new Set(), errors: {} };
+      renderGapPanel();
+    }
+    function renderGapPanel() {
+      const open = Object.entries(panelDraft.data).filter(([, item]) => !item.resolution);
+      if (!open.length) {
+        const warningCount = Object.values(panelDraft.data).filter((item) => item.resolution && ["warning", "manual"].includes(item.resolution.type)).length + staleSources().length;
+        byId("gapPanelBody").innerHTML = `<div class="panel-success"><h3>${warningCount ? "All gaps dispositioned" : "All gaps resolved"}</h3><p>${warningCount ? `Publishable with ${warningCount} named ${warningCount === 1 ? "warning" : "warnings"}.` : "Ready to publish with current reviewed evidence."}</p></div>`;
+        byId("saveGapsButton").disabled = true;
+        return;
+      }
+      byId("saveGapsButton").disabled = false;
+      byId("gapPanelBody").innerHTML = `<div class="work-list">${open.map(([key, item]) => gapRow(key, item)).join("")}</div>`;
+    }
+    function gapRow(key, item) {
+      const choices = item.kind === "source-missing" ? [["linked", "Link reviewed source"], ["manual", "Enter manual value"], ["warning", "Accept warning"]] : [["refreshed", "Refresh artifact"], ["linked", "Link newer source"], ["warning", "Accept warning"]];
+      const selected = item.resolution?.type || "";
+      return `<article class="work-row ${item.kind} ${panelDraft.dirty.has(key) ? "dirty" : ""}" data-gap-row="${key}" data-od-id="gap-row-${key}"><header class="work-row-head"><h3 class="work-row-title">${escapeHtml(item.label)}</h3><span class="work-row-kind">${item.kind === "source-missing" ? "Source missing" : "Source stale · 124 days since review · 120-day threshold"}</span><span class="state-label ${item.kind === "source-missing" ? "attention" : "stale"}">${item.kind === "source-missing" ? "ATTENTION" : "STALE"}</span></header><div class="metadata-grid"><div class="compact-field"><label for="${key}Owner">Owner</label><select id="${key}Owner" data-gap-meta="owner"><option ${item.owner === "Nikhil" ? "selected" : ""}>Nikhil</option><option ${item.owner === "Morgan" ? "selected" : ""}>Morgan</option><option ${item.owner === "Priya" ? "selected" : ""}>Priya</option></select></div><div class="compact-field"><label for="${key}Due">Due date</label><input id="${key}Due" type="date" value="${item.due}" data-gap-meta="due"></div><div class="compact-field"><label for="${key}Status">Status</label><select id="${key}Status" data-gap-meta="status"><option ${item.status === "Open" ? "selected" : ""}>Open</option><option ${item.status === "In review" ? "selected" : ""}>In review</option><option ${item.status === "Ready" ? "selected" : ""}>Ready</option></select></div></div><div class="resolution-area"><div class="resolution-choices">${choices.map(([value, label]) => `<button class="choice-button ${selected === value ? "active" : ""}" type="button" data-gap-action="${value}">${label}</button>`).join("")}</div><div class="resolution-fields">${gapResolutionFields(key, item)}</div>${panelDraft.errors[key] ? `<p class="inline-error">${escapeHtml(panelDraft.errors[key])}</p>` : ""}</div></article>`;
+    }
+    function gapResolutionFields(key, item) {
+      const resolution = item.resolution;
+      if (!resolution) return "";
+      if (resolution.type === "linked") return `<div class="compact-field"><label for="${key}Source">Reviewed source</label><input id="${key}Source" data-resolution-field="source" value="${escapeHtml(resolution.source || "")}" placeholder="Document name · reviewed date"></div>`;
+      if (resolution.type === "manual") return `<div class="compact-field"><label for="${key}Value">Manual value</label><input id="${key}Value" type="number" step="0.1" data-resolution-field="value" value="${escapeHtml(resolution.value || "")}"></div><div class="compact-field"><label for="${key}Reason">Required reason</label><input id="${key}Reason" data-resolution-field="reason" value="${escapeHtml(resolution.reason || "")}" placeholder="Why reviewed evidence is unavailable"></div>`;
+      if (resolution.type === "refreshed") return `<div class="compact-field"><label for="${key}Version">New version</label><input id="${key}Version" data-resolution-field="version" value="${escapeHtml(resolution.version || "")}" placeholder="Version 4.3"></div><div class="compact-field"><label for="${key}Reviewed">Reviewed date</label><input id="${key}Reviewed" type="date" data-resolution-field="reviewed" value="${escapeHtml(resolution.reviewed || "2026-08-06")}"></div>`;
+      return `<div class="compact-field"><label for="${key}WarningReason">Required warning reason</label><input id="${key}WarningReason" data-resolution-field="reason" value="${escapeHtml(resolution.reason || "")}" placeholder="Why this warning is acceptable"></div>`;
+    }
+    function updateGapDraft(target) {
+      const row = target.closest("[data-gap-row]");
+      if (!row) return;
+      const key = row.dataset.gapRow;
+      const item = panelDraft.data[key];
+      if (target.dataset.gapMeta) item[target.dataset.gapMeta] = target.value;
+      if (target.dataset.gapAction) item.resolution = { type: target.dataset.gapAction };
+      if (target.dataset.resolutionField) item.resolution[target.dataset.resolutionField] = target.value;
+      panelDraft.dirty.add(key);
+      delete panelDraft.errors[key];
+      renderGapPanel();
+      const freshRow = byId("gapPanelBody").querySelector(`[data-gap-row="${key}"]`);
+      const focus = target.dataset.gapAction
+        ? freshRow.querySelector("[data-resolution-field]")
+        : target.dataset.resolutionField
+          ? freshRow.querySelector(`[data-resolution-field="${target.dataset.resolutionField}"]`)
+          : freshRow.querySelector(`[data-gap-meta="${target.dataset.gapMeta}"]`);
+      if (focus) focus.focus();
+    }
+    function saveGaps() {
+      let invalid = false;
+      panelDraft.dirty.forEach((key) => {
+        const resolution = panelDraft.data[key].resolution;
+        if (!resolution) { panelDraft.errors[key] = "Choose a resolution before saving this row."; invalid = true; return; }
+        if (resolution.type === "linked" && !resolution.source?.trim()) { panelDraft.errors[key] = "Name the reviewed source."; invalid = true; }
+        if (resolution.type === "manual" && (!resolution.value || !resolution.reason?.trim())) { panelDraft.errors[key] = "Manual values require both a value and a disclosed reason."; invalid = true; }
+        if (resolution.type === "warning" && !resolution.reason?.trim()) { panelDraft.errors[key] = "Accepted warnings require a reason."; invalid = true; }
+        if (resolution.type === "refreshed" && (!resolution.version?.trim() || !resolution.reviewed)) { panelDraft.errors[key] = "A refreshed artifact requires its new version and review date."; invalid = true; }
+      });
+      if (invalid) { renderGapPanel(); return; }
+      markWorkingChange();
+      panelDraft.dirty.forEach((key) => {
+        const next = panelDraft.data[key];
+        next.status = next.resolution?.type === "warning" ? "Accepted" : "Resolved";
+        store.gaps[key] = clone(next);
+        if (key === "construction" && next.resolution?.type === "refreshed") {
+          Object.assign(store.sources.construction, { status: "current", reviewedDays: 0, version: next.resolution.version });
+        }
+        if (key === "construction" && next.resolution?.type === "linked") {
+          Object.assign(store.sources.construction, { status: "current", reviewedDays: 0, version: next.resolution.source });
+        }
+        if (key === "reserve" && next.resolution?.type === "manual") {
+          Object.values(store.scenarios).forEach((data) => { data.assumptions.reserve = { value: Number(next.resolution.value), sourceKey: "manual", manualReason: next.resolution.reason }; recomputeOutputs(data); });
+        }
+        appendTimeline(`Draft ${String(store.currentDraft).padStart(2, "0")} · ${next.label}: ${resolutionLabel(next.resolution.type)}`, next.resolution.reason || next.resolution.source || next.resolution.version || "Reviewed evidence attached.", next.owner);
+      });
+      renderAll();
+      closePanel();
+      showToast("Gap resolutions saved. Review gates and provenance updated.");
+    }
+    function resolutionLabel(type) { return ({ linked: "reviewed source linked", manual: "manual value disclosed", warning: "warning accepted", refreshed: "artifact refreshed and reviewed" })[type]; }
+
+    const assumptionMeta = {
+      companies: { label: "Initial portfolio count", min: 1, max: 100, step: 1, unit: "companies" },
+      check: { label: "Median initial check", min: .1, max: 10, step: .1, unit: "$M" },
+      reserve: { label: "Follow-on reserve", min: 20, max: 70, step: 1, unit: "%" },
+      years: { label: "Deployment period", min: 1, max: 8, step: .5, unit: "years" },
+      fees: { label: "Fees & expenses", min: 0, max: 20, step: 1, unit: "%" }
+    };
+    function prepareAssumptionsPanel() {
+      panelDraft = { type: "assumptions", data: clone(store.scenarios[store.activeScenario].assumptions), original: clone(store.scenarios[store.activeScenario].assumptions), dirty: new Set(), errors: {} };
+      byId("assumptionsPanelTitle").textContent = `Edit ${store.scenarios[store.activeScenario].label.toLowerCase()} assumptions`;
+      byId("assumptionsPanelSubtitle").textContent = "A changed value becomes a manual input until reviewed evidence is linked.";
+      renderAssumptionsPanel();
+    }
+    function renderAssumptionsPanel() {
+      byId("assumptionsPanelBody").innerHTML = `<div class="editor-list">${Object.entries(assumptionMeta).map(([key, meta]) => {
+        const input = panelDraft.data[key];
+        const changed = panelDraft.dirty.has(key);
+        const baseline = store.scenarios[store.activeScenario].baseline[key] ?? panelDraft.original[key].value;
+        const direction = input.value === baseline ? "No change" : `${input.value > baseline ? "↑" : "↓"} ${Math.abs(input.value - baseline).toFixed(meta.step < 1 ? 1 : 0)} ${meta.unit}`;
+        const baselineLabel = key === "companies" ? `${baseline} ${meta.unit}` : key === "years" ? `${baseline.toFixed(1)} ${meta.unit}` : `${baseline}${meta.unit}`;
+        return `<article class="editor-row ${changed ? "dirty" : ""}" data-assumption-row="${key}" data-od-id="assumption-field-${key}"><div><h3 class="work-row-title">${meta.label}</h3><p class="editor-source"><strong>Current source:</strong> ${escapeHtml(sourceText(panelDraft.original[key]))}</p><p class="editor-preview">Baseline: ${baselineLabel} · ${direction} vs Draft ${String(store.baselineDraft).padStart(2, "0")}</p>${changed ? `<span class="deviation-chip">manual · reason required</span>` : ""}</div><div class="editor-field"><label for="edit-${key}">Value · ${meta.unit}</label><input id="edit-${key}" type="number" min="${meta.min}" max="${meta.max}" step="${meta.step}" value="${input.value}" data-assumption-value>${changed ? `<div class="compact-field reason-field"><label for="reason-${key}">Required reason</label><input id="reason-${key}" value="${escapeHtml(input.manualReason || "")}" data-assumption-reason placeholder="Why this differs from the baseline"></div>` : ""}${panelDraft.errors[key] ? `<p class="inline-error">${escapeHtml(panelDraft.errors[key])}</p>` : ""}</div></article>`;
+      }).join("")}</div>`;
+    }
+    function updateAssumptionDraft(target) {
+      const row = target.closest("[data-assumption-row]");
+      if (!row) return;
+      const key = row.dataset.assumptionRow;
+      if (target.hasAttribute("data-assumption-value")) {
+        panelDraft.data[key].value = Number(target.value);
+        panelDraft.data[key].sourceKey = "manual";
+        panelDraft.dirty.add(key);
+      }
+      if (target.hasAttribute("data-assumption-reason")) {
+        panelDraft.data[key].manualReason = target.value;
+        delete panelDraft.errors[key];
+        return;
+      }
+      delete panelDraft.errors[key];
+      renderAssumptionsPanel();
+      const selector = `[data-assumption-reason]`;
+      const focus = byId("assumptionsPanelBody").querySelector(`[data-assumption-row="${key}"] ${selector}`);
+      if (focus) { focus.focus(); if (target.hasAttribute("data-assumption-reason")) focus.setSelectionRange(focus.value.length, focus.value.length); }
+    }
+    function saveAssumptions() {
+      let invalid = false;
+      panelDraft.dirty.forEach((key) => {
+        const meta = assumptionMeta[key];
+        const input = panelDraft.data[key];
+        if (!Number.isFinite(input.value) || input.value < meta.min || input.value > meta.max) { panelDraft.errors[key] = `Enter a value from ${meta.min} to ${meta.max}.`; invalid = true; }
+        if (key === "companies" && !Number.isInteger(input.value)) { panelDraft.errors[key] = "Portfolio count must be a whole number."; invalid = true; }
+        if (!input.manualReason?.trim()) { panelDraft.errors[key] = "A changed value requires a disclosed reason."; invalid = true; }
+      });
+      const reserve = panelDraft.data.reserve.value;
+      const fees = panelDraft.data.fees.value;
+      if (reserve + fees >= 100) { panelDraft.errors.reserve = "Reserve plus fees must leave capital for initial checks."; invalid = true; }
+      if (invalid) { renderAssumptionsPanel(); return; }
+      markWorkingChange();
+      const data = store.scenarios[store.activeScenario];
+      panelDraft.dirty.forEach((key) => {
+        const previous = data.assumptions[key].value;
+        data.assumptions[key] = clone(panelDraft.data[key]);
+        appendTimeline(`Draft ${String(store.currentDraft).padStart(2, "0")} · ${assumptionMeta[key].label}: ${previous} → ${panelDraft.data[key].value} ${assumptionMeta[key].unit}`, panelDraft.data[key].manualReason);
+        if (key === "reserve") store.gaps.reserve = { ...store.gaps.reserve, status: "Resolved", resolution: { type: "manual", value: panelDraft.data[key].value, reason: panelDraft.data[key].manualReason } };
+      });
+      recomputeOutputs(data);
+      renderAll();
+      closePanel();
+      showToast("Assumptions saved. Outputs, deltas, and allocation recomputed.");
+    }
+    function recomputeOutputs(data) {
+      const a = data.assumptions;
+      const reference = data.label === "Conservative" ? { companies: 20, check: 1.1, reserve: 48, years: 4, fees: 8, irr: 15.8, tvpi: 1.84 } : data.label === "Growth" ? { companies: 28, check: .9, reserve: 36, years: 3, fees: 8, irr: 28.9, tvpi: 3.10 } : { companies: 24, check: 1, reserve: 42, years: 3.5, fees: 8, irr: 21.4, tvpi: 2.36 };
+      data.irr = Number((reference.irr + (a.companies.value - reference.companies) * .12 - (a.check.value - reference.check) * 1.4 - (a.reserve.value - reference.reserve) * .08 - (a.years.value - reference.years) * .6 - (a.fees.value - reference.fees) * .15).toFixed(1));
+      data.tvpi = Number((reference.tvpi + (a.companies.value - reference.companies) * .008 - (a.check.value - reference.check) * .06 - (a.reserve.value - reference.reserve) * .006 - (a.years.value - reference.years) * .03 - (a.fees.value - reference.fees) * .01).toFixed(2));
+    }
+
+    function preparePublishPanel() {
+      panelDraft = { type: "publish", dirty: new Set() };
+      renderPublishPanel();
+    }
+    function referenceMarkup(data) {
+      const status = store.published ? `published Draft ${String(store.currentDraft).padStart(2, "0")}` : `working Draft ${String(store.currentDraft).padStart(2, "0")}`;
+      const supersedes = store.published && store.publication ? store.publication.supersedes : store.baselineDraft;
+      const warnings = warningItems();
+      return `<p class="reference-lineage">Draft ${String(store.currentDraft).padStart(2, "0")} · supersedes Draft ${String(supersedes).padStart(2, "0")}</p><div class="reference-block" id="publishCopyBlock"><div class="reference-numbers"><span><small>Net IRR</small><strong>${data.irr.toFixed(1)}%</strong></span><span><small>Net TVPI</small><strong>${data.tvpi.toFixed(2)}×</strong></span><span><small>Reserve</small><strong>${data.assumptions.reserve.value}%</strong></span><span><small>Deployment</small><strong>${data.assumptions.years.value.toFixed(1)} years</strong></span></div><p class="basis-line">Facts snapshot ${store.basisHash} · plan version Draft ${String(store.currentDraft).padStart(2, "0")} · active scenario ${data.label}</p><p class="basis-line">As of ${store.asOf} · ${status}${warnings.length ? ` · ${warnings.length} named ${warnings.length === 1 ? "warning" : "warnings"} stored with this reference` : ""}</p>${warnings.length ? `<p class="basis-line">Warnings: ${warnings.map((w) => escapeHtml(w)).join("; ")}</p>` : ""}<p class="decision-notice">${DECISION_NOTICE}</p></div>`;
+    }
+    function publishBundleMarkup(data) {
+      const accepted = acceptedWarnings().length;
+      return `<ul class="publish-bundle-list" aria-label="Publish bundle summary"><li><span>Facts snapshot</span><strong>${store.basisHash}</strong></li><li><span>Plan version</span><strong>Draft ${String(store.currentDraft).padStart(2, "0")}</strong></li><li><span>Active scenario</span><strong>${escapeHtml(data.label)}</strong></li><li><span>Warnings accepted</span><strong>${accepted}</strong></li></ul>`;
+    }
+    function renderPublishPanel() {
+      const data = store.scenarios[store.activeScenario];
+      if (store.published && store.publication?.draft === store.currentDraft) {
+        byId("publishPanelBody").innerHTML = `<div class="publish-success"><h3>Draft ${String(store.currentDraft).padStart(2, "0")} is the internal baseline</h3><p>Future model changes will compare against this published reference.</p></div>${publishBundleMarkup(data)}${referenceMarkup(data)}<button class="button small" type="button" id="copyReferenceButton">Copy reference</button>`;
+        byId("confirmPublishButton").hidden = true;
+        return;
+      }
+      byId("confirmPublishButton").hidden = false;
+      const warnings = warningItems();
+      const freshness = staleSources();
+      byId("publishPanelBody").innerHTML = `<ul class="gate-list"><li class="gate-row"><span class="gate-icon">✓</span><span><strong>Outputs calculated</strong><br>Scenario engine basis · today</span></li><li class="gate-row ${freshness.length ? "warning" : ""}"><span class="gate-icon">${freshness.length ? "!" : "✓"}</span><span><strong>Source freshness</strong><br>${freshness.length ? `${freshness.length} source exceeds its 120-day review threshold` : "All reviewed sources are current"}</span></li><li class="gate-row ${warnings.length ? "warning" : ""}"><span class="gate-icon">${warnings.length ? "!" : "✓"}</span><span><strong>Warnings and manual inputs</strong><br>${warnings.length ? `${manualInputs()} manual inputs visible · ${warnings.length} named warning ${warnings.length === 1 ? "item" : "items"} will travel with this reference` : "0 manual inputs · no warnings"}</span></li></ul>${publishBundleMarkup(data)}${referenceMarkup(data)}${warnings.length ? `<div class="acknowledgement"><input id="publishAcknowledgement" type="checkbox"><label for="publishAcknowledgement"><strong>Publish with warnings</strong><br>I acknowledge these items will be stored with the reference:<br>${warnings.map((item) => `• ${escapeHtml(item)}`).join("<br>")}</label></div>` : ""}<button class="button small" type="button" id="copyReferenceButton">Copy reference</button>`;
+      byId("confirmPublishButton").textContent = warnings.length ? "Publish with warnings" : "Publish internal baseline";
+      byId("confirmPublishButton").disabled = warnings.length > 0;
+    }
+    function publishModel() {
+      const warnings = warningItems();
+      if (warnings.length && !byId("publishAcknowledgement")?.checked) return;
+      store.publication = { draft: store.currentDraft, supersedes: store.baselineDraft, warnings: clone(warnings), publishedAt: TODAY, basisHash: store.basisHash };
+      store.published = true;
+      store.baselineDraft = store.currentDraft;
+      Object.values(store.scenarios).forEach((data) => { data.baseline = { irr: data.irr, tvpi: data.tvpi, companies: data.assumptions.companies.value, check: data.assumptions.check.value, reserve: data.assumptions.reserve.value, years: data.assumptions.years.value, fees: data.assumptions.fees.value }; });
+      appendTimeline(`Draft ${String(store.currentDraft).padStart(2, "0")} published as internal baseline`, warnings.length ? `${warnings.length} named ${warnings.length === 1 ? "warning" : "warnings"} stored with the reference.` : "All review gates current.");
+      renderAll();
+      renderPublishPanel();
+      showToast(`Draft ${String(store.currentDraft).padStart(2, "0")} published as internal baseline. <a href="baseline-comparison.html" data-toast-open-publish>View created reference</a> · Internal-use boundary retained.`);
+    }
+
+    function copyReference() {
+      const data = store.scenarios[store.activeScenario];
+      const supersedes = store.published && store.publication ? store.publication.supersedes : store.baselineDraft;
+      const text = `Draft ${String(store.currentDraft).padStart(2, "0")} · supersedes Draft ${String(supersedes).padStart(2, "0")}\nNet IRR ${data.irr.toFixed(1)}% · Net TVPI ${data.tvpi.toFixed(2)}× · Reserve ${data.assumptions.reserve.value}% · Deployment ${data.assumptions.years.value.toFixed(1)} years\nAs of ${store.asOf} · snapshot ${store.basisHash} · Draft ${String(store.currentDraft).padStart(2, "0")} · INTERNAL DECISION SUPPORT\n${data.label} scenario · assumptions version ${data.label.toLowerCase()}\n${DECISION_NOTICE}`;
+      copyText(text, "Reference copied with basis and notice.");
+    }
+    function copyText(text, confirmation) {
+      if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(() => showToast(confirmation));
+      else {
+        const area = document.createElement("textarea");
+        area.value = text;
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand("copy");
+        area.remove();
+        showToast(confirmation);
+      }
+    }
+    function showEvidence(key) {
+      const source = store.sources[key];
+      const gapItem = store.gaps[key];
+      if (source) {
+        byId("evidenceDialogTitle").textContent = source.title;
+        byId("evidenceDialogMeta").textContent = source.status === "stale" ? `Reviewed ${source.reviewedDays} days ago · ${source.threshold}-day freshness threshold` : `Reviewed ${source.reviewedDays} days ago · ${source.version}`;
+        byId("evidenceDialogBody").innerHTML = `<p style="margin:0;max-width:58ch">This reviewed evidence supports ${source.linked} model inputs. Its state is calculated from the same source record shown in the provenance map.</p>`;
+      } else if (gapItem) {
+        byId("evidenceDialogTitle").textContent = `${gapItem.label} provenance`;
+        byId("evidenceDialogMeta").textContent = gapItem.resolution ? resolutionLabel(gapItem.resolution.type) : "Source unavailable · resolution required";
+        byId("evidenceDialogBody").innerHTML = `<p style="margin:0;max-width:58ch">${gapItem.resolution?.reason ? escapeHtml(gapItem.resolution.reason) : "No reviewed source is linked. Assign an owner and choose a resolution in the gap panel."}</p>`;
+      }
+      byId("evidenceDialog").showModal();
+    }
+    function showAllocationDetail(kind) {
+      const data = store.scenarios[store.activeScenario];
+      const reserve = data.assumptions.reserve.value;
+      const fees = data.assumptions.fees.value;
+      const initial = 100 - reserve - fees;
+      const investable = 100 - fees;
+      const details = {
+        fees: { title: "Fees & expenses detail", source: sourceText(data.assumptions.fees), amount: dollars(fees), committed: fees, investable: fees / investable * 100, basis: "Deducted from committed capital before investable allocation." },
+        initial: { title: "Initial checks detail", source: sourceText(data.assumptions.check), amount: dollars(initial), committed: initial, investable: initial / investable * 100, basis: "Share of investable capital allocated to initial checks." },
+        reserve: { title: "Follow-on reserve detail", source: sourceText(data.assumptions.reserve), amount: dollars(reserve), committed: reserve, investable: reserve / investable * 100, basis: "Share of investable capital reserved for follow-on investments." }
+      }[kind];
+      if (!details) return;
+      byId("evidenceDialogTitle").textContent = details.title;
+      byId("evidenceDialogMeta").textContent = `${data.label} scenario · Draft ${String(store.currentDraft).padStart(2, "0")} plan inputs`;
+      byId("evidenceDialogBody").innerHTML = `<dl class="proof-grid" style="font-size:12px;color:var(--fg)"><dt>Value</dt><dd>${details.amount}</dd><dt>Investable share</dt><dd>${details.investable.toFixed(1)}%</dd><dt>Committed share</dt><dd>${details.committed}%</dd><dt>Source</dt><dd>${escapeHtml(details.source)}</dd><dt>Basis</dt><dd>${details.basis}</dd></dl>`;
+      byId("evidenceDialog").showModal();
+    }
+    function showTimelineDiff(index) {
+      const item = store.timeline[index];
+      if (!item) return;
+      byId("evidenceDialogTitle").textContent = "Assumption change detail";
+      byId("evidenceDialogMeta").textContent = `${formatWhen(item.when, store.asOfISO)} · owner ${item.who}`;
+      byId("evidenceDialogBody").innerHTML = `<dl class="proof-grid" style="font-size:12px;color:var(--fg)"><dt>Change</dt><dd>${escapeHtml(item.change)}</dd><dt>Reason</dt><dd>${escapeHtml(item.reason)}</dd><dt>Baseline</dt><dd>Draft ${String(store.baselineDraft).padStart(2, "0")}</dd><dt>Model</dt><dd>Draft ${String(store.currentDraft).padStart(2, "0")}</dd></dl>`;
+      byId("evidenceDialog").showModal();
+    }
+
+    document.addEventListener("click", (event) => {
+      const cancel = event.target.closest("[data-panel-cancel]");
+      if (cancel && activeOverlay) { requestClose(); return; }
+      const toastOpenPublish = event.target.closest("[data-toast-open-publish]");
+      if (toastOpenPublish) { event.preventDefault(); sessionStorage.setItem("updog.workspace.return", JSON.stringify({ scenario: store.activeScenario, y: window.scrollY })); window.location.href = toastOpenPublish.getAttribute("href"); return; }
+      if (event.target.closest("[data-keep-editing]")) { activeOverlay.querySelector(".discard-confirm").hidden = true; activeOverlay.querySelector(".work-panel-body input, .work-panel-body select, .work-panel-body button")?.focus(); return; }
+      if (event.target.closest("[data-discard-panel]")) { panelDraft.dirty.clear(); closePanel(); return; }
+      const gapAction = event.target.closest("[data-gap-action]");
+      if (gapAction && panelDraft?.type === "gap") { updateGapDraft(gapAction); return; }
+      const gapTarget = event.target.closest("[data-gap-target]");
+      if (gapTarget) { openPanel("gap", gapTarget, gapTarget.dataset.gapTarget); return; }
+      const openGap = event.target.closest("[data-open-gap]");
+      if (openGap) { openPanel("gap", openGap, openGap.dataset.openGap, openGap.dataset.gapResolution); return; }
+      const refreshSource = event.target.closest("[data-refresh-source]");
+      if (refreshSource) {
+        const key = refreshSource.dataset.refreshSource;
+        store.sourceErrors[key] = "The source record did not respond to the refresh request.";
+        renderProvenance();
+        showToast("Refresh unavailable — the source did not respond. Existing results are unchanged.");
+        return;
+      }
+      const retrySource = event.target.closest("[data-retry-source]");
+      if (retrySource) {
+        const key = retrySource.dataset.retrySource;
+        delete store.sourceErrors[key];
+        renderProvenance();
+        showToast("Source refreshed. Reviewed evidence updated.");
+        return;
+      }
+      const dotTarget = event.target.closest("[data-dot-target]");
+      if (dotTarget) {
+        if (dotTarget.dataset.dotState === "current") showEvidence(dotTarget.dataset.dotTarget);
+        else openPanel("gap", dotTarget, dotTarget.dataset.dotTarget);
+        return;
+      }
+      const timelineTrigger = event.target.closest("[data-timeline-index]");
+      if (timelineTrigger) { showTimelineDiff(Number(timelineTrigger.dataset.timelineIndex)); return; }
+      const scenarioControl = event.target.closest("[data-scenario], [data-scenario-column], [data-scenario-allocation]");
+      if (scenarioControl) { store.activeScenario = scenarioControl.dataset.scenario || scenarioControl.dataset.scenarioColumn || scenarioControl.dataset.scenarioAllocation; renderAll(); return; }
+      const sourceTrigger = event.target.closest("[data-source-key]");
+      if (sourceTrigger) { showEvidence(sourceTrigger.dataset.sourceKey); return; }
+      const allocationDetail = event.target.closest("[data-allocation-detail]");
+      if (allocationDetail) { showAllocationDetail(allocationDetail.dataset.allocationDetail); return; }
+      if (event.target.closest("#copyReferenceButton")) copyReference();
+    });
+    document.addEventListener("input", (event) => {
+      if (panelDraft?.type === "assumptions" && event.target.hasAttribute("data-assumption-reason")) updateAssumptionDraft(event.target);
+      if (event.target.id === "publishAcknowledgement") byId("confirmPublishButton").disabled = !event.target.checked;
+    });
+    document.addEventListener("change", (event) => {
+      if (panelDraft?.type === "gap" && event.target.closest("[data-gap-row]")) updateGapDraft(event.target);
+      if (panelDraft?.type === "assumptions" && event.target.hasAttribute("data-assumption-value")) updateAssumptionDraft(event.target);
+    });
+    document.addEventListener("keydown", (event) => {
+      trapFocus(event);
+      if (event.key === "Escape" && activeOverlay) { event.preventDefault(); requestClose(); }
+      const control = event.target.closest(".scenario-tab, [data-scenario-column]");
+      if (control && ["ArrowLeft", "ArrowRight"].includes(event.key)) {
+        event.preventDefault();
+        const controls = Array.from(control.closest("[role='tablist']").querySelectorAll("[role='tab']"));
+        const index = controls.indexOf(control);
+        const next = event.key === "ArrowRight" ? (index + 1) % controls.length : (index - 1 + controls.length) % controls.length;
+        controls[next].focus();
+        store.activeScenario = controls[next].dataset.scenario || controls[next].dataset.scenarioColumn;
+        renderAll();
+      }
+    });
+    document.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", () => byId(button.dataset.close).close()));
+    byId("attentionButton").addEventListener("click", (event) => openPanel("gap", event.currentTarget));
+    byId("sourceFilterButton").addEventListener("click", (event) => openPanel("gap", event.currentTarget));
+    byId("editAssumptionsButton").addEventListener("click", (event) => openPanel("assumptions", event.currentTarget));
+    byId("publishButton").addEventListener("click", (event) => openPanel("publish", event.currentTarget));
+    byId("saveGapsButton").addEventListener("click", saveGaps);
+    byId("saveAssumptionsButton").addEventListener("click", saveAssumptions);
+    byId("confirmPublishButton").addEventListener("click", publishModel);
+    byId("copyCanvasButton").addEventListener("click", copyReference);
+    const rail = byId("provenanceRail");
+    byId("railToggle").addEventListener("click", () => {
+      const railOpen = rail.classList.contains("open");
+      if (railOpen) { rail.classList.remove("open"); byId("railToggle").setAttribute("aria-expanded", "false"); }
+      else {
+        rail.classList.add("open");
+        byId("railToggle").setAttribute("aria-expanded", "true");
+        const provenanceMap = byId("provenanceTree");
+        if (provenanceMap) provenanceMap.querySelector("button, a")?.focus();
+      }
+    });
+    byId("railClose").addEventListener("click", () => { rail.classList.remove("open"); byId("railToggle").setAttribute("aria-expanded", "false"); byId("railToggle").focus(); });
+    document.querySelectorAll("dialog").forEach((dialog) => dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); }));
+    let toastTimer;
+    function showToast(message) { const toast = byId("toast"); toast.innerHTML = message; toast.classList.add("visible"); clearTimeout(toastTimer); toastTimer = window.setTimeout(() => toast.classList.remove("visible"), 4200); }
+    renderAll();
+    window.setTimeout(() => {
+      store.hydrated = true;
+      renderAll();
+      const saved = sessionStorage.getItem("updog.workspace.return");
+      if (saved) {
+        try {
+          const state = JSON.parse(saved);
+          if (state.scenario && store.scenarios[state.scenario]) { store.activeScenario = state.scenario; renderAll(); }
+          if (typeof state.y === "number") window.scrollTo(0, state.y);
+        } catch (_) {}
+        sessionStorage.removeItem("updog.workspace.return");
+      }
+    }, 140);
+  </script>
+</body>
+</html>
