@@ -1,8 +1,11 @@
 import { expect, test, type APIRequestContext, type APIResponse } from '@playwright/test';
+import packageJson from '../../package.json' with { type: 'json' };
 
 // Authoritative post-#800/#801 deployed boundary gate.
 const PRODUCTION_URL =
   process.env.PRODUCTION_URL ?? process.env.PROD_URL ?? process.env.BASE_URL ?? '';
+const EXPECTED_SHA = process.env.EXPECTED_SHA ?? '';
+const CHECKED_OUT_VERSION = packageJson.version;
 const HEALTH_KEY = process.env.HEALTH_KEY ?? '';
 const METRICS_KEY = process.env.METRICS_KEY ?? '';
 const PROD_SMOKE_USERNAME = process.env.PROD_SMOKE_USERNAME ?? '';
@@ -15,6 +18,14 @@ const RUM_BODY = {
 };
 
 type JsonObject = Record<string, unknown>;
+
+export function releaseIdentityMatches(
+  body: JsonObject,
+  expectedVersion: string,
+  expectedSha: string
+): boolean {
+  return body['version'] === expectedVersion && body['commit'] === expectedSha;
+}
 
 function expectNotSpaRewrite(response: APIResponse): void {
   const contentType = response.headers()['content-type'] ?? '';
@@ -77,6 +88,24 @@ test.describe('production boundary smoke', () => {
 
     const body = await expectJsonObject(response);
     expect(body['status']).toBe('ok');
+  });
+
+  test('deployed release identity matches checked-out package and expected SHA', async ({ request }) => {
+    // SKIP: ad-hoc smoke runs may omit release identity; governed workflows require EXPECTED_SHA.
+    test.skip(!EXPECTED_SHA, 'EXPECTED_SHA is required by the governed release workflow');
+    expect(EXPECTED_SHA, 'EXPECTED_SHA must be provided by governed release workflow').toMatch(
+      /^[0-9a-f]{40}$/
+    );
+
+    const response = await request.get(`${PRODUCTION_URL}/api/version`);
+
+    expectNotSpaRewrite(response);
+    expect(response.status()).toBe(200);
+    expectContentTypeStartsWith(response, 'application/json');
+
+    const body = await expectJsonObject(response);
+    expect(releaseIdentityMatches(body, CHECKED_OUT_VERSION, EXPECTED_SHA)).toBe(true);
+    expect(body['environment']).toEqual(expect.any(String));
   });
 
   test('metrics api denies unauthenticated requests by default', async ({ request }) => {
