@@ -480,19 +480,40 @@ const globalAuthEvidenceForExposure = ({ exposure, method, routePath }) => {
   }];
 };
 
-const publicApiEvidenceForExposure = ({ method, routePath }) => {
-  const normalizedPath = String(routePath ?? '');
-  const publicPath = isPublicApiPath(method, routePath)
-    || PUBLIC_NON_API_EXACT_PATHS.has(normalizedPath)
-    || (String(method ?? '').toUpperCase() === 'POST' && normalizedPath === '/metrics/rum');
-  if (!publicPath) return [];
-  return [{
-    kind: 'policy-boundary',
+const observedRegistrationEvidenceForExposure = (exposure) => {
+  const rawRegistrationSite = exposure.outer_mount_site
+    || exposure.definitions?.find((definition) => definition.role === 'handler')?.site
+    || exposure.mount_evidence;
+  const registrationSite = String(rawRegistrationSite ?? '').match(/^(.*?:\d+)/)?.[1]
+    || rawRegistrationSite;
+  const file = definitionFile(registrationSite);
+  const line = definitionLine({ site: registrationSite });
+  return {
+    kind: 'handler',
     boundary: 'public',
-    file: 'server/lib/public-api-boundary.ts',
-    line: 19,
-    evidence: 'server/lib/public-api-boundary.ts isPublicApiPath public exemption',
-  }];
+    ...(file ? { file } : {}),
+    ...(line > 0 ? { line } : {}),
+    evidence: `${registrationSite} observed route registration`,
+  };
+};
+
+const publicApiEvidenceForExposure = ({ method, routePath, exposure }) => {
+  // Keep the canonical /api public matcher as the first branch. Its evidence
+  // identifies the policy boundary itself; non-/api public aliases instead
+  // need evidence for the registration that actually exposed the route.
+  if (isPublicApiPath(method, routePath)) {
+    return [{
+      kind: 'policy-boundary',
+      boundary: 'public',
+      file: 'server/lib/public-api-boundary.ts',
+      line: 19,
+      evidence: 'server/lib/public-api-boundary.ts isPublicApiPath public exemption',
+    }];
+  }
+  const normalizedPath = String(routePath ?? '');
+  const publicAlias = PUBLIC_NON_API_EXACT_PATHS.has(normalizedPath)
+    || (String(method ?? '').toUpperCase() === 'POST' && normalizedPath === '/metrics/rum');
+  return publicAlias && exposure ? [observedRegistrationEvidenceForExposure(exposure)] : [];
 };
 
 const authEvidenceForDefinitions = (definitions, manifest, policy, { includePolicyBoundary = true } = {}) => {
@@ -555,7 +576,7 @@ const authSuggestionFor = ({
       includePolicyBoundary: false,
     });
     const globalEvidence = globalAuthEvidenceForExposure({ exposure, method, routePath });
-    const publicEvidence = publicApiEvidenceForExposure({ method, routePath });
+    const publicEvidence = publicApiEvidenceForExposure({ method, routePath, exposure });
     const scopedAdditionalEvidence = additionalAuthEvidence.filter((entry) =>
       (!entry.runtime && !entry.surface)
       || entry.runtime === exposure.runtime
