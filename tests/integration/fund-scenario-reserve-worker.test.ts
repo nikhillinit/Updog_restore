@@ -294,7 +294,7 @@ async function waitForSnapshotWriteWaiter(pool: Pool): Promise<void> {
          JOIN pg_class c ON c.oid = l.relation
         WHERE c.relname = 'fund_snapshots'
           AND l.granted = false
-          AND l.mode IN ('RowExclusiveLock', 'ShareRowExclusiveLock')`
+          AND l.mode = 'RowExclusiveLock'`
     );
     if (result.rows.length > 0) {
       return;
@@ -391,82 +391,92 @@ describe('fund scenario reserve worker integration', () => {
       expect(runtime).not.toBeNull();
       const active = runtime!;
 
-      expect(active.queue).not.toBeNull();
-      await active.queue!.pause();
-      let jobId = '';
-      let correlationId = '';
-
+      let investmentsRenamed = false;
       try {
-        const queued = await request(active.app)
-          .post(
-            `/api/funds/${active.fundId}/scenario-sets/${failingScenarioSetId}/calculate-reserve`
+        expect(active.queue).not.toBeNull();
+        await active.queue!.pause();
+        let jobId = '';
+        let correlationId = '';
+
+        try {
+          const queued = await request(active.app)
+            .post(
+              `/api/funds/${active.fundId}/scenario-sets/${failingScenarioSetId}/calculate-reserve`
+            )
+            .set('Authorization', active.authHeader)
+            .send({ calculationMode: 'async_reserve_allocation' });
+          expect(queued.status, JSON.stringify(queued.body)).toBe(202);
+          jobId = queued.body.jobId;
+          correlationId = queued.body.correlationId;
+
+          await active.pool.query('ALTER TABLE investments RENAME TO investments_unavailable');
+          investmentsRenamed = true;
+        } finally {
+          await active.queue!.resume();
+        }
+
+        await waitForFailedJob(active, jobId);
+
+        const status = await request(active.app)
+          .get(
+            `/api/funds/${active.fundId}/scenario-sets/${failingScenarioSetId}/calculation-status`
           )
           .set('Authorization', active.authHeader)
-          .send({ calculationMode: 'async_reserve_allocation' });
-        expect(queued.status, JSON.stringify(queued.body)).toBe(202);
-        jobId = queued.body.jobId;
-        correlationId = queued.body.correlationId;
+          .expect(200);
 
-        await active.pool.query('ALTER TABLE investments RENAME TO investments_unavailable');
-      } finally {
-        await active.queue!.resume();
-      }
+        expect(status.body).toMatchObject({
+          status: 'failed',
+          jobId,
+          correlationId,
+          snapshotId: null,
+        });
+        expect(status.body.lastError).toContain('investments');
 
-      await waitForFailedJob(active, jobId);
+        await request(active.app)
+          .get(`/api/funds/${active.fundId}/scenario-sets/${failingScenarioSetId}/results`)
+          .set('Authorization', active.authHeader)
+          .expect(404);
 
-      const status = await request(active.app)
-        .get(`/api/funds/${active.fundId}/scenario-sets/${failingScenarioSetId}/calculation-status`)
-        .set('Authorization', active.authHeader)
-        .expect(200);
-
-      expect(status.body).toMatchObject({
-        status: 'failed',
-        jobId,
-        correlationId,
-        snapshotId: null,
-      });
-      expect(status.body.lastError).toContain('investments');
-
-      await request(active.app)
-        .get(`/api/funds/${active.fundId}/scenario-sets/${failingScenarioSetId}/results`)
-        .set('Authorization', active.authHeader)
-        .expect(404);
-
-      const snapshots = await active.pool.query<{ count: string }>(
-        `SELECT COUNT(*)::text AS count
+        const snapshots = await active.pool.query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count
        FROM fund_snapshots
        WHERE fund_id = $1
          AND scenario_set_id = $2
          AND type = 'SCENARIOS'`,
-        [active.fundId, failingScenarioSetId]
-      );
-      expect(snapshots.rows[0]?.count).toBe('0');
+          [active.fundId, failingScenarioSetId]
+        );
+        expect(snapshots.rows[0]?.count).toBe('0');
 
-      const failedRuns = await active.pool.query<{
-        id: string;
-        status: string;
-        snapshot_id: number | null;
-      }>(
-        `SELECT id, status, snapshot_id
+        const failedRuns = await active.pool.query<{
+          id: string;
+          status: string;
+          snapshot_id: number | null;
+        }>(
+          `SELECT id, status, snapshot_id
            FROM fund_scenario_calculation_runs
           WHERE fund_id = $1
             AND scenario_set_id = $2
             AND job_id = $3
           ORDER BY created_at ASC, id ASC`,
-        [active.fundId, failingScenarioSetId, jobId]
-      );
-      expect(failedRuns.rows.length).toBeGreaterThan(0);
-      for (const run of failedRuns.rows) {
-        expect(run).toMatchObject({ status: 'failed', snapshot_id: null });
-        const failedEvents = await active.pool.query<{ count: string }>(
-          `SELECT COUNT(*)::text AS count
+          [active.fundId, failingScenarioSetId, jobId]
+        );
+        expect(failedRuns.rows.length).toBeGreaterThan(0);
+        for (const run of failedRuns.rows) {
+          expect(run).toMatchObject({ status: 'failed', snapshot_id: null });
+          const failedEvents = await active.pool.query<{ count: string }>(
+            `SELECT COUNT(*)::text AS count
              FROM fund_scenario_set_events
             WHERE scenario_set_id = $1
               AND event_type = 'calculation_failed'
               AND change_summary_json ->> 'run_id' = $2`,
-          [failingScenarioSetId, run.id]
-        );
-        expect(failedEvents.rows[0]?.count).toBe('1');
+            [failingScenarioSetId, run.id]
+          );
+          expect(failedEvents.rows[0]?.count).toBe('1');
+        }
+      } finally {
+        if (investmentsRenamed) {
+          await active.pool.query('ALTER TABLE investments_unavailable RENAME TO investments');
+        }
       }
     },
     JOB_TIMEOUT_MS + 15_000

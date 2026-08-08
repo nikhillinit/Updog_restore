@@ -53,6 +53,20 @@ type ReserveScenarioPortfolio = Awaited<
   ReturnType<typeof buildReservePortfolioInputForClientWithProvenance>
 >['portfolio'];
 
+export interface ScenarioCalculationOwnershipLost {
+  readonly kind: 'ownership_lost';
+}
+
+const PRIVATE_OWNERSHIP_LOST = Object.freeze({
+  kind: 'ownership_lost',
+}) as ScenarioCalculationOwnershipLost;
+
+export function isScenarioCalculationOwnershipLost(
+  value: unknown
+): value is ScenarioCalculationOwnershipLost {
+  return value === PRIVATE_OWNERSHIP_LOST;
+}
+
 interface SourceConfigRow {
   id: number;
   version: number;
@@ -107,6 +121,13 @@ class ScenarioRunOwnershipLostError extends Error {
   constructor() {
     super('Scenario calculation run ownership was lost');
     this.name = 'ScenarioRunOwnershipLostError';
+  }
+}
+
+class ScenarioRunIdentityDriftError extends Error {
+  constructor() {
+    super('Scenario calculation run identity changed while calculating');
+    this.name = 'ScenarioRunIdentityDriftError';
   }
 }
 
@@ -646,18 +667,18 @@ async function claimReserveScenarioRun(
 
 async function completeReserveScenarioRun(
   input: RunReserveScenarioCalculationInput,
-  claimed: ClaimedReserveScenarioRun,
-  data: ReserveScenarioCalculationData
-): Promise<FundScenarioCalculationResponseV1 | null> {
+  claimed: ClaimedReserveScenarioRun
+): Promise<FundScenarioCalculationResponseV1> {
   return transaction(async (client) => {
     // Completion uses the same scenario -> run lock order as failure
     // persistence. The locked context is the current identity fence.
     const currentContext = await loadReserveScenarioRunContext(client, input);
     const currentIdentity = runIdentityFromContext(input, currentContext);
     if (!sameRunIdentity(claimed.identity, currentIdentity)) {
-      return null;
+      throw new ScenarioRunIdentityDriftError();
     }
 
+    const data = await buildReserveScenarioCalculationData(client, input, claimed.context);
     const response = await persistReserveScenarioCalculation(
       client,
       input,
@@ -685,19 +706,11 @@ async function completeReserveScenarioRun(
   });
 }
 
-async function buildReserveScenarioCalculationDataAfterClaim(
-  input: RunReserveScenarioCalculationInput,
-  context: ReserveScenarioRunContext
-): Promise<ReserveScenarioCalculationData> {
-  return transaction((client) => buildReserveScenarioCalculationData(client, input, context));
-}
-
 async function calculateReserveScenarioForContext(
   input: RunReserveScenarioCalculationInput,
   claimed: ClaimedReserveScenarioRun
-): Promise<FundScenarioCalculationResponseV1 | null> {
-  const data = await buildReserveScenarioCalculationDataAfterClaim(input, claimed.context);
-  return completeReserveScenarioRun(input, claimed, data);
+): Promise<FundScenarioCalculationResponseV1> {
+  return completeReserveScenarioRun(input, claimed);
 }
 
 /*
@@ -775,14 +788,14 @@ async function persistReserveScenarioCalculation(
 
 export async function runReserveScenarioCalculation(
   input: RunReserveScenarioCalculationInput
-): Promise<FundScenarioCalculationResponseV1 | null> {
+): Promise<FundScenarioCalculationResponseV1 | ScenarioCalculationOwnershipLost> {
   input.signal?.throwIfAborted();
 
   let claimed: ClaimedReserveScenarioRun | undefined;
   try {
     const outcome = await claimReserveScenarioRun(input);
     if (outcome === null) {
-      return null;
+      return PRIVATE_OWNERSHIP_LOST;
     }
     if (outcome.kind === 'reusable') {
       return outcome.response;
@@ -792,7 +805,7 @@ export async function runReserveScenarioCalculation(
     return await calculateReserveScenarioForContext(input, claimed);
   } catch (error) {
     if (error instanceof ScenarioRunOwnershipLostError) {
-      return null;
+      return PRIVATE_OWNERSHIP_LOST;
     }
     if (claimed) {
       await recordCalculationFailedEvent({ claimed, calculationInput: input, error });

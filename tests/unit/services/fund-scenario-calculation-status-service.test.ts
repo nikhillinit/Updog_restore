@@ -152,6 +152,61 @@ describe('fund scenario calculation status service', () => {
     expect(sqlCalls.some((sql) => sql.includes("change_summary_json ->> 'hash_kind'"))).toBe(true);
     expect(sqlCalls.some((sql) => sql.includes('AND id = $2'))).toBe(true);
   });
+
+  it('maps a run-linked started event to calculating status', async () => {
+    fetchScenarioSetDetailMock.mockResolvedValue(reserveScenarioSetDetail());
+    queryMock.mockImplementation(async (sqlValue: unknown, params: unknown[] = []) => {
+      const sql = String(sqlValue);
+      if (sql.includes('FROM fundconfigs') && sql.includes('id = $2')) {
+        return {
+          rows: [
+            {
+              id: 12,
+              version: 4,
+              config: {
+                fundName: 'Status fund',
+                modelInputsAsOfDate: '2026-06-30',
+              },
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM fundconfigs') && sql.includes('is_published = TRUE')) {
+        return { rows: [{ version: 4 }] };
+      }
+      if (sql.includes('FROM fund_scenario_calculation_runs')) {
+        return { rows: [] };
+      }
+      if (sql.includes('FROM fund_scenario_set_events')) {
+        expect(params[3]).toBe('scenario-input-hash-v2');
+        return {
+          rows: [
+            {
+              event_type: 'calculation_started',
+              change_summary_json: {
+                run_id: '00000000-0000-0000-0000-000000000222',
+                input_hash: params[2],
+                hash_kind: params[3],
+                job_id: 'job-42',
+                correlation_id: '00000000-0000-0000-0000-000000000333',
+              },
+              created_at: new Date('2026-07-01T00:00:01.000Z'),
+            },
+          ],
+        };
+      }
+      throw new Error(`Unexpected status query: ${sql}`);
+    });
+
+    const result = await getFundScenarioCalculationStatus(123, scenarioSetId);
+
+    expect(result).toMatchObject({
+      status: 'calculating',
+      jobId: 'job-42',
+      correlationId: '00000000-0000-0000-0000-000000000333',
+      snapshotId: null,
+    });
+  });
 });
 
 function feeScenarioSetDetail(): FundScenarioSetDetailV1 {

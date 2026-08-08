@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   runReserveScenarioCalculationMock,
+  ownershipLostOutcome,
+  reserveMetricTimerMock,
+  reserveEngineErrorMock,
+  reserveFailureCounterMock,
   loggerInfoMock,
   loggerErrorMock,
   workerConstructorMock,
@@ -10,6 +14,10 @@ const {
   getQueueConnectionOptionsMock,
 } = vi.hoisted(() => ({
   runReserveScenarioCalculationMock: vi.fn(),
+  ownershipLostOutcome: { kind: 'ownership_lost' as const },
+  reserveMetricTimerMock: vi.fn(),
+  reserveEngineErrorMock: vi.fn(),
+  reserveFailureCounterMock: vi.fn(),
   loggerInfoMock: vi.fn(),
   loggerErrorMock: vi.fn(),
   workerConstructorMock: vi.fn(),
@@ -20,6 +28,7 @@ const {
 
 vi.mock('../../../server/services/fund-scenario-reserve-calculation-service', () => ({
   runReserveScenarioCalculation: runReserveScenarioCalculationMock,
+  isScenarioCalculationOwnershipLost: (value: unknown) => value === ownershipLostOutcome,
 }));
 
 vi.mock('../../../server/config/features', () => ({
@@ -34,9 +43,11 @@ vi.mock('../../../lib/logger', () => ({
 }));
 
 vi.mock('../../../lib/metrics', () => ({
-  withMetrics: (_name: string, callback: () => unknown) => callback(),
+  withMetrics: vi.fn((_name: string, callback: () => unknown) => callback()),
   metrics: {
-    counter: vi.fn(),
+    counter: reserveFailureCounterMock,
+    engineLatency: { startTimer: vi.fn(() => reserveMetricTimerMock) },
+    engineErrors: { inc: reserveEngineErrorMock },
   },
 }));
 
@@ -104,7 +115,7 @@ describe('fund scenario calc worker handler', () => {
   it('treats a private ownership-loss outcome as a completed delivery', async () => {
     const { handleFundScenarioCalcJob } =
       await import('../../../workers/fund-scenario-calc-handler');
-    runReserveScenarioCalculationMock.mockResolvedValue(null);
+    runReserveScenarioCalculationMock.mockResolvedValue(ownershipLostOutcome);
 
     await expect(
       handleFundScenarioCalcJob({
@@ -117,9 +128,12 @@ describe('fund scenario calc worker handler', () => {
           actor: null,
         },
       })
-    ).resolves.toBeNull();
+    ).resolves.toBeUndefined();
 
     expect(loggerErrorMock).not.toHaveBeenCalled();
+    expect(reserveMetricTimerMock).not.toHaveBeenCalled();
+    expect(reserveEngineErrorMock).not.toHaveBeenCalled();
+    expect(reserveFailureCounterMock).not.toHaveBeenCalled();
   });
 
   it('rejects unsupported calculation modes and logs failures', async () => {

@@ -238,6 +238,65 @@ describe('scenario retention helpers', () => {
     expect(String(queryMock.mock.calls[0]?.[0])).toContain('comparison_lineage_version IS NOT DISTINCT FROM');
   });
 
+  it.each([
+    ['fundId', { fundId: 2 }],
+    ['scenarioSetId', { scenarioSetId: '99999999-9999-4999-8999-999999999999' }],
+    ['sourceConfigId', { sourceConfigId: 9 }],
+    ['sourceConfigVersion', { sourceConfigVersion: 8 }],
+    ['calculationMode', { calculationMode: 'sync_allocation' as const }],
+    ['overrideType', { overrideType: 'allocation' as const }],
+    ['inputHash', { inputHash: 'e'.repeat(64) }],
+    ['hashKind', {
+      hashKind: 'scenario-input-hash-v1' as const,
+      modelInputsAsOfDate: null,
+      comparisonLineageVersion: null,
+    }],
+    ['modelInputsAsOfDate', { modelInputsAsOfDate: '2026-07-31' }],
+  ])('returns null for an independently mutated %s fence field', async (_field, mutation) => {
+    const storedValues = [
+      asyncRunIdentity.fundId,
+      asyncRunIdentity.scenarioSetId,
+      asyncRunIdentity.sourceConfigId,
+      asyncRunIdentity.sourceConfigVersion,
+      asyncRunIdentity.calculationMode,
+      asyncRunIdentity.overrideType,
+      asyncRunIdentity.inputHash,
+      asyncRunIdentity.hashKind,
+      asyncRunIdentity.modelInputsAsOfDate,
+      asyncRunIdentity.comparisonLineageVersion,
+    ];
+    const queryMock = vi.fn().mockImplementation(async (_sql: unknown, params: unknown[]) => {
+      const fenceValues = params.slice(1);
+      return {
+        rows: fenceValues.every((value, index) => value === storedValues[index])
+          ? [asyncRunRow]
+          : [],
+      };
+    });
+
+    await expect(
+      claimScenarioCalculationRunIfQueued(
+        { query: queryMock } as never,
+        asyncRunRow.id,
+        { ...asyncRunIdentity, ...mutation }
+      )
+    ).resolves.toBeNull();
+    expect(queryMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a comparison-lineage mutation without querying the database', async () => {
+    const queryMock = vi.fn().mockResolvedValue({ rows: [] });
+
+    await expect(
+      claimScenarioCalculationRunIfQueued(
+        { query: queryMock } as never,
+        asyncRunRow.id,
+        { ...asyncRunIdentity, comparisonLineageVersion: 'comparison-lineage-v2' as never }
+      )
+    ).rejects.toThrow('Scenario input hash v2 requires complete comparison lineage');
+    expect(queryMock).not.toHaveBeenCalled();
+  });
+
   it('returns null when completion or failure ownership CAS affects zero rows', async () => {
     const queryMock = vi.fn().mockResolvedValue({ rows: [] });
 
@@ -261,6 +320,48 @@ describe('scenario retention helpers', () => {
     expect(queryMock).toHaveBeenCalledTimes(2);
     expect(String(queryMock.mock.calls[0]?.[0])).toContain("status = 'running'");
     expect(String(queryMock.mock.calls[0]?.[0])).toContain('snapshot_id IS NULL');
+  });
+
+  it('maps realistic winning completion and failure CAS rows', async () => {
+    const queryMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rows: [{ ...asyncRunRow, status: 'completed', snapshot_id: 42 }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ ...asyncRunRow, status: 'failed', snapshot_id: null }],
+      });
+
+    const completed = await completeScenarioCalculationRunIfRunning(
+      { query: queryMock } as never,
+      asyncRunRow.id,
+      asyncRunIdentity,
+      42
+    );
+    const failed = await failScenarioCalculationRunIfRunning(
+      { query: queryMock } as never,
+      asyncRunRow.id,
+      asyncRunIdentity,
+      { code: 'CALC_FAILED', message: 'calculation failed' }
+    );
+
+    expect(completed).toMatchObject({ id: asyncRunRow.id, status: 'completed', snapshotId: 42 });
+    expect(failed).toMatchObject({ id: asyncRunRow.id, status: 'failed', snapshotId: null });
+    expect(queryMock).toHaveBeenCalledTimes(2);
+    expect(queryMock.mock.calls[0]?.[1]).toEqual([
+      asyncRunRow.id,
+      asyncRunIdentity.fundId,
+      asyncRunIdentity.scenarioSetId,
+      asyncRunIdentity.sourceConfigId,
+      asyncRunIdentity.sourceConfigVersion,
+      asyncRunIdentity.calculationMode,
+      asyncRunIdentity.overrideType,
+      asyncRunIdentity.inputHash,
+      asyncRunIdentity.hashKind,
+      asyncRunIdentity.modelInputsAsOfDate,
+      asyncRunIdentity.comparisonLineageVersion,
+      42,
+    ]);
   });
 
   it('normalizes a legacy null hash kind only to the v1 fence value', async () => {
