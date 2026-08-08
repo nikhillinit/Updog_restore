@@ -12,6 +12,7 @@ vi.mock('../../../server/db/pg-circuit.js', () => ({
 import {
   createReserveScenarioInputHash,
   getReserveScenarioCalculationIdentity,
+  runReserveScenarioCalculation,
 } from '../../../server/services/fund-scenario-reserve-calculation-service';
 import { persistReserveScenarioSnapshot } from '../../../server/services/fund-scenario-reserve-snapshot-store';
 import type { FundScenarioCalculationPayloadV1 } from '../../../shared/contracts/fund-scenario-sets-v1.contract';
@@ -73,6 +74,24 @@ describe('fund scenario reserve calculation service', () => {
         async (callback: (client: { query: typeof identityQueryMock }) => unknown) =>
           callback({ query: identityQueryMock })
       );
+  });
+
+  it('rejects an already-aborted signal before opening a transaction or recording started', async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      runReserveScenarioCalculation({
+        fundId: 1,
+        scenarioSetId: identityScenarioSetId,
+        correlationId: '33333333-3333-4333-8333-333333333333',
+        actor: {},
+        jobId: 'job-aborted',
+        signal: controller.signal,
+      })
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(transactionMock).not.toHaveBeenCalled();
+    expect(identityQueryMock).not.toHaveBeenCalled();
   });
 
   it.each([

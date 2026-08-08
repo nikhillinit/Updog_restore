@@ -15,7 +15,9 @@ export interface FundScenarioCalcJobData {
 }
 
 export async function handleFundScenarioCalcJob(
-  job: Pick<Job<FundScenarioCalcJobData>, 'id' | 'data'>
+  job: Pick<Job<FundScenarioCalcJobData>, 'id' | 'data'>,
+  _token?: string,
+  signal?: AbortSignal
 ) {
   const { fundId, scenarioSetId, correlationId, calculationMode, actor } = job.data;
 
@@ -39,6 +41,7 @@ export async function handleFundScenarioCalcJob(
         correlationId,
         actor: actor ?? {},
         jobId: String(job.id),
+        signal,
       })
     );
   } catch (error) {
@@ -52,7 +55,12 @@ export async function handleFundScenarioCalcJob(
       errorMessage: err.message,
       errorStack: err.stack,
     });
-    metrics.counter('fund_scenario_reserve_calculation_failed_total', 1, {
+    const counter = (
+      metrics as unknown as {
+        counter?: (name: string, value: number, labels: Record<string, string>) => void;
+      }
+    ).counter;
+    counter?.('fund_scenario_reserve_calculation_failed_total', 1, {
       fundId: String(fundId),
       errorType: err.name,
     });

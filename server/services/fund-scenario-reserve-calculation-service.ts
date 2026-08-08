@@ -37,9 +37,12 @@ import { createScenarioInputHash } from '../lib/scenarios/scenario-input-hash';
 import { normalizeLegacyScenarioSourceConfig } from './fund-scenario-source-config-compat.js';
 import {
   acquireScenarioCalculationRun,
+  claimScenarioCalculationRunIfQueued,
+  completeScenarioCalculationRunIfRunning,
+  failScenarioCalculationRunIfRunning,
   findCompletedScenarioRun,
-  markScenarioCalculationRunCompleted,
-  markScenarioCalculationRunRunning,
+  type ScenarioCalculationRunFenceIdentity,
+  type ScenarioCalculationRunRecord,
 } from './fund-scenario-calculation-run-service';
 
 type ReserveScenarioVariant = Extract<
@@ -70,6 +73,7 @@ interface RunReserveScenarioCalculationInput {
   correlationId: string;
   actor: FundScenarioMutationActor;
   jobId: string | null;
+  signal?: AbortSignal;
 }
 
 interface ReserveScenarioRunContext {
@@ -86,6 +90,24 @@ interface ReserveScenarioCalculationData {
   warningCount: number;
   payload: FundScenarioCalculationPayloadV1;
   reserveInputTrustSummary: ReserveInputTrustSummary;
+}
+
+interface ClaimedReserveScenarioRun {
+  context: ReserveScenarioRunContext;
+  identity: ScenarioCalculationRunFenceIdentity;
+  run: ScenarioCalculationRunRecord;
+}
+
+type ReserveScenarioClaimOutcome =
+  | { kind: 'reusable'; response: FundScenarioCalculationResponseV1 }
+  | { kind: 'claimed'; value: ClaimedReserveScenarioRun }
+  | null;
+
+class ScenarioRunOwnershipLostError extends Error {
+  constructor() {
+    super('Scenario calculation run ownership was lost');
+    this.name = 'ScenarioRunOwnershipLostError';
+  }
 }
 
 export interface ReserveScenarioCalculationIdentity {
@@ -309,31 +331,78 @@ export async function getReserveScenarioCalculationIdentity(
   });
 }
 
+async function lockScenarioSetForFailure(
+  client: PoolClient,
+  fundId: number,
+  scenarioSetId: string
+): Promise<void> {
+  await client.query(
+    `SELECT id
+       FROM fund_scenario_sets
+      WHERE fund_id = $1
+        AND id = $2
+      FOR UPDATE`,
+    [fundId, scenarioSetId]
+  );
+}
+
+function failureMetadata(error: unknown): { code: string | null; message: string } {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
+      ? error.code
+      : error instanceof Error
+        ? error.name
+        : null;
+  return {
+    code,
+    message: error instanceof Error ? error.message : String(error),
+  };
+}
+
 async function recordCalculationFailedEvent(input: {
-  fundId: number;
-  scenarioSetId: string;
-  actor: FundScenarioMutationActor;
-  correlationId: string;
-  jobId: string | null;
-  inputHash: string | null;
-  hashKind: ScenarioInputLineage['hashKind'] | null;
+  claimed: ClaimedReserveScenarioRun;
+  calculationInput: RunReserveScenarioCalculationInput;
   error: unknown;
 }): Promise<void> {
+  const failure = failureMetadata(input.error);
+
   try {
     await transaction(async (client) => {
+      // Keep failure persistence in scenario -> run lock order. A duplicate
+      // delivery can otherwise deadlock while it is claiming the same run.
+      await lockScenarioSetForFailure(
+        client,
+        input.calculationInput.fundId,
+        input.calculationInput.scenarioSetId
+      );
+
+      const failedRun = await failScenarioCalculationRunIfRunning(
+        client,
+        input.claimed.run.id,
+        input.claimed.identity,
+        failure
+      );
+      if (!failedRun) {
+        return;
+      }
+
       await insertScenarioSetEvent(client, {
-        scenarioSetId: input.scenarioSetId,
-        fundId: input.fundId,
+        scenarioSetId: input.calculationInput.scenarioSetId,
+        fundId: input.calculationInput.fundId,
         eventType: 'calculation_failed',
-        actor: normalizeActor(input.actor),
+        actor: normalizeActor(input.calculationInput.actor),
         changeSummary: {
           headline: 'Reserve scenario calculation failed',
           calculation_mode: 'async_reserve_allocation',
-          correlation_id: input.correlationId,
-          job_id: input.jobId,
-          input_hash: input.inputHash,
-          hash_kind: input.hashKind,
-          error_message: input.error instanceof Error ? input.error.message : String(input.error),
+          run_id: input.claimed.run.id,
+          correlation_id: input.calculationInput.correlationId,
+          job_id: input.calculationInput.jobId,
+          input_hash: input.claimed.identity.inputHash,
+          hash_kind: input.claimed.identity.hashKind,
+          model_inputs_as_of_date: input.claimed.identity.modelInputsAsOfDate,
+          comparison_lineage_version: input.claimed.identity.comparisonLineageVersion,
+          failure_code: failure.code,
+          error_message: failure.message,
         },
       });
     });
@@ -354,7 +423,8 @@ async function loadReserveScenarioRunContext(
 async function recordCalculationStartedEvent(
   client: PoolClient,
   input: RunReserveScenarioCalculationInput,
-  context: ReserveScenarioRunContext
+  context: ReserveScenarioRunContext,
+  runId: string
 ): Promise<void> {
   await insertScenarioSetEvent(client, {
     scenarioSetId: input.scenarioSetId,
@@ -364,10 +434,13 @@ async function recordCalculationStartedEvent(
     changeSummary: {
       headline: 'Started reserve scenario calculation',
       calculation_mode: 'async_reserve_allocation',
+      run_id: runId,
       correlation_id: input.correlationId,
       job_id: input.jobId,
       input_hash: context.inputHash,
       hash_kind: context.inputLineage.hashKind,
+      model_inputs_as_of_date: context.inputLineage.modelInputsAsOfDate,
+      comparison_lineage_version: context.inputLineage.comparisonLineageVersion,
     },
   });
 }
@@ -441,6 +514,7 @@ function buildReserveScenarioPayload(input: {
 async function recordCalculatedReserveScenarioEvent(
   client: PoolClient,
   input: RunReserveScenarioCalculationInput,
+  runId: string,
   result: {
     response: FundScenarioCalculationResponseV1;
     context: ReserveScenarioRunContext;
@@ -457,10 +531,13 @@ async function recordCalculatedReserveScenarioEvent(
     changeSummary: {
       headline: 'Calculated reserve scenario set',
       calculation_mode: 'async_reserve_allocation',
+      run_id: runId,
       correlation_id: input.correlationId,
       job_id: input.jobId,
       input_hash: result.context.inputHash,
       hash_kind: result.context.inputLineage.hashKind,
+      model_inputs_as_of_date: result.context.inputLineage.modelInputsAsOfDate,
+      comparison_lineage_version: result.context.inputLineage.comparisonLineageVersion,
       snapshot_id: result.response.snapshotId,
       variant_count: result.variantCount,
       company_count: result.companyCount,
@@ -471,12 +548,11 @@ async function recordCalculatedReserveScenarioEvent(
   });
 }
 
-async function calculateReserveScenarioForContext(
-  client: PoolClient,
+function runIdentityFromContext(
   input: RunReserveScenarioCalculationInput,
   context: ReserveScenarioRunContext
-): Promise<FundScenarioCalculationResponseV1> {
-  const runIdentity = {
+): ScenarioCalculationRunFenceIdentity {
+  return {
     fundId: input.fundId,
     scenarioSetId: input.scenarioSetId,
     sourceConfigId: context.sourceConfig.id,
@@ -488,45 +564,148 @@ async function calculateReserveScenarioForContext(
     modelInputsAsOfDate: context.inputLineage.modelInputsAsOfDate,
     comparisonLineageVersion: context.inputLineage.comparisonLineageVersion,
   };
-  const completedRun = await findCompletedScenarioRun(client, runIdentity);
-  if (completedRun?.snapshotId != null) {
-    const completedResponse = await findReusableReserveScenarioResponse(
-      client,
-      input,
-      context,
-      completedRun.snapshotId
-    );
-    if (completedResponse) {
-      return completedResponse;
-    }
-  }
-
-  const run = await acquireScenarioCalculationRun(client, {
-    ...runIdentity,
-    correlationId: input.correlationId,
-    jobId: input.jobId,
-  });
-  if (run.status === 'completed' && run.snapshotId !== null) {
-    const completedResponse = await findReusableReserveScenarioResponse(
-      client,
-      input,
-      context,
-      run.snapshotId
-    );
-    if (completedResponse) {
-      return completedResponse;
-    }
-  }
-  await markScenarioCalculationRunRunning(client, run.id);
-
-  await recordCalculationStartedEvent(client, input, context);
-
-  const data = await buildReserveScenarioCalculationData(client, input, context);
-  const response = await persistReserveScenarioCalculation(client, input, context, data);
-  await markScenarioCalculationRunCompleted(client, run.id, response.snapshotId);
-  return response;
 }
 
+function sameRunIdentity(
+  left: ScenarioCalculationRunFenceIdentity,
+  right: ScenarioCalculationRunFenceIdentity
+): boolean {
+  return (
+    left.fundId === right.fundId &&
+    left.scenarioSetId === right.scenarioSetId &&
+    left.sourceConfigId === right.sourceConfigId &&
+    left.sourceConfigVersion === right.sourceConfigVersion &&
+    left.calculationMode === right.calculationMode &&
+    left.overrideType === right.overrideType &&
+    left.inputHash === right.inputHash &&
+    (left.hashKind ?? 'scenario-input-hash-v1') ===
+      (right.hashKind ?? 'scenario-input-hash-v1') &&
+    left.modelInputsAsOfDate === right.modelInputsAsOfDate &&
+    left.comparisonLineageVersion === right.comparisonLineageVersion
+  );
+}
+
+function normalizeRunIdentityHashKind(
+  identity: ScenarioCalculationRunFenceIdentity
+): ScenarioCalculationRunFenceIdentity & {
+  hashKind: NonNullable<ScenarioCalculationRunFenceIdentity['hashKind']>;
+} {
+  return {
+    ...identity,
+    hashKind: identity.hashKind ?? 'scenario-input-hash-v1',
+  };
+}
+
+async function claimReserveScenarioRun(
+  input: RunReserveScenarioCalculationInput
+): Promise<ReserveScenarioClaimOutcome> {
+  return transaction(async (client) => {
+    const context = await loadReserveScenarioRunContext(client, input);
+    const runIdentity = normalizeRunIdentityHashKind(runIdentityFromContext(input, context));
+
+    const completedRun = await findCompletedScenarioRun(client, runIdentity);
+    if (completedRun?.snapshotId != null) {
+      const completedResponse = await findReusableReserveScenarioResponse(
+        client,
+        input,
+        context,
+        completedRun.snapshotId
+      );
+      if (completedResponse) {
+        return { kind: 'reusable', response: completedResponse };
+      }
+    }
+
+    const run = await acquireScenarioCalculationRun(client, {
+      ...runIdentity,
+      correlationId: input.correlationId,
+      jobId: input.jobId,
+    });
+    if (run.status === 'completed' && run.snapshotId !== null) {
+      const completedResponse = await findReusableReserveScenarioResponse(
+        client,
+        input,
+        context,
+        run.snapshotId
+      );
+      if (completedResponse) {
+        return { kind: 'reusable', response: completedResponse };
+      }
+    }
+
+    const claimedRun = await claimScenarioCalculationRunIfQueued(client, run.id, runIdentity);
+    if (!claimedRun) {
+      return null;
+    }
+
+    await recordCalculationStartedEvent(client, input, context, claimedRun.id);
+    return {
+      kind: 'claimed',
+      value: { context, identity: runIdentity, run: claimedRun },
+    };
+  });
+}
+
+async function completeReserveScenarioRun(
+  input: RunReserveScenarioCalculationInput,
+  claimed: ClaimedReserveScenarioRun,
+  data: ReserveScenarioCalculationData
+): Promise<FundScenarioCalculationResponseV1 | null> {
+  return transaction(async (client) => {
+    // Completion uses the same scenario -> run lock order as failure
+    // persistence. The locked context is the current identity fence.
+    const currentContext = await loadReserveScenarioRunContext(client, input);
+    const currentIdentity = runIdentityFromContext(input, currentContext);
+    if (!sameRunIdentity(claimed.identity, currentIdentity)) {
+      return null;
+    }
+
+    const response = await persistReserveScenarioCalculation(
+      client,
+      input,
+      claimed.context,
+      data
+    );
+    const completedRun = await completeScenarioCalculationRunIfRunning(
+      client,
+      claimed.run.id,
+      claimed.identity,
+      response.snapshotId
+    );
+    if (!completedRun) {
+      throw new ScenarioRunOwnershipLostError();
+    }
+
+    await recordCalculatedReserveScenarioEvent(client, input, claimed.run.id, {
+      response,
+      context: claimed.context,
+      variantCount: data.variants.length,
+      companyCount: data.portfolio.length,
+      warningCount: data.warningCount,
+    });
+    return response;
+  });
+}
+
+async function buildReserveScenarioCalculationDataAfterClaim(
+  input: RunReserveScenarioCalculationInput,
+  context: ReserveScenarioRunContext
+): Promise<ReserveScenarioCalculationData> {
+  return transaction((client) => buildReserveScenarioCalculationData(client, input, context));
+}
+
+async function calculateReserveScenarioForContext(
+  input: RunReserveScenarioCalculationInput,
+  claimed: ClaimedReserveScenarioRun
+): Promise<FundScenarioCalculationResponseV1 | null> {
+  const data = await buildReserveScenarioCalculationDataAfterClaim(input, claimed.context);
+  return completeReserveScenarioRun(input, claimed, data);
+}
+
+/*
+ * Kept as a small lookup helper so completed responses continue to use the
+ * same snapshot identity checks as the pre-existing synchronous path.
+ */
 async function findReusableReserveScenarioResponse(
   client: PoolClient,
   input: RunReserveScenarioCalculationInput,
@@ -593,41 +772,33 @@ async function persistReserveScenarioCalculation(
     reserveInputTrustSummary: data.reserveInputTrustSummary,
   });
 
-  await recordCalculatedReserveScenarioEvent(client, input, {
-    response,
-    context,
-    variantCount: data.variants.length,
-    companyCount: data.portfolio.length,
-    warningCount: data.warningCount,
-  });
-
   return response;
 }
 
 export async function runReserveScenarioCalculation(
   input: RunReserveScenarioCalculationInput
-): Promise<FundScenarioCalculationResponseV1> {
-  let inputHashForFailure: string | null = null;
-  let hashKindForFailure: ScenarioInputLineage['hashKind'] | null = null;
+): Promise<FundScenarioCalculationResponseV1 | null> {
+  input.signal?.throwIfAborted();
 
+  let claimed: ClaimedReserveScenarioRun | undefined;
   try {
-    return await transaction(async (client) => {
-      const context = await loadReserveScenarioRunContext(client, input);
-      inputHashForFailure = context.inputHash;
-      hashKindForFailure = context.inputLineage.hashKind;
-      return calculateReserveScenarioForContext(client, input, context);
-    });
+    const outcome = await claimReserveScenarioRun(input);
+    if (outcome === null) {
+      return null;
+    }
+    if (outcome.kind === 'reusable') {
+      return outcome.response;
+    }
+
+    claimed = outcome.value;
+    return await calculateReserveScenarioForContext(input, claimed);
   } catch (error) {
-    await recordCalculationFailedEvent({
-      fundId: input.fundId,
-      scenarioSetId: input.scenarioSetId,
-      actor: input.actor,
-      correlationId: input.correlationId,
-      jobId: input.jobId,
-      inputHash: inputHashForFailure,
-      hashKind: hashKindForFailure,
-      error,
-    });
+    if (error instanceof ScenarioRunOwnershipLostError) {
+      return null;
+    }
+    if (claimed) {
+      await recordCalculationFailedEvent({ claimed, calculationInput: input, error });
+    }
     throw error;
   }
 }

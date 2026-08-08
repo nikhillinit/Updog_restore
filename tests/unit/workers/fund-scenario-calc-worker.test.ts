@@ -71,6 +71,9 @@ describe('fund scenario calc worker handler', () => {
     const { handleFundScenarioCalcJob } =
       await import('../../../workers/fund-scenario-calc-handler');
     runReserveScenarioCalculationMock.mockResolvedValue({ snapshotId: 42 });
+    const signal = new AbortController().signal;
+
+    expect(handleFundScenarioCalcJob.length).toBe(3);
 
     const result = await handleFundScenarioCalcJob({
       id: 'job-1',
@@ -81,7 +84,7 @@ describe('fund scenario calc worker handler', () => {
         calculationMode: 'async_reserve_allocation',
         actor: { userId: 17, label: 'analyst@example.com' },
       },
-    });
+    }, 'bullmq-token', signal);
 
     expect(result).toEqual({ snapshotId: 42 });
     expect(runReserveScenarioCalculationMock).toHaveBeenCalledWith({
@@ -90,11 +93,33 @@ describe('fund scenario calc worker handler', () => {
       correlationId: '00000000-0000-0000-0000-000000000123',
       actor: { userId: 17, label: 'analyst@example.com' },
       jobId: 'job-1',
+      signal,
     });
     expect(loggerInfoMock).toHaveBeenCalledWith(
       'Processing reserve scenario calculation',
       expect.objectContaining({ jobId: 'job-1' })
     );
+  });
+
+  it('treats a private ownership-loss outcome as a completed delivery', async () => {
+    const { handleFundScenarioCalcJob } =
+      await import('../../../workers/fund-scenario-calc-handler');
+    runReserveScenarioCalculationMock.mockResolvedValue(null);
+
+    await expect(
+      handleFundScenarioCalcJob({
+        id: 'job-lost-owner',
+        data: {
+          fundId: 1,
+          scenarioSetId: '00000000-0000-0000-0000-000000000111',
+          correlationId: '00000000-0000-0000-0000-000000000123',
+          calculationMode: 'async_reserve_allocation',
+          actor: null,
+        },
+      })
+    ).resolves.toBeNull();
+
+    expect(loggerErrorMock).not.toHaveBeenCalled();
   });
 
   it('rejects unsupported calculation modes and logs failures', async () => {

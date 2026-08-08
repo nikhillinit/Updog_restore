@@ -42,6 +42,9 @@ describe('initializeFundScenarioCalcWorker', () => {
       expect.any(Function),
       expect.objectContaining({ concurrency: 2, lockDuration: 300_000 })
     );
+
+    const processor = workerConstructorMock.mock.calls[0]?.[1] as (...args: unknown[]) => unknown;
+    expect(processor.length).toBe(3);
   });
 
   it('returns a close function that calls worker.close()', async () => {
