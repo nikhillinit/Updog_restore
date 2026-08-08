@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   AUTH_IDENTITY_PERSONA_MAPPING,
@@ -32,7 +32,9 @@ const repoRoot = process.cwd();
 const matrixDir = path.join(repoRoot, 'audit/surface-contract-matrix');
 const matrixPath = path.join(matrixDir, 'matrix.json');
 const inventoryPath = path.join(matrixDir, 'source-inventory.json');
-const temporaryReviewPath = path.join(matrixDir, '.g1-review-test.json');
+const temporaryReviewPrefix = path.join(matrixDir, '.g1-review-test-');
+let temporaryReviewDirectory = '';
+let temporaryReviewPath = '';
 
 type ApproveModule =
   typeof import('../../../audit/surface-contract-matrix/scripts/approve-matrix.mjs');
@@ -43,6 +45,8 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  temporaryReviewDirectory = fs.mkdtempSync(temporaryReviewPrefix);
+  temporaryReviewPath = path.join(temporaryReviewDirectory, 'review.json');
   mocks.validateMatrix.mockReset().mockResolvedValue({});
   mocks.validateOffRowFingerprints.mockReset().mockReturnValue([]);
   mocks.validateRowIntegrity.mockReset().mockReturnValue([]);
@@ -51,11 +55,20 @@ beforeEach(() => {
   mocks.coverageObligations.mockReset().mockReturnValue([]);
   mocks.closureReport.mockReset().mockReturnValue({ passed: true, issues: {}, families: [] });
   mocks.renderMatrix.mockReset().mockReturnValue('# synthetic render\n');
-  if (fs.existsSync(temporaryReviewPath)) fs.rmSync(temporaryReviewPath, { force: true });
+});
+
+afterEach(() => {
+  if (temporaryReviewDirectory) fs.rmSync(temporaryReviewDirectory, { recursive: true, force: true });
+  temporaryReviewDirectory = '';
+  temporaryReviewPath = '';
 });
 
 afterAll(() => {
-  if (fs.existsSync(temporaryReviewPath)) fs.rmSync(temporaryReviewPath, { force: true });
+  for (const entry of fs.readdirSync(matrixDir, { withFileTypes: true })) {
+    if (entry.name.startsWith('.g1-review-test-')) {
+      fs.rmSync(path.join(matrixDir, entry.name), { recursive: true, force: true });
+    }
+  }
 });
 
 function currentState() {
@@ -119,7 +132,7 @@ function writeReview(overrides: Record<string, unknown> = {}) {
   return { review, row };
 }
 
-describe('surface contract matrix approval closure safety', () => {
+describe.sequential('surface contract matrix approval closure safety', () => {
   it('applies review-manifest row fields and recomputes dependent state in dry-run', async () => {
     const { row } = writeReview();
     const result = await approveModule.approveMatrix([

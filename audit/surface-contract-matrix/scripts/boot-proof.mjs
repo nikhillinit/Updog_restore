@@ -240,9 +240,41 @@ const evidence = ({ deployment, runtime, boot_status, command_or_artifact, probe
   },
 });
 
-const failedBuildResult = (script, build) => build.ok
-  ? undefined
-  : `npm run ${script} failed${build.status === null ? ' by timeout' : ` with status ${build.status ?? build.signal ?? 'unknown'}`}`;
+const unavailableCommandCodes = new Set(['ENOENT', 'EACCES']);
+
+export const bootStatusForCommandResult = (result = {}) => {
+  if (result.ok === true) return 'proven';
+  return unavailableCommandCodes.has(result.error?.code) ? 'unproven' : 'failed';
+};
+
+const commandFailureDetail = (result = {}) => {
+  const errorCode = result.error?.code;
+  if (errorCode) return ` with error ${errorCode}${errorCode === 'ETIMEDOUT' ? ' (timeout)' : ''}`;
+  if (result.signal) return ` with signal ${result.signal}`;
+  if (result.status === null) return ' with no exit status';
+  return ` with status ${result.status ?? 'unknown'}`;
+};
+
+const commandFailureResult = (label, result = {}) => {
+  const output = `${result.stderr ?? ''}\n${result.stdout ?? ''}`.trim().replaceAll(/\s+/g, ' ');
+  return `${label} failed${commandFailureDetail(result)}${output ? `: ${output.slice(0, 600)}` : ''}`;
+};
+
+export const commandFailureEvidence = ({
+  deployment,
+  runtime,
+  command_or_artifact,
+  probe,
+  label,
+  result,
+}) => evidence({
+  deployment,
+  runtime,
+  boot_status: bootStatusForCommandResult(result),
+  command_or_artifact,
+  probe,
+  result: commandFailureResult(label, result),
+});
 
 const failureSummary = (result, fallback) => {
   if (result.ok) return fallback;
@@ -265,21 +297,7 @@ const dockerCleanup = (name, kind = 'container') => {
 };
 
 const dockerFailure = (label, result) => {
-  const output = `${result.stderr ?? ''}\n${result.stdout ?? ''}`.trim().replaceAll(/\s+/g, ' ');
-  const errorCode = result.error?.code;
-  const detail = errorCode
-    ? ` with error ${errorCode}${errorCode === 'ETIMEDOUT' ? ' (timeout)' : ''}`
-    : result.status === null
-      ? ' by timeout'
-      : ` with status ${result.status ?? result.signal ?? 'unknown'}`;
-  return `${label} failed${detail}${output ? `: ${output.slice(0, 600)}` : ''}`;
-};
-
-const unavailableCommandCodes = new Set(['ENOENT', 'EACCES']);
-
-export const bootStatusForCommandResult = (result = {}) => {
-  if (result.ok === true) return 'proven';
-  return unavailableCommandCodes.has(result.error?.code) ? 'unproven' : 'failed';
+  return commandFailureResult(label, result);
 };
 
 export const workerConsumerIsHealthy = ({ health, stats }) => {
@@ -290,9 +308,31 @@ export const workerConsumerIsHealthy = ({ health, stats }) => {
     && expectedWorker.isRunning === true);
 };
 
-const dockerfileLine = (file, keyword) => fs.readFileSync(path.join(repoRoot, file), 'utf8')
-  .split('\n')
-  .findLast((line) => line.trim().toUpperCase().startsWith(keyword));
+const dockerfileDirectives = (content) => {
+  const directives = [];
+  let logicalLine = '';
+  for (const physicalLine of String(content ?? '').split('\n')) {
+    const line = physicalLine.trim();
+    if (!logicalLine && (!line || line.startsWith('#'))) continue;
+    logicalLine = logicalLine ? `${logicalLine} ${line}` : line;
+    if (/\\\s*$/.test(logicalLine)) {
+      logicalLine = logicalLine.replace(/\\\s*$/, '');
+      continue;
+    }
+    if (logicalLine) directives.push(logicalLine);
+    logicalLine = '';
+  }
+  if (logicalLine) directives.push(logicalLine);
+  return directives;
+};
+
+const lastDockerfileDirective = (content, keyword) => dockerfileDirectives(content)
+  .findLast((line) => line.toUpperCase().startsWith(keyword));
+
+const dockerfileLine = (file, keyword) => lastDockerfileDirective(
+  fs.readFileSync(path.join(repoRoot, file), 'utf8'),
+  keyword,
+);
 
 const railwayApiExpectedEntrypoint = Object.freeze(['dumb-init', '--']);
 const railwayApiExpectedCmd = Object.freeze(['node', 'dist/index.js']);
@@ -314,8 +354,8 @@ const parseExecFormDirective = (value, keyword) => {
 
 export const railwayApiDockerfileContractCheck = ({ entrypoint, cmd, content } = {}) => {
   const dockerfile = String(content ?? '');
-  const resolvedEntrypoint = entrypoint ?? dockerfile.split('\n').findLast((line) => line.trim().toUpperCase().startsWith('ENTRYPOINT'));
-  const resolvedCmd = cmd ?? dockerfile.split('\n').findLast((line) => line.trim().toUpperCase().startsWith('CMD'));
+  const resolvedEntrypoint = entrypoint ?? lastDockerfileDirective(dockerfile, 'ENTRYPOINT');
+  const resolvedCmd = cmd ?? lastDockerfileDirective(dockerfile, 'CMD');
   const actualEntrypoint = parseExecFormDirective(resolvedEntrypoint, 'ENTRYPOINT');
   const actualCmd = parseExecFormDirective(resolvedCmd, 'CMD');
   const ok = JSON.stringify(actualEntrypoint) === JSON.stringify(railwayApiExpectedEntrypoint)
@@ -365,11 +405,22 @@ export const railwayApiRuntimeOutcome = ({
       };
 };
 
+const RAILWAY_API_COMMAND = 'npm run build:prod; Dockerfile.railway ENTRYPOINT ["dumb-init","--"] + CMD ["node","dist/index.js"]';
+const RAILWAY_API_PROBE = 'GET /health; expected HTTP 2xx; 404/405 are failures';
+
+export const railwayApiBuildFailureEvidence = (build) => commandFailureEvidence({
+  deployment: 'railway-api',
+  command_or_artifact: RAILWAY_API_COMMAND,
+  probe: RAILWAY_API_PROBE,
+  label: 'npm run build:prod',
+  result: build,
+});
+
 const railwayApiProof = async () => {
-  const command_or_artifact = 'npm run build:prod; Dockerfile.railway ENTRYPOINT ["dumb-init","--"] + CMD ["node","dist/index.js"]';
-  const probe = 'GET /health; expected HTTP 2xx; 404/405 are failures';
+  const command_or_artifact = RAILWAY_API_COMMAND;
+  const probe = RAILWAY_API_PROBE;
   const build = npmResult('build:prod', proofEnv());
-  if (!build.ok) return evidence({ deployment: 'railway-api', boot_status: 'failed', command_or_artifact, probe, result: failedBuildResult('build:prod', build) });
+  if (!build.ok) return railwayApiBuildFailureEvidence(build);
   const entrypoint = dockerfileLine('Dockerfile.railway', 'ENTRYPOINT');
   const cmd = dockerfileLine('Dockerfile.railway', 'CMD');
   const contract = railwayApiDockerfileContractCheck({ entrypoint, cmd });
@@ -510,11 +561,23 @@ const railwayWorkerProof = async () => {
 const runNodeProbe = (code, env, useTsx = false) => commandResult(useTsx ? path.join(repoRoot, 'node_modules/.bin/tsx') : process.execPath,
   useTsx ? ['--tsconfig', path.join(repoRoot, 'tsconfig.server.json'), '-e', code] : ['--input-type=module', '-e', code], env, 120_000);
 
+const VERCEL_API_COMMAND = 'node scripts/build-vercel-api.mjs; import api/_app.generated.mjs and construct makeApp()';
+const VERCEL_API_PROBE = 'in-process makeApp() construction from Vercel API bundle; no listener';
+
+export const vercelApiBuildFailureEvidence = (build) => commandFailureEvidence({
+  deployment: 'vercel-api',
+  runtime: 'make_app',
+  command_or_artifact: VERCEL_API_COMMAND,
+  probe: VERCEL_API_PROBE,
+  label: 'Vercel API bundle build',
+  result: build,
+});
+
 const vercelApiProof = async () => {
-  const command_or_artifact = 'node scripts/build-vercel-api.mjs; import api/_app.generated.mjs and construct makeApp()';
-  const probe = 'in-process makeApp() construction from Vercel API bundle; no listener';
+  const command_or_artifact = VERCEL_API_COMMAND;
+  const probe = VERCEL_API_PROBE;
   const build = commandResult(process.execPath, ['scripts/build-vercel-api.mjs'], proofEnv(), 300_000);
-  if (!build.ok) return evidence({ deployment: 'vercel-api', runtime: 'make_app', boot_status: 'failed', command_or_artifact, probe, result: 'Vercel API bundle build failed' });
+  if (!build.ok) return vercelApiBuildFailureEvidence(build);
   const code = `import { pathToFileURL } from 'node:url'; const imported = await import(pathToFileURL(${JSON.stringify(path.join(repoRoot, 'api/_app.generated.mjs'))})); if (typeof imported.makeApp !== 'function') throw new Error('makeApp export missing:' + Object.keys(imported).sort().join(',')); const app = imported.makeApp(); if (!app || typeof app.use !== 'function') throw new Error('makeApp did not return Express app'); process.exit(0);`;
   const construction = runNodeProbe(code, proofEnv());
   return evidence({ deployment: 'vercel-api', runtime: 'make_app', boot_status: construction.ok ? 'proven' : 'failed', command_or_artifact, probe, result: construction.ok ? 'makeApp constructed from built bundle' : failureSummary(construction, 'built bundle makeApp construction failed') });
@@ -651,10 +714,22 @@ const vercelFunctionProof = async () => {
   return evidence({ deployment: 'vercel-api', runtime: 'vercel_function', boot_status: failed.length === 0 ? 'proven' : 'failed', command_or_artifact, probe, result });
 };
 
+const VERCEL_WEB_COMMAND = 'npm run build:web; dist/public/index.html';
+const VERCEL_WEB_PROBE = 'emitted SPA entry HTML references its actual hashed JavaScript bundle';
+
+export const vercelWebBuildFailureEvidence = (build) => commandFailureEvidence({
+  deployment: 'vercel-web',
+  command_or_artifact: VERCEL_WEB_COMMAND,
+  probe: VERCEL_WEB_PROBE,
+  label: 'npm run build:web',
+  result: build,
+});
+
 const vercelWebProof = async () => {
-  const command_or_artifact = 'npm run build:web; dist/public/index.html';
-  const probe = 'emitted SPA entry HTML references its actual hashed JavaScript bundle';
+  const command_or_artifact = VERCEL_WEB_COMMAND;
+  const probe = VERCEL_WEB_PROBE;
   const build = npmResult('build:web', proofEnv());
+  if (!build.ok) return vercelWebBuildFailureEvidence(build);
   const indexFile = path.join(repoRoot, 'dist/public/index.html');
   const html = fs.existsSync(indexFile) ? fs.readFileSync(indexFile, 'utf8') : '';
   const hasBundle = Boolean(emittedSpaAssetPath(html));
@@ -672,7 +747,13 @@ const railwayWebProof = async (railwayApi) => {
   let probe = 'GET actual emitted hashed SPA asset and GET /fund-setup; expected HTTP 2xx; 404/405 are failures';
   if (railwayApi.boot_status !== 'proven') return evidence({ deployment: 'railway-web', boot_status: 'unproven', command_or_artifact, probe, result: `dependency railway-api is ${railwayApi.boot_status}; Railway web proof not executable` });
   const build = npmResult('build:web', proofEnv({ PORT: String(PORTS.web), _EXPLICIT_PORT: '1' }));
-  if (!build.ok) return evidence({ deployment: 'railway-web', boot_status: 'failed', command_or_artifact, probe, result: 'web build failed' });
+  if (!build.ok) return commandFailureEvidence({
+    deployment: 'railway-web',
+    command_or_artifact,
+    probe,
+    label: 'npm run build:web',
+    result: build,
+  });
   const indexFile = path.join(repoRoot, 'dist/public/index.html');
   const html = fs.existsSync(indexFile) ? fs.readFileSync(indexFile, 'utf8') : '';
   const assetPath = emittedSpaAssetPath(html);

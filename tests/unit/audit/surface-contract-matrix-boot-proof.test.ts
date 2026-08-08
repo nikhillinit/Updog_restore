@@ -4,9 +4,12 @@ import { describe, expect, it } from 'vitest';
 
 import {
   invokeVercelFunction,
+  commandFailureEvidence,
   railwayApiDockerfileContractCheck,
+  railwayApiBuildFailureEvidence,
   railwayApiRuntimeOutcome,
   vercelFunctionBuildFailureEvidence,
+  vercelWebBuildFailureEvidence,
   workerConsumerIsHealthy,
 } from '../../../audit/surface-contract-matrix/scripts/boot-proof.mjs';
 
@@ -108,6 +111,21 @@ describe('surface contract matrix boot proof completion gates', () => {
     },
   ])('rejects a $name', ({ content, actual }) => {
     expect(railwayApiDockerfileContractCheck({ content })).toMatchObject({ ok: false, actual });
+  });
+
+  it('does not treat CMD inside a continued HEALTHCHECK as the top-level launch CMD', () => {
+    const outcome = railwayApiDockerfileContractCheck({
+      content: [
+        'ENTRYPOINT ["dumb-init", "--"]',
+        'CMD ["node", "server/index.js"]',
+        'HEALTHCHECK ' + '\\',
+        '  CMD ["node", "dist/index.js"]',
+      ].join('\n'),
+    });
+    expect(outcome).toMatchObject({
+      ok: false,
+      actual: { cmd: ['node', 'server/index.js'] },
+    });
   });
 
   it('proves the Railway container only after its listener responds', () => {
@@ -217,5 +235,42 @@ describe('surface contract matrix boot proof completion gates', () => {
     });
     expect(outcome.boot_status).toBe('failed');
     expect(outcome.boot_evidence.result).toContain('status 1');
+  });
+
+  it('classifies unavailable Railway API build tooling as unproven', () => {
+    const outcome = railwayApiBuildFailureEvidence({
+      ok: false,
+      status: null,
+      signal: null,
+      error: { code: 'ENOENT' },
+    });
+    expect(outcome.boot_status).toBe('unproven');
+    expect(outcome.boot_evidence.result).toContain('ENOENT');
+    expect(outcome.boot_evidence.result).not.toContain('timeout');
+  });
+
+  it('classifies permission-denied Vercel web build tooling as unproven', () => {
+    const outcome = vercelWebBuildFailureEvidence({
+      ok: false,
+      status: null,
+      signal: null,
+      error: { code: 'EACCES' },
+    });
+    expect(outcome.boot_status).toBe('unproven');
+    expect(outcome.boot_evidence.result).toContain('EACCES');
+    expect(outcome.boot_evidence.result).not.toContain('timeout');
+  });
+
+  it('keeps an executed signal termination failed without calling it a timeout', () => {
+    const outcome = commandFailureEvidence({
+      deployment: 'vercel-web',
+      command_or_artifact: 'npm run build:web; dist/public/index.html',
+      probe: 'entry HTML references emitted bundle',
+      label: 'npm run build:web',
+      result: { ok: false, status: null, signal: 'SIGTERM' },
+    });
+    expect(outcome.boot_status).toBe('failed');
+    expect(outcome.boot_evidence.result).toContain('SIGTERM');
+    expect(outcome.boot_evidence.result).not.toContain('timeout');
   });
 });
