@@ -121,7 +121,8 @@ describe('sensitivity route contracts', () => {
     expect(fundScopeState.enforceProvidedFundScope).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      2
+      2,
+      { forWrite: true }
     );
     expect(serviceState.createPending).not.toHaveBeenCalled();
   });
@@ -133,7 +134,8 @@ describe('sensitivity route contracts', () => {
     expect(fundScopeState.enforceProvidedFundScope).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      2
+      2,
+      { forWrite: true }
     );
     expect(serviceState.createPending).not.toHaveBeenCalled();
   });

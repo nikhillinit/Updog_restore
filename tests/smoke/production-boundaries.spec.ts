@@ -106,6 +106,9 @@ test.describe('production boundary smoke', () => {
     const body = await expectJsonObject(response);
     expect(releaseIdentityMatches(body, CHECKED_OUT_VERSION, EXPECTED_SHA)).toBe(true);
     expect(body['environment']).toEqual(expect.any(String));
+    // Node 22 runtime proof (F_1.2.5 Phase 1a): the deployed Vercel runtime
+    // must actually be on the converged major, not just configured for it.
+    expect(String(body['nodeVersion'])).toMatch(/^v?22\./);
   });
 
   test('metrics api denies unauthenticated requests by default', async ({ request }) => {

@@ -154,7 +154,7 @@ async function resolveBulkDealFund(
  * POST /api/deals/opportunities - Create new deal
  * Idempotency-enabled for safe retries
  */
-router['post']('/opportunities', idempotent, async (req: Request, res: Response) => {
+router['post']('/opportunities', requireTeamWrite, idempotent, async (req: Request, res: Response) => {
   const validation = CreateDealSchema.safeParse(req.body);
   if (!validation.success) {
     return res.status(400).json({
@@ -165,7 +165,7 @@ router['post']('/opportunities', idempotent, async (req: Request, res: Response)
 
   try {
     const data = validation.data;
-    if (data.fundId !== undefined && !(await enforceProvidedFundScope(req, res, data.fundId))) {
+    if (!(await enforceProvidedFundScope(req, res, data.fundId, { forWrite: true }))) {
       return;
     }
 

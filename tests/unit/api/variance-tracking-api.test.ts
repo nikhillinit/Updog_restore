@@ -344,7 +344,7 @@ describe('Variance Tracking API', () => {
           resolvedSupersededAlerts: 2,
         });
 
-        const response = await request(app)
+        const response = await request(makeVarianceApp('partner'))
           .post('/api/funds/1/baselines/baseline-123/set-default')
           .expect(200);
 
@@ -390,7 +390,7 @@ describe('Variance Tracking API', () => {
           new Error('Baseline not found for fund')
         );
 
-        const response = await request(app)
+        const response = await request(makeVarianceApp('partner'))
           .post('/api/funds/1/baselines/baseline-404/set-default')
           .expect(404);
 
@@ -1797,6 +1797,7 @@ describe('Variance Tracking API', () => {
           },
           invoke: (target: express.Express) =>
             request(target).post('/api/funds/1/baselines/baseline-1/set-default'),
+          partnerOnly: true,
         },
         {
           setup: () => {
@@ -1815,6 +1816,11 @@ describe('Variance Tracking API', () => {
           vi.clearAllMocks();
           writeCase.setup();
           const response = await writeCase.invoke(makeVarianceApp(role));
+          if ('partnerOnly' in writeCase && writeCase.partnerOnly && role === 'analyst') {
+            // Default-baseline selection is a partner-gated governance transition.
+            expect(response.status, `${role} must be denied set-default`).toBe(403);
+            continue;
+          }
           expect(
             response.status,
             `${role} should access variance write route`

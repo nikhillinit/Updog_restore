@@ -26,7 +26,9 @@ export const SourceTypeEnum = z.enum([
 ]);
 
 export const CreateDealSchema = z.object({
-  fundId: z.number().int().positive().optional(),
+  // Required: a fundless deal would be unreachable by the fund-scoped
+  // mutation guards (update/archive/stage/diligence resolve fund ownership).
+  fundId: z.number().int().positive(),
   companyName: z.string().min(1, 'Company name is required').max(255),
   sector: CompanySectorSchema,
   stage: DealStageEnum,

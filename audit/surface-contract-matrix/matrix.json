@@ -653,7 +653,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=871de148a3103599f7cbf083881dd5f34b96e5f98db35509bc3aaddc2d6dec85",
+        "server/routes/deal-pipeline.ts=c67dce788a571b3877db1a3693917c8c12f609ce16e2cec2397c951ab042547b",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -1155,7 +1155,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/variance.ts=fd6d0cbd9446653cc69128219f56ae5c8d00e3200654adca9e047df2c403ba8b",
+        "server/routes/variance.ts=fa4b486c82b14bbc3b71555fcf56a5bb1678c4466bb2386a6bd94ac2a5baaf94",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -6462,7 +6462,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=871de148a3103599f7cbf083881dd5f34b96e5f98db35509bc3aaddc2d6dec85",
+        "server/routes/deal-pipeline.ts=c67dce788a571b3877db1a3693917c8c12f609ce16e2cec2397c951ab042547b",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -6676,7 +6676,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=871de148a3103599f7cbf083881dd5f34b96e5f98db35509bc3aaddc2d6dec85",
+        "server/routes/deal-pipeline.ts=c67dce788a571b3877db1a3693917c8c12f609ce16e2cec2397c951ab042547b",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -6892,7 +6892,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=871de148a3103599f7cbf083881dd5f34b96e5f98db35509bc3aaddc2d6dec85",
+        "server/routes/deal-pipeline.ts=c67dce788a571b3877db1a3693917c8c12f609ce16e2cec2397c951ab042547b",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -7107,7 +7107,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=871de148a3103599f7cbf083881dd5f34b96e5f98db35509bc3aaddc2d6dec85",
+        "server/routes/deal-pipeline.ts=c67dce788a571b3877db1a3693917c8c12f609ce16e2cec2397c951ab042547b",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -7321,7 +7321,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=871de148a3103599f7cbf083881dd5f34b96e5f98db35509bc3aaddc2d6dec85",
+        "server/routes/deal-pipeline.ts=c67dce788a571b3877db1a3693917c8c12f609ce16e2cec2397c951ab042547b",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -24299,7 +24299,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/variance.ts=fd6d0cbd9446653cc69128219f56ae5c8d00e3200654adca9e047df2c403ba8b",
+        "server/routes/variance.ts=fa4b486c82b14bbc3b71555fcf56a5bb1678c4466bb2386a6bd94ac2a5baaf94",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -24496,7 +24496,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/variance.ts=fd6d0cbd9446653cc69128219f56ae5c8d00e3200654adca9e047df2c403ba8b",
+        "server/routes/variance.ts=fa4b486c82b14bbc3b71555fcf56a5bb1678c4466bb2386a6bd94ac2a5baaf94",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -25612,7 +25612,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/sensitivity.ts=0324851ba9c8521c6b9f3df788b47c626b55c506386c956718c3ad8d9f290fe1",
+        "server/routes/sensitivity.ts=407a59d10752b11e7fd406ecd844cdd7d2311f0c41091b1a92a9f8626efebf98",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -25862,7 +25862,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/sensitivity.ts=0324851ba9c8521c6b9f3df788b47c626b55c506386c956718c3ad8d9f290fe1",
+        "server/routes/sensitivity.ts=407a59d10752b11e7fd406ecd844cdd7d2311f0c41091b1a92a9f8626efebf98",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -26231,7 +26231,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/variance.ts=fd6d0cbd9446653cc69128219f56ae5c8d00e3200654adca9e047df2c403ba8b",
+        "server/routes/variance.ts=fa4b486c82b14bbc3b71555fcf56a5bb1678c4466bb2386a6bd94ac2a5baaf94",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -26428,7 +26428,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/variance.ts=fd6d0cbd9446653cc69128219f56ae5c8d00e3200654adca9e047df2c403ba8b",
+        "server/routes/variance.ts=fa4b486c82b14bbc3b71555fcf56a5bb1678c4466bb2386a6bd94ac2a5baaf94",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -26624,7 +26624,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/variance.ts=fd6d0cbd9446653cc69128219f56ae5c8d00e3200654adca9e047df2c403ba8b",
+        "server/routes/variance.ts=fa4b486c82b14bbc3b71555fcf56a5bb1678c4466bb2386a6bd94ac2a5baaf94",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -29192,7 +29192,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/variance.ts=fd6d0cbd9446653cc69128219f56ae5c8d00e3200654adca9e047df2c403ba8b",
+        "server/routes/variance.ts=fa4b486c82b14bbc3b71555fcf56a5bb1678c4466bb2386a6bd94ac2a5baaf94",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -50909,7 +50909,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/variance.ts=fd6d0cbd9446653cc69128219f56ae5c8d00e3200654adca9e047df2c403ba8b",
+        "server/routes/variance.ts=fa4b486c82b14bbc3b71555fcf56a5bb1678c4466bb2386a6bd94ac2a5baaf94",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -51105,7 +51105,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/variance.ts=fd6d0cbd9446653cc69128219f56ae5c8d00e3200654adca9e047df2c403ba8b",
+        "server/routes/variance.ts=fa4b486c82b14bbc3b71555fcf56a5bb1678c4466bb2386a6bd94ac2a5baaf94",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -55116,7 +55116,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=871de148a3103599f7cbf083881dd5f34b96e5f98db35509bc3aaddc2d6dec85",
+        "server/routes/deal-pipeline.ts=c67dce788a571b3877db1a3693917c8c12f609ce16e2cec2397c951ab042547b",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -55340,7 +55340,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=871de148a3103599f7cbf083881dd5f34b96e5f98db35509bc3aaddc2d6dec85",
+        "server/routes/deal-pipeline.ts=c67dce788a571b3877db1a3693917c8c12f609ce16e2cec2397c951ab042547b",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -55564,7 +55564,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=871de148a3103599f7cbf083881dd5f34b96e5f98db35509bc3aaddc2d6dec85",
+        "server/routes/deal-pipeline.ts=c67dce788a571b3877db1a3693917c8c12f609ce16e2cec2397c951ab042547b",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -55789,7 +55789,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=871de148a3103599f7cbf083881dd5f34b96e5f98db35509bc3aaddc2d6dec85",
+        "server/routes/deal-pipeline.ts=c67dce788a571b3877db1a3693917c8c12f609ce16e2cec2397c951ab042547b",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -56013,7 +56013,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=871de148a3103599f7cbf083881dd5f34b96e5f98db35509bc3aaddc2d6dec85",
+        "server/routes/deal-pipeline.ts=c67dce788a571b3877db1a3693917c8c12f609ce16e2cec2397c951ab042547b",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -56237,7 +56237,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=871de148a3103599f7cbf083881dd5f34b96e5f98db35509bc3aaddc2d6dec85",
+        "server/routes/deal-pipeline.ts=c67dce788a571b3877db1a3693917c8c12f609ce16e2cec2397c951ab042547b",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -56451,7 +56451,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=871de148a3103599f7cbf083881dd5f34b96e5f98db35509bc3aaddc2d6dec85",
+        "server/routes/deal-pipeline.ts=c67dce788a571b3877db1a3693917c8c12f609ce16e2cec2397c951ab042547b",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -74289,7 +74289,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/variance.ts=fd6d0cbd9446653cc69128219f56ae5c8d00e3200654adca9e047df2c403ba8b",
+        "server/routes/variance.ts=fa4b486c82b14bbc3b71555fcf56a5bb1678c4466bb2386a6bd94ac2a5baaf94",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -74485,7 +74485,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/variance.ts=fd6d0cbd9446653cc69128219f56ae5c8d00e3200654adca9e047df2c403ba8b",
+        "server/routes/variance.ts=fa4b486c82b14bbc3b71555fcf56a5bb1678c4466bb2386a6bd94ac2a5baaf94",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -74691,7 +74691,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/variance.ts=fd6d0cbd9446653cc69128219f56ae5c8d00e3200654adca9e047df2c403ba8b",
+        "server/routes/variance.ts=fa4b486c82b14bbc3b71555fcf56a5bb1678c4466bb2386a6bd94ac2a5baaf94",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -74892,7 +74892,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/variance.ts=fd6d0cbd9446653cc69128219f56ae5c8d00e3200654adca9e047df2c403ba8b",
+        "server/routes/variance.ts=fa4b486c82b14bbc3b71555fcf56a5bb1678c4466bb2386a6bd94ac2a5baaf94",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -75604,7 +75604,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/sensitivity.ts=0324851ba9c8521c6b9f3df788b47c626b55c506386c956718c3ad8d9f290fe1",
+        "server/routes/sensitivity.ts=407a59d10752b11e7fd406ecd844cdd7d2311f0c41091b1a92a9f8626efebf98",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -75855,7 +75855,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/sensitivity.ts=0324851ba9c8521c6b9f3df788b47c626b55c506386c956718c3ad8d9f290fe1",
+        "server/routes/sensitivity.ts=407a59d10752b11e7fd406ecd844cdd7d2311f0c41091b1a92a9f8626efebf98",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -76105,7 +76105,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/sensitivity.ts=0324851ba9c8521c6b9f3df788b47c626b55c506386c956718c3ad8d9f290fe1",
+        "server/routes/sensitivity.ts=407a59d10752b11e7fd406ecd844cdd7d2311f0c41091b1a92a9f8626efebf98",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -76311,7 +76311,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/variance.ts=fd6d0cbd9446653cc69128219f56ae5c8d00e3200654adca9e047df2c403ba8b",
+        "server/routes/variance.ts=fa4b486c82b14bbc3b71555fcf56a5bb1678c4466bb2386a6bd94ac2a5baaf94",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -76517,7 +76517,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/variance.ts=fd6d0cbd9446653cc69128219f56ae5c8d00e3200654adca9e047df2c403ba8b",
+        "server/routes/variance.ts=fa4b486c82b14bbc3b71555fcf56a5bb1678c4466bb2386a6bd94ac2a5baaf94",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -84582,7 +84582,7 @@
         "server/lib/auth/jwt.ts=a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/deal-pipeline.ts=871de148a3103599f7cbf083881dd5f34b96e5f98db35509bc3aaddc2d6dec85",
+        "server/routes/deal-pipeline.ts=c67dce788a571b3877db1a3693917c8c12f609ce16e2cec2397c951ab042547b",
         "server/server.ts=7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
       ],
@@ -99194,7 +99194,7 @@
       "server/routes/cohort-analysis.ts": "57e40f569ed602eade24ae876923d59f06778a1d09689420295f0776907d3a59",
       "server/routes/current-forecast.ts": "de1fe6b868c90b8c41b08ac7ea2d0e2eb9d38c81c29b113c39c619eedfb5ccef",
       "server/routes/dashboard-summary.ts": "7b592fb19016ed178538f656fe374a65221c2c0616fd4e8dec66b2305b2013ae",
-      "server/routes/deal-pipeline.ts": "871de148a3103599f7cbf083881dd5f34b96e5f98db35509bc3aaddc2d6dec85",
+      "server/routes/deal-pipeline.ts": "c67dce788a571b3877db1a3693917c8c12f609ce16e2cec2397c951ab042547b",
       "server/routes/dev-dashboard.ts": "05b5092160133069c03e06406f62eb572ccc1bbae9c5596229c244ed150f3e2a",
       "server/routes/dual-forecast.ts": "a70c7af05aa2bb9aff5c04ff589124d7b198216302c1e11d0fb95c9f26982289",
       "server/routes/engine-summaries.ts": "cf715d70953aa7b50034aa193e248e0745ca3774b67d342bbdf30c4c6e94b12b",
@@ -99248,14 +99248,14 @@
       "server/routes/readiness.ts": "7a5868f7e91cfd1f7b7cf7c11e723c14f678c619b2f386542e197668454e93ca",
       "server/routes/reallocation.ts": "418f6b97bd7dd202a7a64718ef38a5a68ffae898f055842e3cba6f7300c6f340",
       "server/routes/scenario-analysis.ts": "a63649f5b2ae090e69d6440646a70895b2795d0cf5a89d50ca1d6f182a112209",
-      "server/routes/sensitivity.ts": "0324851ba9c8521c6b9f3df788b47c626b55c506386c956718c3ad8d9f290fe1",
+      "server/routes/sensitivity.ts": "407a59d10752b11e7fd406ecd844cdd7d2311f0c41091b1a92a9f8626efebf98",
       "server/routes/shares.ts": "d1359e2b8b06ceec542167e1cd7b800eff087556b654efeff4a6e925f16f9dd2",
       "server/routes/simulations-guarded.example.ts": "8d9d6a70248266b63d476f8552e1f90966bd831558a328f84d13c9b28e9ff4cd",
       "server/routes/sse-events.ts": "4a10d46d27bf98d8348494b2bb3c66c0583dd74928a6dc8429f53479b81c0f84",
       "server/routes/timeline.ts": "9ede85915e6b51ef088cb500b11f1061689e08c0c3aa6a9fe5fca29057e354aa",
       "server/routes/v1/reserve-approvals.ts": "69a855a4b27a04287ece4e88f6245fc8ee3af026cf8c9339ab9457f0c5470b62",
       "server/routes/v1/reserves.ts": "8e916ae785b1edb3fe47626a853e3c241a312d583e3ff407219934bd3a7286e2",
-      "server/routes/variance.ts": "fd6d0cbd9446653cc69128219f56ae5c8d00e3200654adca9e047df2c403ba8b",
+      "server/routes/variance.ts": "fa4b486c82b14bbc3b71555fcf56a5bb1678c4466bb2386a6bd94ac2a5baaf94",
       "server/routes/variance/response-adapters.ts": "44e52dda21c7b440a5553f6eb619b4d1c71975e3dc33f8fe52ba3e21add8fe26",
       "server/server.ts": "7ccc1c5d412f86248b7d6d509cfcbabfa9379e4c5705006e9e9996d1fa60f696",
       "server/services/CacheWarmingService.ts": "5ae86364d4e617a001425143f4136f50ea1afb0d2c91123dd8913038abaaabb2",

@@ -113,13 +113,13 @@ router.post(
   }
 );
 
-router.post('/funds/:id/sensitivity/two-way', async (req: Request, res: Response) => {
+router.post('/funds/:id/sensitivity/two-way', requireTeamWrite, async (req: Request, res: Response) => {
   const fundId = parseRouteFundId(req, res);
   if (fundId === null) {
     return;
   }
 
-  if (!(await enforceProvidedFundScope(req, res, fundId))) {
+  if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
     return;
   }
 
@@ -136,7 +136,13 @@ router.post('/funds/:id/sensitivity/two-way', async (req: Request, res: Response
   const { twoWaySensitivityEngine, SensitivityEngineError } =
     await import('../services/two-way-sensitivity-engine');
 
-  const userId = (req as Request & { user?: { id?: number } }).user?.id ?? 0;
+  const userId = getUserId(req);
+  if (!userId) {
+    return res.status(401).json({
+      code: 'AUTHENTICATION_REQUIRED',
+      message: 'User must be authenticated to create a sensitivity run',
+    });
+  }
   const startedAt = Date.now();
 
   const run = await sensitivityRunService.createPending(fundId, 'two_way', parsed.data, userId);
@@ -156,13 +162,13 @@ router.post('/funds/:id/sensitivity/two-way', async (req: Request, res: Response
   }
 });
 
-router.post('/funds/:id/sensitivity/stress', async (req: Request, res: Response) => {
+router.post('/funds/:id/sensitivity/stress', requireTeamWrite, async (req: Request, res: Response) => {
   const fundId = parseRouteFundId(req, res);
   if (fundId === null) {
     return;
   }
 
-  if (!(await enforceProvidedFundScope(req, res, fundId))) {
+  if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
     return;
   }
 
@@ -179,7 +185,13 @@ router.post('/funds/:id/sensitivity/stress', async (req: Request, res: Response)
   const { stressTestEngine, SensitivityEngineError } =
     await import('../services/stress-test-engine');
 
-  const userId = (req as Request & { user?: { id?: number } }).user?.id ?? 0;
+  const userId = getUserId(req);
+  if (!userId) {
+    return res.status(401).json({
+      code: 'AUTHENTICATION_REQUIRED',
+      message: 'User must be authenticated to create a sensitivity run',
+    });
+  }
   const startedAt = Date.now();
 
   const run = await sensitivityRunService.createPending(fundId, 'stress', parsed.data, userId);

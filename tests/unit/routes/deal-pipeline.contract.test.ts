@@ -161,6 +161,7 @@ function makeApp(fundIds: number[] = [1], role = 'analyst') {
 
 function validDealPayload(overrides: Record<string, unknown> = {}) {
   return {
+    fundId: 1,
     companyName: 'Contract Co',
     sector: 'SaaS',
     stage: 'Seed',

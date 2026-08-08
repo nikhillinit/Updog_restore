@@ -7,7 +7,7 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
+import { PARTNER_WRITE_ROLES, TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
 import { idempotency } from '../middleware/idempotency';
 import { varianceTrackingService } from '../services/variance-tracking';
 import { varianceAlertAutomationService } from '../services/variance-alert-automation';
@@ -38,6 +38,9 @@ import { createRouteLogger } from '../lib/route-logger.js';
 
 const routeLog = createRouteLogger('variance');
 const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);
+// Default-baseline selection changes fund reporting/alert semantics -- a
+// governance transition, partner-gated per ADR-072.
+const requirePartnerWrite = requireWriteRole(PARTNER_WRITE_ROLES);
 
 function notFoundAlert(res: Response): void {
   res.status(404).json({
@@ -252,7 +255,7 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
  */
 router['post'](
   '/api/funds/:id/baselines/:baselineId/set-default',
-  requireTeamWrite,
+  requirePartnerWrite,
   async (req: Request, res: Response) => {
     try {
       let fundId: number;
