@@ -6,6 +6,7 @@ import {
   invokeVercelFunction,
   railwayApiDockerfileContractCheck,
   railwayApiRuntimeOutcome,
+  vercelBuildProofOutcome,
   workerConsumerIsHealthy,
 } from '../../../audit/surface-contract-matrix/scripts/boot-proof.mjs';
 
@@ -137,5 +138,54 @@ describe('surface contract matrix boot proof completion gates', () => {
     });
     expect(localPass.boot_status).toBe('unproven');
     expect(localPass.result.toLowerCase()).toContain('local');
+  });
+
+  it('records missing Vercel tooling as unproven without calling it a timeout', () => {
+    const outcome = vercelBuildProofOutcome({
+      ok: false,
+      status: null,
+      signal: null,
+      error: { code: 'ENOENT' },
+    });
+    expect(outcome.boot_status).toBe('unproven');
+    expect(outcome.result).toContain('unavailable');
+    expect(outcome.result).toContain('ENOENT');
+    expect(outcome.result).not.toContain('timeout');
+  });
+
+  it('records permission-denied Vercel tooling as unproven without calling it a timeout', () => {
+    const outcome = vercelBuildProofOutcome({
+      ok: false,
+      status: null,
+      signal: null,
+      error: { code: 'EACCES' },
+    });
+    expect(outcome.boot_status).toBe('unproven');
+    expect(outcome.result).toContain('unavailable');
+    expect(outcome.result).toContain('EACCES');
+    expect(outcome.result).not.toContain('timeout');
+  });
+
+  it('keeps an executed Vercel build timeout failed', () => {
+    const outcome = vercelBuildProofOutcome({
+      ok: false,
+      status: null,
+      signal: 'SIGTERM',
+      error: { code: 'ETIMEDOUT' },
+    });
+    expect(outcome).toMatchObject({ boot_status: 'failed' });
+    expect(outcome.result).toContain('timeout');
+  });
+
+  it('keeps an executed Vercel build failure failed', () => {
+    const outcome = vercelBuildProofOutcome({
+      ok: false,
+      status: 1,
+      signal: null,
+      stderr: 'Vercel build failed',
+      stdout: '',
+    });
+    expect(outcome).toMatchObject({ boot_status: 'failed' });
+    expect(outcome.result).toContain('status 1');
   });
 });

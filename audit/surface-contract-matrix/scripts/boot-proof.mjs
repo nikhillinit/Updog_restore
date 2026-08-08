@@ -269,6 +269,34 @@ const dockerFailure = (label, result) => {
   return `${label} failed${result.status === null ? ' by timeout' : ` with status ${result.status ?? result.signal ?? 'unknown'}`}${output ? `: ${output.slice(0, 600)}` : ''}`;
 };
 
+const unavailableVercelToolCodes = new Set(['ENOENT', 'EACCES']);
+
+export const vercelBuildProofOutcome = (result = {}) => {
+  if (result.ok === true) {
+    return {
+      boot_status: 'proven',
+      result: 'Vercel build-output generation completed',
+    };
+  }
+
+  const errorCode = result.error?.code;
+  if (unavailableVercelToolCodes.has(errorCode)) {
+    return {
+      boot_status: 'unproven',
+      result: `Vercel build-output generation unavailable (${errorCode}); proof was not executable`,
+    };
+  }
+
+  const output = `${result.stderr ?? ''}\n${result.stdout ?? ''}`.trim().replaceAll(/\s+/g, ' ');
+  const detail = result.status === null
+    ? ' by timeout'
+    : ` with status ${result.status ?? result.signal ?? 'unknown'}`;
+  return {
+    boot_status: 'failed',
+    result: `Vercel build-output generation failed${detail}${output ? `: ${output.slice(0, 600)}` : ''}`,
+  };
+};
+
 export const workerConsumerIsHealthy = ({ health, stats }) => {
   const expectedWorker = health?.workers?.find((worker) => worker.name === 'fund-scenario-calc');
   const expectedStats = stats?.workers?.find((worker) => worker.name === 'fund-scenario-calc');
@@ -617,7 +645,10 @@ const vercelFunctionProof = async () => {
   const command_or_artifact = 'vercel build; .vercel/output/functions/**/*.func/index.(js|mjs|cjs)';
   const probe = 'enumerate every real Vercel build-output function and invoke its callable handler once';
   const build = commandResult('vercel', ['build', '--yes'], proofEnv(), 600_000);
-  if (!build.ok) return evidence({ deployment: 'vercel-api', runtime: 'vercel_function', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('Vercel build-output generation', build) });
+  if (!build.ok) {
+    const outcome = vercelBuildProofOutcome(build);
+    return evidence({ deployment: 'vercel-api', runtime: 'vercel_function', command_or_artifact, probe, ...outcome });
+  }
   const functions = vercelBuildOutputFunctions();
   if (functions.length === 0) return evidence({ deployment: 'vercel-api', runtime: 'vercel_function', boot_status: 'failed', command_or_artifact, probe, result: 'Vercel build completed but emitted no .vercel/output/functions entries' });
   const invocations = await Promise.all(functions.map(invokeVercelFunction));

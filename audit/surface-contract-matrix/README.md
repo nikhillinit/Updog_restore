@@ -51,7 +51,7 @@ tracked `boot-proofs.json` input consumed by `seed-matrix.mjs`:
 | `railway-api`      | `npm run build:prod`; exact `Dockerfile.railway` `ENTRYPOINT` + `CMD` | Container HTTP listener on `/health`; Docker-unavailable local observation remains `unproven` |
 | `railway-worker`   | `Dockerfile.worker` image with Redis on isolated Docker network       | Container consumer registration plus `/health`, `/live`, `/ready`, `/metrics`, `/stats`  |
 | `vercel-api`       | `scripts/build-vercel-api.mjs`; import built bundle                   | `makeApp()` constructs without listening                                                 |
-| `vercel-function`  | `vercel build`; `.vercel/output/functions/**/*.func` entries          | Every emitted function entrypoint is invoked; unavailable tooling records `failed`      |
+| `vercel-function`  | `vercel build`; `.vercel/output/functions/**/*.func` entries          | Every emitted function entrypoint is invoked; unavailable tooling records `unproven`    |
 | `vercel-web`       | `npm run build:web`                                                   | `dist/public/index.html` references emitted JavaScript bundle                            |
 | `railway-web`      | SPA build plus proven Railway API                                     | Asset and deep-link probe through proven API listener                                    |
 | `ml-service-local` | `ml-service/Dockerfile` when Docker daemon is available               | Four FastAPI paths respond; otherwise records `unproven` with Docker availability result |
