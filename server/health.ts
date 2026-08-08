@@ -3,6 +3,7 @@ import { db } from './db';
 import { healthStatus } from './metrics';
 import { getEnv } from './env';
 import { getStorageRuntimeState, storage } from './storage';
+import { getReleaseIdentity } from './version';
 // Circuit breaker metrics disabled for dev mode
 // import { getBreakerTrips } from '../client/src/utils/resilientLimit';
 
@@ -111,7 +112,7 @@ async function performHealthCheck(): Promise<HealthResponse> {
     status: isHealthy ? 'healthy' : 'unhealthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    version: process.env['npm_package_version'] || 'unknown',
+    version: getReleaseIdentity().version,
     circuitBreaker: {
       trips: 0, // Circuit breaker disabled in dev mode
     },
@@ -133,7 +134,7 @@ export async function healthCheck(req: Request, res: Response) {
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      version: process.env['npm_package_version'] || 'unknown',
+      version: getReleaseIdentity().version,
       circuitBreaker: {
         trips: 0,
       },

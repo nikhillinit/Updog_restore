@@ -5,7 +5,7 @@ import { rateLimitDetailed } from '../middleware/rateLimitDetailed';
 import { setReady, registerInvalidator } from '../health/state';
 import type { NextFunction, Request, Response } from 'express';
 import { TTLCache, MemoryKV } from '../lib/ttl-cache';
-import { getVersionInfo } from '../version';
+import { getReleaseIdentity, getVersionInfo } from '../version';
 import { getQueueConfig } from '../config/features';
 import {
   getQueueCatalog,
@@ -174,7 +174,7 @@ router['get']('/health', (req: Request, res: Response) => {
   const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
   res.json({
     status: 'ok',
-    version: process.env['npm_package_version'] || '1.3.2',
+    version: getReleaseIdentity().version,
     mode,
     ts: new Date().toISOString(),
   });
@@ -185,7 +185,7 @@ router['get']('/api/health', (req: Request, res: Response) => {
   const mode = providers?.mode || (process.env['REDIS_URL'] === 'memory://' ? 'memory' : 'redis');
   res.json({
     status: 'ok',
-    version: process.env['npm_package_version'] || '1.3.2',
+    version: getReleaseIdentity().version,
     mode,
     ts: new Date().toISOString(),
   });
@@ -222,7 +222,7 @@ router['get'](
         uptime_sec: process.uptime(),
         heap_mb: Math.round(process.memoryUsage().heapUsed / 1048576),
         timestamp: new Date().toISOString(),
-        version: process.env['npm_package_version'] || 'unknown',
+        version: getReleaseIdentity().version,
         last_deploy: fs.existsSync('.last-deploy')
           ? fs.readFileSync('.last-deploy', 'utf8').trim()
           : 'unknown',
@@ -340,7 +340,7 @@ router['get'](
     detailed.metrics['uptimeSeconds'] = Math.floor(process.uptime());
     detailed.metrics['memoryMB'] = Math.round(process.memoryUsage().heapUsed / 1048576);
     detailed.metrics['mockDatabase'] = detailed.storage.mockDatabase ? 1 : 0;
-    detailed.metrics['version'] = process.env['npm_package_version'] || '1.3.2';
+    detailed.metrics['version'] = getReleaseIdentity().version;
 
     res.json(detailed);
   }
@@ -524,17 +524,18 @@ router['get'](
 
 // Version endpoint
 router['get']('/api/version', (req: Request, res: Response) => {
-  const version = process.env['npm_package_version'] || '1.3.2';
+  const release = getReleaseIdentity();
   const nodeVersion = process.version;
   const platform = process.platform;
   const arch = process.arch;
 
   res.json({
-    version,
+    version: release.version,
+    commit: release.commit,
     nodeVersion,
     platform,
     arch,
-    environment: process.env['NODE_ENV'] || 'development',
+    environment: release.environment,
     timestamp: new Date().toISOString(),
   });
 });
