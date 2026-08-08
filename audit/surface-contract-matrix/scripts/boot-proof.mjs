@@ -266,35 +266,20 @@ const dockerCleanup = (name, kind = 'container') => {
 
 const dockerFailure = (label, result) => {
   const output = `${result.stderr ?? ''}\n${result.stdout ?? ''}`.trim().replaceAll(/\s+/g, ' ');
-  return `${label} failed${result.status === null ? ' by timeout' : ` with status ${result.status ?? result.signal ?? 'unknown'}`}${output ? `: ${output.slice(0, 600)}` : ''}`;
+  const errorCode = result.error?.code;
+  const detail = errorCode
+    ? ` with error ${errorCode}${errorCode === 'ETIMEDOUT' ? ' (timeout)' : ''}`
+    : result.status === null
+      ? ' by timeout'
+      : ` with status ${result.status ?? result.signal ?? 'unknown'}`;
+  return `${label} failed${detail}${output ? `: ${output.slice(0, 600)}` : ''}`;
 };
 
-const unavailableVercelToolCodes = new Set(['ENOENT', 'EACCES']);
+const unavailableCommandCodes = new Set(['ENOENT', 'EACCES']);
 
-export const vercelBuildProofOutcome = (result = {}) => {
-  if (result.ok === true) {
-    return {
-      boot_status: 'proven',
-      result: 'Vercel build-output generation completed',
-    };
-  }
-
-  const errorCode = result.error?.code;
-  if (unavailableVercelToolCodes.has(errorCode)) {
-    return {
-      boot_status: 'unproven',
-      result: `Vercel build-output generation unavailable (${errorCode}); proof was not executable`,
-    };
-  }
-
-  const output = `${result.stderr ?? ''}\n${result.stdout ?? ''}`.trim().replaceAll(/\s+/g, ' ');
-  const detail = result.status === null
-    ? ' by timeout'
-    : ` with status ${result.status ?? result.signal ?? 'unknown'}`;
-  return {
-    boot_status: 'failed',
-    result: `Vercel build-output generation failed${detail}${output ? `: ${output.slice(0, 600)}` : ''}`,
-  };
+export const bootStatusForCommandResult = (result = {}) => {
+  if (result.ok === true) return 'proven';
+  return unavailableCommandCodes.has(result.error?.code) ? 'unproven' : 'failed';
 };
 
 export const workerConsumerIsHealthy = ({ health, stats }) => {
@@ -307,7 +292,7 @@ export const workerConsumerIsHealthy = ({ health, stats }) => {
 
 const dockerfileLine = (file, keyword) => fs.readFileSync(path.join(repoRoot, file), 'utf8')
   .split('\n')
-  .find((line) => line.trim().toUpperCase().startsWith(keyword));
+  .findLast((line) => line.trim().toUpperCase().startsWith(keyword));
 
 const railwayApiExpectedEntrypoint = Object.freeze(['dumb-init', '--']);
 const railwayApiExpectedCmd = Object.freeze(['node', 'dist/index.js']);
@@ -329,8 +314,8 @@ const parseExecFormDirective = (value, keyword) => {
 
 export const railwayApiDockerfileContractCheck = ({ entrypoint, cmd, content } = {}) => {
   const dockerfile = String(content ?? '');
-  const resolvedEntrypoint = entrypoint ?? dockerfile.split('\n').find((line) => line.trim().toUpperCase().startsWith('ENTRYPOINT'));
-  const resolvedCmd = cmd ?? dockerfile.split('\n').find((line) => line.trim().toUpperCase().startsWith('CMD'));
+  const resolvedEntrypoint = entrypoint ?? dockerfile.split('\n').findLast((line) => line.trim().toUpperCase().startsWith('ENTRYPOINT'));
+  const resolvedCmd = cmd ?? dockerfile.split('\n').findLast((line) => line.trim().toUpperCase().startsWith('CMD'));
   const actualEntrypoint = parseExecFormDirective(resolvedEntrypoint, 'ENTRYPOINT');
   const actualCmd = parseExecFormDirective(resolvedCmd, 'CMD');
   const ok = JSON.stringify(actualEntrypoint) === JSON.stringify(railwayApiExpectedEntrypoint)
@@ -535,6 +520,18 @@ const vercelApiProof = async () => {
   return evidence({ deployment: 'vercel-api', runtime: 'make_app', boot_status: construction.ok ? 'proven' : 'failed', command_or_artifact, probe, result: construction.ok ? 'makeApp constructed from built bundle' : failureSummary(construction, 'built bundle makeApp construction failed') });
 };
 
+const VERCEL_FUNCTION_COMMAND = 'vercel build; .vercel/output/functions/**/*.func/index.(js|mjs|cjs)';
+const VERCEL_FUNCTION_PROBE = 'enumerate every real Vercel build-output function and invoke its callable handler once';
+
+export const vercelFunctionBuildFailureEvidence = (build) => evidence({
+  deployment: 'vercel-api',
+  runtime: 'vercel_function',
+  boot_status: bootStatusForCommandResult(build),
+  command_or_artifact: VERCEL_FUNCTION_COMMAND,
+  probe: VERCEL_FUNCTION_PROBE,
+  result: dockerFailure('Vercel build-output generation', build),
+});
+
 const filesUnder = (root) => {
   if (!fs.existsSync(root)) return [];
   const files = [];
@@ -642,13 +639,10 @@ export const invokeVercelFunction = async ({ name, entry, responseTimeout = 20_0
 };
 
 const vercelFunctionProof = async () => {
-  const command_or_artifact = 'vercel build; .vercel/output/functions/**/*.func/index.(js|mjs|cjs)';
-  const probe = 'enumerate every real Vercel build-output function and invoke its callable handler once';
+  const command_or_artifact = VERCEL_FUNCTION_COMMAND;
+  const probe = VERCEL_FUNCTION_PROBE;
   const build = commandResult('vercel', ['build', '--yes'], proofEnv(), 600_000);
-  if (!build.ok) {
-    const outcome = vercelBuildProofOutcome(build);
-    return evidence({ deployment: 'vercel-api', runtime: 'vercel_function', command_or_artifact, probe, ...outcome });
-  }
+  if (!build.ok) return vercelFunctionBuildFailureEvidence(build);
   const functions = vercelBuildOutputFunctions();
   if (functions.length === 0) return evidence({ deployment: 'vercel-api', runtime: 'vercel_function', boot_status: 'failed', command_or_artifact, probe, result: 'Vercel build completed but emitted no .vercel/output/functions entries' });
   const invocations = await Promise.all(functions.map(invokeVercelFunction));

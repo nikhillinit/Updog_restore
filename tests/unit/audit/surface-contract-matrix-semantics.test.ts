@@ -43,7 +43,13 @@ type ExposureFixture = {
   runtime: string;
   conditions: unknown[];
   ingresses: Array<{ external_path: string }>;
-  auth_evidence: Array<{ boundary?: string }>;
+  auth_evidence: Array<{
+    boundary?: string;
+    kind?: string;
+    file?: string;
+    line?: number;
+    evidence?: string;
+  }>;
 };
 
 type SeedRowFixture = Record<string, unknown> & {
@@ -539,7 +545,8 @@ describe('surface contract matrix seed semantic regressions', () => {
     const registrationEvidence = exposure.auth_evidence.find(
       (entry) => entry.boundary === 'public'
     );
-    expect(registrationEvidence).toMatchObject({ kind: 'observed-registration' });
+    expect(registrationEvidence).toMatchObject({ kind: 'handler' });
+    expect(() => matrixSchema.AuthEvidenceSchema.parse(registrationEvidence)).not.toThrow();
     expect(registrationEvidence?.evidence).toContain(expectedSite);
     expect(registrationEvidence?.file).toBe(expectedSite.split(':')[0]);
     expect(registrationEvidence?.line).toBe(Number(expectedSite.split(':')[1]));

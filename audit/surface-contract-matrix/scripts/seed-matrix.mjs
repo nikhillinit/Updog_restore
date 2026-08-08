@@ -489,7 +489,7 @@ const observedRegistrationEvidenceForExposure = (exposure) => {
   const file = definitionFile(registrationSite);
   const line = definitionLine({ site: registrationSite });
   return {
-    kind: 'observed-registration',
+    kind: 'handler',
     boundary: 'public',
     ...(file ? { file } : {}),
     ...(line > 0 ? { line } : {}),

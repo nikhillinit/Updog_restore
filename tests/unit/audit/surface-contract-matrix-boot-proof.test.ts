@@ -6,7 +6,7 @@ import {
   invokeVercelFunction,
   railwayApiDockerfileContractCheck,
   railwayApiRuntimeOutcome,
-  vercelBuildProofOutcome,
+  vercelFunctionBuildFailureEvidence,
   workerConsumerIsHealthy,
 } from '../../../audit/surface-contract-matrix/scripts/boot-proof.mjs';
 
@@ -87,6 +87,29 @@ describe('surface contract matrix boot proof completion gates', () => {
     })).toMatchObject({ ok: false });
   });
 
+  it.each([
+    {
+      name: 'later ENTRYPOINT override',
+      content: [
+        'ENTRYPOINT ["dumb-init", "--"]',
+        'CMD ["node", "dist/index.js"]',
+        'ENTRYPOINT ["sh", "-c"]',
+      ].join('\n'),
+      actual: { entrypoint: ['sh', '-c'], cmd: ['node', 'dist/index.js'] },
+    },
+    {
+      name: 'later CMD override',
+      content: [
+        'ENTRYPOINT ["dumb-init", "--"]',
+        'CMD ["node", "dist/index.js"]',
+        'CMD ["node", "server/index.js"]',
+      ].join('\n'),
+      actual: { entrypoint: ['dumb-init', '--'], cmd: ['node', 'server/index.js'] },
+    },
+  ])('rejects a $name', ({ content, actual }) => {
+    expect(railwayApiDockerfileContractCheck({ content })).toMatchObject({ ok: false, actual });
+  });
+
   it('proves the Railway container only after its listener responds', () => {
     expect(railwayApiRuntimeOutcome({
       dockerAvailable: true,
@@ -141,51 +164,58 @@ describe('surface contract matrix boot proof completion gates', () => {
   });
 
   it('records missing Vercel tooling as unproven without calling it a timeout', () => {
-    const outcome = vercelBuildProofOutcome({
+    const outcome = vercelFunctionBuildFailureEvidence({
       ok: false,
       status: null,
       signal: null,
       error: { code: 'ENOENT' },
     });
-    expect(outcome.boot_status).toBe('unproven');
-    expect(outcome.result).toContain('unavailable');
-    expect(outcome.result).toContain('ENOENT');
-    expect(outcome.result).not.toContain('timeout');
+    expect(outcome).toMatchObject({
+      deployment: 'vercel-api',
+      runtime: 'vercel_function',
+      boot_status: 'unproven',
+      boot_evidence: {
+        command_or_artifact: expect.stringContaining('vercel build'),
+        probe: expect.stringContaining('every real Vercel build-output function'),
+        result: expect.stringContaining('ENOENT'),
+        observed_at: expect.stringMatching(/^proof:/),
+      },
+    });
+    expect(outcome.boot_evidence.result).not.toContain('timeout');
   });
 
   it('records permission-denied Vercel tooling as unproven without calling it a timeout', () => {
-    const outcome = vercelBuildProofOutcome({
+    const outcome = vercelFunctionBuildFailureEvidence({
       ok: false,
       status: null,
       signal: null,
       error: { code: 'EACCES' },
     });
     expect(outcome.boot_status).toBe('unproven');
-    expect(outcome.result).toContain('unavailable');
-    expect(outcome.result).toContain('EACCES');
-    expect(outcome.result).not.toContain('timeout');
+    expect(outcome.boot_evidence.result).toContain('EACCES');
+    expect(outcome.boot_evidence.result).not.toContain('timeout');
   });
 
   it('keeps an executed Vercel build timeout failed', () => {
-    const outcome = vercelBuildProofOutcome({
+    const outcome = vercelFunctionBuildFailureEvidence({
       ok: false,
       status: null,
       signal: 'SIGTERM',
       error: { code: 'ETIMEDOUT' },
     });
-    expect(outcome).toMatchObject({ boot_status: 'failed' });
-    expect(outcome.result).toContain('timeout');
+    expect(outcome.boot_status).toBe('failed');
+    expect(outcome.boot_evidence.result).toContain('ETIMEDOUT');
   });
 
   it('keeps an executed Vercel build failure failed', () => {
-    const outcome = vercelBuildProofOutcome({
+    const outcome = vercelFunctionBuildFailureEvidence({
       ok: false,
       status: 1,
       signal: null,
       stderr: 'Vercel build failed',
       stdout: '',
     });
-    expect(outcome).toMatchObject({ boot_status: 'failed' });
-    expect(outcome.result).toContain('status 1');
+    expect(outcome.boot_status).toBe('failed');
+    expect(outcome.boot_evidence.result).toContain('status 1');
   });
 });
