@@ -5,7 +5,8 @@
  * @group integration
  */
 
-// Set JWT config BEFORE any imports to ensure modules pick up the test config
+// Set JWT config before loading the HTTP test server so route modules capture
+// the intended test configuration instead of a previously cached environment.
 const TEST_JWT_SECRET = 'test-secret-key-for-integration-tests';
 const originalJwtSecret = process.env.JWT_SECRET;
 const originalJwtAlg = process.env.JWT_ALG;
@@ -18,13 +19,17 @@ process.env._EXPLICIT_JWT_ALG = 'HS256';
 process.env.JWT_ISSUER = 'test-issuer';
 process.env.JWT_AUDIENCE = 'test-audience';
 
-import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
 import type { TestHttpServer } from '../helpers/test-http-server';
-import { createTestHttpServer } from '../helpers/test-http-server';
 import jwt from 'jsonwebtoken';
 
 describe('Flag Routes Integration', () => {
   let server: TestHttpServer;
+  let createTestHttpServer: typeof import('../helpers/test-http-server').createTestHttpServer;
+
+  beforeAll(async () => {
+    ({ createTestHttpServer } = await import('../helpers/test-http-server'));
+  });
 
   afterAll(() => {
     // Restore original JWT config
