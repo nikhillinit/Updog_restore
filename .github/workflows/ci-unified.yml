@@ -392,7 +392,7 @@ jobs:
 
       - name: Toolchain sanity check
         run: |
-          node -v | grep '^v20.19.0$'
+          node -v | grep '^v22.23.2$'
           npm -v | grep '^10.9.2$'
 
       - name: Verify lockfile and dev dependencies

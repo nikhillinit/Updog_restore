@@ -3768,7 +3768,7 @@ describe('required CI fails closed', () => {
       step.uses?.startsWith('actions/setup-node@')
     );
     expect(setupNode?.uses).toBe('actions/setup-node@820762786026740c76f36085b0efc47a31fe5020');
-    expect(setupNode?.with?.['node-version']).toBe('20.19.0');
+    expect(setupNode?.with?.['node-version']).toBe('22.23.2');
     expect(scripts).toContain('npm install -g npm@10.9.2');
     expect(scripts).toContain('npm ci --prefer-offline --no-audit');
 
@@ -3904,7 +3904,7 @@ describe('required CI fails closed', () => {
       step.uses?.startsWith('actions/setup-node@')
     );
     expect(stageNode?.uses).toBe('actions/setup-node@820762786026740c76f36085b0efc47a31fe5020');
-    expect(stageNode?.with?.['node-version']).toBe('20.19.0');
+    expect(stageNode?.with?.['node-version']).toBe('22.23.2');
     expect(stageNode?.with?.cache).toBeUndefined();
     const deployStep = stageProduction?.steps?.find(
       (step) => step.name === 'Create staged production deployment'

@@ -6,7 +6,7 @@
  * - format: esm (preserves import.meta.url and dynamic imports)
  * - packages: external (Docker copies node_modules separately)
  * - platform: node (Node.js runtime)
- * - target: node20 (matches Dockerfile's node:22-alpine)
+ * - target: node22 (matches Dockerfile's node:22.23.2-alpine digest)
  */
 import { build } from 'esbuild';
 import { resolve, dirname } from 'path';
@@ -22,7 +22,7 @@ try {
     bundle: true,
     format: 'esm',
     platform: 'node',
-    target: 'node20',
+    target: 'node22',
     packages: 'external',
     sourcemap: true,
     minify: false,

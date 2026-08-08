@@ -298,7 +298,7 @@ describe('CI Workflow Regression - Fix #4', () => {
 
       expect(configuredVersions.length).toBeGreaterThan(0);
       expect(new Set(configuredVersions).size).toBe(1);
-      expect(configuredVersions[0]).toMatch(/^20(\.|$)/);
+      expect(configuredVersions[0]).toMatch(/^22(\.|$)/);
     });
   });
 

@@ -10,7 +10,7 @@
  * so we pre-bundle into api/_app.generated.mjs (underscore = not a route).
  *
  * Config mirrors build-server.mjs:
- * - format: esm, platform: node, target: node20
+ * - format: esm, platform: node, target: node22
  * - dependencies external by default (Vercel provides node_modules; nft traces them)
  * - drizzle-orm bundled so the Vercel-only neon-http subpath is present
  */
@@ -54,7 +54,7 @@ try {
     bundle: true,
     format: 'esm',
     platform: 'node',
-    target: 'node20',
+    target: 'node22',
     external,
     sourcemap: false,
     minify: false,
