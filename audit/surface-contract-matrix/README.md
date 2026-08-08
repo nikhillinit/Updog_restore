@@ -26,9 +26,13 @@ Validation has two layers.
    untracked KG snapshot as a live CI input.
 
 Every exposure records boot status and evidence. Configured reachability stays
-separate from proven reachability: failed or unproven release boots stay in
-scope and receive `keep-and-prove`, rather than being silently treated as
-dormant. `boot_evidence.observed_at` is preserved verbatim across re-seeds when
+separate from proven reachability: a proof that executes and observes a
+contract failure is `failed`; a proof blocked by an unavailable prerequisite is
+`unproven`. In particular, a Docker-unavailable local `dist/index.js` listener
+observation can be useful evidence but cannot prove the Railway container or
+Dockerfile wiring. Failed or unproven release boots stay in scope and receive
+`keep-and-prove`, rather than being silently treated as dormant.
+`boot_evidence.observed_at` is preserved verbatim across re-seeds when
 the boot outcome (`command_or_artifact`, `probe`, `result`, `boot_status`) is
 unchanged, so `seed twice == seed once` stays byte-literal. Human decision
 evidence is never merged into machine-owned boot evidence.
@@ -44,10 +48,10 @@ tracked `boot-proofs.json` input consumed by `seed-matrix.mjs`:
 
 | Deployment         | Artifact / command                                                    | Probe and success condition                                                              |
 | ------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `railway-api`      | `npm run build:prod`; exact `Dockerfile.railway` `ENTRYPOINT` + `CMD` | HTTP listener on `/health`; no-listener is recorded as failed                            |
+| `railway-api`      | `npm run build:prod`; exact `Dockerfile.railway` `ENTRYPOINT` + `CMD` | Container HTTP listener on `/health`; Docker-unavailable local observation remains `unproven` |
 | `railway-worker`   | `Dockerfile.worker` image with Redis on isolated Docker network       | Container consumer registration plus `/health`, `/live`, `/ready`, `/metrics`, `/stats`  |
 | `vercel-api`       | `scripts/build-vercel-api.mjs`; import built bundle                   | `makeApp()` constructs without listening                                                 |
-| `vercel-function`  | `vercel build`; `.vercel/output/functions/**/*.func` entries          | Every emitted function entrypoint is invoked; unavailable tooling records `failed`      |
+| `vercel-function`  | `vercel build`; `.vercel/output/functions/**/*.func` entries          | Every emitted function entrypoint is invoked; unavailable tooling records `unproven`    |
 | `vercel-web`       | `npm run build:web`                                                   | `dist/public/index.html` references emitted JavaScript bundle                            |
 | `railway-web`      | SPA build plus proven Railway API                                     | Asset and deep-link probe through proven API listener                                    |
 | `ml-service-local` | `ml-service/Dockerfile` when Docker daemon is available               | Four FastAPI paths respond; otherwise records `unproven` with Docker availability result |

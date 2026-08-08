@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   runReserveScenarioCalculationMock,
+  ownershipLostOutcome,
+  reserveMetricTimerMock,
+  reserveEngineErrorMock,
+  reserveFailureCounterMock,
   loggerInfoMock,
   loggerErrorMock,
   workerConstructorMock,
@@ -10,6 +14,10 @@ const {
   getQueueConnectionOptionsMock,
 } = vi.hoisted(() => ({
   runReserveScenarioCalculationMock: vi.fn(),
+  ownershipLostOutcome: { kind: 'ownership_lost' as const },
+  reserveMetricTimerMock: vi.fn(),
+  reserveEngineErrorMock: vi.fn(),
+  reserveFailureCounterMock: vi.fn(),
   loggerInfoMock: vi.fn(),
   loggerErrorMock: vi.fn(),
   workerConstructorMock: vi.fn(),
@@ -20,6 +28,7 @@ const {
 
 vi.mock('../../../server/services/fund-scenario-reserve-calculation-service', () => ({
   runReserveScenarioCalculation: runReserveScenarioCalculationMock,
+  isScenarioCalculationOwnershipLost: (value: unknown) => value === ownershipLostOutcome,
 }));
 
 vi.mock('../../../server/config/features', () => ({
@@ -34,9 +43,11 @@ vi.mock('../../../lib/logger', () => ({
 }));
 
 vi.mock('../../../lib/metrics', () => ({
-  withMetrics: (_name: string, callback: () => unknown) => callback(),
+  withMetrics: vi.fn((_name: string, callback: () => unknown) => callback()),
   metrics: {
-    counter: vi.fn(),
+    counter: reserveFailureCounterMock,
+    engineLatency: { startTimer: vi.fn(() => reserveMetricTimerMock) },
+    engineErrors: { inc: reserveEngineErrorMock },
   },
 }));
 
@@ -71,6 +82,9 @@ describe('fund scenario calc worker handler', () => {
     const { handleFundScenarioCalcJob } =
       await import('../../../workers/fund-scenario-calc-handler');
     runReserveScenarioCalculationMock.mockResolvedValue({ snapshotId: 42 });
+    const signal = new AbortController().signal;
+
+    expect(handleFundScenarioCalcJob.length).toBe(3);
 
     const result = await handleFundScenarioCalcJob({
       id: 'job-1',
@@ -81,7 +95,7 @@ describe('fund scenario calc worker handler', () => {
         calculationMode: 'async_reserve_allocation',
         actor: { userId: 17, label: 'analyst@example.com' },
       },
-    });
+    }, 'bullmq-token', signal);
 
     expect(result).toEqual({ snapshotId: 42 });
     expect(runReserveScenarioCalculationMock).toHaveBeenCalledWith({
@@ -90,11 +104,36 @@ describe('fund scenario calc worker handler', () => {
       correlationId: '00000000-0000-0000-0000-000000000123',
       actor: { userId: 17, label: 'analyst@example.com' },
       jobId: 'job-1',
+      signal,
     });
     expect(loggerInfoMock).toHaveBeenCalledWith(
       'Processing reserve scenario calculation',
       expect.objectContaining({ jobId: 'job-1' })
     );
+  });
+
+  it('treats a private ownership-loss outcome as a completed delivery', async () => {
+    const { handleFundScenarioCalcJob } =
+      await import('../../../workers/fund-scenario-calc-handler');
+    runReserveScenarioCalculationMock.mockResolvedValue(ownershipLostOutcome);
+
+    await expect(
+      handleFundScenarioCalcJob({
+        id: 'job-lost-owner',
+        data: {
+          fundId: 1,
+          scenarioSetId: '00000000-0000-0000-0000-000000000111',
+          correlationId: '00000000-0000-0000-0000-000000000123',
+          calculationMode: 'async_reserve_allocation',
+          actor: null,
+        },
+      })
+    ).resolves.toBeUndefined();
+
+    expect(loggerErrorMock).not.toHaveBeenCalled();
+    expect(reserveMetricTimerMock).not.toHaveBeenCalled();
+    expect(reserveEngineErrorMock).not.toHaveBeenCalled();
+    expect(reserveFailureCounterMock).not.toHaveBeenCalled();
   });
 
   it('rejects unsupported calculation modes and logs failures', async () => {

@@ -1,7 +1,8 @@
 import express from 'express';
 import { logger } from '../lib/logger';
 import { getMetrics } from '../lib/metrics';
-import { Worker } from 'bullmq';
+import { getReleaseIdentity } from '../server/version';
+import type { Worker } from 'bullmq';
 
 interface WorkerHealthStatus {
   name: string;
@@ -16,6 +17,9 @@ interface HealthCheckResponse {
   status: 'healthy' | 'unhealthy';
   timestamp: string;
   uptime: number;
+  version: string;
+  commit: string;
+  environment: string;
   workers: WorkerHealthStatus[];
   metrics: {
     totalJobsProcessed: number;
@@ -107,6 +111,7 @@ async function performHealthCheck(): Promise<HealthCheckResponse> {
     status: isHealthy ? 'healthy' : 'unhealthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
+    ...getReleaseIdentity(),
     workers: workerHealthChecks,
     metrics: {
       totalJobsProcessed,
@@ -118,7 +123,7 @@ async function performHealthCheck(): Promise<HealthCheckResponse> {
 /**
  * Create health check HTTP server
  */
-export function createHealthServer(port: number = 9000): express.Application {
+export function createWorkerHealthApp(): express.Application {
   const app = express();
 
   // Health check endpoint
@@ -200,7 +205,18 @@ export function createHealthServer(port: number = 9000): express.Application {
     });
   });
 
-  // Start server
+  return app;
+}
+
+/**
+ * Create and listen on the worker health port.
+ *
+ * The app factory above is intentionally separate so health response tests do
+ * not open a listener or imply queue consumption.
+ */
+export function createHealthServer(port: number = 9000): express.Application {
+  const app = createWorkerHealthApp();
+
   app.listen(port, () => {
     logger.info(`Worker health server listening on port ${port}`);
     logger.info(`  Health: http://localhost:${port}/health`);

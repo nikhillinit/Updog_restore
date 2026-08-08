@@ -3,6 +3,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { persistFeeProfileScenarioSnapshot } from '../../../server/services/fund-scenario-calculation-service';
 import {
   acquireScenarioCalculationRun,
+  claimScenarioCalculationRunIfQueued,
+  completeScenarioCalculationRunIfRunning,
+  failScenarioCalculationRunIfRunning,
   findCompletedScenarioRun,
 } from '../../../server/services/fund-scenario-calculation-run-service';
 import { persistReserveScenarioSnapshot } from '../../../server/services/fund-scenario-reserve-snapshot-store';
@@ -189,6 +192,236 @@ function returnedSnapshot(id: number, payload: FundScenarioCalculationPayloadV1,
 }
 
 describe('scenario retention helpers', () => {
+  const asyncRunIdentity = {
+    fundId: 1,
+    scenarioSetId,
+    sourceConfigId: 2,
+    sourceConfigVersion: 3,
+    calculationMode: 'async_reserve_allocation' as const,
+    overrideType: 'reserve_allocation' as const,
+    inputHash: 'd'.repeat(64),
+    hashKind: 'scenario-input-hash-v2' as const,
+    modelInputsAsOfDate: '2026-06-30',
+    comparisonLineageVersion: 'comparison-lineage-v1' as const,
+  };
+
+  const asyncRunRow = {
+    id: '11111111-1111-4111-8111-111111111116',
+    fund_id: asyncRunIdentity.fundId,
+    scenario_set_id: asyncRunIdentity.scenarioSetId,
+    source_config_id: asyncRunIdentity.sourceConfigId,
+    source_config_version: asyncRunIdentity.sourceConfigVersion,
+    calculation_mode: asyncRunIdentity.calculationMode,
+    override_type: asyncRunIdentity.overrideType,
+    input_hash: asyncRunIdentity.inputHash,
+    hash_kind: asyncRunIdentity.hashKind,
+    model_inputs_as_of_date: asyncRunIdentity.modelInputsAsOfDate,
+    comparison_lineage_version: asyncRunIdentity.comparisonLineageVersion,
+    job_id: 'job-async-1',
+    correlation_id: '11111111-1111-4111-8111-111111111117',
+    status: 'running' as const,
+    snapshot_id: null,
+  };
+
+  it('claims only a queued run and maps the owned row', async () => {
+    const queryMock = vi.fn().mockResolvedValue({ rows: [asyncRunRow] });
+
+    const run = await claimScenarioCalculationRunIfQueued(
+      { query: queryMock } as never,
+      asyncRunRow.id,
+      asyncRunIdentity
+    );
+
+    expect(run).toMatchObject({ id: asyncRunRow.id, status: 'running' });
+    expect(String(queryMock.mock.calls[0]?.[0])).toContain("status = 'queued'");
+    expect(String(queryMock.mock.calls[0]?.[0])).toContain('model_inputs_as_of_date IS NOT DISTINCT FROM');
+    expect(String(queryMock.mock.calls[0]?.[0])).toContain('comparison_lineage_version IS NOT DISTINCT FROM');
+  });
+
+  it.each([
+    ['fundId', { fundId: 2 }],
+    ['scenarioSetId', { scenarioSetId: '99999999-9999-4999-8999-999999999999' }],
+    ['sourceConfigId', { sourceConfigId: 9 }],
+    ['sourceConfigVersion', { sourceConfigVersion: 8 }],
+    ['calculationMode', { calculationMode: 'sync_allocation' as const }],
+    ['overrideType', { overrideType: 'allocation' as const }],
+    ['inputHash', { inputHash: 'e'.repeat(64) }],
+    ['hashKind', {
+      hashKind: 'scenario-input-hash-v1' as const,
+      modelInputsAsOfDate: null,
+      comparisonLineageVersion: null,
+    }],
+    ['modelInputsAsOfDate', { modelInputsAsOfDate: '2026-07-31' }],
+  ])('returns null for an independently mutated %s fence field', async (_field, mutation) => {
+    const storedValues = [
+      asyncRunIdentity.fundId,
+      asyncRunIdentity.scenarioSetId,
+      asyncRunIdentity.sourceConfigId,
+      asyncRunIdentity.sourceConfigVersion,
+      asyncRunIdentity.calculationMode,
+      asyncRunIdentity.overrideType,
+      asyncRunIdentity.inputHash,
+      asyncRunIdentity.hashKind,
+      asyncRunIdentity.modelInputsAsOfDate,
+      asyncRunIdentity.comparisonLineageVersion,
+    ];
+    const queryMock = vi.fn().mockImplementation(async (_sql: unknown, params: unknown[]) => {
+      const fenceValues = params.slice(1);
+      return {
+        rows: fenceValues.every((value, index) => value === storedValues[index])
+          ? [asyncRunRow]
+          : [],
+      };
+    });
+
+    await expect(
+      claimScenarioCalculationRunIfQueued(
+        { query: queryMock } as never,
+        asyncRunRow.id,
+        { ...asyncRunIdentity, ...mutation }
+      )
+    ).resolves.toBeNull();
+    expect(queryMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a comparison-lineage mutation without querying the database', async () => {
+    const queryMock = vi.fn().mockResolvedValue({ rows: [] });
+
+    await expect(
+      claimScenarioCalculationRunIfQueued(
+        { query: queryMock } as never,
+        asyncRunRow.id,
+        { ...asyncRunIdentity, comparisonLineageVersion: 'comparison-lineage-v2' as never }
+      )
+    ).rejects.toThrow('Scenario input hash v2 requires complete comparison lineage');
+    expect(queryMock).not.toHaveBeenCalled();
+  });
+
+  it('returns null when completion or failure ownership CAS affects zero rows', async () => {
+    const queryMock = vi.fn().mockResolvedValue({ rows: [] });
+
+    await expect(
+      completeScenarioCalculationRunIfRunning(
+        { query: queryMock } as never,
+        asyncRunRow.id,
+        asyncRunIdentity,
+        42
+      )
+    ).resolves.toBeNull();
+    await expect(
+      failScenarioCalculationRunIfRunning(
+        { query: queryMock } as never,
+        asyncRunRow.id,
+        asyncRunIdentity,
+        { code: 'CALC_FAILED', message: 'calculation failed' }
+      )
+    ).resolves.toBeNull();
+
+    expect(queryMock).toHaveBeenCalledTimes(2);
+    expect(String(queryMock.mock.calls[0]?.[0])).toContain("status = 'running'");
+    expect(String(queryMock.mock.calls[0]?.[0])).toContain('snapshot_id IS NULL');
+  });
+
+  it('maps realistic winning completion and failure CAS rows', async () => {
+    const queryMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rows: [{ ...asyncRunRow, status: 'completed', snapshot_id: 42 }],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ ...asyncRunRow, status: 'failed', snapshot_id: null }],
+      });
+
+    const completed = await completeScenarioCalculationRunIfRunning(
+      { query: queryMock } as never,
+      asyncRunRow.id,
+      asyncRunIdentity,
+      42
+    );
+    const failed = await failScenarioCalculationRunIfRunning(
+      { query: queryMock } as never,
+      asyncRunRow.id,
+      asyncRunIdentity,
+      { code: 'CALC_FAILED', message: 'calculation failed' }
+    );
+
+    expect(completed).toMatchObject({ id: asyncRunRow.id, status: 'completed', snapshotId: 42 });
+    expect(failed).toMatchObject({ id: asyncRunRow.id, status: 'failed', snapshotId: null });
+    expect(queryMock).toHaveBeenCalledTimes(2);
+    expect(queryMock.mock.calls[0]?.[1]).toEqual([
+      asyncRunRow.id,
+      asyncRunIdentity.fundId,
+      asyncRunIdentity.scenarioSetId,
+      asyncRunIdentity.sourceConfigId,
+      asyncRunIdentity.sourceConfigVersion,
+      asyncRunIdentity.calculationMode,
+      asyncRunIdentity.overrideType,
+      asyncRunIdentity.inputHash,
+      asyncRunIdentity.hashKind,
+      asyncRunIdentity.modelInputsAsOfDate,
+      asyncRunIdentity.comparisonLineageVersion,
+      42,
+    ]);
+  });
+
+  it('normalizes a legacy null hash kind only to the v1 fence value', async () => {
+    const queryMock = vi.fn().mockResolvedValue({ rows: [] });
+    const legacyIdentity = {
+      ...asyncRunIdentity,
+      hashKind: null,
+      modelInputsAsOfDate: null,
+      comparisonLineageVersion: null,
+    };
+
+    await expect(
+      claimScenarioCalculationRunIfQueued(
+        { query: queryMock } as never,
+        asyncRunRow.id,
+        legacyIdentity
+      )
+    ).resolves.toBeNull();
+
+    expect(queryMock.mock.calls[0]?.[1]?.[8]).toBe('scenario-input-hash-v1');
+    expect(queryMock.mock.calls[0]?.[1]?.[9]).toBeNull();
+    expect(queryMock.mock.calls[0]?.[1]?.[10]).toBeNull();
+  });
+
+  it('keeps the dated comparison fields in the async identity fence', async () => {
+    const queryMock = vi.fn().mockResolvedValue({ rows: [] });
+    const datedIdentity = {
+      ...asyncRunIdentity,
+      modelInputsAsOfDate: '2026-07-31',
+    };
+
+    await expect(
+      claimScenarioCalculationRunIfQueued(
+        { query: queryMock } as never,
+        asyncRunRow.id,
+        datedIdentity
+      )
+    ).resolves.toBeNull();
+
+    expect(queryMock.mock.calls[0]?.[1]?.[9]).toBe('2026-07-31');
+    expect(queryMock.mock.calls[0]?.[1]?.[10]).toBe('comparison-lineage-v1');
+  });
+
+  it('rejects a lineage mutation instead of silently broadening the async fence', async () => {
+    const queryMock = vi.fn().mockResolvedValue({ rows: [] });
+    const mutatedIdentity = {
+      ...asyncRunIdentity,
+      comparisonLineageVersion: 'comparison-lineage-v2' as never,
+    };
+
+    await expect(
+      claimScenarioCalculationRunIfQueued(
+        { query: queryMock } as never,
+        asyncRunRow.id,
+        mutatedIdentity
+      )
+    ).rejects.toThrow('Scenario input hash v2 requires complete comparison lineage');
+    expect(queryMock).not.toHaveBeenCalled();
+  });
+
   it('fee-profile snapshot insert is conflict-safe on canonical state_hash', async () => {
     const queryMock = vi.fn().mockResolvedValue({
       rows: [returnedSnapshot(101, scenarioPayload, snapshotInput.correlationId)],

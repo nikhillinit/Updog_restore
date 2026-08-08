@@ -18,6 +18,7 @@ import { requireAuth } from './lib/auth/jwt.js';
 import { isPublicApiPath } from './lib/public-api-boundary.js';
 import { errorHandler } from './errors.js';
 import { requireCsrf } from './lib/auth/csrf.js';
+import { getReleaseIdentity } from './version.js';
 import { mountCommonRoutes } from './routes/mount-common-routes.js';
 import {
   ARTIFACT_MAX_BYTES,
@@ -211,11 +212,7 @@ export function makeApp() {
 
   // API version endpoint for deployment verification
   app['get']('/api/version', (_req: Request, res: Response) =>
-    res.json({
-      version: process.env['npm_package_version'] || '1.3.2',
-      environment: process.env['NODE_ENV'] || 'development',
-      commit: process.env['VERCEL_GIT_COMMIT_SHA'] || process.env['COMMIT_REF'] || 'local',
-    })
+    res.json(getReleaseIdentity())
   );
 
   // 404 + error handler

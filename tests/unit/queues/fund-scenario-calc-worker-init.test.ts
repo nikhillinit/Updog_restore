@@ -1,12 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { workerConstructorMock, workerOnMock, workerCloseMock, loggerInfoMock, loggerErrorMock } =
-  vi.hoisted(() => ({
+const {
+  workerConstructorMock,
+  workerOnMock,
+  workerCloseMock,
+  loggerInfoMock,
+  loggerErrorMock,
+  handlerMock,
+} = vi.hoisted(() => ({
     workerConstructorMock: vi.fn(),
     workerOnMock: vi.fn(),
     workerCloseMock: vi.fn().mockResolvedValue(undefined),
     loggerInfoMock: vi.fn(),
     loggerErrorMock: vi.fn(),
+    handlerMock: vi.fn(),
   }));
 
 vi.mock('bullmq', () => ({
@@ -22,6 +29,10 @@ vi.mock('../../../server/queues/redis-connection', () => ({
 
 vi.mock('../../../server/lib/logger', () => ({
   logger: { info: loggerInfoMock, error: loggerErrorMock },
+}));
+
+vi.mock('../../../workers/fund-scenario-calc-handler.js', () => ({
+  handleFundScenarioCalcJob: handlerMock,
 }));
 
 describe('initializeFundScenarioCalcWorker', () => {
@@ -42,6 +53,9 @@ describe('initializeFundScenarioCalcWorker', () => {
       expect.any(Function),
       expect.objectContaining({ concurrency: 2, lockDuration: 300_000 })
     );
+
+    const processor = workerConstructorMock.mock.calls[0]?.[1] as (...args: unknown[]) => unknown;
+    expect(processor.length).toBe(3);
   });
 
   it('returns a close function that calls worker.close()', async () => {
@@ -53,6 +67,26 @@ describe('initializeFundScenarioCalcWorker', () => {
     await close();
 
     expect(workerCloseMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('forwards BullMQ token and the exact AbortSignal to the dynamic handler', async () => {
+    const { initializeFundScenarioCalcWorker } =
+      await import('../../../server/queues/fund-scenario-calc-worker-init');
+    const mockRedis = {} as import('ioredis').default;
+    const result = { snapshotId: 42 };
+    handlerMock.mockResolvedValue(result);
+
+    await initializeFundScenarioCalcWorker(mockRedis);
+    const processor = workerConstructorMock.mock.calls[0]?.[1] as (
+      job: unknown,
+      token: string | undefined,
+      signal: AbortSignal | undefined
+    ) => Promise<unknown>;
+    const job = { id: 'job-1', data: { fundId: 1 } };
+    const signal = new AbortController().signal;
+
+    await expect(processor(job, 'bullmq-token', signal)).resolves.toBe(result);
+    expect(handlerMock).toHaveBeenCalledWith(job, 'bullmq-token', signal);
   });
 
   it('logs startup on initialization', async () => {
