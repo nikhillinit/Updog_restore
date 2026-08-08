@@ -36,6 +36,7 @@ vi.mock('../../../server/lib/logger.js', () => ({
 
 describe('bootstrap ready-file handshake', () => {
   const originalTestReadyFile = process.env['TEST_READY_FILE'];
+  const originalArgv1 = process.argv[1];
   let readyDir: string | null = null;
 
   beforeEach(() => {
@@ -50,6 +51,9 @@ describe('bootstrap ready-file handshake', () => {
     } else {
       process.env['TEST_READY_FILE'] = originalTestReadyFile;
     }
+
+    if (originalArgv1 === undefined) delete process.argv[1];
+    else process.argv[1] = originalArgv1;
 
     if (readyDir) {
       fs.rmSync(readyDir, { recursive: true, force: true });
@@ -106,6 +110,69 @@ describe('bootstrap ready-file handshake', () => {
     expect(payload).toEqual({
       port: 40123,
       baseUrl: 'http://localhost:40123',
+      pid: process.pid,
+    });
+  });
+
+  it('keeps import inert when argv names an unrelated entrypoint', async () => {
+    process.argv[1] = path.join(readyDir ?? os.tmpdir(), 'unrelated-entrypoint.mjs');
+
+    await import('../../../server/bootstrap.js');
+
+    expect(loadEnvMock).not.toHaveBeenCalled();
+    expect(buildProvidersMock).not.toHaveBeenCalled();
+    expect(createServerMock).not.toHaveBeenCalled();
+    expect(setReadyMock).not.toHaveBeenCalled();
+  });
+
+  it('runs bootstrap when argv names bootstrap and safely stubs signal listeners', async () => {
+    readyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'updog-ready-file-direct-'));
+    const readyFile = path.join(readyDir, 'direct-entrypoint.json');
+    process.env['TEST_READY_FILE'] = readyFile;
+    process.argv[1] = path.resolve('server/bootstrap.ts');
+
+    const server = {
+      listen: vi.fn((_port: number, callback: () => void) => {
+        callback();
+        return server;
+      }),
+      address: vi.fn(() => ({ port: 40124 })),
+      on: vi.fn(),
+      close: vi.fn(),
+      requestTimeout: 0,
+      headersTimeout: 0,
+      keepAliveTimeout: 0,
+    };
+
+    loadEnvMock.mockReturnValue({
+      NODE_ENV: 'test',
+      PORT: 0,
+      REDIS_URL: 'memory://',
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/test',
+      ENABLE_QUEUES: 0,
+    });
+    buildProvidersMock.mockResolvedValue({
+      mode: 'memory',
+      rateLimitStore: null,
+      queue: { enabled: false },
+      teardown: vi.fn(),
+    });
+    createServerMock.mockResolvedValue(server);
+
+    const processOnSpy = vi.spyOn(process, 'on').mockImplementation((() => process) as any);
+
+    try {
+      await import('../../../server/bootstrap.js');
+      await vi.waitFor(() => expect(server.listen).toHaveBeenCalledWith(0, expect.any(Function)));
+      expect(processOnSpy).toHaveBeenCalled();
+    } finally {
+      processOnSpy.mockRestore();
+    }
+
+    expect(setReadyMock).toHaveBeenCalledWith(true);
+    expect(JSON.parse(fs.readFileSync(readyFile, 'utf8'))).toMatchObject({
+      port: 40124,
+      baseUrl: 'http://localhost:40124',
       pid: process.pid,
     });
   });
