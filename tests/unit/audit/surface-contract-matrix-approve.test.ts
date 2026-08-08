@@ -361,7 +361,7 @@ describe('surface contract matrix approval closure safety', () => {
         '--dry-run',
       ])
     ).rejects.toThrow('candidate/off-row schema validation');
-    expect(trackedPaths.map((file) => fs.readFileSync(file))).toEqual(before);
+    expectByteSnapshotsUnchanged(trackedPaths, before);
   }, 60_000);
 
   it('rejects stale off-row review fingerprints before applying dispositions', async () => {
@@ -437,7 +437,7 @@ describe('surface contract matrix approval closure safety', () => {
     } finally {
       readFileSpy.mockRestore();
     }
-    expect(trackedPaths.map((file) => fs.readFileSync(file))).toEqual(before);
+    expectByteSnapshotsUnchanged(trackedPaths, before);
   }, 60_000);
 
   it('preserves originals when atomic rename fails before backup or between backup and install', () => {
@@ -638,4 +638,12 @@ describe('surface contract matrix approval closure safety', () => {
 
 function reviewSourceFingerprints() {
   return currentState().inventory.source_hashes;
+}
+
+function expectByteSnapshotsUnchanged(paths: string[], before: Buffer[]) {
+  const after = paths.map((file) => fs.readFileSync(file));
+  expect(after).toHaveLength(before.length);
+  after.forEach((snapshot, index) => {
+    expect(snapshot.equals(before[index])).toBe(true);
+  });
 }
