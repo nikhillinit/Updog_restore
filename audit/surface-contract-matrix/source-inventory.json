@@ -510,7 +510,7 @@
     "ml-service/docker-compose.yml": "f86c0f9f6726f46e35be6bf30516b4eb08915856ee4ea84f8859b99cfacef98b",
     "ml-service/Dockerfile": "fe44ab77691bf9f28f3cea9c0cbc96a6837ed707e2298bb14e542f81153703fe",
     "ml-service/requirements.txt": "8cc8a0022e19c962e54ebcb4c3efac585660527ac05738ab9084b9bbe4914525",
-    "package-lock.json": "03f15fa860568a74dab291f5fc4185c6baabfb5f69e28681d9700cdc0a600e72",
+    "package-lock.json": "8821937c2925c2662df0fa0a59e4c8c2f7e5301bfc927fa1183e8c56515c3965",
     "package.json": "846a57d78bbfd2b7ff608543e47717f1063a0aa42c61e03ea4c0629762795c15",
     "railway.toml": "42fd6e4e57e9dcfc5a873c2033a5ecdd03cc1b3860d2fab9df7f9e9ad99972d1",
     "railway.worker.toml": "067504e57f73be8bef3b37dd3e84234e4ae0be30fa2f692ac604d4c3a7519c86",
