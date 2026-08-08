@@ -198,12 +198,12 @@ export function useSetDefaultBaseline() {
       );
     },
     onError: (error: unknown) => {
-      const message = error instanceof Error ? error.message : '';
       toast({
         title: 'Could not set default baseline',
-        description: /403/.test(message)
-          ? 'Setting the default baseline requires a partner or admin role.'
-          : 'The default baseline was not changed. Try again or contact an admin.',
+        description:
+          error instanceof ApiError && error.status === 403
+            ? 'Setting the default baseline requires a partner or admin role.'
+            : 'The default baseline was not changed. Try again or contact an admin.',
         variant: 'destructive',
       });
     },
