@@ -512,7 +512,13 @@ describe('fund scenario reserve worker integration', () => {
 
       try {
         await barrierClient.query('BEGIN');
-        await barrierClient.query('LOCK TABLE fund_snapshots IN ACCESS EXCLUSIVE MODE');
+        // SHARE (not ACCESS EXCLUSIVE): the claim's INSERT ... ON CONFLICT on
+        // fund_scenario_calculation_runs pre-acquires RowShareLock on every
+        // FK-referenced table (including fund_snapshots) even for NULL FK
+        // values, so an ACCESS EXCLUSIVE barrier deadlocks the claim itself.
+        // SHARE admits RowShareLock but still blocks the completion snapshot
+        // INSERT (RowExclusiveLock).
+        await barrierClient.query('LOCK TABLE fund_snapshots IN SHARE MODE');
 
         const raceJob = await raceQueue.add(
           'async_reserve_allocation',
