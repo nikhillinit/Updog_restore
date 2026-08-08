@@ -73,7 +73,7 @@ describe('surface contract matrix runtime inspector', () => {
       );
       expect(versionRoutes.map((route) => `${route.role}:${route.site}`)).toEqual([
         'handler:server/routes/health.ts:526',
-        'shadowed:server/app.ts:213',
+        'shadowed:server/app.ts:214',
       ]);
       expect(versionRoutes[0].order).toBeLessThan(versionRoutes[1].order);
 

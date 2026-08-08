@@ -306,3 +306,125 @@ export async function markScenarioCalculationRunFailed(
   if (result.rows[0]) return mapRun(result.rows[0]);
   throw new Error(`Scenario calculation run ${runId} was not found`);
 }
+
+/**
+ * Identity used by the async worker lease. Keep this separate from the
+ * unconditional helpers above: synchronous callers retain their historical
+ * update semantics while async delivery is fenced to its claimed input.
+ */
+export interface ScenarioCalculationRunFenceIdentity {
+  fundId: number;
+  scenarioSetId: string;
+  sourceConfigId: number;
+  sourceConfigVersion: number;
+  calculationMode: ScenarioCalculationRunIdentity['calculationMode'];
+  overrideType: ScenarioCalculationRunIdentity['overrideType'];
+  inputHash: string;
+  hashKind: ScenarioInputHashKind | null;
+  modelInputsAsOfDate: string | null;
+  comparisonLineageVersion: typeof COMPARISON_LINEAGE_VERSION | null;
+}
+
+function normalizedFenceHashKind(hashKind: ScenarioInputHashKind | null): ScenarioInputHashKind {
+  return hashKind ?? SCENARIO_INPUT_HASH_V1_VERSION;
+}
+
+function assertRunFenceIdentity(identity: ScenarioCalculationRunFenceIdentity): void {
+  assertRunIdentity({
+    ...identity,
+    hashKind: normalizedFenceHashKind(identity.hashKind),
+    correlationId: 'async-fence',
+  });
+}
+
+function asyncRunFenceParams(
+  runId: string,
+  identity: ScenarioCalculationRunFenceIdentity
+): unknown[] {
+  assertRunFenceIdentity(identity);
+  return [
+    runId,
+    identity.fundId,
+    identity.scenarioSetId,
+    identity.sourceConfigId,
+    identity.sourceConfigVersion,
+    identity.calculationMode,
+    identity.overrideType,
+    identity.inputHash,
+    normalizedFenceHashKind(identity.hashKind),
+    identity.modelInputsAsOfDate,
+    identity.comparisonLineageVersion,
+  ];
+}
+
+const ASYNC_RUN_IDENTITY_FENCE_SQL = `
+        AND fund_id = $2
+        AND scenario_set_id = $3
+        AND source_config_id = $4
+        AND source_config_version = $5
+        AND calculation_mode = $6
+        AND override_type = $7
+        AND input_hash = $8
+        AND COALESCE(hash_kind, 'scenario-input-hash-v1') = $9
+        AND model_inputs_as_of_date IS NOT DISTINCT FROM $10::date
+        AND comparison_lineage_version IS NOT DISTINCT FROM $11`;
+
+export async function claimScenarioCalculationRunIfQueued(
+  client: QueryClient,
+  runId: string,
+  identity: ScenarioCalculationRunFenceIdentity
+): Promise<ScenarioCalculationRunRecord | null> {
+  const result = await client.query<ScenarioCalculationRunRow>(
+    `UPDATE fund_scenario_calculation_runs
+        SET status = 'running',
+            started_at = COALESCE(started_at, NOW()),
+            updated_at = NOW()
+      WHERE id = $1
+        AND status = 'queued'${ASYNC_RUN_IDENTITY_FENCE_SQL}
+      RETURNING *`,
+    asyncRunFenceParams(runId, identity)
+  );
+  return result.rows[0] ? mapRun(result.rows[0]) : null;
+}
+
+export async function completeScenarioCalculationRunIfRunning(
+  client: QueryClient,
+  runId: string,
+  identity: ScenarioCalculationRunFenceIdentity,
+  snapshotId: number
+): Promise<ScenarioCalculationRunRecord | null> {
+  const result = await client.query<ScenarioCalculationRunRow>(
+    `UPDATE fund_scenario_calculation_runs
+        SET status = 'completed',
+            snapshot_id = $12,
+            completed_at = NOW(),
+            updated_at = NOW()
+      WHERE id = $1
+        AND status = 'running'
+        AND snapshot_id IS NULL${ASYNC_RUN_IDENTITY_FENCE_SQL}
+      RETURNING *`,
+    [...asyncRunFenceParams(runId, identity), snapshotId]
+  );
+  return result.rows[0] ? mapRun(result.rows[0]) : null;
+}
+
+export async function failScenarioCalculationRunIfRunning(
+  client: QueryClient,
+  runId: string,
+  identity: ScenarioCalculationRunFenceIdentity,
+  failure: { code?: string | null; message?: string | null } = {}
+): Promise<ScenarioCalculationRunRecord | null> {
+  const result = await client.query<ScenarioCalculationRunRow>(
+    `UPDATE fund_scenario_calculation_runs
+        SET status = 'failed',
+            failure_code = $12,
+            failure_message = $13,
+            failed_at = NOW(),
+            updated_at = NOW()
+      WHERE id = $1
+        AND status = 'running'${ASYNC_RUN_IDENTITY_FENCE_SQL}
+      RETURNING *`,
+    [...asyncRunFenceParams(runId, identity), failure.code ?? null, failure.message ?? null]
+  );
+  return result.rows[0] ? mapRun(result.rows[0]) : null;
+}

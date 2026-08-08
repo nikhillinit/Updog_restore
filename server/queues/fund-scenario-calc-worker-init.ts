@@ -22,7 +22,9 @@ type FundScenarioCalcJobResult = unknown;
 
 interface FundScenarioCalcHandlerModule {
   handleFundScenarioCalcJob(
-    job: Pick<Job<FundScenarioCalcJobData, FundScenarioCalcJobResult, string>, 'id' | 'data'>
+    job: Pick<Job<FundScenarioCalcJobData, FundScenarioCalcJobResult, string>, 'id' | 'data'>,
+    token?: string,
+    signal?: AbortSignal
   ): Promise<FundScenarioCalcJobResult>;
 }
 
@@ -50,11 +52,15 @@ export async function initializeFundScenarioCalcWorker(
   // eslint-disable-next-line povc-security/require-bullmq-config -- lockDuration is the BullMQ timeout control
   worker = new Worker<FundScenarioCalcJobData, FundScenarioCalcJobResult, string>(
     QUEUE_NAME,
-    async (job: Job<FundScenarioCalcJobData, FundScenarioCalcJobResult, string>) => {
+    async (
+      job: Job<FundScenarioCalcJobData, FundScenarioCalcJobResult, string>,
+      token: string | undefined,
+      signal: AbortSignal | undefined
+    ) => {
       const { handleFundScenarioCalcJob: processJob } = (await import(
         '../../workers/fund-scenario-calc-handler.js' as string
       )) as unknown as FundScenarioCalcHandlerModule;
-      return processJob(job);
+      return processJob(job, token, signal);
     },
     {
       connection,

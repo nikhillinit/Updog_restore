@@ -1,7 +1,9 @@
 import { execFile } from 'node:child_process';
-import { access, open, readFile } from 'node:fs/promises';
+import { access, mkdtemp, open, readFile, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import { runInNewContext } from 'node:vm';
 
 import * as ts from 'typescript';
 import { describe, expect, it } from 'vitest';
@@ -2179,6 +2181,98 @@ function directProductionCommandScripts(workflow: Workflow): string[] {
   return allRunScripts(workflow).filter(containsProductionVercelCommand);
 }
 
+type SmokeGuardResult = {
+  npxCalled: boolean;
+  status: 'passed' | 'failed';
+  stderr: string;
+};
+
+async function executeSmokeGuardFragment(
+  runScript: string,
+  expectedSha: string
+): Promise<SmokeGuardResult> {
+  const playwrightInvocation = runScript.indexOf('npx playwright test');
+  if (playwrightInvocation < 0) {
+    throw new Error('Smoke run step must invoke Playwright');
+  }
+
+  const guardFragment = runScript.slice(0, playwrightInvocation);
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'updog-smoke-guard-'));
+  const npxPath = path.join(tempDir, 'npx');
+  const markerPath = path.join(tempDir, 'npx-called');
+
+  // Keep stub behavior hermetic and avoid relying on a repository-local npm
+  // executable.
+  await writeFile(
+    npxPath,
+    '#!/usr/bin/env bash\nset -euo pipefail\nprintf %s "$*" > "$NX_MARKER"\n',
+    { mode: 0o755 }
+  );
+
+  try {
+    await execFileAsync(
+      'bash',
+      [
+        '--noprofile',
+        '--norc',
+        '-e',
+        '-o',
+        'pipefail',
+        '-c',
+        `${guardFragment}\nnpx playwright test`,
+      ],
+      {
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          EXPECTED_SHA: expectedSha,
+          PRODUCTION_URL: process.env['PRODUCTION_URL'] ?? 'https://production.example',
+          HEALTH_KEY: process.env['HEALTH_KEY'] ?? 'health-key',
+          METRICS_KEY: process.env['METRICS_KEY'] ?? 'metrics-key',
+          PROD_SMOKE_USERNAME: process.env['PROD_SMOKE_USERNAME'] ?? 'smoke-user',
+          PROD_SMOKE_PASSWORD: process.env['PROD_SMOKE_PASSWORD'] ?? 'smoke-password',
+          NX_MARKER: markerPath,
+          PATH: `${tempDir}:${process.env['PATH'] ?? ''}`,
+        },
+        encoding: 'utf8',
+        maxBuffer: 2 * 1024 * 1024,
+      }
+    );
+    await access(markerPath);
+    return { npxCalled: true, status: 'passed', stderr: '' };
+  } catch (error) {
+    const stderr =
+      typeof error === 'object' && error !== null && 'stderr' in error
+        ? String((error as { stderr?: unknown }).stderr ?? '')
+        : String(error);
+    let npxCalled = false;
+    try {
+      await access(markerPath);
+      npxCalled = true;
+    } catch {
+      // Guard rejected before the hermetic npx stub ran.
+    }
+    return { npxCalled, status: 'failed', stderr };
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+function compileReleaseIdentityMatcher(source: string): (body: unknown, version: string, sha: string) => boolean {
+  const functionSource = source.match(
+    /export function releaseIdentityMatches\([\s\S]*?\n\}/
+  )?.[0];
+  if (!functionSource) throw new Error('releaseIdentityMatches helper not found');
+
+  const transpiled = ts.transpileModule(functionSource.replace(/^export\s+/, ''), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  }).outputText;
+  return runInNewContext(
+    `(function () { ${transpiled}; return releaseIdentityMatches; })()`,
+    {}
+  ) as (body: unknown, version: string, sha: string) => boolean;
+}
+
 // The exact set of jobs the required aggregator (CI Gate Status) consumes.
 // Pinned so that adding a new gate input forces a conscious review of its
 // authority-vs-reporting classification below.
@@ -3961,6 +4055,70 @@ describe('required CI fails closed', () => {
     expect(releaseScripts).toContain('PROD_SMOKE_USERNAME');
     expect(releaseScripts).toContain('PROD_SMOKE_PASSWORD');
   }, 120_000);
+
+  it('executes EXPECTED_SHA smoke guards fail-closed with hermetic npx', async () => {
+    const releaseWorkflow = await readWorkflow('release-production.yml');
+    const smokeSteps = [
+      releaseWorkflow.jobs?.['staged-smoke']?.steps?.find(
+        (step) => step.name === 'Run authenticated staged smoke'
+      ),
+      releaseWorkflow.jobs?.['post-promotion-smoke']?.steps?.find(
+        (step) => step.name === 'Run authenticated production smoke'
+      ),
+    ];
+    const expectedSha = 'a'.repeat(40);
+    const guard = ': "${EXPECTED_SHA:?EXPECTED_SHA is required}"';
+
+    for (const step of smokeSteps) {
+      expect(step?.run).toBeTypeOf('string');
+      expect(step?.env?.EXPECTED_SHA).toBe('${{ inputs.expected_sha }}');
+
+      const run = step?.run ?? '';
+      const valid = await executeSmokeGuardFragment(run, expectedSha);
+      expect(valid.status).toBe('passed');
+      expect(valid.npxCalled).toBe(true);
+
+      const missing = await executeSmokeGuardFragment(run, '');
+      expect(missing.status).toBe('failed');
+      expect(missing.npxCalled).toBe(false);
+      expect(missing.stderr).toContain('EXPECTED_SHA');
+
+      const mutations = [
+        run.replace(guard, 'echo "EXPECTED_SHA=${EXPECTED_SHA}"'),
+        run.replace(guard, ": '${EXPECTED_SHA:?EXPECTED_SHA is required}'"),
+        run.replace(guard, ': "${EXPECTED_SHA:-fallback}"'),
+        run.replace(guard, 'true || : "${EXPECTED_SHA:?EXPECTED_SHA is required}"'),
+      ];
+      for (const mutatedRun of mutations) {
+        expect(mutatedRun).not.toBe(run);
+        const bypass = await executeSmokeGuardFragment(mutatedRun, '');
+        // Each lookalike reaches the hermetic npx sentinel.  The real
+        // missing-SHA run above must fail before that point; if the workflow's
+        // guard is replaced by any of these forms, that earlier assertion
+        // fails and the mutation cannot silently pass review.
+        expect(bypass.status).toBe('passed');
+        expect(bypass.npxCalled).toBe(true);
+      }
+    }
+  });
+
+  it('would fail when smoke commit equality is removed', async () => {
+    const smokePath = path.join(process.cwd(), 'tests', 'smoke', 'production-boundaries.spec.ts');
+    const smokeSource = await readFile(smokePath, 'utf8');
+    const matcher = compileReleaseIdentityMatcher(smokeSource);
+    const wrongCommitBody = { version: '1.5.0', commit: 'wrong-commit' };
+
+    const exactInvariant = (candidate: typeof matcher): boolean =>
+      candidate(wrongCommitBody, '1.5.0', 'expected-commit') === false;
+    expect(exactInvariant(matcher)).toBe(true);
+
+    const mutatedSource = smokeSource.replace(" && body['commit'] === expectedSha", '');
+    expect(mutatedSource).not.toBe(smokeSource);
+    const mutatedMatcher = compileReleaseIdentityMatcher(mutatedSource);
+    // Runtime execution proves mutation bypasses exact SHA equality; this is
+    // the regression the smoke contract must reject.
+    expect(exactInvariant(mutatedMatcher)).toBe(false);
+  });
 
   it('keeps the PowerShell production helper as an exact-live-main dispatcher', async () => {
     const dispatcher = await readFile(
