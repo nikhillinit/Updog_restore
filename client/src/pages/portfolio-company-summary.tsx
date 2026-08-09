@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocation, useRoute } from 'wouter';
 import { ArrowLeft, Building2, Calendar, DollarSign, Target, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { usePortfolioCompany } from '@/hooks/use-fund-data';
 import { ApiError } from '@/lib/queryClient';
 import { useFlag } from '@/shared/useFlags';
 import { InvestmentRoundsSection } from '@/components/investments/investment-rounds-section';
+import { CompanyMetadataDrawer } from '@/components/portfolio/company-metadata-drawer';
 
 function toNumber(value: string | number | null | undefined): number {
   if (typeof value === 'number') {
@@ -73,6 +74,7 @@ export default function PortfolioCompanySummaryPage() {
   const [, setLocation] = useLocation();
   const { fundId } = useFundContext();
   const roundsEnabled = useFlag('enable_investment_rounds');
+  const [metadataDrawerOpen, setMetadataDrawerOpen] = useState(false);
 
   const companyId = useMemo(() => {
     const rawId = params?.id;
@@ -181,9 +183,19 @@ export default function PortfolioCompanySummaryPage() {
                         'Summary-only company detail is available on the live portfolio surface. Additional workflows remain intentionally unavailable until they are backed by live contracts.'}
                     </p>
                   </div>
-                  <Badge variant="outline" className="w-fit">
-                    {company.status}
-                  </Badge>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-presson-borderSubtle text-presson-accent"
+                      onClick={() => setMetadataDrawerOpen(true)}
+                    >
+                      Edit metadata
+                    </Button>
+                    <Badge variant="outline" className="w-fit">
+                      {company.status}
+                    </Badge>
+                  </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-3">
@@ -301,6 +313,15 @@ export default function PortfolioCompanySummaryPage() {
                 fundId={fundId}
                 companyId={companyId}
                 companyName={company.name}
+              />
+            )}
+
+            {fundId != null && (
+              <CompanyMetadataDrawer
+                company={company}
+                fundId={fundId}
+                open={metadataDrawerOpen}
+                onOpenChange={setMetadataDrawerOpen}
               />
             )}
           </>

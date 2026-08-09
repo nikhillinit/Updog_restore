@@ -278,6 +278,7 @@ function syncStatusFromDetailAndResults({
     jobId: null,
     correlationId: null,
     snapshotId: null,
+    failureCode: null,
     lastEventAt: result?.calculatedAt ?? null,
     lastError: null,
   };

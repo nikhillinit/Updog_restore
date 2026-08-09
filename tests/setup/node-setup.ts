@@ -9,6 +9,8 @@ process.env.TZ = 'UTC';
 
 // Set test environment
 process.env.NODE_ENV = 'test';
+// Explicit test value for async fund-scenario deadline fencing.
+process.env.FUND_SCENARIO_HARD_TIMEOUT_MS = '30000';
 
 // Mock external dependencies for server tests
 // fs mock - NO conditional check needed (always Node environment)

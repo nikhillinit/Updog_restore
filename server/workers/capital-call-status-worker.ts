@@ -17,14 +17,29 @@
  * @module server/workers/capital-call-status-worker
  */
 
-import { Queue, Worker, type Job } from 'bullmq';
+import { Queue, UnrecoverableError, Worker, type Job } from 'bullmq';
 import type Redis from 'ioredis';
-import { db } from '../db';
 import { eq, and, sql } from 'drizzle-orm';
-import { lpCapitalCalls, lpNotifications, lpPaymentSubmissions } from '@shared/schema-lp-sprint3';
+import { lpCapitalCalls, lpPaymentSubmissions } from '@shared/schema-lp-sprint3';
 import { funds } from '@shared/schema';
 import { logger } from '../lib/logger';
-import { v4 as uuidv4 } from 'uuid';
+import { metrics as runtimeMetrics } from '../../lib/metrics';
+import {
+  countExhaustedCapitalCallNotifications,
+  dispatchPendingCapitalCallNotifications,
+  enqueueCapitalCallNotification,
+  transitionCapitalCallWithNotification,
+  transitionCapitalCallWithPayment,
+  withCapitalCallStatusTransaction,
+  type CapitalCallStatusTransaction,
+  type CapitalCallNotificationInput,
+} from '../services/capital-call-notification-outbox-service';
+import {
+  getCapitalCallStatusHardTimeoutMs,
+  isCapitalCallStatusHardTimeoutError,
+  CapitalCallStatusHardTimeoutError,
+  throwIfCapitalCallStatusAborted,
+} from '../services/capital-call-status-timeout';
 
 // ============================================================================
 // TYPES
@@ -52,6 +67,10 @@ type CallStatus = 'pending' | 'due' | 'overdue' | 'paid' | 'partial';
 interface ReminderRedisClient {
   get(key: string): Promise<string | null>;
   setex(key: string, seconds: number, value: string): Promise<unknown>;
+}
+
+export interface CapitalCallStatusWorkerOptions {
+  hardTimeoutMs?: number;
 }
 
 function isReminderRedisClient(value: unknown): value is ReminderRedisClient {
@@ -83,7 +102,7 @@ const CALL_STATUS = {
 // CONFIGURATION
 // ============================================================================
 
-const REMINDER_DAYS = [7, 3, 1, 0]; // Days before due date to send reminders
+const REMINDER_DAYS = [7, 3, 1]; // Days before due date to send reminders
 const GRACE_PERIOD_DAYS = 3; // Days after due date before marking overdue
 const CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 const CAPITAL_CALL_STATUS_SCHEDULER_ID = 'capital-call-status-hourly';
@@ -96,13 +115,58 @@ export class CapitalCallStatusWorker {
   private queue: Queue<CapitalCallStatusJob>;
   private worker: Worker<CapitalCallStatusJob>;
   private redis: Redis;
+  private readonly hardTimeoutMs: number;
   private metrics: StatusCheckMetrics[] = [];
 
   private readonly MAX_RETRIES = 3;
   private readonly RETRY_BACKOFF_MS = 5000;
 
-  constructor(redis: Redis, queueName: string = 'capital-call-status') {
+  private remainingTimeoutMs(deadlineAt: number): number {
+    return Math.max(1, deadlineAt - Date.now());
+  }
+
+  private async bestEffortReminderRedis<T>(
+    operation: () => Promise<T>,
+    deadlineAt: number,
+    fallback: T
+  ): Promise<T> {
+    const remainingMs = Math.max(0, deadlineAt - Date.now());
+    if (remainingMs === 0) return fallback;
+    const redisBudgetMs = Math.max(1, Math.min(2_000, Math.floor(remainingMs / 4)));
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<T>((resolve) => {
+      timer = setTimeout(() => resolve(fallback), redisBudgetMs);
+    });
+    try {
+      return await Promise.race([
+        Promise.resolve().then(operation).catch(() => fallback),
+        timeout,
+      ]);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
+  }
+
+  private withBudgetedTransaction<T>(
+    deadlineAt: number,
+    signal: AbortSignal | undefined,
+    callback: (tx: CapitalCallStatusTransaction) => Promise<T>
+  ): Promise<T> {
+    return withCapitalCallStatusTransaction(callback, {
+      hardTimeoutMs: this.remainingTimeoutMs(deadlineAt),
+      deadlineAt,
+      ...(signal ? { signal } : {}),
+    });
+  }
+
+  constructor(
+    redis: Redis,
+    queueName: string = 'capital-call-status',
+    options: CapitalCallStatusWorkerOptions = {}
+  ) {
     this.redis = redis;
+    this.hardTimeoutMs = options.hardTimeoutMs ?? getCapitalCallStatusHardTimeoutMs();
     this.queue = new Queue<CapitalCallStatusJob>(queueName, {
       connection: redis,
       defaultJobOptions: {
@@ -115,11 +179,11 @@ export class CapitalCallStatusWorker {
       },
     });
 
-    // eslint-disable-next-line povc-security/require-bullmq-config -- lockDuration serves as timeout
+    // eslint-disable-next-line povc-security/require-bullmq-config -- lockDuration is a renewable ownership lease
     this.worker = new Worker<CapitalCallStatusJob>(queueName, this.processJob.bind(this), {
       connection: redis,
       concurrency: 1,
-      // 5 minute lock duration for status checks (AP-QUEUE-02)
+      // 5 minute ownership lease for status checks (AP-QUEUE-02); execution timeout is DB-scoped.
       lockDuration: 300000,
     });
 
@@ -219,6 +283,7 @@ export class CapitalCallStatusWorker {
 
       // Schedule recurring checks
       await this.scheduleRecurringChecks();
+      await this.dispatchPendingNotifications();
     } catch (error) {
       logger.error({ error }, 'Error starting worker');
       throw error;
@@ -239,6 +304,32 @@ export class CapitalCallStatusWorker {
     }
   }
 
+  getBullMqWorker(): Worker<CapitalCallStatusJob> {
+    return this.worker;
+  }
+
+  async getHealthDetails(): Promise<{ exhaustedOutboxCount: number }> {
+    return {
+      exhaustedOutboxCount: await countExhaustedCapitalCallNotifications({
+        hardTimeoutMs: this.hardTimeoutMs,
+      }),
+    };
+  }
+
+  async dispatchPendingNotifications(
+    signal?: AbortSignal,
+    deadlineAt = Date.now() + this.hardTimeoutMs
+  ): Promise<{
+    deliveredCount: number;
+    exhaustedCount: number;
+  }> {
+    return dispatchPendingCapitalCallNotifications({
+      hardTimeoutMs: this.remainingTimeoutMs(deadlineAt),
+      deadlineAt,
+      ...(signal ? { signal } : {}),
+    });
+  }
+
   // =========================================================================
   // PRIVATE METHODS
   // =========================================================================
@@ -246,20 +337,41 @@ export class CapitalCallStatusWorker {
   /**
    * Main job processor
    */
-  private async processJob(job: Job<CapitalCallStatusJob>): Promise<StatusCheckMetrics> {
+  private async processJob(
+    job: Job<CapitalCallStatusJob>,
+    _token?: string,
+    signal?: AbortSignal
+  ): Promise<StatusCheckMetrics> {
     const startTime = Date.now();
+    const ownedAbortController = new AbortController();
+    const onBullMqAbort = () => ownedAbortController.abort(signal?.reason);
+    if (signal?.aborted) onBullMqAbort();
+    else signal?.addEventListener('abort', onBullMqAbort, { once: true });
+    const timeout = setTimeout(() => {
+      ownedAbortController.abort(new CapitalCallStatusHardTimeoutError(this.hardTimeoutMs));
+    }, this.hardTimeoutMs);
+    const deadlineAt = Date.now() + this.hardTimeoutMs;
 
     try {
       logger.info({ jobId: job.id, type: job.data.type }, 'Processing status check job');
+      throwIfCapitalCallStatusAborted(ownedAbortController.signal);
 
       let metrics: StatusCheckMetrics;
 
       switch (job.data.type) {
         case 'scheduled-check':
-          metrics = await this.processScheduledCheck(job.data);
+          metrics = await this.processScheduledCheck(
+            job.data,
+            ownedAbortController.signal,
+            deadlineAt
+          );
           break;
         case 'payment-update':
-          metrics = await this.processPaymentUpdateJob(job.data);
+          metrics = await this.processPaymentUpdateJob(
+            job.data,
+            ownedAbortController.signal,
+            deadlineAt
+          );
           break;
         case 'status-transition':
           metrics = await this.processStatusTransition(job.data);
@@ -271,6 +383,8 @@ export class CapitalCallStatusWorker {
           throw new Error(`Unknown job type: ${(job.data as CapitalCallStatusJob).type}`);
       }
 
+      throwIfCapitalCallStatusAborted(ownedAbortController.signal);
+
       this.metrics.push(metrics);
       if (this.metrics.length > 100) {
         this.metrics.shift();
@@ -279,6 +393,11 @@ export class CapitalCallStatusWorker {
       return metrics;
     } catch (error) {
       const duration = Date.now() - startTime;
+      if (isCapitalCallStatusHardTimeoutError(error)) {
+        runtimeMetrics.capitalCallStatusHardTimeouts.inc();
+        runtimeMetrics.capitalCallStatusHardTimeoutDuration.observe(this.hardTimeoutMs / 1000);
+        throw new UnrecoverableError(error instanceof Error ? error.message : String(error));
+      }
       logger.error({ jobId: job.id, error, duration }, 'Status check job failed');
 
       const metrics: StatusCheckMetrics = {
@@ -292,53 +411,76 @@ export class CapitalCallStatusWorker {
 
       this.metrics.push(metrics);
       throw error;
+    } finally {
+      clearTimeout(timeout);
+      signal?.removeEventListener('abort', onBullMqAbort);
     }
   }
 
   /**
    * Process scheduled status check for all calls
    */
-  private async processScheduledCheck(_job: CapitalCallStatusJob): Promise<StatusCheckMetrics> {
+  private async processScheduledCheck(
+    _job: CapitalCallStatusJob,
+    signal?: AbortSignal,
+    deadlineAt = Date.now() + this.hardTimeoutMs
+  ): Promise<StatusCheckMetrics> {
     const startTime = Date.now();
     let statusTransitions = 0;
     let notificationsSent = 0;
+    throwIfCapitalCallStatusAborted(signal);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = today.toISOString().split('T')[0]!;
 
     // 1. Find pending calls that should become "due"
-    const pendingTodue = await db
-      .select({
-        id: lpCapitalCalls.id,
-        lpId: lpCapitalCalls.lpId,
-        fundId: lpCapitalCalls.fundId,
-        dueDate: lpCapitalCalls.dueDate,
-        callAmountCents: lpCapitalCalls.callAmountCents,
-        version: lpCapitalCalls.version,
-        fundName: funds.name,
-      })
-      .from(lpCapitalCalls)
-      .leftJoin(funds, eq(lpCapitalCalls.fundId, funds.id))
-      .where(
-        and(
-          eq(lpCapitalCalls.status, CALL_STATUS.PENDING),
-          sql`${lpCapitalCalls.dueDate} <= ${todayStr}`
+    const pendingTodue = await this.withBudgetedTransaction(deadlineAt, signal, (tx) =>
+      tx
+        .select({
+          id: lpCapitalCalls.id,
+          lpId: lpCapitalCalls.lpId,
+          fundId: lpCapitalCalls.fundId,
+          dueDate: lpCapitalCalls.dueDate,
+          callAmountCents: lpCapitalCalls.callAmountCents,
+          version: lpCapitalCalls.version,
+          fundName: funds.name,
+        })
+        .from(lpCapitalCalls)
+        .leftJoin(funds, eq(lpCapitalCalls.fundId, funds.id))
+        .where(
+          and(
+            eq(lpCapitalCalls.status, CALL_STATUS.PENDING),
+            sql`${lpCapitalCalls.dueDate} <= ${todayStr}`
+          )
         )
-      );
+    );
 
     for (const call of pendingTodue) {
-      await this.transitionStatus(call.id, CALL_STATUS.DUE, call.version ?? 1n);
-      await this.createNotification(
-        call.lpId,
-        'capital_call',
-        'Capital Call Due Today',
-        `Your capital call for ${call.fundName ?? 'Unknown Fund'} is due today.`,
+      throwIfCapitalCallStatusAborted(signal);
+      const transitioned = await this.transitionStatus(
         call.id,
-        'capital_call'
+        CALL_STATUS.DUE,
+        call.version ?? 1n,
+        {
+          capitalCallId: call.id,
+          lpId: call.lpId,
+          transitionKind: 'due',
+          dueDateBucket: call.dueDate ?? todayStr,
+          notificationType: 'capital_call',
+          title: 'Capital Call Due Today',
+          message: `Your capital call for ${call.fundName ?? 'Unknown Fund'} is due today.`,
+          relatedEntityType: 'capital_call',
+          relatedEntityId: call.id,
+          actionUrl: `/lp/capital-calls/${call.id}`,
+        },
+        signal,
+        deadlineAt
       );
-      statusTransitions++;
-      notificationsSent++;
+      if (transitioned) {
+        statusTransitions++;
+        notificationsSent++;
+      }
     }
 
     // 2. Find due calls that should become "overdue"
@@ -346,43 +488,56 @@ export class CapitalCallStatusWorker {
     graceDate.setDate(graceDate.getDate() - GRACE_PERIOD_DAYS);
     const graceDateStr = graceDate.toISOString().split('T')[0];
 
-    const dueToOverdue = await db
-      .select({
-        id: lpCapitalCalls.id,
-        lpId: lpCapitalCalls.lpId,
-        fundId: lpCapitalCalls.fundId,
-        dueDate: lpCapitalCalls.dueDate,
-        callAmountCents: lpCapitalCalls.callAmountCents,
-        version: lpCapitalCalls.version,
-        fundName: funds.name,
-      })
-      .from(lpCapitalCalls)
-      .leftJoin(funds, eq(lpCapitalCalls.fundId, funds.id))
-      .where(
-        and(
-          eq(lpCapitalCalls.status, CALL_STATUS.DUE),
-          sql`${lpCapitalCalls.dueDate} <= ${graceDateStr}`
+    const dueToOverdue = await this.withBudgetedTransaction(deadlineAt, signal, (tx) =>
+      tx
+        .select({
+          id: lpCapitalCalls.id,
+          lpId: lpCapitalCalls.lpId,
+          fundId: lpCapitalCalls.fundId,
+          dueDate: lpCapitalCalls.dueDate,
+          callAmountCents: lpCapitalCalls.callAmountCents,
+          version: lpCapitalCalls.version,
+          fundName: funds.name,
+        })
+        .from(lpCapitalCalls)
+        .leftJoin(funds, eq(lpCapitalCalls.fundId, funds.id))
+        .where(
+          and(
+            eq(lpCapitalCalls.status, CALL_STATUS.DUE),
+            sql`${lpCapitalCalls.dueDate} <= ${graceDateStr}`
+          )
         )
-      );
+    );
 
     for (const call of dueToOverdue) {
-      await this.transitionStatus(call.id, CALL_STATUS.OVERDUE, call.version ?? 1n);
-      await this.createNotification(
-        call.lpId,
-        'capital_call',
-        'Capital Call Overdue',
-        `Your capital call for ${call.fundName ?? 'Unknown Fund'} is now overdue. Please submit payment immediately.`,
+      throwIfCapitalCallStatusAborted(signal);
+      const transitioned = await this.transitionStatus(
         call.id,
-        'capital_call'
+        CALL_STATUS.OVERDUE,
+        call.version ?? 1n,
+        {
+          capitalCallId: call.id,
+          lpId: call.lpId,
+          transitionKind: 'overdue',
+          dueDateBucket: call.dueDate ?? graceDateStr,
+          notificationType: 'capital_call',
+          title: 'Capital Call Overdue',
+          message: `Your capital call for ${call.fundName ?? 'Unknown Fund'} is now overdue. Please submit payment immediately.`,
+          relatedEntityType: 'capital_call',
+          relatedEntityId: call.id,
+          actionUrl: `/lp/capital-calls/${call.id}`,
+        },
+        signal,
+        deadlineAt
       );
-      statusTransitions++;
-      notificationsSent++;
+      if (transitioned) {
+        statusTransitions++;
+        notificationsSent++;
+      }
     }
 
     // 3. Check for upcoming reminders (pending calls within reminder window)
     for (const daysBeforeDue of REMINDER_DAYS) {
-      if (daysBeforeDue === 0) continue; // 0 days = due date, handled above
-
       const reminderDate = new Date(today);
       reminderDate.setDate(reminderDate.getDate() + daysBeforeDue);
       const reminderDateStr = reminderDate.toISOString().split('T')[0];
@@ -390,10 +545,16 @@ export class CapitalCallStatusWorker {
       // Check if we've already sent this reminder today
       const reminderKey = `capital-call-reminder:${reminderDateStr}:${daysBeforeDue}`;
       const redisClient = getReminderRedisClient(this.redis);
-      const alreadySent = await redisClient.get(reminderKey);
+      throwIfCapitalCallStatusAborted(signal);
+      const alreadySent = await this.bestEffortReminderRedis(
+        () => redisClient.get(reminderKey),
+        deadlineAt,
+        null
+      );
+      throwIfCapitalCallStatusAborted(signal);
 
-      if (!alreadySent) {
-        const upcomingCalls = await db
+      const upcomingCalls = await this.withBudgetedTransaction(deadlineAt, signal, (tx) =>
+        tx
           .select({
             id: lpCapitalCalls.id,
             lpId: lpCapitalCalls.lpId,
@@ -409,24 +570,44 @@ export class CapitalCallStatusWorker {
               eq(lpCapitalCalls.status, CALL_STATUS.PENDING),
               sql`${lpCapitalCalls.dueDate} = ${reminderDateStr}`
             )
-          );
+          )
+      );
 
-        for (const call of upcomingCalls) {
-          await this.createNotification(
-            call.lpId,
-            'capital_call',
-            `Capital Call Due in ${daysBeforeDue} Day${daysBeforeDue > 1 ? 's' : ''}`,
-            `Reminder: Your capital call for ${call.fundName ?? 'Unknown Fund'} is due in ${daysBeforeDue} day${daysBeforeDue > 1 ? 's' : ''}.`,
-            call.id,
-            'capital_call'
-          );
-          notificationsSent++;
-        }
+      for (const call of upcomingCalls) {
+        throwIfCapitalCallStatusAborted(signal);
+        const queued = await this.createNotification(
+          {
+            capitalCallId: call.id,
+            lpId: call.lpId,
+            transitionKind: `reminder_${daysBeforeDue}d` as
+              'reminder_7d' | 'reminder_3d' | 'reminder_1d',
+            dueDateBucket: reminderDateStr ?? todayStr,
+            notificationType: 'capital_call',
+            title: `Capital Call Due in ${daysBeforeDue} Day${daysBeforeDue > 1 ? 's' : ''}`,
+            message: `Reminder: Your capital call for ${call.fundName ?? 'Unknown Fund'} is due in ${daysBeforeDue} day${daysBeforeDue > 1 ? 's' : ''}.`,
+            relatedEntityType: 'capital_call',
+            relatedEntityId: call.id,
+            actionUrl: `/lp/capital-calls/${call.id}`,
+          },
+          signal,
+          deadlineAt
+        );
+        if (queued) notificationsSent++;
+      }
 
-        // Mark this reminder as sent (TTL 24 hours)
-        await redisClient.setex(reminderKey, 86400, '1');
+      // Redis only avoids repeat enqueue work; outbox uniqueness remains authoritative.
+      if (!alreadySent) {
+        throwIfCapitalCallStatusAborted(signal);
+        await this.bestEffortReminderRedis(
+          () => redisClient.setex(reminderKey, 86400, '1').then(() => undefined),
+          deadlineAt,
+          undefined
+        );
+        throwIfCapitalCallStatusAborted(signal);
       }
     }
+
+    await this.dispatchPendingNotifications(signal, deadlineAt);
 
     const callsChecked = pendingTodue.length + dueToOverdue.length;
 
@@ -445,49 +626,58 @@ export class CapitalCallStatusWorker {
   /**
    * Process payment update for a specific call
    */
-  private async processPaymentUpdateJob(job: CapitalCallStatusJob): Promise<StatusCheckMetrics> {
+  private async processPaymentUpdateJob(
+    job: CapitalCallStatusJob,
+    signal?: AbortSignal,
+    deadlineAt = Date.now() + this.hardTimeoutMs
+  ): Promise<StatusCheckMetrics> {
     const startTime = Date.now();
+    throwIfCapitalCallStatusAborted(signal);
 
     if (!job.callId) {
       throw new Error('callId is required for payment update');
     }
+    const callId = job.callId;
 
     // Get call and its confirmed payments
-    const calls = await db
-      .select({
-        id: lpCapitalCalls.id,
-        lpId: lpCapitalCalls.lpId,
-        callAmountCents: lpCapitalCalls.callAmountCents,
-        paidAmountCents: lpCapitalCalls.paidAmountCents,
-        status: lpCapitalCalls.status,
-        version: lpCapitalCalls.version,
-        fundName: funds.name,
-      })
-      .from(lpCapitalCalls)
-      .leftJoin(funds, eq(lpCapitalCalls.fundId, funds.id))
-      .where(eq(lpCapitalCalls.id, job.callId))
-      .limit(1);
+    const calls = await this.withBudgetedTransaction(deadlineAt, signal, (tx) =>
+      tx
+        .select({
+          id: lpCapitalCalls.id,
+          lpId: lpCapitalCalls.lpId,
+          callAmountCents: lpCapitalCalls.callAmountCents,
+          dueDate: lpCapitalCalls.dueDate,
+          paidAmountCents: lpCapitalCalls.paidAmountCents,
+          status: lpCapitalCalls.status,
+          version: lpCapitalCalls.version,
+          fundName: funds.name,
+        })
+        .from(lpCapitalCalls)
+        .leftJoin(funds, eq(lpCapitalCalls.fundId, funds.id))
+        .where(eq(lpCapitalCalls.id, callId))
+        .limit(1)
+    );
 
     if (calls.length === 0) {
       throw new Error(`Capital call ${job.callId} not found`);
     }
 
     const call = calls[0]!;
+    throwIfCapitalCallStatusAborted(signal);
 
     // Get total confirmed payments
-    const payments = await db
-      .select({
-        totalPaid: sql<bigint>`COALESCE(SUM(${lpPaymentSubmissions.amountCents}), 0)`.as(
-          'total_paid'
-        ),
-      })
-      .from(lpPaymentSubmissions)
-      .where(
-        and(
-          eq(lpPaymentSubmissions.callId, job.callId),
-          eq(lpPaymentSubmissions.status, 'confirmed')
+    const payments = await this.withBudgetedTransaction(deadlineAt, signal, (tx) =>
+      tx
+        .select({
+          totalPaid: sql<bigint>`COALESCE(SUM(${lpPaymentSubmissions.amountCents}), 0)`.as(
+            'total_paid'
+          ),
+        })
+        .from(lpPaymentSubmissions)
+        .where(
+          and(eq(lpPaymentSubmissions.callId, callId), eq(lpPaymentSubmissions.status, 'confirmed'))
         )
-      );
+    );
 
     const totalPaidCents = payments[0]?.totalPaid ?? 0n;
     const callAmountCents = call.callAmountCents ?? 0n;
@@ -503,32 +693,48 @@ export class CapitalCallStatusWorker {
     }
 
     if (newStatus !== call.status) {
-      await this.transitionStatus(call.id, newStatus, call.version ?? 1n);
+      const paymentStatus = newStatus === CALL_STATUS.PAID ? CALL_STATUS.PAID : CALL_STATUS.PARTIAL;
+      const transitioned = await transitionCapitalCallWithPayment({
+        callId: call.id,
+        newStatus: paymentStatus,
+        currentVersion: call.version ?? 1n,
+        paidAmountCents: totalPaidCents,
+        paidDate:
+          newStatus === CALL_STATUS.PAID ? (new Date().toISOString().split('T')[0] ?? null) : null,
+        hardTimeoutMs: this.remainingTimeoutMs(deadlineAt),
+        deadlineAt,
+        ...(signal ? { signal } : {}),
+        ...(newStatus === CALL_STATUS.PAID || newStatus === CALL_STATUS.PARTIAL
+          ? {
+              notification: {
+                capitalCallId: call.id,
+                lpId: call.lpId,
+                transitionKind: newStatus === CALL_STATUS.PAID ? 'paid' : 'partial',
+                dueDateBucket: call.dueDate ?? new Date().toISOString().split('T')[0]!,
+                notificationType: 'capital_call',
+                title:
+                  newStatus === CALL_STATUS.PAID
+                    ? 'Capital Call Paid in Full'
+                    : 'Capital Call Partially Paid',
+                message:
+                  newStatus === CALL_STATUS.PAID
+                    ? `Your capital call for ${call.fundName ?? 'Unknown Fund'} has been paid in full. Thank you!`
+                    : `Your capital call for ${call.fundName ?? 'Unknown Fund'} has received a partial payment.`,
+                relatedEntityType: 'capital_call',
+                relatedEntityId: call.id,
+                actionUrl: `/lp/capital-calls/${call.id}`,
+              },
+            }
+          : {}),
+      });
 
-      // Update paid amount
-      await db
-        .update(lpCapitalCalls)
-        .set({
-          paidAmountCents: totalPaidCents,
-          paidDate: newStatus === CALL_STATUS.PAID ? new Date().toISOString().split('T')[0] : null,
-          updatedAt: new Date(),
-        })
-        .where(eq(lpCapitalCalls.id, job.callId));
-
-      if (newStatus === CALL_STATUS.PAID) {
-        await this.createNotification(
-          call.lpId,
-          'capital_call',
-          'Capital Call Paid in Full',
-          `Your capital call for ${call.fundName ?? 'Unknown Fund'} has been paid in full. Thank you!`,
-          call.id,
-          'capital_call'
-        );
+      if (transitioned) {
+        statusTransitions++;
         notificationsSent++;
       }
-
-      statusTransitions++;
     }
+
+    await this.dispatchPendingNotifications(signal, deadlineAt);
 
     return {
       duration: Date.now() - startTime,
@@ -574,50 +780,46 @@ export class CapitalCallStatusWorker {
   private async transitionStatus(
     callId: string,
     newStatus: CallStatus,
-    currentVersion: bigint
-  ): Promise<void> {
-    const result = await db
-      .update(lpCapitalCalls)
-      .set({
-        status: newStatus,
-        version: currentVersion + 1n,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(lpCapitalCalls.id, callId), eq(lpCapitalCalls.version, currentVersion)))
-      .returning({ id: lpCapitalCalls.id });
+    currentVersion: bigint,
+    notification: CapitalCallNotificationInput,
+    signal?: AbortSignal,
+    deadlineAt = Date.now() + this.hardTimeoutMs
+  ): Promise<boolean> {
+    const transitioned = await transitionCapitalCallWithNotification({
+      callId,
+      newStatus,
+      currentVersion,
+      notification,
+      hardTimeoutMs: this.remainingTimeoutMs(deadlineAt),
+      deadlineAt,
+      ...(signal ? { signal } : {}),
+    });
 
-    if (result.length === 0) {
-      throw new Error(`Optimistic lock failed for call ${callId} - concurrent modification`);
+    if (transitioned) {
+      logger.info({ callId, newStatus }, 'Capital call status transitioned');
     }
-
-    logger.info({ callId, newStatus }, 'Capital call status transitioned');
+    return transitioned;
   }
 
   /**
    * Create notification for LP
    */
   private async createNotification(
-    lpId: number,
-    type: string,
-    title: string,
-    message: string,
-    relatedEntityId: string,
-    relatedEntityType: string
-  ): Promise<void> {
-    await db.insert(lpNotifications).values({
-      id: uuidv4(),
-      lpId,
-      type,
-      title,
-      message,
-      relatedEntityId,
-      relatedEntityType,
-      actionUrl: `/lp/capital-calls/${relatedEntityId}`,
-      read: false,
-      createdAt: new Date(),
+    notification: CapitalCallNotificationInput,
+    signal?: AbortSignal,
+    deadlineAt = Date.now() + this.hardTimeoutMs
+  ): Promise<boolean> {
+    const queued = await enqueueCapitalCallNotification(notification, {
+      hardTimeoutMs: this.remainingTimeoutMs(deadlineAt),
+      deadlineAt,
+      ...(signal ? { signal } : {}),
     });
 
-    logger.info({ lpId, type, title }, 'Notification created');
+    logger.info(
+      { lpId: notification.lpId, type: notification.notificationType, title: notification.title },
+      'Capital call notification queued'
+    );
+    return queued;
   }
 
   /**
@@ -671,9 +873,10 @@ export class CapitalCallStatusWorker {
  */
 export function createCapitalCallStatusWorker(
   redis: Redis,
-  queueName?: string
+  queueName?: string,
+  options?: CapitalCallStatusWorkerOptions
 ): CapitalCallStatusWorker {
-  return new CapitalCallStatusWorker(redis, queueName);
+  return new CapitalCallStatusWorker(redis, queueName, options);
 }
 
 /**

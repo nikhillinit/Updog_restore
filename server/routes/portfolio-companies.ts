@@ -1,13 +1,22 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
+import { TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
 import { insertPortfolioCompanySchema } from '@shared/schema';
 import { CompanySectorSchema, CompanyStageSchema } from '@shared/company-taxonomy';
+import { PortfolioCompanyUpdateRequest } from '@shared/schemas/portfolio-route';
 import type { ApiError } from '@shared/types';
 import { toNumber } from '@shared/number';
 import { ValidationError } from '../errors';
+import { requireWriteRole } from '../lib/auth/jwt';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { handleNumberParseError } from '../lib/number-parse-error';
+import {
+  PortfolioCompanyUpdateIdempotencyReuseError,
+  PortfolioCompanyUpdateNotFoundError,
+  PortfolioCompanyUpdateVersionConflictError,
+  updatePortfolioCompanyMetadata,
+} from '../services/portfolio-company-update-service';
 import { portfolioTimeMachineReadService } from '../services/portfolio-time-machine-read';
 import { storage } from '../storage';
 
@@ -19,6 +28,39 @@ const portfolioCompaniesLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);
+
+function actorId(req: Request): number {
+  return toNumber(req.user?.id ?? req.user?.sub, 'actorId', { integer: true, min: 1 });
+}
+
+function respondToUpdateError(error: unknown, res: Response): boolean {
+  if (error instanceof PortfolioCompanyUpdateVersionConflictError) {
+    res.status(409).json({
+      error: error.code,
+      code: error.code,
+      message: error.message,
+      details: {
+        expectedVersion: error.expectedVersion,
+        actualVersion: error.actualVersion,
+      },
+    });
+    return true;
+  }
+
+  if (error instanceof PortfolioCompanyUpdateIdempotencyReuseError) {
+    res.status(409).json({ error: error.code, code: error.code, message: error.message });
+    return true;
+  }
+
+  if (error instanceof PortfolioCompanyUpdateNotFoundError) {
+    res.status(404).json({ error: error.code, code: error.code, message: error.message });
+    return true;
+  }
+
+  return false;
+}
 
 function parseAsOfQuery(asOfQuery: string): Date {
   const monthMatch = /^(\d{4})-(\d{2})$/.exec(asOfQuery);
@@ -103,6 +145,76 @@ router['get'](
   }
 );
 
+router.patch(
+  '/portfolio-companies/:id',
+  portfolioCompaniesLimiter,
+  requireTeamWrite,
+  async (req: Request, res: Response) => {
+    try {
+      const companyId = toNumber(req.params['id'], 'ID', { integer: true, min: 1 });
+      const fundIdQuery = req.query['fundId'];
+      if (fundIdQuery === undefined || fundIdQuery === '') {
+        return res.status(400).json({
+          error: 'fund_scope_required',
+          message: 'A fundId query parameter is required to update portfolio company',
+        });
+      }
+
+      const fundId = toNumber(fundIdQuery as string, 'fund ID', { integer: true, min: 1 });
+      if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+        return;
+      }
+
+      const idempotencyKey = req.header('Idempotency-Key')?.trim();
+      if (!idempotencyKey) {
+        return res.status(400).json({
+          error: 'idempotency_key_required',
+          message: 'Idempotency-Key header is required',
+        });
+      }
+      if (idempotencyKey.length > 128) {
+        return res.status(400).json({
+          error: 'validation_error',
+          message: 'Idempotency-Key must be 128 characters or fewer',
+        });
+      }
+
+      const parsedRequest = PortfolioCompanyUpdateRequest.safeParse(req.body);
+      if (!parsedRequest.success) {
+        return res.status(400).json({
+          error: 'validation_error',
+          message: 'Portfolio company update request is invalid',
+          issues: parsedRequest.error.issues,
+        });
+      }
+
+      const result = await updatePortfolioCompanyMetadata({
+        fundId,
+        companyId,
+        actorId: actorId(req),
+        idempotencyKey,
+        request: parsedRequest.data,
+      });
+      return res.status(200).json(result.response);
+    } catch (error) {
+      if (
+        handleNumberParseError(error, res, (parseError) =>
+          parseError.message.toLowerCase().includes('fund id')
+            ? 'Invalid fund ID query'
+            : parseError.message.toLowerCase().includes('actor id')
+              ? 'Invalid actor identity'
+              : 'Invalid company ID'
+        )
+      ) {
+        return;
+      }
+
+      if (respondToUpdateError(error, res)) return;
+      throw error;
+    }
+  }
+);
+
 router['get'](
   '/portfolio-companies/:id',
   portfolioCompaniesLimiter,
@@ -175,8 +287,18 @@ router['get'](
 router.post(
   '/portfolio-companies',
   portfolioCompaniesLimiter,
+  requireTeamWrite,
   async (req: Request, res: Response) => {
     try {
+      const bodyFundId = (req.body as { fundId?: unknown } | undefined)?.fundId;
+      if (bodyFundId === undefined || bodyFundId === null) {
+        const error: ApiError = {
+          error: 'fund_scope_required',
+          message: 'A fundId is required to create a portfolio company',
+        };
+        return res.status(400).json(error);
+      }
+
       const result = insertPortfolioCompanySchema.safeParse(req.body);
       if (!result.success) {
         const error: ApiError = {
@@ -204,9 +326,17 @@ router.post(
       }
 
       if (
-        typeof result.data['fundId'] === 'number' &&
-        !(await enforceProvidedFundScope(req, res, result.data['fundId']))
+        typeof result.data['fundId'] !== 'number' ||
+        !Number.isSafeInteger(result.data['fundId']) ||
+        result.data['fundId'] < 1
       ) {
+        return res.status(400).json({
+          error: 'fund_scope_required',
+          message: 'A fundId is required to create a portfolio company',
+        });
+      }
+
+      if (!(await enforceProvidedFundScope(req, res, result.data['fundId'], { forWrite: true }))) {
         return;
       }
 

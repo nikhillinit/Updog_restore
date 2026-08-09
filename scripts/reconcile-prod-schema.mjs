@@ -636,6 +636,11 @@ export function validateNonNullColumnAddPolicy(manifest, sqlFiles) {
         continue;
       }
 
+      const isNonNullAdd = /\bNOT\s+NULL\b/i.test(parsed.definition);
+      if (!isNonNullAdd && !allowedKeys.has(parsed.key)) {
+        continue;
+      }
+
       additions.push({ ...parsed, file: file.path, statement });
       if (!allowedKeys.has(parsed.key)) {
         violations.push({
@@ -731,7 +736,9 @@ function isSafeNonNullColumnAdd(addition) {
     return false;
   }
 
-  const defaultMatch = addition.definition.match(/\bNOT\s+NULL\s+DEFAULT\s+([\s\S]+)$/i);
+  const defaultMatch = addition.definition.match(
+    /\bDEFAULT\s+([\s\S]+?)(?=\s+NOT\s+NULL\b|$)/i
+  );
   return defaultMatch !== null && isProvenNonNullDefault(defaultMatch[1].trim());
 }
 

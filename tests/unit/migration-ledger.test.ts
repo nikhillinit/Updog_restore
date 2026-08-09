@@ -60,6 +60,9 @@ const expectedJournaledDriftPatchFiles = [
   '0047_internal_economics_linkage.sql',
   '0048_quarterly_review_workflow.sql',
   '0049_kpi_observations.sql',
+  '0050_g3_portfolio_and_calculation_schema.sql',
+  '0051_g3_canary_schema.sql',
+  '0052_g3_capital_call_notification_outbox.sql',
 ].sort();
 
 afterEach(() => {

@@ -35,6 +35,13 @@ try {
     throw new Error('No standalone worker entrypoints found in workers/');
   }
 
+  const requiredWorkerEntrypoints = ['fund-scenario-calc-worker.ts', 'capital-call-status-worker.ts'];
+  for (const requiredWorker of requiredWorkerEntrypoints) {
+    if (!entryPoints.some((entryPoint) => entryPoint.endsWith(`/${requiredWorker}`))) {
+      throw new Error(`Required worker entrypoint missing: ${requiredWorker}`);
+    }
+  }
+
   rmSync(outdir, { recursive: true, force: true });
 
   await build({
@@ -53,6 +60,13 @@ try {
     .filter((fileName) => fileName.endsWith('.js') || fileName.endsWith('.js.map'))
     .map((fileName) => relative(root, resolve(outdir, fileName)))
     .sort();
+
+  for (const requiredWorker of requiredWorkerEntrypoints) {
+    const artifact = requiredWorker.replace(/\.ts$/, '.js');
+    if (!emittedFiles.includes(`dist/workers/${artifact}`)) {
+      throw new Error(`Required worker artifact missing: dist/workers/${artifact}`);
+    }
+  }
 
   console.log('Worker build complete:');
   for (const fileName of emittedFiles) {

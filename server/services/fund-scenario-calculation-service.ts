@@ -38,6 +38,7 @@ import {
   findCompletedScenarioRun,
   markScenarioCalculationRunCompleted,
   markScenarioCalculationRunRunning,
+  type ScenarioCalculationRunFenceIdentity,
 } from './fund-scenario-calculation-run-service';
 
 const SYNC_CALCULATION_TIMEOUT_MS = 10_000;
@@ -631,6 +632,10 @@ export async function calculateFundScenarioSet(
       modelInputsAsOfDate: lineage.modelInputsAsOfDate,
       comparisonLineageVersion: lineage.comparisonLineageVersion,
     };
+    const syncFenceIdentity: ScenarioCalculationRunFenceIdentity = {
+      ...runIdentity,
+      jobId: null,
+    };
     const completedRun = await findCompletedScenarioRun(client, runIdentity);
     if (completedRun?.snapshotId != null) {
       const completedSnapshot = await findReusableScenarioSnapshot(client, {
@@ -663,7 +668,11 @@ export async function calculateFundScenarioSet(
         return withReadTimeStaleness(completedSnapshot, currentPublishedVersion);
       }
     }
-    await markScenarioCalculationRunRunning(client, run.id);
+    if ((await markScenarioCalculationRunRunning(client, run.id, syncFenceIdentity)) !== 1) {
+      throw createHttpError(409, 'Scenario calculation run ownership was lost', {
+        code: 'scenario_calculation_ownership_lost',
+      });
+    }
 
     const startedAt = performance.now();
     const variants = scenarioSet.variants.map((variant) => {
@@ -718,7 +727,11 @@ export async function calculateFundScenarioSet(
       payload,
       inputHash,
     });
-    await markScenarioCalculationRunCompleted(client, run.id, response.snapshotId);
+    if ((await markScenarioCalculationRunCompleted(client, run.id, syncFenceIdentity, response.snapshotId)) !== 1) {
+      throw createHttpError(409, 'Scenario calculation run ownership was lost', {
+        code: 'scenario_calculation_ownership_lost',
+      });
+    }
 
     await insertScenarioSetEvent(client, {
       scenarioSetId,

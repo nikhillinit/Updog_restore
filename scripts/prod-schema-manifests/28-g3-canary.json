@@ -1,0 +1,72 @@
+{
+  "name": "g3-canary",
+  "order": 28,
+  "description": "G3 Phase 2 migration 0051: release-canary principal identity, lifecycle residue accounting, and fund origin markers.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0051_g3_canary_schema.sql"],
+  "allowedCreateTables": ["release_canary_runs"],
+  "expectedTables": [
+    {
+      "name": "users",
+      "sharedTable": true,
+      "columns": [
+        { "name": "is_release_canary_principal", "type": "boolean", "nullable": false }
+      ]
+    },
+    {
+      "name": "release_canary_runs",
+      "columns": [
+        { "name": "id", "type": "uuid", "nullable": false },
+        { "name": "release_version", "type": "varchar", "nullable": false },
+        { "name": "release_sha", "type": "varchar", "nullable": false },
+        { "name": "deployment_id", "type": "varchar", "nullable": false },
+        { "name": "worker_deployment_id", "type": "varchar", "nullable": false },
+        { "name": "correlation_id", "type": "varchar", "nullable": false },
+        { "name": "principal_user_id", "type": "integer", "nullable": false },
+        { "name": "status", "type": "varchar", "nullable": false },
+        { "name": "version", "type": "integer", "nullable": false },
+        { "name": "started_at", "type": "timestamptz", "nullable": true },
+        { "name": "completed_at", "type": "timestamptz", "nullable": true },
+        { "name": "failed_at", "type": "timestamptz", "nullable": true },
+        { "name": "expires_at", "type": "timestamptz", "nullable": false },
+        { "name": "purged_at", "type": "timestamptz", "nullable": true },
+        { "name": "portfolio_company_residue_count", "type": "integer", "nullable": false },
+        { "name": "fund_residue_count", "type": "integer", "nullable": false },
+        { "name": "fund_config_residue_count", "type": "integer", "nullable": false },
+        { "name": "fund_event_residue_count", "type": "integer", "nullable": false },
+        { "name": "notification_residue_count", "type": "integer", "nullable": false },
+        { "name": "total_residue_count", "type": "integer", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false },
+        { "name": "updated_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "release_canary_runs_pkey",
+        "release_canary_runs_principal_user_id_users_id_fk",
+        "release_canary_runs_status_check",
+        "release_canary_runs_version_check",
+        "release_canary_runs_residue_count_check"
+      ],
+      "indexes": ["release_canary_runs_status_idx", "release_canary_runs_principal_idx"]
+    },
+    {
+      "name": "funds",
+      "sharedTable": true,
+      "columns": [
+        { "name": "data_origin", "type": "varchar", "nullable": false },
+        { "name": "canary_run_id", "type": "uuid", "nullable": true }
+      ],
+      "constraints": [
+        "funds_data_origin_check",
+        "funds_canary_run_id_unique",
+        "funds_canary_origin_coupling_check",
+        "funds_canary_run_id_release_canary_runs_id_fk"
+      ]
+    }
+  ],
+  "applyPolicy": {
+    "allowNonNullColumnAdds": [
+      { "table": "users", "column": "is_release_canary_principal" },
+      { "table": "funds", "column": "data_origin" }
+    ]
+  }
+}

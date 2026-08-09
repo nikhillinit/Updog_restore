@@ -1131,29 +1131,6 @@ function getContentType(format: string): string {
 // ============================================================================
 
 /**
- * Settings validation schemas
- */
-const LPNotificationPreferencesSchema = z.object({
-  emailCapitalCalls: z.boolean().optional(),
-  emailDistributions: z.boolean().optional(),
-  emailQuarterlyReports: z.boolean().optional(),
-  emailAnnualReports: z.boolean().optional(),
-  emailMarketUpdates: z.boolean().optional(),
-});
-
-const LPDisplayPreferencesSchema = z.object({
-  currency: z.enum(['USD', 'EUR', 'GBP']).optional(),
-  numberFormat: z.enum(['US', 'EU']).optional(),
-  timezone: z.string().optional(),
-  dateFormat: z.enum(['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD']).optional(),
-});
-
-const LPSettingsSchema = z.object({
-  notifications: LPNotificationPreferencesSchema.optional(),
-  display: LPDisplayPreferencesSchema.optional(),
-});
-
-/**
  * GET /api/lp/settings
  *
  * Get LP notification and display preferences
@@ -1235,42 +1212,17 @@ router.put(
         return res.status(404).json(createErrorResponse('LP_NOT_FOUND', 'LP profile not found'));
       }
 
-      // Validate request body
-      const settings = LPSettingsSchema.parse(req.body);
-
-      // TODO: Persist settings to database
-      // For now, just validate and echo back
-      logger.info({ lpId, settings: sanitizeForLogging(settings) }, '[LP-API] settings update');
-
-      // SECURITY: Log settings change for audit
-      await lpAuditLogger.logSettingsUpdate(lpId, req.user?.id, req);
-
-      res.setHeader('Content-Type', 'application/json');
-
       const duration = endTimer();
-      recordLPRequest(endpoint, 'PUT', 200, duration, lpId);
-
-      return res.json({
-        success: true,
-        message: 'Settings updated successfully',
-        settings,
-      });
+      recordLPRequest(endpoint, 'PUT', 501, duration, lpId);
+      return res
+        .status(501)
+        .json(
+          createErrorResponse(
+            'LP_SETTINGS_WRITE_NOT_IMPLEMENTED',
+            'LP settings writes are not implemented'
+          )
+        );
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        const firstError = error.errors[0];
-        const duration = endTimer();
-        recordLPRequest(endpoint, 'PUT', 400, duration);
-        return res
-          .status(400)
-          .json(
-            createErrorResponse(
-              'VALIDATION_ERROR',
-              firstError?.message || 'Invalid settings',
-              firstError?.path.join('.')
-            )
-          );
-      }
-
       routeLog.error('Settings PUT API error:', sanitizeForLogging(error));
       const duration = endTimer();
       recordLPRequest(endpoint, 'PUT', 500, duration);

@@ -1,16 +1,21 @@
-import type { Job } from 'bullmq';
+import { UnrecoverableError, type Job } from 'bullmq';
 import { logger } from '../lib/logger';
 import { metrics } from '../lib/metrics';
 import {
   isScenarioCalculationOwnershipLost,
   runReserveScenarioCalculation,
 } from '../server/services/fund-scenario-reserve-calculation-service';
+import {
+  getFundScenarioHardTimeoutMs,
+  isFundScenarioHardTimeoutError,
+} from '../server/services/fund-scenario-timeout';
 
 export interface FundScenarioCalcJobData {
   fundId: number;
   scenarioSetId: string;
   correlationId: string;
   calculationMode: string;
+  runId?: string;
   actor: {
     userId: number | null;
     label: string | null;
@@ -39,11 +44,11 @@ async function withReserveScenarioMetrics<T>(callback: () => Promise<T>): Promis
 }
 
 export async function handleFundScenarioCalcJob(
-  job: Pick<Job<FundScenarioCalcJobData>, 'id' | 'data'>,
+  job: Pick<Job<FundScenarioCalcJobData>, 'id' | 'data' | 'attemptsMade' | 'opts'>,
   _token?: string,
   signal?: AbortSignal
 ) {
-  const { fundId, scenarioSetId, correlationId, calculationMode, actor } = job.data;
+  const { fundId, scenarioSetId, correlationId, calculationMode, actor, runId } = job.data;
 
   logger.info('Processing reserve scenario calculation', {
     fundId,
@@ -52,6 +57,16 @@ export async function handleFundScenarioCalcJob(
     jobId: job.id,
     calculationMode,
   });
+
+  const ownedAbortController = new AbortController();
+  const onBullMqAbort = () => {
+    ownedAbortController.abort(signal?.reason);
+  };
+  if (signal?.aborted) {
+    onBullMqAbort();
+  } else {
+    signal?.addEventListener('abort', onBullMqAbort, { once: true });
+  }
 
   try {
     if (calculationMode !== 'async_reserve_allocation') {
@@ -65,12 +80,21 @@ export async function handleFundScenarioCalcJob(
         correlationId,
         actor: actor ?? {},
         jobId: String(job.id),
-        signal,
+        runId,
+        isFinalAttempt: job.attemptsMade + 1 >= (job.opts.attempts ?? 1),
+        signal: ownedAbortController.signal,
+        abortController: ownedAbortController,
       })
     );
     return isScenarioCalculationOwnershipLost(result) ? undefined : result;
   } catch (error) {
     const err = error as Error;
+    if (isFundScenarioHardTimeoutError(error)) {
+      metrics.fundScenarioHardTimeouts?.inc();
+      metrics.fundScenarioHardTimeoutDuration?.observe(getFundScenarioHardTimeoutMs() / 1000);
+      throw new UnrecoverableError(err.message);
+    }
+
     logger.error('Reserve scenario calculation failed', err, {
       fundId,
       scenarioSetId,
@@ -90,5 +114,7 @@ export async function handleFundScenarioCalcJob(
       errorType: err.name,
     });
     throw error;
+  } finally {
+    signal?.removeEventListener('abort', onBullMqAbort);
   }
 }

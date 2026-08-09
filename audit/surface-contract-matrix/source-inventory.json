@@ -472,7 +472,8 @@
     "worker:reserve-calc",
     "worker:scenario-generation",
     "ws:dev-dashboard",
-    "ws:portfolio-metrics"
+    "ws:portfolio-metrics",
+    "api:PATCH:/api/portfolio-companies/:id"
   ],
   "source_hashes": {
     ".dockerignore": "5ec5fd9ba5605180f60c7ebdfbafa37bcbee0e743d16504c79c51b0b088dfba4",
@@ -516,17 +517,17 @@
     "railway.worker.toml": "067504e57f73be8bef3b37dd3e84234e4ae0be30fa2f692ac604d4c3a7519c86",
     "scripts/build-server.mjs": "ddaeee93c3375b254afad2cf1df8d083a62d3af41f7d58f5943f7deb9f802140",
     "scripts/build-vercel-api.mjs": "256b4b881691f8f0cfca38c75b67d6299bbe94a25f472e5f205db3414d73e464",
-    "scripts/build-workers.mjs": "d47fee609544b087650cb01f2d9f65cd1f2cdb2244b92c4acca266ce46876aab",
+    "scripts/build-workers.mjs": "2bc5de838db3410a1dade2ff7d6c4afab524b9491b811c1106145cd06b883117",
     "server/app.ts": "ed44e5722f2c0803e0e88cb4927316092b980741aace2c1a66cdec82c4332fb4",
     "server/bootstrap.ts": "ed2c60cb54c7e390c1425df897c6d3a65a6a89186808abc5c32602dac4018f0f",
     "server/lib/auth/jwt.ts": "a583e2219a5b81316dc7c2435678d18d569447ace7b0657136224b3f8155995d",
     "server/lib/auth/revocation.ts": "7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
     "server/lib/public-api-boundary.ts": "47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-    "server/middleware/asyncErrorHandler.ts": "79f265f3a57d38bb04ae761c8dd8c30a4e97241a2589a4bf40873bc58d5dc9d0",
+    "server/middleware/asyncErrorHandler.ts": "6354599337500fe0b8906647b0becebf2132b17a04c48855f03d91a7e696c286",
     "server/queues/backtesting-queue.ts": "d5168d065f5d97a87bc62cbaa3c77968589841d3c6ba71feee33e4e6affc2526",
-    "server/queues/report-generation-queue.ts": "faf9d62f899ba0b345f9f1704962b81704d2c47448d7b20565ad3f58aa1d9e4a",
-    "server/queues/simulation-queue.ts": "718b2db94d7115844aeffda3d99be519b87210774ea367aca051635d484e1bbb",
-    "server/route-policy/api-route-policy-registry.ts": "dc1b82648d84868b65f8a850087fb720c1b9a6c8ac07950d101f1704d2fa04c7",
+    "server/queues/report-generation-queue.ts": "1dbc22baaca69c1229698b235a464d9e651612477ea8bda7d0726f5f1b586229",
+    "server/queues/simulation-queue.ts": "155c5be665c4f3e56ad74454dd18f96915a54e79d019467df1c682837ef380d6",
+    "server/route-policy/api-route-policy-registry.ts": "b8a0440c9a5e7d7b2f938d58f6a7e054bdfe18f7ef802146ee1cce3bd452e49b",
     "server/routes.ts": "141adc2a75568479dea21649ec234f84f291527858d1a161e26832a49698ab2a",
     "server/routes/_ops-stage-validation.ts": "291e31b27be1d285743260d2489308da9018c7e1269d73cd20c9c476c3ed072c",
     "server/routes/activities.ts": "a8c0f14313678e755b363d65f4d1bb69bb657ef3097b472de2793d2f9cdf0c59",
@@ -560,7 +561,7 @@
     "server/routes/fund-scenario-sets.ts": "dce2528d665b4adcdb862e6b1a5b1cc116dd1fb3534f2a75bb07b278110d6f3c",
     "server/routes/funds.ts": "db2f9a24b3fa2bd8001d331de3427ab292a270d14ea56dc5bdd9d33ac27505ef",
     "server/routes/graduation.ts": "61359045e848ccd182044b77e60c9ebd1228f51fca2da4d3fc13975b3b1f5877",
-    "server/routes/health.ts": "430b372e6a1df4b4e22fcd5ef7a56a0848bf7b2e0601cb745d37418a933ce1d1",
+    "server/routes/health.ts": "c498f906e9ec47858e10956b76d74759be446faa8564b65669f8fcc2bde618cd",
     "server/routes/internal-analysis.ts": "884e6642e89bcaed6a1cfc86dd4e4ac8611c8a5f4b495ee337424954dc25e6d9",
     "server/routes/internal-economics.ts": "47372521fcf9c7bde371d66b8bf340ef40afe127879bbb0cd3f963a513e03dc8",
     "server/routes/investment-ledger.ts": "68b56315d15faf54501540805dc855d6d01606a8e5dad2f8860aaac60a2bbe12",
@@ -568,7 +569,7 @@
     "server/routes/kpi-observations.ts": "331f41c54cff66e8ac5f0805457466be9783f8b0e1a4a994d4714449450a9ef4",
     "server/routes/liquidity.ts": "83a75a8c52ae79686f9ef8181b49623459c5954d80b746bded7c925684e33bfc",
     "server/routes/lp-api.schemas.ts": "e565fb68e8c4ce7316ddfe28b8d81a563b7a1b0d49da52d2d5d8a3e573ee0e41",
-    "server/routes/lp-api.ts": "335e4aea1bd762e460a5af93f7ae967aa7122cd68ee7b3a201791e0980a829b8",
+    "server/routes/lp-api.ts": "417da1b3417723c04682c0c522530679e64d149ab0fc5faae8f203f3d76e5859",
     "server/routes/lp-capital-calls.ts": "81cdfc25642ee61e906ca948ad01e5fa8199aa01d1b3c3dfbe3ef023e7325c69",
     "server/routes/lp-distributions.ts": "673eb3cdc734a39c5b6d04ded99fada293ae16f2294a83499c20ce9e9730bf49",
     "server/routes/lp-documents.ts": "065ceff579e57c3c4b845e26dde7ef03a19a75c9472290401f2496b38a54addd",
@@ -590,7 +591,7 @@
     "server/routes/performance-api.ts": "64ad9c7cc8c27a04ba8b21607b18e23111bcfaca05b1e10f2c6edb4fb80b2182",
     "server/routes/performance-metrics.ts": "262cf4d5e8d27d5377915735a234e48c6ef7b621564ea89f8aed621318c67f69",
     "server/routes/planning-fmv-overrides.ts": "9e77f4b580947d45bf60a0f5be2f28e11ec94563d8d94dabd59350405e77117d",
-    "server/routes/portfolio-companies.ts": "18d99e2ee3686e4fd25537a00ccc49d2c5f0c976393ae5c867fe924325198152",
+    "server/routes/portfolio-companies.ts": "c3a44866eea8b9da3a718b615a6dfa738ba1fd0a7cd54f53d3b1e03f7eb61255",
     "server/routes/portfolio-intelligence.ts": "cf347e7d5f1c095e2b7a570954e8375327851fbb93ae07cc423b2047d1fd4b53",
     "server/routes/portfolio-optimization.ts": "b74e2e018452309cdad43349067191c1d83b6ba4becadac69ed6c9b3f44cb07b",
     "server/routes/portfolio-overview.ts": "ab7b5fc47c98f99d037cada18ecc7345189b320418e48b7b9939d09339bce34c",
@@ -614,9 +615,9 @@
     "server/websocket/dev-dashboard.ts": "8b8ce1712ff0ec51388562e545949f2792edec61407c476d4657a9d82045d2e0",
     "server/websocket/index.ts": "74850ccebad13e8f9b48218a813877854d98a51e38b966ce21eb49d36642d8aa",
     "server/websocket/portfolio-metrics.ts": "9c331deb7f137d62b5723d55529f949aa7c5c779c92d34bc7f1b2669ec4f7c59",
-    "server/workers/capital-call-status-worker.ts": "2ba8ef7a26710cce814c6ccb1bb19019d231e0a107a2324af461665c7dabadf1",
-    "server/workers/lp-materialized-view-refresh.ts": "5de164980fc2d19298d80c4090a660eb77e90ded8d3549361404c7a0b4644224",
-    "server/workers/scenarioGeneratorWorker.ts": "59cd2ff2b4f5f86cec91800c5c821dfc60f3c7ae94b5bde68888ce7434f26cce",
+    "server/workers/capital-call-status-worker.ts": "1ea41eb3a208045745c23dca9adc7a16182c0808835314654232c0e5eca0da3d",
+    "server/workers/lp-materialized-view-refresh.ts": "39ee6b698475c1168769c5c23afef4cf5778dc2c23d4b706a94a49fbf9d5da0c",
+    "server/workers/scenarioGeneratorWorker.ts": "a7abb61e7806d17a787babc89f03c1e054ed1e793ec196b1fee4c8d7821749d6",
     "shared/auth/effective-roles.ts": "137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6",
     "shared/routes/api-route-manifest.ts": "bbb30787396be3f376adf3047cc6db79c1bed9f29f3956c5ed61241d62c45b59",
     "shared/routes/api-runtime-specific-manifest.ts": "0daa50b7d7d569e6068a8e6998e57b3a6b3c76effa5a3834d53302c60b566805",
@@ -626,10 +627,10 @@
     "vite.config.ts": "44f0745da9cf4aa73c55447b22dc8c5e9dd34bbd06b760899e00908ba08b18ad",
     "workers/cohort-worker.ts": "aa05a747b0a8605eb23264cd2149b0cf737b0f0f4a8d092fa57e0e32c416e187",
     "workers/dlq.ts": "4ab16ca234a24130b20abfcc78cdf9b6a159f5104fb682cc390adccbc0acedae",
-    "workers/fund-scenario-calc-handler.ts": "b44b32472bba45384733f56f9fb3ef6263461d9690cb91d792e79d47c2a6b383",
-    "workers/fund-scenario-calc-worker-harness.ts": "763aa8da2ded957ac0d0d99b8a2deac5aa45d53f1a9c66a2b1abc71d92cba96b",
-    "workers/fund-scenario-calc-worker.ts": "a65cd97adff6b0d027fe1e5e9002b2b3b66097b43436ea4a0a6988833a05830a",
-    "workers/health-server.ts": "4df015e0acc61a1300b008a860beabb9903aed4a2fe4fe4a249b1dda73400f27",
+    "workers/fund-scenario-calc-handler.ts": "50adcba8c2964f840a2b9c30fef818602bdd8d505e733d76430f882c45c2c49b",
+    "workers/fund-scenario-calc-worker-harness.ts": "7c519c2bd8e15f1ce8c2ab0cd20a3e30a5ff37962f4ca48b238ccafd91c2b847",
+    "workers/fund-scenario-calc-worker.ts": "d7bda9884efff85ac73a26c16e11903a49503c223644ba554f0b0dd423aa390c",
+    "workers/health-server.ts": "62191dde206e035ef062ffd7245e2d497a75f98e28a484d92ed854d2719eaa8e",
     "workers/pacing-worker-support.ts": "78a9463576d1a13ee0f00944ee78be7e89fce1802dcccda8c974a03f6a9978cb",
     "workers/pacing-worker.ts": "150b9639a3ad28e49023ac13489380d0c021120cfc17e750be9a4018d395d0d7",
     "workers/queue-error-logging.ts": "bed9f895c4c0a6effea3aeffc59fb7a25e635c0c16d486be3fc4e72dba780595",
@@ -637,8 +638,9 @@
     "package.json#scripts": "80b83f05f2efd9423d4434d9ec44f34de697866af225987a83da63192174c9f5",
     "shared/routes/api-route-manifest.ts#normalized-runtime-export": "9116de446fb696cd9ada74c11033f25c422bb5be30410d839ea23cb76b07b314",
     "shared/routes/api-runtime-specific-manifest.ts#normalized-runtime-export": "f7ec3dfc046d32b5e3622f1d6ae98b1c7b6479bedf7b20296f1b920fd0a19c15",
-    "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "48e98fa93c81068537cbac752ac1f077c1903af75fcc8f8337087859c00f8139",
-    "shared/routes/route-governance-registry.ts#normalized-runtime-export": "2cf271d9243d70a053d3f5bd020bf01d8d26373ae281a70307337b68f01ddd8b"
+    "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "0ebb5aa167629362f2e6d268c26e053293f668bb2e3098f37b53926d227ea17c",
+    "shared/routes/route-governance-registry.ts#normalized-runtime-export": "2cf271d9243d70a053d3f5bd020bf01d8d26373ae281a70307337b68f01ddd8b",
+    "workers/capital-call-status-worker.ts": "10379822364c298f2affeebfc0a5da19736715dbfab1df692a91160a52543941"
   },
   "source_to_rows": {
     "api/telemetry/wizard.ts": [
@@ -964,7 +966,8 @@
       "api:PUT:/api/deals/opportunities/:id",
       "api:PUT:/api/funds/:id/draft",
       "api:PUT:/api/lp/notifications/preferences",
-      "api:PUT:/api/lp/settings"
+      "api:PUT:/api/lp/settings",
+      "api:PATCH:/api/portfolio-companies/:id"
     ],
     "shared/auth/effective-roles.ts": [
       "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -1335,7 +1338,8 @@
       "api:PUT:/api/lp/notifications/preferences",
       "api:PUT:/api/lp/settings",
       "api:PUT:/api/portfolio/strategies/:id",
-      "ws:portfolio-metrics"
+      "ws:portfolio-metrics",
+      "api:PATCH:/api/portfolio-companies/:id"
     ],
     "server/lib/auth/jwt.ts": [
       "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -1706,7 +1710,8 @@
       "api:PUT:/api/lp/notifications/preferences",
       "api:PUT:/api/lp/settings",
       "api:PUT:/api/portfolio/strategies/:id",
-      "ws:portfolio-metrics"
+      "ws:portfolio-metrics",
+      "api:PATCH:/api/portfolio-companies/:id"
     ],
     "server/lib/auth/revocation.ts": [
       "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -2077,7 +2082,8 @@
       "api:PUT:/api/lp/notifications/preferences",
       "api:PUT:/api/lp/settings",
       "api:PUT:/api/portfolio/strategies/:id",
-      "ws:portfolio-metrics"
+      "ws:portfolio-metrics",
+      "api:PATCH:/api/portfolio-companies/:id"
     ],
     "server/lib/public-api-boundary.ts": [
       "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -2462,7 +2468,8 @@
       "api:PUT:/api/funds/:id/draft",
       "api:PUT:/api/lp/notifications/preferences",
       "api:PUT:/api/lp/settings",
-      "api:PUT:/api/portfolio/strategies/:id"
+      "api:PUT:/api/portfolio/strategies/:id",
+      "api:PATCH:/api/portfolio-companies/:id"
     ],
     "server/routes/scenario-analysis.ts": [
       "api:DELETE:/api/companies/:companyId/scenarios/:scenarioId",
@@ -2834,7 +2841,8 @@
       "api:PUT:/api/funds/:id/draft",
       "api:PUT:/api/lp/notifications/preferences",
       "api:PUT:/api/lp/settings",
-      "api:PUT:/api/portfolio/strategies/:id"
+      "api:PUT:/api/portfolio/strategies/:id",
+      "api:PATCH:/api/portfolio-companies/:id"
     ],
     "server/routes/flags.ts": [
       "api:DELETE:/api/flags/admin/kill-switch",
@@ -3817,7 +3825,8 @@
     "server/routes/portfolio-companies.ts": [
       "api:GET:/api/portfolio-companies",
       "api:GET:/api/portfolio-companies/:id",
-      "api:POST:/api/portfolio-companies"
+      "api:POST:/api/portfolio-companies",
+      "api:PATCH:/api/portfolio-companies/:id"
     ],
     "api:GET:/api/portfolio-companies": [
       "api:GET:/api/portfolio-companies"
@@ -4415,7 +4424,8 @@
       "api:POST:/api/performance/simulate"
     ],
     "api:POST:/api/portfolio-companies": [
-      "api:POST:/api/portfolio-companies"
+      "api:POST:/api/portfolio-companies",
+      "api:PATCH:/api/portfolio-companies/:id"
     ],
     "api:POST:/api/portfolio/forecasts": [
       "api:POST:/api/portfolio/forecasts"
@@ -4881,7 +4891,8 @@
     "manifest:portfolio-companies": [
       "api:GET:/api/portfolio-companies",
       "api:GET:/api/portfolio-companies/:id",
-      "api:POST:/api/portfolio-companies"
+      "api:POST:/api/portfolio-companies",
+      "api:PATCH:/api/portfolio-companies/:id"
     ],
     "manifest-source:server/routes/portfolio-companies.ts": [
       "api:GET:/api/portfolio-companies"
@@ -6009,6 +6020,18 @@
     ],
     "QUEUE_CATALOG:economics-calc": [
       "worker:economics-calc"
+    ],
+    "policy:api:post:/api/portfolio-companies": [
+      "api:POST:/api/portfolio-companies"
+    ],
+    "policy:api:patch:/api/portfolio-companies/:id": [
+      "api:PATCH:/api/portfolio-companies/:id"
+    ],
+    "policy:api:put:/api/lp/settings": [
+      "api:PUT:/api/lp/settings"
+    ],
+    "QUEUE_CATALOG:capital-call-status": [
+      "worker:capital-call-status"
     ]
   },
   "row_to_sources": {
@@ -9953,7 +9976,8 @@
       "server/lib/public-api-boundary.ts",
       "server/routes/portfolio-companies.ts",
       "server/server.ts",
-      "shared/auth/effective-roles.ts"
+      "shared/auth/effective-roles.ts",
+      "policy:api:post:/api/portfolio-companies"
     ],
     "api:POST:/api/portfolio/forecasts": [
       "api:POST:/api/portfolio/forecasts",
@@ -10177,7 +10201,8 @@
       "server/lib/public-api-boundary.ts",
       "server/routes/lp-api.ts",
       "server/server.ts",
-      "shared/auth/effective-roles.ts"
+      "shared/auth/effective-roles.ts",
+      "policy:api:put:/api/lp/settings"
     ],
     "api:PUT:/api/portfolio/strategies/:id": [
       "api:PUT:/api/portfolio/strategies/:id",
@@ -10507,7 +10532,8 @@
       "server/queues/registry.ts"
     ],
     "worker:capital-call-status": [
-      "server/workers/capital-call-status-worker.ts"
+      "server/workers/capital-call-status-worker.ts",
+      "QUEUE_CATALOG:capital-call-status"
     ],
     "worker:cohort-calc": [
       "QUEUE_CATALOG:cohort-calc",
@@ -10578,6 +10604,18 @@
       "server/websocket/index.ts",
       "server/websocket/portfolio-metrics.ts",
       "shared/auth/effective-roles.ts"
+    ],
+    "api:PATCH:/api/portfolio-companies/:id": [
+      "api:POST:/api/portfolio-companies",
+      "manifest:portfolio-companies",
+      "server/app.ts",
+      "server/lib/auth/jwt.ts",
+      "server/lib/auth/revocation.ts",
+      "server/lib/public-api-boundary.ts",
+      "server/routes/portfolio-companies.ts",
+      "server/server.ts",
+      "shared/auth/effective-roles.ts",
+      "policy:api:patch:/api/portfolio-companies/:id"
     ]
   },
   "source_membership": {
@@ -10829,6 +10867,7 @@
       "server/workers/scenarioGeneratorWorker.ts"
     ],
     "universe:workers/**": [
+      "workers/capital-call-status-worker.ts",
       "workers/cohort-worker.ts",
       "workers/dlq.ts",
       "workers/fund-scenario-calc-handler.ts",

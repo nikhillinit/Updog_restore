@@ -32,6 +32,15 @@ describe('portfolio company and activity route extraction', () => {
 
     app = express();
     app.use(express.json({ limit: '1mb' }));
+    app.use((req, _res, next) => {
+      req.context = {
+        userId: 'portfolio-activity-route-user',
+        email: 'portfolio-activity-route@example.com',
+        role: 'analyst',
+        orgId: 'test-org',
+      };
+      next();
+    });
     await registerRoutes(app);
   });
 

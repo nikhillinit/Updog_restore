@@ -1,8 +1,15 @@
+import { EventEmitter } from 'node:events';
+import type { Worker } from 'bullmq';
 import packageJson from '../../../package.json' with { type: 'json' };
 import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { createWorkerHealthApp, resetWorkerStats } from '../../../workers/health-server';
+import {
+  createWorkerHealthApp,
+  registerWorker,
+  resetWorkerHealthRegistrations,
+  resetWorkerStats,
+} from '../../../workers/health-server';
 
 const RELEASE_ENV_KEYS = [
   'NODE_ENV',
@@ -26,7 +33,7 @@ describe('worker health app', () => {
   });
 
   afterEach(() => {
-    resetWorkerStats();
+    resetWorkerHealthRegistrations();
     for (const key of RELEASE_ENV_KEYS) {
       const value = originalEnv.get(key);
       if (value === undefined) delete process.env[key];
@@ -50,5 +57,26 @@ describe('worker health app', () => {
     expect(response.body).not.toHaveProperty('queue');
     expect(response.body).not.toHaveProperty('registered');
     expect(response.body).not.toHaveProperty('consuming');
+  });
+
+  it('surfaces exhausted outbox count on registered worker health', async () => {
+    const worker = new EventEmitter() as EventEmitter & {
+      isRunning: () => boolean;
+      isPaused: () => boolean;
+    };
+    worker.isRunning = () => true;
+    worker.isPaused = () => false;
+    registerWorker(
+      'capital-call-status',
+      worker as unknown as Worker,
+      async () => ({ exhaustedOutboxCount: 2 })
+    );
+
+    const response = await request(createWorkerHealthApp()).get('/health');
+
+    expect(response.status).toBe(200);
+    expect(response.body.workers).toEqual([
+      expect.objectContaining({ name: 'capital-call-status', exhaustedOutboxCount: 2 }),
+    ]);
   });
 });

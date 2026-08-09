@@ -21,8 +21,6 @@ import type { ReserveInputTrustSummary } from '../../shared/contracts/reserve-in
 import { buildScenarioReserveSummary } from './fund-scenario-reserve-summary';
 import {
   FUND_SCENARIO_CALC_VERSION,
-  applyScenarioReadStaleness,
-  findReusableReserveScenarioSnapshot,
   persistReserveScenarioSnapshot,
 } from './fund-scenario-reserve-snapshot-store';
 import {
@@ -35,15 +33,22 @@ import {
 } from './fund-scenario-set-service.js';
 import { createScenarioInputHash } from '../lib/scenarios/scenario-input-hash';
 import { normalizeLegacyScenarioSourceConfig } from './fund-scenario-source-config-compat.js';
+import { logger } from '../lib/logger';
 import {
-  acquireScenarioCalculationRun,
   claimScenarioCalculationRunIfQueued,
   completeScenarioCalculationRunIfRunning,
   failScenarioCalculationRunIfRunning,
-  findCompletedScenarioRun,
-  type ScenarioCalculationRunFenceIdentity,
+  findScenarioCalculationRunForDelivery,
+  markScenarioCalculationRunTimedOut,
+  requeueScenarioCalculationRunIfRunning,
   type ScenarioCalculationRunRecord,
+  type ScenarioCalculationRunFenceIdentity,
 } from './fund-scenario-calculation-run-service';
+import {
+  FundScenarioHardTimeoutError,
+  isFundScenarioHardTimeoutError,
+} from './fund-scenario-timeout';
+
 
 type ReserveScenarioVariant = Extract<
   FundScenarioCalculationPayloadV1['variants'][number],
@@ -87,7 +92,10 @@ interface RunReserveScenarioCalculationInput {
   correlationId: string;
   actor: FundScenarioMutationActor;
   jobId: string | null;
+  runId?: string;
+  isFinalAttempt?: boolean;
   signal?: AbortSignal;
+  abortController?: AbortController;
 }
 
 interface ReserveScenarioRunContext {
@@ -113,8 +121,7 @@ interface ClaimedReserveScenarioRun {
 }
 
 type ReserveScenarioClaimOutcome =
-  | { kind: 'reusable'; response: FundScenarioCalculationResponseV1 }
-  | { kind: 'claimed'; value: ClaimedReserveScenarioRun }
+  { kind: 'claimed'; value: ClaimedReserveScenarioRun }
   | null;
 
 class ScenarioRunOwnershipLostError extends Error {
@@ -382,7 +389,7 @@ async function recordCalculationFailedEvent(input: {
   claimed: ClaimedReserveScenarioRun;
   calculationInput: RunReserveScenarioCalculationInput;
   error: unknown;
-}): Promise<void> {
+}): Promise<boolean> {
   const failure = failureMetadata(input.error);
 
   try {
@@ -425,8 +432,15 @@ async function recordCalculationFailedEvent(input: {
         },
       });
     });
-  } catch {
-    // Preserve the original calculation failure.
+    return true;
+  } catch (persistError) {
+    // Preserve the original calculation failure, but tell the caller the
+    // terminal write did not land so it can keep the deadline actor alive.
+    logger.warn(
+      { err: persistError, runId: input.claimed.run.id },
+      'Failed to persist fund scenario calculation failure'
+    );
+    return false;
   }
 }
 
@@ -582,6 +596,7 @@ function runIdentityFromContext(
     hashKind: context.inputLineage.hashKind,
     modelInputsAsOfDate: context.inputLineage.modelInputsAsOfDate,
     comparisonLineageVersion: context.inputLineage.comparisonLineageVersion,
+    jobId: input.jobId,
   };
 }
 
@@ -600,7 +615,8 @@ function sameRunIdentity(
     (left.hashKind ?? 'scenario-input-hash-v1') ===
       (right.hashKind ?? 'scenario-input-hash-v1') &&
     left.modelInputsAsOfDate === right.modelInputsAsOfDate &&
-    left.comparisonLineageVersion === right.comparisonLineageVersion
+    left.comparisonLineageVersion === right.comparisonLineageVersion &&
+    left.jobId === right.jobId
   );
 }
 
@@ -622,38 +638,33 @@ async function claimReserveScenarioRun(
     const context = await loadReserveScenarioRunContext(client, input);
     const runIdentity = normalizeRunIdentityHashKind(runIdentityFromContext(input, context));
 
-    const completedRun = await findCompletedScenarioRun(client, runIdentity);
-    if (completedRun?.snapshotId != null) {
-      const completedResponse = await findReusableReserveScenarioResponse(
-        client,
-        input,
-        context,
-        completedRun.snapshotId
+    const legacyDeliveryRun =
+      input.runId === undefined && input.jobId !== null
+        ? await findScenarioCalculationRunForDelivery(client, runIdentity)
+        : null;
+    const deliveryRunId = input.runId ?? legacyDeliveryRun?.id ?? null;
+    if (deliveryRunId === null || (input.runId === undefined && legacyDeliveryRun?.status !== 'queued')) {
+      logger.info(
+        { runId: deliveryRunId, jobId: runIdentity.jobId },
+        'Ignoring fund scenario calculation delivery without a queued run'
       );
-      if (completedResponse) {
-        return { kind: 'reusable', response: completedResponse };
-      }
+      return null;
     }
 
-    const run = await acquireScenarioCalculationRun(client, {
-      ...runIdentity,
-      correlationId: input.correlationId,
-      jobId: input.jobId,
-    });
-    if (run.status === 'completed' && run.snapshotId !== null) {
-      const completedResponse = await findReusableReserveScenarioResponse(
-        client,
-        input,
-        context,
-        run.snapshotId
-      );
-      if (completedResponse) {
-        return { kind: 'reusable', response: completedResponse };
-      }
-    }
-
-    const claimedRun = await claimScenarioCalculationRunIfQueued(client, run.id, runIdentity);
+    const claimedRun = await claimScenarioCalculationRunIfQueued(client, deliveryRunId, runIdentity);
     if (!claimedRun) {
+      // Plan-locked: a rejected expired claimer routes the row through the
+      // timeout CAS instead of executing it; the CAS no-ops for non-expired
+      // stale deliveries, so this is safe on every zero-row claim.
+      const timedOut = await markScenarioCalculationRunTimedOut(
+        client,
+        deliveryRunId,
+        runIdentity.jobId
+      );
+      logger.info(
+        { runId: deliveryRunId, jobId: runIdentity.jobId, timedOut: timedOut > 0 },
+        'Ignoring stale fund scenario calculation delivery'
+      );
       return null;
     }
 
@@ -663,6 +674,41 @@ async function claimReserveScenarioRun(
       value: { context, identity: runIdentity, run: claimedRun },
     };
   });
+}
+
+interface ScenarioDeadlineActor {
+  stop(): void;
+}
+
+function startScenarioDeadlineActor(
+  input: RunReserveScenarioCalculationInput,
+  claimed: ClaimedReserveScenarioRun
+): ScenarioDeadlineActor {
+  const deadlineAt = claimed.run.deadlineAt;
+  if (input.abortController === undefined || deadlineAt === null || deadlineAt === undefined) {
+    return { stop: () => {} };
+  }
+
+  const deadlineMs = deadlineAt instanceof Date ? deadlineAt.getTime() : Date.parse(deadlineAt);
+  const timer = setTimeout(
+    () => {
+      void transaction(async (client) => {
+        const affectedRows = await markScenarioCalculationRunTimedOut(
+          client,
+          claimed.run.id,
+          claimed.identity.jobId
+        );
+        if (affectedRows === 1) {
+          input.abortController?.abort(new FundScenarioHardTimeoutError(claimed.run.id));
+        }
+      }).catch(() => {
+        // The handler retains the original calculation error when the deadline actor cannot persist.
+      });
+    },
+    Math.max(0, deadlineMs - Date.now())
+  );
+
+  return { stop: () => clearTimeout(timer) };
 }
 
 async function completeReserveScenarioRun(
@@ -713,37 +759,15 @@ async function calculateReserveScenarioForContext(
   return completeReserveScenarioRun(input, claimed);
 }
 
-/*
- * Kept as a small lookup helper so completed responses continue to use the
- * same snapshot identity checks as the pre-existing synchronous path.
- */
-async function findReusableReserveScenarioResponse(
-  client: PoolClient,
-  input: RunReserveScenarioCalculationInput,
-  context: ReserveScenarioRunContext,
-  snapshotId: number
-): Promise<FundScenarioCalculationResponseV1 | null> {
-  const reusableSnapshot = await findReusableReserveScenarioSnapshot(client, {
-    snapshotId,
-    fundId: input.fundId,
-    scenarioSetId: input.scenarioSetId,
-    sourceConfigId: context.sourceConfig.id,
-    sourceConfigVersion: context.sourceConfig.version,
-    inputHash: context.inputHash,
-  });
-
-  return reusableSnapshot
-    ? applyScenarioReadStaleness(reusableSnapshot, context.currentPublishedVersion)
-    : null;
-}
-
 async function buildReserveScenarioCalculationData(
   client: PoolClient,
   input: RunReserveScenarioCalculationInput,
   context: ReserveScenarioRunContext
 ): Promise<ReserveScenarioCalculationData> {
+  input.signal?.throwIfAborted();
   const { portfolio, reserveInputTrustSummary } =
     await buildReservePortfolioInputForClientWithProvenance(client, input.fundId);
+  input.signal?.throwIfAborted();
   const fundSizeCents = await loadFundSizeCents(client, input.fundId);
   const variants = buildReserveScenarioVariants({
     fundId: input.fundId,
@@ -760,6 +784,8 @@ async function buildReserveScenarioCalculationData(
     variants,
   });
 
+  input.signal?.throwIfAborted();
+
   return { portfolio, variants, warningCount, payload, reserveInputTrustSummary };
 }
 
@@ -769,6 +795,7 @@ async function persistReserveScenarioCalculation(
   context: ReserveScenarioRunContext,
   data: ReserveScenarioCalculationData
 ): Promise<FundScenarioCalculationResponseV1> {
+  input.signal?.throwIfAborted();
   const response = await persistReserveScenarioSnapshot(client, {
     fundId: input.fundId,
     scenarioSetId: input.scenarioSetId,
@@ -783,6 +810,8 @@ async function persistReserveScenarioCalculation(
     reserveInputTrustSummary: data.reserveInputTrustSummary,
   });
 
+  input.signal?.throwIfAborted();
+
   return response;
 }
 
@@ -792,23 +821,65 @@ export async function runReserveScenarioCalculation(
   input.signal?.throwIfAborted();
 
   let claimed: ClaimedReserveScenarioRun | undefined;
+  let deadlineActor: ScenarioDeadlineActor | undefined;
   try {
     const outcome = await claimReserveScenarioRun(input);
     if (outcome === null) {
       return PRIVATE_OWNERSHIP_LOST;
     }
-    if (outcome.kind === 'reusable') {
-      return outcome.response;
-    }
-
     claimed = outcome.value;
-    return await calculateReserveScenarioForContext(input, claimed);
+    deadlineActor = startScenarioDeadlineActor(input, claimed);
+    try {
+      input.signal?.throwIfAborted();
+      return await calculateReserveScenarioForContext(input, claimed);
+    } finally {
+      // Success/ownership-lost paths stop the actor here; failure recovery
+      // below re-decides, keeping it alive until a run-state write landed.
+      deadlineActor.stop();
+    }
   } catch (error) {
     if (error instanceof ScenarioRunOwnershipLostError) {
       return PRIVATE_OWNERSHIP_LOST;
     }
-    if (claimed) {
-      await recordCalculationFailedEvent({ claimed, calculationInput: input, error });
+    const activeClaim = claimed;
+    let runStateResolved = true;
+    if (activeClaim && !isFundScenarioHardTimeoutError(error) && input.isFinalAttempt !== false) {
+      runStateResolved = await recordCalculationFailedEvent({
+        claimed: activeClaim,
+        calculationInput: input,
+        error,
+      });
+    } else if (
+      activeClaim &&
+      !isFundScenarioHardTimeoutError(error) &&
+      input.isFinalAttempt === false
+    ) {
+      try {
+        await transaction((client) =>
+          requeueScenarioCalculationRunIfRunning(client, activeClaim.run.id, activeClaim.identity)
+        );
+      } catch (requeueError) {
+        // Double-failure path: the calculation failed AND the requeue write
+        // failed. Fall back to the terminal ordinary-failure write so the
+        // retry attempt honestly zero-rows instead of executing against a
+        // stranded 'running' row. The claim predicate stays plan-locked to
+        // status='queued' — no running retake.
+        logger.warn(
+          { err: requeueError, runId: activeClaim.run.id },
+          'Failed to requeue fund scenario run for retry; persisting terminal failure instead'
+        );
+        runStateResolved = await recordCalculationFailedEvent({
+          claimed: activeClaim,
+          calculationInput: input,
+          error,
+        });
+      }
+    }
+    if (!runStateResolved && activeClaim && deadlineActor) {
+      // No run-state write landed: restart the deadline actor so the row is
+      // terminalized with HARD_TIMEOUT at its persisted deadline even when
+      // the sweep is disabled.
+      deadlineActor = startScenarioDeadlineActor(input, activeClaim);
     }
     throw error;
   }

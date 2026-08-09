@@ -35,6 +35,7 @@ export const portfolioCompanies = pgTable(
   {
     id: serial('id').primaryKey(),
     fundId: integer('fund_id').references(() => funds.id),
+    rowVersion: integer('row_version').notNull().default(1),
     name: text('name').notNull(),
     sector: text('sector').notNull(),
     stage: text('stage').notNull(),
@@ -60,6 +61,7 @@ export const portfolioCompanies = pgTable(
     allocationIteration: integer('allocation_iteration').default(0).notNull(),
     lastAllocationAt: timestamp('last_allocation_at', { withTimezone: true }),
     allocationVersion: integer('allocation_version').default(1).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
     idFundUnique: unique('portfoliocompanies_id_fund_unique').on(table.id, table.fundId),

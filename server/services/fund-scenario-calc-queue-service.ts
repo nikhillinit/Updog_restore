@@ -13,6 +13,11 @@ import {
   normalizeActor,
   type FundScenarioMutationActor,
 } from './fund-scenario-set-service.js';
+import {
+  acquireScenarioCalculationRunWithCreation,
+  bindQueuedScenarioCalculationRunJobId,
+  markQueuedScenarioCalculationRunEnqueueFailed,
+} from './fund-scenario-calculation-run-service.js';
 
 const QUEUE_NAME = 'fund-scenario-calc';
 const JOB_ID_PREFIX = 'reserve-scenario';
@@ -49,38 +54,97 @@ export async function enqueueReserveScenarioCalculation(input: {
   }
 
   const identity = await getReserveScenarioCalculationIdentity(input.fundId, input.scenarioSetId);
-  const job = await fundScenarioCalcQueue.add(
-    'async_reserve_allocation',
-    {
-      fundId: input.fundId,
-      scenarioSetId: input.scenarioSetId,
-      correlationId: input.correlationId,
-      calculationMode: 'async_reserve_allocation',
-      actor: normalizeActor(input.actor),
-      inputHash: identity.inputHash,
-    },
-    {
-      jobId: [
-        JOB_ID_PREFIX,
-        String(input.fundId),
-        input.scenarioSetId,
-        identity.inputLineage.hashKind,
-        identity.inputHash,
-      ].join('-'),
-      attempts: 2,
-      backoff: {
-        type: 'exponential',
-        delay: 2_000,
-      },
-      removeOnComplete: {
-        age: 3600,
-        count: 100,
-      },
-      removeOnFail: {
-        age: 86400,
-      },
+  const identityKey = [
+    JOB_ID_PREFIX,
+    String(input.fundId),
+    input.scenarioSetId,
+    identity.inputLineage.hashKind,
+    identity.inputHash,
+  ].join('-');
+  const baseRunIdentity = {
+    fundId: input.fundId,
+    scenarioSetId: input.scenarioSetId,
+    sourceConfigId: identity.sourceConfigId,
+    sourceConfigVersion: identity.sourceConfigVersion,
+    calculationMode: 'async_reserve_allocation' as const,
+    overrideType: 'reserve_allocation' as const,
+    inputHash: identity.inputHash,
+    hashKind: identity.inputLineage.hashKind,
+    modelInputsAsOfDate: identity.inputLineage.modelInputsAsOfDate,
+    comparisonLineageVersion: identity.inputLineage.comparisonLineageVersion,
+    correlationId: input.correlationId,
+    jobId: identityKey,
+  };
+  const acquired = await transaction(async (client) => {
+    const result = await acquireScenarioCalculationRunWithCreation(client, baseRunIdentity);
+    const jobId = `${identityKey}__run__${result.run.id}`;
+    if (result.inserted) {
+      const rebound = await bindQueuedScenarioCalculationRunJobId(
+        client,
+        result.run.id,
+        identityKey,
+        jobId
+      );
+      if (rebound !== 1) {
+        throw new Error('Scenario calculation run job identity could not be bound');
+      }
     }
-  );
+    return {
+      ...result,
+      jobId: result.inserted ? jobId : (result.run.jobId ?? jobId),
+    };
+  });
+  const jobId = acquired.jobId;
+  const runIdentity = { ...baseRunIdentity, jobId };
+
+  if (acquired.inserted) {
+    try {
+      const priorJob = await fundScenarioCalcQueue.getJob(jobId);
+      if (priorJob && (await priorJob.isFailed())) {
+        await priorJob.remove();
+      }
+    } catch {
+      // Timeout cleanup is best effort; the run row remains authoritative.
+    }
+  }
+
+  let job;
+  try {
+    job = await fundScenarioCalcQueue.add(
+      'async_reserve_allocation',
+      {
+        fundId: input.fundId,
+        scenarioSetId: input.scenarioSetId,
+        correlationId: input.correlationId,
+        calculationMode: 'async_reserve_allocation',
+        actor: normalizeActor(input.actor),
+        inputHash: identity.inputHash,
+        runId: acquired.run.id,
+      },
+      {
+        jobId,
+        attempts: 2,
+        backoff: {
+          type: 'exponential',
+          delay: 2_000,
+        },
+        removeOnComplete: {
+          age: 3600,
+          count: 100,
+        },
+        removeOnFail: {
+          age: 86400,
+        },
+      }
+    );
+  } catch (error) {
+    if (acquired.inserted) {
+      await transaction((client) =>
+        markQueuedScenarioCalculationRunEnqueueFailed(client, acquired.run.id, runIdentity)
+      );
+    }
+    throw error;
+  }
 
   await transaction(async (client) => {
     await insertScenarioSetEvent(client, {
