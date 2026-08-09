@@ -44,6 +44,7 @@ export interface ScenarioCalculationRunRecord extends Omit<
   snapshotId: number | null;
   deadlineAt: Date | string | null;
   failureCode: string | null;
+  failureMessage: string | null;
 }
 
 interface ScenarioCalculationRunRow {
@@ -64,6 +65,7 @@ interface ScenarioCalculationRunRow {
   snapshot_id: number | null;
   deadline_at: Date | string | null;
   failure_code: string | null;
+  failure_message: string | null;
 }
 
 type QueryClient = Pick<PoolClient, 'query'>;
@@ -112,7 +114,16 @@ function mapRun(row: ScenarioCalculationRunRow): ScenarioCalculationRunRecord {
     snapshotId: row.snapshot_id,
     deadlineAt: row.deadline_at ?? null,
     failureCode: row.failure_code ?? null,
+    failureMessage: row.failure_message ?? null,
   };
+}
+
+export function sanitizeScenarioCalculationFailureMessage(
+  message: string | null | undefined
+): string | null {
+  if (message == null) return null;
+  const firstLine = message.split(/\r?\n/, 1)[0]?.trim() ?? '';
+  return firstLine.length > 240 ? firstLine.slice(0, 240) : firstLine || null;
 }
 
 function normalizeDateOnly(value: Date | string | null): string | null {
@@ -230,6 +241,24 @@ export async function markQueuedScenarioCalculationRunEnqueueFailed(
         AND status = 'queued'
         AND job_id IS NOT DISTINCT FROM $12${ASYNC_RUN_IDENTITY_FENCE_SQL}`,
     asyncRunFenceParams(runId, identity)
+  );
+  return affectedRowCount(result);
+}
+
+export async function bindQueuedScenarioCalculationRunJobId(
+  client: QueryClient,
+  runId: string,
+  provisionalJobId: string | null,
+  jobId: string
+): Promise<number> {
+  const result = await client.query(
+    `UPDATE fund_scenario_calculation_runs
+        SET job_id = $3,
+            updated_at = clock_timestamp()
+      WHERE id = $1
+        AND status = 'queued'
+        AND job_id IS NOT DISTINCT FROM $2`,
+    [runId, provisionalJobId, jobId]
   );
   return affectedRowCount(result);
 }
@@ -391,7 +420,11 @@ export async function markScenarioCalculationRunFailed(
         AND status = 'running'
         AND job_id IS NOT DISTINCT FROM $12${ASYNC_RUN_IDENTITY_FENCE_SQL}
       RETURNING *`,
-    [...asyncRunFenceParams(runId, identity), failure.code ?? null, failure.message ?? null]
+    [
+      ...asyncRunFenceParams(runId, identity),
+      failure.code ?? null,
+      sanitizeScenarioCalculationFailureMessage(failure.message),
+    ]
   );
   return affectedRowCount(result);
 }
@@ -554,7 +587,11 @@ export async function failScenarioCalculationRunIfRunning(
         AND status = 'running'
         AND job_id IS NOT DISTINCT FROM $12${ASYNC_RUN_IDENTITY_FENCE_SQL}
       RETURNING *`,
-    [...asyncRunFenceParams(runId, identity), failure.code ?? null, failure.message ?? null]
+    [
+      ...asyncRunFenceParams(runId, identity),
+      failure.code ?? null,
+      sanitizeScenarioCalculationFailureMessage(failure.message),
+    ]
   );
   return result.rows[0] ? mapRun(result.rows[0]) : null;
 }

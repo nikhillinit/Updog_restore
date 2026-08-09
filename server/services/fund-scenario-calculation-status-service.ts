@@ -25,6 +25,8 @@ interface EventStatusRow {
 type ScenarioCalculationEventType =
   'calculation_queued' | 'calculation_started' | 'calculation_failed' | 'calculated';
 
+const HARD_TIMEOUT_PUBLIC_MESSAGE = 'Fund scenario calculation exceeded its hard deadline';
+
 function parseChangeSummary(value: unknown): Record<string, unknown> {
   if (typeof value === 'string') {
     const parsed = JSON.parse(value) as unknown;
@@ -191,7 +193,10 @@ function buildCalculationStatus(input: {
       snapshotId: null,
       failureCode: input.run.failureCode === 'HARD_TIMEOUT' ? 'HARD_TIMEOUT' : null,
       lastEventAt: null,
-      lastError: null,
+      lastError:
+        input.run.failureCode === 'HARD_TIMEOUT'
+          ? HARD_TIMEOUT_PUBLIC_MESSAGE
+          : input.run.failureMessage,
     });
   }
   if (input.run?.status === 'queued' || input.run?.status === 'running') {

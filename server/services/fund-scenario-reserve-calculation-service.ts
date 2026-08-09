@@ -1,5 +1,4 @@
 import type { PoolClient } from 'pg';
-import { logger } from '../lib/logger';
 import { transaction } from '../db/pg-circuit.js';
 import {
   FundScenarioCalculationPayloadV1Schema,
@@ -96,7 +95,6 @@ interface RunReserveScenarioCalculationInput {
   jobId: string | null;
   signal?: AbortSignal;
   abortController?: AbortController;
-  removeJob?: () => Promise<void>;
 }
 
 interface ReserveScenarioRunContext {
@@ -702,14 +700,6 @@ function startScenarioDeadlineActor(
           claimed.identity.jobId
         );
         if (affectedRows === 1) {
-          try {
-            await input.removeJob?.();
-          } catch (error) {
-            logger.warn(
-              { error, jobId: claimed.identity.jobId },
-              'Failed to remove timed-out scenario job'
-            );
-          }
           input.abortController?.abort(new FundScenarioHardTimeoutError(claimed.run.id));
         }
       }).catch(() => {

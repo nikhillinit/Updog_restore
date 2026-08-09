@@ -107,4 +107,24 @@ describe('CapitalCallStatusWorker scheduler registration', () => {
     ]);
     expect(mockQueue.add).not.toHaveBeenCalled();
   });
+
+  it('bounds non-authoritative reminder Redis operations by the worker deadline', async () => {
+    const { CapitalCallStatusWorker } =
+      await import('../../../server/workers/capital-call-status-worker');
+    const worker = new CapitalCallStatusWorker(fakeRedis, undefined, { hardTimeoutMs: 30_000 });
+    const stuckRedisOperation = vi.fn(() => new Promise<string>(() => {}));
+    const bounded = (
+      worker as unknown as {
+        bestEffortReminderRedis: <T>(
+          operation: () => Promise<T>,
+          deadlineAt: number,
+          fallback: T
+        ) => Promise<T>;
+      }
+    ).bestEffortReminderRedis(stuckRedisOperation, Date.now() + 100, null);
+
+    await vi.advanceTimersByTimeAsync(100);
+    await expect(bounded).resolves.toBeNull();
+    expect(stuckRedisOperation).toHaveBeenCalledTimes(1);
+  });
 });

@@ -47,8 +47,10 @@ describe('portfolio company update PostgreSQL concurrency and replay', () => {
     );
     const company = await pool.query<{ id: number }>(
       `INSERT INTO portfoliocompanies
-         (fund_id, name, sector, stage, investment_amount, status, description, deal_tags)
-       VALUES ($1, 'Original Company', 'Enterprise', 'Seed', '1000000.00', 'active', $2, $3)
+         (fund_id, name, sector, stage, investment_amount, status, description, deal_tags,
+          planned_reserves_cents)
+       VALUES ($1, 'Original Company', 'Enterprise', 'Seed', '1000000.00', 'active', $2, $3,
+          100000)
        RETURNING id`,
       [fund.rows[0]!.id, 'Original description', ['AI']]
     );
@@ -82,7 +84,13 @@ describe('portfolio company update PostgreSQL concurrency and replay', () => {
 
     await pool.query(
       `UPDATE portfoliocompanies
-          SET name = 'Later edit', row_version = 3, updated_at = clock_timestamp()
+          SET name = 'Later edit',
+              status = 'exited',
+              current_valuation = '9999999.00',
+              planned_reserves_cents = 999999,
+              allocation_iteration = 9,
+              row_version = 3,
+              updated_at = clock_timestamp()
         WHERE id = $1`,
       [params.companyId]
     );
@@ -91,16 +99,31 @@ describe('portfolio company update PostgreSQL concurrency and replay', () => {
     expect(replayAfterLaterEdit.response).toEqual(first.response);
 
     const receipt = await pool.query(
-      `SELECT request_hash, response_name, response_sector, response_founded_year,
-              response_description, response_deal_tags,
-              response_row_version, response_updated_at
+      `SELECT request_hash, response_id, response_fund_id, response_name, response_sector,
+              response_stage, response_current_stage, response_investment_amount,
+              response_investment_date, response_current_valuation, response_founded_year,
+              response_company_status, response_description, response_deal_tags,
+              response_created_at, response_deployed_reserves_cents,
+              response_planned_reserves_cents, response_exit_moic_bps,
+              response_exit_probability, response_ownership_current_pct,
+              response_allocation_cap_cents, response_allocation_reason,
+              response_allocation_iteration, response_last_allocation_at,
+              response_allocation_version, response_status, response_row_version,
+              response_updated_at
          FROM portfolio_company_update_receipts
         WHERE fund_id = $1 AND company_id = $2 AND actor_id = $3
           AND idempotency_key = $4`,
       [params.fundId, params.companyId, params.actorId, params.idempotencyKey]
     );
     expect(receipt.rows).toHaveLength(1);
-    expect(receipt.rows[0]).toMatchObject({ response_row_version: 2 });
+    expect(receipt.rows[0]).toMatchObject({
+      response_id: params.companyId,
+      response_fund_id: params.fundId,
+      response_name: 'Updated Company',
+      response_company_status: 'active',
+      response_planned_reserves_cents: '100000',
+      response_row_version: 2,
+    });
     expect(receipt.rows[0].response_updated_at).toEqual(new Date(first.response.updatedAt));
   });
 

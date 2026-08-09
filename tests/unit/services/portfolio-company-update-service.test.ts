@@ -44,6 +44,36 @@ const request: PortfolioCompanyUpdateRequestInput = {
   patch: { name: 'Updated Company', description: null, dealTags: null },
 };
 
+const receiptFields = {
+  response_id: 11,
+  response_fund_id: 7,
+  response_name: 'Updated Company',
+  response_sector: 'Enterprise',
+  response_stage: 'Seed',
+  response_current_stage: null,
+  response_investment_amount: '1000000.00',
+  response_investment_date: null,
+  response_current_valuation: '2500000.00',
+  response_founded_year: 2018,
+  response_company_status: 'active',
+  response_description: null,
+  response_deal_tags: null,
+  response_created_at: '2026-01-01T00:00:00.000Z',
+  response_deployed_reserves_cents: 0,
+  response_planned_reserves_cents: 100000,
+  response_exit_moic_bps: null,
+  response_exit_probability: null,
+  response_ownership_current_pct: null,
+  response_allocation_cap_cents: null,
+  response_allocation_reason: null,
+  response_allocation_iteration: 0,
+  response_last_allocation_at: null,
+  response_allocation_version: 1,
+  response_status: 200,
+  response_row_version: 2,
+  response_updated_at: '2026-01-02T00:00:00.000Z',
+};
+
 function makeDatabase(rows: unknown[]) {
   const execute = vi.fn();
   for (const row of rows) {
@@ -112,14 +142,7 @@ describe('portfolio company metadata update service', () => {
       [
         {
           request_hash: requestHash,
-          response_name: 'Updated Company',
-          response_sector: 'Enterprise',
-          response_founded_year: 2018,
-          response_description: null,
-          response_deal_tags: null,
-          response_status: 200,
-          response_row_version: 2,
-          response_updated_at: '2026-01-02T00:00:00.000Z',
+          ...receiptFields,
         },
       ],
     ]);
@@ -145,14 +168,7 @@ describe('portfolio company metadata update service', () => {
       [
         {
           request_hash: 'different-hash',
-          response_name: 'Existing Company',
-          response_sector: 'Enterprise',
-          response_founded_year: 2018,
-          response_description: null,
-          response_deal_tags: null,
-          response_status: 200,
-          response_row_version: 2,
-          response_updated_at: '2026-01-02T00:00:00.000Z',
+          ...receiptFields,
         },
       ],
     ]);

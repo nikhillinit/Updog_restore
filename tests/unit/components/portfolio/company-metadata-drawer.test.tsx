@@ -91,7 +91,7 @@ describe('CompanyMetadataDrawer', () => {
     apiState.request.mockRejectedValueOnce(
       new ApiError(409, 'Expected version 3, found 4', 'VERSION_CONFLICT')
     );
-    const { queryClient } = renderDrawer();
+    const { queryClient, rerender } = renderDrawer();
     const refetchQueries = vi.spyOn(queryClient, 'refetchQueries').mockImplementation(async () => {
       queryClient.setQueryData(
         ['portfolio-company', 7, 11],
@@ -105,6 +105,26 @@ describe('CompanyMetadataDrawer', () => {
 
     expect(await screen.findByTestId('company-metadata-version-conflict')).toBeInTheDocument();
     expect(nameInput).toHaveValue('Preserve this edit');
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <CompanyMetadataDrawer
+          company={companyFixture({ name: 'Passive refetch name', rowVersion: 4 })}
+          fundId={7}
+          open
+          onOpenChange={vi.fn()}
+        />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect(nameInput).toHaveValue('Preserve this edit'));
+    expect(screen.getByTestId('company-metadata-version-conflict')).toBeInTheDocument();
+
+    apiState.request.mockRejectedValueOnce(
+      new ApiError(409, 'Expected version 3, found 4', 'VERSION_CONFLICT')
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save metadata' }));
+    await waitFor(() => expect(apiState.request).toHaveBeenCalledTimes(2));
+    expect(apiState.request.mock.calls[1]?.[2]).toMatchObject({ expectedVersion: 3 });
 
     fireEvent.click(screen.getByRole('button', { name: 'Refresh authoritative data' }));
     await waitFor(() =>

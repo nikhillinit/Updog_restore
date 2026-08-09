@@ -47,11 +47,30 @@ interface PortfolioCompanyRow {
 
 interface PortfolioCompanyUpdateReceiptRow {
   request_hash: string;
+  response_id: number;
+  response_fund_id: number;
   response_name: string;
   response_sector: string;
+  response_stage: string;
+  response_current_stage: string | null;
+  response_investment_amount: string | number;
+  response_investment_date: Date | string | null;
+  response_current_valuation: string | number | null;
   response_founded_year: number | null;
+  response_company_status: string;
   response_description: string | null;
   response_deal_tags: string[] | null;
+  response_created_at: Date | string | null;
+  response_deployed_reserves_cents: number | string | null;
+  response_planned_reserves_cents: number | string | null;
+  response_exit_moic_bps: number | null;
+  response_exit_probability: string | number | null;
+  response_ownership_current_pct: string | number | null;
+  response_allocation_cap_cents: number | string | null;
+  response_allocation_reason: string | null;
+  response_allocation_iteration: number;
+  response_last_allocation_at: Date | string | null;
+  response_allocation_version: number;
   response_status: number;
   response_row_version: number;
   response_updated_at: Date | string;
@@ -62,9 +81,26 @@ export interface PortfolioCompanyUpdateResponse {
   fundId: number;
   name: string;
   sector: string;
+  stage: string;
+  currentStage: string | null;
+  investmentAmount: string | number;
+  investmentDate: string | null;
+  currentValuation: string | number | null;
   foundedYear: number | null;
+  status: string;
   description: string | null;
   dealTags: string[] | null;
+  createdAt: string | null;
+  deployedReservesCents: number | string | null;
+  plannedReservesCents: number | string | null;
+  exitMoicBps: number | null;
+  exitProbability: string | number | null;
+  ownershipCurrentPct: string | number | null;
+  allocationCapCents: number | string | null;
+  allocationReason: string | null;
+  allocationIteration: number;
+  lastAllocationAt: string | null;
+  allocationVersion: number;
   rowVersion: number;
   updatedAt: string;
 }
@@ -103,27 +139,63 @@ function toIsoString(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
+function nullableIsoString(value: Date | string | null): string | null {
+  return value == null ? null : toIsoString(value);
+}
+
 function toResponse(
   row: PortfolioCompanyRow,
-  replayFields?: Pick<
-    PortfolioCompanyUpdateReceiptRow,
-    | 'response_name'
-    | 'response_sector'
-    | 'response_founded_year'
-    | 'response_description'
-    | 'response_deal_tags'
-    | 'response_row_version'
-    | 'response_updated_at'
-  >
+  replayFields?: PortfolioCompanyUpdateReceiptRow
 ): PortfolioCompanyUpdateResponse {
   return {
-    id: row.id,
-    fundId: row.fund_id,
+    id: replayFields ? replayFields.response_id : row.id,
+    fundId: replayFields ? replayFields.response_fund_id : row.fund_id,
     name: replayFields ? replayFields.response_name : row.name,
     sector: replayFields ? replayFields.response_sector : row.sector,
+    stage: replayFields ? replayFields.response_stage : row.stage,
+    currentStage: replayFields ? replayFields.response_current_stage : row.current_stage,
+    investmentAmount: replayFields
+      ? replayFields.response_investment_amount
+      : row.investment_amount,
+    investmentDate: nullableIsoString(
+      replayFields ? replayFields.response_investment_date : row.investment_date
+    ),
+    currentValuation: replayFields
+      ? replayFields.response_current_valuation
+      : row.current_valuation,
     foundedYear: replayFields ? replayFields.response_founded_year : row.founded_year,
+    status: replayFields ? replayFields.response_company_status : row.status,
     description: replayFields ? replayFields.response_description : row.description,
     dealTags: replayFields ? replayFields.response_deal_tags : row.deal_tags,
+    createdAt: nullableIsoString(replayFields ? replayFields.response_created_at : row.created_at),
+    deployedReservesCents: replayFields
+      ? replayFields.response_deployed_reserves_cents
+      : row.deployed_reserves_cents,
+    plannedReservesCents: replayFields
+      ? replayFields.response_planned_reserves_cents
+      : row.planned_reserves_cents,
+    exitMoicBps: replayFields ? replayFields.response_exit_moic_bps : row.exit_moic_bps,
+    exitProbability: replayFields
+      ? replayFields.response_exit_probability
+      : row.exit_probability,
+    ownershipCurrentPct: replayFields
+      ? replayFields.response_ownership_current_pct
+      : row.ownership_current_pct,
+    allocationCapCents: replayFields
+      ? replayFields.response_allocation_cap_cents
+      : row.allocation_cap_cents,
+    allocationReason: replayFields
+      ? replayFields.response_allocation_reason
+      : row.allocation_reason,
+    allocationIteration: replayFields
+      ? replayFields.response_allocation_iteration
+      : row.allocation_iteration,
+    lastAllocationAt: nullableIsoString(
+      replayFields ? replayFields.response_last_allocation_at : row.last_allocation_at
+    ),
+    allocationVersion: replayFields
+      ? replayFields.response_allocation_version
+      : row.allocation_version,
     rowVersion: replayFields ? replayFields.response_row_version : row.row_version,
     updatedAt: toIsoString(replayFields ? replayFields.response_updated_at : row.updated_at),
   };
@@ -199,9 +271,17 @@ export async function updatePortfolioCompanyMetadata(params: {
     const receipt = await executeRows<PortfolioCompanyUpdateReceiptRow>(
       tx,
       sql`
-        SELECT request_hash, response_name, response_sector, response_founded_year,
-               response_description, response_deal_tags, response_status,
-               response_row_version, response_updated_at
+        SELECT request_hash, response_id, response_fund_id, response_name, response_sector,
+               response_stage, response_current_stage, response_investment_amount,
+               response_investment_date, response_current_valuation, response_founded_year,
+               response_company_status, response_description, response_deal_tags,
+               response_created_at, response_deployed_reserves_cents,
+               response_planned_reserves_cents, response_exit_moic_bps,
+               response_exit_probability, response_ownership_current_pct,
+               response_allocation_cap_cents, response_allocation_reason,
+               response_allocation_iteration, response_last_allocation_at,
+               response_allocation_version, response_status, response_row_version,
+               response_updated_at
         FROM portfolio_company_update_receipts
         WHERE fund_id = ${params.fundId}
           AND company_id = ${params.companyId}
@@ -276,15 +356,32 @@ export async function updatePortfolioCompanyMetadata(params: {
     }
 
     const response = toResponse(updated);
+    const responseDealTags =
+      updated.deal_tags == null ? null : JSON.stringify(updated.deal_tags);
     await tx.execute(sql`
       INSERT INTO portfolio_company_update_receipts
         (fund_id, company_id, actor_id, idempotency_key, request_hash,
-         response_name, response_sector, response_founded_year, response_description,
-         response_deal_tags, response_status, response_row_version, response_updated_at)
+         response_id, response_fund_id, response_name, response_sector, response_stage,
+         response_current_stage, response_investment_amount, response_investment_date,
+         response_current_valuation, response_founded_year, response_company_status,
+         response_description, response_deal_tags, response_created_at,
+         response_deployed_reserves_cents, response_planned_reserves_cents,
+         response_exit_moic_bps, response_exit_probability, response_ownership_current_pct,
+         response_allocation_cap_cents, response_allocation_reason,
+         response_allocation_iteration, response_last_allocation_at,
+         response_allocation_version, response_status, response_row_version, response_updated_at)
       VALUES
         (${params.fundId}, ${params.companyId}, ${params.actorId}, ${params.idempotencyKey},
-         ${requestHash}, ${updated.name}, ${updated.sector}, ${updated.founded_year},
-         ${updated.description}, ${updated.deal_tags ?? null}, 200,
+         ${requestHash}, ${updated.id}, ${updated.fund_id}, ${updated.name}, ${updated.sector},
+         ${updated.stage}, ${updated.current_stage}, ${updated.investment_amount},
+         ${updated.investment_date}, ${updated.current_valuation}, ${updated.founded_year},
+         ${updated.status}, ${updated.description}, ${responseDealTags},
+         ${updated.created_at}, ${updated.deployed_reserves_cents},
+         ${updated.planned_reserves_cents}, ${updated.exit_moic_bps},
+         ${updated.exit_probability}, ${updated.ownership_current_pct},
+         ${updated.allocation_cap_cents}, ${updated.allocation_reason},
+         ${updated.allocation_iteration}, ${updated.last_allocation_at},
+         ${updated.allocation_version}, 200,
          ${updated.row_version}, ${updated.updated_at})
     `);
 

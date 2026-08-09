@@ -15,6 +15,7 @@ import {
 } from './fund-scenario-set-service.js';
 import {
   acquireScenarioCalculationRunWithCreation,
+  bindQueuedScenarioCalculationRunJobId,
   markQueuedScenarioCalculationRunEnqueueFailed,
 } from './fund-scenario-calculation-run-service.js';
 
@@ -53,14 +54,14 @@ export async function enqueueReserveScenarioCalculation(input: {
   }
 
   const identity = await getReserveScenarioCalculationIdentity(input.fundId, input.scenarioSetId);
-  const jobId = [
+  const identityKey = [
     JOB_ID_PREFIX,
     String(input.fundId),
     input.scenarioSetId,
     identity.inputLineage.hashKind,
     identity.inputHash,
   ].join('-');
-  const runIdentity = {
+  const baseRunIdentity = {
     fundId: input.fundId,
     scenarioSetId: input.scenarioSetId,
     sourceConfigId: identity.sourceConfigId,
@@ -72,11 +73,29 @@ export async function enqueueReserveScenarioCalculation(input: {
     modelInputsAsOfDate: identity.inputLineage.modelInputsAsOfDate,
     comparisonLineageVersion: identity.inputLineage.comparisonLineageVersion,
     correlationId: input.correlationId,
-    jobId,
+    jobId: identityKey,
   };
-  const acquired = await transaction((client) =>
-    acquireScenarioCalculationRunWithCreation(client, runIdentity)
-  );
+  const acquired = await transaction(async (client) => {
+    const result = await acquireScenarioCalculationRunWithCreation(client, baseRunIdentity);
+    const jobId = `${identityKey}:${result.run.id}`;
+    if (result.inserted) {
+      const rebound = await bindQueuedScenarioCalculationRunJobId(
+        client,
+        result.run.id,
+        identityKey,
+        jobId
+      );
+      if (rebound !== 1) {
+        throw new Error('Scenario calculation run job identity could not be bound');
+      }
+    }
+    return {
+      ...result,
+      jobId: result.inserted ? jobId : (result.run.jobId ?? jobId),
+    };
+  });
+  const jobId = acquired.jobId;
+  const runIdentity = { ...baseRunIdentity, jobId };
 
   if (acquired.inserted) {
     try {

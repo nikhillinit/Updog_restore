@@ -125,6 +125,28 @@ export class CapitalCallStatusWorker {
     return Math.max(1, deadlineAt - Date.now());
   }
 
+  private async bestEffortReminderRedis<T>(
+    operation: () => Promise<T>,
+    deadlineAt: number,
+    fallback: T
+  ): Promise<T> {
+    const remainingMs = Math.max(0, deadlineAt - Date.now());
+    if (remainingMs === 0) return fallback;
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<T>((resolve) => {
+      timer = setTimeout(() => resolve(fallback), remainingMs);
+    });
+    try {
+      return await Promise.race([
+        Promise.resolve().then(operation).catch(() => fallback),
+        timeout,
+      ]);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
+  }
+
   private withBudgetedTransaction<T>(
     deadlineAt: number,
     signal: AbortSignal | undefined,
@@ -523,7 +545,11 @@ export class CapitalCallStatusWorker {
       const reminderKey = `capital-call-reminder:${reminderDateStr}:${daysBeforeDue}`;
       const redisClient = getReminderRedisClient(this.redis);
       throwIfCapitalCallStatusAborted(signal);
-      const alreadySent = await redisClient.get(reminderKey);
+      const alreadySent = await this.bestEffortReminderRedis(
+        () => redisClient.get(reminderKey),
+        deadlineAt,
+        null
+      );
       throwIfCapitalCallStatusAborted(signal);
 
       const upcomingCalls = await this.withBudgetedTransaction(deadlineAt, signal, (tx) =>
@@ -571,7 +597,11 @@ export class CapitalCallStatusWorker {
       // Redis only avoids repeat enqueue work; outbox uniqueness remains authoritative.
       if (!alreadySent) {
         throwIfCapitalCallStatusAborted(signal);
-        await redisClient.setex(reminderKey, 86400, '1');
+        await this.bestEffortReminderRedis(
+          () => redisClient.setex(reminderKey, 86400, '1').then(() => undefined),
+          deadlineAt,
+          undefined
+        );
         throwIfCapitalCallStatusAborted(signal);
       }
     }

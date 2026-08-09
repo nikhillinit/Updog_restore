@@ -34,18 +34,6 @@ interface MetadataForm {
   dealTags: string;
 }
 
-interface PortfolioCompanyMetadataUpdateResponse {
-  id: number;
-  fundId: number;
-  name: string;
-  sector: string;
-  foundedYear: number | null;
-  description: string | null;
-  dealTags: string[] | null;
-  rowVersion: number;
-  updatedAt: string;
-}
-
 function formFromCompany(company: PortfolioCompany): MetadataForm {
   return {
     name: company.name,
@@ -111,21 +99,20 @@ export function CompanyMetadataDrawer({
           [...dirtyFieldsRef.current].map((field) => [field, formRef.current[field]])
         ),
       } as MetadataForm);
-      setExpectedVersion(company.rowVersion);
     } else {
       setForm(formFromCompany(company));
       setDirtyFields(new Set());
+      setExpectedVersion(company.rowVersion);
+      setConflict(false);
+      idempotencyKey.current = null;
     }
-    setExpectedVersion(company.rowVersion);
-    setConflict(false);
-    idempotencyKey.current = null;
   }, [company]);
 
   const updateMutation = useMutation({
     mutationFn: async (values: MetadataForm) => {
       const key = idempotencyKey.current ?? randomIdempotencyKey();
       idempotencyKey.current = key;
-      return apiRequest<PortfolioCompanyMetadataUpdateResponse>(
+      return apiRequest<PortfolioCompany>(
         'PATCH',
         `/api/portfolio-companies/${company.id}?fundId=${fundId}`,
         {
@@ -186,7 +173,9 @@ export function CompanyMetadataDrawer({
       draftForRefresh.current = null;
       setConflict(false);
     }
-    idempotencyKey.current = null;
+    if (authoritative) {
+      idempotencyKey.current = null;
+    }
   };
 
   return (

@@ -43,7 +43,7 @@ async function withReserveScenarioMetrics<T>(callback: () => Promise<T>): Promis
 }
 
 export async function handleFundScenarioCalcJob(
-  job: Pick<Job<FundScenarioCalcJobData>, 'id' | 'data' | 'remove'>,
+  job: Pick<Job<FundScenarioCalcJobData>, 'id' | 'data'>,
   _token?: string,
   signal?: AbortSignal
 ) {
@@ -81,7 +81,6 @@ export async function handleFundScenarioCalcJob(
         jobId: String(job.id),
         signal: ownedAbortController.signal,
         abortController: ownedAbortController,
-        removeJob: () => job.remove(),
       })
     );
     return isScenarioCalculationOwnershipLost(result) ? undefined : result;
