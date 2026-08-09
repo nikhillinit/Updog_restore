@@ -93968,7 +93968,7 @@
       "closure_acceptance": "railway deployed-image boot + path/auth/protocol probe: Railway image boots; exact path responds through proven listener with expected authentication behavior.",
       "contract_fingerprint": "2e75385407ef045029fd431b474619094ba44620336d8ba6de63536bfbfaad45",
       "approved_source_hashes": [
-        "server/queues/report-generation-queue.ts=367b4b2dcdacc54dfb18a0689b1af6c00b211b4fd7ce5d2b4cd8978fec2a0fa9"
+        "server/queues/report-generation-queue.ts=1dbc22baaca69c1229698b235a464d9e651612477ea8bda7d0726f5f1b586229"
       ],
       "machine_suggestions": {
         "owner": "unassigned",
@@ -94262,7 +94262,7 @@
       "closure_acceptance": "railway deployed-image boot + path/auth/protocol probe: Railway image boots; exact path responds through proven listener with expected authentication behavior.",
       "contract_fingerprint": "dd1ee3dd53920c5fa0845e8b58d4a0a140974f03f20b65c752073a5c4ae94b3a",
       "approved_source_hashes": [
-        "server/queues/simulation-queue.ts=f8f864a3aff6f15d7b9e68e1f42a94c282ebae6b57f9070314150e9f7fa1a71b"
+        "server/queues/simulation-queue.ts=155c5be665c4f3e56ad74454dd18f96915a54e79d019467df1c682837ef380d6"
       ],
       "machine_suggestions": {
         "owner": "unassigned",
@@ -99370,8 +99370,8 @@
       "server/lib/public-api-boundary.ts": "47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
       "server/middleware/asyncErrorHandler.ts": "6354599337500fe0b8906647b0becebf2132b17a04c48855f03d91a7e696c286",
       "server/queues/backtesting-queue.ts": "d5168d065f5d97a87bc62cbaa3c77968589841d3c6ba71feee33e4e6affc2526",
-      "server/queues/report-generation-queue.ts": "367b4b2dcdacc54dfb18a0689b1af6c00b211b4fd7ce5d2b4cd8978fec2a0fa9",
-      "server/queues/simulation-queue.ts": "f8f864a3aff6f15d7b9e68e1f42a94c282ebae6b57f9070314150e9f7fa1a71b",
+      "server/queues/report-generation-queue.ts": "1dbc22baaca69c1229698b235a464d9e651612477ea8bda7d0726f5f1b586229",
+      "server/queues/simulation-queue.ts": "155c5be665c4f3e56ad74454dd18f96915a54e79d019467df1c682837ef380d6",
       "server/route-policy/api-route-policy-registry.ts": "b8a0440c9a5e7d7b2f938d58f6a7e054bdfe18f7ef802146ee1cce3bd452e49b",
       "server/routes.ts": "141adc2a75568479dea21649ec234f84f291527858d1a161e26832a49698ab2a",
       "server/routes/_ops-stage-validation.ts": "291e31b27be1d285743260d2489308da9018c7e1269d73cd20c9c476c3ed072c",
