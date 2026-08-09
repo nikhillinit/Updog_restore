@@ -88,13 +88,13 @@ describe('capital-call status transition and notification outbox', () => {
     // fresh db against the container (repo gotcha: resetModules before
     // dynamic imports under isolate:false).
     vi.resetModules();
-    ({
-      transitionCapitalCallWithNotification,
-      dispatchPendingCapitalCallNotifications,
-    } = await import('../../server/services/capital-call-notification-outbox-service'));
+    ({ transitionCapitalCallWithNotification, dispatchPendingCapitalCallNotifications } =
+      await import('../../server/services/capital-call-notification-outbox-service'));
   }, TEST_TIMEOUT_MS);
 
   afterAll(async () => {
+    const { closeDatabasePool } = await import('../../server/db');
+    await closeDatabasePool();
     await pool?.end();
     const { closePool } = await import('../../server/db/pg-circuit');
     await closePool();
