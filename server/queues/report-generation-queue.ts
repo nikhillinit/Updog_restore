@@ -34,6 +34,7 @@ import { registerQueueRuntime, unregisterQueueRuntime } from './registry.js';
 import { getBullMQConnection } from './redis-connection.js';
 import { resolveFundId } from './resolve-fund-id.js';
 import { logger } from '../logger';
+import { sanitizeQueueError } from '../lib/queue-error-sanitizer.js';
 
 // Job types
 export interface ReportGenerationJobData {
@@ -420,6 +421,10 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
 
   queueEvents.on('failed', ({ jobId, failedReason }) => {
     console.error(`[ReportQueue] Job ${jobId} failed:`, failedReason);
+  });
+
+  queueEvents.on('error', (error) => {
+    console.error('[ReportQueue] QueueEvents error:', sanitizeQueueError(error));
   });
 
   // Handle worker errors
