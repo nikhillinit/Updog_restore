@@ -1,6 +1,10 @@
 ---
 status: ACTIVE
-last_updated: 2026-06-03
+audience: both
+last_updated: 2026-08-08
+owner: 'Product + Frontend'
+categories: [design, product, ui, ux]
+keywords: [press-on, workspace, review, modeling, monitoring, provenance]
 ---
 
 # Design System — Updog / Press On Ventures
@@ -135,6 +139,138 @@ is true now? 2) What changed? 3) What is due? 4) What can I do next?**
   visible urgency, place-preserving drill-down, keyboard parity, collaboration
   ownership, purposeful motion, LP-safe sharing).
 
+## Preferred workspace baseline (ratified 2026-08-08)
+
+The preferred fund-modeling workspace and baseline-comparison prototypes under
+[`docs/design/references/2026-08-08-preferred-uiux/`](docs/design/references/2026-08-08-preferred-uiux/README.md)
+are the directional page-anatomy references for Updog. They establish a quiet,
+dense, evidence-first operating workspace: material numbers carry their basis,
+changes are reviewable, and the next available action stays near the decision.
+
+They are not pixel specifications and do not override server contracts,
+authorization, lifecycle gates, or the token pillar above. The
+[live-data contract map](docs/design/audits/2026-08-08-preferred-uiux-data-contract-map.md)
+records which reference concepts are available, partial, or missing at the
+ratification fence. A production surface must render missing data as unavailable
+or disabled-with-reason; it must not synthesize audit metadata or decision
+states.
+
+### Product name
+
+- Customer-facing product name: **Updog**.
+- Company attribution: **Press On Ventures**.
+- `Updog_restore` is the repository/deployment name. `Updawg` is historical
+  operational vocabulary. Neither becomes customer-facing copy.
+- Existing legal entity, fund, and vehicle names remain verbatim.
+
+### Semantic test, not a four-card template
+
+The first viewport must make the four questions legible: what is true now, what
+changed, what is due, and what can happen next. This is an acceptance test, not
+a mandate for four equal KPI cards, four permanent zones, or duplicate
+representations. One dominant decision object should lead the viewport.
+
+### Target shell and responsive contract
+
+| Width         | Target behavior                                                                                                                                                                                                                                                     |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `>=1280px`    | Stable 64px primary rail; optional 216–240px pinned context navigation; fluid decision canvas; context rail hidden, peeked, or pinned at 280–320px only when useful; evidence/edit work panel overlays at 360 or 480px, with 640px reserved for complex inspectors. |
+| `1024–1279px` | Keep the primary rail. Context navigation becomes a compact selector or overlay. Never pin the right context rail by default. Preserve usable table/canvas width.                                                                                                   |
+| `<1024px`     | Use a compact command bar and off-canvas navigation. Stack the decision summary above the primary object. Open evidence and row detail in a full-height sheet. Reflow provenance and warnings; never hide them as lower priority.                                   |
+
+The primary rail never expands on hover. Context navigation uses an explicit
+pin/unpin choice. Opening a work panel preserves entity, selection, filters,
+scroll, and focus. The current shell does not yet meet all of these target
+rules; migration belongs to later, separately reviewed batches.
+
+### Page archetypes
+
+1. **Review workspace** — context header; decision state and material deltas;
+   one comparison/review object; conditional gap rail; evidence/history panel;
+   explicit resolution action when its lifecycle contract exists.
+2. **Modeling workspace** — version context; sticky live-impact strip; focused
+   editor; inline translators and derived values; pre-save material diff;
+   explicit Save/Cancel dock.
+3. **Monitoring workspace** — context header; task-specific truth strip; dense
+   table or timeline; saved filters/views; conditional exception rail; detail
+   panel.
+
+### Scenario-review reference
+
+Preserve scenario/version identity, outcome deltas, named review gaps, capital
+allocation, provenance, history, internal-only basis, and an operational next
+action. Refine it by:
+
+- using countable completeness (`15 of 18 required inputs source-backed`) ahead
+  of unexplained percentages;
+- making loading visually secondary to a real available action;
+- pairing allocation graphics with a readable amount/share/delta table;
+- turning source cards into lineage with status, age, steward, supported
+  inputs/outputs, accepted version, affected gaps, and an evidence action;
+- keeping body explanations at 12–14px while reserving 10–11px uppercase or mono
+  for compact labels, hashes, and timestamps.
+
+### Baseline-comparison reference
+
+The comparison hierarchy is fixed:
+
+- **Summary:** only material movement and magnitude.
+- **Table:** exact before/after values, review state, evidence, owner, time, and
+  rationale when the contract provides them.
+- **Timeline:** chronology only, collapsed by default or moved to context.
+
+Do not strike through the baseline, imply a single driver when several inputs
+contribute, or use a chart whose scale exaggerates a small change. Owner and
+time are separate fields. The existing results-comparison contract compares the
+two latest published versions across four fixed metrics; it is not a truthful
+draft-versus-baseline change ledger. Generic row decisions and decision-sourced
+evidence remain blocked on issue #1289 and must not be invented in the client.
+
+### Interaction and state contract
+
+- `INPUT` means directly editable under an explicit edit/save contract. `MODEL`
+  means computed output. Labels never grant authorization.
+- Local verbs are specific: `Review gaps`, `Open evidence`, `Save draft`,
+  `Inspect diff`. Avoid objectless `View`, `Continue`, or `Complete`.
+- Every disabled action states its missing dependency.
+- `Reviewed with no change` is a first-class completion state distinct from
+  `not reviewed` wherever review status exists.
+- Material side effects require explicit Save/Accept/Publish plus an audit
+  trace. Presentation presets (`gp`, `analyst`, `operations`) alter emphasis,
+  never queries or authorization.
+- Side context has three states: hidden, peek, pinned. Evidence/editing normally
+  uses the work panel instead of permanently shrinking every route.
+
+### Token conflict rulings
+
+The review direction matches the Paper / Sand / Ink palette, charcoal primary
+actions, tabular numerics, and restrained motion. Proposals that conflict with
+the canonical token pillar are not silently adopted in this documentation-only
+batch:
+
+- spacing remains the token-defined 8px grid with permitted 4/8px increments;
+- Poppins remains the body font until a measured, separately reviewed Inter
+  migration changes the token contract;
+- radius remains `4 / 6 / 10 / 16 / 24`; no standalone 14px token is added.
+
+### Screenshot-level acceptance
+
+Reference routes are reviewed at `1440x900`, `1024x768`, `820x1180`, and
+`390x844`. At every target:
+
+- entity, scenario/version, basis, freshness, blockers, and next action remain
+  discoverable without page-level horizontal overflow;
+- provenance and warning meaning remain available and do not rely on color;
+- tables may scroll within their own controlled region or use column presets;
+- keyboard focus is visible, panels restore focus, and reduced motion is
+  honored;
+- repeated content earns a distinct analytical job; charts use honest scales.
+
+The #1284 review artifact is separate from directional ratification. Its
+[review packet](docs/reviews/2026-08-08-issue-1284-prototype-review.md) remains
+awaiting a human decision recorded on GitHub; this document does not unblock
+#1288.
+
 ## Drift register
 
 Layers in `tailwind.config.ts` and `presson-v2.css` that accreted on top of the
@@ -189,10 +325,17 @@ The three design artifacts disagreed on a few values. Resolved, with
   ButtonEnhanced, etc.). Confidence/semantic color tokens and the animation
   classes they described still live in `tailwind.config.ts` +
   `client/src/styles/design-system.css`.
+- Preferred workspace references and their integrity inventory live under
+  `docs/design/references/2026-08-08-preferred-uiux/`. They are review evidence,
+  subordinate to this file and live contracts.
+- `docs/design/audits/2026-08-08-preferred-uiux-data-contract-map.md` is the
+  ratification-fence map of available, partial, and missing data. Revalidate it
+  before implementing later batches.
 
 ## Decisions log
 
-| Date       | Decision                                                                                                                                                                                     | Rationale                                                                                                                                                                                                                                                                      |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 2026-06-02 | Created DESIGN.md ratifying `presson.tokens.ts` + v3.1.1 doctrine as the two canonical pillars; recorded drift register and open reconcile items                                             | Repo had a canonical token file, an active component guide, a v3.1.1 doctrine package, and accreted contradictory color/font layers (blue accent, purple, two greens, three monos). Surfaced by /design-review of the scenario surfaces; consolidated by /design-consultation. |
-| 2026-06-02 | Resolved font reconcile items: mono = JetBrains Mono; body = Inter + Poppins (unchanged). Warning = `#9C6F19`, radius = canonical scale. Confirmed v3.1.1 docs already in-repo (`e29e0eb6`). | User decisions via /design-consultation. Mono unification staged as token-cleanup T-D; added `## Design System` pointer to CLAUDE.md.                                                                                                                                          |
+| Date       | Decision                                                                                                                                                                                                                  | Rationale                                                                                                                                                                                                                                                                      |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-08-08 | Ratified the preferred fund-modeling and baseline-comparison anatomy; made context conditional; fixed review/modeling/monitoring archetypes and target responsive behavior; kept current token authority and issue gates. | The preferred designs better express an evidence-first investment workspace, but several prototype fields exceed live comparison and operating-decision contracts. Direction can be frozen without fabricating data or starting production migration.                          |
+| 2026-06-02 | Created DESIGN.md ratifying `presson.tokens.ts` + v3.1.1 doctrine as the two canonical pillars; recorded drift register and open reconcile items                                                                          | Repo had a canonical token file, an active component guide, a v3.1.1 doctrine package, and accreted contradictory color/font layers (blue accent, purple, two greens, three monos). Surfaced by /design-review of the scenario surfaces; consolidated by /design-consultation. |
+| 2026-06-02 | Resolved font reconcile items: mono = JetBrains Mono; body = Inter + Poppins (unchanged). Warning = `#9C6F19`, radius = canonical scale. Confirmed v3.1.1 docs already in-repo (`e29e0eb6`).                              | User decisions via /design-consultation. Mono unification staged as token-cleanup T-D; added `## Design System` pointer to CLAUDE.md.                                                                                                                                          |

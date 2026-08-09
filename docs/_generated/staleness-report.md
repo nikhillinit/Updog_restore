@@ -1,30 +1,30 @@
 ---
-last_updated: 2026-08-08
+last_updated: 2026-08-09
 ---
 
 # Staleness Report
 
-*Generated: 2026-08-08T00:00:00.000Z*
+*Generated: 2026-08-09T00:00:00.000Z*
 *Source: docs/DISCOVERY-MAP.source.yaml*
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 717 |
-| Stale Documents | 487 |
-| Missing Frontmatter | 71 |
+| Total Documents | 723 |
+| Stale Documents | 496 |
+| Missing Frontmatter | 74 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
-| ACTIVE | 451 |
-| UNKNOWN | 165 |
+| ACTIVE | 453 |
+| UNKNOWN | 168 |
 | DRAFT | 34 |
 | HISTORICAL | 22 |
 | VERIFIED | 13 |
-| REFERENCE | 8 |
+| REFERENCE | 9 |
 | INDEXED | 6 |
 | ready | 3 |
 | COMPLETE | 3 |
@@ -69,6 +69,8 @@ Documents that need review (older than their cadence threshold):
 | `docs/3-code-review/CR_w1_v1.4.0.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w1_v1.4.1.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w1_v1.5.0.md` | Never | 999 | No | Unassigned |
+| `docs/4-unit-tests/COVERAGE-DEBT.md` | Never | 999 | No | Unassigned |
+| `docs/4-unit-tests/TESTING.md` | Never | 999 | No | Unassigned |
 | `docs/ARCHI.md` | Never | 999 | No | Unassigned |
 | `docs/CA-PACING-ORACLE.md` | Never | 999 | No | Unassigned |
 | `docs/CRITICAL-REVIEW-secondary-surface-governance.md` | Never | 999 | No | Unassigned |
@@ -83,6 +85,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/design/updog-design-philosophy-v3.1.1-implementation-notes.md` | Never | 999 | No | Unassigned |
 | `docs/phase2-calibration-benchmarks.md` | Never | 999 | No | Unassigned |
 | `docs/quarantine/2026-05-28-stabilization-triage.md` | Never | 999 | No | Unassigned |
+| `docs/runbooks/capital-call-outbox-redelivery.md` | Never | 999 | No | Unassigned |
 | `docs/runbooks/current-forecast-shadow-soak.md` | Never | 999 | No | Unassigned |
 | `docs/runbooks/marginal-moic-nonproduction-shadow-soak.md` | Never | 999 | No | Unassigned |
 | `docs/skills/REFL-002-post-merge-jobs-not-validated-by-pr-ci.md` | Never | 999 | No | Unassigned |
@@ -93,107 +96,105 @@ Documents that need review (older than their cadence threshold):
 | `docs/skills/REFL-007-global-vi-mock-pollutes-all-tests.md` | Never | 999 | No | Unassigned |
 | `docs/skills/REFL-008-typescript-type-inference-from-database-schemas.md` | Never | 999 | No | Unassigned |
 | `docs/skills/REFL-009-crlf-line-endings-break-frontmatter-parsing.md` | Never | 999 | No | Unassigned |
-| `docs/skills/REFL-010-trust-proxy-configuration-for-rate-limiters.md` | Never | 999 | No | Unassigned |
-| `docs/skills/REFL-012-fire-and-forget-async-creates-race-conditions.md` | Never | 999 | No | Unassigned |
-| `docs/skills/REFL-013-router-substring-matching-causes-false-positives.md` | Never | 999 | No | Unassigned |
 
-*...and 437 more stale documents.*
+*...and 446 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
 These documents contain phrases like "tests pass", "PR merged", etc. and should be verified:
 
-- [ ] **.claude/commands/retrospective.md** (201 days old)
-- [ ] **.claude/commands/session-learnings.md** (201 days old)
-- [ ] **.claude/commands/wshobson/deps-audit.md** (201 days old)
-- [ ] **.claude/integration-test-execution-summary.md** (201 days old)
-- [ ] **.claude/integration-test-final-report.md** (201 days old)
-- [ ] **.claude/integration-test-reenable-plan-v2.md** (201 days old)
-- [ ] **.claude/plan.md** (222 days old)
-- [ ] **.claude/prompts/integration-test-continuation-prompt.md** (201 days old)
-- [ ] **.claude/prompts/portfolio-intelligence-timeout-fix.md** (201 days old)
-- [ ] **.claude/prompts/week2.5-next-session-kickoff.md** (201 days old)
-- [ ] **.claude/prompts/week2.5-phase3-continuation-v10.md** (201 days old)
-- [ ] **.claude/prompts/week2.5-phase3-continuation-v2.md** (201 days old)
-- [ ] **.claude/prompts/week2.5-phase3-continuation-v3.md** (201 days old)
-- [ ] **.claude/prompts/week2.5-phase3-continuation.md** (201 days old)
-- [ ] **.claude/prompts/week2.5-phase4-next-steps.md** (201 days old)
-- [ ] **.claude/session-summary-portfolio-intelligence-implementation.md** (201 days old)
-- [ ] **.claude/sessions/PHASE4-CONTINUATION-KICKOFF.md** (201 days old)
-- [ ] **.claude/skills/README.md** (201 days old)
-- [ ] **.claude/skills/iterative-improvement.md** (201 days old)
-- [ ] **.claude/skills/task-decomposition.md** (201 days old)
-- [ ] **.claude/testing/rubric-calculation-engines.md** (201 days old)
-- [ ] **.claude/testing/scenario-comparison-manual-test-rubric.md** (201 days old)
-- [ ] **.claude/testing/seed-script-remaining-fixes.md** (201 days old)
-- [ ] **ANTI_PATTERNS.md** (201 days old)
-- [ ] **COMPREHENSIVE-WORKFLOW-GUIDE.md** (201 days old)
-- [ ] **ITERATION-A-QUICKSTART.md** (201 days old)
-- [ ] **MIGRATION-NATIVE-MEMORY.md** (201 days old)
-- [ ] **PRODUCTION_RUNBOOK.md** (201 days old)
-- [ ] **PROMPT_PATTERNS.md** (201 days old)
-- [ ] **cheatsheets/daily-workflow.md** (127 days old)
-- [ ] **cheatsheets/emoji-free-documentation.md** (201 days old)
-- [ ] **cheatsheets/pr-merge-verification.md** (124 days old)
-- [ ] **cheatsheets/schema-alignment.md** (201 days old)
-- [ ] **docs/CA-IMPLEMENTATION-PLAN.md** (201 days old)
-- [ ] **docs/CA-SEMANTIC-LOCK.md** (201 days old)
-- [ ] **docs/DECISIONS.md** (201 days old)
-- [ ] **docs/DEPLOYMENT.md** (201 days old)
-- [ ] **docs/DEVELOPMENT_STRATEGY.md** (201 days old)
-- [ ] **docs/MILESTONE-XIRR-PHASE0-COMPLETE.md** (201 days old)
-- [ ] **docs/PRODUCTION_CHECKLIST.md** (201 days old)
-- [ ] **docs/RATE_LIMITING_SUMMARY.md** (201 days old)
-- [ ] **docs/SCENARIO_DEPLOY_GUIDE.md** (201 days old)
-- [ ] **docs/VERIFICATION_CHECKLIST.md** (201 days old)
-- [ ] **docs/action-plans/CODEX-FIXES-EXECUTION-SUMMARY.md** (201 days old)
-- [ ] **docs/action-plans/CODEX-ISSUES-RESOLUTION-PLAN.md** (201 days old)
-- [ ] **docs/adr/ADR-008-capital-allocation-policy.md** (201 days old)
-- [ ] **docs/agent-2-mobile-executive-dashboard.md** (201 days old)
-- [ ] **docs/api/architecture/portfolio-route-api.md** (201 days old)
-- [ ] **docs/api/testing/portfolio-route-test-strategy.md** (201 days old)
-- [ ] **docs/behavioral-specs/time-travel-analytics-service-specs.md** (201 days old)
-- [ ] **docs/chaos-engineering/README.md** (201 days old)
-- [ ] **docs/chaos-engineering/RLS-CHAOS-TESTING-PLAN.md** (201 days old)
-- [ ] **docs/deployment/CODEX-FIXES-DEPLOYMENT-STATUS.md** (201 days old)
-- [ ] **docs/deployment/ROLLBACK_PLAN.md** (201 days old)
-- [ ] **docs/deployment/STAGING_CHECKLIST.md** (201 days old)
-- [ ] **docs/deployment/STAGING_DEPLOYMENT_SUMMARY.md** (201 days old)
-- [ ] **docs/deployment/STAGING_METRICS.md** (201 days old)
-- [ ] **docs/failure-triage.md** (201 days old)
-- [ ] **docs/forecasting/power-law-implementation.md** (201 days old)
-- [ ] **docs/foundation/PHASE2-ROADMAP-IMPROVEMENTS.md** (201 days old)
-- [ ] **docs/foundation/PHASE2-ROADMAP.md** (201 days old)
-- [ ] **docs/foundation/PHASE3-KICKOFF.md** (201 days old)
-- [ ] **docs/foundation/PHASE4-KICKOFF.md** (201 days old)
-- [ ] **docs/integration/upstash-setup.md** (201 days old)
-- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (201 days old)
-- [ ] **docs/notebooklm-sources/waterfall.md** (201 days old)
-- [ ] **docs/notebooklm-sources/xirr.md** (201 days old)
-- [ ] **docs/npm-bin-resolution-investigation.md** (201 days old)
-- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (201 days old)
-- [ ] **docs/observability/README.md** (201 days old)
-- [ ] **docs/phase0-xirr-analysis-eda20590.md** (201 days old)
-- [ ] **docs/phase1-1-1-analysis.md** (201 days old)
-- [ ] **docs/phase1-xirr-baseline-heatmap.md** (201 days old)
-- [ ] **docs/phase1b-waterfall-evaluator-hardening.md** (201 days old)
-- [ ] **docs/processes/CONTRIBUTING.md** (201 days old)
-- [ ] **docs/processes/code-review-checklist.md** (201 days old)
-- [ ] **docs/references/claude-agent-testing.md** (201 days old)
-- [ ] **docs/references/replit.md** (201 days old)
-- [ ] **docs/releases/stage-norm-phase5.md** (201 days old)
-- [ ] **docs/releases/stage-normalization-v3.4.md** (201 days old)
-- [ ] **docs/replit.md** (201 days old)
-- [ ] **docs/reviews/CA-IMPLEMENTATION-EVALUATION-FINAL.md** (201 days old)
-- [ ] **docs/skills-application-log.md** (201 days old)
+- [ ] **.claude/commands/retrospective.md** (202 days old)
+- [ ] **.claude/commands/session-learnings.md** (202 days old)
+- [ ] **.claude/commands/wshobson/deps-audit.md** (202 days old)
+- [ ] **.claude/integration-test-execution-summary.md** (202 days old)
+- [ ] **.claude/integration-test-final-report.md** (202 days old)
+- [ ] **.claude/integration-test-reenable-plan-v2.md** (202 days old)
+- [ ] **.claude/plan.md** (223 days old)
+- [ ] **.claude/prompts/integration-test-continuation-prompt.md** (202 days old)
+- [ ] **.claude/prompts/portfolio-intelligence-timeout-fix.md** (202 days old)
+- [ ] **.claude/prompts/week2.5-next-session-kickoff.md** (202 days old)
+- [ ] **.claude/prompts/week2.5-phase3-continuation-v10.md** (202 days old)
+- [ ] **.claude/prompts/week2.5-phase3-continuation-v2.md** (202 days old)
+- [ ] **.claude/prompts/week2.5-phase3-continuation-v3.md** (202 days old)
+- [ ] **.claude/prompts/week2.5-phase3-continuation.md** (202 days old)
+- [ ] **.claude/prompts/week2.5-phase4-next-steps.md** (202 days old)
+- [ ] **.claude/session-summary-portfolio-intelligence-implementation.md** (202 days old)
+- [ ] **.claude/sessions/PHASE4-CONTINUATION-KICKOFF.md** (202 days old)
+- [ ] **.claude/skills/README.md** (202 days old)
+- [ ] **.claude/skills/iterative-improvement.md** (202 days old)
+- [ ] **.claude/skills/task-decomposition.md** (202 days old)
+- [ ] **.claude/testing/rubric-calculation-engines.md** (202 days old)
+- [ ] **.claude/testing/scenario-comparison-manual-test-rubric.md** (202 days old)
+- [ ] **.claude/testing/seed-script-remaining-fixes.md** (202 days old)
+- [ ] **ANTI_PATTERNS.md** (202 days old)
+- [ ] **COMPREHENSIVE-WORKFLOW-GUIDE.md** (202 days old)
+- [ ] **ITERATION-A-QUICKSTART.md** (202 days old)
+- [ ] **MIGRATION-NATIVE-MEMORY.md** (202 days old)
+- [ ] **PRODUCTION_RUNBOOK.md** (202 days old)
+- [ ] **PROMPT_PATTERNS.md** (202 days old)
+- [ ] **cheatsheets/baseline-governance.md** (90 days old)
+- [ ] **cheatsheets/daily-workflow.md** (128 days old)
+- [ ] **cheatsheets/emoji-free-documentation.md** (202 days old)
+- [ ] **cheatsheets/pr-merge-verification.md** (125 days old)
+- [ ] **cheatsheets/schema-alignment.md** (202 days old)
+- [ ] **docs/CA-IMPLEMENTATION-PLAN.md** (202 days old)
+- [ ] **docs/CA-SEMANTIC-LOCK.md** (202 days old)
+- [ ] **docs/DECISIONS.md** (202 days old)
+- [ ] **docs/DEPLOYMENT.md** (202 days old)
+- [ ] **docs/DEVELOPMENT_STRATEGY.md** (202 days old)
+- [ ] **docs/MILESTONE-XIRR-PHASE0-COMPLETE.md** (202 days old)
+- [ ] **docs/PRODUCTION_CHECKLIST.md** (202 days old)
+- [ ] **docs/RATE_LIMITING_SUMMARY.md** (202 days old)
+- [ ] **docs/SCENARIO_DEPLOY_GUIDE.md** (202 days old)
+- [ ] **docs/VERIFICATION_CHECKLIST.md** (202 days old)
+- [ ] **docs/action-plans/CODEX-FIXES-EXECUTION-SUMMARY.md** (202 days old)
+- [ ] **docs/action-plans/CODEX-ISSUES-RESOLUTION-PLAN.md** (202 days old)
+- [ ] **docs/adr/ADR-008-capital-allocation-policy.md** (202 days old)
+- [ ] **docs/agent-2-mobile-executive-dashboard.md** (202 days old)
+- [ ] **docs/api/architecture/portfolio-route-api.md** (202 days old)
+- [ ] **docs/api/testing/portfolio-route-test-strategy.md** (202 days old)
+- [ ] **docs/behavioral-specs/time-travel-analytics-service-specs.md** (202 days old)
+- [ ] **docs/chaos-engineering/README.md** (202 days old)
+- [ ] **docs/chaos-engineering/RLS-CHAOS-TESTING-PLAN.md** (202 days old)
+- [ ] **docs/deployment/CODEX-FIXES-DEPLOYMENT-STATUS.md** (202 days old)
+- [ ] **docs/deployment/ROLLBACK_PLAN.md** (202 days old)
+- [ ] **docs/deployment/STAGING_CHECKLIST.md** (202 days old)
+- [ ] **docs/deployment/STAGING_DEPLOYMENT_SUMMARY.md** (202 days old)
+- [ ] **docs/deployment/STAGING_METRICS.md** (202 days old)
+- [ ] **docs/failure-triage.md** (202 days old)
+- [ ] **docs/forecasting/power-law-implementation.md** (202 days old)
+- [ ] **docs/foundation/PHASE2-ROADMAP-IMPROVEMENTS.md** (202 days old)
+- [ ] **docs/foundation/PHASE2-ROADMAP.md** (202 days old)
+- [ ] **docs/foundation/PHASE3-KICKOFF.md** (202 days old)
+- [ ] **docs/foundation/PHASE4-KICKOFF.md** (202 days old)
+- [ ] **docs/integration/upstash-setup.md** (202 days old)
+- [ ] **docs/notebooklm-sources/reserves/01-overview.md** (202 days old)
+- [ ] **docs/notebooklm-sources/waterfall.md** (202 days old)
+- [ ] **docs/notebooklm-sources/xirr.md** (202 days old)
+- [ ] **docs/npm-bin-resolution-investigation.md** (202 days old)
+- [ ] **docs/observability/EDITORIAL-V2-CHANGELOG.md** (202 days old)
+- [ ] **docs/observability/README.md** (202 days old)
+- [ ] **docs/phase0-xirr-analysis-eda20590.md** (202 days old)
+- [ ] **docs/phase1-1-1-analysis.md** (202 days old)
+- [ ] **docs/phase1-xirr-baseline-heatmap.md** (202 days old)
+- [ ] **docs/phase1b-waterfall-evaluator-hardening.md** (202 days old)
+- [ ] **docs/processes/CONTRIBUTING.md** (202 days old)
+- [ ] **docs/processes/code-review-checklist.md** (202 days old)
+- [ ] **docs/references/claude-agent-testing.md** (202 days old)
+- [ ] **docs/references/replit.md** (202 days old)
+- [ ] **docs/releases/stage-norm-phase5.md** (202 days old)
+- [ ] **docs/releases/stage-normalization-v3.4.md** (202 days old)
+- [ ] **docs/replit.md** (202 days old)
+- [ ] **docs/reviews/CA-IMPLEMENTATION-EVALUATION-FINAL.md** (202 days old)
+- [ ] **docs/skills-application-log.md** (202 days old)
 - [ ] **docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md** (999 days old)
 - [ ] **docs/skills/REFL-014-test-key-reuse-across-test-cases.md** (999 days old)
 - [ ] **docs/skills/REFL-015-postgresql-service-missing-test-database.md** (999 days old)
 - [ ] **docs/superpowers/plans/2026-06-07-forecast-drift-ux-completion.md** (999 days old)
 - [ ] **docs/superpowers/plans/2026-07-29-task160-internal-waterfall-governance.md** (999 days old)
 - [ ] **docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md** (999 days old)
-- [ ] **docs/xirr-consolidation-roadmap.md** (222 days old)
-- [ ] **docs/xirr-excel-validation.md** (201 days old)
+- [ ] **docs/xirr-consolidation-roadmap.md** (223 days old)
+- [ ] **docs/xirr-excel-validation.md** (202 days old)
 
 ## Missing Frontmatter
 
@@ -222,6 +223,8 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/3-code-review/CR_w1_v1.4.0.md`
 - [ ] `docs/3-code-review/CR_w1_v1.4.1.md`
 - [ ] `docs/3-code-review/CR_w1_v1.5.0.md`
+- [ ] `docs/4-unit-tests/COVERAGE-DEBT.md`
+- [ ] `docs/4-unit-tests/TESTING.md`
 - [ ] `docs/ARCHI.md`
 - [ ] `docs/CA-PACING-ORACLE.md`
 - [ ] `docs/CRITICAL-REVIEW-secondary-surface-governance.md`
@@ -236,6 +239,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/design/updog-design-philosophy-v3.1.1-implementation-notes.md`
 - [ ] `docs/phase2-calibration-benchmarks.md`
 - [ ] `docs/quarantine/2026-05-28-stabilization-triage.md`
+- [ ] `docs/runbooks/capital-call-outbox-redelivery.md`
 - [ ] `docs/runbooks/current-forecast-shadow-soak.md`
 - [ ] `docs/runbooks/marginal-moic-nonproduction-shadow-soak.md`
 - [ ] `docs/skills/SKILLS_INDEX.md`
