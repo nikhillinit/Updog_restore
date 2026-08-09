@@ -389,7 +389,7 @@ async function recordCalculationFailedEvent(input: {
   claimed: ClaimedReserveScenarioRun;
   calculationInput: RunReserveScenarioCalculationInput;
   error: unknown;
-}): Promise<void> {
+}): Promise<boolean> {
   const failure = failureMetadata(input.error);
 
   try {
@@ -432,8 +432,15 @@ async function recordCalculationFailedEvent(input: {
         },
       });
     });
-  } catch {
-    // Preserve the original calculation failure.
+    return true;
+  } catch (persistError) {
+    // Preserve the original calculation failure, but tell the caller the
+    // terminal write did not land so it can keep the deadline actor alive.
+    logger.warn(
+      { err: persistError, runId: input.claimed.run.id },
+      'Failed to persist fund scenario calculation failure'
+    );
+    return false;
   }
 }
 
@@ -814,17 +821,20 @@ export async function runReserveScenarioCalculation(
   input.signal?.throwIfAborted();
 
   let claimed: ClaimedReserveScenarioRun | undefined;
+  let deadlineActor: ScenarioDeadlineActor | undefined;
   try {
     const outcome = await claimReserveScenarioRun(input);
     if (outcome === null) {
       return PRIVATE_OWNERSHIP_LOST;
     }
     claimed = outcome.value;
-    const deadlineActor = startScenarioDeadlineActor(input, claimed);
+    deadlineActor = startScenarioDeadlineActor(input, claimed);
     try {
       input.signal?.throwIfAborted();
       return await calculateReserveScenarioForContext(input, claimed);
     } finally {
+      // Success/ownership-lost paths stop the actor here; failure recovery
+      // below re-decides, keeping it alive until a run-state write landed.
       deadlineActor.stop();
     }
   } catch (error) {
@@ -832,8 +842,13 @@ export async function runReserveScenarioCalculation(
       return PRIVATE_OWNERSHIP_LOST;
     }
     const activeClaim = claimed;
+    let runStateResolved = true;
     if (activeClaim && !isFundScenarioHardTimeoutError(error) && input.isFinalAttempt !== false) {
-      await recordCalculationFailedEvent({ claimed: activeClaim, calculationInput: input, error });
+      runStateResolved = await recordCalculationFailedEvent({
+        claimed: activeClaim,
+        calculationInput: input,
+        error,
+      });
     } else if (
       activeClaim &&
       !isFundScenarioHardTimeoutError(error) &&
@@ -847,16 +862,24 @@ export async function runReserveScenarioCalculation(
         // Double-failure path: the calculation failed AND the requeue write
         // failed. Fall back to the terminal ordinary-failure write so the
         // retry attempt honestly zero-rows instead of executing against a
-        // stranded 'running' row. If even that write fails, the row's
-        // persisted deadline bounds it: the deadline actor/sweep terminalizes
-        // it with HARD_TIMEOUT one window later. The claim predicate stays
-        // plan-locked to status='queued' — no running retake.
+        // stranded 'running' row. The claim predicate stays plan-locked to
+        // status='queued' — no running retake.
         logger.warn(
           { err: requeueError, runId: activeClaim.run.id },
           'Failed to requeue fund scenario run for retry; persisting terminal failure instead'
         );
-        await recordCalculationFailedEvent({ claimed: activeClaim, calculationInput: input, error });
+        runStateResolved = await recordCalculationFailedEvent({
+          claimed: activeClaim,
+          calculationInput: input,
+          error,
+        });
       }
+    }
+    if (!runStateResolved && activeClaim && deadlineActor) {
+      // No run-state write landed: restart the deadline actor so the row is
+      // terminalized with HARD_TIMEOUT at its persisted deadline even when
+      // the sweep is disabled.
+      deadlineActor = startScenarioDeadlineActor(input, activeClaim);
     }
     throw error;
   }
