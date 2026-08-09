@@ -180,6 +180,15 @@ const QUARTERLY_REVIEW_WORKFLOW_MANIFEST_TABLES = [
   'quarterly_review_command_receipts',
 ] as const;
 const KPI_OBSERVATIONS_MANIFEST_TABLES = ['kpi_observations'] as const;
+const G3_PORTFOLIO_AND_CALCULATION_MANIFEST_TABLES = [
+  'portfoliocompanies',
+  'fund_scenario_calculation_runs',
+  'portfolio_company_update_receipts',
+] as const;
+const G3_CANARY_MANIFEST_TABLES = ['users', 'release_canary_runs', 'funds'] as const;
+const G3_CAPITAL_CALL_NOTIFICATION_OUTBOX_MANIFEST_TABLES = [
+  'capital_call_notification_outbox',
+] as const;
 const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'M1-cohort',
   'M2-fund-moic',
@@ -856,6 +865,9 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...INTERNAL_ECONOMICS_LINKAGE_MANIFEST_TABLES,
         ...QUARTERLY_REVIEW_WORKFLOW_MANIFEST_TABLES,
         ...KPI_OBSERVATIONS_MANIFEST_TABLES,
+        ...G3_PORTFOLIO_AND_CALCULATION_MANIFEST_TABLES,
+        ...G3_CANARY_MANIFEST_TABLES,
+        ...G3_CAPITAL_CALL_NOTIFICATION_OUTBOX_MANIFEST_TABLES,
       ])
     );
 
