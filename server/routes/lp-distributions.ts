@@ -30,6 +30,7 @@ import {
   respondInvalidCursor,
 } from '../lib/lp-api-helpers';
 import { createRouteLogger } from '../lib/route-logger.js';
+import { productionFundPredicate } from '../lib/canary-exclusion';
 
 const routeLog = createRouteLogger('lp-distributions');
 
@@ -151,7 +152,7 @@ router.get(
         })
         .from(lpDistributionDetails)
         .leftJoin(funds, eq(lpDistributionDetails.fundId, funds.id))
-        .where(and(...conditions))
+        .where(and(...conditions, productionFundPredicate()))
         .orderBy(desc(lpDistributionDetails.distributionDate), desc(lpDistributionDetails.id))
         .limit(query.limit + 1)
         .offset(startOffset);
@@ -276,7 +277,8 @@ router.get(
           returnOfCapitalCents: lpDistributionDetails.returnOfCapitalCents,
         })
         .from(lpDistributionDetails)
-        .where(and(...conditions))
+        .innerJoin(funds, eq(lpDistributionDetails.fundId, funds.id))
+        .where(and(...conditions, productionFundPredicate()))
         .orderBy(desc(lpDistributionDetails.distributionDate));
 
       // Group by year
@@ -414,7 +416,8 @@ router.get(
           and(
             eq(lpDistributionDetails.lpId, lpId),
             sql`${lpDistributionDetails.distributionDate} >= ${yearStart}`,
-            sql`${lpDistributionDetails.distributionDate} <= ${yearEnd}`
+            sql`${lpDistributionDetails.distributionDate} <= ${yearEnd}`,
+            productionFundPredicate()
           )
         );
 
@@ -573,7 +576,7 @@ router.get(
         })
         .from(lpDistributionDetails)
         .leftJoin(funds, eq(lpDistributionDetails.fundId, funds.id))
-        .where(eq(lpDistributionDetails.id, distributionId))
+        .where(and(eq(lpDistributionDetails.id, distributionId), productionFundPredicate()))
         .limit(1);
 
       if (distributions.length === 0) {

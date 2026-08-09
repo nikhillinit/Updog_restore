@@ -137,18 +137,28 @@ export type FundFinalizeV1 = z.infer<typeof FundFinalizeV1Schema>;
 // Response schema
 // ---------------------------------------------------------------------------
 
-export const FundFinalizeResponseV1Schema = z
-  .object({
-    success: z.literal(true),
-    data: z.object({
-      fundId: z.number().int().positive(),
-      configVersion: z.number().int().positive(),
-      correlationId: z.string().uuid(),
-      runId: z.number().int().positive().optional(),
-      dispatchState: z.enum(['pending', 'dispatched', 'partial', 'failed']).optional(),
-      published: z.boolean(),
-    }),
-  })
-  .strict();
+const FundFinalizeResponseV1BaseSchema = z.object({
+  success: z.literal(true),
+  data: z.object({
+    fundId: z.number().int().positive(),
+    configVersion: z.number().int().positive(),
+    correlationId: z.string().uuid(),
+    runId: z.number().int().positive().optional(),
+    dispatchState: z.enum(['pending', 'dispatched', 'partial', 'failed']).optional(),
+    published: z.boolean(),
+  }),
+});
+
+export const FundFinalizeResponseV1Schema = z.union([
+  FundFinalizeResponseV1BaseSchema.extend({
+    renewedAccessToken: z.string().min(1),
+    credentialRenewal: z.never().optional(),
+  }).strict(),
+  FundFinalizeResponseV1BaseSchema.extend({
+    renewedAccessToken: z.never().optional(),
+    credentialRenewal: z.literal('reauth_required'),
+  }).strict(),
+  FundFinalizeResponseV1BaseSchema.strict(),
+]);
 
 export type FundFinalizeResponseV1 = z.infer<typeof FundFinalizeResponseV1Schema>;

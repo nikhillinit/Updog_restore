@@ -19,6 +19,7 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as jsonpatch from 'fast-json-patch';
 import { NotFoundError } from '../errors';
 import { logger } from '../logger';
+import { productionFundPredicate } from '../lib/canary-exclusion';
 
 /**
  * Cache interface for dependency injection
@@ -390,7 +391,11 @@ export class TimeTravelAnalyticsService {
       })
       .from(fundEvents)
       .leftJoin(funds, eq(fundEvents.fundId, funds.id))
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .where(
+        conditions.length > 0
+          ? and(...conditions, productionFundPredicate())
+          : productionFundPredicate()
+      )
       .orderBy(desc(fundEvents.eventTime))
       .limit(limit);
 

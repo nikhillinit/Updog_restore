@@ -331,6 +331,13 @@ export default function ReviewStep() {
       });
       const result = await finalizeFund(payload);
       const fundId = result.data.fundId;
+      if ('credentialRenewal' in result && result.credentialRenewal === 'reauth_required') {
+        // Fund committed; session credential could not be renewed. The session
+        // gate is active -- stop follow-on navigation and surface the state.
+        setSubmitError('Fund created. Session renewal required: sign in again to continue.');
+        setSubmitState('error');
+        return;
+      }
       await finalizeSuccessfulPublish(fundId);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create fund';

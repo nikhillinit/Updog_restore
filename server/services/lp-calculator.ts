@@ -20,8 +20,9 @@ import {
   lpCapitalAccounts,
   lpPerformanceSnapshots,
 } from '@shared/schema-lp-reporting';
-import { portfolioCompanies, investments } from '@shared/schema';
+import { funds, portfolioCompanies, investments } from '@shared/schema';
 import { encryptField, decryptField } from '../lib/crypto/field-encryption';
+import { productionFundPredicate } from '../lib/canary-exclusion';
 
 // ============================================================================
 // CUSTOM ERROR CLASSES
@@ -233,9 +234,13 @@ export class LPCalculator {
 
     // Get all commitments
     const commitments = await db
-      .select()
+      .select({
+        id: lpFundCommitments.id,
+        commitmentAmountCents: lpFundCommitments.commitmentAmountCents,
+      })
       .from(lpFundCommitments)
-      .where(eq(lpFundCommitments.lpId, lpId));
+      .innerJoin(funds, eq(lpFundCommitments.fundId, funds.id))
+      .where(and(eq(lpFundCommitments.lpId, lpId), productionFundPredicate(funds.dataOrigin)));
 
     if (commitments.length === 0) {
       return {
@@ -257,7 +262,14 @@ export class LPCalculator {
     const latestAccounts = await db
       .select()
       .from(lpCapitalAccounts)
-      .where(inArray(lpCapitalAccounts.commitmentId, commitmentIds))
+      .innerJoin(lpFundCommitments, eq(lpCapitalAccounts.commitmentId, lpFundCommitments.id))
+      .innerJoin(funds, eq(lpFundCommitments.fundId, funds.id))
+      .where(
+        and(
+          inArray(lpCapitalAccounts.commitmentId, commitmentIds),
+          productionFundPredicate(funds.dataOrigin)
+        )
+      )
       .orderBy(desc(lpCapitalAccounts.asOfDate));
 
     // Aggregate metrics
@@ -268,8 +280,9 @@ export class LPCalculator {
     let totalUnfundedCents = BigInt(0);
 
     // Group accounts by commitment ID and take the latest
-    const latestAccountMap = new Map<number, (typeof latestAccounts)[0]>();
-    for (const account of latestAccounts) {
+    const latestAccountMap = new Map<number, (typeof latestAccounts)[0]['lp_capital_accounts']>();
+    for (const accountRow of latestAccounts) {
+      const account = accountRow.lp_capital_accounts;
       if (!latestAccountMap.has(account.commitmentId)) {
         latestAccountMap.set(account.commitmentId, account);
       }
@@ -292,11 +305,19 @@ export class LPCalculator {
     const latestPerformance = await db
       .select()
       .from(lpPerformanceSnapshots)
-      .where(inArray(lpPerformanceSnapshots.commitmentId, commitmentIds))
+      .innerJoin(lpFundCommitments, eq(lpPerformanceSnapshots.commitmentId, lpFundCommitments.id))
+      .innerJoin(funds, eq(lpFundCommitments.fundId, funds.id))
+      .where(
+        and(
+          inArray(lpPerformanceSnapshots.commitmentId, commitmentIds),
+          productionFundPredicate(funds.dataOrigin)
+        )
+      )
       .orderBy(desc(lpPerformanceSnapshots.snapshotDate));
 
-    const perfMap = new Map<number, (typeof latestPerformance)[0]>();
-    for (const perf of latestPerformance) {
+    const perfMap = new Map<number, (typeof latestPerformance)[0]['lp_performance_snapshots']>();
+    for (const perfRow of latestPerformance) {
+      const perf = perfRow.lp_performance_snapshots;
       if (!perfMap.has(perf.commitmentId)) {
         perfMap.set(perf.commitmentId, perf);
       }
@@ -341,14 +362,21 @@ export class LPCalculator {
     const commitment = await db
       .select()
       .from(lpFundCommitments)
-      .where(and(eq(lpFundCommitments.lpId, lpId), eq(lpFundCommitments.fundId, fundId)))
+      .innerJoin(funds, eq(lpFundCommitments.fundId, funds.id))
+      .where(
+        and(
+          eq(lpFundCommitments.lpId, lpId),
+          eq(lpFundCommitments.fundId, fundId),
+          productionFundPredicate(funds.dataOrigin)
+        )
+      )
       .limit(1);
 
     if (commitment.length === 0) {
       throw new Error(`LP ${lpId} has no commitment to fund ${fundId}`);
     }
 
-    const commitmentData = commitment[0];
+    const commitmentData = commitment[0]?.lp_fund_commitments;
     if (!commitmentData) {
       throw new Error(`LP ${lpId} has no commitment to fund ${fundId}`);
     }
@@ -440,10 +468,13 @@ export class LPCalculator {
         description: capitalActivities.description,
       })
       .from(capitalActivities)
+      .innerJoin(lpFundCommitments, eq(capitalActivities.commitmentId, lpFundCommitments.id))
+      .innerJoin(funds, eq(lpFundCommitments.fundId, funds.id))
       .where(
         and(
           eq(capitalActivities.commitmentId, commitmentId),
-          lte(capitalActivities.effectiveDate, new Date(asOfDate))
+          lte(capitalActivities.effectiveDate, new Date(asOfDate)),
+          productionFundPredicate(funds.dataOrigin)
         )
       )
       .orderBy(capitalActivities.effectiveDate, capitalActivities.id);
@@ -488,16 +519,19 @@ export class LPCalculator {
     const snapshots = await db
       .select()
       .from(lpPerformanceSnapshots)
+      .innerJoin(lpFundCommitments, eq(lpPerformanceSnapshots.commitmentId, lpFundCommitments.id))
+      .innerJoin(funds, eq(lpFundCommitments.fundId, funds.id))
       .where(
         and(
           eq(lpPerformanceSnapshots.commitmentId, commitmentId),
           gte(lpPerformanceSnapshots.snapshotDate, new Date(startDate)),
-          lte(lpPerformanceSnapshots.snapshotDate, new Date(endDate))
+          lte(lpPerformanceSnapshots.snapshotDate, new Date(endDate)),
+          productionFundPredicate(funds.dataOrigin)
         )
       )
       .orderBy(lpPerformanceSnapshots.snapshotDate);
 
-    return snapshots.map((snapshot) => ({
+    return snapshots.map(({ lp_performance_snapshots: snapshot }) => ({
       date: snapshot.snapshotDate.toISOString().split('T')[0] ?? '',
       irr: snapshot.irr ? Number(snapshot.irr) : null,
       moic: snapshot.moic ? Number(snapshot.moic) : null,

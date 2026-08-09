@@ -225,7 +225,9 @@ export async function createServer(
       // Mock context for development
       const fundId = firstString(req.params['fundId']) ?? firstString(req.query['fundId']);
       req.context = {
-        userId: 'dev-user',
+        // Seed users use serial id 1 for admin. Keep development writes tied
+        // to that real actor so creator grants and ownership checks work.
+        userId: String(config.DEFAULT_USER_ID),
         email: 'dev@example.com',
         role: 'admin',
         orgId: 'dev-org',

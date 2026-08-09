@@ -10,7 +10,11 @@ import { useFundSelector, useFundAction } from '@/stores/useFundSelector';
 import { useFundContext } from '@/contexts/FundContext';
 import { fundStore } from '@/stores/fundStore';
 import { fundStoreToCreateV1, fundStoreToDraftWriteV1 } from '@/adapters/fund-store-adapters';
-import { createFund, normalizeCreateFundResponse } from '@/services/funds';
+import {
+  createFund,
+  handleCredentialRenewalMarker,
+  normalizeCreateFundResponse,
+} from '@/services/funds';
 import { saveFundDraft } from '@/services/fund-drafts';
 import { useFlag } from '@/hooks/useUnifiedFlag';
 import { ModernStepContainer } from '@/components/wizard/ModernStepContainer';
@@ -121,6 +125,14 @@ export default function FundBasicsStep() {
         const payload = fundStoreToCreateV1(fundStore.getState());
         const raw = await createFund({ ...payload });
         const fund = normalizeCreateFundResponse(raw);
+        if (handleCredentialRenewalMarker(raw)) {
+          // Fund committed but this session's credential could not be renewed;
+          // the session gate is now active. Keep the identity, stop writes.
+          setDraftFundId(fund.id);
+          setBootstrapError('Session renewal required. Sign in again to continue editing.');
+          setBootstrapStage('idle');
+          return;
+        }
         const normalizedSize =
           typeof fund['size'] === 'number' ? fund['size'] : Number(fund['size'] ?? 0);
         const now = new Date().toISOString();

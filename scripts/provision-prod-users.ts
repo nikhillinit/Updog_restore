@@ -26,6 +26,7 @@ import { funds, userFundGrants, users } from '@shared/schema';
 import {
   assertFundIdsExist,
   assertIdentityFileOutsideRepo,
+  assertReleaseCanaryPrincipalImmutable,
   getProdIdentityBcryptCost,
   parseProdIdentityFile,
   ProdIdentityValidationError,
@@ -90,9 +91,9 @@ async function provisionProdUsers(): Promise<number> {
 
   const isDryRun = cliArgs.includes('--dry-run') || process.env['DRY_RUN'] === '1';
   if (isDryRun) {
-    for (const { username, role, fundIds } of identities) {
+    for (const { username, role, fundIds, releaseCanaryPrincipal } of identities) {
       console.log(
-        `[DONE] DRY RUN username=${JSON.stringify(username)} role=${role} grants=${fundIds.length}`
+        `[DONE] DRY RUN username=${JSON.stringify(username)} role=${role} grants=${fundIds.length} releaseCanaryPrincipal=${releaseCanaryPrincipal === true}`
       );
     }
     return identities.length;
@@ -108,6 +109,18 @@ async function provisionProdUsers(): Promise<number> {
 
   for (const { identity, passwordHash } of preparedIdentities) {
     const { username, role, fundIds } = identity;
+    const releaseCanaryPrincipal = identity.releaseCanaryPrincipal === true;
+    const [existingUser] = await db
+      .select({ id: users.id, isReleaseCanaryPrincipal: users.isReleaseCanaryPrincipal })
+      .from(users)
+      .where(eq(users.username, username))
+      .limit(1);
+    assertReleaseCanaryPrincipalImmutable(
+      username,
+      existingUser?.isReleaseCanaryPrincipal,
+      releaseCanaryPrincipal
+    );
+
     const upsertUser = db
       .insert(users)
       .values({
@@ -115,6 +128,7 @@ async function provisionProdUsers(): Promise<number> {
         password: passwordHash,
         role,
         isActive: true,
+        isReleaseCanaryPrincipal: releaseCanaryPrincipal,
         passwordUpdatedAt: sql`now()`,
         updatedAt: sql`now()`,
       })
@@ -127,12 +141,14 @@ async function provisionProdUsers(): Promise<number> {
           passwordUpdatedAt: sql`now()`,
           updatedAt: sql`now()`,
         },
+        where: sql`${users.isReleaseCanaryPrincipal} = ${releaseCanaryPrincipal}`,
       });
 
     const userIdByUsername = sql<number>`(
       SELECT ${users.id}
       FROM ${users}
       WHERE ${users.username} = ${username}
+        AND ${users.isReleaseCanaryPrincipal} = ${releaseCanaryPrincipal}
     )`;
     const deleteExistingGrants = db
       .delete(userFundGrants)
@@ -152,8 +168,24 @@ async function provisionProdUsers(): Promise<number> {
       await db.batch([upsertUser, deleteExistingGrants]);
     }
 
+    const [provisionedUser] = await db
+      .select({ isReleaseCanaryPrincipal: users.isReleaseCanaryPrincipal })
+      .from(users)
+      .where(eq(users.username, username))
+      .limit(1);
+    if (!provisionedUser) {
+      throw new ProvisioningInputError(
+        `User provisioning did not create or preserve username ${JSON.stringify(username)}.`
+      );
+    }
+    assertReleaseCanaryPrincipalImmutable(
+      username,
+      provisionedUser.isReleaseCanaryPrincipal,
+      releaseCanaryPrincipal
+    );
+
     console.log(
-      `[DONE] username=${JSON.stringify(username)} role=${role} grants=${fundIds.length}`
+      `[DONE] username=${JSON.stringify(username)} role=${role} grants=${fundIds.length} releaseCanaryPrincipal=${releaseCanaryPrincipal}`
     );
   }
 

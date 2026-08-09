@@ -29,6 +29,7 @@ import {
   resolveStorageBootMode,
 } from './storage-runtime-policy';
 import { buildSeedUsers } from './lib/seed-users';
+import { productionFundPredicate } from './lib/canary-exclusion';
 
 // Round and performance case types (simplified versions without schema definition)
 export interface InvestmentRound {
@@ -635,7 +636,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllFunds(): Promise<Fund[]> {
-    return await db.select().from(funds);
+    return await db.select().from(funds).where(productionFundPredicate(funds.dataOrigin));
   }
 
   async getFund(id: number): Promise<Fund | undefined> {

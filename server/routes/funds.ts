@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import idempotency from '../middleware/idempotency';
 import { z } from 'zod';
 import { funds as persistedFunds } from '@shared/schema';
+import { PARTNER_WRITE_ROLES } from '@shared/auth/effective-roles';
 import type { ApiError } from '@shared/types';
 import { toNumber } from '@shared/number';
 import { hashPayload } from '../lib/hash';
@@ -18,10 +19,17 @@ import { fundPersistenceService } from '../services/fund-persistence-service';
 import { sendApiError } from '../lib/apiError';
 import { FundCreateV1Schema } from '@shared/contracts/fund-create-v1.contract';
 import { logger } from '../lib/logger.js';
+import { requireWriteRole } from '../lib/auth/jwt';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
+import {
+  creatorUserIdFromRequest,
+  renewCreationCredential,
+} from '../lib/auth/creator-identity';
 import { handleNumberParseError } from '../lib/number-parse-error';
+import { productionFundPredicate } from '../lib/canary-exclusion';
 
 const router = Router();
+const requirePartnerWrite = requireWriteRole(PARTNER_WRITE_ROLES);
 
 type PersistedFund = typeof persistedFunds.$inferSelect;
 type StoredFund = Awaited<ReturnType<typeof storage.getAllFunds>>[number];
@@ -119,7 +127,7 @@ function normalizeStoredFund(fund: StoredFund): PersistedFund {
 
 async function getCanonicalFunds(): Promise<PersistedFund[]> {
   const [dbFunds, memoryFunds] = await Promise.all([
-    db.select().from(persistedFunds),
+    db.select().from(persistedFunds).where(productionFundPredicate(persistedFunds.dataOrigin)),
     storage.getAllFunds(),
   ]);
 
@@ -205,7 +213,7 @@ router['get']('/funds/:id', async (req: Request, res: Response) => {
   }
 });
 
-router['post']('/funds', idempotency, async (req: Request, res: Response) => {
+router['post']('/funds', requirePartnerWrite, idempotency, async (req: Request, res: Response) => {
   const parsed = FundCreateV1Schema.safeParse(req.body);
   if (!parsed.success) {
     return sendApiError(res, 400, {
@@ -217,12 +225,21 @@ router['post']('/funds', idempotency, async (req: Request, res: Response) => {
 
   try {
     const data = parsed.data;
+    const creatorUserId = creatorUserIdFromRequest(req);
+    if (creatorUserId === undefined) {
+      return sendApiError(res, 401, {
+        error: 'Authentication identity is invalid',
+        code: 'INVALID_AUTHENTICATION_IDENTITY',
+      });
+    }
+
     const fundInput = {
       name: data.name,
       size: String(data.size),
       managementFee: String(data.managementFee),
       carryPercentage: String(data.carryPercentage),
       vintageYear: data.vintageYear,
+      creatorUserId,
       ...(data.engineResults != null && { engineResults: data.engineResults }),
     };
 
@@ -230,12 +247,16 @@ router['post']('/funds', idempotency, async (req: Request, res: Response) => {
     const { fund } = await fundPersistenceService.createFundWithInitialDraft(fundInput);
     logger.info({ fundId: fund.id }, 'fund.created');
 
-    res.status(201);
-    return res.json({
+    const credentialRenewal = await renewCreationCredential(req, res, fund.id, creatorUserId);
+    const response = {
       success: true,
       data: toClientFund(fund),
       message: 'Fund created successfully',
-    });
+      ...credentialRenewal,
+    };
+
+    res.status(201);
+    return res.json(response);
   } catch (error) {
     logger.error({ err: error }, 'fund.create.failed');
     res.status(500);

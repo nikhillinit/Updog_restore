@@ -40,6 +40,21 @@ beforeAll(async () => {
   app.set('trust proxy', false);
   app.use(express.json({ limit: '1mb' }));
 
+  // POST /api/funds now requires a partner/admin write role (F_1.2.5 Lane C).
+  app.use((req: Request, _res: Response, next: NextFunction) => {
+    req.user = {
+      id: 77,
+      sub: '77',
+      email: 'contract-partner@example.com',
+      role: 'partner',
+      roles: ['partner'],
+      fundIds: [],
+      ip: '127.0.0.1',
+      userAgent: 'vitest',
+    };
+    next();
+  });
+
   // Mount funds router at /api (same as routes.ts:40-41)
   const fundRoutes = await import('../../../server/routes/funds');
   app.use('/api', fundRoutes.default);

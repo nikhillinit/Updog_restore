@@ -47,6 +47,15 @@ function handleUnauthorized(): void {
   queryClient.setQueryData(AUTH_SESSION_QUERY_KEY, null);
 }
 
+/**
+ * A committed mutation returned credentialRenewal: 'reauth_required' — the
+ * server could not renew this session's credential. Route the user through
+ * the same session gate as an unexpected 401 without retrying the mutation.
+ */
+export function markSessionReauthRequired(): void {
+  handleUnauthorized();
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;

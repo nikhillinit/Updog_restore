@@ -15,8 +15,18 @@ const prodIdentitySchema = z
       .refine((fundIds) => new Set(fundIds).size === fundIds.length, {
         message: 'fundIds must not contain duplicates',
       }),
+    releaseCanaryPrincipal: z.boolean().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((identity, context) => {
+    if (identity.releaseCanaryPrincipal === true && identity.role !== 'partner') {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['role'],
+        message: 'releaseCanaryPrincipal requires partner role',
+      });
+    }
+  });
 
 const prodIdentityFileSchema = z.array(prodIdentitySchema).min(1);
 
@@ -61,6 +71,18 @@ export function parseProdIdentityFile(contents: string): ProdIdentity[] {
     );
   }
 
+  const canaryPrincipalUsernames = identities
+    .filter(({ releaseCanaryPrincipal }) => releaseCanaryPrincipal === true)
+    .map(({ username }) => username);
+  if (canaryPrincipalUsernames.length > 1) {
+    throw new ProdIdentityValidationError(
+      `Only one release canary principal is allowed: ${canaryPrincipalUsernames
+        .sort()
+        .map((username) => JSON.stringify(username))
+        .join(', ')}`
+    );
+  }
+
   const devPasswordUsernames = identities
     .filter(({ password }) => DEV_SEED_PASSWORDS.has(password))
     .map(({ username }) => username)
@@ -75,6 +97,18 @@ export function parseProdIdentityFile(contents: string): ProdIdentity[] {
   }
 
   return identities;
+}
+
+export function assertReleaseCanaryPrincipalImmutable(
+  username: string,
+  existingFlag: boolean | undefined,
+  requestedFlag: boolean
+): void {
+  if (existingFlag !== undefined && existingFlag !== requestedFlag) {
+    throw new ProdIdentityValidationError(
+      `Refusing to change releaseCanaryPrincipal for existing username ${JSON.stringify(username)}.`
+    );
+  }
 }
 
 export function assertIdentityFileOutsideRepo(filePath: string, repoRoot: string): string {

@@ -21,7 +21,7 @@ import { requireLPAccess } from '../middleware/requireLPAccess';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { db } from '../db';
-import { eq, and, desc, sql, gte, lte } from 'drizzle-orm';
+import { eq, and, desc, sql, gte, lte, isNull, or } from 'drizzle-orm';
 import { lpDocuments } from '@shared/schema-lp-sprint3';
 import { funds } from '@shared/schema';
 import { createCursor, verifyCursor } from '../lib/crypto/cursor-signing';
@@ -34,6 +34,7 @@ import {
   respondInvalidCursor,
 } from '../lib/lp-api-helpers';
 import { createRouteLogger } from '../lib/route-logger.js';
+import { productionFundPredicate } from '../lib/canary-exclusion';
 
 const routeLog = createRouteLogger('lp-documents');
 
@@ -184,7 +185,7 @@ router.get('/documents', documentsLimiter, requireLPAccess, async (req: Request,
       })
       .from(lpDocuments)
       .leftJoin(funds, eq(lpDocuments.fundId, funds.id))
-      .where(and(...conditions))
+      .where(and(...conditions, or(isNull(funds.id), productionFundPredicate(funds.dataOrigin))))
       .orderBy(desc(lpDocuments.publishedAt))
       .limit(query.limit + 1)
       .offset(startOffset);
@@ -312,7 +313,7 @@ router.get(
         })
         .from(lpDocuments)
         .leftJoin(funds, eq(lpDocuments.fundId, funds.id))
-        .where(and(...conditions))
+        .where(and(...conditions, or(isNull(funds.id), productionFundPredicate(funds.dataOrigin))))
         .orderBy(desc(lpDocuments.publishedAt))
         .limit(query.limit);
 
@@ -402,7 +403,12 @@ router.get(
         })
         .from(lpDocuments)
         .leftJoin(funds, eq(lpDocuments.fundId, funds.id))
-        .where(eq(lpDocuments.id, documentId))
+        .where(
+          and(
+            eq(lpDocuments.id, documentId),
+            or(isNull(funds.id), productionFundPredicate(funds.dataOrigin))
+          )
+        )
         .limit(1);
 
       if (documents.length === 0) {
@@ -507,9 +513,16 @@ router.get(
           storageKey: lpDocuments.storageKey,
           accessLevel: lpDocuments.accessLevel,
           status: lpDocuments.status,
+          fundId: lpDocuments.fundId,
         })
         .from(lpDocuments)
-        .where(eq(lpDocuments.id, documentId))
+        .leftJoin(funds, eq(lpDocuments.fundId, funds.id))
+        .where(
+          and(
+            eq(lpDocuments.id, documentId),
+            or(isNull(funds.id), productionFundPredicate(funds.dataOrigin))
+          )
+        )
         .limit(1);
 
       if (documents.length === 0) {

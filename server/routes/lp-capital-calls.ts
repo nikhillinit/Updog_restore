@@ -31,6 +31,7 @@ import {
   respondInvalidCursor,
 } from '../lib/lp-api-helpers';
 import { createRouteLogger } from '../lib/route-logger.js';
+import { productionFundPredicate } from '../lib/canary-exclusion';
 
 const routeLog = createRouteLogger('lp-capital-calls');
 
@@ -151,7 +152,7 @@ router.get(
         })
         .from(lpCapitalCalls)
         .leftJoin(funds, eq(lpCapitalCalls.fundId, funds.id))
-        .where(and(...conditions))
+        .where(and(...conditions, productionFundPredicate()))
         .orderBy(desc(lpCapitalCalls.callDate), desc(lpCapitalCalls.id))
         .limit(query.limit + 1) // Fetch one extra to check hasMore
         .offset(startOffset);
@@ -285,7 +286,7 @@ router.get(
         })
         .from(lpCapitalCalls)
         .leftJoin(funds, eq(lpCapitalCalls.fundId, funds.id))
-        .where(eq(lpCapitalCalls.id, callId))
+        .where(and(eq(lpCapitalCalls.id, callId), productionFundPredicate()))
         .limit(1);
 
       if (calls.length === 0) {
@@ -421,7 +422,8 @@ router.get(
           wireInstructions: lpCapitalCalls.wireInstructions,
         })
         .from(lpCapitalCalls)
-        .where(eq(lpCapitalCalls.id, callId))
+        .leftJoin(funds, eq(lpCapitalCalls.fundId, funds.id))
+        .where(and(eq(lpCapitalCalls.id, callId), productionFundPredicate()))
         .limit(1);
 
       if (calls.length === 0) {
@@ -528,7 +530,8 @@ router.post(
           version: lpCapitalCalls.version,
         })
         .from(lpCapitalCalls)
-        .where(eq(lpCapitalCalls.id, callId))
+        .leftJoin(funds, eq(lpCapitalCalls.fundId, funds.id))
+        .where(and(eq(lpCapitalCalls.id, callId), productionFundPredicate()))
         .limit(1);
 
       if (calls.length === 0) {

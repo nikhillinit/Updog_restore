@@ -227,6 +227,33 @@ describe('ReviewStep single-submit via finalize', () => {
     );
   });
 
+  it('stops post-finalize navigation and surfaces reauth when renewal is required', async () => {
+    mockFinalizeFund.mockResolvedValue({
+      success: true,
+      data: {
+        fundId: 77,
+        configVersion: 1,
+        correlationId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+        published: true,
+      },
+      credentialRenewal: 'reauth_required',
+    });
+
+    render(<ReviewStep />);
+
+    await userEvent.click(screen.getByTestId('create-fund-button'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Fund created. Session renewal required: sign in again to continue.')
+      ).toBeInTheDocument();
+    });
+
+    expect(mockFinalizeFund).toHaveBeenCalledTimes(1);
+    expect(mockSetLocation).not.toHaveBeenCalled();
+    expect(mockInvalidateQueries).not.toHaveBeenCalled();
+  });
+
   it('blocks submit when the economics dry-run fails validation', async () => {
     mockFundStoreToDraftWriteV1.mockReturnValue({
       fundName: 'Finalize Test Fund',

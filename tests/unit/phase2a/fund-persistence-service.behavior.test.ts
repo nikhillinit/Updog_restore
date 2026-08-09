@@ -75,6 +75,160 @@ function valuesReturning(value: unknown) {
   };
 }
 
+describe('FundPersistenceService creator grant transaction', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('inserts creator grant between fund creation and draft creation in same transaction', async () => {
+    const service = new FundPersistenceService();
+    const fund = {
+      id: 77,
+      name: 'Creator Grant Fund',
+      size: '10000000',
+      managementFee: '0.02',
+      carryPercentage: '0.2',
+      vintageYear: 2026,
+    };
+    const draft = {
+      id: 78,
+      fundId: 77,
+      version: 1,
+      config: {},
+      isDraft: true,
+      isPublished: false,
+    };
+    const tx = {
+      query: {
+        users: {
+          findFirst: vi.fn().mockResolvedValue({ isReleaseCanaryPrincipal: false }),
+        },
+      },
+      insert: vi
+        .fn()
+        .mockReturnValueOnce(valuesReturning([fund]))
+        .mockReturnValueOnce(valuesResolved(undefined))
+        .mockReturnValueOnce(valuesReturning([draft]))
+        .mockReturnValueOnce(valuesResolved(undefined)),
+    };
+
+    mockDb.transaction.mockImplementation(async (callback: (tx: typeof tx) => Promise<unknown>) =>
+      callback(tx)
+    );
+
+    const result = await service.createFundWithInitialDraft({
+      name: fund.name,
+      size: fund.size,
+      managementFee: fund.managementFee,
+      carryPercentage: fund.carryPercentage,
+      vintageYear: fund.vintageYear,
+      creatorUserId: 12,
+    });
+
+    expect(result.fund.id).toBe(77);
+    expect(tx.insert).toHaveBeenCalledTimes(4);
+    expect(tx.insert.mock.results[0]?.value.values).toHaveBeenCalledWith(
+      expect.objectContaining({ dataOrigin: 'production', canaryRunId: null })
+    );
+    expect(tx.insert.mock.results[1]?.value.values).toHaveBeenCalledWith({
+      userId: 12,
+      fundId: 77,
+    });
+  });
+
+  it('creates a release canary run and marks fund only for canary principals', async () => {
+    for (const name of [
+      'RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE',
+      'RELEASE_CANARY_MAX_FUND_RESIDUE',
+      'RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE',
+      'RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE',
+      'RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE',
+      'RELEASE_CANARY_MAX_TOTAL_RESIDUE',
+    ]) {
+      vi.stubEnv(name, '100');
+    }
+    vi.stubEnv('RELEASE_CANARY_TTL_HOURS', '24');
+
+    try {
+      const service = new FundPersistenceService();
+      const fund = {
+        id: 88,
+        name: 'Canary Fund',
+        size: '1000000',
+        managementFee: '0.02',
+        carryPercentage: '0.2',
+        vintageYear: 2026,
+      };
+      const draft = {
+        id: 89,
+        fundId: 88,
+        version: 1,
+        config: {},
+        isDraft: true,
+        isPublished: false,
+      };
+      const tx = {
+        execute: vi
+          .fn()
+          .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+          .mockResolvedValueOnce({ rows: [{ count: 0 }], rowCount: 1 })
+          .mockResolvedValueOnce({
+            rows: [{ portfolioCompany: 0, fund: 0, fundConfig: 0, fundEvent: 0, notification: 0 }],
+            rowCount: 1,
+          })
+          .mockResolvedValueOnce({
+            rows: [{ portfolioCompany: 0, fund: 1, fundConfig: 1, fundEvent: 1, notification: 0 }],
+            rowCount: 1,
+          })
+          .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
+        query: {
+          users: {
+            findFirst: vi.fn().mockResolvedValue({ isReleaseCanaryPrincipal: true }),
+          },
+        },
+        insert: vi
+          .fn()
+          .mockReturnValueOnce(valuesReturning([{ id: 'canary-run-id' }]))
+          .mockReturnValueOnce(valuesReturning([fund]))
+          .mockReturnValueOnce(valuesResolved(undefined))
+          .mockReturnValueOnce(valuesReturning([draft]))
+          .mockReturnValueOnce(valuesResolved(undefined)),
+      };
+
+      mockDb.transaction.mockImplementation(async (callback: (tx: typeof tx) => Promise<unknown>) =>
+        callback(tx)
+      );
+
+      const result = await service.createFundWithInitialDraft({
+        name: fund.name,
+        size: fund.size,
+        managementFee: fund.managementFee,
+        carryPercentage: fund.carryPercentage,
+        vintageYear: fund.vintageYear,
+        creatorUserId: 19,
+      });
+
+      expect(result.fund.id).toBe(88);
+      expect(tx.insert).toHaveBeenCalledTimes(5);
+      expect(tx.insert.mock.results[0]?.value.values).toHaveBeenCalledWith(
+        expect.objectContaining({
+          principalUserId: 19,
+          status: 'created',
+          releaseVersion: expect.any(String),
+          releaseSha: expect.any(String),
+          expiresAt: expect.any(Date),
+        })
+      );
+      expect(tx.insert.mock.results[1]?.value.values).toHaveBeenCalledWith(
+        expect.objectContaining({ dataOrigin: 'release_canary', canaryRunId: 'canary-run-id' })
+      );
+      expect(tx.execute).toHaveBeenCalledTimes(5);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
 describe('FundPersistenceService publishDraft behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks();

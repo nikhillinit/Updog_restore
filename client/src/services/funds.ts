@@ -6,6 +6,10 @@ import { clampPct, clampInt } from '../lib/coerce';
 import * as Telemetry from '../lib/telemetry';
 import { startInFlight, isInFlight, cancelInFlight, inFlightSize } from '../lib/inflight';
 import { withApiBase } from '../lib/api-url';
+import type {
+  FundFinalizeResponseV1,
+  FundFinalizeV1,
+} from '@shared/contracts/fund-finalize-v1.contract';
 
 type Json = Record<string, unknown> | unknown[] | string | number | boolean | null | undefined;
 
@@ -321,12 +325,33 @@ export function normalizeCreateFundResponse(raw: unknown): NormalizedFundRespons
 }
 
 // ---------- Convenience wrappers for backward compatibility ----------
+/**
+ * Fund creation commits before credential renewal, so a
+ * credentialRenewal: 'reauth_required' marker means the fund exists but this
+ * session's credential no longer covers it. Surface the session gate and let
+ * the caller stop follow-on writes; never retry the creation.
+ */
+export function handleCredentialRenewalMarker(body: unknown): boolean {
+  if (
+    body &&
+    typeof body === 'object' &&
+    (body as Record<string, unknown>)['credentialRenewal'] === 'reauth_required'
+  ) {
+    void import('../lib/queryClient').then(({ markSessionReauthRequired }) =>
+      markSessionReauthRequired()
+    );
+    return true;
+  }
+  return false;
+}
+
 export async function createFund(payload: Json, options?: CreateFundOptions): Promise<unknown> {
   const result = await startCreateFund(payload, options);
   if (!result.res.ok) {
     throw new Error(`Fund creation failed: ${result.res.status}`);
   }
   const data: unknown = await result.res.json();
+  handleCredentialRenewalMarker(data);
   return data;
 }
 
@@ -375,8 +400,8 @@ export async function createFundWithToast(payload: Json, options?: CreateFundOpt
 
 // ---------- Single-submit finalize endpoint ----------
 export async function finalizeFund(
-  payload: import('@shared/contracts/fund-finalize-v1.contract').FundFinalizeV1
-): Promise<import('@shared/contracts/fund-finalize-v1.contract').FundFinalizeResponseV1> {
+  payload: FundFinalizeV1
+): Promise<FundFinalizeResponseV1> {
   const idempotencyKey = computeFinalizeFundHash(payload);
   const response = await fetch(withApiBase('/api/funds/finalize'), {
     method: 'POST',
@@ -393,7 +418,7 @@ export async function finalizeFund(
       errBody.error || errBody.message || `Finalize failed (HTTP ${response.status})`
     );
   }
-  return response.json() as Promise<
-    import('@shared/contracts/fund-finalize-v1.contract').FundFinalizeResponseV1
-  >;
+  const body = (await response.json()) as FundFinalizeResponseV1;
+  handleCredentialRenewalMarker(body);
+  return body;
 }

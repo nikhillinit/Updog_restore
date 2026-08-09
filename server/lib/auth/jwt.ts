@@ -42,6 +42,10 @@ function getJwtConfig() {
   return getConfig();
 }
 
+export function getConfiguredJwtAlgorithm(): 'HS256' | 'RS256' {
+  return getJwtConfig().JWT_ALG;
+}
+
 // JWKS client singleton for RS256 (lazy initialized)
 type JwksClientInstance = import('jwks-rsa').JwksClient;
 type JwksClientOptions = import('jwks-rsa').Options;

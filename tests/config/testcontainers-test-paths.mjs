@@ -12,6 +12,7 @@ export const TESTCONTAINERS_TEST_PATHS = Object.freeze([
   'tests/integration/fund-scenario-hard-timeout.test.ts',
   'tests/integration/portfolio-company-update.test.ts',
   'tests/integration/capital-call-status-outbox.test.ts',
+  'tests/integration/canary-exclusion-differential.test.ts',
   'tests/integration/investment-ledger/position-conversion.pg.test.ts',
   'tests/integration/investment-ledger/current-position-ownership-valuation.pg.test.ts',
   'tests/integration/investment-ledger/legacy-position-backfill.pg.test.ts',

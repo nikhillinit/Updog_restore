@@ -24,6 +24,7 @@ interface Runtime {
   pool: Pool;
   postgres: StartedPostgreSqlContainer;
   signToken: SignToken;
+  userId: number;
 }
 
 interface RowCounts {
@@ -101,6 +102,14 @@ async function startRuntime(): Promise<Runtime> {
 
   await runMigrationsWithConnectionString(connectionString);
 
+  const user = await pool.query<{ id: number }>(
+    `INSERT INTO users (username, password, role)
+     VALUES ($1, $2, 'admin')
+     RETURNING id`,
+    ['fund-lifecycle-db', 'test-only-password']
+  );
+  const userId = user.rows[0]!.id;
+
   vi.resetModules();
   process.env.NODE_ENV = 'test';
   process.env._EXPLICIT_NODE_ENV = 'test';
@@ -129,7 +138,7 @@ async function startRuntime(): Promise<Runtime> {
   app.use('/api', requireAuth());
   registerFundConfigRoutes(app);
 
-  return { app, pool, postgres, signToken };
+  return { app, pool, postgres, signToken, userId };
 }
 
 function finalizeFixture(): FundFinalizeV1 {
@@ -165,7 +174,7 @@ function finalizeFixture(): FundFinalizeV1 {
 
 function authHeader(active: Runtime, fundId?: number): string {
   return `Bearer ${active.signToken({
-    sub: 'fund-lifecycle-db',
+    sub: String(active.userId),
     email: 'integration@example.com',
     role: 'admin',
     fundIds: fundId === undefined ? [] : [fundId],
