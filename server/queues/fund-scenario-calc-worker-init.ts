@@ -49,7 +49,7 @@ export async function initializeFundScenarioCalcWorker(
 
   const connection = getBullMQConnection(redisConnection);
 
-  // eslint-disable-next-line povc-security/require-bullmq-config -- lockDuration is the BullMQ timeout control
+  // eslint-disable-next-line povc-security/require-bullmq-config -- lockDuration is a renewable ownership lease; execution deadline is persisted per run
   worker = new Worker<FundScenarioCalcJobData, FundScenarioCalcJobResult, string>(
     QUEUE_NAME,
     async (

@@ -51,6 +51,32 @@ const snapshotWrites = getOrCreateCounter(
   ['type', 'status']
 );
 
+const fundScenarioHardTimeouts = getOrCreateCounter(
+  'fund_scenario_hard_timeouts_total',
+  'Fund scenario calculations terminalized by the persisted hard deadline',
+  []
+);
+
+const fundScenarioHardTimeoutDuration = getOrCreateHistogram(
+  'fund_scenario_hard_timeout_duration_seconds',
+  'Configured fund scenario hard timeout duration in seconds',
+  [],
+  [1, 5, 10, 30, 60, 120, 300, 600]
+);
+
+const capitalCallStatusHardTimeouts = getOrCreateCounter(
+  'capital_call_status_hard_timeouts_total',
+  'Capital-call status jobs stopped by the configured hard timeout',
+  []
+);
+
+const capitalCallStatusHardTimeoutDuration = getOrCreateHistogram(
+  'capital_call_status_hard_timeout_duration_seconds',
+  'Configured capital-call status hard timeout duration in seconds',
+  [],
+  [1, 5, 10, 30, 60, 120, 300, 600]
+);
+
 // Metrics wrapper function
 export async function withMetrics<T>(engineName: string, fn: () => Promise<T>): Promise<T> {
   const timer = engineLatency.startTimer({ engine: engineName });
@@ -80,6 +106,10 @@ export const metrics = {
   engineErrors,
   queueDepth,
   snapshotWrites,
+  fundScenarioHardTimeouts,
+  fundScenarioHardTimeoutDuration,
+  capitalCallStatusHardTimeouts,
+  capitalCallStatusHardTimeoutDuration,
 
   // Helper methods
   recordQueueDepth: (queueName: string, jobType: string, depth: number) => {

@@ -6,9 +6,15 @@ const {
   reserveMetricTimerMock,
   reserveEngineErrorMock,
   reserveFailureCounterMock,
+  fundScenarioHardTimeoutsMock,
+  fundScenarioHardTimeoutDurationMock,
   loggerInfoMock,
   loggerErrorMock,
   workerConstructorMock,
+  queueConstructorMock,
+  queueUpsertSchedulerMock,
+  queueCloseMock,
+  sweepDeadlineMock,
   registerWorkerMock,
   createHealthServerMock,
   getQueueConnectionOptionsMock,
@@ -18,9 +24,15 @@ const {
   reserveMetricTimerMock: vi.fn(),
   reserveEngineErrorMock: vi.fn(),
   reserveFailureCounterMock: vi.fn(),
+  fundScenarioHardTimeoutsMock: { inc: vi.fn() },
+  fundScenarioHardTimeoutDurationMock: { observe: vi.fn() },
   loggerInfoMock: vi.fn(),
   loggerErrorMock: vi.fn(),
   workerConstructorMock: vi.fn(),
+  queueConstructorMock: vi.fn(),
+  queueUpsertSchedulerMock: vi.fn().mockResolvedValue(undefined),
+  queueCloseMock: vi.fn().mockResolvedValue(undefined),
+  sweepDeadlineMock: vi.fn().mockResolvedValue({ reconciledCount: 0, timedOutCount: 0 }),
   registerWorkerMock: vi.fn(),
   createHealthServerMock: vi.fn(),
   getQueueConnectionOptionsMock: vi.fn(),
@@ -48,6 +60,8 @@ vi.mock('../../../lib/metrics', () => ({
     counter: reserveFailureCounterMock,
     engineLatency: { startTimer: vi.fn(() => reserveMetricTimerMock) },
     engineErrors: { inc: reserveEngineErrorMock },
+    fundScenarioHardTimeouts: fundScenarioHardTimeoutsMock,
+    fundScenarioHardTimeoutDuration: fundScenarioHardTimeoutDurationMock,
   },
 }));
 
@@ -56,7 +70,25 @@ vi.mock('../../../workers/health-server', () => ({
   createHealthServer: createHealthServerMock,
 }));
 
+vi.mock('../../../server/services/fund-scenario-calculation-run-service', () => ({
+  sweepFundScenarioCalculationRunDeadlines: sweepDeadlineMock,
+}));
+
 vi.mock('bullmq', () => ({
+  UnrecoverableError: class UnrecoverableError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = 'UnrecoverableError';
+    }
+  },
+  Queue: class MockQueue {
+    constructor(...args: unknown[]) {
+      queueConstructorMock(...args);
+    }
+
+    upsertJobScheduler = queueUpsertSchedulerMock;
+    close = queueCloseMock;
+  },
   Worker: class MockWorker {
     constructor(...args: unknown[]) {
       workerConstructorMock(...args);
@@ -98,14 +130,15 @@ describe('fund scenario calc worker handler', () => {
     }, 'bullmq-token', signal);
 
     expect(result).toEqual({ snapshotId: 42 });
-    expect(runReserveScenarioCalculationMock).toHaveBeenCalledWith({
+    expect(runReserveScenarioCalculationMock).toHaveBeenCalledWith(expect.objectContaining({
       fundId: 1,
       scenarioSetId: '00000000-0000-0000-0000-000000000111',
       correlationId: '00000000-0000-0000-0000-000000000123',
       actor: { userId: 17, label: 'analyst@example.com' },
       jobId: 'job-1',
-      signal,
-    });
+      signal: expect.any(AbortSignal),
+      abortController: expect.any(AbortController),
+    }));
     expect(loggerInfoMock).toHaveBeenCalledWith(
       'Processing reserve scenario calculation',
       expect.objectContaining({ jobId: 'job-1' })
@@ -160,6 +193,33 @@ describe('fund scenario calc worker handler', () => {
     );
   });
 
+  it('routes tagged hard-timeout aborts to an unrecoverable BullMQ failure', async () => {
+    const { handleFundScenarioCalcJob } =
+      await import('../../../workers/fund-scenario-calc-handler');
+    const { FundScenarioHardTimeoutError } =
+      await import('../../../server/services/fund-scenario-timeout');
+    runReserveScenarioCalculationMock.mockRejectedValue(
+      new FundScenarioHardTimeoutError('run-timeout')
+    );
+
+    await expect(
+      handleFundScenarioCalcJob({
+        id: 'job-timeout',
+        data: {
+          fundId: 1,
+          scenarioSetId: '00000000-0000-0000-0000-000000000111',
+          correlationId: '00000000-0000-0000-0000-000000000123',
+          calculationMode: 'async_reserve_allocation',
+          actor: null,
+        },
+      })
+    ).rejects.toMatchObject({ name: 'UnrecoverableError' });
+
+    expect(fundScenarioHardTimeoutsMock.inc).toHaveBeenCalledTimes(1);
+    expect(fundScenarioHardTimeoutDurationMock.observe).toHaveBeenCalledWith(30);
+    expect(loggerErrorMock).not.toHaveBeenCalled();
+  });
+
   it('importing the handler does not start a BullMQ worker or health server', async () => {
     await import('../../../workers/fund-scenario-calc-handler');
 
@@ -174,6 +234,7 @@ describe('fund scenario calc worker startup', () => {
     FUND_SCENARIO_WORKER_HEALTH_PORT: process.env['FUND_SCENARIO_WORKER_HEALTH_PORT'],
     PORT: process.env['PORT'],
     WORKER_HEALTH_PORT: process.env['WORKER_HEALTH_PORT'],
+    FUND_SCENARIO_SWEEP_ENABLED: process.env['FUND_SCENARIO_SWEEP_ENABLED'],
   };
 
   beforeEach(() => {
@@ -182,6 +243,7 @@ describe('fund scenario calc worker startup', () => {
     delete process.env['FUND_SCENARIO_WORKER_HEALTH_PORT'];
     delete process.env['PORT'];
     delete process.env['WORKER_HEALTH_PORT'];
+    delete process.env['FUND_SCENARIO_SWEEP_ENABLED'];
     getQueueConnectionOptionsMock.mockReturnValue({
       host: 'queue-host',
       port: 6380,
@@ -199,6 +261,29 @@ describe('fund scenario calc worker startup', () => {
         process.env[key] = value;
       }
     }
+  });
+
+  it('registers and immediately runs the gated 60-second deadline sweep', async () => {
+    process.env['FUND_SCENARIO_SWEEP_ENABLED'] = '1';
+    const { startFundScenarioCalcWorker } =
+      await import('../../../workers/fund-scenario-calc-worker');
+
+    const runtime = startFundScenarioCalcWorker({ healthPort: null });
+    await runtime.ready;
+
+    expect(queueConstructorMock).toHaveBeenCalledWith(
+      'fund-scenario-calc',
+      expect.objectContaining({ connection: expect.any(Object) })
+    );
+    expect(queueUpsertSchedulerMock).toHaveBeenCalledWith(
+      'fund-scenario-deadline-sweep',
+      { every: 60_000 },
+      expect.objectContaining({ name: 'fund-scenario-deadline-sweep' })
+    );
+    expect(sweepDeadlineMock).toHaveBeenCalledTimes(1);
+
+    await runtime.close();
+    expect(queueCloseMock).toHaveBeenCalledTimes(1);
   });
 
   it('uses the shared queue connection resolver for production worker startup', async () => {

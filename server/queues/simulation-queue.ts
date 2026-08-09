@@ -150,7 +150,7 @@ export async function initializeSimulationQueue(redisConnection: IORedis): Promi
   });
 
   // Create worker to process jobs
-  // eslint-disable-next-line povc-security/require-bullmq-config -- BullMQ uses lockDuration instead of timeout
+  // eslint-disable-next-line povc-security/require-bullmq-config -- lockDuration is a renewable ownership lease; execution deadline is enforced by the job contract
   worker = new Worker<SimulationJobData, SimulationJobResult>(
     QUEUE_NAME,
     async (job: Job<SimulationJobData, SimulationJobResult>) => {

@@ -1,4 +1,5 @@
 import type { PoolClient } from 'pg';
+import { transaction } from '../db/pg-circuit.js';
 import { ModelInputsAsOfDateSchema } from '@shared/contracts/fund-draft-write-v1.contract';
 import {
   COMPARISON_LINEAGE_VERSION,
@@ -6,6 +7,10 @@ import {
   SCENARIO_INPUT_HASH_V2_VERSION,
   type ScenarioInputHashKind,
 } from '@shared/lib/scenarios/scenario-input-envelope';
+import {
+  getFundScenarioHardTimeoutMs,
+  isFundScenarioSweepEnabled,
+} from './fund-scenario-timeout';
 
 const SHA256_LOWERCASE_HEX = /^[a-f0-9]{64}$/;
 
@@ -42,6 +47,7 @@ export interface ScenarioCalculationRunRecord
   hashKind: ScenarioInputHashKind | null;
   status: ScenarioCalculationRunStatus;
   snapshotId: number | null;
+  deadlineAt: Date | string | null;
 }
 
 interface ScenarioCalculationRunRow {
@@ -60,6 +66,7 @@ interface ScenarioCalculationRunRow {
   correlation_id: string;
   status: ScenarioCalculationRunStatus;
   snapshot_id: number | null;
+  deadline_at: Date | string | null;
 }
 
 type QueryClient = Pick<PoolClient, 'query'>;
@@ -106,6 +113,7 @@ function mapRun(row: ScenarioCalculationRunRow): ScenarioCalculationRunRecord {
     correlationId: row.correlation_id,
     status: row.status,
     snapshotId: row.snapshot_id,
+    deadlineAt: row.deadline_at ?? null,
   };
 }
 
@@ -187,10 +195,19 @@ async function insertScenarioCalculationRun(
        job_id,
        correlation_id,
        status,
+       deadline_at,
        created_at,
        updated_at
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::date, $10, $11, $12, 'queued', NOW(), NOW())
+     VALUES (
+       $1, $2, $3, $4, $5, $6, $7, $8, $9::date, $10, $11, $12, 'queued',
+       CASE
+         WHEN $11 IS NULL THEN NULL
+         ELSE clock_timestamp() + ($13::bigint * INTERVAL '1 millisecond')
+       END,
+       clock_timestamp(),
+       clock_timestamp()
+     )
      ON CONFLICT (
        scenario_set_id,
        source_config_id,
@@ -214,6 +231,7 @@ async function insertScenarioCalculationRun(
       identity.comparisonLineageVersion,
       identity.jobId ?? null,
       identity.correlationId,
+      identity.jobId == null ? null : getFundScenarioHardTimeoutMs(),
     ]
   );
 
@@ -253,58 +271,93 @@ async function findActiveScenarioCalculationRun(
 
 export async function markScenarioCalculationRunRunning(
   client: QueryClient,
-  runId: string
-): Promise<ScenarioCalculationRunRecord> {
+  runId: string,
+  identity: ScenarioCalculationRunFenceIdentity
+): Promise<number> {
   const result = await client.query<ScenarioCalculationRunRow>(
     `UPDATE fund_scenario_calculation_runs
         SET status = 'running',
-            started_at = COALESCE(started_at, NOW()),
-            updated_at = NOW()
+            started_at = clock_timestamp(),
+            deadline_at = CASE
+              WHEN job_id IS NULL THEN NULL
+              ELSE clock_timestamp() + ($13::bigint * INTERVAL '1 millisecond')
+            END,
+            updated_at = clock_timestamp()
       WHERE id = $1
+        AND status = 'queued'
+        AND job_id IS NOT DISTINCT FROM $12
+        AND (deadline_at IS NULL OR clock_timestamp() < deadline_at)${ASYNC_RUN_IDENTITY_FENCE_SQL}
       RETURNING *`,
-    [runId]
+    [...asyncRunFenceParams(runId, identity), timeoutParam(identity)]
   );
-  if (result.rows[0]) return mapRun(result.rows[0]);
-  throw new Error(`Scenario calculation run ${runId} was not found`);
+  return affectedRowCount(result);
 }
 
 export async function markScenarioCalculationRunCompleted(
   client: QueryClient,
   runId: string,
+  identity: ScenarioCalculationRunFenceIdentity,
   snapshotId: number
-): Promise<ScenarioCalculationRunRecord> {
+): Promise<number> {
   const result = await client.query<ScenarioCalculationRunRow>(
     `UPDATE fund_scenario_calculation_runs
         SET status = 'completed',
-            snapshot_id = $2,
-            completed_at = NOW(),
-            updated_at = NOW()
+            snapshot_id = $13,
+            completed_at = clock_timestamp(),
+            updated_at = clock_timestamp()
       WHERE id = $1
+        AND status = 'running'
+        AND snapshot_id IS NULL
+        AND job_id IS NOT DISTINCT FROM $12
+        AND (deadline_at IS NULL OR clock_timestamp() < deadline_at)${ASYNC_RUN_IDENTITY_FENCE_SQL}
       RETURNING *`,
-    [runId, snapshotId]
+    [...asyncRunFenceParams(runId, identity), snapshotId]
   );
-  if (result.rows[0]) return mapRun(result.rows[0]);
-  throw new Error(`Scenario calculation run ${runId} was not found`);
+  return affectedRowCount(result);
 }
 
 export async function markScenarioCalculationRunFailed(
   client: QueryClient,
   runId: string,
+  identity: ScenarioCalculationRunFenceIdentity,
   failure: { code?: string | null; message?: string | null } = {}
-): Promise<ScenarioCalculationRunRecord> {
+): Promise<number> {
   const result = await client.query<ScenarioCalculationRunRow>(
     `UPDATE fund_scenario_calculation_runs
         SET status = 'failed',
-            failure_code = $2,
-            failure_message = $3,
-            failed_at = NOW(),
-            updated_at = NOW()
+            failure_code = $13,
+            failure_message = $14,
+            failed_at = clock_timestamp(),
+            updated_at = clock_timestamp()
       WHERE id = $1
+        AND status = 'running'
+        AND job_id IS NOT DISTINCT FROM $12${ASYNC_RUN_IDENTITY_FENCE_SQL}
       RETURNING *`,
-    [runId, failure.code ?? null, failure.message ?? null]
+    [...asyncRunFenceParams(runId, identity), failure.code ?? null, failure.message ?? null]
   );
-  if (result.rows[0]) return mapRun(result.rows[0]);
-  throw new Error(`Scenario calculation run ${runId} was not found`);
+  return affectedRowCount(result);
+}
+
+export async function markScenarioCalculationRunTimedOut(
+  client: QueryClient,
+  runId: string,
+  jobId: string | null
+): Promise<number> {
+  const result = await client.query(
+    `UPDATE fund_scenario_calculation_runs
+        SET status = 'failed',
+            failure_code = 'HARD_TIMEOUT',
+            failure_message = 'Fund scenario calculation exceeded its hard deadline',
+            failed_at = clock_timestamp(),
+            updated_at = clock_timestamp()
+      WHERE id = $1
+        AND status IN ('queued', 'running')
+        AND job_id IS NOT DISTINCT FROM $2
+        AND deadline_at IS NOT NULL
+        AND clock_timestamp() >= deadline_at`,
+    [runId, jobId]
+  );
+  return affectedRowCount(result);
 }
 
 /**
@@ -323,6 +376,7 @@ export interface ScenarioCalculationRunFenceIdentity {
   hashKind: ScenarioInputHashKind | null;
   modelInputsAsOfDate: string | null;
   comparisonLineageVersion: typeof COMPARISON_LINEAGE_VERSION | null;
+  jobId: string | null;
 }
 
 function normalizedFenceHashKind(hashKind: ScenarioInputHashKind | null): ScenarioInputHashKind {
@@ -354,7 +408,16 @@ function asyncRunFenceParams(
     normalizedFenceHashKind(identity.hashKind),
     identity.modelInputsAsOfDate,
     identity.comparisonLineageVersion,
+    identity.jobId,
   ];
+}
+
+function timeoutParam(identity: ScenarioCalculationRunFenceIdentity): number | null {
+  return identity.jobId === null ? null : getFundScenarioHardTimeoutMs();
+}
+
+function affectedRowCount(result: { rowCount?: number | null; rows?: unknown[] }): number {
+  return result.rowCount ?? result.rows?.length ?? 0;
 }
 
 const ASYNC_RUN_IDENTITY_FENCE_SQL = `
@@ -377,12 +440,18 @@ export async function claimScenarioCalculationRunIfQueued(
   const result = await client.query<ScenarioCalculationRunRow>(
     `UPDATE fund_scenario_calculation_runs
         SET status = 'running',
-            started_at = COALESCE(started_at, NOW()),
-            updated_at = NOW()
+            started_at = clock_timestamp(),
+            deadline_at = CASE
+              WHEN job_id IS NULL THEN NULL
+              ELSE clock_timestamp() + ($13::bigint * INTERVAL '1 millisecond')
+            END,
+            updated_at = clock_timestamp()
       WHERE id = $1
-        AND status = 'queued'${ASYNC_RUN_IDENTITY_FENCE_SQL}
+        AND status = 'queued'
+        AND job_id IS NOT DISTINCT FROM $12
+        AND (deadline_at IS NULL OR clock_timestamp() < deadline_at)${ASYNC_RUN_IDENTITY_FENCE_SQL}
       RETURNING *`,
-    asyncRunFenceParams(runId, identity)
+    [...asyncRunFenceParams(runId, identity), timeoutParam(identity)]
   );
   return result.rows[0] ? mapRun(result.rows[0]) : null;
 }
@@ -396,12 +465,14 @@ export async function completeScenarioCalculationRunIfRunning(
   const result = await client.query<ScenarioCalculationRunRow>(
     `UPDATE fund_scenario_calculation_runs
         SET status = 'completed',
-            snapshot_id = $12,
-            completed_at = NOW(),
-            updated_at = NOW()
+            snapshot_id = $13,
+            completed_at = clock_timestamp(),
+            updated_at = clock_timestamp()
       WHERE id = $1
         AND status = 'running'
-        AND snapshot_id IS NULL${ASYNC_RUN_IDENTITY_FENCE_SQL}
+        AND snapshot_id IS NULL
+        AND job_id IS NOT DISTINCT FROM $12
+        AND (deadline_at IS NULL OR clock_timestamp() < deadline_at)${ASYNC_RUN_IDENTITY_FENCE_SQL}
       RETURNING *`,
     [...asyncRunFenceParams(runId, identity), snapshotId]
   );
@@ -417,14 +488,65 @@ export async function failScenarioCalculationRunIfRunning(
   const result = await client.query<ScenarioCalculationRunRow>(
     `UPDATE fund_scenario_calculation_runs
         SET status = 'failed',
-            failure_code = $12,
-            failure_message = $13,
-            failed_at = NOW(),
-            updated_at = NOW()
+            failure_code = $13,
+            failure_message = $14,
+            failed_at = clock_timestamp(),
+            updated_at = clock_timestamp()
       WHERE id = $1
-        AND status = 'running'${ASYNC_RUN_IDENTITY_FENCE_SQL}
+        AND status = 'running'
+        AND job_id IS NOT DISTINCT FROM $12${ASYNC_RUN_IDENTITY_FENCE_SQL}
       RETURNING *`,
     [...asyncRunFenceParams(runId, identity), failure.code ?? null, failure.message ?? null]
   );
   return result.rows[0] ? mapRun(result.rows[0]) : null;
+}
+
+export interface FundScenarioDeadlineSweepResult {
+  reconciledCount: number;
+  timedOutCount: number;
+}
+
+interface ExpiredScenarioCalculationRunRow {
+  id: string;
+  job_id: string;
+}
+
+export async function sweepFundScenarioCalculationRunDeadlines(): Promise<FundScenarioDeadlineSweepResult> {
+  const disabledResult = { reconciledCount: 0, timedOutCount: 0 };
+  if (!isFundScenarioSweepEnabled()) {
+    return disabledResult;
+  }
+
+  const timeoutMs = getFundScenarioHardTimeoutMs();
+  return transaction(async (client) => {
+    const reconciliation = await client.query(
+      `UPDATE fund_scenario_calculation_runs
+          SET deadline_at = clock_timestamp() + ($1::bigint * INTERVAL '1 millisecond'),
+              updated_at = clock_timestamp()
+        WHERE status IN ('queued', 'running')
+          AND job_id IS NOT NULL
+          AND deadline_at IS NULL`,
+      [timeoutMs]
+    );
+
+    const expired = await client.query<ExpiredScenarioCalculationRunRow>(
+      `SELECT id, job_id
+         FROM fund_scenario_calculation_runs
+        WHERE status IN ('queued', 'running')
+          AND job_id IS NOT NULL
+          AND deadline_at IS NOT NULL
+          AND clock_timestamp() >= deadline_at`,
+      []
+    );
+
+    let timedOutCount = 0;
+    for (const row of expired.rows) {
+      timedOutCount += await markScenarioCalculationRunTimedOut(client, row.id, row.job_id);
+    }
+
+    return {
+      reconciledCount: affectedRowCount(reconciliation),
+      timedOutCount,
+    };
+  });
 }

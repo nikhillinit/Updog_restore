@@ -1,10 +1,14 @@
-import type { Job } from 'bullmq';
+import { UnrecoverableError, type Job } from 'bullmq';
 import { logger } from '../lib/logger';
 import { metrics } from '../lib/metrics';
 import {
   isScenarioCalculationOwnershipLost,
   runReserveScenarioCalculation,
 } from '../server/services/fund-scenario-reserve-calculation-service';
+import {
+  getFundScenarioHardTimeoutMs,
+  isFundScenarioHardTimeoutError,
+} from '../server/services/fund-scenario-timeout';
 
 export interface FundScenarioCalcJobData {
   fundId: number;
@@ -53,6 +57,16 @@ export async function handleFundScenarioCalcJob(
     calculationMode,
   });
 
+  const ownedAbortController = new AbortController();
+  const onBullMqAbort = () => {
+    ownedAbortController.abort(signal?.reason);
+  };
+  if (signal?.aborted) {
+    onBullMqAbort();
+  } else {
+    signal?.addEventListener('abort', onBullMqAbort, { once: true });
+  }
+
   try {
     if (calculationMode !== 'async_reserve_allocation') {
       throw new Error(`Unsupported fund scenario calculation mode: ${calculationMode}`);
@@ -65,12 +79,19 @@ export async function handleFundScenarioCalcJob(
         correlationId,
         actor: actor ?? {},
         jobId: String(job.id),
-        signal,
+        signal: ownedAbortController.signal,
+        abortController: ownedAbortController,
       })
     );
     return isScenarioCalculationOwnershipLost(result) ? undefined : result;
   } catch (error) {
     const err = error as Error;
+    if (isFundScenarioHardTimeoutError(error)) {
+      metrics.fundScenarioHardTimeouts?.inc();
+      metrics.fundScenarioHardTimeoutDuration?.observe(getFundScenarioHardTimeoutMs() / 1000);
+      throw new UnrecoverableError(err.message);
+    }
+
     logger.error('Reserve scenario calculation failed', err, {
       fundId,
       scenarioSetId,
@@ -90,5 +111,7 @@ export async function handleFundScenarioCalcJob(
       errorType: err.name,
     });
     throw error;
+  } finally {
+    signal?.removeEventListener('abort', onBullMqAbort);
   }
 }

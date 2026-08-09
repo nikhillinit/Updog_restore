@@ -48,6 +48,7 @@ describe('initializeFundScenarioCalcWorker', () => {
 
     await initializeFundScenarioCalcWorker(mockRedis);
 
+    // lockDuration is an ownership lease, not execution-timeout enforcement.
     expect(workerConstructorMock).toHaveBeenCalledWith(
       'fund-scenario-calc',
       expect.any(Function),
