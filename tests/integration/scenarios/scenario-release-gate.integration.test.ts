@@ -213,6 +213,7 @@ async function startRuntime(): Promise<Runtime> {
   process.env._EXPLICIT_JWT_AUDIENCE = AUTH_AUDIENCE;
   process.env.JWT_ALG = 'HS256';
   process.env._EXPLICIT_JWT_ALG = 'HS256';
+  process.env.FUND_SCENARIO_HARD_TIMEOUT_MS = '30000';
 
   const { default: scenarioRoutes } = await import('../../../server/routes/fund-scenario-sets');
   const { registerFundConfigRoutes } = await import('../../../server/routes/fund-config');
