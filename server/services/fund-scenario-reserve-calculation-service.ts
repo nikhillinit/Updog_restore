@@ -844,13 +844,18 @@ export async function runReserveScenarioCalculation(
           requeueScenarioCalculationRunIfRunning(client, activeClaim.run.id, activeClaim.identity)
         );
       } catch (requeueError) {
-        // The row stays 'running'; the retry attempt reclaims it via the
-        // same-job running retake in the claim CAS, so a failed requeue
-        // write must never suppress the rethrow below.
+        // Double-failure path: the calculation failed AND the requeue write
+        // failed. Fall back to the terminal ordinary-failure write so the
+        // retry attempt honestly zero-rows instead of executing against a
+        // stranded 'running' row. If even that write fails, the row's
+        // persisted deadline bounds it: the deadline actor/sweep terminalizes
+        // it with HARD_TIMEOUT one window later. The claim predicate stays
+        // plan-locked to status='queued' — no running retake.
         logger.warn(
           { err: requeueError, runId: activeClaim.run.id },
-          'Failed to requeue fund scenario run for retry; retry will retake the running row'
+          'Failed to requeue fund scenario run for retry; persisting terminal failure instead'
         );
+        await recordCalculationFailedEvent({ claimed: activeClaim, calculationInput: input, error });
       }
     }
     throw error;

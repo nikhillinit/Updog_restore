@@ -538,14 +538,7 @@ export async function claimScenarioCalculationRunIfQueued(
             END,
             updated_at = clock_timestamp()
       WHERE id = $1
-        AND (
-          status = 'queued'
-          -- Same-job running retake: a failed requeue write after a transient
-          -- error leaves the row 'running'; the SAME BullMQ delivery lineage
-          -- (job fence below) may re-claim it on the retry attempt. BullMQ
-          -- never runs two attempts of one job concurrently.
-          OR (status = 'running' AND job_id IS NOT NULL)
-        )
+        AND status = 'queued'
         AND job_id IS NOT DISTINCT FROM $12
         AND (deadline_at IS NULL OR clock_timestamp() < deadline_at)${ASYNC_RUN_IDENTITY_FENCE_SQL}
       RETURNING *`,
