@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import PortfolioCompanySummaryPage from '@/pages/portfolio-company-summary';
 import { usePortfolioCompany } from '@/hooks/use-fund-data';
 import { useFlag } from '@/shared/useFlags';
+import { TestQueryClientProvider } from '../../utils/test-query-client';
 
 vi.mock('wouter', () => ({
   useRoute: () => [true, { id: '42' }],
@@ -38,13 +39,21 @@ beforeEach(() => {
 describe('PortfolioCompanySummaryPage rounds mount', () => {
   it('renders the section when the flag is on', () => {
     mockFlag.mockReturnValue(true);
-    render(<PortfolioCompanySummaryPage />);
+    render(
+      <TestQueryClientProvider>
+        <PortfolioCompanySummaryPage />
+      </TestQueryClientProvider>
+    );
     expect(screen.getByTestId('rounds-section')).toBeInTheDocument();
   });
 
   it('hides the section when the flag is off', () => {
     mockFlag.mockReturnValue(false);
-    render(<PortfolioCompanySummaryPage />);
+    render(
+      <TestQueryClientProvider>
+        <PortfolioCompanySummaryPage />
+      </TestQueryClientProvider>
+    );
     expect(screen.queryByTestId('rounds-section')).toBeNull();
   });
 });
