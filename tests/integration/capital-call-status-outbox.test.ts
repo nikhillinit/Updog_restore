@@ -96,8 +96,6 @@ describe('capital-call status transition and notification outbox', () => {
     const { closeDatabasePool } = await import('../../server/db');
     await closeDatabasePool();
     await pool?.end();
-    const { closePool } = await import('../../server/db/pg-circuit');
-    await closePool();
     if (startedTestContainers) await cleanupTestContainers();
   });
 
