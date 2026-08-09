@@ -4,7 +4,7 @@
   "type": "module",
   "license": "MIT",
   "engines": {
-    "node": ">=20.19.0 <23",
+    "node": "22.x",
     "npm": ">=10.8.0"
   },
   "packageManager": "npm@10.9.2",
@@ -12,6 +12,7 @@
     "preinstall": "node scripts/check-package-manager.mjs",
     "postinstall": "node scripts/patch-vitest-sourcemap.mjs && node scripts/patch-brace-expansion-exports.mjs",
     "doctor": "node scripts/doctor.mjs",
+    "verify:node-parity": "node scripts/verify-node-parity.mjs",
     "doctor:shell": "node scripts/doctor-shell.mjs",
     "doctor:quick": "node scripts/doctor-quick.mjs",
     "dev": "npx concurrently -k \"npm run dev:client\" \"npm run dev:api\"",
@@ -253,7 +254,7 @@
     "zustand": "5.0.14"
   },
   "volta": {
-    "node": "20.19.0",
+    "node": "22.23.2",
     "npm": "10.9.2"
   },
   "overrides": {

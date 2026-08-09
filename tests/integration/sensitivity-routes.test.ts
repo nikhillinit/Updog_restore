@@ -156,6 +156,19 @@ describe('sensitivity routes integration (one-way / two-way / stress)', () => {
   beforeEach(() => {
     app = express();
     app.use(express.json());
+    app.use((req, _res, next) => {
+      req.user = {
+        id: '42',
+        sub: '42',
+        email: 'analyst@example.com',
+        role: 'analyst',
+        roles: ['analyst'],
+        fundIds: [1, 2, 3],
+        ip: '127.0.0.1',
+        userAgent: 'vitest',
+      } as never;
+      next();
+    });
     app.use('/api', sensitivityRouter);
     vi.clearAllMocks();
 

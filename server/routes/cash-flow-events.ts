@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { parseFundIdParam } from '@shared/number';
+import { PARTNER_WRITE_ROLES, TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
 import type { CashFlowEvent } from '@shared/schema/lp-reporting-evidence';
 import {
   CashFlowEventResponseSchema,
@@ -10,6 +11,7 @@ import {
   type CashFlowEventResponse,
 } from '@shared/contracts/lp-reporting/cash-flow-event.contract';
 import { firstString } from '../lib/request-values';
+import { requireWriteRole } from '../lib/auth/jwt';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { parseETag, rowVersionETag } from '../lib/http-preconditions';
 import {
@@ -23,6 +25,8 @@ import {
 } from '../services/lp-reporting/cash-flow-event-service';
 
 const router = Router();
+const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);
+const requirePartnerWrite = requireWriteRole(PARTNER_WRITE_ROLES);
 
 // Whitelist mapping, then strict-schema validate so no internal column
 // (source_hash, lock/supersede/reversal, provenance) can leak. Money (`amount`)
@@ -89,7 +93,7 @@ async function handleTransition(
   if (eventId === null) {
     return res.status(400).json({ error: 'Invalid event ID' });
   }
-  if (!(await enforceProvidedFundScope(req, res, fundId))) {
+  if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
     return;
   }
   const ifMatch = firstString(req.headers['if-match']);
@@ -145,35 +149,39 @@ async function handleTransition(
   return res.status(200).json(toResponse(updated.row, rowVersionETag(updated.xmin)));
 }
 
-router['post']('/api/funds/:fundId/cash-flow-events', async (req: Request, res: Response) => {
-  try {
-    const fundId = parseFundIdParam(firstString(req.params['fundId']));
-    if (fundId === null) {
-      return res.status(400).json({ error: 'Invalid fund ID' });
-    }
-    if (!(await enforceProvidedFundScope(req, res, fundId))) {
-      return;
-    }
-    const parsed = LpCapitalCallSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res
-        .status(400)
-        .json({ error: 'Invalid request body', details: parsed.error.format() });
-    }
-    if (parsed.data.fundId !== fundId) {
-      return res
-        .status(400)
-        .json({ error: 'fundId mismatch', message: 'Body fundId must match the path fundId' });
-    }
-    const created = await createLpCapitalCallEvent({ ...parsed.data, fundId });
-    if (!created) {
+router['post'](
+  '/api/funds/:fundId/cash-flow-events',
+  requireTeamWrite,
+  async (req: Request, res: Response) => {
+    try {
+      const fundId = parseFundIdParam(firstString(req.params['fundId']));
+      if (fundId === null) {
+        return res.status(400).json({ error: 'Invalid fund ID' });
+      }
+      if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+        return;
+      }
+      const parsed = LpCapitalCallSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res
+          .status(400)
+          .json({ error: 'Invalid request body', details: parsed.error.format() });
+      }
+      if (parsed.data.fundId !== fundId) {
+        return res
+          .status(400)
+          .json({ error: 'fundId mismatch', message: 'Body fundId must match the path fundId' });
+      }
+      const created = await createLpCapitalCallEvent({ ...parsed.data, fundId });
+      if (!created) {
+        return res.status(500).json({ error: 'Failed to create cash flow event' });
+      }
+      return res.status(201).json(toResponse(created.row, rowVersionETag(created.xmin)));
+    } catch {
       return res.status(500).json({ error: 'Failed to create cash flow event' });
     }
-    return res.status(201).json(toResponse(created.row, rowVersionETag(created.xmin)));
-  } catch {
-    return res.status(500).json({ error: 'Failed to create cash flow event' });
   }
-});
+);
 
 router['get']('/api/funds/:fundId/cash-flow-events', async (req: Request, res: Response) => {
   try {
@@ -195,6 +203,7 @@ router['get']('/api/funds/:fundId/cash-flow-events', async (req: Request, res: R
 
 router['patch'](
   '/api/funds/:fundId/cash-flow-events/:eventId',
+  requireTeamWrite,
   async (req: Request, res: Response) => {
     try {
       const fundId = parseFundIdParam(firstString(req.params['fundId']));
@@ -206,7 +215,7 @@ router['patch'](
       if (eventId === null) {
         return res.status(400).json({ error: 'Invalid event ID' });
       }
-      if (!(await enforceProvidedFundScope(req, res, fundId))) {
+      if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
         return;
       }
       const ifMatch = firstString(req.headers['if-match']);
@@ -280,6 +289,7 @@ router['patch'](
 
 router['post'](
   '/api/funds/:fundId/cash-flow-events/:eventId/approve',
+  requirePartnerWrite,
   async (req: Request, res: Response) => {
     try {
       await handleTransition(req, res, {
@@ -295,6 +305,7 @@ router['post'](
 
 router['post'](
   '/api/funds/:fundId/cash-flow-events/:eventId/lock',
+  requirePartnerWrite,
   async (req: Request, res: Response) => {
     try {
       await handleTransition(req, res, {

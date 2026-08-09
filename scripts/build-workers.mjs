@@ -7,7 +7,7 @@
  * - format: esm (matches package type and server build output)
  * - packages: external (Docker copies node_modules separately)
  * - platform: node (Node.js runtime)
- * - target: node20 (matches supported runtime contract)
+ * - target: node22 (matches supported runtime contract)
  */
 import { readFileSync, readdirSync, rmSync } from 'fs';
 import { dirname, relative, resolve } from 'path';
@@ -43,7 +43,7 @@ try {
     bundle: true,
     format: 'esm',
     platform: 'node',
-    target: 'node20',
+    target: 'node22',
     packages: 'external',
     sourcemap: true,
     minify: false,

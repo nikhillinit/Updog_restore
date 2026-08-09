@@ -27,9 +27,22 @@ vi.mock('../../../server/lib/route-logger.js', () => ({
 
 import reallocationRouter from '../../../server/routes/reallocation';
 
-function makeApp() {
+function makeApp(role = 'partner') {
   const app = express();
   app.use(express.json());
+  app.use((req, _res, next) => {
+    req.user = {
+      id: '42',
+      sub: '42',
+      email: `${role}@example.com`,
+      role,
+      roles: [role],
+      fundIds: [1],
+      ip: '127.0.0.1',
+      userAgent: 'vitest',
+    };
+    next();
+  });
   app.use(reallocationRouter);
   app.use((_req, res) => res.status(404).json({ error: 'not_found' }));
   return app;
@@ -79,7 +92,8 @@ describe('reallocation route contracts', () => {
     expect(fundScopeState.enforceProvidedFundScope).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      2
+      2,
+      { forWrite: true }
     );
     expect(dbState.transaction).not.toHaveBeenCalled();
   });
@@ -95,4 +109,39 @@ describe('reallocation route contracts', () => {
     );
     expect(dbState.query).not.toHaveBeenCalled();
   });
+
+  it('denies restricted principals before reallocation mutation', async () => {
+    const response = await request(makeApp('lp'))
+      .post('/api/funds/1/reallocation/commit')
+      .send({
+        current_version: 1,
+        proposed_allocations: [{ company_id: 11, planned_reserves_cents: 1 }],
+      });
+
+    expect(response.status).toBe(403);
+    expect(dbState.transaction).not.toHaveBeenCalled();
+  });
+
+  it.each(['partner', 'admin'])(
+    'allows %s to commit reallocation with verified actor',
+    async (role) => {
+      dbState.transaction.mockResolvedValueOnce({
+        new_version: 2,
+        updated_count: 1,
+        audit_id: 'audit-1',
+      });
+
+      const response = await request(makeApp(role))
+        .post('/api/funds/1/reallocation/commit')
+        .send({
+          current_version: 1,
+          proposed_allocations: [{ company_id: 11, planned_reserves_cents: 1 }],
+          user_id: 999,
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({ success: true, audit_id: 'audit-1' });
+      expect(dbState.transaction).toHaveBeenCalledTimes(1);
+    }
+  );
 });

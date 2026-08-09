@@ -75,6 +75,7 @@ vi.mock('../../../server/services/variance-tracking', () => ({
     alerts: {
       createAlertRule: vi.fn(),
       getActiveAlerts: vi.fn(),
+      getAlertOwnership: vi.fn(),
       acknowledgeAlert: vi.fn(),
       resolveAlert: vi.fn(),
     },
@@ -112,6 +113,26 @@ vi.mock('@shared/number', () => {
 import { varianceTrackingService as mockVarianceTrackingService } from '../../../server/services/variance-tracking';
 import varianceRouter from '../../../server/routes/variance';
 
+function makeVarianceApp(role = 'analyst', fundIds = [1]): express.Express {
+  const app = express();
+  app.use(express.json());
+  app.use((req: any, _res, next) => {
+    req.user = {
+      id: '1',
+      sub: '1',
+      email: `${role}@example.com`,
+      role,
+      roles: [role],
+      fundIds,
+      ip: '127.0.0.1',
+      userAgent: 'vitest',
+    };
+    next();
+  });
+  app.use(varianceRouter);
+  return app;
+}
+
 describe('Variance Tracking API', () => {
   let app: express.Express;
   let sandbox: any;
@@ -119,28 +140,10 @@ describe('Variance Tracking API', () => {
   beforeEach(() => {
     sandbox = createSandbox();
 
-    // Create Express app with variance router
-    app = express();
-    app.use(express.json());
-
-    // Mock authentication middleware
-    app.use((req: any, res, next) => {
-      req.user = {
-        id: '1',
-        sub: '1',
-        email: 'analyst@example.com',
-        role: 'analyst',
-        roles: ['analyst'],
-        fundIds: [1],
-        ip: '127.0.0.1',
-        userAgent: 'vitest',
-      };
-      next();
-    });
-
-    app.use(varianceRouter);
+    app = makeVarianceApp();
 
     vi.clearAllMocks();
+    mockVarianceTrackingService.alerts.getAlertOwnership.mockResolvedValue({ fundId: 1 });
   });
 
   afterEach(async () => {
@@ -341,7 +344,7 @@ describe('Variance Tracking API', () => {
           resolvedSupersededAlerts: 2,
         });
 
-        const response = await request(app)
+        const response = await request(makeVarianceApp('partner'))
           .post('/api/funds/1/baselines/baseline-123/set-default')
           .expect(200);
 
@@ -359,7 +362,7 @@ describe('Variance Tracking API', () => {
         });
       });
 
-      it('should omit userId when setting a default baseline without an attached user', async () => {
+      it('should deny setting a default baseline without an attached user', async () => {
         const unauthenticatedApp = express();
         unauthenticatedApp.use(express.json());
         unauthenticatedApp.use(varianceRouter);
@@ -371,12 +374,9 @@ describe('Variance Tracking API', () => {
 
         await request(unauthenticatedApp)
           .post('/api/funds/1/baselines/baseline-123/set-default')
-          .expect(200);
+          .expect(403);
 
-        expect(mockVarianceTrackingService.setDefaultBaselineAndCleanup).toHaveBeenCalledWith({
-          fundId: 1,
-          baselineId: 'baseline-123',
-        });
+        expect(mockVarianceTrackingService.setDefaultBaselineAndCleanup).not.toHaveBeenCalled();
       });
 
       it('should handle missing baseline ID', async () => {
@@ -390,7 +390,7 @@ describe('Variance Tracking API', () => {
           new Error('Baseline not found for fund')
         );
 
-        const response = await request(app)
+        const response = await request(makeVarianceApp('partner'))
           .post('/api/funds/1/baselines/baseline-404/set-default')
           .expect(404);
 
@@ -442,7 +442,11 @@ describe('Variance Tracking API', () => {
 
     describe('DELETE /api/funds/:id/baselines/:baselineId', () => {
       it('should deactivate baseline successfully', async () => {
-        mockVarianceTrackingService.baselines.deactivateBaseline.mockResolvedValue(undefined);
+        mockVarianceTrackingService.baselines.getBaselineById.mockResolvedValue({
+          id: 'baseline-123',
+          fundId: 1,
+        });
+        mockVarianceTrackingService.baselines.deactivateBaseline.mockResolvedValue(true);
 
         const response = await request(app)
           .delete('/api/funds/1/baselines/baseline-123')
@@ -452,7 +456,8 @@ describe('Variance Tracking API', () => {
         expect(response.body.message).toBe('Baseline deactivated successfully');
 
         expect(mockVarianceTrackingService.baselines.deactivateBaseline).toHaveBeenCalledWith(
-          'baseline-123'
+          'baseline-123',
+          1
         );
       });
     });
@@ -1156,6 +1161,7 @@ describe('Variance Tracking API', () => {
         expect(mockVarianceTrackingService.alerts.acknowledgeAlert).toHaveBeenCalledWith(
           'alert-123',
           1,
+          1,
           'Investigating the issue'
         );
       });
@@ -1172,6 +1178,7 @@ describe('Variance Tracking API', () => {
 
         expect(mockVarianceTrackingService.alerts.acknowledgeAlert).toHaveBeenCalledWith(
           'alert-123',
+          1,
           1,
           undefined
         );
@@ -1208,6 +1215,7 @@ describe('Variance Tracking API', () => {
 
         expect(mockVarianceTrackingService.alerts.resolveAlert).toHaveBeenCalledWith(
           'alert-123',
+          1,
           1,
           'Issue resolved after portfolio rebalancing'
         );
@@ -1652,13 +1660,174 @@ describe('Variance Tracking API', () => {
       expect(response.body.error).toBe('Authentication required');
     });
 
-    it('should require authentication for alert operations', async () => {
-      const response = await request(unauthApp)
+    it('should deny alert operations without a write role', async () => {
+      await request(unauthApp)
         .post('/api/alerts/alert-123/acknowledge')
         .send({})
-        .expect(401);
+        .expect(403);
 
-      expect(response.body.error).toBe('Authentication required');
+      expect(mockVarianceTrackingService.alerts.acknowledgeAlert).not.toHaveBeenCalled();
+    });
+
+    it('denies restricted principals before mutation on all seven variance writes', async () => {
+      const deniedApp = makeVarianceApp('lp');
+      const responses = await Promise.all([
+        request(deniedApp).post('/api/alerts/alert-123/acknowledge').send({ notes: 'Denied' }),
+        request(deniedApp).post('/api/alerts/alert-123/resolve').send({ notes: 'Denied' }),
+        request(deniedApp).post('/api/funds/1/alert-rules').send({}),
+        request(deniedApp).post('/api/funds/1/alerts/cleanup-superseded').send({}),
+        request(deniedApp).delete('/api/funds/1/baselines/baseline-123'),
+        request(deniedApp).post('/api/funds/1/baselines/baseline-123/set-default'),
+        request(deniedApp).post('/api/funds/1/variance-analysis').send({}),
+      ]);
+
+      expect(responses.map((response) => response.status)).toEqual([
+        403, 403, 403, 403, 403, 403, 403,
+      ]);
+      expect(mockVarianceTrackingService.alerts.getAlertOwnership).not.toHaveBeenCalled();
+      expect(mockVarianceTrackingService.alerts.acknowledgeAlert).not.toHaveBeenCalled();
+      expect(mockVarianceTrackingService.alerts.resolveAlert).not.toHaveBeenCalled();
+      expect(mockVarianceTrackingService.alerts.createAlertRule).not.toHaveBeenCalled();
+      expect(
+        mockVarianceTrackingService.cleanupSupersededAlertsForCurrentDefaultBaseline
+      ).not.toHaveBeenCalled();
+      expect(mockVarianceTrackingService.baselines.deactivateBaseline).not.toHaveBeenCalled();
+      expect(mockVarianceTrackingService.setDefaultBaselineAndCleanup).not.toHaveBeenCalled();
+      expect(mockVarianceTrackingService.performCompleteVarianceAnalysis).not.toHaveBeenCalled();
+    });
+
+    it('returns 404 for inaccessible alert IDs and 403 for explicit unauthorized funds', async () => {
+      mockVarianceTrackingService.alerts.getAlertOwnership.mockResolvedValue({ fundId: 2 });
+      const idOnlyApp = makeVarianceApp('analyst', [1]);
+      const idOnlyResponses = await Promise.all([
+        request(idOnlyApp).post('/api/alerts/alert-foreign/acknowledge').send({}),
+        request(idOnlyApp).post('/api/alerts/alert-foreign/resolve').send({}),
+      ]);
+
+      const explicit = await request(makeVarianceApp('analyst', [1]))
+        .post('/api/funds/2/alerts/cleanup-superseded')
+        .send({});
+
+      expect(idOnlyResponses.map((response) => response.status)).toEqual([404, 404]);
+      expect(explicit.status).toBe(403);
+      expect(explicit.body).toMatchObject({
+        error: 'Forbidden',
+        code: 'FUND_ACCESS_DENIED',
+      });
+      expect(mockVarianceTrackingService.alerts.acknowledgeAlert).not.toHaveBeenCalled();
+      expect(mockVarianceTrackingService.alerts.resolveAlert).not.toHaveBeenCalled();
+      expect(
+        mockVarianceTrackingService.cleanupSupersededAlertsForCurrentDefaultBaseline
+      ).not.toHaveBeenCalled();
+    });
+
+    it('allows every TEAM_WRITE_ROLES principal through all seven variance writes', async () => {
+      const report = {
+        id: '00000000-0000-0000-0000-000000000901',
+        fundId: 1,
+        baselineId: '00000000-0000-0000-0000-000000000902',
+        reportName: 'Role Matrix Report',
+        reportType: 'ad_hoc',
+        asOfDate: new Date('2026-01-01T00:00:00.000Z'),
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        totalValueVariance: null,
+        totalValueVariancePct: null,
+        irrVariance: null,
+        multipleVariance: null,
+        dpiVariance: null,
+        tvpiVariance: null,
+        significantVariances: [],
+      };
+      const writeCases = [
+        {
+          setup: () => {
+            mockVarianceTrackingService.alerts.getAlertOwnership.mockResolvedValue({ fundId: 1 });
+            mockVarianceTrackingService.alerts.acknowledgeAlert.mockResolvedValue(undefined);
+          },
+          invoke: (target: express.Express) =>
+            request(target).post('/api/alerts/alert-1/acknowledge').send({}),
+        },
+        {
+          setup: () => {
+            mockVarianceTrackingService.alerts.getAlertOwnership.mockResolvedValue({ fundId: 1 });
+            mockVarianceTrackingService.alerts.resolveAlert.mockResolvedValue(undefined);
+          },
+          invoke: (target: express.Express) =>
+            request(target).post('/api/alerts/alert-1/resolve').send({}),
+        },
+        {
+          setup: () => {
+            mockVarianceTrackingService.alerts.createAlertRule.mockResolvedValue({ id: 'rule-1' });
+          },
+          invoke: (target: express.Express) =>
+            request(target).post('/api/funds/1/alert-rules').send({
+              name: 'Role Matrix Rule',
+              ruleType: 'threshold',
+              metricName: 'irr',
+              operator: 'lt',
+              thresholdValue: -0.05,
+            }),
+        },
+        {
+          setup: () => {
+            mockVarianceTrackingService.cleanupSupersededAlertsForCurrentDefaultBaseline.mockResolvedValue(
+              { baseline: { id: 'baseline-1' }, resolvedSupersededAlerts: 0 }
+            );
+          },
+          invoke: (target: express.Express) =>
+            request(target).post('/api/funds/1/alerts/cleanup-superseded').send({}),
+        },
+        {
+          setup: () => {
+            mockVarianceTrackingService.baselines.getBaselineById.mockResolvedValue({
+              id: 'baseline-1',
+              fundId: 1,
+            });
+            mockVarianceTrackingService.baselines.deactivateBaseline.mockResolvedValue(true);
+          },
+          invoke: (target: express.Express) =>
+            request(target).delete('/api/funds/1/baselines/baseline-1'),
+        },
+        {
+          setup: () => {
+            mockVarianceTrackingService.setDefaultBaselineAndCleanup.mockResolvedValue({
+              baseline: { id: 'baseline-1' },
+              resolvedSupersededAlerts: 0,
+            });
+          },
+          invoke: (target: express.Express) =>
+            request(target).post('/api/funds/1/baselines/baseline-1/set-default'),
+          partnerOnly: true,
+        },
+        {
+          setup: () => {
+            mockVarianceTrackingService.performCompleteVarianceAnalysis.mockResolvedValue({
+              report,
+              alertsGenerated: [],
+            });
+          },
+          invoke: (target: express.Express) =>
+            request(target).post('/api/funds/1/variance-analysis').send({}),
+        },
+      ];
+
+      for (const role of ['analyst', 'partner', 'admin']) {
+        for (const writeCase of writeCases) {
+          vi.clearAllMocks();
+          writeCase.setup();
+          const response = await writeCase.invoke(makeVarianceApp(role));
+          if ('partnerOnly' in writeCase && writeCase.partnerOnly && role === 'analyst') {
+            // Default-baseline selection is a partner-gated governance transition.
+            expect(response.status, `${role} must be denied set-default`).toBe(403);
+            continue;
+          }
+          expect(
+            response.status,
+            `${role} should access variance write route`
+          ).toBeGreaterThanOrEqual(200);
+          expect(response.status, `${role} should access variance write route`).toBeLessThan(300);
+        }
+      }
     });
   });
 

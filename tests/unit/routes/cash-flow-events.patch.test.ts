@@ -21,9 +21,22 @@ vi.mock('../../../server/services/lp-reporting/cash-flow-event-service', () => s
 
 import cashFlowEventsRouter from '../../../server/routes/cash-flow-events';
 
-function makeApp() {
+function makeApp(role = 'analyst') {
   const app = express();
   app.use(express.json());
+  app.use((req, _res, next) => {
+    req.user = {
+      id: '42',
+      sub: '42',
+      email: `${role}@example.com`,
+      role,
+      roles: [role],
+      fundIds: [1],
+      ip: '127.0.0.1',
+      userAgent: 'vitest',
+    } as never;
+    next();
+  });
   app.use(cashFlowEventsRouter);
   app.use((_req, res) => res.status(404).json({ error: 'not_found' }));
   return app;

@@ -7,6 +7,7 @@
 
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { PARTNER_WRITE_ROLES, TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
 import { idempotency } from '../middleware/idempotency';
 import { varianceTrackingService } from '../services/variance-tracking';
 import { varianceAlertAutomationService } from '../services/variance-alert-automation';
@@ -23,7 +24,8 @@ import {
   type VarianceDashboardResponse as VarianceDashboardRouteResponse,
 } from '@shared/variance-validation';
 import { firstString, getUserId } from '../lib/request-values';
-import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
+import { requireWriteRole } from '../lib/auth/jwt';
+import { enforceProvidedFundScope, getVerifiedFundScope } from '../lib/auth/provided-fund-scope';
 import { getRouteErrorMessage } from '../lib/errorHandling';
 import { handleNumberParseError } from '../lib/number-parse-error';
 import {
@@ -35,6 +37,49 @@ import {
 import { createRouteLogger } from '../lib/route-logger.js';
 
 const routeLog = createRouteLogger('variance');
+const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);
+// Default-baseline selection changes fund reporting/alert semantics -- a
+// governance transition, partner-gated per ADR-072.
+const requirePartnerWrite = requireWriteRole(PARTNER_WRITE_ROLES);
+
+function notFoundAlert(res: Response): void {
+  res.status(404).json({
+    error: 'Alert not found',
+    message: 'The specified alert was not found.',
+  });
+}
+
+async function resolveAlertWriteScope(
+  req: Request,
+  res: Response,
+  alertId: string
+): Promise<{ fundId: number } | undefined> {
+  const ownership = await varianceTrackingService.alerts.getAlertOwnership(alertId);
+  if (!ownership) {
+    notFoundAlert(res);
+    return undefined;
+  }
+
+  const verifiedScope = await getVerifiedFundScope(req);
+  if (
+    verifiedScope &&
+    !verifiedScope.unrestricted &&
+    !verifiedScope.fundIds.includes(ownership.fundId)
+  ) {
+    notFoundAlert(res);
+    return undefined;
+  }
+
+  if (
+    !(await enforceProvidedFundScope(req, res, ownership.fundId, {
+      forWrite: true,
+    }))
+  ) {
+    return undefined;
+  }
+
+  return ownership;
+}
 
 function toIsoTimestamp(value: Date | string | null | undefined): string | null {
   if (!value) {
@@ -210,6 +255,7 @@ router['get']('/api/funds/:id/baselines', async (req: Request, res: Response) =>
  */
 router['post'](
   '/api/funds/:id/baselines/:baselineId/set-default',
+  requirePartnerWrite,
   async (req: Request, res: Response) => {
     try {
       let fundId: number;
@@ -222,6 +268,10 @@ router['post'](
         throw err;
       }
 
+      if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+        return;
+      }
+
       const baselineId = firstString(req.params['baselineId']);
       if (!baselineId) {
         const error: ApiError = {
@@ -231,11 +281,11 @@ router['post'](
         return res.status(400).json(error);
       }
 
-      const userId = req.user?.id ? parseInt(String(req.user.id), 10) : undefined;
+      const userId = getUserId(req);
       const result = await varianceTrackingService.setDefaultBaselineAndCleanup({
         fundId,
         baselineId,
-        ...(userId !== undefined ? { userId } : {}),
+        ...(userId > 0 ? { userId } : {}),
       });
 
       res.json({
@@ -268,32 +318,60 @@ router['post'](
  * Deactivate a baseline
  * DELETE /api/funds/:id/baselines/:baselineId
  */
-router['delete']('/api/funds/:id/baselines/:baselineId', async (req: Request, res: Response) => {
-  try {
-    const baselineId = firstString(req.params['baselineId']);
-    if (!baselineId) {
-      const error: ApiError = {
-        error: 'Invalid baseline ID',
-        message: 'Baseline ID is required',
+router['delete'](
+  '/api/funds/:id/baselines/:baselineId',
+  requireTeamWrite,
+  async (req: Request, res: Response) => {
+    try {
+      let fundId: number;
+      try {
+        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
+      } catch (err) {
+        if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+          return;
+        }
+        throw err;
+      }
+
+      const baselineId = firstString(req.params['baselineId']);
+      if (!baselineId) {
+        const error: ApiError = {
+          error: 'Invalid baseline ID',
+          message: 'Baseline ID is required',
+        };
+        return res.status(400).json(error);
+      }
+
+      if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+        return;
+      }
+
+      const deactivated = await varianceTrackingService.baselines.deactivateBaseline(
+        baselineId,
+        fundId
+      );
+      if (!deactivated) {
+        const error: ApiError = {
+          error: 'Baseline not found',
+          message: 'The specified baseline does not belong to this fund.',
+        };
+        return res.status(404).json(error);
+      }
+
+      res.json({
+        success: true,
+        message: 'Baseline deactivated successfully',
+      });
+    } catch (error) {
+      routeLog.error('Baseline deactivation error:', error);
+      const apiError: ApiError = {
+        error: 'Failed to deactivate baseline',
+        message: getRouteErrorMessage(error),
       };
-      return res.status(400).json(error);
+      res.status(500).json(apiError);
     }
-
-    await varianceTrackingService.baselines.deactivateBaseline(baselineId);
-
-    res.json({
-      success: true,
-      message: 'Baseline deactivated successfully',
-    });
-  } catch (error) {
-    routeLog.error('Baseline deactivation error:', error);
-    const apiError: ApiError = {
-      error: 'Failed to deactivate baseline',
-      message: getRouteErrorMessage(error),
-    };
-    res.status(500).json(apiError);
   }
-});
+);
 
 // === VARIANCE REPORT ROUTES ===
 
@@ -486,73 +564,83 @@ router['get']('/api/funds/:id/variance-reports/:reportId', async (req: Request, 
  * Create alert rule
  * POST /api/funds/:id/alert-rules
  */
-router['post']('/api/funds/:id/alert-rules', async (req: Request, res: Response) => {
-  try {
-    let fundId: number;
+router['post'](
+  '/api/funds/:id/alert-rules',
+  requireTeamWrite,
+  async (req: Request, res: Response) => {
     try {
-      fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
-    } catch (err) {
-      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+      let fundId: number;
+      try {
+        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
+      } catch (err) {
+        if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+          return;
+        }
+        throw err;
+      }
+
+      if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
         return;
       }
-      throw err;
-    }
 
-    const validation = CreateAlertRuleRequestSchema.safeParse(req.body);
-    if (!validation.success) {
-      const error: ApiError = {
-        error: 'Validation failed',
-        message: 'Invalid alert rule data',
-        details: validation.error.flatten(),
+      const validation = CreateAlertRuleRequestSchema.safeParse(req.body);
+      if (!validation.success) {
+        const error: ApiError = {
+          error: 'Validation failed',
+          message: 'Invalid alert rule data',
+          details: validation.error.flatten(),
+        };
+        return res.status(400).json(error);
+      }
+
+      const data = validation.data;
+      const userId = getUserId(req);
+
+      if (!userId) {
+        const error: ApiError = {
+          error: 'Authentication required',
+          message: 'User must be authenticated to create alert rules',
+        };
+        return res.status(401).json(error);
+      }
+
+      const rule = await varianceTrackingService.alerts.createAlertRule({
+        fundId,
+        name: data.name,
+        ...(data.description && { description: data.description }),
+        ruleType: data.ruleType,
+        metricName: data.metricName,
+        operator: data.operator,
+        thresholdValue: data.thresholdValue,
+        ...(data.secondaryThreshold !== undefined && {
+          secondaryThreshold: data.secondaryThreshold,
+        }),
+        severity: data.severity,
+        category: data.category,
+        checkFrequency: data.checkFrequency,
+        suppressionPeriod: data.suppressionPeriod,
+        notificationChannels: data.notificationChannels,
+        ...(data.escalationRules !== undefined && { escalationRules: data.escalationRules }),
+        ...(data.conditions !== undefined && { conditions: data.conditions }),
+        ...(data.filters !== undefined && { filters: data.filters }),
+        createdBy: userId,
+      });
+
+      res.status(201).json({
+        success: true,
+        data: rule,
+        message: 'Alert rule created successfully',
+      });
+    } catch (error) {
+      routeLog.error('Alert rule creation error:', error);
+      const apiError: ApiError = {
+        error: 'Failed to create alert rule',
+        message: getRouteErrorMessage(error),
       };
-      return res.status(400).json(error);
+      res.status(500).json(apiError);
     }
-
-    const data = validation.data;
-    const userId = getUserId(req);
-
-    if (!userId) {
-      const error: ApiError = {
-        error: 'Authentication required',
-        message: 'User must be authenticated to create alert rules',
-      };
-      return res.status(401).json(error);
-    }
-
-    const rule = await varianceTrackingService.alerts.createAlertRule({
-      fundId,
-      name: data.name,
-      ...(data.description && { description: data.description }),
-      ruleType: data.ruleType,
-      metricName: data.metricName,
-      operator: data.operator,
-      thresholdValue: data.thresholdValue,
-      ...(data.secondaryThreshold !== undefined && { secondaryThreshold: data.secondaryThreshold }),
-      severity: data.severity,
-      category: data.category,
-      checkFrequency: data.checkFrequency,
-      suppressionPeriod: data.suppressionPeriod,
-      notificationChannels: data.notificationChannels,
-      ...(data.escalationRules !== undefined && { escalationRules: data.escalationRules }),
-      ...(data.conditions !== undefined && { conditions: data.conditions }),
-      ...(data.filters !== undefined && { filters: data.filters }),
-      createdBy: userId,
-    });
-
-    res.status(201).json({
-      success: true,
-      data: rule,
-      message: 'Alert rule created successfully',
-    });
-  } catch (error) {
-    routeLog.error('Alert rule creation error:', error);
-    const apiError: ApiError = {
-      error: 'Failed to create alert rule',
-      message: getRouteErrorMessage(error),
-    };
-    res.status(500).json(apiError);
   }
-});
+);
 
 /**
  * Get active alerts for a fund
@@ -617,151 +705,189 @@ router['get']('/api/funds/:id/alerts', async (req: Request, res: Response) => {
  * Acknowledge an alert
  * POST /api/alerts/:alertId/acknowledge
  */
-router['post']('/api/alerts/:alertId/acknowledge', async (req: Request, res: Response) => {
-  try {
-    const alertId = firstString(req.params['alertId']);
-    if (!alertId) {
-      const error: ApiError = {
-        error: 'Invalid alert ID',
-        message: 'Alert ID is required',
+router['post'](
+  '/api/alerts/:alertId/acknowledge',
+  requireTeamWrite,
+  async (req: Request, res: Response) => {
+    try {
+      const alertId = firstString(req.params['alertId']);
+      if (!alertId) {
+        const error: ApiError = {
+          error: 'Invalid alert ID',
+          message: 'Alert ID is required',
+        };
+        return res.status(400).json(error);
+      }
+
+      const validation = AlertActionRequestSchema.safeParse(req.body);
+      if (!validation.success) {
+        const error: ApiError = {
+          error: 'Validation failed',
+          message: 'Invalid alert action data',
+          details: validation.error.flatten(),
+        };
+        return res.status(400).json(error);
+      }
+
+      const scope = await resolveAlertWriteScope(req, res, alertId);
+      if (!scope) {
+        return;
+      }
+
+      const userId = getUserId(req);
+      if (!userId) {
+        const error: ApiError = {
+          error: 'Authentication required',
+          message: 'User must be authenticated to acknowledge alerts',
+        };
+        return res.status(401).json(error);
+      }
+
+      await varianceTrackingService.alerts.acknowledgeAlert(
+        alertId,
+        scope.fundId,
+        userId,
+        validation.data.notes
+      );
+
+      res.json({
+        success: true,
+        message: 'Alert acknowledged successfully',
+      });
+    } catch (error) {
+      routeLog.error('Alert acknowledgment error:', error);
+      const apiError: ApiError = {
+        error: 'Failed to acknowledge alert',
+        message: getRouteErrorMessage(error),
       };
-      return res.status(400).json(error);
+      res.status(500).json(apiError);
     }
-
-    const validation = AlertActionRequestSchema.safeParse(req.body);
-    if (!validation.success) {
-      const error: ApiError = {
-        error: 'Validation failed',
-        message: 'Invalid alert action data',
-        details: validation.error.flatten(),
-      };
-      return res.status(400).json(error);
-    }
-
-    const userId = getUserId(req);
-    if (!userId) {
-      const error: ApiError = {
-        error: 'Authentication required',
-        message: 'User must be authenticated to acknowledge alerts',
-      };
-      return res.status(401).json(error);
-    }
-
-    await varianceTrackingService.alerts.acknowledgeAlert(alertId, userId, validation.data.notes);
-
-    res.json({
-      success: true,
-      message: 'Alert acknowledged successfully',
-    });
-  } catch (error) {
-    routeLog.error('Alert acknowledgment error:', error);
-    const apiError: ApiError = {
-      error: 'Failed to acknowledge alert',
-      message: getRouteErrorMessage(error),
-    };
-    res.status(500).json(apiError);
   }
-});
+);
 
 /**
  * Resolve an alert
  * POST /api/alerts/:alertId/resolve
  */
-router['post']('/api/alerts/:alertId/resolve', async (req: Request, res: Response) => {
-  try {
-    const alertId = firstString(req.params['alertId']);
-    if (!alertId) {
-      const error: ApiError = {
-        error: 'Invalid alert ID',
-        message: 'Alert ID is required',
+router['post'](
+  '/api/alerts/:alertId/resolve',
+  requireTeamWrite,
+  async (req: Request, res: Response) => {
+    try {
+      const alertId = firstString(req.params['alertId']);
+      if (!alertId) {
+        const error: ApiError = {
+          error: 'Invalid alert ID',
+          message: 'Alert ID is required',
+        };
+        return res.status(400).json(error);
+      }
+
+      const validation = AlertActionRequestSchema.safeParse(req.body);
+      if (!validation.success) {
+        const error: ApiError = {
+          error: 'Validation failed',
+          message: 'Invalid alert action data',
+          details: validation.error.flatten(),
+        };
+        return res.status(400).json(error);
+      }
+
+      const scope = await resolveAlertWriteScope(req, res, alertId);
+      if (!scope) {
+        return;
+      }
+
+      const userId = getUserId(req);
+      if (!userId) {
+        const error: ApiError = {
+          error: 'Authentication required',
+          message: 'User must be authenticated to resolve alerts',
+        };
+        return res.status(401).json(error);
+      }
+
+      await varianceTrackingService.alerts.resolveAlert(
+        alertId,
+        scope.fundId,
+        userId,
+        validation.data.notes
+      );
+
+      res.json({
+        success: true,
+        message: 'Alert resolved successfully',
+      });
+    } catch (error) {
+      routeLog.error('Alert resolution error:', error);
+      const apiError: ApiError = {
+        error: 'Failed to resolve alert',
+        message: getRouteErrorMessage(error),
       };
-      return res.status(400).json(error);
+      res.status(500).json(apiError);
     }
-
-    const validation = AlertActionRequestSchema.safeParse(req.body);
-    if (!validation.success) {
-      const error: ApiError = {
-        error: 'Validation failed',
-        message: 'Invalid alert action data',
-        details: validation.error.flatten(),
-      };
-      return res.status(400).json(error);
-    }
-
-    const userId = getUserId(req);
-    if (!userId) {
-      const error: ApiError = {
-        error: 'Authentication required',
-        message: 'User must be authenticated to resolve alerts',
-      };
-      return res.status(401).json(error);
-    }
-
-    await varianceTrackingService.alerts.resolveAlert(alertId, userId, validation.data.notes);
-
-    res.json({
-      success: true,
-      message: 'Alert resolved successfully',
-    });
-  } catch (error) {
-    routeLog.error('Alert resolution error:', error);
-    const apiError: ApiError = {
-      error: 'Failed to resolve alert',
-      message: getRouteErrorMessage(error),
-    };
-    res.status(500).json(apiError);
   }
-});
+);
 
 /**
  * Resolve older open incidents that no longer match the fund's current default baseline
  * POST /api/funds/:id/alerts/cleanup-superseded
  */
-router['post']('/api/funds/:id/alerts/cleanup-superseded', async (req: Request, res: Response) => {
-  try {
-    let fundId: number;
+router['post'](
+  '/api/funds/:id/alerts/cleanup-superseded',
+  requireTeamWrite,
+  async (req: Request, res: Response) => {
     try {
-      fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
-    } catch (err) {
-      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+      let fundId: number;
+      try {
+        fundId = toNumber(req.params['id'], 'fund ID', { integer: true, min: 1 });
+      } catch (err) {
+        if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+          return;
+        }
+        throw err;
+      }
+
+      if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
         return;
       }
-      throw err;
-    }
 
-    const userId = getUserId(req);
-    if (!userId) {
-      const error: ApiError = {
-        error: 'Authentication required',
-        message: 'User must be authenticated to clean up superseded alerts',
+      const userId = getUserId(req);
+      if (!userId) {
+        const error: ApiError = {
+          error: 'Authentication required',
+          message: 'User must be authenticated to clean up superseded alerts',
+        };
+        return res.status(401).json(error);
+      }
+
+      const result = await varianceTrackingService.cleanupSupersededAlertsForCurrentDefaultBaseline(
+        {
+          fundId,
+          userId,
+        }
+      );
+
+      res.json({
+        success: true,
+        data: {
+          baselineId: result.baseline.id,
+          resolvedSupersededAlerts: result.resolvedSupersededAlerts,
+        },
+        message: 'Superseded alerts cleaned up successfully',
+      });
+    } catch (error) {
+      routeLog.error('Superseded alert cleanup error:', error);
+      const message = getRouteErrorMessage(error);
+      const statusCode = message === 'No default baseline found for fund' ? 404 : 500;
+      const apiError: ApiError = {
+        error: 'Failed to clean up superseded alerts',
+        message,
       };
-      return res.status(401).json(error);
+      res.status(statusCode).json(apiError);
     }
-
-    const result = await varianceTrackingService.cleanupSupersededAlertsForCurrentDefaultBaseline({
-      fundId,
-      userId,
-    });
-
-    res.json({
-      success: true,
-      data: {
-        baselineId: result.baseline.id,
-        resolvedSupersededAlerts: result.resolvedSupersededAlerts,
-      },
-      message: 'Superseded alerts cleaned up successfully',
-    });
-  } catch (error) {
-    routeLog.error('Superseded alert cleanup error:', error);
-    const message = getRouteErrorMessage(error);
-    const statusCode = message === 'No default baseline found for fund' ? 404 : 500;
-    const apiError: ApiError = {
-      error: 'Failed to clean up superseded alerts',
-      message,
-    };
-    res.status(statusCode).json(apiError);
   }
-});
+);
 
 // === COMPREHENSIVE VARIANCE ANALYSIS ROUTES ===
 
@@ -771,6 +897,7 @@ router['post']('/api/funds/:id/alerts/cleanup-superseded', async (req: Request, 
  */
 router['post'](
   '/api/funds/:id/variance-analysis',
+  requireTeamWrite,
   idempotency,
   async (req: Request, res: Response) => {
     try {
@@ -782,6 +909,10 @@ router['post'](
           return;
         }
         throw err;
+      }
+
+      if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+        return;
       }
 
       const validation = VarianceAnalysisRequestSchema.safeParse(req.body);

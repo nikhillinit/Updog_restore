@@ -393,6 +393,22 @@ export async function getMetricRunDetail(
   return loadDetail(database, input.fundId, input.metricRunId);
 }
 
+export async function getMetricRunOwnership(
+  input: MetricRunDetailInput,
+  options: MetricRunLifecycleServiceOptions = {}
+): Promise<{ fundId: number } | undefined> {
+  const database = options.database ?? db;
+  const rows = await database
+    .select({ id: lpMetricRuns.id, fundId: lpMetricRuns.fundId })
+    .from(lpMetricRuns)
+    .where(and(eq(lpMetricRuns.fundId, input.fundId), eq(lpMetricRuns.id, input.metricRunId)))
+    .limit(1);
+  const row = rows[0];
+  return row && row.id === input.metricRunId && row.fundId === input.fundId
+    ? { fundId: row.fundId }
+    : undefined;
+}
+
 export async function approveMetricRun(
   input: MetricRunLifecycleInput,
   options: MetricRunLifecycleServiceOptions = {}

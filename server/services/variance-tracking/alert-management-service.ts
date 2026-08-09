@@ -34,6 +34,13 @@ import {
  * Alert management service
  */
 export class AlertManagementService {
+  async getAlertOwnership(alertId: string): Promise<{ fundId: number } | undefined> {
+    return db.query.performanceAlerts.findFirst({
+      where: eq(performanceAlerts.id, alertId),
+      columns: { fundId: true },
+    });
+  }
+
   /**
    * Create a new alert rule
    */
@@ -435,10 +442,15 @@ export class AlertManagementService {
   /**
    * Acknowledge an alert
    */
-  async acknowledgeAlert(alertId: string, userId: number, notes?: string): Promise<void> {
+  async acknowledgeAlert(
+    alertId: string,
+    fundId: number,
+    userId: number,
+    notes?: string
+  ): Promise<void> {
     // Get alert info for metrics
     const alert = await db.query.performanceAlerts.findFirst({
-      where: eq(performanceAlerts.id, alertId),
+      where: and(eq(performanceAlerts.id, alertId), eq(performanceAlerts.fundId, fundId)),
     });
 
     await db
@@ -450,7 +462,7 @@ export class AlertManagementService {
         resolutionNotes: notes,
         updatedAt: new Date(),
       })
-      .where(eq(performanceAlerts.id, alertId));
+      .where(and(eq(performanceAlerts.id, alertId), eq(performanceAlerts.fundId, fundId)));
 
     // Record metrics
     if (alert) {
@@ -461,10 +473,15 @@ export class AlertManagementService {
   /**
    * Resolve an alert
    */
-  async resolveAlert(alertId: string, userId: number, notes?: string): Promise<void> {
+  async resolveAlert(
+    alertId: string,
+    fundId: number,
+    userId: number,
+    notes?: string
+  ): Promise<void> {
     // Get alert info for metrics
     const alert = await db.query.performanceAlerts.findFirst({
-      where: eq(performanceAlerts.id, alertId),
+      where: and(eq(performanceAlerts.id, alertId), eq(performanceAlerts.fundId, fundId)),
     });
 
     const resolveTime = new Date();
@@ -477,7 +494,7 @@ export class AlertManagementService {
         resolutionNotes: notes,
         updatedAt: new Date(),
       })
-      .where(eq(performanceAlerts.id, alertId));
+      .where(and(eq(performanceAlerts.id, alertId), eq(performanceAlerts.fundId, fundId)));
 
     // Record metrics
     if (alert) {
@@ -529,7 +546,9 @@ export class AlertManagementService {
         resolutionNotes,
         updatedAt: resolvedAt,
       })
-      .where(inArray(performanceAlerts.id, staleAlertIds));
+      .where(
+        and(eq(performanceAlerts.fundId, fundId), inArray(performanceAlerts.id, staleAlertIds))
+      );
 
     for (const alert of staleAlerts) {
       const resolutionTime = (resolvedAt.getTime() - alert.triggeredAt.getTime()) / 1000;

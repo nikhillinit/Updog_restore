@@ -3,11 +3,13 @@ import type { NextFunction, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 
+import { TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
 import { toNumber } from '@shared/number';
-import { requireAuth, requireFundAccess, requireRole } from '../lib/auth/jwt.js';
+import { requireAuth, requireFundAccess, requireRole, requireWriteRole } from '../lib/auth/jwt.js';
 import { FundScopeError } from '../lib/fund-scoped-ownership';
 import { IdempotentCommandError } from '../lib/idempotent-command';
 import { handleNumberParseError } from '../lib/number-parse-error';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { createRouteLogger } from '../lib/route-logger.js';
 import {
   CurrentPlanVersionServiceError,
@@ -38,6 +40,7 @@ import {
 
 const routeLog = createRouteLogger('current-forecast');
 const router = Router();
+const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);
 
 const currentForecastReadLimiter = rateLimit({
   windowMs: 60_000,
@@ -202,9 +205,12 @@ router.post(
   currentForecastWriteLimiter,
   requireAuth(),
   validateFundIdParam,
-  requireFundAccess,
+  requireTeamWrite,
   routeHandler(async (req: Request, res: Response) => {
     const fundId = toNumber(req.params['fundId'], 'fundId', { integer: true, min: 1 });
+    if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+      return;
+    }
     const idempotencyKey = req.header('Idempotency-Key')?.trim();
     if (!idempotencyKey) {
       return res.status(400).json({
@@ -242,9 +248,12 @@ router.post(
   currentForecastWriteLimiter,
   requireAuth(),
   validateFundIdParam,
-  requireFundAccess,
+  requireTeamWrite,
   routeHandler(async (req: Request, res: Response) => {
     const fundId = toNumber(req.params['fundId'], 'fundId', { integer: true, min: 1 });
+    if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+      return;
+    }
     const parsedBody = RunCurrentForecastV2BodySchema.safeParse(req.body);
     if (!parsedBody.success) {
       return res.status(400).json({
