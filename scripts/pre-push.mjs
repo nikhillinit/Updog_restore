@@ -3,6 +3,8 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 
+let childEnvironment = process.env;
+
 function commandName(command) {
   return command;
 }
@@ -14,7 +16,7 @@ function needsShell(command) {
 function run(command, args, options = {}) {
   const result = spawnSync(commandName(command), args, {
     cwd: options.cwd ?? process.cwd(),
-    env: options.env ?? process.env,
+    env: options.env ?? childEnvironment,
     input: options.input,
     shell: needsShell(command),
     stdio: options.input === undefined ? 'inherit' : ['pipe', 'pipe', 'inherit'],
@@ -36,7 +38,7 @@ function run(command, args, options = {}) {
 function output(command, args, options = {}) {
   const result = spawnSync(commandName(command), args, {
     cwd: options.cwd ?? process.cwd(),
-    env: options.env ?? process.env,
+    env: options.env ?? childEnvironment,
     input: options.input,
     shell: needsShell(command),
     stdio: ['pipe', 'pipe', options.quietErrors ? 'pipe' : 'inherit'],
@@ -66,6 +68,10 @@ function splitLines(value) {
 const repoRoot = output('git', ['rev-parse', '--show-toplevel']);
 process.chdir(repoRoot);
 process.env.PATH = `${path.join(repoRoot, 'node_modules', '.bin')}${path.delimiter}${process.env.PATH ?? ''}`;
+childEnvironment = { ...process.env };
+delete childEnvironment.GIT_DIR;
+delete childEnvironment.GIT_WORK_TREE;
+delete childEnvironment.GIT_INDEX_FILE;
 
 const baseBranch = 'origin/main';
 
