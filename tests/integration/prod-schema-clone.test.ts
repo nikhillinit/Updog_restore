@@ -207,6 +207,9 @@ const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'internal-economics-linkage',
   'quarterly-review-workflow',
   'kpi-observations',
+  'g3-portfolio-and-calculation',
+  'g3-canary',
+  'g3-capital-call-notification-outbox',
 ] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
