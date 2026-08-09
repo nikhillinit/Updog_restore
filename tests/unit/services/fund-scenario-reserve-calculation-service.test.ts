@@ -30,6 +30,7 @@ const calculationInput = {
   correlationId: '44444444-4444-4444-8444-444444444444',
   actor: {},
   jobId: 'job-orchestration',
+  runId: '33333333-3333-4333-8333-333333333333',
 };
 
 const orchestrationRun = {
@@ -171,6 +172,10 @@ function configureOrchestration(options: {
   vi.spyOn(calculationRunService, 'findCompletedScenarioRun').mockResolvedValue(
     options.completedResponse ? { ...orchestrationRun, status: 'completed', snapshotId: 42 } : null
   );
+  vi.spyOn(calculationRunService, 'findScenarioCalculationRunForDelivery').mockResolvedValue({
+    ...orchestrationRun,
+    status: 'queued',
+  });
   vi.spyOn(calculationRunService, 'acquireScenarioCalculationRun').mockResolvedValue({
     ...orchestrationRun,
     status: 'queued',
@@ -193,6 +198,7 @@ function configureOrchestration(options: {
         : (options.failureResult as never);
     });
   void failureSpy;
+  vi.spyOn(calculationRunService, 'requeueScenarioCalculationRunIfRunning').mockResolvedValue(1);
 
   vi.spyOn(scenarioSetService, 'insertScenarioSetEvent').mockImplementation(
     async (_client, event) => {
@@ -338,15 +344,21 @@ describe('fund scenario reserve calculation service', () => {
     expect(events).toEqual([]);
   });
 
-  it('reuses a completed snapshot without claiming or recalculating', async () => {
-    const { order, events } = configureOrchestration({ completedResponse: reserveResponse });
+  it('drains a legacy delivery without creating a replacement run', async () => {
+    const { order, events } = configureOrchestration();
+    vi.mocked(calculationRunService.findScenarioCalculationRunForDelivery).mockResolvedValue(null);
 
-    await expect(runReserveScenarioCalculation(calculationInput)).resolves.toEqual(reserveResponse);
+    const result = await runReserveScenarioCalculation({
+      ...calculationInput,
+      runId: undefined,
+    });
 
-    expect(order).not.toContain('expensive-input');
-    expect(order).not.toContain('snapshot');
-    expect(events).toEqual([]);
+    expect(isScenarioCalculationOwnershipLost(result)).toBe(true);
+    expect(calculationRunService.findScenarioCalculationRunForDelivery).toHaveBeenCalled();
     expect(calculationRunService.claimScenarioCalculationRunIfQueued).not.toHaveBeenCalled();
+    expect(calculationRunService.acquireScenarioCalculationRun).not.toHaveBeenCalled();
+    expect(order).not.toContain('expensive-input');
+    expect(events).toEqual([]);
   });
 
   it('rolls back completion work when the running CAS loses and emits no late event or failure', async () => {
@@ -366,7 +378,9 @@ describe('fund scenario reserve calculation service', () => {
     const { order, events } = configureOrchestration();
     vi.spyOn(snapshotStore, 'persistReserveScenarioSnapshot').mockRejectedValue(originalError);
 
-    await expect(runReserveScenarioCalculation(calculationInput)).rejects.toBe(originalError);
+    await expect(
+      runReserveScenarioCalculation({ ...calculationInput, isFinalAttempt: true })
+    ).rejects.toBe(originalError);
 
     expect(events.map((event) => event.eventType)).toEqual([
       'calculation_started',
@@ -375,6 +389,37 @@ describe('fund scenario reserve calculation service', () => {
     expect(events[1]?.changeSummary).toMatchObject({ run_id: orchestrationRun.id });
     expect(order.indexOf('scenario-lock')).toBeLessThan(order.indexOf('failure-cas'));
     expect(order.indexOf('failure-cas')).toBeLessThan(order.indexOf('event:calculation_failed'));
+  });
+
+  it('requeues the same run for non-final transient errors and lets retry complete it', async () => {
+    const { events } = configureOrchestration();
+    const originalError = new Error('transient calculation failure');
+    vi.spyOn(snapshotStore, 'persistReserveScenarioSnapshot')
+      .mockRejectedValueOnce(originalError)
+      .mockResolvedValueOnce(reserveResponse);
+
+    const retryInput = { ...calculationInput, isFinalAttempt: false };
+    await expect(runReserveScenarioCalculation(retryInput)).rejects.toBe(originalError);
+    expect(calculationRunService.requeueScenarioCalculationRunIfRunning).toHaveBeenCalledWith(
+      expect.anything(),
+      orchestrationRun.id,
+      expect.objectContaining({ jobId: calculationInput.jobId })
+    );
+    expect(calculationRunService.failScenarioCalculationRunIfRunning).not.toHaveBeenCalled();
+
+    await expect(
+      runReserveScenarioCalculation({ ...retryInput, isFinalAttempt: true })
+    ).resolves.toEqual(reserveResponse);
+    expect(calculationRunService.claimScenarioCalculationRunIfQueued).toHaveBeenCalledWith(
+      expect.anything(),
+      orchestrationRun.id,
+      expect.objectContaining({ jobId: calculationInput.jobId })
+    );
+    expect(events.map((event) => event.eventType)).toEqual([
+      'calculation_started',
+      'calculation_started',
+      'calculated',
+    ]);
   });
 
   it('rethrows the original calculation error when failure persistence itself fails', async () => {
@@ -481,12 +526,6 @@ describe('fund scenario reserve calculation service', () => {
       jobId: 'job-drift',
       correlationId: '44444444-4444-4444-8444-444444444444',
     };
-    const findCompletedSpy = vi
-      .spyOn(calculationRunService, 'findCompletedScenarioRun')
-      .mockResolvedValue(null);
-    const acquireSpy = vi
-      .spyOn(calculationRunService, 'acquireScenarioCalculationRun')
-      .mockResolvedValue({ ...runRow, status: 'queued' });
     const claimSpy = vi
       .spyOn(calculationRunService, 'claimScenarioCalculationRunIfQueued')
       .mockResolvedValue(runRow);
@@ -534,13 +573,9 @@ describe('fund scenario reserve calculation service', () => {
         run_id: runRow.id,
         input_hash: startedSummary.input_hash,
       });
-      expect(findCompletedSpy).toHaveBeenCalledTimes(1);
-      expect(acquireSpy).toHaveBeenCalledTimes(1);
       expect(claimSpy).toHaveBeenCalledTimes(1);
       expect(buildSpy).not.toHaveBeenCalled();
     } finally {
-      findCompletedSpy.mockRestore();
-      acquireSpy.mockRestore();
       claimSpy.mockRestore();
       failSpy.mockRestore();
       eventSpy.mockRestore();

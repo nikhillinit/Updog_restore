@@ -83,7 +83,7 @@ describe('initializeFundScenarioCalcWorker', () => {
       token: string | undefined,
       signal: AbortSignal | undefined
     ) => Promise<unknown>;
-    const job = { id: 'job-1', data: { fundId: 1 } };
+    const job = { id: 'job-1', attemptsMade: 0, opts: { attempts: 1 }, data: { fundId: 1 } };
     const signal = new AbortController().signal;
 
     await expect(processor(job, 'bullmq-token', signal)).resolves.toBe(result);

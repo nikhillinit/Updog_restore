@@ -21,8 +21,6 @@ import type { ReserveInputTrustSummary } from '../../shared/contracts/reserve-in
 import { buildScenarioReserveSummary } from './fund-scenario-reserve-summary';
 import {
   FUND_SCENARIO_CALC_VERSION,
-  applyScenarioReadStaleness,
-  findReusableReserveScenarioSnapshot,
   persistReserveScenarioSnapshot,
 } from './fund-scenario-reserve-snapshot-store';
 import {
@@ -37,12 +35,12 @@ import { createScenarioInputHash } from '../lib/scenarios/scenario-input-hash';
 import { normalizeLegacyScenarioSourceConfig } from './fund-scenario-source-config-compat.js';
 import { logger } from '../lib/logger';
 import {
-  acquireScenarioCalculationRun,
   claimScenarioCalculationRunIfQueued,
   completeScenarioCalculationRunIfRunning,
   failScenarioCalculationRunIfRunning,
-  findCompletedScenarioRun,
+  findScenarioCalculationRunForDelivery,
   markScenarioCalculationRunTimedOut,
+  requeueScenarioCalculationRunIfRunning,
   type ScenarioCalculationRunRecord,
   type ScenarioCalculationRunFenceIdentity,
 } from './fund-scenario-calculation-run-service';
@@ -95,6 +93,7 @@ interface RunReserveScenarioCalculationInput {
   actor: FundScenarioMutationActor;
   jobId: string | null;
   runId?: string;
+  isFinalAttempt?: boolean;
   signal?: AbortSignal;
   abortController?: AbortController;
 }
@@ -122,8 +121,7 @@ interface ClaimedReserveScenarioRun {
 }
 
 type ReserveScenarioClaimOutcome =
-  | { kind: 'reusable'; response: FundScenarioCalculationResponseV1 }
-  | { kind: 'claimed'; value: ClaimedReserveScenarioRun }
+  { kind: 'claimed'; value: ClaimedReserveScenarioRun }
   | null;
 
 class ScenarioRunOwnershipLostError extends Error {
@@ -633,58 +631,25 @@ async function claimReserveScenarioRun(
     const context = await loadReserveScenarioRunContext(client, input);
     const runIdentity = normalizeRunIdentityHashKind(runIdentityFromContext(input, context));
 
-    if (input.runId !== undefined) {
-      const claimedRun = await claimScenarioCalculationRunIfQueued(client, input.runId, runIdentity);
-      if (!claimedRun) {
-        logger.info(
-          { runId: input.runId, jobId: runIdentity.jobId },
-          'Ignoring stale fund scenario calculation delivery'
-        );
-        return null;
-      }
-
-      await recordCalculationStartedEvent(client, input, context, claimedRun.id);
-      return {
-        kind: 'claimed',
-        value: { context, identity: runIdentity, run: claimedRun },
-      };
-    }
-
-    const completedRun = await findCompletedScenarioRun(client, runIdentity);
-    if (completedRun?.snapshotId != null) {
-      const completedResponse = await findReusableReserveScenarioResponse(
-        client,
-        input,
-        context,
-        completedRun.snapshotId
+    const legacyDeliveryRun =
+      input.runId === undefined && input.jobId !== null
+        ? await findScenarioCalculationRunForDelivery(client, runIdentity)
+        : null;
+    const deliveryRunId = input.runId ?? legacyDeliveryRun?.id ?? null;
+    if (deliveryRunId === null || (input.runId === undefined && legacyDeliveryRun?.status !== 'queued')) {
+      logger.info(
+        { runId: deliveryRunId, jobId: runIdentity.jobId },
+        'Ignoring fund scenario calculation delivery without a queued run'
       );
-      if (completedResponse) {
-        return { kind: 'reusable', response: completedResponse };
-      }
+      return null;
     }
 
-    const run = await acquireScenarioCalculationRun(client, {
-      ...runIdentity,
-      correlationId: input.correlationId,
-      jobId: input.jobId,
-    });
-    if (run.status === 'completed' && run.snapshotId !== null) {
-      const completedResponse = await findReusableReserveScenarioResponse(
-        client,
-        input,
-        context,
-        run.snapshotId
-      );
-      if (completedResponse) {
-        return { kind: 'reusable', response: completedResponse };
-      }
-    }
-
-    const claimedRun = await claimScenarioCalculationRunIfQueued(client, run.id, runIdentity);
+    const claimedRun = await claimScenarioCalculationRunIfQueued(client, deliveryRunId, runIdentity);
     if (!claimedRun) {
-      if (runIdentity.jobId !== null) {
-        await markScenarioCalculationRunTimedOut(client, run.id, runIdentity.jobId);
-      }
+      logger.info(
+        { runId: deliveryRunId, jobId: runIdentity.jobId },
+        'Ignoring stale fund scenario calculation delivery'
+      );
       return null;
     }
 
@@ -779,30 +744,6 @@ async function calculateReserveScenarioForContext(
   return completeReserveScenarioRun(input, claimed);
 }
 
-/*
- * Kept as a small lookup helper so completed responses continue to use the
- * same snapshot identity checks as the pre-existing synchronous path.
- */
-async function findReusableReserveScenarioResponse(
-  client: PoolClient,
-  input: RunReserveScenarioCalculationInput,
-  context: ReserveScenarioRunContext,
-  snapshotId: number
-): Promise<FundScenarioCalculationResponseV1 | null> {
-  const reusableSnapshot = await findReusableReserveScenarioSnapshot(client, {
-    snapshotId,
-    fundId: input.fundId,
-    scenarioSetId: input.scenarioSetId,
-    sourceConfigId: context.sourceConfig.id,
-    sourceConfigVersion: context.sourceConfig.version,
-    inputHash: context.inputHash,
-  });
-
-  return reusableSnapshot
-    ? applyScenarioReadStaleness(reusableSnapshot, context.currentPublishedVersion)
-    : null;
-}
-
 async function buildReserveScenarioCalculationData(
   client: PoolClient,
   input: RunReserveScenarioCalculationInput,
@@ -870,10 +811,6 @@ export async function runReserveScenarioCalculation(
     if (outcome === null) {
       return PRIVATE_OWNERSHIP_LOST;
     }
-    if (outcome.kind === 'reusable') {
-      return outcome.response;
-    }
-
     claimed = outcome.value;
     const deadlineActor = startScenarioDeadlineActor(input, claimed);
     try {
@@ -886,8 +823,17 @@ export async function runReserveScenarioCalculation(
     if (error instanceof ScenarioRunOwnershipLostError) {
       return PRIVATE_OWNERSHIP_LOST;
     }
-    if (claimed && !isFundScenarioHardTimeoutError(error)) {
-      await recordCalculationFailedEvent({ claimed, calculationInput: input, error });
+    const activeClaim = claimed;
+    if (activeClaim && !isFundScenarioHardTimeoutError(error) && input.isFinalAttempt !== false) {
+      await recordCalculationFailedEvent({ claimed: activeClaim, calculationInput: input, error });
+    } else if (
+      activeClaim &&
+      !isFundScenarioHardTimeoutError(error) &&
+      input.isFinalAttempt === false
+    ) {
+      await transaction((client) =>
+        requeueScenarioCalculationRunIfRunning(client, activeClaim.run.id, activeClaim.identity)
+      );
     }
     throw error;
   }

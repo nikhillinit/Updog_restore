@@ -120,6 +120,8 @@ describe('fund scenario calc worker handler', () => {
 
     const result = await handleFundScenarioCalcJob({
       id: 'job-1',
+      attemptsMade: 0,
+      opts: { attempts: 2 },
       data: {
         fundId: 1,
         scenarioSetId: '00000000-0000-0000-0000-000000000111',
@@ -138,6 +140,7 @@ describe('fund scenario calc worker handler', () => {
       actor: { userId: 17, label: 'analyst@example.com' },
       jobId: 'job-1',
       runId: 'run-1',
+      isFinalAttempt: false,
       signal: expect.any(AbortSignal),
       abortController: expect.any(AbortController),
     }));
@@ -155,6 +158,8 @@ describe('fund scenario calc worker handler', () => {
     await expect(
       handleFundScenarioCalcJob({
         id: 'job-lost-owner',
+        attemptsMade: 0,
+        opts: { attempts: 2 },
         data: {
           fundId: 1,
           scenarioSetId: '00000000-0000-0000-0000-000000000111',
@@ -179,6 +184,8 @@ describe('fund scenario calc worker handler', () => {
     await expect(
       handleFundScenarioCalcJob({
         id: 'job-2',
+        attemptsMade: 0,
+        opts: { attempts: 1 },
         data: {
           fundId: 1,
           scenarioSetId: '00000000-0000-0000-0000-000000000111',
@@ -209,6 +216,8 @@ describe('fund scenario calc worker handler', () => {
     await expect(
       handleFundScenarioCalcJob({
         id: 'job-timeout',
+        attemptsMade: 0,
+        opts: { attempts: 2 },
         data: {
           fundId: 1,
           scenarioSetId: '00000000-0000-0000-0000-000000000111',

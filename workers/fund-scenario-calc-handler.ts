@@ -15,7 +15,7 @@ export interface FundScenarioCalcJobData {
   scenarioSetId: string;
   correlationId: string;
   calculationMode: string;
-  runId: string;
+  runId?: string;
   actor: {
     userId: number | null;
     label: string | null;
@@ -44,7 +44,7 @@ async function withReserveScenarioMetrics<T>(callback: () => Promise<T>): Promis
 }
 
 export async function handleFundScenarioCalcJob(
-  job: Pick<Job<FundScenarioCalcJobData>, 'id' | 'data'>,
+  job: Pick<Job<FundScenarioCalcJobData>, 'id' | 'data' | 'attemptsMade' | 'opts'>,
   _token?: string,
   signal?: AbortSignal
 ) {
@@ -81,6 +81,7 @@ export async function handleFundScenarioCalcJob(
         actor: actor ?? {},
         jobId: String(job.id),
         runId,
+        isFinalAttempt: job.attemptsMade + 1 >= (job.opts.attempts ?? 1),
         signal: ownedAbortController.signal,
         abortController: ownedAbortController,
       })

@@ -7,7 +7,9 @@ import {
   completeScenarioCalculationRunIfRunning,
   failScenarioCalculationRunIfRunning,
   findCompletedScenarioRun,
+  findScenarioCalculationRunForDelivery,
   markScenarioCalculationRunTimedOut,
+  requeueScenarioCalculationRunIfRunning,
 } from '../../../server/services/fund-scenario-calculation-run-service';
 import { persistReserveScenarioSnapshot } from '../../../server/services/fund-scenario-reserve-snapshot-store';
 import type { EconomicsResultV1 } from '../../../shared/contracts/economics-v1.contract';
@@ -326,6 +328,38 @@ describe('scenario retention helpers', () => {
     expect(String(queryMock.mock.calls[0]?.[0])).toContain('job_id IS NOT DISTINCT FROM');
     expect(String(queryMock.mock.calls[0]?.[0])).toContain('deadline_at IS NULL OR clock_timestamp()');
     expect(String(queryMock.mock.calls[1]?.[0])).not.toContain('deadline_at IS NULL OR');
+  });
+
+  it('requeues only the fenced running row for a non-final delivery attempt', async () => {
+    const queryMock = vi.fn().mockResolvedValue({ rowCount: 1, rows: [] });
+
+    await expect(
+      requeueScenarioCalculationRunIfRunning(
+        { query: queryMock } as never,
+        asyncRunRow.id,
+        asyncRunIdentity
+      )
+    ).resolves.toBe(1);
+
+    const sql = String(queryMock.mock.calls[0]?.[0]);
+    expect(sql).toContain("status = 'queued'");
+    expect(sql).toContain('started_at = NULL');
+    expect(sql).toContain('job_id IS NOT DISTINCT FROM');
+    expect(sql).toContain('clock_timestamp()');
+    expect(sql).not.toContain('NOW()');
+  });
+
+  it('finds only queued or running deliveries matching exact job identity', async () => {
+    const queryMock = vi.fn().mockResolvedValue({ rows: [asyncRunRow] });
+
+    await expect(
+      findScenarioCalculationRunForDelivery({ query: queryMock } as never, asyncRunIdentity)
+    ).resolves.toMatchObject({ id: asyncRunRow.id });
+
+    const sql = String(queryMock.mock.calls[0]?.[0]);
+    expect(sql).toContain("status IN ('queued', 'running')");
+    expect(sql).toContain('job_id IS NOT DISTINCT FROM');
+    expect(sql).toContain('input_hash =');
   });
 
   it('terminalizes an expired queued or running row through the timeout CAS only', async () => {

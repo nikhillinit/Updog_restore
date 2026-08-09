@@ -287,9 +287,9 @@ async function insertScenarioCalculationRun(
        updated_at
      )
      VALUES (
-       $1, $2, $3, $4, $5, $6, $7, $8, $9::date, $10, $11, $12, 'queued',
+       $1, $2, $3, $4, $5, $6, $7, $8, $9::date, $10, $11::varchar, $12, 'queued',
        CASE
-         WHEN $11 IS NULL THEN NULL
+         WHEN $11::varchar IS NULL THEN NULL
          ELSE clock_timestamp() + ($13::bigint * INTERVAL '1 millisecond')
        END,
        clock_timestamp(),
@@ -547,6 +547,22 @@ export async function claimScenarioCalculationRunIfQueued(
   return result.rows[0] ? mapRun(result.rows[0]) : null;
 }
 
+export async function findScenarioCalculationRunForDelivery(
+  client: QueryClient,
+  identity: ScenarioCalculationRunFenceIdentity
+): Promise<ScenarioCalculationRunRecord | null> {
+  const result = await client.query<ScenarioCalculationRunRow>(
+    `SELECT *
+       FROM fund_scenario_calculation_runs
+      WHERE status IN ('queued', 'running')
+        AND job_id IS NOT DISTINCT FROM $12${ASYNC_RUN_IDENTITY_FENCE_SQL}
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [null, ...asyncRunFenceParams('delivery-lookup', identity).slice(1)]
+  );
+  return result.rows[0] ? mapRun(result.rows[0]) : null;
+}
+
 export async function completeScenarioCalculationRunIfRunning(
   client: QueryClient,
   runId: string,
@@ -594,6 +610,31 @@ export async function failScenarioCalculationRunIfRunning(
     ]
   );
   return result.rows[0] ? mapRun(result.rows[0]) : null;
+}
+
+export async function requeueScenarioCalculationRunIfRunning(
+  client: QueryClient,
+  runId: string,
+  identity: ScenarioCalculationRunFenceIdentity
+): Promise<number> {
+  const result = await client.query(
+    `UPDATE fund_scenario_calculation_runs
+        SET status = 'queued',
+            started_at = NULL,
+            deadline_at = CASE
+              WHEN job_id IS NULL THEN NULL
+              ELSE clock_timestamp() + ($13::bigint * INTERVAL '1 millisecond')
+            END,
+            failure_code = NULL,
+            failure_message = NULL,
+            failed_at = NULL,
+            updated_at = clock_timestamp()
+      WHERE id = $1
+        AND status = 'running'
+        AND job_id IS NOT DISTINCT FROM $12${ASYNC_RUN_IDENTITY_FENCE_SQL}`,
+    [...asyncRunFenceParams(runId, identity), timeoutParam(identity)]
+  );
+  return affectedRowCount(result);
 }
 
 export interface FundScenarioDeadlineSweepResult {

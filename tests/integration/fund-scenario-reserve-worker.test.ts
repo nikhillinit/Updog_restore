@@ -193,6 +193,7 @@ async function startRuntime(): Promise<Runtime> {
   process.env._EXPLICIT_DATABASE_URL = connectionString;
   process.env.USE_REAL_DB_IN_VITEST = '1';
   process.env.ENABLE_QUEUES = '1';
+  process.env.FUND_SCENARIO_HARD_TIMEOUT_MS = '30000';
   process.env._EXPLICIT_ENABLE_QUEUES = '1';
   process.env.REDIS_URL = 'memory://';
   process.env._EXPLICIT_REDIS_URL = 'memory://';
@@ -720,11 +721,15 @@ describe('fund scenario reserve worker integration', () => {
         );
         await expect(job.waitUntilFinished(staleQueueEvents, JOB_TIMEOUT_MS)).resolves.toBeNull();
 
+        // Count only rows carrying this delivery's job id: the controlled
+        // failure test above legitimately leaves its own terminal row on the
+        // same scenario set, so a set-wide count is order-dependent.
         const runs = await active.pool.query<{ count: string }>(
           `SELECT COUNT(*)::text AS count
              FROM fund_scenario_calculation_runs
-            WHERE scenario_set_id = $1`,
-          [failingScenarioSetId]
+            WHERE scenario_set_id = $1
+              AND job_id = $2`,
+          [failingScenarioSetId, jobId]
         );
         expect(runs.rows[0]?.count).toBe('1');
       } finally {

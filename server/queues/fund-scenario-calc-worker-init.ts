@@ -12,7 +12,7 @@ interface FundScenarioCalcJobData {
   scenarioSetId: string;
   correlationId: string;
   calculationMode: string;
-  runId: string;
+  runId?: string;
   actor: {
     userId: number | null;
     label: string | null;
@@ -23,7 +23,10 @@ type FundScenarioCalcJobResult = unknown;
 
 interface FundScenarioCalcHandlerModule {
   handleFundScenarioCalcJob(
-    job: Pick<Job<FundScenarioCalcJobData, FundScenarioCalcJobResult, string>, 'id' | 'data'>,
+    job: Pick<
+      Job<FundScenarioCalcJobData, FundScenarioCalcJobResult, string>,
+      'id' | 'data' | 'attemptsMade' | 'opts'
+    >,
     token?: string,
     signal?: AbortSignal
   ): Promise<FundScenarioCalcJobResult>;

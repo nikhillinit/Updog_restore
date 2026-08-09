@@ -154,7 +154,7 @@
     "vite.config.ts": "44f0745da9cf4aa73c55447b22dc8c5e9dd34bbd06b760899e00908ba08b18ad",
     "workers/cohort-worker.ts": "aa05a747b0a8605eb23264cd2149b0cf737b0f0f4a8d092fa57e0e32c416e187",
     "workers/dlq.ts": "4ab16ca234a24130b20abfcc78cdf9b6a159f5104fb682cc390adccbc0acedae",
-    "workers/fund-scenario-calc-handler.ts": "b9747d65db2c21ed7338edb048673bd96a2b30305192ef3b6004b9bbded2394c",
+    "workers/fund-scenario-calc-handler.ts": "50adcba8c2964f840a2b9c30fef818602bdd8d505e733d76430f882c45c2c49b",
     "workers/fund-scenario-calc-worker-harness.ts": "7c519c2bd8e15f1ce8c2ab0cd20a3e30a5ff37962f4ca48b238ccafd91c2b847",
     "workers/fund-scenario-calc-worker.ts": "d7bda9884efff85ac73a26c16e11903a49503c223644ba554f0b0dd423aa390c",
     "workers/health-server.ts": "62191dde206e035ef062ffd7245e2d497a75f98e28a484d92ed854d2719eaa8e",
