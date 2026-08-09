@@ -142,7 +142,7 @@
     "server/websocket/dev-dashboard.ts": "8b8ce1712ff0ec51388562e545949f2792edec61407c476d4657a9d82045d2e0",
     "server/websocket/index.ts": "74850ccebad13e8f9b48218a813877854d98a51e38b966ce21eb49d36642d8aa",
     "server/websocket/portfolio-metrics.ts": "9c331deb7f137d62b5723d55529f949aa7c5c779c92d34bc7f1b2669ec4f7c59",
-    "server/workers/capital-call-status-worker.ts": "3337e9859199c5358a1711dfda6f4b7e8a526051efe5b0de7fa91751de5b5e50",
+    "server/workers/capital-call-status-worker.ts": "1ea41eb3a208045745c23dca9adc7a16182c0808835314654232c0e5eca0da3d",
     "server/workers/lp-materialized-view-refresh.ts": "39ee6b698475c1168769c5c23afef4cf5778dc2c23d4b706a94a49fbf9d5da0c",
     "server/workers/scenarioGeneratorWorker.ts": "a7abb61e7806d17a787babc89f03c1e054ed1e793ec196b1fee4c8d7821749d6",
     "shared/auth/effective-roles.ts": "137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6",
@@ -154,7 +154,7 @@
     "vite.config.ts": "44f0745da9cf4aa73c55447b22dc8c5e9dd34bbd06b760899e00908ba08b18ad",
     "workers/cohort-worker.ts": "aa05a747b0a8605eb23264cd2149b0cf737b0f0f4a8d092fa57e0e32c416e187",
     "workers/dlq.ts": "4ab16ca234a24130b20abfcc78cdf9b6a159f5104fb682cc390adccbc0acedae",
-    "workers/fund-scenario-calc-handler.ts": "79980d45ab1c5568d4128b5387de88113722ad2a7d4e1d6ddca30005cb2d1855",
+    "workers/fund-scenario-calc-handler.ts": "b9747d65db2c21ed7338edb048673bd96a2b30305192ef3b6004b9bbded2394c",
     "workers/fund-scenario-calc-worker-harness.ts": "7c519c2bd8e15f1ce8c2ab0cd20a3e30a5ff37962f4ca48b238ccafd91c2b847",
     "workers/fund-scenario-calc-worker.ts": "d7bda9884efff85ac73a26c16e11903a49503c223644ba554f0b0dd423aa390c",
     "workers/health-server.ts": "62191dde206e035ef062ffd7245e2d497a75f98e28a484d92ed854d2719eaa8e",
@@ -15821,7 +15821,7 @@
       "row_id": "worker:capital-call-status",
       "contract_fingerprint": "86554b617de1a996ef0dd5cf456a8e8390cd4c97d879c639adc97e91c9440e0c",
       "source_fingerprints": [
-        "server/workers/capital-call-status-worker.ts=3337e9859199c5358a1711dfda6f4b7e8a526051efe5b0de7fa91751de5b5e50"
+        "server/workers/capital-call-status-worker.ts=1ea41eb3a208045745c23dca9adc7a16182c0808835314654232c0e5eca0da3d"
       ],
       "reviewed_fields": {
         "persistence": "writes",

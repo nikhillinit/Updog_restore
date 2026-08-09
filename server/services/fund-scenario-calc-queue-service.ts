@@ -77,7 +77,7 @@ export async function enqueueReserveScenarioCalculation(input: {
   };
   const acquired = await transaction(async (client) => {
     const result = await acquireScenarioCalculationRunWithCreation(client, baseRunIdentity);
-    const jobId = `${identityKey}:${result.run.id}`;
+    const jobId = `${identityKey}__run__${result.run.id}`;
     if (result.inserted) {
       const rebound = await bindQueuedScenarioCalculationRunJobId(
         client,
@@ -119,6 +119,7 @@ export async function enqueueReserveScenarioCalculation(input: {
         calculationMode: 'async_reserve_allocation',
         actor: normalizeActor(input.actor),
         inputHash: identity.inputHash,
+        runId: acquired.run.id,
       },
       {
         jobId,

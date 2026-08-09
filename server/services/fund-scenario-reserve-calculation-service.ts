@@ -35,6 +35,7 @@ import {
 } from './fund-scenario-set-service.js';
 import { createScenarioInputHash } from '../lib/scenarios/scenario-input-hash';
 import { normalizeLegacyScenarioSourceConfig } from './fund-scenario-source-config-compat.js';
+import { logger } from '../lib/logger';
 import {
   acquireScenarioCalculationRun,
   claimScenarioCalculationRunIfQueued,
@@ -93,6 +94,7 @@ interface RunReserveScenarioCalculationInput {
   correlationId: string;
   actor: FundScenarioMutationActor;
   jobId: string | null;
+  runId?: string;
   signal?: AbortSignal;
   abortController?: AbortController;
 }
@@ -630,6 +632,23 @@ async function claimReserveScenarioRun(
   return transaction(async (client) => {
     const context = await loadReserveScenarioRunContext(client, input);
     const runIdentity = normalizeRunIdentityHashKind(runIdentityFromContext(input, context));
+
+    if (input.runId !== undefined) {
+      const claimedRun = await claimScenarioCalculationRunIfQueued(client, input.runId, runIdentity);
+      if (!claimedRun) {
+        logger.info(
+          { runId: input.runId, jobId: runIdentity.jobId },
+          'Ignoring stale fund scenario calculation delivery'
+        );
+        return null;
+      }
+
+      await recordCalculationStartedEvent(client, input, context, claimedRun.id);
+      return {
+        kind: 'claimed',
+        value: { context, identity: runIdentity, run: claimedRun },
+      };
+    }
 
     const completedRun = await findCompletedScenarioRun(client, runIdentity);
     if (completedRun?.snapshotId != null) {

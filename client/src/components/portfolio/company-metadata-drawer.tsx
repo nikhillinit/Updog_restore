@@ -136,9 +136,16 @@ export function CompanyMetadataDrawer({
         }
       );
     },
-    onSuccess: () => {
+    onSuccess: (updatedCompany) => {
+      setForm(formFromCompany(updatedCompany));
+      setDirtyFields(new Set());
+      setExpectedVersion(updatedCompany.rowVersion);
       idempotencyKey.current = null;
       setConflict(false);
+      queryClient.setQueryData(
+        ['portfolio-company', fundId, company.id],
+        updatedCompany
+      );
       invalidatePortfolioData(queryClient, fundId);
       void queryClient.invalidateQueries({ queryKey: ['portfolio-company', fundId, company.id] });
       onOpenChange(false);

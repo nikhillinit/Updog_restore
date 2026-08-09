@@ -121,9 +121,9 @@ describe('CapitalCallStatusWorker scheduler registration', () => {
           fallback: T
         ) => Promise<T>;
       }
-    ).bestEffortReminderRedis(stuckRedisOperation, Date.now() + 100, null);
+    ).bestEffortReminderRedis(stuckRedisOperation, Date.now() + 1_000, null);
 
-    await vi.advanceTimersByTimeAsync(100);
+    await vi.advanceTimersByTimeAsync(250);
     await expect(bounded).resolves.toBeNull();
     expect(stuckRedisOperation).toHaveBeenCalledTimes(1);
   });

@@ -12,6 +12,7 @@ interface FundScenarioCalcJobData {
   scenarioSetId: string;
   correlationId: string;
   calculationMode: string;
+  runId: string;
   actor: {
     userId: number | null;
     label: string | null;

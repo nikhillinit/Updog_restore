@@ -318,6 +318,26 @@ describe('fund scenario reserve calculation service', () => {
     expect(calculationRunService.failScenarioCalculationRunIfRunning).not.toHaveBeenCalled();
   });
 
+  it('does not acquire or create a run for a stale fenced delivery', async () => {
+    const { order, events } = configureOrchestration();
+    vi.mocked(calculationRunService.claimScenarioCalculationRunIfQueued).mockResolvedValue(null);
+
+    const result = await runReserveScenarioCalculation({
+      ...calculationInput,
+      runId: 'stale-run-id',
+    });
+
+    expect(isScenarioCalculationOwnershipLost(result)).toBe(true);
+    expect(calculationRunService.claimScenarioCalculationRunIfQueued).toHaveBeenCalledWith(
+      expect.anything(),
+      'stale-run-id',
+      expect.objectContaining({ jobId: calculationInput.jobId })
+    );
+    expect(calculationRunService.acquireScenarioCalculationRun).not.toHaveBeenCalled();
+    expect(order).not.toContain('expensive-input');
+    expect(events).toEqual([]);
+  });
+
   it('reuses a completed snapshot without claiming or recalculating', async () => {
     const { order, events } = configureOrchestration({ completedResponse: reserveResponse });
 

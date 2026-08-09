@@ -15,6 +15,7 @@ export interface FundScenarioCalcJobData {
   scenarioSetId: string;
   correlationId: string;
   calculationMode: string;
+  runId: string;
   actor: {
     userId: number | null;
     label: string | null;
@@ -47,7 +48,7 @@ export async function handleFundScenarioCalcJob(
   _token?: string,
   signal?: AbortSignal
 ) {
-  const { fundId, scenarioSetId, correlationId, calculationMode, actor } = job.data;
+  const { fundId, scenarioSetId, correlationId, calculationMode, actor, runId } = job.data;
 
   logger.info('Processing reserve scenario calculation', {
     fundId,
@@ -79,6 +80,7 @@ export async function handleFundScenarioCalcJob(
         correlationId,
         actor: actor ?? {},
         jobId: String(job.id),
+        runId,
         signal: ownedAbortController.signal,
         abortController: ownedAbortController,
       })

@@ -125,6 +125,7 @@ describe('fund scenario calc worker handler', () => {
         scenarioSetId: '00000000-0000-0000-0000-000000000111',
         correlationId: '00000000-0000-0000-0000-000000000123',
         calculationMode: 'async_reserve_allocation',
+        runId: 'run-1',
         actor: { userId: 17, label: 'analyst@example.com' },
       },
     }, 'bullmq-token', signal);
@@ -136,6 +137,7 @@ describe('fund scenario calc worker handler', () => {
       correlationId: '00000000-0000-0000-0000-000000000123',
       actor: { userId: 17, label: 'analyst@example.com' },
       jobId: 'job-1',
+      runId: 'run-1',
       signal: expect.any(AbortSignal),
       abortController: expect.any(AbortController),
     }));
@@ -158,6 +160,7 @@ describe('fund scenario calc worker handler', () => {
           scenarioSetId: '00000000-0000-0000-0000-000000000111',
           correlationId: '00000000-0000-0000-0000-000000000123',
           calculationMode: 'async_reserve_allocation',
+          runId: 'run-lost-owner',
           actor: null,
         },
       })
@@ -181,6 +184,7 @@ describe('fund scenario calc worker handler', () => {
           scenarioSetId: '00000000-0000-0000-0000-000000000111',
           correlationId: '00000000-0000-0000-0000-000000000123',
           calculationMode: 'sync_fee_profile',
+          runId: 'run-unsupported',
           actor: null,
         },
       })
@@ -210,6 +214,7 @@ describe('fund scenario calc worker handler', () => {
           scenarioSetId: '00000000-0000-0000-0000-000000000111',
           correlationId: '00000000-0000-0000-0000-000000000123',
           calculationMode: 'async_reserve_allocation',
+          runId: 'run-timeout',
           actor: null,
         },
       })

@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { PortfolioCompany } from '@shared/schema';
 import { CompanyMetadataDrawer } from '@/components/portfolio/company-metadata-drawer';
@@ -58,6 +58,10 @@ function renderDrawer(company = companyFixture(), onOpenChange = vi.fn()) {
 }
 
 describe('CompanyMetadataDrawer', () => {
+  beforeEach(() => {
+    apiState.request.mockReset();
+  });
+
   it('submits metadata only and closes after successful invalidation', async () => {
     apiState.request.mockResolvedValueOnce(companyFixture({ rowVersion: 4 }));
     const { onOpenChange, queryClient } = renderDrawer();
@@ -132,5 +136,22 @@ describe('CompanyMetadataDrawer', () => {
     );
     expect(nameInput).toHaveValue('Preserve this edit');
     expect(screen.getByLabelText('Sector')).toHaveValue('Healthcare');
+  });
+
+  it('uses the returned row version for an immediate second edit', async () => {
+    apiState.request
+      .mockResolvedValueOnce(companyFixture({ name: 'Saved once', rowVersion: 4 }))
+      .mockResolvedValueOnce(companyFixture({ name: 'Saved twice', rowVersion: 5 }));
+    renderDrawer();
+
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Saved once' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save metadata' }));
+    await waitFor(() => expect(apiState.request).toHaveBeenCalledTimes(1));
+
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Saved twice' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save metadata' }));
+    await waitFor(() => expect(apiState.request).toHaveBeenCalledTimes(2));
+
+    expect(apiState.request.mock.calls[1]?.[2]).toMatchObject({ expectedVersion: 4 });
   });
 });

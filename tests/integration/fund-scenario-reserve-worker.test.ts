@@ -1,4 +1,5 @@
 import express from 'express';
+import { randomUUID } from 'node:crypto';
 import { Queue, QueueEvents, Worker } from 'bullmq';
 import type { Queue as QueueType, QueueEvents as QueueEventsType } from 'bullmq';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
@@ -306,6 +307,48 @@ async function waitForSnapshotWriteWaiter(pool: Pool): Promise<void> {
   throw new Error('Timed out waiting for the worker snapshot write lock waiter');
 }
 
+async function seedQueuedDeliveryRun(input: {
+  pool: Pool;
+  fundId: number;
+  scenarioSetId: string;
+  sourceConfigId: number;
+  sourceConfigVersion: number;
+  inputHash: string;
+  hashKind: string;
+  modelInputsAsOfDate: string | null;
+  comparisonLineageVersion: string | null;
+  jobId: string;
+  correlationId: string;
+  status?: 'queued' | 'failed';
+}): Promise<string> {
+  const runId = randomUUID();
+  await input.pool.query(
+    `INSERT INTO fund_scenario_calculation_runs (
+       id, fund_id, scenario_set_id, source_config_id, source_config_version,
+       calculation_mode, override_type, input_hash, hash_kind,
+       model_inputs_as_of_date, comparison_lineage_version, job_id,
+       correlation_id, status, deadline_at
+     ) VALUES ($1, $2, $3, $4, $5, 'async_reserve_allocation', 'reserve_allocation',
+       $6, $7, $8, $9, $10, $11, $12,
+       clock_timestamp() + INTERVAL '30 seconds')`,
+    [
+      runId,
+      input.fundId,
+      input.scenarioSetId,
+      input.sourceConfigId,
+      input.sourceConfigVersion,
+      input.inputHash,
+      input.hashKind,
+      input.modelInputsAsOfDate,
+      input.comparisonLineageVersion,
+      input.jobId,
+      input.correlationId,
+      input.status ?? 'queued',
+    ]
+  );
+  return runId;
+}
+
 describe('fund scenario reserve worker integration', () => {
   const originalEnv = { ...process.env };
 
@@ -490,6 +533,26 @@ describe('fund scenario reserve worker integration', () => {
       const active = runtime!;
       const { handleFundScenarioCalcJob } =
         await import('../../workers/fund-scenario-calc-handler');
+      const { getReserveScenarioCalculationIdentity } =
+        await import('../../server/services/fund-scenario-reserve-calculation-service');
+      const identity = await getReserveScenarioCalculationIdentity(
+        active.fundId,
+        completionRaceScenarioSetId
+      );
+      const raceJobId = `race-${Date.now()}`;
+      const raceRunId = await seedQueuedDeliveryRun({
+        pool: active.pool,
+        fundId: active.fundId,
+        scenarioSetId: completionRaceScenarioSetId,
+        sourceConfigId: identity.sourceConfigId,
+        sourceConfigVersion: identity.sourceConfigVersion,
+        inputHash: identity.inputHash,
+        hashKind: identity.inputLineage.hashKind,
+        modelInputsAsOfDate: identity.inputLineage.modelInputsAsOfDate,
+        comparisonLineageVersion: identity.inputLineage.comparisonLineageVersion,
+        jobId: raceJobId,
+        correlationId: '00000000-0000-4333-8333-000000000003',
+      });
 
       const raceQueueName = `fund-scenario-calc-race-${Date.now()}`;
       const raceQueue = new Queue<FundScenarioCalcJobData>(raceQueueName, {
@@ -527,10 +590,11 @@ describe('fund scenario reserve worker integration', () => {
             scenarioSetId: completionRaceScenarioSetId,
             correlationId: '00000000-0000-4333-8333-000000000003',
             calculationMode: 'async_reserve_allocation',
+            runId: raceRunId,
             actor: { userId: null, label: 'integration@example.com' },
           },
           {
-            jobId: `race-${Date.now()}`,
+            jobId: raceJobId,
             // This direct race proof intentionally uses one delivery; the
             // production HTTP queue remains configured with attempts: 2.
             attempts: 1,
@@ -603,5 +667,72 @@ describe('fund scenario reserve worker integration', () => {
       }
     },
     JOB_TIMEOUT_MS * 2 + 15_000
+  );
+
+  it(
+    'ignores a stale delivery without creating a replacement run',
+    async (ctx) => {
+      if (visibleLocalSkip(ctx)) return;
+      expect(runtime).not.toBeNull();
+      const active = runtime!;
+      const { getReserveScenarioCalculationIdentity } =
+        await import('../../server/services/fund-scenario-reserve-calculation-service');
+      const { handleFundScenarioCalcJob } =
+        await import('../../workers/fund-scenario-calc-handler');
+      const identity = await getReserveScenarioCalculationIdentity(active.fundId, failingScenarioSetId);
+      const queueName = `fund-scenario-calc-stale-${Date.now()}`;
+      const staleQueue = new Queue<FundScenarioCalcJobData>(queueName, {
+        connection: active.queueConnection,
+      });
+      const staleQueueEvents = new QueueEvents(queueName, { connection: active.queueConnection });
+      const staleWorker = new Worker<FundScenarioCalcJobData>(queueName, handleFundScenarioCalcJob, {
+        connection: active.queueConnection,
+        concurrency: 1,
+      });
+      const jobId = `stale-${Date.now()}`;
+      const runId = await seedQueuedDeliveryRun({
+        pool: active.pool,
+        fundId: active.fundId,
+        scenarioSetId: failingScenarioSetId,
+        sourceConfigId: identity.sourceConfigId,
+        sourceConfigVersion: identity.sourceConfigVersion,
+        inputHash: identity.inputHash,
+        hashKind: identity.inputLineage.hashKind,
+        modelInputsAsOfDate: identity.inputLineage.modelInputsAsOfDate,
+        comparisonLineageVersion: identity.inputLineage.comparisonLineageVersion,
+        jobId,
+        correlationId: '00000000-0000-4333-8333-000000000004',
+        status: 'failed',
+      });
+
+      try {
+        const job = await staleQueue.add(
+          'async_reserve_allocation',
+          {
+            fundId: active.fundId,
+            scenarioSetId: failingScenarioSetId,
+            correlationId: '00000000-0000-4333-8333-000000000004',
+            calculationMode: 'async_reserve_allocation',
+            runId,
+            actor: { userId: null, label: 'integration@example.com' },
+          },
+          { jobId, attempts: 1, removeOnComplete: false, removeOnFail: false }
+        );
+        await expect(job.waitUntilFinished(staleQueueEvents, JOB_TIMEOUT_MS)).resolves.toBeNull();
+
+        const runs = await active.pool.query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count
+             FROM fund_scenario_calculation_runs
+            WHERE scenario_set_id = $1`,
+          [failingScenarioSetId]
+        );
+        expect(runs.rows[0]?.count).toBe('1');
+      } finally {
+        await staleWorker.close();
+        await staleQueueEvents.close();
+        await staleQueue.close();
+      }
+    },
+    JOB_TIMEOUT_MS + 15_000
   );
 });

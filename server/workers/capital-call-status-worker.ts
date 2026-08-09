@@ -132,10 +132,11 @@ export class CapitalCallStatusWorker {
   ): Promise<T> {
     const remainingMs = Math.max(0, deadlineAt - Date.now());
     if (remainingMs === 0) return fallback;
+    const redisBudgetMs = Math.max(1, Math.min(2_000, Math.floor(remainingMs / 4)));
 
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<T>((resolve) => {
-      timer = setTimeout(() => resolve(fallback), remainingMs);
+      timer = setTimeout(() => resolve(fallback), redisBudgetMs);
     });
     try {
       return await Promise.race([
