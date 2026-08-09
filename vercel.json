@@ -9,12 +9,6 @@
   "installCommand": "npm ci --include=dev",
   "framework": "vite",
 
-  "functions": {
-    "api/**/*.ts": {
-      "runtime": "@vercel/node@3.0.23"
-    }
-  },
-
   "rewrites": [
     {
       "source": "/metrics/:path*",
