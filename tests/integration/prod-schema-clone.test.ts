@@ -1006,16 +1006,18 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
 
     // eslint-disable-next-line no-console -- D4 requires non-gating CI diagnostics.
     console.log('[prod-schema-clone] shape-only tables', shapeOnlyTables);
-    // eslint-disable-next-line no-console -- D4 requires non-gating CI diagnostics.
-    console.log(
-      '[prod-schema-clone] DB-A catalog definitions',
-      JSON.stringify(await catalogDefinitions(pool!))
-    );
-    // eslint-disable-next-line no-console -- D4 requires non-gating CI diagnostics.
-    console.log(
-      '[prod-schema-clone] DB-B catalog definitions',
-      JSON.stringify(await catalogDefinitions(shapePool))
-    );
+    if (process.env.TESTCONTAINERS_DEBUG === 'true') {
+      // eslint-disable-next-line no-console -- D4 diagnostics are opt-in because catalogs are large.
+      console.log(
+        '[prod-schema-clone] DB-A catalog definitions',
+        JSON.stringify(await catalogDefinitions(pool!))
+      );
+      // eslint-disable-next-line no-console -- D4 diagnostics are opt-in because catalogs are large.
+      console.log(
+        '[prod-schema-clone] DB-B catalog definitions',
+        JSON.stringify(await catalogDefinitions(shapePool))
+      );
+    }
     // eslint-disable-next-line no-console -- non-gating drift report for PR-2b
     console.log(
       '[prod-schema-clone] KNOWN intersection drift observed (report-only, PR-2b):',
