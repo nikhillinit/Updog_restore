@@ -91,8 +91,11 @@ vi.mock('@/stores/fundStore', () => ({
 }));
 
 const mockCreateFund = vi.fn();
+const mockHandleCredentialRenewalMarker = vi.fn(() => false);
 vi.mock('@/services/funds', () => ({
   createFund: (...args: unknown[]) => mockCreateFund(...args),
+  handleCredentialRenewalMarker: (...args: unknown[]) =>
+    mockHandleCredentialRenewalMarker(...(args as [])),
   normalizeCreateFundResponse: (raw: Record<string, unknown>) => {
     const data = (raw as { data?: Record<string, unknown> }).data ?? raw;
     return {
@@ -149,6 +152,7 @@ describe('FundBasicsStep bootstrap identity', () => {
       },
     });
     mockSaveFundDraft.mockReset().mockResolvedValue({ success: true });
+    mockHandleCredentialRenewalMarker.mockReset().mockReturnValue(false);
   });
 
   afterEach(() => {
@@ -177,6 +181,25 @@ describe('FundBasicsStep bootstrap identity', () => {
       );
       expect(mockNavigate).toHaveBeenCalledWith('/fund-setup?step=2');
     }, FULL_SUITE_WAIT_OPTIONS);
+  });
+
+  it('preserves the committed fund id and stops follow-on writes when renewal requires reauth', async () => {
+    mockHandleCredentialRenewalMarker.mockReturnValue(true);
+
+    render(<FundBasicsStep />);
+
+    await clickNextStep();
+
+    await waitFor(() => {
+      expect(mockCreateFund).toHaveBeenCalledTimes(1);
+      expect(mockSetDraftFundId).toHaveBeenCalledWith(42);
+      expect(
+        screen.getByText('Session renewal required. Sign in again to continue editing.')
+      ).toBeInTheDocument();
+    }, FULL_SUITE_WAIT_OPTIONS);
+
+    expect(mockSaveFundDraft).not.toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it('records cashless GP contribution as a percentage of GP commitment', async () => {

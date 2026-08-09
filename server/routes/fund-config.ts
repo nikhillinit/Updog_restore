@@ -55,6 +55,10 @@ function ensureProducerQueuesRegistered(): void {
 import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
 import { sendApiError } from '../lib/apiError';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
+import {
+  creatorUserIdFromRequest,
+  renewCreationCredential,
+} from '../lib/auth/creator-identity';
 import { handleNumberParseError } from '../lib/number-parse-error';
 import idempotency from '../middleware/idempotency';
 import { omitEconomicsAssumptionsWhenDisabled } from '../services/economics-feature-gate';
@@ -113,21 +117,39 @@ export function registerFundConfigRoutes(app: Express) {
           });
         }
 
+        const creatorUserId = creatorUserIdFromRequest(req);
+        if (creatorUserId === undefined) {
+          return sendApiError(res, 401, {
+            error: 'Authentication identity is invalid',
+            code: 'INVALID_AUTHENTICATION_IDENTITY',
+          });
+        }
+
         const draftFundId = validation.data.draftFundId;
         if (draftFundId != null && !(await enforceProvidedFundScope(req, res, draftFundId))) {
           return;
         }
 
         const { fundPersistenceService } = await import('../services/fund-persistence-service');
-        const result = await fundPersistenceService.finalize(validation.data, {
-          reserve: reserveQueue,
-          pacing: pacingQueue,
-          cohort: cohortQueue,
-        });
+        const result = await fundPersistenceService.finalize(
+          { ...validation.data, creatorUserId },
+          {
+            reserve: reserveQueue,
+            pacing: pacingQueue,
+            cohort: cohortQueue,
+          }
+        );
+        const credentialRenewal = await renewCreationCredential(
+          req,
+          res,
+          result.fundId,
+          creatorUserId
+        );
 
         res.status(201).json({
           success: true as const,
           data: result,
+          ...credentialRenewal,
         });
       } catch (error) {
         if (error instanceof Error && error.name === 'NoActiveDraftForFinalizeError') {

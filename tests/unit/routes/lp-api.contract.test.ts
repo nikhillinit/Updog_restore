@@ -26,6 +26,9 @@ const dbState = vi.hoisted(() => {
   function makeQuery(result: unknown[]): QueryChain {
     const query = {
       from: vi.fn(() => query),
+      // Canary exclusion (F_1.2.5 Lane C) joins funds on governed LP reads.
+      innerJoin: vi.fn(() => query),
+      leftJoin: vi.fn(() => query),
       where: vi.fn(() => query),
       orderBy: vi.fn(() => query),
       limit: vi.fn(() => Promise.resolve(result)),

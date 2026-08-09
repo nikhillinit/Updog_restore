@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  assertReleaseCanaryPrincipalImmutable,
   assertFundIdsExist,
   assertIdentityFileOutsideRepo,
   getProdIdentityBcryptCost,
@@ -20,6 +21,55 @@ const validIdentity = {
 describe('production identity file validation', () => {
   it('parses a valid identity file', () => {
     expect(parseProdIdentityFile(JSON.stringify([validIdentity]))).toEqual([validIdentity]);
+  });
+
+  it('accepts an optional partner canary principal marker', () => {
+    const identity = {
+      ...validIdentity,
+      role: 'partner',
+      releaseCanaryPrincipal: true,
+    };
+
+    expect(parseProdIdentityFile(JSON.stringify([identity]))).toEqual([identity]);
+  });
+
+  it('rejects a non-boolean canary principal marker', () => {
+    expect(() =>
+      parseProdIdentityFile(
+        JSON.stringify({ ...validIdentity, releaseCanaryPrincipal: 'true' })
+      )
+    ).toThrow();
+  });
+
+  it('rejects a canary principal marker on non-partner identities', () => {
+    expect(() =>
+      parseProdIdentityFile(JSON.stringify([{ ...validIdentity, releaseCanaryPrincipal: true }]))
+    ).toThrow('releaseCanaryPrincipal requires partner role');
+  });
+
+  it('rejects more than one canary principal', () => {
+    expect(() =>
+      parseProdIdentityFile(
+        JSON.stringify([
+          { ...validIdentity, username: 'canary-a', role: 'partner', releaseCanaryPrincipal: true },
+          {
+            ...validIdentity,
+            username: 'canary-b',
+            role: 'partner',
+            releaseCanaryPrincipal: true,
+            password: 'another-unique-password',
+          },
+        ])
+      )
+    ).toThrow('Only one release canary principal is allowed');
+  });
+
+  it('fails closed when provisioning would change the immutable marker', () => {
+    expect(() => assertReleaseCanaryPrincipalImmutable('smoke', undefined, true)).not.toThrow();
+    expect(() => assertReleaseCanaryPrincipalImmutable('smoke', true, true)).not.toThrow();
+    expect(() => assertReleaseCanaryPrincipalImmutable('smoke', false, true)).toThrow(
+      'Refusing to change releaseCanaryPrincipal'
+    );
   });
 
   it('rejects passwords shorter than 16 characters', () => {

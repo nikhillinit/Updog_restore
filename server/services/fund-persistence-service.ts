@@ -8,9 +8,20 @@
  * @module server/services/fund-persistence-service
  */
 
+import { randomUUID } from 'node:crypto';
+
 import { db } from '../db';
-import { funds, fundConfigs, fundEvents, calcRuns, fundSnapshots } from '@shared/schema';
-import { eq, and, max, isNull } from 'drizzle-orm';
+import {
+  funds,
+  fundConfigs,
+  fundEvents,
+  calcRuns,
+  fundSnapshots,
+  users,
+  userFundGrants,
+} from '@shared/schema';
+import { releaseCanaryRuns } from '@shared/schema/release-canary';
+import { eq, and, max, isNull, sql } from 'drizzle-orm';
 import type { Fund, FundConfig, CalcRun, DispatchState } from '@shared/schema/fund';
 import type { EngineResults } from '@shared/schemas/engine-results-schema';
 import {
@@ -31,6 +42,41 @@ import { runEconomicsCalculation } from './economics-calculation-service';
 import { fundStateReadService } from './fund-state-read-service';
 import { omitEconomicsAssumptionsWhenDisabled } from './economics-feature-gate';
 import { COMPARISON_LINEAGE_VERSION } from '@shared/lib/scenarios/scenario-input-envelope';
+import { getReleaseIdentity } from '../version';
+import {
+  preflightCanaryCreation,
+  readCanaryRuntimePolicy,
+  reconcileReleaseCanaryRun,
+} from './canary-residue-service';
+
+function firstNonEmptyEnvironmentValue(keys: readonly string[], fallback: string): string {
+  for (const key of keys) {
+    const value = process.env[key]?.trim();
+    if (value) return value;
+  }
+  return fallback;
+}
+
+function releaseCanaryRunIdentity(principalUserId: number, ttlHours: number) {
+  const release = getReleaseIdentity();
+
+  return {
+    releaseVersion: release.version,
+    releaseSha: release.commit,
+    deploymentId: firstNonEmptyEnvironmentValue(
+      ['VERCEL_DEPLOYMENT_ID', 'RAILWAY_DEPLOYMENT_ID', 'DEPLOYMENT_ID'],
+      'local-api'
+    ),
+    workerDeploymentId: firstNonEmptyEnvironmentValue(
+      ['WORKER_DEPLOYMENT_ID', 'RAILWAY_WORKER_DEPLOYMENT_ID', 'RAILWAY_DEPLOYMENT_ID'],
+      'unassigned-worker'
+    ),
+    correlationId: randomUUID(),
+    principalUserId,
+    status: 'created' as const,
+    expiresAt: new Date(Date.now() + ttlHours * 60 * 60 * 1000),
+  };
+}
 
 export interface CreateFundInput {
   name: string;
@@ -39,6 +85,7 @@ export interface CreateFundInput {
   carryPercentage: string;
   vintageYear: number;
   engineResults?: EngineResults | null;
+  creatorUserId?: number;
 }
 
 export interface CreateFundResult {
@@ -77,6 +124,7 @@ const inlineExecutionByEngine: Partial<
 
 export interface FinalizeInput {
   draftFundId?: number | undefined;
+  creatorUserId?: number | undefined;
   name: string;
   size: number;
   managementFee?: number | undefined;
@@ -161,6 +209,31 @@ export class FundPersistenceService {
     const gatedConfigInput = omitEconomicsAssumptionsWhenDisabled(configInput ?? {});
 
     return await db.transaction(async (tx) => {
+      const canaryPrincipal =
+        fundInput.creatorUserId === undefined
+          ? false
+          : (
+                await tx.query.users.findFirst({
+                  where: eq(users.id, fundInput.creatorUserId),
+                  columns: { isReleaseCanaryPrincipal: true },
+                })
+              )?.isReleaseCanaryPrincipal === true;
+
+      let canaryRunId: string | null = null;
+      if (canaryPrincipal && fundInput.creatorUserId !== undefined) {
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtext('release_canary_creation'))`
+        );
+        const canaryPolicy = readCanaryRuntimePolicy();
+        await preflightCanaryCreation(tx, canaryPolicy);
+        const [canaryRun] = await tx
+          .insert(releaseCanaryRuns)
+          .values(releaseCanaryRunIdentity(fundInput.creatorUserId, canaryPolicy.ttlHours))
+          .returning({ id: releaseCanaryRuns.id });
+        if (!canaryRun) throw new Error('Failed to insert release canary run');
+        canaryRunId = canaryRun.id;
+      }
+
       const [fund] = await tx
         .insert(funds)
         .values({
@@ -172,10 +245,19 @@ export class FundPersistenceService {
           ...(fundInput.engineResults != null && {
             engineResults: fundInput.engineResults,
           }),
+          dataOrigin: canaryPrincipal ? 'release_canary' : 'production',
+          canaryRunId,
         })
         .returning();
 
       if (!fund) throw new Error('Failed to insert fund row');
+
+      if (fundInput.creatorUserId !== undefined) {
+        await tx.insert(userFundGrants).values({
+          userId: fundInput.creatorUserId,
+          fundId: fund.id,
+        });
+      }
 
       const [draft] = await tx
         .insert(fundConfigs)
@@ -200,8 +282,16 @@ export class FundPersistenceService {
         },
       });
 
+      if (canaryRunId !== null) {
+        await reconcileReleaseCanaryRun(canaryRunId, tx);
+      }
+
       return { fund, draft };
     });
+  }
+
+  async reconcileCanaryRun(runId: string) {
+    return reconcileReleaseCanaryRun(runId);
   }
 
   async allocateNextVersion(fundId: number): Promise<number> {
@@ -336,12 +426,14 @@ export class FundPersistenceService {
       managementFee: String(input.managementFee ?? 0.02),
       carryPercentage: String(input.carryPercentage ?? 0.2),
       vintageYear: input.vintageYear ?? currentYear,
+      ...(input.creatorUserId !== undefined && { creatorUserId: input.creatorUserId }),
       ...(input.engineResults != null && { engineResults: input.engineResults }),
     };
 
     // Extract draft config fields (everything except fund-level fields)
     const {
       draftFundId: _draftFundId,
+      creatorUserId: _creatorUserId,
       name: _name,
       size: _size,
       managementFee: _mf,

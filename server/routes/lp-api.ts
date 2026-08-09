@@ -35,6 +35,7 @@ import { db } from '../db';
 import { eq, desc, and } from 'drizzle-orm';
 import { enqueueReportGeneration, isReportQueueAvailable } from '../queues/report-generation-queue';
 import { lpReports, lpFundCommitments } from '@shared/schema-lp-reporting';
+import { funds } from '@shared/schema';
 import { storage } from '../storage';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -55,6 +56,7 @@ import {
   respondInvalidCursor,
 } from '../lib/lp-api-helpers';
 import { createRouteLogger } from '../lib/route-logger.js';
+import { productionFundPredicate } from '../lib/canary-exclusion';
 
 const routeLog = createRouteLogger('lp-api');
 
@@ -268,9 +270,13 @@ router.get(
 
       // Get all commitments for this LP (filtered by fundIds if provided)
       const commitments = await db
-        .select()
+        .select({
+          id: lpFundCommitments.id,
+          fundId: lpFundCommitments.fundId,
+        })
         .from(lpFundCommitments)
-        .where(eq(lpFundCommitments.lpId, lpId));
+        .innerJoin(funds, eq(lpFundCommitments.fundId, funds.id))
+        .where(and(eq(lpFundCommitments.lpId, lpId), productionFundPredicate(funds.dataOrigin)));
 
       const filteredCommitments = query.fundIds
         ? commitments.filter((c) => query.fundIds?.includes(c.fundId))
@@ -407,9 +413,21 @@ router.get(
 
       // Get commitment for this fund
       const commitment = await db
-        .select()
+        .select({
+          id: lpFundCommitments.id,
+          commitmentAmountCents: lpFundCommitments.commitmentAmountCents,
+          commitmentDate: lpFundCommitments.commitmentDate,
+          status: lpFundCommitments.status,
+        })
         .from(lpFundCommitments)
-        .where(and(eq(lpFundCommitments.lpId, lpId), eq(lpFundCommitments.fundId, fundId)))
+        .innerJoin(funds, eq(lpFundCommitments.fundId, funds.id))
+        .where(
+          and(
+            eq(lpFundCommitments.lpId, lpId),
+            eq(lpFundCommitments.fundId, fundId),
+            productionFundPredicate(funds.dataOrigin)
+          )
+        )
         .limit(1);
 
       if (commitment.length === 0) {
@@ -573,9 +591,13 @@ router.get(
 
       // Get commitments (filtered by fundId if provided)
       const commitments = await db
-        .select()
+        .select({
+          id: lpFundCommitments.id,
+          fundId: lpFundCommitments.fundId,
+        })
         .from(lpFundCommitments)
-        .where(eq(lpFundCommitments.lpId, lpId));
+        .innerJoin(funds, eq(lpFundCommitments.fundId, funds.id))
+        .where(and(eq(lpFundCommitments.lpId, lpId), productionFundPredicate(funds.dataOrigin)));
 
       const filteredCommitments = query.fundId
         ? commitments.filter((c) => c.fundId === query.fundId)
@@ -676,9 +698,13 @@ router.get(
       const query = PerformanceQuerySchema.parse(req.query);
 
       const commitments = await db
-        .select()
+        .select({
+          id: lpFundCommitments.id,
+          fundId: lpFundCommitments.fundId,
+        })
         .from(lpFundCommitments)
-        .where(eq(lpFundCommitments.lpId, lpId));
+        .innerJoin(funds, eq(lpFundCommitments.fundId, funds.id))
+        .where(and(eq(lpFundCommitments.lpId, lpId), productionFundPredicate(funds.dataOrigin)));
 
       const filteredCommitments = query.fundId
         ? commitments.filter((commitment) => commitment.fundId === query.fundId)

@@ -23,6 +23,7 @@
 import { createHash } from 'node:crypto';
 
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { productionFundPredicate } from '../../lib/canary-exclusion';
 
 import {
   ANALYSIS_REFERENCE_CONTRACT_VERSION,
@@ -1024,7 +1025,10 @@ function sha256Hex(value: string): string {
 export function createAnalysisCheckpointPorts(database: Database = db): AnalysisCheckpointPorts {
   return {
     async listActiveFundIds() {
-      const rows = await database.select({ id: funds.id }).from(funds);
+      const rows = await database
+        .select({ id: funds.id })
+        .from(funds)
+        .where(productionFundPredicate(funds.dataOrigin));
       return rows.map((row) => row.id);
     },
 

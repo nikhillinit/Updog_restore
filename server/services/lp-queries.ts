@@ -2,6 +2,9 @@ import { eq, and, gte, lte, sql, desc, asc, inArray } from 'drizzle-orm';
 import { Decimal, toDecimal } from '@shared/lib/decimal-utils';
 import { db } from '../db';
 import { logger } from '../lib/logger';
+import { productionFundPredicate, productionFundSql } from '../lib/canary-exclusion';
+import { funds } from '@shared/schema/fund';
+import { lpFundCommitments, lpPerformanceSnapshots } from '@shared/schema-lp-reporting';
 
 const DECIMAL_ZERO = new Decimal(0);
 const DECIMAL_ONE = new Decimal(1);
@@ -217,8 +220,31 @@ export async function getCapitalAccountTransactions(
 
     // Build WHERE clause conditions
     const conditions = [
-      eq(sql`lp_fund_commitments.lp_id`, lpId),
-      fundIds && fundIds.length > 0 ? inArray(sql`capital_activities.fund_id`, fundIds) : undefined,
+      sql`EXISTS (
+        SELECT 1
+        FROM lp_fund_commitments AS scoped_commitment
+        WHERE scoped_commitment.id = capital_activities.commitment_id
+          AND scoped_commitment.lp_id = ${lpId}
+      )`,
+      sql`EXISTS (
+        SELECT 1
+        FROM lp_fund_commitments AS governed_commitment
+        INNER JOIN funds AS governed_fund
+          ON governed_fund.id = governed_commitment.fund_id
+        WHERE governed_commitment.id = capital_activities.commitment_id
+          AND ${productionFundSql(sql.raw('governed_fund.data_origin'))}
+      )`,
+      fundIds && fundIds.length > 0
+        ? sql`EXISTS (
+            SELECT 1
+            FROM lp_fund_commitments AS scoped_fund_commitment
+            WHERE scoped_fund_commitment.id = capital_activities.commitment_id
+              AND scoped_fund_commitment.fund_id IN (${sql.join(
+                fundIds.map((fundId) => sql`${fundId}`),
+                sql`, `
+              )})
+          )`
+        : undefined,
       startDate ? gte(sql`capital_activities.activity_date`, startDate) : undefined,
       endDate ? lte(sql`capital_activities.activity_date`, endDate) : undefined,
       // Cursor condition: get activities after cursor position
@@ -236,7 +262,6 @@ export async function getCapitalAccountTransactions(
       columns: {
         id: true,
         commitmentId: true,
-        fundId: true,
         activityType: true,
         activityDate: true,
         amountCents: true,
@@ -249,18 +274,33 @@ export async function getCapitalAccountTransactions(
     const hasMore = transactions.length > limit;
     const paginatedTransactions = transactions.slice(0, limit);
 
+    const commitmentIds = [...new Set(paginatedTransactions.map((transaction) => transaction.commitmentId))];
+    const canonicalCommitments =
+      commitmentIds.length > 0
+        ? await db
+            .select({ id: lpFundCommitments.id, fundId: lpFundCommitments.fundId })
+            .from(lpFundCommitments)
+            .where(inArray(lpFundCommitments.id, commitmentIds))
+        : [];
+    const canonicalFundByCommitmentId = new Map(
+      canonicalCommitments.map((commitment) => [commitment.id, commitment.fundId])
+    );
+
     // Build next cursor from last transaction
     const lastTx = paginatedTransactions[paginatedTransactions.length - 1];
     const nextCursor = hasMore && lastTx ? buildCursor(lastTx.id, lastTx.activityDate) : null;
 
     // Get fund names for all fundIds in result set
     const fundIdSet = new Set(
-      paginatedTransactions.map((t) => t.fundId).filter((id): id is number => id !== null)
+      paginatedTransactions
+        .map((transaction) => canonicalFundByCommitmentId.get(transaction.commitmentId))
+        .filter((id): id is number => id !== undefined)
     );
     const fundNames = new Map<number, string>();
     if (fundIdSet.size > 0) {
       const fundList = await db.query.funds.findMany({
-        where: (table, { inArray: inArr }) => inArr(table.id, [...fundIdSet]),
+        where: (table, { and, inArray: inArr }) =>
+          and(inArr(table.id, [...fundIdSet]), productionFundPredicate(table.dataOrigin)),
         columns: { id: true, name: true },
       });
       for (const f of fundList) {
@@ -269,11 +309,12 @@ export async function getCapitalAccountTransactions(
     }
 
     const mappedTransactions: CapitalTransaction[] = paginatedTransactions.map((t) => {
+      const fundId = canonicalFundByCommitmentId.get(t.commitmentId);
       const tx: CapitalTransaction = {
         id: t.id,
         commitmentId: t.commitmentId,
-        fundId: t.fundId ?? 0,
-        fundName: t.fundId ? fundNames.get(t.fundId) || 'Unknown' : 'Unknown',
+        fundId: fundId ?? 0,
+        fundName: fundId ? fundNames.get(fundId) || 'Unknown' : 'Unknown',
         type: t.activityType as CapitalTransaction['type'],
         activityDate: t.activityDate,
         amountCents: t.amountCents,
@@ -336,10 +377,18 @@ export async function getFundPerformance(
 ): Promise<FundPerformanceMetrics | null> {
   try {
     // Get LP's commitment in the fund
-    const commitment = await db.query.lpFundCommitments.findFirst({
-      where: (table, { eq, and }) => and(eq(table.lpId, lpId), eq(table.fundId, fundId)),
-      columns: { id: true },
-    });
+    const [commitment] = await db
+      .select({ id: lpFundCommitments.id })
+      .from(lpFundCommitments)
+      .innerJoin(funds, eq(lpFundCommitments.fundId, funds.id))
+      .where(
+        and(
+          eq(lpFundCommitments.lpId, lpId),
+          eq(lpFundCommitments.fundId, fundId),
+          productionFundPredicate(funds.dataOrigin)
+        )
+      )
+      .limit(1);
 
     if (!commitment) {
       logger.warn({ lpId, fundId }, 'LP commitment not found');
@@ -347,20 +396,31 @@ export async function getFundPerformance(
     }
 
     // Get latest performance snapshot for this commitment
-    const snapshot = await db.query.lpPerformanceSnapshots.findFirst({
-      where: (table, { eq }) => eq(table.commitmentId, commitment.id),
-      orderBy: (table) => desc(table.snapshotDate),
-      columns: {
-        snapshotDate: true,
-        irr: true,
-        moic: true,
-        dpi: true,
-        rvpi: true,
-        tvpi: true,
-        grossIrr: true,
-        netIrr: true,
-      },
-    });
+    const [snapshot] = await db
+      .select({
+        snapshotDate: lpPerformanceSnapshots.snapshotDate,
+        irr: lpPerformanceSnapshots.irr,
+        moic: lpPerformanceSnapshots.moic,
+        dpi: lpPerformanceSnapshots.dpi,
+        rvpi: lpPerformanceSnapshots.rvpi,
+        tvpi: lpPerformanceSnapshots.tvpi,
+        grossIrr: lpPerformanceSnapshots.grossIrr,
+        netIrr: lpPerformanceSnapshots.netIrr,
+      })
+      .from(lpPerformanceSnapshots)
+      .innerJoin(
+        lpFundCommitments,
+        eq(lpPerformanceSnapshots.commitmentId, lpFundCommitments.id)
+      )
+      .innerJoin(funds, eq(lpFundCommitments.fundId, funds.id))
+      .where(
+        and(
+          eq(lpPerformanceSnapshots.commitmentId, commitment.id),
+          productionFundPredicate(funds.dataOrigin)
+        )
+      )
+      .orderBy(desc(lpPerformanceSnapshots.snapshotDate))
+      .limit(1);
 
     if (!snapshot) {
       logger.warn({ lpId, fundId }, 'Performance snapshot not found');
@@ -368,7 +428,8 @@ export async function getFundPerformance(
     }
 
     const fund = await db.query.funds.findFirst({
-      where: (table, { eq }) => eq(table.id, fundId),
+      where: (table, { and, eq }) =>
+        and(eq(table.id, fundId), productionFundPredicate(table.dataOrigin)),
       columns: { name: true, vintageYear: true },
     });
 

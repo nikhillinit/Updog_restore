@@ -108,6 +108,19 @@ import fundsRouter from '../../../server/routes/funds';
 function createTestApp() {
   const app = express();
   app.use(express.json());
+  app.use((req, _res, next) => {
+    req.user = {
+      id: '7',
+      sub: '7',
+      email: 'partner@example.com',
+      role: 'partner',
+      roles: ['partner'],
+      ip: '127.0.0.1',
+      userAgent: 'funds-test',
+      fundIds: [],
+    };
+    next();
+  });
   app.use('/api', fundsRouter);
   return app;
 }
@@ -168,6 +181,7 @@ describe('POST /api/funds -- legacy removal', () => {
     const callArg = createFundWithInitialDraftMock.mock.calls[0][0] as Record<string, unknown>;
     expect(callArg['managementFee']).toBe('0.02');
     expect(callArg['carryPercentage']).toBe('0.2');
+    expect(callArg['creatorUserId']).toBe(7);
   });
 
   it('rejects legacy-basics format (nested basics key, no top-level name) -> 400', async () => {
@@ -200,6 +214,15 @@ describe('POST /api/funds -- legacy removal', () => {
     const res = await request(app)
       .post('/api/funds')
       .send({ ...canonicalPayload, bogusField: true });
+
+    expect(res.status).toBe(400);
+    expect(createFundWithInitialDraftMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects client-submitted canary marker fields', async () => {
+    const res = await request(app)
+      .post('/api/funds')
+      .send({ ...canonicalPayload, dataOrigin: 'release_canary', canaryRunId: 'run-1' });
 
     expect(res.status).toBe(400);
     expect(createFundWithInitialDraftMock).not.toHaveBeenCalled();

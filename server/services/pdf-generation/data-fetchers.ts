@@ -6,12 +6,13 @@
 import { db } from '../../db';
 import { limitedPartners, lpFundCommitments, capitalActivities } from '@shared/schema-lp-reporting';
 import { funds } from '@shared/schema';
-import { eq, desc, inArray } from 'drizzle-orm';
+import { and, eq, desc, inArray } from 'drizzle-orm';
 import { toDecimal } from '@shared/lib/decimal-utils';
 import { getFundPerformance } from '../lp-queries';
 import { calculateFundMetrics } from '../fund-metrics-calculator';
 import { storage } from '../../storage';
 import type { LPReportData, ReportMetrics } from './types.js';
+import { productionFundPredicate } from '../../lib/canary-exclusion';
 
 /** Convert cents (bigint) to dollars */
 function centsToDollars(cents: bigint | null): number {
@@ -74,7 +75,7 @@ export async function fetchLPReportData(
     })
     .from(lpFundCommitments)
     .innerJoin(funds, eq(lpFundCommitments.fundId, funds.id))
-    .where(eq(lpFundCommitments.lpId, lpId));
+    .where(and(eq(lpFundCommitments.lpId, lpId), productionFundPredicate()));
 
   // Convert cents to dollars and filter if needed
   const commitments = rawCommitments
@@ -96,14 +97,21 @@ export async function fetchLPReportData(
       ? await db
           .select({
             commitmentId: capitalActivities.commitmentId,
-            fundId: capitalActivities.fundId,
+            fundId: lpFundCommitments.fundId,
             date: capitalActivities.activityDate,
             type: capitalActivities.activityType,
             amountCents: capitalActivities.amountCents,
             description: capitalActivities.description,
           })
           .from(capitalActivities)
-          .where(inArray(capitalActivities.commitmentId, commitmentIds))
+          .innerJoin(lpFundCommitments, eq(capitalActivities.commitmentId, lpFundCommitments.id))
+          .innerJoin(funds, eq(lpFundCommitments.fundId, funds.id))
+          .where(
+            and(
+              inArray(capitalActivities.commitmentId, commitmentIds),
+              productionFundPredicate(funds.dataOrigin)
+            )
+          )
           .orderBy(desc(capitalActivities.activityDate))
       : [];
 
@@ -129,6 +137,13 @@ export async function prefetchReportMetrics(
   lpId: number,
   fundId: number
 ): Promise<ReportMetrics | null> {
+  const [productionFund] = await db
+    .select({ id: funds.id })
+    .from(funds)
+    .where(and(eq(funds.id, fundId), productionFundPredicate(funds.dataOrigin)))
+    .limit(1);
+  if (!productionFund) return null;
+
   const perf = await getFundPerformance(lpId, fundId);
   const companies = await storage.getPortfolioCompanies(fundId);
 

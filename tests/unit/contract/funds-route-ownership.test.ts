@@ -70,10 +70,28 @@ describe('funds endpoint ownership manifest', () => {
   });
 });
 
+// POST /api/funds now requires a partner/admin write role (F_1.2.5 Lane C).
+function injectPartnerPrincipal(target: express.Express): void {
+  target.use((req, _res, next) => {
+    req.user = {
+      id: 77,
+      sub: '77',
+      email: 'ownership-partner@example.com',
+      role: 'partner',
+      roles: ['partner'],
+      fundIds: [],
+      ip: '127.0.0.1',
+      userAgent: 'vitest',
+    };
+    next();
+  });
+}
+
 beforeAll(async () => {
   app = express();
   app.set('trust proxy', false);
   app.use(express.json({ limit: '1mb' }));
+  injectPartnerPrincipal(app);
 
   // Mount funds router at /api (same as routes.ts:40-41)
   const fundRoutes = await fundRoutesModulePromise;
@@ -163,6 +181,7 @@ describe('registerRoutes() smoke proof', () => {
     smokeApp = express();
     smokeApp.set('trust proxy', false);
     smokeApp.use(express.json({ limit: '1mb' }));
+    injectPartnerPrincipal(smokeApp);
 
     const { registerRoutes } = await registerRoutesModulePromise;
     smokeServer = await registerRoutes(smokeApp);

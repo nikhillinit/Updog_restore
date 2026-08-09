@@ -164,6 +164,49 @@ describe('FundFinalizeResponseV1Schema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts bearer credential renewal', () => {
+    const result = FundFinalizeResponseV1Schema.safeParse({
+      success: true,
+      data: {
+        fundId: 1,
+        configVersion: 1,
+        correlationId: '550e8400-e29b-41d4-a716-446655440000',
+        published: true,
+      },
+      renewedAccessToken: 'renewed-token',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts an explicit reauthentication requirement', () => {
+    const result = FundFinalizeResponseV1Schema.safeParse({
+      success: true,
+      data: {
+        fundId: 1,
+        configVersion: 1,
+        correlationId: '550e8400-e29b-41d4-a716-446655440000',
+        published: true,
+      },
+      credentialRenewal: 'reauth_required',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects both renewal outcomes in one response', () => {
+    const result = FundFinalizeResponseV1Schema.safeParse({
+      success: true,
+      data: {
+        fundId: 1,
+        configVersion: 1,
+        correlationId: '550e8400-e29b-41d4-a716-446655440000',
+        published: true,
+      },
+      renewedAccessToken: 'renewed-token',
+      credentialRenewal: 'reauth_required',
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('rejects response with success: false', () => {
     const result = FundFinalizeResponseV1Schema.safeParse({
       success: false,
@@ -594,8 +637,8 @@ describe('POST /api/funds/finalize route contract', () => {
     app.use(express.json());
     app.use((req, _res, next) => {
       req.user = {
-        id: 'partner-1',
-        sub: 'partner-1',
+        id: '1',
+        sub: '1',
         email: 'partner@example.com',
         role: 'partner',
         roles: ['partner'],
@@ -643,8 +686,8 @@ describe('POST /api/funds/finalize route contract', () => {
     restrictedApp.use(express.json());
     restrictedApp.use((req, _res, next) => {
       req.user = {
-        id: 'user-7',
-        sub: 'user-7',
+        id: '7',
+        sub: '7',
         email: 'user7@example.com',
         role: 'partner',
         roles: ['partner'],

@@ -52,6 +52,8 @@ export default [
       '.cache/**', // Vite dep-optimizer output; flat config does not read .gitignore
       '.vercel/**',
       '.claude/**',
+      '.codex/**', // local Codex CLI workspace; untracked tool scripts
+      '.hermes/**',
       '.tmp/**',
       '.omx/**',
       '.remember/**',
