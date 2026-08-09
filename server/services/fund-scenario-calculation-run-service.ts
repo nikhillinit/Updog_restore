@@ -538,7 +538,14 @@ export async function claimScenarioCalculationRunIfQueued(
             END,
             updated_at = clock_timestamp()
       WHERE id = $1
-        AND status = 'queued'
+        AND (
+          status = 'queued'
+          -- Same-job running retake: a failed requeue write after a transient
+          -- error leaves the row 'running'; the SAME BullMQ delivery lineage
+          -- (job fence below) may re-claim it on the retry attempt. BullMQ
+          -- never runs two attempts of one job concurrently.
+          OR (status = 'running' AND job_id IS NOT NULL)
+        )
         AND job_id IS NOT DISTINCT FROM $12
         AND (deadline_at IS NULL OR clock_timestamp() < deadline_at)${ASYNC_RUN_IDENTITY_FENCE_SQL}
       RETURNING *`,
@@ -551,14 +558,39 @@ export async function findScenarioCalculationRunForDelivery(
   client: QueryClient,
   identity: ScenarioCalculationRunFenceIdentity
 ): Promise<ScenarioCalculationRunRecord | null> {
+  assertRunFenceIdentity(identity);
+  // Dedicated contiguous parameters: reusing the shared fence SQL here left
+  // an unused untyped $1, which PostgreSQL rejects with 42P18.
   const result = await client.query<ScenarioCalculationRunRow>(
     `SELECT *
        FROM fund_scenario_calculation_runs
       WHERE status IN ('queued', 'running')
-        AND job_id IS NOT DISTINCT FROM $12${ASYNC_RUN_IDENTITY_FENCE_SQL}
+        AND fund_id = $1
+        AND scenario_set_id = $2
+        AND source_config_id = $3
+        AND source_config_version = $4
+        AND calculation_mode = $5
+        AND override_type = $6
+        AND input_hash = $7
+        AND COALESCE(hash_kind, 'scenario-input-hash-v1') = $8
+        AND model_inputs_as_of_date IS NOT DISTINCT FROM $9::date
+        AND comparison_lineage_version IS NOT DISTINCT FROM $10
+        AND job_id IS NOT DISTINCT FROM $11::varchar
       ORDER BY created_at DESC
       LIMIT 1`,
-    [null, ...asyncRunFenceParams('delivery-lookup', identity).slice(1)]
+    [
+      identity.fundId,
+      identity.scenarioSetId,
+      identity.sourceConfigId,
+      identity.sourceConfigVersion,
+      identity.calculationMode,
+      identity.overrideType,
+      identity.inputHash,
+      normalizedFenceHashKind(identity.hashKind),
+      identity.modelInputsAsOfDate,
+      identity.comparisonLineageVersion,
+      identity.jobId,
+    ]
   );
   return result.rows[0] ? mapRun(result.rows[0]) : null;
 }

@@ -646,8 +646,16 @@ async function claimReserveScenarioRun(
 
     const claimedRun = await claimScenarioCalculationRunIfQueued(client, deliveryRunId, runIdentity);
     if (!claimedRun) {
+      // Plan-locked: a rejected expired claimer routes the row through the
+      // timeout CAS instead of executing it; the CAS no-ops for non-expired
+      // stale deliveries, so this is safe on every zero-row claim.
+      const timedOut = await markScenarioCalculationRunTimedOut(
+        client,
+        deliveryRunId,
+        runIdentity.jobId
+      );
       logger.info(
-        { runId: deliveryRunId, jobId: runIdentity.jobId },
+        { runId: deliveryRunId, jobId: runIdentity.jobId, timedOut: timedOut > 0 },
         'Ignoring stale fund scenario calculation delivery'
       );
       return null;
@@ -831,9 +839,19 @@ export async function runReserveScenarioCalculation(
       !isFundScenarioHardTimeoutError(error) &&
       input.isFinalAttempt === false
     ) {
-      await transaction((client) =>
-        requeueScenarioCalculationRunIfRunning(client, activeClaim.run.id, activeClaim.identity)
-      );
+      try {
+        await transaction((client) =>
+          requeueScenarioCalculationRunIfRunning(client, activeClaim.run.id, activeClaim.identity)
+        );
+      } catch (requeueError) {
+        // The row stays 'running'; the retry attempt reclaims it via the
+        // same-job running retake in the claim CAS, so a failed requeue
+        // write must never suppress the rethrow below.
+        logger.warn(
+          { err: requeueError, runId: activeClaim.run.id },
+          'Failed to requeue fund scenario run for retry; retry will retake the running row'
+        );
+      }
     }
     throw error;
   }
