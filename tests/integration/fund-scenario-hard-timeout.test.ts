@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
-import { Queue, QueueEvents, Worker } from 'bullmq';
-import type { Queue as QueueType, QueueEvents as QueueEventsType, Worker as WorkerType } from 'bullmq';
+import { Queue, QueueEvents } from 'bullmq';
+import type { Queue as QueueType, QueueEvents as QueueEventsType } from 'bullmq';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -19,6 +19,7 @@ interface SeededRun {
   scenarioSetId: string;
   sourceConfigId: number;
   inputHash: string;
+  jobId: string;
 }
 
 let pool: Pool;
@@ -26,7 +27,6 @@ let sweep: typeof import('../../server/services/fund-scenario-calculation-run-se
 let startedTestContainers = false;
 let queue: QueueType;
 let queueEvents: QueueEventsType;
-let worker: WorkerType;
 
 async function seedRun(
   status: 'queued' | 'running',
@@ -87,7 +87,7 @@ async function seedRun(
     ]
   );
 
-  return { id, fundId, scenarioSetId, sourceConfigId, inputHash };
+  return { id, fundId, scenarioSetId, sourceConfigId, inputHash, jobId: `job-${id}` };
 }
 
 describe('fund scenario hard-timeout lifecycle', () => {
@@ -111,16 +111,10 @@ describe('fund scenario hard-timeout lifecycle', () => {
     const queueName = `fund-scenario-deadline-test-${randomUUID()}`;
     queue = new Queue(queueName, { connection });
     queueEvents = new QueueEvents(queueName, { connection });
-    worker = new Worker(
-      queueName,
-      async () => sweep(),
-      { connection, concurrency: 1 }
-    );
-    await Promise.all([queue.waitUntilReady(), queueEvents.waitUntilReady(), worker.waitUntilReady()]);
+    await Promise.all([queue.waitUntilReady(), queueEvents.waitUntilReady()]);
   }, TEST_TIMEOUT_MS);
 
   afterAll(async () => {
-    await worker?.close();
     await queueEvents?.close();
     await queue?.close();
     await pool?.end();
@@ -132,44 +126,57 @@ describe('fund scenario hard-timeout lifecycle', () => {
     }
   });
 
-  it('reconciles once, then terminalizes through a later expired sweep', async () => {
-    const run = await seedRun('running', null);
+  it(
+    'reconciles once, then terminalizes through a later expired sweep',
+    async () => {
+      const run = await seedRun('running', null);
 
-    await expect(sweep()).resolves.toMatchObject({ reconciledCount: 1, timedOutCount: 0 });
-    const reconciled = await pool.query<{ status: string; deadline_at: Date }>(
-      `SELECT status, deadline_at FROM fund_scenario_calculation_runs WHERE id = $1`,
-      [run.id]
-    );
-    expect(reconciled.rows[0]?.status).toBe('running');
-    expect(reconciled.rows[0]?.deadline_at.getTime()).toBeGreaterThan(Date.now());
+      await expect(sweep()).resolves.toMatchObject({ reconciledCount: 1, timedOutCount: 0 });
+      const reconciled = await pool.query<{ status: string; deadline_at: Date }>(
+        `SELECT status, deadline_at FROM fund_scenario_calculation_runs WHERE id = $1`,
+        [run.id]
+      );
+      expect(reconciled.rows[0]?.status).toBe('running');
+      expect(reconciled.rows[0]?.deadline_at.getTime()).toBeGreaterThan(Date.now());
 
-    await pool.query(
-      `UPDATE fund_scenario_calculation_runs
+      await pool.query(
+        `UPDATE fund_scenario_calculation_runs
           SET deadline_at = clock_timestamp() - INTERVAL '1 second'
         WHERE id = $1`,
-      [run.id]
-    );
-    await expect(sweep()).resolves.toMatchObject({ reconciledCount: 0, timedOutCount: 1 });
+        [run.id]
+      );
+      await expect(sweep()).resolves.toMatchObject({ reconciledCount: 0, timedOutCount: 1 });
 
-    const terminal = await pool.query<{ status: string; failure_code: string }>(
-      `SELECT status, failure_code FROM fund_scenario_calculation_runs WHERE id = $1`,
-      [run.id]
-    );
-    expect(terminal.rows[0]).toEqual({ status: 'failed', failure_code: 'HARD_TIMEOUT' });
-  }, TEST_TIMEOUT_MS);
+      const terminal = await pool.query<{ status: string; failure_code: string }>(
+        `SELECT status, failure_code FROM fund_scenario_calculation_runs WHERE id = $1`,
+        [run.id]
+      );
+      expect(terminal.rows[0]).toEqual({ status: 'failed', failure_code: 'HARD_TIMEOUT' });
+    },
+    TEST_TIMEOUT_MS
+  );
 
-  it('terminalizes an expired queued row through Redis and frees its dedupe slot', async () => {
-    const run = await seedRun('queued', new Date(Date.now() - 1000));
-    const job = await queue.add('fund-scenario-deadline-sweep', { kind: 'fund-scenario-deadline-sweep' });
-    await job.waitUntilFinished(queueEvents, TEST_TIMEOUT_MS);
+  it(
+    'terminalizes an expired queued row through Redis and frees its dedupe slot',
+    async () => {
+      const run = await seedRun('queued', new Date(Date.now() - 1000));
+      await queue.add(
+        'async_reserve_allocation',
+        { kind: 'async_reserve_allocation' },
+        { jobId: run.jobId }
+      );
+      await sweep({ removeJob: (jobId) => queue.remove(jobId) });
 
-    const terminal = await pool.query<{ status: string; failure_code: string }>(
-      `SELECT status, failure_code FROM fund_scenario_calculation_runs WHERE id = $1`,
-      [run.id]
-    );
-    expect(terminal.rows[0]).toEqual({ status: 'failed', failure_code: 'HARD_TIMEOUT' });
+      const terminal = await pool.query<{ status: string; failure_code: string }>(
+        `SELECT status, failure_code FROM fund_scenario_calculation_runs WHERE id = $1`,
+        [run.id]
+      );
+      expect(terminal.rows[0]).toEqual({ status: 'failed', failure_code: 'HARD_TIMEOUT' });
+      expect(await queue.getJob(run.jobId)).toBeFalsy();
 
-    const retry = await seedRun('queued', new Date(Date.now() + 30_000), run);
-    expect(retry.scenarioSetId).toBe(run.scenarioSetId);
-  }, TEST_TIMEOUT_MS);
+      const retry = await seedRun('queued', new Date(Date.now() + 30_000), run);
+      expect(retry.scenarioSetId).toBe(run.scenarioSetId);
+    },
+    TEST_TIMEOUT_MS
+  );
 });

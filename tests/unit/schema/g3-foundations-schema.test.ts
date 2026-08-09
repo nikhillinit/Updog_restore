@@ -56,6 +56,11 @@ describe('G3 foundations schema', () => {
       'actor_id',
       'idempotency_key',
       'request_hash',
+      'response_name',
+      'response_sector',
+      'response_founded_year',
+      'response_description',
+      'response_deal_tags',
       'response_status',
       'response_row_version',
       'response_updated_at',
@@ -167,7 +172,9 @@ describe('G3 foundations schema', () => {
     expect(migration0050).not.toContain('response_body');
     expect(migration0051).toContain('CREATE TABLE IF NOT EXISTS "release_canary_runs"');
     expect(migration0051).toContain('is_release_canary_principal');
-    expect(migration0052).toContain('CREATE TABLE IF NOT EXISTS "capital_call_notification_outbox"');
+    expect(migration0052).toContain(
+      'CREATE TABLE IF NOT EXISTS "capital_call_notification_outbox"'
+    );
     expect(migration0052).toContain("'exhausted'");
     expect(migration0052).not.toContain('"payload" jsonb');
 

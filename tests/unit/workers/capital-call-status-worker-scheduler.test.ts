@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockQueue, QueueMock, WorkerMock, mockLogger } = vi.hoisted(() => {
+const { mockQueue, QueueMock, WorkerMock, mockLogger, mockDispatch } = vi.hoisted(() => {
   const mockQueue = {
     add: vi.fn(),
     upsertJobScheduler: vi.fn(),
@@ -27,6 +27,7 @@ const { mockQueue, QueueMock, WorkerMock, mockLogger } = vi.hoisted(() => {
       error: vi.fn(),
       debug: vi.fn(),
     },
+    mockDispatch: vi.fn().mockResolvedValue({ deliveredCount: 0, exhaustedCount: 0 }),
   };
 });
 
@@ -41,6 +42,19 @@ vi.mock('../../../server/db', () => ({
 
 vi.mock('../../../server/lib/logger', () => ({
   logger: mockLogger,
+}));
+
+vi.mock('../../../server/services/capital-call-notification-outbox-service', () => ({
+  dispatchPendingCapitalCallNotifications: mockDispatch,
+  countExhaustedCapitalCallNotifications: vi.fn().mockResolvedValue(0),
+  enqueueCapitalCallNotification: vi.fn(),
+  transitionCapitalCallWithNotification: vi.fn(),
+  transitionCapitalCallWithPayment: vi.fn(),
+}));
+
+vi.mock('../../../server/services/capital-call-status-timeout', () => ({
+  getCapitalCallStatusHardTimeoutMs: vi.fn(() => 30_000),
+  throwIfCapitalCallStatusAborted: vi.fn(),
 }));
 
 const fakeRedis = {} as import('ioredis').default;
@@ -60,7 +74,7 @@ describe('CapitalCallStatusWorker scheduler registration', () => {
   it('registers the hourly status check through a stable BullMQ job scheduler', async () => {
     const { CapitalCallStatusWorker } =
       await import('../../../server/workers/capital-call-status-worker');
-    const worker = new CapitalCallStatusWorker(fakeRedis);
+    const worker = new CapitalCallStatusWorker(fakeRedis, undefined, { hardTimeoutMs: 30_000 });
 
     await worker.start();
 
@@ -83,8 +97,8 @@ describe('CapitalCallStatusWorker scheduler registration', () => {
     const { CapitalCallStatusWorker } =
       await import('../../../server/workers/capital-call-status-worker');
 
-    await new CapitalCallStatusWorker(fakeRedis).start();
-    await new CapitalCallStatusWorker(fakeRedis).start();
+    await new CapitalCallStatusWorker(fakeRedis, undefined, { hardTimeoutMs: 30_000 }).start();
+    await new CapitalCallStatusWorker(fakeRedis, undefined, { hardTimeoutMs: 30_000 }).start();
 
     expect(mockQueue.upsertJobScheduler).toHaveBeenCalledTimes(2);
     expect(mockQueue.upsertJobScheduler.mock.calls.map(([schedulerId]) => schedulerId)).toEqual([

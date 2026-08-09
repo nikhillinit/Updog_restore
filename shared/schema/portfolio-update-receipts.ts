@@ -2,6 +2,7 @@ import {
   ForeignKeyBuilder,
   index,
   integer,
+  jsonb,
   pgTable,
   serial,
   timestamp,
@@ -26,6 +27,11 @@ export const portfolioCompanyUpdateReceipts = pgTable(
       .references(() => users.id, { onDelete: 'restrict' }),
     idempotencyKey: varchar('idempotency_key', { length: 128 }).notNull(),
     requestHash: varchar('request_hash', { length: 64 }).notNull(),
+    responseName: varchar('response_name', { length: 255 }).notNull(),
+    responseSector: varchar('response_sector', { length: 255 }).notNull(),
+    responseFoundedYear: integer('response_founded_year'),
+    responseDescription: varchar('response_description', { length: 2000 }),
+    responseDealTags: jsonb('response_deal_tags').$type<string[] | null>(),
     responseStatus: integer('response_status').notNull(),
     responseRowVersion: integer('response_row_version').notNull(),
     responseUpdatedAt: timestamp('response_updated_at', { withTimezone: true }).notNull(),
@@ -52,4 +58,5 @@ export const portfolioCompanyUpdateReceipts = pgTable(
 );
 
 export type PortfolioCompanyUpdateReceipt = typeof portfolioCompanyUpdateReceipts.$inferSelect;
-export type InsertPortfolioCompanyUpdateReceipt = typeof portfolioCompanyUpdateReceipts.$inferInsert;
+export type InsertPortfolioCompanyUpdateReceipt =
+  typeof portfolioCompanyUpdateReceipts.$inferInsert;

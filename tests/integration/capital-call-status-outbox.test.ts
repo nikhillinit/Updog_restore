@@ -60,7 +60,7 @@ function notification(call: { id: string; lpId: number }, title = 'Capital call 
   return {
     capitalCallId: call.id,
     lpId: call.lpId,
-    transitionKind: 'transition' as const,
+    transitionKind: 'due' as const,
     dueDateBucket: new Date().toISOString().slice(0, 10),
     notificationType: 'capital_call',
     title,

@@ -5,7 +5,10 @@ import {
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import type { PoolClient } from 'pg';
 import { getReserveScenarioCalculationIdentity } from './fund-scenario-reserve-calculation-service.js';
-import { findCompletedScenarioRun } from './fund-scenario-calculation-run-service.js';
+import {
+  findCompletedScenarioRun,
+  findLatestScenarioRun,
+} from './fund-scenario-calculation-run-service.js';
 
 interface SnapshotStatusRow {
   id: number;
@@ -20,10 +23,7 @@ interface EventStatusRow {
 }
 
 type ScenarioCalculationEventType =
-  | 'calculation_queued'
-  | 'calculation_started'
-  | 'calculation_failed'
-  | 'calculated';
+  'calculation_queued' | 'calculation_started' | 'calculation_failed' | 'calculated';
 
 function parseChangeSummary(value: unknown): Record<string, unknown> {
   if (typeof value === 'string') {
@@ -110,12 +110,8 @@ function summaryString(summary: Record<string, unknown>, key: string): string | 
   return typeof summary[key] === 'string' ? summary[key] : null;
 }
 
-function failedEventError(event: EventStatusRow, summary: Record<string, unknown>): string | null {
-  if (event.event_type !== 'calculation_failed') {
-    return null;
-  }
-
-  return summaryString(summary, 'error_message');
+function publicFailureCode(summary: Record<string, unknown>): 'HARD_TIMEOUT' | null {
+  return summaryString(summary, 'failure_code') === 'HARD_TIMEOUT' ? 'HARD_TIMEOUT' : null;
 }
 
 function buildSucceededStatus(input: {
@@ -133,6 +129,7 @@ function buildSucceededStatus(input: {
     jobId: summaryString(input.summary, 'job_id'),
     correlationId: input.snapshot.correlation_id,
     snapshotId: input.snapshot.id,
+    failureCode: null,
     lastEventAt: nullableIso(input.event?.created_at ?? input.snapshot.created_at),
     lastError: null,
   });
@@ -152,8 +149,9 @@ function buildEventStatus(input: {
     jobId: summaryString(input.summary, 'job_id'),
     correlationId: summaryString(input.summary, 'correlation_id'),
     snapshotId: null,
+    failureCode: publicFailureCode(input.summary),
     lastEventAt: nullableIso(input.event.created_at),
-    lastError: failedEventError(input.event, input.summary),
+    lastError: null,
   });
 }
 
@@ -169,6 +167,7 @@ function buildNotRequestedStatus(
     jobId: null,
     correlationId: null,
     snapshotId: null,
+    failureCode: null,
     lastEventAt: null,
     lastError: null,
   });
@@ -179,7 +178,36 @@ function buildCalculationStatus(input: {
   scenarioSetId: string;
   snapshot: SnapshotStatusRow | null;
   event: EventStatusRow | null;
+  run?: Awaited<ReturnType<typeof findLatestScenarioRun>>;
 }): FundScenarioCalculationStatusV1 {
+  if (input.run?.status === 'failed') {
+    return FundScenarioCalculationStatusV1Schema.parse({
+      fundId: input.fundId,
+      scenarioSetId: input.scenarioSetId,
+      calculationMode: 'async_reserve_allocation',
+      status: 'failed',
+      jobId: input.run.jobId,
+      correlationId: input.run.correlationId,
+      snapshotId: null,
+      failureCode: input.run.failureCode === 'HARD_TIMEOUT' ? 'HARD_TIMEOUT' : null,
+      lastEventAt: null,
+      lastError: null,
+    });
+  }
+  if (input.run?.status === 'queued' || input.run?.status === 'running') {
+    return FundScenarioCalculationStatusV1Schema.parse({
+      fundId: input.fundId,
+      scenarioSetId: input.scenarioSetId,
+      calculationMode: 'async_reserve_allocation',
+      status: input.run.status === 'queued' ? 'queued' : 'calculating',
+      jobId: input.run.jobId,
+      correlationId: input.run.correlationId,
+      snapshotId: null,
+      failureCode: null,
+      lastEventAt: null,
+      lastError: null,
+    });
+  }
   const summary = input.event ? parseChangeSummary(input.event.change_summary_json) : {};
 
   if (input.snapshot) {
@@ -201,6 +229,18 @@ export async function getFundScenarioCalculationStatus(
 
   return transaction(async (client) => {
     const completedRun = await findCompletedScenarioRun(client, {
+      fundId,
+      scenarioSetId,
+      sourceConfigId: identity.sourceConfigId,
+      sourceConfigVersion: identity.sourceConfigVersion,
+      calculationMode: 'async_reserve_allocation',
+      overrideType: 'reserve_allocation',
+      inputHash: identity.inputHash,
+      hashKind: identity.inputLineage.hashKind,
+      modelInputsAsOfDate: identity.inputLineage.modelInputsAsOfDate,
+      comparisonLineageVersion: identity.inputLineage.comparisonLineageVersion,
+    });
+    const latestRun = await findLatestScenarioRun(client, {
       fundId,
       scenarioSetId,
       sourceConfigId: identity.sourceConfigId,
@@ -235,6 +275,7 @@ export async function getFundScenarioCalculationStatus(
       scenarioSetId,
       snapshot,
       event,
+      run: latestRun,
     });
   });
 }

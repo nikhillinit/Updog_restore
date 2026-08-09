@@ -7,10 +7,7 @@ import {
   SCENARIO_INPUT_HASH_V2_VERSION,
   type ScenarioInputHashKind,
 } from '@shared/lib/scenarios/scenario-input-envelope';
-import {
-  getFundScenarioHardTimeoutMs,
-  isFundScenarioSweepEnabled,
-} from './fund-scenario-timeout';
+import { getFundScenarioHardTimeoutMs, isFundScenarioSweepEnabled } from './fund-scenario-timeout';
 
 const SHA256_LOWERCASE_HEX = /^[a-f0-9]{64}$/;
 
@@ -28,11 +25,7 @@ export interface ScenarioCalculationRunIdentity {
     | 'sync_methodology'
     | 'async_reserve_allocation';
   overrideType:
-    | 'fee_profile'
-    | 'allocation'
-    | 'sector_profile'
-    | 'methodology'
-    | 'reserve_allocation';
+    'fee_profile' | 'allocation' | 'sector_profile' | 'methodology' | 'reserve_allocation';
   inputHash: string;
   hashKind: ScenarioInputHashKind;
   modelInputsAsOfDate: string | null;
@@ -41,13 +34,16 @@ export interface ScenarioCalculationRunIdentity {
   jobId?: string | null;
 }
 
-export interface ScenarioCalculationRunRecord
-  extends Omit<ScenarioCalculationRunIdentity, 'hashKind'> {
+export interface ScenarioCalculationRunRecord extends Omit<
+  ScenarioCalculationRunIdentity,
+  'hashKind'
+> {
   id: string;
   hashKind: ScenarioInputHashKind | null;
   status: ScenarioCalculationRunStatus;
   snapshotId: number | null;
   deadlineAt: Date | string | null;
+  failureCode: string | null;
 }
 
 interface ScenarioCalculationRunRow {
@@ -67,6 +63,7 @@ interface ScenarioCalculationRunRow {
   status: ScenarioCalculationRunStatus;
   snapshot_id: number | null;
   deadline_at: Date | string | null;
+  failure_code: string | null;
 }
 
 type QueryClient = Pick<PoolClient, 'query'>;
@@ -114,6 +111,7 @@ function mapRun(row: ScenarioCalculationRunRow): ScenarioCalculationRunRecord {
     status: row.status,
     snapshotId: row.snapshot_id,
     deadlineAt: row.deadline_at ?? null,
+    failureCode: row.failure_code ?? null,
   };
 }
 
@@ -162,18 +160,78 @@ export async function findCompletedScenarioRun(
   return result.rows[0] ? mapRun(result.rows[0]) : null;
 }
 
+export async function findLatestScenarioRun(
+  client: QueryClient,
+  identity: Omit<ScenarioCalculationRunIdentity, 'correlationId' | 'jobId'>
+): Promise<ScenarioCalculationRunRecord | null> {
+  assertRunIdentity({ ...identity, correlationId: 'lookup' });
+  const result = await client.query<ScenarioCalculationRunRow>(
+    `SELECT *
+       FROM fund_scenario_calculation_runs
+      WHERE fund_id = $1
+        AND scenario_set_id = $2
+        AND source_config_id = $3
+        AND source_config_version = $4
+        AND input_hash = $5
+        AND COALESCE(hash_kind, 'scenario-input-hash-v1') = $6
+        AND model_inputs_as_of_date IS NOT DISTINCT FROM $7::date
+        AND comparison_lineage_version IS NOT DISTINCT FROM $8
+      ORDER BY updated_at DESC, created_at DESC
+      LIMIT 1`,
+    [
+      identity.fundId,
+      identity.scenarioSetId,
+      identity.sourceConfigId,
+      identity.sourceConfigVersion,
+      identity.inputHash,
+      identity.hashKind,
+      identity.modelInputsAsOfDate,
+      identity.comparisonLineageVersion,
+    ]
+  );
+  return result.rows[0] ? mapRun(result.rows[0]) : null;
+}
+
 export async function acquireScenarioCalculationRun(
   client: QueryClient,
   identity: ScenarioCalculationRunIdentity
 ): Promise<ScenarioCalculationRunRecord> {
+  return (await acquireScenarioCalculationRunWithCreation(client, identity)).run;
+}
+
+export async function acquireScenarioCalculationRunWithCreation(
+  client: QueryClient,
+  identity: ScenarioCalculationRunIdentity
+): Promise<{ run: ScenarioCalculationRunRecord; inserted: boolean }> {
   assertRunIdentity(identity);
   const inserted = await insertScenarioCalculationRun(client, identity);
-  if (inserted) return inserted;
+  if (inserted) return { run: inserted, inserted: true };
 
   const existing = await findActiveScenarioCalculationRun(client, identity);
-  if (existing) return existing;
+  if (existing) return { run: existing, inserted: false };
 
   throw new Error('Scenario calculation run acquisition returned no active row');
+}
+
+export async function markQueuedScenarioCalculationRunEnqueueFailed(
+  client: QueryClient,
+  runId: string,
+  identity: ScenarioCalculationRunFenceIdentity
+): Promise<number> {
+  const result = await client.query(
+    `UPDATE fund_scenario_calculation_runs
+        SET status = 'failed',
+            failure_code = 'QUEUE_ENQUEUE_FAILED',
+            failure_message = NULL,
+            failed_at = clock_timestamp(),
+            deadline_at = NULL,
+            updated_at = clock_timestamp()
+      WHERE id = $1
+        AND status = 'queued'
+        AND job_id IS NOT DISTINCT FROM $12${ASYNC_RUN_IDENTITY_FENCE_SQL}`,
+    asyncRunFenceParams(runId, identity)
+  );
+  return affectedRowCount(result);
 }
 
 async function insertScenarioCalculationRun(
@@ -511,14 +569,18 @@ interface ExpiredScenarioCalculationRunRow {
   job_id: string;
 }
 
-export async function sweepFundScenarioCalculationRunDeadlines(): Promise<FundScenarioDeadlineSweepResult> {
+export async function sweepFundScenarioCalculationRunDeadlines(
+  options: {
+    removeJob?: (jobId: string) => Promise<unknown>;
+  } = {}
+): Promise<FundScenarioDeadlineSweepResult> {
   const disabledResult = { reconciledCount: 0, timedOutCount: 0 };
   if (!isFundScenarioSweepEnabled()) {
     return disabledResult;
   }
 
   const timeoutMs = getFundScenarioHardTimeoutMs();
-  return transaction(async (client) => {
+  const result = await transaction(async (client) => {
     const reconciliation = await client.query(
       `UPDATE fund_scenario_calculation_runs
           SET deadline_at = clock_timestamp() + ($1::bigint * INTERVAL '1 millisecond'),
@@ -540,13 +602,25 @@ export async function sweepFundScenarioCalculationRunDeadlines(): Promise<FundSc
     );
 
     let timedOutCount = 0;
+    const timedOutJobIds: string[] = [];
     for (const row of expired.rows) {
-      timedOutCount += await markScenarioCalculationRunTimedOut(client, row.id, row.job_id);
+      const affected = await markScenarioCalculationRunTimedOut(client, row.id, row.job_id);
+      timedOutCount += affected;
+      if (affected === 1) timedOutJobIds.push(row.job_id);
     }
 
     return {
       reconciledCount: affectedRowCount(reconciliation),
       timedOutCount,
+      timedOutJobIds,
     };
   });
+  for (const jobId of result.timedOutJobIds) {
+    try {
+      await options.removeJob?.(jobId);
+    } catch {
+      // Timeout CAS is authoritative; stale BullMQ removal is best effort.
+    }
+  }
+  return { reconciledCount: result.reconciledCount, timedOutCount: result.timedOutCount };
 }

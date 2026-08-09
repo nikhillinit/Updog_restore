@@ -34,6 +34,18 @@ interface MetadataForm {
   dealTags: string;
 }
 
+interface PortfolioCompanyMetadataUpdateResponse {
+  id: number;
+  fundId: number;
+  name: string;
+  sector: string;
+  foundedYear: number | null;
+  description: string | null;
+  dealTags: string[] | null;
+  rowVersion: number;
+  updatedAt: string;
+}
+
 function formFromCompany(company: PortfolioCompany): MetadataForm {
   return {
     name: company.name,
@@ -50,7 +62,9 @@ function randomIdempotencyKey(): string {
 }
 
 function isVersionConflict(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 409 && error.errorCode === 'VERSION_CONFLICT';
+  return (
+    error instanceof ApiError && error.status === 409 && error.errorCode === 'VERSION_CONFLICT'
+  );
 }
 
 export function CompanyMetadataDrawer({
@@ -64,9 +78,44 @@ export function CompanyMetadataDrawer({
   const [form, setForm] = useState<MetadataForm>(() => formFromCompany(company));
   const [expectedVersion, setExpectedVersion] = useState(company.rowVersion);
   const [conflict, setConflict] = useState(false);
+  const [dirtyFields, setDirtyFields] = useState<Set<keyof MetadataForm>>(() => new Set());
+  const draftForRefresh = useRef<{
+    form: MetadataForm;
+    dirtyFields: Set<keyof MetadataForm>;
+  } | null>(null);
+  const formRef = useRef(form);
+  const dirtyFieldsRef = useRef(dirtyFields);
 
   useEffect(() => {
-    setForm(formFromCompany(company));
+    formRef.current = form;
+    dirtyFieldsRef.current = dirtyFields;
+  }, [dirtyFields, form]);
+
+  useEffect(() => {
+    const preserved = draftForRefresh.current;
+    if (preserved) {
+      const authoritative = formFromCompany(company);
+      setForm({
+        ...authoritative,
+        ...Object.fromEntries(
+          [...preserved.dirtyFields].map((field) => [field, preserved.form[field]])
+        ),
+      } as MetadataForm);
+      setDirtyFields(new Set(preserved.dirtyFields));
+      draftForRefresh.current = null;
+    } else if (dirtyFieldsRef.current.size > 0) {
+      const authoritative = formFromCompany(company);
+      setForm({
+        ...authoritative,
+        ...Object.fromEntries(
+          [...dirtyFieldsRef.current].map((field) => [field, formRef.current[field]])
+        ),
+      } as MetadataForm);
+      setExpectedVersion(company.rowVersion);
+    } else {
+      setForm(formFromCompany(company));
+      setDirtyFields(new Set());
+    }
     setExpectedVersion(company.rowVersion);
     setConflict(false);
     idempotencyKey.current = null;
@@ -76,20 +125,29 @@ export function CompanyMetadataDrawer({
     mutationFn: async (values: MetadataForm) => {
       const key = idempotencyKey.current ?? randomIdempotencyKey();
       idempotencyKey.current = key;
-      return apiRequest<PortfolioCompany>('PATCH', `/api/portfolio-companies/${company.id}?fundId=${fundId}`, {
-        expectedVersion,
-        patch: {
-          name: values.name,
-          sector: values.sector,
-          foundedYear: values.foundedYear === '' ? null : Number(values.foundedYear),
-          description: values.description === '' ? null : values.description,
-          dealTags: values.dealTags === ''
-            ? null
-            : values.dealTags.split(',').map((tag) => tag.trim()).filter(Boolean),
+      return apiRequest<PortfolioCompanyMetadataUpdateResponse>(
+        'PATCH',
+        `/api/portfolio-companies/${company.id}?fundId=${fundId}`,
+        {
+          expectedVersion,
+          patch: {
+            name: values.name,
+            sector: values.sector,
+            foundedYear: values.foundedYear === '' ? null : Number(values.foundedYear),
+            description: values.description === '' ? null : values.description,
+            dealTags:
+              values.dealTags === ''
+                ? null
+                : values.dealTags
+                    .split(',')
+                    .map((tag) => tag.trim())
+                    .filter(Boolean),
+          },
         },
-      }, {
-        headers: { 'Idempotency-Key': key },
-      });
+        {
+          headers: { 'Idempotency-Key': key },
+        }
+      );
     },
     onSuccess: () => {
       idempotencyKey.current = null;
@@ -105,13 +163,30 @@ export function CompanyMetadataDrawer({
 
   const setField = (field: keyof MetadataForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
+    setDirtyFields((current) => new Set(current).add(field));
     setConflict(false);
   };
 
   const refreshAuthoritative = async () => {
+    const draft = { form: formRef.current, dirtyFields: new Set(dirtyFieldsRef.current) };
+    draftForRefresh.current = draft;
     await queryClient.refetchQueries({ queryKey: ['portfolio-company', fundId, company.id] });
+    const authoritative = queryClient.getQueryData<PortfolioCompany>([
+      'portfolio-company',
+      fundId,
+      company.id,
+    ]);
+    if (authoritative) {
+      const authoritativeForm = formFromCompany(authoritative);
+      setForm({
+        ...authoritativeForm,
+        ...Object.fromEntries([...draft.dirtyFields].map((field) => [field, draft.form[field]])),
+      } as MetadataForm);
+      setExpectedVersion(authoritative.rowVersion);
+      draftForRefresh.current = null;
+      setConflict(false);
+    }
     idempotencyKey.current = null;
-    setConflict(false);
   };
 
   return (
@@ -141,7 +216,12 @@ export function CompanyMetadataDrawer({
               <AlertTitle>Company changed elsewhere</AlertTitle>
               <AlertDescription className="space-y-3">
                 <p>Your edits are preserved. Refresh authoritative data before trying again.</p>
-                <Button type="button" variant="outline" size="sm" onClick={() => void refreshAuthoritative()}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void refreshAuthoritative()}
+                >
                   <RefreshCw className="h-4 w-4" />
                   Refresh authoritative data
                 </Button>

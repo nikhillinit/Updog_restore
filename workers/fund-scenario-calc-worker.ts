@@ -64,6 +64,7 @@ function getHealthPort(): number {
 export function createFundScenarioCalcWorker(input: {
   connection: QueueConnectionOptions;
   concurrency?: number;
+  removeJob?: (jobId: string) => Promise<unknown>;
 }): Worker<FundScenarioCalcQueueJobData> {
   const worker = new Worker<FundScenarioCalcQueueJobData>(
     FUND_SCENARIO_CALC_QUEUE_NAME,
@@ -73,11 +74,11 @@ export function createFundScenarioCalcWorker(input: {
       signal?: AbortSignal
     ) => {
       if (job.name === FUND_SCENARIO_DEADLINE_SWEEP_JOB_NAME) {
-        return sweepFundScenarioCalculationRunDeadlines();
+        return sweepFundScenarioCalculationRunDeadlines({ removeJob: input.removeJob });
       }
 
       return handleFundScenarioCalcJob(
-        job as Pick<Job<FundScenarioCalcJobData>, 'id' | 'data'>,
+        job as Pick<Job<FundScenarioCalcJobData>, 'id' | 'data' | 'remove'>,
         token,
         signal
       );
@@ -134,7 +135,7 @@ async function initializeFundScenarioDeadlineSweep(
       data: { kind: FUND_SCENARIO_DEADLINE_SWEEP_JOB_NAME },
     }
   );
-  await sweepFundScenarioCalculationRunDeadlines();
+  await sweepFundScenarioCalculationRunDeadlines({ removeJob: (jobId) => queue.remove(jobId) });
 }
 
 export function startFundScenarioCalcWorker(
@@ -150,17 +151,15 @@ export function startFundScenarioCalcWorker(
     getFundScenarioHardTimeoutMs();
   }
 
-  const worker = createFundScenarioCalcWorker({
-    connection,
-    ...(options.concurrency !== undefined ? { concurrency: options.concurrency } : {}),
-  });
-
   const queue = isFundScenarioSweepEnabled()
     ? new Queue<FundScenarioCalcQueueJobData>(FUND_SCENARIO_CALC_QUEUE_NAME, { connection })
     : null;
-  const ready = queue
-    ? initializeFundScenarioDeadlineSweep(queue)
-    : Promise.resolve();
+  const worker = createFundScenarioCalcWorker({
+    connection,
+    ...(options.concurrency !== undefined ? { concurrency: options.concurrency } : {}),
+    ...(queue ? { removeJob: (jobId: string) => queue.remove(jobId) } : {}),
+  });
+  const ready = queue ? initializeFundScenarioDeadlineSweep(queue) : Promise.resolve();
 
   registerWorker(FUND_SCENARIO_CALC_QUEUE_NAME, worker);
 

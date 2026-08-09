@@ -16,7 +16,10 @@ import {
 import { limitedPartners } from '../schema-lp-reporting';
 import { lpCapitalCalls } from '../schema-lp-sprint3';
 
-export type CapitalCallNotificationOutboxStatus = 'pending' | 'processing' | 'delivered' | 'exhausted';
+export type CapitalCallNotificationOutboxStatus =
+  'pending' | 'processing' | 'delivered' | 'exhausted';
+export type CapitalCallNotificationTransitionKind =
+  'due' | 'overdue' | 'paid' | 'partial' | 'reminder_7d' | 'reminder_3d' | 'reminder_1d';
 
 export const capitalCallNotificationOutbox = pgTable(
   'capital_call_notification_outbox',
@@ -24,7 +27,9 @@ export const capitalCallNotificationOutbox = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     capitalCallId: uuid('capital_call_id').notNull(),
     lpId: integer('lp_id').notNull(),
-    transitionKind: varchar('transition_kind', { length: 32 }).notNull(),
+    transitionKind: varchar('transition_kind', { length: 32 })
+      .$type<CapitalCallNotificationTransitionKind>()
+      .notNull(),
     dueDateBucket: date('due_date_bucket').notNull(),
     notificationType: varchar('notification_type', { length: 30 }).notNull(),
     title: varchar('title', { length: 255 }).notNull(),
@@ -70,6 +75,10 @@ export const capitalCallNotificationOutbox = pgTable(
     attemptCountCheck: check(
       'capital_call_notification_outbox_attempt_count_check',
       sql`${table.attemptCount} >= 0`
+    ),
+    transitionKindCheck: check(
+      'capital_call_notification_outbox_transition_kind_check',
+      sql`${table.transitionKind} IN ('due', 'overdue', 'paid', 'partial', 'reminder_7d', 'reminder_3d', 'reminder_1d')`
     ),
   })
 );

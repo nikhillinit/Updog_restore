@@ -51,12 +51,7 @@ function renderDrawer(company = companyFixture(), onOpenChange = vi.fn()) {
   });
   const view = render(
     <QueryClientProvider client={queryClient}>
-      <CompanyMetadataDrawer
-        company={company}
-        fundId={7}
-        open
-        onOpenChange={onOpenChange}
-      />
+      <CompanyMetadataDrawer company={company} fundId={7} open onOpenChange={onOpenChange} />
     </QueryClientProvider>
   );
   return { ...view, onOpenChange, queryClient };
@@ -97,7 +92,12 @@ describe('CompanyMetadataDrawer', () => {
       new ApiError(409, 'Expected version 3, found 4', 'VERSION_CONFLICT')
     );
     const { queryClient } = renderDrawer();
-    const refetchQueries = vi.spyOn(queryClient, 'refetchQueries').mockResolvedValue([]);
+    const refetchQueries = vi.spyOn(queryClient, 'refetchQueries').mockImplementation(async () => {
+      queryClient.setQueryData(
+        ['portfolio-company', 7, 11],
+        companyFixture({ name: 'Authoritative Name', sector: 'Healthcare', rowVersion: 4 })
+      );
+    });
 
     const nameInput = screen.getByLabelText('Name');
     fireEvent.change(nameInput, { target: { value: 'Preserve this edit' } });
@@ -111,5 +111,6 @@ describe('CompanyMetadataDrawer', () => {
       expect(refetchQueries).toHaveBeenCalledWith({ queryKey: ['portfolio-company', 7, 11] })
     );
     expect(nameInput).toHaveValue('Preserve this edit');
+    expect(screen.getByLabelText('Sector')).toHaveValue('Healthcare');
   });
 });

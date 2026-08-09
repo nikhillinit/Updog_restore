@@ -4,13 +4,14 @@ import { getMetrics } from '../lib/metrics';
 import { getReleaseIdentity } from '../server/version';
 import type { Worker } from 'bullmq';
 
-interface WorkerHealthStatus {
+export interface WorkerHealthStatus {
   name: string;
   status: 'healthy' | 'unhealthy' | 'paused';
   isRunning: boolean;
   jobsProcessed: number;
   lastJobTime?: Date;
   error?: string;
+  exhaustedOutboxCount?: number;
 }
 
 interface HealthCheckResponse {
@@ -29,14 +30,20 @@ interface HealthCheckResponse {
 
 // Track worker instances
 const registeredWorkers: Map<string, Worker> = new Map();
+const workerHealthDetails: Map<string, () => Promise<Record<string, number>>> = new Map();
 const workerStats: Map<string, { processed: number; errors: number; lastJob?: Date }> = new Map();
 
 /**
  * Register a worker for health monitoring
  */
-export function registerWorker(name: string, worker: Worker) {
+export function registerWorker(
+  name: string,
+  worker: Worker,
+  detailsProvider?: () => Promise<Record<string, number>>
+) {
   registeredWorkers.set(name, worker);
   workerStats.set(name, { processed: 0, errors: 0 });
+  if (detailsProvider) workerHealthDetails.set(name, detailsProvider);
 
   // Track job completion
   worker.on('completed', () => {
@@ -67,6 +74,9 @@ async function checkWorkerHealth(name: string, worker: Worker): Promise<WorkerHe
   try {
     const isRunning = worker.isRunning();
     const isPaused = worker.isPaused();
+    const details = workerHealthDetails.get(name)
+      ? await workerHealthDetails.get(name)!()
+      : {};
 
     return {
       name,
@@ -74,6 +84,7 @@ async function checkWorkerHealth(name: string, worker: Worker): Promise<WorkerHe
       isRunning,
       jobsProcessed: stats.processed,
       lastJobTime: stats.lastJob,
+      ...details,
     };
   } catch (error) {
     return {
@@ -245,4 +256,10 @@ export function resetWorkerStats(workerName?: string) {
   } else {
     workerStats.clear();
   }
+}
+
+export function resetWorkerHealthRegistrations(): void {
+  registeredWorkers.clear();
+  workerHealthDetails.clear();
+  workerStats.clear();
 }

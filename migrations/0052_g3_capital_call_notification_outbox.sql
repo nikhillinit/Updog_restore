@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS "capital_call_notification_outbox" (
   CONSTRAINT "capital_call_notification_outbox_attempt_count_check"
     CHECK ("attempt_count" >= 0),
   CONSTRAINT "capital_call_notification_outbox_transition_kind_check"
-    CHECK ("transition_kind" IN ('transition', 'reminder'))
+    CHECK ("transition_kind" IN ('due', 'overdue', 'paid', 'partial', 'reminder_7d', 'reminder_3d', 'reminder_1d'))
 );
 --> statement-breakpoint
 

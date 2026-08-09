@@ -448,7 +448,7 @@ describe('LP API route contracts', () => {
     });
   });
 
-  it('GET and PUT /api/lp/settings lock default and echo shapes', async () => {
+  it('GET and PUT /api/lp/settings lock read and write-blocked shapes', async () => {
     const getResponse = await request(makeApp()).get('/api/lp/settings');
     expect(getResponse.status).toBe(200);
     expect(getResponse.body).toEqual({
@@ -471,11 +471,9 @@ describe('LP API route contracts', () => {
       .put('/api/lp/settings')
       .send({ display: { currency: 'EUR', numberFormat: 'EU' } });
 
-    expect(putResponse.status).toBe(200);
-    expect(putResponse.body).toEqual({
-      success: true,
-      message: 'Settings updated successfully',
-      settings: { display: { currency: 'EUR', numberFormat: 'EU' } },
+    expect(putResponse.status).toBe(501);
+    expect(putResponse.body).toMatchObject({
+      error: 'LP_SETTINGS_WRITE_NOT_IMPLEMENTED',
     });
   });
 

@@ -25,9 +25,8 @@ describe('portfolio company update PostgreSQL concurrency and replay', () => {
     process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? getPostgresConnectionString();
     pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 4 });
     database = drizzle(pool, { schema });
-    ({ updatePortfolioCompanyMetadata } = await import(
-      '../../server/services/portfolio-company-update-service'
-    ));
+    ({ updatePortfolioCompanyMetadata } =
+      await import('../../server/services/portfolio-company-update-service'));
   }, 120_000);
 
   afterAll(async () => {
@@ -81,8 +80,20 @@ describe('portfolio company update PostgreSQL concurrency and replay', () => {
       rowVersion: 2,
     });
 
+    await pool.query(
+      `UPDATE portfoliocompanies
+          SET name = 'Later edit', row_version = 3, updated_at = clock_timestamp()
+        WHERE id = $1`,
+      [params.companyId]
+    );
+    const replayAfterLaterEdit = await updatePortfolioCompanyMetadata(params);
+    expect(replayAfterLaterEdit.replayed).toBe(true);
+    expect(replayAfterLaterEdit.response).toEqual(first.response);
+
     const receipt = await pool.query(
-      `SELECT request_hash, response_row_version, response_updated_at
+      `SELECT request_hash, response_name, response_sector, response_founded_year,
+              response_description, response_deal_tags,
+              response_row_version, response_updated_at
          FROM portfolio_company_update_receipts
         WHERE fund_id = $1 AND company_id = $2 AND actor_id = $3
           AND idempotency_key = $4`,

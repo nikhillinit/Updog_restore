@@ -47,6 +47,11 @@ interface PortfolioCompanyRow {
 
 interface PortfolioCompanyUpdateReceiptRow {
   request_hash: string;
+  response_name: string;
+  response_sector: string;
+  response_founded_year: number | null;
+  response_description: string | null;
+  response_deal_tags: string[] | null;
   response_status: number;
   response_row_version: number;
   response_updated_at: Date | string;
@@ -57,26 +62,9 @@ export interface PortfolioCompanyUpdateResponse {
   fundId: number;
   name: string;
   sector: string;
-  stage: string;
-  currentStage: string | null;
-  investmentAmount: string | number;
-  investmentDate: string | null;
-  currentValuation: string | number | null;
   foundedYear: number | null;
-  status: string;
   description: string | null;
   dealTags: string[] | null;
-  createdAt: string | null;
-  deployedReservesCents: number | string | null;
-  plannedReservesCents: number | string | null;
-  exitMoicBps: number | null;
-  exitProbability: string | number | null;
-  ownershipCurrentPct: string | number | null;
-  allocationCapCents: number | string | null;
-  allocationReason: string | null;
-  allocationIteration: number;
-  lastAllocationAt: string | null;
-  allocationVersion: number;
   rowVersion: number;
   updatedAt: string;
 }
@@ -115,41 +103,29 @@ function toIsoString(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
 
-function optionalIsoString(value: Date | string | null): string | null {
-  return value === null ? null : toIsoString(value);
-}
-
 function toResponse(
   row: PortfolioCompanyRow,
-  replayFields?: { rowVersion: number; updatedAt: Date | string }
+  replayFields?: Pick<
+    PortfolioCompanyUpdateReceiptRow,
+    | 'response_name'
+    | 'response_sector'
+    | 'response_founded_year'
+    | 'response_description'
+    | 'response_deal_tags'
+    | 'response_row_version'
+    | 'response_updated_at'
+  >
 ): PortfolioCompanyUpdateResponse {
   return {
     id: row.id,
     fundId: row.fund_id,
-    name: row.name,
-    sector: row.sector,
-    stage: row.stage,
-    currentStage: row.current_stage,
-    investmentAmount: row.investment_amount,
-    investmentDate: optionalIsoString(row.investment_date),
-    currentValuation: row.current_valuation,
-    foundedYear: row.founded_year,
-    status: row.status,
-    description: row.description,
-    dealTags: row.deal_tags,
-    createdAt: optionalIsoString(row.created_at),
-    deployedReservesCents: row.deployed_reserves_cents,
-    plannedReservesCents: row.planned_reserves_cents,
-    exitMoicBps: row.exit_moic_bps,
-    exitProbability: row.exit_probability,
-    ownershipCurrentPct: row.ownership_current_pct,
-    allocationCapCents: row.allocation_cap_cents,
-    allocationReason: row.allocation_reason,
-    allocationIteration: row.allocation_iteration,
-    lastAllocationAt: optionalIsoString(row.last_allocation_at),
-    allocationVersion: row.allocation_version,
-    rowVersion: replayFields?.rowVersion ?? row.row_version,
-    updatedAt: toIsoString(replayFields?.updatedAt ?? row.updated_at),
+    name: replayFields ? replayFields.response_name : row.name,
+    sector: replayFields ? replayFields.response_sector : row.sector,
+    foundedYear: replayFields ? replayFields.response_founded_year : row.founded_year,
+    description: replayFields ? replayFields.response_description : row.description,
+    dealTags: replayFields ? replayFields.response_deal_tags : row.deal_tags,
+    rowVersion: replayFields ? replayFields.response_row_version : row.row_version,
+    updatedAt: toIsoString(replayFields ? replayFields.response_updated_at : row.updated_at),
   };
 }
 
@@ -223,7 +199,9 @@ export async function updatePortfolioCompanyMetadata(params: {
     const receipt = await executeRows<PortfolioCompanyUpdateReceiptRow>(
       tx,
       sql`
-        SELECT request_hash, response_status, response_row_version, response_updated_at
+        SELECT request_hash, response_name, response_sector, response_founded_year,
+               response_description, response_deal_tags, response_status,
+               response_row_version, response_updated_at
         FROM portfolio_company_update_receipts
         WHERE fund_id = ${params.fundId}
           AND company_id = ${params.companyId}
@@ -235,6 +213,16 @@ export async function updatePortfolioCompanyMetadata(params: {
     const existingReceipt = receipt[0];
     if (existingReceipt && existingReceipt.request_hash !== requestHash) {
       throw new PortfolioCompanyUpdateIdempotencyReuseError(params.idempotencyKey);
+    }
+
+    if (existingReceipt) {
+      return {
+        response: toResponse(
+          { id: params.companyId, fund_id: params.fundId } as PortfolioCompanyRow,
+          existingReceipt
+        ),
+        replayed: true,
+      };
     }
 
     const currentRows = await executeRows<PortfolioCompanyRow>(
@@ -250,16 +238,6 @@ export async function updatePortfolioCompanyMetadata(params: {
     const current = currentRows[0];
     if (!current) {
       throw new PortfolioCompanyUpdateNotFoundError(params.fundId, params.companyId);
-    }
-
-    if (existingReceipt) {
-      return {
-        response: toResponse(current, {
-          rowVersion: existingReceipt.response_row_version,
-          updatedAt: existingReceipt.response_updated_at,
-        }),
-        replayed: true,
-      };
     }
 
     const patch = params.request.patch;
@@ -301,10 +279,13 @@ export async function updatePortfolioCompanyMetadata(params: {
     await tx.execute(sql`
       INSERT INTO portfolio_company_update_receipts
         (fund_id, company_id, actor_id, idempotency_key, request_hash,
-         response_status, response_row_version, response_updated_at)
+         response_name, response_sector, response_founded_year, response_description,
+         response_deal_tags, response_status, response_row_version, response_updated_at)
       VALUES
         (${params.fundId}, ${params.companyId}, ${params.actorId}, ${params.idempotencyKey},
-         ${requestHash}, 200, ${updated.row_version}, ${updated.updated_at})
+         ${requestHash}, ${updated.name}, ${updated.sector}, ${updated.founded_year},
+         ${updated.description}, ${updated.deal_tags ?? null}, 200,
+         ${updated.row_version}, ${updated.updated_at})
     `);
 
     return { response, replayed: false };

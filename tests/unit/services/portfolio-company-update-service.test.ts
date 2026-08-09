@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type {
-  PortfolioCompanyUpdateVersionConflictError} from '../../../server/services/portfolio-company-update-service';
+import type { PortfolioCompanyUpdateVersionConflictError } from '../../../server/services/portfolio-company-update-service';
 import {
   PORTFOLIO_COMPANY_METADATA_UPDATE_ROUTE,
   PortfolioCompanyUpdateIdempotencyReuseError,
@@ -113,12 +112,16 @@ describe('portfolio company metadata update service', () => {
       [
         {
           request_hash: requestHash,
+          response_name: 'Updated Company',
+          response_sector: 'Enterprise',
+          response_founded_year: 2018,
+          response_description: null,
+          response_deal_tags: null,
           response_status: 200,
           response_row_version: 2,
           response_updated_at: '2026-01-02T00:00:00.000Z',
         },
       ],
-      [{ ...companyRow, row_version: 2, updated_at: '2026-01-02T00:00:00.000Z' }],
     ]);
 
     const replay = await updatePortfolioCompanyMetadata({
@@ -132,7 +135,7 @@ describe('portfolio company metadata update service', () => {
 
     expect(replay.replayed).toBe(true);
     expect(replay.response.rowVersion).toBe(2);
-    expect(database.execute).toHaveBeenCalledTimes(4);
+    expect(database.execute).toHaveBeenCalledTimes(3);
   });
 
   it('rejects reuse of an idempotency key for a different canonical request', async () => {
@@ -142,6 +145,11 @@ describe('portfolio company metadata update service', () => {
       [
         {
           request_hash: 'different-hash',
+          response_name: 'Existing Company',
+          response_sector: 'Enterprise',
+          response_founded_year: 2018,
+          response_description: null,
+          response_deal_tags: null,
           response_status: 200,
           response_row_version: 2,
           response_updated_at: '2026-01-02T00:00:00.000Z',

@@ -39,7 +39,7 @@ export async function startCapitalCallStatusWorker(): Promise<{
   }
 
   const hardTimeoutMs = getCapitalCallStatusHardTimeoutMs();
-  const redis = new Redis(connection);
+  const redis = new Redis({ ...connection, maxRetriesPerRequest: null });
   const worker = createCapitalCallStatusWorker(redis, undefined, { hardTimeoutMs });
 
   registerWorker('capital-call-status', worker.getBullMqWorker(), () => worker.getHealthDetails());

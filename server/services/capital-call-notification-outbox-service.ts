@@ -1,18 +1,23 @@
 import { and, asc, eq, lte, sql } from 'drizzle-orm';
 
 import { capitalCallNotificationOutbox } from '@shared/schema/capital-call-notification-outbox';
+import type { CapitalCallNotificationTransitionKind } from '@shared/schema/capital-call-notification-outbox';
 import { lpCapitalCalls, lpNotifications } from '@shared/schema-lp-sprint3';
 import { db } from '../db';
-import { getCapitalCallStatusHardTimeoutMs, throwIfCapitalCallStatusAborted } from './capital-call-status-timeout';
+import {
+  getCapitalCallStatusHardTimeoutMs,
+  throwIfCapitalCallStatusAborted,
+} from './capital-call-status-timeout';
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type CapitalCallStatusTransaction = DbTransaction;
 
 export const CAPITAL_CALL_OUTBOX_MAX_ATTEMPTS = 5;
 export const CAPITAL_CALL_OUTBOX_BASE_BACKOFF_MS = 60_000;
 export const CAPITAL_CALL_OUTBOX_BACKOFF_FACTOR = 4;
 export const CAPITAL_CALL_OUTBOX_JITTER_MS = 1_000;
 
-type TransitionKind = 'transition' | 'reminder';
+type TransitionKind = CapitalCallNotificationTransitionKind;
 
 export interface CapitalCallNotificationInput {
   capitalCallId: string;
@@ -30,10 +35,14 @@ export interface CapitalCallNotificationInput {
 interface TransactionOptions {
   signal?: AbortSignal;
   hardTimeoutMs?: number;
+  deadlineAt?: number;
 }
 
-function hardTimeoutMs(value?: number): number {
-  return value ?? getCapitalCallStatusHardTimeoutMs();
+function hardTimeoutMs(options: Pick<TransactionOptions, 'hardTimeoutMs' | 'deadlineAt'>): number {
+  if (options.deadlineAt !== undefined) {
+    return Math.max(1, options.deadlineAt - Date.now());
+  }
+  return options.hardTimeoutMs ?? getCapitalCallStatusHardTimeoutMs();
 }
 
 function nextBackoffMs(attempt: number): number {
@@ -50,6 +59,19 @@ async function setStatementTimeout(tx: DbTransaction, timeoutMs: number) {
     throw new Error(`Invalid statement timeout: ${timeoutMs}`);
   }
   await tx.execute(sql.raw(`SET LOCAL statement_timeout = ${ms}`));
+}
+
+export async function withCapitalCallStatusTransaction<T>(
+  callback: (tx: DbTransaction) => Promise<T>,
+  options: TransactionOptions = {}
+): Promise<T> {
+  throwIfCapitalCallStatusAborted(options.signal);
+  const timeoutMs = hardTimeoutMs(options);
+  return db.transaction(async (tx) => {
+    await setStatementTimeout(tx, timeoutMs);
+    throwIfCapitalCallStatusAborted(options.signal);
+    return callback(tx);
+  });
 }
 
 async function insertOutboxRow(
@@ -83,14 +105,16 @@ async function insertOutboxRow(
   return inserted.length > 0;
 }
 
-export async function transitionCapitalCallWithNotification(params: {
-  callId: string;
-  newStatus: 'pending' | 'due' | 'overdue' | 'paid' | 'partial';
-  currentVersion: bigint;
-  notification: CapitalCallNotificationInput;
-} & TransactionOptions): Promise<boolean> {
+export async function transitionCapitalCallWithNotification(
+  params: {
+    callId: string;
+    newStatus: 'pending' | 'due' | 'overdue' | 'paid' | 'partial';
+    currentVersion: bigint;
+    notification: CapitalCallNotificationInput;
+  } & TransactionOptions
+): Promise<boolean> {
   throwIfCapitalCallStatusAborted(params.signal);
-  const timeoutMs = hardTimeoutMs(params.hardTimeoutMs);
+  const timeoutMs = hardTimeoutMs(params);
 
   return db.transaction(async (tx) => {
     await setStatementTimeout(tx, timeoutMs);
@@ -103,7 +127,9 @@ export async function transitionCapitalCallWithNotification(params: {
         version: params.currentVersion + 1n,
         updatedAt: new Date(),
       })
-      .where(and(eq(lpCapitalCalls.id, params.callId), eq(lpCapitalCalls.version, params.currentVersion)))
+      .where(
+        and(eq(lpCapitalCalls.id, params.callId), eq(lpCapitalCalls.version, params.currentVersion))
+      )
       .returning({ id: lpCapitalCalls.id });
 
     if (transitioned.length === 0) return false;
@@ -114,16 +140,18 @@ export async function transitionCapitalCallWithNotification(params: {
   });
 }
 
-export async function transitionCapitalCallWithPayment(params: {
-  callId: string;
-  newStatus: 'paid' | 'partial';
-  currentVersion: bigint;
-  paidAmountCents: bigint;
-  paidDate: string | null;
-  notification?: CapitalCallNotificationInput;
-} & TransactionOptions): Promise<boolean> {
+export async function transitionCapitalCallWithPayment(
+  params: {
+    callId: string;
+    newStatus: 'paid' | 'partial';
+    currentVersion: bigint;
+    paidAmountCents: bigint;
+    paidDate: string | null;
+    notification?: CapitalCallNotificationInput;
+  } & TransactionOptions
+): Promise<boolean> {
   throwIfCapitalCallStatusAborted(params.signal);
-  const timeoutMs = hardTimeoutMs(params.hardTimeoutMs);
+  const timeoutMs = hardTimeoutMs(params);
 
   return db.transaction(async (tx) => {
     await setStatementTimeout(tx, timeoutMs);
@@ -138,7 +166,9 @@ export async function transitionCapitalCallWithPayment(params: {
         paidDate: params.paidDate,
         updatedAt: new Date(),
       })
-      .where(and(eq(lpCapitalCalls.id, params.callId), eq(lpCapitalCalls.version, params.currentVersion)))
+      .where(
+        and(eq(lpCapitalCalls.id, params.callId), eq(lpCapitalCalls.version, params.currentVersion))
+      )
       .returning({ id: lpCapitalCalls.id });
 
     if (transitioned.length === 0) return false;
@@ -156,7 +186,7 @@ export async function enqueueCapitalCallNotification(
   options: TransactionOptions = {}
 ): Promise<boolean> {
   throwIfCapitalCallStatusAborted(options.signal);
-  const timeoutMs = hardTimeoutMs(options.hardTimeoutMs);
+  const timeoutMs = hardTimeoutMs(options);
 
   return db.transaction(async (tx) => {
     await setStatementTimeout(tx, timeoutMs);
@@ -165,11 +195,12 @@ export async function enqueueCapitalCallNotification(
   });
 }
 
-export async function dispatchPendingCapitalCallNotifications(options: TransactionOptions = {}): Promise<{
+export async function dispatchPendingCapitalCallNotifications(
+  options: TransactionOptions = {}
+): Promise<{
   deliveredCount: number;
   exhaustedCount: number;
 }> {
-  const timeoutMs = hardTimeoutMs(options.hardTimeoutMs);
   let deliveredCount = 0;
   let exhaustedCount = 0;
 
@@ -179,7 +210,7 @@ export async function dispatchPendingCapitalCallNotifications(options: Transacti
 
     try {
       const delivered = await db.transaction(async (tx) => {
-        await setStatementTimeout(tx, timeoutMs);
+        await setStatementTimeout(tx, hardTimeoutMs(options));
         throwIfCapitalCallStatusAborted(options.signal);
         const rows = await tx
           .select()
@@ -192,7 +223,10 @@ export async function dispatchPendingCapitalCallNotifications(options: Transacti
               lte(capitalCallNotificationOutbox.nextAttemptAt, sql`now()`)
             )
           )
-          .orderBy(asc(capitalCallNotificationOutbox.nextAttemptAt), asc(capitalCallNotificationOutbox.createdAt))
+          .orderBy(
+            asc(capitalCallNotificationOutbox.nextAttemptAt),
+            asc(capitalCallNotificationOutbox.createdAt)
+          )
           .limit(1)
           .for('update', { skipLocked: true });
 
@@ -235,7 +269,8 @@ export async function dispatchPendingCapitalCallNotifications(options: Transacti
       if (!rowId) throw error;
       const failedRowId = rowId;
       const failure = await db.transaction(async (tx) => {
-        await setStatementTimeout(tx, timeoutMs);
+        await setStatementTimeout(tx, hardTimeoutMs(options));
+        throwIfCapitalCallStatusAborted(options.signal);
         const rows = await tx
           .select({ attemptCount: capitalCallNotificationOutbox.attemptCount })
           .from(capitalCallNotificationOutbox)
@@ -275,7 +310,7 @@ export async function dispatchPendingCapitalCallNotifications(options: Transacti
 export async function countExhaustedCapitalCallNotifications(
   options: Pick<TransactionOptions, 'hardTimeoutMs'> = {}
 ): Promise<number> {
-  const timeoutMs = hardTimeoutMs(options.hardTimeoutMs);
+  const timeoutMs = hardTimeoutMs(options);
   const rows = await db.transaction(async (tx) => {
     await setStatementTimeout(tx, timeoutMs);
     return tx

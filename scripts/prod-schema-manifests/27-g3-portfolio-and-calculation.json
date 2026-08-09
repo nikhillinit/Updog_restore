@@ -30,9 +30,26 @@
         { "name": "actor_id", "type": "integer", "nullable": false },
         { "name": "idempotency_key", "type": "varchar", "nullable": false },
         { "name": "request_hash", "type": "varchar", "nullable": false },
+        { "name": "response_name", "type": "varchar", "nullable": false },
+        { "name": "response_sector", "type": "varchar", "nullable": false },
+        {
+          "name": "response_founded_year",
+          "type": "integer",
+          "nullable": true
+        },
+        { "name": "response_description", "type": "varchar", "nullable": true },
+        { "name": "response_deal_tags", "type": "jsonb", "nullable": true },
         { "name": "response_status", "type": "integer", "nullable": false },
-        { "name": "response_row_version", "type": "integer", "nullable": false },
-        { "name": "response_updated_at", "type": "timestamptz", "nullable": false },
+        {
+          "name": "response_row_version",
+          "type": "integer",
+          "nullable": false
+        },
+        {
+          "name": "response_updated_at",
+          "type": "timestamptz",
+          "nullable": false
+        },
         { "name": "created_at", "type": "timestamptz", "nullable": false }
       ],
       "constraints": [

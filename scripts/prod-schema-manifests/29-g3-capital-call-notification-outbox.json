@@ -1,7 +1,7 @@
 {
   "name": "g3-capital-call-notification-outbox",
   "order": 29,
-  "description": "G3 Phase 2 migration 0052: durable capital-call notification delivery, dedupe, retry, and exhaustion state.",
+  "description": "G3 Phase 2 migration 0052: durable capital-call notification delivery, concrete due/overdue/paid/partial and 7d/3d/1d reminder dedupe, retry, and exhaustion state.",
   "missingTablePolicy": "create_or_repair",
   "sqlFiles": ["migrations/0052_g3_capital_call_notification_outbox.sql"],
   "allowedCreateTables": ["capital_call_notification_outbox"],

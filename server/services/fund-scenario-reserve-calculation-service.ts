@@ -1,4 +1,5 @@
 import type { PoolClient } from 'pg';
+import { logger } from '../lib/logger';
 import { transaction } from '../db/pg-circuit.js';
 import {
   FundScenarioCalculationPayloadV1Schema,
@@ -95,6 +96,7 @@ interface RunReserveScenarioCalculationInput {
   jobId: string | null;
   signal?: AbortSignal;
   abortController?: AbortController;
+  removeJob?: () => Promise<void>;
 }
 
 interface ReserveScenarioRunContext {
@@ -691,20 +693,31 @@ function startScenarioDeadlineActor(
   }
 
   const deadlineMs = deadlineAt instanceof Date ? deadlineAt.getTime() : Date.parse(deadlineAt);
-  const timer = setTimeout(() => {
-    void transaction(async (client) => {
-      const affectedRows = await markScenarioCalculationRunTimedOut(
-        client,
-        claimed.run.id,
-        claimed.identity.jobId
-      );
-      if (affectedRows === 1) {
-        input.abortController?.abort(new FundScenarioHardTimeoutError(claimed.run.id));
-      }
-    }).catch(() => {
-      // The handler retains the original calculation error when the deadline actor cannot persist.
-    });
-  }, Math.max(0, deadlineMs - Date.now()));
+  const timer = setTimeout(
+    () => {
+      void transaction(async (client) => {
+        const affectedRows = await markScenarioCalculationRunTimedOut(
+          client,
+          claimed.run.id,
+          claimed.identity.jobId
+        );
+        if (affectedRows === 1) {
+          try {
+            await input.removeJob?.();
+          } catch (error) {
+            logger.warn(
+              { error, jobId: claimed.identity.jobId },
+              'Failed to remove timed-out scenario job'
+            );
+          }
+          input.abortController?.abort(new FundScenarioHardTimeoutError(claimed.run.id));
+        }
+      }).catch(() => {
+        // The handler retains the original calculation error when the deadline actor cannot persist.
+      });
+    },
+    Math.max(0, deadlineMs - Date.now())
+  );
 
   return { stop: () => clearTimeout(timer) };
 }

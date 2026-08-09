@@ -13,6 +13,10 @@ import {
   normalizeActor,
   type FundScenarioMutationActor,
 } from './fund-scenario-set-service.js';
+import {
+  acquireScenarioCalculationRunWithCreation,
+  markQueuedScenarioCalculationRunEnqueueFailed,
+} from './fund-scenario-calculation-run-service.js';
 
 const QUEUE_NAME = 'fund-scenario-calc';
 const JOB_ID_PREFIX = 'reserve-scenario';
@@ -49,38 +53,78 @@ export async function enqueueReserveScenarioCalculation(input: {
   }
 
   const identity = await getReserveScenarioCalculationIdentity(input.fundId, input.scenarioSetId);
-  const job = await fundScenarioCalcQueue.add(
-    'async_reserve_allocation',
-    {
-      fundId: input.fundId,
-      scenarioSetId: input.scenarioSetId,
-      correlationId: input.correlationId,
-      calculationMode: 'async_reserve_allocation',
-      actor: normalizeActor(input.actor),
-      inputHash: identity.inputHash,
-    },
-    {
-      jobId: [
-        JOB_ID_PREFIX,
-        String(input.fundId),
-        input.scenarioSetId,
-        identity.inputLineage.hashKind,
-        identity.inputHash,
-      ].join('-'),
-      attempts: 2,
-      backoff: {
-        type: 'exponential',
-        delay: 2_000,
-      },
-      removeOnComplete: {
-        age: 3600,
-        count: 100,
-      },
-      removeOnFail: {
-        age: 86400,
-      },
-    }
+  const jobId = [
+    JOB_ID_PREFIX,
+    String(input.fundId),
+    input.scenarioSetId,
+    identity.inputLineage.hashKind,
+    identity.inputHash,
+  ].join('-');
+  const runIdentity = {
+    fundId: input.fundId,
+    scenarioSetId: input.scenarioSetId,
+    sourceConfigId: identity.sourceConfigId,
+    sourceConfigVersion: identity.sourceConfigVersion,
+    calculationMode: 'async_reserve_allocation' as const,
+    overrideType: 'reserve_allocation' as const,
+    inputHash: identity.inputHash,
+    hashKind: identity.inputLineage.hashKind,
+    modelInputsAsOfDate: identity.inputLineage.modelInputsAsOfDate,
+    comparisonLineageVersion: identity.inputLineage.comparisonLineageVersion,
+    correlationId: input.correlationId,
+    jobId,
+  };
+  const acquired = await transaction((client) =>
+    acquireScenarioCalculationRunWithCreation(client, runIdentity)
   );
+
+  if (acquired.inserted) {
+    try {
+      const priorJob = await fundScenarioCalcQueue.getJob(jobId);
+      if (priorJob && (await priorJob.isFailed())) {
+        await priorJob.remove();
+      }
+    } catch {
+      // Timeout cleanup is best effort; the run row remains authoritative.
+    }
+  }
+
+  let job;
+  try {
+    job = await fundScenarioCalcQueue.add(
+      'async_reserve_allocation',
+      {
+        fundId: input.fundId,
+        scenarioSetId: input.scenarioSetId,
+        correlationId: input.correlationId,
+        calculationMode: 'async_reserve_allocation',
+        actor: normalizeActor(input.actor),
+        inputHash: identity.inputHash,
+      },
+      {
+        jobId,
+        attempts: 2,
+        backoff: {
+          type: 'exponential',
+          delay: 2_000,
+        },
+        removeOnComplete: {
+          age: 3600,
+          count: 100,
+        },
+        removeOnFail: {
+          age: 86400,
+        },
+      }
+    );
+  } catch (error) {
+    if (acquired.inserted) {
+      await transaction((client) =>
+        markQueuedScenarioCalculationRunEnqueueFailed(client, acquired.run.id, runIdentity)
+      );
+    }
+    throw error;
+  }
 
   await transaction(async (client) => {
     await insertScenarioSetEvent(client, {
