@@ -224,6 +224,9 @@ describe('surface contract matrix CI gate', () => {
     expect(queueNames).toContain('lp-view-refresh');
     for (const queueName of queueNames)
       expect(rowIds).toContain(canonicalRowId(`worker:${queueName}`));
+    expect(matrix.rows.find((row) => row.id === 'worker:capital-call-status')?.reachability).toBe(
+      'railway'
+    );
 
     for (const row of matrix.rows)
       if (row.decision_status === 'approved')

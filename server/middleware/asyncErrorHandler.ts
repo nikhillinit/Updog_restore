@@ -1,4 +1,3 @@
-import { Queue } from 'bullmq';
 import type { Request, Response, NextFunction } from 'express';
 import { sendApiError, httpCodeToAppCode } from '../lib/apiError';
 import { logger } from '../lib/logger.js';
@@ -7,26 +6,6 @@ const log =
   typeof logger.child === 'function'
     ? logger.child({ module: 'middleware:async-error-handler' })
     : logger;
-
-// Only create queue if Redis is available
-let errorQueue: Queue | null = null;
-
-if (process.env['REDIS_URL']) {
-  errorQueue = new Queue('error-tracking', {
-    connection: {
-      url: process.env['REDIS_URL'],
-    },
-    defaultJobOptions: {
-      removeOnComplete: 100,
-      removeOnFail: 50,
-      attempts: 3,
-      backoff: {
-        type: 'exponential',
-        delay: 1000,
-      },
-    },
-  });
-}
 
 interface ErrorContext {
   requestId?: string;
@@ -57,24 +36,14 @@ function asHttpError(err: unknown): HttpErrorLike {
 export function captureErrorAsync(error: Error, context: ErrorContext): void {
   // Use setImmediate to avoid blocking
   setImmediate(() => {
-    if (errorQueue) {
-      errorQueue
-        .add('capture', {
-          error: {
-            message: error.message,
-            stack: error.stack,
-            name: error.name,
-          },
-          context,
-          timestamp: new Date().toISOString(),
-        })
-        .catch((err) => {
-          log.error({ err }, 'Failed to queue error');
-        });
-    } else {
-      // Fallback to structured logging if no queue is available.
-      log.error({ err: error, context }, 'Async error captured without queue');
-    }
+    log.error(
+      {
+        err: error,
+        context,
+        error: { message: error.message, stack: error.stack, name: error.name },
+      },
+      'Async error captured'
+    );
   });
 }
 

@@ -305,6 +305,8 @@ test_quarantine:
 # proof they gate). Keep in sync with the vitest include list.
 schema_tests:
   - 'migrations/**'
+  - 'workers/**'
+  - 'server/workers/**'
   - 'tests/helpers/apply-investment-round-constraints.ts'
   - 'tests/integration/migrations/**'
   - 'server/migrations/**'
@@ -322,6 +324,9 @@ schema_tests:
   - 'tests/integration/prod-journaled-migration-recovery.test.ts'
   - 'tests/integration/investment-scenario-capability.test.ts'
   - 'tests/integration/vehicle-financing-participations-real-pg.test.ts'
+  - 'tests/integration/fund-scenario-hard-timeout.test.ts'
+  - 'tests/integration/portfolio-company-update.test.ts'
+  - 'tests/integration/capital-call-status-outbox.test.ts'
   - 'tests/integration/investment-ledger/position-conversion.pg.test.ts'
   - 'tests/integration/investment-ledger/current-position-ownership-valuation.pg.test.ts'
   - 'tests/integration/investment-ledger/legacy-position-backfill.pg.test.ts'

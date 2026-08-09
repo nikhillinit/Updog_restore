@@ -51,7 +51,7 @@ function requireHealthKeyOrAuth(req: Request, res: Response, next: NextFunction)
 
 function buildDisabledQueueHealth(): Record<string, QueueHealthRecord> {
   return Object.fromEntries(
-    getQueueCatalog().map((entry) => [
+    getQueueCatalog().filter((entry) => !entry.quarantined).map((entry) => [
       entry.queueName,
       {
         status: 'disabled',
@@ -425,7 +425,9 @@ router['get']('/api/health/queues', requireHealthKeyOrAuth, async (req: Request,
     const [redisProbe, queueEntries] = await Promise.all([
       pingQueueRedis(queueConfig.queueRedisUrl),
       Promise.all(
-        getQueueCatalog().map(
+        getQueueCatalog()
+          .filter((entry) => !entry.quarantined)
+          .map(
           async (entry) => [entry.queueName, await inspectQueueRuntime(entry)] as const
         )
       ),

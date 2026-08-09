@@ -391,17 +391,15 @@ describe('surface contract matrix listener disposition merge', () => {
 });
 
 describe('surface contract matrix BullMQ discovery', () => {
-  it('finds constructor-default queue names absent from the catalog', () => {
+  it('finds quarantined constructor-default queue names absent from the active catalog', () => {
     const findings = scanBullmqConstructors({ rootDir: repoRoot });
-    const defaults = findings.filter((finding) =>
-      ['lp-view-refresh', 'capital-call-status'].includes(finding.queue_name)
-    );
+    const defaults = findings.filter((finding) => finding.queue_name === 'lp-view-refresh');
     expect(defaults).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ queue_name: 'lp-view-refresh', source: 'parameter-default' }),
-        expect.objectContaining({ queue_name: 'capital-call-status', source: 'parameter-default' }),
       ])
     );
+    expect(findings.some((finding) => finding.queue_name === 'capital-call-status')).toBe(true);
     expect(defaults.every((finding) => !finding.path.includes('/tests/'))).toBe(true);
   });
 });
