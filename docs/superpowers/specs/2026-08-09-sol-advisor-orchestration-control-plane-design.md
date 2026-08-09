@@ -178,11 +178,26 @@ Each slot declares:
 - ad hoc specialty contract;
 - exact client-native model ID;
 - canonical reasoning effort;
+- requested service mode and its enforcement scope;
 - baseline skills;
 - action-specific skills;
 - reviewer lineage and independence requirements.
 
 The roster exposes these values for user modification before approval.
+
+Reasoning effort and service mode remain independent. `ultra` is permissible for
+a Codex role only when the selected model's live Codex capability catalog
+reports `ultra`; current capability evidence must therefore accept it for
+supporting Sol and Terra models and reject it for Luna unless Luna later reports
+support. This Codex-native token must not be conflated with the public API's
+reasoning-effort vocabulary.
+
+Fast mode is also permissible. It is a latency/service choice, not an assurance
+downgrade, and cannot silently reduce the selected reasoning effort, proof tier,
+or reviewer obligation. When Codex exposes fast mode only at the parent session
+or run level, roster slots record `inherit` plus observed run-level capability
+instead of claiming an unenforceable per-agent setting. A future host-native
+per-agent binding may be used only after capability evidence proves it.
 
 ### Axis 4: runtime envelope
 
@@ -245,6 +260,7 @@ The run-level record contains:
 - canonical workspace and base revision;
 - approval status, manifest hash, approver, and timestamp;
 - editable policy defaults;
+- run-level service mode, including supported Codex fast mode;
 - autonomy envelope;
 - compatibility and capability evidence from the host.
 
@@ -276,6 +292,8 @@ routing
 model_binding
   exact_model_id
   canonical_effort
+  service_mode: inherit | default | fast
+  service_mode_scope: run | role
   selection_source
   host_validation_evidence
 
@@ -526,6 +544,7 @@ including:
 - required skill;
 - exact model ID;
 - canonical effort token;
+- supported service mode at its declared enforcement scope;
 - runtime authority source;
 - ownership boundary;
 - dependency evidence;
@@ -548,6 +567,18 @@ Fresh Codex profiles accept only canonical tokens reported or supported by the
 Codex adapter. Unsupported casing fails configuration preview before any file is
 installed.
 
+Capability validation is model-specific rather than one global effort enum. A
+Codex profile may select canonical `ultra` for a role whose resolved model
+reports that effort. It must reject the same value for a model that does not
+report it. The adapter records the model-catalog evidence used for that
+decision, so a later catalog change can mark an affected roster stale.
+
+The schema also permits `service_mode: fast`. Fast mode is validated separately
+from model effort. If the host exposes it only as a run-level capability, the
+adapter stores it in the run envelope and requires role slots to inherit it. It
+must neither inject an unsupported per-agent field nor describe fast mode as
+changing A-tier, E-class, or reasoning effort.
+
 Existing v1 profiles do not change silently. Migration must either:
 
 1. present an explicit preview showing each legacy value and proposed canonical
@@ -566,6 +597,8 @@ managed hashes disagreeing without validation reporting the mismatch.
 - schema parsing and unknown-field rejection;
 - canonical manifest and node hashes;
 - exact model and effort validation;
+- model-specific `ultra` capability validation;
+- fast-mode validation independent of effort and assurance;
 - A0-A3 evidence-policy materialization;
 - E0-E4 batchability and approval classification;
 - finding fingerprint canonicalization and versioning;
@@ -581,6 +614,7 @@ managed hashes disagreeing without validation reporting the mismatch.
 - conditional-slot activation;
 - consolidated and isolated approval deltas;
 - missing roles, skills, models, efforts, and host capabilities;
+- unsupported per-role fast-mode claims and stale capability evidence;
 - worker attempts to spawn nested agents;
 - forged or incomplete independence metadata.
 
@@ -617,6 +651,15 @@ completion without required evidence.
 Tests must prove that legacy `Max` and `xHigh` values cannot silently render
 into Codex TOML. Fresh profiles accept canonical lowercase values. Migration is
 previewed and confirmed or fails closed.
+
+### Required routing-mode regressions
+
+Tests must prove that canonical `ultra` is accepted for models whose current
+Codex catalog reports it and rejected for models that do not. Tests must also
+prove that fast mode can be selected or inherited without changing reasoning
+effort, assurance tier, authority class, or acceptance evidence, and that the
+adapter never claims per-role fast-mode enforcement when only run-level support
+is observable.
 
 ## Acceptance gates
 
@@ -658,6 +701,10 @@ continue to work until the new adapter is explicitly configured and approved.
 - Quality is preferred over speed, except when richer routing is unambiguously
   unnecessary.
 - The user approves the initial roster and may edit model and effort per slot.
+- Canonical `ultra` reasoning is permissible when the selected model's live
+  Codex capability catalog supports it.
+- Codex fast mode is permissible as an independent service choice; it never
+  weakens effort, assurance, authority, or acceptance policy.
 - Ad hoc specialists are allowed through base-role plus task-and-skill
   composition.
 - Specialists cannot spawn subagents.
