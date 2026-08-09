@@ -11,7 +11,7 @@ last_updated: 2026-08-09
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 726 |
+| Total Documents | 727 |
 | Stale Documents | 498 |
 | Missing Frontmatter | 76 |
 
@@ -19,7 +19,7 @@ last_updated: 2026-08-09
 
 | Status | Count |
 |--------|-------|
-| ACTIVE | 454 |
+| ACTIVE | 455 |
 | UNKNOWN | 170 |
 | DRAFT | 34 |
 | HISTORICAL | 22 |
