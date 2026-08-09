@@ -154,6 +154,9 @@ describe('prod-schema manifest sentinels', () => {
       '24-internal-economics-linkage.json',
       '25-quarterly-review-workflow.json',
       '26-kpi-observations.json',
+      '27-g3-portfolio-and-calculation.json',
+      '28-g3-canary.json',
+      '29-g3-capital-call-notification-outbox.json',
     ]);
   });
 

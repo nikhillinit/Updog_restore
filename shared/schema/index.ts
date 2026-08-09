@@ -32,3 +32,6 @@ export * from './investment-ledger';
 export * from './investment-positions';
 export * from './vehicle-financing-participations';
 export * from './internal-analysis';
+export * from './portfolio-update-receipts';
+export * from './release-canary';
+export * from './capital-call-notification-outbox';

@@ -1,0 +1,54 @@
+{
+  "name": "g3-portfolio-and-calculation",
+  "order": 27,
+  "description": "G3 Phase 2 migration 0050: portfolio optimistic-concurrency metadata, update receipts, and nullable scenario calculation deadlines.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0050_g3_portfolio_and_calculation_schema.sql"],
+  "allowedCreateTables": ["portfolio_company_update_receipts"],
+  "expectedTables": [
+    {
+      "name": "portfoliocompanies",
+      "sharedTable": true,
+      "columns": [
+        { "name": "row_version", "type": "integer", "nullable": false },
+        { "name": "updated_at", "type": "timestamptz", "nullable": false }
+      ]
+    },
+    {
+      "name": "fund_scenario_calculation_runs",
+      "sharedTable": true,
+      "columns": [
+        { "name": "deadline_at", "type": "timestamptz", "nullable": true }
+      ]
+    },
+    {
+      "name": "portfolio_company_update_receipts",
+      "columns": [
+        { "name": "id", "type": "integer", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "company_id", "type": "integer", "nullable": false },
+        { "name": "actor_id", "type": "integer", "nullable": false },
+        { "name": "idempotency_key", "type": "varchar", "nullable": false },
+        { "name": "request_hash", "type": "varchar", "nullable": false },
+        { "name": "response_status", "type": "integer", "nullable": false },
+        { "name": "response_row_version", "type": "integer", "nullable": false },
+        { "name": "response_updated_at", "type": "timestamptz", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "portfolio_company_update_receipts_pkey",
+        "portfolio_company_update_receipts_fund_id_funds_id_fk",
+        "portfolio_company_update_receipts_company_fund_fk",
+        "portfolio_company_update_receipts_actor_id_users_id_fk",
+        "portfolio_company_update_receipts_scope_unique"
+      ],
+      "indexes": ["portfolio_company_update_receipts_fund_company_created_idx"]
+    }
+  ],
+  "applyPolicy": {
+    "allowNonNullColumnAdds": [
+      { "table": "portfoliocompanies", "column": "row_version" },
+      { "table": "portfoliocompanies", "column": "updated_at" }
+    ]
+  }
+}

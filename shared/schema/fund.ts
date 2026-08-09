@@ -30,7 +30,11 @@ import {
   FinancialActionabilitySchema,
   type FinancialActionability,
 } from '../contracts/financial-provenance.contract';
+import { releaseCanaryRuns } from './release-canary';
 import { users } from './user';
+
+export const FUND_DATA_ORIGINS = ['production', 'release_canary'] as const;
+export type FundDataOrigin = (typeof FUND_DATA_ORIGINS)[number];
 
 const h9FinancialActionabilityValuesSql = sql.raw(
   FinancialActionabilitySchema.options.map((value) => `'${value}'`).join(', ')
@@ -52,9 +56,26 @@ export const funds = pgTable('funds', {
   status: text('status').notNull().default('active'),
   isActive: boolean('is_active').default(true),
   baseCurrency: varchar('base_currency', { length: 3 }).notNull().default('USD'),
+  dataOrigin: varchar('data_origin', { length: 20 })
+    .notNull()
+    .default('production')
+    .$type<FundDataOrigin>(),
+  canaryRunId: uuid('canary_run_id').references(() => releaseCanaryRuns.id, {
+    onDelete: 'restrict',
+  }),
   engineResults: jsonb('engine_results').$type<EngineResults>(),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => ({
+  dataOriginCheck: check(
+    'funds_data_origin_check',
+    sql`${table.dataOrigin} IN ('production', 'release_canary')`
+  ),
+  canaryRunUnique: unique('funds_canary_run_id_unique').on(table.canaryRunId),
+  canaryOriginCouplingCheck: check(
+    'funds_canary_origin_coupling_check',
+    sql`(${table.dataOrigin} = 'production' AND ${table.canaryRunId} IS NULL) OR (${table.dataOrigin} = 'release_canary' AND ${table.canaryRunId} IS NOT NULL)`
+  ),
+}));
 
 // ============================================================================
 // FUND CONFIGS TABLE
@@ -359,6 +380,7 @@ export const fundScenarioCalculationRuns = pgTable(
     startedAt: timestamp('started_at', { withTimezone: true }),
     completedAt: timestamp('completed_at', { withTimezone: true }),
     failedAt: timestamp('failed_at', { withTimezone: true }),
+    deadlineAt: timestamp('deadline_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },

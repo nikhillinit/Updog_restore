@@ -358,6 +358,27 @@
       "when": 1785714000000,
       "tag": "0049_kpi_observations",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1785800400000,
+      "tag": "0050_g3_portfolio_and_calculation_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1785886800000,
+      "tag": "0051_g3_canary_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1785973200000,
+      "tag": "0052_g3_capital_call_notification_outbox",
+      "breakpoints": true
     }
   ]
 }

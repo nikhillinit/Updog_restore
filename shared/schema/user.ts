@@ -29,6 +29,7 @@ export const users = pgTable(
     password: text('password').notNull(),
     role: varchar('role', { length: 32 }).notNull().default('viewer').$type<UserRole>(),
     isActive: boolean('is_active').notNull().default(true),
+    isReleaseCanaryPrincipal: boolean('is_release_canary_principal').notNull().default(false),
     passwordUpdatedAt: timestamp('password_updated_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

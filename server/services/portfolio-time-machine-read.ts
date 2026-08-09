@@ -179,6 +179,8 @@ function mergeHistoricalCompany(
     allocationIteration: liveMatch?.allocationIteration ?? 0,
     lastAllocationAt: liveMatch?.lastAllocationAt ?? null,
     allocationVersion: liveMatch?.allocationVersion ?? 1,
+    rowVersion: liveMatch?.rowVersion ?? 1,
+    updatedAt: liveMatch?.updatedAt ?? liveMatch?.createdAt ?? new Date(),
   };
 }
 

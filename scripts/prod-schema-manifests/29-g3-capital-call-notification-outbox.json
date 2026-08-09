@@ -1,0 +1,44 @@
+{
+  "name": "g3-capital-call-notification-outbox",
+  "order": 29,
+  "description": "G3 Phase 2 migration 0052: durable capital-call notification delivery, dedupe, retry, and exhaustion state.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0052_g3_capital_call_notification_outbox.sql"],
+  "allowedCreateTables": ["capital_call_notification_outbox"],
+  "expectedTables": [
+    {
+      "name": "capital_call_notification_outbox",
+      "columns": [
+        { "name": "id", "type": "uuid", "nullable": false },
+        { "name": "capital_call_id", "type": "uuid", "nullable": false },
+        { "name": "lp_id", "type": "integer", "nullable": false },
+        { "name": "transition_kind", "type": "varchar", "nullable": false },
+        { "name": "due_date_bucket", "type": "date", "nullable": false },
+        { "name": "notification_type", "type": "varchar", "nullable": false },
+        { "name": "title", "type": "varchar", "nullable": false },
+        { "name": "message", "type": "text", "nullable": false },
+        { "name": "related_entity_type", "type": "varchar", "nullable": true },
+        { "name": "related_entity_id", "type": "uuid", "nullable": true },
+        { "name": "action_url", "type": "varchar", "nullable": true },
+        { "name": "status", "type": "varchar", "nullable": false },
+        { "name": "attempt_count", "type": "integer", "nullable": false },
+        { "name": "next_attempt_at", "type": "timestamptz", "nullable": false },
+        { "name": "last_attempt_at", "type": "timestamptz", "nullable": true },
+        { "name": "delivered_at", "type": "timestamptz", "nullable": true },
+        { "name": "last_error", "type": "text", "nullable": true },
+        { "name": "created_at", "type": "timestamptz", "nullable": false },
+        { "name": "updated_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "capital_call_notification_outbox_pkey",
+        "capital_call_notification_outbox_capital_call_id_fk",
+        "capital_call_notification_outbox_lp_id_fk",
+        "capital_call_notification_outbox_dedupe_unique",
+        "capital_call_notification_outbox_status_check",
+        "capital_call_notification_outbox_attempt_count_check",
+        "capital_call_notification_outbox_transition_kind_check"
+      ],
+      "indexes": ["capital_call_notification_outbox_pending_claim_idx"]
+    }
+  ]
+}
