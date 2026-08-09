@@ -7,7 +7,7 @@
  * - format: esm (matches package type and server build output)
  * - packages: external (Docker copies node_modules separately)
  * - platform: node (Node.js runtime)
- * - target: node20 (matches supported runtime contract)
+ * - target: node22 (matches supported runtime contract)
  */
 import { readFileSync, readdirSync, rmSync } from 'fs';
 import { dirname, relative, resolve } from 'path';
@@ -35,6 +35,13 @@ try {
     throw new Error('No standalone worker entrypoints found in workers/');
   }
 
+  const requiredWorkerEntrypoints = ['fund-scenario-calc-worker.ts', 'capital-call-status-worker.ts'];
+  for (const requiredWorker of requiredWorkerEntrypoints) {
+    if (!entryPoints.some((entryPoint) => entryPoint.endsWith(`/${requiredWorker}`))) {
+      throw new Error(`Required worker entrypoint missing: ${requiredWorker}`);
+    }
+  }
+
   rmSync(outdir, { recursive: true, force: true });
 
   await build({
@@ -43,7 +50,7 @@ try {
     bundle: true,
     format: 'esm',
     platform: 'node',
-    target: 'node20',
+    target: 'node22',
     packages: 'external',
     sourcemap: true,
     minify: false,
@@ -53,6 +60,13 @@ try {
     .filter((fileName) => fileName.endsWith('.js') || fileName.endsWith('.js.map'))
     .map((fileName) => relative(root, resolve(outdir, fileName)))
     .sort();
+
+  for (const requiredWorker of requiredWorkerEntrypoints) {
+    const artifact = requiredWorker.replace(/\.ts$/, '.js');
+    if (!emittedFiles.includes(`dist/workers/${artifact}`)) {
+      throw new Error(`Required worker artifact missing: dist/workers/${artifact}`);
+    }
+  }
 
   console.log('Worker build complete:');
   for (const fileName of emittedFiles) {

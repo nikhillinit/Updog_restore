@@ -258,6 +258,7 @@ const envSchema = z.object({
   // API/Processing Timeouts
   API_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
   JOB_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
+  FUND_SCENARIO_HARD_TIMEOUT_MS: z.coerce.number().int().positive().optional(),
   CONNECTION_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
   STREAM_BUFFER_SIZE_BYTES: z.coerce.number().int().positive().default(10485760), // 10MB
 
@@ -319,6 +320,7 @@ export function loadEnv() {
       'SESSION_SECRET',
       'HEALTH_KEY',
       'METRICS_KEY',
+      'FUND_SCENARIO_HARD_TIMEOUT_MS',
     ] as const;
 
     const missing: string[] = requiredInProduction.filter(

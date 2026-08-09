@@ -13,7 +13,8 @@ export type QueueRegistryKey =
   | 'fund-scenario-calc'
   | 'pacing-calc'
   | 'cohort-calc'
-  | 'economics-calc';
+  | 'economics-calc'
+  | 'capital-call-status';
 
 export type QueueHealthMode = 'worker' | 'producer';
 export type QueueOwner = 'providers' | 'route';
@@ -24,6 +25,7 @@ export interface QueueCatalogEntry {
   displayName: string;
   healthMode: QueueHealthMode;
   owner: QueueOwner;
+  quarantined?: boolean;
   fundCalculationAuthority?: FundCalculationAuthority;
 }
 
@@ -92,11 +94,19 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     fundCalculationAuthority: authorityForCalculationQueue('cohort-calc'),
   },
   {
+    key: 'capital-call-status',
+    queueName: 'capital-call-status',
+    displayName: 'Capital Call Status Notifications',
+    healthMode: 'worker',
+    owner: 'providers',
+  },
+  {
     key: 'economics-calc',
     queueName: 'economics-calc',
     displayName: 'GP Economics Calculations',
     healthMode: 'producer',
     owner: 'route',
+    quarantined: true,
     fundCalculationAuthority: authorityForCalculationQueue('economics-calc'),
   },
 ] as const;

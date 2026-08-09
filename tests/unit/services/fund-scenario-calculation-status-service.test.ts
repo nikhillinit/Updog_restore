@@ -152,6 +152,172 @@ describe('fund scenario calculation status service', () => {
     expect(sqlCalls.some((sql) => sql.includes("change_summary_json ->> 'hash_kind'"))).toBe(true);
     expect(sqlCalls.some((sql) => sql.includes('AND id = $2'))).toBe(true);
   });
+
+  it('maps a run-linked started event to calculating status', async () => {
+    fetchScenarioSetDetailMock.mockResolvedValue(reserveScenarioSetDetail());
+    queryMock.mockImplementation(async (sqlValue: unknown, params: unknown[] = []) => {
+      const sql = String(sqlValue);
+      if (sql.includes('FROM fundconfigs') && sql.includes('id = $2')) {
+        return {
+          rows: [
+            {
+              id: 12,
+              version: 4,
+              config: {
+                fundName: 'Status fund',
+                modelInputsAsOfDate: '2026-06-30',
+              },
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM fundconfigs') && sql.includes('is_published = TRUE')) {
+        return { rows: [{ version: 4 }] };
+      }
+      if (sql.includes('FROM fund_scenario_calculation_runs')) {
+        return { rows: [] };
+      }
+      if (sql.includes('FROM fund_scenario_set_events')) {
+        expect(params[3]).toBe('scenario-input-hash-v2');
+        return {
+          rows: [
+            {
+              event_type: 'calculation_started',
+              change_summary_json: {
+                run_id: '00000000-0000-0000-0000-000000000222',
+                input_hash: params[2],
+                hash_kind: params[3],
+                job_id: 'job-42',
+                correlation_id: '00000000-0000-0000-0000-000000000333',
+              },
+              created_at: new Date('2026-07-01T00:00:01.000Z'),
+            },
+          ],
+        };
+      }
+      throw new Error(`Unexpected status query: ${sql}`);
+    });
+
+    const result = await getFundScenarioCalculationStatus(123, scenarioSetId);
+
+    expect(result).toMatchObject({
+      status: 'calculating',
+      jobId: 'job-42',
+      correlationId: '00000000-0000-0000-0000-000000000333',
+      snapshotId: null,
+    });
+  });
+
+  it('surfaces sanitized ordinary run failures and generic hard-timeout failures', async () => {
+    fetchScenarioSetDetailMock.mockResolvedValue(reserveScenarioSetDetail());
+    queryMock.mockImplementation(async (sqlValue: unknown, params: unknown[] = []) => {
+      const sql = String(sqlValue);
+      if (sql.includes('FROM fundconfigs') && sql.includes('id = $2')) {
+        return {
+              rows: [
+                {
+                  id: 12,
+                  version: 4,
+                  config: { fundName: 'Status fund', modelInputsAsOfDate: '2026-06-30' },
+                },
+              ],
+        };
+      }
+      if (sql.includes('FROM fundconfigs') && sql.includes('is_published = TRUE')) {
+        return { rows: [{ version: 4 }] };
+      }
+      if (sql.includes('FROM fund_scenario_calculation_runs')) {
+        return {
+          rows: [
+            {
+              id: '00000000-0000-0000-0000-000000000222',
+              fund_id: 123,
+              scenario_set_id: scenarioSetId,
+              source_config_id: 12,
+              source_config_version: 4,
+              calculation_mode: 'async_reserve_allocation',
+              override_type: 'reserve_allocation',
+              input_hash: params[4],
+              hash_kind: 'scenario-input-hash-v2',
+              model_inputs_as_of_date: new Date(2026, 5, 30),
+              comparison_lineage_version: 'comparison-lineage-v1',
+              job_id: 'job-42',
+              correlation_id: '00000000-0000-0000-0000-000000000333',
+              status: 'failed',
+              snapshot_id: null,
+              failure_code: null,
+              failure_message: 'Calculation failed while loading reserve inputs',
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM fund_scenario_set_events')) return { rows: [] };
+      throw new Error(`Unexpected status query: ${sql}`);
+    });
+
+    await expect(getFundScenarioCalculationStatus(123, scenarioSetId)).resolves.toMatchObject({
+      status: 'failed',
+      failureCode: null,
+      lastError: 'Calculation failed while loading reserve inputs',
+    });
+
+    queryMock.mockImplementationOnce(async () => ({
+      rows: [
+        {
+          id: 12,
+          version: 4,
+          config: { fundName: 'Status fund', modelInputsAsOfDate: '2026-06-30' },
+        },
+      ],
+    }));
+    queryMock.mockImplementation(async (sqlValue: unknown, params: unknown[] = []) => {
+      const sql = String(sqlValue);
+      if (sql.includes('FROM fundconfigs')) {
+        return {
+          rows: [
+            {
+              id: 12,
+              version: 4,
+              config: { fundName: 'Status fund', modelInputsAsOfDate: '2026-06-30' },
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM fund_scenario_calculation_runs')) {
+        return {
+          rows: [
+            {
+              id: '00000000-0000-0000-0000-000000000222',
+              fund_id: 123,
+              scenario_set_id: scenarioSetId,
+              source_config_id: 12,
+              source_config_version: 4,
+              calculation_mode: 'async_reserve_allocation',
+              override_type: 'reserve_allocation',
+              input_hash: params[4],
+              hash_kind: 'scenario-input-hash-v2',
+              model_inputs_as_of_date: new Date(2026, 5, 30),
+              comparison_lineage_version: 'comparison-lineage-v1',
+              job_id: 'job-42',
+              correlation_id: '00000000-0000-0000-0000-000000000333',
+              status: 'failed',
+              snapshot_id: null,
+              failure_code: 'HARD_TIMEOUT',
+              failure_message: 'internal stack text must not surface',
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM fund_scenario_set_events')) return { rows: [] };
+      throw new Error(`Unexpected timeout status query: ${sql}`);
+    });
+
+    await expect(getFundScenarioCalculationStatus(123, scenarioSetId)).resolves.toMatchObject({
+      status: 'failed',
+      failureCode: 'HARD_TIMEOUT',
+      lastError: 'Fund scenario calculation exceeded its hard deadline',
+    });
+  });
 });
 
 function feeScenarioSetDetail(): FundScenarioSetDetailV1 {

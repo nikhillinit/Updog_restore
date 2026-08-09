@@ -200,7 +200,7 @@ export function createScenarioWorker(
     `[ScenarioWorker] Cache initialized (Redis: ${config.redis ? 'enabled' : 'disabled'})`
   );
 
-  // eslint-disable-next-line povc-security/require-bullmq-config -- BullMQ uses lockDuration, not timeout
+  // eslint-disable-next-line povc-security/require-bullmq-config -- lockDuration is a renewable ownership lease; execution deadline is enforced by the job contract
   const worker = new Worker<ScenarioConfigWithMeta, ScenarioResult>(
     'scenario-generation',
     async (job) => {
@@ -215,7 +215,7 @@ export function createScenarioWorker(
       connection: config.connection,
       concurrency: config.concurrency ?? 2,
 
-      // Job timeout (default: 5 minutes) - AP-QUEUE-02 compliance
+      // BullMQ ownership lease (default: 5 minutes); execution deadline is enforced by the job contract.
       lockDuration: config.timeout ?? 5 * 60 * 1000,
 
       // Retry configuration

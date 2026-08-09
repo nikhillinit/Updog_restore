@@ -12,6 +12,7 @@ import type IORedis from 'ioredis';
 import { registerQueueRuntime, unregisterQueueRuntime } from './registry';
 import { getBullMQConnection } from './redis-connection.js';
 import { logger } from '../logger';
+import { sanitizeQueueError } from '../lib/queue-error-sanitizer.js';
 import type { UnifiedSimulationConfig } from '../services/monte-carlo-service-unified';
 
 // Job types
@@ -150,7 +151,7 @@ export async function initializeSimulationQueue(redisConnection: IORedis): Promi
   });
 
   // Create worker to process jobs
-  // eslint-disable-next-line povc-security/require-bullmq-config -- BullMQ uses lockDuration instead of timeout
+  // eslint-disable-next-line povc-security/require-bullmq-config -- lockDuration is a renewable ownership lease; execution deadline is enforced by the job contract
   worker = new Worker<SimulationJobData, SimulationJobResult>(
     QUEUE_NAME,
     async (job: Job<SimulationJobData, SimulationJobResult>) => {
@@ -242,6 +243,10 @@ export async function initializeSimulationQueue(redisConnection: IORedis): Promi
 
   queueEvents.on('failed', ({ jobId, failedReason }) => {
     console.error(`[queue] Job ${jobId} failed:`, failedReason);
+  });
+
+  queueEvents.on('error', (error) => {
+    console.error('[queue] QueueEvents error:', sanitizeQueueError(error));
   });
 
   // Error handlers

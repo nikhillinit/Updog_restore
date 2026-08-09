@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
+import { ApiError, apiRequest } from '@/lib/queryClient';
+import { toast } from '@/hooks/use-toast';
 import type {
   AlertMetricName,
   BaselineResponse as Baseline,
@@ -195,6 +196,16 @@ export function useSetDefaultBaseline() {
         `/api/funds/${params.fundId}/baselines/${params.baselineId}/set-default`,
         {}
       );
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: 'Could not set default baseline',
+        description:
+          error instanceof ApiError && error.status === 403
+            ? 'Setting the default baseline requires a partner or admin role.'
+            : 'The default baseline was not changed. Try again or contact an admin.',
+        variant: 'destructive',
+      });
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({

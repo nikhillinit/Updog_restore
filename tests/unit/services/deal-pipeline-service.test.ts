@@ -178,14 +178,15 @@ describe('deal pipeline service', () => {
 
   it('bulk-updates status idempotently and reports missing deals', async () => {
     mockState.state.selectResults.push([
-      { id: 1, status: 'qualified' },
-      { id: 2, status: 'lead' },
+      { id: 1, fundId: 1, status: 'qualified' },
+      { id: 2, fundId: 1, status: 'lead' },
     ]);
 
     const result = await bulkUpdateStatus({
       dealIds: [1, 2, 3],
       status: 'qualified',
       notes: 'service contract',
+      fundId: 1,
     });
 
     expect(result).toEqual({

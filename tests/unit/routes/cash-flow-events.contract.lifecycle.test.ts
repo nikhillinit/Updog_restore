@@ -23,9 +23,22 @@ vi.mock('../../../server/services/lp-reporting/cash-flow-event-service', () => s
 
 import cashFlowEventsRouter from '../../../server/routes/cash-flow-events';
 
-function makeApp() {
+function makeApp(role = 'partner') {
   const app = express();
   app.use(express.json());
+  app.use((req, _res, next) => {
+    req.user = {
+      id: '42',
+      sub: '42',
+      email: `${role}@example.com`,
+      role,
+      roles: [role],
+      fundIds: [1],
+      ip: '127.0.0.1',
+      userAgent: 'vitest',
+    };
+    next();
+  });
   app.use(cashFlowEventsRouter);
   app.use((_req, res) => res.status(404).json({ error: 'not_found' }));
   return app;
@@ -81,6 +94,7 @@ describe('cash-flow-events lifecycle route contract', () => {
     svc.loadCashFlowEvent.mockReset();
     svc.approveLpCapitalCallEvent.mockReset();
     svc.lockLpCapitalCallEvent.mockReset();
+    svc.updateLpCapitalCallDraft.mockReset();
   });
 
   for (const v of VARIANTS) {
@@ -217,7 +231,20 @@ describe('cash-flow-events lifecycle route contract', () => {
     );
   });
 
-  it('lock stores NULL lockedBy when identity is absent', async () => {
+  it('lock stores NULL lockedBy when the principal id is not numeric', async () => {
+    fundScopeState.enforceProvidedFundScope.mockImplementationOnce(async (req) => {
+      req.user = {
+        id: 'service-account',
+        sub: 'service-account',
+        email: 'a@b.c',
+        role: 'partner',
+        roles: ['partner'],
+        fundIds: [1],
+        ip: 'x',
+        userAgent: 'y',
+      };
+      return true;
+    });
     svc.loadCashFlowEvent.mockResolvedValueOnce({ row: row({ status: 'approved' }), xmin: '5' });
     svc.lockLpCapitalCallEvent.mockResolvedValueOnce({ row: row({ status: 'locked' }), xmin: '6' });
     await request(makeApp())
@@ -228,4 +255,47 @@ describe('cash-flow-events lifecycle route contract', () => {
       expect.objectContaining({ lockedBy: null })
     );
   });
+
+  it('denies restricted principals before loading lifecycle resources', async () => {
+    for (const variant of VARIANTS) {
+      const res = await request(makeApp('analyst'))
+        .post(`/api/funds/1/cash-flow-events/10/${variant.op}`)
+        .set('If-Match', rowVersionETag('5'));
+      expect(res.status).toBe(403);
+    }
+    expect(svc.loadCashFlowEvent).not.toHaveBeenCalled();
+    expect(svc.approveLpCapitalCallEvent).not.toHaveBeenCalled();
+    expect(svc.lockLpCapitalCallEvent).not.toHaveBeenCalled();
+  });
+
+  it.each(['partner', 'admin'])('allows %s through both lifecycle transitions', async (role) => {
+    for (const variant of VARIANTS) {
+      svc.loadCashFlowEvent.mockResolvedValueOnce({
+        row: row({ status: variant.source }),
+        xmin: '5',
+      });
+      const transition = variant.fn();
+      transition.mockResolvedValueOnce({ row: row({ status: variant.target }), xmin: '6' });
+
+      const res = await request(makeApp(role))
+        .post(`/api/funds/1/cash-flow-events/10/${variant.op}`)
+        .set('If-Match', rowVersionETag('5'));
+      expect(res.status).toBe(200);
+    }
+  });
+
+  it.each(['analyst', 'partner', 'admin'])(
+    'applies %s role to draft patch writes',
+    async (role) => {
+      svc.loadCashFlowEvent.mockResolvedValueOnce({ row: row({ status: 'draft' }), xmin: '5' });
+      svc.updateLpCapitalCallDraft.mockResolvedValueOnce({ row: row(), xmin: '6' });
+
+      const res = await request(makeApp(role))
+        .patch('/api/funds/1/cash-flow-events/10')
+        .set('If-Match', rowVersionETag('5'))
+        .send({ description: 'Updated description' });
+
+      expect(res.status).toBe(200);
+    }
+  );
 });

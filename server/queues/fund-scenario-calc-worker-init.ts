@@ -12,6 +12,7 @@ interface FundScenarioCalcJobData {
   scenarioSetId: string;
   correlationId: string;
   calculationMode: string;
+  runId?: string;
   actor: {
     userId: number | null;
     label: string | null;
@@ -22,7 +23,12 @@ type FundScenarioCalcJobResult = unknown;
 
 interface FundScenarioCalcHandlerModule {
   handleFundScenarioCalcJob(
-    job: Pick<Job<FundScenarioCalcJobData, FundScenarioCalcJobResult, string>, 'id' | 'data'>
+    job: Pick<
+      Job<FundScenarioCalcJobData, FundScenarioCalcJobResult, string>,
+      'id' | 'data' | 'attemptsMade' | 'opts'
+    >,
+    token?: string,
+    signal?: AbortSignal
   ): Promise<FundScenarioCalcJobResult>;
 }
 
@@ -47,14 +53,18 @@ export async function initializeFundScenarioCalcWorker(
 
   const connection = getBullMQConnection(redisConnection);
 
-  // eslint-disable-next-line povc-security/require-bullmq-config -- lockDuration is the BullMQ timeout control
+  // eslint-disable-next-line povc-security/require-bullmq-config -- lockDuration is a renewable ownership lease; execution deadline is persisted per run
   worker = new Worker<FundScenarioCalcJobData, FundScenarioCalcJobResult, string>(
     QUEUE_NAME,
-    async (job: Job<FundScenarioCalcJobData, FundScenarioCalcJobResult, string>) => {
+    async (
+      job: Job<FundScenarioCalcJobData, FundScenarioCalcJobResult, string>,
+      token: string | undefined,
+      signal: AbortSignal | undefined
+    ) => {
       const { handleFundScenarioCalcJob: processJob } = (await import(
         '../../workers/fund-scenario-calc-handler.js' as string
       )) as unknown as FundScenarioCalcHandlerModule;
-      return processJob(job);
+      return processJob(job, token, signal);
     },
     {
       connection,

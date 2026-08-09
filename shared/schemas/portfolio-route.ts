@@ -15,6 +15,35 @@ import { z } from 'zod';
 
 import { parseFundIdParam } from '../number';
 
+/**
+ * Metadata-only portfolio company mutation. Lifecycle, status, and financial
+ * fields intentionally do not appear here.
+ */
+export const PortfolioCompanyMetadataPatch = z
+  .object({
+    name: z.string().trim().min(1).max(255).optional(),
+    sector: z.string().trim().min(1).max(255).optional(),
+    foundedYear: z.number().int().min(1900).max(2200).nullable().optional(),
+    description: z.string().trim().min(1).max(2000).nullable().optional(),
+    dealTags: z
+      .array(z.string().trim().min(1).max(240))
+      .max(10)
+      .nullable()
+      .optional(),
+  })
+  .strict();
+
+export type PortfolioCompanyMetadataPatchInput = z.infer<typeof PortfolioCompanyMetadataPatch>;
+
+export const PortfolioCompanyUpdateRequest = z
+  .object({
+    expectedVersion: z.number().int().nonnegative(),
+    patch: PortfolioCompanyMetadataPatch,
+  })
+  .strict();
+
+export type PortfolioCompanyUpdateRequestInput = z.infer<typeof PortfolioCompanyUpdateRequest>;
+
 // =====================
 // REUSABLE PARAM SCHEMAS
 // =====================

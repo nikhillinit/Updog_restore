@@ -2,17 +2,37 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   runReserveScenarioCalculationMock,
+  ownershipLostOutcome,
+  reserveMetricTimerMock,
+  reserveEngineErrorMock,
+  reserveFailureCounterMock,
+  fundScenarioHardTimeoutsMock,
+  fundScenarioHardTimeoutDurationMock,
   loggerInfoMock,
   loggerErrorMock,
   workerConstructorMock,
+  queueConstructorMock,
+  queueUpsertSchedulerMock,
+  queueCloseMock,
+  sweepDeadlineMock,
   registerWorkerMock,
   createHealthServerMock,
   getQueueConnectionOptionsMock,
 } = vi.hoisted(() => ({
   runReserveScenarioCalculationMock: vi.fn(),
+  ownershipLostOutcome: { kind: 'ownership_lost' as const },
+  reserveMetricTimerMock: vi.fn(),
+  reserveEngineErrorMock: vi.fn(),
+  reserveFailureCounterMock: vi.fn(),
+  fundScenarioHardTimeoutsMock: { inc: vi.fn() },
+  fundScenarioHardTimeoutDurationMock: { observe: vi.fn() },
   loggerInfoMock: vi.fn(),
   loggerErrorMock: vi.fn(),
   workerConstructorMock: vi.fn(),
+  queueConstructorMock: vi.fn(),
+  queueUpsertSchedulerMock: vi.fn().mockResolvedValue(undefined),
+  queueCloseMock: vi.fn().mockResolvedValue(undefined),
+  sweepDeadlineMock: vi.fn().mockResolvedValue({ reconciledCount: 0, timedOutCount: 0 }),
   registerWorkerMock: vi.fn(),
   createHealthServerMock: vi.fn(),
   getQueueConnectionOptionsMock: vi.fn(),
@@ -20,6 +40,7 @@ const {
 
 vi.mock('../../../server/services/fund-scenario-reserve-calculation-service', () => ({
   runReserveScenarioCalculation: runReserveScenarioCalculationMock,
+  isScenarioCalculationOwnershipLost: (value: unknown) => value === ownershipLostOutcome,
 }));
 
 vi.mock('../../../server/config/features', () => ({
@@ -34,9 +55,13 @@ vi.mock('../../../lib/logger', () => ({
 }));
 
 vi.mock('../../../lib/metrics', () => ({
-  withMetrics: (_name: string, callback: () => unknown) => callback(),
+  withMetrics: vi.fn((_name: string, callback: () => unknown) => callback()),
   metrics: {
-    counter: vi.fn(),
+    counter: reserveFailureCounterMock,
+    engineLatency: { startTimer: vi.fn(() => reserveMetricTimerMock) },
+    engineErrors: { inc: reserveEngineErrorMock },
+    fundScenarioHardTimeouts: fundScenarioHardTimeoutsMock,
+    fundScenarioHardTimeoutDuration: fundScenarioHardTimeoutDurationMock,
   },
 }));
 
@@ -45,7 +70,25 @@ vi.mock('../../../workers/health-server', () => ({
   createHealthServer: createHealthServerMock,
 }));
 
+vi.mock('../../../server/services/fund-scenario-calculation-run-service', () => ({
+  sweepFundScenarioCalculationRunDeadlines: sweepDeadlineMock,
+}));
+
 vi.mock('bullmq', () => ({
+  UnrecoverableError: class UnrecoverableError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = 'UnrecoverableError';
+    }
+  },
+  Queue: class MockQueue {
+    constructor(...args: unknown[]) {
+      queueConstructorMock(...args);
+    }
+
+    upsertJobScheduler = queueUpsertSchedulerMock;
+    close = queueCloseMock;
+  },
   Worker: class MockWorker {
     constructor(...args: unknown[]) {
       workerConstructorMock(...args);
@@ -71,30 +114,67 @@ describe('fund scenario calc worker handler', () => {
     const { handleFundScenarioCalcJob } =
       await import('../../../workers/fund-scenario-calc-handler');
     runReserveScenarioCalculationMock.mockResolvedValue({ snapshotId: 42 });
+    const signal = new AbortController().signal;
+
+    expect(handleFundScenarioCalcJob.length).toBe(3);
 
     const result = await handleFundScenarioCalcJob({
       id: 'job-1',
+      attemptsMade: 0,
+      opts: { attempts: 2 },
       data: {
         fundId: 1,
         scenarioSetId: '00000000-0000-0000-0000-000000000111',
         correlationId: '00000000-0000-0000-0000-000000000123',
         calculationMode: 'async_reserve_allocation',
+        runId: 'run-1',
         actor: { userId: 17, label: 'analyst@example.com' },
       },
-    });
+    }, 'bullmq-token', signal);
 
     expect(result).toEqual({ snapshotId: 42 });
-    expect(runReserveScenarioCalculationMock).toHaveBeenCalledWith({
+    expect(runReserveScenarioCalculationMock).toHaveBeenCalledWith(expect.objectContaining({
       fundId: 1,
       scenarioSetId: '00000000-0000-0000-0000-000000000111',
       correlationId: '00000000-0000-0000-0000-000000000123',
       actor: { userId: 17, label: 'analyst@example.com' },
       jobId: 'job-1',
-    });
+      runId: 'run-1',
+      isFinalAttempt: false,
+      signal: expect.any(AbortSignal),
+      abortController: expect.any(AbortController),
+    }));
     expect(loggerInfoMock).toHaveBeenCalledWith(
       'Processing reserve scenario calculation',
       expect.objectContaining({ jobId: 'job-1' })
     );
+  });
+
+  it('treats a private ownership-loss outcome as a completed delivery', async () => {
+    const { handleFundScenarioCalcJob } =
+      await import('../../../workers/fund-scenario-calc-handler');
+    runReserveScenarioCalculationMock.mockResolvedValue(ownershipLostOutcome);
+
+    await expect(
+      handleFundScenarioCalcJob({
+        id: 'job-lost-owner',
+        attemptsMade: 0,
+        opts: { attempts: 2 },
+        data: {
+          fundId: 1,
+          scenarioSetId: '00000000-0000-0000-0000-000000000111',
+          correlationId: '00000000-0000-0000-0000-000000000123',
+          calculationMode: 'async_reserve_allocation',
+          runId: 'run-lost-owner',
+          actor: null,
+        },
+      })
+    ).resolves.toBeUndefined();
+
+    expect(loggerErrorMock).not.toHaveBeenCalled();
+    expect(reserveMetricTimerMock).not.toHaveBeenCalled();
+    expect(reserveEngineErrorMock).not.toHaveBeenCalled();
+    expect(reserveFailureCounterMock).not.toHaveBeenCalled();
   });
 
   it('rejects unsupported calculation modes and logs failures', async () => {
@@ -104,11 +184,14 @@ describe('fund scenario calc worker handler', () => {
     await expect(
       handleFundScenarioCalcJob({
         id: 'job-2',
+        attemptsMade: 0,
+        opts: { attempts: 1 },
         data: {
           fundId: 1,
           scenarioSetId: '00000000-0000-0000-0000-000000000111',
           correlationId: '00000000-0000-0000-0000-000000000123',
           calculationMode: 'sync_fee_profile',
+          runId: 'run-unsupported',
           actor: null,
         },
       })
@@ -119,6 +202,36 @@ describe('fund scenario calc worker handler', () => {
       expect.any(Error),
       expect.objectContaining({ jobId: 'job-2' })
     );
+  });
+
+  it('routes tagged hard-timeout aborts to an unrecoverable BullMQ failure', async () => {
+    const { handleFundScenarioCalcJob } =
+      await import('../../../workers/fund-scenario-calc-handler');
+    const { FundScenarioHardTimeoutError } =
+      await import('../../../server/services/fund-scenario-timeout');
+    runReserveScenarioCalculationMock.mockRejectedValue(
+      new FundScenarioHardTimeoutError('run-timeout')
+    );
+
+    await expect(
+      handleFundScenarioCalcJob({
+        id: 'job-timeout',
+        attemptsMade: 0,
+        opts: { attempts: 2 },
+        data: {
+          fundId: 1,
+          scenarioSetId: '00000000-0000-0000-0000-000000000111',
+          correlationId: '00000000-0000-0000-0000-000000000123',
+          calculationMode: 'async_reserve_allocation',
+          runId: 'run-timeout',
+          actor: null,
+        },
+      })
+    ).rejects.toMatchObject({ name: 'UnrecoverableError' });
+
+    expect(fundScenarioHardTimeoutsMock.inc).toHaveBeenCalledTimes(1);
+    expect(fundScenarioHardTimeoutDurationMock.observe).toHaveBeenCalledWith(30);
+    expect(loggerErrorMock).not.toHaveBeenCalled();
   });
 
   it('importing the handler does not start a BullMQ worker or health server', async () => {
@@ -135,6 +248,7 @@ describe('fund scenario calc worker startup', () => {
     FUND_SCENARIO_WORKER_HEALTH_PORT: process.env['FUND_SCENARIO_WORKER_HEALTH_PORT'],
     PORT: process.env['PORT'],
     WORKER_HEALTH_PORT: process.env['WORKER_HEALTH_PORT'],
+    FUND_SCENARIO_SWEEP_ENABLED: process.env['FUND_SCENARIO_SWEEP_ENABLED'],
   };
 
   beforeEach(() => {
@@ -143,6 +257,7 @@ describe('fund scenario calc worker startup', () => {
     delete process.env['FUND_SCENARIO_WORKER_HEALTH_PORT'];
     delete process.env['PORT'];
     delete process.env['WORKER_HEALTH_PORT'];
+    delete process.env['FUND_SCENARIO_SWEEP_ENABLED'];
     getQueueConnectionOptionsMock.mockReturnValue({
       host: 'queue-host',
       port: 6380,
@@ -160,6 +275,29 @@ describe('fund scenario calc worker startup', () => {
         process.env[key] = value;
       }
     }
+  });
+
+  it('registers and immediately runs the gated 60-second deadline sweep', async () => {
+    process.env['FUND_SCENARIO_SWEEP_ENABLED'] = '1';
+    const { startFundScenarioCalcWorker } =
+      await import('../../../workers/fund-scenario-calc-worker');
+
+    const runtime = startFundScenarioCalcWorker({ healthPort: null });
+    await runtime.ready;
+
+    expect(queueConstructorMock).toHaveBeenCalledWith(
+      'fund-scenario-calc',
+      expect.objectContaining({ connection: expect.any(Object) })
+    );
+    expect(queueUpsertSchedulerMock).toHaveBeenCalledWith(
+      'fund-scenario-deadline-sweep',
+      { every: 60_000 },
+      expect.objectContaining({ name: 'fund-scenario-deadline-sweep' })
+    );
+    expect(sweepDeadlineMock).toHaveBeenCalledTimes(1);
+
+    await runtime.close();
+    expect(queueCloseMock).toHaveBeenCalledTimes(1);
   });
 
   it('uses the shared queue connection resolver for production worker startup', async () => {

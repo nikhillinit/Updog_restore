@@ -31,6 +31,7 @@ export async function startInProcessFundScenarioCalcWorkerHarness(
     ...(options.concurrency !== undefined ? { concurrency: options.concurrency } : {}),
     healthPort: null,
   });
+  await workerRuntime.ready;
   const queueEvents = new QueueEvents(FUND_SCENARIO_CALC_QUEUE_NAME, { connection });
   attachQueueErrorLogging(queueEvents, 'fund-scenario-calc queue events');
   await queueEvents.waitUntilReady();

@@ -156,7 +156,7 @@ function actualsFact(overrides: Partial<FundCompanyActualsFact> = {}): FundCompa
   };
 }
 
-function makeApp() {
+function makeApp(role = 'admin') {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
@@ -164,9 +164,9 @@ function makeApp() {
     req.user = {
       id: '42',
       sub: '42',
-      email: 'admin@example.com',
-      role: 'admin',
-      roles: ['admin'],
+      email: `${role}@example.com`,
+      role,
+      roles: [role],
       fundIds: [1],
       ip: '127.0.0.1',
       userAgent: 'vitest',
@@ -450,6 +450,33 @@ describe('allocations route contracts', () => {
     expect(response.status).toBe(400);
     expect(response.body).toMatchObject({ error: 'Invalid request body' });
     expect(writeState.applyAllocationUpdates).not.toHaveBeenCalled();
+  });
+
+  it('denies restricted principals before allocation mutation', async () => {
+    const response = await request(makeApp('analyst'))
+      .post('/api/funds/1/allocations')
+      .send({
+        expected_version: 1,
+        updates: [{ company_id: 11, planned_reserves_cents: 800_000_00 }],
+      });
+
+    expect(response.status).toBe(403);
+    expect(writeState.transaction).not.toHaveBeenCalled();
+    expect(writeState.applyAllocationUpdates).not.toHaveBeenCalled();
+  });
+
+  it.each(['partner', 'admin'])('allows %s allocation commits', async (role) => {
+    writeState.applyAllocationUpdates.mockResolvedValueOnce({ new_version: 2, updated_count: 1 });
+
+    const response = await request(makeApp(role))
+      .post('/api/funds/1/allocations')
+      .send({
+        expected_version: 1,
+        updates: [{ company_id: 11, planned_reserves_cents: 800_000_00 }],
+      });
+
+    expect(response.status).toBe(200);
+    expect(writeState.applyAllocationUpdates).toHaveBeenCalledTimes(1);
   });
 
   it('POST /api/funds/:fundId/allocations rejects denied fund scope before writes', async () => {

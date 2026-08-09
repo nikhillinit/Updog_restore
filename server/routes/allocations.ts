@@ -28,6 +28,8 @@ import {
   recordUnknownStage,
 } from '../observability/stage-metrics';
 import { setStageWarningHeaders } from '../middleware/deprecation-headers';
+import { PARTNER_WRITE_ROLES } from '@shared/auth/effective-roles';
+import { requireWriteRole } from '../lib/auth/jwt';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
 import { storage } from '../storage';
 import { AllocationCompanyActualsDriftV1Schema } from '@shared/contracts/allocations/allocation-actuals-drift-v1.contract';
@@ -56,6 +58,7 @@ const isHttpError = (error: unknown): error is HttpError => {
 };
 
 const router = Router();
+const requirePartnerWrite = requireWriteRole(PARTNER_WRITE_ROLES);
 
 const DEFAULT_ALLOCATION_ERROR_MESSAGE =
   'Reserve allocation data is temporarily unavailable. Please retry.';
@@ -1050,6 +1053,7 @@ router['get'](
  */
 router['post'](
   '/funds/:fundId/allocations',
+  requirePartnerWrite,
   asyncHandler(async (req: Request, res: Response) => {
     // Validate path parameter
     const paramValidation = FundIdParamSchema.safeParse(req.params);
@@ -1060,6 +1064,11 @@ router['post'](
       });
     }
 
+    const { fundId } = paramValidation.data;
+    if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+      return;
+    }
+
     // Validate request body
     const bodyValidation = UpdateAllocationRequestSchema.safeParse(req.body);
     if (!bodyValidation.success) {
@@ -1067,11 +1076,6 @@ router['post'](
         error: 'Invalid request body',
         details: bodyValidation.error.format(),
       });
-    }
-
-    const { fundId } = paramValidation.data;
-    if (!(await enforceProvidedFundScope(req, res, fundId))) {
-      return;
     }
 
     const { expected_version, updates } = bodyValidation.data;

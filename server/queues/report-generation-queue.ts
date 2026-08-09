@@ -34,6 +34,7 @@ import { registerQueueRuntime, unregisterQueueRuntime } from './registry.js';
 import { getBullMQConnection } from './redis-connection.js';
 import { resolveFundId } from './resolve-fund-id.js';
 import { logger } from '../logger';
+import { sanitizeQueueError } from '../lib/queue-error-sanitizer.js';
 
 // Job types
 export interface ReportGenerationJobData {
@@ -327,7 +328,7 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
   });
 
   // Create worker to process report generation jobs
-  // eslint-disable-next-line povc-security/require-bullmq-config -- uses lockDuration (BullMQ's actual timeout)
+  // eslint-disable-next-line povc-security/require-bullmq-config -- lockDuration is a renewable ownership lease; execution deadline is enforced by the job contract
   worker = new Worker<ReportGenerationJobData, ReportGenerationResult>(
     QUEUE_NAME,
     async (job: Job<ReportGenerationJobData, ReportGenerationResult>) => {
@@ -403,7 +404,7 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
     {
       connection,
       concurrency: 2, // Process 2 reports at a time
-      lockDuration: 300000, // 5 min timeout per AP-QUEUE-02
+      lockDuration: 300000, // BullMQ ownership lease per AP-QUEUE-02
       limiter: {
         max: 10, // Max 10 reports per minute
         duration: 60000,
@@ -420,6 +421,10 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
 
   queueEvents.on('failed', ({ jobId, failedReason }) => {
     console.error(`[ReportQueue] Job ${jobId} failed:`, failedReason);
+  });
+
+  queueEvents.on('error', (error) => {
+    console.error('[ReportQueue] QueueEvents error:', sanitizeQueueError(error));
   });
 
   // Handle worker errors

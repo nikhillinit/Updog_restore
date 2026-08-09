@@ -1,5 +1,7 @@
 import express from 'express';
-import type { Queue, QueueEvents } from 'bullmq';
+import { randomUUID } from 'node:crypto';
+import { Queue, QueueEvents, Worker } from 'bullmq';
+import type { Queue as QueueType, QueueEvents as QueueEventsType } from 'bullmq';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { GenericContainer, Wait, type StartedTestContainer } from 'testcontainers';
 import { Pool } from 'pg';
@@ -7,6 +9,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
 import { applyScenarioMigrations } from '../helpers/scenario-migrations';
+import type { FundScenarioCalcJobData } from '../../workers/fund-scenario-calc-handler';
 
 const STARTUP_TIMEOUT_MS = 90_000;
 const JOB_TIMEOUT_MS = 30_000;
@@ -15,14 +18,16 @@ const AUTH_ISSUER = 'updog-api';
 const AUTH_AUDIENCE = 'updog-client';
 const scenarioSetId = '00000000-0000-0000-0000-00000000a001';
 const failingScenarioSetId = '00000000-0000-0000-0000-00000000a002';
+const completionRaceScenarioSetId = '00000000-0000-0000-0000-00000000a003';
 
 type TestContextWithSkip = { skip?: () => void };
 
 interface Runtime {
   app: express.Express;
   pool: Pool;
-  queue: Queue | null;
-  workerHarness: { queueEvents: QueueEvents; close: () => Promise<void> };
+  queue: QueueType | null;
+  queueConnection: { host: string; port: number };
+  workerHarness: { queueEvents: QueueEventsType; close: () => Promise<void> };
   postgres: StartedPostgreSqlContainer;
   redis: StartedTestContainer;
   authHeader: string;
@@ -108,6 +113,14 @@ async function seedScenarioFixtures(pool: Pool): Promise<{ fundId: number }> {
     companyId,
     plannedReservesCents: 2_000_000_00,
   });
+  await insertScenarioSet(pool, {
+    fundId,
+    configId,
+    id: completionRaceScenarioSetId,
+    name: 'Reserve completion race',
+    companyId,
+    plannedReservesCents: 2_500_000_00,
+  });
 
   return { fundId };
 }
@@ -180,6 +193,7 @@ async function startRuntime(): Promise<Runtime> {
   process.env._EXPLICIT_DATABASE_URL = connectionString;
   process.env.USE_REAL_DB_IN_VITEST = '1';
   process.env.ENABLE_QUEUES = '1';
+  process.env.FUND_SCENARIO_HARD_TIMEOUT_MS = '30000';
   process.env._EXPLICIT_ENABLE_QUEUES = '1';
   process.env.REDIS_URL = 'memory://';
   process.env._EXPLICIT_REDIS_URL = 'memory://';
@@ -214,7 +228,17 @@ async function startRuntime(): Promise<Runtime> {
     fundIds: [fundId],
   })}`;
 
-  return { app, pool, queue, workerHarness, postgres, redis, authHeader, fundId };
+  return {
+    app,
+    pool,
+    queue,
+    queueConnection: { host: redis.getHost(), port: redis.getMappedPort(6379) },
+    workerHarness,
+    postgres,
+    redis,
+    authHeader,
+    fundId,
+  };
 }
 
 async function waitForJob(runtime: Runtime, jobId: string): Promise<void> {
@@ -229,6 +253,101 @@ async function waitForFailedJob(runtime: Runtime, jobId: string): Promise<void> 
   await expect(
     job!.waitUntilFinished(runtime.workerHarness.queueEvents, JOB_TIMEOUT_MS)
   ).rejects.toThrow();
+}
+
+async function waitForRunningScenarioRun(
+  pool: Pool,
+  scenarioSetIdToFind: string
+): Promise<{ runId: string }> {
+  const deadline = Date.now() + JOB_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const result = await pool.query<{ id: string }>(
+      `SELECT r.id
+         FROM fund_scenario_calculation_runs r
+        WHERE r.scenario_set_id = $1
+          AND r.status = 'running'
+          AND EXISTS (
+            SELECT 1
+              FROM fund_scenario_set_events e
+             WHERE e.scenario_set_id = r.scenario_set_id
+               AND e.event_type = 'calculation_started'
+               AND e.change_summary_json ->> 'run_id' = r.id::text
+          )
+        ORDER BY r.created_at DESC, r.id DESC
+        LIMIT 1`,
+      [scenarioSetIdToFind]
+    );
+    if (result.rows[0]) {
+      return { runId: result.rows[0].id };
+    }
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 50));
+  }
+
+  throw new Error(`Timed out waiting for a durable running run for ${scenarioSetIdToFind}`);
+}
+
+async function waitForSnapshotWriteWaiter(pool: Pool): Promise<void> {
+  const deadline = Date.now() + JOB_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const result = await pool.query(
+      `SELECT l.pid, l.mode
+         FROM pg_locks l
+         JOIN pg_class c ON c.oid = l.relation
+        WHERE c.relname = 'fund_snapshots'
+          AND l.granted = false
+          AND l.mode = 'RowExclusiveLock'`
+    );
+    if (result.rows.length > 0) {
+      return;
+    }
+
+    await new Promise<void>((resolve) => setTimeout(resolve, 50));
+  }
+
+  throw new Error('Timed out waiting for the worker snapshot write lock waiter');
+}
+
+async function seedQueuedDeliveryRun(input: {
+  pool: Pool;
+  fundId: number;
+  scenarioSetId: string;
+  sourceConfigId: number;
+  sourceConfigVersion: number;
+  inputHash: string;
+  hashKind: string;
+  modelInputsAsOfDate: string | null;
+  comparisonLineageVersion: string | null;
+  jobId: string;
+  correlationId: string;
+  status?: 'queued' | 'failed';
+}): Promise<string> {
+  const runId = randomUUID();
+  await input.pool.query(
+    `INSERT INTO fund_scenario_calculation_runs (
+       id, fund_id, scenario_set_id, source_config_id, source_config_version,
+       calculation_mode, override_type, input_hash, hash_kind,
+       model_inputs_as_of_date, comparison_lineage_version, job_id,
+       correlation_id, status, deadline_at
+     ) VALUES ($1, $2, $3, $4, $5, 'async_reserve_allocation', 'reserve_allocation',
+       $6, $7, $8, $9, $10, $11, $12,
+       clock_timestamp() + INTERVAL '30 seconds')`,
+    [
+      runId,
+      input.fundId,
+      input.scenarioSetId,
+      input.sourceConfigId,
+      input.sourceConfigVersion,
+      input.inputHash,
+      input.hashKind,
+      input.modelInputsAsOfDate,
+      input.comparisonLineageVersion,
+      input.jobId,
+      input.correlationId,
+      input.status ?? 'queued',
+    ]
+  );
+  return runId;
 }
 
 describe('fund scenario reserve worker integration', () => {
@@ -316,56 +435,308 @@ describe('fund scenario reserve worker integration', () => {
       expect(runtime).not.toBeNull();
       const active = runtime!;
 
-      expect(active.queue).not.toBeNull();
-      await active.queue!.pause();
-      let jobId = '';
-      let correlationId = '';
-
+      let investmentsRenamed = false;
       try {
-        const queued = await request(active.app)
-          .post(
-            `/api/funds/${active.fundId}/scenario-sets/${failingScenarioSetId}/calculate-reserve`
+        expect(active.queue).not.toBeNull();
+        await active.queue!.pause();
+        let jobId = '';
+        let correlationId = '';
+
+        try {
+          const queued = await request(active.app)
+            .post(
+              `/api/funds/${active.fundId}/scenario-sets/${failingScenarioSetId}/calculate-reserve`
+            )
+            .set('Authorization', active.authHeader)
+            .send({ calculationMode: 'async_reserve_allocation' });
+          expect(queued.status, JSON.stringify(queued.body)).toBe(202);
+          jobId = queued.body.jobId;
+          correlationId = queued.body.correlationId;
+
+          await active.pool.query('ALTER TABLE investments RENAME TO investments_unavailable');
+          investmentsRenamed = true;
+        } finally {
+          await active.queue!.resume();
+        }
+
+        await waitForFailedJob(active, jobId);
+
+        const status = await request(active.app)
+          .get(
+            `/api/funds/${active.fundId}/scenario-sets/${failingScenarioSetId}/calculation-status`
           )
           .set('Authorization', active.authHeader)
-          .send({ calculationMode: 'async_reserve_allocation' });
-        expect(queued.status, JSON.stringify(queued.body)).toBe(202);
-        jobId = queued.body.jobId;
-        correlationId = queued.body.correlationId;
+          .expect(200);
 
-        await active.pool.query('ALTER TABLE investments RENAME TO investments_unavailable');
-      } finally {
-        await active.queue!.resume();
-      }
+        expect(status.body).toMatchObject({
+          status: 'failed',
+          jobId,
+          correlationId,
+          snapshotId: null,
+        });
+        expect(status.body.lastError).toContain('investments');
 
-      await waitForFailedJob(active, jobId);
+        await request(active.app)
+          .get(`/api/funds/${active.fundId}/scenario-sets/${failingScenarioSetId}/results`)
+          .set('Authorization', active.authHeader)
+          .expect(404);
 
-      const status = await request(active.app)
-        .get(`/api/funds/${active.fundId}/scenario-sets/${failingScenarioSetId}/calculation-status`)
-        .set('Authorization', active.authHeader)
-        .expect(200);
-
-      expect(status.body).toMatchObject({
-        status: 'failed',
-        jobId,
-        correlationId,
-        snapshotId: null,
-      });
-      expect(status.body.lastError).toContain('investments');
-
-      await request(active.app)
-        .get(`/api/funds/${active.fundId}/scenario-sets/${failingScenarioSetId}/results`)
-        .set('Authorization', active.authHeader)
-        .expect(404);
-
-      const snapshots = await active.pool.query<{ count: string }>(
-        `SELECT COUNT(*)::text AS count
+        const snapshots = await active.pool.query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count
        FROM fund_snapshots
        WHERE fund_id = $1
          AND scenario_set_id = $2
          AND type = 'SCENARIOS'`,
-        [active.fundId, failingScenarioSetId]
+          [active.fundId, failingScenarioSetId]
+        );
+        expect(snapshots.rows[0]?.count).toBe('0');
+
+        const failedRuns = await active.pool.query<{
+          id: string;
+          status: string;
+          snapshot_id: number | null;
+        }>(
+          `SELECT id, status, snapshot_id
+           FROM fund_scenario_calculation_runs
+          WHERE fund_id = $1
+            AND scenario_set_id = $2
+            AND job_id = $3
+          ORDER BY created_at ASC, id ASC`,
+          [active.fundId, failingScenarioSetId, jobId]
+        );
+        expect(failedRuns.rows.length).toBeGreaterThan(0);
+        for (const run of failedRuns.rows) {
+          expect(run).toMatchObject({ status: 'failed', snapshot_id: null });
+          const failedEvents = await active.pool.query<{ count: string }>(
+            `SELECT COUNT(*)::text AS count
+             FROM fund_scenario_set_events
+            WHERE scenario_set_id = $1
+              AND event_type = 'calculation_failed'
+              AND change_summary_json ->> 'run_id' = $2`,
+            [failingScenarioSetId, run.id]
+          );
+          expect(failedEvents.rows[0]?.count).toBe('1');
+        }
+      } finally {
+        if (investmentsRenamed) {
+          await active.pool.query('ALTER TABLE investments_unavailable RENAME TO investments');
+        }
+      }
+    },
+    JOB_TIMEOUT_MS + 15_000
+  );
+
+  it(
+    'rolls back a blocked completion when the claimed run is terminalized by another owner',
+    async (ctx) => {
+      if (visibleLocalSkip(ctx)) return;
+      expect(runtime).not.toBeNull();
+      const active = runtime!;
+      const { handleFundScenarioCalcJob } =
+        await import('../../workers/fund-scenario-calc-handler');
+      const { getReserveScenarioCalculationIdentity } =
+        await import('../../server/services/fund-scenario-reserve-calculation-service');
+      const identity = await getReserveScenarioCalculationIdentity(
+        active.fundId,
+        completionRaceScenarioSetId
       );
-      expect(snapshots.rows[0]?.count).toBe('0');
+      const raceJobId = `race-${Date.now()}`;
+      const raceRunId = await seedQueuedDeliveryRun({
+        pool: active.pool,
+        fundId: active.fundId,
+        scenarioSetId: completionRaceScenarioSetId,
+        sourceConfigId: identity.sourceConfigId,
+        sourceConfigVersion: identity.sourceConfigVersion,
+        inputHash: identity.inputHash,
+        hashKind: identity.inputLineage.hashKind,
+        modelInputsAsOfDate: identity.inputLineage.modelInputsAsOfDate,
+        comparisonLineageVersion: identity.inputLineage.comparisonLineageVersion,
+        jobId: raceJobId,
+        correlationId: '00000000-0000-4333-8333-000000000003',
+      });
+
+      const raceQueueName = `fund-scenario-calc-race-${Date.now()}`;
+      const raceQueue = new Queue<FundScenarioCalcJobData>(raceQueueName, {
+        connection: active.queueConnection,
+      });
+      const raceQueueEvents = new QueueEvents(raceQueueName, {
+        connection: active.queueConnection,
+      });
+      const raceWorker = new Worker<FundScenarioCalcJobData>(
+        raceQueueName,
+        handleFundScenarioCalcJob,
+        {
+          connection: active.queueConnection,
+          concurrency: 1,
+          lockDuration: 300_000,
+        }
+      );
+      const barrierClient = await active.pool.connect();
+      let processorPromise: Promise<unknown> | null = null;
+
+      try {
+        await barrierClient.query('BEGIN');
+        // SHARE (not ACCESS EXCLUSIVE): the claim's INSERT ... ON CONFLICT on
+        // fund_scenario_calculation_runs pre-acquires RowShareLock on every
+        // FK-referenced table (including fund_snapshots) even for NULL FK
+        // values, so an ACCESS EXCLUSIVE barrier deadlocks the claim itself.
+        // SHARE admits RowShareLock but still blocks the completion snapshot
+        // INSERT (RowExclusiveLock).
+        await barrierClient.query('LOCK TABLE fund_snapshots IN SHARE MODE');
+
+        const raceJob = await raceQueue.add(
+          'async_reserve_allocation',
+          {
+            fundId: active.fundId,
+            scenarioSetId: completionRaceScenarioSetId,
+            correlationId: '00000000-0000-4333-8333-000000000003',
+            calculationMode: 'async_reserve_allocation',
+            runId: raceRunId,
+            actor: { userId: null, label: 'integration@example.com' },
+          },
+          {
+            jobId: raceJobId,
+            // This direct race proof intentionally uses one delivery; the
+            // production HTTP queue remains configured with attempts: 2.
+            attempts: 1,
+            removeOnComplete: false,
+            removeOnFail: false,
+          }
+        );
+        processorPromise = raceJob.waitUntilFinished(raceQueueEvents, JOB_TIMEOUT_MS);
+
+        const running = await waitForRunningScenarioRun(
+          active.pool,
+          completionRaceScenarioSetId
+        );
+        await waitForSnapshotWriteWaiter(active.pool);
+
+        const terminalized = await active.pool.query(
+          `UPDATE fund_scenario_calculation_runs
+              SET status = 'failed',
+                  failure_code = 'synthetic_terminalization',
+                  failure_message = 'completion race test terminalized the run',
+                  failed_at = NOW(),
+                  updated_at = NOW()
+            WHERE id = $1
+              AND status = 'running'
+            RETURNING id`,
+          [running.runId]
+        );
+        expect(terminalized.rows).toHaveLength(1);
+
+        await barrierClient.query('ROLLBACK');
+        await expect(processorPromise).resolves.toBeNull();
+
+        const runAfterRace = await active.pool.query<{
+          status: string;
+          snapshot_id: number | null;
+        }>(
+          `SELECT status, snapshot_id
+             FROM fund_scenario_calculation_runs
+            WHERE id = $1`,
+          [running.runId]
+        );
+        expect(runAfterRace.rows[0]).toMatchObject({ status: 'failed', snapshot_id: null });
+
+        const calculatedEvents = await active.pool.query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count
+             FROM fund_scenario_set_events
+            WHERE scenario_set_id = $1
+              AND event_type = 'calculated'
+              AND change_summary_json ->> 'run_id' = $2`,
+          [completionRaceScenarioSetId, running.runId]
+        );
+        expect(calculatedEvents.rows[0]?.count).toBe('0');
+
+        const failedEvents = await active.pool.query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count
+             FROM fund_scenario_set_events
+            WHERE scenario_set_id = $1
+              AND event_type = 'calculation_failed'
+              AND change_summary_json ->> 'run_id' = $2`,
+          [completionRaceScenarioSetId, running.runId]
+        );
+        expect(failedEvents.rows[0]?.count).toBe('0');
+      } finally {
+        await processorPromise?.catch(() => undefined);
+        await barrierClient.query('ROLLBACK').catch(() => undefined);
+        barrierClient.release();
+        await raceWorker.close();
+        await raceQueueEvents.close();
+        await raceQueue.close();
+      }
+    },
+    JOB_TIMEOUT_MS * 2 + 15_000
+  );
+
+  it(
+    'ignores a stale delivery without creating a replacement run',
+    async (ctx) => {
+      if (visibleLocalSkip(ctx)) return;
+      expect(runtime).not.toBeNull();
+      const active = runtime!;
+      const { getReserveScenarioCalculationIdentity } =
+        await import('../../server/services/fund-scenario-reserve-calculation-service');
+      const { handleFundScenarioCalcJob } =
+        await import('../../workers/fund-scenario-calc-handler');
+      const identity = await getReserveScenarioCalculationIdentity(active.fundId, failingScenarioSetId);
+      const queueName = `fund-scenario-calc-stale-${Date.now()}`;
+      const staleQueue = new Queue<FundScenarioCalcJobData>(queueName, {
+        connection: active.queueConnection,
+      });
+      const staleQueueEvents = new QueueEvents(queueName, { connection: active.queueConnection });
+      const staleWorker = new Worker<FundScenarioCalcJobData>(queueName, handleFundScenarioCalcJob, {
+        connection: active.queueConnection,
+        concurrency: 1,
+      });
+      const jobId = `stale-${Date.now()}`;
+      const runId = await seedQueuedDeliveryRun({
+        pool: active.pool,
+        fundId: active.fundId,
+        scenarioSetId: failingScenarioSetId,
+        sourceConfigId: identity.sourceConfigId,
+        sourceConfigVersion: identity.sourceConfigVersion,
+        inputHash: identity.inputHash,
+        hashKind: identity.inputLineage.hashKind,
+        modelInputsAsOfDate: identity.inputLineage.modelInputsAsOfDate,
+        comparisonLineageVersion: identity.inputLineage.comparisonLineageVersion,
+        jobId,
+        correlationId: '00000000-0000-4333-8333-000000000004',
+        status: 'failed',
+      });
+
+      try {
+        const job = await staleQueue.add(
+          'async_reserve_allocation',
+          {
+            fundId: active.fundId,
+            scenarioSetId: failingScenarioSetId,
+            correlationId: '00000000-0000-4333-8333-000000000004',
+            calculationMode: 'async_reserve_allocation',
+            runId,
+            actor: { userId: null, label: 'integration@example.com' },
+          },
+          { jobId, attempts: 1, removeOnComplete: false, removeOnFail: false }
+        );
+        await expect(job.waitUntilFinished(staleQueueEvents, JOB_TIMEOUT_MS)).resolves.toBeNull();
+
+        // Count only rows carrying this delivery's job id: the controlled
+        // failure test above legitimately leaves its own terminal row on the
+        // same scenario set, so a set-wide count is order-dependent.
+        const runs = await active.pool.query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count
+             FROM fund_scenario_calculation_runs
+            WHERE scenario_set_id = $1
+              AND job_id = $2`,
+          [failingScenarioSetId, jobId]
+        );
+        expect(runs.rows[0]?.count).toBe('1');
+      } finally {
+        await staleWorker.close();
+        await staleQueueEvents.close();
+        await staleQueue.close();
+      }
     },
     JOB_TIMEOUT_MS + 15_000
   );

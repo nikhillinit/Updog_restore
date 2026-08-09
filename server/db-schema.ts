@@ -1,5 +1,8 @@
 import * as dbSchema from '@shared/db-schema';
 
-export const { DB_SCHEMA_COMPATIBILITY_MAP, ...combinedSchema } = dbSchema;
+export type CombinedSchema = Omit<typeof dbSchema, 'DB_SCHEMA_COMPATIBILITY_MAP'>;
 
-export type CombinedSchema = typeof combinedSchema;
+const { DB_SCHEMA_COMPATIBILITY_MAP: _compatibilityMap, ...combinedSchemaUntyped } = dbSchema;
+void _compatibilityMap;
+
+export const combinedSchema: CombinedSchema = combinedSchemaUntyped;

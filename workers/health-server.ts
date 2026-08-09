@@ -1,21 +1,26 @@
 import express from 'express';
 import { logger } from '../lib/logger';
 import { getMetrics } from '../lib/metrics';
-import { Worker } from 'bullmq';
+import { getReleaseIdentity } from '../server/version';
+import type { Worker } from 'bullmq';
 
-interface WorkerHealthStatus {
+export interface WorkerHealthStatus {
   name: string;
   status: 'healthy' | 'unhealthy' | 'paused';
   isRunning: boolean;
   jobsProcessed: number;
   lastJobTime?: Date;
   error?: string;
+  exhaustedOutboxCount?: number;
 }
 
 interface HealthCheckResponse {
   status: 'healthy' | 'unhealthy';
   timestamp: string;
   uptime: number;
+  version: string;
+  commit: string;
+  environment: string;
   workers: WorkerHealthStatus[];
   metrics: {
     totalJobsProcessed: number;
@@ -25,14 +30,20 @@ interface HealthCheckResponse {
 
 // Track worker instances
 const registeredWorkers: Map<string, Worker> = new Map();
+const workerHealthDetails: Map<string, () => Promise<Record<string, number>>> = new Map();
 const workerStats: Map<string, { processed: number; errors: number; lastJob?: Date }> = new Map();
 
 /**
  * Register a worker for health monitoring
  */
-export function registerWorker(name: string, worker: Worker) {
+export function registerWorker(
+  name: string,
+  worker: Worker,
+  detailsProvider?: () => Promise<Record<string, number>>
+) {
   registeredWorkers.set(name, worker);
   workerStats.set(name, { processed: 0, errors: 0 });
+  if (detailsProvider) workerHealthDetails.set(name, detailsProvider);
 
   // Track job completion
   worker.on('completed', () => {
@@ -63,6 +74,9 @@ async function checkWorkerHealth(name: string, worker: Worker): Promise<WorkerHe
   try {
     const isRunning = worker.isRunning();
     const isPaused = worker.isPaused();
+    const details = workerHealthDetails.get(name)
+      ? await workerHealthDetails.get(name)!()
+      : {};
 
     return {
       name,
@@ -70,6 +84,7 @@ async function checkWorkerHealth(name: string, worker: Worker): Promise<WorkerHe
       isRunning,
       jobsProcessed: stats.processed,
       lastJobTime: stats.lastJob,
+      ...details,
     };
   } catch (error) {
     return {
@@ -107,6 +122,7 @@ async function performHealthCheck(): Promise<HealthCheckResponse> {
     status: isHealthy ? 'healthy' : 'unhealthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
+    ...getReleaseIdentity(),
     workers: workerHealthChecks,
     metrics: {
       totalJobsProcessed,
@@ -118,7 +134,7 @@ async function performHealthCheck(): Promise<HealthCheckResponse> {
 /**
  * Create health check HTTP server
  */
-export function createHealthServer(port: number = 9000): express.Application {
+export function createWorkerHealthApp(): express.Application {
   const app = express();
 
   // Health check endpoint
@@ -200,7 +216,18 @@ export function createHealthServer(port: number = 9000): express.Application {
     });
   });
 
-  // Start server
+  return app;
+}
+
+/**
+ * Create and listen on the worker health port.
+ *
+ * The app factory above is intentionally separate so health response tests do
+ * not open a listener or imply queue consumption.
+ */
+export function createHealthServer(port: number = 9000): express.Application {
+  const app = createWorkerHealthApp();
+
   app.listen(port, () => {
     logger.info(`Worker health server listening on port ${port}`);
     logger.info(`  Health: http://localhost:${port}/health`);
@@ -229,4 +256,10 @@ export function resetWorkerStats(workerName?: string) {
   } else {
     workerStats.clear();
   }
+}
+
+export function resetWorkerHealthRegistrations(): void {
+  registeredWorkers.clear();
+  workerHealthDetails.clear();
+  workerStats.clear();
 }

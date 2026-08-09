@@ -345,18 +345,25 @@ export class BaselineService {
       await tx
         .update(fundBaselines)
         .set({ isDefault: true, updatedAt: new Date() })
-        .where(eq(fundBaselines.id, baselineId));
+        .where(and(eq(fundBaselines.id, baselineId), eq(fundBaselines.fundId, fundId)));
     });
   }
 
   /**
    * Deactivate a baseline
    */
-  async deactivateBaseline(baselineId: string): Promise<void> {
+  async deactivateBaseline(baselineId: string, fundId: number): Promise<boolean> {
+    const baseline = await this.getBaselineById(fundId, baselineId);
+    if (!baseline) {
+      return false;
+    }
+
     await db
       .update(fundBaselines)
       .set({ isActive: false, updatedAt: new Date() })
-      .where(eq(fundBaselines.id, baselineId));
+      .where(and(eq(fundBaselines.id, baselineId), eq(fundBaselines.fundId, fundId)));
+
+    return true;
   }
 
   private async getBaselineMetrics(

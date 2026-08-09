@@ -129,6 +129,7 @@ function materializeMemoryUser(insertUser: InsertUser, id: number): User {
     id,
     role: insertUser.role ?? 'viewer',
     isActive: insertUser.isActive ?? true,
+    isReleaseCanaryPrincipal: insertUser.isReleaseCanaryPrincipal ?? false,
     passwordUpdatedAt: insertUser.passwordUpdatedAt ?? now,
     createdAt: insertUser.createdAt ?? now,
     updatedAt: insertUser.updatedAt ?? now,
@@ -245,6 +246,8 @@ export class MemStorage implements IStorage {
       establishmentDate: null,
       isActive: true,
       baseCurrency: 'USD',
+      dataOrigin: 'production',
+      canaryRunId: null,
       engineResults: null,
       createdAt: new Date(),
     };
@@ -265,7 +268,9 @@ export class MemStorage implements IStorage {
         status: 'Growing',
         description: 'Leading fintech platform',
         dealTags: ['B2B', 'SaaS', 'Fintech'],
+        rowVersion: 1,
         createdAt: new Date(),
+        updatedAt: new Date(),
         ...createPortfolioCompanyAllocationDefaults('Series B'),
       },
       {
@@ -280,7 +285,9 @@ export class MemStorage implements IStorage {
         status: 'Growing',
         description: 'AI-powered healthcare solutions',
         dealTags: ['Healthcare', 'AI', 'B2B'],
+        rowVersion: 1,
         createdAt: new Date(),
+        updatedAt: new Date(),
         ...createPortfolioCompanyAllocationDefaults('Series A'),
       },
       {
@@ -295,7 +302,9 @@ export class MemStorage implements IStorage {
         status: 'Scaling',
         description: 'Enterprise data analytics platform',
         dealTags: ['SaaS', 'Analytics', 'Enterprise'],
+        rowVersion: 1,
         createdAt: new Date(),
+        updatedAt: new Date(),
         ...createPortfolioCompanyAllocationDefaults('Series C'),
       },
     ];
@@ -426,6 +435,8 @@ export class MemStorage implements IStorage {
       establishmentDate: insertFund.establishmentDate ?? null,
       isActive: insertFund.isActive ?? true,
       baseCurrency: 'USD',
+      dataOrigin: 'production',
+      canaryRunId: null,
       engineResults: insertFund.engineResults ?? null,
       createdAt: new Date(),
     };
@@ -462,6 +473,8 @@ export class MemStorage implements IStorage {
       status: normalizedCompany.status ?? 'active',
       description: normalizedCompany.description ?? null,
       dealTags: normalizedCompany.dealTags ?? null,
+      rowVersion: 1,
+      updatedAt: new Date(),
       ...createPortfolioCompanyAllocationDefaults(normalizedCompany.stage),
       exitProbability:
         normalizedCompany.exitProbability != null

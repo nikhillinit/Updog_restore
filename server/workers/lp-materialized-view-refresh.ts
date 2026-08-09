@@ -3,6 +3,9 @@ import { Queue, Worker } from 'bullmq';
 import type Redis from 'ioredis';
 import { logger } from '../lib/logger';
 
+/** Source-preserved implementation; no runtime registers this worker. */
+export const LP_VIEW_REFRESH_WORKER_QUARANTINED = true;
+
 /**
  * LP REPORTING DASHBOARD - Materialized View Refresh Worker
  *
@@ -109,7 +112,7 @@ export class MaterializedViewRefreshWorker {
       },
     });
 
-    // eslint-disable-next-line povc-security/require-bullmq-config -- BullMQ uses lockDuration instead of timeout
+    // eslint-disable-next-line povc-security/require-bullmq-config -- lockDuration is a renewable ownership lease; execution deadline is enforced by the job contract
     this.worker = new Worker<ViewRefreshJob>(queueName, this.processRefresh.bind(this), {
       connection: redis,
       concurrency: 1, // Process one refresh at a time to avoid lock contention

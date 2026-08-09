@@ -11,7 +11,8 @@ import { createServer } from './server.js';
 import { setReady } from './health/state.js';
 import { logger } from './lib/logger.js';
 import fs from 'node:fs';
-import path from 'node:path';
+import path, { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { Socket } from 'net';
 
 export async function bootstrap() {
@@ -155,4 +156,16 @@ export async function bootstrap() {
     logger.fatal({ err: error }, 'FATAL: Bootstrap failed');
     process.exit(1);
   }
+}
+
+function isDirectEntrypoint(metaUrl: string): boolean {
+  if (!process.argv[1]) {
+    return false;
+  }
+
+  return pathToFileURL(resolve(process.argv[1])).href === metaUrl;
+}
+
+if (isDirectEntrypoint(import.meta.url)) {
+  void bootstrap();
 }

@@ -12,7 +12,18 @@ const service = vi.hoisted(() => ({
 const authState = vi.hoisted(() => ({
   authenticated: true,
   fundAccess: true,
+  role: 'admin',
   calls: [] as string[],
+}));
+
+const fundScopeState = vi.hoisted(() => ({
+  enforceProvidedFundScope: vi.fn(async (_req: Request, res: Response) => {
+    if (!authState.fundAccess) {
+      res.status(403).json({ error: 'Forbidden', code: 'FUND_ACCESS_DENIED' });
+      return false;
+    }
+    return true;
+  }),
 }));
 
 vi.mock('express-rate-limit', () => ({
@@ -26,8 +37,8 @@ vi.mock('../../../server/lib/auth/jwt', () => ({
     req.user = {
       id: 7,
       sub: '7',
-      role: 'admin',
-      roles: ['admin'],
+      role: authState.role,
+      roles: [authState.role],
       fundIds: [1],
     } as never;
     next();
@@ -37,7 +48,17 @@ vi.mock('../../../server/lib/auth/jwt', () => ({
     if (!authState.fundAccess) return res.sendStatus(403);
     next();
   },
+  requireWriteRole:
+    (roles: readonly string[]) => (_req: Request, res: Response, next: NextFunction) => {
+      authState.calls.push('requireWriteRole');
+      if (!roles.includes(authState.role)) return res.sendStatus(403);
+      next();
+    },
   requireRole: () => (_req: Request, _res: Response, next: NextFunction) => next(),
+}));
+
+vi.mock('../../../server/lib/auth/provided-fund-scope', () => ({
+  enforceProvidedFundScope: fundScopeState.enforceProvidedFundScope,
 }));
 
 vi.mock('../../../server/services/current-plan-version-service', () => {
@@ -126,7 +147,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   authState.authenticated = true;
   authState.fundAccess = true;
+  authState.role = 'admin';
   authState.calls.length = 0;
+  fundScopeState.enforceProvidedFundScope.mockClear();
   service.getCurrentPlanVersions.mockResolvedValue([PLAN_VERSION]);
   service.mintCurrentPlanVersion.mockResolvedValue(PLAN_VERSION);
   service.runCurrentForecastV2.mockResolvedValue(FORECAST);
@@ -152,7 +175,7 @@ describe('current-forecast route contract', () => {
     expect(service.runCurrentForecastV2).not.toHaveBeenCalled();
   });
 
-  it('enforces requireAuth and requireFundAccess on every route', async () => {
+  it('enforces authentication, write roles, and verified write fund scope', async () => {
     authState.authenticated = false;
     for (const send of routeRequests()) {
       const response = await send();
@@ -171,11 +194,46 @@ describe('current-forecast route contract', () => {
       'requireAuth',
       'requireFundAccess',
       'requireAuth',
-      'requireFundAccess',
+      'requireWriteRole',
       'requireAuth',
-      'requireFundAccess',
+      'requireWriteRole',
     ]);
     expect(service.getCurrentPlanVersions).not.toHaveBeenCalled();
+    expect(service.mintCurrentPlanVersion).not.toHaveBeenCalled();
+    expect(service.runCurrentForecastV2).not.toHaveBeenCalled();
+    expect(fundScopeState.enforceProvidedFundScope).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['partner', 'admin', 'analyst'])(
+    'allows %s through both forecast writes',
+    async (role) => {
+      authState.role = role;
+
+      const planResponse = await request(buildApp())
+        .post('/api/funds/1/current-plan-versions')
+        .set('Idempotency-Key', `plan-${role}`)
+        .send({});
+      const forecastResponse = await request(buildApp())
+        .post('/api/funds/1/current-forecast/runs')
+        .send({});
+
+      expect(planResponse.status).toBe(200);
+      expect(forecastResponse.status).toBe(200);
+    }
+  );
+
+  it('denies restricted principals before forecast mutation', async () => {
+    authState.role = 'viewer';
+
+    const responses = await Promise.all([
+      request(buildApp())
+        .post('/api/funds/1/current-plan-versions')
+        .set('Idempotency-Key', 'restricted-plan')
+        .send({}),
+      request(buildApp()).post('/api/funds/1/current-forecast/runs').send({}),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([403, 403]);
     expect(service.mintCurrentPlanVersion).not.toHaveBeenCalled();
     expect(service.runCurrentForecastV2).not.toHaveBeenCalled();
   });

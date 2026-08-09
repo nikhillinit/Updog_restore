@@ -153,15 +153,17 @@ const READ_AND_LIFECYCLE_PROBES = [
       message: 'metricRunId must be a positive integer.',
     },
   },
+  // Approve/lock are partner-gated governance transitions (F_1.2.5 Phase 1b):
+  // the analyst principal is denied before body validation runs.
   {
     route: ['POST', '/api/funds/1/metric-runs/11/approve'],
-    expectedStatus: 400,
-    expectedBody: { error: 'INVALID_REQUEST_BODY', issues: true },
+    expectedStatus: 403,
+    expectedBody: {},
   },
   {
     route: ['POST', '/api/funds/1/metric-runs/11/lock'],
-    expectedStatus: 400,
-    expectedBody: { error: 'INVALID_REQUEST_BODY', issues: true },
+    expectedStatus: 403,
+    expectedBody: {},
   },
   {
     route: ['GET', '/api/funds/1/metric-runs/11/report-package'],
