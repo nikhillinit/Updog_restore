@@ -53,7 +53,7 @@ All HTML is standalone and can be opened directly in a modern browser.
 
 | File                                                |      Dimensions |   Bytes | SHA-256                                                            |
 | --------------------------------------------------- | --------------: | ------: | ------------------------------------------------------------------ |
-| `issue-1284-context-rail-prototype.html`            | Responsive HTML |  53,947 | `09DC65C6ED266BCE63416453AA3B5279246D3C9B19CABD76E3CFA2B5B930D831` |
+| `issue-1284-context-rail-prototype.html`            | Responsive HTML |  62,037 | `42ED72E28705C30DCBA2EDEF93CAF6CD961BB2431B0376AE35EBD8DB73AD8F65` |
 | `preferred-prototypes/baseline-comparison.html`     | Responsive HTML |  38,067 | `539AC36E508718DC1241D15BDE76E1819095FE7075A82C8582D946BD1E5B2353` |
 | `preferred-prototypes/fund-modeling-workspace.html` | Responsive HTML | 148,550 | `BAFAA3352EEA3667B6D72A4257C2426AB484741239BDE537A432FFF6349E0216` |
 | `previews/updog_workspace_direct_1440.png`          |        1440x900 | 165,053 | `B47F7882C61BA52467D88C9EBDD0FEF610F933471BBFB0BF62506F99B889038E` |
@@ -108,7 +108,11 @@ capture records the explicit missing-vehicle dependency state.
   arrow-key/roving-tabindex keyboard support, a polite `aria-live` status region
   and `aria-describedby` wiring, an `aria-disabled` (focusable) recompute
   control, and an explicit interactive walkthrough with persistent completion
-  state. The byte count and SHA-256 above reflect the latest post-revision file.
-  The PNG captures predate these revisions and should be recaptured before final
-  sign-off. See the
+  state. A third 2026-08-10 pass added the contracted responsive slide-over
+  review rail (modal dialog at 1024-1279px and behind a mobile info button below
+  1024px, with open/close, focus trap, Escape, and preserved rail state),
+  strengthened the focus ring to solid charcoal accent for WCAG 3:1 contrast,
+  and raised core touch targets to 44px. The byte count and SHA-256 above
+  reflect the latest post-revision file. The PNG captures predate these
+  revisions and should be recaptured before final sign-off. See the
   [review packet revision log](../../../reviews/2026-08-08-issue-1284-prototype-review.md#revision-log).

@@ -1,14 +1,17 @@
 /**
  * Non-shipping verification harness for the Issue #1284 context-rail review
  * prototype. Exercises the static artifact in headless Chromium and asserts the
- * behaviors that gate human review: no horizontal overflow, clean console,
- * mobile controls/navigation below 1024px, single authoritative blocked-state
- * action, disabled-with-reason recompute, recompute lifecycle, and a visible
- * focus ring on the dark rail.
+ * behaviors that gate human review: no horizontal overflow and clean console at
+ * four viewports, mobile controls/navigation below 1024px, single authoritative
+ * blocked-state action, focusable aria-disabled recompute, the interactive
+ * walkthrough with persistent completion, radiogroup semantics with keyboard
+ * navigation, aria-live announcements, the responsive slide-over review rail
+ * (tablet dialog + mobile info button, with focus trap/Escape/preserved state),
+ * the strengthened focus rings, and >= 44px touch targets.
  *
  * This script touches no production path. It reads the prototype HTML only.
  *
- * Usage: node scripts/reviews/verify-issue-1284-prototype.js
+ * Usage: node scripts/reviews/verify-issue-1284-prototype.cjs
  * Requires a Chromium-capable Playwright install (PLAYWRIGHT_BROWSERS_PATH may
  * point at a preinstalled browser). Exit code 0 = all checks passed.
  */
@@ -352,7 +355,193 @@ function check(name, condition, detail) {
     landed && landed.cls.includes('rail-link') && outline.color.includes('255, 255, 255'),
     JSON.stringify({ landed, outline })
   );
+
+  // General (light-surface) focus ring must be the solid charcoal accent, not
+  // the 25%-alpha token value and not blue. Tab to a command-header button.
+  let ringInfo = null;
+  for (let i = 0; i < 40; i++) {
+    const cur = await focusPage.evaluate(() => {
+      const el = document.activeElement;
+      return el ? { id: el.id } : null;
+    });
+    if (cur && cur.id === 'toggleContext') break;
+    await focusPage.keyboard.press('Tab');
+  }
+  ringInfo = await focusPage.evaluate(() => {
+    const el = document.activeElement;
+    const s = getComputedStyle(el);
+    return { id: el.id, color: s.outlineColor, width: s.outlineWidth, style: s.outlineStyle };
+  });
+  check(
+    'general focus ring is solid charcoal accent (>=3:1)',
+    ringInfo.id === 'toggleContext' &&
+      ringInfo.color === 'rgb(41, 41, 41)' &&
+      ringInfo.style === 'solid',
+    JSON.stringify(ringInfo)
+  );
+
+  // Core touch targets are at least 44px.
+  const sizes = await focusPage.evaluate(() => {
+    const dim = (sel) => {
+      const el = document.querySelector(sel);
+      const r = el.getBoundingClientRect();
+      return { w: Math.round(r.width), h: Math.round(r.height) };
+    };
+    return {
+      button: dim('.command-header .button'),
+      segmented: dim('.segmented button'),
+      railState: dim('.rail-state-controls button'),
+      railLink: dim('.primary-rail .rail-link'),
+      navLink: dim('.nav-list a'),
+    };
+  });
+  check(
+    'core touch targets are >= 44px tall',
+    [sizes.button, sizes.segmented, sizes.railState, sizes.railLink, sizes.navLink].every(
+      (s) => s.h >= 44
+    ) && sizes.railLink.w >= 44,
+    JSON.stringify(sizes)
+  );
   await focusPage.close();
+
+  // --- Responsive slide-over review rail: tablet (1024-1279px) ---
+  const railPage = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+  const railConsole = [];
+  railPage.on('console', (m) => {
+    if (['error', 'warning'].includes(m.type())) railConsole.push(`${m.type()}: ${m.text()}`);
+  });
+  await railPage.goto(FILE);
+
+  const railClosed = await railPage.evaluate(() => {
+    const rail = document.getElementById('review');
+    const r = rail.getBoundingClientRect();
+    const trigger = document.getElementById('railOverlayTrigger');
+    const tr = trigger.getBoundingClientRect();
+    return {
+      offCanvas: r.left >= window.innerWidth - 1,
+      triggerVisible: getComputedStyle(trigger).display !== 'none' && tr.width > 0,
+      backdropHidden: document.getElementById('railBackdrop').hidden === true,
+    };
+  });
+  check(
+    'tablet: rail is off-canvas with a visible trigger and no backdrop',
+    railClosed.offCanvas && railClosed.triggerVisible && railClosed.backdropHidden,
+    JSON.stringify(railClosed)
+  );
+
+  // Preserve peek state, then open the slide-over.
+  await railPage.evaluate(() => document.querySelector('button[data-rail="peek"]').click());
+  await railPage.click('#railOverlayTrigger');
+  await railPage.waitForTimeout(280);
+  const railOpen = await railPage.evaluate(() => {
+    const rail = document.getElementById('review');
+    const r = rail.getBoundingClientRect();
+    return {
+      onScreen: r.left < window.innerWidth - 10 && r.right <= window.innerWidth + 1,
+      role: rail.getAttribute('role'),
+      modal: rail.getAttribute('aria-modal'),
+      labelledby: rail.getAttribute('aria-labelledby'),
+      focusInside: rail.contains(document.activeElement),
+      triggerExpanded: document.getElementById('railOverlayTrigger').getAttribute('aria-expanded'),
+      backdropShown: document.getElementById('railBackdrop').hidden === false,
+      railState: document.body.dataset.railState,
+      pinnedDetailHidden: Array.from(rail.querySelectorAll('.pinned-detail')).every(
+        (el) => getComputedStyle(el).display === 'none'
+      ),
+    };
+  });
+  check(
+    'tablet: trigger opens slide-over as a focused modal dialog',
+    railOpen.onScreen &&
+      railOpen.role === 'dialog' &&
+      railOpen.modal === 'true' &&
+      railOpen.labelledby === 'railDialogTitle' &&
+      railOpen.focusInside &&
+      railOpen.triggerExpanded === 'true' &&
+      railOpen.backdropShown,
+    JSON.stringify(railOpen)
+  );
+  check(
+    'tablet: preserved peek state collapses pinned-detail in the panel',
+    railOpen.railState === 'peek' && railOpen.pinnedDetailHidden,
+    JSON.stringify(railOpen)
+  );
+
+  const openOverflow = await railPage.evaluate(() => ({
+    sw: document.documentElement.scrollWidth,
+    cw: document.documentElement.clientWidth,
+  }));
+  check(
+    'tablet: no horizontal overflow while slide-over open',
+    openOverflow.sw <= openOverflow.cw + 1,
+    JSON.stringify(openOverflow)
+  );
+
+  // Escape closes, restores focus to the trigger, and preserves rail state.
+  await railPage.keyboard.press('Escape');
+  await railPage.waitForTimeout(280);
+  const railAfterEsc = await railPage.evaluate(() => ({
+    overlay: document.body.dataset.railOverlay,
+    role: document.getElementById('review').getAttribute('role'),
+    focusOnTrigger: document.activeElement === document.getElementById('railOverlayTrigger'),
+    backdropHidden: document.getElementById('railBackdrop').hidden === true,
+    railState: document.body.dataset.railState,
+  }));
+  check(
+    'tablet: Escape closes, restores focus to trigger, preserves state',
+    railAfterEsc.overlay !== 'open' &&
+      railAfterEsc.role === null &&
+      railAfterEsc.focusOnTrigger &&
+      railAfterEsc.backdropHidden &&
+      railAfterEsc.railState === 'peek',
+    JSON.stringify(railAfterEsc)
+  );
+  check(
+    'tablet: slide-over interaction clean console',
+    railConsole.length === 0,
+    railConsole.join('; ')
+  );
+  await railPage.close();
+
+  // --- Responsive slide-over review rail: mobile (<1024px, info button) ---
+  const railMobile = await browser.newPage({ viewport: { width: 400, height: 820 } });
+  await railMobile.goto(FILE);
+  const infoBtn = await railMobile.evaluate(() => {
+    const b = document.getElementById('railInfoBtn');
+    const r = b.getBoundingClientRect();
+    return {
+      visible: getComputedStyle(b).display !== 'none' && r.width > 0,
+      w: Math.round(r.width),
+      h: Math.round(r.height),
+    };
+  });
+  check(
+    'mobile: review-context info button is visible and >= 44px',
+    infoBtn.visible && infoBtn.w >= 44 && infoBtn.h >= 44,
+    JSON.stringify(infoBtn)
+  );
+  await railMobile.click('#railInfoBtn');
+  await railMobile.waitForTimeout(280);
+  const mobileOpen = await railMobile.evaluate(() => {
+    const rail = document.getElementById('review');
+    return {
+      role: rail.getAttribute('role'),
+      focusInside: rail.contains(document.activeElement),
+      overlay: document.body.dataset.railOverlay,
+      sw: document.documentElement.scrollWidth,
+      cw: document.documentElement.clientWidth,
+    };
+  });
+  check(
+    'mobile: info button opens focused dialog with no overflow',
+    mobileOpen.role === 'dialog' &&
+      mobileOpen.focusInside &&
+      mobileOpen.overlay === 'open' &&
+      mobileOpen.sw <= mobileOpen.cw + 1,
+    JSON.stringify(mobileOpen)
+  );
+  await railMobile.close();
+
   await browser.close();
 
   if (failures.length) {

@@ -32,6 +32,7 @@
       html,
       body {
         min-height: 100%;
+        overflow-x: hidden;
       }
 
       body {
@@ -49,13 +50,20 @@
         font: inherit;
       }
 
+      /*
+        Focus ring mirrors the token source's accent-colored focus intent
+        (presson.tokens.ts focus.ring / ring-accent) but at full strength: the
+        stored 25%-alpha charcoal composited to ~1.5:1 on white, below the WCAG
+        3:1 minimum for focus indicators. Solid accent charcoal is ~12-14:1 and
+        stays within the DESIGN.md "never blue" accent doctrine.
+      */
       button:focus-visible,
       a:focus-visible {
-        outline: 3px solid rgba(41, 41, 41, 0.25);
+        outline: 3px solid var(--ink);
         outline-offset: 3px;
       }
 
-      /* The dark-ink rail swallows the default dark outline; use a light one locally. */
+      /* The dark-ink rail swallows the dark outline; use a light one locally. */
       .primary-rail a:focus-visible,
       .primary-rail button:focus-visible {
         outline-color: rgba(255, 255, 255, 0.9);
@@ -98,8 +106,8 @@
 
       .mobile-nav-toggle {
         display: none;
-        width: 40px;
-        min-height: 40px;
+        width: 44px;
+        min-height: 44px;
         border: 1px solid var(--sand);
         border-radius: 6px;
         background: var(--paper);
@@ -215,7 +223,7 @@
       }
 
       .nav-list a {
-        min-height: 40px;
+        min-height: 44px;
         display: flex;
         align-items: center;
         padding: 8px 10px;
@@ -272,7 +280,7 @@
       }
 
       .button {
-        min-height: 40px;
+        min-height: 44px;
         padding: 8px 14px;
         border: 1px solid var(--ink);
         border-radius: 6px;
@@ -386,8 +394,8 @@
 
       .segmented button,
       .rail-state-controls button {
-        min-height: 34px;
-        padding: 6px 10px;
+        min-height: 44px;
+        padding: 6px 12px;
         border: 1px solid var(--sand);
         border-radius: 6px;
         background: var(--paper);
@@ -920,6 +928,46 @@
         margin-top: 12px;
       }
 
+      /*
+        Revision 2026-08-10c: responsive slide-over review rail.
+        These elements are inert on desktop (>=1280px) where the rail is the
+        sticky right column; they activate under the breakpoints below.
+      */
+      .rail-dialog-header {
+        display: none;
+      }
+
+      .rail-dialog-title {
+        margin: 0;
+        font-family: var(--font-ui);
+        font-size: 18px;
+        letter-spacing: -0.02em;
+      }
+
+      .rail-overlay-trigger,
+      .rail-info-btn {
+        display: none;
+      }
+
+      .rail-close {
+        min-width: 44px;
+        padding-inline: 0;
+        font-size: 20px;
+        line-height: 1;
+      }
+
+      .rail-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        border: 0;
+        background: rgba(41, 41, 41, 0.4);
+      }
+
+      .rail-backdrop[hidden] {
+        display: none;
+      }
+
       @media (max-width: 1279px) {
         .shell {
           grid-template-columns: var(--rail) minmax(0, 1fr);
@@ -933,13 +981,55 @@
           grid-template-columns: minmax(0, 1fr);
         }
 
-        .status-rail {
-          position: static;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+        /*
+          Slide-over review rail. Closed by default (off-canvas to the right);
+          opened via the "Review context" trigger. The rail-state overrides keep
+          the panel present even when hidden/peek is the preserved selection.
+        */
+        .status-rail,
+        body[data-rail-state='hidden'] .status-rail,
+        body[data-rail-state='peek'] .status-rail {
+          position: fixed;
+          top: 0;
+          right: 0;
+          z-index: 60;
+          display: grid;
+          grid-template-columns: 1fr;
+          align-content: start;
+          gap: 12px;
+          width: min(360px, 92vw);
+          height: 100vh;
+          height: 100dvh;
+          margin: 0;
+          padding: 16px;
+          overflow-y: auto;
+          background: var(--paper);
+          border-left: 1px solid var(--sand);
+          box-shadow: -12px 0 32px rgba(41, 41, 41, 0.18);
+          transform: translateX(100%);
+          transition: transform 200ms ease;
         }
 
-        .rail-state-controls {
-          grid-column: 1 / -1;
+        body[data-rail-overlay='open'] .status-rail {
+          transform: translateX(0);
+        }
+
+        /* Peek and hidden both collapse the detail cards inside the panel. */
+        body[data-rail-state='hidden'] .status-rail .pinned-detail {
+          display: none;
+        }
+
+        .rail-dialog-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+
+        .rail-overlay-trigger {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
         }
       }
 
@@ -973,7 +1063,7 @@
         }
 
         .mobile-nav a {
-          min-height: 40px;
+          min-height: 44px;
           display: flex;
           align-items: center;
           padding: 8px 10px;
@@ -998,6 +1088,31 @@
 
         .command-header {
           flex-wrap: wrap;
+        }
+
+        /* Below 1024px the slide-over is reached via the command-bar info button. */
+        .rail-overlay-trigger {
+          display: none;
+        }
+
+        .rail-info-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 44px;
+          min-height: 44px;
+          border: 1px solid var(--sand);
+          border-radius: 6px;
+          background: var(--paper);
+          color: var(--ink);
+          cursor: pointer;
+          font-size: 16px;
+        }
+
+        .status-rail,
+        body[data-rail-state='hidden'] .status-rail,
+        body[data-rail-state='peek'] .status-rail {
+          width: min(420px, 100vw);
         }
 
         .context-band {
@@ -1118,6 +1233,17 @@
       </button>
       <strong>Updog</strong>
       <span class="chip">Fund I · Draft 08</span>
+      <button
+        class="rail-info-btn"
+        id="railInfoBtn"
+        type="button"
+        aria-haspopup="dialog"
+        aria-controls="review"
+        aria-expanded="false"
+        aria-label="Open review context"
+      >
+        <span aria-hidden="true">&#9432;</span>
+      </button>
     </div>
 
     <nav class="mobile-nav" id="mobileNav" aria-label="Primary navigation" hidden>
@@ -1127,6 +1253,9 @@
       <a href="#workflow">Refresh workflow</a>
       <a href="#review">Review status</a>
     </nav>
+
+    <!-- Backdrop for the slide-over review rail (active below 1280px). -->
+    <div class="rail-backdrop" id="railBackdrop" hidden></div>
 
     <div class="shell">
       <nav class="primary-rail" aria-label="Primary navigation">
@@ -1269,6 +1398,16 @@
               Pinned
             </button>
           </div>
+          <button
+            class="button rail-overlay-trigger"
+            id="railOverlayTrigger"
+            type="button"
+            aria-haspopup="dialog"
+            aria-controls="review"
+            aria-expanded="false"
+          >
+            <span aria-hidden="true">&#9432;</span> Review context
+          </button>
         </section>
 
         <div class="canvas-grid">
@@ -1503,6 +1642,17 @@
           </div>
 
           <aside class="status-rail" id="review" aria-label="Conditional review context">
+            <div class="rail-dialog-header">
+              <h2 class="rail-dialog-title" id="railDialogTitle">Review context</h2>
+              <button
+                class="button rail-close"
+                id="railClose"
+                type="button"
+                aria-label="Close review context"
+              >
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
             <section class="status-card">
               <header>
                 <span class="section-label">Review state</span>
@@ -1758,6 +1908,92 @@
             ? 'Vehicle context missing. Recompute disabled. Next action: resolve vehicle context.'
             : 'Vehicle context restored. Next action: review 2 gaps.'
         );
+      });
+
+      // --- Responsive slide-over review rail (<=1279px) ---
+      const statusRail = document.getElementById('review');
+      const railBackdrop = document.getElementById('railBackdrop');
+      const railClose = document.getElementById('railClose');
+      const railTriggers = Array.from(document.querySelectorAll('[aria-controls="review"]'));
+      const overlayMql = window.matchMedia('(max-width: 1279px)');
+      let railOpener = null;
+
+      function railFocusables() {
+        return Array.from(
+          statusRail.querySelectorAll(
+            'a[href], button:not([disabled]):not([aria-disabled="true"]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter((el) => el.offsetParent !== null);
+      }
+
+      function openRail(opener) {
+        if (!overlayMql.matches || body.dataset.railOverlay === 'open') return;
+        railOpener = opener || null;
+        body.dataset.railOverlay = 'open';
+        railBackdrop.hidden = false;
+        statusRail.setAttribute('role', 'dialog');
+        statusRail.setAttribute('aria-modal', 'true');
+        statusRail.setAttribute('aria-labelledby', 'railDialogTitle');
+        statusRail.removeAttribute('aria-label');
+        statusRail.tabIndex = -1;
+        railTriggers.forEach((t) => t.setAttribute('aria-expanded', 'true'));
+        body.style.overflow = 'hidden';
+        railClose.focus();
+        announce('Review context opened.');
+      }
+
+      function closeRail(restoreFocus) {
+        if (body.dataset.railOverlay !== 'open') return;
+        body.dataset.railOverlay = 'closed';
+        railBackdrop.hidden = true;
+        statusRail.removeAttribute('role');
+        statusRail.removeAttribute('aria-modal');
+        statusRail.removeAttribute('aria-labelledby');
+        statusRail.setAttribute('aria-label', 'Conditional review context');
+        railTriggers.forEach((t) => t.setAttribute('aria-expanded', 'false'));
+        body.style.overflow = '';
+        if (restoreFocus !== false && railOpener) railOpener.focus();
+        railOpener = null;
+        announce('Review context closed.');
+      }
+
+      railTriggers.forEach((trigger) =>
+        trigger.addEventListener('click', () => {
+          if (body.dataset.railOverlay === 'open') closeRail();
+          else openRail(trigger);
+        })
+      );
+      railClose.addEventListener('click', () => closeRail());
+      railBackdrop.addEventListener('click', () => closeRail());
+
+      document.addEventListener('keydown', (event) => {
+        if (body.dataset.railOverlay !== 'open') return;
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          closeRail();
+        } else if (event.key === 'Tab') {
+          // Trap focus inside the open dialog.
+          const items = railFocusables();
+          if (!items.length) return;
+          const first = items[0];
+          const last = items[items.length - 1];
+          if (!statusRail.contains(document.activeElement)) {
+            event.preventDefault();
+            first.focus();
+          } else if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
+      });
+
+      // Leaving the overlay breakpoint (e.g. resize to desktop) restores the
+      // sticky rail without stranding the modal state.
+      overlayMql.addEventListener('change', (event) => {
+        if (!event.matches) closeRail(false);
       });
 
       // Initial availability sync.

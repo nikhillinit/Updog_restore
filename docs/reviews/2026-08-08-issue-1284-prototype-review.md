@@ -20,7 +20,7 @@ GitHub comment required by
 [issue #1284](https://github.com/nikhillinit/Updog_restore/issues/1284). No
 approval comment existed when this packet was prepared.
 
-The 2026-08-10 revision pass (below) cleared the reviewable prototype defects
+The 2026-08-10 revision passes (below) cleared the reviewable prototype defects
 that were blocking approval readiness. The remaining closure blocker is the
 mandatory human decision, which must be posted as a comment on the issue. No
 agent can satisfy that step.
@@ -67,6 +67,29 @@ non-shipping scope: only the prototype HTML and its review-only harness changed.
 
 Rendered-browser verification of the keyboard/focus behavior was run and is
 recorded in the evidence table below.
+
+### 2026-08-10c — responsive rail and focus/touch tokens
+
+Two medium revisions. Same non-shipping scope: prototype HTML plus its
+review-only harness.
+
+| Revision                     | Resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Responsive context rail      | Implemented the two contracted modes. At 1024-1279px the review rail is a right-anchored **slide-over** opened by a `Review context` trigger; below 1024px it is hidden behind a command-bar **info button**. Both open a `role="dialog"` `aria-modal` panel with a focus trap, `Escape`/backdrop/close dismissal, focus restored to the opener, and preserved `data-rail-state` (peek/pinned). Body scroll locks while open; resizing back to desktop restores the sticky rail. |
+| Focus and touch-target sizes | Core interactive targets raised to >= 44x44px (`.button` 40->44, segmented/rail radios 34->44, nav links and mobile toggle to 44). Focus ring strengthened from the low-contrast `rgba(41,41,41,0.25)` to solid accent `#292929` (~12-14:1 on white/mist); the dark rail keeps its light ring.                                                                                                                                                                                   |
+
+**Focus-color divergence (recorded exception).** The revision request cited the
+project token source as specifying a `#2563eb` focus treatment. It does not:
+`client/src/theme/presson.tokens.ts` defines
+`focus.ring: '0 0 0 3px rgba(41,41,41,0.25)'` and a `ring-accent/30` focus
+utility where `accent = #292929`; `#2563eb` is the **Info status** color only.
+`DESIGN.md` sets the accent to charcoal and states "never blue," and its drift
+register flags reusing blue as an interaction color. The reviewer's contrast
+concern is valid (`rgba(41,41,41,0.25)` composites to ~1.5:1 on white, failing
+WCAG 2.4.11/1.4.11 3:1), so the ring was strengthened to **solid charcoal
+accent** — the token-source-consistent, on-brand fix that meets contrast —
+rather than introducing blue. Confirmed with the requester before
+implementation.
 
 ## Review fence and artifacts
 
@@ -116,21 +139,26 @@ not an application route, schema, API contract, or authorization decision.
 ## Browser verification evidence
 
 The static artifact was re-exercised in a real headless Chromium browser
-(Playwright) on 2026-08-10 after both revision passes. All 30 assertions are
+(Playwright) on 2026-08-10 after all revision passes. All 41 assertions are
 machine-checked, not visual impressions. This proves the review artifact's
 behavior; it does not prove production integration.
 
-| Check                                     | Result                                                                                                                                                                                                                           |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1440x900, 1024x768, 820x1180, and 390x844 | Passed; `documentElement.scrollWidth` equaled `clientWidth` at every size (1440, 1024, 820, 390) — no page-level horizontal overflow                                                                                             |
-| Browser console                           | Passed; zero errors and zero warnings across all four viewports and the interaction pass                                                                                                                                         |
-| Mobile controls below 1024px (820, 390)   | Passed; nav toggle, primary `Review 2 gaps` action, and vehicle-state toggle all visible; off-canvas nav opened with 5 links and `aria-expanded` flipped to `true`                                                               |
-| GP / Analyst / Operations                 | Passed; checked state and presentation copy changed; de-emphasis applied via background/border, not opacity                                                                                                                      |
-| Radiogroup semantics + keyboard           | Passed; preset and rail controls expose `role="radiogroup"`; Arrow key moved selection, focus, `aria-checked`, and roving `tabindex` together, and updated the view                                                              |
-| Disabled-but-discoverable recompute       | Passed; while blocked, recompute is `aria-disabled="true"` yet focusable, keeps `aria-describedby="recomputeReason"` with the reason visible, and a direct activation was a no-op                                                |
-| aria-live announcements                   | Passed; the polite status region carried the walkthrough progression (referenced the recompute step after action 1)                                                                                                              |
-| Interactive walkthrough                   | Passed; action 1 marked itself done and activated action 2; completion persisted (visible result + `Refreshed just now` chip, step `done`) across a 1.2s wait with no auto-reset; `Reset walkthrough` restored the initial state |
-| Keyboard focus on dark rail               | Passed; Tab landed on a `.rail-link`; computed outline was `rgb(255,255,255,0.9)` 3px solid — visible against the dark rail                                                                                                      |
+| Check                                     | Result                                                                                                                                                                                                                                                                                          |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1440x900, 1024x768, 820x1180, and 390x844 | Passed; `documentElement.scrollWidth` equaled `clientWidth` at every size (1440, 1024, 820, 390) — no page-level horizontal overflow                                                                                                                                                            |
+| Browser console                           | Passed; zero errors and zero warnings across all four viewports and the interaction pass                                                                                                                                                                                                        |
+| Mobile controls below 1024px (820, 390)   | Passed; nav toggle, primary `Review 2 gaps` action, and vehicle-state toggle all visible; off-canvas nav opened with 5 links and `aria-expanded` flipped to `true`                                                                                                                              |
+| GP / Analyst / Operations                 | Passed; checked state and presentation copy changed; de-emphasis applied via background/border, not opacity                                                                                                                                                                                     |
+| Radiogroup semantics + keyboard           | Passed; preset and rail controls expose `role="radiogroup"`; Arrow key moved selection, focus, `aria-checked`, and roving `tabindex` together, and updated the view                                                                                                                             |
+| Disabled-but-discoverable recompute       | Passed; while blocked, recompute is `aria-disabled="true"` yet focusable, keeps `aria-describedby="recomputeReason"` with the reason visible, and a direct activation was a no-op                                                                                                               |
+| aria-live announcements                   | Passed; the polite status region carried the walkthrough progression (referenced the recompute step after action 1)                                                                                                                                                                             |
+| Interactive walkthrough                   | Passed; action 1 marked itself done and activated action 2; completion persisted (visible result + `Refreshed just now` chip, step `done`) across a 1.2s wait with no auto-reset; `Reset walkthrough` restored the initial state                                                                |
+| Keyboard focus on dark rail               | Passed; Tab landed on a `.rail-link`; computed outline was `rgb(255,255,255,0.9)` 3px solid — visible against the dark rail                                                                                                                                                                     |
+| General focus ring                        | Passed; a light-surface control (`#toggleContext`) showed a solid `rgb(41, 41, 41)` 3px outline — the strengthened accent ring, not the low-contrast 25%-alpha value and not blue                                                                                                               |
+| Core touch targets                        | Passed; command button, segmented radio, rail-state radio, primary-rail link, and nav link all measured >= 44px tall (rail link >= 44px square)                                                                                                                                                 |
+| Slide-over rail — tablet (1200px)         | Passed; rail off-canvas by default with a visible trigger; trigger opened an on-screen `role="dialog"` `aria-modal` panel (`aria-labelledby`), moved focus inside, expanded the trigger, showed the backdrop, and preserved `peek` (pinned-detail collapsed); no horizontal overflow while open |
+| Slide-over rail — Escape/close (tablet)   | Passed; `Escape` closed the dialog, removed the dialog role, restored focus to the trigger, hid the backdrop, and preserved `data-rail-state`                                                                                                                                                   |
+| Slide-over rail — mobile (400px)          | Passed; the command-bar info button (>= 44px) opened the same focused dialog with no horizontal overflow                                                                                                                                                                                        |
 
 Verification harness:
 [`scripts/reviews/verify-issue-1284-prototype.cjs`](../../scripts/reviews/verify-issue-1284-prototype.cjs).
