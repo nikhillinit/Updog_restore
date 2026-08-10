@@ -16,6 +16,7 @@ const matrixDir = path.resolve(path.dirname(thisFile), '..');
 const repoRoot = path.resolve(matrixDir, '../..');
 const outputFile = path.join(matrixDir, 'boot-proofs.json');
 const syntheticJwt = 'surface-contract-matrix-proof-secret-0123456789';
+const syntheticRuntimeSecret = 'surface-proof-runtime-secret-0123456789abcdef';
 const PORTS = Object.freeze({ api: 51237, worker: 51238, web: 51239, ml: 51240 });
 const HEALTH_PATHS = Object.freeze(['/health', '/live', '/ready', '/metrics', '/stats']);
 
@@ -87,6 +88,20 @@ export const vercelBuildEnvironment = (environment = process.env) => ({
   ...proofEnv({}, environment),
   ...requiredVercelBuildCredentials(environment),
 });
+
+export const vercelFunctionProofEnvironment = (environment = process.env) => proofEnv({
+  VERCEL: '1',
+  VERCEL_ENV: 'production',
+  NODE_ENV: 'production',
+  ALLOW_MEMORY_STORAGE: '0',
+  REDIS_URL: 'redis://127.0.0.1:6399',
+  CORS_ORIGIN: 'https://surface-proof.invalid',
+  CLIENT_URL: 'https://surface-proof.invalid',
+  SESSION_SECRET: syntheticRuntimeSecret,
+  HEALTH_KEY: syntheticRuntimeSecret,
+  METRICS_KEY: syntheticRuntimeSecret,
+  FUND_SCENARIO_HARD_TIMEOUT_MS: '30000',
+}, environment);
 
 export const assertStrictVercelBuildCredentials = (environment = process.env) => {
   const credentials = requiredVercelBuildCredentials(environment);
@@ -877,12 +892,7 @@ export const invokeVercelFunctionInIsolatedChild = ({
     String(responseTimeout),
   ], {
     cwd,
-    env: proofEnv({
-      VERCEL: '1',
-      VERCEL_ENV: 'production',
-      NODE_ENV: 'production',
-      ALLOW_MEMORY_STORAGE: '0',
-    }),
+    env: vercelFunctionProofEnvironment(),
     encoding: 'utf8',
     timeout: Math.min(Math.max(responseTimeout + 1_000, 1_000), 30_000),
     killSignal: 'SIGKILL',
