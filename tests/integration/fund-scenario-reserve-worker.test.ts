@@ -62,6 +62,20 @@ function restoreEnv(snapshot: Record<string, string | undefined>): void {
   }
 }
 
+function withFundScenarioWorkerIdentity<T>(start: () => T): T {
+  const previousWorkerType = process.env.WORKER_TYPE;
+  process.env.WORKER_TYPE = 'fund-scenario-calc';
+  try {
+    return start();
+  } finally {
+    if (previousWorkerType === undefined) {
+      delete process.env.WORKER_TYPE;
+    } else {
+      process.env.WORKER_TYPE = previousWorkerType;
+    }
+  }
+}
+
 async function seedScenarioFixtures(pool: Pool): Promise<{ fundId: number }> {
   const fund = await pool.query<{ id: number }>(
     `INSERT INTO funds (name, size, management_fee, carry_percentage, vintage_year)
@@ -210,7 +224,6 @@ async function startRuntime(): Promise<Runtime> {
 
   const { default: scenarioRoutes } = await import('../../server/routes/fund-scenario-sets');
   const { signToken } = await import('../../server/lib/auth/jwt');
-  const { getRegisteredQueueRuntime } = await import('../../server/queues/registry');
   const { startInProcessFundScenarioCalcWorkerHarness } =
     await import('../../workers/fund-scenario-calc-worker-harness');
 
@@ -218,8 +231,12 @@ async function startRuntime(): Promise<Runtime> {
   app.use(express.json({ limit: '1mb' }));
   app.use('/api', scenarioRoutes);
 
-  const workerHarness = await startInProcessFundScenarioCalcWorkerHarness();
-  const queue = getRegisteredQueueRuntime('fund-scenario-calc')?.getQueue() ?? null;
+  const workerHarness = await withFundScenarioWorkerIdentity(() =>
+    startInProcessFundScenarioCalcWorkerHarness()
+  );
+  const queueConnection = { host: redis.getHost(), port: redis.getMappedPort(6379) };
+  const queue = new Queue('fund-scenario-calc', { connection: queueConnection });
+  await queue.waitUntilReady();
 
   const authHeader = `Bearer ${signToken({
     sub: 'scenario-worker-integration',
@@ -232,7 +249,7 @@ async function startRuntime(): Promise<Runtime> {
     app,
     pool,
     queue,
-    queueConnection: { host: redis.getHost(), port: redis.getMappedPort(6379) },
+    queueConnection,
     workerHarness,
     postgres,
     redis,
@@ -371,6 +388,8 @@ describe('fund scenario reserve worker integration', () => {
   }, STARTUP_TIMEOUT_MS * 2);
 
   afterAll(async () => {
+    const { getRegisteredQueueRuntime } = await import('../../server/queues/registry');
+    await getRegisteredQueueRuntime('fund-scenario-calc')?.close?.();
     await runtime?.workerHarness.close();
     await runtime?.queue?.close();
     if (runtime) {
@@ -605,10 +624,7 @@ describe('fund scenario reserve worker integration', () => {
         );
         processorPromise = raceJob.waitUntilFinished(raceQueueEvents, JOB_TIMEOUT_MS);
 
-        const running = await waitForRunningScenarioRun(
-          active.pool,
-          completionRaceScenarioSetId
-        );
+        const running = await waitForRunningScenarioRun(active.pool, completionRaceScenarioSetId);
         await waitForSnapshotWriteWaiter(active.pool);
 
         const terminalized = await active.pool.query(
@@ -680,16 +696,23 @@ describe('fund scenario reserve worker integration', () => {
         await import('../../server/services/fund-scenario-reserve-calculation-service');
       const { handleFundScenarioCalcJob } =
         await import('../../workers/fund-scenario-calc-handler');
-      const identity = await getReserveScenarioCalculationIdentity(active.fundId, failingScenarioSetId);
+      const identity = await getReserveScenarioCalculationIdentity(
+        active.fundId,
+        failingScenarioSetId
+      );
       const queueName = `fund-scenario-calc-stale-${Date.now()}`;
       const staleQueue = new Queue<FundScenarioCalcJobData>(queueName, {
         connection: active.queueConnection,
       });
       const staleQueueEvents = new QueueEvents(queueName, { connection: active.queueConnection });
-      const staleWorker = new Worker<FundScenarioCalcJobData>(queueName, handleFundScenarioCalcJob, {
-        connection: active.queueConnection,
-        concurrency: 1,
-      });
+      const staleWorker = new Worker<FundScenarioCalcJobData>(
+        queueName,
+        handleFundScenarioCalcJob,
+        {
+          connection: active.queueConnection,
+          concurrency: 1,
+        }
+      );
       const jobId = `stale-${Date.now()}`;
       const runId = await seedQueuedDeliveryRun({
         pool: active.pool,
