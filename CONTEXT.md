@@ -113,9 +113,18 @@ return
 **Unused Fee**: A fee charged on undrawn credit facility capacity. _Avoid_:
 Management fee
 
-**Management Fee Waiver**: A reduction or waiver of management fees used as part
-of fund economics, commonly alongside cashless GP commitment treatment. _Avoid_:
-Cashless GP commitment
+**Fee Profile**: Versionable fee terms used to calculate fee outflows. _Avoid_:
+Fee basis
+
+**LP Class**: An investor grouping to which fee terms bind. _Avoid_: Partner
+class
+
+**Fee Basis**: The capital population against which a fee rate applies. _Avoid_:
+Fee profile
+
+**Management Fee Waiver**: Reduced fee rate for a named **LP Class**; not a
+shared-fee-basis deduction or proof that waived-fee dollars equal a deemed
+contribution. _Avoid_: Fee-basis deduction
 
 **LP Commitment Percentage**: The percentage of fund commitments attributed to
 limited partners. _Avoid_: Paid-in capital
@@ -123,15 +132,28 @@ limited partners. _Avoid_: Paid-in capital
 **GP Commitment Percentage**: The percentage of fund commitments attributed to
 the general partner. _Avoid_: Carried interest
 
-**GP Cash Commitment**: The portion of the GP commitment contributed in cash.
-_Avoid_: Cashless GP commitment
+**Contractual GP Commitment**: The full ownership/profit-participating GP
+commitment; it determines sizing and ownership but is not itself a cash flow.
+_Avoid_: GP cash contribution
 
-**Cashless GP Commitment**: The portion of the GP commitment credited without a
-cash contribution, commonly associated with management fee waiver economics.
-_Avoid_: Cash balance, cashless exercise
+**GP Cash Contribution**: `Contractual GP Commitment × (1 - fundedFromFeesPct)`;
+the cash portion that enters the cash ledger and cash-only bases. _Avoid_: GP
+deemed contribution
 
-**Cashless GP Contribution Percentage**: The percentage of the GP commitment
-treated as cashless. _Avoid_: Cashless split when the split basis is unclear
+**GP Deemed Contribution**: `Contractual GP Commitment × fundedFromFeesPct`;
+non-cash and excluded from fee, cash, return-of-capital, preferred-return, IRR,
+and clawback bases while retaining ownership and profit participation. _Avoid_:
+GP cash contribution
+
+**fundedFromFeesPct**: Persisted `0..1` ratio only; never proof that waived-fee
+dollars equal a deemed contribution and never a fee-basis deduction. _Avoid_:
+Cashless contribution percentage
+
+**GP Cash Commitment**: Legacy compatibility alias for **GP Cash Contribution**.
+_Avoid_: Canonical domain language
+
+**Cashless GP Commitment**: Legacy compatibility alias for **GP Deemed
+Contribution**. _Avoid_: Canonical domain language
 
 **Fund KPI**: A computed fund-level output metric, such as TVPI, DPI, RVPI, IRR,
 NAV, or investment count. _Avoid_: Company metric
@@ -590,14 +612,18 @@ For Task 16.3 implementation scope and ratification, route to ADR-065 in
   capital is called
 - **LP Commitment Percentage** and **GP Commitment Percentage** allocate
   **Capital Commitments** by partner role
-- **GP Commitment Percentage** can be split into **GP Cash Commitment** and
-  **Cashless GP Commitment**
-- **Cashless GP Contribution Percentage** determines how much of the GP
-  commitment is cashless
-- A **Management Fee Waiver** can be associated with **Cashless GP Commitment**
-  economics
-- **Cashless GP Commitment** is not **Cash in Bank** and is not a cashless
-  security exercise
+- **GP Commitment Percentage** sizes the **Contractual GP Commitment**
+- **Contractual GP Commitment** determines GP ownership and profit participation
+  but is not itself a cash-flow amount
+- **GP Cash Contribution** equals **Contractual GP Commitment** × (1 -
+  **fundedFromFeesPct**) and enters the cash ledger and cash-only bases
+- **GP Deemed Contribution** equals **Contractual GP Commitment** ×
+  **fundedFromFeesPct**; it is non-cash and excluded from fee, cash,
+  return-of-capital, preferred-return, IRR, and clawback bases
+- A **Fee Profile** contains versionable fee terms that bind to an **LP Class**;
+  a **Fee Basis** is the capital population against which its fee rate applies
+- A **Management Fee Waiver** reduces the fee rate for a named **LP Class**; it
+  is not a shared-fee-basis deduction or proof of dollar funding equality
 - A **Fund KPI** is a fund-level output, not a **Company Metric**
 - A **Dual Forecast** compares **Construction Forecast** against **Current
   Forecast**
@@ -720,7 +746,8 @@ For Task 16.3 implementation scope and ratification, route to ADR-065 in
 - The Fund Configuration API source uses `construction` and `current` with
   overlapping descriptions. Resolved: they are the two sides of the **Dual
   Forecast**.
-- The Fund Configuration API source uses `cashless` for **Cashless GP
-  Commitment** treatment, not cash balance or security exercise.
+- The Fund Configuration API source uses `cashless` as a legacy compatibility
+  label for **GP Deemed Contribution** (formerly **Cashless GP Commitment**),
+  not cash balance or security exercise.
 - API fields such as status code, body, internal IDs, visibility flags, and raw
   arrays are implementation/source-data fields, not glossary terms.
