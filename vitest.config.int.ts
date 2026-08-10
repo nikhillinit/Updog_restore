@@ -55,6 +55,6 @@ export default defineConfig({
     restoreMocks: true,
     pool: 'forks', // Better isolation for integration tests
     maxWorkers: 1, // Prevent parallel execution that could conflict
-    isolate: false, // Keep integration files in one fork worker.
+    isolate: true, // Run each integration file in an isolated fork context.
   },
 });
