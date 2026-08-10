@@ -53,7 +53,7 @@ All HTML is standalone and can be opened directly in a modern browser.
 
 | File                                                |      Dimensions |   Bytes | SHA-256                                                            |
 | --------------------------------------------------- | --------------: | ------: | ------------------------------------------------------------------ |
-| `issue-1284-context-rail-prototype.html`            | Responsive HTML |  37,849 | `78BDF1DDDE491DE6055871604A71822A79D5EE0BED9D2B4745C7AB10F09B4D66` |
+| `issue-1284-context-rail-prototype.html`            | Responsive HTML |  41,998 | `B7CB7ACFDAFEA85CDFC0BAEA3664501D696C08A7CAF92F2A0AEC3A68BE74F440` |
 | `preferred-prototypes/baseline-comparison.html`     | Responsive HTML |  38,067 | `539AC36E508718DC1241D15BDE76E1819095FE7075A82C8582D946BD1E5B2353` |
 | `preferred-prototypes/fund-modeling-workspace.html` | Responsive HTML | 148,550 | `BAFAA3352EEA3667B6D72A4257C2426AB484741239BDE537A432FFF6349E0216` |
 | `previews/updog_workspace_direct_1440.png`          |        1440x900 | 165,053 | `B47F7882C61BA52467D88C9EBDD0FEF610F933471BBFB0BF62506F99B889038E` |
@@ -100,3 +100,10 @@ capture records the explicit missing-vehicle dependency state.
   compact comparisons.
 - The #1284 prototype deliberately omits generic Accept/Reject decision actions.
   Those remain gated by #1289/#1290.
+- The #1284 HTML was revised on 2026-08-10 to clear pre-approval review defects
+  (single blocked-state next action, visible `$55.0M` derivation, WCAG-safe
+  preset de-emphasis, mobile controls/navigation below 1024px, dark-rail focus
+  ring, and consistent date formats). The byte count and SHA-256 above reflect
+  the post-revision file. The PNG captures predate this revision and should be
+  recaptured before final sign-off. See the
+  [review packet revision log](../../../reviews/2026-08-08-issue-1284-prototype-review.md#revision-log--2026-08-10).
