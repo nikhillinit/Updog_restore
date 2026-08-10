@@ -877,7 +877,12 @@ export const invokeVercelFunctionInIsolatedChild = ({
     String(responseTimeout),
   ], {
     cwd,
-    env: proofEnv({ VERCEL: '1', VERCEL_ENV: 'production' }),
+    env: proofEnv({
+      VERCEL: '1',
+      VERCEL_ENV: 'production',
+      NODE_ENV: 'production',
+      ALLOW_MEMORY_STORAGE: '0',
+    }),
     encoding: 'utf8',
     timeout: Math.min(Math.max(responseTimeout + 1_000, 1_000), 30_000),
     killSignal: 'SIGKILL',

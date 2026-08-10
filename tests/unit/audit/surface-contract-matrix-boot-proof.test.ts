@@ -289,16 +289,26 @@ describe('surface contract matrix boot proof completion gates', () => {
       [catchAllFunction, 'api/[...slug].js'],
     ]) {
       fs.mkdirSync(path.dirname(path.join(directory, handler)), { recursive: true });
-      fs.writeFileSync(path.join(directory, '.vc-config.json'), JSON.stringify({ runtime: 'nodejs22.x', handler }));
-      fs.writeFileSync(path.join(directory, handler), 'export default (_request, response) => response.end();');
+      fs.writeFileSync(
+        path.join(directory, '.vc-config.json'),
+        JSON.stringify({ runtime: 'nodejs22.x', handler })
+      );
+      fs.writeFileSync(
+        path.join(directory, handler),
+        'export default (_request, response) => response.end();'
+      );
     }
 
     const functions = vercelBuildOutputFunctions(functionsRoot);
-    expect(functions.map(({ name, entry }) => ({ name, entry: path.relative(functionsRoot, entry!) }))).toEqual([
+    expect(
+      functions.map(({ name, entry }) => ({ name, entry: path.relative(functionsRoot, entry!) }))
+    ).toEqual([
       { name: 'api', entry: 'api.func/serve.js' },
       { name: 'api/[...slug]', entry: 'api/[...slug].func/api/[...slug].js' },
     ]);
-    await expect(Promise.all(functions.map((functionEntry) => invokeVercelFunction(functionEntry)))).resolves.toEqual([
+    await expect(
+      Promise.all(functions.map((functionEntry) => invokeVercelFunction(functionEntry)))
+    ).resolves.toEqual([
       expect.objectContaining({ name: 'api', ok: true }),
       expect.objectContaining({ name: 'api/[...slug]', ok: true }),
     ]);
@@ -316,7 +326,10 @@ describe('surface contract matrix boot proof completion gates', () => {
     for (const [name, handler] of cases) {
       const directory = path.join(functionsRoot, `${name}.func`);
       fs.mkdirSync(directory, { recursive: true });
-      fs.writeFileSync(path.join(directory, '.vc-config.json'), JSON.stringify({ runtime: 'nodejs22.x', handler }));
+      fs.writeFileSync(
+        path.join(directory, '.vc-config.json'),
+        JSON.stringify({ runtime: 'nodejs22.x', handler })
+      );
       if (name === 'missing') {
         fs.writeFileSync(path.join(directory, 'index.js'), 'export default () => {};');
       }
@@ -469,27 +482,35 @@ describe('surface contract matrix boot proof completion gates', () => {
     }
   });
 
-  it('invokes build-output handlers in a child with only synthetic proof environment values', () => {
+  it('invokes build-output handlers in production Vercel runtime with synthetic isolation', () => {
     const original = {
       DATABASE_URL: process.env.DATABASE_URL,
       SESSION_SECRET: process.env.SESSION_SECRET,
       VERCEL_TOKEN: process.env.VERCEL_TOKEN,
+      VERCEL_ORG_ID: process.env.VERCEL_ORG_ID,
+      VERCEL_PROJECT_ID: process.env.VERCEL_PROJECT_ID,
       SURFACE_BOOT_PROOF_AMBIENT_SENTINEL: process.env.SURFACE_BOOT_PROOF_AMBIENT_SENTINEL,
     };
     Object.assign(process.env, {
       DATABASE_URL: 'postgresql://parent-secret@production.example/private',
       SESSION_SECRET: 'parent-session-secret',
       VERCEL_TOKEN: 'parent-vercel-token-secret',
+      VERCEL_ORG_ID: 'parent-vercel-org-secret',
+      VERCEL_PROJECT_ID: 'parent-vercel-project-secret',
       SURFACE_BOOT_PROOF_AMBIENT_SENTINEL: 'must-not-reach-child',
     });
     try {
+      expect(proofEnv()).toMatchObject({
+        NODE_ENV: 'test',
+        ALLOW_MEMORY_STORAGE: '1',
+      });
       const startedAt = Date.now();
       const result = invokeVercelFunctionInIsolatedChild({
-          name: '--isolated',
-          entry: fixture('isolated-vercel-handler.mjs'),
-          responseTimeout: 100,
-          redactionEnvironment: strictVercelEnvironment,
-        });
+        name: '--isolated',
+        entry: fixture('isolated-vercel-handler.mjs'),
+        responseTimeout: 100,
+        redactionEnvironment: strictVercelEnvironment,
+      });
       expect(result).toMatchObject({ name: '--isolated', ok: true });
       expect(Date.now() - startedAt).toBeLessThan(1_000);
 
@@ -504,6 +525,8 @@ describe('surface contract matrix boot proof completion gates', () => {
         'parent-secret',
         'parent-session-secret',
         'parent-vercel-token-secret',
+        'parent-vercel-org-secret',
+        'parent-vercel-project-secret',
         'must-not-reach-child',
       ]) {
         expect(result.result).not.toContain(secret);
@@ -547,7 +570,12 @@ describe('surface contract matrix boot proof completion gates', () => {
     );
 
     expect(
-      invokeVercelFunctionInIsolatedChild({ name: 'api/cwd', entry, directory, responseTimeout: 100 })
+      invokeVercelFunctionInIsolatedChild({
+        name: 'api/cwd',
+        entry,
+        directory,
+        responseTimeout: 100,
+      })
     ).toMatchObject({ name: 'api/cwd', ok: true });
   });
 

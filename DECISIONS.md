@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-08-09
+last_updated: 2026-08-10
 owner: Core Team
 review_cadence: P90D
 ---
@@ -10421,3 +10421,262 @@ historical assumptions.
   ingests trusted attested operator `/health` and `/ready` evidence and
   completes operator-mode verification, G4 must retain a fail-closed promotion
   hard-stop.
+
+## ADR-076: Canary Tenancy and Atomic Creator Grants (F_1.2.5 / G3 Lane C)
+
+**Date:** 2026-08-10 **Status:** Accepted **Tags:** #release #canary #auth
+#grants #reporting #g3
+
+**Related:** `docs/1-plans/F_1.2.5_g3-foundations-landing.plan.md` Decision
+Register 5, PR #1362 (merged `dfc12527`), F_1.2.0 WS4 smoke-tenant contract,
+ADR-072 (role tuples)
+
+### Context
+
+No canary tenancy model existed (`is_release_canary` / `data_origin` absent
+repo-wide), so release smoke traffic would pollute production reporting.
+Independently, fund creation wrote no `user_fund_grants` row for the creator
+(the `createFundWithInitialDraft` transaction covered funds + fundConfigs +
+fundEvents only), and fund grants are embedded into the JWT at login — so a
+creating session could not access its own new fund. F_1.2.0 WS4 posed the choice
+between (a) atomic creator-grant persistence (preferred; also a real-user
+product fix) and (b) pinning the smoke user to `admin`.
+
+### Decision (user-ratified 2026-08-08; shipped PR #1362)
+
+1. **Strategy (a): atomic creator grant** — the fund-creation transaction
+   inserts the creator's `user_fund_grants` row atomically; `POST /api/funds`
+   requires `PARTNER_WRITE_ROLES` (its guard-gap fix lands here).
+2. **Per-source credential renewal** — cookie-session requests get claims
+   reassembled and the HttpOnly session + CSRF cookies re-set; bearer requests
+   receive an optional `renewedAccessToken` field (machine-client contract only,
+   `Cache-Control: no-store`; the browser client uses cookie sessions, never
+   receives the field, and no browser bearer transport is reintroduced). Stale
+   pre-creation credentials are denied the new-fund write.
+3. **Canary identity model** — a dedicated non-admin (partner-role) smoke
+   principal with immutable `users.is_release_canary_principal`; a
+   `release_canary_runs` table (release/deployment identity, principal,
+   lifecycle timestamps, expiry, dedicated residue-count columns);
+   `funds.data_origin = 'production' | 'release_canary'` (default `production`)
+   plus nullable unique `canary_run_id`. Only the canary principal produces
+   marked canary funds; ordinary clients cannot submit marker fields
+   (schema-stripped).
+4. **Central reporting exclusion, closed worklist** — one exclusion predicate
+   (`server/lib/canary-exclusion.ts`) applied to every governed rollup,
+   dashboard, export, report, and cross-fund metric; the worklist is derived
+   from the route-policy registry (`financialSurface` / `exportPolicy` fields)
+   plus serving-seam consumers, and enforced by a seeded-canary differential
+   integration suite plus a static guardrail script
+   (`scripts/guardrails/check-canary-exclusion.mjs`). Direct authorized
+   fund/company reads stay visible to the smoke user.
+5. **Fail-closed caps with a single source chain** — cap/TTL values are measured
+   from preview canary output and release-owner-ratified; the approved values
+   live as GitHub Production-environment variables (`RELEASE_CANARY_MAX_*`,
+   `RELEASE_CANARY_TTL_*`), asserted and injected by the release workflow; the
+   runtime pre-mutation preflight reads only those env values and fails closed
+   when any is absent. No default constants exist in code. Provisioning
+   (`scripts/provision-prod-users.ts` + `server/lib/prod-identity.ts`) is
+   fail-closed and immutable: the flag is set only at user creation, and a
+   re-run with a differing value aborts.
+6. **Operator-only purge** — `scripts/release/purge-canary-runs.mjs` is
+   dry-run-first; purge execution requires its own explicit approval (plan HITL
+   constraint 6).
+
+### Consequences
+
+F_1.2.0's convention-level "bounded-residue assertion" is replaced by a durable
+tagged tenancy model with fail-closed caps and post-run reconciliation counts.
+The creator-grant gap is fixed for real users, not just the smoke tenant.
+Merging PR #1362 authorized no canary run, no provisioning run, and no purge —
+each is separately operator-approved.
+
+## ADR-077: WS3 Portfolio Editing Is Metadata-Only (F_1.2.5 / G3 Lane A)
+
+**Date:** 2026-08-10 **Status:** Accepted **Tags:** #portfolio #api #idempotency
+#optimistic-locking #g3
+
+**Related:** `docs/1-plans/F_1.2.5_g3-foundations-landing.plan.md` Decision
+Register 3, PR #1360 (merged `869dfd3e`), F_1.2.0 Decisions Locked 3 / WS3
+
+### Context
+
+F_1.2.0 locked portfolio-company editing into the v1.4 contract but left its
+scope open. The `portfoliocompanies` table had no `row_version` or `updated_at`,
+a nullable `fund_id`, and the route file exposed only GET/GET/:id/POST — no
+PATCH, no idempotency storage. Coupling edits to stage/status/valuation
+semantics would have pulled financial-calculation surfaces into the G3 window.
+
+### Decision (user-ratified 2026-08-08; shipped PR #1360)
+
+1. **Metadata-only field set** — writable fields are exactly `name`, `sector`,
+   `foundedYear`, `description`, `dealTags`. No
+   stage/status/valuation/allocation coupling and no transition endpoint;
+   `stage`, `currentStage`, `status`, and financial fields are untouched.
+2. **Contract** — `PATCH /api/portfolio-companies/:id?fundId=<id>` with a
+   required `Idempotency-Key` header and body `{ expectedVersion, patch }`;
+   omitted fields unchanged, nullable fields clearable with `null`; returns the
+   updated row with `rowVersion` + `updatedAt`; errors `VERSION_CONFLICT` (409),
+   `IDEMPOTENCY_KEY_REUSE` (409), validation (400), fund denial/not-found
+   (403/404).
+3. **Durability** — additive migration adds `row_version`, `updated_at`, and a
+   receipts table keyed `(fund_id, company_id, actor_id, idempotency_key)`
+   storing a canonical request hash plus explicit replay-response fields (no
+   generic JSONB response blob); `fund_id` NOT NULL is gated on a live preflight
+   proving zero NULLs. The update service serializes on a transaction-scoped
+   advisory lock and applies a CAS by `(company, fund, rowVersion)`.
+4. **Guard-gap closure** — `POST /api/portfolio-companies` gains
+   `forWrite: true` fund-scope enforcement in this lane (one of the 30 ADR-079
+   routes).
+
+### Consequences
+
+Stage/status transition semantics change nowhere; any future transition API is a
+separate decision. Existing consumers are unaffected (additive migration,
+additive response fields). The edit drawer is bound by the DESIGN.md v3.1.1
+rubric and preact/compat constraints.
+
+## ADR-078: Classified Hard-Timeout Semantics for Fund-Scenario Runs (F_1.2.5 / G3 Lane B)
+
+**Date:** 2026-08-10 **Status:** Accepted **Tags:** #workers #bullmq #timeouts
+#fencing #g3
+
+**Related:** `docs/1-plans/F_1.2.5_g3-foundations-landing.plan.md` Decision
+Register 4, PR #1360, F_1.2.0 WS4 (hard-timeout requirement), Zero Tolerance
+queue-timeout policy
+
+### Context
+
+Fund-scenario calculations had no hard timeout: a killed job stranded its run
+row at `queued`/`running` forever, and the partial unique index counts those
+states as active, permanently blocking recalculation.
+`markScenarioCalculationRunFailed` was exported but never called; terminal-state
+updates were unfenced (`WHERE id = $1` only); worker comments misdescribed
+BullMQ `lockDuration` (a renewable ownership lease) as an execution timeout.
+
+### Decision (user-ratified 2026-08-08; shipped PR #1360)
+
+1. **No new terminal status** — run status stays `failed` (no `timed_out`
+   migration); a stable `failureCode: "HARD_TIMEOUT" | null` is surfaced on the
+   status contract (the `failure_code` column preexisted). No internal
+   stack/error text is exposed.
+2. **Non-retryable timeout, retryable transients** — hard timeout throws BullMQ
+   `UnrecoverableError`; transient errors keep the existing `attempts: 2` +
+   backoff behavior.
+3. **Mechanism, not value** — `FUND_SCENARIO_HARD_TIMEOUT_MS` is required in
+   production (fail-fast if unset); the value is measured and
+   release-owner-ratified, never a constant from a proposal document.
+4. **Persisted deadline + per-transition CAS fences** — a nullable `deadline_at`
+   column is stamped at insert and re-armed at claim (async path only); claim,
+   completion, ordinary-failure, and timeout are four distinct fenced
+   transitions using NULL-safe predicates (`job_id IS NOT DISTINCT FROM $n`,
+   `clock_timestamp()`, deadline terms written NULL-safe so synchronous rows are
+   untouched). Each transition returns an affected-row count; zero rows means
+   the caller lost the race and must not proceed to dependent writes. Late
+   completion cannot overwrite a terminalized `HARD_TIMEOUT`.
+5. **Abort routing** — the deadline actor performs the timeout CAS first, then
+   aborts with a tagged reason; timeout-tagged aborts skip the ordinary-failure
+   CAS entirely, so a timeout can never be laundered into a retryable failure.
+6. **Gated sweep** — an idempotent two-step sweep (reconcile NULL-deadline
+   legacy/stragglers with a full fresh window, then terminalize past-deadline
+   rows through the same timeout CAS) runs as a repeatable job on the existing
+   queue, shipped disabled behind `FUND_SCENARIO_SWEEP_ENABLED` and enabled only
+   after the operator confirms no previous (unfenced) worker deployment remains
+   active on Railway — closing the deploy-overlap race.
+
+### Consequences
+
+Stranded rows terminalize within a bounded delay after sweep enablement and free
+the dedupe slot for recalculation; healthy in-flight work is never insta-killed.
+`failureCode` is additive (existing consumers see `null`). Misleading
+`lockDuration` comments were corrected across the queue modules. Sweep
+enablement is an operator action, not implied by merge.
+
+## ADR-079: Vercel-Reachable Durable-Write Guard Gaps Are Release Blockers (F_1.2.5 / G3 Phase 1)
+
+**Date:** 2026-08-10 **Status:** Accepted **Tags:** #auth #surface-contract
+#release-gate #g3
+
+**Related:** `docs/1-plans/F_1.2.5_g3-foundations-landing.plan.md` Decision
+Register 1 + Phase 1b, PR #1359, ADR-072 (guard model)
+
+### Context
+
+The surface-contract matrix (471 rows at the 2026-08-08 derivation) carried 47
+`Guard gap` findings, all risk-accepted as `in-contract / approved`. Exactly 30
+of them were Vercel-reachable durable writes (`reachability` `both`/`vercel`,
+`persistence: writes`) — including fund creation, allocation/reallocation
+commits, cash-flow approve/lock, metric-run approve/lock, and deal mutations.
+
+### Decision (user-ratified 2026-08-08)
+
+1. **Blocker posture** — the 30 Vercel-reachable durable-write guard gaps are
+   release blockers (remediation-required). Their prior matrix
+   `in-contract / approved` status is superseded. The 17 non-Vercel-write gaps
+   (8 railway, 1 local, 11 reads-only overlap) keep their existing matrix
+   dispositions.
+2. **Remediation rules** — canonical resource ownership is loaded before
+   mutation with the authoritative fund id in the SQL `WHERE`; ID-only
+   inaccessible resources return 404 and explicit unauthorized funds
+   `403 FUND_ACCESS_DENIED`; bulk deal mutations require one authoritative fund
+   and reject mixed-fund lists atomically; `TEAM_WRITE_ROLES` guards ordinary
+   analysis/data-entry writes and `PARTNER_WRITE_ROLES` guards fund creation and
+   governance transitions (ADR-072 tuples); audit actor ids derive exclusively
+   from verified credentials;
+   `enforceProvidedFundScope(req, res, fundId, { forWrite: true })` is applied
+   on write paths.
+3. **Ownership split, closure over the union** — 27 routes were remediated in
+   Phase 1 (PR #1359); `POST /api/portfolio-companies` in Lane A and
+   `PUT /api/lp/settings` (501 `LP_SETTINGS_WRITE_NOT_IMPLEMENTED`, replacing a
+   fake-success write) in Lane D (both PR #1360); `POST /api/funds` in Lane C
+   (PR #1362). The matrix closes over the union.
+4. **G3 gate criterion** — G3 acceptance requires zero unresolved
+   Vercel-reachable durable-write guard gaps, proven by the Phase 4 tracked
+   matrix regeneration at the frozen SHA — not asserted from disposable interim
+   regenerations.
+
+### Consequences
+
+Remediation for all 30 routes has merged; the zero-unresolved state is a gate
+requirement verified at the Phase 4 frozen-SHA regeneration, not a claim this
+ADR makes ahead of it. Restricted-principal denial tests prove denial plus zero
+mutation, and role-matrix tests prove intended access. `PUT /api/lp/settings`
+changing from fake-200 to 501 is an intentional, ratified contract break (no
+real consumer could depend on an unpersisted write).
+
+## ADR-080: Legacy Railway API Config Retirement (F_1.2.5 / G3 Phase 3)
+
+**Date:** 2026-08-10 **Status:** Accepted **Tags:** #railway #topology
+#config-as-code #g3
+
+**Related:** ADR-075 (topology),
+`docs/1-plans/F_1.2.5_g3-foundations-landing.plan.md` Phase 3 item 6
+(inventory-gated retirement)
+
+### Context
+
+`railway.toml` described the legacy Railway API deployment (builder
+`dockerfile`, `Dockerfile.railway`, service `web`) that ADR-075 removed from the
+production topology. The plan gated its deletion on live inventory: delete only
+after proving no live service references it, and require zero traffic plus
+DNS-ownership proof if a live legacy API service exists.
+
+### Decision
+
+Read-only Railway inventory (2026-08-10, project `worthy-integrity`, production
+environment) proved the gate is satisfied: exactly one service exists
+(`Updog_restore`), its config-as-code binding is `railway.worker.toml` (not
+`railway.toml`), and no domains are attached. No live legacy API service exists,
+so the zero-traffic/DNS branch of the gate is vacuous. `railway.toml` is deleted
+from the tree. Corroborating live evidence recorded at the same read: the Vercel
+project runtime is `22.x` (ADR-075 item 1), and the existing service's
+dashboard-level builder field reads `RAILPACK` while its bound config-as-code
+file pins `builder = "dockerfile"` with `Dockerfile.worker` -- config-as-code
+takes precedence at deploy time, and each dedicated worker service must keep an
+explicit config-as-code binding rather than relying on the Railpack default.
+
+### Consequences
+
+No repo file describes a Railway API service. This deletes a config file only;
+it retires no live service, changes no live configuration, and authorizes no
+provider mutation (ADR-075 consequences unchanged). If a Railway API service is
+ever reintroduced, that is a new topology decision superseding ADR-075.
