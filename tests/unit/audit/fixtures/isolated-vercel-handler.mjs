@@ -10,9 +10,9 @@ export default function isolatedVercelHandler(_request, response) {
     throw new Error('ambient sentinel reached isolated handler');
   }
   if (
-    process.env.VERCEL_TOKEN !== undefined
-    || process.env.VERCEL_ORG_ID !== undefined
-    || process.env.VERCEL_PROJECT_ID !== undefined
+    process.env.VERCEL_TOKEN !== undefined ||
+    process.env.VERCEL_ORG_ID !== undefined ||
+    process.env.VERCEL_PROJECT_ID !== undefined
   ) {
     throw new Error('Vercel credential reached isolated handler');
   }
@@ -27,6 +27,12 @@ export default function isolatedVercelHandler(_request, response) {
   }
   if (process.env.NODE_ENV !== 'production' || process.env.ALLOW_MEMORY_STORAGE !== '0') {
     throw new Error('test-only database mock path selected');
+  }
+  if (
+    process.env._EXPLICIT_NODE_ENV !== '1' ||
+    process.env._EXPLICIT_ALLOW_MEMORY_STORAGE !== '1'
+  ) {
+    throw new Error('isolated handler did not receive explicit environment markers');
   }
   setInterval(() => {}, 1_000);
   response.end();
