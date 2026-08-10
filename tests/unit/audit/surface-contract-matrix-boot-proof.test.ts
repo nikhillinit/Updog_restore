@@ -10,11 +10,13 @@ import {
   vercelBuildOutputFunctions,
   commandFailureEvidence,
   assertRequiredG3Proofs,
+  dockerProofEnvironment,
   proofEnv,
   resolveBootProofOutput,
   runBootProof,
   vercelBuildInvocation,
   vercelBuildEnvironment,
+  vercelFunctionProofEnvironment,
   withVercelCredentialsMasked,
   workerProofEnvironment,
   workerPostgresProofHostname,
@@ -39,11 +41,15 @@ const strictVercelEnvironment = {
 
 describe('surface contract matrix boot proof completion gates', () => {
   it('keeps Docker proof config isolated', () => {
-    expect(
-      proofEnv({}, { PATH: '/usr/bin', DOCKER_CONFIG: '/private/tmp/surface-proof-docker' })
-    ).toMatchObject({
+    const environment = {
+      PATH: '/usr/bin',
+      DOCKER_CONFIG: ' /private/tmp/surface-proof-docker ',
+    };
+    expect(dockerProofEnvironment({}, environment)).toMatchObject({
       DOCKER_CONFIG: '/private/tmp/surface-proof-docker',
     });
+    expect(proofEnv({}, environment)).not.toHaveProperty('DOCKER_CONFIG');
+    expect(vercelFunctionProofEnvironment(environment)).not.toHaveProperty('DOCKER_CONFIG');
   });
 
   it('healthchecks both worker-specific ports before Railway PORT', () => {

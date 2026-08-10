@@ -43,9 +43,6 @@ const requiredVercelBuildCredentials = (environment = process.env) => Object.fro
 
 const sanitizedBaseEnv = (environment = process.env) => ({
   PATH: environment.PATH,
-  ...(environment.DOCKER_CONFIG?.trim()
-    ? { DOCKER_CONFIG: environment.DOCKER_CONFIG.trim() }
-    : {}),
   TZ: 'UTC',
   CI: '1',
   NODE_ENV: 'test',
@@ -85,6 +82,13 @@ const sanitizedBaseEnv = (environment = process.env) => ({
 export const proofEnv = (overrides = {}, environment = process.env) => ({
   ...sanitizedBaseEnv(environment),
   ...overrides,
+});
+
+export const dockerProofEnvironment = (overrides = {}, environment = process.env) => ({
+  ...proofEnv(overrides, environment),
+  ...(environment.DOCKER_CONFIG?.trim()
+    ? { DOCKER_CONFIG: environment.DOCKER_CONFIG.trim() }
+    : {}),
 });
 
 export const vercelBuildEnvironment = (environment = process.env) => ({
@@ -183,7 +187,10 @@ const listeningPortsForPid = (pid) => {
 const dockerContainerPid = (containerName) => {
   if (!containerName) return undefined;
   try {
-    const pid = Number(execFileSync('docker', ['inspect', '-f', '{{.State.Pid}}', containerName], { encoding: 'utf8' }).trim());
+    const pid = Number(execFileSync('docker', ['inspect', '-f', '{{.State.Pid}}', containerName], {
+      encoding: 'utf8',
+      env: dockerProofEnvironment(),
+    }).trim());
     return Number.isInteger(pid) && pid > 0 ? pid : undefined;
   } catch {
     return undefined;
@@ -368,11 +375,11 @@ const failureSummary = (result, fallback) => {
   return `${fallback}: child exited ${result.status ?? result.signal ?? 'unknown'}`;
 };
 
-const dockerAvailable = () => commandResult('docker', ['info'], proofEnv(), 10_000).ok;
+const dockerAvailable = () => commandResult('docker', ['info'], dockerProofEnvironment(), 10_000).ok;
 
 const dockerCleanup = (name, kind = 'container') => {
   const args = kind === 'network' ? ['network', 'rm', name] : ['rm', '-f', name];
-  commandResult('docker', args, proofEnv(), 20_000);
+  commandResult('docker', args, dockerProofEnvironment(), 20_000);
 };
 
 const dockerFailure = (label, result) => {
@@ -457,18 +464,18 @@ const railwayWorkerProof = async ({ workerType, deployment, sourceSha }) => {
   dockerCleanup(postgresName);
   dockerCleanup(network, 'network');
   try {
-    const networkCreate = commandResult('docker', ['network', 'create', network], proofEnv(), 30_000);
+    const networkCreate = commandResult('docker', ['network', 'create', network], dockerProofEnvironment(), 30_000);
     if (!networkCreate.ok) return evidence({ deployment, runtime: 'worker_process', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('worker proof network creation', networkCreate) });
 
     const redis = commandResult('docker', [
       'run', '-d', '--rm', '--name', redisName, '--network', network, 'redis:7-alpine',
-    ], proofEnv(), 120_000);
+    ], dockerProofEnvironment(), 120_000);
     if (!redis.ok) return evidence({ deployment, runtime: 'worker_process', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('Redis proof container startup', redis) });
 
     let redisReady = false;
     const redisDeadline = Date.now() + 60_000;
     while (Date.now() < redisDeadline) {
-      const ping = commandResult('docker', ['exec', redisName, 'redis-cli', 'ping'], proofEnv(), 10_000);
+      const ping = commandResult('docker', ['exec', redisName, 'redis-cli', 'ping'], dockerProofEnvironment(), 10_000);
       if (ping.ok && ping.stdout.trim() === 'PONG') {
         redisReady = true;
         break;
@@ -486,13 +493,13 @@ const railwayWorkerProof = async ({ workerType, deployment, sourceSha }) => {
       '-e', 'POSTGRES_PASSWORD=surface-proof',
       '-e', 'POSTGRES_DB=surface_proof',
       'postgres:16-alpine',
-    ], proofEnv(), 120_000);
+    ], dockerProofEnvironment(), 120_000);
     if (!postgres.ok) return evidence({ deployment, runtime: 'worker_process', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('PostgreSQL proof container startup', postgres) });
 
     let postgresReady = false;
     const postgresDeadline = Date.now() + 60_000;
     while (Date.now() < postgresDeadline) {
-      const ready = commandResult('docker', ['exec', postgresName, 'pg_isready', '-U', 'surface-proof', '-d', 'surface_proof'], proofEnv(), 10_000);
+      const ready = commandResult('docker', ['exec', postgresName, 'pg_isready', '-U', 'surface-proof', '-d', 'surface_proof'], dockerProofEnvironment(), 10_000);
       if (ready.ok) {
         postgresReady = true;
         break;
@@ -509,7 +516,7 @@ const railwayWorkerProof = async ({ workerType, deployment, sourceSha }) => {
       if (!schemaPrep.ok) return evidence({ deployment, runtime: 'worker_process', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('capital-call PostgreSQL schema preparation', schemaPrep) });
     }
 
-    const imageBuild = commandResult('docker', ['build', '-f', 'Dockerfile.worker', '-t', image, '.'], proofEnv(), 600_000);
+    const imageBuild = commandResult('docker', ['build', '-f', 'Dockerfile.worker', '-t', image, '.'], dockerProofEnvironment(), 600_000);
     if (!imageBuild.ok) return evidence({ deployment, runtime: 'worker_process', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('Dockerfile.worker image build', imageBuild) });
 
     const run = await runHttpProcess({
@@ -525,7 +532,7 @@ const railwayWorkerProof = async ({ workerType, deployment, sourceSha }) => {
         '-e', `DATABASE_URL=postgresql://surface-proof:surface-proof@${workerPostgresProofHostname(postgresName)}:5432/surface_proof`,
         image,
       ],
-      env: proofEnv(),
+      env: dockerProofEnvironment(),
       port: PORTS.worker,
       containerName: workerName,
       paths: HEALTH_PATHS.map((requestPath) => ({ path: requestPath, method: 'GET' })),
@@ -973,9 +980,9 @@ const mlServiceProof = async () => {
   const command_or_artifact = 'Dockerfile ml-service/Dockerfile with uvicorn app:app --host 0.0.0.0 --port 8088';
   const probe = 'GET /health and GET /model/info expect 2xx; POST /predict and POST /train send {} and expect 422 validation; 404/405 are failures';
   if (!dockerAvailable()) return evidence({ deployment: 'ml-service-local', boot_status: 'unproven', command_or_artifact, probe, result: 'docker unavailable' });
-  const image = commandResult('docker', ['build', '-f', 'ml-service/Dockerfile', '-t', 'surface-matrix-ml-proof:local', 'ml-service'], proofEnv(), 300_000);
+  const image = commandResult('docker', ['build', '-f', 'ml-service/Dockerfile', '-t', 'surface-matrix-ml-proof:local', 'ml-service'], dockerProofEnvironment(), 300_000);
   if (!image.ok) return evidence({ deployment: 'ml-service-local', boot_status: 'failed', command_or_artifact, probe, result: 'ML service Docker image build failed' });
-  const run = await runHttpProcess({ command: 'docker', args: ['run', '--rm', '--name', 'surface-matrix-ml-proof', '-p', '8088:8088', 'surface-matrix-ml-proof:local'], env: proofEnv(), port: 8088, containerName: 'surface-matrix-ml-proof', paths: [
+  const run = await runHttpProcess({ command: 'docker', args: ['run', '--rm', '--name', 'surface-matrix-ml-proof', '-p', '8088:8088', 'surface-matrix-ml-proof:local'], env: dockerProofEnvironment(), port: 8088, containerName: 'surface-matrix-ml-proof', paths: [
     { path: '/health', method: 'GET' },
     { path: '/predict', method: 'POST', body: {}, expected_statuses: [422] },
     { path: '/train', method: 'POST', body: {}, expected_statuses: [422] },
