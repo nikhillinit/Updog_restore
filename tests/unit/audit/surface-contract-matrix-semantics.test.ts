@@ -541,7 +541,11 @@ describe('surface contract matrix seed semantic regressions', () => {
     expect(seed.makeRuntimeExclusions()).toEqual([
       expect.objectContaining({
         id: 'legacy-railway-api-topology',
-        evidence: ['Dockerfile.railway', 'railway.toml'],
+        evidence: [
+          'Dockerfile.railway',
+          'DECISIONS.md#ADR-080',
+          'railway.toml absent: retired by ADR-080',
+        ],
         fingerprint: expect.stringMatching(/^[0-9a-f]{64}$/),
       }),
     ]);

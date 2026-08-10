@@ -1457,9 +1457,13 @@ const makeRuntimeExclusions = () => {
     id: 'legacy-railway-api-topology',
     matched_layer: 'legacy-container-and-service-manifests',
     rule: 'undeployed; inventory-gated; excluded from production topology',
-    evidence: ['Dockerfile.railway', 'railway.toml'],
+    evidence: [
+      'Dockerfile.railway',
+      'DECISIONS.md#ADR-080',
+      'railway.toml absent: retired by ADR-080',
+    ],
     decision_status: 'proposed',
-    decision_evidence: 'Task7 source-derived legacy Railway topology exclusion.',
+    decision_evidence: 'ADR-080 source-derived legacy Railway topology exclusion.',
   };
   return [{ ...base, fingerprint: runtimeExclusionFingerprint(base) }];
 };

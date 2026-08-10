@@ -338,6 +338,68 @@ export function validateOffRowFingerprints({ listeners, candidates, exclusions, 
   return errors;
 }
 
+const ABSENCE_DECLARATION = /\b(?:absent|deleted|removed|retired|no longer (?:exists|present|tracked)|not (?:present|tracked))\b/i;
+const EVIDENCE_SOURCE_EXTENSIONS = new Set([
+  '.cjs', '.css', '.cts', '.env', '.html', '.js', '.json', '.jsx', '.lock', '.md', '.mjs',
+  '.mts', '.ps1', '.py', '.sh', '.sql', '.toml', '.ts', '.tsx', '.txt', '.yaml', '.yml',
+]);
+const EVIDENCE_HIDDEN_FILES = new Set(['.dockerignore', '.gitignore', '.gitleaksignore', '.nvmrc', '.vercelignore']);
+
+const runtimeEvidencePath = (entry) => {
+  if (typeof entry !== 'string') return undefined;
+  const trimmed = entry.trim();
+  const markdownLink = trimmed.match(/^\[[^\]]+\]\(\s*(?:<([^>]+)>|([^\s)]+))/);
+  let token = markdownLink?.[1] ?? markdownLink?.[2] ?? (trimmed.split(/\s+/, 1)[0] ?? '');
+  for (let index = 0; index < 3; index += 1) {
+    const normalizedToken = token
+      .replace(/^[`"'([{<]+/, '')
+      .replace(/[.,:;]+$/, '')
+      .replace(/[`"')\]}>]+$/, '')
+      .replace(/[.,:;]+$/, '');
+    if (normalizedToken === token) break;
+    token = normalizedToken;
+  }
+  const candidate = token.split('#', 1)[0]
+    .replace(/:\d+(?:-\d+)?$/, '')
+    .replace(/:$/, '');
+  if (!candidate || candidate.includes('://')) return undefined;
+  const basename = path.posix.basename(candidate);
+  const pathLike = basename.startsWith('Dockerfile')
+    || basename === '.env'
+    || basename.startsWith('.env.')
+    || EVIDENCE_HIDDEN_FILES.has(basename)
+    || EVIDENCE_SOURCE_EXTENSIONS.has(path.posix.extname(basename).toLowerCase());
+  const normalized = path.posix.normalize(candidate);
+  const invalid = candidate.includes('\\')
+    || path.posix.isAbsolute(candidate)
+    || path.win32.isAbsolute(candidate)
+    || path.win32.parse(candidate).root !== ''
+    || normalized === '..'
+    || normalized.startsWith('../');
+  if (!invalid && !pathLike) return undefined;
+  return { path: repoPath(normalized), invalid };
+};
+
+export function validateRuntimeExclusionEvidence({ exclusions, trackedPaths = new Set(trackedFiles()) } = {}) {
+  const tracked = trackedPaths instanceof Set ? trackedPaths : new Set(trackedPaths ?? []);
+  const errors = [];
+  for (const exclusion of Array.isArray(exclusions) ? exclusions : Object.values(exclusions ?? {})) {
+    const id = exclusion.id ?? exclusion.exclusion_id ?? exclusion.layer_id;
+    const evidenceEntries = Array.isArray(exclusion.evidence) ? exclusion.evidence : [exclusion.evidence];
+    for (const entry of evidenceEntries) {
+      const evidencePath = runtimeEvidencePath(entry);
+      if (!evidencePath) continue;
+      if (evidencePath.invalid) {
+        errors.push(`runtime exclusion evidence path invalid: ${id}/${evidencePath.path}`);
+        continue;
+      }
+      if (tracked.has(evidencePath.path) || ABSENCE_DECLARATION.test(String(entry))) continue;
+      errors.push(`runtime exclusion evidence path missing without absence declaration: ${id}/${evidencePath.path}`);
+    }
+  }
+  return errors;
+}
+
 const confirmedExposureEvidence = (row, exposure) => {
   const items = [...(row.test_evidence?.derived ?? []), ...(row.test_evidence?.manual ?? [])];
   return items.some((item) => item.assertion_confirmed === true
@@ -477,6 +539,7 @@ export async function validateMatrix({ writeMetadata = true } = {}) {
   if (schedulers.length !== document.rows.filter((row) => row.interface === 'scheduler').length) errors.push('scheduler registration count does not match scheduler rows');
   const discoveredListeners = discoverHttpListenerCandidates({ rootDir: repoRoot });
   errors.push(...validateOffRowFingerprints({ listeners, candidates, exclusions, orphans, requirements, discoveredListeners }));
+  errors.push(...validateRuntimeExclusionEvidence({ exclusions }));
   const dispositionPaths = new Set(listeners.map((entry) => entry.candidate_path));
   for (const candidate of discoveredListeners) if (!dispositionPaths.has(candidate.path)) errors.push(`listener candidate has no disposition: ${candidate.path}`);
   const discoveredDormant = discoverDormantCandidates({ rootDir: repoRoot });

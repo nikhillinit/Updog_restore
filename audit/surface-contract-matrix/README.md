@@ -57,8 +57,9 @@ changes the approved snapshot. Railway worker evidence includes structured
 | `vercel-web`                         | `npm run build:web`                                          | `dist/public/index.html` references emitted JavaScript bundle                                                      |
 | `ml-service-local`                   | `ml-service/Dockerfile` when Docker daemon is available      | Four FastAPI paths respond; otherwise records `unproven` with Docker availability result                           |
 
-`railway.toml` and `Dockerfile.railway` remain legacy inventory evidence, not
-production deployment topology. Runtime topology comes from
+`Dockerfile.railway` remains legacy inventory evidence, not production
+deployment topology. `railway.toml` was deleted under ADR-080; its declared
+absence is retirement evidence, not a live manifest. Runtime topology comes from
 `QUEUE_CATALOG.productionDisposition`: only named Railway worker deployments are
 production Railway surfaces; API/functions are Vercel-only; local-only and
 quarantined queues stay off Railway.
