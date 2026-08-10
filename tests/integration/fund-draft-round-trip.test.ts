@@ -14,7 +14,7 @@ import { makeJwt } from '../utils/integrationAuth';
 let app: express.Express;
 const partnerToken = (fundIds: number[] = []): string =>
   makeJwt({
-    userId: 'draft-partner',
+    userId: '1',
     email: 'draft-partner@example.com',
     role: 'partner',
     fundIds,
