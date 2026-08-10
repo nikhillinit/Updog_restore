@@ -1107,6 +1107,13 @@ const queueRuntimeFor = (catalog, roleKind, site = '', topology = { cache: new M
     throw new Error(`Discovered queue has no QUEUE_CATALOG productionDisposition: ${catalog?.queueName ?? 'unknown'}`);
   }
   const disposition = catalog.productionDisposition;
+  if (disposition.mode === 'quarantined') {
+    return {
+      deployment: 'excluded',
+      runtime: 'unreachable',
+      topology_reason: 'QUEUE_CATALOG productionDisposition quarantined; registry runtime registration is excluded',
+    };
+  }
   if (disposition.mode === 'railway-worker') {
     if (roleKind === 'producer' && catalog.owner === 'route') {
       return { deployment: 'vercel-api', runtime: 'make_app', topology_reason: 'route-owned producer runs in Vercel API' };
@@ -1220,15 +1227,16 @@ const makeWorkerRows = ({ nodes, findings, snapshotId, httpRows = [], background
         ...queueRuntimeFor(catalog, 'consumer', sourceSite(node), topology),
       });
     }
-    const consumerDeployments = roles.consumers
-      .filter((role) => role.deployment !== 'unresolved')
-      .map((role) => role.deployment);
-    const hasReachableConsumer = consumerDeployments.length > 0;
+    const exposureSpecs = queueExposureSpecs(roles);
+    const reachableDeployments = new Set(exposureSpecs.map((spec) => spec.deployment));
+    const hasReachableConsumer = roles.consumers
+      .some((role) => reachableDeployments.has(role.deployment));
     roles.consumer_status = hasReachableConsumer ? 'reachable' : 'no-reachable-consumer';
     roles.consumer_status_reason = hasReachableConsumer
       ? 'at least one consumer site belongs to a tracked runtime module graph'
-      : 'no consumer site is reachable from scripts/build-workers.mjs or the tracked API composition graph';
-    const exposureSpecs = queueExposureSpecs(roles);
+      : catalog.productionDisposition.mode === 'quarantined'
+        ? 'QUEUE_CATALOG quarantines this queue, so runtime registration is excluded'
+        : 'no consumer site is reachable from scripts/build-workers.mjs or the tracked API composition graph';
     const noReachableRuntime = exposureSpecs.length === 0;
     const evidence = sortedUnique([
       node ? sourceSite(node) : undefined,
@@ -1453,19 +1461,37 @@ export const mergeListenerDispositions = (previousEntries, discoveredEntries, ca
 };
 
 const makeRuntimeExclusions = () => {
-  const base = {
-    id: 'legacy-railway-api-topology',
-    matched_layer: 'legacy-container-and-service-manifests',
-    rule: 'undeployed; inventory-gated; excluded from production topology',
-    evidence: [
-      'Dockerfile.railway',
-      'DECISIONS.md#ADR-080',
-      'railway.toml absent: retired by ADR-080',
-    ],
-    decision_status: 'proposed',
-    decision_evidence: 'ADR-080 source-derived legacy Railway topology exclusion.',
-  };
-  return [{ ...base, fingerprint: runtimeExclusionFingerprint(base) }];
+  const exclusions = [
+    {
+      id: 'legacy-railway-api-topology',
+      matched_layer: 'legacy-container-and-service-manifests',
+      rule: 'undeployed; inventory-gated; excluded from production topology',
+      evidence: [
+        'Dockerfile.railway',
+        'DECISIONS.md#ADR-080',
+        'railway.toml absent: retired by ADR-080',
+      ],
+      decision_status: 'proposed',
+      decision_evidence: 'ADR-080 source-derived legacy Railway topology exclusion.',
+    },
+    {
+      id: 'ml-service-local-production-topology',
+      matched_layer: 'ml-service-local',
+      rule: 'local-only; excluded from Vercel and Railway production artifacts; provider inventory approval required',
+      evidence: [
+        'ml-service/Dockerfile',
+        '.vercelignore:ml-service/ is excluded from Vercel build input',
+        '.dockerignore:ml-service/ is excluded from production Docker build input',
+        'vercel.json',
+        'railway.worker.toml',
+        'railway.capital-call-status.worker.toml',
+        'DECISIONS.md#ADR-075',
+      ],
+      decision_status: 'proposed',
+      decision_evidence: 'ADR-075 source-derived local-only ML service exclusion; exact provider inventory remains an approval-time gate.',
+    },
+  ];
+  return exclusions.map((entry) => ({ ...entry, fingerprint: runtimeExclusionFingerprint(entry) }));
 };
 
 const mergeRuntimeExclusions = (previousEntries, discoveredEntries) => {
@@ -1559,7 +1585,10 @@ const makeVercelFunctionRows = ({ snapshotId }) => {
         }],
         snapshotId,
       })],
-      evidence: [`${filePath}:default export`, 'vercel.json functions.api/**/*.ts'],
+      evidence: [
+        `${filePath}:default export`,
+        `${filePath}:filesystem function route ${routePath}`,
+      ],
       source_mapping: { function_file: filePath, route_path: routePath, method_dispatch: 'ANY' },
     }));
   }
@@ -1780,6 +1809,12 @@ const definingSourceHashesForRow = (row, sourceHashesMap, rowToSources = {}) => 
 
 const applyDefiningSourceHashes = (rows, sourceHashesMap, rowToSources) => {
   for (const row of rows.values()) row.approved_source_hashes = definingSourceHashesForRow(row, sourceHashesMap, rowToSources);
+};
+
+const clearUnapprovedSourceHashes = (rows) => {
+  for (const row of rows) {
+    if (row.decision_status !== 'approved') row.approved_source_hashes = [];
+  }
 };
 
 const sourcePathCandidatesForRow = (row) => [
@@ -2080,6 +2115,9 @@ const seed = async () => {
     rows: [],
     coverage_review: {},
   }), seededDocument);
+  // Fresh defining hashes participate in stale-approval detection during merge,
+  // but approved_source_hashes is an approval-time record, not seed metadata.
+  clearUnapprovedSourceHashes(matrix.rows);
   const matrixArtifact = { ...matrix };
   delete matrixArtifact.orphans;
   const mappings = sourceMappings({

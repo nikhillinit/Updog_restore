@@ -34,6 +34,7 @@ type SeedInternals = {
   makeBackgroundRows: (snapshotId: string) => Map<string, Record<string, unknown>>;
   makeWorkerRows: (input: Record<string, unknown>) => Map<string, Record<string, unknown>>;
   makeListenerRows: (input: Record<string, unknown>) => Map<string, Record<string, unknown>>;
+  makeVercelFunctionRows: (input: Record<string, unknown>) => Map<string, Record<string, unknown>>;
   queueRuntimeFor: (
     catalog: Record<string, unknown>,
     roleKind: string,
@@ -54,6 +55,7 @@ type SeedInternals = {
     sourceHashes: Record<string, string>,
     rowToSources: Record<string, string[]>
   ) => string[];
+  clearUnapprovedSourceHashes: (rows: Record<string, unknown>[]) => void;
 };
 
 type ExposureFixture = {
@@ -107,7 +109,7 @@ async function loadSeedInternals(
     .replaceAll(/^export const /gm, 'const ')
     .replaceAll(/^export function /gm, 'function ')
     .concat(
-      '\n globalThis.__seedInternals = { createRuntimeIndex, makeApiRows, applyBootProofs, assertBootProofSourceSha, makeClientRows, makeBackgroundRows, makeWorkerRows, makeListenerRows, queueRuntimeFor, makeListenerDispositions, makeRuntimeExclusions, mergeRuntimeExclusions, sourceMappings, definingSourceHashesForRow };'
+      '\n globalThis.__seedInternals = { createRuntimeIndex, makeApiRows, applyBootProofs, assertBootProofSourceSha, makeClientRows, makeBackgroundRows, makeWorkerRows, makeListenerRows, makeVercelFunctionRows, queueRuntimeFor, makeListenerDispositions, makeRuntimeExclusions, mergeRuntimeExclusions, sourceMappings, definingSourceHashesForRow, clearUnapprovedSourceHashes };'
     );
 
   const context = vm.createContext({
@@ -406,9 +408,73 @@ describe('surface contract matrix seed semantic regressions', () => {
     expect(
       seed.queueRuntimeFor({ productionDisposition: { mode: 'local-only' } }, 'consumer')
     ).toMatchObject({ deployment: 'local-process' });
+    expect(
+      seed.queueRuntimeFor({ productionDisposition: { mode: 'quarantined' } }, 'consumer')
+    ).toEqual({
+      deployment: 'excluded',
+      runtime: 'unreachable',
+      topology_reason:
+        'QUEUE_CATALOG productionDisposition quarantined; registry runtime registration is excluded',
+    });
     expect(() => seed.queueRuntimeFor({}, 'consumer')).toThrow(
       'QUEUE_CATALOG productionDisposition'
     );
+  });
+
+  it('keeps quarantined queues unreachable even when constructors are discovered', async () => {
+    const seed = await loadSeedInternals(QUEUE_CATALOG as unknown as Record<string, unknown>[]);
+    const findings = matrixSchema
+      .scanBullmqConstructors({ rootDir: repoRoot })
+      .filter((finding) => finding.queue_name === 'lp-view-refresh');
+    const row = seed
+      .makeWorkerRows({ nodes: new Map(), findings, snapshotId: 'quarantined-queue' })
+      .get('worker:lp-view-refresh');
+
+    expect(row).toMatchObject({
+      reachability: 'dormant',
+      exposures: [],
+      queue_roles: {
+        consumer_status: 'no-reachable-consumer',
+        consumer_status_reason:
+          'QUEUE_CATALOG quarantines this queue, so runtime registration is excluded',
+      },
+    });
+    expect([
+      ...((row?.queue_roles as { producers: Record<string, unknown>[] }).producers ?? []),
+      ...((row?.queue_roles as { consumers: Record<string, unknown>[] }).consumers ?? []),
+    ]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ deployment: 'excluded', runtime: 'unreachable' }),
+      ])
+    );
+  });
+
+  it('cites filesystem and build-input evidence for standalone Vercel functions', async () => {
+    const seed = await loadSeedInternals();
+    const row = seed
+      .makeVercelFunctionRows({ snapshotId: 'vercel-functions' })
+      .get('api-fn:ANY:/api/telemetry/wizard');
+
+    expect(row?.evidence).toEqual([
+      'api/telemetry/wizard.ts:default export',
+      'api/telemetry/wizard.ts:filesystem function route /api/telemetry/wizard',
+    ]);
+    expect(row?.evidence).not.toContain('vercel.json functions.api/**/*.ts');
+  });
+
+  it('retains source hashes only for approved rows after stale-approval comparison', async () => {
+    const seed = await loadSeedInternals();
+    const rows = [
+      { id: 'proposed', decision_status: 'proposed', approved_source_hashes: ['source=hash'] },
+      { id: 'approved', decision_status: 'approved', approved_source_hashes: ['source=hash'] },
+    ];
+
+    seed.clearUnapprovedSourceHashes(rows);
+
+    expect(rows).toEqual([
+      { id: 'proposed', decision_status: 'proposed', approved_source_hashes: [] },
+      { id: 'approved', decision_status: 'approved', approved_source_hashes: ['source=hash'] },
+    ]);
   });
 
   it('binds real dedicated-worker module graphs to Railway without promoting local consumers', async () => {
@@ -524,7 +590,7 @@ describe('surface contract matrix seed semantic regressions', () => {
     }
   });
 
-  it('keeps registerRoutes-only observations local and seeds legacy Railway evidence as an exclusion', async () => {
+  it('keeps registerRoutes-only observations local and seeds production topology exclusions', async () => {
     const seed = await loadSeedInternals();
     const listener = seed.makeListenerDispositions([
       {
@@ -538,18 +604,40 @@ describe('surface contract matrix seed semantic regressions', () => {
         listener_id: 'legacy-dockerfile-railway',
       }),
     ]);
-    expect(seed.makeRuntimeExclusions()).toEqual([
-      expect.objectContaining({
-        id: 'legacy-railway-api-topology',
-        evidence: [
-          'Dockerfile.railway',
-          'DECISIONS.md#ADR-080',
-          'railway.toml absent: retired by ADR-080',
-        ],
-        fingerprint: expect.stringMatching(/^[0-9a-f]{64}$/),
-      }),
-    ]);
-    const legacy = seed.makeRuntimeExclusions()[0]!;
+    expect(seed.makeRuntimeExclusions()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'legacy-railway-api-topology',
+          evidence: [
+            'Dockerfile.railway',
+            'DECISIONS.md#ADR-080',
+            'railway.toml absent: retired by ADR-080',
+          ],
+          fingerprint: expect.stringMatching(/^[0-9a-f]{64}$/),
+        }),
+        expect.objectContaining({
+          id: 'ml-service-local-production-topology',
+          matched_layer: 'ml-service-local',
+          evidence: expect.arrayContaining([
+            'ml-service/Dockerfile',
+            '.vercelignore:ml-service/ is excluded from Vercel build input',
+            '.dockerignore:ml-service/ is excluded from production Docker build input',
+            'vercel.json',
+          ]),
+          decision_status: 'proposed',
+          fingerprint: expect.stringMatching(/^[0-9a-f]{64}$/),
+        }),
+      ])
+    );
+    expect(fs.readFileSync(path.join(repoRoot, '.vercelignore'), 'utf8').split(/\r?\n/)).toContain(
+      'ml-service/'
+    );
+    expect(fs.readFileSync(path.join(repoRoot, '.dockerignore'), 'utf8').split(/\r?\n/)).toContain(
+      'ml-service'
+    );
+    const legacy = seed
+      .makeRuntimeExclusions()
+      .find((entry) => entry.id === 'legacy-railway-api-topology')!;
     expect(
       seed.mergeRuntimeExclusions(
         [
