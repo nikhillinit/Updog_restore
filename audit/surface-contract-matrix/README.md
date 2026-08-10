@@ -37,6 +37,24 @@ the boot outcome (`command_or_artifact`, `probe`, `result`, `boot_status`) is
 unchanged, so `seed twice == seed once` stays byte-literal. Human decision
 evidence is never merged into machine-owned boot evidence.
 
+### CI-only package-source governance
+
+`validate-matrix.mjs` remains the canonical authoring and regeneration
+validator: every tracked package source is checked against its exact recorded
+byte hash. It has no package semantic waiver.
+
+The maintenance Vitest gate adds a narrower, post-`npm ci` merge-governance
+check for dependency-only `package.json` and bounded `package-lock.json`
+updates. The canonical authoring inventory can remain stale after an accepted
+CI-only waiver. Maintenance instead trusts the event's explicit prior ref (or
+`origin/main` only for local runs): unchanged bytes against that base pass,
+while changed bytes fail closed unless dependency and lock provenance rules
+pass. This CI-only check does not run before installation and is not a
+pre-install containment control. Automated release proof invokes
+`npm run release:check`; it does not invoke `validate-matrix.mjs`.
+Release-proof behavior is unchanged, while canonical exact-hash validation
+remains an authoring and regeneration requirement.
+
 `orphans.json` is the sole authoritative orphan artifact. `matrix.json` does not
 embed a second orphan list; approval, validation, rendering, and reseeding read
 and write this file directly.

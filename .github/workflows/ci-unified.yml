@@ -122,6 +122,11 @@ jobs:
             echo "SURFACE_MATRIX_PRIOR_REF=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_ENV"
           elif [[ "${{ github.event_name }}" == "push" ]]; then
             echo "SURFACE_MATRIX_PRIOR_REF=${{ github.event.before }}" >> "$GITHUB_ENV"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "SURFACE_MATRIX_PRIOR_REF=$(git rev-parse "${GITHUB_SHA}^")" >> "$GITHUB_ENV"
+          else
+            echo "unsupported surface-matrix prior-ref event: ${{ github.event_name }}" >&2
+            exit 1
           fi
 
       - name: Setup Node environment
@@ -523,6 +528,22 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Export surface-matrix prior ref
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "SURFACE_MATRIX_PRIOR_REF=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_ENV"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "SURFACE_MATRIX_PRIOR_REF=${{ github.event.before }}" >> "$GITHUB_ENV"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "SURFACE_MATRIX_PRIOR_REF=$(git rev-parse "${GITHUB_SHA}^")" >> "$GITHUB_ENV"
+          else
+            echo "unsupported surface-matrix prior-ref event: ${{ github.event_name }}" >&2
+            exit 1
+          fi
 
       - name: Setup Node environment
         uses: ./.github/actions/setup-node-env
