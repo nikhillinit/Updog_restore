@@ -31,6 +31,7 @@ import {
   mergeDormantCandidates,
   orphanResolutionFingerprint,
   resolveListenerModuleGraph,
+  runtimeExclusionFingerprint,
   MATRIX_SCHEMA_VERSION,
   mergeMatrix,
   proposeDecision,
@@ -241,7 +242,7 @@ const bootEvidence = (deployment, runtime, snapshotId, extra = {}) => ({
       ? 'load Vercel build-vercel-api bundle and construct makeApp()'
       : deployment === 'vercel-web'
         ? 'npm run build:web'
-        : deployment === 'railway-worker'
+        : deployment.startsWith('railway-worker-')
           ? 'npm run build:workers && start selected worker entrypoint'
           : deployment === 'ml-service-local'
             ? 'docker build -f ml-service/Dockerfile ml-service'
@@ -312,6 +313,17 @@ const emptyQueueRoles = () => ({ producers: [], consumers: [] });
 
 const bootProofKey = (deployment, runtime) => `${deployment}|${runtime ?? '*'}`;
 
+const assertBootProofSourceSha = (bootProofDocument, kgManifest, gitHead) => {
+  const bootProofSourceSha = bootProofDocument.source_sha;
+  const kgRepoHead = kgManifest?.repo_head;
+  if (!kgRepoHead) throw new Error('Knowledge-graph manifest has no repo_head');
+  if (bootProofSourceSha !== gitHead || bootProofSourceSha !== kgRepoHead) {
+    throw new Error(
+      `Boot-proof source_sha ${bootProofSourceSha} must exactly equal KG manifest repo_head ${kgRepoHead} and current Git HEAD ${gitHead}`,
+    );
+  }
+};
+
 const applyBootProofs = (rows, bootProofDocument) => {
   const proofs = new Map((bootProofDocument.proofs ?? []).map((proof) => [
     bootProofKey(proof.deployment, proof.runtime),
@@ -335,11 +347,11 @@ const applyBootProofs = (rows, bootProofDocument) => {
     for (const exposure of row.exposures) {
       if (exposure.boot_status !== 'proven') continue;
       if (row.interface === 'http-api' && (exposure.ingresses ?? []).length === 0) continue;
-      if (row.interface === 'client-route' && ['vercel-web', 'railway-web'].includes(exposure.deployment)) {
+      if (row.interface === 'client-route' && exposure.deployment === 'vercel-web') {
         proven.add('client');
       } else if (exposure.deployment === 'vercel-api') {
         proven.add('vercel');
-      } else if (['railway-api', 'railway-worker', 'railway-web'].includes(exposure.deployment)) {
+      } else if (exposure.deployment.startsWith('railway-worker-')) {
         proven.add('railway');
       } else if (exposure.deployment === 'ml-service-local') {
         proven.add('local');
@@ -712,7 +724,7 @@ const edgeAuthEvidenceByRow = (edges) => {
 const runtimeForMount = (mount) => {
   const from = String(mount.from ?? '');
   if (from.includes('server/app.ts')) return { deployment: 'vercel-api', runtime: 'make_app' };
-  if (from.includes('server/routes.ts')) return { deployment: 'railway-api', runtime: 'register_routes' };
+  if (from.includes('server/routes.ts')) return { deployment: 'local-process', runtime: 'register_routes' };
   return undefined;
 };
 
@@ -726,7 +738,7 @@ const routeIngresses = (expressPath, deployment, runtime) => {
   if (deployment !== 'vercel-api' || runtime !== 'make_app') return [{
     external_path: expressPath,
     express_path: expressPath,
-    rewrite_evidence: 'railway.toml service topology',
+    rewrite_evidence: 'local-only runtime disposition',
   }];
   // Vercel resolution is ordered: /metrics/:path* rewrites to
   // /api/metrics/:path* BEFORE /api/:slug* reaches the catch-all function, so
@@ -862,19 +874,11 @@ const makeApiRows = ({ nodes, edges, runtimeIndex, snapshotId }) => {
       definitions.push(definitionFromSite(entry.site, 'handler', entry.edge.line_start ?? 0));
     }
     for (const observation of observations) {
-      const outerMountIsCreateServer = String(observation.outer_mount_site ?? '').startsWith('server/server.ts');
-      const outerComposition = observations.some((candidate) => candidate.surface !== 'make_app'
-        && (String(candidate.outer_mount_site ?? '').startsWith('server/server.ts')
-          || (!candidate.outer_mount_site
-            && candidate.role === 'handler'
-            && String(candidate.site ?? '').startsWith('server/server.ts'))));
       const runtime = observation.surface === 'make_app'
         ? { deployment: 'vercel-api', runtime: 'make_app' }
         : {
-          deployment: 'railway-api',
-          runtime: observation.outer_mount_site
-            ? (outerMountIsCreateServer ? 'create_server' : 'register_routes')
-            : (outerComposition ? 'create_server' : 'register_routes'),
+          deployment: 'local-process',
+          runtime: observation.surface === 'register_routes' ? 'register_routes' : 'create_server',
         };
       const key = `${runtime.deployment}|${runtime.runtime}`;
       const item = exposuresByKey.get(key) ?? {
@@ -925,23 +929,6 @@ const makeApiRows = ({ nodes, edges, runtimeIndex, snapshotId }) => {
       }
     }
     const sourceRuntimeEntries = runtimeSpecificBySource.get(node.source_path) ?? [];
-    for (const runtimeEntry of sourceRuntimeEntries.filter((entry) => entry.surface === 'register_routes')) {
-      const key = 'railway-api|register_routes';
-      if (!exposuresByKey.has(key)) {
-        exposuresByKey.set(key, {
-          deployment: 'railway-api',
-          runtime: 'register_routes',
-          definitions: [],
-          conditions: [],
-          ingresses: [{
-            external_path: node.path || id.replace(/^api:[A-Z]+/, ''),
-            express_path: node.path || id.replace(/^api:[A-Z]+/, ''),
-            rewrite_evidence: 'railway.toml -> Dockerfile.railway -> registerRoutes',
-          }],
-          mountEvidence: runtimeEntry.id,
-        });
-      }
-    }
     const exposures = [...exposuresByKey.values()].map((exposure) => makeExposure({
       ...exposure,
       snapshotId,
@@ -960,12 +947,7 @@ const makeApiRows = ({ nodes, edges, runtimeIndex, snapshotId }) => {
     const safeMethod = ['GET', 'HEAD', 'OPTIONS'].includes(String(node.method).toUpperCase());
     const hasVercelExposure = exposures.some((exposure) =>
       exposure.deployment === 'vercel-api' && (exposure.ingresses ?? []).length > 0);
-    const hasRailwayExposure = exposures.some((exposure) =>
-      exposure.deployment === 'railway-api' && (exposure.ingresses ?? []).length > 0);
-    const reachability = manifest && hasVercelExposure && hasRailwayExposure
-      ? 'both'
-      : hasVercelExposure ? 'vercel'
-        : hasRailwayExposure ? 'railway' : 'local';
+    const reachability = hasVercelExposure ? 'vercel' : 'local';
     const sourceEvidence = sortedUnique([
       node.source_path ? `${node.source_path}:${node.line_start ?? 1}` : undefined,
       ...edgeDefinitions.map((entry) => entry.site),
@@ -1083,19 +1065,6 @@ const makeClientRows = ({ nodes, snapshotId }) => {
           conditions: lifecycleCondition,
           snapshotId,
         }),
-        makeExposure({
-          deployment: 'railway-web',
-          runtime: 'client_router',
-          mountEvidence: sourceSite(node),
-          definitions: [definitionFromSite(sourceSite(node), 'handler', node.line_start ?? 0)],
-          ingresses: [{
-            external_path: node.path,
-            express_path: node.path,
-            rewrite_evidence: 'railway.toml web deployment topology',
-          }],
-          conditions: lifecycleCondition,
-          snapshotId,
-        }),
       ],
       evidence: [asEvidence(sourceSite(node))],
       owner: governanceOwner || 'unassigned',
@@ -1118,13 +1087,6 @@ const makeClientRows = ({ nodes, snapshotId }) => {
   return rows;
 };
 
-const standaloneWorkerEntrypoints = () => new Set(
-  trackedFiles()
-    .filter((filePath) => filePath.startsWith('workers/') && filePath.endsWith('-worker.ts'))
-    .filter((filePath) => !['-worker-init.ts', '-worker-support.ts', '-worker-harness.ts'].some((suffix) => filePath.endsWith(suffix)))
-    .filter((filePath) => fs.readFileSync(path.join(repoRoot, filePath), 'utf8').includes('isDirectEntrypoint(import.meta.url)')),
-);
-
 const moduleGraphFor = (entryPath, cache) => {
   if (cache.has(entryPath)) return cache.get(entryPath);
   let graph;
@@ -1137,34 +1099,33 @@ const moduleGraphFor = (entryPath, cache) => {
   return graph;
 };
 
-const queueTopology = () => {
-  const cache = new Map();
-  const workerGraph = new Set();
-  for (const entry of standaloneWorkerEntrypoints()) {
-    for (const filePath of moduleGraphFor(entry, cache)) workerGraph.add(filePath);
-  }
-  const apiGraph = new Set();
-  for (const entry of ['server/providers.ts', 'server/app.ts', 'server/server.ts', 'server/routes.ts']) {
-    for (const filePath of moduleGraphFor(entry, cache)) apiGraph.add(filePath);
-  }
-  return { cache, workerGraph, apiGraph };
-};
+const dedicatedRailwayEntrypointFor = (deployment) =>
+  `workers/${String(deployment).replace(/^railway-worker-/, '')}-worker.ts`;
 
-const queueSiteTopology = (site, topology) => {
-  const filePath = String(site ?? '').split(':')[0];
-  if (topology.workerGraph.has(filePath)) {
-    return { deployment: 'railway-worker', runtime: 'worker_process', topology_reason: 'reachable from scripts/build-workers.mjs entrypoint' };
+const queueRuntimeFor = (catalog, roleKind, site = '', topology = { cache: new Map() }) => {
+  if (!catalog?.productionDisposition) {
+    throw new Error(`Discovered queue has no QUEUE_CATALOG productionDisposition: ${catalog?.queueName ?? 'unknown'}`);
   }
-  if (filePath.startsWith('server/routes/')) {
-    return { deployment: 'railway-api', runtime: 'register_routes', topology_reason: 'route module runs in registerRoutes API phase' };
-  }
-  if (topology.apiGraph.has(filePath)) {
-    return { deployment: 'railway-api', runtime: 'create_server', topology_reason: 'reachable from server/providers.ts/API composition graph' };
+  const disposition = catalog.productionDisposition;
+  if (disposition.mode === 'railway-worker') {
+    if (roleKind === 'producer' && catalog.owner === 'route') {
+      return { deployment: 'vercel-api', runtime: 'make_app', topology_reason: 'route-owned producer runs in Vercel API' };
+    }
+    const sourcePath = String(site).split(':')[0];
+    const entrypoint = dedicatedRailwayEntrypointFor(disposition.deployment);
+    if ((roleKind === 'consumer' || (roleKind === 'producer' && catalog.owner === 'providers'))
+      && moduleGraphFor(entrypoint, topology.cache).has(sourcePath)) {
+      return {
+        deployment: disposition.deployment,
+        runtime: 'worker_process',
+        topology_reason: `dedicated Railway entrypoint ${entrypoint} module graph reaches ${sourcePath}`,
+      };
+    }
   }
   return {
-    deployment: 'unresolved',
-    runtime: 'unresolved',
-    topology_reason: 'module is not reachable from a build-workers entrypoint or the tracked API composition graph',
+    deployment: 'local-process',
+    runtime: 'worker_process',
+    topology_reason: `QUEUE_CATALOG productionDisposition ${disposition.mode}`,
   };
 };
 
@@ -1201,7 +1162,7 @@ const triggeringReason = (site, triggeringRowIds) => triggeringRowIds.length > 0
 const queueExposureSpecs = (roles) => {
   const byKey = new Map();
   for (const role of [...roles.producers, ...roles.consumers]) {
-    if (!['vercel-api', 'railway-api', 'railway-worker', 'vercel-web', 'railway-web', 'ml-service-local'].includes(role.deployment)) continue;
+    if (!['vercel-api', 'railway-worker-fund-scenario-calc', 'railway-worker-capital-call-status', 'local-process'].includes(role.deployment)) continue;
     const key = `${role.deployment}|${role.runtime}`;
     const current = byKey.get(key) ?? { deployment: role.deployment, runtime: role.runtime, sites: [] };
     current.sites.push(role.site);
@@ -1212,7 +1173,7 @@ const queueExposureSpecs = (roles) => {
 
 const makeWorkerRows = ({ nodes, findings, snapshotId, httpRows = [], backgroundRows = [] }) => {
   const workerNames = new Map();
-  const topology = queueTopology();
+  const topology = { cache: new Map() };
   for (const node of [...nodes.values()].filter((item) => item.type === 'WorkerJob')) {
     workerNames.set(node.name || node.queue, { node, queue: node.queue || node.name });
   }
@@ -1228,16 +1189,19 @@ const makeWorkerRows = ({ nodes, findings, snapshotId, httpRows = [], background
     const current = workerNames.get(catalog.queueName) ?? {};
     workerNames.set(catalog.queueName, { ...current, queue: catalog.queueName, catalog });
   }
+  const catalogByQueueName = new Map(QUEUE_CATALOG.map((catalog) => [catalog.queueName, catalog]));
   const rows = new Map();
   for (const [queue, data] of [...workerNames.entries()].sort(([left], [right]) => left.localeCompare(right))) {
+    const catalog = data.catalog ?? catalogByQueueName.get(queue);
+    if (!catalog) throw new Error(`Discovered queue has no QUEUE_CATALOG metadata: ${queue}`);
     const id = canonicalRowId(`worker:${queue}`);
     const node = data.node;
     const roles = emptyQueueRoles();
     for (const finding of data.findings ?? []) {
-      const siteTopology = queueSiteTopology(`${finding.path}:${finding.line}`, topology);
       const triggeringRowIds = finding.kind === 'queue'
         ? triggeringRowsForSite(finding.path, httpRows, backgroundRows, topology)
         : [];
+      const siteTopology = queueRuntimeFor(catalog, finding.kind === 'queue' ? 'producer' : 'consumer', finding.path, topology);
       const role = {
         site: `${finding.path}:${finding.line}`,
         deployment: siteTopology.deployment,
@@ -1250,10 +1214,10 @@ const makeWorkerRows = ({ nodes, findings, snapshotId, httpRows = [], background
       if (finding.kind === 'queue') roles.producers.push(role);
       else roles.consumers.push(role);
     }
-    if (data.catalog?.healthMode === 'worker' && roles.consumers.length === 0 && node) {
+    if (catalog.healthMode === 'worker' && roles.consumers.length === 0 && node) {
       roles.consumers.push({
         site: sourceSite(node),
-        ...queueSiteTopology(sourceSite(node), topology),
+        ...queueRuntimeFor(catalog, 'consumer', sourceSite(node), topology),
       });
     }
     const consumerDeployments = roles.consumers
@@ -1269,13 +1233,13 @@ const makeWorkerRows = ({ nodes, findings, snapshotId, httpRows = [], background
     const evidence = sortedUnique([
       node ? sourceSite(node) : undefined,
       ...(data.findings ?? []).map((finding) => `${finding.path}:${finding.line}`),
-      data.catalog ? `server/queues/registry.ts:${data.catalog.key}` : undefined,
+      `server/queues/registry.ts:${catalog.key}`,
     ].filter(Boolean));
     rows.set(id, makeRow({
       id,
-      seam: data.catalog?.key || queue,
+      seam: catalog.key,
       interface: 'worker-job',
-      reachability: noReachableRuntime ? 'dormant' : 'railway',
+      reachability: noReachableRuntime ? 'dormant' : exposureSpecs.some((spec) => spec.deployment.startsWith('railway-worker-')) ? 'railway' : exposureSpecs.some((spec) => spec.deployment === 'vercel-api') ? 'vercel' : 'local',
       proven_reachability: 'none',
       exposures: exposureSpecs.map((spec) => makeExposure({
         deployment: spec.deployment,
@@ -1287,9 +1251,10 @@ const makeWorkerRows = ({ nodes, findings, snapshotId, httpRows = [], background
       queue_roles: roles,
       evidence,
       source_mapping: {
-        queue_catalog_keys: data.catalog ? [data.catalog.key] : [],
+        queue_catalog_keys: [catalog.key],
         queue_name: queue,
         kg_nodes: node ? [node.id] : [],
+        production_disposition: catalog.productionDisposition,
       },
       // Queue catalog owners (`providers`/`route`) describe registration
       // sites, not matrix owner domains. Classification assigns the
@@ -1315,10 +1280,10 @@ const makeBackgroundRows = (snapshotId) => {
       id,
       seam,
       interface: interfaceName,
-      reachability: 'railway',
+      reachability: 'local',
       proven_reachability: 'none',
       exposures: [makeExposure({
-        deployment: 'railway-api',
+        deployment: 'local-process',
         runtime,
         mountEvidence: site,
         definitions: [definitionFromSite(site, 'handler', 0)],
@@ -1356,11 +1321,11 @@ const makeBackgroundRows = (snapshotId) => {
       id: websocket.id,
       seam: websocket.seam,
       interface: 'websocket',
-      reachability: 'railway',
+      reachability: 'local',
       proven_reachability: 'none',
       personas: ['system'],
       exposures: [makeExposure({
-        deployment: 'railway-api',
+        deployment: 'local-process',
         runtime: 'websocket_server',
         mountEvidence: 'server/routes.ts:153',
         definitions: [definitionFromSite(`server/routes.ts:153`, 'handler', 0)],
@@ -1399,13 +1364,27 @@ const makeListenerDispositions = (candidates) => {
     ['server/index.ts', { listenerId: 'server-index', rowNamespace: 'api', strategy: 'existing-api-row-mapping' }],
     ['server/bootstrap.ts', { listenerId: 'server-bootstrap', rowNamespace: 'api', strategy: 'existing-api-row-mapping' }],
     ['Dockerfile', { listenerId: 'dockerfile-root', rowNamespace: 'api', strategy: 'container-entrypoint-evidence' }],
-    ['Dockerfile.railway', { listenerId: 'dockerfile-railway', rowNamespace: 'api', strategy: 'container-entrypoint-evidence' }],
     ['Dockerfile.simple', { listenerId: 'dockerfile-simple', rowNamespace: 'api', strategy: 'container-entrypoint-evidence' }],
     ['Dockerfile.worker', { listenerId: 'dockerfile-worker', rowNamespace: 'api', strategy: 'container-entrypoint-evidence' }],
     ['ml-service/Dockerfile', { listenerId: 'dockerfile-ml-reserve', rowNamespace: 'listener', strategy: 'container-entrypoint-evidence' }],
   ]);
   const entries = [];
   for (const candidate of candidates) {
+    if (candidate.path === 'Dockerfile.railway') {
+      const base = {
+        candidate_path: candidate.path,
+        listener_id: 'legacy-dockerfile-railway',
+        disposition: 'non-product-tooling',
+        rationale: 'Legacy undeployed Railway API container evidence; inventory-gated and excluded from production topology.',
+        evidence: candidate.patterns.map((pattern) => `${candidate.path}:${pattern.line}`),
+        detected_listener_patterns: candidate.patterns,
+      };
+      entries.push(ListenerDispositionSchema.parse({
+        ...base,
+        fingerprint: listenerDispositionFingerprint(base, candidate),
+      }));
+      continue;
+    }
     const productSpec = product.get(candidate.path);
     if (productSpec) {
       const base = {
@@ -1449,7 +1428,8 @@ export const mergeListenerDispositions = (previousEntries, discoveredEntries, ca
   return discoveredEntries.map((discovered) => {
     const previous = previousByPath.get(discovered.candidate_path);
     const merged = { ...discovered };
-    if (previous) {
+    const forcedLegacy = discovered.candidate_path === 'Dockerfile.railway';
+    if (previous && !forcedLegacy) {
       for (const field of [
         'disposition',
         'row_namespace',
@@ -1464,12 +1444,44 @@ export const mergeListenerDispositions = (previousEntries, discoveredEntries, ca
     }
     const candidate = candidates.find((entry) => entry.path === merged.candidate_path);
     const fingerprint = listenerDispositionFingerprint(merged, candidate);
-    if (previous?.decision_status === 'approved' && previous.fingerprint !== fingerprint) {
+    if (forcedLegacy || (previous?.decision_status === 'approved' && previous.fingerprint !== fingerprint)) {
       merged.decision_status = 'proposed';
     }
     merged.fingerprint = fingerprint;
     return ListenerDispositionSchema.parse(merged);
   }).sort((left, right) => left.candidate_path.localeCompare(right.candidate_path));
+};
+
+const makeRuntimeExclusions = () => {
+  const base = {
+    id: 'legacy-railway-api-topology',
+    matched_layer: 'legacy-container-and-service-manifests',
+    rule: 'undeployed; inventory-gated; excluded from production topology',
+    evidence: ['Dockerfile.railway', 'railway.toml'],
+    decision_status: 'proposed',
+    decision_evidence: 'Task7 source-derived legacy Railway topology exclusion.',
+  };
+  return [{ ...base, fingerprint: runtimeExclusionFingerprint(base) }];
+};
+
+const mergeRuntimeExclusions = (previousEntries, discoveredEntries) => {
+  const previousById = new Map((previousEntries ?? []).map((entry) => [entry.id ?? entry.exclusion_id ?? entry.layer_id, entry]));
+  const discoveredIds = new Set();
+  const merged = (discoveredEntries ?? []).map((entry) => {
+    const id = entry.id ?? entry.exclusion_id ?? entry.layer_id;
+    discoveredIds.add(id);
+    const previous = previousById.get(id);
+    if (previous?.fingerprint === entry.fingerprint) return { ...entry, ...Object.fromEntries([
+      'decision_status', 'decision_evidence',
+    ].filter((field) => Object.prototype.hasOwnProperty.call(previous, field)).map((field) => [field, previous[field]])) };
+    return entry;
+  });
+  for (const entry of previousEntries ?? []) {
+    const id = entry.id ?? entry.exclusion_id ?? entry.layer_id;
+    if (!discoveredIds.has(id)) merged.push(entry);
+  }
+  return merged.sort((left, right) => String(left.id ?? left.exclusion_id ?? left.layer_id)
+    .localeCompare(String(right.id ?? right.exclusion_id ?? right.layer_id)));
 };
 
 const makeListenerRows = ({ dispositions, snapshotId }) => {
@@ -1479,15 +1491,20 @@ const makeListenerRows = ({ dispositions, snapshotId }) => {
     const routes = extractProductRoutes(disposition, { rootDir: repoRoot });
     for (const route of routes) {
       const id = canonicalRowId(route.id);
-      const deployment = disposition.listener_id === 'worker-health' ? 'railway-worker' : 'ml-service-local';
-      const runtime = disposition.listener_id === 'worker-health' ? 'service_listener' : 'service_listener';
+      const exposureTargets = disposition.listener_id === 'worker-health'
+        ? [
+            'local-process',
+            'railway-worker-capital-call-status',
+            'railway-worker-fund-scenario-calc',
+          ].map((deployment) => ({ deployment, runtime: 'service_listener' }))
+        : [{ deployment: 'ml-service-local', runtime: 'service_listener' }];
       rows.set(id, makeRow({
         id,
         seam: disposition.listener_id,
         interface: 'http-api',
-        reachability: deployment === 'ml-service-local' ? 'local' : 'railway',
+        reachability: disposition.listener_id === 'worker-health' ? 'railway' : 'local',
         proven_reachability: 'none',
-        exposures: [makeExposure({
+        exposures: exposureTargets.map(({ deployment, runtime }) => makeExposure({
           deployment,
           runtime,
           mountEvidence: `${disposition.candidate_path}:${route.line}`,
@@ -1498,7 +1515,7 @@ const makeListenerRows = ({ dispositions, snapshotId }) => {
             rewrite_evidence: `${disposition.candidate_path} listener`,
           }],
           snapshotId,
-        })],
+        })),
         evidence: [
           `${route.file}:${route.line}`,
           ...candidate.patterns.map((pattern) => `${candidate.path}:${pattern.line}`),
@@ -1988,6 +2005,8 @@ const buildRows = ({ kg, runtimeDocuments, listenerDispositions, dormantCandidat
 const seed = async () => {
   const kg = await readKnowledgeGraph();
   const bootProofDocument = BootProofDocumentSchema.parse(readJson(bootProofPath, undefined));
+  const gitHead = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot }).toString().trim();
+  assertBootProofSourceSha(bootProofDocument, kg.manifest, gitHead);
   const candidates = discoverHttpListenerCandidates({ rootDir: repoRoot });
   const previousListenerDispositions = readJson(listenerDispositionPath, []);
   const listenerDispositions = mergeListenerDispositions(
@@ -2083,7 +2102,10 @@ const seed = async () => {
   writeJson(listenerDispositionPath, listenerDispositions);
   writeJson(dormantCandidatesPath, mergedDormantCandidates);
   writeJson(dormantInventoryPath, dormantInventory);
-  writeJson(runtimeExclusionsPath, readJson(runtimeExclusionsPath, []));
+  writeJson(runtimeExclusionsPath, mergeRuntimeExclusions(
+    readJson(runtimeExclusionsPath, []),
+    makeRuntimeExclusions(),
+  ));
   writeJson(conditionOverridesPath, readJson(conditionOverridesPath, {}));
   writeJson(definitionOverridesPath, readJson(definitionOverridesPath, {}));
   writeJson(orphansPath, matrix.orphans ?? []);

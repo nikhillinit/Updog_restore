@@ -259,7 +259,7 @@ describe('surface contract matrix CI gate', () => {
     const backtesting = matrix.rows.find((row) => row.id === 'worker:backtesting-jobs');
     expect(
       backtesting?.exposures.map((exposure) => `${exposure.deployment}|${exposure.runtime}`)
-    ).toEqual(['railway-api|create_server']);
+    ).toEqual(['local-process|worker_process']);
 
     const families = matchRequirementFamilies(requirements, matrix.rows);
     for (const family of families) {

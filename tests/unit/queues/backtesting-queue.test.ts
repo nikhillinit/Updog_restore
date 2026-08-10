@@ -145,13 +145,17 @@ describe('initializeBacktestingQueue', () => {
   beforeEach(async () => {
     vi.resetModules();
     capturedProcessorRef.current = null;
+    mockQueue.close.mockReset().mockResolvedValue(undefined);
+    mockQueue.on.mockReset();
+    mockWorker.close.mockReset().mockResolvedValue(undefined);
+    mockWorker.on.mockReset();
     mod = await import('../../../server/queues/backtesting-queue');
   });
 
   it('creates Queue and Worker with expected arguments', async () => {
     const { Queue, Worker } = await import('bullmq');
 
-    const result = await mod.initializeBacktestingQueue(fakeRedis);
+    const result = await mod.initializeBacktestingQueue(fakeRedis, { startConsumer: true });
 
     expect(Queue).toHaveBeenCalledWith(
       'backtesting-jobs',
@@ -175,12 +179,54 @@ describe('initializeBacktestingQueue', () => {
   });
 
   it('close() calls queue.close() and worker.close()', async () => {
-    const { close } = await mod.initializeBacktestingQueue(fakeRedis);
+    const { close } = await mod.initializeBacktestingQueue(fakeRedis, { startConsumer: true });
 
     await close();
 
     expect(mockQueue.close).toHaveBeenCalled();
     expect(mockWorker.close).toHaveBeenCalled();
+  });
+
+  it('creates no worker or stale-job timer in producer-only mode', async () => {
+    const { Queue, Worker } = await import('bullmq');
+    const setIntervalSpy = vi.spyOn(global, 'setInterval');
+    vi.mocked(Queue).mockClear();
+    vi.mocked(Worker).mockClear();
+    const result = await mod.initializeBacktestingQueue(fakeRedis, { startConsumer: false });
+
+    try {
+      expect(Queue).toHaveBeenCalledTimes(1);
+      expect(Worker).not.toHaveBeenCalled();
+      expect(setIntervalSpy).not.toHaveBeenCalled();
+    } finally {
+      await result.close();
+      setIntervalSpy.mockRestore();
+    }
+  });
+
+  it('closes every constructed resource when worker listener setup fails', async () => {
+    mockWorker.on.mockImplementationOnce(() => {
+      throw new Error('listener setup failed');
+    });
+
+    await expect(
+      mod.initializeBacktestingQueue(fakeRedis, { startConsumer: true })
+    ).rejects.toThrow('listener setup failed');
+
+    expect(mockWorker.close).toHaveBeenCalledTimes(1);
+    expect(mockQueue.close).toHaveBeenCalledTimes(1);
+    expect(mod.isBacktestingQueueInitialized()).toBe(false);
+  });
+
+  it('attempts later close operations after an earlier resource close rejects', async () => {
+    const { close } = await mod.initializeBacktestingQueue(fakeRedis, { startConsumer: true });
+    mockWorker.close.mockRejectedValueOnce(new Error('worker close failed'));
+
+    await expect(close()).resolves.toBeUndefined();
+
+    expect(mockWorker.close).toHaveBeenCalledTimes(1);
+    expect(mockQueue.close).toHaveBeenCalledTimes(1);
+    expect(mod.isBacktestingQueueInitialized()).toBe(false);
   });
 });
 
@@ -210,7 +256,7 @@ describe('enqueueBacktestJob', () => {
   });
 
   it('returns jobId, estimatedWaitMs, and deduplicated: false', async () => {
-    await mod.initializeBacktestingQueue(fakeRedis);
+    await mod.initializeBacktestingQueue(fakeRedis, { startConsumer: true });
     mockQueue.getWaitingCount.mockResolvedValue(2);
 
     const result = await mod.enqueueBacktestJob({
@@ -229,7 +275,7 @@ describe('enqueueBacktestJob', () => {
   });
 
   it('deduplicates with same idempotencyKey while job is non-terminal', async () => {
-    await mod.initializeBacktestingQueue(fakeRedis);
+    await mod.initializeBacktestingQueue(fakeRedis, { startConsumer: true });
 
     const first = await mod.enqueueBacktestJob({
       config: makeConfig(),
@@ -260,7 +306,7 @@ describe('enqueueBacktestJob', () => {
   });
 
   it('allows re-enqueue after job reaches terminal status', async () => {
-    await mod.initializeBacktestingQueue(fakeRedis);
+    await mod.initializeBacktestingQueue(fakeRedis, { startConsumer: true });
 
     const first = await mod.enqueueBacktestJob({
       config: makeConfig(),
@@ -315,7 +361,7 @@ describe('Worker processor', () => {
     mockRunBacktest.mockClear();
     mockRunBacktest.mockResolvedValue({ backtestId: 'bt-result-123' });
     mod = await import('../../../server/queues/backtesting-queue');
-    await mod.initializeBacktestingQueue(fakeRedis);
+    await mod.initializeBacktestingQueue(fakeRedis, { startConsumer: true });
   });
 
   afterEach(() => {
@@ -446,7 +492,7 @@ describe('subscribeToBacktestJob', () => {
     mockRunBacktest.mockClear();
     mockRunBacktest.mockResolvedValue({ backtestId: 'bt-sub-123' });
     mod = await import('../../../server/queues/backtesting-queue');
-    await mod.initializeBacktestingQueue(fakeRedis);
+    await mod.initializeBacktestingQueue(fakeRedis, { startConsumer: true });
   });
 
   it('onComplete fires when completed event is emitted', async () => {
@@ -497,7 +543,7 @@ describe('getBacktestJobStatus', () => {
     mockRunBacktest.mockClear();
     mockRunBacktest.mockResolvedValue({ backtestId: 'bt-mem-123' });
     mod = await import('../../../server/queues/backtesting-queue');
-    await mod.initializeBacktestingQueue(fakeRedis);
+    await mod.initializeBacktestingQueue(fakeRedis, { startConsumer: true });
   });
 
   it('returns unknown status when jobId is not found', async () => {

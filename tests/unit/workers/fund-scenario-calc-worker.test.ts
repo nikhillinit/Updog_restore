@@ -8,16 +8,21 @@ const {
   reserveFailureCounterMock,
   fundScenarioHardTimeoutsMock,
   fundScenarioHardTimeoutDurationMock,
+  workerJobDurationMock,
   loggerInfoMock,
   loggerErrorMock,
   workerConstructorMock,
+  workerCloseMock,
   queueConstructorMock,
   queueUpsertSchedulerMock,
   queueCloseMock,
   sweepDeadlineMock,
   registerWorkerMock,
+  unregisterWorkerMock,
   createHealthServerMock,
+  healthServerCloseMock,
   getQueueConnectionOptionsMock,
+  resolveWorkerDeploymentIdentityMock,
 } = vi.hoisted(() => ({
   runReserveScenarioCalculationMock: vi.fn(),
   ownershipLostOutcome: { kind: 'ownership_lost' as const },
@@ -26,16 +31,21 @@ const {
   reserveFailureCounterMock: vi.fn(),
   fundScenarioHardTimeoutsMock: { inc: vi.fn() },
   fundScenarioHardTimeoutDurationMock: { observe: vi.fn() },
+  workerJobDurationMock: { observe: vi.fn() },
   loggerInfoMock: vi.fn(),
   loggerErrorMock: vi.fn(),
   workerConstructorMock: vi.fn(),
+  workerCloseMock: vi.fn().mockResolvedValue(undefined),
   queueConstructorMock: vi.fn(),
   queueUpsertSchedulerMock: vi.fn().mockResolvedValue(undefined),
   queueCloseMock: vi.fn().mockResolvedValue(undefined),
   sweepDeadlineMock: vi.fn().mockResolvedValue({ reconciledCount: 0, timedOutCount: 0 }),
   registerWorkerMock: vi.fn(),
+  unregisterWorkerMock: vi.fn(),
   createHealthServerMock: vi.fn(),
+  healthServerCloseMock: vi.fn().mockResolvedValue(undefined),
   getQueueConnectionOptionsMock: vi.fn(),
+  resolveWorkerDeploymentIdentityMock: vi.fn(),
 }));
 
 vi.mock('../../../server/services/fund-scenario-reserve-calculation-service', () => ({
@@ -62,12 +72,18 @@ vi.mock('../../../lib/metrics', () => ({
     engineErrors: { inc: reserveEngineErrorMock },
     fundScenarioHardTimeouts: fundScenarioHardTimeoutsMock,
     fundScenarioHardTimeoutDuration: fundScenarioHardTimeoutDurationMock,
+    workerJobDuration: workerJobDurationMock,
   },
 }));
 
 vi.mock('../../../workers/health-server', () => ({
   registerWorker: registerWorkerMock,
+  unregisterWorker: unregisterWorkerMock,
   createHealthServer: createHealthServerMock,
+}));
+
+vi.mock('../../../workers/worker-deployment-identity', () => ({
+  resolveWorkerDeploymentIdentity: resolveWorkerDeploymentIdentityMock,
 }));
 
 vi.mock('../../../server/services/fund-scenario-calculation-run-service', () => ({
@@ -101,7 +117,7 @@ vi.mock('bullmq', () => ({
       return this;
     };
 
-    close = vi.fn();
+    close = workerCloseMock;
   },
 }));
 
@@ -118,35 +134,46 @@ describe('fund scenario calc worker handler', () => {
 
     expect(handleFundScenarioCalcJob.length).toBe(3);
 
-    const result = await handleFundScenarioCalcJob({
-      id: 'job-1',
-      attemptsMade: 0,
-      opts: { attempts: 2 },
-      data: {
+    const result = await handleFundScenarioCalcJob(
+      {
+        id: 'job-1',
+        attemptsMade: 0,
+        opts: { attempts: 2 },
+        data: {
+          fundId: 1,
+          scenarioSetId: '00000000-0000-0000-0000-000000000111',
+          correlationId: '00000000-0000-0000-0000-000000000123',
+          calculationMode: 'async_reserve_allocation',
+          runId: 'run-1',
+          actor: { userId: 17, label: 'analyst@example.com' },
+        },
+      },
+      'bullmq-token',
+      signal
+    );
+
+    expect(result).toEqual({ snapshotId: 42 });
+    expect(runReserveScenarioCalculationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
         fundId: 1,
         scenarioSetId: '00000000-0000-0000-0000-000000000111',
         correlationId: '00000000-0000-0000-0000-000000000123',
-        calculationMode: 'async_reserve_allocation',
-        runId: 'run-1',
         actor: { userId: 17, label: 'analyst@example.com' },
-      },
-    }, 'bullmq-token', signal);
-
-    expect(result).toEqual({ snapshotId: 42 });
-    expect(runReserveScenarioCalculationMock).toHaveBeenCalledWith(expect.objectContaining({
-      fundId: 1,
-      scenarioSetId: '00000000-0000-0000-0000-000000000111',
-      correlationId: '00000000-0000-0000-0000-000000000123',
-      actor: { userId: 17, label: 'analyst@example.com' },
-      jobId: 'job-1',
-      runId: 'run-1',
-      isFinalAttempt: false,
-      signal: expect.any(AbortSignal),
-      abortController: expect.any(AbortController),
-    }));
+        jobId: 'job-1',
+        runId: 'run-1',
+        isFinalAttempt: false,
+        signal: expect.any(AbortSignal),
+        abortController: expect.any(AbortController),
+      })
+    );
     expect(loggerInfoMock).toHaveBeenCalledWith(
       'Processing reserve scenario calculation',
       expect.objectContaining({ jobId: 'job-1' })
+    );
+    expect(workerJobDurationMock.observe).toHaveBeenCalledTimes(1);
+    expect(workerJobDurationMock.observe).toHaveBeenCalledWith(
+      { worker_type: 'fund-scenario-calc', outcome: 'success' },
+      expect.any(Number)
     );
   });
 
@@ -202,6 +229,11 @@ describe('fund scenario calc worker handler', () => {
       expect.any(Error),
       expect.objectContaining({ jobId: 'job-2' })
     );
+    expect(workerJobDurationMock.observe).toHaveBeenCalledTimes(1);
+    expect(workerJobDurationMock.observe).toHaveBeenCalledWith(
+      { worker_type: 'fund-scenario-calc', outcome: 'failure' },
+      expect.any(Number)
+    );
   });
 
   it('routes tagged hard-timeout aborts to an unrecoverable BullMQ failure', async () => {
@@ -231,6 +263,11 @@ describe('fund scenario calc worker handler', () => {
 
     expect(fundScenarioHardTimeoutsMock.inc).toHaveBeenCalledTimes(1);
     expect(fundScenarioHardTimeoutDurationMock.observe).toHaveBeenCalledWith(30);
+    expect(workerJobDurationMock.observe).toHaveBeenCalledTimes(1);
+    expect(workerJobDurationMock.observe).toHaveBeenCalledWith(
+      { worker_type: 'fund-scenario-calc', outcome: 'hard_timeout' },
+      expect.any(Number)
+    );
     expect(loggerErrorMock).not.toHaveBeenCalled();
   });
 
@@ -258,6 +295,14 @@ describe('fund scenario calc worker startup', () => {
     delete process.env['PORT'];
     delete process.env['WORKER_HEALTH_PORT'];
     delete process.env['FUND_SCENARIO_SWEEP_ENABLED'];
+    resolveWorkerDeploymentIdentityMock.mockReset();
+    resolveWorkerDeploymentIdentityMock.mockReturnValue({
+      version: '1.5.0',
+      commit: 'a'.repeat(40),
+      environment: 'production',
+      workerType: 'fund-scenario-calc',
+      deploymentId: 'deployment-123',
+    });
     getQueueConnectionOptionsMock.mockReturnValue({
       host: 'queue-host',
       port: 6380,
@@ -265,6 +310,7 @@ describe('fund scenario calc worker startup', () => {
       password: 'queue-pass',
       db: 4,
     });
+    createHealthServerMock.mockResolvedValue({ close: healthServerCloseMock });
   });
 
   afterEach(() => {
@@ -304,9 +350,11 @@ describe('fund scenario calc worker startup', () => {
     const { startFundScenarioCalcWorker } =
       await import('../../../workers/fund-scenario-calc-worker');
 
-    startFundScenarioCalcWorker({ healthPort: 0 });
+    const runtime = startFundScenarioCalcWorker({ healthPort: 0 });
+    await runtime.ready;
 
     expect(getQueueConnectionOptionsMock).toHaveBeenCalledTimes(1);
+    expect(resolveWorkerDeploymentIdentityMock).toHaveBeenCalledWith('fund-scenario-calc');
     expect(workerConstructorMock).toHaveBeenCalledWith(
       'fund-scenario-calc',
       expect.any(Function),
@@ -321,7 +369,10 @@ describe('fund scenario calc worker startup', () => {
       })
     );
     expect(registerWorkerMock).toHaveBeenCalledWith('fund-scenario-calc', expect.any(Object));
-    expect(createHealthServerMock).toHaveBeenCalledWith(0);
+    expect(createHealthServerMock).toHaveBeenCalledWith(
+      0,
+      expect.objectContaining({ workerType: 'fund-scenario-calc' })
+    );
   });
 
   it('falls back to Railway PORT when WORKER_HEALTH_PORT resolves empty', async () => {
@@ -330,9 +381,13 @@ describe('fund scenario calc worker startup', () => {
     const { startFundScenarioCalcWorker } =
       await import('../../../workers/fund-scenario-calc-worker');
 
-    startFundScenarioCalcWorker();
+    const runtime = startFundScenarioCalcWorker();
+    await runtime.ready;
 
-    expect(createHealthServerMock).toHaveBeenCalledWith(19234);
+    expect(createHealthServerMock).toHaveBeenCalledWith(
+      19234,
+      expect.objectContaining({ workerType: 'fund-scenario-calc' })
+    );
   });
 
   it('ignores unresolved Railway variable templates when selecting the health port', async () => {
@@ -341,9 +396,13 @@ describe('fund scenario calc worker startup', () => {
     const { startFundScenarioCalcWorker } =
       await import('../../../workers/fund-scenario-calc-worker');
 
-    startFundScenarioCalcWorker();
+    const runtime = startFundScenarioCalcWorker();
+    await runtime.ready;
 
-    expect(createHealthServerMock).toHaveBeenCalledWith(19235);
+    expect(createHealthServerMock).toHaveBeenCalledWith(
+      19235,
+      expect.objectContaining({ workerType: 'fund-scenario-calc' })
+    );
   });
 
   it('attaches an error listener that logs sanitized errors without Redis command args', async () => {
@@ -371,6 +430,109 @@ describe('fund scenario calc worker startup', () => {
     expect(JSON.stringify(call)).not.toContain('"command"');
   });
 
+  it('does not expose health when deadline initialization rejects', async () => {
+    process.env['FUND_SCENARIO_SWEEP_ENABLED'] = '1';
+    queueUpsertSchedulerMock.mockRejectedValueOnce(new Error('scheduler unavailable'));
+    const { startFundScenarioCalcWorker } =
+      await import('../../../workers/fund-scenario-calc-worker');
+
+    const runtime = startFundScenarioCalcWorker({ healthPort: 0 });
+
+    expect(createHealthServerMock).not.toHaveBeenCalled();
+    await expect(runtime.ready).rejects.toThrow('scheduler unavailable');
+    expect(createHealthServerMock).not.toHaveBeenCalled();
+    expect(workerCloseMock).toHaveBeenCalledTimes(1);
+    expect(queueCloseMock).toHaveBeenCalledTimes(1);
+    expect(registerWorkerMock).not.toHaveBeenCalled();
+    expect(unregisterWorkerMock).toHaveBeenCalledTimes(1);
+
+    await expect(runtime.close()).resolves.toBeUndefined();
+    expect(workerCloseMock).toHaveBeenCalledTimes(1);
+    expect(queueCloseMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves the scheduler error while independently closing worker and queue', async () => {
+    process.env['FUND_SCENARIO_SWEEP_ENABLED'] = '1';
+    const failure = new Error('deadline sweep unavailable');
+    queueUpsertSchedulerMock.mockRejectedValueOnce(failure);
+    workerCloseMock.mockRejectedValueOnce(new Error('worker cleanup failed'));
+    const { startFundScenarioCalcWorker } =
+      await import('../../../workers/fund-scenario-calc-worker');
+
+    const runtime = startFundScenarioCalcWorker({ healthPort: 0 });
+
+    await expect(runtime.ready).rejects.toBe(failure);
+    expect(workerCloseMock).toHaveBeenCalledTimes(1);
+    expect(queueCloseMock).toHaveBeenCalledTimes(1);
+    expect(registerWorkerMock).not.toHaveBeenCalled();
+    expect(unregisterWorkerMock).toHaveBeenCalledTimes(1);
+    expect(createHealthServerMock).not.toHaveBeenCalled();
+  });
+
+  it('makes close idempotent and still closes the queue when worker cleanup rejects', async () => {
+    process.env['FUND_SCENARIO_SWEEP_ENABLED'] = '1';
+    workerCloseMock.mockRejectedValueOnce(new Error('worker cleanup failed'));
+    const { startFundScenarioCalcWorker } =
+      await import('../../../workers/fund-scenario-calc-worker');
+    const runtime = startFundScenarioCalcWorker({ healthPort: null });
+    await runtime.ready;
+
+    await expect(runtime.close()).rejects.toThrow('worker cleanup failed');
+    await expect(runtime.close()).rejects.toThrow('worker cleanup failed');
+    expect(workerCloseMock).toHaveBeenCalledTimes(1);
+    expect(queueCloseMock).toHaveBeenCalledTimes(1);
+    expect(unregisterWorkerMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes the owned health listener during idempotent shutdown', async () => {
+    const { startFundScenarioCalcWorker } =
+      await import('../../../workers/fund-scenario-calc-worker');
+    const runtime = startFundScenarioCalcWorker({ healthPort: 0 });
+    await runtime.ready;
+
+    await runtime.close();
+    await runtime.close();
+
+    expect(healthServerCloseMock).toHaveBeenCalledTimes(1);
+    expect(workerCloseMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['SIGTERM', 'SIGINT'] as const)(
+    'does not register or expose health when %s arrives before scheduler readiness',
+    async (signal) => {
+      process.env['FUND_SCENARIO_SWEEP_ENABLED'] = '1';
+      let resolveScheduler: (() => void) | undefined;
+      queueUpsertSchedulerMock.mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveScheduler = resolve;
+          })
+      );
+      const handlers = new Map<string, () => Promise<void>>();
+      const processOnSpy = vi.spyOn(process, 'on').mockImplementation(((event, handler) => {
+        handlers.set(String(event), handler as () => Promise<void>);
+        return process;
+      }) as typeof process.on);
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+      const { startFundScenarioCalcWorker } =
+        await import('../../../workers/fund-scenario-calc-worker');
+      const runtime = startFundScenarioCalcWorker({ healthPort: 0, installSignalHandlers: true });
+
+      const shutdown = handlers.get(signal)?.();
+      resolveScheduler?.();
+      await runtime.ready.catch(() => undefined);
+      await shutdown;
+
+      expect(registerWorkerMock).not.toHaveBeenCalled();
+      expect(createHealthServerMock).not.toHaveBeenCalled();
+      expect(workerCloseMock).toHaveBeenCalledTimes(1);
+      expect(queueCloseMock).toHaveBeenCalledTimes(1);
+      if (signal === 'SIGINT') expect(exitSpy).toHaveBeenCalledWith(0);
+      processOnSpy.mockRestore();
+      exitSpy.mockRestore();
+    }
+  );
+
   it('fails fast when queue Redis is not configured', async () => {
     getQueueConnectionOptionsMock.mockReturnValue(null);
     const { startFundScenarioCalcWorker } =
@@ -382,5 +544,26 @@ describe('fund scenario calc worker startup', () => {
     expect(workerConstructorMock).not.toHaveBeenCalled();
     expect(registerWorkerMock).not.toHaveBeenCalled();
     expect(createHealthServerMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects an invalid deployment identity before queue, worker, health, or registration side effects', async () => {
+    const identityError = new Error('Worker deployment identity is invalid');
+    resolveWorkerDeploymentIdentityMock.mockImplementation(() => {
+      throw identityError;
+    });
+    const processOnSpy = vi.spyOn(process, 'on');
+    const { startFundScenarioCalcWorker } =
+      await import('../../../workers/fund-scenario-calc-worker');
+
+    expect(() =>
+      startFundScenarioCalcWorker({ healthPort: 0, installSignalHandlers: true })
+    ).toThrow(identityError);
+    expect(getQueueConnectionOptionsMock).not.toHaveBeenCalled();
+    expect(queueConstructorMock).not.toHaveBeenCalled();
+    expect(workerConstructorMock).not.toHaveBeenCalled();
+    expect(sweepDeadlineMock).not.toHaveBeenCalled();
+    expect(registerWorkerMock).not.toHaveBeenCalled();
+    expect(createHealthServerMock).not.toHaveBeenCalled();
+    expect(processOnSpy).not.toHaveBeenCalled();
   });
 });

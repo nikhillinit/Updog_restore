@@ -30,8 +30,18 @@ const proofObservedAt = ({ deployment, runtime, boot_status, command_or_artifact
     result,
   })).digest('hex')}`;
 
-const sanitizedBaseEnv = () => ({
-  PATH: process.env.PATH,
+const VERCEL_BUILD_ENV_KEYS = Object.freeze([
+  'VERCEL_TOKEN',
+  'VERCEL_ORG_ID',
+  'VERCEL_PROJECT_ID',
+]);
+
+const requiredVercelBuildCredentials = (environment = process.env) => Object.fromEntries(
+  VERCEL_BUILD_ENV_KEYS.map((key) => [key, environment[key]?.trim()])
+);
+
+const sanitizedBaseEnv = (environment = process.env) => ({
+  PATH: environment.PATH,
   TZ: 'UTC',
   CI: '1',
   NODE_ENV: 'test',
@@ -68,7 +78,45 @@ const sanitizedBaseEnv = () => ({
   HUSKY: '0',
 });
 
-const proofEnv = (overrides = {}) => ({ ...sanitizedBaseEnv(), ...overrides });
+export const proofEnv = (overrides = {}, environment = process.env) => ({
+  ...sanitizedBaseEnv(environment),
+  ...overrides,
+});
+
+export const vercelBuildEnvironment = (environment = process.env) => ({
+  ...proofEnv({}, environment),
+  ...requiredVercelBuildCredentials(environment),
+});
+
+export const assertStrictVercelBuildCredentials = (environment = process.env) => {
+  const credentials = requiredVercelBuildCredentials(environment);
+  for (const key of VERCEL_BUILD_ENV_KEYS) {
+    if (!credentials[key]) throw new Error(`${key} is required for strict Vercel build proof`);
+  }
+  return credentials;
+};
+
+export const redactChildOutput = (value, environment = process.env) => {
+  let redacted = String(value);
+  for (const credential of Object.values(requiredVercelBuildCredentials(environment))) {
+    if (credential) redacted = redacted.split(credential).join('[REDACTED]');
+  }
+  return redacted;
+};
+
+export const withVercelCredentialsMasked = async (action, environment = process.env) => {
+  const original = Object.fromEntries(VERCEL_BUILD_ENV_KEYS.map((key) => [key, process.env[key]]));
+  const redactionEnvironment = requiredVercelBuildCredentials(environment);
+  for (const key of VERCEL_BUILD_ENV_KEYS) delete process.env[key];
+  try {
+    return await action(redactionEnvironment);
+  } finally {
+    for (const [key, value] of Object.entries(original)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+};
 
 const commandResult = (command, args, env, timeout = 180_000) => {
   const result = spawnSync(command, args, {
@@ -228,7 +276,7 @@ const runHttpProcess = async ({ command, args, env, port, paths, containerName }
   };
 };
 
-const evidence = ({ deployment, runtime, boot_status, command_or_artifact, probe, result }) => ({
+const evidence = ({ deployment, runtime, boot_status, command_or_artifact, probe, result, worker_identity }) => ({
   deployment,
   ...(runtime ? { runtime } : {}),
   boot_status,
@@ -238,7 +286,19 @@ const evidence = ({ deployment, runtime, boot_status, command_or_artifact, probe
     result,
     observed_at: proofObservedAt({ deployment, runtime, boot_status, command_or_artifact, probe, result }),
   },
+  ...(worker_identity ? { worker_identity } : {}),
 });
+
+export const workerRuntimeProofs = (workerProcessProof) => {
+  if (workerProcessProof.runtime !== 'worker_process'
+    || !workerProcessProof.deployment.startsWith('railway-worker-')) {
+    throw new Error('Worker runtime proof fan-out requires a Railway worker_process proof');
+  }
+  return [
+    workerProcessProof,
+    { ...workerProcessProof, runtime: 'service_listener' },
+  ];
+};
 
 const unavailableCommandCodes = new Set(['ENOENT', 'EACCES']);
 
@@ -255,8 +315,8 @@ const commandFailureDetail = (result = {}) => {
   return ` with status ${result.status ?? 'unknown'}`;
 };
 
-const commandFailureResult = (label, result = {}) => {
-  const output = `${result.stderr ?? ''}\n${result.stdout ?? ''}`.trim().replaceAll(/\s+/g, ' ');
+const commandFailureResult = (label, result = {}, environment = process.env) => {
+  const output = redactChildOutput(`${result.stderr ?? ''}\n${result.stdout ?? ''}`, environment).trim().replaceAll(/\s+/g, ' ');
   return `${label} failed${commandFailureDetail(result)}${output ? `: ${output.slice(0, 600)}` : ''}`;
 };
 
@@ -267,13 +327,14 @@ export const commandFailureEvidence = ({
   probe,
   label,
   result,
+  environment,
 }) => evidence({
   deployment,
   runtime,
   boot_status: bootStatusForCommandResult(result),
   command_or_artifact,
   probe,
-  result: commandFailureResult(label, result),
+  result: commandFailureResult(label, result, environment),
 });
 
 const failureSummary = (result, fallback) => {
@@ -300,168 +361,65 @@ const dockerFailure = (label, result) => {
   return commandFailureResult(label, result);
 };
 
-export const workerConsumerIsHealthy = ({ health, stats }) => {
-  const expectedWorker = health?.workers?.find((worker) => worker.name === 'fund-scenario-calc');
-  const expectedStats = stats?.workers?.find((worker) => worker.name === 'fund-scenario-calc');
+export const workerConsumerIsHealthy = ({
+  health,
+  stats,
+  workerType = 'fund-scenario-calc',
+  sourceSha,
+  deploymentId,
+}) => {
+  const expectedWorker = health?.workers?.find((worker) => worker.name === workerType);
+  const expectedStats = stats?.workers?.find((worker) => worker.name === workerType);
   return Boolean(expectedWorker && expectedStats
     && expectedWorker.status === 'healthy'
-    && expectedWorker.isRunning === true);
+    && expectedWorker.isRunning === true
+    && (sourceSha === undefined || (
+      health?.status === 'healthy'
+      && health?.workerType === workerType
+      && health?.commit === sourceSha
+      && health?.deploymentId === deploymentId
+    )));
 };
 
-const dockerfileDirectives = (content) => {
-  const directives = [];
-  let logicalLine = '';
-  for (const physicalLine of String(content ?? '').split('\n')) {
-    const line = physicalLine.trim();
-    if (!logicalLine && (!line || line.startsWith('#'))) continue;
-    logicalLine = logicalLine ? `${logicalLine} ${line}` : line;
-    if (/\\\s*$/.test(logicalLine)) {
-      logicalLine = logicalLine.replace(/\\\s*$/, '');
-      continue;
-    }
-    if (logicalLine) directives.push(logicalLine);
-    logicalLine = '';
-  }
-  if (logicalLine) directives.push(logicalLine);
-  return directives;
-};
-
-const lastDockerfileDirective = (content, keyword) => dockerfileDirectives(content)
-  .findLast((line) => line.toUpperCase().startsWith(keyword));
-
-const dockerfileLine = (file, keyword) => lastDockerfileDirective(
-  fs.readFileSync(path.join(repoRoot, file), 'utf8'),
-  keyword,
-);
-
-const railwayApiExpectedEntrypoint = Object.freeze(['dumb-init', '--']);
-const railwayApiExpectedCmd = Object.freeze(['node', 'dist/index.js']);
-
-const parseExecFormDirective = (value, keyword) => {
-  const line = String(value ?? '').trim();
-  if (!line.toUpperCase().startsWith(keyword)) return undefined;
-  const payload = line.slice(keyword.length).trim();
-  if (!payload.startsWith('[')) return undefined;
-  try {
-    const parsed = JSON.parse(payload);
-    return Array.isArray(parsed) && parsed.every((entry) => typeof entry === 'string')
-      ? parsed
-      : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
-export const railwayApiDockerfileContractCheck = ({ entrypoint, cmd, content } = {}) => {
-  const dockerfile = String(content ?? '');
-  const resolvedEntrypoint = entrypoint ?? lastDockerfileDirective(dockerfile, 'ENTRYPOINT');
-  const resolvedCmd = cmd ?? lastDockerfileDirective(dockerfile, 'CMD');
-  const actualEntrypoint = parseExecFormDirective(resolvedEntrypoint, 'ENTRYPOINT');
-  const actualCmd = parseExecFormDirective(resolvedCmd, 'CMD');
-  const ok = JSON.stringify(actualEntrypoint) === JSON.stringify(railwayApiExpectedEntrypoint)
-    && JSON.stringify(actualCmd) === JSON.stringify(railwayApiExpectedCmd);
-  return {
-    ok,
-    expected: {
-      entrypoint: [...railwayApiExpectedEntrypoint],
-      cmd: [...railwayApiExpectedCmd],
-    },
-    actual: {
-      entrypoint: actualEntrypoint,
-      cmd: actualCmd,
-    },
-    result: ok
-      ? 'Dockerfile.railway ENTRYPOINT and CMD match the exact container launch contract'
-      : 'Dockerfile.railway ENTRYPOINT/CMD do not match the exact container launch contract',
-  };
-};
-
-export const railwayApiRuntimeOutcome = ({
-  dockerAvailable: hasDocker,
-  containerListener = false,
-  localListener,
-  listener,
-} = {}) => {
-  if (hasDocker !== true) {
-    const localObservation = localListener === true
-      ? 'local dist/index.js listener responded'
-      : localListener === false
-        ? 'local dist/index.js listener did not respond'
-        : 'local dist/index.js listener was not executed';
-    return {
-      boot_status: 'unproven',
-      result: `docker unavailable; ${localObservation}; Dockerfile.railway container contract remains unproven`,
-    };
-  }
-  const containerObserved = listener ?? containerListener;
-  return containerObserved
-    ? {
-        boot_status: 'proven',
-        result: 'HTTP listener responded from Dockerfile.railway container entrypoint',
-      }
-    : {
-        boot_status: 'failed',
-        result: 'Dockerfile.railway container executed but its HTTP listener did not satisfy the probe',
-      };
-};
-
-const RAILWAY_API_COMMAND = 'npm run build:prod; Dockerfile.railway ENTRYPOINT ["dumb-init","--"] + CMD ["node","dist/index.js"]';
-const RAILWAY_API_PROBE = 'GET /health; expected HTTP 2xx; 404/405 are failures';
-
-export const railwayApiBuildFailureEvidence = (build) => commandFailureEvidence({
-  deployment: 'railway-api',
-  command_or_artifact: RAILWAY_API_COMMAND,
-  probe: RAILWAY_API_PROBE,
-  label: 'npm run build:prod',
-  result: build,
+export const workerProofEnvironment = ({ workerType, sourceSha, deploymentId }) => ({
+  NODE_ENV: 'production',
+  WORKER_TYPE: workerType,
+  RAILWAY_SERVICE_NAME: workerType,
+  RAILWAY_ENVIRONMENT_NAME: 'production',
+  RAILWAY_GIT_COMMIT_SHA: sourceSha,
+  RAILWAY_DEPLOYMENT_ID: deploymentId,
+  [workerType === 'fund-scenario-calc' ? 'FUND_SCENARIO_HARD_TIMEOUT_MS' : 'CAPITAL_CALL_STATUS_HARD_TIMEOUT_MS']: '30000',
 });
 
-const railwayApiProof = async () => {
-  const command_or_artifact = RAILWAY_API_COMMAND;
-  const probe = RAILWAY_API_PROBE;
-  const build = npmResult('build:prod', proofEnv());
-  if (!build.ok) return railwayApiBuildFailureEvidence(build);
-  const entrypoint = dockerfileLine('Dockerfile.railway', 'ENTRYPOINT');
-  const cmd = dockerfileLine('Dockerfile.railway', 'CMD');
-  const contract = railwayApiDockerfileContractCheck({ entrypoint, cmd });
-  if (!contract.ok) return evidence({ deployment: 'railway-api', boot_status: 'failed', command_or_artifact, probe, result: contract.result });
+export const workerProofPlan = ({ workerType, sourceSha, deploymentId }) => ({
+  workerEnvironment: workerProofEnvironment({ workerType, sourceSha, deploymentId }),
+  steps: [
+    'network',
+    'redis',
+    'postgres',
+    ...(workerType === 'capital-call-status' ? ['capital-schema-preparation'] : []),
+    'image-build',
+    'worker-launch',
+  ],
+});
 
-  let run;
-  const hasDocker = dockerAvailable();
-  if (hasDocker) {
-    const image = commandResult('docker', ['build', '-f', 'Dockerfile.railway', '-t', 'surface-matrix-railway-api-proof:local', '.'], proofEnv(), 300_000);
-    if (!image.ok) return evidence({ deployment: 'railway-api', boot_status: 'failed', command_or_artifact, probe, result: 'Dockerfile.railway image build failed' });
-    run = await runHttpProcess({
-      command: 'docker',
-      args: ['run', '--rm', '--name', 'surface-matrix-railway-api-proof', '-p', `${PORTS.api}:${PORTS.api}`, 'surface-matrix-railway-api-proof:local'],
-      env: proofEnv({ PORT: String(PORTS.api), _EXPLICIT_PORT: '1' }),
-      port: PORTS.api,
-      containerName: 'surface-matrix-railway-api-proof',
-      paths: [{ path: '/health', method: 'GET' }],
-    });
-  } else {
-    run = await runHttpProcess({
-      command: process.execPath,
-      args: ['dist/index.js'],
-      env: proofEnv({ PORT: '0', _EXPLICIT_PORT: '1' }),
-      port: 0,
-      paths: [{ path: '/health', method: 'GET' }],
-    });
+export const executeWorkerProofPlan = async ({ steps, execute }) => {
+  for (const step of steps) {
+    const result = await execute(step);
+    if (!result?.ok) return { ok: false, failedStep: step };
   }
-  const outcome = railwayApiRuntimeOutcome({
-    dockerAvailable: hasDocker,
-    containerListener: hasDocker ? run.proven : false,
-    localListener: hasDocker ? undefined : run.proven,
-  });
-  return evidence({ deployment: 'railway-api', boot_status: outcome.boot_status, command_or_artifact, probe, result: outcome.result });
+  return { ok: true };
 };
 
-const railwayWorkerProof = async () => {
-  const command_or_artifact = 'docker build -f Dockerfile.worker; docker run Dockerfile.worker with Redis and PostgreSQL containers on isolated network';
-  const probe = 'Dockerfile.worker image runs fund-scenario-calc worker; GET /health /live /ready /metrics /stats through mapped port; expected HTTP 2xx; 404/405 are failures';
+const railwayWorkerProof = async ({ workerType, deployment, sourceSha }) => {
+  const command_or_artifact = `docker build -f Dockerfile.worker; docker run ${workerType} worker with isolated Redis and PostgreSQL`;
+  const probe = `Dockerfile.worker runs ${workerType}; GET /health /live /ready /metrics /stats through mapped port with a 30000ms worker timeout`;
+  const plannedWorkerIdentity = { workerType, commit: sourceSha, deploymentId: `surface-matrix-${workerType}` };
+  const plan = workerProofPlan({ workerType, sourceSha, deploymentId: plannedWorkerIdentity.deploymentId });
   if (!dockerAvailable()) {
     return evidence({
-      deployment: 'railway-worker',
+      deployment,
+      runtime: 'worker_process',
       boot_status: 'unproven',
       command_or_artifact,
       probe,
@@ -473,19 +431,19 @@ const railwayWorkerProof = async () => {
   const network = 'surface-matrix-worker-proof-net';
   const redisName = 'surface-matrix-worker-redis-proof';
   const postgresName = 'surface-matrix-worker-postgres-proof';
-  const workerName = 'surface-matrix-worker-proof';
+  const workerName = `surface-matrix-${workerType}-proof`;
   dockerCleanup(workerName);
   dockerCleanup(redisName);
   dockerCleanup(postgresName);
   dockerCleanup(network, 'network');
   try {
     const networkCreate = commandResult('docker', ['network', 'create', network], proofEnv(), 30_000);
-    if (!networkCreate.ok) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('worker proof network creation', networkCreate) });
+    if (!networkCreate.ok) return evidence({ deployment, runtime: 'worker_process', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('worker proof network creation', networkCreate) });
 
     const redis = commandResult('docker', [
       'run', '-d', '--rm', '--name', redisName, '--network', network, 'redis:7-alpine',
     ], proofEnv(), 120_000);
-    if (!redis.ok) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('Redis proof container startup', redis) });
+    if (!redis.ok) return evidence({ deployment, runtime: 'worker_process', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('Redis proof container startup', redis) });
 
     let redisReady = false;
     const redisDeadline = Date.now() + 60_000;
@@ -497,16 +455,17 @@ const railwayWorkerProof = async () => {
       }
       await pause(250);
     }
-    if (!redisReady) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: 'Redis proof container did not become ready; worker proof was not faked' });
+    if (!redisReady) return evidence({ deployment, runtime: 'worker_process', boot_status: 'failed', command_or_artifact, probe, result: 'Redis proof container did not become ready; worker proof was not faked' });
 
+    const schemaPort = 55439;
     const postgres = commandResult('docker', [
-      'run', '-d', '--rm', '--name', postgresName, '--network', network,
+      'run', '-d', '--rm', '--name', postgresName, '--network', network, '-p', `${schemaPort}:5432`,
       '-e', 'POSTGRES_USER=surface-proof',
       '-e', 'POSTGRES_PASSWORD=surface-proof',
       '-e', 'POSTGRES_DB=surface_proof',
       'postgres:16-alpine',
     ], proofEnv(), 120_000);
-    if (!postgres.ok) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('PostgreSQL proof container startup', postgres) });
+    if (!postgres.ok) return evidence({ deployment, runtime: 'worker_process', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('PostgreSQL proof container startup', postgres) });
 
     let postgresReady = false;
     const postgresDeadline = Date.now() + 60_000;
@@ -518,18 +477,25 @@ const railwayWorkerProof = async () => {
       }
       await pause(250);
     }
-    if (!postgresReady) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: 'PostgreSQL proof container did not become ready; worker proof was not faked' });
+    if (!postgresReady) return evidence({ deployment, runtime: 'worker_process', boot_status: 'failed', command_or_artifact, probe, result: 'PostgreSQL proof container did not become ready; worker proof was not faked' });
+
+    if (plan.steps.includes('capital-schema-preparation')) {
+      const schemaPrep = npmResult('db:push', proofEnv({
+        DATABASE_URL: `postgresql://surface-proof:surface-proof@127.0.0.1:${schemaPort}/surface_proof`,
+        _EXPLICIT_DATABASE_URL: '1',
+      }), 300_000);
+      if (!schemaPrep.ok) return evidence({ deployment, runtime: 'worker_process', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('capital-call PostgreSQL schema preparation', schemaPrep) });
+    }
 
     const imageBuild = commandResult('docker', ['build', '-f', 'Dockerfile.worker', '-t', image, '.'], proofEnv(), 600_000);
-    if (!imageBuild.ok) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('Dockerfile.worker image build', imageBuild) });
+    if (!imageBuild.ok) return evidence({ deployment, runtime: 'worker_process', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('Dockerfile.worker image build', imageBuild) });
 
     const run = await runHttpProcess({
       command: 'docker',
       args: [
         'run', '--rm', '--name', workerName, '--network', network,
         '-p', `${PORTS.worker}:9000`,
-        '-e', 'NODE_ENV=production',
-        '-e', 'WORKER_TYPE=fund-scenario-calc',
+        ...Object.entries(plan.workerEnvironment).flatMap(([key, value]) => ['-e', `${key}=${value}`]),
         '-e', 'WORKER_HEALTH_PORT=9000',
         '-e', 'ENABLE_QUEUES=1',
         '-e', `QUEUE_REDIS_URL=redis://${redisName}:6379`,
@@ -544,12 +510,21 @@ const railwayWorkerProof = async () => {
     });
     const health = run.statuses.find((status) => status.path === '/health')?.body_json;
     const stats = run.statuses.find((status) => status.path === '/stats')?.body_json;
-    const consumerRegistered = workerConsumerIsHealthy({ health, stats });
+    const consumerRegistered = workerConsumerIsHealthy({
+      health,
+      stats,
+      workerType,
+      sourceSha,
+      deploymentId: plannedWorkerIdentity.deploymentId,
+    });
     const proven = run.proven && consumerRegistered;
     const result = proven
-      ? 'Dockerfile.worker image stayed alive, Redis connected, and fund-scenario-calc consumer was healthy and registered in /health and /stats'
-      : `Dockerfile.worker container proof failed${!consumerRegistered ? ': /health and /stats did not report a running fund-scenario-calc consumer' : ''}${run.output ? `: ${run.output.trim().replaceAll(/\s+/g, ' ').slice(0, 600)}` : ''}`;
-    return evidence({ deployment: 'railway-worker', boot_status: proven ? 'proven' : 'failed', command_or_artifact, probe, result });
+      ? `Dockerfile.worker image stayed alive, Redis connected, and ${workerType} consumer was healthy and registered in /health and /stats`
+      : `Dockerfile.worker container proof failed${!consumerRegistered ? `: /health and /stats did not report an exact healthy ${workerType} identity` : ''}${run.output ? `: ${run.output.trim().replaceAll(/\s+/g, ' ').slice(0, 600)}` : ''}`;
+    const observedWorkerIdentity = proven
+      ? { workerType: health.workerType, commit: health.commit, deploymentId: health.deploymentId }
+      : undefined;
+    return evidence({ deployment, runtime: 'worker_process', boot_status: proven ? 'proven' : 'failed', command_or_artifact, probe, result, worker_identity: observedWorkerIdentity });
   } finally {
     dockerCleanup(workerName);
     dockerCleanup(redisName);
@@ -583,8 +558,13 @@ const vercelApiProof = async () => {
   return evidence({ deployment: 'vercel-api', runtime: 'make_app', boot_status: construction.ok ? 'proven' : 'failed', command_or_artifact, probe, result: construction.ok ? 'makeApp constructed from built bundle' : failureSummary(construction, 'built bundle makeApp construction failed') });
 };
 
-const VERCEL_FUNCTION_COMMAND = 'vercel build; .vercel/output/functions/**/*.func/index.(js|mjs|cjs)';
+const VERCEL_FUNCTION_COMMAND = 'npx --yes vercel@55.0.0 build --prod --yes; .vercel/output/functions/**/*.func/index.(js|mjs|cjs)';
 const VERCEL_FUNCTION_PROBE = 'enumerate every real Vercel build-output function and invoke its callable handler once';
+
+export const vercelBuildInvocation = () => ({
+  command: 'npx',
+  args: ['--yes', 'vercel@55.0.0', 'build', '--prod', '--yes'],
+});
 
 export const vercelFunctionBuildFailureEvidence = (build) => evidence({
   deployment: 'vercel-api',
@@ -651,7 +631,7 @@ const waitForVercelResponse = async (response, timeout = 20_000) => {
   if (!response.writableEnded && !response.finished) throw new Error('function response did not complete before timeout');
 };
 
-export const invokeVercelFunction = async ({ name, entry, responseTimeout = 20_000 }) => {
+export const invokeVercelFunction = async ({ name, entry, responseTimeout = 20_000, redactionEnvironment = process.env }) => {
   if (!entry) return { name, ok: false, result: 'build-output function has no index entrypoint' };
   try {
     const imported = await import(pathToFileURL(entry).href);
@@ -697,18 +677,24 @@ export const invokeVercelFunction = async ({ name, entry, responseTimeout = 20_0
     }
     return { name, ok: true, result: `invoked build-output function; completed response status ${response.statusCode}` };
   } catch (error) {
-    return { name, ok: false, result: `invocation failed: ${error instanceof Error ? error.message : String(error)}` };
+    return { name, ok: false, result: `invocation failed: ${redactChildOutput(error instanceof Error ? error.message : String(error), redactionEnvironment)}` };
   }
 };
 
 const vercelFunctionProof = async () => {
   const command_or_artifact = VERCEL_FUNCTION_COMMAND;
   const probe = VERCEL_FUNCTION_PROBE;
-  const build = commandResult('vercel', ['build', '--yes'], proofEnv(), 600_000);
+  const invocation = vercelBuildInvocation();
+  const build = commandResult(invocation.command, invocation.args, vercelBuildEnvironment(), 600_000);
   if (!build.ok) return vercelFunctionBuildFailureEvidence(build);
   const functions = vercelBuildOutputFunctions();
   if (functions.length === 0) return evidence({ deployment: 'vercel-api', runtime: 'vercel_function', boot_status: 'failed', command_or_artifact, probe, result: 'Vercel build completed but emitted no .vercel/output/functions entries' });
-  const invocations = await Promise.all(functions.map(invokeVercelFunction));
+  const invocations = await withVercelCredentialsMasked((redactionEnvironment) =>
+    Promise.all(functions.map((functionEntry) => invokeVercelFunction({
+      ...functionEntry,
+      redactionEnvironment,
+    })))
+  );
   const failed = invocations.filter((invocation) => !invocation.ok);
   const result = `invoked ${invocations.length} build-output function(s): ${invocations.map((invocation) => `${invocation.name}=${invocation.ok ? 'ok' : 'failed'}`).join(', ')}${failed.length > 0 ? `; ${failed.map((invocation) => invocation.result).join('; ')}` : ''}`;
   return evidence({ deployment: 'vercel-api', runtime: 'vercel_function', boot_status: failed.length === 0 ? 'proven' : 'failed', command_or_artifact, probe, result });
@@ -742,28 +728,6 @@ const emittedSpaAssetPath = (html) => {
   return match?.[1] || undefined;
 };
 
-const railwayWebProof = async (railwayApi) => {
-  const command_or_artifact = 'npm run build:web plus proven railway-api listener';
-  let probe = 'GET actual emitted hashed SPA asset and GET /fund-setup; expected HTTP 2xx; 404/405 are failures';
-  if (railwayApi.boot_status !== 'proven') return evidence({ deployment: 'railway-web', boot_status: 'unproven', command_or_artifact, probe, result: `dependency railway-api is ${railwayApi.boot_status}; Railway web proof not executable` });
-  const build = npmResult('build:web', proofEnv({ PORT: String(PORTS.web), _EXPLICIT_PORT: '1' }));
-  if (!build.ok) return commandFailureEvidence({
-    deployment: 'railway-web',
-    command_or_artifact,
-    probe,
-    label: 'npm run build:web',
-    result: build,
-  });
-  const indexFile = path.join(repoRoot, 'dist/public/index.html');
-  const html = fs.existsSync(indexFile) ? fs.readFileSync(indexFile, 'utf8') : '';
-  const assetPath = emittedSpaAssetPath(html);
-  probe = `GET ${assetPath || '<missing-emitted-hash>.js'} and GET /fund-setup; expected HTTP 2xx; 404/405 are failures`;
-  if (!assetPath) return evidence({ deployment: 'railway-web', boot_status: 'failed', command_or_artifact, probe, result: 'dist/public/index.html has no emitted hashed script URL' });
-  const run = await runHttpProcess({ command: process.execPath, args: ['dist/index.js'], env: proofEnv({ PORT: '0', _EXPLICIT_PORT: '1' }), port: 0, paths: [{ path: assetPath, method: 'GET' }, { path: '/fund-setup', method: 'GET' }] });
-  const ok = run.proven;
-  return evidence({ deployment: 'railway-web', boot_status: ok ? 'proven' : 'failed', command_or_artifact, probe, result: ok ? 'asset and deep-link responses observed' : 'asset/deep-link probe failed' });
-};
-
 const mlServiceProof = async () => {
   const command_or_artifact = 'Dockerfile ml-service/Dockerfile with uvicorn app:app --host 0.0.0.0 --port 8088';
   const probe = 'GET /health and GET /model/info expect 2xx; POST /predict and POST /train send {} and expect 422 validation; 404/405 are failures';
@@ -780,24 +744,105 @@ const mlServiceProof = async () => {
   return evidence({ deployment: 'ml-service-local', boot_status: ok ? 'proven' : 'failed', command_or_artifact, probe, result: ok ? 'FastAPI listener responded on all four paths' : 'FastAPI path probe failed' });
 };
 
-const run = async () => {
-  const railwayApi = await railwayApiProof();
-  const proofs = [
-    railwayApi,
-    await railwayWorkerProof(),
+export const REQUIRED_G3_PROOF_KEYS = Object.freeze([
+  'vercel-api|make_app',
+  'vercel-api|vercel_function',
+  'railway-worker-fund-scenario-calc|worker_process',
+  'railway-worker-capital-call-status|worker_process',
+]);
+
+export const resolveBootProofOutput = (requestedOutput) => {
+  const output = path.resolve(repoRoot, requestedOutput || outputFile);
+  const parent = path.dirname(output);
+  if (!fs.existsSync(parent) || !fs.lstatSync(parent).isDirectory() || fs.lstatSync(parent).isSymbolicLink()) {
+    throw new Error(`Boot-proof output parent must be a real directory: ${parent}`);
+  }
+  if (fs.existsSync(output)) {
+    const stat = fs.lstatSync(output);
+    if (stat.isSymbolicLink() || !stat.isFile()) {
+      throw new Error(`Boot-proof output must be a regular non-symlink file: ${output}`);
+    }
+  }
+  return output;
+};
+
+export const assertRequiredG3Proofs = (document) => {
+  const proofs = new Map();
+  const duplicates = [];
+  for (const proof of document.proofs) {
+    const key = `${proof.deployment}|${proof.runtime ?? '*'}`;
+    if (proofs.has(key)) duplicates.push(key);
+    proofs.set(key, proof);
+  }
+  const failures = REQUIRED_G3_PROOF_KEYS.filter((key) => proofs.get(key)?.boot_status !== 'proven');
+  if (duplicates.length > 0) throw new Error(`G3 boot proof duplicate key: ${[...new Set(duplicates)].join(', ')}`);
+  if (failures.length > 0) throw new Error(`G3 boot proof incomplete: ${failures.join(', ')}`);
+};
+
+const sourceSha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim();
+
+const collectBootProofs = async ({ sourceSha: currentSourceSha }) => {
+  const fundWorkerProof = await railwayWorkerProof({
+    workerType: 'fund-scenario-calc',
+    deployment: 'railway-worker-fund-scenario-calc',
+    sourceSha: currentSourceSha,
+  });
+  const capitalWorkerProof = await railwayWorkerProof({
+    workerType: 'capital-call-status',
+    deployment: 'railway-worker-capital-call-status',
+    sourceSha: currentSourceSha,
+  });
+  return [
+    evidence({
+      deployment: 'local-process',
+      boot_status: 'unproven',
+      command_or_artifact: 'local runtime inventory only',
+      probe: 'no production boot proof is required for local-process surfaces',
+      result: 'local-process evidence is intentionally unproven',
+    }),
+    ...workerRuntimeProofs(fundWorkerProof),
+    ...workerRuntimeProofs(capitalWorkerProof),
     await vercelApiProof(),
     await vercelFunctionProof(),
     await vercelWebProof(),
-    await railwayWebProof(railwayApi),
     await mlServiceProof(),
-  ].sort((left, right) => `${left.deployment}|${left.runtime ?? '*'}`.localeCompare(`${right.deployment}|${right.runtime ?? '*'}`));
-  const document = BootProofDocumentSchema.parse({ schema_version: '1.0.0', proofs });
-  fs.writeFileSync(outputFile, `${JSON.stringify(document, null, 2)}\n`);
+  ];
+};
+
+export const runBootProof = async ({
+  output,
+  requireG3 = false,
+  collectProofs = collectBootProofs,
+  sourceSha: expectedSourceSha,
+  environment = process.env,
+} = {}) => {
+  const outputPath = resolveBootProofOutput(output);
+  if (requireG3) assertStrictVercelBuildCredentials(environment);
+  const currentSourceSha = expectedSourceSha ?? sourceSha();
+  const proofs = (await collectProofs({ sourceSha: currentSourceSha }))
+    .sort((left, right) => `${left.deployment}|${left.runtime ?? '*'}`.localeCompare(`${right.deployment}|${right.runtime ?? '*'}`));
+  const document = BootProofDocumentSchema.parse({ schema_version: '1.1.0', source_sha: currentSourceSha, proofs });
+  if (requireG3) assertRequiredG3Proofs(document);
+  fs.writeFileSync(outputPath, `${JSON.stringify(document, null, 2)}\n`);
   process.stdout.write(`${JSON.stringify(document, null, 2)}\n`);
 };
 
+const parseArgs = (argv) => {
+  const args = { output: undefined, requireG3: false };
+  for (let index = 0; index < argv.length; index += 1) {
+    if (argv[index] === '--require-g3') args.requireG3 = true;
+    else if (argv[index] === '--output') {
+      args.output = argv[index + 1];
+      if (!args.output || args.output.startsWith('--')) throw new Error('--output requires a path');
+      index += 1;
+    } else throw new Error(`Unknown boot-proof argument: ${argv[index]}`);
+  }
+  return args;
+};
+
 if (process.argv[1] && path.resolve(process.argv[1]) === thisFile) {
-  run().catch((error) => {
+  const args = parseArgs(process.argv.slice(2));
+  runBootProof(args).catch((error) => {
     process.stderr.write(`${error.stack || error.message}\n`);
     process.exitCode = 1;
   });

@@ -47,6 +47,11 @@ jobs:
     uses: ./.github/workflows/release-proof.yml
     with:
       expected_sha: ${{ inputs.expected_sha }}
+      # Candidate provider identity cannot exist before stage-production creates
+      # its exact unaliased production-target deployment. This first gate proves
+      # source/local evidence; staged-provider-identity owns provider proof.
+      require_provider_identity: false
+    secrets: inherit
 
   schema-audit:
     name: Clean Production Schema Audit
@@ -120,10 +125,11 @@ jobs:
           : "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
           : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
           : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required}"
+          npx --yes vercel@55.0.0 build --prod --yes
           DEPLOYMENT_URL="$(
             npx --yes vercel@55.0.0 deploy \
+              --prebuilt \
               --prod \
-              --archive=tgz \
               --skip-domain \
               --yes \
               --meta githubDeployment=1 \
@@ -236,6 +242,7 @@ jobs:
           const valid =
             deployment.readyState === 'READY' &&
             deployment.target === 'production' &&
+            (deployment.alias ?? []).length === 0 &&
             deployment.projectId === process.env.VERCEL_PROJECT_ID &&
             deployment.meta?.githubCommitSha === process.env.EXPECTED_SHA &&
             deployment.meta?.githubCommitRef === 'main' &&
@@ -321,9 +328,82 @@ jobs:
           : "${EXPECTED_SHA:?EXPECTED_SHA is required}"
           npx playwright test tests/smoke/production-boundaries.spec.ts --project=production --reporter=line
 
+  staged-provider-identity:
+    name: Reverify Staged Provider Identity
+    needs: validate-deployment
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: Production
+    steps:
+      - name: Checkout exact release verifier
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.expected_sha }}
+
+      - name: Reverify exact staged provider evidence before promotion
+        env:
+          CANDIDATE_SHA: ${{ inputs.expected_sha }}
+          DEPLOYMENT_URL: ${{ needs.validate-deployment.outputs.deployment_url }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          set -euo pipefail
+          : "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
+          : "${RAILWAY_TOKEN:?RAILWAY_TOKEN is required}"
+          : "${VERCEL_AUTOMATION_BYPASS_SECRET:?VERCEL_AUTOMATION_BYPASS_SECRET is required}"
+          : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
+          : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required}"
+          host="$(node -e 'const url = new URL(process.env.DEPLOYMENT_URL); if (url.protocol !== "https:" || url.username || url.password || url.port || url.pathname !== "/" || url.search || url.hash || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.vercel\.app$/.test(url.hostname)) process.exit(1); console.log(url.hostname)')"
+          curl --fail --silent --show-error --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v13/deployments/${host}?teamId=${VERCEL_ORG_ID}" --output "$RUNNER_TEMP/staged-vercel.json"
+          curl --fail --silent --show-error --header "x-vercel-protection-bypass: ${VERCEL_AUTOMATION_BYPASS_SECRET}" \
+            "${DEPLOYMENT_URL}/api/version" --output "$RUNNER_TEMP/staged-version.json"
+          curl --fail --silent --show-error --header "Project-Access-Token: ${RAILWAY_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data '{"query":"query { projectToken { project { id } environment { id } } }"}' \
+            https://backboard.railway.com/graphql/v2 > "$RUNNER_TEMP/staged-railway-token.json"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const temp = process.env.RUNNER_TEMP;
+          const response = JSON.parse(fs.readFileSync(`${temp}/staged-railway-token.json`, 'utf8'));
+          if (response.errors?.length || !response.data?.projectToken?.project?.id || !response.data?.projectToken?.environment?.id) process.exit(1);
+          fs.writeFileSync(`${temp}/staged-railway-query.json`, JSON.stringify({
+            query: 'query($projectId: String!, $environmentId: String!) { environment(id: $environmentId, projectId: $projectId) { serviceInstances(first: 100) { edges { node { serviceId serviceName numReplicas latestDeployment { id status meta deploymentStopped instances { id status } } activeDeployments { id status meta deploymentStopped instances { id status } } domains { serviceDomains { id } customDomains { id } } } } pageInfo { hasNextPage endCursor } } }',
+            variables: { projectId: response.data.projectToken.project.id, environmentId: response.data.projectToken.environment.id },
+          }));
+          NODE
+          curl --fail --silent --show-error --header "Project-Access-Token: ${RAILWAY_TOKEN}" \
+            --header 'Content-Type: application/json' --data @"$RUNNER_TEMP/staged-railway-query.json" \
+            https://backboard.railway.com/graphql/v2 > "$RUNNER_TEMP/staged-railway.json"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const temp = process.env.RUNNER_TEMP;
+          const token = JSON.parse(fs.readFileSync(`${temp}/staged-railway-token.json`, 'utf8')).data.projectToken;
+          const control = JSON.parse(fs.readFileSync(`${temp}/staged-railway.json`, 'utf8'));
+          const deployment = JSON.parse(fs.readFileSync(`${temp}/staged-vercel.json`, 'utf8'));
+          fs.writeFileSync(`${temp}/staged-vercel-evidence.json`, JSON.stringify({ expectedProjectId: process.env.VERCEL_PROJECT_ID, deployment: { ...deployment, aliases: deployment.alias ?? [] }, version: JSON.parse(fs.readFileSync(`${temp}/staged-version.json`, 'utf8')) }));
+          fs.writeFileSync(`${temp}/staged-railway-evidence.json`, JSON.stringify({ data: { projectId: token.project.id, environmentId: token.environment.id, environment: control.data?.environment }, errors: control.errors }));
+          NODE
+          node scripts/release/verify-provider-identity.mjs --mode workflow --expected-sha "$CANDIDATE_SHA" --vercel "$RUNNER_TEMP/staged-vercel-evidence.json" --railway "$RUNNER_TEMP/staged-railway-evidence.json"
+
+  g4-operator-evidence-hard-stop:
+    name: G4 Attested Operator Evidence Required
+    needs: staged-provider-identity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop promotion pending attested operator evidence
+        run: |
+          set -euo pipefail
+          echo "::error::Promotion is blocked: Task13 must ingest trusted attested operator /health and /ready evidence and complete operator-mode verification before promotion can be authorized."
+          exit 1
+
   promote:
     name: Promote Staged Vercel Deployment
-    needs: [staged-smoke, validate-deployment]
+    needs:
+      [staged-smoke, validate-deployment, staged-provider-identity, g4-operator-evidence-hard-stop]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: Production

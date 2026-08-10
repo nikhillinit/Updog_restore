@@ -1,6 +1,10 @@
 import { Queue } from 'bullmq';
-import { getQueueConfig, getQueueConnectionOptions } from '../config/features';
-import { registerQueueRuntime } from '../queues/registry';
+import { getQueueConnectionOptions, getQueueRuntimePolicy } from '../config/features';
+import {
+  registerQueueRuntime,
+  unregisterQueueRuntime,
+  type RegisteredQueueRuntime,
+} from '../queues/registry';
 import { transaction } from '../db/pg-circuit.js';
 import {
   FundScenarioReserveCalculationQueuedV1Schema,
@@ -21,23 +25,50 @@ import {
 
 const QUEUE_NAME = 'fund-scenario-calc';
 const JOB_ID_PREFIX = 'reserve-scenario';
-const queueConfig = getQueueConfig();
-const connection = (() => {
-  try {
-    return getQueueConnectionOptions();
-  } catch {
-    return null;
+let fundScenarioCalcQueue: Queue | null = null;
+
+function getFundScenarioCalcQueue(): Queue {
+  const queuePolicy = getQueueRuntimePolicy();
+  if (!queuePolicy.enabled) {
+    throw createHttpError(503, 'Fund scenario calculation queue is not available', {
+      code: 'scenario_calculation_queue_unavailable',
+      details: { reason: queuePolicy.reason },
+    });
   }
-})();
 
-const fundScenarioCalcQueue =
-  queueConfig.enabled && connection ? new Queue(QUEUE_NAME, { connection }) : null;
+  let connection;
+  try {
+    connection = getQueueConnectionOptions();
+  } catch {
+    connection = null;
+  }
+  if (!connection) {
+    throw createHttpError(503, 'Fund scenario calculation queue is not available', {
+      code: 'scenario_calculation_queue_unavailable',
+      details: { reason: queuePolicy.reason },
+    });
+  }
 
-if (fundScenarioCalcQueue) {
-  registerQueueRuntime('fund-scenario-calc', {
-    getQueue: () => fundScenarioCalcQueue,
-    isInitialized: () => fundScenarioCalcQueue !== null,
-  });
+  if (fundScenarioCalcQueue === null) {
+    const queue = new Queue(QUEUE_NAME, { connection });
+    let closed = false;
+    const runtime: RegisteredQueueRuntime = {
+      getQueue: () => queue,
+      isInitialized: () => fundScenarioCalcQueue === queue,
+      healthMode: 'producer',
+      close: async () => {
+        if (closed) return;
+        closed = true;
+        if (fundScenarioCalcQueue === queue) fundScenarioCalcQueue = null;
+        unregisterQueueRuntime('fund-scenario-calc', 'producer', runtime);
+        await Promise.allSettled([queue.close()]);
+      },
+    };
+    fundScenarioCalcQueue = queue;
+    registerQueueRuntime('fund-scenario-calc', runtime);
+  }
+
+  return fundScenarioCalcQueue;
 }
 
 export async function enqueueReserveScenarioCalculation(input: {
@@ -46,12 +77,7 @@ export async function enqueueReserveScenarioCalculation(input: {
   correlationId: string;
   actor: FundScenarioMutationActor;
 }): Promise<FundScenarioReserveCalculationQueuedV1> {
-  if (!fundScenarioCalcQueue) {
-    throw createHttpError(503, 'Fund scenario calculation queue is not available', {
-      code: 'scenario_calculation_queue_unavailable',
-      details: { reason: queueConfig.reason },
-    });
-  }
+  const fundScenarioQueue = getFundScenarioCalcQueue();
 
   const identity = await getReserveScenarioCalculationIdentity(input.fundId, input.scenarioSetId);
   const identityKey = [
@@ -99,7 +125,7 @@ export async function enqueueReserveScenarioCalculation(input: {
 
   if (acquired.inserted) {
     try {
-      const priorJob = await fundScenarioCalcQueue.getJob(jobId);
+      const priorJob = await fundScenarioQueue.getJob(jobId);
       if (priorJob && (await priorJob.isFailed())) {
         await priorJob.remove();
       }
@@ -110,7 +136,7 @@ export async function enqueueReserveScenarioCalculation(input: {
 
   let job;
   try {
-    job = await fundScenarioCalcQueue.add(
+    job = await fundScenarioQueue.add(
       'async_reserve_allocation',
       {
         fundId: input.fundId,

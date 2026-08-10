@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import * as matrixSchema from '../../../audit/surface-contract-matrix/matrix-schema.mjs';
 import { classifyDocument } from '../../../audit/surface-contract-matrix/scripts/classify-pass.mjs';
 import { routePolicyKey } from '../../../server/route-policy/api-route-policy-registry.ts';
+import { QUEUE_CATALOG } from '../../../server/queues/registry.ts';
 
 const repoRoot = process.cwd();
 const seedPath = path.join(repoRoot, 'audit/surface-contract-matrix/scripts/seed-matrix.mjs');
@@ -24,9 +25,26 @@ type SeedInternals = {
     rows: Map<string, Record<string, unknown>>,
     bootProofDocument: Record<string, unknown>
   ) => void;
+  assertBootProofSourceSha: (
+    bootProofDocument: Record<string, unknown>,
+    kgManifest: Record<string, unknown>,
+    gitHead: string
+  ) => void;
   makeClientRows: (input: Record<string, unknown>) => Map<string, Record<string, unknown>>;
   makeBackgroundRows: (snapshotId: string) => Map<string, Record<string, unknown>>;
   makeWorkerRows: (input: Record<string, unknown>) => Map<string, Record<string, unknown>>;
+  makeListenerRows: (input: Record<string, unknown>) => Map<string, Record<string, unknown>>;
+  queueRuntimeFor: (
+    catalog: Record<string, unknown>,
+    roleKind: string,
+    site?: string
+  ) => Record<string, unknown>;
+  makeListenerDispositions: (candidates: unknown[]) => Record<string, unknown>[];
+  makeRuntimeExclusions: () => Record<string, unknown>[];
+  mergeRuntimeExclusions: (
+    previous: Record<string, unknown>[],
+    discovered: Record<string, unknown>[]
+  ) => Record<string, unknown>[];
   sourceMappings: (input: Record<string, unknown>) => {
     rowToSources: Record<string, string[]>;
     sourceToRows: Record<string, string[]>;
@@ -41,6 +59,7 @@ type SeedInternals = {
 type ExposureFixture = {
   deployment: string;
   runtime: string;
+  boot_status?: string;
   conditions: unknown[];
   ingresses: Array<{ external_path: string }>;
   auth_evidence: Array<{
@@ -65,7 +84,17 @@ const seedRow = (row: Record<string, unknown>): SeedRowFixture => row as SeedRow
  * Evaluate those builders against in-memory fixtures without invoking seed()
  * or touching tracked matrix artifacts.
  */
-async function loadSeedInternals(): Promise<SeedInternals> {
+async function loadSeedInternals(
+  queueCatalog: Record<string, unknown>[] = [
+    {
+      key: 'synthetic-producer',
+      queueName: 'synthetic-producer',
+      healthMode: 'producer',
+      owner: 'route',
+      productionDisposition: { mode: 'local-only' },
+    },
+  ]
+): Promise<SeedInternals> {
   const source = fs.readFileSync(seedPath, 'utf8');
   const bodyStart = source.indexOf('const currentFile =');
   const bodyEnd = source.indexOf('if (import.meta.url');
@@ -78,7 +107,7 @@ async function loadSeedInternals(): Promise<SeedInternals> {
     .replaceAll(/^export const /gm, 'const ')
     .replaceAll(/^export function /gm, 'function ')
     .concat(
-      '\n globalThis.__seedInternals = { createRuntimeIndex, makeApiRows, applyBootProofs, makeClientRows, makeBackgroundRows, makeWorkerRows, sourceMappings, definingSourceHashesForRow };'
+      '\n globalThis.__seedInternals = { createRuntimeIndex, makeApiRows, applyBootProofs, assertBootProofSourceSha, makeClientRows, makeBackgroundRows, makeWorkerRows, makeListenerRows, queueRuntimeFor, makeListenerDispositions, makeRuntimeExclusions, mergeRuntimeExclusions, sourceMappings, definingSourceHashesForRow };'
     );
 
   const context = vm.createContext({
@@ -114,9 +143,7 @@ async function loadSeedInternals(): Promise<SeedInternals> {
       },
     ],
     routePolicyKey,
-    QUEUE_CATALOG: [
-      { key: 'synthetic-producer', queueName: 'synthetic-producer', healthMode: 'producer' },
-    ],
+    QUEUE_CATALOG: queueCatalog,
     COMMON_API_ROUTE_MANIFEST: [
       {
         id: 'diagnostic',
@@ -321,6 +348,276 @@ const makeRuntimeDocuments = () => {
 };
 
 describe('surface contract matrix seed semantic regressions', () => {
+  it('rejects a boot proof whose source SHA is stale relative to the KG snapshot and Git HEAD', async () => {
+    const seed = await loadSeedInternals();
+
+    expect(() =>
+      seed.assertBootProofSourceSha(
+        { source_sha: 'a'.repeat(40), proofs: [] },
+        { repo_head: 'b'.repeat(40) },
+        'b'.repeat(40)
+      )
+    ).toThrow(/source_sha.*repo_head.*Git HEAD/i);
+  });
+
+  it('derives every queue runtime from its tagged catalog disposition', async () => {
+    const seed = await loadSeedInternals();
+    expect(
+      seed.queueRuntimeFor(
+        {
+          owner: 'route',
+          productionDisposition: {
+            mode: 'railway-worker',
+            deployment: 'railway-worker-fund-scenario-calc',
+          },
+        },
+        'producer'
+      )
+    ).toMatchObject({ deployment: 'vercel-api', runtime: 'make_app' });
+    expect(
+      seed.queueRuntimeFor(
+        {
+          owner: 'providers',
+          productionDisposition: {
+            mode: 'railway-worker',
+            deployment: 'railway-worker-capital-call-status',
+          },
+        },
+        'consumer',
+        'workers/capital-call-status-worker.ts'
+      )
+    ).toMatchObject({
+      deployment: 'railway-worker-capital-call-status',
+      runtime: 'worker_process',
+    });
+    expect(
+      seed.queueRuntimeFor(
+        {
+          owner: 'providers',
+          productionDisposition: {
+            mode: 'railway-worker',
+            deployment: 'railway-worker-fund-scenario-calc',
+          },
+        },
+        'consumer',
+        'server/queues/fund-scenario-calc-worker-init.ts'
+      )
+    ).toMatchObject({ deployment: 'local-process', runtime: 'worker_process' });
+    expect(
+      seed.queueRuntimeFor({ productionDisposition: { mode: 'local-only' } }, 'consumer')
+    ).toMatchObject({ deployment: 'local-process' });
+    expect(() => seed.queueRuntimeFor({}, 'consumer')).toThrow(
+      'QUEUE_CATALOG productionDisposition'
+    );
+  });
+
+  it('binds real dedicated-worker module graphs to Railway without promoting local consumers', async () => {
+    const seed = await loadSeedInternals(QUEUE_CATALOG as unknown as Record<string, unknown>[]);
+    const findings = matrixSchema
+      .scanBullmqConstructors({ rootDir: repoRoot })
+      .filter((finding) =>
+        ['fund-scenario-calc', 'capital-call-status'].includes(finding.queue_name)
+      );
+    const rows = seed.makeWorkerRows({
+      nodes: new Map(),
+      findings,
+      snapshotId: 'real-worker-scanner',
+    });
+    const consumer = (queue: string, sourcePath: string) =>
+      (
+        rows.get(`worker:${queue}`)?.queue_roles as {
+          consumers: Array<{ site: string; deployment: string }>;
+        }
+      ).consumers.find((role) => role.site.startsWith(`${sourcePath}:`));
+    const producer = (queue: string, sourcePath: string) =>
+      (
+        rows.get(`worker:${queue}`)?.queue_roles as {
+          producers: Array<{ site: string; deployment: string }>;
+        }
+      ).producers.find((role) => role.site.startsWith(`${sourcePath}:`));
+
+    expect(
+      consumer('capital-call-status', 'server/workers/capital-call-status-worker.ts')
+    ).toMatchObject({ deployment: 'railway-worker-capital-call-status' });
+    expect(
+      producer('capital-call-status', 'server/workers/capital-call-status-worker.ts')
+    ).toMatchObject({ deployment: 'railway-worker-capital-call-status' });
+    expect(consumer('fund-scenario-calc', 'workers/fund-scenario-calc-worker.ts')).toMatchObject({
+      deployment: 'railway-worker-fund-scenario-calc',
+    });
+    expect(
+      consumer('fund-scenario-calc', 'server/queues/fund-scenario-calc-worker-init.ts')
+    ).toMatchObject({ deployment: 'local-process' });
+    expect(
+      producer('fund-scenario-calc', 'server/services/fund-scenario-calc-queue-service.ts')
+    ).toMatchObject({ deployment: 'vercel-api' });
+  });
+
+  it('maps every worker health listener route to both named Railway workers and local legacy workers', async () => {
+    const seed = await loadSeedInternals(QUEUE_CATALOG as unknown as Record<string, unknown>[]);
+    const dispositions = seed.makeListenerDispositions([
+      {
+        path: 'workers/health-server.ts',
+        patterns: [{ kind: 'node-listen', line: 204, text: 'server.listen(port)' }],
+      },
+    ]);
+    const rows = seed.makeListenerRows({
+      dispositions,
+      snapshotId: 'worker-health-topology',
+    });
+
+    expect(rows.size).toBe(5);
+    for (const row of rows.values()) {
+      expect(row).toMatchObject({ seam: 'worker-health', reachability: 'railway' });
+      expect(
+        (row.exposures as ExposureFixture[]).map(({ deployment, runtime }) => ({
+          deployment,
+          runtime,
+        }))
+      ).toEqual([
+        { deployment: 'local-process', runtime: 'service_listener' },
+        {
+          deployment: 'railway-worker-capital-call-status',
+          runtime: 'service_listener',
+        },
+        {
+          deployment: 'railway-worker-fund-scenario-calc',
+          runtime: 'service_listener',
+        },
+      ]);
+    }
+
+    const bootEvidence = {
+      command_or_artifact: 'Dockerfile.worker',
+      probe: 'GET /health /live /ready /metrics /stats',
+      result: 'fixture',
+      observed_at: 'fixture',
+    };
+    seed.applyBootProofs(rows, {
+      proofs: [
+        {
+          deployment: 'local-process',
+          boot_status: 'unproven',
+          boot_evidence: bootEvidence,
+        },
+        {
+          deployment: 'railway-worker-capital-call-status',
+          runtime: 'service_listener',
+          boot_status: 'proven',
+          boot_evidence: bootEvidence,
+        },
+        {
+          deployment: 'railway-worker-fund-scenario-calc',
+          runtime: 'service_listener',
+          boot_status: 'proven',
+          boot_evidence: bootEvidence,
+        },
+      ],
+    });
+    for (const row of rows.values()) {
+      expect(row.proven_reachability).toBe('railway');
+      expect((row.exposures as ExposureFixture[]).map((exposure) => exposure.boot_status)).toEqual([
+        'unproven',
+        'proven',
+        'proven',
+      ]);
+    }
+  });
+
+  it('keeps registerRoutes-only observations local and seeds legacy Railway evidence as an exclusion', async () => {
+    const seed = await loadSeedInternals();
+    const listener = seed.makeListenerDispositions([
+      {
+        path: 'Dockerfile.railway',
+        patterns: [{ kind: 'docker-cmd', line: 12, text: 'CMD node dist/index.js' }],
+      },
+    ]);
+    expect(listener).toEqual([
+      expect.objectContaining({
+        disposition: 'non-product-tooling',
+        listener_id: 'legacy-dockerfile-railway',
+      }),
+    ]);
+    expect(seed.makeRuntimeExclusions()).toEqual([
+      expect.objectContaining({
+        id: 'legacy-railway-api-topology',
+        evidence: ['Dockerfile.railway', 'railway.toml'],
+        fingerprint: expect.stringMatching(/^[0-9a-f]{64}$/),
+      }),
+    ]);
+    const legacy = seed.makeRuntimeExclusions()[0]!;
+    expect(
+      seed.mergeRuntimeExclusions(
+        [
+          { id: 'unrelated', fingerprint: '1'.repeat(64), decision_status: 'approved' },
+          { ...legacy, decision_status: 'approved' },
+        ],
+        [legacy]
+      )
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'unrelated', decision_status: 'approved' }),
+        expect.objectContaining({ id: 'legacy-railway-api-topology', decision_status: 'approved' }),
+      ])
+    );
+    expect(
+      seed.mergeRuntimeExclusions(
+        [{ ...legacy, fingerprint: '2'.repeat(64), decision_status: 'approved' }],
+        [legacy]
+      )
+    ).toEqual([
+      expect.objectContaining({ id: 'legacy-railway-api-topology', decision_status: 'proposed' }),
+    ]);
+  });
+
+  it('keeps registerRoutes-only activity, cache, and SSE routes out of Vercel reachability', async () => {
+    const seed = await loadSeedInternals();
+    const ids = [
+      'api:GET:/api/activities',
+      'api:POST:/api/cache/warm',
+      'api:GET:/api/events/stream',
+    ];
+    const runtimeIndex = seed.createRuntimeIndex([
+      {
+        profile: 'default',
+        fs_variant: 'static',
+        routes: ids.map((id, index) =>
+          routeObservation({
+            surface: 'register_routes',
+            id,
+            method: id.split(':')[1]!,
+            routePath: id.split(':').slice(2).join(':'),
+            site: `server/routes/legacy-${index}.ts:1`,
+            role: 'handler',
+            order: index + 1,
+          })
+        ),
+      },
+    ]);
+    const rows = seed.makeApiRows({
+      nodes: new Map(
+        ids.map((id, index) => [
+          id,
+          apiNode(
+            id.split(':')[1]!,
+            id.split(':').slice(2).join(':'),
+            `server/routes/legacy-${index}.ts`
+          ),
+        ])
+      ),
+      edges: [],
+      runtimeIndex,
+      snapshotId: 'register-routes-only',
+    });
+    for (const id of ids) {
+      const row = seedRow(rows.get(id) ?? {});
+      expect(row.reachability).toBe('local');
+      expect(row.exposures.map((entry) => `${entry.deployment}|${entry.runtime}`)).toEqual([
+        'local-process|register_routes',
+      ]);
+    }
+  });
+
   it('unions make_app/create_server observations and derives protected/public auth boundaries', async () => {
     const seed = await loadSeedInternals();
     const nodes = new Map([
@@ -350,8 +647,8 @@ describe('surface contract matrix seed semantic regressions', () => {
     const diagnostic = seedRow(rows.get('api:GET:/api/diagnostics') ?? {});
     expect(
       diagnostic.exposures.map((exposure) => `${exposure.deployment}|${exposure.runtime}`)
-    ).toEqual(['vercel-api|make_app', 'railway-api|create_server']);
-    expect(diagnostic.reachability).toBe('both');
+    ).toEqual(['vercel-api|make_app', 'local-process|create_server']);
+    expect(diagnostic.reachability).toBe('vercel');
     expect(diagnostic.exposures.flatMap((exposure) => exposure.conditions)).toContainEqual({
       gate: 'ENABLE_METRICS',
       enabled: true,
@@ -395,17 +692,12 @@ describe('surface contract matrix seed semantic regressions', () => {
         .get('make_app')
         ?.auth_evidence.some((entry) => entry.boundary === 'global_authenticated')
     ).toBe(false);
-    expect(
-      healthByRuntime
-        .get('create_server')
-        ?.auth_evidence.some((entry) => entry.boundary === 'global_authenticated')
-    ).toBe(true);
+    expect(healthByRuntime.get('create_server')?.deployment).toBe('local-process');
 
     const metrics = seedRow(rows.get('api:GET:/api/metrics') ?? {});
     expect(metrics.exposures[0]).toMatchObject({
+      deployment: 'local-process',
       runtime: 'create_server',
-      outer_mount_site: 'server/server.ts:201',
-      outer_mount_order: 6,
     });
     expect(
       metrics.exposures[0].auth_evidence.some((entry) => entry.boundary === 'global_authenticated')
@@ -436,19 +728,26 @@ describe('surface contract matrix seed semantic regressions', () => {
           },
         },
         {
-          deployment: 'railway-api',
-          runtime: 'create_server',
-          boot_status: 'failed',
+          deployment: 'local-process',
+          boot_status: 'unproven',
           boot_evidence: {
-            command_or_artifact: 'synthetic Railway build',
-            probe: 'GET /health',
-            result: 'failed',
-            observed_at: 'proof:railway',
+            command_or_artifact: 'synthetic local runtime',
+            probe: 'local runtime observation',
+            result: 'unproven',
+            observed_at: 'proof:local',
           },
         },
       ],
     });
     expect(rows.get('api:GET:/api-docs')?.proven_reachability).toBe('none');
+    expect(rows.get('api:GET:/api/diagnostics')?.exposures).toContainEqual(
+      expect.objectContaining({
+        deployment: 'local-process',
+        runtime: 'create_server',
+        boot_status: 'unproven',
+        boot_evidence: expect.objectContaining({ observed_at: 'proof:local' }),
+      })
+    );
   });
 
   it.each([
@@ -458,9 +757,7 @@ describe('surface contract matrix seed semantic regressions', () => {
       routePath: '/api-docs',
       sourcePath: 'server/app.ts',
       surface: 'make_app',
-      observations: [
-        { site: 'server/app.ts:137', role: 'handler', order: 1 },
-      ],
+      observations: [{ site: 'server/app.ts:137', role: 'handler', order: 1 }],
       expectedSite: 'server/app.ts:137',
     },
     {
@@ -469,9 +766,7 @@ describe('surface contract matrix seed semantic regressions', () => {
       routePath: '/api-docs.json',
       sourcePath: 'server/app.ts',
       surface: 'make_app',
-      observations: [
-        { site: 'server/app.ts:160', role: 'handler', order: 1 },
-      ],
+      observations: [{ site: 'server/app.ts:160', role: 'handler', order: 1 }],
       expectedSite: 'server/app.ts:160',
     },
     {
@@ -509,30 +804,32 @@ describe('surface contract matrix seed semantic regressions', () => {
       routePath: '/metrics/rum',
       sourcePath: 'server/routes/metrics-rum.ts',
       surface: 'make_app',
-      observations: [
-        { site: 'server/routes/metrics-rum.ts:106', role: 'guard', order: 1 },
-      ],
+      observations: [{ site: 'server/routes/metrics-rum.ts:106', role: 'guard', order: 1 }],
       expectedSite: 'server/routes/metrics-rum.ts:106',
     },
   ])('$name', async ({ method, routePath, sourcePath, surface, observations, expectedSite }) => {
     const seed = await loadSeedInternals();
     const id = `api:${method}:${routePath}`;
-    const routes = observations.map((observation) => routeObservation({
-      surface,
-      id,
-      method,
-      routePath,
-      site: observation.site,
-      role: observation.role,
-      order: observation.order,
-      ...(observation.outerMountSite
-        ? {
-            outerMountSite: observation.outerMountSite,
-            outerMountOrder: observation.outerMountOrder,
-          }
-        : {}),
-    }));
-    const runtimeIndex = seed.createRuntimeIndex([{ profile: 'default', fs_variant: 'static', routes }]);
+    const routes = observations.map((observation) =>
+      routeObservation({
+        surface,
+        id,
+        method,
+        routePath,
+        site: observation.site,
+        role: observation.role,
+        order: observation.order,
+        ...(observation.outerMountSite
+          ? {
+              outerMountSite: observation.outerMountSite,
+              outerMountOrder: observation.outerMountOrder,
+            }
+          : {}),
+      })
+    );
+    const runtimeIndex = seed.createRuntimeIndex([
+      { profile: 'default', fs_variant: 'static', routes },
+    ]);
     const rows = seed.makeApiRows({
       nodes: new Map([[id, apiNode(method, routePath, sourcePath)]]),
       edges: [],
@@ -666,7 +963,6 @@ describe('surface contract matrix seed semantic regressions', () => {
         true
       );
       expect(clientRow.exposures.flatMap((exposure) => exposure.conditions)).toEqual([
-        expect.objectContaining({ gate: 'enable_lp_reporting', enabled: false }),
         expect.objectContaining({ gate: 'enable_lp_reporting', enabled: false }),
       ]);
     }

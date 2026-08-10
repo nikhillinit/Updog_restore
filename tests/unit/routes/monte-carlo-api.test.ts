@@ -124,11 +124,23 @@ function createSimulationResult() {
   };
 }
 
+let testClientSequence = 0;
+
+function isolateRateLimitClient(app: express.Express): void {
+  testClientSequence += 1;
+  app.set('trust proxy', 1);
+  app.use((req, _res, next) => {
+    req.headers['x-forwarded-for'] = `203.0.113.${testClientSequence}`;
+    next();
+  });
+}
+
 describe('Monte Carlo routes', () => {
   let app: express.Express;
 
   beforeEach(() => {
     app = express();
+    isolateRateLimitClient(app);
     app.use(express.json());
     app.use(monteCarloRouter);
 
@@ -191,6 +203,7 @@ describe('Monte Carlo routes', () => {
 
   it('passes numeric authenticated user id as createdBy for synchronous simulations', async () => {
     const authenticatedApp = express();
+    isolateRateLimitClient(authenticatedApp);
     authenticatedApp.use(express.json());
     authenticatedApp.use((req, _res, next) => {
       req.user = { id: '42' } as never;
@@ -213,9 +226,21 @@ describe('Monte Carlo routes', () => {
     );
   });
 
+  it('executes async simulation synchronously without claiming queued work when its queue is unavailable', async () => {
+    isQueueInitializedMock.mockReturnValue(false);
+
+    const response = await request(app).post('/simulate/async').send({ fundId: 1 }).expect(200);
+
+    expect(response.body.mode).toBe('sync_fallback');
+    expect(response.body.metadata).toEqual(expect.objectContaining({ fallbackTriggered: true }));
+    expect(enqueueSimulationMock).not.toHaveBeenCalled();
+    expect(runSimulationMock).toHaveBeenCalledTimes(1);
+  });
+
   it('queues numeric authenticated user id for asynchronous simulations', async () => {
     isQueueInitializedMock.mockReturnValue(true);
     const authenticatedApp = express();
+    isolateRateLimitClient(authenticatedApp);
     authenticatedApp.use(express.json());
     authenticatedApp.use((req, _res, next) => {
       req.user = { id: '42' } as never;

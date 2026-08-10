@@ -14,10 +14,19 @@ export type QueueRegistryKey =
   | 'pacing-calc'
   | 'cohort-calc'
   | 'economics-calc'
-  | 'capital-call-status';
+  | 'capital-call-status'
+  | 'scenario-generation'
+  | 'lp-view-refresh';
 
 export type QueueHealthMode = 'worker' | 'producer';
 export type QueueOwner = 'providers' | 'route';
+export type ApiProcessRuntimeRequirement = 'legacy-provider' | 'in-process-consumer';
+export type QueueProductionDisposition =
+  | { mode: 'railway-worker'; deployment: 'railway-worker-fund-scenario-calc' }
+  | { mode: 'railway-worker'; deployment: 'railway-worker-capital-call-status' }
+  | { mode: 'inline-fallback' }
+  | { mode: 'local-only' }
+  | { mode: 'quarantined' };
 
 export interface QueueCatalogEntry {
   key: QueueRegistryKey;
@@ -25,6 +34,8 @@ export interface QueueCatalogEntry {
   displayName: string;
   healthMode: QueueHealthMode;
   owner: QueueOwner;
+  apiProcessRuntimeRequirement?: ApiProcessRuntimeRequirement;
+  productionDisposition: QueueProductionDisposition;
   quarantined?: boolean;
   fundCalculationAuthority?: FundCalculationAuthority;
 }
@@ -33,6 +44,8 @@ export interface RegisteredQueueRuntime {
   getQueue: () => Queue | null;
   getWorker?: () => Worker | null;
   isInitialized: () => boolean;
+  healthMode?: QueueHealthMode;
+  close?: () => Promise<void>;
 }
 
 function authorityForCalculationQueue(queueKey: FundCalculationQueueKey): FundCalculationAuthority {
@@ -46,6 +59,8 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     displayName: 'Monte Carlo Simulations',
     healthMode: 'worker',
     owner: 'providers',
+    apiProcessRuntimeRequirement: 'legacy-provider',
+    productionDisposition: { mode: 'local-only' },
   },
   {
     key: 'report',
@@ -53,6 +68,8 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     displayName: 'LP Report Generation',
     healthMode: 'worker',
     owner: 'providers',
+    apiProcessRuntimeRequirement: 'legacy-provider',
+    productionDisposition: { mode: 'local-only' },
   },
   {
     key: 'backtesting',
@@ -60,6 +77,8 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     displayName: 'Backtesting Jobs',
     healthMode: 'worker',
     owner: 'providers',
+    apiProcessRuntimeRequirement: 'legacy-provider',
+    productionDisposition: { mode: 'local-only' },
   },
   {
     key: 'reserve-calc',
@@ -67,6 +86,7 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     displayName: 'Reserve Calculations',
     healthMode: 'producer',
     owner: 'route',
+    productionDisposition: { mode: 'inline-fallback' },
     fundCalculationAuthority: authorityForCalculationQueue('reserve-calc'),
   },
   {
@@ -75,6 +95,11 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     displayName: 'Fund Scenario Calculations',
     healthMode: 'producer',
     owner: 'route',
+    apiProcessRuntimeRequirement: 'in-process-consumer',
+    productionDisposition: {
+      mode: 'railway-worker',
+      deployment: 'railway-worker-fund-scenario-calc',
+    },
     fundCalculationAuthority: 'experimental',
   },
   {
@@ -83,6 +108,7 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     displayName: 'Pacing Calculations',
     healthMode: 'producer',
     owner: 'route',
+    productionDisposition: { mode: 'inline-fallback' },
     fundCalculationAuthority: authorityForCalculationQueue('pacing-calc'),
   },
   {
@@ -91,6 +117,7 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     displayName: 'Cohort Calculations',
     healthMode: 'producer',
     owner: 'route',
+    productionDisposition: { mode: 'local-only' },
     fundCalculationAuthority: authorityForCalculationQueue('cohort-calc'),
   },
   {
@@ -99,6 +126,10 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     displayName: 'Capital Call Status Notifications',
     healthMode: 'worker',
     owner: 'providers',
+    productionDisposition: {
+      mode: 'railway-worker',
+      deployment: 'railway-worker-capital-call-status',
+    },
   },
   {
     key: 'economics-calc',
@@ -106,25 +137,77 @@ export const QUEUE_CATALOG: readonly QueueCatalogEntry[] = [
     displayName: 'GP Economics Calculations',
     healthMode: 'producer',
     owner: 'route',
+    productionDisposition: { mode: 'quarantined' },
     quarantined: true,
     fundCalculationAuthority: authorityForCalculationQueue('economics-calc'),
+  },
+  {
+    key: 'scenario-generation',
+    queueName: 'scenario-generation',
+    displayName: 'Scenario Generation',
+    healthMode: 'worker',
+    owner: 'providers',
+    productionDisposition: { mode: 'local-only' },
+  },
+  {
+    key: 'lp-view-refresh',
+    queueName: 'lp-view-refresh',
+    displayName: 'LP View Refresh',
+    healthMode: 'worker',
+    owner: 'providers',
+    productionDisposition: { mode: 'quarantined' },
+    quarantined: true,
   },
 ] as const;
 
 const queueCatalogByKey = new Map<QueueRegistryKey, QueueCatalogEntry>(
   QUEUE_CATALOG.map((entry) => [entry.key, entry])
 );
-const registeredRuntimes = new Map<QueueRegistryKey, RegisteredQueueRuntime>();
+type RuntimeComponents = Partial<Record<QueueHealthMode, RegisteredQueueRuntime>>;
+const runtimeComponents = new Map<QueueRegistryKey, RuntimeComponents>();
 
 export function registerQueueRuntime(key: QueueRegistryKey, runtime: RegisteredQueueRuntime): void {
   if (!queueCatalogByKey.has(key)) {
     throw new Error(`Unknown queue registry key: ${key}`);
   }
-  registeredRuntimes.set(key, runtime);
+
+  const healthMode = runtime.healthMode ?? getQueueCatalogEntry(key).healthMode;
+  const components = runtimeComponents.get(key) ?? {};
+  components[healthMode] = runtime;
+  runtimeComponents.set(key, components);
 }
 
-export function unregisterQueueRuntime(key: QueueRegistryKey): void {
-  registeredRuntimes.delete(key);
+export function unregisterQueueRuntime(
+  key: QueueRegistryKey,
+  healthMode?: QueueHealthMode,
+  expectedRuntime?: RegisteredQueueRuntime
+): boolean {
+  if (!healthMode) {
+    if (!expectedRuntime) {
+      return runtimeComponents.delete(key);
+    }
+
+    const components = runtimeComponents.get(key);
+    if (!components) return false;
+    let removed = false;
+    for (const mode of ['worker', 'producer'] as const) {
+      if (components[mode] === expectedRuntime) {
+        delete components[mode];
+        removed = true;
+      }
+    }
+    if (!components.worker && !components.producer) runtimeComponents.delete(key);
+    return removed;
+  }
+
+  const components = runtimeComponents.get(key);
+  if (!components) return false;
+  if (expectedRuntime && components[healthMode] !== expectedRuntime) return false;
+  delete components[healthMode];
+  if (!components.worker && !components.producer) {
+    runtimeComponents.delete(key);
+  }
+  return true;
 }
 
 export function getQueueCatalog(): readonly QueueCatalogEntry[] {
@@ -142,16 +225,54 @@ export function getQueueCatalogEntry(key: QueueRegistryKey): QueueCatalogEntry {
 export function getRegisteredQueueRuntime(
   key: QueueRegistryKey
 ): RegisteredQueueRuntime | undefined {
-  return registeredRuntimes.get(key);
+  const components = runtimeComponents.get(key);
+  if (!components) return undefined;
+  const workerRuntime = components.worker;
+  const producerRuntime = components.producer;
+  const primary = workerRuntime ?? producerRuntime;
+  if (!primary) return undefined;
+
+  if (!workerRuntime || !producerRuntime) return primary;
+
+  return {
+    getQueue: producerRuntime.getQueue,
+    ...(workerRuntime.getWorker ? { getWorker: workerRuntime.getWorker } : {}),
+    isInitialized: () => workerRuntime.isInitialized() && producerRuntime.isInitialized(),
+    healthMode: 'worker',
+    close: async () => {
+      await Promise.allSettled([workerRuntime.close?.(), producerRuntime.close?.()]);
+      unregisterQueueRuntime(key, 'worker', workerRuntime);
+      unregisterQueueRuntime(key, 'producer', producerRuntime);
+    },
+  };
 }
 
 export function getRegisteredQueueRuntimes(): ReadonlyMap<
   QueueRegistryKey,
   RegisteredQueueRuntime
 > {
-  return registeredRuntimes;
+  return new Map(
+    [...runtimeComponents.keys()].flatMap((key) => {
+      const runtime = getRegisteredQueueRuntime(key);
+      return runtime ? [[key, runtime] as const] : [];
+    })
+  );
+}
+
+export async function closeRegisteredQueueRuntimes(): Promise<void> {
+  const captured = [...runtimeComponents.entries()].flatMap(([key, components]) =>
+    (['worker', 'producer'] as const).flatMap((healthMode) => {
+      const runtime = components[healthMode];
+      return runtime ? [{ key, healthMode, runtime }] : [];
+    })
+  );
+
+  await Promise.allSettled(captured.map(({ runtime }) => runtime.close?.()));
+  for (const { key, healthMode, runtime } of captured) {
+    unregisterQueueRuntime(key, healthMode, runtime);
+  }
 }
 
 export function resetQueueRegistry(): void {
-  registeredRuntimes.clear();
+  runtimeComponents.clear();
 }

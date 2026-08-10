@@ -1,7 +1,7 @@
 import express from 'express';
 import type { Request, Response } from 'express';
 import request from 'supertest';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fundScopeState = vi.hoisted(() => ({
   enforceProvidedFundScope: vi.fn(async (_req: Request, _res: Response, _fundId: number) => true),
@@ -94,6 +94,7 @@ const ISO2 = '2026-02-01T00:00:00.000Z';
 
 describe('timeline route contracts', () => {
   let service: ReturnType<typeof makeService>;
+  const originalNodeEnv = process.env.NODE_ENV;
 
   beforeEach(() => {
     fundScopeState.enforceProvidedFundScope.mockReset();
@@ -102,6 +103,10 @@ describe('timeline route contracts', () => {
     dbState.findFirst.mockResolvedValue(null);
     service = makeService();
     authState.user = { id: '1', role: 'admin', roles: ['admin'], fundIds: [] };
+  });
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalNodeEnv;
   });
 
   it('GET /:fundId rejects non-canonical fundId before scope check and event read', async () => {
@@ -146,6 +151,30 @@ describe('timeline route contracts', () => {
       2
     );
     expect(dbState.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('POST /:fundId/snapshot returns unavailable in production without claiming queued work', async () => {
+    process.env.NODE_ENV = 'production';
+    dbState.findFirst.mockResolvedValue({ id: 1 });
+
+    const res = await request(makeApp(service)).post('/api/timeline/1/snapshot').send({});
+
+    expect(res.status).toBe(503);
+    expect(res.body).toMatchObject({ error: 'QUEUE_UNAVAILABLE' });
+    expect(res.body).not.toHaveProperty('jobId');
+    expect(res.body).not.toHaveProperty('queued');
+  });
+
+  it('POST /:fundId/snapshot is an explicit local diagnostic, not queued work', async () => {
+    process.env.NODE_ENV = 'test';
+    dbState.findFirst.mockResolvedValue({ id: 1 });
+
+    const res = await request(makeApp(service)).post('/api/timeline/1/snapshot').send({});
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ fundId: 1, executed: false });
+    expect(res.body).not.toHaveProperty('jobId');
+    expect(res.body).not.toHaveProperty('queued');
   });
 
   it('GET /:fundId/compare denies cross-fund scope before comparing states', async () => {

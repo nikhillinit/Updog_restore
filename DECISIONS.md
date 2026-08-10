@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-08-07
+last_updated: 2026-08-09
 owner: Core Team
 review_cadence: P90D
 ---
@@ -10345,3 +10345,79 @@ catalog and ledger histories while giving Drizzle an honest new high-water mark.
 - Merging code or documentation authorizes neither schema apply nor release
   dispatch. Each production action retains its own environment approval,
   exact-SHA validation, and operator decision boundary.
+
+## ADR-075: G3 Runtime Topology, Queue Ownership, and Deployment Identity
+
+**Date:** 2026-08-09 **Status:** Accepted **Tags:** #g3 #runtime-topology
+#queues #deployment-identity
+
+### Context
+
+Earlier release planning mixed a Railway HTTP/API surface with background
+workers, treated Node 20 as authoritative, and allowed API startup to construct
+provider-owned BullMQ consumers. That topology cannot prove which service owns
+each production queue. A worker selected with the wrong entrypoint can also
+self-report a matching `WORKER_TYPE`, making a healthy response insufficient
+evidence of correct Railway service selection. Generated surface-matrix rows
+must describe the ratified production topology rather than preserve those
+historical assumptions.
+
+### Decision
+
+1. Controlled build and runtime surfaces use exact Node `22.23.2`. Vercel uses
+   the supported `22.x` runtime with runtime-version proof; Node 20 instructions
+   in older plans are superseded.
+2. Vercel owns the public web and HTTP API surface. Railway owns exactly two
+   private, domainless worker services: `fund-scenario-calc` and
+   `capital-call-status`. Railway does not host a public web or API service.
+3. Queue production and consumption are separate capabilities. The Vercel API
+   may produce only work backed by a classified production consumer; it must not
+   start in-process consumers or unmatched provider-owned queues. The two
+   dedicated Railway workers are the only production consumers. Local and test
+   consumers require an explicit opt-in.
+4. Each production worker validates independent deployment identity before any
+   Redis, queue, worker, scheduler, listener, registration, or health-server
+   side effect. Validation binds the entrypoint's literal expected worker type
+   to `RAILWAY_SERVICE_NAME`, requires the production Railway environment, and
+   requires valid expected commit, deployment, and release identity. Health and
+   readiness fail closed for missing, mismatched, empty, paused, stopped, or
+   wrong-worker state.
+5. `scenario-generation` and `cohort-calc` queue surfaces are local-only. This
+   corrects the reconciled closeout plan's infeasible later cohort
+   `inline-fallback` phrase: cohort is experimental and `syncCapable: false`,
+   has no server inline handler that persists a COHORT snapshot, and its
+   available engine is randomized synthetic analysis. Finalize/publish must not
+   enqueue or claim cohort work; reserve and pacing remain the inline fallbacks.
+   `economics-calc` and `lp-view-refresh` queue surfaces are quarantined.
+   Economics calculation remains inline/synchronous, orphan error tracking is
+   structured logging rather than a queue, and unowned catalog workers cannot
+   register, schedule, enqueue, or deploy. `ml-service/`, persistent listeners,
+   and WebSocket surfaces remain local or nonproduction unless separately
+   ratified.
+6. Public `/api/version` exposes product and release identity only. Railway
+   service, environment, deployment, and other control-plane identifiers are
+   forbidden from that response. Private worker health may expose the minimum
+   deployment identity needed for exact-SHA operator proof.
+7. Surface-matrix convergence may use disposable, untracked regenerations that
+   are discarded after review. After source freeze, exactly one fresh tracked
+   regeneration is classified, independently reviewed, and approved. Its
+   topology contains Vercel web/API plus the two Railway workers, never Railway
+   web/API rows.
+
+### Consequences
+
+- API processes fail fast on invalid consumer policy without opening queue or
+  Redis connections. Worker processes fail before side effects when deployment
+  identity cannot prove the expected service.
+- Queue-backed success or acceptance responses require a real classified
+  production consumer; quarantined or local-only surfaces cannot imply queued
+  production work.
+- Public release identity stays stable and minimal while private worker proof
+  remains strong enough to detect a healthy-but-wrong Railway service.
+- This ADR authorizes source and configuration contracts only. It does not
+  authorize provider mutation, Railway service retirement, production schema
+  apply, release dispatch, promotion, canary purge, sweep activation, or G4/G5.
+- G3 workflow preparation cannot authorize production promotion. Until Task13
+  ingests trusted attested operator `/health` and `/ready` evidence and
+  completes operator-mode verification, G4 must retain a fail-closed promotion
+  hard-stop.

@@ -6,7 +6,7 @@ import { setReady, registerInvalidator } from '../health/state';
 import type { NextFunction, Request, Response } from 'express';
 import { TTLCache, MemoryKV } from '../lib/ttl-cache';
 import { getReleaseIdentity, getVersionInfo } from '../version';
-import { getQueueConfig } from '../config/features';
+import { getQueueRuntimePolicy, type QueueRuntimePolicy } from '../config/features';
 import {
   getQueueCatalog,
   getRegisteredQueueRuntime,
@@ -24,7 +24,7 @@ const healthCache = new TTLCache<Record<string, unknown>>(memoryKV);
 const HEALTH_CACHE_MS = 1500; // 1.5 second cache
 
 interface QueueHealthRecord {
-  status: 'ok' | 'disabled' | 'missing' | 'degraded' | 'error';
+  status: 'ok' | 'disabled' | 'not_applicable' | 'missing' | 'degraded' | 'error';
   mode: 'worker' | 'producer';
   owner: 'providers' | 'route';
   initialized: boolean;
@@ -51,15 +51,17 @@ function requireHealthKeyOrAuth(req: Request, res: Response, next: NextFunction)
 
 function buildDisabledQueueHealth(): Record<string, QueueHealthRecord> {
   return Object.fromEntries(
-    getQueueCatalog().filter((entry) => !entry.quarantined).map((entry) => [
-      entry.queueName,
-      {
-        status: 'disabled',
-        mode: entry.healthMode,
-        owner: entry.owner,
-        initialized: false,
-      } satisfies QueueHealthRecord,
-    ])
+    getQueueCatalog()
+      .filter((entry) => !entry.quarantined)
+      .map((entry) => [
+        entry.queueName,
+        {
+          status: 'disabled',
+          mode: entry.healthMode,
+          owner: entry.owner,
+          initialized: false,
+        } satisfies QueueHealthRecord,
+      ])
   );
 }
 
@@ -90,28 +92,64 @@ async function pingQueueRedis(queueRedisUrl: string): Promise<{ ok: boolean; err
   }
 }
 
-async function inspectQueueRuntime(entry: QueueCatalogEntry): Promise<QueueHealthRecord> {
+export function isQueueRuntimeExpectedInApiProcess(
+  entry: QueueCatalogEntry,
+  policy: Pick<QueueRuntimePolicy, 'legacyProviderProducersEnabled' | 'inProcessConsumersEnabled'>
+): boolean {
+  switch (entry.apiProcessRuntimeRequirement) {
+    case 'legacy-provider':
+      return policy.legacyProviderProducersEnabled;
+    case 'in-process-consumer':
+      return policy.inProcessConsumersEnabled;
+    default:
+      return false;
+  }
+}
+
+export function hasQueueRuntimeFailure(
+  queueHealth: Readonly<Record<string, QueueHealthRecord>>
+): boolean {
+  return Object.values(queueHealth).some(
+    (queue) => queue.status !== 'ok' && queue.status !== 'not_applicable'
+  );
+}
+
+export async function inspectQueueRuntime(
+  entry: QueueCatalogEntry,
+  runtimeExpected = true
+): Promise<QueueHealthRecord> {
   const runtime = getRegisteredQueueRuntime(entry.key);
   if (!runtime) {
     return {
-      status: 'missing',
+      status: runtimeExpected ? 'missing' : 'not_applicable',
       mode: entry.healthMode,
       owner: entry.owner,
       initialized: false,
     };
   }
 
+  const healthMode = runtime.healthMode ?? entry.healthMode;
   const queue = runtime.getQueue();
   const worker = runtime.getWorker?.() ?? null;
   const initialized = runtime.isInitialized();
 
-  if (!queue || !initialized) {
+  if (!initialized || (!queue && healthMode !== 'worker')) {
     return {
       status: 'missing',
-      mode: entry.healthMode,
+      mode: healthMode,
       owner: entry.owner,
       initialized,
-      ...(entry.healthMode === 'worker' ? { workerAttached: worker !== null } : {}),
+      ...(healthMode === 'worker' ? { workerAttached: worker !== null } : {}),
+    };
+  }
+
+  if (!queue) {
+    return {
+      status: worker !== null ? 'ok' : 'degraded',
+      mode: healthMode,
+      owner: entry.owner,
+      initialized,
+      workerAttached: worker !== null,
     };
   }
 
@@ -123,11 +161,11 @@ async function inspectQueueRuntime(entry: QueueCatalogEntry): Promise<QueueHealt
       queue.getFailedCount(),
     ]);
 
-    const workerAttached = entry.healthMode === 'worker' ? worker !== null : undefined;
+    const workerAttached = healthMode === 'worker' ? worker !== null : undefined;
 
     return {
-      status: entry.healthMode === 'worker' && !workerAttached ? 'degraded' : 'ok',
-      mode: entry.healthMode,
+      status: healthMode === 'worker' && !workerAttached ? 'degraded' : 'ok',
+      mode: healthMode,
       owner: entry.owner,
       initialized,
       ...(workerAttached !== undefined ? { workerAttached } : {}),
@@ -139,10 +177,10 @@ async function inspectQueueRuntime(entry: QueueCatalogEntry): Promise<QueueHealt
   } catch (error: unknown) {
     return {
       status: 'error',
-      mode: entry.healthMode,
+      mode: healthMode,
       owner: entry.owner,
       initialized,
-      ...(entry.healthMode === 'worker' ? { workerAttached: worker !== null } : {}),
+      ...(healthMode === 'worker' ? { workerAttached: worker !== null } : {}),
       error: error instanceof Error ? error.message : 'Unknown queue health error',
     };
   }
@@ -409,7 +447,7 @@ router['get']('/api/health/cache', requireHealthKeyOrAuth, async (req: Request, 
 router['get']('/api/health/queues', requireHealthKeyOrAuth, async (req: Request, res: Response) => {
   try {
     const timestamp = new Date().toISOString();
-    const queueConfig = getQueueConfig();
+    const queueConfig = getQueueRuntimePolicy();
 
     if (!queueConfig.enabled || !queueConfig.queueRedisUrl) {
       res.json({
@@ -428,13 +466,20 @@ router['get']('/api/health/queues', requireHealthKeyOrAuth, async (req: Request,
         getQueueCatalog()
           .filter((entry) => !entry.quarantined)
           .map(
-          async (entry) => [entry.queueName, await inspectQueueRuntime(entry)] as const
-        )
+            async (entry) =>
+              [
+                entry.queueName,
+                await inspectQueueRuntime(
+                  entry,
+                  isQueueRuntimeExpectedInApiProcess(entry, queueConfig)
+                ),
+              ] as const
+          )
       ),
     ]);
 
     const queueHealth = Object.fromEntries(queueEntries) as Record<string, QueueHealthRecord>;
-    const hasQueueFailure = Object.values(queueHealth).some((queue) => queue.status !== 'ok');
+    const hasQueueFailure = hasQueueRuntimeFailure(queueHealth);
     const overallStatus = redisProbe.ok && !hasQueueFailure ? 'ok' : 'degraded';
 
     res.status(overallStatus === 'ok' ? 200 : 503).json({

@@ -1,8 +1,10 @@
 import express from 'express';
+import type { Server } from 'node:http';
 import { logger } from '../lib/logger';
 import { getMetrics } from '../lib/metrics';
 import { getReleaseIdentity } from '../server/version';
 import type { Worker } from 'bullmq';
+import { type WorkerDeploymentIdentity } from './worker-deployment-identity';
 
 export interface WorkerHealthStatus {
   name: string;
@@ -21,11 +23,21 @@ interface HealthCheckResponse {
   version: string;
   commit: string;
   environment: string;
+  workerType?: string;
+  deploymentId?: string;
   workers: WorkerHealthStatus[];
   metrics: {
     totalJobsProcessed: number;
     totalErrors: number;
   };
+}
+
+type HealthIdentity = WorkerDeploymentIdentity | null | undefined;
+
+export interface WorkerHealthServerRuntime {
+  app: express.Application;
+  server: Server;
+  close: () => Promise<void>;
 }
 
 // Track worker instances
@@ -44,6 +56,7 @@ export function registerWorker(
   registeredWorkers.set(name, worker);
   workerStats.set(name, { processed: 0, errors: 0 });
   if (detailsProvider) workerHealthDetails.set(name, detailsProvider);
+  else workerHealthDetails.delete(name);
 
   // Track job completion
   worker.on('completed', () => {
@@ -66,6 +79,21 @@ export function registerWorker(
 }
 
 /**
+ * Remove a worker only when it is still the registered instance for this name.
+ * This prevents delayed shutdown from deleting a newer replacement worker.
+ */
+export function unregisterWorker(name: string, worker: Worker): boolean {
+  if (registeredWorkers.get(name) !== worker) {
+    return false;
+  }
+
+  registeredWorkers.delete(name);
+  workerHealthDetails.delete(name);
+  workerStats.delete(name);
+  return true;
+}
+
+/**
  * Check health of a single worker
  */
 async function checkWorkerHealth(name: string, worker: Worker): Promise<WorkerHealthStatus> {
@@ -74,17 +102,15 @@ async function checkWorkerHealth(name: string, worker: Worker): Promise<WorkerHe
   try {
     const isRunning = worker.isRunning();
     const isPaused = worker.isPaused();
-    const details = workerHealthDetails.get(name)
-      ? await workerHealthDetails.get(name)!()
-      : {};
+    const details = workerHealthDetails.get(name) ? await workerHealthDetails.get(name)!() : {};
 
     return {
+      ...details,
       name,
       status: isRunning && !isPaused ? 'healthy' : isPaused ? 'paused' : 'unhealthy',
       isRunning,
       jobsProcessed: stats.processed,
       lastJobTime: stats.lastJob,
-      ...details,
     };
   } catch (error) {
     return {
@@ -100,11 +126,18 @@ async function checkWorkerHealth(name: string, worker: Worker): Promise<WorkerHe
 /**
  * Perform complete health check of all workers
  */
-async function performHealthCheck(): Promise<HealthCheckResponse> {
+function legacyHealthAllowed(): boolean {
+  const environment = process.env['NODE_ENV']?.trim();
+  return environment === 'development' || environment === 'test';
+}
+
+async function performHealthCheck(
+  identity: HealthIdentity,
+  legacyAllowed: boolean,
+  releaseIdentity: ReturnType<typeof getReleaseIdentity>
+): Promise<HealthCheckResponse> {
   const workerHealthChecks = await Promise.all(
-    Array.from(registeredWorkers.entries()).map(([name, worker]) =>
-      checkWorkerHealth(name, worker)
-    )
+    Array.from(registeredWorkers.entries()).map(([name, worker]) => checkWorkerHealth(name, worker))
   );
 
   const totalJobsProcessed = Array.from(workerStats.values()).reduce(
@@ -116,13 +149,21 @@ async function performHealthCheck(): Promise<HealthCheckResponse> {
     0
   );
 
-  const isHealthy = workerHealthChecks.every((w) => w.status === 'healthy');
+  const isHealthy = identity
+    ? workerHealthChecks.length === 1 &&
+      workerHealthChecks[0]?.name === identity.workerType &&
+      workerHealthChecks[0]?.status === 'healthy'
+    : identity === undefined &&
+      legacyAllowed &&
+      workerHealthChecks.length > 0 &&
+      workerHealthChecks.every((worker) => worker.status === 'healthy');
 
   return {
     status: isHealthy ? 'healthy' : 'unhealthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    ...getReleaseIdentity(),
+    ...(identity ?? releaseIdentity),
+    ...(identity ? { workerType: identity.workerType, deploymentId: identity.deploymentId } : {}),
     workers: workerHealthChecks,
     metrics: {
       totalJobsProcessed,
@@ -134,13 +175,15 @@ async function performHealthCheck(): Promise<HealthCheckResponse> {
 /**
  * Create health check HTTP server
  */
-export function createWorkerHealthApp(): express.Application {
+export function createWorkerHealthApp(identity?: HealthIdentity): express.Application {
   const app = express();
+  const legacyAllowed = identity === undefined && legacyHealthAllowed();
+  const releaseIdentity = identity ?? getReleaseIdentity();
 
   // Health check endpoint
   app.get('/health', async (req, res) => {
     try {
-      const health = await performHealthCheck();
+      const health = await performHealthCheck(identity, legacyAllowed, releaseIdentity);
       const statusCode = health.status === 'healthy' ? 200 : 503;
       res.status(statusCode).json(health);
     } catch (error) {
@@ -165,13 +208,20 @@ export function createWorkerHealthApp(): express.Application {
   // Readiness check
   app.get('/ready', async (req, res) => {
     try {
-      const health = await performHealthCheck();
-      const isReady = health.workers.every((w) => w.status !== 'unhealthy');
+      const health = await performHealthCheck(identity, legacyAllowed, releaseIdentity);
+      const isReady = health.status === 'healthy';
 
       if (isReady) {
         res.status(200).json({
           status: 'ready',
           timestamp: new Date().toISOString(),
+          ...(identity
+            ? {
+                workerType: identity.workerType,
+                commit: identity.commit,
+                deploymentId: identity.deploymentId,
+              }
+            : {}),
         });
       } else {
         res.status(503).json({
@@ -225,19 +275,47 @@ export function createWorkerHealthApp(): express.Application {
  * The app factory above is intentionally separate so health response tests do
  * not open a listener or imply queue consumption.
  */
-export function createHealthServer(port: number = 9000): express.Application {
-  const app = createWorkerHealthApp();
+export async function createHealthServer(
+  port: number = 9000,
+  identity?: HealthIdentity
+): Promise<WorkerHealthServerRuntime> {
+  const app = createWorkerHealthApp(identity);
+  const server = app.listen(port);
 
-  app.listen(port, () => {
-    logger.info(`Worker health server listening on port ${port}`);
-    logger.info(`  Health: http://localhost:${port}/health`);
-    logger.info(`  Liveness: http://localhost:${port}/live`);
-    logger.info(`  Readiness: http://localhost:${port}/ready`);
-    logger.info(`  Metrics: http://localhost:${port}/metrics`);
-    logger.info(`  Stats: http://localhost:${port}/stats`);
+  await new Promise<void>((resolve, reject) => {
+    const onListening = () => {
+      server.off('error', onError);
+      resolve();
+    };
+    const onError = (error: Error) => {
+      server.off('listening', onListening);
+      reject(error);
+    };
+    server.once('listening', onListening);
+    server.once('error', onError);
   });
 
-  return app;
+  logger.info(`Worker health server listening on port ${port}`);
+  logger.info(`  Health: http://localhost:${port}/health`);
+  logger.info(`  Liveness: http://localhost:${port}/live`);
+  logger.info(`  Readiness: http://localhost:${port}/ready`);
+  logger.info(`  Metrics: http://localhost:${port}/metrics`);
+  logger.info(`  Stats: http://localhost:${port}/stats`);
+
+  let closePromise: Promise<void> | undefined;
+  return {
+    app,
+    server,
+    close: () => {
+      closePromise ??= new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) reject(error);
+          else resolve();
+        });
+      });
+      return closePromise;
+    },
+  };
 }
 
 /**

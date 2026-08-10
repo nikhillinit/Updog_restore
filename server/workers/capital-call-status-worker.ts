@@ -23,6 +23,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { lpCapitalCalls, lpPaymentSubmissions } from '@shared/schema-lp-sprint3';
 import { funds } from '@shared/schema';
 import { logger } from '../lib/logger';
+import { sanitizeQueueError } from '../lib/queue-error-sanitizer';
 import { metrics as runtimeMetrics } from '../../lib/metrics';
 import {
   countExhaustedCapitalCallNotifications,
@@ -140,7 +141,9 @@ export class CapitalCallStatusWorker {
     });
     try {
       return await Promise.race([
-        Promise.resolve().then(operation).catch(() => fallback),
+        Promise.resolve()
+          .then(operation)
+          .catch(() => fallback),
         timeout,
       ]);
     } finally {
@@ -179,13 +182,25 @@ export class CapitalCallStatusWorker {
       },
     });
 
-    // eslint-disable-next-line povc-security/require-bullmq-config -- lockDuration is a renewable ownership lease
-    this.worker = new Worker<CapitalCallStatusJob>(queueName, this.processJob.bind(this), {
-      connection: redis,
-      concurrency: 1,
-      // 5 minute ownership lease for status checks (AP-QUEUE-02); execution timeout is DB-scoped.
-      lockDuration: 300000,
-    });
+    try {
+      // eslint-disable-next-line povc-security/require-bullmq-config -- lockDuration is a renewable ownership lease
+      this.worker = new Worker<CapitalCallStatusJob>(queueName, this.processJob.bind(this), {
+        connection: redis,
+        concurrency: 1,
+        // 5 minute ownership lease for status checks (AP-QUEUE-02); execution timeout is DB-scoped.
+        lockDuration: 300000,
+      });
+    } catch (error) {
+      const constructionError =
+        error instanceof Error
+          ? error
+          : new Error('Capital call status worker construction failed');
+      Object.defineProperty(constructionError, 'capitalCallCleanup', {
+        value: this.queue.close(),
+        enumerable: false,
+      });
+      throw constructionError;
+    }
 
     this.setupEventHandlers();
   }
@@ -209,7 +224,7 @@ export class CapitalCallStatusWorker {
 
       return queuedJob;
     } catch (error) {
-      logger.error({ error, job }, 'Error scheduling status check');
+      logger.error({ error: sanitizeQueueError(error), job }, 'Error scheduling status check');
       throw error;
     }
   }
@@ -268,7 +283,7 @@ export class CapitalCallStatusWorker {
         delayed: counts['delayed'] ?? 0,
       };
     } catch (error) {
-      logger.error({ error }, 'Error getting queue stats');
+      logger.error({ error: sanitizeQueueError(error) }, 'Error getting queue stats');
       return { active: 0, waiting: 0, completed: 0, failed: 0, delayed: 0 };
     }
   }
@@ -285,7 +300,7 @@ export class CapitalCallStatusWorker {
       await this.scheduleRecurringChecks();
       await this.dispatchPendingNotifications();
     } catch (error) {
-      logger.error({ error }, 'Error starting worker');
+      logger.error({ error: sanitizeQueueError(error) }, 'Error starting worker');
       throw error;
     }
   }
@@ -294,14 +309,26 @@ export class CapitalCallStatusWorker {
    * Stop the worker
    */
   async stop(): Promise<void> {
+    let firstError: unknown;
     try {
       await this.worker.close();
-      await this.queue.close();
-      logger.info({}, 'Capital call status worker stopped');
     } catch (error) {
-      logger.error({ error }, 'Error stopping worker');
-      throw error;
+      firstError = error;
     }
+
+    try {
+      await this.queue.close();
+    } catch (error) {
+      firstError ??= error;
+    }
+
+    if (firstError === undefined) {
+      logger.info({}, 'Capital call status worker stopped');
+      return;
+    }
+
+    logger.error({ error: sanitizeQueueError(firstError) }, 'Error stopping worker');
+    throw firstError;
   }
 
   getBullMqWorker(): Worker<CapitalCallStatusJob> {
@@ -343,6 +370,8 @@ export class CapitalCallStatusWorker {
     signal?: AbortSignal
   ): Promise<StatusCheckMetrics> {
     const startTime = Date.now();
+    const startedAt = process.hrtime.bigint();
+    let outcome: 'success' | 'failure' | 'hard_timeout' = 'failure';
     const ownedAbortController = new AbortController();
     const onBullMqAbort = () => ownedAbortController.abort(signal?.reason);
     if (signal?.aborted) onBullMqAbort();
@@ -390,15 +419,20 @@ export class CapitalCallStatusWorker {
         this.metrics.shift();
       }
 
+      outcome = 'success';
       return metrics;
     } catch (error) {
       const duration = Date.now() - startTime;
       if (isCapitalCallStatusHardTimeoutError(error)) {
+        outcome = 'hard_timeout';
         runtimeMetrics.capitalCallStatusHardTimeouts.inc();
         runtimeMetrics.capitalCallStatusHardTimeoutDuration.observe(this.hardTimeoutMs / 1000);
         throw new UnrecoverableError(error instanceof Error ? error.message : String(error));
       }
-      logger.error({ jobId: job.id, error, duration }, 'Status check job failed');
+      logger.error(
+        { jobId: job.id, error: sanitizeQueueError(error), duration },
+        'Status check job failed'
+      );
 
       const metrics: StatusCheckMetrics = {
         duration,
@@ -412,6 +446,10 @@ export class CapitalCallStatusWorker {
       this.metrics.push(metrics);
       throw error;
     } finally {
+      runtimeMetrics.workerJobDuration.observe(
+        { worker_type: 'capital-call-status', outcome },
+        Number(process.hrtime.bigint() - startedAt) / 1_000_000_000
+      );
       clearTimeout(timeout);
       signal?.removeEventListener('abort', onBullMqAbort);
     }
@@ -851,15 +889,15 @@ export class CapitalCallStatusWorker {
     });
 
     this.worker.on('failed', (job, error) => {
-      logger.error({ jobId: job?.id, error }, 'Status check job failed');
+      logger.error({ jobId: job?.id, error: sanitizeQueueError(error) }, 'Status check job failed');
     });
 
     this.worker.on('error', (error) => {
-      logger.error({ error }, 'Worker error');
+      logger.error({ error: sanitizeQueueError(error) }, 'Worker error');
     });
 
     this.queue.on('error', (error) => {
-      logger.error({ error }, 'Queue error');
+      logger.error({ error: sanitizeQueueError(error) }, 'Queue error');
     });
   }
 }
@@ -871,12 +909,18 @@ export class CapitalCallStatusWorker {
 /**
  * Factory function to create worker instance
  */
-export function createCapitalCallStatusWorker(
+export async function createCapitalCallStatusWorker(
   redis: Redis,
   queueName?: string,
   options?: CapitalCallStatusWorkerOptions
-): CapitalCallStatusWorker {
-  return new CapitalCallStatusWorker(redis, queueName, options);
+): Promise<CapitalCallStatusWorker> {
+  try {
+    return new CapitalCallStatusWorker(redis, queueName, options);
+  } catch (error) {
+    const cleanup = (error as { capitalCallCleanup?: Promise<unknown> }).capitalCallCleanup;
+    await cleanup?.catch(() => undefined);
+    throw error;
+  }
 }
 
 /**
