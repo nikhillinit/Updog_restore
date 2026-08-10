@@ -5,22 +5,53 @@
  * Also validates upsert: second PUT updates instead of creating duplicate.
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { eq } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import express from 'express';
 import request from 'supertest';
+import { users } from '@shared/schema';
+import { db } from '../../server/db';
 import { validDraftPayload, minimalDraftPayload } from '../fixtures/fund-contract-v1-fixtures';
 import { makeJwt } from '../utils/integrationAuth';
 
 let app: express.Express;
-const partnerToken = (fundIds: number[] = []): string =>
-  makeJwt({
-    userId: '1',
+const fixture = { partnerUserId: undefined as number | undefined };
+const MODULE_RUN_ID = randomUUID();
+const PARTNER_USERNAME = `integration-fund-draft-round-trip-${MODULE_RUN_ID}`;
+const PARTNER_PASSWORD = 'test-only-password';
+const idempotencyKey = (operation: string): string => `draft-rt-${MODULE_RUN_ID}-${operation}`;
+
+const partnerToken = (fundIds: number[] = []): string => {
+  if (fixture.partnerUserId === undefined) {
+    throw new Error('Integration-test partner user is not provisioned');
+  }
+
+  return makeJwt({
+    userId: String(fixture.partnerUserId),
     email: 'draft-partner@example.com',
     role: 'partner',
     fundIds,
   });
+};
 
 beforeAll(async () => {
+  const [partnerUser] = await db
+    .insert(users)
+    .values({
+      username: PARTNER_USERNAME,
+      password: PARTNER_PASSWORD,
+      role: 'partner',
+      isActive: true,
+      isReleaseCanaryPrincipal: false,
+    })
+    .returning({ id: users.id });
+
+  if (!partnerUser || !Number.isInteger(partnerUser.id) || partnerUser.id <= 0) {
+    throw new Error('Failed to provision integration-test partner user');
+  }
+  Object.assign(fixture, { partnerUserId: partnerUser.id });
+
   app = express();
   app.use(express.json({ limit: '1mb' }));
 
@@ -36,13 +67,20 @@ beforeAll(async () => {
   registerFundConfigRoutes(app);
 });
 
+afterAll(async () => {
+  if (fixture.partnerUserId === undefined) return;
+
+  await db.delete(users).where(eq(users.id, fixture.partnerUserId));
+  Object.assign(fixture, { partnerUserId: undefined });
+});
+
 describe('PUT /api/funds/:id/draft round-trip', () => {
   it('saves and retrieves a full draft payload', async () => {
     // First create a fund to get a valid ID
     const createRes = await request(app)
       .post('/api/funds')
       .set('Authorization', `Bearer ${partnerToken()}`)
-      .set('Idempotency-Key', 'draft-rt-create-01')
+      .set('Idempotency-Key', idempotencyKey('create-01'))
       .send({ name: 'Draft RT Fund', size: 50_000_000 });
 
     expect(createRes.status).toBe(201);
@@ -72,7 +110,7 @@ describe('PUT /api/funds/:id/draft round-trip', () => {
     const createRes = await request(app)
       .post('/api/funds')
       .set('Authorization', `Bearer ${partnerToken()}`)
-      .set('Idempotency-Key', 'draft-rt-upsert-01')
+      .set('Idempotency-Key', idempotencyKey('upsert-01'))
       .send({ name: 'Upsert Fund', size: 25_000_000 });
 
     expect(createRes.status).toBe(201);
@@ -105,7 +143,7 @@ describe('PUT /api/funds/:id/draft round-trip', () => {
     const createRes = await request(app)
       .post('/api/funds')
       .set('Authorization', `Bearer ${partnerToken()}`)
-      .set('Idempotency-Key', 'draft-rt-strict-01')
+      .set('Idempotency-Key', idempotencyKey('strict-01'))
       .send({ name: 'Strict Fund', size: 10_000_000 });
 
     expect(createRes.status).toBe(201);
