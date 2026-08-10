@@ -38,6 +38,27 @@ const strictVercelEnvironment = {
 };
 
 describe('surface contract matrix boot proof completion gates', () => {
+  it('keeps Docker proof config isolated', () => {
+    expect(
+      proofEnv({}, { PATH: '/usr/bin', DOCKER_CONFIG: '/private/tmp/surface-proof-docker' })
+    ).toMatchObject({
+      DOCKER_CONFIG: '/private/tmp/surface-proof-docker',
+    });
+  });
+
+  it('healthchecks both worker-specific ports before Railway PORT', () => {
+    const dockerfile = fs.readFileSync(path.join(process.cwd(), 'Dockerfile.worker'), 'utf8');
+    const healthPortSelection = dockerfile.slice(
+      dockerfile.indexOf('const healthServerPort = firstValidPort('),
+      dockerfile.indexOf('const socket = new net.Socket();')
+    );
+    expect(healthPortSelection).toContain('process.env.FUND_SCENARIO_WORKER_HEALTH_PORT');
+    expect(healthPortSelection).toContain('process.env.CAPITAL_CALL_STATUS_WORKER_HEALTH_PORT');
+    expect(
+      healthPortSelection.indexOf('process.env.CAPITAL_CALL_STATUS_WORKER_HEALTH_PORT')
+    ).toBeLessThan(healthPortSelection.indexOf('process.env.PORT'));
+  });
+
   it('uses the G3 worker deployment vocabulary and binds worker proof identity to source SHA', () => {
     expect(DeploymentSchema.parse('railway-worker-fund-scenario-calc')).toBe(
       'railway-worker-fund-scenario-calc'

@@ -43,6 +43,9 @@ const requiredVercelBuildCredentials = (environment = process.env) => Object.fro
 
 const sanitizedBaseEnv = (environment = process.env) => ({
   PATH: environment.PATH,
+  ...(environment.DOCKER_CONFIG?.trim()
+    ? { DOCKER_CONFIG: environment.DOCKER_CONFIG.trim() }
+    : {}),
   TZ: 'UTC',
   CI: '1',
   NODE_ENV: 'test',
