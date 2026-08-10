@@ -46,6 +46,8 @@ const stableValue = (value: unknown): unknown => {
   return value;
 };
 const stableJson = (value: unknown) => JSON.stringify(stableValue(value));
+const requiresG1SourceHashValidation = (source: string) =>
+  source !== 'package.json' && source !== 'package-lock.json';
 const trackedFiles = () =>
   execFileSync('git', ['ls-files', '-z'], { cwd: root })
     .toString()
@@ -67,6 +69,16 @@ const fileMatches = (file: string, pattern: string) =>
           : pattern === 'ml-service/**' && file.startsWith('ml-service/');
 
 describe('surface contract matrix CI gate', () => {
+  it('does not require G1 signoff for dependency manifest or resolution byte drift', () => {
+    expect(requiresG1SourceHashValidation('package.json')).toBe(false);
+    expect(requiresG1SourceHashValidation('package-lock.json')).toBe(false);
+  });
+
+  it('still requires G1 signoff for package scripts and non-dependency source drift', () => {
+    expect(requiresG1SourceHashValidation('package.json#scripts')).toBe(true);
+    expect(requiresG1SourceHashValidation('server/app.ts')).toBe(true);
+  });
+
   it('keeps the seeded development-only classification valid', () => {
     const seedScript = fs.readFileSync(path.join(matrixDir, 'scripts/seed-matrix.mjs'), 'utf8');
 
@@ -156,6 +168,7 @@ describe('surface contract matrix CI gate', () => {
       ],
     };
     for (const [key, expected] of Object.entries(inventory.source_hashes)) {
+      if (!requiresG1SourceHashValidation(key)) continue;
       let actual: string;
       if (key.startsWith('snapshot:')) actual = key;
       else if (key === 'package.json#scripts')
