@@ -907,7 +907,7 @@ const makeApiRows = ({ nodes, edges, runtimeIndex, snapshotId }) => {
           definitions: [],
           conditions: [],
           ingresses: routeIngresses(node.path || id.replace(/^api:[A-Z]+/, ''), runtime.deployment, runtime.runtime),
-          mountEvidence: `${mount.from}:${mount.line_start ?? 0}`,
+          mountEvidence: sourceSite(mount),
         });
       }
     }

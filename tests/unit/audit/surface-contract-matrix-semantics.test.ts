@@ -751,6 +751,45 @@ describe('surface contract matrix seed semantic regressions', () => {
     }
   });
 
+  it('pairs fallback MOUNTS line evidence with the edge source path', async () => {
+    const seed = await loadSeedInternals();
+    const id = 'api:GET:/health';
+    const rows = seed.makeApiRows({
+      nodes: new Map([
+        [id, { ...apiNode('GET', '/health', 'server/routes/health.ts'), line_start: 209 }],
+      ]),
+      edges: [
+        {
+          record: 'edge',
+          type: 'MOUNTS',
+          from: 'file:server/routes.ts',
+          to: 'api:GET /health',
+          source_path: 'server/routes/health.ts',
+          line_start: 209,
+          line_end: 209,
+        },
+      ],
+      runtimeIndex: seed.createRuntimeIndex([]),
+      snapshotId: 'mount-source-path',
+    });
+
+    const row = seedRow(rows.get(id) ?? {});
+    const exposure = row.exposures.find((entry) => entry.runtime === 'register_routes');
+    expect(exposure).toEqual(
+      expect.objectContaining({
+        mount_evidence: 'server/routes/health.ts:209',
+        auth_evidence: expect.arrayContaining([
+          expect.objectContaining({
+            file: 'server/routes/health.ts',
+            line: 209,
+            evidence: 'server/routes/health.ts:209 observed route registration',
+          }),
+        ]),
+      })
+    );
+    expect(JSON.stringify(exposure)).not.toContain('file:server/routes.ts:209');
+  });
+
   it('unions make_app/create_server observations and derives protected/public auth boundaries', async () => {
     const seed = await loadSeedInternals();
     const nodes = new Map([
