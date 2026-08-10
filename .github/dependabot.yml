@@ -30,6 +30,8 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "husky"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "@hookform/resolvers"
+        versions: [">=5.7 <5.8"]
       - dependency-name: "testcontainers"
         versions: [">=12 <13"]
       - dependency-name: "ioredis"

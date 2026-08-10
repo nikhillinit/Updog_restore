@@ -46,8 +46,38 @@ const stableValue = (value: unknown): unknown => {
   return value;
 };
 const stableJson = (value: unknown) => JSON.stringify(stableValue(value));
-const requiresG1SourceHashValidation = (source: string) =>
-  source !== 'package.json' && source !== 'package-lock.json';
+const DEPENDENCY_MANIFEST_KEYS = new Set([
+  'dependencies',
+  'devDependencies',
+  'optionalDependencies',
+  'peerDependencies',
+  'peerDependenciesMeta',
+  'bundleDependencies',
+  'bundledDependencies',
+]);
+const nonDependencyPackageManifest = (manifest: Record<string, unknown>) =>
+  Object.fromEntries(
+    Object.entries(manifest).filter(([key]) => !DEPENDENCY_MANIFEST_KEYS.has(key))
+  );
+const packageManifestChangesAreDependencyOnly = (
+  prior: Record<string, unknown>,
+  current: Record<string, unknown>
+) =>
+  stableJson(nonDependencyPackageManifest(prior)) ===
+  stableJson(nonDependencyPackageManifest(current));
+const readPriorPackageManifest = () => {
+  const refs = [...new Set([process.env.SURFACE_MATRIX_PRIOR_REF, 'origin/main'].filter(Boolean))];
+  for (const ref of refs) {
+    try {
+      return JSON.parse(
+        execFileSync('git', ['show', `${ref}:package.json`], { cwd: root }).toString()
+      ) as Record<string, unknown>;
+    } catch {
+      // Try next available baseline ref, then fail closed in source-hash validation.
+    }
+  }
+  return undefined;
+};
 const trackedFiles = () =>
   execFileSync('git', ['ls-files', '-z'], { cwd: root })
     .toString()
@@ -69,14 +99,50 @@ const fileMatches = (file: string, pattern: string) =>
           : pattern === 'ml-service/**' && file.startsWith('ml-service/');
 
 describe('surface contract matrix CI gate', () => {
-  it('does not require G1 signoff for dependency manifest or resolution byte drift', () => {
-    expect(requiresG1SourceHashValidation('package.json')).toBe(false);
-    expect(requiresG1SourceHashValidation('package-lock.json')).toBe(false);
+  it('allows package manifest drift limited to dependency declarations', () => {
+    const prior = {
+      name: 'updog',
+      scripts: { test: 'vitest run' },
+      engines: { node: '>=20.19.0' },
+      dependencies: { express: '4.0.0' },
+      devDependencies: { vitest: '4.1.9' },
+    };
+    const current = {
+      ...prior,
+      dependencies: { express: '5.0.0' },
+      devDependencies: { vitest: '4.1.10' },
+    };
+
+    expect(packageManifestChangesAreDependencyOnly(prior, current)).toBe(true);
   });
 
-  it('still requires G1 signoff for package scripts and non-dependency source drift', () => {
-    expect(requiresG1SourceHashValidation('package.json#scripts')).toBe(true);
-    expect(requiresG1SourceHashValidation('server/app.ts')).toBe(true);
+  it('rejects package manifest drift outside dependency declarations', () => {
+    const prior = {
+      name: 'updog',
+      scripts: { test: 'vitest run' },
+      engines: { node: '>=20.19.0' },
+      overrides: { semver: '7.7.2' },
+      devDependencies: { vitest: '4.1.9' },
+    };
+
+    expect(
+      packageManifestChangesAreDependencyOnly(prior, {
+        ...prior,
+        engines: { node: '>=22.0.0' },
+      })
+    ).toBe(false);
+    expect(
+      packageManifestChangesAreDependencyOnly(prior, {
+        ...prior,
+        overrides: { semver: '7.7.3' },
+      })
+    ).toBe(false);
+    expect(
+      packageManifestChangesAreDependencyOnly(prior, {
+        ...prior,
+        scripts: { test: 'vitest run --changed' },
+      })
+    ).toBe(false);
   });
 
   it('keeps the seeded development-only classification valid', () => {
@@ -146,9 +212,9 @@ describe('surface contract matrix CI gate', () => {
       expect(mapped).toEqual([canonicalRowId(`worker:${entry.queueName}`)]);
     }
 
-    const packageData = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as {
-      scripts?: Record<string, string>;
-    };
+    const packageData = JSON.parse(
+      fs.readFileSync(path.join(root, 'package.json'), 'utf8')
+    ) as Record<string, unknown> & { scripts?: Record<string, string> };
     const registryExports: Record<string, [string, string]> = {
       'shared/routes/api-route-manifest.ts#normalized-runtime-export': [
         'shared/routes/api-route-manifest.ts',
@@ -168,10 +234,20 @@ describe('surface contract matrix CI gate', () => {
       ],
     };
     for (const [key, expected] of Object.entries(inventory.source_hashes)) {
-      if (!requiresG1SourceHashValidation(key)) continue;
+      if (key === 'package-lock.json') continue;
       let actual: string;
       if (key.startsWith('snapshot:')) actual = key;
-      else if (key === 'package.json#scripts')
+      else if (key === 'package.json') {
+        actual = sha256(fs.readFileSync(path.join(root, key)));
+        if (actual === expected) continue;
+        const priorPackageData = readPriorPackageManifest();
+        if (
+          !priorPackageData ||
+          !packageManifestChangesAreDependencyOnly(priorPackageData, packageData)
+        )
+          errors.push(`source hash mismatch: ${key}`);
+        continue;
+      } else if (key === 'package.json#scripts')
         actual = sha256(
           stableJson(
             Object.fromEntries(
