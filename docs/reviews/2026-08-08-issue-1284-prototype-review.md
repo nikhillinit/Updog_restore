@@ -35,7 +35,9 @@ agent can satisfy that step.
 | Production code changed by this batch | No                      |
 | Prototype revision defects            | Resolved 2026-08-10     |
 
-## Revision log — 2026-08-10
+## Revision log
+
+### 2026-08-10a — closure blockers
 
 A closure-blocker review of the prototype identified defects that a human
 reviewer would have to reject. They are resolved in the artifact so the pending
@@ -51,6 +53,20 @@ migration, route, or authorization path was touched.
 | Below 1024px the command bar dropped all primary controls and navigation                                       | A mobile command bar now exposes an off-canvas navigation toggle (`aria-expanded`, 5 links), and the primary action and vehicle-state controls remain reachable via the retained command header. |
 | Focus ring was invisible on the dark primary rail                                                              | Added a light local focus outline (`rgba(255,255,255,0.9)`, 3px solid) scoped to the dark rail.                                                                                                  |
 | Inconsistent as-of date formats (`August 6, 2026`, `Aug 6`, bare `Aug 9`)                                      | Standardized visible dates to `Mon D, YYYY`; machine `code` fields keep ISO `2026-08-06`.                                                                                                        |
+
+### 2026-08-10b — minor UX revisions
+
+Three lower-severity revisions raised the prototype to handoff quality. Same
+non-shipping scope: only the prototype HTML and its review-only harness changed.
+
+| Theme                                 | Revision                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Responsive rail behavior + hover      | Added `:hover` affordances (guarded by `@media (hover: hover)`) across rail links, nav links, buttons, segmented/rail-state controls, and preset cards, plus short reduced-motion-safe transitions so the rail's responsive state changes read as intentional. The mobile off-canvas nav item now carries `aria-current="page"`.                                                                               |
+| Accessible state/focus communication  | Preset and context-rail controls are now true `radiogroup`s (`role="radio"` + `aria-checked`) with roving `tabindex` and Arrow/Home/End keyboard navigation. A polite `aria-live` status region announces preset, rail, context, and walkthrough changes. Controls carry `aria-describedby`; recompute uses focusable `aria-disabled` (not the `disabled` attribute) so its reason is reachable while blocked. |
+| More explicit interactive walkthrough | The mark-to-refresh loop is now a walkable, stateful sequence: action 1 (review) marks itself done and activates action 2 (recompute); completion **persists** as a visible result plus a `Refreshed just now` chip instead of silently resetting after 900ms; a `Reset walkthrough` control replays the loop.                                                                                                 |
+
+Rendered-browser verification of the keyboard/focus behavior was run and is
+recorded in the evidence table below.
 
 ## Review fence and artifacts
 
@@ -100,20 +116,21 @@ not an application route, schema, API contract, or authorization decision.
 ## Browser verification evidence
 
 The static artifact was re-exercised in a real headless Chromium browser
-(Playwright) on 2026-08-10 after the revision pass. Results are machine-checked
-assertions, not visual impressions. This proves the review artifact's behavior;
-it does not prove production integration.
+(Playwright) on 2026-08-10 after both revision passes. All 30 assertions are
+machine-checked, not visual impressions. This proves the review artifact's
+behavior; it does not prove production integration.
 
-| Check                                     | Result                                                                                                                                                             |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1440x900, 1024x768, 820x1180, and 390x844 | Passed; `documentElement.scrollWidth` equaled `clientWidth` at every size (1440, 1024, 820, 390) — no page-level horizontal overflow                               |
-| Browser console                           | Passed; zero errors and zero warnings across all four viewports and the interaction pass                                                                           |
-| Mobile controls below 1024px (820, 390)   | Passed; nav toggle, primary `Review 2 gaps` action, and vehicle-state toggle all visible; off-canvas nav opened with 5 links and `aria-expanded` flipped to `true` |
-| GP / Analyst / Operations                 | Passed; pressed state and presentation copy changed; de-emphasis applied via background/border, not opacity                                                        |
-| Hidden / Peek / Pinned                    | Passed; each state was reversible from the persistent display control                                                                                              |
-| `vehicleId: null` state                   | Passed; vehicle dependency became explicit, recompute button `disabled === true`, and a single `Next · Resolve vehicle context` action rendered                    |
-| Recompute lifecycle                       | Passed; button text moved `Recomputing from accepted facts` → `Picture refreshed · no change` → reset to original label                                            |
-| Keyboard focus on dark rail               | Passed; Tab landed on a `.rail-link`; computed outline was `rgb(255,255,255,0.9)` 3px solid — visible against the dark rail                                        |
+| Check                                     | Result                                                                                                                                                                                                                           |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1440x900, 1024x768, 820x1180, and 390x844 | Passed; `documentElement.scrollWidth` equaled `clientWidth` at every size (1440, 1024, 820, 390) — no page-level horizontal overflow                                                                                             |
+| Browser console                           | Passed; zero errors and zero warnings across all four viewports and the interaction pass                                                                                                                                         |
+| Mobile controls below 1024px (820, 390)   | Passed; nav toggle, primary `Review 2 gaps` action, and vehicle-state toggle all visible; off-canvas nav opened with 5 links and `aria-expanded` flipped to `true`                                                               |
+| GP / Analyst / Operations                 | Passed; checked state and presentation copy changed; de-emphasis applied via background/border, not opacity                                                                                                                      |
+| Radiogroup semantics + keyboard           | Passed; preset and rail controls expose `role="radiogroup"`; Arrow key moved selection, focus, `aria-checked`, and roving `tabindex` together, and updated the view                                                              |
+| Disabled-but-discoverable recompute       | Passed; while blocked, recompute is `aria-disabled="true"` yet focusable, keeps `aria-describedby="recomputeReason"` with the reason visible, and a direct activation was a no-op                                                |
+| aria-live announcements                   | Passed; the polite status region carried the walkthrough progression (referenced the recompute step after action 1)                                                                                                              |
+| Interactive walkthrough                   | Passed; action 1 marked itself done and activated action 2; completion persisted (visible result + `Refreshed just now` chip, step `done`) across a 1.2s wait with no auto-reset; `Reset walkthrough` restored the initial state |
+| Keyboard focus on dark rail               | Passed; Tab landed on a `.rail-link`; computed outline was `rgb(255,255,255,0.9)` 3px solid — visible against the dark rail                                                                                                      |
 
 Verification harness:
 [`scripts/reviews/verify-issue-1284-prototype.cjs`](../../scripts/reviews/verify-issue-1284-prototype.cjs).

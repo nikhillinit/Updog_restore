@@ -53,7 +53,7 @@ All HTML is standalone and can be opened directly in a modern browser.
 
 | File                                                |      Dimensions |   Bytes | SHA-256                                                            |
 | --------------------------------------------------- | --------------: | ------: | ------------------------------------------------------------------ |
-| `issue-1284-context-rail-prototype.html`            | Responsive HTML |  41,998 | `B7CB7ACFDAFEA85CDFC0BAEA3664501D696C08A7CAF92F2A0AEC3A68BE74F440` |
+| `issue-1284-context-rail-prototype.html`            | Responsive HTML |  53,947 | `09DC65C6ED266BCE63416453AA3B5279246D3C9B19CABD76E3CFA2B5B930D831` |
 | `preferred-prototypes/baseline-comparison.html`     | Responsive HTML |  38,067 | `539AC36E508718DC1241D15BDE76E1819095FE7075A82C8582D946BD1E5B2353` |
 | `preferred-prototypes/fund-modeling-workspace.html` | Responsive HTML | 148,550 | `BAFAA3352EEA3667B6D72A4257C2426AB484741239BDE537A432FFF6349E0216` |
 | `previews/updog_workspace_direct_1440.png`          |        1440x900 | 165,053 | `B47F7882C61BA52467D88C9EBDD0FEF610F933471BBFB0BF62506F99B889038E` |
@@ -103,7 +103,12 @@ capture records the explicit missing-vehicle dependency state.
 - The #1284 HTML was revised on 2026-08-10 to clear pre-approval review defects
   (single blocked-state next action, visible `$55.0M` derivation, WCAG-safe
   preset de-emphasis, mobile controls/navigation below 1024px, dark-rail focus
-  ring, and consistent date formats). The byte count and SHA-256 above reflect
-  the post-revision file. The PNG captures predate this revision and should be
-  recaptured before final sign-off. See the
-  [review packet revision log](../../../reviews/2026-08-08-issue-1284-prototype-review.md#revision-log--2026-08-10).
+  ring, and consistent date formats). A second 2026-08-10 pass added hover
+  feedback and responsive-rail transitions, radiogroup semantics with
+  arrow-key/roving-tabindex keyboard support, a polite `aria-live` status region
+  and `aria-describedby` wiring, an `aria-disabled` (focusable) recompute
+  control, and an explicit interactive walkthrough with persistent completion
+  state. The byte count and SHA-256 above reflect the latest post-revision file.
+  The PNG captures predate these revisions and should be recaptured before final
+  sign-off. See the
+  [review packet revision log](../../../reviews/2026-08-08-issue-1284-prototype-review.md#revision-log).
