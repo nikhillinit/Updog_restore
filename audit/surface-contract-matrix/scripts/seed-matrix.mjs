@@ -1817,6 +1817,12 @@ const clearUnapprovedSourceHashes = (rows) => {
   }
 };
 
+const mergeSeededMatrix = (previousDocument, seededDocument) => {
+  const matrix = mergeMatrix(previousDocument, seededDocument);
+  clearUnapprovedSourceHashes(matrix.rows);
+  return matrix;
+};
+
 const sourcePathCandidatesForRow = (row) => [
   row.source_mapping?.source_file,
   row.source_mapping?.function_file,
@@ -2108,16 +2114,13 @@ const seed = async () => {
     coverage_review: {},
   });
   const previousForMerge = previous ? { ...previous, orphans: prunedOrphans } : undefined;
-  const matrix = mergeMatrix(previousForMerge || SurfaceMatrixDocumentSchema.parse({
+  const matrix = mergeSeededMatrix(previousForMerge || SurfaceMatrixDocumentSchema.parse({
     schema_version: MATRIX_SCHEMA_VERSION,
     phase: 'authoring',
     provenance: seededDocument.provenance,
     rows: [],
     coverage_review: {},
   }), seededDocument);
-  // Fresh defining hashes participate in stale-approval detection during merge,
-  // but approved_source_hashes is an approval-time record, not seed metadata.
-  clearUnapprovedSourceHashes(matrix.rows);
   const matrixArtifact = { ...matrix };
   delete matrixArtifact.orphans;
   const mappings = sourceMappings({

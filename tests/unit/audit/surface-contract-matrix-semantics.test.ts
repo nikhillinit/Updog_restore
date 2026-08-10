@@ -50,6 +50,10 @@ type SeedInternals = {
     rowToSources: Record<string, string[]>;
     sourceToRows: Record<string, string[]>;
   };
+  mergeSeededMatrix: (
+    previousDocument: Record<string, unknown>,
+    seededDocument: Record<string, unknown>
+  ) => { rows: Record<string, unknown>[] };
   definingSourceHashesForRow: (
     row: Record<string, unknown>,
     sourceHashes: Record<string, string>,
@@ -109,7 +113,7 @@ async function loadSeedInternals(
     .replaceAll(/^export const /gm, 'const ')
     .replaceAll(/^export function /gm, 'function ')
     .concat(
-      '\n globalThis.__seedInternals = { createRuntimeIndex, makeApiRows, applyBootProofs, assertBootProofSourceSha, makeClientRows, makeBackgroundRows, makeWorkerRows, makeListenerRows, makeVercelFunctionRows, queueRuntimeFor, makeListenerDispositions, makeRuntimeExclusions, mergeRuntimeExclusions, sourceMappings, definingSourceHashesForRow, clearUnapprovedSourceHashes };'
+      '\n globalThis.__seedInternals = { createRuntimeIndex, makeApiRows, applyBootProofs, assertBootProofSourceSha, makeClientRows, makeBackgroundRows, makeWorkerRows, makeListenerRows, makeVercelFunctionRows, queueRuntimeFor, makeListenerDispositions, makeRuntimeExclusions, mergeRuntimeExclusions, sourceMappings, mergeSeededMatrix, definingSourceHashesForRow, clearUnapprovedSourceHashes };'
     );
 
   const context = vm.createContext({
@@ -421,33 +425,70 @@ describe('surface contract matrix seed semantic regressions', () => {
     );
   });
 
-  it('keeps quarantined queues unreachable even when constructors are discovered', async () => {
-    const seed = await loadSeedInternals(QUEUE_CATALOG as unknown as Record<string, unknown>[]);
-    const findings = matrixSchema
-      .scanBullmqConstructors({ rootDir: repoRoot })
-      .filter((finding) => finding.queue_name === 'lp-view-refresh');
-    const row = seed
-      .makeWorkerRows({ nodes: new Map(), findings, snapshotId: 'quarantined-queue' })
-      .get('worker:lp-view-refresh');
+  it.each(['economics-calc', 'lp-view-refresh'] as const)(
+    'keeps quarantined %s queues unreachable even when constructors are discovered',
+    async (queueName) => {
+      const seed = await loadSeedInternals(QUEUE_CATALOG as unknown as Record<string, unknown>[]);
+      const scannedFindings = matrixSchema
+        .scanBullmqConstructors({ rootDir: repoRoot })
+        .filter((finding) => finding.queue_name === queueName);
+      // economics-calc is quarantined before any constructor is committed to the
+      // repository. Synthetic discovery keeps this test sensitive to a removed
+      // quarantine branch while preserving scanner coverage for lp-view-refresh.
+      const findings = [
+        ...scannedFindings,
+        ...(queueName === 'economics-calc'
+          ? [
+              {
+                constructor: 'Queue',
+                kind: 'queue',
+                queue_name: queueName,
+                queueName,
+                source: 'synthetic-fixture',
+                path: 'server/services/economics-calculation-service.ts',
+                line: 1,
+              },
+            ]
+          : []),
+      ];
+      expect(findings.length).toBeGreaterThan(0);
+      const row = seed
+        .makeWorkerRows({ nodes: new Map(), findings, snapshotId: `quarantined-${queueName}` })
+        .get(`worker:${queueName}`);
 
-    expect(row).toMatchObject({
-      reachability: 'dormant',
-      exposures: [],
-      queue_roles: {
-        consumer_status: 'no-reachable-consumer',
-        consumer_status_reason:
-          'QUEUE_CATALOG quarantines this queue, so runtime registration is excluded',
-      },
-    });
-    expect([
-      ...((row?.queue_roles as { producers: Record<string, unknown>[] }).producers ?? []),
-      ...((row?.queue_roles as { consumers: Record<string, unknown>[] }).consumers ?? []),
-    ]).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ deployment: 'excluded', runtime: 'unreachable' }),
-      ])
-    );
-  });
+      expect(row).toMatchObject({
+        reachability: 'dormant',
+        exposures: [],
+        queue_roles: {
+          consumer_status: 'no-reachable-consumer',
+          consumer_status_reason:
+            'QUEUE_CATALOG quarantines this queue, so runtime registration is excluded',
+        },
+      });
+      const queueRoles = row?.queue_roles as {
+        producers: Array<Record<string, unknown>>;
+        consumers: Array<Record<string, unknown>>;
+      };
+      const discoveredRoles = [...queueRoles.producers, ...queueRoles.consumers];
+      expect(discoveredRoles).toHaveLength(findings.length);
+      expect(
+        discoveredRoles.every(
+          (role) => role.deployment === 'excluded' && role.runtime === 'unreachable'
+        )
+      ).toBe(true);
+      expect(discoveredRoles).toEqual(
+        expect.arrayContaining(
+          findings.map((finding) =>
+            expect.objectContaining({
+              site: `${finding.path}:${finding.line}`,
+              deployment: 'excluded',
+              runtime: 'unreachable',
+            })
+          )
+        )
+      );
+    }
+  );
 
   it('cites filesystem and build-input evidence for standalone Vercel functions', async () => {
     const seed = await loadSeedInternals();
@@ -1177,6 +1218,42 @@ const classifyDocumentFixture = (rows: Record<string, unknown>[]) =>
     rows,
     coverage_review: {},
   });
+
+describe('surface contract matrix seed merge ordering', () => {
+  it('demotes stale approvals before clearing hashes while preserving unchanged approvals', async () => {
+    const seed = await loadSeedInternals();
+    const changedId = 'api:POST:/api/stale-source-hash';
+    const unchangedId = 'api:POST:/api/unchanged-source-hash';
+    const changedSource = 'server/routes/current-forecast.ts';
+    const unchangedSource = 'server/routes/shares.ts';
+    const previousChanged = classifyRow({ id: changedId, source: changedSource });
+    previousChanged.decision_status = 'approved';
+    previousChanged.approved_source_hashes = ['server/routes/current-forecast.ts=hash-old'];
+    const previousUnchanged = classifyRow({ id: unchangedId, source: unchangedSource });
+    previousUnchanged.decision_status = 'approved';
+    previousUnchanged.approved_source_hashes = ['server/routes/shares.ts=hash-stable'];
+
+    const seededChanged = classifyRow({ id: changedId, source: changedSource });
+    seededChanged.approved_source_hashes = ['server/routes/current-forecast.ts=hash-new'];
+    const seededUnchanged = classifyRow({ id: unchangedId, source: unchangedSource });
+    seededUnchanged.approved_source_hashes = ['server/routes/shares.ts=hash-stable'];
+
+    const merged = seed.mergeSeededMatrix(
+      classifyDocumentFixture([previousChanged, previousUnchanged]),
+      classifyDocumentFixture([seededChanged, seededUnchanged])
+    );
+    const rows = new Map(merged.rows.map((row) => [String(row.id), row]));
+
+    expect(rows.get(changedId)).toMatchObject({
+      decision_status: 'proposed',
+      approved_source_hashes: [],
+    });
+    expect(rows.get(unchangedId)).toMatchObject({
+      decision_status: 'approved',
+      approved_source_hashes: ['server/routes/shares.ts=hash-stable'],
+    });
+  });
+});
 
 describe('surface contract matrix classification effect regressions', () => {
   it('uses handler effects for persistence and hard-delete evidence for destructive state', () => {
