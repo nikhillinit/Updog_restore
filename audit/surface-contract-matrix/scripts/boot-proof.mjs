@@ -391,6 +391,8 @@ export const workerProofEnvironment = ({ workerType, sourceSha, deploymentId }) 
   [workerType === 'fund-scenario-calc' ? 'FUND_SCENARIO_HARD_TIMEOUT_MS' : 'CAPITAL_CALL_STATUS_HARD_TIMEOUT_MS']: '30000',
 });
 
+export const workerPostgresProofHostname = (postgresName) => `${postgresName}.localhost`;
+
 export const workerProofPlan = ({ workerType, sourceSha, deploymentId }) => ({
   workerEnvironment: workerProofEnvironment({ workerType, sourceSha, deploymentId }),
   steps: [
@@ -459,7 +461,9 @@ const railwayWorkerProof = async ({ workerType, deployment, sourceSha }) => {
 
     const schemaPort = 55439;
     const postgres = commandResult('docker', [
-      'run', '-d', '--rm', '--name', postgresName, '--network', network, '-p', `${schemaPort}:5432`,
+      'run', '-d', '--rm', '--name', postgresName, '--network', network,
+      '--network-alias', workerPostgresProofHostname(postgresName),
+      '-p', `${schemaPort}:5432`,
       '-e', 'POSTGRES_USER=surface-proof',
       '-e', 'POSTGRES_PASSWORD=surface-proof',
       '-e', 'POSTGRES_DB=surface_proof',
@@ -500,7 +504,7 @@ const railwayWorkerProof = async ({ workerType, deployment, sourceSha }) => {
         '-e', 'ENABLE_QUEUES=1',
         '-e', `QUEUE_REDIS_URL=redis://${redisName}:6379`,
         '-e', `REDIS_URL=redis://${redisName}:6379`,
-        '-e', `DATABASE_URL=postgresql://surface-proof:surface-proof@${postgresName}:5432/surface_proof`,
+        '-e', `DATABASE_URL=postgresql://surface-proof:surface-proof@${workerPostgresProofHostname(postgresName)}:5432/surface_proof`,
         image,
       ],
       env: proofEnv(),
@@ -558,7 +562,7 @@ const vercelApiProof = async () => {
   return evidence({ deployment: 'vercel-api', runtime: 'make_app', boot_status: construction.ok ? 'proven' : 'failed', command_or_artifact, probe, result: construction.ok ? 'makeApp constructed from built bundle' : failureSummary(construction, 'built bundle makeApp construction failed') });
 };
 
-const VERCEL_FUNCTION_COMMAND = 'npx --yes vercel@55.0.0 build --prod --yes; .vercel/output/functions/**/*.func/index.(js|mjs|cjs)';
+const VERCEL_FUNCTION_COMMAND = 'npx --yes vercel@55.0.0 build --prod --yes; .vercel/output/functions/**/*.func/.vc-config.json handler';
 const VERCEL_FUNCTION_PROBE = 'enumerate every real Vercel build-output function and invoke its callable handler once';
 
 export const vercelBuildInvocation = () => ({
@@ -575,34 +579,104 @@ export const vercelFunctionBuildFailureEvidence = (build) => evidence({
   result: dockerFailure('Vercel build-output generation', build),
 });
 
-const filesUnder = (root) => {
-  if (!fs.existsSync(root)) return [];
-  const files = [];
+const functionDirectoriesUnder = (root) => {
+  let rootStat;
+  try {
+    rootStat = fs.lstatSync(root);
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') return [];
+    return [{ directory: root, error: 'invalid Vercel build-output functions root: unreadable path' }];
+  }
+  if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
+    return [{ directory: root, error: 'invalid Vercel build-output functions root: must be a real directory' }];
+  }
+  const directories = [];
   const visit = (current) => {
     for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
       const absolute = path.join(current, entry.name);
+      if (entry.name.endsWith('.func')) {
+        directories.push({
+          directory: absolute,
+          ...(entry.isDirectory() ? {} : { error: 'invalid Vercel function directory: symbolic link or non-directory .func entry' }),
+        });
+        continue;
+      }
+      if (entry.isSymbolicLink()) {
+        directories.push({ directory: absolute, error: 'invalid Vercel build-output path: symbolic link encountered during function discovery' });
+        continue;
+      }
       if (entry.isDirectory()) visit(absolute);
-      else files.push(absolute);
     }
   };
   visit(root);
-  return files.sort((left, right) => left.localeCompare(right));
+  return directories.sort((left, right) => left.directory.localeCompare(right.directory));
 };
 
-const vercelBuildOutputFunctions = () => {
-  const functionsRoot = path.join(repoRoot, '.vercel', 'output', 'functions');
-  const functionDirectories = [...new Set(filesUnder(functionsRoot)
-    .filter((file) => path.basename(path.dirname(file)).endsWith('.func'))
-    .map((file) => path.dirname(file)))].sort((left, right) => left.localeCompare(right));
-  return functionDirectories.map((directory) => {
-    const entry = filesUnder(directory).find((file) => ['index.js', 'index.mjs', 'index.cjs'].includes(path.basename(file)));
-    return {
-      name: path.relative(functionsRoot, directory).replace(/\.func$/, '').split(path.sep).join('/'),
-      directory,
-      entry,
-    };
-  });
+const invalidVercelHandler = (message) => ({ entry: undefined, error: `invalid .vc-config.json handler: ${message}` });
+
+const resolveVercelFunctionHandler = (directory) => {
+  const configPath = path.join(directory, '.vc-config.json');
+  let config;
+  try {
+    const configStat = fs.lstatSync(configPath);
+    if (!configStat.isFile() || configStat.isSymbolicLink()) return invalidVercelHandler('.vc-config.json must be a regular non-symlink file');
+    config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  } catch (error) {
+    const detail = error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT'
+      ? 'missing .vc-config.json'
+      : 'unreadable .vc-config.json';
+    return invalidVercelHandler(detail);
+  }
+  if (
+    config === null
+    || typeof config !== 'object'
+    || Array.isArray(config)
+    || Object.getPrototypeOf(config) !== Object.prototype
+  ) {
+    return invalidVercelHandler('.vc-config.json must be a plain object');
+  }
+  if (config.runtime !== 'nodejs22.x') {
+    return invalidVercelHandler('runtime must be nodejs22.x');
+  }
+  const handler = config?.handler;
+  if (typeof handler !== 'string' || handler.trim().length === 0 || handler.includes('\0')) {
+    return invalidVercelHandler('must be a non-empty path string');
+  }
+  const portableHandler = handler.replaceAll('\\', '/');
+  if (path.isAbsolute(handler) || path.win32.isAbsolute(handler) || path.posix.isAbsolute(portableHandler)) {
+    return invalidVercelHandler('must be a safe relative path');
+  }
+  const entry = path.resolve(directory, portableHandler);
+  const relative = path.relative(directory, entry);
+  if (relative === '' || path.isAbsolute(relative) || relative === '..' || relative.startsWith(`..${path.sep}`)) {
+    return invalidVercelHandler('must be a safe relative path');
+  }
+  const segments = relative.split(path.sep);
+  let current = directory;
+  for (const [index, segment] of segments.entries()) {
+    current = path.join(current, segment);
+    let stat;
+    try {
+      stat = fs.lstatSync(current);
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
+        return invalidVercelHandler('handler file is missing');
+      }
+      return invalidVercelHandler('handler path is unreadable');
+    }
+    if (stat.isSymbolicLink()) return invalidVercelHandler('handler path contains a symbolic link');
+    if (index === segments.length - 1 && !stat.isFile()) return invalidVercelHandler('handler must be a regular file');
+    if (index < segments.length - 1 && !stat.isDirectory()) return invalidVercelHandler('handler path component must be a directory');
+  }
+  return { entry };
 };
+
+export const vercelBuildOutputFunctions = (functionsRoot = path.join(repoRoot, '.vercel', 'output', 'functions')) =>
+  functionDirectoriesUnder(functionsRoot).map(({ directory, error }) => ({
+    name: path.relative(functionsRoot, directory).replace(/\.func$/, '').split(path.sep).join('/'),
+    directory,
+    ...(error ? { entry: undefined, error } : resolveVercelFunctionHandler(directory)),
+  }));
 
 export const mockVercelResponse = () => {
   const response = {
@@ -631,12 +705,13 @@ const waitForVercelResponse = async (response, timeout = 20_000) => {
   if (!response.writableEnded && !response.finished) throw new Error('function response did not complete before timeout');
 };
 
-export const invokeVercelFunction = async ({ name, entry, responseTimeout = 20_000, redactionEnvironment = process.env }) => {
-  if (!entry) return { name, ok: false, result: 'build-output function has no index entrypoint' };
+export const invokeVercelFunction = async ({ name, entry, error: entryError, responseTimeout = 20_000 }) => {
+  if (entryError) return { name, ok: false, result: entryError };
+  if (!entry) return { name, ok: false, result: 'build-output function has no resolved handler entrypoint' };
   try {
     const imported = await import(pathToFileURL(entry).href);
     const handler = imported.default ?? imported.handler;
-    if (typeof handler !== 'function') return { name, ok: false, result: 'build-output function has no callable default/handler export' };
+    if (typeof handler !== 'function') return { name, ok: false, result: 'handler-export-missing' };
     const request = {
       method: 'GET',
       url: name.startsWith('api/') ? `/${name}` : `/${name}`,
@@ -672,12 +747,161 @@ export const invokeVercelFunction = async ({ name, entry, responseTimeout = 20_0
       return {
         name,
         ok: false,
-        result: `function response incomplete or unacceptable: completed=${completed} status=${response.statusCode}`,
+        result: 'handler-response-invalid',
       };
     }
-    return { name, ok: true, result: `invoked build-output function; completed response status ${response.statusCode}` };
-  } catch (error) {
-    return { name, ok: false, result: `invocation failed: ${redactChildOutput(error instanceof Error ? error.message : String(error), redactionEnvironment)}` };
+    return { name, ok: true, result: 'handler-response-completed' };
+  } catch {
+    return { name, ok: false, result: 'handler-invocation-failed' };
+  }
+};
+
+const VERCEL_FUNCTION_CHILD_CODE = String.raw`
+import fs from 'node:fs';
+import { pathToFileURL } from 'node:url';
+
+const [name, entry, timeoutArgument] = process.argv.slice(1);
+const responseTimeout = Number(timeoutArgument);
+const report = (result) => {
+  fs.writeFileSync(3, JSON.stringify(result));
+  process.exit(0);
+};
+const response = {
+  statusCode: 200,
+  headers: {},
+  writableEnded: false,
+  finished: false,
+  setHeader(name, value) { this.headers[String(name).toLowerCase()] = value; return this; },
+  getHeader(name) { return this.headers[String(name).toLowerCase()]; },
+  removeHeader(name) { delete this.headers[String(name).toLowerCase()]; },
+  writeHead(statusCode, headers = {}) { this.statusCode = statusCode; Object.assign(this.headers, headers); return this; },
+  status(statusCode) { this.statusCode = statusCode; return this; },
+  json() { this.writableEnded = true; this.finished = true; return this; },
+  send() { this.writableEnded = true; this.finished = true; return this; },
+  write() { return true; },
+  end() { this.writableEnded = true; this.finished = true; return this; },
+  on() { return this; },
+  once() { return this; },
+};
+const request = {
+  method: 'GET',
+  url: '/' + name,
+  originalUrl: '/' + name,
+  headers: { host: '127.0.0.1' },
+  query: {},
+  body: {},
+  socket: { remoteAddress: '127.0.0.1' },
+  on() { return this; },
+  once() { return this; },
+};
+const waitForResponse = async () => {
+  const deadline = Date.now() + responseTimeout;
+  while (!response.writableEnded && !response.finished && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  if (!response.writableEnded && !response.finished) throw new Error('function response did not complete before timeout');
+};
+try {
+  const imported = await import(pathToFileURL(entry).href);
+  const handler = imported.default ?? imported.handler;
+  if (typeof handler !== 'function') {
+    report({ name, ok: false, result: 'handler-export-missing' });
+  } else {
+    let timeoutHandle;
+    try {
+      await new Promise((resolve, reject) => {
+        timeoutHandle = setTimeout(() => reject(new Error('function invocation timed out')), responseTimeout);
+        Promise.resolve().then(() => handler(request, response)).then(() => waitForResponse()).then(resolve, reject);
+      });
+    } finally {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+    }
+    const completed = response.writableEnded || response.finished;
+    const acceptableStatus = Number.isInteger(response.statusCode) && response.statusCode >= 200 && response.statusCode < 500;
+    report(completed && acceptableStatus
+      ? { name, ok: true, result: 'handler-response-completed' }
+      : { name, ok: false, result: 'handler-response-invalid' });
+  }
+} catch {
+  report({ name, ok: false, result: 'handler-invocation-failed' });
+}
+`;
+
+const childOutput = (result, index) => {
+  const output = result.output?.[index];
+  if (typeof output === 'string') return output;
+  return Buffer.isBuffer(output) ? output.toString('utf8') : '';
+};
+
+const validChildInvocation = (value, name) => value
+  && typeof value === 'object'
+  && value.name === name
+  && typeof value.ok === 'boolean'
+  && typeof value.result === 'string';
+
+const isolatedFunctionCwd = (directory, entry) => {
+  const cwd = directory ?? path.dirname(entry);
+  try {
+    const stat = fs.lstatSync(cwd);
+    return stat.isDirectory() && !stat.isSymbolicLink() ? cwd : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const childFailureResult = (result) => [
+  'isolated-handler-child-failed',
+  Number.isInteger(result.status) ? `status=${result.status}` : undefined,
+  result.error?.code ? `error=${result.error.code}` : undefined,
+  result.signal ? `signal=${result.signal}` : undefined,
+].filter(Boolean).join(' ');
+
+export const invokeVercelFunctionInIsolatedChild = ({
+  name,
+  entry,
+  directory,
+  error: entryError,
+  responseTimeout = 20_000,
+  redactionEnvironment = process.env,
+}) => {
+  if (entryError) return { name, ok: false, result: entryError };
+  if (!entry) return { name, ok: false, result: 'build-output function has no resolved handler entrypoint' };
+  const cwd = isolatedFunctionCwd(directory, entry);
+  if (!cwd) return { name, ok: false, result: 'isolated-handler-invalid-working-directory' };
+  const result = spawnSync(process.execPath, [
+    '--input-type=module',
+    '--eval', VERCEL_FUNCTION_CHILD_CODE,
+    '--',
+    name,
+    entry,
+    String(responseTimeout),
+  ], {
+    cwd,
+    env: proofEnv({ VERCEL: '1', VERCEL_ENV: 'production' }),
+    encoding: 'utf8',
+    timeout: Math.min(Math.max(responseTimeout + 1_000, 1_000), 30_000),
+    killSignal: 'SIGKILL',
+    maxBuffer: 16 * 1024 * 1024,
+    stdio: ['ignore', 'ignore', 'ignore', 'pipe'],
+  });
+  const protocol = childOutput(result, 3);
+  if (result.error || result.status !== 0) {
+    return {
+      name,
+      ok: false,
+      result: redactChildOutput(childFailureResult(result), redactionEnvironment),
+    };
+  }
+  try {
+    const invocation = JSON.parse(protocol);
+    if (!validChildInvocation(invocation, name)) throw new Error('invalid result');
+    return { ...invocation, result: redactChildOutput(invocation.result, redactionEnvironment) };
+  } catch {
+    return {
+      name,
+      ok: false,
+      result: redactChildOutput('isolated-handler-invalid-protocol', redactionEnvironment),
+    };
   }
 };
 
@@ -689,12 +913,11 @@ const vercelFunctionProof = async () => {
   if (!build.ok) return vercelFunctionBuildFailureEvidence(build);
   const functions = vercelBuildOutputFunctions();
   if (functions.length === 0) return evidence({ deployment: 'vercel-api', runtime: 'vercel_function', boot_status: 'failed', command_or_artifact, probe, result: 'Vercel build completed but emitted no .vercel/output/functions entries' });
-  const invocations = await withVercelCredentialsMasked((redactionEnvironment) =>
-    Promise.all(functions.map((functionEntry) => invokeVercelFunction({
-      ...functionEntry,
-      redactionEnvironment,
-    })))
-  );
+  const redactionEnvironment = requiredVercelBuildCredentials();
+  const invocations = functions.map((functionEntry) => invokeVercelFunctionInIsolatedChild({
+    ...functionEntry,
+    redactionEnvironment,
+  }));
   const failed = invocations.filter((invocation) => !invocation.ok);
   const result = `invoked ${invocations.length} build-output function(s): ${invocations.map((invocation) => `${invocation.name}=${invocation.ok ? 'ok' : 'failed'}`).join(', ')}${failed.length > 0 ? `; ${failed.map((invocation) => invocation.result).join('; ')}` : ''}`;
   return evidence({ deployment: 'vercel-api', runtime: 'vercel_function', boot_status: failed.length === 0 ? 'proven' : 'failed', command_or_artifact, probe, result });

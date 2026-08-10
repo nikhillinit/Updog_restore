@@ -7,6 +7,11 @@ describe('database driver selection', () => {
       true
     );
     expect(shouldUseNodePostgresDriver('postgresql://postgres:postgres@127.0.0.1/test')).toBe(true);
+    expect(
+      shouldUseNodePostgresDriver(
+        'postgresql://surface-proof:surface-proof@surface-matrix-worker-postgres-proof.localhost:5432/surface_proof'
+      )
+    ).toBe(true);
   });
 
   it('keeps remote database URLs on the Neon-compatible driver path', () => {

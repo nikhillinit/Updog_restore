@@ -6,6 +6,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   invokeVercelFunction,
+  invokeVercelFunctionInIsolatedChild,
+  vercelBuildOutputFunctions,
   commandFailureEvidence,
   assertRequiredG3Proofs,
   proofEnv,
@@ -15,6 +17,7 @@ import {
   vercelBuildEnvironment,
   withVercelCredentialsMasked,
   workerProofEnvironment,
+  workerPostgresProofHostname,
   workerProofPlan,
   executeWorkerProofPlan,
   vercelFunctionBuildFailureEvidence,
@@ -275,6 +278,161 @@ describe('surface contract matrix boot proof completion gates', () => {
     ).resolves.toMatchObject({ ok: false });
   });
 
+  it('discovers each Vercel function handler from its .vc-config.json manifest', async () => {
+    const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-vercel-output-'));
+    fs.writeFileSync(path.join(outputRoot, 'package.json'), JSON.stringify({ type: 'module' }));
+    const functionsRoot = path.join(outputRoot, 'functions');
+    const apiFunction = path.join(functionsRoot, 'api.func');
+    const catchAllFunction = path.join(functionsRoot, 'api', '[...slug].func');
+    for (const [directory, handler] of [
+      [apiFunction, 'serve.js'],
+      [catchAllFunction, 'api/[...slug].js'],
+    ]) {
+      fs.mkdirSync(path.dirname(path.join(directory, handler)), { recursive: true });
+      fs.writeFileSync(path.join(directory, '.vc-config.json'), JSON.stringify({ runtime: 'nodejs22.x', handler }));
+      fs.writeFileSync(path.join(directory, handler), 'export default (_request, response) => response.end();');
+    }
+
+    const functions = vercelBuildOutputFunctions(functionsRoot);
+    expect(functions.map(({ name, entry }) => ({ name, entry: path.relative(functionsRoot, entry!) }))).toEqual([
+      { name: 'api', entry: 'api.func/serve.js' },
+      { name: 'api/[...slug]', entry: 'api/[...slug].func/api/[...slug].js' },
+    ]);
+    await expect(Promise.all(functions.map((functionEntry) => invokeVercelFunction(functionEntry)))).resolves.toEqual([
+      expect.objectContaining({ name: 'api', ok: true }),
+      expect.objectContaining({ name: 'api/[...slug]', ok: true }),
+    ]);
+  });
+
+  it('rejects unsafe or unresolved Vercel manifest handlers', () => {
+    const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-vercel-output-'));
+    const functionsRoot = path.join(outputRoot, 'functions');
+    const cases = [
+      ['traversal', '../outside.js', 'relative'],
+      ['absolute', '/etc/passwd', 'relative'],
+      ['missing', 'missing.js', 'missing'],
+      ['symlink', 'linked.js', 'symbolic link'],
+    ] as const;
+    for (const [name, handler] of cases) {
+      const directory = path.join(functionsRoot, `${name}.func`);
+      fs.mkdirSync(directory, { recursive: true });
+      fs.writeFileSync(path.join(directory, '.vc-config.json'), JSON.stringify({ runtime: 'nodejs22.x', handler }));
+      if (name === 'missing') {
+        fs.writeFileSync(path.join(directory, 'index.js'), 'export default () => {};');
+      }
+      if (name === 'symlink') {
+        const target = path.join(outputRoot, 'target.js');
+        fs.writeFileSync(target, 'export default () => {};');
+        fs.symlinkSync(target, path.join(directory, handler));
+      }
+    }
+
+    const configSymlinkDirectory = path.join(functionsRoot, 'config-symlink.func');
+    fs.mkdirSync(configSymlinkDirectory, { recursive: true });
+    const configTarget = path.join(outputRoot, 'config-target.json');
+    fs.writeFileSync(configTarget, JSON.stringify({ runtime: 'nodejs22.x', handler: 'serve.js' }));
+    fs.symlinkSync(configTarget, path.join(configSymlinkDirectory, '.vc-config.json'));
+
+    const parentSymlinkDirectory = path.join(functionsRoot, 'parent-symlink.func');
+    const handlerParent = path.join(outputRoot, 'handler-parent');
+    fs.mkdirSync(handlerParent, { recursive: true });
+    fs.writeFileSync(path.join(handlerParent, 'serve.js'), 'export default () => {};');
+    fs.mkdirSync(parentSymlinkDirectory, { recursive: true });
+    fs.writeFileSync(
+      path.join(parentSymlinkDirectory, '.vc-config.json'),
+      JSON.stringify({ runtime: 'nodejs22.x', handler: 'linked-parent/serve.js' })
+    );
+    fs.symlinkSync(handlerParent, path.join(parentSymlinkDirectory, 'linked-parent'));
+
+    const missingConfigDirectory = path.join(functionsRoot, 'missing-config.func');
+    fs.mkdirSync(missingConfigDirectory, { recursive: true });
+
+    const malformedConfigDirectory = path.join(functionsRoot, 'malformed-config.func');
+    fs.mkdirSync(malformedConfigDirectory, { recursive: true });
+    fs.writeFileSync(path.join(malformedConfigDirectory, '.vc-config.json'), '{');
+
+    const missingRuntimeDirectory = path.join(functionsRoot, 'missing-runtime.func');
+    fs.mkdirSync(missingRuntimeDirectory, { recursive: true });
+    fs.writeFileSync(
+      path.join(missingRuntimeDirectory, '.vc-config.json'),
+      JSON.stringify({ handler: 'serve.js' })
+    );
+    fs.writeFileSync(path.join(missingRuntimeDirectory, 'serve.js'), 'export default () => {};');
+
+    const wrongRuntimeDirectory = path.join(functionsRoot, 'wrong-runtime.func');
+    fs.mkdirSync(wrongRuntimeDirectory, { recursive: true });
+    fs.writeFileSync(
+      path.join(wrongRuntimeDirectory, '.vc-config.json'),
+      JSON.stringify({ runtime: 'nodejs20.x', handler: 'serve.js' })
+    );
+    fs.writeFileSync(path.join(wrongRuntimeDirectory, 'serve.js'), 'export default () => {};');
+
+    const symlinkFunctionTarget = path.join(outputRoot, 'symlink-function-target');
+    fs.mkdirSync(symlinkFunctionTarget, { recursive: true });
+    fs.writeFileSync(
+      path.join(symlinkFunctionTarget, '.vc-config.json'),
+      JSON.stringify({ runtime: 'nodejs22.x', handler: 'serve.js' })
+    );
+    fs.writeFileSync(path.join(symlinkFunctionTarget, 'serve.js'), 'export default () => {};');
+    fs.symlinkSync(symlinkFunctionTarget, path.join(functionsRoot, 'symlink-function.func'));
+
+    const symlinkRouteTarget = path.join(outputRoot, 'symlink-route-target');
+    fs.mkdirSync(symlinkRouteTarget, { recursive: true });
+    fs.symlinkSync(symlinkRouteTarget, path.join(functionsRoot, 'symlink-route'));
+
+    const functions = vercelBuildOutputFunctions(functionsRoot);
+    expect(functions).toHaveLength(cases.length + 8);
+    for (const [name, _handler, message] of cases) {
+      const functionEntry = functions.find((candidate) => candidate.name === name);
+      expect(functionEntry?.entry).toBeUndefined();
+      expect(functionEntry?.error).toContain(message);
+    }
+    expect(functions.find((candidate) => candidate.name === 'config-symlink')?.error).toContain(
+      'non-symlink'
+    );
+    expect(functions.find((candidate) => candidate.name === 'parent-symlink')?.error).toContain(
+      'symbolic link'
+    );
+    expect(functions.find((candidate) => candidate.name === 'missing-config')?.error).toContain(
+      'missing .vc-config.json'
+    );
+    expect(functions.find((candidate) => candidate.name === 'malformed-config')?.error).toContain(
+      'unreadable .vc-config.json'
+    );
+    expect(functions.find((candidate) => candidate.name === 'missing-runtime')?.error).toContain(
+      'runtime'
+    );
+    expect(functions.find((candidate) => candidate.name === 'wrong-runtime')?.error).toContain(
+      'nodejs22.x'
+    );
+    expect(functions.find((candidate) => candidate.name === 'symlink-function')?.error).toContain(
+      'symbolic link'
+    );
+    expect(functions.find((candidate) => candidate.name === 'symlink-route')?.error).toContain(
+      'symbolic link'
+    );
+  });
+
+  it('does not discover nested .func directories inside a Vercel function bundle', () => {
+    const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-vercel-output-'));
+    const functionsRoot = path.join(outputRoot, 'functions');
+    const outer = path.join(functionsRoot, 'api.func');
+    const nested = path.join(outer, 'node_modules', 'nested.func');
+    fs.mkdirSync(nested, { recursive: true });
+    fs.writeFileSync(
+      path.join(outer, '.vc-config.json'),
+      JSON.stringify({ runtime: 'nodejs22.x', handler: 'serve.js' })
+    );
+    fs.writeFileSync(path.join(outer, 'serve.js'), 'export default () => {};');
+    fs.writeFileSync(
+      path.join(nested, '.vc-config.json'),
+      JSON.stringify({ runtime: 'nodejs22.x', handler: 'nested.js' })
+    );
+    fs.writeFileSync(path.join(nested, 'nested.js'), 'export default () => {};');
+
+    expect(vercelBuildOutputFunctions(functionsRoot).map(({ name }) => name)).toEqual(['api']);
+  });
+
   it('masks all Vercel credentials during emitted handler import and redacts hostile handler failures', async () => {
     const original = Object.fromEntries(
       Object.keys(strictVercelEnvironment).map((key) => [key, process.env[key]])
@@ -309,6 +467,88 @@ describe('surface contract matrix boot proof completion gates', () => {
         else process.env[key] = value;
       }
     }
+  });
+
+  it('invokes build-output handlers in a child with only synthetic proof environment values', () => {
+    const original = {
+      DATABASE_URL: process.env.DATABASE_URL,
+      SESSION_SECRET: process.env.SESSION_SECRET,
+      VERCEL_TOKEN: process.env.VERCEL_TOKEN,
+      SURFACE_BOOT_PROOF_AMBIENT_SENTINEL: process.env.SURFACE_BOOT_PROOF_AMBIENT_SENTINEL,
+    };
+    Object.assign(process.env, {
+      DATABASE_URL: 'postgresql://parent-secret@production.example/private',
+      SESSION_SECRET: 'parent-session-secret',
+      VERCEL_TOKEN: 'parent-vercel-token-secret',
+      SURFACE_BOOT_PROOF_AMBIENT_SENTINEL: 'must-not-reach-child',
+    });
+    try {
+      const startedAt = Date.now();
+      const result = invokeVercelFunctionInIsolatedChild({
+          name: '--isolated',
+          entry: fixture('isolated-vercel-handler.mjs'),
+          responseTimeout: 100,
+          redactionEnvironment: strictVercelEnvironment,
+        });
+      expect(result).toMatchObject({ name: '--isolated', ok: true });
+      expect(Date.now() - startedAt).toBeLessThan(1_000);
+
+      const failed = invokeVercelFunctionInIsolatedChild({
+        name: 'api/secret-leak',
+        entry: fixture('secret-leaking-vercel-handler.mjs'),
+        responseTimeout: 100,
+        redactionEnvironment: strictVercelEnvironment,
+      });
+      expect(failed).toMatchObject({ name: 'api/secret-leak', ok: false });
+      for (const secret of [
+        'parent-secret',
+        'parent-session-secret',
+        'parent-vercel-token-secret',
+        'must-not-reach-child',
+      ]) {
+        expect(result.result).not.toContain(secret);
+        expect(failed.result).not.toContain(secret);
+      }
+    } finally {
+      for (const [key, value] of Object.entries(original)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  });
+
+  it('SIGKILL bounds a SIGTERM-trapping handler that never settles', () => {
+    const startedAt = Date.now();
+    const result = invokeVercelFunctionInIsolatedChild({
+      name: 'api/sigterm-trap',
+      entry: fixture('sigterm-trapping-vercel-handler.mjs'),
+      responseTimeout: 1,
+    });
+    expect(result).toMatchObject({ name: 'api/sigterm-trap', ok: false });
+    expect(result.result).toContain('SIGKILL');
+    expect(Date.now() - startedAt).toBeLessThan(2_500);
+  });
+
+  it('uses the resolved function directory as the isolated child working directory', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-vercel-function-'));
+    const entry = path.join(directory, 'cwd-handler.mjs');
+    fs.writeFileSync(
+      entry,
+      [
+        "import path from 'node:path';",
+        "import process from 'node:process';",
+        "import { fileURLToPath } from 'node:url';",
+        'const handlerDirectory = path.dirname(fileURLToPath(import.meta.url));',
+        'export default (_request, response) => {',
+        "  if (process.cwd() !== handlerDirectory) throw new Error('unexpected child working directory');",
+        '  response.end();',
+        '};',
+      ].join('\n')
+    );
+
+    expect(
+      invokeVercelFunctionInIsolatedChild({ name: 'api/cwd', entry, directory, responseTimeout: 100 })
+    ).toMatchObject({ name: 'api/cwd', ok: true });
   });
 
   it('rejects empty or non-running worker consumer health payloads', () => {
@@ -382,6 +622,12 @@ describe('surface contract matrix boot proof completion gates', () => {
         deploymentId: 'capital-proof',
       })
     ).toMatchObject({ CAPITAL_CALL_STATUS_HARD_TIMEOUT_MS: '30000' });
+  });
+
+  it('uses a Docker-network hostname on the existing node-postgres loopback suffix', () => {
+    expect(workerPostgresProofHostname('surface-matrix-worker-postgres-proof')).toBe(
+      'surface-matrix-worker-postgres-proof.localhost'
+    );
   });
 
   it('requires capital schema preparation before worker launch and stops on schema failure', async () => {
