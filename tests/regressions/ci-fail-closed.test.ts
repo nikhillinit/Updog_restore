@@ -3719,6 +3719,36 @@ describe('required CI fails closed', () => {
     expect(fullScripts).not.toContain('--reuse-ci-gates');
   });
 
+  it('keeps the plan-approval verifier CLI fail-closed before required-CI wiring', async () => {
+    const verifierPath = path.join(process.cwd(), 'scripts', 'release', 'verify-plan-approval.mjs');
+    await expect(access(verifierPath)).resolves.toBeUndefined();
+
+    await expect(
+      execFileAsync(
+        process.execPath,
+        [
+          verifierPath,
+          '--repo',
+          'nikhillinit/Updog_restore',
+          '--pr',
+          '1385',
+          '--plan-path',
+          'docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md',
+          '--approver-login',
+          'nikhillinit',
+          '--require-exact-head',
+        ],
+        {
+          cwd: process.cwd(),
+          env: { ...process.env, GH_TOKEN: '', GITHUB_TOKEN: '' },
+        }
+      )
+    ).rejects.toMatchObject({
+      code: 1,
+      stderr: expect.stringContaining('GH_TOKEN or GITHUB_TOKEN is required'),
+    });
+  });
+
   it('fails closed on exact-SHA and provider identity proof before promotion', async () => {
     const proofWorkflow = await readWorkflow('release-proof.yml');
     expect(proofWorkflow.permissions).toEqual({
