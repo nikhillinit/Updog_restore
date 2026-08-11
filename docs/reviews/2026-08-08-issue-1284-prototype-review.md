@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: humans
-last_updated: 2026-08-08
+last_updated: 2026-08-10
 owner: 'Product + Frontend'
 review_cadence: P30D
 categories: [design, review, governance]
@@ -20,6 +20,11 @@ GitHub comment required by
 [issue #1284](https://github.com/nikhillinit/Updog_restore/issues/1284). No
 approval comment existed when this packet was prepared.
 
+The 2026-08-10 revision passes (below) cleared the reviewable prototype defects
+that were blocking approval readiness. The remaining closure blocker is the
+mandatory human decision, which must be posted as a comment on the issue. No
+agent can satisfy that step.
+
 | Item                                  | State                   |
 | ------------------------------------- | ----------------------- |
 | Directional design baseline           | Ratified in `DESIGN.md` |
@@ -28,6 +33,63 @@ approval comment existed when this packet was prepared.
 | Human decision recorded on #1284      | Missing                 |
 | #1288 shared rail                     | Blocked                 |
 | Production code changed by this batch | No                      |
+| Prototype revision defects            | Resolved 2026-08-10     |
+
+## Revision log
+
+### 2026-08-10a — closure blockers
+
+A closure-blocker review of the prototype identified defects that a human
+reviewer would have to reject. They are resolved in the artifact so the pending
+approval is a clean yes/no on the design, not a request for rework. Only the
+non-shipping prototype HTML changed; no `client/`, `server/`, `shared/`,
+migration, route, or authorization path was touched.
+
+| Defect                                                                                                         | Resolution                                                                                                                                                                                       |
+| -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Blocked state presented competing next actions (`Next · Review 2 gaps` and `Resolve vehicle context` together) | The `Next · …` status chip is now state-scoped: ready shows `Review 2 gaps`, blocked shows `Resolve vehicle context`. One authoritative next action per state.                                   |
+| `$55.0M Remaining deployable` had no visible derivation                                                        | The metric now shows its arithmetic (`$64.0M uncalled − $9.0M reserved for signed follow-on`) with a link to the bridge.                                                                         |
+| Preset de-emphasis used `opacity: 0.55`, degrading text below WCAG AA                                          | Replaced with a tinted background plus dashed border; text color is untouched and stays at full contrast.                                                                                        |
+| Below 1024px the command bar dropped all primary controls and navigation                                       | A mobile command bar now exposes an off-canvas navigation toggle (`aria-expanded`, 5 links), and the primary action and vehicle-state controls remain reachable via the retained command header. |
+| Focus ring was invisible on the dark primary rail                                                              | Added a light local focus outline (`rgba(255,255,255,0.9)`, 3px solid) scoped to the dark rail.                                                                                                  |
+| Inconsistent as-of date formats (`August 6, 2026`, `Aug 6`, bare `Aug 9`)                                      | Standardized visible dates to `Mon D, YYYY`; machine `code` fields keep ISO `2026-08-06`.                                                                                                        |
+
+### 2026-08-10b — minor UX revisions
+
+Three lower-severity revisions raised the prototype to handoff quality. Same
+non-shipping scope: only the prototype HTML and its review-only harness changed.
+
+| Theme                                 | Revision                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Responsive rail behavior + hover      | Added `:hover` affordances (guarded by `@media (hover: hover)`) across rail links, nav links, buttons, segmented/rail-state controls, and preset cards, plus short reduced-motion-safe transitions so the rail's responsive state changes read as intentional. The mobile off-canvas nav item now carries `aria-current="page"`.                                                                               |
+| Accessible state/focus communication  | Preset and context-rail controls are now true `radiogroup`s (`role="radio"` + `aria-checked`) with roving `tabindex` and Arrow/Home/End keyboard navigation. A polite `aria-live` status region announces preset, rail, context, and walkthrough changes. Controls carry `aria-describedby`; recompute uses focusable `aria-disabled` (not the `disabled` attribute) so its reason is reachable while blocked. |
+| More explicit interactive walkthrough | The mark-to-refresh loop is now a walkable, stateful sequence: action 1 (review) marks itself done and activates action 2 (recompute); completion **persists** as a visible result plus a `Refreshed just now` chip instead of silently resetting after 900ms; a `Reset walkthrough` control replays the loop.                                                                                                 |
+
+Rendered-browser verification of the keyboard/focus behavior was run and is
+recorded in the evidence table below.
+
+### 2026-08-10c — responsive rail and focus/touch tokens
+
+Two medium revisions. Same non-shipping scope: prototype HTML plus its
+review-only harness.
+
+| Revision                     | Resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Responsive context rail      | Implemented the two contracted modes. At 1024-1279px the review rail is a right-anchored **slide-over** opened by a `Review context` trigger; below 1024px it is hidden behind a command-bar **info button**. Both open a `role="dialog"` `aria-modal` panel with a focus trap, `Escape`/backdrop/close dismissal, focus restored to the opener, and preserved `data-rail-state` (peek/pinned). Body scroll locks while open; resizing back to desktop restores the sticky rail. |
+| Focus and touch-target sizes | Core interactive targets raised to >= 44x44px (`.button` 40->44, segmented/rail radios 34->44, nav links and mobile toggle to 44). Focus ring strengthened from the low-contrast `rgba(41,41,41,0.25)` to solid accent `#292929` (~12-14:1 on white/mist); the dark rail keeps its light ring.                                                                                                                                                                                   |
+
+**Focus-color divergence (recorded exception).** The revision request cited the
+project token source as specifying a `#2563eb` focus treatment. It does not:
+`client/src/theme/presson.tokens.ts` defines
+`focus.ring: '0 0 0 3px rgba(41,41,41,0.25)'` and a `ring-accent/30` focus
+utility where `accent = #292929`; `#2563eb` is the **Info status** color only.
+`DESIGN.md` sets the accent to charcoal and states "never blue," and its drift
+register flags reusing blue as an interaction color. The reviewer's contrast
+concern is valid (`rgba(41,41,41,0.25)` composites to ~1.5:1 on white, failing
+WCAG 2.4.11/1.4.11 3:1), so the ring was strengthened to **solid charcoal
+accent** — the token-source-consistent, on-brand fix that meets contrast —
+rather than introducing blue. Confirmed with the requester before
+implementation.
 
 ## Review fence and artifacts
 
@@ -56,43 +118,56 @@ not an application route, schema, API contract, or authorization decision.
 
 ## Acceptance matrix
 
-| #1284 requirement                                           | Prototype evidence                                                                            | Review result                                                  |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| Fund, vehicle, as-of, and plan context                      | Always-visible context band                                                                   | Ready for human review                                         |
-| Active basis: as-of plus snapshot short hash                | Decision header and context band                                                              | Ready for human review                                         |
-| `Recompute from latest accepted facts`                      | Action 2 in refresh workflow                                                                  | Ready for human review; production wiring remains #1288        |
-| Uncalled-capital bridge                                     | Committed, called, projected fees remaining, recallable, and uncalled table                   | Ready for human review; fields map to Current-Forecast V2      |
-| `gp`, `analyst`, `operations` presets                       | Interactive segmented control plus emphasis matrix                                            | Ready for human review; presentation-only statement is visible |
-| Missing-context disabled state                              | `Show missing-vehicle state` toggles `vehicleId: null` multi-main example                     | Ready for human review                                         |
-| At most two operator actions from mark to refreshed picture | System arrival, action 1 review evidence, action 2 recompute                                  | Ready for human review                                         |
-| Operating question visible                                  | Primary decision heading                                                                      | Ready for human review                                         |
-| Current state and as-of visible                             | Status chips and context band                                                                 | Ready for human review                                         |
-| Next recommended action visible                             | Header and conditional review rail                                                            | Ready for human review                                         |
-| Source/calculation basis visible                            | Current-Forecast V2 lineage block                                                             | Ready for human review                                         |
-| Disabled state names dependency                             | Recompute reason and blocked rail state                                                       | Ready for human review                                         |
-| `Reviewed with no change` distinct from `not reviewed`      | Visible review-state card                                                                     | Ready for human review                                         |
-| No production wiring                                        | Final 25-path allowlist contains docs, generated discovery indexes, and reference assets only | Confirmed                                                      |
-| Human decision recorded on issue                            | No matching comment yet                                                                       | **BLOCKED — human action required**                            |
+| #1284 requirement                                           | Prototype evidence                                                                                                                                                                                                                                  | Review result                                                  |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Fund, vehicle, as-of, and plan context                      | Always-visible context band                                                                                                                                                                                                                         | Ready for human review                                         |
+| Active basis: as-of plus snapshot short hash                | Decision header and context band                                                                                                                                                                                                                    | Ready for human review                                         |
+| `Recompute from latest accepted facts`                      | Action 2 in refresh workflow                                                                                                                                                                                                                        | Ready for human review; production wiring remains #1288        |
+| Uncalled-capital bridge                                     | Committed, called, projected fees remaining, recallable, and uncalled table                                                                                                                                                                         | Ready for human review; fields map to Current-Forecast V2      |
+| `gp`, `analyst`, `operations` presets                       | Interactive segmented control plus emphasis matrix                                                                                                                                                                                                  | Ready for human review; presentation-only statement is visible |
+| Missing-context disabled state                              | `Show missing-vehicle state` toggles `vehicleId: null` multi-main example                                                                                                                                                                           | Ready for human review                                         |
+| At most two operator actions from mark to refreshed picture | System arrival, action 1 review evidence, action 2 recompute                                                                                                                                                                                        | Ready for human review                                         |
+| Operating question visible                                  | Primary decision heading                                                                                                                                                                                                                            | Ready for human review                                         |
+| Current state and as-of visible                             | Status chips and context band                                                                                                                                                                                                                       | Ready for human review                                         |
+| Next recommended action visible                             | Header and conditional review rail                                                                                                                                                                                                                  | Ready for human review                                         |
+| Source/calculation basis visible                            | Current-Forecast V2 lineage block                                                                                                                                                                                                                   | Ready for human review                                         |
+| Disabled state names dependency                             | Recompute reason and blocked rail state                                                                                                                                                                                                             | Ready for human review                                         |
+| `Reviewed with no change` distinct from `not reviewed`      | Visible review-state card                                                                                                                                                                                                                           | Ready for human review                                         |
+| No production wiring                                        | Changed paths are the non-shipping prototype HTML, its review docs, and a review-only verification harness (`scripts/reviews/verify-issue-1284-prototype.cjs`); no `client/`, `server/`, `shared/`, migration, route, or authorization path touched | Confirmed                                                      |
+| Human decision recorded on issue                            | No matching comment yet                                                                                                                                                                                                                             | **BLOCKED — human action required**                            |
 
 ## Browser verification evidence
 
-The static artifact was exercised in a real browser on 2026-08-08. This proves
-the review artifact's behavior; it does not prove production integration.
+The static artifact was re-exercised in a real headless Chromium browser
+(Playwright) on 2026-08-10 after all revision passes. All 41 assertions are
+machine-checked, not visual impressions. This proves the review artifact's
+behavior; it does not prove production integration.
 
-| Check                                     | Result                                                                                                  |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| 1440x900, 1024x768, 820x1180, and 390x844 | Passed; document scroll width equaled viewport width at every size                                      |
-| Browser console                           | Passed; zero errors and zero warnings                                                                   |
-| GP / Analyst / Operations                 | Passed; pressed state and presentation copy changed while the invariant-data statement remained visible |
-| Hidden / Peek / Pinned                    | Passed; each state was reversible from the persistent display control                                   |
-| `vehicleId: null` state                   | Passed; vehicle dependency became explicit and recompute disabled with its reason                       |
-| Recompute lifecycle                       | Passed; action moved through recomputing, `Picture refreshed · no change`, then reset                   |
-| Review completion state                   | Passed; `Reviewed with no change` remained visibly distinct from not reviewed                           |
-| Keyboard focus                            | Passed; next focused action rendered a 3px solid focus outline                                          |
+| Check                                     | Result                                                                                                                                                                                                                                                                                          |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1440x900, 1024x768, 820x1180, and 390x844 | Passed; `documentElement.scrollWidth` equaled `clientWidth` at every size (1440, 1024, 820, 390) — no page-level horizontal overflow                                                                                                                                                            |
+| Browser console                           | Passed; zero errors and zero warnings across all four viewports and the interaction pass                                                                                                                                                                                                        |
+| Mobile controls below 1024px (820, 390)   | Passed; nav toggle, primary `Review 2 gaps` action, and vehicle-state toggle all visible; off-canvas nav opened with 5 links and `aria-expanded` flipped to `true`                                                                                                                              |
+| GP / Analyst / Operations                 | Passed; checked state and presentation copy changed; de-emphasis applied via background/border, not opacity                                                                                                                                                                                     |
+| Radiogroup semantics + keyboard           | Passed; preset and rail controls expose `role="radiogroup"`; Arrow key moved selection, focus, `aria-checked`, and roving `tabindex` together, and updated the view                                                                                                                             |
+| Disabled-but-discoverable recompute       | Passed; while blocked, recompute is `aria-disabled="true"` yet focusable, keeps `aria-describedby="recomputeReason"` with the reason visible, and a direct activation was a no-op                                                                                                               |
+| aria-live announcements                   | Passed; the polite status region carried the walkthrough progression (referenced the recompute step after action 1)                                                                                                                                                                             |
+| Interactive walkthrough                   | Passed; action 1 marked itself done and activated action 2; completion persisted (visible result + `Refreshed just now` chip, step `done`) across a 1.2s wait with no auto-reset; `Reset walkthrough` restored the initial state                                                                |
+| Keyboard focus on dark rail               | Passed; Tab landed on a `.rail-link`; computed outline was `rgb(255,255,255,0.9)` 3px solid — visible against the dark rail                                                                                                                                                                     |
+| General focus ring                        | Passed; a light-surface control (`#toggleContext`) showed a solid `rgb(41, 41, 41)` 3px outline — the strengthened accent ring, not the low-contrast 25%-alpha value and not blue                                                                                                               |
+| Core touch targets                        | Passed; command button, segmented radio, rail-state radio, primary-rail link, and nav link all measured >= 44px tall (rail link >= 44px square)                                                                                                                                                 |
+| Slide-over rail — tablet (1200px)         | Passed; rail off-canvas by default with a visible trigger; trigger opened an on-screen `role="dialog"` `aria-modal` panel (`aria-labelledby`), moved focus inside, expanded the trigger, showed the backdrop, and preserved `peek` (pinned-detail collapsed); no horizontal overflow while open |
+| Slide-over rail — Escape/close (tablet)   | Passed; `Escape` closed the dialog, removed the dialog role, restored focus to the trigger, hid the backdrop, and preserved `data-rail-state`                                                                                                                                                   |
+| Slide-over rail — mobile (400px)          | Passed; the command-bar info button (>= 44px) opened the same focused dialog with no horizontal overflow                                                                                                                                                                                        |
 
-The four responsive captures plus the explicit blocked-state capture are listed
-in the
-[reference inventory](../design/references/2026-08-08-preferred-uiux/README.md).
+Verification harness:
+[`scripts/reviews/verify-issue-1284-prototype.cjs`](../../scripts/reviews/verify-issue-1284-prototype.cjs).
+Run with `node scripts/reviews/verify-issue-1284-prototype.cjs` (requires a
+Chromium-capable Playwright install). The four responsive captures plus the
+explicit blocked-state capture are listed in the
+[reference inventory](../design/references/2026-08-08-preferred-uiux/README.md);
+those PNGs predate the 2026-08-10 revision and should be recaptured before final
+sign-off.
 
 ## Proposed decisions for the human reviewer
 

@@ -32,6 +32,7 @@
       html,
       body {
         min-height: 100%;
+        overflow-x: hidden;
       }
 
       body {
@@ -49,10 +50,23 @@
         font: inherit;
       }
 
+      /*
+        Focus ring mirrors the token source's accent-colored focus intent
+        (presson.tokens.ts focus.ring / ring-accent) but at full strength: the
+        stored 25%-alpha charcoal composited to ~1.5:1 on white, below the WCAG
+        3:1 minimum for focus indicators. Solid accent charcoal is ~12-14:1 and
+        stays within the DESIGN.md "never blue" accent doctrine.
+      */
       button:focus-visible,
       a:focus-visible {
-        outline: 3px solid rgba(41, 41, 41, 0.25);
+        outline: 3px solid var(--ink);
         outline-offset: 3px;
+      }
+
+      /* The dark-ink rail swallows the dark outline; use a light one locally. */
+      .primary-rail a:focus-visible,
+      .primary-rail button:focus-visible {
+        outline-color: rgba(255, 255, 255, 0.9);
       }
 
       .prototype-banner {
@@ -75,6 +89,34 @@
       }
 
       .mobile-command {
+        display: none;
+      }
+
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      .mobile-nav-toggle {
+        display: none;
+        width: 44px;
+        min-height: 44px;
+        border: 1px solid var(--sand);
+        border-radius: 6px;
+        background: var(--paper);
+        color: var(--ink);
+        cursor: pointer;
+        font-size: 16px;
+      }
+
+      .mobile-nav {
         display: none;
       }
 
@@ -181,7 +223,7 @@
       }
 
       .nav-list a {
-        min-height: 40px;
+        min-height: 44px;
         display: flex;
         align-items: center;
         padding: 8px 10px;
@@ -238,7 +280,7 @@
       }
 
       .button {
-        min-height: 40px;
+        min-height: 44px;
         padding: 8px 14px;
         border: 1px solid var(--ink);
         border-radius: 6px;
@@ -352,8 +394,8 @@
 
       .segmented button,
       .rail-state-controls button {
-        min-height: 34px;
-        padding: 6px 10px;
+        min-height: 44px;
+        padding: 6px 12px;
         border: 1px solid var(--sand);
         border-radius: 6px;
         background: var(--paper);
@@ -363,8 +405,8 @@
         font-weight: 700;
       }
 
-      .segmented button[aria-pressed='true'],
-      .rail-state-controls button[aria-pressed='true'] {
+      .segmented button[aria-checked='true'],
+      .rail-state-controls button[aria-checked='true'] {
         border-color: var(--ink);
         background: var(--ink);
         color: var(--paper);
@@ -466,6 +508,15 @@
         margin: 0;
         color: var(--muted);
         font-size: 12px;
+      }
+
+      .metric-derivation {
+        margin-top: 6px !important;
+        font-family: var(--font-mono);
+      }
+
+      .metric-derivation a {
+        color: var(--ink);
       }
 
       .table-wrap {
@@ -682,13 +733,29 @@
         font-size: 12px;
       }
 
+      /*
+        De-emphasis uses a tinted background and dashed border rather than
+        opacity: fading text this way can drop below WCAG AA contrast against
+        the page background. Text color is left untouched.
+      */
       body[data-preset='gp'] .analyst-detail,
       body[data-preset='gp'] .operations-detail,
       body[data-preset='analyst'] .gp-detail,
       body[data-preset='analyst'] .operations-detail,
       body[data-preset='operations'] .gp-detail,
       body[data-preset='operations'] .analyst-detail {
-        opacity: 0.55;
+        border-style: dashed;
+        border-color: var(--sand);
+        background: var(--mist);
+      }
+
+      body[data-preset='gp'] .analyst-detail .panel-header,
+      body[data-preset='gp'] .operations-detail .panel-header,
+      body[data-preset='analyst'] .gp-detail .panel-header,
+      body[data-preset='analyst'] .operations-detail .panel-header,
+      body[data-preset='operations'] .gp-detail .panel-header,
+      body[data-preset='operations'] .analyst-detail .panel-header {
+        background: var(--mist);
       }
 
       body[data-rail-state='hidden'] .status-rail {
@@ -719,6 +786,188 @@
         display: none;
       }
 
+      /* Revision 2026-08-10b: hover feedback, focus/state communication, walkthrough */
+
+      .rail-link,
+      .nav-list a,
+      .mobile-nav a,
+      .button,
+      .segmented button,
+      .rail-state-controls button,
+      .mobile-nav-toggle,
+      .preset-card,
+      .workflow-step,
+      .status-rail {
+        transition:
+          background-color 120ms ease,
+          border-color 120ms ease,
+          color 120ms ease,
+          box-shadow 120ms ease;
+      }
+
+      @media (hover: hover) {
+        .rail-link:hover {
+          background: rgba(255, 255, 255, 0.16);
+        }
+
+        .rail-link.active:hover {
+          background: var(--paper);
+        }
+
+        .nav-list a:hover,
+        .mobile-nav a:hover {
+          background: var(--mist);
+          color: var(--ink);
+        }
+
+        .button:hover:not(:disabled):not([aria-disabled='true']) {
+          border-color: var(--ink);
+          background: var(--mist);
+        }
+
+        .button.primary:hover:not(:disabled):not([aria-disabled='true']) {
+          background: #3f3f3f;
+        }
+
+        .segmented button:hover,
+        .rail-state-controls button:hover {
+          border-color: var(--ink);
+          color: var(--ink);
+        }
+
+        .segmented button[aria-checked='true']:hover,
+        .rail-state-controls button[aria-checked='true']:hover {
+          color: var(--paper);
+        }
+
+        .mobile-nav-toggle:hover {
+          background: var(--mist);
+        }
+
+        .preset-card:hover {
+          border-color: var(--muted);
+        }
+
+        .metric-derivation a:hover,
+        .basis-item a:hover {
+          text-decoration: underline;
+        }
+      }
+
+      /* Disabled-but-discoverable: focusable so screen readers can reach the reason. */
+      .button[aria-disabled='true'] {
+        cursor: not-allowed;
+        border-color: var(--sand);
+        background: var(--mist);
+        color: var(--muted);
+      }
+
+      /* Interactive walkthrough step states */
+      .workflow-step[data-state='active'] {
+        border-color: var(--ink);
+        box-shadow: 0 0 0 2px rgba(41, 41, 41, 0.12);
+      }
+
+      .workflow-step[data-state='done'] {
+        border-color: var(--positive);
+        background: #f2f8f4;
+      }
+
+      .step-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 8px;
+        padding: 3px 8px;
+        border: 1px solid currentColor;
+        border-radius: 999px;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .step-status[data-tone='pending'] {
+        color: var(--muted);
+      }
+
+      .step-status[data-tone='active'] {
+        color: var(--ink);
+      }
+
+      .step-status[data-tone='done'] {
+        color: var(--positive);
+      }
+
+      .recompute-result {
+        margin: 12px 0 0;
+        padding: 10px 12px;
+        border: 1px solid var(--positive);
+        border-radius: 6px;
+        background: #f2f8f4;
+        color: var(--positive);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .recompute-result[hidden] {
+        display: none;
+      }
+
+      .chip.fresh {
+        border-color: var(--info);
+        color: var(--info);
+      }
+
+      .chip.fresh[hidden] {
+        display: none;
+      }
+
+      .walkthrough-reset {
+        margin-top: 12px;
+      }
+
+      /*
+        Revision 2026-08-10c: responsive slide-over review rail.
+        These elements are inert on desktop (>=1280px) where the rail is the
+        sticky right column; they activate under the breakpoints below.
+      */
+      .rail-dialog-header {
+        display: none;
+      }
+
+      .rail-dialog-title {
+        margin: 0;
+        font-family: var(--font-ui);
+        font-size: 18px;
+        letter-spacing: -0.02em;
+      }
+
+      .rail-overlay-trigger,
+      .rail-info-btn {
+        display: none;
+      }
+
+      .rail-close {
+        min-width: 44px;
+        padding-inline: 0;
+        font-size: 20px;
+        line-height: 1;
+      }
+
+      .rail-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        border: 0;
+        background: rgba(41, 41, 41, 0.4);
+      }
+
+      .rail-backdrop[hidden] {
+        display: none;
+      }
+
       @media (max-width: 1279px) {
         .shell {
           grid-template-columns: var(--rail) minmax(0, 1fr);
@@ -732,13 +981,55 @@
           grid-template-columns: minmax(0, 1fr);
         }
 
-        .status-rail {
-          position: static;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+        /*
+          Slide-over review rail. Closed by default (off-canvas to the right);
+          opened via the "Review context" trigger. The rail-state overrides keep
+          the panel present even when hidden/peek is the preserved selection.
+        */
+        .status-rail,
+        body[data-rail-state='hidden'] .status-rail,
+        body[data-rail-state='peek'] .status-rail {
+          position: fixed;
+          top: 0;
+          right: 0;
+          z-index: 60;
+          display: grid;
+          grid-template-columns: 1fr;
+          align-content: start;
+          gap: 12px;
+          width: min(360px, 92vw);
+          height: 100vh;
+          height: 100dvh;
+          margin: 0;
+          padding: 16px;
+          overflow-y: auto;
+          background: var(--paper);
+          border-left: 1px solid var(--sand);
+          box-shadow: -12px 0 32px rgba(41, 41, 41, 0.18);
+          transform: translateX(100%);
+          transition: transform 200ms ease;
         }
 
-        .rail-state-controls {
-          grid-column: 1 / -1;
+        body[data-rail-overlay='open'] .status-rail {
+          transform: translateX(0);
+        }
+
+        /* Peek and hidden both collapse the detail cards inside the panel. */
+        body[data-rail-state='hidden'] .status-rail .pinned-detail {
+          display: none;
+        }
+
+        .rail-dialog-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+
+        .rail-overlay-trigger {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
         }
       }
 
@@ -747,20 +1038,81 @@
           min-height: 52px;
           display: flex;
           align-items: center;
-          justify-content: space-between;
           gap: 12px;
           padding: 8px 14px;
           border-bottom: 1px solid var(--sand);
           background: var(--paper);
         }
 
+        .mobile-command strong {
+          margin-right: auto;
+        }
+
+        .mobile-nav-toggle {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .mobile-nav:not([hidden]) {
+          display: grid;
+          gap: 4px;
+          padding: 10px 14px 14px;
+          border-bottom: 1px solid var(--sand);
+          background: var(--paper);
+        }
+
+        .mobile-nav a {
+          min-height: 44px;
+          display: flex;
+          align-items: center;
+          padding: 8px 10px;
+          border-radius: 6px;
+          color: var(--muted);
+          text-decoration: none;
+        }
+
+        .mobile-nav a.active {
+          background: var(--mist);
+          color: var(--ink);
+          font-weight: 700;
+        }
+
         .shell {
           display: block;
         }
 
-        .primary-rail,
-        .command-header {
+        .primary-rail {
           display: none;
+        }
+
+        .command-header {
+          flex-wrap: wrap;
+        }
+
+        /* Below 1024px the slide-over is reached via the command-bar info button. */
+        .rail-overlay-trigger {
+          display: none;
+        }
+
+        .rail-info-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 44px;
+          min-height: 44px;
+          border: 1px solid var(--sand);
+          border-radius: 6px;
+          background: var(--paper);
+          color: var(--ink);
+          cursor: pointer;
+          font-size: 16px;
+        }
+
+        .status-rail,
+        body[data-rail-state='hidden'] .status-rail,
+        body[data-rail-state='peek'] .status-rail {
+          width: min(420px, 100vw);
         }
 
         .context-band {
@@ -865,10 +1217,45 @@
       Non-shipping review prototype · Issue #1284 · Synthetic values · No production wiring
     </div>
 
+    <!-- Polite live region: announces preset, rail, context, and walkthrough state changes. -->
+    <div id="srStatus" class="visually-hidden" role="status" aria-live="polite"></div>
+
     <div class="mobile-command">
+      <button
+        class="mobile-nav-toggle"
+        id="mobileNavToggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="mobileNav"
+      >
+        <span aria-hidden="true">&#9776;</span>
+        <span class="visually-hidden">Open navigation</span>
+      </button>
       <strong>Updog</strong>
       <span class="chip">Fund I · Draft 08</span>
+      <button
+        class="rail-info-btn"
+        id="railInfoBtn"
+        type="button"
+        aria-haspopup="dialog"
+        aria-controls="review"
+        aria-expanded="false"
+        aria-label="Open review context"
+      >
+        <span aria-hidden="true">&#9432;</span>
+      </button>
     </div>
+
+    <nav class="mobile-nav" id="mobileNav" aria-label="Primary navigation" hidden>
+      <a class="active" href="#question" aria-current="page">Today &middot; Current picture</a>
+      <a href="#bridge">Portfolio &middot; Capital bridge</a>
+      <a href="#basis">Evidence basis</a>
+      <a href="#workflow">Refresh workflow</a>
+      <a href="#review">Review status</a>
+    </nav>
+
+    <!-- Backdrop for the slide-over review rail (active below 1280px). -->
+    <div class="rail-backdrop" id="railBackdrop" hidden></div>
 
     <div class="shell">
       <nav class="primary-rail" aria-label="Primary navigation">
@@ -900,7 +1287,7 @@
         <header class="command-header">
           <div class="command-context">
             <strong>Fund I · Current forecast</strong>
-            <span>Draft 08 · Facts snapshot b7c19e2 · As of August 6, 2026</span>
+            <span>Draft 08 · Facts snapshot b7c19e2 · As of Aug 6, 2026</span>
           </div>
           <div class="button-row">
             <button class="button" id="toggleContext" type="button">
@@ -924,7 +1311,8 @@
             <span class="chip warning blocked-only">Blocked · vehicle required</span>
             <span class="chip">As of Aug 6, 2026</span>
             <span class="chip">Snapshot b7c19e2</span>
-            <span class="chip">Next · Review 2 gaps</span>
+            <span class="chip ready-only">Next · Review 2 gaps</span>
+            <span class="chip warning blocked-only">Next · Resolve vehicle context</span>
           </div>
         </section>
 
@@ -948,10 +1336,33 @@
         </section>
 
         <section class="preset-band" aria-label="View preset controls">
-          <div class="segmented" role="group" aria-label="Presentation preset">
-            <button type="button" data-preset="gp" aria-pressed="true">GP</button>
-            <button type="button" data-preset="analyst" aria-pressed="false">Analyst</button>
-            <button type="button" data-preset="operations" aria-pressed="false">Operations</button>
+          <div
+            class="segmented"
+            role="radiogroup"
+            aria-label="Presentation preset"
+            aria-describedby="presetExplanation"
+          >
+            <button type="button" role="radio" data-preset="gp" aria-checked="true" tabindex="0">
+              GP
+            </button>
+            <button
+              type="button"
+              role="radio"
+              data-preset="analyst"
+              aria-checked="false"
+              tabindex="-1"
+            >
+              Analyst
+            </button>
+            <button
+              type="button"
+              role="radio"
+              data-preset="operations"
+              aria-checked="false"
+              tabindex="-1"
+            >
+              Operations
+            </button>
           </div>
           <p class="preset-explanation" id="presetExplanation">
             GP emphasizes outcome movement, blockers, and next decision. Same data, queries, and
@@ -960,12 +1371,43 @@
         </section>
 
         <section class="rail-mode-band" aria-label="Context rail display controls">
-          <span class="field-label">Context rail</span>
-          <div class="rail-state-controls" role="group" aria-label="Context rail state">
-            <button type="button" data-rail="hidden" aria-pressed="false">Hidden</button>
-            <button type="button" data-rail="peek" aria-pressed="false">Peek</button>
-            <button type="button" data-rail="pinned" aria-pressed="true">Pinned</button>
+          <span class="field-label" id="railStateLabel">Context rail</span>
+          <span id="railStateHelp" class="visually-hidden">
+            Presentation only. Hidden collapses the review context; peek shows a summary; pinned
+            keeps the full review context visible.
+          </span>
+          <div
+            class="rail-state-controls"
+            role="radiogroup"
+            aria-labelledby="railStateLabel"
+            aria-describedby="railStateHelp"
+          >
+            <button
+              type="button"
+              role="radio"
+              data-rail="hidden"
+              aria-checked="false"
+              tabindex="-1"
+            >
+              Hidden
+            </button>
+            <button type="button" role="radio" data-rail="peek" aria-checked="false" tabindex="-1">
+              Peek
+            </button>
+            <button type="button" role="radio" data-rail="pinned" aria-checked="true" tabindex="0">
+              Pinned
+            </button>
           </div>
+          <button
+            class="button rail-overlay-trigger"
+            id="railOverlayTrigger"
+            type="button"
+            aria-haspopup="dialog"
+            aria-controls="review"
+            aria-expanded="false"
+          >
+            <span aria-hidden="true">&#9432;</span> Review context
+          </button>
         </section>
 
         <div class="canvas-grid">
@@ -978,12 +1420,17 @@
                 </div>
                 <span class="chip current ready-only">Available</span>
                 <span class="chip warning blocked-only">Dependency missing</span>
+                <span class="chip fresh" id="pictureFreshness" hidden>Refreshed just now</span>
               </div>
               <div class="metric-grid">
                 <article class="metric">
                   <span class="field-label">Remaining deployable</span>
                   <strong>$55.0M</strong>
                   <p>MODEL · Current-Forecast V2</p>
+                  <p class="metric-derivation">
+                    $64.0M uncalled − $9.0M reserved for signed follow-on commitments ·
+                    <a href="#bridge">see bridge</a>
+                  </p>
                 </article>
                 <article class="metric">
                   <span class="field-label">Uncalled capital</span>
@@ -1090,8 +1537,16 @@
                 </div>
                 <span class="chip">2 actions</span>
               </div>
+              <p
+                class="panel-body"
+                style="padding-bottom: 0; margin: 0; color: var(--muted); font-size: 12px"
+              >
+                Walk the loop below. Two operator actions carry a new mark to a refreshed picture,
+                and each step reports its own completion state.
+              </p>
               <div class="panel-body workflow">
-                <article class="workflow-step">
+                <article class="workflow-step" id="step-mark" data-state="done">
+                  <span class="step-status" data-tone="done">Arrived</span>
                   <span class="operator-count">System event · no action</span>
                   <strong>New mark arrives</strong>
                   <p>
@@ -1099,16 +1554,24 @@
                     Existing picture remains unchanged.
                   </p>
                 </article>
-                <article class="workflow-step">
+                <article class="workflow-step" id="step-review" data-state="active">
+                  <span class="step-status" id="reviewStatus" data-tone="active"
+                    >Action needed</span
+                  >
                   <span class="operator-count">Operator action 1</span>
                   <strong>Review latest mark</strong>
                   <p>
                     Inspect evidence and record whether the fact is accepted under the existing
                     fact-review contract.
                   </p>
-                  <button class="button" type="button">Review mark evidence</button>
+                  <button class="button" id="reviewMarkButton" type="button">
+                    Review mark evidence
+                  </button>
                 </article>
-                <article class="workflow-step">
+                <article class="workflow-step" id="step-recompute" data-state="pending">
+                  <span class="step-status" id="recomputeStatus" data-tone="pending"
+                    >Waits on action 1</span
+                  >
                   <span class="operator-count">Operator action 2</span>
                   <strong>Recompute picture</strong>
                   <p class="ready-only">
@@ -1118,13 +1581,27 @@
                   <p class="blocked-only">
                     Unavailable until exactly one main vehicle is selected for this fund.
                   </p>
-                  <button class="button primary" id="recomputeButton" type="button">
+                  <button
+                    class="button primary"
+                    id="recomputeButton"
+                    type="button"
+                    aria-describedby="recomputeReason"
+                  >
                     Recompute from latest accepted facts
                   </button>
                   <p class="dependency-reason blocked-only" id="recomputeReason">
                     Disabled because this fund has multiple main vehicles and `vehicleId` is null.
                   </p>
+                  <p class="recompute-result" id="recomputeResult" hidden>
+                    Picture refreshed · no change · just now. This completion stays visible until
+                    the next mark or recompute.
+                  </p>
                 </article>
+              </div>
+              <div class="panel-body" style="padding-top: 0">
+                <button class="button walkthrough-reset" id="resetWalkthrough" type="button">
+                  Reset walkthrough
+                </button>
               </div>
             </section>
 
@@ -1157,19 +1634,32 @@
               </div>
               <div class="prototype-note">
                 All presets retain the same data, fund scope, authorization, warnings, and available
-                actions. They change visual weighting only.
+                actions. They change visual weighting only. De-emphasized sections use a tinted
+                background and dashed border, not reduced text opacity, so their content stays at
+                full contrast.
               </div>
             </section>
           </div>
 
           <aside class="status-rail" id="review" aria-label="Conditional review context">
+            <div class="rail-dialog-header">
+              <h2 class="rail-dialog-title" id="railDialogTitle">Review context</h2>
+              <button
+                class="button rail-close"
+                id="railClose"
+                type="button"
+                aria-label="Close review context"
+              >
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
             <section class="status-card">
               <header>
                 <span class="section-label">Review state</span>
                 <h3>2 gaps · 1 next action</h3>
               </header>
               <div class="status-body">
-                <div class="review-state">Reviewed with no change · Aug 6</div>
+                <div class="review-state">Reviewed with no change · Aug 6, 2026</div>
                 <p style="margin: 8px 0 0; color: var(--muted); font-size: 12px">
                   Distinct from not reviewed. This is a visible completion state, not an implied
                   approval of future changes.
@@ -1186,7 +1676,7 @@
                 <ul class="status-list">
                   <li>
                     <strong>Portfolio actuals source</strong
-                    ><span>Owner: Morgan · due Aug 9 · source missing</span>
+                    ><span>Owner: Morgan · due Aug 9, 2026 · source missing</span>
                   </li>
                   <li>
                     <strong>Fee profile review</strong
@@ -1227,6 +1717,65 @@
 
     <script>
       const body = document.body;
+
+      // Polite screen-reader announcements for state changes.
+      const srStatus = document.getElementById('srStatus');
+      function announce(message) {
+        // Clearing first guarantees repeat messages re-fire in assistive tech.
+        srStatus.textContent = '';
+        window.setTimeout(() => {
+          srStatus.textContent = message;
+        }, 30);
+      }
+
+      // --- Mobile off-canvas navigation ---
+      const mobileNavToggle = document.getElementById('mobileNavToggle');
+      const mobileNav = document.getElementById('mobileNav');
+      mobileNavToggle.addEventListener('click', () => {
+        const willOpen = mobileNav.hasAttribute('hidden');
+        if (willOpen) {
+          mobileNav.removeAttribute('hidden');
+        } else {
+          mobileNav.setAttribute('hidden', '');
+        }
+        mobileNavToggle.setAttribute('aria-expanded', String(willOpen));
+        announce(willOpen ? 'Navigation opened.' : 'Navigation closed.');
+      });
+
+      // --- Reusable radiogroup with roving tabindex + arrow-key navigation ---
+      function wireRadiogroup(selector, onSelect) {
+        const radios = Array.from(document.querySelectorAll(selector));
+        function select(target, focus) {
+          radios.forEach((radio) => {
+            const checked = radio === target;
+            radio.setAttribute('aria-checked', String(checked));
+            radio.tabIndex = checked ? 0 : -1;
+          });
+          if (focus) target.focus();
+          onSelect(target);
+        }
+        radios.forEach((radio, index) => {
+          radio.addEventListener('click', () => select(radio, false));
+          radio.addEventListener('keydown', (event) => {
+            let next = null;
+            if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+              next = radios[(index + 1) % radios.length];
+            } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+              next = radios[(index - 1 + radios.length) % radios.length];
+            } else if (event.key === 'Home') {
+              next = radios[0];
+            } else if (event.key === 'End') {
+              next = radios[radios.length - 1];
+            }
+            if (next) {
+              event.preventDefault();
+              select(next, true);
+            }
+          });
+        });
+      }
+
+      // --- Presentation presets ---
       const presetCopy = {
         gp: 'GP emphasizes outcome movement, blockers, and next decision. Same data, queries, and authorization in every preset.',
         analyst:
@@ -1234,54 +1783,221 @@
         operations:
           'Operations emphasizes owners, due work, refresh actions, and dependency reasons. Same data, queries, and authorization in every preset.',
       };
-
-      document.querySelectorAll('button[data-preset]').forEach((button) => {
-        button.addEventListener('click', () => {
-          const preset = button.dataset.preset;
-          body.dataset.preset = preset;
-          document.querySelectorAll('button[data-preset]').forEach((candidate) => {
-            candidate.setAttribute('aria-pressed', String(candidate === button));
-          });
-          document.getElementById('presetExplanation').textContent = presetCopy[preset];
-        });
+      const presetLabel = { gp: 'GP', analyst: 'Analyst', operations: 'Operations' };
+      wireRadiogroup('button[data-preset]', (button) => {
+        const preset = button.dataset.preset;
+        body.dataset.preset = preset;
+        document.getElementById('presetExplanation').textContent = presetCopy[preset];
+        announce(presetLabel[preset] + ' preset. Visual emphasis only; data unchanged.');
       });
 
-      document.querySelectorAll('[data-rail]').forEach((button) => {
-        button.addEventListener('click', () => {
-          const state = button.dataset.rail;
-          body.dataset.railState = state;
-          document.querySelectorAll('[data-rail]').forEach((candidate) => {
-            candidate.setAttribute('aria-pressed', String(candidate === button));
-          });
-        });
+      // --- Context rail display state ---
+      const railCopy = {
+        hidden: 'Context rail hidden. Review context is collapsed.',
+        peek: 'Context rail peek. Review summary shown.',
+        pinned: 'Context rail pinned. Full review context visible.',
+      };
+      wireRadiogroup('button[data-rail]', (button) => {
+        body.dataset.railState = button.dataset.rail;
+        announce(railCopy[button.dataset.rail]);
       });
 
+      // --- Interactive walkthrough state machine ---
+      const stepReview = document.getElementById('step-review');
+      const stepRecompute = document.getElementById('step-recompute');
+      const reviewStatus = document.getElementById('reviewStatus');
+      const recomputeStatus = document.getElementById('recomputeStatus');
+      const reviewMarkButton = document.getElementById('reviewMarkButton');
+      const recomputeButton = document.getElementById('recomputeButton');
+      const recomputeResult = document.getElementById('recomputeResult');
+      const pictureFreshness = document.getElementById('pictureFreshness');
+      let markReviewed = false;
+      let recomputeTimers = [];
+
+      function isBlocked() {
+        return body.dataset.contextState === 'blocked';
+      }
+
+      function setStatus(el, tone, text) {
+        el.dataset.tone = tone;
+        el.textContent = text;
+      }
+
+      function refreshRecomputeAvailability() {
+        // aria-disabled (not the disabled attribute) keeps the button focusable so
+        // assistive tech can reach its aria-describedby reason while blocked.
+        const disabled = isBlocked();
+        recomputeButton.setAttribute('aria-disabled', String(disabled));
+        if (disabled) {
+          setStatus(recomputeStatus, 'pending', 'Blocked · needs vehicle');
+          stepRecompute.dataset.state = 'pending';
+        } else if (markReviewed) {
+          setStatus(recomputeStatus, 'active', 'Action needed');
+          stepRecompute.dataset.state = 'active';
+        } else {
+          setStatus(recomputeStatus, 'pending', 'Waits on action 1');
+          stepRecompute.dataset.state = 'pending';
+        }
+      }
+
+      reviewMarkButton.addEventListener('click', () => {
+        markReviewed = true;
+        stepReview.dataset.state = 'done';
+        setStatus(reviewStatus, 'done', 'Reviewed · accepted');
+        reviewMarkButton.textContent = 'Mark reviewed · accepted';
+        refreshRecomputeAvailability();
+        announce(
+          isBlocked()
+            ? 'Mark reviewed and accepted. Recompute stays blocked until a vehicle is selected.'
+            : 'Mark reviewed and accepted. Next step: recompute the picture.'
+        );
+      });
+
+      recomputeButton.addEventListener('click', () => {
+        if (recomputeButton.getAttribute('aria-disabled') === 'true') {
+          announce('Recompute is unavailable. Select exactly one main vehicle first.');
+          return;
+        }
+        recomputeTimers.forEach((t) => window.clearTimeout(t));
+        recomputeTimers = [];
+        recomputeButton.setAttribute('aria-disabled', 'true');
+        recomputeButton.textContent = 'Recomputing from accepted facts';
+        setStatus(recomputeStatus, 'active', 'Recomputing');
+        announce('Recomputing from accepted facts.');
+        recomputeTimers.push(
+          window.setTimeout(() => {
+            // Completion persists: button re-enables, but the result state stays visible.
+            recomputeButton.setAttribute('aria-disabled', 'false');
+            recomputeButton.textContent = 'Recompute from latest accepted facts';
+            stepRecompute.dataset.state = 'done';
+            setStatus(recomputeStatus, 'done', 'Refreshed · no change');
+            recomputeResult.hidden = false;
+            pictureFreshness.hidden = false;
+            announce('Picture refreshed. No change. Completion is shown and stays visible.');
+          }, 900)
+        );
+      });
+
+      document.getElementById('resetWalkthrough').addEventListener('click', () => {
+        recomputeTimers.forEach((t) => window.clearTimeout(t));
+        recomputeTimers = [];
+        markReviewed = false;
+        stepReview.dataset.state = 'active';
+        setStatus(reviewStatus, 'active', 'Action needed');
+        reviewMarkButton.textContent = 'Review mark evidence';
+        recomputeButton.textContent = 'Recompute from latest accepted facts';
+        recomputeResult.hidden = true;
+        pictureFreshness.hidden = true;
+        refreshRecomputeAvailability();
+        announce('Walkthrough reset. Start at action 1: review the latest mark.');
+      });
+
+      // --- Missing-vehicle (blocked) toggle ---
       document.getElementById('toggleContext').addEventListener('click', (event) => {
         const blocked = body.dataset.contextState !== 'blocked';
         body.dataset.contextState = blocked ? 'blocked' : 'ready';
         document.getElementById('vehicleValue').textContent = blocked
           ? 'Not selected · multi-main blocked'
           : 'Main Fund I';
-        document.getElementById('recomputeButton').disabled = blocked;
         event.currentTarget.textContent = blocked
           ? 'Restore valid vehicle state'
           : 'Show missing-vehicle state';
+        refreshRecomputeAvailability();
+        announce(
+          blocked
+            ? 'Vehicle context missing. Recompute disabled. Next action: resolve vehicle context.'
+            : 'Vehicle context restored. Next action: review 2 gaps.'
+        );
       });
 
-      document.getElementById('recomputeButton').addEventListener('click', (event) => {
-        const button = event.currentTarget;
-        if (button.disabled) return;
-        const original = button.textContent;
-        button.disabled = true;
-        button.textContent = 'Recomputing from accepted facts';
-        window.setTimeout(() => {
-          button.textContent = 'Picture refreshed · no change';
-          window.setTimeout(() => {
-            button.disabled = false;
-            button.textContent = original;
-          }, 900);
-        }, 900);
+      // --- Responsive slide-over review rail (<=1279px) ---
+      const statusRail = document.getElementById('review');
+      const railBackdrop = document.getElementById('railBackdrop');
+      const railClose = document.getElementById('railClose');
+      const railTriggers = Array.from(document.querySelectorAll('[aria-controls="review"]'));
+      const overlayMql = window.matchMedia('(max-width: 1279px)');
+      let railOpener = null;
+
+      function railFocusables() {
+        return Array.from(
+          statusRail.querySelectorAll(
+            'a[href], button:not([disabled]):not([aria-disabled="true"]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter((el) => el.offsetParent !== null);
+      }
+
+      function openRail(opener) {
+        if (!overlayMql.matches || body.dataset.railOverlay === 'open') return;
+        railOpener = opener || null;
+        body.dataset.railOverlay = 'open';
+        railBackdrop.hidden = false;
+        statusRail.setAttribute('role', 'dialog');
+        statusRail.setAttribute('aria-modal', 'true');
+        statusRail.setAttribute('aria-labelledby', 'railDialogTitle');
+        statusRail.removeAttribute('aria-label');
+        statusRail.tabIndex = -1;
+        railTriggers.forEach((t) => t.setAttribute('aria-expanded', 'true'));
+        body.style.overflow = 'hidden';
+        railClose.focus();
+        announce('Review context opened.');
+      }
+
+      function closeRail(restoreFocus) {
+        if (body.dataset.railOverlay !== 'open') return;
+        body.dataset.railOverlay = 'closed';
+        railBackdrop.hidden = true;
+        statusRail.removeAttribute('role');
+        statusRail.removeAttribute('aria-modal');
+        statusRail.removeAttribute('aria-labelledby');
+        statusRail.setAttribute('aria-label', 'Conditional review context');
+        railTriggers.forEach((t) => t.setAttribute('aria-expanded', 'false'));
+        body.style.overflow = '';
+        if (restoreFocus !== false && railOpener) railOpener.focus();
+        railOpener = null;
+        announce('Review context closed.');
+      }
+
+      railTriggers.forEach((trigger) =>
+        trigger.addEventListener('click', () => {
+          if (body.dataset.railOverlay === 'open') closeRail();
+          else openRail(trigger);
+        })
+      );
+      railClose.addEventListener('click', () => closeRail());
+      railBackdrop.addEventListener('click', () => closeRail());
+
+      document.addEventListener('keydown', (event) => {
+        if (body.dataset.railOverlay !== 'open') return;
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          closeRail();
+        } else if (event.key === 'Tab') {
+          // Trap focus inside the open dialog.
+          const items = railFocusables();
+          if (!items.length) return;
+          const first = items[0];
+          const last = items[items.length - 1];
+          if (!statusRail.contains(document.activeElement)) {
+            event.preventDefault();
+            first.focus();
+          } else if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
       });
+
+      // Leaving the overlay breakpoint (e.g. resize to desktop) restores the
+      // sticky rail without stranding the modal state.
+      overlayMql.addEventListener('change', (event) => {
+        if (!event.matches) closeRail(false);
+      });
+
+      // Initial availability sync.
+      refreshRecomputeAvailability();
     </script>
   </body>
 </html>
