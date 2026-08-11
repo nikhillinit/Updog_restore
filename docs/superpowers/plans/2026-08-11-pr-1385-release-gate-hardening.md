@@ -1205,6 +1205,7 @@ export function decodeOperatorEvidenceBundle(
 
   ```powershell
   .\scripts\deploy-production.ps1 `
+    -ReleaseMode primary `
     -FundHealthPath .\evidence\fund-health.json `
     -FundReadyPath .\evidence\fund-ready.json `
     -CapitalHealthPath .\evidence\capital-health.json `
@@ -1217,8 +1218,13 @@ export function decodeOperatorEvidenceBundle(
     -SchemaPrecursorSha <40-lowercase-hex>
   ```
 
-  Rollback runbook must use same dispatcher after fresh evidence capture. Remove
-  raw `gh workflow run` example.
+  Rollback runbook must use same dispatcher after fresh evidence capture, with
+  `-ReleaseMode rollback -RollbackPrNumber <n> -RollbackPrHeadSha <40-hex>`.
+  Remove raw `gh workflow run` example for the release dispatcher (the
+  canary-recovery workflow keeps its own documented `gh workflow run`
+  invocation — it is not a release dispatch). Dispatcher regression coverage
+  must assert `-ReleaseMode` is mandatory with no default, `primary` forbids
+  rollback-only parameters, and `rollback` requires both.
 
 - [ ] **Step 8: Verify**
 
@@ -2636,6 +2642,7 @@ export const RELEASE_CANARY_RESERVED_RESIDUE = Object.freeze({
 - Create: `scripts/release/recover-canary-run.mjs`
 - Create: `scripts/release/capture-release-recovery-context.mjs`
 - Create: `.github/workflows/capture-release-baseline.yml`
+- Create: `.github/workflows/release-canary-recovery.yml`
 - Modify: `scripts/deploy-production.ps1`
 - Modify: `server/services/canary-residue-service.ts`
 - Modify: `.github/workflows/release-production.yml`
@@ -2855,19 +2862,38 @@ type ReleaseCanaryRecoveryHandleV1 = {
 
   Extend sole mutation dispatcher and `release-production.yml` inputs with exact
   `baseline_run_id`, `baseline_run_attempt`, `baseline_artifact_id`,
-  `baseline_artifact_digest`, and `baseline_file_sha256`. PowerShell exposes
+  `baseline_artifact_digest`, and `baseline_file_sha256`, plus the required
+  `release_mode` (`primary` or `rollback`) and, in rollback mode only, exact
+  `rollback_pr_number` and `rollback_pr_head_sha`. PowerShell exposes
   mandatory `-BaselineRunId`, `-BaselineRunAttempt`, `-BaselineArtifactId`,
   `-BaselineArtifactDigest`, and `-BaselineFileSha256` with decimal-positive,
-  positive-attempt, `sha256:<64-lowercase-hex>`, and 64-hex validation. All
+  positive-attempt, `sha256:<64-lowercase-hex>`, and 64-hex validation, plus
+  `-ReleaseMode` (validated set `primary`/`rollback`, no default) and
+  rollback-only `-RollbackPrNumber`/`-RollbackPrHeadSha` (decimal-positive and
+  40-hex validation; forbidden in primary mode). All
   enter compact stdin dispatch JSON, never heuristic lookup.
 
   Post-merge `baseline-policy-preflight` downloads by exact artifact ID and
   exact successful `capture-release-baseline.yml` run ID; it rejects wrong
   workflow, repository, actor/owner, run attempt, artifact name/ID/digest/file
   hash, expired/duplicate artifact, or edited plan binding. It proves baseline
-  `main` is ancestor of release SHA, GitHub PR head equals planned head, PR
-  merge commit is release SHA, and plan digest still matches. Never select
-  latest artifact/run or a name-only match.
+  `main` is ancestor of release SHA and plan digest still matches, then proves
+  release lineage in exactly one of two explicit modes selected by a required
+  `release_mode` dispatch input (dispatcher parameter, validated, defaulting
+  to nothing — an unset or unknown mode fails closed):
+  - `release_mode=primary`: GitHub PR #1385 head equals planned final head and
+    PR #1385 merge commit (`pr.mergeCommitSha`) is the release SHA;
+  - `release_mode=rollback`: the release SHA is the merge commit of a
+    human-reviewed forward-revert PR whose number, final head SHA, and merge
+    metadata are supplied as exact dispatch inputs (`rollback_pr_number`,
+    `rollback_pr_head_sha`) and verified against GitHub PR API
+    (`pr.headRefOid` equals the supplied head, `pr.mergeCommitSha` equals the
+    release SHA, PR is merged into `main`); the baseline artifact consumed is
+    still the ORIGINAL pre-runtime-merge baseline, which remains the rollback
+    target, and the revert release runs the same schema audit, provider,
+    operator-evidence, and canary gates.
+
+  Never select latest artifact/run or a name-only match in either mode.
 
   Declare `environment: Production` on `baseline-policy-preflight` so only this
   read-only job can read protected provider IDs and residue policy variables. It
@@ -2912,9 +2938,24 @@ type ReleaseCanaryRecoveryHandleV1 = {
   If Playwright fails before result file exists, fail closed. Do not search for
   “latest” run to make release pass.
 
-  If hard cancellation prevents finalizer, operator uses logged handle or exact
-  `resolve` command, then `mark-failed`. Rollback runbook includes
-  copy-pasteable commands and requires post-recovery global residue assertion.
+  If hard cancellation prevents finalizer, recovery executes on exactly one
+  authorized production surface: a manual `workflow_dispatch` workflow
+  `.github/workflows/release-canary-recovery.yml`, gated by the
+  `environment: Production` approval, receiving the same `DATABASE_URL`
+  secret delivery as the release workflow's canary jobs (no GitHub-stored SSH,
+  no direct production SSH, no local-machine database credentials). Its typed
+  inputs mirror the CLI flags exactly (`github_run_id`, `github_run_attempt`,
+  `expected_sha`, and for `mark-failed` additionally `fund_id`,
+  `canary_run_id`); it runs `resolve` then `mark-failed`, runs the
+  post-recovery global residue assertion in the same job, uploads only a
+  sanitized outcome summary, and can never purge, release, or mutate a
+  provider. It is a database state-transition surface, not a second
+  production release dispatcher; static caller-inventory regressions assert
+  `release-production.yml` remains the sole provider-mutating workflow and
+  this recovery workflow contains no provider credentials. Rollback runbook
+  includes the copy-pasteable `gh workflow run release-canary-recovery.yml`
+  invocation (never a raw local CLI invocation against production) and
+  requires the post-recovery global residue assertion.
   Workflow emits sanitized outcome/recovery manifest under `if: always()`
   whenever runner is still alive; prechange recovery-context artifact remains
   independently stored.
@@ -2971,6 +3012,7 @@ type ReleaseCanaryRecoveryHandleV1 = {
     scripts/deploy-production.ps1 \
     server/services/canary-residue-service.ts \
     .github/workflows/release-production.yml \
+    .github/workflows/release-canary-recovery.yml \
     tests/unit/scripts/assert-canary-residue.test.mjs \
     tests/unit/scripts/recover-canary-run.test.mjs \
     tests/unit/phase2a/fund-persistence-service.behavior.test.ts \
@@ -3592,7 +3634,21 @@ type ReleaseCanaryRecoveryHandleV1 = {
     schemaVersion: 'release-evidence-manifest-v1',
     designation: 'infrastructure_only' | 'activation_candidate',
     candidate: boolean,
-    source: { repository, sha, pullRequest, planPath, planSha256 },
+    source: {
+      repository,
+      sha,
+      releaseMode: 'primary' | 'rollback',
+      pullRequest,           // release-source PR: the approved-plan PR in
+                             // primary mode, the forward-revert PR in
+                             // rollback mode
+      pullRequestHeadSha,    // recorded final head of that release-source PR
+      planApprovalPullRequest, // PR carrying the governing plan approval —
+                               // generic in schema; the current workflow pins
+                               // it to 1385 by configuration, later
+                               // candidates bind their own approved PR
+      planPath,
+      planSha256,
+    },
     approval: {
       schemaVersion: 'plan-approval-v2',
       commentId,
@@ -3733,11 +3789,31 @@ type ReleaseCanaryRecoveryHandleV1 = {
   - `candidate=true` iff `designation='activation_candidate'`;
   - success requires nonnull clean schema proof, verified operator evidence,
     release, completed canary, exact 33-row residue, and H9 metadata;
-  - approval `planPath` equals `source.planPath`; approval `planSha256` equals
-    `source.planSha256`; approver permission is `admin`, `maintain`, or `write`;
-    approved base is an ancestor of source SHA; approval and linked review
-    comment/body identities plus exact CI check-run ID equal fresh Task 0
-    verifier output and cannot be supplied from arbitrary workflow input;
+  - plan-approval lineage and release-source lineage are separate and both
+    mandatory. Plan approval binds to `source.planApprovalPullRequest` — a
+    generic schema field; the CURRENT `release-production.yml` pins it to
+    `1385` by workflow configuration (a constant in the workflow, not the
+    contract), and a later activation candidate binds its own approved plan
+    PR without a contract change. The approval rules are PR-generic: approval
+    `planPath` equals `source.planPath`; approval `planSha256` equals
+    `source.planSha256`; approver permission is `admin`, `maintain`, or
+    `write`; approval ancestry is squash-aware — approved base is an ancestor
+    of the plan-approval PR's final head (never of any squash commit
+    directly, which descends from no PR-branch commit); approval and linked
+    review comment/body identities plus exact CI check-run ID equal fresh
+    Task 0 verifier output and cannot be supplied from arbitrary workflow
+    input;
+  - release-source lineage is mode-specific: GitHub PR metadata for
+    `source.pullRequest` must show `pr.headRefOid` equal to
+    `source.pullRequestHeadSha` and `pr.mergeCommitSha` equal to `source.sha`
+    for a PR merged into `main`. In `releaseMode='primary'`,
+    `source.pullRequest` equals `source.planApprovalPullRequest` (the
+    approved-plan PR itself — 1385 in the current workflow configuration). In
+    `releaseMode='rollback'`, `source.pullRequest` is the human-reviewed
+    forward-revert PR whose number/head were supplied and verified by
+    `baseline-policy-preflight` (`rollback_pr_number`/`rollback_pr_head_sha`),
+    and the plan-approval PR's own merge commit must already be reachable
+    from `main` (the runtime release being reverted happened);
   - certification source SHA equals `source.sha`; run ID/attempt equal current
     release workflow execution; success requires `conclusion='success'`, exact
     attempt-qualified artifact names, positive artifact IDs, distinct verified
@@ -4067,9 +4143,15 @@ type ReleaseCanaryRecoveryHandleV1 = {
   `if: always()` execution uses Task 8 recovery CLI and cannot be represented as
   successful manifest.
 
-  Finalizer reruns Task 0 verifier against PR #1385 and current plan path, with
-  approved base allowed to be an ancestor, and captures only verifier's compact
-  normalized JSON. Builder consumes that output, strict current-run
+  Finalizer reruns Task 0 verifier against the configured plan-approval PR
+  (the same PR in both release modes; pinned to #1385 in the current workflow
+  configuration, rebindable for a later candidate) and current plan path, with
+  approved base allowed to be an ancestor of that PR's final head, and
+  captures only verifier's compact normalized JSON. Release-source lineage (`source.pullRequest` /
+  `source.pullRequestHeadSha` / `source.sha`, mode-specific per the manifest
+  cross-field rules) is validated separately from the normalized preflight
+  outputs; in rollback mode the finalizer records the revert PR identity and
+  never substitutes it into the plan-approval verification. Builder consumes that output, strict current-run
   certification/lineage files, verified fragment files, and exact artifact
   outputs; it never consumes another job's temp path. It validates contract,
   writes mode `0600`, then prints output path and manifest SHA-256 only. Tests
@@ -4448,7 +4530,8 @@ type ReleaseCanaryRecoveryHandleV1 = {
   After schema audit is clean:
 
   1. collect fresh four-file operator evidence outside GitHub Actions;
-  2. invoke only `scripts/deploy-production.ps1` against exact live `main` SHA;
+  2. invoke only `scripts/deploy-production.ps1` with `-ReleaseMode primary`
+     against exact live `main` SHA;
      baseline run/attempt/artifact ID/API digest/file SHA-256; and schema-apply
      run/attempt/artifact ID/API digest/receipt-file SHA-256/precursor SHA;
   3. require prechange recovery context artifact exists before staged provider
@@ -4506,10 +4589,16 @@ type ReleaseCanaryRecoveryHandleV1 = {
   3. terminalize exact canary run with Task 8 finalizer or recovery CLI;
   4. verify global residue and decide purge separately under existing
      governance;
-  5. create human-reviewed forward-revert commit on `main` targeting recorded
-     baseline application SHA;
+  5. create a human-reviewed forward-revert PR targeting recorded baseline
+     application SHA; merge it to `main` through normal review (its merge
+     commit becomes the rollback release SHA);
   6. release revert through same dispatcher with fresh operator evidence and
-     same schema audit/provider/canary gates.
+     same schema audit/provider/canary gates, dispatched with
+     `release_mode=rollback` plus exact `rollback_pr_number` and
+     `rollback_pr_head_sha` inputs so `baseline-policy-preflight` verifies the
+     revert PR's own head/merge lineage against the GitHub PR API while
+     consuming the original pre-runtime-merge baseline artifact (Task 8
+     rollback mode).
 
   When failure occurs before canonical Vercel promotion, first prove canonical
   Vercel still equals baseline deployment; then forward revert restores Railway.
