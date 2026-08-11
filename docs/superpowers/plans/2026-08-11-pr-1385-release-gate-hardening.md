@@ -274,7 +274,7 @@ CI_GATE_CHECK_RUN_ID=<positive integer>
 SEPARATION_MODEL=single-maintainer-owner-attestation
 ```
 
-- [ ] **Step 1: Commit every revised plan before verifier implementation**
+- [x] **Step 1: Commit every revised plan before verifier implementation**
 
   Commit and push each review-driven plan revision alone before writing the
   verifier. The verifier is governance bootstrap, not authorization to begin
@@ -293,7 +293,7 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
 
   Expected: final command prints exact plan path.
 
-- [ ] **Step 2: Write failing approval-verifier tests**
+- [x] **Step 2: Write failing approval-verifier tests**
 
   Export pure evaluator plus CLI:
 
@@ -373,7 +373,7 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
     --config vitest.config.mjs --configLoader native --project=server
   ```
 
-- [ ] **Step 3: Implement exact-body verifier**
+- [x] **Step 3: Implement exact-body verifier**
 
   CLI:
 
@@ -415,7 +415,7 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
   `CI Gate Status`. Tests here prove verifier behavior, not source-text presence
   or an impossible claim that every local batch invocation is observable.
 
-- [ ] **Step 4: Verify and commit governance bootstrap**
+- [x] **Step 4: Verify and commit governance bootstrap**
 
   ```bash
   TZ=UTC npx vitest run \
