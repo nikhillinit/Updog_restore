@@ -305,6 +305,12 @@ This is a single-context repo using root governance docs plus `docs/adr/`. See
   `npm run lint:fix`. Type errors -> `npm run check` with targeted fix. Test
   fails -> run targeted test first, full suite only if targeted passes but
   suspicion remains.
+- BEFORE advancing a multi-step task, create a durable, attributable checkpoint
+  — prefer an atomic green commit; when committing is prohibited or the batch is
+  incomplete, preserve the exact diff and record why it couldn't be committed.
+- BEFORE declaring a file, plan, or branch missing, search all worktrees
+  (`git worktree list`) and origin refs, not just the current working tree — and
+  name which tree was authoritative once found.
 
 ## AI-Augmented Development
 
