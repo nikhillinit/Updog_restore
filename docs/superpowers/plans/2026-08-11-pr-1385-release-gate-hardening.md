@@ -4636,7 +4636,22 @@ type ReleaseCanaryRecoveryHandleV1 = {
 
   1. confirm the Step 1 frozen-final-head review record is still valid at the
      current PR head and plan digest (unvoided by any intervening push or
-     plan edit);
+     plan edit), then run the pre-merge verifier invocation — this is the
+     "pre-merge check" consumer of the flagged mode, safe here because the
+     frozen head's `CI Gate Status` already completed successfully:
+
+     ```bash
+     node scripts/release/verify-plan-approval.mjs \
+       --repo nikhillinit/Updog_restore \
+       --pr 1385 \
+       --plan-path docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md \
+       --approver-login nikhillinit \
+       --require-final-head-ci
+     ```
+
+     Require exit success and record its compact normalized JSON output,
+     including `finalHeadCiGate`, in the merge record; any verifier failure
+     blocks merge;
   2. resolve current live `main` SHA;
   3. dispatch `capture-release-baseline.yml` with exact baseline main, final PR
      head, and plan digest;
