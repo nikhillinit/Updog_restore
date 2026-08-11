@@ -494,7 +494,7 @@ describe.sequential('surface contract matrix approval closure safety', () => {
       },
     };
     fs.writeFileSync(reviewPath, `${JSON.stringify(review, null, 2)}\n`);
-    const options = { ...workspace, repoRoot };
+    const options = { ...workspace, repoRoot: workspace.matrixDir };
     expect(options.files.matrix).not.toBe(matrixPath);
     expect(options.files.review).not.toBe(path.join(matrixDir, 'g1-review.json'));
 
@@ -583,7 +583,7 @@ describe.sequential('surface contract matrix approval closure safety', () => {
       'fixture-approver',
       '--evidence',
       'fixture-evidence',
-    ], { ...workspace, repoRoot, fsApi })).rejects.toThrow('Atomic matrix transaction rolled back');
+    ], { ...workspace, repoRoot: workspace.matrixDir, fsApi })).rejects.toThrow('Atomic matrix transaction rolled back');
     expect(stagedInstallCount).toBeGreaterThan(1);
     trackedPaths.forEach((file, index) => {
       const snapshot = before[index];
