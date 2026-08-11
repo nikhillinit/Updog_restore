@@ -44,7 +44,6 @@ async function loadApp() {
 
   vi.doMock('@/pages/dashboard', () => ({ default: () => <div>Dashboard Page</div> }));
   vi.doMock('@/pages/portfolio', () => ({ default: () => <div>Portfolio Page</div> }));
-  vi.doMock('@/pages/planning', () => ({ default: () => <div>Planning Page</div> }));
   vi.doMock('@/pages/kpi-manager', () => ({ default: () => <div>KPI Manager Page</div> }));
   vi.doMock('@/pages/kpi-submission', () => ({ default: () => <div>KPI Submission Page</div> }));
 
@@ -70,7 +69,6 @@ describe('secondary surface routing', () => {
       expect(await screen.findByText('Portfolio Page')).toBeInTheDocument();
       expect(window.location.pathname).toBe('/portfolio');
       expect(window.location.search).toBe('?tab=reserve-planning');
-      expect(screen.queryByText('Planning Page')).not.toBeInTheDocument();
     },
     10000
   );
