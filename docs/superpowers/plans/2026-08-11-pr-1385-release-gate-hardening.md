@@ -4277,7 +4277,19 @@ type ReleaseCanaryRecoveryHandleV1 = {
   (the same PR in both release modes; pinned to #1385 in the current workflow
   configuration, rebindable for a later candidate) and current plan path, with
   approved base allowed to be an ancestor of that PR's final head, and
-  captures only verifier's compact normalized JSON. The finalizer invokes the
+  captures only verifier's compact normalized JSON. Because the squash
+  release commit descends from no PR-branch commit, the finalizer never runs
+  the verifier from the release-SHA working directory: it resolves the
+  plan-approval PR's live `headRefOid` through the GitHub API, fetches
+  `refs/pull/<planApprovalPr>/head` (which survives head-branch deletion)
+  with full history (`fetch-depth: 0`) into a separate isolated working
+  directory checked out at exactly that head, and invokes the verifier with
+  that directory as the verifier working directory. From that checkout the
+  verifier's default ancestry mode holds: local HEAD equals the live PR
+  head, and approved-base ancestry is proven against the PR's final head,
+  never against any squash commit. Add regression proving the finalizer job
+  performs this isolated PR-head checkout and never invokes the verifier
+  from the release-SHA working directory. The finalizer invokes the
   verifier with `--require-final-head-ci` — safe here because it runs after
   the final head's gate completed successfully, outside any `CI Gate Status`
   dependency graph. That output supplies every
