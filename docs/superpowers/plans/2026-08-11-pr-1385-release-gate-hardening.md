@@ -378,7 +378,7 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
     tests/unit/scripts/verify-plan-approval.test.mjs \
     tests/regressions/ci-fail-closed.test.ts \
     --config vitest.config.mjs --configLoader native --project=server
-  npx eslint \
+  npx eslint --no-ignore \
     scripts/release/verify-plan-approval.mjs \
     tests/unit/scripts/verify-plan-approval.test.mjs \
     tests/regressions/ci-fail-closed.test.ts \
@@ -787,7 +787,7 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
     tests/unit/audit/rebuild-knowledge-graph.test.mjs \
     tests/regressions/ci-fail-closed.test.ts \
     --config vitest.config.mjs --configLoader native --project=server
-  npx eslint \
+  npx eslint --no-ignore \
     audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs \
     tests/unit/audit/rebuild-knowledge-graph.test.mjs \
     tests/regressions/ci-fail-closed.test.ts \
@@ -1227,7 +1227,7 @@ export function decodeOperatorEvidenceBundle(
     tests/unit/scripts/operator-evidence-bundle.test.mjs \
     tests/regressions/ci-fail-closed.test.ts \
     --config vitest.config.mjs --configLoader native --project=server
-  npx eslint \
+  npx eslint --no-ignore \
     scripts/release/operator-evidence-bundle.mjs \
     tests/unit/scripts/operator-evidence-bundle.test.mjs \
     tests/regressions/ci-fail-closed.test.ts \
@@ -1926,7 +1926,7 @@ from unmerged PR #1385.
     tests/regressions/ci-fail-closed.test.ts \
     --config vitest.config.mjs --configLoader native --project=server
   npm run validate:schema-drift
-  npx eslint \
+  npx eslint --no-ignore \
     scripts/release/build-schema-reconcile-receipt.ts \
     tests/unit/contracts/schema-reconcile-receipt-v1.contract.test.ts \
     tests/unit/scripts/build-schema-reconcile-receipt.test.ts \
