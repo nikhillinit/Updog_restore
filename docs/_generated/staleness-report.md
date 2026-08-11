@@ -11,16 +11,16 @@ last_updated: 2026-08-11
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 730 |
-| Stale Documents | 502 |
-| Missing Frontmatter | 79 |
+| Total Documents | 731 |
+| Stale Documents | 503 |
+| Missing Frontmatter | 80 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 455 |
-| UNKNOWN | 173 |
+| UNKNOWN | 174 |
 | DRAFT | 34 |
 | HISTORICAL | 22 |
 | VERIFIED | 13 |
@@ -97,7 +97,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/skills/REFL-004-schema-format-backward-compatibility.md` | Never | 999 | No | Unassigned |
 | `docs/skills/REFL-005-stale-test-files-with-api-mismatch.md` | Never | 999 | No | Unassigned |
 
-*...and 452 more stale documents.*
+*...and 453 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -194,6 +194,7 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 - [ ] **docs/skills/REFL-015-postgresql-service-missing-test-database.md** (999 days old)
 - [ ] **docs/superpowers/plans/2026-06-07-forecast-drift-ux-completion.md** (999 days old)
 - [ ] **docs/superpowers/plans/2026-07-29-task160-internal-waterfall-governance.md** (999 days old)
+- [ ] **docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md** (999 days old)
 - [ ] **docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md** (999 days old)
 - [ ] **docs/xirr-consolidation-roadmap.md** (225 days old)
 - [ ] **docs/xirr-excel-validation.md** (204 days old)
@@ -274,6 +275,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/superpowers/plans/2026-07-29-task160-internal-waterfall-governance.md`
 - [ ] `docs/superpowers/plans/2026-07-30-task163-wp-l2b-cash-assembly-and-nonzero-fees-plan.md`
 - [ ] `docs/superpowers/plans/2026-08-10-f1337-feeprofile-truth.md`
+- [ ] `docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md`
 - [ ] `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md`
 - [ ] `docs/superpowers/specs/2026-06-11-worker-prod-ops-design.md`
 - [ ] `docs/superpowers/specs/2026-06-21-investment-rounds-ui-v2-design.md`
