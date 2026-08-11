@@ -930,6 +930,27 @@ export const PORTFOLIO_INTELLIGENCE_ROUTE_POLICY_KEYS = new Set<string>(
 
 export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
   {
+    id: 'api:get:/api/version',
+    method: 'GET',
+    path: '/api/version',
+    lifecycle: 'static_template',
+    governanceRef: '/health',
+    surface: 'health-api',
+    owner: 'platform',
+    telemetryKey: telemetryKeyForRoute('api.route', '/api/version'),
+    financialSurface: 'none',
+    apiAuthBoundary: 'none_public',
+    fundScopeMode: 'not_applicable',
+    workflowRequirement: null,
+    exportPolicy: 'not_exportable',
+    provenanceRequired: false,
+    staleBlocksExport: false,
+    humanReviewRequired: false,
+    performanceBudgetMs: null,
+    notes:
+      'Deployment identity is public-minimal and served by the health router before the /api auth boundary.',
+  },
+  {
     id: 'api:post:/api/portfolio-companies',
     method: 'POST',
     path: '/api/portfolio-companies',
@@ -987,7 +1008,8 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     staleBlocksExport: false,
     humanReviewRequired: true,
     performanceBudgetMs: null,
-    notes: 'LP settings writes remain explicitly unavailable until durable persistence is implemented.',
+    notes:
+      'LP settings writes remain explicitly unavailable until durable persistence is implemented.',
   },
   {
     id: 'api:get:/api/funds/:fundId/moic/rankings',

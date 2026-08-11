@@ -69,6 +69,20 @@ function restoreEnv(snapshot: Record<string, string | undefined>): void {
   }
 }
 
+function withFundScenarioWorkerIdentity<T>(start: () => T): T {
+  const previousWorkerType = process.env.WORKER_TYPE;
+  process.env.WORKER_TYPE = 'fund-scenario-calc';
+  try {
+    return start();
+  } finally {
+    if (previousWorkerType === undefined) {
+      delete process.env.WORKER_TYPE;
+    } else {
+      process.env.WORKER_TYPE = previousWorkerType;
+    }
+  }
+}
+
 function isExpectedPostgresStopError(error: unknown): boolean {
   const code =
     typeof error === 'object' && error !== null && 'code' in error
@@ -227,7 +241,9 @@ async function startRuntime(): Promise<Runtime> {
   app.use('/api', scenarioRoutes);
   registerFundConfigRoutes(app);
 
-  const workerHarness = await startInProcessFundScenarioCalcWorkerHarness();
+  const workerHarness = await withFundScenarioWorkerIdentity(() =>
+    startInProcessFundScenarioCalcWorkerHarness()
+  );
   const queueKeys = ['fund-scenario-calc', 'reserve-calc', 'pacing-calc', 'cohort-calc'] as const;
   const queues = [
     ...new Set(

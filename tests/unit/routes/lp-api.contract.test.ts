@@ -10,9 +10,27 @@ type QueryChain = PromiseLike<unknown[]> & {
 };
 
 const dbState = vi.hoisted(() => {
+  function valueAppearsInQuery(
+    value: unknown,
+    candidate: unknown,
+    seen = new WeakSet<object>()
+  ): boolean {
+    if (candidate === value) return true;
+    if (typeof value === 'string' && typeof candidate === 'string') {
+      return candidate.includes(value);
+    }
+    if (candidate === null || typeof candidate !== 'object') return false;
+    if (seen.has(candidate)) return false;
+    seen.add(candidate);
+    return Object.values(candidate).some((entry) => valueAppearsInQuery(value, entry, seen));
+  }
+
   const state = {
     selectResults: [] as unknown[][],
     insertValues: [] as unknown[],
+    updateValues: [] as unknown[],
+    transactionError: null as Error | null,
+    commitError: null as Error | null,
   };
 
   function next(): unknown[] {
@@ -37,14 +55,57 @@ const dbState = vi.hoisted(() => {
     return query;
   }
 
-  const db = {
-    select: vi.fn(() => makeQuery(next())),
-    insert: vi.fn((table: unknown) => ({
+  const insertInto = (sink: unknown[]) =>
+    vi.fn((table: unknown) => ({
       values: vi.fn((payload: unknown) => {
-        state.insertValues.push({ table, payload });
+        sink.push({ table, payload });
         return Promise.resolve();
       }),
+    }));
+
+  const db = {
+    select: vi.fn(() => makeQuery(next())),
+    insert: insertInto(state.insertValues),
+    update: vi.fn((table: unknown) => ({
+      set: vi.fn((payload: unknown) => ({
+        where: vi.fn((...whereArgs: unknown[]) => {
+          const report = state.insertValues.find(
+            (entry): entry is { payload: { status?: unknown; errorMessage?: unknown } } =>
+              typeof entry === 'object' &&
+              entry !== null &&
+              'payload' in entry &&
+              typeof entry.payload === 'object' &&
+              entry.payload !== null &&
+              'status' in entry.payload &&
+              'errorMessage' in entry.payload
+          );
+          const applied =
+            report !== undefined && valueAppearsInQuery(report.payload.errorMessage, whereArgs);
+          if (applied && typeof payload === 'object' && payload !== null) {
+            Object.assign(report.payload, payload);
+          }
+          state.updateValues.push({ table, payload, whereArgs, applied });
+          const result = applied ? [{ status: (payload as { status?: unknown }).status }] : [];
+          return {
+            returning: vi.fn(async () => result),
+            then: (
+              onfulfilled?: (value: unknown[]) => unknown,
+              onrejected?: (reason: unknown) => unknown
+            ) => Promise.resolve(result).then(onfulfilled, onrejected),
+          };
+        }),
+      })),
     })),
+    transaction: vi.fn(
+      async (callback: (tx: { insert: ReturnType<typeof vi.fn> }) => Promise<unknown>) => {
+        if (state.transactionError) throw state.transactionError;
+        const stagedInserts: unknown[] = [];
+        const result = await callback({ insert: insertInto(stagedInserts) });
+        if (state.commitError) throw state.commitError;
+        state.insertValues.push(...stagedInserts);
+        return result;
+      }
+    ),
   };
 
   return { db, state };
@@ -56,6 +117,8 @@ const calculatorState = vi.hoisted(() => ({
   calculateProRataHoldings: vi.fn(),
   calculatePerformance: vi.fn(),
 }));
+
+const routeLoggerState = vi.hoisted(() => ({ error: vi.fn(), warn: vi.fn() }));
 
 const lpAccessState = vi.hoisted(() => ({ mode: 'lp' as 'lp' | 'non-lp' }));
 
@@ -166,6 +229,10 @@ vi.mock('../../../server/lib/crypto/pii-sanitizer', () => ({
   sanitizeForLogging: (value: unknown) => value,
 }));
 
+vi.mock('../../../server/lib/route-logger.js', () => ({
+  createRouteLogger: () => routeLoggerState,
+}));
+
 vi.mock('../../../server/lib/logger.js', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
@@ -193,8 +260,12 @@ function makeApp() {
 function resetState() {
   dbState.state.selectResults = [];
   dbState.state.insertValues = [];
+  dbState.state.updateValues = [];
+  dbState.state.transactionError = null;
+  dbState.state.commitError = null;
   dbState.db.select.mockClear();
   dbState.db.insert.mockClear();
+  dbState.db.transaction.mockClear();
 
   calculatorState.calculateSummary.mockReset();
   calculatorState.calculateCapitalAccount.mockReset();
@@ -204,6 +275,8 @@ function resetState() {
   vi.mocked(isReportQueueAvailable).mockReturnValue(true);
   vi.mocked(enqueueReportGeneration).mockClear();
   vi.mocked(enqueueReportGeneration).mockResolvedValue({ jobId: 'job-1', estimatedWaitMs: 0 });
+  routeLoggerState.error.mockReset();
+  routeLoggerState.warn.mockReset();
   lpAccessState.mode = 'lp';
 }
 
@@ -436,6 +509,140 @@ describe('LP API route contracts', () => {
     expect(queuedPayload).not.toHaveProperty('fundIds');
   });
 
+  it('POST /api/lp/reports/generate returns 503 before inserting when queue is unavailable', async () => {
+    vi.mocked(isReportQueueAvailable).mockReturnValue(false);
+
+    const response = await request(makeApp())
+      .post('/api/lp/reports/generate')
+      .send({
+        reportType: 'quarterly',
+        dateRange: { startDate: '2026-01-01', endDate: '2026-03-31' },
+        format: 'pdf',
+      });
+
+    expect(response.status).toBe(503);
+    expect(response.body).toMatchObject({ error: 'QUEUE_UNAVAILABLE' });
+    expect(dbState.state.insertValues).toHaveLength(0);
+    expect(enqueueReportGeneration).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/lp/reports/generate marks the committed report terminal when enqueue rejects', async () => {
+    vi.mocked(enqueueReportGeneration).mockRejectedValueOnce(new Error('Redis unavailable'));
+
+    const response = await request(makeApp())
+      .post('/api/lp/reports/generate')
+      .send({
+        reportType: 'quarterly',
+        dateRange: { startDate: '2026-01-01', endDate: '2026-03-31' },
+        format: 'pdf',
+      });
+
+    expect(response.status).toBe(503);
+    expect(response.body).toMatchObject({ error: 'QUEUE_UNAVAILABLE' });
+    expect(dbState.db.transaction).toHaveBeenCalledTimes(1);
+    expect(dbState.state.insertValues).toHaveLength(1);
+    expect(dbState.state.insertValues[0]).toMatchObject({
+      payload: expect.objectContaining({ status: 'error' }),
+    });
+    expect(dbState.state.updateValues).toHaveLength(0);
+  });
+
+  it('POST /api/lp/reports/generate sanitizes hostile Redis enqueue errors before logging', async () => {
+    const sentinel = 'sentinel-redis-credential';
+    const queueError = new Error('WRONGPASS invalid username-password pair');
+    queueError.name = 'ReplyError';
+    Object.defineProperty(queueError, 'command', {
+      enumerable: true,
+      value: { name: 'auth', args: ['default', sentinel] },
+    });
+    vi.mocked(enqueueReportGeneration).mockRejectedValueOnce(queueError);
+
+    const response = await request(makeApp())
+      .post('/api/lp/reports/generate')
+      .send({
+        reportType: 'quarterly',
+        dateRange: { startDate: '2026-01-01', endDate: '2026-03-31' },
+        format: 'pdf',
+      });
+
+    expect(response.status).toBe(503);
+    const serialized = JSON.stringify(routeLoggerState.error.mock.calls);
+    expect(serialized).toContain('WRONGPASS');
+    expect(serialized).not.toContain(sentinel);
+    expect(serialized).not.toContain('command');
+    expect(serialized).not.toContain('args');
+  });
+
+  it('POST /api/lp/reports/generate does not enqueue when database commit fails', async () => {
+    dbState.state.commitError = new Error('commit failed');
+
+    const response = await request(makeApp())
+      .post('/api/lp/reports/generate')
+      .send({
+        reportType: 'quarterly',
+        dateRange: { startDate: '2026-01-01', endDate: '2026-03-31' },
+        format: 'pdf',
+      });
+
+    expect(response.status).toBe(500);
+    expect(response.body).toMatchObject({ error: 'INTERNAL_ERROR' });
+    expect(dbState.state.insertValues).toHaveLength(0);
+    expect(enqueueReportGeneration).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/lp/reports/generate reports a fast worker terminal error rather than false pending', async () => {
+    vi.mocked(enqueueReportGeneration).mockImplementationOnce(async () => {
+      const inserted = dbState.state.insertValues[0] as {
+        payload: { status: string; errorMessage: string };
+      };
+      inserted.payload.status = 'error';
+      inserted.payload.errorMessage = 'Worker generation failed';
+      return { jobId: 'job-1', estimatedWaitMs: 0 };
+    });
+    dbState.state.selectResults.push([{ status: 'error' }]);
+
+    const response = await request(makeApp())
+      .post('/api/lp/reports/generate')
+      .send({
+        reportType: 'quarterly',
+        dateRange: { startDate: '2026-01-01', endDate: '2026-03-31' },
+        format: 'pdf',
+      });
+
+    expect(response.status).toBe(202);
+    expect(response.body).toMatchObject({ status: 'failed' });
+    expect(dbState.state.updateValues).toHaveLength(1);
+    const reconciliation = dbState.state.updateValues[0] as {
+      whereArgs: unknown[];
+      applied: boolean;
+    };
+    expect(reconciliation.applied).toBe(false);
+    expect(
+      (dbState.state.insertValues[0] as { payload: { status: string; errorMessage: string } })
+        .payload
+    ).toMatchObject({
+      status: 'error',
+      errorMessage: 'Worker generation failed',
+    });
+  });
+
+  it('POST /api/lp/reports/generate preserves a database transaction failure as 500', async () => {
+    dbState.state.transactionError = new Error('database unavailable');
+
+    const response = await request(makeApp())
+      .post('/api/lp/reports/generate')
+      .send({
+        reportType: 'quarterly',
+        dateRange: { startDate: '2026-01-01', endDate: '2026-03-31' },
+        format: 'pdf',
+      });
+
+    expect(response.status).toBe(500);
+    expect(response.body).toMatchObject({ error: 'INTERNAL_ERROR' });
+    expect(dbState.state.insertValues).toHaveLength(0);
+    expect(enqueueReportGeneration).not.toHaveBeenCalled();
+  });
+
   it('POST /api/lp/reports/generate preserves validation-error envelope', async () => {
     const response = await request(makeApp())
       .post('/api/lp/reports/generate')
@@ -621,8 +828,7 @@ describe('LP API self-scoping negative controls', () => {
     comparisons: PredicateComparison[];
   } {
     const queryObj = dbState.db.select.mock.results[selectCallIndex]?.value as
-      | { where?: { mock?: { calls?: unknown[][] } } }
-      | undefined;
+      { where?: { mock?: { calls?: unknown[][] } } } | undefined;
     const pred = queryObj?.where?.mock?.calls?.[0]?.[0];
     const params: unknown[] = [];
     const cols: string[] = [];

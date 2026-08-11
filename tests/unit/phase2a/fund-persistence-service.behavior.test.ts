@@ -268,7 +268,7 @@ describe('FundPersistenceService publishDraft behavior', () => {
     expect(tx.insert).not.toHaveBeenCalled();
   });
 
-  it('runs authoritative calculations inline when no producer queues are available', async () => {
+  it('runs reserve and pacing inline without claiming experimental cohort work', async () => {
     const service = new FundPersistenceService();
     const draft = {
       id: 11,
@@ -334,6 +334,7 @@ describe('FundPersistenceService publishDraft behavior', () => {
     expect(runValues).toMatchObject({
       modelInputsAsOfDate: '2026-06-30',
       comparisonLineageVersion: 'comparison-lineage-v1',
+      engines: ['reserve', 'pacing'],
     });
   });
 

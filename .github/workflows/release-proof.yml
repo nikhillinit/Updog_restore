@@ -7,18 +7,39 @@ on:
         description: Exact commit SHA to prove
         type: string
         required: true
+      require_provider_identity:
+        description: Require protected provider-control-plane proof
+        type: boolean
+        default: false
+    secrets:
+      RELEASE_PROOF_GITHUB_TOKEN:
+        required: false
+      VERCEL_TOKEN:
+        required: false
+      RAILWAY_TOKEN:
+        required: false
+      VERCEL_AUTOMATION_BYPASS_SECRET:
+        required: false
   workflow_dispatch:
     inputs:
       expected_sha:
         description: Exact commit SHA to prove
         type: string
         required: true
+      require_provider_identity:
+        description: Require protected provider-control-plane proof
+        type: boolean
+        default: false
+        required: true
   merge_group:
   schedule:
     - cron: '30 6 * * 1'
 
 permissions:
+  actions: read
+  checks: read
   contents: read
+  statuses: read
 
 concurrency:
   group: full-release-proof-${{ github.ref }}
@@ -29,6 +50,8 @@ jobs:
     name: Full DB-backed Release Proof
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    outputs:
+      candidate_sha: ${{ steps.candidate.outputs.candidate_sha }}
     steps:
       - name: Checkout exact release commit
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -36,15 +59,27 @@ jobs:
           ref: ${{ inputs.expected_sha || github.sha }}
           fetch-depth: 0
 
-      - name: Verify requested commit
+      - name: Resolve and fence candidate SHA once
+        id: candidate
         env:
-          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_SHA: ${{ inputs.expected_sha || github.sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
-          ACTUAL_SHA="$(git rev-parse HEAD)"
-          if [[ -n "$EXPECTED_SHA" && "$ACTUAL_SHA" != "$EXPECTED_SHA" ]]; then
-            echo "Checked-out SHA does not match expected_sha."
+          set -euo pipefail
+          CANDIDATE_SHA="$(git rev-parse HEAD)"
+          if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ || "$CANDIDATE_SHA" != "$EXPECTED_SHA" ]]; then
+            echo "Exact checked-out candidate SHA is required."
             exit 1
           fi
+          if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
+            LIVE_MAIN="$(gh api "repos/${REPO}/commits/main" --jq '.sha')"
+            if [[ ! "$LIVE_MAIN" =~ ^[0-9a-f]{40}$ || "$LIVE_MAIN" != "$CANDIDATE_SHA" ]]; then
+              echo "Live main does not equal the frozen candidate SHA."
+              exit 1
+            fi
+          fi
+          echo "candidate_sha=$CANDIDATE_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node environment
         uses: ./.github/actions/setup-node-env
@@ -52,9 +87,180 @@ jobs:
       - name: Install Playwright Chromium for browser proof
         run: npx playwright install --with-deps chromium
 
-      - name: Run full DB-backed release proof
+      - name: Run exact local and matrix evidence
         env:
           CI: 'true'
           NODE_OPTIONS: --max-old-space-size=4096
           TZ: UTC
-        run: npm run release:check
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          npm run verify:node-parity
+          npm run phoenix:truth
+          npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs
+          npm run release:check
+
+      - name: Run strict Vercel boot proof
+        env:
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          : "${VERCEL_TOKEN:?VERCEL_TOKEN is required for strict Vercel build proof}"
+          : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required for strict Vercel build proof}"
+          : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required for strict Vercel build proof}"
+          node audit/surface-contract-matrix/scripts/boot-proof.mjs --require-g3 --output "$RUNNER_TEMP/g3-boot-proofs.json"
+
+      - name: Verify strict boot proof
+        env:
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          node scripts/release/verify-g3-boot-proofs.mjs --input "$RUNNER_TEMP/g3-boot-proofs.json" --expected-sha "$CANDIDATE_SHA"
+
+  provider-identity:
+    name: Provider Identity Proof
+    needs: full-release-proof
+    if: ${{ inputs.require_provider_identity == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: Production
+    steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.full-release-proof.outputs.candidate_sha }}
+
+      - name: Require provider proof credentials
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          : "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
+          : "${RAILWAY_TOKEN:?RAILWAY_TOKEN is required}"
+          : "${VERCEL_AUTOMATION_BYPASS_SECRET:?VERCEL_AUTOMATION_BYPASS_SECRET is required}"
+          : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
+          : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required}"
+
+      - name: Collect Vercel and Railway control-plane evidence
+        env:
+          CANDIDATE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          set -euo pipefail
+          # Provider responses remain in RUNNER_TEMP. Never print tokens or variable payloads.
+          curl --fail --silent --show-error --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&meta-githubCommitSha=${CANDIDATE_SHA}&teamId=${VERCEL_ORG_ID}" \
+            --output "$RUNNER_TEMP/vercel-deployments.json"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const deployments = JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/vercel-deployments.json`, 'utf8')).deployments ?? [];
+          const candidates = deployments.filter((deployment) =>
+            deployment.readyState === 'READY' && deployment.projectId === process.env.VERCEL_PROJECT_ID &&
+            deployment.target === 'production' && (deployment.alias ?? []).length === 0 &&
+            deployment.meta?.githubCommitRef === 'main' && deployment.meta?.githubCommitSha === process.env.CANDIDATE_SHA
+          );
+          if (candidates.length !== 1 || !candidates[0]?.url || !candidates[0]?.id) process.exit(1);
+          const [candidate] = candidates;
+          const host = String(candidate.url).toLowerCase();
+          if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.vercel\.app$/.test(host)) process.exit(1);
+          fs.writeFileSync(`${process.env.RUNNER_TEMP}/vercel-candidate-host.txt`, host);
+          NODE
+          VERCEL_HOST="$(cat "$RUNNER_TEMP/vercel-candidate-host.txt")"
+          curl --fail --silent --show-error --header "x-vercel-protection-bypass: ${VERCEL_AUTOMATION_BYPASS_SECRET}" \
+            "https://${VERCEL_HOST}/api/version" --output "$RUNNER_TEMP/vercel-version.json"
+          curl --fail --silent --show-error --header "Project-Access-Token: ${RAILWAY_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data '{"query":"query { projectToken { project { id } environment { id } } }"}' \
+            https://backboard.railway.com/graphql/v2 > "$RUNNER_TEMP/railway-token-context.json"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const response = JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/railway-token-context.json`, 'utf8'));
+          if (response.errors?.length || !response.data?.projectToken?.project?.id || !response.data?.projectToken?.environment?.id) process.exit(1);
+          fs.writeFileSync(`${process.env.RUNNER_TEMP}/railway-query.json`, JSON.stringify({
+            query: 'query($projectId: String!, $environmentId: String!) { environment(id: $environmentId, projectId: $projectId) { serviceInstances(first: 100) { edges { node { serviceId serviceName numReplicas latestDeployment { id status meta deploymentStopped instances { id status } } activeDeployments { id status meta deploymentStopped instances { id status } } domains { serviceDomains { id } customDomains { id } } } } pageInfo { hasNextPage endCursor } } }',
+            variables: { projectId: response.data.projectToken.project.id, environmentId: response.data.projectToken.environment.id },
+          }));
+          NODE
+          curl --fail --silent --show-error --header "Project-Access-Token: ${RAILWAY_TOKEN}" \
+            --header 'Content-Type: application/json' --data @"$RUNNER_TEMP/railway-query.json" \
+            https://backboard.railway.com/graphql/v2 > "$RUNNER_TEMP/railway-control-plane.json"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const temp = process.env.RUNNER_TEMP;
+          const host = fs.readFileSync(`${temp}/vercel-candidate-host.txt`, 'utf8').trim();
+          const deployments = JSON.parse(fs.readFileSync(`${temp}/vercel-deployments.json`, 'utf8')).deployments ?? [];
+          const deployment = deployments.find((candidate) => candidate.url === host);
+          const token = JSON.parse(fs.readFileSync(`${temp}/railway-token-context.json`, 'utf8')).data.projectToken;
+          const control = JSON.parse(fs.readFileSync(`${temp}/railway-control-plane.json`, 'utf8'));
+          fs.writeFileSync(`${temp}/vercel-evidence.json`, JSON.stringify({ expectedProjectId: process.env.VERCEL_PROJECT_ID, deployment: { ...deployment, aliases: deployment.alias ?? [] }, version: JSON.parse(fs.readFileSync(`${temp}/vercel-version.json`, 'utf8')) }));
+          fs.writeFileSync(`${temp}/railway-evidence.json`, JSON.stringify({ data: { projectId: token.project.id, environmentId: token.environment.id, environment: control.data?.environment }, errors: control.errors }));
+          NODE
+          node scripts/release/verify-provider-identity.mjs --mode workflow --expected-sha "$CANDIDATE_SHA" --vercel "$RUNNER_TEMP/vercel-evidence.json" --railway "$RUNNER_TEMP/railway-evidence.json"
+
+  g3-exact-sha-verdict:
+    name: G3 Exact-SHA Verdict
+    needs: [full-release-proof, provider-identity]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout verifier
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.full-release-proof.outputs.candidate_sha }}
+
+      - name: Reject non-success prerequisite states
+        env:
+          FULL_RESULT: ${{ needs.full-release-proof.result }}
+          PROVIDER_RESULT: ${{ needs.provider-identity.result }}
+          REQUIRE_PROVIDER_IDENTITY: ${{ inputs.require_provider_identity }}
+        run: |
+          set -euo pipefail
+          [[ "$FULL_RESULT" == success ]]
+          if [[ "$REQUIRE_PROVIDER_IDENTITY" == true ]]; then
+            [[ "$PROVIDER_RESULT" == success ]]
+          else
+            [[ "$PROVIDER_RESULT" == skipped ]]
+          fi
+
+      - name: Aggregate exact SHA checks after full proof success
+        env:
+          CANDIDATE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}
+          DEFAULT_GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_PROOF_GITHUB_TOKEN: ${{ secrets.RELEASE_PROOF_GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          if ! GH_TOKEN="$DEFAULT_GITHUB_TOKEN" gh api "repos/${REPO}/branches/main/protection" > "$RUNNER_TEMP/branch-protection.json"; then
+            : "${RELEASE_PROOF_GITHUB_TOKEN:?RELEASE_PROOF_GITHUB_TOKEN with Administration, Actions, Checks, Contents, Metadata, and Commit statuses read is required when GITHUB_TOKEN cannot read branch protection}"
+            if ! GH_TOKEN="$RELEASE_PROOF_GITHUB_TOKEN" gh api "repos/${REPO}/branches/main/protection" > "$RUNNER_TEMP/branch-protection.json"; then
+              echo "Branch protection is unreadable; 403 and 404 are fatal evidence failures."
+              exit 1
+            fi
+          fi
+          export GH_TOKEN="${RELEASE_PROOF_GITHUB_TOKEN:-$DEFAULT_GITHUB_TOKEN}"
+          gh api "repos/${REPO}/commits/${CANDIDATE_SHA}/check-runs" --paginate --jq '.check_runs[]' > "$RUNNER_TEMP/check-runs.jsonl"
+          gh api "repos/${REPO}/commits/${CANDIDATE_SHA}/statuses" --paginate --jq '.[]' > "$RUNNER_TEMP/statuses.jsonl"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const temp = process.env.RUNNER_TEMP;
+          const readJsonl = (name) => fs.readFileSync(`${temp}/${name}.jsonl`, 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);
+          fs.writeFileSync(`${temp}/exact-sha-evidence.json`, JSON.stringify({
+            candidateSha: process.env.CANDIDATE_SHA,
+            protection: JSON.parse(fs.readFileSync(`${temp}/branch-protection.json`, 'utf8')),
+            checkRuns: readJsonl('check-runs'), statuses: readJsonl('statuses'),
+          }));
+          NODE
+          node scripts/release/verify-exact-sha-checks.mjs "$RUNNER_TEMP/exact-sha-evidence.json"

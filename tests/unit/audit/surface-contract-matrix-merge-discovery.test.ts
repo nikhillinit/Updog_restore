@@ -388,6 +388,43 @@ describe('surface contract matrix listener disposition merge', () => {
     });
     expect(merged[0].fingerprint).not.toBe('0'.repeat(64));
   });
+  it('forces legacy Dockerfile.railway evidence out of an approved product disposition', () => {
+    const merged = mergeListenerDispositions(
+      [
+        {
+          candidate_path: 'Dockerfile.railway',
+          listener_id: 'dockerfile-railway',
+          disposition: 'product-surface',
+          row_namespace: 'api',
+          route_extraction_strategy: 'container-entrypoint-evidence',
+          evidence: ['Dockerfile.railway:1'],
+          decision_status: 'approved',
+          fingerprint: '0'.repeat(64),
+        },
+      ],
+      [
+        {
+          candidate_path: 'Dockerfile.railway',
+          listener_id: 'legacy-dockerfile-railway',
+          disposition: 'non-product-tooling',
+          rationale: 'Legacy undeployed Railway API container evidence.',
+          evidence: ['Dockerfile.railway:1'],
+          fingerprint: '0'.repeat(64),
+        },
+      ],
+      [
+        {
+          path: 'Dockerfile.railway',
+          patterns: [{ kind: 'docker-cmd', line: 1, text: 'CMD node dist/index.js' }],
+        },
+      ]
+    );
+    expect(merged[0]).toMatchObject({
+      disposition: 'non-product-tooling',
+      listener_id: 'legacy-dockerfile-railway',
+      decision_status: 'proposed',
+    });
+  });
 });
 
 describe('surface contract matrix BullMQ discovery', () => {

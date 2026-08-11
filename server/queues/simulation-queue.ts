@@ -111,23 +111,35 @@ async function closeSimulationQueue(): Promise<void> {
   const queueEventsRef = queueEvents;
   const queueRef = queue;
 
-  await workerRef?.close();
-  await queueEventsRef?.close();
-  await queueRef?.close();
-
   resetSimulationQueueRuntime();
   unregisterQueueRuntime('simulation');
+  const results = await Promise.allSettled([
+    workerRef?.close(),
+    queueEventsRef?.close(),
+    queueRef?.close(),
+  ]);
+  for (const result of results) {
+    if (result.status === 'rejected') {
+      logger.error(
+        '[queue] Failed to close simulation resource',
+        sanitizeQueueError(result.reason)
+      );
+    }
+  }
   logger.info('[queue] Simulation queue closed');
 }
 
 /**
  * Initialize the simulation queue with Redis connection
  */
-export async function initializeSimulationQueue(redisConnection: IORedis): Promise<{
+export async function initializeSimulationQueue(
+  redisConnection: IORedis,
+  { startConsumer }: { startConsumer: boolean }
+): Promise<{
   queue: Queue<SimulationJobData, SimulationJobResult>;
   close: () => Promise<void>;
 }> {
-  if (queue && worker && queueEvents) {
+  if (queue && (!startConsumer || (worker && queueEvents))) {
     return {
       queue,
       close: closeSimulationQueue,
@@ -136,139 +148,152 @@ export async function initializeSimulationQueue(redisConnection: IORedis): Promi
 
   const connection = getBullMQConnection(redisConnection);
 
-  // Create queue
-  queue = new Queue<SimulationJobData, SimulationJobResult>(QUEUE_NAME, {
-    connection,
-    defaultJobOptions: {
-      removeOnComplete: { count: 100 }, // Keep last 100 completed jobs
-      removeOnFail: { count: 50 }, // Keep last 50 failed jobs
-      attempts: 3,
-      backoff: {
-        type: 'exponential',
-        delay: 1000,
-      },
-    },
-  });
-
-  // Create worker to process jobs
-  // eslint-disable-next-line povc-security/require-bullmq-config -- lockDuration is a renewable ownership lease; execution deadline is enforced by the job contract
-  worker = new Worker<SimulationJobData, SimulationJobResult>(
-    QUEUE_NAME,
-    async (job: Job<SimulationJobData, SimulationJobResult>) => {
-      const startTime = Date.now();
-
-      try {
-        // Report initial progress
-        await job.updateProgress(0);
-        simulationEvents.emitProgress(job.id!, 0, 'Starting simulation...');
-
-        // Import simulation service lazily to avoid circular deps
-        const { unifiedMonteCarloService } =
-          await import('../services/monte-carlo-service-unified');
-
-        // Run simulation with progress tracking
-        const totalRuns = job.data.runs;
-        const batchSize = Math.min(1000, Math.floor(totalRuns / 10));
-
-        let completedRuns = 0;
-        const results: number[] = [];
-
-        // Simulate in batches for progress reporting
-        while (completedRuns < totalRuns) {
-          const runsThisBatch = Math.min(batchSize, totalRuns - completedRuns);
-
-          // Run batch
-          const batchResult = await unifiedMonteCarloService.runSimulation(
-            buildSimulationRunConfigFromJobData(job.data, runsThisBatch)
-          );
-
-          // Collect results (simplified - actual implementation would aggregate)
-          const batchMetrics = (batchResult as { metrics?: { tvpiDistribution?: number[] } })
-            .metrics;
-          if (batchMetrics?.tvpiDistribution) {
-            results.push(...batchMetrics.tvpiDistribution);
-          }
-
-          completedRuns += runsThisBatch;
-          const progress = Math.round((completedRuns / totalRuns) * 100);
-
-          await job.updateProgress(progress);
-          simulationEvents.emitProgress(
-            job.id!,
-            progress,
-            `Completed ${completedRuns}/${totalRuns} runs`
-          );
-        }
-
-        // Calculate final metrics
-        const sorted = results.sort((a, b) => a - b);
-        const mean = results.reduce((a, b) => a + b, 0) / results.length || 0;
-        const median = sorted[Math.floor(sorted.length / 2)] || 0;
-        const p10 = sorted[Math.floor(sorted.length * 0.1)] || 0;
-        const p90 = sorted[Math.floor(sorted.length * 0.9)] || 0;
-        const min = sorted[0] || 0;
-        const max = sorted[sorted.length - 1] || 0;
-
-        const result: SimulationJobResult = {
-          success: true,
-          metrics: { mean, median, p10, p90, min, max },
-          durationMs: Date.now() - startTime,
-        };
-
-        simulationEvents.emitComplete(job.id!, result);
-        return result;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        simulationEvents.emitFailed(job.id!, errorMessage);
-        throw error;
-      }
-    },
-    {
-      connection,
-      concurrency: 2, // Process 2 jobs concurrently
-      lockDuration: 300000,
-      limiter: {
-        max: 10,
-        duration: 60000, // Max 10 jobs per minute
-      },
+  try {
+    // Create queue once. A producer-only runtime can later be upgraded to a
+    // local consumer without leaking its original producer connection.
+    if (!queue) {
+      queue = new Queue<SimulationJobData, SimulationJobResult>(QUEUE_NAME, {
+        connection,
+        defaultJobOptions: {
+          removeOnComplete: { count: 100 }, // Keep last 100 completed jobs
+          removeOnFail: { count: 50 }, // Keep last 50 failed jobs
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 1000,
+          },
+        },
+      });
     }
-  );
 
-  // Set up queue events for monitoring
-  queueEvents = new QueueEvents(QUEUE_NAME, { connection });
+    if (startConsumer) {
+      // Create worker to process jobs
+      // eslint-disable-next-line povc-security/require-bullmq-config -- lockDuration is a renewable ownership lease; execution deadline is enforced by the job contract
+      worker = new Worker<SimulationJobData, SimulationJobResult>(
+        QUEUE_NAME,
+        async (job: Job<SimulationJobData, SimulationJobResult>) => {
+          const startTime = Date.now();
 
-  queueEvents.on('completed', ({ jobId, returnvalue }) => {
-    logger.info('[queue] Job completed', { jobId, returnvalue });
-  });
+          try {
+            // Report initial progress
+            await job.updateProgress(0);
+            simulationEvents.emitProgress(job.id!, 0, 'Starting simulation...');
 
-  queueEvents.on('failed', ({ jobId, failedReason }) => {
-    console.error(`[queue] Job ${jobId} failed:`, failedReason);
-  });
+            // Import simulation service lazily to avoid circular deps
+            const { unifiedMonteCarloService } =
+              await import('../services/monte-carlo-service-unified');
 
-  queueEvents.on('error', (error) => {
-    console.error('[queue] QueueEvents error:', sanitizeQueueError(error));
-  });
+            // Run simulation with progress tracking
+            const totalRuns = job.data.runs;
+            const batchSize = Math.min(1000, Math.floor(totalRuns / 10));
 
-  // Error handlers
-  worker.on('error', (err) => {
-    console.error('[queue] Worker error:', err);
-  });
+            let completedRuns = 0;
+            const results: number[] = [];
 
-  queue.on('error', (err) => {
-    console.error('[queue] Queue error:', err);
-  });
+            // Simulate in batches for progress reporting
+            while (completedRuns < totalRuns) {
+              const runsThisBatch = Math.min(batchSize, totalRuns - completedRuns);
 
-  logger.info('[queue] Simulation queue initialized');
-  registerQueueRuntime('simulation', {
-    getQueue: () => queue,
-    getWorker: () => worker,
-    isInitialized: () => queue !== null && worker !== null && queueEvents !== null,
-  });
+              // Run batch
+              const batchResult = await unifiedMonteCarloService.runSimulation(
+                buildSimulationRunConfigFromJobData(job.data, runsThisBatch)
+              );
 
-  return {
-    queue,
-    close: closeSimulationQueue,
-  };
+              // Collect results (simplified - actual implementation would aggregate)
+              const batchMetrics = (batchResult as { metrics?: { tvpiDistribution?: number[] } })
+                .metrics;
+              if (batchMetrics?.tvpiDistribution) {
+                results.push(...batchMetrics.tvpiDistribution);
+              }
+
+              completedRuns += runsThisBatch;
+              const progress = Math.round((completedRuns / totalRuns) * 100);
+
+              await job.updateProgress(progress);
+              simulationEvents.emitProgress(
+                job.id!,
+                progress,
+                `Completed ${completedRuns}/${totalRuns} runs`
+              );
+            }
+
+            // Calculate final metrics
+            const sorted = results.sort((a, b) => a - b);
+            const mean = results.reduce((a, b) => a + b, 0) / results.length || 0;
+            const median = sorted[Math.floor(sorted.length / 2)] || 0;
+            const p10 = sorted[Math.floor(sorted.length * 0.1)] || 0;
+            const p90 = sorted[Math.floor(sorted.length * 0.9)] || 0;
+            const min = sorted[0] || 0;
+            const max = sorted[sorted.length - 1] || 0;
+
+            const result: SimulationJobResult = {
+              success: true,
+              metrics: { mean, median, p10, p90, min, max },
+              durationMs: Date.now() - startTime,
+            };
+
+            simulationEvents.emitComplete(job.id!, result);
+            return result;
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            simulationEvents.emitFailed(job.id!, errorMessage);
+            throw error;
+          }
+        },
+        {
+          connection,
+          concurrency: 2, // Process 2 jobs concurrently
+          lockDuration: 300000,
+          limiter: {
+            max: 10,
+            duration: 60000, // Max 10 jobs per minute
+          },
+        }
+      );
+
+      // Set up queue events for monitoring
+      queueEvents = new QueueEvents(QUEUE_NAME, { connection });
+
+      queueEvents.on('completed', ({ jobId, returnvalue }) => {
+        logger.info('[queue] Job completed', { jobId, returnvalue });
+      });
+
+      queueEvents.on('failed', ({ jobId, failedReason }) => {
+        console.error(`[queue] Job ${jobId} failed:`, sanitizeQueueError(failedReason));
+      });
+
+      queueEvents.on('error', (error) => {
+        console.error('[queue] QueueEvents error:', sanitizeQueueError(error));
+      });
+
+      // Error handlers
+      worker.on('error', (err) => {
+        console.error('[queue] Worker error:', sanitizeQueueError(err));
+      });
+
+      queue.on('error', (err) => {
+        console.error('[queue] Queue error:', sanitizeQueueError(err));
+      });
+    }
+
+    logger.info('[queue] Simulation queue initialized');
+    registerQueueRuntime('simulation', {
+      getQueue: () => queue,
+      ...(startConsumer ? { getWorker: () => worker } : {}),
+      isInitialized: () =>
+        queue !== null && (!startConsumer || (worker !== null && queueEvents !== null)),
+      healthMode: startConsumer ? 'worker' : 'producer',
+      close: closeSimulationQueue,
+    });
+
+    return {
+      queue,
+      close: closeSimulationQueue,
+    };
+  } catch (error) {
+    await closeSimulationQueue();
+    throw error;
+  }
 }
 
 /**

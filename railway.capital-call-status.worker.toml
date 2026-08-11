@@ -1,0 +1,27 @@
+# Railway config for the dedicated capital-call-status worker service.
+# In the Railway dashboard, set this service's "Config-as-code" file path to
+# railway.capital-call-status.worker.toml so it does not pick up the API config.
+#
+# Required service variables (set in the Railway dashboard, never committed):
+#   NODE_ENV
+#   ENABLE_QUEUES
+#   DATABASE_URL
+#   REDIS_URL
+#   WORKER_TYPE
+#   WORKER_HEALTH_PORT
+#   CAPITAL_CALL_STATUS_HARD_TIMEOUT_MS
+#
+# Railway-injected identity variables required by the worker runtime:
+#   RAILWAY_SERVICE_NAME
+#   RAILWAY_ENVIRONMENT_NAME
+#   RAILWAY_GIT_COMMIT_SHA
+#   RAILWAY_DEPLOYMENT_ID
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile.worker"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "always"

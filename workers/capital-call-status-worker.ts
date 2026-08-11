@@ -5,7 +5,13 @@ import Redis from 'ioredis';
 import { getQueueConnectionOptions } from '../server/config/features';
 import { getCapitalCallStatusHardTimeoutMs } from '../server/services/capital-call-status-timeout';
 import { createCapitalCallStatusWorker } from '../server/workers/capital-call-status-worker';
-import { createHealthServer, registerWorker } from './health-server';
+import {
+  createHealthServer,
+  registerWorker,
+  unregisterWorker,
+  type WorkerHealthServerRuntime,
+} from './health-server';
+import { resolveWorkerDeploymentIdentity } from './worker-deployment-identity';
 
 export function isDirectEntrypoint(metaUrl: string): boolean {
   if (!process.argv[1]) return false;
@@ -31,6 +37,8 @@ function getHealthPort(): number {
 export async function startCapitalCallStatusWorker(): Promise<{
   stop: () => Promise<void>;
 }> {
+  const deploymentIdentity = resolveWorkerDeploymentIdentity('capital-call-status');
+
   const connection = getQueueConnectionOptions();
   if (!connection) {
     throw new Error(
@@ -39,26 +47,148 @@ export async function startCapitalCallStatusWorker(): Promise<{
   }
 
   const hardTimeoutMs = getCapitalCallStatusHardTimeoutMs();
-  const redis = new Redis({ ...connection, maxRetriesPerRequest: null });
-  const worker = createCapitalCallStatusWorker(redis, undefined, { hardTimeoutMs });
+  let redis: Redis | undefined;
+  const resources: {
+    worker?: Awaited<ReturnType<typeof createCapitalCallStatusWorker>>;
+    bullMqWorker?: ReturnType<
+      Awaited<ReturnType<typeof createCapitalCallStatusWorker>>['getBullMqWorker']
+    >;
+    healthServer?: WorkerHealthServerRuntime;
+  } = {};
 
-  registerWorker('capital-call-status', worker.getBullMqWorker(), () => worker.getHealthDetails());
-  createHealthServer(getHealthPort());
+  let stopRequested = false;
+  let stopPromise: Promise<void> | undefined;
+  let unregisteredWorker: typeof resources.bullMqWorker;
+  let stoppedWorker: typeof resources.worker;
+  let closedHealthServer: typeof resources.healthServer;
+  let redisClosed = false;
+  let initializationSettled = false;
+  let resolveInitializationSettled: () => void;
+  const initializationSettledPromise = new Promise<void>((resolve) => {
+    resolveInitializationSettled = resolve;
+  });
 
-  await worker.start();
-
-  const stop = async (): Promise<void> => {
-    await worker.stop();
-    await redis.quit();
+  const removeSignalHandlers = (): void => {
+    process.removeListener('SIGTERM', handleSigterm);
+    process.removeListener('SIGINT', handleSigint);
   };
 
-  process.once('SIGTERM', async () => {
-    await stop();
-  });
-  process.once('SIGINT', async () => {
-    await stop();
+  const cleanupResources = async (): Promise<void> => {
+    let firstError: unknown;
+    if (resources.bullMqWorker && resources.bullMqWorker !== unregisteredWorker) {
+      unregisteredWorker = resources.bullMqWorker;
+      try {
+        unregisterWorker('capital-call-status', resources.bullMqWorker);
+      } catch (error) {
+        firstError = error;
+      }
+    }
+
+    if (resources.worker && resources.worker !== stoppedWorker) {
+      stoppedWorker = resources.worker;
+      try {
+        await resources.worker.stop();
+      } catch (error) {
+        firstError ??= error;
+      }
+    }
+
+    if (resources.healthServer && resources.healthServer !== closedHealthServer) {
+      closedHealthServer = resources.healthServer;
+      try {
+        await resources.healthServer.close();
+      } catch (error) {
+        firstError ??= error;
+      }
+    }
+
+    if (redis && !redisClosed) {
+      redisClosed = true;
+      try {
+        await redis.quit();
+      } catch (error) {
+        firstError ??= error;
+      }
+    }
+
+    if (firstError !== undefined) {
+      throw firstError;
+    }
+  };
+
+  const stop = (): Promise<void> => {
+    stopRequested = true;
+    removeSignalHandlers();
+    stopPromise ??= (async () => {
+      let firstError: unknown;
+      const initializationWasPending = !initializationSettled;
+      try {
+        await cleanupResources();
+      } catch (error) {
+        firstError = error;
+      }
+
+      if (initializationWasPending) {
+        await initializationSettledPromise;
+        try {
+          await cleanupResources();
+        } catch (error) {
+          firstError ??= error;
+        }
+      }
+
+      if (firstError !== undefined) {
+        throw firstError;
+      }
+    })();
+    return stopPromise;
+  };
+
+  const handleSigterm = async (): Promise<void> => {
+    await stop().catch(() => undefined);
+  };
+  const handleSigint = async (): Promise<void> => {
+    await stop().catch(() => undefined);
     process.exit(0);
-  });
+  };
+
+  process.once('SIGTERM', handleSigterm);
+  process.once('SIGINT', handleSigint);
+
+  let startupError: unknown;
+  try {
+    redis = new Redis({ ...connection, maxRetriesPerRequest: null });
+    if (!stopRequested) {
+      const worker = await createCapitalCallStatusWorker(redis, undefined, { hardTimeoutMs });
+      // eslint-disable-next-line require-atomic-updates -- the stop gate cleans resources assigned after shutdown begins.
+      resources.worker = worker;
+      // eslint-disable-next-line require-atomic-updates -- the stop gate cleans resources assigned after shutdown begins.
+      resources.bullMqWorker = worker.getBullMqWorker();
+      if (!stopRequested) {
+        registerWorker('capital-call-status', resources.bullMqWorker, () =>
+          worker.getHealthDetails()
+        );
+        if (!stopRequested) {
+          await worker.start();
+        }
+      }
+      if (!stopRequested) {
+        const healthServer = await createHealthServer(getHealthPort(), deploymentIdentity);
+        // eslint-disable-next-line require-atomic-updates -- the stop gate closes health assigned after shutdown begins.
+        resources.healthServer = healthServer;
+      }
+    }
+  } catch (error) {
+    startupError = error;
+  } finally {
+    initializationSettled = true;
+    resolveInitializationSettled!();
+  }
+
+  if (startupError !== undefined) {
+    await stop().catch(() => undefined);
+    throw startupError;
+  }
 
   return { stop };
 }

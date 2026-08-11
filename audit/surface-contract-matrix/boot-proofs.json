@@ -1,44 +1,89 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
+  "source_sha": "71c956199823088ad895d6c602cb37b08863dc5a",
   "proofs": [
     {
-      "deployment": "ml-service-local",
+      "deployment": "local-process",
       "boot_status": "unproven",
+      "boot_evidence": {
+        "command_or_artifact": "local runtime inventory only",
+        "probe": "no production boot proof is required for local-process surfaces",
+        "result": "local-process evidence is intentionally unproven",
+        "observed_at": "proof:cf6c91ee9c51a6e0b835650a4b1c388bc06ab306cc825711514c2f56717052fd"
+      }
+    },
+    {
+      "deployment": "ml-service-local",
+      "boot_status": "failed",
       "boot_evidence": {
         "command_or_artifact": "Dockerfile ml-service/Dockerfile with uvicorn app:app --host 0.0.0.0 --port 8088",
         "probe": "GET /health and GET /model/info expect 2xx; POST /predict and POST /train send {} and expect 422 validation; 404/405 are failures",
-        "result": "docker unavailable",
-        "observed_at": "proof:3f33b4eb3bf71899336c78e2ba9121fcb07a361799a15dcd028d9640232b50df"
+        "result": "FastAPI path probe failed",
+        "observed_at": "proof:bf0a3ae1465c8f01aa03d6fb1878cbed50ae3850c5366280b70794e9db21a38b"
       }
     },
     {
-      "deployment": "railway-api",
-      "boot_status": "failed",
+      "deployment": "railway-worker-capital-call-status",
+      "runtime": "service_listener",
+      "boot_status": "proven",
       "boot_evidence": {
-        "command_or_artifact": "npm run build:prod; Dockerfile.railway ENTRYPOINT [\"dumb-init\",\"--\"] + CMD [\"node\",\"dist/index.js\"]",
-        "probe": "GET /health; expected HTTP 2xx; 404/405 are failures",
-        "result": "docker unavailable; exact dist/index.js CMD exited with no HTTP listener (bootstrap() is not invoked)",
-        "observed_at": "proof:f367e3eacd574c647079b0560010f3e117da420358b1e92515f34e12ea0ca3da"
+        "command_or_artifact": "docker build -f Dockerfile.worker; docker run capital-call-status worker with isolated Redis and PostgreSQL",
+        "probe": "Dockerfile.worker runs capital-call-status; GET /health /live /ready /metrics /stats through mapped port with a 30000ms worker timeout",
+        "result": "Dockerfile.worker image stayed alive, Redis connected, and capital-call-status consumer was healthy and registered in /health and /stats",
+        "observed_at": "proof:17989fbaa573630d1db0e8ac17b9adecee4b33194ca46f035a047322dc23b8ee"
+      },
+      "worker_identity": {
+        "workerType": "capital-call-status",
+        "commit": "71c956199823088ad895d6c602cb37b08863dc5a",
+        "deploymentId": "surface-matrix-capital-call-status"
       }
     },
     {
-      "deployment": "railway-web",
-      "boot_status": "unproven",
+      "deployment": "railway-worker-capital-call-status",
+      "runtime": "worker_process",
+      "boot_status": "proven",
       "boot_evidence": {
-        "command_or_artifact": "npm run build:web plus proven railway-api listener",
-        "probe": "GET actual emitted hashed SPA asset and GET /fund-setup; expected HTTP 2xx; 404/405 are failures",
-        "result": "dependency railway-api is failed; Railway web proof not executable",
-        "observed_at": "proof:8a33519656b948c71dbdfaf62a7b8493cac77d7dd27a138cf6844be4c9235711"
+        "command_or_artifact": "docker build -f Dockerfile.worker; docker run capital-call-status worker with isolated Redis and PostgreSQL",
+        "probe": "Dockerfile.worker runs capital-call-status; GET /health /live /ready /metrics /stats through mapped port with a 30000ms worker timeout",
+        "result": "Dockerfile.worker image stayed alive, Redis connected, and capital-call-status consumer was healthy and registered in /health and /stats",
+        "observed_at": "proof:17989fbaa573630d1db0e8ac17b9adecee4b33194ca46f035a047322dc23b8ee"
+      },
+      "worker_identity": {
+        "workerType": "capital-call-status",
+        "commit": "71c956199823088ad895d6c602cb37b08863dc5a",
+        "deploymentId": "surface-matrix-capital-call-status"
       }
     },
     {
-      "deployment": "railway-worker",
-      "boot_status": "failed",
+      "deployment": "railway-worker-fund-scenario-calc",
+      "runtime": "service_listener",
+      "boot_status": "proven",
       "boot_evidence": {
-        "command_or_artifact": "docker build -f Dockerfile.worker; docker run Dockerfile.worker with Redis and PostgreSQL containers on isolated network",
-        "probe": "Dockerfile.worker image runs fund-scenario-calc worker; GET /health /live /ready /metrics /stats through mapped port; expected HTTP 2xx; 404/405 are failures",
-        "result": "docker unavailable: docker info could not access a daemon; worker proof was not faked",
-        "observed_at": "proof:f5fe1057fe77148cb1ca036b4215f7539a843115910139f22152b1fb3cc1bd15"
+        "command_or_artifact": "docker build -f Dockerfile.worker; docker run fund-scenario-calc worker with isolated Redis and PostgreSQL",
+        "probe": "Dockerfile.worker runs fund-scenario-calc; GET /health /live /ready /metrics /stats through mapped port with a 30000ms worker timeout",
+        "result": "Dockerfile.worker image stayed alive, Redis connected, and fund-scenario-calc consumer was healthy and registered in /health and /stats",
+        "observed_at": "proof:02b4bcb5116b620bc5cf1e6fe3ce0845228d463eb243545db97501e861a1d332"
+      },
+      "worker_identity": {
+        "workerType": "fund-scenario-calc",
+        "commit": "71c956199823088ad895d6c602cb37b08863dc5a",
+        "deploymentId": "surface-matrix-fund-scenario-calc"
+      }
+    },
+    {
+      "deployment": "railway-worker-fund-scenario-calc",
+      "runtime": "worker_process",
+      "boot_status": "proven",
+      "boot_evidence": {
+        "command_or_artifact": "docker build -f Dockerfile.worker; docker run fund-scenario-calc worker with isolated Redis and PostgreSQL",
+        "probe": "Dockerfile.worker runs fund-scenario-calc; GET /health /live /ready /metrics /stats through mapped port with a 30000ms worker timeout",
+        "result": "Dockerfile.worker image stayed alive, Redis connected, and fund-scenario-calc consumer was healthy and registered in /health and /stats",
+        "observed_at": "proof:02b4bcb5116b620bc5cf1e6fe3ce0845228d463eb243545db97501e861a1d332"
+      },
+      "worker_identity": {
+        "workerType": "fund-scenario-calc",
+        "commit": "71c956199823088ad895d6c602cb37b08863dc5a",
+        "deploymentId": "surface-matrix-fund-scenario-calc"
       }
     },
     {
@@ -55,12 +100,12 @@
     {
       "deployment": "vercel-api",
       "runtime": "vercel_function",
-      "boot_status": "failed",
+      "boot_status": "proven",
       "boot_evidence": {
-        "command_or_artifact": "vercel build; .vercel/output/functions/**/*.func/index.(js|mjs|cjs)",
+        "command_or_artifact": "npx --yes vercel@55.0.0 build --prod --yes; .vercel/output/functions/**/*.func/.vc-config.json handler",
         "probe": "enumerate every real Vercel build-output function and invoke its callable handler once",
-        "result": "Vercel build-output generation failed by timeout",
-        "observed_at": "proof:ae55211ffdfbb4276b64dbcfbfe9372c79f7c58e2a605ebe4347f4cc1c6daac1"
+        "result": "invoked 2 build-output function(s): api/[...slug]=ok, api/telemetry/wizard=ok",
+        "observed_at": "proof:7d2296c656500d63e3a4183eb51ea6e9cd9de2ec4f58c72ce50e16027867f3c1"
       }
     },
     {

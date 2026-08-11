@@ -6,8 +6,17 @@
 import type { Cache } from './cache/index.js';
 import { BoundedMemoryCache } from './cache/memory.js';
 import type { Store as RateLimitStore } from 'express-rate-limit';
-import { getQueueConfig } from './config/features.js';
-import { resetQueueRegistry } from './queues/registry.js';
+import { getQueueRuntimePolicy } from './config/features.js';
+import {
+  assertQueueRuntimePolicy,
+  type QueueRuntimePolicyEnv,
+} from './config/queue-runtime-policy.js';
+import {
+  createProviderQueueRuntime,
+  type ProviderQueueRuntime,
+} from './queues/provider-queue-runtime.js';
+import { closeRegisteredQueueRuntimes } from './queues/registry.js';
+import { sanitizeQueueError } from './lib/queue-error-sanitizer.js';
 
 export type ProviderMode = 'memory' | 'redis';
 
@@ -15,7 +24,7 @@ export interface Providers {
   mode: ProviderMode;
   cache: Cache;
   rateLimitStore?: RateLimitStore; // undefined => in-memory
-  queue?: { enabled: boolean; close(): Promise<void> };
+  queue?: ProviderQueueRuntime;
   sessions?: { enabled: boolean; store?: unknown };
   teardown?: () => Promise<void>;
 }
@@ -37,12 +46,19 @@ interface RedisCacheClient {
 export async function buildProviders(
   cfg: ReturnType<typeof import('./config/index.js').loadEnv>
 ): Promise<Providers> {
+  const queuePolicyEnv: QueueRuntimePolicyEnv = {
+    ...cfg,
+    VERCEL: process.env['VERCEL'],
+    VERCEL_ENV: process.env['VERCEL_ENV'],
+  };
+  assertQueueRuntimePolicy(queuePolicyEnv);
+
   const { logger } = await import('./lib/logger.js');
   logger.info('[providers] Building providers...');
 
   // Determine mode based on REDIS_URL
   const mode: ProviderMode = cfg.REDIS_URL === 'memory://' ? 'memory' : 'redis';
-  logger.info({ mode, redisUrl: cfg.REDIS_URL }, `[providers] Mode: ${mode}`);
+  logger.info({ mode }, `[providers] Mode: ${mode}`);
 
   // Cache - use our own implementation to avoid side effects
   const cache = await buildCache(cfg.REDIS_URL);
@@ -72,20 +88,23 @@ export async function buildProviders(
       }) as unknown as RateLimitStore;
       logger.info('[providers] Redis rate limit store enabled');
     } catch (error) {
-      logger.warn({ err: error }, '[providers] Redis rate limit store failed, using memory');
+      logger.warn(
+        { err: sanitizeQueueError(error) },
+        '[providers] Redis rate limit store failed, using memory'
+      );
       rateLimitStore = undefined; // Fall back to memory
     }
   } else {
     logger.info('[providers] Using memory rate limit store');
   }
 
-  const queueConfig = getQueueConfig(cfg);
-  const queue = queueConfig.enabled
-    ? await buildQueue(cfg)
-    : { enabled: false, close: async () => {} };
+  const queuePolicy = getQueueRuntimePolicy(queuePolicyEnv);
+  const queue = queuePolicy.legacyProviderProducersEnabled
+    ? await buildQueue(queuePolicyEnv)
+    : disabledQueueRuntime();
 
   logger.info(
-    { queueEnabled: queue.enabled, queueReason: queueConfig.reason },
+    { queueEnabled: queue.enabled, queueReason: queuePolicy.reason },
     '[providers] Queue status'
   );
 
@@ -100,13 +119,18 @@ export async function buildProviders(
     sessions,
     teardown: async () => {
       logger.info('[providers] Tearing down...');
-      try {
-        await queue?.close?.();
-        resetQueueRegistry();
-        await cache?.close?.();
+      const providerResults = await Promise.allSettled([queue?.close?.()]);
+      const routeResults = await Promise.allSettled([closeRegisteredQueueRuntimes()]);
+      const cacheResults = await Promise.allSettled([cache?.close?.()]);
+      const failures = [...providerResults, ...routeResults, ...cacheResults].filter(
+        (result): result is PromiseRejectedResult => result.status === 'rejected'
+      );
+      if (failures.length === 0) {
         logger.info('[providers] Teardown complete');
-      } catch (error) {
-        logger.error({ err: error }, '[providers] Teardown error');
+      } else {
+        for (const failure of failures) {
+          logger.error({ err: sanitizeQueueError(failure.reason) }, '[providers] Teardown error');
+        }
       }
     },
   };
@@ -114,7 +138,7 @@ export async function buildProviders(
 
 async function buildCache(redisUrl: string): Promise<Cache> {
   const { logger } = await import('./lib/logger.js');
-  logger.debug({ redisUrl }, '[providers] Cache mode for URL');
+  logger.debug({ redisConfigured: Boolean(redisUrl) }, '[providers] Cache mode');
 
   // Always use memory cache if URL is memory:// or missing
   if (!redisUrl || redisUrl === 'memory://') {
@@ -157,7 +181,10 @@ async function buildCache(redisUrl: string): Promise<Cache> {
       } catch (err) {
         lastError = new Date();
         circuitOpen = true;
-        logger.warn({ err }, '[providers] Redis operation failed, circuit opened for 30s');
+        logger.warn(
+          { err: sanitizeQueueError(err) },
+          '[providers] Redis operation failed, circuit opened for 30s'
+        );
         return fallback;
       }
     };
@@ -184,92 +211,47 @@ async function buildCache(redisUrl: string): Promise<Cache> {
         try {
           await redis.quit();
         } catch (err) {
-          logger.warn({ err }, '[providers] Redis close failed');
+          logger.warn({ err: sanitizeQueueError(err) }, '[providers] Redis close failed');
         }
       },
     };
   } catch (error) {
-    logger.warn({ err: error }, '[providers] Redis cache failed, falling back to memory');
+    logger.warn(
+      { err: sanitizeQueueError(error) },
+      '[providers] Redis cache failed, falling back to memory'
+    );
     return new BoundedMemoryCache();
   }
 }
 
-async function buildQueue(
-  cfg: ReturnType<typeof import('./config/index.js').loadEnv>
-): Promise<{ enabled: boolean; close(): Promise<void> }> {
-  const queueConfig = getQueueConfig(cfg);
-  if (!queueConfig.enabled || !queueConfig.queueRedisUrl) {
+async function buildQueue(cfg: QueueRuntimePolicyEnv): Promise<ProviderQueueRuntime> {
+  const queuePolicy = getQueueRuntimePolicy(cfg);
+  if (
+    !queuePolicy.legacyProviderProducersEnabled ||
+    !queuePolicy.enabled ||
+    !queuePolicy.queueRedisUrl
+  ) {
     const { logger } = await import('./lib/logger.js');
-    logger.info({ reason: queueConfig.reason }, '[providers] Queue disabled');
-    return {
-      enabled: false,
-      close: async () => {},
-    };
+    logger.info({ reason: queuePolicy.reason }, '[providers] Queue disabled');
+    return disabledQueueRuntime();
   }
 
   const { logger: queueLogger } = await import('./lib/logger.js');
-  try {
-    queueLogger.debug(
-      { queueRedisUrl: queueConfig.queueRedisUrl },
-      '[providers] Initializing BullMQ queues...'
-    );
-    const { default: IORedis } = await import('ioredis');
-    const { initializeSimulationQueue } = await import('./queues/simulation-queue.js');
-    const { initializeReportQueue } = await import('./queues/report-generation-queue.js');
-    const { initializeBacktestingQueue } = await import('./queues/backtesting-queue.js');
-    const { initializeFundScenarioCalcWorker } =
-      await import('./queues/fund-scenario-calc-worker-init.js');
+  queueLogger.debug(
+    { queueRedisConfigured: Boolean(queuePolicy.queueRedisUrl) },
+    '[providers] Initializing BullMQ queues...'
+  );
+  return createProviderQueueRuntime({
+    queueRedisUrl: queuePolicy.queueRedisUrl,
+    startConsumers: queuePolicy.inProcessConsumersEnabled,
+  });
+}
 
-    const redis = new IORedis(queueConfig.queueRedisUrl, {
-      lazyConnect: true,
-      maxRetriesPerRequest: 3,
-      connectTimeout: 5000,
-    });
-
-    await redis.connect();
-
-    const initResults = await Promise.allSettled([
-      initializeSimulationQueue(redis),
-      initializeReportQueue(redis),
-      initializeBacktestingQueue(redis),
-      initializeFundScenarioCalcWorker(redis),
-    ]);
-
-    const closers = initResults.flatMap((result) =>
-      result.status === 'fulfilled' ? [result.value.close] : []
-    );
-    const failures = initResults.filter((result) => result.status === 'rejected');
-
-    for (const failure of failures) {
-      queueLogger.warn({ err: failure.reason }, '[providers] Queue runtime failed to initialize');
-    }
-
-    if (closers.length === 0) {
-      await redis.quit();
-      return {
-        enabled: false,
-        close: async () => {},
-      };
-    }
-
-    queueLogger.info(
-      { initializedQueues: closers.length, failedQueues: failures.length },
-      '[providers] BullMQ queues initialized'
-    );
-
-    return {
-      enabled: true,
-      close: async () => {
-        await Promise.allSettled(closers.map((close) => close()));
-        resetQueueRegistry();
-        await redis.quit();
-      },
-    };
-  } catch (error) {
-    queueLogger.warn({ err: error }, '[providers] Queue initialization failed');
-    return {
-      enabled: false,
-      close: async () => {},
-    };
-  }
+function disabledQueueRuntime(): ProviderQueueRuntime {
+  return {
+    enabled: false,
+    producersEnabled: false,
+    consumersEnabled: false,
+    close: async () => {},
+  };
 }

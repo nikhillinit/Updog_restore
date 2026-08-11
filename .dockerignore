@@ -17,6 +17,7 @@ test-results
 *.md
 docs
 .github
+ml-service
 dist
 build
 *.log

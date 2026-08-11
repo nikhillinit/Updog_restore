@@ -14,7 +14,7 @@
       {
         "kind": "container-http-entrypoint",
         "line": 56,
-        "text": "CMD node -e \"require('http').get('http://localhost:3000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))\""
+        "text": "CMD [\"node\", \"-e\", \"require('http').get('http://localhost:3000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))\"]"
       },
       {
         "kind": "container-http-entrypoint",
@@ -27,15 +27,14 @@
   },
   {
     "candidate_path": "Dockerfile.railway",
-    "listener_id": "dockerfile-railway",
-    "fingerprint": "3b2f984074821655b9efcb80581659c3e3d4fd5055bd02a9bec62977b082d4c2",
+    "listener_id": "legacy-dockerfile-railway",
+    "fingerprint": "6edadba040ee4f143ebfb4aaeecf78147f5ac8bbbee7bc33fa0c92f97b6ea913",
     "evidence": [
       "Dockerfile.railway:41",
       "Dockerfile.railway:45"
     ],
-    "disposition": "product-surface",
-    "row_namespace": "api",
-    "route_extraction_strategy": "container-entrypoint-evidence",
+    "disposition": "non-product-tooling",
+    "rationale": "Legacy undeployed Railway API container evidence; inventory-gated and excluded from production topology.",
     "detected_listener_patterns": [
       {
         "kind": "container-http-entrypoint",
@@ -49,7 +48,7 @@
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Individually reviewed dockerfile-railway at Dockerfile.railway; discovery evidence [\"Dockerfile.railway:41\",\"Dockerfile.railway:45\"]; classification product-surface; extraction strategy container-entrypoint-evidence."
+    "decision_evidence": "Dockerfile.railway is legacy non-product tooling retired from production topology by ADR-080; railway.toml is absent."
   },
   {
     "candidate_path": "Dockerfile.simple",
@@ -80,10 +79,10 @@
   {
     "candidate_path": "Dockerfile.worker",
     "listener_id": "dockerfile-worker",
-    "fingerprint": "8d2d97532e34ebee1b2ac7bed6ac11cef39c3b3e3ad0cddf7e675c81d6ded08e",
+    "fingerprint": "d34c0c0a79520e193bd7e392a398208f5d2bb825a8af98823e49741dfe5fa6a5",
     "evidence": [
-      "Dockerfile.worker:158",
-      "Dockerfile.worker:170"
+      "Dockerfile.worker:163",
+      "Dockerfile.worker:175"
     ],
     "disposition": "product-surface",
     "row_namespace": "api",
@@ -91,17 +90,17 @@
     "detected_listener_patterns": [
       {
         "kind": "container-http-entrypoint",
-        "line": 158,
+        "line": 163,
         "text": "CMD node /app/healthcheck.js"
       },
       {
         "kind": "container-http-entrypoint",
-        "line": 170,
-        "text": "CMD node dist/workers/${WORKER_TYPE}-worker.js"
+        "line": 175,
+        "text": "CMD [\"sh\", \"-c\", \"case \\\"$WORKER_TYPE\\\" in fund-scenario-calc|capital-call-status) exec node \\\"dist/workers/$WORKER_TYPE-worker.js\\\" ;; *) echo 'WORKER_TYPE must be fund-scenario-calc or capital-call-status' >&2; exit 1 ;; esac\"]"
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Individually reviewed dockerfile-worker at Dockerfile.worker; discovery evidence [\"Dockerfile.worker:158\",\"Dockerfile.worker:170\"]; classification product-surface; extraction strategy container-entrypoint-evidence."
+    "decision_evidence": "Dockerfile.worker:161-175 defines healthcheck, non-root runtime, dumb-init, and an allowlist restricting production WORKER_TYPE to fund-scenario-calc or capital-call-status."
   },
   {
     "candidate_path": "ml-service/app.py",
@@ -202,8 +201,8 @@
     "listener_id": "server-bootstrap",
     "fingerprint": "ff2139dd6b19d303f689aba9382c158296c7ca09865bd1859659340444854be0",
     "evidence": [
-      "server/bootstrap.ts:47",
-      "server/bootstrap.ts:54"
+      "server/bootstrap.ts:48",
+      "server/bootstrap.ts:55"
     ],
     "disposition": "product-surface",
     "row_namespace": "api",
@@ -211,12 +210,12 @@
     "detected_listener_patterns": [
       {
         "kind": "node-http-server-creation",
-        "line": 47,
+        "line": 48,
         "text": "const server = await createServer(cfg, providers);"
       },
       {
         "kind": "node-listen",
-        "line": 54,
+        "line": 55,
         "text": "server.listen(cfg.PORT, () => {"
       }
     ],
@@ -270,9 +269,9 @@
   {
     "candidate_path": "workers/health-server.ts",
     "listener_id": "worker-health",
-    "fingerprint": "9109dc55ee3895d5a3d76014f825447c111b2b6f79f39e5154fbe13fdc6829f2",
+    "fingerprint": "e0e8dfe4c3d271eadcea25f6333f4dd066d65451131fa60879ce829283b78fe1",
     "evidence": [
-      "workers/health-server.ts:204"
+      "workers/health-server.ts:283"
     ],
     "disposition": "product-surface",
     "row_namespace": "listener",
@@ -280,11 +279,11 @@
     "detected_listener_patterns": [
       {
         "kind": "node-listen",
-        "line": 204,
-        "text": "app.listen(port, () => {"
+        "line": 283,
+        "text": "const server = app.listen(port);"
       }
     ],
     "decision_status": "approved",
-    "decision_evidence": "Individually reviewed worker-health at workers/health-server.ts; discovery evidence [\"workers/health-server.ts:204\"]; classification product-surface; extraction strategy literal-route-registration."
+    "decision_evidence": "workers/health-server.ts exposes worker /health, /live, /ready, /metrics, and /stats with deployment identity; strict G3 proof exercised both approved worker types."
   }
 ]

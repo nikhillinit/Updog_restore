@@ -52,8 +52,8 @@ const files = {
   review: path.join(matrixDir, 'g1-review.json'),
 };
 
-const readJson = (filePath, fallback) => fs.existsSync(filePath)
-  ? JSON.parse(fs.readFileSync(filePath, 'utf8'))
+const readJson = (filePath, fallback, fsApi = fs) => fsApi.existsSync(filePath)
+  ? JSON.parse(fsApi.readFileSync(filePath, 'utf8'))
   : fallback;
 
 const clone = (value) => globalThis.structuredClone(value);
@@ -81,13 +81,88 @@ const requiredValue = (argv, index, flag) => {
   return value;
 };
 
-export function parseArgs(argv) {
+const pathNodeExists = (target, fsApi = fs) => {
+  if (fsApi.existsSync(target)) return true;
+  if (typeof fsApi.lstatSync !== 'function') return false;
+  try {
+    return fsApi.lstatSync(target).isSymbolicLink();
+  } catch {
+    return false;
+  }
+};
+
+const canonicalPath = (target, fsApi = fs) => {
+  const absolute = path.resolve(target);
+  if (typeof fsApi.realpathSync !== 'function') return absolute;
+  let current = absolute;
+  const suffix = [];
+  while (!pathNodeExists(current, fsApi)) {
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    suffix.unshift(path.basename(current));
+    current = parent;
+  }
+  try {
+    return path.join(fsApi.realpathSync(current), ...suffix);
+  } catch (error) {
+    throw new Error(`Unable to canonicalize path ${target}: ${error.message}`, { cause: error });
+  }
+};
+
+const assertContainedPath = (target, baseDir, fsApi = fs, label = 'Atomic target') => {
+  const absoluteBase = path.resolve(baseDir);
+  const canonicalBase = canonicalPath(absoluteBase, fsApi);
+  if (typeof fsApi.realpathSync === 'function'
+    && pathNodeExists(absoluteBase, fsApi)
+    && canonicalBase !== absoluteBase) {
+    throw new Error(`${label} base directory resolves through symlink: ${baseDir}`);
+  }
+  const absoluteTarget = path.resolve(target);
+  const canonicalTarget = canonicalPath(absoluteTarget, fsApi);
+  const canonicalRelative = path.relative(canonicalBase, canonicalTarget);
+  if (canonicalRelative.startsWith('..') || path.isAbsolute(canonicalRelative)) {
+    throw new Error(`${label} resolves outside ${baseDir}: ${target}`);
+  }
+  return path.relative(absoluteBase, absoluteTarget);
+};
+
+const assertReviewFileSafe = ({ reviewFile, fileSet = files, baseDir = matrixDir, fsApi = fs } = {}) => {
+  if (!reviewFile) return;
+  assertContainedPath(reviewFile, baseDir, fsApi, 'Review file');
+  const reviewCanonical = canonicalPath(reviewFile, fsApi);
+  const reserved = {
+    matrix: fileSet.matrix,
+    inventory: fileSet.inventory,
+    requirements: fileSet.requirements,
+    listeners: fileSet.listeners,
+    candidates: fileSet.candidates,
+    exclusions: fileSet.exclusions,
+    orphans: fileSet.orphans,
+    render: fileSet.render,
+    authOverrides: fileSet.authOverrides,
+  };
+  for (const [name, target] of Object.entries(reserved)) {
+    if (target && reviewCanonical === canonicalPath(target, fsApi)) {
+      throw new Error(`Review file collides with reserved artifact ${name}`);
+    }
+  }
+};
+
+export function parseArgs(
+  argv,
+  {
+    matrixDir: reviewRoot = matrixDir,
+    defaultReviewFile = files.review,
+    pathRoot = repoRoot,
+    fsApi = fs,
+  } = {},
+) {
   const values = {
     command: argv[0] === 'init-review' ? 'init-review' : 'approve',
     dryRun: false,
     closeG1: false,
     fresh: false,
-    reviewFile: files.review,
+    reviewFile: defaultReviewFile,
   };
   const start = values.command === 'init-review' ? 1 : 0;
   for (let index = start; index < argv.length; index += 1) {
@@ -95,16 +170,17 @@ export function parseArgs(argv) {
     if (argument === '--dry-run') values.dryRun = true;
     else if (argument === '--close-g1') values.closeG1 = true;
     else if (argument === '--fresh') values.fresh = true;
-    else if (argument === '--review-file') values.reviewFile = path.resolve(repoRoot, requiredValue(argv, index, argument));
+    else if (argument === '--review-file') values.reviewFile = path.resolve(pathRoot, requiredValue(argv, index, argument));
     else if (argument === '--approver') values.approver = requiredValue(argv, index, argument);
     else if (argument === '--evidence') values.evidence = requiredValue(argv, index, argument);
     else throw new Error(`Unknown argument: ${argument}`);
     if (['--review-file', '--approver', '--evidence'].includes(argument)) index += 1;
   }
 
-  if (!values.reviewFile.startsWith(`${matrixDir}${path.sep}`) && values.reviewFile !== matrixDir) {
-    throw new Error(`--review-file must be inside ${matrixDir}`);
+  if (!values.reviewFile.startsWith(`${reviewRoot}${path.sep}`) && values.reviewFile !== reviewRoot) {
+    throw new Error(`--review-file must be inside ${reviewRoot}`);
   }
+  assertContainedPath(values.reviewFile, reviewRoot, fsApi, 'Review file');
   if (values.command === 'init-review' && (values.closeG1 || values.fresh || values.approver || values.evidence)) {
     throw new Error('init-review accepts only --review-file and --dry-run');
   }
@@ -118,13 +194,9 @@ export function parseArgs(argv) {
   return values;
 }
 
-const relativeTarget = (target) => {
-  const absolute = path.resolve(target);
-  const relative = path.relative(matrixDir, absolute);
-  if (relative.startsWith('..') || path.isAbsolute(relative)) {
-    throw new Error(`Atomic target must be inside ${matrixDir}: ${target}`);
-  }
-  return relative || path.basename(absolute);
+const relativeTarget = (target, baseDir = matrixDir, fsApi = fs) => {
+  const relative = assertContainedPath(target, baseDir, fsApi);
+  return relative || path.basename(path.resolve(target));
 };
 
 const serialized = (value) => typeof value === 'string' ? value : `${JSON.stringify(value, null, 2)}\n`;
@@ -133,12 +205,20 @@ const serialized = (value) => typeof value === 'string' ? value : `${JSON.string
  * Swap a complete artifact set with rollback. `fsApi.renameSync` is the
  * deliberate injection seam for failure-injection tests.
  */
-export function atomicWriteSet({ writes = [], deletes = [], fsApi = fs } = {}) {
+export function atomicWriteSet({ writes = [], deletes = [], fsApi = fs, baseDir = matrixDir } = {}) {
   const entries = new Map();
-  for (const [target, value] of writes) entries.set(relativeTarget(target), { value });
-  for (const target of deletes) entries.set(relativeTarget(target), { delete: true });
-  const stage = fsApi.mkdtempSync(path.join(matrixDir, '.g1-stage-'));
-  const backup = fsApi.mkdtempSync(path.join(matrixDir, '.g1-backup-'));
+  const addEntry = (target, entry) => {
+    const relative = relativeTarget(target, baseDir, fsApi);
+    const canonical = canonicalPath(target, fsApi);
+    if (entries.has(relative) || [...entries.values()].some((existing) => existing.canonical === canonical)) {
+      throw new Error(`Atomic transaction target collision: ${relative}`);
+    }
+    entries.set(relative, { ...entry, canonical });
+  };
+  for (const [target, value] of writes) addEntry(target, { value });
+  for (const target of deletes) addEntry(target, { delete: true });
+  const stage = fsApi.mkdtempSync(path.join(baseDir, '.g1-stage-'));
+  const backup = fsApi.mkdtempSync(path.join(baseDir, '.g1-backup-'));
   const moved = [];
   const installed = [];
 
@@ -151,7 +231,12 @@ export function atomicWriteSet({ writes = [], deletes = [], fsApi = fs } = {}) {
     }
 
     for (const relative of entries.keys()) {
-      const targetPath = path.join(matrixDir, relative);
+      assertContainedPath(path.join(baseDir, relative), baseDir, fsApi);
+    }
+
+    for (const relative of entries.keys()) {
+      const targetPath = path.join(baseDir, relative);
+      assertContainedPath(targetPath, baseDir, fsApi);
       if (!fsApi.existsSync(targetPath)) continue;
       const backupPath = path.join(backup, relative);
       fsApi.mkdirSync(path.dirname(backupPath), { recursive: true });
@@ -162,7 +247,8 @@ export function atomicWriteSet({ writes = [], deletes = [], fsApi = fs } = {}) {
     for (const [relative, entry] of entries) {
       if (entry.delete) continue;
       const stagedPath = path.join(stage, relative);
-      const targetPath = path.join(matrixDir, relative);
+      const targetPath = path.join(baseDir, relative);
+      assertContainedPath(targetPath, baseDir, fsApi);
       fsApi.renameSync(stagedPath, targetPath);
       installed.push({ targetPath });
     }
@@ -332,7 +418,7 @@ const assertLockedPersonaMappings = (manifest) => {
   return mappings;
 };
 
-const verifyManifestKeys = (manifest, state, args) => {
+export const verifyManifestKeys = (manifest, state, args) => {
   if (manifest.snapshot_id !== state.inventory.snapshot_id
     || stableJson(manifest.source_fingerprints ?? {}) !== stableJson(state.inventory.source_hashes ?? {})) {
     throw new Error('Review manifest source fingerprints or snapshot are stale; regenerate g1-review.json');
@@ -406,7 +492,17 @@ const applyCoverageAttestation = (document, row, key, attestation, globalEvidenc
   if (status !== 'confirmed') throw new Error(`Coverage attestation must be confirmed or none-reviewed: ${obligationKey}`);
   const evidenceItems = attestation.test_evidence ?? attestation.evidence_items ?? [];
   if (!Array.isArray(evidenceItems) || evidenceItems.length === 0) throw new Error(`Confirmed coverage needs test evidence: ${obligationKey}`);
-  row.test_evidence = { ...row.test_evidence, manual: [...(row.test_evidence?.manual ?? []), ...clone(evidenceItems)] };
+  const evidenceByValue = new Map();
+  for (const evidence of [...(row.test_evidence?.manual ?? []), ...evidenceItems]) {
+    const serializedEvidence = stableJson(evidence);
+    if (!evidenceByValue.has(serializedEvidence)) evidenceByValue.set(serializedEvidence, evidence);
+  }
+  row.test_evidence = {
+    ...row.test_evidence,
+    manual: [...evidenceByValue.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([, evidence]) => clone(evidence)),
+  };
   delete document.coverage_review[obligationKey];
   return obligationKey;
 };
@@ -472,6 +568,102 @@ const offRowFingerprint = (state, category, item) => {
   if (category === 'exclusions') return runtimeExclusionFingerprint(item);
   if (category === 'orphans') return orphanResolutionFingerprint(item);
   return absenceEvidenceFingerprint(item);
+};
+
+const mapReviewCollection = (collection, update) => {
+  if (Array.isArray(collection)) return collection.map((entry, index) => update(entry, String(index)));
+  if (!collection || typeof collection !== 'object') return collection;
+  return Object.fromEntries(Object.entries(collection).map(([key, entry]) => [key, update(entry, key)]));
+};
+
+export const rebindReviewManifest = (manifest, state) => {
+  const rebound = clone(manifest);
+  rebound.snapshot_id = state.inventory.snapshot_id;
+  rebound.source_fingerprints = clone(state.inventory.source_hashes);
+  const rowsById = new Map(state.matrix.rows.map((row) => [canonicalRowId(row.id), row]));
+  const rowForReview = (entry, key) => {
+    const rowId = entry?.row_id ?? key;
+    if (!rowId) throw new Error('Review manifest row entry requires row_id');
+    const row = rowsById.get(canonicalRowId(String(rowId)));
+    if (!row) throw new Error(`Review manifest names unknown row ${rowId}`);
+    return row;
+  };
+  const rebindRowEntry = (entry, key) => {
+    const row = rowForReview(entry, key);
+    const fingerprint = contractFingerprint(row);
+    const next = {
+      ...entry,
+      row_id: entry.row_id ?? row.id,
+      contract_fingerprint: fingerprint,
+      source_fingerprints: sourceFingerprintsForRow(row, state.inventory),
+    };
+    if (next.exposure_attestations && typeof next.exposure_attestations === 'object') {
+      next.exposure_attestations = Object.fromEntries(
+        Object.entries(next.exposure_attestations).map(([coverageKey, attestation]) => [
+          coverageKey,
+          attestation && typeof attestation === 'object'
+            ? { ...attestation, contract_fingerprint: fingerprint }
+            : attestation,
+        ])
+      );
+    }
+    return next;
+  };
+  if (rebound.rows) rebound.rows = mapReviewCollection(rebound.rows, rebindRowEntry);
+
+  const rebindCoverageEntry = (entry, key) => {
+    const [rowId] = String(key).split('|', 1);
+    const row = rowsById.get(canonicalRowId(rowId));
+    if (!row) throw new Error(`Review manifest names unknown row ${rowId}`);
+    if (!entry || typeof entry !== 'object') return entry;
+    return { ...entry, contract_fingerprint: contractFingerprint(row) };
+  };
+  if (rebound.exposure_attestations) {
+    rebound.exposure_attestations = mapReviewCollection(rebound.exposure_attestations, rebindCoverageEntry);
+  }
+
+  const stateCollections = {
+    listeners: state.listeners ?? [],
+    candidates: state.candidates ?? [],
+    exclusions: state.exclusions ?? [],
+    orphans: state.orphans ?? [],
+    requirements: state.requirements?.families ?? [],
+  };
+  const idFor = {
+    listeners: (item) => item.listener_id,
+    candidates: (item) => item.path,
+    exclusions: (item) => item.id ?? item.exclusion_id ?? item.layer_id,
+    orphans: (item) => item.id,
+    requirements: (item) => item.id,
+  };
+  const rebindOffRowCollection = (category, collection) => {
+    if (!collection) return collection;
+    const byId = new Map((stateCollections[category] ?? []).map((item) => [String(idFor[category](item)), item]));
+    return mapReviewCollection(collection, (entry, key) => {
+      const id = String(entry?.id ?? entry?.listener_id ?? entry?.path ?? entry?.row_id ?? key);
+      const item = byId.get(id);
+      if (!item) throw new Error(`Off-row manifest names unknown ${category} entry ${id}`);
+      const fingerprint = offRowFingerprint(state, category, item);
+      if (category === 'listeners') return { ...entry, fingerprint };
+      if (category === 'orphans') return {
+        ...entry,
+        resolution_fingerprint: fingerprint,
+        contract_fingerprint: fingerprint,
+      };
+      return { ...entry, contract_fingerprint: fingerprint };
+    });
+  };
+  if (rebound.off_row_dispositions) {
+    for (const category of Object.keys(stateCollections)) {
+      if (rebound.off_row_dispositions[category]) {
+        rebound.off_row_dispositions[category] = rebindOffRowCollection(
+          category,
+          rebound.off_row_dispositions[category],
+        );
+      }
+    }
+  }
+  return G1ReviewManifestSchema.parse(rebound);
 };
 
 const reviewedOffRowFingerprint = (category, review) => category === 'listeners'
@@ -553,20 +745,20 @@ const applyClosureReviews = (state, manifest) => {
   }
 };
 
-const loadState = () => {
-  const matrix = SurfaceMatrixDocumentSchema.parse(readJson(files.matrix));
-  const inventory = SourceInventorySchema.parse(readJson(files.inventory));
-  const listeners = ListenerDispositionsSchema.parse(readJson(files.listeners, []));
-  const exclusions = RuntimeExclusionsSchema.parse(readJson(files.exclusions, []));
+const loadState = ({ fileSet = files, fsApi = fs, rootDir = repoRoot } = {}) => {
+  const matrix = SurfaceMatrixDocumentSchema.parse(readJson(fileSet.matrix, undefined, fsApi));
+  const inventory = SourceInventorySchema.parse(readJson(fileSet.inventory, undefined, fsApi));
+  const listeners = ListenerDispositionsSchema.parse(readJson(fileSet.listeners, [], fsApi));
+  const exclusions = RuntimeExclusionsSchema.parse(readJson(fileSet.exclusions, [], fsApi));
   const state = {
     matrix,
     inventory,
-    requirements: RequirementsDocumentSchema.parse(readJson(files.requirements, { families: [] })),
+    requirements: RequirementsDocumentSchema.parse(readJson(fileSet.requirements, { families: [] }, fsApi)),
     listeners,
-    candidates: readJson(files.candidates, []),
+    candidates: readJson(fileSet.candidates, [], fsApi),
     exclusions,
-    orphans: readJson(files.orphans, []),
-    listenerCandidates: discoverHttpListenerCandidates({ rootDir: repoRoot }),
+    orphans: readJson(fileSet.orphans, [], fsApi),
+    listenerCandidates: discoverHttpListenerCandidates({ rootDir }),
   };
   return state;
 };
@@ -647,7 +839,11 @@ const freshState = (state) => {
   return next;
 };
 
-const validateCandidate = async (state, candidate, { closeG1 = false, resetSafe = false } = {}) => {
+const validateCandidate = async (
+  state,
+  candidate,
+  { closeG1 = false, resetSafe = false, rootDir = repoRoot } = {},
+) => {
   const errors = [];
   let baseline;
   if (!resetSafe) {
@@ -671,7 +867,7 @@ const validateCandidate = async (state, candidate, { closeG1 = false, resetSafe 
   } catch (error) {
     errors.push(`candidate/off-row schema validation: ${error.message}`);
   }
-  const discoveredRoles = resetSafe ? [] : discoverAuthRoleEvidence({ rootDir: repoRoot }).roles;
+  const discoveredRoles = resetSafe ? [] : discoverAuthRoleEvidence({ rootDir }).roles;
   if (!resetSafe) {
     try {
       assertAuthRoleMappingExhaustive(discoveredRoles, AUTH_IDENTITY_PERSONA_MAPPING);
@@ -721,7 +917,18 @@ const renderState = (state) => renderMatrix({
   orphans: state.orphans,
 });
 
-const writeState = (state, rendered, { reviewFile, deleteReview = false } = {}) => {
+const writeState = (
+  state,
+  rendered,
+  {
+    reviewFile,
+    reviewManifest,
+    deleteReview = false,
+    fileSet = files,
+    matrixDir: targetMatrixDir = matrixDir,
+    fsApi = fs,
+  } = {},
+) => {
   SurfaceMatrixDocumentSchema.parse(state.matrix);
   SourceInventorySchema.parse(state.inventory);
   ListenerDispositionsSchema.parse(state.listeners);
@@ -732,22 +939,27 @@ const writeState = (state, rendered, { reviewFile, deleteReview = false } = {}) 
   const matrixArtifact = { ...state.matrix };
   delete matrixArtifact.orphans;
   const writes = [
-    [files.matrix, matrixArtifact],
-    [files.requirements, state.requirements],
-    [files.listeners, state.listeners],
-    [files.candidates, state.candidates],
-    [files.exclusions, state.exclusions],
-    [files.orphans, state.orphans],
-    [files.render, rendered],
+    [fileSet.matrix, matrixArtifact],
+    [fileSet.requirements, state.requirements],
+    [fileSet.listeners, state.listeners],
+    [fileSet.candidates, state.candidates],
+    [fileSet.exclusions, state.exclusions],
+    [fileSet.orphans, state.orphans],
+    [fileSet.render, rendered],
   ];
-  const deletes = [files.authOverrides];
+  if (reviewFile && reviewManifest) writes.push([reviewFile, reviewManifest]);
+  const deletes = [fileSet.authOverrides];
   if (deleteReview && reviewFile) deletes.push(reviewFile);
-  atomicWriteSet({ writes, deletes });
+  assertReviewFileSafe({ reviewFile, fileSet, baseDir: targetMatrixDir, fsApi });
+  atomicWriteSet({ writes, deletes, fsApi, baseDir: targetMatrixDir });
 };
 
-const initReview = async (args) => {
-  const state = loadState();
-  const validation = await validateCandidate(state, state.matrix);
+const initReview = async (
+  args,
+  { fileSet = files, fsApi = fs, rootDir = repoRoot, matrixDir: targetMatrixDir = matrixDir } = {},
+) => {
+  const state = loadState({ fileSet, fsApi, rootDir });
+  const validation = await validateCandidate(state, state.matrix, { rootDir });
   if (validation.errors.length > 0) throw new Error(`Review initialization validation failed:\n${validation.errors.join('\n')}`);
   const rows = Object.fromEntries(state.matrix.rows
     .sort((left, right) => left.id.localeCompare(right.id))
@@ -815,18 +1027,38 @@ const initReview = async (args) => {
     source_fingerprints: Object.keys(review.source_fingerprints).length,
     coverage_obligations: validation.coverage.length,
   };
-  if (!args.dryRun) atomicWriteSet({ writes: [[args.reviewFile, review]], deletes: [files.authOverrides] });
+  if (!args.dryRun) atomicWriteSet({
+    writes: [[args.reviewFile, review]],
+    deletes: [fileSet.authOverrides],
+    fsApi,
+    baseDir: targetMatrixDir,
+  });
   return result;
 };
 
-export async function approveMatrix(argv = process.argv.slice(2)) {
-  const args = parseArgs(argv);
-  if (args.command === 'init-review') return initReview(args);
+export async function approveMatrix(argv = process.argv.slice(2), options = {}) {
+  const fileSet = options.files ?? files;
+  const targetMatrixDir = options.matrixDir ?? path.dirname(fileSet.matrix);
+  const rootDir = options.repoRoot ?? repoRoot;
+  const fsApi = options.fsApi ?? fs;
+  const args = parseArgs(argv, {
+    matrixDir: targetMatrixDir,
+    defaultReviewFile: fileSet.review,
+    pathRoot: rootDir,
+    fsApi,
+  });
+  assertReviewFileSafe({ reviewFile: args.reviewFile, fileSet, baseDir: targetMatrixDir, fsApi });
+  if (args.command === 'init-review') return initReview(args, {
+    fileSet,
+    fsApi,
+    rootDir,
+    matrixDir: targetMatrixDir,
+  });
 
-  let state = loadState();
+  let state = loadState({ fileSet, fsApi, rootDir });
   if (args.fresh) {
     state = freshState(state);
-    const validation = await validateCandidate(state, state.matrix, { resetSafe: true });
+    const validation = await validateCandidate(state, state.matrix, { resetSafe: true, rootDir });
     if (validation.errors.length > 0) throw new Error(`Fresh reset validation failed:\n${validation.errors.join('\n')}`);
     const rendered = renderState(state);
     const result = {
@@ -837,11 +1069,17 @@ export async function approveMatrix(argv = process.argv.slice(2)) {
       coverage_obligations: validation.coverage.length,
       render_sha256: sha256(rendered),
     };
-    if (!args.dryRun) writeState(state, rendered, { reviewFile: args.reviewFile, deleteReview: true });
+    if (!args.dryRun) writeState(state, rendered, {
+      reviewFile: args.reviewFile,
+      deleteReview: true,
+      fileSet,
+      matrixDir: targetMatrixDir,
+      fsApi,
+    });
     return result;
   }
 
-  const manifest = G1ReviewManifestSchema.parse(readJson(args.reviewFile));
+  const manifest = G1ReviewManifestSchema.parse(readJson(args.reviewFile, undefined, fsApi));
   const { reviewedRowIds } = verifyManifestKeys(manifest, state, args);
   const candidateState = clone(state);
   applyPersonaMappings(candidateState.matrix.rows, manifest);
@@ -869,7 +1107,10 @@ export async function approveMatrix(argv = process.argv.slice(2)) {
         .map((family) => [family.id, family.matched_ids])),
     };
   }
-  const validation = await validateCandidate(candidateState, candidateState.matrix, { closeG1: args.closeG1 });
+  const validation = await validateCandidate(candidateState, candidateState.matrix, {
+    closeG1: args.closeG1,
+    rootDir,
+  });
   if (validation.errors.length > 0) throw new Error(`Approval validation failed:\n${validation.errors.join('\n')}`);
   const rendered = renderState(candidateState);
   const result = {
@@ -889,9 +1130,20 @@ export async function approveMatrix(argv = process.argv.slice(2)) {
     },
     render_sha256: sha256(rendered),
   };
-  if (!args.dryRun) writeState(candidateState, rendered);
+  if (!args.dryRun) {
+    const reviewManifest = args.closeG1 ? undefined : rebindReviewManifest(manifest, candidateState);
+    writeState(candidateState, rendered, {
+      reviewFile: reviewManifest ? args.reviewFile : undefined,
+      reviewManifest,
+      fileSet,
+      matrixDir: targetMatrixDir,
+      fsApi,
+    });
+  }
   return result;
 }
+
+export const approveMatrixInWorkspace = (argv = process.argv.slice(2), options = {}) => approveMatrix(argv, options);
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
   approveMatrix().then((result) => process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)).catch((error) => {

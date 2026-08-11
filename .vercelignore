@@ -8,3 +8,6 @@ tools_local/
 *.log
 coverage/
 .nyc_output/
+
+# Local-only ML service; never upload it with Vercel production artifacts.
+ml-service/

@@ -50,14 +50,18 @@ COPY --from=build --chown=worker:nodejs /app/node_modules ./node_modules
 COPY --from=build --chown=worker:nodejs /app/package*.json ./
 COPY --from=build --chown=worker:nodejs /app/shared ./shared
 
-# Worker type environment variable (set at runtime)
-ENV WORKER_TYPE=fund-scenario-calc
+# Worker health port; worker type is required at runtime.
 ENV WORKER_HEALTH_PORT=9000
 
 # Health check script
 COPY --chown=worker:nodejs <<'EOF' /app/healthcheck.js
 const net = require('net');
-const workerType = process.env.WORKER_TYPE || 'reserve';
+const workerType = process.env.WORKER_TYPE?.trim();
+
+if (!workerType) {
+  console.error('WORKER_TYPE is required for worker health checks');
+  process.exit(1);
+}
 
 function firstValidPort(...values) {
   for (const value of values) {
@@ -73,6 +77,7 @@ function firstValidPort(...values) {
 const healthServerPort = firstValidPort(
   process.env.WORKER_HEALTH_PORT,
   process.env.FUND_SCENARIO_WORKER_HEALTH_PORT,
+  process.env.CAPITAL_CALL_STATUS_WORKER_HEALTH_PORT,
   process.env.PORT,
   '9000'
 );
@@ -103,10 +108,10 @@ socket.on('connect', () => {
       try {
         const health = JSON.parse(data);
 
-        // Check if our worker is healthy
-        const worker = health.workers?.find(w => w.name.includes(workerType));
+        // Require a healthy overall response and an exact worker-name match.
+        const worker = health.workers?.find(w => w.name === workerType);
 
-        if (worker && worker.status === 'healthy') {
+        if (res.statusCode === 200 && health.status === 'healthy' && worker && worker.status === 'healthy') {
           console.log(`Worker ${workerType} is healthy`);
           socket.destroy();
           process.exit(0);
@@ -166,5 +171,5 @@ USER worker
 # Use dumb-init for proper signal handling
 ENTRYPOINT ["dumb-init", "--"]
 
-# Worker entry point (determined by WORKER_TYPE env var)
-CMD node dist/workers/${WORKER_TYPE}-worker.js
+# Worker entry point. Only two dedicated production workers are supported.
+CMD ["sh", "-c", "case \"$WORKER_TYPE\" in fund-scenario-calc|capital-call-status) exec node \"dist/workers/$WORKER_TYPE-worker.js\" ;; *) echo 'WORKER_TYPE must be fund-scenario-calc or capital-call-status' >&2; exit 1 ;; esac"]
