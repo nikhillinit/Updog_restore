@@ -34,7 +34,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash --noprofile --norc -c \"source 'C:/dev/Updog_restore/scripts/hooks/session-start-hook.sh'\"",
+            "command": "bash --noprofile --norc -c \"source '${CLAUDE_PROJECT_DIR}/scripts/hooks/session-start-hook.sh'\"",
             "timeout": 10
           }
         ]
@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash --noprofile --norc -c \"source 'C:/dev/Updog_restore/scripts/hooks/complexity-checkpoint-hook.sh'\"",
+            "command": "bash --noprofile --norc -c \"source '${CLAUDE_PROJECT_DIR}/scripts/hooks/complexity-checkpoint-hook.sh'\"",
             "timeout": 20
           }
         ]
@@ -69,7 +69,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npm run lint:fix"
+            "command": "npm run lint:eslint"
           }
         ]
       },
@@ -91,6 +91,7 @@
   },
   "enabledPlugins": {
     "cicd-automation@claude-code-workflows": false,
-    "playwright@claude-plugins-official": true
+    "playwright@claude-plugins-official": true,
+    "vercel@claude-plugins-official": true
   }
 }

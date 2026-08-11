@@ -12348,6 +12348,37 @@
     {
       "docType": "doc",
       "exists": true,
+      "frontmatter": {
+        "audience": "agents",
+        "categories": [
+          "ai-automation",
+          "orchestration",
+          "implementation-plan"
+        ],
+        "keywords": [
+          "sol-advisor",
+          "codex",
+          "ultra",
+          "fast-mode",
+          "configuration",
+          "migration"
+        ],
+        "last_updated": "2026-08-09",
+        "owner": "Developer Experience",
+        "review_cadence": "P90D",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-08-09",
+      "owner": "Developer Experience",
+      "path": "docs/superpowers/plans/2026-08-09-sol-advisor-capability-aware-configuration.md",
+      "staleDays": 2,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
       "frontmatter": {},
       "hasExecutionClaims": false,
       "isStale": true,
@@ -12572,6 +12603,37 @@
       "path": "docs/superpowers/specs/2026-07-30-task163-go-readiness-briefs.md",
       "staleDays": 999,
       "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {
+        "audience": "agents",
+        "categories": [
+          "ai-automation",
+          "orchestration",
+          "design"
+        ],
+        "keywords": [
+          "sol-advisor",
+          "agents",
+          "routing",
+          "ledger",
+          "approval",
+          "recovery"
+        ],
+        "last_updated": "2026-08-09",
+        "owner": "Developer Experience",
+        "review_cadence": "P90D",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": true,
+      "isStale": false,
+      "lastUpdated": "2026-08-09",
+      "owner": "Developer Experience",
+      "path": "docs/superpowers/specs/2026-08-09-sol-advisor-orchestration-control-plane-design.md",
+      "staleDays": 2,
+      "status": "ACTIVE"
     },
     {
       "docType": "doc",
@@ -14168,7 +14230,7 @@
   "stats": {
     "by_status": {
       "ACCEPTED (amended 2026-06-21)": 1,
-      "ACTIVE": 453,
+      "ACTIVE": 455,
       "ARCHIVED": 1,
       "BACKLOG": 1,
       "COMPLETE": 3,
@@ -14190,7 +14252,7 @@
     },
     "missing_frontmatter": 79,
     "stale_docs": 502,
-    "total_docs": 728
+    "total_docs": 730
   },
   "version": "2.0"
 }
