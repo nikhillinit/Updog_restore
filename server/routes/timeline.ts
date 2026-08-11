@@ -222,14 +222,14 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
         throw new NotFoundError(`Fund ${fundIdNum} not found`);
       }
 
-      // Get queue from providers
-      const providers = (
-        req as { app: { locals: { providers?: { queue?: { enabled: boolean } } } } }
-      ).app.locals.providers;
-
-      // Only create snapshot if queues are enabled
-      if (!providers?.queue?.enabled) {
-        throw new Error('Background queues not available in this environment');
+      const runtimeEnvironment = String(process.env['NODE_ENV']);
+      const productionLike =
+        runtimeEnvironment === 'staging' || runtimeEnvironment === 'production';
+      if (productionLike) {
+        return res.status(503).json({
+          error: 'QUEUE_UNAVAILABLE',
+          message: 'Timeline snapshot creation is unavailable in this environment',
+        });
       }
 
       // For development mode, just return a mock response
@@ -238,13 +238,13 @@ export function createTimelineRouter(service: TimeTravelAnalyticsService) {
         type,
       });
 
-      recordBusinessMetric('snapshot_creation', 'queued', Date.now() - startTimer);
+      recordBusinessMetric('snapshot_creation', 'success', Date.now() - startTimer);
 
-      res.status(202).json({
-        message: 'Snapshot creation requested (dev mode - no background processing)',
+      res.status(200).json({
+        message: 'Snapshot creation not executed in local diagnostic mode',
         fundId: fundIdNum,
         type,
-        estimatedCompletion: new Date(Date.now() + 30000).toISOString(),
+        executed: false,
       });
     })
   );

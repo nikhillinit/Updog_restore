@@ -77,6 +77,13 @@ const capitalCallStatusHardTimeoutDuration = getOrCreateHistogram(
   [1, 5, 10, 30, 60, 120, 300, 600]
 );
 
+const workerJobDuration = getOrCreateHistogram(
+  'worker_job_duration_seconds',
+  'Duration of terminal worker job attempts in seconds',
+  ['worker_type', 'outcome'],
+  [0.01, 0.05, 0.1, 0.5, 1, 5, 10, 30, 60, 300]
+);
+
 // Metrics wrapper function
 export async function withMetrics<T>(engineName: string, fn: () => Promise<T>): Promise<T> {
   const timer = engineLatency.startTimer({ engine: engineName });
@@ -110,6 +117,7 @@ export const metrics = {
   fundScenarioHardTimeoutDuration,
   capitalCallStatusHardTimeouts,
   capitalCallStatusHardTimeoutDuration,
+  workerJobDuration,
 
   // Helper methods
   recordQueueDepth: (queueName: string, jobType: string, depth: number) => {

@@ -7,6 +7,7 @@ import { config as loadDotenv } from 'dotenv';
 import pino from 'pino';
 import { z } from 'zod';
 import { assertSecureURL, validateCORSOrigins } from '../lib/url-security.js';
+import { assertQueueRuntimePolicy } from './queue-runtime-policy.js';
 import {
   PROFESSIONAL_DEMO_RUNTIME_MODE,
   getProfessionalDemoRuntimeConfigurationError,
@@ -33,6 +34,9 @@ const explicitQueueRedisUrl = process.env['QUEUE_REDIS_URL'];
 const explicitQueueRedisUrlMarker = process.env['_EXPLICIT_QUEUE_REDIS_URL'];
 const explicitEnableQueues = process.env['ENABLE_QUEUES'];
 const explicitEnableQueuesMarker = process.env['_EXPLICIT_ENABLE_QUEUES'];
+const explicitEnableInProcessQueueWorkers = process.env['ENABLE_IN_PROCESS_QUEUE_WORKERS'];
+const explicitEnableInProcessQueueWorkersMarker =
+  process.env['_EXPLICIT_ENABLE_IN_PROCESS_QUEUE_WORKERS'];
 const explicitDatabaseUrl = process.env.DATABASE_URL;
 const explicitDatabaseUrlMarker = process.env['_EXPLICIT_DATABASE_URL'];
 const explicitNeonDatabaseUrl = process.env['NEON_DATABASE_URL'];
@@ -97,6 +101,13 @@ if (
   explicitEnableQueues !== process.env['ENABLE_QUEUES']
 ) {
   process.env['ENABLE_QUEUES'] = explicitEnableQueues;
+}
+if (
+  explicitEnableInProcessQueueWorkersMarker &&
+  explicitEnableInProcessQueueWorkers !== undefined &&
+  explicitEnableInProcessQueueWorkers !== process.env['ENABLE_IN_PROCESS_QUEUE_WORKERS']
+) {
+  process.env['ENABLE_IN_PROCESS_QUEUE_WORKERS'] = explicitEnableInProcessQueueWorkers;
 }
 // Restore explicitly-set DATABASE_URL if .env tried to override it
 if (
@@ -184,6 +195,7 @@ const envSchema = z.object({
   QUEUE_REDIS_URL: z.string().url().or(z.literal('memory://')).optional(),
   SESSION_REDIS_URL: z.string().url().or(z.literal('memory://')).optional(),
   ENABLE_QUEUES: z.enum(['0', '1']).default('0'),
+  ENABLE_IN_PROCESS_QUEUE_WORKERS: z.enum(['0', '1']).default('0'),
 
   // Security & CORS
   CORS_ORIGIN: z
@@ -276,6 +288,14 @@ export function loadEnv() {
   }
 
   const base = parsed.data;
+
+  // Vercel runtime variables are intentionally read from the restored raw
+  // environment: Zod strips unknown keys from canonical configuration.
+  assertQueueRuntimePolicy({
+    ...base,
+    VERCEL: process.env['VERCEL'],
+    VERCEL_ENV: process.env['VERCEL_ENV'],
+  });
 
   // Computed environment helpers
   const config = {

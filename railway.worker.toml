@@ -3,11 +3,20 @@
 # railway.worker.toml so it does not pick up the API config in railway.toml.
 #
 # Required service variables (set in the Railway dashboard, never committed):
-#   NODE_ENV=production
-#   ENABLE_QUEUES=1
-#   REDIS_URL=<same prod Redis as the Vercel API>
-#   DATABASE_URL=<same prod Postgres as the Vercel API>
-#   WORKER_HEALTH_PORT=${{PORT}}   # maps Railway's injected PORT onto the worker health server
+#   NODE_ENV
+#   ENABLE_QUEUES
+#   DATABASE_URL
+#   REDIS_URL
+#   WORKER_TYPE
+#   WORKER_HEALTH_PORT
+#   FUND_SCENARIO_HARD_TIMEOUT_MS
+#   FUND_SCENARIO_SWEEP_ENABLED
+#
+# Railway-injected identity variables required by the worker runtime:
+#   RAILWAY_SERVICE_NAME
+#   RAILWAY_ENVIRONMENT_NAME
+#   RAILWAY_GIT_COMMIT_SHA
+#   RAILWAY_DEPLOYMENT_ID
 
 [build]
 builder = "dockerfile"

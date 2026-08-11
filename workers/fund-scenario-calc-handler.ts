@@ -49,6 +49,8 @@ export async function handleFundScenarioCalcJob(
   signal?: AbortSignal
 ) {
   const { fundId, scenarioSetId, correlationId, calculationMode, actor, runId } = job.data;
+  const startedAt = process.hrtime.bigint();
+  let outcome: 'success' | 'failure' | 'hard_timeout' = 'failure';
 
   logger.info('Processing reserve scenario calculation', {
     fundId,
@@ -86,10 +88,12 @@ export async function handleFundScenarioCalcJob(
         abortController: ownedAbortController,
       })
     );
+    outcome = 'success';
     return isScenarioCalculationOwnershipLost(result) ? undefined : result;
   } catch (error) {
     const err = error as Error;
     if (isFundScenarioHardTimeoutError(error)) {
+      outcome = 'hard_timeout';
       metrics.fundScenarioHardTimeouts?.inc();
       metrics.fundScenarioHardTimeoutDuration?.observe(getFundScenarioHardTimeoutMs() / 1000);
       throw new UnrecoverableError(err.message);
@@ -115,6 +119,10 @@ export async function handleFundScenarioCalcJob(
     });
     throw error;
   } finally {
+    metrics.workerJobDuration.observe(
+      { worker_type: 'fund-scenario-calc', outcome },
+      Number(process.hrtime.bigint() - startedAt) / 1_000_000_000
+    );
     signal?.removeEventListener('abort', onBullMqAbort);
   }
 }

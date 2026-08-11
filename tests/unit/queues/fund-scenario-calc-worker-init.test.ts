@@ -8,13 +8,13 @@ const {
   loggerErrorMock,
   handlerMock,
 } = vi.hoisted(() => ({
-    workerConstructorMock: vi.fn(),
-    workerOnMock: vi.fn(),
-    workerCloseMock: vi.fn().mockResolvedValue(undefined),
-    loggerInfoMock: vi.fn(),
-    loggerErrorMock: vi.fn(),
-    handlerMock: vi.fn(),
-  }));
+  workerConstructorMock: vi.fn(),
+  workerOnMock: vi.fn(),
+  workerCloseMock: vi.fn().mockResolvedValue(undefined),
+  loggerInfoMock: vi.fn(),
+  loggerErrorMock: vi.fn(),
+  handlerMock: vi.fn(),
+}));
 
 vi.mock('bullmq', () => ({
   Worker: function MockWorker(...args: unknown[]) {
@@ -36,9 +36,13 @@ vi.mock('../../../workers/fund-scenario-calc-handler.js', () => ({
 }));
 
 describe('initializeFundScenarioCalcWorker', () => {
-  beforeEach(() => {
+  let registry: typeof import('../../../server/queues/registry.js');
+
+  beforeEach(async () => {
     vi.clearAllMocks();
     vi.resetModules();
+    registry = await import('../../../server/queues/registry.js');
+    registry.resetQueueRegistry();
   });
 
   it('creates a BullMQ Worker on the fund-scenario-calc queue with correct settings', async () => {
@@ -68,6 +72,52 @@ describe('initializeFundScenarioCalcWorker', () => {
     await close();
 
     expect(workerCloseMock).toHaveBeenCalledTimes(1);
+    expect(registry.getRegisteredQueueRuntime('fund-scenario-calc')).toBeUndefined();
+  });
+
+  it('does not let a stale close handle stop or unregister its replacement', async () => {
+    const { initializeFundScenarioCalcWorker } =
+      await import('../../../server/queues/fund-scenario-calc-worker-init');
+    const mockRedis = {} as import('ioredis').default;
+
+    const first = await initializeFundScenarioCalcWorker(mockRedis);
+    await first.close();
+    const replacement = await initializeFundScenarioCalcWorker(mockRedis);
+
+    await first.close();
+
+    expect(workerCloseMock).toHaveBeenCalledTimes(1);
+    expect(registry.getRegisteredQueueRuntime('fund-scenario-calc')).toBeDefined();
+
+    await replacement.close();
+    expect(workerCloseMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('registers local consumer health as worker mode before a route producer exists', async () => {
+    const { initializeFundScenarioCalcWorker } =
+      await import('../../../server/queues/fund-scenario-calc-worker-init');
+
+    await initializeFundScenarioCalcWorker({} as import('ioredis').default);
+
+    expect(registry.getRegisteredQueueRuntime('fund-scenario-calc')).toMatchObject({
+      healthMode: 'worker',
+      isInitialized: expect.any(Function),
+    });
+  });
+
+  it('closes a constructed worker when listener registration fails', async () => {
+    workerOnMock.mockImplementationOnce(() => {
+      throw new Error('listener registration failed');
+    });
+    const { initializeFundScenarioCalcWorker } =
+      await import('../../../server/queues/fund-scenario-calc-worker-init');
+
+    await expect(initializeFundScenarioCalcWorker({} as import('ioredis').default)).rejects.toThrow(
+      'listener registration failed'
+    );
+
+    expect(workerCloseMock).toHaveBeenCalledTimes(1);
+    expect(registry.getRegisteredQueueRuntime('fund-scenario-calc')).toBeUndefined();
   });
 
   it('forwards BullMQ token and the exact AbortSignal to the dynamic handler', async () => {

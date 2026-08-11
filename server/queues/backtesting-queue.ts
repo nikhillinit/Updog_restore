@@ -23,6 +23,7 @@ import type {
 import { registerQueueRuntime, unregisterQueueRuntime } from './registry.js';
 import { getBullMQConnection } from './redis-connection.js';
 import { logger } from '../logger';
+import { sanitizeQueueError } from '../lib/queue-error-sanitizer.js';
 
 // ============================================================================
 // TYPES
@@ -144,11 +145,17 @@ async function closeBacktestingRuntime(): Promise<void> {
   const workerRef = worker;
   const queueRef = queue;
 
-  await workerRef?.close();
-  await queueRef?.close();
-
   resetBacktestingRuntimeState();
   unregisterQueueRuntime('backtesting');
+  const results = await Promise.allSettled([workerRef?.close(), queueRef?.close()]);
+  for (const result of results) {
+    if (result.status === 'rejected') {
+      logger.error(
+        '[backtesting-queue] Failed to close resource',
+        sanitizeQueueError(result.reason)
+      );
+    }
+  }
   logger.warn('[backtesting-queue] Closed');
 }
 
@@ -283,11 +290,14 @@ async function processBacktestJob(
 // Queue initialization
 // ---------------------------------------------------------------------------
 
-export async function initializeBacktestingQueue(redisConnection: IORedis): Promise<{
+export async function initializeBacktestingQueue(
+  redisConnection: IORedis,
+  { startConsumer }: { startConsumer: boolean }
+): Promise<{
   queue: Queue<BacktestJobData, BacktestJobResult, string>;
   close: () => Promise<void>;
 }> {
-  if (queue && worker) {
+  if (queue && (!startConsumer || worker)) {
     return {
       queue,
       close: closeBacktestingRuntime,
@@ -296,40 +306,59 @@ export async function initializeBacktestingQueue(redisConnection: IORedis): Prom
 
   const connection = getBullMQConnection(redisConnection);
 
-  queue = new Queue<BacktestJobData, BacktestJobResult, string>(QUEUE_NAME, {
-    connection,
-    defaultJobOptions: {
-      removeOnComplete: { count: 100 },
-      removeOnFail: { count: 50 },
-      attempts: 2,
-      backoff: { type: 'fixed', delay: 5000 },
-    },
-  });
+  try {
+    if (!queue) {
+      queue = new Queue<BacktestJobData, BacktestJobResult, string>(QUEUE_NAME, {
+        connection,
+        defaultJobOptions: {
+          removeOnComplete: { count: 100 },
+          removeOnFail: { count: 50 },
+          attempts: 2,
+          backoff: { type: 'fixed', delay: 5000 },
+        },
+      });
+    }
 
-  // eslint-disable-next-line povc-security/require-bullmq-config -- BullMQ uses lockDuration instead of timeout
-  worker = new Worker<BacktestJobData, BacktestJobResult, string>(QUEUE_NAME, processBacktestJob, {
-    connection,
-    concurrency: 2,
-    limiter: { max: 10, duration: 60000 },
-    autorun: true,
-    lockDuration: JOB_TIMEOUT_MS,
-  });
+    if (startConsumer) {
+      // eslint-disable-next-line povc-security/require-bullmq-config -- BullMQ uses lockDuration instead of timeout
+      worker = new Worker<BacktestJobData, BacktestJobResult, string>(
+        QUEUE_NAME,
+        processBacktestJob,
+        {
+          connection,
+          concurrency: 2,
+          limiter: { max: 10, duration: 60000 },
+          autorun: true,
+          lockDuration: JOB_TIMEOUT_MS,
+        }
+      );
 
-  worker.on('error', (error) => logger.error('[backtesting-queue] Worker error', error));
-  queue.on('error', (error) => logger.error('[backtesting-queue] Queue error', error));
-  staleSweepTimer = setInterval(() => sweepStaleJobs(), STALE_SWEEP_INTERVAL_MS);
-  registerQueueRuntime('backtesting', {
-    getQueue: () => queue,
-    getWorker: () => worker,
-    isInitialized: () => queue !== null && worker !== null,
-  });
-  logger.info('[backtesting-queue] Initialized');
+      worker.on('error', (error) =>
+        logger.error('[backtesting-queue] Worker error', sanitizeQueueError(error))
+      );
+      queue.on('error', (error) =>
+        logger.error('[backtesting-queue] Queue error', sanitizeQueueError(error))
+      );
+      staleSweepTimer = setInterval(() => sweepStaleJobs(), STALE_SWEEP_INTERVAL_MS);
+    }
+    registerQueueRuntime('backtesting', {
+      getQueue: () => queue,
+      ...(startConsumer ? { getWorker: () => worker } : {}),
+      isInitialized: () => queue !== null && (!startConsumer || worker !== null),
+      healthMode: startConsumer ? 'worker' : 'producer',
+      close: closeBacktestingRuntime,
+    });
+    logger.info('[backtesting-queue] Initialized');
 
-  const queueRef = queue;
-  return {
-    queue: queueRef,
-    close: closeBacktestingRuntime,
-  };
+    const queueRef = queue;
+    return {
+      queue: queueRef,
+      close: closeBacktestingRuntime,
+    };
+  } catch (error) {
+    await closeBacktestingRuntime();
+    throw error;
+  }
 }
 
 // ============================================================================

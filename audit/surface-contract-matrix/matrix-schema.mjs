@@ -84,6 +84,9 @@ export const ProvenReachabilitySchema = enumSchema(PROVEN_REACHABILITY_VALUES);
 
 export const DEPLOYMENT_VALUES = freezeValues([
   'vercel-api',
+  'railway-worker-fund-scenario-calc',
+  'railway-worker-capital-call-status',
+  'local-process',
   'railway-api',
   'railway-worker',
   'vercel-web',
@@ -245,15 +248,56 @@ export const BootProofSchema = z
     runtime: RuntimeSchema.optional(),
     boot_status: BootStatusSchema,
     boot_evidence: BootEvidenceSchema,
+    worker_identity: z
+      .object({
+        workerType: nonEmptyString,
+        commit: z.string().regex(/^[0-9a-f]{40}$/),
+        deploymentId: nonEmptyString,
+      })
+      .optional(),
   })
   .passthrough();
 
+export const BOOT_PROOF_SCHEMA_VERSION = '1.1.0';
+const railwayWorkerDeployments = new Set([
+  'railway-worker-fund-scenario-calc',
+  'railway-worker-capital-call-status',
+]);
+
 export const BootProofDocumentSchema = z
   .object({
-    schema_version: nonEmptyString,
+    schema_version: z.literal(BOOT_PROOF_SCHEMA_VERSION),
+    source_sha: z.string().regex(/^[0-9a-f]{40}$/),
     proofs: z.array(BootProofSchema),
   })
-  .passthrough();
+  .superRefine((document, context) => {
+    for (const [index, proof] of document.proofs.entries()) {
+      if (!railwayWorkerDeployments.has(proof.deployment) || proof.boot_status !== 'proven') continue;
+      if (!proof.worker_identity) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['proofs', index, 'worker_identity'],
+          message: 'Railway worker proofs require worker_identity',
+        });
+        continue;
+      }
+      const expectedWorkerType = proof.deployment.replace(/^railway-worker-/, '');
+      if (proof.worker_identity.workerType !== expectedWorkerType) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['proofs', index, 'worker_identity', 'workerType'],
+          message: 'Railway worker identity workerType must match deployment',
+        });
+      }
+      if (proof.worker_identity.commit !== document.source_sha) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['proofs', index, 'worker_identity', 'commit'],
+          message: 'Railway worker proof commit must equal source_sha',
+        });
+      }
+    }
+  });
 
 export const ExposureSchema = z
   .object({

@@ -79,6 +79,7 @@ code:
   - '.dockerignore'
   - 'railway.toml'
   - 'railway.worker.toml'
+  - 'railway.capital-call-status.worker.toml'
   - 'Dockerfile*'
   - '**/*.ts'
   - '**/*.tsx'

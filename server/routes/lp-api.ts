@@ -57,10 +57,29 @@ import {
 } from '../lib/lp-api-helpers';
 import { createRouteLogger } from '../lib/route-logger.js';
 import { productionFundPredicate } from '../lib/canary-exclusion';
+import { sanitizeQueueError } from '../lib/queue-error-sanitizer.js';
 
 const routeLog = createRouteLogger('lp-api');
 
 const router = Router();
+
+function reportPublicationSentinel(reportId: string): string {
+  return `Report generation queue publication pending: ${reportId}`;
+}
+
+function reportResponseStatus(status: unknown): 'pending' | 'generating' | 'ready' | 'failed' {
+  switch (status) {
+    case 'generating':
+    case 'ready':
+    case 'pending':
+      return status;
+    case 'error':
+    case 'failed':
+      return 'failed';
+    default:
+      return 'pending';
+  }
+}
 
 // ============================================================================
 // SCHEMA ISOLATION - Prevent LP access to simulation data
@@ -822,51 +841,111 @@ router.post(
           );
       }
 
-      // Create report record
+      if (!isReportQueueAvailable()) {
+        const duration = endTimer();
+        recordLPRequest(endpoint, 'POST', 503, duration, lpId);
+        recordError(endpoint, 'QUEUE_UNAVAILABLE', 503);
+        return res
+          .status(503)
+          .json(
+            createErrorResponse(
+              'QUEUE_UNAVAILABLE',
+              'Report generation is unavailable in this environment'
+            )
+          );
+      }
+
+      // Commit a terminal record before publishing work. This makes queue publication
+      // strictly post-commit and leaves enqueue failures observable instead of pending.
       const reportId = uuidv4();
       const idempotencyKey = `lp_${lpId}_report_${Date.now()}`;
+      const publicationSentinel = reportPublicationSentinel(reportId);
 
-      await db.insert(lpReports).values({
-        id: reportId,
-        lpId,
-        reportType: config.reportType,
-        reportPeriodStart: new Date(config.dateRange.startDate),
-        reportPeriodEnd: new Date(config.dateRange.endDate),
-        status: 'pending',
-        format: config.format || 'pdf',
-        templateId: config.templateId,
-        metadata: config.metadata,
-        idempotencyKey,
+      await db.transaction(async (tx) => {
+        await tx.insert(lpReports).values({
+          id: reportId,
+          lpId,
+          reportType: config.reportType,
+          reportPeriodStart: new Date(config.dateRange.startDate),
+          reportPeriodEnd: new Date(config.dateRange.endDate),
+          status: 'error',
+          format: config.format || 'pdf',
+          templateId: config.templateId,
+          metadata: config.metadata,
+          idempotencyKey,
+          errorMessage: publicationSentinel,
+        });
       });
 
-      // Queue report generation job with BullMQ (if queue is available)
-      if (isReportQueueAvailable()) {
-        try {
-          const { jobId, estimatedWaitMs } = await enqueueReportGeneration({
-            reportId,
-            lpId,
-            reportType: config.reportType,
-            dateRange: config.dateRange,
-            format: config.format || 'pdf',
-            ...(config.fundIds && { fundIds: config.fundIds }),
-            ...(config.sections && { sections: config.sections }),
-            ...(config.templateId && { templateId: config.templateId }),
-            ...(config.metadata && { metadata: config.metadata }),
-          });
-          logger.info(
-            { reportId, jobId, estimatedWaitMs, lpId, reportType: config.reportType },
-            '[LP-API] queued report generation'
+      let queued: { jobId: string; estimatedWaitMs: number };
+      try {
+        queued = await enqueueReportGeneration({
+          reportId,
+          lpId,
+          reportType: config.reportType,
+          dateRange: config.dateRange,
+          format: config.format || 'pdf',
+          ...(config.fundIds && { fundIds: config.fundIds }),
+          ...(config.sections && { sections: config.sections }),
+          ...(config.templateId && { templateId: config.templateId }),
+          ...(config.metadata && { metadata: config.metadata }),
+        });
+      } catch (error) {
+        routeLog.error(`[LP-API] Failed to queue report ${reportId}:`, sanitizeQueueError(error));
+        const duration = endTimer();
+        recordLPRequest(endpoint, 'POST', 503, duration, lpId);
+        recordError(endpoint, 'QUEUE_UNAVAILABLE', 503);
+        return res
+          .status(503)
+          .json(
+            createErrorResponse(
+              'QUEUE_UNAVAILABLE',
+              'Report generation is unavailable in this environment'
+            )
           );
-        } catch (queueError) {
-          routeLog.error(`[LP-API] Failed to queue report ${reportId}:`, queueError);
-          // Report is still created in pending state, can be retried
+      }
+
+      let responseStatus: 'pending' | 'generating' | 'ready' | 'failed' = 'pending';
+      try {
+        const reconciled = await db
+          .update(lpReports)
+          .set({ status: 'pending', errorMessage: null, updatedAt: new Date() })
+          .where(
+            and(
+              eq(lpReports.id, reportId),
+              eq(lpReports.status, 'error'),
+              eq(lpReports.errorMessage, publicationSentinel)
+            )
+          )
+          .returning({ status: lpReports.status });
+
+        if (reconciled.length === 0) {
+          const [currentReport] = await db
+            .select({ status: lpReports.status })
+            .from(lpReports)
+            .where(and(eq(lpReports.id, reportId), eq(lpReports.lpId, lpId)))
+            .limit(1);
+          if (currentReport) {
+            responseStatus = reportResponseStatus(currentReport.status);
+          }
         }
-      } else {
-        logger.info(
-          { reportId, lpId },
-          '[LP-API] report queue unavailable, leaving report pending'
+      } catch (statusError) {
+        routeLog.warn(
+          `[LP-API] Report ${reportId} queued before pending-state reconciliation:`,
+          statusError
         );
       }
+
+      logger.info(
+        {
+          reportId,
+          jobId: queued.jobId,
+          estimatedWaitMs: queued.estimatedWaitMs,
+          lpId,
+          reportType: config.reportType,
+        },
+        '[LP-API] queued report generation'
+      );
 
       res.setHeader('Content-Type', 'application/json');
 
@@ -878,8 +957,11 @@ router.post(
 
       return res.status(202).json({
         reportId,
-        status: 'pending',
-        message: 'Report generation queued',
+        status: responseStatus,
+        message:
+          responseStatus === 'pending'
+            ? 'Report generation queued'
+            : 'Report generation status updated',
       });
     } catch (error) {
       if (error instanceof z.ZodError) {

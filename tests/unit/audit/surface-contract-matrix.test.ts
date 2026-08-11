@@ -27,6 +27,7 @@ import {
   validateClosedPhaseInvariants,
   validateOffRowFingerprints,
   validateRowIntegrity,
+  validateRuntimeExclusionEvidence,
 } from '../../../audit/surface-contract-matrix/scripts/validate-matrix.mjs';
 import { renderMatrix } from '../../../audit/surface-contract-matrix/scripts/render-matrix.mjs';
 
@@ -259,7 +260,7 @@ describe('surface contract matrix CI gate', () => {
     const backtesting = matrix.rows.find((row) => row.id === 'worker:backtesting-jobs');
     expect(
       backtesting?.exposures.map((exposure) => `${exposure.deployment}|${exposure.runtime}`)
-    ).toEqual(['railway-api|create_server']);
+    ).toEqual(['local-process|worker_process']);
 
     const families = matchRequirementFamilies(requirements, matrix.rows);
     for (const family of families) {
@@ -567,5 +568,108 @@ describe('surface contract matrix CI gate', () => {
     expect(validateRowIntegrity({ document: staleFixture.matrix, inventory: undefined })).toContain(
       'approved fingerprint mismatch: api:GET:/close-fixture'
     );
+  });
+
+  it('requires runtime exclusion evidence paths to exist or declare source absence', () => {
+    const trackedPaths = new Set(['Dockerfile.railway', 'DECISIONS.md']);
+    const base = {
+      id: 'legacy-railway-api-topology',
+      matched_layer: 'legacy-container-and-service-manifests',
+      rule: 'undeployed',
+    };
+
+    expect(
+      validateRuntimeExclusionEvidence({
+        exclusions: [{ ...base, evidence: ['Dockerfile.railway', 'railway.toml'] }],
+        trackedPaths,
+      })
+    ).toEqual([
+      'runtime exclusion evidence path missing without absence declaration: legacy-railway-api-topology/railway.toml',
+    ]);
+
+    expect(
+      validateRuntimeExclusionEvidence({
+        exclusions: [
+          {
+            ...base,
+            evidence: [
+              'Dockerfile.railway',
+              'DECISIONS.md#ADR-080',
+              'railway.toml absent: retired by ADR-080',
+            ],
+          },
+        ],
+        trackedPaths,
+      })
+    ).toEqual([]);
+
+    expect(
+      validateRuntimeExclusionEvidence({
+        exclusions: [
+          {
+            ...base,
+            evidence: [
+              'nodejs22.x runtime baseline',
+              'v1.2.3 release baseline',
+              'Node.js/22.x runtime baseline',
+              '`DECISIONS.md#ADR-080`',
+              './DECISIONS.md#ADR-080',
+              '[ADR-080](DECISIONS.md#ADR-080)',
+              '[ADR-080](DECISIONS.md#ADR-080 "decision record")',
+              'Dockerfile.railway,',
+            ],
+          },
+        ],
+        trackedPaths,
+      })
+    ).toEqual([]);
+
+    expect(
+      validateRuntimeExclusionEvidence({
+        exclusions: [
+          {
+            ...base,
+            evidence: [
+              'railway.toml: legacy manifest',
+              '.env.production configuration',
+              '../DECISIONS.md',
+              '/DECISIONS.md',
+              'C:/DECISIONS.md absent from retired Windows checkout',
+              'C:DECISIONS.md absent from retired Windows checkout',
+              '/etc/passwd absent from runtime image',
+              '../secrets absent from checkout',
+              'C:/temp/secrets absent from checkout',
+              'C:temp/secrets absent from checkout',
+            ],
+          },
+        ],
+        trackedPaths,
+      })
+    ).toEqual([
+      'runtime exclusion evidence path missing without absence declaration: legacy-railway-api-topology/railway.toml',
+      'runtime exclusion evidence path missing without absence declaration: legacy-railway-api-topology/.env.production',
+      'runtime exclusion evidence path invalid: legacy-railway-api-topology/../DECISIONS.md',
+      'runtime exclusion evidence path invalid: legacy-railway-api-topology//DECISIONS.md',
+      'runtime exclusion evidence path invalid: legacy-railway-api-topology/C:/DECISIONS.md',
+      'runtime exclusion evidence path invalid: legacy-railway-api-topology/C:DECISIONS.md',
+      'runtime exclusion evidence path invalid: legacy-railway-api-topology//etc/passwd',
+      'runtime exclusion evidence path invalid: legacy-railway-api-topology/../secrets',
+      'runtime exclusion evidence path invalid: legacy-railway-api-topology/C:/temp/secrets',
+      'runtime exclusion evidence path invalid: legacy-railway-api-topology/C:temp/secrets',
+    ]);
+
+    for (const wrappedMissingPath of [
+      '`railway.toml`: legacy manifest',
+      '[railway.toml]: legacy manifest',
+    ]) {
+      expect(
+        validateRuntimeExclusionEvidence({
+          exclusions: [{ ...base, evidence: [wrappedMissingPath] }],
+          trackedPaths,
+        })
+      ).toEqual([
+        'runtime exclusion evidence path missing without absence declaration: legacy-railway-api-topology/railway.toml',
+      ]);
+    }
   });
 });
