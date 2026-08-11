@@ -806,9 +806,9 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
     --approver-login nikhillinit
   ```
 
-  Give job only `contents: read`, `checks: read`, `issues: read`, and
-  `pull-requests: read`; pass built-in `GITHUB_TOKEN` as `GH_TOKEN`. Any API
-  denial fails job closed. Expand `pull_request.types` to exact
+  Give job only `actions: read`, `contents: read`, `checks: read`,
+  `issues: read`, and `pull-requests: read`; pass built-in `GITHUB_TOKEN` as
+  `GH_TOKEN`. Any API denial fails job closed. Expand `pull_request.types` to exact
   `[opened, synchronize, reopened, labeled, unlabeled]` so gate-transition label
   changes rerun same-head CI. Add job to `CI Gate Status.needs`. Gate logic
   requires `success` when label is present and accepts only `skipped` when
