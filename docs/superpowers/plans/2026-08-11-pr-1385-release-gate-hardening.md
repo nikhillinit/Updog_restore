@@ -50,7 +50,8 @@ Vercel REST/CLI, Railway GraphQL.
   `PLAN-APPROVAL-V2` uses the repository-admin login as durable decision author
   under `single-maintainer-owner-attestation`. Fresh read-only review context,
   no Tasks 1 through 12 in approval context, separate implementation contexts,
-  and fresh pre-merge review are procedural controls attested by owner; GitHub
+  and fresh pre-merge review (scheduled concretely as Task 12 Step 2 item 1,
+  at the frozen final head) are procedural controls attested by owner; GitHub
   identity cannot prove context separation. Machine-enforced facts are exact
   bodies, comment identities, plan/head hashes, exact-head CI result, owner and
   permission, timestamps, uniqueness, and ancestry. Do not describe procedural
@@ -316,6 +317,14 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
     and `blocking_findings: none`, and matches referenced body SHA-256;
   - referenced check run is named `CI Gate Status`, targets approved base head,
     is completed with `conclusion: success`, and belongs to repository Actions;
+  - the check run resolves (via the Actions jobs API — an Actions job ID is its
+    check-run ID) to a workflow run whose path is
+    `.github/workflows/ci-unified.yml`, whose event is `pull_request`, whose
+    run `head_sha` equals the approved base head, and whose pull-request
+    association contains the plan-approval PR; a same-SHA `workflow_dispatch`
+    or `push` run of the same workflow never qualifies, because gate-job
+    expectations are event-conditional and a manual dispatch can go vacuously
+    green at the same SHA;
   - comment author login equals declared approver and repository owner;
   - live collaborator permission is `admin`, `maintain`, or `write`;
   - review and approval each have `created_at === updated_at`; edited comments
@@ -326,14 +335,18 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
     descendant implementation commits, approved base must be an ancestor;
   - rebase, non-descendant force-push, unrelated head, plan digest change,
     referenced review/approval deletion, permission loss, author mismatch, any
-    non-`none` exception, stale/failed CI, and API pagination/error all fail
+    non-`none` exception, stale/failed CI, a gate check run whose resolved
+    workflow run is `workflow_dispatch`/`push`, wrong-path, wrong-head, or
+    missing the plan-approval PR association, and API pagination/error all fail
     closed;
   - deleting the sole approval yields zero approvals; a later exact unedited
     repost is a new approval with a new comment identity, not continuity of the
     deleted record;
   - output contains only normalized review/approval comment IDs, URLs, authors,
     permission, timestamps, body SHA-256 values, check-run ID/name/conclusion,
-    plan path/SHA-256, approved base, live head, decision, and separation model.
+    resolved gate workflow run ID/attempt/event/path, repository, plan-approval
+    PR number, plan path/SHA-256, approved base, live head, decision, and
+    separation model.
 
   Run and confirm failure:
 
@@ -358,7 +371,12 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
 
   Use GitHub REST issue-comment pagination, exact check-run retrieval,
   repository-owner lookup, and collaborator-permission endpoint. Fetch live PR
-  head independently. Strict-parse fixed-order V2 fields, build expected review
+  head independently. Resolve the bound `ci_gate_check_run_id` through the
+  Actions jobs API to its workflow run and reject unless run path is
+  `.github/workflows/ci-unified.yml`, run event is `pull_request`, run
+  `head_sha` equals the approved base head, and the run's pull-request
+  association contains the plan-approval PR; record the resolved run ID and
+  attempt in normalized output. Strict-parse fixed-order V2 fields, build expected review
   and approval bodies internally from exact local plan digest plus linked IDs,
   and compare each body byte-for-byte after one outer `.trim()`. Do not accept
   caller-supplied body text. Query commit comparison to prove ancestry for later
@@ -394,7 +412,9 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
 - [ ] **Step 5: Freeze exact head behind CI and read-only review**
 
   Wait for required `CI Gate Status` to complete successfully at exact live
-  head. Record its immutable check-run ID. At that same SHA, request a fresh
+  head on the PR's own `pull_request`-event `ci-unified.yml` run. Record the
+  gate job's immutable check-run ID together with its workflow run ID and
+  attempt. At that same SHA, request a fresh
   read-only review of this plan, verifier, tests, and exact PR diff. Reviewer
   must execute no Task 1 through Task 12 edits. Any blocker returns to Step 1.
 
@@ -405,11 +425,15 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
   PLAN_SHA256="$(shasum -a 256 "$PLAN_PATH" | awk '{print $1}')"
   APPROVED_BASE_HEAD_SHA="$(gh pr view 1385 --json headRefOid --jq .headRefOid)"
   test "$(git rev-parse HEAD)" = "$APPROVED_BASE_HEAD_SHA"
+  CI_GATE_RUN_ID="$(gh api -X GET \
+    "repos/nikhillinit/Updog_restore/actions/runs?head_sha=$APPROVED_BASE_HEAD_SHA&event=pull_request" \
+    --jq '[.workflow_runs[] | select(.path == ".github/workflows/ci-unified.yml" and .status == "completed" and .conclusion == "success" and ([.pull_requests[].number] | index(1385)))] | if length == 1 then .[0].id else error("expected one successful pull_request ci-unified run") end')"
+  CI_GATE_RUN_ATTEMPT="$(gh api -X GET \
+    "repos/nikhillinit/Updog_restore/actions/runs/$CI_GATE_RUN_ID" \
+    --jq .run_attempt)"
   CI_GATE_CHECK_RUN_ID="$(gh api -X GET \
-    "repos/nikhillinit/Updog_restore/commits/$APPROVED_BASE_HEAD_SHA/check-runs" \
-    -f check_name='CI Gate Status' \
-    -f filter=latest \
-    --jq '[.check_runs[] | select(.name == "CI Gate Status" and .status == "completed" and .conclusion == "success") | .id] | if length == 1 then .[0] else error("expected one successful CI Gate Status") end')"
+    "repos/nikhillinit/Updog_restore/actions/runs/$CI_GATE_RUN_ID/attempts/$CI_GATE_RUN_ATTEMPT/jobs?per_page=100" \
+    --jq '[.jobs[] | select(.name == "CI Gate Status" and .status == "completed" and .conclusion == "success")] | if length == 1 then .[0].id else error("expected one successful CI Gate Status job") end')"
   test "${#PLAN_SHA256}" -eq 64
   test "$CI_GATE_CHECK_RUN_ID" -gt 0
   ```
@@ -1106,9 +1130,19 @@ export function decodeOperatorEvidenceBundle(
 
       [Parameter(Mandatory = $true)]
       [ValidatePattern('^[a-f0-9]{40}$')]
-      [string] $SchemaPrecursorSha
+      [string] $SchemaPrecursorSha,
+
+      [Parameter(Mandatory = $true)]
+      [ValidateSet('primary', 'rollback')]
+      [string] $ReleaseMode
   )
   ```
+
+  `-ReleaseMode` lands here so the dispatcher invocation contract, operator
+  docs, and dispatcher regressions in this task are internally consistent at
+  this task's verify step. Task 8 adds the rollback-only parameters
+  (`-RollbackPrNumber`/`-RollbackPrHeadSha`), the workflow-side consumption of
+  `release_mode`, and the cross-mode parameter rules.
 
   Dispatcher sequence:
 
@@ -1117,7 +1151,7 @@ export function decodeOperatorEvidenceBundle(
   3. Run codec `encode` with four file paths.
   4. Reject empty/multiline codec output.
   5. Build ordered JSON with `expected_sha`, `operator_evidence_b64`,
-     `schema_apply_run_id`, `schema_apply_run_attempt`,
+     `release_mode`, `schema_apply_run_id`, `schema_apply_run_attempt`,
      `schema_apply_artifact_id`, `schema_apply_artifact_digest`,
      `schema_apply_receipt_file_sha256`, and `schema_precursor_sha`.
   6. Serialize compact full `inputs` JSON and reject it when character count
@@ -1187,11 +1221,14 @@ export function decodeOperatorEvidenceBundle(
   Add regression assertions:
 
   - `release-production.yml` requires `operator_evidence_b64`;
+  - `release-production.yml` requires a `release_mode` input (`primary` or
+    `rollback`, no default; consumed by Task 8's preflight);
   - `release-production.yml` requires exact schema apply
     run/attempt/artifact/digest/receipt-file-hash/precursor inputs, including
     literal `schema_apply_receipt_file_sha256`, and accepts only attempt 1;
   - `scripts/deploy-production.ps1` supplies `expected_sha`,
-    `operator_evidence_b64`, and all schema evidence fields through `--json`;
+    `operator_evidence_b64`, `release_mode`, and all schema evidence fields
+    through `--json`;
   - dispatcher accepts no skip/force switch;
   - Task 11 workflow is absent;
   - no other workflow, script, package script, hook, or runbook dispatches
@@ -1218,13 +1255,15 @@ export function decodeOperatorEvidenceBundle(
     -SchemaPrecursorSha <40-lowercase-hex>
   ```
 
-  Rollback runbook must use same dispatcher after fresh evidence capture, with
-  `-ReleaseMode rollback -RollbackPrNumber <n> -RollbackPrHeadSha <40-hex>`.
   Remove raw `gh workflow run` example for the release dispatcher (the
   canary-recovery workflow keeps its own documented `gh workflow run`
   invocation — it is not a release dispatch). Dispatcher regression coverage
-  must assert `-ReleaseMode` is mandatory with no default, `primary` forbids
-  rollback-only parameters, and `rollback` requires both.
+  in this task must assert `-ReleaseMode` is mandatory with no default and
+  validated set `primary`/`rollback`. The rollback runbook invocation
+  (`-ReleaseMode rollback -RollbackPrNumber <n> -RollbackPrHeadSha <40-hex>`)
+  and the cross-mode regressions (`primary` forbids rollback-only parameters,
+  `rollback` requires both) are documented and tested in Task 8, where those
+  parameters exist.
 
 - [ ] **Step 8: Verify**
 
@@ -2862,15 +2901,17 @@ type ReleaseCanaryRecoveryHandleV1 = {
 
   Extend sole mutation dispatcher and `release-production.yml` inputs with exact
   `baseline_run_id`, `baseline_run_attempt`, `baseline_artifact_id`,
-  `baseline_artifact_digest`, and `baseline_file_sha256`, plus the required
-  `release_mode` (`primary` or `rollback`) and, in rollback mode only, exact
-  `rollback_pr_number` and `rollback_pr_head_sha`. PowerShell exposes
+  `baseline_artifact_digest`, and `baseline_file_sha256`, and, in rollback mode
+  only, exact `rollback_pr_number` and `rollback_pr_head_sha` (the required
+  `release_mode` input and mandatory `-ReleaseMode` parameter, validated set
+  `primary`/`rollback` with no default, already exist from Task 2; this task
+  adds their workflow-side consumption). PowerShell exposes
   mandatory `-BaselineRunId`, `-BaselineRunAttempt`, `-BaselineArtifactId`,
   `-BaselineArtifactDigest`, and `-BaselineFileSha256` with decimal-positive,
   positive-attempt, `sha256:<64-lowercase-hex>`, and 64-hex validation, plus
-  `-ReleaseMode` (validated set `primary`/`rollback`, no default) and
   rollback-only `-RollbackPrNumber`/`-RollbackPrHeadSha` (decimal-positive and
-  40-hex validation; forbidden in primary mode). All
+  40-hex validation; forbidden in primary mode, both required in rollback
+  mode — cross-mode dispatcher regressions land here). All
   enter compact stdin dispatch JSON, never heuristic lookup.
 
   Post-merge `baseline-policy-preflight` downloads by exact artifact ID and
@@ -2891,7 +2932,22 @@ type ReleaseCanaryRecoveryHandleV1 = {
     release SHA, PR is merged into `main`); the baseline artifact consumed is
     still the ORIGINAL pre-runtime-merge baseline, which remains the rollback
     target, and the revert release runs the same schema audit, provider,
-    operator-evidence, and canary gates.
+    operator-evidence, and canary gates. PR lineage alone does not prove
+    revert semantics, so rollback mode additionally proves application-tree
+    restoration machine-verifiably: the preflight job explicitly fetches both
+    the baseline application SHA recorded in the baseline artifact and the
+    rollback release SHA (never assuming either is present in a shallow
+    checkout), runs `git diff --name-only <baseline_application_sha>
+    <release_sha>`, and requires every differing path to fall inside an
+    allowlist enumerated as a constant in the preflight script and limited to
+    release control-plane paths (`.github/workflows/`, `scripts/release/`,
+    `scripts/deploy-production.ps1`, their tests under
+    `tests/unit/scripts/` and `tests/regressions/`, and `docs/`) — these must
+    survive the revert or the hardened release/recovery workflows themselves
+    would be reverted. Any differing path outside the allowlist fails closed;
+    an empty diff also passes. Regression tests cover a revert that misses an
+    application file, a revert that sneaks a non-control-plane change, and a
+    clean revert.
 
   Never select latest artifact/run or a name-only match in either mode.
 
@@ -2949,7 +3005,20 @@ type ReleaseCanaryRecoveryHandleV1 = {
   `canary_run_id`); it runs `resolve` then `mark-failed`, runs the
   post-recovery global residue assertion in the same job, uploads only a
   sanitized outcome summary, and can never purge, release, or mutate a
-  provider. It is a database state-transition surface, not a second
+  provider. The workflow is hardened like the release workflow it recovers:
+  a main-ref fence (job-level `if: github.ref == 'refs/heads/main'`, so a
+  modified branch copy of the workflow cannot run with environment secrets);
+  top-level least-privilege `permissions: contents: read` and nothing else;
+  a `concurrency` group shared with `release-production.yml` using
+  `cancel-in-progress: false` (recovery queues behind a running release and
+  can never cancel one mid-provider-mutation, and vice versa); an explicit
+  job `timeout-minutes`; `DATABASE_URL` scoped to only the steps that invoke
+  the recovery CLI, never workflow-level `env`; and command allowlisting —
+  the job executes only the fixed `resolve`, `mark-failed`, and residue
+  assertion CLI invocations, with every typed input passed as a validated
+  argument value and no input ever interpolated into arbitrary shell. Static
+  regressions assert each of these properties on the workflow file. It is a
+  database state-transition surface, not a second
   production release dispatcher; static caller-inventory regressions assert
   `release-production.yml` remains the sole provider-mutating workflow and
   this recovery workflow contains no provider credentials. Rollback runbook
@@ -3651,6 +3720,10 @@ type ReleaseCanaryRecoveryHandleV1 = {
     },
     approval: {
       schemaVersion: 'plan-approval-v2',
+      repository,             // repository carrying the approval comments
+      pullRequest,            // plan-approval PR number the comments live on
+      verifiedPrHeadSha,      // live final head of that PR from GitHub API
+                              // at verification time
       commentId,
       commentUrl,
       authorLogin,
@@ -3661,8 +3734,19 @@ type ReleaseCanaryRecoveryHandleV1 = {
       planSha256,
       approvedBaseHeadSha,
       reviewCommentId,
+      reviewCommentUrl,
+      reviewAuthorLogin,
+      reviewCreatedAt,
       reviewBodySha256,
       ciGateCheckRunId,
+      ciGateWorkflowRunId,    // resolved pull_request-event ci-unified run
+      ciGateRunAttempt,
+      finalHeadCiGate: {      // gate identity at the verified final head
+        checkRunId,
+        workflowRunId,
+        runAttempt,
+        headSha,
+      },
       separationModel: 'single-maintainer-owner-attestation',
     },
     certification: {
@@ -3800,9 +3884,24 @@ type ReleaseCanaryRecoveryHandleV1 = {
     `write`; approval ancestry is squash-aware — approved base is an ancestor
     of the plan-approval PR's final head (never of any squash commit
     directly, which descends from no PR-branch commit); approval and linked
-    review comment/body identities plus exact CI check-run ID equal fresh
+    review comment/body identities plus exact CI gate identity (check-run ID,
+    workflow run ID/attempt) equal fresh
     Task 0 verifier output and cannot be supplied from arbitrary workflow
     input;
+  - the manifest independently proves the approval belongs to
+    `source.planApprovalPullRequest` and its final head:
+    `approval.repository` equals `source.repository`; `approval.pullRequest`
+    equals `source.planApprovalPullRequest`; `approval.verifiedPrHeadSha`
+    equals that PR's live `pr.headRefOid` from normalized API evidence and,
+    in `releaseMode='primary'`, equals `source.pullRequestHeadSha`;
+    `approval.approvedBaseHeadSha` is an ancestor of
+    `approval.verifiedPrHeadSha`; `finalHeadCiGate.headSha` equals
+    `approval.verifiedPrHeadSha`; every CI gate identity (approved-base and
+    final-head) must resolve via normalized API evidence to a completed
+    successful `CI Gate Status` job of a `.github/workflows/ci-unified.yml`
+    run with `event: pull_request`, run head SHA equal to the bound head, and
+    the plan-approval PR in its pull-request association — same-SHA
+    `workflow_dispatch`/`push` runs never qualify;
   - release-source lineage is mode-specific: GitHub PR metadata for
     `source.pullRequest` must show `pr.headRefOid` equal to
     `source.pullRequestHeadSha` and `pr.mergeCommitSha` equal to `source.sha`
@@ -4147,7 +4246,11 @@ type ReleaseCanaryRecoveryHandleV1 = {
   (the same PR in both release modes; pinned to #1385 in the current workflow
   configuration, rebindable for a later candidate) and current plan path, with
   approved base allowed to be an ancestor of that PR's final head, and
-  captures only verifier's compact normalized JSON. Release-source lineage (`source.pullRequest` /
+  captures only verifier's compact normalized JSON. That output supplies every
+  `approval` field — repository, PR number, verified live final head, review
+  comment metadata, and resolved CI gate identities for approved base and
+  final head — so no approval field can enter the manifest from workflow
+  input. Release-source lineage (`source.pullRequest` /
   `source.pullRequestHeadSha` / `source.sha`, mode-specific per the manifest
   cross-field rules) is validated separately from the normalized preflight
   outputs; in rollback mode the finalizer records the revert PR identity and
@@ -4480,6 +4583,9 @@ type ReleaseCanaryRecoveryHandleV1 = {
     knowledge-graph/session-review residue remains;
   - named release owner holds bounded merge-to-release change window so no
     unrelated `main` merge can invalidate provider baseline before release;
+  - a fresh frozen-final-head read-only review record (Step 2) exists at the
+    exact final PR head and plan digest with no blocking findings; any later
+    head or plan change mechanically voids it;
   - PR description has no final-candidate/freeze claim.
 
 - [ ] **Step 2: Capture immutable baseline, then merge through protection**
@@ -4487,15 +4593,23 @@ type ReleaseCanaryRecoveryHandleV1 = {
   After Step 1 is satisfied, freeze final PR head and approved plan digest.
   Before merge:
 
-  1. resolve current live `main` SHA;
-  2. dispatch `capture-release-baseline.yml` with exact baseline main, final PR
+  1. after required CI is green at the frozen final head, obtain one fresh
+     read-only review of the exact frozen head — plan plus full PR diff at
+     that head; the reviewer executes no edits; record the review comment
+     identity bound to final head SHA and plan digest. Head/digest binding
+     and drift-voiding are machine-verified; review context remains the
+     owner-attested procedural control declared by the Task 0 separation
+     model, not an independent-person boundary. Any subsequent push or plan
+     edit voids the record and repeats this item;
+  2. resolve current live `main` SHA;
+  3. dispatch `capture-release-baseline.yml` with exact baseline main, final PR
      head, and plan digest;
-  3. wait for success, download exact-run artifact, validate strict context, and
+  4. wait for success, download exact-run artifact, validate strict context, and
      compute its SHA-256;
-  4. record exact baseline workflow run ID/attempt, artifact ID/API digest, file
+  5. record exact baseline workflow run ID/attempt, artifact ID/API digest, file
      SHA-256, and exact artifact name in merge record;
-  5. re-read live `main`, PR head, and plan digest; any drift invalidates
-     capture and requires a new exact run.
+  6. re-read live `main`, PR head, and plan digest; any drift invalidates
+     capture and the frozen-head review record and requires a new exact run.
 
   Only then merge through protected branch process. Record merge commit SHA and
   prove it matches GitHub PR merge metadata while prior baseline main remains an
@@ -4590,8 +4704,10 @@ type ReleaseCanaryRecoveryHandleV1 = {
   4. verify global residue and decide purge separately under existing
      governance;
   5. create a human-reviewed forward-revert PR targeting recorded baseline
-     application SHA; merge it to `main` through normal review (its merge
-     commit becomes the rollback release SHA);
+     application SHA; the revert must restore the baseline application tree —
+     Task 8's preflight diff proof rejects any change outside the enumerated
+     release-control-plane allowlist; merge it to `main` through normal review
+     (its merge commit becomes the rollback release SHA);
   6. release revert through same dispatcher with fresh operator evidence and
      same schema audit/provider/canary gates, dispatched with
      `release_mode=rollback` plus exact `rollback_pr_number` and
@@ -4615,7 +4731,7 @@ type ReleaseCanaryRecoveryHandleV1 = {
 | Area                   | Passing evidence                                                                                                                               |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | Current CI             | Lint green; exact-SHA strict matrix builds owned route projection ephemerally; no tracked audit residue.                                       |
-| Plan approval          | Exact unedited review/approval bodies bind plan, ancestor head, successful CI check run, owner permission, and identities.                     |
+| Plan approval          | Exact unedited review/approval bodies bind plan, ancestor head, successful pull_request-event ci-unified gate run (resolved run ID/attempt), owner permission, and identities. |
 | Schema ordering        | `0053` precursor merged/applied/audited; 90-day strict apply receipt retained; old code and protected Railway services run on expanded schema. |
 | Caller                 | PowerShell stdin JSON supplies exact SHA, four-object evidence, baseline lineage, and schema-apply lineage including archive/file hashes.      |
 | Caller inventory       | Historic Task 11 workflow deleted; no second dispatch path.                                                                                    |
@@ -4633,7 +4749,8 @@ type ReleaseCanaryRecoveryHandleV1 = {
 | Evidence manifest      | Infrastructure-only manifest binds exact approval/review/check, eight fragments, characterization, and current-attempt proof lineage.          |
 | Time budgets           | Every outer job exceeds bounded inner waits and retains finalizer/cleanup margin.                                                              |
 | Security               | No secret/evidence body in argv, logs, summaries, artifacts, or tracked files.                                                                 |
-| Governance             | PR merges as infrastructure, not final candidate or freeze.                                                                                    |
+| Rollback lineage       | Revert PR head/merge verified via PR API; application tree equals baseline outside enumerated release-control-plane allowlist; recovery workflow ref-fenced, least-privilege, queued concurrency. |
+| Governance             | PR merges as infrastructure, not final candidate or freeze; frozen-final-head review recorded before merge.                                   |
 
 ## Rollback and Failure Semantics
 
@@ -4668,6 +4785,9 @@ type ReleaseCanaryRecoveryHandleV1 = {
 - Application rollback remains human-governed forward revert on `main` plus same
   dispatcher. No Vercel alias-only rollback, one-service Railway redeploy, or
   down migration.
+- Any rollback release whose tree differs from recorded baseline application
+  SHA outside the enumerated release-control-plane allowlist fails preflight;
+  PR lineage alone never proves revert semantics.
 
 ## Source Evidence
 
