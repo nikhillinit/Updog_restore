@@ -31,14 +31,27 @@ Vercel REST/CLI, Railway GraphQL.
 
 ## Global Constraints
 
-- Plan targets PR #1385 head `379a3d264ed31cba8a33c803b3eca8579bd21230` as
-  verified on August 11, 2026 Pacific time. Re-read live head before
-  implementation; if it moved, rebase findings onto new head before editing.
-- Implementation may start only after this tracked plan is approved in a durable
-  PR comment that binds its SHA-256 digest and the live PR head SHA. Any plan
-  change or non-descendant PR-head rewrite/rebase invalidates approval and
-  requires a new review record; implementation commits may descend from approved
-  head.
+- Plan was authored against PR #1385 head
+  `379a3d264ed31cba8a33c803b3eca8579bd21230` and re-reviewed after head
+  `dd04b9bde2ac9d9c3baecdbfdd58aba4dd094c66`. Neither historical SHA is approval
+  authority. Re-read live head before every batch; Task 0 binds approval to the
+  then-current head.
+- Tasks 1 through 12 may start only after this tracked plan and the Task 0
+  approval verifier are approved by one exact-body `PLAN-APPROVAL-V2` PR comment
+  that binds plan SHA-256 and live PR head SHA. Task 0 is the only pre-approval
+  bootstrap lane: it may change the plan, verifier, verifier tests, generated
+  routing outputs caused by those tracked files, and review-request comments.
+  Any plan change or non-descendant PR-head rewrite/rebase invalidates approval
+  and requires a new review record; ordinary implementation commits may descend
+  from approved head.
+- Repository currently has one write-authorized collaborator. Do not claim a
+  two-GitHub-login approval rule that repository membership cannot satisfy.
+  `PLAN-APPROVAL-V2` uses the repository-admin login as durable decision author
+  and enforces separation by context and responsibility: approval is recorded
+  from a fresh coordination/review context that performs no Tasks 1 through 12;
+  implementation runs in separate agent contexts and receives fresh independent
+  review before merge. This single-maintainer separation model is explicit, not
+  an inferred exception.
 - PR #1385 is interim release infrastructure. Merging it must not mint final
   Current Forecast activation candidate, freeze `main`, start Wave I, or start
   four-window soak.
@@ -108,42 +121,50 @@ Vercel REST/CLI, Railway GraphQL.
    with `candidate=false` and `designation='infrastructure_only'`.
 9. Recover cancelled or abandoned canaries by exact workflow run, attempt, fund,
    canary-run, and SHA identity. Never use a latest-run search.
+10. Keep generated knowledge-graph output and bounded code-review reports
+    untracked. Release proof rebuilds knowledge-graph evidence ephemerally at
+    the exact checked-out SHA and deletes it on every outcome.
+11. Bind infrastructure-release evidence to exact plan approval and exact
+    release-proof workflow run/artifact lineage.
 
 ## Stress-Test Verdict
 
 PR direction is sound, but present head is not merge-ready. Current failure and
 hidden gaps:
 
-| Finding                                                | Why current plan is insufficient                                                                            | Approved correction                                                                                                                    |
-| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| CI lint failure                                        | Attachment says `process` import is missing; live head now has unused import.                               | Remove unused import. Do not reapply stale fix.                                                                                        |
-| Required operator evidence has no supported caller     | Workflow requires `operator_evidence_b64`; PowerShell helper sends only SHA.                                | One evidence codec plus mandatory four-file dispatcher arguments.                                                                      |
-| Historic Task 11 workflow still dispatches production  | Its issue is closed and hard fence can no longer pass, but static surface remains second caller.            | Delete workflow after archive-gate proof.                                                                                              |
-| Vercel promotion success is not independently verified | Successful CLI exit immediately passes; failure-only path compares mutable `PRODUCTION_URL`.                | Resolve protected canonical hostname through Vercel API after every promote attempt and compare exact deployment ID/project/SHA/alias. |
-| Railway topology is name-pinned, not identity-pinned   | Same names in wrong project/environment/service IDs can pass.                                               | Exact protected project, environment, and two service IDs.                                                                             |
-| Production variables are not provisioned               | Live GitHub Production variable inventory lacks canary caps, TTL, canonical hostname, and Railway IDs.      | Provision provider identity values before precursor proof and canary policy/secrets before runtime release.                            |
-| Provider evidence can age during approval              | Staged and G4 jobs run before final promotion approval.                                                     | Fetch and verify fresh provider evidence inside promotion job after approval. Revalidate operator evidence freshness there.            |
-| Canary completion is SHA-wide                          | Old same-SHA run can satisfy completion while current fund is ordinary or unbound.                          | Persist current execution handle and verify workflow run/attempt/fund/canary-run/principal/grant/start/SHA linkage.                    |
-| Residue totals omit rows already written               | Grants, calculation rows, snapshots, receipts, scenarios, and reporting artifacts are not counted.          | Five additive residue groups plus exact total equality.                                                                                |
-| Creation preflight reserves only initial rows          | Concurrent or unfinished canaries can pass preflight, then exceed caps during later scenario/report writes. | Characterize and reserve exact 33-row canary footprint; allow only one nonterminal run.                                                |
-| Purged rows bypass structural validation               | Invalid timestamps or counts are ignored once `purged`.                                                     | Validate full row before excluding it from caps and TTL.                                                                               |
-| Portfolio canary does not test claimed controls        | It performs one successful PATCH only.                                                                      | Same-key replay plus stale-version 409 and unchanged state.                                                                            |
-| Results canary is too shallow                          | Response has no snapshot ID; non-empty object assertion proves little.                                      | Parse `FundResultsReadV1Schema` and compare stable lifecycle/config/correlation/section evidence across reload.                        |
-| Reserve calculation canary is not idempotent           | Endpoint has no durable client key and emits new correlation/event on replay.                               | Durable command ledger, canonical stored response, deterministic recovery, and replay canary.                                          |
-| “Report/export” is absent from live smoke              | Current suite stops after scenario success.                                                                 | Full metric/evidence/lock/narrative/package/stored-JSON lifecycle with H9 actionability.                                               |
-| H9 write authority conflicts with canary role          | Planning-FMV approval and MOIC reconciliation are admin-only; report writes are partner-scoped.             | Separate admin client for planning-mark replay plus reconciliation; partner canary owns remaining lifecycle.                           |
-| Artifact hash helper is server-coupled                 | Importing it into Playwright can initialize database/service modules during collection.                     | Extract behavior-identical pure helper into `shared/lib` and retain server re-export compatibility.                                    |
-| PR sequencing claims too much                          | Infrastructure commit precedes Wave H.                                                                      | Merge only as reusable release infrastructure. Cut candidate later.                                                                    |
-| Reserve UI would break                                 | Workspace and integration callers omit newly mandatory `Idempotency-Key`; UI has no retry/error state.      | Add one intent key per click, retain it across ambiguous retries, and migrate every production/test caller.                            |
-| Fund-event budget is false                             | Create, draft-save, publish, and calculate each write a fund event; plan reserved one.                      | Characterize deployed path and reserve four fund events, 33 total rows, and 99 rows across three retained runs.                        |
-| Schema rollout is unordered                            | Runtime merge before `0053` apply can expose new code to old schema.                                        | Merge schema-only precursor, apply/audit it, prove old-code compatibility, then rebase and merge runtime PR.                           |
-| Evidence redaction is late                             | Arbitrary nested JSON can be encoded and written before verifier redaction.                                 | Strict schemas, size/depth limits, pre-encode secret rejection, private files, and unconditional cleanup.                              |
-| H9 can prove an empty model                            | Empty source mark/event lists can yield no company financial fact.                                          | Seed approved planning FMV, require exact actuals fact, and use explicit source mark ID.                                               |
-| Cancellation recovery is ambiguous                     | Result file and finalizer do not survive hard runner cancellation.                                          | Capture pre-merge provider baseline, persist execution identity, emit recovery handle, and use exact recovery CLI.                     |
-| Job budgets cannot fit inner waits                     | Current outer timeouts are smaller than declared poll/retry paths.                                          | Declare step and job budgets with positive cleanup margin and static regression checks.                                                |
-| Approval can drift                                     | Untracked plan and narrative approval are not bound to plan version or PR head.                             | Track plan and require immutable comment approval over plan hash plus head SHA.                                                        |
-| Railway topology remains discretionary                 | “Keep two unless unrelated services appear” leaves behavior to implementer.                                 | Validate exact protected ID/name pairs, reject duplicates/cross-maps, and ignore unrelated services only after collision checks.       |
-| Evidence manifest is deferred                          | Later candidate could invent incompatible semantics.                                                        | Define and validate versioned manifest now; PR #1385 is explicitly infrastructure-only and non-candidate.                              |
+| Finding                                                | Why current plan is insufficient                                                                                                        | Approved correction                                                                                                                     |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| CI lint failure (closed at `4529a0e8`)                 | Attachment said `process` import was missing; reviewed head instead had unused import.                                                  | Unused import removed; exact-head lint and required CI gate re-proved before approval.                                                  |
+| Required operator evidence has no supported caller     | Workflow requires `operator_evidence_b64`; PowerShell helper sends only SHA.                                                            | One evidence codec plus mandatory four-file dispatcher arguments.                                                                       |
+| Historic Task 11 workflow still dispatches production  | Its issue is closed and hard fence can no longer pass, but static surface remains second caller.                                        | Delete workflow after archive-gate proof.                                                                                               |
+| Vercel promotion success is not independently verified | Successful CLI exit immediately passes; failure-only path compares mutable `PRODUCTION_URL`.                                            | Resolve protected canonical hostname through Vercel API after every promote attempt and compare exact deployment ID/project/SHA/alias.  |
+| Railway topology is name-pinned, not identity-pinned   | Same names in wrong project/environment/service IDs can pass.                                                                           | Exact protected project, environment, and two service IDs.                                                                              |
+| Production variables are not provisioned               | Live GitHub Production variable inventory lacks canary caps, TTL, canonical hostname, and Railway IDs.                                  | Provision provider identity values before precursor proof and canary policy/secrets before runtime release.                             |
+| Provider evidence can age during approval              | Staged and G4 jobs run before final promotion approval.                                                                                 | Fetch and verify fresh provider evidence inside promotion job after approval. Revalidate operator evidence freshness there.             |
+| Canary completion is SHA-wide                          | Old same-SHA run can satisfy completion while current fund is ordinary or unbound.                                                      | Persist current execution handle and verify workflow run/attempt/fund/canary-run/principal/grant/start/SHA linkage.                     |
+| Residue totals omit rows already written               | Grants, calculation rows, snapshots, receipts, scenarios, and reporting artifacts are not counted.                                      | Five additive residue groups plus exact total equality.                                                                                 |
+| Creation preflight reserves only initial rows          | Concurrent or unfinished canaries can pass preflight, then exceed caps during later scenario/report writes.                             | Characterize and reserve exact 33-row canary footprint; allow only one nonterminal run.                                                 |
+| Purged rows bypass structural validation               | Invalid timestamps or counts are ignored once `purged`.                                                                                 | Validate full row before excluding it from caps and TTL.                                                                                |
+| Portfolio canary does not test claimed controls        | It performs one successful PATCH only.                                                                                                  | Same-key replay plus stale-version 409 and unchanged state.                                                                             |
+| Results canary is too shallow                          | Response has no snapshot ID; non-empty object assertion proves little.                                                                  | Parse `FundResultsReadV1Schema` and compare stable lifecycle/config/correlation/section evidence across reload.                         |
+| Reserve calculation canary is not idempotent           | Endpoint has no durable client key and emits new correlation/event on replay.                                                           | Durable command ledger, canonical stored response, deterministic recovery, and replay canary.                                           |
+| “Report/export” is absent from live smoke              | Current suite stops after scenario success.                                                                                             | Full metric/evidence/lock/narrative/package/stored-JSON lifecycle with H9 actionability.                                                |
+| H9 write authority conflicts with canary role          | Planning-FMV approval and MOIC reconciliation are admin-only; report writes are partner-scoped.                                         | Separate admin client for planning-mark replay plus reconciliation; partner canary owns remaining lifecycle.                            |
+| Artifact hash helper is server-coupled                 | Importing it into Playwright can initialize database/service modules during collection.                                                 | Extract behavior-identical pure helper into `shared/lib` and retain server re-export compatibility.                                     |
+| PR sequencing claims too much                          | Infrastructure commit precedes Wave H.                                                                                                  | Merge only as reusable release infrastructure. Cut candidate later.                                                                     |
+| Reserve UI would break                                 | Workspace and integration callers omit newly mandatory `Idempotency-Key`; UI has no retry/error state.                                  | Add one intent key per click, retain it across ambiguous retries, and migrate every production/test caller.                             |
+| Fund-event budget is false                             | Create, draft-save, publish, and calculate each write a fund event; plan reserved one.                                                  | Characterize deployed path and reserve four fund events, 33 total rows, and 99 rows across three retained runs.                         |
+| Schema rollout is unordered                            | Runtime merge before `0053` apply can expose new code to old schema.                                                                    | Merge schema-only precursor, apply/audit it, prove old-code compatibility, then rebase and merge runtime PR.                            |
+| Evidence redaction is late                             | Arbitrary nested JSON can be encoded and written before verifier redaction.                                                             | Strict schemas, size/depth limits, pre-encode secret rejection, private files, and unconditional cleanup.                               |
+| H9 can prove an empty model                            | Empty source mark/event lists can yield no company financial fact.                                                                      | Seed approved planning FMV, require exact actuals fact, and use explicit source mark ID.                                                |
+| Cancellation recovery is ambiguous                     | Result file and finalizer do not survive hard runner cancellation.                                                                      | Capture pre-merge provider baseline, persist execution identity, emit recovery handle, and use exact recovery CLI.                      |
+| Job budgets cannot fit inner waits                     | Current outer timeouts are smaller than declared poll/retry paths.                                                                      | Declare step and job budgets with positive cleanup margin and static regression checks.                                                 |
+| Approval can drift or self-match                       | Request comment embeds a syntactically approved record; substring matching and editable comments can manufacture or duplicate approval. | Separate request/approval markers; exact-body verifier checks plan/head, admin permission, edit state, duplicates, and full field set.  |
+| Railway topology remains discretionary                 | “Keep two unless unrelated services appear” leaves behavior to implementer.                                                             | Validate exact protected ID/name pairs, reject duplicates/cross-maps, and ignore unrelated services only after collision checks.        |
+| Evidence manifest is deferred                          | Later candidate could invent incompatible semantics.                                                                                    | Define and validate versioned manifest now; PR #1385 is explicitly infrastructure-only and non-candidate.                               |
+| Knowledge-graph snapshot is tracked and stale          | Generated inventory claims coding authority for unrelated non-ancestor SHA and violates repository documentation governance.            | Remove tracked snapshot/review artifact; rebuild KG ephemerally at exact release-proof SHA and delete it on every outcome.              |
+| Release evidence omits approval/certification lineage  | Manifest cannot prove which approval and exact release-proof execution certified source SHA.                                            | Bind approval comment identity/body hash plus release-proof run/attempt/artifact/digest to strict manifest fields.                      |
+| Worker negative paths are unproved                     | Happy-path reserve completion cannot detect terminal worker failure, bounded-poll timeout, or stale-run substitution.                   | Add deterministic worker-failure and poll-timeout integration/regression truth cases with exact-run finalization and no duplicate work. |
 
 ## Domain Model and Terms
 
@@ -184,7 +205,7 @@ hidden gaps:
 ## Implementation Order
 
 0. Bind approval to tracked plan digest and live PR head.
-1. Unblock current CI.
+1. Unblock current CI and remove prohibited tracked audit/review artifacts.
 2. Close operator evidence caller gap and retire historic caller.
 3. Centralize and pin provider identity.
 4. Prove canonical promotion.
@@ -223,12 +244,15 @@ pre-merge baseline artifact.
 
 ---
 
-## Task 0: Bind Approval to Immutable Plan and Head
+## Task 0: Bind Approval to Plan and Head with Edit Detection
 
 **Files:**
 
 - Track: `docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md`
-- Inspect only: PR #1385 head and PR comments
+- Create: `scripts/release/verify-plan-approval.mjs`
+- Create: `tests/unit/scripts/verify-plan-approval.test.mjs`
+- Modify: `tests/regressions/ci-fail-closed.test.ts`
+- Inspect only: PR #1385 head, issue comments, and collaborator permission
 
 **Interfaces:**
 
@@ -236,25 +260,112 @@ pre-merge baseline artifact.
 PLAN_PATH=docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md
 PLAN_SHA256=<64 lowercase hex>
 APPROVED_BASE_HEAD_SHA=<40 lowercase hex>
+APPROVER_LOGIN=nikhillinit
+SEPARATION_MODEL=single-maintainer-independent-context
 ```
 
-- [ ] **Step 1: Commit plan under version control**
+- [ ] **Step 1: Commit revised plan before verifier implementation**
 
-  On PR #1385 implementation branch, commit and push this plan before any
-  implementation commit. Do not approve staged-only or untracked working copy.
+  Commit and push this review-driven plan revision alone before writing the
+  verifier. The verifier is governance bootstrap, not authorization to begin
+  Tasks 1 through 12. Do not approve a staged-only or untracked plan.
 
   Run:
 
   ```bash
   git add docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md
-  git commit -m "docs(plan): bind PR 1385 release hardening scope"
+  git commit -m "docs(plan): harden PR 1385 approval and evidence scope"
   git push origin HEAD
   git ls-files --error-unmatch docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md
   ```
 
   Expected: final command prints exact plan path.
 
-- [ ] **Step 2: Bind plan digest to live PR head**
+- [ ] **Step 2: Write failing approval-verifier tests**
+
+  Export pure evaluator plus CLI:
+
+  ```js
+  export function buildPlanApprovalBody(input);
+  export function evaluatePlanApproval(input);
+  ```
+
+  Require tests for:
+
+  - exact trimmed whole-comment body only; Markdown fences, prefixes, suffixes,
+    and embedded blocks do not match;
+  - marker must be `PLAN-APPROVAL-V2`; request marker `PLAN-REVIEW-REQUEST-V2`
+    can never qualify;
+  - exact plan path, current plan SHA-256, approved base head, approver login,
+    separation model, `decision: approved`, and `accepted_exceptions: none`;
+  - comment author login equals declared approver and repository owner;
+  - live collaborator permission is `admin`, `maintain`, or `write`;
+  - `created_at === updated_at`; edited comments are invalid even when body is
+    restored later;
+  - exactly one applicable unedited approval; zero or multiple fail closed;
+  - before first Task 1 edit, approved base equals live head; after ordinary
+    descendant implementation commits, approved base must be an ancestor;
+  - rebase, force-push, unrelated head, plan digest change, comment deletion,
+    permission loss, author mismatch, any non-`none` exception, and API
+    pagination/error all fail closed;
+  - output contains only normalized comment ID/URL/author/permission/timestamps,
+    body SHA-256, plan SHA-256, approved base, live head, decision, and
+    separation model.
+
+  Run and confirm failure:
+
+  ```bash
+  TZ=UTC npx vitest run \
+    tests/unit/scripts/verify-plan-approval.test.mjs \
+    --config vitest.config.mjs --configLoader native --project=server
+  ```
+
+- [ ] **Step 3: Implement exact-body verifier and CI inventory guard**
+
+  CLI:
+
+  ```bash
+  node scripts/release/verify-plan-approval.mjs \
+    --repo nikhillinit/Updog_restore \
+    --pr 1385 \
+    --plan-path docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md \
+    --approver-login nikhillinit \
+    --require-exact-head
+  ```
+
+  Use GitHub REST issue-comment pagination and collaborator-permission endpoint.
+  Fetch live PR head independently. Build expected approval body internally from
+  exact local plan digest and live/approved head; do not accept caller-supplied
+  body text. Compare normalized body by byte-for-byte string equality after one
+  outer `.trim()`. Query commit comparison to prove ancestry for later batches.
+  Reject truncated pagination and API uncertainty. Print one compact normalized
+  JSON record; never print token, arbitrary comment body, or unrelated comments.
+
+  Add workflow/static regression requiring every implementation batch and final
+  merge-readiness check to invoke this verifier. No grep/substr-based
+  `PLAN-APPROVAL` acceptance is allowed.
+
+- [ ] **Step 4: Verify and commit governance bootstrap**
+
+  ```bash
+  TZ=UTC npx vitest run \
+    tests/unit/scripts/verify-plan-approval.test.mjs \
+    tests/regressions/ci-fail-closed.test.ts \
+    --config vitest.config.mjs --configLoader native --project=server
+  npx eslint \
+    scripts/release/verify-plan-approval.mjs \
+    tests/unit/scripts/verify-plan-approval.test.mjs \
+    tests/regressions/ci-fail-closed.test.ts \
+    --max-warnings 0
+  git add \
+    scripts/release/verify-plan-approval.mjs \
+    tests/unit/scripts/verify-plan-approval.test.mjs \
+    tests/regressions/ci-fail-closed.test.ts
+  git commit -m "fix(release): verify exact plan approval record"
+  git push origin HEAD
+  ```
+
+- [ ] **Step 5: Bind plan digest to live PR head and post request marker**
 
   Run:
 
@@ -268,45 +379,70 @@ APPROVED_BASE_HEAD_SHA=<40 lowercase hex>
   ```
 
   Store neither value inside this plan: embedding plan hash in hashed plan is
-  self-referential. Prepare exact GitHub PR comment template:
+  self-referential. Supersede the earlier V1 request comment so it cannot be
+  mistaken for approval, then post this exact request body only:
 
   ```text
-  PLAN-APPROVAL-V1
+  PLAN-REVIEW-REQUEST-V2
+  plan_path: docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md
+  plan_sha256: <PLAN_SHA256>
+  requested_head_sha: <APPROVED_BASE_HEAD_SHA>
+  approver_login: nikhillinit
+  separation_model: single-maintainer-independent-context
+  decision: review_requested
+  ```
+
+  Request comment must not contain `PLAN-APPROVAL-V2`, `decision: approved`, or
+  a fenced approval template.
+
+- [ ] **Step 6: Obtain exact durable approval**
+
+  From fresh coordination/review context that performs no Tasks 1 through 12,
+  post this exact plain-text body with no Markdown fence, prefix, or suffix:
+
+  ```text
+  PLAN-APPROVAL-V2
   plan_path: docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md
   plan_sha256: <PLAN_SHA256>
   approved_base_head_sha: <APPROVED_BASE_HEAD_SHA>
+  approver_login: nikhillinit
+  separation_model: single-maintainer-independent-context
   decision: approved
   accepted_exceptions: none
   ```
 
-  Repository release owner with write permission, distinct from implementation
-  actor, must author approval. Reaction, local note, chat message, or approval
-  bound only to PR number is insufficient.
+  Repository owner login must author record and retain current admin/write
+  permission. Comment is edit-detected rather than called immutable: any
+  `updated_at != created_at`, deletion, replacement, or duplicate invalidates
+  approval. Reactions, request comments, local notes, fenced templates, and
+  approvals bound only to PR number are insufficient.
 
-- [ ] **Step 3: Obtain exact durable approval**
+- [ ] **Step 7: Verify approval before every implementation batch**
 
-  Post template only as review request; implementation actor must not author
-  approval record. Repository release owner replies with exact approved record.
+  Run verifier with `--require-exact-head` immediately before first Task 1 edit.
+  Run without that flag before each later batch and require approved base
+  remains ancestor of live head. Fail on any verifier error. Plan edits,
+  force-pushes, and Task 5 rebase require a new V2 request and approval;
+  ordinary descendant commits do not. Never carry approval across rebase by
+  inference.
 
-- [ ] **Step 4: Verify approval before each implementation batch**
-
-  Fetch live head and comments. Require exactly one applicable
-  `PLAN-APPROVAL-V1` record whose path/digest match current plan, whose decision
-  is `approved`, and whose approved base head is an ancestor of current PR head.
-  Before first edit it must equal current head. Fail when missing, ambiguous,
-  mismatched, or non-ancestor. Plan edits, force-pushes, and Task 5 rebase
-  require new approval; ordinary implementation commits descending from approved
-  base do not. Never carry approval across rebase by inference.
-
-  Record approving comment URL in PR description, not in generated artifacts.
+  Record approval comment URL, ID, created timestamp, author, and body SHA-256
+  in PR description and later strict evidence manifest. Do not create repository
+  session artifacts.
 
 ---
 
-## Task 1: Rebase Facts and Unblock Current CI
+## Task 1: Rebase Facts, Unblock CI, and Remove Tracked Audit Residue
 
 **Files:**
 
 - Modify: `tests/unit/scripts/assert-canary-residue.test.mjs`
+- Modify: `.github/workflows/release-proof.yml`
+- Modify: `.gitignore`
+- Delete: `audit/knowledge-graph/out/manifest.json`
+- Delete: `audit/knowledge-graph/out/nodes-routes.jsonl`
+- Delete: `docs/3-code-review/CR_w2_v1.6.0-child-f-batch6-residue.md`
+- Modify: `tests/regressions/ci-fail-closed.test.ts`
 - Inspect only: PR #1385 live checks and unresolved review threads
 
 - [ ] **Step 1: Reconfirm live head**
@@ -318,13 +454,9 @@ APPROVED_BASE_HEAD_SHA=<40 lowercase hex>
   gh pr checks 1385
   ```
 
-  Expected at approved baseline:
-
-  - head `379a3d264ed31cba8a33c803b3eca8579bd21230`;
-  - mergeable but blocked;
-  - lint failing;
-  - typecheck, unit-fast, Testcontainers, security, docs, and bundle checks
-    passing.
+  Expected at approved baseline: live head equals approval-bound head or its
+  ordinary descendant; PR remains merge-blocked; all completed checks are read
+  from current head rather than copied from this plan.
 
   If head changed, inspect new diff and CI before continuing. Do not blindly
   apply line-based edits.
@@ -351,7 +483,42 @@ APPROVED_BASE_HEAD_SHA=<40 lowercase hex>
 
   Expected: both pass.
 
-- [ ] **Step 4: Preserve two unresolved review requirements**
+- [ ] **Step 4: Remove prohibited tracked artifacts and restore ephemeral KG
+      proof**
+
+  Remove the `.gitignore` negation chain for `audit/knowledge-graph/out` and
+  delete both newly tracked generated files. Delete the new bounded code-review
+  report; it is a session artifact, and its read-only/no-production-caller
+  claims are stale. Do not archive or replace either artifact in the repository.
+
+  In `release-proof.yml`, rebuild knowledge graph at exact checked-out candidate
+  SHA immediately before strict matrix validation:
+
+  ```bash
+  cleanup_kg() {
+    rm -rf audit/knowledge-graph/out
+  }
+  trap cleanup_kg EXIT HUP INT TERM
+  node audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs
+  node -e 'const m=require("./audit/knowledge-graph/out/manifest.json"); if (!m.fresh_for_checkout || !m.valid_for_coding || m.repo_head !== process.env.CANDIDATE_SHA) process.exit(1)'
+  npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs
+  ```
+
+  Keep output ignored and runner-local. Cleanup must run on success and failure;
+  no knowledge-graph file may be uploaded or committed. The ordinary CI matrix
+  test continues to use tracked sources only; strict release proof owns the
+  ephemeral rebuild.
+
+  Add regressions requiring:
+
+  - `git ls-files audit/knowledge-graph/out` is empty;
+  - the removed code-review path is absent;
+  - release proof rebuilds before `validate-matrix` and checks manifest
+    `repo_head` against `CANDIDATE_SHA`;
+  - an unconditional cleanup trap exists;
+  - no workflow uploads `audit/knowledge-graph/out`.
+
+- [ ] **Step 5: Preserve two unresolved review requirements**
 
   Record these as acceptance tests in Task 9:
 
@@ -363,11 +530,27 @@ APPROVED_BASE_HEAD_SHA=<40 lowercase hex>
   Do not resolve threads until deployed-canary test code and targeted tests
   exist.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Verify cleanup and exact-head proof**
+
+  ```bash
+  test -z "$(git ls-files audit/knowledge-graph/out)"
+  test ! -e docs/3-code-review/CR_w2_v1.6.0-child-f-batch6-residue.md
+  TZ=UTC npx vitest run \
+    tests/regressions/ci-fail-closed.test.ts \
+    --config vitest.config.mjs --configLoader native --project=server
+  npx eslint tests/regressions/ci-fail-closed.test.ts --max-warnings 0
+  ```
+
+- [ ] **Step 7: Commit**
 
   ```bash
   git add tests/unit/scripts/assert-canary-residue.test.mjs
-  git commit -m "fix(test): remove stale residue process import"
+  git add .github/workflows/release-proof.yml .gitignore tests/regressions/ci-fail-closed.test.ts
+  git add -u \
+    audit/knowledge-graph/out/manifest.json \
+    audit/knowledge-graph/out/nodes-routes.jsonl \
+    docs/3-code-review/CR_w2_v1.6.0-child-f-batch6-residue.md
+  git commit -m "fix(release): keep exact-sha audit evidence ephemeral"
   ```
 
 ---
@@ -2236,6 +2419,9 @@ type ReleaseCanaryRecoveryHandleV1 = {
 
 - Modify: `tests/smoke/release-canaries.spec.ts`
 - Modify: `tests/unit/contract/fund-results-route.test.ts`
+- Modify: `tests/integration/fund-scenario-reserve-worker.test.ts`
+- Modify:
+  `tests/integration/scenarios/scenario-release-gate.integration.test.ts`
 - Modify: `tests/regressions/ci-fail-closed.test.ts`
 
 - [ ] **Step 1: Add portfolio idempotent replay**
@@ -2309,7 +2495,32 @@ type ReleaseCanaryRecoveryHandleV1 = {
   6. require durable success and same job/correlation/snapshot;
   7. GET status again and require stable terminal evidence.
 
-- [ ] **Step 6: Add collection-time route guards**
+- [ ] **Step 6: Prove worker retry, terminal failure, and poll timeout**
+
+  Add deterministic integration truth cases without faulting production:
+
+  - one injected transient worker failure retries the same deterministic BullMQ
+    job ID and persisted correlation ID, then succeeds with one command receipt,
+    one calculation run, one queued event, and one snapshot set;
+  - one injected permanent worker failure exhausts configured attempts and
+    persists terminal `failed` status with allowlisted sanitized failure code,
+    no snapshot, no active lease, and no duplicate receipt/job/event;
+  - replaying original command key after terminal worker failure returns exact
+    stored 202 queue acknowledgement and does not manufacture another run; a new
+    explicit intent follows Task 6's failed-run recovery contract;
+  - bounded status polling timeout returns typed
+    `RELEASE_CANARY_WORKER_TIMEOUT`, preserves exact run/correlation identity,
+    and cannot substitute an older successful same-SHA run;
+  - workflow finalizer classifies permanent failure or timeout as current-run
+    failure and terminalizes only exact workflow attempt/fund/canary-run tuple;
+  - test clocks and worker hooks are injected; production code gains no
+    force-failure header, query flag, or bypass.
+
+  Static regressions require worker poll deadline to fit inside Playwright step
+  budget with finalizer margin and forbid a latest-run/SHA-wide success
+  fallback.
+
+- [ ] **Step 7: Add collection-time route guards**
 
   Require route manifest entries for:
 
@@ -2320,13 +2531,15 @@ type ReleaseCanaryRecoveryHandleV1 = {
   Keep exact mount and probe checks so SPA rewrites or remounts fail before
   canaries run.
 
-- [ ] **Step 7: Verify**
+- [ ] **Step 8: Verify**
 
   ```bash
   TZ=UTC npx playwright test tests/smoke/release-canaries.spec.ts \
     --project=production --list
   TZ=UTC npx vitest run \
     tests/unit/contract/fund-results-route.test.ts \
+    tests/integration/fund-scenario-reserve-worker.test.ts \
+    tests/integration/scenarios/scenario-release-gate.integration.test.ts \
     tests/regressions/ci-fail-closed.test.ts \
     --config vitest.config.mjs --configLoader native --project=server
   ```
@@ -2334,12 +2547,14 @@ type ReleaseCanaryRecoveryHandleV1 = {
   Local `--list` must collect successfully without deployed target; deployed
   execution remains workflow-only.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
   ```bash
   git add \
     tests/smoke/release-canaries.spec.ts \
     tests/unit/contract/fund-results-route.test.ts \
+    tests/integration/fund-scenario-reserve-worker.test.ts \
+    tests/integration/scenarios/scenario-release-gate.integration.test.ts \
     tests/regressions/ci-fail-closed.test.ts
   git commit -m "test(release): prove replay locking and authoritative results"
   ```
@@ -2602,10 +2817,15 @@ type ReleaseCanaryRecoveryHandleV1 = {
 
 **Files:**
 
+- Modify: `.github/workflows/release-proof.yml`
 - Modify: `.github/workflows/release-production.yml`
+- Create: `shared/contracts/release-proof-certification-v1.contract.ts`
 - Create: `shared/contracts/release-evidence-manifest-v1.contract.ts`
+- Create: `scripts/release/build-release-proof-certification.ts`
 - Create: `scripts/release/build-release-evidence-manifest.ts`
+- Create: `tests/unit/contracts/release-proof-certification-v1.contract.test.ts`
 - Create: `tests/unit/contracts/release-evidence-manifest-v1.contract.test.ts`
+- Create: `tests/unit/scripts/build-release-proof-certification.test.ts`
 - Create: `tests/unit/scripts/build-release-evidence-manifest.test.ts`
 - Modify: `CHANGELOG.md`
 - Modify: PR #1385 description only after code verification
@@ -2676,6 +2896,29 @@ type ReleaseCanaryRecoveryHandleV1 = {
     designation: 'infrastructure_only' | 'activation_candidate',
     candidate: boolean,
     source: { repository, sha, pullRequest, planSha256 },
+    approval: {
+      schemaVersion: 'plan-approval-v2',
+      commentId,
+      commentUrl,
+      authorLogin,
+      authorPermission,
+      createdAt,
+      bodySha256,
+      planSha256,
+      approvedBaseHeadSha,
+      separationModel: 'single-maintainer-independent-context',
+    },
+    certification: {
+      schemaVersion: 'release-proof-certification-v1',
+      workflowRef,
+      runId,
+      runAttempt,
+      sourceSha,
+      conclusion,
+      artifactId,
+      artifactName: 'release-proof-certification-v1',
+      artifactSha256,
+    },
     workflow: { runId, runAttempt, startedAt, completedAt, outcome, failureStage },
     schema: { migration, precursorSha, applyRunUrl, auditRunUrl, auditResult },
     policy: {
@@ -2708,6 +2951,14 @@ type ReleaseCanaryRecoveryHandleV1 = {
   - `candidate=true` iff `designation='activation_candidate'`;
   - success requires verified operator evidence, release, completed canary,
     exact 33-row residue, and H9 metadata;
+  - approval path/digest equal `source.planSha256`; approver permission is
+    `admin`, `maintain`, or `write`; approved base is an ancestor of source SHA;
+    comment/body identity equals fresh Task 0 verifier output and cannot be
+    supplied from arbitrary workflow input;
+  - certification source SHA equals `source.sha`; run ID/attempt equal current
+    release workflow execution; success requires `conclusion='success'`, exact
+    fixed artifact name, positive artifact ID, and verified lowercase SHA-256;
+    selecting latest workflow run or artifact is forbidden;
   - successful policy requires measured residue equal reserved vector, each cap
     equal three times reserved value, total cap 99, retained-run budget three,
     TTL 24, characterization hash, and explicit release-owner ratification;
@@ -2720,10 +2971,23 @@ type ReleaseCanaryRecoveryHandleV1 = {
     integers have strict bounds;
   - recursive unknown or secret-shaped key/value scan runs before Zod parse.
 
-  Builder consumes only normalized JSON files produced by earlier steps,
-  validates contract, writes mode `0600`, then prints output path and manifest
-  SHA-256 only. Tests reject unknown nested fields, designation/candidate
-  mismatch, success with missing proof, inconsistent SHA/residue, oversized
+  `release-proof.yml` emits `release-proof-certification-v1.json` under
+  `if: always()` with exact current run ID/attempt, reusable workflow ref,
+  source SHA, allowlisted job conclusions, and hashes of strict
+  matrix/release-check summaries only. Upload fixed artifact name
+  `release-proof-certification-v1` with `retention-days: 30`; expose upload
+  artifact ID/digest as reusable workflow outputs. Do not include logs, provider
+  responses, environment values, or arbitrary metadata. Release workflow
+  downloads only this current-run artifact, verifies action-provided digest plus
+  recomputed file SHA-256, and supplies normalized certification JSON to
+  builder.
+
+  Builder consumes Task 0 verifier output, exact current-run certification, and
+  only normalized JSON files produced by earlier steps, validates contract,
+  writes mode `0600`, then prints output path and manifest SHA-256 only. Tests
+  reject unknown nested fields, designation/candidate mismatch, success with
+  missing proof, inconsistent approval/plan ancestry, stale or latest-run
+  certification, inconsistent SHA/residue, edited-comment metadata, oversized
   values, and secret-shaped content.
 
   For PR #1385 workflow invocation is fixed:
@@ -2788,9 +3052,12 @@ type ReleaseCanaryRecoveryHandleV1 = {
     tests/unit/scripts/provider-evidence-contract.test.mjs \
     tests/unit/scripts/verify-provider-identity.test.mjs \
     tests/unit/scripts/verify-vercel-promotion.test.mjs \
+    tests/unit/scripts/verify-plan-approval.test.mjs \
     tests/unit/scripts/assert-canary-residue.test.mjs \
     tests/unit/scripts/purge-canary-runs.test.ts \
+    tests/unit/contracts/release-proof-certification-v1.contract.test.ts \
     tests/unit/contracts/release-evidence-manifest-v1.contract.test.ts \
+    tests/unit/scripts/build-release-proof-certification.test.ts \
     tests/unit/scripts/build-release-evidence-manifest.test.ts \
     tests/unit/services/fund-scenario-calculation-command-service.test.ts \
     tests/unit/routes/fund-scenario-sets-calculate-reserve.behavior.test.ts \
@@ -2801,6 +3068,8 @@ type ReleaseCanaryRecoveryHandleV1 = {
     tests/unit/services/canary-residue-service.test.ts \
     tests/unit/phase2a/fund-persistence-service.behavior.test.ts \
     tests/integration/fund-scenario-calculation-command.test.ts \
+    tests/integration/fund-scenario-reserve-worker.test.ts \
+    tests/integration/scenarios/scenario-release-gate.integration.test.ts \
     tests/integration/release-canary-lifecycle.test.ts \
     tests/regressions/ci-fail-closed.test.ts \
     --config vitest.config.mjs --configLoader native --project=server
@@ -2840,6 +3109,8 @@ type ReleaseCanaryRecoveryHandleV1 = {
   - no files outside plan scope except regenerated routing outputs;
   - no evidence files, temp JSON, Playwright downloads, credentials, or provider
     responses tracked;
+  - no tracked `audit/knowledge-graph/out` file and no bounded session review
+    artifact from this PR;
   - no raw production identifiers embedded in code/tests;
   - no stale Task 11 caller;
   - no final-candidate/freeze language;
@@ -2875,8 +3146,8 @@ type ReleaseCanaryRecoveryHandleV1 = {
   - update PR description to “interim release infrastructure”;
   - explicitly state it does not mint activation candidate or freeze `main`;
   - list migration `0053` and production variable/secret prerequisites;
-  - link schema precursor merge/apply/audit evidence and immutable plan
-    approval;
+  - link schema precursor merge/apply/audit evidence and exact edit-detected
+    plan approval;
   - state manifest designation `infrastructure_only`, `candidate=false`;
   - list exact test run IDs and candidate-independent artifacts;
   - retain verification limitation for any production step not yet executed.
@@ -2885,10 +3156,15 @@ type ReleaseCanaryRecoveryHandleV1 = {
 
   ```bash
   git add \
+    .github/workflows/release-proof.yml \
     .github/workflows/release-production.yml \
+    shared/contracts/release-proof-certification-v1.contract.ts \
     shared/contracts/release-evidence-manifest-v1.contract.ts \
+    scripts/release/build-release-proof-certification.ts \
     scripts/release/build-release-evidence-manifest.ts \
+    tests/unit/contracts/release-proof-certification-v1.contract.test.ts \
     tests/unit/contracts/release-evidence-manifest-v1.contract.test.ts \
+    tests/unit/scripts/build-release-proof-certification.test.ts \
     tests/unit/scripts/build-release-evidence-manifest.test.ts \
     tests/regressions/ci-fail-closed.test.ts
   git commit -m "feat(release): emit infrastructure evidence manifest"
@@ -2922,12 +3198,15 @@ type ReleaseCanaryRecoveryHandleV1 = {
     production, old-code/new-schema test passes, and both Railway services
     proved precursor exact-SHA auto-deploy;
   - post-rebase plan approval binds unchanged plan digest and approved ancestor
-    head;
+    head, exact unedited comment identity, and current repository-owner
+    permission;
   - required protected values have named owners;
   - release dispatcher accepts all required evidence;
   - exact provider and canonical alias proof are enforced;
-  - current-execution canary, full residue, reserve replay, and H9 artifact
-    tests exist;
+  - current-execution canary, full residue, reserve replay, worker
+    retry/failure/timeout, and H9 artifact tests exist;
+  - exact release-proof certification artifact is bound to source SHA and no
+    tracked knowledge-graph/session-review residue remains;
   - named release owner holds bounded merge-to-release change window so no
     unrelated `main` merge can invalidate provider baseline before release;
   - PR description has no final-candidate/freeze claim.
@@ -3049,31 +3328,35 @@ type ReleaseCanaryRecoveryHandleV1 = {
 
 ## Acceptance Matrix
 
-| Area                   | Passing evidence                                                                                           |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Current CI             | Unused `process` import removed; lint green.                                                               |
-| Plan approval          | Tracked plan hash and approved ancestor head match durable PR comment.                                     |
-| Schema ordering        | `0053` precursor merged/applied/audited; old code and protected Railway services run on expanded schema.   |
-| Caller                 | PowerShell dispatcher supplies exact SHA plus validated four-object evidence through stdin JSON.           |
-| Caller inventory       | Historic Task 11 workflow deleted; no second dispatch path.                                                |
-| Vercel staged identity | READY production-target, no aliases, expected project/SHA/main metadata.                                   |
-| Railway identity       | Exact protected ID/name pairs and SHA; duplicates/cross-maps fail; unrelated services cannot collide.      |
-| Promotion              | Canonical hostname resolves to exact staged deployment after every promote attempt.                        |
-| Freshness              | Operator and provider evidence rechecked after final approval.                                             |
-| Canary origin          | Exact result fund links workflow run/attempt, run/principal/grant/window/SHA; recovery uses same tuple.    |
-| Residue                | Characterized 33-row maximum reserved; one nonterminal run; all ten groups counted; purged rows validated. |
-| Portfolio              | Same-key replay stable; stale version rejected; persisted state unchanged.                                 |
-| Results                | Shared schema parses; stable lifecycle/reserve/pacing evidence survives reload.                            |
-| Reserve command        | Same key returns exact 202 response with one receipt/run/job/event; crash recovery deterministic.          |
-| Reserve UI             | One key per user intent; 409/503/network retry reuses key; 422 reloads inputs; errors remain visible.      |
-| Reporting              | Approved nonzero planning mark produces actuals fact, locked package, and H9-actionable stored JSON.       |
-| Evidence manifest      | `release-evidence-manifest-v1` validates as infrastructure-only and non-candidate.                         |
-| Time budgets           | Every outer job exceeds bounded inner waits and retains finalizer/cleanup margin.                          |
-| Security               | No secret/evidence body in argv, logs, summaries, artifacts, or tracked files.                             |
-| Governance             | PR merges as infrastructure, not final candidate or freeze.                                                |
+| Area                   | Passing evidence                                                                                                      |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Current CI             | Lint green; exact-SHA strict matrix proof rebuilds ignored KG output ephemerally; no tracked audit residue.           |
+| Plan approval          | Exact unedited V2 body, plan hash, ancestor head, owner permission, comment identity, and single-match verifier pass. |
+| Schema ordering        | `0053` precursor merged/applied/audited; old code and protected Railway services run on expanded schema.              |
+| Caller                 | PowerShell dispatcher supplies exact SHA plus validated four-object evidence through stdin JSON.                      |
+| Caller inventory       | Historic Task 11 workflow deleted; no second dispatch path.                                                           |
+| Vercel staged identity | READY production-target, no aliases, expected project/SHA/main metadata.                                              |
+| Railway identity       | Exact protected ID/name pairs and SHA; duplicates/cross-maps fail; unrelated services cannot collide.                 |
+| Promotion              | Canonical hostname resolves to exact staged deployment after every promote attempt.                                   |
+| Freshness              | Operator and provider evidence rechecked after final approval.                                                        |
+| Canary origin          | Exact result fund links workflow run/attempt, run/principal/grant/window/SHA; recovery uses same tuple.               |
+| Residue                | Characterized 33-row maximum reserved; one nonterminal run; all ten groups counted; purged rows validated.            |
+| Portfolio              | Same-key replay stable; stale version rejected; persisted state unchanged.                                            |
+| Results                | Shared schema parses; stable lifecycle evidence survives reload; worker retry/failure/timeout paths fail closed.      |
+| Reserve command        | Same key returns exact 202 response with one receipt/run/job/event; crash recovery deterministic.                     |
+| Reserve UI             | One key per user intent; 409/503/network retry reuses key; 422 reloads inputs; errors remain visible.                 |
+| Reporting              | Approved nonzero planning mark produces actuals fact, locked package, and H9-actionable stored JSON.                  |
+| Evidence manifest      | Manifest is infrastructure-only/non-candidate and binds exact approval plus current-run release-proof certification.  |
+| Time budgets           | Every outer job exceeds bounded inner waits and retains finalizer/cleanup margin.                                     |
+| Security               | No secret/evidence body in argv, logs, summaries, artifacts, or tracked files.                                        |
+| Governance             | PR merges as infrastructure, not final candidate or freeze.                                                           |
 
 ## Rollback and Failure Semantics
 
+- Any missing, edited, duplicate, permission-invalid, digest-mismatched, or
+  non-ancestor plan approval blocks implementation and merge.
+- Any missing, latest-selected, wrong-run, wrong-attempt, wrong-SHA, or
+  digest-mismatched release-proof certification blocks manifest success.
 - Any missing protected value fails before mutation.
 - Any stale or malformed operator bundle requires new dispatch; workflow does
   not weaken freshness.
@@ -3082,6 +3365,8 @@ type ReleaseCanaryRecoveryHandleV1 = {
 - Verified canonical match may classify promote error as no-op success.
 - Any canary failure terminalizes exact known run as failed when result file
   exists.
+- Worker terminal failure or bounded poll timeout cannot reuse prior success and
+  terminalizes only current exact canary execution.
 - Missing current result file cannot be replaced by old same-SHA run.
 - Any residue accounting/query error is invalid configuration/query failure,
   never pass.
