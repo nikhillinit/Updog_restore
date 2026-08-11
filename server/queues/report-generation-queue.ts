@@ -288,23 +288,35 @@ async function closeReportQueue(): Promise<void> {
   const queueEventsRef = queueEvents;
   const queueRef = queue;
 
-  await workerRef?.close();
-  await queueEventsRef?.close();
-  await queueRef?.close();
-
   resetReportQueueRuntime();
   unregisterQueueRuntime('report');
+  const results = await Promise.allSettled([
+    workerRef?.close(),
+    queueEventsRef?.close(),
+    queueRef?.close(),
+  ]);
+  for (const result of results) {
+    if (result.status === 'rejected') {
+      logger.error(
+        '[ReportQueue] Failed to close report resource',
+        sanitizeQueueError(result.reason)
+      );
+    }
+  }
   logger.info('[ReportQueue] Closed LP report generation queue');
 }
 
 /**
  * Initialize the report generation queue with Redis connection
  */
-export async function initializeReportQueue(redisConnection: IORedis): Promise<{
+export async function initializeReportQueue(
+  redisConnection: IORedis,
+  { startConsumer }: { startConsumer: boolean }
+): Promise<{
   queue: Queue<ReportGenerationJobData, ReportGenerationResult>;
   close: () => Promise<void>;
 }> {
-  if (queue && worker && queueEvents) {
+  if (queue && (!startConsumer || (worker && queueEvents))) {
     return {
       queue,
       close: closeReportQueue,
@@ -313,136 +325,152 @@ export async function initializeReportQueue(redisConnection: IORedis): Promise<{
 
   const connection = getBullMQConnection(redisConnection);
 
-  // Create queue
-  queue = new Queue<ReportGenerationJobData, ReportGenerationResult>(QUEUE_NAME, {
-    connection,
-    defaultJobOptions: {
-      removeOnComplete: { count: 50 }, // Keep last 50 completed reports
-      removeOnFail: { count: 25 }, // Keep last 25 failed reports
-      attempts: 2, // Retry once on failure
-      backoff: {
-        type: 'exponential',
-        delay: 5000, // 5 second initial delay
-      },
-    },
-  });
-
-  // Create worker to process report generation jobs
-  // eslint-disable-next-line povc-security/require-bullmq-config -- lockDuration is a renewable ownership lease; execution deadline is enforced by the job contract
-  worker = new Worker<ReportGenerationJobData, ReportGenerationResult>(
-    QUEUE_NAME,
-    async (job: Job<ReportGenerationJobData, ReportGenerationResult>) => {
-      const startTime = Date.now();
-      const { reportId, lpId, reportType, format } = job.data;
-
-      try {
-        await setReportStatus(reportId, 'generating');
-        await reportProgress(job, reportId, 0, 'Starting report generation...');
-        await reportProgress(job, reportId, 10, 'Fetching LP data...');
-
-        // Fetch LP data and resolve fundId once (single source of truth)
-        const lpData = await fetchLPReportData(lpId, job.data.fundIds);
-        const resolvedFundId = resolveFundId(job.data.fundIds, lpData);
-        const reportMetrics = await prefetchReportMetrics(lpId, resolvedFundId);
-
-        await reportProgress(job, reportId, 40, 'Generating report content...');
-
-        // Dispatch to format-specific handler
-        const handler = FORMAT_HANDLERS[format];
-        const reportBuffer = await handler({
-          lpData,
-          fundId: resolvedFundId,
-          reportType,
-          dateRange: job.data.dateRange,
-          reportMetrics,
-        });
-
-        await reportProgress(job, reportId, 70, `Saving ${format.toUpperCase()} file...`);
-        const { url: fileUrl, size: fileSize } = await uploadReportFile(
-          reportId,
-          lpId,
-          format,
-          reportBuffer
-        );
-
-        await reportProgress(job, reportId, 90, 'Finalizing report...');
-
-        const generatedAt = new Date();
-        await setReportStatus(reportId, 'ready', { fileUrl, fileSize, generatedAt });
-        await reportProgress(job, reportId, 100, 'Report generation complete.');
-
-        const result: ReportGenerationResult = {
-          success: true,
-          fileUrl,
-          fileSize,
-          generatedAt: generatedAt.toISOString(),
-          durationMs: Date.now() - startTime,
-        };
-
-        reportEvents.emitComplete(job.id!, reportId, result);
-        logger.info(
-          `[ReportQueue] Generated ${reportType} report ${reportId} in ${result.durationMs}ms`
-        );
-        return result;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        const errorCode =
-          error instanceof ReportDataIncompleteError ? error.code : 'GENERATION_FAILED';
-
-        await setReportStatus(reportId, 'error', { errorMessage });
-
-        reportEvents.emitFailed(job.id!, reportId, errorMessage);
-        console.error(`[ReportQueue] Failed to generate report ${reportId} [${errorCode}]:`, error);
-
-        return {
-          success: false,
-          error: `[${errorCode}] ${errorMessage}`,
-          durationMs: Date.now() - startTime,
-        };
-      }
-    },
-    {
-      connection,
-      concurrency: 2, // Process 2 reports at a time
-      lockDuration: 300000, // BullMQ ownership lease per AP-QUEUE-02
-      limiter: {
-        max: 10, // Max 10 reports per minute
-        duration: 60000,
-      },
+  try {
+    // A producer-only runtime can later start a local consumer. Keep the
+    // original producer queue instead of opening an untracked duplicate.
+    if (!queue) {
+      queue = new Queue<ReportGenerationJobData, ReportGenerationResult>(QUEUE_NAME, {
+        connection,
+        defaultJobOptions: {
+          removeOnComplete: { count: 50 }, // Keep last 50 completed reports
+          removeOnFail: { count: 25 }, // Keep last 25 failed reports
+          attempts: 2, // Retry once on failure
+          backoff: {
+            type: 'exponential',
+            delay: 5000, // 5 second initial delay
+          },
+        },
+      });
     }
-  );
 
-  // Setup queue events for monitoring
-  queueEvents = new QueueEvents(QUEUE_NAME, { connection });
+    if (startConsumer) {
+      // Create worker to process report generation jobs
+      // eslint-disable-next-line povc-security/require-bullmq-config -- lockDuration is a renewable ownership lease; execution deadline is enforced by the job contract
+      worker = new Worker<ReportGenerationJobData, ReportGenerationResult>(
+        QUEUE_NAME,
+        async (job: Job<ReportGenerationJobData, ReportGenerationResult>) => {
+          const startTime = Date.now();
+          const { reportId, lpId, reportType, format } = job.data;
 
-  queueEvents.on('completed', ({ jobId }) => {
-    logger.info(`[ReportQueue] Job ${jobId} completed`);
-  });
+          try {
+            await setReportStatus(reportId, 'generating');
+            await reportProgress(job, reportId, 0, 'Starting report generation...');
+            await reportProgress(job, reportId, 10, 'Fetching LP data...');
 
-  queueEvents.on('failed', ({ jobId, failedReason }) => {
-    console.error(`[ReportQueue] Job ${jobId} failed:`, failedReason);
-  });
+            // Fetch LP data and resolve fundId once (single source of truth)
+            const lpData = await fetchLPReportData(lpId, job.data.fundIds);
+            const resolvedFundId = resolveFundId(job.data.fundIds, lpData);
+            const reportMetrics = await prefetchReportMetrics(lpId, resolvedFundId);
 
-  queueEvents.on('error', (error) => {
-    console.error('[ReportQueue] QueueEvents error:', sanitizeQueueError(error));
-  });
+            await reportProgress(job, reportId, 40, 'Generating report content...');
 
-  // Handle worker errors
-  worker.on('error', (error) => {
-    console.error('[ReportQueue] Worker error:', error);
-  });
+            // Dispatch to format-specific handler
+            const handler = FORMAT_HANDLERS[format];
+            const reportBuffer = await handler({
+              lpData,
+              fundId: resolvedFundId,
+              reportType,
+              dateRange: job.data.dateRange,
+              reportMetrics,
+            });
 
-  logger.info('[ReportQueue] Initialized LP report generation queue');
-  registerQueueRuntime('report', {
-    getQueue: () => queue,
-    getWorker: () => worker,
-    isInitialized: () => queue !== null && worker !== null && queueEvents !== null,
-  });
+            await reportProgress(job, reportId, 70, `Saving ${format.toUpperCase()} file...`);
+            const { url: fileUrl, size: fileSize } = await uploadReportFile(
+              reportId,
+              lpId,
+              format,
+              reportBuffer
+            );
 
-  return {
-    queue,
-    close: closeReportQueue,
-  };
+            await reportProgress(job, reportId, 90, 'Finalizing report...');
+
+            const generatedAt = new Date();
+            await setReportStatus(reportId, 'ready', { fileUrl, fileSize, generatedAt });
+            await reportProgress(job, reportId, 100, 'Report generation complete.');
+
+            const result: ReportGenerationResult = {
+              success: true,
+              fileUrl,
+              fileSize,
+              generatedAt: generatedAt.toISOString(),
+              durationMs: Date.now() - startTime,
+            };
+
+            reportEvents.emitComplete(job.id!, reportId, result);
+            logger.info(
+              `[ReportQueue] Generated ${reportType} report ${reportId} in ${result.durationMs}ms`
+            );
+            return result;
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            const errorCode =
+              error instanceof ReportDataIncompleteError ? error.code : 'GENERATION_FAILED';
+
+            await setReportStatus(reportId, 'error', { errorMessage });
+
+            reportEvents.emitFailed(job.id!, reportId, errorMessage);
+            console.error(
+              `[ReportQueue] Failed to generate report ${reportId} [${errorCode}]:`,
+              sanitizeQueueError(error)
+            );
+
+            return {
+              success: false,
+              error: `[${errorCode}] ${errorMessage}`,
+              durationMs: Date.now() - startTime,
+            };
+          }
+        },
+        {
+          connection,
+          concurrency: 2, // Process 2 reports at a time
+          lockDuration: 300000, // BullMQ ownership lease per AP-QUEUE-02
+          limiter: {
+            max: 10, // Max 10 reports per minute
+            duration: 60000,
+          },
+        }
+      );
+
+      // Setup queue events for monitoring
+      queueEvents = new QueueEvents(QUEUE_NAME, { connection });
+
+      queueEvents.on('completed', ({ jobId }) => {
+        logger.info(`[ReportQueue] Job ${jobId} completed`);
+      });
+
+      queueEvents.on('failed', ({ jobId, failedReason }) => {
+        console.error(`[ReportQueue] Job ${jobId} failed:`, sanitizeQueueError(failedReason));
+      });
+
+      queueEvents.on('error', (error) => {
+        console.error('[ReportQueue] QueueEvents error:', sanitizeQueueError(error));
+      });
+
+      // Handle worker errors
+      worker.on('error', (error) => {
+        console.error('[ReportQueue] Worker error:', sanitizeQueueError(error));
+      });
+    }
+
+    logger.info('[ReportQueue] Initialized LP report generation queue');
+    registerQueueRuntime('report', {
+      getQueue: () => queue,
+      ...(startConsumer ? { getWorker: () => worker } : {}),
+      isInitialized: () =>
+        queue !== null && (!startConsumer || (worker !== null && queueEvents !== null)),
+      healthMode: startConsumer ? 'worker' : 'producer',
+      close: closeReportQueue,
+    });
+
+    return {
+      queue,
+      close: closeReportQueue,
+    };
+  } catch (error) {
+    await closeReportQueue();
+    throw error;
+  }
 }
 
 /**

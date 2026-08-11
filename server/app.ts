@@ -18,8 +18,11 @@ import { requireAuth } from './lib/auth/jwt.js';
 import { isPublicApiPath } from './lib/public-api-boundary.js';
 import { errorHandler } from './errors.js';
 import { requireCsrf } from './lib/auth/csrf.js';
-import { getReleaseIdentity } from './version.js';
 import { mountCommonRoutes } from './routes/mount-common-routes.js';
+import {
+  assertQueueRuntimePolicy,
+  type QueueRuntimePolicyEnv,
+} from './config/queue-runtime-policy.js';
 import {
   ARTIFACT_MAX_BYTES,
   ARTIFACT_RAW_MEDIA_TYPES,
@@ -27,6 +30,16 @@ import {
 } from './services/financial-observations/source-artifact-service.js';
 
 export function makeApp() {
+  assertQueueRuntimePolicy({
+    NODE_ENV: process.env['NODE_ENV'] as QueueRuntimePolicyEnv['NODE_ENV'],
+    VERCEL: process.env['VERCEL'],
+    VERCEL_ENV: process.env['VERCEL_ENV'],
+    ENABLE_QUEUES: process.env['ENABLE_QUEUES'],
+    ENABLE_IN_PROCESS_QUEUE_WORKERS: process.env['ENABLE_IN_PROCESS_QUEUE_WORKERS'],
+    REDIS_URL: process.env['REDIS_URL'],
+    QUEUE_REDIS_URL: process.env['QUEUE_REDIS_URL'],
+  });
+
   const app = express();
 
   // Security and hardening
@@ -209,11 +222,6 @@ export function makeApp() {
   app.use('/api', scenarioAnalysisRouter);
 
   mountCommonRoutes(app, { surface: 'make_app', group: 'post_runtime' });
-
-  // API version endpoint for deployment verification
-  app['get']('/api/version', (_req: Request, res: Response) =>
-    res.json(getReleaseIdentity())
-  );
 
   // 404 + error handler
   app.use((_req: Request, res: Response) => res.status(404).json({ error: 'not_found' }));

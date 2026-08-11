@@ -2,6 +2,12 @@
  * Feature flags (side-effect free).
  * Normalizes boolean env flags and exposes a clean FEATURES bag.
  */
+import {
+  type QueueProcessPolicy,
+  type QueueRuntimePolicyEnv,
+  resolveQueueProcessPolicy,
+} from './queue-runtime-policy.js';
+
 export function flag(v: unknown, def = false): boolean {
   if (v == null) return def;
   const s = String(v).trim().toLowerCase();
@@ -45,18 +51,12 @@ export interface QueueConnectionOptions {
   tls?: Record<string, never>;
 }
 
-interface QueueConfigEnv {
-  ENABLE_QUEUES?: string | undefined;
-  REDIS_URL?: string | undefined;
-  QUEUE_REDIS_URL?: string | undefined;
-}
-
 /**
  * Determine queue system availability from environment.
  * Encapsulates: ENABLE_QUEUES === '1' && REDIS_URL !== 'memory://' && REDIS_URL is present.
  * Resolves QUEUE_REDIS_URL ?? REDIS_URL in one place.
  */
-export function getQueueConfig(cfg?: QueueConfigEnv): QueueSystemConfig {
+export function getQueueConfig(cfg?: QueueRuntimePolicyEnv): QueueSystemConfig {
   const env = cfg ?? {
     ENABLE_QUEUES: process.env['ENABLE_QUEUES'],
     REDIS_URL: process.env['REDIS_URL'],
@@ -79,7 +79,23 @@ export function getQueueConfig(cfg?: QueueConfigEnv): QueueSystemConfig {
   return { enabled: true, queueRedisUrl: resolvedUrl, reason: 'ok' };
 }
 
-export function getQueueConnectionOptions(cfg?: QueueConfigEnv): QueueConnectionOptions | null {
+export interface QueueRuntimePolicy extends QueueSystemConfig, QueueProcessPolicy {}
+
+/**
+ * Combines queue capability with process-local legacy queue permissions.
+ * No module-level environment snapshot is retained; callers may inject cfg for
+ * deterministic tests and bootstrap validation.
+ */
+export function getQueueRuntimePolicy(cfg?: QueueRuntimePolicyEnv): QueueRuntimePolicy {
+  return {
+    ...getQueueConfig(cfg),
+    ...resolveQueueProcessPolicy(cfg ?? process.env),
+  };
+}
+
+export function getQueueConnectionOptions(
+  cfg?: QueueRuntimePolicyEnv
+): QueueConnectionOptions | null {
   const queueConfig = getQueueConfig(cfg);
   if (!queueConfig.enabled || !queueConfig.queueRedisUrl) {
     return null;

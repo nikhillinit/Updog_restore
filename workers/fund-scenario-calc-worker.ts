@@ -3,8 +3,14 @@ import { pathToFileURL } from 'node:url';
 import { Queue, Worker, type Job } from 'bullmq';
 import { logger } from '../lib/logger';
 import { getQueueConnectionOptions, type QueueConnectionOptions } from '../server/config/features';
-import { createHealthServer, registerWorker } from './health-server';
+import {
+  createHealthServer,
+  registerWorker,
+  unregisterWorker,
+  type WorkerHealthServerRuntime,
+} from './health-server';
 import { attachQueueErrorLogging } from './queue-error-logging';
+import { resolveWorkerDeploymentIdentity } from './worker-deployment-identity';
 import {
   handleFundScenarioCalcJob,
   type FundScenarioCalcJobData,
@@ -105,21 +111,16 @@ export function createFundScenarioCalcWorker(input: {
   return worker;
 }
 
-function installGracefulShutdown(
-  worker: Worker<FundScenarioCalcQueueJobData>,
-  queue: Queue<FundScenarioCalcQueueJobData> | null
-): void {
+function installGracefulShutdown(close: () => Promise<void>): void {
   process.on('SIGTERM', async () => {
     logger.info('Fund scenario calculation worker shutting down gracefully...');
-    await worker.close();
-    await queue?.close();
+    await close();
     logger.info('Fund scenario calculation worker shut down complete');
   });
 
   process.on('SIGINT', async () => {
     logger.info('Fund scenario calculation worker received SIGINT, shutting down...');
-    await worker.close();
-    await queue?.close();
+    await close();
     process.exit(0);
   });
 }
@@ -141,6 +142,8 @@ async function initializeFundScenarioDeadlineSweep(
 export function startFundScenarioCalcWorker(
   options: StartFundScenarioCalcWorkerOptions = {}
 ): FundScenarioCalcWorkerRuntime {
+  const deploymentIdentity = resolveWorkerDeploymentIdentity('fund-scenario-calc');
+
   const connection = options.connection ?? getQueueConnectionOptions();
 
   if (!connection) {
@@ -154,31 +157,84 @@ export function startFundScenarioCalcWorker(
   const queue = isFundScenarioSweepEnabled()
     ? new Queue<FundScenarioCalcQueueJobData>(FUND_SCENARIO_CALC_QUEUE_NAME, { connection })
     : null;
-  const worker = createFundScenarioCalcWorker({
-    connection,
-    ...(options.concurrency !== undefined ? { concurrency: options.concurrency } : {}),
-    ...(queue ? { removeJob: (jobId: string) => queue.remove(jobId) } : {}),
-  });
-  const ready = queue ? initializeFundScenarioDeadlineSweep(queue) : Promise.resolve();
-
-  registerWorker(FUND_SCENARIO_CALC_QUEUE_NAME, worker);
-
-  if (options.healthPort !== null) {
-    createHealthServer(options.healthPort ?? getHealthPort());
+  let worker: Worker<FundScenarioCalcQueueJobData>;
+  try {
+    worker = createFundScenarioCalcWorker({
+      connection,
+      ...(options.concurrency !== undefined ? { concurrency: options.concurrency } : {}),
+      ...(queue ? { removeJob: (jobId: string) => queue.remove(jobId) } : {}),
+    });
+  } catch (error) {
+    void queue?.close().catch(() => undefined);
+    throw error;
   }
 
+  let closePromise: Promise<void> | undefined;
+  let lifecycle: 'initializing' | 'ready' | 'closing' | 'closed' = 'initializing';
+  let healthServer: WorkerHealthServerRuntime | undefined;
+  const closeResources = (): Promise<void> => {
+    closePromise ??= (async () => {
+      lifecycle = 'closing';
+      unregisterWorker(FUND_SCENARIO_CALC_QUEUE_NAME, worker);
+      let firstError: unknown;
+      try {
+        await healthServer?.close();
+      } catch (error) {
+        firstError = error;
+      }
+
+      try {
+        await worker.close();
+      } catch (error) {
+        firstError ??= error;
+      }
+
+      try {
+        await queue?.close();
+      } catch (error) {
+        firstError ??= error;
+      }
+
+      lifecycle = 'closed';
+
+      if (firstError !== undefined) {
+        throw firstError;
+      }
+    })();
+    return closePromise;
+  };
+
+  const initialized = queue ? initializeFundScenarioDeadlineSweep(queue) : Promise.resolve();
+  const ready = initialized
+    .then(async () => {
+      if (lifecycle !== 'initializing') return;
+      registerWorker(FUND_SCENARIO_CALC_QUEUE_NAME, worker);
+      if (options.healthPort !== null) {
+        healthServer = await createHealthServer(
+          options.healthPort ?? getHealthPort(),
+          deploymentIdentity
+        );
+      }
+      if (lifecycle !== 'initializing') {
+        unregisterWorker(FUND_SCENARIO_CALC_QUEUE_NAME, worker);
+        await healthServer?.close().catch(() => undefined);
+        return;
+      }
+      lifecycle = 'ready';
+    })
+    .catch(async (error: unknown) => {
+      await closeResources().catch(() => undefined);
+      throw error;
+    });
+
   if (options.installSignalHandlers) {
-    installGracefulShutdown(worker, queue);
+    installGracefulShutdown(closeResources);
   }
 
   return {
     worker,
     ready,
-    close: async () => {
-      await ready;
-      await worker.close();
-      await queue?.close();
-    },
+    close: closeResources,
   };
 }
 

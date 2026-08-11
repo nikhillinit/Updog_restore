@@ -32,6 +32,8 @@ type WorkflowJob = {
   ['runs-on']?: string | string[];
   steps?: WorkflowStep[];
   uses?: string;
+  with?: Record<string, unknown>;
+  secrets?: unknown;
 };
 
 type Workflow = {
@@ -42,6 +44,7 @@ type Workflow = {
   };
   jobs?: Record<string, WorkflowJob>;
   on?: Record<string, unknown>;
+  permissions?: Record<string, unknown>;
 };
 
 type AutomationSurface = {
@@ -2258,10 +2261,10 @@ async function executeSmokeGuardFragment(
   }
 }
 
-function compileReleaseIdentityMatcher(source: string): (body: unknown, version: string, sha: string) => boolean {
-  const functionSource = source.match(
-    /export function releaseIdentityMatches\([\s\S]*?\n\}/
-  )?.[0];
+function compileReleaseIdentityMatcher(
+  source: string
+): (body: unknown, version: string, sha: string) => boolean {
+  const functionSource = source.match(/export function releaseIdentityMatches\([\s\S]*?\n\}/)?.[0];
   if (!functionSource) throw new Error('releaseIdentityMatches helper not found');
 
   const transpiled = ts.transpileModule(functionSource.replace(/^export\s+/, ''), {
@@ -3716,6 +3719,110 @@ describe('required CI fails closed', () => {
     expect(fullScripts).not.toContain('--reuse-ci-gates');
   });
 
+  it('fails closed on exact-SHA and provider identity proof before promotion', async () => {
+    const proofWorkflow = await readWorkflow('release-proof.yml');
+    expect(proofWorkflow.permissions).toEqual({
+      actions: 'read',
+      checks: 'read',
+      contents: 'read',
+      statuses: 'read',
+    });
+    expect(proofWorkflow.jobs?.['provider-identity']?.environment).toBe('Production');
+    expect(proofWorkflow.jobs?.['provider-identity']?.if).toContain(
+      'inputs.require_provider_identity == true'
+    );
+    expect(proofWorkflow.jobs?.['g3-exact-sha-verdict']?.if).toBe('${{ always() }}');
+    expect(normalizeNeeds(proofWorkflow.jobs?.['g3-exact-sha-verdict']?.needs)).toEqual([
+      'full-release-proof',
+      'provider-identity',
+    ]);
+    const proofScripts = allRunScripts(proofWorkflow).join('\n');
+    expect(proofScripts).toContain(
+      'boot-proof.mjs --require-g3 --output "$RUNNER_TEMP/g3-boot-proofs.json"'
+    );
+    expect(proofScripts).toContain('verify-g3-boot-proofs.mjs');
+    expect(proofScripts).toContain('verify-exact-sha-checks.mjs');
+    expect(proofScripts).toContain('verify-provider-identity.mjs');
+    expect(proofScripts).toContain("deployment.target === 'production'");
+    expect(proofScripts).toContain('(deployment.alias ?? []).length === 0');
+    expect(proofWorkflow.jobs?.['g3-exact-sha-verdict']?.name).toBe('G3 Exact-SHA Verdict');
+    expect(proofScripts).toMatch(/branch protection/i);
+    expect(proofScripts).not.toContain('private endpoint proof');
+    expect(proofScripts).toContain('npx playwright install --with-deps chromium');
+    expect(proofScripts).toContain('Project-Access-Token: ${RAILWAY_TOKEN}');
+    expect(proofScripts).toContain('https://backboard.railway.com/graphql/v2');
+    expect(proofScripts).toContain('projectToken { project { id } environment { id } }');
+    expect(proofScripts).toContain('environment(id: $environmentId, projectId: $projectId)');
+    expect(proofScripts).toContain('serviceInstances(first: 100)');
+    expect(proofScripts).toContain('hasNextPage');
+    expect(proofScripts).not.toContain('backboard.railway.app');
+    expect(proofScripts).not.toContain('me {');
+    const strictBootStep = proofWorkflow.jobs?.['full-release-proof']?.steps?.find(
+      (step) => step.name === 'Run strict Vercel boot proof'
+    );
+    expect(strictBootStep?.env?.VERCEL_TOKEN).toBe('${{ secrets.VERCEL_TOKEN }}');
+    expect(strictBootStep?.env?.VERCEL_ORG_ID).toBe('${{ vars.VERCEL_ORG_ID }}');
+    expect(strictBootStep?.env?.VERCEL_PROJECT_ID).toBe('${{ vars.VERCEL_PROJECT_ID }}');
+    expect(strictBootStep?.run).toContain('VERCEL_TOKEN is required for strict Vercel build proof');
+    const localEvidenceStep = proofWorkflow.jobs?.['full-release-proof']?.steps?.find(
+      (step) => step.name === 'Run exact local and matrix evidence'
+    );
+    expect(localEvidenceStep?.env).not.toHaveProperty('VERCEL_TOKEN');
+    expect(localEvidenceStep?.env).not.toHaveProperty('VERCEL_ORG_ID');
+    expect(localEvidenceStep?.env).not.toHaveProperty('VERCEL_PROJECT_ID');
+    const verifyBootStep = proofWorkflow.jobs?.['full-release-proof']?.steps?.find(
+      (step) => step.name === 'Verify strict boot proof'
+    );
+    expect(verifyBootStep?.env).not.toHaveProperty('VERCEL_TOKEN');
+
+    const releaseWorkflow = await readWorkflow('release-production.yml');
+    const releaseProof = releaseWorkflow.jobs?.['release-proof'];
+    // Source/local proof must finish before the candidate exists. Provider
+    // identity is proved only after stage-production creates its exact URL.
+    expect(releaseProof?.with?.require_provider_identity).toBe(false);
+    expect(releaseProof?.secrets).toBe('inherit');
+    expect(normalizeNeeds(releaseWorkflow.jobs?.promote?.needs)).toContain('staged-smoke');
+    expect(normalizeNeeds(releaseWorkflow.jobs?.promote?.needs)).toContain(
+      'staged-provider-identity'
+    );
+    const stagedProviderScripts = allRunScripts({
+      jobs: { staged: releaseWorkflow.jobs?.['staged-provider-identity'] ?? {} },
+    }).join('\n');
+    expect(normalizeNeeds(releaseWorkflow.jobs?.['staged-provider-identity']?.needs)).toEqual([
+      'validate-deployment',
+    ]);
+    expect(stagedProviderScripts).toContain('verify-provider-identity.mjs');
+    expect(stagedProviderScripts).toContain('staged-railway-evidence.json');
+    expect(stagedProviderScripts).toContain('Project-Access-Token: ${RAILWAY_TOKEN}');
+    expect(stagedProviderScripts).toContain('https://backboard.railway.com/graphql/v2');
+    expect(stagedProviderScripts.indexOf('const url = new URL')).toBeLessThan(
+      stagedProviderScripts.indexOf('x-vercel-protection-bypass')
+    );
+    const g4OperatorHardStop = releaseWorkflow.jobs?.['g4-operator-evidence-hard-stop'];
+    expect(normalizeNeeds(g4OperatorHardStop?.needs)).toEqual(['staged-provider-identity']);
+    expect(g4OperatorHardStop?.['continue-on-error']).toBeUndefined();
+    expect(g4OperatorHardStop?.if).toBeUndefined();
+    const g4HardStopScripts = allRunScripts({
+      jobs: { hardStop: g4OperatorHardStop ?? {} },
+    }).join('\n');
+    expect(g4HardStopScripts).toContain('Task13');
+    expect(g4HardStopScripts).toContain('attested operator /health and /ready evidence');
+    expect(g4HardStopScripts).toContain('operator-mode verification');
+    expect(g4HardStopScripts).toContain('exit 1');
+    expect(normalizeNeeds(releaseWorkflow.jobs?.promote?.needs)).toContain(
+      'g4-operator-evidence-hard-stop'
+    );
+    expect(normalizeNeeds(releaseWorkflow.jobs?.['stage-production']?.needs)).toContain(
+      'schema-audit'
+    );
+
+    const releaseCheck = await readFile(
+      path.join(process.cwd(), 'scripts', 'release-check.mjs'),
+      'utf8'
+    );
+    expect(releaseCheck).not.toMatch(/api\.github\.com|api\.vercel\.com|railway\.app/i);
+  });
+
   it('governs manual journaled production schema recovery at exact current main', async () => {
     const workflow = await readWorkflow('prod-journaled-migrate-0045-0049.yml');
     const scripts = allRunScripts(workflow).join('\n');
@@ -3860,6 +3967,8 @@ describe('required CI fails closed', () => {
       'stage-production',
       'validate-deployment',
       'staged-smoke',
+      'staged-provider-identity',
+      'g4-operator-evidence-hard-stop',
       'promote',
       'post-promotion-smoke',
     ]);
@@ -3910,12 +4019,24 @@ describe('required CI fails closed', () => {
       (step) => step.name === 'Create staged production deployment'
     );
     const stageDeployCommands = vercelCommandTokens(deployStep?.run ?? '');
-    expect(stageDeployCommands).toHaveLength(1);
-    expect(stageDeployCommands[0]).toContain('--archive=tgz');
+    expect(stageDeployCommands).toHaveLength(2);
+    expect(stageDeployCommands[0]).toEqual([
+      'npx',
+      '--yes',
+      'vercel@55.0.0',
+      'build',
+      '--prod',
+      '--yes',
+    ]);
+    expect(stageDeployCommands[1]).toContain('--prebuilt');
+    expect(stageDeployCommands[1]).toContain('--prod');
+    expect(stageDeployCommands[1]).toContain('--skip-domain');
     const stageScripts = allRunScripts({ jobs: { stage: stageProduction ?? {} } }).join('\n');
     expect(stageScripts).toContain('repos/${REPO}/commits/main');
     expect(stageScripts).toContain('git rev-parse HEAD');
+    expect(stageScripts).toContain('vercel@55.0.0 build');
     expect(stageScripts).toContain('vercel@55.0.0 deploy');
+    expect(stageScripts).toContain('--prebuilt');
     expect(stageScripts).toContain('--prod');
     expect(stageScripts).toContain('--skip-domain');
     expect(stageScripts).toContain('--yes');
@@ -3945,6 +4066,7 @@ describe('required CI fails closed', () => {
     expect(identityStep?.run).toContain("deployment.meta?.githubDeployment === '1'");
     expect(identityStep?.run).toContain("deployment.readyState === 'READY'");
     expect(identityStep?.run).toContain("deployment.target === 'production'");
+    expect(identityStep?.run).toContain('(deployment.alias ?? []).length === 0');
     expect(identityStep?.run).toContain('deployment.projectId === process.env.VERCEL_PROJECT_ID');
     expect(identityStep?.run).toContain(
       'deployment.meta?.githubCommitSha === process.env.EXPECTED_SHA'
@@ -3974,6 +4096,8 @@ describe('required CI fails closed', () => {
     expect(normalizeNeeds(releaseWorkflow.jobs?.promote?.needs)).toEqual([
       'staged-smoke',
       'validate-deployment',
+      'staged-provider-identity',
+      'g4-operator-evidence-hard-stop',
     ]);
     const postPromotionSmoke = releaseWorkflow.jobs?.['post-promotion-smoke'];
     expect(normalizeNeeds(postPromotionSmoke?.needs)).toEqual(['promote', 'validate-target']);

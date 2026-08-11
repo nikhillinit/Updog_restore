@@ -71,11 +71,11 @@ describe('surface contract matrix runtime inspector', () => {
       const versionRoutes = makeAppRoutes.filter(
         (route) => route.method === 'GET' && route.path === '/api/version'
       );
+      // The shadowed server/app.ts duplicate was deleted in F_1.2.5 Phase 3;
+      // the health-router handler is the only /api/version registration.
       expect(versionRoutes.map((route) => `${route.role}:${route.site}`)).toEqual([
-        'handler:server/routes/health.ts:528',
-        'shadowed:server/app.ts:214',
+        'handler:server/routes/health.ts:573',
       ]);
-      expect(versionRoutes[0].order).toBeLessThan(versionRoutes[1].order);
 
       for (const routePath of ['/metrics/rum', '/api/metrics/rum']) {
         const rumRoutes = makeAppRoutes.filter(
@@ -86,21 +86,28 @@ describe('surface contract matrix runtime inspector', () => {
         expect(
           rumRoutes.some((route) => route.site === 'server/routes/metrics-rum-ingress.ts:28')
         ).toBe(true);
-      expect(rumRoutes.some((route) => route.site === 'server/routes/metrics-rum.ts:112')).toBe(
+        expect(rumRoutes.some((route) => route.site === 'server/routes/metrics-rum.ts:112')).toBe(
           true
         );
       }
 
-      const createServerRoutes = document.surfaces.find((surface) => surface.name === 'create_server').routes;
+      const createServerRoutes = document.surfaces.find(
+        (surface) => surface.name === 'create_server'
+      ).routes;
       const preBoundaryMetrics = createServerRoutes.filter(
-        (route) => route.method === 'GET'
-          && route.path === '/api/metrics'
-          && route.site === 'server/routes/metrics-endpoint.ts:19'
-          && route.role === 'handler',
+        (route) =>
+          route.method === 'GET' &&
+          route.path === '/api/metrics' &&
+          route.site === 'server/routes/metrics-endpoint.ts:19' &&
+          route.role === 'handler'
       );
       expect(preBoundaryMetrics.length).toBeGreaterThan(0);
-      expect(preBoundaryMetrics.every((route) => route.outer_mount_site === 'server/server.ts:202')).toBe(true);
-      expect(preBoundaryMetrics.every((route) => Number.isInteger(route.outer_mount_order))).toBe(true);
+      expect(
+        preBoundaryMetrics.every((route) => route.outer_mount_site === 'server/server.ts:202')
+      ).toBe(true);
+      expect(preBoundaryMetrics.every((route) => Number.isInteger(route.outer_mount_order))).toBe(
+        true
+      );
 
       const rootRoute = document.routes.find(
         (route) => route.method === 'GET' && route.path === '/'

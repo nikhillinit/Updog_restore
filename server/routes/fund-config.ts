@@ -4,64 +4,28 @@ import { PARTNER_WRITE_ROLES } from '@shared/auth/effective-roles';
 import { funds, fundConfigs, fundEvents, fundSnapshots } from '@shared/schema';
 import { eq, and, desc, max, isNull } from 'drizzle-orm';
 import type { ApiError } from '@shared/types';
-import { Queue } from 'bullmq';
 import { toNumber } from '@shared/number';
-import { getQueueConnectionOptions, getQueueConfig } from '../config/features';
-import { registerQueueRuntime } from '../queues/registry';
 import { createRouteLogger } from '../lib/route-logger.js';
 import { requireWriteRole } from '../lib/auth/jwt.js';
-
-const routeLog = createRouteLogger('fund-config');
-
-const queueConfig = getQueueConfig();
-const connection = (() => {
-  try {
-    return getQueueConnectionOptions();
-  } catch {
-    return null;
-  }
-})();
-
-// Initialize queues only when Redis-backed queues are enabled
-const reserveQueue =
-  queueConfig.enabled && connection ? new Queue('reserve-calc', { connection }) : null;
-const pacingQueue =
-  queueConfig.enabled && connection ? new Queue('pacing-calc', { connection }) : null;
-const cohortQueue =
-  queueConfig.enabled && connection ? new Queue('cohort-calc', { connection }) : null;
-
-function ensureProducerQueuesRegistered(): void {
-  if (reserveQueue) {
-    registerQueueRuntime('reserve-calc', {
-      getQueue: () => reserveQueue,
-      isInitialized: () => reserveQueue !== null,
-    });
-  }
-
-  if (pacingQueue) {
-    registerQueueRuntime('pacing-calc', {
-      getQueue: () => pacingQueue,
-      isInitialized: () => pacingQueue !== null,
-    });
-  }
-
-  if (cohortQueue) {
-    registerQueueRuntime('cohort-calc', {
-      getQueue: () => cohortQueue,
-      isInitialized: () => cohortQueue !== null,
-    });
-  }
-}
+import type { PublishQueues } from '../services/fund-persistence-service.js';
 import { FundDraftWriteV1Schema } from '@shared/contracts/fund-draft-write-v1.contract';
 import { sendApiError } from '../lib/apiError';
 import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
-import {
-  creatorUserIdFromRequest,
-  renewCreationCredential,
-} from '../lib/auth/creator-identity';
+import { creatorUserIdFromRequest, renewCreationCredential } from '../lib/auth/creator-identity';
 import { handleNumberParseError } from '../lib/number-parse-error';
 import idempotency from '../middleware/idempotency';
 import { omitEconomicsAssumptionsWhenDisabled } from '../services/economics-feature-gate';
+
+const routeLog = createRouteLogger('fund-config');
+
+// Reserve and pacing have synchronous engines. Cohort is experimental and is
+// excluded from authoritative dispatch. Their former application-process queues
+// have no G3 production consumer, so the API never creates route-owned queues.
+const inlineCalculationQueues: PublishQueues = {
+  reserve: null,
+  pacing: null,
+  cohort: null,
+};
 
 function numericIdentity(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
@@ -97,8 +61,6 @@ async function getScopedFundId(req: Request, res: Response): Promise<number | nu
 }
 
 export function registerFundConfigRoutes(app: Express) {
-  ensureProducerQueuesRegistered();
-
   // Atomic finalize: create fund + save config + publish in one call
   app.post(
     '/api/funds/finalize',
@@ -133,11 +95,7 @@ export function registerFundConfigRoutes(app: Express) {
         const { fundPersistenceService } = await import('../services/fund-persistence-service');
         const result = await fundPersistenceService.finalize(
           { ...validation.data, creatorUserId },
-          {
-            reserve: reserveQueue,
-            pacing: pacingQueue,
-            cohort: cohortQueue,
-          }
+          inlineCalculationQueues
         );
         const credentialRenewal = await renewCreationCredential(
           req,
@@ -345,7 +303,7 @@ export function registerFundConfigRoutes(app: Express) {
         const { fundPersistenceService } = await import('../services/fund-persistence-service');
         const result = await fundPersistenceService.publishDraft(
           fundId,
-          { reserve: reserveQueue, pacing: pacingQueue, cohort: cohortQueue },
+          inlineCalculationQueues,
           userId
         );
 
@@ -398,7 +356,7 @@ export function registerFundConfigRoutes(app: Express) {
 
         const result = await fundPersistenceService.recalculatePublished(
           fundId,
-          { reserve: reserveQueue, pacing: pacingQueue, cohort: cohortQueue },
+          inlineCalculationQueues,
           userId
         );
 

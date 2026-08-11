@@ -16,6 +16,7 @@ const matrixDir = path.resolve(path.dirname(thisFile), '..');
 const repoRoot = path.resolve(matrixDir, '../..');
 const outputFile = path.join(matrixDir, 'boot-proofs.json');
 const syntheticJwt = 'surface-contract-matrix-proof-secret-0123456789';
+const syntheticRuntimeSecret = 'surface-proof-runtime-secret-0123456789abcdef';
 const PORTS = Object.freeze({ api: 51237, worker: 51238, web: 51239, ml: 51240 });
 const HEALTH_PATHS = Object.freeze(['/health', '/live', '/ready', '/metrics', '/stats']);
 
@@ -30,8 +31,18 @@ const proofObservedAt = ({ deployment, runtime, boot_status, command_or_artifact
     result,
   })).digest('hex')}`;
 
-const sanitizedBaseEnv = () => ({
-  PATH: process.env.PATH,
+const VERCEL_BUILD_ENV_KEYS = Object.freeze([
+  'VERCEL_TOKEN',
+  'VERCEL_ORG_ID',
+  'VERCEL_PROJECT_ID',
+]);
+
+const requiredVercelBuildCredentials = (environment = process.env) => Object.fromEntries(
+  VERCEL_BUILD_ENV_KEYS.map((key) => [key, environment[key]?.trim()])
+);
+
+const sanitizedBaseEnv = (environment = process.env) => ({
+  PATH: environment.PATH,
   TZ: 'UTC',
   CI: '1',
   NODE_ENV: 'test',
@@ -68,7 +79,66 @@ const sanitizedBaseEnv = () => ({
   HUSKY: '0',
 });
 
-const proofEnv = (overrides = {}) => ({ ...sanitizedBaseEnv(), ...overrides });
+export const proofEnv = (overrides = {}, environment = process.env) => ({
+  ...sanitizedBaseEnv(environment),
+  ...overrides,
+});
+
+export const dockerProofEnvironment = (overrides = {}, environment = process.env) => ({
+  ...proofEnv(overrides, environment),
+  ...(environment.DOCKER_CONFIG?.trim()
+    ? { DOCKER_CONFIG: environment.DOCKER_CONFIG.trim() }
+    : {}),
+});
+
+export const vercelBuildEnvironment = (environment = process.env) => ({
+  ...proofEnv({}, environment),
+  ...requiredVercelBuildCredentials(environment),
+});
+
+export const vercelFunctionProofEnvironment = (environment = process.env) => proofEnv({
+  VERCEL: '1',
+  VERCEL_ENV: 'production',
+  NODE_ENV: 'production',
+  ALLOW_MEMORY_STORAGE: '0',
+  REDIS_URL: 'redis://127.0.0.1:6399',
+  CORS_ORIGIN: 'https://surface-proof.invalid',
+  CLIENT_URL: 'https://surface-proof.invalid',
+  SESSION_SECRET: syntheticRuntimeSecret,
+  HEALTH_KEY: syntheticRuntimeSecret,
+  METRICS_KEY: syntheticRuntimeSecret,
+  FUND_SCENARIO_HARD_TIMEOUT_MS: '30000',
+}, environment);
+
+export const assertStrictVercelBuildCredentials = (environment = process.env) => {
+  const credentials = requiredVercelBuildCredentials(environment);
+  for (const key of VERCEL_BUILD_ENV_KEYS) {
+    if (!credentials[key]) throw new Error(`${key} is required for strict Vercel build proof`);
+  }
+  return credentials;
+};
+
+export const redactChildOutput = (value, environment = process.env) => {
+  let redacted = String(value);
+  for (const credential of Object.values(requiredVercelBuildCredentials(environment))) {
+    if (credential) redacted = redacted.split(credential).join('[REDACTED]');
+  }
+  return redacted;
+};
+
+export const withVercelCredentialsMasked = async (action, environment = process.env) => {
+  const original = Object.fromEntries(VERCEL_BUILD_ENV_KEYS.map((key) => [key, process.env[key]]));
+  const redactionEnvironment = requiredVercelBuildCredentials(environment);
+  for (const key of VERCEL_BUILD_ENV_KEYS) delete process.env[key];
+  try {
+    return await action(redactionEnvironment);
+  } finally {
+    for (const [key, value] of Object.entries(original)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+};
 
 const commandResult = (command, args, env, timeout = 180_000) => {
   const result = spawnSync(command, args, {
@@ -117,7 +187,10 @@ const listeningPortsForPid = (pid) => {
 const dockerContainerPid = (containerName) => {
   if (!containerName) return undefined;
   try {
-    const pid = Number(execFileSync('docker', ['inspect', '-f', '{{.State.Pid}}', containerName], { encoding: 'utf8' }).trim());
+    const pid = Number(execFileSync('docker', ['inspect', '-f', '{{.State.Pid}}', containerName], {
+      encoding: 'utf8',
+      env: dockerProofEnvironment(),
+    }).trim());
     return Number.isInteger(pid) && pid > 0 ? pid : undefined;
   } catch {
     return undefined;
@@ -228,7 +301,7 @@ const runHttpProcess = async ({ command, args, env, port, paths, containerName }
   };
 };
 
-const evidence = ({ deployment, runtime, boot_status, command_or_artifact, probe, result }) => ({
+const evidence = ({ deployment, runtime, boot_status, command_or_artifact, probe, result, worker_identity }) => ({
   deployment,
   ...(runtime ? { runtime } : {}),
   boot_status,
@@ -238,7 +311,19 @@ const evidence = ({ deployment, runtime, boot_status, command_or_artifact, probe
     result,
     observed_at: proofObservedAt({ deployment, runtime, boot_status, command_or_artifact, probe, result }),
   },
+  ...(worker_identity ? { worker_identity } : {}),
 });
+
+export const workerRuntimeProofs = (workerProcessProof) => {
+  if (workerProcessProof.runtime !== 'worker_process'
+    || !workerProcessProof.deployment.startsWith('railway-worker-')) {
+    throw new Error('Worker runtime proof fan-out requires a Railway worker_process proof');
+  }
+  return [
+    workerProcessProof,
+    { ...workerProcessProof, runtime: 'service_listener' },
+  ];
+};
 
 const unavailableCommandCodes = new Set(['ENOENT', 'EACCES']);
 
@@ -255,8 +340,8 @@ const commandFailureDetail = (result = {}) => {
   return ` with status ${result.status ?? 'unknown'}`;
 };
 
-const commandFailureResult = (label, result = {}) => {
-  const output = `${result.stderr ?? ''}\n${result.stdout ?? ''}`.trim().replaceAll(/\s+/g, ' ');
+const commandFailureResult = (label, result = {}, environment = process.env) => {
+  const output = redactChildOutput(`${result.stderr ?? ''}\n${result.stdout ?? ''}`, environment).trim().replaceAll(/\s+/g, ' ');
   return `${label} failed${commandFailureDetail(result)}${output ? `: ${output.slice(0, 600)}` : ''}`;
 };
 
@@ -267,13 +352,14 @@ export const commandFailureEvidence = ({
   probe,
   label,
   result,
+  environment,
 }) => evidence({
   deployment,
   runtime,
   boot_status: bootStatusForCommandResult(result),
   command_or_artifact,
   probe,
-  result: commandFailureResult(label, result),
+  result: commandFailureResult(label, result, environment),
 });
 
 const failureSummary = (result, fallback) => {
@@ -289,179 +375,78 @@ const failureSummary = (result, fallback) => {
   return `${fallback}: child exited ${result.status ?? result.signal ?? 'unknown'}`;
 };
 
-const dockerAvailable = () => commandResult('docker', ['info'], proofEnv(), 10_000).ok;
+const dockerAvailable = () => commandResult('docker', ['info'], dockerProofEnvironment(), 10_000).ok;
 
 const dockerCleanup = (name, kind = 'container') => {
   const args = kind === 'network' ? ['network', 'rm', name] : ['rm', '-f', name];
-  commandResult('docker', args, proofEnv(), 20_000);
+  commandResult('docker', args, dockerProofEnvironment(), 20_000);
 };
 
 const dockerFailure = (label, result) => {
   return commandFailureResult(label, result);
 };
 
-export const workerConsumerIsHealthy = ({ health, stats }) => {
-  const expectedWorker = health?.workers?.find((worker) => worker.name === 'fund-scenario-calc');
-  const expectedStats = stats?.workers?.find((worker) => worker.name === 'fund-scenario-calc');
+export const workerConsumerIsHealthy = ({
+  health,
+  stats,
+  workerType = 'fund-scenario-calc',
+  sourceSha,
+  deploymentId,
+}) => {
+  const expectedWorker = health?.workers?.find((worker) => worker.name === workerType);
+  const expectedStats = stats?.workers?.find((worker) => worker.name === workerType);
   return Boolean(expectedWorker && expectedStats
     && expectedWorker.status === 'healthy'
-    && expectedWorker.isRunning === true);
+    && expectedWorker.isRunning === true
+    && (sourceSha === undefined || (
+      health?.status === 'healthy'
+      && health?.workerType === workerType
+      && health?.commit === sourceSha
+      && health?.deploymentId === deploymentId
+    )));
 };
 
-const dockerfileDirectives = (content) => {
-  const directives = [];
-  let logicalLine = '';
-  for (const physicalLine of String(content ?? '').split('\n')) {
-    const line = physicalLine.trim();
-    if (!logicalLine && (!line || line.startsWith('#'))) continue;
-    logicalLine = logicalLine ? `${logicalLine} ${line}` : line;
-    if (/\\\s*$/.test(logicalLine)) {
-      logicalLine = logicalLine.replace(/\\\s*$/, '');
-      continue;
-    }
-    if (logicalLine) directives.push(logicalLine);
-    logicalLine = '';
-  }
-  if (logicalLine) directives.push(logicalLine);
-  return directives;
-};
-
-const lastDockerfileDirective = (content, keyword) => dockerfileDirectives(content)
-  .findLast((line) => line.toUpperCase().startsWith(keyword));
-
-const dockerfileLine = (file, keyword) => lastDockerfileDirective(
-  fs.readFileSync(path.join(repoRoot, file), 'utf8'),
-  keyword,
-);
-
-const railwayApiExpectedEntrypoint = Object.freeze(['dumb-init', '--']);
-const railwayApiExpectedCmd = Object.freeze(['node', 'dist/index.js']);
-
-const parseExecFormDirective = (value, keyword) => {
-  const line = String(value ?? '').trim();
-  if (!line.toUpperCase().startsWith(keyword)) return undefined;
-  const payload = line.slice(keyword.length).trim();
-  if (!payload.startsWith('[')) return undefined;
-  try {
-    const parsed = JSON.parse(payload);
-    return Array.isArray(parsed) && parsed.every((entry) => typeof entry === 'string')
-      ? parsed
-      : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
-export const railwayApiDockerfileContractCheck = ({ entrypoint, cmd, content } = {}) => {
-  const dockerfile = String(content ?? '');
-  const resolvedEntrypoint = entrypoint ?? lastDockerfileDirective(dockerfile, 'ENTRYPOINT');
-  const resolvedCmd = cmd ?? lastDockerfileDirective(dockerfile, 'CMD');
-  const actualEntrypoint = parseExecFormDirective(resolvedEntrypoint, 'ENTRYPOINT');
-  const actualCmd = parseExecFormDirective(resolvedCmd, 'CMD');
-  const ok = JSON.stringify(actualEntrypoint) === JSON.stringify(railwayApiExpectedEntrypoint)
-    && JSON.stringify(actualCmd) === JSON.stringify(railwayApiExpectedCmd);
-  return {
-    ok,
-    expected: {
-      entrypoint: [...railwayApiExpectedEntrypoint],
-      cmd: [...railwayApiExpectedCmd],
-    },
-    actual: {
-      entrypoint: actualEntrypoint,
-      cmd: actualCmd,
-    },
-    result: ok
-      ? 'Dockerfile.railway ENTRYPOINT and CMD match the exact container launch contract'
-      : 'Dockerfile.railway ENTRYPOINT/CMD do not match the exact container launch contract',
-  };
-};
-
-export const railwayApiRuntimeOutcome = ({
-  dockerAvailable: hasDocker,
-  containerListener = false,
-  localListener,
-  listener,
-} = {}) => {
-  if (hasDocker !== true) {
-    const localObservation = localListener === true
-      ? 'local dist/index.js listener responded'
-      : localListener === false
-        ? 'local dist/index.js listener did not respond'
-        : 'local dist/index.js listener was not executed';
-    return {
-      boot_status: 'unproven',
-      result: `docker unavailable; ${localObservation}; Dockerfile.railway container contract remains unproven`,
-    };
-  }
-  const containerObserved = listener ?? containerListener;
-  return containerObserved
-    ? {
-        boot_status: 'proven',
-        result: 'HTTP listener responded from Dockerfile.railway container entrypoint',
-      }
-    : {
-        boot_status: 'failed',
-        result: 'Dockerfile.railway container executed but its HTTP listener did not satisfy the probe',
-      };
-};
-
-const RAILWAY_API_COMMAND = 'npm run build:prod; Dockerfile.railway ENTRYPOINT ["dumb-init","--"] + CMD ["node","dist/index.js"]';
-const RAILWAY_API_PROBE = 'GET /health; expected HTTP 2xx; 404/405 are failures';
-
-export const railwayApiBuildFailureEvidence = (build) => commandFailureEvidence({
-  deployment: 'railway-api',
-  command_or_artifact: RAILWAY_API_COMMAND,
-  probe: RAILWAY_API_PROBE,
-  label: 'npm run build:prod',
-  result: build,
+export const workerProofEnvironment = ({ workerType, sourceSha, deploymentId }) => ({
+  NODE_ENV: 'production',
+  WORKER_TYPE: workerType,
+  RAILWAY_SERVICE_NAME: workerType,
+  RAILWAY_ENVIRONMENT_NAME: 'production',
+  RAILWAY_GIT_COMMIT_SHA: sourceSha,
+  RAILWAY_DEPLOYMENT_ID: deploymentId,
+  [workerType === 'fund-scenario-calc' ? 'FUND_SCENARIO_HARD_TIMEOUT_MS' : 'CAPITAL_CALL_STATUS_HARD_TIMEOUT_MS']: '30000',
 });
 
-const railwayApiProof = async () => {
-  const command_or_artifact = RAILWAY_API_COMMAND;
-  const probe = RAILWAY_API_PROBE;
-  const build = npmResult('build:prod', proofEnv());
-  if (!build.ok) return railwayApiBuildFailureEvidence(build);
-  const entrypoint = dockerfileLine('Dockerfile.railway', 'ENTRYPOINT');
-  const cmd = dockerfileLine('Dockerfile.railway', 'CMD');
-  const contract = railwayApiDockerfileContractCheck({ entrypoint, cmd });
-  if (!contract.ok) return evidence({ deployment: 'railway-api', boot_status: 'failed', command_or_artifact, probe, result: contract.result });
+export const workerPostgresProofHostname = (postgresName) => `${postgresName}.localhost`;
 
-  let run;
-  const hasDocker = dockerAvailable();
-  if (hasDocker) {
-    const image = commandResult('docker', ['build', '-f', 'Dockerfile.railway', '-t', 'surface-matrix-railway-api-proof:local', '.'], proofEnv(), 300_000);
-    if (!image.ok) return evidence({ deployment: 'railway-api', boot_status: 'failed', command_or_artifact, probe, result: 'Dockerfile.railway image build failed' });
-    run = await runHttpProcess({
-      command: 'docker',
-      args: ['run', '--rm', '--name', 'surface-matrix-railway-api-proof', '-p', `${PORTS.api}:${PORTS.api}`, 'surface-matrix-railway-api-proof:local'],
-      env: proofEnv({ PORT: String(PORTS.api), _EXPLICIT_PORT: '1' }),
-      port: PORTS.api,
-      containerName: 'surface-matrix-railway-api-proof',
-      paths: [{ path: '/health', method: 'GET' }],
-    });
-  } else {
-    run = await runHttpProcess({
-      command: process.execPath,
-      args: ['dist/index.js'],
-      env: proofEnv({ PORT: '0', _EXPLICIT_PORT: '1' }),
-      port: 0,
-      paths: [{ path: '/health', method: 'GET' }],
-    });
+export const workerProofPlan = ({ workerType, sourceSha, deploymentId }) => ({
+  workerEnvironment: workerProofEnvironment({ workerType, sourceSha, deploymentId }),
+  steps: [
+    'network',
+    'redis',
+    'postgres',
+    ...(workerType === 'capital-call-status' ? ['capital-schema-preparation'] : []),
+    'image-build',
+    'worker-launch',
+  ],
+});
+
+export const executeWorkerProofPlan = async ({ steps, execute }) => {
+  for (const step of steps) {
+    const result = await execute(step);
+    if (!result?.ok) return { ok: false, failedStep: step };
   }
-  const outcome = railwayApiRuntimeOutcome({
-    dockerAvailable: hasDocker,
-    containerListener: hasDocker ? run.proven : false,
-    localListener: hasDocker ? undefined : run.proven,
-  });
-  return evidence({ deployment: 'railway-api', boot_status: outcome.boot_status, command_or_artifact, probe, result: outcome.result });
+  return { ok: true };
 };
 
-const railwayWorkerProof = async () => {
-  const command_or_artifact = 'docker build -f Dockerfile.worker; docker run Dockerfile.worker with Redis and PostgreSQL containers on isolated network';
-  const probe = 'Dockerfile.worker image runs fund-scenario-calc worker; GET /health /live /ready /metrics /stats through mapped port; expected HTTP 2xx; 404/405 are failures';
+const railwayWorkerProof = async ({ workerType, deployment, sourceSha }) => {
+  const command_or_artifact = `docker build -f Dockerfile.worker; docker run ${workerType} worker with isolated Redis and PostgreSQL`;
+  const probe = `Dockerfile.worker runs ${workerType}; GET /health /live /ready /metrics /stats through mapped port with a 30000ms worker timeout`;
+  const plannedWorkerIdentity = { workerType, commit: sourceSha, deploymentId: `surface-matrix-${workerType}` };
+  const plan = workerProofPlan({ workerType, sourceSha, deploymentId: plannedWorkerIdentity.deploymentId });
   if (!dockerAvailable()) {
     return evidence({
-      deployment: 'railway-worker',
+      deployment,
+      runtime: 'worker_process',
       boot_status: 'unproven',
       command_or_artifact,
       probe,
@@ -473,83 +458,102 @@ const railwayWorkerProof = async () => {
   const network = 'surface-matrix-worker-proof-net';
   const redisName = 'surface-matrix-worker-redis-proof';
   const postgresName = 'surface-matrix-worker-postgres-proof';
-  const workerName = 'surface-matrix-worker-proof';
+  const workerName = `surface-matrix-${workerType}-proof`;
   dockerCleanup(workerName);
   dockerCleanup(redisName);
   dockerCleanup(postgresName);
   dockerCleanup(network, 'network');
   try {
-    const networkCreate = commandResult('docker', ['network', 'create', network], proofEnv(), 30_000);
-    if (!networkCreate.ok) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('worker proof network creation', networkCreate) });
+    const networkCreate = commandResult('docker', ['network', 'create', network], dockerProofEnvironment(), 30_000);
+    if (!networkCreate.ok) return evidence({ deployment, runtime: 'worker_process', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('worker proof network creation', networkCreate) });
 
     const redis = commandResult('docker', [
       'run', '-d', '--rm', '--name', redisName, '--network', network, 'redis:7-alpine',
-    ], proofEnv(), 120_000);
-    if (!redis.ok) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('Redis proof container startup', redis) });
+    ], dockerProofEnvironment(), 120_000);
+    if (!redis.ok) return evidence({ deployment, runtime: 'worker_process', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('Redis proof container startup', redis) });
 
     let redisReady = false;
     const redisDeadline = Date.now() + 60_000;
     while (Date.now() < redisDeadline) {
-      const ping = commandResult('docker', ['exec', redisName, 'redis-cli', 'ping'], proofEnv(), 10_000);
+      const ping = commandResult('docker', ['exec', redisName, 'redis-cli', 'ping'], dockerProofEnvironment(), 10_000);
       if (ping.ok && ping.stdout.trim() === 'PONG') {
         redisReady = true;
         break;
       }
       await pause(250);
     }
-    if (!redisReady) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: 'Redis proof container did not become ready; worker proof was not faked' });
+    if (!redisReady) return evidence({ deployment, runtime: 'worker_process', boot_status: 'failed', command_or_artifact, probe, result: 'Redis proof container did not become ready; worker proof was not faked' });
 
+    const schemaPort = 55439;
     const postgres = commandResult('docker', [
       'run', '-d', '--rm', '--name', postgresName, '--network', network,
+      '--network-alias', workerPostgresProofHostname(postgresName),
+      '-p', `${schemaPort}:5432`,
       '-e', 'POSTGRES_USER=surface-proof',
       '-e', 'POSTGRES_PASSWORD=surface-proof',
       '-e', 'POSTGRES_DB=surface_proof',
       'postgres:16-alpine',
-    ], proofEnv(), 120_000);
-    if (!postgres.ok) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('PostgreSQL proof container startup', postgres) });
+    ], dockerProofEnvironment(), 120_000);
+    if (!postgres.ok) return evidence({ deployment, runtime: 'worker_process', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('PostgreSQL proof container startup', postgres) });
 
     let postgresReady = false;
     const postgresDeadline = Date.now() + 60_000;
     while (Date.now() < postgresDeadline) {
-      const ready = commandResult('docker', ['exec', postgresName, 'pg_isready', '-U', 'surface-proof', '-d', 'surface_proof'], proofEnv(), 10_000);
+      const ready = commandResult('docker', ['exec', postgresName, 'pg_isready', '-U', 'surface-proof', '-d', 'surface_proof'], dockerProofEnvironment(), 10_000);
       if (ready.ok) {
         postgresReady = true;
         break;
       }
       await pause(250);
     }
-    if (!postgresReady) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: 'PostgreSQL proof container did not become ready; worker proof was not faked' });
+    if (!postgresReady) return evidence({ deployment, runtime: 'worker_process', boot_status: 'failed', command_or_artifact, probe, result: 'PostgreSQL proof container did not become ready; worker proof was not faked' });
 
-    const imageBuild = commandResult('docker', ['build', '-f', 'Dockerfile.worker', '-t', image, '.'], proofEnv(), 600_000);
-    if (!imageBuild.ok) return evidence({ deployment: 'railway-worker', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('Dockerfile.worker image build', imageBuild) });
+    if (plan.steps.includes('capital-schema-preparation')) {
+      const schemaPrep = npmResult('db:push', proofEnv({
+        DATABASE_URL: `postgresql://surface-proof:surface-proof@127.0.0.1:${schemaPort}/surface_proof`,
+        _EXPLICIT_DATABASE_URL: '1',
+      }), 300_000);
+      if (!schemaPrep.ok) return evidence({ deployment, runtime: 'worker_process', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('capital-call PostgreSQL schema preparation', schemaPrep) });
+    }
+
+    const imageBuild = commandResult('docker', ['build', '-f', 'Dockerfile.worker', '-t', image, '.'], dockerProofEnvironment(), 600_000);
+    if (!imageBuild.ok) return evidence({ deployment, runtime: 'worker_process', boot_status: 'failed', command_or_artifact, probe, result: dockerFailure('Dockerfile.worker image build', imageBuild) });
 
     const run = await runHttpProcess({
       command: 'docker',
       args: [
         'run', '--rm', '--name', workerName, '--network', network,
         '-p', `${PORTS.worker}:9000`,
-        '-e', 'NODE_ENV=production',
-        '-e', 'WORKER_TYPE=fund-scenario-calc',
+        ...Object.entries(plan.workerEnvironment).flatMap(([key, value]) => ['-e', `${key}=${value}`]),
         '-e', 'WORKER_HEALTH_PORT=9000',
         '-e', 'ENABLE_QUEUES=1',
         '-e', `QUEUE_REDIS_URL=redis://${redisName}:6379`,
         '-e', `REDIS_URL=redis://${redisName}:6379`,
-        '-e', `DATABASE_URL=postgresql://surface-proof:surface-proof@${postgresName}:5432/surface_proof`,
+        '-e', `DATABASE_URL=postgresql://surface-proof:surface-proof@${workerPostgresProofHostname(postgresName)}:5432/surface_proof`,
         image,
       ],
-      env: proofEnv(),
+      env: dockerProofEnvironment(),
       port: PORTS.worker,
       containerName: workerName,
       paths: HEALTH_PATHS.map((requestPath) => ({ path: requestPath, method: 'GET' })),
     });
     const health = run.statuses.find((status) => status.path === '/health')?.body_json;
     const stats = run.statuses.find((status) => status.path === '/stats')?.body_json;
-    const consumerRegistered = workerConsumerIsHealthy({ health, stats });
+    const consumerRegistered = workerConsumerIsHealthy({
+      health,
+      stats,
+      workerType,
+      sourceSha,
+      deploymentId: plannedWorkerIdentity.deploymentId,
+    });
     const proven = run.proven && consumerRegistered;
     const result = proven
-      ? 'Dockerfile.worker image stayed alive, Redis connected, and fund-scenario-calc consumer was healthy and registered in /health and /stats'
-      : `Dockerfile.worker container proof failed${!consumerRegistered ? ': /health and /stats did not report a running fund-scenario-calc consumer' : ''}${run.output ? `: ${run.output.trim().replaceAll(/\s+/g, ' ').slice(0, 600)}` : ''}`;
-    return evidence({ deployment: 'railway-worker', boot_status: proven ? 'proven' : 'failed', command_or_artifact, probe, result });
+      ? `Dockerfile.worker image stayed alive, Redis connected, and ${workerType} consumer was healthy and registered in /health and /stats`
+      : `Dockerfile.worker container proof failed${!consumerRegistered ? `: /health and /stats did not report an exact healthy ${workerType} identity` : ''}${run.output ? `: ${run.output.trim().replaceAll(/\s+/g, ' ').slice(0, 600)}` : ''}`;
+    const observedWorkerIdentity = proven
+      ? { workerType: health.workerType, commit: health.commit, deploymentId: health.deploymentId }
+      : undefined;
+    return evidence({ deployment, runtime: 'worker_process', boot_status: proven ? 'proven' : 'failed', command_or_artifact, probe, result, worker_identity: observedWorkerIdentity });
   } finally {
     dockerCleanup(workerName);
     dockerCleanup(redisName);
@@ -583,8 +587,13 @@ const vercelApiProof = async () => {
   return evidence({ deployment: 'vercel-api', runtime: 'make_app', boot_status: construction.ok ? 'proven' : 'failed', command_or_artifact, probe, result: construction.ok ? 'makeApp constructed from built bundle' : failureSummary(construction, 'built bundle makeApp construction failed') });
 };
 
-const VERCEL_FUNCTION_COMMAND = 'vercel build; .vercel/output/functions/**/*.func/index.(js|mjs|cjs)';
+const VERCEL_FUNCTION_COMMAND = 'npx --yes vercel@55.0.0 build --prod --yes; .vercel/output/functions/**/*.func/.vc-config.json handler';
 const VERCEL_FUNCTION_PROBE = 'enumerate every real Vercel build-output function and invoke its callable handler once';
+
+export const vercelBuildInvocation = () => ({
+  command: 'npx',
+  args: ['--yes', 'vercel@55.0.0', 'build', '--prod', '--yes'],
+});
 
 export const vercelFunctionBuildFailureEvidence = (build) => evidence({
   deployment: 'vercel-api',
@@ -595,34 +604,104 @@ export const vercelFunctionBuildFailureEvidence = (build) => evidence({
   result: dockerFailure('Vercel build-output generation', build),
 });
 
-const filesUnder = (root) => {
-  if (!fs.existsSync(root)) return [];
-  const files = [];
+const functionDirectoriesUnder = (root) => {
+  let rootStat;
+  try {
+    rootStat = fs.lstatSync(root);
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') return [];
+    return [{ directory: root, error: 'invalid Vercel build-output functions root: unreadable path' }];
+  }
+  if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
+    return [{ directory: root, error: 'invalid Vercel build-output functions root: must be a real directory' }];
+  }
+  const directories = [];
   const visit = (current) => {
     for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
       const absolute = path.join(current, entry.name);
+      if (entry.name.endsWith('.func')) {
+        directories.push({
+          directory: absolute,
+          ...(entry.isDirectory() ? {} : { error: 'invalid Vercel function directory: symbolic link or non-directory .func entry' }),
+        });
+        continue;
+      }
+      if (entry.isSymbolicLink()) {
+        directories.push({ directory: absolute, error: 'invalid Vercel build-output path: symbolic link encountered during function discovery' });
+        continue;
+      }
       if (entry.isDirectory()) visit(absolute);
-      else files.push(absolute);
     }
   };
   visit(root);
-  return files.sort((left, right) => left.localeCompare(right));
+  return directories.sort((left, right) => left.directory.localeCompare(right.directory));
 };
 
-const vercelBuildOutputFunctions = () => {
-  const functionsRoot = path.join(repoRoot, '.vercel', 'output', 'functions');
-  const functionDirectories = [...new Set(filesUnder(functionsRoot)
-    .filter((file) => path.basename(path.dirname(file)).endsWith('.func'))
-    .map((file) => path.dirname(file)))].sort((left, right) => left.localeCompare(right));
-  return functionDirectories.map((directory) => {
-    const entry = filesUnder(directory).find((file) => ['index.js', 'index.mjs', 'index.cjs'].includes(path.basename(file)));
-    return {
-      name: path.relative(functionsRoot, directory).replace(/\.func$/, '').split(path.sep).join('/'),
-      directory,
-      entry,
-    };
-  });
+const invalidVercelHandler = (message) => ({ entry: undefined, error: `invalid .vc-config.json handler: ${message}` });
+
+const resolveVercelFunctionHandler = (directory) => {
+  const configPath = path.join(directory, '.vc-config.json');
+  let config;
+  try {
+    const configStat = fs.lstatSync(configPath);
+    if (!configStat.isFile() || configStat.isSymbolicLink()) return invalidVercelHandler('.vc-config.json must be a regular non-symlink file');
+    config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  } catch (error) {
+    const detail = error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT'
+      ? 'missing .vc-config.json'
+      : 'unreadable .vc-config.json';
+    return invalidVercelHandler(detail);
+  }
+  if (
+    config === null
+    || typeof config !== 'object'
+    || Array.isArray(config)
+    || Object.getPrototypeOf(config) !== Object.prototype
+  ) {
+    return invalidVercelHandler('.vc-config.json must be a plain object');
+  }
+  if (config.runtime !== 'nodejs22.x') {
+    return invalidVercelHandler('runtime must be nodejs22.x');
+  }
+  const handler = config?.handler;
+  if (typeof handler !== 'string' || handler.trim().length === 0 || handler.includes('\0')) {
+    return invalidVercelHandler('must be a non-empty path string');
+  }
+  const portableHandler = handler.replaceAll('\\', '/');
+  if (path.isAbsolute(handler) || path.win32.isAbsolute(handler) || path.posix.isAbsolute(portableHandler)) {
+    return invalidVercelHandler('must be a safe relative path');
+  }
+  const entry = path.resolve(directory, portableHandler);
+  const relative = path.relative(directory, entry);
+  if (relative === '' || path.isAbsolute(relative) || relative === '..' || relative.startsWith(`..${path.sep}`)) {
+    return invalidVercelHandler('must be a safe relative path');
+  }
+  const segments = relative.split(path.sep);
+  let current = directory;
+  for (const [index, segment] of segments.entries()) {
+    current = path.join(current, segment);
+    let stat;
+    try {
+      stat = fs.lstatSync(current);
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
+        return invalidVercelHandler('handler file is missing');
+      }
+      return invalidVercelHandler('handler path is unreadable');
+    }
+    if (stat.isSymbolicLink()) return invalidVercelHandler('handler path contains a symbolic link');
+    if (index === segments.length - 1 && !stat.isFile()) return invalidVercelHandler('handler must be a regular file');
+    if (index < segments.length - 1 && !stat.isDirectory()) return invalidVercelHandler('handler path component must be a directory');
+  }
+  return { entry };
 };
+
+export const vercelBuildOutputFunctions = (functionsRoot = path.join(repoRoot, '.vercel', 'output', 'functions')) =>
+  functionDirectoriesUnder(functionsRoot).map(({ directory, error }) => ({
+    name: path.relative(functionsRoot, directory).replace(/\.func$/, '').split(path.sep).join('/'),
+    directory,
+    ...(error ? { entry: undefined, error } : resolveVercelFunctionHandler(directory)),
+  }));
 
 export const mockVercelResponse = () => {
   const response = {
@@ -651,12 +730,13 @@ const waitForVercelResponse = async (response, timeout = 20_000) => {
   if (!response.writableEnded && !response.finished) throw new Error('function response did not complete before timeout');
 };
 
-export const invokeVercelFunction = async ({ name, entry, responseTimeout = 20_000 }) => {
-  if (!entry) return { name, ok: false, result: 'build-output function has no index entrypoint' };
+export const invokeVercelFunction = async ({ name, entry, error: entryError, responseTimeout = 20_000 }) => {
+  if (entryError) return { name, ok: false, result: entryError };
+  if (!entry) return { name, ok: false, result: 'build-output function has no resolved handler entrypoint' };
   try {
     const imported = await import(pathToFileURL(entry).href);
     const handler = imported.default ?? imported.handler;
-    if (typeof handler !== 'function') return { name, ok: false, result: 'build-output function has no callable default/handler export' };
+    if (typeof handler !== 'function') return { name, ok: false, result: 'handler-export-missing' };
     const request = {
       method: 'GET',
       url: name.startsWith('api/') ? `/${name}` : `/${name}`,
@@ -692,23 +772,177 @@ export const invokeVercelFunction = async ({ name, entry, responseTimeout = 20_0
       return {
         name,
         ok: false,
-        result: `function response incomplete or unacceptable: completed=${completed} status=${response.statusCode}`,
+        result: 'handler-response-invalid',
       };
     }
-    return { name, ok: true, result: `invoked build-output function; completed response status ${response.statusCode}` };
-  } catch (error) {
-    return { name, ok: false, result: `invocation failed: ${error instanceof Error ? error.message : String(error)}` };
+    return { name, ok: true, result: 'handler-response-completed' };
+  } catch {
+    return { name, ok: false, result: 'handler-invocation-failed' };
+  }
+};
+
+const VERCEL_FUNCTION_CHILD_CODE = String.raw`
+import fs from 'node:fs';
+import { pathToFileURL } from 'node:url';
+
+const [name, entry, timeoutArgument] = process.argv.slice(1);
+const responseTimeout = Number(timeoutArgument);
+const report = (result) => {
+  fs.writeFileSync(3, JSON.stringify(result));
+  process.exit(0);
+};
+const response = {
+  statusCode: 200,
+  headers: {},
+  writableEnded: false,
+  finished: false,
+  setHeader(name, value) { this.headers[String(name).toLowerCase()] = value; return this; },
+  getHeader(name) { return this.headers[String(name).toLowerCase()]; },
+  removeHeader(name) { delete this.headers[String(name).toLowerCase()]; },
+  writeHead(statusCode, headers = {}) { this.statusCode = statusCode; Object.assign(this.headers, headers); return this; },
+  status(statusCode) { this.statusCode = statusCode; return this; },
+  json() { this.writableEnded = true; this.finished = true; return this; },
+  send() { this.writableEnded = true; this.finished = true; return this; },
+  write() { return true; },
+  end() { this.writableEnded = true; this.finished = true; return this; },
+  on() { return this; },
+  once() { return this; },
+};
+const request = {
+  method: 'GET',
+  url: '/' + name,
+  originalUrl: '/' + name,
+  headers: { host: '127.0.0.1' },
+  query: {},
+  body: {},
+  socket: { remoteAddress: '127.0.0.1' },
+  on() { return this; },
+  once() { return this; },
+};
+const waitForResponse = async () => {
+  const deadline = Date.now() + responseTimeout;
+  while (!response.writableEnded && !response.finished && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  if (!response.writableEnded && !response.finished) throw new Error('function response did not complete before timeout');
+};
+try {
+  const imported = await import(pathToFileURL(entry).href);
+  const handler = imported.default ?? imported.handler;
+  if (typeof handler !== 'function') {
+    report({ name, ok: false, result: 'handler-export-missing' });
+  } else {
+    let timeoutHandle;
+    try {
+      await new Promise((resolve, reject) => {
+        timeoutHandle = setTimeout(() => reject(new Error('function invocation timed out')), responseTimeout);
+        Promise.resolve().then(() => handler(request, response)).then(() => waitForResponse()).then(resolve, reject);
+      });
+    } finally {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+    }
+    const completed = response.writableEnded || response.finished;
+    const acceptableStatus = Number.isInteger(response.statusCode) && response.statusCode >= 200 && response.statusCode < 500;
+    report(completed && acceptableStatus
+      ? { name, ok: true, result: 'handler-response-completed' }
+      : { name, ok: false, result: 'handler-response-invalid' });
+  }
+} catch {
+  report({ name, ok: false, result: 'handler-invocation-failed' });
+}
+`;
+
+const childOutput = (result, index) => {
+  const output = result.output?.[index];
+  if (typeof output === 'string') return output;
+  return Buffer.isBuffer(output) ? output.toString('utf8') : '';
+};
+
+const validChildInvocation = (value, name) => value
+  && typeof value === 'object'
+  && value.name === name
+  && typeof value.ok === 'boolean'
+  && typeof value.result === 'string';
+
+const isolatedFunctionCwd = (directory, entry) => {
+  const cwd = directory ?? path.dirname(entry);
+  try {
+    const stat = fs.lstatSync(cwd);
+    return stat.isDirectory() && !stat.isSymbolicLink() ? cwd : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const childFailureResult = (result) => [
+  'isolated-handler-child-failed',
+  Number.isInteger(result.status) ? `status=${result.status}` : undefined,
+  result.error?.code ? `error=${result.error.code}` : undefined,
+  result.signal ? `signal=${result.signal}` : undefined,
+].filter(Boolean).join(' ');
+
+export const invokeVercelFunctionInIsolatedChild = ({
+  name,
+  entry,
+  directory,
+  error: entryError,
+  responseTimeout = 20_000,
+  redactionEnvironment = process.env,
+}) => {
+  if (entryError) return { name, ok: false, result: entryError };
+  if (!entry) return { name, ok: false, result: 'build-output function has no resolved handler entrypoint' };
+  const cwd = isolatedFunctionCwd(directory, entry);
+  if (!cwd) return { name, ok: false, result: 'isolated-handler-invalid-working-directory' };
+  const result = spawnSync(process.execPath, [
+    '--input-type=module',
+    '--eval', VERCEL_FUNCTION_CHILD_CODE,
+    '--',
+    name,
+    entry,
+    String(responseTimeout),
+  ], {
+    cwd,
+    env: vercelFunctionProofEnvironment(),
+    encoding: 'utf8',
+    timeout: Math.min(Math.max(responseTimeout + 1_000, 1_000), 30_000),
+    killSignal: 'SIGKILL',
+    maxBuffer: 16 * 1024 * 1024,
+    stdio: ['ignore', 'ignore', 'ignore', 'pipe'],
+  });
+  const protocol = childOutput(result, 3);
+  if (result.error || result.status !== 0) {
+    return {
+      name,
+      ok: false,
+      result: redactChildOutput(childFailureResult(result), redactionEnvironment),
+    };
+  }
+  try {
+    const invocation = JSON.parse(protocol);
+    if (!validChildInvocation(invocation, name)) throw new Error('invalid result');
+    return { ...invocation, result: redactChildOutput(invocation.result, redactionEnvironment) };
+  } catch {
+    return {
+      name,
+      ok: false,
+      result: redactChildOutput('isolated-handler-invalid-protocol', redactionEnvironment),
+    };
   }
 };
 
 const vercelFunctionProof = async () => {
   const command_or_artifact = VERCEL_FUNCTION_COMMAND;
   const probe = VERCEL_FUNCTION_PROBE;
-  const build = commandResult('vercel', ['build', '--yes'], proofEnv(), 600_000);
+  const invocation = vercelBuildInvocation();
+  const build = commandResult(invocation.command, invocation.args, vercelBuildEnvironment(), 600_000);
   if (!build.ok) return vercelFunctionBuildFailureEvidence(build);
   const functions = vercelBuildOutputFunctions();
   if (functions.length === 0) return evidence({ deployment: 'vercel-api', runtime: 'vercel_function', boot_status: 'failed', command_or_artifact, probe, result: 'Vercel build completed but emitted no .vercel/output/functions entries' });
-  const invocations = await Promise.all(functions.map(invokeVercelFunction));
+  const redactionEnvironment = requiredVercelBuildCredentials();
+  const invocations = functions.map((functionEntry) => invokeVercelFunctionInIsolatedChild({
+    ...functionEntry,
+    redactionEnvironment,
+  }));
   const failed = invocations.filter((invocation) => !invocation.ok);
   const result = `invoked ${invocations.length} build-output function(s): ${invocations.map((invocation) => `${invocation.name}=${invocation.ok ? 'ok' : 'failed'}`).join(', ')}${failed.length > 0 ? `; ${failed.map((invocation) => invocation.result).join('; ')}` : ''}`;
   return evidence({ deployment: 'vercel-api', runtime: 'vercel_function', boot_status: failed.length === 0 ? 'proven' : 'failed', command_or_artifact, probe, result });
@@ -742,35 +976,13 @@ const emittedSpaAssetPath = (html) => {
   return match?.[1] || undefined;
 };
 
-const railwayWebProof = async (railwayApi) => {
-  const command_or_artifact = 'npm run build:web plus proven railway-api listener';
-  let probe = 'GET actual emitted hashed SPA asset and GET /fund-setup; expected HTTP 2xx; 404/405 are failures';
-  if (railwayApi.boot_status !== 'proven') return evidence({ deployment: 'railway-web', boot_status: 'unproven', command_or_artifact, probe, result: `dependency railway-api is ${railwayApi.boot_status}; Railway web proof not executable` });
-  const build = npmResult('build:web', proofEnv({ PORT: String(PORTS.web), _EXPLICIT_PORT: '1' }));
-  if (!build.ok) return commandFailureEvidence({
-    deployment: 'railway-web',
-    command_or_artifact,
-    probe,
-    label: 'npm run build:web',
-    result: build,
-  });
-  const indexFile = path.join(repoRoot, 'dist/public/index.html');
-  const html = fs.existsSync(indexFile) ? fs.readFileSync(indexFile, 'utf8') : '';
-  const assetPath = emittedSpaAssetPath(html);
-  probe = `GET ${assetPath || '<missing-emitted-hash>.js'} and GET /fund-setup; expected HTTP 2xx; 404/405 are failures`;
-  if (!assetPath) return evidence({ deployment: 'railway-web', boot_status: 'failed', command_or_artifact, probe, result: 'dist/public/index.html has no emitted hashed script URL' });
-  const run = await runHttpProcess({ command: process.execPath, args: ['dist/index.js'], env: proofEnv({ PORT: '0', _EXPLICIT_PORT: '1' }), port: 0, paths: [{ path: assetPath, method: 'GET' }, { path: '/fund-setup', method: 'GET' }] });
-  const ok = run.proven;
-  return evidence({ deployment: 'railway-web', boot_status: ok ? 'proven' : 'failed', command_or_artifact, probe, result: ok ? 'asset and deep-link responses observed' : 'asset/deep-link probe failed' });
-};
-
 const mlServiceProof = async () => {
   const command_or_artifact = 'Dockerfile ml-service/Dockerfile with uvicorn app:app --host 0.0.0.0 --port 8088';
   const probe = 'GET /health and GET /model/info expect 2xx; POST /predict and POST /train send {} and expect 422 validation; 404/405 are failures';
   if (!dockerAvailable()) return evidence({ deployment: 'ml-service-local', boot_status: 'unproven', command_or_artifact, probe, result: 'docker unavailable' });
-  const image = commandResult('docker', ['build', '-f', 'ml-service/Dockerfile', '-t', 'surface-matrix-ml-proof:local', 'ml-service'], proofEnv(), 300_000);
+  const image = commandResult('docker', ['build', '-f', 'ml-service/Dockerfile', '-t', 'surface-matrix-ml-proof:local', 'ml-service'], dockerProofEnvironment(), 300_000);
   if (!image.ok) return evidence({ deployment: 'ml-service-local', boot_status: 'failed', command_or_artifact, probe, result: 'ML service Docker image build failed' });
-  const run = await runHttpProcess({ command: 'docker', args: ['run', '--rm', '--name', 'surface-matrix-ml-proof', '-p', '8088:8088', 'surface-matrix-ml-proof:local'], env: proofEnv(), port: 8088, containerName: 'surface-matrix-ml-proof', paths: [
+  const run = await runHttpProcess({ command: 'docker', args: ['run', '--rm', '--name', 'surface-matrix-ml-proof', '-p', '8088:8088', 'surface-matrix-ml-proof:local'], env: dockerProofEnvironment(), port: 8088, containerName: 'surface-matrix-ml-proof', paths: [
     { path: '/health', method: 'GET' },
     { path: '/predict', method: 'POST', body: {}, expected_statuses: [422] },
     { path: '/train', method: 'POST', body: {}, expected_statuses: [422] },
@@ -780,24 +992,105 @@ const mlServiceProof = async () => {
   return evidence({ deployment: 'ml-service-local', boot_status: ok ? 'proven' : 'failed', command_or_artifact, probe, result: ok ? 'FastAPI listener responded on all four paths' : 'FastAPI path probe failed' });
 };
 
-const run = async () => {
-  const railwayApi = await railwayApiProof();
-  const proofs = [
-    railwayApi,
-    await railwayWorkerProof(),
+export const REQUIRED_G3_PROOF_KEYS = Object.freeze([
+  'vercel-api|make_app',
+  'vercel-api|vercel_function',
+  'railway-worker-fund-scenario-calc|worker_process',
+  'railway-worker-capital-call-status|worker_process',
+]);
+
+export const resolveBootProofOutput = (requestedOutput) => {
+  const output = path.resolve(repoRoot, requestedOutput || outputFile);
+  const parent = path.dirname(output);
+  if (!fs.existsSync(parent) || !fs.lstatSync(parent).isDirectory() || fs.lstatSync(parent).isSymbolicLink()) {
+    throw new Error(`Boot-proof output parent must be a real directory: ${parent}`);
+  }
+  if (fs.existsSync(output)) {
+    const stat = fs.lstatSync(output);
+    if (stat.isSymbolicLink() || !stat.isFile()) {
+      throw new Error(`Boot-proof output must be a regular non-symlink file: ${output}`);
+    }
+  }
+  return output;
+};
+
+export const assertRequiredG3Proofs = (document) => {
+  const proofs = new Map();
+  const duplicates = [];
+  for (const proof of document.proofs) {
+    const key = `${proof.deployment}|${proof.runtime ?? '*'}`;
+    if (proofs.has(key)) duplicates.push(key);
+    proofs.set(key, proof);
+  }
+  const failures = REQUIRED_G3_PROOF_KEYS.filter((key) => proofs.get(key)?.boot_status !== 'proven');
+  if (duplicates.length > 0) throw new Error(`G3 boot proof duplicate key: ${[...new Set(duplicates)].join(', ')}`);
+  if (failures.length > 0) throw new Error(`G3 boot proof incomplete: ${failures.join(', ')}`);
+};
+
+const sourceSha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim();
+
+const collectBootProofs = async ({ sourceSha: currentSourceSha }) => {
+  const fundWorkerProof = await railwayWorkerProof({
+    workerType: 'fund-scenario-calc',
+    deployment: 'railway-worker-fund-scenario-calc',
+    sourceSha: currentSourceSha,
+  });
+  const capitalWorkerProof = await railwayWorkerProof({
+    workerType: 'capital-call-status',
+    deployment: 'railway-worker-capital-call-status',
+    sourceSha: currentSourceSha,
+  });
+  return [
+    evidence({
+      deployment: 'local-process',
+      boot_status: 'unproven',
+      command_or_artifact: 'local runtime inventory only',
+      probe: 'no production boot proof is required for local-process surfaces',
+      result: 'local-process evidence is intentionally unproven',
+    }),
+    ...workerRuntimeProofs(fundWorkerProof),
+    ...workerRuntimeProofs(capitalWorkerProof),
     await vercelApiProof(),
     await vercelFunctionProof(),
     await vercelWebProof(),
-    await railwayWebProof(railwayApi),
     await mlServiceProof(),
-  ].sort((left, right) => `${left.deployment}|${left.runtime ?? '*'}`.localeCompare(`${right.deployment}|${right.runtime ?? '*'}`));
-  const document = BootProofDocumentSchema.parse({ schema_version: '1.0.0', proofs });
-  fs.writeFileSync(outputFile, `${JSON.stringify(document, null, 2)}\n`);
+  ];
+};
+
+export const runBootProof = async ({
+  output,
+  requireG3 = false,
+  collectProofs = collectBootProofs,
+  sourceSha: expectedSourceSha,
+  environment = process.env,
+} = {}) => {
+  const outputPath = resolveBootProofOutput(output);
+  if (requireG3) assertStrictVercelBuildCredentials(environment);
+  const currentSourceSha = expectedSourceSha ?? sourceSha();
+  const proofs = (await collectProofs({ sourceSha: currentSourceSha }))
+    .sort((left, right) => `${left.deployment}|${left.runtime ?? '*'}`.localeCompare(`${right.deployment}|${right.runtime ?? '*'}`));
+  const document = BootProofDocumentSchema.parse({ schema_version: '1.1.0', source_sha: currentSourceSha, proofs });
+  if (requireG3) assertRequiredG3Proofs(document);
+  fs.writeFileSync(outputPath, `${JSON.stringify(document, null, 2)}\n`);
   process.stdout.write(`${JSON.stringify(document, null, 2)}\n`);
 };
 
+const parseArgs = (argv) => {
+  const args = { output: undefined, requireG3: false };
+  for (let index = 0; index < argv.length; index += 1) {
+    if (argv[index] === '--require-g3') args.requireG3 = true;
+    else if (argv[index] === '--output') {
+      args.output = argv[index + 1];
+      if (!args.output || args.output.startsWith('--')) throw new Error('--output requires a path');
+      index += 1;
+    } else throw new Error(`Unknown boot-proof argument: ${argv[index]}`);
+  }
+  return args;
+};
+
 if (process.argv[1] && path.resolve(process.argv[1]) === thisFile) {
-  run().catch((error) => {
+  const args = parseArgs(process.argv.slice(2));
+  runBootProof(args).catch((error) => {
     process.stderr.write(`${error.stack || error.message}\n`);
     process.exitCode = 1;
   });

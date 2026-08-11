@@ -11,11 +11,19 @@ describe('server config env preservation', () => {
   });
 
   afterEach(() => {
+    vi.doUnmock('dotenv');
     vi.resetModules();
     process.env = { ...originalEnv };
   });
 
   it('keeps explicit CI database settings after dotenv loading', async () => {
+    vi.doMock('dotenv', () => ({
+      config: vi.fn(() => {
+        process.env.ENABLE_IN_PROCESS_QUEUE_WORKERS = '1';
+        return { parsed: {} };
+      }),
+    }));
+
     process.env.NODE_ENV = 'test';
     process.env._EXPLICIT_NODE_ENV = 'test';
     process.env.DATABASE_URL = DATABASE_URL;
@@ -26,6 +34,8 @@ describe('server config env preservation', () => {
     process.env._EXPLICIT_REDIS_URL = 'memory://';
     process.env.ENABLE_QUEUES = '1';
     process.env._EXPLICIT_ENABLE_QUEUES = '1';
+    process.env.ENABLE_IN_PROCESS_QUEUE_WORKERS = '0';
+    process.env._EXPLICIT_ENABLE_IN_PROCESS_QUEUE_WORKERS = '0';
     process.env.QUEUE_REDIS_URL = 'redis://localhost:6380';
     process.env._EXPLICIT_QUEUE_REDIS_URL = 'redis://localhost:6380';
     process.env.JWT_ALG = 'HS256';
@@ -40,6 +50,21 @@ describe('server config env preservation', () => {
     expect(config.DATABASE_URL).toBe(DATABASE_URL);
     expect(config.ALLOW_MEMORY_STORAGE).toBe(false);
     expect(config.ENABLE_QUEUES).toBe('1');
+    expect(config.ENABLE_IN_PROCESS_QUEUE_WORKERS).toBe('0');
     expect(config.QUEUE_REDIS_URL).toBe('redis://localhost:6380');
+  });
+
+  it('rejects an in-process consumer in a Vercel test runtime after schema parsing', async () => {
+    vi.doMock('dotenv', () => ({ config: vi.fn(() => ({ parsed: {} })) }));
+
+    process.env.NODE_ENV = 'test';
+    process.env._EXPLICIT_NODE_ENV = 'test';
+    process.env.VERCEL_ENV = 'preview';
+    process.env.ENABLE_IN_PROCESS_QUEUE_WORKERS = '1';
+    process.env._EXPLICIT_ENABLE_IN_PROCESS_QUEUE_WORKERS = '1';
+
+    const { loadEnv } = await import('../../../server/config/index.js');
+
+    expect(() => loadEnv()).toThrow(/Vercel/i);
   });
 });

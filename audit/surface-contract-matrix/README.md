@@ -26,16 +26,15 @@ Validation has two layers.
    untracked KG snapshot as a live CI input.
 
 Every exposure records boot status and evidence. Configured reachability stays
-separate from proven reachability: a proof that executes and observes a
-contract failure is `failed`; a proof blocked by an unavailable prerequisite is
-`unproven`. In particular, a Docker-unavailable local `dist/index.js` listener
-observation can be useful evidence but cannot prove the Railway container or
-Dockerfile wiring. Failed or unproven release boots stay in scope and receive
+separate from proven reachability: a proof that executes and observes a contract
+failure is `failed`; a proof blocked by an unavailable prerequisite is
+`unproven`. A local observation never substitutes for a named Railway worker
+identity proof. Failed or unproven release boots stay in scope and receive
 `keep-and-prove`, rather than being silently treated as dormant.
-`boot_evidence.observed_at` is preserved verbatim across re-seeds when
-the boot outcome (`command_or_artifact`, `probe`, `result`, `boot_status`) is
-unchanged, so `seed twice == seed once` stays byte-literal. Human decision
-evidence is never merged into machine-owned boot evidence.
+`boot_evidence.observed_at` is preserved verbatim across re-seeds when the boot
+outcome (`command_or_artifact`, `probe`, `result`, `boot_status`) is unchanged,
+so `seed twice == seed once` stays byte-literal. Human decision evidence is
+never merged into machine-owned boot evidence.
 
 ### CI-only package-source governance
 
@@ -61,18 +60,27 @@ and write this file directly.
 
 ## Boot-proof table
 
-`boot-proof.mjs` runs this table hermetically and writes the deterministic,
-tracked `boot-proofs.json` input consumed by `seed-matrix.mjs`:
+`boot-proof.mjs` writes a schema-1.1 document with the exact source commit. Its
+default authoring output is tracked `boot-proofs.json`; closure runs must pass
+`--output` with a temporary file and `--require-g3`, so verification never
+changes the approved snapshot. Railway worker evidence includes structured
+`worker_identity` rather than parsing identity from prose.
 
-| Deployment         | Artifact / command                                                    | Probe and success condition                                                              |
-| ------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `railway-api`      | `npm run build:prod`; exact `Dockerfile.railway` `ENTRYPOINT` + `CMD` | Container HTTP listener on `/health`; Docker-unavailable local observation remains `unproven` |
-| `railway-worker`   | `Dockerfile.worker` image with Redis on isolated Docker network       | Container consumer registration plus `/health`, `/live`, `/ready`, `/metrics`, `/stats`  |
-| `vercel-api`       | `scripts/build-vercel-api.mjs`; import built bundle                   | `makeApp()` constructs without listening                                                 |
-| `vercel-function`  | `vercel build`; `.vercel/output/functions/**/*.func` entries          | Every emitted function entrypoint is invoked; unavailable tooling records `unproven`    |
-| `vercel-web`       | `npm run build:web`                                                   | `dist/public/index.html` references emitted JavaScript bundle                            |
-| `railway-web`      | SPA build plus proven Railway API                                     | Asset and deep-link probe through proven API listener                                    |
-| `ml-service-local` | `ml-service/Dockerfile` when Docker daemon is available               | Four FastAPI paths respond; otherwise records `unproven` with Docker availability result |
+| Deployment                           | Artifact / command                                           | Probe and success condition                                                                                        |
+| ------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| `railway-worker-fund-scenario-calc`  | `Dockerfile.worker` with isolated Redis/PostgreSQL           | Fund consumer registration plus `/health`, `/live`, `/ready`, `/metrics`, `/stats`; identity SHA equals source SHA |
+| `railway-worker-capital-call-status` | `Dockerfile.worker` with isolated Redis/PostgreSQL           | Capital worker registration plus matching health probes after schema preparation; identity SHA equals source SHA   |
+| `vercel-api`                         | `scripts/build-vercel-api.mjs`; import built bundle          | `makeApp()` constructs without listening                                                                           |
+| `vercel-function`                    | `vercel build`; `.vercel/output/functions/**/*.func` entries | Every emitted function entrypoint is invoked; unavailable tooling records `unproven`                               |
+| `vercel-web`                         | `npm run build:web`                                          | `dist/public/index.html` references emitted JavaScript bundle                                                      |
+| `ml-service-local`                   | `ml-service/Dockerfile` when Docker daemon is available      | Four FastAPI paths respond; otherwise records `unproven` with Docker availability result                           |
+
+`Dockerfile.railway` remains legacy inventory evidence, not production
+deployment topology. `railway.toml` was deleted under ADR-080; its declared
+absence is retirement evidence, not a live manifest. Runtime topology comes from
+`QUEUE_CATALOG.productionDisposition`: only named Railway worker deployments are
+production Railway surfaces; API/functions are Vercel-only; local-only and
+quarantined queues stay off Railway.
 
 ## Exact regeneration commands
 
@@ -110,9 +118,8 @@ npx tsx audit/surface-contract-matrix/scripts/render-matrix.mjs
 ```
 
 The two seed runs must produce byte-identical artifacts. Preserve the first
-run's output files in a temporary directory and compare them with the second
-run before classification; do not approve or close G1 while that comparison
-differs.
+run's output files in a temporary directory and compare them with the second run
+before classification; do not approve or close G1 while that comparison differs.
 
 After regeneration, initialize and edit the tracked manifest. Seed never reads
 this file; approval is the only consumer of human decisions:
@@ -124,11 +131,11 @@ npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file a
 npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver <id> --evidence <reference> --close-g1
 ```
 
-`--approver` must equal manifest `approver_id`; `--evidence` must equal
-manifest `evidence_ref`. Direct `--row` and `--seam` mutation flags are not
-supported. Every non-dry-run approval validates source/inventory, off-row
-fingerprints, row integrity, roles, closure, and coverage in memory before an
-atomic multi-file swap. A rename failure rolls back the complete prior set.
+`--approver` must equal manifest `approver_id`; `--evidence` must equal manifest
+`evidence_ref`. Direct `--row` and `--seam` mutation flags are not supported.
+Every non-dry-run approval validates source/inventory, off-row fingerprints, row
+integrity, roles, closure, and coverage in memory before an atomic multi-file
+swap. A rename failure rolls back the complete prior set.
 
 Final local gates:
 
