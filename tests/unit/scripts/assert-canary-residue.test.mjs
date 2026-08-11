@@ -591,41 +591,41 @@ describe('release canary residue assertion', () => {
 
   it('loads the shared cap/TTL policy from process.env on the default path', async () => {
     // Mirrors the release workflow's residue step: no injected policy reader,
-    // policy comes from the seven runner env vars via readCanaryRuntimePolicy.
-    const { execFile } = await import('node:child_process');
-    const { promisify } = await import('node:util');
-    const { fileURLToPath } = await import('node:url');
-    const path = await import('node:path');
-    const script = path.resolve(
-      path.dirname(fileURLToPath(import.meta.url)),
-      '../../../scripts/release/assert-canary-residue.mjs'
-    );
+    // policy comes from the seven runner env vars via readCanaryRuntimePolicy
+    // (the real shared-service reader, resolved through the default
+    // readSharedRuntimePolicy seam). Runs in-process — an earlier
+    // child-process variant of this proof starved the 4-worker CI pool and
+    // timed out unrelated tail tests.
+    for (const [key, value] of Object.entries({
+      DATABASE_URL: 'postgres://canary:canary@127.0.0.1:9/canary',
+      RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE: '10',
+      RELEASE_CANARY_MAX_FUND_RESIDUE: '10',
+      RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE: '10',
+      RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE: '10',
+      RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE: '10',
+      RELEASE_CANARY_MAX_TOTAL_RESIDUE: '50',
+      RELEASE_CANARY_TTL_HOURS: '24',
+    })) {
+      vi.stubEnv(key, value);
+    }
 
-    const { stdout } = await promisify(execFile)(
-      process.execPath,
-      [script, '--expected-sha', SHA],
-      {
-        env: {
-          ...process.env,
-          // Unreachable database: the run must get PAST policy loading and
-          // fail on the query instead, proving env-driven policy resolution.
-          DATABASE_URL: 'postgres://canary:canary@127.0.0.1:9/canary',
-          RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE: '10',
-          RELEASE_CANARY_MAX_FUND_RESIDUE: '10',
-          RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE: '10',
-          RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE: '10',
-          RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE: '10',
-          RELEASE_CANARY_MAX_TOTAL_RESIDUE: '50',
-          RELEASE_CANARY_TTL_HOURS: '24',
-        },
-        timeout: 120_000,
-      }
-    ).catch((error) => error);
+    const output = [];
+    try {
+      const exitCode = await runCanaryResidueAssertion({
+        args: ['--expected-sha', SHA],
+        queryRows: async () => [row()],
+        now: () => NOW,
+        output: (line) => output.push(line),
+        errorOutput: () => undefined,
+      });
+      expect(exitCode).toBe(CANARY_RESIDUE_EXIT_CODES.SUCCESS);
+    } finally {
+      vi.unstubAllEnvs();
+    }
 
-    const summary = JSON.parse(String(stdout).trim().split('\n').at(-1));
-    expect(summary.exitCode).toBe(CANARY_RESIDUE_EXIT_CODES.INVALID_ARGUMENT);
-    // caps non-null proves readCanaryRuntimePolicy consumed the env vars
-    // before the (expected) connection failure.
+    const summary = JSON.parse(output[0]);
+    // caps prove readCanaryRuntimePolicy consumed the stubbed process.env
+    // through the default (non-injected) policy path.
     expect(summary.caps).toMatchObject({ total: 50, ttlHours: 24 });
-  }, 180_000);
+  }, 120_000);
 });
