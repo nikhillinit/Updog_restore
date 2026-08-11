@@ -328,11 +328,19 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
     or `push` run of the same workflow never qualifies, because gate-job
     expectations are event-conditional and a manual dispatch can go vacuously
     green at the same SHA;
-  - the verifier performs the same gate resolution at the live final PR head
-    whenever it differs from the approved base and emits a normalized
-    `finalHeadCiGate` object (`checkRunId`, `workflowRunId`, `runAttempt`,
-    `headSha`); a missing, failed, or non-`pull_request` final-head gate run
-    fails closed;
+  - only under an explicit `--require-final-head-ci` flag, the verifier
+    performs the same gate resolution at the live final PR head and emits a
+    normalized `finalHeadCiGate` object (`checkRunId`, `workflowRunId`,
+    `runAttempt`, `headSha`); in that mode a missing, failed, or
+    non-`pull_request` final-head gate run fails closed. Without the flag no
+    final-head gate lookup runs and no `finalHeadCiGate` is emitted — the
+    label-scoped in-CI `plan-approval` job MUST NOT pass the flag, because it
+    executes inside the same head's `CI Gate Status` dependency graph and a
+    final-head gate requirement there is self-referential (the first CI run
+    of every descendant head could never pass). The flag is for post-CI
+    consumers only: the release finalizer and the pre-merge check, both of
+    which run after the final head's gate has already completed
+    successfully;
   - comment author login equals declared approver and repository owner;
   - live collaborator permission is `admin`, `maintain`, or `write`;
   - review and approval each have `created_at === updated_at`; edited comments
@@ -387,11 +395,14 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
   which may carry an `@<ref>` suffix), run event is `pull_request`, run
   `head_sha` equals the approved base head, and the run's pull-request
   association contains the plan-approval PR; record the resolved run ID and
-  attempt in normalized output. Perform the identical resolution against the
-  live final PR head when it differs from the approved base and emit
+  attempt in normalized output. Behind the explicit `--require-final-head-ci`
+  flag only, perform the identical resolution against the
+  live final PR head and emit
   `finalHeadCiGate` (`checkRunId`, `workflowRunId`, `runAttempt`, `headSha`)
-  in the same normalized output; this is the sole producer of the manifest's
-  `approval.finalHeadCiGate`. Strict-parse fixed-order V2 fields, build expected review
+  in the same normalized output; this flagged mode is the sole producer of
+  the manifest's `approval.finalHeadCiGate` and is invoked only by post-CI
+  consumers (release finalizer, pre-merge check), never by the in-CI
+  `plan-approval` job. Strict-parse fixed-order V2 fields, build expected review
   and approval bodies internally from exact local plan digest plus linked IDs,
   and compare each body byte-for-byte after one outer `.trim()`. Do not accept
   caller-supplied body text. Query commit comparison to prove ancestry for later
@@ -4266,7 +4277,10 @@ type ReleaseCanaryRecoveryHandleV1 = {
   (the same PR in both release modes; pinned to #1385 in the current workflow
   configuration, rebindable for a later candidate) and current plan path, with
   approved base allowed to be an ancestor of that PR's final head, and
-  captures only verifier's compact normalized JSON. That output supplies every
+  captures only verifier's compact normalized JSON. The finalizer invokes the
+  verifier with `--require-final-head-ci` — safe here because it runs after
+  the final head's gate completed successfully, outside any `CI Gate Status`
+  dependency graph. That output supplies every
   `approval` field — repository, PR number, verified live final head, review
   comment metadata, and resolved CI gate identities for approved base and
   final head — so no approval field can enter the manifest from workflow
