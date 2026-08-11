@@ -3790,6 +3790,7 @@ describe('required CI fails closed', () => {
     }).join('\n');
     expect(normalizeNeeds(releaseWorkflow.jobs?.['staged-provider-identity']?.needs)).toEqual([
       'validate-deployment',
+      'railway-workers-verify',
     ]);
     expect(releaseWorkflow.jobs?.['staged-provider-identity']?.outputs?.deployment_url).toBe(
       '${{ needs.validate-deployment.outputs.deployment_url }}'
@@ -4142,8 +4143,95 @@ describe('required CI fails closed', () => {
     const stagedCredentialGuard = stagedSmoke?.steps?.find(
       (step) => step.name === 'Require non-skippable smoke credentials'
     );
+    expect(stagedCredentialGuard?.env?.CANARY_USERNAME).toBe(
+      '${{ secrets.CANARY_USERNAME }}'
+    );
+    expect(stagedCredentialGuard?.env?.CANARY_PASSWORD).toBe(
+      '${{ secrets.CANARY_PASSWORD }}'
+    );
+    expect(stagedCredentialGuard?.env?.DATABASE_URL).toBe(
+      '${{ secrets.PRODUCTION_DATABASE_URL }}'
+    );
+    for (const credential of ['CANARY_USERNAME', 'CANARY_PASSWORD', 'DATABASE_URL']) {
+      expect(stagedCredentialGuard?.run).toContain(`${credential} is required`);
+    }
     expect(stagedCredentialGuard?.run).toContain('VERCEL_AUTOMATION_BYPASS_SECRET is required');
     expect(stagedCredentialGuard?.run).toContain('RUM_ALLOWED_ORIGIN is required');
+
+    const stagedSteps = stagedSmoke?.steps ?? [];
+    const stagedPolicyIndex = stagedSteps.findIndex(
+      (step) => step.name === 'Assert staged Vercel runtime canary policy'
+    );
+    const stagedBoundaryIndex = stagedSteps.findIndex(
+      (step) => step.name === 'Run authenticated staged smoke'
+    );
+    const stagedCanaryIndex = stagedSteps.findIndex(
+      (step) => step.name === 'Run release canaries'
+    );
+    const stagedResidueIndex = stagedSteps.findIndex(
+      (step) => step.name === 'Assert bounded canary residue'
+    );
+    expect(stagedPolicyIndex).toBeGreaterThan(-1);
+    expect(stagedPolicyIndex).toBeLessThan(stagedBoundaryIndex);
+    expect(stagedCanaryIndex).toBeGreaterThan(stagedBoundaryIndex);
+    expect(stagedResidueIndex).toBeGreaterThan(stagedCanaryIndex);
+    expect(stagedResidueIndex).toBe(stagedSteps.length - 1);
+
+    const stagedPolicy = stagedSteps[stagedPolicyIndex];
+    expect(stagedPolicy?.env?.VERCEL_TOKEN).toBe('${{ secrets.VERCEL_TOKEN }}');
+    expect(stagedPolicy?.env?.VERCEL_ORG_ID).toBe('${{ vars.VERCEL_ORG_ID }}');
+    expect(stagedPolicy?.env?.VERCEL_PROJECT_ID).toBe('${{ vars.VERCEL_PROJECT_ID }}');
+    expect(stagedPolicy?.run).toContain('https://api.vercel.com/v10/projects/');
+    expect(stagedPolicy?.run).toContain('teamId=${VERCEL_ORG_ID}');
+    expect(stagedPolicy?.run).toContain('Authorization: Bearer ${VERCEL_TOKEN}');
+    for (const policyKey of [
+      'RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE',
+      'RELEASE_CANARY_MAX_FUND_RESIDUE',
+      'RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE',
+      'RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE',
+      'RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE',
+      'RELEASE_CANARY_MAX_TOTAL_RESIDUE',
+      'RELEASE_CANARY_TTL_HOURS',
+    ]) {
+      expect(stagedPolicy?.run).toContain(policyKey);
+    }
+    expect(stagedPolicy?.run).not.toContain('entry.value');
+
+    const stagedCanary = stagedSteps[stagedCanaryIndex];
+    expect(stagedCanary?.env?.PRODUCTION_URL).toBe(
+      '${{ needs.validate-deployment.outputs.deployment_url }}'
+    );
+    expect(stagedCanary?.env?.EXPECTED_SHA).toBe('${{ inputs.expected_sha }}');
+    expect(stagedCanary?.env?.CANARY_USERNAME).toBe('${{ secrets.CANARY_USERNAME }}');
+    expect(stagedCanary?.env?.CANARY_PASSWORD).toBe('${{ secrets.CANARY_PASSWORD }}');
+    expect(stagedCanary?.env?.VERCEL_AUTOMATION_BYPASS_SECRET).toBe(
+      '${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}'
+    );
+    expect(stagedCanary?.run).toContain('tests/smoke/release-canaries.spec.ts');
+
+    const stagedResidue = stagedSteps[stagedResidueIndex];
+    expect(stagedResidue?.env?.DATABASE_URL).toBe('${{ secrets.PRODUCTION_DATABASE_URL }}');
+    expect(stagedResidue?.env?.EXPECTED_SHA).toBe('${{ inputs.expected_sha }}');
+    // The CLI reads the cap/TTL policy from the runner's process.env; every
+    // key must be injected from GitHub Production variables and guarded.
+    for (const policyKey of [
+      'RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE',
+      'RELEASE_CANARY_MAX_FUND_RESIDUE',
+      'RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE',
+      'RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE',
+      'RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE',
+      'RELEASE_CANARY_MAX_TOTAL_RESIDUE',
+      'RELEASE_CANARY_TTL_HOURS',
+    ]) {
+      expect(stagedResidue?.env?.[policyKey]).toBe(`\${{ vars.${policyKey} }}`);
+      expect(stagedResidue?.run).toContain(`\${${policyKey}:?${policyKey} is required}`);
+    }
+    expect(stagedResidue?.run).toContain('scripts/release/assert-canary-residue.mjs');
+    expect(stagedResidue?.run).toContain('--expected-sha "$EXPECTED_SHA"');
+    expect(stagedResidue?.run).toContain('--reconcile-expected-sha');
+    expect(JSON.stringify(releaseWorkflow.jobs ?? {})).not.toMatch(
+      /"if"\s*:|"continue-on-error"\s*:/
+    );
 
     expect(normalizeNeeds(releaseWorkflow.jobs?.promote?.needs)).toEqual([
       'staged-smoke',

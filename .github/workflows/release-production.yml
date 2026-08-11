@@ -330,6 +330,9 @@ jobs:
           METRICS_KEY: ${{ secrets.METRICS_KEY }}
           PROD_SMOKE_USERNAME: ${{ secrets.PROD_SMOKE_USERNAME }}
           PROD_SMOKE_PASSWORD: ${{ secrets.PROD_SMOKE_PASSWORD }}
+          CANARY_USERNAME: ${{ secrets.CANARY_USERNAME }}
+          CANARY_PASSWORD: ${{ secrets.CANARY_PASSWORD }}
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           RUM_ALLOWED_ORIGIN: ${{ vars.PRODUCTION_URL }}
         run: |
@@ -338,11 +341,63 @@ jobs:
           : "${METRICS_KEY:?METRICS_KEY is required}"
           : "${PROD_SMOKE_USERNAME:?PROD_SMOKE_USERNAME is required}"
           : "${PROD_SMOKE_PASSWORD:?PROD_SMOKE_PASSWORD is required}"
+          : "${CANARY_USERNAME:?CANARY_USERNAME is required}"
+          : "${CANARY_PASSWORD:?CANARY_PASSWORD is required}"
+          : "${DATABASE_URL:?DATABASE_URL is required}"
           : "${VERCEL_AUTOMATION_BYPASS_SECRET:?VERCEL_AUTOMATION_BYPASS_SECRET is required}"
           : "${RUM_ALLOWED_ORIGIN:?RUM_ALLOWED_ORIGIN is required}"
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
+
+      - name: Assert staged Vercel runtime canary policy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          : "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
+          : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
+          : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required}"
+          env_json="$RUNNER_TEMP/vercel-canary-policy.json"
+          trap 'rm -f "$env_json"' EXIT
+          curl --fail --silent --show-error --request GET \
+            --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+            "https://api.vercel.com/v10/projects/${VERCEL_PROJECT_ID}/env?teamId=${VERCEL_ORG_ID}" \
+            --output "$env_json"
+          VERCEL_ENV_JSON="$env_json" node <<'NODE'
+          const fs = require('node:fs');
+
+          const requiredKeys = [
+            'RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE',
+            'RELEASE_CANARY_MAX_FUND_RESIDUE',
+            'RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE',
+            'RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE',
+            'RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE',
+            'RELEASE_CANARY_MAX_TOTAL_RESIDUE',
+            'RELEASE_CANARY_TTL_HOURS',
+          ];
+          const payload = JSON.parse(fs.readFileSync(process.env.VERCEL_ENV_JSON, 'utf8'));
+          const productionKeys = new Set(
+            (Array.isArray(payload.envs) ? payload.envs : [])
+              .filter(
+                (entry) => Array.isArray(entry?.target) && entry.target.includes('production')
+              )
+              .map((entry) => entry.key)
+              .filter((key) => typeof key === 'string')
+          );
+          const missingKeys = requiredKeys.filter((key) => !productionKeys.has(key));
+          if (missingKeys.length > 0) {
+            console.error(
+              `Missing production canary policy keys: ${missingKeys.join(', ')}`
+            );
+            process.exit(1);
+          }
+          for (const key of requiredKeys) {
+            console.log(`Verified production canary policy key: ${key}`);
+          }
+          NODE
 
       - name: Run authenticated staged smoke
         env:
@@ -359,9 +414,57 @@ jobs:
           : "${EXPECTED_SHA:?EXPECTED_SHA is required}"
           npx playwright test tests/smoke/production-boundaries.spec.ts --project=production --reporter=line
 
+      - name: Run release canaries
+        env:
+          PRODUCTION_URL: ${{ needs.validate-deployment.outputs.deployment_url }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          CANARY_USERNAME: ${{ secrets.CANARY_USERNAME }}
+          CANARY_PASSWORD: ${{ secrets.CANARY_PASSWORD }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          set -euo pipefail
+          : "${PRODUCTION_URL:?PRODUCTION_URL is required}"
+          : "${EXPECTED_SHA:?EXPECTED_SHA is required}"
+          : "${CANARY_USERNAME:?CANARY_USERNAME is required}"
+          : "${CANARY_PASSWORD:?CANARY_PASSWORD is required}"
+          : "${VERCEL_AUTOMATION_BYPASS_SECRET:?VERCEL_AUTOMATION_BYPASS_SECRET is required}"
+          npx playwright test tests/smoke/release-canaries.spec.ts --project=production --reporter=line
+
+      - name: Assert bounded canary residue
+        # The CLI evaluates caps from the runner's process.env via the shared
+        # readCanaryRuntimePolicy; ADR-076 makes GitHub Production variables
+        # the injected source of truth (the earlier step asserts the staged
+        # Vercel runtime carries the same keys).
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE }}
+          RELEASE_CANARY_MAX_FUND_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_FUND_RESIDUE }}
+          RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE }}
+          RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE }}
+          RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE }}
+          RELEASE_CANARY_MAX_TOTAL_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_TOTAL_RESIDUE }}
+          RELEASE_CANARY_TTL_HOURS: ${{ vars.RELEASE_CANARY_TTL_HOURS }}
+        run: |
+          set -euo pipefail
+          : "${DATABASE_URL:?DATABASE_URL is required}"
+          : "${EXPECTED_SHA:?EXPECTED_SHA is required}"
+          : "${RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE:?RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE is required}"
+          : "${RELEASE_CANARY_MAX_FUND_RESIDUE:?RELEASE_CANARY_MAX_FUND_RESIDUE is required}"
+          : "${RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE:?RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE is required}"
+          : "${RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE:?RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE is required}"
+          : "${RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE:?RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE is required}"
+          : "${RELEASE_CANARY_MAX_TOTAL_RESIDUE:?RELEASE_CANARY_MAX_TOTAL_RESIDUE is required}"
+          : "${RELEASE_CANARY_TTL_HOURS:?RELEASE_CANARY_TTL_HOURS is required}"
+          node scripts/release/assert-canary-residue.mjs \
+            --expected-sha "$EXPECTED_SHA" \
+            --reconcile-expected-sha
+
   staged-provider-identity:
     name: Reverify Staged Provider Identity
-    needs: validate-deployment
+    # Waiter dependency: the one-shot topology recheck must not race a worker
+    # rollout that railway-workers-verify would have converged on.
+    needs: [validate-deployment, railway-workers-verify]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: Production

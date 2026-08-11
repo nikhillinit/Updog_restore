@@ -78,7 +78,6 @@ const portfolioCompaniesRoute = requireManifestRoute(
   './routes/portfolio-companies.js',
   '/api'
 );
-const varianceRoute = requireManifestRoute('variance', './routes/variance.js', '/');
 const fundScenarioSetsRoute = requireManifestRoute(
   'fund-scenario-sets',
   './routes/fund-scenario-sets.js',
@@ -97,9 +96,6 @@ if (fundConfigRoute.probe.path !== '/api/funds/abc/results') {
 if (portfolioCompaniesRoute.probe.path !== '/api/portfolio-companies') {
   throw new Error('[release-canaries] portfolio route manifest probe changed unexpectedly');
 }
-if (varianceRoute.probe.path !== '/api/funds/abc/variance-dashboard') {
-  throw new Error('[release-canaries] variance route manifest probe changed unexpectedly');
-}
 if (fundScenarioSetsRoute.probe.path !== '/api/funds/abc/scenario-sets') {
   throw new Error('[release-canaries] scenario-set route manifest probe changed unexpectedly');
 }
@@ -117,10 +113,6 @@ const ROUTES = {
   portfolioCompanyPatch: (companyId: number, fundId: number) =>
     `${mountedRoute(portfolioCompaniesRoute, `/portfolio-companies/${companyId}`)}?fundId=${fundId}`,
   fundResults: (fundId: number) => `/api/funds/${fundId}/results`,
-  fundBaseline: (fundId: number) => `/api/funds/${fundId}/baselines`,
-  varianceReport: (fundId: number) => `/api/funds/${fundId}/variance-reports`,
-  varianceReportById: (fundId: number, reportId: string) =>
-    `/api/funds/${fundId}/variance-reports/${encodeURIComponent(reportId)}`,
   scenarioReserveOptimization: (fundId: number) =>
     mountedRoute(fundScenarioSetsRoute, `/funds/${fundId}/scenario-sets/reserve-optimization`),
   scenarioCalculateReserve: (fundId: number, scenarioSetId: string) =>
@@ -333,10 +325,9 @@ async function waitForScenarioCalculation(
   scenarioSetId: string,
   calculationCorrelationId: string
 ): Promise<JsonObject> {
-  // 'queued' is seeded: the enqueue response durably asserted status
-  // 'queued', so polling only needs to catch 'calculating' (which persists
-  // for the whole computation because the start event commits before
-  // compute) and the terminal 'succeeded'.
+  // 'queued' is seeded by the enqueue response. 'calculating' is useful live
+  // evidence, but a fast worker may complete before any poll sees it; the
+  // terminal response carries durable calculationStartedAt evidence instead.
   const observedStatuses: ScenarioLifecycleStatus[] = ['queued'];
   const deadline = Date.now() + 120_000;
   let lastBody: JsonObject | null = null;
@@ -363,17 +354,18 @@ async function waitForScenarioCalculation(
       calculationCorrelationId
     );
 
-    if (status === 'succeeded') {
-      if (!observedStatuses.includes('calculating')) {
-        throw new Error(
-          `[release-canaries] canary5 observed succeeded without observing calculating: ${JSON.stringify(observedStatuses)}`
-        );
-      }
-      return body;
-    }
-
     if (!observedStatuses.includes(status)) {
       observedStatuses.push(status);
+      console.warn(`[release-canaries] canary5 observed status=${status}`);
+    }
+
+    if (status === 'succeeded') {
+      const calculationStartedAt = requiredString(
+        body['calculationStartedAt'],
+        'canary5 durable calculation start'
+      );
+      expect(Number.isNaN(Date.parse(calculationStartedAt))).toBe(false);
+      return body;
     }
 
     await new Promise<void>((resolve) => setTimeout(resolve, 250));
@@ -581,69 +573,44 @@ test.describe('release mutation canaries', () => {
     }
   });
 
-  test('canary 4 generates and reloads a non-empty report payload', async () => {
+  test('canary 4 reloads a non-empty snapshot-backed results payload', async () => {
     const api = requireClient(client);
     const fundId = canaryFundId;
     if (fundId === undefined) {
       throw new Error('[release-canaries] canary 1 did not provide a fund ID');
     }
 
-    const now = new Date();
-    const baselineResponse = await api.call(
-      'POST',
-      ROUTES.fundBaseline(fundId),
-      'canary4.create-baseline',
-      {
-        headers: { 'Idempotency-Key': `g4-release-canary-baseline-${randomUUID()}` },
-        data: {
-          name: `G4 Release Canary Baseline ${Date.now()}`,
-          baselineType: 'initial',
-          periodStart: new Date(Date.UTC(now.getUTCFullYear(), 0, 1)).toISOString(),
-          periodEnd: now.toISOString(),
-          tags: ['release-canary'],
-        },
-      }
+    // fund-config's manifest-backed results read model is mounted by makeApp
+    // and serves persisted fund_snapshots after canary 3 reaches ready.
+    const resultsResponse = await api.call(
+      'GET',
+      ROUTES.fundResults(fundId),
+      'canary4.read-snapshot-results'
     );
-    expect(baselineResponse.status(), 'report baseline creation must succeed').toBe(201);
-    const baselineBody = await readJsonObject(baselineResponse, 'baseline response');
-    const baseline = requiredObject(baselineBody['data'], 'baseline data');
-    const baselineId = requiredString(baseline['id'], 'baseline ID');
-
-    const reportResponse = await api.call(
-      'POST',
-      ROUTES.varianceReport(fundId),
-      'canary4.create-report',
-      {
-        headers: { 'Idempotency-Key': `g4-release-canary-report-${randomUUID()}` },
-        data: {
-          baselineId,
-          reportName: `G4 Release Canary Report ${Date.now()}`,
-          reportType: 'ad_hoc',
-          reportPeriod: 'monthly',
-          asOfDate: now.toISOString(),
-        },
-      }
-    );
-    expect(reportResponse.status(), 'report generation must succeed').toBe(201);
-    const reportBody = await readJsonObject(reportResponse, 'report generation response');
-    const report = requiredObject(reportBody['data'], 'generated report data');
-    expect(Object.keys(report).length).toBeGreaterThan(0);
-    const reportId = requiredString(report['id'], 'generated report ID');
+    expect(resultsResponse.status(), 'snapshot-backed results must be readable').toBe(200);
+    const resultsBody = await readJsonObject(resultsResponse, 'snapshot-backed results response');
+    expect(Object.keys(resultsBody).length).toBeGreaterThan(0);
+    expect(resultsBody['fundId']).toBe(fundId);
+    const resultsSections = requiredObject(resultsBody['sections'], 'results sections');
+    expect(Object.keys(resultsSections).length).toBeGreaterThan(0);
+    for (const sectionName of ['reserve', 'pacing']) {
+      const section = requiredObject(resultsSections[sectionName], `${sectionName} results section`);
+      expect(section['source']).toBe('fund_snapshots');
+    }
 
     const reloadResponse = await api.call(
       'GET',
-      ROUTES.varianceReportById(fundId, reportId),
-      'canary4.reload-report'
+      ROUTES.fundResults(fundId),
+      'canary4.reload-snapshot-results'
     );
-    expect(reloadResponse.status(), 'generated report must be readable').toBe(200);
-    const reloadedBody = await readJsonObject(reloadResponse, 'reloaded report response');
-    const reloadedReport = requiredObject(reloadedBody['data'], 'reloaded report data');
-    expect(Object.keys(reloadedReport).length).toBeGreaterThan(0);
-    expect(reloadedReport['id']).toBe(reportId);
-    expect(reloadedReport['fundId']).toBe(fundId);
+    expect(reloadResponse.status(), 'snapshot-backed results reload must succeed').toBe(200);
+    const reloadedBody = await readJsonObject(reloadResponse, 'reloaded results response');
+    expect(Object.keys(reloadedBody).length).toBeGreaterThan(0);
+    expect(reloadedBody['fundId']).toBe(fundId);
+    expect(reloadedBody['status']).toBe(resultsBody['status']);
   });
 
-  test('canary 5 observes queued, calculating, and succeeded scenario lifecycle', async () => {
+  test('canary 5 verifies durable scenario calculation start and success', async () => {
     const api = requireClient(client);
     const fundId = canaryFundId;
     if (fundId === undefined) {
@@ -700,5 +667,6 @@ test.describe('release mutation canaries', () => {
     expect(completed['status']).toBe('succeeded');
     expect(completed['jobId']).toBe(jobId);
     expect(completed['snapshotId']).toEqual(expect.any(Number));
+    expect(completed['calculationStartedAt']).toEqual(expect.any(String));
   });
 });

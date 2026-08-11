@@ -10687,7 +10687,9 @@ ever reintroduced, that is a new topology decision superseding ADR-075.
 #railway #vercel #g4
 
 **Related:** ADR-075 (provider topology and G4 hard-stop consequence),
-F_1.2.7 `docs/1-plans/F_1.2.7_child-f-g4-readiness.plan.md`
+F_1.2.0 WS6 (Child F definition,
+`docs/1-plans/F_1.2.0_v1.4-release-proof-activation.plan.md`), F_1.2.6 Step 6
+(successor contract)
 
 ### Context
 

@@ -42,6 +42,7 @@ export interface ScenarioCalculationRunRecord extends Omit<
   hashKind: ScenarioInputHashKind | null;
   status: ScenarioCalculationRunStatus;
   snapshotId: number | null;
+  startedAt: Date | string | null;
   deadlineAt: Date | string | null;
   failureCode: string | null;
   failureMessage: string | null;
@@ -63,6 +64,7 @@ interface ScenarioCalculationRunRow {
   correlation_id: string;
   status: ScenarioCalculationRunStatus;
   snapshot_id: number | null;
+  started_at: Date | string | null;
   deadline_at: Date | string | null;
   failure_code: string | null;
   failure_message: string | null;
@@ -112,6 +114,7 @@ function mapRun(row: ScenarioCalculationRunRow): ScenarioCalculationRunRecord {
     correlationId: row.correlation_id,
     status: row.status,
     snapshotId: row.snapshot_id,
+    startedAt: row.started_at ?? null,
     deadlineAt: row.deadline_at ?? null,
     failureCode: row.failure_code ?? null,
     failureMessage: row.failure_message ?? null,

@@ -122,7 +122,9 @@ function buildSucceededStatus(input: {
   snapshot: SnapshotStatusRow;
   event: EventStatusRow | null;
   summary: Record<string, unknown>;
+  completedRun?: Awaited<ReturnType<typeof findCompletedScenarioRun>>;
 }): FundScenarioCalculationStatusV1 {
+  const calculationStartedAt = nullableIso(input.completedRun?.startedAt ?? null);
   return FundScenarioCalculationStatusV1Schema.parse({
     fundId: input.fundId,
     scenarioSetId: input.scenarioSetId,
@@ -131,6 +133,7 @@ function buildSucceededStatus(input: {
     jobId: summaryString(input.summary, 'job_id'),
     correlationId: input.snapshot.correlation_id,
     snapshotId: input.snapshot.id,
+    ...(calculationStartedAt === null ? {} : { calculationStartedAt }),
     failureCode: null,
     lastEventAt: nullableIso(input.event?.created_at ?? input.snapshot.created_at),
     lastError: null,
@@ -181,6 +184,7 @@ function buildCalculationStatus(input: {
   snapshot: SnapshotStatusRow | null;
   event: EventStatusRow | null;
   run?: Awaited<ReturnType<typeof findLatestScenarioRun>>;
+  completedRun?: Awaited<ReturnType<typeof findCompletedScenarioRun>>;
 }): FundScenarioCalculationStatusV1 {
   if (input.run?.status === 'failed') {
     return FundScenarioCalculationStatusV1Schema.parse({
@@ -281,6 +285,7 @@ export async function getFundScenarioCalculationStatus(
       snapshot,
       event,
       run: latestRun,
+      completedRun,
     });
   });
 }

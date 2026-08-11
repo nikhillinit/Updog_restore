@@ -103,6 +103,7 @@ describe('fund scenario calculation status service', () => {
               correlation_id: '00000000-0000-0000-0000-000000000333',
               status: 'completed',
               snapshot_id: 42,
+              started_at: new Date('2026-07-01T00:00:00.500Z'),
             },
           ],
         };
@@ -144,6 +145,7 @@ describe('fund scenario calculation status service', () => {
       status: 'succeeded',
       snapshotId: 42,
       correlationId: '00000000-0000-0000-0000-000000000333',
+      calculationStartedAt: '2026-07-01T00:00:00.500Z',
     });
     const sqlCalls = queryMock.mock.calls.map((call) => String(call[0]));
     expect(sqlCalls.some((sql) => sql.includes("COALESCE(hash_kind, 'scenario-input-hash-v1')"))).toBe(

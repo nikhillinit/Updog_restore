@@ -41,15 +41,16 @@ function exactChecks() {
   };
 }
 
-function health(workerType, deploymentId = DEPLOYMENT_ID) {
+function health(workerType, deploymentId = DEPLOYMENT_ID, timestamp = new Date().toISOString()) {
   return {
     status: 'healthy', workerType, commit: SHA, deploymentId,
+    timestamp,
     workers: [{ name: workerType, status: 'healthy', isRunning: true }],
   };
 }
 
-function ready(workerType, deploymentId = DEPLOYMENT_ID) {
-  return { status: 'ready', workerType, commit: SHA, deploymentId };
+function ready(workerType, deploymentId = DEPLOYMENT_ID, timestamp = new Date().toISOString()) {
+  return { status: 'ready', workerType, commit: SHA, deploymentId, timestamp };
 }
 
 function providerEvidence(mode = 'workflow') {
@@ -255,9 +256,41 @@ describe('exact SHA release evidence', () => {
       expect(() => verifyWorkerPrivateProof({ expectedSha: SHA, deploymentIds, ...files })).toThrow();
     }
     expect(() => verifyWorkerPrivateProof({ expectedSha: SHA, deploymentIds: { ...deploymentIds, 'fund-scenario-calc': 'other-deployment' }, fundHealth: health('fund-scenario-calc'), fundReady: ready('fund-scenario-calc'), capitalHealth: health('capital-call-status'), capitalReady: ready('capital-call-status') })).toThrow(/does not match Railway/i);
-    expect(() => verifyWorkerPrivateProof({ expectedSha: SHA, deploymentIds, fundHealth: health('fund-scenario-calc'), fundReady: { status: 'ready', workerType: 'capital-call-status', commit: SHA, deploymentId: DEPLOYMENT_ID }, capitalHealth: health('capital-call-status'), capitalReady: { status: 'ready', workerType: 'capital-call-status', commit: SHA, deploymentId: DEPLOYMENT_ID } })).toThrow(/readiness identity/i);
-    const changed = verifyWorkerPrivateProof({ expectedSha: SHA, deploymentIds, fundHealth: { ...health('fund-scenario-calc'), timestamp: 'different' }, fundReady: ready('fund-scenario-calc'), capitalHealth: health('capital-call-status'), capitalReady: ready('capital-call-status') });
+    expect(() => verifyWorkerPrivateProof({ expectedSha: SHA, deploymentIds, fundHealth: health('fund-scenario-calc'), fundReady: ready('capital-call-status'), capitalHealth: health('capital-call-status'), capitalReady: ready('capital-call-status') })).toThrow(/readiness identity/i);
+    const changed = verifyWorkerPrivateProof({ expectedSha: SHA, deploymentIds, fundHealth: { ...health('fund-scenario-calc'), timestamp: new Date(Date.now() - 1000).toISOString() }, fundReady: ready('fund-scenario-calc'), capitalHealth: health('capital-call-status'), capitalReady: ready('capital-call-status') });
     expect(changed.reference).not.toBe(valid.reference);
+  });
+
+  it('rejects stale, future, skewed, missing, and invalid operator probe timestamps', () => {
+    const now = Date.parse('2026-08-10T12:00:00.000Z');
+    const probe = (timestamp) => ({
+      expectedSha: SHA,
+      deploymentIds: { 'fund-scenario-calc': DEPLOYMENT_ID, 'capital-call-status': DEPLOYMENT_ID },
+      fundHealth: health('fund-scenario-calc', DEPLOYMENT_ID, timestamp),
+      fundReady: ready('fund-scenario-calc', DEPLOYMENT_ID, timestamp),
+      capitalHealth: health('capital-call-status', DEPLOYMENT_ID, timestamp),
+      capitalReady: ready('capital-call-status', DEPLOYMENT_ID, timestamp),
+      now,
+    });
+    const fresh = new Date(now - 60 * 60 * 1000).toISOString();
+    expect(verifyWorkerPrivateProof(probe(fresh)).reference).toMatch(/^sha256:/);
+    expect(() => verifyWorkerPrivateProof(probe(new Date(now - 121 * 60 * 1000).toISOString()))).toThrow(/older than 120 minutes/i);
+    expect(() => verifyWorkerPrivateProof(probe(new Date(now + 5 * 60 * 1000 + 1).toISOString()))).toThrow(/future/i);
+
+    const skewed = probe(fresh);
+    skewed.capitalReady.timestamp = new Date(now - 16 * 60 * 1000).toISOString();
+    expect(() => verifyWorkerPrivateProof(skewed)).toThrow(/more than 15 minutes apart/i);
+
+    const missing = probe(fresh);
+    delete missing.fundReady.timestamp;
+    expect(() => verifyWorkerPrivateProof(missing)).toThrow(/fund ready.*timestamp is required/i);
+    const invalid = probe(fresh);
+    invalid.capitalHealth.timestamp = 'not-a-timestamp';
+    expect(() => verifyWorkerPrivateProof(invalid)).toThrow(/capital health.*timestamp is invalid/i);
+
+    const customWindow = probe(new Date(now - 31 * 60 * 1000).toISOString());
+    customWindow.maxProbeAgeMinutes = 30;
+    expect(() => verifyWorkerPrivateProof(customWindow)).toThrow(/older than 30 minutes/i);
   });
 
   it('runs CLI with explicit source SHA and never trusts embedded candidate fields', async () => {
@@ -291,6 +324,7 @@ describe('exact SHA release evidence', () => {
     const operator = await execFileAsync(process.execPath, [
       'scripts/release/verify-provider-identity.mjs', '--mode', 'operator', '--expected-sha', SHA,
       '--vercel', vercelPath, '--railway', railwayPath,
+      '--max-probe-age-minutes', '120',
       '--fund-health', privatePaths[0], '--fund-ready', privatePaths[1],
       '--capital-health', privatePaths[2], '--capital-ready', privatePaths[3],
     ], { cwd: process.cwd() });

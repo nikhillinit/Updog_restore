@@ -7,6 +7,11 @@ import { redactSecretShapedValues } from './verify-exact-sha-checks.mjs';
 
 const SHA = /^[a-f0-9]{40}$/;
 const WORKERS = Object.freeze(['fund-scenario-calc', 'capital-call-status']);
+// G4 operator runs can start 40+ minutes after dispatch-time probe capture;
+// 120 minutes covers one full run while still rejecting stale evidence.
+const DEFAULT_MAX_PROBE_AGE_MINUTES = 120;
+const MAX_PROBE_FUTURE_SKEW_MS = 5 * 60 * 1000;
+const MAX_CROSS_PROBE_SKEW_MS = 15 * 60 * 1000;
 const VERSION_KEYS = Object.freeze([
   'arch',
   'commit',
@@ -37,6 +42,44 @@ function stableJson(value) {
 function requiredText(value, label) {
   if (typeof value !== 'string' || value.trim() === '') fail(`${label} is required`);
   return value;
+}
+
+function requireProbeAgeMinutes(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    fail('maximum probe age must be a positive number of minutes');
+  }
+  return value;
+}
+
+function probeTimestamp(probe, label) {
+  if (!probe || typeof probe.timestamp !== 'string' || probe.timestamp.trim() === '') {
+    fail(`${label} probe timestamp is required`);
+  }
+  const timestamp = Date.parse(probe.timestamp);
+  if (!Number.isFinite(timestamp)) fail(`${label} probe timestamp is invalid`);
+  return timestamp;
+}
+
+function verifyProbeFreshness(probes, maxProbeAgeMinutes, now = Date.now()) {
+  const maxAgeMinutes = requireProbeAgeMinutes(
+    maxProbeAgeMinutes ?? DEFAULT_MAX_PROBE_AGE_MINUTES
+  );
+  const maxAgeMs = maxAgeMinutes * 60 * 1000;
+  if (!Number.isFinite(maxAgeMs)) fail('maximum probe age is out of range');
+  if (typeof now !== 'number' || !Number.isFinite(now)) fail('operator clock is invalid');
+  const timestamps = probes.map(([label, probe]) => [label, probeTimestamp(probe, label)]);
+  for (const [label, timestamp] of timestamps) {
+    if (timestamp > now + MAX_PROBE_FUTURE_SKEW_MS) {
+      fail(`${label} probe timestamp is in the future`);
+    }
+    if (now - timestamp > maxAgeMs) {
+      fail(`${label} probe is older than ${maxAgeMinutes} minutes`);
+    }
+  }
+  const values = timestamps.map(([, timestamp]) => timestamp);
+  if (Math.max(...values) - Math.min(...values) > MAX_CROSS_PROBE_SKEW_MS) {
+    fail('worker probes were captured more than 15 minutes apart');
+  }
 }
 
 export function assertVercelCandidateHost(url) {
@@ -158,9 +201,29 @@ function verifyReadiness(workerType, ready, expectedSha, expectedDeploymentId) {
   }
 }
 
-export function verifyWorkerPrivateProof({ expectedSha, fundHealth, fundReady, capitalHealth, capitalReady, deploymentIds, endpointClaim = false }) {
+export function verifyWorkerPrivateProof({
+  expectedSha,
+  fundHealth,
+  fundReady,
+  capitalHealth,
+  capitalReady,
+  deploymentIds,
+  endpointClaim = false,
+  maxProbeAgeMinutes = DEFAULT_MAX_PROBE_AGE_MINUTES,
+  now = Date.now(),
+}) {
   const sha = requireSha(expectedSha);
   if (endpointClaim) fail('workflow mode cannot claim private endpoint proof');
+  verifyProbeFreshness(
+    [
+      ['fund health', fundHealth],
+      ['fund ready', fundReady],
+      ['capital health', capitalHealth],
+      ['capital ready', capitalReady],
+    ],
+    maxProbeAgeMinutes,
+    now
+  );
   const identities = [
     ['fund-scenario-calc', fundHealth, fundReady],
     ['capital-call-status', capitalHealth, capitalReady],
@@ -179,7 +242,15 @@ export function verifyWorkerPrivateProof({ expectedSha, fundHealth, fundReady, c
   return { reference, identities };
 }
 
-export function verifyProviderIdentity({ mode, expectedSha, vercel, railway, privateProof }) {
+export function verifyProviderIdentity({
+  mode,
+  expectedSha,
+  vercel,
+  railway,
+  privateProof,
+  maxProbeAgeMinutes = DEFAULT_MAX_PROBE_AGE_MINUTES,
+  now = Date.now(),
+}) {
   const sha = requireSha(expectedSha);
   if (mode !== 'workflow' && mode !== 'operator') fail('mode must be workflow or operator');
   verifyVercel(vercel?.version, vercel?.deployment, vercel?.expectedProjectId, sha);
@@ -200,6 +271,8 @@ export function verifyProviderIdentity({ mode, expectedSha, vercel, railway, pri
     expectedSha: sha,
     deploymentIds: railwaySummary.deploymentIds,
     ...privateProof,
+    maxProbeAgeMinutes,
+    now,
   });
   return { mode, expectedSha: sha, controlPlane, privateProof: workerProof };
 }
@@ -227,6 +300,9 @@ async function main() {
   const args = parseArguments(process.argv.slice(2));
   const mode = args.mode;
   const expectedSha = args['expected-sha'];
+  const maxProbeAgeMinutes = args['max-probe-age-minutes'] === undefined
+    ? DEFAULT_MAX_PROBE_AGE_MINUTES
+    : Number(args['max-probe-age-minutes']);
   const vercel = await jsonFile(args.vercel, 'Vercel');
   const railwayInput = await jsonFile(args.railway, 'Railway');
   const railway = railwayInput?.data ? normalizeRailwayResponse(railwayInput) : railwayInput;
@@ -238,7 +314,14 @@ async function main() {
         capitalReady: await jsonFile(args['capital-ready'], 'capital ready'),
       }
     : { endpointClaim: false };
-  const result = verifyProviderIdentity({ mode, expectedSha, vercel, railway, privateProof });
+  const result = verifyProviderIdentity({
+    mode,
+    expectedSha,
+    vercel,
+    railway,
+    privateProof,
+    maxProbeAgeMinutes,
+  });
   console.log(JSON.stringify(result));
 }
 
