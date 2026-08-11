@@ -50,8 +50,9 @@ Vercel REST/CLI, Railway GraphQL.
   `PLAN-APPROVAL-V2` uses the repository-admin login as durable decision author
   under `single-maintainer-owner-attestation`. Fresh read-only review context,
   no Tasks 1 through 12 in approval context, separate implementation contexts,
-  and fresh pre-merge review (scheduled concretely as Task 12 Step 2 item 1,
-  at the frozen final head) are procedural controls attested by owner; GitHub
+  and fresh pre-merge review (scheduled concretely as Task 12 Step 1's final
+  criterion, at the frozen final head) are procedural controls attested by
+  owner; GitHub
   identity cannot prove context separation. Machine-enforced facts are exact
   bodies, comment identities, plan/head hashes, exact-head CI result, owner and
   permission, timestamps, uniqueness, and ancestry. Do not describe procedural
@@ -318,13 +319,20 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
   - referenced check run is named `CI Gate Status`, targets approved base head,
     is completed with `conclusion: success`, and belongs to repository Actions;
   - the check run resolves (via the Actions jobs API — an Actions job ID is its
-    check-run ID) to a workflow run whose path is
-    `.github/workflows/ci-unified.yml`, whose event is `pull_request`, whose
+    check-run ID) to a workflow run whose `workflow_id` equals the ID resolved
+    from `.github/workflows/ci-unified.yml` (never a string comparison on the
+    run's `path`, which GitHub may return with an `@<ref>` suffix), whose
+    event is `pull_request`, whose
     run `head_sha` equals the approved base head, and whose pull-request
     association contains the plan-approval PR; a same-SHA `workflow_dispatch`
     or `push` run of the same workflow never qualifies, because gate-job
     expectations are event-conditional and a manual dispatch can go vacuously
     green at the same SHA;
+  - the verifier performs the same gate resolution at the live final PR head
+    whenever it differs from the approved base and emits a normalized
+    `finalHeadCiGate` object (`checkRunId`, `workflowRunId`, `runAttempt`,
+    `headSha`); a missing, failed, or non-`pull_request` final-head gate run
+    fails closed;
   - comment author login equals declared approver and repository owner;
   - live collaborator permission is `admin`, `maintain`, or `write`;
   - review and approval each have `created_at === updated_at`; edited comments
@@ -344,7 +352,8 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
     deleted record;
   - output contains only normalized review/approval comment IDs, URLs, authors,
     permission, timestamps, body SHA-256 values, check-run ID/name/conclusion,
-    resolved gate workflow run ID/attempt/event/path, repository, plan-approval
+    resolved gate workflow run ID/attempt/event/workflow ID, the
+    `finalHeadCiGate` object, repository, plan-approval
     PR number, plan path/SHA-256, approved base, live head, decision, and
     separation model.
 
@@ -372,11 +381,17 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
   Use GitHub REST issue-comment pagination, exact check-run retrieval,
   repository-owner lookup, and collaborator-permission endpoint. Fetch live PR
   head independently. Resolve the bound `ci_gate_check_run_id` through the
-  Actions jobs API to its workflow run and reject unless run path is
-  `.github/workflows/ci-unified.yml`, run event is `pull_request`, run
+  Actions jobs API to its workflow run and reject unless the run's
+  `workflow_id` equals the ID resolved from
+  `.github/workflows/ci-unified.yml` (no string comparison on run `path`,
+  which may carry an `@<ref>` suffix), run event is `pull_request`, run
   `head_sha` equals the approved base head, and the run's pull-request
   association contains the plan-approval PR; record the resolved run ID and
-  attempt in normalized output. Strict-parse fixed-order V2 fields, build expected review
+  attempt in normalized output. Perform the identical resolution against the
+  live final PR head when it differs from the approved base and emit
+  `finalHeadCiGate` (`checkRunId`, `workflowRunId`, `runAttempt`, `headSha`)
+  in the same normalized output; this is the sole producer of the manifest's
+  `approval.finalHeadCiGate`. Strict-parse fixed-order V2 fields, build expected review
   and approval bodies internally from exact local plan digest plus linked IDs,
   and compare each body byte-for-byte after one outer `.trim()`. Do not accept
   caller-supplied body text. Query commit comparison to prove ancestry for later
@@ -425,9 +440,12 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
   PLAN_SHA256="$(shasum -a 256 "$PLAN_PATH" | awk '{print $1}')"
   APPROVED_BASE_HEAD_SHA="$(gh pr view 1385 --json headRefOid --jq .headRefOid)"
   test "$(git rev-parse HEAD)" = "$APPROVED_BASE_HEAD_SHA"
+  CI_WORKFLOW_ID="$(gh api -X GET \
+    "repos/nikhillinit/Updog_restore/actions/workflows/ci-unified.yml" \
+    --jq .id)"
   CI_GATE_RUN_ID="$(gh api -X GET \
-    "repos/nikhillinit/Updog_restore/actions/runs?head_sha=$APPROVED_BASE_HEAD_SHA&event=pull_request" \
-    --jq '[.workflow_runs[] | select(.path == ".github/workflows/ci-unified.yml" and .status == "completed" and .conclusion == "success" and ([.pull_requests[].number] | index(1385)))] | if length == 1 then .[0].id else error("expected one successful pull_request ci-unified run") end')"
+    "repos/nikhillinit/Updog_restore/actions/workflows/$CI_WORKFLOW_ID/runs?head_sha=$APPROVED_BASE_HEAD_SHA&event=pull_request" \
+    --jq '[.workflow_runs[] | select(.status == "completed" and .conclusion == "success" and ([.pull_requests[].number] | index(1385)))] | if length == 1 then .[0].id else error("expected one successful pull_request ci-unified run") end')"
   CI_GATE_RUN_ATTEMPT="$(gh api -X GET \
     "repos/nikhillinit/Updog_restore/actions/runs/$CI_GATE_RUN_ID" \
     --jq .run_attempt)"
@@ -3012,8 +3030,10 @@ type ReleaseCanaryRecoveryHandleV1 = {
   a `concurrency` group shared with `release-production.yml` using
   `cancel-in-progress: false` (recovery queues behind a running release and
   can never cancel one mid-provider-mutation, and vice versa); an explicit
-  job `timeout-minutes`; `DATABASE_URL` scoped to only the steps that invoke
-  the recovery CLI, never workflow-level `env`; and command allowlisting —
+  job `timeout-minutes`; `DATABASE_URL` scoped to exactly the three
+  database-consuming steps — `resolve`, `mark-failed`, and the residue
+  assertion, which itself requires `DATABASE_URL` — never workflow-level
+  `env`; and command allowlisting —
   the job executes only the fixed `resolve`, `mark-failed`, and residue
   assertion CLI invocations, with every typed input passed as a validated
   argument value and no input ever interpolated into arbitrary shell. Static
@@ -4583,9 +4603,16 @@ type ReleaseCanaryRecoveryHandleV1 = {
     knowledge-graph/session-review residue remains;
   - named release owner holds bounded merge-to-release change window so no
     unrelated `main` merge can invalidate provider baseline before release;
-  - a fresh frozen-final-head read-only review record (Step 2) exists at the
-    exact final PR head and plan digest with no blocking findings; any later
-    head or plan change mechanically voids it;
+  - as the final criterion, evaluated only after every other criterion above
+    is green: a fresh frozen-final-head read-only review record exists —
+    obtained after required CI is green at the frozen final head, covering
+    the plan plus the full PR diff at that head, with the reviewer executing
+    no edits, recorded as a review comment identity bound to final head SHA
+    and plan digest, and carrying no blocking findings. Head/digest binding
+    and drift-voiding are machine-verified; review context remains the
+    owner-attested procedural control declared by the Task 0 separation
+    model, not an independent-person boundary. Any later push or plan edit
+    mechanically voids the record and repeats this criterion;
   - PR description has no final-candidate/freeze claim.
 
 - [ ] **Step 2: Capture immutable baseline, then merge through protection**
@@ -4593,14 +4620,9 @@ type ReleaseCanaryRecoveryHandleV1 = {
   After Step 1 is satisfied, freeze final PR head and approved plan digest.
   Before merge:
 
-  1. after required CI is green at the frozen final head, obtain one fresh
-     read-only review of the exact frozen head — plan plus full PR diff at
-     that head; the reviewer executes no edits; record the review comment
-     identity bound to final head SHA and plan digest. Head/digest binding
-     and drift-voiding are machine-verified; review context remains the
-     owner-attested procedural control declared by the Task 0 separation
-     model, not an independent-person boundary. Any subsequent push or plan
-     edit voids the record and repeats this item;
+  1. confirm the Step 1 frozen-final-head review record is still valid at the
+     current PR head and plan digest (unvoided by any intervening push or
+     plan edit);
   2. resolve current live `main` SHA;
   3. dispatch `capture-release-baseline.yml` with exact baseline main, final PR
      head, and plan digest;
