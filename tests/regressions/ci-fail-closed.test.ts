@@ -3791,6 +3791,9 @@ describe('required CI fails closed', () => {
     expect(normalizeNeeds(releaseWorkflow.jobs?.['staged-provider-identity']?.needs)).toEqual([
       'validate-deployment',
     ]);
+    expect(releaseWorkflow.jobs?.['staged-provider-identity']?.outputs?.deployment_url).toBe(
+      '${{ needs.validate-deployment.outputs.deployment_url }}'
+    );
     expect(stagedProviderScripts).toContain('verify-provider-identity.mjs');
     expect(stagedProviderScripts).toContain('staged-railway-evidence.json');
     expect(stagedProviderScripts).toContain('Project-Access-Token: ${RAILWAY_TOKEN}');
@@ -3798,19 +3801,35 @@ describe('required CI fails closed', () => {
     expect(stagedProviderScripts.indexOf('const url = new URL')).toBeLessThan(
       stagedProviderScripts.indexOf('x-vercel-protection-bypass')
     );
-    const g4OperatorHardStop = releaseWorkflow.jobs?.['g4-operator-evidence-hard-stop'];
-    expect(normalizeNeeds(g4OperatorHardStop?.needs)).toEqual(['staged-provider-identity']);
-    expect(g4OperatorHardStop?.['continue-on-error']).toBeUndefined();
-    expect(g4OperatorHardStop?.if).toBeUndefined();
-    const g4HardStopScripts = allRunScripts({
-      jobs: { hardStop: g4OperatorHardStop ?? {} },
+    const g4OperatorEvidence = releaseWorkflow.jobs?.['g4-operator-evidence'];
+    expect(g4OperatorEvidence).toBeDefined();
+    expect(releaseWorkflow.jobs?.['g4-operator-evidence-hard-stop']).toBeUndefined();
+    expect(normalizeNeeds(g4OperatorEvidence?.needs)).toEqual([
+      'staged-provider-identity',
+      'railway-workers-verify',
+    ]);
+    expect(g4OperatorEvidence?.environment).toBe('Production');
+    expect(g4OperatorEvidence?.['continue-on-error']).toBeUndefined();
+    expect(g4OperatorEvidence?.if).toBeUndefined();
+    const g4OperatorScripts = allRunScripts({
+      jobs: { operatorEvidence: g4OperatorEvidence ?? {} },
     }).join('\n');
-    expect(g4HardStopScripts).toContain('Task13');
-    expect(g4HardStopScripts).toContain('attested operator /health and /ready evidence');
-    expect(g4HardStopScripts).toContain('operator-mode verification');
-    expect(g4HardStopScripts).toContain('exit 1');
+    expect(g4OperatorScripts).toContain('operator_evidence_b64');
+    expect(g4OperatorScripts).toContain('not valid base64');
+    expect(g4OperatorScripts).toContain('not decode to valid JSON');
+    expect(g4OperatorScripts).toContain('--mode operator');
+    for (const probeFlag of [
+      '--fund-health',
+      '--fund-ready',
+      '--capital-health',
+      '--capital-ready',
+    ]) {
+      expect(g4OperatorScripts).toContain(probeFlag);
+    }
+    expect(g4OperatorScripts).toContain('operator-verification.json');
+    expect(g4OperatorScripts).toContain('GITHUB_STEP_SUMMARY');
     expect(normalizeNeeds(releaseWorkflow.jobs?.promote?.needs)).toContain(
-      'g4-operator-evidence-hard-stop'
+      'g4-operator-evidence'
     );
     expect(normalizeNeeds(releaseWorkflow.jobs?.['stage-production']?.needs)).toContain(
       'schema-audit'
@@ -3966,9 +3985,10 @@ describe('required CI fails closed', () => {
       'schema-audit',
       'stage-production',
       'validate-deployment',
+      'railway-workers-verify',
       'staged-smoke',
       'staged-provider-identity',
-      'g4-operator-evidence-hard-stop',
+      'g4-operator-evidence',
       'promote',
       'post-promotion-smoke',
     ]);
@@ -3993,10 +4013,12 @@ describe('required CI fails closed', () => {
     );
     const dispatchInputs = (
       releaseWorkflow.on?.workflow_dispatch as
-        { inputs?: Record<string, { required?: boolean }> } | undefined
+        { inputs?: Record<string, { required?: boolean; type?: string }> } | undefined
     )?.inputs;
     expect(dispatchInputs?.expected_sha?.required).toBe(true);
     expect(dispatchInputs?.deployment_url?.required).toBe(false);
+    expect(dispatchInputs?.operator_evidence_b64?.required).toBe(true);
+    expect(dispatchInputs?.operator_evidence_b64?.type).toBe('string');
 
     const stageProduction = releaseWorkflow.jobs?.['stage-production'];
     expect(normalizeNeeds(stageProduction?.needs)).toEqual(['schema-audit']);
@@ -4075,8 +4097,38 @@ describe('required CI fails closed', () => {
     expect(identityStep?.run).toContain('deploymentHost === requestedHost');
     expect(JSON.stringify(releaseWorkflow.jobs ?? {})).not.toContain('inputs.deployment_url');
 
+    const railwayWorkersVerify = releaseWorkflow.jobs?.['railway-workers-verify'];
+    expect(normalizeNeeds(railwayWorkersVerify?.needs)).toEqual(['validate-deployment']);
+    expect(railwayWorkersVerify?.environment).toBe('Production');
+    expect(railwayWorkersVerify?.['continue-on-error']).toBeUndefined();
+    expect(railwayWorkersVerify?.if).toBeUndefined();
+    const railwayWorkerCheckout = railwayWorkersVerify?.steps?.find((step) =>
+      step.uses?.startsWith('actions/checkout@')
+    );
+    expect(railwayWorkerCheckout?.uses).toBe(
+      'actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0'
+    );
+    expect(railwayWorkerCheckout?.with?.ref).toBe('${{ inputs.expected_sha }}');
+    const railwayWorkerNode = railwayWorkersVerify?.steps?.find((step) =>
+      step.uses?.startsWith('actions/setup-node@')
+    );
+    expect(railwayWorkerNode?.uses).toBe(
+      'actions/setup-node@820762786026740c76f36085b0efc47a31fe5020'
+    );
+    expect(railwayWorkerNode?.with?.['node-version']).toBe('22.23.2');
+    const railwayWorkerScripts = allRunScripts({
+      jobs: { railway: railwayWorkersVerify },
+    }).join('\n');
+    expect(railwayWorkerScripts).toContain('wait-railway-workers.mjs');
+    expect(railwayWorkerScripts).toContain('--expected-sha "$EXPECTED_SHA"');
+    expect(railwayWorkerScripts).toContain('RAILWAY_TOKEN is required');
+    expect(railwayWorkerScripts).not.toMatch(/railway\s+(up|deploy|redeploy|scale)\b/i);
+
     const stagedSmoke = releaseWorkflow.jobs?.['staged-smoke'];
-    expect(normalizeNeeds(stagedSmoke?.needs)).toEqual(['validate-deployment']);
+    expect(normalizeNeeds(stagedSmoke?.needs)).toEqual([
+      'validate-deployment',
+      'railway-workers-verify',
+    ]);
     const stagedSmokeStep = stagedSmoke?.steps?.find(
       (step) => step.name === 'Run authenticated staged smoke'
     );
@@ -4097,7 +4149,7 @@ describe('required CI fails closed', () => {
       'staged-smoke',
       'validate-deployment',
       'staged-provider-identity',
-      'g4-operator-evidence-hard-stop',
+      'g4-operator-evidence',
     ]);
     const postPromotionSmoke = releaseWorkflow.jobs?.['post-promotion-smoke'];
     expect(normalizeNeeds(postPromotionSmoke?.needs)).toEqual(['promote', 'validate-target']);

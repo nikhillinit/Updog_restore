@@ -49,6 +49,12 @@ tmpclaude-*-cwd
 audit/*
 !audit/surface-contract-matrix/
 !audit/surface-contract-matrix/**
+!audit/knowledge-graph/
+audit/knowledge-graph/*
+!audit/knowledge-graph/out/
+audit/knowledge-graph/out/*
+!audit/knowledge-graph/out/manifest.json
+!audit/knowledge-graph/out/nodes-routes.jsonl
 
 # Runtime data
 pids
