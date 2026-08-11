@@ -22,6 +22,10 @@ const SHA256 = /^[0-9a-f]{64}$/;
 const LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/;
 const MAX_COMMENT_PAGES = 1_000;
 const COMMENTS_PER_PAGE = 100;
+const MAX_ACTION_PAGES = 1_000;
+const ACTIONS_PER_PAGE = 100;
+const CI_WORKFLOW_PATH = 'ci-unified.yml';
+const CI_GATE_JOB_NAME = 'CI Gate Status';
 const execFileAsync = promisify(execFile);
 
 const REVIEW_FIELDS = Object.freeze([
@@ -102,6 +106,12 @@ function requireLogin(value, label) {
 function requirePositiveInteger(value, label) {
   const number = typeof value === 'string' && /^[1-9][0-9]*$/.test(value) ? Number(value) : value;
   if (!Number.isSafeInteger(number) || number <= 0) fail(`${label} must be a positive integer`);
+  return number;
+}
+
+function requireNonNegativeInteger(value, label) {
+  const number = typeof value === 'string' && /^[0-9]+$/.test(value) ? Number(value) : value;
+  if (!Number.isSafeInteger(number) || number < 0) fail(`${label} must be a non-negative integer`);
   return number;
 }
 
@@ -326,6 +336,83 @@ function requireAncestry(ancestry, approvedBaseHeadSha, liveHeadSha, requireExac
     fail('commit comparison does not prove approved base is an ancestor of live head');
 }
 
+function normalizeRepository(repository) {
+  let owner;
+  let name;
+  if (typeof repository === 'string') {
+    const match = /^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/.exec(repository);
+    if (!match) fail('repository evidence must use owner/name form');
+    owner = match[1];
+    name = match[2];
+  } else if (repository && typeof repository === 'object') {
+    owner = repository.owner;
+    name = repository.name;
+  } else {
+    fail('repository evidence is missing');
+  }
+  requireLogin(owner, 'repository owner');
+  if (typeof name !== 'string' || !/^[A-Za-z0-9_.-]+$/.test(name)) {
+    fail('repository name is invalid');
+  }
+  return { owner, name };
+}
+
+function requireGateWorkflowEvidence(
+  gateWorkflowRun,
+  { ciWorkflowId, approvedBaseHeadSha, pullRequestNumber }
+) {
+  if (!gateWorkflowRun || typeof gateWorkflowRun !== 'object') {
+    fail('bound CI workflow-run API evidence is missing');
+  }
+  const workflowRunId = requirePositiveInteger(
+    gateWorkflowRun.workflowRunId,
+    'bound CI workflow run ID'
+  );
+  const runAttempt = requirePositiveInteger(
+    gateWorkflowRun.runAttempt,
+    'bound CI workflow run attempt'
+  );
+  const workflowId = requirePositiveInteger(gateWorkflowRun.workflowId, 'CI workflow ID');
+  if (workflowId !== ciWorkflowId) fail('bound CI workflow run uses a different workflow');
+  if (gateWorkflowRun.event !== 'pull_request') {
+    fail('bound CI workflow run is not a pull_request run');
+  }
+  const headSha = requireSha(gateWorkflowRun.headSha, 'bound CI workflow run head SHA');
+  if (headSha !== approvedBaseHeadSha) {
+    fail('bound CI workflow run does not target approved base head');
+  }
+  if (
+    !Array.isArray(gateWorkflowRun.pullRequestNumbers) ||
+    !gateWorkflowRun.pullRequestNumbers.some((number) => number === pullRequestNumber)
+  ) {
+    fail('bound CI workflow run is not associated with plan-approval pull request');
+  }
+  return { workflowRunId, runAttempt, event: 'pull_request', workflowId, headSha };
+}
+
+function requireFinalHeadCiEvidence(finalHeadCiGate, liveHeadSha) {
+  if (!finalHeadCiGate || typeof finalHeadCiGate !== 'object') {
+    fail('final-head CI gate evidence is missing');
+  }
+  const expectedKeys = ['checkRunId', 'workflowRunId', 'runAttempt', 'headSha'];
+  const actualKeys = Object.keys(finalHeadCiGate).sort();
+  if (JSON.stringify(actualKeys) !== JSON.stringify([...expectedKeys].sort())) {
+    fail('final-head CI gate evidence contains unexpected fields');
+  }
+  const checkRunId = requirePositiveInteger(finalHeadCiGate.checkRunId, 'final-head CI check-run ID');
+  const workflowRunId = requirePositiveInteger(
+    finalHeadCiGate.workflowRunId,
+    'final-head CI workflow run ID'
+  );
+  const runAttempt = requirePositiveInteger(
+    finalHeadCiGate.runAttempt,
+    'final-head CI workflow run attempt'
+  );
+  const headSha = requireSha(finalHeadCiGate.headSha, 'final-head CI head SHA');
+  if (headSha !== liveHeadSha) fail('final-head CI gate does not target live PR head');
+  return { checkRunId, workflowRunId, runAttempt, headSha };
+}
+
 export function evaluatePlanApproval(input) {
   if (!input || typeof input !== 'object') fail('normalized API evidence is missing');
   const planPath = requirePlanPath(input.planPath);
@@ -343,6 +430,12 @@ export function evaluatePlanApproval(input) {
   const expected = { approverLogin, planPath, planSha256 };
   const approvedBaseHeadSha = requireSha(input.approvedBaseHeadSha, 'approved base head SHA');
   const liveHeadSha = requireSha(input.liveHeadSha, 'live PR head SHA');
+  const repository = normalizeRepository(input.repository);
+  const pullRequestNumber = requirePositiveInteger(
+    input.pullRequestNumber,
+    'plan-approval pull request number'
+  );
+  const ciWorkflowId = requirePositiveInteger(input.ciWorkflowId, 'CI workflow ID');
   const ownerComments = input.comments.filter((comment) =>
     sameLogin(comment?.user?.login, repositoryOwnerLogin)
   );
@@ -385,6 +478,11 @@ export function evaluatePlanApproval(input) {
     fail('review and approval bind different CI check runs');
 
   const checkRun = requireCheckRun(input.checkRun, approval.checkRunId, approvedBaseHeadSha);
+  const gateWorkflowRun = requireGateWorkflowEvidence(input.gateWorkflowRun, {
+    ciWorkflowId,
+    approvedBaseHeadSha,
+    pullRequestNumber,
+  });
   if (
     Date.parse(checkRun.completedAt) > Date.parse(reviewMetadata.createdAt) ||
     Date.parse(reviewMetadata.createdAt) > Date.parse(approvalMetadata.createdAt)
@@ -398,9 +496,11 @@ export function evaluatePlanApproval(input) {
     input.requireExactHead === true
   );
 
-  return {
+  const result = {
     decision: 'approved',
     separationModel: SEPARATION_MODEL,
+    repository,
+    pullRequestNumber,
     plan: { path: planPath, sha256: planSha256 },
     approvedBaseHeadSha,
     liveHeadSha,
@@ -421,12 +521,22 @@ export function evaluatePlanApproval(input) {
       updatedAt: approvalMetadata.updatedAt,
       bodySha256: sha256(approval.body),
     },
-    checkRun: checkRun.normalized,
+    checkRun: {
+      ...checkRun.normalized,
+      workflowRunId: gateWorkflowRun.workflowRunId,
+      runAttempt: gateWorkflowRun.runAttempt,
+      event: gateWorkflowRun.event,
+      workflowId: gateWorkflowRun.workflowId,
+    },
   };
+  if (input.requireFinalHeadCi === true) {
+    result.finalHeadCiGate = requireFinalHeadCiEvidence(input.finalHeadCiGate, liveHeadSha);
+  }
+  return result;
 }
 
 function parseArgs(argv) {
-  const options = { requireExactHead: false };
+  const options = { requireExactHead: false, requireFinalHeadCi: false };
   const seen = new Set();
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -434,6 +544,12 @@ function parseArgs(argv) {
       if (seen.has(argument)) fail(`${argument} may be provided only once`);
       seen.add(argument);
       options.requireExactHead = true;
+      continue;
+    }
+    if (argument === '--require-final-head-ci') {
+      if (seen.has(argument)) fail(`${argument} may be provided only once`);
+      seen.add(argument);
+      options.requireFinalHeadCi = true;
       continue;
     }
     if (!['--repo', '--pr', '--plan-path', '--approver-login'].includes(argument)) {
@@ -614,6 +730,253 @@ export async function collectIssueComments(client, owner, repository, pullReques
   fail('issue-comment pagination ended without a terminal page');
 }
 
+async function collectActionsItems(client, endpointPath, itemKey, query, label) {
+  const items = [];
+  let page = 1;
+  let response = await client.getPage(endpointPath, {
+    ...query,
+    page,
+    per_page: ACTIONS_PER_PAGE,
+  });
+  let totalCount;
+  const visited = new Set();
+  while (response) {
+    if (page > MAX_ACTION_PAGES) fail(`${label} pagination exceeded safe page limit`);
+    if (!response.url || typeof response.url.toString !== 'function') {
+      fail(`${label} pagination response URL is missing`);
+    }
+    const responseKey = response.url.toString();
+    if (visited.has(responseKey)) fail(`${label} pagination repeated a page`);
+    visited.add(responseKey);
+
+    if (!response.data || typeof response.data !== 'object') {
+      fail(`${label} pagination response is invalid`);
+    }
+    const pageTotalCount = requireNonNegativeInteger(
+      response.data.total_count,
+      `${label} total_count`
+    );
+    if (totalCount === undefined) totalCount = pageTotalCount;
+    if (pageTotalCount !== totalCount) fail(`${label} total_count changed during pagination`);
+
+    const pageItems = response.data[itemKey];
+    if (!Array.isArray(pageItems) || pageItems.length > ACTIONS_PER_PAGE) {
+      fail(`${label} pagination response is invalid`);
+    }
+    items.push(...pageItems);
+    if (items.length > totalCount) fail(`${label} pagination returned too many items`);
+
+    const nextLink = nextLinkFromHeader(response.link);
+    if (!nextLink) {
+      if (items.length !== totalCount) fail(`${label} pagination returned a truncated listing`);
+      return items;
+    }
+    if (pageItems.length !== ACTIONS_PER_PAGE) {
+      fail(`${label} pagination returned a truncated page`);
+    }
+
+    let nextUrl;
+    try {
+      nextUrl = new URL(nextLink);
+    } catch {
+      fail(`${label} pagination next URL is invalid`);
+    }
+    let responseUrl;
+    try {
+      responseUrl = new URL(response.url);
+    } catch {
+      fail(`${label} pagination response URL is invalid`);
+    }
+    if (nextUrl.origin !== responseUrl.origin || nextUrl.pathname !== responseUrl.pathname) {
+      fail(`${label} pagination next URL changed endpoint`);
+    }
+    const nextPage = Number(nextUrl.searchParams.get('page'));
+    if (
+      !Number.isSafeInteger(nextPage) ||
+      nextPage !== page + 1 ||
+      nextUrl.searchParams.get('per_page') !== String(ACTIONS_PER_PAGE)
+    ) {
+      fail(`${label} pagination next URL is not the next expected page`);
+    }
+    for (const [name, value] of Object.entries(query)) {
+      if (nextUrl.searchParams.get(name) !== String(value)) {
+        fail(`${label} pagination next URL changed query filters`);
+      }
+    }
+    const allowedQueryKeys = new Set([...Object.keys(query), 'page', 'per_page']);
+    if ([...nextUrl.searchParams.keys()].some((name) => !allowedQueryKeys.has(name))) {
+      fail(`${label} pagination next URL contains unexpected query fields`);
+    }
+    page = nextPage;
+    response = await client.getPage(nextUrl);
+  }
+  fail(`${label} pagination ended without a terminal page`);
+}
+
+function normalizeWorkflowRunApiEvidence(
+  workflowRun,
+  { expectedWorkflowId, expectedRunId, expectedHeadSha, pullRequestNumber, label }
+) {
+  if (!workflowRun || typeof workflowRun !== 'object') {
+    fail(`${label} workflow-run API evidence is missing`);
+  }
+  const workflowRunId = requirePositiveInteger(workflowRun.id, `${label} workflow run ID`);
+  if (expectedRunId !== undefined && workflowRunId !== expectedRunId) {
+    fail(`${label} workflow run ID does not match Actions job`);
+  }
+  const workflowId = requirePositiveInteger(workflowRun.workflow_id, `${label} workflow ID`);
+  const event = requireSafeString(workflowRun.event, `${label} workflow run event`);
+  const headSha = requireSha(workflowRun.head_sha, `${label} workflow run head SHA`);
+  if (expectedHeadSha !== undefined && headSha !== expectedHeadSha) {
+    fail(`${label} workflow run does not target expected head`);
+  }
+  if (!Array.isArray(workflowRun.pull_requests)) {
+    fail(`${label} workflow run pull-request association is missing`);
+  }
+  const pullRequestNumbers = workflowRun.pull_requests.map((pullRequest) =>
+    requirePositiveInteger(pullRequest?.number, `${label} workflow run pull-request number`)
+  );
+  return {
+    workflowRunId,
+    workflowId,
+    event,
+    headSha,
+    pullRequestNumbers,
+    status: workflowRun.status,
+    conclusion: workflowRun.conclusion,
+    runAttempt: workflowRun.run_attempt,
+    expectedWorkflowId,
+    pullRequestNumber,
+  };
+}
+
+async function resolveBoundGateWorkflow({
+  client,
+  repoPath,
+  checkRunId,
+  approvedBaseHeadSha,
+  pullRequestNumber,
+}) {
+  const workflow = await client.get(`${repoPath}/actions/workflows/${CI_WORKFLOW_PATH}`);
+  const workflowId = requirePositiveInteger(workflow?.id, 'CI workflow ID');
+  const job = await client.get(`${repoPath}/actions/jobs/${checkRunId}`);
+  const jobId = requirePositiveInteger(job?.id, 'bound CI job ID');
+  if (jobId !== checkRunId) fail('bound Actions job ID does not match CI check-run ID');
+  const workflowRunId = requirePositiveInteger(job?.run_id, 'bound CI workflow run ID');
+  const runAttempt = requirePositiveInteger(job?.run_attempt, 'bound CI workflow run attempt');
+  const workflowRun = await client.get(`${repoPath}/actions/runs/${workflowRunId}`);
+  const normalizedRun = normalizeWorkflowRunApiEvidence(workflowRun, {
+    expectedWorkflowId: workflowId,
+    expectedRunId: workflowRunId,
+    expectedHeadSha: approvedBaseHeadSha,
+    pullRequestNumber,
+    label: 'bound CI',
+  });
+  if (normalizedRun.workflowId !== workflowId) {
+    fail('bound CI workflow run uses a different workflow');
+  }
+  if (normalizedRun.event !== 'pull_request') {
+    fail('bound CI workflow run is not a pull_request run');
+  }
+  if (!normalizedRun.pullRequestNumbers.includes(pullRequestNumber)) {
+    fail('bound CI workflow run is not associated with plan-approval pull request');
+  }
+  return {
+    workflowId,
+    gateWorkflowRun: {
+      workflowRunId: normalizedRun.workflowRunId,
+      runAttempt,
+      event: normalizedRun.event,
+      workflowId: normalizedRun.workflowId,
+      headSha: normalizedRun.headSha,
+      pullRequestNumbers: normalizedRun.pullRequestNumbers,
+    },
+  };
+}
+
+async function resolveFinalHeadCiGate({
+  client,
+  repoPath,
+  workflowId,
+  liveHeadSha,
+  pullRequestNumber,
+}) {
+  const workflowRuns = await collectActionsItems(
+    client,
+    `${repoPath}/actions/workflows/${CI_WORKFLOW_PATH}/runs`,
+    'workflow_runs',
+    { head_sha: liveHeadSha, event: 'pull_request' },
+    'final-head workflow-run'
+  );
+  const normalizedRuns = workflowRuns.map((workflowRun) =>
+    normalizeWorkflowRunApiEvidence(workflowRun, {
+      expectedWorkflowId: workflowId,
+      expectedHeadSha: liveHeadSha,
+      pullRequestNumber,
+      label: 'final-head',
+    })
+  );
+  const candidates = normalizedRuns.filter(
+    (workflowRun) =>
+      workflowRun.workflowId === workflowId &&
+      workflowRun.event === 'pull_request' &&
+      workflowRun.headSha === liveHeadSha &&
+      workflowRun.pullRequestNumbers.includes(pullRequestNumber)
+  );
+  const armedRuns = [];
+  for (const workflowRun of candidates) {
+    if (workflowRun.status !== 'completed') {
+      fail('final-head candidate workflow run is not completed');
+    }
+    const runAttempt = requirePositiveInteger(
+      workflowRun.runAttempt,
+      'final-head workflow run attempt'
+    );
+    const jobs = await collectActionsItems(
+      client,
+      `${repoPath}/actions/runs/${workflowRun.workflowRunId}/attempts/${runAttempt}/jobs`,
+      'jobs',
+      {},
+      'final-head jobs'
+    );
+    const planApprovalJobs = jobs.filter((job) => job?.name === 'plan-approval');
+    if (planApprovalJobs.length > 1) {
+      fail('final-head workflow run has multiple plan-approval jobs');
+    }
+    const planApprovalJob = planApprovalJobs[0];
+    if (!planApprovalJob || planApprovalJob.conclusion === 'skipped') continue;
+    armedRuns.push({ jobs, planApprovalJob, runAttempt, workflowRun });
+  }
+  if (armedRuns.length !== 1) {
+    fail(`expected exactly one armed final-head workflow run; found ${armedRuns.length}`);
+  }
+  const [{ jobs, planApprovalJob, runAttempt, workflowRun }] = armedRuns;
+  if (workflowRun.conclusion !== 'success') {
+    fail('armed final-head workflow run did not complete successfully');
+  }
+  if (planApprovalJob.conclusion !== 'success') {
+    fail('armed final-head plan-approval job did not complete successfully');
+  }
+  const gateJobs = jobs.filter((job) => job?.name === CI_GATE_JOB_NAME);
+  if (gateJobs.length !== 1) {
+    fail(`expected exactly one final-head ${CI_GATE_JOB_NAME} job; found ${gateJobs.length}`);
+  }
+  const gateJob = gateJobs[0];
+  const checkRunId = requirePositiveInteger(gateJob.id, 'final-head CI check-run ID');
+  const gateJobRunId = requirePositiveInteger(gateJob.run_id, 'final-head CI job workflow run ID');
+  const gateJobRunAttempt = requirePositiveInteger(
+    gateJob.run_attempt,
+    'final-head CI job workflow run attempt'
+  );
+  if (gateJobRunId !== workflowRun.workflowRunId || gateJobRunAttempt !== runAttempt) {
+    fail('final-head CI job is not bound to selected workflow-run attempt');
+  }
+  if (gateJob.status !== 'completed' || gateJob.conclusion !== 'success') {
+    fail('final-head CI Gate Status is not completed successfully');
+  }
+  return { checkRunId, workflowRunId: workflowRun.workflowRunId, runAttempt, headSha: liveHeadSha };
+}
+
 function normalizeComparison(comparison, baseSha, headSha) {
   if (!comparison || typeof comparison !== 'object')
     fail('commit comparison API evidence is missing');
@@ -714,6 +1077,23 @@ function selectionIdentity(selection) {
       updatedAt: selection.review.metadata.updatedAt,
       bodySha256: sha256(selection.review.body),
     },
+  });
+}
+
+function evidenceSelectionIdentity({ selection, gateWorkflow, finalHeadCiGate }) {
+  return JSON.stringify({
+    selection: selectionIdentity(selection),
+    gateWorkflow: {
+      workflowId: gateWorkflow.workflowId,
+      workflowRunId: gateWorkflow.gateWorkflowRun.workflowRunId,
+      runAttempt: gateWorkflow.gateWorkflowRun.runAttempt,
+      event: gateWorkflow.gateWorkflowRun.event,
+      headSha: gateWorkflow.gateWorkflowRun.headSha,
+      pullRequestNumbers: [...gateWorkflow.gateWorkflowRun.pullRequestNumbers].sort(
+        (left, right) => left - right
+      ),
+    },
+    finalHeadCiGate: finalHeadCiGate ?? null,
   });
 }
 
@@ -874,6 +1254,22 @@ export async function main(
     initialSelection.approval.checkRunId,
     initialSelection.approval.baseHeadSha
   );
+  const initialGateWorkflow = await resolveBoundGateWorkflow({
+    client,
+    repoPath,
+    checkRunId: initialSelection.approval.checkRunId,
+    approvedBaseHeadSha: initialSelection.approval.baseHeadSha,
+    pullRequestNumber: options.pr,
+  });
+  const initialFinalHeadCiGate = options.requireFinalHeadCi
+    ? await resolveFinalHeadCiGate({
+        client,
+        repoPath,
+        workflowId: initialGateWorkflow.workflowId,
+        liveHeadSha: initialLiveHeadSha,
+        pullRequestNumber: options.pr,
+      })
+    : undefined;
   await verifyLocalPlanState({
     approvedBaseHeadSha: initialSelection.approval.baseHeadSha,
     cwd,
@@ -910,7 +1306,35 @@ export async function main(
     repoPath,
     requireExactHead: options.requireExactHead,
   });
-  if (selectionIdentity(finalSelection) !== selectionIdentity(initialSelection)) {
+  requireCheckRun(checkRun, finalSelection.approval.checkRunId, finalSelection.approval.baseHeadSha);
+  const finalGateWorkflow = await resolveBoundGateWorkflow({
+    client,
+    repoPath,
+    checkRunId: finalSelection.approval.checkRunId,
+    approvedBaseHeadSha: finalSelection.approval.baseHeadSha,
+    pullRequestNumber: options.pr,
+  });
+  const finalFinalHeadCiGate = options.requireFinalHeadCi
+    ? await resolveFinalHeadCiGate({
+        client,
+        repoPath,
+        workflowId: finalGateWorkflow.workflowId,
+        liveHeadSha: liveHeadSha,
+        pullRequestNumber: options.pr,
+      })
+    : undefined;
+  if (
+    evidenceSelectionIdentity({
+      selection: finalSelection,
+      gateWorkflow: finalGateWorkflow,
+      finalHeadCiGate: finalFinalHeadCiGate,
+    }) !==
+    evidenceSelectionIdentity({
+      selection: initialSelection,
+      gateWorkflow: initialGateWorkflow,
+      finalHeadCiGate: initialFinalHeadCiGate,
+    })
+  ) {
     fail('review or approval record changed during verification');
   }
   const collaboratorPermission = normalizeCollaboratorPermission(permission, options.approverLogin);
@@ -936,6 +1360,12 @@ export async function main(
     approverLogin: options.approverLogin,
     repositoryOwnerLogin,
     collaboratorPermission,
+    repository: { owner: options.owner, name: options.repository },
+    pullRequestNumber: options.pr,
+    ciWorkflowId: finalGateWorkflow.workflowId,
+    gateWorkflowRun: finalGateWorkflow.gateWorkflowRun,
+    finalHeadCiGate: finalFinalHeadCiGate,
+    requireFinalHeadCi: options.requireFinalHeadCi,
     comments,
     commentsComplete: true,
     checkRun,

@@ -18,9 +18,22 @@ const APPROVER_LOGIN = 'nikhillinit';
 const REVIEW_COMMENT_ID = 101;
 const APPROVAL_COMMENT_ID = 202;
 const CI_GATE_CHECK_RUN_ID = 303;
+const CI_WORKFLOW_ID = 404;
+const CI_WORKFLOW_RUN_ID = 505;
+const CI_RUN_ATTEMPT = 2;
+const BOOTSTRAP_GATE_CHECK_RUN_ID = 605;
+const BOOTSTRAP_WORKFLOW_RUN_ID = 706;
+const BOOTSTRAP_RUN_ATTEMPT = 1;
+const FINAL_GATE_CHECK_RUN_ID = 606;
+const FINAL_WORKFLOW_RUN_ID = 707;
+const FINAL_RUN_ATTEMPT = 3;
+const BOOTSTRAP_PLAN_APPROVAL_JOB_ID = 608;
+const FINAL_PLAN_APPROVAL_JOB_ID = 609;
 const CI_COMPLETED_AT = '2026-08-11T11:59:00Z';
 const CREATED_AT = '2026-08-11T12:00:00Z';
 const SEPARATION_MODEL = 'single-maintainer-owner-attestation';
+const REPOSITORY = { owner: 'nikhillinit', name: 'Updog_restore' };
+const PULL_REQUEST_NUMBER = 1385;
 
 function sha256(value) {
   return createHash('sha256').update(value).digest('hex');
@@ -76,6 +89,17 @@ function validInput() {
     approverLogin: APPROVER_LOGIN,
     repositoryOwnerLogin: APPROVER_LOGIN,
     collaboratorPermission: 'admin',
+    repository: REPOSITORY,
+    pullRequestNumber: PULL_REQUEST_NUMBER,
+    ciWorkflowId: CI_WORKFLOW_ID,
+    gateWorkflowRun: {
+      workflowRunId: CI_WORKFLOW_RUN_ID,
+      runAttempt: CI_RUN_ATTEMPT,
+      event: 'pull_request',
+      workflowId: CI_WORKFLOW_ID,
+      headSha: APPROVED_BASE_HEAD_SHA,
+      pullRequestNumbers: [PULL_REQUEST_NUMBER],
+    },
     comments: [
       issueComment(REVIEW_COMMENT_ID, reviewBody()),
       issueComment(APPROVAL_COMMENT_ID, approvalBody()),
@@ -353,6 +377,47 @@ describe('plan approval evidence evaluation', () => {
     expectRejected(wrongOwner, /Actions|app|repository/i);
   });
 
+  it.each([
+    ['workflowId', CI_WORKFLOW_ID + 1, /workflow/i],
+    ['event', 'workflow_dispatch', /event|pull_request|workflow/i],
+    ['event', 'push', /event|pull_request|workflow/i],
+    ['headSha', DESCENDANT_HEAD_SHA, /head/i],
+  ])('rejects bound gate workflow evidence when %s is invalid', (key, value, pattern) => {
+    const input = validInput();
+    input.gateWorkflowRun[key] = value;
+    expectRejected(input, pattern);
+  });
+
+  it('rejects a bound gate workflow run without the plan-approval PR association', () => {
+    const input = validInput();
+    input.gateWorkflowRun.pullRequestNumbers = [];
+    expectRejected(input, /pull request|association|workflow/i);
+  });
+
+  it('emits exactly four normalized final-head CI fields when required', () => {
+    const input = validInput();
+    input.requireFinalHeadCi = true;
+    input.finalHeadCiGate = {
+      checkRunId: FINAL_GATE_CHECK_RUN_ID,
+      workflowRunId: FINAL_WORKFLOW_RUN_ID,
+      runAttempt: FINAL_RUN_ATTEMPT,
+      headSha: APPROVED_BASE_HEAD_SHA,
+    };
+    const result = evaluatePlanApproval(input);
+    expect(result.finalHeadCiGate).toEqual({
+      checkRunId: FINAL_GATE_CHECK_RUN_ID,
+      workflowRunId: FINAL_WORKFLOW_RUN_ID,
+      runAttempt: FINAL_RUN_ATTEMPT,
+      headSha: APPROVED_BASE_HEAD_SHA,
+    });
+    expect(Object.keys(result.finalHeadCiGate)).toEqual([
+      'checkRunId',
+      'workflowRunId',
+      'runAttempt',
+      'headSha',
+    ]);
+  });
+
   it('requires CI completion before review and review before approval', () => {
     const lateCi = validInput();
     lateCi.checkRun.completed_at = '2026-08-11T12:01:00Z';
@@ -424,6 +489,8 @@ describe('plan approval evidence evaluation', () => {
       approvedBaseHeadSha: APPROVED_BASE_HEAD_SHA,
       liveHeadSha: APPROVED_BASE_HEAD_SHA,
       permission: 'admin',
+      repository: REPOSITORY,
+      pullRequestNumber: PULL_REQUEST_NUMBER,
       review: {
         commentId: REVIEW_COMMENT_ID,
         url: `https://github.com/nikhillinit/Updog_restore/pull/1385#issuecomment-${REVIEW_COMMENT_ID}`,
@@ -440,7 +507,15 @@ describe('plan approval evidence evaluation', () => {
         updatedAt: CREATED_AT,
         bodySha256: sha256(approvalBody()),
       },
-      checkRun: { id: CI_GATE_CHECK_RUN_ID, name: 'CI Gate Status', conclusion: 'success' },
+      checkRun: {
+        id: CI_GATE_CHECK_RUN_ID,
+        name: 'CI Gate Status',
+        conclusion: 'success',
+        workflowRunId: CI_WORKFLOW_RUN_ID,
+        runAttempt: CI_RUN_ATTEMPT,
+        event: 'pull_request',
+        workflowId: CI_WORKFLOW_ID,
+      },
     });
     const serialized = JSON.stringify(result);
     expect(serialized).not.toContain('ghp_');
@@ -452,6 +527,45 @@ describe('plan approval evidence evaluation', () => {
 
 function page(url, data, link = null) {
   return { data, link, url: new URL(url) };
+}
+
+function finalWorkflowRun(overrides = {}) {
+  return {
+    id: FINAL_WORKFLOW_RUN_ID,
+    workflow_id: CI_WORKFLOW_ID,
+    path: '.github/workflows/ci-unified.yml@refs/heads/main',
+    event: 'pull_request',
+    head_sha: APPROVED_BASE_HEAD_SHA,
+    status: 'completed',
+    conclusion: 'success',
+    run_attempt: FINAL_RUN_ATTEMPT,
+    pull_requests: [{ number: PULL_REQUEST_NUMBER }],
+    ...overrides,
+  };
+}
+
+function finalGateJob(overrides = {}) {
+  return {
+    id: FINAL_GATE_CHECK_RUN_ID,
+    name: 'CI Gate Status',
+    status: 'completed',
+    conclusion: 'success',
+    run_id: FINAL_WORKFLOW_RUN_ID,
+    run_attempt: FINAL_RUN_ATTEMPT,
+    ...overrides,
+  };
+}
+
+function finalPlanApprovalJob(overrides = {}) {
+  return {
+    id: FINAL_PLAN_APPROVAL_JOB_ID,
+    name: 'plan-approval',
+    status: 'completed',
+    conclusion: 'success',
+    run_id: FINAL_WORKFLOW_RUN_ID,
+    run_attempt: FINAL_RUN_ATTEMPT,
+    ...overrides,
+  };
 }
 
 function mainHarness({
@@ -471,6 +585,29 @@ function mainHarness({
   responseQueryDrift = false,
   malformedJson = false,
   httpStatus = 200,
+  requireFinalHeadCi = false,
+  boundWorkflowId = CI_WORKFLOW_ID,
+  secondWorkflowId = boundWorkflowId,
+  boundRunWorkflowId = boundWorkflowId,
+  secondBoundRunWorkflowId = boundRunWorkflowId,
+  boundWorkflowRunId = CI_WORKFLOW_RUN_ID,
+  secondBoundWorkflowRunId = boundWorkflowRunId,
+  boundRunAttempt = CI_RUN_ATTEMPT,
+  secondBoundRunAttempt = boundRunAttempt,
+  boundEvent = 'pull_request',
+  secondBoundEvent = boundEvent,
+  boundHeadSha = APPROVED_BASE_HEAD_SHA,
+  secondBoundHeadSha = boundHeadSha,
+  boundPullRequestNumbers = [PULL_REQUEST_NUMBER],
+  secondBoundPullRequestNumbers = boundPullRequestNumbers,
+  finalWorkflowRuns: configuredFinalWorkflowRuns,
+  secondFinalWorkflowRuns: configuredSecondFinalWorkflowRuns,
+  finalJobsByRun: configuredFinalJobsByRun,
+  secondFinalJobsByRun: configuredSecondFinalJobsByRun,
+  finalRunsTotalCount,
+  secondFinalRunsTotalCount,
+  finalJobsTotalCount,
+  secondFinalJobsTotalCount,
 } = {}) {
   const planBytes = Buffer.from('tracked plan bytes\n');
   const planSha256 = sha256(planBytes);
@@ -522,6 +659,18 @@ function mainHarness({
   let pullReads = 0;
   let permissionReads = 0;
   let commentReads = 0;
+  let workflowReads = 0;
+  let boundJobReads = 0;
+  let boundRunReads = 0;
+  let finalRunsReads = 0;
+  const finalWorkflowRuns =
+    configuredFinalWorkflowRuns ?? [
+      finalWorkflowRun({ workflow_id: boundWorkflowId, head_sha: liveHead }),
+    ];
+  const finalJobsByRun =
+    configuredFinalJobsByRun ?? {
+      [FINAL_WORKFLOW_RUN_ID]: [finalGateJob(), finalPlanApprovalJob()],
+    };
   const fetchImpl = vi.fn(async (url) => {
     const requestUrl = new URL(url);
     let data;
@@ -536,6 +685,60 @@ function mainHarness({
       data = { head: { sha: pullReads === 1 ? liveHead : secondHead } };
     } else if (requestUrl.pathname.endsWith(`/check-runs/${CI_GATE_CHECK_RUN_ID}`)) {
       data = validInput().checkRun;
+    } else if (requestUrl.pathname.endsWith('/actions/workflows/ci-unified.yml/runs')) {
+      finalRunsReads += 1;
+      data = {
+        total_count:
+          finalRunsReads === 1
+            ? (finalRunsTotalCount ?? finalWorkflowRuns.length)
+            : (secondFinalRunsTotalCount ??
+              configuredSecondFinalWorkflowRuns?.length ??
+              finalWorkflowRuns.length),
+        workflow_runs:
+          finalRunsReads === 1
+            ? finalWorkflowRuns
+            : (configuredSecondFinalWorkflowRuns ?? finalWorkflowRuns),
+      };
+    } else if (requestUrl.pathname.endsWith('/actions/workflows/ci-unified.yml')) {
+      workflowReads += 1;
+      data = {
+        id: workflowReads === 1 ? boundWorkflowId : secondWorkflowId,
+        path: '.github/workflows/ci-unified.yml@refs/heads/main',
+      };
+    } else if (requestUrl.pathname.endsWith(`/actions/jobs/${CI_GATE_CHECK_RUN_ID}`)) {
+      boundJobReads += 1;
+      data = {
+        id: CI_GATE_CHECK_RUN_ID,
+        run_id: boundJobReads === 1 ? boundWorkflowRunId : secondBoundWorkflowRunId,
+        run_attempt: boundJobReads === 1 ? boundRunAttempt : secondBoundRunAttempt,
+      };
+    } else if (/\/actions\/runs\/\d+\/attempts\/\d+\/jobs$/.test(requestUrl.pathname)) {
+      const workflowRunId = Number(requestUrl.pathname.match(/\/actions\/runs\/(\d+)\//)[1]);
+      const jobsByRun =
+        finalRunsReads === 1
+          ? finalJobsByRun
+          : (configuredSecondFinalJobsByRun ?? finalJobsByRun);
+      const jobs = jobsByRun[workflowRunId] ?? [];
+      data = {
+        total_count:
+          finalRunsReads === 1
+            ? (finalJobsTotalCount ?? jobs.length)
+            : (secondFinalJobsTotalCount ?? jobs.length),
+        jobs,
+      };
+    } else if (/\/actions\/runs\/\d+$/.test(requestUrl.pathname)) {
+      boundRunReads += 1;
+      data = {
+        id: boundRunReads === 1 ? boundWorkflowRunId : secondBoundWorkflowRunId,
+        workflow_id: boundRunReads === 1 ? boundRunWorkflowId : secondBoundRunWorkflowId,
+        path: '.github/workflows/ci-unified.yml@refs/heads/main',
+        event: boundRunReads === 1 ? boundEvent : secondBoundEvent,
+        head_sha: boundRunReads === 1 ? boundHeadSha : secondBoundHeadSha,
+        pull_requests: (boundRunReads === 1
+          ? boundPullRequestNumbers
+          : secondBoundPullRequestNumbers
+        ).map((number) => ({ number })),
+      };
     } else if (requestUrl.pathname.includes('/compare/')) {
       const historicalHead = 'd'.repeat(40);
       const comparesHistorical = requestUrl.pathname.includes(`/compare/${historicalHead}...`);
@@ -612,6 +815,7 @@ function mainHarness({
       '--approver-login',
       APPROVER_LOGIN,
       ...(requireExactHead ? ['--require-exact-head'] : []),
+      ...(requireFinalHeadCi ? ['--require-final-head-ci'] : []),
     ],
     dependencies: {
       cwd: '/repo',
@@ -683,6 +887,255 @@ describe('plan approval GitHub adapter', () => {
       }),
     };
     await expect(collectIssueComments(apiError, 'o', 'r', 1)).rejects.toThrow(/denied/i);
+  });
+
+  it('resolves bound workflow identity through Actions APIs and accepts workflow path refs', async () => {
+    const harness = mainHarness();
+    const result = await main(harness.args, { GH_TOKEN: 'token' }, harness.dependencies);
+    expect(result.checkRun).toMatchObject({
+      workflowRunId: CI_WORKFLOW_RUN_ID,
+      runAttempt: CI_RUN_ATTEMPT,
+      event: 'pull_request',
+      workflowId: CI_WORKFLOW_ID,
+    });
+    const requested = harness.fetchImpl.mock.calls.map(([url]) => new URL(url));
+    expect(requested.filter(({ pathname }) => pathname.endsWith('/actions/workflows/ci-unified.yml')))
+      .toHaveLength(2);
+    expect(
+      requested.filter(({ pathname }) => pathname.endsWith(`/actions/jobs/${CI_GATE_CHECK_RUN_ID}`))
+    ).toHaveLength(2);
+    expect(
+      requested.filter(({ pathname }) => pathname.endsWith(`/actions/runs/${CI_WORKFLOW_RUN_ID}`))
+    ).toHaveLength(2);
+  });
+
+  it('fails closed when bound workflow identity, event, head, or PR association changes', async () => {
+    for (const [options, pattern] of [
+      [{ boundRunWorkflowId: CI_WORKFLOW_ID + 1 }, /workflow/i],
+      [{ boundEvent: 'workflow_dispatch' }, /event|pull_request|workflow/i],
+      [{ boundEvent: 'push' }, /event|pull_request|workflow/i],
+      [{ boundHeadSha: DESCENDANT_HEAD_SHA }, /head/i],
+      [{ boundPullRequestNumbers: [] }, /pull request|association|workflow/i],
+    ]) {
+      const harness = mainHarness(options);
+      await expect(main(harness.args, { GH_TOKEN: 'token' }, harness.dependencies)).rejects.toThrow(
+        pattern
+      );
+    }
+  });
+
+  it('requires final-head CI only behind its explicit flag and emits no lookup or output otherwise', async () => {
+    const withoutFlag = mainHarness();
+    const result = await main(withoutFlag.args, { GH_TOKEN: 'token' }, withoutFlag.dependencies);
+    expect(result).not.toHaveProperty('finalHeadCiGate');
+    const withoutFinalLookup = withoutFlag.fetchImpl.mock.calls
+      .map(([url]) => new URL(url).pathname)
+      .filter(
+        (pathname) =>
+          pathname.endsWith('/actions/workflows/ci-unified.yml/runs') ||
+          /\/actions\/runs\/\d+\/attempts\/\d+\/jobs$/.test(pathname)
+      );
+    expect(withoutFinalLookup).toEqual([]);
+
+    const withFlag = mainHarness({ requireFinalHeadCi: true });
+    const flaggedResult = await main(withFlag.args, { GH_TOKEN: 'token' }, withFlag.dependencies);
+    expect(flaggedResult.finalHeadCiGate).toEqual({
+      checkRunId: FINAL_GATE_CHECK_RUN_ID,
+      workflowRunId: FINAL_WORKFLOW_RUN_ID,
+      runAttempt: FINAL_RUN_ATTEMPT,
+      headSha: APPROVED_BASE_HEAD_SHA,
+    });
+    expect(Object.keys(flaggedResult.finalHeadCiGate)).toEqual([
+      'checkRunId',
+      'workflowRunId',
+      'runAttempt',
+      'headSha',
+    ]);
+  });
+
+  it('fails closed for missing, failed, non-pull-request, or unassociated final-head runs', async () => {
+    for (const finalWorkflowRuns of [
+      [],
+      [finalWorkflowRun({ conclusion: 'failure' })],
+      [finalWorkflowRun({ event: 'workflow_dispatch' })],
+      [finalWorkflowRun({ pull_requests: [] })],
+    ]) {
+      const harness = mainHarness({ requireFinalHeadCi: true, finalWorkflowRuns });
+      await expect(main(harness.args, { GH_TOKEN: 'token' }, harness.dependencies)).rejects.toThrow(
+        /final|workflow|pull request|exactly one|candidate/i
+      );
+    }
+  });
+
+  it('fails closed for zero, multiple, or truncated final-head gate jobs', async () => {
+    for (const finalJobs of [
+      [],
+      [finalGateJob(), finalGateJob({ id: FINAL_GATE_CHECK_RUN_ID + 1 })],
+      [finalGateJob({ conclusion: 'failure' })],
+    ]) {
+      const harness = mainHarness({
+        requireFinalHeadCi: true,
+        finalJobsByRun: { [FINAL_WORKFLOW_RUN_ID]: [finalPlanApprovalJob(), ...finalJobs] },
+      });
+      await expect(main(harness.args, { GH_TOKEN: 'token' }, harness.dependencies)).rejects.toThrow(
+        /final|gate|job|exactly one|candidate/i
+      );
+    }
+
+    const truncated = mainHarness({ requireFinalHeadCi: true, finalJobsTotalCount: 3 });
+    await expect(main(truncated.args, { GH_TOKEN: 'token' }, truncated.dependencies)).rejects.toThrow(
+      /truncat|total|pagination/i
+    );
+  });
+
+  it('selects armed run when successful bootstrap and armed runs share final head', async () => {
+    const bootstrap = finalWorkflowRun({
+      id: BOOTSTRAP_WORKFLOW_RUN_ID,
+      run_attempt: BOOTSTRAP_RUN_ATTEMPT,
+    });
+    const armed = finalWorkflowRun();
+    const harness = mainHarness({
+      requireFinalHeadCi: true,
+      finalWorkflowRuns: [bootstrap, armed],
+      finalJobsByRun: {
+        [BOOTSTRAP_WORKFLOW_RUN_ID]: [
+          finalGateJob({
+            id: BOOTSTRAP_GATE_CHECK_RUN_ID,
+            run_id: BOOTSTRAP_WORKFLOW_RUN_ID,
+            run_attempt: BOOTSTRAP_RUN_ATTEMPT,
+          }),
+          finalPlanApprovalJob({
+            id: BOOTSTRAP_PLAN_APPROVAL_JOB_ID,
+            run_id: BOOTSTRAP_WORKFLOW_RUN_ID,
+            run_attempt: BOOTSTRAP_RUN_ATTEMPT,
+            conclusion: 'skipped',
+          }),
+        ],
+        [FINAL_WORKFLOW_RUN_ID]: [finalGateJob(), finalPlanApprovalJob()],
+      },
+    });
+    await expect(main(harness.args, { GH_TOKEN: 'token' }, harness.dependencies)).resolves.toMatchObject(
+      {
+        finalHeadCiGate: {
+          checkRunId: FINAL_GATE_CHECK_RUN_ID,
+          workflowRunId: FINAL_WORKFLOW_RUN_ID,
+          runAttempt: FINAL_RUN_ATTEMPT,
+          headSha: APPROVED_BASE_HEAD_SHA,
+        },
+      }
+    );
+  });
+
+  it('fails when successful bootstrap is followed by failed armed run', async () => {
+    const bootstrap = finalWorkflowRun({
+      id: BOOTSTRAP_WORKFLOW_RUN_ID,
+      run_attempt: BOOTSTRAP_RUN_ATTEMPT,
+    });
+    const armed = finalWorkflowRun({ conclusion: 'failure' });
+    const harness = mainHarness({
+      requireFinalHeadCi: true,
+      finalWorkflowRuns: [bootstrap, armed],
+      finalJobsByRun: {
+        [BOOTSTRAP_WORKFLOW_RUN_ID]: [
+          finalPlanApprovalJob({
+            id: BOOTSTRAP_PLAN_APPROVAL_JOB_ID,
+            run_id: BOOTSTRAP_WORKFLOW_RUN_ID,
+            run_attempt: BOOTSTRAP_RUN_ATTEMPT,
+            conclusion: 'skipped',
+          }),
+        ],
+        [FINAL_WORKFLOW_RUN_ID]: [finalGateJob(), finalPlanApprovalJob()],
+      },
+    });
+    await expect(main(harness.args, { GH_TOKEN: 'token' }, harness.dependencies)).rejects.toThrow(
+      /success|armed|final|gate/i
+    );
+  });
+
+  it('fails when two final-head runs are both armed', async () => {
+    const firstArmed = finalWorkflowRun();
+    const secondArmed = finalWorkflowRun({ id: FINAL_WORKFLOW_RUN_ID + 1 });
+    const harness = mainHarness({
+      requireFinalHeadCi: true,
+      finalWorkflowRuns: [firstArmed, secondArmed],
+      finalJobsByRun: {
+        [FINAL_WORKFLOW_RUN_ID]: [finalGateJob(), finalPlanApprovalJob()],
+        [FINAL_WORKFLOW_RUN_ID + 1]: [
+          finalGateJob({
+            id: FINAL_GATE_CHECK_RUN_ID + 1,
+            run_id: FINAL_WORKFLOW_RUN_ID + 1,
+          }),
+          finalPlanApprovalJob({
+            id: FINAL_PLAN_APPROVAL_JOB_ID + 1,
+            run_id: FINAL_WORKFLOW_RUN_ID + 1,
+          }),
+        ],
+      },
+    });
+    await expect(main(harness.args, { GH_TOKEN: 'token' }, harness.dependencies)).rejects.toThrow(
+      /exactly one|armed|candidate|final/i
+    );
+  });
+
+  it('fails when final-head has only a successful bootstrap run', async () => {
+    const bootstrap = finalWorkflowRun({
+      id: BOOTSTRAP_WORKFLOW_RUN_ID,
+      run_attempt: BOOTSTRAP_RUN_ATTEMPT,
+    });
+    const harness = mainHarness({
+      requireFinalHeadCi: true,
+      finalWorkflowRuns: [bootstrap],
+      finalJobsByRun: {
+        [BOOTSTRAP_WORKFLOW_RUN_ID]: [
+          finalPlanApprovalJob({
+            id: BOOTSTRAP_PLAN_APPROVAL_JOB_ID,
+            run_id: BOOTSTRAP_WORKFLOW_RUN_ID,
+            run_attempt: BOOTSTRAP_RUN_ATTEMPT,
+            conclusion: 'skipped',
+          }),
+        ],
+      },
+    });
+    await expect(main(harness.args, { GH_TOKEN: 'token' }, harness.dependencies)).rejects.toThrow(
+      /exactly one|armed|candidate|final/i
+    );
+  });
+
+  it('fails when a same-head candidate run is not completed', async () => {
+    const inProgress = finalWorkflowRun({ status: 'in_progress' });
+    const harness = mainHarness({
+      requireFinalHeadCi: true,
+      finalWorkflowRuns: [inProgress],
+      finalJobsByRun: {
+        [FINAL_WORKFLOW_RUN_ID]: [finalPlanApprovalJob()],
+      },
+    });
+    await expect(main(harness.args, { GH_TOKEN: 'token' }, harness.dependencies)).rejects.toThrow(
+      /completed|classif|uncertain|final/i
+    );
+  });
+
+  it('fails when armed final-head plan-approval is cancelled', async () => {
+    const harness = mainHarness({
+      requireFinalHeadCi: true,
+      finalJobsByRun: {
+        [FINAL_WORKFLOW_RUN_ID]: [
+          finalGateJob(),
+          finalPlanApprovalJob({ conclusion: 'cancelled' }),
+        ],
+      },
+    });
+    await expect(main(harness.args, { GH_TOKEN: 'token' }, harness.dependencies)).rejects.toThrow(
+      /plan-approval|success|cancelled|final/i
+    );
+  });
+
+  it('parses final-head flag once only', async () => {
+    const harness = mainHarness({ requireFinalHeadCi: true });
+    harness.args.push('--require-final-head-ci');
+    await expect(main(harness.args, { GH_TOKEN: 'token' }, harness.dependencies)).rejects.toThrow(
+      /only once/i
+    );
   });
 
   it('normalizes maintain role, re-reads mutable API evidence, and prints only normalized JSON', async () => {
