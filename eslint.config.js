@@ -199,7 +199,23 @@ export default [
       // Unused imports and variables
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
-      'unused-imports/no-unused-imports': 'error',
+      // NOTE: eslint-plugin-unused-imports does not implement its own "unused"
+      // detection -- both rules below borrow @typescript-eslint/no-unused-vars'
+      // rule object directly (see getBaseRule() in the plugin source) and run
+      // it with whatever options are passed to *this* rule entry. Options are
+      // NOT inherited from the sibling 'unused-imports/no-unused-vars' config.
+      // Without an explicit options object here, the auto-fixing rule ignores
+      // the repo's '^_' intentionally-unused convention and deletes those
+      // imports on --fix. Mirror the sibling rule's options so both agree.
+      'unused-imports/no-unused-imports': [
+        'error',
+        {
+          vars: 'all',
+          varsIgnorePattern: '^_',
+          args: 'after-used',
+          argsIgnorePattern: '^_',
+        },
+      ],
       'unused-imports/no-unused-vars': [
         'warn',
         {
