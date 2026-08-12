@@ -1063,6 +1063,19 @@ function validateArtifactSet({ outputDir, serialized }) {
       throw new Error(`Artifact byte-length mismatch for ${name}: manifest declares ${expected?.byte_length}, buffer is ${bytes.byteLength}`);
     }
   }
+  // The authority gate inspects `manifest` (the in-memory object), but the
+  // bytes actually published to disk are `manifestBytes`. Without this
+  // recompute check a caller could pass a manifest object with
+  // valid_for_release_proof: false (sailing past the authority check) paired
+  // with manifestBytes independently crafted to say true, publishing
+  // release-valid bytes with no authority. Recomputing manifestBytes from
+  // manifest here — the same construction serializeRouteKnowledgeGraph and
+  // assembleReleaseManifest already use — makes the two inseparable. This
+  // runs after the data-artifact hash checks above so a tampered data-hash
+  // entry is still reported as a hash mismatch, not a manifest desync.
+  if (!Buffer.from(`${stableJson(manifest)}\n`).equals(manifestBytes)) {
+    throw new Error('manifest.json bytes do not recompute from the manifest object');
+  }
   const nodeRecords = nodes ?? [];
   const edgeRecords = edges ?? [];
   const testRecords = tests ?? [];

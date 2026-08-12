@@ -993,6 +993,22 @@ describe('writeRouteKnowledgeGraphArtifacts', () => {
     });
   });
 
+  it('rejects a manifest object/bytes desync so the authority gate cannot be bypassed', async () => {
+    // The authority gate inspects `serialized.manifest` (the object), but the
+    // bytes actually published to disk are `serialized.manifestBytes`. A
+    // caller could otherwise pass valid_for_release_proof: false (sailing
+    // past the authority check) paired with manifestBytes independently
+    // crafted to say true, publishing release-valid bytes without authority.
+    const { serializeRouteKnowledgeGraph, writeRouteKnowledgeGraphArtifacts } = await requireGenerator();
+    const desynced = serializeRouteKnowledgeGraph(baseInput());
+    const releaseManifest = { ...desynced.manifest, valid_for_release_proof: true };
+    desynced.manifestBytes = Buffer.from(`${JSON.stringify(releaseManifest)}\n`);
+    await withOutputDir(async (outputDir) => {
+      await expect(writeRouteKnowledgeGraphArtifacts({ outputDir, serialized: desynced })).rejects.toThrow(/manifest/i);
+      expect(await readdir(outputDir)).toEqual([]); // destination untouched
+    });
+  });
+
   it('publishes manifest.json last and rejects release-flavored manifests without authority', { retry: 0 }, async () => {
     // The generator destructures fs/promises at module top, so a real ESM
     // module-namespace spy cannot intercept its rename() calls ("Cannot
