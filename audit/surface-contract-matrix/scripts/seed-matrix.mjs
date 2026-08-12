@@ -2174,7 +2174,7 @@ const seed = async () => {
   process.stderr.write(`${JSON.stringify({
     snapshot_id: kg.manifest.snapshot_id,
     row_counts: counts,
-    kg_expected: { APIEndpoint: 390, ClientRoute: 43, WorkerJob: 9 },
+    kg_expected: kg.manifest.node_type_counts,
     listener_candidates: candidates.length,
     listener_dispositions: listenerDispositions.length,
     listener_product_routes: [...rows.values()].filter((row) => row.seam === 'worker-health' || row.seam === 'ml-reserve').length,
