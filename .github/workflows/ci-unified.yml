@@ -894,9 +894,9 @@ jobs:
           neon_expected="${{ needs.changes.outputs.neon_lane == 'true' || github.event.inputs.run_full_suite == 'true' }}"
           # Operand order intentionally reversed vs release_static_expected's
           # identical-condition expression above; OR is commutative so
-          # production behavior is unchanged. Keeps the two ${{ }} tokens
+          # production behavior is unchanged. Keeps the two expression tokens
           # textually distinct for the regression-test harness, which
-          # resolves ${{ }} substitutions by expression text.
+          # resolves expression substitutions by expression text.
           audit_expected="${{ github.event.inputs.run_full_suite == 'true' || needs.changes.outputs.heavy_ci_relevant == 'true' }}"
           if [[ "$check_expected" != "true" ]]; then
             if [[ "$security_tests_expected" == "true" || "$memory_expected" == "true" ]]; then
