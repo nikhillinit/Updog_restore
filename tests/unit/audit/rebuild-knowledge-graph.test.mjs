@@ -564,7 +564,11 @@ describe('route knowledge-graph generator contract', () => {
     } finally {
       await rm(parent, { recursive: true, force: true });
     }
-  });
+    // Heavy hermetic fixture: shared-clone of the repo plus the full
+    // 19-profile runtime inspection (~11s warm locally, >30s on a cold CI
+    // shard — timed out at the default 30s in run 31573521532). The cost is
+    // the inspection itself, not a hang.
+  }, 180_000);
 
   it('rejects release HEAD mismatch and dirty tracked inputs', async () => {
     await withOutputDir(async (outputDir) => {
