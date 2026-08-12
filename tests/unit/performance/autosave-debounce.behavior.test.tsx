@@ -1,108 +1,189 @@
-import { act, useCallback, useState } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, useSyncExternalStore } from 'react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ExitRecyclingStep } from '@/components/modeling-wizard/steps/ExitRecyclingStep';
-import type {
-  ExitRecyclingInput,
-  FundFinancialsOutput,
-} from '@/schemas/modeling-wizard.schemas';
+import type { FundDraftWriteV1 } from '@shared/contracts/fund-draft-write-v1.contract';
+import DistributionsStep from '@/pages/DistributionsStep';
+import { useFundDraftSync } from '@/hooks/useFundDraftSync';
+import { fundStore } from '@/stores/fundStore';
+import { TestQueryClientProvider } from '../../utils/test-query-client';
 
-const fundFinancials: FundFinancialsOutput = {
-  fundSize: 100,
-  orgExpenses: 0,
-  additionalExpenses: [],
-  investmentPeriod: 5,
-  gpCommitment: 1,
-  cashlessSplit: 50,
-  managementFee: { rate: 2, stepDown: { enabled: false } },
-};
+const draftServer = vi.hoisted(() => {
+  type Snapshot = {
+    writeCount: number;
+    fundId: number | null;
+    payload: unknown;
+  };
 
-const initialRecycling: ExitRecyclingInput = {
-  enabled: true,
-  recyclingCap: 15,
-  recyclingPeriod: 5,
-  exitRecyclingRate: 75,
-  mgmtFeeRecyclingRate: 0,
-};
+  const listeners = new Set<() => void>();
+  let snapshot: Snapshot = { writeCount: 0, fundId: null, payload: null };
 
-function AutosaveObserver() {
-  const [savedValues, setSavedValues] = useState<ExitRecyclingInput[]>([]);
-  const lastSaved = savedValues.at(-1);
-  const observeSave = useCallback((value: ExitRecyclingInput) => {
-    setSavedValues((current) => [...current, value]);
-  }, []);
+  return {
+    getSnapshot: () => snapshot,
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    reset: () => {
+      snapshot = { writeCount: 0, fundId: null, payload: null };
+    },
+    save: async (fundId: number, payload: unknown) => {
+      snapshot = {
+        writeCount: snapshot.writeCount + 1,
+        fundId,
+        payload,
+      };
+      listeners.forEach((listener) => listener());
+      return { config: payload };
+    },
+  };
+});
+
+vi.mock('@/contexts/FundContext', () => ({
+  FundProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useFundContext: () => ({
+    currentFund: { id: 55, name: 'Draft Sync Fund', size: 100_000_000 },
+    fundId: 55,
+    needsSetup: false,
+    isLoading: false,
+    fundLoadError: false,
+    fundLoadErrorMessage: null,
+  }),
+}));
+
+vi.mock('@/hooks/useUnifiedFlag', () => ({
+  useFlag: () => false,
+}));
+
+vi.mock('@/lib/wizard-telemetry', () => ({
+  emitWizard: () => undefined,
+}));
+
+vi.mock('@/services/fund-drafts', () => ({
+  fetchFundDraft: async () => {
+    throw new Error('No draft fetch expected');
+  },
+  saveFundDraft: (fundId: number, payload: unknown) => draftServer.save(fundId, payload),
+}));
+
+function DraftServerObservation() {
+  const snapshot = useSyncExternalStore(draftServer.subscribe, draftServer.getSnapshot);
+  const payload = snapshot.payload as FundDraftWriteV1 | null;
+  const firstTier = payload?.waterfallTiers?.[0];
+
+  return (
+    <output aria-label="authoritative draft state">
+      {snapshot.writeCount} {snapshot.writeCount === 1 ? 'write' : 'writes'}; fund{' '}
+      {snapshot.fundId ?? 'unavailable'}; LP split {firstTier?.lpSplit ?? 'unavailable'}%; GP split{' '}
+      {firstTier?.gpSplit ?? 'unavailable'}%
+    </output>
+  );
+}
+
+function RoutedDistributionsDraftSync() {
+  const sync = useFundDraftSync({ stepKey: 'distributions' });
 
   return (
     <>
-      <ExitRecyclingStep
-        initialData={initialRecycling}
-        onSave={observeSave}
-        fundFinancials={fundFinancials}
-      />
-      <output aria-label="autosave state">
-        {savedValues.length} {savedValues.length === 1 ? 'save' : 'saves'}; exit recycling rate{' '}
-        {lastSaved ? `${lastSaved.exitRecyclingRate}%` : 'unavailable'}; period{' '}
-        {lastSaved ? `${lastSaved.recyclingPeriod} years` : 'unavailable'}
-      </output>
+      <DistributionsStep />
+      <output aria-label="draft sync status">{sync.status}</output>
+      <DraftServerObservation />
     </>
   );
 }
 
+async function renderRoutedDistributionsStep() {
+  window.history.pushState({}, '', '/fund-setup?step=5');
+  render(
+    <TestQueryClientProvider>
+      <RoutedDistributionsDraftSync />
+    </TestQueryClientProvider>
+  );
+
+  expect(
+    await screen.findByRole(
+      'heading',
+      { name: 'Distributions, Waterfall, Fees & Recycling' },
+      { timeout: 5000 }
+    )
+  ).toBeInTheDocument();
+  const lpSplitInput = screen.getByDisplayValue('80');
+  vi.useFakeTimers();
+  return lpSplitInput;
+}
+
 async function advanceTimers(milliseconds: number) {
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(milliseconds);
+    vi.advanceTimersByTime(milliseconds);
+    await Promise.resolve();
   });
 }
 
-describe('exit recycling autosave debounce behavior', () => {
+describe('routed fund draft autosave debounce behavior', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.useRealTimers();
+    draftServer.reset();
+    sessionStorage.setItem('wizard-visited-steps', JSON.stringify([1, 2, 3, 4, 5]));
+
+    const initialState = fundStore.getInitialState();
+    act(() => {
+      fundStore.setState(
+        {
+          ...initialState,
+          hydrated: true,
+          draftFundId: 55,
+          draftServerReady: false,
+        },
+        true
+      );
+    });
   });
 
   afterEach(() => {
+    cleanup();
     vi.clearAllTimers();
     vi.useRealTimers();
+    sessionStorage.clear();
+    window.history.pushState({}, '', '/');
   });
 
-  it('batches rapid typing into one observable autosave with the final value', async () => {
-    render(<AutosaveObserver />);
-    const rateInput = screen.getByLabelText(/^Exit Recycling Rate/i);
+  it('batches rapid routed edits into one authoritative draft write with final data', async () => {
+    const lpSplitInput = await renderRoutedDistributionsStep();
 
-    fireEvent.change(rateInput, { target: { value: '8' } });
-    fireEvent.change(rateInput, { target: { value: '80' } });
-    await advanceTimers(500);
+    fireEvent.change(lpSplitInput, { target: { value: '81' } });
+    fireEvent.change(lpSplitInput, { target: { value: '82' } });
+    await advanceTimers(600);
 
-    expect(screen.getByLabelText('autosave state')).toHaveTextContent(
-      '1 save; exit recycling rate 80%'
+    expect(screen.getByLabelText('authoritative draft state')).toHaveTextContent(
+      '1 write; fund 55; LP split 82%; GP split 18%'
+    );
+    expect(screen.getByLabelText('draft sync status')).toHaveTextContent('synced');
+  });
+
+  it('does not write an edited routed draft before the 600 ms window ends', async () => {
+    const lpSplitInput = await renderRoutedDistributionsStep();
+
+    fireEvent.change(lpSplitInput, { target: { value: '81' } });
+    expect(lpSplitInput).toHaveValue(81);
+    expect(screen.getByLabelText('draft sync status')).toHaveTextContent('saving');
+
+    await advanceTimers(599);
+
+    expect(screen.getByLabelText('authoritative draft state')).toHaveTextContent(
+      '0 writes; fund unavailable; LP split unavailable%; GP split unavailable%'
     );
   });
 
-  it('does not autosave an edited field before the debounce window ends', async () => {
-    render(<AutosaveObserver />);
-    const periodInput = screen.getByLabelText(/^Recycling Period \(years\)/i);
+  it('writes exactly once when the routed draft debounce window elapses', async () => {
+    const lpSplitInput = await renderRoutedDistributionsStep();
 
-    fireEvent.change(periodInput, { target: { value: '6' } });
-    expect(periodInput).toHaveValue(6);
+    fireEvent.change(lpSplitInput, { target: { value: '84' } });
+    await advanceTimers(600);
 
-    await advanceTimers(499);
-
-    expect(screen.getByLabelText('autosave state')).toHaveTextContent(
-      '0 saves; exit recycling rate unavailable; period unavailable'
-    );
-  });
-
-  it('publishes exactly one autosave after the debounce window elapses', async () => {
-    render(<AutosaveObserver />);
-    const periodInput = screen.getByLabelText(/^Recycling Period \(years\)/i);
-
-    fireEvent.change(periodInput, { target: { value: '6' } });
-    await advanceTimers(500);
-
-    expect(screen.getByLabelText('autosave state')).toHaveTextContent(
-      '1 save; exit recycling rate 75%; period 6 years'
+    expect(screen.getByLabelText('authoritative draft state')).toHaveTextContent(
+      '1 write; fund 55; LP split 84%; GP split 16%'
     );
 
-    await advanceTimers(500);
-    expect(screen.getByLabelText('autosave state')).toHaveTextContent('1 save');
+    await advanceTimers(600);
+    expect(screen.getByLabelText('authoritative draft state')).toHaveTextContent('1 write');
   });
 });

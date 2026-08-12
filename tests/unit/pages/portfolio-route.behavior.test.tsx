@@ -1,9 +1,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { Route, Switch } from 'wouter';
-import { APP_ROUTE_DEFINITIONS } from '@shared/routes/app-route-definitions';
-import PortfolioPage from '@/pages/portfolio';
+import { AppRouter } from '@/app/app-router';
 import { TestQueryClientProvider } from '../../utils/test-query-client';
 import type {
   AllocationScenarioDetail,
@@ -18,6 +16,11 @@ const routeMocks = vi.hoisted(() => ({
   toast: vi.fn(),
   liveAllocationMutate: vi.fn(),
   mutationAsync: vi.fn(),
+  portfolioOverview: vi.fn(),
+}));
+
+vi.mock('@/app/app-layout', () => ({
+  AppLayout: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
 vi.mock('@/contexts/FundContext', () => ({
@@ -32,8 +35,8 @@ vi.mock('@/contexts/FundContext', () => ({
   }),
 }));
 
-vi.mock('@/components/portfolio/tabs/OverviewTab', () => ({
-  OverviewTab: () => <div>Companies workspace</div>,
+vi.mock('@/hooks/use-fund-data', () => ({
+  usePortfolioOverview: () => routeMocks.portfolioOverview(),
 }));
 
 vi.mock('@/hooks/use-toast', () => ({
@@ -214,19 +217,47 @@ const scenarioList: AllocationScenarioListResponse = {
   scenarios: [scenarioDetail],
 };
 
-function renderPortfolioRoute(path = '/portfolio') {
-  const portfolioRoute = APP_ROUTE_DEFINITIONS.find((route) => route.path === '/portfolio');
-  if (!portfolioRoute) {
-    throw new Error('Mounted /portfolio route is missing');
-  }
+const portfolioOverview = {
+  fundId: 42,
+  generatedAt: '2026-08-01T00:00:00.000Z',
+  currency: 'USD',
+  provenance: { isFinanciallyActionable: true },
+  sourceRecordCounts: { companies: 1 },
+  metrics: {
+    totalInvested: '1000000',
+    totalValue: '2500000',
+    averageMOIC: '2.5',
+    returnPct: '150',
+    totalCompanies: 1,
+    activeCompanies: 1,
+    exitedCompanies: 0,
+  },
+  companies: [
+    {
+      id: 7,
+      name: 'Northstar Systems',
+      sector: 'Enterprise',
+      stage: 'Series A',
+      status: 'Active',
+      invested: '1000000',
+      currentValue: '2500000',
+      moic: '2.5',
+    },
+  ],
+  meta: {
+    mode: 'live' as const,
+    requestedAsOf: null,
+    resolvedAsOf: null,
+    source: 'live' as const,
+    historicalAvailable: false,
+  },
+};
 
+function renderPortfolioRoute(path = '/portfolio') {
   window.history.pushState({}, '', path);
   return render(
     <TestQueryClientProvider>
-      <Switch>
-        <Route path={portfolioRoute.path} component={PortfolioPage} />
-        <Route>{() => <div>Route not found</div>}</Route>
-      </Switch>
+      <AppRouter enforceAuth={false} />
     </TestQueryClientProvider>
   );
 }
@@ -249,6 +280,13 @@ describe('mounted portfolio route behavior', () => {
       isLoading: false,
       error: null,
     }));
+    routeMocks.portfolioOverview.mockReturnValue({
+      data: portfolioOverview,
+      meta: portfolioOverview.meta,
+      isLoading: false,
+      isUnavailable: false,
+      isHistoricalEmpty: false,
+    });
   });
 
   afterEach(() => {
@@ -259,11 +297,17 @@ describe('mounted portfolio route behavior', () => {
   it('renders the current portfolio workspace at /portfolio', async () => {
     renderPortfolioRoute();
 
-    expect(await screen.findByRole('heading', { name: 'Portfolio' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Portfolio' }, { timeout: 5000 })
+    ).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Companies' })).toHaveAttribute(
       'data-state',
       'active'
     );
+    expect(screen.getAllByText('Northstar Systems').length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByRole('button', { name: /view northstar systems details/i }).length
+    ).toBeGreaterThan(0);
   });
 
   it('keeps a planned-reserves edit local to the active allocation scenario', async () => {
@@ -289,7 +333,7 @@ describe('mounted portfolio route behavior', () => {
     const user = userEvent.setup();
     renderPortfolioRoute();
 
-    expect(screen.getByText('Companies workspace')).toBeInTheDocument();
+    expect(screen.getAllByText('Northstar Systems').length).toBeGreaterThan(0);
     expect(screen.queryByText('Reserve Planning Workspace')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Reserve Planning' }));

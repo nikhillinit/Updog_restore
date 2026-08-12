@@ -60,8 +60,8 @@
 - **React** `^18.3.1` + `react-dom` `^18.3.1`
 - **Preact** `10.28.2` (opt-in alternate build target)
 - **Routing:** `wouter` `^3.9.0` (NOT React Router — `react-router-dom` is
-  removed; one quarantined test still references it:
-  `tests/unit/pages/portfolio-constructor.test.tsx`)
+  removed; mounted route coverage lives in
+  `tests/unit/pages/portfolio-route.behavior.test.tsx`)
 - **State:**
   - `zustand` `5.0.11` — primary store (`useFundStore`)
   - `@xstate/react` `^6.0.0` + `xstate` `5.28.0` — wizard state machines
