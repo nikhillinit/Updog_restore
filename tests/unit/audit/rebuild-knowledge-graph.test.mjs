@@ -7,8 +7,10 @@ import {
   mkdir,
   readFile,
   readdir,
+  rename,
   rm,
   symlink,
+  unlink,
   writeFile,
 } from 'node:fs/promises';
 import os from 'node:os';
@@ -78,6 +80,20 @@ async function withOutputDir(callback) {
   } finally {
     await rm(parent, { recursive: true, force: true });
   }
+}
+
+function baseInput() {
+  return {
+    head: 'a'.repeat(40),
+    timestamp: '2026-08-12T00:00:00Z',
+    sourceHashes: { 'b/file.ts': 'h2', 'a/file.ts': 'h1' },
+    nodes: [
+      { record: 'node', id: 'api:GET /b', type: 'APIEndpoint', method: 'GET', path: '/b', source: { path: 's.ts', line: 2 } },
+      { record: 'node', id: 'api:GET /a', type: 'APIEndpoint', method: 'GET', path: '/a', source: { path: 's.ts', line: 1 } },
+    ],
+    edges: [],
+    tests: [],
+  };
 }
 
 async function buildRealProjection({
@@ -936,18 +952,6 @@ describe('route knowledge-graph generator contract', () => {
 });
 
 describe('serializeRouteKnowledgeGraph (pure)', () => {
-  const baseInput = () => ({
-    head: 'a'.repeat(40),
-    timestamp: '2026-08-12T00:00:00Z',
-    sourceHashes: { 'b/file.ts': 'h2', 'a/file.ts': 'h1' },
-    nodes: [
-      { record: 'node', id: 'api:GET /b', type: 'APIEndpoint', method: 'GET', path: '/b', source: { path: 's.ts', line: 2 } },
-      { record: 'node', id: 'api:GET /a', type: 'APIEndpoint', method: 'GET', path: '/a', source: { path: 's.ts', line: 1 } },
-    ],
-    edges: [],
-    tests: [],
-  });
-
   it('is byte-identical under reversed record order and varied source-hash insertion order', async () => {
     const { serializeRouteKnowledgeGraph } = await requireGenerator();
     const a = serializeRouteKnowledgeGraph(baseInput());
@@ -975,6 +979,49 @@ describe('serializeRouteKnowledgeGraph (pure)', () => {
     const parsed = result.nodesBytes.toString('utf8').trim().split('\n').map(JSON.parse);
     expect(parsed).toEqual(result.nodes);
     expect(JSON.parse(result.manifestBytes.toString('utf8'))).toEqual(result.manifest);
+  });
+});
+
+describe('writeRouteKnowledgeGraphArtifacts', () => {
+  it('rejects a tampered artifact set before any destination write', async () => {
+    const { serializeRouteKnowledgeGraph, writeRouteKnowledgeGraphArtifacts } = await requireGenerator();
+    const serialized = serializeRouteKnowledgeGraph(baseInput());
+    serialized.manifest.artifacts['nodes-routes.jsonl'].sha256 = 'f'.repeat(64);
+    await withOutputDir(async (outputDir) => {
+      await expect(writeRouteKnowledgeGraphArtifacts({ outputDir, serialized })).rejects.toThrow(/hash/i);
+      expect(await readdir(outputDir)).toEqual([]); // destination untouched
+    });
+  });
+
+  it('publishes manifest.json last and rejects release-flavored manifests without authority', { retry: 0 }, async () => {
+    // The generator destructures fs/promises at module top, so a real ESM
+    // module-namespace spy cannot intercept its rename() calls ("Cannot
+    // redefine property" — module namespace is not configurable in ESM).
+    // Inject a fake fsImpl instead and assert on it, per the brief's
+    // documented fallback; the assertions below are unchanged.
+    const { serializeRouteKnowledgeGraph, writeRouteKnowledgeGraphArtifacts } = await requireGenerator();
+    const renameCalls = [];
+    const fsImpl = {
+      writeFile,
+      unlink,
+      rename: async (...args) => {
+        renameCalls.push(args);
+        return rename(...args);
+      },
+    };
+    const serialized = serializeRouteKnowledgeGraph(baseInput());
+    await withOutputDir(async (outputDir) => {
+      await writeRouteKnowledgeGraphArtifacts({ outputDir, serialized }, { fsImpl });
+      const renamed = renameCalls.map(([, dest]) => path.basename(dest));
+      expect(renamed.at(-1)).toBe('manifest.json');
+      expect(renamed.slice(0, -1).sort()).toEqual(['edges-routes.jsonl', 'nodes-routes.jsonl', 'tests.jsonl']);
+    });
+    const forged = serializeRouteKnowledgeGraph(baseInput());
+    forged.manifest.valid_for_release_proof = true;
+    forged.manifestBytes = Buffer.from(`${JSON.stringify(forged.manifest)}\n`);
+    await withOutputDir(async (outputDir) => {
+      await expect(writeRouteKnowledgeGraphArtifacts({ outputDir, serialized: forged })).rejects.toThrow(/authority/i);
+    });
   });
 });
 

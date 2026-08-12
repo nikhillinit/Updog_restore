@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { Buffer } from 'node:buffer';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
+import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
+import { createHash, randomBytes } from 'node:crypto';
 import { execFile, spawn } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
@@ -1002,6 +1002,136 @@ function assembleReleaseManifest(serialized) {
   return { ...serialized, manifest, manifestBytes };
 }
 
+// Private authority token: minting a release-valid manifest write requires
+// possessing this exact Symbol reference. It is never exported, so only code
+// inside this module (buildRouteKnowledgeGraph's release path) can pass it.
+const RELEASE_AUTHORITY = Symbol('rebuild-knowledge-graph:release-authority');
+
+const ARTIFACT_FILE_ORDER = ['nodes-routes.jsonl', 'edges-routes.jsonl', 'tests.jsonl'];
+const MANIFEST_FILE_NAME = 'manifest.json';
+const DEFAULT_WRITER_FS_IMPL = { writeFile, rename, unlink };
+
+function computeNodeTypeCounts(nodes) {
+  return {
+    APIEndpoint: nodes.filter((record) => record.type === 'APIEndpoint').length,
+    ClientRoute: nodes.filter((record) => record.type === 'ClientRoute').length,
+    WorkerJob: nodes.filter((record) => record.type === 'WorkerJob').length,
+  };
+}
+
+function jsonlLineCount(bytes) {
+  const text = bytes.toString('utf8');
+  return text.length === 0 ? 0 : text.split('\n').filter(Boolean).length;
+}
+
+function assertPathStaysInsideOutputDir(resolvedOutputDir, fileName) {
+  const target = path.resolve(resolvedOutputDir, fileName);
+  const relative = path.relative(resolvedOutputDir, target);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error(`Artifact target escapes outputDir: ${fileName}`);
+  }
+}
+
+/**
+ * Validates a serialized artifact set BEFORE any destination write. Checks:
+ * exactly the four named buffers are present; each manifest artifact's
+ * hash/byte_length recomputes from its buffer; node_type_counts and record
+ * counts match the buffers' line counts; every node/edge/test record carries
+ * the manifest snapshot_id; and every resolved write target stays inside the
+ * caller-provided outputDir. Throws on the first violation; writes nothing.
+ */
+function validateArtifactSet({ outputDir, serialized }) {
+  const { manifest, manifestBytes, nodesBytes, edgesBytes, testsBytes, nodes, edges, tests } = serialized ?? {};
+  const dataBuffers = { 'nodes-routes.jsonl': nodesBytes, 'edges-routes.jsonl': edgesBytes, 'tests.jsonl': testsBytes };
+  if (!Buffer.isBuffer(manifestBytes) || Object.values(dataBuffers).some((bytes) => !Buffer.isBuffer(bytes))) {
+    throw new Error('Artifact set is missing one or more of the four named buffers (manifestBytes, nodesBytes, edgesBytes, testsBytes)');
+  }
+  if (!manifest || typeof manifest !== 'object' || !manifest.artifacts || typeof manifest.artifacts !== 'object') {
+    throw new Error('Artifact set is missing a manifest with an artifacts map');
+  }
+  const artifactNames = Object.keys(manifest.artifacts);
+  if (artifactNames.length !== ARTIFACT_FILE_ORDER.length || !ARTIFACT_FILE_ORDER.every((name) => artifactNames.includes(name))) {
+    throw new Error(`Manifest artifacts must list exactly ${ARTIFACT_FILE_ORDER.join(', ')}; got ${artifactNames.join(', ')}`);
+  }
+  for (const [name, bytes] of Object.entries(dataBuffers)) {
+    const expected = manifest.artifacts[name];
+    const actualHash = sha256(bytes);
+    if (actualHash !== expected?.sha256) {
+      throw new Error(`Artifact hash mismatch for ${name}: manifest declares ${expected?.sha256}, buffer hashes to ${actualHash}`);
+    }
+    if (bytes.byteLength !== expected?.byte_length) {
+      throw new Error(`Artifact byte-length mismatch for ${name}: manifest declares ${expected?.byte_length}, buffer is ${bytes.byteLength}`);
+    }
+  }
+  const nodeRecords = nodes ?? [];
+  const edgeRecords = edges ?? [];
+  const testRecords = tests ?? [];
+  const nodeTypeCounts = computeNodeTypeCounts(nodeRecords);
+  for (const type of Object.keys(nodeTypeCounts)) {
+    if (nodeTypeCounts[type] !== manifest.node_type_counts?.[type]) {
+      throw new Error(`Manifest node_type_counts mismatch for ${type}: manifest declares ${manifest.node_type_counts?.[type]}, records contain ${nodeTypeCounts[type]}`);
+    }
+  }
+  if (nodeRecords.length !== jsonlLineCount(nodesBytes)) throw new Error('nodes-routes.jsonl line count does not match node records');
+  if (edgeRecords.length !== jsonlLineCount(edgesBytes)) throw new Error('edges-routes.jsonl line count does not match edge records');
+  if (testRecords.length !== jsonlLineCount(testsBytes)) throw new Error('tests.jsonl line count does not match test records');
+  for (const record of [...nodeRecords, ...edgeRecords, ...testRecords]) {
+    if (record.snapshot_id !== manifest.snapshot_id) {
+      throw new Error(`Record ${record.id} does not carry the manifest snapshot_id`);
+    }
+  }
+  const resolvedOutputDir = path.resolve(outputDir);
+  for (const name of [...ARTIFACT_FILE_ORDER, MANIFEST_FILE_NAME]) assertPathStaysInsideOutputDir(resolvedOutputDir, name);
+  return { resolvedOutputDir, dataBuffers, manifestBytes };
+}
+
+/**
+ * Validated, staged, atomic artifact writer. Validates the full artifact set
+ * before touching outputDir, writes each buffer to a unique sibling staging
+ * file, then rename()s the three data files first and manifest.json last (the
+ * commit point). On any failure it unlinks only the staging paths this call
+ * created — never a readdir()-sweep, never outputDir itself.
+ *
+ * A manifest with `valid_for_release_proof: true` is refused unless called
+ * with the private module-scope RELEASE_AUTHORITY token: only
+ * buildRouteKnowledgeGraph's release path may pass it, so no direct caller of
+ * this exported function can mint release-valid output.
+ */
+export async function writeRouteKnowledgeGraphArtifacts({ outputDir, serialized }, { authority, fsImpl } = {}) {
+  if (serialized?.manifest?.valid_for_release_proof && authority !== RELEASE_AUTHORITY) {
+    throw new Error('Refusing to publish a release-authoritative manifest without release authority');
+  }
+  const { resolvedOutputDir, dataBuffers, manifestBytes } = validateArtifactSet({ outputDir, serialized });
+  const impl = fsImpl ?? DEFAULT_WRITER_FS_IMPL;
+  const stagingSuffix = () => `${process.pid}.${randomBytes(6).toString('hex')}.tmp`;
+  const pendingStagingPaths = new Set();
+  try {
+    const dataRenamePairs = [];
+    for (const name of ARTIFACT_FILE_ORDER) {
+      const stagingPath = path.join(resolvedOutputDir, `${name}.${stagingSuffix()}`);
+      await impl.writeFile(stagingPath, dataBuffers[name]);
+      pendingStagingPaths.add(stagingPath);
+      dataRenamePairs.push([stagingPath, path.join(resolvedOutputDir, name)]);
+    }
+    const manifestStagingPath = path.join(resolvedOutputDir, `${MANIFEST_FILE_NAME}.${stagingSuffix()}`);
+    await impl.writeFile(manifestStagingPath, manifestBytes);
+    pendingStagingPaths.add(manifestStagingPath);
+
+    for (const [stagingPath, targetPath] of dataRenamePairs) {
+      await impl.rename(stagingPath, targetPath);
+      pendingStagingPaths.delete(stagingPath);
+    }
+    await impl.rename(manifestStagingPath, path.join(resolvedOutputDir, MANIFEST_FILE_NAME));
+    pendingStagingPaths.delete(manifestStagingPath);
+  } catch (error) {
+    await Promise.all(
+      [...pendingStagingPaths].map((stagingPath) => impl.unlink(stagingPath).catch(() => {})),
+    );
+    throw error;
+  }
+  return serialized.manifest;
+}
+
 export async function buildRouteKnowledgeGraph({ repoRoot, outputDir, expectedSha, mode = 'seed' }) {
   const root = path.resolve(repoRoot ?? defaultRepoRoot);
   const resolvedOutputDir = path.resolve(outputDir ?? path.join(root, DEFAULT_OUTPUT_RELATIVE_PATH));
@@ -1041,12 +1171,12 @@ export async function buildRouteKnowledgeGraph({ repoRoot, outputDir, expectedSh
   validateRecords(nodes, [...edges, ...tests]);
   let serialized = serializeRouteKnowledgeGraph({ nodes, edges, tests, head, timestamp, sourceHashes: hashes });
   if (projectionMode === 'release') serialized = assembleReleaseManifest(serialized);
-  const { manifest, manifestBytes, nodesBytes, edgesBytes, testsBytes } = serialized;
+  const { manifest } = serialized;
   await mkdir(resolvedOutputDir, { recursive: true });
-  await writeFile(path.join(resolvedOutputDir, 'manifest.json'), manifestBytes);
-  await writeFile(path.join(resolvedOutputDir, 'nodes-routes.jsonl'), nodesBytes);
-  await writeFile(path.join(resolvedOutputDir, 'edges-routes.jsonl'), edgesBytes);
-  await writeFile(path.join(resolvedOutputDir, 'tests.jsonl'), testsBytes);
+  await writeRouteKnowledgeGraphArtifacts(
+    { outputDir: resolvedOutputDir, serialized },
+    projectionMode === 'release' ? { authority: RELEASE_AUTHORITY } : {},
+  );
   return manifest;
 }
 
