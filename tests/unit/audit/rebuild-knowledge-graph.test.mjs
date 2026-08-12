@@ -877,6 +877,40 @@ describe('route knowledge-graph generator contract', () => {
     }
   });
 
+  it('rejects duplicate node/edge IDs and records lacking commit binding or source location', async () => {
+    // Deepens row-802 coverage: exercises the newly-exported `validateRecords`
+    // directly against literal records, one case per throw branch. No build,
+    // no I/O -- pure synchronous assertions against the exact validation gate
+    // buildRouteKnowledgeGraph relies on before serialization.
+    const { validateRecords } = await requireGenerator();
+    const commitBinding = { commit_sha: 'a'.repeat(40), observed_at: '2026-01-01T00:00:00.000Z' };
+    const validNode = {
+      record: 'node', id: 'api:GET /a', type: 'APIEndpoint',
+      source_path: 's.ts', line_start: 1, ...commitBinding,
+    };
+    const validEdge = {
+      record: 'edge', id: 'edge:DEFINES:x:y', type: 'DEFINES',
+      source_path: 's.ts', line_start: 1, ...commitBinding,
+    };
+
+    expect(() => validateRecords([validNode], [validEdge])).not.toThrow();
+
+    expect(() => validateRecords([validNode, { ...validNode }], [validEdge])).toThrow(/duplicate ID/i);
+    expect(() => validateRecords([validNode], [validEdge, { ...validEdge }])).toThrow(/duplicate ID/i);
+
+    const invalidRecordType = { ...validNode, id: 'api:GET /b', record: 'bogus' };
+    expect(() => validateRecords([invalidRecordType], [])).toThrow(/Invalid route record type/i);
+
+    const missingBinding = { ...validNode, id: 'api:GET /c', commit_sha: undefined };
+    expect(() => validateRecords([missingBinding], [])).toThrow(/lacks commit binding/i);
+
+    const missingSourcePath = { ...validNode, id: 'api:GET /d', source_path: undefined };
+    expect(() => validateRecords([missingSourcePath], [])).toThrow(/lacks source location/i);
+
+    const invalidLineStart = { ...validNode, id: 'api:GET /e', line_start: 0 };
+    expect(() => validateRecords([invalidLineStart], [])).toThrow(/lacks source location/i);
+  });
+
   it('confines all generated writes to caller outputDir', async () => {
     // Reduced: exercises the same confinement guarantee directly against
     // `writeRouteKnowledgeGraphArtifacts` (where `assertPathStaysInsideOutputDir`
