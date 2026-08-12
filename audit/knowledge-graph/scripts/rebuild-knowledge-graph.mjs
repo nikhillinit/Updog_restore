@@ -641,16 +641,15 @@ async function mapWithConcurrency(values, concurrency, callback) {
   return results;
 }
 
-async function runtimeApiProjection(repoRoot) {
-  const key = path.resolve(repoRoot);
-  if (!runtimeDocumentsCache.has(key)) {
-    runtimeDocumentsCache.set(key, mapWithConcurrency(
-      INSPECTOR_PROFILES,
-      RUNTIME_INSPECTOR_CONCURRENCY,
-      (profile) => runInspector(key, profile),
-    ));
-  }
-  const documents = await runtimeDocumentsCache.get(key);
+/**
+ * Pure reducer: turns already-fetched runtime-inspector documents into
+ * deduped APIEndpoint node records. Dedupes by `api:<METHOD> <path>`, drops
+ * non-`api:`/shadowed/non-absolute-path routes, resolves duplicates by
+ * guard(0) < handler(1) < shadowed(2) precedence then site then surface
+ * tiebreak, and splits each selected route's `site` into `source_path` /
+ * `line_start` / `line_end`. Output is sorted by id.
+ */
+export function reduceRuntimeDocuments(documents) {
   const candidates = new Map();
   for (const document of documents) {
     for (const route of document.routes ?? []) {
@@ -687,13 +686,29 @@ async function runtimeApiProjection(repoRoot) {
   return records;
 }
 
-async function workerProjection(repoRoot) {
-  const findings = scanBullmqConstructors({ rootDir: repoRoot });
-  const queueModule = await import(pathToFileURL(path.join(repoRoot, QUEUE_REGISTRY_PATH)).href);
-  const catalog = new Map(queueModule.QUEUE_CATALOG.map((entry) => [entry.queueName, entry]));
+async function runtimeApiProjection(repoRoot) {
+  const key = path.resolve(repoRoot);
+  if (!runtimeDocumentsCache.has(key)) {
+    runtimeDocumentsCache.set(key, mapWithConcurrency(
+      INSPECTOR_PROFILES,
+      RUNTIME_INSPECTOR_CONCURRENCY,
+      (profile) => runInspector(key, profile),
+    ));
+  }
+  const documents = await runtimeDocumentsCache.get(key);
+  return reduceRuntimeDocuments(documents);
+}
+
+/**
+ * Pure reducer: groups already-scanned BullMQ constructor findings by
+ * `queue_name` into catalog-backed WorkerJob node records. Catalog
+ * membership is validated by the caller before invoking this reducer (it
+ * needs the QUEUE_CATALOG map, not just `findings`), so this function trusts
+ * every finding's queue has already been confirmed present.
+ */
+export function reduceWorkerFindings(findings) {
   const grouped = new Map();
   for (const finding of findings) {
-    if (!catalog.has(finding.queue_name)) throw new Error(`Discovered queue is absent from QUEUE_CATALOG: ${finding.queue_name}`);
     const current = grouped.get(finding.queue_name) ?? [];
     current.push(finding);
     grouped.set(finding.queue_name, current);
@@ -717,6 +732,16 @@ async function workerProjection(repoRoot) {
       source_sites: sites.map((site) => `${site.path}:${site.line}`),
     };
   });
+}
+
+async function workerProjection(repoRoot) {
+  const findings = scanBullmqConstructors({ rootDir: repoRoot });
+  const queueModule = await import(pathToFileURL(path.join(repoRoot, QUEUE_REGISTRY_PATH)).href);
+  const catalog = new Map(queueModule.QUEUE_CATALOG.map((entry) => [entry.queueName, entry]));
+  for (const finding of findings) {
+    if (!catalog.has(finding.queue_name)) throw new Error(`Discovered queue is absent from QUEUE_CATALOG: ${finding.queue_name}`);
+  }
+  return reduceWorkerFindings(findings);
 }
 
 function addEdge(edges, type, from, to, sourcePath, line) {
@@ -860,7 +885,7 @@ function rowRelevantSourcePaths(nodes) {
   return paths;
 }
 
-async function testProjection(repoRoot, nodes) {
+export async function reduceTestProjection(repoRoot, nodes) {
   const relevantPaths = rowRelevantSourcePaths(nodes);
   const records = [];
   for (const testPath of await trackedTestPaths(repoRoot)) {
@@ -1012,7 +1037,7 @@ export async function buildRouteKnowledgeGraph({ repoRoot, outputDir, expectedSh
     }
   }
   const edges = addCommitBinding(structuralEdges(nodes, addCommitBinding(clientNodes, head, timestamp)), head, timestamp);
-  const tests = addCommitBinding(await testProjection(root, nodes), head, timestamp);
+  const tests = addCommitBinding(await reduceTestProjection(root, nodes), head, timestamp);
   validateRecords(nodes, [...edges, ...tests]);
   let serialized = serializeRouteKnowledgeGraph({ nodes, edges, tests, head, timestamp, sourceHashes: hashes });
   if (projectionMode === 'release') serialized = assembleReleaseManifest(serialized);

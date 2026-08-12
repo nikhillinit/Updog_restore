@@ -977,3 +977,133 @@ describe('serializeRouteKnowledgeGraph (pure)', () => {
     expect(JSON.parse(result.manifestBytes.toString('utf8'))).toEqual(result.manifest);
   });
 });
+
+async function createDiscoveryTestProjectionFixture() {
+  const parent = await mkdtemp(path.join(os.tmpdir(), 'discovery-test-projection-fixture-'));
+  const fixtureRoot = path.join(parent, 'repo');
+  const env = fixtureGitEnv();
+  await mkdir(fixtureRoot, { recursive: true });
+  await execFileAsync('git', ['init', '--quiet'], { cwd: fixtureRoot, env });
+  await execFileAsync('git', ['config', 'user.email', 'route-test@example.invalid'], {
+    cwd: fixtureRoot,
+    env,
+  });
+  await execFileAsync('git', ['config', 'user.name', 'Route Projection Test'], {
+    cwd: fixtureRoot,
+    env,
+  });
+
+  await mkdir(path.join(fixtureRoot, 'server'), { recursive: true });
+  await writeFile(path.join(fixtureRoot, 'server/widget.ts'), 'export const widget = 1;\n');
+
+  await mkdir(path.join(fixtureRoot, 'tests/unit'), { recursive: true });
+  await writeFile(
+    path.join(fixtureRoot, 'tests/unit/widget.test.ts'),
+    [
+      "import '../../server/widget.ts';",
+      "import { widget } from '../../server/widget.ts';",
+      'widget;',
+      '',
+    ].join('\n')
+  );
+  await writeFile(
+    path.join(fixtureRoot, 'tests/unit/unrelated.test.ts'),
+    "import { describe } from 'vitest';\ndescribe;\n"
+  );
+
+  await execFileAsync('git', ['add', '.'], { cwd: fixtureRoot, env });
+  await execFileAsync(
+    'git',
+    [
+      '-c',
+      'user.email=route-test@example.invalid',
+      '-c',
+      'user.name=Route Projection Test',
+      'commit',
+      '--quiet',
+      '-m',
+      'discovery reducer fixture',
+    ],
+    {
+      cwd: fixtureRoot,
+      env: {
+        ...env,
+        GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z',
+        GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z',
+      },
+    }
+  );
+  return { parent, fixtureRoot };
+}
+
+describe('discovery reducers (pure)', () => {
+  it('reduceRuntimeDocuments dedupes across profiles with guard precedence and stable order', async () => {
+    const { reduceRuntimeDocuments } = await requireGenerator();
+    const docs = [
+      { routes: [{ id: 'api:x', method: 'GET', path: '/b', role: 'handler', site: 's.ts:9', surface: 'p1' }] },
+      { routes: [
+        { id: 'api:x', method: 'GET', path: '/b', role: 'guard', site: 's.ts:3', surface: 'p2' },
+        { id: 'api:x', method: 'GET', path: '/a', role: 'handler', site: 's.ts:5', surface: 'p2' },
+        { id: 'client:x', method: 'GET', path: '/c', role: 'handler', site: 's.ts:1', surface: 'p2' },
+        { id: 'api:x', method: 'GET', path: 'relative', role: 'handler', site: 's.ts:2', surface: 'p2' },
+        { id: 'api:x', method: 'GET', path: '/d', role: 'shadowed', site: 's.ts:4', surface: 'p2' },
+      ] },
+    ];
+    const records = reduceRuntimeDocuments(docs);
+    expect(records.map((r) => r.id)).toEqual(['api:GET /a', 'api:GET /b']);
+    const b = records.find((r) => r.id === 'api:GET /b');
+    // Reducer keeps the existing flattened source_path/line_start shape (not a
+    // nested `source` object) so runtimeApiProjection's thin wrapper -- and
+    // every real downstream consumer of these node records (structuralEdges,
+    // validateRecords, rowRelevantSourcePaths, and the integration assertions
+    // at lines ~753/761/774 below) -- see byte-identical output to before
+    // this refactor. See task-2-report.md deviations section.
+    expect(b.source_path).toBe('s.ts'); // guard wins over handler
+    expect(b.line_start).toBe(3);
+  });
+
+  it('reduceWorkerFindings groups two findings for one queue into a single catalog-backed node', async () => {
+    const { reduceWorkerFindings } = await requireGenerator();
+    const findings = [
+      { queue_name: 'q1', constructor: 'Worker', kind: 'worker', source: 'identifier', path: 'b.ts', line: 5 },
+      { queue_name: 'q1', constructor: 'Queue', kind: 'queue', source: 'literal', path: 'a.ts', line: 2 },
+    ];
+    const nodes = reduceWorkerFindings(findings);
+    expect(nodes.map((n) => n.id)).toEqual(['worker:q1']);
+    const node = nodes[0];
+    expect(node.source_path).toBe('a.ts');
+    expect(node.line_start).toBe(2);
+    expect(node.line_end).toBe(5);
+    expect(node.constructor_sites).toHaveLength(2);
+    expect(node.source_sites).toEqual(['a.ts:2', 'b.ts:5']);
+  });
+
+  it('reduceTestProjection discovers tracked tests importing row-relevant sources with earliest-line selection', async () => {
+    const { reduceTestProjection } = await requireGenerator();
+    const { parent, fixtureRoot } = await createDiscoveryTestProjectionFixture();
+    try {
+      const nodes = [
+        {
+          record: 'node',
+          id: 'api:GET /widget',
+          type: 'APIEndpoint',
+          source_path: 'server/widget.ts',
+          line_start: 1,
+        },
+      ];
+      const records = await reduceTestProjection(fixtureRoot, nodes);
+      expect(records).toEqual([
+        {
+          record: 'edge',
+          id: 'edge:TESTS:test:tests/unit/widget.test.ts->file:server/widget.ts',
+          type: 'TESTS',
+          source_path: 'tests/unit/widget.test.ts',
+          to: 'file:server/widget.ts',
+          line_start: 1,
+        },
+      ]);
+    } finally {
+      await rm(parent, { recursive: true, force: true });
+    }
+  });
+});
