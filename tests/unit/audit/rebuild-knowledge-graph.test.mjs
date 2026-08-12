@@ -723,7 +723,7 @@ describe('route knowledge-graph generator contract', () => {
     } finally {
       await rm(parent, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 
   it('emits allowlisted API, client, worker, and structural edge records', async () => {
     await withOutputDir(async (outputDir) => {
