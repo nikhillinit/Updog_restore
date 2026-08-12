@@ -828,7 +828,7 @@ function addEdge(edges, type, from, to, sourcePath, line) {
   });
 }
 
-function structuralEdges(nodes, clientRecords) {
+export function structuralEdges(nodes, clientRecords) {
   const edges = [];
   for (const node of nodes) {
     addEdge(edges, 'DEFINES', `source:${node.source_path}:${node.line_start}`, node.id, node.source_path, node.line_start);
@@ -841,7 +841,7 @@ function structuralEdges(nodes, clientRecords) {
   return edges.sort((left, right) => left.id.localeCompare(right.id));
 }
 
-function validateRecords(nodes, edges) {
+export function validateRecords(nodes, edges) {
   assertUnique(nodes.map((record) => record.id), 'Route knowledge-graph nodes');
   assertUnique(edges.map((record) => record.id), 'Route knowledge-graph edges');
   for (const record of [...nodes, ...edges]) {
@@ -1238,23 +1238,11 @@ export async function writeRouteKnowledgeGraphArtifacts({ outputDir, serialized 
   return serialized.manifest;
 }
 
-export async function buildRouteKnowledgeGraph({ repoRoot, outputDir, expectedSha, mode = 'seed' }) {
-  const root = path.resolve(repoRoot ?? defaultRepoRoot);
-  const resolvedOutputDir = path.resolve(outputDir ?? path.join(root, DEFAULT_OUTPUT_RELATIVE_PATH));
-  const projectionMode = parseMode(mode);
-  const head = await currentHead(root);
-  if (expectedSha !== undefined && expectedSha !== head) {
-    throw new Error(`Expected SHA ${expectedSha} does not match HEAD ${head}`);
-  }
-  if (projectionMode === 'release') await assertCleanProjectionInputs(root);
-  const timestamp = await commitTimestamp(root, head);
-  const inventory = await readInventory(root);
-  const hashes = await sourceHashes(root, inventory);
-
+async function defaultProjection(root, head) {
   const runtimeStartedAt = Date.now();
   const clientStartedAt = Date.now();
   const workerStartedAt = Date.now();
-  const [apiNodes, clientNodes, workerNodes] = await Promise.all([
+  return Promise.all([
     runtimeApiProjection(root, { log: stderrNdjsonLog }).then((result) => {
       emitPhase(stderrNdjsonLog, 'runtime-aggregate', runtimeStartedAt, head);
       return result;
@@ -1268,6 +1256,31 @@ export async function buildRouteKnowledgeGraph({ repoRoot, outputDir, expectedSh
       return result;
     }),
   ]);
+}
+
+/**
+ * `projectionImpl` is an injectable seam for tests only: production always
+ * calls with it undefined, which preserves the exact default projection
+ * (real runtime inspection + client extraction + worker scan) unchanged. A
+ * test may supply `({ root, head }) => Promise<[apiNodes, clientNodes,
+ * workerNodes]>` to exercise release/seed count-check and downstream
+ * validation/serialization logic against literal node fixtures without
+ * paying for the real 18-profile runtime inspection.
+ */
+export async function buildRouteKnowledgeGraph({ repoRoot, outputDir, expectedSha, mode = 'seed', projectionImpl } = {}) {
+  const root = path.resolve(repoRoot ?? defaultRepoRoot);
+  const resolvedOutputDir = path.resolve(outputDir ?? path.join(root, DEFAULT_OUTPUT_RELATIVE_PATH));
+  const projectionMode = parseMode(mode);
+  const head = await currentHead(root);
+  if (expectedSha !== undefined && expectedSha !== head) {
+    throw new Error(`Expected SHA ${expectedSha} does not match HEAD ${head}`);
+  }
+  if (projectionMode === 'release') await assertCleanProjectionInputs(root);
+  const timestamp = await commitTimestamp(root, head);
+  const inventory = await readInventory(root);
+  const hashes = await sourceHashes(root, inventory);
+
+  const [apiNodes, clientNodes, workerNodes] = await (projectionImpl ?? defaultProjection)(root, head);
   const rawNodes = [...apiNodes, ...clientNodes, ...workerNodes];
   const nodes = addCommitBinding(rawNodes, head, timestamp).sort((left, right) => left.id.localeCompare(right.id));
   const nodeTypeCounts = {
