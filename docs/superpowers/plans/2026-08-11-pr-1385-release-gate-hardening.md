@@ -42,6 +42,19 @@ Vercel REST/CLI, Railway GraphQL.
   run, and exact-body read-only review record. Task 0 is the only pre-approval
   bootstrap lane: it may change the plan, verifier, verifier tests, generated
   routing outputs caused by those tracked files, and review/request comments.
+  The ratified projection-test recovery (Task 1 Addendum 2) extends this
+  pre-approval lane to exactly: `audit/knowledge-graph/scripts/**`,
+  `audit/surface-contract-matrix/scripts/validate-matrix.mjs`,
+  `scripts/release/verify-surface-projection.mjs` (new file),
+  `tests/unit/audit/**`, `tests/unit/scripts/**`,
+  `tests/regressions/ci-fail-closed.test.ts`,
+  `.github/workflows/ci-unified.yml`, the recovery execution document
+  `docs/superpowers/plans/2026-08-12-pr-1385-projection-test-recovery.md`
+  (tracked as part of the recovery batch; informative and non-governing per
+  Task 1 Addendum 2), and the regenerated routing outputs those tracked docs
+  cause. `.github/workflows/release-proof.yml` is
+  explicitly EXCLUDED from this extension; its conversion is post-approval
+  work (recovery plan Task 11).
   Any plan change or non-descendant PR-head rewrite/rebase invalidates approval
   and requires a new review record; ordinary implementation commits may descend
   from approved head.
@@ -1141,6 +1154,60 @@ state this revision records:
   remediation evidence.
 - Step 9's G1 re-review (round 2) and closure follow the Skill Routing
   section's independent-review row; Step 10 runs only after that closure.
+
+### Task 1 Addendum 2 — projection-test recovery (unit-fast red at `40e1c664`)
+
+After Task 1 closure, `Check unit-fast` failed five consecutive runs at the
+`40e1c664` lineage, all in `tests/unit/audit/rebuild-knowledge-graph.test.mjs`.
+Most fixes rewrote the test program between runs; one repeated observation
+does exist — the runs at heads `1840746c` and `4169510f` executed identical
+failing-test and generator bytes (`4169510f` touched only an unrelated test
+file). Evidence wording for every record touching this failure: outer Vitest
+timeout observed; byte mismatch not excluded by logs; remedy covers both.
+This addendum is the SOLE governing contract for the recovery.
+`docs/superpowers/plans/2026-08-12-pr-1385-projection-test-recovery.md` is an
+informative execution document (task decomposition and TDD steps), tracked
+with the recovery batch for the record but NON-GOVERNING: it carries no
+approval authority, no digest is bound anywhere, and where it conflicts with
+this addendum or this plan, this plan governs. `PLAN-APPROVAL-V2` binds only
+this plan's path and digest, unchanged. The recovery contract:
+
+- Fact corrections to prior records: `INSPECTOR_PROFILES` has 18 entries, not
+  19 (commit `65de628c`'s message is wrong). Module-level
+  `runtimeDocumentsCache` is keyed by resolved repoRoot only, so a
+  second same-process build reuses the first build's runtime inspection —
+  the two-build determinism unit test was therefore partially vacuous for
+  runtime discovery. The cache is removed by the recovery (after call-site
+  migration; no regex ban — regex pins are brittle).
+- Root-cause class: the unit file ran full 18-profile knowledge-graph builds,
+  each spawning up to 4 concurrent inspector child processes, while up to
+  three other vitest CI workers (`maxWorkers: 4`) ran competing test files on
+  the same ~4 vCPU runner — the build's children plus sibling-worker load
+  oversubscribe the host; cold-start amplifies it. An interim timeout-only
+  bump was REJECTED: it would instrument a configuration the recovery
+  deletes.
+- Three-contract proof model (supersedes the single-layer unit proof):
+  1. Unit (`unit-fast`): deterministic canonical serialization, discovery
+     reducers, lifecycle bounds, preflight rejection — bounded in-memory or
+     small-fixture inputs only; zero full builds.
+  2. PR (new required `surface-projection-audit` lane in
+     `.github/workflows/ci-unified.yml`): exactly ONE real build against the
+     exact merged-result checkout; proves discovery, coverage, integrity,
+     matrix reconciliation.
+  3. Release (Full Release Proof; post-approval recovery Task 11): exactly TWO
+     fresh-process builds with four-file byte identity.
+- Structural-batch scope: the recovery's structural refactor plus lane wiring
+  lands INSIDE PR #1385 as one commit series (owner-ratified), pushed only as
+  a completed batch.
+- Lifecycle bounds are PROVISIONAL (60s per profile, 330s aggregate), chosen
+  without instrumentation data. Tuning procedure: NDJSON phase logs from the
+  first lane runs; retune proposals ride the recovery's evidence comment.
+- Accepted residual risks: (a) between the recovery batch landing and recovery
+  Task 11 landing, no two-build byte comparison exists anywhere — real-tree
+  byte repeatability is release-time coverage, not per-PR (owner-accepted gap
+  window); (b) release-flavored bytes (`valid_for_release_proof: true`) are
+  byte-tested only by the release verifier, never in the unit layer (the
+  release manifest differs from the seed flavor by that one field).
 
 ---
 
