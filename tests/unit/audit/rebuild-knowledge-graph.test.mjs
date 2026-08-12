@@ -80,12 +80,17 @@ async function withOutputDir(callback) {
   }
 }
 
-async function buildRealProjection({ mode = 'seed', outputDir, expectedSha } = {}) {
+async function buildRealProjection({
+  mode = 'seed',
+  outputDir,
+  expectedSha,
+  root = repoRoot,
+} = {}) {
   const { buildRouteKnowledgeGraph } = await requireGenerator();
   return buildRouteKnowledgeGraph({
-    repoRoot,
+    repoRoot: root,
     outputDir,
-    expectedSha: expectedSha ?? (await currentHead()),
+    expectedSha: expectedSha ?? (await currentHead(root)),
     mode,
   });
 }
@@ -249,6 +254,71 @@ async function createInventoryDriftFixture() {
     }
   );
   return { parent, fixtureRoot, head: await currentHead(fixtureRoot) };
+}
+
+const deterministicProjectionTests = [
+  {
+    path: 'tests/unit/audit/projection-alpha.test.ts',
+    source: [
+      "import '../../../shared/routes/app-route-definitions.ts';",
+      "import '../../../server/routes/funds.ts';",
+    ].join('\n'),
+  },
+  {
+    path: 'tests/unit/audit/projection-zeta.test.ts',
+    source: "import '../../../shared/routes/app-route-definitions.ts';",
+  },
+];
+
+async function createDeterministicProjectionFixture() {
+  const parent = await mkdtemp(path.join(os.tmpdir(), 'deterministic-projection-fixture-'));
+  const fixtureRoot = path.join(parent, 'repo');
+  const env = fixtureGitEnv();
+  try {
+    await execFileAsync('git', ['clone', '--shared', '--quiet', repoRoot, fixtureRoot], { env });
+    await symlink(path.join(repoRoot, 'node_modules'), path.join(fixtureRoot, 'node_modules'), 'dir');
+
+    const testPaths = await trackedTestFiles(fixtureRoot);
+    for (let index = 0; index < testPaths.length; index += 200) {
+      await execFileAsync(
+        'git',
+        ['rm', '--quiet', '--', ...testPaths.slice(index, index + 200)],
+        { cwd: fixtureRoot, env }
+      );
+    }
+
+    for (const test of deterministicProjectionTests) {
+      const sentinelPath = path.join(fixtureRoot, test.path);
+      await mkdir(path.dirname(sentinelPath), { recursive: true });
+      await writeFile(sentinelPath, `${test.source}\n`);
+    }
+    await execFileAsync('git', ['add', '-A'], { cwd: fixtureRoot, env });
+    await execFileAsync(
+      'git',
+      [
+        '-c',
+        'user.email=route-test@example.invalid',
+        '-c',
+        'user.name=Route Projection Test',
+        'commit',
+        '--quiet',
+        '-m',
+        'deterministic projection fixture',
+      ],
+      {
+        cwd: fixtureRoot,
+        env: {
+          ...env,
+          GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z',
+          GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z',
+        },
+      }
+    );
+    return { parent, fixtureRoot, head: await currentHead(fixtureRoot) };
+  } catch (error) {
+    await rm(parent, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
@@ -596,49 +666,62 @@ describe('route knowledge-graph generator contract', () => {
   });
 
   it('emits deterministic bytes and a strict normalized manifest', async () => {
-    const first = await withOutputDir(async (outputDir) => {
-      await buildRealProjection({ mode: 'seed', outputDir });
-      return readProjection(outputDir);
-    });
-    const second = await withOutputDir(async (outputDir) => {
-      await buildRealProjection({ mode: 'seed', outputDir });
-      return readProjection(outputDir);
-    });
-
-    expect(first.manifestBytes).toEqual(second.manifestBytes);
-    expect(first.nodesBytes).toEqual(second.nodesBytes);
-    expect(first.edgesBytes).toEqual(second.edgesBytes);
-    expect(first.testsBytes).toEqual(second.testsBytes);
-    expect(first.manifest).toEqual(second.manifest);
-    expect(first.nodes).toEqual(second.nodes);
-    expect(first.edges).toEqual(second.edges);
-    expect(first.tests).toEqual(second.tests);
-    expect(first.manifest).toMatchObject({
-      schema: 'surface-route-projection-v1',
-      fresh_for_checkout: true,
-      valid_for_release_proof: false,
-    });
-    expect(first.manifest.snapshot_id).toMatch(/^snapshot:[0-9a-f]{64}$/);
-    expect(first.manifest.repo_head).toMatch(/^[0-9a-f]{40}$/);
-    expect(first.manifest.source_hashes).toEqual(expect.any(Object));
-    expect(first.manifest.source_hashes).toHaveProperty([
-      'audit/surface-contract-matrix/source-inventory.json',
-    ]);
-    expect(first.manifest.source_hashes).not.toHaveProperty([
-      'audit/surface-contract-matrix/boot-proofs.json',
-    ]);
-    expect(Object.keys(first.manifest)).not.toEqual(
-      expect.arrayContaining(['valid_for_coding', 'full_graph_complete', 'coding_authority'])
-    );
-
-    for (const name of ['nodes-routes.jsonl', 'edges-routes.jsonl', 'tests.jsonl']) {
-      const artifact = artifactFor(first.manifest, name);
-      expect(artifact).toBeDefined();
-      expect(artifact).toMatchObject({
-        snapshot_id: first.manifest.snapshot_id,
-        sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
-        byte_length: expect.any(Number),
+    const { parent, fixtureRoot, head } = await createDeterministicProjectionFixture();
+    try {
+      expect(await trackedTestFiles(fixtureRoot)).toEqual(
+        deterministicProjectionTests.map((test) => test.path)
+      );
+      const first = await withOutputDir(async (outputDir) => {
+        await buildRealProjection({ mode: 'seed', outputDir, expectedSha: head, root: fixtureRoot });
+        return readProjection(outputDir);
       });
+      const second = await withOutputDir(async (outputDir) => {
+        await buildRealProjection({ mode: 'seed', outputDir, expectedSha: head, root: fixtureRoot });
+        return readProjection(outputDir);
+      });
+
+      expect(first.manifestBytes.equals(second.manifestBytes)).toBe(true);
+      expect(first.nodesBytes.equals(second.nodesBytes)).toBe(true);
+      expect(first.edgesBytes.equals(second.edgesBytes)).toBe(true);
+      expect(first.testsBytes.equals(second.testsBytes)).toBe(true);
+      expect(first.manifest).toEqual(second.manifest);
+      expect(first.nodes).toEqual(second.nodes);
+      expect(first.edges).toEqual(second.edges);
+      expect(first.tests).toEqual(second.tests);
+      expect(first.tests.map((record) => record.id)).toEqual([
+        'edge:TESTS:test:tests/unit/audit/projection-alpha.test.ts->file:server/routes/funds.ts',
+        'edge:TESTS:test:tests/unit/audit/projection-alpha.test.ts->file:shared/routes/app-route-definitions.ts',
+        'edge:TESTS:test:tests/unit/audit/projection-zeta.test.ts->file:shared/routes/app-route-definitions.ts',
+      ]);
+      expect(first.manifest).toMatchObject({
+        schema: 'surface-route-projection-v1',
+        fresh_for_checkout: true,
+        valid_for_release_proof: false,
+      });
+      expect(first.manifest.snapshot_id).toMatch(/^snapshot:[0-9a-f]{64}$/);
+      expect(first.manifest.repo_head).toMatch(/^[0-9a-f]{40}$/);
+      expect(first.manifest.source_hashes).toEqual(expect.any(Object));
+      expect(first.manifest.source_hashes).toHaveProperty([
+        'audit/surface-contract-matrix/source-inventory.json',
+      ]);
+      expect(first.manifest.source_hashes).not.toHaveProperty([
+        'audit/surface-contract-matrix/boot-proofs.json',
+      ]);
+      expect(Object.keys(first.manifest)).not.toEqual(
+        expect.arrayContaining(['valid_for_coding', 'full_graph_complete', 'coding_authority'])
+      );
+
+      for (const name of ['nodes-routes.jsonl', 'edges-routes.jsonl', 'tests.jsonl']) {
+        const artifact = artifactFor(first.manifest, name);
+        expect(artifact).toBeDefined();
+        expect(artifact).toMatchObject({
+          snapshot_id: first.manifest.snapshot_id,
+          sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+          byte_length: expect.any(Number),
+        });
+      }
+    } finally {
+      await rm(parent, { recursive: true, force: true });
     }
   });
 
