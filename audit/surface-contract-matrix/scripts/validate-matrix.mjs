@@ -636,7 +636,16 @@ export async function validateMatrix({ writeMetadata = true } = {}) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === thisFile) {
-  validateMatrix().then((result) => {
+  const cliArguments = process.argv.slice(2);
+  for (const argument of cliArguments) {
+    if (argument !== '--no-write-metadata') throw new Error(`Unknown argument: ${argument}`);
+  }
+  // --no-write-metadata: validation must not mutate the governed artifact it
+  // validates. Used by release proof and the strict Step 10 projection proof,
+  // where the checkout must stay byte-identical; the closure-time validation
+  // keeps the write-back stamp.
+  const writeMetadata = !cliArguments.includes('--no-write-metadata');
+  validateMatrix({ writeMetadata }).then((result) => {
     const closure_counts = Object.fromEntries(Object.entries(result.closure.issues).map(([key, values]) => [key, values.length]));
     process.stdout.write(`${JSON.stringify({
       validation: result.validation,

@@ -105,7 +105,7 @@ jobs:
             --mode release \
             --expected-sha "$CANDIDATE_SHA"
           node -e 'const m=require("./audit/knowledge-graph/out/manifest.json"); if (!m.fresh_for_checkout || !m.valid_for_release_proof || m.repo_head !== process.env.CANDIDATE_SHA) process.exit(1)'
-          npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs
+          npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs --no-write-metadata
           npm run release:check
 
       - name: Run strict Vercel boot proof

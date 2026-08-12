@@ -878,7 +878,7 @@ before-first-write freeze applied prospectively.
     --mode release \
     --expected-sha "$CANDIDATE_SHA"
   node -e 'const m=require("./audit/knowledge-graph/out/manifest.json"); if (!m.fresh_for_checkout || !m.valid_for_release_proof || m.repo_head !== process.env.CANDIDATE_SHA) process.exit(1)'
-  npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs
+  npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs --no-write-metadata
   ```
 
   Keep output ignored and runner-local. Cleanup must run on success and failure;
@@ -1076,7 +1076,7 @@ before-first-write freeze applied prospectively.
     --mode release \
     --expected-sha "$CANDIDATE_SHA"
   CANDIDATE_SHA="$CANDIDATE_SHA" node -e 'const m=require("./audit/knowledge-graph/out/manifest.json"); if (!m.fresh_for_checkout || !m.valid_for_release_proof || m.repo_head !== process.env.CANDIDATE_SHA) process.exit(1)'
-  npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs
+  npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs --no-write-metadata
   cleanup_kg
   trap - EXIT HUP INT TERM
   test -z "$(git status --porcelain)"
@@ -1130,6 +1130,12 @@ state this revision records:
   snapshot binding, source-location requirements, and output confinement
   apply to it identically. Derived entries stay `assertion_confirmed:
   false` — import-level evidence only, per the seed's existing contract.
+- Step 10 and the release-proof workflow invoke the matrix validator with
+  `--no-write-metadata`: validation must never mutate the governed artifact
+  it validates (the validator's write-back stamp embeds the per-commit
+  projection snapshot and would otherwise dirty every strict proof run one
+  commit after closure). The closure-time validation retains the write-back
+  stamp so the committed matrix records its own closure validation.
 - Step 7 and Step 9 verification runs are captured as execution envelopes
   per the Skill Routing section; failed envelope attempts are retained as
   remediation evidence.
@@ -4651,7 +4657,7 @@ type ReleaseCanaryRecoveryHandleV1 = {
     --mode release \
     --expected-sha "$CANDIDATE_SHA"
   CANDIDATE_SHA="$CANDIDATE_SHA" node -e 'const m=require("./audit/knowledge-graph/out/manifest.json"); if (!m.fresh_for_checkout || !m.valid_for_release_proof || m.repo_head !== process.env.CANDIDATE_SHA) process.exit(1)'
-  npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs
+  npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs --no-write-metadata
   cleanup_kg
   trap - EXIT HUP INT TERM
   test -z "$(git status --porcelain)"

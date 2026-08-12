@@ -3810,6 +3810,9 @@ describe('required CI fails closed', () => {
     expect(proofScripts).toContain('--expected-sha "$CANDIDATE_SHA"');
     expect(proofScripts.indexOf(rebuild)).toBeLessThan(proofScripts.indexOf(validate));
     expect(proofScripts).toContain('m.repo_head !== process.env.CANDIDATE_SHA');
+    expect(proofScripts).toContain(
+      'audit/surface-contract-matrix/scripts/validate-matrix.mjs --no-write-metadata'
+    );
     expect(proofScripts).toContain('cleanup_kg()');
     expect(proofScripts).toContain('trap cleanup_kg EXIT HUP INT TERM');
     expect(proofScripts).toContain('rm -rf audit/knowledge-graph/out');
