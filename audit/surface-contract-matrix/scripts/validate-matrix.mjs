@@ -187,15 +187,68 @@ async function* jsonLines(filePath) {
   }
 }
 
-export async function reconcileKnowledgeGraph(document, inventory) {
-  const manifest = readJson(path.join(kgDir, 'manifest.json'));
+const artifactEntries = (artifacts) => {
+  if (Array.isArray(artifacts)) return artifacts.map((artifact) => [artifact.name || artifact.path, artifact]);
+  return Object.entries(artifacts ?? {});
+};
+
+const validateKnowledgeGraphIdentity = async ({ manifest, inventory, graphDir, rootDir }) => {
+  const errors = [];
+  const currentHead = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: rootDir }).toString().trim();
+  if (manifest.repo_head !== currentHead) errors.push(`KG manifest repo_head ${manifest.repo_head} does not match current HEAD ${currentHead}`);
+
+  const artifacts = new Map(artifactEntries(manifest.artifacts));
+  const artifactNames = new Set(['nodes-routes.jsonl', 'edges-routes.jsonl', ...artifacts.keys()]);
+  for (const name of artifactNames) {
+    const artifact = artifacts.get(name);
+    if (!artifact) {
+      errors.push(`KG manifest artifact metadata missing: ${name}`);
+      continue;
+    }
+    const relativePath = artifact.path || artifact.name || name;
+    const artifactPath = path.resolve(graphDir, relativePath);
+    const resolvedGraphDir = path.resolve(graphDir);
+    if (!artifactPath.startsWith(`${resolvedGraphDir}${path.sep}`)) {
+      errors.push(`KG artifact path escapes output directory: ${relativePath}`);
+      continue;
+    }
+    let bytes;
+    try {
+      bytes = fs.readFileSync(artifactPath);
+    } catch (error) {
+      errors.push(`KG artifact unreadable (${name}): ${error.message}`);
+      continue;
+    }
+    if (sha256(bytes) !== artifact.sha256) errors.push(`KG artifact sha256 mismatch: ${name}`);
+    if (bytes.byteLength !== artifact.byte_length) errors.push(`KG artifact byte length mismatch: ${name}`);
+    for await (const record of jsonLines(artifactPath)) {
+      if (record.snapshot_id !== manifest.snapshot_id) errors.push(`KG record snapshot mismatch: ${name}`);
+      if (record.commit_sha !== manifest.repo_head) errors.push(`KG record commit mismatch: ${name}`);
+    }
+  }
+
+  const manifestHashes = manifest.source_hashes ?? {};
+  const inventoryHashes = inventory.source_hashes ?? {};
+  for (const [sourcePath, expected] of Object.entries(manifestHashes)) {
+    if (!Object.prototype.hasOwnProperty.call(inventoryHashes, sourcePath)) {
+      errors.push(`KG manifest source hash missing from inventory: ${sourcePath}`);
+    } else if (inventoryHashes[sourcePath] !== expected) {
+      errors.push(`KG manifest and inventory source hash mismatch: ${sourcePath}`);
+    }
+  }
+  return errors;
+};
+
+export async function reconcileKnowledgeGraph(document, inventory, { rootDir = repoRoot, graphDir = kgDir } = {}) {
+  const manifest = readJson(path.join(graphDir, 'manifest.json'));
+  fail(await validateKnowledgeGraphIdentity({ manifest, inventory, graphDir, rootDir }));
   const counts = {};
   const expectedIds = new Map([
     ['APIEndpoint', new Set()],
     ['ClientRoute', new Set()],
     ['WorkerJob', new Set()],
   ]);
-  for await (const record of jsonLines(path.join(kgDir, 'nodes-routes.jsonl'))) {
+  for await (const record of jsonLines(path.join(graphDir, 'nodes-routes.jsonl'))) {
     if (!expectedIds.has(record.type)) continue;
     counts[record.type] = (counts[record.type] ?? 0) + 1;
     if (record.type === 'APIEndpoint') expectedIds.get(record.type).add(canonicalRowId(record.id));

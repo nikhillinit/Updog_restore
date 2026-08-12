@@ -1711,7 +1711,12 @@ const fileMatches = (filePath, pattern) => {
 
 const isExcludedSource = (filePath) => TEST_OR_FIXTURE_SEGMENT.test(filePath) || TEST_OR_FIXTURE_SUFFIX.test(filePath);
 
-const sourceHashes = ({ nodes, snapshotId }) => {
+export const mergeManifestSourceHashes = (inventorySourceHashes = {}, manifestSourceHashes = {}) => ({
+  ...inventorySourceHashes,
+  ...manifestSourceHashes,
+});
+
+const sourceHashes = ({ nodes, snapshotId, manifestSourceHashes = {} }) => {
   const membership = new Map();
   const include = (filePath, category, allowUntracked = false) => {
     if (!filePath || (!allowUntracked && !trackedSet.has(filePath)) || isExcludedSource(filePath)) return;
@@ -1783,7 +1788,10 @@ const sourceHashes = ({ nodes, snapshotId }) => {
     ];
   }
   sourceMembership['kg-snapshot'] = [snapshotId];
-  return { sourceHashesMap, sourceMembership };
+  return {
+    sourceHashesMap: mergeManifestSourceHashes(sourceHashesMap, manifestSourceHashes),
+    sourceMembership,
+  };
 };
 
 const definingSourceHashesForRow = (row, sourceHashesMap, rowToSources = {}) => {
@@ -2088,7 +2096,11 @@ const seed = async () => {
   });
   applyInternalOnlyDefaults(rows);
   applyBootProofs(rows, bootProofDocument);
-  const hashes = sourceHashes({ nodes: kg.nodes, snapshotId: kg.manifest.snapshot_id });
+  const hashes = sourceHashes({
+    nodes: kg.nodes,
+    snapshotId: kg.manifest.snapshot_id,
+    manifestSourceHashes: kg.manifest.source_hashes,
+  });
   const definingMappings = sourceMappings({
     rows,
     commonManifest: COMMON_API_ROUTE_MANIFEST,

@@ -1,4 +1,6 @@
 import { execFile } from 'node:child_process';
+import { Buffer } from 'node:buffer';
+import { createHash } from 'node:crypto';
 import {
   cp,
   mkdtemp,
@@ -28,6 +30,8 @@ import {
 import { ROUTE_GOVERNANCE_REGISTRY } from '../../../shared/routes/route-governance-registry.ts';
 import { QUEUE_CATALOG } from '../../../server/queues/registry.ts';
 import { scanBullmqConstructors } from '../../../audit/surface-contract-matrix/matrix-schema.mjs';
+import { mergeManifestSourceHashes } from '../../../audit/surface-contract-matrix/scripts/seed-matrix.mjs';
+import { reconcileKnowledgeGraph } from '../../../audit/surface-contract-matrix/scripts/validate-matrix.mjs';
 
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(process.cwd());
@@ -234,6 +238,134 @@ async function createInventoryDriftFixture() {
   return { parent, fixtureRoot, head: await currentHead(fixtureRoot) };
 }
 
+const sha256 = (value) => createHash('sha256').update(value).digest('hex');
+
+const projectionArtifact = (snapshotId, bytes) => ({
+  snapshot_id: snapshotId,
+  sha256: sha256(bytes),
+  byte_length: bytes.byteLength,
+});
+
+async function createValidatorGitFixture({ matrixOnlySkew = false } = {}) {
+  const parent = await mkdtemp(path.join(os.tmpdir(), 'kg-validator-fixture-'));
+  const fixtureRoot = path.join(parent, 'repo');
+  await mkdir(path.join(fixtureRoot, 'audit/surface-contract-matrix'), { recursive: true });
+  await writeFile(path.join(fixtureRoot, 'source-input.txt'), 'projection input\n');
+  await writeFile(
+    path.join(fixtureRoot, 'audit/surface-contract-matrix', 'seed-marker.txt'),
+    'seed snapshot\n'
+  );
+  await execFileAsync('git', ['init', '--quiet'], { cwd: fixtureRoot });
+  await execFileAsync('git', ['config', 'user.email', 'route-test@example.invalid'], {
+    cwd: fixtureRoot,
+  });
+  await execFileAsync('git', ['config', 'user.name', 'Route Projection Test'], {
+    cwd: fixtureRoot,
+  });
+  await execFileAsync('git', ['add', '.'], { cwd: fixtureRoot });
+  await execFileAsync('git', ['commit', '--quiet', '-m', 'source snapshot'], {
+    cwd: fixtureRoot,
+    env: {
+      ...process.env,
+      GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z',
+      GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z',
+    },
+  });
+  const sourceHead = await currentHead(fixtureRoot);
+  if (matrixOnlySkew) {
+    await writeFile(
+      path.join(fixtureRoot, 'audit/surface-contract-matrix', 'seed-marker.txt'),
+      'matrix-only commit\n'
+    );
+    await execFileAsync('git', ['add', 'audit/surface-contract-matrix/seed-marker.txt'], {
+      cwd: fixtureRoot,
+    });
+    await execFileAsync('git', ['commit', '--quiet', '-m', 'matrix-only skew'], {
+      cwd: fixtureRoot,
+      env: {
+        ...process.env,
+        GIT_AUTHOR_DATE: '2026-01-02T00:00:00Z',
+        GIT_COMMITTER_DATE: '2026-01-02T00:00:00Z',
+      },
+    });
+  }
+  const head = await currentHead(fixtureRoot);
+  const snapshotId = `snapshot:${'a'.repeat(64)}`;
+  const records = [
+    {
+      record: 'node',
+      id: 'api:GET /health',
+      type: 'APIEndpoint',
+      method: 'GET',
+      path: '/health',
+      source_path: 'source-input.txt',
+      line_start: 1,
+    },
+    {
+      record: 'node',
+      id: 'croute:/health',
+      type: 'ClientRoute',
+      path: '/health',
+      source_path: 'source-input.txt',
+      line_start: 1,
+    },
+    {
+      record: 'node',
+      id: 'worker:synthetic',
+      type: 'WorkerJob',
+      queue: 'synthetic',
+      source_path: 'source-input.txt',
+      line_start: 1,
+    },
+  ].map((record) => ({
+    ...record,
+    commit_sha: head,
+    observed_at: '2026-01-02T00:00:00.000Z',
+    snapshot_id: snapshotId,
+  }));
+  const nodesBytes = Buffer.from(`${records.map((record) => JSON.stringify(record)).join('\n')}\n`);
+  const edgesBytes = Buffer.from('');
+  const outputDir = path.join(parent, 'out');
+  await mkdir(outputDir, { recursive: true });
+  await writeFile(path.join(outputDir, 'nodes-routes.jsonl'), nodesBytes);
+  await writeFile(path.join(outputDir, 'edges-routes.jsonl'), edgesBytes);
+  await writeFile(
+    path.join(outputDir, 'manifest.json'),
+    `${JSON.stringify({
+      schema: 'surface-route-projection-v1',
+      snapshot_id: snapshotId,
+      repo_head: head,
+      artifacts: {
+        'nodes-routes.jsonl': projectionArtifact(snapshotId, nodesBytes),
+        'edges-routes.jsonl': projectionArtifact(snapshotId, edgesBytes),
+      },
+      source_hashes: { 'source-input.txt': 'source-hash' },
+      node_type_counts: { APIEndpoint: 1, ClientRoute: 1, WorkerJob: 1 },
+    }, null, 2)}\n`
+  );
+  return {
+    parent,
+    fixtureRoot,
+    outputDir,
+    sourceHead,
+    head,
+    snapshotId,
+    inventory: {
+      snapshot_id: `snapshot:${'b'.repeat(64)}`,
+      source_hashes: { 'source-input.txt': 'source-hash' },
+      kg_counts: { APIEndpoint: 1, ClientRoute: 1, WorkerJob: 1 },
+    },
+    document: { rows: [{ id: 'api:GET:/health' }] },
+  };
+}
+
+async function updateValidatorManifest(outputDir, update) {
+  const manifestPath = path.join(outputDir, 'manifest.json');
+  const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  const next = await update(manifest);
+  await writeFile(manifestPath, `${JSON.stringify(next, null, 2)}\n`);
+}
+
 describe('route knowledge-graph generator contract', () => {
   it('exports the build and exact client projection helpers and documents CLI default output', async () => {
     const generator = await requireGenerator();
@@ -245,6 +377,126 @@ describe('route knowledge-graph generator contract', () => {
       'utf8'
     );
     expect(source).toContain('audit/knowledge-graph/out');
+  });
+
+  it('carries every projection manifest source hash into seeded inventory', () => {
+    const seeded = { 'existing-input.ts': 'existing-hash' };
+    const manifest = {
+      'client/src/app/app-routes.tsx': 'app-routes-hash',
+      'future-generator-input.ts': 'future-input-hash',
+    };
+
+    expect(mergeManifestSourceHashes(seeded, manifest)).toEqual({
+      ...seeded,
+      ...manifest,
+    });
+  });
+
+  it('fails validation when a projection artifact is tampered after manifest write', async () => {
+    const fixture = await createValidatorGitFixture();
+    try {
+      const nodesPath = path.join(fixture.outputDir, 'nodes-routes.jsonl');
+      const records = (await readFile(nodesPath, 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      records[0].tampered = true;
+      await writeFile(
+        nodesPath,
+        `${records.map((record) => JSON.stringify(record)).join('\n')}\n`
+      );
+      await expect(
+        reconcileKnowledgeGraph(fixture.document, fixture.inventory, {
+          rootDir: fixture.fixtureRoot,
+          graphDir: fixture.outputDir,
+        })
+      ).rejects.toThrow(/artifact|sha|byte/i);
+    } finally {
+      await rm(fixture.parent, { recursive: true, force: true });
+    }
+  });
+
+  it('fails validation when a JSONL record snapshot identity is edited', async () => {
+    const fixture = await createValidatorGitFixture();
+    try {
+      const nodesPath = path.join(fixture.outputDir, 'nodes-routes.jsonl');
+      const records = (await readFile(nodesPath, 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      records[0].snapshot_id = `snapshot:${'c'.repeat(64)}`;
+      const nodesBytes = Buffer.from(
+        `${records.map((record) => JSON.stringify(record)).join('\n')}\n`
+      );
+      await writeFile(nodesPath, nodesBytes);
+      await updateValidatorManifest(fixture.outputDir, (manifest) => ({
+        ...manifest,
+        artifacts: {
+          ...manifest.artifacts,
+          'nodes-routes.jsonl': projectionArtifact(manifest.snapshot_id, nodesBytes),
+        },
+      }));
+
+      await expect(
+        reconcileKnowledgeGraph(fixture.document, fixture.inventory, {
+          rootDir: fixture.fixtureRoot,
+          graphDir: fixture.outputDir,
+        })
+      ).rejects.toThrow(/snapshot/i);
+    } finally {
+      await rm(fixture.parent, { recursive: true, force: true });
+    }
+  });
+
+  it('fails validation when manifest HEAD is not the repository HEAD', async () => {
+    const fixture = await createValidatorGitFixture();
+    try {
+      await updateValidatorManifest(fixture.outputDir, (manifest) => ({
+        ...manifest,
+        repo_head: '0'.repeat(40),
+      }));
+      await expect(
+        reconcileKnowledgeGraph(fixture.document, fixture.inventory, {
+          rootDir: fixture.fixtureRoot,
+          graphDir: fixture.outputDir,
+        })
+      ).rejects.toThrow(/repo_head|HEAD|fresh/i);
+    } finally {
+      await rm(fixture.parent, { recursive: true, force: true });
+    }
+  });
+
+  it('fails validation when manifest and inventory input hashes disagree', async () => {
+    const fixture = await createValidatorGitFixture();
+    try {
+      const inventory = {
+        ...fixture.inventory,
+        source_hashes: { 'source-input.txt': 'different-source-hash' },
+      };
+      await expect(
+        reconcileKnowledgeGraph(fixture.document, inventory, {
+          rootDir: fixture.fixtureRoot,
+          graphDir: fixture.outputDir,
+        })
+      ).rejects.toThrow(/source hash|input hash|manifest/i);
+    } finally {
+      await rm(fixture.parent, { recursive: true, force: true });
+    }
+  });
+
+  it('permits one-commit matrix skew when only matrix files changed', async () => {
+    const fixture = await createValidatorGitFixture({ matrixOnlySkew: true });
+    try {
+      expect(fixture.sourceHead).not.toBe(fixture.head);
+      await expect(
+        reconcileKnowledgeGraph(fixture.document, fixture.inventory, {
+          rootDir: fixture.fixtureRoot,
+          graphDir: fixture.outputDir,
+        })
+      ).resolves.toMatchObject({ snapshot_id: fixture.snapshotId });
+    } finally {
+      await rm(fixture.parent, { recursive: true, force: true });
+    }
   });
 
   it('fails release count drift but permits seed rebaseline without weakening discovery', async () => {
