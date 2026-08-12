@@ -911,14 +911,14 @@ export async function buildRouteKnowledgeGraph({ repoRoot, outputDir, expectedSh
   ]);
   const rawNodes = [...apiNodes, ...clientNodes, ...workerNodes];
   const nodes = addCommitBinding(rawNodes, head, timestamp).sort((left, right) => left.id.localeCompare(right.id));
-  const edges = addCommitBinding(structuralEdges(nodes, addCommitBinding(clientNodes, head, timestamp)), head, timestamp);
-  const tests = addCommitBinding(await testProjection(root, nodes), head, timestamp);
-  validateRecords(nodes, [...edges, ...tests]);
   const nodeTypeCounts = {
     APIEndpoint: nodes.filter((record) => record.type === 'APIEndpoint').length,
     ClientRoute: nodes.filter((record) => record.type === 'ClientRoute').length,
     WorkerJob: nodes.filter((record) => record.type === 'WorkerJob').length,
   };
+  // Count validation depends only on nodes; run it before the TESTS
+  // projection so release-mode count drift fails before the whole-repo
+  // test-file scan instead of after it.
   if (projectionMode === 'release') {
     for (const type of Object.keys(nodeTypeCounts)) {
       if (nodeTypeCounts[type] !== inventory.kg_counts?.[type]) {
@@ -926,6 +926,9 @@ export async function buildRouteKnowledgeGraph({ repoRoot, outputDir, expectedSh
       }
     }
   }
+  const edges = addCommitBinding(structuralEdges(nodes, addCommitBinding(clientNodes, head, timestamp)), head, timestamp);
+  const tests = addCommitBinding(await testProjection(root, nodes), head, timestamp);
+  validateRecords(nodes, [...edges, ...tests]);
   const snapshotId = `snapshot:${sha256(stableJson({ commit_sha: head, commit_timestamp: timestamp, source_hashes: hashes, node_type_counts: nodeTypeCounts }))}`;
   const nodesBytes = Buffer.from(nodes.map((record) => jsonLine({ ...record, snapshot_id: snapshotId })).join(''));
   const edgesBytes = Buffer.from(edges.map((record) => jsonLine({ ...record, snapshot_id: snapshotId })).join(''));
