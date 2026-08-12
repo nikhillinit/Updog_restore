@@ -11,6 +11,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import ts from 'typescript';
 
 import { scanBullmqConstructors } from '../../surface-contract-matrix/matrix-schema.mjs';
+import { runInspectorProfiles } from './inspector-runner.mjs';
 
 const execFileAsync = promisify(execFile);
 const scriptPath = fileURLToPath(import.meta.url);
@@ -44,7 +45,15 @@ const INSPECTOR_PROFILES = [
   'development',
 ];
 const RUNTIME_INSPECTOR_CONCURRENCY = 4;
-const runtimeDocumentsCache = new Map();
+const INSPECTOR_SIGTERM_GRACE_MS = 2_000;
+const INSPECTOR_SIGKILL_GRACE_MS = 2_000;
+
+// Single bounded NDJSON sink for both the inspector runner's lifecycle
+// events and this generator's own phase events. Bounded fields only: no
+// projection contents, no child stderr passthrough, no env dumps.
+const stderrNdjsonLog = (event) => {
+  process.stderr.write(`${JSON.stringify(event)}\n`);
+};
 
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 const repoPath = (value) => value.split(path.sep).join('/');
@@ -590,13 +599,25 @@ function loaderPath(repoRoot) {
   return undefined;
 }
 
-function runInspector(repoRoot, profile) {
-  return new Promise((resolve, reject) => {
+/**
+ * Production `spawnProfile` for `runInspectorProfiles` (see
+ * inspector-runner.mjs). Spawns the inspector child and, on abort, escalates
+ * SIGTERM -> wait 2s -> SIGKILL -> wait 2s, force-settling this promise at
+ * the end of that window even if `close` never fires. This satisfies the
+ * runner's precondition that a `spawnProfile` promise MUST settle within a
+ * bounded time once `signal` aborts -- an unreapable child must never hang
+ * the aggregate run. Emits per-profile child-lifecycle NDJSON to `log` with
+ * real `exit_code`/`signal` values (the runner's own events always carry
+ * those as null, since it has no visibility into the child process).
+ */
+function spawnInspectorProfile(repoRoot, log) {
+  return (profile, { signal }) => new Promise((resolve, reject) => {
     const loader = loaderPath(repoRoot);
     if (!loader) {
       reject(new Error(`Runtime inspection failed: tsx loader is missing under ${repoRoot}`));
       return;
     }
+    const startedAt = Date.now();
     const child = spawn(
       process.execPath,
       ['--import', loader, path.join(repoRoot, INSPECTOR_PATH), '--profile', profile, '--fs-variant', 'static'],
@@ -612,33 +633,75 @@ function runInspector(repoRoot, profile) {
     child.stderr.setEncoding('utf8');
     child.stdout.on('data', (chunk) => { stdout += chunk; });
     child.stderr.on('data', (chunk) => { stderr += chunk; });
-    child.once('error', (error) => reject(error));
-    child.once('close', (code) => {
-      if (code !== 0) {
-        reject(new Error(`Runtime inspection failed for ${profile}: ${stderr || `exit ${code}`}`));
-        return;
-      }
-      try {
-        resolve(JSON.parse(stdout));
-      } catch (error) {
-        reject(new Error(`Runtime inspection emitted invalid JSON for ${profile}: ${error.message}`));
-      }
+
+    let settled = false;
+    let sigtermTimer;
+    let sigkillTimer;
+    let forceSettleTimer;
+
+    const clearEscalationTimers = () => {
+      globalThis.clearTimeout(sigtermTimer);
+      globalThis.clearTimeout(sigkillTimer);
+      globalThis.clearTimeout(forceSettleTimer);
+    };
+
+    const finish = (settle) => {
+      if (settled) return;
+      settled = true;
+      clearEscalationTimers();
+      signal.removeEventListener('abort', onAbort);
+      settle();
+    };
+
+    function onAbort() {
+      log({
+        event: 'child_signal', phase: 'profile', profile,
+        duration_ms: Date.now() - startedAt, exit_code: null, signal: 'SIGTERM', active_children: null,
+      });
+      try { child.kill('SIGTERM'); } catch { /* already exited */ }
+      sigtermTimer = globalThis.setTimeout(() => {
+        log({
+          event: 'child_signal', phase: 'profile', profile,
+          duration_ms: Date.now() - startedAt, exit_code: null, signal: 'SIGKILL', active_children: null,
+        });
+        try { child.kill('SIGKILL'); } catch { /* already exited */ }
+        // Bound settlement even if 'close' never arrives (e.g. an
+        // unreapable child): the runner's whole-run completion is gated on
+        // this promise settling once aborted.
+        forceSettleTimer = globalThis.setTimeout(() => {
+          finish(() => reject(new Error(`Runtime inspection for ${profile} did not exit after SIGKILL`)));
+        }, INSPECTOR_SIGKILL_GRACE_MS);
+      }, INSPECTOR_SIGTERM_GRACE_MS);
+    }
+
+    if (signal.aborted) onAbort();
+    else signal.addEventListener('abort', onAbort, { once: true });
+
+    child.once('error', (error) => {
+      finish(() => reject(error));
+    });
+    child.once('close', (code, closeSignal) => {
+      log({
+        event: 'child_exit', phase: 'profile', profile,
+        duration_ms: Date.now() - startedAt, exit_code: code, signal: closeSignal, active_children: null,
+      });
+      finish(() => {
+        if (signal.aborted) {
+          reject(new Error(`Runtime inspection aborted for ${profile} (exit_code=${code}, signal=${closeSignal})`));
+          return;
+        }
+        if (code !== 0) {
+          reject(new Error(`Runtime inspection failed for ${profile}: ${stderr || `exit ${code}`}`));
+          return;
+        }
+        try {
+          resolve(JSON.parse(stdout));
+        } catch (error) {
+          reject(new Error(`Runtime inspection emitted invalid JSON for ${profile}: ${error.message}`));
+        }
+      });
     });
   });
-}
-
-async function mapWithConcurrency(values, concurrency, callback) {
-  const results = new Array(values.length);
-  let next = 0;
-  const worker = async () => {
-    while (next < values.length) {
-      const index = next;
-      next += 1;
-      results[index] = await callback(values[index]);
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(concurrency, values.length) }, worker));
-  return results;
 }
 
 /**
@@ -686,16 +749,14 @@ export function reduceRuntimeDocuments(documents) {
   return records;
 }
 
-async function runtimeApiProjection(repoRoot) {
+async function runtimeApiProjection(repoRoot, { log = () => {} } = {}) {
   const key = path.resolve(repoRoot);
-  if (!runtimeDocumentsCache.has(key)) {
-    runtimeDocumentsCache.set(key, mapWithConcurrency(
-      INSPECTOR_PROFILES,
-      RUNTIME_INSPECTOR_CONCURRENCY,
-      (profile) => runInspector(key, profile),
-    ));
-  }
-  const documents = await runtimeDocumentsCache.get(key);
+  const documents = await runInspectorProfiles({
+    profiles: INSPECTOR_PROFILES,
+    concurrency: RUNTIME_INSPECTOR_CONCURRENCY,
+    spawnProfile: spawnInspectorProfile(key, log),
+    log,
+  });
   return reduceRuntimeDocuments(documents);
 }
 
@@ -910,6 +971,27 @@ export async function reduceTestProjection(repoRoot, nodes) {
     }
   }
   return records.sort((left, right) => left.id.localeCompare(right.id));
+}
+
+/**
+ * Emits one generator-level phase NDJSON event to `log`, reusing the
+ * inspector runner's bounded event shape (`event, phase, profile,
+ * duration_ms, exit_code, signal, active_children`). `commit_sha` is always
+ * attached; `extra` carries phase-specific bounded fields (e.g. the `write`
+ * phase's artifact hash/length summary). Never carries projection contents.
+ */
+function emitPhase(log, phase, startedAt, commitSha, extra = {}) {
+  log({
+    event: 'phase_complete',
+    phase,
+    profile: null,
+    duration_ms: Date.now() - startedAt,
+    exit_code: null,
+    signal: null,
+    active_children: null,
+    commit_sha: commitSha,
+    ...extra,
+  });
 }
 
 function parseMode(value) {
@@ -1157,10 +1239,23 @@ export async function buildRouteKnowledgeGraph({ repoRoot, outputDir, expectedSh
   const timestamp = await commitTimestamp(root, head);
   const inventory = await readInventory(root);
   const hashes = await sourceHashes(root, inventory);
+
+  const runtimeStartedAt = Date.now();
+  const clientStartedAt = Date.now();
+  const workerStartedAt = Date.now();
   const [apiNodes, clientNodes, workerNodes] = await Promise.all([
-    runtimeApiProjection(root),
-    extractClientRouteProjection({ repoRoot: root }),
-    workerProjection(root),
+    runtimeApiProjection(root, { log: stderrNdjsonLog }).then((result) => {
+      emitPhase(stderrNdjsonLog, 'runtime-aggregate', runtimeStartedAt, head);
+      return result;
+    }),
+    extractClientRouteProjection({ repoRoot: root }).then((result) => {
+      emitPhase(stderrNdjsonLog, 'client', clientStartedAt, head);
+      return result;
+    }),
+    workerProjection(root).then((result) => {
+      emitPhase(stderrNdjsonLog, 'worker', workerStartedAt, head);
+      return result;
+    }),
   ]);
   const rawNodes = [...apiNodes, ...clientNodes, ...workerNodes];
   const nodes = addCommitBinding(rawNodes, head, timestamp).sort((left, right) => left.id.localeCompare(right.id));
@@ -1180,16 +1275,32 @@ export async function buildRouteKnowledgeGraph({ repoRoot, outputDir, expectedSh
     }
   }
   const edges = addCommitBinding(structuralEdges(nodes, addCommitBinding(clientNodes, head, timestamp)), head, timestamp);
+
+  const testsStartedAt = Date.now();
   const tests = addCommitBinding(await reduceTestProjection(root, nodes), head, timestamp);
+  emitPhase(stderrNdjsonLog, 'tests-projection', testsStartedAt, head);
+
+  const validationStartedAt = Date.now();
   validateRecords(nodes, [...edges, ...tests]);
+  emitPhase(stderrNdjsonLog, 'validation', validationStartedAt, head);
+
+  const serializationStartedAt = Date.now();
   let serialized = serializeRouteKnowledgeGraph({ nodes, edges, tests, head, timestamp, sourceHashes: hashes });
   if (projectionMode === 'release') serialized = assembleReleaseManifest(serialized);
+  emitPhase(stderrNdjsonLog, 'serialization', serializationStartedAt, head);
+
   const { manifest } = serialized;
+  const writeStartedAt = Date.now();
   await mkdir(resolvedOutputDir, { recursive: true });
   await writeRouteKnowledgeGraphArtifacts(
     { outputDir: resolvedOutputDir, serialized },
     projectionMode === 'release' ? { authority: RELEASE_AUTHORITY } : {},
   );
+  emitPhase(stderrNdjsonLog, 'write', writeStartedAt, head, {
+    artifacts: Object.fromEntries(
+      Object.entries(manifest.artifacts).map(([name, info]) => [name, { sha256: info.sha256, byte_length: info.byte_length }]),
+    ),
+  });
   return manifest;
 }
 
