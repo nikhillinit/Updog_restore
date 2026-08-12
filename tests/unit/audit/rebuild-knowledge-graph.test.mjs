@@ -59,6 +59,16 @@ async function currentHead(root = repoRoot) {
   return stdout.trim();
 }
 
+async function trackedTestFiles(root = repoRoot) {
+  const { stdout } = await execFileAsync('git', ['ls-files', '-z'], { cwd: root });
+  return stdout
+    .split('\0')
+    .filter((file) => file && (
+      (file.startsWith('tests/') && /\.(?:test|spec)\.[^/]+$/.test(file))
+      || (!file.startsWith('tests/') && /\.test\.[^/]+$/.test(file))
+    ));
+}
+
 async function withOutputDir(callback) {
   const parent = await mkdtemp(path.join(os.tmpdir(), 'route-projection-'));
   const outputDir = path.join(parent, 'out');
@@ -93,13 +103,16 @@ async function readProjection(outputDir) {
   const manifestPath = path.join(outputDir, 'manifest.json');
   const nodesPath = path.join(outputDir, 'nodes-routes.jsonl');
   const edgesPath = path.join(outputDir, 'edges-routes.jsonl');
+  const testsPath = path.join(outputDir, 'tests.jsonl');
   return {
     manifest: await readJson(manifestPath),
     nodes: await readJsonl(nodesPath),
     edges: await readJsonl(edgesPath),
+    tests: await readJsonl(testsPath),
     manifestBytes: await readFile(manifestPath),
     nodesBytes: await readFile(nodesPath),
     edgesBytes: await readFile(edgesPath),
+    testsBytes: await readFile(testsPath),
   };
 }
 
@@ -591,9 +604,11 @@ describe('route knowledge-graph generator contract', () => {
     expect(first.manifestBytes).toEqual(second.manifestBytes);
     expect(first.nodesBytes).toEqual(second.nodesBytes);
     expect(first.edgesBytes).toEqual(second.edgesBytes);
+    expect(first.testsBytes).toEqual(second.testsBytes);
     expect(first.manifest).toEqual(second.manifest);
     expect(first.nodes).toEqual(second.nodes);
     expect(first.edges).toEqual(second.edges);
+    expect(first.tests).toEqual(second.tests);
     expect(first.manifest).toMatchObject({
       schema: 'surface-route-projection-v1',
       fresh_for_checkout: true,
@@ -612,7 +627,7 @@ describe('route knowledge-graph generator contract', () => {
       expect.arrayContaining(['valid_for_coding', 'full_graph_complete', 'coding_authority'])
     );
 
-    for (const name of ['nodes-routes.jsonl', 'edges-routes.jsonl']) {
+    for (const name of ['nodes-routes.jsonl', 'edges-routes.jsonl', 'tests.jsonl']) {
       const artifact = artifactFor(first.manifest, name);
       expect(artifact).toBeDefined();
       expect(artifact).toMatchObject({
@@ -663,6 +678,40 @@ describe('route knowledge-graph generator contract', () => {
     });
   });
 
+  it('emits TESTS edges for tracked tests and row-relevant source files', async () => {
+    await withOutputDir(async (outputDir) => {
+      await buildRealProjection({ mode: 'seed', outputDir });
+      const { nodes, tests } = await readProjection(outputDir);
+      const trackedTests = new Set(await trackedTestFiles());
+      const rowRelevantSources = new Set(
+        nodes.flatMap((record) => [
+          record.source_path,
+          ...(record.type === 'WorkerJob'
+            ? (record.constructor_sites ?? []).map((site) => site.path)
+            : []),
+        ])
+      );
+      const workerConstructorSources = new Set(
+        nodes
+          .filter((record) => record.type === 'WorkerJob')
+          .flatMap((record) => (record.constructor_sites ?? []).map((site) => site.path))
+      );
+
+      expect(tests.length).toBeGreaterThan(0);
+      for (const record of tests) {
+        const target = record.to.replace(/^file:/, '');
+        expect(record.record).toBe('edge');
+        expect(record.type).toBe('TESTS');
+        expect(trackedTests).toContain(record.source_path);
+        expect(rowRelevantSources).toContain(target);
+        expect(record.id).toBe(`edge:TESTS:test:${record.source_path}->file:${target}`);
+        expect(record.line_start).toEqual(expect.any(Number));
+        expect(record.line_start).toBeGreaterThanOrEqual(1);
+      }
+      expect(tests.some((record) => workerConstructorSources.has(record.to.replace(/^file:/, '')))).toBe(true);
+    });
+  });
+
   it('rejects duplicate IDs, missing source locations, and source-inspection failures', async () => {
     const { extractClientRouteProjection } = await requireGenerator();
     const mutations = [
@@ -710,7 +759,7 @@ describe('route knowledge-graph generator contract', () => {
       await expect(readFile(sentinel, 'utf8')).resolves.toBe('must remain\n');
       await expect(readdir(parent)).resolves.toEqual(['out', 'outside.txt']);
       await expect(readdir(outputDir)).resolves.toEqual(
-        expect.arrayContaining(['manifest.json', 'nodes-routes.jsonl', 'edges-routes.jsonl'])
+        expect.arrayContaining(['manifest.json', 'nodes-routes.jsonl', 'edges-routes.jsonl', 'tests.jsonl'])
       );
     });
   });

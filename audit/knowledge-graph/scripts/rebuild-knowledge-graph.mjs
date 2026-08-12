@@ -525,6 +525,19 @@ async function trackedStatus(repoRoot) {
   return stdout.split('\n').filter(Boolean).map((line) => line.slice(3).split(' -> ').at(-1));
 }
 
+function isTrackedTestPath(relativePath) {
+  return (relativePath.startsWith('tests/') && /\.(?:test|spec)\.[^/]+$/.test(relativePath))
+    || (!relativePath.startsWith('tests/') && /\.test\.[^/]+$/.test(relativePath));
+}
+
+async function trackedTestPaths(repoRoot) {
+  const { stdout } = await execFileAsync('git', ['ls-files', '-z'], { cwd: repoRoot });
+  return stdout
+    .split('\0')
+    .filter((relativePath) => relativePath && isTrackedTestPath(relativePath))
+    .sort((left, right) => left.localeCompare(right));
+}
+
 async function assertCleanProjectionInputs(repoRoot) {
   const dirty = (await trackedStatus(repoRoot)).map(repoPath);
   if (dirty.length) throw new Error(`Projection inputs are dirty: ${dirty.join(', ')}`);
@@ -747,6 +760,133 @@ function addCommitBinding(records, commitSha, timestamp) {
   return records.map((record) => ({ ...record, commit_sha: commitSha, observed_at: timestamp }));
 }
 
+const TEST_IMPORT_EXTENSIONS = ['.ts', '.tsx', '.mjs', '.js', '.mts'];
+const TEST_IMPORT_EXTENSION_SET = new Set(TEST_IMPORT_EXTENSIONS);
+
+function testScriptKind(relativePath) {
+  const extension = path.extname(relativePath).toLowerCase();
+  if (extension === '.tsx') return ts.ScriptKind.TSX;
+  if (extension === '.jsx') return ts.ScriptKind.JSX;
+  if (extension === '.js' || extension === '.mjs' || extension === '.cjs') return ts.ScriptKind.JS;
+  return ts.ScriptKind.TS;
+}
+
+function testSourceFile(relativePath, source) {
+  return ts.createSourceFile(
+    relativePath,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    testScriptKind(relativePath),
+  );
+}
+
+function staticSpecifier(node) {
+  if (!node) return undefined;
+  return ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) ? node.text : undefined;
+}
+
+function testImportSpecifiers(sourceFile) {
+  const imports = [];
+  const visit = (node) => {
+    if (ts.isImportDeclaration(node)) {
+      const specifier = staticSpecifier(node.moduleSpecifier);
+      if (specifier) imports.push({ specifier, line: lineNumber(sourceFile, node) });
+    } else if (ts.isCallExpression(node)) {
+      const specifier = staticSpecifier(node.arguments[0]);
+      const isDynamicImport = node.expression.kind === ts.SyntaxKind.ImportKeyword;
+      const isRequire = ts.isIdentifier(node.expression) && node.expression.text === 'require';
+      if (specifier && (isDynamicImport || isRequire)) imports.push({ specifier, line: lineNumber(sourceFile, node) });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return imports;
+}
+
+function importBasePath(repoRoot, testPath, specifier) {
+  if (specifier.startsWith('./') || specifier.startsWith('../')) {
+    return path.resolve(repoRoot, path.dirname(testPath), specifier);
+  }
+  // Test-environment alias (vitest.config.shared.mjs): '@/server' -> ./server.
+  // Must resolve before the generic '@/' -> client/src rule.
+  if (specifier.startsWith('@/server/')) return path.resolve(repoRoot, 'server', specifier.slice('@/server/'.length));
+  if (specifier.startsWith('@/')) return path.resolve(repoRoot, 'client/src', specifier.slice(2));
+  if (specifier.startsWith('@shared/')) return path.resolve(repoRoot, 'shared', specifier.slice('@shared/'.length));
+  if (specifier.startsWith('@server/')) return path.resolve(repoRoot, 'server', specifier.slice('@server/'.length));
+  return undefined;
+}
+
+function candidateImportPaths(basePath) {
+  const candidates = [basePath];
+  const extension = path.extname(basePath).toLowerCase();
+  const stems = TEST_IMPORT_EXTENSION_SET.has(extension)
+    ? [basePath.slice(0, -extension.length)]
+    : [basePath];
+  for (const stem of stems) {
+    for (const candidateExtension of TEST_IMPORT_EXTENSIONS) candidates.push(`${stem}${candidateExtension}`);
+    for (const candidateExtension of TEST_IMPORT_EXTENSIONS) {
+      candidates.push(path.join(stem, `index${candidateExtension}`));
+    }
+  }
+  return [...new Set(candidates)];
+}
+
+function resolveTestImport(repoRoot, testPath, specifier) {
+  const basePath = importBasePath(repoRoot, testPath, specifier);
+  if (!basePath) return undefined;
+  for (const candidate of candidateImportPaths(basePath)) {
+    try {
+      if (!fs.statSync(candidate).isFile()) continue;
+      const relativePath = repoPath(path.relative(repoRoot, candidate));
+      if (relativePath && !relativePath.startsWith('../') && !path.isAbsolute(relativePath)) return relativePath;
+    } catch {
+      // Unresolvable imports are not evidence.
+    }
+  }
+  return undefined;
+}
+
+function rowRelevantSourcePaths(nodes) {
+  const paths = new Set();
+  for (const node of nodes) {
+    if (node.source_path) paths.add(repoPath(node.source_path));
+    if (node.type === 'WorkerJob') {
+      for (const site of node.constructor_sites ?? []) {
+        if (site.path) paths.add(repoPath(site.path));
+      }
+    }
+  }
+  return paths;
+}
+
+async function testProjection(repoRoot, nodes) {
+  const relevantPaths = rowRelevantSourcePaths(nodes);
+  const records = [];
+  for (const testPath of await trackedTestPaths(repoRoot)) {
+    const source = await readFile(path.join(repoRoot, testPath), 'utf8');
+    const sourceFile = testSourceFile(testPath, source);
+    const targets = new Map();
+    for (const { specifier, line } of testImportSpecifiers(sourceFile)) {
+      const target = resolveTestImport(repoRoot, testPath, specifier);
+      if (!target || !relevantPaths.has(target)) continue;
+      const existingLine = targets.get(target);
+      if (existingLine === undefined || line < existingLine) targets.set(target, line);
+    }
+    for (const [target, line] of [...targets.entries()].sort(([left], [right]) => left.localeCompare(right))) {
+      records.push({
+        record: 'edge',
+        id: `edge:TESTS:test:${testPath}->file:${target}`,
+        type: 'TESTS',
+        source_path: testPath,
+        to: `file:${target}`,
+        line_start: line,
+      });
+    }
+  }
+  return records.sort((left, right) => left.id.localeCompare(right.id));
+}
+
 function parseMode(value) {
   if (value !== 'seed' && value !== 'release') throw new Error(`Unsupported projection mode: ${value}`);
   return value;
@@ -772,7 +912,8 @@ export async function buildRouteKnowledgeGraph({ repoRoot, outputDir, expectedSh
   const rawNodes = [...apiNodes, ...clientNodes, ...workerNodes];
   const nodes = addCommitBinding(rawNodes, head, timestamp).sort((left, right) => left.id.localeCompare(right.id));
   const edges = addCommitBinding(structuralEdges(nodes, addCommitBinding(clientNodes, head, timestamp)), head, timestamp);
-  validateRecords(nodes, edges);
+  const tests = addCommitBinding(await testProjection(root, nodes), head, timestamp);
+  validateRecords(nodes, [...edges, ...tests]);
   const nodeTypeCounts = {
     APIEndpoint: nodes.filter((record) => record.type === 'APIEndpoint').length,
     ClientRoute: nodes.filter((record) => record.type === 'ClientRoute').length,
@@ -788,6 +929,7 @@ export async function buildRouteKnowledgeGraph({ repoRoot, outputDir, expectedSh
   const snapshotId = `snapshot:${sha256(stableJson({ commit_sha: head, commit_timestamp: timestamp, source_hashes: hashes, node_type_counts: nodeTypeCounts }))}`;
   const nodesBytes = Buffer.from(nodes.map((record) => jsonLine({ ...record, snapshot_id: snapshotId })).join(''));
   const edgesBytes = Buffer.from(edges.map((record) => jsonLine({ ...record, snapshot_id: snapshotId })).join(''));
+  const testsBytes = Buffer.from(tests.map((record) => jsonLine({ ...record, snapshot_id: snapshotId })).join(''));
   const artifact = (bytes) => ({ snapshot_id: snapshotId, sha256: sha256(bytes), byte_length: bytes.byteLength });
   const manifest = {
     schema: 'surface-route-projection-v1',
@@ -801,6 +943,7 @@ export async function buildRouteKnowledgeGraph({ repoRoot, outputDir, expectedSh
     artifacts: {
       'nodes-routes.jsonl': artifact(nodesBytes),
       'edges-routes.jsonl': artifact(edgesBytes),
+      'tests.jsonl': artifact(testsBytes),
     },
   };
   const manifestBytes = Buffer.from(`${stableJson(manifest)}\n`);
@@ -808,6 +951,7 @@ export async function buildRouteKnowledgeGraph({ repoRoot, outputDir, expectedSh
   await writeFile(path.join(resolvedOutputDir, 'manifest.json'), manifestBytes);
   await writeFile(path.join(resolvedOutputDir, 'nodes-routes.jsonl'), nodesBytes);
   await writeFile(path.join(resolvedOutputDir, 'edges-routes.jsonl'), edgesBytes);
+  await writeFile(path.join(resolvedOutputDir, 'tests.jsonl'), testsBytes);
   return manifest;
 }
 
