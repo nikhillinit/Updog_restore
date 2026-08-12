@@ -586,6 +586,118 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
 
 ---
 
+## Release-Assurance Skill Routing (governing for Tasks 1-12)
+
+TRIP-1/2/3 remain the execution workflow. At each point below, the
+orchestrator MUST load the named skill from `~/.claude/skills/<name>/SKILL.md`
+and follow its discipline; when work is delegated to Codex, the batch spec
+MUST direct Codex to read the same skill file first (Codex has local access).
+Skills define the discipline; this plan only routes to them. None of them
+authorizes deploy, merge, promotion, or activation.
+
+For this plan, Task 12 REPLACES the generic TRIP-3 mutation steps: no
+TRIP-3-originated commit, tag, fast-forward merge, or push applies here.
+TRIP-3 contributes documentation sync only; every repository mutation after
+frozen-head review, and the merge itself, is governed exclusively by Task
+12's protected-branch process and the owner's explicit gates.
+
+| When | Skill / actor | Mode |
+| --- | --- | --- |
+| Before the first write of each task, and on every report intake | `release-assurance-coordinator` | Ledger/state writes only: freeze `plan_sha256`/`source_sha`/`base_sha`/`skill_bundle_sha256`, one ledger entry per task per approval lineage (key: `task_number` + `plan_sha256`), reject lineage-mismatched reports |
+| Task implementation batches | TRIP-2 implementer — one persistent Codex thread WITHIN each task (TRIP-2 batch continuity); reset at task boundaries, never carrying a prior task's thread | Workspace write, sequential across tasks |
+| Release-blocking test authoring/repair named by a task | `release-test-evidence-engineer` | Workspace write; every plan verification step captured as an execution envelope per the skill |
+| Where a task touches durable command/idempotency surfaces | `durable-command-and-idempotency-engineer`, then fresh `durable-command-and-idempotency-reviewer` | Engineer writes; reviewer fresh read-only |
+| After each task head is frozen (parallel, fresh contexts) | `read-only-diff-forensics-scout`, `release-test-evidence-reviewer`, `workflow-surface-and-caller-auditor`, `governance-and-policy-reviewer` | Fresh read-only; records per the coordinator's `references/output-contract.md` (scout: `references/inventory-item-format.md`) |
+| Provider identity / canary-database evidence tasks | `provider-and-promotion-identity-reviewer`, `canary-database-provenance-and-residue-auditor` | Fresh read-only, per-task applicability; not-applicable lanes recorded with reason |
+| Independent governed-artifact reviews (Task 1 Step 9 G1 and analogous reapprovals) | Fresh read-only reviewer context + release owner | Reviewer produces the complete inspection record; owner publishes it as an immutable reference (gist revision + record SHA-256 + byte size + source SHA) and alone sets approver/closure fields; a FAIL record directs remediation and a fresh re-review, never closure |
+| Before TRIP-3 entry (last, always) | `release-evidence-triage-reviewer` | New top-level context sharing no conversation with coordinator or judged lanes; emits evidence-complete/incomplete only |
+
+Ledgers, envelopes, inventories, and raw findings stay outside tracked
+repository files; the owner publishes durable evidence as immutable
+references. Absent proof is `UNKNOWN`, never `PASS`. TRIP-3 entry requires
+triage evidence-complete across pre-release acceptance areas (`Promotion`
+is post-deploy evidence and never gates TRIP-3 entry).
+
+### Lineage field semantics and ledger schema
+
+- `plan_sha256`: SHA-256 of this file's exact bytes at the approval the work
+  runs under.
+- `base_sha`: merge-base of the PR branch with `origin/main` at ledger
+  initialization.
+- `task_base_commit` / `task_head_commit`: first parent the task builds on /
+  final committed head of the task on the PR branch. `task_head_commit` is
+  recorded at head freeze, before any review lane dispatch.
+- `source_sha` (in a report): the frozen `task_head_commit` the report's
+  evidence was gathered at. A report whose `source_sha` differs from the
+  ledger's `task_head_commit` for that task is rejected.
+- `skill_bundle_sha256`: the output of exactly this command (root-relative
+  paths; any other working directory changes the hashed filenames and is
+  invalid):
+
+  ```bash
+  set -euo pipefail
+  cd ~/.claude/skills && for s in \
+    release-assurance-coordinator \
+    workflow-surface-and-caller-auditor \
+    provider-and-promotion-identity-reviewer \
+    canary-database-provenance-and-residue-auditor \
+    durable-command-and-idempotency-engineer \
+    durable-command-and-idempotency-reviewer \
+    release-test-evidence-engineer \
+    release-test-evidence-reviewer \
+    governance-and-policy-reviewer \
+    read-only-diff-forensics-scout \
+    release-evidence-triage-reviewer; do
+    test -f "$s/SKILL.md"
+    find "$s" -type f | LC_ALL=C sort | xargs shasum -a 256
+  done | shasum -a 256 | cut -d' ' -f1
+  ```
+
+  A missing or SKILL.md-less directory aborts the computation; a digest is
+  valid only from a complete eleven-skill bundle.
+- Ledger entries are keyed by (`task_number`, `plan_sha256`) — one entry
+  per task per approval lineage. Each entry records `task_number`,
+  `task_base_commit`, `task_head_commit`, the four lineage hashes, links
+  to every accepted report, and explicit not-applicable lane records with
+  reasons. Every specialist report embeds the four lineage hashes plus
+  `task`.
+
+### Acceptance-area mapping
+
+Specialist and triage records use the shared output contract's fixed
+14-area enum. This plan's Acceptance Matrix rows map onto it as follows;
+rows not listed map to the identically named contract area:
+
+| Plan matrix row | Contract area |
+| --- | --- |
+| Current CI | `Results` |
+| Plan approval | `Governance` |
+| Schema ordering | `Governance` |
+| Vercel staged identity | `Vercel identity` |
+| Reserve UI | `Reserve command` |
+| Evidence manifest | `Reporting` |
+| Time budgets | `Reporting` |
+| Rollback lineage | `Governance` |
+
+All areas are pre-TRIP-3 except `Promotion`, which is post-deploy evidence
+by construction and gates operational-complete sign-off only.
+
+### One-time Task 1 historical binding
+
+Task 1's implementation batches executed under the prior approved digest
+`60b8505a57fffcee98cf100b1cb25625683b39c4129cc0e03931559f4933808f`; lane
+reports filed against that lineage remain valid for that lineage only.
+Upon fresh approval of this revision, the coordinator CLOSES the prior
+Task 1 ledger entry under its original lineage and creates a separate,
+new current-digest ledger entry covering Task 1's remaining steps (Step 9
+G1 round 2 and closure, Step 10). Prior-lineage reports are linked from
+the new entry as informational history only — never accepted as
+current-lineage evidence, per the coordinator's no-cross-lineage rule.
+All subsequent tasks run under the new digest, with the
+before-first-write freeze applied prospectively.
+
+---
+
 ## Task 1: Reconfirm Facts, Wire Required CI, and Remove Audit Residue
 
 **Files:**
@@ -780,8 +892,9 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
   - generator RED tests cover release-vs-seed count behavior, exact SHA,
     deterministic bytes, dirty tracked input, duplicate/missing records, source
     inspection failure, output confinement, and artifact hashes;
-  - generator output lets unchanged `seed-matrix.mjs` and `validate-matrix.mjs`
-    complete against a controlled fixture;
+  - generator output lets the current hardened `seed-matrix.mjs` and
+    `validate-matrix.mjs` (see Task 1 Addendum) complete against a controlled
+    fixture;
   - real-repository client projection has exact definition/component/mount
     parity, accepts only `/login` plus `/lp` as explicit governance exceptions,
     and fails when any AST anchor or governance record is removed;
@@ -973,6 +1086,45 @@ SEPARATION_MODEL=single-maintainer-owner-attestation
   `source-inventory.json.kg_counts`; current client count is 43 and unique
   discovered worker count is 10. Any drift stops Task 1 and repeats Step 9;
   never trim truthful projection to stale counts.
+
+### Task 1 Addendum — executed remediation record (G1 round 1)
+
+The owner's independent G1 review of the first Task 1 execution FAILED
+(immutable record: gist `8660496a4a53ac0d52e2668ab090d844` revision
+`2335f543731662b7214df663b8553731304a8002`, record SHA-256
+`bbfd2ef1ff6ef630a8cfdc34bbd7d5fede6a52ffec6614ee43760c005ac1b90d`). The
+owner directed remediation superseding Task 1 Step 4's "Leave
+`seed-matrix.mjs` and `validate-matrix.mjs` unchanged" sentence. Executed
+state this revision records:
+
+- `validate-matrix.mjs` binds projection identity: manifest `repo_head`
+  equals current HEAD; artifact SHA-256/byte-length integrity; per-record
+  `snapshot_id`/`commit_sha` identity; per-file manifest-vs-inventory
+  input-hash agreement. Binding is hash-based, never snapshot/SHA equality
+  against matrix artifacts — Step 9 commits the matrix after seeding while
+  Step 10 and release proof validate one commit later; a positive skew
+  regression test guards the non-deadlocking form.
+- `seed-matrix.mjs` merges every projection-manifest source hash into the
+  inventory fingerprint set (all generator inputs, including
+  `client/src/app/app-routes.tsx`, re-trigger G1 review on drift), with two
+  named carve-outs: the inventory's own path (self-hash is stale by
+  construction) and run-mutable pipeline outputs
+  (`audit/surface-contract-matrix/boot-proofs.json`), which the generator
+  excludes from inherited inputs.
+- Step 8's commit scope is split into three declared commits: the
+  plan-declared file set; the `vitest.config.mjs` server-include addition
+  (without it Step 7's vitest command matches zero tests); the regenerated
+  routing artifacts mandated by tracked-docs deletion.
+- Boot-proof dispositions: `vercel_function` failure was environmental
+  (worktree lacked the gitignored `.vercel` project link; restored from the
+  primary checkout, then proven); `ml-service-local` failed in the prior
+  closed matrix as well (pre-existing environmental); `local-process` is
+  intentionally unproven.
+- Step 7 and Step 9 verification runs are captured as execution envelopes
+  per the Skill Routing section; failed envelope attempts are retained as
+  remediation evidence.
+- Step 9's G1 re-review (round 2) and closure follow the Skill Routing
+  section's independent-review row; Step 10 runs only after that closure.
 
 ---
 
