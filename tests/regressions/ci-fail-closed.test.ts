@@ -32,6 +32,7 @@ type WorkflowJob = {
   permissions?: Record<string, unknown>;
   ['runs-on']?: string | string[];
   steps?: WorkflowStep[];
+  ['timeout-minutes']?: number;
   uses?: string;
   with?: Record<string, unknown>;
   secrets?: unknown;
@@ -2295,12 +2296,19 @@ const GATE_FEEDING_JOBS = [
   'memory-mode',
   'guards',
   'neon-lane',
+  'surface-projection-audit',
   'secret-scan',
 ];
 
 type GateEvaluatorScenario = {
   labelPresent: boolean;
   planApprovalResult: string;
+  // Optional: isolate the surface-projection-audit require_result pairing
+  // from every other gate feeder. Defaults reproduce the pre-existing
+  // interpolation fallbacks (not expected, skipped) so scenarios that omit
+  // these fields are unaffected.
+  auditExpected?: boolean;
+  auditResult?: string;
 };
 
 function interpolateGateExpression(
@@ -2322,6 +2330,22 @@ function interpolateGateExpression(
   if (normalized === 'needs.changes.result') return 'success';
   if (normalized === 'needs.guards.result') return 'success';
   if (normalized === 'needs.secret-scan.result') return 'success';
+  if (normalized === 'needs.surface-projection-audit.result') {
+    return scenario.auditResult ?? 'skipped';
+  }
+  if (
+    // Reordered relative to release-static's identical-condition expression
+    // (`release_static_expected`, above) so this pattern-match is unique:
+    // the interpolator resolves `${{ }}` tokens by expression TEXT across
+    // the whole script, so a byte-identical duplicate would let
+    // scenario.auditExpected silently steer release_static_expected too and
+    // contaminate the isolated truth table below. OR is commutative, so the
+    // production behavior of the gate script is unaffected by the reorder.
+    normalized ===
+    "github.event.inputs.run_full_suite == 'true' || needs.changes.outputs.heavy_ci_relevant == 'true'"
+  ) {
+    return scenario.auditExpected ? 'true' : 'false';
+  }
   if (normalized.endsWith('.result')) return 'skipped';
   return 'false';
 }
@@ -4628,6 +4652,127 @@ describe('required CI fails closed', () => {
     const gateNeeds = normalizeNeeds(workflow.jobs?.gate?.needs);
     expect([...gateNeeds].sort()).toEqual([...GATE_FEEDING_JOBS].sort());
   });
+
+  it('defines surface-projection-audit as a required, fail-closed audit lane', { retry: 0 }, async () => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const auditJob = workflow.jobs?.['surface-projection-audit'];
+    expect(auditJob).toBeDefined();
+
+    // Deliberately NOT needs: [changes, check] -- unit-fast lives inside the
+    // `check` matrix, and audit evidence must not be hidden by a unit failure.
+    expect(normalizeNeeds(auditJob?.needs)).toEqual(['changes']);
+    expect(auditJob?.['timeout-minutes']).toBe(15);
+    expect(auditJob?.['runs-on']).toBe('ubuntu-latest');
+
+    const checkout = (auditJob?.steps ?? []).find((step) =>
+      step.uses?.startsWith('actions/checkout@')
+    );
+    expect(checkout?.uses).toBe('actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0');
+    expect(checkout?.with?.['fetch-depth']).toBe(2);
+
+    const setupNode = (auditJob?.steps ?? []).find(
+      (step) => step.uses === './.github/actions/setup-node-env'
+    );
+    expect(setupNode).toBeDefined();
+
+    const proofStep = (auditJob?.steps ?? []).find((step) =>
+      step.run?.includes('scripts/release/verify-surface-projection.mjs')
+    );
+    expect(proofStep?.env).toEqual({
+      CI: 'true',
+      NODE_OPTIONS: '--max-old-space-size=4096',
+      TZ: 'UTC',
+    });
+    expect(proofStep?.run?.trim()).toBe(
+      [
+        'set -euo pipefail',
+        'node_modules/.bin/tsx scripts/release/verify-surface-projection.mjs \\',
+        '  --proof pr \\',
+        '  --expected-sha "$GITHUB_SHA" \\',
+        '  --output-root "$RUNNER_TEMP/surface-projection"',
+      ].join('\n')
+    );
+
+    // Task 8 review finding (binding): validateMatrix dynamically imports
+    // extensionless .ts registry modules, which only resolve under tsx's
+    // loader hooks. Plain `node` runs real work then crashes with
+    // ERR_MODULE_NOT_FOUND once execution reaches validateMatrix, and
+    // `npx tsx` adds a network/registry-resolution dependency this lane
+    // must not have. The lane must invoke the local tsx binary directly.
+    expect(proofStep?.run).not.toContain('npx tsx');
+    expect(proofStep?.run).not.toContain('node scripts/release/verify-surface-projection.mjs');
+  });
+
+  it('gates surface-projection-audit on the broad heavy_ci_relevant filter, not a narrower KG-specific one', { retry: 0 }, async () => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const auditJob = workflow.jobs?.['surface-projection-audit'];
+    expect(auditJob?.if?.trim()).toBe(
+      "needs.changes.outputs.heavy_ci_relevant == 'true' ||\ngithub.event.inputs.run_full_suite == 'true'"
+    );
+
+    const pathFilters = await readFile(
+      path.join(process.cwd(), '.github', 'path-filters.yml'),
+      'utf8'
+    );
+    expect(pathFilters).not.toMatch(
+      /^\s*(kg|knowledge[_-]?graph|surface[_-]?projection|surface[_-]?matrix)\w*:/im
+    );
+  });
+
+  it('wires surface-projection-audit into the gate needs list, status expression, summary, and PR comment', { retry: 0 }, async () => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const gateNeeds = normalizeNeeds(workflow.jobs?.gate?.needs);
+    expect(gateNeeds).toContain('surface-projection-audit');
+
+    const determineGateStatus = (workflow.jobs?.gate?.steps ?? []).find(
+      (step) => step.name === 'Determine gate status'
+    );
+    expect(determineGateStatus?.run).toContain(
+      'audit_result="${{ needs.surface-projection-audit.result }}"'
+    );
+    expect(determineGateStatus?.run).toContain(
+      'audit_expected="${{ github.event.inputs.run_full_suite == \'true\' || needs.changes.outputs.heavy_ci_relevant == \'true\' }}"'
+    );
+    expect(determineGateStatus?.run).toContain(
+      'require_result "Surface projection audit" "$audit_result" "$audit_expected"'
+    );
+    expect(determineGateStatus?.run).toContain(
+      '| surface-projection-audit | $audit_result | $audit_expected |'
+    );
+
+    const commentPrStatus = (workflow.jobs?.gate?.steps ?? []).find(
+      (step) => step.name === 'Comment PR status'
+    );
+    const commentScript =
+      typeof commentPrStatus?.with?.script === 'string' ? commentPrStatus.with.script : '';
+    expect(commentScript).toContain(
+      '| Surface projection audit | ${{ needs.surface-projection-audit.result }} |'
+    );
+  });
+
+  it.each([
+    [true, 'success', 'passed'],
+    [true, 'failure', 'failed'],
+    [true, 'cancelled', 'failed'],
+    [true, 'skipped', 'failed'],
+    [false, 'skipped', 'passed'],
+    [false, 'success', 'failed'],
+    [false, 'failure', 'failed'],
+    [false, 'cancelled', 'failed'],
+  ] as const)(
+    'gates on surface-projection-audit (expected=%s, result=%s)',
+    { retry: 0 },
+    async (auditExpected, auditResult, expected) => {
+      await expect(
+        evaluateCiGateStatus({
+          labelPresent: false,
+          planApprovalResult: 'skipped',
+          auditExpected,
+          auditResult,
+        })
+      ).resolves.toBe(expected);
+    }
+  );
 
   it('keeps the gate authority step blocking under all circumstances', async () => {
     const workflow = await readWorkflow('ci-unified.yml');

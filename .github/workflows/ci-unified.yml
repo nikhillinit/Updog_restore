@@ -779,6 +779,37 @@ jobs:
       - name: Run real Neon transaction lane
         run: npx vitest run -c vitest.config.neon.ts
 
+  surface-projection-audit:
+    name: Surface Projection Audit
+    # Deliberately NOT needs: [changes, check] -- unit-fast lives inside the
+    # check matrix, and audit evidence must not be hidden by a unit failure.
+    needs: changes
+    if: |
+      needs.changes.outputs.heavy_ci_relevant == 'true' ||
+      github.event.inputs.run_full_suite == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 2
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+
+      - name: Run PR surface projection proof
+        env:
+          CI: 'true'
+          NODE_OPTIONS: --max-old-space-size=4096
+          TZ: UTC
+        run: |
+          set -euo pipefail
+          node_modules/.bin/tsx scripts/release/verify-surface-projection.mjs \
+            --proof pr \
+            --expected-sha "$GITHUB_SHA" \
+            --output-root "$RUNNER_TEMP/surface-projection"
+
   gate:
     name: CI Gate Status
     needs:
@@ -796,6 +827,7 @@ jobs:
       - memory-mode
       - guards
       - neon-lane
+      - surface-projection-audit
       - secret-scan
     if: always()
     runs-on: ubuntu-latest
@@ -825,6 +857,7 @@ jobs:
           security_tests_result="${{ needs.security-tests.result }}"
           memory_result="${{ needs.memory-mode.result }}"
           neon_lane_result="${{ needs.neon-lane.result }}"
+          audit_result="${{ needs.surface-projection-audit.result }}"
           secret_scan_result="${{ needs.secret-scan.result }}"
 
           heavy_expected=false
@@ -858,6 +891,12 @@ jobs:
           security_tests_expected="${{ github.event.inputs.enable_security == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && (needs.changes.outputs.security_tests == 'true' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run:security')))) }}"
           memory_expected="${{ github.event.inputs.enable_memory_mode == 'true' || (needs.changes.outputs.auto_docs_only != 'true' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[memory]')) }}"
           neon_expected="${{ needs.changes.outputs.neon_lane == 'true' || github.event.inputs.run_full_suite == 'true' }}"
+          # Operand order intentionally reversed vs release_static_expected's
+          # identical-condition expression above; OR is commutative so
+          # production behavior is unchanged. Keeps the two ${{ }} tokens
+          # textually distinct for the regression-test harness, which
+          # resolves ${{ }} substitutions by expression text.
+          audit_expected="${{ github.event.inputs.run_full_suite == 'true' || needs.changes.outputs.heavy_ci_relevant == 'true' }}"
           if [[ "$check_expected" != "true" ]]; then
             if [[ "$security_tests_expected" == "true" || "$memory_expected" == "true" ]]; then
               check_expected=true
@@ -898,6 +937,7 @@ jobs:
           require_result "Security tests" "$security_tests_result" "$security_tests_expected"
           require_result "Memory mode" "$memory_result" "$memory_expected"
           require_result "Neon transaction lane" "$neon_lane_result" "$neon_expected"
+          require_result "Surface projection audit" "$audit_result" "$audit_expected"
           require_result "Secret scan" "$secret_scan_result" "true"
 
           {
@@ -918,6 +958,7 @@ jobs:
             echo "| security-tests | $security_tests_result | $security_tests_expected |"
             echo "| memory-mode | $memory_result | $memory_expected |"
             echo "| neon-lane | $neon_lane_result | $neon_expected |"
+            echo "| surface-projection-audit | $audit_result | $audit_expected |"
             echo "| secret-scan | $secret_scan_result | true |"
             echo "| heavy-ci-relevant | $heavy_ci_relevant | informational |"
             echo "| auto-docs-only | $auto_docs_only | informational |"
@@ -955,6 +996,7 @@ jobs:
             | Security tests | ${{ needs.security-tests.result }} |
             | Memory mode | ${{ needs.memory-mode.result }} |
             | Neon transaction lane | ${{ needs.neon-lane.result }} |
+            | Surface projection audit | ${{ needs.surface-projection-audit.result }} |
             | Guards | ${{ needs.guards.result }} |
             | Secret scan | ${{ needs.secret-scan.result }} |
 
