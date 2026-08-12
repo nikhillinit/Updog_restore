@@ -96,6 +96,66 @@ function baseInput() {
   };
 }
 
+// Richer fixture (Important finding fix): baseInput() alone has empty
+// edges/tests and no constructor_sites, so canonicalizeSetLikeArrays'
+// two sort branches (constructor_sites, source_sites) and the
+// edgesBytes/testsBytes serialization streams had zero determinism
+// coverage. Shapes below mirror reduceWorkerFindings' WorkerJob node
+// (constructor_sites/source_sites), structuralEdges' DEFINES edge, and
+// reduceTestProjection's TESTS edge exactly -- see those reducers/tests
+// above for the field shapes.
+function richInput() {
+  const input = baseInput();
+  input.nodes = [
+    ...input.nodes,
+    {
+      record: 'node', id: 'worker:q1', type: 'WorkerJob', name: 'q1', queue: 'q1',
+      source_path: 'a.ts', line_start: 2, line_end: 5,
+      constructor_sites: [
+        { constructor: 'Worker', kind: 'worker', source: 'identifier', path: 'b.ts', line: 5 },
+        { constructor: 'Queue', kind: 'queue', source: 'literal', path: 'a.ts', line: 2 },
+      ],
+      source_sites: ['b.ts:5', 'a.ts:2'],
+    },
+  ];
+  input.edges = [
+    {
+      record: 'edge', id: 'edge:DEFINES:api:GET /b->s.ts', type: 'DEFINES',
+      from: 'api:GET /b', to: 's.ts', source_path: 's.ts', line_start: 2,
+    },
+    {
+      record: 'edge', id: 'edge:DEFINES:api:GET /a->s.ts', type: 'DEFINES',
+      from: 'api:GET /a', to: 's.ts', source_path: 's.ts', line_start: 1,
+    },
+  ];
+  input.tests = [
+    {
+      record: 'edge', id: 'edge:TESTS:test:tests/unit/b.test.ts->file:s.ts', type: 'TESTS',
+      source_path: 'tests/unit/b.test.ts', to: 'file:s.ts', line_start: 2,
+    },
+    {
+      record: 'edge', id: 'edge:TESTS:test:tests/unit/a.test.ts->file:s.ts', type: 'TESTS',
+      source_path: 'tests/unit/a.test.ts', to: 'file:s.ts', line_start: 1,
+    },
+  ];
+  return input;
+}
+
+// Same records, every set-like collection in a different input order:
+// node/edge/test array order reversed, constructor_sites/source_sites
+// reversed. Exercises both canonicalizeSetLikeArrays sort branches by
+// forcing the pre-sort order to differ from the expected post-sort order.
+function permutedRichInput() {
+  const input = richInput();
+  input.nodes = [...input.nodes].reverse();
+  const worker = input.nodes.find((record) => record.type === 'WorkerJob');
+  worker.constructor_sites = [...worker.constructor_sites].reverse();
+  worker.source_sites = [...worker.source_sites].reverse();
+  input.edges = [...input.edges].reverse();
+  input.tests = [...input.tests].reverse();
+  return input;
+}
+
 async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, 'utf8'));
 }
@@ -1045,6 +1105,56 @@ describe('serializeRouteKnowledgeGraph (pure)', () => {
     const parsed = result.nodesBytes.toString('utf8').trim().split('\n').map(JSON.parse);
     expect(parsed).toEqual(result.nodes);
     expect(JSON.parse(result.manifestBytes.toString('utf8'))).toEqual(result.manifest);
+  });
+
+  it('is byte-identical across nodes/edges/tests when constructor_sites, source_sites, and record order are all permuted', { retry: 0 }, async () => {
+    const { serializeRouteKnowledgeGraph } = await requireGenerator();
+    const a = serializeRouteKnowledgeGraph(richInput());
+    const b = serializeRouteKnowledgeGraph(permutedRichInput());
+    expect(a.nodesBytes.equals(b.nodesBytes)).toBe(true);
+    expect(a.edgesBytes.equals(b.edgesBytes)).toBe(true);
+    expect(a.testsBytes.equals(b.testsBytes)).toBe(true);
+    expect(a.manifestBytes.equals(b.manifestBytes)).toBe(true);
+  });
+
+  it('round-trips nodes/edges/tests NDJSON streams with content preserved and canonical ordering', { retry: 0 }, async () => {
+    const { serializeRouteKnowledgeGraph } = await requireGenerator();
+    // richInput() (not permutedRichInput()) so this test's expectations are
+    // not satisfiable by input order alone -- constructor_sites/source_sites
+    // here are deliberately unsorted, and a 2-element reversal can otherwise
+    // coincidentally land in sorted order.
+    const result = serializeRouteKnowledgeGraph(richInput());
+    const parseNdjson = (bytes) => bytes.toString('utf8').trim().split('\n').map((line) => JSON.parse(line));
+
+    const parsedNodes = parseNdjson(result.nodesBytes);
+    const parsedEdges = parseNdjson(result.edgesBytes);
+    const parsedTests = parseNdjson(result.testsBytes);
+    expect(parsedNodes).toEqual(result.nodes);
+    expect(parsedEdges).toEqual(result.edges);
+    expect(parsedTests).toEqual(result.tests);
+
+    // canonicalizeRecords: sorted by id, ascending.
+    expect(parsedEdges.map((record) => record.id)).toEqual(
+      [...parsedEdges.map((record) => record.id)].sort((left, right) => left.localeCompare(right))
+    );
+    expect(parsedTests.map((record) => record.id)).toEqual(
+      [...parsedTests.map((record) => record.id)].sort((left, right) => left.localeCompare(right))
+    );
+
+    // canonicalizeSetLikeArrays: constructor_sites sorted by path, then
+    // line, then constructor; source_sites sorted lexically.
+    const worker = parsedNodes.find((record) => record.type === 'WorkerJob');
+    expect(worker.constructor_sites).toEqual([
+      { constructor: 'Queue', kind: 'queue', source: 'literal', path: 'a.ts', line: 2 },
+      { constructor: 'Worker', kind: 'worker', source: 'identifier', path: 'b.ts', line: 5 },
+    ]);
+    expect(worker.source_sites).toEqual(['a.ts:2', 'b.ts:5']);
+
+    // Content preserved: every record round-trips with its snapshot_id and
+    // no dropped/added fields.
+    expect(parsedNodes.every((record) => record.snapshot_id === result.manifest.snapshot_id)).toBe(true);
+    expect(parsedEdges.every((record) => record.snapshot_id === result.manifest.snapshot_id)).toBe(true);
+    expect(parsedTests.every((record) => record.snapshot_id === result.manifest.snapshot_id)).toBe(true);
   });
 });
 
