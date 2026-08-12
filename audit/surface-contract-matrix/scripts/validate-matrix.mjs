@@ -569,7 +569,7 @@ export function validateClosedPhaseInvariants({ document, requirements, families
   return errors;
 }
 
-export async function validateMatrix({ writeMetadata = true } = {}) {
+export async function validateMatrix({ writeMetadata = true, graphDir = kgDir } = {}) {
   const document = SurfaceMatrixDocumentSchema.parse(readJson(matrixFile));
   const inventory = SourceInventorySchema.parse(readJson(inventoryFile));
   const requirements = RequirementsDocumentSchema.parse(readJson(requirementsFile));
@@ -590,7 +590,7 @@ export async function validateMatrix({ writeMetadata = true } = {}) {
     errors,
   });
   await validateSourceHashes(inventory, errors);
-  const kg = await reconcileKnowledgeGraph(document, inventory);
+  const kg = await reconcileKnowledgeGraph(document, inventory, { graphDir });
   if (kg.missing.APIEndpoint.length || kg.missing.ClientRoute.length || kg.missing.WorkerJob.length) errors.push(`KG rows missing from matrix: ${JSON.stringify(kg.missing)}`);
   const schedulers = scanSchedulerRegistrations();
   if (schedulers.length !== document.rows.filter((row) => row.interface === 'scheduler').length) errors.push('scheduler registration count does not match scheduler rows');
@@ -635,17 +635,39 @@ export async function validateMatrix({ writeMetadata = true } = {}) {
   return { document: { ...document, validation }, inventory, validation, closure };
 }
 
+export function parseValidateMatrixArgs(argv) {
+  let writeMetadata = true;
+  let graphDir;
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument === '--no-write-metadata') {
+      writeMetadata = false;
+      continue;
+    }
+    if (argument === '--graph-dir') {
+      if (graphDir !== undefined) throw new Error(`duplicate argument: ${argument}`);
+      const value = argv[index + 1];
+      if (value === undefined) throw new Error(`Missing value for argument: ${argument}`);
+      if (!path.isAbsolute(value)) throw new Error(`--graph-dir must be an absolute path: ${value}`);
+      graphDir = value;
+      index += 1;
+      continue;
+    }
+    throw new Error(`Unknown argument: ${argument}`);
+  }
+  return { writeMetadata, ...(graphDir !== undefined ? { graphDir } : {}) };
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === thisFile) {
   const cliArguments = process.argv.slice(2);
-  for (const argument of cliArguments) {
-    if (argument !== '--no-write-metadata') throw new Error(`Unknown argument: ${argument}`);
-  }
   // --no-write-metadata: validation must not mutate the governed artifact it
   // validates. Used by release proof and the strict Step 10 projection proof,
   // where the checkout must stay byte-identical; the closure-time validation
   // keeps the write-back stamp.
-  const writeMetadata = !cliArguments.includes('--no-write-metadata');
-  validateMatrix({ writeMetadata }).then((result) => {
+  // --graph-dir <absolute-path>: override the knowledge-graph artifact
+  // directory read during reconciliation; defaults to audit/knowledge-graph/out.
+  const { writeMetadata, graphDir } = parseValidateMatrixArgs(cliArguments);
+  validateMatrix({ writeMetadata, ...(graphDir !== undefined ? { graphDir } : {}) }).then((result) => {
     const closure_counts = Object.fromEntries(Object.entries(result.closure.issues).map(([key, values]) => [key, values.length]));
     process.stdout.write(`${JSON.stringify({
       validation: result.validation,

@@ -24,6 +24,7 @@ import {
 import {
   closureReport,
   matchRequirementFamilies,
+  parseValidateMatrixArgs,
   validateClosedPhaseInvariants,
   validateOffRowFingerprints,
   validateRowIntegrity,
@@ -671,5 +672,13 @@ describe('surface contract matrix CI gate', () => {
         'runtime exclusion evidence path missing without absence declaration: legacy-railway-api-topology/railway.toml',
       ]);
     }
+  });
+
+  it('accepts absolute --graph-dir and rejects relative, duplicate, missing, unknown', { retry: 0 }, () => {
+    expect(parseValidateMatrixArgs(['--graph-dir', '/tmp/g'])).toMatchObject({ graphDir: '/tmp/g' });
+    expect(() => parseValidateMatrixArgs(['--graph-dir', 'rel/g'])).toThrow(/absolute/);
+    expect(() => parseValidateMatrixArgs(['--graph-dir', '/a', '--graph-dir', '/b'])).toThrow(/duplicate/);
+    expect(() => parseValidateMatrixArgs(['--graph-dir'])).toThrow(/value/);
+    expect(() => parseValidateMatrixArgs(['--bogus'])).toThrow(/unknown/i);
   });
 });
