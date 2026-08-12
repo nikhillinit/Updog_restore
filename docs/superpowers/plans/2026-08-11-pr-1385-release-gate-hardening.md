@@ -1120,6 +1120,16 @@ state this revision records:
   primary checkout, then proven); `ml-service-local` failed in the prior
   closed matrix as well (pre-existing environmental); `local-process` is
   intentionally unproven.
+- The generator additionally emits `tests.jsonl` — import-level `TESTS`
+  edges (tracked test file to imported source file, restricted to source
+  files that map to matrix rows) — because replacing the vendor knowledge
+  graph removed the only input `seed-matrix.mjs`'s `derivedTestEvidence`
+  consumed; without it every reseeded row loses derived test evidence and
+  the tracked-artifact CI gate fails closed. Step 4's "write exactly these
+  ignored files" output set is extended by this one file; determinism,
+  snapshot binding, source-location requirements, and output confinement
+  apply to it identically. Derived entries stay `assertion_confirmed:
+  false` — import-level evidence only, per the seed's existing contract.
 - Step 7 and Step 9 verification runs are captured as execution envelopes
   per the Skill Routing section; failed envelope attempts are retained as
   remediation evidence.
