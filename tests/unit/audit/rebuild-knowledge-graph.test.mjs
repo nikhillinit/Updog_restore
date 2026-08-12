@@ -379,17 +379,44 @@ describe('route knowledge-graph generator contract', () => {
     expect(source).toContain('audit/knowledge-graph/out');
   });
 
-  it('carries every projection manifest source hash into seeded inventory', () => {
+  it('carries every projection manifest source hash into seeded inventory except the inventory self-path', () => {
     const seeded = { 'existing-input.ts': 'existing-hash' };
     const manifest = {
       'client/src/app/app-routes.tsx': 'app-routes-hash',
       'future-generator-input.ts': 'future-input-hash',
+      'audit/surface-contract-matrix/source-inventory.json': 'pre-seed-self-hash',
     };
 
-    expect(mergeManifestSourceHashes(seeded, manifest)).toEqual({
-      ...seeded,
-      ...manifest,
+    const merged = mergeManifestSourceHashes(seeded, manifest);
+    expect(merged).toEqual({
+      'existing-input.ts': 'existing-hash',
+      'client/src/app/app-routes.tsx': 'app-routes-hash',
+      'future-generator-input.ts': 'future-input-hash',
     });
+    expect(merged).not.toHaveProperty([
+      'audit/surface-contract-matrix/source-inventory.json',
+    ]);
+  });
+
+  it('does not require the inventory self-path during manifest-inventory hash agreement', async () => {
+    const fixture = await createValidatorGitFixture();
+    try {
+      await updateValidatorManifest(fixture.outputDir, (manifest) => ({
+        ...manifest,
+        source_hashes: {
+          ...manifest.source_hashes,
+          'audit/surface-contract-matrix/source-inventory.json': 'pre-seed-self-hash',
+        },
+      }));
+      await expect(
+        reconcileKnowledgeGraph(fixture.document, fixture.inventory, {
+          rootDir: fixture.fixtureRoot,
+          graphDir: fixture.outputDir,
+        })
+      ).resolves.toMatchObject({ snapshot_id: fixture.snapshotId });
+    } finally {
+      await rm(fixture.parent, { recursive: true, force: true });
+    }
   });
 
   it('fails validation when a projection artifact is tampered after manifest write', async () => {

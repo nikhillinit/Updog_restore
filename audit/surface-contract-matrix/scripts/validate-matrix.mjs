@@ -230,6 +230,10 @@ const validateKnowledgeGraphIdentity = async ({ manifest, inventory, graphDir, r
   const manifestHashes = manifest.source_hashes ?? {};
   const inventoryHashes = inventory.source_hashes ?? {};
   for (const [sourcePath, expected] of Object.entries(manifestHashes)) {
+    // The inventory never records its own hash (seeding rewrites it after the
+    // projection hashed its pre-seed bytes); its integrity is covered by the
+    // matrix render hash and G1 review instead.
+    if (sourcePath === 'audit/surface-contract-matrix/source-inventory.json') continue;
     if (!Object.prototype.hasOwnProperty.call(inventoryHashes, sourcePath)) {
       errors.push(`KG manifest source hash missing from inventory: ${sourcePath}`);
     } else if (inventoryHashes[sourcePath] !== expected) {

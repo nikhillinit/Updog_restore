@@ -1711,10 +1711,16 @@ const fileMatches = (filePath, pattern) => {
 
 const isExcludedSource = (filePath) => TEST_OR_FIXTURE_SEGMENT.test(filePath) || TEST_OR_FIXTURE_SUFFIX.test(filePath);
 
-export const mergeManifestSourceHashes = (inventorySourceHashes = {}, manifestSourceHashes = {}) => ({
-  ...inventorySourceHashes,
-  ...manifestSourceHashes,
-});
+// The inventory cannot record a hash of itself: seeding rewrites
+// source-inventory.json after the projection hashed its pre-seed bytes, so a
+// merged self-entry is stale by construction and fails every rehash audit.
+export const INVENTORY_SELF_PATH = 'audit/surface-contract-matrix/source-inventory.json';
+
+export const mergeManifestSourceHashes = (inventorySourceHashes = {}, manifestSourceHashes = {}) => {
+  const merged = { ...inventorySourceHashes, ...manifestSourceHashes };
+  delete merged[INVENTORY_SELF_PATH];
+  return merged;
+};
 
 const sourceHashes = ({ nodes, snapshotId, manifestSourceHashes = {} }) => {
   const membership = new Map();
