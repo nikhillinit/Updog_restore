@@ -2,7 +2,6 @@
   {
     "id": "legacy-railway-api-topology",
     "fingerprint": "4411d2bf3e2bdf51d9db49af22f4a22ab4eceec33392cb3b9e085741c626b88b",
-    "contract_fingerprint": "4411d2bf3e2bdf51d9db49af22f4a22ab4eceec33392cb3b9e085741c626b88b",
     "decision_status": "approved",
     "decision_evidence": "ADR-080 source-derived legacy Railway topology exclusion. Independently reviewed against frozen source 71c956199823088ad895d6c602cb37b08863dc5a; exclusion approved for G1 topology only.",
     "matched_layer": "legacy-container-and-service-manifests",
@@ -11,12 +10,12 @@
       "Dockerfile.railway",
       "DECISIONS.md#ADR-080",
       "railway.toml absent: retired by ADR-080"
-    ]
+    ],
+    "contract_fingerprint": "4411d2bf3e2bdf51d9db49af22f4a22ab4eceec33392cb3b9e085741c626b88b"
   },
   {
     "id": "ml-service-local-production-topology",
     "fingerprint": "5e7b68b23a38cdb43e07055b1dda6e731024dc023a53152baf23e9ca7949d39f",
-    "contract_fingerprint": "5e7b68b23a38cdb43e07055b1dda6e731024dc023a53152baf23e9ca7949d39f",
     "decision_status": "approved",
     "decision_evidence": "ADR-075 source-derived local-only ML service exclusion; exact provider inventory remains an approval-time gate. Independently reviewed against frozen source 71c956199823088ad895d6c602cb37b08863dc5a; exclusion approved for G1 topology only.",
     "matched_layer": "ml-service-local",
@@ -29,6 +28,7 @@
       "railway.worker.toml",
       "railway.capital-call-status.worker.toml",
       "DECISIONS.md#ADR-075"
-    ]
+    ],
+    "contract_fingerprint": "5e7b68b23a38cdb43e07055b1dda6e731024dc023a53152baf23e9ca7949d39f"
   }
 ]

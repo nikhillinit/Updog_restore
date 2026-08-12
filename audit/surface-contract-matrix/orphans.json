@@ -1351,7 +1351,6 @@
   },
   {
     "id": "worker:error-tracking",
-    "resolution": "pruned",
     "vanished_row": {
       "id": "worker:error-tracking",
       "seam": "error-tracking",
@@ -1419,11 +1418,11 @@
         "destructive": "unknown"
       }
     },
-    "last_contract_fingerprint": "0bd00c0987256ee776c1ebb56f3126ec22f8879c0d38d3f9f8d9ee28e00abed7",
     "decision_status": "approved",
+    "resolution": "pruned",
     "resolution_evidence": "Current queue registry and worker sources contain no error-tracking producer or consumer; former catalog row is removed and retained only as an approved orphan record.",
-    "resolution_fingerprint": "f7242342c49cdcaea8d111723897bacf6a176833f38d4c67a0f51289c5e2af53",
-    "contract_fingerprint": "f7242342c49cdcaea8d111723897bacf6a176833f38d4c67a0f51289c5e2af53"
+    "resolution_fingerprint": "83500255408c3fd4fa98b587c37f1e71fc9ad0b62587a447e3ad2aeb70acbf48",
+    "contract_fingerprint": "83500255408c3fd4fa98b587c37f1e71fc9ad0b62587a447e3ad2aeb70acbf48"
   },
   {
     "id": "ws:setup-websocket-servers",
