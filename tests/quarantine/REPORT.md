@@ -6,10 +6,10 @@ Generated: 2026-07-02
 
 | Metric | Count |
 |--------|-------|
-| Total Quarantined | 34 |
-| Documented | 34 |
+| Total Quarantined | 32 |
+| Documented | 32 |
 | Undocumented | 0 |
-| Static describe.skip files | 11 |
+| Static describe.skip files | 9 |
 | Static skip threshold | 25 |
 | Static skip status | PASS |
 
@@ -48,8 +48,6 @@ The report generator and `skip-counter.yml` both read that same policy file.
 | `tests/unit/services/snapshot-service.test.ts` | @qa-team | Temporarily skipped pending stabilization triage. | Remove skip and re-enable once deterministic behavior or required test infrastructure is available. | 135 |
 | `tests/unit/services/performance-prediction.test.ts` | ml-analytics | Remaining gaps: (1) seasonality detection needs Fourier/autocorrelation, (2) model accuracy far below threshold | Implement Fourier-based seasonality, tune prediction models to meet accuracy thresholds | 135 |
 | `tests/unit/services/lot-service.test.ts` | lot-service | Database UPSERT logic not yet implemented (deferred to Phase 4) | Implement idempotent lot creation with database UPSERT in LotService | 135 |
-| `tests/unit/performance/watch-debounce.test.tsx` | @qa-team | Perf harness currently uses stale sector fixture shape and non-deterministic timing assumptions. | Update fixtures to current sector schema and recalibrate debounce thresholds with fake timers. | 135 |
-| `tests/unit/pages/portfolio-constructor.test.tsx` | @qa-team | Temporarily skipped pending stabilization triage. | Remove skip and re-enable once deterministic behavior or required test infrastructure is available. | 135 |
 | `tests/unit/engines/phase2-calibration-output.quarantine.test.ts` | phoenix-team | Output envelope checks depend on MC fixture unlock (Workstream B) | All output checks pass consistently across 5 consecutive runs | 130 |
 | `tests/unit/engines/deterministic-reserve-engine.test.ts` | reserves-engine | (1) Performance test timing out or exceeding threshold, (2) metadata output structure doesn't match test expectations | Optimize engine perf to meet time limit; align metadata output schema with test assertions | 135 |
 | `tests/unit/engines/cohort-engine.test.ts` | fund-modeling | (1) Valuation generation produces unrealistic MOIC/stage distributions, (2) avgMultiple test passes in isolation but fails under full suite (shared state) | Fix generateCompanyValuations() for realistic values; fix test isolation for avgMultiple comparison | 135 |
