@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { access, mkdtemp, open, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, open, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -29,6 +29,7 @@ type WorkflowJob = {
   if?: string;
   needs?: string | string[];
   outputs?: Record<string, unknown>;
+  permissions?: Record<string, unknown>;
   ['runs-on']?: string | string[];
   steps?: WorkflowStep[];
   uses?: string;
@@ -2281,6 +2282,7 @@ function compileReleaseIdentityMatcher(
 // authority-vs-reporting classification below.
 const GATE_FEEDING_JOBS = [
   'changes',
+  'plan-approval',
   'docs-link-check',
   'check',
   'test-affected',
@@ -2295,6 +2297,72 @@ const GATE_FEEDING_JOBS = [
   'neon-lane',
   'secret-scan',
 ];
+
+type GateEvaluatorScenario = {
+  labelPresent: boolean;
+  planApprovalResult: string;
+};
+
+function interpolateGateExpression(
+  expression: string,
+  scenario: GateEvaluatorScenario
+): string {
+  const normalized = expression.trim();
+
+  if (normalized === 'needs.plan-approval.result') return scenario.planApprovalResult;
+  if (
+    normalized ===
+    "github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'requires-plan-approval')"
+  ) {
+    return scenario.labelPresent ? 'true' : 'false';
+  }
+  if (normalized === "github.event_name == 'pull_request'") return 'true';
+  if (normalized === 'github.event_name') return 'pull_request';
+  if (normalized === 'github.ref') return 'refs/heads/feature';
+  if (normalized === 'needs.changes.result') return 'success';
+  if (normalized === 'needs.guards.result') return 'success';
+  if (normalized === 'needs.secret-scan.result') return 'success';
+  if (normalized.endsWith('.result')) return 'skipped';
+  return 'false';
+}
+
+async function evaluateCiGateStatus(
+  scenario: GateEvaluatorScenario
+): Promise<'passed' | 'failed'> {
+  const workflow = await readWorkflow('ci-unified.yml');
+  const determineGateStatus = (workflow.jobs?.gate?.steps ?? []).find(
+    (step) => step.name === 'Determine gate status'
+  );
+  if (!determineGateStatus?.run) throw new Error('CI Gate Status evaluator not found');
+
+  const evaluator = determineGateStatus.run.replace(
+    /\$\{\{([\s\S]*?)\}\}/g,
+    (_match, expression: string) => interpolateGateExpression(expression, scenario)
+  );
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'updog-ci-gate-'));
+  const evaluatorPath = path.join(tempDir, 'evaluate-gate.sh');
+  const summaryPath = path.join(tempDir, 'summary.md');
+  const outputPath = path.join(tempDir, 'output');
+  await writeFile(evaluatorPath, `#!/usr/bin/env bash\n${evaluator}`, { mode: 0o755 });
+
+  try {
+    await execFileAsync('bash', ['--noprofile', '--norc', evaluatorPath], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        GITHUB_OUTPUT: outputPath,
+        GITHUB_STEP_SUMMARY: summaryPath,
+      },
+      encoding: 'utf8',
+      maxBuffer: 2 * 1024 * 1024,
+    });
+    return 'passed';
+  } catch {
+    return 'failed';
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
 
 describe('required CI fails closed', () => {
   it.each([
@@ -3719,6 +3787,49 @@ describe('required CI fails closed', () => {
     expect(fullScripts).not.toContain('--reuse-ci-gates');
   });
 
+  it('keeps generated knowledge-graph output and stale review residue untracked', async () => {
+    const { stdout } = await execFileAsync('git', ['ls-files', 'audit/knowledge-graph/out'], {
+      cwd: process.cwd(),
+    });
+    expect(stdout.trim()).toBe('');
+    await expect(
+      access(path.join(process.cwd(), 'audit/knowledge-graph/out/manifest.json'))
+    ).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(
+      access(path.join(process.cwd(), 'docs/3-code-review/CR_w2_v1.6.0-child-f-batch6-residue.md'))
+    ).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('requires release proof to rebuild and clean route projection before matrix validation', async () => {
+    const proofWorkflow = await readWorkflow('release-proof.yml');
+    const proofScripts = allRunScripts(proofWorkflow).join('\n');
+    const rebuild = 'npx tsx audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs';
+    const validate = 'npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs';
+    expect(proofScripts).toContain(rebuild);
+    expect(proofScripts).toContain('--mode release');
+    expect(proofScripts).toContain('--expected-sha "$CANDIDATE_SHA"');
+    expect(proofScripts.indexOf(rebuild)).toBeLessThan(proofScripts.indexOf(validate));
+    expect(proofScripts).toContain('m.repo_head !== process.env.CANDIDATE_SHA');
+    expect(proofScripts).toContain('cleanup_kg()');
+    expect(proofScripts).toContain('trap cleanup_kg EXIT HUP INT TERM');
+    expect(proofScripts).toContain('rm -rf audit/knowledge-graph/out');
+  });
+
+  it('never uploads generated knowledge-graph output or route projection artifacts', async () => {
+    const workflowNames = (await readdir(workflowsDir)).filter((name) => /\.ya?ml$/.test(name));
+    for (const workflowName of workflowNames) {
+      const workflow = await readWorkflow(workflowName);
+      for (const job of Object.values(workflow.jobs ?? {})) {
+        for (const step of job.steps ?? []) {
+          if (!step.uses?.startsWith('actions/upload-artifact@')) continue;
+          expect(JSON.stringify(step)).not.toMatch(
+            /audit\/knowledge-graph\/out|nodes-routes\.jsonl|edges-routes\.jsonl|route projection/i
+          );
+        }
+      }
+    }
+  });
+
   it('keeps the plan-approval verifier CLI fail-closed before required-CI wiring', async () => {
     const verifierPath = path.join(process.cwd(), 'scripts', 'release', 'verify-plan-approval.mjs');
     await expect(access(verifierPath)).resolves.toBeUndefined();
@@ -4434,6 +4545,80 @@ describe('required CI fails closed', () => {
   });
 
   // --- Retro follow-up: authority-vs-reporting boundary enumeration ----------
+
+  it('pins label-transition pull request triggers for required approval', async () => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const pullRequest = (workflow.on?.pull_request ?? {}) as { types?: unknown };
+    expect(pullRequest.types).toEqual(['opened', 'synchronize', 'reopened', 'labeled', 'unlabeled']);
+  });
+
+  it('defines plan approval as a fail-closed, label-gated verifier job', async () => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const planApproval = workflow.jobs?.['plan-approval'];
+    expect(planApproval).toBeDefined();
+    expect(planApproval?.if).toBe(
+      "github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'requires-plan-approval')"
+    );
+    expect(planApproval?.permissions).toEqual({
+      actions: 'read',
+      checks: 'read',
+      contents: 'read',
+      issues: 'read',
+      'pull-requests': 'read',
+    });
+
+    const checkout = (planApproval?.steps ?? []).find((step) =>
+      step.uses?.startsWith('actions/checkout@')
+    );
+    expect(checkout?.with?.['fetch-depth']).toBe(0);
+
+    const verifier = (planApproval?.steps ?? []).find((step) =>
+      step.run?.includes('scripts/release/verify-plan-approval.mjs')
+    );
+    expect(verifier?.run?.trim()).toBe(
+      [
+        'node scripts/release/verify-plan-approval.mjs \\',
+        '  --repo "$GITHUB_REPOSITORY" \\',
+        '  --pr "${{ github.event.pull_request.number }}" \\',
+        '  --plan-path docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md \\',
+        '  --approver-login nikhillinit',
+      ].join('\n')
+    );
+    expect(verifier?.env).toEqual({ GH_TOKEN: '${{ github.token }}' });
+    expect(planApproval?.steps ?? []).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ 'continue-on-error': true })])
+    );
+    expect(verifier?.run).not.toMatch(/grep|cut|awk|sed/);
+  });
+
+  it.each([
+    ['failed approval', 'failure'],
+    ['missing approval', 'failure'],
+    ['edited approval', 'failure'],
+    ['descendant-invalid approval', 'failure'],
+  ])('fails required gate for %s', async (_caseName, planApprovalResult) => {
+    await expect(
+      evaluateCiGateStatus({ labelPresent: true, planApprovalResult })
+    ).resolves.toBe('failed');
+  });
+
+  it.each([
+    [true, 'success', 'passed'],
+    [true, 'failure', 'failed'],
+    [true, 'cancelled', 'failed'],
+    [true, 'skipped', 'failed'],
+    [false, 'skipped', 'passed'],
+    [false, 'success', 'failed'],
+    [false, 'failure', 'failed'],
+    [false, 'cancelled', 'failed'],
+  ] as const)(
+    'accepts only the label-aware plan approval result (%s, %s)',
+    async (labelPresent, planApprovalResult, expected) => {
+      await expect(evaluateCiGateStatus({ labelPresent, planApprovalResult })).resolves.toBe(
+        expected
+      );
+    }
+  );
 
   it('pins the CI Gate Status input surface so new feeders are classified', async () => {
     const workflow = await readWorkflow('ci-unified.yml');

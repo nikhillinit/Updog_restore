@@ -51,10 +51,8 @@ audit/*
 !audit/surface-contract-matrix/**
 !audit/knowledge-graph/
 audit/knowledge-graph/*
-!audit/knowledge-graph/out/
-audit/knowledge-graph/out/*
-!audit/knowledge-graph/out/manifest.json
-!audit/knowledge-graph/out/nodes-routes.jsonl
+!audit/knowledge-graph/scripts/
+!audit/knowledge-graph/scripts/**
 
 # Runtime data
 pids

@@ -3,6 +3,7 @@ name: CI Unified
 on:
   pull_request:
     branches: [main, develop]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   push:
     branches: [main]
   workflow_dispatch:
@@ -66,6 +67,33 @@ jobs:
         uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
         with:
           filters: .github/path-filters.yml
+
+  plan-approval:
+    name: Plan Approval
+    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'requires-plan-approval')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      checks: read
+      issues: read
+      pull-requests: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Verify release plan approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/release/verify-plan-approval.mjs \
+            --repo "$GITHUB_REPOSITORY" \
+            --pr "${{ github.event.pull_request.number }}" \
+            --plan-path docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md \
+            --approver-login nikhillinit
 
   docs-link-check:
     name: Documentation Links
@@ -755,6 +783,7 @@ jobs:
     name: CI Gate Status
     needs:
       - changes
+      - plan-approval
       - docs-link-check
       - check
       - test-affected
@@ -777,6 +806,8 @@ jobs:
           fail=0
 
           changes_result="${{ needs.changes.result }}"
+          plan_approval_result="${{ needs.plan-approval.result }}"
+          plan_approval_required="${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'requires-plan-approval') }}"
           auto_docs_only="${{ needs.changes.outputs.auto_docs_only }}"
           heavy_ci_relevant="${{ needs.changes.outputs.heavy_ci_relevant }}"
           run_full_suite="${{ github.event.inputs.run_full_suite }}"
@@ -853,6 +884,7 @@ jobs:
           }
 
           require_result "Documentation links" "$docs_link_result" "$docs_link_expected"
+          require_result "Plan approval" "$plan_approval_result" "$plan_approval_required"
           require_result "Check" "$check_result" "$check_expected"
           require_result "Test" "$test_result" "$test_expected"
           if [[ "$is_pr" == "true" && "$run_full_suite" != "true" ]]; then
@@ -874,6 +906,7 @@ jobs:
             echo "| Job | Result | Expected |"
             echo "| --- | --- | --- |"
             echo "| documentation-links | $docs_link_result | $docs_link_expected |"
+            echo "| plan-approval | $plan_approval_result | $plan_approval_required |"
             echo "| check | $check_result | $check_expected |"
             echo "| tests | $test_result | $test_expected |"
             echo "| tests-full (schema gate) | ${{ needs.test-full.result }} | $schema_changed |"
@@ -911,6 +944,7 @@ jobs:
             | Job | Result |
             | --- | --- |
             | Documentation links | ${{ needs.docs-link-check.result }} |
+            | Plan approval | ${{ needs.plan-approval.result }} |
             | Check | ${{ needs.check.result }} |
             | Affected tests | ${{ needs.test-affected.result }} |
             | Full tests | ${{ needs.test-full.result }} |

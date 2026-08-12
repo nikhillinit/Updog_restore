@@ -97,6 +97,14 @@ jobs:
           set -euo pipefail
           npm run verify:node-parity
           npm run phoenix:truth
+          cleanup_kg() {
+            rm -rf audit/knowledge-graph/out
+          }
+          trap cleanup_kg EXIT HUP INT TERM
+          npx tsx audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs \
+            --mode release \
+            --expected-sha "$CANDIDATE_SHA"
+          node -e 'const m=require("./audit/knowledge-graph/out/manifest.json"); if (!m.fresh_for_checkout || !m.valid_for_release_proof || m.repo_head !== process.env.CANDIDATE_SHA) process.exit(1)'
           npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs
           npm run release:check
 

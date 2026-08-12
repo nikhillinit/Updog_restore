@@ -67,8 +67,9 @@ quarantined queues stay off Railway.
 ## Exact regeneration commands
 
 Run from repository root, in this order, after tracked source changes. The
-regeneration chain starts with `--fresh`: it discards row/off-row human review
-state before rebuilding source-derived artifacts.
+regeneration chain uses `--fresh` before rebuilding source-derived artifacts.
+`--fresh` requires the full independent G1 review plus owner closure in Step 9;
+it is never a mechanical reset-and-carry operation.
 
 ```sh
 set -eu
@@ -76,8 +77,8 @@ set -eu
 npm install
 npm ls
 npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --fresh --review-file audit/surface-contract-matrix/g1-review.json
-node audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs
-node audit/surface-contract-matrix/scripts/boot-proof.mjs
+npx tsx audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs --mode seed --expected-sha <committed-source-sha>
+npx tsx audit/surface-contract-matrix/scripts/boot-proof.mjs
 SEED_SNAPSHOT="$(mktemp -d)"
 cleanup() {
   rm -rf "$SEED_SNAPSHOT"
@@ -98,6 +99,11 @@ npx tsx audit/surface-contract-matrix/scripts/classify-pass.mjs
 npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs
 npx tsx audit/surface-contract-matrix/scripts/render-matrix.mjs
 ```
+
+Release proof rebuilds the ignored route projection in strict `release` mode
+at the exact candidate SHA immediately before matrix validation. Strict mode
+rejects dirty projection inputs, SHA drift, source-inspection failures, and
+count drift; it does not reuse a carried-forward snapshot.
 
 The two seed runs must produce byte-identical artifacts. Preserve the first
 run's output files in a temporary directory and compare them with the second run
