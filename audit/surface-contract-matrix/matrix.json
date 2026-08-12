@@ -101788,7 +101788,7 @@
       "audit/surface-contract-matrix/scripts/inspect-runtime.mjs": "fa5ff8da3dca79d44de6c1985a6bb4c6839b8ca26cdee28c61be0c04d9eaf9d5",
       "audit/surface-contract-matrix/scripts/render-matrix.mjs": "8eb22f884914ba8acd4a45d0da8a36c0dd46adff610fa582e0df42029dc90a7c",
       "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "97df54b88567b1bdf3cb5354f3b347ef3d574743c771e426afac9bebfdf01f7e",
-      "audit/surface-contract-matrix/scripts/validate-matrix.mjs": "013b9119d077b706435c297247ecb4ca2fc07bcb14e707778a0277dd6b8cbcf3",
+      "audit/surface-contract-matrix/scripts/validate-matrix.mjs": "2c8f7db41a6d63d8dd480136ee49b0e25352e0d4bb372a1c4d472efff6bd8c09",
       "client/index.html": "0df45382b3b9f6728fa9ed66b432cac741eae938f4c360c9a9036f1ab3c922df",
       "client/src/App.tsx": "f20dc82c2e4ee45e7886f72b02ed4ed2d80953e21869e1dbba4b4223322a911b",
       "client/src/app/app-router.tsx": "365f5db9d9c824a7531351047ace1c56c70656b97e635498c90ea67c880dcf11",
