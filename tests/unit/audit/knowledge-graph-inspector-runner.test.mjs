@@ -83,4 +83,14 @@ describe('runInspectorProfiles', () => {
     expect(settled).toBe(true);
     expect(events.at(-1)).toMatchObject({ active_children: 0 });
   });
+
+  it('rejects a non-positive concurrency instead of silently no-oping', { retry: 0 }, async () => {
+    const spawnProfile = () => Promise.resolve({ profile: 'never-called' });
+    await expect(runInspectorProfiles({
+      profiles: ['a', 'b'],
+      concurrency: 0,
+      spawnProfile,
+      log: () => {},
+    })).rejects.toThrow(/concurrency/i);
+  });
 });

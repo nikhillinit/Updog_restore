@@ -33,6 +33,13 @@
  * @param {number} [options.concurrency] - Max profiles running concurrently.
  * @param {(profile: string, ctx: { signal: AbortSignal }) => Promise<unknown>} options.spawnProfile
  *   Resolves a profile's runtime-inspection document; rejects on failure.
+ *   PRECONDITION: once `signal` fires `abort`, the returned promise MUST
+ *   settle (resolve or reject — either is fine, this runner swallows any
+ *   post-abort rejection) within a bounded time. The runner's own
+ *   completion is gated on that settlement (see "Guarantees" above), so a
+ *   `spawnProfile` that hangs after abort — e.g. a child-process wrapper
+ *   whose SIGKILL escalation never actually reaps the child — defeats the
+ *   hard lifecycle bounds this module exists to provide.
  * @param {number} [options.perProfileTimeoutMs] - Hard bound per profile.
  * @param {number} [options.aggregateTimeoutMs] - Hard bound across the run.
  * @param {(event: object) => void} [options.log] - NDJSON event sink; caller owns stderr.
@@ -46,6 +53,15 @@ export async function runInspectorProfiles({
   aggregateTimeoutMs = 330_000,
   log = () => {},
 }) {
+  if (!(Number.isFinite(concurrency) && concurrency > 0)) {
+    // Silently no-op-succeeding with an all-holes results array (the prior
+    // behavior for concurrency <= 0: workerCount clamps to 0, no worker ever
+    // claims an index) would look like a clean run of zero profiles
+    // regardless of `profiles.length` -- the opposite of "hard lifecycle
+    // bounds." Fail loudly instead.
+    throw new RangeError(`runInspectorProfiles: concurrency must be a positive number (got ${concurrency})`);
+  }
+
   const runStartedAt = Date.now();
   const results = new Array(profiles.length);
   const controller = new globalThis.AbortController();
@@ -115,11 +131,15 @@ export async function runInspectorProfiles({
     } catch (error) {
       fail(error);
       // `spawned` may still be in flight when the timeout wins the race
-      // (or a sibling's failure aborts us first). fail() above has already
-      // aborted the shared signal, which is what drives the production
-      // spawnProfile wrapper's own settlement (SIGTERM -> wait -> SIGKILL ->
-      // wait). Wait for that settlement here so active_children never
-      // under-reports a still-live child.
+      // (or a sibling's failure aborts us first). `activeChildren` itself is
+      // always accurate — it's a synchronous Set read. The real risk is
+      // runProfile (and therefore the whole run) completing and emitting its
+      // final summary while this sibling is still live: fail() above has
+      // already aborted the shared signal, which is what drives the
+      // production spawnProfile wrapper's own settlement (SIGTERM -> wait ->
+      // SIGKILL -> wait). Wait for that settlement here so the run cannot
+      // finish — and report active_children: 0 — before every child is
+      // actually gone.
       await spawned.catch(() => {});
       emit({
         event: 'profile_error',
