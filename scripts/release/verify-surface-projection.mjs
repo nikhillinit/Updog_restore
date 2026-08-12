@@ -339,7 +339,15 @@ export async function runVerifier(options, seams = {}) {
 
   const buildDirs = [];
   const cleanup = async () => {
-    await Promise.all(buildDirs.map((dir) => rm(dir, { recursive: true, force: true })));
+    // maxRetries/retryDelay: defense-in-depth against a transient
+    // ENOTEMPTY/EBUSY (e.g. a filesystem watcher or antivirus scanner
+    // briefly touching a just-written file) -- not a substitute for
+    // ordering. Cleanup is only ever invoked (via terminateThenCleanup,
+    // below, and in this function's own caller's `finally`) once the
+    // relevant write is known-settled, so this should rarely fire; it
+    // exists to absorb genuinely transient OS-level contention, not to
+    // paper over an ordering bug.
+    await Promise.all(buildDirs.map((dir) => rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 })));
   };
   const terminateThenCleanup = async () => {
     await terminate(activeChildRef);

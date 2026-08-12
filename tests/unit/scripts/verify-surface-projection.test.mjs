@@ -6,7 +6,6 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { setTimeout as sleep } from 'node:timers/promises';
 import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -420,8 +419,19 @@ describe('cleanup', () => {
       return () => {};
     };
     let releaseSpawn;
+    // Root cause of a prior CI flake (ENOTEMPTY on rm(recursive) on Linux):
+    // writeCannedBuild's mkdir + four sequential writeFile calls are not
+    // atomic, so polling fsSync.existsSync(build-1) only proves the
+    // directory was created, not that every file landed -- cleanup's
+    // rm(recursive) could then race a still-in-flight writeFile, observing
+    // a new directory entry mid-sweep. writeSettled is a deterministic
+    // signal resolved only once writeCannedBuild has fully returned, so the
+    // test never triggers cleanup while a write is still in flight.
+    let resolveWriteSettled;
+    const writeSettled = new Promise((resolve) => { resolveWriteSettled = resolve; });
     const hangingSpawnBuild = async ({ outputDir }) => {
       await writeCannedBuild(outputDir, { fixture: richFixtureInput(head) });
+      resolveWriteSettled();
       await new Promise((resolve) => { releaseSpawn = resolve; });
     };
 
@@ -433,9 +443,7 @@ describe('cleanup', () => {
     // onSignal is registered synchronously before any await inside
     // runVerifier, so it is already captured once runVerifier() returns.
     expect(registeredCleanups).toHaveLength(1);
-    for (let attempt = 0; attempt < 50 && !fsSync.existsSync(path.join(root, 'build-1')); attempt += 1) {
-      await sleep(5);
-    }
+    await writeSettled;
     expect(fsSync.existsSync(path.join(root, 'build-1'))).toBe(true);
 
     await registeredCleanups[0]();
@@ -473,9 +481,15 @@ describe('cleanup', () => {
     fakeChild.kill = () => { throw new Error('child.kill() must not be called directly when a killImpl seam is provided'); };
 
     let releaseSpawn;
+    // Same deterministic-settlement fix as the test above: don't infer
+    // "write finished" from directory existence (mkdir precedes the actual
+    // file writes and races cleanup's rm(recursive) on Linux).
+    let resolveWriteSettled;
+    const writeSettled = new Promise((resolve) => { resolveWriteSettled = resolve; });
     const spawnBuild = async ({ outputDir, registerChild }) => {
       registerChild?.(fakeChild);
       await writeCannedBuild(outputDir, { fixture: richFixtureInput(head) });
+      resolveWriteSettled();
       await new Promise((resolve) => { releaseSpawn = resolve; });
     };
 
@@ -500,9 +514,7 @@ describe('cleanup', () => {
     ).catch(() => {});
 
     expect(registeredCleanups).toHaveLength(1);
-    for (let attempt = 0; attempt < 50 && !fsSync.existsSync(path.join(root, 'build-1')); attempt += 1) {
-      await sleep(5);
-    }
+    await writeSettled;
     expect(fsSync.existsSync(path.join(root, 'build-1'))).toBe(true);
 
     const terminatePromise = registeredCleanups[0]();
