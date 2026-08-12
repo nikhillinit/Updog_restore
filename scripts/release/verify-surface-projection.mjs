@@ -165,6 +165,20 @@ async function defaultExec(repoRoot, args) {
  * production callers that omit it) is invoked with the live child on spawn
  * and with `null` once it exits, so a signal arriving mid-build can find and
  * terminate it -- see `terminateActiveChild`.
+ *
+ * `detached: true` (POSIX-only semantics; CI runs Linux, dev runs macOS) --
+ * this makes the generator the leader of its own process group instead of
+ * inheriting this process's group. The generator itself fans out up to
+ * INSPECTOR_PROFILES.length runtime-inspector children (see
+ * `runInspectorProfiles`/`spawnInspectorProfile` in rebuild-knowledge-graph.mjs)
+ * that are never registered here and are invisible to this verifier -- they
+ * are spawned without `detached`, so they inherit the generator's (now
+ * distinct) process group. Making the generator its own group leader is what
+ * lets `terminateActiveChild` reach that whole subtree with one group-signal
+ * instead of only the generator's own PID, which would otherwise orphan any
+ * inspector child still writing when a signal arrives. `detached: true` does
+ * not change await/exit semantics -- this promise still resolves/rejects on
+ * the generator's own 'exit' event, and the child is never `unref()`'d.
  */
 async function defaultSpawnBuild({ mode, expectedSha, outputDir, repoRoot, registerChild }) {
   const tsxBin = resolveTsxBin(repoRoot);
@@ -173,7 +187,7 @@ async function defaultSpawnBuild({ mode, expectedSha, outputDir, repoRoot, regis
     const child = spawn(
       tsxBin,
       [generatorPath, '--mode', mode, '--expected-sha', expectedSha, '--output-dir', outputDir],
-      { cwd: repoRoot, stdio: ['ignore', 'inherit', 'inherit'] },
+      { cwd: repoRoot, stdio: ['ignore', 'inherit', 'inherit'], detached: true },
     );
     registerChild?.(child);
     child.on('error', (error) => { registerChild?.(null); reject(error); });
@@ -194,19 +208,48 @@ const CHILD_SIGTERM_GRACE_MS = 2_000;
 const CHILD_SIGKILL_GRACE_MS = 2_000;
 
 /**
+ * Signals the tracked child's entire process group (`-child.pid`) rather
+ * than just the child's own PID, so any of its own un-`detached` descendants
+ * (the generator's runtime-inspector children) are reached by the same
+ * signal instead of being orphaned. Falls back to signaling the child's PID
+ * directly when the group-kill fails with ESRCH (the group is already gone,
+ * or -- defensively -- the child was never actually a group leader); any
+ * other error from the group kill propagates, since that is not a
+ * known-safe-to-ignore condition. `processKill` is an injection seam for
+ * tests only (default: the real `process.kill`, bound so `this` is correct).
+ */
+export function defaultKillImpl(child, signal, { processKill = process.kill.bind(process) } = {}) {
+  const pid = child.pid;
+  if (typeof pid === 'number') {
+    try {
+      processKill(-pid, signal);
+      return;
+    } catch (error) {
+      if (error?.code !== 'ESRCH') throw error;
+      // Process group already gone -- fall through to a direct per-PID kill.
+    }
+  }
+  try { child.kill(signal); } catch { /* already exited */ }
+}
+
+/**
  * Terminates the currently-tracked active generator child (if any) before
  * signal-triggered cleanup is allowed to proceed: SIGTERM -> wait
  * `sigtermGraceMs` -> SIGKILL -> wait `sigkillGraceMs`, then resolves
  * regardless of whether the child ever actually reaped (bounded settlement
  * -- an unreapable child must never hang process exit). Mirrors the
  * escalation pattern in `spawnInspectorProfile`
- * (audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs). No-op when no
- * build is currently in flight (`activeChildRef.child` is null) or the
- * tracked child has already exited.
+ * (audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs), except each
+ * signal targets the child's whole process group via `killImpl` (default:
+ * `defaultKillImpl`) so the generator's own inspector-child fan-out is
+ * reached too, not just the generator's own PID. No-op when no build is
+ * currently in flight (`activeChildRef.child` is null) or the tracked child
+ * has already exited.
  */
 export function terminateActiveChild(activeChildRef, {
   sigtermGraceMs = CHILD_SIGTERM_GRACE_MS,
   sigkillGraceMs = CHILD_SIGKILL_GRACE_MS,
+  killImpl = defaultKillImpl,
 } = {}) {
   const child = activeChildRef.child;
   if (!child || child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
@@ -224,10 +267,10 @@ export function terminateActiveChild(activeChildRef, {
     };
     const onExit = () => finish();
     child.once('exit', onExit);
-    try { child.kill('SIGTERM'); } catch { /* already exited */ }
+    killImpl(child, 'SIGTERM');
     sigtermTimer = globalThis.setTimeout(() => {
       if (settled) return;
-      try { child.kill('SIGKILL'); } catch { /* already exited */ }
+      killImpl(child, 'SIGKILL');
       sigkillTimer = globalThis.setTimeout(finish, sigkillGraceMs);
     }, sigtermGraceMs);
   });
@@ -267,8 +310,9 @@ function defaultOnSignal(onTerminate) {
  * `seams` are injection points for tests only (ESM namespace spying does
  * not work in this repo): `spawnBuild`, `exec`, `log`, `onSignal`,
  * `terminateActiveChild` each default to real implementations and are never
- * overridden in production. `sigtermGraceMs`/`sigkillGraceMs` shorten the
- * default terminate-escalation grace windows for tests only.
+ * overridden in production. `sigtermGraceMs`/`sigkillGraceMs`/`killImpl`
+ * shorten/replace the default terminate-escalation grace windows and
+ * process-group-kill call for tests only.
  * `validateMatrix` is imported directly, not injectable -- it is the
  * load-bearing real-tree drift check this verifier exists to run.
  *
@@ -287,7 +331,11 @@ export async function runVerifier(options, seams = {}) {
   const log = seams.log ?? defaultLog;
   const onSignal = seams.onSignal ?? defaultOnSignal;
   const terminate = seams.terminateActiveChild
-    ?? ((ref) => terminateActiveChild(ref, { sigtermGraceMs: seams.sigtermGraceMs, sigkillGraceMs: seams.sigkillGraceMs }));
+    ?? ((ref) => terminateActiveChild(ref, {
+      sigtermGraceMs: seams.sigtermGraceMs,
+      sigkillGraceMs: seams.sigkillGraceMs,
+      killImpl: seams.killImpl,
+    }));
 
   const buildDirs = [];
   const cleanup = async () => {

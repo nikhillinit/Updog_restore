@@ -12,6 +12,7 @@ import { promisify } from 'node:util';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  defaultKillImpl,
   parseVerifierArgs,
   resolveTsxBin,
   runVerifier,
@@ -445,7 +446,7 @@ describe('cleanup', () => {
     await expect(resultPromise).rejects.toThrow();
   });
 
-  it('signal path terminates the active generator child (SIGTERM -> grace -> SIGKILL -> grace) and awaits settlement BEFORE running directory cleanup', { retry: 0 }, async () => {
+  it('signal path terminates the active generator child\'s process group (SIGTERM -> grace -> SIGKILL -> grace) and awaits settlement BEFORE running directory cleanup', { retry: 0 }, async () => {
     const head = await realHead();
     const root = await tmpOutputRoot();
     const events = [];
@@ -459,10 +460,17 @@ describe('cleanup', () => {
     // ChildProcess handle. It never emits 'exit' on its own -- the whole
     // point of this test is to prove the SIGKILL escalation (and its
     // bounded force-settle) runs, not that a cooperative child exits early.
+    // `child.kill` is a trap: production must route every signal through
+    // the injected `killImpl` seam (which stands in for the real
+    // process-group kill -- see `defaultKillImpl`'s own dedicated tests
+    // below), never call the child's own `.kill()` directly, or an active
+    // generator's own un-detached inspector-child fan-out would be reached
+    // by neither and orphaned.
     const fakeChild = new EventEmitter();
     fakeChild.exitCode = null;
     fakeChild.signalCode = null;
-    fakeChild.kill = (signal) => { events.push(`kill:${signal}`); };
+    fakeChild.pid = 999999;
+    fakeChild.kill = () => { throw new Error('child.kill() must not be called directly when a killImpl seam is provided'); };
 
     let releaseSpawn;
     const spawnBuild = async ({ outputDir, registerChild }) => {
@@ -479,9 +487,15 @@ describe('cleanup', () => {
         log: () => {},
         onSignal,
         // Real terminateActiveChild logic runs (not stubbed out) -- only
-        // the grace windows are shortened so the test stays fast.
+        // the grace windows are shortened and the kill delivery mechanism
+        // is faked (standing in for the real process-group kill) so the
+        // test stays fast and PID-independent.
         sigtermGraceMs: 5,
         sigkillGraceMs: 5,
+        killImpl: (child, signal) => {
+          expect(child).toBe(fakeChild);
+          events.push(`kill:${signal}`);
+        },
       },
     ).catch(() => {});
 
@@ -505,5 +519,41 @@ describe('cleanup', () => {
 
     releaseSpawn();
     await resultPromise;
+  });
+});
+
+// -- Bullet 2 (finding 2 follow-up): process-group kill with per-PID fallback
+
+describe('defaultKillImpl', () => {
+  it('signals the negative pid (the whole process group) when the child has a numeric pid', { retry: 0 }, () => {
+    const calls = [];
+    const processKill = (pid, signal) => { calls.push([pid, signal]); };
+    const fakeChild = { pid: 4242, kill: () => { calls.push(['child.kill -- should not be reached']); } };
+    defaultKillImpl(fakeChild, 'SIGTERM', { processKill });
+    expect(calls).toEqual([[-4242, 'SIGTERM']]);
+  });
+
+  it('falls back to signaling the child pid directly when the group kill throws ESRCH', { retry: 0 }, () => {
+    const calls = [];
+    const esrch = Object.assign(new Error('kill ESRCH'), { code: 'ESRCH' });
+    const processKill = () => { throw esrch; };
+    const fakeChild = { pid: 4242, kill: (signal) => { calls.push(['child.kill', signal]); } };
+    defaultKillImpl(fakeChild, 'SIGKILL', { processKill });
+    expect(calls).toEqual([['child.kill', 'SIGKILL']]);
+  });
+
+  it('rethrows a non-ESRCH error from the group kill instead of silently falling back', { retry: 0 }, () => {
+    const eperm = Object.assign(new Error('kill EPERM'), { code: 'EPERM' });
+    const processKill = () => { throw eperm; };
+    const fakeChild = { pid: 4242, kill: () => {} };
+    expect(() => defaultKillImpl(fakeChild, 'SIGTERM', { processKill })).toThrow(/EPERM/);
+  });
+
+  it('falls back to child.kill without attempting a group kill when the child has no numeric pid', { retry: 0 }, () => {
+    const calls = [];
+    const fakeChild = { pid: undefined, kill: (signal) => { calls.push(signal); } };
+    const processKill = () => { throw new Error('processKill must not be called when pid is not numeric'); };
+    defaultKillImpl(fakeChild, 'SIGTERM', { processKill });
+    expect(calls).toEqual(['SIGTERM']);
   });
 });
