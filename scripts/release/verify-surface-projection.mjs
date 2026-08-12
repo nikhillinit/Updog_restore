@@ -53,6 +53,23 @@ function trackedPorcelain(rawStatus) {
     .join('\n');
 }
 
+/**
+ * Validates and normalizes the `PR_HEAD_SHA` env var: absent/empty (the
+ * workflow sets it to `github.event.pull_request.head.sha`, which is empty
+ * outside `pull_request` events) resolves to `null`; a present value must be
+ * a 40-hex sha or this throws. Never derived from `GITHUB_SHA` -- on
+ * `pull_request` events `GITHUB_SHA` is the synthetic merge commit that
+ * `checkout_sha` is bound to, and conflating the two here would silently
+ * reintroduce the provenance bug this seam exists to prevent.
+ */
+export function validatePrHeadSha(rawValue) {
+  if (rawValue === undefined || rawValue === '') return null;
+  if (!SHA_PATTERN.test(rawValue)) {
+    throw new Error(`PR_HEAD_SHA must be a 40-character lowercase hex sha when set (got ${JSON.stringify(rawValue)})`);
+  }
+  return rawValue;
+}
+
 function assertVerifierOptions(options) {
   const { proof, expectedSha, outputRoot } = options ?? {};
   if (!PROOF_MODES.has(proof)) {
@@ -144,9 +161,12 @@ async function defaultExec(repoRoot, args) {
  * Spawns the generator CLI as a fresh child process (no shared module state
  * possible between the two release builds). Inherits stdio so the
  * generator's own NDJSON phase events remain visible on this process's
- * stderr, unmodified.
+ * stderr, unmodified. `registerChild` (an injection seam, no-op in
+ * production callers that omit it) is invoked with the live child on spawn
+ * and with `null` once it exits, so a signal arriving mid-build can find and
+ * terminate it -- see `terminateActiveChild`.
  */
-async function defaultSpawnBuild({ mode, expectedSha, outputDir, repoRoot }) {
+async function defaultSpawnBuild({ mode, expectedSha, outputDir, repoRoot, registerChild }) {
   const tsxBin = resolveTsxBin(repoRoot);
   const generatorPath = path.join(repoRoot, GENERATOR_RELATIVE_PATH);
   await new Promise((resolve, reject) => {
@@ -155,8 +175,10 @@ async function defaultSpawnBuild({ mode, expectedSha, outputDir, repoRoot }) {
       [generatorPath, '--mode', mode, '--expected-sha', expectedSha, '--output-dir', outputDir],
       { cwd: repoRoot, stdio: ['ignore', 'inherit', 'inherit'] },
     );
-    child.on('error', reject);
+    registerChild?.(child);
+    child.on('error', (error) => { registerChild?.(null); reject(error); });
     child.on('exit', (code, signal) => {
+      registerChild?.(null);
       if (signal) { reject(new Error(`generator terminated by signal ${signal}`)); return; }
       if (code !== 0) { reject(new Error(`generator exited with code ${code}`)); return; }
       resolve();
@@ -168,15 +190,58 @@ function defaultLog(message) {
   process.stderr.write(`${message}\n`);
 }
 
+const CHILD_SIGTERM_GRACE_MS = 2_000;
+const CHILD_SIGKILL_GRACE_MS = 2_000;
+
 /**
- * Registers real SIGINT/SIGTERM handlers that run `cleanup` then exit.
- * Returns a function that removes the handlers (called once the run settles
- * normally, so a later signal does not re-trigger cleanup on a torn-down
- * verifier).
+ * Terminates the currently-tracked active generator child (if any) before
+ * signal-triggered cleanup is allowed to proceed: SIGTERM -> wait
+ * `sigtermGraceMs` -> SIGKILL -> wait `sigkillGraceMs`, then resolves
+ * regardless of whether the child ever actually reaped (bounded settlement
+ * -- an unreapable child must never hang process exit). Mirrors the
+ * escalation pattern in `spawnInspectorProfile`
+ * (audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs). No-op when no
+ * build is currently in flight (`activeChildRef.child` is null) or the
+ * tracked child has already exited.
  */
-function defaultOnSignal(cleanup) {
+export function terminateActiveChild(activeChildRef, {
+  sigtermGraceMs = CHILD_SIGTERM_GRACE_MS,
+  sigkillGraceMs = CHILD_SIGKILL_GRACE_MS,
+} = {}) {
+  const child = activeChildRef.child;
+  if (!child || child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
+  return new Promise((resolve) => {
+    let settled = false;
+    let sigtermTimer;
+    let sigkillTimer;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      globalThis.clearTimeout(sigtermTimer);
+      globalThis.clearTimeout(sigkillTimer);
+      child.off('exit', onExit);
+      resolve();
+    };
+    const onExit = () => finish();
+    child.once('exit', onExit);
+    try { child.kill('SIGTERM'); } catch { /* already exited */ }
+    sigtermTimer = globalThis.setTimeout(() => {
+      if (settled) return;
+      try { child.kill('SIGKILL'); } catch { /* already exited */ }
+      sigkillTimer = globalThis.setTimeout(finish, sigkillGraceMs);
+    }, sigtermGraceMs);
+  });
+}
+
+/**
+ * Registers real SIGINT/SIGTERM handlers that run `onTerminate` (terminate
+ * the active child, then run directory cleanup) and exit. Returns a
+ * function that removes the handlers (called once the run settles normally,
+ * so a later signal does not re-trigger cleanup on a torn-down verifier).
+ */
+function defaultOnSignal(onTerminate) {
   const handler = (signal) => {
-    cleanup().finally(() => process.exit(signal === 'SIGINT' ? 130 : 143));
+    onTerminate().finally(() => process.exit(signal === 'SIGINT' ? 130 : 143));
   };
   const onSigint = () => handler('SIGINT');
   const onSigterm = () => handler('SIGTERM');
@@ -200,24 +265,39 @@ function defaultOnSignal(cleanup) {
  * the difference is solely build count and whether outputs are compared.
  *
  * `seams` are injection points for tests only (ESM namespace spying does
- * not work in this repo): `spawnBuild`, `exec`, `log`, `onSignal` each
- * default to real implementations and are never overridden in production.
+ * not work in this repo): `spawnBuild`, `exec`, `log`, `onSignal`,
+ * `terminateActiveChild` each default to real implementations and are never
+ * overridden in production. `sigtermGraceMs`/`sigkillGraceMs` shorten the
+ * default terminate-escalation grace windows for tests only.
  * `validateMatrix` is imported directly, not injectable -- it is the
  * load-bearing real-tree drift check this verifier exists to run.
+ *
+ * On SIGINT/SIGTERM, the currently-active generator child (if a build is in
+ * flight) is terminated and its settlement awaited BEFORE build-dir cleanup
+ * runs -- never the reverse, which could delete a directory an active child
+ * is still writing into and would orphan the child. See
+ * `terminateActiveChild`.
  */
 export async function runVerifier(options, seams = {}) {
   const { proof, expectedSha, outputRoot } = assertVerifierOptions(options);
   const repoRoot = defaultRepoRoot;
+  const activeChildRef = { child: null };
   const spawnBuild = seams.spawnBuild ?? ((buildOptions) => defaultSpawnBuild({ ...buildOptions, repoRoot }));
   const exec = seams.exec ?? ((args) => defaultExec(repoRoot, args));
   const log = seams.log ?? defaultLog;
   const onSignal = seams.onSignal ?? defaultOnSignal;
+  const terminate = seams.terminateActiveChild
+    ?? ((ref) => terminateActiveChild(ref, { sigtermGraceMs: seams.sigtermGraceMs, sigkillGraceMs: seams.sigkillGraceMs }));
 
   const buildDirs = [];
   const cleanup = async () => {
     await Promise.all(buildDirs.map((dir) => rm(dir, { recursive: true, force: true })));
   };
-  const removeSignalHandlers = onSignal(cleanup);
+  const terminateThenCleanup = async () => {
+    await terminate(activeChildRef);
+    await cleanup();
+  };
+  const removeSignalHandlers = onSignal(terminateThenCleanup);
 
   try {
     const preStatus = trackedPorcelain(await exec(['status', '--porcelain']));
@@ -226,10 +306,13 @@ export async function runVerifier(options, seams = {}) {
       throw new Error(`checkout_sha ${checkoutSha} does not match --expected-sha ${expectedSha}`);
     }
     // PR manifests bind to the synthetic merge checkout: `checkout_sha` is
-    // the commit actually built and proven; `pr_head_sha` (when a PR/CI
-    // context supplies GITHUB_SHA) is recorded separately for provenance,
-    // never substituted for the checkout binding above.
-    const prHeadSha = process.env.GITHUB_SHA ?? null;
+    // the commit actually built and proven (GITHUB_SHA-bound, above), and it
+    // stays that way -- on `pull_request` events GITHUB_SHA IS the synthetic
+    // merge sha, indistinguishable from the checkout it is asserted against.
+    // `pr_head_sha` is a separate provenance-only field sourced from
+    // PR_HEAD_SHA (the workflow sets it to the true PR head, empty outside
+    // PR events); it is never substituted for the checkout binding above.
+    const prHeadSha = validatePrHeadSha(process.env.PR_HEAD_SHA);
     log(`checkout proof=${proof} checkout_sha=${checkoutSha} pr_head_sha=${prHeadSha ?? 'none'}`);
 
     const buildCount = proof === 'release' ? 2 : 1;
@@ -240,7 +323,14 @@ export async function runVerifier(options, seams = {}) {
       const startedAt = Date.now();
       // Sequential by design: release builds must run one after another
       // (fresh process per build, no shared state) -- never in parallel.
-      await spawnBuild({ mode: 'release', expectedSha, outputDir: buildDir, repoRoot, log });
+      await spawnBuild({
+        mode: 'release',
+        expectedSha,
+        outputDir: buildDir,
+        repoRoot,
+        log,
+        registerChild: (child) => { activeChildRef.child = child; },
+      });
       const build = await readBuildArtifacts(buildDir);
       builds.push(build);
       log(`build_complete build=${index} duration_ms=${Date.now() - startedAt} snapshot_id=${build.manifest?.snapshot_id ?? 'unknown'}`);

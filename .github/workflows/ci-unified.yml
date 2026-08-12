@@ -803,6 +803,7 @@ jobs:
           CI: 'true'
           NODE_OPTIONS: --max-old-space-size=4096
           TZ: UTC
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
           node_modules/.bin/tsx scripts/release/verify-surface-projection.mjs \

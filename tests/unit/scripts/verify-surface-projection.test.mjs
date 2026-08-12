@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer';
 import { execFile } from 'node:child_process';
+import { EventEmitter } from 'node:events';
 import fsSync from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -255,11 +256,12 @@ describe('release proof byte comparison', () => {
 // -- Bullet 5: freshness, coverage, and the real validateMatrix call --------
 
 describe('manifest freshness, coverage, and matrix validation', () => {
-  it('records checkout_sha/pr_head_sha, validates freshness+coverage, then calls the real validateMatrix which gates the result', { retry: 0 }, async () => {
+  it('records checkout_sha/pr_head_sha (from PR_HEAD_SHA, distinct from checkout_sha), validates freshness+coverage, then calls the real validateMatrix which gates the result', { retry: 0 }, async () => {
     const head = await realHead();
     const root = await tmpOutputRoot();
     const logs = [];
-    vi.stubEnv('GITHUB_SHA', 'f'.repeat(40));
+    const trueHeadSha = 'f'.repeat(40);
+    vi.stubEnv('PR_HEAD_SHA', trueHeadSha);
     try {
       const result = runVerifier(
         { proof: 'pr', expectedSha: head, outputRoot: root },
@@ -271,8 +273,46 @@ describe('manifest freshness, coverage, and matrix validation', () => {
       // and that its failure gates runVerifier's result.
       await expect(result).rejects.toThrow(/count mismatch/i);
       expect(logs.some((line) => line.includes('checkout_sha=') && line.includes(head))).toBe(true);
-      expect(logs.some((line) => line.includes('pr_head_sha=') && line.includes('f'.repeat(40)))).toBe(true);
+      expect(logs.some((line) => line.includes('pr_head_sha=') && line.includes(trueHeadSha))).toBe(true);
+      // pr_head_sha is never derived from checkout_sha/GITHUB_SHA: on
+      // pull_request events those are the synthetic merge commit, distinct
+      // from the PR's true head recorded here.
+      expect(trueHeadSha).not.toBe(head);
       expect(logs.some((line) => line.includes('matrix_validate_start'))).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('pr_head_sha is null when PR_HEAD_SHA is unset or empty (never falls back to GITHUB_SHA/checkout_sha)', { retry: 0 }, async () => {
+    const head = await realHead();
+    const root = await tmpOutputRoot();
+    const logs = [];
+    vi.stubEnv('GITHUB_SHA', head);
+    vi.stubEnv('PR_HEAD_SHA', '');
+    try {
+      const result = runVerifier(
+        { proof: 'pr', expectedSha: head, outputRoot: root },
+        { spawnBuild: fakeSpawnBuildFixed(richFixtureInput(head)), exec: fakeGitEnv(head), log: (line) => logs.push(line) },
+      );
+      await expect(result).rejects.toThrow(/count mismatch/i);
+      expect(logs.some((line) => line.includes('pr_head_sha=none'))).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('rejects a malformed PR_HEAD_SHA instead of silently accepting it', { retry: 0 }, async () => {
+    const head = await realHead();
+    const root = await tmpOutputRoot();
+    vi.stubEnv('PR_HEAD_SHA', 'not-a-sha');
+    try {
+      await expect(
+        runVerifier(
+          { proof: 'pr', expectedSha: head, outputRoot: root },
+          { spawnBuild: fakeSpawnBuildFixed(richFixtureInput(head)), exec: fakeGitEnv(head), log: () => {} },
+        ),
+      ).rejects.toThrow(/PR_HEAD_SHA/);
     } finally {
       vi.unstubAllEnvs();
     }
@@ -403,5 +443,67 @@ describe('cleanup', () => {
 
     releaseSpawn();
     await expect(resultPromise).rejects.toThrow();
+  });
+
+  it('signal path terminates the active generator child (SIGTERM -> grace -> SIGKILL -> grace) and awaits settlement BEFORE running directory cleanup', { retry: 0 }, async () => {
+    const head = await realHead();
+    const root = await tmpOutputRoot();
+    const events = [];
+    const registeredCleanups = [];
+    const onSignal = (onTerminate) => {
+      registeredCleanups.push(onTerminate);
+      return () => {};
+    };
+
+    // A fake "active child": a plain EventEmitter standing in for the real
+    // ChildProcess handle. It never emits 'exit' on its own -- the whole
+    // point of this test is to prove the SIGKILL escalation (and its
+    // bounded force-settle) runs, not that a cooperative child exits early.
+    const fakeChild = new EventEmitter();
+    fakeChild.exitCode = null;
+    fakeChild.signalCode = null;
+    fakeChild.kill = (signal) => { events.push(`kill:${signal}`); };
+
+    let releaseSpawn;
+    const spawnBuild = async ({ outputDir, registerChild }) => {
+      registerChild?.(fakeChild);
+      await writeCannedBuild(outputDir, { fixture: richFixtureInput(head) });
+      await new Promise((resolve) => { releaseSpawn = resolve; });
+    };
+
+    const resultPromise = runVerifier(
+      { proof: 'pr', expectedSha: head, outputRoot: root },
+      {
+        spawnBuild,
+        exec: fakeGitEnv(head),
+        log: () => {},
+        onSignal,
+        // Real terminateActiveChild logic runs (not stubbed out) -- only
+        // the grace windows are shortened so the test stays fast.
+        sigtermGraceMs: 5,
+        sigkillGraceMs: 5,
+      },
+    ).catch(() => {});
+
+    expect(registeredCleanups).toHaveLength(1);
+    for (let attempt = 0; attempt < 50 && !fsSync.existsSync(path.join(root, 'build-1')); attempt += 1) {
+      await sleep(5);
+    }
+    expect(fsSync.existsSync(path.join(root, 'build-1'))).toBe(true);
+
+    const terminatePromise = registeredCleanups[0]();
+    // Still mid-escalation (SIGTERM already sent, SIGKILL grace pending):
+    // the build dir must not be gone yet -- cleanup has not run.
+    expect(fsSync.existsSync(path.join(root, 'build-1'))).toBe(true);
+    await terminatePromise;
+    events.push('cleanup_done');
+
+    expect(events).toEqual(['kill:SIGTERM', 'kill:SIGKILL', 'cleanup_done']);
+    // Cleanup only ran after termination settled.
+    expect(fsSync.existsSync(path.join(root, 'build-1'))).toBe(false);
+    expect(fsSync.existsSync(root)).toBe(true);
+
+    releaseSpawn();
+    await resultPromise;
   });
 });

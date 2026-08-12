@@ -1196,7 +1196,13 @@ function validateArtifactSet({ outputDir, serialized }) {
  * before touching outputDir, writes each buffer to a unique sibling staging
  * file, then rename()s the three data files first and manifest.json last (the
  * commit point). On any failure it unlinks only the staging paths this call
- * created — never a readdir()-sweep, never outputDir itself.
+ * created — never a readdir()-sweep, never outputDir itself. Each staging
+ * path is registered for cleanup BEFORE its write is attempted (not after
+ * the write succeeds), so a writeFile call that lands bytes on disk and then
+ * still rejects (a partial-write failure) does not leave `*.tmp` residue;
+ * the cleanup unlink() swallows its own errors (including ENOENT for a
+ * staging path whose write never actually created a file) so a best-effort
+ * cleanup failure never masks the original error.
  *
  * A manifest with `valid_for_release_proof: true` is refused unless called
  * with the private module-scope RELEASE_AUTHORITY token: only
@@ -1215,13 +1221,16 @@ export async function writeRouteKnowledgeGraphArtifacts({ outputDir, serialized 
     const dataRenamePairs = [];
     for (const name of ARTIFACT_FILE_ORDER) {
       const stagingPath = path.join(resolvedOutputDir, `${name}.${stagingSuffix()}`);
-      await impl.writeFile(stagingPath, dataBuffers[name]);
+      // Registered before the write (not after it succeeds): a writeFile
+      // call can land bytes on disk and still reject (partial-write
+      // failure), and that staging path must still be cleaned up below.
       pendingStagingPaths.add(stagingPath);
+      await impl.writeFile(stagingPath, dataBuffers[name]);
       dataRenamePairs.push([stagingPath, path.join(resolvedOutputDir, name)]);
     }
     const manifestStagingPath = path.join(resolvedOutputDir, `${MANIFEST_FILE_NAME}.${stagingSuffix()}`);
-    await impl.writeFile(manifestStagingPath, manifestBytes);
     pendingStagingPaths.add(manifestStagingPath);
+    await impl.writeFile(manifestStagingPath, manifestBytes);
 
     for (const [stagingPath, targetPath] of dataRenamePairs) {
       await impl.rename(stagingPath, targetPath);

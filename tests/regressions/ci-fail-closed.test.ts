@@ -4682,6 +4682,11 @@ describe('required CI fails closed', () => {
       CI: 'true',
       NODE_OPTIONS: '--max-old-space-size=4096',
       TZ: 'UTC',
+      // The workflow's own checkout is bound to GITHUB_SHA, which on
+      // `pull_request` events is the synthetic merge commit, not the PR's
+      // true head -- so the verifier needs a separate, explicit source of
+      // provenance for pr_head_sha. Empty outside PR events.
+      PR_HEAD_SHA: '${{ github.event.pull_request.head.sha }}',
     });
     expect(proofStep?.run?.trim()).toBe(
       [

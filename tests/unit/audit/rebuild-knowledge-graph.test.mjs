@@ -1215,6 +1215,33 @@ describe('writeRouteKnowledgeGraphArtifacts', () => {
       await expect(writeRouteKnowledgeGraphArtifacts({ outputDir, serialized: forged })).rejects.toThrow(/authority/i);
     });
   });
+
+  it('leaves no .tmp residue when a staging writeFile call throws after landing bytes on disk', { retry: 0 }, async () => {
+    // Simulates a partial write: the underlying write actually creates the
+    // file on disk (real writeFile) but the call still rejects (e.g. a
+    // disk-full or interrupted-write error surfaced after some bytes
+    // landed). The staging path must be tracked for cleanup BEFORE the
+    // write is attempted, not only after it succeeds -- otherwise this
+    // exact failure mode leaves an orphaned `*.tmp` file in outputDir.
+    const { serializeRouteKnowledgeGraph, writeRouteKnowledgeGraphArtifacts } = await requireGenerator();
+    const serialized = serializeRouteKnowledgeGraph(baseInput());
+    let callIndex = 0;
+    const fsImpl = {
+      writeFile: async (targetPath, bytes) => {
+        callIndex += 1;
+        await writeFile(targetPath, bytes);
+        if (callIndex === 2) throw new Error('simulated partial write failure');
+      },
+      unlink,
+      rename,
+    };
+    await withOutputDir(async (outputDir) => {
+      await expect(
+        writeRouteKnowledgeGraphArtifacts({ outputDir, serialized }, { fsImpl })
+      ).rejects.toThrow(/simulated partial write failure/);
+      expect(await readdir(outputDir)).toEqual([]);
+    });
+  });
 });
 
 async function createDiscoveryTestProjectionFixture() {
