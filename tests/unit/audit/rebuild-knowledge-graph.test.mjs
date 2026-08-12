@@ -602,6 +602,12 @@ describe('route knowledge-graph generator contract', () => {
     expect(first.manifest.snapshot_id).toMatch(/^snapshot:[0-9a-f]{64}$/);
     expect(first.manifest.repo_head).toMatch(/^[0-9a-f]{40}$/);
     expect(first.manifest.source_hashes).toEqual(expect.any(Object));
+    expect(first.manifest.source_hashes).toHaveProperty([
+      'audit/surface-contract-matrix/source-inventory.json',
+    ]);
+    expect(first.manifest.source_hashes).not.toHaveProperty([
+      'audit/surface-contract-matrix/boot-proofs.json',
+    ]);
     expect(Object.keys(first.manifest)).not.toEqual(
       expect.arrayContaining(['valid_for_coding', 'full_graph_complete', 'coding_authority'])
     );
