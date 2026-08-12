@@ -934,3 +934,46 @@ describe('route knowledge-graph generator contract', () => {
     });
   });
 });
+
+describe('serializeRouteKnowledgeGraph (pure)', () => {
+  const baseInput = () => ({
+    head: 'a'.repeat(40),
+    timestamp: '2026-08-12T00:00:00Z',
+    sourceHashes: { 'b/file.ts': 'h2', 'a/file.ts': 'h1' },
+    nodes: [
+      { record: 'node', id: 'api:GET /b', type: 'APIEndpoint', method: 'GET', path: '/b', source: { path: 's.ts', line: 2 } },
+      { record: 'node', id: 'api:GET /a', type: 'APIEndpoint', method: 'GET', path: '/a', source: { path: 's.ts', line: 1 } },
+    ],
+    edges: [],
+    tests: [],
+  });
+
+  it('is byte-identical under reversed record order and varied source-hash insertion order', async () => {
+    const { serializeRouteKnowledgeGraph } = await requireGenerator();
+    const a = serializeRouteKnowledgeGraph(baseInput());
+    const shuffled = baseInput();
+    shuffled.nodes.reverse();
+    shuffled.sourceHashes = { 'a/file.ts': 'h1', 'b/file.ts': 'h2' };
+    const b = serializeRouteKnowledgeGraph(shuffled);
+    expect(a.manifestBytes.equals(b.manifestBytes)).toBe(true);
+    expect(a.nodesBytes.equals(b.nodesBytes)).toBe(true);
+  });
+
+  it('never emits release authority and does not alias caller input', async () => {
+    const { serializeRouteKnowledgeGraph } = await requireGenerator();
+    const input = baseInput();
+    const result = serializeRouteKnowledgeGraph(input);
+    expect(result.manifest.valid_for_release_proof).toBe(false);
+    expect(result.nodes[0]).not.toBe(input.nodes[0]);
+    result.nodes[0].id = 'mutated';
+    expect(input.nodes.some((n) => n.id === 'mutated')).toBe(false);
+  });
+
+  it('returned records exactly equal parsed serialized files including snapshot_id', async () => {
+    const { serializeRouteKnowledgeGraph } = await requireGenerator();
+    const result = serializeRouteKnowledgeGraph(baseInput());
+    const parsed = result.nodesBytes.toString('utf8').trim().split('\n').map(JSON.parse);
+    expect(parsed).toEqual(result.nodes);
+    expect(JSON.parse(result.manifestBytes.toString('utf8'))).toEqual(result.manifest);
+  });
+});

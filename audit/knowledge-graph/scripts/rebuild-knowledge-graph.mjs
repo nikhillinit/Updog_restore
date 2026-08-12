@@ -892,6 +892,91 @@ function parseMode(value) {
   return value;
 }
 
+function canonicalizeSetLikeArrays(record) {
+  const clone = { ...record };
+  if (Array.isArray(clone.constructor_sites)) {
+    clone.constructor_sites = [...clone.constructor_sites].sort(
+      (left, right) =>
+        left.path.localeCompare(right.path) || left.line - right.line || left.constructor.localeCompare(right.constructor),
+    );
+  }
+  if (Array.isArray(clone.source_sites)) {
+    clone.source_sites = [...clone.source_sites].sort((left, right) => left.localeCompare(right));
+  }
+  return clone;
+}
+
+function canonicalizeRecords(records) {
+  return records.map(canonicalizeSetLikeArrays).sort((left, right) => left.id.localeCompare(right.id));
+}
+
+/**
+ * Pure serialization boundary: turns already-computed node/edge/test records
+ * into deterministic, snapshot-bound bytes. Takes no mode argument and never
+ * grants release authority — `valid_for_release_proof` is always false here.
+ * Deep-copies every input so the returned records share no mutable aliases
+ * with the caller's objects.
+ */
+export function serializeRouteKnowledgeGraph({ nodes, edges, tests, head, timestamp, sourceHashes }) {
+  const clonedNodes = canonicalizeRecords(globalThis.structuredClone(nodes));
+  const clonedEdges = canonicalizeRecords(globalThis.structuredClone(edges));
+  const clonedTests = canonicalizeRecords(globalThis.structuredClone(tests));
+  const hashes = Object.fromEntries(
+    Object.entries(globalThis.structuredClone(sourceHashes)).sort(([left], [right]) => left.localeCompare(right)),
+  );
+  const nodeTypeCounts = {
+    APIEndpoint: clonedNodes.filter((record) => record.type === 'APIEndpoint').length,
+    ClientRoute: clonedNodes.filter((record) => record.type === 'ClientRoute').length,
+    WorkerJob: clonedNodes.filter((record) => record.type === 'WorkerJob').length,
+  };
+  const snapshotId = `snapshot:${sha256(stableJson({ commit_sha: head, commit_timestamp: timestamp, source_hashes: hashes, node_type_counts: nodeTypeCounts }))}`;
+  const nodesWithSnapshot = clonedNodes.map((record) => ({ ...record, snapshot_id: snapshotId }));
+  const edgesWithSnapshot = clonedEdges.map((record) => ({ ...record, snapshot_id: snapshotId }));
+  const testsWithSnapshot = clonedTests.map((record) => ({ ...record, snapshot_id: snapshotId }));
+  const nodesBytes = Buffer.from(nodesWithSnapshot.map((record) => jsonLine(record)).join(''));
+  const edgesBytes = Buffer.from(edgesWithSnapshot.map((record) => jsonLine(record)).join(''));
+  const testsBytes = Buffer.from(testsWithSnapshot.map((record) => jsonLine(record)).join(''));
+  const artifact = (bytes) => ({ snapshot_id: snapshotId, sha256: sha256(bytes), byte_length: bytes.byteLength });
+  const manifest = {
+    schema: 'surface-route-projection-v1',
+    snapshot_id: snapshotId,
+    repo_head: head,
+    commit_timestamp: timestamp,
+    fresh_for_checkout: true,
+    valid_for_release_proof: false,
+    node_type_counts: nodeTypeCounts,
+    source_hashes: hashes,
+    artifacts: {
+      'nodes-routes.jsonl': artifact(nodesBytes),
+      'edges-routes.jsonl': artifact(edgesBytes),
+      'tests.jsonl': artifact(testsBytes),
+    },
+  };
+  const manifestBytes = Buffer.from(`${stableJson(manifest)}\n`);
+  return {
+    manifest,
+    nodes: nodesWithSnapshot,
+    edges: edgesWithSnapshot,
+    tests: testsWithSnapshot,
+    manifestBytes,
+    nodesBytes,
+    edgesBytes,
+    testsBytes,
+  };
+}
+
+/**
+ * Flips a serialized projection into release authority and re-serializes the
+ * manifest bytes to match. Not exported: only buildRouteKnowledgeGraph may
+ * call this, and only after its own exact-SHA, clean-tree, inventory, and
+ * count checks have already passed.
+ */
+function assembleReleaseManifest(serialized) {
+  const manifest = { ...serialized.manifest, valid_for_release_proof: true };
+  const manifestBytes = Buffer.from(`${stableJson(manifest)}\n`);
+  return { ...serialized, manifest, manifestBytes };
+}
+
 export async function buildRouteKnowledgeGraph({ repoRoot, outputDir, expectedSha, mode = 'seed' }) {
   const root = path.resolve(repoRoot ?? defaultRepoRoot);
   const resolvedOutputDir = path.resolve(outputDir ?? path.join(root, DEFAULT_OUTPUT_RELATIVE_PATH));
@@ -929,27 +1014,9 @@ export async function buildRouteKnowledgeGraph({ repoRoot, outputDir, expectedSh
   const edges = addCommitBinding(structuralEdges(nodes, addCommitBinding(clientNodes, head, timestamp)), head, timestamp);
   const tests = addCommitBinding(await testProjection(root, nodes), head, timestamp);
   validateRecords(nodes, [...edges, ...tests]);
-  const snapshotId = `snapshot:${sha256(stableJson({ commit_sha: head, commit_timestamp: timestamp, source_hashes: hashes, node_type_counts: nodeTypeCounts }))}`;
-  const nodesBytes = Buffer.from(nodes.map((record) => jsonLine({ ...record, snapshot_id: snapshotId })).join(''));
-  const edgesBytes = Buffer.from(edges.map((record) => jsonLine({ ...record, snapshot_id: snapshotId })).join(''));
-  const testsBytes = Buffer.from(tests.map((record) => jsonLine({ ...record, snapshot_id: snapshotId })).join(''));
-  const artifact = (bytes) => ({ snapshot_id: snapshotId, sha256: sha256(bytes), byte_length: bytes.byteLength });
-  const manifest = {
-    schema: 'surface-route-projection-v1',
-    snapshot_id: snapshotId,
-    repo_head: head,
-    commit_timestamp: timestamp,
-    fresh_for_checkout: true,
-    valid_for_release_proof: projectionMode === 'release',
-    node_type_counts: nodeTypeCounts,
-    source_hashes: hashes,
-    artifacts: {
-      'nodes-routes.jsonl': artifact(nodesBytes),
-      'edges-routes.jsonl': artifact(edgesBytes),
-      'tests.jsonl': artifact(testsBytes),
-    },
-  };
-  const manifestBytes = Buffer.from(`${stableJson(manifest)}\n`);
+  let serialized = serializeRouteKnowledgeGraph({ nodes, edges, tests, head, timestamp, sourceHashes: hashes });
+  if (projectionMode === 'release') serialized = assembleReleaseManifest(serialized);
+  const { manifest, manifestBytes, nodesBytes, edgesBytes, testsBytes } = serialized;
   await mkdir(resolvedOutputDir, { recursive: true });
   await writeFile(path.join(resolvedOutputDir, 'manifest.json'), manifestBytes);
   await writeFile(path.join(resolvedOutputDir, 'nodes-routes.jsonl'), nodesBytes);
