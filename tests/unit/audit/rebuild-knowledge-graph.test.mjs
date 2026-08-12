@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
+import { EventEmitter } from 'node:events';
 import {
   cp,
   mkdtemp,
@@ -1168,5 +1169,97 @@ describe('discovery reducers (pure)', () => {
     } finally {
       await rm(parent, { recursive: true, force: true });
     }
+  });
+});
+
+// Fake `child_process`-shaped child for spawnInspectorProfile's injectable
+// `spawnImpl` seam. `kill(signal)` records the call but never emits
+// 'close'/'exit' -- simulating a child that ignores the signal entirely, the
+// pathological case the SIGTERM->SIGKILL->force-settle escalation exists to
+// bound.
+function createFakeInspectorChild() {
+  const child = new EventEmitter();
+  child.stdout = new EventEmitter();
+  child.stdout.setEncoding = () => {};
+  child.stderr = new EventEmitter();
+  child.stderr.setEncoding = () => {};
+  child.killCalls = [];
+  child.kill = (signal) => { child.killCalls.push(signal); };
+  return child;
+}
+
+describe('spawnInspectorProfile (bounded escalation seam)', () => {
+  // Regression coverage for the redesign's core guarantee: a hung/unreapable
+  // inspector child can never hang the aggregate run. Task 4's runner tests
+  // (knowledge-graph-inspector-runner.test.mjs) exercise runInspectorProfiles
+  // with fake spawnProfile functions, but nothing previously exercised this
+  // module's own production spawnProfile wrapper -- the piece that actually
+  // owns the SIGTERM/SIGKILL escalation and satisfies the runner's "must
+  // settle within a bounded time once aborted" precondition. A real warm run
+  // (see task-5-report.md) recorded zero child_signal events because every
+  // child exited cleanly, so that guarantee had no test coverage at all.
+  // These tests inject a fake child + short grace windows via
+  // spawnInspectorProfile's seam so they run in milliseconds, never a real
+  // 4s+ wall wait.
+
+  it('force-settles when a child ignores both SIGTERM and SIGKILL', { retry: 0 }, async () => {
+    const { spawnInspectorProfile } = await requireGenerator();
+    const child = createFakeInspectorChild();
+    const events = [];
+    const controller = new globalThis.AbortController();
+    const spawnProfile = spawnInspectorProfile(repoRoot, (event) => events.push(event), {
+      spawnImpl: () => child,
+      sigtermGraceMs: 5,
+      sigkillGraceMs: 5,
+    });
+
+    const promise = spawnProfile('hanging-profile', { signal: controller.signal });
+    const startedAt = Date.now();
+    controller.abort();
+
+    await expect(promise).rejects.toThrow(/did not exit after SIGKILL/i);
+    // Bounded: settles from the injected 5ms+5ms grace windows, not a real
+    // 4s SIGTERM+SIGKILL wall wait.
+    expect(Date.now() - startedAt).toBeLessThan(1_000);
+    expect(child.killCalls).toEqual(['SIGTERM', 'SIGKILL']);
+    expect(events.map((event) => event.event)).toEqual(['child_signal', 'child_signal']);
+    expect(events[0]).toMatchObject({ signal: 'SIGTERM', exit_code: null, profile: 'hanging-profile' });
+    expect(events[1]).toMatchObject({ signal: 'SIGKILL', exit_code: null, profile: 'hanging-profile' });
+  });
+
+  it('does not escalate to SIGKILL once the child exits from SIGTERM', { retry: 0 }, async () => {
+    const { spawnInspectorProfile } = await requireGenerator();
+    const child = createFakeInspectorChild();
+    const controller = new globalThis.AbortController();
+    const spawnProfile = spawnInspectorProfile(repoRoot, () => {}, {
+      spawnImpl: () => child,
+      sigtermGraceMs: 30,
+      sigkillGraceMs: 30,
+    });
+
+    const promise = spawnProfile('graceful-profile', { signal: controller.signal });
+    controller.abort();
+    expect(child.killCalls).toEqual(['SIGTERM']);
+    child.emit('close', null, 'SIGTERM');
+
+    await expect(promise).rejects.toThrow(/aborted/i);
+    // Give the SIGKILL timer time to fire if `finish()` failed to clear it
+    // -- it must not, or a future refactor moving the clear/removeListener
+    // order would silently reintroduce a stray SIGKILL (or worse, a
+    // dangling timer) after a clean SIGTERM exit.
+    await new Promise((resolve) => { globalThis.setTimeout(resolve, 60); });
+    expect(child.killCalls).toEqual(['SIGTERM']);
+  });
+
+  it('settles when the child process itself errors (no close ever arrives)', { retry: 0 }, async () => {
+    const { spawnInspectorProfile } = await requireGenerator();
+    const child = createFakeInspectorChild();
+    const spawnProfile = spawnInspectorProfile(repoRoot, () => {}, { spawnImpl: () => child });
+
+    const promise = spawnProfile('erroring-profile', { signal: new globalThis.AbortController().signal });
+    const spawnError = new Error('spawn ENOENT');
+    child.emit('error', spawnError);
+
+    await expect(promise).rejects.toBe(spawnError);
   });
 });

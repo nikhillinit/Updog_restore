@@ -609,8 +609,19 @@ function loaderPath(repoRoot) {
  * the aggregate run. Emits per-profile child-lifecycle NDJSON to `log` with
  * real `exit_code`/`signal` values (the runner's own events always carry
  * those as null, since it has no visibility into the child process).
+ *
+ * `spawnImpl`/`sigtermGraceMs`/`sigkillGraceMs` are an injectable seam for
+ * tests only -- production always uses the defaults (real `child_process`
+ * `spawn`, 2s/2s). This lets a regression test stand in a fake child that
+ * ignores both signals and assert the returned promise still settles within
+ * a short, injected bound, without a 4s+ real-timer wait and without
+ * changing any production timing.
  */
-function spawnInspectorProfile(repoRoot, log) {
+export function spawnInspectorProfile(repoRoot, log, {
+  spawnImpl = spawn,
+  sigtermGraceMs = INSPECTOR_SIGTERM_GRACE_MS,
+  sigkillGraceMs = INSPECTOR_SIGKILL_GRACE_MS,
+} = {}) {
   return (profile, { signal }) => new Promise((resolve, reject) => {
     const loader = loaderPath(repoRoot);
     if (!loader) {
@@ -618,7 +629,7 @@ function spawnInspectorProfile(repoRoot, log) {
       return;
     }
     const startedAt = Date.now();
-    const child = spawn(
+    const child = spawnImpl(
       process.execPath,
       ['--import', loader, path.join(repoRoot, INSPECTOR_PATH), '--profile', profile, '--fs-variant', 'static'],
       {
@@ -670,8 +681,8 @@ function spawnInspectorProfile(repoRoot, log) {
         // this promise settling once aborted.
         forceSettleTimer = globalThis.setTimeout(() => {
           finish(() => reject(new Error(`Runtime inspection for ${profile} did not exit after SIGKILL`)));
-        }, INSPECTOR_SIGKILL_GRACE_MS);
-      }, INSPECTOR_SIGTERM_GRACE_MS);
+        }, sigkillGraceMs);
+      }, sigtermGraceMs);
     }
 
     if (signal.aborted) onAbort();
