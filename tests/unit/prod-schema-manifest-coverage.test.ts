@@ -101,4 +101,19 @@ describe('prod-schema manifest forward migration coverage', () => {
       /traversal\.json -> \.\.\/migrations\/0031_user_identity_grants_revocation\.sql/
     );
   });
+
+  it('pins G3 release gate hardening as manifest order 30', () => {
+    const manifest = JSON.parse(
+      fs.readFileSync(
+        path.join(manifestDir, '30-g3-release-gate-hardening.json'),
+        'utf8'
+      )
+    ) as { name: string; order: number; sqlFiles: string[] };
+
+    expect(manifest).toMatchObject({
+      name: 'g3-release-gate-hardening',
+      order: 30,
+      sqlFiles: ['migrations/0053_g3_release_gate_hardening.sql'],
+    });
+  });
 });

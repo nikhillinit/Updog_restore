@@ -1,0 +1,83 @@
+{
+  "name": "g3-release-gate-hardening",
+  "order": 30,
+  "description": "G3 release-gate schema precursor: durable calculation commands, queued-event fencing, workflow identity, and complete canary residue accounting.",
+  "missingTablePolicy": "create_or_repair",
+  "sqlFiles": ["migrations/0053_g3_release_gate_hardening.sql"],
+  "allowedCreateTables": ["fund_scenario_calculation_commands"],
+  "expectedTables": [
+    {
+      "name": "fund_scenario_calculation_commands",
+      "columns": [
+        { "name": "id", "type": "uuid", "nullable": false },
+        { "name": "fund_id", "type": "integer", "nullable": false },
+        { "name": "scenario_set_id", "type": "uuid", "nullable": false },
+        { "name": "idempotency_key", "type": "varchar", "nullable": false },
+        { "name": "request_hash", "type": "varchar", "nullable": false },
+        { "name": "status", "type": "varchar", "nullable": false },
+        { "name": "run_id", "type": "uuid", "nullable": true },
+        { "name": "correlation_id", "type": "varchar", "nullable": true },
+        { "name": "response_status", "type": "integer", "nullable": true },
+        { "name": "response_body", "type": "jsonb", "nullable": true },
+        { "name": "attempt_count", "type": "integer", "nullable": false },
+        { "name": "lease_token", "type": "uuid", "nullable": true },
+        { "name": "lease_expires_at", "type": "timestamptz", "nullable": true },
+        { "name": "failure_code", "type": "varchar", "nullable": true },
+        { "name": "created_by_user_id", "type": "integer", "nullable": true },
+        { "name": "created_by_label", "type": "text", "nullable": false },
+        { "name": "version", "type": "integer", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false },
+        { "name": "updated_at", "type": "timestamptz", "nullable": false }
+      ],
+      "constraints": [
+        "fund_scenario_calculation_commands_pkey",
+        "fund_scenario_calculation_commands_fund_id_funds_id_fk",
+        "fund_scenario_calculation_commands_scenario_set_id_fund_scenario_sets_id_fk",
+        "fund_scenario_calculation_commands_run_id_fund_scenario_calculation_runs_id_fk",
+        "fund_scenario_calculation_commands_created_by_user_id_users_id_fk",
+        "fund_scenario_calc_commands_scope_unique",
+        "fund_scenario_calc_commands_status_check",
+        "fund_scenario_calc_commands_hash_check",
+        "fund_scenario_calc_commands_response_check",
+        "fund_scenario_calc_commands_lease_check",
+        "fund_scenario_calc_commands_attempt_check",
+        "fund_scenario_calc_commands_version_check"
+      ],
+      "indexes": ["fund_scenario_calc_commands_status_idx"]
+    },
+    {
+      "name": "fund_scenario_calculation_runs",
+      "sharedTable": true,
+      "columns": [
+        { "name": "queued_event_recorded_at", "type": "timestamptz", "nullable": true }
+      ]
+    },
+    {
+      "name": "release_canary_runs",
+      "sharedTable": true,
+      "columns": [
+        { "name": "workflow_run_id", "type": "varchar", "nullable": true },
+        { "name": "workflow_run_attempt", "type": "integer", "nullable": true },
+        { "name": "grant_residue_count", "type": "integer", "nullable": false },
+        { "name": "calculation_residue_count", "type": "integer", "nullable": false },
+        { "name": "mutation_receipt_residue_count", "type": "integer", "nullable": false },
+        { "name": "scenario_residue_count", "type": "integer", "nullable": false },
+        { "name": "reporting_residue_count", "type": "integer", "nullable": false }
+      ],
+      "constraints": [
+        "release_canary_runs_workflow_identity_check",
+        "release_canary_runs_residue_count_check"
+      ],
+      "indexes": ["release_canary_runs_workflow_identity_unique"]
+    }
+  ],
+  "applyPolicy": {
+    "allowNonNullColumnAdds": [
+      { "table": "release_canary_runs", "column": "grant_residue_count" },
+      { "table": "release_canary_runs", "column": "calculation_residue_count" },
+      { "table": "release_canary_runs", "column": "mutation_receipt_residue_count" },
+      { "table": "release_canary_runs", "column": "scenario_residue_count" },
+      { "table": "release_canary_runs", "column": "reporting_residue_count" }
+    ]
+  }
+}

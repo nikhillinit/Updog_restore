@@ -3,6 +3,43 @@
 Complete automation for deploying CODEX fixes to staging and production with
 comprehensive smoke tests and security monitoring.
 
+## Production schema evidence preflight
+
+The `production-schema` environment owns the first and only governed apply of
+migration `0053`. Apply mode must run on workflow attempt 1 and uploads one
+immutable artifact named:
+
+```text
+prod-schema-reconcile-<runId>-<runAttempt>-<mode>-<expectedSha>
+```
+
+The artifact retention window is 90 days. Before any database connection or
+schema mutation, apply mode reads the repository artifact-and-log retention
+policy through:
+
+```text
+GET /repos/{owner}/{repo}/actions/permissions/artifact-and-log-retention
+```
+
+The `SCHEMA_EVIDENCE_RETENTION_READ_TOKEN` secret is a fine-grained token
+scoped only to this repository with Administration read permission and no
+write permission. The workflow masks it and uses it only for that GET request;
+it never enters command arguments, logs, artifacts, later steps, or a write
+API. Audit mode does not require this token.
+
+The apply receipt contains only the strict repository/workflow/run identity,
+source SHA, manifest `30-g3-release-gate-hardening`, migration `0053`,
+predecision `APPLY-MISSING-DDL`, postdecision `SKIP`, bounded build time, and
+`result=applied_and_clean`. It contains no database identifiers, connection
+data, secrets, report body, artifact ID, or artifact digest.
+
+If post-apply evidence is lost, the apply step started, or mutation outcome is
+unknown, stop. Do not rerun apply against a clean or uncertain database merely
+to recreate evidence. Record a new schema-evidence recovery decision. Rotate
+or revoke the retention-read credential after the first governed release under
+normal repository secret policy; retained artifacts use ordinary Actions read
+access.
+
 ## 📋 Overview
 
 These PowerShell scripts automate the entire deployment pipeline:
