@@ -6,18 +6,105 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
 
 const STARTUP_TIMEOUT_MS = 90_000;
-const skipIfNoDocker = !process.env.TEST_DATABASE_URL && !process.env.CI && process.platform === 'win32';
+const skipIfNoDocker =
+  !process.env.TEST_DATABASE_URL && !process.env.CI && process.platform === 'win32';
 
 let postgres: StartedPostgreSqlContainer | undefined;
 let connectionString: string | undefined;
 let pool: Pool | undefined;
 let closeApplicationPool: (() => Promise<void>) | undefined;
+let closeApplicationCircuitPool: (() => Promise<void>) | undefined;
 let closeRestartedApplicationPool: (() => Promise<void>) | undefined;
+let closeRestartedApplicationCircuitPool: (() => Promise<void>) | undefined;
 let ordinaryFundId: number | undefined;
 let legacyScenarioSetId: string | undefined;
 
+interface G3EnvironmentSnapshot {
+  databaseUrl: string | undefined;
+  useRealDbInVitest: string | undefined;
+  releaseCanaryTtlHours: string | undefined;
+  releaseCanaryMaxPortfolioCompanyResidue: string | undefined;
+  releaseCanaryMaxFundResidue: string | undefined;
+  releaseCanaryMaxFundConfigResidue: string | undefined;
+  releaseCanaryMaxFundEventResidue: string | undefined;
+  releaseCanaryMaxNotificationResidue: string | undefined;
+  releaseCanaryMaxTotalResidue: string | undefined;
+}
+
+let originalEnvironment: G3EnvironmentSnapshot | undefined;
+
+function snapshotEnvironment(): G3EnvironmentSnapshot {
+  return {
+    databaseUrl: process.env['DATABASE_URL'],
+    useRealDbInVitest: process.env['USE_REAL_DB_IN_VITEST'],
+    releaseCanaryTtlHours: process.env['RELEASE_CANARY_TTL_HOURS'],
+    releaseCanaryMaxPortfolioCompanyResidue:
+      process.env['RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE'],
+    releaseCanaryMaxFundResidue: process.env['RELEASE_CANARY_MAX_FUND_RESIDUE'],
+    releaseCanaryMaxFundConfigResidue: process.env['RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE'],
+    releaseCanaryMaxFundEventResidue: process.env['RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE'],
+    releaseCanaryMaxNotificationResidue: process.env['RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE'],
+    releaseCanaryMaxTotalResidue: process.env['RELEASE_CANARY_MAX_TOTAL_RESIDUE'],
+  };
+}
+
+function restoreEnvironment(snapshot: G3EnvironmentSnapshot | undefined): void {
+  if (!snapshot) return;
+
+  const restore = (key: string, value: string | undefined): void => {
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  };
+
+  restore('DATABASE_URL', snapshot.databaseUrl);
+  restore('USE_REAL_DB_IN_VITEST', snapshot.useRealDbInVitest);
+  restore('RELEASE_CANARY_TTL_HOURS', snapshot.releaseCanaryTtlHours);
+  restore(
+    'RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE',
+    snapshot.releaseCanaryMaxPortfolioCompanyResidue
+  );
+  restore('RELEASE_CANARY_MAX_FUND_RESIDUE', snapshot.releaseCanaryMaxFundResidue);
+  restore('RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE', snapshot.releaseCanaryMaxFundConfigResidue);
+  restore('RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE', snapshot.releaseCanaryMaxFundEventResidue);
+  restore('RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE', snapshot.releaseCanaryMaxNotificationResidue);
+  restore('RELEASE_CANARY_MAX_TOTAL_RESIDUE', snapshot.releaseCanaryMaxTotalResidue);
+}
+
+async function closeModuleGeneration(
+  applicationPoolCloser: (() => Promise<void>) | undefined,
+  circuitPoolCloser: (() => Promise<void>) | undefined
+): Promise<void> {
+  let cleanupFailed = false;
+  let firstCleanupError: unknown;
+  const recordCleanupError = (error: unknown): void => {
+    if (!cleanupFailed) {
+      cleanupFailed = true;
+      firstCleanupError = error;
+    }
+  };
+
+  try {
+    await applicationPoolCloser?.();
+  } catch (error) {
+    recordCleanupError(error);
+  }
+  try {
+    await circuitPoolCloser?.();
+  } catch (error) {
+    recordCleanupError(error);
+  }
+
+  if (cleanupFailed) {
+    throw firstCleanupError;
+  }
+}
+
 describe.skipIf(skipIfNoDocker)('G3 schema forward compatibility', () => {
   beforeAll(async () => {
+    originalEnvironment = snapshotEnvironment();
     const configuredConnectionString = process.env.TEST_DATABASE_URL;
     let databaseUrl = configuredConnectionString;
     if (!databaseUrl) {
@@ -38,10 +125,7 @@ describe.skipIf(skipIfNoDocker)('G3 schema forward compatibility', () => {
       databaseUrl,
       '0052_g3_capital_call_notification_outbox'
     );
-    await runMigrationsWithConnectionString(
-      databaseUrl,
-      '0053_g3_release_gate_hardening'
-    );
+    await runMigrationsWithConnectionString(databaseUrl, '0053_g3_release_gate_hardening');
     pool = new Pool({ connectionString: databaseUrl, max: 1 });
 
     Object.assign(process.env, {
@@ -55,15 +139,18 @@ describe.skipIf(skipIfNoDocker)('G3 schema forward compatibility', () => {
       RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE: '100',
       RELEASE_CANARY_MAX_TOTAL_RESIDUE: '1000',
     });
-
-    const { fundPersistenceService } = await import(
-      '../../server/services/fund-persistence-service'
-    );
-    const { getReserveScenarioCalculationIdentity } = await import(
-      '../../server/services/fund-scenario-reserve-calculation-service'
-    );
-    const { closeDatabasePool } = await import('../../server/db');
+    vi.resetModules();
+    const [{ closeDatabasePool }, { closePool }] = await Promise.all([
+      import('../../server/db'),
+      import('../../server/db/pg-circuit'),
+    ]);
     closeApplicationPool = closeDatabasePool;
+    closeApplicationCircuitPool = closePool;
+
+    const { fundPersistenceService } =
+      await import('../../server/services/fund-persistence-service');
+    const { getReserveScenarioCalculationIdentity } =
+      await import('../../server/services/fund-scenario-reserve-calculation-service');
 
     await pool.query(`
       INSERT INTO users (username, password, role, is_release_canary_principal)
@@ -188,15 +275,11 @@ describe.skipIf(skipIfNoDocker)('G3 schema forward compatibility', () => {
     // Replay 0053 raw AFTER legacy-shaped run/event fixtures exist: proves the
     // guarded statements are replay-safe AND exercises the backfill against
     // real matching historic queued events (marker populated from event time).
-    const migration = await readFile(
-      'migrations/0053_g3_release_gate_hardening.sql',
-      'utf8'
-    );
+    const migration = await readFile('migrations/0053_g3_release_gate_hardening.sql', 'utf8');
     await pool.query(migration.replaceAll('--> statement-breakpoint', '\n'));
 
-    const { getFundScenarioCalculationStatus } = await import(
-      '../../server/services/fund-scenario-calculation-status-service'
-    );
+    const { getFundScenarioCalculationStatus } =
+      await import('../../server/services/fund-scenario-calculation-status-service');
     const status = await getFundScenarioCalculationStatus(ordinary.fund.id, scenarioSetId);
     expect(status).toMatchObject({
       status: 'queued',
@@ -206,56 +289,107 @@ describe.skipIf(skipIfNoDocker)('G3 schema forward compatibility', () => {
   }, STARTUP_TIMEOUT_MS * 3);
 
   afterAll(async () => {
-    const applicationPoolCloser = closeApplicationPool;
-    closeApplicationPool = undefined;
-    await applicationPoolCloser?.();
-    await closeRestartedApplicationPool?.();
-    await pool?.end();
-    await postgres?.stop();
+    let cleanupFailed = false;
+    let firstCleanupError: unknown;
+    const recordCleanupError = (error: unknown): void => {
+      if (!cleanupFailed) {
+        cleanupFailed = true;
+        firstCleanupError = error;
+      }
+    };
+    const runCleanup = async (operation: (() => Promise<void>) | undefined): Promise<void> => {
+      try {
+        await operation?.();
+      } catch (error) {
+        recordCleanupError(error);
+      }
+    };
+
+    try {
+      const initialApplicationPoolCloser = closeApplicationPool;
+      const initialApplicationCircuitPoolCloser = closeApplicationCircuitPool;
+      closeApplicationPool = undefined;
+      closeApplicationCircuitPool = undefined;
+      await runCleanup(initialApplicationPoolCloser);
+      await runCleanup(initialApplicationCircuitPoolCloser);
+
+      const restartedApplicationPoolCloser = closeRestartedApplicationPool;
+      const restartedApplicationCircuitPoolCloser = closeRestartedApplicationCircuitPool;
+      closeRestartedApplicationPool = undefined;
+      closeRestartedApplicationCircuitPool = undefined;
+      await runCleanup(restartedApplicationPoolCloser);
+      await runCleanup(restartedApplicationCircuitPoolCloser);
+
+      const directPool = pool;
+      pool = undefined;
+      await runCleanup(directPool ? () => directPool.end() : undefined);
+
+      const startedPostgres = postgres;
+      postgres = undefined;
+      await runCleanup(startedPostgres ? () => startedPostgres.stop() : undefined);
+    } finally {
+      try {
+        restoreEnvironment(originalEnvironment);
+      } catch (error) {
+        recordCleanupError(error);
+      }
+      try {
+        vi.resetModules();
+      } catch (error) {
+        recordCleanupError(error);
+      }
+    }
+
+    if (cleanupFailed) {
+      throw firstCleanupError;
+    }
   });
 
-  it('keeps legacy fund, canary, draft, scenario, and reserve writes readable after expand', { retry: 0 }, async () => {
-    expect(pool).toBeDefined();
+  it(
+    'keeps legacy fund, canary, draft, scenario, and reserve writes readable after expand',
+    { retry: 0 },
+    async () => {
+      expect(pool).toBeDefined();
 
-    const funds = await pool!.query<{
-      data_origin: string;
-      canary_run_id: string | null;
-    }>(
-      `
+      const funds = await pool!.query<{
+        data_origin: string;
+        canary_run_id: string | null;
+      }>(
+        `
         SELECT data_origin, canary_run_id
         FROM funds
         WHERE name IN ('G3 ordinary compatibility fund', 'G3 canary compatibility fund')
         ORDER BY name
       `
-    );
-    expect(funds.rows).toEqual([
-      { data_origin: 'release_canary', canary_run_id: expect.any(String) },
-      { data_origin: 'production', canary_run_id: null },
-    ]);
+      );
+      expect(funds.rows).toEqual([
+        { data_origin: 'release_canary', canary_run_id: expect.any(String) },
+        { data_origin: 'production', canary_run_id: null },
+      ]);
 
-    const compatibility = await pool!.query<{
-      queued_event_recorded_at: Date | null;
-    }>(
-      `
+      const compatibility = await pool!.query<{
+        queued_event_recorded_at: Date | null;
+      }>(
+        `
         SELECT queued_event_recorded_at
         FROM fund_scenario_calculation_runs
         WHERE correlation_id = '11111111-1111-4111-8111-111111111111'
       `
-    );
-    expect(compatibility.rows[0]).toMatchObject({
-      queued_event_recorded_at: expect.any(Date),
-    });
+      );
+      expect(compatibility.rows[0]).toMatchObject({
+        queued_event_recorded_at: expect.any(Date),
+      });
 
-    const canary = await pool!.query<{
-      workflow_run_id: string | null;
-      workflow_run_attempt: number | null;
-      grant_residue_count: number;
-      calculation_residue_count: number;
-      mutation_receipt_residue_count: number;
-      scenario_residue_count: number;
-      reporting_residue_count: number;
-    }>(
-      `
+      const canary = await pool!.query<{
+        workflow_run_id: string | null;
+        workflow_run_attempt: number | null;
+        grant_residue_count: number;
+        calculation_residue_count: number;
+        mutation_receipt_residue_count: number;
+        scenario_residue_count: number;
+        reporting_residue_count: number;
+      }>(
+        `
         SELECT workflow_run_id, workflow_run_attempt,
           grant_residue_count, calculation_residue_count,
           mutation_receipt_residue_count, scenario_residue_count, reporting_residue_count
@@ -263,105 +397,124 @@ describe.skipIf(skipIfNoDocker)('G3 schema forward compatibility', () => {
         ORDER BY created_at DESC
         LIMIT 1
       `
-    );
-    expect(canary.rows[0]).toEqual({
-      workflow_run_id: null,
-      workflow_run_attempt: null,
-      grant_residue_count: 0,
-      calculation_residue_count: 0,
-      mutation_receipt_residue_count: 0,
-      scenario_residue_count: 0,
-      reporting_residue_count: 0,
-    });
-
-    const applicationPoolCloser = closeApplicationPool;
-    closeApplicationPool = undefined;
-    await applicationPoolCloser?.();
-    vi.resetModules();
-    const { getFundScenarioCalculationStatus: getRestartedCalculationStatus } = await import(
-      '../../server/services/fund-scenario-calculation-status-service'
-    );
-    ({ closeDatabasePool: closeRestartedApplicationPool } = await import('../../server/db'));
-
-    const restartedStatus = await getRestartedCalculationStatus(
-      ordinaryFundId!,
-      legacyScenarioSetId!
-    );
-    expect(restartedStatus).toMatchObject({
-      status: 'queued',
-      correlationId: '11111111-1111-4111-8111-111111111111',
-      jobId: `legacy-${ordinaryFundId}-${legacyScenarioSetId}`,
-    });
-
-    const restartedPool = new Pool({ connectionString, max: 1 });
-    try {
-      const reread = await restartedPool.query<{ count: string }>(
-        `SELECT count(*)::text AS count FROM fund_scenario_sets WHERE name = 'Legacy reserve scenario'`
       );
-      expect(reread.rows[0]?.count).toBe('1');
-    } finally {
-      await restartedPool.end();
+      expect(canary.rows[0]).toEqual({
+        workflow_run_id: null,
+        workflow_run_attempt: null,
+        grant_residue_count: 0,
+        calculation_residue_count: 0,
+        mutation_receipt_residue_count: 0,
+        scenario_residue_count: 0,
+        reporting_residue_count: 0,
+      });
+
+      const applicationPoolCloser = closeApplicationPool;
+      const applicationCircuitPoolCloser = closeApplicationCircuitPool;
+      closeApplicationPool = undefined;
+      closeApplicationCircuitPool = undefined;
+      await closeModuleGeneration(applicationPoolCloser, applicationCircuitPoolCloser);
+      vi.resetModules();
+      const [{ closeDatabasePool }, { closePool }] = await Promise.all([
+        import('../../server/db'),
+        import('../../server/db/pg-circuit'),
+      ]);
+      closeRestartedApplicationPool = closeDatabasePool;
+      closeRestartedApplicationCircuitPool = closePool;
+      const { getFundScenarioCalculationStatus: getRestartedCalculationStatus } =
+        await import('../../server/services/fund-scenario-calculation-status-service');
+
+      const restartedStatus = await getRestartedCalculationStatus(
+        ordinaryFundId!,
+        legacyScenarioSetId!
+      );
+      expect(restartedStatus).toMatchObject({
+        status: 'queued',
+        correlationId: '11111111-1111-4111-8111-111111111111',
+        jobId: `legacy-${ordinaryFundId}-${legacyScenarioSetId}`,
+      });
+
+      const restartedPool = new Pool({ connectionString, max: 1 });
+      try {
+        const reread = await restartedPool.query<{ count: string }>(
+          `SELECT count(*)::text AS count FROM fund_scenario_sets WHERE name = 'Legacy reserve scenario'`
+        );
+        expect(reread.rows[0]?.count).toBe('1');
+      } finally {
+        await restartedPool.end();
+      }
     }
-  });
+  );
 
-  it('rejects malformed durable-command and canary rows at the database boundary', { retry: 0 }, async () => {
-    expect(pool).toBeDefined();
-    const scenarioSet = await pool!.query<{ id: string; fund_id: number }>(
-      `SELECT id, fund_id FROM fund_scenario_sets WHERE name = 'Legacy reserve scenario'`
-    );
-    const setId = scenarioSet.rows[0]!.id;
-    const fundId = scenarioSet.rows[0]!.fund_id;
-    const run = await pool!.query<{ id: string }>(
-      `SELECT id FROM fund_scenario_calculation_runs
+  it(
+    'rejects malformed durable-command and canary rows at the database boundary',
+    { retry: 0 },
+    async () => {
+      expect(pool).toBeDefined();
+      const scenarioSet = await pool!.query<{ id: string; fund_id: number }>(
+        `SELECT id, fund_id FROM fund_scenario_sets WHERE name = 'Legacy reserve scenario'`
+      );
+      const setId = scenarioSet.rows[0]!.id;
+      const fundId = scenarioSet.rows[0]!.fund_id;
+      const run = await pool!.query<{ id: string }>(
+        `SELECT id FROM fund_scenario_calculation_runs
        WHERE correlation_id = '11111111-1111-4111-8111-111111111111'`
-    );
-    const runId = run.rows[0]!.id;
-    const validBody = JSON.stringify({
-      fundId,
-      scenarioSetId: setId,
-      calculationMode: 'async_reserve_allocation',
-      status: 'queued',
-      jobId: 'probe-job',
-      correlationId: '11111111-1111-4111-8111-111111111111',
-    });
+      );
+      const runId = run.rows[0]!.id;
+      const validBody = JSON.stringify({
+        fundId,
+        scenarioSetId: setId,
+        calculationMode: 'async_reserve_allocation',
+        status: 'queued',
+        jobId: 'probe-job',
+        correlationId: '11111111-1111-4111-8111-111111111111',
+      });
 
-    // NULL-trap probes: a completed row with NULL response_status, and one
-    // whose body carries JSON null calculationMode, must both violate the
-    // response check (three-valued logic must not satisfy the constraint).
-    await expect(pool!.query(
-      `INSERT INTO fund_scenario_calculation_commands
+      // NULL-trap probes: a completed row with NULL response_status, and one
+      // whose body carries JSON null calculationMode, must both violate the
+      // response check (three-valued logic must not satisfy the constraint).
+      await expect(
+        pool!.query(
+          `INSERT INTO fund_scenario_calculation_commands
          (fund_id, scenario_set_id, idempotency_key, request_hash, created_by_label,
           status, run_id, correlation_id, response_status, response_body)
        VALUES ($1, $2, 'nulltrap-status', repeat('7', 64), 'probe',
                'completed', $3, '11111111-1111-4111-8111-111111111111', NULL, $4::jsonb)`,
-      [fundId, setId, runId, validBody]
-    )).rejects.toThrow(/response_check/);
-    await expect(pool!.query(
-      `INSERT INTO fund_scenario_calculation_commands
+          [fundId, setId, runId, validBody]
+        )
+      ).rejects.toThrow(/response_check/);
+      await expect(
+        pool!.query(
+          `INSERT INTO fund_scenario_calculation_commands
          (fund_id, scenario_set_id, idempotency_key, request_hash, created_by_label,
           status, run_id, correlation_id, response_status, response_body)
        VALUES ($1, $2, 'nulltrap-mode', repeat('8', 64), 'probe',
                'completed', $3, '11111111-1111-4111-8111-111111111111', 202,
                jsonb_set($4::jsonb, '{calculationMode}', 'null'::jsonb))`,
-      [fundId, setId, runId, validBody]
-    )).rejects.toThrow(/response_check/);
+          [fundId, setId, runId, validBody]
+        )
+      ).rejects.toThrow(/response_check/);
 
-    // Scope-unique dedupe and workflow-identity coupling.
-    await pool!.query(
-      `INSERT INTO fund_scenario_calculation_commands
+      // Scope-unique dedupe and workflow-identity coupling.
+      await pool!.query(
+        `INSERT INTO fund_scenario_calculation_commands
          (fund_id, scenario_set_id, idempotency_key, request_hash, created_by_label, status)
        VALUES ($1, $2, 'dedupe-probe', repeat('9', 64), 'probe', 'pending')`,
-      [fundId, setId]
-    );
-    await expect(pool!.query(
-      `INSERT INTO fund_scenario_calculation_commands
+        [fundId, setId]
+      );
+      await expect(
+        pool!.query(
+          `INSERT INTO fund_scenario_calculation_commands
          (fund_id, scenario_set_id, idempotency_key, request_hash, created_by_label, status)
        VALUES ($1, $2, 'dedupe-probe', repeat('a', 64), 'probe', 'pending')`,
-      [fundId, setId]
-    )).rejects.toThrow(/scope_unique/);
-    await expect(pool!.query(
-      `UPDATE release_canary_runs SET workflow_run_id = '12345'
+          [fundId, setId]
+        )
+      ).rejects.toThrow(/scope_unique/);
+      await expect(
+        pool!.query(
+          `UPDATE release_canary_runs SET workflow_run_id = '12345'
        WHERE id = (SELECT id FROM release_canary_runs ORDER BY created_at DESC LIMIT 1)`
-    )).rejects.toThrow(/workflow_identity_check/);
-  });
+        )
+      ).rejects.toThrow(/workflow_identity_check/);
+    }
+  );
 });
