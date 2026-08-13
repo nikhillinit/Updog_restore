@@ -157,6 +157,7 @@ describe('prod-schema manifest sentinels', () => {
       '27-g3-portfolio-and-calculation.json',
       '28-g3-canary.json',
       '29-g3-capital-call-notification-outbox.json',
+      '30-g3-release-gate-hardening.json',
     ]);
   });
 
