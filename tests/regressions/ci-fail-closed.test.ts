@@ -4344,6 +4344,12 @@ describe('required CI fails closed', () => {
 
     const validateDeployment = releaseWorkflow.jobs?.['validate-deployment'];
     expect(normalizeNeeds(validateDeployment?.needs)).toEqual(['stage-production']);
+    expect(validateDeployment?.outputs?.deployment_url).toBe(
+      '${{ steps.verify.outputs.deployment_url }}'
+    );
+    expect(validateDeployment?.outputs?.deployment_id).toBe(
+      '${{ steps.verify.outputs.deployment_id }}'
+    );
     const identityStep = validateDeployment?.steps?.find(
       (step) => step.name === 'Normalize and verify exact staged deployment'
     );
@@ -4360,6 +4366,8 @@ describe('required CI fails closed', () => {
     );
     expect(identityStep?.run).toContain("deployment.meta?.githubCommitRef === 'main'");
     expect(identityStep?.run).toContain('deploymentHost === requestedHost');
+    expect(identityStep?.run).toContain('typeof deployment.id !== \'string\'');
+    expect(identityStep?.run).toContain('deployment_id=${deployment.id}');
     expect(JSON.stringify(releaseWorkflow.jobs ?? {})).not.toContain('inputs.deployment_url');
 
     const railwayWorkersVerify = releaseWorkflow.jobs?.['railway-workers-verify'];
@@ -4408,7 +4416,9 @@ describe('required CI fails closed', () => {
     expect(stagedSmokeStep?.env).toHaveProperty('VERCEL_AUTOMATION_BYPASS_SECRET');
     // Staged smoke probes RUM origin layers with the canonical production
     // origin — the ephemeral staged URL is correctly not allow-listed.
-    expect(stagedSmokeStep?.env?.RUM_ALLOWED_ORIGIN).toBe('${{ vars.PRODUCTION_URL }}');
+    expect(stagedSmokeStep?.env?.RUM_ALLOWED_ORIGIN).toBe(
+      'https://${{ vars.VERCEL_PRODUCTION_HOSTNAME }}'
+    );
     const stagedCredentialGuard = stagedSmoke?.steps?.find(
       (step) => step.name === 'Require non-skippable smoke credentials'
     );
@@ -4516,6 +4526,82 @@ describe('required CI fails closed', () => {
       'staged-provider-identity',
       'g4-operator-evidence',
     ]);
+    const promote = releaseWorkflow.jobs?.promote;
+    expect(promote?.['timeout-minutes']).toBe(20);
+    expect(promote?.['timeout-minutes']).toBeGreaterThan(2 + 5 + 6);
+    expect(promote?.environment).toBe('Production');
+    expect(promote?.outputs?.production_url).toBe(
+      '${{ steps.canonical-proof.outputs.production_url }}'
+    );
+    expect(promote?.outputs?.deployment_id).toBe(
+      '${{ steps.canonical-proof.outputs.deployment_id }}'
+    );
+    const promoteSteps = promote?.steps ?? [];
+    const promoteStepIndex = (name: string) => promoteSteps.findIndex((step) => step.name === name);
+    const checkoutIndex = promoteSteps.findIndex((step) => step.uses?.startsWith('actions/checkout@'));
+    const setupIndex = promoteStepIndex('Setup Node environment');
+    const refenceIndex = promoteStepIndex('Re-fence live main before promotion');
+    const decodeIndex = promoteStepIndex('Re-decode attested operator evidence after approval');
+    const freshEvidenceIndex = promoteStepIndex('Collect and verify fresh provider evidence before promotion');
+    const promoteCliIndex = promoteStepIndex('Promote verified deployment');
+    const canonicalProofIndex = promoteStepIndex('Resolve and prove canonical Vercel promotion');
+    const noOpIndex = promoteStepIndex('Accept promote failure only with canonical no-op proof');
+    expect(checkoutIndex).toBe(0);
+    expect(setupIndex).toBeGreaterThan(checkoutIndex);
+    expect(refenceIndex).toBeGreaterThan(setupIndex);
+    expect(decodeIndex).toBeGreaterThan(refenceIndex);
+    expect(freshEvidenceIndex).toBeGreaterThan(decodeIndex);
+    expect(promoteCliIndex).toBeGreaterThan(freshEvidenceIndex);
+    expect(canonicalProofIndex).toBeGreaterThan(promoteCliIndex);
+    expect(noOpIndex).toBeGreaterThan(canonicalProofIndex);
+    const freshEvidenceStep = promoteSteps[freshEvidenceIndex];
+    expect(freshEvidenceStep?.run).toContain('timeout --signal=TERM 2m');
+    expect(freshEvidenceStep?.run).toContain('collect-provider-evidence.mjs');
+    expect(freshEvidenceStep?.run).toContain('verify-provider-identity.mjs');
+    expect(freshEvidenceStep?.run).toContain('--mode operator');
+    for (const probeFlag of [
+      '--fund-health',
+      '--fund-ready',
+      '--capital-health',
+      '--capital-ready',
+    ]) {
+      expect(freshEvidenceStep?.run).toContain(probeFlag);
+    }
+    const promoteCliStep = promoteSteps[promoteCliIndex];
+    expect(promoteCliStep?.id).toBe('promote-cli');
+    expect(promoteCliStep?.run).toContain('set +e');
+    expect(promoteCliStep?.run).toContain('promote_exit=$?');
+    expect(promoteCliStep?.run).toContain('promote_exit=$promote_exit');
+    expect(promoteCliStep?.run).toContain('--timeout=5m');
+    expect(promoteCliStep?.run).not.toContain('exit 0');
+    expect(promoteCliStep?.run).not.toContain('PRODUCTION_URL');
+    const canonicalProofStep = promoteSteps[canonicalProofIndex];
+    expect(canonicalProofStep?.id).toBe('canonical-proof');
+    expect(canonicalProofStep?.env?.VERCEL_PRODUCTION_HOSTNAME).toBe(
+      '${{ vars.VERCEL_PRODUCTION_HOSTNAME }}'
+    );
+    expect(canonicalProofStep?.env?.EXPECTED_DEPLOYMENT_ID).toBe(
+      '${{ needs.validate-deployment.outputs.deployment_id }}'
+    );
+    expect(canonicalProofStep?.run).toContain('verify-vercel-promotion.mjs');
+    expect(canonicalProofStep?.run).toContain('--canonical-hostname "$VERCEL_PRODUCTION_HOSTNAME"');
+    expect(canonicalProofStep?.run).toContain('--expected-deployment-id "$EXPECTED_DEPLOYMENT_ID"');
+    expect(canonicalProofStep?.run).toContain('--github-output "$GITHUB_OUTPUT"');
+    expect(canonicalProofStep?.run).toContain('timeout --signal=TERM 6m');
+    const noOpStep = promoteSteps[noOpIndex];
+    expect(noOpStep?.run).toContain('PROMOTE_EXIT');
+    expect(noOpStep?.run).toContain('PROVED_DEPLOYMENT_ID');
+    expect(noOpStep?.run).toContain('PROMOTE_EXIT" -ne 0');
+    expect(noOpStep?.run).toContain('PROVED_DEPLOYMENT_ID" != "$EXPECTED_DEPLOYMENT_ID"');
+    expect(noOpStep?.run).toContain('exit 1');
+    const resolverSource = await readFile(
+      path.join(process.cwd(), 'scripts', 'release', 'verify-vercel-promotion.mjs'),
+      'utf8'
+    );
+    expect(resolverSource).toContain('/v13/deployments/');
+    expect(resolverSource).toContain('?teamId=');
+    expect(resolverSource).toContain('expectedDeploymentId');
+    expect(JSON.stringify(releaseWorkflow.jobs ?? {})).not.toContain('vars.PRODUCTION_URL');
     const postPromotionSmoke = releaseWorkflow.jobs?.['post-promotion-smoke'];
     expect(normalizeNeeds(postPromotionSmoke?.needs)).toEqual(['promote', 'validate-target']);
     expect(JSON.stringify(postPromotionSmoke?.steps ?? [])).not.toContain(
@@ -4533,7 +4619,9 @@ describe('required CI fails closed', () => {
     expect(driverLogGate?.env?.LOG_WINDOW_START).toBe(
       '${{ needs.validate-target.outputs.log_window_start }}'
     );
-    expect(driverLogGate?.env?.PRODUCTION_URL).toBe('${{ vars.PRODUCTION_URL }}');
+    expect(driverLogGate?.env?.PRODUCTION_URL).toBe(
+      '${{ needs.promote.outputs.production_url }}'
+    );
     expect(driverLogGate?.env?.VERCEL_TOKEN).toBe('${{ secrets.VERCEL_TOKEN }}');
     expect(driverLogGate?.env?.VERCEL_ORG_ID).toBe('${{ vars.VERCEL_ORG_ID }}');
     expect(driverLogGate?.env?.VERCEL_PROJECT_ID).toBe('${{ vars.VERCEL_PROJECT_ID }}');
@@ -4567,6 +4655,13 @@ describe('required CI fails closed', () => {
     expect(driverLogGate?.run).toContain('trap \'rm -f "$runtime_log"\' EXIT');
     expect(driverLogGate?.run).toContain(
       'node scripts/assert-vercel-driver-log-clean.mjs "$runtime_log"'
+    );
+    const postPromotionSmokeStep = postPromotionSteps[authenticatedSmokeIndex];
+    expect(postPromotionSmokeStep?.env?.PRODUCTION_URL).toBe(
+      '${{ needs.promote.outputs.production_url }}'
+    );
+    expect(postPromotionSmokeStep?.env?.RUM_ALLOWED_ORIGIN).toBe(
+      'https://${{ vars.VERCEL_PRODUCTION_HOSTNAME }}'
     );
     expect(JSON.stringify(postPromotionSmoke?.steps ?? [])).not.toContain('upload-artifact');
 

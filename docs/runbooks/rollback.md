@@ -32,6 +32,8 @@ script.
    escalate any later schema cleanup as separate reviewed forward migration.
 5. Use `.github/workflows/release-production.yml` as sole production mutation
    path. `scripts/rollback-verify.sh` verifies evidence only.
+6. Treat `VERCEL_PRODUCTION_HOSTNAME` as canonical production identity. Do not
+   use mutable `PRODUCTION_URL` for deployment identity or promote no-op proof.
 
 ## Execute
 
@@ -76,8 +78,9 @@ script.
 
 6. Wait for governed workflow to complete. It must retain exact live-`main`
    fencing and pass release proof, clean production schema audit, staged
-   deployment identity validation, authenticated staged smoke, promotion, and
-   authenticated post-promotion smoke.
+   deployment identity validation, authenticated staged smoke, provider identity
+   verification, canonical Vercel promotion proof, and authenticated
+   post-promotion smoke.
 7. Record numeric GitHub Actions run ID, then verify exact evidence:
 
    ```bash
@@ -97,6 +100,8 @@ Attach following to incident:
 - successful `Release Production` run URL;
 - successful staged identity, authenticated staged smoke, promotion, and
   authenticated post-promotion smoke job URLs;
+- canonical hostname, exact promoted deployment ID, protected project ID, and
+  source SHA recorded by the promotion proof;
 - remaining impact, irreversible data limitations, and follow-up owners.
 
 Complete blameless postmortem within 48 hours. Track remediation owners and due

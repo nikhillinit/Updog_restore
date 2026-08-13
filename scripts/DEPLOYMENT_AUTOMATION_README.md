@@ -248,6 +248,21 @@ No skip or force options exist. Script never invokes Vercel production commands;
 governed workflow is sole production-mutation path. Never pass operator evidence
 through command-line fields or invoke release workflow directly.
 
+#### Canonical promotion proof
+
+The workflow treats `VERCEL_PRODUCTION_HOSTNAME` as the protected production
+identity. After every Vercel promote attempt, it polls the Vercel API with the
+protected organization scope and verifies the exact staged deployment ID,
+protected project ID, `READY` state, production target, expected commit SHA, and
+exact canonical alias. The resolver has a five-minute deadline, four-second
+request timeout, and 60-attempt cap. A failed Vercel CLI command is accepted only
+when this API proof establishes that the exact staged deployment already serves
+the canonical hostname.
+
+Post-promotion smoke and runtime log checks consume the URL emitted by the
+proved promotion step. `PRODUCTION_URL` is not used to establish deployment
+identity or a promotion no-op.
+
 ---
 
 ## 🔐 Security Verification
