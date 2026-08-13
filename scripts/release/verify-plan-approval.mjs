@@ -25,6 +25,7 @@ const COMMENTS_PER_PAGE = 100;
 const MAX_ACTION_PAGES = 1_000;
 const ACTIONS_PER_PAGE = 100;
 const CI_WORKFLOW_PATH = 'ci-unified.yml';
+const PLAN_APPROVAL_JOB_NAME = 'Plan Approval';
 const CI_GATE_JOB_NAME = 'CI Gate Status';
 const execFileAsync = promisify(execFile);
 
@@ -939,12 +940,35 @@ async function resolveFinalHeadCiGate({
       {},
       'final-head jobs'
     );
-    const planApprovalJobs = jobs.filter((job) => job?.name === 'plan-approval');
+    const planApprovalJobs = jobs.filter((job) => job?.name === PLAN_APPROVAL_JOB_NAME);
     if (planApprovalJobs.length > 1) {
-      fail('final-head workflow run has multiple plan-approval jobs');
+      fail(`final-head workflow run has multiple ${PLAN_APPROVAL_JOB_NAME} jobs`);
     }
     const planApprovalJob = planApprovalJobs[0];
-    if (!planApprovalJob || planApprovalJob.conclusion === 'skipped') continue;
+    if (!planApprovalJob) continue;
+    const planApprovalJobRunId = requirePositiveInteger(
+      planApprovalJob.run_id,
+      `final-head ${PLAN_APPROVAL_JOB_NAME} job workflow run ID`
+    );
+    const planApprovalJobRunAttempt = requirePositiveInteger(
+      planApprovalJob.run_attempt,
+      `final-head ${PLAN_APPROVAL_JOB_NAME} job workflow run attempt`
+    );
+    const planApprovalJobHeadSha = requireSha(
+      planApprovalJob.head_sha,
+      `final-head ${PLAN_APPROVAL_JOB_NAME} job head SHA`
+    );
+    if (
+      planApprovalJobRunId !== workflowRun.workflowRunId ||
+      planApprovalJobRunAttempt !== runAttempt ||
+      planApprovalJobHeadSha !== liveHeadSha
+    ) {
+      fail(`final-head ${PLAN_APPROVAL_JOB_NAME} job is not bound to selected workflow run`);
+    }
+    if (planApprovalJob.status !== 'completed') {
+      fail(`final-head ${PLAN_APPROVAL_JOB_NAME} job is not completed`);
+    }
+    if (planApprovalJob.conclusion === 'skipped') continue;
     armedRuns.push({ jobs, planApprovalJob, runAttempt, workflowRun });
   }
   if (armedRuns.length !== 1) {
@@ -955,7 +979,7 @@ async function resolveFinalHeadCiGate({
     fail('armed final-head workflow run did not complete successfully');
   }
   if (planApprovalJob.conclusion !== 'success') {
-    fail('armed final-head plan-approval job did not complete successfully');
+    fail(`armed final-head ${PLAN_APPROVAL_JOB_NAME} job did not complete successfully`);
   }
   const gateJobs = jobs.filter((job) => job?.name === CI_GATE_JOB_NAME);
   if (gateJobs.length !== 1) {
