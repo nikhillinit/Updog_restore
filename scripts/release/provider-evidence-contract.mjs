@@ -76,7 +76,8 @@ export function normalizeCanonicalHostname(value) {
     hostname.includes(':') ||
     hostname.includes('@') ||
     hostname.includes('*') ||
-    !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/.test(hostname)
+    !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/.test(hostname) ||
+    hostname.split('.').some((label) => label.length > 63)
   ) {
     fail('canonical hostname is invalid');
   }

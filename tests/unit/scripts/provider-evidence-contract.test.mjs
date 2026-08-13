@@ -123,7 +123,7 @@ describe('provider-evidence-contract', () => {
     });
   });
 
-  it.each(['https://production.example.com', 'production.example.com/', 'production.example.com:443', 'PRODUCTION.EXAMPLE.COM'])(
+  it.each(['https://production.example.com', 'production.example.com/', 'production.example.com:443', 'PRODUCTION.EXAMPLE.COM', `${'a'.repeat(64)}.example.com`, 'single-label', '-bad.example.com'])(
     'rejects malformed canonical hostname %s',
     { retry: 0 },
     (canonicalHostname) => {

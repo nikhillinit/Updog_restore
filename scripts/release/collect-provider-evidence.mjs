@@ -202,11 +202,14 @@ async function main() {
     process.env['RAILWAY_TOKEN'],
     process.env['VERCEL_AUTOMATION_BYPASS_SECRET'],
   ].filter((secret) => typeof secret === 'string' && secret !== '');
-  assertSafePath(args['output-dir'], environmentSecrets);
-  await mkdir(args['output-dir'], { recursive: true });
+  // Use the RESOLVED path everywhere after validation: recursive mkdir on the
+  // raw input would materialize secret-bearing intermediate components that
+  // dot-dot segments hide from the normalized check.
+  const safeOutputDirectory = assertSafePath(args['output-dir'], environmentSecrets);
+  await mkdir(safeOutputDirectory, { recursive: true });
   await collectProviderEvidence({
     deploymentUrl: args['deployment-url'],
-    outputDirectory: args['output-dir'],
+    outputDirectory: safeOutputDirectory,
   });
   console.log('Provider evidence collected.');
 }

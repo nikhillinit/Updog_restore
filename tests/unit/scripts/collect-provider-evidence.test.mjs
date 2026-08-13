@@ -1,7 +1,15 @@
+import { execFile } from 'node:child_process';
+import { lstat, mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import process from 'node:process';
+import { promisify } from 'node:util';
 
 import { collectProviderEvidence } from '../../../scripts/release/collect-provider-evidence.mjs';
+
+const execFileAsync = promisify(execFile);
+const CLI_PATH = path.resolve(process.cwd(), 'scripts/release/collect-provider-evidence.mjs');
 
 const SHA = 'a'.repeat(40);
 const TOKENS = {
@@ -240,5 +248,39 @@ describe('collect-provider-evidence', () => {
       writeFileImpl,
     })).rejects.toThrow(/Provider evidence/);
     expect(writeFileImpl).not.toHaveBeenCalled();
+  });
+
+  it('CLI never creates a secret-bearing directory, including via dot-dot traversal', { retry: 0 }, async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'collect-cli-test-'));
+    try {
+      const cliEnvironment = {
+        ...process.env,
+        ...TOKENS,
+        VERCEL_ORG_ID: 'vercel-org',
+        VERCEL_PROJECT_ID: 'vercel-project',
+      };
+
+      const direct = path.join(root, TOKENS.RAILWAY_TOKEN, 'evidence');
+      const directResult = await execFileAsync(process.execPath, [
+        CLI_PATH, '--deployment-url', 'https://candidate.vercel.app', '--output-dir', direct,
+      ], { env: cliEnvironment }).catch((error) => error);
+      expect(directResult.code).not.toBe(0);
+      await expect(lstat(path.join(root, TOKENS.RAILWAY_TOKEN))).rejects.toMatchObject({ code: 'ENOENT' });
+
+      // Traversal form: the raw path carries a secret-named component that a
+      // dot-dot segment removes on resolve; recursive mkdir on the RAW input
+      // would still have materialized it. Trigger a pre-network failure by
+      // omitting a required env value so no real fetch is attempted.
+      const traversal = path.join(root, `${TOKENS.RAILWAY_TOKEN}-x`, '..', 'evidence');
+      const traversalEnvironment = { ...cliEnvironment };
+      delete traversalEnvironment.VERCEL_ORG_ID;
+      const traversalResult = await execFileAsync(process.execPath, [
+        CLI_PATH, '--deployment-url', 'https://candidate.vercel.app', '--output-dir', traversal,
+      ], { env: traversalEnvironment }).catch((error) => error);
+      expect(traversalResult.code).not.toBe(0);
+      await expect(lstat(path.join(root, `${TOKENS.RAILWAY_TOKEN}-x`))).rejects.toMatchObject({ code: 'ENOENT' });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });
