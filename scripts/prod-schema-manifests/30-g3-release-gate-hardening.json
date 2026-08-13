@@ -72,6 +72,28 @@
     }
   ],
   "applyPolicy": {
+    "allowConstraintReplacements": [
+      {
+        "table": "release_canary_runs",
+        "name": "release_canary_runs_residue_count_check",
+        "expectedDefinition": {
+          "requiredFragments": [
+            "total_residue_count",
+            "portfolio_company_residue_count",
+            "fund_residue_count",
+            "fund_config_residue_count",
+            "fund_event_residue_count",
+            "notification_residue_count",
+            "grant_residue_count",
+            "calculation_residue_count",
+            "mutation_receipt_residue_count",
+            "scenario_residue_count",
+            "reporting_residue_count"
+          ],
+          "stringLiterals": []
+        }
+      }
+    ],
     "allowNonNullColumnAdds": [
       { "table": "release_canary_runs", "column": "grant_residue_count" },
       { "table": "release_canary_runs", "column": "calculation_residue_count" },

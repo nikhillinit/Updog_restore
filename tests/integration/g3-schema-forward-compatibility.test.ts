@@ -1,7 +1,7 @@
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { readFile } from 'node:fs/promises';
 import { Pool } from 'pg';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
 
@@ -12,6 +12,9 @@ let postgres: StartedPostgreSqlContainer | undefined;
 let connectionString: string | undefined;
 let pool: Pool | undefined;
 let closeApplicationPool: (() => Promise<void>) | undefined;
+let closeRestartedApplicationPool: (() => Promise<void>) | undefined;
+let ordinaryFundId: number | undefined;
+let legacyScenarioSetId: string | undefined;
 
 describe.skipIf(skipIfNoDocker)('G3 schema forward compatibility', () => {
   beforeAll(async () => {
@@ -99,14 +102,18 @@ describe.skipIf(skipIfNoDocker)('G3 schema forward compatibility', () => {
       { fundName: 'G3 canary compatibility fund', modelInputsAsOfDate: '2026-01-01' }
     );
 
-    await pool.query(
-      `
-        UPDATE fundconfigs
-        SET is_draft = false, is_published = true, published_at = now()
-        WHERE id IN ($1, $2)
-      `,
-      [ordinary.draft.id, canary.draft.id]
+    const publishQueues = { reserve: null, pacing: null, cohort: null } as const;
+    await fundPersistenceService.publishDraft(
+      ordinary.fund.id,
+      publishQueues,
+      ordinaryUser.rows[0]!.id
     );
+    await fundPersistenceService.publishDraft(
+      canary.fund.id,
+      publishQueues,
+      canaryUser.rows[0]!.id
+    );
+    ordinaryFundId = ordinary.fund.id;
 
     const scenarioSet = await pool.query<{ id: string }>(
       `
@@ -118,6 +125,7 @@ describe.skipIf(skipIfNoDocker)('G3 schema forward compatibility', () => {
       [ordinary.fund.id, ordinary.draft.id, ordinaryUser.rows[0]!.id]
     );
     const scenarioSetId = scenarioSet.rows[0]!.id;
+    legacyScenarioSetId = scenarioSetId;
     await pool.query(
       `
         INSERT INTO fund_scenario_variants
@@ -133,6 +141,12 @@ describe.skipIf(skipIfNoDocker)('G3 schema forward compatibility', () => {
       scenarioSetId
     );
     const correlationId = '11111111-1111-4111-8111-111111111111';
+
+    // The current enqueue path intentionally hard-requires BullMQ plus a real
+    // Redis URL. This Postgres-only forward-compatibility suite keeps its
+    // legacy reserve-run/event fixture inline; the Redis-backed
+    // fund-scenario-reserve-worker integration already exercises the real
+    // enqueue path against Testcontainers Redis.
     const run = await pool.query<{ id: string }>(
       `
         INSERT INTO fund_scenario_calculation_runs
@@ -192,12 +206,15 @@ describe.skipIf(skipIfNoDocker)('G3 schema forward compatibility', () => {
   }, STARTUP_TIMEOUT_MS * 3);
 
   afterAll(async () => {
-    await closeApplicationPool?.();
+    const applicationPoolCloser = closeApplicationPool;
+    closeApplicationPool = undefined;
+    await applicationPoolCloser?.();
+    await closeRestartedApplicationPool?.();
     await pool?.end();
     await postgres?.stop();
   });
 
-  it('keeps legacy fund, canary, draft, scenario, and reserve writes readable after expand', async () => {
+  it('keeps legacy fund, canary, draft, scenario, and reserve writes readable after expand', { retry: 0 }, async () => {
     expect(pool).toBeDefined();
 
     const funds = await pool!.query<{
@@ -255,6 +272,25 @@ describe.skipIf(skipIfNoDocker)('G3 schema forward compatibility', () => {
       mutation_receipt_residue_count: 0,
       scenario_residue_count: 0,
       reporting_residue_count: 0,
+    });
+
+    const applicationPoolCloser = closeApplicationPool;
+    closeApplicationPool = undefined;
+    await applicationPoolCloser?.();
+    vi.resetModules();
+    const { getFundScenarioCalculationStatus: getRestartedCalculationStatus } = await import(
+      '../../server/services/fund-scenario-calculation-status-service'
+    );
+    ({ closeDatabasePool: closeRestartedApplicationPool } = await import('../../server/db'));
+
+    const restartedStatus = await getRestartedCalculationStatus(
+      ordinaryFundId!,
+      legacyScenarioSetId!
+    );
+    expect(restartedStatus).toMatchObject({
+      status: 'queued',
+      correlationId: '11111111-1111-4111-8111-111111111111',
+      jobId: `legacy-${ordinaryFundId}-${legacyScenarioSetId}`,
     });
 
     const restartedPool = new Pool({ connectionString, max: 1 });

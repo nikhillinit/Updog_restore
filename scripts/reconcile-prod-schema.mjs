@@ -429,8 +429,11 @@ function validateApplyPolicy(manifest) {
       expectedDefinition.requiredFragments.some(
         (fragment) => typeof fragment !== 'string' || fragment.trim().length === 0
       ) ||
+      // A numeric-only constraint (e.g. residue-count equality) legitimately
+      // has zero string literals; an empty array is an explicit declaration
+      // that the live definition must contain none, enforced by exact
+      // multiset comparison in constraintDefinitionMatches.
       !Array.isArray(expectedDefinition.stringLiterals) ||
-      expectedDefinition.stringLiterals.length === 0 ||
       expectedDefinition.stringLiterals.some(
         (literal) => typeof literal !== 'string' || literal.length === 0
       )
