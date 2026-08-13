@@ -29,7 +29,18 @@ These PowerShell scripts automate the entire deployment pipeline:
 .\scripts\monitor-logs.ps1 -Environment staging -Minutes 5
 
 # 4. Dispatch governed production release (after verification)
-.\scripts\deploy-production.ps1
+.\scripts\deploy-production.ps1 `
+  -ReleaseMode primary `
+  -FundHealthPath .\evidence\fund-health.json `
+  -FundReadyPath .\evidence\fund-ready.json `
+  -CapitalHealthPath .\evidence\capital-health.json `
+  -CapitalReadyPath .\evidence\capital-ready.json `
+  -SchemaApplyRunId <run-id> `
+  -SchemaApplyRunAttempt 1 `
+  -SchemaApplyArtifactId <artifact-id> `
+  -SchemaApplyArtifactDigest sha256:<64-lowercase-hex> `
+  -SchemaApplyReceiptFileSha256 <64-lowercase-hex> `
+  -SchemaPrecursorSha <40-lowercase-hex>
 ```
 
 ---
@@ -211,18 +222,31 @@ post-promotion smoke.
 #### Usage
 
 ```powershell
-.\scripts\deploy-production.ps1
+.\scripts\deploy-production.ps1 `
+  -ReleaseMode primary `
+  -FundHealthPath .\evidence\fund-health.json `
+  -FundReadyPath .\evidence\fund-ready.json `
+  -CapitalHealthPath .\evidence\capital-health.json `
+  -CapitalReadyPath .\evidence\capital-ready.json `
+  -SchemaApplyRunId <run-id> `
+  -SchemaApplyRunAttempt 1 `
+  -SchemaApplyArtifactId <artifact-id> `
+  -SchemaApplyArtifactDigest sha256:<64-lowercase-hex> `
+  -SchemaApplyReceiptFileSha256 <64-lowercase-hex> `
+  -SchemaPrecursorSha <40-lowercase-hex>
 ```
 
 #### What It Does
 
 1. Resolves repository with authenticated GitHub CLI.
 2. Resolves exact live `main` SHA through GitHub API.
-3. Rejects missing or malformed SHA.
-4. Dispatches `release-production.yml` from `main` with `expected_sha`.
+3. Encodes and strictly validates four redacted operator health/readiness files.
+4. Rejects missing or malformed release and schema evidence.
+5. Dispatches `release-production.yml` from `main` with compact JSON on stdin.
 
 No skip or force options exist. Script never invokes Vercel production commands;
-governed workflow is sole production-mutation path.
+governed workflow is sole production-mutation path. Never pass operator evidence
+through command-line fields or invoke release workflow directly.
 
 ---
 

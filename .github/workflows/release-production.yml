@@ -15,6 +15,39 @@ on:
         description: Base64-encoded redacted fund and capital worker health/readiness evidence
         type: string
         required: true
+      release_mode:
+        description: Governed release mode
+        type: choice
+        options:
+          - primary
+          - rollback
+        required: true
+      schema_apply_run_id:
+        description: Schema apply workflow run ID
+        type: string
+        required: true
+      schema_apply_run_attempt:
+        description: Schema apply workflow run attempt
+        type: choice
+        options:
+          - '1'
+        required: true
+      schema_apply_artifact_id:
+        description: Schema apply evidence artifact ID
+        type: string
+        required: true
+      schema_apply_artifact_digest:
+        description: Schema apply evidence artifact digest
+        type: string
+        required: true
+      schema_apply_receipt_file_sha256:
+        description: SHA-256 of schema apply receipt file
+        type: string
+        required: true
+      schema_precursor_sha:
+        description: Schema-only precursor commit SHA
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -537,59 +570,17 @@ jobs:
         with:
           ref: ${{ inputs.expected_sha }}
 
-      - name: Require and decode attested operator evidence
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+
+      - name: Decode attested operator evidence
         env:
           OPERATOR_EVIDENCE_B64: ${{ inputs.operator_evidence_b64 }}
         run: |
           set -euo pipefail
-          node <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-
-          const encoded = (process.env.OPERATOR_EVIDENCE_B64 ?? '').replace(/\s+/g, '');
-          if (!encoded) {
-            console.error('operator_evidence_b64 is required and must not be empty.');
-            process.exit(1);
-          }
-          if (!/^[A-Za-z0-9+/]+={0,2}$/.test(encoded) || encoded.length % 4 === 1) {
-            console.error('operator_evidence_b64 is not valid base64.');
-            process.exit(1);
-          }
-
-          let bundle;
-          try {
-            bundle = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
-          } catch {
-            console.error('operator_evidence_b64 did not decode to valid JSON.');
-            process.exit(1);
-          }
-
-          const fields = [
-            ['fundHealth', 'fund-health.json'],
-            ['fundReady', 'fund-ready.json'],
-            ['capitalHealth', 'capital-health.json'],
-            ['capitalReady', 'capital-ready.json'],
-          ];
-          if (!bundle || typeof bundle !== 'object' || Array.isArray(bundle)) {
-            console.error('Operator evidence bundle must be a JSON object.');
-            process.exit(1);
-          }
-          const keys = Object.keys(bundle).sort();
-          const expectedKeys = fields.map(([field]) => field).sort();
-          if (JSON.stringify(keys) !== JSON.stringify(expectedKeys)) {
-            console.error('Operator evidence bundle must contain exactly four probe objects.');
-            process.exit(1);
-          }
-
-          for (const [field, filename] of fields) {
-            const evidence = bundle[field];
-            if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) {
-              console.error(`Operator evidence field ${field} must be a JSON object.`);
-              process.exit(1);
-            }
-            fs.writeFileSync(path.join(process.env.RUNNER_TEMP, filename), JSON.stringify(evidence));
-          }
-          NODE
+          OPERATOR_EVIDENCE_B64="$OPERATOR_EVIDENCE_B64" \
+            node scripts/release/operator-evidence-bundle.mjs decode \
+            --output-dir "$RUNNER_TEMP/operator-evidence"
 
       - name: Fetch staged Vercel and live Railway control-plane evidence
         env:
@@ -649,10 +640,10 @@ jobs:
             --expected-sha "$CANDIDATE_SHA" \
             --vercel "$RUNNER_TEMP/operator-vercel-evidence.json" \
             --railway "$RUNNER_TEMP/operator-railway-evidence.json" \
-            --fund-health "$RUNNER_TEMP/fund-health.json" \
-            --fund-ready "$RUNNER_TEMP/fund-ready.json" \
-            --capital-health "$RUNNER_TEMP/capital-health.json" \
-            --capital-ready "$RUNNER_TEMP/capital-ready.json" \
+            --fund-health "$RUNNER_TEMP/operator-evidence/fund-health.json" \
+            --fund-ready "$RUNNER_TEMP/operator-evidence/fund-ready.json" \
+            --capital-health "$RUNNER_TEMP/operator-evidence/capital-health.json" \
+            --capital-ready "$RUNNER_TEMP/operator-evidence/capital-ready.json" \
             | tee "$RUNNER_TEMP/operator-verification.json"
           {
             echo '### G4 attested operator evidence verification'
@@ -660,6 +651,10 @@ jobs:
             cat "$RUNNER_TEMP/operator-verification.json"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove decoded operator evidence
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/operator-evidence"
 
   promote:
     name: Promote Staged Vercel Deployment
@@ -689,6 +684,23 @@ jobs:
             exit 1
           fi
           echo "Live main still equals release target ${EXPECTED_SHA}; promotion authorized."
+
+      - name: Checkout exact release verifier
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.expected_sha }}
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+
+      - name: Re-decode attested operator evidence after approval
+        env:
+          OPERATOR_EVIDENCE_B64: ${{ inputs.operator_evidence_b64 }}
+        run: |
+          set -euo pipefail
+          OPERATOR_EVIDENCE_B64="$OPERATOR_EVIDENCE_B64" \
+            node scripts/release/operator-evidence-bundle.mjs decode \
+            --output-dir "$RUNNER_TEMP/operator-evidence-promote"
 
       - name: Promote verified deployment
         env:
@@ -730,6 +742,10 @@ jobs:
           fi
           echo "Current production does not match the verified staged deployment; promote failure is real."
           exit 1
+
+      - name: Remove revalidated operator evidence
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/operator-evidence-promote"
 
   post-promotion-smoke:
     name: Authenticated Post-promotion Smoke

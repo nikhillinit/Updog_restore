@@ -12,6 +12,7 @@ import YAML from 'yaml';
 type WorkflowStep = {
   ['continue-on-error']?: boolean;
   env?: Record<string, unknown>;
+  if?: string;
   name?: string;
   run?: string;
   shell?: string;
@@ -1977,10 +1978,21 @@ async function listRepositoryFiles(): Promise<string[]> {
     encoding: 'utf8',
     maxBuffer: 10 * 1024 * 1024,
   });
-  return stdout
+  const trackedFiles = stdout
     .split('\0')
     .filter(Boolean)
     .filter((relativePath) => !shouldExcludeAutomationPath(relativePath));
+  const existingFiles = await Promise.all(
+    trackedFiles.map(async (relativePath) => {
+      try {
+        await access(path.join(process.cwd(), relativePath));
+        return relativePath;
+      } catch {
+        return undefined;
+      }
+    })
+  );
+  return existingFiles.filter((relativePath): relativePath is string => relativePath !== undefined);
 }
 
 function automationLanguage(filePath: string, content: string): AutomationSurface['language'] {
@@ -3983,9 +3995,10 @@ describe('required CI fails closed', () => {
     const g4OperatorScripts = allRunScripts({
       jobs: { operatorEvidence: g4OperatorEvidence ?? {} },
     }).join('\n');
-    expect(g4OperatorScripts).toContain('operator_evidence_b64');
-    expect(g4OperatorScripts).toContain('not valid base64');
-    expect(g4OperatorScripts).toContain('not decode to valid JSON');
+    expect(g4OperatorScripts).toContain('operator-evidence-bundle.mjs decode');
+    expect(g4OperatorScripts).toContain('operator-evidence');
+    expect(g4OperatorScripts).not.toContain('not valid base64');
+    expect(g4OperatorScripts).not.toContain('not decode to valid JSON');
     expect(g4OperatorScripts).toContain('--mode operator');
     for (const probeFlag of [
       '--fund-health',
@@ -3997,9 +4010,28 @@ describe('required CI fails closed', () => {
     }
     expect(g4OperatorScripts).toContain('operator-verification.json');
     expect(g4OperatorScripts).toContain('GITHUB_STEP_SUMMARY');
+    const g4SetupNode = g4OperatorEvidence?.steps?.find(
+      (step) => step.name === 'Setup Node environment'
+    );
+    expect(g4SetupNode?.uses).toBe('./.github/actions/setup-node-env');
+    const g4Cleanup = g4OperatorEvidence?.steps?.find(
+      (step) => step.name === 'Remove decoded operator evidence'
+    );
+    expect(g4Cleanup?.if).toBe('always()');
+    expect(g4Cleanup?.run).toContain('operator-evidence');
     expect(normalizeNeeds(releaseWorkflow.jobs?.promote?.needs)).toContain(
       'g4-operator-evidence'
     );
+    const promoteScripts = allRunScripts({
+      jobs: { promote: releaseWorkflow.jobs?.promote ?? {} },
+    }).join('\n');
+    expect(promoteScripts).toContain('operator-evidence-bundle.mjs decode');
+    expect(promoteScripts).toContain('operator-evidence-promote');
+    const promoteCleanup = releaseWorkflow.jobs?.promote?.steps?.find(
+      (step) => step.name === 'Remove revalidated operator evidence'
+    );
+    expect(promoteCleanup?.if).toBe('always()');
+    expect(promoteCleanup?.run).toContain('operator-evidence-promote');
     expect(normalizeNeeds(releaseWorkflow.jobs?.['stage-production']?.needs)).toContain(
       'schema-audit'
     );
@@ -4147,6 +4179,18 @@ describe('required CI fails closed', () => {
       .filter(automationSurfaceHasVercelRestMutation)
       .map((surface) => surface.id);
     expect(ungovernedVercelRestMutations).toEqual([]);
+    expect(
+      automationSurfaces
+        .filter((surface) =>
+          callsReleaseWorkflow({ jobs: { dispatch: { steps: [{ run: surface.content }] } } })
+        )
+        .map((surface) => surface.id)
+    ).toEqual(['operator:scripts/deploy-production.ps1']);
+    expect(
+      await access(path.join(workflowsDir, 'task11-prod-closeout-once.yml'))
+        .then(() => true)
+        .catch(() => false)
+    ).toBe(false);
 
     expect(Object.keys(releaseWorkflow.jobs ?? {})).toEqual([
       'validate-target',
@@ -4182,12 +4226,41 @@ describe('required CI fails closed', () => {
     );
     const dispatchInputs = (
       releaseWorkflow.on?.workflow_dispatch as
-        { inputs?: Record<string, { required?: boolean; type?: string }> } | undefined
+        {
+          inputs?: Record<
+            string,
+            { default?: string; options?: string[]; required?: boolean; type?: string }
+          >;
+        } | undefined
     )?.inputs;
     expect(dispatchInputs?.expected_sha?.required).toBe(true);
     expect(dispatchInputs?.deployment_url?.required).toBe(false);
     expect(dispatchInputs?.operator_evidence_b64?.required).toBe(true);
     expect(dispatchInputs?.operator_evidence_b64?.type).toBe('string');
+    expect(dispatchInputs?.release_mode).toMatchObject({
+      required: true,
+      type: 'choice',
+      options: ['primary', 'rollback'],
+    });
+    expect(dispatchInputs?.release_mode?.default).toBeUndefined();
+    for (const field of [
+      'schema_apply_run_id',
+      'schema_apply_run_attempt',
+      'schema_apply_artifact_id',
+      'schema_apply_artifact_digest',
+      'schema_apply_receipt_file_sha256',
+      'schema_precursor_sha',
+    ]) {
+      expect(dispatchInputs?.[field]?.required).toBe(true);
+      expect(dispatchInputs?.[field]?.type).toBe(
+        field === 'schema_apply_run_attempt' ? 'choice' : 'string'
+      );
+    }
+    expect(dispatchInputs?.schema_apply_run_attempt).toMatchObject({
+      required: true,
+      type: 'choice',
+      options: ['1'],
+    });
 
     const stageProduction = releaseWorkflow.jobs?.['stage-production'];
     expect(normalizeNeeds(stageProduction?.needs)).toEqual(['schema-audit']);
@@ -4397,9 +4470,14 @@ describe('required CI fails closed', () => {
     expect(stagedResidue?.run).toContain('scripts/release/assert-canary-residue.mjs');
     expect(stagedResidue?.run).toContain('--expected-sha "$EXPECTED_SHA"');
     expect(stagedResidue?.run).toContain('--reconcile-expected-sha');
-    expect(JSON.stringify(releaseWorkflow.jobs ?? {})).not.toMatch(
-      /"if"\s*:|"continue-on-error"\s*:/
+    const conditionalSteps = Object.values(releaseWorkflow.jobs ?? {}).flatMap((job) =>
+      (job.steps ?? []).filter((step) => step.if !== undefined || step['continue-on-error'] !== undefined)
     );
+    expect(conditionalSteps.map((step) => step.name)).toEqual([
+      'Remove decoded operator evidence',
+      'Remove revalidated operator evidence',
+    ]);
+    expect(conditionalSteps.every((step) => step.if === 'always()')).toBe(true);
 
     expect(normalizeNeeds(releaseWorkflow.jobs?.promote?.needs)).toEqual([
       'staged-smoke',
@@ -4559,15 +4637,46 @@ describe('required CI fails closed', () => {
     );
 
     expect(dispatcher).toContain('gh api "repos/$repository/commits/main" --jq ".sha"');
+    expect(dispatcher).toContain('operator-evidence-bundle.mjs encode');
+    expect(dispatcher).toContain('operator_evidence_b64 = $operatorEvidenceB64');
+    expect(dispatcher).toContain('release_mode = $ReleaseMode');
+    for (const field of [
+      'schema_apply_run_id',
+      'schema_apply_run_attempt',
+      'schema_apply_artifact_id',
+      'schema_apply_artifact_digest',
+      'schema_apply_receipt_file_sha256',
+      'schema_precursor_sha',
+    ]) {
+      expect(dispatcher).toContain(`${field} =`);
+    }
+    expect(dispatcher).toContain('$inputsJson.Length -gt 65535');
     expect(dispatcher).toContain(
-      'gh workflow run release-production.yml --ref main --field "expected_sha=$expectedSha"'
+      'gh workflow run release-production.yml --ref main --repo $repository --json'
     );
+    expect(dispatcher).not.toContain('--field');
     expect(dispatcher).toContain('--repo $repository');
     expect(dispatcher).not.toMatch(/\bSkipSmokeTest\b|\bForce\b/);
-    expect(dispatcher.match(/\$LASTEXITCODE/g)).toHaveLength(3);
+    expect(dispatcher.match(/\$LASTEXITCODE/g)).toHaveLength(4);
     expect(dispatcher).toContain('[string]::IsNullOrWhiteSpace($repository)');
     expect(dispatcher).toContain('[string]::IsNullOrWhiteSpace($expectedSha)');
     expect(dispatcher).toContain('$expectedSha -notmatch "^[0-9a-f]{40}$"');
+    for (const parameter of [
+      'FundHealthPath',
+      'FundReadyPath',
+      'CapitalHealthPath',
+      'CapitalReadyPath',
+      'SchemaApplyRunId',
+      'SchemaApplyRunAttempt',
+      'SchemaApplyArtifactId',
+      'SchemaApplyArtifactDigest',
+      'SchemaApplyReceiptFileSha256',
+      'SchemaPrecursorSha',
+      'ReleaseMode',
+    ]) {
+      expect(dispatcher).toContain(`[string] $${parameter}`);
+    }
+    expect(dispatcher).toContain("[ValidateSet('primary', 'rollback')]");
     expect(containsProductionVercelCommand(dispatcher)).toBe(false);
   });
 

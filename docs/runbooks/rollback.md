@@ -51,14 +51,27 @@ script.
    REVERT_MAIN_SHA="$(gh api "repos/${REPOSITORY}/commits/main" --jq '.sha')"
    ```
 
-5. Dispatch `Release Production` from `main` with
-   `expected_sha=${REVERT_MAIN_SHA}`. Do not use Vercel CLI or another
-   production mutation path.
+5. Dispatch `Release Production` from `main` through
+   `scripts/deploy-production.ps1`, supplying the four redacted operator
+   evidence files and schema-apply evidence for the exact live `main` SHA.
+   Do not use Vercel CLI, raw workflow dispatch, or another production mutation
+   path. Use the exact PowerShell invocation in
+   `scripts/DEPLOYMENT_AUTOMATION_README.md`; rollback-only switches are owned
+   by Task 8.
 
-   ```bash
-   gh workflow run release-production.yml \
-     --ref main \
-     --field "expected_sha=${REVERT_MAIN_SHA}"
+   ```powershell
+   .\scripts\deploy-production.ps1 `
+     -ReleaseMode rollback `
+     -FundHealthPath .\evidence\fund-health.json `
+     -FundReadyPath .\evidence\fund-ready.json `
+     -CapitalHealthPath .\evidence\capital-health.json `
+     -CapitalReadyPath .\evidence\capital-ready.json `
+     -SchemaApplyRunId <run-id> `
+     -SchemaApplyRunAttempt 1 `
+     -SchemaApplyArtifactId <artifact-id> `
+     -SchemaApplyArtifactDigest sha256:<64-lowercase-hex> `
+     -SchemaApplyReceiptFileSha256 <64-lowercase-hex> `
+     -SchemaPrecursorSha <40-lowercase-hex>
    ```
 
 6. Wait for governed workflow to complete. It must retain exact live-`main`
