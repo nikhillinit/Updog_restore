@@ -559,7 +559,8 @@ function finalGateJob(overrides = {}) {
 function finalPlanApprovalJob(overrides = {}) {
   return {
     id: FINAL_PLAN_APPROVAL_JOB_ID,
-    name: 'plan-approval',
+    name: 'Plan Approval',
+    head_sha: APPROVED_BASE_HEAD_SHA,
     status: 'completed',
     conclusion: 'success',
     run_id: FINAL_WORKFLOW_RUN_ID,
@@ -951,6 +952,61 @@ describe('plan approval GitHub adapter', () => {
       'runAttempt',
       'headSha',
     ]);
+  });
+
+  it('rejects the YAML job id and case variants of the Actions REST display name', async () => {
+    for (const name of ['plan-approval', 'plan approval', 'PLAN APPROVAL']) {
+      const harness = mainHarness({
+        requireFinalHeadCi: true,
+        finalJobsByRun: {
+          [FINAL_WORKFLOW_RUN_ID]: [finalGateJob(), finalPlanApprovalJob({ name })],
+        },
+      });
+      await expect(main(harness.args, { GH_TOKEN: 'token' }, harness.dependencies)).rejects.toThrow(
+        /Plan Approval|armed|final/i
+      );
+    }
+  });
+
+  it('fails closed when the Plan Approval job is not bound to the selected run, attempt, or head', async () => {
+    for (const planApprovalJob of [
+      finalPlanApprovalJob({ run_id: FINAL_WORKFLOW_RUN_ID + 1 }),
+      finalPlanApprovalJob({ run_attempt: FINAL_RUN_ATTEMPT + 1 }),
+      finalPlanApprovalJob({ head_sha: DESCENDANT_HEAD_SHA }),
+    ]) {
+      const harness = mainHarness({
+        requireFinalHeadCi: true,
+        finalJobsByRun: {
+          [FINAL_WORKFLOW_RUN_ID]: [finalGateJob(), planApprovalJob],
+        },
+      });
+      await expect(main(harness.args, { GH_TOKEN: 'token' }, harness.dependencies)).rejects.toThrow(
+        /Plan Approval|run|attempt|head|bound/i
+      );
+    }
+  });
+
+  it('fails closed for missing, skipped, duplicate, incomplete, or failed Plan Approval jobs', async () => {
+    const invalidJobSets = [
+      [finalGateJob()],
+      [finalGateJob(), finalPlanApprovalJob({ conclusion: 'skipped' })],
+      [
+        finalGateJob(),
+        finalPlanApprovalJob(),
+        finalPlanApprovalJob({ id: FINAL_PLAN_APPROVAL_JOB_ID + 1 }),
+      ],
+      [finalGateJob(), finalPlanApprovalJob({ status: 'in_progress', conclusion: null })],
+      [finalGateJob(), finalPlanApprovalJob({ conclusion: 'failure' })],
+    ];
+    for (const finalJobs of invalidJobSets) {
+      const harness = mainHarness({
+        requireFinalHeadCi: true,
+        finalJobsByRun: { [FINAL_WORKFLOW_RUN_ID]: finalJobs },
+      });
+      await expect(main(harness.args, { GH_TOKEN: 'token' }, harness.dependencies)).rejects.toThrow(
+        /Plan Approval|armed|completed|success|multiple|exactly one/i
+      );
+    }
   });
 
   it('fails closed for missing, failed, non-pull-request, or unassociated final-head runs', async () => {
