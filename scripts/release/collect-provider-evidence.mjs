@@ -195,6 +195,14 @@ function parseArguments(args) {
 
 async function main() {
   const args = parseArguments(process.argv.slice(2));
+  // Reject a secret-bearing output path BEFORE the directory (and therefore a
+  // token-named filesystem entry) can be created.
+  const environmentSecrets = [
+    process.env['VERCEL_TOKEN'],
+    process.env['RAILWAY_TOKEN'],
+    process.env['VERCEL_AUTOMATION_BYPASS_SECRET'],
+  ].filter((secret) => typeof secret === 'string' && secret !== '');
+  assertSafePath(args['output-dir'], environmentSecrets);
   await mkdir(args['output-dir'], { recursive: true });
   await collectProviderEvidence({
     deploymentUrl: args['deployment-url'],

@@ -639,6 +639,7 @@ jobs:
       - name: Verify and publish attested operator evidence
         env:
           CANDIDATE_SHA: ${{ inputs.expected_sha }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
           RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
           RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
           RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID: ${{ vars.RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID }}

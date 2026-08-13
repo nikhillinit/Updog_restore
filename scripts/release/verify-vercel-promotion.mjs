@@ -161,9 +161,9 @@ async function fetchDeployment(url, token, fetchImpl, signal) {
   }
 }
 
-async function requestWithTimeout(url, token, fetchImpl) {
+async function requestWithTimeout(url, token, fetchImpl, timeoutMs = REQUEST_TIMEOUT_MS) {
   const controller = new globalThis.AbortController();
-  const requestTimeout = globalThis.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const requestTimeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetchDeployment(url, token, fetchImpl, controller.signal);
   } finally {
@@ -194,7 +194,10 @@ async function resolveCanonicalPromotion({
   while (attempts < MAX_ATTEMPTS && performance.now() < deadline) {
     attempts += 1;
     try {
-      const deployment = await requestWithTimeout(url, token, fetchImpl);
+      // Clip each request to the remaining overall budget so the resolver
+      // cannot overrun its five-minute deadline by a full request timeout.
+      const requestBudget = Math.min(REQUEST_TIMEOUT_MS, deadline - performance.now());
+      const deployment = await requestWithTimeout(url, token, fetchImpl, requestBudget);
       verifyCanonicalPromotion({
         canonicalHostname: hostname,
         deployment,

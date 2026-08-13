@@ -197,6 +197,7 @@ describe('operator evidence bundle API', () => {
     'postgresql://user:password@db.example.test:5432/app',
     'redis://:password@redis.example.test:6379',
     'https://user:password@example.test/path',
+    'https://credential@example.test/path',
     '-----BEGIN PRIVATE KEY-----',
     'ghp_1234567890abcdef',
     'github_pat_1234567890abcdef',

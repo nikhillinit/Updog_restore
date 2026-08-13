@@ -3924,7 +3924,8 @@ describe('required CI fails closed', () => {
     expect(proofScripts).toContain('verify-exact-sha-checks.mjs');
     expect(proofScripts).toContain('verify-provider-identity.mjs');
     expect(proofScripts).toContain("deployment.target === 'production'");
-    expect(proofScripts).toContain('(deployment.alias ?? []).length === 0');
+    expect(proofScripts).toContain('aliasCount(deployment) === 0');
+    expect(proofScripts).toContain('hasAlias && hasAliases');
     expect(proofWorkflow.jobs?.['g3-exact-sha-verdict']?.name).toBe('G3 Exact-SHA Verdict');
     expect(proofScripts).toMatch(/branch protection/i);
     expect(proofScripts).not.toContain('private endpoint proof');

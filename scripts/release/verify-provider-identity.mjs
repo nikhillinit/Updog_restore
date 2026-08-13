@@ -160,11 +160,14 @@ export function verifyProviderIdentity({
 }) {
   const sha = requireSha(expectedSha);
   if (mode !== 'workflow' && mode !== 'operator') fail('mode must be workflow or operator');
-  // Prefer an independently pinned project ID over the evidence file's own
-  // claim so the verifier boundary is never file-self-consistent.
+  // The project ID must be pinned independently by the caller; the evidence
+  // file's own claim can never satisfy the verifier boundary.
+  if (typeof expectedVercelProjectId !== 'string' || expectedVercelProjectId.trim() === '') {
+    fail('expected Vercel project ID is required');
+  }
   const vercelSummary = verifyVercelEvidence(
     vercel,
-    expectedVercelProjectId ?? vercel?.expectedProjectId,
+    expectedVercelProjectId,
     { kind: 'staged_candidate', expectedSha: sha }
   );
   const railwaySummary = verifyRailwayTopology(railway, sha, protectedTopology);

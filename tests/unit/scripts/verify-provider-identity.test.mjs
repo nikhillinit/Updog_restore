@@ -75,6 +75,7 @@ describe('verify-provider-identity', () => {
     const result = verifyProviderIdentity({
       mode: 'workflow',
       expectedSha: SHA,
+      expectedVercelProjectId: 'vercel-project',
       vercel: vercelEvidence(),
       railway: railwayEvidence(),
       protectedTopology: TOPOLOGY,
@@ -115,6 +116,7 @@ describe('verify-provider-identity', () => {
     expect(() => verifyProviderIdentity({
       mode: 'workflow',
       expectedSha: SHA,
+      expectedVercelProjectId: 'vercel-project',
       vercel: vercelEvidence(),
       railway,
       protectedTopology: TOPOLOGY,

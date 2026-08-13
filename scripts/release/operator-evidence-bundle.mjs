@@ -28,7 +28,7 @@ const SECRET_KEY_PATTERN =
 const SECRET_VALUE_PATTERNS = [
   /\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]+/i,
   /\b(?:postgres(?:ql)?|redis):\/\/[^\s"'<>]+/i,
-  /[A-Za-z][A-Za-z0-9+.-]*:\/\/[^/\s:@]*:[^/\s@]+@/i,
+  /[A-Za-z][A-Za-z0-9+.-]*:\/\/[^/\s@]*@/i,
   /-----BEGIN(?: [A-Z0-9]+)* PRIVATE KEY-----/i,
   /\b(?:gh[pousr]|github_pat)_[A-Za-z0-9_]*\b/i,
 ];

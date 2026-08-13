@@ -177,9 +177,19 @@ jobs:
           node <<'NODE'
           const fs = require('node:fs');
           const deployments = JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/vercel-deployments.json`, 'utf8')).deployments ?? [];
+          const aliasCount = (deployment) => {
+            const hasAlias = Object.prototype.hasOwnProperty.call(deployment, 'alias');
+            const hasAliases = Object.prototype.hasOwnProperty.call(deployment, 'aliases');
+            if (hasAlias && hasAliases &&
+                JSON.stringify(deployment.alias) !== JSON.stringify(deployment.aliases)) {
+              return Number.POSITIVE_INFINITY;
+            }
+            const aliases = hasAliases ? deployment.aliases : deployment.alias;
+            return Array.isArray(aliases) ? aliases.length : aliases === undefined ? 0 : Number.POSITIVE_INFINITY;
+          };
           const candidates = deployments.filter((deployment) =>
             deployment.readyState === 'READY' && deployment.projectId === process.env.VERCEL_PROJECT_ID &&
-            deployment.target === 'production' && (deployment.alias ?? []).length === 0 &&
+            deployment.target === 'production' && aliasCount(deployment) === 0 &&
             deployment.meta?.githubCommitRef === 'main' && deployment.meta?.githubCommitSha === process.env.CANDIDATE_SHA
           );
           if (candidates.length !== 1 || !candidates[0]?.url || !candidates[0]?.id) process.exit(1);
@@ -215,7 +225,9 @@ jobs:
           const deployment = deployments.find((candidate) => candidate.url === host);
           const token = JSON.parse(fs.readFileSync(`${temp}/railway-token-context.json`, 'utf8')).data.projectToken;
           const control = JSON.parse(fs.readFileSync(`${temp}/railway-control-plane.json`, 'utf8'));
-          fs.writeFileSync(`${temp}/vercel-evidence.json`, JSON.stringify({ expectedProjectId: process.env.VERCEL_PROJECT_ID, deployment: { ...deployment, aliases: deployment.alias ?? [] }, version: JSON.parse(fs.readFileSync(`${temp}/vercel-version.json`, 'utf8')) }));
+          // Pass alias fields through untouched: the shared contract verifies
+          // both, rejects conflicts, and must never see a pre-normalized view.
+          fs.writeFileSync(`${temp}/vercel-evidence.json`, JSON.stringify({ expectedProjectId: process.env.VERCEL_PROJECT_ID, deployment, version: JSON.parse(fs.readFileSync(`${temp}/vercel-version.json`, 'utf8')) }));
           fs.writeFileSync(`${temp}/railway-evidence.json`, JSON.stringify({ data: { projectId: token.project.id, environmentId: token.environment.id, environment: control.data?.environment }, errors: control.errors }));
           NODE
           node scripts/release/verify-provider-identity.mjs --mode workflow --expected-sha "$CANDIDATE_SHA" \

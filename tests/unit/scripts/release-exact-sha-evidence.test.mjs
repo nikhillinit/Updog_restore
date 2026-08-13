@@ -67,6 +67,7 @@ function providerEvidence(mode = 'workflow') {
   };
   return {
     mode, expectedSha: SHA,
+    expectedVercelProjectId: 'project-1',
     vercel: { expectedProjectId: 'project-1', deployment, version },
     railway: {
       projectId: 'railway-project', environmentId: 'railway-environment',
