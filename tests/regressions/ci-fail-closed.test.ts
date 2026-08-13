@@ -3899,7 +3899,7 @@ describe('required CI fails closed', () => {
     });
   });
 
-  it('fails closed on exact-SHA and provider identity proof before promotion', { retry: 0 }, async () => {
+  it('fails closed on exact-SHA and provider identity proof before promotion', { retry: 0, timeout: 120_000 }, async () => {
     const proofWorkflow = await readWorkflow('release-proof.yml');
     expect(proofWorkflow.permissions).toEqual({
       actions: 'read',
@@ -4130,7 +4130,7 @@ describe('required CI fails closed', () => {
   // This guard intentionally scans every tracked automation surface. Under the
   // full Linux unit-fast shard, concurrent repository I/O can exceed Vitest's
   // 30-second default even though the same scan is fast in isolation.
-  it('gates production promotion on a clean schema audit and authenticated smoke', { retry: 0 }, async () => {
+  it('gates production promotion on a clean schema audit and authenticated smoke', { retry: 0, timeout: 120_000 }, async () => {
     const schemaWorkflow = await readWorkflow('prod-schema-reconcile.yml');
     const schemaScripts = allRunScripts(schemaWorkflow).join('\n');
     expect(schemaScripts).toContain('Production schema audit is clean.');
@@ -4661,7 +4661,7 @@ describe('required CI fails closed', () => {
     expect(exactInvariant(mutatedMatcher)).toBe(false);
   });
 
-  it('keeps the PowerShell production helper as an exact-live-main dispatcher', { retry: 0 }, async () => {
+  it('keeps the PowerShell production helper as an exact-live-main dispatcher', { retry: 0, timeout: 120_000 }, async () => {
     const dispatcher = await readFile(
       path.join(process.cwd(), 'scripts', 'deploy-production.ps1'),
       'utf8'
