@@ -213,6 +213,9 @@ async function main() {
   const args = parseArguments(process.argv.slice(2));
   const mode = args.mode;
   const expectedSha = args['expected-sha'];
+  if (!args['expected-vercel-project-id']) {
+    fail('--expected-vercel-project-id is required');
+  }
   const maxProbeAgeMinutes = args['max-probe-age-minutes'] === undefined
     ? DEFAULT_MAX_PROBE_AGE_MINUTES
     : Number(args['max-probe-age-minutes']);

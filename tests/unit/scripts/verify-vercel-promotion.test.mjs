@@ -96,6 +96,13 @@ describe('verify-vercel-promotion', () => {
     );
   });
 
+  it('rejects a deployment missing both alias fields', { retry: 0 }, () => {
+    const response = deployment();
+    delete response.aliases;
+    delete response.alias;
+    expect(() => verify({ deployment: response })).toThrow(/aliases are missing/i);
+  });
+
   it('rejects duplicate conflicting alias fields', { retry: 0 }, () => {
     expect(() => verify({
       deployment: deployment({
@@ -125,8 +132,10 @@ describe('verify-vercel-promotion', () => {
     );
     expect(source).toContain('performance.now()');
     expect(source).toContain('MAX_ATTEMPTS = 60');
+    expect(source).toContain('OVERALL_DEADLINE_MS = 5 * 60 * 1000');
     expect(source).toContain('REQUEST_TIMEOUT_MS = 4_000');
     expect(source).toContain('MAX_WAIT_MS = 5_000');
+    expect(source).toContain('Math.min(MAX_WAIT_MS, remaining)');
     expect(source).toContain('requestTimeout');
     expect(source).not.toContain('console.log(JSON.stringify');
   });

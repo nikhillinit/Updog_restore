@@ -67,7 +67,7 @@ function advancingClock() {
 }
 
 describe('wait-railway-workers', () => {
-  it('parses bounded defaults and explicit durations', () => {
+  it('parses bounded defaults and explicit durations', { retry: 0 }, () => {
     expect(parseWaitArgs(['--expected-sha', SHA, ...TOPOLOGY_ARGS])).toEqual({
       expectedSha: SHA,
       protectedTopology: TOPOLOGY,

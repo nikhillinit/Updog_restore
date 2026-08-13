@@ -3955,6 +3955,19 @@ describe('required CI fails closed', () => {
     );
     expect(verifyBootStep?.env).not.toHaveProperty('VERCEL_TOKEN');
 
+    // The scheduled proof workflow's verifier invocation must carry the full
+    // pinned identity contract; a missing pin fails the verifier closed.
+    const proofScriptsAll = allRunScripts(proofWorkflow).join('\n');
+    for (const identityFlag of [
+      '--expected-vercel-project-id',
+      '--expected-railway-project-id',
+      '--expected-railway-environment-id',
+      '--expected-fund-scenario-service-id',
+      '--expected-capital-call-service-id',
+    ]) {
+      expect(proofScriptsAll).toContain(identityFlag);
+    }
+
     const releaseWorkflow = await readWorkflow('release-production.yml');
     const releaseProof = releaseWorkflow.jobs?.['release-proof'];
     // Source/local proof must finish before the candidate exists. Provider
@@ -4560,6 +4573,7 @@ describe('required CI fails closed', () => {
     expect(freshEvidenceStep?.run).toContain('timeout --signal=TERM 2m');
     expect(freshEvidenceStep?.run).toContain('collect-provider-evidence.mjs');
     expect(freshEvidenceStep?.run).toContain('verify-provider-identity.mjs');
+    expect(freshEvidenceStep?.run).toContain('--expected-vercel-project-id');
     expect(freshEvidenceStep?.run).toContain('--mode operator');
     for (const probeFlag of [
       '--fund-health',
@@ -4577,6 +4591,8 @@ describe('required CI fails closed', () => {
     expect(promoteCliStep?.run).toContain('--timeout=5m');
     expect(promoteCliStep?.run).not.toContain('exit 0');
     expect(promoteCliStep?.run).not.toContain('PRODUCTION_URL');
+    expect(promoteCliStep?.env?.['VERCEL_ORG_ID']).toBe('${{ vars.VERCEL_ORG_ID }}');
+    expect(promoteCliStep?.env?.['VERCEL_PROJECT_ID']).toBe('${{ vars.VERCEL_PROJECT_ID }}');
     const canonicalProofStep = promoteSteps[canonicalProofIndex];
     expect(canonicalProofStep?.id).toBe('canonical-proof');
     expect(canonicalProofStep?.env?.VERCEL_PRODUCTION_HOSTNAME).toBe(

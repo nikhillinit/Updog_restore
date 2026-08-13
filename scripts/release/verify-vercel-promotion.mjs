@@ -204,7 +204,9 @@ async function resolveCanonicalPromotion({
       });
       return {
         productionUrl: `https://${hostname}`,
-        deploymentId: expectedDeploymentId,
+        // Report the observed record id so downstream equality gates compare a
+        // provider-attested value, not an echo of the expectation.
+        deploymentId: deployment.id,
       };
     } catch {
       // Provider errors and not-yet-promoted responses are retriable. Details stay private.

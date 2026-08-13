@@ -286,7 +286,7 @@ jobs:
             deployment.meta?.githubCommitRef === 'main' &&
             deployment.meta?.githubDeployment === '1' &&
             deploymentHost === requestedHost;
-          if (!valid || typeof deployment.id !== 'string' || deployment.id.trim() === '') {
+          if (!valid || typeof deployment.id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(deployment.id)) {
             console.error('Staged deployment does not match the exact production release target.');
             process.exit(1);
           }
@@ -778,9 +778,13 @@ jobs:
         env:
           DEPLOYMENT_URL: ${{ needs.validate-deployment.outputs.deployment_url }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
         run: |
           set -euo pipefail
           : "${DEPLOYMENT_URL:?DEPLOYMENT_URL is required}"
+          : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
+          : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required}"
           set +e
           npx --yes vercel@55.0.0 promote "$DEPLOYMENT_URL" --yes --timeout=5m
           promote_exit=$?

@@ -315,6 +315,7 @@ describe('exact SHA release evidence', () => {
       },
     }));
     const railwayIdentityFlags = [
+      '--expected-vercel-project-id', 'project-1',
       '--expected-railway-project-id', 'railway-project',
       '--expected-railway-environment-id', 'railway-environment',
       '--expected-fund-scenario-service-id', 'fund-scenario-calc-id',
