@@ -381,6 +381,7 @@ export const fundScenarioCalculationRuns = pgTable(
     completedAt: timestamp('completed_at', { withTimezone: true }),
     failedAt: timestamp('failed_at', { withTimezone: true }),
     deadlineAt: timestamp('deadline_at', { withTimezone: true }),
+    queuedEventRecordedAt: timestamp('queued_event_recorded_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },

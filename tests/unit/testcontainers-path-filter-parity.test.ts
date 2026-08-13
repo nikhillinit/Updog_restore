@@ -7,6 +7,17 @@ import { describe, expect, it } from 'vitest';
 import { TESTCONTAINERS_TEST_PATHS } from '../config/testcontainers-test-paths.mjs';
 
 const PATH_FILTERS = '.github/path-filters.yml';
+const TESTCONTAINERS_TEST_PATHS_MODULE = 'tests/config/testcontainers-test-paths.mjs';
+
+const REQUIRED_TESTCONTAINERS_TRIGGER_SEAMS = [
+  '.github/path-filters.yml',
+  '.github/workflows/testcontainers-ci.yml',
+  'vitest.config.testcontainers.ts',
+  'tests/setup/global-setup.testcontainers.ts',
+  'tests/helpers/testcontainers.ts',
+  'tests/helpers/testcontainers-migration.ts',
+  'tests/integration/helpers/run-drizzle-push.ts',
+] as const;
 
 interface PathFilters {
   schema_tests?: string[];
@@ -36,22 +47,58 @@ function schemaTestPatterns(): string[] {
   return patterns;
 }
 
+function expectSchemaTestPaths(
+  patterns: string[],
+  paths: readonly string[],
+  subject: string
+): void {
+  const isSchemaTestPath = picomatch(patterns);
+  const missing = paths.filter((path) => !isSchemaTestPath(path));
+
+  expect(
+    missing,
+    `${subject} missing from schema_tests: ${missing.join(', ')}. Add every listed path to ${PATH_FILTERS} under schema_tests.`
+  ).toEqual([]);
+}
+
 describe('Testcontainers path-filter parity', () => {
   it('matches every canonical Testcontainers include with schema_tests', () => {
     const patterns = schemaTestPatterns();
-    const isSchemaTestPath = picomatch(patterns);
-    const missing = TESTCONTAINERS_TEST_PATHS.filter(
-      (includePath) => !isSchemaTestPath(includePath)
-    );
 
-    expect(missing).toEqual([]);
+    expectSchemaTestPaths(
+      patterns,
+      TESTCONTAINERS_TEST_PATHS,
+      'Canonical Testcontainers test paths'
+    );
+  });
+
+  it('matches canonical Testcontainers list module with schema_tests', () => {
+    const patterns = schemaTestPatterns();
+
+    expectSchemaTestPaths(
+      patterns,
+      [TESTCONTAINERS_TEST_PATHS_MODULE],
+      'Canonical Testcontainers list module'
+    );
+  });
+
+  it('matches every core Testcontainers trigger seam with schema_tests', () => {
+    const patterns = schemaTestPatterns();
+
+    expectSchemaTestPaths(
+      patterns,
+      REQUIRED_TESTCONTAINERS_TRIGGER_SEAMS,
+      'Core Testcontainers trigger seams'
+    );
   });
 
   it('matches every required conversion production seam with schema_tests', () => {
     const patterns = schemaTestPatterns();
-    const isSchemaTestPath = picomatch(patterns);
-    const missing = REQUIRED_SCHEMA_TEST_SEAMS.filter((seamPath) => !isSchemaTestPath(seamPath));
 
-    expect(missing).toEqual([]);
+    expectSchemaTestPaths(
+      patterns,
+      REQUIRED_SCHEMA_TEST_SEAMS,
+      'Required conversion production seams'
+    );
   });
 });

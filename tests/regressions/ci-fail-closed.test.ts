@@ -12,6 +12,7 @@ import YAML from 'yaml';
 type WorkflowStep = {
   ['continue-on-error']?: boolean;
   env?: Record<string, unknown>;
+  id?: string;
   name?: string;
   run?: string;
   shell?: string;
@@ -4224,6 +4225,87 @@ describe('required CI fails closed', () => {
         expect(bypass.npxCalled).toBe(true);
       }
     }
+  });
+
+  it('fails closed on schema evidence retention, receipt, and attempt identity', { retry: 0 }, async () => {
+    const workflow = await readWorkflow('prod-schema-reconcile.yml');
+    const steps = workflow.jobs?.reconcile?.steps ?? [];
+    const retentionIndex = steps.findIndex(
+      (step) => step.name === 'Verify artifact retention before apply'
+    );
+    const firstAttemptIndex = steps.findIndex((step) => step.name === 'Require first apply attempt');
+    const preAuditIndex = steps.findIndex((step) => step.name === 'Run pre-apply audit');
+    const postCleanIndex = steps.findIndex((step) => step.name === 'Require clean post-apply audit');
+    const receiptIndex = steps.findIndex((step) => step.name === 'Build schema reconcile receipt');
+    const upload = steps.find((step) => step.name === 'Upload redacted reconciliation reports');
+    const capture = steps.find((step) => step.name === 'Capture apply evidence identity');
+    const retention = steps[retentionIndex];
+    const receipt = steps[receiptIndex];
+
+    expect(firstAttemptIndex).toBeGreaterThan(-1);
+    expect(firstAttemptIndex).toBeLessThan(preAuditIndex);
+    expect(steps[firstAttemptIndex]?.if).toBe("inputs.mode == 'apply'");
+    expect(steps[firstAttemptIndex]?.run).toContain('$GITHUB_RUN_ATTEMPT');
+    expect(steps[firstAttemptIndex]?.run).toContain('!= "1"');
+
+    expect(retentionIndex).toBeGreaterThan(-1);
+    expect(retentionIndex).toBeLessThan(preAuditIndex);
+    expect(retention?.if).toBe("inputs.mode == 'apply'");
+    expect(retention?.env?.SCHEMA_EVIDENCE_RETENTION_READ_TOKEN).toBe(
+      '${{ secrets.SCHEMA_EVIDENCE_RETENTION_READ_TOKEN }}'
+    );
+    expect(retention?.run).toContain('::add-mask::$SCHEMA_EVIDENCE_RETENTION_READ_TOKEN');
+    expect(retention?.run).toContain(
+      '/actions/permissions/artifact-and-log-retention'
+    );
+    expect(retention?.run).toContain('body?.days');
+    expect(retention?.run).toContain('body.days < 90');
+    expect(retention?.run).not.toContain('PRODUCTION_DATABASE_URL');
+    expect(retention?.run).not.toContain('--apply');
+    // Token stays out of curl argv (0600 header config file) and appears in
+    // exactly one step of the workflow.
+    expect(retention?.run).toContain('--config "$auth_header_file"');
+    expect(retention?.run).not.toContain('--header "Authorization: Bearer $SCHEMA_EVIDENCE_RETENTION_READ_TOKEN"');
+    const tokenSteps = steps.filter((step) =>
+      JSON.stringify(step).includes('SCHEMA_EVIDENCE_RETENTION_READ_TOKEN')
+    );
+    expect(tokenSteps).toHaveLength(1);
+    expect(tokenSteps[0]?.name).toBe('Verify artifact retention before apply');
+
+    const requireReceiptIndex = steps.findIndex(
+      (step) => step.name === 'Require schema reconcile receipt after successful apply'
+    );
+    expect(requireReceiptIndex).toBeGreaterThan(receiptIndex);
+    const requireReceipt = steps[requireReceiptIndex];
+    expect(requireReceipt?.if).toContain("inputs.mode == 'apply'");
+    expect(requireReceipt?.run).toContain('test -s reports/schema-reconcile-receipt.json');
+
+    expect(receiptIndex).toBeGreaterThan(preAuditIndex);
+    expect(postCleanIndex).toBeGreaterThan(preAuditIndex);
+    expect(receiptIndex).toBeGreaterThan(postCleanIndex);
+    expect(receipt?.if).toContain("inputs.mode == 'apply'");
+    expect(receipt?.if).toContain("steps.require_post_apply_clean.outcome == 'success'");
+    expect(receipt?.run).toContain('APPLY-MISSING-DDL');
+    expect(receipt?.run).toContain('build-schema-reconcile-receipt.ts');
+    expect(receipt?.env?.GITHUB_RUN_ID).toBe('${{ github.run_id }}');
+    expect(receipt?.env?.GITHUB_RUN_ATTEMPT).toBe('${{ github.run_attempt }}');
+    expect(receipt?.env?.SCHEMA_RECONCILE_SOURCE_SHA).toBe('${{ inputs.expected_sha }}');
+
+    expect(upload?.if).toBe('always()');
+    expect(upload?.with?.name).toBe(
+      'prod-schema-reconcile-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.mode }}-${{ inputs.expected_sha }}'
+    );
+    expect(upload?.with?.path).toContain('reports/schema-reconcile-receipt.json');
+    expect(upload?.with?.['retention-days']).toBe(90);
+    expect(upload?.id).toBe('upload_evidence');
+    expect(capture?.if).toContain("steps.apply.outcome == 'success'");
+    expect(capture?.if).toContain("steps.post_audit.outcome == 'success'");
+    expect(capture?.env?.ARTIFACT_ID).toBe('${{ steps.upload_evidence.outputs.artifact-id }}');
+    expect(capture?.env?.ARTIFACT_DIGEST).toBe(
+      '${{ steps.upload_evidence.outputs.artifact-digest }}'
+    );
+    expect(capture?.run).toContain('sha256sum reports/schema-reconcile-receipt.json');
+    expect(JSON.stringify(steps)).not.toContain('retention-days: 14');
   });
 
   it('would fail when smoke commit equality is removed', async () => {
