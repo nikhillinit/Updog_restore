@@ -558,6 +558,7 @@ jobs:
             --expected-sha "$CANDIDATE_SHA" \
             --vercel "$provider_evidence_dir/vercel-evidence.json" \
             --railway "$provider_evidence_dir/railway-evidence.json" \
+            --expected-vercel-project-id "$VERCEL_PROJECT_ID" \
             --expected-railway-project-id "$RAILWAY_PROJECT_ID" \
             --expected-railway-environment-id "$RAILWAY_ENVIRONMENT_ID" \
             --expected-fund-scenario-service-id "$RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID" \
@@ -625,6 +626,7 @@ jobs:
             --expected-sha "$CANDIDATE_SHA" \
             --vercel "$provider_evidence_dir/vercel-evidence.json" \
             --railway "$provider_evidence_dir/railway-evidence.json" \
+            --expected-vercel-project-id "$VERCEL_PROJECT_ID" \
             --expected-railway-project-id "$RAILWAY_PROJECT_ID" \
             --expected-railway-environment-id "$RAILWAY_ENVIRONMENT_ID" \
             --expected-fund-scenario-service-id "$RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID" \
@@ -648,6 +650,7 @@ jobs:
             --expected-sha "$CANDIDATE_SHA" \
             --vercel "$RUNNER_TEMP/provider-evidence-g4-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/vercel-evidence.json" \
             --railway "$RUNNER_TEMP/provider-evidence-g4-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}/railway-evidence.json" \
+            --expected-vercel-project-id "$VERCEL_PROJECT_ID" \
             --expected-railway-project-id "$RAILWAY_PROJECT_ID" \
             --expected-railway-environment-id "$RAILWAY_ENVIRONMENT_ID" \
             --expected-fund-scenario-service-id "$RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID" \
@@ -759,6 +762,7 @@ jobs:
               --expected-sha "$CANDIDATE_SHA" \
               --vercel "$PROVIDER_EVIDENCE_DIR/vercel-evidence.json" \
               --railway "$PROVIDER_EVIDENCE_DIR/railway-evidence.json" \
+              --expected-vercel-project-id "$VERCEL_PROJECT_ID" \
               --expected-railway-project-id "$RAILWAY_PROJECT_ID" \
               --expected-railway-environment-id "$RAILWAY_ENVIRONMENT_ID" \
               --expected-fund-scenario-service-id "$RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID" \

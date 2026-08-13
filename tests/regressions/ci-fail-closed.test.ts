@@ -3978,6 +3978,7 @@ describe('required CI fails closed', () => {
     expect(stagedProviderScripts).toContain('verify-provider-identity.mjs');
     expect(stagedProviderScripts).toContain('collect-provider-evidence.mjs');
     expect(stagedProviderScripts).toContain('provider-evidence-staged-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}');
+    expect(stagedProviderScripts).toContain('--expected-vercel-project-id');
     expect(stagedProviderScripts).toContain('--expected-railway-project-id');
     expect(stagedProviderScripts).toContain('--expected-railway-environment-id');
     expect(stagedProviderScripts).toContain('--expected-fund-scenario-service-id');
@@ -4003,6 +4004,7 @@ describe('required CI fails closed', () => {
     expect(g4OperatorScripts).toContain('--mode operator');
     expect(g4OperatorScripts).toContain('collect-provider-evidence.mjs');
     expect(g4OperatorScripts).toContain('provider-evidence-g4-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}');
+    expect(g4OperatorScripts).toContain('--expected-vercel-project-id');
     expect(g4OperatorScripts).toContain('--expected-railway-project-id');
     for (const probeFlag of [
       '--fund-health',

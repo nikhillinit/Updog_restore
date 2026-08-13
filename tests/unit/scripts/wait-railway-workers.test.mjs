@@ -85,7 +85,7 @@ describe('wait-railway-workers', () => {
     );
   });
 
-  it('evaluates valid topology through the shared verifier', () => {
+  it('evaluates valid topology through the shared verifier', { retry: 0 }, () => {
     expect(evaluateRailwayEvidence(railwayEvidence(), SHA, TOPOLOGY)).toMatchObject({
       status: 'ready',
       skew: false,
@@ -93,7 +93,7 @@ describe('wait-railway-workers', () => {
     });
   });
 
-  it('waits for a matching topology without network calls', async () => {
+  it('waits for a matching topology without network calls', { retry: 0 }, async () => {
     const clock = advancingClock();
     const fetchEvidence = vi
       .fn()
@@ -115,7 +115,7 @@ describe('wait-railway-workers', () => {
     expect(clock.sleep).toHaveBeenCalledWith(10);
   });
 
-  it('classifies a successful different-commit deployment as skew at timeout', async () => {
+  it('classifies a successful different-commit deployment as skew at timeout', { retry: 0 }, async () => {
     const clock = advancingClock();
     const fetchEvidence = vi.fn().mockResolvedValue(railwayEvidence({ commit: 'b'.repeat(40) }));
 
@@ -137,7 +137,7 @@ describe('wait-railway-workers', () => {
     });
   });
 
-  it('classifies an otherwise-valid but incomplete deployment as timeout', async () => {
+  it('classifies an otherwise-valid but incomplete deployment as timeout', { retry: 0 }, async () => {
     const clock = advancingClock();
     const fetchEvidence = vi.fn().mockResolvedValue(railwayEvidence({ status: 'BUILDING' }));
 
@@ -159,7 +159,7 @@ describe('wait-railway-workers', () => {
     });
   });
 
-  it('keeps malformed or unavailable evidence in timeout classification', async () => {
+  it('keeps malformed or unavailable evidence in timeout classification', { retry: 0 }, async () => {
     const clock = advancingClock();
     const fetchEvidence = vi.fn().mockRejectedValue(new Error('network unavailable'));
 
@@ -246,12 +246,17 @@ describe('wait-railway-workers', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ data: { environment: { serviceInstances: { edges: [], pageInfo: { hasNextPage: false } } } } }),
+        json: async () => ({
+          data: {
+            environment: { serviceInstances: { edges: [], pageInfo: { hasNextPage: false } } },
+            rawGraphqlSentinel: 'raw-graphql-sentinel-value',
+          },
+        }),
       });
     const evidence = await fetchRailwayEvidence({ token, fetchImpl });
     expect(fetchImpl.mock.calls[0][1].headers['Project-Access-Token']).toBe(token);
     expect(fetchImpl.mock.calls[1][1].body).toContain('projectId');
     expect(JSON.stringify(evidence)).not.toContain(token);
-    expect(JSON.stringify(evidence)).not.toContain('raw GraphQL');
+    expect(JSON.stringify(evidence)).not.toContain('raw-graphql-sentinel-value');
   });
 });

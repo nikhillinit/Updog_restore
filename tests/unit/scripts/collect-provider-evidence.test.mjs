@@ -200,4 +200,45 @@ describe('collect-provider-evidence', () => {
     expect(error?.message).not.toContain(token);
     expect(JSON.stringify(writeFileImpl.mock.calls)).not.toContain(token);
   });
+
+  it('keeps tokens out of the success-path result, file paths, bodies, and stdio', { retry: 0 }, async () => {
+    setEnvironment();
+    const stdoutSpy = vi.spyOn(process.stdout, 'write');
+    const stderrSpy = vi.spyOn(process.stderr, 'write');
+    try {
+      const writes = [];
+      const result = await collectProviderEvidence({
+        deploymentUrl: 'https://candidate.vercel.app',
+        outputDirectory: '/tmp/provider-evidence-run-123',
+        fetchImpl: makeFetch(),
+        writeFileImpl: vi.fn(async (path, body, encoding) => {
+          writes.push({ path, body, encoding });
+        }),
+      });
+      const emitted = [
+        JSON.stringify(result),
+        ...writes.map(({ path, body }) => `${path}\n${body}`),
+        ...stdoutSpy.mock.calls.map((call) => String(call[0])),
+        ...stderrSpy.mock.calls.map((call) => String(call[0])),
+      ].join('\n');
+      for (const secret of Object.values(TOKENS)) {
+        expect(emitted).not.toContain(secret);
+      }
+    } finally {
+      stdoutSpy.mockRestore();
+      stderrSpy.mockRestore();
+    }
+  });
+
+  it('rejects an output directory containing a provider secret', { retry: 0 }, async () => {
+    setEnvironment();
+    const writeFileImpl = vi.fn();
+    await expect(collectProviderEvidence({
+      deploymentUrl: 'https://candidate.vercel.app',
+      outputDirectory: `/tmp/${TOKENS.RAILWAY_TOKEN}/provider-evidence`,
+      fetchImpl: makeFetch(),
+      writeFileImpl,
+    })).rejects.toThrow(/Provider evidence/);
+    expect(writeFileImpl).not.toHaveBeenCalled();
+  });
 });

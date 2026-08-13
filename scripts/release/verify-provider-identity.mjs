@@ -153,23 +153,26 @@ export function verifyProviderIdentity({
   vercel,
   railway,
   protectedTopology,
+  expectedVercelProjectId,
   privateProof,
   maxProbeAgeMinutes = DEFAULT_MAX_PROBE_AGE_MINUTES,
   now = Date.now(),
 }) {
   const sha = requireSha(expectedSha);
   if (mode !== 'workflow' && mode !== 'operator') fail('mode must be workflow or operator');
+  // Prefer an independently pinned project ID over the evidence file's own
+  // claim so the verifier boundary is never file-self-consistent.
   const vercelSummary = verifyVercelEvidence(
     vercel,
-    vercel?.expectedProjectId,
+    expectedVercelProjectId ?? vercel?.expectedProjectId,
     { kind: 'staged_candidate', expectedSha: sha }
   );
   const railwaySummary = verifyRailwayTopology(railway, sha, protectedTopology);
   const controlPlane = {
     vercel: { projectId: vercelSummary.projectId, deploymentId: vercelSummary.deploymentId },
     railway: {
-      projectId: railway.projectId,
-      environmentId: railway.environmentId,
+      projectId: railwaySummary.projectId,
+      environmentId: railwaySummary.environmentId,
       services: railwaySummary.services,
     },
   };
@@ -237,6 +240,7 @@ async function main() {
         'capital-call-status': args['expected-capital-call-service-id'],
       },
     },
+    expectedVercelProjectId: args['expected-vercel-project-id'],
     privateProof,
     maxProbeAgeMinutes,
   });
