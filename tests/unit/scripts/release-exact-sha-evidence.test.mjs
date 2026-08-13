@@ -75,6 +75,14 @@ function providerEvidence(mode = 'workflow') {
         latestDeployment: { ...railwayDeployment }, activeDeployments: [{ ...railwayDeployment }],
       })),
     },
+    protectedTopology: {
+      projectId: 'railway-project',
+      environmentId: 'railway-environment',
+      services: {
+        'fund-scenario-calc': 'fund-scenario-calc-id',
+        'capital-call-status': 'capital-call-status-id',
+      },
+    },
   };
 }
 
@@ -202,23 +210,23 @@ describe('exact SHA release evidence', () => {
     });
     const historical = providerEvidence();
     historical.railway.services[0].latestDeployment.meta.commitHash = 'b'.repeat(40);
-    expect(() => verifyProviderIdentity(historical)).toThrow(/commit/i);
+    expect(() => verifyProviderIdentity(historical)).toThrow(/does not match expected SHA/i);
     const correlation = providerEvidence();
     correlation.railway.services[0].activeDeployments[0].id = 'different-current-id';
-    expect(() => verifyProviderIdentity(correlation)).toThrow(/does not match active/i);
+    expect(() => verifyProviderIdentity(correlation)).toThrow(/latest and active deployments differ/i);
     const stopped = providerEvidence();
     stopped.railway.services[0].latestDeployment.instances[0].status = 'STOPPED';
-    expect(() => verifyProviderIdentity(stopped)).toThrow(/RUNNING/i);
+    expect(() => verifyProviderIdentity(stopped)).toThrow(/deployment instance is invalid/i);
     const missingVercelProject = providerEvidence();
     delete missingVercelProject.vercel.expectedProjectId;
     delete missingVercelProject.vercel.deployment.projectId;
     expect(() => verifyProviderIdentity(missingVercelProject)).toThrow(/project ID/i);
     const previewTarget = providerEvidence();
     previewTarget.vercel.deployment.target = null;
-    expect(() => verifyProviderIdentity(previewTarget)).toThrow(/production target/i);
+    expect(() => verifyProviderIdentity(previewTarget)).toThrow(/staged candidate target is invalid/i);
     const aliasedProduction = providerEvidence();
     aliasedProduction.vercel.deployment.aliases = ['production.example.test'];
-    expect(() => verifyProviderIdentity(aliasedProduction)).toThrow(/no production alias/i);
+    expect(() => verifyProviderIdentity(aliasedProduction)).toThrow(/staged candidate has an alias/i);
     const missingRailwayScope = providerEvidence();
     delete missingRailwayScope.railway.projectId;
     expect(() => verifyProviderIdentity(missingRailwayScope)).toThrow(/project ID/i);
@@ -306,9 +314,15 @@ describe('exact SHA release evidence', () => {
         environment: { serviceInstances: { edges: provider.railway.services.map((node) => ({ node })), pageInfo: { hasNextPage: false } } },
       },
     }));
+    const railwayIdentityFlags = [
+      '--expected-railway-project-id', 'railway-project',
+      '--expected-railway-environment-id', 'railway-environment',
+      '--expected-fund-scenario-service-id', 'fund-scenario-calc-id',
+      '--expected-capital-call-service-id', 'capital-call-status-id',
+    ];
     const result = await execFileAsync(process.execPath, [
       'scripts/release/verify-provider-identity.mjs', '--mode', 'workflow', '--expected-sha', SHA,
-      '--vercel', vercelPath, '--railway', railwayPath,
+      '--vercel', vercelPath, '--railway', railwayPath, ...railwayIdentityFlags,
     ], { cwd: process.cwd() });
     expect(result.stdout).toContain(SHA);
     const privatePaths = await Promise.all([
@@ -323,14 +337,14 @@ describe('exact SHA release evidence', () => {
     }));
     const operator = await execFileAsync(process.execPath, [
       'scripts/release/verify-provider-identity.mjs', '--mode', 'operator', '--expected-sha', SHA,
-      '--vercel', vercelPath, '--railway', railwayPath,
+      '--vercel', vercelPath, '--railway', railwayPath, ...railwayIdentityFlags,
       '--max-probe-age-minutes', '120',
       '--fund-health', privatePaths[0], '--fund-ready', privatePaths[1],
       '--capital-health', privatePaths[2], '--capital-ready', privatePaths[3],
     ], { cwd: process.cwd() });
     expect(operator.stdout).toMatch(/sha256:[a-f0-9]{64}/);
     await expect(execFileAsync(process.execPath, [
-      'scripts/release/verify-provider-identity.mjs', '--mode', 'workflow', '--expected-sha', 'bad', '--vercel', vercelPath, '--railway', railwayPath,
+      'scripts/release/verify-provider-identity.mjs', '--mode', 'workflow', '--expected-sha', 'bad', '--vercel', vercelPath, '--railway', railwayPath, ...railwayIdentityFlags,
     ], { cwd: process.cwd() })).rejects.toMatchObject({ stderr: expect.stringMatching(/expected SHA/i) });
   });
 

@@ -1,12 +1,13 @@
 import console from 'node:console';
 import process from 'node:process';
+import { setTimeout } from 'node:timers';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import {
   normalizeRailwayResponse,
   verifyRailwayTopology,
-} from './verify-provider-identity.mjs';
+} from './provider-evidence-contract.mjs';
 
 const SHA = /^[a-f0-9]{40}$/;
 const RAILWAY_GRAPHQL_URL = 'https://backboard.railway.com/graphql/v2';
@@ -55,8 +56,25 @@ function parseDuration(value, label, maximum) {
   return duration;
 }
 
+function requireTopologyValue(value, label) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(`${label} is required`);
+  }
+  return value;
+}
+
+function assertNoToken(value, token) {
+  if (JSON.stringify(value).includes(token)) {
+    throw new Error('Railway evidence contained a protected value');
+  }
+}
+
 export function parseWaitArgs(args) {
   let expectedSha;
+  let projectId;
+  let environmentId;
+  let fundScenarioCalcServiceId;
+  let capitalCallStatusServiceId;
   let intervalMs = DEFAULT_INTERVAL_MS;
   let timeoutMs = DEFAULT_TIMEOUT_MS;
 
@@ -69,6 +87,14 @@ export function parseWaitArgs(args) {
     index += 1;
     if (flag === '--expected-sha') {
       expectedSha = value;
+    } else if (flag === '--expected-railway-project-id') {
+      projectId = value;
+    } else if (flag === '--expected-railway-environment-id') {
+      environmentId = value;
+    } else if (flag === '--expected-fund-scenario-service-id') {
+      fundScenarioCalcServiceId = value;
+    } else if (flag === '--expected-capital-call-service-id') {
+      capitalCallStatusServiceId = value;
     } else if (flag === '--interval-ms') {
       intervalMs = parseDuration(value, '--interval-ms', MAX_INTERVAL_MS);
     } else if (flag === '--timeout-ms') {
@@ -80,14 +106,33 @@ export function parseWaitArgs(args) {
 
   return {
     expectedSha: requireExpectedSha(expectedSha),
+    protectedTopology: {
+      projectId: requireTopologyValue(projectId, '--expected-railway-project-id'),
+      environmentId: requireTopologyValue(environmentId, '--expected-railway-environment-id'),
+      services: {
+        'fund-scenario-calc': requireTopologyValue(
+          fundScenarioCalcServiceId,
+          '--expected-fund-scenario-service-id'
+        ),
+        'capital-call-status': requireTopologyValue(
+          capitalCallStatusServiceId,
+          '--expected-capital-call-service-id'
+        ),
+      },
+    },
     intervalMs,
     timeoutMs,
   };
 }
 
-function isSuccessfulCommitSkew(railway, expectedSha) {
+function isSuccessfulCommitSkew(railway, expectedSha, protectedTopology) {
   if (!railway || !Array.isArray(railway.services)) return false;
+  const protectedNames = new Set(Object.keys(protectedTopology?.services ?? {}));
+  const protectedIds = new Set(Object.values(protectedTopology?.services ?? {}));
   return railway.services.some((service) => {
+    if (!protectedNames.has(service?.serviceName) && !protectedIds.has(service?.serviceId)) {
+      return false;
+    }
     const deployments = [
       service?.latestDeployment,
       ...(Array.isArray(service?.activeDeployments) ? service.activeDeployments : []),
@@ -101,29 +146,21 @@ function isSuccessfulCommitSkew(railway, expectedSha) {
   });
 }
 
-function normalizeEvidence(evidence) {
-  if (evidence?.data) return normalizeRailwayResponse(evidence);
-  if (!evidence || typeof evidence !== 'object') {
-    throw new Error('Railway evidence is missing');
-  }
-  return evidence;
-}
-
-export function evaluateRailwayEvidence(evidence, expectedSha) {
+export function evaluateRailwayEvidence(evidence, expectedSha, protectedTopology) {
   let railway;
   try {
-    railway = normalizeEvidence(evidence);
+    railway = normalizeRailwayResponse(evidence);
   } catch (error) {
     return { status: 'invalid', railway: null, skew: false, error };
   }
 
-  const skew = isSuccessfulCommitSkew(railway, expectedSha);
+  const skew = isSuccessfulCommitSkew(railway, expectedSha, protectedTopology);
   try {
     return {
       status: 'ready',
       railway,
       skew: false,
-      topology: verifyRailwayTopology(railway, expectedSha),
+      topology: verifyRailwayTopology(railway, expectedSha, protectedTopology),
     };
   } catch (error) {
     return { status: 'pending', railway, skew, error };
@@ -132,6 +169,7 @@ export function evaluateRailwayEvidence(evidence, expectedSha) {
 
 export async function pollRailwayWorkers({
   expectedSha,
+  protectedTopology,
   fetchEvidence,
   intervalMs = DEFAULT_INTERVAL_MS,
   timeoutMs = DEFAULT_TIMEOUT_MS,
@@ -158,14 +196,18 @@ export async function pollRailwayWorkers({
   while (true) {
     attempts += 1;
     try {
-      const evaluation = evaluateRailwayEvidence(await fetchEvidence(), sha);
+      const evaluation = evaluateRailwayEvidence(
+        await fetchEvidence(),
+        sha,
+        protectedTopology
+      );
       observedSkew ||= evaluation.skew;
       lastError = evaluation.error;
       if (evaluation.status === 'ready') {
         return { ...evaluation, attempts, elapsedMs: now() - startedAt };
       }
-    } catch (error) {
-      lastError = error;
+    } catch {
+      lastError = new Error('Railway evidence fetch failed');
     }
 
     const currentTime = now();
@@ -188,16 +230,21 @@ export async function pollRailwayWorkers({
 }
 
 async function postGraphql(fetchImpl, token, payload) {
-  const response = await fetchImpl(RAILWAY_GRAPHQL_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Project-Access-Token': token,
-    },
-    body: JSON.stringify(payload),
-  });
-  if (!response?.ok) throw new Error('Railway GraphQL request failed');
-  return response.json();
+  let response;
+  try {
+    response = await fetchImpl(RAILWAY_GRAPHQL_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Project-Access-Token': token,
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!response?.ok) throw new Error('request failed');
+    return await response.json();
+  } catch {
+    throw new Error('Railway GraphQL request failed');
+  }
 }
 
 export async function fetchRailwayEvidence({ token, fetchImpl = globalThis.fetch } = {}) {
@@ -225,14 +272,16 @@ export async function fetchRailwayEvidence({ token, fetchImpl = globalThis.fetch
       environmentId: projectToken.environment.id,
     },
   });
-  return {
+  const evidence = normalizeRailwayResponse({
     data: {
       projectId: projectToken.project.id,
       environmentId: projectToken.environment.id,
       environment: control.data?.environment,
     },
     errors: control.errors,
-  };
+  });
+  assertNoToken(evidence, token);
+  return evidence;
 }
 
 function isDirectEntrypoint(metaUrl) {

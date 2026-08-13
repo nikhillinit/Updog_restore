@@ -3976,12 +3976,13 @@ describe('required CI fails closed', () => {
       '${{ needs.validate-deployment.outputs.deployment_url }}'
     );
     expect(stagedProviderScripts).toContain('verify-provider-identity.mjs');
-    expect(stagedProviderScripts).toContain('staged-railway-evidence.json');
-    expect(stagedProviderScripts).toContain('Project-Access-Token: ${RAILWAY_TOKEN}');
-    expect(stagedProviderScripts).toContain('https://backboard.railway.com/graphql/v2');
-    expect(stagedProviderScripts.indexOf('const url = new URL')).toBeLessThan(
-      stagedProviderScripts.indexOf('x-vercel-protection-bypass')
-    );
+    expect(stagedProviderScripts).toContain('collect-provider-evidence.mjs');
+    expect(stagedProviderScripts).toContain('provider-evidence-staged-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}');
+    expect(stagedProviderScripts).toContain('--expected-railway-project-id');
+    expect(stagedProviderScripts).toContain('--expected-railway-environment-id');
+    expect(stagedProviderScripts).toContain('--expected-fund-scenario-service-id');
+    expect(stagedProviderScripts).toContain('--expected-capital-call-service-id');
+    expect(stagedProviderScripts).not.toContain('https://backboard.railway.com/graphql/v2');
     const g4OperatorEvidence = releaseWorkflow.jobs?.['g4-operator-evidence'];
     expect(g4OperatorEvidence).toBeDefined();
     expect(releaseWorkflow.jobs?.['g4-operator-evidence-hard-stop']).toBeUndefined();
@@ -4000,6 +4001,9 @@ describe('required CI fails closed', () => {
     expect(g4OperatorScripts).not.toContain('not valid base64');
     expect(g4OperatorScripts).not.toContain('not decode to valid JSON');
     expect(g4OperatorScripts).toContain('--mode operator');
+    expect(g4OperatorScripts).toContain('collect-provider-evidence.mjs');
+    expect(g4OperatorScripts).toContain('provider-evidence-g4-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}');
+    expect(g4OperatorScripts).toContain('--expected-railway-project-id');
     for (const probeFlag of [
       '--fund-health',
       '--fund-ready',
@@ -4027,6 +4031,9 @@ describe('required CI fails closed', () => {
     }).join('\n');
     expect(promoteScripts).toContain('operator-evidence-bundle.mjs decode');
     expect(promoteScripts).toContain('operator-evidence-promote');
+    expect(promoteScripts).toContain('collect-provider-evidence.mjs');
+    expect(promoteScripts).toContain('provider-evidence-promote-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}');
+    expect(promoteScripts).toContain('--expected-capital-call-service-id');
     const promoteCleanup = releaseWorkflow.jobs?.promote?.steps?.find(
       (step) => step.name === 'Remove revalidated operator evidence'
     );
@@ -4379,7 +4386,12 @@ describe('required CI fails closed', () => {
     }).join('\n');
     expect(railwayWorkerScripts).toContain('wait-railway-workers.mjs');
     expect(railwayWorkerScripts).toContain('--expected-sha "$EXPECTED_SHA"');
+    expect(railwayWorkerScripts).toContain('--expected-railway-project-id "$RAILWAY_PROJECT_ID"');
+    expect(railwayWorkerScripts).toContain('--expected-railway-environment-id "$RAILWAY_ENVIRONMENT_ID"');
+    expect(railwayWorkerScripts).toContain('--expected-fund-scenario-service-id "$RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID"');
+    expect(railwayWorkerScripts).toContain('--expected-capital-call-service-id "$RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID"');
     expect(railwayWorkerScripts).toContain('RAILWAY_TOKEN is required');
+    expect(railwayWorkersVerify?.steps?.find((step) => step.name === 'Wait for exact Railway worker topology')?.env?.RAILWAY_PROJECT_ID).toBe('${{ vars.RAILWAY_PROJECT_ID }}');
     expect(railwayWorkerScripts).not.toMatch(/railway\s+(up|deploy|redeploy|scale)\b/i);
 
     const stagedSmoke = releaseWorkflow.jobs?.['staged-smoke'];
@@ -4490,8 +4502,11 @@ describe('required CI fails closed', () => {
       (job.steps ?? []).filter((step) => step.if !== undefined || step['continue-on-error'] !== undefined)
     );
     expect(conditionalSteps.map((step) => step.name)).toEqual([
+      'Remove staged provider evidence',
       'Remove decoded operator evidence',
+      'Remove G4 provider evidence',
       'Remove revalidated operator evidence',
+      'Remove promotion provider evidence',
     ]);
     expect(conditionalSteps.every((step) => step.if === 'always()')).toBe(true);
 
