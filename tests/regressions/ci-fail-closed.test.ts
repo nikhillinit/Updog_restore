@@ -3899,7 +3899,7 @@ describe('required CI fails closed', () => {
     });
   });
 
-  it('fails closed on exact-SHA and provider identity proof before promotion', async () => {
+  it('fails closed on exact-SHA and provider identity proof before promotion', { retry: 0 }, async () => {
     const proofWorkflow = await readWorkflow('release-proof.yml');
     expect(proofWorkflow.permissions).toEqual({
       actions: 'read',
@@ -4123,7 +4123,7 @@ describe('required CI fails closed', () => {
   // This guard intentionally scans every tracked automation surface. Under the
   // full Linux unit-fast shard, concurrent repository I/O can exceed Vitest's
   // 30-second default even though the same scan is fast in isolation.
-  it('gates production promotion on a clean schema audit and authenticated smoke', async () => {
+  it('gates production promotion on a clean schema audit and authenticated smoke', { retry: 0 }, async () => {
     const schemaWorkflow = await readWorkflow('prod-schema-reconcile.yml');
     const schemaScripts = allRunScripts(schemaWorkflow).join('\n');
     expect(schemaScripts).toContain('Production schema audit is clean.');
@@ -4191,6 +4191,22 @@ describe('required CI fails closed', () => {
         .then(() => true)
         .catch(() => false)
     ).toBe(false);
+
+    // Runbooks and operator docs are excluded from the automation-surface scan
+    // (markdown is not executable), so pin the documentation surface separately:
+    // no runbook or script doc may reintroduce a raw release dispatch example.
+    const documentationSurfaces = [
+      ...(await readdir(path.join(process.cwd(), 'docs', 'runbooks'))).map((name) =>
+        path.join(process.cwd(), 'docs', 'runbooks', name)
+      ),
+      path.join(process.cwd(), 'scripts', 'DEPLOYMENT_AUTOMATION_README.md'),
+    ].filter((filePath) => filePath.endsWith('.md'));
+    for (const filePath of documentationSurfaces) {
+      const documentation = await readFile(filePath, 'utf8');
+      expect(documentation).not.toMatch(
+        /gh\s+workflow\s+run\s+release-production\.yml|release-production\.yml\/dispatches/
+      );
+    }
 
     expect(Object.keys(releaseWorkflow.jobs ?? {})).toEqual([
       'validate-target',
@@ -4630,7 +4646,7 @@ describe('required CI fails closed', () => {
     expect(exactInvariant(mutatedMatcher)).toBe(false);
   });
 
-  it('keeps the PowerShell production helper as an exact-live-main dispatcher', async () => {
+  it('keeps the PowerShell production helper as an exact-live-main dispatcher', { retry: 0 }, async () => {
     const dispatcher = await readFile(
       path.join(process.cwd(), 'scripts', 'deploy-production.ps1'),
       'utf8'
@@ -4638,6 +4654,7 @@ describe('required CI fails closed', () => {
 
     expect(dispatcher).toContain('gh api "repos/$repository/commits/main" --jq ".sha"');
     expect(dispatcher).toContain('operator-evidence-bundle.mjs encode');
+    expect(dispatcher).toContain('expected_sha = $expectedSha');
     expect(dispatcher).toContain('operator_evidence_b64 = $operatorEvidenceB64');
     expect(dispatcher).toContain('release_mode = $ReleaseMode');
     for (const field of [

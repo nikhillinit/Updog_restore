@@ -157,6 +157,7 @@ describe('operator evidence bundle API', () => {
     ['health/readiness deployment mismatch', () => replaceAt(validBundle(), ['capitalReady', 'deploymentId'], 'other-deployment')],
     ['cross-worker commit mismatch', () => replaceAt(validBundle(), ['capitalHealth', 'commit'], 'b'.repeat(40))],
     ['duplicate deployment identity', () => replaceAt(validBundle(), ['capitalHealth', 'deploymentId'], FUND_DEPLOYMENT)],
+    ['fund worker exhaustedOutboxCount', () => replaceAt(validBundle(), ['fundHealth', 'workers', 0, 'exhaustedOutboxCount'], 0)],
   ], 'rejects %s', (_name, makeValue) => {
     expect(() => encodeOperatorEvidenceBundle(makeValue())).toThrow(/operator evidence rejected/i);
   });
@@ -168,6 +169,9 @@ describe('operator evidence bundle API', () => {
     expect(() => decodeOperatorEvidenceBundle(encodedJson('not an object'))).toThrow(
       /operator evidence rejected/i
     );
+    expect(() =>
+      decodeOperatorEvidenceBundle(Buffer.from('{', 'utf8').toString('base64'))
+    ).toThrow(/operator evidence rejected/i);
   });
 
   testEach([
@@ -227,6 +231,12 @@ describe('operator evidence bundle API', () => {
     expect(encodeOperatorEvidenceBundle(validBundle()).length).toBeLessThan(
       MAX_OPERATOR_EVIDENCE_B64_CHARS
     );
+  });
+
+  test('rejects encoded input above the character limit before decoding', () => {
+    expect(() =>
+      decodeOperatorEvidenceBundle('A'.repeat(MAX_OPERATOR_EVIDENCE_B64_CHARS + 4))
+    ).toThrow(/operator evidence rejected/i);
   });
 });
 
@@ -370,6 +380,13 @@ describe('operator evidence bundle CLI', () => {
       });
       expect(result.stdout).toBe('operator evidence decoded\n');
       await expect(lstat(output)).resolves.toBeTruthy();
+
+      const rejectedOutput = path.join(root, 'rejected');
+      const rejectedResult = await runCli(['decode', '--output-dir', rejectedOutput], {
+        env: { OPERATOR_EVIDENCE_B64: encodedJson({ not: 'a bundle' }) },
+      }).catch((error) => error);
+      expect(rejectedResult.stderr).toMatch(/operator evidence command failed/i);
+      await expect(lstat(rejectedOutput)).rejects.toMatchObject({ code: 'ENOENT' });
     } finally {
       await rm(root, { recursive: true, force: true });
     }
