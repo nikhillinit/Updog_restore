@@ -271,7 +271,10 @@ describe('collect-provider-evidence', () => {
       // dot-dot segment removes on resolve; recursive mkdir on the RAW input
       // would still have materialized it. Trigger a pre-network failure by
       // omitting a required env value so no real fetch is attempted.
-      const traversal = path.join(root, `${TOKENS.RAILWAY_TOKEN}-x`, '..', 'evidence');
+      // Build the raw argument WITHOUT path.join: join would normalize the
+      // dot-dot away at construction time and make this regression vacuous.
+      const traversal = `${root}${path.sep}${TOKENS.RAILWAY_TOKEN}-x${path.sep}..${path.sep}evidence`;
+      expect(traversal).toContain(`${path.sep}..${path.sep}`);
       const traversalEnvironment = { ...cliEnvironment };
       delete traversalEnvironment.VERCEL_ORG_ID;
       const traversalResult = await execFileAsync(process.execPath, [
