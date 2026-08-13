@@ -17,7 +17,7 @@ const validReceipt = {
   result: 'applied_and_clean',
 } as const;
 
-describe('schema-reconcile-receipt-v1 contract', () => {
+describe('schema-reconcile-receipt-v1 contract', { retry: 0 }, () => {
   it('accepts only successful attempt-one apply receipts with bounded fields', () => {
     expect(SchemaReconcileReceiptV1Schema.parse(validReceipt)).toEqual(validReceipt);
   });

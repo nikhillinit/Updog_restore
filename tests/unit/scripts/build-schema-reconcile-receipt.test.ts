@@ -24,7 +24,7 @@ const input = {
   completedAtMs: 1250,
 };
 
-describe('build-schema-reconcile-receipt', () => {
+describe('build-schema-reconcile-receipt', { retry: 0 }, () => {
   it('builds the strict receipt and reports only bounded evidence', () => {
     expect(buildSchemaReconcileReceipt(input)).toEqual({
       repository: 'press-on/updog',

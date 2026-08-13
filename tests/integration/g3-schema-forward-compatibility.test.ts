@@ -267,4 +267,65 @@ describe.skipIf(skipIfNoDocker)('G3 schema forward compatibility', () => {
       await restartedPool.end();
     }
   });
+
+  it('rejects malformed durable-command and canary rows at the database boundary', { retry: 0 }, async () => {
+    expect(pool).toBeDefined();
+    const scenarioSet = await pool!.query<{ id: string; fund_id: number }>(
+      `SELECT id, fund_id FROM fund_scenario_sets WHERE name = 'Legacy reserve scenario'`
+    );
+    const setId = scenarioSet.rows[0]!.id;
+    const fundId = scenarioSet.rows[0]!.fund_id;
+    const run = await pool!.query<{ id: string }>(
+      `SELECT id FROM fund_scenario_calculation_runs
+       WHERE correlation_id = '11111111-1111-4111-8111-111111111111'`
+    );
+    const runId = run.rows[0]!.id;
+    const validBody = JSON.stringify({
+      fundId,
+      scenarioSetId: setId,
+      calculationMode: 'async_reserve_allocation',
+      status: 'queued',
+      jobId: 'probe-job',
+      correlationId: '11111111-1111-4111-8111-111111111111',
+    });
+
+    // NULL-trap probes: a completed row with NULL response_status, and one
+    // whose body carries JSON null calculationMode, must both violate the
+    // response check (three-valued logic must not satisfy the constraint).
+    await expect(pool!.query(
+      `INSERT INTO fund_scenario_calculation_commands
+         (fund_id, scenario_set_id, idempotency_key, request_hash, created_by_label,
+          status, run_id, correlation_id, response_status, response_body)
+       VALUES ($1, $2, 'nulltrap-status', repeat('7', 64), 'probe',
+               'completed', $3, '11111111-1111-4111-8111-111111111111', NULL, $4::jsonb)`,
+      [fundId, setId, runId, validBody]
+    )).rejects.toThrow(/response_check/);
+    await expect(pool!.query(
+      `INSERT INTO fund_scenario_calculation_commands
+         (fund_id, scenario_set_id, idempotency_key, request_hash, created_by_label,
+          status, run_id, correlation_id, response_status, response_body)
+       VALUES ($1, $2, 'nulltrap-mode', repeat('8', 64), 'probe',
+               'completed', $3, '11111111-1111-4111-8111-111111111111', 202,
+               jsonb_set($4::jsonb, '{calculationMode}', 'null'::jsonb))`,
+      [fundId, setId, runId, validBody]
+    )).rejects.toThrow(/response_check/);
+
+    // Scope-unique dedupe and workflow-identity coupling.
+    await pool!.query(
+      `INSERT INTO fund_scenario_calculation_commands
+         (fund_id, scenario_set_id, idempotency_key, request_hash, created_by_label, status)
+       VALUES ($1, $2, 'dedupe-probe', repeat('9', 64), 'probe', 'pending')`,
+      [fundId, setId]
+    );
+    await expect(pool!.query(
+      `INSERT INTO fund_scenario_calculation_commands
+         (fund_id, scenario_set_id, idempotency_key, request_hash, created_by_label, status)
+       VALUES ($1, $2, 'dedupe-probe', repeat('a', 64), 'probe', 'pending')`,
+      [fundId, setId]
+    )).rejects.toThrow(/scope_unique/);
+    await expect(pool!.query(
+      `UPDATE release_canary_runs SET workflow_run_id = '12345'
+       WHERE id = (SELECT id FROM release_canary_runs ORDER BY created_at DESC LIMIT 1)`
+    )).rejects.toThrow(/workflow_identity_check/);
+  });
 });

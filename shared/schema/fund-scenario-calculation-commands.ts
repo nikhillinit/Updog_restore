@@ -70,14 +70,14 @@ export const fundScenarioCalculationCommands = pgTable(
           ${table.status} = 'completed'
           AND ${table.runId} IS NOT NULL
           AND ${table.correlationId} IS NOT NULL
-          AND ${table.responseStatus} = 202
+          AND ${table.responseStatus} IS NOT DISTINCT FROM 202
           AND ${table.responseBody} IS NOT NULL
           AND jsonb_typeof(${table.responseBody}) = 'object'
           AND ${table.responseBody} ?& ARRAY[
             'fundId', 'scenarioSetId', 'calculationMode', 'status', 'jobId', 'correlationId'
           ]
-          AND ${table.responseBody}->>'calculationMode' = 'async_reserve_allocation'
-          AND ${table.responseBody}->>'status' = 'queued'
+          AND ${table.responseBody}->>'calculationMode' IS NOT DISTINCT FROM 'async_reserve_allocation'
+          AND ${table.responseBody}->>'status' IS NOT DISTINCT FROM 'queued'
           AND ${table.failureCode} IS NULL
           AND ${table.leaseToken} IS NULL
           AND ${table.leaseExpiresAt} IS NULL

@@ -4227,7 +4227,7 @@ describe('required CI fails closed', () => {
     }
   });
 
-  it('fails closed on schema evidence retention, receipt, and attempt identity', async () => {
+  it('fails closed on schema evidence retention, receipt, and attempt identity', { retry: 0 }, async () => {
     const workflow = await readWorkflow('prod-schema-reconcile.yml');
     const steps = workflow.jobs?.reconcile?.steps ?? [];
     const retentionIndex = steps.findIndex(
@@ -4262,6 +4262,23 @@ describe('required CI fails closed', () => {
     expect(retention?.run).toContain('body.days < 90');
     expect(retention?.run).not.toContain('PRODUCTION_DATABASE_URL');
     expect(retention?.run).not.toContain('--apply');
+    // Token stays out of curl argv (0600 header config file) and appears in
+    // exactly one step of the workflow.
+    expect(retention?.run).toContain('--config "$auth_header_file"');
+    expect(retention?.run).not.toContain('--header "Authorization: Bearer $SCHEMA_EVIDENCE_RETENTION_READ_TOKEN"');
+    const tokenSteps = steps.filter((step) =>
+      JSON.stringify(step).includes('SCHEMA_EVIDENCE_RETENTION_READ_TOKEN')
+    );
+    expect(tokenSteps).toHaveLength(1);
+    expect(tokenSteps[0]?.name).toBe('Verify artifact retention before apply');
+
+    const requireReceiptIndex = steps.findIndex(
+      (step) => step.name === 'Require schema reconcile receipt after successful apply'
+    );
+    expect(requireReceiptIndex).toBeGreaterThan(receiptIndex);
+    const requireReceipt = steps[requireReceiptIndex];
+    expect(requireReceipt?.if).toContain("inputs.mode == 'apply'");
+    expect(requireReceipt?.run).toContain('test -s reports/schema-reconcile-receipt.json');
 
     expect(receiptIndex).toBeGreaterThan(preAuditIndex);
     expect(postCleanIndex).toBeGreaterThan(preAuditIndex);

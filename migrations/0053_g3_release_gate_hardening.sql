@@ -44,14 +44,14 @@ CREATE TABLE IF NOT EXISTS "fund_scenario_calculation_commands" (
         "status" = 'completed'
         AND "run_id" IS NOT NULL
         AND "correlation_id" IS NOT NULL
-        AND "response_status" = 202
+        AND "response_status" IS NOT DISTINCT FROM 202
         AND "response_body" IS NOT NULL
         AND jsonb_typeof("response_body") = 'object'
         AND "response_body" ?& ARRAY[
           'fundId', 'scenarioSetId', 'calculationMode', 'status', 'jobId', 'correlationId'
         ]
-        AND "response_body"->>'calculationMode' = 'async_reserve_allocation'
-        AND "response_body"->>'status' = 'queued'
+        AND "response_body"->>'calculationMode' IS NOT DISTINCT FROM 'async_reserve_allocation'
+        AND "response_body"->>'status' IS NOT DISTINCT FROM 'queued'
         AND "failure_code" IS NULL
         AND "lease_token" IS NULL
         AND "lease_expires_at" IS NULL
