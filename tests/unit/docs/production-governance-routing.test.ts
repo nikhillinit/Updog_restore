@@ -100,7 +100,7 @@ describe('production governance documentation routing', () => {
     expect(policy).toContain('ADR-079');
     expect(policy).toMatch(/branch-protection writer is retired/);
     expect(policy).toMatch(/static reachability proof/);
-    expect(policy).toContain('Steps 4–7');
+    expect(policy).toMatch(/Steps\s+4–7/);
     expect(policy).toContain('action-specific UNKNOWNs');
     expect(policy).not.toMatch(/remains blocked pending|pending Step 3 closure/i);
     expect(decisions).toContain('## ADR-081: Minimum Governance Adoption Boundaries');
