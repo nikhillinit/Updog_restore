@@ -3,8 +3,6 @@
 import { spawnSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';
 
-import YAML from 'yaml';
-
 const EXACT_LIGHT_ALLOWLIST = [
   'docs/_generated/router-index.json',
   'docs/_generated/router-fast.json',
@@ -13,9 +11,20 @@ const EXACT_LIGHT_ALLOWLIST = [
   'docs/skills/WIZARD_INDEX.md',
 ];
 
+function parseAutoDocsFromYaml(content) {
+  const sectionMatch = content.match(/^auto_docs:\s*\n((?:[ \t]+-[ \t]+[^\n]*\n?)*)/m);
+  if (!sectionMatch) return null;
+  const items = [];
+  for (const line of sectionMatch[1].split('\n')) {
+    const itemMatch = line.match(/^[ \t]+-[ \t]+'?([^'\n]+?)'?\s*$/);
+    if (itemMatch) items.push(itemMatch[1]);
+  }
+  return items.length > 0 ? items : null;
+}
+
 function loadLightAllowlist(filtersPath) {
-  const parsed = YAML.parse(readFileSync(filtersPath, 'utf8'));
-  const configured = parsed?.auto_docs;
+  const content = readFileSync(filtersPath, 'utf8');
+  const configured = parseAutoDocsFromYaml(content);
   if (!Array.isArray(configured) || configured.some((value) => typeof value !== 'string')) {
     throw new Error(`auto_docs is missing or malformed in ${filtersPath}`);
   }
