@@ -256,7 +256,7 @@ jobs:
 
       - name: Apply additive-safe reconciliation
         id: apply
-        if: inputs.mode == 'apply'
+        if: ${{ false }}
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
         run: |

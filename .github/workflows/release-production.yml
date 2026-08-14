@@ -64,6 +64,7 @@ jobs:
 
   stage-production:
     name: Create Staged Production Deployment
+    if: ${{ false }}
     needs: schema-audit
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -402,6 +403,7 @@ jobs:
 
   promote:
     name: Promote Staged Vercel Deployment
+    if: ${{ false }}
     needs:
       [staged-smoke, validate-deployment, staged-provider-identity, g4-operator-evidence-hard-stop]
     runs-on: ubuntu-latest

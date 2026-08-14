@@ -219,20 +219,20 @@ Q6: Is the document >24h old AND contains execution claims?
 
 # 4. Command Quick Reference
 
-| Command              | Description                     | When to Use                         |
-| -------------------- | ------------------------------- | ----------------------------------- |
-| /phoenix-truth       | Run deterministic truth cases   | Phase 0 validation, baseline checks |
-| /phoenix-phase2      | Probabilistic workflow          | After deterministic gate passes     |
-| /phoenix-prob-report | Format MC distribution table    | PR-ready summaries                  |
-| /test-smart          | Intelligent test selection      | Changed files only                  |
-| /fix-auto            | Auto-fix lint/format/tests      | Quick cleanup                       |
-| /deploy-check        | Retired as production authority | Canonical route; UNKNOWN blocks     |
-| /workflows           | Interactive tool helper         | Finding the right tool              |
-| /log-change          | Guided CHANGELOG.md entry       | After features/fixes                |
-| /log-decision        | Guided ADR entry                | Architectural decisions             |
-| /pre-commit-check    | Quality validation              | Before committing                   |
-| /pr-ready            | Full pre-PR validation          | Before creating pull request        |
-| /db-validate         | Retired as production authority | Canonical route; UNKNOWN blocks     |
+| Command              | Description                   | When to Use                         |
+| -------------------- | ----------------------------- | ----------------------------------- |
+| /phoenix-truth       | Run deterministic truth cases | Phase 0 validation, baseline checks |
+| /phoenix-phase2      | Probabilistic workflow        | After deterministic gate passes     |
+| /phoenix-prob-report | Format MC distribution table  | PR-ready summaries                  |
+| /test-smart          | Intelligent test selection    | Changed files only                  |
+| /fix-auto            | Auto-fix lint/format/tests    | Quick cleanup                       |
+| /deploy-check        | Non-authorizing pointer       | Canonical route; UNKNOWN blocks     |
+| /workflows           | Interactive tool helper       | Finding the right tool              |
+| /log-change          | Guided CHANGELOG.md entry     | After features/fixes                |
+| /log-decision        | Guided ADR entry              | Architectural decisions             |
+| /pre-commit-check    | Quality validation            | Before committing                   |
+| /pr-ready            | Full pre-PR validation        | Before creating pull request        |
+| /db-validate         | Non-authorizing pointer       | Canonical route; UNKNOWN blocks     |
 
 ---
 

@@ -39,6 +39,11 @@ export function parseRedeliveryArgs(args) {
   if (apply && !all && normalizedIds.length === 0) {
     throw new Error('Apply mode requires --id/--ids or explicit --all');
   }
+  if (apply) {
+    throw new Error(
+      'Production data mutation is mechanically blocked pending action-specific hardening'
+    );
+  }
 
   return { apply, all, ids: normalizedIds };
 }

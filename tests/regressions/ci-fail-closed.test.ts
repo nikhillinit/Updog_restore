@@ -4165,6 +4165,37 @@ describe('required CI fails closed', () => {
     expect(writerCallers).toEqual([]);
   });
 
+  it('keeps retired production mutation routes unreachable', async () => {
+    const retiredPaths = [
+      '.github/workflows/task11-prod-closeout-once.yml',
+      'deploy.sh',
+      'launch-script.sh',
+      'pilot.sh',
+      'scripts/canary-deploy.mjs',
+      'scripts/rollback.mjs',
+      'scripts/apply-scenario-drift-migrations.mjs',
+      'scripts/phase2-slice3-audit.mjs',
+      'scripts/database/setup-rls-infrastructure.sh',
+      'scripts/normalize-stages.ts',
+      'scripts/normalize-stages-batched.ts',
+      'scripts/cold-storage/export-to-s3.sh',
+    ];
+
+    await Promise.all(
+      retiredPaths.map((filePath) =>
+        expect(access(path.join(process.cwd(), filePath))).rejects.toThrow()
+      )
+    );
+
+    const packageJson = JSON.parse(
+      await readFile(path.join(process.cwd(), 'package.json'), 'utf8')
+    ) as { scripts?: Record<string, string> };
+    const commands = Object.values(packageJson.scripts ?? {}).join('\n');
+    for (const retiredPath of retiredPaths) {
+      expect(commands).not.toContain(retiredPath);
+    }
+  });
+
   it.each([
     ['GitHub CLI workflow dispatch', 'gh workflow run release-production.yml \\\n  --ref main'],
     [
@@ -4617,7 +4648,7 @@ describe('required CI fails closed', () => {
     expect(
       automationSurfaces.some((surface) => surface.id === 'package:package.json#vercel-build')
     ).toBe(true);
-    expect(automationSurfaces.some((surface) => surface.id === 'operator:pilot.sh')).toBe(true);
+    expect(automationSurfaces.some((surface) => surface.id === 'operator:pilot.sh')).toBe(false);
     expect(automationSurfaces.some((surface) => surface.id === 'operator:server/index.ts')).toBe(
       true
     );
@@ -5029,22 +5060,14 @@ describe('required CI fails closed', () => {
     expect(exactInvariant(mutatedMatcher)).toBe(false);
   });
 
-  it('keeps the PowerShell production helper as an exact-live-main dispatcher', async () => {
+  it('keeps the PowerShell production helper mechanically blocked', async () => {
     const dispatcher = await readFile(
       path.join(process.cwd(), 'scripts', 'deploy-production.ps1'),
       'utf8'
     );
 
-    expect(dispatcher).toContain('gh api "repos/$repository/commits/main" --jq ".sha"');
-    expect(dispatcher).toContain(
-      'gh workflow run release-production.yml --ref main --field "expected_sha=$expectedSha"'
-    );
-    expect(dispatcher).toContain('--repo $repository');
-    expect(dispatcher).not.toMatch(/\bSkipSmokeTest\b|\bForce\b/);
-    expect(dispatcher.match(/\$LASTEXITCODE/g)).toHaveLength(3);
-    expect(dispatcher).toContain('[string]::IsNullOrWhiteSpace($repository)');
-    expect(dispatcher).toContain('[string]::IsNullOrWhiteSpace($expectedSha)');
-    expect(dispatcher).toContain('$expectedSha -notmatch "^[0-9a-f]{40}$"');
+    expect(dispatcher).not.toContain('gh workflow run');
+    expect(dispatcher).toMatch(/production mutation is mechanically blocked/i);
     expect(containsProductionVercelCommand(dispatcher)).toBe(false);
   });
 

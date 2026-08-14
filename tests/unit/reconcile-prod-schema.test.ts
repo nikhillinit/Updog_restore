@@ -383,9 +383,13 @@ describe('reconcile-prod-schema runner helpers', () => {
     });
   });
 
-  it('requires --yes for apply mode', () => {
-    expect(() => assertApplyConfirmation({ apply: true, yes: false })).toThrow(ReconcileError);
-    expect(() => assertApplyConfirmation({ apply: true, yes: true })).not.toThrow();
+  it('mechanically blocks apply mode regardless of confirmation', () => {
+    expect(() => assertApplyConfirmation({ apply: true, yes: false })).toThrow(
+      /production schema mutation is mechanically blocked/i
+    );
+    expect(() => assertApplyConfirmation({ apply: true, yes: true })).toThrow(
+      /production schema mutation is mechanically blocked/i
+    );
   });
 
   it('refuses pooled database URLs', () => {

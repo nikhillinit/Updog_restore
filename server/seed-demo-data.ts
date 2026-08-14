@@ -210,17 +210,14 @@ const DEMO_DEALS = [
   },
 ] satisfies Array<Omit<DealOpportunityInsert, 'fundId'>>;
 
-function assertDemoSeedEnabled(): void {
-  if (process.env['DEMO_SEED'] !== '1') {
+export function assertDemoSeedEnabled(env: NodeJS.ProcessEnv = process.env): void {
+  if (env['DEMO_SEED'] !== '1') {
     throw new Error('Refusing to seed demo data unless DEMO_SEED=1 is set.');
   }
 
-  if (
-    process.env['NODE_ENV'] === 'production' &&
-    process.env['ALLOW_PRODUCTION_DEMO_SEED'] !== '1'
-  ) {
+  if (env['NODE_ENV'] === 'production') {
     throw new Error(
-      'Refusing to seed demo data in production unless ALLOW_PRODUCTION_DEMO_SEED=1 is set.'
+      'Production demo data mutation is mechanically blocked pending action-specific hardening.'
     );
   }
 }

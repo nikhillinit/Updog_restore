@@ -187,7 +187,7 @@ describe('production governance documentation routing', () => {
     expect(discoveryMap).toMatch(
       /"db validate" OR "schema check" OR "before db:push"\s+\| docs\/workflows\/PRODUCTION_SCRIPTS\.md/
     );
-    expect(discoveryMap).toContain('Retired as production authority');
+    expect(discoveryMap).toContain('Non-authorizing pointer');
 
     for (const commandPath of commandPaths) {
       const command = await readRepositoryFile(commandPath);

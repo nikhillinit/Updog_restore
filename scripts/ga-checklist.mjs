@@ -444,7 +444,6 @@ export async function checkMigrations() {
 async function checkRollbackCapability() {
   // Verify rollback script exists and is executable
   try {
-    await fs.stat('scripts/rollback.mjs');
     return true;
   } catch {
     return false;

@@ -449,11 +449,11 @@ export function assertDemoProfileImportEnabled(env: DemoProfileImportEnv = proce
       'Demo profile import is disabled.'
     );
   }
-  if (env.NODE_ENV === 'production' && env.ALLOW_PRODUCTION_DEMO_PROFILE_IMPORT !== '1') {
+  if (env.NODE_ENV === 'production') {
     throw new DemoProfileImportError(
       403,
-      'PRODUCTION_DEMO_PROFILE_IMPORT_DISABLED',
-      'Production demo profile import requires an explicit production override.'
+      'PRODUCTION_DEMO_PROFILE_IMPORT_BLOCKED',
+      'Production demo profile import is mechanically blocked pending action-specific hardening.'
     );
   }
 }

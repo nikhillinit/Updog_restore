@@ -12,6 +12,17 @@ function encodedBundle(): string {
 }
 
 describe('import-demo-profile CLI', () => {
+  it('blocks production commit even when legacy override flags are present', async () => {
+    const result = await runImportDemoProfileCli(['--commit'], {
+      DEMO_PROFILE_IMPORT: '1',
+      ALLOW_PRODUCTION_DEMO_PROFILE_IMPORT: '1',
+      NODE_ENV: 'production',
+    });
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain('PRODUCTION_DEMO_PROFILE_IMPORT_BLOCKED');
+  });
+
   it('runs dry-run from an env base64 payload without requiring commit privileges', async () => {
     const result = await runImportDemoProfileCli(
       ['--dry-run', '--fund-id', '77', '--env-payload', 'DEMO_PROFILE_PAYLOAD_B64'],
