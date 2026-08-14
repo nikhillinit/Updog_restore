@@ -1,7 +1,161 @@
+import { spawnSync } from 'node:child_process';
 import { describe, it, expect } from 'vitest';
 import fs from 'fs/promises';
 import path from 'path';
 import YAML from 'yaml';
+
+const CHANGE_CLASSIFIER = path.join(process.cwd(), 'scripts', 'ci', 'classify-change-paths.mjs');
+
+type ChangeClassification = {
+  autoDocsOnly: boolean;
+  changeCount: number;
+  heavyCiRelevant: boolean;
+  valid: boolean;
+};
+
+const OLD_OBJECT = '1'.repeat(40);
+const NEW_OBJECT = '2'.repeat(40);
+const ZERO_OBJECT = '0'.repeat(40);
+
+function rawChange(
+  status: string,
+  paths: readonly string[],
+  oldMode = '100644',
+  newMode = '100644'
+): string[] {
+  const oldObject = oldMode === '000000' ? ZERO_OBJECT : OLD_OBJECT;
+  const newObject = newMode === '000000' ? ZERO_OBJECT : NEW_OBJECT;
+  return [`:${oldMode} ${newMode} ${oldObject} ${newObject} ${status}`, ...paths];
+}
+
+function classifyRawDiff(tokens: readonly string[]): {
+  result: ChangeClassification | null;
+  status: number | null;
+  stderr: string;
+} {
+  const input = tokens.length === 0 ? Buffer.alloc(0) : Buffer.from(`${tokens.join('\0')}\0`);
+  const completed = spawnSync(
+    process.execPath,
+    [CHANGE_CLASSIFIER, '--stdin', '--filters', '.github/path-filters.yml'],
+    {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      input,
+    }
+  );
+
+  let result: ChangeClassification | null = null;
+  if (completed.stdout.trim().length > 0) {
+    result = JSON.parse(completed.stdout) as ChangeClassification;
+  }
+
+  return {
+    result,
+    status: completed.status,
+    stderr: completed.stderr,
+  };
+}
+
+describe('CI fail-closed change classification', () => {
+  const lightPaths = [
+    'docs/_generated/router-index.json',
+    'docs/_generated/router-fast.json',
+    'docs/_generated/staleness-report.md',
+    'docs/skills/SKILLS_INDEX.md',
+    'docs/skills/WIZARD_INDEX.md',
+  ] as const;
+
+  it('allows each reviewed generated output and all five together', () => {
+    for (const lightPath of lightPaths) {
+      const classified = classifyRawDiff(rawChange('M', [lightPath]));
+      expect(classified.status, classified.stderr).toBe(0);
+      expect(classified.result).toEqual({
+        autoDocsOnly: true,
+        changeCount: 1,
+        heavyCiRelevant: false,
+        valid: true,
+      });
+    }
+
+    const classified = classifyRawDiff(
+      lightPaths.flatMap((lightPath) => rawChange('M', [lightPath]))
+    );
+    expect(classified.status, classified.stderr).toBe(0);
+    expect(classified.result).toEqual({
+      autoDocsOnly: true,
+      changeCount: 5,
+      heavyCiRelevant: false,
+      valid: true,
+    });
+  });
+
+  it.each([
+    ['unknown path', rawChange('A', ['unknown/new-tool.bin'], '000000', '100644')],
+    [
+      'mixed paths',
+      [
+        ...rawChange('M', ['docs/_generated/router-index.json']),
+        ...rawChange('M', ['docs/governance-policy.md']),
+      ],
+    ],
+    [
+      'rename into allowlist',
+      rawChange('R100', ['docs/legacy-router.json', 'docs/_generated/router-index.json']),
+    ],
+    [
+      'rename out of allowlist',
+      rawChange('R100', ['docs/_generated/router-index.json', 'docs/legacy-router.json']),
+    ],
+    ['deleted executable', rawChange('D', ['scripts/release/deploy.mjs'], '100755', '000000')],
+    [
+      'allowlisted executable-bit change',
+      rawChange('M', ['docs/_generated/router-index.json'], '100644', '100755'),
+    ],
+    [
+      'allowlisted type change',
+      rawChange('T', ['docs/_generated/router-index.json'], '100644', '120000'),
+    ],
+    ['allowlisted unmerged status', rawChange('U', ['docs/_generated/router-index.json'])],
+  ] as const)('routes %s to heavy CI', (_caseName, tokens) => {
+    const classified = classifyRawDiff(tokens);
+    expect(classified.status, classified.stderr).toBe(0);
+    expect(classified.result).toMatchObject({
+      autoDocsOnly: false,
+      heavyCiRelevant: true,
+      valid: true,
+    });
+  });
+
+  it('keeps an allowlisted delete and an internal allowlist rename light', () => {
+    const deleted = classifyRawDiff(
+      rawChange('D', ['docs/skills/SKILLS_INDEX.md'], '100644', '000000')
+    );
+    expect(deleted.status, deleted.stderr).toBe(0);
+    expect(deleted.result).toMatchObject({ autoDocsOnly: true, heavyCiRelevant: false });
+
+    const renamed = classifyRawDiff(
+      rawChange('R100', ['docs/_generated/router-fast.json', 'docs/_generated/router-index.json'])
+    );
+    expect(renamed.status, renamed.stderr).toBe(0);
+    expect(renamed.result).toMatchObject({ autoDocsOnly: true, heavyCiRelevant: false });
+  });
+
+  it.each([
+    ['empty input', []],
+    ['missing rename destination', rawChange('R100', ['docs/_generated/router-index.json'])],
+    ['unknown status', rawChange('Z', ['docs/_generated/router-index.json'])],
+    [
+      'malformed rename score',
+      rawChange('R101', ['docs/_generated/router-fast.json', 'docs/_generated/router-index.json']),
+    ],
+    ['missing raw header', ['M', 'docs/_generated/router-index.json']],
+  ] as const)('rejects malformed producer input: %s', (_caseName, tokens) => {
+    const classified = classifyRawDiff(tokens);
+    expect(classified.status).not.toBe(0);
+    expect(classified.result).toBeNull();
+    expect(classified.stderr).toMatch(/change classification failed/i);
+  });
+});
 
 describe('CI Workflow Regression - Fix #4', () => {
   describe('Separate jobs for base and PR builds (no race conditions)', () => {

@@ -10680,3 +10680,94 @@ No repo file describes a Railway API service. This deletes a config file only;
 it retires no live service, changes no live configuration, and authorizes no
 provider mutation (ADR-075 consequences unchanged). If a Railway API service is
 ever reintroduced, that is a new topology decision superseding ADR-075.
+
+## ADR-081: Draft Minimum Governance Adoption Boundaries
+
+**Date:** 2026-08-14 **Status:** Proposed **Tags:** #governance #release
+#authority
+
+### Context
+
+Repository guidance and active operator documents mixed source-admission,
+production-dispatch, historical topology, and evidence-recording language. That
+ambiguity can make a merge, review, or stale command look like production
+authority. Current provider and recovery facts contain unresolved UNKNOWNs. The
+branch-protection writer is retired, its reachable entrypoint is removed, and
+ordinary branch-policy surfaces have static reachability proof. Final exact-head
+production-mutation corpus closure, retained-entrypoint targeted validator-order
+evidence, and hosted exact-head CI remain incomplete.
+
+### Decision
+
+Propose one concise policy and one canonical operator route. `CI Gate Status`
+remains the sole aggregate merge authority and authorizes source admission only.
+Policy, enforcement, evidence, owner notes, reviews, and receipts have distinct
+roles; no observation or prose overrides a machine failure. Active noncanonical
+operator guides become explicit non-authorizing pointers to the canonical route.
+
+The canonical route is fail closed: refreshed source identity, applicable
+dispatch authority, target scope, existing target identity, and required machine
+preconditions must validate before first mutation. Target creation requires
+post-create exact returned-ID validation before dependent action. Production
+schema/data actions additionally require current backup/PITR, isolated restore
+freshness, custody-role, preview/restore-isolation, and immediate
+restore-reference revalidation evidence. Missing proof means zero dispatch.
+
+Archive Gate, Phoenix protected-path and truth controls, AGENTS/CLAUDE durable
+write mandates, ADR-079 tracked proof, and the existing promotion hard stop
+remain unchanged. ADR-075 retains its topology/identity-only scope.
+
+### Alternatives
+
+- **Option A — Minimal policy from current `main` plus extracted hardening
+  slices (chosen):** keeps policy, rationale, operator procedure, and
+  enforcement small and nonduplicative while retaining direct controls.
+- **Option B — Reconcile PR #1385 in place:** rejected because its conflicting
+  mixed scope couples CI, schema, provider, graph, and release work.
+- **Option C — Adopt the prior proposal as written:** rejected because its
+  phases, transition states, duplicate classification, and generic receipts
+  recreate a governance program.
+- **Option D — ADR and runbook only:** rejected because it leaves policy
+  implicit and does not give current consumers a stable authority surface.
+
+### Supersession
+
+This ADR supersedes only stale production-authority claims in the durable
+reconciled operator documents that now point to the canonical route. It does not
+supersede historical facts, Archive Gate, Phoenix controls, AGENTS/CLAUDE
+durable-write mandates, ADR-079, or promotion hard stops. Review hashes and
+local-only snapshots are not authority.
+
+### Accepted risks
+
+Accepted live risks remain explicit: solo self-review and administrator-bypass
+posture until separately changed; token-based provider authentication until a
+supported alternative is proven; and force-push risk until an authorized
+hardening action. These risks never authorize a production mutation.
+
+### Rollback
+
+Revert policy, routing, and CI changes only through ordinary current-head CI.
+Never use force push, down migration, provider mutation, or branch-policy
+overwrite as plan rollback.
+
+### Revisit triggers
+
+Revisit when authority structure changes, third parties gain production write
+access, external or regulated use begins, a material incident exposes a control
+gap, or recurring friction demonstrates poor rule value. No recurring governance
+subsystem is required without evidence of decay.
+
+### Consequences
+
+This ADR and policy remain proposed/draft until final exact-head
+production-mutation corpus closure and retained-entrypoint targeted
+validator-order evidence complete, and hosted exact-head CI succeeds. The
+branch-protection writer is retired; static reachability proof does not close
+those remaining blockers. This decision does not activate a workflow, authorize
+a provider action, claim recovery readiness, or replace later provider/schema
+hardening. Vercel and Railway observations are scoped facts, not general
+platform guarantees or readiness claims.
+
+This proposed ADR and adoption authorize no GitHub, environment, branch,
+provider, schema, data, deployment, or production action.

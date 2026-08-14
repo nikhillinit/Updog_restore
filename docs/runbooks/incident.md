@@ -1,11 +1,16 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-08-14
 ---
 
-# Runbook — Incident Response
-- User impact first (synthetics & RUM).
-- If critical path failing: **rollback** (see rollback.md).
-- Check breaker states; confirm memory-mode fallback.
-- Capture OTel trace exemplars & slow-query logs.
-- Post-mortem within 48h with owners & due dates.
+# Incident Runbook
+
+## Canonical production-action authority
+
+Repository path: `docs/workflows/PRODUCTION_SCRIPTS.md`.
+
+This document is a non-authorizing pointer and confers no authority to mutate
+source, branch, environment, provider, production, schema, data, deployment,
+promotion, or rollback. Current UNKNOWN prerequisites block their applicable
+action. Use the canonical guide before considering an action; it alone defines
+the guarded route and remains draft pending Step 3 closure.

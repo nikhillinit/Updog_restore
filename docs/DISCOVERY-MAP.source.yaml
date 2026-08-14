@@ -127,6 +127,7 @@ decision_tree:
       deployment:
         keywords: ['deploy', 'prod', 'release', 'ci', 'cd']
         route: 'docs/workflows/PRODUCTION_SCRIPTS.md'
+        message: 'Draft canonical production-action route; UNKNOWN prerequisites block applicable action.'
       troubleshooting:
         keywords: ['error', 'debug', 'fix', 'broken', 'issue']
         route: 'docs/INDEX.md'
@@ -334,6 +335,7 @@ patterns:
       - 'rollout'
       - 'shipping'
     target: 'docs/workflows/PRODUCTION_SCRIPTS.md'
+    message: 'Draft canonical production-action route; merge never authorizes production mutation.'
 
   - id: 'ci_cd'
     priority: 31
