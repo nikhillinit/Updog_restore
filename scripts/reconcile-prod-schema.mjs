@@ -80,11 +80,12 @@ export function parseReconcileArgs(argv, env = process.env) {
   };
 }
 
-export function assertApplyConfirmation({ apply, yes }) {
-  if (apply && !yes) {
-    throw new ReconcileError('--apply requires --yes to confirm a schema mutation', {
-      kind: 'missing-apply-confirmation',
-    });
+export function assertApplyConfirmation({ apply }) {
+  if (apply) {
+    throw new ReconcileError(
+      'Production schema mutation is mechanically blocked pending action-specific hardening',
+      { kind: 'production-mutation-blocked' }
+    );
   }
 }
 

@@ -20,8 +20,18 @@ const REQUIRED_TESTCONTAINERS_TRIGGER_SEAMS = [
 ] as const;
 
 interface PathFilters {
+  auto_docs?: string[];
+  not_auto_docs?: string[];
   schema_tests?: string[];
 }
+
+const EXACT_AUTO_DOCS_ALLOWLIST = [
+  'docs/_generated/router-index.json',
+  'docs/_generated/router-fast.json',
+  'docs/_generated/staleness-report.md',
+  'docs/skills/SKILLS_INDEX.md',
+  'docs/skills/WIZARD_INDEX.md',
+] as const;
 
 const REQUIRED_SCHEMA_TEST_SEAMS = [
   'shared/contracts/investment-ledger/position.contract.ts',
@@ -62,6 +72,16 @@ function expectSchemaTestPaths(
 }
 
 describe('Testcontainers path-filter parity', () => {
+  it('keeps the reviewed light path to the exact five generated outputs', () => {
+    const filters = YAML.parse(fs.readFileSync(PATH_FILTERS, 'utf8')) as PathFilters;
+
+    expect(filters.auto_docs).toEqual(EXACT_AUTO_DOCS_ALLOWLIST);
+    expect(filters.not_auto_docs).toEqual([
+      '**',
+      ...EXACT_AUTO_DOCS_ALLOWLIST.map((lightPath) => `!${lightPath}`),
+    ]);
+  });
+
   it('matches every canonical Testcontainers include with schema_tests', () => {
     const patterns = schemaTestPatterns();
 

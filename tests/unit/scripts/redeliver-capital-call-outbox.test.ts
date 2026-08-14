@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { buildRedeliveryPlan, parseRedeliveryArgs } from '../../../scripts/release/redeliver-capital-call-outbox.mjs';
+import {
+  buildRedeliveryPlan,
+  parseRedeliveryArgs,
+} from '../../../scripts/release/redeliver-capital-call-outbox.mjs';
 
 describe('capital-call outbox redelivery command', () => {
   it('defaults to dry-run and accepts targeted exhausted row ids', () => {
@@ -27,5 +30,11 @@ describe('capital-call outbox redelivery command', () => {
       },
     ]);
     expect(rows).toEqual([{ id: '11111111-1111-4111-8111-111111111111' }]);
+  });
+
+  it('blocks apply mode before database dispatch', () => {
+    expect(() =>
+      parseRedeliveryArgs(['--apply', '--id=11111111-1111-4111-8111-111111111111'])
+    ).toThrow(/production data mutation is mechanically blocked/i);
   });
 });

@@ -256,6 +256,11 @@ async function executePurge(client, fundIds, runIds) {
 }
 
 export async function runPurge(client, { execute = false, output = console.log } = {}) {
+  if (execute) {
+    throw new Error(
+      'Production data mutation is mechanically blocked pending action-specific hardening'
+    );
+  }
   await assertCanaryExclusionAvailable(client);
   if (!execute) {
     await client.query('BEGIN');

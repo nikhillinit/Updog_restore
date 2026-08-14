@@ -55,7 +55,7 @@
     "guard:canary-exclusion:check": "node scripts/guardrails/check-canary-exclusion.mjs",
     "guardrails:check": "npm run guard:console:check && npm run guard:eslint-disable:check && npm run guard:scripts:check && npm run guard:route-imports:check && npm run guard:financial-placeholders:check && npm run guard:round-derived-financial-claims:check && npm run guard:server-migrations:check && npm run guard:legacy-calculation-consumers:check && npm run guard:decimal-string-laundering:check && npm run guard:transaction-support:check && npm run guard:canary-exclusion:check",
     "db:push": "node scripts/db-push.mjs",
-    "db:studio": "drizzle-kit studio",
+    "db:studio": "node scripts/db-studio.mjs",
     "db:seed:demo": "cross-env DEMO_SEED=1 npx tsx server/seed-demo-data.ts",
     "demo-profile:import": "npx tsx scripts/import-demo-profile.ts",
     "demo-profile:verify": "npx tsx scripts/verify-demo-profile.ts",
