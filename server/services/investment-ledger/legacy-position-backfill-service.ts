@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 
-import { db } from '../../db';
+import type { db as DefaultDatabase } from '../../db';
 import { dependencyGroupKeyForObservation } from '../../../shared/contracts/financial-observations/reconciliation-api.contract';
 import {
   LegacyPositionBackfillRequestSchema,
@@ -14,7 +14,7 @@ import {
 import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
 import { Decimal } from '../../../shared/lib/decimal-config';
 
-type LedgerDatabase = typeof db;
+type LedgerDatabase = typeof DefaultDatabase;
 type QueryResult = Awaited<ReturnType<LedgerDatabase['execute']>>;
 
 export class LegacyPositionBackfillServiceError extends Error {
@@ -104,8 +104,15 @@ const DETERMINISTIC_MAIN_SLUG = 'legacy-main-fund';
 export async function backfillLegacyPositionEvents(
   input: BackfillLegacyPositionEventsInput
 ): Promise<LegacyPositionBackfillResult> {
-  const database = input.database ?? db;
   const request = LegacyPositionBackfillRequestSchema.parse(input.request);
+  if (request.mode !== 'dry_run') {
+    throw new LegacyPositionBackfillServiceError(
+      403,
+      'BACKFILL_BLOCKED',
+      'Legacy position backfill mutation is mechanically blocked.'
+    );
+  }
+  const database = input.database ?? (await import('../../db')).db;
   const targetFundIds = request.fundIds;
 
   const preflight = await preflightMainVehicles(database, targetFundIds);
@@ -140,7 +147,9 @@ export async function backfillLegacyPositionEvents(
     return LegacyPositionBackfillResultSchema.parse(summarize('apply', planned, 0));
   }
 
-  const candidatesByFund = groupByFund(planned.filter((candidate) => candidate.status === 'planned'));
+  const candidatesByFund = groupByFund(
+    planned.filter((candidate) => candidate.status === 'planned')
+  );
   const writtenCandidates: PlannedCandidate[] = [];
   let createdMainVehicles = 0;
 
@@ -431,7 +440,9 @@ async function loadLegacyInvestments(
     participationVehicleId: nullablePositiveInt(row['participation_vehicle_id']),
     participationCompanyIdentityId: nullablePositiveInt(row['participation_company_identity_id']),
     participationVersion: nullablePositiveInt(row['participation_version']),
-    participationSourceObservationId: nullablePositiveInt(row['participation_source_observation_id']),
+    participationSourceObservationId: nullablePositiveInt(
+      row['participation_source_observation_id']
+    ),
     supersededByParticipationId: nullablePositiveInt(row['superseded_by_participation_id']),
     participationCurrency: nullableString(row['participation_currency']),
     existingEventId: nullablePositiveInt(row['existing_event_id']),
@@ -452,9 +463,7 @@ async function loadLegacyInvestments(
     correctedEffectiveDate: nullableString(row['corrected_effective_date']),
     correctedSharesDelta: nullableString(row['corrected_shares_delta']),
     correctedCostBasisDelta: nullableString(row['corrected_cost_basis_delta']),
-    correctedVehicleParticipationId: nullablePositiveInt(
-      row['corrected_vehicle_participation_id']
-    ),
+    correctedVehicleParticipationId: nullablePositiveInt(row['corrected_vehicle_participation_id']),
     overlappingAcquisitionId: nullablePositiveInt(row['overlapping_acquisition_id']),
   }));
 }
@@ -547,12 +556,15 @@ function planCandidate(
     context.mainVehicle?.vehicleSlug === DETERMINISTIC_MAIN_SLUG;
   const vehicleId =
     row.vehicleParticipationId === null
-      ? context.mainVehicle?.vehicleId ?? null
+      ? (context.mainVehicle?.vehicleId ?? null)
       : row.participationVehicleId;
   let vehiclePlan: PlannedCandidate['vehiclePlan'] = null;
   if (row.vehicleParticipationId !== null && row.participationVehicleId !== null) {
     vehiclePlan = { kind: 'participation', vehicleId: row.participationVehicleId };
-  } else if (deterministicMain || (row.vehicleParticipationId === null && context.mainVehicle === null)) {
+  } else if (
+    deterministicMain ||
+    (row.vehicleParticipationId === null && context.mainVehicle === null)
+  ) {
     vehiclePlan = { kind: 'deterministic_main', slug: DETERMINISTIC_MAIN_SLUG };
   } else if (vehicleId !== null) {
     vehiclePlan = { kind: 'existing_main', vehicleId };
@@ -573,7 +585,11 @@ function planCandidate(
     if (row.participationSourceObservationId === null) {
       blockers.push('PARTICIPATION_OBSERVATION_MISSING');
     }
-  } else if (context.mainVehicle === null && !context.hasMainSlugConflict && !context.hasMultiMain) {
+  } else if (
+    context.mainVehicle === null &&
+    !context.hasMainSlugConflict &&
+    !context.hasMultiMain
+  ) {
     warnings.push('MAIN_VEHICLE_WOULD_BE_CREATED');
   }
   if (row.overlappingAcquisitionId !== null && row.existingEventId === null) {
@@ -733,7 +749,9 @@ async function insertBackfillEvent(
   ) {
     throw backfillBlocked('SOURCE_PLAN_HASH_REQUIRED', candidate);
   }
-  const existing = first(rowsOf(await database.execute(sql`
+  const existing = first(
+    rowsOf(
+      await database.execute(sql`
     SELECT position_events.id, position_events.request_hash, position_events.vehicle_id,
            position_events.company_identity_id, position_events.effective_date::text,
            position_events.shares_delta::text, position_events.cost_basis_delta::text,
@@ -747,7 +765,9 @@ async function insertBackfillEvent(
     WHERE position_events.fund_id = ${candidate.fundId}
       AND position_events.backfilled_from_investment_id = ${candidate.investmentId}
     FOR UPDATE OF position_events
-  `)));
+  `)
+    )
+  );
   if (existing) {
     if (
       existing['request_hash'] !== candidate.requestHash ||
@@ -760,7 +780,9 @@ async function insertBackfillEvent(
 
   const observationId =
     candidate.sourceObservationId ?? (await insertBackfillObservation(database, candidate));
-  const inserted = first(rowsOf(await database.execute(sql`
+  const inserted = first(
+    rowsOf(
+      await database.execute(sql`
     INSERT INTO position_events (
       fund_id, vehicle_id, company_identity_id, event_type, effective_date,
       shares_delta, cost_basis_delta, proceeds, replaces_event_id,
@@ -777,9 +799,13 @@ async function insertBackfillEvent(
     )
     ON CONFLICT (backfilled_from_investment_id) DO NOTHING
     RETURNING id
-  `)));
+  `)
+    )
+  );
   if (!inserted) {
-    const replay = first(rowsOf(await database.execute(sql`
+    const replay = first(
+      rowsOf(
+        await database.execute(sql`
       SELECT position_events.id, position_events.request_hash, position_events.vehicle_id,
              position_events.company_identity_id, position_events.effective_date::text,
              position_events.shares_delta::text, position_events.cost_basis_delta::text,
@@ -792,7 +818,9 @@ async function insertBackfillEvent(
        AND source_observation.fund_id = position_events.fund_id
       WHERE position_events.fund_id = ${candidate.fundId}
         AND position_events.backfilled_from_investment_id = ${candidate.investmentId}
-    `)));
+    `)
+      )
+    );
     if (
       replay &&
       replay['request_hash'] === candidate.requestHash &&
@@ -816,20 +844,24 @@ async function insertBackfillObservation(
   ) {
     throw backfillBlocked('SOURCE_PLAN_HASH_REQUIRED', candidate);
   }
-  const existing = first(rowsOf(await database.execute(sql`
+  const existing = first(
+    rowsOf(
+      await database.execute(sql`
     SELECT id
     FROM source_observations
     WHERE fund_id = ${candidate.fundId}
       AND observation_hash = ${candidate.sourcePlanHash}
       AND status = 'accepted'
     LIMIT 1
-  `)));
+  `)
+    )
+  );
   if (existing) return asPositiveInt(existing['id']);
 
   const observationId = asPositiveInt(
-    first(rowsOf(await database.execute(sql`SELECT nextval('source_observations_id_seq') AS id`)))?.[
-      'id'
-    ]
+    first(
+      rowsOf(await database.execute(sql`SELECT nextval('source_observations_id_seq') AS id`))
+    )?.['id']
   );
   const normalizedPayload = {
     source: BACKFILL_COMMAND,
@@ -859,13 +891,17 @@ async function ensureDeterministicMainVehicle(
   database: LedgerDatabase,
   fundId: number
 ): Promise<MainVehicleRow> {
-  const existing = first(rowsOf(await database.execute(sql`
+  const existing = first(
+    rowsOf(
+      await database.execute(sql`
     SELECT id, fund_id, vehicle_slug, vehicle_type
     FROM vehicles
     WHERE fund_id = ${fundId}
       AND vehicle_slug = ${DETERMINISTIC_MAIN_SLUG}
     FOR UPDATE
-  `)));
+  `)
+    )
+  );
   if (existing) {
     if (existing['vehicle_type'] !== 'main_fund') {
       throw new LegacyPositionBackfillServiceError(
@@ -882,7 +918,9 @@ async function ensureDeterministicMainVehicle(
       vehicleType: asString(existing['vehicle_type']),
     };
   }
-  const inserted = first(rowsOf(await database.execute(sql`
+  const inserted = first(
+    rowsOf(
+      await database.execute(sql`
     INSERT INTO vehicles (
       fund_id, vehicle_slug, vehicle_type, name, description, currency, status
     ) VALUES (
@@ -891,7 +929,9 @@ async function ensureDeterministicMainVehicle(
       'USD', 'active'
     )
     RETURNING id, fund_id, vehicle_slug, vehicle_type
-  `)));
+  `)
+    )
+  );
   if (!inserted) {
     throw new LegacyPositionBackfillServiceError(
       500,
@@ -908,9 +948,9 @@ async function ensureDeterministicMainVehicle(
   };
 }
 
-function canonicalCostBasis(row: LegacyInvestmentRow):
-  | { status: 'ok'; value: string }
-  | { status: 'missing' | 'mismatch'; value: null } {
+function canonicalCostBasis(
+  row: LegacyInvestmentRow
+): { status: 'ok'; value: string } | { status: 'missing' | 'mismatch'; value: null } {
   if (!row.amount && row.costBasisCents === null) return { status: 'missing', value: null };
   const amount = new Decimal(row.amount);
   if (row.costBasisCents === null) return { status: 'ok', value: amount.toFixed(6) };
@@ -919,9 +959,9 @@ function canonicalCostBasis(row: LegacyInvestmentRow):
   return { status: 'ok', value: fromCents.toFixed(6) };
 }
 
-function canonicalShares(value: string | null):
-  | { status: 'ok'; value: string }
-  | { status: 'precision_loss'; value: null } {
+function canonicalShares(
+  value: string | null
+): { status: 'ok'; value: string } | { status: 'precision_loss'; value: null } {
   if (value === null) return { status: 'ok', value: '0.000000' };
   const decimal = new Decimal(value);
   const fixed = decimal.toFixed(6);
@@ -994,7 +1034,8 @@ function rowLikeEventMatches(
       nullablePositiveInt(row['source_observation_id']) === candidate.sourceObservationId) &&
     (candidate.sourceObservationId !== null ||
       (nullableString(row['source_observation_hash']) === candidate.sourcePlanHash &&
-        nullableString(row['source_observation_locator']) === sourceLocator(candidate.investmentId)))
+        nullableString(row['source_observation_locator']) ===
+          sourceLocator(candidate.investmentId)))
   );
 }
 
@@ -1002,7 +1043,9 @@ function assertFreshCandidateSet(
   expectedCandidates: PlannedCandidate[],
   freshCandidates: PlannedCandidate[]
 ): void {
-  const expectedIds = expectedCandidates.map((candidate) => candidate.investmentId).sort((a, b) => a - b);
+  const expectedIds = expectedCandidates
+    .map((candidate) => candidate.investmentId)
+    .sort((a, b) => a - b);
   const freshIds = freshCandidates.map((candidate) => candidate.investmentId).sort((a, b) => a - b);
   if (
     expectedIds.length !== freshIds.length ||
@@ -1071,7 +1114,9 @@ function groupByFund(candidates: PlannedCandidate[]): Map<number, PlannedCandida
 }
 
 async function lockGlobalBackfill(database: LedgerDatabase): Promise<void> {
-  await database.execute(sql`SELECT pg_advisory_xact_lock(hashtext('legacy-position-backfill:v1'))`);
+  await database.execute(
+    sql`SELECT pg_advisory_xact_lock(hashtext('legacy-position-backfill:v1'))`
+  );
 }
 
 async function lockFundIdentity(database: LedgerDatabase, fundId: number): Promise<void> {

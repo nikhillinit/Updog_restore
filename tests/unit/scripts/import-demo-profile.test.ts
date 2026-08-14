@@ -5,6 +5,7 @@ import {
   runImportDemoProfileCli,
   runImportDemoProfileCliMain,
 } from '../../../scripts/import-demo-profile';
+import { rollbackDemoProfileImport } from '../../../server/services/demo-profile-import-service';
 import { buildDemoProfileImportBundle } from '../../fixtures/demo-profile-import-fixture';
 
 function encodedBundle(): string {
@@ -12,6 +13,25 @@ function encodedBundle(): string {
 }
 
 describe('import-demo-profile CLI', () => {
+  it('blocks service-layer production rollback before transaction dispatch', async () => {
+    const database = { transaction: vi.fn() };
+
+    await expect(
+      rollbackDemoProfileImport(
+        { fundId: 77, datasetId: 'dataset-1' },
+        {
+          database: database as never,
+          env: {
+            DEMO_PROFILE_IMPORT: '1',
+            ALLOW_PRODUCTION_DEMO_PROFILE_IMPORT: '1',
+            NODE_ENV: 'production',
+          },
+        }
+      )
+    ).rejects.toMatchObject({ code: 'PRODUCTION_DEMO_PROFILE_IMPORT_BLOCKED' });
+    expect(database.transaction).not.toHaveBeenCalled();
+  });
+
   it('blocks production commit even when legacy override flags are present', async () => {
     const result = await runImportDemoProfileCli(['--commit'], {
       DEMO_PROFILE_IMPORT: '1',

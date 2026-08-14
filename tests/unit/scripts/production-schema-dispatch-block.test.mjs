@@ -104,4 +104,22 @@ describe('production schema dispatch block', () => {
       expect(applyStep?.if).toBe('${{ false }}');
     }
   });
+
+  it('fails apply-mode workflows explicitly before any mutation step', async () => {
+    for (const name of [
+      'prod-schema-reconcile.yml',
+      'prod-journaled-migrate-0045-0049.yml',
+    ]) {
+      const workflow = YAML.parse(
+        await readFile(path.join(process.cwd(), '.github', 'workflows', name), 'utf8')
+      );
+      const steps = workflow.jobs[Object.keys(workflow.jobs)[0]].steps;
+      const blocker = steps.find((step) => step.name === 'Block production apply mode');
+      expect(blocker?.if).toContain("inputs.mode == 'apply'");
+      expect(blocker?.run).toMatch(/exit 1/);
+      expect(steps.indexOf(blocker)).toBeLessThan(
+        steps.findIndex((step) => /Apply (additive-safe reconciliation|journaled recovery)/.test(step.name))
+      );
+    }
+  });
 });

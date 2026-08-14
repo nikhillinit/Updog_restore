@@ -4196,6 +4196,26 @@ describe('required CI fails closed', () => {
     }
   });
 
+  it('keeps ACTIVE guides from referencing retired mutation routes', async () => {
+    const retiredMutationPaths = [
+      'scripts/normalize-stages.ts',
+      'scripts/normalize-stages-batched.ts',
+    ];
+    const { stdout } = await execFileAsync('git', ['ls-files', 'docs']);
+    const markdownPaths = stdout.split(/\r?\n/).filter((filePath) => filePath.endsWith('.md'));
+    const violations: string[] = [];
+
+    for (const filePath of markdownPaths) {
+      const content = await readFile(path.join(process.cwd(), filePath), 'utf8');
+      if (!/^---\r?\nstatus:\s*ACTIVE\s*$/m.test(content)) continue;
+      if (retiredMutationPaths.some((retiredPath) => content.includes(retiredPath))) {
+        violations.push(filePath);
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
   it.each([
     ['GitHub CLI workflow dispatch', 'gh workflow run release-production.yml \\\n  --ref main'],
     [
@@ -4686,6 +4706,7 @@ describe('required CI fails closed', () => {
     expect(ungovernedVercelRestMutations).toEqual([]);
 
     expect(Object.keys(releaseWorkflow.jobs ?? {})).toEqual([
+      'production-mutation-block',
       'validate-target',
       'release-proof',
       'schema-audit',
@@ -4698,7 +4719,7 @@ describe('required CI fails closed', () => {
       'post-promotion-smoke',
     ]);
     const validateTarget = releaseWorkflow.jobs?.['validate-target'];
-    expect(normalizeNeeds(validateTarget?.needs)).toEqual([]);
+    expect(normalizeNeeds(validateTarget?.needs)).toEqual(['production-mutation-block']);
     expect(validateTarget?.outputs?.log_window_start).toBe(
       '${{ steps.target.outputs.log_window_start }}'
     );

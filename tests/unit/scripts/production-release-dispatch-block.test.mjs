@@ -19,6 +19,19 @@ describe('production release dispatch block', () => {
     expect(workflow.jobs.promote.if).toBe('${{ false }}');
   });
 
+  it('terminates every release dispatch with an explicit nonzero block', async () => {
+    const workflow = await readWorkflow('release-production.yml');
+    const blocker = workflow.jobs['production-mutation-block'];
+
+    expect(blocker).toBeDefined();
+    expect(blocker.steps).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ run: expect.stringMatching(/exit 1/) }),
+      ])
+    );
+    expect(workflow.jobs['validate-target'].needs).toBe('production-mutation-block');
+  });
+
   it('blocks the PowerShell dispatcher before invoking GitHub CLI', async () => {
     const script = await readFile(
       path.join(process.cwd(), 'scripts', 'deploy-production.ps1'),

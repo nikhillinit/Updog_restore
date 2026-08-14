@@ -213,6 +213,7 @@ export interface DemoProfileCommitWithStoreOptions {
 
 export interface DemoProfileRollbackOptions {
   database?: DemoProfileImportDatabase;
+  env?: DemoProfileImportEnv;
 }
 
 function canonicalize(value: unknown): unknown {
@@ -957,6 +958,7 @@ export async function rollbackDemoProfileImport(
   input: { fundId: number; datasetId: string },
   options: DemoProfileRollbackOptions = {}
 ): Promise<DemoProfileRollbackSummary> {
+  assertDemoProfileImportEnabled(options.env);
   const database = await resolveDemoProfileImportDatabase(options.database);
   return database.transaction(async (tx) =>
     rollbackDemoProfileImportWithStore(new DrizzleDemoProfileImportStore(tx), input)

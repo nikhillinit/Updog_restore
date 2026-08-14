@@ -20,8 +20,18 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  production-mutation-block:
+    name: Production Mutation Blocked
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail closed while production mutation is unauthorized
+        run: |
+          echo "::error::Production release mutation is mechanically blocked."
+          exit 1
+
   validate-target:
     name: Validate Production Target
+    needs: production-mutation-block
     runs-on: ubuntu-latest
     outputs:
       log_window_start: ${{ steps.target.outputs.log_window_start }}

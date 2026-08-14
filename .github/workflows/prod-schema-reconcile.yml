@@ -41,6 +41,12 @@ jobs:
     environment: production-schema
 
     steps:
+      - name: Block production apply mode
+        if: ${{ inputs.mode == 'apply' }}
+        run: |
+          echo "::error::Production schema apply is mechanically blocked."
+          exit 1
+
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ inputs.expected_sha }}
