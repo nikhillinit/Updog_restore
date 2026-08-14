@@ -10681,9 +10681,9 @@ it retires no live service, changes no live configuration, and authorizes no
 provider mutation (ADR-075 consequences unchanged). If a Railway API service is
 ever reintroduced, that is a new topology decision superseding ADR-075.
 
-## ADR-081: Draft Minimum Governance Adoption Boundaries
+## ADR-081: Minimum Governance Adoption Boundaries
 
-**Date:** 2026-08-14 **Status:** Proposed **Tags:** #governance #release
+**Date:** 2026-08-14 **Status:** Accepted **Tags:** #governance #release
 #authority
 
 ### Context
@@ -10693,13 +10693,14 @@ production-dispatch, historical topology, and evidence-recording language. That
 ambiguity can make a merge, review, or stale command look like production
 authority. Current provider and recovery facts contain unresolved UNKNOWNs. The
 branch-protection writer is retired, its reachable entrypoint is removed, and
-ordinary branch-policy surfaces have static reachability proof. Final exact-head
-production-mutation corpus closure, retained-entrypoint targeted validator-order
-evidence, and hosted exact-head CI remain incomplete.
+ordinary branch-policy surfaces have static reachability proof.
+Repository-adoption closure is not production readiness; provider, schema,
+recovery, and other action-specific UNKNOWNs remain blocking for their
+applicable actions.
 
 ### Decision
 
-Propose one concise policy and one canonical operator route. `CI Gate Status`
+Adopt one concise policy and one canonical operator route. `CI Gate Status`
 remains the sole aggregate merge authority and authorizes source admission only.
 Policy, enforcement, evidence, owner notes, reviews, and receipts have distinct
 roles; no observation or prose overrides a machine failure. Active noncanonical
@@ -10760,14 +10761,13 @@ subsystem is required without evidence of decay.
 
 ### Consequences
 
-This ADR and policy remain proposed/draft until final exact-head
-production-mutation corpus closure and retained-entrypoint targeted
-validator-order evidence complete, and hosted exact-head CI succeeds. The
-branch-protection writer is retired; static reachability proof does not close
-those remaining blockers. This decision does not activate a workflow, authorize
-a provider action, claim recovery readiness, or replace later provider/schema
-hardening. Vercel and Railway observations are scoped facts, not general
-platform guarantees or readiness claims.
+This accepted ADR governs repository source only after admission to `main`
+through required exact-head CI. Action-specific provider, schema, and recovery
+evidence remains required; any UNKNOWN blocks its applicable action. Acceptance
+does not activate a workflow, authorize a provider action, claim recovery
+readiness, or replace later provider/schema hardening. Vercel and Railway
+observations are scoped facts, not general platform guarantees or readiness
+claims.
 
-This proposed ADR and adoption authorize no GitHub, environment, branch,
-provider, schema, data, deployment, or production action.
+This ADR and adoption authorize no GitHub, environment, branch, provider,
+schema, data, deployment, or production action.

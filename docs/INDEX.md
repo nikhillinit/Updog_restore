@@ -107,8 +107,8 @@ Hardening baseline)
 
 | Document                                                                                                             | Description                                               | When to Use                                           |
 | -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------- |
-| [workflows/PRODUCTION_SCRIPTS.md](workflows/PRODUCTION_SCRIPTS.md)                                                   | Draft canonical guarded production-action route           | Production-action governance and blockers             |
-| [governance/solo-internal-change-and-production-policy.md](governance/solo-internal-change-and-production-policy.md) | Draft stable authority boundaries                         | Governance rationale and retained controls            |
+| [workflows/PRODUCTION_SCRIPTS.md](workflows/PRODUCTION_SCRIPTS.md)                                                   | Canonical repository-governance production-action route   | Production-action governance and UNKNOWN blockers     |
+| [governance/solo-internal-change-and-production-policy.md](governance/solo-internal-change-and-production-policy.md) | Active repository-governance authority boundaries         | Governance rationale and retained controls            |
 | [scripts/README.md](../scripts/README.md)                                                                            | Non-authorizing production-action pointer                 | Finding canonical route                               |
 | [runbooks/rollback.md](runbooks/rollback.md)                                                                         | Non-authorizing rollback pointer                          | Finding canonical route                               |
 | [runbooks/marginal-moic-nonproduction-shadow-soak.md](runbooks/marginal-moic-nonproduction-shadow-soak.md)           | Governed marginal MOIC shadow-soak and rollback           | Preparing or running the approved non-production soak |
@@ -117,8 +117,9 @@ Hardening baseline)
 
 **Authority note:** Operational script and slash-command references are
 non-authorizing pointers. They confer no production authority; use
-`docs/workflows/PRODUCTION_SCRIPTS.md` for the draft guarded route and its
-current UNKNOWN blockers.
+`docs/workflows/PRODUCTION_SCRIPTS.md` for the canonical guarded route and its
+current action-specific UNKNOWN blockers. Active status confers no production
+readiness or authorization.
 
 ---
 
@@ -139,7 +140,7 @@ current UNKNOWN blockers.
 | [schema.md](schema.md)                                                                                               | Database schema, relationships, and design patterns      | Understanding persisted data model          |
 | [IDEMPOTENCY_GUIDE.md](IDEMPOTENCY_GUIDE.md)                                                                         | Request deduplication and exactly-once processing guide  | Designing safe write paths                  |
 | [RLS-DEVELOPMENT-GUIDE.md](RLS-DEVELOPMENT-GUIDE.md)                                                                 | Multi-tenant Row-Level Security development guide        | Building or testing tenant-scoped features  |
-| [governance/solo-internal-change-and-production-policy.md](governance/solo-internal-change-and-production-policy.md) | Draft production-governance boundaries                   | Reviewing authority and control scope       |
+| [governance/solo-internal-change-and-production-policy.md](governance/solo-internal-change-and-production-policy.md) | Active repository-governance boundaries                  | Reviewing authority and control scope       |
 
 **Key ADRs**:
 
@@ -195,7 +196,7 @@ not by number alone._
 | Document                                                                     | Description                           | When to Use                               |
 | ---------------------------------------------------------------------------- | ------------------------------------- | ----------------------------------------- |
 | [workflows/README.md](workflows/README.md)                                   | Current GitHub Actions workflow index | Understanding CI/CD pipelines             |
-| [workflows/PRODUCTION_SCRIPTS.md](workflows/PRODUCTION_SCRIPTS.md)           | Draft canonical guarded route         | Production-action governance and blockers |
+| [workflows/PRODUCTION_SCRIPTS.md](workflows/PRODUCTION_SCRIPTS.md)           | Canonical repository-governance route | Production-action governance and blockers |
 | [workflows/PAIRED-AGENT-VALIDATION.md](workflows/PAIRED-AGENT-VALIDATION.md) | Paired-agent quality workflow         | Deletions, structural changes, bulk mods  |
 
 **Current snapshot**:
@@ -207,7 +208,8 @@ not by number alone._
 
 **Pattern Routing**:
 
-- **Deploy/Production** → PRODUCTION_SCRIPTS.md (draft; UNKNOWN blocks action)
+- **Deploy/Production** → PRODUCTION_SCRIPTS.md (canonical; UNKNOWN blocks
+  action)
 - **CI/GitHub Actions** → README.md
 - **Quality/Validation** → PAIRED-AGENT-VALIDATION.md
 

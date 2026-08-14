@@ -8,7 +8,8 @@ last_updated: 2026-08-14
 ## Retired as production authority
 
 This command is not a production, schema, or deployment authorization. Route to
-the DRAFT canonical guide: `docs/workflows/PRODUCTION_SCRIPTS.md`.
+the canonical repository-governance route:
+`docs/workflows/PRODUCTION_SCRIPTS.md`.
 
 Current UNKNOWN prerequisites block their applicable action. Required evidence
 gates include a refreshed exact SHA, separate action-scoped authority, intended
@@ -20,5 +21,5 @@ and preview/restore isolation.
 Notes, reviews, receipts, and command output cannot override a machine failure.
 No production mutation is dispatched from this command. The branch-protection
 writer is retired and its reachable entrypoint has static reachability proof.
-Final exact-head production-mutation corpus closure, retained-entrypoint
-targeted validator-order evidence, and hosted exact-head CI remain blocking.
+Repository activation supplies no production readiness or authorization;
+action-specific UNKNOWN prerequisites remain blocking.

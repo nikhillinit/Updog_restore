@@ -189,7 +189,7 @@
             "ci",
             "cd"
           ],
-          "message": "Draft canonical production-action route; UNKNOWN prerequisites block applicable action.",
+          "message": "Canonical repository-governance production-action route; UNKNOWN prerequisites block applicable action.",
           "route": "docs/workflows/PRODUCTION_SCRIPTS.md"
         },
         "development": {
@@ -7313,7 +7313,7 @@
       "exists": true,
       "frontmatter": {
         "last_updated": "2026-08-14",
-        "status": "DRAFT"
+        "status": "ACTIVE"
       },
       "hasExecutionClaims": false,
       "isStale": false,
@@ -7321,7 +7321,7 @@
       "owner": null,
       "path": "docs/governance/solo-internal-change-and-production-policy.md",
       "staleDays": 0,
-      "status": "DRAFT"
+      "status": "ACTIVE"
     },
     {
       "docType": "doc",
@@ -9133,16 +9133,16 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
+        "last_updated": "2026-08-14",
+        "status": "HISTORICAL"
       },
       "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": "2026-01-19",
+      "isStale": false,
+      "lastUpdated": "2026-08-14",
       "owner": null,
       "path": "docs/releases/stage-norm-phase4.md",
-      "staleDays": 207,
-      "status": "ACTIVE"
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
@@ -9163,31 +9163,31 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
+        "last_updated": "2026-08-14",
+        "status": "HISTORICAL"
       },
       "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": "2026-01-19",
+      "isStale": false,
+      "lastUpdated": "2026-08-14",
       "owner": null,
       "path": "docs/releases/stage-norm-v3.4-option-b.md",
-      "staleDays": 207,
-      "status": "ACTIVE"
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
+        "last_updated": "2026-08-14",
+        "status": "HISTORICAL"
       },
       "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": "2026-01-19",
+      "isStale": false,
+      "lastUpdated": "2026-08-14",
       "owner": null,
       "path": "docs/releases/stage-norm-v3.4-review.md",
-      "staleDays": 207,
-      "status": "ACTIVE"
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
@@ -11683,16 +11683,16 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-01-19",
-        "status": "ACTIVE"
+        "last_updated": "2026-08-14",
+        "status": "HISTORICAL"
       },
       "hasExecutionClaims": false,
-      "isStale": true,
-      "lastUpdated": "2026-01-19",
+      "isStale": false,
+      "lastUpdated": "2026-08-14",
       "owner": null,
       "path": "docs/stage-normalization-scripts.md",
-      "staleDays": 207,
-      "status": "ACTIVE"
+      "staleDays": 0,
+      "status": "HISTORICAL"
     },
     {
       "docType": "doc",
@@ -12964,7 +12964,7 @@
       "exists": true,
       "frontmatter": {
         "last_updated": "2026-08-14",
-        "status": "DRAFT"
+        "status": "ACTIVE"
       },
       "hasExecutionClaims": false,
       "isStale": false,
@@ -12972,7 +12972,7 @@
       "owner": null,
       "path": "docs/workflows/PRODUCTION_SCRIPTS.md",
       "staleDays": 0,
-      "status": "DRAFT"
+      "status": "ACTIVE"
     },
     {
       "docType": "doc",
@@ -13283,7 +13283,7 @@
         "rollout",
         "shipping"
       ],
-      "message": "Draft canonical production-action route; merge never authorizes production mutation.",
+      "message": "Canonical repository-governance production-action route; merge never authorizes production mutation.",
       "priority": 30,
       "target": "docs/workflows/PRODUCTION_SCRIPTS.md"
     },
@@ -14234,14 +14234,14 @@
   "stats": {
     "by_status": {
       "ACCEPTED (amended 2026-06-21)": 1,
-      "ACTIVE": 454,
+      "ACTIVE": 452,
       "ARCHIVED": 1,
       "BACKLOG": 1,
       "COMPLETE": 3,
       "COMPLETED": 1,
-      "DRAFT": 36,
+      "DRAFT": 34,
       "DRAFT (red-team hardened 2026-06-21)": 1,
-      "HISTORICAL": 22,
+      "HISTORICAL": 26,
       "HISTORICAL-SNAPSHOT": 1,
       "INDEXED": 6,
       "Implemented": 1,
@@ -14255,7 +14255,7 @@
       "ready": 3
     },
     "missing_frontmatter": 78,
-    "stale_docs": 473,
+    "stale_docs": 469,
     "total_docs": 730
   },
   "version": "2.0"

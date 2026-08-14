@@ -110,7 +110,7 @@ Pattern matching uses OR logic: any match triggers the route.
 | "design tokens" OR "brand tokens" OR "theme tokens"              | client/src/lib/brand-tokens.ts                          | Programmatic brand values                  |
 | "pdf generation" OR "tear sheet" OR "quarterly report"           | client/src/utils/pdf/                                   | PDF export utilities                       |
 | "docs sync" OR "jsdoc" OR "calculations.md"                      | phoenix-docs-scribe agent                               | Documentation sync                         |
-| "deploy" OR "production" OR "rollout"                            | docs/workflows/PRODUCTION_SCRIPTS.md                    | Draft canonical route; UNKNOWN blocks      |
+| "deploy" OR "production" OR "rollout"                            | docs/workflows/PRODUCTION_SCRIPTS.md                    | Canonical route; UNKNOWN blocks            |
 | "workflow" OR "ci" OR "github actions"                           | docs/workflows/README.md                                | CI/CD docs                                 |
 | "architecture" OR "decision" OR "why"                            | DECISIONS.md                                            | ADR rationale                              |
 | "change history" OR "what changed"                               | CHANGELOG.md                                            | Chronological changes                      |
@@ -123,7 +123,7 @@ Pattern matching uses OR logic: any match triggers the route.
 | "phoenix workflow" OR "which phoenix skill"                      | phoenix-workflow-orchestrator skill                     | Phoenix skill routing master               |
 | "schema evolution" OR "drizzle migration" OR "db:push"           | database-schema-evolution skill                         | Zero-downtime migrations                   |
 | "pr ready" OR "pre-pr" OR "before pull request"                  | /pr-ready command                                       | Full pre-PR validation workflow            |
-| "db validate" OR "schema check" OR "before db:push"              | docs/workflows/PRODUCTION_SCRIPTS.md                    | Draft canonical gate; UNKNOWN blocks       |
+| "db validate" OR "schema check" OR "before db:push"              | docs/workflows/PRODUCTION_SCRIPTS.md                    | Canonical gate; UNKNOWN blocks             |
 | "orchestrate" OR "chain agents" OR "auto validate"               | workflow-orchestrator agent                             | Auto-chain agents based on changes         |
 | "agent metrics" OR "agent performance" OR "usage tracking"       | .claude/AGENT-METRICS.md                                | Agent performance tracking                 |
 | "global rules" OR "milestone" OR "stabilization" OR "pr scope"   | docs/STABILIZATION-ROADMAP.md                           | Governance rules and milestone sequencing  |

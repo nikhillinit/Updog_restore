@@ -12,15 +12,16 @@ Repository path: `docs/workflows/PRODUCTION_SCRIPTS.md`.
 This document is a non-authorizing pointer and confers no authority to mutate
 source, branch, environment, provider, production, schema, data, deployment,
 promotion, or rollback. Current UNKNOWN prerequisites block their applicable
-action. Use the canonical guide before considering an action; it alone defines
-the guarded route and remains draft pending Step 3 closure.
+action. The canonical route is active for repository governance only; it confers
+no production readiness or authorization, and action-specific UNKNOWN
+prerequisites remain blocking.
 
 ## Preserved historical content
 
 Material below is retained for Archive Gate and provenance only. It is not
 current production authority, readiness evidence, or permission to run any
 command. Current UNKNOWN prerequisites still block applicable actions; use
-`docs/workflows/PRODUCTION_SCRIPTS.md` for the draft guarded route.
+`docs/workflows/PRODUCTION_SCRIPTS.md` for the canonical guarded route.
 
 # Handoff Memo: Stage Validation v3 Implementation
 

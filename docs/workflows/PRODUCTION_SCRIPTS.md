@@ -1,5 +1,5 @@
 ---
-status: DRAFT
+status: ACTIVE
 last_updated: 2026-08-14
 ---
 
@@ -7,13 +7,13 @@ last_updated: 2026-08-14
 
 ## Status
 
-This is the sole canonical operator route. It is a DRAFT procedure and does not
-authorize a production action. Current UNKNOWN prerequisites block their
-applicable action. The branch-protection writer is retired: its reachable
-entrypoint is removed and ordinary branch-policy surfaces have static
-reachability proof. Until final exact-head production-mutation corpus closure,
-retained-entrypoint targeted validator-order evidence, and hosted exact-head CI
-complete, this document specifies zero mutation dispatch.
+This procedure is active solely as canonical repository routing and procedure.
+ACTIVE is not executable-entrypoint proof, production readiness, or production
+authorization. Current UNKNOWN prerequisites block their applicable action. The
+branch-protection writer is retired: its reachable entrypoint is removed and
+ordinary branch-policy surfaces have static reachability proof. Repository
+activation supplies no mutation authority; applicable evidence gates continue to
+require zero mutation dispatch until satisfied.
 
 Merge and `CI Gate Status` authorize source admission only; neither authorizes
 provider, schema, data, deployment, promotion, branch, or environment mutation.
@@ -40,24 +40,22 @@ For production schema/data action, current managed backup/PITR capability,
 successful isolated restore freshness within an owner-defined window, named
 custody roles, and preview/restore isolation from production data and
 side-effect channels are mandatory. Missing, malformed, stale, mismatched, or
-unresolved evidence means zero mutation dispatch. This draft makes no claim that
-these prerequisites are presently proven.
+unresolved evidence means zero mutation dispatch. This procedure makes no claim
+that these prerequisites are presently proven.
 
 ## Current blockers
 
 Do not dispatch while any applicable blocker remains UNKNOWN, including:
 
-- final exact-head production-mutation corpus closure;
-- retained-entrypoint targeted validator-order evidence;
-- hosted exact-head CI;
 - provider target scope/identity, source freshness, validator ordering, smoke,
   canary, residue, and containment evidence; or
 - backup/PITR, restore freshness, custody-role, and preview/restore-isolation
   proof for a production schema/data action.
 
-Retained entrypoints are not an authority or coverage claim. Their targeted
-validator order and final exact-head evidence must be established before any
-activation.
+Retained entrypoints are not an authority or coverage claim. Any retained
+entrypoint whose current targeted order proof or action evidence is absent,
+stale, or mismatched remains blocked. Repository activation does not make an
+entrypoint production-ready.
 
 ## Provider observations, dated and revalidated
 

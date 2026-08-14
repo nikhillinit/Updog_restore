@@ -1,5 +1,5 @@
 ---
-status: DRAFT
+status: ACTIVE
 last_updated: 2026-08-14
 ---
 
@@ -7,16 +7,16 @@ last_updated: 2026-08-14
 
 ## Status and scope
 
-This is a DRAFT policy. It establishes stable rules and authority boundaries for
-repository-governance preparation. It neither activates a production process nor
-establishes production readiness.
+This policy is active repository-governance authority after admission to `main`
+through required current-head CI. It neither authorizes a production action nor
+establishes production readiness. Candidate text on an unmerged pull request
+does not self-activate.
 
 The branch-protection writer is retired: its reachable entrypoint is removed and
-ordinary branch-policy surfaces have static reachability proof. Activation
-remains blocked pending final exact-head production-mutation corpus closure,
-retained-entrypoint targeted validator-order evidence, and hosted exact-head CI.
-Steps 4–7 remain separate follow-up lanes; their status never supplies
-production authority here.
+ordinary branch-policy surfaces have static reachability proof. Activation of
+this repository-governance policy does not activate a production route. Steps
+4–7 and all action-specific UNKNOWNs remain separate; their status never
+supplies production authority here.
 
 ## Authority boundaries
 
@@ -43,7 +43,7 @@ delegated; none is human-equivalent approval under this policy.
 
 ## Retained controls
 
-This draft supplements and does not weaken:
+This policy supplements and does not weaken:
 
 - Archive Gate;
 - Phoenix protected paths and `phoenix:truth` requirements;

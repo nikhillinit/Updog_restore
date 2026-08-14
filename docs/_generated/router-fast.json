@@ -1564,7 +1564,7 @@
       ],
       "priority": 30,
       "route_to": "docs/workflows/PRODUCTION_SCRIPTS.md",
-      "why": "Draft canonical production-action route; merge never authorizes production mutation."
+      "why": "Canonical repository-governance production-action route; merge never authorizes production mutation."
     },
     {
       "id": "ci_cd",

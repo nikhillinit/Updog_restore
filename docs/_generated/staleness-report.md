@@ -12,17 +12,17 @@ last_updated: 2026-08-14
 | Metric | Value |
 |--------|-------|
 | Total Documents | 730 |
-| Stale Documents | 473 |
+| Stale Documents | 469 |
 | Missing Frontmatter | 78 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
-| ACTIVE | 454 |
+| ACTIVE | 452 |
 | UNKNOWN | 172 |
-| DRAFT | 36 |
-| HISTORICAL | 22 |
+| DRAFT | 34 |
+| HISTORICAL | 26 |
 | VERIFIED | 13 |
 | REFERENCE | 9 |
 | INDEXED | 6 |
@@ -97,7 +97,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/skills/REFL-005-stale-test-files-with-api-mismatch.md` | Never | 999 | No | Unassigned |
 | `docs/skills/REFL-006-xirr-newton-raphson-divergence-on-extreme-returns.md` | Never | 999 | No | Unassigned |
 
-*...and 423 more stale documents.*
+*...and 419 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 

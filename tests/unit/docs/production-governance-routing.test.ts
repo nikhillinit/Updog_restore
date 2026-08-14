@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 const repositoryRoot = process.cwd();
 const policyPath = 'docs/governance/solo-internal-change-and-production-policy.md';
 const canonicalGuidePath = 'docs/workflows/PRODUCTION_SCRIPTS.md';
+const activePointerLanguage =
+  'The canonical route is active for repository governance only; it confers no production readiness or authorization, and action-specific UNKNOWN prerequisites remain blocking.';
 
 const knownReconciledGuides = [
   'PRODUCTION_RUNBOOK.md',
@@ -63,11 +65,14 @@ async function repositoryFileExists(relativePath: string): Promise<boolean> {
 }
 
 describe('production governance documentation routing', () => {
-  it('keeps policy and ADR preparation explicitly draft after writer retirement', async () => {
+  it('ratifies policy and ADR for repository governance without production authority', async () => {
     const policy = await readRepositoryFile(policyPath);
     const decisions = await readRepositoryFile('DECISIONS.md');
 
-    expect(policy).toContain('status: DRAFT');
+    expect(policy).toContain('status: ACTIVE');
+    expect(policy).toContain('active repository-governance authority');
+    expect(policy).toContain('does not self-activate');
+    expect(policy).toMatch(/nor\s+establishes production readiness/);
     expect(policy).toContain('Merge authorizes source admission only');
     expect(policy).toContain('CI Gate Status');
     expect(policy).toMatch(
@@ -95,11 +100,13 @@ describe('production governance documentation routing', () => {
     expect(policy).toContain('ADR-079');
     expect(policy).toMatch(/branch-protection writer is retired/);
     expect(policy).toMatch(/static reachability proof/);
-    expect(policy).toMatch(/final exact-head\s+production-mutation corpus closure/i);
-    expect(policy).toMatch(/retained-entrypoint targeted validator-order evidence/);
-    expect(policy).toMatch(/hosted exact-head\s+CI/);
-    expect(decisions).toContain('## ADR-081: Draft Minimum Governance Adoption Boundaries');
-    expect(decisions).toContain('**Status:** Proposed');
+    expect(policy).toContain('Steps 4–7');
+    expect(policy).toContain('action-specific UNKNOWNs');
+    expect(policy).not.toMatch(/remains blocked pending|pending Step 3 closure/i);
+    expect(decisions).toContain('## ADR-081: Minimum Governance Adoption Boundaries');
+    expect(decisions).toContain('**Status:** Accepted');
+    expect(decisions).toContain('Adopt one concise policy');
+    expect(decisions).toMatch(/repository-adoption closure is not production readiness/i);
     expect(decisions).toContain('### Alternatives');
     expect(decisions).toContain('### Supersession');
     expect(decisions).toContain('### Accepted risks');
@@ -108,8 +115,8 @@ describe('production governance documentation routing', () => {
     expect(decisions).toContain('Option A');
     expect(decisions).toContain('force-push risk');
     expect(decisions).toMatch(/branch-protection writer is retired/);
-    expect(decisions).toMatch(/final exact-head\s+production-mutation corpus closure/);
-    expect(decisions).toMatch(/retained-entrypoint targeted\s+validator-order evidence/);
+    expect(decisions).toMatch(/action-specific provider, schema, and recovery\s+evidence/i);
+    expect(decisions).not.toMatch(/remain proposed\/draft|remain incomplete/);
     expect(decisions).toMatch(
       /Never use force push, down migration, provider mutation, or branch-policy\s+overwrite/
     );
@@ -118,13 +125,19 @@ describe('production governance documentation routing', () => {
   it('routes production actions only through guarded canonical procedure', async () => {
     const canonicalGuide = await readRepositoryFile(canonicalGuidePath);
 
-    expect(canonicalGuide).toContain('status: DRAFT');
+    expect(canonicalGuide).toContain('status: ACTIVE');
+    expect(canonicalGuide).toContain('active solely as canonical repository routing and procedure');
+    expect(canonicalGuide).toMatch(
+      /ACTIVE is not executable-entrypoint proof, production readiness, or production\s+authorization/
+    );
     expect(canonicalGuide).toMatch(/Current UNKNOWN prerequisites block their\s+applicable action/);
     expect(canonicalGuide).toContain('zero mutation dispatch');
     expect(canonicalGuide).toMatch(/branch-protection writer is retired/);
     expect(canonicalGuide).toMatch(/static\s+reachability proof/);
-    expect(canonicalGuide).toMatch(/final exact-head\s+production-mutation corpus closure/i);
-    expect(canonicalGuide).toMatch(/retained-entrypoint targeted\s+validator-order evidence/i);
+    expect(canonicalGuide).toMatch(
+      /current targeted order proof or action evidence is absent,\s+stale, or mismatched/
+    );
+    expect(canonicalGuide).not.toMatch(/pending Step 3 closure|hosted exact-head CI/i);
     expect(canonicalGuide).not.toContain('known repository candidates');
     expect(canonicalGuide).toContain('refreshed exact SHA');
     expect(canonicalGuide).toContain('provider scope');
@@ -201,11 +214,9 @@ describe('production governance documentation routing', () => {
       expect(command, commandPath).toMatch(/recovery\s+evidence/);
       expect(command, commandPath).toMatch(/evidence\s+gates/);
       expect(command, commandPath).toMatch(/branch-protection\s+writer is retired/);
-      expect(command, commandPath).toMatch(
-        /final exact-head\s+production-mutation corpus closure/i
-      );
-      expect(command, commandPath).toMatch(
-        /retained-entrypoint\s+targeted validator-order evidence/i
+      expect(command, commandPath).toContain('canonical repository-governance route');
+      expect(command, commandPath).not.toMatch(
+        /DRAFT|final exact-head\s+production-mutation corpus closure|hosted exact-head CI/i
       );
       expect(command, commandPath).not.toMatch(/Safe to (proceed|run)|--force/i);
     }
@@ -223,6 +234,8 @@ describe('production governance documentation routing', () => {
       expect(guide, guidePath).toContain('Canonical production-action authority');
       expect(guide, guidePath).toContain('docs/workflows/PRODUCTION_SCRIPTS.md');
       expect(guide, guidePath).toContain('confers no authority');
+      expect(guide.replaceAll('\n', ' '), guidePath).toContain(activePointerLanguage);
+      expect(guide, guidePath).not.toMatch(/remains draft pending Step 3 closure/i);
       expect(currentAuthoritySurface, guidePath).not.toMatch(
         /vercel --prod|deploy-production\.yml|gcloud |npm run db:push|--force|psql |create table|alter table|drop table/i
       );

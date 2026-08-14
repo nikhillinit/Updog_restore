@@ -33,8 +33,9 @@ because they no longer matched the live repository.
 - `CONSOLIDATION_PLAN_V2.md` - Historical consolidation planning
 - `CONSOLIDATION_PLAN_V3_FINAL.md` - Historical consolidation planning
 - `PAIRED-AGENT-VALIDATION.md` - Historical validation notes
-- `PRODUCTION_SCRIPTS.md` - Draft canonical production-action route; UNKNOWN
-  prerequisites block applicable action and merge never authorizes mutation
+- `PRODUCTION_SCRIPTS.md` - Canonical repository-governance production-action
+  route; UNKNOWN prerequisites block applicable action and merge never
+  authorizes mutation
 - `README.md` - This repo-verified workflow index
 
 ## Current Workflow Files
