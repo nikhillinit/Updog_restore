@@ -4505,6 +4505,28 @@ describe('required CI fails closed', () => {
     const providerCapture = steps.find(
       (step) => step.name === 'Capture and validate provider baseline'
     );
+    const checkoutIndex = steps.findIndex(
+      (step) => step.name === 'Checkout trusted workflow commit'
+    );
+    const validationIndex = steps.findIndex(
+      (step) => step.name === 'Verify immutable baseline and approved plan binding'
+    );
+    const providerCaptureIndex = steps.findIndex(
+      (step) => step.name === 'Capture and validate provider baseline'
+    );
+    const checkout = steps[checkoutIndex];
+    expect(checkoutIndex).toBeGreaterThanOrEqual(0);
+    expect(checkout?.with).toMatchObject({
+      ref: '${{ github.sha }}',
+      'persist-credentials': false,
+    });
+    expect(checkout?.with?.ref).not.toContain('inputs.baseline_main_sha');
+    expect(validationIndex).toBeGreaterThan(checkoutIndex);
+    expect(providerCaptureIndex).toBeGreaterThan(validationIndex);
+    for (const step of steps.slice(0, providerCaptureIndex)) {
+      expect(step.env ?? {}).not.toHaveProperty('VERCEL_TOKEN');
+      expect(step.env ?? {}).not.toHaveProperty('RAILWAY_TOKEN');
+    }
     expect(providerCapture?.['timeout-minutes']).toBe(4);
     expect(providerCapture?.env).toMatchObject({
       VERCEL_TOKEN: '${{ secrets.VERCEL_TOKEN }}',
