@@ -16,6 +16,7 @@ type WorkflowStep = {
   name?: string;
   run?: string;
   shell?: string;
+  ['timeout-minutes']?: number;
   uses?: string;
   with?: Record<string, unknown>;
 };
@@ -32,6 +33,7 @@ type WorkflowJob = {
   outputs?: Record<string, unknown>;
   ['runs-on']?: string | string[];
   steps?: WorkflowStep[];
+  ['timeout-minutes']?: number;
   uses?: string;
   with?: Record<string, unknown>;
   secrets?: unknown;
@@ -4462,6 +4464,68 @@ describe('required CI fails closed', () => {
     expect(fullScripts).toContain('npm run release:check');
     expect(fullScripts).not.toContain('--skip-db');
     expect(fullScripts).not.toContain('--reuse-ci-gates');
+  });
+
+  it('captures an immutable read-only pre-merge provider baseline', async () => {
+    const workflow = await readWorkflow('capture-release-baseline.yml');
+    const dispatch = workflow.on?.workflow_dispatch as
+      | {
+          inputs?: Record<string, { required?: boolean; type?: string }>;
+        }
+      | undefined;
+    const inputs = dispatch?.inputs;
+
+    expect(Object.keys(workflow.on ?? {})).toEqual(['workflow_dispatch']);
+    expect(Object.keys(inputs ?? {})).toEqual([
+      'baseline_main_sha',
+      'planned_pr_head_sha',
+      'plan_sha256',
+    ]);
+    for (const input of Object.values(inputs ?? {})) {
+      expect(input).toMatchObject({ required: true, type: 'string' });
+    }
+    expect(workflow.permissions).toEqual({ contents: 'read' });
+
+    const capture = workflow.jobs?.['capture-baseline'];
+    expect(capture?.environment).toBe('Production');
+    expect(capture?.['timeout-minutes']).toBe(10);
+    const steps = capture?.steps ?? [];
+    const scripts = allRunScripts({ jobs: { capture: capture ?? {} } }).join('\n');
+    expect(scripts).toContain('validate-baseline');
+    expect(scripts).toContain('capture-provider');
+    expect(scripts).toContain('capture-release-recovery-context.mjs');
+    expect(scripts).toContain('release-recovery-context-v1.json');
+    expect(scripts).not.toMatch(
+      /\b(?:npx\s+)?(?:vercel|vc)(?:\.cmd)?\s+(?:deploy|promote|alias|rollback)\b/i
+    );
+    expect(scripts).not.toMatch(
+      /\brailway\s+(?:up|deploy|redeploy|scale|config|variable|variables)\b/i
+    );
+
+    const providerCapture = steps.find(
+      (step) => step.name === 'Capture and validate provider baseline'
+    );
+    expect(providerCapture?.['timeout-minutes']).toBe(4);
+    expect(providerCapture?.env).toMatchObject({
+      VERCEL_TOKEN: '${{ secrets.VERCEL_TOKEN }}',
+      RAILWAY_TOKEN: '${{ secrets.RAILWAY_TOKEN }}',
+      VERCEL_PRODUCTION_HOSTNAME: '${{ vars.VERCEL_PRODUCTION_HOSTNAME }}',
+      RAILWAY_PROJECT_ID: '${{ vars.RAILWAY_PROJECT_ID }}',
+      RAILWAY_ENVIRONMENT_ID: '${{ vars.RAILWAY_ENVIRONMENT_ID }}',
+      RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID: '${{ vars.RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID }}',
+      RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID: '${{ vars.RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID }}',
+    });
+
+    const upload = steps.find((step) => step.uses?.startsWith('actions/upload-artifact@'));
+    expect(upload?.['timeout-minutes']).toBe(1);
+    expect(upload?.with).toMatchObject({
+      name: 'release-baseline-v1-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.planned_pr_head_sha }}',
+      path: '${{ runner.temp }}/release-recovery-context-v1.json',
+      'retention-days': 30,
+    });
+    const cleanup = steps.find((step) => step.name === 'Delete local capture evidence');
+    expect(cleanup?.if).toBe('always()');
+    expect(cleanup?.run).toContain('release-recovery-context-v1.json');
   });
 
   it('fails closed on exact-SHA and provider identity proof before promotion', async () => {

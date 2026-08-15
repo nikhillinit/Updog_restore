@@ -1,0 +1,109 @@
+name: Capture Release Baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseline_main_sha:
+        description: Exact current main SHA before runtime PR merge
+        required: true
+        type: string
+      planned_pr_head_sha:
+        description: Exact frozen PR #1385 head SHA planned for merge
+        required: true
+        type: string
+      plan_sha256:
+        description: SHA-256 of approved release hardening plan at planned PR head
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  capture-baseline:
+    name: Capture Immutable Provider Baseline
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: Production
+    outputs:
+      artifact_id: ${{ steps.upload_baseline.outputs.artifact-id }}
+      artifact_digest: ${{ steps.upload_baseline.outputs.artifact-digest }}
+      file_sha256: ${{ steps.capture_context.outputs.file_sha256 }}
+
+    steps:
+      - name: Checkout exact baseline main commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.baseline_main_sha }}
+          fetch-depth: 1
+
+      - name: Verify immutable baseline and approved plan binding
+        env:
+          BASELINE_MAIN_SHA: ${{ inputs.baseline_main_sha }}
+          PLANNED_PR_HEAD_SHA: ${{ inputs.planned_pr_head_sha }}
+          PLAN_SHA256: ${{ inputs.plan_sha256 }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/release/capture-release-recovery-context.mjs validate-baseline \
+            --baseline-main-sha "$BASELINE_MAIN_SHA" \
+            --planned-pr-head-sha "$PLANNED_PR_HEAD_SHA" \
+            --plan-sha256 "$PLAN_SHA256"
+
+      - name: Capture and validate provider baseline
+        id: provider_capture
+        timeout-minutes: 4
+        env:
+          BASELINE_MAIN_SHA: ${{ inputs.baseline_main_sha }}
+          PLANNED_PR_HEAD_SHA: ${{ inputs.planned_pr_head_sha }}
+          PLAN_SHA256: ${{ inputs.plan_sha256 }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          VERCEL_PRODUCTION_HOSTNAME: ${{ vars.VERCEL_PRODUCTION_HOSTNAME }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+          RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID: ${{ vars.RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID }}
+          RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID: ${{ vars.RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID }}
+        run: |
+          node scripts/release/capture-release-recovery-context.mjs capture-provider \
+            --baseline-main-sha "$BASELINE_MAIN_SHA" \
+            --planned-pr-head-sha "$PLANNED_PR_HEAD_SHA" \
+            --plan-sha256 "$PLAN_SHA256" \
+            --output "$RUNNER_TEMP/release-recovery-context-v1.json"
+
+      - name: Record sanitized context file digest
+        id: capture_context
+        run: |
+          set -euo pipefail
+          file_sha256="$(sha256sum "$RUNNER_TEMP/release-recovery-context-v1.json" | awk '{print $1}')"
+          [[ "$file_sha256" =~ ^[0-9a-f]{64}$ ]]
+          echo "file_sha256=$file_sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Re-fence main and planned PR head before artifact upload
+        env:
+          BASELINE_MAIN_SHA: ${{ inputs.baseline_main_sha }}
+          PLANNED_PR_HEAD_SHA: ${{ inputs.planned_pr_head_sha }}
+          PLAN_SHA256: ${{ inputs.plan_sha256 }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/release/capture-release-recovery-context.mjs validate-baseline \
+            --baseline-main-sha "$BASELINE_MAIN_SHA" \
+            --planned-pr-head-sha "$PLANNED_PR_HEAD_SHA" \
+            --plan-sha256 "$PLAN_SHA256"
+
+      - name: Upload immutable release baseline
+        id: upload_baseline
+        timeout-minutes: 1
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-baseline-v1-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.planned_pr_head_sha }}
+          path: ${{ runner.temp }}/release-recovery-context-v1.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Delete local capture evidence
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP"/release-baseline-* "$RUNNER_TEMP/release-recovery-context-v1.json"
