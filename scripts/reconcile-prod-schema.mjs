@@ -25,6 +25,16 @@ export const RECONCILE_LOCK_ID = 20260628;
 export const ACTION_SKIP = 'SKIP';
 export const ACTION_APPLY_MISSING_DDL = 'APPLY-MISSING-DDL';
 export const ACTION_REFUSE_FOR_HUMAN = 'REFUSE-FOR-HUMAN';
+export const APPLY_0053_G3_RELEASE_GATE_HARDENING_FLAG =
+  '--apply-0053-g3-release-gate-hardening';
+const APPLY_0053_MANIFEST_PATH =
+  'scripts/prod-schema-manifests/30-g3-release-gate-hardening.json';
+const APPLY_0053_MANIFEST_NAME = 'g3-release-gate-hardening';
+const APPLY_0053_SQL_PATH = 'migrations/0053_g3_release_gate_hardening.sql';
+const APPLY_0053_MANIFEST_SHA256 =
+  '14ac9b5318323d155c9c438689f4fa48c7bf8e6d7e36ae918e3aa57443ed9e0b';
+const APPLY_0053_MIGRATION_SHA256 =
+  '0a4c00cea6e20982db391be88f143bf4e1d4bc529b68e6b986530fc3354c9ea5';
 export const MISSING_TABLE_POLICY_CREATE_OR_REPAIR = 'create_or_repair';
 export const MISSING_TABLE_POLICY_EXISTING_REQUIRED = 'existing_table_required';
 
@@ -67,6 +77,29 @@ export function parseReconcileArgs(argv, env = process.env) {
   const args = [...argv];
   const apply = args.includes('--apply');
   const yes = args.includes('--yes');
+  const apply0053G3ReleaseGateHardening = args.includes(
+    APPLY_0053_G3_RELEASE_GATE_HARDENING_FLAG
+  );
+  const hasManifestDirArgument = args.some(
+    (arg) => arg === '--manifest-dir' || arg.startsWith('--manifest-dir=')
+  );
+  if (apply || apply0053G3ReleaseGateHardening) {
+    const exactApplyArguments =
+      args.length === 3 &&
+      args.filter((arg) => arg === '--apply').length === 1 &&
+      args.filter((arg) => arg === '--yes').length === 1 &&
+      args.filter((arg) => arg === APPLY_0053_G3_RELEASE_GATE_HARDENING_FLAG).length === 1;
+    if (
+      !exactApplyArguments ||
+      hasManifestDirArgument ||
+      Object.prototype.hasOwnProperty.call(env, 'UPDOG_SCHEMA_MANIFEST_DIR')
+    ) {
+      throw new ReconcileError(
+        'Production schema mutation mechanically blocked pending action-specific hardening',
+        { kind: 'production-mutation-blocked' }
+      );
+    }
+  }
   const manifestDir =
     valueAfter(args, '--manifest-dir') ?? env.UPDOG_SCHEMA_MANIFEST_DIR ?? DEFAULT_MANIFEST_DIR;
   const expectedDatabase =
@@ -75,13 +108,14 @@ export function parseReconcileArgs(argv, env = process.env) {
   return {
     apply,
     yes,
+    apply0053G3ReleaseGateHardening,
     manifestDir,
     expectedDatabase,
   };
 }
 
-export function assertApplyConfirmation({ apply }) {
-  if (apply) {
+export function assertApplyConfirmation({ apply, yes, apply0053G3ReleaseGateHardening }) {
+  if (apply && (!yes || !apply0053G3ReleaseGateHardening)) {
     throw new ReconcileError(
       'Production schema mutation is mechanically blocked pending action-specific hardening',
       { kind: 'production-mutation-blocked' }
@@ -135,6 +169,243 @@ export async function loadManifests(manifestDir = DEFAULT_MANIFEST_DIR, rootDir 
   }
 
   return manifests.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+}
+
+export async function prepare0053G3ReleaseGateHardeningCapability({ rootDir = repoRoot } = {}) {
+  const manifestFile = path.resolve(rootDir, APPLY_0053_MANIFEST_PATH);
+  const migrationFile = path.resolve(rootDir, APPLY_0053_SQL_PATH);
+  const [manifestBytes, migrationBytes] = await Promise.all([
+    fs.readFile(manifestFile),
+    fs.readFile(migrationFile),
+  ]);
+  const manifestSha256 = sha256(manifestBytes);
+  const migrationSha256 = sha256(migrationBytes);
+  let manifest;
+  try {
+    manifest = JSON.parse(manifestBytes.toString('utf8'));
+  } catch (error) {
+    throw new ReconcileError('0053 capability manifest is malformed', {
+      kind: 'invalid-0053-capability-binding',
+      cause: error instanceof Error ? error.message : String(error),
+    });
+  }
+  if (
+    manifestSha256 !== APPLY_0053_MANIFEST_SHA256 ||
+    migrationSha256 !== APPLY_0053_MIGRATION_SHA256 ||
+    manifest.name !== APPLY_0053_MANIFEST_NAME ||
+    !Array.isArray(manifest.sqlFiles) ||
+    manifest.sqlFiles.length !== 1 ||
+    manifest.sqlFiles[0] !== APPLY_0053_SQL_PATH
+  ) {
+    throw new ReconcileError('0053 capability target binding does not match canonical bytes', {
+      kind: 'invalid-0053-capability-binding',
+    });
+  }
+  const manifests = await loadManifests(DEFAULT_MANIFEST_DIR, rootDir);
+  const canonicalManifestIdentities = manifests.map((candidate) =>
+    Object.freeze({
+      name: candidate.name,
+      manifestPath: candidate.manifestPath,
+      order: candidate.order,
+    })
+  );
+  const canonicalTarget = canonicalManifestIdentities.find(
+    (candidate) => candidate.name === APPLY_0053_MANIFEST_NAME
+  );
+  if (
+    !canonicalTarget ||
+    canonicalTarget.manifestPath !== APPLY_0053_MANIFEST_PATH ||
+    canonicalManifestIdentities.filter((candidate) => candidate.name === APPLY_0053_MANIFEST_NAME)
+      .length !== 1
+  ) {
+    throw new ReconcileError('0053 capability target is absent from canonical manifest set', {
+      kind: 'invalid-0053-capability-binding',
+    });
+  }
+  const target = Object.freeze({
+    manifestPath: APPLY_0053_MANIFEST_PATH,
+    manifestName: APPLY_0053_MANIFEST_NAME,
+    sqlPath: APPLY_0053_SQL_PATH,
+    manifestSha256,
+    migrationSha256,
+    manifestRawJson: manifestBytes.toString('utf8'),
+    canonicalManifestIdentities: Object.freeze(canonicalManifestIdentities),
+  });
+  return Object.freeze({
+    ...target,
+    manifests: Object.freeze(manifests),
+    canonicalManifestIdentities: Object.freeze(canonicalManifestIdentities),
+    target,
+  });
+}
+
+export async function assertPrepared0053G3ReleaseGateHardeningCapability({
+  capability,
+  prepared,
+  rootDir = repoRoot,
+}) {
+  const manifestBytes = await fs.readFile(path.resolve(rootDir, capability?.manifestPath ?? ''));
+  if (
+    sha256(manifestBytes) !== capability?.manifestSha256 ||
+    prepared?.manifest?.manifestPath !== capability?.manifestPath ||
+    prepared?.manifest?.name !== capability?.manifestName ||
+    !Array.isArray(prepared?.manifest?.sqlFiles) ||
+    prepared.manifest.sqlFiles.length !== 1 ||
+    prepared.manifest.sqlFiles[0] !== capability?.sqlPath ||
+    !Array.isArray(prepared?.sqlFiles) ||
+    prepared.sqlFiles.length !== 1 ||
+    prepared.sqlFiles[0]?.path !== capability?.sqlPath ||
+    prepared.sqlFiles[0]?.checksum !== capability?.migrationSha256 ||
+    (prepared.dropStatements?.length ?? 0) !== 0
+  ) {
+    throw new ReconcileError('0053 selected prepared manifest no longer matches pinned canonical bytes', {
+      kind: 'invalid-0053-capability-binding',
+    });
+  }
+}
+
+export function selectExact0053G3ReleaseGateHardeningApply({
+  preparedManifests,
+  audits,
+  target,
+}) {
+  if (
+    !Array.isArray(preparedManifests) ||
+    !Array.isArray(audits) ||
+    target?.manifestPath !== APPLY_0053_MANIFEST_PATH ||
+    target?.manifestName !== APPLY_0053_MANIFEST_NAME ||
+    target?.sqlPath !== APPLY_0053_SQL_PATH ||
+    target?.manifestSha256 !== APPLY_0053_MANIFEST_SHA256 ||
+    target?.migrationSha256 !== APPLY_0053_MIGRATION_SHA256
+  ) {
+    throw new ReconcileError('0053 exact target-only selector received malformed capability', {
+      kind: 'invalid-0053-selection',
+    });
+  }
+
+  const preparedByName = new Map();
+  for (const prepared of preparedManifests) {
+    const name = prepared?.manifest?.name;
+    if (typeof name !== 'string' || name.length === 0 || preparedByName.has(name)) {
+      throw new ReconcileError('0053 exact target-only selector received malformed manifests', {
+        kind: 'invalid-0053-selection',
+      });
+    }
+    preparedByName.set(name, prepared);
+  }
+  if (!preparedByName.has(target.manifestName) || audits.length !== preparedByName.size) {
+    throw new ReconcileError('0053 exact target-only selector requires complete audit vector', {
+      kind: 'invalid-0053-selection',
+    });
+  }
+  const canonicalManifestIdentities = target.canonicalManifestIdentities;
+  if (
+    !Array.isArray(canonicalManifestIdentities) ||
+    canonicalManifestIdentities.length !== preparedManifests.length ||
+    canonicalManifestIdentities.some(
+      (identity, index) =>
+        identity?.name !== preparedManifests[index]?.manifest?.name ||
+        identity?.manifestPath !== preparedManifests[index]?.manifest?.manifestPath ||
+        identity?.order !== preparedManifests[index]?.manifest?.order ||
+        audits[index]?.manifest !== identity.name
+    )
+  ) {
+    throw new ReconcileError('0053 exact target-only selector requires canonical complete order', {
+      kind: 'invalid-0053-selection',
+    });
+  }
+
+  const auditedNames = new Set();
+  for (const audit of audits) {
+    if (
+      !audit ||
+      typeof audit.manifest !== 'string' ||
+      !Array.isArray(audit.objects) ||
+      ![ACTION_SKIP, ACTION_APPLY_MISSING_DDL, ACTION_REFUSE_FOR_HUMAN].includes(audit.action) ||
+      !preparedByName.has(audit.manifest) ||
+      auditedNames.has(audit.manifest)
+    ) {
+      throw new ReconcileError('0053 exact target-only selector received malformed audit vector', {
+        kind: 'invalid-0053-selection',
+      });
+    }
+    auditedNames.add(audit.manifest);
+    if (audit.action === ACTION_REFUSE_FOR_HUMAN) {
+      throw new ReconcileError('0053 exact target-only selector refuses human-review state', {
+        kind: 'human-review-required',
+      });
+    }
+    if (
+      audit.objects.some(
+        (object) =>
+          object?.action === ACTION_REFUSE_FOR_HUMAN ||
+          object?.deltas?.some((delta) => /(?:drop|destructive)/i.test(String(delta?.kind ?? '')))
+      )
+    ) {
+      throw new ReconcileError('0053 exact target-only selector refuses destructive audit state', {
+        kind: 'invalid-0053-selection',
+      });
+    }
+    if (
+      (audit.manifest === target.manifestName && audit.action !== ACTION_APPLY_MISSING_DDL) ||
+      (audit.manifest !== target.manifestName && audit.action !== ACTION_SKIP)
+    ) {
+      throw new ReconcileError('0053 exact target-only selector requires exact target-only state', {
+        kind: 'invalid-0053-selection',
+      });
+    }
+  }
+  return preparedByName.get(target.manifestName);
+}
+
+export function buildLockTimeApplyVectorV1({ preparedManifests, audits, target }) {
+  selectExact0053G3ReleaseGateHardeningApply({ preparedManifests, audits, target });
+  const auditByManifest = new Map(audits.map((audit) => [audit.manifest, audit]));
+  const vector = {
+    schemaVersion: 1,
+    source: 'lock-time-audit',
+    lockId: RECONCILE_LOCK_ID,
+    target: {
+      manifestPath: target.manifestPath,
+      manifestName: target.manifestName,
+      sqlPath: target.sqlPath,
+      manifestSha256: target.manifestSha256,
+      migrationSha256: target.migrationSha256,
+    },
+    decisions: preparedManifests.map((prepared) => ({
+      manifest: prepared.manifest.name,
+      action: auditByManifest.get(prepared.manifest.name).action,
+    })),
+  };
+  return `PROD_SCHEMA_LOCK_TIME_VECTOR_V1=${JSON.stringify(vector)}`;
+}
+
+export function parseLockTimeApplyVectorV1(markerOutput, { preparedManifests, target }) {
+  const markers = String(markerOutput)
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith('PROD_SCHEMA_LOCK_TIME_VECTOR_V1='));
+  if (markers.length !== 1) {
+    throw new ReconcileError('Lock-time apply vector marker must appear exactly once', {
+      kind: 'invalid-lock-time-apply-vector',
+    });
+  }
+  const expectedAudits = preparedManifests.map((prepared) => ({
+    manifest: prepared?.manifest?.name,
+    action:
+      prepared?.manifest?.name === target?.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+    objects: [],
+  }));
+  const expected = buildLockTimeApplyVectorV1({
+    preparedManifests,
+    audits: expectedAudits,
+    target,
+  });
+  if (markers[0] !== expected) {
+    throw new ReconcileError('Lock-time apply vector marker is not canonical', {
+      kind: 'invalid-lock-time-apply-vector',
+    });
+  }
+  return JSON.parse(markers[0].slice('PROD_SCHEMA_LOCK_TIME_VECTOR_V1='.length));
 }
 
 export async function readManifestSql(manifest, rootDir = repoRoot) {
@@ -1097,6 +1368,7 @@ export async function runReconciliation({
   apply = false,
   expectedDatabase = null,
   stdout = process.stdout,
+  capability = null,
 }) {
   const identity = await readDatabaseIdentity(client);
   assertExpectedDatabase(identity, expectedDatabase);
@@ -1130,6 +1402,42 @@ export async function runReconciliation({
   if (!apply) {
     stdout.write('\nAudit-only mode. Re-run with --apply --yes to apply the manifests.\n');
     return { ok: true, applied: [], audits };
+  }
+
+  if (capability) {
+    await acquireAdvisoryLock(client);
+    try {
+      const lockTimeAudits = [];
+      for (const prepared of preparedManifests) {
+        lockTimeAudits.push(await auditManifest(client, prepared.manifest));
+      }
+      const selected = selectExact0053G3ReleaseGateHardeningApply({
+        preparedManifests,
+        audits: lockTimeAudits,
+        target: capability,
+      });
+      await assertPrepared0053G3ReleaseGateHardeningCapability({
+        capability,
+        prepared: selected,
+        rootDir,
+      });
+      if (await hasCommittedManifestName(client, capability.manifestName)) {
+        throw new ReconcileError('0053 capability target has already committed', {
+          kind: 'committed-0053-capability-repeat',
+        });
+      }
+      stdout.write(`${buildLockTimeApplyVectorV1({
+        preparedManifests,
+        audits: lockTimeAudits,
+        target: capability,
+      })}\n`);
+      await setApplyTimeouts(client);
+      await ensureLedger(client);
+      await applyPreparedManifest({ client, prepared: selected, identity, stdout });
+      return { ok: true, applied: [selected.manifest.name], audits: lockTimeAudits };
+    } finally {
+      await releaseAdvisoryLock(client);
+    }
   }
 
   const auditByManifest = new Map(audits.map((audit) => [audit.manifest, audit]));
@@ -1176,20 +1484,28 @@ export async function runReconciliation({
   return { ok: true, applied, audits };
 }
 
-export async function runReconcileCli({ argv = process.argv.slice(2), env = process.env } = {}) {
+export async function runReconcileCli({
+  argv = process.argv.slice(2),
+  env = process.env,
+  clientFactory = ({ connectionString }) => new Client({ connectionString }),
+} = {}) {
   const options = parseReconcileArgs(argv, env);
   assertApplyConfirmation(options);
+  const capability = options.apply
+    ? await prepare0053G3ReleaseGateHardeningCapability()
+    : null;
   assertDirectDatabaseUrl(env.DATABASE_URL);
 
-  const client = new Client({ connectionString: env.DATABASE_URL });
+  const client = clientFactory({ connectionString: env.DATABASE_URL });
   try {
     await client.connect();
-    const manifests = await loadManifests(options.manifestDir);
+    const manifests = capability?.manifests ?? (await loadManifests(options.manifestDir));
     await runReconciliation({
       client,
       manifests,
       apply: options.apply,
       expectedDatabase: options.expectedDatabase,
+      capability: capability ?? null,
     });
     return 0;
   } catch (error) {
@@ -1642,6 +1958,24 @@ async function hasCommittedLedger(client, manifestName, checksum) {
       LIMIT 1
     `,
     [manifestName, checksum]
+  );
+  return result.rowCount > 0;
+}
+
+async function hasCommittedManifestName(client, manifestName) {
+  const ledger = await client.query(`SELECT to_regclass('public.${LEDGER_TABLE}') AS ledger`);
+  if (ledger.rows[0]?.ledger === null || ledger.rows[0]?.ledger === undefined) {
+    return false;
+  }
+  const result = await client.query(
+    `
+      SELECT 1
+      FROM "${LEDGER_TABLE}"
+      WHERE "manifest_name" = $1
+        AND "committed_at" IS NOT NULL
+      LIMIT 1
+    `,
+    [manifestName]
   );
   return result.rowCount > 0;
 }

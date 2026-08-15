@@ -11,9 +11,15 @@ import {
   ACTION_APPLY_MISSING_DDL,
   ACTION_REFUSE_FOR_HUMAN,
   ACTION_SKIP,
+  assertPrepared0053G3ReleaseGateHardeningCapability,
+  buildLockTimeApplyVectorV1,
   MISSING_TABLE_POLICY_CREATE_OR_REPAIR,
   MISSING_TABLE_POLICY_EXISTING_REQUIRED,
   ReconcileError,
+  RECONCILE_LOCK_ID,
+  prepare0053G3ReleaseGateHardeningCapability,
+  parseLockTimeApplyVectorV1,
+  selectExact0053G3ReleaseGateHardeningApply,
   assertApplyConfirmation,
   assertDirectDatabaseUrl,
   assertExpectedDatabase,
@@ -23,6 +29,7 @@ import {
   manifestChecksum,
   parseReconcileArgs,
   runReconciliation,
+  runReconcileCli,
   statementHashes,
   validateDropObjects,
   validateManifestSql,
@@ -375,6 +382,154 @@ function definitionAwareConstraintManifest(
 }
 
 describe('reconcile-prod-schema runner helpers', () => {
+  it('pins 0053 capability to canonical manifest and raw migration bytes', async () => {
+    await expect(prepare0053G3ReleaseGateHardeningCapability()).resolves.toMatchObject({
+      manifestPath: 'scripts/prod-schema-manifests/30-g3-release-gate-hardening.json',
+      manifestName: 'g3-release-gate-hardening',
+      sqlPath: 'migrations/0053_g3_release_gate_hardening.sql',
+      migrationSha256: '0a4c00cea6e20982db391be88f143bf4e1d4bc529b68e6b986530fc3354c9ea5',
+    });
+  });
+
+  it('rejects a post-binding replacement of selected 0053 SQL bytes', async () => {
+    const capability = await prepare0053G3ReleaseGateHardeningCapability();
+    const manifest = capability.manifests.find(
+      (candidate) => candidate.name === capability.manifestName
+    );
+    await expect(
+      assertPrepared0053G3ReleaseGateHardeningCapability({
+        capability,
+        prepared: {
+          manifest,
+          sqlFiles: [{ path: capability.sqlPath, checksum: '0'.repeat(64) }],
+          dropStatements: [],
+        },
+      })
+    ).rejects.toThrow(/pinned canonical bytes/i);
+  });
+
+  it('selects only target from complete exact lock-time audit vector', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const preparedManifests = target.manifests.map((manifest) => ({
+      manifest,
+      dropStatements: [],
+    }));
+    const targetPrepared = preparedManifests.find(
+      (prepared) => prepared.manifest.name === target.manifestName
+    );
+    const audits = target.manifests.map((manifest) => ({
+      manifest: manifest.name,
+      action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+      objects: [],
+    }));
+    expect(
+      selectExact0053G3ReleaseGateHardeningApply({
+        preparedManifests,
+        audits,
+        target,
+      })
+    ).toBe(targetPrepared);
+    expect(() =>
+      selectExact0053G3ReleaseGateHardeningApply({
+        preparedManifests: [...preparedManifests].reverse(),
+        audits,
+        target,
+      })
+    ).toThrow(/complete audit vector|canonical/i);
+  });
+
+  it('builds and parses canonical lock-time apply marker without sensitive fields', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const preparedManifests = target.manifests.map((manifest) => ({
+      manifest,
+      dropStatements: [],
+    }));
+    const audits = target.manifests.map((manifest) => ({
+      manifest: manifest.name,
+      action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+      objects: [],
+    }));
+    const marker = buildLockTimeApplyVectorV1({ preparedManifests, audits, target });
+    expect(marker).toMatch(/^PROD_SCHEMA_LOCK_TIME_VECTOR_V1=\{/);
+    expect(parseLockTimeApplyVectorV1(marker, { preparedManifests, target })).toMatchObject({
+      schemaVersion: 1,
+      source: 'lock-time-audit',
+      lockId: RECONCILE_LOCK_ID,
+    });
+  });
+
+  it('admits only exact 0053 action-specific apply capability', () => {
+    expect(() =>
+      parseReconcileArgs(['--apply', '--yes', '--apply-0053-g3-release-gate-hardening'])
+    ).not.toThrow();
+    expect(() => parseReconcileArgs(['--apply', '--yes'])).toThrow(
+      /production schema mutation mechanically blocked/i
+    );
+    expect(() =>
+      parseReconcileArgs([
+        '--apply',
+        '--yes',
+        '--apply-0053-g3-release-gate-hardening',
+        '--manifest-dir=tmp',
+      ])
+    ).toThrow(/production schema mutation mechanically blocked/i);
+  });
+
+  it('constructs client only after valid 0053 capability admission', async () => {
+    const clientFactory = vi.fn(() => ({
+      connect: vi.fn().mockRejectedValue(new Error('test connection refusal')),
+      end: vi.fn().mockResolvedValue(undefined),
+    }));
+    await expect(
+      runReconcileCli({
+        argv: ['--apply', '--yes', '--apply-0053-g3-release-gate-hardening'],
+        env: { DATABASE_URL: 'postgres://operator:secret@localhost/updog' },
+        clientFactory,
+      })
+    ).resolves.toBe(1);
+    expect(clientFactory).toHaveBeenCalledWith({
+      connectionString: 'postgres://operator:secret@localhost/updog',
+    });
+  });
+
+  it.each([
+    [['--apply', '--yes']],
+    [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--apply']],
+    [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--yes']],
+    [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--unknown']],
+    [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--manifest-dir', 'tmp']],
+    [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--manifest-dir=tmp']],
+    [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--manifest-dir']],
+  ])('rejects invalid apply argv before client construction: %o', async (argv) => {
+    const clientFactory = vi.fn();
+    await expect(
+      runReconcileCli({
+        argv,
+        env: { DATABASE_URL: 'postgres://operator:secret@localhost/updog' },
+        clientFactory,
+      })
+    ).rejects.toMatchObject({ details: { kind: 'production-mutation-blocked' } });
+    expect(clientFactory).not.toHaveBeenCalled();
+  });
+
+  it.each([[''], [undefined], ['tmp']])(
+    'rejects own manifest-dir environment property before client construction: %o',
+    async (manifestDir) => {
+      const clientFactory = vi.fn();
+      await expect(
+        runReconcileCli({
+          argv: ['--apply', '--yes', '--apply-0053-g3-release-gate-hardening'],
+          env: {
+            DATABASE_URL: 'postgres://operator:secret@localhost/updog',
+            UPDOG_SCHEMA_MANIFEST_DIR: manifestDir,
+          },
+          clientFactory,
+        })
+      ).rejects.toMatchObject({ details: { kind: 'production-mutation-blocked' } });
+      expect(clientFactory).not.toHaveBeenCalled();
+    }
+  );
+
   it('defaults to audit-only mode', () => {
     expect(parseReconcileArgs([])).toMatchObject({
       apply: false,

@@ -91,25 +91,23 @@ describe('production schema dispatch block', () => {
     }
   });
 
-  it('makes workflow apply steps unreachable while retaining audits', async () => {
-    for (const [name, stepName] of [
-      ['prod-schema-reconcile.yml', 'Apply additive-safe reconciliation'],
-      ['prod-journaled-migrate-0045-0049.yml', 'Apply journaled recovery'],
-    ]) {
-      const workflow = YAML.parse(
-        await readFile(path.join(process.cwd(), '.github', 'workflows', name), 'utf8')
-      );
-      const steps = Object.values(workflow.jobs).flatMap((job) => job.steps ?? []);
-      const applyStep = steps.find((step) => step.name === stepName);
-      expect(applyStep?.if).toBe('${{ false }}');
-    }
+  it('admits only schema workflow apply mode through exact 0053 capability command', async () => {
+    const workflow = YAML.parse(
+      await readFile(
+        path.join(process.cwd(), '.github', 'workflows', 'prod-schema-reconcile.yml'),
+        'utf8'
+      )
+    );
+    const steps = Object.values(workflow.jobs).flatMap((job) => job.steps ?? []);
+    const applyStep = steps.find((step) => step.name === 'Apply additive-safe reconciliation');
+    expect(applyStep?.if).toContain("inputs.mode == 'apply'");
+    expect(applyStep?.run).toContain(
+      'node scripts/reconcile-prod-schema.mjs --apply --yes --apply-0053-g3-release-gate-hardening'
+    );
   });
 
   it('fails apply-mode workflows explicitly before any mutation step', async () => {
-    for (const name of [
-      'prod-schema-reconcile.yml',
-      'prod-journaled-migrate-0045-0049.yml',
-    ]) {
+    for (const name of ['prod-journaled-migrate-0045-0049.yml']) {
       const workflow = YAML.parse(
         await readFile(path.join(process.cwd(), '.github', 'workflows', name), 'utf8')
       );
