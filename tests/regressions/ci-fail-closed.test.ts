@@ -12,9 +12,11 @@ import YAML from 'yaml';
 type WorkflowStep = {
   ['continue-on-error']?: boolean;
   env?: Record<string, unknown>;
+  id?: string;
   name?: string;
   run?: string;
   shell?: string;
+  ['timeout-minutes']?: number;
   uses?: string;
   with?: Record<string, unknown>;
 };
@@ -31,6 +33,7 @@ type WorkflowJob = {
   outputs?: Record<string, unknown>;
   ['runs-on']?: string | string[];
   steps?: WorkflowStep[];
+  ['timeout-minutes']?: number;
   uses?: string;
   with?: Record<string, unknown>;
   secrets?: unknown;
@@ -1098,6 +1101,418 @@ function childProcessInspection(source: string): ChildProcessInspection {
   return { commands, unresolvedVercelArguments, unresolvedVercelCommand };
 }
 
+const BRANCH_POLICY_ENDPOINT =
+  /(?:^|\/)branches\/[^/\s]+\/protection(?:[/?#]|$)|(?:^|\/)rulesets?(?:[/?#]|$)/i;
+const BRANCH_PROTECTION_GRAPHQL_MUTATION = /\b(?:create|update|delete)BranchProtectionRule\b/;
+const OCTOKIT_MODULES = new Set([
+  '@actions/github',
+  '@octokit/core',
+  '@octokit/graphql',
+  '@octokit/rest',
+]);
+
+function isBranchPolicyEndpoint(value: string): boolean {
+  return BRANCH_POLICY_ENDPOINT.test(value);
+}
+
+function isGhCommand(tokens: string[], ghIndex: number): boolean {
+  return (
+    ghIndex >= 0 &&
+    /(?:^|[/\\])gh(?:\.exe)?$/i.test(tokens[ghIndex] ?? '') &&
+    isCommandPrefix(tokens.slice(0, ghIndex))
+  );
+}
+
+type GhApiMethod = {
+  specified: boolean;
+  value?: string;
+};
+
+function ghApiMethod(argumentsList: string[]): GhApiMethod {
+  let specified = false;
+  let value: string | undefined;
+  for (let index = 0; index < argumentsList.length; index += 1) {
+    const argument = argumentsList[index] ?? '';
+    if (argument === '--method' || argument === '-X') {
+      specified = true;
+      value = argumentsList[index + 1];
+      index += 1;
+      continue;
+    }
+    const assignedMethod = argument.match(/^(?:--method|-X)=(.+)$/i);
+    if (assignedMethod) {
+      specified = true;
+      value = assignedMethod[1];
+      continue;
+    }
+    const compactMethod = argument.match(/^-X(.+)$/i);
+    if (compactMethod) {
+      specified = true;
+      value = compactMethod[1];
+    }
+  }
+  return { specified, value };
+}
+
+function ghApiHasPayload(argumentsList: string[]): boolean {
+  return argumentsList.some((argument) =>
+    /^(?:--(?:input|field|raw-field)|-[fF])(?:=|$|[^\s])/.test(argument)
+  );
+}
+
+function shellHasBranchPolicyMutation(script: string, dialect: ShellDialect, depth = 0): boolean {
+  if (dialect === 'portable') {
+    return (['posix', 'powershell', 'cmd'] as const).some((candidate) =>
+      shellHasBranchPolicyMutation(script, candidate, depth)
+    );
+  }
+
+  for (const command of shellCommandStrings(script, dialect)) {
+    const tokens = tokenizeShellCommand(command, dialect);
+    const first = tokens[0]?.replace(/^@/, '').toLowerCase();
+    if (first === 'echo' || first === 'printf' || first === 'write-host') continue;
+
+    const ghIndex = tokens.findIndex((token) => /(?:^|[/\\])gh(?:\.exe)?$/i.test(token));
+    if (isGhCommand(tokens, ghIndex) && tokens[ghIndex + 1]?.toLowerCase() === 'api') {
+      const apiArguments = tokens.slice(ghIndex + 2);
+      const isGraphqlMutation =
+        apiArguments.some((argument) => argument.toLowerCase() === 'graphql') &&
+        tokens.some((token) => BRANCH_PROTECTION_GRAPHQL_MUTATION.test(token));
+      if (isGraphqlMutation) return true;
+
+      if (apiArguments.some(isBranchPolicyEndpoint)) {
+        if (ghApiHasPayload(apiArguments)) return true;
+        const method = ghApiMethod(apiArguments);
+        if (method.specified && (!method.value || !/^(?:GET|HEAD)$/i.test(method.value))) {
+          return true;
+        }
+      }
+    }
+
+    if (
+      depth < 4 &&
+      nestedShellCommandStrings(command, dialect).some((nested) =>
+        shellHasBranchPolicyMutation(nested.text, nested.dialect, depth + 1)
+      )
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isGitHubBranchPolicyApiUrl(value: string): boolean {
+  return /^https:\/\/api\.github\.com(?:\/|$)/i.test(value) && isBranchPolicyEndpoint(value);
+}
+
+function curlRequestMethod(argumentsList: string[]): GhApiMethod {
+  let specified = false;
+  let value: string | undefined;
+  for (let index = 0; index < argumentsList.length; index += 1) {
+    const argument = argumentsList[index] ?? '';
+    if (argument === '--request' || argument === '-X') {
+      specified = true;
+      value = argumentsList[index + 1];
+      index += 1;
+      continue;
+    }
+    const assignedMethod = argument.match(/^(?:--request|-X)=(.+)$/i);
+    if (assignedMethod) {
+      specified = true;
+      value = assignedMethod[1];
+      continue;
+    }
+    const compactMethod = argument.match(/^-X(.+)$/i);
+    if (compactMethod) {
+      specified = true;
+      value = compactMethod[1];
+    }
+  }
+  return { specified, value };
+}
+
+function curlHasPayload(argumentsList: string[]): boolean {
+  return argumentsList.some((argument) =>
+    /^(?:--data(?:-raw|-binary|-urlencode)?|-d|--form|-F|--json|-T|--upload-file)(?:=|$|[^\s])/.test(
+      argument
+    )
+  );
+}
+
+function shellHasGitHubBranchPolicyRestMutation(
+  script: string,
+  dialect: ShellDialect,
+  depth = 0
+): boolean {
+  if (dialect === 'portable') {
+    return (['posix', 'powershell', 'cmd'] as const).some((candidate) =>
+      shellHasGitHubBranchPolicyRestMutation(script, candidate, depth)
+    );
+  }
+
+  for (const command of shellCommandStrings(script, dialect)) {
+    const tokens = tokenizeShellCommand(command, dialect);
+    const first = tokens[0]?.replace(/^@/, '').toLowerCase();
+    if (first === 'echo' || first === 'printf' || first === 'write-host') continue;
+
+    const curlIndex = tokens.findIndex((token) => /(?:^|[/\\])curl(?:\.exe)?$/i.test(token));
+    if (curlIndex !== -1 && tokens.some(isGitHubBranchPolicyApiUrl)) {
+      const argumentsList = tokens.slice(curlIndex + 1);
+      const method = curlRequestMethod(argumentsList);
+      if (method.specified && (!method.value || !/^(?:GET|HEAD)$/i.test(method.value))) {
+        return true;
+      }
+      if (curlHasPayload(argumentsList)) return true;
+    }
+
+    if (
+      depth < 4 &&
+      nestedShellCommandStrings(command, dialect).some((nested) =>
+        shellHasGitHubBranchPolicyRestMutation(nested.text, nested.dialect, depth + 1)
+      )
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isOctokitExpression(
+  expression: ts.Expression,
+  context: JavaScriptAnalysisContext,
+  resolving = new Set<ts.Declaration>(),
+  allowGithubScriptGlobal = false
+): boolean {
+  if (ts.isPropertyAccessExpression(expression) || ts.isElementAccessExpression(expression)) {
+    return isOctokitExpression(expression.expression, context, resolving, allowGithubScriptGlobal);
+  }
+  if (ts.isCallExpression(expression) || ts.isNewExpression(expression)) {
+    return isOctokitExpression(expression.expression, context, resolving, allowGithubScriptGlobal);
+  }
+  if (!ts.isIdentifier(expression)) return false;
+
+  if (allowGithubScriptGlobal && expression.text === 'github') return true;
+  if (OCTOKIT_MODULES.has(javaScriptBindingModule(expression, context) ?? '')) return true;
+  const binding = symbolDeclaration(expression, context);
+  if (
+    !binding ||
+    resolving.has(binding) ||
+    !ts.isVariableDeclaration(binding) ||
+    !binding.initializer
+  ) {
+    return false;
+  }
+  const nextResolving = new Set(resolving);
+  nextResolving.add(binding);
+  return isOctokitExpression(binding.initializer, context, nextResolving, allowGithubScriptGlobal);
+}
+
+function isOctokitGraphqlCall(
+  call: ts.CallExpression,
+  context: JavaScriptAnalysisContext,
+  allowGithubScriptGlobal: boolean
+): boolean {
+  const expression = call.expression;
+  if (ts.isIdentifier(expression)) {
+    return (
+      OCTOKIT_MODULES.has(javaScriptBindingModule(expression, context) ?? '') &&
+      importedJavaScriptName(expression, context) === 'graphql'
+    );
+  }
+  return (
+    (ts.isPropertyAccessExpression(expression) || ts.isElementAccessExpression(expression)) &&
+    staticPropertyName(expression, context) === 'graphql' &&
+    isOctokitExpression(expression.expression, context, new Set(), allowGithubScriptGlobal)
+  );
+}
+
+function octokitCallHasBranchPolicyMutation(
+  call: ts.CallExpression,
+  context: JavaScriptAnalysisContext,
+  allowGithubScriptGlobal: boolean
+): boolean {
+  const expression = call.expression;
+  const method =
+    ts.isPropertyAccessExpression(expression) || ts.isElementAccessExpression(expression)
+      ? staticPropertyName(expression, context)
+      : undefined;
+  const receiver =
+    ts.isPropertyAccessExpression(expression) || ts.isElementAccessExpression(expression)
+      ? expression.expression
+      : undefined;
+
+  if (
+    method === 'updateBranchProtection' &&
+    receiver &&
+    isOctokitExpression(receiver, context, new Set(), allowGithubScriptGlobal)
+  ) {
+    return true;
+  }
+  if (isOctokitGraphqlCall(call, context, allowGithubScriptGlobal)) {
+    return call.arguments.some((argument) =>
+      BRANCH_PROTECTION_GRAPHQL_MUTATION.test(staticCommandText(argument, context) ?? '')
+    );
+  }
+  if (
+    !method ||
+    !receiver ||
+    !isOctokitExpression(receiver, context, new Set(), allowGithubScriptGlobal)
+  ) {
+    return false;
+  }
+  if (/^(?:create|update|delete)(?:Repo|Org)?Ruleset$/.test(method)) return true;
+  if (method !== 'request') return false;
+
+  const route = staticCommandText(call.arguments[0], context);
+  if (!route || !isBranchPolicyEndpoint(route)) return false;
+  const methodMatch = route.match(/^\s*([A-Z]+)\s+/i);
+  return !methodMatch || !/^(?:GET|HEAD)$/i.test(methodMatch[1] ?? '');
+}
+
+function javaScriptHasBranchPolicyMutation(
+  source: string,
+  allowGithubScriptGlobal = false
+): boolean {
+  if (
+    childProcessInspection(source).commands.some((command) =>
+      shellHasBranchPolicyMutation(command, 'portable')
+    )
+  ) {
+    return true;
+  }
+
+  const context = createJavaScriptAnalysisContext(source);
+  let mutation = false;
+  function visit(node: ts.Node): void {
+    if (
+      !mutation &&
+      ts.isCallExpression(node) &&
+      octokitCallHasBranchPolicyMutation(node, context, allowGithubScriptGlobal)
+    ) {
+      mutation = true;
+    }
+    if (!mutation) ts.forEachChild(node, visit);
+  }
+  visit(context.sourceFile);
+  return mutation;
+}
+
+function javaScriptExpressionHasGitHubBranchPolicyApi(
+  expression: ts.Expression | undefined,
+  context: JavaScriptAnalysisContext
+): boolean {
+  const resolved = resolvedJavaScriptExpression(expression, context);
+  const staticText = staticCommandText(resolved, context);
+  if (staticText && isGitHubBranchPolicyApiUrl(staticText)) return true;
+  if (!resolved || !ts.isObjectLiteralExpression(resolved)) return false;
+  const hostname = javaScriptObjectProperty(resolved, 'hostname', context).expression;
+  const host = hostname ?? javaScriptObjectProperty(resolved, 'host', context).expression;
+  const pathExpression = javaScriptObjectProperty(resolved, 'path', context).expression;
+  const staticHost = staticCommandText(host, context);
+  const staticPath = staticCommandText(pathExpression, context);
+  if (
+    staticHost?.toLowerCase() === 'api.github.com' &&
+    staticPath !== undefined &&
+    isBranchPolicyEndpoint(staticPath)
+  ) {
+    return true;
+  }
+  return resolved.properties.some((property) => {
+    if (ts.isPropertyAssignment(property)) {
+      return javaScriptExpressionHasGitHubBranchPolicyApi(property.initializer, context);
+    }
+    if (ts.isShorthandPropertyAssignment(property)) {
+      return javaScriptExpressionHasGitHubBranchPolicyApi(property.name, context);
+    }
+    return ts.isSpreadAssignment(property)
+      ? javaScriptExpressionHasGitHubBranchPolicyApi(property.expression, context)
+      : false;
+  });
+}
+
+function javaScriptTransportCallMutatesGitHubBranchPolicy(
+  call: ts.CallExpression,
+  context: JavaScriptAnalysisContext
+): boolean {
+  const transport = javaScriptTransportCall(call, context);
+  if (
+    !transport ||
+    !call.arguments.some((argument) =>
+      javaScriptExpressionHasGitHubBranchPolicyApi(argument, context)
+    )
+  ) {
+    return false;
+  }
+  if (transport.methodName && ['get', 'head'].includes(transport.methodName)) return false;
+  if (transport.methodName && ['post', 'put', 'patch', 'delete'].includes(transport.methodName)) {
+    return true;
+  }
+
+  const firstArgument = resolvedJavaScriptExpression(call.arguments[0], context);
+  const options =
+    transport.optionsOnlyAtZero && firstArgument && ts.isObjectLiteralExpression(firstArgument)
+      ? call.arguments[0]
+      : call.arguments[transport.optionsIndex ?? -1];
+  const methodProperty = javaScriptObjectProperty(options, 'method', context);
+  if (methodProperty.expression) {
+    const method = staticCommandText(methodProperty.expression, context);
+    return methodProperty.dynamic || !method || !['GET', 'HEAD'].includes(method.toUpperCase());
+  }
+  if (methodProperty.dynamic) return true;
+  return transport.defaultMethod !== 'GET';
+}
+
+function javaScriptHasGitHubBranchPolicyRestMutation(source: string): boolean {
+  if (
+    childProcessInspection(source).commands.some((command) =>
+      shellHasGitHubBranchPolicyRestMutation(command, 'portable')
+    )
+  ) {
+    return true;
+  }
+
+  const context = createJavaScriptAnalysisContext(source);
+  let mutation = false;
+  function visit(node: ts.Node): void {
+    if (
+      !mutation &&
+      ts.isCallExpression(node) &&
+      javaScriptTransportCallMutatesGitHubBranchPolicy(node, context)
+    ) {
+      mutation = true;
+    }
+    if (!mutation) ts.forEachChild(node, visit);
+  }
+  visit(context.sourceFile);
+  return mutation;
+}
+
+function automationSurfaceHasBranchPolicyMutation(surface: AutomationSurface): boolean {
+  if (surface.language === 'shell') {
+    const dialect = surface.dialect ?? 'portable';
+    return (
+      shellHasBranchPolicyMutation(surface.content, dialect) ||
+      shellHasGitHubBranchPolicyRestMutation(surface.content, dialect)
+    );
+  }
+  if (surface.language === 'javascript') {
+    return (
+      javaScriptHasBranchPolicyMutation(
+        surface.content,
+        surface.id.startsWith('workflow-github-script:')
+      ) || javaScriptHasGitHubBranchPolicyRestMutation(surface.content)
+    );
+  }
+  if (surface.language === 'python') {
+    return pythonChildProcessCommandStrings(surface.content).some(
+      (command) =>
+        shellHasBranchPolicyMutation(command, 'portable') ||
+        shellHasGitHubBranchPolicyRestMutation(command, 'portable')
+    );
+  }
+  return false;
+}
+
 function automationSurfaceHasProductionMutation(surface: AutomationSurface): boolean {
   if (surface.language === 'action') return /vercel/i.test(surface.content);
   if (surface.language === 'shell') {
@@ -1975,10 +2390,23 @@ async function listRepositoryFiles(): Promise<string[]> {
     encoding: 'utf8',
     maxBuffer: 10 * 1024 * 1024,
   });
-  return stdout
+  const trackedFiles = stdout
     .split('\0')
     .filter(Boolean)
     .filter((relativePath) => !shouldExcludeAutomationPath(relativePath));
+  const filesPresentInWorktree = await Promise.all(
+    trackedFiles.map(async (relativePath) => {
+      try {
+        await access(path.join(process.cwd(), relativePath));
+        return relativePath;
+      } catch {
+        return undefined;
+      }
+    })
+  );
+  return filesPresentInWorktree.filter((relativePath): relativePath is string =>
+    Boolean(relativePath)
+  );
 }
 
 function automationLanguage(filePath: string, content: string): AutomationSurface['language'] {
@@ -2146,6 +2574,39 @@ async function collectAutomationSurfaces(): Promise<AutomationSurface[]> {
   return surfaces;
 }
 
+async function collectOrdinaryBranchPolicySurfaces(): Promise<AutomationSurface[]> {
+  const surfaces = (await collectAutomationSurfaces()).filter(
+    (surface) =>
+      surface.id.startsWith('workflow:') ||
+      surface.id.startsWith('action:') ||
+      surface.id.startsWith('package:') ||
+      surface.id.startsWith('operator:scripts/')
+  );
+  const workflowPaths = (await listRepositoryFiles()).filter((filePath) =>
+    /^\.github\/workflows\/[^/]+\.ya?ml$/.test(filePath)
+  );
+
+  for (const workflowPath of workflowPaths) {
+    const workflow = await readWorkflow(path.basename(workflowPath));
+    for (const [jobName, job] of Object.entries(workflow.jobs ?? {})) {
+      for (const [stepIndex, step] of (job.steps ?? []).entries()) {
+        if (
+          typeof step.uses === 'string' &&
+          step.uses.startsWith('actions/github-script') &&
+          typeof step.with?.script === 'string'
+        ) {
+          surfaces.push({
+            id: `workflow-github-script:${path.basename(workflowPath)}#${jobName}:${stepIndex}`,
+            content: step.with.script,
+            language: 'javascript',
+          });
+        }
+      }
+    }
+  }
+  return surfaces;
+}
+
 function callsReleaseWorkflow(workflow: Workflow): boolean {
   const jobs = Object.values(workflow.jobs ?? {});
   if (jobs.some((job) => job.uses === './.github/workflows/release-production.yml')) {
@@ -2274,6 +2735,42 @@ function compileReleaseIdentityMatcher(
     `(function () { ${transpiled}; return releaseIdentityMatches; })()`,
     {}
   ) as (body: unknown, version: string, sha: string) => boolean;
+}
+
+function extractRequireResultFunction(gateScript: string): string {
+  const match = gateScript.match(/^\s*require_result\(\) \{[\s\S]*?^\s*\}/m);
+  if (!match) throw new Error('require_result helper not found');
+  return match[0];
+}
+
+async function executeRequireResult(
+  gateScript: string,
+  result: string,
+  expected: 'true' | 'false'
+): Promise<{ passed: boolean; stderr: string; stdout: string }> {
+  const requireResult = extractRequireResultFunction(gateScript);
+  const script = [
+    'fail=0',
+    requireResult,
+    'require_result "matrix" "$1" "$2"',
+    'exit "$fail"',
+  ].join('\n');
+
+  try {
+    const { stderr, stdout } = await execFileAsync(
+      'bash',
+      ['--noprofile', '--norc', '-o', 'pipefail', '-c', script, '--', result, expected],
+      { cwd: process.cwd(), encoding: 'utf8' }
+    );
+    return { passed: true, stderr, stdout };
+  } catch (error) {
+    const details = error as { stderr?: unknown; stdout?: unknown };
+    return {
+      passed: false,
+      stderr: String(details.stderr ?? ''),
+      stdout: String(details.stdout ?? ''),
+    };
+  }
 }
 
 // The exact set of jobs the required aggregator (CI Gate Status) consumes.
@@ -3471,6 +3968,256 @@ describe('required CI fails closed', () => {
     ).toBe(false);
   });
 
+  it('rejects reachable GitHub branch-policy writers while allowing read-only evidence', async () => {
+    for (const command of [
+      'gh api repos/acme/updog/branches/main/protection -X PUT',
+      'gh api repos/acme/updog/branches/main/protection --method PATCH',
+      'gh api repos/acme/updog/branches/main/protection --method DELETE',
+      'gh api repos/acme/updog/branches/main/protection --input protection.json',
+      'gh api repos/acme/updog/branches/main/protection -f required_status_checks=true',
+      'gh api repos/acme/updog/rulesets -F name=protected',
+      'gh api repos/acme/updog/rulesets --field name=protected',
+      'gh api repos/acme/updog/rulesets --raw-field name=protected',
+    ]) {
+      expect(
+        automationSurfaceHasBranchPolicyMutation({
+          id: 'synthetic:github-branch-policy-cli',
+          content: command,
+          dialect: 'posix',
+          language: 'shell',
+        })
+      ).toBe(true);
+    }
+
+    for (const content of [
+      [
+        "import { Octokit } from '@octokit/rest';",
+        'const octokit = new Octokit();',
+        'octokit.rest.repos.updateBranchProtection({ owner: "acme", repo: "updog", branch: "main" });',
+      ].join('\n'),
+      [
+        "import { Octokit } from '@octokit/rest';",
+        'const octokit = new Octokit();',
+        'octokit.graphql(`mutation { createBranchProtectionRule(input: {}) { clientMutationId } }`);',
+      ].join('\n'),
+      [
+        "import { graphql } from '@octokit/graphql';",
+        'graphql(`mutation { updateBranchProtectionRule(input: {}) { clientMutationId } }`);',
+      ].join('\n'),
+      [
+        "import { graphql } from '@octokit/graphql';",
+        'graphql(`mutation { deleteBranchProtectionRule(input: {}) { clientMutationId } }`);',
+      ].join('\n'),
+    ]) {
+      expect(
+        automationSurfaceHasBranchPolicyMutation({
+          id: 'synthetic:github-branch-policy-octokit',
+          content,
+          language: 'javascript',
+        })
+      ).toBe(true);
+    }
+
+    expect(
+      automationSurfaceHasBranchPolicyMutation({
+        id: 'workflow-github-script:policy.yml#guard:0',
+        content:
+          'github.rest.repos.updateBranchProtection({ owner: "acme", repo: "updog", branch: "main" });',
+        language: 'javascript',
+      })
+    ).toBe(true);
+
+    for (const command of [
+      'curl -X PUT https://api.github.com/repos/acme/updog/branches/main/protection',
+      'curl --request PATCH https://api.github.com/repos/acme/updog/rulesets/1',
+      'curl -X DELETE https://api.github.com/repos/acme/updog/rulesets/1',
+      'curl --data name=protected https://api.github.com/repos/acme/updog/rulesets',
+    ]) {
+      expect(
+        automationSurfaceHasBranchPolicyMutation({
+          id: 'synthetic:github-branch-policy-http',
+          content: command,
+          dialect: 'posix',
+          language: 'shell',
+        })
+      ).toBe(true);
+    }
+
+    for (const content of [
+      "fetch('https://api.github.com/repos/acme/updog/branches/main/protection', { method: 'PATCH' });",
+      [
+        "import axios from 'axios';",
+        "axios.put('https://api.github.com/repos/acme/updog/rulesets/1', payload);",
+      ].join('\n'),
+      [
+        "import https from 'node:https';",
+        "https.request('https://api.github.com/repos/acme/updog/rulesets/1', { method: 'DELETE' });",
+      ].join('\n'),
+    ]) {
+      expect(
+        automationSurfaceHasBranchPolicyMutation({
+          id: 'synthetic:github-branch-policy-http-client',
+          content,
+          language: 'javascript',
+        })
+      ).toBe(true);
+    }
+
+    for (const surface of [
+      {
+        id: 'action:green-scoreboard#0',
+        content: 'curl -X PUT https://api.github.com/repos/acme/updog/branches/main/protection',
+        dialect: 'posix' as const,
+        language: 'shell' as const,
+      },
+      {
+        id: 'package:package.json#release:check',
+        content: 'curl --data name=protected https://api.github.com/repos/acme/updog/rulesets',
+        dialect: 'posix' as const,
+        language: 'shell' as const,
+      },
+    ]) {
+      expect(automationSurfaceHasBranchPolicyMutation(surface)).toBe(true);
+    }
+
+    for (const command of [
+      'gh api repos/acme/updog/branches/main/protection',
+      'gh api repos/acme/updog/branches/main/protection --method GET',
+      'gh api repos/acme/updog/rulesets -X GET',
+      'curl --head https://api.github.com/repos/acme/updog/branches/main/protection',
+    ]) {
+      expect(
+        automationSurfaceHasBranchPolicyMutation({
+          id: 'synthetic:github-branch-policy-read',
+          content: command,
+          dialect: 'posix',
+          language: 'shell',
+        })
+      ).toBe(false);
+    }
+
+    expect(
+      automationSurfaceHasBranchPolicyMutation({
+        id: 'synthetic:github-branch-policy-fetch-read',
+        content: "fetch('https://api.github.com/repos/acme/updog/rulesets/1', { method: 'GET' });",
+        language: 'javascript',
+      })
+    ).toBe(false);
+
+    const releaseProof = await readFile(
+      path.join(process.cwd(), '.github', 'workflows', 'release-proof.yml'),
+      'utf8'
+    );
+    expect(
+      automationSurfaceHasBranchPolicyMutation({
+        id: 'workflow:release-proof.yml#release-proof:branch-protection',
+        content: releaseProof,
+        dialect: 'posix',
+        language: 'shell',
+      })
+    ).toBe(false);
+
+    const telemetry = await readFile(
+      path.join(process.cwd(), 'scripts', 'ci-live-telemetry.mjs'),
+      'utf8'
+    );
+    expect(
+      automationSurfaceHasBranchPolicyMutation({
+        id: 'operator:scripts/ci-live-telemetry.mjs',
+        content: telemetry,
+        language: 'javascript',
+      })
+    ).toBe(false);
+  });
+
+  it('keeps ordinary scripts and workflows free of branch-policy writers and writer callers', async () => {
+    await expect(
+      access(path.join(process.cwd(), 'scripts', 'update-branch-protection.js'))
+    ).rejects.toThrow();
+
+    const branchPolicySurfaces = await collectOrdinaryBranchPolicySurfaces();
+    expect(
+      branchPolicySurfaces.some((surface) => surface.id === 'action:green-scoreboard/action.yml#0')
+    ).toBe(true);
+    expect(
+      branchPolicySurfaces.some((surface) => surface.id === 'package:package.json#release:check')
+    ).toBe(true);
+
+    const branchPolicyMutations = branchPolicySurfaces
+      .filter(automationSurfaceHasBranchPolicyMutation)
+      .map((surface) => surface.id);
+    expect(branchPolicyMutations).toEqual([]);
+
+    const ordinaryAutomationPaths = (await listRepositoryFiles()).filter(
+      (filePath) =>
+        /^\.github\/workflows\/[^/]+\.ya?ml$/.test(filePath) ||
+        (filePath.startsWith('scripts/') &&
+          AUTOMATION_SOURCE_EXTENSIONS.has(path.extname(filePath)))
+    );
+    const writerCallers = (
+      await Promise.all(
+        ordinaryAutomationPaths.map(async (filePath) => ({
+          filePath,
+          content: await readFile(path.join(process.cwd(), filePath), 'utf8'),
+        }))
+      )
+    )
+      .filter(({ content }) => /(?:^|[/\\])update-branch-protection(?:\.js)?\b/.test(content))
+      .map(({ filePath }) => filePath);
+    expect(writerCallers).toEqual([]);
+  });
+
+  it('keeps retired production mutation routes unreachable', async () => {
+    const retiredPaths = [
+      '.github/workflows/task11-prod-closeout-once.yml',
+      'deploy.sh',
+      'launch-script.sh',
+      'pilot.sh',
+      'scripts/canary-deploy.mjs',
+      'scripts/rollback.mjs',
+      'scripts/apply-scenario-drift-migrations.mjs',
+      'scripts/phase2-slice3-audit.mjs',
+      'scripts/database/setup-rls-infrastructure.sh',
+      'scripts/normalize-stages.ts',
+      'scripts/normalize-stages-batched.ts',
+      'scripts/cold-storage/export-to-s3.sh',
+    ];
+
+    await Promise.all(
+      retiredPaths.map((filePath) =>
+        expect(access(path.join(process.cwd(), filePath))).rejects.toThrow()
+      )
+    );
+
+    const packageJson = JSON.parse(
+      await readFile(path.join(process.cwd(), 'package.json'), 'utf8')
+    ) as { scripts?: Record<string, string> };
+    const commands = Object.values(packageJson.scripts ?? {}).join('\n');
+    for (const retiredPath of retiredPaths) {
+      expect(commands).not.toContain(retiredPath);
+    }
+  });
+
+  it('keeps ACTIVE guides from referencing retired mutation routes', async () => {
+    const retiredMutationPaths = [
+      'scripts/normalize-stages.ts',
+      'scripts/normalize-stages-batched.ts',
+    ];
+    const { stdout } = await execFileAsync('git', ['ls-files', 'docs']);
+    const markdownPaths = stdout.split(/\r?\n/).filter((filePath) => filePath.endsWith('.md'));
+    const violations: string[] = [];
+
+    for (const filePath of markdownPaths) {
+      const content = await readFile(path.join(process.cwd(), filePath), 'utf8');
+      if (!/^---\r?\nstatus:\s*ACTIVE\s*$/m.test(content)) continue;
+      if (retiredMutationPaths.some((retiredPath) => content.includes(retiredPath))) {
+        violations.push(filePath);
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
   it.each([
     ['GitHub CLI workflow dispatch', 'gh workflow run release-production.yml \\\n  --ref main'],
     [
@@ -3719,6 +4466,90 @@ describe('required CI fails closed', () => {
     expect(fullScripts).not.toContain('--reuse-ci-gates');
   });
 
+  it('captures an immutable read-only pre-merge provider baseline', async () => {
+    const workflow = await readWorkflow('capture-release-baseline.yml');
+    const dispatch = workflow.on?.workflow_dispatch as
+      | {
+          inputs?: Record<string, { required?: boolean; type?: string }>;
+        }
+      | undefined;
+    const inputs = dispatch?.inputs;
+
+    expect(Object.keys(workflow.on ?? {})).toEqual(['workflow_dispatch']);
+    expect(Object.keys(inputs ?? {})).toEqual([
+      'baseline_main_sha',
+      'planned_pr_head_sha',
+      'plan_sha256',
+    ]);
+    for (const input of Object.values(inputs ?? {})) {
+      expect(input).toMatchObject({ required: true, type: 'string' });
+    }
+    expect(workflow.permissions).toEqual({ contents: 'read' });
+
+    const capture = workflow.jobs?.['capture-baseline'];
+    expect(capture?.environment).toBe('Production');
+    expect(capture?.['timeout-minutes']).toBe(10);
+    const steps = capture?.steps ?? [];
+    const scripts = allRunScripts({ jobs: { capture: capture ?? {} } }).join('\n');
+    expect(scripts).toContain('validate-baseline');
+    expect(scripts).toContain('capture-provider');
+    expect(scripts).toContain('capture-release-recovery-context.mjs');
+    expect(scripts).toContain('release-recovery-context-v1.json');
+    expect(scripts).not.toMatch(
+      /\b(?:npx\s+)?(?:vercel|vc)(?:\.cmd)?\s+(?:deploy|promote|alias|rollback)\b/i
+    );
+    expect(scripts).not.toMatch(
+      /\brailway\s+(?:up|deploy|redeploy|scale|config|variable|variables)\b/i
+    );
+
+    const providerCapture = steps.find(
+      (step) => step.name === 'Capture and validate provider baseline'
+    );
+    const checkoutIndex = steps.findIndex(
+      (step) => step.name === 'Checkout trusted workflow commit'
+    );
+    const validationIndex = steps.findIndex(
+      (step) => step.name === 'Verify immutable baseline and approved plan binding'
+    );
+    const providerCaptureIndex = steps.findIndex(
+      (step) => step.name === 'Capture and validate provider baseline'
+    );
+    const checkout = steps[checkoutIndex];
+    expect(checkoutIndex).toBeGreaterThanOrEqual(0);
+    expect(checkout?.with).toMatchObject({
+      ref: '${{ github.sha }}',
+      'persist-credentials': false,
+    });
+    expect(checkout?.with?.ref).not.toContain('inputs.baseline_main_sha');
+    expect(validationIndex).toBeGreaterThan(checkoutIndex);
+    expect(providerCaptureIndex).toBeGreaterThan(validationIndex);
+    for (const step of steps.slice(0, providerCaptureIndex)) {
+      expect(step.env ?? {}).not.toHaveProperty('VERCEL_TOKEN');
+      expect(step.env ?? {}).not.toHaveProperty('RAILWAY_TOKEN');
+    }
+    expect(providerCapture?.['timeout-minutes']).toBe(4);
+    expect(providerCapture?.env).toMatchObject({
+      VERCEL_TOKEN: '${{ secrets.VERCEL_TOKEN }}',
+      RAILWAY_TOKEN: '${{ secrets.RAILWAY_TOKEN }}',
+      VERCEL_PRODUCTION_HOSTNAME: '${{ vars.VERCEL_PRODUCTION_HOSTNAME }}',
+      RAILWAY_PROJECT_ID: '${{ vars.RAILWAY_PROJECT_ID }}',
+      RAILWAY_ENVIRONMENT_ID: '${{ vars.RAILWAY_ENVIRONMENT_ID }}',
+      RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID: '${{ vars.RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID }}',
+      RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID: '${{ vars.RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID }}',
+    });
+
+    const upload = steps.find((step) => step.uses?.startsWith('actions/upload-artifact@'));
+    expect(upload?.['timeout-minutes']).toBe(1);
+    expect(upload?.with).toMatchObject({
+      name: 'release-baseline-v1-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.planned_pr_head_sha }}',
+      path: '${{ runner.temp }}/release-recovery-context-v1.json',
+      'retention-days': 30,
+    });
+    const cleanup = steps.find((step) => step.name === 'Delete local capture evidence');
+    expect(cleanup?.if).toBe('always()');
+    expect(cleanup?.run).toContain('release-recovery-context-v1.json');
+  });
+
   it('fails closed on exact-SHA and provider identity proof before promotion', async () => {
     const proofWorkflow = await readWorkflow('release-proof.yml');
     expect(proofWorkflow.permissions).toEqual({
@@ -3923,7 +4754,7 @@ describe('required CI fails closed', () => {
     expect(
       automationSurfaces.some((surface) => surface.id === 'package:package.json#vercel-build')
     ).toBe(true);
-    expect(automationSurfaces.some((surface) => surface.id === 'operator:pilot.sh')).toBe(true);
+    expect(automationSurfaces.some((surface) => surface.id === 'operator:pilot.sh')).toBe(false);
     expect(automationSurfaces.some((surface) => surface.id === 'operator:server/index.ts')).toBe(
       true
     );
@@ -3961,6 +4792,7 @@ describe('required CI fails closed', () => {
     expect(ungovernedVercelRestMutations).toEqual([]);
 
     expect(Object.keys(releaseWorkflow.jobs ?? {})).toEqual([
+      'production-mutation-block',
       'validate-target',
       'release-proof',
       'schema-audit',
@@ -3973,7 +4805,7 @@ describe('required CI fails closed', () => {
       'post-promotion-smoke',
     ]);
     const validateTarget = releaseWorkflow.jobs?.['validate-target'];
-    expect(normalizeNeeds(validateTarget?.needs)).toEqual([]);
+    expect(normalizeNeeds(validateTarget?.needs)).toEqual(['production-mutation-block']);
     expect(validateTarget?.outputs?.log_window_start).toBe(
       '${{ steps.target.outputs.log_window_start }}'
     );
@@ -4226,6 +5058,97 @@ describe('required CI fails closed', () => {
     }
   });
 
+  it(
+    'fails closed on schema evidence retention, receipt, and attempt identity',
+    { retry: 0 },
+    async () => {
+      const workflow = await readWorkflow('prod-schema-reconcile.yml');
+      const steps = workflow.jobs?.reconcile?.steps ?? [];
+      const retentionIndex = steps.findIndex(
+        (step) => step.name === 'Verify artifact retention before apply'
+      );
+      const firstAttemptIndex = steps.findIndex(
+        (step) => step.name === 'Require first apply attempt'
+      );
+      const preAuditIndex = steps.findIndex((step) => step.name === 'Run pre-apply audit');
+      const postCleanIndex = steps.findIndex(
+        (step) => step.name === 'Require clean post-apply audit'
+      );
+      const receiptIndex = steps.findIndex(
+        (step) => step.name === 'Build schema reconcile receipt'
+      );
+      const upload = steps.find((step) => step.name === 'Upload redacted reconciliation reports');
+      const capture = steps.find((step) => step.name === 'Capture apply evidence identity');
+      const retention = steps[retentionIndex];
+      const receipt = steps[receiptIndex];
+
+      expect(firstAttemptIndex).toBeGreaterThan(-1);
+      expect(firstAttemptIndex).toBeLessThan(preAuditIndex);
+      expect(steps[firstAttemptIndex]?.if).toBe("inputs.mode == 'apply'");
+      expect(steps[firstAttemptIndex]?.run).toContain('$GITHUB_RUN_ATTEMPT');
+      expect(steps[firstAttemptIndex]?.run).toContain('!= "1"');
+
+      expect(retentionIndex).toBeGreaterThan(-1);
+      expect(retentionIndex).toBeLessThan(preAuditIndex);
+      expect(retention?.if).toBe("inputs.mode == 'apply'");
+      expect(retention?.env?.SCHEMA_EVIDENCE_RETENTION_READ_TOKEN).toBe(
+        '${{ secrets.SCHEMA_EVIDENCE_RETENTION_READ_TOKEN }}'
+      );
+      expect(retention?.run).toContain('::add-mask::$SCHEMA_EVIDENCE_RETENTION_READ_TOKEN');
+      expect(retention?.run).toContain('/actions/permissions/artifact-and-log-retention');
+      expect(retention?.run).toContain('body?.days');
+      expect(retention?.run).toContain('body.days < 90');
+      expect(retention?.run).not.toContain('PRODUCTION_DATABASE_URL');
+      expect(retention?.run).not.toContain('--apply');
+      // Token stays out of curl argv (0600 header config file) and appears in
+      // exactly one step of the workflow.
+      expect(retention?.run).toContain('--config "$auth_header_file"');
+      expect(retention?.run).not.toContain(
+        '--header "Authorization: Bearer $SCHEMA_EVIDENCE_RETENTION_READ_TOKEN"'
+      );
+      const tokenSteps = steps.filter((step) =>
+        JSON.stringify(step).includes('SCHEMA_EVIDENCE_RETENTION_READ_TOKEN')
+      );
+      expect(tokenSteps).toHaveLength(1);
+      expect(tokenSteps[0]?.name).toBe('Verify artifact retention before apply');
+
+      const requireReceiptIndex = steps.findIndex(
+        (step) => step.name === 'Require schema reconcile receipt after successful apply'
+      );
+      expect(requireReceiptIndex).toBeGreaterThan(receiptIndex);
+      const requireReceipt = steps[requireReceiptIndex];
+      expect(requireReceipt?.if).toContain("inputs.mode == 'apply'");
+      expect(requireReceipt?.run).toContain('test -s reports/schema-reconcile-receipt.json');
+
+      expect(receiptIndex).toBeGreaterThan(preAuditIndex);
+      expect(postCleanIndex).toBeGreaterThan(preAuditIndex);
+      expect(receiptIndex).toBeGreaterThan(postCleanIndex);
+      expect(receipt?.if).toContain("inputs.mode == 'apply'");
+      expect(receipt?.if).toContain("steps.require_post_apply_clean.outcome == 'success'");
+      expect(receipt?.run).toContain('APPLY-MISSING-DDL');
+      expect(receipt?.run).toContain('build-schema-reconcile-receipt.ts');
+      expect(receipt?.env?.GITHUB_RUN_ID).toBe('${{ github.run_id }}');
+      expect(receipt?.env?.GITHUB_RUN_ATTEMPT).toBe('${{ github.run_attempt }}');
+      expect(receipt?.env?.SCHEMA_RECONCILE_SOURCE_SHA).toBe('${{ inputs.expected_sha }}');
+
+      expect(upload?.if).toBe('always()');
+      expect(upload?.with?.name).toBe(
+        'prod-schema-reconcile-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.mode }}-${{ inputs.expected_sha }}'
+      );
+      expect(upload?.with?.path).toContain('reports/schema-reconcile-receipt.json');
+      expect(upload?.with?.['retention-days']).toBe(90);
+      expect(upload?.id).toBe('upload_evidence');
+      expect(capture?.if).toContain("steps.apply.outcome == 'success'");
+      expect(capture?.if).toContain("steps.post_audit.outcome == 'success'");
+      expect(capture?.env?.ARTIFACT_ID).toBe('${{ steps.upload_evidence.outputs.artifact-id }}');
+      expect(capture?.env?.ARTIFACT_DIGEST).toBe(
+        '${{ steps.upload_evidence.outputs.artifact-digest }}'
+      );
+      expect(capture?.run).toContain('sha256sum reports/schema-reconcile-receipt.json');
+      expect(JSON.stringify(steps)).not.toContain('retention-days: 14');
+    }
+  );
+
   it('would fail when smoke commit equality is removed', async () => {
     const smokePath = path.join(process.cwd(), 'tests', 'smoke', 'production-boundaries.spec.ts');
     const smokeSource = await readFile(smokePath, 'utf8');
@@ -4244,22 +5167,14 @@ describe('required CI fails closed', () => {
     expect(exactInvariant(mutatedMatcher)).toBe(false);
   });
 
-  it('keeps the PowerShell production helper as an exact-live-main dispatcher', async () => {
+  it('keeps the PowerShell production helper mechanically blocked', async () => {
     const dispatcher = await readFile(
       path.join(process.cwd(), 'scripts', 'deploy-production.ps1'),
       'utf8'
     );
 
-    expect(dispatcher).toContain('gh api "repos/$repository/commits/main" --jq ".sha"');
-    expect(dispatcher).toContain(
-      'gh workflow run release-production.yml --ref main --field "expected_sha=$expectedSha"'
-    );
-    expect(dispatcher).toContain('--repo $repository');
-    expect(dispatcher).not.toMatch(/\bSkipSmokeTest\b|\bForce\b/);
-    expect(dispatcher.match(/\$LASTEXITCODE/g)).toHaveLength(3);
-    expect(dispatcher).toContain('[string]::IsNullOrWhiteSpace($repository)');
-    expect(dispatcher).toContain('[string]::IsNullOrWhiteSpace($expectedSha)');
-    expect(dispatcher).toContain('$expectedSha -notmatch "^[0-9a-f]{40}$"');
+    expect(dispatcher).not.toContain('gh workflow run');
+    expect(dispatcher).toMatch(/production mutation is mechanically blocked/i);
     expect(containsProductionVercelCommand(dispatcher)).toBe(false);
   });
 
@@ -4282,6 +5197,53 @@ describe('required CI fails closed', () => {
     expect(determineGateStatus).not.toHaveProperty('continue-on-error', true);
     expect(isReportingPublisher(determineGateStatus)).toBe(false);
     expect(determineGateStatus?.run).toContain('exit 1');
+  });
+
+  it('fails the aggregate on missing, malformed, or contradictory change classification', async () => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const changes = workflow.jobs?.changes;
+    const gateStatus = (workflow.jobs?.gate?.steps ?? []).find(
+      (step) => step.name === 'Determine gate status'
+    );
+
+    expect(changes?.outputs).toMatchObject({
+      change_classification_valid: '${{ steps.classify.outputs.valid }}',
+      auto_docs_only: '${{ steps.classify.outputs.auto_docs_only }}',
+      heavy_ci_relevant: '${{ steps.classify.outputs.heavy_ci_relevant }}',
+    });
+
+    expect(gateStatus?.run).toContain('change_classification_valid=');
+    expect(gateStatus?.run).toContain('validate_boolean "change-classification-valid"');
+    expect(gateStatus?.run).toContain('validate_boolean "auto-docs-only"');
+    expect(gateStatus?.run).toContain('validate_boolean "heavy-ci-relevant"');
+    expect(gateStatus?.run).toContain('Change classification is contradictory');
+    expect(gateStatus?.run).toContain('Change classification is invalid');
+  });
+
+  it('executes the aggregate feeder-result matrix through its checked-in Bash helper', async () => {
+    const workflow = await readWorkflow('ci-unified.yml');
+    const gateScript = (workflow.jobs?.gate?.steps ?? []).find(
+      (step) => step.name === 'Determine gate status'
+    )?.run;
+    if (!gateScript) throw new Error('CI Gate Status script not found');
+
+    for (const expected of ['true', 'false'] as const) {
+      for (const result of [
+        'success',
+        'skipped',
+        'failure',
+        'cancelled',
+        'pending',
+        'missing',
+        '',
+      ]) {
+        const execution = await executeRequireResult(gateScript, result, expected);
+        const shouldPass =
+          (expected === 'true' && result === 'success') ||
+          (expected === 'false' && result === 'skipped');
+        expect(execution.passed, `${expected}:${result || '<empty>'}`).toBe(shouldPass);
+      }
+    }
   });
 
   it('makes every reporting publisher fail-open with bounded retries', async () => {

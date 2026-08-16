@@ -1,7 +1,12 @@
 ---
-status: ACTIVE
-last_updated: 2026-01-19
+status: HISTORICAL
+last_updated: 2026-08-14
 ---
+
+Historical record only. Refer to
+`docs/governance/solo-internal-change-and-production-policy.md` for current
+non-authorizing production-governance guidance. Commands below are retired and
+must not be executed.
 
 # Phase 2 Stage Normalization: Phase 4 Handoff Memo
 
@@ -124,9 +129,7 @@ if (invalidInputs.length > 0) {
   setStageWarningHeaders(res, invalidInputs);
 
   if (mode === 'enforce') {
-    return res.status(400).json({
-      /* error response */
-    });
+    return res.status(400).json({/* error response */});
   }
 }
 

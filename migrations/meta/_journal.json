@@ -379,6 +379,13 @@
       "when": 1785973200000,
       "tag": "0052_g3_capital_call_notification_outbox",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1786059600000,
+      "tag": "0053_g3_release_gate_hardening",
+      "breakpoints": true
     }
   ]
 }

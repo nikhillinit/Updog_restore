@@ -5,7 +5,7 @@ export const DEFAULT_OUTPUT_CONTEXT_LIMIT = 16 * 1024;
 export const MISSING_DATABASE_URL_MESSAGE =
   'DATABASE_URL is required for db:push postcheck; pass --skip-postcheck only for explicit offline inspection';
 export const PROD_DB_PUSH_REFUSAL_MESSAGE =
-  'Refusing db:push against the production database; use scripts/reconcile-prod-schema.mjs for operator-gated prod DDL';
+  'Refusing remote or production db:push; production schema mutation remains mechanically blocked';
 export const KNOWN_PRODUCTION_DB_HOST_PREFIXES = ['ep-snowy-boat-ad1z3h07'];
 
 export const UNIQUE_CONSTRAINT_SENTINELS = [
@@ -190,9 +190,9 @@ export function shouldRefuseProdDbPush({ databaseUrl, env = process.env } = {}) 
   const signature = databaseUrlSignature(databaseUrl);
   if (!signature) {
     return {
-      refuse: false,
-      reason: 'no-database-url',
-      message: 'no database URL to classify',
+      refuse: true,
+      reason: 'missing-or-invalid-target',
+      message: PROD_DB_PUSH_REFUSAL_MESSAGE,
     };
   }
 
@@ -226,6 +226,15 @@ export function shouldRefuseProdDbPush({ databaseUrl, env = process.env } = {}) 
     return {
       refuse: true,
       reason: 'known-production-host',
+      message: PROD_DB_PUSH_REFUSAL_MESSAGE,
+    };
+  }
+
+  const localHosts = new Set(['127.0.0.1', 'localhost', '::1', 'host.docker.internal']);
+  if (host && !localHosts.has(host)) {
+    return {
+      refuse: true,
+      reason: 'remote-target-blocked',
       message: PROD_DB_PUSH_REFUSAL_MESSAGE,
     };
   }

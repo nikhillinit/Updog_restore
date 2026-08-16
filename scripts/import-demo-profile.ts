@@ -182,10 +182,13 @@ export async function runImportDemoProfileCli(
       if (options.datasetId === undefined) {
         throw new Error('--rollback requires --dataset-id');
       }
-      const summary = await rollbackDemoProfileImport({
-        fundId,
-        datasetId: options.datasetId,
-      });
+      const summary = await rollbackDemoProfileImport(
+        {
+          fundId,
+          datasetId: options.datasetId,
+        },
+        { env }
+      );
       return {
         exitCode: 0,
         stdout: safeJson({ mode: 'rollback', summary }),
