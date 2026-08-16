@@ -12,15 +12,19 @@ vi.mock('../../../server/db', () => ({ db: dbMock }));
 
 import { users } from '@shared/schema';
 import { TEST_LOGIN_CREDENTIALS } from '../../../server/lib/seed-users';
-import { seedLoginUsers } from '../../../scripts/seed-db';
+import { seedDatabase, seedLoginUsers } from '../../../scripts/seed-db';
 
 describe('seedLoginUsers', () => {
+  const originalDatabaseUrl = process.env.DATABASE_URL;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    if (originalDatabaseUrl === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = originalDatabaseUrl;
   });
 
   it('upserts each seed password and role on username conflicts', async () => {
-    await expect(seedLoginUsers()).resolves.toBe(TEST_LOGIN_CREDENTIALS.length);
+    await expect(seedLoginUsers(dbMock as never)).resolves.toBe(TEST_LOGIN_CREDENTIALS.length);
 
     expect(dbMock.insert).toHaveBeenCalledTimes(TEST_LOGIN_CREDENTIALS.length);
     expect(dbMock.values).toHaveBeenCalledTimes(TEST_LOGIN_CREDENTIALS.length);
@@ -35,5 +39,19 @@ describe('seedLoginUsers', () => {
         },
       });
     });
+  });
+
+  it('rejects a remote seed target before database dispatch', async () => {
+    await expect(
+      seedDatabase({ databaseUrl: 'postgres://operator:secret@prod.example/updog' })
+    ).rejects.toThrow(/local database target/i);
+    expect(dbMock.insert).not.toHaveBeenCalled();
+  });
+
+  it('rejects remote login-user seeding before resolving database dispatch', async () => {
+    process.env.DATABASE_URL = 'postgres://operator:secret@prod.example/updog';
+
+    await expect(seedLoginUsers()).rejects.toThrow(/local database target/i);
+    expect(dbMock.insert).not.toHaveBeenCalled();
   });
 });

@@ -12,8 +12,10 @@
 
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
+import { fileURLToPath } from 'node:url';
 import { funds, portfolioCompanies, investments } from '../shared/schema.js';
 import { eq, sql } from 'drizzle-orm';
+import { assertLocalDatabaseTarget } from './local-database-target';
 
 const { Pool } = pg;
 
@@ -66,9 +68,10 @@ const SEED_DATA: SeedData = {
   },
 };
 
-async function seedDatabase(options: { reset?: boolean; org?: string } = {}) {
-  const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/povc_dev';
-
+async function seedDatabase(
+  connectionString: string,
+  options: { reset?: boolean; org?: string } = {}
+) {
   console.log('[INFO] Connecting to database...');
   const pool = new Pool({ connectionString });
   const db = drizzle(pool);
@@ -83,7 +86,7 @@ async function seedDatabase(options: { reset?: boolean; org?: string } = {}) {
 
     // Filter organizations if specific org requested
     const orgsToSeed = options.org
-      ? SEED_DATA.organizations.filter(o => o.slug === options.org)
+      ? SEED_DATA.organizations.filter((o) => o.slug === options.org)
       : SEED_DATA.organizations;
 
     if (orgsToSeed.length === 0) {
@@ -116,14 +119,7 @@ async function seedDatabase(options: { reset?: boolean; org?: string } = {}) {
           `INSERT INTO funds (org_id, name, size, vintage, inception_date, term_years, status)
            VALUES ($1, $2, $3, $4, $5, $6, 'active')
            RETURNING id`,
-          [
-            orgId,
-            fundData.name,
-            fundData.size,
-            fundData.vintage,
-            `${fundData.vintage}-01-01`,
-            10,
-          ]
+          [orgId, fundData.name, fundData.size, fundData.vintage, `${fundData.vintage}-01-01`, 10]
         );
         createdFunds.push(result.rows[0].id);
       }
@@ -193,8 +189,12 @@ async function seedDatabase(options: { reset?: boolean; org?: string } = {}) {
       const fundCount = await pool.query('SELECT COUNT(*) FROM funds');
       const companyCount = await pool.query('SELECT COUNT(*) FROM portfoliocompanies');
 
-      console.log(`[CHECK] Org ${orgData.slug} sees ${fundCount.rows[0].count} funds (expected: ${createdFunds.length})`);
-      console.log(`[CHECK] Org ${orgData.slug} sees ${companyCount.rows[0].count} companies (expected: ${createdCompanies.length})`);
+      console.log(
+        `[CHECK] Org ${orgData.slug} sees ${fundCount.rows[0].count} funds (expected: ${createdFunds.length})`
+      );
+      console.log(
+        `[CHECK] Org ${orgData.slug} sees ${companyCount.rows[0].count} companies (expected: ${createdCompanies.length})`
+      );
 
       await pool.query('SELECT reset_tenant()');
     }
@@ -204,7 +204,6 @@ async function seedDatabase(options: { reset?: boolean; org?: string } = {}) {
     console.log('  1. Test tenant switching: npm run dev:tenant -- --org=tech-ventures');
     console.log('  2. Run cross-tenant tests: npm run test:rls');
     console.log('  3. Verify isolation in pgAdmin: http://localhost:8080');
-
   } catch (error) {
     console.error('[ERROR] Seed failed:', error);
     throw error;
@@ -217,10 +216,28 @@ async function seedDatabase(options: { reset?: boolean; org?: string } = {}) {
 const args = process.argv.slice(2);
 const options = {
   reset: args.includes('--reset'),
-  org: args.find(arg => arg.startsWith('--org='))?.split('=')[1],
+  org: args.find((arg) => arg.startsWith('--org='))?.split('=')[1],
 };
 
-seedDatabase(options).catch(error => {
-  console.error('[FATAL] Unhandled error:', error);
-  process.exit(1);
-});
+export async function seedDatabaseForLocalTarget(
+  input: {
+    databaseUrl?: string;
+    env?: NodeJS.ProcessEnv;
+    options?: { reset?: boolean; org?: string };
+  } = {}
+): Promise<void> {
+  const env = input.env ?? process.env;
+  const databaseUrl =
+    input.databaseUrl ??
+    env.DATABASE_URL ??
+    'postgresql://postgres:postgres@localhost:5432/povc_dev';
+  assertLocalDatabaseTarget(databaseUrl, env);
+  await seedDatabase(databaseUrl, input.options);
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  seedDatabaseForLocalTarget({ options }).catch((error) => {
+    console.error('[FATAL] Unhandled error:', error);
+    process.exit(1);
+  });
+}

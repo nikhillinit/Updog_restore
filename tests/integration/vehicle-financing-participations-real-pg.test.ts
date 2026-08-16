@@ -1,7 +1,7 @@
 import { sql, type SQLWrapper } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { CreateVehicleFinancingParticipationRequestSchema } from '../../shared/contracts/investment-ledger/participation.contract';
 import { canonicalSha256 } from '../../shared/lib/canonical-hash';
@@ -124,14 +124,23 @@ let financingEventService: FinancingEventServiceModule;
 let correctionService: LedgerCorrectionServiceModule;
 let legacyGuardService: LegacyGuardServiceModule;
 let factsService: FundCompanyActualsFactsServiceModule;
+let closeApplicationPool: (() => Promise<void>) | undefined;
+let originalDatabaseUrl: string | undefined;
+let originalUseRealDbInVitest: string | undefined;
 
 describe('vehicle financing participations real PostgreSQL', () => {
   beforeAll(async () => {
+    originalDatabaseUrl = process.env['DATABASE_URL'];
+    originalUseRealDbInVitest = process.env['USE_REAL_DB_IN_VITEST'];
     const connectionString =
       process.env.TEST_DATABASE_URL ?? (await startContainer()).connectionUri;
     // Dynamic service imports read server/db at module load, after the disposable DB exists.
-    // eslint-disable-next-line require-atomic-updates
-    process.env.DATABASE_URL = connectionString;
+    Object.assign(process.env, {
+      DATABASE_URL: connectionString,
+      USE_REAL_DB_IN_VITEST: '1',
+    });
+    vi.resetModules();
+    ({ closeDatabasePool: closeApplicationPool } = await import('../../server/db'));
     pool = new Pool({ connectionString, max: 10 });
     db = drizzle(pool, { schema }) as TransactionalDb;
     participationService =
@@ -147,8 +156,59 @@ describe('vehicle financing participations real PostgreSQL', () => {
   }, STARTUP_TIMEOUT_MS);
 
   afterAll(async () => {
-    await pool?.end();
-    await container?.stop();
+    let cleanupFailed = false;
+    let firstCleanupError: unknown;
+    const recordCleanupError = (error: unknown): void => {
+      if (!cleanupFailed) {
+        cleanupFailed = true;
+        firstCleanupError = error;
+      }
+    };
+    const runCleanup = async (operation: (() => Promise<void>) | undefined): Promise<void> => {
+      try {
+        await operation?.();
+      } catch (error) {
+        recordCleanupError(error);
+      }
+    };
+
+    try {
+      const applicationPoolCloser = closeApplicationPool;
+      closeApplicationPool = undefined;
+      await runCleanup(applicationPoolCloser);
+
+      const directPool = pool;
+      pool = undefined;
+      await runCleanup(directPool ? () => directPool.end() : undefined);
+
+      const startedContainer = container;
+      container = undefined;
+      await runCleanup(startedContainer ? () => startedContainer.stop() : undefined);
+    } finally {
+      try {
+        if (originalDatabaseUrl === undefined) {
+          delete process.env['DATABASE_URL'];
+        } else {
+          process.env['DATABASE_URL'] = originalDatabaseUrl;
+        }
+        if (originalUseRealDbInVitest === undefined) {
+          delete process.env['USE_REAL_DB_IN_VITEST'];
+        } else {
+          process.env['USE_REAL_DB_IN_VITEST'] = originalUseRealDbInVitest;
+        }
+      } catch (error) {
+        recordCleanupError(error);
+      }
+      try {
+        vi.resetModules();
+      } catch (error) {
+        recordCleanupError(error);
+      }
+    }
+
+    if (cleanupFailed) {
+      throw firstCleanupError;
+    }
   });
 
   it('commits exactly one participation head when concurrent create requests race', async () => {
