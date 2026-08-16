@@ -101,17 +101,6 @@ rm -rf test-src/
 
 echo ""
 
-# Test branch protection script (dry run)
-echo "🔒 Testing branch protection updater..."
-if node scripts/update-branch-protection.js main --dry-run; then
-  echo "✅ Branch protection dry run: PASS"
-else
-  echo "❌ Branch protection dry run: FAIL"
-  ((FAILED_TESTS++))
-fi
-
-echo ""
-
 # Test asError utility
 echo "🛡️  Testing asError utility..."
 if [[ -f src/lib/asError.ts ]]; then

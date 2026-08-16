@@ -1,7 +1,12 @@
 ---
-status: ACTIVE
-last_updated: 2026-01-19
+status: HISTORICAL
+last_updated: 2026-08-14
 ---
+
+Historical record only. Refer to
+`docs/governance/solo-internal-change-and-production-policy.md` for current
+non-authorizing production-governance guidance. Commands below are retired and
+must not be executed.
 
 # Handoff Memo: Stage Normalization v3.4 Option B Pre-Hardening Implementation
 

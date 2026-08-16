@@ -58,8 +58,10 @@ class RecoveryError extends Error {
 export function parseRecoveryArgs(argv) {
   const apply = argv.includes('--apply');
   const yes = argv.includes('--yes');
-  if (apply && !yes) {
-    throw new RecoveryError('--apply requires --yes to confirm a schema mutation');
+  if (apply) {
+    throw new RecoveryError(
+      'Production schema mutation is mechanically blocked pending action-specific hardening'
+    );
   }
   return { apply, yes };
 }
@@ -68,10 +70,16 @@ export async function runProdJournaledMigrationRecovery({
   connectionString,
   apply,
   stdout = process.stdout,
+  clientFactory = ({ connectionString: target }) => new Client({ connectionString: target }),
 }) {
+  if (apply) {
+    throw new RecoveryError(
+      'Production schema mutation is mechanically blocked pending action-specific hardening'
+    );
+  }
   assertDirectDatabaseUrl(connectionString);
 
-  const client = new Client({ connectionString });
+  const client = clientFactory({ connectionString });
   let lockAcquired = false;
   try {
     await client.connect();

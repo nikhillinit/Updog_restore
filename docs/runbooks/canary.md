@@ -1,13 +1,17 @@
 ---
 status: ACTIVE
-last_updated: 2026-01-19
+last_updated: 2026-08-14
 ---
 
-# Canary & Rings — Success Criteria
+# Canary Runbook
 
-- Rings: 10% (N minutes) → 50% (N minutes) → 100%
-- Gate conditions (fail deploy on any):
-  - z-test p-value < 0.01 on error-rate delta
-  - Burn-rate > 14.4× (1h) or > 6× (6h)
-  - p95 latency regression > 100 ms sustained for ring duration
-- Rollback tuple: git SHA + migration hash + cache flush
+## Canonical production-action authority
+
+Repository path: `docs/workflows/PRODUCTION_SCRIPTS.md`.
+
+This document is a non-authorizing pointer and confers no authority to mutate
+source, branch, environment, provider, production, schema, data, deployment,
+promotion, or rollback. Current UNKNOWN prerequisites block their applicable
+action. The canonical route is active for repository governance only; it confers
+no production readiness or authorization, and action-specific UNKNOWN
+prerequisites remain blocking.

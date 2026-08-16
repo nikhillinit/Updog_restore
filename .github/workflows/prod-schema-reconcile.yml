@@ -73,6 +73,63 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
 
+      - name: Require first apply attempt
+        if: inputs.mode == 'apply'
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_RUN_ATTEMPT" != "1" ]; then
+            echo "Schema apply is only permitted on workflow attempt 1."
+            exit 1
+          fi
+
+      - name: Verify artifact retention before apply
+        if: inputs.mode == 'apply'
+        env:
+          SCHEMA_EVIDENCE_RETENTION_READ_TOKEN: ${{ secrets.SCHEMA_EVIDENCE_RETENTION_READ_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SCHEMA_EVIDENCE_RETENTION_READ_TOKEN" ]; then
+            echo "SCHEMA_EVIDENCE_RETENTION_READ_TOKEN is required for apply mode."
+            exit 1
+          fi
+          echo "::add-mask::$SCHEMA_EVIDENCE_RETENTION_READ_TOKEN"
+          retention_response_file="$(mktemp)"
+          auth_header_file="$(mktemp)"
+          chmod 600 "$auth_header_file"
+          trap 'rm -f "$retention_response_file" "$auth_header_file"' EXIT
+          # Keep the token out of process argv: pass the Authorization header
+          # through a 0600 header file instead of a command-line argument.
+          printf 'header "Authorization: Bearer %s"\n' "$SCHEMA_EVIDENCE_RETENTION_READ_TOKEN" > "$auth_header_file"
+          status="$(curl --silent --show-error \
+            --output "$retention_response_file" \
+            --write-out '%{http_code}' \
+            --header "Accept: application/vnd.github+json" \
+            --config "$auth_header_file" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPOSITORY/actions/permissions/artifact-and-log-retention")"
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            echo "Artifact retention policy lookup failed before apply."
+            exit 1
+          fi
+          days="$(node - "$retention_response_file" <<'NODE'
+          const fs = require('node:fs');
+          const file = process.argv[2];
+          let body;
+          try {
+            body = JSON.parse(fs.readFileSync(file, 'utf8'));
+          } catch {
+            process.exit(1);
+          }
+          if (!Number.isSafeInteger(body?.days) || body.days < 90) process.exit(1);
+          process.stdout.write(String(body.days));
+          NODE
+          )" || {
+            echo "Artifact retention policy response is malformed or shorter than 90 days."
+            exit 1
+          }
+          echo "Artifact retention policy permits $days days."
+
       - name: Run pre-apply audit
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
@@ -199,12 +256,12 @@ jobs:
 
       - name: Apply additive-safe reconciliation
         id: apply
-        if: inputs.mode == 'apply'
+        if: ${{ inputs.mode == 'apply' }}
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
         run: |
           set +e
-          node scripts/reconcile-prod-schema.mjs --apply --yes > reports/apply.raw 2>&1
+          node scripts/reconcile-prod-schema.mjs --apply --yes --apply-0053-g3-release-gate-hardening > reports/apply.raw 2>&1
           STATUS=$?
           set -e
           sed -E \
@@ -213,6 +270,26 @@ jobs:
             reports/apply.raw > reports/apply.txt
           rm reports/apply.raw
           exit "$STATUS"
+
+      - name: Validate lock-time apply vector
+        if: ${{ inputs.mode == 'apply' && steps.apply.outcome == 'success' }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import {
+            loadManifests,
+            parseLockTimeApplyVectorV1,
+            prepare0053G3ReleaseGateHardeningCapability,
+          } from './scripts/reconcile-prod-schema.mjs';
+
+          const target = await prepare0053G3ReleaseGateHardeningCapability();
+          const preparedManifests = (await loadManifests()).map((manifest) => ({ manifest }));
+          const vector = parseLockTimeApplyVectorV1(
+            fs.readFileSync('reports/apply.txt', 'utf8'),
+            { preparedManifests, target }
+          );
+          fs.writeFileSync('reports/lock-time-apply-vector.json', JSON.stringify(vector));
+          NODE
 
       - name: Run post-apply audit
         id: post_audit
@@ -232,6 +309,7 @@ jobs:
           exit "$STATUS"
 
       - name: Require clean post-apply audit
+        id: require_post_apply_clean
         if: ${{ !cancelled() && inputs.mode == 'apply' && (steps.post_audit.outcome == 'success' || steps.post_audit.outcome == 'failure') }}
         run: |
           node <<'NODE'
@@ -264,11 +342,53 @@ jobs:
           }
           NODE
 
+      - name: Build schema reconcile receipt
+        if: ${{ inputs.mode == 'apply' && steps.apply.outcome == 'success' && steps.post_audit.outcome == 'success' && steps.require_post_apply_clean.outcome == 'success' }}
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+          SCHEMA_RECONCILE_SOURCE_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          if ! grep -Eq '^g3-release-gate-hardening: APPLY-MISSING-DDL ' reports/pre-apply-audit.txt; then
+            echo "Apply receipt requires an APPLY-MISSING-DDL predecision."
+            exit 1
+          fi
+          npx tsx scripts/release/build-schema-reconcile-receipt.ts \
+            --output reports/schema-reconcile-receipt.json
+
+      - name: Require schema reconcile receipt after successful apply
+        if: ${{ inputs.mode == 'apply' && steps.apply.outcome == 'success' && steps.post_audit.outcome == 'success' && steps.require_post_apply_clean.outcome == 'success' }}
+        run: test -s reports/schema-reconcile-receipt.json
+
       - name: Upload redacted reconciliation reports
+        id: upload_evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: prod-schema-reconcile-${{ github.run_id }}-${{ inputs.mode }}
-          path: reports/*.txt
-          if-no-files-found: warn
-          retention-days: 14
+          name: prod-schema-reconcile-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.mode }}-${{ inputs.expected_sha }}
+          path: |
+            reports/*.txt
+            reports/lock-time-apply-vector.json
+            reports/schema-reconcile-receipt.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Capture apply evidence identity
+        if: ${{ always() && inputs.mode == 'apply' && steps.apply.outcome == 'success' && steps.post_audit.outcome == 'success' && steps.require_post_apply_clean.outcome == 'success' }}
+        env:
+          ARTIFACT_ID: ${{ steps.upload_evidence.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload_evidence.outputs.artifact-digest }}
+        run: |
+          set -euo pipefail
+          if [ -z "$ARTIFACT_ID" ] || [ -z "$ARTIFACT_DIGEST" ]; then
+            echo "Successful apply evidence is missing artifact identity outputs."
+            exit 1
+          fi
+          RECEIPT_SHA256="$(sha256sum reports/schema-reconcile-receipt.json | awk '{print $1}')"
+          {
+            echo "Schema evidence artifact ID: $ARTIFACT_ID"
+            echo "Schema evidence artifact digest: $ARTIFACT_DIGEST"
+            echo "Schema reconcile receipt SHA-256: $RECEIPT_SHA256"
+          } >> "$GITHUB_STEP_SUMMARY"

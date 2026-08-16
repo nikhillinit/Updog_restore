@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { checkMigrations } from '../../scripts/ga-checklist.mjs';
+import { checkMigrations, checkRollbackCapability } from '../../scripts/ga-checklist.mjs';
 
 const originalDatabaseUrl = process.env.DATABASE_URL;
 
@@ -23,5 +23,12 @@ describe('ga checklist migrations', () => {
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining('schema audit skipped: no direct DATABASE_URL')
     );
+  });
+
+  it('fails rollback evidence while canonical rollback capability is retired', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    await expect(checkRollbackCapability()).resolves.toBe(false);
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/rollback.*unavailable/i));
   });
 });
