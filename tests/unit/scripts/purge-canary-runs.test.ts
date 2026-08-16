@@ -88,10 +88,12 @@ describe('canary purge command', () => {
     expect(
       topologicallyOrderChildTables(
         ['public.portfoliocompanies', 'public.quarterly_review_companies'],
-        [{
-          childTable: 'public.quarterly_review_companies',
-          parentTable: 'public.portfoliocompanies',
-        }]
+        [
+          {
+            childTable: 'public.quarterly_review_companies',
+            parentTable: 'public.portfoliocompanies',
+          },
+        ]
       )
     ).toEqual(['public.quarterly_review_companies', 'public.portfoliocompanies']);
   });
@@ -106,5 +108,14 @@ describe('canary purge command', () => {
         ]
       )
     ).toThrow('Cycle in fund purge foreign-key graph');
+  });
+
+  it('blocks execute mode before any mutation-capable database call', async () => {
+    const client = { query: vi.fn() };
+
+    await expect(runPurge(client, { execute: true })).rejects.toThrow(
+      /production data mutation is mechanically blocked/i
+    );
+    expect(client.query).not.toHaveBeenCalled();
   });
 });

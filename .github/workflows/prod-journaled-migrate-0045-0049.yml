@@ -33,6 +33,12 @@ jobs:
     environment: production-schema
 
     steps:
+      - name: Block production apply mode
+        if: ${{ inputs.mode == 'apply' }}
+        run: |
+          echo "::error::Production journaled migration apply is mechanically blocked."
+          exit 1
+
       - name: Require exact current main SHA
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
@@ -136,7 +142,7 @@ jobs:
           fi
 
       - name: Apply journaled recovery
-        if: inputs.mode == 'apply'
+        if: ${{ false }}
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
         run: |

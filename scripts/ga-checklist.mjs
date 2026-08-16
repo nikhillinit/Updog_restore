@@ -441,14 +441,9 @@ export async function checkMigrations() {
   return result.ok;
 }
 
-async function checkRollbackCapability() {
-  // Verify rollback script exists and is executable
-  try {
-    await fs.stat('scripts/rollback.mjs');
-    return true;
-  } catch {
-    return false;
-  }
+export async function checkRollbackCapability() {
+  console.warn('Rollback capability unavailable: canonical mutation route is retired; evidence is UNKNOWN.');
+  return false;
 }
 
 async function checkBackupStatus() {

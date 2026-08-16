@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */ // Pipeline seeding utilities
 
-import { db } from '../server/db';
+import type { db as DefaultDatabase } from '../server/db';
 import {
   dealOpportunities,
   dueDiligenceItems,
@@ -9,8 +9,21 @@ import {
   marketResearch,
   financialProjections,
 } from '@shared/schema';
+import { assertLocalDatabaseTarget } from './local-database-target';
 
-async function seedPipelineData() {
+type SeedPipelineDatabase = typeof DefaultDatabase;
+
+interface SeedPipelineOptions {
+  database?: SeedPipelineDatabase;
+  databaseUrl?: string;
+  env?: NodeJS.ProcessEnv;
+}
+
+async function seedPipelineData(options: SeedPipelineOptions = {}) {
+  const env = options.env ?? process.env;
+  const databaseUrl = options.databaseUrl ?? env.DATABASE_URL;
+  assertLocalDatabaseTarget(databaseUrl, env);
+  const database = options.database ?? (await import('../server/db')).db;
   console.log('[SEED] Seeding pipeline data...');
 
   // Sample deal opportunities
@@ -81,7 +94,7 @@ async function seedPipelineData() {
   ];
 
   // Insert opportunities and get IDs
-  const insertedOpportunities = await db
+  const insertedOpportunities = await database
     .insert(dealOpportunities)
     .values(sampleOpportunities)
     .returning();
@@ -123,7 +136,7 @@ async function seedPipelineData() {
     },
   ];
 
-  await db.insert(dueDiligenceItems).values(sampleDDItems);
+  await database.insert(dueDiligenceItems).values(sampleDDItems);
   console.log(`[DONE] Inserted ${sampleDDItems.length} due diligence items`);
 
   // Sample scoring models
@@ -170,7 +183,7 @@ async function seedPipelineData() {
     },
   ];
 
-  await db.insert(scoringModels).values(sampleScores);
+  await database.insert(scoringModels).values(sampleScores);
   console.log(`[DONE] Inserted ${sampleScores.length} scoring model entries`);
 
   // Sample pipeline activities
@@ -205,7 +218,7 @@ async function seedPipelineData() {
     },
   ];
 
-  await db.insert(pipelineActivities).values(sampleActivities);
+  await database.insert(pipelineActivities).values(sampleActivities);
   console.log(`[DONE] Inserted ${sampleActivities.length} pipeline activities`);
 
   // Sample market research
@@ -229,7 +242,7 @@ async function seedPipelineData() {
     ],
   };
 
-  await db.insert(marketResearch).values([sampleResearch]);
+  await database.insert(marketResearch).values([sampleResearch]);
   console.log(`[DONE] Inserted market research`);
 
   // Sample financial projections
@@ -266,7 +279,7 @@ async function seedPipelineData() {
     },
   ];
 
-  await db.insert(financialProjections).values(sampleProjections);
+  await database.insert(financialProjections).values(sampleProjections);
   console.log(`[DONE] Inserted ${sampleProjections.length} financial projections`);
 
   console.log('[DONE] Pipeline data seeding completed successfully!');

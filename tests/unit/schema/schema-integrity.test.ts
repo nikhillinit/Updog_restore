@@ -207,6 +207,27 @@ describe('Schema Module Integrity', () => {
     });
   });
 
+  describe('Schema operator documentation boundaries', () => {
+    it('keeps known schema operator docs superseded by the canonical guarded route', async () => {
+      const canonicalGuide = await readActualSource('docs/workflows/PRODUCTION_SCRIPTS.md');
+      const supersededGuides = [
+        'docs/plans/scenario-release-lane.md',
+        'docs/validation/stage-validation-v3.md',
+      ];
+
+      expect(canonicalGuide).toContain('restore-reference revalidation');
+      expect(canonicalGuide).toContain('managed backup/PITR');
+
+      for (const guidePath of supersededGuides) {
+        const guide = await readActualSource(guidePath);
+
+        expect(guide, guidePath).toContain('Canonical production-action authority');
+        expect(guide, guidePath).toContain('docs/workflows/PRODUCTION_SCRIPTS.md');
+        expect(guide, guidePath).toContain('confers no authority');
+      }
+    });
+  });
+
   describe('Retired legacy schema package', () => {
     it('keeps active code and config on the canonical shared schema surface', async () => {
       const violations: string[] = [];
