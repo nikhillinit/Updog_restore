@@ -184,18 +184,41 @@ describe.skipIf(skipIfNoDocker)('0053 production-schema capability', () => {
         const manifests = await loadManifests();
         const target = await prepare0053G3ReleaseGateHardeningCapability();
         const output: string[] = [];
+        const queryTrace: string[] = [];
+        let markerQueryIndex: number | undefined;
+        const tracedClient = {
+          async query(text: string, params?: readonly unknown[]) {
+            queryTrace.push(text);
+            return client.query(text, params);
+          },
+        };
         const result = await runReconciliation({
-          client,
+          client: tracedClient,
           manifests,
           apply: true,
           capability: target,
-          stdout: { write: (chunk: string) => output.push(chunk) },
+          stdout: {
+            write: (chunk: string) => {
+              output.push(chunk);
+              if (chunk.includes('PROD_SCHEMA_LOCK_TIME_VECTOR_V1=')) {
+                markerQueryIndex = queryTrace.length;
+              }
+            },
+          },
         });
 
         expect(result.applied).toEqual(['g3-release-gate-hardening']);
         expect(
           output.filter((line) => line.includes('PROD_SCHEMA_LOCK_TIME_VECTOR_V1=')).length
         ).toBe(1);
+        expect(markerQueryIndex).toBeDefined();
+        const firstPostAcceptanceOperation = queryTrace.findIndex(
+          (text) =>
+            text.startsWith('SET ') ||
+            /^(BEGIN|COMMIT|ROLLBACK)$/.test(text) ||
+            /^\s*(?:INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b/i.test(text)
+        );
+        expect(firstPostAcceptanceOperation).toBeGreaterThanOrEqual(markerQueryIndex!);
         expect(
           (
             await client.query(

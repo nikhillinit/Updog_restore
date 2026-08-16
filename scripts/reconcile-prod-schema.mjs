@@ -317,10 +317,35 @@ export function selectExact0053G3ReleaseGateHardeningApply({
 
   const auditedNames = new Set();
   for (const audit of audits) {
+    const hasMalformedObject = audit?.objects?.some(
+      (object) =>
+        typeof object !== 'object' ||
+        object === null ||
+        Array.isArray(object) ||
+        typeof object.table !== 'string' ||
+        object.table.length === 0 ||
+        typeof object.present !== 'boolean' ||
+        typeof object.populated !== 'boolean' ||
+        ![ACTION_SKIP, ACTION_APPLY_MISSING_DDL, ACTION_REFUSE_FOR_HUMAN].includes(
+          object.action
+        ) ||
+        !Array.isArray(object.deltas) ||
+        object.deltas.some(
+          (delta) =>
+            typeof delta !== 'object' ||
+            delta === null ||
+            Array.isArray(delta) ||
+            typeof delta.kind !== 'string' ||
+            delta.kind.length === 0 ||
+            ('additiveSafe' in delta && typeof delta.additiveSafe !== 'boolean') ||
+            ('humanReviewRequired' in delta && typeof delta.humanReviewRequired !== 'boolean')
+        )
+    );
     if (
       !audit ||
       typeof audit.manifest !== 'string' ||
       !Array.isArray(audit.objects) ||
+      hasMalformedObject ||
       ![ACTION_SKIP, ACTION_APPLY_MISSING_DDL, ACTION_REFUSE_FOR_HUMAN].includes(audit.action) ||
       !preparedByName.has(audit.manifest) ||
       auditedNames.has(audit.manifest)

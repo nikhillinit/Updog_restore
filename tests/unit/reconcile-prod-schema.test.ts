@@ -68,6 +68,7 @@ interface MockClientOptions {
       }
   )[];
   readonly populatedTables?: readonly string[];
+  readonly advisoryLockAcquired?: boolean;
   /** When true, DROP statements do NOT mutate mock state - simulates a drop
    * that silently fails to take effect, so the post-apply audit must catch it. */
   readonly dropsHaveNoEffect?: boolean;
@@ -178,6 +179,10 @@ function createMockClient(options: MockClientOptions = {}) {
         };
       }
 
+      if (text.includes('FROM pg_trigger') || text.includes('FROM pg_proc')) {
+        return { rows: [], rowCount: 0 };
+      }
+
       if (text.includes('SELECT EXISTS')) {
         const match = text.match(/FROM "([^"]+)"/);
         const tableName = match?.[1] ?? '';
@@ -188,7 +193,7 @@ function createMockClient(options: MockClientOptions = {}) {
       }
 
       if (text === 'SELECT pg_try_advisory_lock($1) AS acquired') {
-        return { rows: [{ acquired: true }], rowCount: 1 };
+        return { rows: [{ acquired: options.advisoryLockAcquired ?? true }], rowCount: 1 };
       }
 
       if (text === 'SELECT pg_advisory_unlock($1)') {
@@ -438,6 +443,126 @@ describe('reconcile-prod-schema runner helpers', () => {
     ).toThrow(/complete audit vector|canonical/i);
   });
 
+  it('rejects malformed per-object audit action even when top-level vector is valid', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const preparedManifests = target.manifests.map((manifest) => ({
+      manifest,
+      dropStatements: [],
+    }));
+    const audits = target.manifests.map((manifest) => ({
+      manifest: manifest.name,
+      action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+      objects:
+        manifest.name === target.manifestName ? [{ action: 'UNRECOGNIZED', deltas: [] }] : [],
+    }));
+
+    expect(() =>
+      selectExact0053G3ReleaseGateHardeningApply({
+        preparedManifests,
+        audits,
+        target,
+      })
+    ).toThrow(/malformed audit vector/i);
+  });
+
+  it('rejects every non-exact lock-time selector vector', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const preparedManifests = target.manifests.map((manifest) => ({
+      manifest,
+      dropStatements: [],
+    }));
+    const exactAudits = target.manifests.map((manifest) => ({
+      manifest: manifest.name,
+      action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+      objects: [],
+    }));
+    const validObject = {
+      table: 'fixture_table',
+      present: true,
+      populated: false,
+      action: ACTION_SKIP,
+      deltas: [],
+    };
+    const cases = [
+      ['missing', () => exactAudits.slice(1)],
+      ['duplicate', () => [...exactAudits, exactAudits[0]]],
+      [
+        'unknown',
+        () =>
+          exactAudits.map((audit, index) =>
+            index === 0 ? { ...audit, manifest: 'unknown' } : audit
+          ),
+      ],
+      [
+        'malformed object action',
+        () =>
+          exactAudits.map((audit, index) =>
+            index === 0
+              ? { ...audit, objects: [{ ...validObject, action: 'UNRECOGNIZED' }] }
+              : audit
+          ),
+      ],
+      [
+        'malformed delta',
+        () =>
+          exactAudits.map((audit, index) =>
+            index === 0 ? { ...audit, objects: [{ ...validObject, deltas: [{ kind: 7 }] }] } : audit
+          ),
+      ],
+      [
+        'extra apply',
+        () =>
+          exactAudits.map((audit) =>
+            audit.manifest === target.manifestName
+              ? audit
+              : { ...audit, action: ACTION_APPLY_MISSING_DDL }
+          ),
+      ],
+      [
+        'refusal',
+        () =>
+          exactAudits.map((audit) =>
+            audit.manifest === target.manifestName
+              ? { ...audit, action: ACTION_REFUSE_FOR_HUMAN }
+              : audit
+          ),
+      ],
+      [
+        'target skip',
+        () =>
+          exactAudits.map((audit) =>
+            audit.manifest === target.manifestName ? { ...audit, action: ACTION_SKIP } : audit
+          ),
+      ],
+      [
+        'destructive object state',
+        () =>
+          exactAudits.map((audit, index) =>
+            index === 0
+              ? {
+                  ...audit,
+                  objects: [
+                    { ...validObject, deltas: [{ kind: 'drop-object', additiveSafe: true }] },
+                  ],
+                }
+              : audit
+          ),
+      ],
+    ];
+
+    for (const [name, makeAudits] of cases) {
+      expect(
+        () =>
+          selectExact0053G3ReleaseGateHardeningApply({
+            preparedManifests,
+            audits: makeAudits(),
+            target,
+          }),
+        name
+      ).toThrow(`0053 exact target-only`);
+    }
+  });
+
   it('builds and parses canonical lock-time apply marker without sensitive fields', async () => {
     const target = await prepare0053G3ReleaseGateHardeningCapability();
     const preparedManifests = target.manifests.map((manifest) => ({
@@ -456,6 +581,112 @@ describe('reconcile-prod-schema runner helpers', () => {
       source: 'lock-time-audit',
       lockId: RECONCILE_LOCK_ID,
     });
+  });
+
+  it('rejects every non-canonical lock-time marker', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const preparedManifests = target.manifests.map((manifest) => ({
+      manifest,
+      dropStatements: [],
+    }));
+    const audits = target.manifests.map((manifest) => ({
+      manifest: manifest.name,
+      action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+      objects: [],
+    }));
+    const marker = buildLockTimeApplyVectorV1({ preparedManifests, audits, target });
+    const prefix = 'PROD_SCHEMA_LOCK_TIME_VECTOR_V1=';
+    const vector = JSON.parse(marker.slice(prefix.length));
+    const cases = [
+      ['absent', 'ordinary reconciler output'],
+      ['duplicate', `${marker}\n${marker}`],
+      ['malformed JSON', `${prefix}{`],
+      [
+        'reordered decisions',
+        `${prefix}${JSON.stringify({ ...vector, decisions: [...vector.decisions].reverse() })}`,
+      ],
+      ['extra key', `${prefix}${JSON.stringify({ ...vector, extra: 'no' })}`],
+      [
+        'target mismatch',
+        `${prefix}${JSON.stringify({
+          ...vector,
+          target: { ...vector.target, manifestName: 'not-g3-release-gate-hardening' },
+        })}`,
+      ],
+      [
+        'pin mismatch',
+        `${prefix}${JSON.stringify({
+          ...vector,
+          target: { ...vector.target, migrationSha256: '0'.repeat(64) },
+        })}`,
+      ],
+      [
+        'sensitive extra content',
+        `${prefix}${JSON.stringify({ ...vector, databaseUrl: 'postgres://x' })}`,
+      ],
+    ];
+
+    for (const [name, output] of cases) {
+      expect(() => parseLockTimeApplyVectorV1(output, { preparedManifests, target }), name).toThrow(
+        /lock-time apply vector/i
+      );
+    }
+  });
+
+  it('does not unlock or mutate after lock contention', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const client = createMockClient({ advisoryLockAcquired: false });
+    const output: string[] = [];
+
+    await expect(
+      runReconciliation({
+        client,
+        manifests: target.manifests,
+        apply: true,
+        capability: target,
+        stdout: { write: (chunk: string) => output.push(chunk) },
+      })
+    ).rejects.toMatchObject({ details: { kind: 'advisory-lock-contended' } });
+
+    const queries = client.calls.map((call) => call.text);
+    expect(queries.filter((text) => text === 'SELECT pg_advisory_unlock($1)')).toHaveLength(0);
+    expect(
+      queries.some(
+        (text) =>
+          text.startsWith('SET ') ||
+          /^(BEGIN|COMMIT|ROLLBACK)$/.test(text) ||
+          /^\s*(?:INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b/i.test(text)
+      )
+    ).toBe(false);
+    expect(output.join('')).not.toContain('PROD_SCHEMA_LOCK_TIME_VECTOR_V1=');
+  });
+
+  it('unlocks exactly once without marker or durable mutation after acquired-lock rejection', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const client = createMockClient();
+    const output: string[] = [];
+
+    await expect(
+      runReconciliation({
+        client,
+        manifests: target.manifests,
+        apply: true,
+        capability: target,
+        stdout: { write: (chunk: string) => output.push(chunk) },
+      })
+    ).rejects.toMatchObject({ details: { kind: expect.any(String) } });
+
+    const queries = client.calls.map((call) => call.text);
+    expect(queries.filter((text) => text === 'SELECT pg_advisory_unlock($1)')).toHaveLength(1);
+    expect(
+      queries.some(
+        (text) =>
+          text.startsWith('SET ') ||
+          /^(BEGIN|COMMIT|ROLLBACK)$/.test(text) ||
+          /^\s*(?:INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b/i.test(text)
+      )
+    ).toBe(false);
+    expect(output.join('')).not.toContain('PROD_SCHEMA_LOCK_TIME_VECTOR_V1=');
   });
 
   it('admits only exact 0053 action-specific apply capability', () => {
