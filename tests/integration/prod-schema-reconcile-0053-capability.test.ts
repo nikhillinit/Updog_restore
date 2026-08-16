@@ -73,9 +73,9 @@ async function captureRejectedPathState(client: Client): Promise<{
   workflowRunIdType: string | null;
   workflowRunAttemptType: string | null;
   ledgerTable: string | null;
-  ledgerRows: number | null;
-  targetCommandRows: number | null;
-  releaseCanaryRows: number;
+  ledgerRows: Array<Record<string, unknown>> | null;
+  targetCommandRows: Array<Record<string, unknown>> | null;
+  releaseCanaryRows: Array<Record<string, unknown>>;
 }> {
   const catalog = await client.query(
     `SELECT
@@ -101,17 +101,18 @@ async function captureRejectedPathState(client: Client): Promise<{
   const ledgerTable = row?.ledgerTable === null ? null : String(row?.ledgerTable ?? '');
   const targetTable = row?.targetTable === null ? null : String(row?.targetTable ?? '');
   const ledgerRows = ledgerTable
-    ? Number((await client.query(`SELECT count(*) AS count FROM "${LEDGER_TABLE}"`)).rows[0]?.count)
-    : null;
-  const targetCommandRows = targetTable
-    ? Number(
-        (await client.query('SELECT count(*) AS count FROM "fund_scenario_calculation_commands"'))
-          .rows[0]?.count
+    ? (await client.query(`SELECT * FROM "${LEDGER_TABLE}" ORDER BY "id" ASC`)).rows.map(
+        (ledgerRow) => ({ ...ledgerRow })
       )
     : null;
-  const releaseCanaryRows = Number(
-    (await client.query('SELECT count(*) AS count FROM "release_canary_runs"')).rows[0]?.count
-  );
+  const targetCommandRows = targetTable
+    ? (
+        await client.query('SELECT * FROM "fund_scenario_calculation_commands" ORDER BY "id" ASC')
+      ).rows.map((targetCommandRow) => ({ ...targetCommandRow }))
+    : null;
+  const releaseCanaryRows = (
+    await client.query('SELECT * FROM "release_canary_runs" ORDER BY "id" ASC')
+  ).rows.map((releaseCanaryRow) => ({ ...releaseCanaryRow }));
 
   return {
     targetTable,
@@ -174,7 +175,12 @@ describe.skipIf(skipIfNoDocker)('0053 production-schema capability', () => {
       const client = new Client({ connectionString: testConnectionString });
       await client.connect();
       try {
-        await client.query('CREATE TABLE unrelated_0053_drift_preserved (id integer PRIMARY KEY)');
+        await client.query(
+          'CREATE TABLE unrelated_0053_drift_preserved (id integer PRIMARY KEY, sentinel text NOT NULL)'
+        );
+        await client.query(
+          "INSERT INTO unrelated_0053_drift_preserved (id, sentinel) VALUES (1, 'preserve-me')"
+        );
         const manifests = await loadManifests();
         const target = await prepare0053G3ReleaseGateHardeningCapability();
         const output: string[] = [];
@@ -193,10 +199,10 @@ describe.skipIf(skipIfNoDocker)('0053 production-schema capability', () => {
         expect(
           (
             await client.query(
-              "SELECT to_regclass('public.unrelated_0053_drift_preserved') AS table_name"
+              'SELECT id, sentinel FROM unrelated_0053_drift_preserved ORDER BY id ASC'
             )
-          ).rows[0]?.table_name
-        ).toBe('unrelated_0053_drift_preserved');
+          ).rows
+        ).toEqual([{ id: 1, sentinel: 'preserve-me' }]);
         const postAudit = [];
         for (const manifest of manifests) {
           postAudit.push(await auditManifest(client, manifest));
@@ -223,6 +229,7 @@ describe.skipIf(skipIfNoDocker)('0053 production-schema capability', () => {
         const output: string[] = [];
         let stateAfterInjectedDrift:
           Awaited<ReturnType<typeof captureRejectedPathState>> | undefined;
+        let auditAfterInjectedDrift: Awaited<ReturnType<typeof auditManifest>> | undefined;
 
         const injectedClient = injectAfterAdvisoryLock(reconciliationClient, async () => {
           await runMigrationsWithConnectionString(
@@ -243,9 +250,8 @@ describe.skipIf(skipIfNoDocker)('0053 production-schema capability', () => {
           await driftClient.query(
             'ALTER TABLE "release_canary_runs" ALTER COLUMN "workflow_run_id" TYPE text'
           );
-          expect((await auditManifest(driftClient, targetManifest!)).action).toBe(
-            ACTION_REFUSE_FOR_HUMAN
-          );
+          auditAfterInjectedDrift = await auditManifest(driftClient, targetManifest!);
+          expect(auditAfterInjectedDrift.action).toBe(ACTION_REFUSE_FOR_HUMAN);
           stateAfterInjectedDrift = await captureRejectedPathState(driftClient);
         });
 
@@ -265,10 +271,17 @@ describe.skipIf(skipIfNoDocker)('0053 production-schema capability', () => {
           workflowRunAttemptType: 'integer',
           ledgerTable: null,
           ledgerRows: null,
-          targetCommandRows: 0,
-          releaseCanaryRows: 1,
+          targetCommandRows: [],
+          releaseCanaryRows: [
+            expect.objectContaining({
+              release_version: 'test-release',
+              release_sha: 'test-sha',
+              correlation_id: 'test-correlation',
+            }),
+          ],
         });
         expect(await captureRejectedPathState(driftClient)).toEqual(stateAfterInjectedDrift);
+        expect(await auditManifest(driftClient, targetManifest!)).toEqual(auditAfterInjectedDrift);
         expect(
           output.filter((line) => line.includes('PROD_SCHEMA_LOCK_TIME_VECTOR_V1=')).length
         ).toBe(0);
@@ -307,17 +320,16 @@ describe.skipIf(skipIfNoDocker)('0053 production-schema capability', () => {
         await observerClient.query(
           'ALTER TABLE "release_canary_runs" DROP COLUMN "workflow_run_attempt" CASCADE'
         );
-        expect((await auditManifest(observerClient, targetManifest!)).action).toBe(
-          ACTION_APPLY_MISSING_DDL
-        );
+        const auditBeforeRepeat = await auditManifest(observerClient, targetManifest!);
+        expect(auditBeforeRepeat.action).toBe(ACTION_APPLY_MISSING_DDL);
         const stateBeforeRepeat = await captureRejectedPathState(observerClient);
         expect(stateBeforeRepeat).toMatchObject({
           targetTable: 'fund_scenario_calculation_commands',
           workflowRunAttemptType: null,
-          ledgerRows: 1,
-          targetCommandRows: 0,
-          releaseCanaryRows: 0,
+          targetCommandRows: [],
+          releaseCanaryRows: [],
         });
+        expect(stateBeforeRepeat.ledgerRows).toHaveLength(1);
         const repeatOutput: string[] = [];
 
         await expect(
@@ -331,6 +343,7 @@ describe.skipIf(skipIfNoDocker)('0053 production-schema capability', () => {
         ).rejects.toMatchObject({ details: { kind: 'committed-0053-capability-repeat' } });
 
         expect(await captureRejectedPathState(observerClient)).toEqual(stateBeforeRepeat);
+        expect(await auditManifest(observerClient, targetManifest!)).toEqual(auditBeforeRepeat);
         expect(
           repeatOutput.filter((line) => line.includes('PROD_SCHEMA_LOCK_TIME_VECTOR_V1=')).length
         ).toBe(0);
