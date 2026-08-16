@@ -13,6 +13,7 @@ import {
   ACTION_SKIP,
   assertPrepared0053G3ReleaseGateHardeningCapability,
   buildLockTimeApplyVectorV1,
+  CANONICAL_MANIFEST_IDENTITIES,
   MISSING_TABLE_POLICY_CREATE_OR_REPAIR,
   MISSING_TABLE_POLICY_EXISTING_REQUIRED,
   ReconcileError,
@@ -394,6 +395,99 @@ describe('reconcile-prod-schema runner helpers', () => {
       sqlPath: 'migrations/0053_g3_release_gate_hardening.sql',
       migrationSha256: '0a4c00cea6e20982db391be88f143bf4e1d4bc529b68e6b986530fc3354c9ea5',
     });
+  });
+
+  it('binds capability identities to the pinned canonical vector, not directory contents', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    expect(target.canonicalManifestIdentities).toBe(CANONICAL_MANIFEST_IDENTITIES);
+    expect(CANONICAL_MANIFEST_IDENTITIES).toHaveLength(30);
+    expect(CANONICAL_MANIFEST_IDENTITIES[29]).toMatchObject({
+      name: 'g3-release-gate-hardening',
+      manifestPath: 'scripts/prod-schema-manifests/30-g3-release-gate-hardening.json',
+      order: 30,
+    });
+  });
+
+  it('rejects manifest inventory drift from the pinned identity vector', async () => {
+    const stagedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'reconcile-pinned-inventory-'));
+    const stagedManifestDir = path.join(stagedRoot, 'scripts', 'prod-schema-manifests');
+    const stagedMigrationsDir = path.join(stagedRoot, 'migrations');
+    fs.mkdirSync(stagedManifestDir, { recursive: true });
+    fs.mkdirSync(stagedMigrationsDir, { recursive: true });
+    for (const fileName of fs.readdirSync(path.join('scripts', 'prod-schema-manifests'))) {
+      fs.copyFileSync(
+        path.join('scripts', 'prod-schema-manifests', fileName),
+        path.join(stagedManifestDir, fileName)
+      );
+    }
+    fs.copyFileSync(
+      path.join('migrations', '0053_g3_release_gate_hardening.sql'),
+      path.join(stagedMigrationsDir, '0053_g3_release_gate_hardening.sql')
+    );
+
+    await expect(
+      prepare0053G3ReleaseGateHardeningCapability({ rootDir: stagedRoot })
+    ).resolves.toMatchObject({ manifestName: 'g3-release-gate-hardening' });
+
+    const driftPath = path.join(stagedManifestDir, '31-unexpected-drift.json');
+    fs.writeFileSync(
+      driftPath,
+      JSON.stringify({ name: 'unexpected-drift', order: 31, sqlFiles: [] })
+    );
+    await expect(
+      prepare0053G3ReleaseGateHardeningCapability({ rootDir: stagedRoot })
+    ).rejects.toThrow(/pinned identity vector/i);
+
+    fs.rmSync(driftPath);
+    fs.rmSync(path.join(stagedManifestDir, '01-cohort.json'));
+    await expect(
+      prepare0053G3ReleaseGateHardeningCapability({ rootDir: stagedRoot })
+    ).rejects.toThrow(/pinned identity vector/i);
+  });
+
+  it('rejects lock-time parser input that drifts from pinned manifest inventory', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const preparedManifests = target.manifests.map((manifest) => ({
+      manifest,
+      dropStatements: [],
+    }));
+    const audits = target.manifests.map((manifest) => ({
+      manifest: manifest.name,
+      action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+      objects:
+        manifest.name === target.manifestName
+          ? [
+              {
+                table: 'fixture_target',
+                present: false,
+                populated: false,
+                action: ACTION_APPLY_MISSING_DDL,
+                deltas: [],
+              },
+            ]
+          : [],
+    }));
+    const marker = buildLockTimeApplyVectorV1({ preparedManifests, audits, target });
+    const driftedPrepared = [
+      ...preparedManifests,
+      {
+        manifest: {
+          name: 'unexpected-drift',
+          manifestPath: 'scripts/prod-schema-manifests/31-unexpected-drift.json',
+          order: 31,
+        },
+        dropStatements: [],
+      },
+    ];
+    expect(() =>
+      parseLockTimeApplyVectorV1(marker, { preparedManifests: driftedPrepared, target })
+    ).toThrow(/pinned canonical manifest inventory/i);
+    expect(() =>
+      parseLockTimeApplyVectorV1(marker, {
+        preparedManifests: preparedManifests.slice(0, -1),
+        target,
+      })
+    ).toThrow(/pinned canonical manifest inventory/i);
   });
 
   it('rejects a post-binding replacement of selected 0053 SQL bytes', async () => {

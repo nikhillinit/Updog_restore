@@ -35,6 +35,42 @@ const APPLY_0053_MANIFEST_SHA256 =
   '14ac9b5318323d155c9c438689f4fa48c7bf8e6d7e36ae918e3aa57443ed9e0b';
 const APPLY_0053_MIGRATION_SHA256 =
   '0a4c00cea6e20982db391be88f143bf4e1d4bc529b68e6b986530fc3354c9ea5';
+// Pinned canonical inventory (revision-8 lock-time vector contract): the audit
+// vector must contain exactly these identities in this order. Directory drift
+// (added/removed/renamed/reordered manifests) is a rejection, never authority.
+export const CANONICAL_MANIFEST_IDENTITIES = Object.freeze([
+  Object.freeze({ name: 'M1-cohort', manifestPath: 'scripts/prod-schema-manifests/01-cohort.json', order: 1 }),
+  Object.freeze({ name: 'M2-fund-moic', manifestPath: 'scripts/prod-schema-manifests/02-fund-moic.json', order: 2 }),
+  Object.freeze({ name: 'M3-operating-tasks', manifestPath: 'scripts/prod-schema-manifests/03-operating-tasks.json', order: 3 }),
+  Object.freeze({ name: 'M4-lp-reporting', manifestPath: 'scripts/prod-schema-manifests/04-lp-reporting.json', order: 4 }),
+  Object.freeze({ name: 'M5-operator-seam', manifestPath: 'scripts/prod-schema-manifests/05-operator-seam.json', order: 5 }),
+  Object.freeze({ name: 'M6-h9-actionability', manifestPath: 'scripts/prod-schema-manifests/06-h9-actionability.json', order: 6 }),
+  Object.freeze({ name: 'M7-allocation-scenarios', manifestPath: 'scripts/prod-schema-manifests/07-allocation-scenarios.json', order: 7 }),
+  Object.freeze({ name: 'scenario-case-seed-provenance', manifestPath: 'scripts/prod-schema-manifests/08-scenario-case-seed-provenance.json', order: 8 }),
+  Object.freeze({ name: 'substrate-shadow-reconciliations', manifestPath: 'scripts/prod-schema-manifests/09-substrate-shadow-reconciliations.json', order: 9 }),
+  Object.freeze({ name: 'financial-facts-snapshots', manifestPath: 'scripts/prod-schema-manifests/10-financial-facts-snapshots.json', order: 10 }),
+  Object.freeze({ name: 'current-plan-versions', manifestPath: 'scripts/prod-schema-manifests/11-current-plan-versions.json', order: 11 }),
+  Object.freeze({ name: 'current-forecast-references', manifestPath: 'scripts/prod-schema-manifests/12-current-forecast-references.json', order: 12 }),
+  Object.freeze({ name: 'financial-observations', manifestPath: 'scripts/prod-schema-manifests/13-financial-observations.json', order: 13 }),
+  Object.freeze({ name: 'investment-ledger', manifestPath: 'scripts/prod-schema-manifests/14-investment-ledger.json', order: 14 }),
+  Object.freeze({ name: 'vehicle-financing-participations', manifestPath: 'scripts/prod-schema-manifests/15-vehicle-financing-participations.json', order: 15 }),
+  Object.freeze({ name: 'positions-ownership-compat', manifestPath: 'scripts/prod-schema-manifests/16-positions-ownership-compat.json', order: 16 }),
+  Object.freeze({ name: 'position-source-basis-reliefs', manifestPath: 'scripts/prod-schema-manifests/17-position-source-basis-reliefs.json', order: 17 }),
+  Object.freeze({ name: 'internal-analysis', manifestPath: 'scripts/prod-schema-manifests/18-internal-analysis.json', order: 18 }),
+  Object.freeze({ name: 'user-identity-grants-revocation', manifestPath: 'scripts/prod-schema-manifests/19-user-identity-grants-revocation.json', order: 19 }),
+  Object.freeze({ name: 'company-scenario-create-requests', manifestPath: 'scripts/prod-schema-manifests/20-company-scenario-create-requests.json', order: 20 }),
+  Object.freeze({ name: 'business-time-comparison-lineage', manifestPath: 'scripts/prod-schema-manifests/21-business-time-comparison-lineage.json', order: 21 }),
+  Object.freeze({ name: 'internal-economics-policy-runs', manifestPath: 'scripts/prod-schema-manifests/22-internal-economics-policy-runs.json', order: 22 }),
+  Object.freeze({ name: 'internal-economics-certification', manifestPath: 'scripts/prod-schema-manifests/23-internal-economics-certification.json', order: 23 }),
+  Object.freeze({ name: 'internal-economics-linkage', manifestPath: 'scripts/prod-schema-manifests/24-internal-economics-linkage.json', order: 24 }),
+  Object.freeze({ name: 'quarterly-review-workflow', manifestPath: 'scripts/prod-schema-manifests/25-quarterly-review-workflow.json', order: 25 }),
+  Object.freeze({ name: 'kpi-observations', manifestPath: 'scripts/prod-schema-manifests/26-kpi-observations.json', order: 26 }),
+  Object.freeze({ name: 'g3-portfolio-and-calculation', manifestPath: 'scripts/prod-schema-manifests/27-g3-portfolio-and-calculation.json', order: 27 }),
+  Object.freeze({ name: 'g3-canary', manifestPath: 'scripts/prod-schema-manifests/28-g3-canary.json', order: 28 }),
+  Object.freeze({ name: 'g3-capital-call-notification-outbox', manifestPath: 'scripts/prod-schema-manifests/29-g3-capital-call-notification-outbox.json', order: 29 }),
+  Object.freeze({ name: 'g3-release-gate-hardening', manifestPath: 'scripts/prod-schema-manifests/30-g3-release-gate-hardening.json', order: 30 }),
+]);
+
 export const MISSING_TABLE_POLICY_CREATE_OR_REPAIR = 'create_or_repair';
 export const MISSING_TABLE_POLICY_EXISTING_REQUIRED = 'existing_table_required';
 
@@ -202,13 +238,21 @@ export async function prepare0053G3ReleaseGateHardeningCapability({ rootDir = re
     });
   }
   const manifests = await loadManifests(DEFAULT_MANIFEST_DIR, rootDir);
-  const canonicalManifestIdentities = manifests.map((candidate) =>
-    Object.freeze({
-      name: candidate.name,
-      manifestPath: candidate.manifestPath,
-      order: candidate.order,
-    })
-  );
+  if (
+    manifests.length !== CANONICAL_MANIFEST_IDENTITIES.length ||
+    CANONICAL_MANIFEST_IDENTITIES.some(
+      (identity, index) =>
+        manifests[index]?.name !== identity.name ||
+        manifests[index]?.manifestPath !== identity.manifestPath ||
+        manifests[index]?.order !== identity.order
+    )
+  ) {
+    throw new ReconcileError(
+      '0053 canonical manifest inventory does not match pinned identity vector',
+      { kind: 'invalid-0053-capability-binding' }
+    );
+  }
+  const canonicalManifestIdentities = CANONICAL_MANIFEST_IDENTITIES;
   const canonicalTarget = canonicalManifestIdentities.find(
     (candidate) => candidate.name === APPLY_0053_MANIFEST_NAME
   );
@@ -442,6 +486,20 @@ export function parseLockTimeApplyVectorV1(markerOutput, { preparedManifests, ta
     ...prepared,
     dropStatements: prepared?.dropStatements === undefined ? [] : prepared.dropStatements,
   }));
+  if (
+    preparedForValidation.length !== CANONICAL_MANIFEST_IDENTITIES.length ||
+    CANONICAL_MANIFEST_IDENTITIES.some(
+      (identity, index) =>
+        preparedForValidation[index]?.manifest?.name !== identity.name ||
+        preparedForValidation[index]?.manifest?.manifestPath !== identity.manifestPath ||
+        preparedForValidation[index]?.manifest?.order !== identity.order
+    )
+  ) {
+    throw new ReconcileError(
+      'Lock-time apply vector parser requires pinned canonical manifest inventory',
+      { kind: 'invalid-lock-time-apply-vector' }
+    );
+  }
   const expectedAudits = preparedForValidation.map((prepared) => ({
     manifest: prepared?.manifest?.name,
     action:
