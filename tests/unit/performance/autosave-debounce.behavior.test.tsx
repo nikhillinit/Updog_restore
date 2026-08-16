@@ -1,9 +1,11 @@
 import { act, useSyncExternalStore } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { FundDraftWriteV1 } from '@shared/contracts/fund-draft-write-v1.contract';
-import DistributionsStep from '@/pages/DistributionsStep';
-import { useFundDraftSync } from '@/hooks/useFundDraftSync';
+import {
+  FundDraftWriteV1Schema,
+  type FundDraftWriteV1,
+} from '@shared/contracts/fund-draft-write-v1.contract';
+import FundSetup from '@/pages/fund-setup';
 import { fundStore } from '@/stores/fundStore';
 import { TestQueryClientProvider } from '../../utils/test-query-client';
 
@@ -11,7 +13,7 @@ const draftServer = vi.hoisted(() => {
   type Snapshot = {
     writeCount: number;
     fundId: number | null;
-    payload: unknown;
+    payload: FundDraftWriteV1 | null;
   };
 
   const listeners = new Set<() => void>();
@@ -27,13 +29,14 @@ const draftServer = vi.hoisted(() => {
       snapshot = { writeCount: 0, fundId: null, payload: null };
     },
     save: async (fundId: number, payload: unknown) => {
+      const parsedPayload = FundDraftWriteV1Schema.parse(payload);
       snapshot = {
         writeCount: snapshot.writeCount + 1,
         fundId,
-        payload,
+        payload: parsedPayload,
       };
       listeners.forEach((listener) => listener());
-      return { config: payload };
+      return { config: parsedPayload };
     },
   };
 });
@@ -67,8 +70,7 @@ vi.mock('@/services/fund-drafts', () => ({
 
 function DraftServerObservation() {
   const snapshot = useSyncExternalStore(draftServer.subscribe, draftServer.getSnapshot);
-  const payload = snapshot.payload as FundDraftWriteV1 | null;
-  const firstTier = payload?.waterfallTiers?.[0];
+  const firstTier = snapshot.payload?.waterfallTiers?.[0];
 
   return (
     <output aria-label="authoritative draft state">
@@ -79,23 +81,12 @@ function DraftServerObservation() {
   );
 }
 
-function RoutedDistributionsDraftSync() {
-  const sync = useFundDraftSync({ stepKey: 'distributions' });
-
-  return (
-    <>
-      <DistributionsStep />
-      <output aria-label="draft sync status">{sync.status}</output>
-      <DraftServerObservation />
-    </>
-  );
-}
-
 async function renderRoutedDistributionsStep() {
   window.history.pushState({}, '', '/fund-setup?step=5');
   render(
     <TestQueryClientProvider>
-      <RoutedDistributionsDraftSync />
+      <FundSetup />
+      <DraftServerObservation />
     </TestQueryClientProvider>
   );
 
@@ -156,7 +147,7 @@ describe('routed fund draft autosave debounce behavior', () => {
     expect(screen.getByLabelText('authoritative draft state')).toHaveTextContent(
       '1 write; fund 55; LP split 82%; GP split 18%'
     );
-    expect(screen.getByLabelText('draft sync status')).toHaveTextContent('synced');
+    expect(screen.getByTestId('draft-sync-status')).toHaveTextContent('Draft saved to server');
   });
 
   it('does not write an edited routed draft before the 600 ms window ends', async () => {
@@ -164,7 +155,9 @@ describe('routed fund draft autosave debounce behavior', () => {
 
     fireEvent.change(lpSplitInput, { target: { value: '81' } });
     expect(lpSplitInput).toHaveValue(81);
-    expect(screen.getByLabelText('draft sync status')).toHaveTextContent('saving');
+    expect(screen.getByTestId('draft-sync-status')).toHaveTextContent(
+      'Saving authoritative server draft...'
+    );
 
     await advanceTimers(599);
 

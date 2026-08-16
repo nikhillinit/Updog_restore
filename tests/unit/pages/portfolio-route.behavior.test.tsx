@@ -57,9 +57,12 @@ vi.mock('@/components/portfolio/tabs/hooks/useLatestAllocations', () => ({
 
 vi.mock('@/components/portfolio/tabs/hooks/useAllocationScenarios', () => ({
   useAllocationScenarioList: () => routeMocks.scenarioList(),
-  useAllocationScenarioDetail: (scenarioId: string | null) =>
-    routeMocks.scenarioDetail(scenarioId),
-  useAllocationScenarioDecisions: () => ({ data: { decisions: [] }, isLoading: false, error: null }),
+  useAllocationScenarioDetail: (scenarioId: string | null) => routeMocks.scenarioDetail(scenarioId),
+  useAllocationScenarioDecisions: () => ({
+    data: { decisions: [] },
+    isLoading: false,
+    error: null,
+  }),
   useCreateAllocationScenario: () => ({
     mutateAsync: routeMocks.mutationAsync,
     isPending: false,
@@ -300,10 +303,7 @@ describe('mounted portfolio route behavior', () => {
     expect(
       await screen.findByRole('heading', { name: 'Portfolio' }, { timeout: 5000 })
     ).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Companies' })).toHaveAttribute(
-      'data-state',
-      'active'
-    );
+    expect(screen.getByRole('tab', { name: 'Companies' })).toHaveAttribute('data-state', 'active');
     expect(screen.getAllByText('Northstar Systems').length).toBeGreaterThan(0);
     expect(
       screen.getAllByRole('button', { name: /view northstar systems details/i }).length
@@ -327,6 +327,8 @@ describe('mounted portfolio route behavior', () => {
     const totalPlannedReserves = screen.getByText('Total Planned Reserves').parentElement;
     expect(totalPlannedReserves).not.toBeNull();
     expect(within(totalPlannedReserves!).getByText('$2.0M')).toBeInTheDocument();
+    expect(routeMocks.liveAllocationMutate).not.toHaveBeenCalled();
+    expect(routeMocks.mutationAsync).not.toHaveBeenCalled();
   });
 
   it('switches from Companies to Reserve Planning and reveals the scenario workspace', async () => {
