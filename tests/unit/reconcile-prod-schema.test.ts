@@ -425,7 +425,18 @@ describe('reconcile-prod-schema runner helpers', () => {
     const audits = target.manifests.map((manifest) => ({
       manifest: manifest.name,
       action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
-      objects: [],
+      objects:
+        manifest.name === target.manifestName
+          ? [
+              {
+                table: 'fixture_target',
+                present: false,
+                populated: false,
+                action: ACTION_APPLY_MISSING_DDL,
+                deltas: [],
+              },
+            ]
+          : [],
     }));
     expect(
       selectExact0053G3ReleaseGateHardeningApply({
@@ -474,7 +485,18 @@ describe('reconcile-prod-schema runner helpers', () => {
     const exactAudits = target.manifests.map((manifest) => ({
       manifest: manifest.name,
       action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
-      objects: [],
+      objects:
+        manifest.name === target.manifestName
+          ? [
+              {
+                table: 'fixture_target',
+                present: false,
+                populated: false,
+                action: ACTION_APPLY_MISSING_DDL,
+                deltas: [],
+              },
+            ]
+          : [],
     }));
     const validObject = {
       table: 'fixture_table',
@@ -560,6 +582,72 @@ describe('reconcile-prod-schema runner helpers', () => {
           }),
         name
       ).toThrow(`0053 exact target-only`);
+    }
+  });
+
+  it('rejects contradictory aggregate object actions and governs non-array objects', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const preparedManifests = target.manifests.map((manifest) => ({
+      manifest,
+      dropStatements: [],
+    }));
+    const exactAudits = target.manifests.map((manifest) => ({
+      manifest: manifest.name,
+      action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+      objects:
+        manifest.name === target.manifestName
+          ? [
+              {
+                table: 'fixture_target',
+                present: false,
+                populated: false,
+                action: ACTION_APPLY_MISSING_DDL,
+                deltas: [],
+              },
+            ]
+          : [],
+    }));
+    const object = {
+      table: 'fixture_table',
+      present: true,
+      populated: false,
+      action: ACTION_SKIP,
+      deltas: [],
+    };
+
+    const cases = [
+      [
+        'target APPLY with object SKIP',
+        exactAudits.map((audit) =>
+          audit.manifest === target.manifestName ? { ...audit, objects: [object] } : audit
+        ),
+      ],
+      [
+        'non-target SKIP with object APPLY',
+        exactAudits.map((audit) =>
+          audit.manifest === target.manifestName
+            ? audit
+            : { ...audit, objects: [{ ...object, action: ACTION_APPLY_MISSING_DDL }] }
+        ),
+      ],
+      [
+        'non-array objects',
+        exactAudits.map((audit) =>
+          audit.manifest === target.manifestName ? { ...audit, objects: {} } : audit
+        ),
+      ],
+    ];
+
+    for (const [name, audits] of cases) {
+      expect(
+        () =>
+          selectExact0053G3ReleaseGateHardeningApply({
+            preparedManifests,
+            audits,
+            target,
+          }),
+        name
+      ).toThrow(ReconcileError);
     }
   });
 

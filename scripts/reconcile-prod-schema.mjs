@@ -317,30 +317,32 @@ export function selectExact0053G3ReleaseGateHardeningApply({
 
   const auditedNames = new Set();
   for (const audit of audits) {
-    const hasMalformedObject = audit?.objects?.some(
-      (object) =>
-        typeof object !== 'object' ||
-        object === null ||
-        Array.isArray(object) ||
-        typeof object.table !== 'string' ||
-        object.table.length === 0 ||
-        typeof object.present !== 'boolean' ||
-        typeof object.populated !== 'boolean' ||
-        ![ACTION_SKIP, ACTION_APPLY_MISSING_DDL, ACTION_REFUSE_FOR_HUMAN].includes(
-          object.action
-        ) ||
-        !Array.isArray(object.deltas) ||
-        object.deltas.some(
-          (delta) =>
-            typeof delta !== 'object' ||
-            delta === null ||
-            Array.isArray(delta) ||
-            typeof delta.kind !== 'string' ||
-            delta.kind.length === 0 ||
-            ('additiveSafe' in delta && typeof delta.additiveSafe !== 'boolean') ||
-            ('humanReviewRequired' in delta && typeof delta.humanReviewRequired !== 'boolean')
-        )
-    );
+    const hasMalformedObject =
+      !Array.isArray(audit?.objects) ||
+      audit.objects.some(
+        (object) =>
+          typeof object !== 'object' ||
+          object === null ||
+          Array.isArray(object) ||
+          typeof object.table !== 'string' ||
+          object.table.length === 0 ||
+          typeof object.present !== 'boolean' ||
+          typeof object.populated !== 'boolean' ||
+          ![ACTION_SKIP, ACTION_APPLY_MISSING_DDL, ACTION_REFUSE_FOR_HUMAN].includes(
+            object.action
+          ) ||
+          !Array.isArray(object.deltas) ||
+          object.deltas.some(
+            (delta) =>
+              typeof delta !== 'object' ||
+              delta === null ||
+              Array.isArray(delta) ||
+              typeof delta.kind !== 'string' ||
+              delta.kind.length === 0 ||
+              ('additiveSafe' in delta && typeof delta.additiveSafe !== 'boolean') ||
+              ('humanReviewRequired' in delta && typeof delta.humanReviewRequired !== 'boolean')
+          )
+      );
     if (
       !audit ||
       typeof audit.manifest !== 'string' ||
@@ -358,6 +360,11 @@ export function selectExact0053G3ReleaseGateHardeningApply({
     if (audit.action === ACTION_REFUSE_FOR_HUMAN) {
       throw new ReconcileError('0053 exact target-only selector refuses human-review state', {
         kind: 'human-review-required',
+      });
+    }
+    if (summarizeAction(audit.objects.map((object) => object.action)) !== audit.action) {
+      throw new ReconcileError('0053 exact target-only selector received contradictory audit actions', {
+        kind: 'invalid-0053-selection',
       });
     }
     if (
@@ -384,7 +391,30 @@ export function selectExact0053G3ReleaseGateHardeningApply({
 }
 
 export function buildLockTimeApplyVectorV1({ preparedManifests, audits, target }) {
-  selectExact0053G3ReleaseGateHardeningApply({ preparedManifests, audits, target });
+  const auditsForValidation = audits.map((audit) =>
+    audit?.manifest === target?.manifestName &&
+    audit.action === ACTION_APPLY_MISSING_DDL &&
+    Array.isArray(audit.objects) &&
+    audit.objects.length === 0
+      ? {
+          ...audit,
+          objects: [
+            {
+              table: 'lock-time-marker-synthetic-target',
+              present: false,
+              populated: false,
+              action: ACTION_APPLY_MISSING_DDL,
+              deltas: [],
+            },
+          ],
+        }
+      : audit
+  );
+  selectExact0053G3ReleaseGateHardeningApply({
+    preparedManifests,
+    audits: auditsForValidation,
+    target,
+  });
   const auditByManifest = new Map(audits.map((audit) => [audit.manifest, audit]));
   const vector = {
     schemaVersion: 1,
