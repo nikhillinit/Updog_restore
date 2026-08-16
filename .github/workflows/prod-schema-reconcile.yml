@@ -41,12 +41,6 @@ jobs:
     environment: production-schema
 
     steps:
-      - name: Block production apply mode
-        if: ${{ inputs.mode == 'apply' }}
-        run: |
-          echo "::error::Production schema apply is mechanically blocked."
-          exit 1
-
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ inputs.expected_sha }}
@@ -262,12 +256,12 @@ jobs:
 
       - name: Apply additive-safe reconciliation
         id: apply
-        if: ${{ false }}
+        if: ${{ inputs.mode == 'apply' }}
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
         run: |
           set +e
-          node scripts/reconcile-prod-schema.mjs --apply --yes > reports/apply.raw 2>&1
+          node scripts/reconcile-prod-schema.mjs --apply --yes --apply-0053-g3-release-gate-hardening > reports/apply.raw 2>&1
           STATUS=$?
           set -e
           sed -E \
@@ -276,6 +270,26 @@ jobs:
             reports/apply.raw > reports/apply.txt
           rm reports/apply.raw
           exit "$STATUS"
+
+      - name: Validate lock-time apply vector
+        if: ${{ inputs.mode == 'apply' && steps.apply.outcome == 'success' }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import {
+            loadManifests,
+            parseLockTimeApplyVectorV1,
+            prepare0053G3ReleaseGateHardeningCapability,
+          } from './scripts/reconcile-prod-schema.mjs';
+
+          const target = await prepare0053G3ReleaseGateHardeningCapability();
+          const preparedManifests = (await loadManifests()).map((manifest) => ({ manifest }));
+          const vector = parseLockTimeApplyVectorV1(
+            fs.readFileSync('reports/apply.txt', 'utf8'),
+            { preparedManifests, target }
+          );
+          fs.writeFileSync('reports/lock-time-apply-vector.json', JSON.stringify(vector));
+          NODE
 
       - name: Run post-apply audit
         id: post_audit
@@ -356,6 +370,7 @@ jobs:
           name: prod-schema-reconcile-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.mode }}-${{ inputs.expected_sha }}
           path: |
             reports/*.txt
+            reports/lock-time-apply-vector.json
             reports/schema-reconcile-receipt.json
           if-no-files-found: error
           retention-days: 90
