@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */ // Database seeding utilities
 
-import { db } from '../server/db';
+import type { db as DefaultDatabase } from '../server/db';
 import {
   funds,
   portfolioCompanies,
@@ -10,6 +10,15 @@ import {
   users,
 } from '@shared/schema';
 import { buildSeedUsers } from '../server/lib/seed-users';
+import { assertLocalDatabaseTarget } from './local-database-target';
+
+type SeedDatabaseClient = typeof DefaultDatabase;
+
+interface SeedDatabaseOptions {
+  database?: SeedDatabaseClient;
+  databaseUrl?: string;
+  env?: NodeJS.ProcessEnv;
+}
 
 // Self-executing script when run directly
 if (import.meta.url === `file://${process.argv[1]!}`) {
@@ -24,11 +33,15 @@ if (import.meta.url === `file://${process.argv[1]!}`) {
     });
 }
 
-export async function seedDatabase() {
+export async function seedDatabase(options: SeedDatabaseOptions = {}) {
+  const env = options.env ?? process.env;
+  const databaseUrl = options.databaseUrl ?? env.DATABASE_URL;
+  assertLocalDatabaseTarget(databaseUrl, env);
+  const database = options.database ?? (await import('../server/db')).db;
   console.log('[SEED] Seeding database with sample data...');
 
   try {
-    const loginUsersSeeded = await seedLoginUsers();
+    const loginUsersSeeded = await seedLoginUsers(database);
     console.log('[DONE] Seeded login users:', loginUsersSeeded);
 
     // Insert sample fund
@@ -41,7 +54,7 @@ export async function seedDatabase() {
       vintageYear: 2020,
       status: 'active',
     } as any;
-    const [fund] = await db.insert(funds).values(fundData).returning();
+    const [fund] = await database.insert(funds).values(fundData).returning();
 
     if (!fund) {
       throw new Error('Failed to create fund');
@@ -86,7 +99,7 @@ export async function seedDatabase() {
       },
     ];
 
-    const companies = await db.insert(portfolioCompanies).values(portfolioData).returning();
+    const companies = await database.insert(portfolioCompanies).values(portfolioData).returning();
     console.log('[DONE] Created portfolio companies:', companies.length);
 
     // Insert sample investments
@@ -120,7 +133,7 @@ export async function seedDatabase() {
       },
     ];
 
-    const investmentRecords = await db.insert(investments).values(investmentData).returning();
+    const investmentRecords = await database.insert(investments).values(investmentData).returning();
     console.log('[DONE] Created investments:', investmentRecords.length);
 
     // Insert sample fund metrics
@@ -147,7 +160,7 @@ export async function seedDatabase() {
       },
     ];
 
-    const metrics = await db.insert(fundMetrics).values(metricsData).returning();
+    const metrics = await database.insert(fundMetrics).values(metricsData).returning();
     console.log('[DONE] Created fund metrics:', metrics.length);
 
     // Insert sample activities
@@ -186,7 +199,7 @@ export async function seedDatabase() {
       },
     ];
 
-    const activityRecords = await db.insert(activities).values(activitiesData).returning();
+    const activityRecords = await database.insert(activities).values(activitiesData).returning();
     console.log('[DONE] Created activities:', activityRecords.length);
 
     console.log('[DONE] Database seeding completed successfully!');
@@ -204,12 +217,16 @@ export async function seedDatabase() {
   }
 }
 
-export async function seedLoginUsers(): Promise<number> {
+export async function seedLoginUsers(database?: SeedDatabaseClient): Promise<number> {
+  if (database === undefined) {
+    assertLocalDatabaseTarget(process.env.DATABASE_URL, process.env);
+  }
+  const target = database ?? (await import('../server/db')).db;
   // Seed test-only login users (idempotent upsert on username). Shared source:
   // server/lib/seed-users.ts. Consumed by POST /api/auth/login.
   const seedUsers = buildSeedUsers();
   for (const seedUser of seedUsers) {
-    await db
+    await target
       .insert(users)
       .values(seedUser)
       .onConflictDoUpdate({

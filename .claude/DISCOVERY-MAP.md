@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: agents
-last_updated: 2026-04-18
+last_updated: 2026-08-14
 owner: 'Platform Team'
 review_cadence: P30D
 categories: [discovery, agents, routing]
@@ -110,7 +110,7 @@ Pattern matching uses OR logic: any match triggers the route.
 | "design tokens" OR "brand tokens" OR "theme tokens"              | client/src/lib/brand-tokens.ts                          | Programmatic brand values                  |
 | "pdf generation" OR "tear sheet" OR "quarterly report"           | client/src/utils/pdf/                                   | PDF export utilities                       |
 | "docs sync" OR "jsdoc" OR "calculations.md"                      | phoenix-docs-scribe agent                               | Documentation sync                         |
-| "deploy" OR "production" OR "rollout"                            | docs/workflows/PRODUCTION_SCRIPTS.md                    | Deployment docs                            |
+| "deploy" OR "production" OR "rollout"                            | docs/workflows/PRODUCTION_SCRIPTS.md                    | Canonical route; UNKNOWN blocks            |
 | "workflow" OR "ci" OR "github actions"                           | docs/workflows/README.md                                | CI/CD docs                                 |
 | "architecture" OR "decision" OR "why"                            | DECISIONS.md                                            | ADR rationale                              |
 | "change history" OR "what changed"                               | CHANGELOG.md                                            | Chronological changes                      |
@@ -123,7 +123,7 @@ Pattern matching uses OR logic: any match triggers the route.
 | "phoenix workflow" OR "which phoenix skill"                      | phoenix-workflow-orchestrator skill                     | Phoenix skill routing master               |
 | "schema evolution" OR "drizzle migration" OR "db:push"           | database-schema-evolution skill                         | Zero-downtime migrations                   |
 | "pr ready" OR "pre-pr" OR "before pull request"                  | /pr-ready command                                       | Full pre-PR validation workflow            |
-| "db validate" OR "schema check" OR "before db:push"              | /db-validate command                                    | Pre-push schema validation                 |
+| "db validate" OR "schema check" OR "before db:push"              | docs/workflows/PRODUCTION_SCRIPTS.md                    | Canonical gate; UNKNOWN blocks             |
 | "orchestrate" OR "chain agents" OR "auto validate"               | workflow-orchestrator agent                             | Auto-chain agents based on changes         |
 | "agent metrics" OR "agent performance" OR "usage tracking"       | .claude/AGENT-METRICS.md                                | Agent performance tracking                 |
 | "global rules" OR "milestone" OR "stabilization" OR "pr scope"   | docs/STABILIZATION-ROADMAP.md                           | Governance rules and milestone sequencing  |
@@ -226,13 +226,13 @@ Q6: Is the document >24h old AND contains execution claims?
 | /phoenix-prob-report | Format MC distribution table  | PR-ready summaries                  |
 | /test-smart          | Intelligent test selection    | Changed files only                  |
 | /fix-auto            | Auto-fix lint/format/tests    | Quick cleanup                       |
-| /deploy-check        | Pre-deployment validation     | Before production                   |
+| /deploy-check        | Non-authorizing pointer       | Canonical route; UNKNOWN blocks     |
 | /workflows           | Interactive tool helper       | Finding the right tool              |
 | /log-change          | Guided CHANGELOG.md entry     | After features/fixes                |
 | /log-decision        | Guided ADR entry              | Architectural decisions             |
 | /pre-commit-check    | Quality validation            | Before committing                   |
 | /pr-ready            | Full pre-PR validation        | Before creating pull request        |
-| /db-validate         | Schema validation             | Before npm run db:push              |
+| /db-validate         | Non-authorizing pointer       | Canonical route; UNKNOWN blocks     |
 
 ---
 
