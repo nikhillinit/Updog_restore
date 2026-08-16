@@ -11,16 +11,16 @@ last_updated: 2026-08-16
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 730 |
-| Stale Documents | 469 |
-| Missing Frontmatter | 78 |
+| Total Documents | 720 |
+| Stale Documents | 459 |
+| Missing Frontmatter | 68 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 452 |
-| UNKNOWN | 172 |
+| UNKNOWN | 162 |
 | DRAFT | 34 |
 | HISTORICAL | 26 |
 | VERIFIED | 13 |
@@ -62,18 +62,8 @@ Documents that need review (older than their cadence threshold):
 | `docs/1-plans/F_1.2.5_g3-foundations-landing.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.3.0_fee-economics-convergence.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.4.0_post-activation-epics.plan.md` | Never | 999 | No | Unassigned |
-| `docs/2-changelog/changelog_table.md` | Never | 999 | No | Unassigned |
-| `docs/2-changelog/w1_v1.4.0.md` | Never | 999 | No | Unassigned |
-| `docs/2-changelog/w1_v1.4.1.md` | Never | 999 | No | Unassigned |
-| `docs/2-changelog/w1_v1.5.0.md` | Never | 999 | No | Unassigned |
-| `docs/3-code-review/CR_w1_v1.4.0.md` | Never | 999 | No | Unassigned |
-| `docs/3-code-review/CR_w1_v1.4.1.md` | Never | 999 | No | Unassigned |
-| `docs/3-code-review/CR_w1_v1.5.0.md` | Never | 999 | No | Unassigned |
-| `docs/3-code-review/CR_w2_v1.6.0.md` | Never | 999 | YES - verify! | Unassigned |
-| `docs/3-code-review/README.md` | Never | 999 | No | Unassigned |
+| `docs/3-code-review/CR_w3_v1.6.0.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/canary-exclusion-worklist.md` | Never | 999 | No | Unassigned |
-| `docs/4-unit-tests/COVERAGE-DEBT.md` | Never | 999 | No | Unassigned |
-| `docs/4-unit-tests/TESTING.md` | Never | 999 | No | Unassigned |
 | `docs/ARCHI.md` | Never | 999 | No | Unassigned |
 | `docs/CA-PACING-ORACLE.md` | Never | 999 | No | Unassigned |
 | `docs/CRITICAL-REVIEW-secondary-surface-governance.md` | Never | 999 | No | Unassigned |
@@ -96,8 +86,18 @@ Documents that need review (older than their cadence threshold):
 | `docs/skills/REFL-004-schema-format-backward-compatibility.md` | Never | 999 | No | Unassigned |
 | `docs/skills/REFL-005-stale-test-files-with-api-mismatch.md` | Never | 999 | No | Unassigned |
 | `docs/skills/REFL-006-xirr-newton-raphson-divergence-on-extreme-returns.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-007-global-vi-mock-pollutes-all-tests.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-008-typescript-type-inference-from-database-schemas.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-009-crlf-line-endings-break-frontmatter-parsing.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-010-trust-proxy-configuration-for-rate-limiters.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-012-fire-and-forget-async-creates-race-conditions.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-013-router-substring-matching-causes-false-positives.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-014-test-key-reuse-across-test-cases.md` | Never | 999 | YES - verify! | Unassigned |
+| `docs/skills/REFL-015-postgresql-service-missing-test-database.md` | Never | 999 | YES - verify! | Unassigned |
+| `docs/skills/REFL-017-ci-workflow-permission-errors.md` | Never | 999 | No | Unassigned |
+| `docs/skills/REFL-019-k1-template-drops-data-footnotes.md` | Never | 999 | No | Unassigned |
 
-*...and 419 more stale documents.*
+*...and 409 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -137,7 +137,6 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 - [ ] **cheatsheets/emoji-free-documentation.md** (209 days old)
 - [ ] **cheatsheets/pr-merge-verification.md** (132 days old)
 - [ ] **cheatsheets/schema-alignment.md** (209 days old)
-- [ ] **docs/3-code-review/CR_w2_v1.6.0.md** (999 days old)
 - [ ] **docs/CA-IMPLEMENTATION-PLAN.md** (209 days old)
 - [ ] **docs/CA-SEMANTIC-LOCK.md** (209 days old)
 - [ ] **docs/DECISIONS.md** (209 days old)
@@ -210,18 +209,8 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/1-plans/F_1.2.5_g3-foundations-landing.plan.md`
 - [ ] `docs/1-plans/F_1.3.0_fee-economics-convergence.plan.md`
 - [ ] `docs/1-plans/F_1.4.0_post-activation-epics.plan.md`
-- [ ] `docs/2-changelog/changelog_table.md`
-- [ ] `docs/2-changelog/w1_v1.4.0.md`
-- [ ] `docs/2-changelog/w1_v1.4.1.md`
-- [ ] `docs/2-changelog/w1_v1.5.0.md`
-- [ ] `docs/3-code-review/CR_w1_v1.4.0.md`
-- [ ] `docs/3-code-review/CR_w1_v1.4.1.md`
-- [ ] `docs/3-code-review/CR_w1_v1.5.0.md`
-- [ ] `docs/3-code-review/CR_w2_v1.6.0.md`
-- [ ] `docs/3-code-review/README.md`
+- [ ] `docs/3-code-review/CR_w3_v1.6.0.md`
 - [ ] `docs/3-code-review/canary-exclusion-worklist.md`
-- [ ] `docs/4-unit-tests/COVERAGE-DEBT.md`
-- [ ] `docs/4-unit-tests/TESTING.md`
 - [ ] `docs/ARCHI.md`
 - [ ] `docs/CA-PACING-ORACLE.md`
 - [ ] `docs/CRITICAL-REVIEW-secondary-surface-governance.md`
