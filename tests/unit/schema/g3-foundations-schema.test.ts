@@ -5,7 +5,6 @@ import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 
 import * as schema from '@shared/schema';
-import * as schemaIndex from '@shared/schema/index';
 import {
   fundScenarioCalculationRuns,
   funds,
@@ -25,14 +24,13 @@ const journal = JSON.parse(
 ) as { entries: Array<{ idx: number; tag: string }> };
 
 describe('G3 foundations schema', () => {
-  it('re-exports every new domain table through both schema barrels', () => {
+  it('re-exports every new domain table through the canonical schema barrel', () => {
     for (const table of [
       portfolioCompanyUpdateReceipts,
       releaseCanaryRuns,
       capitalCallNotificationOutbox,
     ]) {
       expect(Object.values(schema)).toContain(table);
-      expect(Object.values(schemaIndex)).toContain(table);
     }
   });
 
