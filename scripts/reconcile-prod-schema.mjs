@@ -298,6 +298,19 @@ export function selectExact0053G3ReleaseGateHardeningApply({
       kind: 'invalid-0053-selection',
     });
   }
+  const selectedPrepared = preparedByName.get(target.manifestName);
+  const targetDropObjects = selectedPrepared?.manifest?.dropObjects;
+  if (
+    !selectedPrepared ||
+    !Array.isArray(selectedPrepared.dropStatements) ||
+    selectedPrepared.dropStatements.length !== 0 ||
+    (targetDropObjects !== undefined &&
+      (!Array.isArray(targetDropObjects) || targetDropObjects.length !== 0))
+  ) {
+    throw new ReconcileError('0053 exact target-only selector refuses destructive prepared state', {
+      kind: 'invalid-0053-selection',
+    });
+  }
   const canonicalManifestIdentities = target.canonicalManifestIdentities;
   if (
     !Array.isArray(canonicalManifestIdentities) ||
@@ -369,9 +382,13 @@ export function selectExact0053G3ReleaseGateHardeningApply({
     }
     if (
       audit.objects.some(
-        (object) =>
-          object?.action === ACTION_REFUSE_FOR_HUMAN ||
-          object?.deltas?.some((delta) => /(?:drop|destructive)/i.test(String(delta?.kind ?? '')))
+      (object) =>
+        object?.action === ACTION_REFUSE_FOR_HUMAN ||
+        object?.deltas?.some(
+          (delta) =>
+            delta?.kind === 'extra-object-present' ||
+            /(?:drop|destructive)/i.test(String(delta?.kind ?? ''))
+        )
       )
     ) {
       throw new ReconcileError('0053 exact target-only selector refuses destructive audit state', {
@@ -421,7 +438,11 @@ export function parseLockTimeApplyVectorV1(markerOutput, { preparedManifests, ta
       kind: 'invalid-lock-time-apply-vector',
     });
   }
-  const expectedAudits = preparedManifests.map((prepared) => ({
+  const preparedForValidation = preparedManifests.map((prepared) => ({
+    ...prepared,
+    dropStatements: prepared?.dropStatements === undefined ? [] : prepared.dropStatements,
+  }));
+  const expectedAudits = preparedForValidation.map((prepared) => ({
     manifest: prepared?.manifest?.name,
     action:
       prepared?.manifest?.name === target?.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
@@ -439,7 +460,7 @@ export function parseLockTimeApplyVectorV1(markerOutput, { preparedManifests, ta
         : [],
   }));
   const expected = buildLockTimeApplyVectorV1({
-    preparedManifests,
+    preparedManifests: preparedForValidation,
     audits: expectedAudits,
     target,
   });

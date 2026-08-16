@@ -668,6 +668,84 @@ describe('reconcile-prod-schema runner helpers', () => {
     );
   });
 
+  it('rejects target destructive declarations and extra-object audit state', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const targetObject = {
+      table: 'fixture_target',
+      present: false,
+      populated: false,
+      action: ACTION_APPLY_MISSING_DDL,
+      deltas: [],
+    };
+    const makePreparedManifests = () =>
+      target.manifests.map((manifest) => ({ manifest, dropStatements: [] }));
+    const makeAudits = () =>
+      target.manifests.map((manifest) => ({
+        manifest: manifest.name,
+        action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+        objects: manifest.name === target.manifestName ? [targetObject] : [],
+      }));
+    const targetWithDropStatements = makePreparedManifests().map((prepared) =>
+      prepared.manifest.name === target.manifestName
+        ? { ...prepared, dropStatements: ['DROP TABLE x'] }
+        : prepared
+    );
+    const targetWithDropObjects = makePreparedManifests().map((prepared) =>
+      prepared.manifest.name === target.manifestName
+        ? { ...prepared, manifest: { ...prepared.manifest, dropObjects: [{ kind: 'index' }] } }
+        : prepared
+    );
+    const auditsWithExtraObject = makeAudits().map((audit) =>
+      audit.manifest === target.manifestName
+        ? {
+            ...audit,
+            objects: [
+              {
+                ...targetObject,
+                deltas: [{ kind: 'extra-object-present', name: 'legacy', additiveSafe: true }],
+              },
+            ],
+          }
+        : audit
+    );
+
+    expect(() =>
+      selectExact0053G3ReleaseGateHardeningApply({
+        preparedManifests: targetWithDropStatements,
+        audits: makeAudits(),
+        target,
+      })
+    ).toThrow(ReconcileError);
+    expect(() =>
+      selectExact0053G3ReleaseGateHardeningApply({
+        preparedManifests: targetWithDropObjects,
+        audits: makeAudits(),
+        target,
+      })
+    ).toThrow(ReconcileError);
+    expect(() =>
+      selectExact0053G3ReleaseGateHardeningApply({
+        preparedManifests: makePreparedManifests(),
+        audits: auditsWithExtraObject,
+        target,
+      })
+    ).toThrow(ReconcileError);
+    expect(() =>
+      buildLockTimeApplyVectorV1({
+        preparedManifests: targetWithDropStatements,
+        audits: makeAudits(),
+        target,
+      })
+    ).toThrow(ReconcileError);
+    expect(() =>
+      buildLockTimeApplyVectorV1({
+        preparedManifests: makePreparedManifests(),
+        audits: auditsWithExtraObject,
+        target,
+      })
+    ).toThrow(ReconcileError);
+  });
+
   it('builds and parses canonical lock-time apply marker without sensitive fields', async () => {
     const target = await prepare0053G3ReleaseGateHardeningCapability();
     const preparedManifests = target.manifests.map((manifest) => ({
@@ -852,12 +930,44 @@ describe('reconcile-prod-schema runner helpers', () => {
 
   it.each([
     [['--apply', '--yes']],
+    [
+      [
+        '--apply',
+        '--yes',
+        '--apply-0053-g3-release-gate-hardening',
+        '--apply-0053-g3-release-gate-hardening',
+      ],
+    ],
+    [['--yes', '--apply-0053-g3-release-gate-hardening']],
+    [['--apply', '--apply-0053-g3-release-gate-hardening']],
+    [['--apply-0053-g3-release-gate-hardening']],
     [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--apply']],
     [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--yes']],
     [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--unknown']],
+    [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--apply-all']],
+    [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--force']],
     [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--manifest-dir', 'tmp']],
     [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--manifest-dir=tmp']],
     [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--manifest-dir']],
+    [
+      [
+        '--apply',
+        '--yes',
+        '--apply-0053-g3-release-gate-hardening',
+        '--manifest-dir',
+        'one',
+        '--manifest-dir=two',
+      ],
+    ],
+    [
+      [
+        '--apply',
+        '--yes',
+        '--apply-0053-g3-release-gate-hardening',
+        '--manifest-dir=one',
+        '--manifest-dir=two',
+      ],
+    ],
   ])('rejects invalid apply argv before client construction: %o', async (argv) => {
     const clientFactory = vi.fn();
     await expect(

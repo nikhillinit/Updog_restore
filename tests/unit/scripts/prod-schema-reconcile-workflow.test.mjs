@@ -30,7 +30,10 @@ describe('prod-schema-reconcile workflow', () => {
 
   it('uses the configured parser to accept only canonical marker output', async () => {
     const target = await prepare0053G3ReleaseGateHardeningCapability();
-    const preparedManifests = (await loadManifests()).map((manifest) => ({ manifest }));
+    const preparedManifests = (await loadManifests()).map((manifest) => ({
+      manifest,
+      dropStatements: [],
+    }));
     const audits = preparedManifests.map(({ manifest }) => ({
       manifest: manifest.name,
       action: manifest.name === target.manifestName ? 'APPLY-MISSING-DDL' : 'SKIP',
