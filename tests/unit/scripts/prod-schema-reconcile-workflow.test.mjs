@@ -34,7 +34,18 @@ describe('prod-schema-reconcile workflow', () => {
     const audits = preparedManifests.map(({ manifest }) => ({
       manifest: manifest.name,
       action: manifest.name === target.manifestName ? 'APPLY-MISSING-DDL' : 'SKIP',
-      objects: [],
+      objects:
+        manifest.name === target.manifestName
+          ? [
+              {
+                table: 'fixture_target',
+                present: false,
+                populated: false,
+                action: 'APPLY-MISSING-DDL',
+                deltas: [],
+              },
+            ]
+          : [],
     }));
     const marker = buildLockTimeApplyVectorV1({ preparedManifests, audits, target });
 

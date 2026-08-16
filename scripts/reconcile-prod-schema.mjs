@@ -391,30 +391,7 @@ export function selectExact0053G3ReleaseGateHardeningApply({
 }
 
 export function buildLockTimeApplyVectorV1({ preparedManifests, audits, target }) {
-  const auditsForValidation = audits.map((audit) =>
-    audit?.manifest === target?.manifestName &&
-    audit.action === ACTION_APPLY_MISSING_DDL &&
-    Array.isArray(audit.objects) &&
-    audit.objects.length === 0
-      ? {
-          ...audit,
-          objects: [
-            {
-              table: 'lock-time-marker-synthetic-target',
-              present: false,
-              populated: false,
-              action: ACTION_APPLY_MISSING_DDL,
-              deltas: [],
-            },
-          ],
-        }
-      : audit
-  );
-  selectExact0053G3ReleaseGateHardeningApply({
-    preparedManifests,
-    audits: auditsForValidation,
-    target,
-  });
+  selectExact0053G3ReleaseGateHardeningApply({ preparedManifests, audits, target });
   const auditByManifest = new Map(audits.map((audit) => [audit.manifest, audit]));
   const vector = {
     schemaVersion: 1,
@@ -448,7 +425,18 @@ export function parseLockTimeApplyVectorV1(markerOutput, { preparedManifests, ta
     manifest: prepared?.manifest?.name,
     action:
       prepared?.manifest?.name === target?.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
-    objects: [],
+    objects:
+      prepared?.manifest?.name === target?.manifestName
+        ? [
+            {
+              table: 'lock-time-parser-synthetic-target',
+              present: false,
+              populated: false,
+              action: ACTION_APPLY_MISSING_DDL,
+              deltas: [],
+            },
+          ]
+        : [],
   }));
   const expected = buildLockTimeApplyVectorV1({
     preparedManifests,

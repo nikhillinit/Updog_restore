@@ -651,7 +651,7 @@ describe('reconcile-prod-schema runner helpers', () => {
     }
   });
 
-  it('builds and parses canonical lock-time apply marker without sensitive fields', async () => {
+  it('rejects target APPLY with empty objects when building lock-time marker', async () => {
     const target = await prepare0053G3ReleaseGateHardeningCapability();
     const preparedManifests = target.manifests.map((manifest) => ({
       manifest,
@@ -661,6 +661,34 @@ describe('reconcile-prod-schema runner helpers', () => {
       manifest: manifest.name,
       action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
       objects: [],
+    }));
+
+    expect(() => buildLockTimeApplyVectorV1({ preparedManifests, audits, target })).toThrow(
+      ReconcileError
+    );
+  });
+
+  it('builds and parses canonical lock-time apply marker without sensitive fields', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const preparedManifests = target.manifests.map((manifest) => ({
+      manifest,
+      dropStatements: [],
+    }));
+    const audits = target.manifests.map((manifest) => ({
+      manifest: manifest.name,
+      action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+      objects:
+        manifest.name === target.manifestName
+          ? [
+              {
+                table: 'fixture_target',
+                present: false,
+                populated: false,
+                action: ACTION_APPLY_MISSING_DDL,
+                deltas: [],
+              },
+            ]
+          : [],
     }));
     const marker = buildLockTimeApplyVectorV1({ preparedManifests, audits, target });
     expect(marker).toMatch(/^PROD_SCHEMA_LOCK_TIME_VECTOR_V1=\{/);
@@ -680,7 +708,18 @@ describe('reconcile-prod-schema runner helpers', () => {
     const audits = target.manifests.map((manifest) => ({
       manifest: manifest.name,
       action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
-      objects: [],
+      objects:
+        manifest.name === target.manifestName
+          ? [
+              {
+                table: 'fixture_target',
+                present: false,
+                populated: false,
+                action: ACTION_APPLY_MISSING_DDL,
+                deltas: [],
+              },
+            ]
+          : [],
     }));
     const marker = buildLockTimeApplyVectorV1({ preparedManifests, audits, target });
     const prefix = 'PROD_SCHEMA_LOCK_TIME_VECTOR_V1=';
