@@ -438,7 +438,6 @@ export default [
       'tests/api/portfolio-route.template.test.ts',
       'tests/api/deal-pipeline.test.ts',
       'tests/unit/services/snapshot-service.test.ts',
-      'tests/unit/pages/portfolio-constructor.test.tsx',
       'tests/unit/database/time-travel-simple.test.ts',
     ],
     rules: {

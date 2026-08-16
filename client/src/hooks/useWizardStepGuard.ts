@@ -124,6 +124,7 @@ export function useWizardStepGuard(): WizardStepGuardResult {
     setVisitedSteps((current) => {
       // Only mark if step is actually accessible (prevents marking skipped steps)
       if (!canAccessStepFromVisited(current, stepNumber)) return current;
+      if (current.has(stepNumber)) return current;
 
       const updated = new Set(current);
       updated.add(stepNumber);
