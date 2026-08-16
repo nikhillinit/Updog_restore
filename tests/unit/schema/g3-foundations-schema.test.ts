@@ -5,8 +5,11 @@ import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 
 import * as schema from '@shared/schema';
-import * as schemaIndex from '@shared/schema/index';
-import { fundScenarioCalculationRuns, funds } from '@shared/schema/fund';
+import {
+  fundScenarioCalculationRuns,
+  funds,
+} from '@shared/schema/fund';
+import { fundScenarioCalculationCommands } from '@shared/schema/fund-scenario-calculation-commands';
 import { portfolioCompanies } from '@shared/schema/portfolio';
 import { releaseCanaryRuns } from '@shared/schema/release-canary';
 import { users } from '@shared/schema/user';
@@ -21,14 +24,13 @@ const journal = JSON.parse(
 ) as { entries: Array<{ idx: number; tag: string }> };
 
 describe('G3 foundations schema', () => {
-  it('re-exports every new domain table through both schema barrels', () => {
+  it('re-exports every new domain table through the canonical schema barrel', () => {
     for (const table of [
       portfolioCompanyUpdateReceipts,
       releaseCanaryRuns,
       capitalCallNotificationOutbox,
     ]) {
       expect(Object.values(schema)).toContain(table);
-      expect(Object.values(schemaIndex)).toContain(table);
     }
   });
 
@@ -98,6 +100,47 @@ describe('G3 foundations schema', () => {
     expect(deadline).toMatchObject({ notNull: false, hasDefault: false });
   });
 
+  it('defines durable calculation commands with scoped idempotency and lifecycle fences', () => {
+    const config = getTableConfig(fundScenarioCalculationCommands);
+    expect(config.columns.map((column) => column.name)).toEqual([
+      'id',
+      'fund_id',
+      'scenario_set_id',
+      'idempotency_key',
+      'request_hash',
+      'status',
+      'run_id',
+      'correlation_id',
+      'response_status',
+      'response_body',
+      'attempt_count',
+      'lease_token',
+      'lease_expires_at',
+      'failure_code',
+      'created_by_user_id',
+      'created_by_label',
+      'version',
+      'created_at',
+      'updated_at',
+    ]);
+    expect(config.uniqueConstraints.map((constraint) => constraint.name)).toContain(
+      'fund_scenario_calc_commands_scope_unique'
+    );
+    expect(config.checks.map((constraint) => constraint.name)).toEqual(
+      expect.arrayContaining([
+        'fund_scenario_calc_commands_status_check',
+        'fund_scenario_calc_commands_hash_check',
+        'fund_scenario_calc_commands_response_check',
+        'fund_scenario_calc_commands_lease_check',
+        'fund_scenario_calc_commands_attempt_check',
+        'fund_scenario_calc_commands_version_check',
+      ])
+    );
+    expect(config.indexes.map((index) => index.config.name)).toContain(
+      'fund_scenario_calc_commands_status_idx'
+    );
+  });
+
   it('pins canary principal, fund origin, and release run lifecycle shape', () => {
     const userConfig = getTableConfig(users);
     const canaryFlag = userConfig.columns.find(
@@ -125,6 +168,8 @@ describe('G3 foundations schema', () => {
       'deployment_id',
       'worker_deployment_id',
       'correlation_id',
+      'workflow_run_id',
+      'workflow_run_attempt',
       'principal_user_id',
       'status',
       'version',
@@ -138,12 +183,25 @@ describe('G3 foundations schema', () => {
       'fund_config_residue_count',
       'fund_event_residue_count',
       'notification_residue_count',
+      'grant_residue_count',
+      'calculation_residue_count',
+      'mutation_receipt_residue_count',
+      'scenario_residue_count',
+      'reporting_residue_count',
       'total_residue_count',
       'created_at',
       'updated_at',
     ]);
     expect(canaryConfig.foreignKeys.map((foreignKey) => foreignKey.getName())).toContain(
       'release_canary_runs_principal_user_id_users_id_fk'
+    );
+    expect(canaryConfig.columns.map((column) => column.name)).toContain('workflow_run_id');
+    expect(canaryConfig.columns.map((column) => column.name)).toContain('workflow_run_attempt');
+    expect(canaryConfig.checks.map((constraint) => constraint.name)).toContain(
+      'release_canary_runs_workflow_identity_check'
+    );
+    expect(canaryConfig.indexes.map((index) => index.config.name)).toContain(
+      'release_canary_runs_workflow_identity_unique'
     );
   });
 
@@ -182,6 +240,7 @@ describe('G3 foundations schema', () => {
     const migration0050 = migration('0050_g3_portfolio_and_calculation_schema.sql');
     const migration0051 = migration('0051_g3_canary_schema.sql');
     const migration0052 = migration('0052_g3_capital_call_notification_outbox.sql');
+    const migration0053 = migration('0053_g3_release_gate_hardening.sql');
 
     expect(migration0050).toContain('-- @drift-patch');
     expect(migration0050).toContain('ADD COLUMN IF NOT EXISTS "row_version"');
@@ -196,11 +255,22 @@ describe('G3 foundations schema', () => {
     );
     expect(migration0052).toContain("'exhausted'");
     expect(migration0052).not.toContain('"payload" jsonb');
+    expect(migration0053).toContain('-- @drift-patch');
+    expect(migration0053).toContain(
+      'CREATE TABLE IF NOT EXISTS "fund_scenario_calculation_commands"'
+    );
+    expect(migration0053).toContain('queued_event_recorded_at');
+    expect(migration0053).toContain('calculation_queued');
+    expect(migration0053).toContain('release_canary_runs_workflow_identity_unique');
+    expect(migration0053).toContain('release_canary_runs_residue_count_check');
+    expect(migration0053).toContain('ADD COLUMN IF NOT EXISTS "grant_residue_count"');
+    expect(migration0053).not.toMatch(/DELETE\s+FROM|UPDATE\s+fund_scenario_set_events/i);
 
     for (const [idx, tag] of [
       [51, '0050_g3_portfolio_and_calculation_schema'],
       [52, '0051_g3_canary_schema'],
       [53, '0052_g3_capital_call_notification_outbox'],
+      [54, '0053_g3_release_gate_hardening'],
     ] as const) {
       expect(
         journal.entries

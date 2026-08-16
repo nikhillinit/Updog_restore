@@ -1,7 +1,7 @@
 ---
 status: ACTIVE
 audience: both
-last_updated: 2026-08-08
+last_updated: 2026-08-14
 categories: [documentation, navigation]
 keywords: [index, docs, navigation, routing, documentation]
 source_of_truth: true
@@ -17,7 +17,7 @@ maintenance:
 # Documentation Index
 
 **Purpose**: Central routing table for all project documentation **Audience**:
-Humans AND Agents **Last Updated**: 2026-08-08
+Humans AND Agents **Last Updated**: 2026-08-14
 
 ---
 
@@ -28,7 +28,7 @@ Humans AND Agents **Last Updated**: 2026-08-08
 | [Getting Started](#getting-started)              | First time setup, onboarding            | README.md                           |
 | [Development](#development)                      | Building features, coding workflows     | CLAUDE.md, docs/INDEX.md            |
 | [Testing](#testing)                              | Running tests, fixing failures          | tests/README.md                     |
-| [Deployment](#deployment)                        | Deploying to staging/production         | scripts/README.md                   |
+| [Deployment](#deployment)                        | Deploying to staging/production         | workflows/PRODUCTION_SCRIPTS.md     |
 | [Architecture](#architecture)                    | Design decisions, technical strategy    | DECISIONS.md                        |
 | [AI & Automation](#ai--automation)               | Agent development, AI workflows         | ai-utils/README.md                  |
 | [Workflows & CI/CD](#workflows--cicd)            | GitHub Actions, deployment scripts      | workflows/README.md                 |
@@ -105,26 +105,21 @@ Hardening baseline)
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                                                                   | Description                                               | When to Use                                           |
-| ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------- |
-| [scripts/README.md](../scripts/README.md)                                                                  | Deployment scripts (progressive rollout, smoke tests)     | Deploying to staging/production                       |
-| [workflows/PRODUCTION_SCRIPTS.md](workflows/PRODUCTION_SCRIPTS.md)                                         | Production deployment system details                      | Understanding deployment process                      |
-| [runbooks/rollback.md](runbooks/rollback.md)                                                               | Step-by-step rollback runbook                             | Executing or supervising production rollback          |
-| [runbooks/marginal-moic-nonproduction-shadow-soak.md](runbooks/marginal-moic-nonproduction-shadow-soak.md) | Governed marginal MOIC shadow-soak and rollback           | Preparing or running the approved non-production soak |
-| [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md)                                                                 | Unified metrics diagnostic runbook                        | Investigating production metrics anomalies            |
-| [observability.md](observability.md)                                                                       | Monitoring, health checks, metrics, and alerting overview | Understanding runtime observability surfaces          |
+| Document                                                                                                             | Description                                               | When to Use                                           |
+| -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------- |
+| [workflows/PRODUCTION_SCRIPTS.md](workflows/PRODUCTION_SCRIPTS.md)                                                   | Canonical repository-governance production-action route   | Production-action governance and UNKNOWN blockers     |
+| [governance/solo-internal-change-and-production-policy.md](governance/solo-internal-change-and-production-policy.md) | Active repository-governance authority boundaries         | Governance rationale and retained controls            |
+| [scripts/README.md](../scripts/README.md)                                                                            | Non-authorizing production-action pointer                 | Finding canonical route                               |
+| [runbooks/rollback.md](runbooks/rollback.md)                                                                         | Non-authorizing rollback pointer                          | Finding canonical route                               |
+| [runbooks/marginal-moic-nonproduction-shadow-soak.md](runbooks/marginal-moic-nonproduction-shadow-soak.md)           | Governed marginal MOIC shadow-soak and rollback           | Preparing or running the approved non-production soak |
+| [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md)                                                                           | Unified metrics diagnostic runbook                        | Investigating production metrics anomalies            |
+| [observability.md](observability.md)                                                                                 | Monitoring, health checks, metrics, and alerting overview | Understanding runtime observability surfaces          |
 
-**Key Scripts**:
-
-- `scripts/deploy-with-confidence.ps1` - Progressive rollout (10% → 25% → 50% →
-  100%)
-- `scripts/monitor-deployment.ps1` - Deployment monitoring
-- `scripts/smoke-test-prod.ps1` - Post-deployment validation
-
-**Key Commands**:
-
-- `/deploy-check` - Pre-deployment validation (build, bundle, smoke,
-  idempotency)
+**Authority note:** Operational script and slash-command references are
+non-authorizing pointers. They confer no production authority; use
+`docs/workflows/PRODUCTION_SCRIPTS.md` for the canonical guarded route and its
+current action-specific UNKNOWN blockers. Active status confers no production
+readiness or authorization.
 
 ---
 
@@ -132,19 +127,20 @@ Hardening baseline)
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                                               | Description                                              | When to Use                                 |
-| -------------------------------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------- |
-| [DECISIONS.md](../DECISIONS.md)                                                        | Architectural Decision Records (ADRs)                    | Understanding technical rationale           |
-| [DESIGN.md](../DESIGN.md)                                                              | Canonical product design contract and workspace baseline | Making visual or interaction decisions      |
-| [design/README.md](design/README.md)                                                   | Design doctrine, data audits, and reference routing      | Reviewing analytical and workspace UI       |
-| [adr/](adr/)                                                                           | Standalone ADR files (15 files)                          | Architecture decisions outside DECISIONS.md |
-| [DEVELOPMENT_STRATEGY.md](DEVELOPMENT_STRATEGY.md)                                     | Long-term development strategy                           | Strategic planning                          |
-| [governance/cleanup-manifest.md](governance/cleanup-manifest.md)                       | Current cleanup candidate register                       | Before deletion/externalization cleanup     |
-| [governance/2026-05-19-refactor-roadmap.md](governance/2026-05-19-refactor-roadmap.md) | Active refactor roadmap and priority order               | Cleanup/refactor sequencing                 |
-| [MULTI-AI-DEVELOPMENT-WORKFLOW.md](MULTI-AI-DEVELOPMENT-WORKFLOW.md)                   | Multi-AI collaboration patterns                          | Leveraging multiple AIs                     |
-| [schema.md](schema.md)                                                                 | Database schema, relationships, and design patterns      | Understanding persisted data model          |
-| [IDEMPOTENCY_GUIDE.md](IDEMPOTENCY_GUIDE.md)                                           | Request deduplication and exactly-once processing guide  | Designing safe write paths                  |
-| [RLS-DEVELOPMENT-GUIDE.md](RLS-DEVELOPMENT-GUIDE.md)                                   | Multi-tenant Row-Level Security development guide        | Building or testing tenant-scoped features  |
+| Document                                                                                                             | Description                                              | When to Use                                 |
+| -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------- |
+| [DECISIONS.md](../DECISIONS.md)                                                                                      | Architectural Decision Records (ADRs)                    | Understanding technical rationale           |
+| [DESIGN.md](../DESIGN.md)                                                                                            | Canonical product design contract and workspace baseline | Making visual or interaction decisions      |
+| [design/README.md](design/README.md)                                                                                 | Design doctrine, data audits, and reference routing      | Reviewing analytical and workspace UI       |
+| [adr/](adr/)                                                                                                         | Standalone ADR files (15 files)                          | Architecture decisions outside DECISIONS.md |
+| [DEVELOPMENT_STRATEGY.md](DEVELOPMENT_STRATEGY.md)                                                                   | Long-term development strategy                           | Strategic planning                          |
+| [governance/cleanup-manifest.md](governance/cleanup-manifest.md)                                                     | Current cleanup candidate register                       | Before deletion/externalization cleanup     |
+| [governance/2026-05-19-refactor-roadmap.md](governance/2026-05-19-refactor-roadmap.md)                               | Active refactor roadmap and priority order               | Cleanup/refactor sequencing                 |
+| [MULTI-AI-DEVELOPMENT-WORKFLOW.md](MULTI-AI-DEVELOPMENT-WORKFLOW.md)                                                 | Multi-AI collaboration patterns                          | Leveraging multiple AIs                     |
+| [schema.md](schema.md)                                                                                               | Database schema, relationships, and design patterns      | Understanding persisted data model          |
+| [IDEMPOTENCY_GUIDE.md](IDEMPOTENCY_GUIDE.md)                                                                         | Request deduplication and exactly-once processing guide  | Designing safe write paths                  |
+| [RLS-DEVELOPMENT-GUIDE.md](RLS-DEVELOPMENT-GUIDE.md)                                                                 | Multi-tenant Row-Level Security development guide        | Building or testing tenant-scoped features  |
+| [governance/solo-internal-change-and-production-policy.md](governance/solo-internal-change-and-production-policy.md) | Active repository-governance boundaries                  | Reviewing authority and control scope       |
 
 **Key ADRs**:
 
@@ -197,11 +193,11 @@ not by number alone._
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                                                     | Description                             | When to Use                              |
-| ---------------------------------------------------------------------------- | --------------------------------------- | ---------------------------------------- |
-| [workflows/README.md](workflows/README.md)                                   | Current GitHub Actions workflow index   | Understanding CI/CD pipelines            |
-| [workflows/PRODUCTION_SCRIPTS.md](workflows/PRODUCTION_SCRIPTS.md)           | Deployment system (progressive rollout) | Production deployments                   |
-| [workflows/PAIRED-AGENT-VALIDATION.md](workflows/PAIRED-AGENT-VALIDATION.md) | Paired-agent quality workflow           | Deletions, structural changes, bulk mods |
+| Document                                                                     | Description                           | When to Use                               |
+| ---------------------------------------------------------------------------- | ------------------------------------- | ----------------------------------------- |
+| [workflows/README.md](workflows/README.md)                                   | Current GitHub Actions workflow index | Understanding CI/CD pipelines             |
+| [workflows/PRODUCTION_SCRIPTS.md](workflows/PRODUCTION_SCRIPTS.md)           | Canonical repository-governance route | Production-action governance and blockers |
+| [workflows/PAIRED-AGENT-VALIDATION.md](workflows/PAIRED-AGENT-VALIDATION.md) | Paired-agent quality workflow         | Deletions, structural changes, bulk mods  |
 
 **Current snapshot**:
 
@@ -212,7 +208,8 @@ not by number alone._
 
 **Pattern Routing**:
 
-- **Deploy/Production** → PRODUCTION_SCRIPTS.md
+- **Deploy/Production** → PRODUCTION_SCRIPTS.md (canonical; UNKNOWN blocks
+  action)
 - **CI/GitHub Actions** → README.md
 - **Quality/Validation** → PAIRED-AGENT-VALIDATION.md
 
@@ -222,10 +219,10 @@ not by number alone._
 
 **Status**: [ACTIVE] **Audience**: Humans + Agents
 
-| Document                                  | Description                      | When to Use                |
-| ----------------------------------------- | -------------------------------- | -------------------------- |
-| [package.json](../package.json)           | Current npm script inventory     | Finding available commands |
-| [scripts/README.md](../scripts/README.md) | Deployment scripts documentation | Deployment automation      |
+| Document                                  | Description                                                      | When to Use                   |
+| ----------------------------------------- | ---------------------------------------------------------------- | ----------------------------- |
+| [package.json](../package.json)           | Current npm script inventory                                     | Finding available commands    |
+| [scripts/README.md](../scripts/README.md) | Non-authorizing production-action pointer and Script orientation | Script orientation and lookup |
 
 **Current snapshot**:
 

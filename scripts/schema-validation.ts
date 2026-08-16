@@ -7,6 +7,8 @@ import { execSync } from 'child_process';
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'node:url';
+import { assertLocalDatabaseTarget } from './local-database-target';
 
 interface SchemaInfo {
   hash: string;
@@ -17,7 +19,7 @@ interface SchemaInfo {
 }
 
 const EXPECTED_SCHEMA_FILE = path.join(process.cwd(), 'docs/contracts/expected-schema.json');
-const TEMP_DB_URL = process.env.SCHEMA_TEST_DB_URL || 'postgresql://postgres:postgres@localhost:5432/schema_test';
+const DEFAULT_TEMP_DB_URL = 'postgresql://postgres:postgres@localhost:5432/schema_test';
 
 /**
  * Generate schema hash from pg_dump output
@@ -27,7 +29,7 @@ async function generateSchemaHash(dbUrl: string): Promise<SchemaInfo> {
     // Get schema-only dump (no data)
     const schemaDump = execSync(`pg_dump --schema-only --no-owner --no-privileges "${dbUrl}"`, {
       encoding: 'utf8',
-      timeout: 30000
+      timeout: 30000,
     });
 
     // Normalize schema (remove comments, whitespace variations)
@@ -52,7 +54,7 @@ async function generateSchemaHash(dbUrl: string): Promise<SchemaInfo> {
       timestamp: new Date().toISOString(),
       migrations,
       tableCount,
-      indexCount
+      indexCount,
     };
   } catch (error) {
     console.error('Error generating schema hash:', error);
@@ -66,9 +68,12 @@ async function generateSchemaHash(dbUrl: string): Promise<SchemaInfo> {
 async function getAppliedMigrations(dbUrl: string): Promise<string[]> {
   try {
     // Check if migrations table exists
-    const migrationsExist = execSync(`psql "${dbUrl}" -t -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'migrations');"`, {
-      encoding: 'utf8'
-    }).trim();
+    const migrationsExist = execSync(
+      `psql "${dbUrl}" -t -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'migrations');"`,
+      {
+        encoding: 'utf8',
+      }
+    ).trim();
 
     if (migrationsExist === 'f') {
       return []; // No migrations table yet
@@ -76,10 +81,13 @@ async function getAppliedMigrations(dbUrl: string): Promise<string[]> {
 
     // Get applied migrations
     const result = execSync(`psql "${dbUrl}" -t -c "SELECT name FROM migrations ORDER BY id;"`, {
-      encoding: 'utf8'
+      encoding: 'utf8',
     });
 
-    return result.trim().split('\n').filter(line => line.trim());
+    return result
+      .trim()
+      .split('\n')
+      .filter((line) => line.trim());
   } catch (error) {
     console.warn('Could not read migrations table:', error);
     return [];
@@ -91,13 +99,11 @@ async function getAppliedMigrations(dbUrl: string): Promise<string[]> {
  */
 async function applyMigrations(dbUrl: string): Promise<void> {
   const migrationsDir = path.join(process.cwd(), 'server/db/migrations');
-  
+
   try {
     // Get migration files in order
     const files = await fs.readdir(migrationsDir);
-    const migrationFiles = files
-      .filter(f => f.endsWith('.sql') && /^\d{4}_/.test(f))
-      .sort();
+    const migrationFiles = files.filter((f) => f.endsWith('.sql') && /^\d{4}_/.test(f)).sort();
 
     console.log(`Applying ${migrationFiles.length} migrations...`);
 
@@ -105,14 +111,14 @@ async function applyMigrations(dbUrl: string): Promise<void> {
       console.log(`  Applying: ${file}`);
       const filePath = path.join(migrationsDir, file);
       const sql = await fs.readFile(filePath, 'utf8');
-      
+
       // Only run the UP migration part
       const upSection = extractUpSection(sql);
-      
+
       execSync(`psql "${dbUrl}" -f -`, {
         input: upSection,
         encoding: 'utf8',
-        timeout: 60000
+        timeout: 60000,
       });
     }
 
@@ -128,16 +134,16 @@ async function applyMigrations(dbUrl: string): Promise<void> {
  */
 function extractUpSection(sql: string): string {
   const lines = sql.split('\n');
-  const upStart = lines.findIndex(line => line.includes('UP MIGRATION'));
-  const downStart = lines.findIndex(line => line.includes('DOWN MIGRATION'));
-  
+  const upStart = lines.findIndex((line) => line.includes('UP MIGRATION'));
+  const downStart = lines.findIndex((line) => line.includes('DOWN MIGRATION'));
+
   if (upStart === -1) {
     return sql; // No sections, assume entire file is UP
   }
-  
+
   const startLine = upStart + 1;
   const endLine = downStart === -1 ? lines.length : downStart;
-  
+
   return lines.slice(startLine, endLine).join('\n');
 }
 
@@ -146,11 +152,11 @@ function extractUpSection(sql: string): string {
  */
 async function testRollback(dbUrl: string): Promise<void> {
   const rollbackDir = path.join(process.cwd(), 'server/db/migrations/rollback');
-  
+
   try {
     const files = await fs.readdir(rollbackDir);
     const rollbackFiles = files
-      .filter(f => f.endsWith('_down.sql'))
+      .filter((f) => f.endsWith('_down.sql'))
       .sort()
       .reverse(); // Apply rollbacks in reverse order
 
@@ -160,11 +166,11 @@ async function testRollback(dbUrl: string): Promise<void> {
       console.log(`  Rolling back: ${file}`);
       const filePath = path.join(rollbackDir, file);
       const sql = await fs.readFile(filePath, 'utf8');
-      
+
       execSync(`psql "${dbUrl}" -f -`, {
         input: sql,
         encoding: 'utf8',
-        timeout: 60000
+        timeout: 60000,
       });
     }
 
@@ -181,17 +187,17 @@ async function testRollback(dbUrl: string): Promise<void> {
 async function setupTestDatabase(dbUrl: string): Promise<void> {
   const dbName = new URL(dbUrl).pathname.substring(1);
   const baseUrl = dbUrl.replace(`/${dbName}`, '/postgres');
-  
+
   try {
     // Drop if exists, create new
     execSync(`psql "${baseUrl}" -c "DROP DATABASE IF EXISTS ${dbName};"`, {
-      encoding: 'utf8'
+      encoding: 'utf8',
     });
-    
+
     execSync(`psql "${baseUrl}" -c "CREATE DATABASE ${dbName};"`, {
-      encoding: 'utf8'
+      encoding: 'utf8',
     });
-    
+
     console.log(`Test database ${dbName} created`);
   } catch (error) {
     console.error('Error setting up test database:', error);
@@ -235,14 +241,14 @@ function compareSchemas(expected: SchemaInfo, actual: SchemaInfo): boolean {
   console.error(`Actual hash:   ${actual.hash}`);
   console.error(`Expected tables: ${expected.tableCount}, Actual: ${actual.tableCount}`);
   console.error(`Expected indexes: ${expected.indexCount}, Actual: ${actual.indexCount}`);
-  
+
   // Check migration differences
   const expectedMigrations = new Set(expected.migrations);
   const actualMigrations = new Set(actual.migrations);
-  
-  const missing = [...expectedMigrations].filter(m => !actualMigrations.has(m));
-  const extra = [...actualMigrations].filter(m => !expectedMigrations.has(m));
-  
+
+  const missing = [...expectedMigrations].filter((m) => !actualMigrations.has(m));
+  const extra = [...actualMigrations].filter((m) => !expectedMigrations.has(m));
+
   if (missing.length > 0) {
     console.error(`Missing migrations: ${missing.join(', ')}`);
   }
@@ -256,37 +262,37 @@ function compareSchemas(expected: SchemaInfo, actual: SchemaInfo): boolean {
 /**
  * Main schema validation function
  */
-async function validateSchema(): Promise<void> {
-  const command = process.argv[2];
-  
+async function runSchemaValidationCommand(
+  command: string | undefined,
+  databaseUrl: string
+): Promise<void> {
   try {
     if (command === 'generate') {
       console.log('Generating expected schema...');
-      
-      await setupTestDatabase(TEMP_DB_URL);
-      await applyMigrations(TEMP_DB_URL);
-      
-      const schemaInfo = await generateSchemaHash(TEMP_DB_URL);
+
+      await setupTestDatabase(databaseUrl);
+      await applyMigrations(databaseUrl);
+
+      const schemaInfo = await generateSchemaHash(databaseUrl);
       await saveExpectedSchema(schemaInfo);
-      
+
       console.log('✅ Expected schema generated');
-      
     } else if (command === 'check') {
       console.log('Checking schema drift...');
-      
+
       const expected = await loadExpectedSchema();
       if (!expected) {
         console.error('❌ No expected schema found. Run with "generate" first.');
         process.exit(1);
       }
-      
-      await setupTestDatabase(TEMP_DB_URL);
-      await applyMigrations(TEMP_DB_URL);
-      
-      const actual = await generateSchemaHash(TEMP_DB_URL);
-      
+
+      await setupTestDatabase(databaseUrl);
+      await applyMigrations(databaseUrl);
+
+      const actual = await generateSchemaHash(databaseUrl);
+
       const matches = compareSchemas(expected, actual);
-      
+
       if (!matches) {
         console.error('');
         console.error('To fix:');
@@ -296,50 +302,67 @@ async function validateSchema(): Promise<void> {
         console.error('3. Get team approval for schema changes');
         process.exit(1);
       }
-      
+
       console.log('✅ Schema validation passed');
-      
     } else if (command === 'test-rollback') {
       console.log('Testing migration rollback...');
-      
-      await setupTestDatabase(TEMP_DB_URL);
-      await applyMigrations(TEMP_DB_URL);
-      
+
+      await setupTestDatabase(databaseUrl);
+      await applyMigrations(databaseUrl);
+
       console.log('Schema before rollback:');
-      const beforeRollback = await generateSchemaHash(TEMP_DB_URL);
+      const beforeRollback = await generateSchemaHash(databaseUrl);
       console.log(`  Tables: ${beforeRollback.tableCount}, Indexes: ${beforeRollback.indexCount}`);
-      
-      await testRollback(TEMP_DB_URL);
-      
+
+      await testRollback(databaseUrl);
+
       console.log('Schema after rollback:');
-      const afterRollback = await generateSchemaHash(TEMP_DB_URL);
+      const afterRollback = await generateSchemaHash(databaseUrl);
       console.log(`  Tables: ${afterRollback.tableCount}, Indexes: ${afterRollback.indexCount}`);
-      
+
       // Re-apply to test UP again
-      await applyMigrations(TEMP_DB_URL);
-      const reapplied = await generateSchemaHash(TEMP_DB_URL);
-      
+      await applyMigrations(databaseUrl);
+      const reapplied = await generateSchemaHash(databaseUrl);
+
       if (beforeRollback.hash === reapplied.hash) {
         console.log('✅ Rollback test passed (UP → DOWN → UP = same schema)');
       } else {
         console.error('❌ Rollback test failed (schema differs after reapply)');
         process.exit(1);
       }
-      
     } else {
       console.log('Usage:');
       console.log('  npm run schema:generate  - Generate expected schema hash');
       console.log('  npm run schema:check     - Check for schema drift');
       console.log('  npm run schema:test      - Test migration rollback');
     }
-    
   } catch (error) {
     console.error('Schema validation failed:', error);
     process.exit(1);
   }
 }
 
+interface ValidateSchemaOptions {
+  command?: string;
+  databaseUrl?: string;
+  dispatch?: (command: string | undefined, databaseUrl: string) => Promise<void>;
+  env?: NodeJS.ProcessEnv;
+}
+
+export async function validateSchema(options: ValidateSchemaOptions = {}): Promise<void> {
+  const env = options.env ?? process.env;
+  const databaseUrl = options.databaseUrl ?? env.SCHEMA_TEST_DB_URL ?? DEFAULT_TEMP_DB_URL;
+  assertLocalDatabaseTarget(databaseUrl, env);
+  await (options.dispatch ?? runSchemaValidationCommand)(
+    options.command ?? process.argv[2],
+    databaseUrl
+  );
+}
+
 // Run if called directly
-if (require.main === module) {
-  validateSchema();
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  validateSchema().catch((error) => {
+    console.error('Schema validation failed:', error);
+    process.exit(1);
+  });
 }

@@ -1,7 +1,6 @@
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { loadManifests, runReconciliation } from '../../scripts/reconcile-prod-schema.mjs';
 import {
   assertAcceptedTargetAuditVector,
   parseRecoveryArgs,
@@ -17,14 +16,6 @@ import { runMigrationsWithConnectionString } from '../helpers/testcontainers-mig
 
 const BASELINE_TAG = '0044_internal_analysis';
 const BASELINE_LEDGER_TIMESTAMP = 1775356800000;
-const FIRST_TARGET_LEDGER_TIMESTAMP = 1785368400000;
-const EXPECTED_TARGET_LEDGER_TIMESTAMPS = [
-  '1785368400000',
-  '1785454800000',
-  '1785541200000',
-  '1785627600000',
-  '1785714000000',
-];
 const TARGET_TABLES = [
   'internal_capital_envelope_versions',
   'internal_economics_policy_versions',
@@ -72,7 +63,7 @@ describe.skipIf(skipIfNoDocker)('journaled production migration recovery Postgre
     if (startedTestContainers) await cleanupTestContainers();
   });
 
-  it('audits, applies, and replays only journaled migrations 0045 through 0049', async () => {
+  it('audits journaled migrations 0045 through 0049 without schema writes', async () => {
     const connectionString = await createProductionShapedDatabase('recovery');
     const auditOutput = captureOutput();
 
@@ -109,76 +100,38 @@ describe.skipIf(skipIfNoDocker)('journaled production migration recovery Postgre
         apply: true,
         stdout: captureOutput(),
       })
-    ).resolves.toEqual({ state: 'complete', applied: true });
+    ).rejects.toThrow(/production schema mutation is mechanically blocked/i);
 
     await withPool(connectionString, async (pool) => {
-      expect(await targetLedgerTimestamps(pool)).toEqual(EXPECTED_TARGET_LEDGER_TIMESTAMPS);
-
-      const manifests = (await loadManifests()).filter(
-        (manifest) => manifest.order >= 22 && manifest.order <= 26
-      );
-      const postApply = await runReconciliation({
-        client: pool,
-        manifests,
-        apply: false,
-        stdout: captureOutput(),
-      });
-      expect(postApply.audits.map(({ manifest, action }) => [manifest, action])).toEqual(
-        manifests.map(({ name }) => [name, 'SKIP'])
-      );
-    });
-
-    await expect(
-      runProdJournaledMigrationRecovery({
-        connectionString,
-        apply: true,
-        stdout: captureOutput(),
-      })
-    ).resolves.toEqual({ state: 'complete', applied: false });
-
-    await withPool(connectionString, async (pool) => {
-      expect(await targetLedgerTimestamps(pool)).toEqual(EXPECTED_TARGET_LEDGER_TIMESTAMPS);
-    });
-  });
-
-  it('rolls back all target DDL and ledger inserts when migration 0047 refuses drift', async () => {
-    const connectionString = await createProductionShapedDatabase('rollback');
-
-    await withPool(connectionString, async (pool) => {
-      await pool.query('ALTER TABLE tasks ADD CONSTRAINT tasks_id_fund_unique UNIQUE (id)');
-    });
-
-    await expect(
-      runProdJournaledMigrationRecovery({
-        connectionString,
-        apply: true,
-        stdout: captureOutput(),
-      })
-    ).rejects.toThrow(
-      /internal_economics_linkage_partial_catalog_state: existing tasks_id_fund_unique must exactly equal UNIQUE \(id, fund_id\) before replay/
-    );
-
-    await withPool(connectionString, async (pool) => {
-      const ledger = await pool.query<{ count: string }>(
+      const catalog = await pool.query<{ name: string; relation: string | null }>(
         `
-          SELECT count(*)::text AS count
-          FROM public.drizzle_migrations
-          WHERE created_at >= $1
+          SELECT name, to_regclass('public.' || name)::text AS relation
+          FROM unnest($1::text[]) AS target(name)
+          ORDER BY name
         `,
-        [FIRST_TARGET_LEDGER_TIMESTAMP]
+        [TARGET_TABLES]
       );
-      expect(ledger.rows[0]?.count).toBe('0');
-
-      const catalog = await pool.query<{ relation: string | null }>(
-        "SELECT to_regclass('public.internal_capital_envelope_versions')::text AS relation"
-      );
-      expect(catalog.rows[0]?.relation).toBeNull();
+      expect(catalog.rows.every(({ relation }) => relation === null)).toBe(true);
     });
   });
 
-  it('requires explicit confirmation and rejects pooler URLs before connecting', async () => {
-    expect(parseRecoveryArgs(['--apply', '--yes'])).toEqual({ apply: true, yes: true });
-    expect(() => parseRecoveryArgs(['--apply'])).toThrow(/--apply requires --yes/);
+  it('blocks apply before resolving a database endpoint', async () => {
+    await expect(
+      runProdJournaledMigrationRecovery({
+        connectionString: 'postgres://u:p@invalid.example/db',
+        apply: true,
+        stdout: captureOutput(),
+      })
+    ).rejects.toThrow(/production schema mutation is mechanically blocked/i);
+  });
+
+  it('blocks apply arguments and rejects pooler URLs before connecting', async () => {
+    expect(() => parseRecoveryArgs(['--apply', '--yes'])).toThrow(
+      /production schema mutation is mechanically blocked/i
+    );
+    expect(() => parseRecoveryArgs(['--apply'])).toThrow(
+      /production schema mutation is mechanically blocked/i
+    );
     await expect(
       runProdJournaledMigrationRecovery({
         connectionString: 'postgres://u:p@invalid-pooler.example/db',
@@ -261,19 +214,6 @@ async function createProductionShapedDatabase(suffix: string): Promise<string> {
     ]);
   });
   return connectionString;
-}
-
-async function targetLedgerTimestamps(pool: Pool): Promise<string[]> {
-  const result = await pool.query<{ created_at: string }>(
-    `
-      SELECT created_at::text
-      FROM public.drizzle_migrations
-      WHERE created_at >= $1
-      ORDER BY created_at
-    `,
-    [FIRST_TARGET_LEDGER_TIMESTAMP]
-  );
-  return result.rows.map(({ created_at: createdAt }) => createdAt);
 }
 
 function captureOutput(): { write(chunk: string): boolean; text(): string } {

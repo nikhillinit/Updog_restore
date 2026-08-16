@@ -80,7 +80,6 @@ echo ""
 echo "🎯  Quick commands:"
 echo "   ./scripts/debug.sh     → diagnostic report"
 echo "   npm run dev           → start dev server"
-echo "   ./pilot.sh --dry-run  → test deployment"
 echo ""
 echo "✅  Setup complete!"
 

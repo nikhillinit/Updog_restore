@@ -189,6 +189,11 @@ const G3_CANARY_MANIFEST_TABLES = ['users', 'release_canary_runs', 'funds'] as c
 const G3_CAPITAL_CALL_NOTIFICATION_OUTBOX_MANIFEST_TABLES = [
   'capital_call_notification_outbox',
 ] as const;
+const G3_RELEASE_GATE_HARDENING_MANIFEST_TABLES = [
+  'fund_scenario_calculation_commands',
+  'fund_scenario_calculation_runs',
+  'release_canary_runs',
+] as const;
 const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'M1-cohort',
   'M2-fund-moic',
@@ -219,6 +224,7 @@ const EXPECTED_PRODUCTION_MANIFEST_NAMES = [
   'g3-portfolio-and-calculation',
   'g3-canary',
   'g3-capital-call-notification-outbox',
+  'g3-release-gate-hardening',
 ] as const;
 const SHAPE_ONLY_NOT_JOURNALED = [
   'flag_changes',
@@ -868,6 +874,7 @@ describe.skipIf(skipIfNoDocker)('prod schema synthetic clone', () => {
         ...G3_PORTFOLIO_AND_CALCULATION_MANIFEST_TABLES,
         ...G3_CANARY_MANIFEST_TABLES,
         ...G3_CAPITAL_CALL_NOTIFICATION_OUTBOX_MANIFEST_TABLES,
+        ...G3_RELEASE_GATE_HARDENING_MANIFEST_TABLES,
       ])
     );
 
