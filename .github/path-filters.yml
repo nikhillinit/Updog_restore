@@ -391,6 +391,7 @@ schema_tests:
   - 'tests/unit/prod-schema-manifest-sentinels.test.ts'
   - 'tests/unit/prod-schema-apply-policy.test.ts'
   - 'tests/integration/prod-schema-reconcile-partial-drift.test.ts'
+  - 'tests/integration/prod-schema-reconcile-0053-capability.test.ts'
   - 'tests/integration/scenarios/scenario-case-seed-persistence.test.ts'
   - 'tests/integration/scenarios/company-scenario-create-persistence.test.ts'
   - '.github/workflows/prod-schema-reconcile.yml'
