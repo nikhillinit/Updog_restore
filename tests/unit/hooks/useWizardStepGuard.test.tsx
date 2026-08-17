@@ -4,11 +4,14 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useWizardStepGuard } from '@/hooks/useWizardStepGuard';
 
+const renderSpy = vi.fn();
+
 vi.mock('wouter', () => ({
   useLocation: () => ['/fund-setup?step=2', vi.fn()],
 }));
 
 function GuardProbe() {
+  renderSpy();
   const guard = useWizardStepGuard();
 
   return (
@@ -24,6 +27,7 @@ function GuardProbe() {
 describe('useWizardStepGuard', () => {
   beforeEach(() => {
     sessionStorage.clear();
+    renderSpy.mockClear();
   });
 
   it('updates accessible steps immediately after marking a step visited', async () => {
@@ -35,5 +39,14 @@ describe('useWizardStepGuard', () => {
 
     expect(screen.getByTestId('can-step-3')).toHaveTextContent('true');
     expect(JSON.parse(sessionStorage.getItem('wizard-visited-steps') ?? '[]')).toContain(2);
+  });
+
+  it('does not rerender when marking an already visited step', async () => {
+    sessionStorage.setItem('wizard-visited-steps', JSON.stringify([1, 2]));
+    render(<GuardProbe />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Mark Step 2' }));
+
+    expect(renderSpy).toHaveBeenCalledTimes(1);
   });
 });
