@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-08-14
+last_updated: 2026-08-18
 ---
 
 # Solo Internal Change and Production Policy
@@ -90,6 +90,105 @@ those controls are currently proven.
 Current UNKNOWN prerequisites block their applicable action. Subordinate
 deployment, release, rollback, and script guides are non-authorizing pointers;
 they cannot broaden or bypass canonical authority.
+
+## Document roles and precedence
+
+Load order and precedence are separate concerns: entry loaders are read first,
+but this policy prevails on any conflict. Roles, without ordinal authority:
+
+| Surface                                                            | Role                                                                                                                 |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `AGENTS.md` / `CLAUDE.md`                                          | Entry loaders only: load this policy and route by action; no independent authority.                                  |
+| This policy                                                        | Governing constitution: authority boundaries, roles, and precedence.                                                 |
+| `CI Gate Status` (required by branch protection; `ci-unified.yml`) | Sole aggregate merge gate. `.github/path-filters.yml` is its changed-path classifier, not an authority.              |
+| `docs/workflows/PRODUCTION_SCRIPTS.md` + production workflows      | Only action-specific production procedure and enforcement.                                                           |
+| Surface matrix artifacts, G1 records, reviews, receipts, plans     | Evidence and diagnostics; they satisfy only explicitly named predicates and never grant approval or merge authority. |
+| ADRs and architecture reviews                                      | Durable rationale only; never live workflow authority.                                                               |
+
+Precedence rules:
+
+- On conflict, this policy prevails; missing, stale, conflicting, or UNKNOWN
+  authority fails closed.
+- More-specific rules may add restrictions; they may not relax a floor without
+  explicit amendment.
+- Enforcement may block an action; it cannot create authority beyond named
+  policy scope.
+- Catch-all: an artifact not named above (skills, agent profiles, cheatsheets,
+  prompts, task plans) is procedure or reference at most and can never grant
+  authority.
+- Resolve this policy from the protected target branch (`origin/main`), never
+  from a working branch; a stale checkout does not excuse a stale rule.
+- Amendment: this policy amends only by a pull request that modifies this file
+  together with an ADR entry; plans, reviews, matrices, and generated artifacts
+  cannot amend it. This rule is prospective from adoption; the founding
+  amendment is ratified by owner approval recorded in its PR description, with
+  its ADR following in the next governance PR.
+- Production-dispatch issuer: the sole issuer of action-scoped production
+  authority is the repository owner, via explicit dispatch of the named
+  workflow; no agent, plan, or artifact self-authorizes.
+- Provider coupling: merge to `main` may causally trigger provider deployment
+  under current topology (ADR-075). That coupling is a topology fact, not an
+  authorization; a merge that would mutate production is production-affecting
+  and takes the canonical production-action route.
+
+### Surface-contract matrix component roles
+
+- Matrix data and inventories (`audit/surface-contract-matrix/*.json`, rendered
+  matrix) are evidence.
+- The validator suite in `tests/unit/audit/surface-contract-matrix.test.ts`
+  (exact-set, source-hash, closed-phase downgrade protection) is retained scoped
+  merge enforcement and the named pre-merge provenance control.
+- The G1 review record is scoped review evidence, invoked only by explicit owner
+  directive for a named high-risk migration or audit program; it is not generic
+  merge or release approval.
+
+## Documentation governance
+
+**PRUNE by default** - do not create session artifacts (progress logs, handoff
+docs, session summaries), navigation docs, or capability inventories derivable
+from code and active docs. **PRESERVE and CREATE** institutional memory: REFLs
+(`docs/skills/REFL-NNN-*.md`), ADR entries in `DECISIONS.md`, memory entries for
+non-derivable gotchas, and domain docs when business logic cannot be inferred
+from code. Derivability test: could a future session reconstruct this from code
+and git log alone? If NO, write it down; if YES, do not create a file.
+
+### Archive Gate
+
+Session artifacts (handoff memos, checkpoints, session summaries) violate the
+prune policy but may contain non-derivable implementation details. Do not
+mass-delete. Archive only after all three checks pass:
+
+1. `git log --all --oneline -- <path>` confirms the referenced work landed or
+   became obsolete.
+2. `grep -r <named-feature> client/ server/ shared/` confirms the named
+   feature/code path exists or is no longer referenced anywhere.
+3. The file is not serving as an active handoff (not referenced by a current
+   `HANDOFF.json`, open checkpoint, or in-flight PR).
+
+Cite the evidence from these checks in the PR description that archives the
+file. Git history is the archive; `.archive/` directories are not required.
+
+### Phoenix protected paths
+
+Phoenix routing and validation docs are domain-locked. Do not edit, archive,
+delete, merge, or deprecate the following without specialist sign-off:
+
+- `.claude/PHOENIX-AGENTS-REGISTRY.md`
+- `.claude/PHOENIX-TOOL-ROUTING.md`
+- Phoenix-specific sections of `.claude/DISCOVERY-MAP.md`
+
+Required reviewers depend on content touched: waterfall, carry, clawback, LP/GP
+distribution -> `waterfall-specialist`; precision, rounding, Decimal.js, numeric
+drift -> `phoenix-precision-guardian`; XIRR, IRR, fees, cash-flow timing ->
+`xirr-fees-validator`. A cleanup PR may update metadata or route pointers
+outside these protected sections, but any Phoenix content consolidation must
+include a content matrix classifying touched sections as `LOAD_BEARING`,
+`DUPLICATE`, or `OBSOLETE`.
+
+Cleanup tiers: archive-candidate files (`.omx/`, session summaries, handoff
+memos) gate on archive-after-evidence (git log + grep + active-reference check);
+domain-locked files (Phoenix routing surfaces) gate on specialist review before
+edit/merge/delete/deprecate.
 
 ## Revisit
 
