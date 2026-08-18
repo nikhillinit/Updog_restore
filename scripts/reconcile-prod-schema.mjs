@@ -1945,7 +1945,20 @@ export async function runReconciliation({
         const target = capability.targets[index];
         const prepared = selectedTargets[index];
         await assertPreparedG3CatchupTarget({ target, prepared, rootDir });
-        const committed = await hasCommittedManifestName(client, target.manifestName);
+        // A SKIP is honored only when the committed ledger row matches the
+        // pinned manifest checksum; a same-name row from another manifest
+        // revision is ambiguous provenance and fails closed. The name check
+        // runs first because it alone tolerates a not-yet-created ledger table.
+        const committedAnyRevision = await hasCommittedManifestName(client, target.manifestName);
+        const committed = committedAnyRevision
+          ? await hasCommittedLedger(client, target.manifestName, prepared.checksum)
+          : false;
+        if (committedAnyRevision && !committed) {
+          throw new ReconcileError(
+            'g3-catchup committed ledger row does not match pinned manifest checksum',
+            { kind: 'human-review-required' }
+          );
+        }
         const action = lockTimeActionByManifest.get(target.manifestName);
         if (committed && action !== ACTION_SKIP) {
           throw new ReconcileError('g3-catchup committed target has reintroduced drift', {

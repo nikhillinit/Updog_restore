@@ -5,7 +5,9 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildSchemaReconcileCatchupReceipt,
   buildSchemaReconcileReceipt,
+  parseCatchupPreDecisions,
   writeSchemaReconcileReceipt,
 } from '../../../scripts/release/build-schema-reconcile-receipt';
 
@@ -63,6 +65,73 @@ describe('build-schema-reconcile-receipt', { retry: 0 }, () => {
     ).toThrow(/completedAtMs/);
     expect(() =>
       buildSchemaReconcileReceipt({ ...input, runAttempt: 2 })
+    ).toThrow(/attempt 1/);
+  });
+});
+
+describe('build-schema-reconcile-receipt catch-up mode', () => {
+  const auditLine = (name: string, action: string) =>
+    `${name}: ${action} (missingTablePolicy=create_or_repair)`;
+  const freshReport = [
+    auditLine('M1-cohort', 'SKIP'),
+    auditLine('g3-portfolio-and-calculation', 'APPLY-MISSING-DDL'),
+    auditLine('g3-canary', 'APPLY-MISSING-DDL'),
+    auditLine('g3-capital-call-notification-outbox', 'APPLY-MISSING-DDL'),
+    auditLine('g3-release-gate-hardening', 'APPLY-MISSING-DDL'),
+  ].join('\n');
+
+  const catchupInput = {
+    repository: 'press-on/updog',
+    workflowPath: '.github/workflows/prod-schema-reconcile.yml' as const,
+    runId: '123456789',
+    runAttempt: 1,
+    sourceSha: 'b'.repeat(40),
+    startedAtMs: 1000,
+    completedAtMs: 1250,
+  };
+
+  it('parses per-target pre-decisions from the pre-apply audit report', () => {
+    const targets = parseCatchupPreDecisions(freshReport);
+    expect(targets.map((target) => target.migration)).toEqual(['0050', '0051', '0052', '0053']);
+    expect(targets.every((target) => target.preDecision === 'APPLY-MISSING-DDL')).toBe(true);
+
+    const resumeReport = freshReport.replace(
+      auditLine('g3-portfolio-and-calculation', 'APPLY-MISSING-DDL'),
+      auditLine('g3-portfolio-and-calculation', 'SKIP')
+    );
+    const resumeTargets = parseCatchupPreDecisions(resumeReport);
+    expect(resumeTargets[0]?.preDecision).toBe('SKIP');
+    expect(resumeTargets[3]?.preDecision).toBe('APPLY-MISSING-DDL');
+
+    expect(() => parseCatchupPreDecisions(auditLine('g3-canary', 'APPLY-MISSING-DDL'))).toThrow(
+      /exactly one decision/
+    );
+  });
+
+  it('builds a catch-up receipt carrying all four target identities', () => {
+    const receipt = buildSchemaReconcileCatchupReceipt({
+      ...catchupInput,
+      targets: parseCatchupPreDecisions(freshReport),
+    });
+    expect(receipt.mode).toBe('apply-catchup-0050-0053');
+    expect(receipt.targets).toHaveLength(4);
+    expect(receipt.result).toBe('applied_and_clean');
+  });
+
+  it('rejects an all-SKIP catch-up receipt and non-attempt-one runs', () => {
+    const allSkipReport = freshReport.replaceAll('APPLY-MISSING-DDL', 'SKIP');
+    expect(() =>
+      buildSchemaReconcileCatchupReceipt({
+        ...catchupInput,
+        targets: parseCatchupPreDecisions(allSkipReport),
+      })
+    ).toThrow(/at least one applied target/);
+    expect(() =>
+      buildSchemaReconcileCatchupReceipt({
+        ...catchupInput,
+        runAttempt: 2,
+        targets: parseCatchupPreDecisions(freshReport),
+      })
     ).toThrow(/attempt 1/);
   });
 });

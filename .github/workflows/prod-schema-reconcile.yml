@@ -42,6 +42,19 @@ jobs:
     environment: production-schema
 
     steps:
+      - name: Validate mode input
+        env:
+          MODE: ${{ inputs.mode }}
+        run: |
+          set -euo pipefail
+          case "$MODE" in
+            audit|apply|apply-catchup-0050-0053) ;;
+            *)
+              echo "Unsupported mode: $MODE"
+              exit 1
+              ;;
+          esac
+
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ inputs.expected_sha }}
@@ -265,10 +278,14 @@ jobs:
           set +e
           if [ "$MODE" = "apply-catchup-0050-0053" ]; then
             node scripts/reconcile-prod-schema.mjs --apply --yes --apply-g3-catchup-0050-0053 > reports/apply.raw 2>&1
-          else
+            STATUS=$?
+          elif [ "$MODE" = "apply" ]; then
             node scripts/reconcile-prod-schema.mjs --apply --yes --apply-0053-g3-release-gate-hardening > reports/apply.raw 2>&1
+            STATUS=$?
+          else
+            echo "Unsupported apply mode: $MODE" > reports/apply.raw
+            STATUS=1
           fi
-          STATUS=$?
           set -e
           sed -E \
             -e 's/^Target database: .* user=.*/Target database: [REDACTED] user=[REDACTED]/' \
@@ -295,16 +312,20 @@ jobs:
 
           const preparedManifests = (await loadManifests()).map((manifest) => ({ manifest }));
           const report = fs.readFileSync('reports/apply.txt', 'utf8');
-          const vector =
-            process.env.MODE === 'apply-catchup-0050-0053'
-              ? parseG3CatchupLockTimeApplyVectorV1(report, {
-                  preparedManifests,
-                  capability: await prepareG3Catchup0050To0053Capability(),
-                })
-              : parseLockTimeApplyVectorV1(report, {
-                  preparedManifests,
-                  target: await prepare0053G3ReleaseGateHardeningCapability(),
-                });
+          let vector;
+          if (process.env.MODE === 'apply-catchup-0050-0053') {
+            vector = parseG3CatchupLockTimeApplyVectorV1(report, {
+              preparedManifests,
+              capability: await prepareG3Catchup0050To0053Capability(),
+            });
+          } else if (process.env.MODE === 'apply') {
+            vector = parseLockTimeApplyVectorV1(report, {
+              preparedManifests,
+              target: await prepare0053G3ReleaseGateHardeningCapability(),
+            });
+          } else {
+            throw new Error(`Unsupported apply mode: ${process.env.MODE}`);
+          }
           fs.writeFileSync('reports/lock-time-apply-vector.json', JSON.stringify(vector));
           NODE
 
@@ -366,11 +387,19 @@ jobs:
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
           SCHEMA_RECONCILE_SOURCE_SHA: ${{ inputs.expected_sha }}
+          SCHEMA_RECONCILE_MODE: ${{ inputs.mode }}
         run: |
           set -euo pipefail
-          if ! grep -Eq '^g3-release-gate-hardening: APPLY-MISSING-DDL ' reports/pre-apply-audit.txt; then
-            echo "Apply receipt requires an APPLY-MISSING-DDL predecision."
-            exit 1
+          if [ "$SCHEMA_RECONCILE_MODE" = "apply-catchup-0050-0053" ]; then
+            if ! grep -Eq '^g3-(portfolio-and-calculation|canary|capital-call-notification-outbox|release-gate-hardening): APPLY-MISSING-DDL ' reports/pre-apply-audit.txt; then
+              echo "Catch-up receipt requires at least one APPLY-MISSING-DDL predecision."
+              exit 1
+            fi
+          else
+            if ! grep -Eq '^g3-release-gate-hardening: APPLY-MISSING-DDL ' reports/pre-apply-audit.txt; then
+              echo "Apply receipt requires an APPLY-MISSING-DDL predecision."
+              exit 1
+            fi
           fi
           npx tsx scripts/release/build-schema-reconcile-receipt.ts \
             --output reports/schema-reconcile-receipt.json
