@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-07-11
+last_updated: 2026-08-18
 ---
 
 # POVC Fund-Modeling Platform
@@ -45,12 +45,86 @@ Current secondary-surface exposure is intentionally narrow:
   `/api/lp/reports/*` remains a separate LP report-center path and any future
   PDF/report-center watermark requirement needs its own issue or PRD amendment.
 
+## Architecture
+
+- **Frontend (`/client`)**: React SPA with feature-based component organization,
+  custom hooks, and analytical engines (ReserveEngine, PacingEngine,
+  CohortEngine)
+- **Backend (`/server`)**: Express.js API with Zod validation, modular routes,
+  and storage abstraction layer
+- **Shared (`/shared`)**: Common TypeScript types, Drizzle ORM schemas, and Zod
+  validation schemas
+- **Data Flow**: React -> TanStack Query -> Express API -> PostgreSQL/Redis ->
+  Worker processes for background calculations
+- **Workers**: Background job processing with BullMQ for reserve calculations,
+  pacing analysis, and Monte Carlo simulations
+
+### Key Directories
+
+- `client/src/components/` - Reusable UI components (feature-organized)
+- `client/src/core/` - Analytics engines (reserves, pacing, cohorts)
+- `client/src/pages/` - Application routes and page components
+- `server/routes/` - API endpoint definitions
+- `tests/` - Comprehensive test suite (API, performance, UI)
+
+For the deep architecture-grounding reference (deployment surfaces, schema
+inventory, routing mechanisms), see [docs/ARCHI.md](docs/ARCHI.md).
+
+## Tech Stack
+
+- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Shadcn/ui, TanStack
+  Query, Recharts/Nivo, React Hook Form
+- **Backend**: Node.js, Express.js, TypeScript, PostgreSQL, Drizzle ORM,
+  BullMQ + Redis, Zod validation
+- **Testing**: Vitest (test.projects: server/Node.js + client/jsdom), React
+  Testing Library
+- **Infrastructure**: Docker Compose, Prometheus monitoring, Winston logging
+- **Dev Tools**: ESLint, TypeScript strict mode, concurrent dev servers
+
+## Coding Conventions
+
+- **Components**: PascalCase files (`DashboardCard.tsx`), functional components
+  with hooks
+- **Files**: kebab-case for multi-word files (`fund-setup.tsx`)
+- **Hooks**: `use` prefix (`useFundData`)
+- **API**: RESTful endpoints, Zod validation, consistent error responses
+- **Imports**: Path aliases (`@/` for client, `@shared/` for shared types)
+- **Testing**: Tests alongside source files, comprehensive coverage with Vitest
+- **Patterns**: Composition over inheritance, custom hooks for business logic,
+  error boundaries
+- **Type Safety**: TypeScript strict mode enabled, NEVER use `any` type
+  (`@typescript-eslint/no-explicit-any: 'error'`)
+- **Quality Gates**: Run `/pre-commit-check` before commits - linting, type
+  checking, and tests MUST pass
+
+### Path Aliases (vite.config.ts)
+
+- `@/` -> `client/src/`
+- `@shared/` -> `shared/`
+
 ## Development
 
 ```bash
 npm install
 npm run dev
 ```
+
+### Health Checks
+
+- `npm run doctor` - Complete health check (all systems)
+- `npm run doctor:quick` - Fast module resolution check
+- Windows canonical verification path:
+  `& .\scripts\windows-node-env.ps1 npm.cmd run doctor`
+
+### Node.js Compatibility
+
+- **Supported contract**: Node.js `>=20.19.0` and npm `>=10.8.0` per
+  `package.json engines`
+- **Preferred local baseline**: `.nvmrc` pins local development to `v20.19.5`
+- **Pinned automation/toolchain line**: `package.json volta` pins Node `20.19.0`
+  and npm `10.9.2`
+- **Tolerated but non-baseline**: newer Node lines such as Node 22 may satisfy
+  `engines`; re-verify with the doctor path before relying on them
 
 ## Validation
 

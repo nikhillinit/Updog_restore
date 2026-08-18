@@ -251,3 +251,112 @@ describe('production governance documentation routing', () => {
     }
   });
 });
+
+const entryLoaderPaths = ['CLAUDE.md', 'AGENTS.md'];
+
+// Matching happens on whitespace-flattened text so Prettier re-wrapping never
+// breaks a pin.
+const flattenWhitespace = (text: string): string =>
+  text.replaceAll(/\n>\s?/g, '\n').replaceAll(/\s+/g, ' ');
+
+const sharedGovernanceBlockStrings = [
+  '**Governing policy:** `docs/governance/solo-internal-change-and-production-policy.md`',
+  'resolve it from `origin/main` (the protected target branch), never from a working branch',
+  'read it before any merge, production, archive, or governance action',
+  'All mutations MUST have idempotency',
+  'All updates MUST use optimistic locking',
+  'All cursors MUST be validated',
+  'All queue jobs MUST have timeouts',
+  'BEFORE changing shared test mocks or fixtures, grep for ALL assertion patterns',
+  'BEFORE declaring a file, plan, or branch missing, search all worktrees',
+];
+
+// Plans authored before the document-roles-and-precedence adoption; every plan
+// added after it must route to the governing policy.
+const legacyPlanDocs = new Set([
+  'F_1.0.0_activation-blockers-runtime.plan.md',
+  'F_1.1.0_wave-h-context-rail-decisions.plan.md',
+  'F_1.2.0_v1.4-release-proof-activation.plan.md',
+  'F_1.2.4_ws2-transaction-audit-repair.plan.md',
+  'F_1.2.5_g3-foundations-landing.plan.md',
+  'F_1.3.0_fee-economics-convergence.plan.md',
+  'F_1.4.0_post-activation-epics.plan.md',
+]);
+
+describe('governance document hierarchy', () => {
+  it('keeps both entry loaders routing to the governing policy', async () => {
+    for (const loaderPath of entryLoaderPaths) {
+      const loader = await readRepositoryFile(loaderPath);
+      const flatLoader = flattenWhitespace(loader);
+
+      expect(loader, loaderPath).toContain(policyPath);
+      for (const pinned of sharedGovernanceBlockStrings) {
+        expect(flatLoader, loaderPath).toContain(pinned);
+      }
+
+      const lineCount = loader.split('\n').length;
+      expect(lineCount, `${loaderPath} must stay a short entry loader`).toBeLessThan(160);
+    }
+  });
+
+  it('pins the constitution sections that bind precedence', async () => {
+    const policy = await readRepositoryFile(policyPath);
+    const flatPolicy = flattenWhitespace(policy);
+
+    expect(policy).toContain('## Document roles and precedence');
+    expect(flatPolicy).toContain('this policy prevails');
+    expect(flatPolicy).toContain('fails closed');
+    expect(flatPolicy).toContain('amends only by a pull request that modifies this file');
+    expect(flatPolicy).toContain('is procedure or reference at most and can never grant authority');
+    expect(flatPolicy).toContain(
+      'the sole issuer of action-scoped production authority is the repository owner'
+    );
+    expect(policy).toContain('tests/unit/audit/surface-contract-matrix.test.ts');
+    expect(flatPolicy).toContain('it is not generic merge or release approval');
+    expect(policy).toContain('## Documentation governance');
+    expect(policy).toContain('Archive Gate');
+    expect(policy).toContain('.claude/PHOENIX-AGENTS-REGISTRY.md');
+  });
+
+  it('keeps the matrix program plans scoped below the policy', async () => {
+    for (const planPath of [
+      'docs/1-plans/F_1.2.1_ws1-surface-contract-matrix.plan.md',
+      'docs/1-plans/F_1.2.2_g1-matrix-repair.plan.md',
+    ]) {
+      const plan = await readRepositoryFile(planPath);
+      const flatPlan = flattenWhitespace(plan);
+
+      expect(flatPlan, planPath).toContain(
+        'G1 in this document is artifact-scoped to this matrix program'
+      );
+      expect(flatPlan, planPath).toContain('it is not generic merge or release approval');
+      expect(plan, planPath).toContain(policyPath);
+    }
+  });
+
+  it('keeps the capture-release-baseline workflow program-scoped', async () => {
+    const workflow = await readRepositoryFile('.github/workflows/capture-release-baseline.yml');
+
+    expect(workflow).toContain('one-time');
+    expect(workflow).toContain('PR #1385');
+    expect(workflow).toContain('Owner: repository owner');
+    expect(workflow).toContain('Terminal condition');
+    expect(workflow).toContain('confers no authorization');
+  });
+
+  it('requires new plan documents to route to the governing policy', async () => {
+    const actualFs = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const planDir = join(repositoryRoot, 'docs/1-plans');
+    const planDocs = actualFs
+      .readdirSync(planDir)
+      .filter((name) => name.endsWith('.plan.md'))
+      .sort();
+
+    for (const name of planDocs) {
+      if (legacyPlanDocs.has(name)) continue;
+      const plan = await readRepositoryFile(join('docs/1-plans', name));
+
+      expect(plan, `${name} must reference the governing policy`).toContain(policyPath);
+    }
+  });
+});
