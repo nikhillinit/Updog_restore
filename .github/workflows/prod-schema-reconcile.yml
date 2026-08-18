@@ -20,6 +20,7 @@ on:
         options:
           - audit
           - apply
+          - apply-catchup-0050-0053
         default: audit
       expected_sha:
         description: Full commit SHA expected to be checked out
@@ -74,7 +75,7 @@ jobs:
         run: npm ci --prefer-offline --no-audit
 
       - name: Require first apply attempt
-        if: inputs.mode == 'apply'
+        if: startsWith(inputs.mode, 'apply')
         run: |
           set -euo pipefail
           if [ "$GITHUB_RUN_ATTEMPT" != "1" ]; then
@@ -83,7 +84,7 @@ jobs:
           fi
 
       - name: Verify artifact retention before apply
-        if: inputs.mode == 'apply'
+        if: startsWith(inputs.mode, 'apply')
         env:
           SCHEMA_EVIDENCE_RETENTION_READ_TOKEN: ${{ secrets.SCHEMA_EVIDENCE_RETENTION_READ_TOKEN }}
           REPOSITORY: ${{ github.repository }}
@@ -181,7 +182,7 @@ jobs:
           NODE
 
       - name: Require additive-safe apply decision
-        if: inputs.mode == 'apply'
+        if: startsWith(inputs.mode, 'apply')
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
@@ -256,12 +257,17 @@ jobs:
 
       - name: Apply additive-safe reconciliation
         id: apply
-        if: ${{ inputs.mode == 'apply' }}
+        if: ${{ startsWith(inputs.mode, 'apply') }}
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          MODE: ${{ inputs.mode }}
         run: |
           set +e
-          node scripts/reconcile-prod-schema.mjs --apply --yes --apply-0053-g3-release-gate-hardening > reports/apply.raw 2>&1
+          if [ "$MODE" = "apply-catchup-0050-0053" ]; then
+            node scripts/reconcile-prod-schema.mjs --apply --yes --apply-g3-catchup-0050-0053 > reports/apply.raw 2>&1
+          else
+            node scripts/reconcile-prod-schema.mjs --apply --yes --apply-0053-g3-release-gate-hardening > reports/apply.raw 2>&1
+          fi
           STATUS=$?
           set -e
           sed -E \
@@ -272,28 +278,39 @@ jobs:
           exit "$STATUS"
 
       - name: Validate lock-time apply vector
-        if: ${{ inputs.mode == 'apply' && steps.apply.outcome == 'success' }}
+        if: ${{ startsWith(inputs.mode, 'apply') && steps.apply.outcome == 'success' }}
+        env:
+          MODE: ${{ inputs.mode }}
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
+          import process from 'node:process';
           import {
             loadManifests,
+            parseG3CatchupLockTimeApplyVectorV1,
             parseLockTimeApplyVectorV1,
             prepare0053G3ReleaseGateHardeningCapability,
+            prepareG3Catchup0050To0053Capability,
           } from './scripts/reconcile-prod-schema.mjs';
 
-          const target = await prepare0053G3ReleaseGateHardeningCapability();
           const preparedManifests = (await loadManifests()).map((manifest) => ({ manifest }));
-          const vector = parseLockTimeApplyVectorV1(
-            fs.readFileSync('reports/apply.txt', 'utf8'),
-            { preparedManifests, target }
-          );
+          const report = fs.readFileSync('reports/apply.txt', 'utf8');
+          const vector =
+            process.env.MODE === 'apply-catchup-0050-0053'
+              ? parseG3CatchupLockTimeApplyVectorV1(report, {
+                  preparedManifests,
+                  capability: await prepareG3Catchup0050To0053Capability(),
+                })
+              : parseLockTimeApplyVectorV1(report, {
+                  preparedManifests,
+                  target: await prepare0053G3ReleaseGateHardeningCapability(),
+                });
           fs.writeFileSync('reports/lock-time-apply-vector.json', JSON.stringify(vector));
           NODE
 
       - name: Run post-apply audit
         id: post_audit
-        if: ${{ !cancelled() && inputs.mode == 'apply' && (steps.apply.outcome == 'success' || steps.apply.outcome == 'failure') }}
+        if: ${{ !cancelled() && startsWith(inputs.mode, 'apply') && (steps.apply.outcome == 'success' || steps.apply.outcome == 'failure') }}
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
         run: |
@@ -310,7 +327,7 @@ jobs:
 
       - name: Require clean post-apply audit
         id: require_post_apply_clean
-        if: ${{ !cancelled() && inputs.mode == 'apply' && (steps.post_audit.outcome == 'success' || steps.post_audit.outcome == 'failure') }}
+        if: ${{ !cancelled() && startsWith(inputs.mode, 'apply') && (steps.post_audit.outcome == 'success' || steps.post_audit.outcome == 'failure') }}
         run: |
           node <<'NODE'
           const fs = require('node:fs');
@@ -343,7 +360,7 @@ jobs:
           NODE
 
       - name: Build schema reconcile receipt
-        if: ${{ inputs.mode == 'apply' && steps.apply.outcome == 'success' && steps.post_audit.outcome == 'success' && steps.require_post_apply_clean.outcome == 'success' }}
+        if: ${{ startsWith(inputs.mode, 'apply') && steps.apply.outcome == 'success' && steps.post_audit.outcome == 'success' && steps.require_post_apply_clean.outcome == 'success' }}
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_ID: ${{ github.run_id }}
@@ -359,7 +376,7 @@ jobs:
             --output reports/schema-reconcile-receipt.json
 
       - name: Require schema reconcile receipt after successful apply
-        if: ${{ inputs.mode == 'apply' && steps.apply.outcome == 'success' && steps.post_audit.outcome == 'success' && steps.require_post_apply_clean.outcome == 'success' }}
+        if: ${{ startsWith(inputs.mode, 'apply') && steps.apply.outcome == 'success' && steps.post_audit.outcome == 'success' && steps.require_post_apply_clean.outcome == 'success' }}
         run: test -s reports/schema-reconcile-receipt.json
 
       - name: Upload redacted reconciliation reports
@@ -376,7 +393,7 @@ jobs:
           retention-days: 90
 
       - name: Capture apply evidence identity
-        if: ${{ always() && inputs.mode == 'apply' && steps.apply.outcome == 'success' && steps.post_audit.outcome == 'success' && steps.require_post_apply_clean.outcome == 'success' }}
+        if: ${{ always() && startsWith(inputs.mode, 'apply') && steps.apply.outcome == 'success' && steps.post_audit.outcome == 'success' && steps.require_post_apply_clean.outcome == 'success' }}
         env:
           ARTIFACT_ID: ${{ steps.upload_evidence.outputs.artifact-id }}
           ARTIFACT_DIGEST: ${{ steps.upload_evidence.outputs.artifact-digest }}
