@@ -5084,13 +5084,13 @@ describe('required CI fails closed', () => {
 
       expect(firstAttemptIndex).toBeGreaterThan(-1);
       expect(firstAttemptIndex).toBeLessThan(preAuditIndex);
-      expect(steps[firstAttemptIndex]?.if).toBe("inputs.mode == 'apply'");
+      expect(steps[firstAttemptIndex]?.if).toBe("startsWith(inputs.mode, 'apply')");
       expect(steps[firstAttemptIndex]?.run).toContain('$GITHUB_RUN_ATTEMPT');
       expect(steps[firstAttemptIndex]?.run).toContain('!= "1"');
 
       expect(retentionIndex).toBeGreaterThan(-1);
       expect(retentionIndex).toBeLessThan(preAuditIndex);
-      expect(retention?.if).toBe("inputs.mode == 'apply'");
+      expect(retention?.if).toBe("startsWith(inputs.mode, 'apply')");
       expect(retention?.env?.SCHEMA_EVIDENCE_RETENTION_READ_TOKEN).toBe(
         '${{ secrets.SCHEMA_EVIDENCE_RETENTION_READ_TOKEN }}'
       );
@@ -5117,13 +5117,13 @@ describe('required CI fails closed', () => {
       );
       expect(requireReceiptIndex).toBeGreaterThan(receiptIndex);
       const requireReceipt = steps[requireReceiptIndex];
-      expect(requireReceipt?.if).toContain("inputs.mode == 'apply'");
+      expect(requireReceipt?.if).toContain("startsWith(inputs.mode, 'apply')");
       expect(requireReceipt?.run).toContain('test -s reports/schema-reconcile-receipt.json');
 
       expect(receiptIndex).toBeGreaterThan(preAuditIndex);
       expect(postCleanIndex).toBeGreaterThan(preAuditIndex);
       expect(receiptIndex).toBeGreaterThan(postCleanIndex);
-      expect(receipt?.if).toContain("inputs.mode == 'apply'");
+      expect(receipt?.if).toContain("startsWith(inputs.mode, 'apply')");
       expect(receipt?.if).toContain("steps.require_post_apply_clean.outcome == 'success'");
       expect(receipt?.run).toContain('APPLY-MISSING-DDL');
       expect(receipt?.run).toContain('build-schema-reconcile-receipt.ts');

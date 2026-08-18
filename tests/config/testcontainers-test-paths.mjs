@@ -6,6 +6,7 @@ export const TESTCONTAINERS_TEST_PATHS = Object.freeze([
   'tests/integration/g3-schema-forward-compatibility.test.ts',
   'tests/integration/prod-schema-reconcile-partial-drift.test.ts',
   'tests/integration/prod-schema-reconcile-0053-capability.test.ts',
+  'tests/integration/prod-schema-reconcile-g3-catchup-capability.test.ts',
   'tests/integration/prod-journaled-migration-recovery.test.ts',
   'tests/integration/migrations/investment-rounds-schema.test.ts',
   'tests/integration/migrations/investments-id-fund-unique.test.ts',
