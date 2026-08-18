@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildSchemaReconcileCatchupReceipt,
   buildSchemaReconcileReceipt,
-  parseCatchupPreDecisions,
+  targetsFromLockTimeVector,
   writeSchemaReconcileReceipt,
 } from '../../../scripts/release/build-schema-reconcile-receipt';
 
@@ -60,25 +60,34 @@ describe('build-schema-reconcile-receipt', { retry: 0 }, () => {
   });
 
   it('rejects a backward clock and non-attempt-one apply', () => {
-    expect(() =>
-      buildSchemaReconcileReceipt({ ...input, completedAtMs: 999 })
-    ).toThrow(/completedAtMs/);
-    expect(() =>
-      buildSchemaReconcileReceipt({ ...input, runAttempt: 2 })
-    ).toThrow(/attempt 1/);
+    expect(() => buildSchemaReconcileReceipt({ ...input, completedAtMs: 999 })).toThrow(
+      /completedAtMs/
+    );
+    expect(() => buildSchemaReconcileReceipt({ ...input, runAttempt: 2 })).toThrow(/attempt 1/);
   });
 });
 
 describe('build-schema-reconcile-receipt catch-up mode', () => {
-  const auditLine = (name: string, action: string) =>
-    `${name}: ${action} (missingTablePolicy=create_or_repair)`;
-  const freshReport = [
-    auditLine('M1-cohort', 'SKIP'),
-    auditLine('g3-portfolio-and-calculation', 'APPLY-MISSING-DDL'),
-    auditLine('g3-canary', 'APPLY-MISSING-DDL'),
-    auditLine('g3-capital-call-notification-outbox', 'APPLY-MISSING-DDL'),
-    auditLine('g3-release-gate-hardening', 'APPLY-MISSING-DDL'),
-  ].join('\n');
+  const vectorFor = (actions: Record<string, string>) => ({
+    schemaVersion: 1,
+    source: 'lock-time-audit',
+    decisions: [
+      { manifest: 'M1-cohort', action: 'SKIP' },
+      {
+        manifest: 'g3-portfolio-and-calculation',
+        action: actions['g3-portfolio-and-calculation'] ?? 'APPLY-MISSING-DDL',
+      },
+      { manifest: 'g3-canary', action: actions['g3-canary'] ?? 'APPLY-MISSING-DDL' },
+      {
+        manifest: 'g3-capital-call-notification-outbox',
+        action: actions['g3-capital-call-notification-outbox'] ?? 'APPLY-MISSING-DDL',
+      },
+      {
+        manifest: 'g3-release-gate-hardening',
+        action: actions['g3-release-gate-hardening'] ?? 'APPLY-MISSING-DDL',
+      },
+    ],
+  });
 
   const catchupInput = {
     repository: 'press-on/updog',
@@ -90,28 +99,30 @@ describe('build-schema-reconcile-receipt catch-up mode', () => {
     completedAtMs: 1250,
   };
 
-  it('parses per-target pre-decisions from the pre-apply audit report', () => {
-    const targets = parseCatchupPreDecisions(freshReport);
+  it('derives per-target decisions from the lock-time apply vector', () => {
+    const targets = targetsFromLockTimeVector(vectorFor({}));
     expect(targets.map((target) => target.migration)).toEqual(['0050', '0051', '0052', '0053']);
     expect(targets.every((target) => target.preDecision === 'APPLY-MISSING-DDL')).toBe(true);
 
-    const resumeReport = freshReport.replace(
-      auditLine('g3-portfolio-and-calculation', 'APPLY-MISSING-DDL'),
-      auditLine('g3-portfolio-and-calculation', 'SKIP')
+    const resumeTargets = targetsFromLockTimeVector(
+      vectorFor({ 'g3-portfolio-and-calculation': 'SKIP' })
     );
-    const resumeTargets = parseCatchupPreDecisions(resumeReport);
     expect(resumeTargets[0]?.preDecision).toBe('SKIP');
     expect(resumeTargets[3]?.preDecision).toBe('APPLY-MISSING-DDL');
 
-    expect(() => parseCatchupPreDecisions(auditLine('g3-canary', 'APPLY-MISSING-DDL'))).toThrow(
-      /exactly one decision/
+    expect(() => targetsFromLockTimeVector({ decisions: [] })).toThrow(
+      /exactly one SKIP\/APPLY decision/
+    );
+    expect(() => targetsFromLockTimeVector({})).toThrow(/decisions are missing/);
+    expect(() => targetsFromLockTimeVector(vectorFor({ 'g3-canary': 'REFUSE-FOR-HUMAN' }))).toThrow(
+      /exactly one SKIP\/APPLY decision/
     );
   });
 
   it('builds a catch-up receipt carrying all four target identities', () => {
     const receipt = buildSchemaReconcileCatchupReceipt({
       ...catchupInput,
-      targets: parseCatchupPreDecisions(freshReport),
+      targets: targetsFromLockTimeVector(vectorFor({})),
     });
     expect(receipt.mode).toBe('apply-catchup-0050-0053');
     expect(receipt.targets).toHaveLength(4);
@@ -119,18 +130,23 @@ describe('build-schema-reconcile-receipt catch-up mode', () => {
   });
 
   it('rejects an all-SKIP catch-up receipt and non-attempt-one runs', () => {
-    const allSkipReport = freshReport.replaceAll('APPLY-MISSING-DDL', 'SKIP');
+    const allSkip = vectorFor({
+      'g3-portfolio-and-calculation': 'SKIP',
+      'g3-canary': 'SKIP',
+      'g3-capital-call-notification-outbox': 'SKIP',
+      'g3-release-gate-hardening': 'SKIP',
+    });
     expect(() =>
       buildSchemaReconcileCatchupReceipt({
         ...catchupInput,
-        targets: parseCatchupPreDecisions(allSkipReport),
+        targets: targetsFromLockTimeVector(allSkip),
       })
     ).toThrow(/at least one applied target/);
     expect(() =>
       buildSchemaReconcileCatchupReceipt({
         ...catchupInput,
         runAttempt: 2,
-        targets: parseCatchupPreDecisions(freshReport),
+        targets: targetsFromLockTimeVector(vectorFor({})),
       })
     ).toThrow(/attempt 1/);
   });

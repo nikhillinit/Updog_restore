@@ -37,10 +37,22 @@ export const SchemaReconcileReceiptV1Schema = z
 export type SchemaReconcileReceiptV1 = z.infer<typeof SchemaReconcileReceiptV1Schema>;
 
 export const SCHEMA_RECONCILE_CATCHUP_TARGET_IDENTITIES = [
-  { manifest: '27-g3-portfolio-and-calculation', auditName: 'g3-portfolio-and-calculation', migration: '0050' },
+  {
+    manifest: '27-g3-portfolio-and-calculation',
+    auditName: 'g3-portfolio-and-calculation',
+    migration: '0050',
+  },
   { manifest: '28-g3-canary', auditName: 'g3-canary', migration: '0051' },
-  { manifest: '29-g3-capital-call-notification-outbox', auditName: 'g3-capital-call-notification-outbox', migration: '0052' },
-  { manifest: '30-g3-release-gate-hardening', auditName: 'g3-release-gate-hardening', migration: '0053' },
+  {
+    manifest: '29-g3-capital-call-notification-outbox',
+    auditName: 'g3-capital-call-notification-outbox',
+    migration: '0052',
+  },
+  {
+    manifest: '30-g3-release-gate-hardening',
+    auditName: 'g3-release-gate-hardening',
+    migration: '0053',
+  },
 ] as const;
 
 const catchupTargetSchema = <M extends string, G extends string>(manifest: M, migration: G) =>
@@ -90,6 +102,4 @@ export const SchemaReconcileCatchupReceiptV1Schema = z
     }
   });
 
-export type SchemaReconcileCatchupReceiptV1 = z.infer<
-  typeof SchemaReconcileCatchupReceiptV1Schema
->;
+export type SchemaReconcileCatchupReceiptV1 = z.infer<typeof SchemaReconcileCatchupReceiptV1Schema>;

@@ -38,7 +38,9 @@ jobs:
   reconcile:
     name: Reconcile Production Schema
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 30 minutes: catch-up mode applies up to four migrations plus two full
+    # manifest audits in one job; statement_timeout bounds each DDL at 5min.
+    timeout-minutes: 30
     environment: production-schema
 
     steps:
@@ -304,6 +306,7 @@ jobs:
           import process from 'node:process';
           import {
             loadManifests,
+            parseAuditDecisionLines,
             parseG3CatchupLockTimeApplyVectorV1,
             parseLockTimeApplyVectorV1,
             prepare0053G3ReleaseGateHardeningCapability,
@@ -314,9 +317,15 @@ jobs:
           const report = fs.readFileSync('reports/apply.txt', 'utf8');
           let vector;
           if (process.env.MODE === 'apply-catchup-0050-0053') {
+            const capability = await prepareG3Catchup0050To0053Capability();
+            const targetNames = new Set(capability.targets.map((target) => target.manifestName));
+            const expectedTargetActions = parseAuditDecisionLines(
+              fs.readFileSync('reports/pre-apply-audit.txt', 'utf8')
+            ).filter((decision) => targetNames.has(decision.manifest));
             vector = parseG3CatchupLockTimeApplyVectorV1(report, {
               preparedManifests,
-              capability: await prepareG3Catchup0050To0053Capability(),
+              capability,
+              expectedTargetActions,
             });
           } else if (process.env.MODE === 'apply') {
             vector = parseLockTimeApplyVectorV1(report, {

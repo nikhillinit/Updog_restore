@@ -638,6 +638,7 @@ export async function prepareG3Catchup0050To0053Capability({ rootDir = repoRoot 
     }
   }
   return Object.freeze({
+    kind: 'g3-catchup',
     targets: Object.freeze(targets),
     manifests: Object.freeze(manifests),
     canonicalManifestIdentities: CANONICAL_MANIFEST_IDENTITIES,
@@ -852,7 +853,22 @@ export function buildG3CatchupLockTimeApplyVectorV1({ preparedManifests, audits,
   return `${G3_CATCHUP_MARKER_PREFIX}${JSON.stringify(vector)}`;
 }
 
-export function parseG3CatchupLockTimeApplyVectorV1(markerOutput, { preparedManifests, capability }) {
+// Generic inverse of formatAuditReport's manifest-decision lines. Exported so
+// workflow steps and the receipt builder share one parser for the
+// `<name>: <ACTION> (missingTablePolicy=<policy>)` format.
+export function parseAuditDecisionLines(report) {
+  const pattern =
+    /^([^\s:][^:]*): (SKIP|APPLY-MISSING-DDL|REFUSE-FOR-HUMAN) \(missingTablePolicy=[^)]+\)$/gm;
+  return [...String(report).matchAll(pattern)].map((match) => ({
+    manifest: match[1],
+    action: match[2],
+  }));
+}
+
+export function parseG3CatchupLockTimeApplyVectorV1(
+  markerOutput,
+  { preparedManifests, capability, expectedTargetActions }
+) {
   const markers = String(markerOutput)
     .split(/\r?\n/)
     .filter((line) => line.startsWith(G3_CATCHUP_MARKER_PREFIX));
@@ -879,25 +895,33 @@ export function parseG3CatchupLockTimeApplyVectorV1(markerOutput, { preparedMani
       { kind: 'invalid-g3-catchup-lock-time-apply-vector' }
     );
   }
-  let parsed;
-  try {
-    parsed = JSON.parse(markers[0].slice(G3_CATCHUP_MARKER_PREFIX.length));
-  } catch {
-    throw new ReconcileError('g3-catchup lock-time apply vector marker is not canonical', {
-      kind: 'invalid-g3-catchup-lock-time-apply-vector',
-    });
-  }
-  const parsedActionByManifest = new Map(
-    (Array.isArray(parsed?.decisions) ? parsed.decisions : []).map((decision) => [
-      decision?.manifest,
-      decision?.action,
+  // The expected per-target actions must come from evidence independent of the
+  // marker under validation (the pre-apply audit) — never from the marker
+  // itself, or a tampered marker validates against its own claims.
+  const targetNames = new Set(capability?.targets?.map((target) => target.manifestName) ?? []);
+  const expectedActionByManifest = new Map(
+    (Array.isArray(expectedTargetActions) ? expectedTargetActions : []).map((entry) => [
+      entry?.manifest,
+      entry?.action,
     ])
   );
-  const targetNames = new Set(capability?.targets?.map((target) => target.manifestName) ?? []);
+  if (
+    expectedActionByManifest.size !== targetNames.size ||
+    [...targetNames].some(
+      (name) =>
+        !expectedActionByManifest.has(name) ||
+        ![ACTION_SKIP, ACTION_APPLY_MISSING_DDL].includes(expectedActionByManifest.get(name))
+    )
+  ) {
+    throw new ReconcileError(
+      'g3-catchup lock-time apply vector parser requires independent expected target actions',
+      { kind: 'invalid-g3-catchup-lock-time-apply-vector' }
+    );
+  }
   const expectedAudits = preparedForValidation.map((prepared) => {
     const name = prepared?.manifest?.name;
     const action = targetNames.has(name)
-      ? parsedActionByManifest.get(name)
+      ? expectedActionByManifest.get(name)
       : ACTION_SKIP;
     return {
       manifest: name,
@@ -926,7 +950,7 @@ export function parseG3CatchupLockTimeApplyVectorV1(markerOutput, { preparedMani
       kind: 'invalid-g3-catchup-lock-time-apply-vector',
     });
   }
-  return parsed;
+  return JSON.parse(markers[0].slice(G3_CATCHUP_MARKER_PREFIX.length));
 }
 
 export async function readManifestSql(manifest, rootDir = repoRoot) {
@@ -1925,7 +1949,7 @@ export async function runReconciliation({
     return { ok: true, applied: [], audits };
   }
 
-  if (capability?.targets) {
+  if (capability?.kind === 'g3-catchup') {
     await acquireAdvisoryLock(client);
     try {
       const lockTimeAudits = [];

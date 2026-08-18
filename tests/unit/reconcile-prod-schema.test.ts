@@ -2412,6 +2412,19 @@ describe('g3 catch-up 0050-0053 capability', () => {
     return { capability, preparedManifests, audits };
   }
 
+  it('ties the reconciler target pins to the receipt contract identities', async () => {
+    const { SCHEMA_RECONCILE_CATCHUP_TARGET_IDENTITIES } = await import(
+      '@shared/contracts/schema-reconcile-receipt-v1.contract'
+    );
+    expect(SCHEMA_RECONCILE_CATCHUP_TARGET_IDENTITIES).toHaveLength(G3_CATCHUP_TARGETS.length);
+    for (const [index, identity] of SCHEMA_RECONCILE_CATCHUP_TARGET_IDENTITIES.entries()) {
+      const target = G3_CATCHUP_TARGETS[index]!;
+      expect(identity.auditName).toBe(target.manifestName);
+      expect(target.manifestPath.endsWith(`/${identity.manifest}.json`)).toBe(true);
+      expect(target.sqlPath.startsWith(`migrations/${identity.migration}_`)).toBe(true);
+    }
+  });
+
   it('pins the four catch-up targets to canonical manifests in journal order', async () => {
     const capability = await prepareG3Catchup0050To0053Capability();
     expect(capability.targets.map((target) => target.manifestName)).toEqual([

@@ -90,27 +90,65 @@ export function buildSchemaReconcileCatchupReceipt(
   });
 }
 
-export function parseCatchupPreDecisions(
-  preApplyAuditReport: string
+// Derives per-target decisions from the validated lock-time apply vector —
+// the run's mutation authority — never from the pre-lock audit, which can
+// legitimately differ by the time the advisory lock is held. postDecision is
+// asserted rather than parsed: the workflow's "Require clean post-apply audit"
+// gate (all manifests SKIP) is a hard precondition of the receipt step.
+export function targetsFromLockTimeVector(
+  vector: unknown
 ): SchemaReconcileCatchupReceiptV1['targets'] {
-  return SCHEMA_RECONCILE_CATCHUP_TARGET_IDENTITIES.map((identity) => {
-    const pattern = new RegExp(
-      `^${identity.auditName.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')}: (SKIP|APPLY-MISSING-DDL) \\(missingTablePolicy=[^)]+\\)$`,
-      'gm'
+  const decisionsRaw: unknown =
+    typeof vector === 'object' && vector !== null && 'decisions' in vector
+      ? (vector as { decisions: unknown }).decisions
+      : undefined;
+  if (!Array.isArray(decisionsRaw)) {
+    throw new Error('Lock-time apply vector decisions are missing');
+  }
+  const decisions: unknown[] = decisionsRaw;
+  const actionFor = (auditName: string): 'SKIP' | 'APPLY-MISSING-DDL' => {
+    const matches = decisions.filter(
+      (decision) =>
+        typeof decision === 'object' &&
+        decision !== null &&
+        (decision as { manifest?: unknown }).manifest === auditName
     );
-    const matches = [...preApplyAuditReport.matchAll(pattern)];
-    if (matches.length !== 1) {
+    const action: unknown =
+      matches.length === 1 ? (matches[0] as { action?: unknown }).action : undefined;
+    if (action !== 'SKIP' && action !== 'APPLY-MISSING-DDL') {
       throw new Error(
-        `Pre-apply audit must contain exactly one decision for ${identity.auditName}`
+        `Lock-time apply vector must contain exactly one SKIP/APPLY decision for ${auditName}`
       );
     }
-    return {
-      manifest: identity.manifest,
-      migration: identity.migration,
-      preDecision: matches[0]![1] as 'SKIP' | 'APPLY-MISSING-DDL',
-      postDecision: 'SKIP' as const,
-    };
-  }) as unknown as SchemaReconcileCatchupReceiptV1['targets'];
+    return action;
+  };
+  const [first, second, third, fourth] = SCHEMA_RECONCILE_CATCHUP_TARGET_IDENTITIES;
+  return [
+    {
+      manifest: first.manifest,
+      migration: first.migration,
+      preDecision: actionFor(first.auditName),
+      postDecision: 'SKIP',
+    },
+    {
+      manifest: second.manifest,
+      migration: second.migration,
+      preDecision: actionFor(second.auditName),
+      postDecision: 'SKIP',
+    },
+    {
+      manifest: third.manifest,
+      migration: third.migration,
+      preDecision: actionFor(third.auditName),
+      postDecision: 'SKIP',
+    },
+    {
+      manifest: fourth.manifest,
+      migration: fourth.migration,
+      preDecision: actionFor(fourth.auditName),
+      postDecision: 'SKIP',
+    },
+  ];
 }
 
 function requiredEnvironment(name: string): string {
@@ -164,12 +202,13 @@ async function main(): Promise<void> {
   const completedAtMs = process.env['SCHEMA_RECONCILE_BUILD_COMPLETED_AT_MS']
     ? Number(process.env['SCHEMA_RECONCILE_BUILD_COMPLETED_AT_MS'])
     : Date.now();
-  const mode = (process.env['SCHEMA_RECONCILE_MODE'] ?? 'apply').trim();
+  const mode = requiredEnvironment('SCHEMA_RECONCILE_MODE');
   let receipt: SchemaReconcileReceiptV1 | SchemaReconcileCatchupReceiptV1;
   if (mode === 'apply-catchup-0050-0053') {
-    const preApplyAuditReport = await readFile(
-      process.env['SCHEMA_RECONCILE_PRE_AUDIT_PATH'] ?? 'reports/pre-apply-audit.txt',
-      'utf8'
+    // Path is pinned: the vector file is written by the workflow's
+    // "Validate lock-time apply vector" step, a hard predecessor of this one.
+    const lockTimeVector: unknown = JSON.parse(
+      await readFile('reports/lock-time-apply-vector.json', 'utf8')
     );
     receipt = buildSchemaReconcileCatchupReceipt({
       repository: requiredEnvironment('GITHUB_REPOSITORY'),
@@ -177,7 +216,7 @@ async function main(): Promise<void> {
       runId: requiredEnvironment('GITHUB_RUN_ID'),
       runAttempt: requiredPositiveIntegerEnvironment('GITHUB_RUN_ATTEMPT'),
       sourceSha: requiredEnvironment('SCHEMA_RECONCILE_SOURCE_SHA'),
-      targets: parseCatchupPreDecisions(preApplyAuditReport),
+      targets: targetsFromLockTimeVector(lockTimeVector),
       startedAtMs,
       completedAtMs,
     });
