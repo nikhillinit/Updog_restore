@@ -4,11 +4,11 @@ import {
   PURGE_RESIDUE_GROUPS,
   PURGE_RESIDUE_GROUP_TABLES,
   buildPurgePlan,
-  deleteCanaryResidueTargets,
   parsePurgeArgs,
   runPurge,
   topologicallyOrderChildTables,
 } from '../../../scripts/release/purge-canary-runs.mjs';
+import { purgeCanaryRunForTest } from '../../helpers/release-canary-purge-test-driver.mjs';
 import {
   RELEASE_CANARY_RUNS_QUERY,
   evaluateCanaryResidue,
@@ -137,37 +137,59 @@ describe('canary purge command', () => {
       /production data mutation is mechanically blocked/i
     );
     expect(client.query).not.toHaveBeenCalled();
+    const production = await import('../../../scripts/release/purge-canary-runs.mjs');
+    expect(production.deleteCanaryResidueTargets).toBeUndefined();
   });
 
-  it('rolls back a stale version-fenced purge target', async () => {
+  const emptyReceiptRow = {
+    total_residue_count: 0,
+    portfolio_company_residue_count: 0,
+    fund_residue_count: 0,
+    fund_config_residue_count: 0,
+    fund_event_residue_count: 0,
+    notification_residue_count: 0,
+    grant_residue_count: 0,
+    calculation_residue_count: 0,
+    mutation_receipt_residue_count: 0,
+    scenario_residue_count: 0,
+    reporting_residue_count: 0,
+  };
+
+  it('rolls back stale test-only purge intent before deriving targets', async () => {
     const client = {
       query: vi
         .fn()
         .mockResolvedValueOnce({ rowCount: 1 })
-        .mockResolvedValueOnce({ rowCount: 1, rows: [{ version: 2 }] }),
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{ status: 'completed', version: 2, ...emptyReceiptRow }],
+        }),
     };
     await expect(
-      deleteCanaryResidueTargets(client, [], [{ id: 'run-1', expectedVersion: 1 }])
+      purgeCanaryRunForTest(client, { runId: 'run-1', expectedVersion: 1 })
     ).rejects.toThrow(/version fence/i);
     expect(client.query).toHaveBeenLastCalledWith('ROLLBACK');
   });
 
-  it('deletes a version-fenced target once and treats empty replay as success', async () => {
+  it('returns a positive stored tombstone receipt on same-intent replay', async () => {
     const client = {
       query: vi
         .fn()
         .mockResolvedValueOnce({ rowCount: 1 })
-        .mockResolvedValueOnce({ rowCount: 1, rows: [{ version: 1 }] })
-        .mockResolvedValueOnce({ rowCount: 1 })
-        .mockResolvedValueOnce({ rowCount: 1 })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{ status: 'purged', version: 2, ...emptyReceiptRow }],
+        })
         .mockResolvedValueOnce({ rowCount: 1 }),
     };
     await expect(
-      deleteCanaryResidueTargets(client, [], [{ id: 'run-1', expectedVersion: 1 }])
-    ).resolves.toEqual({ targets: 1, deleted: 1 });
-    await expect(deleteCanaryResidueTargets(client, [], [])).resolves.toEqual({
-      targets: 0,
+      purgeCanaryRunForTest(client, { runId: 'run-1', expectedVersion: 1 })
+    ).resolves.toMatchObject({
+      outcome: 'replayed',
+      targetFunds: 0,
       deleted: 0,
+      version: 2,
+      receipt: { total: 0 },
     });
   });
 });
@@ -196,9 +218,7 @@ describe('canary residue group parity across service, purge, and assertion surfa
           createdAt: '2026-08-10T10:00:00.000Z',
           expiresAt: '2026-08-11T10:00:00.000Z',
           purgedAt: null,
-          ...Object.fromEntries(
-            PURGE_RESIDUE_GROUPS.map((group) => [`${group}ResidueCount`, 0])
-          ),
+          ...Object.fromEntries(PURGE_RESIDUE_GROUPS.map((group) => [`${group}ResidueCount`, 0])),
           totalResidueCount: 0,
         },
       ],

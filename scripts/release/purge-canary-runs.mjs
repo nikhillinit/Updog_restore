@@ -33,7 +33,10 @@ export const PURGE_RESIDUE_GROUP_TABLES = Object.freeze({
   ],
   scenario: [
     { table: 'fund_scenario_sets', scope: 'fund_id' },
-    { table: 'fund_scenario_variants', scope: { via: 'fund_scenario_sets', on: 'scenario_set_id' } },
+    {
+      table: 'fund_scenario_variants',
+      scope: { via: 'fund_scenario_sets', on: 'scenario_set_id' },
+    },
     { table: 'fund_scenario_set_events', scope: 'fund_id' },
     { table: 'fund_scenario_calculation_runs', scope: 'fund_id' },
   ],
@@ -210,159 +213,6 @@ async function reconcileExpiredCanaryRuns(client) {
   `);
 }
 
-async function selectTargetIds(client) {
-  const result = await client.query(`
-    SELECT f.id, f.canary_run_id
-    FROM funds AS f
-    JOIN release_canary_runs AS r ON r.id = f.canary_run_id
-    WHERE f.data_origin = '${CANARY_ORIGIN}'
-      AND r.expires_at <= clock_timestamp()
-    ORDER BY f.id
-  `);
-  return {
-    fundIds: result.rows.map((row) => row.id),
-    runIds: [...new Set(result.rows.map((row) => row.canary_run_id).filter(Boolean))],
-  };
-}
-
-async function listDirectFundForeignKeys(client) {
-  const result = await client.query(`
-    SELECT
-      format('%I.%I', child_ns.nspname, child.relname) AS table_name,
-      format('%I', child_column.attname) AS column_name
-    FROM pg_constraint AS constraint_row
-    JOIN pg_class AS child ON child.oid = constraint_row.conrelid
-    JOIN pg_namespace AS child_ns ON child_ns.oid = child.relnamespace
-    JOIN pg_class AS parent ON parent.oid = constraint_row.confrelid
-    JOIN pg_attribute AS child_column
-      ON child_column.attrelid = child.oid
-     AND child_column.attnum = constraint_row.conkey[1]
-    WHERE constraint_row.contype = 'f'
-      AND constraint_row.confrelid = 'public.funds'::regclass
-      AND array_length(constraint_row.conkey, 1) = 1
-      AND child.oid <> 'public.funds'::regclass
-    ORDER BY child.relname
-  `);
-  return result.rows;
-}
-
-async function listChildTableDependencies(client) {
-  const result = await client.query(`
-    WITH direct_children AS (
-      SELECT DISTINCT child.oid, format('%I.%I', child_ns.nspname, child.relname) AS table_name
-      FROM pg_constraint AS constraint_row
-      JOIN pg_class AS child ON child.oid = constraint_row.conrelid
-      JOIN pg_namespace AS child_ns ON child_ns.oid = child.relnamespace
-      WHERE constraint_row.contype = 'f'
-        AND constraint_row.confrelid = 'public.funds'::regclass
-        AND child.oid <> 'public.funds'::regclass
-    )
-    SELECT
-      format('%I.%I', child_ns.nspname, child.relname) AS child_table,
-      format('%I.%I', parent_ns.nspname, parent.relname) AS parent_table
-    FROM direct_children AS child_direct
-    JOIN pg_constraint AS foreign_key ON foreign_key.conrelid = child_direct.oid
-    JOIN pg_class AS child ON child.oid = foreign_key.conrelid
-    JOIN pg_namespace AS child_ns ON child_ns.oid = child.relnamespace
-    JOIN direct_children AS parent_direct ON parent_direct.oid = foreign_key.confrelid
-    JOIN pg_class AS parent ON parent.oid = foreign_key.confrelid
-    JOIN pg_namespace AS parent_ns ON parent_ns.oid = parent.relnamespace
-    WHERE foreign_key.contype = 'f'
-  `);
-  return result.rows;
-}
-
-async function executePurge(client, fundIds) {
-  if (fundIds.length === 0) return 0;
-  const directForeignKeys = await listDirectFundForeignKeys(client);
-  const dependencies = await listChildTableDependencies(client);
-  const orderedTables = topologicallyOrderChildTables(
-    directForeignKeys.map(({ table_name }) => table_name),
-    dependencies.map(({ child_table, parent_table }) => ({
-      childTable: child_table,
-      parentTable: parent_table,
-    }))
-  );
-  const foreignKeysByTable = new Map();
-  for (const foreignKey of directForeignKeys) {
-    const existing = foreignKeysByTable.get(foreignKey.table_name) ?? [];
-    existing.push(foreignKey);
-    foreignKeysByTable.set(foreignKey.table_name, existing);
-  }
-  let deleted = 0;
-  for (const tableName of orderedTables) {
-    for (const foreignKey of foreignKeysByTable.get(tableName) ?? []) {
-      const result = await client.query(
-        `DELETE FROM ${foreignKey.table_name} WHERE ${foreignKey.column_name} = ANY($1::int[])`,
-        [fundIds]
-      );
-      deleted += result.rowCount ?? 0;
-    }
-  }
-
-  const funds = await client.query(
-    `DELETE FROM funds WHERE data_origin = $2 AND id = ANY($1::int[])`,
-    [fundIds, CANARY_ORIGIN]
-  );
-  deleted += funds.rowCount ?? 0;
-  return deleted;
-}
-
-/**
- * Testcontainers-only mutation seam. Production callers remain mechanically
- * blocked in runPurge before their first query.
- */
-export async function deleteCanaryResidueTargets(client, fundIds, runIds) {
-  if (fundIds.length === 0 && runIds.length === 0) {
-    return { targets: 0, deleted: 0 };
-  }
-
-  await client.query('BEGIN');
-  try {
-    const activeTargets = [];
-    for (const target of runIds) {
-      const current = await client.query(
-        'SELECT version FROM release_canary_runs WHERE id = $1 FOR UPDATE',
-        [target.id]
-      );
-      if ((current.rowCount ?? current.rows?.length ?? 0) === 0) continue;
-      if (Number(current.rows[0]?.version) !== target.expectedVersion) {
-        throw new Error('Release canary purge reconciliation lost its version fence');
-      }
-      const reconciled = await client.query(
-        `UPDATE release_canary_runs
-         SET updated_at = clock_timestamp()
-         WHERE id = $1 AND version = $2`,
-        [target.id, target.expectedVersion]
-      );
-      if (reconciled.rowCount !== 1) {
-        throw new Error('Release canary purge reconciliation lost its version fence');
-      }
-      activeTargets.push(target);
-    }
-
-    let deleted = await executePurge(client, fundIds);
-    for (const target of activeTargets) {
-      const result = await client.query(
-        `DELETE FROM release_canary_runs
-         WHERE id = $1
-           AND version = $2
-           AND id NOT IN (SELECT canary_run_id FROM funds WHERE canary_run_id IS NOT NULL)`,
-        [target.id, target.expectedVersion]
-      );
-      if (result.rowCount !== 1) {
-        throw new Error('Release canary purge deletion lost its version fence');
-      }
-      deleted += result.rowCount;
-    }
-    await client.query('COMMIT');
-    return { targets: activeTargets.length, deleted };
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  }
-}
-
 export async function runPurge(client, { execute = false, output = console.log } = {}) {
   if (execute) {
     throw new Error(
@@ -370,30 +220,13 @@ export async function runPurge(client, { execute = false, output = console.log }
     );
   }
   await assertCanaryExclusionAvailable(client);
-  if (!execute) {
-    await client.query('BEGIN');
-    try {
-      await reconcileExpiredCanaryRuns(client);
-      const plan = buildPurgePlan(await selectExpiredCanaryResidue(client));
-      await client.query('ROLLBACK');
-      output(JSON.stringify(plan, null, 2));
-      return plan;
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    }
-  }
-
   await client.query('BEGIN');
   try {
     await reconcileExpiredCanaryRuns(client);
     const plan = buildPurgePlan(await selectExpiredCanaryResidue(client));
-    const targets = await selectTargetIds(client);
-    const deleted = await executePurge(client, targets.fundIds);
-    await client.query('COMMIT');
-    const result = { ...plan, mode: 'execute', deleted };
-    output(JSON.stringify(result, null, 2));
-    return result;
+    await client.query('ROLLBACK');
+    output(JSON.stringify(plan, null, 2));
+    return plan;
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

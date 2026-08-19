@@ -15,7 +15,8 @@ import {
   evaluateCanaryResidue,
   RELEASE_CANARY_RUNS_QUERY,
 } from '../../scripts/release/assert-canary-residue.mjs';
-import { deleteCanaryResidueTargets, runPurge } from '../../scripts/release/purge-canary-runs.mjs';
+import { runPurge } from '../../scripts/release/purge-canary-runs.mjs';
+import { purgeCanaryRunForTest } from '../helpers/release-canary-purge-test-driver.mjs';
 import {
   parseReleaseCanaryResidueCharacterization,
   RELEASE_CANARY_RESERVED_RESIDUE,
@@ -171,9 +172,7 @@ async function startRuntime(): Promise<Runtime> {
 }
 
 function vectorEquals(a: ResidueVector, b: ResidueVector): boolean {
-  return (
-    a.total === b.total && RELEASE_CANARY_RESIDUE_GROUP_KEYS.every((key) => a[key] === b[key])
-  );
+  return a.total === b.total && RELEASE_CANARY_RESIDUE_GROUP_KEYS.every((key) => a[key] === b[key]);
 }
 
 function assertMonotonic(previous: ResidueVector, current: ResidueVector, name: string): void {
@@ -712,7 +711,12 @@ describe('release canary residue characterization', () => {
       await capturePhase('metric-lifecycle');
 
       // ---- Phase 13: narratives ---------------------------------------------
-      const narrativeTypes = ['no_dpi', 'methodology', 'portfolio_update', 'risk_disclosure'] as const;
+      const narrativeTypes = [
+        'no_dpi',
+        'methodology',
+        'portfolio_update',
+        'risk_disclosure',
+      ] as const;
       const narrativeRefs: Array<{
         narrativeType: (typeof narrativeTypes)[number];
         narrativeRunId: number;
@@ -824,9 +828,10 @@ describe('release canary residue characterization', () => {
           unaccounted.push(`${table} (${rowCount.rows[0]?.count} rows)`);
         }
       }
-      expect(unaccounted, 'direct funds FK tables missing from CANARY_RESIDUE_GROUP_TABLES').toEqual(
-        []
-      );
+      expect(
+        unaccounted,
+        'direct funds FK tables missing from CANARY_RESIDUE_GROUP_TABLES'
+      ).toEqual([]);
 
       // ---- Terminalization + post-terminal preflight ------------------------
       const reconciled = await transitionReleaseCanaryRun(runId, 'completed', 1, [
@@ -863,24 +868,6 @@ describe('release canary residue characterization', () => {
       );
       expect(finalVector.total).toBe(storedGroupSum);
 
-      const helperRun = await active.pool.query<{ id: string }>(
-        `INSERT INTO release_canary_runs (
-           release_version, release_sha, deployment_id, worker_deployment_id,
-           correlation_id, principal_user_id, expires_at
-         ) VALUES ($1, $2, $3, $4, $5, $6, clock_timestamp())
-         RETURNING id`,
-        ['purge-helper', CANARY_SHA, 'purge-helper', 'purge-helper', randomUUID(), userId]
-      );
-      const helperTarget = { id: helperRun.rows[0]!.id, expectedVersion: 1 };
-      await expect(deleteCanaryResidueTargets(active.pool, [], [helperTarget])).resolves.toEqual({
-        targets: 1,
-        deleted: 1,
-      });
-      await expect(deleteCanaryResidueTargets(active.pool, [], [helperTarget])).resolves.toEqual({
-        targets: 0,
-        deleted: 0,
-      });
-
       // Preflight accepts after the run is terminal when the vector fits (3x).
       const preflightCurrent = await preflightCanaryCreation(db);
       expect(preflightCurrent).toEqual(finalVector);
@@ -901,11 +888,10 @@ describe('release canary residue characterization', () => {
         total: 0,
         ttlHours: 24,
       };
-      scenarioOnlyBreachPolicy.total =
-        RELEASE_CANARY_RESIDUE_GROUP_KEYS.reduce(
-          (sum, key) => sum + scenarioOnlyBreachPolicy[key],
-          0
-        );
+      scenarioOnlyBreachPolicy.total = RELEASE_CANARY_RESIDUE_GROUP_KEYS.reduce(
+        (sum, key) => sum + scenarioOnlyBreachPolicy[key],
+        0
+      );
       await expect(preflightCanaryCreation(db, scenarioOnlyBreachPolicy)).rejects.toMatchObject({
         name: 'CanaryResidueCapExceededError',
         field: 'scenario',
@@ -1008,6 +994,82 @@ describe('release canary residue characterization', () => {
         evaluateCanaryResidue({ expectedSha: CANARY_SHA, rows: healthyRows.rows, policy })
       ).toMatchObject({ verdict: 'pass', exitCode: 0 });
 
+      // Dedicated expired canary: authority comes from stored DB bindings, not
+      // caller-supplied fund IDs. Run it after the candidate-SHA health verdict
+      // so this purged fixture cannot alter that independently tested contract.
+      const purgeCreated = await fundPersistence.createFundWithInitialDraft(
+        { ...fundInput, name: `Purge characterization fund ${suffix}` },
+        { ...configInput, fundName: `Purge characterization fund ${suffix}` }
+      );
+      const purgeFundId = purgeCreated.fund.id;
+      const purgeRunId = purgeCreated.fund.canaryRunId;
+      expect(purgeRunId).toBeTruthy();
+      const purgeRunBeforeTerminal = await active.pool.query<{ version: number }>(
+        'SELECT version FROM release_canary_runs WHERE id = $1',
+        [purgeRunId]
+      );
+      const purgeExpectedVersion = Number(purgeRunBeforeTerminal.rows[0]!.version);
+      const purgeReceipt = await reconcileReleaseCanaryRun(purgeRunId!, purgeExpectedVersion);
+      await transitionReleaseCanaryRun(purgeRunId!, 'completed', purgeExpectedVersion, [
+        'created',
+        'running',
+      ]);
+      const purgeTombstoneIntent = await active.pool.query<{ version: number }>(
+        "UPDATE release_canary_runs SET expires_at = clock_timestamp() - interval '1 second' WHERE id = $1 RETURNING version",
+        [purgeRunId]
+      );
+      const expectedPurgeVersion = Number(purgeTombstoneIntent.rows[0]!.version);
+      const childBeforePurge = await active.pool.query<{ count: number }>(
+        'SELECT count(*)::int AS count FROM fundconfigs WHERE fund_id = $1',
+        [purgeFundId]
+      );
+      expect(childBeforePurge.rows[0]!.count).toBeGreaterThan(0);
+      const firstPurge = await purgeCanaryRunForTest(active.pool, {
+        runId: purgeRunId!,
+        expectedVersion: expectedPurgeVersion,
+      });
+      expect(firstPurge).toMatchObject({
+        outcome: 'purged',
+        targetFunds: 1,
+        receipt: purgeReceipt,
+        version: expectedPurgeVersion + 1,
+      });
+      const purgedFund = await active.pool.query('SELECT id FROM funds WHERE id = $1', [
+        purgeFundId,
+      ]);
+      const purgedChild = await active.pool.query('SELECT id FROM fundconfigs WHERE fund_id = $1', [
+        purgeFundId,
+      ]);
+      const tombstone = await active.pool.query<{
+        status: string;
+        purged_at: Date | null;
+        version: number;
+        total_residue_count: number;
+      }>(
+        'SELECT status, purged_at, version, total_residue_count FROM release_canary_runs WHERE id = $1',
+        [purgeRunId]
+      );
+      expect(purgedFund.rows).toEqual([]);
+      expect(purgedChild.rows).toEqual([]);
+      expect(tombstone.rows[0]).toMatchObject({
+        status: 'purged',
+        version: expectedPurgeVersion + 1,
+        total_residue_count: purgeReceipt.total,
+      });
+      expect(tombstone.rows[0]!.purged_at).toBeTruthy();
+      await expect(
+        purgeCanaryRunForTest(active.pool, {
+          runId: purgeRunId!,
+          expectedVersion: expectedPurgeVersion,
+        })
+      ).resolves.toMatchObject({
+        outcome: 'replayed',
+        targetFunds: 0,
+        deleted: 0,
+        receipt: purgeReceipt,
+        version: expectedPurgeVersion + 1,
+      });
+
       // ---- Characterization record ------------------------------------------
       const resolvedResultPath =
         initialCharacterizationEnv.resultPath ??
@@ -1107,7 +1169,6 @@ describe('release canary residue characterization', () => {
         // fails its `test -f "$RESULT_PATH"` step when no record exists.
         expect(existsSync(resolvedResultPath)).toBe(false);
       }
-
     },
     WHOLE_TEST_TIMEOUT_MS
   );
