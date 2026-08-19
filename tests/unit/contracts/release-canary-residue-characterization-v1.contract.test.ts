@@ -43,6 +43,14 @@ function validRecord() {
     ],
     finalResidue: { ...reservedVector },
     failureBoundaries: [{ name: 'inject-fee-failure', residue: { ...partialVector } }],
+    provenance: {
+      dataOrigin: 'production',
+      timeZone: 'UTC',
+      expectedRunVersion: 1,
+      flagState: { enableGpEconomicsEngine: false, cohortCalculationInvoked: false },
+      snapshotTypes: { RESERVE: 1, PACING: 1, scenario: 1, ECONOMICS: 0, COHORT: 0 },
+      directFundForeignKeys: ['public.fundconfigs', 'public.portfoliocompanies'],
+    },
     result: 'passed',
   };
 }

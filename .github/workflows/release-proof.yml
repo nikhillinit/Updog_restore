@@ -310,6 +310,18 @@ jobs:
           if (parsed.result !== 'passed') {
             throw new Error('Characterization result must be passed');
           }
+          if (parsed.finalResidue.calculation !== 12 || parsed.finalResidue.total !== 40) {
+            throw new Error('Characterization residue vector does not match the frozen contract');
+          }
+          if (
+            parsed.provenance.dataOrigin !== 'production' ||
+            parsed.provenance.timeZone !== 'UTC' ||
+            parsed.provenance.expectedRunVersion !== 1 ||
+            parsed.provenance.flagState.enableGpEconomicsEngine !== false ||
+            parsed.provenance.flagState.cohortCalculationInvoked !== false
+          ) {
+            throw new Error('Characterization provenance does not match the strict contract');
+          }
           VALIDATE
           npx tsx "$RUNNER_TEMP/validate-characterization.mts"
           FILE_SHA256="$(sha256sum "$RESULT_PATH" | cut -d' ' -f1)"

@@ -75,6 +75,26 @@ const NamedResidueSchema = z
 
 const SourceShaSchema = z.string().regex(/^[a-f0-9]{40}$/, 'Source SHA must be lowercase SHA-1');
 
+const ProvenanceSchema = z
+  .object({
+    dataOrigin: z.literal('production'),
+    timeZone: z.literal('UTC'),
+    expectedRunVersion: z.number().int().safe().min(1),
+    flagState: z
+      .object({ enableGpEconomicsEngine: z.literal(false), cohortCalculationInvoked: z.literal(false) })
+      .strict(),
+    snapshotTypes: z
+      .object({ RESERVE: z.literal(1), PACING: z.literal(1), scenario: z.literal(1), ECONOMICS: z.literal(0), COHORT: z.literal(0) })
+      .strict(),
+    directFundForeignKeys: z.array(z.string().min(1)).min(1),
+  })
+  .strict()
+  .superRefine((provenance, ctx) => {
+    if (provenance.directFundForeignKeys.some((key, index, values) => index > 0 && key < values[index - 1]!)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['directFundForeignKeys'], message: 'directFundForeignKeys must be sorted' });
+    }
+  });
+
 export const ReleaseCanaryResidueCharacterizationV1Schema = z
   .object({
     schemaVersion: z.literal('release-canary-residue-characterization-v1'),
@@ -84,6 +104,7 @@ export const ReleaseCanaryResidueCharacterizationV1Schema = z
     phases: z.array(NamedResidueSchema).min(1).max(64),
     finalResidue: ResidueVectorSchema,
     failureBoundaries: z.array(NamedResidueSchema).min(1).max(64),
+    provenance: ProvenanceSchema,
     result: z.literal('passed'),
   })
   .strict()

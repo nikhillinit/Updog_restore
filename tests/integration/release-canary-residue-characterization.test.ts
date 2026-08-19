@@ -1021,6 +1021,14 @@ describe('release canary residue characterization', () => {
         phases,
         finalResidue: finalVector,
         failureBoundaries,
+        provenance: {
+          dataOrigin: 'production',
+          timeZone: 'UTC',
+          expectedRunVersion: 1,
+          flagState: { enableGpEconomicsEngine: false, cohortCalculationInvoked: false },
+          snapshotTypes: { RESERVE: 1, PACING: 1, scenario: 1, ECONOMICS: 0, COHORT: 0 },
+          directFundForeignKeys: fkRows.rows.map((row) => row.table_name).sort(),
+        },
         result: 'passed',
       };
 
@@ -1044,6 +1052,14 @@ describe('release canary residue characterization', () => {
         phases: [{ name: 'final', residue: RELEASE_CANARY_RESERVED_RESIDUE }],
         finalResidue: RELEASE_CANARY_RESERVED_RESIDUE,
         failureBoundaries: [{ name: 'probe', residue: RELEASE_CANARY_RESERVED_RESIDUE }],
+        provenance: {
+          dataOrigin: 'production',
+          timeZone: 'UTC',
+          expectedRunVersion: 1,
+          flagState: { enableGpEconomicsEngine: false, cohortCalculationInvoked: false },
+          snapshotTypes: { RESERVE: 1, PACING: 1, scenario: 1, ECONOMICS: 0, COHORT: 0 },
+          directFundForeignKeys: fkRows.rows.map((row) => row.table_name).sort(),
+        },
         result: 'passed',
       };
       expect(() => parseReleaseCanaryResidueCharacterization(contractProbeRecord)).not.toThrow();
