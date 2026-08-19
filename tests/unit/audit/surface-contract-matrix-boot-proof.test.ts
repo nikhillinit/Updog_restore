@@ -821,7 +821,16 @@ describe('surface contract matrix boot proof completion gates', () => {
         repositoryRoot,
         output,
         candidateSha,
-        environment: { PATH: '/clean-room-bin', VERCEL_TOKEN: 'clean-room-credential' },
+        environment: {
+          PATH: '/clean-room-bin',
+          VERCEL_TOKEN: 'clean-room-credential',
+          VERCEL_ORG_ID: 'clean-room-org',
+          VERCEL_PROJECT_ID: 'clean-room-project',
+          ARBITRARY_SECRET: 'must-not-reach-git',
+          DATABASE_URL: 'postgresql://parent-secret',
+          GIT_DIR: '/parent-git-dir',
+          GIT_WORK_TREE: '/parent-work-tree',
+        },
         stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
         runCommand: (command, args, options) => {
           calls.push({ command, args, cwd: options.cwd, env: options.env });
@@ -850,6 +859,22 @@ describe('surface contract matrix boot proof completion gates', () => {
       });
       expect(installCall?.env).not.toHaveProperty('VERCEL_TOKEN');
       expect(calls.at(-1)).toMatchObject({ command: 'git', args: ['worktree', 'remove', '--force', expect.any(String)] });
+      const gitWorktreeCalls = calls.filter((call) => call.command === 'git');
+      expect(gitWorktreeCalls).toHaveLength(2);
+      for (const call of gitWorktreeCalls) {
+        expect(call.env).toMatchObject({ PATH: '/clean-room-bin', HUSKY: '0' });
+        for (const key of [
+          'ARBITRARY_SECRET',
+          'VERCEL_TOKEN',
+          'VERCEL_ORG_ID',
+          'VERCEL_PROJECT_ID',
+          'DATABASE_URL',
+          'GIT_DIR',
+          'GIT_WORK_TREE',
+        ]) {
+          expect(call.env).not.toHaveProperty(key);
+        }
+      }
       expect(calls.filter((call) => call.command === process.execPath).every((call) => call.cwd !== repositoryRoot)).toBe(true);
       expect(JSON.parse(fs.readFileSync(output, 'utf8'))).toMatchObject({ source_sha: candidateSha });
       expect(fs.readFileSync(path.join(repositoryRoot, 'untracked-generated-artifact.txt'), 'utf8')).toBe('preserve exactly\n');

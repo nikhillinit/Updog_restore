@@ -43,6 +43,17 @@ const CLEAN_ROOM_ENV_KEYS = Object.freeze([
   'SSL_CERT_FILE', 'SSL_CERT_DIR',
 ]);
 
+const CLEAN_ROOM_GIT_ENV_KEYS = Object.freeze([
+  'PATH',
+  'HOME',
+  'TMPDIR',
+  'TMP',
+  'TEMP',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
+]);
+
 const requiredVercelBuildCredentials = (environment = process.env) => Object.fromEntries(
   VERCEL_BUILD_ENV_KEYS.map((key) => [key, environment[key]?.trim()])
 );
@@ -95,6 +106,13 @@ const cleanRoomEnvironment = (environment, npmCache, { includeVercelCredentials 
   HUSKY: '0',
   NPM_CONFIG_CACHE: npmCache,
   npm_config_cache: npmCache,
+});
+
+const cleanRoomGitEnvironment = (environment) => ({
+  ...Object.fromEntries(CLEAN_ROOM_GIT_ENV_KEYS.flatMap(function gitEnvironmentPair(key) {
+    return environment[key] ? [[key, environment[key]]] : [];
+  })),
+  HUSKY: '0',
 });
 
 export const proofEnv = (overrides = {}, environment = process.env) => ({
@@ -1193,7 +1211,10 @@ export const runBootProofCleanRoom = async ({
   let document;
   let innerDocument;
   try {
-    const add = runCommand('git', ['worktree', 'add', '--detach', cleanRoom, candidateSha], { cwd: repositoryRoot, env: environment });
+    const add = runCommand('git', ['worktree', 'add', '--detach', cleanRoom, candidateSha], {
+    cwd: repositoryRoot,
+    env: cleanRoomGitEnvironment(environment),
+  });
     if (add.status !== 0) throw commandFailure('Boot-proof clean-room worktree add', add);
     worktreeAdded = true;
     const install = runCommand('npm', ['ci'], {
@@ -1220,7 +1241,10 @@ export const runBootProofCleanRoom = async ({
     failure = error;
   } finally {
     if (worktreeAdded) {
-      const remove = runCommand('git', ['worktree', 'remove', '--force', cleanRoom], { cwd: repositoryRoot, env: environment });
+      const remove = runCommand('git', ['worktree', 'remove', '--force', cleanRoom], {
+        cwd: repositoryRoot,
+        env: cleanRoomGitEnvironment(environment),
+      });
       if (remove.status !== 0 && !failure) failure = commandFailure('Boot-proof clean-room worktree cleanup', remove);
     }
     filesystem.rmSync(cleanRoomParent, { recursive: true, force: true });
