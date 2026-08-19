@@ -282,16 +282,22 @@ describe('canary residue fail-closed policy', () => {
       scenario: 7,
       reporting: 11,
     };
-    const execute = vi
-      .fn()
-      .mockResolvedValueOnce({ rows: [countsRow], rowCount: 1 })
-      .mockResolvedValueOnce({ rows: [], rowCount: 1 });
+    const execute = vi.fn().mockResolvedValueOnce({ rows: [countsRow], rowCount: 1 });
 
     await expect(reconcileReleaseCanaryRun('run-1', 1, { execute })).resolves.toEqual({
       ...countsRow,
       total: 40,
     });
-    expect(execute).toHaveBeenCalledTimes(2);
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('maps a missing or stale reconciliation update to a transition conflict', async () => {
+    const execute = vi.fn().mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+    await expect(reconcileReleaseCanaryRun('run-1', 1, { execute })).rejects.toBeInstanceOf(
+      CanaryRunTransitionConflictError
+    );
+    expect(execute).toHaveBeenCalledOnce();
   });
 
   it('reconciles before atomically terminalizing a run', async () => {
@@ -303,7 +309,6 @@ describe('canary residue fail-closed policy', () => {
         rows: [{ ...zeroGroupRow(), fund: 1, fundConfig: 1, fundEvent: 1, grant: 1 }],
         rowCount: 1,
       })
-      .mockResolvedValueOnce({ rows: [], rowCount: 1 })
       .mockResolvedValueOnce({ rows: [], rowCount: 1 });
     const database = {
       transaction: vi.fn(async (callback: (tx: { execute: typeof execute }) => unknown) =>
@@ -320,7 +325,7 @@ describe('canary residue fail-closed policy', () => {
         database as never
       )
     ).resolves.toMatchObject({ total: 4 });
-    expect(execute).toHaveBeenCalledTimes(4);
+    expect(execute).toHaveBeenCalledTimes(3);
     expect(database.transaction).toHaveBeenCalledOnce();
   });
 

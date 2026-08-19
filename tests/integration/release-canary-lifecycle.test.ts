@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Queue } from 'bullmq';
 import type { QueueEvents } from 'bullmq';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import { GenericContainer, Wait, type StartedTestContainer } from 'testcontainers';
 import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -162,6 +163,36 @@ async function deleteCanaryFixtures(pool: Pool, fundId: number, runId: string, u
   await pool.query('DELETE FROM users WHERE id = $1', [userId]);
 }
 
+type BackendLockWait = {
+  state: string;
+  waitEventType: string | null;
+  waitEvent: string | null;
+};
+
+async function waitForBackendLock(pool: Pool, pid: number, timeoutMs = 2_000): Promise<BackendLockWait> {
+  const deadline = Date.now() + timeoutMs;
+  let lastObserved: BackendLockWait | undefined;
+  do {
+    const observed = await pool.query<BackendLockWait>(
+      `SELECT state,
+              wait_event_type AS "waitEventType",
+              wait_event AS "waitEvent"
+         FROM pg_stat_activity
+        WHERE pid = $1`,
+      [pid]
+    );
+    lastObserved = observed.rows[0];
+    if (lastObserved?.state === 'active' && lastObserved.waitEventType === 'Lock') {
+      return lastObserved;
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, 25));
+  } while (Date.now() < deadline);
+
+  throw new Error(
+    `Child writer backend ${pid} did not enter an active PostgreSQL lock wait: ${JSON.stringify(lastObserved)}`
+  );
+}
+
 describe('release canary local write-path and worker lifecycle', () => {
   beforeAll(async () => {
     try {
@@ -228,7 +259,7 @@ describe('release canary local write-path and worker lifecycle', () => {
           { createReserveOptimizationScenarioSet },
           { enqueueReserveScenarioCalculation },
           { getFundScenarioCalculationStatus },
-          { readCanaryRuntimePolicy, transitionReleaseCanaryRun },
+          { readCanaryRuntimePolicy, reconcileReleaseCanaryRun, transitionReleaseCanaryRun },
         ] = await Promise.all([
           import('../../server/services/fund-persistence-service'),
           import('../../server/storage'),
@@ -289,6 +320,65 @@ describe('release canary local write-path and worker lifecycle', () => {
           [userId, fundId]
         );
         expect(grant.rows).toHaveLength(1);
+
+        // The reconciliation statement holds FOR UPDATE locks on the run and
+        // its canary fund until this outer transaction commits. A child writer
+        // needs a conflicting FK key-share lock, so it must be ordered after
+        // the residue snapshot rather than slipping between count and update.
+        const lockClient = await active.pool.connect();
+        const childWriterClient = await active.pool.connect();
+        let transactionOpen = false;
+        let childInsert: Promise<unknown> | undefined;
+        try {
+          await lockClient.query('BEGIN');
+          transactionOpen = true;
+          const reconciledBeforeChild = await reconcileReleaseCanaryRun(
+            runId,
+            1,
+            drizzle(lockClient) as never
+          );
+          const childWriterPidResult = await childWriterClient.query<{ pid: number }>(
+            'SELECT pg_backend_pid() AS pid'
+          );
+          const childWriterPid = childWriterPidResult.rows[0]?.pid;
+          if (childWriterPid === undefined) throw new Error('child writer backend PID was unavailable');
+
+          childInsert = childWriterClient.query(
+            `INSERT INTO fund_events (fund_id, event_type, event_time, operation)
+             VALUES ($1, 'LOCK_ORDER_PROBE', clock_timestamp(), 'reconcile-lock-order')`,
+            [fundId]
+          );
+          const childLockWait = await waitForBackendLock(active.pool, childWriterPid);
+          expect(childLockWait).toEqual({
+            state: 'active',
+            waitEventType: 'Lock',
+            waitEvent: 'transactionid',
+          });
+
+          await lockClient.query('COMMIT');
+          transactionOpen = false;
+          await expect(childInsert).resolves.toMatchObject({ rowCount: 1 });
+
+          const storedSnapshot = await active.pool.query<{
+            fund_event_residue_count: number;
+          }>(
+            'SELECT fund_event_residue_count FROM release_canary_runs WHERE id = $1',
+            [runId]
+          );
+          const actualFundEvents = await active.pool.query<{ count: string }>(
+            'SELECT count(*)::int AS count FROM fund_events WHERE fund_id = $1',
+            [fundId]
+          );
+          expect(storedSnapshot.rows[0]?.fund_event_residue_count).toBe(
+            reconciledBeforeChild.fundEvent
+          );
+          expect(Number(actualFundEvents.rows[0]?.count)).toBe(reconciledBeforeChild.fundEvent + 1);
+        } finally {
+          if (transactionOpen) await lockClient.query('ROLLBACK');
+          await childInsert?.catch(() => undefined);
+          lockClient.release();
+          childWriterClient.release();
+        }
 
         await active.pool.query(
           `UPDATE fundconfigs
@@ -470,7 +560,7 @@ describe('release canary local write-path and worker lifecycle', () => {
           portfolioCompany: 1,
           fund: 1,
           fundConfig: 1,
-          fundEvent: 1,
+          fundEvent: 2,
           notification: 0,
           grant: 1,
           reporting: 0,

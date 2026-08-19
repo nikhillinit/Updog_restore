@@ -244,6 +244,64 @@ function countQuery(runId?: string): SQL {
   `;
 }
 
+function reconcileQuery(runId: string, expectedVersion: number): SQL {
+  const selections = CANARY_RESIDUE_GROUPS.map(
+    (group) => sql`${groupCountSql(group)} AS ${sql.raw(`"${group}"`)}`
+  );
+  const groupTotal = sql.join(
+    CANARY_RESIDUE_GROUPS.map(
+      (group) => sql`residue_group_counts.${sql.raw(`"${group}"`)}`
+    ),
+    sql` + `
+  );
+  const assignments = CANARY_RESIDUE_GROUPS.map(
+    (group) =>
+      sql`${sql.raw(RESIDUE_COLUMN_BY_GROUP[group])} = residue_counts.${sql.raw(`"${group}"`)}`
+  );
+  const returnedCounts = CANARY_RESIDUE_GROUPS.map(
+    (group) => sql`residue_counts.${sql.raw(`"${group}"`)} AS ${sql.raw(`"${group}"`)}`
+  );
+
+  return sql`
+    WITH locked_run AS MATERIALIZED (
+      SELECT id
+      FROM release_canary_runs
+      WHERE id = ${runId}
+      FOR UPDATE
+    ),
+    canary_funds AS MATERIALIZED (
+      SELECT f.id
+      FROM funds AS f
+      CROSS JOIN locked_run
+      WHERE ${canaryFundPredicate}
+        AND f.canary_run_id = ${runId}
+      ORDER BY f.id
+      FOR UPDATE OF f
+    ),
+    residue_group_counts AS MATERIALIZED (
+      SELECT
+        ${sql.join(selections, sql`,
+        `)}
+    ),
+    residue_counts AS MATERIALIZED (
+      SELECT residue_group_counts.*, ${groupTotal} AS total
+      FROM residue_group_counts
+    )
+    UPDATE release_canary_runs AS run
+    SET ${sql.join(assignments, sql`,
+        `)},
+        total_residue_count = residue_counts.total,
+        updated_at = clock_timestamp()
+    FROM locked_run, residue_counts
+    WHERE run.id = locked_run.id
+      AND run.version = ${expectedVersion}
+    RETURNING
+      ${sql.join(returnedCounts, sql`,
+      `)},
+      residue_counts.total AS total
+  `;
+}
+
 function numberFromRow(row: Record<string, unknown>, key: keyof CanaryResidueCounts): number {
   return numberFromValue(row[key], key);
 }
@@ -360,23 +418,11 @@ export async function reconcileReleaseCanaryRun(
     throw new CanaryRunTransitionConflictError('Expected release canary run version is invalid');
   }
   try {
-    const counts = await readResidueCounts(database, runId);
-    const assignments = CANARY_RESIDUE_GROUPS.map(
-      (group) => sql`${sql.raw(RESIDUE_COLUMN_BY_GROUP[group])} = ${counts[group]}`
-    );
-    const result = await database.execute(sql`
-      UPDATE release_canary_runs
-      SET ${sql.join(assignments, sql`,
-          `)},
-          total_residue_count = ${counts.total},
-          updated_at = clock_timestamp()
-      WHERE id = ${runId}
-        AND version = ${expectedVersion}
-    `);
+    const result = await database.execute(reconcileQuery(runId, expectedVersion));
     if (result.rowCount !== 1) {
       throw new CanaryRunTransitionConflictError('Release canary run reconciliation lost its fence');
     }
-    return counts;
+    return countsFromRow(result.rows[0] as ResidueRow | undefined);
   } catch (error) {
     if (
       error instanceof CanaryResiduePreflightError ||
