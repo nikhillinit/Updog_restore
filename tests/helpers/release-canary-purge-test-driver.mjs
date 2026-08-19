@@ -149,7 +149,9 @@ export async function purgeCanaryRunForTest(client, { runId, expectedVersion }) 
   try {
     const runResult = await client.query(
       `
-      SELECT id, status, version, total_residue_count,
+      SELECT id, status, version, expires_at, purged_at,
+             expires_at <= clock_timestamp() AS expired,
+             total_residue_count,
              ${Object.values(RESIDUE_COLUMN_BY_GROUP).join(', ')}
       FROM release_canary_runs WHERE id = $1 FOR UPDATE
     `,
@@ -164,10 +166,22 @@ export async function purgeCanaryRunForTest(client, { runId, expectedVersion }) 
     if (run.status === 'purged') {
       if (version !== expectedVersion + 1)
         throw new Error('Release canary purge replay intent does not match tombstone');
+      if (run.purged_at == null)
+        throw new Error('Release canary purge replay tombstone is malformed');
+      const remaining = await client.query(
+        `SELECT count(*)::int AS count FROM funds WHERE data_origin = $1 AND canary_run_id = $2`,
+        [CANARY_ORIGIN, runId]
+      );
+      if (number(remaining.rows[0]?.count) !== 0)
+        throw new Error('Release canary purge replay still has live derived funds');
       await client.query('COMMIT');
       return { outcome: 'replayed', targetFunds: 0, deleted: 0, receipt, version };
     }
     if (version !== expectedVersion) throw new Error('Release canary purge lost its version fence');
+    if (!['completed', 'failed', 'expired'].includes(run.status))
+      throw new Error('Release canary purge target is not terminal eligible');
+    if (run.expired !== true)
+      throw new Error('Release canary purge target has not expired');
     const targets = await client.query(
       `SELECT id FROM funds WHERE data_origin = $1 AND canary_run_id = $2 ORDER BY id FOR UPDATE`,
       [CANARY_ORIGIN, runId]

@@ -1067,13 +1067,29 @@ describe('release canary residue characterization', () => {
         'SELECT version FROM release_canary_runs WHERE id = $1',
         [purgeRunId]
       );
-      const purgeExpectedVersion = Number(purgeRunBeforeTerminal.rows[0]!.version);
-      const purgeReceipt = await reconcileReleaseCanaryRun(purgeRunId!, purgeExpectedVersion);
-      await transitionReleaseCanaryRun(purgeRunId!, 'completed', purgeExpectedVersion, [
-        'created',
-        'running',
-      ]);
-      const purgeTombstoneIntent = await active.pool.query<{ version: number }>(
+    const purgeExpectedVersion = Number(purgeRunBeforeTerminal.rows[0]!.version);
+    const purgeReceipt = await reconcileReleaseCanaryRun(purgeRunId!, purgeExpectedVersion);
+    await expect(
+      purgeCanaryRunForTest(active.pool, {
+        runId: purgeRunId!,
+        expectedVersion: purgeExpectedVersion,
+      })
+    ).rejects.toThrow(/terminal eligible/i);
+    await transitionReleaseCanaryRun(purgeRunId!, 'completed', purgeExpectedVersion, [
+      'created',
+      'running',
+    ]);
+    const purgeRunBeforeExpiry = await active.pool.query<{ version: number }>(
+      'SELECT version FROM release_canary_runs WHERE id = $1',
+      [purgeRunId]
+    );
+    await expect(
+      purgeCanaryRunForTest(active.pool, {
+        runId: purgeRunId!,
+        expectedVersion: Number(purgeRunBeforeExpiry.rows[0]!.version),
+      })
+    ).rejects.toThrow(/not expired/i);
+    const purgeTombstoneIntent = await active.pool.query<{ version: number }>(
         "UPDATE release_canary_runs SET expires_at = clock_timestamp() - interval '1 second' WHERE id = $1 RETURNING version",
         [purgeRunId]
       );
@@ -1116,9 +1132,9 @@ describe('release canary residue characterization', () => {
         total_residue_count: purgeReceipt.total,
       });
       expect(tombstone.rows[0]!.purged_at).toBeTruthy();
-      await expect(
-        purgeCanaryRunForTest(active.pool, {
-          runId: purgeRunId!,
+    await expect(
+      purgeCanaryRunForTest(active.pool, {
+        runId: purgeRunId!,
           expectedVersion: expectedPurgeVersion,
         })
       ).resolves.toMatchObject({
@@ -1126,10 +1142,46 @@ describe('release canary residue characterization', () => {
         targetFunds: 0,
         deleted: 0,
         receipt: purgeReceipt,
-        version: expectedPurgeVersion + 1,
-      });
+      version: expectedPurgeVersion + 1,
+    });
+    await active.pool.query(
+      `INSERT INTO funds (
+        name,
+        size,
+        management_fee,
+        carry_percentage,
+        vintage_year,
+        data_origin,
+        canary_run_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        `Reintroduced purge characterization fund ${suffix}`,
+        '1000000',
+        '0.02',
+        '0.2',
+        2026,
+        'release_canary',
+        purgeRunId,
+      ]
+    );
+    await expect(
+      purgeCanaryRunForTest(active.pool, {
+        runId: purgeRunId!,
+        expectedVersion: expectedPurgeVersion,
+      })
+    ).rejects.toThrow(/still.*live derived funds/i);
+    await active.pool.query(
+      'DELETE FROM funds WHERE data_origin = $1 AND canary_run_id = $2',
+      ['release_canary', purgeRunId]
+    );
+    await expect(
+      purgeCanaryRunForTest(active.pool, {
+        runId: purgeRunId!,
+        expectedVersion: expectedPurgeVersion,
+      })
+    ).resolves.toMatchObject({ outcome: 'replayed', targetFunds: 0, deleted: 0 });
 
-      // ---- Characterization record ------------------------------------------
+    // ---- Characterization record ------------------------------------------
       const resolvedResultPath =
         initialCharacterizationEnv.resultPath ??
         path.join(tmpdir(), `release-canary-residue-characterization-${suffix}.json`);

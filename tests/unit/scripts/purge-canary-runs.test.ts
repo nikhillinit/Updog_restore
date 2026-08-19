@@ -178,9 +178,10 @@ describe('canary purge command', () => {
         .mockResolvedValueOnce({ rowCount: 1 })
         .mockResolvedValueOnce({
           rowCount: 1,
-          rows: [{ status: 'purged', version: 2, ...emptyReceiptRow }],
+          rows: [{ status: 'purged', version: 2, purged_at: '2026-08-11T10:00:00.000Z', ...emptyReceiptRow }],
         })
-        .mockResolvedValueOnce({ rowCount: 1 }),
+      .mockResolvedValueOnce({ rows: [{ count: 0 }] })
+      .mockResolvedValueOnce({ rowCount: 1 }),
     };
     await expect(
       purgeCanaryRunForTest(client, { runId: 'run-1', expectedVersion: 1 })
@@ -191,6 +192,77 @@ describe('canary purge command', () => {
       version: 2,
       receipt: { total: 0 },
     });
+  });
+
+  it('rejects a non-terminal run before deriving purge targets', async () => {
+    const client = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rowCount: 1 })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{ status: 'active', version: 1, expired: true, ...emptyReceiptRow }],
+        }),
+    };
+
+    await expect(
+      purgeCanaryRunForTest(client, { runId: 'run-1', expectedVersion: 1 })
+    ).rejects.toThrow(/terminal/i);
+    expect(client.query).toHaveBeenLastCalledWith('ROLLBACK');
+    expect(client.query.mock.calls.some(([query]) => String(query).includes('SELECT id FROM funds'))).toBe(false);
+  });
+
+  it('rejects an unexpired terminal run before deriving purge targets', async () => {
+    const client = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rowCount: 1 })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{ status: 'completed', version: 1, expired: false, ...emptyReceiptRow }],
+        }),
+    };
+
+    await expect(
+      purgeCanaryRunForTest(client, { runId: 'run-1', expectedVersion: 1 })
+    ).rejects.toThrow(/not expired/i);
+    expect(client.query).toHaveBeenLastCalledWith('ROLLBACK');
+    expect(client.query.mock.calls.some(([query]) => String(query).includes('SELECT id FROM funds'))).toBe(false);
+  });
+
+  it('rejects a replay tombstone without purged_at', async () => {
+    const client = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rowCount: 1 })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{ status: 'purged', version: 2, purged_at: null, ...emptyReceiptRow }],
+        }),
+    };
+
+    await expect(
+      purgeCanaryRunForTest(client, { runId: 'run-1', expectedVersion: 1 })
+    ).rejects.toThrow(/tombstone.*malformed/i);
+    expect(client.query).toHaveBeenLastCalledWith('ROLLBACK');
+  });
+
+  it('rejects a replay tombstone with live derived funds', async () => {
+    const client = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rowCount: 1 })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{ status: 'purged', version: 2, purged_at: '2026-08-11T10:00:00.000Z', ...emptyReceiptRow }],
+        })
+        .mockResolvedValueOnce({ rows: [{ count: 1 }] }),
+    };
+
+    await expect(
+      purgeCanaryRunForTest(client, { runId: 'run-1', expectedVersion: 1 })
+    ).rejects.toThrow(/still.*live derived funds/i);
+    expect(client.query).toHaveBeenLastCalledWith('ROLLBACK');
   });
 });
 

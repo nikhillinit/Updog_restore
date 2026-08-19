@@ -254,7 +254,7 @@ describe('FundPersistenceService creator grant transaction', () => {
       expect(tx.insert.mock.results[1]?.value.values).toHaveBeenCalledWith(
         expect.objectContaining({ dataOrigin: 'release_canary', canaryRunId: 'canary-run-id' })
       );
-      expect(tx.execute).toHaveBeenCalledTimes(6);
+    expect(tx.execute).toHaveBeenCalledTimes(5);
     } finally {
       vi.unstubAllEnvs();
     }

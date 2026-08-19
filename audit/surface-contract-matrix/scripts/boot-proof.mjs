@@ -37,6 +37,11 @@ const VERCEL_BUILD_ENV_KEYS = Object.freeze([
   'VERCEL_ORG_ID',
   'VERCEL_PROJECT_ID',
 ]);
+const CLEAN_ROOM_ENV_KEYS = Object.freeze([
+  'PATH', 'TMPDIR', 'TMP', 'TEMP', 'HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY',
+  'NPM_CONFIG_REGISTRY', 'npm_config_registry', 'NPM_CONFIG_CAFILE', 'NODE_EXTRA_CA_CERTS',
+  'SSL_CERT_FILE', 'SSL_CERT_DIR',
+]);
 
 const requiredVercelBuildCredentials = (environment = process.env) => Object.fromEntries(
   VERCEL_BUILD_ENV_KEYS.map((key) => [key, environment[key]?.trim()])
@@ -78,6 +83,18 @@ const sanitizedBaseEnv = (environment = process.env) => ({
   CLIENT_URL: 'http://127.0.0.1',
   LOG_LEVEL: 'silent',
   HUSKY: '0',
+  NPM_CONFIG_CACHE: environment.NPM_CONFIG_CACHE,
+  npm_config_cache: environment.npm_config_cache,
+});
+
+const cleanRoomEnvironment = (environment, npmCache, { includeVercelCredentials = false } = {}) => ({
+  ...Object.fromEntries(CLEAN_ROOM_ENV_KEYS.flatMap((key) => environment[key] ? [[key, environment[key]]] : [])),
+  ...(includeVercelCredentials ? requiredVercelBuildCredentials(environment) : {}),
+  TZ: 'UTC',
+  CI: '1',
+  HUSKY: '0',
+  NPM_CONFIG_CACHE: npmCache,
+  npm_config_cache: npmCache,
 });
 
 export const proofEnv = (overrides = {}, environment = process.env) => ({
@@ -1125,10 +1142,10 @@ export const originalWorkspaceSnapshot = (repositoryRoot, { excludedPath, filesy
 const snapshotsMatch = (left, right) => left.workspace === right.workspace
   && Object.entries(left.manifests).every(([name, hash]) => right.manifests[name] === hash);
 
-const atomicCopy = (source, destination, filesystem = fs) => {
+const atomicWrite = (destination, contents, filesystem = fs) => {
   const temporary = path.join(path.dirname(destination), `.${path.basename(destination)}.boot-proof-${process.pid}-${Date.now()}.tmp`);
   try {
-    filesystem.writeFileSync(temporary, filesystem.readFileSync(source), { flag: 'wx' });
+    filesystem.writeFileSync(temporary, contents, { flag: 'wx' });
     filesystem.renameSync(temporary, destination);
   } finally {
     if (filesystem.existsSync(temporary)) filesystem.rmSync(temporary, { force: true });
@@ -1173,19 +1190,15 @@ export const runBootProofCleanRoom = async ({
   const npmCache = path.join(cleanRoomParent, 'npm-cache');
   let worktreeAdded = false;
   let failure;
+  let document;
+  let innerDocument;
   try {
     const add = runCommand('git', ['worktree', 'add', '--detach', cleanRoom, candidateSha], { cwd: repositoryRoot, env: environment });
     if (add.status !== 0) throw commandFailure('Boot-proof clean-room worktree add', add);
     worktreeAdded = true;
     const install = runCommand('npm', ['ci'], {
       cwd: cleanRoom,
-      env: {
-        ...environment,
-        HUSKY: '0',
-        CI: '1',
-        NPM_CONFIG_CACHE: npmCache,
-        npm_config_cache: npmCache,
-      },
+      env: cleanRoomEnvironment(environment, npmCache),
     });
     if (install.status !== 0) throw commandFailure('Boot-proof clean-room dependency install', install);
     const inner = runCommand(process.execPath, [
@@ -1196,14 +1209,13 @@ export const runBootProofCleanRoom = async ({
       ...(requireG3 ? ['--require-g3'] : []),
     ], {
       cwd: cleanRoom,
-      env: { ...environment, [CLEAN_ROOM_MARKER]: '1' },
+      env: { ...cleanRoomEnvironment(environment, npmCache, { includeVercelCredentials: true }), [CLEAN_ROOM_MARKER]: '1' },
     });
     if (inner.status !== 0) throw commandFailure('Boot-proof clean-room execution', inner);
-    const document = BootProofDocumentSchema.parse(JSON.parse(filesystem.readFileSync(innerOutput, 'utf8')));
+    innerDocument = filesystem.readFileSync(innerOutput);
+    document = BootProofDocumentSchema.parse(JSON.parse(innerDocument.toString('utf8')));
     if (document.source_sha !== candidateSha) throw new Error('Boot-proof clean-room output source SHA does not match candidate SHA');
     if (requireG3) assertRequiredG3Proofs(document);
-    atomicCopy(innerOutput, outputPath, filesystem);
-    stdout.write(`${JSON.stringify(document, null, 2)}\n`);
   } catch (error) {
     failure = error;
   } finally {
@@ -1219,6 +1231,8 @@ export const runBootProofCleanRoom = async ({
     }
   }
   if (failure) throw failure;
+  atomicWrite(outputPath, innerDocument, filesystem);
+  stdout.write(`${JSON.stringify(document, null, 2)}\n`);
 };
 
 export const runBootProof = runBootProofCleanRoom;

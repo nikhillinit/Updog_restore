@@ -845,10 +845,10 @@ describe('surface contract matrix boot proof completion gates', () => {
       expect(installCall?.cwd).not.toBe(repositoryRoot);
       expect(installCall?.env).toMatchObject({
         PATH: '/clean-room-bin',
-        VERCEL_TOKEN: 'clean-room-credential',
         HUSKY: '0',
         CI: '1',
       });
+      expect(installCall?.env).not.toHaveProperty('VERCEL_TOKEN');
       expect(calls.at(-1)).toMatchObject({ command: 'git', args: ['worktree', 'remove', '--force', expect.any(String)] });
       expect(calls.filter((call) => call.command === process.execPath).every((call) => call.cwd !== repositoryRoot)).toBe(true);
       expect(JSON.parse(fs.readFileSync(output, 'utf8'))).toMatchObject({ source_sha: candidateSha });
@@ -946,6 +946,93 @@ describe('surface contract matrix boot proof completion gates', () => {
     } finally {
       fs.rmSync(repositoryRoot, { recursive: true, force: true });
       fs.rmSync(externalCache, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps install credentials and arbitrary parent environment outside the clean room', async () => {
+    const repositoryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-env-repo-'));
+    const output = path.join(repositoryRoot, 'proof.json');
+    const candidateSha = 'f'.repeat(40);
+    const calls: Array<{ command: string; args: string[]; cwd?: string; env?: NodeJS.ProcessEnv }> = [];
+    try {
+      fs.writeFileSync(path.join(repositoryRoot, 'package.json'), '{}\n');
+      fs.writeFileSync(path.join(repositoryRoot, 'package-lock.json'), '{}\n');
+      await runBootProofCleanRoom({
+        repositoryRoot,
+        output,
+        candidateSha,
+        environment: {
+          PATH: '/clean-room-bin',
+          ARBITRARY_SECRET: 'must-not-cross-boundary',
+          VERCEL_TOKEN: 'vercel-token-secret',
+          VERCEL_ORG_ID: 'vercel-org-secret',
+          VERCEL_PROJECT_ID: 'vercel-project-secret',
+          NPM_CONFIG_CACHE: path.join(repositoryRoot, '.npm-cache'),
+          npm_config_cache: path.join(os.tmpdir(), 'external-npm-cache'),
+        },
+        stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+        runCommand: (command, args, options) => {
+          calls.push({ command, args, cwd: options?.cwd, env: options?.env });
+          if (command === process.execPath) {
+            fs.writeFileSync(args[args.indexOf('--output') + 1], `${JSON.stringify(cleanRoomDocument(candidateSha))}\n`);
+          }
+          return { status: 0 };
+        },
+      });
+
+      const install = calls.find((call) => call.command === 'npm' && call.args[0] === 'ci');
+      const inner = calls.find((call) => call.command === process.execPath);
+      const disposableCache = path.join(path.dirname(install!.cwd!), 'npm-cache');
+      expect(install?.env).toMatchObject({
+        PATH: '/clean-room-bin',
+        TZ: 'UTC',
+        CI: '1',
+        HUSKY: '0',
+        NPM_CONFIG_CACHE: disposableCache,
+        npm_config_cache: disposableCache,
+      });
+      for (const key of ['ARBITRARY_SECRET', 'VERCEL_TOKEN', 'VERCEL_ORG_ID', 'VERCEL_PROJECT_ID']) {
+        expect(install?.env).not.toHaveProperty(key);
+      }
+      expect(inner?.env).toMatchObject({
+        VERCEL_TOKEN: 'vercel-token-secret',
+        VERCEL_ORG_ID: 'vercel-org-secret',
+        VERCEL_PROJECT_ID: 'vercel-project-secret',
+        NPM_CONFIG_CACHE: disposableCache,
+        npm_config_cache: disposableCache,
+      });
+      expect(inner?.env).not.toHaveProperty('ARBITRARY_SECRET');
+    } finally {
+      fs.rmSync(repositoryRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('preserves prior requested output when clean-room cleanup fails', async () => {
+    const repositoryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-atomic-output-repo-'));
+    const output = path.join(repositoryRoot, 'proof.json');
+    const candidateSha = '0'.repeat(40);
+    try {
+      fs.writeFileSync(path.join(repositoryRoot, 'package.json'), '{}\n');
+      fs.writeFileSync(path.join(repositoryRoot, 'package-lock.json'), '{}\n');
+      fs.writeFileSync(output, 'prior\n');
+      await expect(
+        runBootProofCleanRoom({
+          repositoryRoot,
+          output,
+          candidateSha,
+          stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+          runCommand: (command, args) => {
+            if (command === process.execPath) {
+              fs.writeFileSync(args[args.indexOf('--output') + 1], `${JSON.stringify(cleanRoomDocument(candidateSha))}\n`);
+            }
+            if (command === 'git' && args[0] === 'worktree' && args[1] === 'remove') return { status: 1 };
+            return { status: 0 };
+          },
+        })
+      ).rejects.toThrow('clean-room worktree cleanup');
+      expect(fs.readFileSync(output, 'utf8')).toBe('prior\n');
+    } finally {
+      fs.rmSync(repositoryRoot, { recursive: true, force: true });
     }
   });
 

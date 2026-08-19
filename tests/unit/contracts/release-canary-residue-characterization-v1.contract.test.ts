@@ -44,12 +44,19 @@ function validRecord() {
     finalResidue: { ...reservedVector },
     failureBoundaries: [{ name: 'inject-fee-failure', residue: { ...partialVector } }],
     provenance: {
-      dataOrigin: 'production',
-      timeZone: 'UTC',
-      expectedRunVersion: 1,
-      flagState: { enableGpEconomicsEngine: false, cohortCalculationInvoked: false },
-      snapshotTypes: { RESERVE: 1, PACING: 1, scenario: 1, ECONOMICS: 0, COHORT: 0 },
-      directFundForeignKeys: ['public.fundconfigs', 'public.portfoliocompanies'],
+      executionPath: 'FundPersistenceService.createFundWithInitialDraft',
+      databaseTimeZone: 'Etc/UTC',
+      storedRun: { releaseSha: 'a'.repeat(40), status: 'completed', version: 2 },
+      fundDataOrigins: ['release_canary'],
+      flagState: { enableGpEconomicsEngine: false },
+      snapshotTypeCounts: [
+        { type: 'COHORT', count: 0 }, { type: 'ECONOMICS', count: 0 }, { type: 'PACING', count: 1 },
+        { type: 'RESERVE', count: 1 }, { type: 'SCENARIOS', count: 1 },
+      ],
+      directFundForeignKeys: [
+        { table: 'public.fundconfigs', column: 'fund_id' },
+        { table: 'public.portfoliocompanies', column: 'fund_id' },
+      ],
     },
     result: 'passed',
   };
