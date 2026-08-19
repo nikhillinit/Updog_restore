@@ -1,5 +1,4 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import crypto from 'node:crypto';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
@@ -24,7 +23,8 @@ import {
   calculateFundScenarioSet,
   getScenarioResults,
 } from '../services/fund-scenario-calculation-service.js';
-import { enqueueReserveScenarioCalculation } from '../services/fund-scenario-calc-queue-service.js';
+import { executeReserveCalculationCommand } from '../services/fund-scenario-calculation-command-service.js';
+import { parseInternalEconomicsIdempotencyKey } from '../lib/internal-economics-idempotency-key.js';
 import { getFundScenarioCalculationStatus } from '../services/fund-scenario-calculation-status-service.js';
 import { getFundScenarioComparison } from '../services/fund-scenario-comparison-service.js';
 
@@ -126,7 +126,7 @@ function getIdempotencyKey(req: Request): string | null {
 }
 
 function statusForError(statusCode?: number, code?: string) {
-  if (code === 'idempotency_key_reused') {
+  if (code === 'idempotency_key_reused' || code === 'idempotency_request_in_progress') {
     return code;
   }
 
@@ -262,16 +262,31 @@ router.post(
       return;
     }
 
+    const parsedKey = parseInternalEconomicsIdempotencyKey(req.headers['idempotency-key']);
+    if (parsedKey.kind === 'missing') {
+      return res.status(428).json({
+        error: 'idempotency_key_required',
+        message: 'Idempotency-Key header is required',
+      });
+    }
+    if (parsedKey.kind === 'invalid') {
+      return res.status(400).json({
+        error: 'validation_error',
+        message: 'Idempotency-Key must contain 1 to 128 RFC token characters',
+      });
+    }
+
     const parsed = FundScenarioReserveCalculationRequestV1Schema.safeParse(req.body ?? {});
     if (!parsed.success) {
       sendBodyValidationError(res, parsed.error, 'Invalid reserve scenario calculation payload');
       return;
     }
 
-    const queued = await enqueueReserveScenarioCalculation({
+    const queued = await executeReserveCalculationCommand({
       fundId,
       scenarioSetId,
-      correlationId: crypto.randomUUID(),
+      idempotencyKey: parsedKey.value,
+      request: parsed.data,
       actor: parseActor(req),
     });
     return res.status(202).json(queued);
@@ -365,6 +380,9 @@ router.post(
 );
 
 router.use((error: HttpError, _req: Request, res: Response, _next: unknown) => {
+  if (error.code === 'idempotency_request_in_progress') {
+    res.set('Retry-After', '1');
+  }
   res.status(error.statusCode ?? 500).json({
     error: statusForError(error.statusCode, error.code),
     ...(error.code ? { code: error.code } : {}),

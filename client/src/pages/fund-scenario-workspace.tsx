@@ -9,7 +9,7 @@
  * @module client/pages/fund-scenario-workspace
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRoute, useSearch } from 'wouter';
 import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -36,7 +36,6 @@ import {
 import {
   FundScenarioCalculationResponseV1Schema,
   FundScenarioCalculationStatusV1Schema,
-  FundScenarioReserveCalculationQueuedV1Schema,
   FundScenarioSetDetailV1Schema,
   type FundScenarioCalculationModeV1,
   type FundScenarioCalculationStatusV1,
@@ -62,6 +61,12 @@ import {
   scenarioApiPath,
   scenarioSetApiPath,
 } from '@/lib/fund-scenario-workspace-api';
+import {
+  createReserveCalculationIntent,
+  executeReserveCalculationCommand,
+  type ReserveCalculationIntent,
+  type ReserveCommandOutcome,
+} from '@/lib/fund-scenario-reserve-command';
 
 const FUND_SCENARIO_WORKSPACE_ROUTE = '/fund-model-results/:fundId/scenarios';
 const OVERRIDE_TYPE_LABELS: Record<FundScenarioOverrideTypeV1, string> = {
@@ -112,19 +117,40 @@ function scenarioSetOverrideType(
   return detail.variants[0]?.override.overrideType ?? null;
 }
 
+// Reserve sets go through the durable idempotent command runner instead
+// (executeReserveCalculationCommand); this path serves sync sets only.
 async function calculateScenarioSet(fundId: string, detail: FundScenarioSetDetailV1) {
-  const overrideType = scenarioSetOverrideType(detail);
-  if (overrideType === 'reserve_allocation') {
-    const raw = await apiRequest(
-      'POST',
-      scenarioSetApiPath(fundId, detail.id, '/calculate-reserve'),
-      {}
-    );
-    return FundScenarioReserveCalculationQueuedV1Schema.parse(raw);
-  }
-
   const raw = await apiRequest('POST', scenarioSetApiPath(fundId, detail.id, '/calculate'));
   return FundScenarioCalculationResponseV1Schema.parse(raw);
+}
+
+type ReserveCommandNotice = { message: string; canRetry: boolean };
+
+function reserveNoticeForOutcome(outcome: ReserveCommandOutcome): ReserveCommandNotice | null {
+  switch (outcome.kind) {
+    case 'queued':
+      return null;
+    case 'in_progress':
+      return { message: 'Reserve calculation is still processing.', canRetry: true };
+    case 'inputs_changed':
+      return { message: 'Inputs changed; review and submit again.', canRetry: false };
+    case 'queue_unavailable':
+      return { message: 'Calculation queue is unavailable.', canRetry: true };
+    case 'retryable_error':
+      return {
+        message: `Reserve calculation could not be confirmed: ${outcome.message}`,
+        canRetry: true,
+      };
+    case 'terminal_error':
+      return { message: outcome.message, canRetry: false };
+  }
+}
+
+function omitKey<T>(record: Record<string, T>, key: string): Record<string, T> {
+  if (!(key in record)) return record;
+  const next = { ...record };
+  delete next[key];
+  return next;
 }
 
 async function createReserveOptimizationScenarioSet(fundId: string) {
@@ -384,6 +410,7 @@ function ScenarioSetActionCard({
   summary,
   detail,
   status,
+  notice,
   pendingScenarioSetId,
   isHighlighted,
   onCalculate,
@@ -391,6 +418,7 @@ function ScenarioSetActionCard({
   summary: FundScenarioSetSummaryV1;
   detail: FundScenarioSetDetailV1 | null;
   status: FundScenarioCalculationStatusV1 | null;
+  notice: ReserveCommandNotice | null;
   pendingScenarioSetId: string | null;
   isHighlighted?: boolean;
   onCalculate: (detail: FundScenarioSetDetailV1) => void;
@@ -444,6 +472,25 @@ function ScenarioSetActionCard({
       {status?.lastError && (
         <p className="mt-3 text-sm text-error-dark font-poppins">{status.lastError}</p>
       )}
+      {notice && (
+        <p
+          className="mt-3 flex flex-wrap items-center gap-2 text-sm text-error-dark font-poppins"
+          data-testid={`reserve-command-notice-${summary.id}`}
+        >
+          <span>{notice.message}</span>
+          {notice.canRetry && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={disabled}
+              onClick={() => detail && onCalculate(detail)}
+            >
+              Retry
+            </Button>
+          )}
+        </p>
+      )}
     </article>
   );
 }
@@ -452,6 +499,7 @@ function ScenarioActionList({
   scenarioSets,
   detailById,
   statusById,
+  noticeById,
   pendingScenarioSetId,
   highlightedScenarioSetId,
   onCalculate,
@@ -459,6 +507,7 @@ function ScenarioActionList({
   scenarioSets: FundScenarioSetSummaryV1[];
   detailById: Map<string, FundScenarioSetDetailV1>;
   statusById: Map<string, FundScenarioCalculationStatusV1>;
+  noticeById: Record<string, ReserveCommandNotice>;
   pendingScenarioSetId: string | null;
   highlightedScenarioSetId?: string | null;
   onCalculate: (detail: FundScenarioSetDetailV1) => void;
@@ -478,6 +527,7 @@ function ScenarioActionList({
             summary={summary}
             detail={detailById.get(summary.id) ?? null}
             status={statusById.get(summary.id) ?? null}
+            notice={noticeById[summary.id] ?? null}
             pendingScenarioSetId={pendingScenarioSetId}
             isHighlighted={summary.id === highlightedScenarioSetId}
             onCalculate={onCalculate}
@@ -527,6 +577,12 @@ function FundScenarioWorkspacePage() {
   const fundId = useWorkspaceFundId();
   const queryClient = useQueryClient();
   const [pendingScenarioSetId, setPendingScenarioSetId] = useState<string | null>(null);
+  const [reserveNotices, setReserveNotices] = useState<Record<string, ReserveCommandNotice>>({});
+  // One intent (one Idempotency-Key) per scenario set, retained until known
+  // success or deterministic invalidation; the in-flight set stops a
+  // double-click from minting a second intent while one is active.
+  const reserveIntentsRef = useRef(new Map<string, ReserveCalculationIntent>());
+  const reserveInFlightRef = useRef(new Set<string>());
   const [isCreateMethodologyOpen, setIsCreateMethodologyOpen] = useState(false);
   const [isSeedPickerOpen, setIsSeedPickerOpen] = useState(false);
   const [highlightedScenarioSetId, setHighlightedScenarioSetId] = useState<string | null>(null);
@@ -614,6 +670,41 @@ function FundScenarioWorkspacePage() {
     },
     onSettled: () => setPendingScenarioSetId(null),
   });
+
+  async function runReserveCalculation(detail: FundScenarioSetDetailV1) {
+    if (!fundId) return;
+    const scenarioSetId = detail.id;
+    if (reserveInFlightRef.current.has(scenarioSetId)) return;
+    const intent = reserveIntentsRef.current.get(scenarioSetId) ?? createReserveCalculationIntent();
+    reserveIntentsRef.current.set(scenarioSetId, intent);
+    reserveInFlightRef.current.add(scenarioSetId);
+    setPendingScenarioSetId(scenarioSetId);
+    setReserveNotices((notices) => omitKey(notices, scenarioSetId));
+    try {
+      const outcome = await executeReserveCalculationCommand({
+        fundId: Number(fundId),
+        scenarioSetId,
+        intent,
+      });
+      const settled =
+        outcome.kind === 'queued' ||
+        outcome.kind === 'inputs_changed' ||
+        outcome.kind === 'terminal_error';
+      if (settled) {
+        reserveIntentsRef.current.delete(scenarioSetId);
+      }
+      const notice = reserveNoticeForOutcome(outcome);
+      setReserveNotices((notices) =>
+        notice ? { ...notices, [scenarioSetId]: notice } : omitKey(notices, scenarioSetId)
+      );
+      if (outcome.kind === 'queued' || outcome.kind === 'inputs_changed') {
+        await queryClient.invalidateQueries({ queryKey: workspaceQueryKey(fundId) });
+      }
+    } finally {
+      reserveInFlightRef.current.delete(scenarioSetId);
+      setPendingScenarioSetId(null);
+    }
+  }
 
   const createReserveOptimizationMutation = useMutation({
     mutationFn: () => createReserveOptimizationScenarioSet(fundId ?? ''),
@@ -761,9 +852,14 @@ function FundScenarioWorkspacePage() {
         scenarioSets={scenarioSets}
         detailById={detailById}
         statusById={statusById}
+        noticeById={reserveNotices}
         pendingScenarioSetId={pendingScenarioSetId}
         highlightedScenarioSetId={highlightedScenarioSetId}
         onCalculate={(detail) => {
+          if (scenarioSetOverrideType(detail) === 'reserve_allocation') {
+            void runReserveCalculation(detail);
+            return;
+          }
           setPendingScenarioSetId(detail.id);
           calculateMutation.mutate(detail);
         }}

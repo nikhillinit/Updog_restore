@@ -412,9 +412,17 @@ describe('fund scenario reserve worker integration', () => {
       expect(runtime).not.toBeNull();
       const active = runtime!;
 
+      const missingKey = await request(active.app)
+        .post(`/api/funds/${active.fundId}/scenario-sets/${scenarioSetId}/calculate-reserve`)
+        .set('Authorization', active.authHeader)
+        .send({ calculationMode: 'async_reserve_allocation' });
+      expect(missingKey.status, JSON.stringify(missingKey.body)).toBe(428);
+      expect(missingKey.body.error).toBe('idempotency_key_required');
+
       const queued = await request(active.app)
         .post(`/api/funds/${active.fundId}/scenario-sets/${scenarioSetId}/calculate-reserve`)
         .set('Authorization', active.authHeader)
+        .set('Idempotency-Key', 'reserve-worker-happy-path')
         .send({ calculationMode: 'async_reserve_allocation' });
       expect(queued.status, JSON.stringify(queued.body)).toBe(202);
 
@@ -467,6 +475,7 @@ describe('fund scenario reserve worker integration', () => {
               `/api/funds/${active.fundId}/scenario-sets/${failingScenarioSetId}/calculate-reserve`
             )
             .set('Authorization', active.authHeader)
+            .set('Idempotency-Key', 'reserve-worker-controlled-failure')
             .send({ calculationMode: 'async_reserve_allocation' });
           expect(queued.status, JSON.stringify(queued.body)).toBe(202);
           jobId = queued.body.jobId;

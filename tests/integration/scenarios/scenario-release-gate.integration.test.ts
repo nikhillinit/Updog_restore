@@ -405,6 +405,7 @@ async function enqueueReserveScenarioCalculation(
   const response = await request(active.app)
     .post(`/api/funds/${fund.fundId}/scenario-sets/${scenarioSetId}/calculate-reserve`)
     .set('Authorization', fund.authHeader)
+    .set('Idempotency-Key', `release-gate-reserve-${scenarioSetId}`)
     .send({ calculationMode: 'async_reserve_allocation' });
 
   expect(response.status, JSON.stringify(response.body)).toBe(202);

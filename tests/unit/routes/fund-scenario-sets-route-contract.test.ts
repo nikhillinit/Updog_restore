@@ -38,7 +38,7 @@ describe('fund scenario set route contract', () => {
       },
       {
         literal: "'/funds/:fundId/scenario-sets/:scenarioSetId/calculate-reserve'",
-        handlerMarker: 'enqueueReserveScenarioCalculation',
+        handlerMarker: 'executeReserveCalculationCommand',
       },
       {
         literal: "'/funds/:fundId/scenario-sets/:scenarioSetId/calculation-status'",
@@ -77,6 +77,8 @@ describe('fund scenario set route contract', () => {
     expect(source).toContain('getIdempotencyKey(req)');
     expect(source).toContain('CreateReserveOptimizationScenarioSetV1Schema.safeParse');
     expect(source).toContain('FundScenarioReserveCalculationRequestV1Schema.safeParse');
+    expect(source).toContain("parseInternalEconomicsIdempotencyKey(req.headers['idempotency-key'])");
+    expect(source).toContain("'idempotency_key_required'");
   });
 
   it('keeps calculation-status scoped to reserve scenario calculations', async () => {

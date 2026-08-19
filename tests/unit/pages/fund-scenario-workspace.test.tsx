@@ -61,7 +61,10 @@ describe('FundScenarioWorkspacePage', () => {
   }
 
   function mockWorkspaceFetches(
-    options: { seedResponse?: ReturnType<typeof disclosedScenarioSeedsResponse> } = {}
+    options: {
+      seedResponse?: ReturnType<typeof disclosedScenarioSeedsResponse>;
+      reservePost?: () => Response | Promise<Response>;
+    } = {}
   ) {
     fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.toString();
@@ -200,16 +203,10 @@ describe('FundScenarioWorkspacePage', () => {
         url ===
           '/api/funds/123/scenario-sets/00000000-0000-0000-0000-000000000211/calculate-reserve'
       ) {
-        return Promise.resolve(
-          jsonResponse({
-            fundId: 123,
-            scenarioSetId: '00000000-0000-0000-0000-000000000211',
-            calculationMode: 'async_reserve_allocation',
-            status: 'queued',
-            jobId: 'fund-scenario-123-reserve',
-            correlationId: '00000000-0000-0000-0000-000000000998',
-          })
-        );
+        if (options.reservePost) {
+          return Promise.resolve(options.reservePost());
+        }
+        return Promise.resolve(reserveQueuedResponse());
       }
 
       if (
@@ -764,6 +761,205 @@ describe('FundScenarioWorkspacePage', () => {
       'true'
     );
   });
+
+  describe('reserve idempotent command', () => {
+    const RESERVE_SET_ID = '00000000-0000-0000-0000-000000000211';
+    const RESERVE_NOTICE_TESTID = `reserve-command-notice-${RESERVE_SET_ID}`;
+    // RFC 7230 token characters, 1-128 (server key contract).
+    const IDEMPOTENCY_KEY_PATTERN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,128}$/;
+
+    function reservePostCalls() {
+      return fetchSpy.mock.calls.filter(([input, init]) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        return url.endsWith('/calculate-reserve') && (init as RequestInit)?.method === 'POST';
+      });
+    }
+
+    function reservePostKeys(): Array<string | undefined> {
+      return reservePostCalls().map(
+        ([, init]) => ((init as RequestInit)?.headers as Record<string, string>)['Idempotency-Key']
+      );
+    }
+
+    function scenarioSetListCallCount() {
+      return fetchSpy.mock.calls.filter(([input, init]) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        return url === '/api/funds/123/scenario-sets' && ((init as RequestInit)?.method ?? 'GET') === 'GET';
+      }).length;
+    }
+
+    async function clickQueueReserve() {
+      fireEvent.click(await screen.findByRole('button', { name: /queue reserve plan/i }));
+    }
+
+    it('sends a token-valid Idempotency-Key header on the reserve queue POST', async () => {
+      mockWorkspaceFetches();
+      renderWorkspace();
+
+      await clickQueueReserve();
+
+      await waitFor(() => expect(reservePostCalls()).toHaveLength(1));
+      expect(reservePostKeys()[0]).toMatch(IDEMPOTENCY_KEY_PATTERN);
+    });
+
+    it('issues one POST with one key on a double-click', async () => {
+      mockWorkspaceFetches();
+      renderWorkspace();
+
+      const button = await screen.findByRole('button', { name: /queue reserve plan/i });
+      fireEvent.click(button);
+      fireEvent.click(button);
+
+      await waitFor(() => expect(reservePostCalls()).toHaveLength(1));
+      await waitFor(() => expect(screen.queryByText('Submitting')).not.toBeInTheDocument());
+      expect(reservePostCalls()).toHaveLength(1);
+    });
+
+    it('clears the intent on success and invalidates workspace queries; a new click mints a new key', async () => {
+      mockWorkspaceFetches();
+      renderWorkspace();
+
+      await clickQueueReserve();
+      await waitFor(() => expect(reservePostCalls()).toHaveLength(1));
+      // Initial load issues one list GET; success invalidation re-issues it.
+      await waitFor(() => expect(scenarioSetListCallCount()).toBeGreaterThanOrEqual(2));
+      await waitFor(() => expect(screen.queryByText('Submitting')).not.toBeInTheDocument());
+      expect(screen.queryByTestId(RESERVE_NOTICE_TESTID)).not.toBeInTheDocument();
+
+      await clickQueueReserve();
+      await waitFor(() => expect(reservePostCalls()).toHaveLength(2));
+      const keys = reservePostKeys();
+      expect(keys[1]).toBeDefined();
+      expect(keys[1]).not.toBe(keys[0]);
+    });
+
+    it('retries a 409 lease twice with the same key, reports still-processing, and Retry reuses the key', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      let calls = 0;
+      mockWorkspaceFetches({
+        reservePost: () => {
+          calls += 1;
+          return calls <= 3 ? reserveLease409Response() : reserveQueuedResponse();
+        },
+      });
+      renderWorkspace();
+
+      await clickQueueReserve();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+
+      const notice = await screen.findByTestId(RESERVE_NOTICE_TESTID);
+      expect(notice).toHaveTextContent('Reserve calculation is still processing.');
+      expect(reservePostCalls()).toHaveLength(3);
+      expect(new Set(reservePostKeys()).size).toBe(1);
+
+      fireEvent.click(within(notice).getByRole('button', { name: 'Retry' }));
+      await waitFor(() => expect(reservePostCalls()).toHaveLength(4));
+      expect(new Set(reservePostKeys()).size).toBe(1);
+      await waitFor(() =>
+        expect(screen.queryByTestId(RESERVE_NOTICE_TESTID)).not.toBeInTheDocument()
+      );
+    });
+
+    it('keeps the key across a 503 queue-unavailable retry', async () => {
+      let calls = 0;
+      mockWorkspaceFetches({
+        reservePost: () => {
+          calls += 1;
+          return calls === 1
+            ? statusJsonResponse(
+                { error: 'internal_error', code: 'scenario_calculation_queue_unavailable' },
+                503
+              )
+            : reserveQueuedResponse();
+        },
+      });
+      renderWorkspace();
+
+      await clickQueueReserve();
+      const notice = await screen.findByTestId(RESERVE_NOTICE_TESTID);
+      expect(notice).toHaveTextContent('Calculation queue is unavailable.');
+
+      fireEvent.click(within(notice).getByRole('button', { name: 'Retry' }));
+      await waitFor(() => expect(reservePostCalls()).toHaveLength(2));
+      expect(new Set(reservePostKeys()).size).toBe(1);
+      await waitFor(() =>
+        expect(screen.queryByTestId(RESERVE_NOTICE_TESTID)).not.toBeInTheDocument()
+      );
+    });
+
+    it('keeps the key across a network-error retry and shows the ambiguous-outcome text', async () => {
+      let calls = 0;
+      mockWorkspaceFetches({
+        reservePost: () => {
+          calls += 1;
+          return calls === 1
+            ? Promise.reject(new TypeError('Failed to fetch'))
+            : reserveQueuedResponse();
+        },
+      });
+      renderWorkspace();
+
+      await clickQueueReserve();
+      const notice = await screen.findByTestId(RESERVE_NOTICE_TESTID);
+      expect(notice).toHaveTextContent(
+        'Reserve calculation could not be confirmed: Failed to fetch'
+      );
+
+      fireEvent.click(within(notice).getByRole('button', { name: 'Retry' }));
+      await waitFor(() => expect(reservePostCalls()).toHaveLength(2));
+      expect(new Set(reservePostKeys()).size).toBe(1);
+    });
+
+    it('clears the intent on 422 inputs-changed, invalidates, and the next click mints a new key', async () => {
+      let calls = 0;
+      mockWorkspaceFetches({
+        reservePost: () => {
+          calls += 1;
+          return calls === 1
+            ? statusJsonResponse(
+                { error: 'idempotency_key_reused', code: 'idempotency_key_reused' },
+                422
+              )
+            : reserveQueuedResponse();
+        },
+      });
+      renderWorkspace();
+
+      await clickQueueReserve();
+      const notice = await screen.findByTestId(RESERVE_NOTICE_TESTID);
+      expect(notice).toHaveTextContent('Inputs changed; review and submit again.');
+      expect(within(notice).queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+      const listCallsAfterInvalidation = scenarioSetListCallCount();
+      expect(listCallsAfterInvalidation).toBeGreaterThanOrEqual(2);
+
+      await clickQueueReserve();
+      await waitFor(() => expect(reservePostCalls()).toHaveLength(2));
+      const keys = reservePostKeys();
+      expect(keys[1]).toBeDefined();
+      expect(keys[1]).not.toBe(keys[0]);
+    });
+
+    it('shows the server error text on a terminal pre-claim 4xx without a Retry affordance', async () => {
+      mockWorkspaceFetches({
+        reservePost: () =>
+          statusJsonResponse(
+            { error: 'validation_error', message: 'Idempotency key invalid' },
+            400
+          ),
+      });
+      renderWorkspace();
+
+      await clickQueueReserve();
+      const notice = await screen.findByTestId(RESERVE_NOTICE_TESTID);
+      expect(notice).toHaveTextContent('Idempotency key invalid');
+      expect(within(notice).queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+    });
+  });
 });
 
 describe('resolveSeedDeepLink', () => {
@@ -802,6 +998,32 @@ function jsonResponse(body: unknown) {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
   });
+}
+
+function statusJsonResponse(body: unknown, status: number, headers: Record<string, string> = {}) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...headers },
+  });
+}
+
+function reserveQueuedResponse() {
+  return jsonResponse({
+    fundId: 123,
+    scenarioSetId: '00000000-0000-0000-0000-000000000211',
+    calculationMode: 'async_reserve_allocation',
+    status: 'queued',
+    jobId: 'fund-scenario-123-reserve',
+    correlationId: '00000000-0000-0000-0000-000000000998',
+  });
+}
+
+function reserveLease409Response() {
+  return statusJsonResponse(
+    { error: 'idempotency_request_in_progress', code: 'idempotency_request_in_progress' },
+    409,
+    { 'Retry-After': '1' }
+  );
 }
 
 function disclosedScenarioSeedsResponse() {

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { Queue } from 'bullmq';
 import { getQueueConnectionOptions, getQueueRuntimePolicy } from '../config/features';
 import {
@@ -10,7 +11,10 @@ import {
   FundScenarioReserveCalculationQueuedV1Schema,
   type FundScenarioReserveCalculationQueuedV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
-import { getReserveScenarioCalculationIdentity } from './fund-scenario-reserve-calculation-service.js';
+import {
+  getReserveScenarioCalculationIdentity,
+  type ReserveScenarioCalculationIdentity,
+} from './fund-scenario-reserve-calculation-service.js';
 import {
   createHttpError,
   insertScenarioSetEvent,
@@ -20,14 +24,14 @@ import {
 import {
   acquireScenarioCalculationRunWithCreation,
   bindQueuedScenarioCalculationRunJobId,
-  markQueuedScenarioCalculationRunEnqueueFailed,
+  type ScenarioCalculationRunRecord,
 } from './fund-scenario-calculation-run-service.js';
 
 const QUEUE_NAME = 'fund-scenario-calc';
 const JOB_ID_PREFIX = 'reserve-scenario';
 let fundScenarioCalcQueue: Queue | null = null;
 
-function getFundScenarioCalcQueue(): Queue {
+export function getFundScenarioCalcQueueOrThrow(): Queue {
   const queuePolicy = getQueueRuntimePolicy();
   if (!queuePolicy.enabled) {
     throw createHttpError(503, 'Fund scenario calculation queue is not available', {
@@ -71,25 +75,37 @@ function getFundScenarioCalcQueue(): Queue {
   return fundScenarioCalcQueue;
 }
 
-export async function enqueueReserveScenarioCalculation(input: {
-  fundId: number;
-  scenarioSetId: string;
-  correlationId: string;
-  actor: FundScenarioMutationActor;
-}): Promise<FundScenarioReserveCalculationQueuedV1> {
-  const fundScenarioQueue = getFundScenarioCalcQueue();
+export interface ReserveCalculationRunContext {
+  identity: ReserveScenarioCalculationIdentity;
+  run: ScenarioCalculationRunRecord;
+  inserted: boolean;
+  jobId: string;
+}
 
-  const identity = await getReserveScenarioCalculationIdentity(input.fundId, input.scenarioSetId);
-  const identityKey = [
+function reserveIdentityKey(identity: ReserveScenarioCalculationIdentity): string {
+  return [
     JOB_ID_PREFIX,
-    String(input.fundId),
-    input.scenarioSetId,
+    String(identity.fundId),
+    identity.scenarioSetId,
     identity.inputLineage.hashKind,
     identity.inputHash,
   ].join('-');
+}
+
+/**
+ * Find the active run for the resolved input lineage or create one. New runs
+ * take the supplied correlation ID; existing runs keep their persisted
+ * correlation and job identity, which stay canonical across replays.
+ */
+export async function acquireReserveCalculationRun(input: {
+  identity: ReserveScenarioCalculationIdentity;
+  correlationId: string;
+}): Promise<ReserveCalculationRunContext> {
+  const { identity } = input;
+  const identityKey = reserveIdentityKey(identity);
   const baseRunIdentity = {
-    fundId: input.fundId,
-    scenarioSetId: input.scenarioSetId,
+    fundId: identity.fundId,
+    scenarioSetId: identity.scenarioSetId,
     sourceConfigId: identity.sourceConfigId,
     sourceConfigVersion: identity.sourceConfigVersion,
     calculationMode: 'async_reserve_allocation' as const,
@@ -114,89 +130,157 @@ export async function enqueueReserveScenarioCalculation(input: {
       if (rebound !== 1) {
         throw new Error('Scenario calculation run job identity could not be bound');
       }
+      return { run: { ...result.run, jobId }, inserted: true, jobId };
     }
     return {
-      ...result,
-      jobId: result.inserted ? jobId : (result.run.jobId ?? jobId),
+      run: result.run,
+      inserted: false,
+      jobId: result.run.jobId ?? jobId,
     };
   });
-  const jobId = acquired.jobId;
-  const runIdentity = { ...baseRunIdentity, jobId };
 
-  if (acquired.inserted) {
-    try {
-      const priorJob = await fundScenarioQueue.getJob(jobId);
-      if (priorJob && (await priorJob.isFailed())) {
-        await priorJob.remove();
-      }
-    } catch {
-      // Timeout cleanup is best effort; the run row remains authoritative.
+  return { identity, ...acquired };
+}
+
+/**
+ * Create the deterministic BullMQ job for a queued run when the job is absent
+ * or previously failed. Running and completed runs are never requeued. The job
+ * payload always carries the persisted run correlation ID.
+ */
+export async function ensureReserveCalculationJob(params: {
+  queue: Queue;
+  context: ReserveCalculationRunContext;
+  actor: FundScenarioMutationActor;
+}): Promise<string> {
+  const { queue, context, actor } = params;
+  const { run, identity, jobId } = context;
+
+  if (run.status !== 'queued') {
+    return jobId;
+  }
+
+  const priorJob = await queue.getJob(jobId);
+  if (priorJob) {
+    if (await priorJob.isFailed()) {
+      await priorJob.remove();
+    } else {
+      return jobId;
     }
   }
 
-  let job;
-  try {
-    job = await fundScenarioQueue.add(
-      'async_reserve_allocation',
-      {
-        fundId: input.fundId,
-        scenarioSetId: input.scenarioSetId,
-        correlationId: input.correlationId,
-        calculationMode: 'async_reserve_allocation',
-        actor: normalizeActor(input.actor),
-        inputHash: identity.inputHash,
-        runId: acquired.run.id,
+  await queue.add(
+    'async_reserve_allocation',
+    {
+      fundId: identity.fundId,
+      scenarioSetId: identity.scenarioSetId,
+      correlationId: run.correlationId,
+      calculationMode: 'async_reserve_allocation',
+      actor: normalizeActor(actor),
+      inputHash: identity.inputHash,
+      runId: run.id,
+    },
+    {
+      jobId,
+      attempts: 2,
+      backoff: {
+        type: 'exponential',
+        delay: 2_000,
       },
-      {
-        jobId,
-        attempts: 2,
-        backoff: {
-          type: 'exponential',
-          delay: 2_000,
-        },
-        removeOnComplete: {
-          age: 3600,
-          count: 100,
-        },
-        removeOnFail: {
-          age: 86400,
-        },
-      }
-    );
-  } catch (error) {
-    if (acquired.inserted) {
-      await transaction((client) =>
-        markQueuedScenarioCalculationRunEnqueueFailed(client, acquired.run.id, runIdentity)
-      );
+      removeOnComplete: {
+        age: 3600,
+        count: 100,
+      },
+      removeOnFail: {
+        age: 86400,
+      },
     }
-    throw error;
-  }
+  );
 
-  await transaction(async (client) => {
+  return jobId;
+}
+
+/**
+ * Record the calculation_queued event exactly once per run. The run row's
+ * queued_event_recorded_at marker and the event insert share one transaction,
+ * so retries and additional command keys cannot duplicate the event.
+ */
+export async function recordReserveCalculationQueuedEventOnce(params: {
+  context: ReserveCalculationRunContext;
+  actor: FundScenarioMutationActor;
+}): Promise<boolean> {
+  const { context, actor } = params;
+  const { run, identity, jobId } = context;
+
+  return transaction(async (client) => {
+    const marked = await client.query(
+      `UPDATE fund_scenario_calculation_runs
+          SET queued_event_recorded_at = clock_timestamp(),
+              updated_at = clock_timestamp()
+        WHERE id = $1
+          AND queued_event_recorded_at IS NULL
+        RETURNING id`,
+      [run.id]
+    );
+    if ((marked.rowCount ?? marked.rows.length) !== 1) {
+      return false;
+    }
+
     await insertScenarioSetEvent(client, {
-      scenarioSetId: input.scenarioSetId,
-      fundId: input.fundId,
+      scenarioSetId: identity.scenarioSetId,
+      fundId: identity.fundId,
       eventType: 'calculation_queued',
-      actor: normalizeActor(input.actor),
+      actor: normalizeActor(actor),
       changeSummary: {
         headline: 'Queued reserve scenario calculation',
         calculation_mode: 'async_reserve_allocation',
-        correlation_id: input.correlationId,
-        job_id: String(job.id),
+        correlation_id: run.correlationId,
+        job_id: jobId,
         input_hash: identity.inputHash,
         hash_kind: identity.inputLineage.hashKind,
         source_config_version: identity.sourceConfigVersion,
         variant_count: identity.variantCount,
       },
     });
+    return true;
   });
+}
 
+export function buildReserveCalculationQueuedResponse(
+  context: ReserveCalculationRunContext
+): FundScenarioReserveCalculationQueuedV1 {
   return FundScenarioReserveCalculationQueuedV1Schema.parse({
-    fundId: input.fundId,
-    scenarioSetId: input.scenarioSetId,
+    fundId: context.identity.fundId,
+    scenarioSetId: context.identity.scenarioSetId,
     calculationMode: 'async_reserve_allocation',
     status: 'queued',
-    jobId: String(job.id),
+    jobId: context.jobId,
+    correlationId: context.run.correlationId,
+  });
+}
+
+/**
+ * Legacy composition without a durable command receipt. The idempotent HTTP
+ * path goes through executeReserveCalculationCommand; this remains for
+ * callers that own their own dedup, and shares the exactly-once queued-event
+ * marker with the command path.
+ */
+export async function enqueueReserveScenarioCalculation(input: {
+  fundId: number;
+  scenarioSetId: string;
+  correlationId: string;
+  actor: FundScenarioMutationActor;
+}): Promise<FundScenarioReserveCalculationQueuedV1> {
+  const queue = getFundScenarioCalcQueueOrThrow();
+  const identity = await getReserveScenarioCalculationIdentity(input.fundId, input.scenarioSetId);
+  const context = await acquireReserveCalculationRun({
+    identity,
     correlationId: input.correlationId,
   });
+  await ensureReserveCalculationJob({ queue, context, actor: input.actor });
+  await recordReserveCalculationQueuedEventOnce({ context, actor: input.actor });
+  return buildReserveCalculationQueuedResponse(context);
+}
+
+export function mintReserveCalculationCorrelationId(): string {
+  return crypto.randomUUID();
 }

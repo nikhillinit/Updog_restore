@@ -10,18 +10,21 @@ export class ApiError extends Error {
   readonly status: number;
   readonly errorCode: string | undefined;
   readonly issues: Array<{ path: (string | number)[]; message: string }> | undefined;
+  readonly retryAfterMs: number | undefined;
 
   constructor(
     status: number,
     message: string,
     errorCode?: string,
-    issues?: Array<{ path: (string | number)[]; message: string }>
+    issues?: Array<{ path: (string | number)[]; message: string }>,
+    retryAfterMs?: number
   ) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.errorCode = errorCode;
     this.issues = issues;
+    this.retryAfterMs = retryAfterMs;
   }
 
   /** Map Zod issues to { fieldName: errorMessage } for form integration */
@@ -40,6 +43,16 @@ export class ApiError extends Error {
 
 interface ApiRequestOptions {
   headers?: Record<string, string>;
+}
+
+// Integer seconds only; malformed, negative, or >30s values are ignored.
+const RETRY_AFTER_MAX_SECONDS = 30;
+
+function parseRetryAfterMs(header: string | null): number | undefined {
+  if (header === null || !/^\d+$/.test(header)) return undefined;
+  const seconds = Number(header);
+  if (seconds > RETRY_AFTER_MAX_SECONDS) return undefined;
+  return seconds * 1000;
 }
 
 /** Make an unexpected 401 visible to the session-gated application shell. */
@@ -103,11 +116,12 @@ export async function apiRequest<TResponse = unknown>(
       issues?: Array<{ path: (string | number)[]; message: string }>;
       details?: unknown;
     };
+    const retryAfterMs = parseRetryAfterMs(response.headers.get('Retry-After'));
     const errorData = (await response.json().catch(() => ({}) as ErrorBody)) as ErrorBody;
     const errorMessage =
       errorData.message || errorData.error || `API request failed: ${response.statusText}`;
     const errorCode = errorData.code ?? errorData.error;
-    throw new ApiError(response.status, errorMessage, errorCode, errorData.issues);
+    throw new ApiError(response.status, errorMessage, errorCode, errorData.issues, retryAfterMs);
   }
 
   if (response.status === 204) return undefined as TResponse;

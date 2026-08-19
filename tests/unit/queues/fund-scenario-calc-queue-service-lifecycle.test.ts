@@ -26,11 +26,16 @@ vi.mock('../../../server/config/features.js', () => ({
 }));
 
 vi.mock('../../../server/db/pg-circuit.js', () => ({
-  transaction: async (callback: (client: object) => Promise<unknown>) => callback({}),
+  transaction: async (callback: (client: object) => Promise<unknown>) =>
+    callback({
+      query: async () => ({ rows: [{ id: 'run-1' }], rowCount: 1 }),
+    }),
 }));
 
 vi.mock('../../../server/services/fund-scenario-reserve-calculation-service.js', () => ({
   getReserveScenarioCalculationIdentity: vi.fn().mockResolvedValue({
+    fundId: 1,
+    scenarioSetId: '11111111-1111-4111-8111-111111111111',
     sourceConfigId: 1,
     sourceConfigVersion: 1,
     inputHash: 'input-hash',
@@ -52,10 +57,14 @@ vi.mock('../../../server/services/fund-scenario-set-service.js', () => ({
 vi.mock('../../../server/services/fund-scenario-calculation-run-service.js', () => ({
   acquireScenarioCalculationRunWithCreation: vi.fn().mockResolvedValue({
     inserted: false,
-    run: { id: 1, jobId: 'job-1' },
+    run: {
+      id: '33333333-3333-4333-8333-333333333333',
+      jobId: 'job-1',
+      correlationId: '22222222-2222-4222-8222-222222222222',
+      status: 'queued',
+    },
   }),
   bindQueuedScenarioCalculationRunJobId: vi.fn(),
-  markQueuedScenarioCalculationRunEnqueueFailed: vi.fn(),
 }));
 
 const input = {
