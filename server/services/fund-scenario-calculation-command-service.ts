@@ -2,17 +2,17 @@ import crypto from 'node:crypto';
 import type { PoolClient } from 'pg';
 import { transaction } from '../db/pg-circuit.js';
 import { canonicalSha256 } from '../../shared/lib/canonical-hash';
-import { z } from 'zod';
+import type { z } from 'zod';
 import {
   FundScenarioReserveCalculationQueuedV1Schema,
-  FundScenarioReserveCalculationRequestV1Schema,
+  type FundScenarioReserveCalculationRequestV1Schema,
   type FundScenarioReserveCalculationQueuedV1,
 } from '@shared/contracts/fund-scenario-sets-v1.contract';
+import { getReserveScenarioCalculationIdentity } from './fund-scenario-reserve-calculation-service.js';
 
 type FundScenarioReserveCalculationRequestV1 = z.infer<
   typeof FundScenarioReserveCalculationRequestV1Schema
 >;
-import { getReserveScenarioCalculationIdentity } from './fund-scenario-reserve-calculation-service.js';
 import { createHttpError, type FundScenarioMutationActor } from './fund-scenario-set-service.js';
 import {
   acquireReserveCalculationRun,
@@ -25,7 +25,7 @@ import {
 export const FUND_SCENARIO_RESERVE_COMMAND_CONTRACT_VERSION =
   'fund-scenario-reserve-calculation-command-v1';
 
-const COMMAND_FAILURE_CODES = Object.freeze([
+export const COMMAND_FAILURE_CODES = Object.freeze([
   'QUEUE_UNAVAILABLE',
   'QUEUE_ENQUEUE_UNCERTAIN',
   'COMMAND_FAILED',
