@@ -75,23 +75,65 @@ const NamedResidueSchema = z
 
 const SourceShaSchema = z.string().regex(/^[a-f0-9]{40}$/, 'Source SHA must be lowercase SHA-1');
 
+const DirectFundForeignKeySchema = z
+  .object({
+    table: z.string().min(1),
+    column: z.string().min(1),
+  })
+  .strict();
+
+const SNAPSHOT_TYPES = ['COHORT', 'ECONOMICS', 'PACING', 'RESERVE', 'SCENARIOS'] as const;
+
+const SnapshotTypeCountSchema = z
+  .object({
+    type: z.enum(SNAPSHOT_TYPES),
+    count: ResidueCountSchema,
+  })
+  .strict();
+
+const SnapshotTypeCountsSchema = z
+  .array(SnapshotTypeCountSchema)
+  .length(SNAPSHOT_TYPES.length)
+  .superRefine((counts, ctx) => {
+    const types = counts.map((entry) => entry.type);
+    if (types.some((type, index) => type !== SNAPSHOT_TYPES[index])) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['snapshotTypeCounts'],
+        message: 'snapshotTypeCounts must contain every expected type in deterministic order',
+      });
+    }
+  });
+
 const ProvenanceSchema = z
   .object({
-    dataOrigin: z.literal('production'),
-    timeZone: z.literal('UTC'),
-    expectedRunVersion: z.number().int().safe().min(1),
-    flagState: z
-      .object({ enableGpEconomicsEngine: z.literal(false), cohortCalculationInvoked: z.literal(false) })
+    executionPath: z.literal('FundPersistenceService.createFundWithInitialDraft'),
+    databaseTimeZone: z.literal('Etc/UTC'),
+    storedRun: z
+      .object({
+        releaseSha: SourceShaSchema,
+        status: z.literal('completed'),
+        version: z.literal(2),
+      })
       .strict(),
-    snapshotTypes: z
-      .object({ RESERVE: z.literal(1), PACING: z.literal(1), scenario: z.literal(1), ECONOMICS: z.literal(0), COHORT: z.literal(0) })
-      .strict(),
-    directFundForeignKeys: z.array(z.string().min(1)).min(1),
+    fundDataOrigins: z.array(z.literal('release_canary')).length(1),
+    flagState: z.object({ enableGpEconomicsEngine: z.boolean() }).strict(),
+    snapshotTypeCounts: SnapshotTypeCountsSchema,
+    directFundForeignKeys: z.array(DirectFundForeignKeySchema).min(1),
   })
   .strict()
   .superRefine((provenance, ctx) => {
-    if (provenance.directFundForeignKeys.some((key, index, values) => index > 0 && key < values[index - 1]!)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['directFundForeignKeys'], message: 'directFundForeignKeys must be sorted' });
+    if (
+      provenance.directFundForeignKeys.some((key, index, values) => {
+        const previous = values[index - 1];
+        return previous !== undefined && `${key.table}.${key.column}` < `${previous.table}.${previous.column}`;
+      })
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['directFundForeignKeys'],
+        message: 'directFundForeignKeys must be sorted',
+      });
     }
   });
 
@@ -109,6 +151,13 @@ export const ReleaseCanaryResidueCharacterizationV1Schema = z
   })
   .strict()
   .superRefine((record, ctx) => {
+    if (record.sourceSha !== record.provenance.storedRun.releaseSha) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['provenance', 'storedRun', 'releaseSha'],
+        message: 'sourceSha must equal provenance.storedRun.releaseSha',
+      });
+    }
     if (!vectorEquals(record.reservedResidue, RELEASE_CANARY_RESERVED_RESIDUE)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

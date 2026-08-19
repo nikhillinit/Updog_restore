@@ -8,6 +8,10 @@ import { runInNewContext } from 'node:vm';
 import * as ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import YAML from 'yaml';
+import {
+  parseReleaseCanaryResidueCharacterization,
+  RELEASE_CANARY_RESERVED_RESIDUE,
+} from '../../shared/contracts/release-canary-residue-characterization-v1.contract';
 
 type WorkflowStep = {
   ['continue-on-error']?: boolean;
@@ -4763,6 +4767,64 @@ describe('required CI fails closed', () => {
       '${{ needs.full-release-proof.outputs.candidate_sha }}'
     );
     expect(characterizationScripts).toContain('parseReleaseCanaryResidueCharacterization');
+    expect(characterizationScripts).toContain('provenance.storedRun.releaseSha');
+    expect(characterizationScripts).toContain('snapshotTypeCounts');
+    expect(characterizationScripts).toContain('foreignKey.table');
+    expect(characterizationScripts).not.toContain('provenance.dataOrigin');
+    expect(characterizationScripts).not.toContain('provenance.expectedRunVersion');
+    expect(characterizationScripts).not.toContain('cohortCalculationInvoked');
+    const sourceSha = 'a'.repeat(40);
+    const validCharacterization = {
+      schemaVersion: 'release-canary-residue-characterization-v1',
+      sourceSha,
+      contractVersion: 'release-canary-residue-characterization-v1',
+      reservedResidue: RELEASE_CANARY_RESERVED_RESIDUE,
+      phases: [{ name: 'final', residue: RELEASE_CANARY_RESERVED_RESIDUE }],
+      finalResidue: RELEASE_CANARY_RESERVED_RESIDUE,
+      failureBoundaries: [{ name: 'probe', residue: RELEASE_CANARY_RESERVED_RESIDUE }],
+      provenance: {
+        executionPath: 'FundPersistenceService.createFundWithInitialDraft',
+        databaseTimeZone: 'Etc/UTC',
+        storedRun: { releaseSha: sourceSha, status: 'completed', version: 2 },
+        fundDataOrigins: ['release_canary'],
+        flagState: { enableGpEconomicsEngine: false },
+        snapshotTypeCounts: [
+          { type: 'COHORT', count: 0 },
+          { type: 'ECONOMICS', count: 0 },
+          { type: 'PACING', count: 1 },
+          { type: 'RESERVE', count: 1 },
+          { type: 'SCENARIOS', count: 1 },
+        ],
+        directFundForeignKeys: [{ table: 'public.calc_runs', column: 'fund_id' }],
+      },
+      result: 'passed',
+    };
+    expect(() => parseReleaseCanaryResidueCharacterization(validCharacterization)).not.toThrow();
+    expect(() =>
+      parseReleaseCanaryResidueCharacterization({ ...validCharacterization, sourceSha: 'b'.repeat(40) })
+    ).toThrow();
+    expect(() =>
+      parseReleaseCanaryResidueCharacterization({
+        ...validCharacterization,
+        provenance: {
+          ...validCharacterization.provenance,
+          storedRun: { ...validCharacterization.provenance.storedRun, version: 3 },
+        },
+      })
+    ).toThrow();
+    expect(() =>
+      parseReleaseCanaryResidueCharacterization({
+        ...validCharacterization,
+        provenance: {
+          dataOrigin: 'production',
+          timeZone: 'UTC',
+          expectedRunVersion: 1,
+          flagState: { enableGpEconomicsEngine: false, cohortCalculationInvoked: false },
+          snapshotTypes: { RESERVE: 1, PACING: 1, scenario: 1, ECONOMICS: 0, COHORT: 0 },
+          directFundForeignKeys: ['public.calc_runs'],
+        },
+      })
+    ).toThrow();
     expect(characterizationScripts).toContain(
       'release-canary-residue-characterization-v1-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${CANDIDATE_SHA}'
     );

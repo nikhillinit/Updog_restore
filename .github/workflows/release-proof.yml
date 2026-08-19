@@ -304,6 +304,9 @@ jobs:
             await readFile(process.env['RESULT_PATH'] as string, 'utf8')
           );
           const parsed = parseReleaseCanaryResidueCharacterization(raw);
+          if (parsed.provenance.storedRun.releaseSha !== process.env['CANDIDATE_SHA']) {
+            throw new Error('Characterization stored run SHA does not match candidate SHA');
+          }
           if (parsed.sourceSha !== process.env['CANDIDATE_SHA']) {
             throw new Error('Characterization source SHA does not match the candidate SHA');
           }
@@ -314,13 +317,39 @@ jobs:
             throw new Error('Characterization residue vector does not match the frozen contract');
           }
           if (
-            parsed.provenance.dataOrigin !== 'production' ||
-            parsed.provenance.timeZone !== 'UTC' ||
-            parsed.provenance.expectedRunVersion !== 1 ||
+            parsed.provenance.executionPath !== 'FundPersistenceService.createFundWithInitialDraft' ||
+            parsed.provenance.databaseTimeZone !== 'Etc/UTC' ||
+            parsed.provenance.storedRun.status !== 'completed' ||
+            parsed.provenance.storedRun.version !== 2 ||
+            parsed.provenance.fundDataOrigins.length !== 1 ||
+            parsed.provenance.fundDataOrigins[0] !== 'release_canary' ||
             parsed.provenance.flagState.enableGpEconomicsEngine !== false ||
-            parsed.provenance.flagState.cohortCalculationInvoked !== false
+            parsed.provenance.directFundForeignKeys.length === 0
           ) {
             throw new Error('Characterization provenance does not match the strict contract');
+          }
+          const expectedSnapshotTypeCounts = [
+            { type: 'COHORT', count: 0 },
+            { type: 'ECONOMICS', count: 0 },
+            { type: 'PACING', count: 1 },
+            { type: 'RESERVE', count: 1 },
+            { type: 'SCENARIOS', count: 1 },
+          ];
+          if (
+            JSON.stringify(parsed.provenance.snapshotTypeCounts) !==
+            JSON.stringify(expectedSnapshotTypeCounts)
+          ) {
+            throw new Error('Characterization snapshot structure does not match observed deployed path');
+          }
+          const directFundForeignKeyPairs = parsed.provenance.directFundForeignKeys.map(
+            (foreignKey) => `${foreignKey.table}.${foreignKey.column}`
+          );
+          if (
+            directFundForeignKeyPairs.some(
+              (pair, index) => index > 0 && pair < directFundForeignKeyPairs[index - 1]
+            )
+          ) {
+            throw new Error('Characterization direct fund FK identities are not sorted');
           }
           VALIDATE
           npx tsx "$RUNNER_TEMP/validate-characterization.mts"

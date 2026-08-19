@@ -29,7 +29,7 @@ import { runMigrationsWithConnectionString } from '../helpers/testcontainers-mig
 const STARTUP_TIMEOUT_MS = 90_000;
 const JOB_TIMEOUT_MS = 60_000;
 const WHOLE_TEST_TIMEOUT_MS = 600_000;
-const CANARY_SHA = 'c'.repeat(40);
+const CHARACTERIZATION_FALLBACK_SOURCE_SHA = 'f'.repeat(40);
 
 // Caps are three-times-reserved so every phase of one full canary run plus a
 // hypothetical second reservation fits. Total must equal the sum of the ten
@@ -55,6 +55,8 @@ const initialCharacterizationEnv = {
   resultPath: process.env['RELEASE_CANARY_CHARACTERIZATION_RESULT_PATH'],
   sourceSha: process.env['RELEASE_CANARY_CHARACTERIZATION_SOURCE_SHA'],
 };
+const characterizationSourceSha =
+  initialCharacterizationEnv.sourceSha ?? CHARACTERIZATION_FALLBACK_SOURCE_SHA;
 
 interface WorkerHarness {
   queueEvents: QueueEvents;
@@ -105,7 +107,7 @@ function setRuntimeEnv(connectionString: string, redisUrl: string): void {
     QUEUE_REDIS_URL: redisUrl,
     _EXPLICIT_QUEUE_REDIS_URL: redisUrl,
     WORKER_TYPE: 'fund-scenario-calc',
-    VERCEL_GIT_COMMIT_SHA: CANARY_SHA,
+    VERCEL_GIT_COMMIT_SHA: characterizationSourceSha,
     RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE: String(CANARY_POLICY.portfolioCompany),
     RELEASE_CANARY_MAX_FUND_RESIDUE: String(CANARY_POLICY.fund),
     RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE: String(CANARY_POLICY.fundConfig),
@@ -318,6 +320,7 @@ describe('release canary residue characterization', () => {
         narrativeService,
         { assembleMetricRunReportPackage },
         { createMetricRunReportPackageStoredJsonExport },
+        { isFlagEnabled },
       ] = await Promise.all([
         import('../../server/services/fund-persistence-service'),
         import('../../server/storage'),
@@ -336,6 +339,7 @@ describe('release canary residue characterization', () => {
         import('../../server/services/lp-reporting/narrative-run-service'),
         import('../../server/services/lp-reporting/report-package-service'),
         import('../../server/services/lp-reporting/report-package-json-stored-export-service'),
+        import('../../shared/flags/getFlag'),
       ]);
       const {
         CANARY_RESIDUE_GROUP_TABLES,
@@ -347,6 +351,8 @@ describe('release canary residue characterization', () => {
       const groupTables = CANARY_RESIDUE_GROUP_TABLES as GroupTables;
       const fundPersistence = new FundPersistenceService();
       const storage = new DatabaseStorage();
+      const executionPath = `${fundPersistence.constructor.name}.createFundWithInitialDraft`;
+      expect(executionPath).toBe('FundPersistenceService.createFundWithInitialDraft');
 
       // Reservation policy: total equals the sum of the ten group maxima.
       const policy = readCanaryRuntimePolicy();
@@ -356,6 +362,11 @@ describe('release canary residue characterization', () => {
         0
       );
       expect(policy.total).toBe(groupCapSum);
+      const databaseTimeZoneResult = await active.pool.query<{ TimeZone: string }>('SHOW TIME ZONE');
+      const databaseTimeZone = databaseTimeZoneResult.rows[0]?.TimeZone;
+      expect(databaseTimeZone).toBe('Etc/UTC');
+      const enableGpEconomicsEngine = isFlagEnabled('enable_gp_economics_engine');
+      expect(enableGpEconomicsEngine).toBe(false);
 
       // Canary principal + an ordinary production user for the exclusion probe.
       const canaryUser = await active.pool.query<{ id: number }>(
@@ -784,6 +795,32 @@ describe('release canary residue characterization', () => {
       expect(storedExportReplay.inserted).toBe(false);
       expect(storedExportReplay.record.contentHash).toBe(storedExport.record.contentHash);
       const finalVector = await capturePhase('stored-json-export');
+      const snapshotTypeCountsResult = await active.pool.query<{ type: string; count: number }>(
+        `WITH expected_types(type) AS (
+           VALUES ('COHORT'), ('ECONOMICS'), ('PACING'), ('RESERVE'), ('SCENARIOS')
+         ), observed_counts AS (
+           SELECT type, count(*)::int AS count
+           FROM fund_snapshots
+           WHERE fund_id = $1
+           GROUP BY type
+         )
+         SELECT expected_types.type, COALESCE(observed_counts.count, 0)::int AS count
+         FROM expected_types
+         LEFT JOIN observed_counts ON observed_counts.type = expected_types.type
+         ORDER BY expected_types.type`,
+        [fundId]
+      );
+      const snapshotTypeCounts = snapshotTypeCountsResult.rows.map((row) => ({
+        type: row.type,
+        count: Number(row.count),
+      }));
+      expect(snapshotTypeCounts).toEqual([
+        { type: 'COHORT', count: 0 },
+        { type: 'ECONOMICS', count: 0 },
+        { type: 'PACING', count: 1 },
+        { type: 'RESERVE', count: 1 },
+        { type: 'SCENARIOS', count: 1 },
+      ]);
 
       console.warn(
         `[characterization] per-phase vectors:\n${phases
@@ -817,6 +854,11 @@ describe('release canary residue characterization', () => {
       const fkRows = await active.pool.query<{ table_name: string; column_name: string }>(
         DIRECT_FUND_FOREIGN_KEYS_SQL
       );
+      const directFundForeignKeys = fkRows.rows
+        .map((row) => ({ table: row.table_name, column: row.column_name }))
+        .sort((left, right) =>
+          `${left.table}.${left.column}`.localeCompare(`${right.table}.${right.column}`)
+        );
       const unaccounted: string[] = [];
       for (const fk of fkRows.rows) {
         const table = fk.table_name.replace(/^public\./, '');
@@ -840,7 +882,7 @@ describe('release canary residue characterization', () => {
       ]);
       expect(reconciled).toEqual(finalVector);
       const storedRun = await active.pool.query<Record<string, unknown>>(
-        `SELECT status,
+        `SELECT release_sha, status, version,
                 portfolio_company_residue_count, fund_residue_count, fund_config_residue_count,
                 fund_event_residue_count, notification_residue_count, grant_residue_count,
                 calculation_residue_count, mutation_receipt_residue_count,
@@ -849,7 +891,9 @@ describe('release canary residue characterization', () => {
         [runId]
       );
       expect(storedRun.rows[0]).toEqual({
+        release_sha: characterizationSourceSha,
         status: 'completed',
+        version: 2,
         portfolio_company_residue_count: finalVector.portfolioCompany,
         fund_residue_count: finalVector.fund,
         fund_config_residue_count: finalVector.fundConfig,
@@ -862,6 +906,21 @@ describe('release canary residue characterization', () => {
         reporting_residue_count: finalVector.reporting,
         total_residue_count: finalVector.total,
       });
+      const storedRunProvenance = {
+        releaseSha: String(storedRun.rows[0]?.['release_sha']),
+        status: String(storedRun.rows[0]?.['status']),
+        version: Number(storedRun.rows[0]?.['version']),
+      };
+      expect(storedRunProvenance.releaseSha).toBe(characterizationSourceSha);
+      const fundDataOriginsResult = await active.pool.query<{ data_origin: string }>(
+        `SELECT DISTINCT data_origin
+         FROM funds
+         WHERE canary_run_id = $1
+         ORDER BY data_origin`,
+        [runId]
+      );
+      const fundDataOrigins = fundDataOriginsResult.rows.map((row) => row.data_origin);
+      expect(fundDataOrigins).toEqual(['release_canary']);
       const storedGroupSum = RELEASE_CANARY_RESIDUE_GROUP_KEYS.reduce(
         (sum, key) => sum + finalVector[key],
         0
@@ -975,7 +1034,7 @@ describe('release canary residue characterization', () => {
         );
         const malformedRows = await active.pool.query(RELEASE_CANARY_RUNS_QUERY);
         const malformedVerdict = evaluateCanaryResidue({
-          expectedSha: CANARY_SHA,
+          expectedSha: characterizationSourceSha,
           rows: malformedRows.rows,
           policy,
         }) as { verdict: string };
@@ -991,7 +1050,7 @@ describe('release canary residue characterization', () => {
       }
       const healthyRows = await active.pool.query(RELEASE_CANARY_RUNS_QUERY);
       expect(
-        evaluateCanaryResidue({ expectedSha: CANARY_SHA, rows: healthyRows.rows, policy })
+        evaluateCanaryResidue({ expectedSha: characterizationSourceSha, rows: healthyRows.rows, policy })
       ).toMatchObject({ verdict: 'pass', exitCode: 0 });
 
       // Dedicated expired canary: authority comes from stored DB bindings, not
@@ -1074,61 +1133,41 @@ describe('release canary residue characterization', () => {
       const resolvedResultPath =
         initialCharacterizationEnv.resultPath ??
         path.join(tmpdir(), `release-canary-residue-characterization-${suffix}.json`);
-      const resolvedSourceSha = initialCharacterizationEnv.sourceSha ?? 'f'.repeat(40);
       const record = {
         schemaVersion: 'release-canary-residue-characterization-v1',
-        sourceSha: resolvedSourceSha,
+        sourceSha: characterizationSourceSha,
         contractVersion: 'release-canary-residue-characterization-v1',
         reservedResidue: RELEASE_CANARY_RESERVED_RESIDUE,
         phases,
         finalResidue: finalVector,
         failureBoundaries,
         provenance: {
-          dataOrigin: 'production',
-          timeZone: 'UTC',
-          expectedRunVersion: 1,
-          flagState: { enableGpEconomicsEngine: false, cohortCalculationInvoked: false },
-          snapshotTypes: { RESERVE: 1, PACING: 1, scenario: 1, ECONOMICS: 0, COHORT: 0 },
-          directFundForeignKeys: fkRows.rows.map((row) => row.table_name).sort(),
+          executionPath,
+          databaseTimeZone,
+          storedRun: storedRunProvenance,
+          fundDataOrigins,
+          flagState: { enableGpEconomicsEngine },
+          snapshotTypeCounts,
+          directFundForeignKeys,
         },
         result: 'passed',
       };
 
       // When either env var is absent, no file is written.
       expect(
-        await writeCharacterizationRecordIfConfigured(record, undefined, resolvedSourceSha)
+        await writeCharacterizationRecordIfConfigured(record, undefined, characterizationSourceSha)
       ).toBe(false);
       expect(
         await writeCharacterizationRecordIfConfigured(record, resolvedResultPath, undefined)
       ).toBe(false);
 
-      // Contract rejects a wrong-shaped sourceSha. The probe record is fully
-      // reserved-shaped so ONLY sourceSha differs between accept and reject
-      // (39 hex chars keeps the secret-shape scanner quiet while failing the
-      // 40-hex SHA schema).
-      const contractProbeRecord = {
-        schemaVersion: 'release-canary-residue-characterization-v1',
-        sourceSha: resolvedSourceSha,
-        contractVersion: 'release-canary-residue-characterization-v1',
-        reservedResidue: RELEASE_CANARY_RESERVED_RESIDUE,
-        phases: [{ name: 'final', residue: RELEASE_CANARY_RESERVED_RESIDUE }],
-        finalResidue: RELEASE_CANARY_RESERVED_RESIDUE,
-        failureBoundaries: [{ name: 'probe', residue: RELEASE_CANARY_RESERVED_RESIDUE }],
-        provenance: {
-          dataOrigin: 'production',
-          timeZone: 'UTC',
-          expectedRunVersion: 1,
-          flagState: { enableGpEconomicsEngine: false, cohortCalculationInvoked: false },
-          snapshotTypes: { RESERVE: 1, PACING: 1, scenario: 1, ECONOMICS: 0, COHORT: 0 },
-          directFundForeignKeys: fkRows.rows.map((row) => row.table_name).sort(),
-        },
-        result: 'passed',
-      };
-      expect(() => parseReleaseCanaryResidueCharacterization(contractProbeRecord)).not.toThrow();
+      expect(() => parseReleaseCanaryResidueCharacterization(record)).not.toThrow();
+      const mismatchedSourceSha =
+        characterizationSourceSha === 'a'.repeat(40) ? 'b'.repeat(40) : 'a'.repeat(40);
       expect(() =>
         parseReleaseCanaryResidueCharacterization({
-          ...contractProbeRecord,
-          sourceSha: 'a'.repeat(39),
+          ...record,
+          sourceSha: mismatchedSourceSha,
         })
       ).toThrow();
 
@@ -1139,7 +1178,7 @@ describe('release canary residue characterization', () => {
         const written = await writeCharacterizationRecordIfConfigured(
           record,
           resolvedResultPath,
-          resolvedSourceSha
+          characterizationSourceSha
         );
         expect(written).toBe(true);
         const recordStat = await stat(resolvedResultPath);
@@ -1148,7 +1187,7 @@ describe('release canary residue characterization', () => {
         const parsedBack = parseReleaseCanaryResidueCharacterization(
           JSON.parse(await readFile(resolvedResultPath, 'utf8'))
         );
-        expect(parsedBack.sourceSha).toBe(resolvedSourceSha);
+        expect(parsedBack.sourceSha).toBe(characterizationSourceSha);
         expect(parsedBack.finalResidue).toEqual(finalVector);
         expect(parsedBack.phases.map((phase) => phase.name)).toEqual(
           phases.map((phase) => phase.name)
