@@ -901,6 +901,54 @@ describe('surface contract matrix boot proof completion gates', () => {
     }
   });
 
+  it('isolates inherited npm cache paths inside disposable clean-room parent', async () => {
+    const repositoryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-cache-repo-'));
+    const externalCache = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-cache-external-'));
+    const output = path.join(repositoryRoot, 'proof.json');
+    const candidateSha = 'd'.repeat(40);
+    const repositoryCache = path.join(repositoryRoot, '.npm-cache');
+    const repositorySentinel = path.join(repositoryCache, 'sentinel');
+    const externalSentinel = path.join(externalCache, 'sentinel');
+    fs.mkdirSync(repositoryCache, { recursive: true });
+    fs.writeFileSync(path.join(repositoryRoot, 'package.json'), '{}\n');
+    fs.writeFileSync(path.join(repositoryRoot, 'package-lock.json'), '{}\n');
+    fs.writeFileSync(repositorySentinel, 'repository cache unchanged\n');
+    fs.writeFileSync(externalSentinel, 'external cache unchanged\n');
+    const repositoryBefore = fs.readFileSync(repositorySentinel, 'utf8');
+    const externalBefore = fs.readFileSync(externalSentinel, 'utf8');
+    try {
+      await runBootProofCleanRoom({
+        repositoryRoot,
+        output,
+        candidateSha,
+        environment: {
+          PATH: '/clean-room-bin',
+          NPM_CONFIG_CACHE: repositoryCache,
+          npm_config_cache: externalCache,
+        },
+        stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+        runCommand: (command, args, options) => {
+          if (command === 'npm') {
+            const disposableCache = path.join(path.dirname(options.cwd), 'npm-cache');
+            expect(options.env?.NPM_CONFIG_CACHE).toBe(disposableCache);
+            expect(options.env?.npm_config_cache).toBe(disposableCache);
+            expect(options.env?.NPM_CONFIG_CACHE).not.toBe(repositoryCache);
+            expect(options.env?.npm_config_cache).not.toBe(externalCache);
+          }
+          if (command === process.execPath) {
+            fs.writeFileSync(args[args.indexOf('--output') + 1], `${JSON.stringify(cleanRoomDocument(candidateSha))}\n`);
+          }
+          return { status: 0 };
+        },
+      });
+      expect(fs.readFileSync(repositorySentinel, 'utf8')).toBe(repositoryBefore);
+      expect(fs.readFileSync(externalSentinel, 'utf8')).toBe(externalBefore);
+    } finally {
+      fs.rmSync(repositoryRoot, { recursive: true, force: true });
+      fs.rmSync(externalCache, { recursive: true, force: true });
+    }
+  });
+
   it.each([
     ['package.json', 'manifest hash'],
     ['dirty-untracked-proof.txt', 'non-output fingerprint'],

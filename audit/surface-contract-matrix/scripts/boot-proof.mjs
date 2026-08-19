@@ -1170,6 +1170,7 @@ export const runBootProofCleanRoom = async ({
   const cleanRoomParent = makeTempDir(path.join(os.tmpdir(), 'surface-boot-proof-'));
   const cleanRoom = path.join(cleanRoomParent, 'candidate');
   const innerOutput = path.join(cleanRoomParent, 'boot-proofs.json');
+  const npmCache = path.join(cleanRoomParent, 'npm-cache');
   let worktreeAdded = false;
   let failure;
   try {
@@ -1178,7 +1179,13 @@ export const runBootProofCleanRoom = async ({
     worktreeAdded = true;
     const install = runCommand('npm', ['ci'], {
       cwd: cleanRoom,
-      env: { ...environment, HUSKY: '0', CI: '1' },
+      env: {
+        ...environment,
+        HUSKY: '0',
+        CI: '1',
+        NPM_CONFIG_CACHE: npmCache,
+        npm_config_cache: npmCache,
+      },
     });
     if (install.status !== 0) throw commandFailure('Boot-proof clean-room dependency install', install);
     const inner = runCommand(process.execPath, [
