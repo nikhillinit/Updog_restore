@@ -69,6 +69,7 @@ export const CANARY_RESIDUE_GROUP_TABLES: Readonly<
   calculation: [
     { table: 'calc_runs', scope: 'fund_id' },
     { table: 'fund_snapshots', scope: 'fund_id' },
+    { table: 'pacing_history', scope: 'fund_id' },
   ],
   mutationReceipt: [
     { table: 'portfolio_company_update_receipts', scope: 'fund_id' },

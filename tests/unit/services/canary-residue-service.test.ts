@@ -116,6 +116,7 @@ describe('canary residue group descriptor', () => {
         'user_fund_grants',
         'calc_runs',
         'fund_snapshots',
+        'pacing_history',
         'portfolio_company_update_receipts',
         'fund_scenario_calculation_commands',
         'fund_scenario_sets',

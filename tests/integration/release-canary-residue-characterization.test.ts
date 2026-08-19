@@ -804,29 +804,9 @@ describe('release canary residue characterization', () => {
         'CALC_TRIGGERED',
       ]);
 
-      // OWNER-GATED MISMATCH (measured 2026-08-19): the deployed path measures
-      // calculation=4 (1 calc_runs + 2 base fund_snapshots [RESERVE, PACING] +
-      // 1 scenario snapshot), total 32, while the frozen reservation expects
-      // calculation=5 / total 33 ("up to 3 base snapshots"). The reserved
-      // vector redesign is owner-gated; re-enable once reconciled:
-      // expect(finalVector).toEqual(RELEASE_CANARY_RESERVED_RESIDUE);
-      // Until then the final vector must at least never exceed the reservation.
-      for (const key of RELEASE_CANARY_RESIDUE_GROUP_KEYS) {
-        expect(finalVector[key], `final ${key} exceeds reserved`).toBeLessThanOrEqual(
-          RELEASE_CANARY_RESERVED_RESIDUE[key]
-        );
-      }
-      expect(finalVector.total).toBeLessThanOrEqual(RELEASE_CANARY_RESERVED_RESIDUE.total);
+      expect(finalVector).toEqual(RELEASE_CANARY_RESERVED_RESIDUE);
 
       // No unaccounted direct child table of funds carries canary rows.
-      // OWNER-GATED KNOWN GAP (measured 2026-08-19): the inline pacing engine
-      // run by publishDraft writes one pacing_history row per projected
-      // quarter (8 measured) with a direct funds FK, and pacing_history is not
-      // in CANARY_RESIDUE_GROUP_TABLES, so those rows are invisible to residue
-      // accounting (the purge FK sweep still deletes them). Adding the table
-      // to the group mapping is a reserved-vector redesign and is owner-gated;
-      // any OTHER unaccounted table remains a hard failure here.
-      const knownUnaccountedTables = new Set(['pacing_history']);
       const mappedTables = new Set(
         Object.values(groupTables).flatMap((entries) => entries.map((entry) => entry.table))
       );
@@ -841,13 +821,6 @@ describe('release canary residue characterization', () => {
           [fundId]
         );
         if ((rowCount.rows[0]?.count ?? 0) > 0 && !mappedTables.has(table)) {
-          if (knownUnaccountedTables.has(table)) {
-            console.warn(
-              `[characterization] known unaccounted residue table ${table} holds ` +
-                `${rowCount.rows[0]?.count} canary rows (owner-gated mapping gap)`
-            );
-            continue;
-          }
           unaccounted.push(`${table} (${rowCount.rows[0]?.count} rows)`);
         }
       }
