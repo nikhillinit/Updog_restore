@@ -24,15 +24,32 @@ const INVALID_ROW_COUNT_VALUES = [
 ];
 const INVALID_POLICY_CAP_VALUES = [null, true, false, [], {}, '', '1'];
 
+const RESIDUE_GROUPS = [
+  'portfolioCompany',
+  'fund',
+  'fundConfig',
+  'fundEvent',
+  'notification',
+  'grant',
+  'calculation',
+  'mutationReceipt',
+  'scenario',
+  'reporting',
+];
+
 function policy(overrides = {}) {
   return {
-    portfolioCompany: 10,
-    fund: 10,
-    fundConfig: 10,
-    fundEvent: 10,
-    notification: 10,
-    total: 50,
+    ...Object.fromEntries(RESIDUE_GROUPS.map((group) => [group, 10])),
+    total: 100,
     ttlHours: 24,
+    ...overrides,
+  };
+}
+
+function counts(overrides = {}) {
+  return {
+    ...Object.fromEntries(RESIDUE_GROUPS.map((group) => [`${group}ResidueCount`, 0])),
+    totalResidueCount: 0,
     ...overrides,
   };
 }
@@ -44,12 +61,8 @@ function row(overrides = {}) {
     createdAt: '2026-08-10T10:00:00.000Z',
     expiresAt: '2026-08-11T10:00:00.000Z',
     purgedAt: null,
-    portfolioCompanyResidueCount: 1,
-    fundResidueCount: 1,
-    fundConfigResidueCount: 1,
-    fundEventResidueCount: 1,
-    notificationResidueCount: 1,
-    totalResidueCount: 5,
+    ...Object.fromEntries(RESIDUE_GROUPS.map((group) => [`${group}ResidueCount`, 1])),
+    totalResidueCount: 10,
     ...overrides,
   };
 }
@@ -76,17 +89,13 @@ describe('release canary residue assertion', () => {
         completedExpectedShaRuns: 1,
       },
       residue: {
-        portfolioCompany: 1,
-        fund: 1,
-        fundConfig: 1,
-        fundEvent: 1,
-        notification: 1,
-        total: 5,
+        ...Object.fromEntries(RESIDUE_GROUPS.map((group) => [group, 1])),
+        total: 10,
       },
     });
   });
 
-  it.each([['portfolioCompany'], ['fund'], ['fundConfig'], ['fundEvent'], ['notification']])(
+  it.each(RESIDUE_GROUPS.map((group) => [group]))(
     'fails policy when %s cap is exceeded',
     (cap) => {
       const result = evaluate([row()], { [cap]: 0 });
@@ -185,12 +194,10 @@ describe('release canary residue assertion', () => {
       releaseSha: WRONG_SHA,
       status: 'purged',
       purgedAt: Number.MAX_VALUE,
-      portfolioCompanyResidueCount: MAX_SAFE_INTEGER,
-      fundResidueCount: 0,
-      fundConfigResidueCount: 0,
-      fundEventResidueCount: 0,
-      notificationResidueCount: 0,
-      totalResidueCount: MAX_SAFE_INTEGER,
+      ...counts({
+        portfolioCompanyResidueCount: MAX_SAFE_INTEGER,
+        totalResidueCount: MAX_SAFE_INTEGER,
+      }),
     });
 
     expect(evaluate([row(), hiddenResidue])).toMatchObject({
@@ -239,36 +246,67 @@ describe('release canary residue assertion', () => {
     });
   });
 
-  it('excludes purged rows from caps and expiry checks', () => {
+  it('excludes valid purged rows from caps and expiry checks', () => {
     const result = evaluate([
       row(),
       row({
         releaseSha: WRONG_SHA,
         status: 'purged',
         purgedAt: '2026-08-10T11:00:00.000Z',
-        createdAt: 'not-a-date',
+        createdAt: '2026-08-01T00:00:00.000Z',
         expiresAt: '2020-01-01T00:00:00.000Z',
-        portfolioCompanyResidueCount: 999,
-        fundResidueCount: 999,
-        fundConfigResidueCount: 999,
-        fundEventResidueCount: 999,
-        notificationResidueCount: 999,
-        totalResidueCount: 4995,
+        ...Object.fromEntries(RESIDUE_GROUPS.map((group) => [`${group}ResidueCount`, 999])),
+        totalResidueCount: 9990,
       }),
     ]);
 
     expect(result).toMatchObject({
       exitCode: CANARY_RESIDUE_EXIT_CODES.SUCCESS,
       counts: { unpurgedRows: 1, purgedRows: 1 },
-      residue: { total: 5 },
+      residue: { total: 10 },
     });
-    expect(
-      evaluate([row(), row({ releaseSha: WRONG_SHA, purgedAt: 'not-a-timestamp' })])
-    ).toMatchObject({
+  });
+
+  function purgedRow(overrides = {}) {
+    return row({
+      releaseSha: WRONG_SHA,
+      status: 'purged',
+      purgedAt: '2026-08-10T11:00:00.000Z',
+      ...overrides,
+    });
+  }
+
+  it.each([
+    ['malformed createdAt', { createdAt: 'not-a-date' }],
+    ['malformed expiresAt', { expiresAt: 'not-a-date' }],
+    ['malformed purgedAt', { purgedAt: 'not-a-timestamp' }],
+    ['inconsistent total residue', { totalResidueCount: 9 }],
+  ])('rejects a purged row with %s instead of excluding it', (_label, overrides) => {
+    expect(evaluate([row(), purgedRow(overrides)])).toMatchObject({
       exitCode: CANARY_RESIDUE_EXIT_CODES.INVALID_ARGUMENT,
       verdict: 'invalid',
     });
   });
+
+  it.each([[null], ['1'], [true], [[]], [{}], [-1], [2 ** 53]])(
+    'rejects a purged row whose residue count is %p',
+    (value) => {
+      expect(evaluate([row(), purgedRow({ grantResidueCount: value })])).toMatchObject({
+        exitCode: CANARY_RESIDUE_EXIT_CODES.INVALID_ARGUMENT,
+        verdict: 'invalid',
+      });
+    }
+  );
+
+  it.each(RESIDUE_GROUPS.map((group) => [group]))(
+    'rejects a purged row with a null %s residue count',
+    (group) => {
+      expect(evaluate([row(), purgedRow({ [`${group}ResidueCount`]: null })])).toMatchObject({
+        exitCode: CANARY_RESIDUE_EXIT_CODES.INVALID_ARGUMENT,
+        verdict: 'invalid',
+      });
+    }
+  );
 
   it.each([
     ['purged status without purgedAt', { status: 'purged', purgedAt: null }],
@@ -285,14 +323,14 @@ describe('release canary residue assertion', () => {
 
   it('counts wrong-SHA unpurged residue for caps but ignores its completion state', () => {
     const result = evaluate(
-      [row(), row({ releaseSha: WRONG_SHA, status: 'failed', totalResidueCount: 5 })],
-      { total: 9 }
+      [row(), row({ releaseSha: WRONG_SHA, status: 'failed', totalResidueCount: 10 })],
+      { total: 19 }
     );
 
     expect(result).toMatchObject({
       exitCode: CANARY_RESIDUE_EXIT_CODES.POLICY_FAILURE,
       counts: { expectedShaRuns: 1, completedExpectedShaRuns: 1 },
-      residue: { total: 10 },
+      residue: { total: 20 },
     });
   });
 
@@ -340,14 +378,17 @@ describe('release canary residue assertion', () => {
     (value, expectedTotal) => {
       expect(
         evaluate([
-          row({
-            portfolioCompanyResidueCount: value,
-            fundResidueCount: 0,
-            fundConfigResidueCount: 0,
-            fundEventResidueCount: 0,
-            notificationResidueCount: 0,
-            totalResidueCount: expectedTotal,
-          }),
+          row(
+            counts({ portfolioCompanyResidueCount: value, totalResidueCount: expectedTotal })
+          ),
+        ])
+      ).toMatchObject({
+        exitCode: CANARY_RESIDUE_EXIT_CODES.INVALID_ARGUMENT,
+        verdict: 'invalid',
+      });
+      expect(
+        evaluate([
+          row(counts({ grantResidueCount: value, totalResidueCount: expectedTotal })),
         ])
       ).toMatchObject({
         exitCode: CANARY_RESIDUE_EXIT_CODES.INVALID_ARGUMENT,
@@ -374,14 +415,12 @@ describe('release canary residue assertion', () => {
   });
 
   it('fails closed when aggregate residue addition exceeds the safe integer range', () => {
-    const maxResidueRow = row({
-      portfolioCompanyResidueCount: MAX_SAFE_INTEGER,
-      fundResidueCount: 0,
-      fundConfigResidueCount: 0,
-      fundEventResidueCount: 0,
-      notificationResidueCount: 0,
-      totalResidueCount: MAX_SAFE_INTEGER,
-    });
+    const maxResidueRow = row(
+      counts({
+        portfolioCompanyResidueCount: MAX_SAFE_INTEGER,
+        totalResidueCount: MAX_SAFE_INTEGER,
+      })
+    );
 
     expect(
       evaluate([maxResidueRow, { ...maxResidueRow, releaseSha: WRONG_SHA }], {
@@ -448,11 +487,11 @@ describe('release canary residue assertion', () => {
   it('opt-in reconciles created expected-SHA runs before evaluating residue', async () => {
     const output = [];
     const transitionRun = vi.fn().mockResolvedValue({
+      ...Object.fromEntries(RESIDUE_GROUPS.map((group) => [group, 0])),
       portfolioCompany: 2,
       fund: 1,
       fundConfig: 1,
       fundEvent: 1,
-      notification: 0,
       total: 5,
     });
 
@@ -589,7 +628,7 @@ describe('release canary residue assertion', () => {
 
   it('loads the shared cap/TTL policy from process.env on the default path', async () => {
     // Mirrors the release workflow's residue step: no injected policy reader,
-    // policy comes from the seven runner env vars via readCanaryRuntimePolicy
+    // policy comes from the twelve runner env vars via readCanaryRuntimePolicy
     // (the real shared-service reader, resolved through the default
     // readSharedRuntimePolicy seam). Runs in-process — an earlier
     // child-process variant of this proof starved the 4-worker CI pool and
@@ -601,7 +640,12 @@ describe('release canary residue assertion', () => {
       RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE: '10',
       RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE: '10',
       RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE: '10',
-      RELEASE_CANARY_MAX_TOTAL_RESIDUE: '50',
+      RELEASE_CANARY_MAX_GRANT_RESIDUE: '10',
+      RELEASE_CANARY_MAX_CALCULATION_RESIDUE: '10',
+      RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE: '10',
+      RELEASE_CANARY_MAX_SCENARIO_RESIDUE: '10',
+      RELEASE_CANARY_MAX_REPORTING_RESIDUE: '10',
+      RELEASE_CANARY_MAX_TOTAL_RESIDUE: '100',
       RELEASE_CANARY_TTL_HOURS: '24',
     })) {
       vi.stubEnv(key, value);
@@ -624,6 +668,6 @@ describe('release canary residue assertion', () => {
     const summary = JSON.parse(output[0]);
     // caps prove readCanaryRuntimePolicy consumed the stubbed process.env
     // through the default (non-injected) policy path.
-    expect(summary.caps).toMatchObject({ total: 50, ttlHours: 24 });
+    expect(summary.caps).toMatchObject({ total: 100, ttlHours: 24 });
   }, 120_000);
 });

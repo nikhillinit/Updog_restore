@@ -14,6 +14,11 @@ const RESIDUE_FIELDS = Object.freeze([
   'fundConfig',
   'fundEvent',
   'notification',
+  'grant',
+  'calculation',
+  'mutationReceipt',
+  'scenario',
+  'reporting',
 ]);
 const RUN_STATUSES = new Set(['created', 'running', 'completed', 'failed', 'expired', 'purged']);
 
@@ -38,6 +43,11 @@ export const RELEASE_CANARY_RUNS_QUERY = `
     fund_config_residue_count AS "fundConfigResidueCount",
     fund_event_residue_count AS "fundEventResidueCount",
     notification_residue_count AS "notificationResidueCount",
+    grant_residue_count AS "grantResidueCount",
+    calculation_residue_count AS "calculationResidueCount",
+    mutation_receipt_residue_count AS "mutationReceiptResidueCount",
+    scenario_residue_count AS "scenarioResidueCount",
+    reporting_residue_count AS "reportingResidueCount",
     total_residue_count AS "totalResidueCount"
   FROM release_canary_runs
   ORDER BY created_at ASC, id ASC
@@ -189,6 +199,11 @@ function emptyResidue() {
     fundConfig: 0,
     fundEvent: 0,
     notification: 0,
+    grant: 0,
+    calculation: 0,
+    mutationReceipt: 0,
+    scenario: 0,
+    reporting: 0,
     total: 0,
   };
 }
@@ -235,10 +250,9 @@ function normalizeCanaryRow(row, index, now, effectiveMaxAgeDurationMs) {
   if (hasPurgedStatus !== hasPurgedAt) {
     invalid(`release canary row ${index} purge markers are inconsistent`);
   }
-  if (hasPurgedStatus) {
-    return { releaseSha, status: 'purged', purged: true };
-  }
 
+  // Full structural validation runs before purge exclusion: a purged row with
+  // malformed timestamps or counts must fail, never silently vanish from caps.
   const createdAt = timestampFromValue(row.createdAt, `release canary row ${index} createdAt`);
   const expiresAt = timestampFromValue(row.expiresAt, `release canary row ${index} expiresAt`);
   const residue = {};
@@ -254,6 +268,10 @@ function normalizeCanaryRow(row, index, now, effectiveMaxAgeDurationMs) {
   residue.total = numberFromValue(row.totalResidueCount, `release canary row ${index} total`);
   if (residue.total !== typeTotal) {
     invalid(`release canary row ${index} total residue does not match per-type residue`);
+  }
+
+  if (hasPurgedStatus) {
+    return { releaseSha, status: 'purged', purged: true };
   }
 
   const oldestAllowedCreatedAt = now - effectiveMaxAgeDurationMs;
@@ -420,6 +438,11 @@ function rowWithReconciledCounts(row, version, counts) {
     fundConfigResidueCount: counts?.fundConfig,
     fundEventResidueCount: counts?.fundEvent,
     notificationResidueCount: counts?.notification,
+    grantResidueCount: counts?.grant,
+    calculationResidueCount: counts?.calculation,
+    mutationReceiptResidueCount: counts?.mutationReceipt,
+    scenarioResidueCount: counts?.scenario,
+    reportingResidueCount: counts?.reporting,
     totalResidueCount: counts?.total,
   };
 }

@@ -4740,7 +4740,72 @@ describe('required CI fails closed', () => {
     expect(normalizeNeeds(proofWorkflow.jobs?.['g3-exact-sha-verdict']?.needs)).toEqual([
       'full-release-proof',
       'provider-identity',
+      'canary-residue-characterization',
     ]);
+
+    // Residue characterization is a required, immutable, attempt-qualified proof.
+    const characterizationJob = proofWorkflow.jobs?.['canary-residue-characterization'];
+    expect(characterizationJob?.needs).toBe('full-release-proof');
+    expect(characterizationJob?.['timeout-minutes']).toBe(30);
+    const characterizationScripts = allRunScripts({
+      jobs: { characterization: characterizationJob },
+    } as never).join('\n');
+    expect(characterizationScripts).toContain(
+      'tests/integration/release-canary-residue-characterization.test.ts'
+    );
+    const characterizationRunStep = characterizationJob?.steps?.find((step) =>
+      step.run?.includes('release-canary-residue-characterization.test.ts')
+    );
+    expect(characterizationRunStep?.env?.['RELEASE_CANARY_CHARACTERIZATION_RESULT_PATH']).toBe(
+      '${{ runner.temp }}/release-canary-residue-characterization-v1.json'
+    );
+    expect(characterizationRunStep?.env?.['RELEASE_CANARY_CHARACTERIZATION_SOURCE_SHA']).toBe(
+      '${{ needs.full-release-proof.outputs.candidate_sha }}'
+    );
+    expect(characterizationScripts).toContain('parseReleaseCanaryResidueCharacterization');
+    expect(characterizationScripts).toContain(
+      'release-canary-residue-characterization-v1-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${CANDIDATE_SHA}'
+    );
+    const characterizationUpload = characterizationJob?.steps?.find(
+      (step) => step.id === 'upload_characterization'
+    );
+    expect(characterizationUpload?.with?.['retention-days']).toBe(30);
+    expect(characterizationUpload?.with?.['if-no-files-found']).toBe('error');
+    const characterizationCleanup = characterizationJob?.steps?.find((step) =>
+      step.run?.includes('rm -f "$RUNNER_TEMP/release-canary-residue-characterization-v1.json"')
+    );
+    expect(characterizationCleanup?.if).toBe('always()');
+    expect(Object.keys(characterizationJob?.outputs ?? {})).toEqual([
+      'characterization_artifact_id',
+      'characterization_artifact_name',
+      'characterization_artifact_digest',
+      'characterization_file_sha256',
+      'characterization_source_sha',
+    ]);
+    const workflowCallOutputs =
+      (
+        proofWorkflow.on as {
+          workflow_call?: { outputs?: Record<string, { value?: string }> };
+        }
+      ).workflow_call?.outputs ?? {};
+    expect(Object.keys(workflowCallOutputs)).toEqual([
+      'characterization_artifact_id',
+      'characterization_artifact_name',
+      'characterization_artifact_digest',
+      'characterization_file_sha256',
+      'characterization_source_sha',
+    ]);
+    for (const [outputName, output] of Object.entries(workflowCallOutputs)) {
+      expect(output.value).toBe(
+        `\${{ jobs.canary-residue-characterization.outputs.${outputName} }}`
+      );
+    }
+    expect(characterizationScripts).not.toMatch(/vercel\s+(deploy|promote|alias|rollback)/i);
+    expect(characterizationScripts).not.toMatch(/railway\s+(up|deploy|redeploy|scale)/i);
+    const verdictScripts = allRunScripts({
+      jobs: { verdict: proofWorkflow.jobs?.['g3-exact-sha-verdict'] },
+    } as never).join('\n');
+    expect(verdictScripts).toContain('[[ "$CHARACTERIZATION_RESULT" == success ]]');
     const proofScripts = allRunScripts(proofWorkflow).join('\n');
     expect(proofScripts).toContain(
       'boot-proof.mjs --require-g3 --output "$RUNNER_TEMP/g3-boot-proofs.json"'

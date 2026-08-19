@@ -17,13 +17,22 @@ import { runMigrationsWithConnectionString } from '../helpers/testcontainers-mig
 const STARTUP_TIMEOUT_MS = 90_000;
 const JOB_TIMEOUT_MS = 60_000;
 const CANARY_SHA = 'c'.repeat(40);
+// Caps accommodate the reserved vector plus the first run's rows; a second
+// creation while the first run is active rejects on the one-active-run rule
+// (CanaryActiveRunError), which preflight enforces before any cap check.
+// The total cap must equal the sum of the ten group caps.
 const CANARY_POLICY = {
-  portfolioCompany: 2,
-  fund: 2,
-  fundConfig: 2,
-  fundEvent: 2,
-  notification: 1,
-  total: 4,
+  portfolioCompany: 5,
+  fund: 1,
+  fundConfig: 5,
+  fundEvent: 8,
+  notification: 0,
+  grant: 5,
+  calculation: 10,
+  mutationReceipt: 5,
+  scenario: 15,
+  reporting: 11,
+  total: 65,
   ttlHours: 24,
 } as const;
 
@@ -79,6 +88,11 @@ function setRuntimeEnv(connectionString: string, redisUrl: string): void {
     RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE: String(CANARY_POLICY.fundConfig),
     RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE: String(CANARY_POLICY.fundEvent),
     RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE: String(CANARY_POLICY.notification),
+    RELEASE_CANARY_MAX_GRANT_RESIDUE: String(CANARY_POLICY.grant),
+    RELEASE_CANARY_MAX_CALCULATION_RESIDUE: String(CANARY_POLICY.calculation),
+    RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE: String(CANARY_POLICY.mutationReceipt),
+    RELEASE_CANARY_MAX_SCENARIO_RESIDUE: String(CANARY_POLICY.scenario),
+    RELEASE_CANARY_MAX_REPORTING_RESIDUE: String(CANARY_POLICY.reporting),
     RELEASE_CANARY_MAX_TOTAL_RESIDUE: String(CANARY_POLICY.total),
     RELEASE_CANARY_TTL_HOURS: String(CANARY_POLICY.ttlHours),
     FUND_SCENARIO_HARD_TIMEOUT_MS: '30000',
@@ -424,6 +438,11 @@ describe('release canary local write-path and worker lifecycle', () => {
         expect(status.calculationStartedAt).toEqual(expect.any(String));
         expect(Date.parse(status.calculationStartedAt ?? '')).not.toBeNaN();
 
+        // Measured reality: preflight enforces the one-active-run rule before
+        // any residue cap check, so a second canary creation while this run is
+        // still nonterminal rejects as CanaryActiveRunError -- the fund-cap
+        // breach is unreachable mid-run. Per-group cap breaches are covered
+        // post-terminal in release-canary-residue-characterization.test.ts.
         await expect(
           fundPersistence.createFundWithInitialDraft(
             {
@@ -437,25 +456,38 @@ describe('release canary local write-path and worker lifecycle', () => {
             { fundName: `C5 capped fund ${suffix}` }
           )
         ).rejects.toMatchObject({
-          name: 'CanaryResidueCapExceededError',
-          field: 'total',
-          current: 4,
-          projected: 7,
-          limit: CANARY_POLICY.total,
+          name: 'CanaryActiveRunError',
+          runId,
+          runStatus: 'created',
+          expired: false,
         });
 
         const reconciled = await transitionReleaseCanaryRun(runId, 'completed', 1, [
           'created',
           'running',
         ]);
-        expect(reconciled).toEqual({
+        expect(reconciled).toMatchObject({
           portfolioCompany: 1,
           fund: 1,
           fundConfig: 1,
           fundEvent: 1,
           notification: 0,
-          total: 4,
+          grant: 1,
+          reporting: 0,
         });
+        const reconciledGroupSum =
+          reconciled.portfolioCompany +
+          reconciled.fund +
+          reconciled.fundConfig +
+          reconciled.fundEvent +
+          reconciled.notification +
+          reconciled.grant +
+          reconciled.calculation +
+          reconciled.mutationReceipt +
+          reconciled.scenario +
+          reconciled.reporting;
+        expect(reconciled.total).toBe(reconciledGroupSum);
+        expect(reconciled.scenario).toBeGreaterThan(0);
 
         const residueRows = await active.pool.query(RELEASE_CANARY_RUNS_QUERY);
         expect(

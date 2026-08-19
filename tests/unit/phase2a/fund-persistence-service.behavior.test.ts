@@ -143,10 +143,15 @@ describe('FundPersistenceService creator grant transaction', () => {
       'RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE',
       'RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE',
       'RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE',
-      'RELEASE_CANARY_MAX_TOTAL_RESIDUE',
+      'RELEASE_CANARY_MAX_GRANT_RESIDUE',
+      'RELEASE_CANARY_MAX_CALCULATION_RESIDUE',
+      'RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE',
+      'RELEASE_CANARY_MAX_SCENARIO_RESIDUE',
+      'RELEASE_CANARY_MAX_REPORTING_RESIDUE',
     ]) {
-      vi.stubEnv(name, '100');
+      vi.stubEnv(name, '15');
     }
+    vi.stubEnv('RELEASE_CANARY_MAX_TOTAL_RESIDUE', '150');
     vi.stubEnv('RELEASE_CANARY_TTL_HOURS', '24');
 
     try {
@@ -172,12 +177,39 @@ describe('FundPersistenceService creator grant transaction', () => {
           .fn()
           .mockResolvedValueOnce({ rows: [], rowCount: 1 })
           .mockResolvedValueOnce({ rows: [{ count: 0 }], rowCount: 1 })
+          .mockResolvedValueOnce({ rows: [], rowCount: 0 })
           .mockResolvedValueOnce({
-            rows: [{ portfolioCompany: 0, fund: 0, fundConfig: 0, fundEvent: 0, notification: 0 }],
+            rows: [
+              {
+                portfolioCompany: 0,
+                fund: 0,
+                fundConfig: 0,
+                fundEvent: 0,
+                notification: 0,
+                grant: 0,
+                calculation: 0,
+                mutationReceipt: 0,
+                scenario: 0,
+                reporting: 0,
+              },
+            ],
             rowCount: 1,
           })
           .mockResolvedValueOnce({
-            rows: [{ portfolioCompany: 0, fund: 1, fundConfig: 1, fundEvent: 1, notification: 0 }],
+            rows: [
+              {
+                portfolioCompany: 0,
+                fund: 1,
+                fundConfig: 1,
+                fundEvent: 1,
+                notification: 0,
+                grant: 1,
+                calculation: 0,
+                mutationReceipt: 0,
+                scenario: 0,
+                reporting: 0,
+              },
+            ],
             rowCount: 1,
           })
           .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
@@ -222,7 +254,7 @@ describe('FundPersistenceService creator grant transaction', () => {
       expect(tx.insert.mock.results[1]?.value.values).toHaveBeenCalledWith(
         expect.objectContaining({ dataOrigin: 'release_canary', canaryRunId: 'canary-run-id' })
       );
-      expect(tx.execute).toHaveBeenCalledTimes(5);
+      expect(tx.execute).toHaveBeenCalledTimes(6);
     } finally {
       vi.unstubAllEnvs();
     }

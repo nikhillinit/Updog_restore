@@ -7,6 +7,82 @@ import { Pool } from 'pg';
 const PRODUCTION_ORIGIN_PREDICATE = '"data_origin" = \'production\'';
 const CANARY_ORIGIN = 'release_canary';
 
+// Raw-SQL mirror of CANARY_RESIDUE_GROUP_TABLES in
+// server/services/canary-residue-service.ts. A parity unit test compares the
+// group names and table tokens across service, assertion, and purge surfaces.
+export const PURGE_RESIDUE_GROUP_TABLES = Object.freeze({
+  portfolioCompany: [{ table: 'portfoliocompanies', scope: 'fund_id' }],
+  fund: [{ table: 'funds', scope: 'id' }],
+  fundConfig: [{ table: 'fundconfigs', scope: 'fund_id' }],
+  fundEvent: [{ table: 'fund_events', scope: 'fund_id' }],
+  notification: [
+    {
+      table: 'capital_call_notification_outbox',
+      scope: { via: 'lp_capital_calls', on: 'capital_call_id' },
+    },
+  ],
+  grant: [{ table: 'user_fund_grants', scope: 'fund_id' }],
+  calculation: [
+    { table: 'calc_runs', scope: 'fund_id' },
+    { table: 'fund_snapshots', scope: 'fund_id' },
+  ],
+  mutationReceipt: [
+    { table: 'portfolio_company_update_receipts', scope: 'fund_id' },
+    { table: 'fund_scenario_calculation_commands', scope: 'fund_id' },
+  ],
+  scenario: [
+    { table: 'fund_scenario_sets', scope: 'fund_id' },
+    { table: 'fund_scenario_variants', scope: { via: 'fund_scenario_sets', on: 'scenario_set_id' } },
+    { table: 'fund_scenario_set_events', scope: 'fund_id' },
+    { table: 'fund_scenario_calculation_runs', scope: 'fund_id' },
+  ],
+  reporting: [
+    { table: 'planning_fmv_override_requests', scope: 'fund_id' },
+    { table: 'valuation_marks', scope: 'fund_id' },
+    { table: 'reconciliation_runs', scope: 'fund_id' },
+    { table: 'lp_metric_runs', scope: 'fund_id' },
+    { table: 'evidence_records', scope: 'fund_id' },
+    { table: 'narrative_runs', scope: 'fund_id' },
+    { table: 'lp_report_packages', scope: 'fund_id' },
+    { table: 'lp_report_package_exports', scope: 'fund_id' },
+  ],
+});
+
+export const PURGE_RESIDUE_GROUPS = Object.freeze(Object.keys(PURGE_RESIDUE_GROUP_TABLES));
+
+const RESIDUE_COLUMN_BY_GROUP = Object.freeze({
+  portfolioCompany: 'portfolio_company_residue_count',
+  fund: 'fund_residue_count',
+  fundConfig: 'fund_config_residue_count',
+  fundEvent: 'fund_event_residue_count',
+  notification: 'notification_residue_count',
+  grant: 'grant_residue_count',
+  calculation: 'calculation_residue_count',
+  mutationReceipt: 'mutation_receipt_residue_count',
+  scenario: 'scenario_residue_count',
+  reporting: 'reporting_residue_count',
+});
+
+function tableCountSql(entry, fundIdSelect) {
+  if (entry.scope === 'id') {
+    return `(SELECT count(*)::int FROM ${entry.table} AS t WHERE t.id IN ${fundIdSelect})`;
+  }
+  if (entry.scope === 'fund_id') {
+    return `(SELECT count(*)::int FROM ${entry.table} AS t WHERE t.fund_id IN ${fundIdSelect})`;
+  }
+  return (
+    `(SELECT count(*)::int FROM ${entry.table} AS t ` +
+    `JOIN ${entry.scope.via} AS p ON p.id = t.${entry.scope.on} ` +
+    `WHERE p.fund_id IN ${fundIdSelect})`
+  );
+}
+
+function groupCountSql(group, fundIdSelect) {
+  return PURGE_RESIDUE_GROUP_TABLES[group]
+    .map((entry) => tableCountSql(entry, fundIdSelect))
+    .join(' + ');
+}
+
 export function parsePurgeArgs(args) {
   let execute = false;
   for (const arg of args) {
@@ -21,13 +97,7 @@ export function parsePurgeArgs(args) {
 
 export function buildPurgePlan(row) {
   const count = (key) => Number(row[key] ?? 0);
-  const residue = {
-    portfolioCompany: count('portfolioCompany'),
-    fund: count('fund'),
-    fundConfig: count('fundConfig'),
-    fundEvent: count('fundEvent'),
-    notification: count('notification'),
-  };
+  const residue = Object.fromEntries(PURGE_RESIDUE_GROUPS.map((group) => [group, count(group)]));
   return {
     mode: 'dry-run',
     targetFunds: residue.fund,
@@ -86,6 +156,10 @@ async function assertCanaryExclusionAvailable(client) {
 }
 
 async function selectExpiredCanaryResidue(client) {
+  const fundIdSelect = '(SELECT id FROM target_funds)';
+  const groupSelections = PURGE_RESIDUE_GROUPS.map(
+    (group) => `${groupCountSql(group, fundIdSelect)} AS "${group}"`
+  ).join(',\n      ');
   const result = await client.query(`
     WITH target_funds AS (
       SELECT f.id, f.canary_run_id
@@ -95,23 +169,23 @@ async function selectExpiredCanaryResidue(client) {
         AND r.expires_at <= clock_timestamp()
     )
     SELECT
-      (SELECT count(*)::int FROM target_funds) AS fund,
       (SELECT count(DISTINCT canary_run_id)::int FROM target_funds) AS run,
-      (SELECT count(*)::int FROM portfoliocompanies AS pc
-       WHERE pc.fund_id IN (SELECT id FROM target_funds)) AS "portfolioCompany",
-      (SELECT count(*)::int FROM fundconfigs AS fc
-       WHERE fc.fund_id IN (SELECT id FROM target_funds)) AS "fundConfig",
-      (SELECT count(*)::int FROM fund_events AS fe
-       WHERE fe.fund_id IN (SELECT id FROM target_funds)) AS "fundEvent",
-      (SELECT count(*)::int
-       FROM capital_call_notification_outbox AS outbox
-       JOIN lp_capital_calls AS calls ON calls.id = outbox.capital_call_id
-       WHERE calls.fund_id IN (SELECT id FROM target_funds)) AS notification
+      ${groupSelections}
   `);
   return result.rows[0] ?? {};
 }
 
 async function reconcileExpiredCanaryRuns(client) {
+  const perRunFundIdSelect = '(SELECT id FROM target_funds WHERE canary_run_id = r.id)';
+  const countSelections = PURGE_RESIDUE_GROUPS.map(
+    (group) => `${groupCountSql(group, perRunFundIdSelect)} AS "${RESIDUE_COLUMN_BY_GROUP[group]}"`
+  ).join(',\n        ');
+  const assignments = PURGE_RESIDUE_GROUPS.map(
+    (group) => `${RESIDUE_COLUMN_BY_GROUP[group]} = counts."${RESIDUE_COLUMN_BY_GROUP[group]}"`
+  ).join(',\n        ');
+  const totalExpression = PURGE_RESIDUE_GROUPS.map(
+    (group) => `counts."${RESIDUE_COLUMN_BY_GROUP[group]}"`
+  ).join(' + ');
   await client.query(`
     WITH target_funds AS (
       SELECT f.id, f.canary_run_id
@@ -122,29 +196,13 @@ async function reconcileExpiredCanaryRuns(client) {
     ), counts AS (
       SELECT
         r.id,
-        (SELECT count(*)::int FROM portfoliocompanies AS pc
-         WHERE pc.fund_id IN (SELECT id FROM target_funds WHERE canary_run_id = r.id)) AS portfolio_company,
-        (SELECT count(*)::int FROM funds AS f
-         WHERE f.id IN (SELECT id FROM target_funds WHERE canary_run_id = r.id)) AS fund,
-        (SELECT count(*)::int FROM fundconfigs AS fc
-         WHERE fc.fund_id IN (SELECT id FROM target_funds WHERE canary_run_id = r.id)) AS fund_config,
-        (SELECT count(*)::int FROM fund_events AS fe
-         WHERE fe.fund_id IN (SELECT id FROM target_funds WHERE canary_run_id = r.id)) AS fund_event,
-        (SELECT count(*)::int
-         FROM capital_call_notification_outbox AS outbox
-         JOIN lp_capital_calls AS calls ON calls.id = outbox.capital_call_id
-         WHERE calls.fund_id IN (SELECT id FROM target_funds WHERE canary_run_id = r.id)) AS notification
+        ${countSelections}
       FROM release_canary_runs AS r
       WHERE r.id IN (SELECT canary_run_id FROM target_funds)
     )
     UPDATE release_canary_runs AS r
-    SET portfolio_company_residue_count = counts.portfolio_company,
-        fund_residue_count = counts.fund,
-        fund_config_residue_count = counts.fund_config,
-        fund_event_residue_count = counts.fund_event,
-        notification_residue_count = counts.notification,
-        total_residue_count = counts.portfolio_company + counts.fund + counts.fund_config
-          + counts.fund_event + counts.notification,
+    SET ${assignments},
+        total_residue_count = ${totalExpression},
         updated_at = clock_timestamp()
     FROM counts
     WHERE r.id = counts.id
