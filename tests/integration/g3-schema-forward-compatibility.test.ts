@@ -28,6 +28,11 @@ interface G3EnvironmentSnapshot {
   releaseCanaryMaxFundConfigResidue: string | undefined;
   releaseCanaryMaxFundEventResidue: string | undefined;
   releaseCanaryMaxNotificationResidue: string | undefined;
+  releaseCanaryMaxGrantResidue: string | undefined;
+  releaseCanaryMaxCalculationResidue: string | undefined;
+  releaseCanaryMaxMutationReceiptResidue: string | undefined;
+  releaseCanaryMaxScenarioResidue: string | undefined;
+  releaseCanaryMaxReportingResidue: string | undefined;
   releaseCanaryMaxTotalResidue: string | undefined;
 }
 
@@ -44,6 +49,11 @@ function snapshotEnvironment(): G3EnvironmentSnapshot {
     releaseCanaryMaxFundConfigResidue: process.env['RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE'],
     releaseCanaryMaxFundEventResidue: process.env['RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE'],
     releaseCanaryMaxNotificationResidue: process.env['RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE'],
+    releaseCanaryMaxGrantResidue: process.env['RELEASE_CANARY_MAX_GRANT_RESIDUE'],
+    releaseCanaryMaxCalculationResidue: process.env['RELEASE_CANARY_MAX_CALCULATION_RESIDUE'],
+    releaseCanaryMaxMutationReceiptResidue: process.env['RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE'],
+    releaseCanaryMaxScenarioResidue: process.env['RELEASE_CANARY_MAX_SCENARIO_RESIDUE'],
+    releaseCanaryMaxReportingResidue: process.env['RELEASE_CANARY_MAX_REPORTING_RESIDUE'],
     releaseCanaryMaxTotalResidue: process.env['RELEASE_CANARY_MAX_TOTAL_RESIDUE'],
   };
 }
@@ -70,6 +80,11 @@ function restoreEnvironment(snapshot: G3EnvironmentSnapshot | undefined): void {
   restore('RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE', snapshot.releaseCanaryMaxFundConfigResidue);
   restore('RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE', snapshot.releaseCanaryMaxFundEventResidue);
   restore('RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE', snapshot.releaseCanaryMaxNotificationResidue);
+  restore('RELEASE_CANARY_MAX_GRANT_RESIDUE', snapshot.releaseCanaryMaxGrantResidue);
+  restore('RELEASE_CANARY_MAX_CALCULATION_RESIDUE', snapshot.releaseCanaryMaxCalculationResidue);
+  restore('RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE', snapshot.releaseCanaryMaxMutationReceiptResidue);
+  restore('RELEASE_CANARY_MAX_SCENARIO_RESIDUE', snapshot.releaseCanaryMaxScenarioResidue);
+  restore('RELEASE_CANARY_MAX_REPORTING_RESIDUE', snapshot.releaseCanaryMaxReportingResidue);
   restore('RELEASE_CANARY_MAX_TOTAL_RESIDUE', snapshot.releaseCanaryMaxTotalResidue);
 }
 
@@ -137,6 +152,11 @@ describe.skipIf(skipIfNoDocker)('G3 schema forward compatibility', () => {
       RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE: '100',
       RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE: '100',
       RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE: '100',
+      RELEASE_CANARY_MAX_GRANT_RESIDUE: '100',
+      RELEASE_CANARY_MAX_CALCULATION_RESIDUE: '100',
+      RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE: '100',
+      RELEASE_CANARY_MAX_SCENARIO_RESIDUE: '100',
+      RELEASE_CANARY_MAX_REPORTING_RESIDUE: '100',
       RELEASE_CANARY_MAX_TOTAL_RESIDUE: '1000',
     });
     vi.resetModules();
@@ -401,7 +421,7 @@ describe.skipIf(skipIfNoDocker)('G3 schema forward compatibility', () => {
       expect(canary.rows[0]).toEqual({
         workflow_run_id: null,
         workflow_run_attempt: null,
-        grant_residue_count: 0,
+      grant_residue_count: 1,
         calculation_residue_count: 0,
         mutation_receipt_residue_count: 0,
         scenario_residue_count: 0,

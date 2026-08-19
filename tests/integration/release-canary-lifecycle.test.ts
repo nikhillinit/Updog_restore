@@ -22,17 +22,17 @@ const CANARY_SHA = 'c'.repeat(40);
 // (CanaryActiveRunError), which preflight enforces before any cap check.
 // The total cap must equal the sum of the ten group caps.
 const CANARY_POLICY = {
-  portfolioCompany: 5,
-  fund: 1,
-  fundConfig: 5,
-  fundEvent: 8,
+  portfolioCompany: 3,
+  fund: 3,
+  fundConfig: 3,
+  fundEvent: 12,
   notification: 0,
-  grant: 5,
-  calculation: 10,
-  mutationReceipt: 5,
-  scenario: 15,
-  reporting: 11,
-  total: 65,
+  grant: 3,
+  calculation: 36,
+  mutationReceipt: 6,
+  scenario: 21,
+  reporting: 33,
+  total: 120,
   ttlHours: 24,
 } as const;
 

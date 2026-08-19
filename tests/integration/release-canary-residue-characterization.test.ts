@@ -40,11 +40,11 @@ const CANARY_POLICY = {
   fundEvent: 12,
   notification: 0,
   grant: 3,
-  calculation: 15,
+  calculation: 36,
   mutationReceipt: 6,
   scenario: 21,
   reporting: 33,
-  total: 99,
+  total: 120,
   ttlHours: 24,
 } as const;
 
