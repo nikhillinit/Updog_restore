@@ -36,6 +36,11 @@ const RESIDUE_GROUPS = [
   'scenario',
   'reporting',
 ];
+const THREE_RUN_POLICY = {
+  portfolioCompany: 3, fund: 3, fundConfig: 3, fundEvent: 12, notification: 0,
+  grant: 3, calculation: 36, mutationReceipt: 6, scenario: 21, reporting: 33,
+  total: 120, ttlHours: 24,
+};
 
 function policy(overrides = {}) {
   return {
@@ -92,6 +97,21 @@ describe('release canary residue assertion', () => {
         ...Object.fromEntries(RESIDUE_GROUPS.map((group) => [group, 1])),
         total: 10,
       },
+    });
+  });
+
+  it('allows three complete retained runs and rejects a fourth projected run', () => {
+    const complete = row({
+      portfolioCompanyResidueCount: 1, fundResidueCount: 1, fundConfigResidueCount: 1,
+      fundEventResidueCount: 4, notificationResidueCount: 0, grantResidueCount: 1,
+      calculationResidueCount: 12, mutationReceiptResidueCount: 2, scenarioResidueCount: 7,
+      reportingResidueCount: 11, totalResidueCount: 40,
+    });
+    expect(evaluate([complete, complete, complete], THREE_RUN_POLICY)).toMatchObject({
+      exitCode: CANARY_RESIDUE_EXIT_CODES.SUCCESS, verdict: 'pass',
+    });
+    expect(evaluate([complete, complete, complete, complete], THREE_RUN_POLICY)).toMatchObject({
+      exitCode: CANARY_RESIDUE_EXIT_CODES.POLICY_FAILURE, verdict: 'policy-failure',
     });
   });
 
