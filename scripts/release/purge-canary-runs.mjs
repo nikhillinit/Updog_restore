@@ -272,7 +272,7 @@ async function listChildTableDependencies(client) {
   return result.rows;
 }
 
-async function executePurge(client, fundIds, runIds) {
+async function executePurge(client, fundIds) {
   if (fundIds.length === 0) return 0;
   const directForeignKeys = await listDirectFundForeignKeys(client);
   const dependencies = await listChildTableDependencies(client);
@@ -304,14 +304,63 @@ async function executePurge(client, fundIds, runIds) {
     `DELETE FROM funds WHERE data_origin = $2 AND id = ANY($1::int[])`,
     [fundIds, CANARY_ORIGIN]
   );
-  const runs = await client.query(
-    `DELETE FROM release_canary_runs
-       WHERE id = ANY($1::uuid[])
-         AND id NOT IN (SELECT canary_run_id FROM funds WHERE canary_run_id IS NOT NULL)`,
-    [runIds]
-  );
-  deleted += (funds.rowCount ?? 0) + (runs.rowCount ?? 0);
+  deleted += funds.rowCount ?? 0;
   return deleted;
+}
+
+/**
+ * Testcontainers-only mutation seam. Production callers remain mechanically
+ * blocked in runPurge before their first query.
+ */
+export async function deleteCanaryResidueTargets(client, fundIds, runIds) {
+  if (fundIds.length === 0 && runIds.length === 0) {
+    return { targets: 0, deleted: 0 };
+  }
+
+  await client.query('BEGIN');
+  try {
+    const activeTargets = [];
+    for (const target of runIds) {
+      const current = await client.query(
+        'SELECT version FROM release_canary_runs WHERE id = $1 FOR UPDATE',
+        [target.id]
+      );
+      if ((current.rowCount ?? current.rows?.length ?? 0) === 0) continue;
+      if (Number(current.rows[0]?.version) !== target.expectedVersion) {
+        throw new Error('Release canary purge reconciliation lost its version fence');
+      }
+      const reconciled = await client.query(
+        `UPDATE release_canary_runs
+         SET updated_at = clock_timestamp()
+         WHERE id = $1 AND version = $2`,
+        [target.id, target.expectedVersion]
+      );
+      if (reconciled.rowCount !== 1) {
+        throw new Error('Release canary purge reconciliation lost its version fence');
+      }
+      activeTargets.push(target);
+    }
+
+    let deleted = await executePurge(client, fundIds);
+    for (const target of activeTargets) {
+      const result = await client.query(
+        `DELETE FROM release_canary_runs
+         WHERE id = $1
+           AND version = $2
+           AND id NOT IN (SELECT canary_run_id FROM funds WHERE canary_run_id IS NOT NULL)`,
+        [target.id, target.expectedVersion]
+      );
+      if (result.rowCount !== 1) {
+        throw new Error('Release canary purge deletion lost its version fence');
+      }
+      deleted += result.rowCount;
+    }
+    await client.query('COMMIT');
+    return { targets: activeTargets.length, deleted };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  }
 }
 
 export async function runPurge(client, { execute = false, output = console.log } = {}) {
@@ -340,7 +389,7 @@ export async function runPurge(client, { execute = false, output = console.log }
     await reconcileExpiredCanaryRuns(client);
     const plan = buildPurgePlan(await selectExpiredCanaryResidue(client));
     const targets = await selectTargetIds(client);
-    const deleted = await executePurge(client, targets.fundIds, targets.runIds);
+    const deleted = await executePurge(client, targets.fundIds);
     await client.query('COMMIT');
     const result = { ...plan, mode: 'execute', deleted };
     output(JSON.stringify(result, null, 2));

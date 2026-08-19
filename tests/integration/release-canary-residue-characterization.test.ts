@@ -15,7 +15,7 @@ import {
   evaluateCanaryResidue,
   RELEASE_CANARY_RUNS_QUERY,
 } from '../../scripts/release/assert-canary-residue.mjs';
-import { runPurge } from '../../scripts/release/purge-canary-runs.mjs';
+import { deleteCanaryResidueTargets, runPurge } from '../../scripts/release/purge-canary-runs.mjs';
 import {
   parseReleaseCanaryResidueCharacterization,
   RELEASE_CANARY_RESERVED_RESIDUE,
@@ -381,7 +381,7 @@ describe('release canary residue characterization', () => {
       let runId = '';
 
       async function reconciledWithTruth(context: string): Promise<ResidueVector> {
-        const counts = (await reconcileReleaseCanaryRun(runId)) as ResidueVector;
+        const counts = (await reconcileReleaseCanaryRun(runId, 1)) as ResidueVector;
         const truth = await truthCountsForRun(active.pool, groupTables, runId);
         expect(counts, `${context}: service counts diverge from direct SQL truth`).toEqual(truth);
         return counts;
@@ -863,6 +863,24 @@ describe('release canary residue characterization', () => {
       );
       expect(finalVector.total).toBe(storedGroupSum);
 
+      const helperRun = await active.pool.query<{ id: string }>(
+        `INSERT INTO release_canary_runs (
+           release_version, release_sha, deployment_id, worker_deployment_id,
+           correlation_id, principal_user_id, expires_at
+         ) VALUES ($1, $2, $3, $4, $5, $6, clock_timestamp())
+         RETURNING id`,
+        ['purge-helper', CANARY_SHA, 'purge-helper', 'purge-helper', randomUUID(), userId]
+      );
+      const helperTarget = { id: helperRun.rows[0]!.id, expectedVersion: 1 };
+      await expect(deleteCanaryResidueTargets(active.pool, [], [helperTarget])).resolves.toEqual({
+        targets: 1,
+        deleted: 1,
+      });
+      await expect(deleteCanaryResidueTargets(active.pool, [], [helperTarget])).resolves.toEqual({
+        targets: 0,
+        deleted: 0,
+      });
+
       // Preflight accepts after the run is terminal when the vector fits (3x).
       const preflightCurrent = await preflightCanaryCreation(db);
       expect(preflightCurrent).toEqual(finalVector);
@@ -1073,6 +1091,7 @@ describe('release canary residue characterization', () => {
         // fails its `test -f "$RESULT_PATH"` step when no record exists.
         expect(existsSync(resolvedResultPath)).toBe(false);
       }
+
     },
     WHOLE_TEST_TIMEOUT_MS
   );

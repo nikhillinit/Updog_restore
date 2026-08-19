@@ -4,6 +4,7 @@ import {
   PURGE_RESIDUE_GROUPS,
   PURGE_RESIDUE_GROUP_TABLES,
   buildPurgePlan,
+  deleteCanaryResidueTargets,
   parsePurgeArgs,
   runPurge,
   topologicallyOrderChildTables,
@@ -136,6 +137,38 @@ describe('canary purge command', () => {
       /production data mutation is mechanically blocked/i
     );
     expect(client.query).not.toHaveBeenCalled();
+  });
+
+  it('rolls back a stale version-fenced purge target', async () => {
+    const client = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rowCount: 1 })
+        .mockResolvedValueOnce({ rowCount: 1, rows: [{ version: 2 }] }),
+    };
+    await expect(
+      deleteCanaryResidueTargets(client, [], [{ id: 'run-1', expectedVersion: 1 }])
+    ).rejects.toThrow(/version fence/i);
+    expect(client.query).toHaveBeenLastCalledWith('ROLLBACK');
+  });
+
+  it('deletes a version-fenced target once and treats empty replay as success', async () => {
+    const client = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rowCount: 1 })
+        .mockResolvedValueOnce({ rowCount: 1, rows: [{ version: 1 }] })
+        .mockResolvedValueOnce({ rowCount: 1 })
+        .mockResolvedValueOnce({ rowCount: 1 })
+        .mockResolvedValueOnce({ rowCount: 1 }),
+    };
+    await expect(
+      deleteCanaryResidueTargets(client, [], [{ id: 'run-1', expectedVersion: 1 }])
+    ).resolves.toEqual({ targets: 1, deleted: 1 });
+    await expect(deleteCanaryResidueTargets(client, [], [])).resolves.toEqual({
+      targets: 0,
+      deleted: 0,
+    });
   });
 });
 
