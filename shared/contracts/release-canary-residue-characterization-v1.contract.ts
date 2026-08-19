@@ -50,11 +50,11 @@ export const RELEASE_CANARY_RESERVED_RESIDUE: Readonly<ResidueVector> = Object.f
   fundEvent: 4,
   notification: 0,
   grant: 1,
-  calculation: 5,
+  calculation: 12,
   mutationReceipt: 2,
   scenario: 7,
   reporting: 11,
-  total: 33,
+  total: 40,
 });
 
 const vectorEquals = (a: ResidueVector, b: ResidueVector): boolean =>

@@ -55,13 +55,13 @@ describe('release-canary-residue-characterization-v1 contract', { retry: 0 }, ()
 
   it('freezes the reserved vector at the exact 33-row contract', () => {
     expect(Object.isFrozen(RELEASE_CANARY_RESERVED_RESIDUE)).toBe(true);
-    expect(RELEASE_CANARY_RESERVED_RESIDUE.total).toBe(33);
+    expect(RELEASE_CANARY_RESERVED_RESIDUE.total).toBe(40);
     expect(
       RELEASE_CANARY_RESIDUE_GROUP_KEYS.reduce(
         (acc, key) => acc + RELEASE_CANARY_RESERVED_RESIDUE[key],
         0
       )
-    ).toBe(33);
+    ).toBe(40);
   });
 
   const rejections: Array<[string, (record: ReturnType<typeof validRecord>) => unknown]> = [
@@ -97,7 +97,7 @@ describe('release-canary-residue-characterization-v1 contract', { retry: 0 }, ()
     ],
     [
       'total-sum mismatch in finalResidue',
-      (r) => ({ ...r, finalResidue: { ...r.finalResidue, total: 32 } }),
+    (r) => ({ ...r, finalResidue: { ...r.finalResidue, total: 39 } }),
     ],
     [
       'total-sum mismatch in a failure boundary vector',

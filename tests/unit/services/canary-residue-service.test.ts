@@ -37,11 +37,11 @@ const POLICY_CAPS = {
   fundEvent: 12,
   notification: 0,
   grant: 3,
-  calculation: 15,
+  calculation: 36,
   mutationReceipt: 6,
   scenario: 21,
   reporting: 33,
-  total: 99,
+  total: 120,
 } as const;
 
 function stubValidPolicy(caps: Record<string, number> = POLICY_CAPS) {
@@ -142,11 +142,11 @@ describe('canary residue group descriptor', () => {
       fundEvent: 4,
       notification: 0,
       grant: 1,
-      calculation: 5,
+      calculation: 12,
       mutationReceipt: 2,
       scenario: 7,
       reporting: 11,
-      total: 33,
+      total: 40,
     });
     expect(Object.isFrozen(RELEASE_CANARY_RESERVED_RESIDUE)).toBe(true);
   });
@@ -192,7 +192,7 @@ describe('canary residue fail-closed policy', () => {
   });
 
   it('reserves the full 33-row vector and rejects when a group cap would be exceeded', async () => {
-    stubValidPolicy({ ...POLICY_CAPS, scenario: 6, total: 84 });
+    stubValidPolicy({ ...POLICY_CAPS, scenario: 6, total: 105 });
     const execute = vi
       .fn()
       .mockResolvedValueOnce({ rows: [{ count: 0 }], rowCount: 1 })
@@ -276,7 +276,7 @@ describe('canary residue fail-closed policy', () => {
       fundEvent: 4,
       notification: 0,
       grant: 1,
-      calculation: 5,
+      calculation: 12,
       mutationReceipt: 2,
       scenario: 7,
       reporting: 11,
@@ -288,7 +288,7 @@ describe('canary residue fail-closed policy', () => {
 
     await expect(reconcileReleaseCanaryRun('run-1', { execute })).resolves.toEqual({
       ...countsRow,
-      total: 33,
+      total: 40,
     });
     expect(execute).toHaveBeenCalledTimes(2);
   });
