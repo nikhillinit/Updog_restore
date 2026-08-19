@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { lstat, mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
@@ -5,10 +6,14 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  ROLLBACK_DIFF_ALLOWLIST,
   buildReleaseRecoveryContext,
   captureProviderBaseline,
   captureReleaseRecoveryContext,
+  decodeBaselineEvidence,
+  verifyBaselineArtifact,
   verifyBaselineBinding,
+  verifyBaselineConsumption,
 } from '../../../scripts/release/capture-release-recovery-context.mjs';
 
 const BASELINE_MAIN_SHA = 'a'.repeat(40);
@@ -459,4 +464,286 @@ describe('capture-release-recovery-context', () => {
       }
     }
   );
+});
+
+describe('baseline evidence decoding and exact consumption', () => {
+  const RELEASE_SHA = 'f'.repeat(40);
+  const ROLLBACK_HEAD_SHA = '9'.repeat(40);
+  const PLAN_TEXT = 'approved hardening plan body\n';
+  const PLAN_DIGEST = createHash('sha256').update(PLAN_TEXT).digest('hex');
+  const REPOSITORY = 'nikhillinit/Updog_restore';
+  const ARTIFACT_NAME = `release-baseline-v1-123456789-2-${PLANNED_PR_HEAD_SHA}`;
+
+  function bindingInput(mode, overrides = {}) {
+    return {
+      schemaVersion: 'release-baseline-binding-v1',
+      baselineRunId: '123456789',
+      baselineRunAttempt: 2,
+      baselineArtifactId: '777001',
+      baselineArtifactDigest: `sha256:${'d'.repeat(64)}`,
+      baselineFileSha256: overrides.baselineFileSha256 ?? 'e'.repeat(64),
+      ...(mode === 'rollback' && {
+        rollbackPrNumber: 4321,
+        rollbackPrHeadSha: ROLLBACK_HEAD_SHA,
+      }),
+      ...overrides,
+    };
+  }
+
+  function encodeBinding(value) {
+    return Buffer.from(JSON.stringify(value), 'utf8').toString('base64');
+  }
+
+  function contextContents(overrides = {}) {
+    return `${JSON.stringify({
+      schemaVersion: 'release-recovery-context-v1',
+      baselineMainSha: BASELINE_MAIN_SHA,
+      plannedPrHeadSha: PLANNED_PR_HEAD_SHA,
+      planSha256: PLAN_DIGEST,
+      githubRunId: '123456789',
+      githubRunAttempt: 2,
+      ...overrides,
+    })}\n`;
+  }
+
+  function baselineEnvironment() {
+    return { GITHUB_REPOSITORY: REPOSITORY, GH_TOKEN: 'workflow-token' };
+  }
+
+  function runResponse(overrides = {}) {
+    return {
+      path: '.github/workflows/capture-release-baseline.yml',
+      repository: { full_name: REPOSITORY },
+      head_branch: 'main',
+      conclusion: 'success',
+      actor: { login: 'nikhillinit' },
+      ...overrides,
+    };
+  }
+
+  function artifactResponse(overrides = {}) {
+    return {
+      id: 777001,
+      name: ARTIFACT_NAME,
+      expired: false,
+      digest: `sha256:${'d'.repeat(64)}`,
+      workflow_run: { id: 123456789 },
+      ...overrides,
+    };
+  }
+
+  function makeFetch(routes) {
+    return async (url) => {
+      const key = Object.keys(routes).find((fragment) => String(url).includes(fragment));
+      if (!key) throw new Error(`unexpected fetch ${url}`);
+      return { ok: true, json: async () => routes[key] };
+    };
+  }
+
+  function artifactRoutes(overrides = {}) {
+    return {
+      '/actions/runs/123456789/artifacts': overrides.list ?? {
+        artifacts: [{ id: 777001, name: ARTIFACT_NAME }],
+      },
+      '/actions/artifacts/777001': overrides.artifact ?? artifactResponse(),
+      '/actions/runs/123456789': overrides.run ?? runResponse(),
+    };
+  }
+
+  function makeExecFile({ ancestor = true, diff = '', plan = PLAN_TEXT } = {}) {
+    return async (command, args) => {
+      if (command !== 'git') throw new Error(`unexpected command ${command}`);
+      if (args[0] === 'fetch') return { stdout: '' };
+      if (args[0] === 'merge-base') {
+        if (!ancestor) throw new Error('not an ancestor');
+        return { stdout: '' };
+      }
+      if (args[0] === 'show') return { stdout: plan };
+      if (args[0] === 'diff') return { stdout: diff };
+      throw new Error(`unexpected git args ${args.join(' ')}`);
+    };
+  }
+
+  function pullRoutes({ primary, rollback } = {}) {
+    return {
+      '/pulls/1385': primary ?? {
+        head: { sha: PLANNED_PR_HEAD_SHA },
+        merged: true,
+        base: { ref: 'main' },
+        merge_commit_sha: RELEASE_SHA,
+      },
+      '/pulls/4321': rollback ?? {
+        head: { sha: ROLLBACK_HEAD_SHA },
+        merged: true,
+        base: { ref: 'main' },
+        merge_commit_sha: RELEASE_SHA,
+      },
+    };
+  }
+
+  async function consume(mode, overrides = {}) {
+    const contents = overrides.contents ?? contextContents();
+    const fileSha = createHash('sha256').update(contents).digest('hex');
+    const binding = bindingInput(mode, {
+      baselineFileSha256: overrides.wrongFileSha ? 'e'.repeat(64) : fileSha,
+      ...(overrides.binding ?? {}),
+    });
+    return verifyBaselineConsumption({
+      baselineEvidenceB64: encodeBinding(binding),
+      releaseMode: mode,
+      releaseSha: overrides.releaseSha ?? RELEASE_SHA,
+      contextPath: '/virtual/release-recovery-context-v1.json',
+      environment: baselineEnvironment(),
+      fetchImpl: makeFetch({ ...pullRoutes(overrides.pulls ?? {}) }),
+      execFileImpl: makeExecFile(overrides.git ?? {}),
+      readFileImpl: async () => contents,
+    });
+  }
+
+  it('decodes an exact primary and rollback baseline binding', () => {
+    expect(decodeBaselineEvidence(encodeBinding(bindingInput('primary')), 'primary')).toMatchObject(
+      { releaseMode: 'primary', baselineRunId: '123456789', baselineRunAttempt: 2 }
+    );
+    expect(
+      decodeBaselineEvidence(encodeBinding(bindingInput('rollback')), 'rollback')
+    ).toMatchObject({ rollbackPrNumber: 4321, rollbackPrHeadSha: ROLLBACK_HEAD_SHA });
+  });
+
+  it.each([
+    ['unset mode', bindingInput('primary'), undefined],
+    ['unknown mode', bindingInput('primary'), 'canary'],
+    ['rollback keys in primary mode', bindingInput('rollback'), 'primary'],
+    ['missing rollback keys in rollback mode', bindingInput('primary'), 'rollback'],
+    ['unknown field', { ...bindingInput('primary'), extra: 'x' }, 'primary'],
+    ['wrong schema version', { ...bindingInput('primary'), schemaVersion: 'v0' }, 'primary'],
+    [
+      'malformed artifact digest',
+      { ...bindingInput('primary'), baselineArtifactDigest: 'd'.repeat(64) },
+      'primary',
+    ],
+    ['non-integer attempt', { ...bindingInput('primary'), baselineRunAttempt: '2' }, 'primary'],
+  ])('fails closed decoding %s', (_label, binding, mode) => {
+    return expect(async () =>
+      decodeBaselineEvidence(encodeBinding(binding), mode)
+    ).rejects.toThrow();
+  });
+
+  it('rejects non-base64 baseline evidence', () => {
+    expect(() => decodeBaselineEvidence('%%%not-base64%%%', 'primary')).toThrow();
+    expect(() => decodeBaselineEvidence('', 'primary')).toThrow();
+  });
+
+  it('verifies the exact baseline artifact identity', async () => {
+    await expect(
+      verifyBaselineArtifact({
+        baselineEvidenceB64: encodeBinding(bindingInput('primary')),
+        releaseMode: 'primary',
+        environment: baselineEnvironment(),
+        fetchImpl: makeFetch(artifactRoutes()),
+      })
+    ).resolves.toMatchObject({ plannedPrHeadSha: PLANNED_PR_HEAD_SHA });
+  });
+
+  it.each([
+    ['wrong workflow', { run: runResponse({ path: '.github/workflows/other.yml' }) }],
+    ['wrong repository', { run: runResponse({ repository: { full_name: 'other/repo' } }) }],
+    ['non-main branch', { run: runResponse({ head_branch: 'feature' }) }],
+    ['unsuccessful run', { run: runResponse({ conclusion: 'failure' }) }],
+    ['wrong actor', { run: runResponse({ actor: { login: 'intruder' } }) }],
+    ['artifact from another run', { artifact: artifactResponse({ workflow_run: { id: 5 } }) }],
+    ['expired artifact', { artifact: artifactResponse({ expired: true }) }],
+    ['digest mismatch', { artifact: artifactResponse({ digest: `sha256:${'0'.repeat(64)}` }) }],
+    [
+      'wrong attempt in name',
+      { artifact: artifactResponse({ name: `release-baseline-v1-123456789-3-${PLANNED_PR_HEAD_SHA}` }) },
+    ],
+    ['duplicate artifact', { list: { artifacts: [{ id: 777001 }, { id: 777002 }] } }],
+    ['missing artifact on run', { list: { artifacts: [] } }],
+  ])('rejects baseline artifact identity for %s', async (_label, overrides) => {
+    await expect(
+      verifyBaselineArtifact({
+        baselineEvidenceB64: encodeBinding(bindingInput('primary')),
+        releaseMode: 'primary',
+        environment: baselineEnvironment(),
+        fetchImpl: makeFetch(artifactRoutes(overrides)),
+      })
+    ).rejects.toThrow();
+  });
+
+  it('consumes a primary release bound to the exact baseline', async () => {
+    await expect(consume('primary')).resolves.toMatchObject({
+      mode: 'primary',
+      baselineMainSha: BASELINE_MAIN_SHA,
+      plannedPrHeadSha: PLANNED_PR_HEAD_SHA,
+    });
+  });
+
+  it.each([
+    ['edited context file', { wrongFileSha: true }],
+    ['capture run mismatch', { contents: undefined, binding: { baselineRunId: '999999999' } }],
+    ['non-ancestor baseline', { git: { ancestor: false } }],
+    ['edited plan at release SHA', { git: { plan: 'tampered plan\n' } }],
+    [
+      'runtime PR head mismatch',
+      { pulls: { primary: { head: { sha: '9'.repeat(40) }, merged: true, base: { ref: 'main' }, merge_commit_sha: RELEASE_SHA } } },
+    ],
+    [
+      'unmerged runtime PR',
+      { pulls: { primary: { head: { sha: PLANNED_PR_HEAD_SHA }, merged: false, base: { ref: 'main' }, merge_commit_sha: RELEASE_SHA } } },
+    ],
+    [
+      'merge commit mismatch',
+      { pulls: { primary: { head: { sha: PLANNED_PR_HEAD_SHA }, merged: true, base: { ref: 'main' }, merge_commit_sha: '9'.repeat(40) } } },
+    ],
+  ])('fails closed consuming a primary release with %s', async (_label, overrides) => {
+    await expect(consume('primary', overrides)).rejects.toThrow();
+  });
+
+  it('accepts a clean rollback revert bounded by the control-plane allowlist', async () => {
+    await expect(
+      consume('rollback', {
+        git: { diff: '.github/workflows/release-production.yml\nscripts/release/recover-canary-run.mjs\ndocs/runbooks/rollback.md\n' },
+      })
+    ).resolves.toMatchObject({ mode: 'rollback' });
+    await expect(consume('rollback', { git: { diff: '' } })).resolves.toMatchObject({
+      mode: 'rollback',
+    });
+  });
+
+  it.each([
+    ['a revert that misses an application file', 'server/services/fund-persistence-service.ts\n'],
+    ['a revert that sneaks a non-control-plane change', 'docs-site/index.md\nclient/src/App.tsx\n'],
+  ])('fails closed for %s', async (_label, diff) => {
+    await expect(consume('rollback', { git: { diff } })).rejects.toThrow(
+      /differs from the baseline application tree/
+    );
+  });
+
+  it.each([
+    [
+      'rollback PR head mismatch',
+      { rollback: { head: { sha: 'a'.repeat(40) }, merged: true, base: { ref: 'main' }, merge_commit_sha: RELEASE_SHA } },
+    ],
+    [
+      'unmerged rollback PR',
+      { rollback: { head: { sha: ROLLBACK_HEAD_SHA }, merged: false, base: { ref: 'main' }, merge_commit_sha: RELEASE_SHA } },
+    ],
+    [
+      'rollback merge commit mismatch',
+      { rollback: { head: { sha: ROLLBACK_HEAD_SHA }, merged: true, base: { ref: 'main' }, merge_commit_sha: 'a'.repeat(40) } },
+    ],
+  ])('fails closed for %s', async (_label, rollback) => {
+    await expect(consume('rollback', { pulls: { rollback } })).rejects.toThrow();
+  });
+
+  it('pins the rollback allowlist to release control-plane paths only', () => {
+    expect(ROLLBACK_DIFF_ALLOWLIST).toEqual([
+      '.github/workflows/',
+      'scripts/release/',
+      'scripts/deploy-production.ps1',
+      'tests/unit/scripts/',
+      'tests/regressions/',
+      'docs/',
+    ]);
+  });
 });

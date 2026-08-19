@@ -43,10 +43,54 @@ param(
 
     [Parameter(Mandatory = $true)]
     [ValidateSet('primary', 'rollback')]
-    [string] $ReleaseMode
+    [string] $ReleaseMode,
+
+    [Parameter(Mandatory = $true)]
+    [ValidatePattern('^[1-9][0-9]{0,31}$')]
+    [string] $BaselineRunId,
+
+    [Parameter(Mandatory = $true)]
+    [ValidatePattern('^[1-9][0-9]{0,8}$')]
+    [string] $BaselineRunAttempt,
+
+    [Parameter(Mandatory = $true)]
+    [ValidatePattern('^[1-9][0-9]{0,31}$')]
+    [string] $BaselineArtifactId,
+
+    [Parameter(Mandatory = $true)]
+    [ValidatePattern('^sha256:[a-f0-9]{64}$')]
+    [string] $BaselineArtifactDigest,
+
+    [Parameter(Mandatory = $true)]
+    [ValidatePattern('^[a-f0-9]{64}$')]
+    [string] $BaselineFileSha256,
+
+    [Parameter(Mandatory = $false)]
+    [string] $RollbackPrNumber,
+
+    [Parameter(Mandatory = $false)]
+    [string] $RollbackPrHeadSha
 )
 
 $ErrorActionPreference = "Stop"
+
+# Cross-mode fence: rollback identity is forbidden in primary mode and both
+# values are required in rollback mode.
+if ($ReleaseMode -eq 'primary') {
+    if (-not [string]::IsNullOrEmpty($RollbackPrNumber) -or -not [string]::IsNullOrEmpty($RollbackPrHeadSha)) {
+        Write-Error "RollbackPrNumber and RollbackPrHeadSha are forbidden in primary mode."
+        exit 1
+    }
+} else {
+    if ($RollbackPrNumber -notmatch '^[1-9][0-9]{0,8}$') {
+        Write-Error "RollbackPrNumber is required in rollback mode and must be a positive integer."
+        exit 1
+    }
+    if ($RollbackPrHeadSha -notmatch '^[a-f0-9]{40}$') {
+        Write-Error "RollbackPrHeadSha is required in rollback mode and must be 40 lowercase hex."
+        exit 1
+    }
+}
 
 if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
     Write-Error "GitHub CLI (gh) is required."
@@ -93,10 +137,30 @@ if ([string]::IsNullOrWhiteSpace($operatorEvidenceB64) -or $operatorEvidenceB64.
     exit 1
 }
 
+# The workflow_dispatch surface allows at most ten inputs, so the exact
+# baseline identity travels as one compact base64 JSON input; the
+# baseline-policy-preflight job decodes and validates every field.
+$baselineBinding = [ordered]@{
+    schemaVersion = 'release-baseline-binding-v1'
+    baselineRunId = $BaselineRunId
+    baselineRunAttempt = [int] $BaselineRunAttempt
+    baselineArtifactId = $BaselineArtifactId
+    baselineArtifactDigest = $BaselineArtifactDigest
+    baselineFileSha256 = $BaselineFileSha256
+}
+if ($ReleaseMode -eq 'rollback') {
+    $baselineBinding['rollbackPrNumber'] = [int] $RollbackPrNumber
+    $baselineBinding['rollbackPrHeadSha'] = $RollbackPrHeadSha
+}
+$baselineEvidenceB64 = [Convert]::ToBase64String(
+    [System.Text.Encoding]::UTF8.GetBytes(($baselineBinding | ConvertTo-Json -Compress))
+)
+
 $inputs = [ordered]@{
     expected_sha = $expectedSha
     operator_evidence_b64 = $operatorEvidenceB64
     release_mode = $ReleaseMode
+    baseline_evidence_b64 = $baselineEvidenceB64
     schema_apply_run_id = $SchemaApplyRunId
     schema_apply_run_attempt = $SchemaApplyRunAttempt
     schema_apply_artifact_id = $SchemaApplyArtifactId

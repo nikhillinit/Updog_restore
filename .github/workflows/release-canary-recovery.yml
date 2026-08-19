@@ -1,0 +1,181 @@
+# Exact-identity recovery for a release-canary run abandoned by hard
+# cancellation before the release finalizer could bind it to a terminal state.
+# This is a database state-transition surface only: it can never purge,
+# release, or mutate a provider, and release-production.yml remains the sole
+# provider-mutating workflow.
+name: Release Canary Recovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      github_run_id:
+        description: Exact GitHub run ID of the cancelled release execution
+        type: string
+        required: true
+      github_run_attempt:
+        description: Exact GitHub run attempt of the cancelled release execution
+        type: string
+        required: true
+      expected_sha:
+        description: Exact release SHA the cancelled execution targeted
+        type: string
+        required: true
+      fund_id:
+        description: Exact canary fund ID from the recovery handle
+        type: string
+        required: true
+      canary_run_id:
+        description: Exact canary run UUID from the recovery handle
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+# Shared with release-production.yml: recovery queues behind an in-progress
+# release and can never cancel one mid-provider-mutation, and vice versa.
+# GitHub holds only one PENDING run per group, so a queued-but-unstarted run
+# in either workflow can be superseded by the other; re-dispatch it.
+concurrency:
+  group: release-production
+  cancel-in-progress: false
+
+jobs:
+  recover-canary-run:
+    name: Recover Abandoned Release Canary Run
+    # Main-ref fence: a modified branch copy of this workflow can never run
+    # with environment secrets.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: Production
+    steps:
+      - name: Checkout trusted workflow commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+
+      - name: Validate typed recovery inputs
+        env:
+          RECOVERY_RUN_ID: ${{ inputs.github_run_id }}
+          RECOVERY_RUN_ATTEMPT: ${{ inputs.github_run_attempt }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RECOVERY_FUND_ID: ${{ inputs.fund_id }}
+          RECOVERY_CANARY_RUN_ID: ${{ inputs.canary_run_id }}
+        run: |
+          set -euo pipefail
+          node -e '
+            const patterns = {
+              RECOVERY_RUN_ID: /^[1-9][0-9]{0,31}$/,
+              RECOVERY_RUN_ATTEMPT: /^[1-9][0-9]{0,8}$/,
+              EXPECTED_SHA: /^[0-9a-f]{40}$/,
+              RECOVERY_FUND_ID: /^[1-9][0-9]{0,9}$/,
+              RECOVERY_CANARY_RUN_ID: /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+            };
+            for (const [name, pattern] of Object.entries(patterns)) {
+              if (!pattern.test(process.env[name] ?? "")) {
+                console.error(name + " is malformed");
+                process.exit(1);
+              }
+            }
+          '
+
+      - name: Resolve exact workflow execution
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          RECOVERY_RUN_ID: ${{ inputs.github_run_id }}
+          RECOVERY_RUN_ATTEMPT: ${{ inputs.github_run_attempt }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          : "${DATABASE_URL:?DATABASE_URL is required}"
+          node scripts/release/recover-canary-run.mjs resolve \
+            --github-run-id "$RECOVERY_RUN_ID" \
+            --github-run-attempt "$RECOVERY_RUN_ATTEMPT" \
+            --expected-sha "$EXPECTED_SHA" \
+            | tee "$RUNNER_TEMP/recovery-resolve.json"
+
+      - name: Mark exact run failed
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          RECOVERY_RUN_ID: ${{ inputs.github_run_id }}
+          RECOVERY_RUN_ATTEMPT: ${{ inputs.github_run_attempt }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RECOVERY_FUND_ID: ${{ inputs.fund_id }}
+          RECOVERY_CANARY_RUN_ID: ${{ inputs.canary_run_id }}
+        run: |
+          set -euo pipefail
+          : "${DATABASE_URL:?DATABASE_URL is required}"
+          node scripts/release/recover-canary-run.mjs mark-failed \
+            --github-run-id "$RECOVERY_RUN_ID" \
+            --github-run-attempt "$RECOVERY_RUN_ATTEMPT" \
+            --fund-id "$RECOVERY_FUND_ID" \
+            --canary-run-id "$RECOVERY_CANARY_RUN_ID" \
+            --expected-sha "$EXPECTED_SHA" \
+            | tee "$RUNNER_TEMP/recovery-mark-failed.json"
+
+      - name: Assert bounded canary residue after recovery
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE }}
+          RELEASE_CANARY_MAX_FUND_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_FUND_RESIDUE }}
+          RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE }}
+          RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE }}
+          RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE }}
+          RELEASE_CANARY_MAX_GRANT_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_GRANT_RESIDUE }}
+          RELEASE_CANARY_MAX_CALCULATION_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_CALCULATION_RESIDUE }}
+          RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE }}
+          RELEASE_CANARY_MAX_SCENARIO_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_SCENARIO_RESIDUE }}
+          RELEASE_CANARY_MAX_REPORTING_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_REPORTING_RESIDUE }}
+          RELEASE_CANARY_MAX_TOTAL_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_TOTAL_RESIDUE }}
+          RELEASE_CANARY_TTL_HOURS: ${{ vars.RELEASE_CANARY_TTL_HOURS }}
+        run: |
+          set -euo pipefail
+          : "${DATABASE_URL:?DATABASE_URL is required}"
+          : "${EXPECTED_SHA:?EXPECTED_SHA is required}"
+          : "${RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE:?RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE is required}"
+          : "${RELEASE_CANARY_MAX_FUND_RESIDUE:?RELEASE_CANARY_MAX_FUND_RESIDUE is required}"
+          : "${RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE:?RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE is required}"
+          : "${RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE:?RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE is required}"
+          : "${RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE:?RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE is required}"
+          : "${RELEASE_CANARY_MAX_GRANT_RESIDUE:?RELEASE_CANARY_MAX_GRANT_RESIDUE is required}"
+          : "${RELEASE_CANARY_MAX_CALCULATION_RESIDUE:?RELEASE_CANARY_MAX_CALCULATION_RESIDUE is required}"
+          : "${RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE:?RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE is required}"
+          : "${RELEASE_CANARY_MAX_SCENARIO_RESIDUE:?RELEASE_CANARY_MAX_SCENARIO_RESIDUE is required}"
+          : "${RELEASE_CANARY_MAX_REPORTING_RESIDUE:?RELEASE_CANARY_MAX_REPORTING_RESIDUE is required}"
+          : "${RELEASE_CANARY_MAX_TOTAL_RESIDUE:?RELEASE_CANARY_MAX_TOTAL_RESIDUE is required}"
+          : "${RELEASE_CANARY_TTL_HOURS:?RELEASE_CANARY_TTL_HOURS is required}"
+          set +e
+          node scripts/release/assert-canary-residue.mjs \
+            --expected-sha "$EXPECTED_SHA" \
+            --global-only \
+            | tee "$RUNNER_TEMP/recovery-residue.json"
+          residue_exit=${PIPESTATUS[0]}
+          set -e
+          # Exit 3 is the expected-SHA completion failure: after marking the
+          # abandoned run failed, completion evidence for this release is
+          # correctly absent. Any cap, TTL, or active-run policy failure and
+          # any invalid input still fail this recovery.
+          if [ "$residue_exit" -ne 0 ] && [ "$residue_exit" -ne 3 ]; then
+            exit "$residue_exit"
+          fi
+
+      - name: Upload sanitized recovery outcome
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-canary-recovery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/recovery-resolve.json
+            ${{ runner.temp }}/recovery-mark-failed.json
+            ${{ runner.temp }}/recovery-residue.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Remove local recovery evidence
+        if: always()
+        run: rm -f -- "$RUNNER_TEMP/recovery-resolve.json" "$RUNNER_TEMP/recovery-mark-failed.json" "$RUNNER_TEMP/recovery-residue.json"

@@ -66,11 +66,13 @@ script.
 
 5. Dispatch `Release Production` from `main` through
    `scripts/deploy-production.ps1`, supplying the four redacted operator
-   evidence files and schema-apply evidence for the exact live `main` SHA.
-   Do not use Vercel CLI, raw workflow dispatch, or another production mutation
-   path. Use the exact PowerShell invocation in
-   `scripts/DEPLOYMENT_AUTOMATION_README.md`; rollback-only switches are owned
-   by Task 8.
+   evidence files, schema-apply evidence, and the immutable pre-merge baseline
+   identity for the exact live `main` SHA. In rollback mode the revert PR
+   number and its final head SHA are mandatory; the workflow's
+   `baseline-policy-preflight` job verifies the revert restores the baseline
+   application tree. Do not use Vercel CLI, raw workflow dispatch, or another
+   production mutation path. Use the exact PowerShell invocation in
+   `scripts/DEPLOYMENT_AUTOMATION_README.md`.
 
    ```powershell
    .\scripts\deploy-production.ps1 `
@@ -84,7 +86,14 @@ script.
      -SchemaApplyArtifactId <artifact-id> `
      -SchemaApplyArtifactDigest sha256:<64-lowercase-hex> `
      -SchemaApplyReceiptFileSha256 <64-lowercase-hex> `
-     -SchemaPrecursorSha <40-lowercase-hex>
+     -SchemaPrecursorSha <40-lowercase-hex> `
+     -BaselineRunId <baseline-run-id> `
+     -BaselineRunAttempt <baseline-run-attempt> `
+     -BaselineArtifactId <baseline-artifact-id> `
+     -BaselineArtifactDigest sha256:<64-lowercase-hex> `
+     -BaselineFileSha256 <64-lowercase-hex> `
+     -RollbackPrNumber <revert-pr-number> `
+     -RollbackPrHeadSha <40-lowercase-hex>
    ```
 
 6. Wait for governed workflow to complete. It must retain exact live-`main`
@@ -100,6 +109,35 @@ script.
 
    Any missing, ambiguous, stale, skipped, incomplete, or failed evidence is a
    rollback verification failure.
+
+## Abandoned release-canary run recovery
+
+If a `Release Production` run is hard-cancelled after canary fund creation but
+before its finalizer bound the run to a terminal state, recover on exactly one
+authorized production surface: the `Release Canary Recovery` workflow. Never
+run a local CLI against production, and never search for a "latest" run — the
+recovery inputs come from the cancelled run's `RELEASE_CANARY_RECOVERY_V1` log
+line (the recovery handle is written only to the runner's temp path and that
+log line), and every input names the exact execution. If the log line is
+unavailable, the recovery workflow's `resolve` mode reconstructs the handle
+from the exact run ID and attempt alone.
+
+```bash
+gh workflow run release-canary-recovery.yml \
+  --ref main \
+  --field github_run_id=<cancelled-run-id> \
+  --field github_run_attempt=<cancelled-run-attempt> \
+  --field expected_sha=<40-lowercase-hex> \
+  --field fund_id=<canary-fund-id> \
+  --field canary_run_id=<canary-run-uuid>
+```
+
+The workflow resolves the exact workflow execution, performs the version-fenced
+`created|running -> failed` transition, and then runs the post-recovery global
+residue assertion in the same job; that assertion is required and any cap, TTL,
+or active-run policy failure fails the recovery. The workflow is a database
+state-transition surface only — it can never purge, release, or mutate a
+provider.
 
 ## Closeout evidence
 

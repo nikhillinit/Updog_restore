@@ -571,6 +571,301 @@ export async function verifyBaselineBinding({
   }
 }
 
+const RELEASE_MODES = Object.freeze(['primary', 'rollback']);
+const ARTIFACT_DIGEST = /^sha256:[a-f0-9]{64}$/;
+const BASELINE_WORKFLOW_PATH = '.github/workflows/capture-release-baseline.yml';
+const RUNTIME_PR_NUMBER = 1385;
+
+/**
+ * Rollback releases must restore the application tree exactly; only release
+ * control-plane paths may differ, because reverting those would revert the
+ * hardened release and recovery workflows themselves.
+ */
+export const ROLLBACK_DIFF_ALLOWLIST = Object.freeze([
+  '.github/workflows/',
+  'scripts/release/',
+  'scripts/deploy-production.ps1',
+  'tests/unit/scripts/',
+  'tests/regressions/',
+  'docs/',
+]);
+
+function releaseMode(value) {
+  // An unset or unknown mode fails closed.
+  if (typeof value !== 'string' || !RELEASE_MODES.includes(value)) {
+    fail('release mode must be exactly primary or rollback');
+  }
+  return value;
+}
+
+function positiveInteger(value, label) {
+  if (!Number.isSafeInteger(value) || value < 1) fail(`${label} is invalid`);
+  return value;
+}
+
+/**
+ * Decode and strictly validate the compact baseline evidence input. The
+ * workflow_dispatch surface caps out at ten inputs, so the five baseline
+ * fields and the rollback pair travel base64-encoded as one exact input,
+ * mirroring operator_evidence_b64.
+ */
+export function decodeBaselineEvidence(baselineEvidenceB64, mode) {
+  const normalizedMode = releaseMode(mode);
+  if (typeof baselineEvidenceB64 !== 'string' || baselineEvidenceB64.trim() === '') {
+    fail('baseline evidence is required');
+  }
+  let decoded;
+  try {
+    decoded = JSON.parse(Buffer.from(baselineEvidenceB64.trim(), 'base64').toString('utf8'));
+  } catch {
+    fail('baseline evidence is not valid base64 JSON');
+  }
+  const keys = [
+    'schemaVersion',
+    'baselineRunId',
+    'baselineRunAttempt',
+    'baselineArtifactId',
+    'baselineArtifactDigest',
+    'baselineFileSha256',
+    ...(normalizedMode === 'rollback' ? ['rollbackPrNumber', 'rollbackPrHeadSha'] : []),
+  ];
+  const binding = exactKeys(decoded, keys, 'baseline evidence');
+  if (binding.schemaVersion !== 'release-baseline-binding-v1') {
+    fail('baseline evidence schema version is invalid');
+  }
+  const digest = safeText(binding.baselineArtifactDigest, 'baseline artifact digest');
+  if (!ARTIFACT_DIGEST.test(digest)) fail('baseline artifact digest is invalid');
+  const result = {
+    releaseMode: normalizedMode,
+    baselineRunId: runId(binding.baselineRunId),
+    baselineRunAttempt: positiveInteger(binding.baselineRunAttempt, 'baseline run attempt'),
+    baselineArtifactId: runId(binding.baselineArtifactId),
+    baselineArtifactDigest: digest,
+    baselineFileSha256: sha256(binding.baselineFileSha256, 'baseline file SHA-256'),
+  };
+  if (normalizedMode === 'rollback') {
+    return {
+      ...result,
+      rollbackPrNumber: positiveInteger(binding.rollbackPrNumber, 'rollback PR number'),
+      rollbackPrHeadSha: sha(binding.rollbackPrHeadSha, 'rollback PR head SHA'),
+    };
+  }
+  return result;
+}
+
+function expectedBaselineArtifactName(binding, plannedPrHeadSha) {
+  return `release-baseline-v1-${binding.baselineRunId}-${binding.baselineRunAttempt}-${plannedPrHeadSha}`;
+}
+
+/**
+ * Verify the exact capture-release-baseline execution and artifact identity by
+ * ID — never a latest-artifact or name-only match.
+ */
+export async function verifyBaselineArtifact({
+  baselineEvidenceB64,
+  releaseMode: mode,
+  environment = process.env,
+  fetchImpl = globalThis.fetch,
+} = {}) {
+  if (typeof fetchImpl !== 'function') fail('baseline evidence dependencies are unavailable');
+  const binding = decodeBaselineEvidence(baselineEvidenceB64, mode);
+  const repository = requiredEnvironment(environment, 'GITHUB_REPOSITORY');
+  const token = requiredSecretEnvironment(environment, 'GH_TOKEN');
+  if (!GITHUB_REPOSITORY.test(repository)) fail('GitHub repository is invalid');
+  const [owner] = repository.split('/');
+
+  const run = await githubJson(
+    fetchImpl,
+    repository,
+    `/actions/runs/${binding.baselineRunId}`,
+    token
+  );
+  if (run?.path !== BASELINE_WORKFLOW_PATH) fail('baseline run is not the capture workflow');
+  if (run?.repository?.full_name !== repository) fail('baseline run repository is invalid');
+  if (run?.head_branch !== 'main') fail('baseline run did not execute on main');
+  if (run?.conclusion !== 'success') fail('baseline run did not conclude successfully');
+  if (run?.actor?.login !== owner) fail('baseline run actor is not the repository owner');
+
+  const artifact = await githubJson(
+    fetchImpl,
+    repository,
+    `/actions/artifacts/${binding.baselineArtifactId}`,
+    token
+  );
+  if (String(artifact?.workflow_run?.id ?? '') !== binding.baselineRunId) {
+    fail('baseline artifact does not belong to the exact capture run');
+  }
+  if (artifact?.expired !== false) fail('baseline artifact is expired');
+  if (artifact?.digest !== binding.baselineArtifactDigest) {
+    fail('baseline artifact digest does not match');
+  }
+  const artifactName = safeText(artifact?.name, 'baseline artifact name');
+  const namePrefix = `release-baseline-v1-${binding.baselineRunId}-${binding.baselineRunAttempt}-`;
+  if (!artifactName.startsWith(namePrefix)) {
+    fail('baseline artifact name does not bind the exact run attempt');
+  }
+  const plannedPrHeadSha = sha(artifactName.slice(namePrefix.length), 'baseline artifact planned head');
+  if (artifactName !== expectedBaselineArtifactName(binding, plannedPrHeadSha)) {
+    fail('baseline artifact name is invalid');
+  }
+
+  const runArtifacts = await githubJson(
+    fetchImpl,
+    repository,
+    `/actions/runs/${binding.baselineRunId}/artifacts?name=${encodeURIComponent(artifactName)}`,
+    token
+  );
+  const matches = Array.isArray(runArtifacts?.artifacts) ? runArtifacts.artifacts : [];
+  if (matches.length !== 1 || String(matches[0]?.id ?? '') !== binding.baselineArtifactId) {
+    fail('baseline artifact is duplicated or missing on the exact run');
+  }
+
+  return { binding, plannedPrHeadSha };
+}
+
+async function isAncestor(execFileImpl, ancestorSha, descendantSha) {
+  try {
+    await execFileImpl('git', ['merge-base', '--is-ancestor', ancestorSha, descendantSha], {
+      encoding: 'utf8',
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function assertRollbackDiffAllowlisted(diffOutput) {
+  const paths = String(diffOutput)
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '');
+  // An empty diff is a perfect restoration and passes.
+  for (const path of paths) {
+    const allowed = ROLLBACK_DIFF_ALLOWLIST.some((prefix) =>
+      prefix.endsWith('/') ? path.startsWith(prefix) : path === prefix
+    );
+    if (!allowed) {
+      fail(`rollback release differs from the baseline application tree at ${path}`);
+    }
+  }
+}
+
+/**
+ * Consume the downloaded baseline context file for one release: prove file
+ * hash, plan binding, baseline ancestry, and mode-specific release lineage.
+ */
+export async function verifyBaselineConsumption({
+  baselineEvidenceB64,
+  releaseMode: mode,
+  releaseSha,
+  contextPath,
+  environment = process.env,
+  fetchImpl = globalThis.fetch,
+  execFileImpl = execFileAsync,
+  readFileImpl = readFile,
+} = {}) {
+  if (
+    typeof fetchImpl !== 'function' ||
+    typeof execFileImpl !== 'function' ||
+    typeof readFileImpl !== 'function'
+  ) {
+    fail('baseline evidence dependencies are unavailable');
+  }
+  const binding = decodeBaselineEvidence(baselineEvidenceB64, mode);
+  const release = sha(releaseSha, 'release SHA');
+  const repository = requiredEnvironment(environment, 'GITHUB_REPOSITORY');
+  const token = requiredSecretEnvironment(environment, 'GH_TOKEN');
+  if (!GITHUB_REPOSITORY.test(repository)) fail('GitHub repository is invalid');
+  if (typeof contextPath !== 'string' || contextPath.trim() === '') {
+    fail('baseline context path is invalid');
+  }
+
+  let contents;
+  try {
+    contents = await readFileImpl(resolve(contextPath), 'utf8');
+  } catch {
+    fail('baseline context file is unreadable');
+  }
+  if (createHash('sha256').update(contents).digest('hex') !== binding.baselineFileSha256) {
+    fail('baseline context file hash does not match');
+  }
+  let context;
+  try {
+    context = JSON.parse(contents);
+  } catch {
+    fail('baseline context file is malformed');
+  }
+  const parsed = plainObject(context, 'baseline context');
+  if (parsed.schemaVersion !== 'release-recovery-context-v1') {
+    fail('baseline context schema version is invalid');
+  }
+  const baselineMainSha = sha(parsed.baselineMainSha, 'baseline main SHA');
+  const plannedPrHeadSha = sha(parsed.plannedPrHeadSha, 'planned PR head SHA');
+  const planDigest = sha256(parsed.planSha256, 'baseline plan SHA-256');
+  if (runId(parsed.githubRunId) !== binding.baselineRunId) {
+    fail('baseline context run ID does not match the exact capture run');
+  }
+  if (runAttempt(parsed.githubRunAttempt) !== binding.baselineRunAttempt) {
+    fail('baseline context run attempt does not match the exact capture run');
+  }
+
+  // Never assume either SHA is present in a shallow checkout.
+  await gitOutput(execFileImpl, ['fetch', '--no-tags', 'origin', baselineMainSha]);
+  await gitOutput(execFileImpl, ['fetch', '--no-tags', 'origin', release]);
+  if (!(await isAncestor(execFileImpl, baselineMainSha, release))) {
+    fail('baseline main is not an ancestor of the release SHA');
+  }
+  const plan = await gitContents(execFileImpl, ['show', `${release}:${PLAN_PATH}`]);
+  if (createHash('sha256').update(plan).digest('hex') !== planDigest) {
+    fail('approved plan digest does not match at the release SHA');
+  }
+
+  if (binding.releaseMode === 'primary') {
+    const pullRequest = await githubJson(
+      fetchImpl,
+      repository,
+      `/pulls/${RUNTIME_PR_NUMBER}`,
+      token
+    );
+    if (sha(pullRequest?.head?.sha, 'runtime PR head SHA') !== plannedPrHeadSha) {
+      fail('runtime PR head does not equal the planned final head');
+    }
+    if (pullRequest?.merged !== true || pullRequest?.base?.ref !== 'main') {
+      fail('runtime PR is not merged into main');
+    }
+    if (sha(pullRequest?.merge_commit_sha, 'runtime PR merge SHA') !== release) {
+      fail('runtime PR merge commit is not the release SHA');
+    }
+    return { binding, baselineMainSha, plannedPrHeadSha, mode: 'primary' };
+  }
+
+  const pullRequest = await githubJson(
+    fetchImpl,
+    repository,
+    `/pulls/${binding.rollbackPrNumber}`,
+    token
+  );
+  if (sha(pullRequest?.head?.sha, 'rollback PR head SHA') !== binding.rollbackPrHeadSha) {
+    fail('rollback PR head does not equal the supplied head');
+  }
+  if (pullRequest?.merged !== true || pullRequest?.base?.ref !== 'main') {
+    fail('rollback PR is not merged into main');
+  }
+  if (sha(pullRequest?.merge_commit_sha, 'rollback PR merge SHA') !== release) {
+    fail('rollback PR merge commit is not the release SHA');
+  }
+  // PR lineage alone does not prove revert semantics; require machine-verified
+  // application-tree restoration bounded by the control-plane allowlist.
+  const diffOutput = await gitContents(execFileImpl, [
+    'diff',
+    '--name-only',
+    baselineMainSha,
+    release,
+  ]);
+  assertRollbackDiffAllowlisted(diffOutput);
+  return { binding, baselineMainSha, plannedPrHeadSha, mode: 'rollback' };
+}
+
 function parseArguments(args, expectedKeys) {
   if (args.length !== expectedKeys.length * 2) fail('arguments are invalid');
   const parsed = {};
@@ -599,6 +894,31 @@ async function main() {
       planSha256: options['--plan-sha256'],
     });
     console.log('Release baseline binding verified.');
+    return;
+  }
+  if (command === 'verify-baseline-artifact') {
+    const options = parseArguments(args, ['--baseline-evidence-b64', '--release-mode']);
+    await verifyBaselineArtifact({
+      baselineEvidenceB64: options['--baseline-evidence-b64'],
+      releaseMode: options['--release-mode'],
+    });
+    console.log('Release baseline artifact identity verified.');
+    return;
+  }
+  if (command === 'verify-baseline-consumption') {
+    const options = parseArguments(args, [
+      '--baseline-evidence-b64',
+      '--release-mode',
+      '--expected-sha',
+      '--context-file',
+    ]);
+    await verifyBaselineConsumption({
+      baselineEvidenceB64: options['--baseline-evidence-b64'],
+      releaseMode: options['--release-mode'],
+      releaseSha: options['--expected-sha'],
+      contextPath: options['--context-file'],
+    });
+    console.log('Release baseline consumption verified.');
     return;
   }
   if (command === 'capture-provider') {

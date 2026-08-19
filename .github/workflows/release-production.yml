@@ -7,12 +7,12 @@ on:
         description: Exact current main SHA to release
         type: string
         required: true
-      deployment_url:
-        description: Legacy compatibility input; ignored by governed release
-        type: string
-        required: false
       operator_evidence_b64:
         description: Base64-encoded redacted fund and capital worker health/readiness evidence
+        type: string
+        required: true
+      baseline_evidence_b64:
+        description: Base64-encoded exact pre-merge baseline identity (run, attempt, artifact, digests; rollback PR pair in rollback mode)
         type: string
         required: true
       release_mode:
@@ -88,6 +88,72 @@ jobs:
           fi
           echo "log_window_start=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
 
+  baseline-policy-preflight:
+    name: Baseline Policy Preflight
+    needs: validate-target
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: Production
+    # The only job allowed to read protected provider IDs and residue policy
+    # variables pre-mutation; pull-requests read proves exact PR head/merge
+    # metadata. It performs no provider, database, or repository mutation.
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    steps:
+      - name: Checkout exact release verifier
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.expected_sha }}
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+
+      - name: Verify exact baseline artifact identity
+        env:
+          BASELINE_EVIDENCE_B64: ${{ inputs.baseline_evidence_b64 }}
+          RELEASE_MODE: ${{ inputs.release_mode }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          : "${BASELINE_EVIDENCE_B64:?BASELINE_EVIDENCE_B64 is required}"
+          : "${RELEASE_MODE:?RELEASE_MODE is required}"
+          node scripts/release/capture-release-recovery-context.mjs verify-baseline-artifact \
+            --baseline-evidence-b64 "$BASELINE_EVIDENCE_B64" \
+            --release-mode "$RELEASE_MODE"
+
+      - name: Download exact baseline artifact by ID
+        env:
+          BASELINE_EVIDENCE_B64: ${{ inputs.baseline_evidence_b64 }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          ARTIFACT_ID="$(node -e 'const binding = JSON.parse(Buffer.from(process.env.BASELINE_EVIDENCE_B64 ?? "", "base64").toString("utf8")); const id = String(binding.baselineArtifactId ?? ""); if (!/^[1-9][0-9]{0,31}$/.test(id)) { console.error("baseline artifact ID is invalid"); process.exit(1); } console.log(id);')"
+          gh api "repos/${REPO}/actions/artifacts/${ARTIFACT_ID}/zip" > "$RUNNER_TEMP/release-baseline.zip"
+          unzip -o "$RUNNER_TEMP/release-baseline.zip" -d "$RUNNER_TEMP/release-baseline"
+          test -f "$RUNNER_TEMP/release-baseline/release-recovery-context-v1.json"
+
+      - name: Verify baseline consumption and release lineage
+        env:
+          BASELINE_EVIDENCE_B64: ${{ inputs.baseline_evidence_b64 }}
+          RELEASE_MODE: ${{ inputs.release_mode }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          : "${EXPECTED_SHA:?EXPECTED_SHA is required}"
+          node scripts/release/capture-release-recovery-context.mjs verify-baseline-consumption \
+            --baseline-evidence-b64 "$BASELINE_EVIDENCE_B64" \
+            --release-mode "$RELEASE_MODE" \
+            --expected-sha "$EXPECTED_SHA" \
+            --context-file "$RUNNER_TEMP/release-baseline/release-recovery-context-v1.json"
+
+      - name: Remove baseline context evidence
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/release-baseline.zip" "$RUNNER_TEMP/release-baseline"
+
   release-proof:
     name: Full Release Proof
     needs: validate-target
@@ -112,7 +178,7 @@ jobs:
   stage-production:
     name: Create Staged Production Deployment
     if: ${{ false }}
-    needs: schema-audit
+    needs: [schema-audit, baseline-policy-preflight]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: Production
@@ -478,13 +544,28 @@ jobs:
           : "${EXPECTED_SHA:?EXPECTED_SHA is required}"
           npx playwright test tests/smoke/production-boundaries.spec.ts --project=production --reporter=line
 
+      - name: Prepare release canary execution window
+        id: canary_window
+        run: |
+          set -euo pipefail
+          CANARY_STARTED_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          RESULT_PATH="$RUNNER_TEMP/release-canary-recovery-handle-v1.json"
+          rm -f "$RESULT_PATH"
+          echo "canary_started_at=$CANARY_STARTED_AT" >> "$GITHUB_OUTPUT"
+          echo "result_path=$RESULT_PATH" >> "$GITHUB_OUTPUT"
+
+      # continue-on-error lets the always-on finalizer bind the exact run to a
+      # terminal state; the finalizer re-fails the job on canary failure.
       - name: Run release canaries
+        id: release_canaries
+        continue-on-error: true
         env:
           PRODUCTION_URL: ${{ needs.validate-deployment.outputs.deployment_url }}
           EXPECTED_SHA: ${{ inputs.expected_sha }}
           CANARY_USERNAME: ${{ secrets.CANARY_USERNAME }}
           CANARY_PASSWORD: ${{ secrets.CANARY_PASSWORD }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          RELEASE_CANARY_RESULT_PATH: ${{ steps.canary_window.outputs.result_path }}
         run: |
           set -euo pipefail
           : "${PRODUCTION_URL:?PRODUCTION_URL is required}"
@@ -492,16 +573,23 @@ jobs:
           : "${CANARY_USERNAME:?CANARY_USERNAME is required}"
           : "${CANARY_PASSWORD:?CANARY_PASSWORD is required}"
           : "${VERCEL_AUTOMATION_BYPASS_SECRET:?VERCEL_AUTOMATION_BYPASS_SECRET is required}"
+          : "${RELEASE_CANARY_RESULT_PATH:?RELEASE_CANARY_RESULT_PATH is required}"
           npx playwright test tests/smoke/release-canaries.spec.ts --project=production --reporter=line
 
       - name: Assert bounded canary residue
-        # The CLI evaluates caps from the runner's process.env via the shared
-        # readCanaryRuntimePolicy; ADR-076 makes GitHub Production variables
-        # the injected source of truth (the earlier step asserts the staged
-        # Vercel runtime carries the same keys).
+        # Always-on finalizer: proves the exact current execution created the
+        # canary run, transitions only that run, then evaluates the global
+        # caps. The CLI evaluates caps from the runner's process.env via the
+        # shared readCanaryRuntimePolicy; ADR-076 makes GitHub Production
+        # variables the injected source of truth (the earlier step asserts the
+        # staged Vercel runtime carries the same keys).
+        if: always()
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
           EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RELEASE_CANARY_RESULT_PATH: ${{ steps.canary_window.outputs.result_path }}
+          CANARY_STARTED_AT: ${{ steps.canary_window.outputs.canary_started_at }}
+          PLAYWRIGHT_OUTCOME: ${{ steps.release_canaries.outcome }}
           RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE }}
           RELEASE_CANARY_MAX_FUND_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_FUND_RESIDUE }}
           RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE: ${{ vars.RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE }}
@@ -530,9 +618,50 @@ jobs:
           : "${RELEASE_CANARY_MAX_REPORTING_RESIDUE:?RELEASE_CANARY_MAX_REPORTING_RESIDUE is required}"
           : "${RELEASE_CANARY_MAX_TOTAL_RESIDUE:?RELEASE_CANARY_MAX_TOTAL_RESIDUE is required}"
           : "${RELEASE_CANARY_TTL_HOURS:?RELEASE_CANARY_TTL_HOURS is required}"
+          : "${RELEASE_CANARY_RESULT_PATH:?RELEASE_CANARY_RESULT_PATH is required}"
+          : "${CANARY_STARTED_AT:?CANARY_STARTED_AT is required}"
+          : "${PLAYWRIGHT_OUTCOME:?PLAYWRIGHT_OUTCOME is required}"
+          if [ ! -f "$RELEASE_CANARY_RESULT_PATH" ]; then
+            echo "::error::Release canary recovery handle is missing; failing closed with no run transition. Never search for a latest run."
+            exit 1
+          fi
+          HANDLE_FIELDS="$(node -e '
+            const fs = require("node:fs");
+            const handle = JSON.parse(fs.readFileSync(process.env.RELEASE_CANARY_RESULT_PATH, "utf8"));
+            const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            const valid =
+              handle && typeof handle === "object" &&
+              handle.schemaVersion === "release-canary-recovery-handle-v1" &&
+              handle.githubRunId === process.env.GITHUB_RUN_ID &&
+              String(handle.githubRunAttempt) === process.env.GITHUB_RUN_ATTEMPT &&
+              handle.releaseSha === process.env.EXPECTED_SHA &&
+              Number.isSafeInteger(handle.fundId) && handle.fundId >= 1 &&
+              typeof handle.canaryRunId === "string" && uuid.test(handle.canaryRunId);
+            if (!valid) {
+              console.error("Release canary recovery handle does not match this exact workflow execution.");
+              process.exit(1);
+            }
+            console.log(handle.fundId + " " + handle.canaryRunId);
+          ')"
+          read -r RELEASE_CANARY_FUND_ID RELEASE_CANARY_RUN_ID <<< "$HANDLE_FIELDS"
+          if [ "$PLAYWRIGHT_OUTCOME" = "success" ]; then
+            TRANSITION_FLAG="--complete-current-run"
+          else
+            TRANSITION_FLAG="--fail-current-run"
+          fi
           node scripts/release/assert-canary-residue.mjs \
             --expected-sha "$EXPECTED_SHA" \
-            --reconcile-expected-sha
+            --expected-fund-id "$RELEASE_CANARY_FUND_ID" \
+            --expected-canary-run-id "$RELEASE_CANARY_RUN_ID" \
+            --github-run-id "$GITHUB_RUN_ID" \
+            --github-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --started-at "$CANARY_STARTED_AT" \
+            --max-clock-skew-seconds 300 \
+            "$TRANSITION_FLAG"
+          if [ "$PLAYWRIGHT_OUTCOME" != "success" ]; then
+            echo "::error::Release canaries failed; the exact run was finalized as failed."
+            exit 1
+          fi
 
   staged-provider-identity:
     name: Reverify Staged Provider Identity

@@ -5194,6 +5194,7 @@ describe('required CI fails closed', () => {
     expect(Object.keys(releaseWorkflow.jobs ?? {})).toEqual([
       'production-mutation-block',
       'validate-target',
+      'baseline-policy-preflight',
       'release-proof',
       'schema-audit',
       'stage-production',
@@ -5234,9 +5235,14 @@ describe('required CI fails closed', () => {
         } | undefined
     )?.inputs;
     expect(dispatchInputs?.expected_sha?.required).toBe(true);
-    expect(dispatchInputs?.deployment_url?.required).toBe(false);
+    // The legacy deployment_url input was retired to stay inside GitHub's
+    // ten-input workflow_dispatch cap when baseline_evidence_b64 landed.
+    expect(dispatchInputs?.deployment_url).toBeUndefined();
+    expect(Object.keys(dispatchInputs ?? {})).toHaveLength(10);
     expect(dispatchInputs?.operator_evidence_b64?.required).toBe(true);
     expect(dispatchInputs?.operator_evidence_b64?.type).toBe('string');
+    expect(dispatchInputs?.baseline_evidence_b64?.required).toBe(true);
+    expect(dispatchInputs?.baseline_evidence_b64?.type).toBe('string');
     expect(dispatchInputs?.release_mode).toMatchObject({
       required: true,
       type: 'choice',
@@ -5262,8 +5268,52 @@ describe('required CI fails closed', () => {
       options: ['1'],
     });
 
+    const baselinePreflight = releaseWorkflow.jobs?.['baseline-policy-preflight'];
+    expect(normalizeNeeds(baselinePreflight?.needs)).toEqual(['validate-target']);
+    expect(baselinePreflight?.environment).toBe('Production');
+    // Exactly these read scopes on exactly this job; pull-requests read proves
+    // exact PR head/merge metadata. No write permission may exist here and no
+    // repository-wide broadening may substitute for the job-level grant.
+    expect(baselinePreflight?.permissions).toEqual({
+      contents: 'read',
+      actions: 'read',
+      'pull-requests': 'read',
+    });
+    expect(releaseWorkflow.permissions).toEqual({ contents: 'read' });
+    for (const [jobName, job] of Object.entries(releaseWorkflow.jobs ?? {})) {
+      if (jobName === 'baseline-policy-preflight') continue;
+      expect(job.permissions, `job ${jobName} must not carry permissions`).toBeUndefined();
+    }
+    expect(JSON.stringify(baselinePreflight?.permissions ?? {})).not.toMatch(/write/);
+    const baselinePreflightScripts = allRunScripts({
+      jobs: { preflight: baselinePreflight ?? {} },
+    }).join('\n');
+    expect(baselinePreflightScripts).toContain('verify-baseline-artifact');
+    expect(baselinePreflightScripts).toContain('verify-baseline-consumption');
+    expect(baselinePreflightScripts).toContain(
+      '--baseline-evidence-b64 "$BASELINE_EVIDENCE_B64"'
+    );
+    expect(baselinePreflightScripts).toContain('--release-mode "$RELEASE_MODE"');
+    expect(baselinePreflightScripts).toContain(
+      'gh api "repos/${REPO}/actions/artifacts/${ARTIFACT_ID}/zip"'
+    );
+    expect(baselinePreflightScripts).toContain(
+      '--context-file "$RUNNER_TEMP/release-baseline/release-recovery-context-v1.json"'
+    );
+    expect(baselinePreflightScripts).not.toMatch(/vercel|railway\s/i);
+    const preflightCheckout = baselinePreflight?.steps?.find((step) =>
+      step.uses?.startsWith('actions/checkout@')
+    );
+    expect(preflightCheckout?.uses).toBe(
+      'actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0'
+    );
+    expect(preflightCheckout?.with?.ref).toBe('${{ inputs.expected_sha }}');
+
     const stageProduction = releaseWorkflow.jobs?.['stage-production'];
-    expect(normalizeNeeds(stageProduction?.needs)).toEqual(['schema-audit']);
+    expect(normalizeNeeds(stageProduction?.needs)).toEqual([
+      'schema-audit',
+      'baseline-policy-preflight',
+    ]);
     expect(stageProduction?.environment).toBe('Production');
     expect(stageProduction?.outputs?.deployment_url).toBe(
       '${{ steps.deploy.outputs.deployment_url }}'
@@ -5421,6 +5471,9 @@ describe('required CI fails closed', () => {
     const stagedBoundaryIndex = stagedSteps.findIndex(
       (step) => step.name === 'Run authenticated staged smoke'
     );
+    const stagedWindowIndex = stagedSteps.findIndex(
+      (step) => step.name === 'Prepare release canary execution window'
+    );
     const stagedCanaryIndex = stagedSteps.findIndex(
       (step) => step.name === 'Run release canaries'
     );
@@ -5429,9 +5482,20 @@ describe('required CI fails closed', () => {
     );
     expect(stagedPolicyIndex).toBeGreaterThan(-1);
     expect(stagedPolicyIndex).toBeLessThan(stagedBoundaryIndex);
-    expect(stagedCanaryIndex).toBeGreaterThan(stagedBoundaryIndex);
+    expect(stagedWindowIndex).toBeGreaterThan(stagedBoundaryIndex);
+    expect(stagedCanaryIndex).toBe(stagedWindowIndex + 1);
     expect(stagedResidueIndex).toBeGreaterThan(stagedCanaryIndex);
     expect(stagedResidueIndex).toBe(stagedSteps.length - 1);
+
+    const stagedWindow = stagedSteps[stagedWindowIndex];
+    expect(stagedWindow?.id).toBe('canary_window');
+    expect(stagedWindow?.run).toContain("CANARY_STARTED_AT=\"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\"");
+    expect(stagedWindow?.run).toContain(
+      'RESULT_PATH="$RUNNER_TEMP/release-canary-recovery-handle-v1.json"'
+    );
+    expect(stagedWindow?.run).toContain('rm -f "$RESULT_PATH"');
+    expect(stagedWindow?.run).toContain('canary_started_at=$CANARY_STARTED_AT');
+    expect(stagedWindow?.run).toContain('result_path=$RESULT_PATH');
 
     const stagedPolicy = stagedSteps[stagedPolicyIndex];
     expect(stagedPolicy?.env?.VERCEL_TOKEN).toBe('${{ secrets.VERCEL_TOKEN }}');
@@ -5459,6 +5523,10 @@ describe('required CI fails closed', () => {
     expect(stagedPolicy?.run).not.toContain('entry.value');
 
     const stagedCanary = stagedSteps[stagedCanaryIndex];
+    expect(stagedCanary?.id).toBe('release_canaries');
+    // continue-on-error exists solely so the always-on finalizer below can
+    // bind the exact run terminal; the finalizer re-fails the job.
+    expect(stagedCanary?.['continue-on-error']).toBe(true);
     expect(stagedCanary?.env?.PRODUCTION_URL).toBe(
       '${{ needs.validate-deployment.outputs.deployment_url }}'
     );
@@ -5468,7 +5536,13 @@ describe('required CI fails closed', () => {
     expect(stagedCanary?.env?.VERCEL_AUTOMATION_BYPASS_SECRET).toBe(
       '${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}'
     );
+    expect(stagedCanary?.env?.RELEASE_CANARY_RESULT_PATH).toBe(
+      '${{ steps.canary_window.outputs.result_path }}'
+    );
     expect(stagedCanary?.run).toContain('tests/smoke/release-canaries.spec.ts');
+    expect(stagedCanary?.run).toContain(
+      '${RELEASE_CANARY_RESULT_PATH:?RELEASE_CANARY_RESULT_PATH is required}'
+    );
 
     const stagedResidue = stagedSteps[stagedResidueIndex];
     expect(stagedResidue?.env?.DATABASE_URL).toBe('${{ secrets.PRODUCTION_DATABASE_URL }}');
@@ -5492,20 +5566,76 @@ describe('required CI fails closed', () => {
       expect(stagedResidue?.env?.[policyKey]).toBe(`\${{ vars.${policyKey} }}`);
       expect(stagedResidue?.run).toContain(`\${${policyKey}:?${policyKey} is required}`);
     }
+    // The residue step is the always-on finalizer for the exact current
+    // execution: validate the recovery handle, transition only that run, then
+    // evaluate the global caps; a missing handle fails closed with no
+    // transition and no latest-run search.
+    expect(stagedResidue?.if).toBe('always()');
+    expect(stagedResidue?.env?.RELEASE_CANARY_RESULT_PATH).toBe(
+      '${{ steps.canary_window.outputs.result_path }}'
+    );
+    expect(stagedResidue?.env?.CANARY_STARTED_AT).toBe(
+      '${{ steps.canary_window.outputs.canary_started_at }}'
+    );
+    expect(stagedResidue?.env?.PLAYWRIGHT_OUTCOME).toBe(
+      '${{ steps.release_canaries.outcome }}'
+    );
     expect(stagedResidue?.run).toContain('scripts/release/assert-canary-residue.mjs');
     expect(stagedResidue?.run).toContain('--expected-sha "$EXPECTED_SHA"');
-    expect(stagedResidue?.run).toContain('--reconcile-expected-sha');
+    expect(stagedResidue?.run).not.toContain('--reconcile-expected-sha');
+    expect(stagedResidue?.run).not.toContain('--global-only');
+    expect(stagedResidue?.run).toContain('--expected-fund-id "$RELEASE_CANARY_FUND_ID"');
+    expect(stagedResidue?.run).toContain('--expected-canary-run-id "$RELEASE_CANARY_RUN_ID"');
+    expect(stagedResidue?.run).toContain('--github-run-id "$GITHUB_RUN_ID"');
+    expect(stagedResidue?.run).toContain('--github-run-attempt "$GITHUB_RUN_ATTEMPT"');
+    expect(stagedResidue?.run).toContain('--started-at "$CANARY_STARTED_AT"');
+    expect(stagedResidue?.run).toContain('--max-clock-skew-seconds 300');
+    expect(stagedResidue?.run).toContain('"$TRANSITION_FLAG"');
+    expect(stagedResidue?.run).toContain('--complete-current-run');
+    expect(stagedResidue?.run).toContain('--fail-current-run');
+    expect(stagedResidue?.run).toContain(
+      'if [ ! -f "$RELEASE_CANARY_RESULT_PATH" ]; then'
+    );
+    expect(stagedResidue?.run).toContain('Never search for a latest run');
+    expect(stagedResidue?.run).toContain(
+      'handle.githubRunId === process.env.GITHUB_RUN_ID'
+    );
+    expect(stagedResidue?.run).toContain(
+      'String(handle.githubRunAttempt) === process.env.GITHUB_RUN_ATTEMPT'
+    );
+    expect(stagedResidue?.run).toContain('handle.releaseSha === process.env.EXPECTED_SHA');
+    expect(stagedResidue?.run).toContain(
+      'if [ "$PLAYWRIGHT_OUTCOME" != "success" ]; then'
+    );
     const conditionalSteps = Object.values(releaseWorkflow.jobs ?? {}).flatMap((job) =>
       (job.steps ?? []).filter((step) => step.if !== undefined || step['continue-on-error'] !== undefined)
     );
-    expect(conditionalSteps.map((step) => step.name)).toEqual([
-      'Remove staged provider evidence',
-      'Remove decoded operator evidence',
-      'Remove G4 provider evidence',
-      'Remove revalidated operator evidence',
-      'Remove promotion provider evidence',
+    // Every conditional or continue-on-error step across ALL jobs is pinned
+    // exactly; any new conditional step must extend this list deliberately.
+    expect(
+      conditionalSteps.map((step) => ({
+        name: step.name,
+        if: step.if,
+        'continue-on-error': step['continue-on-error'],
+      }))
+    ).toEqual([
+      { name: 'Remove baseline context evidence', if: 'always()', 'continue-on-error': undefined },
+      { name: 'Run release canaries', if: undefined, 'continue-on-error': true },
+      { name: 'Assert bounded canary residue', if: 'always()', 'continue-on-error': undefined },
+      { name: 'Remove staged provider evidence', if: 'always()', 'continue-on-error': undefined },
+      { name: 'Remove decoded operator evidence', if: 'always()', 'continue-on-error': undefined },
+      { name: 'Remove G4 provider evidence', if: 'always()', 'continue-on-error': undefined },
+      {
+        name: 'Remove revalidated operator evidence',
+        if: 'always()',
+        'continue-on-error': undefined,
+      },
+      {
+        name: 'Remove promotion provider evidence',
+        if: 'always()',
+        'continue-on-error': undefined,
+      },
     ]);
-    expect(conditionalSteps.every((step) => step.if === 'always()')).toBe(true);
 
     expect(normalizeNeeds(releaseWorkflow.jobs?.promote?.needs)).toEqual([
       'staged-smoke',
@@ -5848,6 +5978,22 @@ describe('required CI fails closed', () => {
     expect(dispatcher).toContain('expected_sha = $expectedSha');
     expect(dispatcher).toContain('operator_evidence_b64 = $operatorEvidenceB64');
     expect(dispatcher).toContain('release_mode = $ReleaseMode');
+    expect(dispatcher).toContain('baseline_evidence_b64 = $baselineEvidenceB64');
+    expect(dispatcher).toContain("schemaVersion = 'release-baseline-binding-v1'");
+    expect(dispatcher).toContain('baselineRunId = $BaselineRunId');
+    expect(dispatcher).toContain('baselineRunAttempt = [int] $BaselineRunAttempt');
+    expect(dispatcher).toContain('baselineArtifactId = $BaselineArtifactId');
+    expect(dispatcher).toContain('baselineArtifactDigest = $BaselineArtifactDigest');
+    expect(dispatcher).toContain('baselineFileSha256 = $BaselineFileSha256');
+    // Cross-mode fence: rollback identity forbidden in primary mode, both
+    // values required in rollback mode.
+    expect(dispatcher).toContain(
+      'RollbackPrNumber and RollbackPrHeadSha are forbidden in primary mode.'
+    );
+    expect(dispatcher).toContain('RollbackPrNumber is required in rollback mode');
+    expect(dispatcher).toContain('RollbackPrHeadSha is required in rollback mode');
+    expect(dispatcher).toContain("$baselineBinding['rollbackPrNumber'] = [int] $RollbackPrNumber");
+    expect(dispatcher).toContain("$baselineBinding['rollbackPrHeadSha'] = $RollbackPrHeadSha");
     for (const field of [
       'schema_apply_run_id',
       'schema_apply_run_attempt',
@@ -5881,11 +6027,129 @@ describe('required CI fails closed', () => {
       'SchemaApplyReceiptFileSha256',
       'SchemaPrecursorSha',
       'ReleaseMode',
+      'BaselineRunId',
+      'BaselineRunAttempt',
+      'BaselineArtifactId',
+      'BaselineArtifactDigest',
+      'BaselineFileSha256',
+      'RollbackPrNumber',
+      'RollbackPrHeadSha',
     ]) {
       expect(dispatcher).toContain(`[string] $${parameter}`);
     }
     expect(dispatcher).toContain("[ValidateSet('primary', 'rollback')]");
+    expect(dispatcher).toContain("[ValidatePattern('^sha256:[a-f0-9]{64}$')]");
     expect(containsProductionVercelCommand(dispatcher)).toBe(false);
+  });
+
+  it('hardens release-canary recovery as an exact-identity database surface', async () => {
+    const workflow = await readWorkflow('release-canary-recovery.yml');
+    expect(Object.keys(workflow.on ?? {})).toEqual(['workflow_dispatch']);
+    const dispatch = workflow.on?.workflow_dispatch as
+      | { inputs?: Record<string, { required?: boolean; type?: string }> }
+      | undefined;
+    // Typed inputs mirror the recovery CLI flags exactly.
+    expect(Object.keys(dispatch?.inputs ?? {})).toEqual([
+      'github_run_id',
+      'github_run_attempt',
+      'expected_sha',
+      'fund_id',
+      'canary_run_id',
+    ]);
+    for (const [name, input] of Object.entries(dispatch?.inputs ?? {})) {
+      expect(input?.required, `input ${name} must be required`).toBe(true);
+      expect(input?.type, `input ${name} must be a string`).toBe('string');
+    }
+
+    // Least privilege and release-shared serialization: recovery queues
+    // behind a running release and can never cancel one mid-mutation.
+    expect(workflow.permissions).toEqual({ contents: 'read' });
+    expect(workflow.concurrency).toEqual({
+      group: 'release-production',
+      'cancel-in-progress': false,
+    });
+
+    expect(Object.keys(workflow.jobs ?? {})).toEqual(['recover-canary-run']);
+    const job = workflow.jobs?.['recover-canary-run'];
+    // Main-ref fence: a modified branch copy cannot run with environment
+    // secrets.
+    expect(job?.if).toBe("github.ref == 'refs/heads/main'");
+    expect(job?.environment).toBe('Production');
+    expect(job?.['timeout-minutes']).toBe(15);
+    expect(job?.permissions).toBeUndefined();
+
+    // DATABASE_URL is scoped to exactly the three database-consuming steps —
+    // never workflow- or job-level env.
+    expect((workflow as { env?: unknown }).env).toBeUndefined();
+    expect((job as { env?: unknown } | undefined)?.env).toBeUndefined();
+    const databaseSteps = (job?.steps ?? []).filter(
+      (step) => step.env?.DATABASE_URL !== undefined
+    );
+    expect(databaseSteps.map((step) => step.name)).toEqual([
+      'Resolve exact workflow execution',
+      'Mark exact run failed',
+      'Assert bounded canary residue after recovery',
+    ]);
+    for (const step of databaseSteps) {
+      expect(step.env?.DATABASE_URL).toBe('${{ secrets.PRODUCTION_DATABASE_URL }}');
+    }
+
+    // Command allowlist: only the fixed resolve, mark-failed, and residue
+    // assertion invocations run, and no typed input is interpolated into
+    // arbitrary shell — inputs reach commands only through env indirection.
+    const scripts = allRunScripts(workflow).join('\n');
+    expect(scripts).toContain('node scripts/release/recover-canary-run.mjs resolve');
+    expect(scripts).toContain('node scripts/release/recover-canary-run.mjs mark-failed');
+    expect(scripts).toContain('node scripts/release/assert-canary-residue.mjs');
+    expect(scripts).toContain('--global-only');
+    expect(scripts).toContain('--github-run-id "$RECOVERY_RUN_ID"');
+    expect(scripts).toContain('--github-run-attempt "$RECOVERY_RUN_ATTEMPT"');
+    expect(scripts).toContain('--fund-id "$RECOVERY_FUND_ID"');
+    expect(scripts).toContain('--canary-run-id "$RECOVERY_CANARY_RUN_ID"');
+    expect(scripts).toContain('--expected-sha "$EXPECTED_SHA"');
+    for (const step of job?.steps ?? []) {
+      expect(step.run ?? '').not.toContain('${{');
+    }
+
+    // Database state-transition surface only: no provider credentials, no
+    // provider mutation, no purge, and no second release dispatcher.
+    const serialized = JSON.stringify(workflow);
+    for (const credential of [
+      'VERCEL_TOKEN',
+      'RAILWAY_TOKEN',
+      'VERCEL_AUTOMATION_BYPASS_SECRET',
+    ]) {
+      expect(serialized).not.toContain(credential);
+    }
+    expect(scripts).not.toMatch(/vercel|railway/i);
+    expect(scripts).not.toContain('purge');
+    expect(scripts).not.toContain('gh workflow run');
+    expect(scripts).not.toContain('release-production.yml');
+
+    // The post-recovery residue assertion is required in the same job and
+    // tolerates only the expected-SHA completion failure (exit 3).
+    const residueStep = (job?.steps ?? []).find(
+      (step) => step.name === 'Assert bounded canary residue after recovery'
+    );
+    expect(residueStep?.run).toContain('residue_exit=${PIPESTATUS[0]}');
+    expect(residueStep?.run).toContain(
+      'if [ "$residue_exit" -ne 0 ] && [ "$residue_exit" -ne 3 ]; then'
+    );
+
+    const conditionals = (job?.steps ?? []).filter(
+      (step) => step.if !== undefined || step['continue-on-error'] !== undefined
+    );
+    expect(
+      conditionals.map((step) => ({ name: step.name, if: step.if }))
+    ).toEqual([
+      { name: 'Upload sanitized recovery outcome', if: 'always()' },
+      { name: 'Remove local recovery evidence', if: 'always()' },
+    ]);
+    const upload = (job?.steps ?? []).find((step) =>
+      step.uses?.startsWith('actions/upload-artifact@')
+    );
+    expect(upload?.with?.['retention-days']).toBe(30);
+    expect(String(upload?.with?.path ?? '')).not.toContain('DATABASE');
   });
 
   // --- Retro follow-up: authority-vs-reporting boundary enumeration ----------

@@ -51,7 +51,12 @@ These PowerShell scripts automate the entire deployment pipeline:
   -SchemaApplyArtifactId <artifact-id> `
   -SchemaApplyArtifactDigest sha256:<64-lowercase-hex> `
   -SchemaApplyReceiptFileSha256 <64-lowercase-hex> `
-  -SchemaPrecursorSha <40-lowercase-hex>
+  -SchemaPrecursorSha <40-lowercase-hex> `
+  -BaselineRunId <baseline-run-id> `
+  -BaselineRunAttempt <baseline-run-attempt> `
+  -BaselineArtifactId <baseline-artifact-id> `
+  -BaselineArtifactDigest sha256:<64-lowercase-hex> `
+  -BaselineFileSha256 <64-lowercase-hex>
 ```
 
 ---
@@ -244,15 +249,31 @@ post-promotion smoke.
   -SchemaApplyArtifactId <artifact-id> `
   -SchemaApplyArtifactDigest sha256:<64-lowercase-hex> `
   -SchemaApplyReceiptFileSha256 <64-lowercase-hex> `
-  -SchemaPrecursorSha <40-lowercase-hex>
+  -SchemaPrecursorSha <40-lowercase-hex> `
+  -BaselineRunId <baseline-run-id> `
+  -BaselineRunAttempt <baseline-run-attempt> `
+  -BaselineArtifactId <baseline-artifact-id> `
+  -BaselineArtifactDigest sha256:<64-lowercase-hex> `
+  -BaselineFileSha256 <64-lowercase-hex>
 ```
+
+The five mandatory `-Baseline*` parameters name the exact
+`Capture Release Baseline` execution: its run ID and attempt, the uploaded
+artifact ID and digest, and the recomputed context-file SHA-256. They are
+encoded into one compact `baseline_evidence_b64` input (the workflow_dispatch
+surface allows at most ten inputs) that the workflow's
+`baseline-policy-preflight` job decodes and validates field by field. In
+rollback mode, `-RollbackPrNumber` and `-RollbackPrHeadSha` are additionally
+required (and forbidden in primary mode); they name the human-reviewed
+forward-revert PR whose merge commit is the release SHA.
 
 #### What It Does
 
 1. Resolves repository with authenticated GitHub CLI.
 2. Resolves exact live `main` SHA through GitHub API.
 3. Encodes and strictly validates four redacted operator health/readiness files.
-4. Rejects missing or malformed release and schema evidence.
+4. Rejects missing or malformed release, schema, and baseline evidence, and
+   enforces the primary/rollback parameter fence.
 5. Dispatches `release-production.yml` from `main` with compact JSON on stdin.
 
 No skip or force options exist. Script never invokes Vercel production commands;

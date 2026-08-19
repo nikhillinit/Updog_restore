@@ -9,9 +9,20 @@ import { Pool } from 'pg';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
+  CANARY_RESIDUE_EXIT_CODES,
   evaluateCanaryResidue,
+  proveExactCurrentExecution,
+  RELEASE_CANARY_EXACT_RUN_QUERY,
   RELEASE_CANARY_RUNS_QUERY,
+  runCanaryResidueAssertion,
 } from '../../scripts/release/assert-canary-residue.mjs';
+import {
+  RECOVER_CANARY_EXIT_CODES,
+  RECOVER_CANARY_MARK_FAILED_QUERY,
+  RECOVER_CANARY_RESOLVE_QUERY,
+  runCanaryRecovery,
+} from '../../scripts/release/recover-canary-run.mjs';
+import { RELEASE_CANARY_RESERVED_RESIDUE } from '../../shared/contracts/release-canary-residue-characterization-v1.contract';
 import { applyScenarioMigrations } from '../helpers/scenario-migrations';
 import { runMigrationsWithConnectionString } from '../helpers/testcontainers-migration';
 
@@ -593,6 +604,388 @@ describe('release canary local write-path and worker lifecycle', () => {
         } else {
           await active.pool.query('DELETE FROM users WHERE id = $1', [userId]);
         }
+      }
+    },
+    JOB_TIMEOUT_MS + 60_000
+  );
+
+  it(
+    'binds completion, masking rejection, and recovery to the exact workflow execution',
+    async (ctx) => {
+      if (skipReason) {
+        console.warn(`[release-canary-lifecycle] SKIP: ${skipReason}`);
+        ctx.skip();
+        return;
+      }
+      if (!runtime) throw new Error('canary proof runtime was not initialized');
+
+      const active = runtime;
+      const suffix = randomUUID();
+      const username = `release-canary-exact-${suffix}`;
+      const GITHUB_RUN_ID = '424200001';
+      const user = await active.pool.query<{ id: number }>(
+        `INSERT INTO users (username, password, role, is_release_canary_principal)
+         VALUES ($1, 'canary-test-secret', 'partner', true)
+         RETURNING id`,
+        [username]
+      );
+      const userId = user.rows[0]?.id;
+      if (userId === undefined) throw new Error('canary principal was not created');
+
+      const queryExactRunRows = async (fundId: number) =>
+        (await active.pool.query(RELEASE_CANARY_EXACT_RUN_QUERY, [fundId])).rows;
+      const queryGlobalRows = async () => (await active.pool.query(RELEASE_CANARY_RUNS_QUERY)).rows;
+
+      let fundAId: number | undefined;
+      let runAId: string | undefined;
+      let fundBId: number | undefined;
+      let runBId: string | undefined;
+      let ordinaryFundId: number | undefined;
+      let oldRunId: string | undefined;
+      try {
+        const [{ FundPersistenceService }, { transitionReleaseCanaryRun }] = await Promise.all([
+          import('../../server/services/fund-persistence-service'),
+          import('../../server/services/canary-residue-service'),
+        ]);
+        const fundPersistence = new FundPersistenceService();
+        const startedAt = new Date().toISOString();
+
+        const createdA = await fundPersistence.createFundWithInitialDraft(
+          {
+            name: `T8 exact fund A ${suffix}`,
+            size: '100000000.00',
+            managementFee: '0.0200',
+            carryPercentage: '0.2000',
+            vintageYear: 2026,
+            creatorUserId: userId,
+            canaryExecutionIdentity: { workflowRunId: GITHUB_RUN_ID, workflowRunAttempt: '1' },
+          },
+          { fundName: `T8 exact fund A ${suffix}` }
+        );
+        fundAId = createdA.fund.id;
+        runAId = createdA.fund.canaryRunId ?? undefined;
+        if (runAId === undefined) throw new Error('canary fund A did not carry a run id');
+
+        const storedIdentity = await active.pool.query<{
+          workflow_run_id: string | null;
+          workflow_run_attempt: number | null;
+        }>('SELECT workflow_run_id, workflow_run_attempt FROM release_canary_runs WHERE id = $1', [
+          runAId,
+        ]);
+        expect(storedIdentity.rows[0]).toEqual({
+          workflow_run_id: GITHUB_RUN_ID,
+          workflow_run_attempt: 1,
+        });
+
+        // The exact-run join returns exactly one fully-proven row.
+        const exactRows = await queryExactRunRows(fundAId);
+        expect(exactRows).toHaveLength(1);
+        const proofInputs = {
+          rows: exactRows,
+          expectedFundId: fundAId,
+          expectedCanaryRunId: runAId,
+          githubRunId: GITHUB_RUN_ID,
+          githubRunAttempt: 1,
+          expectedSha: CANARY_SHA,
+          startedAt,
+          maxClockSkewSeconds: 300,
+          terminalStatus: 'completed',
+        };
+        expect(proveExactCurrentExecution(proofInputs)).toMatchObject({
+          runId: runAId,
+          runStatus: 'created',
+        });
+
+        // Rejection matrix over the real joined row.
+        expect(() =>
+          proveExactCurrentExecution({ ...proofInputs, expectedSha: 'b'.repeat(40) })
+        ).toThrow(/release SHA/);
+        expect(() =>
+          proveExactCurrentExecution({ ...proofInputs, githubRunAttempt: 2 })
+        ).toThrow(/attempt/);
+        expect(() =>
+          proveExactCurrentExecution({ ...proofInputs, githubRunId: '999999999' })
+        ).toThrow(/workflow run ID/);
+        expect(() =>
+          proveExactCurrentExecution({ ...proofInputs, expectedCanaryRunId: randomUUID() })
+        ).toThrow(/canary run/);
+        // Clock-skew window: both exact boundaries accepted, one beyond each
+        // rejected. The stored createdAt anchors the boundary computation.
+        const createdAtMs = new Date(exactRows[0].runCreatedAt as string | Date).getTime();
+        expect(
+          proveExactCurrentExecution({
+            ...proofInputs,
+            startedAt: createdAtMs + 300_000,
+            now: createdAtMs + 600_000,
+          })
+        ).toBeTruthy();
+        expect(
+          proveExactCurrentExecution({
+            ...proofInputs,
+            startedAt: createdAtMs,
+            now: createdAtMs - 300_000,
+          })
+        ).toBeTruthy();
+        expect(() =>
+          proveExactCurrentExecution({
+            ...proofInputs,
+            startedAt: createdAtMs + 300_001,
+            now: createdAtMs + 600_000,
+          })
+        ).toThrow(/before the workflow started/);
+        expect(() =>
+          proveExactCurrentExecution({
+            ...proofInputs,
+            startedAt: createdAtMs,
+            now: createdAtMs - 300_001,
+          })
+        ).toThrow(/after the verifier time/);
+
+        // Masking scenario: an old completed canary run for the expected SHA
+        // plus an ordinary production fund created during the window must not
+        // let the ordinary fund borrow the old run's completion evidence.
+        const oldRun = await active.pool.query<{ id: string }>(
+          `INSERT INTO release_canary_runs
+             (release_version, release_sha, deployment_id, worker_deployment_id,
+              correlation_id, principal_user_id, status, version,
+              completed_at, expires_at)
+           VALUES ('t8-old', $1, 'old-deploy', 'old-worker', $2, $3,
+                   'completed', 2, clock_timestamp(), clock_timestamp() + interval '24 hours')
+           RETURNING id`,
+          [CANARY_SHA, randomUUID(), userId]
+        );
+        oldRunId = oldRun.rows[0]?.id;
+        const ordinaryFund = await active.pool.query<{ id: number }>(
+          `INSERT INTO funds (name, size, management_fee, carry_percentage, vintage_year, data_origin)
+           VALUES ($1, '100000000.00', '0.0200', '0.2000', 2026, 'production')
+           RETURNING id`,
+          [`T8 ordinary fund ${suffix}`]
+        );
+        ordinaryFundId = ordinaryFund.rows[0]?.id;
+        if (ordinaryFundId === undefined) throw new Error('ordinary fund was not created');
+
+        const maskingOutput: string[] = [];
+        const maskingExit = await runCanaryResidueAssertion({
+          args: [
+            '--expected-sha', CANARY_SHA,
+            '--expected-fund-id', String(ordinaryFundId),
+            '--expected-canary-run-id', runAId,
+            '--github-run-id', GITHUB_RUN_ID,
+            '--github-run-attempt', '1',
+            '--started-at', startedAt,
+            '--max-clock-skew-seconds', '300',
+            '--complete-current-run',
+          ],
+          env: process.env,
+          readRuntimePolicy: () => ({ ...CANARY_POLICY }),
+          readReservedResidue: () => RELEASE_CANARY_RESERVED_RESIDUE,
+          queryExactRunRows,
+          queryRows: queryGlobalRows,
+          transitionRun: transitionReleaseCanaryRun as never,
+          output: (line: string) => maskingOutput.push(line),
+          errorOutput: () => undefined,
+        });
+        expect(maskingExit).toBe(CANARY_RESIDUE_EXIT_CODES.EXACT_RUN_FAILURE);
+        expect(JSON.parse(maskingOutput[0] ?? '{}')).toMatchObject({
+          verdict: 'exact-run-failure',
+        });
+        const runAAfterMasking = await active.pool.query<{ status: string }>(
+          'SELECT status FROM release_canary_runs WHERE id = $1',
+          [runAId]
+        );
+        // No finalizer path fell back to a latest-run search or SHA-wide
+        // update: the exact run is untouched.
+        expect(runAAfterMasking.rows[0]?.status).toBe('created');
+
+        // Stale version fences the transition.
+        await expect(
+          transitionReleaseCanaryRun(runAId, 'completed', 99, ['created', 'running'])
+        ).rejects.toMatchObject({ name: 'CanaryRunTransitionConflictError' });
+
+        // Exact completion for the true current execution succeeds end to end.
+        const completeOutput: string[] = [];
+        const completeExit = await runCanaryResidueAssertion({
+          args: [
+            '--expected-sha', CANARY_SHA,
+            '--expected-fund-id', String(fundAId),
+            '--expected-canary-run-id', runAId,
+            '--github-run-id', GITHUB_RUN_ID,
+            '--github-run-attempt', '1',
+            '--started-at', startedAt,
+            '--max-clock-skew-seconds', '300',
+            '--complete-current-run',
+          ],
+          env: process.env,
+          readRuntimePolicy: () => ({ ...CANARY_POLICY }),
+          readReservedResidue: () => RELEASE_CANARY_RESERVED_RESIDUE,
+          queryExactRunRows,
+          queryRows: queryGlobalRows,
+          transitionRun: transitionReleaseCanaryRun as never,
+          output: (line: string) => completeOutput.push(line),
+          errorOutput: () => undefined,
+        });
+        expect(completeExit).toBe(CANARY_RESIDUE_EXIT_CODES.SUCCESS);
+        expect(JSON.parse(completeOutput[0] ?? '{}')).toMatchObject({ verdict: 'pass' });
+        const runACompleted = await active.pool.query<{ status: string }>(
+          'SELECT status FROM release_canary_runs WHERE id = $1',
+          [runAId]
+        );
+        expect(runACompleted.rows[0]?.status).toBe('completed');
+
+        // A completed run refuses the opposite terminal status.
+        await expect(
+          transitionReleaseCanaryRun(runAId, 'failed', 2, ['created', 'running'])
+        ).rejects.toMatchObject({ name: 'CanaryRunTransitionConflictError' });
+
+        // Cancellation-recovery path: a second execution's fund is created,
+        // the workflow is hard-cancelled before finalization, and recovery
+        // resolves the exact execution and fails it by full handle.
+        const createdB = await fundPersistence.createFundWithInitialDraft(
+          {
+            name: `T8 exact fund B ${suffix}`,
+            size: '100000000.00',
+            managementFee: '0.0200',
+            carryPercentage: '0.2000',
+            vintageYear: 2026,
+            creatorUserId: userId,
+            canaryExecutionIdentity: { workflowRunId: GITHUB_RUN_ID, workflowRunAttempt: '2' },
+          },
+          { fundName: `T8 exact fund B ${suffix}` }
+        );
+        fundBId = createdB.fund.id;
+        runBId = createdB.fund.canaryRunId ?? undefined;
+        if (runBId === undefined) throw new Error('canary fund B did not carry a run id');
+
+        const queryResolveRows = async (githubRunId: string, githubRunAttempt: number) =>
+          (await active.pool.query(RECOVER_CANARY_RESOLVE_QUERY, [githubRunId, githubRunAttempt]))
+            .rows;
+        const queryMarkFailedRows = async (
+          fundId: number,
+          githubRunId: string,
+          githubRunAttempt: number
+        ) =>
+          (
+            await active.pool.query(RECOVER_CANARY_MARK_FAILED_QUERY, [
+              fundId,
+              githubRunId,
+              githubRunAttempt,
+            ])
+          ).rows;
+
+        const resolveOutput: string[] = [];
+        const resolveExit = await runCanaryRecovery({
+          args: [
+            'resolve',
+            '--github-run-id', GITHUB_RUN_ID,
+            '--github-run-attempt', '2',
+            '--expected-sha', CANARY_SHA,
+          ],
+          env: process.env,
+          queryResolveRows,
+          output: (line: string) => resolveOutput.push(line),
+          errorOutput: () => undefined,
+        });
+        expect(resolveExit).toBe(RECOVER_CANARY_EXIT_CODES.SUCCESS);
+        expect(JSON.parse(resolveOutput[0] ?? '{}')).toEqual({
+          schemaVersion: 'release-canary-recovery-handle-v1',
+          githubRunId: GITHUB_RUN_ID,
+          githubRunAttempt: 2,
+          fundId: fundBId,
+          canaryRunId: runBId,
+          releaseSha: CANARY_SHA,
+        });
+        // The same workflow run with a different attempt resolves nothing.
+        await expect(
+          runCanaryRecovery({
+            args: [
+              'resolve',
+              '--github-run-id', GITHUB_RUN_ID,
+              '--github-run-attempt', '3',
+              '--expected-sha', CANARY_SHA,
+            ],
+            env: process.env,
+            queryResolveRows,
+            output: () => undefined,
+            errorOutput: () => undefined,
+          })
+        ).resolves.toBe(RECOVER_CANARY_EXIT_CODES.RECOVERY_FAILURE);
+
+        const markFailedArgs = [
+          'mark-failed',
+          '--github-run-id', GITHUB_RUN_ID,
+          '--github-run-attempt', '2',
+          '--fund-id', String(fundBId),
+          '--canary-run-id', runBId,
+          '--expected-sha', CANARY_SHA,
+        ];
+        const markFailedOutput: string[] = [];
+        const markFailedExit = await runCanaryRecovery({
+          args: markFailedArgs,
+          env: process.env,
+          queryMarkFailedRows,
+          transitionRun: transitionReleaseCanaryRun as never,
+          output: (line: string) => markFailedOutput.push(line),
+          errorOutput: () => undefined,
+        });
+        expect(markFailedExit).toBe(RECOVER_CANARY_EXIT_CODES.SUCCESS);
+        expect(JSON.parse(markFailedOutput[0] ?? '{}')).toMatchObject({
+          outcome: 'marked-failed',
+          status: 'failed',
+        });
+        const runBFailed = await active.pool.query<{ status: string }>(
+          'SELECT status FROM release_canary_runs WHERE id = $1',
+          [runBId]
+        );
+        expect(runBFailed.rows[0]?.status).toBe('failed');
+
+        // Idempotent repeat verifies the already-failed run as success.
+        const repeatOutput: string[] = [];
+        await expect(
+          runCanaryRecovery({
+            args: markFailedArgs,
+            env: process.env,
+            queryMarkFailedRows,
+            transitionRun: transitionReleaseCanaryRun as never,
+            output: (line: string) => repeatOutput.push(line),
+            errorOutput: () => undefined,
+          })
+        ).resolves.toBe(RECOVER_CANARY_EXIT_CODES.SUCCESS);
+        expect(JSON.parse(repeatOutput[0] ?? '{}')).toMatchObject({ outcome: 'already-failed' });
+
+        // Post-recovery, the read-only global assertion reports the failed
+        // expected-SHA run: the release stays visibly incomplete.
+        const globalOutput: string[] = [];
+        await expect(
+          runCanaryResidueAssertion({
+            args: ['--expected-sha', CANARY_SHA, '--global-only'],
+            env: process.env,
+            readRuntimePolicy: () => ({ ...CANARY_POLICY }),
+            queryRows: queryGlobalRows,
+            output: (line: string) => globalOutput.push(line),
+            errorOutput: () => undefined,
+          })
+        ).resolves.toBe(CANARY_RESIDUE_EXIT_CODES.EXPECTED_SHA_FAILURE);
+        expect(JSON.parse(globalOutput[0] ?? '{}')).toMatchObject({
+          verdict: 'expected-sha-failure',
+        });
+      } finally {
+        if (fundBId !== undefined && runBId !== undefined) {
+          await deleteCanaryFixtures(active.pool, fundBId, runBId, userId).catch(() => undefined);
+        }
+        if (fundAId !== undefined && runAId !== undefined) {
+          await deleteCanaryFixtures(active.pool, fundAId, runAId, userId).catch(() => undefined);
+        }
+        if (ordinaryFundId !== undefined) {
+          await active.pool
+            .query('DELETE FROM funds WHERE id = $1', [ordinaryFundId])
+            .catch(() => undefined);
+        }
+        if (oldRunId !== undefined) {
+          await active.pool
+            .query('DELETE FROM release_canary_runs WHERE id = $1', [oldRunId])
+            .catch(() => undefined);
+        }
+        await active.pool.query('DELETE FROM users WHERE id = $1', [userId]).catch(() => undefined);
       }
     },
     JOB_TIMEOUT_MS + 60_000

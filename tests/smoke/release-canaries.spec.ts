@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { rename, rm, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 
 import { expect, request, test, type APIRequestContext, type APIResponse } from '@playwright/test';
 
@@ -32,6 +34,12 @@ const EXPECTED_SHA = requiredEnvironment('EXPECTED_SHA');
 const CANARY_USERNAME = requiredEnvironment('CANARY_USERNAME');
 const CANARY_PASSWORD = requiredEnvironment('CANARY_PASSWORD');
 const VERCEL_AUTOMATION_BYPASS_SECRET = requiredEnvironment('VERCEL_AUTOMATION_BYPASS_SECRET');
+// The exact current workflow execution identity and the recovery-handle result
+// path are as mandatory as the credentials: without them a cancelled run could
+// never be recovered by exact identity.
+const RELEASE_CANARY_RESULT_PATH = requiredEnvironment('RELEASE_CANARY_RESULT_PATH');
+const GITHUB_RUN_ID = requiredEnvironment('GITHUB_RUN_ID');
+const GITHUB_RUN_ATTEMPT = requiredEnvironment('GITHUB_RUN_ATTEMPT');
 
 if (PRODUCTION_URL) {
   if (!/^[0-9a-f]{40}$/.test(EXPECTED_SHA)) {
@@ -41,6 +49,12 @@ if (PRODUCTION_URL) {
     new URL(PRODUCTION_URL);
   } catch {
     throw new Error('[release-canaries] PRODUCTION_URL must be an absolute URL');
+  }
+  if (!/^[1-9][0-9]{0,31}$/.test(GITHUB_RUN_ID)) {
+    throw new Error('[release-canaries] GITHUB_RUN_ID must be a decimal GitHub run ID');
+  }
+  if (!/^[1-9][0-9]{0,8}$/.test(GITHUB_RUN_ATTEMPT)) {
+    throw new Error('[release-canaries] GITHUB_RUN_ATTEMPT must be a positive integer');
   }
 }
 
@@ -256,6 +270,55 @@ function requireClient(client: ReleaseCanaryClient | undefined): ReleaseCanaryCl
   return client;
 }
 
+type ReleaseCanaryRecoveryHandleV1 = {
+  schemaVersion: 'release-canary-recovery-handle-v1';
+  githubRunId: string;
+  githubRunAttempt: number;
+  fundId: number;
+  canaryRunId: string;
+  releaseSha: string;
+};
+
+/**
+ * Persist the exact-execution recovery handle before finalize so a hard
+ * cancellation between fund creation and finalization stays recoverable by
+ * exact workflow run/attempt. The handle carries no credentials or evidence.
+ */
+async function persistRecoveryHandle(fundId: number, canaryRunId: string): Promise<void> {
+  if (!Number.isSafeInteger(fundId) || fundId < 1) {
+    throw new Error('[release-canaries] recovery handle fund ID must be a positive integer');
+  }
+  requiredUuid(canaryRunId, 'recovery handle canary run ID');
+  if (!/^[1-9][0-9]{0,31}$/.test(GITHUB_RUN_ID) || !/^[1-9][0-9]{0,8}$/.test(GITHUB_RUN_ATTEMPT)) {
+    throw new Error('[release-canaries] recovery handle workflow execution identity is malformed');
+  }
+  if (!/^[0-9a-f]{40}$/.test(EXPECTED_SHA)) {
+    throw new Error('[release-canaries] recovery handle release SHA must be 40 lowercase hex');
+  }
+
+  const handle: ReleaseCanaryRecoveryHandleV1 = {
+    schemaVersion: 'release-canary-recovery-handle-v1',
+    githubRunId: GITHUB_RUN_ID,
+    githubRunAttempt: Number(GITHUB_RUN_ATTEMPT),
+    fundId,
+    canaryRunId,
+    releaseSha: EXPECTED_SHA,
+  };
+
+  const temporaryPath = join(
+    dirname(RELEASE_CANARY_RESULT_PATH),
+    `.release-canary-recovery-${randomUUID()}.tmp`
+  );
+  await writeFile(temporaryPath, `${JSON.stringify(handle)}\n`, { mode: 0o600 });
+  try {
+    await rename(temporaryPath, RELEASE_CANARY_RESULT_PATH);
+  } catch (error) {
+    await rm(temporaryPath, { force: true });
+    throw error;
+  }
+  console.warn(`RELEASE_CANARY_RECOVERY_V1 ${JSON.stringify(handle)}`);
+}
+
 async function waitForAuthoritativeResults(
   client: ReleaseCanaryClient,
   fundId: number
@@ -410,7 +473,11 @@ test.describe('release mutation canaries', () => {
     const fundSize = 1_000_000;
     const vintageYear = new Date().getUTCFullYear();
     const createResponse = await api.call('POST', ROUTES.fundCreate, 'canary1.create-fund', {
-      headers: { 'Idempotency-Key': `g4-release-canary-create-${randomUUID()}` },
+      headers: {
+        'Idempotency-Key': `g4-release-canary-create-${randomUUID()}`,
+        'Release-Canary-Workflow-Run-Id': GITHUB_RUN_ID,
+        'Release-Canary-Workflow-Run-Attempt': GITHUB_RUN_ATTEMPT,
+      },
       data: {
         name: fundName,
         size: fundSize,
@@ -424,6 +491,14 @@ test.describe('release mutation canaries', () => {
     expect(createBody['success']).toBe(true);
     const createdFund = requiredObject(createBody['data'], 'created fund data');
     const createdFundId = requiredPositiveInteger(createdFund['id'], 'created fund ID');
+    const canaryRunId = requiredUuid(
+      createResponse.headers()['release-canary-run-id'],
+      'release canary run ID response header'
+    );
+
+    // Persist the exact-execution recovery handle before finalize; a hard
+    // cancellation from here on is recoverable by exact workflow run/attempt.
+    await persistRecoveryHandle(createdFundId, canaryRunId);
 
     // Creation renews the session credential with the new creator grant.
     await api.refreshCsrf();

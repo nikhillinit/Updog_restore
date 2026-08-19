@@ -57,7 +57,89 @@ function firstNonEmptyEnvironmentValue(keys: readonly string[], fallback: string
   return fallback;
 }
 
-function releaseCanaryRunIdentity(principalUserId: number, ttlHours: number) {
+const WORKFLOW_RUN_ID_PATTERN = /^[1-9][0-9]{0,31}$/;
+const WORKFLOW_RUN_ATTEMPT_PATTERN = /^[1-9][0-9]{0,8}$/;
+
+/** Raw paired execution-identity headers exactly as received on fund creation. */
+export interface CanaryExecutionIdentityHeaders {
+  workflowRunId?: string | undefined;
+  workflowRunAttempt?: string | undefined;
+}
+
+interface CanaryWorkflowExecutionIdentity {
+  workflowRunId: string;
+  workflowRunAttempt: number;
+}
+
+export class ReleaseCanaryExecutionIdentityForbiddenError extends Error {
+  readonly code = 'release_canary_execution_identity_forbidden';
+
+  constructor() {
+    super('Release canary workflow execution identity headers are forbidden for this principal');
+    this.name = 'ReleaseCanaryExecutionIdentityForbiddenError';
+  }
+}
+
+export class ReleaseCanaryExecutionIdentityInvalidError extends Error {
+  readonly code = 'release_canary_execution_identity_invalid';
+
+  constructor(message: string) {
+    super(message);
+    this.name = 'ReleaseCanaryExecutionIdentityInvalidError';
+  }
+}
+
+function headerProvided(value: string | undefined): boolean {
+  return typeof value === 'string';
+}
+
+/**
+ * Resolve the exact workflow execution identity for a release-canary run.
+ * Malformed or half-provided pairs fail before any database write; production
+ * release-canary creation requires the exact pair so the stored run can only
+ * ever prove the workflow execution that created it.
+ */
+function resolveCanaryWorkflowExecutionIdentity(
+  headers: CanaryExecutionIdentityHeaders | undefined,
+  requireIdentity: boolean
+): CanaryWorkflowExecutionIdentity | null {
+  const runIdProvided = headerProvided(headers?.workflowRunId);
+  const runAttemptProvided = headerProvided(headers?.workflowRunAttempt);
+
+  if (!runIdProvided && !runAttemptProvided) {
+    if (requireIdentity) {
+      throw new ReleaseCanaryExecutionIdentityInvalidError(
+        'Release canary creation in production requires both workflow execution identity headers'
+      );
+    }
+    return null;
+  }
+  if (!runIdProvided || !runAttemptProvided) {
+    throw new ReleaseCanaryExecutionIdentityInvalidError(
+      'Release canary workflow execution identity headers must be provided as an exact pair'
+    );
+  }
+
+  const workflowRunId = headers?.workflowRunId ?? '';
+  const workflowRunAttemptRaw = headers?.workflowRunAttempt ?? '';
+  if (!WORKFLOW_RUN_ID_PATTERN.test(workflowRunId)) {
+    throw new ReleaseCanaryExecutionIdentityInvalidError(
+      'Release canary workflow run ID header is malformed'
+    );
+  }
+  if (!WORKFLOW_RUN_ATTEMPT_PATTERN.test(workflowRunAttemptRaw)) {
+    throw new ReleaseCanaryExecutionIdentityInvalidError(
+      'Release canary workflow run attempt header is malformed'
+    );
+  }
+  return { workflowRunId, workflowRunAttempt: Number(workflowRunAttemptRaw) };
+}
+
+function releaseCanaryRunIdentity(
+  principalUserId: number,
+  ttlHours: number,
+  workflowExecution: CanaryWorkflowExecutionIdentity | null
+) {
   const release = getReleaseIdentity();
 
   return {
@@ -72,6 +154,8 @@ function releaseCanaryRunIdentity(principalUserId: number, ttlHours: number) {
       'unassigned-worker'
     ),
     correlationId: randomUUID(),
+    workflowRunId: workflowExecution?.workflowRunId ?? null,
+    workflowRunAttempt: workflowExecution?.workflowRunAttempt ?? null,
     principalUserId,
     status: 'created' as const,
     expiresAt: new Date(Date.now() + ttlHours * 60 * 60 * 1000),
@@ -86,6 +170,7 @@ export interface CreateFundInput {
   vintageYear: number;
   engineResults?: EngineResults | null;
   creatorUserId?: number;
+  canaryExecutionIdentity?: CanaryExecutionIdentityHeaders;
 }
 
 export interface CreateFundResult {
@@ -219,8 +304,20 @@ export class FundPersistenceService {
                 })
               )?.isReleaseCanaryPrincipal === true;
 
+      const identityHeaders = fundInput.canaryExecutionIdentity;
+      const identityHeaderProvided =
+        headerProvided(identityHeaders?.workflowRunId) ||
+        headerProvided(identityHeaders?.workflowRunAttempt);
+      if (!canaryPrincipal && identityHeaderProvided) {
+        throw new ReleaseCanaryExecutionIdentityForbiddenError();
+      }
+
         let canaryRun: { id: string; version: number } | null = null;
       if (canaryPrincipal && fundInput.creatorUserId !== undefined) {
+        const workflowExecution = resolveCanaryWorkflowExecutionIdentity(
+          identityHeaders,
+          process.env['NODE_ENV'] === 'production'
+        );
         await tx.execute(
           sql`SELECT pg_advisory_xact_lock(hashtext('release_canary_creation'))`
         );
@@ -228,7 +325,13 @@ export class FundPersistenceService {
         await preflightCanaryCreation(tx, canaryPolicy);
           const [createdCanaryRun] = await tx
           .insert(releaseCanaryRuns)
-          .values(releaseCanaryRunIdentity(fundInput.creatorUserId, canaryPolicy.ttlHours))
+          .values(
+            releaseCanaryRunIdentity(
+              fundInput.creatorUserId,
+              canaryPolicy.ttlHours,
+              workflowExecution
+            )
+          )
             .returning({ id: releaseCanaryRuns.id, version: releaseCanaryRuns.version });
           if (!createdCanaryRun) throw new Error('Failed to insert release canary run');
           canaryRun = createdCanaryRun;
