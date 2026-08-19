@@ -1234,7 +1234,12 @@ const parseArgs = (argv) => {
   return args;
 };
 
-if (process.argv[1] && path.resolve(process.argv[1]) === thisFile) {
+const guardedInternalInvocation = process.env[CLEAN_ROOM_MARKER] === '1'
+  && process.argv.includes('--internal-clean-room');
+const isDirectEntry = Boolean(process.argv[1])
+  && (path.resolve(process.argv[1]) === thisFile || guardedInternalInvocation);
+
+if (isDirectEntry) {
   const args = parseArgs(process.argv.slice(2));
   const action = () => {
     if (args.internalCleanRoom) {

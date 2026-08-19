@@ -1,6 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
+import { spawnSync } from 'node:child_process';
 
 import { describe, expect, it, vi } from 'vitest';
 
@@ -945,6 +946,32 @@ describe('surface contract matrix boot proof completion gates', () => {
         environment: { ...strictVercelEnvironment, VERCEL_PROJECT_ID: '' },
       })).rejects.toThrow('clean-room HEAD does not match expected source SHA');
       expect(collectProofs).not.toHaveBeenCalled();
+      expect(fs.existsSync(output)).toBe(false);
+    } finally {
+      fs.rmSync(outputDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('executes guarded internal child invocation and fails closed on actual clean-room HEAD mismatch', () => {
+    const outputDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-internal-entry-'));
+    const output = path.join(outputDirectory, 'proof.json');
+    const script = path.join(process.cwd(), 'audit/surface-contract-matrix/scripts/boot-proof.mjs');
+    try {
+      const result = spawnSync(process.execPath, [
+        script,
+        '--internal-clean-room',
+        '--source-sha', 'f'.repeat(40),
+        '--output', output,
+      ], {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+        timeout: 5_000,
+        env: { ...process.env, SURFACE_BOOT_PROOF_INTERNAL_CLEAN_ROOM: '1' },
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('clean-room HEAD does not match expected source SHA');
+      expect(result.stdout).toBe('');
       expect(fs.existsSync(output)).toBe(false);
     } finally {
       fs.rmSync(outputDirectory, { recursive: true, force: true });
