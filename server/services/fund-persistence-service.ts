@@ -219,19 +219,19 @@ export class FundPersistenceService {
                 })
               )?.isReleaseCanaryPrincipal === true;
 
-      let canaryRunId: string | null = null;
+        let canaryRun: { id: string; version: number } | null = null;
       if (canaryPrincipal && fundInput.creatorUserId !== undefined) {
         await tx.execute(
           sql`SELECT pg_advisory_xact_lock(hashtext('release_canary_creation'))`
         );
         const canaryPolicy = readCanaryRuntimePolicy();
         await preflightCanaryCreation(tx, canaryPolicy);
-        const [canaryRun] = await tx
+          const [createdCanaryRun] = await tx
           .insert(releaseCanaryRuns)
           .values(releaseCanaryRunIdentity(fundInput.creatorUserId, canaryPolicy.ttlHours))
-          .returning({ id: releaseCanaryRuns.id });
-        if (!canaryRun) throw new Error('Failed to insert release canary run');
-        canaryRunId = canaryRun.id;
+            .returning({ id: releaseCanaryRuns.id, version: releaseCanaryRuns.version });
+          if (!createdCanaryRun) throw new Error('Failed to insert release canary run');
+          canaryRun = createdCanaryRun;
       }
 
       const [fund] = await tx
@@ -246,7 +246,7 @@ export class FundPersistenceService {
             engineResults: fundInput.engineResults,
           }),
           dataOrigin: canaryPrincipal ? 'release_canary' : 'production',
-          canaryRunId,
+          canaryRunId: canaryRun?.id ?? null,
         })
         .returning();
 
@@ -282,16 +282,16 @@ export class FundPersistenceService {
         },
       });
 
-      if (canaryRunId !== null) {
-        await reconcileReleaseCanaryRun(canaryRunId, tx);
+        if (canaryRun !== null) {
+          await reconcileReleaseCanaryRun(canaryRun.id, canaryRun.version, tx);
       }
 
       return { fund, draft };
     });
   }
 
-  async reconcileCanaryRun(runId: string) {
-    return reconcileReleaseCanaryRun(runId);
+  async reconcileCanaryRun(runId: string, expectedVersion: number) {
+    return reconcileReleaseCanaryRun(runId, expectedVersion);
   }
 
   async allocateNextVersion(fundId: number): Promise<number> {

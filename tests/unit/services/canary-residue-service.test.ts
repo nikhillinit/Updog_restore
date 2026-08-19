@@ -287,7 +287,7 @@ describe('canary residue fail-closed policy', () => {
       .mockResolvedValueOnce({ rows: [countsRow], rowCount: 1 })
       .mockResolvedValueOnce({ rows: [], rowCount: 1 });
 
-    await expect(reconcileReleaseCanaryRun('run-1', { execute })).resolves.toEqual({
+    await expect(reconcileReleaseCanaryRun('run-1', 1, { execute })).resolves.toEqual({
       ...countsRow,
       total: 40,
     });

@@ -220,7 +220,7 @@ describe('FundPersistenceService creator grant transaction', () => {
         },
         insert: vi
           .fn()
-          .mockReturnValueOnce(valuesReturning([{ id: 'canary-run-id' }]))
+      .mockReturnValueOnce(valuesReturning([{ id: 'canary-run-id', version: 1 }]))
           .mockReturnValueOnce(valuesReturning([fund]))
           .mockReturnValueOnce(valuesResolved(undefined))
           .mockReturnValueOnce(valuesReturning([draft]))

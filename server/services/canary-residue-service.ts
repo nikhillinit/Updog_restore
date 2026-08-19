@@ -353,8 +353,12 @@ const RESIDUE_COLUMN_BY_GROUP: Record<CanaryResidueGroup, string> = {
 
 export async function reconcileReleaseCanaryRun(
   runId: string,
+  expectedVersion: number,
   database: SqlExecutor = db
 ): Promise<CanaryResidueCounts> {
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
+    throw new CanaryRunTransitionConflictError('Expected release canary run version is invalid');
+  }
   try {
     const counts = await readResidueCounts(database, runId);
     const assignments = CANARY_RESIDUE_GROUPS.map(
@@ -367,13 +371,19 @@ export async function reconcileReleaseCanaryRun(
           total_residue_count = ${counts.total},
           updated_at = clock_timestamp()
       WHERE id = ${runId}
+        AND version = ${expectedVersion}
     `);
     if (result.rowCount !== 1) {
-      throw new CanaryResiduePreflightError('Release canary run reconciliation target not found');
+      throw new CanaryRunTransitionConflictError('Release canary run reconciliation lost its fence');
     }
     return counts;
   } catch (error) {
-    if (error instanceof CanaryResiduePreflightError) throw error;
+    if (
+      error instanceof CanaryResiduePreflightError ||
+      error instanceof CanaryRunTransitionConflictError
+    ) {
+      throw error;
+    }
     throw new CanaryResiduePreflightError('Release canary residue reconciliation unavailable');
   }
 }
@@ -461,7 +471,7 @@ export async function transitionReleaseCanaryRun(
       );
     }
 
-    const counts = await reconcileReleaseCanaryRun(runId, tx);
+    const counts = await reconcileReleaseCanaryRun(runId, expectedVersion, tx);
     const terminalTimestamp =
       status === 'completed'
         ? sql`completed_at = clock_timestamp(),`
