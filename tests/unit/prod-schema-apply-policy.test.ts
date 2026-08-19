@@ -372,4 +372,22 @@ describe('prod schema apply policy', () => {
       })
     ).toThrow(ReconcileError);
   });
+
+  it('accepts the g3-release-gate-hardening manifest against migration 0053', { retry: 0 }, async () => {
+    // The apply-mode preflight runs this exact validation before touching the
+    // database; a violation here means the governed 0053 apply is guaranteed
+    // to fail on its single permitted attempt. Historical manifests predate
+    // the current policy vocabulary and are not re-validated here.
+    const manifests = await loadManifests();
+    const hardening = manifests.find(
+      (manifest) => manifest.name === 'g3-release-gate-hardening'
+    );
+    expect(hardening).toBeDefined();
+    expect(() =>
+      assertApplyPolicyForManifests({
+        manifests,
+        applyingManifestNames: new Set([hardening!.name]),
+      })
+    ).not.toThrow();
+  });
 });

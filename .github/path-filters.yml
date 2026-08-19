@@ -302,8 +302,9 @@ test_quarantine:
 # deleted files). Covers the files that define the Testcontainers proof lane:
 # every file in the vitest.config.testcontainers.ts include list, the DB
 # builders (journal replay + push), the vitest config, global setup, the
-# workflow, and this filter file itself (so edits to this group must run the
-# proof they gate). Keep in sync with the vitest include list.
+# workflow, this filter file, and canonical Testcontainers list module itself
+# (so edits to this trigger surface must run the proof they gate). Keep in sync
+# with the vitest include list.
 schema_tests:
   - 'migrations/**'
   - 'workers/**'
@@ -313,8 +314,10 @@ schema_tests:
   - 'server/migrations/**'
   - 'scripts/guardrails/server-migrations-new-file.mjs'
   - 'tests/helpers/testcontainers.ts'
+  - 'tests/helpers/testcontainers-migration.ts'
   - 'tests/integration/helpers/run-drizzle-push.ts'
   - 'vitest.config.testcontainers.ts'
+  - 'tests/config/testcontainers-test-paths.mjs'
   - 'tests/setup/global-setup.testcontainers.ts'
   - '.github/workflows/testcontainers-ci.yml'
   - '.github/path-filters.yml'
@@ -322,6 +325,7 @@ schema_tests:
   - 'tests/integration/fund-lifecycle-db.test.ts'
   - 'tests/integration/migration-drift.test.ts'
   - 'tests/integration/prod-schema-clone.test.ts'
+  - 'tests/integration/g3-schema-forward-compatibility.test.ts'
   - 'tests/integration/prod-journaled-migration-recovery.test.ts'
   - 'tests/integration/investment-scenario-capability.test.ts'
   - 'tests/integration/vehicle-financing-participations-real-pg.test.ts'
@@ -388,6 +392,8 @@ schema_tests:
   - 'tests/unit/prod-schema-manifest-sentinels.test.ts'
   - 'tests/unit/prod-schema-apply-policy.test.ts'
   - 'tests/integration/prod-schema-reconcile-partial-drift.test.ts'
+  - 'tests/integration/prod-schema-reconcile-0053-capability.test.ts'
+  - 'tests/integration/prod-schema-reconcile-g3-catchup-capability.test.ts'
   - 'tests/integration/scenarios/scenario-case-seed-persistence.test.ts'
   - 'tests/integration/scenarios/company-scenario-create-persistence.test.ts'
   - '.github/workflows/prod-schema-reconcile.yml'

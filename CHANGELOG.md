@@ -21,6 +21,25 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-08-18)
+
+- **Governance singular-policy consolidation (F_1.2.7, PR A).** The
+  solo-internal policy gains a "Document roles and precedence" section
+  (fails-closed conflict rule, amendment clause, catch-all for unranked
+  artifacts, named production-dispatch issuer, provider-coupling statement,
+  surface-matrix component roles) and absorbs Documentation Governance, the
+  Archive Gate, and Phoenix protected paths from the entry docs. `CLAUDE.md` and
+  `AGENTS.md` are reduced to short entry loaders that route to the policy and
+  keep only always-loaded mandates and pre-action checks; moved operational
+  content now lives in `README.md`. Hierarchy compliance is pinned by a new
+  describe block in `tests/unit/docs/production-governance-routing.test.ts`
+  (loader pointers and parity, loader size ceiling, constitution sections,
+  matrix-plan scope notes, capture-workflow lifecycle contract, and a governance
+  pointer required in all post-adoption plan docs). The PR #1385
+  capture-release-baseline workflow is annotated as a one-time program-scoped
+  artifact (comments only). Plan:
+  `docs/1-plans/F_1.2.7_governance-singular-policy-consolidation.plan.md`.
+
 ### Added (2026-08-07)
 
 - **Governed journaled production recovery and post-promotion driver-log gate

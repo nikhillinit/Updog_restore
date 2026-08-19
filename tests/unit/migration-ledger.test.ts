@@ -63,6 +63,7 @@ const expectedJournaledDriftPatchFiles = [
   '0050_g3_portfolio_and_calculation_schema.sql',
   '0051_g3_canary_schema.sql',
   '0052_g3_capital_call_notification_outbox.sql',
+  '0053_g3_release_gate_hardening.sql',
 ].sort();
 
 afterEach(() => {
@@ -161,6 +162,34 @@ describe('migration ledger helpers', () => {
       tag: '0043_position_source_basis_reliefs',
       breakpoints: true,
     });
+  });
+
+  it('pins G3 release gate hardening to journal index 54 after migration 0052', () => {
+    const rawJournal = JSON.parse(
+      fs.readFileSync(path.join(repoRoot, 'migrations', 'meta', '_journal.json'), 'utf8')
+    ) as {
+      entries: Array<{
+        idx: number;
+        version: string;
+        when: number;
+        tag: string;
+        breakpoints: boolean;
+      }>;
+    };
+    const entry = rawJournal.entries.find(
+      (candidate) => candidate.tag === '0053_g3_release_gate_hardening'
+    );
+
+    expect(entry).toMatchObject({
+      idx: 54,
+      version: '7',
+      when: 1786059600000,
+      tag: '0053_g3_release_gate_hardening',
+      breakpoints: true,
+    });
+    expect(rawJournal.entries.find(
+      (candidate) => candidate.tag === '0052_g3_capital_call_notification_outbox'
+    )?.idx).toBe(53);
   });
 
   // T-A1 (WP-L3 Phase A): the pin asserts THIS migration's OWN journal entry

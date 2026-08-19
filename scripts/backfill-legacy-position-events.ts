@@ -79,6 +79,9 @@ export async function runLegacyPositionBackfillCli(
     printUsage();
     return;
   }
+  if (options.mode !== 'dry_run') {
+    throw new Error('Legacy position backfill mutation is mechanically blocked.');
+  }
   const backfill =
     runner ??
     (await import('../server/services/investment-ledger/legacy-position-backfill-service'))

@@ -5,7 +5,6 @@ import { getTableConfig, PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 
 import * as runtimeSchema from '@shared/schema';
-import * as runtimeSchemaIndex from '@shared/schema/index';
 import {
   quarterlyReviewCommandReceipts,
   quarterlyReviewCompanies,
@@ -30,7 +29,6 @@ const dialect = new PgDialect();
 describe('quarterly review schema', () => {
   it('exports all tables and portfolio composite identity', () => {
     expect(runtimeSchema.quarterlyReviewRosters).toBe(quarterlyReviewRosters);
-    expect(runtimeSchemaIndex.quarterlyReviewRosters).toBe(quarterlyReviewRosters);
     expect(configs.map((config) => config.name)).toEqual([
       'quarterly_review_rosters',
       'quarterly_review_companies',

@@ -157,6 +157,7 @@ describe('prod-schema manifest sentinels', () => {
       '27-g3-portfolio-and-calculation.json',
       '28-g3-canary.json',
       '29-g3-capital-call-notification-outbox.json',
+      '30-g3-release-gate-hardening.json',
     ]);
   });
 
@@ -379,10 +380,19 @@ describe('prod-schema manifest sentinels', () => {
           allowed.expectedDefinition.requiredFragments.length,
           `${file} ${allowed.name} required definition fragments`
         ).toBeGreaterThan(0);
+        // A numeric-only constraint (e.g. the residue-count equality check)
+        // legitimately declares zero string literals; the array must still be
+        // present so the exact multiset comparison stays fail-closed.
         expect(
-          allowed.expectedDefinition.stringLiterals.length,
-          `${file} ${allowed.name} expected string literals`
-        ).toBeGreaterThan(0);
+          Array.isArray(allowed.expectedDefinition.stringLiterals),
+          `${file} ${allowed.name} expected string literals array`
+        ).toBe(true);
+        if (allowed.name !== 'release_canary_runs_residue_count_check') {
+          expect(
+            allowed.expectedDefinition.stringLiterals.length,
+            `${file} ${allowed.name} expected string literals`
+          ).toBeGreaterThan(0);
+        }
       }
     }
   });

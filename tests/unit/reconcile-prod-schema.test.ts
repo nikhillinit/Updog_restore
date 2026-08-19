@@ -11,9 +11,20 @@ import {
   ACTION_APPLY_MISSING_DDL,
   ACTION_REFUSE_FOR_HUMAN,
   ACTION_SKIP,
+  assertPrepared0053G3ReleaseGateHardeningCapability,
+  buildG3CatchupLockTimeApplyVectorV1,
+  buildLockTimeApplyVectorV1,
+  CANONICAL_MANIFEST_IDENTITIES,
+  G3_CATCHUP_TARGETS,
+  prepareG3Catchup0050To0053Capability,
+  selectExactG3Catchup0050To0053Apply,
   MISSING_TABLE_POLICY_CREATE_OR_REPAIR,
   MISSING_TABLE_POLICY_EXISTING_REQUIRED,
   ReconcileError,
+  RECONCILE_LOCK_ID,
+  prepare0053G3ReleaseGateHardeningCapability,
+  parseLockTimeApplyVectorV1,
+  selectExact0053G3ReleaseGateHardeningApply,
   assertApplyConfirmation,
   assertDirectDatabaseUrl,
   assertExpectedDatabase,
@@ -23,6 +34,7 @@ import {
   manifestChecksum,
   parseReconcileArgs,
   runReconciliation,
+  runReconcileCli,
   statementHashes,
   validateDropObjects,
   validateManifestSql,
@@ -61,6 +73,7 @@ interface MockClientOptions {
       }
   )[];
   readonly populatedTables?: readonly string[];
+  readonly advisoryLockAcquired?: boolean;
   /** When true, DROP statements do NOT mutate mock state - simulates a drop
    * that silently fails to take effect, so the post-apply audit must catch it. */
   readonly dropsHaveNoEffect?: boolean;
@@ -171,6 +184,10 @@ function createMockClient(options: MockClientOptions = {}) {
         };
       }
 
+      if (text.includes('FROM pg_trigger') || text.includes('FROM pg_proc')) {
+        return { rows: [], rowCount: 0 };
+      }
+
       if (text.includes('SELECT EXISTS')) {
         const match = text.match(/FROM "([^"]+)"/);
         const tableName = match?.[1] ?? '';
@@ -181,7 +198,7 @@ function createMockClient(options: MockClientOptions = {}) {
       }
 
       if (text === 'SELECT pg_try_advisory_lock($1) AS acquired') {
-        return { rows: [{ acquired: true }], rowCount: 1 };
+        return { rows: [{ acquired: options.advisoryLockAcquired ?? true }], rowCount: 1 };
       }
 
       if (text === 'SELECT pg_advisory_unlock($1)') {
@@ -375,6 +392,710 @@ function definitionAwareConstraintManifest(
 }
 
 describe('reconcile-prod-schema runner helpers', () => {
+  it('pins 0053 capability to canonical manifest and raw migration bytes', async () => {
+    await expect(prepare0053G3ReleaseGateHardeningCapability()).resolves.toMatchObject({
+      manifestPath: 'scripts/prod-schema-manifests/30-g3-release-gate-hardening.json',
+      manifestName: 'g3-release-gate-hardening',
+      sqlPath: 'migrations/0053_g3_release_gate_hardening.sql',
+      migrationSha256: '0a4c00cea6e20982db391be88f143bf4e1d4bc529b68e6b986530fc3354c9ea5',
+    });
+  });
+
+  it('binds capability identities to the pinned canonical vector, not directory contents', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    expect(target.canonicalManifestIdentities).toBe(CANONICAL_MANIFEST_IDENTITIES);
+    expect(CANONICAL_MANIFEST_IDENTITIES).toHaveLength(30);
+    expect(CANONICAL_MANIFEST_IDENTITIES[29]).toMatchObject({
+      name: 'g3-release-gate-hardening',
+      manifestPath: 'scripts/prod-schema-manifests/30-g3-release-gate-hardening.json',
+      order: 30,
+    });
+  });
+
+  it('rejects manifest inventory drift from the pinned identity vector', async () => {
+    const stagedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'reconcile-pinned-inventory-'));
+    const stagedManifestDir = path.join(stagedRoot, 'scripts', 'prod-schema-manifests');
+    const stagedMigrationsDir = path.join(stagedRoot, 'migrations');
+    fs.mkdirSync(stagedManifestDir, { recursive: true });
+    fs.mkdirSync(stagedMigrationsDir, { recursive: true });
+    for (const fileName of fs.readdirSync(path.join('scripts', 'prod-schema-manifests'))) {
+      fs.copyFileSync(
+        path.join('scripts', 'prod-schema-manifests', fileName),
+        path.join(stagedManifestDir, fileName)
+      );
+    }
+    fs.copyFileSync(
+      path.join('migrations', '0053_g3_release_gate_hardening.sql'),
+      path.join(stagedMigrationsDir, '0053_g3_release_gate_hardening.sql')
+    );
+
+    await expect(
+      prepare0053G3ReleaseGateHardeningCapability({ rootDir: stagedRoot })
+    ).resolves.toMatchObject({ manifestName: 'g3-release-gate-hardening' });
+
+    const driftPath = path.join(stagedManifestDir, '31-unexpected-drift.json');
+    fs.writeFileSync(
+      driftPath,
+      JSON.stringify({ name: 'unexpected-drift', order: 31, sqlFiles: [] })
+    );
+    await expect(
+      prepare0053G3ReleaseGateHardeningCapability({ rootDir: stagedRoot })
+    ).rejects.toThrow(/pinned identity vector/i);
+
+    fs.rmSync(driftPath);
+    fs.rmSync(path.join(stagedManifestDir, '01-cohort.json'));
+    await expect(
+      prepare0053G3ReleaseGateHardeningCapability({ rootDir: stagedRoot })
+    ).rejects.toThrow(/pinned identity vector/i);
+  });
+
+  it('rejects lock-time parser input that drifts from pinned manifest inventory', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const preparedManifests = target.manifests.map((manifest) => ({
+      manifest,
+      dropStatements: [],
+    }));
+    const audits = target.manifests.map((manifest) => ({
+      manifest: manifest.name,
+      action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+      objects:
+        manifest.name === target.manifestName
+          ? [
+              {
+                table: 'fixture_target',
+                present: false,
+                populated: false,
+                action: ACTION_APPLY_MISSING_DDL,
+                deltas: [],
+              },
+            ]
+          : [],
+    }));
+    const marker = buildLockTimeApplyVectorV1({ preparedManifests, audits, target });
+    const driftedPrepared = [
+      ...preparedManifests,
+      {
+        manifest: {
+          name: 'unexpected-drift',
+          manifestPath: 'scripts/prod-schema-manifests/31-unexpected-drift.json',
+          order: 31,
+        },
+        dropStatements: [],
+      },
+    ];
+    expect(() =>
+      parseLockTimeApplyVectorV1(marker, { preparedManifests: driftedPrepared, target })
+    ).toThrow(/pinned canonical manifest inventory/i);
+    expect(() =>
+      parseLockTimeApplyVectorV1(marker, {
+        preparedManifests: preparedManifests.slice(0, -1),
+        target,
+      })
+    ).toThrow(/pinned canonical manifest inventory/i);
+  });
+
+  it('rejects a post-binding replacement of selected 0053 SQL bytes', async () => {
+    const capability = await prepare0053G3ReleaseGateHardeningCapability();
+    const manifest = capability.manifests.find(
+      (candidate) => candidate.name === capability.manifestName
+    );
+    await expect(
+      assertPrepared0053G3ReleaseGateHardeningCapability({
+        capability,
+        prepared: {
+          manifest,
+          sqlFiles: [{ path: capability.sqlPath, checksum: '0'.repeat(64) }],
+          dropStatements: [],
+        },
+      })
+    ).rejects.toThrow(/pinned canonical bytes/i);
+  });
+
+  it('selects only target from complete exact lock-time audit vector', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const preparedManifests = target.manifests.map((manifest) => ({
+      manifest,
+      dropStatements: [],
+    }));
+    const targetPrepared = preparedManifests.find(
+      (prepared) => prepared.manifest.name === target.manifestName
+    );
+    const audits = target.manifests.map((manifest) => ({
+      manifest: manifest.name,
+      action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+      objects:
+        manifest.name === target.manifestName
+          ? [
+              {
+                table: 'fixture_target',
+                present: false,
+                populated: false,
+                action: ACTION_APPLY_MISSING_DDL,
+                deltas: [],
+              },
+            ]
+          : [],
+    }));
+    expect(
+      selectExact0053G3ReleaseGateHardeningApply({
+        preparedManifests,
+        audits,
+        target,
+      })
+    ).toBe(targetPrepared);
+    expect(() =>
+      selectExact0053G3ReleaseGateHardeningApply({
+        preparedManifests: [...preparedManifests].reverse(),
+        audits,
+        target,
+      })
+    ).toThrow(/complete audit vector|canonical/i);
+  });
+
+  it('rejects malformed per-object audit action even when top-level vector is valid', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const preparedManifests = target.manifests.map((manifest) => ({
+      manifest,
+      dropStatements: [],
+    }));
+    const audits = target.manifests.map((manifest) => ({
+      manifest: manifest.name,
+      action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+      objects:
+        manifest.name === target.manifestName ? [{ action: 'UNRECOGNIZED', deltas: [] }] : [],
+    }));
+
+    expect(() =>
+      selectExact0053G3ReleaseGateHardeningApply({
+        preparedManifests,
+        audits,
+        target,
+      })
+    ).toThrow(/malformed audit vector/i);
+  });
+
+  it('rejects every non-exact lock-time selector vector', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const preparedManifests = target.manifests.map((manifest) => ({
+      manifest,
+      dropStatements: [],
+    }));
+    const exactAudits = target.manifests.map((manifest) => ({
+      manifest: manifest.name,
+      action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+      objects:
+        manifest.name === target.manifestName
+          ? [
+              {
+                table: 'fixture_target',
+                present: false,
+                populated: false,
+                action: ACTION_APPLY_MISSING_DDL,
+                deltas: [],
+              },
+            ]
+          : [],
+    }));
+    const validObject = {
+      table: 'fixture_table',
+      present: true,
+      populated: false,
+      action: ACTION_SKIP,
+      deltas: [],
+    };
+    const cases = [
+      ['missing', () => exactAudits.slice(1)],
+      ['duplicate', () => [...exactAudits, exactAudits[0]]],
+      [
+        'unknown',
+        () =>
+          exactAudits.map((audit, index) =>
+            index === 0 ? { ...audit, manifest: 'unknown' } : audit
+          ),
+      ],
+      [
+        'malformed object action',
+        () =>
+          exactAudits.map((audit, index) =>
+            index === 0
+              ? { ...audit, objects: [{ ...validObject, action: 'UNRECOGNIZED' }] }
+              : audit
+          ),
+      ],
+      [
+        'malformed delta',
+        () =>
+          exactAudits.map((audit, index) =>
+            index === 0 ? { ...audit, objects: [{ ...validObject, deltas: [{ kind: 7 }] }] } : audit
+          ),
+      ],
+      [
+        'extra apply',
+        () =>
+          exactAudits.map((audit) =>
+            audit.manifest === target.manifestName
+              ? audit
+              : { ...audit, action: ACTION_APPLY_MISSING_DDL }
+          ),
+      ],
+      [
+        'refusal',
+        () =>
+          exactAudits.map((audit) =>
+            audit.manifest === target.manifestName
+              ? { ...audit, action: ACTION_REFUSE_FOR_HUMAN }
+              : audit
+          ),
+      ],
+      [
+        'target skip',
+        () =>
+          exactAudits.map((audit) =>
+            audit.manifest === target.manifestName ? { ...audit, action: ACTION_SKIP } : audit
+          ),
+      ],
+      [
+        'destructive object state',
+        () =>
+          exactAudits.map((audit, index) =>
+            index === 0
+              ? {
+                  ...audit,
+                  objects: [
+                    { ...validObject, deltas: [{ kind: 'drop-object', additiveSafe: true }] },
+                  ],
+                }
+              : audit
+          ),
+      ],
+    ];
+
+    for (const [name, makeAudits] of cases) {
+      expect(
+        () =>
+          selectExact0053G3ReleaseGateHardeningApply({
+            preparedManifests,
+            audits: makeAudits(),
+            target,
+          }),
+        name
+      ).toThrow(`0053 exact target-only`);
+    }
+  });
+
+  it('rejects contradictory aggregate object actions and governs non-array objects', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const preparedManifests = target.manifests.map((manifest) => ({
+      manifest,
+      dropStatements: [],
+    }));
+    const exactAudits = target.manifests.map((manifest) => ({
+      manifest: manifest.name,
+      action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+      objects:
+        manifest.name === target.manifestName
+          ? [
+              {
+                table: 'fixture_target',
+                present: false,
+                populated: false,
+                action: ACTION_APPLY_MISSING_DDL,
+                deltas: [],
+              },
+            ]
+          : [],
+    }));
+    const object = {
+      table: 'fixture_table',
+      present: true,
+      populated: false,
+      action: ACTION_SKIP,
+      deltas: [],
+    };
+
+    const cases = [
+      [
+        'target APPLY with object SKIP',
+        exactAudits.map((audit) =>
+          audit.manifest === target.manifestName ? { ...audit, objects: [object] } : audit
+        ),
+      ],
+      [
+        'non-target SKIP with object APPLY',
+        exactAudits.map((audit) =>
+          audit.manifest === target.manifestName
+            ? audit
+            : { ...audit, objects: [{ ...object, action: ACTION_APPLY_MISSING_DDL }] }
+        ),
+      ],
+      [
+        'non-array objects',
+        exactAudits.map((audit) =>
+          audit.manifest === target.manifestName ? { ...audit, objects: {} } : audit
+        ),
+      ],
+    ];
+
+    for (const [name, audits] of cases) {
+      expect(
+        () =>
+          selectExact0053G3ReleaseGateHardeningApply({
+            preparedManifests,
+            audits,
+            target,
+          }),
+        name
+      ).toThrow(ReconcileError);
+    }
+  });
+
+  it('rejects target APPLY with empty objects when building lock-time marker', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const preparedManifests = target.manifests.map((manifest) => ({
+      manifest,
+      dropStatements: [],
+    }));
+    const audits = target.manifests.map((manifest) => ({
+      manifest: manifest.name,
+      action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+      objects: [],
+    }));
+
+    expect(() => buildLockTimeApplyVectorV1({ preparedManifests, audits, target })).toThrow(
+      ReconcileError
+    );
+  });
+
+  it('rejects target destructive declarations and extra-object audit state', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const targetObject = {
+      table: 'fixture_target',
+      present: false,
+      populated: false,
+      action: ACTION_APPLY_MISSING_DDL,
+      deltas: [],
+    };
+    const makePreparedManifests = () =>
+      target.manifests.map((manifest) => ({ manifest, dropStatements: [] }));
+    const makeAudits = () =>
+      target.manifests.map((manifest) => ({
+        manifest: manifest.name,
+        action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+        objects: manifest.name === target.manifestName ? [targetObject] : [],
+      }));
+    const targetWithDropStatements = makePreparedManifests().map((prepared) =>
+      prepared.manifest.name === target.manifestName
+        ? { ...prepared, dropStatements: ['DROP TABLE x'] }
+        : prepared
+    );
+    const targetWithDropObjects = makePreparedManifests().map((prepared) =>
+      prepared.manifest.name === target.manifestName
+        ? { ...prepared, manifest: { ...prepared.manifest, dropObjects: [{ kind: 'index' }] } }
+        : prepared
+    );
+    const auditsWithExtraObject = makeAudits().map((audit) =>
+      audit.manifest === target.manifestName
+        ? {
+            ...audit,
+            objects: [
+              {
+                ...targetObject,
+                deltas: [{ kind: 'extra-object-present', name: 'legacy', additiveSafe: true }],
+              },
+            ],
+          }
+        : audit
+    );
+
+    expect(() =>
+      selectExact0053G3ReleaseGateHardeningApply({
+        preparedManifests: targetWithDropStatements,
+        audits: makeAudits(),
+        target,
+      })
+    ).toThrow(ReconcileError);
+    expect(() =>
+      selectExact0053G3ReleaseGateHardeningApply({
+        preparedManifests: targetWithDropObjects,
+        audits: makeAudits(),
+        target,
+      })
+    ).toThrow(ReconcileError);
+    expect(() =>
+      selectExact0053G3ReleaseGateHardeningApply({
+        preparedManifests: makePreparedManifests(),
+        audits: auditsWithExtraObject,
+        target,
+      })
+    ).toThrow(ReconcileError);
+    expect(() =>
+      buildLockTimeApplyVectorV1({
+        preparedManifests: targetWithDropStatements,
+        audits: makeAudits(),
+        target,
+      })
+    ).toThrow(ReconcileError);
+    expect(() =>
+      buildLockTimeApplyVectorV1({
+        preparedManifests: makePreparedManifests(),
+        audits: auditsWithExtraObject,
+        target,
+      })
+    ).toThrow(ReconcileError);
+  });
+
+  it('builds and parses canonical lock-time apply marker without sensitive fields', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const preparedManifests = target.manifests.map((manifest) => ({
+      manifest,
+      dropStatements: [],
+    }));
+    const audits = target.manifests.map((manifest) => ({
+      manifest: manifest.name,
+      action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+      objects:
+        manifest.name === target.manifestName
+          ? [
+              {
+                table: 'fixture_target',
+                present: false,
+                populated: false,
+                action: ACTION_APPLY_MISSING_DDL,
+                deltas: [],
+              },
+            ]
+          : [],
+    }));
+    const marker = buildLockTimeApplyVectorV1({ preparedManifests, audits, target });
+    expect(marker).toMatch(/^PROD_SCHEMA_LOCK_TIME_VECTOR_V1=\{/);
+    expect(parseLockTimeApplyVectorV1(marker, { preparedManifests, target })).toMatchObject({
+      schemaVersion: 1,
+      source: 'lock-time-audit',
+      lockId: RECONCILE_LOCK_ID,
+    });
+  });
+
+  it('rejects every non-canonical lock-time marker', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const preparedManifests = target.manifests.map((manifest) => ({
+      manifest,
+      dropStatements: [],
+    }));
+    const audits = target.manifests.map((manifest) => ({
+      manifest: manifest.name,
+      action: manifest.name === target.manifestName ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP,
+      objects:
+        manifest.name === target.manifestName
+          ? [
+              {
+                table: 'fixture_target',
+                present: false,
+                populated: false,
+                action: ACTION_APPLY_MISSING_DDL,
+                deltas: [],
+              },
+            ]
+          : [],
+    }));
+    const marker = buildLockTimeApplyVectorV1({ preparedManifests, audits, target });
+    const prefix = 'PROD_SCHEMA_LOCK_TIME_VECTOR_V1=';
+    const vector = JSON.parse(marker.slice(prefix.length));
+    const cases = [
+      ['absent', 'ordinary reconciler output'],
+      ['duplicate', `${marker}\n${marker}`],
+      ['malformed JSON', `${prefix}{`],
+      [
+        'reordered decisions',
+        `${prefix}${JSON.stringify({ ...vector, decisions: [...vector.decisions].reverse() })}`,
+      ],
+      ['extra key', `${prefix}${JSON.stringify({ ...vector, extra: 'no' })}`],
+      [
+        'target mismatch',
+        `${prefix}${JSON.stringify({
+          ...vector,
+          target: { ...vector.target, manifestName: 'not-g3-release-gate-hardening' },
+        })}`,
+      ],
+      [
+        'pin mismatch',
+        `${prefix}${JSON.stringify({
+          ...vector,
+          target: { ...vector.target, migrationSha256: '0'.repeat(64) },
+        })}`,
+      ],
+      [
+        'sensitive extra content',
+        `${prefix}${JSON.stringify({ ...vector, databaseUrl: 'postgres://x' })}`,
+      ],
+    ];
+
+    for (const [name, output] of cases) {
+      expect(() => parseLockTimeApplyVectorV1(output, { preparedManifests, target }), name).toThrow(
+        /lock-time apply vector/i
+      );
+    }
+  });
+
+  it('does not unlock or mutate after lock contention', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const client = createMockClient({ advisoryLockAcquired: false });
+    const output: string[] = [];
+
+    await expect(
+      runReconciliation({
+        client,
+        manifests: target.manifests,
+        apply: true,
+        capability: target,
+        stdout: { write: (chunk: string) => output.push(chunk) },
+      })
+    ).rejects.toMatchObject({ details: { kind: 'advisory-lock-contended' } });
+
+    const queries = client.calls.map((call) => call.text);
+    expect(queries.filter((text) => text === 'SELECT pg_advisory_unlock($1)')).toHaveLength(0);
+    expect(
+      queries.some(
+        (text) =>
+          text.startsWith('SET ') ||
+          /^(BEGIN|COMMIT|ROLLBACK)$/.test(text) ||
+          /^\s*(?:INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b/i.test(text)
+      )
+    ).toBe(false);
+    expect(output.join('')).not.toContain('PROD_SCHEMA_LOCK_TIME_VECTOR_V1=');
+  });
+
+  it('unlocks exactly once without marker or durable mutation after acquired-lock rejection', async () => {
+    const target = await prepare0053G3ReleaseGateHardeningCapability();
+    const client = createMockClient();
+    const output: string[] = [];
+
+    await expect(
+      runReconciliation({
+        client,
+        manifests: target.manifests,
+        apply: true,
+        capability: target,
+        stdout: { write: (chunk: string) => output.push(chunk) },
+      })
+    ).rejects.toMatchObject({ details: { kind: expect.any(String) } });
+
+    const queries = client.calls.map((call) => call.text);
+    expect(queries.filter((text) => text === 'SELECT pg_advisory_unlock($1)')).toHaveLength(1);
+    expect(
+      queries.some(
+        (text) =>
+          text.startsWith('SET ') ||
+          /^(BEGIN|COMMIT|ROLLBACK)$/.test(text) ||
+          /^\s*(?:INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b/i.test(text)
+      )
+    ).toBe(false);
+    expect(output.join('')).not.toContain('PROD_SCHEMA_LOCK_TIME_VECTOR_V1=');
+  });
+
+  it('admits only exact 0053 action-specific apply capability', () => {
+    expect(() =>
+      parseReconcileArgs(['--apply', '--yes', '--apply-0053-g3-release-gate-hardening'])
+    ).not.toThrow();
+    expect(() => parseReconcileArgs(['--apply', '--yes'])).toThrow(
+      /production schema mutation mechanically blocked/i
+    );
+    expect(() =>
+      parseReconcileArgs([
+        '--apply',
+        '--yes',
+        '--apply-0053-g3-release-gate-hardening',
+        '--manifest-dir=tmp',
+      ])
+    ).toThrow(/production schema mutation mechanically blocked/i);
+  });
+
+  it('constructs client only after valid 0053 capability admission', async () => {
+    const clientFactory = vi.fn(() => ({
+      connect: vi.fn().mockRejectedValue(new Error('test connection refusal')),
+      end: vi.fn().mockResolvedValue(undefined),
+    }));
+    await expect(
+      runReconcileCli({
+        argv: ['--apply', '--yes', '--apply-0053-g3-release-gate-hardening'],
+        env: { DATABASE_URL: 'postgres://operator:secret@localhost/updog' },
+        clientFactory,
+      })
+    ).resolves.toBe(1);
+    expect(clientFactory).toHaveBeenCalledWith({
+      connectionString: 'postgres://operator:secret@localhost/updog',
+    });
+  });
+
+  it.each([
+    [['--apply', '--yes']],
+    [
+      [
+        '--apply',
+        '--yes',
+        '--apply-0053-g3-release-gate-hardening',
+        '--apply-0053-g3-release-gate-hardening',
+      ],
+    ],
+    [['--yes', '--apply-0053-g3-release-gate-hardening']],
+    [['--apply', '--apply-0053-g3-release-gate-hardening']],
+    [['--apply-0053-g3-release-gate-hardening']],
+    [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--apply']],
+    [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--yes']],
+    [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--unknown']],
+    [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--apply-all']],
+    [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--force']],
+    [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--manifest-dir', 'tmp']],
+    [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--manifest-dir=tmp']],
+    [['--apply', '--yes', '--apply-0053-g3-release-gate-hardening', '--manifest-dir']],
+    [
+      [
+        '--apply',
+        '--yes',
+        '--apply-0053-g3-release-gate-hardening',
+        '--manifest-dir',
+        'one',
+        '--manifest-dir=two',
+      ],
+    ],
+    [
+      [
+        '--apply',
+        '--yes',
+        '--apply-0053-g3-release-gate-hardening',
+        '--manifest-dir=one',
+        '--manifest-dir=two',
+      ],
+    ],
+  ])('rejects invalid apply argv before client construction: %o', async (argv) => {
+    const clientFactory = vi.fn();
+    await expect(
+      runReconcileCli({
+        argv,
+        env: { DATABASE_URL: 'postgres://operator:secret@localhost/updog' },
+        clientFactory,
+      })
+    ).rejects.toMatchObject({ details: { kind: 'production-mutation-blocked' } });
+    expect(clientFactory).not.toHaveBeenCalled();
+  });
+
+  it.each([[''], [undefined], ['tmp']])(
+    'rejects own manifest-dir environment property before client construction: %o',
+    async (manifestDir) => {
+      const clientFactory = vi.fn();
+      await expect(
+        runReconcileCli({
+          argv: ['--apply', '--yes', '--apply-0053-g3-release-gate-hardening'],
+          env: {
+            DATABASE_URL: 'postgres://operator:secret@localhost/updog',
+            UPDOG_SCHEMA_MANIFEST_DIR: manifestDir,
+          },
+          clientFactory,
+        })
+      ).rejects.toMatchObject({ details: { kind: 'production-mutation-blocked' } });
+      expect(clientFactory).not.toHaveBeenCalled();
+    }
+  );
+
   it('defaults to audit-only mode', () => {
     expect(parseReconcileArgs([])).toMatchObject({
       apply: false,
@@ -383,9 +1104,13 @@ describe('reconcile-prod-schema runner helpers', () => {
     });
   });
 
-  it('requires --yes for apply mode', () => {
-    expect(() => assertApplyConfirmation({ apply: true, yes: false })).toThrow(ReconcileError);
-    expect(() => assertApplyConfirmation({ apply: true, yes: true })).not.toThrow();
+  it('mechanically blocks apply mode regardless of confirmation', () => {
+    expect(() => assertApplyConfirmation({ apply: true, yes: false })).toThrow(
+      /production schema mutation is mechanically blocked/i
+    );
+    expect(() => assertApplyConfirmation({ apply: true, yes: true })).toThrow(
+      /production schema mutation is mechanically blocked/i
+    );
   });
 
   it('refuses pooled database URLs', () => {
@@ -1637,5 +2362,201 @@ describe('reconcile-prod-schema dropObjects path (s8.1 slice 3.5)', () => {
       })
     ).rejects.toThrow(/Post-apply shape audit failed/);
     expect(client.calls.map((call) => call.text)).toContain('ROLLBACK');
+  });
+});
+
+describe('g3 catch-up 0050-0053 capability', () => {
+  async function catchupFixture(overrides?: {
+    targetActions?: Partial<Record<string, string>>;
+    nonTargetActions?: Partial<Record<string, string>>;
+  }) {
+    const capability = await prepareG3Catchup0050To0053Capability();
+    const targetNames = new Set(capability.targets.map((target) => target.manifestName));
+    const preparedManifests = capability.manifests.map((manifest) => ({
+      manifest,
+      dropStatements: [],
+      sqlFiles: [],
+    }));
+    const audits = capability.manifests.map((manifest) => {
+      const action =
+        overrides?.targetActions?.[manifest.name] ??
+        overrides?.nonTargetActions?.[manifest.name] ??
+        (targetNames.has(manifest.name) ? ACTION_APPLY_MISSING_DDL : ACTION_SKIP);
+      return {
+        manifest: manifest.name,
+        action,
+        objects:
+          action === ACTION_APPLY_MISSING_DDL
+            ? [
+                {
+                  table: 'fixture-object',
+                  present: false,
+                  populated: false,
+                  action: ACTION_APPLY_MISSING_DDL,
+                  deltas: [],
+                },
+              ]
+            : action === ACTION_REFUSE_FOR_HUMAN
+              ? [
+                  {
+                    table: 'fixture-object',
+                    present: true,
+                    populated: false,
+                    action: ACTION_REFUSE_FOR_HUMAN,
+                    deltas: [],
+                  },
+                ]
+              : [],
+      };
+    });
+    return { capability, preparedManifests, audits };
+  }
+
+  it('ties the reconciler target pins to the receipt contract identities', async () => {
+    const { SCHEMA_RECONCILE_CATCHUP_TARGET_IDENTITIES } = await import(
+      '@shared/contracts/schema-reconcile-receipt-v1.contract'
+    );
+    expect(SCHEMA_RECONCILE_CATCHUP_TARGET_IDENTITIES).toHaveLength(G3_CATCHUP_TARGETS.length);
+    for (const [index, identity] of SCHEMA_RECONCILE_CATCHUP_TARGET_IDENTITIES.entries()) {
+      const target = G3_CATCHUP_TARGETS[index]!;
+      expect(identity.auditName).toBe(target.manifestName);
+      expect(target.manifestPath.endsWith(`/${identity.manifest}.json`)).toBe(true);
+      expect(target.sqlPath.startsWith(`migrations/${identity.migration}_`)).toBe(true);
+    }
+  });
+
+  it('pins the four catch-up targets to canonical manifests in journal order', async () => {
+    const capability = await prepareG3Catchup0050To0053Capability();
+    expect(capability.targets.map((target) => target.manifestName)).toEqual([
+      'g3-portfolio-and-calculation',
+      'g3-canary',
+      'g3-capital-call-notification-outbox',
+      'g3-release-gate-hardening',
+    ]);
+    expect(capability.targets.map((target) => target.sqlPath)).toEqual([
+      'migrations/0050_g3_portfolio_and_calculation_schema.sql',
+      'migrations/0051_g3_canary_schema.sql',
+      'migrations/0052_g3_capital_call_notification_outbox.sql',
+      'migrations/0053_g3_release_gate_hardening.sql',
+    ]);
+    expect(G3_CATCHUP_TARGETS).toHaveLength(4);
+  });
+
+  it('admits only the exact catch-up action-specific apply shape', () => {
+    expect(() =>
+      parseReconcileArgs(['--apply', '--yes', '--apply-g3-catchup-0050-0053'])
+    ).not.toThrow();
+    expect(() =>
+      parseReconcileArgs([
+        '--apply',
+        '--yes',
+        '--apply-g3-catchup-0050-0053',
+        '--apply-0053-g3-release-gate-hardening',
+      ])
+    ).toThrow(/production schema mutation mechanically blocked/i);
+    expect(() =>
+      parseReconcileArgs(['--apply', '--yes', '--apply-g3-catchup-0050-0053', '--manifest-dir=tmp'])
+    ).toThrow(/production schema mutation mechanically blocked/i);
+    expect(() =>
+      assertApplyConfirmation({ apply: true, yes: true, applyG3Catchup0050To0053: true })
+    ).not.toThrow();
+  });
+
+  it('selects all four pending targets from a fresh catch-up state', async () => {
+    const { capability, preparedManifests, audits } = await catchupFixture();
+    const selected = selectExactG3Catchup0050To0053Apply({
+      preparedManifests,
+      audits,
+      capability,
+    });
+    expect(selected.map((prepared) => prepared.manifest.name)).toEqual(
+      capability.targets.map((target) => target.manifestName)
+    );
+  });
+
+  it('tolerates committed-target SKIP resume states but rejects a fully committed repeat', async () => {
+    const partial = await catchupFixture({
+      targetActions: { 'g3-portfolio-and-calculation': ACTION_SKIP },
+    });
+    expect(() =>
+      selectExactG3Catchup0050To0053Apply({
+        preparedManifests: partial.preparedManifests,
+        audits: partial.audits,
+        capability: partial.capability,
+      })
+    ).not.toThrow();
+
+    const complete = await catchupFixture({
+      targetActions: {
+        'g3-portfolio-and-calculation': ACTION_SKIP,
+        'g3-canary': ACTION_SKIP,
+        'g3-capital-call-notification-outbox': ACTION_SKIP,
+        'g3-release-gate-hardening': ACTION_SKIP,
+      },
+    });
+    expect(() =>
+      selectExactG3Catchup0050To0053Apply({
+        preparedManifests: complete.preparedManifests,
+        audits: complete.audits,
+        capability: complete.capability,
+      })
+    ).toThrow(/already committed/i);
+  });
+
+  it('rejects non-target drift and human-review states', async () => {
+    const drift = await catchupFixture({
+      nonTargetActions: { 'M1-cohort': ACTION_APPLY_MISSING_DDL },
+    });
+    expect(() =>
+      selectExactG3Catchup0050To0053Apply({
+        preparedManifests: drift.preparedManifests,
+        audits: drift.audits,
+        capability: drift.capability,
+      })
+    ).toThrow(/catch-up-only state/i);
+
+    const refuse = await catchupFixture({
+      targetActions: { 'g3-canary': ACTION_REFUSE_FOR_HUMAN },
+    });
+    expect(() =>
+      selectExactG3Catchup0050To0053Apply({
+        preparedManifests: refuse.preparedManifests,
+        audits: refuse.audits,
+        capability: refuse.capability,
+      })
+    ).toThrow(/human-review/i);
+  });
+
+  it('emits a canonical catch-up lock-time vector carrying all four targets', async () => {
+    const { capability, preparedManifests, audits } = await catchupFixture();
+    const marker = buildG3CatchupLockTimeApplyVectorV1({
+      preparedManifests,
+      audits,
+      capability,
+    });
+    expect(marker.startsWith('PROD_SCHEMA_G3_CATCHUP_LOCK_TIME_VECTOR_V1=')).toBe(true);
+    const vector = JSON.parse(
+      marker.slice('PROD_SCHEMA_G3_CATCHUP_LOCK_TIME_VECTOR_V1='.length)
+    );
+    expect(vector.targets).toHaveLength(4);
+    expect(vector.decisions).toHaveLength(CANONICAL_MANIFEST_IDENTITIES.length);
+    expect(marker).not.toMatch(/postgres:\/\//);
+  });
+
+  it('constructs client only after valid catch-up capability admission', async () => {
+    const clientFactory = vi.fn(() => ({
+      connect: vi.fn().mockRejectedValue(new Error('test connection refusal')),
+      end: vi.fn().mockResolvedValue(undefined),
+    }));
+    await expect(
+      runReconcileCli({
+        argv: ['--apply', '--yes', '--apply-g3-catchup-0050-0053'],
+        env: { DATABASE_URL: 'postgres://operator:secret@localhost/updog' },
+        clientFactory,
+      })
+    ).resolves.toBe(1);
+    expect(clientFactory).toHaveBeenCalledWith({
+      connectionString: 'postgres://operator:secret@localhost/updog',
+    });
   });
 });

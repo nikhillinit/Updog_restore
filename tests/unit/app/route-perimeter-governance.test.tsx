@@ -112,7 +112,6 @@ vi.mock('@/pages/fund-model-results-reports', () => ({
 vi.mock('@/pages/model-results', () => ({
   default: () => <div>Model Results Compatibility Page</div>,
 }));
-vi.mock('@/pages/planning', () => ({ default: () => <div>Planning Page</div> }));
 vi.mock('@/pages/kpi-manager', () => ({ default: () => <div>KPI Manager Page</div> }));
 vi.mock('@/pages/kpi-submission', () => ({ default: () => <div>KPI Submission Page</div> }));
 vi.mock('@/pages/lp/dashboard', () => ({ default: () => <div>LP Dashboard Page</div> }));

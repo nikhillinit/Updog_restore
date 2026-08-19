@@ -1,20 +1,31 @@
 # Deployment Automation Scripts
 
+## Canonical production-action authority
+
+Repository path: `docs/workflows/PRODUCTION_SCRIPTS.md`.
+
+This guide routes production-action authority to the canonical route and
+confers no authority by itself to mutate source, branch, environment, provider,
+production, schema, data, deployment, promotion, or rollback. The canonical
+route is active for repository governance only; it confers no production
+readiness or authorization, and action-specific UNKNOWN prerequisites remain
+blocking.
+
 Complete automation for deploying CODEX fixes to staging and production with
 comprehensive smoke tests and security monitoring.
 
-## 📋 Overview
+## Overview
 
 These PowerShell scripts automate the entire deployment pipeline:
 
-1. **Deploy to Staging** → Automated deployment with health checks
-2. **Smoke Tests** → Verify all CODEX fixes work correctly
-3. **Monitor Logs** → Security checks and password masking verification
-4. **Release Production** → Dispatch governed exact-`main` release workflow
+1. **Deploy to Staging** -> Automated deployment with health checks
+2. **Smoke Tests** -> Verify all CODEX fixes work correctly
+3. **Monitor Logs** -> Security checks and password masking verification
+4. **Release Production** -> Dispatch governed exact-`main` release workflow
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### **Full Deployment Pipeline**
 
@@ -45,7 +56,7 @@ These PowerShell scripts automate the entire deployment pipeline:
 
 ---
 
-## 📜 Scripts Reference
+## Scripts Reference
 
 ### **1. deploy-staging.ps1**
 
@@ -64,12 +75,12 @@ Deploys code to Vercel staging environment with automated checks.
 
 #### What It Does
 
-1. ✅ Pre-deployment checks (git status, branch verification)
-2. 🧪 Runs unit tests (125 tests)
-3. 🔨 Builds application
-4. 📦 Deploys to Vercel staging
-5. 🔍 Verifies Redis connections
-6. 🔐 Checks logs for password masking
+1. Pre-deployment checks (git status, branch verification)
+2. Runs unit tests (125 tests)
+3. Builds application
+4. Deploys to Vercel staging
+5. Verifies Redis connections
+6. Checks logs for password masking
 
 #### Example
 
@@ -105,37 +116,37 @@ Comprehensive smoke tests verifying all CODEX fixes.
 
 **Suite 1: Health & Infrastructure**
 
-- ✅ Health endpoint responds
-- ✅ Redis connection verified
+- Health endpoint responds
+- Redis connection verified
 
 **Suite 2: Fee Calculations (P0 Fix)**
 
-- ⚠️ Manual verification required
+- Manual verification required
 - Navigate to fund setup UI and verify:
-  - 2% annual fee → 20% total drag (not 0.2%)
+  - 2% annual fee -> 20% total drag (not 0.2%)
   - Fee calculations use fractions correctly
 
 **Suite 3: Reserve API (P1 Fix - Date Schema)**
 
-- ✅ Accepts ISO date strings (`"2023-10-27T10:00:00.000Z"`)
-- ✅ Returns reserve allocations
-- ✅ Handles portfolio of 4+ companies
+- Accepts ISO date strings (`"2023-10-27T10:00:00.000Z"`)
+- Returns reserve allocations
+- Handles portfolio of 4+ companies
 
 **Suite 4: Pagination (P1 Fix - Portfolio Truncation)**
 
-- ✅ Respects `limit` parameter (was hard-coded to 3)
-- ✅ Returns all companies when limit > portfolio size
-- ✅ Pagination works correctly
+- Respects `limit` parameter (was hard-coded to 3)
+- Returns all companies when limit > portfolio size
+- Pagination works correctly
 
 **Suite 5: Query Parameters (P2 Fix)**
 
-- ✅ Boolean strings parsed (`"true"` → `true`)
-- ✅ Enum values case-insensitive (`"HIGH"` → `"high"`)
+- Boolean strings parsed (`"true"` -> `true`)
+- Enum values case-insensitive (`"HIGH"` -> `"high"`)
 
 **Suite 6: Security**
 
-- ✅ No passwords in API responses
-- ✅ Redis credentials masked in logs
+- No passwords in API responses
+- Redis credentials masked in logs
 
 #### Example
 
@@ -174,24 +185,24 @@ Monitors deployment logs and performs security checks.
 #### Security Checks Performed
 
 1. **Password Exposure**
-   - ❌ Detects unmasked Redis passwords in logs
-   - ✅ Verifies passwords are masked as `***`
+   - Detects unmasked Redis passwords in logs
+   - Verifies passwords are masked as `***`
 
 2. **Password Masking**
-   - ✅ Checks "Redis connected to host:port" format
-   - ❌ Warns if credentials appear in connection strings
+   - Checks "Redis connected to host:port" format
+   - Warns if credentials appear in connection strings
 
 3. **API Keys**
-   - ⚠️ Detects potential API key patterns
+   - Detects potential API key patterns
    - Recommends manual review
 
 4. **Error Patterns**
-   - 📊 Counts errors, timeouts, connection failures
-   - ⚠️ Flags if error rate is high
+   - Counts errors, timeouts, connection failures
+   - Flags if error rate is high
 
 5. **Redis Connection**
-   - ✅ Verifies "Redis Client Connected" messages
-   - ❌ Detects "Redis Client Error" messages
+   - Verifies "Redis Client Connected" messages
+   - Detects "Redis Client Error" messages
 
 #### Examples
 
@@ -265,17 +276,17 @@ identity or a promotion no-op.
 
 ---
 
-## 🔐 Security Verification
+## Security Verification
 
 ### **What We're Checking**
 
 All scripts verify the **P1 Redis Factory fix** properly masks passwords:
 
 ```powershell
-# ❌ BAD (before fix)
+# BAD (before fix)
 Redis connecting to rediss://user:SECRET_PASSWORD@host:6379
 
-# ✅ GOOD (after fix)
+# GOOD (after fix)
 Redis connected to host:6379
 ```
 
@@ -283,61 +294,61 @@ Redis connected to host:6379
 
 After deployment, verify in Vercel dashboard:
 
-1. **Logs Tab** → Search for "Redis"
+1. **Logs Tab** -> Search for "Redis"
 2. **Check**: Should see "Redis connected to host:port"
 3. **Verify**: No passwords visible (`***` or absent)
 4. **Confirm**: No `rediss://user:password@host` patterns
 
 ---
 
-## 📊 Expected Test Results
+## Expected Test Results
 
 ### **Smoke Test Output**
 
 ```
-🧪 Running Smoke Tests
+ Running Smoke Tests
 ======================
 
-📋 Test Suite 1: Health & Infrastructure
+ Test Suite 1: Health & Infrastructure
   Testing: Health Check
-    ✅ PASS: Health Check
+     PASS: Health Check
   Testing: Redis Health
-    ✅ PASS: Redis Health
+     PASS: Redis Health
 
-📋 Test Suite 2: Fee Calculations
-    ⚠️  MANUAL: Verify fee calculations in UI
+ Test Suite 2: Fee Calculations
+      MANUAL: Verify fee calculations in UI
 
-📋 Test Suite 3: Reserve API
+ Test Suite 3: Reserve API
   Testing: Reserve Calculation (Date Schema Fix)
-    ✅ PASS: Reserve Calculation (Date Schema Fix)
+     PASS: Reserve Calculation (Date Schema Fix)
 
-📋 Test Suite 4: Pagination
+ Test Suite 4: Pagination
   Testing: Reserve API with Pagination (limit=2)
-    ✅ PASS: Reserve API with Pagination (limit=2)
+     PASS: Reserve API with Pagination (limit=2)
   Testing: Reserve API with Pagination (limit=100)
-    ✅ PASS: Reserve API with Pagination (limit=100)
+     PASS: Reserve API with Pagination (limit=100)
 
-📋 Test Suite 5: Query Parameters
+ Test Suite 5: Query Parameters
   Testing: Query Params - Boolean string 'true'
-    ✅ PASS: Query Params - Boolean string 'true'
+     PASS: Query Params - Boolean string 'true'
   Testing: Query Params - Priority enum 'high'
-    ✅ PASS: Query Params - Priority enum 'high'
+     PASS: Query Params - Priority enum 'high'
 
-📋 Test Suite 6: Security Checks
-    ✅ PASS: No passwords found in API responses
+ Test Suite 6: Security Checks
+     PASS: No passwords found in API responses
 
-📊 Smoke Test Summary
+ Smoke Test Summary
 =====================
   Tests Passed: 8
   Tests Failed: 0
   Total: 8
 
-✅ All smoke tests passed!
+ All smoke tests passed!
 ```
 
 ---
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 ### **Vercel CLI Not Found**
 
@@ -377,13 +388,13 @@ Check `server/db/redis-factory.ts` has the updated code:
 client.on('connect', () => {
   const { host, port } = client.options;
   logger.info(`Redis connected to ${host}:${port}`);
-  // ✅ Password NOT logged
+  //  Password NOT logged
 });
 ```
 
 ---
 
-## 📋 Deployment Checklist
+## Deployment Checklist
 
 Use this checklist for each deployment:
 
@@ -424,7 +435,7 @@ Use this checklist for each deployment:
 
 ---
 
-## 🎯 What Each Script Verifies
+## What Each Script Verifies
 
 | Fix                           | Script                                 | Verification Method                     |
 | ----------------------------- | -------------------------------------- | --------------------------------------- |
@@ -436,7 +447,7 @@ Use this checklist for each deployment:
 
 ---
 
-## 📚 Additional Resources
+## Additional Resources
 
 - [CODEX_FIXES_COMPLETE.md](../CODEX_FIXES_COMPLETE.md) - Complete fix
   documentation

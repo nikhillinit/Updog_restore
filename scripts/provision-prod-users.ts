@@ -14,7 +14,7 @@
 
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { neon } from '@neondatabase/serverless';
@@ -54,7 +54,17 @@ function findRepoRoot(startDirectory: string): string {
   }
 }
 
+export function assertProvisionProdUsersMutationBlocked(argv: string[]): void {
+  if (!argv.includes('--dry-run')) {
+    throw new ProvisioningInputError(
+      'Production user mutation is mechanically blocked pending action-specific hardening.'
+    );
+  }
+}
+
 async function provisionProdUsers(): Promise<number> {
+  const cliArgs = process.argv.slice(2);
+  assertProvisionProdUsersMutationBlocked(cliArgs);
   if (process.env['PROVISION_PROD'] !== '1') {
     throw new ProvisioningInputError(
       'Refusing to run without PROVISION_PROD=1 (guards against accidental execution). ' +
@@ -67,7 +77,6 @@ async function provisionProdUsers(): Promise<number> {
     throw new ProvisioningInputError('DATABASE_URL (or NEON_DATABASE_URL) is required.');
   }
 
-  const cliArgs = process.argv.slice(2);
   const identityFileInput =
     process.env['IDENTITY_FILE'] ?? cliArgs.find((argument) => !argument.startsWith('--'));
   if (!identityFileInput) {
@@ -192,13 +201,18 @@ async function provisionProdUsers(): Promise<number> {
   return identities.length;
 }
 
-provisionProdUsers()
-  .then(() => process.exit(0))
-  .catch((error: unknown) => {
-    if (error instanceof ProvisioningInputError || error instanceof ProdIdentityValidationError) {
-      console.error(`[FAIL] User provisioning failed: ${error.message}`);
-    } else {
-      console.error('[FAIL] User provisioning failed; database/driver details were suppressed.');
-    }
-    process.exit(1);
-  });
+const isDirectExecution =
+  process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url));
+
+if (isDirectExecution) {
+  provisionProdUsers()
+    .then(() => process.exit(0))
+    .catch((error: unknown) => {
+      if (error instanceof ProvisioningInputError || error instanceof ProdIdentityValidationError) {
+        console.error(`[FAIL] User provisioning failed: ${error.message}`);
+      } else {
+        console.error('[FAIL] User provisioning failed; database/driver details were suppressed.');
+      }
+      process.exit(1);
+    });
+}

@@ -101,8 +101,7 @@ Based on server test output, categories to investigate:
    - Check for hoisting violations
 
 4. **Component Tests** (Client)
-   - 1 uncaught exception in portfolio-constructor.test.tsx
-   - Radix UI pointer capture issue in jsdom
+   - Mounted portfolio behavior now runs in portfolio-route.behavior.test.tsx
 
 ---
 
@@ -412,11 +411,9 @@ rg "export const [tableName]" shared/schema.ts
 - **Status**: Known gap in service implementation
 - **Action**: Implement method or mark test as TODO
 
-### Portfolio Constructor Pointer Capture
-- **File**: tests/unit/pages/portfolio-constructor.test.tsx
-- **Error**: "target.hasPointerCapture is not a function"
-- **Status**: Radix UI + jsdom compatibility issue
-- **Action**: May need Playwright test or jsdom polyfill
+### Portfolio Route Behavior
+- **File**: tests/unit/pages/portfolio-route.behavior.test.tsx
+- **Status**: Current Wouter route, Companies surface, and Reserve Planning behavior execute in Vitest client project
 
 ### Duplicate test:all in package.json
 - **Warning**: "Duplicate key 'test:all' in object literal"

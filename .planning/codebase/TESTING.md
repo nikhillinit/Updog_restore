@@ -48,8 +48,6 @@ Two-project setup via `test.projects` (mandatory pattern per ADR-009):
   - `tests/quarantine/**/*`
   - `**/*.quarantine.test.tsx`
   - `tests/unit/fund-setup.smoke.test.tsx` (requires real browser)
-  - `tests/unit/pages/portfolio-constructor.test.tsx` (imports removed
-    `react-router-dom`)
 - **Setup files:** `tests/setup/test-infrastructure.ts`,
   `tests/setup/jsdom-setup.ts`
 

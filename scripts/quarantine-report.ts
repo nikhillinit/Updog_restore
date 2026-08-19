@@ -93,7 +93,7 @@ async function summarizeStaticSkips(threshold: number): Promise<StaticSkipSummar
 async function generateReport(): Promise<void> {
   const policy = readPolicy();
   const staticSkipSummary = await summarizeStaticSkips(policy.staticSkipThreshold);
-  const testFiles = await glob('tests/**/*.test.{ts,tsx}', {
+  const testFiles = await glob('tests/**/*.{test,spec}.{ts,tsx}', {
     ignore: ['**/node_modules/**'],
   });
 

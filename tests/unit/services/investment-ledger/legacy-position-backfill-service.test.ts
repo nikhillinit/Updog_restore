@@ -1,10 +1,7 @@
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 
-import {
-  backfillLegacyPositionEvents,
-  LegacyPositionBackfillServiceError,
-} from '../../../../server/services/investment-ledger/legacy-position-backfill-service';
+import { backfillLegacyPositionEvents } from '../../../../server/services/investment-ledger/legacy-position-backfill-service';
 
 const dialect = new PgDialect();
 
@@ -164,9 +161,9 @@ async function executeFake(
           corrected_effective_date: corrected?.['effective_date'] ?? null,
           corrected_shares_delta: corrected?.['shares_delta'] ?? null,
           corrected_cost_basis_delta: corrected?.['cost_basis_delta'] ?? null,
-          corrected_vehicle_participation_id:
-            corrected?.['vehicle_participation_id'] ?? null,
-          overlapping_acquisition_id: overlapping?.['id'] ?? investment['overlapping_acquisition_id'],
+          corrected_vehicle_participation_id: corrected?.['vehicle_participation_id'] ?? null,
+          overlapping_acquisition_id:
+            overlapping?.['id'] ?? investment['overlapping_acquisition_id'],
         };
       }),
     };
@@ -325,9 +322,7 @@ async function executeFake(
     model.beforePositionEventInsert?.(model, row);
     model.beforePositionEventInsert = undefined;
     if (
-      model.positionEvents.some(
-        (event) => event['backfilled_from_investment_id'] === investmentId
-      )
+      model.positionEvents.some((event) => event['backfilled_from_investment_id'] === investmentId)
     ) {
       return { rows: [] };
     }
@@ -340,9 +335,7 @@ async function executeFake(
 
 function baseModel(overrides: Partial<FakeModel> = {}): FakeModel {
   return {
-    vehicles: [
-      { id: 10, fund_id: 7, vehicle_slug: 'main', vehicle_type: 'main_fund' },
-    ],
+    vehicles: [{ id: 10, fund_id: 7, vehicle_slug: 'main', vehicle_type: 'main_fund' }],
     investments: [investmentRow()],
     positionEvents: [],
     sourceObservations: [],
@@ -425,50 +418,6 @@ describe('legacy position backfill service', () => {
     }
   );
 
-  it('qualifies joined position_events lookups used for insert replay checks', async () => {
-    const model = baseModel();
-    const database = makeDb(model);
-    const dryRun = await backfillLegacyPositionEvents({
-      actorId: 1,
-      database,
-      request: { mode: 'dry_run', fundIds: [7] },
-    });
-    const hash = dryRun.candidates[0]?.sourcePlanHash ?? '';
-    model.beforePositionEventInsert = (target, row) => {
-      target.positionEvents.push({ ...row, id: 77 });
-    };
-
-    const apply = await backfillLegacyPositionEvents({
-      actorId: 42,
-      database,
-      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': hash } },
-    });
-
-    const lookupQueries = model.statements
-      .map((statement) => statement.text.replace(/\s+/g, ' '))
-      .filter(
-        (statement) =>
-          statement.includes('FROM position_events') &&
-          statement.includes('LEFT JOIN source_observations source_observation')
-      );
-
-    expect(apply.written).toBe(1);
-    expect(lookupQueries).toHaveLength(2);
-    for (const query of lookupQueries) {
-      expect(query).toContain('position_events.request_hash');
-      expect(query).toContain('position_events.vehicle_id');
-      expect(query).toContain('position_events.company_identity_id');
-      expect(query).toContain('position_events.effective_date::text');
-      expect(query).toContain('position_events.shares_delta::text');
-      expect(query).toContain('position_events.cost_basis_delta::text');
-      expect(query).toContain('position_events.vehicle_participation_id');
-      expect(query).toContain('position_events.source_observation_id');
-      expect(query).toContain('position_events.backfilled_from_investment_id =');
-      expect(query).not.toMatch(/\bSELECT position_events\.id, request_hash\b/);
-      expect(query).not.toMatch(/\bAND backfilled_from_investment_id =\b/);
-    }
-  });
-
   it('dry-run computes source hashes and writes zero rows', async () => {
     const model = baseModel();
 
@@ -500,228 +449,24 @@ describe('legacy position backfill service', () => {
     expect(model.sourceObservations).toHaveLength(0);
   });
 
-  it('apply writes once and resume skips matching backfill events', async () => {
-    const model = baseModel();
-    const database = makeDb(model);
-    const dryRun = await backfillLegacyPositionEvents({
-      actorId: 1,
-      database,
-      request: { mode: 'dry_run', fundIds: [7] },
-    });
-    const hash = dryRun.candidates[0]?.sourcePlanHash;
+  it.each(['apply', 'resume'] as const)(
+    'blocks %s before database query or transaction dispatch',
+    async (mode) => {
+      const model = baseModel();
 
-    const apply = await backfillLegacyPositionEvents({
-      actorId: 42,
-      database,
-      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': hash ?? '' } },
-    });
-
-    expect(apply.written).toBe(1);
-    expect(model.positionEvents).toHaveLength(1);
-    expect(model.positionEvents[0]).toMatchObject({
-      backfilled_from_investment_id: 800,
-      created_by: 42,
-      idempotency_key: 'pos:legacy-backfill:v1:inv:800',
-    });
-    expect(model.sourceObservations).toHaveLength(1);
-
-    model.investments[0]!['existing_event_id'] = model.positionEvents[0]?.['id'];
-    model.investments[0]!['existing_request_hash'] = model.positionEvents[0]?.['request_hash'];
-    const resume = await backfillLegacyPositionEvents({
-      actorId: 42,
-      database,
-      request: { mode: 'resume', fundIds: [7], expectedSourceHashes: { '800': hash ?? '' } },
-    });
-
-    expect(resume.mode).toBe('resume');
-    expect(resume.skipped).toBe(1);
-    expect(model.positionEvents).toHaveLength(1);
-    expect(model.sourceObservations).toHaveLength(1);
-  });
-
-  it('replays a corrected backfill through its terminal replacement lineage', async () => {
-    const model = baseModel({
-      investments: [
-        investmentRow({
-          amount: '1000.00',
-          shares_acquired: '10.00000000',
-          cost_basis_cents: 100000n,
-        }),
-      ],
-    });
-    const database = makeDb(model);
-    const dryRun = await backfillLegacyPositionEvents({
-      actorId: 1,
-      database,
-      request: { mode: 'dry_run', fundIds: [7] },
-    });
-    const hash = dryRun.candidates[0]?.sourcePlanHash ?? '';
-    await backfillLegacyPositionEvents({
-      actorId: 1,
-      database,
-      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': hash } },
-    });
-    const anchor = model.positionEvents[0]!;
-    model.investments[0]!['amount'] = '1200.00';
-    model.investments[0]!['shares_acquired'] = '12.00000000';
-    model.investments[0]!['cost_basis_cents'] = 120000n;
-    model.positionEvents.push(
-      {
-        id: 2,
-        fund_id: 7,
-        vehicle_id: 10,
-        company_identity_id: 700,
-        event_type: 'reversal',
-        effective_date: '2025-01-15',
-        shares_delta: '-10.000000',
-        cost_basis_delta: '-1000.000000',
-        proceeds: '0.000000',
-        replaces_event_id: null,
-        reverses_position_event_id: anchor['id'],
-        vehicle_participation_id: null,
-        source_observation_id: 200,
-        backfilled_from_investment_id: null,
-        request_hash: 'd'.repeat(64),
-      },
-      {
-        id: 3,
-        fund_id: 7,
-        vehicle_id: 10,
-        company_identity_id: 700,
-        event_type: 'acquisition',
-        effective_date: '2025-01-15',
-        shares_delta: '12.000000',
-        cost_basis_delta: '1200.000000',
-        proceeds: '0.000000',
-        replaces_event_id: anchor['id'],
-        reverses_position_event_id: null,
-        vehicle_participation_id: null,
-        source_observation_id: 200,
-        backfilled_from_investment_id: null,
-        request_hash: 'd'.repeat(64),
-      }
-    );
-    model.investments[0]!['amount'] = '1400.00';
-    model.investments[0]!['shares_acquired'] = '14.00000000';
-    model.investments[0]!['cost_basis_cents'] = 140000n;
-    model.positionEvents.push(
-      {
-        id: 4,
-        fund_id: 7,
-        vehicle_id: 10,
-        company_identity_id: 700,
-        event_type: 'reversal',
-        effective_date: '2025-01-15',
-        shares_delta: '-12.000000',
-        cost_basis_delta: '-1200.000000',
-        proceeds: '0.000000',
-        replaces_event_id: null,
-        reverses_position_event_id: 3,
-        vehicle_participation_id: null,
-        source_observation_id: 201,
-        backfilled_from_investment_id: null,
-        request_hash: 'e'.repeat(64),
-      },
-      {
-        id: 5,
-        fund_id: 7,
-        vehicle_id: 10,
-        company_identity_id: 700,
-        event_type: 'acquisition',
-        effective_date: '2025-01-15',
-        shares_delta: '14.000000',
-        cost_basis_delta: '1400.000000',
-        proceeds: '0.000000',
-        replaces_event_id: 3,
-        reverses_position_event_id: null,
-        vehicle_participation_id: null,
-        source_observation_id: 201,
-        backfilled_from_investment_id: null,
-        request_hash: 'e'.repeat(64),
-      }
-    );
-
-    const replay = await backfillLegacyPositionEvents({
-      actorId: 1,
-      database,
-      request: { mode: 'dry_run', fundIds: [7] },
-    });
-
-    expect(replay.skipped).toBe(1);
-    expect(replay.blocked).toBe(0);
-    expect(replay.candidates[0]).toMatchObject({
-      investmentId: 800,
-      eventId: anchor['id'],
-      status: 'skipped',
-      sharesDelta: '14.000000',
-      costBasisDelta: '1400.000000',
-      warnings: expect.arrayContaining(['EXISTING_BACKFILL_REPLAYED']),
-    });
-    expect(model.positionEvents).toHaveLength(5);
-  });
-
-  it('rejects changed source hash before writing affected fund', async () => {
-    const model = baseModel();
-    const database = makeDb(model);
-
-    await expect(
-      backfillLegacyPositionEvents({
-        actorId: 1,
-        database,
-        request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': 'a'.repeat(64) } },
-      })
-    ).rejects.toBeInstanceOf(LegacyPositionBackfillServiceError);
-
-    expect(model.positionEvents).toHaveLength(0);
-    expect(model.sourceObservations).toHaveLength(0);
-  });
-
-  it('blocks multi-main funds before opening write transactions', async () => {
-    const model = baseModel({
-      vehicles: [
-        { id: 10, fund_id: 7, vehicle_slug: 'main-a', vehicle_type: 'main_fund' },
-        { id: 11, fund_id: 7, vehicle_slug: 'main-b', vehicle_type: 'main_fund' },
-      ],
-    });
-
-    await expect(
-      backfillLegacyPositionEvents({
-        actorId: 1,
-        database: makeDb(model),
-        request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': 'a'.repeat(64) } },
-      })
-    ).rejects.toMatchObject({ code: 'MULTI_MAIN_FUND_VEHICLE' });
-    expect(model.transactions).toBe(0);
-    expect(model.positionEvents).toHaveLength(0);
-  });
-
-  it('creates deterministic main vehicle when no main exists', async () => {
-    const model = baseModel({ vehicles: [] });
-    const database = makeDb(model);
-    const dryRun = await backfillLegacyPositionEvents({
-      actorId: 1,
-      database,
-      request: { mode: 'dry_run', fundIds: [7] },
-    });
-    const hash = dryRun.candidates[0]?.sourcePlanHash;
-
-    const result = await backfillLegacyPositionEvents({
-      actorId: 1,
-      database,
-      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': hash ?? '' } },
-    });
-
-    expect(result.createdMainVehicles).toBe(1);
-    expect(result.candidates[0]).toMatchObject({
-      vehicleId: 50,
-      warnings: ['ZERO_SHARE_LEGACY_POSITION', 'MAIN_VEHICLE_CREATED'],
-    });
-    expect(model.vehicles[0]).toMatchObject({
-      fund_id: 7,
-      vehicle_slug: 'legacy-main-fund',
-      vehicle_type: 'main_fund',
-    });
-  });
+      await expect(
+        backfillLegacyPositionEvents({
+          actorId: 1,
+          database: makeDb(model),
+          request: { mode, fundIds: [7], expectedSourceHashes: { '800': 'a'.repeat(64) } },
+        })
+      ).rejects.toMatchObject({ code: 'BACKFILL_BLOCKED' });
+      expect(model.statements).toEqual([]);
+      expect(model.transactions).toBe(0);
+      expect(model.positionEvents).toEqual([]);
+      expect(model.sourceObservations).toEqual([]);
+    }
+  );
 
   it('rejects lossy share precision before writes', async () => {
     const model = baseModel({
@@ -731,7 +476,7 @@ describe('legacy position backfill service', () => {
     const result = await backfillLegacyPositionEvents({
       actorId: 1,
       database: makeDb(model),
-      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': 'a'.repeat(64) } },
+      request: { mode: 'dry_run', fundIds: [7] },
     });
 
     expect(result.blocked).toBe(1);
@@ -754,27 +499,14 @@ describe('legacy position backfill service', () => {
         }),
       ],
     });
-    const database = makeDb(model);
-    const dryRun = await backfillLegacyPositionEvents({
+    const result = await backfillLegacyPositionEvents({
       actorId: 1,
-      database,
+      database: makeDb(model),
       request: { mode: 'dry_run', fundIds: [7] },
     });
-    const hash = dryRun.candidates[0]?.sourcePlanHash;
-
-    const apply = await backfillLegacyPositionEvents({
-      actorId: 1,
-      database,
-      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': hash ?? '' } },
-    });
-
-    expect(apply.written).toBe(1);
-    expect(apply.candidates[0]?.warnings).toContain('PARTICIPATION_OBSERVATION_REUSED');
+    expect(result.candidates[0]?.warnings).toContain('PARTICIPATION_OBSERVATION_REUSED');
     expect(model.sourceObservations).toHaveLength(0);
-    expect(model.positionEvents[0]).toMatchObject({
-      vehicle_participation_id: 900,
-      source_observation_id: 300,
-    });
+    expect(model.positionEvents).toHaveLength(0);
   });
 
   it('blocks participation-backed investments without source observation lineage', async () => {
@@ -795,7 +527,7 @@ describe('legacy position backfill service', () => {
     const result = await backfillLegacyPositionEvents({
       actorId: 1,
       database: makeDb(model),
-      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': 'a'.repeat(64) } },
+      request: { mode: 'dry_run', fundIds: [7] },
     });
 
     expect(result.blocked).toBe(1);
@@ -824,94 +556,10 @@ describe('legacy position backfill service', () => {
     const result = await backfillLegacyPositionEvents({
       actorId: 1,
       database: makeDb(model),
-      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': 'a'.repeat(64) } },
+      request: { mode: 'dry_run', fundIds: [7] },
     });
 
     expect(result.blocked).toBe(1);
     expect(result.candidates[0]?.blockers).toContain('POSITION_ACQUISITION_OVERLAP');
-  });
-
-  it('rejects replay when immutable event fields no longer match', async () => {
-    const model = baseModel();
-    const database = makeDb(model);
-    const dryRun = await backfillLegacyPositionEvents({
-      actorId: 1,
-      database,
-      request: { mode: 'dry_run', fundIds: [7] },
-    });
-    const hash = dryRun.candidates[0]?.sourcePlanHash ?? '';
-    await backfillLegacyPositionEvents({
-      actorId: 1,
-      database,
-      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': hash } },
-    });
-    model.positionEvents[0]!['cost_basis_delta'] = '999.000000';
-
-    const result = await backfillLegacyPositionEvents({
-      actorId: 1,
-      database,
-      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': hash } },
-    });
-
-    expect(result.blocked).toBe(1);
-    expect(result.candidates[0]?.blockers).toContain('EXISTING_BACKFILL_MISMATCH');
-  });
-
-  it('rejects replay when source observation hash no longer matches', async () => {
-    const model = baseModel();
-    const database = makeDb(model);
-    const dryRun = await backfillLegacyPositionEvents({
-      actorId: 1,
-      database,
-      request: { mode: 'dry_run', fundIds: [7] },
-    });
-    const hash = dryRun.candidates[0]?.sourcePlanHash ?? '';
-    await backfillLegacyPositionEvents({
-      actorId: 1,
-      database,
-      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': hash } },
-    });
-    model.sourceObservations[0]!['observation_hash'] = 'b'.repeat(64);
-
-    const result = await backfillLegacyPositionEvents({
-      actorId: 1,
-      database,
-      request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': hash } },
-    });
-
-    expect(result.blocked).toBe(1);
-    expect(result.candidates[0]?.blockers).toContain('EXISTING_BACKFILL_MISMATCH');
-  });
-
-  it('rejects candidate set drift before writes', async () => {
-    const model = baseModel();
-    const database = makeDb(model);
-    const dryRun = await backfillLegacyPositionEvents({
-      actorId: 1,
-      database,
-      request: { mode: 'dry_run', fundIds: [7] },
-    });
-    const hash = dryRun.candidates[0]?.sourcePlanHash ?? '';
-    model.beforeInvestmentRead = (fakeModel, readCount) => {
-      if (readCount !== 3) return;
-      fakeModel.investments.push(
-        investmentRow({
-          investment_id: 801,
-          amount: '250.00',
-          cost_basis_cents: 25000n,
-        })
-      );
-    };
-
-    await expect(
-      backfillLegacyPositionEvents({
-        actorId: 1,
-        database,
-        request: { mode: 'apply', fundIds: [7], expectedSourceHashes: { '800': hash } },
-      })
-    ).rejects.toMatchObject({ code: 'SOURCE_PLAN_HASH_CHANGED' });
-
-    expect(model.positionEvents).toHaveLength(0);
-    expect(model.sourceObservations).toHaveLength(0);
   });
 });

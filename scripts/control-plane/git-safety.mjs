@@ -272,7 +272,9 @@ export function archiveGuardCheck(commitRange = null) {
     for (const block of archiveBlocks) {
       console.log(`  - ${block.file} matched ${block.pattern}`);
     }
-    console.log('Use git history for archival context; see CLAUDE.md#archive-gate.');
+    console.log(
+      'Use git history for archival context; see docs/governance/solo-internal-change-and-production-policy.md (Archive Gate).'
+    );
   }
 
   if (largeFileBlocks.length > 0) {

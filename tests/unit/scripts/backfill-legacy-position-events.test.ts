@@ -26,27 +26,13 @@ describe('legacy position backfill CLI', () => {
     expect(process.exitCode).toBe(originalExitCode);
   });
 
-  it('sets nonzero exit code for blocked result', async () => {
-    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
-    const runner = vi.fn<LegacyBackfillRunner>().mockResolvedValue({
-      mode: 'apply',
-      fundsScanned: 1,
-      investmentsScanned: 1,
-      planned: 0,
-      written: 0,
-      skipped: 0,
-      blocked: 1,
-      createdMainVehicles: 0,
-      candidates: [],
-    });
+  it.each(['--apply', '--resume'])('blocks %s before invoking the service runner', async (mode) => {
+    const runner = vi.fn<LegacyBackfillRunner>();
 
-    await runLegacyPositionBackfillCli(
-      ['--apply', '--fund-id', '7', '--expected-source-hash', `800=${'a'.repeat(64)}`],
-      runner
+    await expect(runLegacyPositionBackfillCli([mode], runner)).rejects.toThrow(
+      /legacy position backfill mutation is mechanically blocked/i
     );
-
-    expect(process.exitCode).toBe(1);
-    expect(log).toHaveBeenCalledOnce();
+    expect(runner).not.toHaveBeenCalled();
   });
 
   it('parses resume plans and expected source hashes', () => {
