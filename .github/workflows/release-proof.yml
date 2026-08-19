@@ -324,6 +324,7 @@ jobs:
             parsed.provenance.fundDataOrigins.length !== 1 ||
             parsed.provenance.fundDataOrigins[0] !== 'release_canary' ||
             parsed.provenance.flagState.enableGpEconomicsEngine !== false ||
+            parsed.provenance.flagState.cohortCalculationInvoked !== false ||
             parsed.provenance.directFundForeignKeys.length === 0
           ) {
             throw new Error('Characterization provenance does not match the strict contract');

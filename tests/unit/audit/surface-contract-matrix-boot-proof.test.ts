@@ -19,7 +19,6 @@ import {
   vercelBuildInvocation,
   vercelBuildEnvironment,
   vercelFunctionProofEnvironment,
-  withVercelCredentialsMasked,
   workerProofEnvironment,
   workerPostgresProofHostname,
   workerProofPlan,
@@ -284,6 +283,20 @@ describe('surface contract matrix boot proof completion gates', () => {
     expect(genericEnvironment).not.toHaveProperty('VERCEL_TOKEN');
     expect(genericEnvironment).not.toHaveProperty('VERCEL_ORG_ID');
     expect(genericEnvironment).not.toHaveProperty('VERCEL_PROJECT_ID');
+    for (const nonVercelEnvironment of [
+      genericEnvironment,
+      dockerProofEnvironment({}, strictVercelEnvironment),
+      vercelFunctionProofEnvironment(strictVercelEnvironment),
+      workerProofEnvironment({
+        workerType: 'fund-scenario-calc',
+        sourceSha: 'a'.repeat(40),
+        deploymentId: 'worker-proof',
+      }),
+    ]) {
+      for (const key of ['VERCEL_TOKEN', 'VERCEL_ORG_ID', 'VERCEL_PROJECT_ID']) {
+        expect(nonVercelEnvironment).not.toHaveProperty(key);
+      }
+    }
     expect(vercelBuildEnvironment(strictVercelEnvironment)).toMatchObject(strictVercelEnvironment);
     expect(vercelBuildInvocation()).toEqual({
       command: 'npx',
@@ -490,42 +503,6 @@ describe('surface contract matrix boot proof completion gates', () => {
     fs.writeFileSync(path.join(nested, 'nested.js'), 'export default () => {};');
 
     expect(vercelBuildOutputFunctions(functionsRoot).map(({ name }) => name)).toEqual(['api']);
-  });
-
-  it('masks all Vercel credentials during emitted handler import and redacts hostile handler failures', async () => {
-    const original = Object.fromEntries(
-      Object.keys(strictVercelEnvironment).map((key) => [key, process.env[key]])
-    );
-    Object.assign(process.env, strictVercelEnvironment);
-    try {
-      const direct = await invokeVercelFunction({
-        name: 'api/hostile',
-        entry: fixture('hostile-vercel-handler.mjs'),
-        redactionEnvironment: strictVercelEnvironment,
-      });
-      expect(direct.result).not.toContain('vercel-token-secret');
-      expect(direct.result).not.toContain('vercel-org-secret');
-      expect(direct.result).not.toContain('vercel-project-secret');
-
-      await withVercelCredentialsMasked(async () => {
-        expect(process.env['VERCEL_TOKEN']).toBeUndefined();
-        expect(process.env['VERCEL_ORG_ID']).toBeUndefined();
-        expect(process.env['VERCEL_PROJECT_ID']).toBeUndefined();
-        const masked = await invokeVercelFunction({
-          name: 'api/hostile',
-          entry: fixture('hostile-vercel-handler.mjs'),
-          redactionEnvironment: strictVercelEnvironment,
-        });
-        expect(masked.result).not.toContain('vercel-token-secret');
-        expect(masked.result).not.toContain('vercel-org-secret');
-        expect(masked.result).not.toContain('vercel-project-secret');
-      });
-    } finally {
-      for (const [key, value] of Object.entries(original)) {
-        if (value === undefined) delete process.env[key];
-        else process.env[key] = value;
-      }
-    }
   });
 
   it('invokes build-output handlers in production Vercel runtime with synthetic isolation', () => {
@@ -1007,6 +984,7 @@ describe('surface contract matrix boot proof completion gates', () => {
 
       const install = calls.find((call) => call.command === 'npm' && call.args[0] === 'ci');
       const inner = calls.find((call) => call.command === process.execPath);
+      const guardedVercelBuild = calls.find((call) => call.command === 'npx' && call.args.includes('vercel@55.0.0'));
       const disposableCache = path.join(path.dirname(install!.cwd!), 'npm-cache');
       expect(install?.env).toMatchObject({
         PATH: '/clean-room-bin',
@@ -1019,7 +997,7 @@ describe('surface contract matrix boot proof completion gates', () => {
       for (const key of ['ARBITRARY_SECRET', 'VERCEL_TOKEN', 'VERCEL_ORG_ID', 'VERCEL_PROJECT_ID']) {
         expect(install?.env).not.toHaveProperty(key);
       }
-      expect(inner?.env).toMatchObject({
+      expect(guardedVercelBuild?.env).toMatchObject({
         VERCEL_TOKEN: 'vercel-token-secret',
         VERCEL_ORG_ID: 'vercel-org-secret',
         VERCEL_PROJECT_ID: 'vercel-project-secret',
@@ -1027,6 +1005,11 @@ describe('surface contract matrix boot proof completion gates', () => {
         npm_config_cache: disposableCache,
       });
       expect(inner?.env).not.toHaveProperty('ARBITRARY_SECRET');
+      for (const call of calls.filter((call) => call !== guardedVercelBuild)) {
+        for (const key of ['VERCEL_TOKEN', 'VERCEL_ORG_ID', 'VERCEL_PROJECT_ID']) {
+          expect(call.env).not.toHaveProperty(key);
+        }
+      }
     } finally {
       fs.rmSync(repositoryRoot, { recursive: true, force: true });
     }

@@ -37,6 +37,7 @@ const VERCEL_BUILD_ENV_KEYS = Object.freeze([
   'VERCEL_ORG_ID',
   'VERCEL_PROJECT_ID',
 ]);
+const VERCEL_BUILD_RESULT_MARKER = 'SURFACE_BOOT_PROOF_VERCEL_BUILD_RESULT';
 const CLEAN_ROOM_ENV_KEYS = Object.freeze([
   'PATH', 'TMPDIR', 'TMP', 'TEMP', 'HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY',
   'NPM_CONFIG_REGISTRY', 'npm_config_registry', 'NPM_CONFIG_CAFILE', 'NODE_EXTRA_CA_CERTS',
@@ -98,9 +99,8 @@ const sanitizedBaseEnv = (environment = process.env) => ({
   npm_config_cache: environment.npm_config_cache,
 });
 
-const cleanRoomEnvironment = (environment, npmCache, { includeVercelCredentials = false } = {}) => ({
+const cleanRoomEnvironment = (environment, npmCache) => ({
   ...Object.fromEntries(CLEAN_ROOM_ENV_KEYS.flatMap((key) => environment[key] ? [[key, environment[key]]] : [])),
-  ...(includeVercelCredentials ? requiredVercelBuildCredentials(environment) : {}),
   TZ: 'UTC',
   CI: '1',
   HUSKY: '0',
@@ -127,9 +127,12 @@ export const dockerProofEnvironment = (overrides = {}, environment = process.env
     : {}),
 });
 
-export const vercelBuildEnvironment = (environment = process.env) => ({
+export const vercelBuildEnvironment = (
+  environment = process.env,
+  credentials = requiredVercelBuildCredentials(environment)
+) => ({
   ...proofEnv({}, environment),
-  ...requiredVercelBuildCredentials(environment),
+  ...credentials,
 });
 
 export const vercelFunctionProofEnvironment = (environment = process.env) => proofEnv({
@@ -160,20 +163,6 @@ export const redactChildOutput = (value, environment = process.env) => {
     if (credential) redacted = redacted.split(credential).join('[REDACTED]');
   }
   return redacted;
-};
-
-export const withVercelCredentialsMasked = async (action, environment = process.env) => {
-  const original = Object.fromEntries(VERCEL_BUILD_ENV_KEYS.map((key) => [key, process.env[key]]));
-  const redactionEnvironment = requiredVercelBuildCredentials(environment);
-  for (const key of VERCEL_BUILD_ENV_KEYS) delete process.env[key];
-  try {
-    return await action(redactionEnvironment);
-  } finally {
-    for (const [key, value] of Object.entries(original)) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
-  }
 };
 
 const commandResult = (command, args, env, timeout = 180_000) => {
@@ -966,11 +955,11 @@ export const invokeVercelFunctionInIsolatedChild = ({
   }
 };
 
-const vercelFunctionProof = async () => {
+const vercelFunctionProof = async ({ prebuiltBuild } = {}) => {
   const command_or_artifact = VERCEL_FUNCTION_COMMAND;
   const probe = VERCEL_FUNCTION_PROBE;
   const invocation = vercelBuildInvocation();
-  const build = commandResult(invocation.command, invocation.args, vercelBuildEnvironment(), 600_000);
+  const build = prebuiltBuild ?? commandResult(invocation.command, invocation.args, vercelBuildEnvironment(), 600_000);
   if (!build.ok) return vercelFunctionBuildFailureEvidence(build);
   const functions = vercelBuildOutputFunctions();
   if (functions.length === 0) return evidence({ deployment: 'vercel-api', runtime: 'vercel_function', boot_status: 'failed', command_or_artifact, probe, result: 'Vercel build completed but emitted no .vercel/output/functions entries' });
@@ -1065,7 +1054,7 @@ export const assertRequiredG3Proofs = (document) => {
 
 const sourceSha = (repositoryRoot = repoRoot) => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repositoryRoot, encoding: 'utf8' }).trim();
 
-const collectBootProofs = async ({ sourceSha: currentSourceSha }) => {
+const collectBootProofs = async ({ sourceSha: currentSourceSha, vercelFunctionBuild }) => {
   const fundWorkerProof = await railwayWorkerProof({
     workerType: 'fund-scenario-calc',
     deployment: 'railway-worker-fund-scenario-calc',
@@ -1087,7 +1076,7 @@ const collectBootProofs = async ({ sourceSha: currentSourceSha }) => {
     ...workerRuntimeProofs(fundWorkerProof),
     ...workerRuntimeProofs(capitalWorkerProof),
     await vercelApiProof(),
-    await vercelFunctionProof(),
+    await vercelFunctionProof({ prebuiltBuild: vercelFunctionBuild }),
     await vercelWebProof(),
     await mlServiceProof(),
   ];
@@ -1108,9 +1097,10 @@ export const runBootProofInner = async ({
   if (expectedSourceSha && actualSourceSha !== expectedSourceSha) {
     throw new Error(`Boot-proof clean-room HEAD does not match expected source SHA: expected ${expectedSourceSha}, received ${actualSourceSha}`);
   }
-  if (requireG3) assertStrictVercelBuildCredentials(environment);
+  const vercelFunctionBuild = prebuiltVercelBuildResult(environment);
+  if (requireG3 && !vercelFunctionBuild) assertStrictVercelBuildCredentials(environment);
   const currentSourceSha = actualSourceSha;
-  const proofs = (await collectProofs({ sourceSha: currentSourceSha }))
+  const proofs = (await collectProofs({ sourceSha: currentSourceSha, vercelFunctionBuild }))
     .sort((left, right) => `${left.deployment}|${left.runtime ?? '*'}`.localeCompare(`${right.deployment}|${right.runtime ?? '*'}`));
   const document = BootProofDocumentSchema.parse({ schema_version: '1.1.0', source_sha: currentSourceSha, proofs });
   if (requireG3) assertRequiredG3Proofs(document);
@@ -1120,6 +1110,33 @@ export const runBootProofInner = async ({
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
 const CLEAN_ROOM_MARKER = 'SURFACE_BOOT_PROOF_INTERNAL_CLEAN_ROOM';
+const prebuiltVercelBuildResult = (environment) => {
+  const serialized = environment[VERCEL_BUILD_RESULT_MARKER];
+  if (serialized === undefined) return undefined;
+  let result;
+  try {
+    result = JSON.parse(serialized);
+  } catch {
+    throw new Error('Boot-proof clean-room Vercel build result invalid');
+  }
+  if (
+    !result ||
+    typeof result !== 'object' ||
+    (result.status !== null && (!Number.isSafeInteger(result.status) || result.status < 0)) ||
+    (result.signal !== null && typeof result.signal !== 'string') ||
+    (result.errorCode !== null && typeof result.errorCode !== 'string')
+  ) {
+    throw new Error('Boot-proof clean-room Vercel build result invalid');
+  }
+  return {
+    ok: result.status === 0,
+    status: result.status,
+    signal: result.signal,
+    error: result.errorCode ? { code: result.errorCode } : undefined,
+    stdout: '',
+    stderr: '',
+  };
+};
 const CLEAN_ROOM_IGNORED_NAMES = new Set(['.git', 'node_modules']);
 
 const fileSha256 = (filename, filesystem = fs) => createHash('sha256').update(filesystem.readFileSync(filename)).digest('hex');
@@ -1222,6 +1239,19 @@ export const runBootProofCleanRoom = async ({
       env: cleanRoomEnvironment(environment, npmCache),
     });
     if (install.status !== 0) throw commandFailure('Boot-proof clean-room dependency install', install);
+    const invocation = vercelBuildInvocation();
+    const vercelBuild = runCommand(invocation.command, invocation.args, {
+      cwd: cleanRoom,
+      env: vercelBuildEnvironment(
+        cleanRoomEnvironment(environment, npmCache),
+        requireG3 ? assertStrictVercelBuildCredentials(environment) : requiredVercelBuildCredentials(environment)
+      ),
+    });
+    const vercelBuildResult = JSON.stringify({
+      status: Number.isSafeInteger(vercelBuild.status) ? vercelBuild.status : null,
+      signal: typeof vercelBuild.signal === 'string' ? vercelBuild.signal : null,
+      errorCode: typeof vercelBuild.error?.code === 'string' ? vercelBuild.error.code : null,
+    });
     const inner = runCommand(process.execPath, [
       path.join(cleanRoom, 'audit/surface-contract-matrix/scripts/boot-proof.mjs'),
       '--internal-clean-room',
@@ -1230,7 +1260,11 @@ export const runBootProofCleanRoom = async ({
       ...(requireG3 ? ['--require-g3'] : []),
     ], {
       cwd: cleanRoom,
-      env: { ...cleanRoomEnvironment(environment, npmCache, { includeVercelCredentials: true }), [CLEAN_ROOM_MARKER]: '1' },
+      env: {
+        ...cleanRoomEnvironment(environment, npmCache),
+        [CLEAN_ROOM_MARKER]: '1',
+        [VERCEL_BUILD_RESULT_MARKER]: vercelBuildResult,
+      },
     });
     if (inner.status !== 0) throw commandFailure('Boot-proof clean-room execution', inner);
     innerDocument = filesystem.readFileSync(innerOutput);

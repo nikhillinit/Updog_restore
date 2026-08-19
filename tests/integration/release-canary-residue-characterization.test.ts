@@ -481,11 +481,14 @@ describe('release canary residue characterization', () => {
       await capturePhase('draft-save');
 
       // ---- Phase 3: publish (base calculation runs inline) ------------------
+      const cohortQueueAdd = vi.fn();
       const publishResult = await fundPersistence.publishDraft(
         fundId,
-        { reserve: null, pacing: null, cohort: null },
+        { reserve: null, pacing: null, cohort: { add: cohortQueueAdd } as unknown as Queue },
         userId
       );
+      const cohortCalculationInvoked = cohortQueueAdd.mock.calls.length > 0;
+      expect(cohortCalculationInvoked).toBe(false);
       console.warn(
         `[characterization] publish dispatchState=${publishResult.run.dispatchState} lastError=${
           (publishResult.run as { lastError?: string | null }).lastError ?? 'none'
@@ -1198,7 +1201,7 @@ describe('release canary residue characterization', () => {
           databaseTimeZone,
           storedRun: storedRunProvenance,
           fundDataOrigins,
-          flagState: { enableGpEconomicsEngine },
+          flagState: { enableGpEconomicsEngine, cohortCalculationInvoked },
           snapshotTypeCounts,
           directFundForeignKeys,
         },

@@ -117,7 +117,12 @@ const ProvenanceSchema = z
       })
       .strict(),
     fundDataOrigins: z.array(z.literal('release_canary')).length(1),
-    flagState: z.object({ enableGpEconomicsEngine: z.boolean() }).strict(),
+    flagState: z
+      .object({
+        enableGpEconomicsEngine: z.boolean(),
+        cohortCalculationInvoked: z.literal(false),
+      })
+      .strict(),
     snapshotTypeCounts: SnapshotTypeCountsSchema,
     directFundForeignKeys: z.array(DirectFundForeignKeySchema).min(1),
   })

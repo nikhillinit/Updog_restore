@@ -48,7 +48,7 @@ function validRecord() {
       databaseTimeZone: 'Etc/UTC',
       storedRun: { releaseSha: 'a'.repeat(40), status: 'completed', version: 2 },
       fundDataOrigins: ['release_canary'],
-      flagState: { enableGpEconomicsEngine: false },
+      flagState: { enableGpEconomicsEngine: false, cohortCalculationInvoked: false },
       snapshotTypeCounts: [
         { type: 'COHORT', count: 0 }, { type: 'ECONOMICS', count: 0 }, { type: 'PACING', count: 1 },
         { type: 'RESERVE', count: 1 }, { type: 'SCENARIOS', count: 1 },
@@ -81,6 +81,26 @@ describe('release-canary-residue-characterization-v1 contract', { retry: 0 }, ()
 
   const rejections: Array<[string, (record: ReturnType<typeof validRecord>) => unknown]> = [
     ['unknown top-level field', (r) => ({ ...r, artifactId: '123' })],
+    [
+      'missing cohort calculation invocation evidence',
+      (r) => ({
+        ...r,
+        provenance: {
+          ...r.provenance,
+          flagState: { enableGpEconomicsEngine: r.provenance.flagState.enableGpEconomicsEngine },
+        },
+      }),
+    ],
+    [
+      'cohort calculation invocation evidence true',
+      (r) => ({
+        ...r,
+        provenance: {
+          ...r.provenance,
+          flagState: { ...r.provenance.flagState, cohortCalculationInvoked: true },
+        },
+      }),
+    ],
     [
       'unknown nested field in a residue vector',
       (r) => ({ ...r, finalResidue: { ...r.finalResidue, rowIds: [1] } }),
