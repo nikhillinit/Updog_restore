@@ -13,7 +13,8 @@ import {
   dockerProofEnvironment,
   proofEnv,
   resolveBootProofOutput,
-  runBootProof,
+  runBootProofCleanRoom,
+  runBootProofInner,
   vercelBuildInvocation,
   vercelBuildEnvironment,
   vercelFunctionProofEnvironment,
@@ -38,6 +39,21 @@ const strictVercelEnvironment = {
   VERCEL_ORG_ID: 'vercel-org-secret',
   VERCEL_PROJECT_ID: 'vercel-project-secret',
 };
+
+const cleanRoomDocument = (source_sha: string) => ({
+  schema_version: '1.1.0',
+  source_sha,
+  proofs: [{
+    deployment: 'local-process',
+    boot_status: 'unproven',
+    boot_evidence: {
+      command_or_artifact: 'fixture',
+      probe: 'fixture',
+      result: 'fixture',
+      observed_at: 'fixture',
+    },
+  }],
+});
 
 describe('surface contract matrix boot proof completion gates', () => {
   it('keeps Docker proof config isolated', () => {
@@ -187,7 +203,7 @@ describe('surface contract matrix boot proof completion gates', () => {
     expect(() => resolveBootProofOutput('tests/unit/audit/fixtures')).toThrow(
       'regular non-symlink file'
     );
-    await expect(runBootProof({ output: 'tests/unit/audit/fixtures' })).rejects.toThrow(
+    await expect(runBootProofInner({ output: 'tests/unit/audit/fixtures' })).rejects.toThrow(
       'regular non-symlink file'
     );
   });
@@ -226,21 +242,23 @@ describe('surface contract matrix boot proof completion gates', () => {
       }))
     );
     await expect(
-      runBootProof({
+      runBootProofInner({
         output,
         requireG3: true,
         collectProofs,
         sourceSha: source_sha,
         environment: { ...strictVercelEnvironment, VERCEL_PROJECT_ID: '' },
+        readSourceSha: () => source_sha,
       })
     ).rejects.toThrow('VERCEL_PROJECT_ID');
     expect(collectProofs).not.toHaveBeenCalled();
-    await runBootProof({
+    await runBootProofInner({
       output,
       requireG3: true,
       collectProofs,
       sourceSha: source_sha,
       environment: strictVercelEnvironment,
+      readSourceSha: () => source_sha,
     });
     expect(
       MatrixBootProofDocumentSchema.parse(JSON.parse(fs.readFileSync(output, 'utf8')))
@@ -250,12 +268,12 @@ describe('surface contract matrix boot proof completion gates', () => {
     });
     expect(fs.readFileSync(tracked, 'utf8')).toBe(trackedBefore);
     await expect(
-      runBootProof({ output: tempDir, collectProofs, sourceSha: source_sha })
+      runBootProofInner({ output: tempDir, collectProofs, sourceSha: source_sha })
     ).rejects.toThrow();
     const symlinkOutput = path.join(tempDir, 'proof-link.json');
     fs.symlinkSync(output, symlinkOutput);
     await expect(
-      runBootProof({ output: symlinkOutput, collectProofs, sourceSha: source_sha })
+      runBootProofInner({ output: symlinkOutput, collectProofs, sourceSha: source_sha })
     ).rejects.toThrow('non-symlink');
     expect(collectProofs).toHaveBeenCalledTimes(1);
   });
@@ -786,5 +804,150 @@ describe('surface contract matrix boot proof completion gates', () => {
     expect(outcome.boot_status).toBe('failed');
     expect(outcome.boot_evidence.result).toContain('SIGTERM');
     expect(outcome.boot_evidence.result).not.toContain('timeout');
+  });
+
+  it('runs normal boot proof only in detached clean room and atomically copies requested output', async () => {
+    const repositoryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-clean-room-repo-'));
+    const output = path.join(repositoryRoot, 'audit', 'surface-contract-matrix', 'requested-proof.json');
+    const candidateSha = 'c'.repeat(40);
+    fs.mkdirSync(path.dirname(output), { recursive: true });
+    fs.writeFileSync(path.join(repositoryRoot, 'package.json'), '{}\n');
+    fs.writeFileSync(path.join(repositoryRoot, 'package-lock.json'), '{}\n');
+    fs.writeFileSync(path.join(repositoryRoot, 'untracked-generated-artifact.txt'), 'preserve exactly\n');
+    const calls: Array<{ command: string; args: string[]; cwd?: string; env?: NodeJS.ProcessEnv }> = [];
+    try {
+      await runBootProofCleanRoom({
+        repositoryRoot,
+        output,
+        candidateSha,
+        environment: { PATH: '/clean-room-bin', VERCEL_TOKEN: 'clean-room-credential' },
+        stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+        runCommand: (command, args, options) => {
+          calls.push({ command, args, cwd: options.cwd, env: options.env });
+          if (command === process.execPath) {
+            expect(options.cwd).not.toBe(repositoryRoot);
+            expect(args).toContain('--internal-clean-room');
+            expect(args).toEqual(expect.arrayContaining(['--source-sha', candidateSha]));
+            expect(options.env?.SURFACE_BOOT_PROOF_INTERNAL_CLEAN_ROOM).toBe('1');
+            fs.writeFileSync(args[args.indexOf('--output') + 1], `${JSON.stringify(cleanRoomDocument(candidateSha))}\n`);
+          }
+          return { status: 0 };
+        },
+      });
+      expect(calls[0]).toMatchObject({
+        command: 'git',
+        args: ['worktree', 'add', '--detach', expect.any(String), candidateSha],
+        cwd: repositoryRoot,
+      });
+      const installCall = calls.find((call) => call.command === 'npm');
+      expect(installCall?.args).toEqual(['ci']);
+      expect(installCall?.cwd).not.toBe(repositoryRoot);
+      expect(installCall?.env).toMatchObject({
+        PATH: '/clean-room-bin',
+        VERCEL_TOKEN: 'clean-room-credential',
+        HUSKY: '0',
+        CI: '1',
+      });
+      expect(calls.at(-1)).toMatchObject({ command: 'git', args: ['worktree', 'remove', '--force', expect.any(String)] });
+      expect(calls.filter((call) => call.command === process.execPath).every((call) => call.cwd !== repositoryRoot)).toBe(true);
+      expect(JSON.parse(fs.readFileSync(output, 'utf8'))).toMatchObject({ source_sha: candidateSha });
+      expect(fs.readFileSync(path.join(repositoryRoot, 'untracked-generated-artifact.txt'), 'utf8')).toBe('preserve exactly\n');
+    } finally {
+      fs.rmSync(repositoryRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('supports external requested output and cleans invocation worktree after inner failure', async () => {
+    const repositoryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-external-repo-'));
+    const external = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-external-output-'));
+    const output = path.join(external, 'proof.json');
+    const candidateSha = 'd'.repeat(40);
+    fs.writeFileSync(path.join(repositoryRoot, 'package.json'), '{}\n');
+    fs.writeFileSync(path.join(repositoryRoot, 'package-lock.json'), '{}\n');
+    const calls: Array<{ command: string; args: string[] }> = [];
+    let innerAttempts = 0;
+    try {
+      await runBootProofCleanRoom({
+        repositoryRoot,
+        output,
+        candidateSha,
+        stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+        runCommand: (command, args) => {
+          calls.push({ command, args });
+          if (command === process.execPath) {
+            innerAttempts += 1;
+            fs.writeFileSync(args[args.indexOf('--output') + 1], `${JSON.stringify(cleanRoomDocument(candidateSha))}\n`);
+          }
+          return { status: 0 };
+        },
+      });
+      expect(JSON.parse(fs.readFileSync(output, 'utf8'))).toMatchObject({ source_sha: candidateSha });
+      await expect(runBootProofCleanRoom({
+        repositoryRoot,
+        output,
+        candidateSha,
+        stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+        runCommand: (command, args) => {
+          calls.push({ command, args });
+          if (command === process.execPath) innerAttempts += 1;
+          return { status: command === process.execPath && innerAttempts === 2 ? 1 : 0 };
+        },
+      })).rejects.toThrow('clean-room execution');
+      expect(calls.filter((call) => call.command === 'git' && call.args[1] === 'remove')).toHaveLength(2);
+    } finally {
+      fs.rmSync(repositoryRoot, { recursive: true, force: true });
+      fs.rmSync(external, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ['package.json', 'manifest hash'],
+    ['dirty-untracked-proof.txt', 'non-output fingerprint'],
+  ])('fails closed when clean-room invocation changes original %s', async (filename) => {
+    const repositoryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-mutation-repo-'));
+    const output = path.join(repositoryRoot, 'proof.json');
+    const candidateSha = 'e'.repeat(40);
+    fs.writeFileSync(path.join(repositoryRoot, 'package.json'), '{}\n');
+    fs.writeFileSync(path.join(repositoryRoot, 'package-lock.json'), '{}\n');
+    const calls: Array<{ command: string; args: string[] }> = [];
+    try {
+      await expect(runBootProofCleanRoom({
+        repositoryRoot,
+        output,
+        candidateSha,
+        stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+        runCommand: (command, args) => {
+          calls.push({ command, args });
+          if (command === process.execPath) {
+            fs.writeFileSync(path.join(repositoryRoot, filename), 'changed by forbidden original-root proof\n');
+            fs.writeFileSync(args[args.indexOf('--output') + 1], `${JSON.stringify(cleanRoomDocument(candidateSha))}\n`);
+          }
+          return { status: 0 };
+        },
+      })).rejects.toThrow('changed original workspace manifest hashes or non-output fingerprint');
+      expect(calls.at(-1)).toMatchObject({ command: 'git', args: ['worktree', 'remove', '--force', expect.any(String)] });
+    } finally {
+      fs.rmSync(repositoryRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects caller source SHA when actual clean-room HEAD differs before credentials, collection, or write', async () => {
+    const outputDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-head-mismatch-'));
+    const output = path.join(outputDirectory, 'proof.json');
+    const collectProofs = vi.fn();
+    try {
+      await expect(runBootProofInner({
+        output,
+        requireG3: true,
+        sourceSha: 'f'.repeat(40),
+        readSourceSha: () => 'a'.repeat(40),
+        collectProofs,
+        environment: { ...strictVercelEnvironment, VERCEL_PROJECT_ID: '' },
+      })).rejects.toThrow('clean-room HEAD does not match expected source SHA');
+      expect(collectProofs).not.toHaveBeenCalled();
+      expect(fs.existsSync(output)).toBe(false);
+    } finally {
+      fs.rmSync(outputDirectory, { recursive: true, force: true });
+    }
   });
 });

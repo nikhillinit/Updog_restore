@@ -48,6 +48,14 @@ default authoring output is tracked `boot-proofs.json`; closure runs must pass
 changes the approved snapshot. Railway worker evidence includes structured
 `worker_identity` rather than parsing identity from prose.
 
+Normal invocation snapshots original `package.json`, `package-lock.json`, and
+every non-output workspace path, including dirty and untracked generated files.
+It creates a detached worktree at original `HEAD`, runs guarded
+`--internal-clean-room` proof collection only there, validates its JSON, and
+atomically copies only requested output back. It removes only invocation-created
+paths and fails closed if manifest hashes or non-output fingerprint changed.
+Direct `--internal-clean-room` use fails.
+
 | Deployment                           | Artifact / command                                           | Probe and success condition                                                                                        |
 | ------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
 | `railway-worker-fund-scenario-calc`  | `Dockerfile.worker` with isolated Redis/PostgreSQL           | Fund consumer registration plus `/health`, `/live`, `/ready`, `/metrics`, `/stats`; identity SHA equals source SHA |

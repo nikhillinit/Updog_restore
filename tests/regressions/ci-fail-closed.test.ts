@@ -4872,6 +4872,14 @@ describe('required CI fails closed', () => {
     expect(proofScripts).toContain(
       'boot-proof.mjs --require-g3 --output "$RUNNER_TEMP/g3-boot-proofs.json"'
     );
+    const bootProofImplementation = await readFile(
+      path.join(process.cwd(), 'audit/surface-contract-matrix/scripts/boot-proof.mjs'),
+      'utf8'
+    );
+    expect(bootProofImplementation).toContain("['worktree', 'add', '--detach', cleanRoom, candidateSha]");
+    expect(bootProofImplementation).toContain("'--internal-clean-room'");
+    expect(bootProofImplementation).toContain('SURFACE_BOOT_PROOF_INTERNAL_CLEAN_ROOM');
+    expect(bootProofImplementation).toContain("['worktree', 'remove', '--force', cleanRoom]");
     expect(proofScripts).toContain('verify-g3-boot-proofs.mjs');
     expect(proofScripts).toContain('verify-exact-sha-checks.mjs');
     expect(proofScripts).toContain('verify-provider-identity.mjs');

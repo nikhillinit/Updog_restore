@@ -4,6 +4,7 @@ import http from 'node:http';
 import net from 'node:net';
 import { createHash } from 'node:crypto';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { setTimeout as delayTimer } from 'node:timers/promises';
@@ -999,14 +1000,14 @@ export const REQUIRED_G3_PROOF_KEYS = Object.freeze([
   'railway-worker-capital-call-status|worker_process',
 ]);
 
-export const resolveBootProofOutput = (requestedOutput) => {
-  const output = path.resolve(repoRoot, requestedOutput || outputFile);
+export const resolveBootProofOutput = (requestedOutput, { repositoryRoot = repoRoot, filesystem = fs } = {}) => {
+  const output = path.resolve(repositoryRoot, requestedOutput || path.join(repositoryRoot, path.relative(repoRoot, outputFile)));
   const parent = path.dirname(output);
-  if (!fs.existsSync(parent) || !fs.lstatSync(parent).isDirectory() || fs.lstatSync(parent).isSymbolicLink()) {
+  if (!filesystem.existsSync(parent) || !filesystem.lstatSync(parent).isDirectory() || filesystem.lstatSync(parent).isSymbolicLink()) {
     throw new Error(`Boot-proof output parent must be a real directory: ${parent}`);
   }
-  if (fs.existsSync(output)) {
-    const stat = fs.lstatSync(output);
+  if (filesystem.existsSync(output)) {
+    const stat = filesystem.lstatSync(output);
     if (stat.isSymbolicLink() || !stat.isFile()) {
       throw new Error(`Boot-proof output must be a regular non-symlink file: ${output}`);
     }
@@ -1027,7 +1028,7 @@ export const assertRequiredG3Proofs = (document) => {
   if (failures.length > 0) throw new Error(`G3 boot proof incomplete: ${failures.join(', ')}`);
 };
 
-const sourceSha = () => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim();
+const sourceSha = (repositoryRoot = repoRoot) => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repositoryRoot, encoding: 'utf8' }).trim();
 
 const collectBootProofs = async ({ sourceSha: currentSourceSha }) => {
   const fundWorkerProof = await railwayWorkerProof({
@@ -1057,29 +1058,174 @@ const collectBootProofs = async ({ sourceSha: currentSourceSha }) => {
   ];
 };
 
-export const runBootProof = async ({
+export const runBootProofInner = async ({
   output,
   requireG3 = false,
   collectProofs = collectBootProofs,
   sourceSha: expectedSourceSha,
   environment = process.env,
+  repositoryRoot = repoRoot,
+  filesystem = fs,
+  readSourceSha = sourceSha,
 } = {}) => {
-  const outputPath = resolveBootProofOutput(output);
+  const outputPath = resolveBootProofOutput(output, { repositoryRoot, filesystem });
+  const actualSourceSha = readSourceSha(repositoryRoot);
+  if (expectedSourceSha && actualSourceSha !== expectedSourceSha) {
+    throw new Error(`Boot-proof clean-room HEAD does not match expected source SHA: expected ${expectedSourceSha}, received ${actualSourceSha}`);
+  }
   if (requireG3) assertStrictVercelBuildCredentials(environment);
-  const currentSourceSha = expectedSourceSha ?? sourceSha();
+  const currentSourceSha = actualSourceSha;
   const proofs = (await collectProofs({ sourceSha: currentSourceSha }))
     .sort((left, right) => `${left.deployment}|${left.runtime ?? '*'}`.localeCompare(`${right.deployment}|${right.runtime ?? '*'}`));
   const document = BootProofDocumentSchema.parse({ schema_version: '1.1.0', source_sha: currentSourceSha, proofs });
   if (requireG3) assertRequiredG3Proofs(document);
-  fs.writeFileSync(outputPath, `${JSON.stringify(document, null, 2)}\n`);
+  filesystem.writeFileSync(outputPath, `${JSON.stringify(document, null, 2)}\n`);
   process.stdout.write(`${JSON.stringify(document, null, 2)}\n`);
 };
 
+const SHA_PATTERN = /^[0-9a-f]{40}$/;
+const CLEAN_ROOM_MARKER = 'SURFACE_BOOT_PROOF_INTERNAL_CLEAN_ROOM';
+const CLEAN_ROOM_IGNORED_NAMES = new Set(['.git', 'node_modules']);
+
+const fileSha256 = (filename, filesystem = fs) => createHash('sha256').update(filesystem.readFileSync(filename)).digest('hex');
+
+export const workspaceFingerprint = (repositoryRoot, { excludedPath, filesystem = fs } = {}) => {
+  const root = path.resolve(repositoryRoot);
+  const excluded = excludedPath ? path.resolve(excludedPath) : undefined;
+  const entries = [];
+  const visit = (directory) => {
+    for (const entry of filesystem.readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
+      if (directory === root && CLEAN_ROOM_IGNORED_NAMES.has(entry.name)) continue;
+      const filename = path.join(directory, entry.name);
+      if (excluded && filename === excluded) continue;
+      const relative = path.relative(root, filename).split(path.sep).join('/');
+      const stat = filesystem.lstatSync(filename);
+      if (stat.isSymbolicLink()) entries.push(`link:${relative}:${filesystem.readlinkSync(filename)}`);
+      else if (stat.isDirectory()) {
+        entries.push(`directory:${relative}`);
+        visit(filename);
+      } else if (stat.isFile()) entries.push(`file:${relative}:${fileSha256(filename, filesystem)}`);
+      else entries.push(`other:${relative}:${stat.mode}`);
+    }
+  };
+  visit(root);
+  return createHash('sha256').update(entries.join('\n')).digest('hex');
+};
+
+export const originalWorkspaceSnapshot = (repositoryRoot, { excludedPath, filesystem = fs } = {}) => ({
+  manifests: Object.fromEntries(['package.json', 'package-lock.json'].map((name) => {
+    const filename = path.join(repositoryRoot, name);
+    const stat = filesystem.lstatSync(filename);
+    if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`Boot-proof manifest must be a non-symlink regular file: ${filename}`);
+    return [name, fileSha256(filename, filesystem)];
+  })),
+  workspace: workspaceFingerprint(repositoryRoot, { excludedPath, filesystem }),
+});
+
+const snapshotsMatch = (left, right) => left.workspace === right.workspace
+  && Object.entries(left.manifests).every(([name, hash]) => right.manifests[name] === hash);
+
+const atomicCopy = (source, destination, filesystem = fs) => {
+  const temporary = path.join(path.dirname(destination), `.${path.basename(destination)}.boot-proof-${process.pid}-${Date.now()}.tmp`);
+  try {
+    filesystem.writeFileSync(temporary, filesystem.readFileSync(source), { flag: 'wx' });
+    filesystem.renameSync(temporary, destination);
+  } finally {
+    if (filesystem.existsSync(temporary)) filesystem.rmSync(temporary, { force: true });
+  }
+};
+
+const commandFailure = (label, result = {}) => {
+  const detail = [
+    result.error?.code ? `error=${result.error.code}` : undefined,
+    Number.isInteger(result.status) ? `status=${result.status}` : undefined,
+    result.signal ? `signal=${result.signal}` : undefined,
+  ].filter(Boolean).join(' ');
+  return new Error(`${label} failed${detail ? ` (${detail})` : ''}`);
+};
+
+const defaultRunCommand = (command, args, options) => spawnSync(command, args, {
+  ...options,
+  encoding: 'utf8',
+  stdio: ['ignore', 'pipe', 'pipe'],
+});
+
+export const runBootProofCleanRoom = async ({
+  output,
+  requireG3 = false,
+  environment = process.env,
+  repositoryRoot = repoRoot,
+  candidateSha = sourceSha(repositoryRoot),
+  filesystem = fs,
+  makeTempDir = (prefix) => filesystem.mkdtempSync(prefix),
+  runCommand = defaultRunCommand,
+  snapshot = originalWorkspaceSnapshot,
+  stdout = process.stdout,
+} = {}) => {
+  if (!SHA_PATTERN.test(candidateSha)) throw new Error(`Boot-proof candidate SHA must be an exact 40-character lowercase SHA: ${candidateSha}`);
+  const outputPath = resolveBootProofOutput(output, { repositoryRoot, filesystem });
+  const relativeOutput = path.relative(repositoryRoot, outputPath);
+  const excludedPath = relativeOutput === '..' || relativeOutput.startsWith(`..${path.sep}`) || path.isAbsolute(relativeOutput) ? undefined : outputPath;
+  const before = snapshot(repositoryRoot, { excludedPath, filesystem });
+  const cleanRoomParent = makeTempDir(path.join(os.tmpdir(), 'surface-boot-proof-'));
+  const cleanRoom = path.join(cleanRoomParent, 'candidate');
+  const innerOutput = path.join(cleanRoomParent, 'boot-proofs.json');
+  let worktreeAdded = false;
+  let failure;
+  try {
+    const add = runCommand('git', ['worktree', 'add', '--detach', cleanRoom, candidateSha], { cwd: repositoryRoot, env: environment });
+    if (add.status !== 0) throw commandFailure('Boot-proof clean-room worktree add', add);
+    worktreeAdded = true;
+    const install = runCommand('npm', ['ci'], {
+      cwd: cleanRoom,
+      env: { ...environment, HUSKY: '0', CI: '1' },
+    });
+    if (install.status !== 0) throw commandFailure('Boot-proof clean-room dependency install', install);
+    const inner = runCommand(process.execPath, [
+      path.join(cleanRoom, 'audit/surface-contract-matrix/scripts/boot-proof.mjs'),
+      '--internal-clean-room',
+      '--source-sha', candidateSha,
+      '--output', innerOutput,
+      ...(requireG3 ? ['--require-g3'] : []),
+    ], {
+      cwd: cleanRoom,
+      env: { ...environment, [CLEAN_ROOM_MARKER]: '1' },
+    });
+    if (inner.status !== 0) throw commandFailure('Boot-proof clean-room execution', inner);
+    const document = BootProofDocumentSchema.parse(JSON.parse(filesystem.readFileSync(innerOutput, 'utf8')));
+    if (document.source_sha !== candidateSha) throw new Error('Boot-proof clean-room output source SHA does not match candidate SHA');
+    if (requireG3) assertRequiredG3Proofs(document);
+    atomicCopy(innerOutput, outputPath, filesystem);
+    stdout.write(`${JSON.stringify(document, null, 2)}\n`);
+  } catch (error) {
+    failure = error;
+  } finally {
+    if (worktreeAdded) {
+      const remove = runCommand('git', ['worktree', 'remove', '--force', cleanRoom], { cwd: repositoryRoot, env: environment });
+      if (remove.status !== 0 && !failure) failure = commandFailure('Boot-proof clean-room worktree cleanup', remove);
+    }
+    filesystem.rmSync(cleanRoomParent, { recursive: true, force: true });
+    const after = snapshot(repositoryRoot, { excludedPath, filesystem });
+    if (!snapshotsMatch(before, after)) {
+      const mismatch = new Error('Boot-proof clean-room changed original workspace manifest hashes or non-output fingerprint');
+      failure = failure ? new AggregateError([failure, mismatch], 'Boot-proof clean-room failed and original workspace changed') : mismatch;
+    }
+  }
+  if (failure) throw failure;
+};
+
+export const runBootProof = runBootProofCleanRoom;
+
 const parseArgs = (argv) => {
-  const args = { output: undefined, requireG3: false };
+  const args = { output: undefined, requireG3: false, internalCleanRoom: false, sourceSha: undefined };
   for (let index = 0; index < argv.length; index += 1) {
     if (argv[index] === '--require-g3') args.requireG3 = true;
-    else if (argv[index] === '--output') {
+    else if (argv[index] === '--internal-clean-room') args.internalCleanRoom = true;
+    else if (argv[index] === '--source-sha') {
+      args.sourceSha = argv[index + 1];
+      if (!args.sourceSha || args.sourceSha.startsWith('--') || !SHA_PATTERN.test(args.sourceSha)) throw new Error('--source-sha requires exact 40-character lowercase SHA');
+      index += 1;
+    } else if (argv[index] === '--output') {
       args.output = argv[index + 1];
       if (!args.output || args.output.startsWith('--')) throw new Error('--output requires a path');
       index += 1;
@@ -1090,7 +1236,15 @@ const parseArgs = (argv) => {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === thisFile) {
   const args = parseArgs(process.argv.slice(2));
-  runBootProof(args).catch((error) => {
+  const action = () => {
+    if (args.internalCleanRoom) {
+      if (process.env[CLEAN_ROOM_MARKER] !== '1') throw new Error('--internal-clean-room is reserved for guarded clean-room invocation');
+      return runBootProofInner({ output: args.output, requireG3: args.requireG3, sourceSha: args.sourceSha });
+    }
+    if (args.sourceSha) throw new Error('--source-sha is valid only with --internal-clean-room');
+    return runBootProof(args);
+  };
+  Promise.resolve().then(action).catch((error) => {
     process.stderr.write(`${error.stack || error.message}\n`);
     process.exitCode = 1;
   });
