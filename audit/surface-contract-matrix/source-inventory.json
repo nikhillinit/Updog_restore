@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "snapshot_id": "snapshot:fbc0be094dc5165752aca866d334a2ff36fc7ee67167f08f4f4b1703c0a6ff8d",
+  "snapshot_id": "snapshot:d50c24407985a5f811e18ce30ae82b1c44384356f9ecd5a544844dc82981e654",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -480,10 +480,10 @@
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "055e2fb386041bc22fea7ce410e4b27f536a4cfab204da13804ca6c270cf901d",
-    "audit/surface-contract-matrix/boot-proofs.json": "d6d619ffa6cc5fd83b3d541e1dd76dcd8f68083908760853ec161ffb3f9f76d0",
+    "audit/surface-contract-matrix/boot-proofs.json": "c9db4e7c19f251e0afba5134c37a134a57ba4a040c184467fd210e8f30e26647",
     "audit/surface-contract-matrix/matrix-schema.mjs": "d84bf9f8361ba2d9546fe5acd297c9efd7419a73c79df5d1e0951d7c32397fd5",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "4a8cd325603a5eff35aa545c4feed9ec941fc24acb3830d4441589de26a1833c",
-    "audit/surface-contract-matrix/scripts/boot-proof.mjs": "1b8414e1c85648846328ff5c0fb3804d962ebfc4dd755c69d14f829a591d44d5",
+    "audit/surface-contract-matrix/scripts/boot-proof.mjs": "9e2036e0b142710fee1c25c9647ac4550595c42a8034165097ad0b770b4fe935",
     "audit/surface-contract-matrix/scripts/classify-pass.mjs": "a2bd0a16e774af2283c7eaab5780adc755144cd53d474eafe037d75810c5ac41",
     "audit/surface-contract-matrix/scripts/inspect-runtime.mjs": "fa5ff8da3dca79d44de6c1985a6bb4c6839b8ca26cdee28c61be0c04d9eaf9d5",
     "audit/surface-contract-matrix/scripts/render-matrix.mjs": "8eb22f884914ba8acd4a45d0da8a36c0dd46adff610fa582e0df42029dc90a7c",
@@ -556,8 +556,8 @@
     "server/routes/fund-metrics-legacy.ts": "ad63bdb9aba9add033a6fb5a0a8cebcd08a637462efca3fe97998a3202107efc",
     "server/routes/fund-metrics.ts": "ac455326bfd17a91dca970d5558036418483845c22bda97fb7897f5df765fbd7",
     "server/routes/fund-moic.ts": "2fdbdb53059b30079bd876bee376cb8749c802d7fd3e5a04f1d2cec9f0bd28ba",
-    "server/routes/fund-scenario-sets.ts": "dce2528d665b4adcdb862e6b1a5b1cc116dd1fb3534f2a75bb07b278110d6f3c",
-    "server/routes/funds.ts": "abbad4fd30bd35de6bbb46eeeea7255729e2b880859f97c084ca8c68b6836258",
+    "server/routes/fund-scenario-sets.ts": "5735b0ade4e192fb5c866ea2ef5a7fd8a1d49c507420b65babe4bd850222e106",
+    "server/routes/funds.ts": "6d712d6b211eda9ee05fde7cbfff7bca162c8d59ecb3e6ccad416b1889571393",
     "server/routes/graduation.ts": "61359045e848ccd182044b77e60c9ebd1228f51fca2da4d3fc13975b3b1f5877",
     "server/routes/health.ts": "008c1444034665c4afbda885a7297ed763d7121f024c06fbdff347731cc0cc14",
     "server/routes/internal-analysis.ts": "884e6642e89bcaed6a1cfc86dd4e4ac8611c8a5f4b495ee337424954dc25e6d9",
@@ -617,7 +617,7 @@
     "server/workers/lp-materialized-view-refresh.ts": "39ee6b698475c1168769c5c23afef4cf5778dc2c23d4b706a94a49fbf9d5da0c",
     "server/workers/scenarioGeneratorWorker.ts": "a7abb61e7806d17a787babc89f03c1e054ed1e793ec196b1fee4c8d7821749d6",
     "shared/auth/effective-roles.ts": "137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6",
-    "shared/routes/api-route-manifest.ts": "bbb30787396be3f376adf3047cc6db79c1bed9f29f3956c5ed61241d62c45b59",
+    "shared/routes/api-route-manifest.ts": "306d02abbd576f98b958b3cadc3b3add0f1653c89ca329317c67fd604530659e",
     "shared/routes/api-runtime-specific-manifest.ts": "0daa50b7d7d569e6068a8e6998e57b3a6b3c76effa5a3834d53302c60b566805",
     "shared/routes/app-route-definitions.ts": "72ac7651f290aea940432af3ffde06746f8ce7b3b7a198e6ad718d336c673a0b",
     "shared/routes/route-governance-registry.ts": "07c1e15b2f1c343320125eac20ff75e55c6c7f63fa2b1d578aba9eadd8c76928",
@@ -626,9 +626,9 @@
     "workers/capital-call-status-worker.ts": "031c2227168dd95f4226bd8367f1e20c31832422a7d4220eb9f2b8d9fac3680a",
     "workers/cohort-worker.ts": "aa05a747b0a8605eb23264cd2149b0cf737b0f0f4a8d092fa57e0e32c416e187",
     "workers/dlq.ts": "4ab16ca234a24130b20abfcc78cdf9b6a159f5104fb682cc390adccbc0acedae",
-    "workers/fund-scenario-calc-handler.ts": "358b3e17ccc584db4d4e4adeec31ef7e2d4a25d511ca3ef3960f31eea4294c1b",
-    "workers/fund-scenario-calc-worker-harness.ts": "7c519c2bd8e15f1ce8c2ab0cd20a3e30a5ff37962f4ca48b238ccafd91c2b847",
-    "workers/fund-scenario-calc-worker.ts": "ac9cab79193cc91507ced5852db1bc5621747b1fc910c23cc35c4d583f398384",
+    "workers/fund-scenario-calc-handler.ts": "7464f632bafb7ef6798020b770c33f593892b6d4ec8572a011b08fd6453487da",
+    "workers/fund-scenario-calc-worker-harness.ts": "db610521a474e5e8c7747fff47e0f19d55197a1224911e47225c7cae7e1ddf7a",
+    "workers/fund-scenario-calc-worker.ts": "1f243d772de22953a4f62db9372f9347f97986b0b04d981a26082ef57830e8ad",
     "workers/health-server.ts": "881023342c4eb7f7dd1b12b15f04da1eafef8887ccc3b3c7b1d20fcd85d16f1b",
     "workers/pacing-worker-support.ts": "78a9463576d1a13ee0f00944ee78be7e89fce1802dcccda8c974a03f6a9978cb",
     "workers/pacing-worker.ts": "150b9639a3ad28e49023ac13489380d0c021120cfc17e750be9a4018d395d0d7",
@@ -636,7 +636,7 @@
     "workers/reserve-worker.ts": "2ca51a73020b0e34e166389f7779dcbe9d0d66af429d4e78bb9ccb96c846518a",
     "workers/worker-deployment-identity.ts": "369efd8ded2e6e2c432ad404b74bac54c49b6b51c2ea2c1e794bc6a66c13566b",
     "package.json#scripts": "841a66df28ea6a3ad01220edbfb9da60ad39f75171f893969faddb16a71bb78a",
-    "shared/routes/api-route-manifest.ts#normalized-runtime-export": "9116de446fb696cd9ada74c11033f25c422bb5be30410d839ea23cb76b07b314",
+    "shared/routes/api-route-manifest.ts#normalized-runtime-export": "eba14203d83dff52e5c820a9ab8219319db86e895c54f720d41b8227ee02160e",
     "shared/routes/api-runtime-specific-manifest.ts#normalized-runtime-export": "f7ec3dfc046d32b5e3622f1d6ae98b1c7b6479bedf7b20296f1b920fd0a19c15",
     "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "9dc556cc80687ec08919874cc10a059a85cd6b0d0d5d2dfcb7efbeb74ef23885",
     "shared/routes/route-governance-registry.ts#normalized-runtime-export": "2cf271d9243d70a053d3f5bd020bf01d8d26373ae281a70307337b68f01ddd8b",
@@ -10905,7 +10905,7 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:fbc0be094dc5165752aca866d334a2ff36fc7ee67167f08f4f4b1703c0a6ff8d"
+      "snapshot:d50c24407985a5f811e18ce30ae82b1c44384356f9ecd5a544844dc82981e654"
     ]
   },
   "kg_counts": {
