@@ -11,16 +11,16 @@ last_updated: 2026-08-20
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 724 |
-| Stale Documents | 463 |
-| Missing Frontmatter | 72 |
+| Total Documents | 725 |
+| Stale Documents | 464 |
+| Missing Frontmatter | 73 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 452 |
-| UNKNOWN | 166 |
+| UNKNOWN | 167 |
 | DRAFT | 34 |
 | HISTORICAL | 26 |
 | VERIFIED | 13 |
@@ -65,6 +65,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/1-plans/F_1.3.0_fee-economics-convergence.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_1.4.0_post-activation-epics.plan.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w3_v1.6.0.md` | Never | 999 | No | Unassigned |
+| `docs/3-code-review/CR_w4_v1.5.0.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/canary-exclusion-worklist.md` | Never | 999 | No | Unassigned |
 | `docs/ARCHI.md` | Never | 999 | No | Unassigned |
 | `docs/CA-PACING-ORACLE.md` | Never | 999 | No | Unassigned |
@@ -95,9 +96,8 @@ Documents that need review (older than their cadence threshold):
 | `docs/skills/REFL-012-fire-and-forget-async-creates-race-conditions.md` | Never | 999 | No | Unassigned |
 | `docs/skills/REFL-013-router-substring-matching-causes-false-positives.md` | Never | 999 | No | Unassigned |
 | `docs/skills/REFL-014-test-key-reuse-across-test-cases.md` | Never | 999 | YES - verify! | Unassigned |
-| `docs/skills/REFL-015-postgresql-service-missing-test-database.md` | Never | 999 | YES - verify! | Unassigned |
 
-*...and 413 more stale documents.*
+*...and 414 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -214,6 +214,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/1-plans/F_1.3.0_fee-economics-convergence.plan.md`
 - [ ] `docs/1-plans/F_1.4.0_post-activation-epics.plan.md`
 - [ ] `docs/3-code-review/CR_w3_v1.6.0.md`
+- [ ] `docs/3-code-review/CR_w4_v1.5.0.md`
 - [ ] `docs/3-code-review/canary-exclusion-worklist.md`
 - [ ] `docs/ARCHI.md`
 - [ ] `docs/CA-PACING-ORACLE.md`
