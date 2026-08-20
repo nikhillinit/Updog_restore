@@ -11,16 +11,16 @@ last_updated: 2026-08-20
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 725 |
-| Stale Documents | 464 |
-| Missing Frontmatter | 73 |
+| Total Documents | 726 |
+| Stale Documents | 465 |
+| Missing Frontmatter | 74 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 452 |
-| UNKNOWN | 167 |
+| UNKNOWN | 168 |
 | DRAFT | 34 |
 | HISTORICAL | 26 |
 | VERIFIED | 13 |
@@ -97,7 +97,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/skills/REFL-013-router-substring-matching-causes-false-positives.md` | Never | 999 | No | Unassigned |
 | `docs/skills/REFL-014-test-key-reuse-across-test-cases.md` | Never | 999 | YES - verify! | Unassigned |
 
-*...and 414 more stale documents.*
+*...and 415 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -261,6 +261,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/superpowers/plans/2026-08-10-f1337-feeprofile-truth.md`
 - [ ] `docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md`
 - [ ] `docs/superpowers/plans/2026-08-12-pr-1385-projection-test-recovery.md`
+- [ ] `docs/superpowers/plans/2026-08-20-pr1385-post-merge-closeout.md`
 - [ ] `docs/superpowers/specs/2026-05-16-refactor-stability-strategy-design.md`
 - [ ] `docs/superpowers/specs/2026-06-11-worker-prod-ops-design.md`
 - [ ] `docs/superpowers/specs/2026-06-21-investment-rounds-ui-v2-design.md`
