@@ -82,13 +82,25 @@ export interface ReserveCalculationRunContext {
   jobId: string;
 }
 
+/**
+ * Deterministic job identity: fund, scenario set, source config id/version,
+ * hash kind, input hash, model-inputs date, and comparison lineage version.
+ * Null lineage components take fixed tokens so the identity stays stable and
+ * unambiguous. The run id is appended by acquireReserveCalculationRun, so a
+ * prior failed same-input BullMQ job can never satisfy a newer command's
+ * identity -- the new run mints a new job id.
+ */
 function reserveIdentityKey(identity: ReserveScenarioCalculationIdentity): string {
   return [
     JOB_ID_PREFIX,
     String(identity.fundId),
     identity.scenarioSetId,
+    `cfg${identity.sourceConfigId}`,
+    `v${identity.sourceConfigVersion}`,
     identity.inputLineage.hashKind,
     identity.inputHash,
+    identity.inputLineage.modelInputsAsOfDate ?? 'undated',
+    identity.inputLineage.comparisonLineageVersion ?? 'no-lineage',
   ].join('-');
 }
 

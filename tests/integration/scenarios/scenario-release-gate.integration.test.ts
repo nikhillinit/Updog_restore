@@ -16,7 +16,10 @@ import type {
 } from '../../../shared/contracts/fund-scenario-sets-v1.contract';
 import type { FundScenarioComparisonV1 } from '../../../shared/contracts/fund-scenario-comparison-v1.contract';
 import type { FundDraftWriteV1 } from '../../../shared/contracts/fund-draft-write-v1.contract';
-import type { FundResultsReadV1 } from '../../../shared/contracts/fund-results-v1.contract';
+import {
+  FundResultsReadV1Schema,
+  type FundResultsReadV1,
+} from '../../../shared/contracts/fund-results-v1.contract';
 
 const STARTUP_TIMEOUT_MS = 90_000;
 const AUTH_SECRET = 'scenario-release-gate-secret-minimum-32';
@@ -437,7 +440,9 @@ async function readFundResults(active: Runtime, fund: ActiveFund): Promise<FundR
     .set('Authorization', fund.authHeader);
 
   expect(response.status, JSON.stringify(response.body)).toBe(200);
-  return response.body as FundResultsReadV1;
+  // Strict-parse the REAL service output with the owning shared contract --
+  // the same acceptance gate release canary 3 applies against production.
+  return FundResultsReadV1Schema.parse(response.body);
 }
 
 async function archiveScenarioSet(

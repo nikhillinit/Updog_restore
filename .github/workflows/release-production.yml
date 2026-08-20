@@ -555,9 +555,13 @@ jobs:
           echo "result_path=$RESULT_PATH" >> "$GITHUB_OUTPUT"
 
       # continue-on-error lets the always-on finalizer bind the exact run to a
-      # terminal state; the finalizer re-fails the job on canary failure.
+      # terminal state; the finalizer re-fails the job on canary failure. The
+      # step timeout keeps a hung canary bounded INSIDE the 15-minute job so
+      # the always() residue finalizer retains margin to classify the timeout
+      # as a current-run failure (a timed-out step yields outcome=failure).
       - name: Run release canaries
         id: release_canaries
+        timeout-minutes: 12
         continue-on-error: true
         env:
           PRODUCTION_URL: ${{ needs.validate-deployment.outputs.deployment_url }}

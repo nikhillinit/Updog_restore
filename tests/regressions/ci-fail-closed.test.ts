@@ -5812,6 +5812,67 @@ describe('required CI fails closed', () => {
     expect(releaseScripts).toContain('PROD_SMOKE_PASSWORD');
   }, 120_000);
 
+  it('bounds the canary worker poll inside the Playwright budget and forbids success fallbacks', async () => {
+    const pollingSource = await readFile(
+      path.join(process.cwd(), 'tests/smoke/support/release-canary-polling.ts'),
+      'utf8'
+    );
+    const specSource = await readFile(
+      path.join(process.cwd(), 'tests/smoke/release-canaries.spec.ts'),
+      'utf8'
+    );
+    const releaseWorkflow = await readWorkflow('release-production.yml');
+
+    // The worker poll deadline is exported by the shared polling module and
+    // must fit inside the Playwright per-test budget with margin left for the
+    // canary spec's other bounded waits.
+    const deadlineMatch = /RELEASE_CANARY_WORKER_POLL_DEADLINE_MS = ([0-9_]+);/.exec(
+      pollingSource
+    );
+    expect(deadlineMatch).not.toBeNull();
+    const pollDeadlineMs = Number(deadlineMatch![1]!.replaceAll('_', ''));
+    expect(pollDeadlineMs).toBeGreaterThan(0);
+
+    const specTimeoutMatch =
+      /test\.describe\.configure\(\{ mode: 'serial', timeout: (\d+) \* (\d+) \* (\d+) \}\)/.exec(
+        specSource
+      );
+    expect(specTimeoutMatch).not.toBeNull();
+    const perTestBudgetMs =
+      Number(specTimeoutMatch![1]) * Number(specTimeoutMatch![2]) * Number(specTimeoutMatch![3]);
+    // 60s margin inside the per-test budget for the surrounding HTTP calls.
+    expect(pollDeadlineMs + 60_000).toBeLessThanOrEqual(perTestBudgetMs);
+
+    // The workflow bounds the canary step INSIDE the staged-smoke job so the
+    // always() residue finalizer retains at least two minutes to classify a
+    // hung canary (step timeout => outcome=failure => --fail-current-run).
+    const stagedSmoke = releaseWorkflow.jobs?.['staged-smoke'];
+    const canaryStep = (stagedSmoke?.steps ?? []).find(
+      (step) => step.name === 'Run release canaries'
+    );
+    expect(canaryStep?.['timeout-minutes']).toBe(12);
+    expect(stagedSmoke?.['timeout-minutes']).toBe(15);
+    expect(
+      (stagedSmoke?.['timeout-minutes'] ?? 0) - (canaryStep?.['timeout-minutes'] ?? 0)
+    ).toBeGreaterThanOrEqual(2);
+    // The poll deadline itself fits inside the canary step budget.
+    expect(pollDeadlineMs).toBeLessThan(12 * 60 * 1000);
+
+    // The spec polls through the shared module bound to the exact enqueue
+    // identity; there is no latest-run or SHA-wide success fallback surface.
+    expect(specSource).toContain("./support/release-canary-polling");
+    expect(specSource).toContain('pollReleaseCanaryWorkerStatus');
+    expect(specSource).toContain('correlationId: calculationCorrelationId');
+    expect(pollingSource).toContain('matchesExpectedExecution');
+    expect(pollingSource).toContain("body['correlationId'] === expectation.correlationId");
+    expect(pollingSource).toContain('RELEASE_CANARY_WORKER_TIMEOUT');
+    expect(pollingSource).toContain('mismatched-execution');
+    for (const forbidden of ['findLatestScenarioRun', 'findCompletedScenarioRun']) {
+      expect(pollingSource).not.toContain(forbidden);
+      expect(specSource).not.toContain(forbidden);
+    }
+  });
+
   it('executes EXPECTED_SHA smoke guards fail-closed with hermetic npx', async () => {
     const releaseWorkflow = await readWorkflow('release-production.yml');
     const smokeSteps = [

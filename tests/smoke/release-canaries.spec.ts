@@ -5,6 +5,14 @@ import { dirname, join } from 'node:path';
 import { expect, request, test, type APIRequestContext, type APIResponse } from '@playwright/test';
 
 import { COMMON_API_ROUTE_MANIFEST } from '../../shared/routes/api-route-manifest';
+import {
+  FundResultsReadV1Schema,
+  type FundResultsReadV1,
+} from '../../shared/contracts/fund-results-v1.contract';
+import {
+  pollReleaseCanaryWorkerStatus,
+  RELEASE_CANARY_WORKER_POLL_DEADLINE_MS,
+} from './support/release-canary-polling';
 
 type JsonObject = Record<string, unknown>;
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -319,10 +327,15 @@ async function persistRecoveryHandle(fundId: number, canaryRunId: string): Promi
   console.warn(`RELEASE_CANARY_RECOVERY_V1 ${JSON.stringify(handle)}`);
 }
 
+/**
+ * Poll the results route until the authoritative shape is ready, then parse
+ * with the owning shared contract (strict). The schema parse -- not ad hoc
+ * object checks -- is the acceptance gate for the response shape.
+ */
 async function waitForAuthoritativeResults(
   client: ReleaseCanaryClient,
   fundId: number
-): Promise<JsonObject> {
+): Promise<FundResultsReadV1> {
   const deadline = Date.now() + 120_000;
   let lastBody: JsonObject | null = null;
 
@@ -354,7 +367,7 @@ async function waitForAuthoritativeResults(
         requiredObject(reserve, 'reserve results section')['status'] === 'available' &&
         requiredObject(pacing, 'pacing results section')['status'] === 'available'
       ) {
-        return body;
+        return FundResultsReadV1Schema.parse(body);
       }
     }
 
@@ -366,77 +379,26 @@ async function waitForAuthoritativeResults(
   );
 }
 
-type ScenarioLifecycleStatus = 'queued' | 'calculating' | 'succeeded';
-
-function parseScenarioLifecycleStatus(value: unknown, body: JsonObject): ScenarioLifecycleStatus {
-  if (value === 'queued' || value === 'calculating' || value === 'succeeded') {
-    return value;
-  }
-  if (value === 'failed') {
-    throw new Error(
-      `[release-canaries] canary5 scenario calculation failed: ${JSON.stringify(body)}`
-    );
-  }
-  throw new Error(
-    `[release-canaries] canary5 scenario calculation returned unexpected status: ${JSON.stringify(body)}`
-  );
-}
-
-async function waitForScenarioCalculation(
+/**
+ * Bounded canary status fetch for the shared polling module. Enforces the
+ * JSON (non-SPA-rewrite) content type on 200 responses.
+ */
+function canaryStatusFetch(
   client: ReleaseCanaryClient,
   fundId: number,
-  scenarioSetId: string,
-  calculationCorrelationId: string
-): Promise<JsonObject> {
-  // 'queued' is seeded by the enqueue response. 'calculating' is useful live
-  // evidence, but a fast worker may complete before any poll sees it; the
-  // terminal response carries durable calculationStartedAt evidence instead.
-  const observedStatuses: ScenarioLifecycleStatus[] = ['queued'];
-  const deadline = Date.now() + 120_000;
-  let lastBody: JsonObject | null = null;
-
-  while (Date.now() < deadline) {
+  scenarioSetId: string
+): () => Promise<{ status: number; body: unknown }> {
+  return async () => {
     const response = await client.call(
       'GET',
       ROUTES.scenarioCalculationStatus(fundId, scenarioSetId),
       'canary5.calculation-status'
     );
     if (response.status() !== 200) {
-      const detail = await response.text();
-      throw new Error(
-        `[release-canaries] canary5 calculation status route returned ${response.status()}: ${detail}`
-      );
+      return { status: response.status(), body: await response.text() };
     }
-
-    const body = await readJsonObject(response, 'canary5 calculation status response');
-    lastBody = body;
-    const status = parseScenarioLifecycleStatus(body['status'], body);
-    expect(body['fundId']).toBe(fundId);
-    expect(requiredUuid(body['scenarioSetId'], 'canary5 scenario set ID')).toBe(scenarioSetId);
-    expect(requiredUuid(body['correlationId'], 'canary5 calculation correlation ID')).toBe(
-      calculationCorrelationId
-    );
-
-    if (!observedStatuses.includes(status)) {
-      observedStatuses.push(status);
-      console.warn(`[release-canaries] canary5 observed status=${status}`);
-    }
-
-    if (status === 'succeeded') {
-      const calculationStartedAt = requiredString(
-        body['calculationStartedAt'],
-        'canary5 durable calculation start'
-      );
-      expect(Number.isNaN(Date.parse(calculationStartedAt))).toBe(false);
-      return body;
-    }
-
-    await new Promise<void>((resolve) => setTimeout(resolve, 250));
-  }
-
-  throw new Error(
-    `[release-canaries] canary5 scenario calculation did not reach succeeded within 120s; observed=${JSON.stringify(observedStatuses)} last=${JSON.stringify(lastBody)}`
-  );
+    return { status: 200, body: await readJsonObject(response, 'canary5 status response') };
+  };
 }
 
 test.describe('release mutation canaries', () => {
@@ -450,6 +412,7 @@ test.describe('release mutation canaries', () => {
 
   let client: ReleaseCanaryClient | undefined;
   let canaryFundId: number | undefined;
+  let canary3Results: FundResultsReadV1 | undefined;
 
   test.beforeAll(async () => {
     const context = await request.newContext({
@@ -592,16 +555,18 @@ test.describe('release mutation canaries', () => {
     }
 
     const updatedDescription = `release-canary-description-${randomUUID()}`;
+    const patchIdempotencyKey = `g4-release-canary-patch-${randomUUID()}`;
+    const patchBody = {
+      expectedVersion,
+      patch: { description: updatedDescription },
+    };
     const patchResponse = await api.call(
       'PATCH',
       ROUTES.portfolioCompanyPatch(companyId, fundId),
       'canary2.patch-company',
       {
-        headers: { 'Idempotency-Key': `g4-release-canary-patch-${randomUUID()}` },
-        data: {
-          expectedVersion,
-          patch: { description: updatedDescription },
-        },
+        headers: { 'Idempotency-Key': patchIdempotencyKey },
+        data: patchBody,
       }
     );
     expect(patchResponse.status(), 'portfolio metadata patch must succeed').toBe(200);
@@ -610,6 +575,23 @@ test.describe('release mutation canaries', () => {
     expect(patchedCompany['fundId']).toBe(fundId);
     expect(patchedCompany['description']).toBe(updatedDescription);
     expect(patchedCompany['rowVersion']).toBe(expectedVersion + 1);
+
+    // Idempotent replay: the identical PATCH with the same key and body must
+    // return the stored 200 response byte-for-byte, not re-execute.
+    const replayResponse = await api.call(
+      'PATCH',
+      ROUTES.portfolioCompanyPatch(companyId, fundId),
+      'canary2.replay-patch-company',
+      {
+        headers: { 'Idempotency-Key': patchIdempotencyKey },
+        data: patchBody,
+      }
+    );
+    expect(replayResponse.status(), 'idempotent patch replay must succeed').toBe(200);
+    const replayedCompany = await readJsonObject(replayResponse, 'replayed company response');
+    expect(replayedCompany, 'replay body must deep-equal the first response').toEqual(
+      patchedCompany
+    );
 
     const persistedResponse = await api.call(
       'GET',
@@ -623,6 +605,42 @@ test.describe('release mutation canaries', () => {
     );
     expect(persistedCompany['description']).toBe(updatedDescription);
     expect(persistedCompany['rowVersion']).toBe(expectedVersion + 1);
+
+    // Stale optimistic-lock rejection: same semantic patch with a NEW
+    // idempotency key, the original stale expectedVersion, and a distinct
+    // description must 409 with VERSION_CONFLICT and change nothing.
+    const staleResponse = await api.call(
+      'PATCH',
+      ROUTES.portfolioCompanyPatch(companyId, fundId),
+      'canary2.stale-patch-company',
+      {
+        headers: { 'Idempotency-Key': `g4-release-canary-stale-${randomUUID()}` },
+        data: {
+          expectedVersion,
+          patch: { description: `release-canary-stale-${randomUUID()}` },
+        },
+      }
+    );
+    expect(staleResponse.status(), 'stale optimistic-lock patch must be rejected').toBe(409);
+    const staleBody = await readJsonObject(staleResponse, 'stale patch rejection response');
+    expect(staleBody['code']).toBe('VERSION_CONFLICT');
+
+    const afterConflictResponse = await api.call(
+      'GET',
+      ROUTES.portfolioCompanyById(companyId, fundId),
+      'canary2.reload-after-conflict'
+    );
+    expect(afterConflictResponse.status(), 'company must remain readable after conflict').toBe(
+      200
+    );
+    const afterConflict = await readJsonObject(
+      afterConflictResponse,
+      'post-conflict company response'
+    );
+    expect(
+      afterConflict,
+      'rejected stale patch must not change the persisted replay state'
+    ).toEqual(persistedCompany);
   });
 
   test('canary 3 exposes authoritative non-fallback modeling results', async () => {
@@ -632,57 +650,90 @@ test.describe('release mutation canaries', () => {
       throw new Error('[release-canaries] canary 1 did not provide a fund ID');
     }
 
+    // waitForAuthoritativeResults strict-parses the response with the owning
+    // shared contract; every assertion below runs against the parsed shape.
     const results = await waitForAuthoritativeResults(api, fundId);
-    expect(results['status']).toBe('ready');
+    canary3Results = results;
 
-    const lifecycle = requiredObject(results['lifecycle'], 'results lifecycle');
-    const calculationState = requiredObject(lifecycle['calculationState'], 'calculation state');
-    expect(calculationState['legacyEvidence']).toBe(false);
+    expect(results.fundId).toBe(fundId);
+    expect(results.status).toBe('ready');
 
-    const sections = requiredObject(results['sections'], 'results sections');
-    for (const sectionName of ['reserve', 'pacing']) {
-      const section = requiredObject(sections[sectionName], `${sectionName} results section`);
-      expect(section['status']).toBe('available');
-      expect(section['source']).toBe('fund_snapshots');
-      expect(section['legacyEvidence']).toBe(false);
+    const calculationState = results.lifecycle.calculationState;
+    expect(calculationState.status).toBe('ready');
+    expect(calculationState.configVersion).not.toBeNull();
+    expect(calculationState.configVersion!).toBeGreaterThan(0);
+    expect(calculationState.runId).not.toBeNull();
+    expect(calculationState.runId!).toBeGreaterThan(0);
+    requiredUuid(calculationState.correlationId, 'canary3 calculation correlation ID');
+    expect(calculationState.dispatchState).not.toBeNull();
+    expect(calculationState.expectedSnapshotTypes.length).toBeGreaterThan(0);
+    for (const snapshotType of calculationState.expectedSnapshotTypes) {
+      expect(
+        calculationState.availableSnapshotTypes,
+        `expected snapshot type ${snapshotType} must be available when ready`
+      ).toContain(snapshotType);
+    }
+    const lastCalculatedAt = requiredString(
+      calculationState.lastCalculatedAt,
+      'canary3 lastCalculatedAt'
+    );
+    expect(Number.isNaN(Date.parse(lastCalculatedAt))).toBe(false);
+    expect(calculationState.legacyEvidence).toBe(false);
+
+    for (const sectionName of ['reserve', 'pacing'] as const) {
+      const section = results.sections[sectionName];
+      if (section.status !== 'available') {
+        throw new Error(`[release-canaries] ${sectionName} section must be available`);
+      }
+      expect(section.source).toBe('fund_snapshots');
+      expect(section.legacyEvidence).toBe(false);
+    }
+    // Typed payload spot checks on top of the schema parse (the parse itself
+    // guarantees every contract-required payload field).
+    if (results.sections.reserve.status === 'available') {
+      expect(typeof results.sections.reserve.payload.totalAllocation).toBe('number');
+      expect(Array.isArray(results.sections.reserve.payload.allocations)).toBe(true);
+    }
+    if (results.sections.pacing.status === 'available') {
+      expect(typeof results.sections.pacing.payload.deploymentRate).toBe('number');
+      expect(Array.isArray(results.sections.pacing.payload.deployments)).toBe(true);
     }
   });
 
-  test('canary 4 reloads a non-empty snapshot-backed results payload', async () => {
+  test('canary 4 reloads stable snapshot-backed results evidence', async () => {
     const api = requireClient(client);
     const fundId = canaryFundId;
     if (fundId === undefined) {
       throw new Error('[release-canaries] canary 1 did not provide a fund ID');
     }
+    const firstRead = canary3Results;
+    if (firstRead === undefined) {
+      throw new Error('[release-canaries] canary 3 did not provide parsed results');
+    }
 
     // fund-config's manifest-backed results read model is mounted by makeApp
     // and serves persisted fund_snapshots after canary 3 reaches ready.
-    const resultsResponse = await api.call(
-      'GET',
-      ROUTES.fundResults(fundId),
-      'canary4.read-snapshot-results'
-    );
-    expect(resultsResponse.status(), 'snapshot-backed results must be readable').toBe(200);
-    const resultsBody = await readJsonObject(resultsResponse, 'snapshot-backed results response');
-    expect(Object.keys(resultsBody).length).toBeGreaterThan(0);
-    expect(resultsBody['fundId']).toBe(fundId);
-    const resultsSections = requiredObject(resultsBody['sections'], 'results sections');
-    expect(Object.keys(resultsSections).length).toBeGreaterThan(0);
-    for (const sectionName of ['reserve', 'pacing']) {
-      const section = requiredObject(resultsSections[sectionName], `${sectionName} results section`);
-      expect(section['source']).toBe('fund_snapshots');
-    }
-
     const reloadResponse = await api.call(
       'GET',
       ROUTES.fundResults(fundId),
       'canary4.reload-snapshot-results'
     );
     expect(reloadResponse.status(), 'snapshot-backed results reload must succeed').toBe(200);
-    const reloadedBody = await readJsonObject(reloadResponse, 'reloaded results response');
-    expect(Object.keys(reloadedBody).length).toBeGreaterThan(0);
-    expect(reloadedBody['fundId']).toBe(fundId);
-    expect(reloadedBody['status']).toBe(resultsBody['status']);
+    const reloaded = FundResultsReadV1Schema.parse(
+      await readJsonObject(reloadResponse, 'reloaded results response')
+    );
+
+    // Stable projection: fund identity/status, the full lifecycle calculation
+    // state, and the persisted reserve and pacing sections must reload
+    // identically. Deliberately excluded as out-of-scope for this stability
+    // proof (not volatile-by-design fields): configState timestamps and the
+    // scorecard/scenarios/waterfall/economics sections, which other canaries
+    // and later mutations may legitimately move.
+    expect(reloaded.fundId).toBe(firstRead.fundId);
+    expect(reloaded.status).toBe(firstRead.status);
+    expect(reloaded.lifecycle.calculationState).toEqual(firstRead.lifecycle.calculationState);
+    expect(reloaded.sections.reserve).toEqual(firstRead.sections.reserve);
+    expect(reloaded.sections.pacing).toEqual(firstRead.sections.pacing);
   });
 
   test('canary 5 verifies durable scenario calculation start and success', async () => {
@@ -712,11 +763,19 @@ test.describe('release mutation canaries', () => {
     const scenarioSetId = requiredUuid(scenarioSet['id'], 'canary5 scenario set ID');
     expect(scenarioSet['fundId']).toBe(fundId);
 
+    // Replay the reserve calculation command under ONE idempotency key: the
+    // identical second POST must return the exact stored 202 acknowledgement
+    // with the same job and correlation identity, never a second run.
+    const reserveIdempotencyKey = `g4-release-canary-reserve-${randomUUID()}`;
+    const enqueueRequest = { data: { calculationMode: 'async_reserve_allocation' } } as const;
     const enqueueResponse = await api.call(
       'POST',
       ROUTES.scenarioCalculateReserve(fundId, scenarioSetId),
       'canary5.enqueue-scenario-calculation',
-      { data: { calculationMode: 'async_reserve_allocation' } }
+      {
+        headers: { 'Idempotency-Key': reserveIdempotencyKey },
+        ...enqueueRequest,
+      }
     );
     expect(enqueueResponse.status(), 'scenario calculation enqueue must succeed').toBe(202);
     const enqueueBody = await readJsonObject(enqueueResponse, 'canary5 enqueue response');
@@ -733,15 +792,55 @@ test.describe('release mutation canaries', () => {
       `[release-canaries] canary5 calculation correlation=${calculationCorrelationId} job=${jobId}`
     );
 
-    const completed = await waitForScenarioCalculation(
-      api,
-      fundId,
-      scenarioSetId,
-      calculationCorrelationId
+    const replayEnqueueResponse = await api.call(
+      'POST',
+      ROUTES.scenarioCalculateReserve(fundId, scenarioSetId),
+      'canary5.replay-enqueue-scenario-calculation',
+      {
+        headers: { 'Idempotency-Key': reserveIdempotencyKey },
+        ...enqueueRequest,
+      }
     );
-    expect(completed['status']).toBe('succeeded');
-    expect(completed['jobId']).toBe(jobId);
-    expect(completed['snapshotId']).toEqual(expect.any(Number));
-    expect(completed['calculationStartedAt']).toEqual(expect.any(String));
+    expect(replayEnqueueResponse.status(), 'replayed enqueue must return the stored 202').toBe(
+      202
+    );
+    const replayEnqueueBody = await readJsonObject(
+      replayEnqueueResponse,
+      'canary5 replayed enqueue response'
+    );
+    expect(replayEnqueueBody, 'replayed 202 body must deep-equal the first').toEqual(enqueueBody);
+    expect(replayEnqueueBody['jobId']).toBe(jobId);
+    expect(replayEnqueueBody['correlationId']).toBe(calculationCorrelationId);
+
+    // One bounded poll pass through the shared polling module, bound to the
+    // exact enqueue identity; a typed timeout fails this canary and the
+    // workflow finalizer then fails the exact current run.
+    const pollResult = await pollReleaseCanaryWorkerStatus(
+      { fundId, scenarioSetId, jobId, correlationId: calculationCorrelationId },
+      {
+        fetchStatus: canaryStatusFetch(api, fundId, scenarioSetId),
+        deadlineMs: RELEASE_CANARY_WORKER_POLL_DEADLINE_MS,
+      }
+    );
+    if (pollResult.kind !== 'succeeded') {
+      throw new Error(
+        `[release-canaries] canary5 worker poll timed out: ${JSON.stringify(pollResult)}`
+      );
+    }
+    expect(pollResult.jobId).toBe(jobId);
+    expect(pollResult.correlationId).toBe(calculationCorrelationId);
+    expect(pollResult.snapshotId).toEqual(expect.any(Number));
+    expect(Number.isNaN(Date.parse(pollResult.calculationStartedAt))).toBe(false);
+
+    // Stable terminal evidence: a fresh status read must repeat the durable
+    // success with the same job, correlation, and snapshot identity.
+    const stableStatus = await canaryStatusFetch(api, fundId, scenarioSetId)();
+    expect(stableStatus.status, 'terminal status must remain readable').toBe(200);
+    const stableBody = requiredObject(stableStatus.body, 'canary5 stable status response');
+    expect(stableBody['status']).toBe('succeeded');
+    expect(stableBody['jobId']).toBe(jobId);
+    expect(stableBody['correlationId']).toBe(calculationCorrelationId);
+    expect(stableBody['snapshotId']).toBe(pollResult.snapshotId);
+    expect(stableBody['calculationStartedAt']).toBe(pollResult.calculationStartedAt);
   });
 });

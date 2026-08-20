@@ -30,6 +30,12 @@ interface StartFundScenarioCalcWorkerOptions {
   concurrency?: number;
   healthPort?: number | null;
   installSignalHandlers?: boolean;
+  /**
+   * Harness-local calculation handler injection. Applies ONLY to calculation
+   * jobs -- deadline-sweep jobs always run the real sweep. Production
+   * initializers never supply this.
+   */
+  calculationHandler?: typeof handleFundScenarioCalcJob;
 }
 
 export interface FundScenarioDeadlineSweepJobData {
@@ -71,6 +77,7 @@ export function createFundScenarioCalcWorker(input: {
   connection: QueueConnectionOptions;
   concurrency?: number;
   removeJob?: (jobId: string) => Promise<unknown>;
+  calculationHandler?: typeof handleFundScenarioCalcJob;
 }): Worker<FundScenarioCalcQueueJobData> {
   const worker = new Worker<FundScenarioCalcQueueJobData>(
     FUND_SCENARIO_CALC_QUEUE_NAME,
@@ -79,12 +86,14 @@ export function createFundScenarioCalcWorker(input: {
       token?: string,
       signal?: AbortSignal
     ) => {
+      // Deadline-sweep branch FIRST: the real sweep always runs; the injected
+      // calculation handler never sees sweep jobs.
       if (job.name === FUND_SCENARIO_DEADLINE_SWEEP_JOB_NAME) {
         return sweepFundScenarioCalculationRunDeadlines({ removeJob: input.removeJob });
       }
 
-      return handleFundScenarioCalcJob(
-        job as Pick<Job<FundScenarioCalcJobData>, 'id' | 'data' | 'remove'>,
+      return (input.calculationHandler ?? handleFundScenarioCalcJob)(
+        job as Pick<Job<FundScenarioCalcJobData>, 'id' | 'data' | 'attemptsMade' | 'opts'>,
         token,
         signal
       );
@@ -163,6 +172,9 @@ export function startFundScenarioCalcWorker(
       connection,
       ...(options.concurrency !== undefined ? { concurrency: options.concurrency } : {}),
       ...(queue ? { removeJob: (jobId: string) => queue.remove(jobId) } : {}),
+      ...(options.calculationHandler !== undefined
+        ? { calculationHandler: options.calculationHandler }
+        : {}),
     });
   } catch (error) {
     void queue?.close().catch(() => undefined);
