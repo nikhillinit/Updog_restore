@@ -316,14 +316,16 @@
     },
     {
       "row_id": "api:GET:/api/timeline/:fundId/state",
-      "action": "retained-machine-authority",
+      "action": "reconciled-current-source-authority",
       "basis": [
         "server/routes/timeline.ts:154-161 route middleware has no role guard; the route sits behind the global make_app requireApiAuth boundary (server/app.ts:189-200) plus fund-scope enforcement (timeline.ts:167), which is team",
-        "approve-matrix.mjs applyPersonaMappings makes personas machine-owned for auth_roles-bearing rows; review override reverted; code-reach discrepancy (team access despite machine auth_roles=[admin]) flagged for follow-up outside the persona field"
+        "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
       ],
       "kept": {
         "personas": [
-          "admin"
+          "admin",
+          "analyst",
+          "gp"
         ]
       },
       "observed_code_reach": {
@@ -336,14 +338,16 @@
     },
     {
       "row_id": "api:DELETE:/api/shares/:shareId",
-      "action": "retained-machine-authority",
+      "action": "reconciled-current-source-authority",
       "basis": [
         "server/routes/shares.ts:157-168 lines 160-165 grant access on fundId match with no role restriction; server/lib/auth/jwt.ts:240 populates fundIds from JWT claims for any role",
-        "approve-matrix.mjs applyPersonaMappings makes personas machine-owned for auth_roles-bearing rows; review override reverted; code-reach discrepancy (team access despite machine auth_roles=[admin]) flagged for follow-up outside the persona field"
+        "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
       ],
       "kept": {
         "personas": [
-          "admin"
+          "admin",
+          "analyst",
+          "gp"
         ]
       },
       "observed_code_reach": {
@@ -356,14 +360,16 @@
     },
     {
       "row_id": "api:GET:/api/shares",
-      "action": "retained-machine-authority",
+      "action": "reconciled-current-source-authority",
       "basis": [
         "server/routes/shares.ts:158 grants GET access to any team-member user; shared/auth/effective-roles.ts:58-62 defines team roles as admin/partner/analyst",
-        "approve-matrix.mjs applyPersonaMappings makes personas machine-owned for auth_roles-bearing rows; review override reverted; code-reach discrepancy (team access despite machine auth_roles=[admin]) flagged for follow-up outside the persona field"
+        "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
       ],
       "kept": {
         "personas": [
-          "admin"
+          "admin",
+          "analyst",
+          "gp"
         ]
       },
       "observed_code_reach": {
@@ -376,14 +382,16 @@
     },
     {
       "row_id": "api:GET:/api/shares/:shareId/analytics",
-      "action": "retained-machine-authority",
+      "action": "reconciled-current-source-authority",
       "basis": [
         "server/routes/shares.ts:158 grants GET access to any team-member user; shared/auth/effective-roles.ts:58-62 defines team roles as admin/partner/analyst",
-        "approve-matrix.mjs applyPersonaMappings makes personas machine-owned for auth_roles-bearing rows; review override reverted; code-reach discrepancy (team access despite machine auth_roles=[admin]) flagged for follow-up outside the persona field"
+        "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
       ],
       "kept": {
         "personas": [
-          "admin"
+          "admin",
+          "analyst",
+          "gp"
         ]
       },
       "observed_code_reach": {
@@ -396,14 +404,16 @@
     },
     {
       "row_id": "api:PATCH:/api/shares/:shareId",
-      "action": "retained-machine-authority",
+      "action": "reconciled-current-source-authority",
       "basis": [
         "server/routes/shares.ts:160-165 grant access on fundId match with no role restriction; server/lib/auth/jwt.ts:240 populates fundIds from JWT claims for any role",
-        "approve-matrix.mjs applyPersonaMappings makes personas machine-owned for auth_roles-bearing rows; review override reverted; code-reach discrepancy (team access despite machine auth_roles=[admin]) flagged for follow-up outside the persona field"
+        "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
       ],
       "kept": {
         "personas": [
-          "admin"
+          "admin",
+          "analyst",
+          "gp"
         ]
       },
       "observed_code_reach": {
@@ -416,14 +426,16 @@
     },
     {
       "row_id": "api:POST:/api/shares",
-      "action": "retained-machine-authority",
+      "action": "reconciled-current-source-authority",
       "basis": [
         "server/routes/shares.ts:160-165 grant access on fundId match with no role restriction; server/lib/auth/jwt.ts:240 populates fundIds from JWT claims for any role",
-        "approve-matrix.mjs applyPersonaMappings makes personas machine-owned for auth_roles-bearing rows; review override reverted; code-reach discrepancy (team access despite machine auth_roles=[admin]) flagged for follow-up outside the persona field"
+        "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
       ],
       "kept": {
         "personas": [
-          "admin"
+          "admin",
+          "analyst",
+          "gp"
         ]
       },
       "observed_code_reach": {
