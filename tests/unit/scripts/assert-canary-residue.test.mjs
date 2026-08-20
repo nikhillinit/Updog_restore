@@ -1,3 +1,7 @@
+import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -941,4 +945,107 @@ describe('release canary residue assertion', () => {
     // through the default (non-injected) policy path.
     expect(summary.caps).toMatchObject({ total: 100, ttlHours: 24 });
   }, 120_000);
+
+  describe('--emit-result exact current-run residue file', () => {
+    async function withEmitDirectory(run) {
+      const directory = await mkdtemp(path.join(os.tmpdir(), 'canary-residue-emit-'));
+      try {
+        return await run(directory);
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
+    }
+
+    function expectedEmit(transition) {
+      return {
+        schemaVersion: 'release-canary-residue-result-v1',
+        expectedSha: SHA,
+        fundId: FUND_ID,
+        canaryRunId: RUN_UUID,
+        githubRunId: GITHUB_RUN_ID,
+        githubRunAttempt: GITHUB_RUN_ATTEMPT,
+        transition,
+        residue: exactCounts(),
+      };
+    }
+
+    it('emits the exact-run result (mode 0600) on the completed transition', async () => {
+      await withEmitDirectory(async (directory) => {
+        const emitPath = path.join(directory, 'release-canary-residue-result.json');
+        const { exitCodePromise } = runExact({
+          args: [...EXACT_ARGS.slice(0, -1), '--emit-result', emitPath, '--complete-current-run'],
+        });
+        await expect(exitCodePromise).resolves.toBe(CANARY_RESIDUE_EXIT_CODES.SUCCESS);
+
+        expect(JSON.parse(await readFile(emitPath, 'utf8'))).toEqual(expectedEmit('completed'));
+        expect((await stat(emitPath)).mode & 0o777).toBe(0o600);
+      });
+    });
+
+    it('emits the exact-run result on the failed transition before the exit decision', async () => {
+      await withEmitDirectory(async (directory) => {
+        const emitPath = path.join(directory, 'release-canary-residue-result.json');
+        const { exitCodePromise } = runExact({
+          args: [...EXACT_ARGS.slice(0, -1), '--emit-result', emitPath, '--fail-current-run'],
+          reloadedRows: [exactRunRow({ runStatus: 'failed', runVersion: 2 })],
+        });
+        await expect(exitCodePromise).resolves.toBe(CANARY_RESIDUE_EXIT_CODES.SUCCESS);
+
+        expect(JSON.parse(await readFile(emitPath, 'utf8'))).toEqual(expectedEmit('failed'));
+      });
+    });
+
+    it('still emits diagnostics when the exact run breaches its reservation', async () => {
+      await withEmitDirectory(async (directory) => {
+        const emitPath = path.join(directory, 'release-canary-residue-result.json');
+        const overCounts = exactCounts({ reporting: 6, total: 10 });
+        const { exitCodePromise } = runExact({
+          args: [...EXACT_ARGS, '--emit-result', emitPath],
+          transitionRun: vi.fn().mockResolvedValue(overCounts),
+        });
+        await expect(exitCodePromise).resolves.toBe(
+          CANARY_RESIDUE_EXIT_CODES.EXACT_RUN_FAILURE
+        );
+
+        expect(JSON.parse(await readFile(emitPath, 'utf8'))).toEqual({
+          ...expectedEmit('completed'),
+          residue: overCounts,
+        });
+      });
+    });
+
+    it('writes no file when the flag is absent', async () => {
+      await withEmitDirectory(async (directory) => {
+        const { exitCodePromise } = runExact();
+        await expect(exitCodePromise).resolves.toBe(CANARY_RESIDUE_EXIT_CODES.SUCCESS);
+        await expect(readdir(directory)).resolves.toEqual([]);
+      });
+    });
+
+    it('fails closed on an unwritable emit path with no summary leakage', async () => {
+      await withEmitDirectory(async (directory) => {
+        const emitPath = path.join(directory, 'missing-subdirectory', 'result.json');
+        const { exitCodePromise, errors } = runExact({
+          args: [...EXACT_ARGS, '--emit-result', emitPath],
+        });
+        await expect(exitCodePromise).resolves.toBe(
+          CANARY_RESIDUE_EXIT_CODES.INVALID_ARGUMENT
+        );
+        expect(errors.join('\n')).toContain('canary residue result file could not be written');
+      });
+    });
+
+    it('rejects an empty emit path and forbids --emit-result with --global-only', () => {
+      expect(() =>
+        parseCanaryResidueArgs([...EXACT_ARGS, '--emit-result', '   '])
+      ).toThrow('--emit-result must be a file path');
+      expect(() =>
+        parseCanaryResidueArgs([
+          '--expected-sha', SHA,
+          '--global-only',
+          '--emit-result', '/tmp/result.json',
+        ])
+      ).toThrow('--emit-result is forbidden with --global-only');
+    });
+  });
 });

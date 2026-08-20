@@ -12,6 +12,56 @@ on:
         description: Full commit SHA expected to be checked out
         type: string
         required: true
+      # Historical schema-apply identity (audit mode only). When all six are
+      # provided, the audit additionally proves the exact recorded 0053 apply
+      # run/artifact/receipt and emits a schema evidence fragment. Caller-
+      # supplied URLs or prose references are never accepted as schema proof.
+      schema_apply_run_id:
+        description: Exact historical schema apply workflow run ID
+        type: string
+        required: false
+        default: ''
+      schema_apply_run_attempt:
+        description: Exact historical schema apply run attempt (must be 1)
+        type: string
+        required: false
+        default: ''
+      schema_apply_artifact_id:
+        description: Exact historical schema apply evidence artifact ID
+        type: string
+        required: false
+        default: ''
+      schema_apply_artifact_digest:
+        description: API archive digest of the historical apply artifact
+        type: string
+        required: false
+        default: ''
+      schema_apply_receipt_file_sha256:
+        description: SHA-256 of the historical schema apply receipt file
+        type: string
+        required: false
+        default: ''
+      schema_precursor_sha:
+        description: Schema-only precursor commit SHA of the historical apply
+        type: string
+        required: false
+        default: ''
+    outputs:
+      schema_artifact_id:
+        description: Exact artifact ID of the schema evidence fragment
+        value: ${{ jobs.reconcile.outputs.schema_artifact_id }}
+      schema_artifact_name:
+        description: Exact attempt-qualified schema fragment artifact name
+        value: ${{ jobs.reconcile.outputs.schema_artifact_name }}
+      schema_artifact_digest:
+        description: Upload-reported archive digest of the schema fragment
+        value: ${{ jobs.reconcile.outputs.schema_artifact_digest }}
+      schema_file_sha256:
+        description: Recomputed SHA-256 of the schema fragment file
+        value: ${{ jobs.reconcile.outputs.schema_file_sha256 }}
+      schema_payload_sha256:
+        description: Canonical payload SHA-256 of the schema fragment
+        value: ${{ jobs.reconcile.outputs.schema_payload_sha256 }}
   workflow_dispatch:
     inputs:
       mode:
@@ -27,8 +77,11 @@ on:
         type: string
         required: true
 
+# actions: read exists solely for the exact-ID historical apply artifact
+# fetch; no write or broader permission is ever granted here.
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: prod-schema-reconcile
@@ -42,11 +95,23 @@ jobs:
     # manifest audits in one job; statement_timeout bounds each DDL at 5min.
     timeout-minutes: 30
     environment: production-schema
+    outputs:
+      schema_artifact_id: ${{ steps.upload_schema_fragment.outputs.artifact-id }}
+      schema_artifact_name: ${{ steps.schema_fragment_meta.outputs.artifact_name }}
+      schema_artifact_digest: ${{ steps.upload_schema_fragment.outputs.artifact-digest }}
+      schema_file_sha256: ${{ steps.build_schema_fragment.outputs.file_sha256 }}
+      schema_payload_sha256: ${{ steps.build_schema_fragment.outputs.payload_sha256 }}
 
     steps:
       - name: Validate mode input
         env:
           MODE: ${{ inputs.mode }}
+          SCHEMA_APPLY_RUN_ID: ${{ inputs.schema_apply_run_id }}
+          SCHEMA_APPLY_RUN_ATTEMPT: ${{ inputs.schema_apply_run_attempt }}
+          SCHEMA_APPLY_ARTIFACT_ID: ${{ inputs.schema_apply_artifact_id }}
+          SCHEMA_APPLY_ARTIFACT_DIGEST: ${{ inputs.schema_apply_artifact_digest }}
+          SCHEMA_APPLY_RECEIPT_FILE_SHA256: ${{ inputs.schema_apply_receipt_file_sha256 }}
+          SCHEMA_PRECURSOR_SHA: ${{ inputs.schema_precursor_sha }}
         run: |
           set -euo pipefail
           case "$MODE" in
@@ -56,6 +121,22 @@ jobs:
               exit 1
               ;;
           esac
+          PROVIDED=0
+          TOTAL=0
+          for VALUE in "$SCHEMA_APPLY_RUN_ID" "$SCHEMA_APPLY_RUN_ATTEMPT" "$SCHEMA_APPLY_ARTIFACT_ID" "$SCHEMA_APPLY_ARTIFACT_DIGEST" "$SCHEMA_APPLY_RECEIPT_FILE_SHA256" "$SCHEMA_PRECURSOR_SHA"; do
+            TOTAL=$((TOTAL + 1))
+            if [ -n "$VALUE" ]; then
+              PROVIDED=$((PROVIDED + 1))
+            fi
+          done
+          if [ "$PROVIDED" -ne 0 ] && [ "$PROVIDED" -ne "$TOTAL" ]; then
+            echo "Historical schema apply identity requires all six inputs or none."
+            exit 1
+          fi
+          if [ "$PROVIDED" -ne 0 ] && [ "$MODE" != "audit" ]; then
+            echo "Historical schema apply proof is only valid in audit mode."
+            exit 1
+          fi
 
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -146,6 +227,165 @@ jobs:
           }
           echo "Artifact retention policy permits $days days."
 
+      # Historical schema apply proof (audit mode with all six identity inputs).
+      # Caller-supplied URLs or prose references are never accepted as schema
+      # proof: the exact run and artifact are fetched by ID and re-verified.
+      - name: Verify historical schema apply run identity
+        if: ${{ inputs.mode == 'audit' && inputs.schema_apply_run_id != '' }}
+        id: historical_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SCHEMA_APPLY_RUN_ID: ${{ inputs.schema_apply_run_id }}
+          SCHEMA_APPLY_RUN_ATTEMPT: ${{ inputs.schema_apply_run_attempt }}
+          SCHEMA_APPLY_ARTIFACT_ID: ${{ inputs.schema_apply_artifact_id }}
+          SCHEMA_APPLY_ARTIFACT_DIGEST: ${{ inputs.schema_apply_artifact_digest }}
+          SCHEMA_APPLY_RECEIPT_FILE_SHA256: ${{ inputs.schema_apply_receipt_file_sha256 }}
+          SCHEMA_PRECURSOR_SHA: ${{ inputs.schema_precursor_sha }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$SCHEMA_APPLY_RUN_ID" =~ ^[1-9][0-9]{0,31}$ ]]; then
+            echo "::error::schema_apply_run_id must be a positive decimal ID."
+            exit 1
+          fi
+          if [[ "$SCHEMA_APPLY_RUN_ATTEMPT" != "1" ]]; then
+            echo "::error::Historical schema apply proof requires attempt exactly 1."
+            exit 1
+          fi
+          if [[ ! "$SCHEMA_APPLY_ARTIFACT_ID" =~ ^[1-9][0-9]{0,31}$ ]]; then
+            echo "::error::schema_apply_artifact_id must be a positive decimal ID."
+            exit 1
+          fi
+          if [[ ! "$SCHEMA_APPLY_ARTIFACT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+            echo "::error::schema_apply_artifact_digest must be a canonical sha256: digest."
+            exit 1
+          fi
+          if [[ ! "$SCHEMA_APPLY_RECEIPT_FILE_SHA256" =~ ^[a-f0-9]{64}$ ]]; then
+            echo "::error::schema_apply_receipt_file_sha256 must be lowercase 64-hex."
+            exit 1
+          fi
+          if [[ ! "$SCHEMA_PRECURSOR_SHA" =~ ^[a-f0-9]{40}$ ]]; then
+            echo "::error::schema_precursor_sha must be a lowercase 40-hex SHA."
+            exit 1
+          fi
+          gh api "repos/${REPO}/actions/runs/${SCHEMA_APPLY_RUN_ID}" > "$RUNNER_TEMP/historical-apply-run.json"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const run = JSON.parse(
+            fs.readFileSync(`${process.env.RUNNER_TEMP}/historical-apply-run.json`, 'utf8')
+          );
+          const htmlUrl = String(run.html_url ?? '');
+          const validHtmlUrl =
+            htmlUrl.startsWith('https://github.com/') &&
+            htmlUrl.includes(`/actions/runs/${process.env.SCHEMA_APPLY_RUN_ID}`);
+          const valid =
+            String(run.id) === process.env.SCHEMA_APPLY_RUN_ID &&
+            run.repository?.full_name === process.env.REPO &&
+            run.event === 'workflow_dispatch' &&
+            run.path === '.github/workflows/prod-schema-reconcile.yml' &&
+            run.conclusion === 'success' &&
+            run.run_attempt === 1 &&
+            run.head_sha === process.env.SCHEMA_PRECURSOR_SHA &&
+            validHtmlUrl;
+          if (!valid) {
+            console.error('Historical schema apply run does not match the recorded identity.');
+            process.exit(1);
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `apply_run_url=${htmlUrl}\n`);
+          NODE
+
+      - name: Verify and download historical schema apply artifact by exact ID
+        if: ${{ inputs.mode == 'audit' && inputs.schema_apply_run_id != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SCHEMA_APPLY_RUN_ID: ${{ inputs.schema_apply_run_id }}
+          SCHEMA_APPLY_ARTIFACT_ID: ${{ inputs.schema_apply_artifact_id }}
+          SCHEMA_APPLY_ARTIFACT_DIGEST: ${{ inputs.schema_apply_artifact_digest }}
+          SCHEMA_APPLY_RECEIPT_FILE_SHA256: ${{ inputs.schema_apply_receipt_file_sha256 }}
+          SCHEMA_PRECURSOR_SHA: ${{ inputs.schema_precursor_sha }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${REPO}/actions/artifacts/${SCHEMA_APPLY_ARTIFACT_ID}" > "$RUNNER_TEMP/historical-apply-artifact.json"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const artifact = JSON.parse(
+            fs.readFileSync(`${process.env.RUNNER_TEMP}/historical-apply-artifact.json`, 'utf8')
+          );
+          const expectedName = `prod-schema-reconcile-${process.env.SCHEMA_APPLY_RUN_ID}-1-apply-${process.env.SCHEMA_PRECURSOR_SHA}`;
+          const valid =
+            String(artifact.id) === process.env.SCHEMA_APPLY_ARTIFACT_ID &&
+            String(artifact.workflow_run?.id) === process.env.SCHEMA_APPLY_RUN_ID &&
+            artifact.expired === false &&
+            artifact.name === expectedName &&
+            artifact.digest === process.env.SCHEMA_APPLY_ARTIFACT_DIGEST;
+          if (!valid) {
+            console.error('Historical schema apply artifact does not match the recorded identity.');
+            process.exit(1);
+          }
+          NODE
+          EVIDENCE_DIR="$RUNNER_TEMP/historical-apply-evidence"
+          rm -rf -- "$EVIDENCE_DIR"
+          mkdir -m 0700 -- "$EVIDENCE_DIR"
+          gh api "repos/${REPO}/actions/artifacts/${SCHEMA_APPLY_ARTIFACT_ID}/zip" > "$EVIDENCE_DIR/archive.zip"
+          RECOMPUTED_ARCHIVE_SHA256="$(sha256sum "$EVIDENCE_DIR/archive.zip" | cut -d' ' -f1)"
+          if [ "sha256:${RECOMPUTED_ARCHIVE_SHA256}" != "$SCHEMA_APPLY_ARTIFACT_DIGEST" ]; then
+            echo "::error::Recomputed archive SHA-256 does not equal the recorded artifact digest."
+            exit 1
+          fi
+          zipinfo -1 "$EVIDENCE_DIR/archive.zip" | LC_ALL=C sort > "$EVIDENCE_DIR/entries.txt"
+          printf '%s\n' \
+            'apply.txt' \
+            'lock-time-apply-vector.json' \
+            'post-apply-audit.txt' \
+            'pre-apply-audit.txt' \
+            'schema-reconcile-receipt.json' \
+            | LC_ALL=C sort > "$EVIDENCE_DIR/expected-entries.txt"
+          if ! diff -u "$EVIDENCE_DIR/expected-entries.txt" "$EVIDENCE_DIR/entries.txt"; then
+            echo "::error::Historical apply archive contains unknown, missing, or traversal entries."
+            exit 1
+          fi
+          unzip -o "$EVIDENCE_DIR/archive.zip" -d "$EVIDENCE_DIR/extracted"
+          if find "$EVIDENCE_DIR/extracted" -type l | grep -q .; then
+            echo "::error::Historical apply archive contains symlinks."
+            exit 1
+          fi
+          if [ "$(find "$EVIDENCE_DIR/extracted" -type f | wc -l)" -ne 5 ]; then
+            echo "::error::Historical apply archive extracted an unexpected file count."
+            exit 1
+          fi
+          RECEIPT_PATH="$EVIDENCE_DIR/extracted/schema-reconcile-receipt.json"
+          RECOMPUTED_RECEIPT_SHA256="$(sha256sum "$RECEIPT_PATH" | cut -d' ' -f1)"
+          if [ "$RECOMPUTED_RECEIPT_SHA256" != "$SCHEMA_APPLY_RECEIPT_FILE_SHA256" ]; then
+            echo "::error::Recomputed receipt SHA-256 does not equal the recorded receipt hash."
+            exit 1
+          fi
+          # Workspace-resident helper: relative contract imports must resolve
+          # against the checkout, never RUNNER_TEMP.
+          cat > ./validate-historical-receipt.tmp.mts <<'VALIDATE'
+          import { readFile } from 'node:fs/promises';
+          import { SchemaReconcileReceiptV1Schema } from './shared/contracts/schema-reconcile-receipt-v1.contract';
+
+          const raw: unknown = JSON.parse(
+            await readFile(process.env['RECEIPT_PATH'] as string, 'utf8')
+          );
+          const receipt = SchemaReconcileReceiptV1Schema.parse(raw);
+          if (receipt.runId !== process.env['SCHEMA_APPLY_RUN_ID']) {
+            throw new Error('Receipt run ID does not match the recorded apply run');
+          }
+          if (receipt.sourceSha !== process.env['SCHEMA_PRECURSOR_SHA']) {
+            throw new Error('Receipt source SHA does not match the recorded precursor');
+          }
+          if (receipt.manifest !== '30-g3-release-gate-hardening' || receipt.migration !== '0053') {
+            throw new Error('Receipt does not bind the 0053 release-gate-hardening manifest');
+          }
+          if (receipt.preDecision !== 'APPLY-MISSING-DDL' || receipt.postDecision !== 'SKIP') {
+            throw new Error('Receipt does not prove the APPLY-MISSING-DDL to SKIP transition');
+          }
+          VALIDATE
+          RECEIPT_PATH="$RECEIPT_PATH" npx tsx ./validate-historical-receipt.tmp.mts
+          rm -f ./validate-historical-receipt.tmp.mts
+
       - name: Run pre-apply audit
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
@@ -195,6 +435,90 @@ jobs:
           }
           console.log('Production schema audit is clean.');
           NODE
+
+      - name: Build and upload schema evidence fragment
+        if: ${{ inputs.mode == 'audit' && inputs.schema_apply_run_id != '' }}
+        id: build_schema_fragment
+        env:
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          REPO: ${{ github.repository }}
+          FRAGMENT_SOURCE_SHA: ${{ inputs.expected_sha }}
+          SCHEMA_APPLY_RUN_ID: ${{ inputs.schema_apply_run_id }}
+          SCHEMA_APPLY_ARTIFACT_ID: ${{ inputs.schema_apply_artifact_id }}
+          SCHEMA_APPLY_ARTIFACT_DIGEST: ${{ inputs.schema_apply_artifact_digest }}
+          SCHEMA_APPLY_RECEIPT_FILE_SHA256: ${{ inputs.schema_apply_receipt_file_sha256 }}
+          SCHEMA_PRECURSOR_SHA: ${{ inputs.schema_precursor_sha }}
+          APPLY_RUN_URL: ${{ steps.historical_run.outputs.apply_run_url }}
+        run: |
+          set -euo pipefail
+          : "${APPLY_RUN_URL:?APPLY_RUN_URL is required}"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const digest = process.env.SCHEMA_APPLY_ARTIFACT_DIGEST.replace(/^sha256:/, '');
+          const payload = {
+            migration: '0053',
+            precursorSha: process.env.SCHEMA_PRECURSOR_SHA,
+            apply: {
+              runId: process.env.SCHEMA_APPLY_RUN_ID,
+              runAttempt: 1,
+              workflowPath: '.github/workflows/prod-schema-reconcile.yml',
+              sourceSha: process.env.SCHEMA_PRECURSOR_SHA,
+              runUrl: process.env.APPLY_RUN_URL,
+              artifactId: process.env.SCHEMA_APPLY_ARTIFACT_ID,
+              artifactName: `prod-schema-reconcile-${process.env.SCHEMA_APPLY_RUN_ID}-1-apply-${process.env.SCHEMA_PRECURSOR_SHA}`,
+              artifactArchiveSha256: digest,
+              receiptFileSha256: process.env.SCHEMA_APPLY_RECEIPT_FILE_SHA256,
+            },
+            audit: {
+              runId: process.env.GITHUB_RUN_ID,
+              runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+              workflowPath: '.github/workflows/prod-schema-reconcile.yml',
+              sourceSha: process.env.FRAGMENT_SOURCE_SHA,
+              runUrl: `${process.env.GITHUB_SERVER_URL}/${process.env.REPO}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+              result: 'clean',
+            },
+          };
+          fs.writeFileSync(`${process.env.RUNNER_TEMP}/schema-fragment-payload.json`, JSON.stringify(payload), { mode: 0o600 });
+          NODE
+          BUILD_OUTPUT="$(npx tsx scripts/release/build-release-evidence-fragment.ts \
+            --kind schema \
+            --payload-file "$RUNNER_TEMP/schema-fragment-payload.json" \
+            --producer-job schema-audit \
+            --output "$RUNNER_TEMP/release-evidence-fragment-schema.json")"
+          node -e '
+            const parsed = JSON.parse(process.argv[1]);
+            const hex = /^[a-f0-9]{64}$/;
+            if (!hex.test(parsed.payloadSha256) || !hex.test(parsed.fileSha256)) {
+              console.error("Schema fragment builder emitted an invalid result.");
+              process.exit(1);
+            }
+            const fs = require("node:fs");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, "payload_sha256=" + parsed.payloadSha256 + "\n");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, "file_sha256=" + parsed.fileSha256 + "\n");
+          ' "$BUILD_OUTPUT"
+
+      - name: Name attempt-qualified schema fragment artifact
+        if: ${{ inputs.mode == 'audit' && inputs.schema_apply_run_id != '' }}
+        id: schema_fragment_meta
+        env:
+          FRAGMENT_SOURCE_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          echo "artifact_name=release-evidence-fragment-v1-schema-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${FRAGMENT_SOURCE_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload immutable schema evidence fragment
+        if: ${{ inputs.mode == 'audit' && inputs.schema_apply_run_id != '' }}
+        id: upload_schema_fragment
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.schema_fragment_meta.outputs.artifact_name }}
+          path: ${{ runner.temp }}/release-evidence-fragment-schema.json
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Remove historical apply evidence
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/historical-apply-evidence" "$RUNNER_TEMP/historical-apply-run.json" "$RUNNER_TEMP/historical-apply-artifact.json" "$RUNNER_TEMP/schema-fragment-payload.json" "$RUNNER_TEMP/release-evidence-fragment-schema.json" ./validate-historical-receipt.tmp.mts
 
       - name: Require additive-safe apply decision
         if: startsWith(inputs.mode, 'apply')

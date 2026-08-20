@@ -1,10 +1,11 @@
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
-import { lstat, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { lstat, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { BaselineFragmentPayloadSchema } from '../../../shared/contracts/release-evidence-fragment-v1.contract';
 import {
   ROLLBACK_DIFF_ALLOWLIST,
   buildReleaseRecoveryContext,
@@ -593,6 +594,7 @@ describe('baseline evidence decoding and exact consumption', () => {
       releaseMode: mode,
       releaseSha: overrides.releaseSha ?? RELEASE_SHA,
       contextPath: '/virtual/release-recovery-context-v1.json',
+      emitNormalizedPath: overrides.emitNormalizedPath,
       environment: baselineEnvironment(),
       fetchImpl: makeFetch({ ...pullRoutes(overrides.pulls ?? {}) }),
       execFileImpl: makeExecFile(overrides.git ?? {}),
@@ -745,5 +747,129 @@ describe('baseline evidence decoding and exact consumption', () => {
       'tests/regressions/',
       'docs/',
     ]);
+  });
+
+  describe('--emit-normalized baseline fragment payload', () => {
+    const PROVIDER_IDENTITY = {
+      vercel: {
+        projectId: 'vercel-project',
+        deploymentId: 'dpl-baseline',
+        hostname: 'production.example.com',
+        sourceSha: VERCEL_SOURCE_SHA,
+      },
+      railway: {
+        projectId: 'railway-project',
+        environmentId: 'railway-environment',
+        services: [
+          {
+            serviceName: 'fund-scenario-calc',
+            serviceId: 'service-fund',
+            deploymentId: 'deployment-fund',
+            sourceSha: RAILWAY_SOURCE_SHA,
+          },
+          {
+            serviceName: 'capital-call-status',
+            serviceId: 'service-capital',
+            deploymentId: 'deployment-capital',
+            sourceSha: RAILWAY_SOURCE_SHA,
+          },
+        ],
+      },
+    };
+
+    function providerContextContents() {
+      return contextContents(PROVIDER_IDENTITY);
+    }
+
+    async function withEmitDirectory(run) {
+      const directory = await mkdtemp(path.join(os.tmpdir(), 'baseline-fragment-emit-'));
+      try {
+        return await run(directory);
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
+    }
+
+    it('emits the exact BaselineFragmentPayload (mode 0600) after primary consumption', async () => {
+      await withEmitDirectory(async (directory) => {
+        const emitPath = path.join(directory, 'baseline-fragment-payload.json');
+        const contents = providerContextContents();
+        await expect(
+          consume('primary', { contents, emitNormalizedPath: emitPath })
+        ).resolves.toMatchObject({ mode: 'primary' });
+
+        const written = JSON.parse(await readFile(emitPath, 'utf8'));
+        // The emit must satisfy Lane A's frozen contract schema verbatim,
+        // including both rollback/baselineArtifact equality refinements.
+        const payload = BaselineFragmentPayloadSchema.parse(written);
+        const contextFileSha256 = createHash('sha256').update(contents).digest('hex');
+        expect(payload).toEqual({
+          prechange: PROVIDER_IDENTITY,
+          rollback: {
+            targetMainSha: BASELINE_MAIN_SHA,
+            recoveryContextSha256: contextFileSha256,
+          },
+          baselineArtifact: {
+            runId: '123456789',
+            runAttempt: 2,
+            workflowPath: '.github/workflows/capture-release-baseline.yml',
+            baselineMainSha: BASELINE_MAIN_SHA,
+            plannedPrHeadSha: PLANNED_PR_HEAD_SHA,
+            artifactId: '777001',
+            artifactName: ARTIFACT_NAME,
+            artifactArchiveSha256: 'd'.repeat(64),
+            contextFileSha256,
+          },
+        });
+        const mode = (await lstat(emitPath)).mode & 0o777;
+        expect(mode).toBe(0o600);
+      });
+    });
+
+    it('emits the schema-valid payload after rollback consumption', async () => {
+      await withEmitDirectory(async (directory) => {
+        const emitPath = path.join(directory, 'baseline-fragment-payload.json');
+        await expect(
+          consume('rollback', {
+            contents: providerContextContents(),
+            emitNormalizedPath: emitPath,
+            git: { diff: '' },
+          })
+        ).resolves.toMatchObject({ mode: 'rollback' });
+
+        const payload = BaselineFragmentPayloadSchema.parse(
+          JSON.parse(await readFile(emitPath, 'utf8'))
+        );
+        expect(payload.baselineArtifact.artifactName).toBe(ARTIFACT_NAME);
+      });
+    });
+
+    it('writes nothing without the flag and nothing when verification fails first', async () => {
+      await withEmitDirectory(async (directory) => {
+        await expect(
+          consume('primary', { contents: providerContextContents() })
+        ).resolves.toMatchObject({ mode: 'primary' });
+
+        const emitPath = path.join(directory, 'baseline-fragment-payload.json');
+        await expect(
+          consume('primary', {
+            contents: providerContextContents(),
+            emitNormalizedPath: emitPath,
+            wrongFileSha: true,
+          })
+        ).rejects.toThrow();
+
+        await expect(readdir(directory)).resolves.toEqual([]);
+      });
+    });
+
+    it('fails closed on an unwritable emit path after verification passed', async () => {
+      await withEmitDirectory(async (directory) => {
+        const emitPath = path.join(directory, 'missing-subdirectory', 'payload.json');
+        await expect(
+          consume('primary', { contents: providerContextContents(), emitNormalizedPath: emitPath })
+        ).rejects.toThrow(/could not be written/);
+      });
+    });
   });
 });

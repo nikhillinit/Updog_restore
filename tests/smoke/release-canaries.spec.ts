@@ -71,6 +71,9 @@ const VERCEL_AUTOMATION_BYPASS_SECRET = requiredEnvironment('VERCEL_AUTOMATION_B
 // path are as mandatory as the credentials: without them a cancelled run could
 // never be recovered by exact identity.
 const RELEASE_CANARY_RESULT_PATH = requiredEnvironment('RELEASE_CANARY_RESULT_PATH');
+// Destination for the canary-6 H9 stored-report metadata consumed by the
+// workflow's canary-result evidence-fragment builder.
+const RELEASE_CANARY_H9_METADATA_PATH = requiredEnvironment('RELEASE_CANARY_H9_METADATA_PATH');
 const GITHUB_RUN_ID = requiredEnvironment('GITHUB_RUN_ID');
 const GITHUB_RUN_ATTEMPT = requiredEnvironment('GITHUB_RUN_ATTEMPT');
 // Pinned report as-of date: derived once from the workflow's canary execution
@@ -446,6 +449,35 @@ async function persistRecoveryHandle(fundId: number, canaryRunId: string): Promi
     throw error;
   }
   console.warn(`RELEASE_CANARY_RECOVERY_V1 ${JSON.stringify(handle)}`);
+}
+
+type ReleaseCanaryH9MetadataV1 = {
+  recordId: number;
+  packageId: number;
+  contentHash: string;
+  fingerprint: string;
+  sizeBytes: number;
+};
+
+/**
+ * Persist the canary-6 H9 stored-report metadata for the workflow's
+ * canary-result evidence-fragment builder, atomically (tmp + rename, mode
+ * 0600) like the recovery handle. Values come verbatim from the validated
+ * stored-export artifact record and its H9 stamp; the file carries no
+ * credentials or evidence payloads.
+ */
+async function persistH9Metadata(metadata: ReleaseCanaryH9MetadataV1): Promise<void> {
+  const temporaryPath = join(
+    dirname(RELEASE_CANARY_H9_METADATA_PATH),
+    `.release-canary-h9-${randomUUID()}.tmp`
+  );
+  await writeFile(temporaryPath, `${JSON.stringify(metadata)}\n`, { mode: 0o600 });
+  try {
+    await rename(temporaryPath, RELEASE_CANARY_H9_METADATA_PATH);
+  } catch (error) {
+    await rm(temporaryPath, { force: true });
+    throw error;
+  }
 }
 
 /**
@@ -1533,5 +1565,17 @@ test.describe('release mutation canaries', () => {
       expect(section.narrativeRunId).toBe(ref.narrativeRunId);
     }
     expect(artifact.export.renderModel.references.evidenceRecordIds).toContain(evidenceRecordId);
+
+    // ---- H9 metadata handoff to the evidence-fragment builder -------------
+    // sizeBytes is the record's artifactSizeBytes field, already asserted
+    // positive above -- the authoritative stored size, not a re-measured
+    // response length.
+    await persistH9Metadata({
+      recordId: artifact.record.reportPackageExportId,
+      packageId: artifact.record.reportPackageId,
+      contentHash: artifact.record.contentHash,
+      fingerprint: artifact.export.source.h9Stamp.fingerprintHash,
+      sizeBytes: artifact.record.artifactSizeBytes,
+    });
   });
 });

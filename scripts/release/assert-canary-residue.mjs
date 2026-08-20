@@ -1,4 +1,5 @@
 import console from 'node:console';
+import { open } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
@@ -203,6 +204,9 @@ export function parseCanaryResidueArgs(args) {
       options.startedAt = requireTimestampString(value, '--started-at');
     } else if (flag === '--max-clock-skew-seconds') {
       options.maxClockSkewSeconds = requirePositiveNumber(value, '--max-clock-skew-seconds');
+    } else if (flag === '--emit-result') {
+      if (value.trim() === '') invalid('--emit-result must be a file path');
+      options.emitResultPath = value;
     } else {
       invalid(`Unknown argument: ${flag}`);
     }
@@ -218,6 +222,7 @@ export function parseCanaryResidueArgs(args) {
       githubRunAttempt: '--github-run-attempt',
       startedAt: '--started-at',
       maxClockSkewSeconds: '--max-clock-skew-seconds',
+      emitResultPath: '--emit-result',
     })) {
       if (options[key] !== undefined) invalid(`${flag} is forbidden with --global-only`);
     }
@@ -252,7 +257,27 @@ export function parseCanaryResidueArgs(args) {
     startedAt: options.startedAt,
     maxClockSkewSeconds: options.maxClockSkewSeconds,
     terminalStatus: options.terminalStatus,
+    emitResultPath: options.emitResultPath,
   };
+}
+
+/**
+ * Write the exact current-run residue result (mode 0600, create-only) for the
+ * workflow's evidence-fragment builders. Emitted for BOTH terminal
+ * transitions, before the CLI's final exit decision, so a failed canary still
+ * leaves exact-run diagnostics.
+ */
+async function writeEmitResultFile(path, result) {
+  let handle;
+  try {
+    handle = await open(resolve(path), 'wx', 0o600);
+    await handle.writeFile(`${JSON.stringify(result)}\n`, 'utf8');
+    await handle.chmod(0o600);
+  } catch {
+    invalid('canary residue result file could not be written');
+  } finally {
+    await handle?.close();
+  }
 }
 
 function numberFromValue(value, label) {
@@ -774,6 +799,22 @@ export async function runCanaryResidueAssertion({
         'created',
         'running',
       ]);
+      if (options.emitResultPath !== undefined) {
+        const emittedResidue = {};
+        for (const field of [...RESIDUE_FIELDS, 'total']) {
+          emittedResidue[field] = exactCounts?.[field];
+        }
+        await writeEmitResultFile(options.emitResultPath, {
+          schemaVersion: 'release-canary-residue-result-v1',
+          expectedSha: options.expectedSha,
+          fundId: options.expectedFundId,
+          canaryRunId: options.expectedCanaryRunId,
+          githubRunId: options.githubRunId,
+          githubRunAttempt: options.githubRunAttempt,
+          transition: options.terminalStatus,
+          residue: emittedResidue,
+        });
+      }
       assertExactRunResidueWithinReservation(exactCounts, reserved);
 
       const reloadedRows = await readExactRunRows(options.expectedFundId);

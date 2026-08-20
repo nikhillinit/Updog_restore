@@ -751,6 +751,32 @@ function assertRollbackDiffAllowlisted(diffOutput) {
 }
 
 /**
+ * Build the exact BaselineFragmentPayload from the verified context and
+ * binding and write it (mode 0600, create-only). Emitted only after every
+ * consumption check has passed; without a path the emit is skipped entirely.
+ */
+async function emitNormalizedBaselinePayload(emitPath, { binding, context, baselineMainSha, plannedPrHeadSha }) {
+  await writeContext(emitPath, {
+    prechange: { vercel: context.vercel, railway: context.railway },
+    rollback: {
+      targetMainSha: baselineMainSha,
+      recoveryContextSha256: binding.baselineFileSha256,
+    },
+    baselineArtifact: {
+      runId: binding.baselineRunId,
+      runAttempt: binding.baselineRunAttempt,
+      workflowPath: BASELINE_WORKFLOW_PATH,
+      baselineMainSha,
+      plannedPrHeadSha,
+      artifactId: binding.baselineArtifactId,
+      artifactName: expectedBaselineArtifactName(binding, plannedPrHeadSha),
+      artifactArchiveSha256: binding.baselineArtifactDigest.slice('sha256:'.length),
+      contextFileSha256: binding.baselineFileSha256,
+    },
+  });
+}
+
+/**
  * Consume the downloaded baseline context file for one release: prove file
  * hash, plan binding, baseline ancestry, and mode-specific release lineage.
  */
@@ -759,6 +785,7 @@ export async function verifyBaselineConsumption({
   releaseMode: mode,
   releaseSha,
   contextPath,
+  emitNormalizedPath,
   environment = process.env,
   fetchImpl = globalThis.fetch,
   execFileImpl = execFileAsync,
@@ -836,6 +863,14 @@ export async function verifyBaselineConsumption({
     if (sha(pullRequest?.merge_commit_sha, 'runtime PR merge SHA') !== release) {
       fail('runtime PR merge commit is not the release SHA');
     }
+    if (emitNormalizedPath !== undefined) {
+      await emitNormalizedBaselinePayload(emitNormalizedPath, {
+        binding,
+        context: parsed,
+        baselineMainSha,
+        plannedPrHeadSha,
+      });
+    }
     return { binding, baselineMainSha, plannedPrHeadSha, mode: 'primary' };
   }
 
@@ -863,6 +898,14 @@ export async function verifyBaselineConsumption({
     release,
   ]);
   assertRollbackDiffAllowlisted(diffOutput);
+  if (emitNormalizedPath !== undefined) {
+    await emitNormalizedBaselinePayload(emitNormalizedPath, {
+      binding,
+      context: parsed,
+      baselineMainSha,
+      plannedPrHeadSha,
+    });
+  }
   return { binding, baselineMainSha, plannedPrHeadSha, mode: 'rollback' };
 }
 
@@ -906,17 +949,22 @@ async function main() {
     return;
   }
   if (command === 'verify-baseline-consumption') {
-    const options = parseArguments(args, [
+    const expectedKeys = [
       '--baseline-evidence-b64',
       '--release-mode',
       '--expected-sha',
       '--context-file',
-    ]);
+    ];
+    // --emit-normalized is the only optional flag; its presence extends the
+    // exact-pair contract, never relaxes it.
+    if (args.includes('--emit-normalized')) expectedKeys.push('--emit-normalized');
+    const options = parseArguments(args, expectedKeys);
     await verifyBaselineConsumption({
       baselineEvidenceB64: options['--baseline-evidence-b64'],
       releaseMode: options['--release-mode'],
       releaseSha: options['--expected-sha'],
       contextPath: options['--context-file'],
+      emitNormalizedPath: options['--emit-normalized'],
     });
     console.log('Release baseline consumption verified.');
     return;
