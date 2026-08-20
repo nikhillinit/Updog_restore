@@ -4773,7 +4773,7 @@ describe('required CI fails closed', () => {
     expect(characterizationScripts).toContain('foreignKey.table');
     expect(characterizationScripts).not.toContain('provenance.dataOrigin');
     expect(characterizationScripts).not.toContain('provenance.expectedRunVersion');
-    expect(characterizationScripts).not.toContain('cohortCalculationInvoked');
+    expect(characterizationScripts).toContain('provenance.flagState.cohortCalculationInvoked');
     const sourceSha = 'a'.repeat(40);
     const validCharacterization = {
       schemaVersion: 'release-canary-residue-characterization-v1',
@@ -4788,7 +4788,7 @@ describe('required CI fails closed', () => {
         databaseTimeZone: 'Etc/UTC',
         storedRun: { releaseSha: sourceSha, status: 'completed', version: 2 },
         fundDataOrigins: ['release_canary'],
-        flagState: { enableGpEconomicsEngine: false },
+        flagState: { enableGpEconomicsEngine: false, cohortCalculationInvoked: false },
         snapshotTypeCounts: [
           { type: 'COHORT', count: 0 },
           { type: 'ECONOMICS', count: 0 },
