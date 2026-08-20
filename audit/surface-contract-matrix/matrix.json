@@ -2,8 +2,8 @@
   "schema_version": "1.1.0",
   "phase": "closed",
   "provenance": {
-    "git_head": "187b102d792e275cf06de92345f3e98692c38dd5",
-    "snapshot_id": "snapshot:7fa5206abf254fdbc7b2d18798b2373364fc3fa5d8ed769b118be5f450e91d18"
+    "git_head": "d08e680093d0de89b75e98f70352fcf261c3217b",
+    "snapshot_id": "snapshot:f856af5413af58b2e5f3b9531940f2b60ae1b7f946016943e01b59eb1fff7d59"
   },
   "rows": [
     {
@@ -77457,6 +77457,13 @@
               "evidence": "server/server.ts:215 requireSecureContext precedes protected create_server routes",
               "boundary_scope": "create_server",
               "middleware": "requireSecureContext"
+            },
+            {
+              "kind": "handler",
+              "role": "admin",
+              "file": "server/routes/planning-fmv-overrides.ts",
+              "line": 73,
+              "evidence": "if (role === 'admin' || roles.includes('admin')) {"
             }
           ],
           "boot_status": "unproven",
@@ -77509,6 +77516,13 @@
               "evidence": "server/app.ts:175 requireApiAuth precedes protected make_app routes",
               "boundary_scope": "make_app",
               "middleware": "requireApiAuth"
+            },
+            {
+              "kind": "handler",
+              "role": "admin",
+              "file": "server/routes/planning-fmv-overrides.ts",
+              "line": 73,
+              "evidence": "if (role === 'admin' || roles.includes('admin')) {"
             }
           ],
           "boot_status": "proven",
@@ -77541,7 +77555,9 @@
         "producers": [],
         "consumers": []
       },
-      "auth_roles": [],
+      "auth_roles": [
+        "admin"
+      ],
       "auth_evidence": [
         {
           "kind": "policy-boundary",
@@ -77551,6 +77567,13 @@
           "evidence": "server/app.ts:175 requireApiAuth precedes protected make_app routes",
           "boundary_scope": "make_app",
           "middleware": "requireApiAuth"
+        },
+        {
+          "kind": "handler",
+          "role": "admin",
+          "file": "server/routes/planning-fmv-overrides.ts",
+          "line": 73,
+          "evidence": "if (role === 'admin' || roles.includes('admin')) {"
         },
         {
           "kind": "guard",
@@ -77597,8 +77620,8 @@
       "decision": "in-contract",
       "decision_suggestion": "in-contract",
       "decision_status": "approved",
-      "decision_evidence": "Current-source re-review: server/routes/planning-fmv-overrides.ts:91-128 invokes enforcePlanningFmvApprovalAuthority; lines 70-83 accept only admin role/roles, so admin-only is the correct persona.",
-      "contract_fingerprint": "c99588d112c9ab6c53266a28e15b69d363f3fab77bdafb2ac64ad65b16504a19",
+      "decision_evidence": "Fresh source review: server/routes/planning-fmv-overrides.ts:100 invokes enforcePlanningFmvApprovalAuthority; its named helper admits only admin at lines 70-74 and emits a 403 denial at lines 77-82, so this route is admin-only.",
+      "contract_fingerprint": "bb04f2eaafb84245a9644d3cd27517e6ddcd116a0206b42656a0a0a1afe4edb2",
       "approved_source_hashes": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -77611,9 +77634,11 @@
       "machine_suggestions": {
         "owner": "lp-reporting",
         "personas": [
-          "unknown"
+          "admin"
         ],
-        "auth_roles": [],
+        "auth_roles": [
+          "admin"
+        ],
         "unresolved_auth": false,
         "undecided_auth_roles": [],
         "persistence": "unknown",
@@ -106524,12 +106549,12 @@
     },
     "api:POST:/api/funds/:fundId/planning/fmv-overrides|local-process|create_server": {
       "test_coverage": "none-reviewed",
-      "contract_fingerprint": "c99588d112c9ab6c53266a28e15b69d363f3fab77bdafb2ac64ad65b16504a19",
+      "contract_fingerprint": "bb04f2eaafb84245a9644d3cd27517e6ddcd116a0206b42656a0a0a1afe4edb2",
       "evidence": "https://github.com/nikhillinit/Updog_restore/pull/1385#issuecomment-5359387046"
     },
     "api:POST:/api/funds/:fundId/planning/fmv-overrides|vercel-api|make_app": {
       "test_coverage": "none-reviewed",
-      "contract_fingerprint": "c99588d112c9ab6c53266a28e15b69d363f3fab77bdafb2ac64ad65b16504a19",
+      "contract_fingerprint": "bb04f2eaafb84245a9644d3cd27517e6ddcd116a0206b42656a0a0a1afe4edb2",
       "evidence": "https://github.com/nikhillinit/Updog_restore/pull/1385#issuecomment-5359387046"
     },
     "api:POST:/api/funds/:fundId/portfolio/lots|local-process|create_server": {
@@ -107521,7 +107546,7 @@
   "validation": {
     "passed": true,
     "kg": {
-      "snapshot_id": "snapshot:45ed914fe4834145273d071d5a46ac2fdc367092c2e19bcf284ca35b84fed1cf",
+      "snapshot_id": "snapshot:f856af5413af58b2e5f3b9531940f2b60ae1b7f946016943e01b59eb1fff7d59",
       "counts": {
         "APIEndpoint": 391,
         "ClientRoute": 43,
@@ -107560,9 +107585,6 @@
     }
   },
   "g1_closure": {
-    "owner": "nikhillinit",
-    "gate": "Pending exact-candidate owner attestation",
-    "acceptance": "Review candidate only. Before non-dry approval or G1 closure, owner must attest the exact source 187b102d792e275cf06de92345f3e98692c38dd5, generation snapshot snapshot:7fa5206abf254fdbc7b2d18798b2373364fc3fa5d8ed769b118be5f450e91d18, review manifest digest, and matching canonical dry-run. This text grants no approval authority.",
     "approver_id": "nikhillinit",
     "evidence_ref": "https://github.com/nikhillinit/Updog_restore/pull/1385#issuecomment-5359387046",
     "source_fingerprints": {
@@ -107571,14 +107593,14 @@
       "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
       "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
       "api/telemetry/wizard.ts": "055e2fb386041bc22fea7ce410e4b27f536a4cfab204da13804ca6c270cf901d",
-      "audit/surface-contract-matrix/boot-proofs.json": "31b0a5e5b03be8dc872f39939a75d52632a120594b681700bfd9c23a2c26959b",
+      "audit/surface-contract-matrix/boot-proofs.json": "b63d070a7110c067c2aab4681ef3dab2dc40d52221aec955ce04faa0bb473d24",
       "audit/surface-contract-matrix/matrix-schema.mjs": "d84bf9f8361ba2d9546fe5acd297c9efd7419a73c79df5d1e0951d7c32397fd5",
       "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "4a8cd325603a5eff35aa545c4feed9ec941fc24acb3830d4441589de26a1833c",
       "audit/surface-contract-matrix/scripts/boot-proof.mjs": "9e2036e0b142710fee1c25c9647ac4550595c42a8034165097ad0b770b4fe935",
       "audit/surface-contract-matrix/scripts/classify-pass.mjs": "a2bd0a16e774af2283c7eaab5780adc755144cd53d474eafe037d75810c5ac41",
       "audit/surface-contract-matrix/scripts/inspect-runtime.mjs": "fa5ff8da3dca79d44de6c1985a6bb4c6839b8ca26cdee28c61be0c04d9eaf9d5",
       "audit/surface-contract-matrix/scripts/render-matrix.mjs": "8eb22f884914ba8acd4a45d0da8a36c0dd46adff610fa582e0df42029dc90a7c",
-      "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "d3e746dc2c80dcf6384097c94ec48914afc128dfd3980aba5bf62b2901ddedcd",
+      "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "7a511e7f417be4ef9a5f40715d3f3249b84ce189e304e2cfc5c5c3c08ccfa4a0",
       "audit/surface-contract-matrix/scripts/validate-matrix.mjs": "2c8f7db41a6d63d8dd480136ee49b0e25352e0d4bb372a1c4d472efff6bd8c09",
       "client/index.html": "0df45382b3b9f6728fa9ed66b432cac741eae938f4c360c9a9036f1ab3c922df",
       "client/src/App.tsx": "f20dc82c2e4ee45e7886f72b02ed4ed2d80953e21869e1dbba4b4223322a911b",
