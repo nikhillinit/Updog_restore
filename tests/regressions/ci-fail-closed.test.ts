@@ -4924,6 +4924,9 @@ describe('required CI fails closed', () => {
     expect(proofScripts).toContain('hasNextPage');
     expect(proofScripts).not.toContain('backboard.railway.app');
     expect(proofScripts).not.toContain('me {');
+    expect(proofWorkflow.jobs?.['full-release-proof']?.environment).toBe(
+      'Production'
+    );
     const strictBootStep = proofWorkflow.jobs?.['full-release-proof']?.steps?.find(
       (step) => step.name === 'Run strict Vercel boot proof'
     );
