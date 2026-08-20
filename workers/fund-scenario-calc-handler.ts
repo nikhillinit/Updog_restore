@@ -1,9 +1,11 @@
 import { UnrecoverableError, type Job } from 'bullmq';
+import type { FundScenarioCalculationResponseV1 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import { logger } from '../lib/logger';
 import { metrics } from '../lib/metrics';
 import {
   isScenarioCalculationOwnershipLost,
   runReserveScenarioCalculation,
+  type ReserveScenarioAttempt,
 } from '../server/services/fund-scenario-reserve-calculation-service';
 import {
   getFundScenarioHardTimeoutMs,
@@ -43,86 +45,132 @@ async function withReserveScenarioMetrics<T>(callback: () => Promise<T>): Promis
   }
 }
 
-export async function handleFundScenarioCalcJob(
-  job: Pick<Job<FundScenarioCalcJobData>, 'id' | 'data' | 'attemptsMade' | 'opts'>,
-  _token?: string,
-  signal?: AbortSignal
-) {
-  const { fundId, scenarioSetId, correlationId, calculationMode, actor, runId } = job.data;
-  const startedAt = process.hrtime.bigint();
-  let outcome: 'success' | 'failure' | 'hard_timeout' = 'failure';
+type FundScenarioCalcJob = Pick<
+  Job<FundScenarioCalcJobData>,
+  'id' | 'data' | 'attemptsMade' | 'opts'
+>;
 
-  logger.info('Processing reserve scenario calculation', {
-    fundId,
-    scenarioSetId,
-    correlationId,
-    jobId: job.id,
-    calculationMode,
-  });
-
-  const ownedAbortController = new AbortController();
-  const onBullMqAbort = () => {
-    ownedAbortController.abort(signal?.reason);
+function deriveAttempt(job: FundScenarioCalcJob): ReserveScenarioAttempt {
+  // BullMQ defaults opts.attempts to 0 (never undefined), so `|| 1` -- a
+  // `?? 1` fallback would derive limit 0 and fail-closed a valid delivery.
+  const attempt: ReserveScenarioAttempt = {
+    number: job.attemptsMade + 1,
+    limit: job.opts.attempts || 1,
   };
-  if (signal?.aborted) {
-    onBullMqAbort();
-  } else {
-    signal?.addEventListener('abort', onBullMqAbort, { once: true });
-  }
-
-  try {
-    if (calculationMode !== 'async_reserve_allocation') {
-      throw new Error(`Unsupported fund scenario calculation mode: ${calculationMode}`);
-    }
-
-    const result = await withReserveScenarioMetrics(async () =>
-      runReserveScenarioCalculation({
-        fundId,
-        scenarioSetId,
-        correlationId,
-        actor: actor ?? {},
-        jobId: String(job.id),
-        runId,
-        isFinalAttempt: job.attemptsMade + 1 >= (job.opts.attempts ?? 1),
-        signal: ownedAbortController.signal,
-        abortController: ownedAbortController,
-      })
+  if (
+    !Number.isSafeInteger(attempt.number) ||
+    !Number.isSafeInteger(attempt.limit) ||
+    attempt.number < 1 ||
+    attempt.limit < 1 ||
+    attempt.number > attempt.limit
+  ) {
+    throw new Error(
+      `Fund scenario delivery attempt identity is invalid: ${attempt.number}/${attempt.limit}`
     );
-    outcome = 'success';
-    return isScenarioCalculationOwnershipLost(result) ? undefined : result;
-  } catch (error) {
-    const err = error as Error;
-    if (isFundScenarioHardTimeoutError(error)) {
-      outcome = 'hard_timeout';
-      metrics.fundScenarioHardTimeouts?.inc();
-      metrics.fundScenarioHardTimeoutDuration?.observe(getFundScenarioHardTimeoutMs() / 1000);
-      throw new UnrecoverableError(err.message);
-    }
+  }
+  return attempt;
+}
 
-    logger.error('Reserve scenario calculation failed', err, {
+/**
+ * Factory for the fund scenario calculation job handler. Production exports
+ * the factory invoked with default real dependencies; test harnesses may
+ * inject a calculation runner. The BullMQ delivery is the sole source of the
+ * attempt pair; the handler derives and validates it before any execution.
+ */
+export function createFundScenarioCalcJobHandler(deps?: {
+  runCalculation?: typeof runReserveScenarioCalculation;
+}): typeof handleFundScenarioCalcJob {
+  return async function handleFundScenarioCalcJobWithDeps(
+    job: FundScenarioCalcJob,
+    _token?: string,
+    signal?: AbortSignal
+  ) {
+    const { fundId, scenarioSetId, correlationId, calculationMode, actor, runId } = job.data;
+    const startedAt = process.hrtime.bigint();
+    let outcome: 'success' | 'failure' | 'hard_timeout' = 'failure';
+
+    logger.info('Processing reserve scenario calculation', {
       fundId,
       scenarioSetId,
       correlationId,
       jobId: job.id,
-      errorName: err.name,
-      errorMessage: err.message,
-      errorStack: err.stack,
+      calculationMode,
     });
-    const counter = (
-      metrics as unknown as {
-        counter?: (name: string, value: number, labels: Record<string, string>) => void;
+
+    const ownedAbortController = new AbortController();
+    const onBullMqAbort = () => {
+      ownedAbortController.abort(signal?.reason);
+    };
+    if (signal?.aborted) {
+      onBullMqAbort();
+    } else {
+      signal?.addEventListener('abort', onBullMqAbort, { once: true });
+    }
+
+    try {
+      if (calculationMode !== 'async_reserve_allocation') {
+        throw new Error(`Unsupported fund scenario calculation mode: ${calculationMode}`);
       }
-    ).counter;
-    counter?.('fund_scenario_reserve_calculation_failed_total', 1, {
-      fundId: String(fundId),
-      errorType: err.name,
-    });
-    throw error;
-  } finally {
-    metrics.workerJobDuration.observe(
-      { worker_type: 'fund-scenario-calc', outcome },
-      Number(process.hrtime.bigint() - startedAt) / 1_000_000_000
-    );
-    signal?.removeEventListener('abort', onBullMqAbort);
-  }
+
+      const attempt = deriveAttempt(job);
+      // Resolve at call time so module-level spies stay observable.
+      const runCalculation = deps?.runCalculation ?? runReserveScenarioCalculation;
+      const result = await withReserveScenarioMetrics(async () =>
+        runCalculation({
+          fundId,
+          scenarioSetId,
+          correlationId,
+          actor: actor ?? {},
+          jobId: String(job.id),
+          runId,
+          attempt,
+          signal: ownedAbortController.signal,
+          abortController: ownedAbortController,
+        })
+      );
+      outcome = 'success';
+      return isScenarioCalculationOwnershipLost(result) ? undefined : result;
+    } catch (error) {
+      const err = error as Error;
+      if (isFundScenarioHardTimeoutError(error)) {
+        outcome = 'hard_timeout';
+        metrics.fundScenarioHardTimeouts?.inc();
+        metrics.fundScenarioHardTimeoutDuration?.observe(getFundScenarioHardTimeoutMs() / 1000);
+        throw new UnrecoverableError(err.message);
+      }
+
+      logger.error('Reserve scenario calculation failed', err, {
+        fundId,
+        scenarioSetId,
+        correlationId,
+        jobId: job.id,
+        errorName: err.name,
+        errorMessage: err.message,
+        errorStack: err.stack,
+      });
+      const counter = (
+        metrics as unknown as {
+          counter?: (name: string, value: number, labels: Record<string, string>) => void;
+        }
+      ).counter;
+      counter?.('fund_scenario_reserve_calculation_failed_total', 1, {
+        fundId: String(fundId),
+        errorType: err.name,
+      });
+      throw error;
+    } finally {
+      metrics.workerJobDuration.observe(
+        { worker_type: 'fund-scenario-calc', outcome },
+        Number(process.hrtime.bigint() - startedAt) / 1_000_000_000
+      );
+      signal?.removeEventListener('abort', onBullMqAbort);
+    }
+  };
 }
+
+export const handleFundScenarioCalcJob: (
+  job: FundScenarioCalcJob,
+  _token?: string,
+  signal?: AbortSignal
+) => Promise<FundScenarioCalculationResponseV1 | undefined> =
+  createFundScenarioCalcJobHandler();

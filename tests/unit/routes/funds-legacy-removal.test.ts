@@ -30,6 +30,10 @@ vi.mock('../../../server/services/fund-persistence-service', () => ({
   fundPersistenceService: {
     createFundWithInitialDraft: createFundWithInitialDraftMock,
   },
+  // The route narrows caught errors with instanceof against these classes;
+  // the mock must export real constructors or the catch path itself throws.
+  ReleaseCanaryExecutionIdentityForbiddenError: class ReleaseCanaryExecutionIdentityForbiddenError extends Error {},
+  ReleaseCanaryExecutionIdentityInvalidError: class ReleaseCanaryExecutionIdentityInvalidError extends Error {},
 }));
 
 // Mock pino logger (used by routes via ../lib/logger.js)

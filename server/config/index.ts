@@ -246,7 +246,9 @@ const envSchema = z.object({
   NATS_URL: z.string().optional(),
 
   // Worker Configuration
-  WORKER_TYPE: z.enum(['reserve', 'pacing', 'cohort', 'report']).optional(),
+  WORKER_TYPE: z
+    .enum(['reserve', 'pacing', 'cohort', 'report', 'fund-scenario-calc', 'capital-call-status'])
+    .optional(),
   REDIS_HOST: z.string().default('localhost'),
   REDIS_PORT: z.coerce.number().int().positive().default(6379),
 

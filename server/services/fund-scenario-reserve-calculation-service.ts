@@ -86,16 +86,85 @@ interface FundSizeRow {
   size: string | number;
 }
 
-interface RunReserveScenarioCalculationInput {
+export interface ReserveScenarioAttempt {
+  number: number;
+  limit: number;
+}
+
+export type ReserveWorkerFailureCode =
+  | 'TRANSIENT_WORKER_FAILURE'
+  | 'PERMANENT_WORKER_FAILURE'
+  | 'WORKER_EXECUTION_FAILED';
+
+/**
+ * Branded worker failures are the ONLY errors allowed to retain their
+ * transient/permanent classification in persisted rows and events. Any
+ * ordinary error -- whatever `code` or message it carries -- normalizes to
+ * WORKER_EXECUTION_FAILED with fixed public text so raw messages, stacks,
+ * database codes, and secrets never reach the run row or event JSON.
+ * HARD_TIMEOUT stays owned exclusively by the run-service deadline CAS.
+ */
+export class ReserveWorkerTransientFailureError extends Error {
+  constructor(message = 'Reserve scenario worker transient failure') {
+    super(message);
+    this.name = 'ReserveWorkerTransientFailureError';
+  }
+}
+
+export class ReserveWorkerPermanentFailureError extends Error {
+  constructor(message = 'Reserve scenario worker permanent failure') {
+    super(message);
+    this.name = 'ReserveWorkerPermanentFailureError';
+  }
+}
+
+const RESERVE_WORKER_FAILURE_PUBLIC_TEXT: Record<ReserveWorkerFailureCode, string> = {
+  TRANSIENT_WORKER_FAILURE:
+    'Reserve scenario calculation failed on a retryable worker attempt',
+  PERMANENT_WORKER_FAILURE:
+    'Reserve scenario calculation failed permanently in the worker',
+  WORKER_EXECUTION_FAILED: 'Reserve scenario calculation failed during worker execution',
+};
+
+export function normalizeReserveWorkerFailure(error: unknown): {
+  code: ReserveWorkerFailureCode;
+  message: string;
+} {
+  const code: ReserveWorkerFailureCode =
+    error instanceof ReserveWorkerTransientFailureError
+      ? 'TRANSIENT_WORKER_FAILURE'
+      : error instanceof ReserveWorkerPermanentFailureError
+        ? 'PERMANENT_WORKER_FAILURE'
+        : 'WORKER_EXECUTION_FAILED';
+  return { code, message: RESERVE_WORKER_FAILURE_PUBLIC_TEXT[code] };
+}
+
+export interface RunReserveScenarioCalculationInput {
   fundId: number;
   scenarioSetId: string;
   correlationId: string;
   actor: FundScenarioMutationActor;
   jobId: string | null;
   runId?: string;
-  isFinalAttempt?: boolean;
+  attempt?: ReserveScenarioAttempt;
   signal?: AbortSignal;
   abortController?: AbortController;
+}
+
+function resolveAttempt(input: RunReserveScenarioCalculationInput): ReserveScenarioAttempt {
+  const attempt = input.attempt ?? { number: 1, limit: 1 };
+  if (
+    !Number.isSafeInteger(attempt.number) ||
+    !Number.isSafeInteger(attempt.limit) ||
+    attempt.number < 1 ||
+    attempt.limit < 1 ||
+    attempt.number > attempt.limit
+  ) {
+    throw new Error(
+      `Reserve scenario attempt identity is invalid: ${attempt.number}/${attempt.limit}`
+    );
+  }
+  return attempt;
 }
 
 interface ReserveScenarioRunContext {
@@ -114,7 +183,7 @@ interface ReserveScenarioCalculationData {
   reserveInputTrustSummary: ReserveInputTrustSummary;
 }
 
-interface ClaimedReserveScenarioRun {
+export interface ClaimedReserveScenarioRun {
   context: ReserveScenarioRunContext;
   identity: ScenarioCalculationRunFenceIdentity;
   run: ScenarioCalculationRunRecord;
@@ -374,23 +443,16 @@ async function lockScenarioSetForFailure(
   );
 }
 
-function failureMetadata(error: unknown): { code: string | null; message: string } {
-  const code =
-    typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string'
-      ? error.code
-      : null;
-  return {
-    code,
-    message: error instanceof Error ? error.message : String(error),
-  };
-}
-
 async function recordCalculationFailedEvent(input: {
   claimed: ClaimedReserveScenarioRun;
   calculationInput: RunReserveScenarioCalculationInput;
   error: unknown;
 }): Promise<boolean> {
-  const failure = failureMetadata(input.error);
+  // Owned normalizer: fixed public text selected by the normalized code.
+  // Never persist the original message, stack, constructor name, database
+  // code, or any other arbitrary error property.
+  const failure = normalizeReserveWorkerFailure(input.error);
+  const attempt = resolveAttempt(input.calculationInput);
 
   try {
     await transaction(async (client) => {
@@ -427,6 +489,8 @@ async function recordCalculationFailedEvent(input: {
           hash_kind: input.claimed.identity.hashKind,
           model_inputs_as_of_date: input.claimed.identity.modelInputsAsOfDate,
           comparison_lineage_version: input.claimed.identity.comparisonLineageVersion,
+          attempt_number: attempt.number,
+          attempt_limit: attempt.limit,
           failure_code: failure.code,
           error_message: failure.message,
         },
@@ -459,6 +523,7 @@ async function recordCalculationStartedEvent(
   context: ReserveScenarioRunContext,
   runId: string
 ): Promise<void> {
+  const attempt = resolveAttempt(input);
   await insertScenarioSetEvent(client, {
     scenarioSetId: input.scenarioSetId,
     fundId: input.fundId,
@@ -474,6 +539,8 @@ async function recordCalculationStartedEvent(
       hash_kind: context.inputLineage.hashKind,
       model_inputs_as_of_date: context.inputLineage.modelInputsAsOfDate,
       comparison_lineage_version: context.inputLineage.comparisonLineageVersion,
+      attempt_number: attempt.number,
+      attempt_limit: attempt.limit,
     },
   });
 }
@@ -680,9 +747,22 @@ interface ScenarioDeadlineActor {
   stop(): void;
 }
 
+export interface ReserveScenarioCalculationClock {
+  now(): number;
+  setTimeout(callback: () => void, delayMs: number): NodeJS.Timeout;
+  clearTimeout(timer: NodeJS.Timeout): void;
+}
+
+const REAL_RESERVE_SCENARIO_CLOCK: ReserveScenarioCalculationClock = {
+  now: () => Date.now(),
+  setTimeout: (callback, delayMs) => globalThis.setTimeout(callback, delayMs),
+  clearTimeout: (timer) => globalThis.clearTimeout(timer),
+};
+
 function startScenarioDeadlineActor(
   input: RunReserveScenarioCalculationInput,
-  claimed: ClaimedReserveScenarioRun
+  claimed: ClaimedReserveScenarioRun,
+  clock: ReserveScenarioCalculationClock
 ): ScenarioDeadlineActor {
   const deadlineAt = claimed.run.deadlineAt;
   if (input.abortController === undefined || deadlineAt === null || deadlineAt === undefined) {
@@ -690,7 +770,7 @@ function startScenarioDeadlineActor(
   }
 
   const deadlineMs = deadlineAt instanceof Date ? deadlineAt.getTime() : Date.parse(deadlineAt);
-  const timer = setTimeout(
+  const timer = clock.setTimeout(
     () => {
       void transaction(async (client) => {
         const affectedRows = await markScenarioCalculationRunTimedOut(
@@ -705,10 +785,10 @@ function startScenarioDeadlineActor(
         // The handler retains the original calculation error when the deadline actor cannot persist.
       });
     },
-    Math.max(0, deadlineMs - Date.now())
+    Math.max(0, deadlineMs - clock.now())
   );
 
-  return { stop: () => clearTimeout(timer) };
+  return { stop: () => clock.clearTimeout(timer) };
 }
 
 async function completeReserveScenarioRun(
@@ -752,12 +832,18 @@ async function completeReserveScenarioRun(
   });
 }
 
-async function calculateReserveScenarioForContext(
+/**
+ * Production execution of a claimed run. Exported so harness-local injection
+ * (createReserveScenarioCalculationRunner) can delegate to the real behavior
+ * around an injected fault; production never injects.
+ */
+export const executeClaimedReserveScenarioCalculation: ExecuteClaimedReserveScenarioCalculation =
+  async (input, claimed) => completeReserveScenarioRun(input, claimed);
+
+export type ExecuteClaimedReserveScenarioCalculation = (
   input: RunReserveScenarioCalculationInput,
   claimed: ClaimedReserveScenarioRun
-): Promise<FundScenarioCalculationResponseV1> {
-  return completeReserveScenarioRun(input, claimed);
-}
+) => Promise<FundScenarioCalculationResponseV1>;
 
 async function buildReserveScenarioCalculationData(
   client: PoolClient,
@@ -815,72 +901,96 @@ async function persistReserveScenarioCalculation(
   return response;
 }
 
-export async function runReserveScenarioCalculation(
-  input: RunReserveScenarioCalculationInput
-): Promise<FundScenarioCalculationResponseV1 | ScenarioCalculationOwnershipLost> {
-  input.signal?.throwIfAborted();
+/**
+ * Factory for the reserve scenario calculation runner. Production invokes it
+ * with default real dependencies; test harnesses may inject a claimed-run
+ * executor (to force deterministic worker failures without faulting
+ * production) and a clock (for the deadline actor). Claiming, retry routing,
+ * requeue, and failure persistence stay real in every configuration.
+ */
+export function createReserveScenarioCalculationRunner(deps?: {
+  executeClaimedCalculation?: ExecuteClaimedReserveScenarioCalculation;
+  clock?: ReserveScenarioCalculationClock;
+}): typeof runReserveScenarioCalculation {
+  const clock = deps?.clock ?? REAL_RESERVE_SCENARIO_CLOCK;
 
-  let claimed: ClaimedReserveScenarioRun | undefined;
-  let deadlineActor: ScenarioDeadlineActor | undefined;
-  try {
-    const outcome = await claimReserveScenarioRun(input);
-    if (outcome === null) {
-      return PRIVATE_OWNERSHIP_LOST;
-    }
-    claimed = outcome.value;
-    deadlineActor = startScenarioDeadlineActor(input, claimed);
+  return async function runReserveScenarioCalculationWithDeps(
+    input: RunReserveScenarioCalculationInput
+  ): Promise<FundScenarioCalculationResponseV1 | ScenarioCalculationOwnershipLost> {
+    input.signal?.throwIfAborted();
+    // isFinalAttempt derives from the attempt pair -- the pair is the single
+    // source of truth for the delivery's attempt identity.
+    const attempt = resolveAttempt(input);
+    const isFinalAttempt = attempt.number >= attempt.limit;
+    // Injection point only: the default is this module's own local binding,
+    // so namespace spies would not intercept it -- tests inject via the
+    // factory instead of spying on the exported default.
+    const executeClaimedCalculation =
+      deps?.executeClaimedCalculation ?? executeClaimedReserveScenarioCalculation;
+
+    let claimed: ClaimedReserveScenarioRun | undefined;
+    let deadlineActor: ScenarioDeadlineActor | undefined;
     try {
-      input.signal?.throwIfAborted();
-      return await calculateReserveScenarioForContext(input, claimed);
-    } finally {
-      // Success/ownership-lost paths stop the actor here; failure recovery
-      // below re-decides, keeping it alive until a run-state write landed.
-      deadlineActor.stop();
-    }
-  } catch (error) {
-    if (error instanceof ScenarioRunOwnershipLostError) {
-      return PRIVATE_OWNERSHIP_LOST;
-    }
-    const activeClaim = claimed;
-    let runStateResolved = true;
-    if (activeClaim && !isFundScenarioHardTimeoutError(error) && input.isFinalAttempt !== false) {
-      runStateResolved = await recordCalculationFailedEvent({
-        claimed: activeClaim,
-        calculationInput: input,
-        error,
-      });
-    } else if (
-      activeClaim &&
-      !isFundScenarioHardTimeoutError(error) &&
-      input.isFinalAttempt === false
-    ) {
+      const outcome = await claimReserveScenarioRun(input);
+      if (outcome === null) {
+        return PRIVATE_OWNERSHIP_LOST;
+      }
+      claimed = outcome.value;
+      deadlineActor = startScenarioDeadlineActor(input, claimed, clock);
       try {
-        await transaction((client) =>
-          requeueScenarioCalculationRunIfRunning(client, activeClaim.run.id, activeClaim.identity)
-        );
-      } catch (requeueError) {
-        // Double-failure path: the calculation failed AND the requeue write
-        // failed. Fall back to the terminal ordinary-failure write so the
-        // retry attempt honestly zero-rows instead of executing against a
-        // stranded 'running' row. The claim predicate stays plan-locked to
-        // status='queued' — no running retake.
-        logger.warn(
-          { err: requeueError, runId: activeClaim.run.id },
-          'Failed to requeue fund scenario run for retry; persisting terminal failure instead'
-        );
+        input.signal?.throwIfAborted();
+        return await executeClaimedCalculation(input, claimed);
+      } finally {
+        // Success/ownership-lost paths stop the actor here; failure recovery
+        // below re-decides, keeping it alive until a run-state write landed.
+        deadlineActor.stop();
+      }
+    } catch (error) {
+      if (error instanceof ScenarioRunOwnershipLostError) {
+        return PRIVATE_OWNERSHIP_LOST;
+      }
+      const activeClaim = claimed;
+      let runStateResolved = true;
+      if (activeClaim && !isFundScenarioHardTimeoutError(error) && isFinalAttempt) {
         runStateResolved = await recordCalculationFailedEvent({
           claimed: activeClaim,
           calculationInput: input,
           error,
         });
+      } else if (activeClaim && !isFundScenarioHardTimeoutError(error) && !isFinalAttempt) {
+        try {
+          await transaction((client) =>
+            requeueScenarioCalculationRunIfRunning(client, activeClaim.run.id, activeClaim.identity)
+          );
+        } catch (requeueError) {
+          // Double-failure path: the calculation failed AND the requeue write
+          // failed. Fall back to the terminal ordinary-failure write so the
+          // retry attempt honestly zero-rows instead of executing against a
+          // stranded 'running' row. The claim predicate stays plan-locked to
+          // status='queued' — no running retake.
+          logger.warn(
+            { err: requeueError, runId: activeClaim.run.id },
+            'Failed to requeue fund scenario run for retry; persisting terminal failure instead'
+          );
+          runStateResolved = await recordCalculationFailedEvent({
+            claimed: activeClaim,
+            calculationInput: input,
+            error,
+          });
+        }
       }
+      if (!runStateResolved && activeClaim && deadlineActor) {
+        // No run-state write landed: restart the deadline actor so the row is
+        // terminalized with HARD_TIMEOUT at its persisted deadline even when
+        // the sweep is disabled.
+        deadlineActor = startScenarioDeadlineActor(input, activeClaim, clock);
+      }
+      throw error;
     }
-    if (!runStateResolved && activeClaim && deadlineActor) {
-      // No run-state write landed: restart the deadline actor so the row is
-      // terminalized with HARD_TIMEOUT at its persisted deadline even when
-      // the sweep is disabled.
-      deadlineActor = startScenarioDeadlineActor(input, activeClaim);
-    }
-    throw error;
-  }
+  };
 }
+
+export const runReserveScenarioCalculation: (
+  input: RunReserveScenarioCalculationInput
+) => Promise<FundScenarioCalculationResponseV1 | ScenarioCalculationOwnershipLost> =
+  createReserveScenarioCalculationRunner();

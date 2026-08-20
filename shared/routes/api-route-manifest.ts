@@ -436,6 +436,7 @@ export const COMMON_API_ROUTE_MANIFEST = [
       'fund_scenario_variants',
       'fund_scenario_set_events',
       'fund_scenario_calculation_runs',
+      'fund_scenario_calculation_commands',
       'fund_snapshots',
       'investments',
       'portfoliocompanies',

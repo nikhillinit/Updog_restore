@@ -1,6 +1,7 @@
 import { QueueEvents } from 'bullmq';
 import { getQueueConnectionOptions, type QueueConnectionOptions } from '../server/config/features';
 import { attachQueueErrorLogging } from './queue-error-logging';
+import type { handleFundScenarioCalcJob } from './fund-scenario-calc-handler';
 import {
   FUND_SCENARIO_CALC_QUEUE_CONNECTION_ERROR,
   FUND_SCENARIO_CALC_QUEUE_NAME,
@@ -10,6 +11,11 @@ import {
 interface InProcessFundScenarioCalcWorkerHarnessOptions {
   connection?: QueueConnectionOptions;
   concurrency?: number;
+  /**
+   * Harness-local calculation handler injection; deadline-sweep jobs bypass
+   * it inside the worker processor. Production never supplies this.
+   */
+  calculationHandler?: typeof handleFundScenarioCalcJob;
 }
 
 export interface InProcessFundScenarioCalcWorkerHarness {
@@ -29,6 +35,9 @@ export async function startInProcessFundScenarioCalcWorkerHarness(
   const workerRuntime = startFundScenarioCalcWorker({
     connection,
     ...(options.concurrency !== undefined ? { concurrency: options.concurrency } : {}),
+    ...(options.calculationHandler !== undefined
+      ? { calculationHandler: options.calculationHandler }
+      : {}),
     healthPort: null,
   });
   await workerRuntime.ready;

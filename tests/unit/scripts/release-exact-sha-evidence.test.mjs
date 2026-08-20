@@ -41,15 +41,16 @@ function exactChecks() {
   };
 }
 
-function health(workerType, deploymentId = DEPLOYMENT_ID) {
+function health(workerType, deploymentId = DEPLOYMENT_ID, timestamp = new Date().toISOString()) {
   return {
     status: 'healthy', workerType, commit: SHA, deploymentId,
+    timestamp,
     workers: [{ name: workerType, status: 'healthy', isRunning: true }],
   };
 }
 
-function ready(workerType, deploymentId = DEPLOYMENT_ID) {
-  return { status: 'ready', workerType, commit: SHA, deploymentId };
+function ready(workerType, deploymentId = DEPLOYMENT_ID, timestamp = new Date().toISOString()) {
+  return { status: 'ready', workerType, commit: SHA, deploymentId, timestamp };
 }
 
 function providerEvidence(mode = 'workflow') {
@@ -66,6 +67,7 @@ function providerEvidence(mode = 'workflow') {
   };
   return {
     mode, expectedSha: SHA,
+    expectedVercelProjectId: 'project-1',
     vercel: { expectedProjectId: 'project-1', deployment, version },
     railway: {
       projectId: 'railway-project', environmentId: 'railway-environment',
@@ -73,6 +75,14 @@ function providerEvidence(mode = 'workflow') {
         serviceId: `${serviceName}-id`, serviceName, numReplicas: 1, domains: [],
         latestDeployment: { ...railwayDeployment }, activeDeployments: [{ ...railwayDeployment }],
       })),
+    },
+    protectedTopology: {
+      projectId: 'railway-project',
+      environmentId: 'railway-environment',
+      services: {
+        'fund-scenario-calc': 'fund-scenario-calc-id',
+        'capital-call-status': 'capital-call-status-id',
+      },
     },
   };
 }
@@ -201,23 +211,23 @@ describe('exact SHA release evidence', () => {
     });
     const historical = providerEvidence();
     historical.railway.services[0].latestDeployment.meta.commitHash = 'b'.repeat(40);
-    expect(() => verifyProviderIdentity(historical)).toThrow(/commit/i);
+    expect(() => verifyProviderIdentity(historical)).toThrow(/does not match expected SHA/i);
     const correlation = providerEvidence();
     correlation.railway.services[0].activeDeployments[0].id = 'different-current-id';
-    expect(() => verifyProviderIdentity(correlation)).toThrow(/does not match active/i);
+    expect(() => verifyProviderIdentity(correlation)).toThrow(/latest and active deployments differ/i);
     const stopped = providerEvidence();
     stopped.railway.services[0].latestDeployment.instances[0].status = 'STOPPED';
-    expect(() => verifyProviderIdentity(stopped)).toThrow(/RUNNING/i);
+    expect(() => verifyProviderIdentity(stopped)).toThrow(/deployment instance is invalid/i);
     const missingVercelProject = providerEvidence();
     delete missingVercelProject.vercel.expectedProjectId;
     delete missingVercelProject.vercel.deployment.projectId;
     expect(() => verifyProviderIdentity(missingVercelProject)).toThrow(/project ID/i);
     const previewTarget = providerEvidence();
     previewTarget.vercel.deployment.target = null;
-    expect(() => verifyProviderIdentity(previewTarget)).toThrow(/production target/i);
+    expect(() => verifyProviderIdentity(previewTarget)).toThrow(/staged candidate target is invalid/i);
     const aliasedProduction = providerEvidence();
     aliasedProduction.vercel.deployment.aliases = ['production.example.test'];
-    expect(() => verifyProviderIdentity(aliasedProduction)).toThrow(/no production alias/i);
+    expect(() => verifyProviderIdentity(aliasedProduction)).toThrow(/staged candidate has an alias/i);
     const missingRailwayScope = providerEvidence();
     delete missingRailwayScope.railway.projectId;
     expect(() => verifyProviderIdentity(missingRailwayScope)).toThrow(/project ID/i);
@@ -255,9 +265,41 @@ describe('exact SHA release evidence', () => {
       expect(() => verifyWorkerPrivateProof({ expectedSha: SHA, deploymentIds, ...files })).toThrow();
     }
     expect(() => verifyWorkerPrivateProof({ expectedSha: SHA, deploymentIds: { ...deploymentIds, 'fund-scenario-calc': 'other-deployment' }, fundHealth: health('fund-scenario-calc'), fundReady: ready('fund-scenario-calc'), capitalHealth: health('capital-call-status'), capitalReady: ready('capital-call-status') })).toThrow(/does not match Railway/i);
-    expect(() => verifyWorkerPrivateProof({ expectedSha: SHA, deploymentIds, fundHealth: health('fund-scenario-calc'), fundReady: { status: 'ready', workerType: 'capital-call-status', commit: SHA, deploymentId: DEPLOYMENT_ID }, capitalHealth: health('capital-call-status'), capitalReady: { status: 'ready', workerType: 'capital-call-status', commit: SHA, deploymentId: DEPLOYMENT_ID } })).toThrow(/readiness identity/i);
-    const changed = verifyWorkerPrivateProof({ expectedSha: SHA, deploymentIds, fundHealth: { ...health('fund-scenario-calc'), timestamp: 'different' }, fundReady: ready('fund-scenario-calc'), capitalHealth: health('capital-call-status'), capitalReady: ready('capital-call-status') });
+    expect(() => verifyWorkerPrivateProof({ expectedSha: SHA, deploymentIds, fundHealth: health('fund-scenario-calc'), fundReady: ready('capital-call-status'), capitalHealth: health('capital-call-status'), capitalReady: ready('capital-call-status') })).toThrow(/readiness identity/i);
+    const changed = verifyWorkerPrivateProof({ expectedSha: SHA, deploymentIds, fundHealth: { ...health('fund-scenario-calc'), timestamp: new Date(Date.now() - 1000).toISOString() }, fundReady: ready('fund-scenario-calc'), capitalHealth: health('capital-call-status'), capitalReady: ready('capital-call-status') });
     expect(changed.reference).not.toBe(valid.reference);
+  });
+
+  it('rejects stale, future, skewed, missing, and invalid operator probe timestamps', () => {
+    const now = Date.parse('2026-08-10T12:00:00.000Z');
+    const probe = (timestamp) => ({
+      expectedSha: SHA,
+      deploymentIds: { 'fund-scenario-calc': DEPLOYMENT_ID, 'capital-call-status': DEPLOYMENT_ID },
+      fundHealth: health('fund-scenario-calc', DEPLOYMENT_ID, timestamp),
+      fundReady: ready('fund-scenario-calc', DEPLOYMENT_ID, timestamp),
+      capitalHealth: health('capital-call-status', DEPLOYMENT_ID, timestamp),
+      capitalReady: ready('capital-call-status', DEPLOYMENT_ID, timestamp),
+      now,
+    });
+    const fresh = new Date(now - 60 * 60 * 1000).toISOString();
+    expect(verifyWorkerPrivateProof(probe(fresh)).reference).toMatch(/^sha256:/);
+    expect(() => verifyWorkerPrivateProof(probe(new Date(now - 121 * 60 * 1000).toISOString()))).toThrow(/older than 120 minutes/i);
+    expect(() => verifyWorkerPrivateProof(probe(new Date(now + 5 * 60 * 1000 + 1).toISOString()))).toThrow(/future/i);
+
+    const skewed = probe(fresh);
+    skewed.capitalReady.timestamp = new Date(now - 16 * 60 * 1000).toISOString();
+    expect(() => verifyWorkerPrivateProof(skewed)).toThrow(/more than 15 minutes apart/i);
+
+    const missing = probe(fresh);
+    delete missing.fundReady.timestamp;
+    expect(() => verifyWorkerPrivateProof(missing)).toThrow(/fund ready.*timestamp is required/i);
+    const invalid = probe(fresh);
+    invalid.capitalHealth.timestamp = 'not-a-timestamp';
+    expect(() => verifyWorkerPrivateProof(invalid)).toThrow(/capital health.*timestamp is invalid/i);
+
+    const customWindow = probe(new Date(now - 31 * 60 * 1000).toISOString());
+    customWindow.maxProbeAgeMinutes = 30;
+    expect(() => verifyWorkerPrivateProof(customWindow)).toThrow(/older than 30 minutes/i);
   });
 
   it('runs CLI with explicit source SHA and never trusts embedded candidate fields', async () => {
@@ -273,9 +315,16 @@ describe('exact SHA release evidence', () => {
         environment: { serviceInstances: { edges: provider.railway.services.map((node) => ({ node })), pageInfo: { hasNextPage: false } } },
       },
     }));
+    const railwayIdentityFlags = [
+      '--expected-vercel-project-id', 'project-1',
+      '--expected-railway-project-id', 'railway-project',
+      '--expected-railway-environment-id', 'railway-environment',
+      '--expected-fund-scenario-service-id', 'fund-scenario-calc-id',
+      '--expected-capital-call-service-id', 'capital-call-status-id',
+    ];
     const result = await execFileAsync(process.execPath, [
       'scripts/release/verify-provider-identity.mjs', '--mode', 'workflow', '--expected-sha', SHA,
-      '--vercel', vercelPath, '--railway', railwayPath,
+      '--vercel', vercelPath, '--railway', railwayPath, ...railwayIdentityFlags,
     ], { cwd: process.cwd() });
     expect(result.stdout).toContain(SHA);
     const privatePaths = await Promise.all([
@@ -290,13 +339,14 @@ describe('exact SHA release evidence', () => {
     }));
     const operator = await execFileAsync(process.execPath, [
       'scripts/release/verify-provider-identity.mjs', '--mode', 'operator', '--expected-sha', SHA,
-      '--vercel', vercelPath, '--railway', railwayPath,
+      '--vercel', vercelPath, '--railway', railwayPath, ...railwayIdentityFlags,
+      '--max-probe-age-minutes', '120',
       '--fund-health', privatePaths[0], '--fund-ready', privatePaths[1],
       '--capital-health', privatePaths[2], '--capital-ready', privatePaths[3],
     ], { cwd: process.cwd() });
     expect(operator.stdout).toMatch(/sha256:[a-f0-9]{64}/);
     await expect(execFileAsync(process.execPath, [
-      'scripts/release/verify-provider-identity.mjs', '--mode', 'workflow', '--expected-sha', 'bad', '--vercel', vercelPath, '--railway', railwayPath,
+      'scripts/release/verify-provider-identity.mjs', '--mode', 'workflow', '--expected-sha', 'bad', '--vercel', vercelPath, '--railway', railwayPath, ...railwayIdentityFlags,
     ], { cwd: process.cwd() })).rejects.toMatchObject({ stderr: expect.stringMatching(/expected SHA/i) });
   });
 

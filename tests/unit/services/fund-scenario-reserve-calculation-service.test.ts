@@ -10,9 +10,13 @@ vi.mock('../../../server/db/pg-circuit.js', () => ({
 }));
 
 import {
+  createReserveScenarioCalculationRunner,
   createReserveScenarioInputHash,
   getReserveScenarioCalculationIdentity,
   isScenarioCalculationOwnershipLost,
+  normalizeReserveWorkerFailure,
+  ReserveWorkerPermanentFailureError,
+  ReserveWorkerTransientFailureError,
   runReserveScenarioCalculation,
 } from '../../../server/services/fund-scenario-reserve-calculation-service';
 import * as calculationRunService from '../../../server/services/fund-scenario-calculation-run-service';
@@ -379,14 +383,22 @@ describe('fund scenario reserve calculation service', () => {
     vi.spyOn(snapshotStore, 'persistReserveScenarioSnapshot').mockRejectedValue(originalError);
 
     await expect(
-      runReserveScenarioCalculation({ ...calculationInput, isFinalAttempt: true })
+      runReserveScenarioCalculation({
+        ...calculationInput,
+        attempt: { number: 2, limit: 2 },
+      })
     ).rejects.toBe(originalError);
 
     expect(events.map((event) => event.eventType)).toEqual([
       'calculation_started',
       'calculation_failed',
     ]);
-    expect(events[1]?.changeSummary).toMatchObject({ run_id: orchestrationRun.id });
+    expect(events[1]?.changeSummary).toMatchObject({
+      run_id: orchestrationRun.id,
+      attempt_number: 2,
+      attempt_limit: 2,
+    });
+    expect(events[0]?.changeSummary).toMatchObject({ attempt_number: 2, attempt_limit: 2 });
     expect(order.indexOf('scenario-lock')).toBeLessThan(order.indexOf('failure-cas'));
     expect(order.indexOf('failure-cas')).toBeLessThan(order.indexOf('event:calculation_failed'));
   });
@@ -398,7 +410,7 @@ describe('fund scenario reserve calculation service', () => {
       .mockRejectedValueOnce(originalError)
       .mockResolvedValueOnce(reserveResponse);
 
-    const retryInput = { ...calculationInput, isFinalAttempt: false };
+    const retryInput = { ...calculationInput, attempt: { number: 1, limit: 2 } };
     await expect(runReserveScenarioCalculation(retryInput)).rejects.toBe(originalError);
     expect(calculationRunService.requeueScenarioCalculationRunIfRunning).toHaveBeenCalledWith(
       expect.anything(),
@@ -408,7 +420,7 @@ describe('fund scenario reserve calculation service', () => {
     expect(calculationRunService.failScenarioCalculationRunIfRunning).not.toHaveBeenCalled();
 
     await expect(
-      runReserveScenarioCalculation({ ...retryInput, isFinalAttempt: true })
+      runReserveScenarioCalculation({ ...retryInput, attempt: { number: 2, limit: 2 } })
     ).resolves.toEqual(reserveResponse);
     expect(calculationRunService.claimScenarioCalculationRunIfQueued).toHaveBeenCalledWith(
       expect.anything(),
@@ -420,6 +432,119 @@ describe('fund scenario reserve calculation service', () => {
       'calculation_started',
       'calculated',
     ]);
+  });
+
+  it('normalizes an unapproved failure code and secret-shaped message to the fixed fallback', async () => {
+    const secretMessage = 'password=super-secret-canary-credential-visible';
+    const smuggledError = Object.assign(new Error(secretMessage), {
+      code: 'PERMANENT_WORKER_FAILURE',
+    });
+    const { events } = configureOrchestration();
+    vi.spyOn(snapshotStore, 'persistReserveScenarioSnapshot').mockRejectedValue(smuggledError);
+
+    await expect(runReserveScenarioCalculation(calculationInput)).rejects.toBe(smuggledError);
+
+    const failureCall = vi.mocked(
+      calculationRunService.failScenarioCalculationRunIfRunning
+    ).mock.calls[0];
+    expect(failureCall?.[3]).toEqual({
+      code: 'WORKER_EXECUTION_FAILED',
+      message: 'Reserve scenario calculation failed during worker execution',
+    });
+
+    const failedEvent = events.find((event) => event.eventType === 'calculation_failed');
+    expect(failedEvent?.changeSummary).toMatchObject({
+      failure_code: 'WORKER_EXECUTION_FAILED',
+      error_message: 'Reserve scenario calculation failed during worker execution',
+    });
+    const persistedJson = JSON.stringify([failureCall, failedEvent]);
+    expect(persistedJson).not.toContain(secretMessage);
+    expect(persistedJson).not.toContain('super-secret');
+    expect(persistedJson).not.toContain('PERMANENT_WORKER_FAILURE');
+  });
+
+  it('retains classifications only for branded worker errors', async () => {
+    expect(normalizeReserveWorkerFailure(new ReserveWorkerTransientFailureError())).toEqual({
+      code: 'TRANSIENT_WORKER_FAILURE',
+      message: 'Reserve scenario calculation failed on a retryable worker attempt',
+    });
+    expect(normalizeReserveWorkerFailure(new ReserveWorkerPermanentFailureError())).toEqual({
+      code: 'PERMANENT_WORKER_FAILURE',
+      message: 'Reserve scenario calculation failed permanently in the worker',
+    });
+    expect(
+      normalizeReserveWorkerFailure(
+        Object.assign(new Error('raw db message'), { code: 'TRANSIENT_WORKER_FAILURE' })
+      )
+    ).toEqual({
+      code: 'WORKER_EXECUTION_FAILED',
+      message: 'Reserve scenario calculation failed during worker execution',
+    });
+    expect(normalizeReserveWorkerFailure('string failure')).toMatchObject({
+      code: 'WORKER_EXECUTION_FAILED',
+    });
+  });
+
+  it('persists a branded permanent failure with its allowlisted code and fixed text', async () => {
+    configureOrchestration();
+    const brandedError = new ReserveWorkerPermanentFailureError('internal detail never persisted');
+    vi.spyOn(snapshotStore, 'persistReserveScenarioSnapshot').mockRejectedValue(brandedError);
+
+    await expect(runReserveScenarioCalculation(calculationInput)).rejects.toBe(brandedError);
+
+    const failureCall = vi.mocked(
+      calculationRunService.failScenarioCalculationRunIfRunning
+    ).mock.calls[0];
+    expect(failureCall?.[3]).toEqual({
+      code: 'PERMANENT_WORKER_FAILURE',
+      message: 'Reserve scenario calculation failed permanently in the worker',
+    });
+    expect(JSON.stringify(failureCall)).not.toContain('internal detail never persisted');
+  });
+
+  it('injects a claimed-run executor while claiming and failure persistence stay real', async () => {
+    const { order, events } = configureOrchestration();
+    const injectedExecutor = vi.fn().mockResolvedValue(reserveResponse);
+    const runner = createReserveScenarioCalculationRunner({
+      executeClaimedCalculation: injectedExecutor,
+    });
+
+    await expect(runner(calculationInput)).resolves.toEqual(reserveResponse);
+
+    expect(injectedExecutor).toHaveBeenCalledTimes(1);
+    expect(injectedExecutor.mock.calls[0]?.[1]).toMatchObject({
+      run: expect.objectContaining({ id: orchestrationRun.id }),
+    });
+    // The real claim transaction ran; the injected executor replaced only the
+    // post-claim execution (no snapshot write happened here).
+    expect(order).toContain('tx1:commit');
+    expect(order).not.toContain('snapshot');
+    expect(events.map((event) => event.eventType)).toEqual(['calculation_started']);
+
+    const failingRunner = createReserveScenarioCalculationRunner({
+      executeClaimedCalculation: vi
+        .fn()
+        .mockRejectedValue(new ReserveWorkerTransientFailureError()),
+    });
+    await expect(
+      failingRunner({ ...calculationInput, attempt: { number: 2, limit: 2 } })
+    ).rejects.toBeInstanceOf(ReserveWorkerTransientFailureError);
+    const failureCall = vi.mocked(
+      calculationRunService.failScenarioCalculationRunIfRunning
+    ).mock.calls[0];
+    expect(failureCall?.[3]).toMatchObject({ code: 'TRANSIENT_WORKER_FAILURE' });
+  });
+
+  it('rejects an invalid attempt identity before claiming', async () => {
+    const { order } = configureOrchestration();
+
+    await expect(
+      runReserveScenarioCalculation({
+        ...calculationInput,
+        attempt: { number: 3, limit: 2 },
+      })
+    ).rejects.toThrow(/attempt identity is invalid: 3\/2/);
+    expect(order).toEqual([]);
   });
 
   it('rethrows the original calculation error when failure persistence itself fails', async () => {

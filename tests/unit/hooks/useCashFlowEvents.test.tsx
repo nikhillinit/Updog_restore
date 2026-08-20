@@ -42,6 +42,7 @@ function mockFetchJson(payload: unknown, ok = true, status = ok ? 200 : 500) {
       ok,
       status,
       statusText: ok ? 'OK' : 'Error',
+      headers: new Headers(),
       text: vi
         .fn()
         .mockResolvedValue(typeof payload === 'string' ? payload : JSON.stringify(payload)),

@@ -1,6 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
+import { spawnSync } from 'node:child_process';
 
 import { describe, expect, it, vi } from 'vitest';
 
@@ -13,11 +14,11 @@ import {
   dockerProofEnvironment,
   proofEnv,
   resolveBootProofOutput,
-  runBootProof,
+  runBootProofCleanRoom,
+  runBootProofInner,
   vercelBuildInvocation,
   vercelBuildEnvironment,
   vercelFunctionProofEnvironment,
-  withVercelCredentialsMasked,
   workerProofEnvironment,
   workerPostgresProofHostname,
   workerProofPlan,
@@ -38,6 +39,21 @@ const strictVercelEnvironment = {
   VERCEL_ORG_ID: 'vercel-org-secret',
   VERCEL_PROJECT_ID: 'vercel-project-secret',
 };
+
+const cleanRoomDocument = (source_sha: string) => ({
+  schema_version: '1.1.0',
+  source_sha,
+  proofs: [{
+    deployment: 'local-process',
+    boot_status: 'unproven',
+    boot_evidence: {
+      command_or_artifact: 'fixture',
+      probe: 'fixture',
+      result: 'fixture',
+      observed_at: 'fixture',
+    },
+  }],
+});
 
 describe('surface contract matrix boot proof completion gates', () => {
   it('keeps Docker proof config isolated', () => {
@@ -187,7 +203,7 @@ describe('surface contract matrix boot proof completion gates', () => {
     expect(() => resolveBootProofOutput('tests/unit/audit/fixtures')).toThrow(
       'regular non-symlink file'
     );
-    await expect(runBootProof({ output: 'tests/unit/audit/fixtures' })).rejects.toThrow(
+    await expect(runBootProofInner({ output: 'tests/unit/audit/fixtures' })).rejects.toThrow(
       'regular non-symlink file'
     );
   });
@@ -226,21 +242,23 @@ describe('surface contract matrix boot proof completion gates', () => {
       }))
     );
     await expect(
-      runBootProof({
+      runBootProofInner({
         output,
         requireG3: true,
         collectProofs,
         sourceSha: source_sha,
         environment: { ...strictVercelEnvironment, VERCEL_PROJECT_ID: '' },
+        readSourceSha: () => source_sha,
       })
     ).rejects.toThrow('VERCEL_PROJECT_ID');
     expect(collectProofs).not.toHaveBeenCalled();
-    await runBootProof({
+    await runBootProofInner({
       output,
       requireG3: true,
       collectProofs,
       sourceSha: source_sha,
       environment: strictVercelEnvironment,
+      readSourceSha: () => source_sha,
     });
     expect(
       MatrixBootProofDocumentSchema.parse(JSON.parse(fs.readFileSync(output, 'utf8')))
@@ -250,12 +268,12 @@ describe('surface contract matrix boot proof completion gates', () => {
     });
     expect(fs.readFileSync(tracked, 'utf8')).toBe(trackedBefore);
     await expect(
-      runBootProof({ output: tempDir, collectProofs, sourceSha: source_sha })
+      runBootProofInner({ output: tempDir, collectProofs, sourceSha: source_sha })
     ).rejects.toThrow();
     const symlinkOutput = path.join(tempDir, 'proof-link.json');
     fs.symlinkSync(output, symlinkOutput);
     await expect(
-      runBootProof({ output: symlinkOutput, collectProofs, sourceSha: source_sha })
+      runBootProofInner({ output: symlinkOutput, collectProofs, sourceSha: source_sha })
     ).rejects.toThrow('non-symlink');
     expect(collectProofs).toHaveBeenCalledTimes(1);
   });
@@ -265,6 +283,20 @@ describe('surface contract matrix boot proof completion gates', () => {
     expect(genericEnvironment).not.toHaveProperty('VERCEL_TOKEN');
     expect(genericEnvironment).not.toHaveProperty('VERCEL_ORG_ID');
     expect(genericEnvironment).not.toHaveProperty('VERCEL_PROJECT_ID');
+    for (const nonVercelEnvironment of [
+      genericEnvironment,
+      dockerProofEnvironment({}, strictVercelEnvironment),
+      vercelFunctionProofEnvironment(strictVercelEnvironment),
+      workerProofEnvironment({
+        workerType: 'fund-scenario-calc',
+        sourceSha: 'a'.repeat(40),
+        deploymentId: 'worker-proof',
+      }),
+    ]) {
+      for (const key of ['VERCEL_TOKEN', 'VERCEL_ORG_ID', 'VERCEL_PROJECT_ID']) {
+        expect(nonVercelEnvironment).not.toHaveProperty(key);
+      }
+    }
     expect(vercelBuildEnvironment(strictVercelEnvironment)).toMatchObject(strictVercelEnvironment);
     expect(vercelBuildInvocation()).toEqual({
       command: 'npx',
@@ -471,42 +503,6 @@ describe('surface contract matrix boot proof completion gates', () => {
     fs.writeFileSync(path.join(nested, 'nested.js'), 'export default () => {};');
 
     expect(vercelBuildOutputFunctions(functionsRoot).map(({ name }) => name)).toEqual(['api']);
-  });
-
-  it('masks all Vercel credentials during emitted handler import and redacts hostile handler failures', async () => {
-    const original = Object.fromEntries(
-      Object.keys(strictVercelEnvironment).map((key) => [key, process.env[key]])
-    );
-    Object.assign(process.env, strictVercelEnvironment);
-    try {
-      const direct = await invokeVercelFunction({
-        name: 'api/hostile',
-        entry: fixture('hostile-vercel-handler.mjs'),
-        redactionEnvironment: strictVercelEnvironment,
-      });
-      expect(direct.result).not.toContain('vercel-token-secret');
-      expect(direct.result).not.toContain('vercel-org-secret');
-      expect(direct.result).not.toContain('vercel-project-secret');
-
-      await withVercelCredentialsMasked(async () => {
-        expect(process.env['VERCEL_TOKEN']).toBeUndefined();
-        expect(process.env['VERCEL_ORG_ID']).toBeUndefined();
-        expect(process.env['VERCEL_PROJECT_ID']).toBeUndefined();
-        const masked = await invokeVercelFunction({
-          name: 'api/hostile',
-          entry: fixture('hostile-vercel-handler.mjs'),
-          redactionEnvironment: strictVercelEnvironment,
-        });
-        expect(masked.result).not.toContain('vercel-token-secret');
-        expect(masked.result).not.toContain('vercel-org-secret');
-        expect(masked.result).not.toContain('vercel-project-secret');
-      });
-    } finally {
-      for (const [key, value] of Object.entries(original)) {
-        if (value === undefined) delete process.env[key];
-        else process.env[key] = value;
-      }
-    }
   });
 
   it('invokes build-output handlers in production Vercel runtime with synthetic isolation', () => {
@@ -786,5 +782,342 @@ describe('surface contract matrix boot proof completion gates', () => {
     expect(outcome.boot_status).toBe('failed');
     expect(outcome.boot_evidence.result).toContain('SIGTERM');
     expect(outcome.boot_evidence.result).not.toContain('timeout');
+  });
+
+  it('runs normal boot proof only in detached clean room and atomically copies requested output', async () => {
+    const repositoryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-clean-room-repo-'));
+    const output = path.join(repositoryRoot, 'audit', 'surface-contract-matrix', 'requested-proof.json');
+    const candidateSha = 'c'.repeat(40);
+    fs.mkdirSync(path.dirname(output), { recursive: true });
+    fs.writeFileSync(path.join(repositoryRoot, 'package.json'), '{}\n');
+    fs.writeFileSync(path.join(repositoryRoot, 'package-lock.json'), '{}\n');
+    fs.writeFileSync(path.join(repositoryRoot, 'untracked-generated-artifact.txt'), 'preserve exactly\n');
+    const calls: Array<{ command: string; args: string[]; cwd?: string; env?: NodeJS.ProcessEnv }> = [];
+    try {
+      await runBootProofCleanRoom({
+        repositoryRoot,
+        output,
+        candidateSha,
+        environment: {
+          PATH: '/clean-room-bin',
+          VERCEL_TOKEN: 'clean-room-credential',
+          VERCEL_ORG_ID: 'clean-room-org',
+          VERCEL_PROJECT_ID: 'clean-room-project',
+          ARBITRARY_SECRET: 'must-not-reach-git',
+          DATABASE_URL: 'postgresql://parent-secret',
+          GIT_DIR: '/parent-git-dir',
+          GIT_WORK_TREE: '/parent-work-tree',
+        },
+        stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+        runCommand: (command, args, options) => {
+          calls.push({ command, args, cwd: options.cwd, env: options.env });
+          if (command === process.execPath) {
+            expect(options.cwd).not.toBe(repositoryRoot);
+            expect(args).toContain('--internal-clean-room');
+            expect(args).toEqual(expect.arrayContaining(['--source-sha', candidateSha]));
+            expect(options.env?.SURFACE_BOOT_PROOF_INTERNAL_CLEAN_ROOM).toBe('1');
+            fs.writeFileSync(args[args.indexOf('--output') + 1], `${JSON.stringify(cleanRoomDocument(candidateSha))}\n`);
+          }
+          return { status: 0 };
+        },
+      });
+      expect(calls[0]).toMatchObject({
+        command: 'git',
+        args: ['worktree', 'add', '--detach', expect.any(String), candidateSha],
+        cwd: repositoryRoot,
+      });
+      const installCall = calls.find((call) => call.command === 'npm');
+      expect(installCall?.args).toEqual(['ci']);
+      expect(installCall?.cwd).not.toBe(repositoryRoot);
+      expect(installCall?.env).toMatchObject({
+        PATH: '/clean-room-bin',
+        HUSKY: '0',
+        CI: '1',
+      });
+      expect(installCall?.env).not.toHaveProperty('VERCEL_TOKEN');
+      expect(calls.at(-1)).toMatchObject({ command: 'git', args: ['worktree', 'remove', '--force', expect.any(String)] });
+      const gitWorktreeCalls = calls.filter((call) => call.command === 'git');
+      expect(gitWorktreeCalls).toHaveLength(2);
+      for (const call of gitWorktreeCalls) {
+        expect(call.env).toMatchObject({ PATH: '/clean-room-bin', HUSKY: '0' });
+        for (const key of [
+          'ARBITRARY_SECRET',
+          'VERCEL_TOKEN',
+          'VERCEL_ORG_ID',
+          'VERCEL_PROJECT_ID',
+          'DATABASE_URL',
+          'GIT_DIR',
+          'GIT_WORK_TREE',
+        ]) {
+          expect(call.env).not.toHaveProperty(key);
+        }
+      }
+      expect(calls.filter((call) => call.command === process.execPath).every((call) => call.cwd !== repositoryRoot)).toBe(true);
+      expect(JSON.parse(fs.readFileSync(output, 'utf8'))).toMatchObject({ source_sha: candidateSha });
+      expect(fs.readFileSync(path.join(repositoryRoot, 'untracked-generated-artifact.txt'), 'utf8')).toBe('preserve exactly\n');
+    } finally {
+      fs.rmSync(repositoryRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('supports external requested output and cleans invocation worktree after inner failure', async () => {
+    const repositoryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-external-repo-'));
+    const external = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-external-output-'));
+    const output = path.join(external, 'proof.json');
+    const candidateSha = 'd'.repeat(40);
+    fs.writeFileSync(path.join(repositoryRoot, 'package.json'), '{}\n');
+    fs.writeFileSync(path.join(repositoryRoot, 'package-lock.json'), '{}\n');
+    const calls: Array<{ command: string; args: string[] }> = [];
+    let innerAttempts = 0;
+    try {
+      await runBootProofCleanRoom({
+        repositoryRoot,
+        output,
+        candidateSha,
+        stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+        runCommand: (command, args) => {
+          calls.push({ command, args });
+          if (command === process.execPath) {
+            innerAttempts += 1;
+            fs.writeFileSync(args[args.indexOf('--output') + 1], `${JSON.stringify(cleanRoomDocument(candidateSha))}\n`);
+          }
+          return { status: 0 };
+        },
+      });
+      expect(JSON.parse(fs.readFileSync(output, 'utf8'))).toMatchObject({ source_sha: candidateSha });
+      await expect(runBootProofCleanRoom({
+        repositoryRoot,
+        output,
+        candidateSha,
+        stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+        runCommand: (command, args) => {
+          calls.push({ command, args });
+          if (command === process.execPath) innerAttempts += 1;
+          return { status: command === process.execPath && innerAttempts === 2 ? 1 : 0 };
+        },
+      })).rejects.toThrow('clean-room execution');
+      expect(calls.filter((call) => call.command === 'git' && call.args[1] === 'remove')).toHaveLength(2);
+    } finally {
+      fs.rmSync(repositoryRoot, { recursive: true, force: true });
+      fs.rmSync(external, { recursive: true, force: true });
+    }
+  });
+
+  it('isolates inherited npm cache paths inside disposable clean-room parent', async () => {
+    const repositoryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-cache-repo-'));
+    const externalCache = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-cache-external-'));
+    const output = path.join(repositoryRoot, 'proof.json');
+    const candidateSha = 'd'.repeat(40);
+    const repositoryCache = path.join(repositoryRoot, '.npm-cache');
+    const repositorySentinel = path.join(repositoryCache, 'sentinel');
+    const externalSentinel = path.join(externalCache, 'sentinel');
+    fs.mkdirSync(repositoryCache, { recursive: true });
+    fs.writeFileSync(path.join(repositoryRoot, 'package.json'), '{}\n');
+    fs.writeFileSync(path.join(repositoryRoot, 'package-lock.json'), '{}\n');
+    fs.writeFileSync(repositorySentinel, 'repository cache unchanged\n');
+    fs.writeFileSync(externalSentinel, 'external cache unchanged\n');
+    const repositoryBefore = fs.readFileSync(repositorySentinel, 'utf8');
+    const externalBefore = fs.readFileSync(externalSentinel, 'utf8');
+    try {
+      await runBootProofCleanRoom({
+        repositoryRoot,
+        output,
+        candidateSha,
+        environment: {
+          PATH: '/clean-room-bin',
+          NPM_CONFIG_CACHE: repositoryCache,
+          npm_config_cache: externalCache,
+        },
+        stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+        runCommand: (command, args, options) => {
+          if (command === 'npm') {
+            const disposableCache = path.join(path.dirname(options.cwd), 'npm-cache');
+            expect(options.env?.NPM_CONFIG_CACHE).toBe(disposableCache);
+            expect(options.env?.npm_config_cache).toBe(disposableCache);
+            expect(options.env?.NPM_CONFIG_CACHE).not.toBe(repositoryCache);
+            expect(options.env?.npm_config_cache).not.toBe(externalCache);
+          }
+          if (command === process.execPath) {
+            fs.writeFileSync(args[args.indexOf('--output') + 1], `${JSON.stringify(cleanRoomDocument(candidateSha))}\n`);
+          }
+          return { status: 0 };
+        },
+      });
+      expect(fs.readFileSync(repositorySentinel, 'utf8')).toBe(repositoryBefore);
+      expect(fs.readFileSync(externalSentinel, 'utf8')).toBe(externalBefore);
+    } finally {
+      fs.rmSync(repositoryRoot, { recursive: true, force: true });
+      fs.rmSync(externalCache, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps install credentials and arbitrary parent environment outside the clean room', async () => {
+    const repositoryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-env-repo-'));
+    const output = path.join(repositoryRoot, 'proof.json');
+    const candidateSha = 'f'.repeat(40);
+    const calls: Array<{ command: string; args: string[]; cwd?: string; env?: NodeJS.ProcessEnv }> = [];
+    try {
+      fs.writeFileSync(path.join(repositoryRoot, 'package.json'), '{}\n');
+      fs.writeFileSync(path.join(repositoryRoot, 'package-lock.json'), '{}\n');
+      await runBootProofCleanRoom({
+        repositoryRoot,
+        output,
+        candidateSha,
+        environment: {
+          PATH: '/clean-room-bin',
+          ARBITRARY_SECRET: 'must-not-cross-boundary',
+          VERCEL_TOKEN: 'vercel-token-secret',
+          VERCEL_ORG_ID: 'vercel-org-secret',
+          VERCEL_PROJECT_ID: 'vercel-project-secret',
+          NPM_CONFIG_CACHE: path.join(repositoryRoot, '.npm-cache'),
+          npm_config_cache: path.join(os.tmpdir(), 'external-npm-cache'),
+        },
+        stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+        runCommand: (command, args, options) => {
+          calls.push({ command, args, cwd: options?.cwd, env: options?.env });
+          if (command === process.execPath) {
+            fs.writeFileSync(args[args.indexOf('--output') + 1], `${JSON.stringify(cleanRoomDocument(candidateSha))}\n`);
+          }
+          return { status: 0 };
+        },
+      });
+
+      const install = calls.find((call) => call.command === 'npm' && call.args[0] === 'ci');
+      const inner = calls.find((call) => call.command === process.execPath);
+      const guardedVercelBuild = calls.find((call) => call.command === 'npx' && call.args.includes('vercel@55.0.0'));
+      const disposableCache = path.join(path.dirname(install!.cwd!), 'npm-cache');
+      expect(install?.env).toMatchObject({
+        PATH: '/clean-room-bin',
+        TZ: 'UTC',
+        CI: '1',
+        HUSKY: '0',
+        NPM_CONFIG_CACHE: disposableCache,
+        npm_config_cache: disposableCache,
+      });
+      for (const key of ['ARBITRARY_SECRET', 'VERCEL_TOKEN', 'VERCEL_ORG_ID', 'VERCEL_PROJECT_ID']) {
+        expect(install?.env).not.toHaveProperty(key);
+      }
+      expect(guardedVercelBuild?.env).toMatchObject({
+        VERCEL_TOKEN: 'vercel-token-secret',
+        VERCEL_ORG_ID: 'vercel-org-secret',
+        VERCEL_PROJECT_ID: 'vercel-project-secret',
+        NPM_CONFIG_CACHE: disposableCache,
+        npm_config_cache: disposableCache,
+      });
+      expect(inner?.env).not.toHaveProperty('ARBITRARY_SECRET');
+      for (const call of calls.filter((call) => call !== guardedVercelBuild)) {
+        for (const key of ['VERCEL_TOKEN', 'VERCEL_ORG_ID', 'VERCEL_PROJECT_ID']) {
+          expect(call.env).not.toHaveProperty(key);
+        }
+      }
+    } finally {
+      fs.rmSync(repositoryRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('preserves prior requested output when clean-room cleanup fails', async () => {
+    const repositoryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-atomic-output-repo-'));
+    const output = path.join(repositoryRoot, 'proof.json');
+    const candidateSha = '0'.repeat(40);
+    try {
+      fs.writeFileSync(path.join(repositoryRoot, 'package.json'), '{}\n');
+      fs.writeFileSync(path.join(repositoryRoot, 'package-lock.json'), '{}\n');
+      fs.writeFileSync(output, 'prior\n');
+      await expect(
+        runBootProofCleanRoom({
+          repositoryRoot,
+          output,
+          candidateSha,
+          stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+          runCommand: (command, args) => {
+            if (command === process.execPath) {
+              fs.writeFileSync(args[args.indexOf('--output') + 1], `${JSON.stringify(cleanRoomDocument(candidateSha))}\n`);
+            }
+            if (command === 'git' && args[0] === 'worktree' && args[1] === 'remove') return { status: 1 };
+            return { status: 0 };
+          },
+        })
+      ).rejects.toThrow('clean-room worktree cleanup');
+      expect(fs.readFileSync(output, 'utf8')).toBe('prior\n');
+    } finally {
+      fs.rmSync(repositoryRoot, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ['package.json', 'manifest hash'],
+    ['dirty-untracked-proof.txt', 'non-output fingerprint'],
+  ])('fails closed when clean-room invocation changes original %s', async (filename) => {
+    const repositoryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-mutation-repo-'));
+    const output = path.join(repositoryRoot, 'proof.json');
+    const candidateSha = 'e'.repeat(40);
+    fs.writeFileSync(path.join(repositoryRoot, 'package.json'), '{}\n');
+    fs.writeFileSync(path.join(repositoryRoot, 'package-lock.json'), '{}\n');
+    const calls: Array<{ command: string; args: string[] }> = [];
+    try {
+      await expect(runBootProofCleanRoom({
+        repositoryRoot,
+        output,
+        candidateSha,
+        stdout: { write: vi.fn() } as unknown as NodeJS.WriteStream,
+        runCommand: (command, args) => {
+          calls.push({ command, args });
+          if (command === process.execPath) {
+            fs.writeFileSync(path.join(repositoryRoot, filename), 'changed by forbidden original-root proof\n');
+            fs.writeFileSync(args[args.indexOf('--output') + 1], `${JSON.stringify(cleanRoomDocument(candidateSha))}\n`);
+          }
+          return { status: 0 };
+        },
+      })).rejects.toThrow('changed original workspace manifest hashes or non-output fingerprint');
+      expect(calls.at(-1)).toMatchObject({ command: 'git', args: ['worktree', 'remove', '--force', expect.any(String)] });
+    } finally {
+      fs.rmSync(repositoryRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects caller source SHA when actual clean-room HEAD differs before credentials, collection, or write', async () => {
+    const outputDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-head-mismatch-'));
+    const output = path.join(outputDirectory, 'proof.json');
+    const collectProofs = vi.fn();
+    try {
+      await expect(runBootProofInner({
+        output,
+        requireG3: true,
+        sourceSha: 'f'.repeat(40),
+        readSourceSha: () => 'a'.repeat(40),
+        collectProofs,
+        environment: { ...strictVercelEnvironment, VERCEL_PROJECT_ID: '' },
+      })).rejects.toThrow('clean-room HEAD does not match expected source SHA');
+      expect(collectProofs).not.toHaveBeenCalled();
+      expect(fs.existsSync(output)).toBe(false);
+    } finally {
+      fs.rmSync(outputDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it('executes guarded internal child invocation and fails closed on actual clean-room HEAD mismatch', () => {
+    const outputDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'surface-proof-internal-entry-'));
+    const output = path.join(outputDirectory, 'proof.json');
+    const script = path.join(process.cwd(), 'audit/surface-contract-matrix/scripts/boot-proof.mjs');
+    try {
+      const result = spawnSync(process.execPath, [
+        script,
+        '--internal-clean-room',
+        '--source-sha', 'f'.repeat(40),
+        '--output', output,
+      ], {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+        timeout: 5_000,
+        env: { ...process.env, SURFACE_BOOT_PROOF_INTERNAL_CLEAN_ROOM: '1' },
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('clean-room HEAD does not match expected source SHA');
+      expect(result.stdout).toBe('');
+      expect(fs.existsSync(output)).toBe(false);
+    } finally {
+      fs.rmSync(outputDirectory, { recursive: true, force: true });
+    }
   });
 });

@@ -19,8 +19,20 @@ const AUTH_AUDIENCE = 'updog-client';
 const scenarioSetId = '00000000-0000-0000-0000-00000000a001';
 const failingScenarioSetId = '00000000-0000-0000-0000-00000000a002';
 const completionRaceScenarioSetId = '00000000-0000-0000-0000-00000000a003';
+const transientScenarioSetId = '00000000-0000-0000-0000-00000000a004';
+const permanentScenarioSetId = '00000000-0000-0000-0000-00000000a005';
 
 type TestContextWithSkip = { skip?: () => void };
+
+/**
+ * Harness-local fault injected around the REAL claimed-run executor. Keyed by
+ * scenario set so each truth case owns its own deterministic failure without
+ * faulting production paths (no table renames, env flags, or request flags).
+ */
+type InjectedFault = (
+  input: { scenarioSetId: string; attempt?: { number: number; limit: number } },
+  next: () => Promise<unknown>
+) => Promise<unknown>;
 
 interface Runtime {
   app: express.Express;
@@ -32,6 +44,7 @@ interface Runtime {
   redis: StartedTestContainer;
   authHeader: string;
   fundId: number;
+  injectedFaults: Map<string, InjectedFault>;
 }
 
 let runtime: Runtime | null = null;
@@ -135,6 +148,22 @@ async function seedScenarioFixtures(pool: Pool): Promise<{ fundId: number }> {
     companyId,
     plannedReservesCents: 2_500_000_00,
   });
+  await insertScenarioSet(pool, {
+    fundId,
+    configId,
+    id: transientScenarioSetId,
+    name: 'Reserve transient retry',
+    companyId,
+    plannedReservesCents: 3_000_000_00,
+  });
+  await insertScenarioSet(pool, {
+    fundId,
+    configId,
+    id: permanentScenarioSetId,
+    name: 'Reserve permanent failure',
+    companyId,
+    plannedReservesCents: 3_500_000_00,
+  });
 
   return { fundId };
 }
@@ -226,13 +255,35 @@ async function startRuntime(): Promise<Runtime> {
   const { signToken } = await import('../../server/lib/auth/jwt');
   const { startInProcessFundScenarioCalcWorkerHarness } =
     await import('../../workers/fund-scenario-calc-worker-harness');
+  const { createFundScenarioCalcJobHandler } =
+    await import('../../workers/fund-scenario-calc-handler');
+  const reserveService =
+    await import('../../server/services/fund-scenario-reserve-calculation-service');
 
   const app = express();
   app.use(express.json({ limit: '1mb' }));
   app.use('/api', scenarioRoutes);
 
+  // Harness-local injection: the runner's claim, retry routing, and failure
+  // persistence stay real; only the claimed-run executor consults the fault
+  // map, delegating to the real executor when no fault is registered.
+  const injectedFaults = new Map<string, InjectedFault>();
+  const calculationHandler = createFundScenarioCalcJobHandler({
+    runCalculation: reserveService.createReserveScenarioCalculationRunner({
+      executeClaimedCalculation: async (input, claimed) => {
+        const fault = injectedFaults.get(input.scenarioSetId);
+        const next = () =>
+          reserveService.executeClaimedReserveScenarioCalculation(input, claimed);
+        if (fault) {
+          return (await fault(input, next)) as Awaited<ReturnType<typeof next>>;
+        }
+        return next();
+      },
+    }),
+  });
+
   const workerHarness = await withFundScenarioWorkerIdentity(() =>
-    startInProcessFundScenarioCalcWorkerHarness()
+    startInProcessFundScenarioCalcWorkerHarness({ calculationHandler })
   );
   const queueConnection = { host: redis.getHost(), port: redis.getMappedPort(6379) };
   const queue = new Queue('fund-scenario-calc', { connection: queueConnection });
@@ -255,6 +306,7 @@ async function startRuntime(): Promise<Runtime> {
     redis,
     authHeader,
     fundId,
+    injectedFaults,
   };
 }
 
@@ -412,9 +464,17 @@ describe('fund scenario reserve worker integration', () => {
       expect(runtime).not.toBeNull();
       const active = runtime!;
 
+      const missingKey = await request(active.app)
+        .post(`/api/funds/${active.fundId}/scenario-sets/${scenarioSetId}/calculate-reserve`)
+        .set('Authorization', active.authHeader)
+        .send({ calculationMode: 'async_reserve_allocation' });
+      expect(missingKey.status, JSON.stringify(missingKey.body)).toBe(428);
+      expect(missingKey.body.error).toBe('idempotency_key_required');
+
       const queued = await request(active.app)
         .post(`/api/funds/${active.fundId}/scenario-sets/${scenarioSetId}/calculate-reserve`)
         .set('Authorization', active.authHeader)
+        .set('Idempotency-Key', 'reserve-worker-happy-path')
         .send({ calculationMode: 'async_reserve_allocation' });
       expect(queued.status, JSON.stringify(queued.body)).toBe(202);
 
@@ -448,35 +508,32 @@ describe('fund scenario reserve worker integration', () => {
   );
 
   it(
-    'records a controlled worker failure without creating scenario results',
+    'sanitizes an injected ordinary worker failure and creates no scenario results',
     async (ctx) => {
       if (visibleLocalSkip(ctx)) return;
       expect(runtime).not.toBeNull();
       const active = runtime!;
 
-      let investmentsRenamed = false;
+      const secretMessage = 'password=super-secret-worker-credential';
+      active.injectedFaults.set(failingScenarioSetId, async () => {
+        // Ordinary error smuggling an unapproved code AND a secret-shaped
+        // message: the owned normalizer must map it to the fixed fallback.
+        throw Object.assign(new Error(`connection refused: ${secretMessage}`), {
+          code: 'PERMANENT_WORKER_FAILURE',
+        });
+      });
+
       try {
-        expect(active.queue).not.toBeNull();
-        await active.queue!.pause();
-        let jobId = '';
-        let correlationId = '';
-
-        try {
-          const queued = await request(active.app)
-            .post(
-              `/api/funds/${active.fundId}/scenario-sets/${failingScenarioSetId}/calculate-reserve`
-            )
-            .set('Authorization', active.authHeader)
-            .send({ calculationMode: 'async_reserve_allocation' });
-          expect(queued.status, JSON.stringify(queued.body)).toBe(202);
-          jobId = queued.body.jobId;
-          correlationId = queued.body.correlationId;
-
-          await active.pool.query('ALTER TABLE investments RENAME TO investments_unavailable');
-          investmentsRenamed = true;
-        } finally {
-          await active.queue!.resume();
-        }
+        const queued = await request(active.app)
+          .post(
+            `/api/funds/${active.fundId}/scenario-sets/${failingScenarioSetId}/calculate-reserve`
+          )
+          .set('Authorization', active.authHeader)
+          .set('Idempotency-Key', 'reserve-worker-controlled-failure')
+          .send({ calculationMode: 'async_reserve_allocation' });
+        expect(queued.status, JSON.stringify(queued.body)).toBe(202);
+        const jobId = queued.body.jobId;
+        const correlationId = queued.body.correlationId;
 
         await waitForFailedJob(active, jobId);
 
@@ -493,7 +550,10 @@ describe('fund scenario reserve worker integration', () => {
           correlationId,
           snapshotId: null,
         });
-        expect(status.body.lastError).toContain('investments');
+        expect(status.body.lastError).toBe(
+          'Reserve scenario calculation failed during worker execution'
+        );
+        expect(JSON.stringify(status.body)).not.toContain(secretMessage);
 
         await request(active.app)
           .get(`/api/funds/${active.fundId}/scenario-sets/${failingScenarioSetId}/results`)
@@ -514,8 +574,10 @@ describe('fund scenario reserve worker integration', () => {
           id: string;
           status: string;
           snapshot_id: number | null;
+          failure_code: string | null;
+          failure_message: string | null;
         }>(
-          `SELECT id, status, snapshot_id
+          `SELECT id, status, snapshot_id, failure_code, failure_message
            FROM fund_scenario_calculation_runs
           WHERE fund_id = $1
             AND scenario_set_id = $2
@@ -525,22 +587,362 @@ describe('fund scenario reserve worker integration', () => {
         );
         expect(failedRuns.rows.length).toBeGreaterThan(0);
         for (const run of failedRuns.rows) {
-          expect(run).toMatchObject({ status: 'failed', snapshot_id: null });
-          const failedEvents = await active.pool.query<{ count: string }>(
-            `SELECT COUNT(*)::text AS count
+          expect(run).toMatchObject({
+            status: 'failed',
+            snapshot_id: null,
+            failure_code: 'WORKER_EXECUTION_FAILED',
+            failure_message: 'Reserve scenario calculation failed during worker execution',
+          });
+          expect(JSON.stringify(run)).not.toContain(secretMessage);
+          const failedEvents = await active.pool.query<{ change_summary_json: unknown }>(
+            `SELECT change_summary_json
              FROM fund_scenario_set_events
             WHERE scenario_set_id = $1
               AND event_type = 'calculation_failed'
               AND change_summary_json ->> 'run_id' = $2`,
             [failingScenarioSetId, run.id]
           );
-          expect(failedEvents.rows[0]?.count).toBe('1');
+          expect(failedEvents.rows).toHaveLength(1);
+          const summaryJson = JSON.stringify(failedEvents.rows[0]?.change_summary_json);
+          expect(summaryJson).toContain('WORKER_EXECUTION_FAILED');
+          expect(summaryJson).not.toContain(secretMessage);
+          expect(summaryJson).not.toContain('connection refused');
         }
       } finally {
-        if (investmentsRenamed) {
-          await active.pool.query('ALTER TABLE investments_unavailable RENAME TO investments');
-        }
+        active.injectedFaults.delete(failingScenarioSetId);
       }
+    },
+    JOB_TIMEOUT_MS + 15_000
+  );
+
+  it(
+    'retries an injected transient failure on the same job and run, succeeding on attempt two',
+    async (ctx) => {
+      if (visibleLocalSkip(ctx)) return;
+      expect(runtime).not.toBeNull();
+      const active = runtime!;
+      const { ReserveWorkerTransientFailureError } =
+        await import('../../server/services/fund-scenario-reserve-calculation-service');
+
+      active.injectedFaults.set(transientScenarioSetId, async (input, next) => {
+        if (input.attempt?.number === 1) {
+          throw new ReserveWorkerTransientFailureError('injected transient worker failure');
+        }
+        return next();
+      });
+
+      try {
+        const queued = await request(active.app)
+          .post(
+            `/api/funds/${active.fundId}/scenario-sets/${transientScenarioSetId}/calculate-reserve`
+          )
+          .set('Authorization', active.authHeader)
+          .set('Idempotency-Key', 'reserve-worker-transient-retry')
+          .send({ calculationMode: 'async_reserve_allocation' });
+        expect(queued.status, JSON.stringify(queued.body)).toBe(202);
+        const jobId = queued.body.jobId as string;
+        const correlationId = queued.body.correlationId as string;
+
+        await waitForJob(active, jobId);
+
+        const status = await request(active.app)
+          .get(
+            `/api/funds/${active.fundId}/scenario-sets/${transientScenarioSetId}/calculation-status`
+          )
+          .set('Authorization', active.authHeader)
+          .expect(200);
+        expect(status.body).toMatchObject({
+          status: 'succeeded',
+          jobId,
+          correlationId,
+        });
+        expect(status.body.snapshotId).toEqual(expect.any(Number));
+
+        const receipts = await active.pool.query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count
+             FROM fund_scenario_calculation_commands
+            WHERE scenario_set_id = $1`,
+          [transientScenarioSetId]
+        );
+        expect(receipts.rows[0]?.count).toBe('1');
+
+        const runs = await active.pool.query<{ id: string; status: string }>(
+          `SELECT id, status
+             FROM fund_scenario_calculation_runs
+            WHERE scenario_set_id = $1`,
+          [transientScenarioSetId]
+        );
+        expect(runs.rows).toHaveLength(1);
+        expect(runs.rows[0]?.status).toBe('completed');
+        const runId = runs.rows[0]!.id;
+
+        const queuedEvents = await active.pool.query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count
+             FROM fund_scenario_set_events
+            WHERE scenario_set_id = $1
+              AND event_type = 'calculation_queued'`,
+          [transientScenarioSetId]
+        );
+        expect(queuedEvents.rows[0]?.count).toBe('1');
+
+        const startedEvents = await active.pool.query<{
+          attempt_number: string | null;
+          attempt_limit: string | null;
+        }>(
+          `SELECT change_summary_json ->> 'attempt_number' AS attempt_number,
+                  change_summary_json ->> 'attempt_limit' AS attempt_limit
+             FROM fund_scenario_set_events
+            WHERE scenario_set_id = $1
+              AND event_type = 'calculation_started'
+              AND change_summary_json ->> 'run_id' = $2
+            ORDER BY id ASC`,
+          [transientScenarioSetId, runId]
+        );
+        expect(
+          startedEvents.rows
+            .map((row) => `${row.attempt_number}/${row.attempt_limit}`)
+            .sort()
+        ).toEqual(['1/2', '2/2']);
+
+        const calculatedEvents = await active.pool.query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count
+             FROM fund_scenario_set_events
+            WHERE scenario_set_id = $1
+              AND event_type = 'calculated'`,
+          [transientScenarioSetId]
+        );
+        expect(calculatedEvents.rows[0]?.count).toBe('1');
+
+        const snapshots = await active.pool.query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count
+             FROM fund_snapshots
+            WHERE fund_id = $1
+              AND scenario_set_id = $2
+              AND type = 'SCENARIOS'`,
+          [active.fundId, transientScenarioSetId]
+        );
+        expect(snapshots.rows[0]?.count).toBe('1');
+      } finally {
+        active.injectedFaults.delete(transientScenarioSetId);
+      }
+    },
+    JOB_TIMEOUT_MS + 15_000
+  );
+
+  it(
+    'exhausts attempts on an injected permanent failure, replays the stored 202, and recovers only by new intent',
+    async (ctx) => {
+      if (visibleLocalSkip(ctx)) return;
+      expect(runtime).not.toBeNull();
+      const active = runtime!;
+      const { ReserveWorkerPermanentFailureError } =
+        await import('../../server/services/fund-scenario-reserve-calculation-service');
+
+      active.injectedFaults.set(permanentScenarioSetId, async () => {
+        throw new ReserveWorkerPermanentFailureError('internal-detail-never-persisted');
+      });
+
+      try {
+        const queued = await request(active.app)
+          .post(
+            `/api/funds/${active.fundId}/scenario-sets/${permanentScenarioSetId}/calculate-reserve`
+          )
+          .set('Authorization', active.authHeader)
+          .set('Idempotency-Key', 'reserve-worker-permanent-failure')
+          .send({ calculationMode: 'async_reserve_allocation' });
+        expect(queued.status, JSON.stringify(queued.body)).toBe(202);
+        const jobId = queued.body.jobId as string;
+
+        await waitForFailedJob(active, jobId);
+
+        const status = await request(active.app)
+          .get(
+            `/api/funds/${active.fundId}/scenario-sets/${permanentScenarioSetId}/calculation-status`
+          )
+          .set('Authorization', active.authHeader)
+          .expect(200);
+        expect(status.body).toMatchObject({ status: 'failed', jobId, snapshotId: null });
+        expect(status.body.lastError).toBe(
+          'Reserve scenario calculation failed permanently in the worker'
+        );
+        expect(JSON.stringify(status.body)).not.toContain('internal-detail-never-persisted');
+
+        const failedRuns = await active.pool.query<{
+          id: string;
+          status: string;
+          failure_code: string | null;
+          snapshot_id: number | null;
+        }>(
+          `SELECT id, status, failure_code, snapshot_id
+             FROM fund_scenario_calculation_runs
+            WHERE scenario_set_id = $1`,
+          [permanentScenarioSetId]
+        );
+        expect(failedRuns.rows).toHaveLength(1);
+        expect(failedRuns.rows[0]).toMatchObject({
+          status: 'failed',
+          failure_code: 'PERMANENT_WORKER_FAILURE',
+          snapshot_id: null,
+        });
+        const failedRunId = failedRuns.rows[0]!.id;
+
+        const startedEvents = await active.pool.query<{
+          attempt_number: string | null;
+          attempt_limit: string | null;
+        }>(
+          `SELECT change_summary_json ->> 'attempt_number' AS attempt_number,
+                  change_summary_json ->> 'attempt_limit' AS attempt_limit
+             FROM fund_scenario_set_events
+            WHERE scenario_set_id = $1
+              AND event_type = 'calculation_started'
+              AND change_summary_json ->> 'run_id' = $2
+            ORDER BY id ASC`,
+          [permanentScenarioSetId, failedRunId]
+        );
+        expect(
+          startedEvents.rows
+            .map((row) => `${row.attempt_number}/${row.attempt_limit}`)
+            .sort()
+        ).toEqual(['1/2', '2/2']);
+
+        const failedEvents = await active.pool.query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count
+             FROM fund_scenario_set_events
+            WHERE scenario_set_id = $1
+              AND event_type = 'calculation_failed'
+              AND change_summary_json ->> 'run_id' = $2`,
+          [permanentScenarioSetId, failedRunId]
+        );
+        expect(failedEvents.rows[0]?.count).toBe('1');
+
+        // Command receipt is completed with no active lease.
+        const commands = await active.pool.query<{
+          status: string;
+          lease_token: string | null;
+        }>(
+          `SELECT status, lease_token
+             FROM fund_scenario_calculation_commands
+            WHERE scenario_set_id = $1`,
+          [permanentScenarioSetId]
+        );
+        expect(commands.rows).toHaveLength(1);
+        expect(commands.rows[0]).toMatchObject({ status: 'completed', lease_token: null });
+
+        // Replaying the ORIGINAL command key after the terminal worker
+        // failure returns the exact stored 202 acknowledgement and does not
+        // manufacture another run.
+        const replay = await request(active.app)
+          .post(
+            `/api/funds/${active.fundId}/scenario-sets/${permanentScenarioSetId}/calculate-reserve`
+          )
+          .set('Authorization', active.authHeader)
+          .set('Idempotency-Key', 'reserve-worker-permanent-failure')
+          .send({ calculationMode: 'async_reserve_allocation' });
+        expect(replay.status, JSON.stringify(replay.body)).toBe(202);
+        expect(replay.body).toEqual(queued.body);
+
+        const runsAfterReplay = await active.pool.query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count
+             FROM fund_scenario_calculation_runs
+            WHERE scenario_set_id = $1`,
+          [permanentScenarioSetId]
+        );
+        expect(runsAfterReplay.rows[0]?.count).toBe('1');
+
+        // A NEW explicit intent (new key) follows the failed-run recovery
+        // contract: it mints a new run and a new job identity and succeeds
+        // once the fault is cleared.
+        active.injectedFaults.delete(permanentScenarioSetId);
+        const recovery = await request(active.app)
+          .post(
+            `/api/funds/${active.fundId}/scenario-sets/${permanentScenarioSetId}/calculate-reserve`
+          )
+          .set('Authorization', active.authHeader)
+          .set('Idempotency-Key', 'reserve-worker-permanent-recovery')
+          .send({ calculationMode: 'async_reserve_allocation' });
+        expect(recovery.status, JSON.stringify(recovery.body)).toBe(202);
+        expect(recovery.body.jobId).not.toBe(jobId);
+        expect(recovery.body.correlationId).not.toBe(queued.body.correlationId);
+
+        await waitForJob(active, recovery.body.jobId);
+        const recoveredStatus = await request(active.app)
+          .get(
+            `/api/funds/${active.fundId}/scenario-sets/${permanentScenarioSetId}/calculation-status`
+          )
+          .set('Authorization', active.authHeader)
+          .expect(200);
+        expect(recoveredStatus.body).toMatchObject({
+          status: 'succeeded',
+          jobId: recovery.body.jobId,
+          correlationId: recovery.body.correlationId,
+        });
+
+        const runsAfterRecovery = await active.pool.query<{ id: string; status: string }>(
+          `SELECT id, status
+             FROM fund_scenario_calculation_runs
+            WHERE scenario_set_id = $1
+            ORDER BY created_at ASC, id ASC`,
+          [permanentScenarioSetId]
+        );
+        expect(runsAfterRecovery.rows).toHaveLength(2);
+        expect(runsAfterRecovery.rows[0]).toMatchObject({ id: failedRunId, status: 'failed' });
+        expect(runsAfterRecovery.rows[1]?.status).toBe('completed');
+      } finally {
+        active.injectedFaults.delete(permanentScenarioSetId);
+      }
+    },
+    JOB_TIMEOUT_MS * 2 + 15_000
+  );
+
+  it(
+    'returns a typed bounded polling timeout that preserves identity and never substitutes an older success',
+    async (ctx) => {
+      if (visibleLocalSkip(ctx)) return;
+      expect(runtime).not.toBeNull();
+      const active = runtime!;
+      const { pollReleaseCanaryWorkerStatus, RELEASE_CANARY_WORKER_TIMEOUT } =
+        await import('../smoke/support/release-canary-polling');
+
+      // The happy-path test above left a terminal SUCCESS on scenarioSetId
+      // with a different correlation. Polling for a NEWER command identity on
+      // the same scenario set must time out typed instead of accepting it.
+      const newerCorrelationId = randomUUID();
+      const newerJobId = `newer-command-${Date.now()}`;
+      let elapsedMs = 0;
+
+      const result = await pollReleaseCanaryWorkerStatus(
+        {
+          fundId: active.fundId,
+          scenarioSetId,
+          jobId: newerJobId,
+          correlationId: newerCorrelationId,
+        },
+        {
+          fetchStatus: async () => {
+            const response = await request(active.app)
+              .get(`/api/funds/${active.fundId}/scenario-sets/${scenarioSetId}/calculation-status`)
+              .set('Authorization', active.authHeader);
+            return { status: response.status, body: response.body };
+          },
+          now: () => elapsedMs,
+          sleep: async () => {
+            elapsedMs += 1_000;
+          },
+          deadlineMs: 3_000,
+          intervalMs: 1_000,
+        }
+      );
+
+      expect(result.kind).toBe(RELEASE_CANARY_WORKER_TIMEOUT);
+      if (result.kind !== RELEASE_CANARY_WORKER_TIMEOUT) return;
+      expect(result.fundId).toBe(active.fundId);
+      expect(result.scenarioSetId).toBe(scenarioSetId);
+      expect(result.jobId).toBe(newerJobId);
+      expect(result.correlationId).toBe(newerCorrelationId);
+      expect(result.observedStatuses).toContain('mismatched-execution');
+      // The older run's success is visible in the last body but was never
+      // accepted as this execution's evidence.
+      expect(result.lastBody).toMatchObject({ status: 'succeeded' });
     },
     JOB_TIMEOUT_MS + 15_000
   );

@@ -187,15 +187,72 @@ async function* jsonLines(filePath) {
   }
 }
 
-export async function reconcileKnowledgeGraph(document, inventory) {
-  const manifest = readJson(path.join(kgDir, 'manifest.json'));
+const artifactEntries = (artifacts) => {
+  if (Array.isArray(artifacts)) return artifacts.map((artifact) => [artifact.name || artifact.path, artifact]);
+  return Object.entries(artifacts ?? {});
+};
+
+const validateKnowledgeGraphIdentity = async ({ manifest, inventory, graphDir, rootDir }) => {
+  const errors = [];
+  const currentHead = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: rootDir }).toString().trim();
+  if (manifest.repo_head !== currentHead) errors.push(`KG manifest repo_head ${manifest.repo_head} does not match current HEAD ${currentHead}`);
+
+  const artifacts = new Map(artifactEntries(manifest.artifacts));
+  const artifactNames = new Set(['nodes-routes.jsonl', 'edges-routes.jsonl', ...artifacts.keys()]);
+  for (const name of artifactNames) {
+    const artifact = artifacts.get(name);
+    if (!artifact) {
+      errors.push(`KG manifest artifact metadata missing: ${name}`);
+      continue;
+    }
+    const relativePath = artifact.path || artifact.name || name;
+    const artifactPath = path.resolve(graphDir, relativePath);
+    const resolvedGraphDir = path.resolve(graphDir);
+    if (!artifactPath.startsWith(`${resolvedGraphDir}${path.sep}`)) {
+      errors.push(`KG artifact path escapes output directory: ${relativePath}`);
+      continue;
+    }
+    let bytes;
+    try {
+      bytes = fs.readFileSync(artifactPath);
+    } catch (error) {
+      errors.push(`KG artifact unreadable (${name}): ${error.message}`);
+      continue;
+    }
+    if (sha256(bytes) !== artifact.sha256) errors.push(`KG artifact sha256 mismatch: ${name}`);
+    if (bytes.byteLength !== artifact.byte_length) errors.push(`KG artifact byte length mismatch: ${name}`);
+    for await (const record of jsonLines(artifactPath)) {
+      if (record.snapshot_id !== manifest.snapshot_id) errors.push(`KG record snapshot mismatch: ${name}`);
+      if (record.commit_sha !== manifest.repo_head) errors.push(`KG record commit mismatch: ${name}`);
+    }
+  }
+
+  const manifestHashes = manifest.source_hashes ?? {};
+  const inventoryHashes = inventory.source_hashes ?? {};
+  for (const [sourcePath, expected] of Object.entries(manifestHashes)) {
+    // The inventory never records its own hash (seeding rewrites it after the
+    // projection hashed its pre-seed bytes); its integrity is covered by the
+    // matrix render hash and G1 review instead.
+    if (sourcePath === 'audit/surface-contract-matrix/source-inventory.json') continue;
+    if (!Object.prototype.hasOwnProperty.call(inventoryHashes, sourcePath)) {
+      errors.push(`KG manifest source hash missing from inventory: ${sourcePath}`);
+    } else if (inventoryHashes[sourcePath] !== expected) {
+      errors.push(`KG manifest and inventory source hash mismatch: ${sourcePath}`);
+    }
+  }
+  return errors;
+};
+
+export async function reconcileKnowledgeGraph(document, inventory, { rootDir = repoRoot, graphDir = kgDir } = {}) {
+  const manifest = readJson(path.join(graphDir, 'manifest.json'));
+  fail(await validateKnowledgeGraphIdentity({ manifest, inventory, graphDir, rootDir }));
   const counts = {};
   const expectedIds = new Map([
     ['APIEndpoint', new Set()],
     ['ClientRoute', new Set()],
     ['WorkerJob', new Set()],
   ]);
-  for await (const record of jsonLines(path.join(kgDir, 'nodes-routes.jsonl'))) {
+  for await (const record of jsonLines(path.join(graphDir, 'nodes-routes.jsonl'))) {
     if (!expectedIds.has(record.type)) continue;
     counts[record.type] = (counts[record.type] ?? 0) + 1;
     if (record.type === 'APIEndpoint') expectedIds.get(record.type).add(canonicalRowId(record.id));
@@ -512,7 +569,7 @@ export function validateClosedPhaseInvariants({ document, requirements, families
   return errors;
 }
 
-export async function validateMatrix({ writeMetadata = true } = {}) {
+export async function validateMatrix({ writeMetadata = true, graphDir = kgDir } = {}) {
   const document = SurfaceMatrixDocumentSchema.parse(readJson(matrixFile));
   const inventory = SourceInventorySchema.parse(readJson(inventoryFile));
   const requirements = RequirementsDocumentSchema.parse(readJson(requirementsFile));
@@ -533,7 +590,7 @@ export async function validateMatrix({ writeMetadata = true } = {}) {
     errors,
   });
   await validateSourceHashes(inventory, errors);
-  const kg = await reconcileKnowledgeGraph(document, inventory);
+  const kg = await reconcileKnowledgeGraph(document, inventory, { graphDir });
   if (kg.missing.APIEndpoint.length || kg.missing.ClientRoute.length || kg.missing.WorkerJob.length) errors.push(`KG rows missing from matrix: ${JSON.stringify(kg.missing)}`);
   const schedulers = scanSchedulerRegistrations();
   if (schedulers.length !== document.rows.filter((row) => row.interface === 'scheduler').length) errors.push('scheduler registration count does not match scheduler rows');
@@ -578,8 +635,39 @@ export async function validateMatrix({ writeMetadata = true } = {}) {
   return { document: { ...document, validation }, inventory, validation, closure };
 }
 
+export function parseValidateMatrixArgs(argv) {
+  let writeMetadata = true;
+  let graphDir;
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument === '--no-write-metadata') {
+      writeMetadata = false;
+      continue;
+    }
+    if (argument === '--graph-dir') {
+      if (graphDir !== undefined) throw new Error(`duplicate argument: ${argument}`);
+      const value = argv[index + 1];
+      if (value === undefined) throw new Error(`Missing value for argument: ${argument}`);
+      if (!path.isAbsolute(value)) throw new Error(`--graph-dir must be an absolute path: ${value}`);
+      graphDir = value;
+      index += 1;
+      continue;
+    }
+    throw new Error(`Unknown argument: ${argument}`);
+  }
+  return { writeMetadata, ...(graphDir !== undefined ? { graphDir } : {}) };
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === thisFile) {
-  validateMatrix().then((result) => {
+  const cliArguments = process.argv.slice(2);
+  // --no-write-metadata: validation must not mutate the governed artifact it
+  // validates. Used by release proof and the strict Step 10 projection proof,
+  // where the checkout must stay byte-identical; the closure-time validation
+  // keeps the write-back stamp.
+  // --graph-dir <absolute-path>: override the knowledge-graph artifact
+  // directory read during reconciliation; defaults to audit/knowledge-graph/out.
+  const { writeMetadata, graphDir } = parseValidateMatrixArgs(cliArguments);
+  validateMatrix({ writeMetadata, ...(graphDir !== undefined ? { graphDir } : {}) }).then((result) => {
     const closure_counts = Object.fromEntries(Object.entries(result.closure.issues).map(([key, values]) => [key, values.length]));
     process.stdout.write(`${JSON.stringify({
       validation: result.validation,

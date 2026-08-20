@@ -1711,7 +1711,18 @@ const fileMatches = (filePath, pattern) => {
 
 const isExcludedSource = (filePath) => TEST_OR_FIXTURE_SEGMENT.test(filePath) || TEST_OR_FIXTURE_SUFFIX.test(filePath);
 
-const sourceHashes = ({ nodes, snapshotId }) => {
+// The inventory cannot record a hash of itself: seeding rewrites
+// source-inventory.json after the projection hashed its pre-seed bytes, so a
+// merged self-entry is stale by construction and fails every rehash audit.
+export const INVENTORY_SELF_PATH = 'audit/surface-contract-matrix/source-inventory.json';
+
+export const mergeManifestSourceHashes = (inventorySourceHashes = {}, manifestSourceHashes = {}) => {
+  const merged = { ...inventorySourceHashes, ...manifestSourceHashes };
+  delete merged[INVENTORY_SELF_PATH];
+  return merged;
+};
+
+const sourceHashes = ({ nodes, snapshotId, manifestSourceHashes = {} }) => {
   const membership = new Map();
   const include = (filePath, category, allowUntracked = false) => {
     if (!filePath || (!allowUntracked && !trackedSet.has(filePath)) || isExcludedSource(filePath)) return;
@@ -1783,7 +1794,10 @@ const sourceHashes = ({ nodes, snapshotId }) => {
     ];
   }
   sourceMembership['kg-snapshot'] = [snapshotId];
-  return { sourceHashesMap, sourceMembership };
+  return {
+    sourceHashesMap: mergeManifestSourceHashes(sourceHashesMap, manifestSourceHashes),
+    sourceMembership,
+  };
 };
 
 const definingSourceHashesForRow = (row, sourceHashesMap, rowToSources = {}) => {
@@ -2088,7 +2102,11 @@ const seed = async () => {
   });
   applyInternalOnlyDefaults(rows);
   applyBootProofs(rows, bootProofDocument);
-  const hashes = sourceHashes({ nodes: kg.nodes, snapshotId: kg.manifest.snapshot_id });
+  const hashes = sourceHashes({
+    nodes: kg.nodes,
+    snapshotId: kg.manifest.snapshot_id,
+    manifestSourceHashes: kg.manifest.source_hashes,
+  });
   const definingMappings = sourceMappings({
     rows,
     commonManifest: COMMON_API_ROUTE_MANIFEST,
@@ -2162,7 +2180,7 @@ const seed = async () => {
   process.stderr.write(`${JSON.stringify({
     snapshot_id: kg.manifest.snapshot_id,
     row_counts: counts,
-    kg_expected: { APIEndpoint: 390, ClientRoute: 43, WorkerJob: 9 },
+    kg_expected: kg.manifest.node_type_counts,
     listener_candidates: candidates.length,
     listener_dispositions: listenerDispositions.length,
     listener_product_routes: [...rows.values()].filter((row) => row.seam === 'worker-health' || row.seam === 'ml-reserve').length,

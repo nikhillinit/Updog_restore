@@ -32,13 +32,20 @@ describe('production release dispatch block', () => {
     expect(workflow.jobs['validate-target'].needs).toBe('production-mutation-block');
   });
 
-  it('blocks the PowerShell dispatcher before invoking GitHub CLI', async () => {
+  it('pins the PowerShell dispatcher to exact live main before invoking GitHub CLI', async () => {
     const script = await readFile(
       path.join(process.cwd(), 'scripts', 'deploy-production.ps1'),
       'utf8'
     );
 
-    expect(script).not.toContain('gh workflow run');
-    expect(script).toMatch(/production mutation is mechanically blocked/i);
+    // The former mechanical block is superseded by the governed exact-SHA
+    // dispatcher (Child F G4 hardening); its full contract is asserted in
+    // tests/regressions/ci-fail-closed.test.ts. This guard keeps the
+    // dispatch fail-closed: live-main SHA pinned and no bypass switches.
+    expect(script).toContain('$expectedSha -notmatch "^[0-9a-f]{40}$"');
+    expect(script).toContain(
+      'gh workflow run release-production.yml --ref main --repo $repository --json'
+    );
+    expect(script).not.toMatch(/\bSkipSmokeTest\b|\bForce\b/);
   });
 });
