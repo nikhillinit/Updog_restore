@@ -5455,12 +5455,29 @@ describe('required CI fails closed', () => {
     expect(stagedCredentialGuard?.env?.CANARY_PASSWORD).toBe(
       '${{ secrets.CANARY_PASSWORD }}'
     );
+    expect(stagedCredentialGuard?.env?.CANARY_RECONCILER_USERNAME).toBe(
+      '${{ secrets.CANARY_RECONCILER_USERNAME }}'
+    );
+    expect(stagedCredentialGuard?.env?.CANARY_RECONCILER_PASSWORD).toBe(
+      '${{ secrets.CANARY_RECONCILER_PASSWORD }}'
+    );
     expect(stagedCredentialGuard?.env?.DATABASE_URL).toBe(
       '${{ secrets.PRODUCTION_DATABASE_URL }}'
     );
-    for (const credential of ['CANARY_USERNAME', 'CANARY_PASSWORD', 'DATABASE_URL']) {
+    for (const credential of [
+      'CANARY_USERNAME',
+      'CANARY_PASSWORD',
+      'CANARY_RECONCILER_USERNAME',
+      'CANARY_RECONCILER_PASSWORD',
+      'DATABASE_URL',
+    ]) {
       expect(stagedCredentialGuard?.run).toContain(`${credential} is required`);
     }
+    // The reconciler admin identity may never collapse into the release-canary
+    // principal; the guard step fails the job before any canary starts.
+    expect(stagedCredentialGuard?.run).toContain(
+      'CANARY_RECONCILER_USERNAME must differ from CANARY_USERNAME'
+    );
     expect(stagedCredentialGuard?.run).toContain('VERCEL_AUTOMATION_BYPASS_SECRET is required');
     expect(stagedCredentialGuard?.run).toContain('RUM_ALLOWED_ORIGIN is required');
 
@@ -5533,6 +5550,15 @@ describe('required CI fails closed', () => {
     expect(stagedCanary?.env?.EXPECTED_SHA).toBe('${{ inputs.expected_sha }}');
     expect(stagedCanary?.env?.CANARY_USERNAME).toBe('${{ secrets.CANARY_USERNAME }}');
     expect(stagedCanary?.env?.CANARY_PASSWORD).toBe('${{ secrets.CANARY_PASSWORD }}');
+    expect(stagedCanary?.env?.CANARY_RECONCILER_USERNAME).toBe(
+      '${{ secrets.CANARY_RECONCILER_USERNAME }}'
+    );
+    expect(stagedCanary?.env?.CANARY_RECONCILER_PASSWORD).toBe(
+      '${{ secrets.CANARY_RECONCILER_PASSWORD }}'
+    );
+    expect(stagedCanary?.env?.CANARY_STARTED_AT).toBe(
+      '${{ steps.canary_window.outputs.canary_started_at }}'
+    );
     expect(stagedCanary?.env?.VERCEL_AUTOMATION_BYPASS_SECRET).toBe(
       '${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}'
     );
@@ -5543,6 +5569,13 @@ describe('required CI fails closed', () => {
     expect(stagedCanary?.run).toContain(
       '${RELEASE_CANARY_RESULT_PATH:?RELEASE_CANARY_RESULT_PATH is required}'
     );
+    for (const reconcilerGuard of [
+      'CANARY_RECONCILER_USERNAME',
+      'CANARY_RECONCILER_PASSWORD',
+      'CANARY_STARTED_AT',
+    ]) {
+      expect(stagedCanary?.run).toContain(`${reconcilerGuard} is required`);
+    }
 
     const stagedResidue = stagedSteps[stagedResidueIndex];
     expect(stagedResidue?.env?.DATABASE_URL).toBe('${{ secrets.PRODUCTION_DATABASE_URL }}');
@@ -5880,6 +5913,82 @@ describe('required CI fails closed', () => {
       expect(pollingSource).not.toContain(forbidden);
       expect(specSource).not.toContain(forbidden);
     }
+  });
+
+  it('confines reconciler credentials and pins the H9 stored-JSON report canary contract', async () => {
+    const specSource = await readFile(
+      path.join(process.cwd(), 'tests/smoke/release-canaries.spec.ts'),
+      'utf8'
+    );
+    const releaseWorkflow = await readWorkflow('release-production.yml');
+
+    // Missing either reconciler secret can never skip the report canary: the
+    // spec hard-requires both (plus the pinned execution window) whenever a
+    // production target is set, and the guard step fail-closes the job first.
+    for (const requiredName of [
+      'CANARY_RECONCILER_USERNAME',
+      'CANARY_RECONCILER_PASSWORD',
+      'CANARY_STARTED_AT',
+    ]) {
+      expect(specSource).toContain(`requiredEnvironment('${requiredName}')`);
+    }
+    expect(specSource).toContain(
+      'CANARY_RECONCILER_USERNAME must differ from the release-canary principal'
+    );
+
+    // The reconciler credentials exist in exactly two steps of staged-smoke:
+    // the non-skippable guard and the canary step itself. They are never
+    // forwarded to provider scripts, summaries, artifacts, or post-promotion
+    // smoke.
+    const allowedReconcilerSteps = new Set([
+      'Require non-skippable smoke credentials',
+      'Run release canaries',
+    ]);
+    for (const [jobName, job] of Object.entries(releaseWorkflow.jobs ?? {})) {
+      for (const step of job?.steps ?? []) {
+        if (jobName === 'staged-smoke' && allowedReconcilerSteps.has(step.name ?? '')) {
+          continue;
+        }
+        expect(step.env ?? {}, `${jobName} step ${String(step.name)}`).not.toHaveProperty(
+          'CANARY_RECONCILER_USERNAME'
+        );
+        expect(step.env ?? {}, `${jobName} step ${String(step.name)}`).not.toHaveProperty(
+          'CANARY_RECONCILER_PASSWORD'
+        );
+        // The release-canary login credentials stay equally confined.
+        expect(step.env ?? {}, `${jobName} step ${String(step.name)}`).not.toHaveProperty(
+          'CANARY_USERNAME'
+        );
+        expect(step.env ?? {}, `${jobName} step ${String(step.name)}`).not.toHaveProperty(
+          'CANARY_PASSWORD'
+        );
+      }
+    }
+
+    // The admin (reconciler) client may call only the planning-FMV
+    // create/replay route and the MOIC reconciliation route. Every admin call
+    // site goes through the shared ROUTES table, so the route names in the
+    // admin.call() expressions are a complete inventory.
+    const adminCallRoutes = [...specSource.matchAll(/admin\.call\(\s*'[A-Z]+',\s*ROUTES\.(\w+)/g)]
+      .map((match) => match[1]);
+    expect(adminCallRoutes.length).toBeGreaterThan(0);
+    expect(new Set(adminCallRoutes)).toEqual(
+      new Set(['planningFmvOverrides', 'moicReconciliations'])
+    );
+
+    // The metric request must bind to the exact approved mark and may never
+    // fall back to an empty mark selection; the actuals facts read must be
+    // proven nonempty before the metric dry-run can begin.
+    expect(specSource).toContain('sourceMarkIds: [planningMarkId]');
+    expect(specSource).not.toContain('sourceMarkIds: []');
+    expect(specSource).toContain(
+      'actuals facts must be nonempty before metric dry-run can begin'
+    );
+
+    // The stored-artifact hash is recomputed with the PURE shared helper; the
+    // smoke spec must never import the server service graph for it.
+    expect(specSource).toContain("from '../../shared/lib/canonical-json'");
+    expect(specSource).not.toContain('report-package-json-export-service');
   });
 
   it('executes EXPECTED_SHA smoke guards fail-closed with hermetic npx', async () => {

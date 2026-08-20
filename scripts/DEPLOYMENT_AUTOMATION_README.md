@@ -235,6 +235,21 @@ release with that SHA. Workflow owns release proof, schema audit, staged
 production-target creation, identity validation, smoke, promotion, and
 post-promotion smoke.
 
+The staged-smoke job requires two credential pairs as GitHub Production
+secrets before any mutation canary starts, and fails closed when either pair
+is missing:
+
+- `CANARY_USERNAME` / `CANARY_PASSWORD` -- the partner-role release-canary
+  principal that drives the mutation canaries.
+- `CANARY_RECONCILER_USERNAME` / `CANARY_RECONCILER_PASSWORD` -- a dedicated
+  nonhuman admin automation account for the financial-truth report canary. It
+  must be a distinct account from the release-canary principal and from all
+  human accounts, with `role='admin'` and `is_release_canary_principal=false`.
+  The canary uses it only around planning-FMV creation/replay and MOIC
+  reconciliation; the secrets are exposed only to the credential guard and the
+  release-canary step, never to provider scripts, logs, summaries, artifacts,
+  or post-promotion smoke.
+
 #### Usage
 
 ```powershell
@@ -439,6 +454,9 @@ Use this checklist for each deployment:
 
 - [ ] Team notified of deployment
 - [ ] All staging tests passed
+- [ ] `CANARY_USERNAME`/`CANARY_PASSWORD` and
+      `CANARY_RECONCILER_USERNAME`/`CANARY_RECONCILER_PASSWORD` Production
+      secrets configured (distinct accounts)
 - [ ] Run `.\scripts\deploy-production.ps1`
 - [ ] Health checks pass
 - [ ] Smoke tests pass

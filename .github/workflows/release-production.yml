@@ -462,6 +462,8 @@ jobs:
           PROD_SMOKE_PASSWORD: ${{ secrets.PROD_SMOKE_PASSWORD }}
           CANARY_USERNAME: ${{ secrets.CANARY_USERNAME }}
           CANARY_PASSWORD: ${{ secrets.CANARY_PASSWORD }}
+          CANARY_RECONCILER_USERNAME: ${{ secrets.CANARY_RECONCILER_USERNAME }}
+          CANARY_RECONCILER_PASSWORD: ${{ secrets.CANARY_RECONCILER_PASSWORD }}
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           RUM_ALLOWED_ORIGIN: https://${{ vars.VERCEL_PRODUCTION_HOSTNAME }}
@@ -473,6 +475,12 @@ jobs:
           : "${PROD_SMOKE_PASSWORD:?PROD_SMOKE_PASSWORD is required}"
           : "${CANARY_USERNAME:?CANARY_USERNAME is required}"
           : "${CANARY_PASSWORD:?CANARY_PASSWORD is required}"
+          : "${CANARY_RECONCILER_USERNAME:?CANARY_RECONCILER_USERNAME is required}"
+          : "${CANARY_RECONCILER_PASSWORD:?CANARY_RECONCILER_PASSWORD is required}"
+          if [ "$CANARY_RECONCILER_USERNAME" = "$CANARY_USERNAME" ]; then
+            echo "CANARY_RECONCILER_USERNAME must differ from CANARY_USERNAME" >&2
+            exit 1
+          fi
           : "${DATABASE_URL:?DATABASE_URL is required}"
           : "${VERCEL_AUTOMATION_BYPASS_SECRET:?VERCEL_AUTOMATION_BYPASS_SECRET is required}"
           : "${RUM_ALLOWED_ORIGIN:?RUM_ALLOWED_ORIGIN is required}"
@@ -574,6 +582,9 @@ jobs:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
           CANARY_USERNAME: ${{ secrets.CANARY_USERNAME }}
           CANARY_PASSWORD: ${{ secrets.CANARY_PASSWORD }}
+          CANARY_RECONCILER_USERNAME: ${{ secrets.CANARY_RECONCILER_USERNAME }}
+          CANARY_RECONCILER_PASSWORD: ${{ secrets.CANARY_RECONCILER_PASSWORD }}
+          CANARY_STARTED_AT: ${{ steps.canary_window.outputs.canary_started_at }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           RELEASE_CANARY_RESULT_PATH: ${{ steps.canary_window.outputs.result_path }}
         run: |
@@ -582,6 +593,9 @@ jobs:
           : "${EXPECTED_SHA:?EXPECTED_SHA is required}"
           : "${CANARY_USERNAME:?CANARY_USERNAME is required}"
           : "${CANARY_PASSWORD:?CANARY_PASSWORD is required}"
+          : "${CANARY_RECONCILER_USERNAME:?CANARY_RECONCILER_USERNAME is required}"
+          : "${CANARY_RECONCILER_PASSWORD:?CANARY_RECONCILER_PASSWORD is required}"
+          : "${CANARY_STARTED_AT:?CANARY_STARTED_AT is required}"
           : "${VERCEL_AUTOMATION_BYPASS_SECRET:?VERCEL_AUTOMATION_BYPASS_SECRET is required}"
           : "${RELEASE_CANARY_RESULT_PATH:?RELEASE_CANARY_RESULT_PATH is required}"
           npx playwright test tests/smoke/release-canaries.spec.ts --project=production --reporter=line
