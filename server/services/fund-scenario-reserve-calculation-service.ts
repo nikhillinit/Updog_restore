@@ -922,8 +922,9 @@ export function createReserveScenarioCalculationRunner(deps?: {
     // source of truth for the delivery's attempt identity.
     const attempt = resolveAttempt(input);
     const isFinalAttempt = attempt.number >= attempt.limit;
-    // Resolve the executor at call time so ESM spies installed by unit tests
-    // on the exported default remain observable.
+    // Injection point only: the default is this module's own local binding,
+    // so namespace spies would not intercept it -- tests inject via the
+    // factory instead of spying on the exported default.
     const executeClaimedCalculation =
       deps?.executeClaimedCalculation ?? executeClaimedReserveScenarioCalculation;
 

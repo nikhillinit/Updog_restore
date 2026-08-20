@@ -5844,19 +5844,28 @@ describe('required CI fails closed', () => {
     expect(pollDeadlineMs + 60_000).toBeLessThanOrEqual(perTestBudgetMs);
 
     // The workflow bounds the canary step INSIDE the staged-smoke job so the
-    // always() residue finalizer retains at least two minutes to classify a
-    // hung canary (step timeout => outcome=failure => --fail-current-run).
+    // STEP timeout is the binding bound: a timed-out step yields
+    // outcome=failure (never a job-level cancellation), which routes the
+    // always() residue finalizer to --fail-current-run. Sum-of-steps budget
+    // in the promote-job style: the job must outlast the realistic
+    // pre-canary work (checkout + npm ci + playwright install + staged
+    // smoke) PLUS the canary step bound PLUS the finalizer margin.
+    const PRE_CANARY_WORK_BUDGET_MINUTES = 8;
+    const FINALIZER_MARGIN_MINUTES = 2;
     const stagedSmoke = releaseWorkflow.jobs?.['staged-smoke'];
     const canaryStep = (stagedSmoke?.steps ?? []).find(
       (step) => step.name === 'Run release canaries'
     );
-    expect(canaryStep?.['timeout-minutes']).toBe(12);
-    expect(stagedSmoke?.['timeout-minutes']).toBe(15);
-    expect(
-      (stagedSmoke?.['timeout-minutes'] ?? 0) - (canaryStep?.['timeout-minutes'] ?? 0)
-    ).toBeGreaterThanOrEqual(2);
-    // The poll deadline itself fits inside the canary step budget.
-    expect(pollDeadlineMs).toBeLessThan(12 * 60 * 1000);
+    const canaryStepTimeoutMinutes = canaryStep?.['timeout-minutes'] ?? 0;
+    expect(canaryStepTimeoutMinutes).toBe(12);
+    expect(stagedSmoke?.['timeout-minutes']).toBe(25);
+    expect(stagedSmoke?.['timeout-minutes']).toBeGreaterThanOrEqual(
+      PRE_CANARY_WORK_BUDGET_MINUTES + canaryStepTimeoutMinutes + FINALIZER_MARGIN_MINUTES
+    );
+    // The step bound also truncates Playwright serial-group retries: one full
+    // canary pass must fit under it, and any overrun becomes outcome=failure
+    // rather than an unclassified hang.
+    expect(pollDeadlineMs).toBeLessThan(canaryStepTimeoutMinutes * 60 * 1000);
 
     // The spec polls through the shared module bound to the exact enqueue
     // identity; there is no latest-run or SHA-wide success fallback surface.

@@ -723,15 +723,48 @@ test.describe('release mutation canaries', () => {
       await readJsonObject(reloadResponse, 'reloaded results response')
     );
 
-    // Stable projection: fund identity/status, the full lifecycle calculation
-    // state, and the persisted reserve and pacing sections must reload
-    // identically. Deliberately excluded as out-of-scope for this stability
-    // proof (not volatile-by-design fields): configState timestamps and the
-    // scorecard/scenarios/waterfall/economics sections, which other canaries
-    // and later mutations may legitimately move.
+    // Stable projection: fund identity/status, the identity-bearing
+    // calculation-state fields, and the persisted reserve and pacing sections
+    // must reload identically. Documented exclusions (legitimately volatile
+    // between the two reads, NOT stability failures):
+    // - snapshot-type ARRAY ORDER: the producing query has no ORDER BY, so
+    //   arrays compare as sets;
+    // - availableSnapshotTypes MEMBERSHIP may grow and lastCalculatedAt may
+    //   advance if a post-ready engine (e.g. flag-gated economics) lands a
+    //   later snapshot -- compared as superset/monotonic instead;
+    // - dispatchState may legitimately advance (partial -> dispatched);
+    // - configState timestamps and scorecard/scenarios/waterfall/economics
+    //   sections, which other canaries and later mutations may move.
     expect(reloaded.fundId).toBe(firstRead.fundId);
     expect(reloaded.status).toBe(firstRead.status);
-    expect(reloaded.lifecycle.calculationState).toEqual(firstRead.lifecycle.calculationState);
+    const firstState = firstRead.lifecycle.calculationState;
+    const reloadedState = reloaded.lifecycle.calculationState;
+    expect(reloadedState.status).toBe(firstState.status);
+    expect(reloadedState.configVersion).toBe(firstState.configVersion);
+    expect(reloadedState.runId).toBe(firstState.runId);
+    expect(reloadedState.correlationId).toBe(firstState.correlationId);
+    expect(reloadedState.legacyEvidence).toBe(firstState.legacyEvidence);
+    expect(reloadedState.lastError).toBe(firstState.lastError);
+    expect([...reloadedState.expectedSnapshotTypes].sort()).toEqual(
+      [...firstState.expectedSnapshotTypes].sort()
+    );
+    for (const snapshotType of firstState.availableSnapshotTypes) {
+      expect(
+        reloadedState.availableSnapshotTypes,
+        `previously available snapshot type ${snapshotType} must remain available`
+      ).toContain(snapshotType);
+    }
+    const reloadedCalculatedAt = requiredString(
+      reloadedState.lastCalculatedAt,
+      'canary4 lastCalculatedAt'
+    );
+    const firstCalculatedAt = requiredString(
+      firstState.lastCalculatedAt,
+      'canary3 lastCalculatedAt'
+    );
+    expect(Date.parse(reloadedCalculatedAt)).toBeGreaterThanOrEqual(
+      Date.parse(firstCalculatedAt)
+    );
     expect(reloaded.sections.reserve).toEqual(firstRead.sections.reserve);
     expect(reloaded.sections.pacing).toEqual(firstRead.sections.pacing);
   });

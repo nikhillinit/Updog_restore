@@ -23,7 +23,7 @@ type JsonObject = Record<string, unknown>;
  * finalizer; tests/regressions/ci-fail-closed.test.ts pins that relationship.
  */
 export const RELEASE_CANARY_WORKER_POLL_DEADLINE_MS = 120_000;
-export const RELEASE_CANARY_WORKER_POLL_INTERVAL_MS = 250;
+export const RELEASE_CANARY_WORKER_POLL_INTERVAL_MS = 500;
 export const RELEASE_CANARY_WORKER_TIMEOUT = 'RELEASE_CANARY_WORKER_TIMEOUT' as const;
 
 export interface ReleaseCanaryWorkerExpectation {
@@ -104,9 +104,33 @@ export async function pollReleaseCanaryWorkerStatus(
   const observedStatuses: string[] = [];
   let lastBody: JsonObject | null = null;
 
+  const timeoutResult = (): ReleaseCanaryWorkerTimeout => ({
+    kind: RELEASE_CANARY_WORKER_TIMEOUT,
+    fundId: expectation.fundId,
+    scenarioSetId: expectation.scenarioSetId,
+    jobId: expectation.jobId,
+    correlationId: expectation.correlationId,
+    observedStatuses,
+    lastBody,
+  });
+
   for (;;) {
     const response = await deps.fetchStatus();
     if (response.status !== 200) {
+      // 429 and 5xx are transient serverless noise (cold starts, edge
+      // hiccups, rate-limit brushes); keep polling inside the deadline. Any
+      // other non-200 is a real contract violation and hard-fails.
+      if (response.status === 429 || response.status >= 500) {
+        const observed = `http-${response.status}`;
+        if (!observedStatuses.includes(observed)) {
+          observedStatuses.push(observed);
+        }
+        if (now() - startedAt >= deadlineMs) {
+          return timeoutResult();
+        }
+        await sleep(intervalMs);
+        continue;
+      }
       throw new Error(
         `[release-canary-polling] status route returned ${response.status}: ${JSON.stringify(response.body)}`
       );
@@ -165,15 +189,7 @@ export async function pollReleaseCanaryWorkerStatus(
     }
 
     if (now() - startedAt >= deadlineMs) {
-      return {
-        kind: RELEASE_CANARY_WORKER_TIMEOUT,
-        fundId: expectation.fundId,
-        scenarioSetId: expectation.scenarioSetId,
-        jobId: expectation.jobId,
-        correlationId: expectation.correlationId,
-        observedStatuses,
-        lastBody,
-      };
+      return timeoutResult();
     }
 
     await sleep(intervalMs);

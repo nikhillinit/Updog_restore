@@ -416,7 +416,12 @@ jobs:
     name: Authenticated Staged Production Smoke
     needs: [validate-deployment, railway-workers-verify]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Job budget = pre-canary steps (checkout, npm ci, playwright install,
+    # staged smoke: realistically 5-8 min) + the 12-minute release-canary step
+    # bound + finalizer margin. The STEP timeout must be the binding bound so
+    # a hung canary yields outcome=failure (not a job-level cancellation) and
+    # the always() residue finalizer still runs with time to spare.
+    timeout-minutes: 25
     environment: Production
     steps:
       - name: Re-fence live main before staged smoke
@@ -556,9 +561,10 @@ jobs:
 
       # continue-on-error lets the always-on finalizer bind the exact run to a
       # terminal state; the finalizer re-fails the job on canary failure. The
-      # step timeout keeps a hung canary bounded INSIDE the 15-minute job so
-      # the always() residue finalizer retains margin to classify the timeout
-      # as a current-run failure (a timed-out step yields outcome=failure).
+      # step timeout keeps a hung canary bounded INSIDE the 25-minute job
+      # budget (pre-canary steps + this bound + finalizer margin) so the
+      # always() residue finalizer retains margin to classify the timeout as a
+      # current-run failure (a timed-out step yields outcome=failure).
       - name: Run release canaries
         id: release_canaries
         timeout-minutes: 12

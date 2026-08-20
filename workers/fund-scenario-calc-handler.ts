@@ -1,4 +1,5 @@
 import { UnrecoverableError, type Job } from 'bullmq';
+import type { FundScenarioCalculationResponseV1 } from '@shared/contracts/fund-scenario-sets-v1.contract';
 import { logger } from '../lib/logger';
 import { metrics } from '../lib/metrics';
 import {
@@ -50,9 +51,11 @@ type FundScenarioCalcJob = Pick<
 >;
 
 function deriveAttempt(job: FundScenarioCalcJob): ReserveScenarioAttempt {
+  // BullMQ defaults opts.attempts to 0 (never undefined), so `|| 1` -- a
+  // `?? 1` fallback would derive limit 0 and fail-closed a valid delivery.
   const attempt: ReserveScenarioAttempt = {
     number: job.attemptsMade + 1,
-    limit: job.opts.attempts ?? 1,
+    limit: job.opts.attempts || 1,
   };
   if (
     !Number.isSafeInteger(attempt.number) ||
@@ -169,4 +172,5 @@ export const handleFundScenarioCalcJob: (
   job: FundScenarioCalcJob,
   _token?: string,
   signal?: AbortSignal
-) => Promise<unknown> = createFundScenarioCalcJobHandler();
+) => Promise<FundScenarioCalculationResponseV1 | undefined> =
+  createFundScenarioCalcJobHandler();

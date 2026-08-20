@@ -147,14 +147,50 @@ describe('release canary worker polling', () => {
     ).rejects.toThrow(/different job identity/);
   });
 
-  it('throws on a non-200 status response', async () => {
+  it('retries transient 5xx and 429 responses inside the deadline, then succeeds', async () => {
+    const clock = manualClock(250);
+    const responses = [
+      { status: 503, body: 'cold start' },
+      { status: 429, body: 'rate limited' },
+      { status: 200, body: successBody() },
+    ];
+    let index = 0;
+
+    const result = await pollReleaseCanaryWorkerStatus(expectation, {
+      fetchStatus: async () => responses[Math.min(index++, responses.length - 1)]!,
+      now: clock.now,
+      sleep: clock.sleep,
+      deadlineMs: 10_000,
+      intervalMs: 250,
+    });
+
+    expect(result.kind).toBe('succeeded');
+  });
+
+  it('returns a typed timeout when transient errors persist past the deadline', async () => {
+    const clock = manualClock(1_000);
+    const result = await pollReleaseCanaryWorkerStatus(expectation, {
+      fetchStatus: async () => ({ status: 503, body: 'unavailable' }),
+      now: clock.now,
+      sleep: clock.sleep,
+      deadlineMs: 3_000,
+      intervalMs: 1_000,
+    });
+
+    expect(result.kind).toBe(RELEASE_CANARY_WORKER_TIMEOUT);
+    if (result.kind !== RELEASE_CANARY_WORKER_TIMEOUT) return;
+    expect(result.observedStatuses).toContain('http-503');
+    expect(result.jobId).toBe(expectation.jobId);
+  });
+
+  it('throws on a non-retryable non-200 status response', async () => {
     await expect(
       pollReleaseCanaryWorkerStatus(expectation, {
-        fetchStatus: async () => ({ status: 503, body: 'unavailable' }),
+        fetchStatus: async () => ({ status: 404, body: 'not found' }),
         deadlineMs: 1_000,
         intervalMs: 100,
       })
-    ).rejects.toThrow(/returned 503/);
+    ).rejects.toThrow(/returned 404/);
   });
 
   it('matches only the exact fund, scenario set, and correlation', () => {
