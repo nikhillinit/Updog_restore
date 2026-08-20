@@ -888,6 +888,29 @@ describe('surface contract matrix seed semantic regressions', () => {
     expect(adminOnly.auth_roles).toEqual(['admin']);
     expect(adminOnly.personas).toEqual(['admin']);
 
+    const fmvOverride = suggest(
+      'POST',
+      '/api/funds/:fundId/planning/fmv-overrides',
+      'server/routes/planning-fmv-overrides.ts:91'
+    );
+    expect(fmvOverride.auth_roles).toEqual(['admin']);
+    expect(fmvOverride.personas).toEqual(['admin']);
+    expect(fmvOverride.auth_evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          file: 'server/routes/planning-fmv-overrides.ts',
+          role: 'admin',
+        }),
+      ])
+    );
+
+    const fmvOverrideLatest = suggest(
+      'GET',
+      '/api/funds/:fundId/planning/fmv-overrides/latest',
+      'server/routes/planning-fmv-overrides.ts:130'
+    );
+    expect(fmvOverrideLatest.auth_roles).toEqual([]);
+
     const unresolvedGuard = seed.authSuggestionFor({
       manifest: { authBoundary: 'and_role' },
       additionalAuthEvidence: [

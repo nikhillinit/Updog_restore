@@ -445,12 +445,51 @@ const routeRegistrationRange = (source, line) => {
   return { lines, start, end };
 };
 
+const helperGuardNameContainingLine = (source, line) => {
+  const lines = String(source ?? '').split('\n');
+  const target = Math.max(0, Number(line ?? 1) - 1);
+  const declaration = /^\s*(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\b/;
+
+  for (let start = target; start >= 0; start -= 1) {
+    const match = declaration.exec(lines[start]);
+    if (!match) continue;
+
+    let depth = 0;
+    let opened = false;
+    let containsTarget = false;
+    for (let index = start; index < lines.length; index += 1) {
+      for (const character of lines[index]) {
+        if (character === '{') {
+          depth += 1;
+          opened = true;
+        } else if (character === '}' && opened) {
+          depth -= 1;
+        }
+      }
+      if (index === target) containsTarget = true;
+      if (opened && depth === 0) {
+        const helperSource = lines.slice(start, index + 1).join('\n');
+        if (containsTarget && /\bres\.status\(\s*403\s*\)/.test(helperSource)) return match[1];
+        break;
+      }
+    }
+  }
+
+  return undefined;
+};
+
 const roleEvidenceBelongsToRouteDefinitions = (entry, definitions, source) => {
   if (!entry.role || !Number.isInteger(entry.line)) return true;
   return definitions.some((definition) => {
     if (definitionFile(definition.site) !== entry.file) return false;
-    const { start, end } = routeRegistrationRange(source, definitionLine(definition));
-    return entry.line >= start && entry.line < end;
+    const { lines, start, end } = routeRegistrationRange(source, definitionLine(definition));
+    if (entry.line >= start && entry.line < end) return true;
+
+    const helperName = helperGuardNameContainingLine(source, entry.line);
+    if (!helperName) return false;
+    const registration = lines.slice(start - 1, end - 1).join('\n');
+    const escapedName = helperName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`\\b${escapedName}\\s*\\(`).test(registration);
   });
 };
 
