@@ -108,7 +108,7 @@ jobs:
     name: Full DB-backed Release Proof
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    environment: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && 'Production' || '' }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && 'Production' || '' }}
     outputs:
       candidate_sha: ${{ steps.candidate.outputs.candidate_sha }}
       matrix_summary_sha256: ${{ steps.summaries.outputs.matrix_summary_sha256 }}
