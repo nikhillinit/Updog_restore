@@ -902,14 +902,16 @@ describe('surface contract matrix seed semantic regressions', () => {
 
     for (const [method, routePath, site, scopeBoundary] of expectedRoutes) {
       const suggestion = suggest(method, routePath, site);
-      // fund_scope allows service principal (via resolveFundScope); team_fund_scope does not
+      // fund_scope via resolveFundScope allows service (any fund) and scoped user
+      // principals (lp, operator, viewer) in addition to team roles.
       const expectedRoles =
         scopeBoundary === 'fund_scope'
-          ? ['admin', 'analyst', 'partner', 'service']
+          ? ['admin', 'analyst', 'lp', 'operator', 'partner', 'service', 'viewer']
           : ['admin', 'analyst', 'partner'];
+      // Personas after mapping: operator->gp, viewer->analyst (unique set)
       const expectedPersonas =
         scopeBoundary === 'fund_scope'
-          ? ['admin', 'analyst', 'gp', 'service']
+          ? ['admin', 'analyst', 'gp', 'lp', 'service']
           : ['admin', 'analyst', 'gp'];
       expect(suggestion.auth_roles, routePath).toEqual(expectedRoles);
       expect(suggestion.personas, routePath).toEqual(expectedPersonas);
@@ -949,7 +951,24 @@ describe('surface contract matrix seed semantic regressions', () => {
             role: 'service',
             boundary: scopeBoundary,
             file: 'server/lib/auth/fund-scope.ts',
-            line: 15,
+          }),
+          expect.objectContaining({
+            kind: 'identity',
+            role: 'lp',
+            boundary: scopeBoundary,
+            file: 'server/lib/auth/fund-scope.ts',
+          }),
+          expect.objectContaining({
+            kind: 'identity',
+            role: 'operator',
+            boundary: scopeBoundary,
+            file: 'server/lib/auth/fund-scope.ts',
+          }),
+          expect.objectContaining({
+            kind: 'identity',
+            role: 'viewer',
+            boundary: scopeBoundary,
+            file: 'server/lib/auth/fund-scope.ts',
           })
         );
       }
