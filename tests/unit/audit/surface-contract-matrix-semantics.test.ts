@@ -11,6 +11,7 @@ import * as matrixSchema from '../../../audit/surface-contract-matrix/matrix-sch
 import { classifyDocument } from '../../../audit/surface-contract-matrix/scripts/classify-pass.mjs';
 import { routePolicyKey } from '../../../server/route-policy/api-route-policy-registry.ts';
 import { QUEUE_CATALOG } from '../../../server/queues/registry.ts';
+import { TEAM_WRITE_ROLES } from '../../../shared/auth/effective-roles.ts';
 
 const repoRoot = process.cwd();
 const seedPath = path.join(repoRoot, 'audit/surface-contract-matrix/scripts/seed-matrix.mjs');
@@ -113,7 +114,7 @@ async function loadSeedInternals(
     .replaceAll(/^export const /gm, 'const ')
     .replaceAll(/^export function /gm, 'function ')
     .concat(
-      '\n globalThis.__seedInternals = { createRuntimeIndex, makeApiRows, applyBootProofs, assertBootProofSourceSha, makeClientRows, makeBackgroundRows, makeWorkerRows, makeListenerRows, makeVercelFunctionRows, queueRuntimeFor, makeListenerDispositions, makeRuntimeExclusions, mergeRuntimeExclusions, sourceMappings, mergeSeededMatrix, definingSourceHashesForRow, clearUnapprovedSourceHashes };'
+      '\n globalThis.__seedInternals = { createRuntimeIndex, makeApiRows, applyBootProofs, assertBootProofSourceSha, makeClientRows, makeBackgroundRows, makeWorkerRows, makeListenerRows, makeVercelFunctionRows, queueRuntimeFor, makeListenerDispositions, makeRuntimeExclusions, mergeRuntimeExclusions, sourceMappings, mergeSeededMatrix, definingSourceHashesForRow, clearUnapprovedSourceHashes, authSuggestionFor };'
     );
 
   const context = vm.createContext({
@@ -177,6 +178,7 @@ async function loadSeedInternals(
       { path: '/moic-analysis', surface: 'legacy-redirect', redirectTarget: '/model-results' },
       { path: '/fund-model-results/:fundId/moic-analysis', surface: 'app-route' },
     ],
+    TEAM_WRITE_ROLES,
     ...matrixSchema,
   });
 
@@ -788,6 +790,186 @@ describe('surface contract matrix seed semantic regressions', () => {
       })
     );
     expect(JSON.stringify(exposure)).not.toContain('file:server/routes.ts:209');
+  });
+
+  it('derives team personas only from global authentication plus source-cited team/fund scope', async () => {
+    const seed = (await loadSeedInternals()) as unknown as {
+      authSuggestionFor: (input: Record<string, unknown>) => {
+        auth_roles: string[];
+        auth_evidence: Array<{
+          role?: string;
+          boundary?: string;
+          file?: string;
+          line?: number;
+        }>;
+        personas: string[];
+      };
+    };
+    const globalAuthentication = {
+      kind: 'policy-boundary',
+      boundary: 'global_authenticated',
+      file: 'server/server.ts',
+      line: 215,
+      evidence: 'server/server.ts:215 requireSecureContext precedes protected create_server routes',
+    };
+    const suggest = (
+      method: string,
+      routePath: string,
+      site: string,
+      authBoundary = 'require_auth'
+    ) =>
+      seed.authSuggestionFor({
+        manifest: { authBoundary },
+        definitions: [{ method, path: routePath, role: 'handler', site }],
+        additionalAuthEvidence: [globalAuthentication],
+        method,
+        path: routePath,
+      });
+
+    const expectedRoutes = [
+      ['GET', '/api/timeline/:fundId/state', 'server/routes/timeline.ts:154', 'fund_scope'],
+      ['GET', '/api/shares', 'server/routes/shares.ts:460', 'team_fund_scope'],
+      ['GET', '/api/shares/:shareId/analytics', 'server/routes/shares.ts:630', 'team_fund_scope'],
+      ['POST', '/api/shares', 'server/routes/shares.ts:406', 'team_fund_scope'],
+      ['PATCH', '/api/shares/:shareId', 'server/routes/shares.ts:491', 'team_fund_scope'],
+      ['DELETE', '/api/shares/:shareId', 'server/routes/shares.ts:580', 'team_fund_scope'],
+    ] as const;
+
+    for (const [method, routePath, site, scopeBoundary] of expectedRoutes) {
+      const suggestion = suggest(method, routePath, site);
+      expect(suggestion.auth_roles, routePath).toEqual(['admin', 'analyst', 'partner']);
+      expect(suggestion.personas, routePath).toEqual(['admin', 'analyst', 'gp']);
+      expect(suggestion.auth_evidence, routePath).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            boundary: 'global_authenticated',
+            file: 'server/server.ts',
+            line: 215,
+          }),
+          expect.objectContaining({ boundary: scopeBoundary, file: site.split(':')[0] }),
+          expect.objectContaining({
+            kind: 'identity',
+            role: 'admin',
+            boundary: scopeBoundary,
+            file: 'shared/auth/effective-roles.ts',
+            line: 58,
+          }),
+          expect.objectContaining({
+            kind: 'identity',
+            role: 'partner',
+            boundary: scopeBoundary,
+            file: 'shared/auth/effective-roles.ts',
+            line: 58,
+          }),
+          expect.objectContaining({
+            kind: 'identity',
+            role: 'analyst',
+            boundary: scopeBoundary,
+            file: 'shared/auth/effective-roles.ts',
+            line: 58,
+          }),
+        ])
+      );
+      for (const evidence of suggestion.auth_evidence) {
+        expect(() => matrixSchema.AuthEvidenceSchema.parse(evidence), routePath).not.toThrow();
+      }
+    }
+
+    const publicShare = suggest(
+      'GET',
+      '/api/public/shares/:shareId',
+      'server/routes/shares.ts:674',
+      'public'
+    );
+    expect(publicShare.auth_roles).toEqual(['public']);
+    expect(publicShare.personas).toEqual(['public']);
+
+    const partnerWrite = suggest('POST', '/api/funds', 'server/routes/funds.ts:221');
+    expect(partnerWrite.auth_roles).toEqual(['admin', 'partner']);
+    expect(partnerWrite.personas).toEqual(['admin', 'gp']);
+
+    const adminOnly = suggest(
+      'GET',
+      '/api/timeline/events/latest',
+      'server/routes/timeline.ts:303'
+    );
+    expect(adminOnly.auth_roles).toEqual(['admin']);
+    expect(adminOnly.personas).toEqual(['admin']);
+
+    const fmvOverride = suggest(
+      'POST',
+      '/api/funds/:fundId/planning/fmv-overrides',
+      'server/routes/planning-fmv-overrides.ts:91'
+    );
+    expect(fmvOverride.auth_roles).toEqual(['admin']);
+    expect(fmvOverride.personas).toEqual(['admin']);
+    expect(fmvOverride.auth_evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          file: 'server/routes/planning-fmv-overrides.ts',
+          role: 'admin',
+        }),
+      ])
+    );
+
+    const fmvOverrideLatest = suggest(
+      'GET',
+      '/api/funds/:fundId/planning/fmv-overrides/latest',
+      'server/routes/planning-fmv-overrides.ts:130'
+    );
+    expect(fmvOverrideLatest.auth_roles).toEqual([]);
+
+    const unresolvedGuard = seed.authSuggestionFor({
+      manifest: { authBoundary: 'and_role' },
+      additionalAuthEvidence: [
+        globalAuthentication,
+        {
+          kind: 'policy-boundary',
+          boundary: 'team_fund_scope',
+          file: 'server/routes/shares.ts',
+          line: 412,
+          evidence: 'server/routes/shares.ts:412 canManageFund denies unauthorized fund access',
+        },
+      ],
+      method: 'POST',
+      path: '/api/synthetic-unresolved',
+    });
+    expect(unresolvedGuard.auth_roles).toEqual(['unresolved']);
+    expect(unresolvedGuard.personas).toEqual(['unknown']);
+  });
+
+  it('matchingDelimiter skips apostrophes inside line and block comments', () => {
+    const schema = matrixSchema as Record<string, (...args: unknown[]) => unknown>;
+    const matchingDelimiter = schema.matchingDelimiter as (
+      source: string,
+      openIndex: number,
+      open?: string,
+      close?: string
+    ) => number;
+
+    const lineComment = `(a, // it's fine\nb)`;
+    expect(matchingDelimiter(lineComment, 0)).toBe(lineComment.length - 1);
+
+    const blockComment = `(a, /* it's fine */ b)`;
+    expect(matchingDelimiter(blockComment, 0)).toBe(blockComment.length - 1);
+
+    const nested = `(a, /* it's */ // don't break\nb)`;
+    expect(matchingDelimiter(nested, 0)).toBe(nested.length - 1);
+  });
+
+  it('routeRegistrationRanges returns narrow range when comments contain apostrophes', () => {
+    const schema = matrixSchema as Record<string, (...args: unknown[]) => unknown>;
+    const routeRegistrationRanges = schema.routeRegistrationRanges as (
+      source: string,
+      options: Record<string, unknown>
+    ) => [number, number][];
+
+    const source = fs.readFileSync(path.join(repoRoot, 'server/routes/timeline.ts'), 'utf8');
+    const ranges = routeRegistrationRanges(source, { method: 'GET', registrationLines: [154] });
+    expect(ranges).toHaveLength(1);
+    const [_start, end] = ranges[0];
+    const endLine = source.slice(0, end).split('\n').length;
+    expect(endLine).toBeLessThanOrEqual(193);
   });
 
   it('unions make_app/create_server observations and derives protected/public auth boundaries', async () => {

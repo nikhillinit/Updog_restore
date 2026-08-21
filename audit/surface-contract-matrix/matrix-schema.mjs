@@ -1087,7 +1087,7 @@ const stringLiterals = (source) => [...source.matchAll(/(['"])([^'"\n]+)\1/g)].m
   offset: match.index ?? 0,
 }));
 
-const matchingDelimiter = (source, openIndex, open = '(', close = ')') => {
+export const matchingDelimiter = (source, openIndex, open = '(', close = ')') => {
   let depth = 0;
   let quote;
   for (let index = openIndex; index < source.length; index += 1) {
@@ -1101,6 +1101,19 @@ const matchingDelimiter = (source, openIndex, open = '(', close = ')') => {
       quote = character;
       continue;
     }
+    if (character === '/' && index + 1 < source.length) {
+      if (source[index + 1] === '/') {
+        index = source.indexOf('\n', index + 2);
+        if (index === -1) return source.length;
+        continue;
+      }
+      if (source[index + 1] === '*') {
+        index = source.indexOf('*/', index + 2);
+        if (index === -1) return source.length;
+        index += 1;
+        continue;
+      }
+    }
     if (character === open) depth += 1;
     if (character === close) {
       depth -= 1;
@@ -1110,7 +1123,7 @@ const matchingDelimiter = (source, openIndex, open = '(', close = ')') => {
   return source.length;
 };
 
-const routeRegistrationRanges = (source, options = {}) => {
+export const routeRegistrationRanges = (source, options = {}) => {
   const method = String(options.method ?? '').toLowerCase();
   const registrationLines = new Set(options.registrationLines ?? []);
   const methods = method || 'use|get|post|put|patch|delete|options|head|all';
@@ -1137,7 +1150,7 @@ const routeRegistrationRanges = (source, options = {}) => {
   return ranges;
 };
 
-const functionRangesForNames = (source, names) => {
+export const functionRangesForNames = (source, names) => {
   const ranges = [];
   for (const name of names) {
     const pattern = new RegExp(`(?:\\b(?:async\\s+)?function\\s+${name}\\s*\\([^)]*\\)|\\b(?:const|let|var)\\s+${name}\\s*=\\s*(?:async\\s*)?(?:\\([^)]*\\)|[A-Za-z_$][\\w$]*)\\s*=>)`);
