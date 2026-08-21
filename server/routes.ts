@@ -130,14 +130,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }
 
-  // Development dashboard routes (development only)
-  if (process.env['NODE_ENV'] === 'development') {
-    await mountDefaultRoute(app, {
-      mountPath: '/api/dev-dashboard',
-      load: () => import('./routes/dev-dashboard.js'),
-    });
-  }
-
   app.use('/api', (_req: Request, res: Response) => {
     res.status(404).json({
       error: 'not_found',

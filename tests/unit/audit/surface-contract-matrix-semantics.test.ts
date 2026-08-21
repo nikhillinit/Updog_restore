@@ -1159,13 +1159,6 @@ describe('surface contract matrix seed semantic regressions', () => {
       '/ws/portfolio-metrics'
     );
     expect(background.get('ws:portfolio-metrics')?.exposures[0].conditions).toEqual([]);
-    expect(background.get('ws:dev-dashboard')?.exposures[0].ingresses[0].external_path).toBe(
-      '/socket.io/dev-dashboard'
-    );
-    expect(background.get('ws:dev-dashboard')?.exposures[0].conditions).toEqual([
-      { NODE_ENV: 'development' },
-    ]);
-
     const workers = seed.makeWorkerRows({
       nodes: new Map(),
       findings: [],

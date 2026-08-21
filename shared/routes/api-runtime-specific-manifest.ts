@@ -204,14 +204,6 @@ export const API_RUNTIME_SPECIFIC_MANIFEST = [
     reason: 'Error-budget reporting is intentionally controlled by FEATURES.metrics.',
   },
   {
-    id: 'register-routes-dev-dashboard',
-    sourceModule: './routes/dev-dashboard.js',
-    surface: 'register_routes',
-    classification: 'development_only',
-    mountPaths: ['/api/dev-dashboard'],
-    reason: 'The development dashboard mounts only when NODE_ENV is development.',
-  },
-  {
     id: 'register-routes-websocket-setup',
     sourceModule: './websocket/index.js',
     surface: 'register_routes',

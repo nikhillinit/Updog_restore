@@ -1315,14 +1315,6 @@ const makeBackgroundRows = (snapshotId) => {
         evidence: 'portfolio metrics WebSocket requires authenticated fund/channel authorization',
       }],
     },
-    {
-      id: 'ws:dev-dashboard',
-      seam: 'dev-dashboard',
-      path: '/socket.io/dev-dashboard',
-      sourceFile: 'server/websocket/dev-dashboard.ts',
-      conditions: [{ NODE_ENV: 'development' }],
-      authEvidence: [],
-    },
   ];
   for (const websocket of websocketRows) {
     rows.set(websocket.id, makeRow({

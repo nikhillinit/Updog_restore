@@ -486,14 +486,6 @@ describe('canonical common API route manifest', () => {
           "surface": "register_routes",
         },
         {
-          "classification": "development_only",
-          "id": "register-routes-dev-dashboard",
-          "mountPaths": [
-            "/api/dev-dashboard",
-          ],
-          "surface": "register_routes",
-        },
-        {
           "classification": "runtime_specific",
           "id": "register-routes-websocket-setup",
           "mountPaths": [],

@@ -20,7 +20,6 @@ export const LEGACY_ROUTE_MAP = new Map<string, string>([
   ['/kpi-manager', '/operate'],
   ['/variance-tracking', '/operate'],
   ['/notion-integration', '/operate'],
-  ['/dev-dashboard', '/operate'],
 
   // Analytics/Reporting → Report
   ['/performance', '/report'],

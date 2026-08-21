@@ -42,7 +42,6 @@
     "api:GET:/api/deals/opportunities/:id",
     "api:GET:/api/deals/pipeline",
     "api:GET:/api/deals/stages",
-    "api:GET:/api/dev-dashboard/health",
     "api:GET:/api/error-budget",
     "api:GET:/api/error-budget/:slo",
     "api:GET:/api/error-budget/config/slos",
@@ -268,9 +267,6 @@
     "api:POST:/api/deals/opportunities/bulk/status",
     "api:POST:/api/deals/opportunities/import",
     "api:POST:/api/deals/opportunities/import/preview",
-    "api:POST:/api/dev-dashboard/fix/build",
-    "api:POST:/api/dev-dashboard/fix/tests",
-    "api:POST:/api/dev-dashboard/fix/typescript",
     "api:POST:/api/error-budget/config/slos",
     "api:POST:/api/flags/admin/kill-switch",
     "api:POST:/api/funds",
@@ -471,7 +467,6 @@
     "worker:pacing-calc",
     "worker:reserve-calc",
     "worker:scenario-generation",
-    "ws:dev-dashboard",
     "ws:portfolio-metrics"
   ],
   "source_hashes": {
@@ -487,7 +482,7 @@
     "audit/surface-contract-matrix/scripts/classify-pass.mjs": "a2bd0a16e774af2283c7eaab5780adc755144cd53d474eafe037d75810c5ac41",
     "audit/surface-contract-matrix/scripts/inspect-runtime.mjs": "fa5ff8da3dca79d44de6c1985a6bb4c6839b8ca26cdee28c61be0c04d9eaf9d5",
     "audit/surface-contract-matrix/scripts/render-matrix.mjs": "8eb22f884914ba8acd4a45d0da8a36c0dd46adff610fa582e0df42029dc90a7c",
-    "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "97df54b88567b1bdf3cb5354f3b347ef3d574743c771e426afac9bebfdf01f7e",
+    "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "41a40d4af1f872d3341d793ccab6b38874ff0030a80e00311863e27492ed8176",
     "audit/surface-contract-matrix/scripts/validate-matrix.mjs": "2c8f7db41a6d63d8dd480136ee49b0e25352e0d4bb372a1c4d472efff6bd8c09",
     "client/index.html": "0df45382b3b9f6728fa9ed66b432cac741eae938f4c360c9a9036f1ab3c922df",
     "client/src/App.tsx": "f20dc82c2e4ee45e7886f72b02ed4ed2d80953e21869e1dbba4b4223322a911b",
@@ -526,7 +521,7 @@
     "server/queues/report-generation-queue.ts": "0e48ee156db7373d86cb3c9d612ddda1e51c6561fc1dd83e10f82f9502be668c",
     "server/queues/simulation-queue.ts": "d7df903d9fe41a000f2f22c8c6ddf738bcc71ee5a49d805480145d6df49815e5",
     "server/route-policy/api-route-policy-registry.ts": "1469b00a107b651cbe8a44d6e65a2790b499c763792cb5cac3eecf8420b1b612",
-    "server/routes.ts": "141adc2a75568479dea21649ec234f84f291527858d1a161e26832a49698ab2a",
+    "server/routes.ts": "d0ab9c310887ae36eb4c71ee511d75a602cb201481fa740beed9820a9943d968",
     "server/routes/_ops-stage-validation.ts": "291e31b27be1d285743260d2489308da9018c7e1269d73cd20c9c476c3ed072c",
     "server/routes/activities.ts": "a8c0f14313678e755b363d65f4d1bb69bb657ef3097b472de2793d2f9cdf0c59",
     "server/routes/admin/circuit-admin.ts": "5b88cb992610388ea3bee4676d9c65b74a62e8aab65a7f2880980e88f5d54429",
@@ -545,7 +540,6 @@
     "server/routes/current-forecast.ts": "de1fe6b868c90b8c41b08ac7ea2d0e2eb9d38c81c29b113c39c619eedfb5ccef",
     "server/routes/dashboard-summary.ts": "7b592fb19016ed178538f656fe374a65221c2c0616fd4e8dec66b2305b2013ae",
     "server/routes/deal-pipeline.ts": "f6495b1fc70dfe88d0d85c4da58a6da224b7b233869df0b1c15dfde079857a51",
-    "server/routes/dev-dashboard.ts": "05b5092160133069c03e06406f62eb572ccc1bbae9c5596229c244ed150f3e2a",
     "server/routes/dual-forecast.ts": "a70c7af05aa2bb9aff5c04ff589124d7b198216302c1e11d0fb95c9f26982289",
     "server/routes/engine-summaries.ts": "cf715d70953aa7b50034aa193e248e0745ca3774b67d342bbdf30c4c6e94b12b",
     "server/routes/error-budget.ts": "4d712d09d9e0703824ff21577e2f0e0be6a1d58d462fe44a23aa369a373b9367",
@@ -610,15 +604,14 @@
     "server/server.ts": "d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
     "server/services/CacheWarmingService.ts": "5ae86364d4e617a001425143f4136f50ea1afb0d2c91123dd8913038abaaabb2",
     "server/websocket.ts": "2ed29caee85bd6ac49ab9eefab8fb04fe0da5b20796d2a213fa4c6845b14acca",
-    "server/websocket/dev-dashboard.ts": "8b8ce1712ff0ec51388562e545949f2792edec61407c476d4657a9d82045d2e0",
-    "server/websocket/index.ts": "74850ccebad13e8f9b48218a813877854d98a51e38b966ce21eb49d36642d8aa",
+    "server/websocket/index.ts": "97fd27af871f15033f203711567be43848dc009ee9b49dd7d68d6ed959b7b19d",
     "server/websocket/portfolio-metrics.ts": "9c331deb7f137d62b5723d55529f949aa7c5c779c92d34bc7f1b2669ec4f7c59",
     "server/workers/capital-call-status-worker.ts": "79e18217fd3c676b8ac86ce0815bcc4b50ba33bfb9b6ebbe8bed8d8f264a88a7",
     "server/workers/lp-materialized-view-refresh.ts": "39ee6b698475c1168769c5c23afef4cf5778dc2c23d4b706a94a49fbf9d5da0c",
     "server/workers/scenarioGeneratorWorker.ts": "a7abb61e7806d17a787babc89f03c1e054ed1e793ec196b1fee4c8d7821749d6",
     "shared/auth/effective-roles.ts": "137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6",
     "shared/routes/api-route-manifest.ts": "306d02abbd576f98b958b3cadc3b3add0f1653c89ca329317c67fd604530659e",
-    "shared/routes/api-runtime-specific-manifest.ts": "0daa50b7d7d569e6068a8e6998e57b3a6b3c76effa5a3834d53302c60b566805",
+    "shared/routes/api-runtime-specific-manifest.ts": "adf30ee681cd5c166966082375c6ea830609c6fccb17f026442634e777b1e9b9",
     "shared/routes/app-route-definitions.ts": "72ac7651f290aea940432af3ffde06746f8ce7b3b7a198e6ad718d336c673a0b",
     "shared/routes/route-governance-registry.ts": "07c1e15b2f1c343320125eac20ff75e55c6c7f63fa2b1d578aba9eadd8c76928",
     "vercel.json": "241cee864babe1bcf678a50db4d8bbd1ec3829535185f8ba4c3075c1d7548430",
@@ -637,7 +630,7 @@
     "workers/worker-deployment-identity.ts": "369efd8ded2e6e2c432ad404b74bac54c49b6b51c2ea2c1e794bc6a66c13566b",
     "package.json#scripts": "841a66df28ea6a3ad01220edbfb9da60ad39f75171f893969faddb16a71bb78a",
     "shared/routes/api-route-manifest.ts#normalized-runtime-export": "eba14203d83dff52e5c820a9ab8219319db86e895c54f720d41b8227ee02160e",
-    "shared/routes/api-runtime-specific-manifest.ts#normalized-runtime-export": "f7ec3dfc046d32b5e3622f1d6ae98b1c7b6479bedf7b20296f1b920fd0a19c15",
+    "shared/routes/api-runtime-specific-manifest.ts#normalized-runtime-export": "c6251695b7a4563177b787122ab37a4dc0b2845eb8b3fad3a7c5f2964320db81",
     "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "9dc556cc80687ec08919874cc10a059a85cd6b0d0d5d2dfcb7efbeb74ef23885",
     "shared/routes/route-governance-registry.ts#normalized-runtime-export": "2cf271d9243d70a053d3f5bd020bf01d8d26373ae281a70307337b68f01ddd8b",
     "client/src/app/app-routes.tsx": "d89f82ec32b5530508c0685ac38e2cb0c586900aa3b9bb6ae0b162314424e4d3",
@@ -1006,7 +999,6 @@
       "api:GET:/api/deals/opportunities/:id",
       "api:GET:/api/deals/pipeline",
       "api:GET:/api/deals/stages",
-      "api:GET:/api/dev-dashboard/health",
       "api:GET:/api/error-budget",
       "api:GET:/api/error-budget/:slo",
       "api:GET:/api/error-budget/config/slos",
@@ -1216,9 +1208,6 @@
       "api:POST:/api/deals/opportunities/bulk/status",
       "api:POST:/api/deals/opportunities/import",
       "api:POST:/api/deals/opportunities/import/preview",
-      "api:POST:/api/dev-dashboard/fix/build",
-      "api:POST:/api/dev-dashboard/fix/tests",
-      "api:POST:/api/dev-dashboard/fix/typescript",
       "api:POST:/api/error-budget/config/slos",
       "api:POST:/api/flags/admin/kill-switch",
       "api:POST:/api/funds",
@@ -1378,7 +1367,6 @@
       "api:GET:/api/deals/opportunities/:id",
       "api:GET:/api/deals/pipeline",
       "api:GET:/api/deals/stages",
-      "api:GET:/api/dev-dashboard/health",
       "api:GET:/api/error-budget",
       "api:GET:/api/error-budget/:slo",
       "api:GET:/api/error-budget/config/slos",
@@ -1588,9 +1576,6 @@
       "api:POST:/api/deals/opportunities/bulk/status",
       "api:POST:/api/deals/opportunities/import",
       "api:POST:/api/deals/opportunities/import/preview",
-      "api:POST:/api/dev-dashboard/fix/build",
-      "api:POST:/api/dev-dashboard/fix/tests",
-      "api:POST:/api/dev-dashboard/fix/typescript",
       "api:POST:/api/error-budget/config/slos",
       "api:POST:/api/flags/admin/kill-switch",
       "api:POST:/api/funds",
@@ -1750,7 +1735,6 @@
       "api:GET:/api/deals/opportunities/:id",
       "api:GET:/api/deals/pipeline",
       "api:GET:/api/deals/stages",
-      "api:GET:/api/dev-dashboard/health",
       "api:GET:/api/error-budget",
       "api:GET:/api/error-budget/:slo",
       "api:GET:/api/error-budget/config/slos",
@@ -1960,9 +1944,6 @@
       "api:POST:/api/deals/opportunities/bulk/status",
       "api:POST:/api/deals/opportunities/import",
       "api:POST:/api/deals/opportunities/import/preview",
-      "api:POST:/api/dev-dashboard/fix/build",
-      "api:POST:/api/dev-dashboard/fix/tests",
-      "api:POST:/api/dev-dashboard/fix/typescript",
       "api:POST:/api/error-budget/config/slos",
       "api:POST:/api/flags/admin/kill-switch",
       "api:POST:/api/funds",
@@ -2125,7 +2106,6 @@
       "api:GET:/api/deals/opportunities/:id",
       "api:GET:/api/deals/pipeline",
       "api:GET:/api/deals/stages",
-      "api:GET:/api/dev-dashboard/health",
       "api:GET:/api/error-budget",
       "api:GET:/api/error-budget/:slo",
       "api:GET:/api/error-budget/config/slos",
@@ -2345,9 +2325,6 @@
       "api:POST:/api/deals/opportunities/bulk/status",
       "api:POST:/api/deals/opportunities/import",
       "api:POST:/api/deals/opportunities/import/preview",
-      "api:POST:/api/dev-dashboard/fix/build",
-      "api:POST:/api/dev-dashboard/fix/tests",
-      "api:POST:/api/dev-dashboard/fix/typescript",
       "api:POST:/api/error-budget/config/slos",
       "api:POST:/api/flags/admin/kill-switch",
       "api:POST:/api/funds",
@@ -2531,7 +2508,6 @@
       "api:GET:/api/deals/opportunities/:id",
       "api:GET:/api/deals/pipeline",
       "api:GET:/api/deals/stages",
-      "api:GET:/api/dev-dashboard/health",
       "api:GET:/api/error-budget",
       "api:GET:/api/error-budget/:slo",
       "api:GET:/api/error-budget/config/slos",
@@ -2722,9 +2698,6 @@
       "api:POST:/api/deals/opportunities/bulk/status",
       "api:POST:/api/deals/opportunities/import",
       "api:POST:/api/deals/opportunities/import/preview",
-      "api:POST:/api/dev-dashboard/fix/build",
-      "api:POST:/api/dev-dashboard/fix/tests",
-      "api:POST:/api/dev-dashboard/fix/typescript",
       "api:POST:/api/error-budget/config/slos",
       "api:POST:/api/flags/admin/kill-switch",
       "api:POST:/api/funds",
@@ -3068,15 +3041,6 @@
     ],
     "api:GET:/api/deals/stages": [
       "api:GET:/api/deals/stages"
-    ],
-    "server/routes/dev-dashboard.ts": [
-      "api:GET:/api/dev-dashboard/health",
-      "api:POST:/api/dev-dashboard/fix/build",
-      "api:POST:/api/dev-dashboard/fix/tests",
-      "api:POST:/api/dev-dashboard/fix/typescript"
-    ],
-    "api:GET:/api/dev-dashboard/health": [
-      "api:GET:/api/dev-dashboard/health"
     ],
     "server/routes/error-budget.ts": [
       "api:GET:/api/error-budget",
@@ -3912,7 +3876,6 @@
       "scheduler:artifact-retention",
       "scheduler:internal-analysis-checkpoint",
       "scheduler:variance-alert-automation",
-      "ws:dev-dashboard",
       "ws:portfolio-metrics"
     ],
     "api:GET:/health/detailed": [
@@ -4111,15 +4074,6 @@
     ],
     "api:POST:/api/deals/opportunities/import/preview": [
       "api:POST:/api/deals/opportunities/import/preview"
-    ],
-    "api:POST:/api/dev-dashboard/fix/build": [
-      "api:POST:/api/dev-dashboard/fix/build"
-    ],
-    "api:POST:/api/dev-dashboard/fix/tests": [
-      "api:POST:/api/dev-dashboard/fix/tests"
-    ],
-    "api:POST:/api/dev-dashboard/fix/typescript": [
-      "api:POST:/api/dev-dashboard/fix/typescript"
     ],
     "api:POST:/api/error-budget/config/slos": [
       "api:POST:/api/error-budget/config/slos"
@@ -4787,20 +4741,13 @@
     "server/workers/scenarioGeneratorWorker.ts": [
       "worker:scenario-generation"
     ],
-    "server/websocket/dev-dashboard.ts": [
-      "ws:dev-dashboard",
-      "ws:portfolio-metrics"
-    ],
     "server/routes.ts:153": [
-      "ws:dev-dashboard",
       "ws:portfolio-metrics"
     ],
     "server/websocket/index.ts": [
-      "ws:dev-dashboard",
       "ws:portfolio-metrics"
     ],
     "server/websocket/portfolio-metrics.ts": [
-      "ws:dev-dashboard",
       "ws:portfolio-metrics"
     ],
     "manifest:auth": [
@@ -5441,18 +5388,10 @@
     "runtime-source:server/routes/error-budget.ts": [
       "api:GET:/api/error-budget"
     ],
-    "runtime-manifest:register-routes-dev-dashboard": [
-      "api:GET:/api/dev-dashboard/health"
-    ],
-    "runtime-source:server/routes/dev-dashboard.ts": [
-      "api:GET:/api/dev-dashboard/health"
-    ],
     "runtime-manifest:register-routes-websocket-setup": [
-      "ws:dev-dashboard",
       "ws:portfolio-metrics"
     ],
     "runtime-source:server/websocket/index.ts": [
-      "ws:dev-dashboard",
       "ws:portfolio-metrics"
     ],
     "policy:client:/shared/:shareId": [
@@ -6444,17 +6383,6 @@
       "server/lib/auth/revocation.ts",
       "server/lib/public-api-boundary.ts",
       "server/routes/deal-pipeline.ts",
-      "server/server.ts",
-      "shared/auth/effective-roles.ts"
-    ],
-    "api:GET:/api/dev-dashboard/health": [
-      "api:GET:/api/dev-dashboard/health",
-      "runtime-manifest:register-routes-dev-dashboard",
-      "runtime-source:server/routes/dev-dashboard.ts",
-      "server/lib/auth/jwt.ts",
-      "server/lib/auth/revocation.ts",
-      "server/lib/public-api-boundary.ts",
-      "server/routes/dev-dashboard.ts",
       "server/server.ts",
       "shared/auth/effective-roles.ts"
     ],
@@ -8836,33 +8764,6 @@
       "server/server.ts",
       "shared/auth/effective-roles.ts"
     ],
-    "api:POST:/api/dev-dashboard/fix/build": [
-      "api:POST:/api/dev-dashboard/fix/build",
-      "server/lib/auth/jwt.ts",
-      "server/lib/auth/revocation.ts",
-      "server/lib/public-api-boundary.ts",
-      "server/routes/dev-dashboard.ts",
-      "server/server.ts",
-      "shared/auth/effective-roles.ts"
-    ],
-    "api:POST:/api/dev-dashboard/fix/tests": [
-      "api:POST:/api/dev-dashboard/fix/tests",
-      "server/lib/auth/jwt.ts",
-      "server/lib/auth/revocation.ts",
-      "server/lib/public-api-boundary.ts",
-      "server/routes/dev-dashboard.ts",
-      "server/server.ts",
-      "shared/auth/effective-roles.ts"
-    ],
-    "api:POST:/api/dev-dashboard/fix/typescript": [
-      "api:POST:/api/dev-dashboard/fix/typescript",
-      "server/lib/auth/jwt.ts",
-      "server/lib/auth/revocation.ts",
-      "server/lib/public-api-boundary.ts",
-      "server/routes/dev-dashboard.ts",
-      "server/server.ts",
-      "shared/auth/effective-roles.ts"
-    ],
     "api:POST:/api/error-budget/config/slos": [
       "api:POST:/api/error-budget/config/slos",
       "server/lib/auth/jwt.ts",
@@ -10611,15 +10512,6 @@
       "server/services/CacheWarmingService.ts",
       "server/workers/scenarioGeneratorWorker.ts"
     ],
-    "ws:dev-dashboard": [
-      "runtime-manifest:register-routes-websocket-setup",
-      "runtime-source:server/websocket/index.ts",
-      "server/routes.ts",
-      "server/routes.ts:153",
-      "server/websocket/dev-dashboard.ts",
-      "server/websocket/index.ts",
-      "server/websocket/portfolio-metrics.ts"
-    ],
     "ws:portfolio-metrics": [
       "runtime-manifest:register-routes-websocket-setup",
       "runtime-source:server/websocket/index.ts",
@@ -10627,7 +10519,6 @@
       "server/lib/auth/revocation.ts",
       "server/routes.ts",
       "server/routes.ts:153",
-      "server/websocket/dev-dashboard.ts",
       "server/websocket/index.ts",
       "server/websocket/portfolio-metrics.ts",
       "shared/auth/effective-roles.ts"
@@ -10695,7 +10586,6 @@
       "server/routes/current-forecast.ts",
       "server/routes/dashboard-summary.ts",
       "server/routes/deal-pipeline.ts",
-      "server/routes/dev-dashboard.ts",
       "server/routes/dual-forecast.ts",
       "server/routes/engine-summaries.ts",
       "server/routes/error-budget.ts",
@@ -10783,7 +10673,6 @@
       "server/lib/auth/revocation.ts",
       "server/lib/public-api-boundary.ts",
       "server/websocket.ts",
-      "server/websocket/dev-dashboard.ts",
       "server/websocket/index.ts",
       "server/websocket/portfolio-metrics.ts",
       "shared/auth/effective-roles.ts"
@@ -10813,7 +10702,6 @@
       "server/routes/current-forecast.ts",
       "server/routes/dashboard-summary.ts",
       "server/routes/deal-pipeline.ts",
-      "server/routes/dev-dashboard.ts",
       "server/routes/dual-forecast.ts",
       "server/routes/engine-summaries.ts",
       "server/routes/error-budget.ts",
@@ -10946,5 +10834,6 @@
     "server/index.ts",
     "server/observability/metrics-demo.ts",
     "workers/health-server.ts"
-  ]
+  ],
+  "row_count": 466
 }

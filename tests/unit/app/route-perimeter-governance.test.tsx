@@ -198,7 +198,6 @@ describe('route perimeter governance', () => {
     '/secondary-market',
     '/notion-integration',
     '/scenario-builder',
-    '/dev-dashboard',
     '/portfolio/1',
     '/investments/1',
     '/investments/company/1',

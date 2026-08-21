@@ -196,33 +196,13 @@
     "note": "7 writes rows retain stricter-than-staged-only environments (development-only/local-only); each is an explicit evidence-backed exception enumerated above, source-verified by the row-verification fan-out."
   },
   "environment_exceptions": {
-    "api:GET:/api/dev-dashboard/health": {
-      "environment": "development-only",
-      "basis": "dev-dashboard mounted only when NODE_ENV=development (server/routes.ts:134); handler runs tsc via getTypeScriptErrors (dev-dashboard.ts:313-346)"
-    },
     "api:POST:/api/admin/engine/guard": {
       "environment": "development-only",
       "basis": "handler rejects 403 when NODE_ENV=production (server/routes/admin/engine.ts:28-33)"
     },
-    "api:POST:/api/dev-dashboard/fix/build": {
-      "environment": "development-only",
-      "basis": "dev-only mount (routes.ts:134); executes npm run build:fast (dev-dashboard.ts:373-383)"
-    },
-    "api:POST:/api/dev-dashboard/fix/tests": {
-      "environment": "development-only",
-      "basis": "dev-only mount (routes.ts:134); executes npm run test:quick (dev-dashboard.ts:361-371)"
-    },
-    "api:POST:/api/dev-dashboard/fix/typescript": {
-      "environment": "development-only",
-      "basis": "dev-only mount (routes.ts:134); executes npm run check && npm run lint:fix (dev-dashboard.ts:349-359)"
-    },
     "listener:ml-reserve:POST:/train": {
       "environment": "local-only",
       "basis": "ml-service local-only deployment; persists model via joblib.dump (ml-service/app.py)"
-    },
-    "ws:dev-dashboard": {
-      "environment": "development-only",
-      "basis": "DevDashboardWebSocket constructed only when NODE_ENV=development (server/websocket/index.ts:18-21)"
     }
   },
   "prose_defects": {
@@ -443,9 +423,7 @@
       "after": {
         "environment": "prod-safe"
       },
-      "basis": [
-        "server/routes.ts:73 unconditional mount (contrast the NODE_ENV=development gate used for dev-dashboard at routes.ts:134); reads-only handler with no dev gate defaults to prod-safe"
-      ]
+      "basis": []
     },
     {
       "row_id": "api:GET:/api/performance/monte-carlo",
@@ -456,9 +434,7 @@
       "after": {
         "environment": "prod-safe"
       },
-      "basis": [
-        "server/routes.ts:73 unconditional mount vs the explicit NODE_ENV=development gate at routes.ts:134 used for dev-dashboard; reads-only handler with no dev gate defaults to prod-safe"
-      ]
+      "basis": []
     },
     {
       "row_id": "api:GET:/api/performance/operations",

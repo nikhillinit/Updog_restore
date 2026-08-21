@@ -144,10 +144,6 @@ type ExemptionKind =
 // gap-pending = confirmed/suspected prod gap awaiting its mount PR; permanent-* =
 // intentional divergence. Burn-down drives gap-pending to zero (see #1036 checklist).
 const DOCKER_ONLY_EXEMPTIONS: Record<string, { kind: ExemptionKind; reason: string }> = {
-  './routes/dev-dashboard.js': {
-    kind: 'permanent-dev-only',
-    reason: 'NODE_ENV=development gate (routes.ts)',
-  },
   './routes/admin/engine.js': {
     kind: 'permanent-dev-only',
     reason: 'engine admin, non-prod only (routes.ts)',
@@ -182,7 +178,7 @@ const DOCKER_ONLY_EXEMPTIONS: Record<string, { kind: ExemptionKind; reason: stri
   './routes/performance-metrics.js': {
     kind: 'permanent-infra',
     reason:
-      'dev-dashboard/monitoring; reads the in-process performance-monitor EventEmitter (per-invocation-meaningless on serverless) + SSE /realtime; no client caller',
+      'monitoring; reads the in-process performance-monitor EventEmitter (per-invocation-meaningless on serverless) + SSE /realtime; no client caller',
   },
   './routes/activities.js': {
     kind: 'permanent-superseded',

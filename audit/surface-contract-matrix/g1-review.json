@@ -73,7 +73,6 @@
     "server/routes/current-forecast.ts": "de1fe6b868c90b8c41b08ac7ea2d0e2eb9d38c81c29b113c39c619eedfb5ccef",
     "server/routes/dashboard-summary.ts": "7b592fb19016ed178538f656fe374a65221c2c0616fd4e8dec66b2305b2013ae",
     "server/routes/deal-pipeline.ts": "f6495b1fc70dfe88d0d85c4da58a6da224b7b233869df0b1c15dfde079857a51",
-    "server/routes/dev-dashboard.ts": "05b5092160133069c03e06406f62eb572ccc1bbae9c5596229c244ed150f3e2a",
     "server/routes/dual-forecast.ts": "a70c7af05aa2bb9aff5c04ff589124d7b198216302c1e11d0fb95c9f26982289",
     "server/routes/engine-summaries.ts": "cf715d70953aa7b50034aa193e248e0745ca3774b67d342bbdf30c4c6e94b12b",
     "server/routes/error-budget.ts": "4d712d09d9e0703824ff21577e2f0e0be6a1d58d462fe44a23aa369a373b9367",
@@ -138,7 +137,6 @@
     "server/server.ts": "d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
     "server/services/CacheWarmingService.ts": "5ae86364d4e617a001425143f4136f50ea1afb0d2c91123dd8913038abaaabb2",
     "server/websocket.ts": "2ed29caee85bd6ac49ab9eefab8fb04fe0da5b20796d2a213fa4c6845b14acca",
-    "server/websocket/dev-dashboard.ts": "8b8ce1712ff0ec51388562e545949f2792edec61407c476d4657a9d82045d2e0",
     "server/websocket/index.ts": "74850ccebad13e8f9b48218a813877854d98a51e38b966ce21eb49d36642d8aa",
     "server/websocket/portfolio-metrics.ts": "9c331deb7f137d62b5723d55529f949aa7c5c779c92d34bc7f1b2669ec4f7c59",
     "server/workers/capital-call-status-worker.ts": "79e18217fd3c676b8ac86ce0815bcc4b50ba33bfb9b6ebbe8bed8d8f264a88a7",
@@ -385,7 +383,7 @@
       },
       "evidence": [
         "Handler at server/routes/variance.ts:321-374 is guarded by requireTeamWrite (TEAM_WRITE_ROLES=[partner,admin,analyst] per shared/auth/effective-roles.ts:19), matching personas admin/analyst/gp.",
-        "Calls varianceTrackingService.baselines.deactivateBaseline (variance.ts:349-352) — a reversible deactivation flag write, not a hard delete, matching persistence=writes, destructive=soft, environment=staged-only."
+        "Calls varianceTrackingService.baselines.deactivateBaseline (variance.ts:349-352) \u2014 a reversible deactivation flag write, not a hard delete, matching persistence=writes, destructive=soft, environment=staged-only."
       ]
     },
     "api:DELETE:/api/monte-carlo/cache": {
@@ -552,7 +550,7 @@
       },
       "evidence": [
         "server/app.ts:151-171 GET /api-docs sends a static HTML landing page; no mutation.",
-        "server/app.ts:151 is registered before the requireApiAuth boundary at :189-200 (which only covers /api paths), so the route is unauthenticated — persona public."
+        "server/app.ts:151 is registered before the requireApiAuth boundary at :189-200 (which only covers /api paths), so the route is unauthenticated \u2014 persona public."
       ]
     },
     "api:GET:/api-docs.json": {
@@ -581,7 +579,7 @@
       },
       "evidence": [
         "server/app.ts:174-177 GET /api-docs.json sends the static swaggerSpec JSON; no mutation.",
-        "server/app.ts:174 is registered before the /api requireApiAuth boundary at :189-200, so the route is unauthenticated — persona public."
+        "server/app.ts:174 is registered before the /api requireApiAuth boundary at :189-200, so the route is unauthenticated \u2014 persona public."
       ]
     },
     "api:GET:/api/activities": {
@@ -1024,7 +1022,7 @@
         }
       },
       "evidence": [
-        "Handler at server/routes/cache.ts:124-136 returns CacheStatsService.getStatistics(undefined) — reads-only, none, prod-safe.",
+        "Handler at server/routes/cache.ts:124-136 returns CacheStatsService.getStatistics(undefined) \u2014 reads-only, none, prod-safe.",
         "Mounted at /api/cache on the register_routes surface (server/routes.ts:66); no route-level role guard on this endpoint, personas admin/analyst/gp per the global-auth-only norm."
       ]
     },
@@ -1423,7 +1421,7 @@
         }
       },
       "evidence": [
-        "server/routes/dashboard-summary.ts:23-53 GET handler enforces fund scope (enforceProvidedFundScope at :40) then calls getDashboardSummaryReadModel and returns it; no mutation, no role-restricted middleware — admin/analyst/gp."
+        "server/routes/dashboard-summary.ts:23-53 GET handler enforces fund scope (enforceProvidedFundScope at :40) then calls getDashboardSummaryReadModel and returns it; no mutation, no role-restricted middleware \u2014 admin/analyst/gp."
       ]
     },
     "api:GET:/api/deals/:id/diligence": {
@@ -1626,41 +1624,6 @@
         "No route-level role guard; global requireApiAuth (server/app.ts:175) governs access for partner/admin/analyst."
       ]
     },
-    "api:GET:/api/dev-dashboard/health": {
-      "row_id": "api:GET:/api/dev-dashboard/health",
-      "contract_fingerprint": "681c57659821ef18316183ef0cf1c76422b2f537b38667416e9603d92da2c38c",
-      "source_fingerprints": [
-        "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/dev-dashboard.ts=05b5092160133069c03e06406f62eb572ccc1bbae9c5596229c244ed150f3e2a",
-        "server/server.ts=d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
-        "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
-      ],
-      "reviewed_fields": {
-        "personas": [
-          "admin",
-          "analyst",
-          "gp"
-        ],
-        "persistence": "writes",
-        "destructive": "soft",
-        "environment": "development-only",
-        "owner": "platform",
-        "classification": "classified",
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "contract_fingerprint": "681c57659821ef18316183ef0cf1c76422b2f537b38667416e9603d92da2c38c"
-        }
-      },
-      "evidence": [
-        "Handler at server/routes/dev-dashboard.ts:313-346 gathers metrics including getTypeScriptErrors, which runs tsc and writes the .ts-error-history.json history file to disk (dev-dashboard.ts:108-114) — supporting persistence=writes with destructive=soft.",
-        "Router is mounted only when NODE_ENV === 'development' (server/routes.ts:133-139), matching environment=development-only; no route-level role guard, personas admin/analyst/gp per the global-auth-only norm."
-      ]
-    },
     "api:GET:/api/error-budget": {
       "row_id": "api:GET:/api/error-budget",
       "contract_fingerprint": "5d3e3dd08268a1174c095a58fc2b10806a3c87975e600b995fb0422a4867f299",
@@ -1692,7 +1655,7 @@
         }
       },
       "evidence": [
-        "Handler at server/routes/error-budget.ts:18-28 returns errorBudgetManager.generateReport() with no route-level guard; mounted at /api/error-budget behind FEATURES.metrics on the register_routes surface (server/routes.ts:126-131) — reads-only, none, prod-safe.",
+        "Handler at server/routes/error-budget.ts:18-28 returns errorBudgetManager.generateReport() with no route-level guard; mounted at /api/error-budget behind FEATURES.metrics on the register_routes surface (server/routes.ts:126-131) \u2014 reads-only, none, prod-safe.",
         "Path is not in the public exemption list (server/lib/public-api-boundary.ts:1-45), consistent with team personas admin/analyst/gp behind the global auth boundary."
       ]
     },
@@ -1727,7 +1690,7 @@
         }
       },
       "evidence": [
-        "Handler at server/routes/error-budget.ts:31-50 computes calculateErrorBudget(slo) and returns it, 404 on unknown SLO — reads-only, none, prod-safe.",
+        "Handler at server/routes/error-budget.ts:31-50 computes calculateErrorBudget(slo) and returns it, 404 on unknown SLO \u2014 reads-only, none, prod-safe.",
         "No route-level role guard; personas admin/analyst/gp match the global-auth-only norm."
       ]
     },
@@ -1762,7 +1725,7 @@
         }
       },
       "evidence": [
-        "Handler at server/routes/error-budget.ts:66-69 returns errorBudgetManager.getSLOs() (a Map-to-array read, server/lib/error-budget.ts:311-313) — reads-only, none, prod-safe.",
+        "Handler at server/routes/error-budget.ts:66-69 returns errorBudgetManager.getSLOs() (a Map-to-array read, server/lib/error-budget.ts:311-313) \u2014 reads-only, none, prod-safe.",
         "No route-level role guard; personas admin/analyst/gp match the global-auth-only norm."
       ]
     },
@@ -1797,7 +1760,7 @@
         }
       },
       "evidence": [
-        "Handler at server/routes/error-budget.ts:53-63 returns errorBudgetManager.checkDeploymentGate() — reads-only, none, prod-safe.",
+        "Handler at server/routes/error-budget.ts:53-63 returns errorBudgetManager.checkDeploymentGate() \u2014 reads-only, none, prod-safe.",
         "No route-level role guard; personas admin/analyst/gp match the global-auth-only norm."
       ]
     },
@@ -2125,7 +2088,7 @@
       },
       "evidence": [
         "server/routes/fund-actuals.ts:34-83 chain is requireAuth(), validateFundIdParam, requireFundAccess with no role guard; handler calls buildFundCompanyActualsFacts and returns JSON with Cache-Control private",
-        "server/services/fund-actuals/fund-company-actuals-facts-service.ts contains no insert/update/delete calls — the facts are computed from reads only"
+        "server/services/fund-actuals/fund-company-actuals-facts-service.ts contains no insert/update/delete calls \u2014 the facts are computed from reads only"
       ]
     },
     "api:GET:/api/funds/:fundId/allocation-scenarios": {
@@ -3638,7 +3601,7 @@
         }
       },
       "evidence": [
-        "server/routes/fund-metrics.ts:72-76 route is guarded by requireAuth() + requireFundAccess + metricsLimiter, no role guard — admin/analyst/gp.",
+        "server/routes/fund-metrics.ts:72-76 route is guarded by requireAuth() + requireFundAccess + metricsLimiter, no role guard \u2014 admin/analyst/gp.",
         "server/routes/fund-metrics.ts:110-120 handler calls getUnifiedMetrics and returns the read model; no domain-state mutation."
       ]
     },
@@ -3679,7 +3642,7 @@
       },
       "evidence": [
         "Route at server/routes/fund-moic.ts:277-357 stacks requireAuth(), requireInvestmentTeamMember (isTeamMemberUser -> isTeamRole = admin|partner|analyst, shared/auth/effective-roles.ts:58-62), and requireFundAccess, matching personas admin/analyst/gp.",
-        "Handler computes rankings from buildMarginalReserveMoicInputs and calculateMarginalReserveMoic (fund-moic.ts:306-324); the only side effect is shadow-comparison telemetry emission in shadow mode (fund-moic.ts:346-353) — reads-only, none, prod-safe."
+        "Handler computes rankings from buildMarginalReserveMoicInputs and calculateMarginalReserveMoic (fund-moic.ts:306-324); the only side effect is shadow-comparison telemetry emission in shadow mode (fund-moic.ts:346-353) \u2014 reads-only, none, prod-safe."
       ]
     },
     "api:GET:/api/funds/:fundId/moic/rankings": {
@@ -3719,7 +3682,7 @@
       },
       "evidence": [
         "Route at server/routes/fund-moic.ts:359-483 stacks requireAuth() and requireFundAccess with no role restriction, matching team personas admin/analyst/gp.",
-        "Handler assembles v1/v2 ranking responses from source reads (fund-moic.ts:369-394, 421-470); the only side effect is facts shadow telemetry emission (fund-moic.ts:473-480) — reads-only, none, prod-safe."
+        "Handler assembles v1/v2 ranking responses from source reads (fund-moic.ts:369-394, 421-470); the only side effect is facts shadow telemetry emission (fund-moic.ts:473-480) \u2014 reads-only, none, prod-safe."
       ]
     },
     "api:GET:/api/funds/:fundId/moic/reserve-intelligence/latest": {
@@ -3759,7 +3722,7 @@
       },
       "evidence": [
         "Route at server/routes/fund-moic.ts:228-247 stacks requireAuth(), requireInvestmentTeamMember, and requireFundAccess, matching personas admin/analyst/gp.",
-        "Handler returns getLatestDynamicReserveIntelligenceRun({fundId}) (fund-moic.ts:241) behind a feature-flag 404 — reads-only, none, prod-safe."
+        "Handler returns getLatestDynamicReserveIntelligenceRun({fundId}) (fund-moic.ts:241) behind a feature-flag 404 \u2014 reads-only, none, prod-safe."
       ]
     },
     "api:GET:/api/funds/:fundId/moic/reserve-intelligence/runs/:snapshotId": {
@@ -3799,7 +3762,7 @@
       },
       "evidence": [
         "Route at server/routes/fund-moic.ts:249-275 stacks requireAuth(), requireInvestmentTeamMember, and requireFundAccess, matching personas admin/analyst/gp.",
-        "Handler returns getDynamicReserveIntelligenceRun({fundId, snapshotId}) (fund-moic.ts:269) after snapshot-id validation — reads-only, none, prod-safe."
+        "Handler returns getDynamicReserveIntelligenceRun({fundId, snapshotId}) (fund-moic.ts:269) after snapshot-id validation \u2014 reads-only, none, prod-safe."
       ]
     },
     "api:GET:/api/funds/:fundId/pacing-history": {
@@ -4510,7 +4473,7 @@
       },
       "evidence": [
         "Handler at server/routes/variance.ts:649-702 has no route-level role guard; the router mounts behind the global /api auth boundary (server/app.ts:195-200), matching team personas admin/analyst/gp.",
-        "Handler only validates query params and calls alerts.getActiveAlerts (variance.ts:680-686), returning mapped alerts — reads-only, none, prod-safe."
+        "Handler only validates query params and calls alerts.getActiveAlerts (variance.ts:680-686), returning mapped alerts \u2014 reads-only, none, prod-safe."
       ]
     },
     "api:GET:/api/funds/:id/baselines": {
@@ -4550,7 +4513,7 @@
       },
       "evidence": [
         "Handler at server/routes/variance.ts:198-250 has no route-level role guard (global auth boundary at server/app.ts:195-200), matching personas admin/analyst/gp.",
-        "Calls baselines.getBaselines (variance.ts:231-235) and returns the list — reads-only, none, prod-safe."
+        "Calls baselines.getBaselines (variance.ts:231-235) and returns the list \u2014 reads-only, none, prod-safe."
       ]
     },
     "api:GET:/api/funds/:id/draft": {
@@ -4904,7 +4867,7 @@
       },
       "evidence": [
         "Handler at server/routes/variance.ts:986-1046 has no route-level role guard (global auth boundary at server/app.ts:195-200), matching personas admin/analyst/gp.",
-        "Aggregates baselines, active alerts, and reports via Promise.all reads (variance.ts:999-1006) and computes summary fields in memory — reads-only, none, prod-safe."
+        "Aggregates baselines, active alerts, and reports via Promise.all reads (variance.ts:999-1006) and computes summary fields in memory \u2014 reads-only, none, prod-safe."
       ]
     },
     "api:GET:/api/funds/:id/variance-reports": {
@@ -4944,7 +4907,7 @@
       },
       "evidence": [
         "Handler at server/routes/variance.ts:477-508 has no route-level role guard (global auth boundary at server/app.ts:195-200), matching personas admin/analyst/gp.",
-        "Calls calculations.getVarianceReports (variance.ts:493) and maps to client responses — reads-only, none, prod-safe."
+        "Calls calculations.getVarianceReports (variance.ts:493) and maps to client responses \u2014 reads-only, none, prod-safe."
       ]
     },
     "api:GET:/api/funds/:id/variance-reports/:reportId": {
@@ -4984,7 +4947,7 @@
       },
       "evidence": [
         "Handler at server/routes/variance.ts:514-559 has no route-level role guard (global auth boundary at server/app.ts:195-200), matching personas admin/analyst/gp.",
-        "Calls calculations.getVarianceReportById (variance.ts:535-538) with a 404 on missing ownership — reads-only, none, prod-safe."
+        "Calls calculations.getVarianceReportById (variance.ts:535-538) with a 404 on missing ownership \u2014 reads-only, none, prod-safe."
       ]
     },
     "api:GET:/api/graduation/defaults": {
@@ -5444,7 +5407,7 @@
       },
       "evidence": [
         "Handler at server/routes/variance.ts:115-120 returns varianceAlertAutomationService.getHealth() with no route-level guard; path is not in the public exemption list (server/lib/public-api-boundary.ts:1-45), so the global /api auth boundary (server/app.ts:195-200) applies, matching personas admin/analyst/gp.",
-        "Pure health snapshot return — reads-only, none, prod-safe."
+        "Pure health snapshot return \u2014 reads-only, none, prod-safe."
       ]
     },
     "api:GET:/api/investments": {
@@ -6651,7 +6614,7 @@
         }
       },
       "evidence": [
-        "server/routes/metrics-endpoint.ts:19 guards with authenticateMetrics: METRICS_KEY bearer token or METRICS_ALLOW_FROM IP allowlist, deny-by-default in production (server/middleware/auth-metrics.ts:11-37) — a machine credential, not a user role",
+        "server/routes/metrics-endpoint.ts:19 guards with authenticateMetrics: METRICS_KEY bearer token or METRICS_ALLOW_FROM IP allowlist, deny-by-default in production (server/middleware/auth-metrics.ts:11-37) \u2014 a machine credential, not a user role",
         "Handler serializes the Prometheus registry via getMetrics(); read-only. Mounted at /api at server/app.ts:184, before the /api auth gate at 194"
       ]
     },
@@ -7730,7 +7693,7 @@
         }
       },
       "evidence": [
-        "server/routes/timeline.ts:154-192 middleware chain is timelineReadLimiter, validateRequest, then enforceProvidedFundScope (line 167) — there is no requireRole or requireAuth middleware on this route; requireRole('admin') appears only on GET /events/latest at timeline.ts:306",
+        "server/routes/timeline.ts:154-192 middleware chain is timelineReadLimiter, validateRequest, then enforceProvidedFundScope (line 167) \u2014 there is no requireRole or requireAuth middleware on this route; requireRole('admin') appears only on GET /events/latest at timeline.ts:306",
         "Handler calls service.getStateAtTime and returns JSON; the service uses a 300s TTL response cache (server/services/time-travel-analytics.ts:213-215) but performs no domain-state mutation, so reads-only/none/prod-safe hold",
         "Persona field retained at the machine auth-role mapping (admin): approve-matrix applyPersonaMappings derives personas from machine-extracted auth_roles for every row with non-empty auth_roles, so a review override cannot survive re-approval. Source inspection nonetheless shows team-level reach in code (shares canManageFund team-read/fundId paths; timeline /state has no route-level role guard) - recorded as a machine-extraction under-count discrepancy in the defect ledger for follow-up."
       ]
@@ -8733,7 +8696,7 @@
         }
       },
       "evidence": [
-        "server/routes/admin/engine.ts:27-68 rejects with 403 when NODE_ENV is production (lines 28-33) and otherwise mutates the in-memory engineConfig and process.env['ENGINE_FAULT_RATE'] (lines 43-51) — a reversible server-held-state write, no deletion",
+        "server/routes/admin/engine.ts:27-68 rejects with 403 when NODE_ENV is production (lines 28-33) and otherwise mutates the in-memory engineConfig and process.env['ENGINE_FAULT_RATE'] (lines 43-51) \u2014 a reversible server-held-state write, no deletion",
         "Router-wide requireAuth()+requireRole('admin') at line 9 restricts personas to admin; mounted only via server/routes.ts:111"
       ]
     },
@@ -8962,7 +8925,7 @@
       },
       "evidence": [
         "Route at server/routes/fund-moic.ts:485-532 stacks requireAuth(), requireFundAccess, and requireRole('admin') (fund-moic.ts:489), matching personas [admin].",
-        "Handler records a reconciliation run via recordMoicReconciliation under an Idempotency-Key requirement (fund-moic.ts:494-507) and busts the H9 forecast cache via invalidateH9Artifacts (fund-moic.ts:509; server/services/h9-artifact-invalidation-service.ts:23-29) — additive/reversible writes, matching writes/soft/staged-only."
+        "Handler records a reconciliation run via recordMoicReconciliation under an Idempotency-Key requirement (fund-moic.ts:494-507) and busts the H9 forecast cache via invalidateH9Artifacts (fund-moic.ts:509; server/services/h9-artifact-invalidation-service.ts:23-29) \u2014 additive/reversible writes, matching writes/soft/staged-only."
       ]
     },
     "api:POST:/api/ai/ask": {
@@ -8996,8 +8959,8 @@
         }
       },
       "evidence": [
-        "server/routes/ai.ts:45-65 POST handler calls askAllAIs; server/services/ai-orchestrator.ts:504-518 askAllAIs increments the persisted budget file (fs.writeFile at :174 via incrementBudget) and appends to the audit log (fs.appendFile at :188) — server-held writes, no destructive removal.",
-        "server/app.ts:189-200,219 route sits behind requireApiAuth only, no role guard — admin/analyst/gp."
+        "server/routes/ai.ts:45-65 POST handler calls askAllAIs; server/services/ai-orchestrator.ts:504-518 askAllAIs increments the persisted budget file (fs.writeFile at :174 via incrementBudget) and appends to the audit log (fs.appendFile at :188) \u2014 server-held writes, no destructive removal.",
+        "server/app.ts:189-200,219 route sits behind requireApiAuth only, no role guard \u2014 admin/analyst/gp."
       ]
     },
     "api:POST:/api/ai/collaborate": {
@@ -9031,8 +8994,8 @@
         }
       },
       "evidence": [
-        "server/routes/ai.ts:137-153 POST handler calls collaborativeSolve, which invokes askAllAIs (ai-orchestrator.ts:702,717) — budget-file and audit-log writes as above, no destructive removal.",
-        "server/app.ts:189-200,219 behind requireApiAuth only, no role guard — admin/analyst/gp."
+        "server/routes/ai.ts:137-153 POST handler calls collaborativeSolve, which invokes askAllAIs (ai-orchestrator.ts:702,717) \u2014 budget-file and audit-log writes as above, no destructive removal.",
+        "server/app.ts:189-200,219 behind requireApiAuth only, no role guard \u2014 admin/analyst/gp."
       ]
     },
     "api:POST:/api/ai/consensus": {
@@ -9066,8 +9029,8 @@
         }
       },
       "evidence": [
-        "server/routes/ai.ts:111-127 POST handler calls aiConsensus, which invokes askAllAIs (ai-orchestrator.ts:640) — budget-file and audit-log writes, no destructive removal.",
-        "server/app.ts:189-200,219 behind requireApiAuth only, no role guard — admin/analyst/gp."
+        "server/routes/ai.ts:111-127 POST handler calls aiConsensus, which invokes askAllAIs (ai-orchestrator.ts:640) \u2014 budget-file and audit-log writes, no destructive removal.",
+        "server/app.ts:189-200,219 behind requireApiAuth only, no role guard \u2014 admin/analyst/gp."
       ]
     },
     "api:POST:/api/ai/debate": {
@@ -9101,8 +9064,8 @@
         }
       },
       "evidence": [
-        "server/routes/ai.ts:85-101 POST handler calls aiDebate, which invokes askAllAIs twice (ai-orchestrator.ts:600-601) — budget-file and audit-log writes, no destructive removal.",
-        "server/app.ts:189-200,219 behind requireApiAuth only, no role guard — admin/analyst/gp."
+        "server/routes/ai.ts:85-101 POST handler calls aiDebate, which invokes askAllAIs twice (ai-orchestrator.ts:600-601) \u2014 budget-file and audit-log writes, no destructive removal.",
+        "server/app.ts:189-200,219 behind requireApiAuth only, no role guard \u2014 admin/analyst/gp."
       ]
     },
     "api:POST:/api/alerts/:alertId/acknowledge": {
@@ -9142,7 +9105,7 @@
       },
       "evidence": [
         "Handler at server/routes/variance.ts:708-766 is guarded by requireTeamWrite (TEAM_WRITE_ROLES=[partner,admin,analyst]), matching personas admin/analyst/gp.",
-        "Calls alerts.acknowledgeAlert (variance.ts:746-751) after fund-scope write enforcement via resolveAlertWriteScope (variance.ts:52-82) — reversible status update, matching writes/soft/staged-only."
+        "Calls alerts.acknowledgeAlert (variance.ts:746-751) after fund-scope write enforcement via resolveAlertWriteScope (variance.ts:52-82) \u2014 reversible status update, matching writes/soft/staged-only."
       ]
     },
     "api:POST:/api/alerts/:alertId/resolve": {
@@ -9182,7 +9145,7 @@
       },
       "evidence": [
         "Handler at server/routes/variance.ts:772-830 is guarded by requireTeamWrite (TEAM_WRITE_ROLES=[partner,admin,analyst]), matching personas admin/analyst/gp.",
-        "Calls alerts.resolveAlert (variance.ts:810-815) after fund-scope write enforcement — reversible alert status update, matching writes/soft/staged-only."
+        "Calls alerts.resolveAlert (variance.ts:810-815) after fund-scope write enforcement \u2014 reversible alert status update, matching writes/soft/staged-only."
       ]
     },
     "api:POST:/api/auth/login": {
@@ -9409,7 +9372,7 @@
         }
       },
       "evidence": [
-        "Handler at server/routes/cache.ts:148-171 validates scope (all/fund/matrix) and calls CacheInvalidationService.invalidate — removes regenerable cache entries, a reversible operation, matching writes/soft/staged-only.",
+        "Handler at server/routes/cache.ts:148-171 validates scope (all/fund/matrix) and calls CacheInvalidationService.invalidate \u2014 removes regenerable cache entries, a reversible operation, matching writes/soft/staged-only.",
         "Guarded by requireHealthKey (cache.ts:89-109), which passes localhost or a matching X-Health-Key header; no role narrowing beyond the global boundary, consistent with personas admin/analyst/gp."
       ]
     },
@@ -9444,7 +9407,7 @@
         }
       },
       "evidence": [
-        "Handler at server/routes/cache.ts:183-204 validates warming config and calls CacheWarmingService.warm, scheduling matrix-generation jobs — additive reversible writes, matching writes/soft/staged-only.",
+        "Handler at server/routes/cache.ts:183-204 validates warming config and calls CacheWarmingService.warm, scheduling matrix-generation jobs \u2014 additive reversible writes, matching writes/soft/staged-only.",
         "Guarded by requireHealthKey (cache.ts:89-109); no role narrowing beyond the global boundary, consistent with personas admin/analyst/gp."
       ]
     },
@@ -9479,7 +9442,7 @@
         }
       },
       "evidence": [
-        "Handler at server/routes/calculations.ts:78-109 parses inputs, runs the deterministic runFundModel in memory, and streams a CSV response — no persisted-state mutation, matching reads-only/none/prod-safe.",
+        "Handler at server/routes/calculations.ts:78-109 parses inputs, runs the deterministic runFundModel in memory, and streams a CSV response \u2014 no persisted-state mutation, matching reads-only/none/prod-safe.",
         "Router is mounted at /api/calculations (server/app.ts:216) after the requireApiAuth boundary (server/app.ts:189-200), matching personas admin/analyst/gp."
       ]
     },
@@ -9514,7 +9477,7 @@
         }
       },
       "evidence": [
-        "Handler at server/routes/calculations.ts:114-141 parses inputs, runs runFundModel in memory, and returns the outputs as JSON — no persisted-state mutation, matching reads-only/none/prod-safe.",
+        "Handler at server/routes/calculations.ts:114-141 parses inputs, runs runFundModel in memory, and returns the outputs as JSON \u2014 no persisted-state mutation, matching reads-only/none/prod-safe.",
         "Router is mounted at /api/calculations (server/app.ts:216) after the requireApiAuth boundary (server/app.ts:189-200), matching personas admin/analyst/gp."
       ]
     },
@@ -9739,7 +9702,7 @@
         }
       },
       "evidence": [
-        "server/routes/cohort-analysis.ts:96-283 chain is requireAuth() plus requireCohortBodyFundAccess; handler performs only db.select loads (cohortDefinitions, portfolioCompanies, investments, sectorTaxonomy, sectorMappings, overrides, investmentLots) and runs the pure analyzeCohorts computation, returning validated JSON — despite the POST verb, no insert/update/delete occurs"
+        "server/routes/cohort-analysis.ts:96-283 chain is requireAuth() plus requireCohortBodyFundAccess; handler performs only db.select loads (cohortDefinitions, portfolioCompanies, investments, sectorTaxonomy, sectorMappings, overrides, investmentLots) and runs the pure analyzeCohorts computation, returning validated JSON \u2014 despite the POST verb, no insert/update/delete occurs"
       ]
     },
     "api:POST:/api/cohorts/definitions": {
@@ -9778,7 +9741,7 @@
         }
       },
       "evidence": [
-        "server/routes/cohort-analysis.ts:569-634 chain is requireAuth() plus requireCohortBodyFundAccess; handler db.update-s prior default definitions (isDefault=false) and db.insert-s the new cohortDefinitions row, returning 201 — additive/updating writes, no deletion"
+        "server/routes/cohort-analysis.ts:569-634 chain is requireAuth() plus requireCohortBodyFundAccess; handler db.update-s prior default definitions (isDefault=false) and db.insert-s the new cohortDefinitions row, returning 201 \u2014 additive/updating writes, no deletion"
       ]
     },
     "api:POST:/api/cohorts/sector-mappings": {
@@ -9817,7 +9780,7 @@
         }
       },
       "evidence": [
-        "server/routes/cohort-analysis.ts:404-483 chain is requireAuth() plus requireCohortBodyFundAccess; handler bulk-upserts sectorMappings via db.update for existing rows and db.insert for new rows, returning created/updated counts — reversible upserts, no deletion"
+        "server/routes/cohort-analysis.ts:404-483 chain is requireAuth() plus requireCohortBodyFundAccess; handler bulk-upserts sectorMappings via db.update for existing rows and db.insert for new rows, returning created/updated counts \u2014 reversible upserts, no deletion"
       ]
     },
     "api:POST:/api/cohorts/seed": {
@@ -9856,7 +9819,7 @@
         }
       },
       "evidence": [
-        "server/routes/cohort-analysis.ts:640-772 chain is requireAuth() plus requireCohortBodyFundAccess; handler is idempotent (returns 'Already seeded' when taxonomy exists) and otherwise db.insert-s sectorTaxonomy rows, identity sectorMappings, and two default cohortDefinitions — purely additive writes"
+        "server/routes/cohort-analysis.ts:640-772 chain is requireAuth() plus requireCohortBodyFundAccess; handler is idempotent (returns 'Already seeded' when taxonomy exists) and otherwise db.insert-s sectorTaxonomy rows, identity sectorMappings, and two default cohortDefinitions \u2014 purely additive writes"
       ]
     },
     "api:POST:/api/companies/:companyId/reserves/optimize": {
@@ -9953,7 +9916,7 @@
         }
       },
       "evidence": [
-        "Handler at server/routes/public/csp-report.ts:62-78 logs a violation summary and increments a metrics counter, then returns 204 — observability side effects only, matching reads-only/none/prod-safe.",
+        "Handler at server/routes/public/csp-report.ts:62-78 logs a violation summary and increments a metrics counter, then returns 204 \u2014 observability side effects only, matching reads-only/none/prod-safe.",
         "Router is mounted as a public route before the auth and rate-limit middleware (server/server.ts:184-185), matching personas [public]."
       ]
     },
@@ -10237,111 +10200,6 @@
         "No route-level role guard; global requireApiAuth (server/app.ts:175) governs access for partner/admin/analyst."
       ]
     },
-    "api:POST:/api/dev-dashboard/fix/build": {
-      "row_id": "api:POST:/api/dev-dashboard/fix/build",
-      "contract_fingerprint": "47e3221b598f399c653772b7e534389fc031e7b945cd6b0860ac4f5c21ae75b4",
-      "source_fingerprints": [
-        "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/dev-dashboard.ts=05b5092160133069c03e06406f62eb572ccc1bbae9c5596229c244ed150f3e2a",
-        "server/server.ts=d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
-        "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
-      ],
-      "reviewed_fields": {
-        "personas": [
-          "admin",
-          "analyst",
-          "gp"
-        ],
-        "persistence": "writes",
-        "destructive": "soft",
-        "environment": "development-only",
-        "owner": "platform",
-        "classification": "classified",
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "contract_fingerprint": "47e3221b598f399c653772b7e534389fc031e7b945cd6b0860ac4f5c21ae75b4"
-        }
-      },
-      "evidence": [
-        "Handler at server/routes/dev-dashboard.ts:373-383 executes 'npm run build:fast' via execAsync behind a rate limiter, mutating local build artifacts — writes/soft.",
-        "Router is mounted only when NODE_ENV === 'development' (server/routes.ts:133-139), matching environment=development-only; personas admin/analyst/gp per the global-auth-only norm."
-      ]
-    },
-    "api:POST:/api/dev-dashboard/fix/tests": {
-      "row_id": "api:POST:/api/dev-dashboard/fix/tests",
-      "contract_fingerprint": "0c75ebbfe0b0083ee9a65adf3f24c0327d97a29d50176ebc4dfe9b5627878097",
-      "source_fingerprints": [
-        "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/dev-dashboard.ts=05b5092160133069c03e06406f62eb572ccc1bbae9c5596229c244ed150f3e2a",
-        "server/server.ts=d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
-        "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
-      ],
-      "reviewed_fields": {
-        "personas": [
-          "admin",
-          "analyst",
-          "gp"
-        ],
-        "persistence": "writes",
-        "destructive": "soft",
-        "environment": "development-only",
-        "owner": "platform",
-        "classification": "classified",
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "contract_fingerprint": "0c75ebbfe0b0083ee9a65adf3f24c0327d97a29d50176ebc4dfe9b5627878097"
-        }
-      },
-      "evidence": [
-        "Handler at server/routes/dev-dashboard.ts:361-371 executes 'npm run test:quick' via execAsync behind a rate limiter, producing local test artifacts — writes/soft.",
-        "Router is mounted only when NODE_ENV === 'development' (server/routes.ts:133-139), matching environment=development-only; personas admin/analyst/gp per the global-auth-only norm."
-      ]
-    },
-    "api:POST:/api/dev-dashboard/fix/typescript": {
-      "row_id": "api:POST:/api/dev-dashboard/fix/typescript",
-      "contract_fingerprint": "b5a5cc91390121103f192675d3b5cf9ea83207eb619d2a1200bd1a7f6bf7ca72",
-      "source_fingerprints": [
-        "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
-        "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
-        "server/lib/public-api-boundary.ts=47d40ea57e0d5d5dcc72958f6bb827e8d485da19167da368c7356a9627fcf178",
-        "server/routes/dev-dashboard.ts=05b5092160133069c03e06406f62eb572ccc1bbae9c5596229c244ed150f3e2a",
-        "server/server.ts=d4c6c30e7b52ab29d580d84bb2b233bef29f718750900ae50eac4c638f2dc244",
-        "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
-      ],
-      "reviewed_fields": {
-        "personas": [
-          "admin",
-          "analyst",
-          "gp"
-        ],
-        "persistence": "writes",
-        "destructive": "soft",
-        "environment": "development-only",
-        "owner": "platform",
-        "classification": "classified",
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|create_server": {
-          "test_coverage": "none-reviewed",
-          "contract_fingerprint": "b5a5cc91390121103f192675d3b5cf9ea83207eb619d2a1200bd1a7f6bf7ca72"
-        }
-      },
-      "evidence": [
-        "Handler at server/routes/dev-dashboard.ts:349-359 executes 'npm run check && npm run lint:fix' via execAsync behind a rate limiter; lint:fix rewrites source files — writes/soft.",
-        "Router is mounted only when NODE_ENV === 'development' (server/routes.ts:133-139), matching environment=development-only; personas admin/analyst/gp per the global-auth-only norm."
-      ]
-    },
     "api:POST:/api/error-budget/config/slos": {
       "row_id": "api:POST:/api/error-budget/config/slos",
       "contract_fingerprint": "1f572c7d16531f26267ff9f7712266ff20ba84b6ee9d02ef704648ea91eea267",
@@ -10373,7 +10231,7 @@
         }
       },
       "evidence": [
-        "Handler at server/routes/error-budget.ts:72-96 validates the body and calls errorBudgetManager.addSLO, which sets an entry in the in-memory SLO map (server/lib/error-budget.ts:306-308) — a reversible in-memory config write, matching writes/soft/staged-only.",
+        "Handler at server/routes/error-budget.ts:72-96 validates the body and calls errorBudgetManager.addSLO, which sets an entry in the in-memory SLO map (server/lib/error-budget.ts:306-308) \u2014 a reversible in-memory config write, matching writes/soft/staged-only.",
         "No route-level role guard; personas admin/analyst/gp match the global-auth-only norm."
       ]
     },
@@ -10887,7 +10745,7 @@
         }
       },
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:404-477 POST handler calls createSourceArtifact with an Idempotency-Key, persisting a source artifact (201 on create, 200 on replay) — a reversible additive write.",
+        "server/routes/lp-reporting/imports.ts:404-477 POST handler calls createSourceArtifact with an Idempotency-Key, persisting a source artifact (201 on create, 200 on replay) \u2014 a reversible additive write.",
         "server/routes/lp-reporting/imports.ts:406-408 guard chain is requireAuth() + requireFundAccess + importArtifactLimiter, no role guard."
       ]
     },
@@ -10927,7 +10785,7 @@
         }
       },
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:545-582 POST handler calls stageImportBatch with idempotency key, creating a staged import batch (201/200 replay) — reversible write, no hard delete.",
+        "server/routes/lp-reporting/imports.ts:545-582 POST handler calls stageImportBatch with idempotency key, creating a staged import batch (201/200 replay) \u2014 reversible write, no hard delete.",
         "server/routes/lp-reporting/imports.ts:547-550 guard chain is requireAuth() + requireFundAccess + limiters, no role guard."
       ]
     },
@@ -10967,7 +10825,7 @@
         }
       },
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:701-738 POST handler calls commitImportBatch under requireIfMatch() precondition, committing accepted groups — a state-transition write, no irreversible removal.",
+        "server/routes/lp-reporting/imports.ts:701-738 POST handler calls commitImportBatch under requireIfMatch() precondition, committing accepted groups \u2014 a state-transition write, no irreversible removal.",
         "server/routes/lp-reporting/imports.ts:703-707 guard chain is requireAuth() + requireFundAccess + limiters + requireIfMatch(), no role guard."
       ]
     },
@@ -11007,7 +10865,7 @@
         }
       },
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:330-365 POST handler calls commitLedgerImport (inserts eligible rows, 201 when insertedCount > 0) and invalidateH9Artifacts — additive writes plus cache invalidation, no hard delete.",
+        "server/routes/lp-reporting/imports.ts:330-365 POST handler calls commitLedgerImport (inserts eligible rows, 201 when insertedCount > 0) and invalidateH9Artifacts \u2014 additive writes plus cache invalidation, no hard delete.",
         "server/routes/lp-reporting/imports.ts:332-334 guard chain is requireAuth() + requireFundAccess + importLimiter, no role guard."
       ]
     },
@@ -11048,7 +10906,7 @@
       },
       "evidence": [
         "server/routes/lp-reporting/imports.ts:256-291 POST handler calls runLedgerDryRun and returns the preview; no domain-state mutation (module header at imports.ts:3-5 states dry-run endpoints remain read-only).",
-        "server/services/lp-reporting/v1-import-telemetry.ts:32-51 recordV1ImportInvocation only increments a Prometheus counter and logs — observability, not persisted domain state.",
+        "server/services/lp-reporting/v1-import-telemetry.ts:32-51 recordV1ImportInvocation only increments a Prometheus counter and logs \u2014 observability, not persisted domain state.",
         "server/routes/lp-reporting/imports.ts:258-260 guard chain is requireAuth() + requireFundAccess + importLimiter, no role guard."
       ]
     },
@@ -11088,7 +10946,7 @@
         }
       },
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:479-517 POST handler calls createMappingProfileVersion with idempotency key, creating a new mapping-profile version (201/200 replay) — additive versioned write.",
+        "server/routes/lp-reporting/imports.ts:479-517 POST handler calls createMappingProfileVersion with idempotency key, creating a new mapping-profile version (201/200 replay) \u2014 additive versioned write.",
         "server/routes/lp-reporting/imports.ts:481-483 guard chain is requireAuth() + requireFundAccess + importArtifactLimiter, no role guard."
       ]
     },
@@ -11128,7 +10986,7 @@
         }
       },
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:367-402 POST handler calls commitValuationMarkImport (inserts marks, 201 when insertedCount > 0) and invalidateH9Artifacts — additive writes, no hard delete.",
+        "server/routes/lp-reporting/imports.ts:367-402 POST handler calls commitValuationMarkImport (inserts marks, 201 when insertedCount > 0) and invalidateH9Artifacts \u2014 additive writes, no hard delete.",
         "server/routes/lp-reporting/imports.ts:369-371 guard chain is requireAuth() + requireFundAccess + importLimiter, no role guard."
       ]
     },
@@ -12484,8 +12342,8 @@
         }
       },
       "evidence": [
-        "server/routes/fund-metrics.ts:162-166 route is guarded by requireAuth() + requireFundAccess + invalidateLimiter, no role guard — admin/analyst/gp.",
-        "server/routes/fund-metrics.ts:179-182 handler calls invalidateCurrentForecastCache(fundId) and returns 204 — cache-state mutation, reversible (next request recomputes), no hard delete."
+        "server/routes/fund-metrics.ts:162-166 route is guarded by requireAuth() + requireFundAccess + invalidateLimiter, no role guard \u2014 admin/analyst/gp.",
+        "server/routes/fund-metrics.ts:179-182 handler calls invalidateCurrentForecastCache(fundId) and returns 204 \u2014 cache-state mutation, reversible (next request recomputes), no hard delete."
       ]
     },
     "api:POST:/api/funds/:fundId/moic/reserve-intelligence/runs": {
@@ -12525,7 +12383,7 @@
       },
       "evidence": [
         "Route at server/routes/fund-moic.ts:181-226 stacks requireAuth(), requireInvestmentTeamMember, and requireFundAccess, matching personas admin/analyst/gp.",
-        "Handler creates a reserve-intelligence run via createDynamicReserveIntelligenceRun under a mandatory Idempotency-Key (fund-moic.ts:193-220) — additive reversible write, matching writes/soft/staged-only."
+        "Handler creates a reserve-intelligence run via createDynamicReserveIntelligenceRun under a mandatory Idempotency-Key (fund-moic.ts:193-220) \u2014 additive reversible write, matching writes/soft/staged-only."
       ]
     },
     "api:POST:/api/funds/:fundId/planning/fmv-overrides": {
@@ -12562,8 +12420,8 @@
         }
       },
       "evidence": [
-        "server/routes/planning-fmv-overrides.ts:91-128: handler calls enforcePlanningFmvApprovalAuthority (line 100), which returns 403 unless role/roles include 'admin' (lines 70-83) — personas admin only",
-        "Requires an Idempotency-Key header (428 when missing, lines 105-112) and calls createPlanningFmvOverride, returning 201 (or 200 on idempotent replay) — an additive override write, no deletion"
+        "server/routes/planning-fmv-overrides.ts:91-128: handler calls enforcePlanningFmvApprovalAuthority (line 100), which returns 403 unless role/roles include 'admin' (lines 70-83) \u2014 personas admin only",
+        "Requires an Idempotency-Key header (428 when missing, lines 105-112) and calls createPlanningFmvOverride, returning 201 (or 200 on idempotent replay) \u2014 an additive override write, no deletion"
       ]
     },
     "api:POST:/api/funds/:fundId/portfolio/lots": {
@@ -12721,7 +12579,7 @@
         }
       },
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:633-668 POST handler calls resolveCase under requireIfMatch() with an actorId — resolves a reconciliation case (status-transition write), no irreversible removal.",
+        "server/routes/lp-reporting/imports.ts:633-668 POST handler calls resolveCase under requireIfMatch() with an actorId \u2014 resolves a reconciliation case (status-transition write), no irreversible removal.",
         "server/routes/lp-reporting/imports.ts:636-639 guard chain is requireAuth() + requireFundAccess + limiters + requireIfMatch(), no role guard."
       ]
     },
@@ -12761,7 +12619,7 @@
         }
       },
       "evidence": [
-        "server/routes/lp-reporting/imports.ts:672-697 POST handler calls bulkResolveCases with per-item If-Match values — bulk case-resolution writes with partial-result envelope, no hard delete.",
+        "server/routes/lp-reporting/imports.ts:672-697 POST handler calls bulkResolveCases with per-item If-Match values \u2014 bulk case-resolution writes with partial-result envelope, no hard delete.",
         "server/routes/lp-reporting/imports.ts:675-677 guard chain is requireAuth() + requireFundAccess + limiters, no role guard."
       ]
     },
@@ -12837,7 +12695,7 @@
       },
       "evidence": [
         "server/routes/fund-scenario-sets.ts:181-204 chain includes requireWriteRole(TEAM_WRITE_ROLES) at line 185; TEAM_WRITE_ROLES = [partner, admin, analyst] (shared/auth/effective-roles.ts), mapping to personas gp/admin/analyst",
-        "Handler creates a scenario set via createFundScenarioSet with an idempotency key (lines 199-202) and returns 201 — an additive write, no deletion"
+        "Handler creates a scenario set via createFundScenarioSet with an idempotency key (lines 199-202) and returns 201 \u2014 an additive write, no deletion"
       ]
     },
     "api:POST:/api/funds/:fundId/scenario-sets/:scenarioSetId/archive": {
@@ -12876,7 +12734,7 @@
         }
       },
       "evidence": [
-        "server/routes/fund-scenario-sets.ts:353-380 chain includes requireWriteRole(TEAM_WRITE_ROLES) at line 357; handler calls archiveFundScenarioSet — an archive-status update, not a hard delete — and returns 200"
+        "server/routes/fund-scenario-sets.ts:353-380 chain includes requireWriteRole(TEAM_WRITE_ROLES) at line 357; handler calls archiveFundScenarioSet \u2014 an archive-status update, not a hard delete \u2014 and returns 200"
       ]
     },
     "api:POST:/api/funds/:fundId/scenario-sets/:scenarioSetId/calculate": {
@@ -12915,7 +12773,7 @@
         }
       },
       "evidence": [
-        "server/routes/fund-scenario-sets.ts:234-250 chain includes requireWriteRole(TEAM_WRITE_ROLES) at line 238; handler runs calculateFundScenarioSet with actor attribution, producing stored calculation results — an additive write"
+        "server/routes/fund-scenario-sets.ts:234-250 chain includes requireWriteRole(TEAM_WRITE_ROLES) at line 238; handler runs calculateFundScenarioSet with actor attribution, producing stored calculation results \u2014 an additive write"
       ]
     },
     "api:POST:/api/funds/:fundId/scenario-sets/:scenarioSetId/calculate-reserve": {
@@ -12954,7 +12812,7 @@
         }
       },
       "evidence": [
-        "server/routes/fund-scenario-sets.ts:252-294 chain includes requireWriteRole(TEAM_WRITE_ROLES) at line 256; handler requires an Idempotency-Key header (428 when missing, lines 266-271) and queues a reserve calculation command via executeReserveCalculationCommand, returning 202 — an additive command write"
+        "server/routes/fund-scenario-sets.ts:252-294 chain includes requireWriteRole(TEAM_WRITE_ROLES) at line 256; handler requires an Idempotency-Key header (428 when missing, lines 266-271) and queues a reserve calculation command via executeReserveCalculationCommand, returning 202 \u2014 an additive command write"
       ]
     },
     "api:POST:/api/funds/:fundId/scenario-sets/reserve-optimization": {
@@ -12993,7 +12851,7 @@
         }
       },
       "evidence": [
-        "server/routes/fund-scenario-sets.ts:206-232 chain includes requireWriteRole(TEAM_WRITE_ROLES) at line 210; handler creates a reserve-optimization scenario set with an idempotency key and returns 201 — an additive write"
+        "server/routes/fund-scenario-sets.ts:206-232 chain includes requireWriteRole(TEAM_WRITE_ROLES) at line 210; handler creates a reserve-optimization scenario set with an idempotency key and returns 201 \u2014 an additive write"
       ]
     },
     "api:POST:/api/funds/:fundId/tasks": {
@@ -13113,7 +12971,7 @@
       },
       "evidence": [
         "Handler at server/routes/variance.ts:567-643 is guarded by requireTeamWrite (TEAM_WRITE_ROLES=[partner,admin,analyst]), matching personas admin/analyst/gp.",
-        "Calls alerts.createAlertRule (variance.ts:607-627) creating a new rule record — additive reversible write, matching writes/soft/staged-only."
+        "Calls alerts.createAlertRule (variance.ts:607-627) creating a new rule record \u2014 additive reversible write, matching writes/soft/staged-only."
       ]
     },
     "api:POST:/api/funds/:id/alerts/cleanup-superseded": {
@@ -13153,7 +13011,7 @@
       },
       "evidence": [
         "Handler at server/routes/variance.ts:836-890 is guarded by requireTeamWrite (TEAM_WRITE_ROLES=[partner,admin,analyst]), matching personas admin/analyst/gp.",
-        "Calls cleanupSupersededAlertsForCurrentDefaultBaseline (variance.ts:864-869), which resolves (status-transitions) superseded alerts rather than deleting them — writes/soft/staged-only."
+        "Calls cleanupSupersededAlertsForCurrentDefaultBaseline (variance.ts:864-869), which resolves (status-transitions) superseded alerts rather than deleting them \u2014 writes/soft/staged-only."
       ]
     },
     "api:POST:/api/funds/:id/baselines": {
@@ -13193,7 +13051,7 @@
       },
       "evidence": [
         "Handler at server/routes/variance.ts:128-192 has idempotency middleware but no route-level role guard; global auth boundary (server/app.ts:195-200) applies, matching personas admin/analyst/gp.",
-        "Calls baselines.createBaseline (variance.ts:168-177) creating a new baseline record — additive reversible write, matching writes/soft/staged-only."
+        "Calls baselines.createBaseline (variance.ts:168-177) creating a new baseline record \u2014 additive reversible write, matching writes/soft/staged-only."
       ]
     },
     "api:POST:/api/funds/:id/baselines/:baselineId/set-default": {
@@ -13232,7 +13090,7 @@
       },
       "evidence": [
         "Handler at server/routes/variance.ts:256-315 is guarded by requirePartnerWrite (PARTNER_WRITE_ROLES=[partner,admin] per shared/auth/effective-roles.ts:20, defined at variance.ts:43), matching the narrowed personas admin/gp with analyst excluded.",
-        "Calls setDefaultBaselineAndCleanup (variance.ts:285-289) — a reversible default-flag update plus superseded-alert resolution, matching writes/soft/staged-only."
+        "Calls setDefaultBaselineAndCleanup (variance.ts:285-289) \u2014 a reversible default-flag update plus superseded-alert resolution, matching writes/soft/staged-only."
       ]
     },
     "api:POST:/api/funds/:id/publish": {
@@ -13271,7 +13129,7 @@
       },
       "evidence": [
         "server/routes/fund-config.ts:291-293 route is guarded by requireWriteRole(PARTNER_WRITE_ROLES); shared/auth/effective-roles.ts PARTNER_WRITE_ROLES = [partner, admin], mapping to personas gp + admin.",
-        "server/routes/fund-config.ts:303-317 handler calls fundPersistenceService.publishDraft, publishing the draft config and starting calculations — a reversible state-transition write, no hard delete."
+        "server/routes/fund-config.ts:303-317 handler calls fundPersistenceService.publishDraft, publishing the draft config and starting calculations \u2014 a reversible state-transition write, no hard delete."
       ]
     },
     "api:POST:/api/funds/:id/recalculate": {
@@ -13309,8 +13167,8 @@
         }
       },
       "evidence": [
-        "server/routes/fund-config.ts:343-345 route is guarded by requireWriteRole(PARTNER_WRITE_ROLES) — personas gp + admin.",
-        "server/routes/fund-config.ts:355-361 handler calls fundPersistenceService.recalculatePublished, creating a new calculation run (queue dispatch) — write, no destructive removal."
+        "server/routes/fund-config.ts:343-345 route is guarded by requireWriteRole(PARTNER_WRITE_ROLES) \u2014 personas gp + admin.",
+        "server/routes/fund-config.ts:355-361 handler calls fundPersistenceService.recalculatePublished, creating a new calculation run (queue dispatch) \u2014 write, no destructive removal."
       ]
     },
     "api:POST:/api/funds/:id/sensitivity/one-way": {
@@ -13470,7 +13328,7 @@
       },
       "evidence": [
         "Handler at server/routes/variance.ts:898-980 is guarded by requireTeamWrite plus idempotency, matching personas admin/analyst/gp.",
-        "Calls performCompleteVarianceAnalysis (variance.ts:953-959), generating a report and alerts — additive reversible writes, matching writes/soft/staged-only."
+        "Calls performCompleteVarianceAnalysis (variance.ts:953-959), generating a report and alerts \u2014 additive reversible writes, matching writes/soft/staged-only."
       ]
     },
     "api:POST:/api/funds/:id/variance-reports": {
@@ -13510,7 +13368,7 @@
       },
       "evidence": [
         "Handler at server/routes/variance.ts:382-471 has idempotency middleware but no route-level role guard; global auth boundary (server/app.ts:195-200) applies, matching personas admin/analyst/gp.",
-        "Calls calculations.generateVarianceReport (variance.ts:447-455) creating a report record — additive reversible write, matching writes/soft/staged-only."
+        "Calls calculations.generateVarianceReport (variance.ts:447-455) creating a report record \u2014 additive reversible write, matching writes/soft/staged-only."
       ]
     },
     "api:POST:/api/funds/calculate": {
@@ -13588,8 +13446,8 @@
         }
       },
       "evidence": [
-        "server/routes/fund-config.ts:65-67 route is guarded by requireWriteRole(PARTNER_WRITE_ROLES) plus idempotency middleware — personas gp + admin.",
-        "server/routes/fund-config.ts:95-99 handler calls fundPersistenceService.finalize (creates fund + config + publishes, 201) — additive write, no hard delete."
+        "server/routes/fund-config.ts:65-67 route is guarded by requireWriteRole(PARTNER_WRITE_ROLES) plus idempotency middleware \u2014 personas gp + admin.",
+        "server/routes/fund-config.ts:95-99 handler calls fundPersistenceService.finalize (creates fund + config + publishes, 201) \u2014 additive write, no hard delete."
       ]
     },
     "api:POST:/api/graduation/project": {
@@ -14133,7 +13991,7 @@
       },
       "evidence": [
         "server/routes/monte-carlo.ts:572-645 runs runBatchSimulations over validated configs with per-config enforceProvidedFundScope (line 594)",
-        "runBatchSimulations delegates to runSimulation (server/services/monte-carlo-service-unified.ts:164,173), and the engines insert simulation rows (streaming-monte-carlo-engine.ts:1193, monte-carlo-engine.ts:1113) — additive writes, no deletions"
+        "runBatchSimulations delegates to runSimulation (server/services/monte-carlo-service-unified.ts:164,173), and the engines insert simulation rows (streaming-monte-carlo-engine.ts:1193, monte-carlo-engine.ts:1113) \u2014 additive writes, no deletions"
       ]
     },
     "api:POST:/api/monte-carlo/multi-environment": {
@@ -14203,7 +14061,7 @@
       },
       "evidence": [
         "server/routes/monte-carlo.ts:297-360 validates the config, enforces fund scope (line 318), and calls unifiedMonteCarloService.runSimulation",
-        "runSimulation persists results: engines insert into monteCarloSimulations (server/services/streaming-monte-carlo-engine.ts:1193, server/services/monte-carlo-engine.ts:1113) — additive writes, no deletions"
+        "runSimulation persists results: engines insert into monteCarloSimulations (server/services/streaming-monte-carlo-engine.ts:1193, server/services/monte-carlo-engine.ts:1113) \u2014 additive writes, no deletions"
       ]
     },
     "api:POST:/api/monte-carlo/simulate/async": {
@@ -14740,7 +14598,7 @@
         }
       },
       "evidence": [
-        "server/routes/timeline.ts:198-250: after a fund-existence db read, the handler returns 503 QUEUE_UNAVAILABLE when NODE_ENV is staging/production (lines 225-233) and otherwise returns a mock response with executed:false (lines 243-248) — no snapshot is created and no state is written on any path",
+        "server/routes/timeline.ts:198-250: after a fund-existence db read, the handler returns 503 QUEUE_UNAVAILABLE when NODE_ENV is staging/production (lines 225-233) and otherwise returns a mock response with executed:false (lines 243-248) \u2014 no snapshot is created and no state is written on any path",
         "No route-level role guard (lines 198-204), so team roles admin/analyst/gp behind the global boundary and fund-scope check (line 211)"
       ]
     },
@@ -14927,7 +14785,7 @@
       },
       "evidence": [
         "Route at server/routes/fund-moic.ts:534-613 stacks requireAuth(), requireFundAccess, and requireRole('admin') (fund-moic.ts:538), matching personas [admin].",
-        "Handler updates per-company MOIC inputs via updateFundMoicInputs (fund-moic.ts:569-577) under expectedVersion optimistic locking and a mandatory Idempotency-Key — reversible nullable-field update, matching writes/soft/staged-only."
+        "Handler updates per-company MOIC inputs via updateFundMoicInputs (fund-moic.ts:569-577) under expectedVersion optimistic locking and a mandatory Idempotency-Key \u2014 reversible nullable-field update, matching writes/soft/staged-only."
       ]
     },
     "api:PUT:/api/cashflow/:fundId/transactions/:transactionId": {
@@ -15040,8 +14898,8 @@
         }
       },
       "evidence": [
-        "server/routes/fund-config.ts:131-133 route is guarded by requireWriteRole(PARTNER_WRITE_ROLES) — personas gp + admin.",
-        "server/routes/fund-config.ts:141-152 handler validates FundDraftWriteV1Schema then upserts the draft config (UPDATE if draft exists, INSERT if not per comment at :130) — reversible write."
+        "server/routes/fund-config.ts:131-133 route is guarded by requireWriteRole(PARTNER_WRITE_ROLES) \u2014 personas gp + admin.",
+        "server/routes/fund-config.ts:141-152 handler validates FundDraftWriteV1Schema then upserts the draft config (UPDATE if draft exists, INSERT if not per comment at :130) \u2014 reversible write."
       ]
     },
     "api:PUT:/api/lp/notifications/preferences": {
@@ -15685,7 +15543,7 @@
         }
       },
       "evidence": [
-        "/lp renders only <Redirect to=\"/lp/dashboard\"> (client/src/app/app-router.tsx:146-148, shared/routes/app-route-definitions.ts:85-86), and only when enable_lp_reporting resolves true (client/src/app/app-router.tsx:131,145; flag false in every environment, shared/generated/flag-defaults.ts:124-135), inside the session-enforced AppRouter shell — the LP-facing surface.",
+        "/lp renders only <Redirect to=\"/lp/dashboard\"> (client/src/app/app-router.tsx:146-148, shared/routes/app-route-definitions.ts:85-86), and only when enable_lp_reporting resolves true (client/src/app/app-router.tsx:131,145; flag false in every environment, shared/generated/flag-defaults.ts:124-135), inside the session-enforced AppRouter shell \u2014 the LP-facing surface.",
         "A pure redirect touches no data; reads-only/none/prod-safe hold."
       ]
     },
@@ -15825,7 +15683,7 @@
         }
       },
       "evidence": [
-        "Path registered in LP_ROUTE_DEFINITIONS (shared/routes/app-route-definitions.ts:79), rendered wrapped in LPProvider (client/src/app/app-router.tsx:118-128) only when enable_lp_reporting resolves true (client/src/app/app-router.tsx:131; flag currently false in every environment, shared/generated/flag-defaults.ts:124-135), inside the session-enforced AppRouter shell (client/src/app/app-router.tsx:190-234) — the LP-facing surface.",
+        "Path registered in LP_ROUTE_DEFINITIONS (shared/routes/app-route-definitions.ts:79), rendered wrapped in LPProvider (client/src/app/app-router.tsx:118-128) only when enable_lp_reporting resolves true (client/src/app/app-router.tsx:131; flag currently false in every environment, shared/generated/flag-defaults.ts:124-135), inside the session-enforced AppRouter shell (client/src/app/app-router.tsx:190-234) \u2014 the LP-facing surface.",
         "Route resolution mounts a page component and performs no server-side mutation; reads-only/none/prod-safe hold (runtime flag gating is config, not a build/dev gate)."
       ]
     },
@@ -15853,7 +15711,7 @@
         }
       },
       "evidence": [
-        "Path registered in LP_ROUTE_DEFINITIONS (shared/routes/app-route-definitions.ts:77), rendered wrapped in LPProvider (client/src/app/app-router.tsx:118-128) only when enable_lp_reporting resolves true (client/src/app/app-router.tsx:131; flag currently false in every environment, shared/generated/flag-defaults.ts:124-135), inside the session-enforced AppRouter shell (client/src/app/app-router.tsx:190-234) — the LP-facing surface.",
+        "Path registered in LP_ROUTE_DEFINITIONS (shared/routes/app-route-definitions.ts:77), rendered wrapped in LPProvider (client/src/app/app-router.tsx:118-128) only when enable_lp_reporting resolves true (client/src/app/app-router.tsx:131; flag currently false in every environment, shared/generated/flag-defaults.ts:124-135), inside the session-enforced AppRouter shell (client/src/app/app-router.tsx:190-234) \u2014 the LP-facing surface.",
         "Route resolution mounts a page component and performs no server-side mutation; reads-only/none/prod-safe hold (runtime flag gating is config, not a build/dev gate)."
       ]
     },
@@ -15881,7 +15739,7 @@
         }
       },
       "evidence": [
-        "Path registered in LP_ROUTE_DEFINITIONS (shared/routes/app-route-definitions.ts:78), rendered wrapped in LPProvider (client/src/app/app-router.tsx:118-128) only when enable_lp_reporting resolves true (client/src/app/app-router.tsx:131; flag currently false in every environment, shared/generated/flag-defaults.ts:124-135), inside the session-enforced AppRouter shell (client/src/app/app-router.tsx:190-234) — the LP-facing surface.",
+        "Path registered in LP_ROUTE_DEFINITIONS (shared/routes/app-route-definitions.ts:78), rendered wrapped in LPProvider (client/src/app/app-router.tsx:118-128) only when enable_lp_reporting resolves true (client/src/app/app-router.tsx:131; flag currently false in every environment, shared/generated/flag-defaults.ts:124-135), inside the session-enforced AppRouter shell (client/src/app/app-router.tsx:190-234) \u2014 the LP-facing surface.",
         "Route resolution mounts a page component and performs no server-side mutation; reads-only/none/prod-safe hold (runtime flag gating is config, not a build/dev gate)."
       ]
     },
@@ -15909,7 +15767,7 @@
         }
       },
       "evidence": [
-        "Path registered in LP_ROUTE_DEFINITIONS (shared/routes/app-route-definitions.ts:80), rendered wrapped in LPProvider (client/src/app/app-router.tsx:118-128) only when enable_lp_reporting resolves true (client/src/app/app-router.tsx:131; flag currently false in every environment, shared/generated/flag-defaults.ts:124-135), inside the session-enforced AppRouter shell (client/src/app/app-router.tsx:190-234) — the LP-facing surface.",
+        "Path registered in LP_ROUTE_DEFINITIONS (shared/routes/app-route-definitions.ts:80), rendered wrapped in LPProvider (client/src/app/app-router.tsx:118-128) only when enable_lp_reporting resolves true (client/src/app/app-router.tsx:131; flag currently false in every environment, shared/generated/flag-defaults.ts:124-135), inside the session-enforced AppRouter shell (client/src/app/app-router.tsx:190-234) \u2014 the LP-facing surface.",
         "Route resolution mounts a page component and performs no server-side mutation; reads-only/none/prod-safe hold (runtime flag gating is config, not a build/dev gate)."
       ]
     },
@@ -15937,7 +15795,7 @@
         }
       },
       "evidence": [
-        "Path registered in LP_ROUTE_DEFINITIONS (shared/routes/app-route-definitions.ts:81), rendered wrapped in LPProvider (client/src/app/app-router.tsx:118-128) only when enable_lp_reporting resolves true (client/src/app/app-router.tsx:131; flag currently false in every environment, shared/generated/flag-defaults.ts:124-135), inside the session-enforced AppRouter shell (client/src/app/app-router.tsx:190-234) — the LP-facing surface.",
+        "Path registered in LP_ROUTE_DEFINITIONS (shared/routes/app-route-definitions.ts:81), rendered wrapped in LPProvider (client/src/app/app-router.tsx:118-128) only when enable_lp_reporting resolves true (client/src/app/app-router.tsx:131; flag currently false in every environment, shared/generated/flag-defaults.ts:124-135), inside the session-enforced AppRouter shell (client/src/app/app-router.tsx:190-234) \u2014 the LP-facing surface.",
         "Route resolution mounts a page component and performs no server-side mutation; reads-only/none/prod-safe hold (runtime flag gating is config, not a build/dev gate)."
       ]
     },
@@ -15965,7 +15823,7 @@
         }
       },
       "evidence": [
-        "Path registered in LP_ROUTE_DEFINITIONS (shared/routes/app-route-definitions.ts:82), rendered wrapped in LPProvider (client/src/app/app-router.tsx:118-128) only when enable_lp_reporting resolves true (client/src/app/app-router.tsx:131; flag currently false in every environment, shared/generated/flag-defaults.ts:124-135), inside the session-enforced AppRouter shell (client/src/app/app-router.tsx:190-234) — the LP-facing surface.",
+        "Path registered in LP_ROUTE_DEFINITIONS (shared/routes/app-route-definitions.ts:82), rendered wrapped in LPProvider (client/src/app/app-router.tsx:118-128) only when enable_lp_reporting resolves true (client/src/app/app-router.tsx:131; flag currently false in every environment, shared/generated/flag-defaults.ts:124-135), inside the session-enforced AppRouter shell (client/src/app/app-router.tsx:190-234) \u2014 the LP-facing surface.",
         "Route resolution mounts a page component and performs no server-side mutation; reads-only/none/prod-safe hold (runtime flag gating is config, not a build/dev gate)."
       ]
     },
@@ -16756,7 +16614,7 @@
         }
       },
       "evidence": [
-        "workers/health-server.ts:184-197 GET /health calls performHealthCheck and returns 200/503; no mutation, no authentication middleware — an unauthenticated platform health probe on the Railway worker listener (createHealthServer at :278-283)."
+        "workers/health-server.ts:184-197 GET /health calls performHealthCheck and returns 200/503; no mutation, no authentication middleware \u2014 an unauthenticated platform health probe on the Railway worker listener (createHealthServer at :278-283)."
       ]
     },
     "listener:worker-health:GET:/live": {
@@ -16791,7 +16649,7 @@
         }
       },
       "evidence": [
-        "workers/health-server.ts:200-206 GET /live returns static alive status and process.uptime(); no mutation, no authentication middleware — platform liveness probe."
+        "workers/health-server.ts:200-206 GET /live returns static alive status and process.uptime(); no mutation, no authentication middleware \u2014 platform liveness probe."
       ]
     },
     "listener:worker-health:GET:/metrics": {
@@ -16826,7 +16684,7 @@
         }
       },
       "evidence": [
-        "workers/health-server.ts:243-252 GET /metrics returns getMetrics() Prometheus text; no mutation, no authentication middleware — platform/scraper consumption."
+        "workers/health-server.ts:243-252 GET /metrics returns getMetrics() Prometheus text; no mutation, no authentication middleware \u2014 platform/scraper consumption."
       ]
     },
     "listener:worker-health:GET:/ready": {
@@ -16861,7 +16719,7 @@
         }
       },
       "evidence": [
-        "workers/health-server.ts:209-240 GET /ready calls performHealthCheck and returns 200/503 readiness; no mutation, no authentication middleware — platform readiness probe."
+        "workers/health-server.ts:209-240 GET /ready calls performHealthCheck and returns 200/503 readiness; no mutation, no authentication middleware \u2014 platform readiness probe."
       ]
     },
     "listener:worker-health:GET:/stats": {
@@ -16979,8 +16837,8 @@
         }
       },
       "evidence": [
-        "server/routes.ts:41 registerRoutes() calls varianceAlertAutomationService.start() at boot — a background scheduler on the registerRoutes (Docker/Railway) surface, no request auth context — persona system.",
-        "server/services/variance-alert-automation.ts:223-237 start() arms setInterval timers; :425-426 inserts into jobOutbox and :727,:854 run db.execute updates — persisted writes, no irreversible removal."
+        "server/routes.ts:41 registerRoutes() calls varianceAlertAutomationService.start() at boot \u2014 a background scheduler on the registerRoutes (Docker/Railway) surface, no request auth context \u2014 persona system.",
+        "server/services/variance-alert-automation.ts:223-237 start() arms setInterval timers; :425-426 inserts into jobOutbox and :727,:854 run db.execute updates \u2014 persisted writes, no irreversible removal."
       ]
     },
     "worker:backtesting-jobs": {
@@ -17066,7 +16924,7 @@
         }
       },
       "evidence": [
-        "workers/cohort-worker.ts:50-87 defines the BullMQ Worker on queue 'cohort-calc' (registered in server/queues/registry.ts:115-116); the processor builds a hardcoded mock company list, computes cohort scores in memory via processCohortCompanies (lines 13-48), and returns the result — no database or external state writes",
+        "workers/cohort-worker.ts:50-87 defines the BullMQ Worker on queue 'cohort-calc' (registered in server/queues/registry.ts:115-116); the processor builds a hardcoded mock company list, computes cohort scores in memory via processCohortCompanies (lines 13-48), and returns the result \u2014 no database or external state writes",
         "Runs in a background queue-consumer context with no request identity, matching the system persona"
       ]
     },
@@ -17211,7 +17069,7 @@
         }
       },
       "evidence": [
-        "Queue 'monte-carlo-simulations' is registered as key 'simulation' (server/queues/registry.ts:57-58); the BullMQ worker at server/queues/simulation-queue.ts:172-252 runs unifiedMonteCarloService.runSimulation batches with no request identity — a background job context matching personas [system].",
+        "Queue 'monte-carlo-simulations' is registered as key 'simulation' (server/queues/registry.ts:57-58); the BullMQ worker at server/queues/simulation-queue.ts:172-252 runs unifiedMonteCarloService.runSimulation batches with no request identity \u2014 a background job context matching personas [system].",
         "The worker mutates Redis-held job state via job.updateProgress (simulation-queue.ts:179, 212) and persists job return values through BullMQ (removeOnComplete count 100 / removeOnFail count 50, simulation-queue.ts:158-159), matching persistence=writes and environment=staged-only."
       ]
     },
@@ -17269,7 +17127,7 @@
         }
       },
       "evidence": [
-        "workers/reserve-worker.ts:14-16 defines a BullMQ Worker on the 'reserve-calc' queue (also registered in server/queues/registry.ts:84-85), processing jobs from queue data with no user identity — a background/system context.",
+        "workers/reserve-worker.ts:14-16 defines a BullMQ Worker on the 'reserve-calc' queue (also registered in server/queues/registry.ts:84-85), processing jobs from queue data with no user identity \u2014 a background/system context.",
         "The job runs runReserveCalculation and records a reserve snapshot write (metrics.recordSnapshotWrite('RESERVE', true) at line 31, snapshotId at line 36), and on final failed attempt marks the calc run failed (markCalcRunFailed at line 54); additive snapshot/status writes, no deletion."
       ]
     },
@@ -17303,37 +17161,6 @@
         "The worker generates scenario matrices and stores them through ScenarioMatrixCache backed by db + Redis (scenarioGeneratorWorker.ts:198) and updates job progress (:158,:169,:179) - reversible cache/DB writes, matching writes/soft/staged-only"
       ]
     },
-    "ws:dev-dashboard": {
-      "row_id": "ws:dev-dashboard",
-      "contract_fingerprint": "6bea287b0a72a7d68d90868b4909963b9f0b424b6b184b6eb4596e4272e6252c",
-      "source_fingerprints": [
-        "server/routes.ts=141adc2a75568479dea21649ec234f84f291527858d1a161e26832a49698ab2a",
-        "server/websocket/dev-dashboard.ts=8b8ce1712ff0ec51388562e545949f2792edec61407c476d4657a9d82045d2e0",
-        "server/websocket/index.ts=74850ccebad13e8f9b48218a813877854d98a51e38b966ce21eb49d36642d8aa",
-        "server/websocket/portfolio-metrics.ts=9c331deb7f137d62b5723d55529f949aa7c5c779c92d34bc7f1b2669ec4f7c59"
-      ],
-      "reviewed_fields": {
-        "personas": [
-          "public"
-        ],
-        "persistence": "writes",
-        "destructive": "soft",
-        "environment": "development-only",
-        "owner": "platform",
-        "classification": "classified",
-        "decision_status": "approved"
-      },
-      "exposure_attestations": {
-        "local-process|websocket_server": {
-          "test_coverage": "none-reviewed",
-          "contract_fingerprint": "6bea287b0a72a7d68d90868b4909963b9f0b424b6b184b6eb4596e4272e6252c"
-        }
-      },
-      "evidence": [
-        "server/websocket/index.ts:18-21 DevDashboardWebSocket is constructed only when NODE_ENV === 'development' (wired from server/routes.ts:152-153 setupWebSocketServers) — development-only.",
-        "server/websocket/dev-dashboard.ts:99-144 socket handlers accept unauthenticated connections and 'trigger_build'/'trigger_tests' events run execAsync('npm run build:fast') and test commands — client-triggered server-side writes (build artifacts, in-memory metrics state), no destructive removal; persona public (no auth on the socket)."
-      ]
-    },
     "ws:portfolio-metrics": {
       "row_id": "ws:portfolio-metrics",
       "contract_fingerprint": "9ead4d9cdd2af30e0cf4bbcf904ff7d692eb45fe8d2e97ff3c829f6dc43347e2",
@@ -17341,7 +17168,6 @@
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
         "server/routes.ts=141adc2a75568479dea21649ec234f84f291527858d1a161e26832a49698ab2a",
-        "server/websocket/dev-dashboard.ts=8b8ce1712ff0ec51388562e545949f2792edec61407c476d4657a9d82045d2e0",
         "server/websocket/index.ts=74850ccebad13e8f9b48218a813877854d98a51e38b966ce21eb49d36642d8aa",
         "server/websocket/portfolio-metrics.ts=9c331deb7f137d62b5723d55529f949aa7c5c779c92d34bc7f1b2669ec4f7c59",
         "shared/auth/effective-roles.ts=137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6"
@@ -19869,7 +19695,6 @@
             "api:GET:/api/admin/engine/status",
             "api:GET:/api/cache/stats",
             "api:GET:/api/cohorts/analysis",
-            "api:GET:/api/dev-dashboard/health",
             "api:GET:/api/error-budget",
             "api:GET:/api/error-budget/:slo",
             "api:GET:/api/error-budget/config/slos",
@@ -19902,9 +19727,6 @@
             "api:POST:/api/cache/invalidate",
             "api:POST:/api/cache/warm",
             "api:POST:/api/csp-violations",
-            "api:POST:/api/dev-dashboard/fix/build",
-            "api:POST:/api/dev-dashboard/fix/tests",
-            "api:POST:/api/dev-dashboard/fix/typescript",
             "api:POST:/api/error-budget/config/slos",
             "api:POST:/api/monte-carlo/batch",
             "api:POST:/api/monte-carlo/multi-environment",
@@ -20085,7 +19907,7 @@
     },
     "owner": "nikhillinit",
     "gate": "G1",
-    "acceptance": "G1 successor review bound to source 75257d3d4947b494429fe065ac74ef1310096e86 and snapshot snapshot:d50c24407985a5f811e18ce30ae82b1c44384356f9ecd5a544844dc82981e654, covering all 471 matrix rows, 774 exposure obligations, 167 source fingerprints, 12 listener dispositions, 30 dormant candidates, 2 runtime exclusions, 29 orphans, 9 requirement families, locked persona mappings, 9 boot proofs, and 30 row-level closure obligations. Field decisions carry the prior human review through a deterministic transplant corrected by the tracked defect ledger: 5 cashflow mutation rows re-marked writes with destructive/environment coupling, 8 partner-only persona rows stripped of the analyst grant (unresolved requirePartnerWrite alias), and the classifier-semantics environment policy applied across the 182 writes-plus-prod-safe rows. Per-row evidence describes inspected source behavior with file and line citations. Zero unresolved findings remain, subject to these explicitly enumerated accepted residual risks: (1) cashflow routes persist to an in-memory module-level store at this source (server/routes/cashflow.ts:92-96); their mutations are recorded as contract-surface writes even though no database persistence exists at this SHA; (2) the review-locator immutability blocker is open — no immutable locator for this successor artifact can appear inside its own reviewed bytes without a preallocated locator or an approved normalization contract, so approval and closure remain halted pending coordinator authority; (3) exposure attestation test_coverage values are carried from the prior human review and were not re-derived from test execution in this pass; (4) the per-row source verification pass surfaced 24 additional field deviations beyond the 13-row defect ledger — 16 adopted with code-cited corrections (worker-health listener personas to public, economics-calc and funds/calculate persistence re-marked writes, lp/settings recognized as a 501 stub, performance route environments reset to classifier defaults, ui-catalog marked development-only, monte-carlo destructive to soft) and 8 retained (flags kill-switch and fund-moic calculation-mode keep their deliberate conservative destructive values; the five shares rows and timeline state keep machine auth-role personas because approve-matrix applyPersonaMappings machine-owns personas for auth_roles-bearing rows, while source inspection shows team-level code reach on those routes — a machine-extraction under-count recorded in the defect ledger for follow-up) — all enumerated with code citations in the defect ledger fanout_corrections section."
+    "acceptance": "G1 successor review bound to source 75257d3d4947b494429fe065ac74ef1310096e86 and snapshot snapshot:d50c24407985a5f811e18ce30ae82b1c44384356f9ecd5a544844dc82981e654, covering all 471 matrix rows, 774 exposure obligations, 167 source fingerprints, 12 listener dispositions, 30 dormant candidates, 2 runtime exclusions, 29 orphans, 9 requirement families, locked persona mappings, 9 boot proofs, and 30 row-level closure obligations. Field decisions carry the prior human review through a deterministic transplant corrected by the tracked defect ledger: 5 cashflow mutation rows re-marked writes with destructive/environment coupling, 8 partner-only persona rows stripped of the analyst grant (unresolved requirePartnerWrite alias), and the classifier-semantics environment policy applied across the 182 writes-plus-prod-safe rows. Per-row evidence describes inspected source behavior with file and line citations. Zero unresolved findings remain, subject to these explicitly enumerated accepted residual risks: (1) cashflow routes persist to an in-memory module-level store at this source (server/routes/cashflow.ts:92-96); their mutations are recorded as contract-surface writes even though no database persistence exists at this SHA; (2) the review-locator immutability blocker is open \u2014 no immutable locator for this successor artifact can appear inside its own reviewed bytes without a preallocated locator or an approved normalization contract, so approval and closure remain halted pending coordinator authority; (3) exposure attestation test_coverage values are carried from the prior human review and were not re-derived from test execution in this pass; (4) the per-row source verification pass surfaced 24 additional field deviations beyond the 13-row defect ledger \u2014 16 adopted with code-cited corrections (worker-health listener personas to public, economics-calc and funds/calculate persistence re-marked writes, lp/settings recognized as a 501 stub, performance route environments reset to classifier defaults, ui-catalog marked development-only, monte-carlo destructive to soft) and 8 retained (flags kill-switch and fund-moic calculation-mode keep their deliberate conservative destructive values; the five shares rows and timeline state keep machine auth-role personas because approve-matrix applyPersonaMappings machine-owns personas for auth_roles-bearing rows, while source inspection shows team-level code reach on those routes \u2014 a machine-extraction under-count recorded in the defect ledger for follow-up) \u2014 all enumerated with code citations in the defect ledger fanout_corrections section."
   },
   "approver_id": "nikhillinit",
   "evidence_ref": "forensics:execution-log.md#owner-approval-2026-08-20"

@@ -163,7 +163,6 @@ describe('route governance registry', () => {
     expect(getRouteGovernanceEntry('/secondary-market')).toBeUndefined();
     expect(getRouteGovernanceEntry('/notion-integration')).toBeUndefined();
     expect(getRouteGovernanceEntry('/scenario-builder')).toBeUndefined();
-    expect(getRouteGovernanceEntry('/dev-dashboard')).toBeUndefined();
     expect(getRouteGovernanceEntry('/investments/:id')).toBeUndefined();
     expect(getRouteGovernanceEntry('/investments/company/:id')).toBeUndefined();
     expect(getRouteGovernanceEntry('/reserves-demo')).toBeUndefined();
