@@ -315,8 +315,84 @@
       ]
     },
     {
+      "row_id": "api:GET:/api/timeline/:fundId",
+      "action": "reconciled-current-source-authority",
+      "before": {
+        "auth_roles": []
+      },
+      "after": {
+        "auth_roles": [
+          "admin",
+          "analyst",
+          "partner"
+        ]
+      },
+      "basis": [
+        "server/routes/timeline.ts:112-127 has no role guard and enforces provided fund scope at line 125; shared/auth/effective-roles.ts:58-62 defines team roles as admin, partner, analyst",
+        "Current source extraction records auth_roles admin, analyst, partner; locked persona mapping retains admin, analyst, gp. This records the prior empty machine auth-role under-count."
+      ],
+      "kept": {
+        "personas": [
+          "admin",
+          "analyst",
+          "gp"
+        ]
+      },
+      "observed_code_reach": {
+        "personas": [
+          "admin",
+          "analyst",
+          "gp"
+        ]
+      }
+    },
+    {
+      "row_id": "api:GET:/api/timeline/:fundId/compare",
+      "action": "reconciled-current-source-authority",
+      "before": {
+        "auth_roles": []
+      },
+      "after": {
+        "auth_roles": [
+          "admin",
+          "analyst",
+          "partner"
+        ]
+      },
+      "basis": [
+        "server/routes/timeline.ts:256-276 has no role guard and enforces provided fund scope at line 275; shared/auth/effective-roles.ts:58-62 defines team roles as admin, partner, analyst",
+        "Current source extraction records auth_roles admin, analyst, partner; locked persona mapping retains admin, analyst, gp. This records the prior empty machine auth-role under-count."
+      ],
+      "kept": {
+        "personas": [
+          "admin",
+          "analyst",
+          "gp"
+        ]
+      },
+      "observed_code_reach": {
+        "personas": [
+          "admin",
+          "analyst",
+          "gp"
+        ]
+      }
+    },
+    {
       "row_id": "api:GET:/api/timeline/:fundId/state",
       "action": "reconciled-current-source-authority",
+      "before": {
+        "auth_roles": [
+          "admin"
+        ]
+      },
+      "after": {
+        "auth_roles": [
+          "admin",
+          "analyst",
+          "partner"
+        ]
+      },
       "basis": [
         "server/routes/timeline.ts:154-161 route middleware has no role guard; the route sits behind the global make_app requireApiAuth boundary (server/app.ts:189-200) plus fund-scope enforcement (timeline.ts:167), which is team",
         "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
@@ -337,8 +413,52 @@
       }
     },
     {
+      "row_id": "api:POST:/api/timeline/:fundId/snapshot",
+      "action": "reconciled-current-source-authority",
+      "before": {
+        "auth_roles": []
+      },
+      "after": {
+        "auth_roles": [
+          "admin",
+          "analyst",
+          "partner"
+        ]
+      },
+      "basis": [
+        "server/routes/timeline.ts:198-213 has no role guard and enforces provided fund scope at line 211; shared/auth/effective-roles.ts:58-62 defines team roles as admin, partner, analyst",
+        "Current source extraction records auth_roles admin, analyst, partner; locked persona mapping retains admin, analyst, gp. This records the prior empty machine auth-role under-count."
+      ],
+      "kept": {
+        "personas": [
+          "admin",
+          "analyst",
+          "gp"
+        ]
+      },
+      "observed_code_reach": {
+        "personas": [
+          "admin",
+          "analyst",
+          "gp"
+        ]
+      }
+    },
+    {
       "row_id": "api:DELETE:/api/shares/:shareId",
       "action": "reconciled-current-source-authority",
+      "before": {
+        "auth_roles": [
+          "admin"
+        ]
+      },
+      "after": {
+        "auth_roles": [
+          "admin",
+          "analyst",
+          "partner"
+        ]
+      },
       "basis": [
         "server/routes/shares.ts:157-168 lines 160-165 grant access on fundId match with no role restriction; server/lib/auth/jwt.ts:240 populates fundIds from JWT claims for any role",
         "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
@@ -361,6 +481,18 @@
     {
       "row_id": "api:GET:/api/shares",
       "action": "reconciled-current-source-authority",
+      "before": {
+        "auth_roles": [
+          "admin"
+        ]
+      },
+      "after": {
+        "auth_roles": [
+          "admin",
+          "analyst",
+          "partner"
+        ]
+      },
       "basis": [
         "server/routes/shares.ts:158 grants GET access to any team-member user; shared/auth/effective-roles.ts:58-62 defines team roles as admin/partner/analyst",
         "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
@@ -383,6 +515,18 @@
     {
       "row_id": "api:GET:/api/shares/:shareId/analytics",
       "action": "reconciled-current-source-authority",
+      "before": {
+        "auth_roles": [
+          "admin"
+        ]
+      },
+      "after": {
+        "auth_roles": [
+          "admin",
+          "analyst",
+          "partner"
+        ]
+      },
       "basis": [
         "server/routes/shares.ts:158 grants GET access to any team-member user; shared/auth/effective-roles.ts:58-62 defines team roles as admin/partner/analyst",
         "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
@@ -405,6 +549,18 @@
     {
       "row_id": "api:PATCH:/api/shares/:shareId",
       "action": "reconciled-current-source-authority",
+      "before": {
+        "auth_roles": [
+          "admin"
+        ]
+      },
+      "after": {
+        "auth_roles": [
+          "admin",
+          "analyst",
+          "partner"
+        ]
+      },
       "basis": [
         "server/routes/shares.ts:160-165 grant access on fundId match with no role restriction; server/lib/auth/jwt.ts:240 populates fundIds from JWT claims for any role",
         "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
@@ -427,6 +583,18 @@
     {
       "row_id": "api:POST:/api/shares",
       "action": "reconciled-current-source-authority",
+      "before": {
+        "auth_roles": [
+          "admin"
+        ]
+      },
+      "after": {
+        "auth_roles": [
+          "admin",
+          "analyst",
+          "partner"
+        ]
+      },
       "basis": [
         "server/routes/shares.ts:160-165 grant access on fundId match with no role restriction; server/lib/auth/jwt.ts:240 populates fundIds from JWT claims for any role",
         "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."

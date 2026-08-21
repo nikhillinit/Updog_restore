@@ -792,6 +792,44 @@ describe('surface contract matrix seed semantic regressions', () => {
     expect(JSON.stringify(exposure)).not.toContain('file:server/routes.ts:209');
   });
 
+  it('records every shares/timeline machine auth-role correction in the defect ledger', () => {
+    const ledger = JSON.parse(
+      fs.readFileSync(
+        path.join(repoRoot, 'audit/surface-contract-matrix/g1-defect-ledger.json'),
+        'utf8'
+      )
+    ) as {
+      fanout_corrections: Array<{
+        row_id: string;
+        action?: string;
+        before?: { auth_roles?: string[] };
+        after?: { auth_roles?: string[] };
+      }>;
+    };
+    const corrections = new Map(
+      ledger.fanout_corrections.map((correction) => [correction.row_id, correction])
+    );
+    const expectedBeforeRoles = new Map<string, string[]>([
+      ['api:DELETE:/api/shares/:shareId', ['admin']],
+      ['api:GET:/api/shares', ['admin']],
+      ['api:GET:/api/shares/:shareId/analytics', ['admin']],
+      ['api:PATCH:/api/shares/:shareId', ['admin']],
+      ['api:POST:/api/shares', ['admin']],
+      ['api:GET:/api/timeline/:fundId', []],
+      ['api:GET:/api/timeline/:fundId/compare', []],
+      ['api:GET:/api/timeline/:fundId/state', ['admin']],
+      ['api:POST:/api/timeline/:fundId/snapshot', []],
+    ]);
+
+    for (const [rowId, beforeRoles] of expectedBeforeRoles) {
+      expect(corrections.get(rowId), rowId).toMatchObject({
+        action: 'reconciled-current-source-authority',
+        before: { auth_roles: beforeRoles },
+        after: { auth_roles: ['admin', 'analyst', 'partner'] },
+      });
+    }
+  });
+
   it('derives team personas only from global authentication plus source-cited team/fund scope', async () => {
     const seed = (await loadSeedInternals()) as unknown as {
       authSuggestionFor: (input: Record<string, unknown>) => {
@@ -827,7 +865,10 @@ describe('surface contract matrix seed semantic regressions', () => {
       });
 
     const expectedRoutes = [
+      ['GET', '/api/timeline/:fundId', 'server/routes/timeline.ts:112', 'fund_scope'],
+      ['GET', '/api/timeline/:fundId/compare', 'server/routes/timeline.ts:256', 'fund_scope'],
       ['GET', '/api/timeline/:fundId/state', 'server/routes/timeline.ts:154', 'fund_scope'],
+      ['POST', '/api/timeline/:fundId/snapshot', 'server/routes/timeline.ts:198', 'fund_scope'],
       ['GET', '/api/shares', 'server/routes/shares.ts:460', 'team_fund_scope'],
       ['GET', '/api/shares/:shareId/analytics', 'server/routes/shares.ts:630', 'team_fund_scope'],
       ['POST', '/api/shares', 'server/routes/shares.ts:406', 'team_fund_scope'],
