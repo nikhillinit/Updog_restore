@@ -548,11 +548,27 @@ export function validateRowIntegrity({ document, inventory } = {}) {
   return errors;
 }
 
-export function validateClosedPhaseInvariants({ document, requirements, families } = {}) {
+export function validateClosedPhaseInvariants({ document, requirements, families, inventory } = {}) {
   if (document?.phase !== 'closed') return [];
   const errors = [];
   const normalizedRequirementsHash = sha256(stableJson(requirements));
   if (document.g1_closure?.requirements_sha256 !== normalizedRequirementsHash) errors.push('closed matrix requirements content hash mismatch');
+  const closureSourceFingerprints = document.g1_closure?.source_fingerprints ?? {};
+  const inventorySourceHashes = inventory?.source_hashes;
+  if (inventorySourceHashes) {
+    for (const [sourcePath, currentHash] of Object.entries(inventorySourceHashes)) {
+      if (!Object.prototype.hasOwnProperty.call(closureSourceFingerprints, sourcePath)) {
+        errors.push(`closed matrix G1 source fingerprint missing: ${sourcePath}`);
+      } else if (closureSourceFingerprints[sourcePath] !== currentHash) {
+        errors.push(`closed matrix G1 source fingerprint stale: ${sourcePath}`);
+      }
+    }
+    for (const sourcePath of Object.keys(closureSourceFingerprints)) {
+      if (!Object.prototype.hasOwnProperty.call(inventorySourceHashes, sourcePath)) {
+        errors.push(`closed matrix G1 source fingerprint not in inventory: ${sourcePath}`);
+      }
+    }
+  }
   const storedFamilies = document.g1_closure?.families ?? {};
   for (const family of families ?? []) {
     if (stableJson(storedFamilies[family.id] ?? []) !== stableJson(family.matched_ids)) {
@@ -611,7 +627,7 @@ export async function validateMatrix({ writeMetadata = true, graphDir = kgDir } 
     for (const [issue, values] of Object.entries(closure.issues)) {
       if (values.length > 0) errors.push(`closed matrix closure ${issue}: ${values.join(', ')}`);
     }
-    errors.push(...validateClosedPhaseInvariants({ document, requirements, families }));
+    errors.push(...validateClosedPhaseInvariants({ document, requirements, families, inventory }));
     if (errors.some((message) => message.includes('fingerprint mismatch'))) {
       errors.push('closed off-row fingerprint gate failed');
     }

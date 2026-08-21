@@ -295,9 +295,9 @@ describe('surface contract matrix CI gate', () => {
       );
     else expect(closure.passed, JSON.stringify(closure.issues)).toBe(true);
     if (matrix.phase === 'closed') {
-      expect(validateClosedPhaseInvariants({ document: matrix, requirements, families })).toEqual(
-        []
-      );
+      expect(
+        validateClosedPhaseInvariants({ document: matrix, requirements, families, inventory })
+      ).toEqual([]);
       expect(
         matrix.rows.every(
           (row) => row.decision_status === 'approved' && row.classification === 'classified'
@@ -364,6 +364,74 @@ describe('surface contract matrix CI gate', () => {
     });
     expect(renderedAgain).toBe(rendered);
     expect(fs.readFileSync(path.join(matrixDir, 'MATRIX.md'), 'utf8')).toBe(rendered);
+  });
+
+  it('rejects closed G1 source fingerprints that differ from the current inventory', () => {
+    const sourceHashes = {
+      'server/routes/example.ts': 'a'.repeat(64),
+      'shared/routes/example.ts': 'b'.repeat(64),
+    };
+    const requirements = { families: [] };
+    const closedDocument = {
+      phase: 'closed',
+      rows: [],
+      g1_closure: {
+        requirements_sha256: sha256(stableJson(requirements)),
+        families: {},
+        source_fingerprints: sourceHashes,
+      },
+    };
+    const inventory = { source_hashes: sourceHashes };
+
+    expect(
+      validateClosedPhaseInvariants({
+        document: closedDocument,
+        requirements,
+        families: [],
+        inventory,
+      })
+    ).toEqual([]);
+
+    expect(
+      validateClosedPhaseInvariants({
+        document: {
+          ...closedDocument,
+          g1_closure: {
+            ...closedDocument.g1_closure,
+            source_fingerprints: {
+              ...sourceHashes,
+              'server/routes/example.ts': 'c'.repeat(64),
+            },
+          },
+        },
+        requirements,
+        families: [],
+        inventory,
+      })
+    ).toContain('closed matrix G1 source fingerprint stale: server/routes/example.ts');
+
+    expect(
+      validateClosedPhaseInvariants({
+        document: {
+          ...closedDocument,
+          g1_closure: {
+            ...closedDocument.g1_closure,
+            source_fingerprints: {
+              'server/routes/example.ts': sourceHashes['server/routes/example.ts'],
+              'extra/source.ts': 'd'.repeat(64),
+            },
+          },
+        },
+        requirements,
+        families: [],
+        inventory,
+      })
+    ).toEqual(
+      expect.arrayContaining([
+        'closed matrix G1 source fingerprint missing: shared/routes/example.ts',
+        'closed matrix G1 source fingerprint not in inventory: extra/source.ts',
+      ])
+    );
   });
 
   it('fails closed tamper invariants for off-row fingerprints, requirements, and coverage', () => {
@@ -674,11 +742,19 @@ describe('surface contract matrix CI gate', () => {
     }
   });
 
-  it('accepts absolute --graph-dir and rejects relative, duplicate, missing, unknown', { retry: 0 }, () => {
-    expect(parseValidateMatrixArgs(['--graph-dir', '/tmp/g'])).toMatchObject({ graphDir: '/tmp/g' });
-    expect(() => parseValidateMatrixArgs(['--graph-dir', 'rel/g'])).toThrow(/absolute/);
-    expect(() => parseValidateMatrixArgs(['--graph-dir', '/a', '--graph-dir', '/b'])).toThrow(/duplicate/);
-    expect(() => parseValidateMatrixArgs(['--graph-dir'])).toThrow(/value/);
-    expect(() => parseValidateMatrixArgs(['--bogus'])).toThrow(/unknown/i);
-  });
+  it(
+    'accepts absolute --graph-dir and rejects relative, duplicate, missing, unknown',
+    { retry: 0 },
+    () => {
+      expect(parseValidateMatrixArgs(['--graph-dir', '/tmp/g'])).toMatchObject({
+        graphDir: '/tmp/g',
+      });
+      expect(() => parseValidateMatrixArgs(['--graph-dir', 'rel/g'])).toThrow(/absolute/);
+      expect(() => parseValidateMatrixArgs(['--graph-dir', '/a', '--graph-dir', '/b'])).toThrow(
+        /duplicate/
+      );
+      expect(() => parseValidateMatrixArgs(['--graph-dir'])).toThrow(/value/);
+      expect(() => parseValidateMatrixArgs(['--bogus'])).toThrow(/unknown/i);
+    }
+  );
 });
