@@ -1,9 +1,6 @@
 [
   {
     "id": "legacy-railway-api-topology",
-    "fingerprint": "4411d2bf3e2bdf51d9db49af22f4a22ab4eceec33392cb3b9e085741c626b88b",
-    "decision_status": "approved",
-    "decision_evidence": "legacy-railway-api-topology: exclusion rule undeployed; inventory-gated; excluded from production topology; supporting source artifacts Dockerfile.railway, DECISIONS.md#ADR-080, railway.toml absent: retired by ADR-080. Approved exclusion remains bound to these current production-topology facts.",
     "matched_layer": "legacy-container-and-service-manifests",
     "rule": "undeployed; inventory-gated; excluded from production topology",
     "evidence": [
@@ -11,13 +8,12 @@
       "DECISIONS.md#ADR-080",
       "railway.toml absent: retired by ADR-080"
     ],
-    "contract_fingerprint": "4411d2bf3e2bdf51d9db49af22f4a22ab4eceec33392cb3b9e085741c626b88b"
+    "decision_status": "proposed",
+    "decision_evidence": "ADR-080 source-derived legacy Railway topology exclusion.",
+    "fingerprint": "4411d2bf3e2bdf51d9db49af22f4a22ab4eceec33392cb3b9e085741c626b88b"
   },
   {
     "id": "ml-service-local-production-topology",
-    "fingerprint": "5e7b68b23a38cdb43e07055b1dda6e731024dc023a53152baf23e9ca7949d39f",
-    "decision_status": "approved",
-    "decision_evidence": "ml-service-local-production-topology: exclusion rule local-only; excluded from Vercel and Railway production artifacts; provider inventory approval required; supporting source artifacts ml-service/Dockerfile, .vercelignore:ml-service/ is excluded from Vercel build input, .dockerignore:ml-service/ is excluded from production Docker build input, vercel.json, railway.worker.toml, railway.capital-call-status.worker.toml, DECISIONS.md#ADR-075. Approved exclusion remains bound to these current production-topology facts.",
     "matched_layer": "ml-service-local",
     "rule": "local-only; excluded from Vercel and Railway production artifacts; provider inventory approval required",
     "evidence": [
@@ -29,6 +25,8 @@
       "railway.capital-call-status.worker.toml",
       "DECISIONS.md#ADR-075"
     ],
-    "contract_fingerprint": "5e7b68b23a38cdb43e07055b1dda6e731024dc023a53152baf23e9ca7949d39f"
+    "decision_status": "proposed",
+    "decision_evidence": "ADR-075 source-derived local-only ML service exclusion; exact provider inventory remains an approval-time gate.",
+    "fingerprint": "5e7b68b23a38cdb43e07055b1dda6e731024dc023a53152baf23e9ca7949d39f"
   }
 ]
