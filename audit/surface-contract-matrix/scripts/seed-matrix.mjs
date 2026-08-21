@@ -383,7 +383,14 @@ const governanceByPath = new Map(ROUTE_GOVERNANCE_REGISTRY.map((entry) => [entry
 
 const authRoleInventory = discoverAuthRoleEvidence({ rootDir: repoRoot });
 assertAuthRoleMappingExhaustive(authRoleInventory.roles);
-const TEAM_FUND_FALLBACK_ROLES = Object.freeze([...TEAM_WRITE_ROLES]);
+// Both fund_scope and team_fund_scope allow scoped user principals (lp, operator, viewer) via fundIds membership.
+// canManageFund (team_fund_scope) checks req.user?.fundIds?.includes(numericFundId) at shares.ts:163.
+const TEAM_FUND_FALLBACK_ROLES = Object.freeze([
+  ...TEAM_WRITE_ROLES,
+  'lp',
+  'operator',
+  'viewer',
+].sort());
 // resolveFundScope allows service (any fund) and scoped user principals (lp, operator, viewer)
 // in addition to team roles via isTeamMemberUser read layer.
 const FUND_SCOPE_FALLBACK_ROLES = Object.freeze([
@@ -393,6 +400,11 @@ const FUND_SCOPE_FALLBACK_ROLES = Object.freeze([
   'operator',
   'viewer',
 ].sort());
+const CAN_MANAGE_FUND_LINE = (() => {
+  const source = fs.readFileSync(path.join(repoRoot, 'server/routes/shares.ts'), 'utf8');
+  const match = source.split('\n').findIndex((l) => /fundIds\?\.includes\(numericFundId\)/.test(l));
+  return match === -1 ? 163 : match + 1;
+})();
 const IS_TEAM_ROLE_LINE = (() => {
   const source = fs.readFileSync(path.join(repoRoot, 'shared/auth/effective-roles.ts'), 'utf8');
   const match = source.split('\n').findIndex((l) => /^export function isTeamRole\b/.test(l));
@@ -750,13 +762,14 @@ const authSuggestionFor = ({
   if (hasGlobalAuthentication && scopeEvidence.length > 0 && !hasExplicitOrUnresolvedRoleGuard && !isPublic) {
     const scopeCitations = scopeEvidence.map((s) => `${s.file}:${s.line}`).join(', ');
     const derivedBoundary = scopeEvidence[0].boundary;
-    // fund_scope allows service principal and scoped user principals (via resolveFundScope);
-    // team_fund_scope restricts to team member roles only (via isTeamMemberUser).
+    // Both fund_scope and team_fund_scope allow scoped user principals (lp, operator, viewer) via fundIds.
+    // fund_scope additionally allows service principal (via resolveFundScope).
     const hasFundScope = scopeEvidence.some((s) => s.boundary === 'fund_scope');
     const fallbackRoles = hasFundScope ? FUND_SCOPE_FALLBACK_ROLES : TEAM_FUND_FALLBACK_ROLES;
     roles = sortedUnique([...roles, ...fallbackRoles]);
+    // Team role evidence (admin, analyst, partner) via isTeamMemberUser
     evidence.push(
-      ...TEAM_FUND_FALLBACK_ROLES.map((role) => ({
+      ...TEAM_WRITE_ROLES.map((role) => ({
         kind: 'identity',
         role,
         boundary: derivedBoundary,
@@ -765,18 +778,31 @@ const authSuggestionFor = ({
         evidence: `shared/auth/effective-roles.ts:${IS_TEAM_ROLE_LINE} isTeamRole includes ${role}; ${scopeCitations} proves route ${derivedBoundary} scope`,
       }))
     );
+    // Scoped user principals (lp, operator, viewer) via fundIds membership - applies to both scopes
+    const scopedUserRoles = ['lp', 'operator', 'viewer'];
+    const scopedUserFile = hasFundScope ? 'server/lib/auth/fund-scope.ts' : 'server/routes/shares.ts';
+    const scopedUserLine = hasFundScope ? RESOLVE_FUND_SCOPE_LINE : CAN_MANAGE_FUND_LINE;
+    const scopedUserFunc = hasFundScope ? 'resolveFundScope' : 'canManageFund';
+    evidence.push(
+      ...scopedUserRoles.map((role) => ({
+        kind: 'identity',
+        role,
+        boundary: derivedBoundary,
+        file: scopedUserFile,
+        line: scopedUserLine,
+        evidence: `${scopedUserFile}:${scopedUserLine} ${scopedUserFunc} allows ${role} via fundIds; ${scopeCitations} proves route ${derivedBoundary} scope`,
+      }))
+    );
     if (hasFundScope) {
-      const fundScopeOnlyRoles = ['service', 'lp', 'operator', 'viewer'];
-      evidence.push(
-        ...fundScopeOnlyRoles.map((role) => ({
-          kind: 'identity',
-          role,
-          boundary: derivedBoundary,
-          file: 'server/lib/auth/fund-scope.ts',
-          line: RESOLVE_FUND_SCOPE_LINE,
-          evidence: `server/lib/auth/fund-scope.ts:${RESOLVE_FUND_SCOPE_LINE} resolveFundScope allows ${role}; ${scopeCitations} proves route fund_scope`,
-        }))
-      );
+      // Service principal only for fund_scope (via resolveFundScope)
+      evidence.push({
+        kind: 'identity',
+        role: 'service',
+        boundary: derivedBoundary,
+        file: 'server/lib/auth/fund-scope.ts',
+        line: RESOLVE_FUND_SCOPE_LINE,
+        evidence: `server/lib/auth/fund-scope.ts:${RESOLVE_FUND_SCOPE_LINE} resolveFundScope allows service; ${scopeCitations} proves route fund_scope`,
+      });
     }
   }
   const mappedRoles = roles.filter((role) => role !== AUTH_UNRESOLVED_ROLE);

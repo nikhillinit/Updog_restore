@@ -902,17 +902,17 @@ describe('surface contract matrix seed semantic regressions', () => {
 
     for (const [method, routePath, site, scopeBoundary] of expectedRoutes) {
       const suggestion = suggest(method, routePath, site);
-      // fund_scope via resolveFundScope allows service (any fund) and scoped user
-      // principals (lp, operator, viewer) in addition to team roles.
+      // Both fund_scope and team_fund_scope allow scoped user principals (lp, operator, viewer) via fundIds.
+      // fund_scope additionally allows service principal (via resolveFundScope).
       const expectedRoles =
         scopeBoundary === 'fund_scope'
           ? ['admin', 'analyst', 'lp', 'operator', 'partner', 'service', 'viewer']
-          : ['admin', 'analyst', 'partner'];
+          : ['admin', 'analyst', 'lp', 'operator', 'partner', 'viewer'];
       // Personas after mapping: operator->gp, viewer->analyst (unique set)
       const expectedPersonas =
         scopeBoundary === 'fund_scope'
           ? ['admin', 'analyst', 'gp', 'lp', 'service']
-          : ['admin', 'analyst', 'gp'];
+          : ['admin', 'analyst', 'gp', 'lp'];
       expect(suggestion.auth_roles, routePath).toEqual(expectedRoles);
       expect(suggestion.personas, routePath).toEqual(expectedPersonas);
       const baseEvidence = [
@@ -944,29 +944,36 @@ describe('surface contract matrix seed semantic regressions', () => {
           line: 58,
         }),
       ];
+      // Scoped user principals (lp, operator, viewer) evidence - different file per scope
+      const scopedUserFile =
+        scopeBoundary === 'fund_scope'
+          ? 'server/lib/auth/fund-scope.ts'
+          : 'server/routes/shares.ts';
+      baseEvidence.push(
+        expect.objectContaining({
+          kind: 'identity',
+          role: 'lp',
+          boundary: scopeBoundary,
+          file: scopedUserFile,
+        }),
+        expect.objectContaining({
+          kind: 'identity',
+          role: 'operator',
+          boundary: scopeBoundary,
+          file: scopedUserFile,
+        }),
+        expect.objectContaining({
+          kind: 'identity',
+          role: 'viewer',
+          boundary: scopeBoundary,
+          file: scopedUserFile,
+        })
+      );
       if (scopeBoundary === 'fund_scope') {
         baseEvidence.push(
           expect.objectContaining({
             kind: 'identity',
             role: 'service',
-            boundary: scopeBoundary,
-            file: 'server/lib/auth/fund-scope.ts',
-          }),
-          expect.objectContaining({
-            kind: 'identity',
-            role: 'lp',
-            boundary: scopeBoundary,
-            file: 'server/lib/auth/fund-scope.ts',
-          }),
-          expect.objectContaining({
-            kind: 'identity',
-            role: 'operator',
-            boundary: scopeBoundary,
-            file: 'server/lib/auth/fund-scope.ts',
-          }),
-          expect.objectContaining({
-            kind: 'identity',
-            role: 'viewer',
             boundary: scopeBoundary,
             file: 'server/lib/auth/fund-scope.ts',
           })
