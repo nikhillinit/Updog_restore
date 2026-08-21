@@ -902,17 +902,19 @@ describe('surface contract matrix seed semantic regressions', () => {
 
     for (const [method, routePath, site, scopeBoundary] of expectedRoutes) {
       const suggestion = suggest(method, routePath, site);
-      // Both fund_scope and team_fund_scope allow scoped user principals (lp, operator, viewer) via fundIds.
-      // fund_scope additionally allows service principal (via resolveFundScope).
-      const expectedRoles =
-        scopeBoundary === 'fund_scope'
-          ? ['admin', 'analyst', 'lp', 'operator', 'partner', 'service', 'viewer']
-          : ['admin', 'analyst', 'lp', 'operator', 'partner', 'viewer'];
+      // Both scope helpers admit the same known identities: admin/service principals plus
+      // scoped users whose fundIds include the requested fund.
+      const expectedRoles = [
+        'admin',
+        'analyst',
+        'lp',
+        'operator',
+        'partner',
+        'service',
+        'viewer',
+      ];
       // Personas after mapping: operator->gp, viewer->analyst (unique set)
-      const expectedPersonas =
-        scopeBoundary === 'fund_scope'
-          ? ['admin', 'analyst', 'gp', 'lp', 'service']
-          : ['admin', 'analyst', 'gp', 'lp'];
+      const expectedPersonas = ['admin', 'analyst', 'gp', 'lp', 'service'];
       expect(suggestion.auth_roles, routePath).toEqual(expectedRoles);
       expect(suggestion.personas, routePath).toEqual(expectedPersonas);
       const baseEvidence = [
@@ -922,62 +924,61 @@ describe('surface contract matrix seed semantic regressions', () => {
           line: 215,
         }),
         expect.objectContaining({ boundary: scopeBoundary, file: site.split(':')[0] }),
-        expect.objectContaining({
-          kind: 'identity',
-          role: 'admin',
-          boundary: scopeBoundary,
-          file: 'shared/auth/effective-roles.ts',
-          line: 58,
-        }),
-        expect.objectContaining({
-          kind: 'identity',
-          role: 'partner',
-          boundary: scopeBoundary,
-          file: 'shared/auth/effective-roles.ts',
-          line: 58,
-        }),
-        expect.objectContaining({
-          kind: 'identity',
-          role: 'analyst',
-          boundary: scopeBoundary,
-          file: 'shared/auth/effective-roles.ts',
-          line: 58,
-        }),
       ];
-      // Scoped user principals (lp, operator, viewer) evidence - different file per scope
-      const scopedUserFile =
-        scopeBoundary === 'fund_scope'
-          ? 'server/lib/auth/fund-scope.ts'
-          : 'server/routes/shares.ts';
-      baseEvidence.push(
-        expect.objectContaining({
-          kind: 'identity',
-          role: 'lp',
-          boundary: scopeBoundary,
-          file: scopedUserFile,
-        }),
-        expect.objectContaining({
-          kind: 'identity',
-          role: 'operator',
-          boundary: scopeBoundary,
-          file: scopedUserFile,
-        }),
-        expect.objectContaining({
-          kind: 'identity',
-          role: 'viewer',
-          boundary: scopeBoundary,
-          file: scopedUserFile,
-        })
-      );
       if (scopeBoundary === 'fund_scope') {
+        for (const role of expectedRoles) {
+          baseEvidence.push(
+            expect.objectContaining({
+              kind: 'identity',
+              role,
+              boundary: scopeBoundary,
+              file: 'server/lib/auth/fund-scope.ts',
+              line: 15,
+            })
+          );
+        }
+      } else {
         baseEvidence.push(
           expect.objectContaining({
             kind: 'identity',
-            role: 'service',
+            role: 'admin',
             boundary: scopeBoundary,
-            file: 'server/lib/auth/fund-scope.ts',
+            file: 'server/routes/shares.ts',
+            line: 159,
           })
         );
+        for (const role of expectedRoles.filter((role) => role !== 'admin')) {
+          baseEvidence.push(
+            expect.objectContaining({
+              kind: 'identity',
+              role,
+              boundary: scopeBoundary,
+              file: 'server/routes/shares.ts',
+              line: 163,
+            })
+          );
+        }
+        const safeReadRoles = ['admin', 'analyst', 'operator', 'partner', 'viewer'];
+        if (method === 'GET' || method === 'HEAD') {
+          for (const role of safeReadRoles) {
+            baseEvidence.push(
+              expect.objectContaining({
+                kind: 'identity',
+                role,
+                boundary: scopeBoundary,
+                file: 'server/routes/shares.ts',
+                line: 158,
+              })
+            );
+          }
+        } else {
+          expect(
+            suggestion.auth_evidence.some(
+              (entry) => entry.kind === 'identity' && entry.file === 'server/routes/shares.ts' && entry.line === 158
+            ),
+            routePath
+          ).toBe(false);
+        }
       }
       expect(suggestion.auth_evidence, routePath).toEqual(expect.arrayContaining(baseEvidence));
       for (const evidence of suggestion.auth_evidence) {
