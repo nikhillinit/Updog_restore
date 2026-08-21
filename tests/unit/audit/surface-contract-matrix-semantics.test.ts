@@ -865,6 +865,30 @@ describe('surface contract matrix seed semantic regressions', () => {
       });
 
     const expectedRoutes = [
+      [
+        'GET',
+        '/api/funds/:fundId/allocation-scenarios',
+        'server/routes/allocation-scenarios.ts:407',
+        'fund_scope',
+      ],
+      [
+        'GET',
+        '/api/funds/:fundId/allocation-scenarios/:scenarioId',
+        'server/routes/allocation-scenarios.ts:420',
+        'fund_scope',
+      ],
+      [
+        'GET',
+        '/api/funds/:fundId/allocation-scenarios/:scenarioId/decisions',
+        'server/routes/allocation-scenarios.ts:433',
+        'fund_scope',
+      ],
+      [
+        'GET',
+        '/api/funds/:fundId/allocation-scenarios/:scenarioId/apply-preview',
+        'server/routes/allocation-scenarios.ts:446',
+        'fund_scope',
+      ],
       ['GET', '/api/timeline/:fundId', 'server/routes/timeline.ts:112', 'fund_scope'],
       ['GET', '/api/timeline/:fundId/compare', 'server/routes/timeline.ts:256', 'fund_scope'],
       ['GET', '/api/timeline/:fundId/state', 'server/routes/timeline.ts:154', 'fund_scope'],

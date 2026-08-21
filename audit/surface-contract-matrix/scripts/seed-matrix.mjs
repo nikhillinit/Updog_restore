@@ -30,6 +30,7 @@ import {
   extractProductRoutes,
   ListenerDispositionSchema,
   listenerDispositionFingerprint,
+  matchingDelimiter,
   mergeDormantCandidates,
   orphanResolutionFingerprint,
   resolveListenerModuleGraph,
@@ -465,8 +466,43 @@ const localRoleAliasEvidenceForDefinitions = (definitions, source, filePath) => 
   return evidence;
 };
 
-const teamFundScopeEvidenceForDefinitions = (definitions, source, filePath) => {
+const routerFundParamScopeEvidenceForDefinitions = (definitions, source, filePath) => {
+  const routeUsesFundId = definitions.some((definition) =>
+    /(?:^|\/)\:fundId(?:\/|$)/.test(String(definition?.path ?? ''))
+  );
+  if (!routeUsesFundId) return [];
+
   const evidence = [];
+  const pattern = /\.\s*param\s*\(\s*(['"])fundId\1/g;
+  for (const match of source.matchAll(pattern)) {
+    const matchIndex = match.index ?? 0;
+    const openIndex = matchIndex + match[0].lastIndexOf('(');
+    const endIndex = matchingDelimiter(source, openIndex) + 1;
+    const registrationText = source.slice(matchIndex, endIndex);
+    const addScopeEvidence = (scopePattern, boundary, description) => {
+      const scopeMatch = scopePattern.exec(registrationText);
+      if (!scopeMatch) return;
+      const line = source.slice(0, matchIndex + (scopeMatch.index ?? 0)).split('\n').length;
+      evidence.push({
+        kind: 'policy-boundary',
+        boundary,
+        file: filePath,
+        line,
+        evidence: `${filePath}:${line} ${description} in router.param('fundId')`,
+      });
+    };
+    addScopeEvidence(
+      /\benforceProvidedFundScope\s*\(/,
+      'fund_scope',
+      'enforces provided fund scope'
+    );
+    addScopeEvidence(/\bcanManageFund\s*\(/, 'team_fund_scope', 'checks team/fund management scope');
+  }
+  return evidence;
+};
+
+const teamFundScopeEvidenceForDefinitions = (definitions, source, filePath) => {
+  const evidence = routerFundParamScopeEvidenceForDefinitions(definitions, source, filePath);
   const registrationLines = definitions.map(definitionLine).filter(Boolean);
   const ranges = routeRegistrationRanges(source, { registrationLines });
   for (const [charStart, charEnd] of ranges) {
