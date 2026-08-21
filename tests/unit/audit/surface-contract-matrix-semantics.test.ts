@@ -11,6 +11,7 @@ import * as matrixSchema from '../../../audit/surface-contract-matrix/matrix-sch
 import { classifyDocument } from '../../../audit/surface-contract-matrix/scripts/classify-pass.mjs';
 import { routePolicyKey } from '../../../server/route-policy/api-route-policy-registry.ts';
 import { QUEUE_CATALOG } from '../../../server/queues/registry.ts';
+import { TEAM_WRITE_ROLES } from '../../../shared/auth/effective-roles.ts';
 
 const repoRoot = process.cwd();
 const seedPath = path.join(repoRoot, 'audit/surface-contract-matrix/scripts/seed-matrix.mjs');
@@ -177,6 +178,7 @@ async function loadSeedInternals(
       { path: '/moic-analysis', surface: 'legacy-redirect', redirectTarget: '/model-results' },
       { path: '/fund-model-results/:fundId/moic-analysis', surface: 'app-route' },
     ],
+    TEAM_WRITE_ROLES,
     ...matrixSchema,
   });
 
@@ -928,6 +930,40 @@ describe('surface contract matrix seed semantic regressions', () => {
     });
     expect(unresolvedGuard.auth_roles).toEqual(['unresolved']);
     expect(unresolvedGuard.personas).toEqual(['unknown']);
+  });
+
+  it('matchingDelimiter skips apostrophes inside line and block comments', () => {
+    const schema = matrixSchema as Record<string, (...args: unknown[]) => unknown>;
+    const matchingDelimiter = schema.matchingDelimiter as (
+      source: string,
+      openIndex: number,
+      open?: string,
+      close?: string
+    ) => number;
+
+    const lineComment = `(a, // it's fine\nb)`;
+    expect(matchingDelimiter(lineComment, 0)).toBe(lineComment.length - 1);
+
+    const blockComment = `(a, /* it's fine */ b)`;
+    expect(matchingDelimiter(blockComment, 0)).toBe(blockComment.length - 1);
+
+    const nested = `(a, /* it's */ // don't break\nb)`;
+    expect(matchingDelimiter(nested, 0)).toBe(nested.length - 1);
+  });
+
+  it('routeRegistrationRanges returns narrow range when comments contain apostrophes', () => {
+    const schema = matrixSchema as Record<string, (...args: unknown[]) => unknown>;
+    const routeRegistrationRanges = schema.routeRegistrationRanges as (
+      source: string,
+      options: Record<string, unknown>
+    ) => [number, number][];
+
+    const source = fs.readFileSync(path.join(repoRoot, 'server/routes/timeline.ts'), 'utf8');
+    const ranges = routeRegistrationRanges(source, { method: 'GET', registrationLines: [154] });
+    expect(ranges).toHaveLength(1);
+    const [_start, end] = ranges[0];
+    const endLine = source.slice(0, end).split('\n').length;
+    expect(endLine).toBeLessThanOrEqual(193);
   });
 
   it('unions make_app/create_server observations and derives protected/public auth boundaries', async () => {

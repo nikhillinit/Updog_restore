@@ -15,6 +15,7 @@ import { QUEUE_CATALOG } from '../../../server/queues/registry.ts';
 import { COMMON_API_ROUTE_MANIFEST } from '../../../shared/routes/api-route-manifest.ts';
 import { API_RUNTIME_SPECIFIC_MANIFEST } from '../../../shared/routes/api-runtime-specific-manifest.ts';
 import { ROUTE_GOVERNANCE_REGISTRY } from '../../../shared/routes/route-governance-registry.ts';
+import { TEAM_WRITE_ROLES } from '../../../shared/auth/effective-roles.ts';
 import {
   canonicalRowId,
   AUTH_UNRESOLVED_ROLE,
@@ -25,6 +26,7 @@ import {
   discoverDormantCandidates,
   discoverHttpListenerCandidates,
   extractAuthRoleEvidenceForRoute,
+  routeRegistrationRanges,
   extractProductRoutes,
   ListenerDispositionSchema,
   listenerDispositionFingerprint,
@@ -380,7 +382,12 @@ const governanceByPath = new Map(ROUTE_GOVERNANCE_REGISTRY.map((entry) => [entry
 
 const authRoleInventory = discoverAuthRoleEvidence({ rootDir: repoRoot });
 assertAuthRoleMappingExhaustive(authRoleInventory.roles);
-const TEAM_FUND_FALLBACK_ROLES = Object.freeze(['admin', 'partner', 'analyst']);
+const TEAM_FUND_FALLBACK_ROLES = Object.freeze([...TEAM_WRITE_ROLES]);
+const IS_TEAM_ROLE_LINE = (() => {
+  const source = fs.readFileSync(path.join(repoRoot, 'shared/auth/effective-roles.ts'), 'utf8');
+  const match = source.split('\n').findIndex((l) => /^export function isTeamRole\b/.test(l));
+  return match === -1 ? 58 : match + 1;
+})();
 
 const definitionFile = (site) => String(site ?? '').replace(/:\d+$/, '');
 const definitionLine = (definition) => definition.line ?? Number(String(definition.site ?? '').match(/:(\d+)$/)?.[1] ?? 0);
@@ -431,74 +438,12 @@ const sourceWindowAtLine = (source, line, radius = 80) => {
   return lines.slice(start, start + radius).join('\n');
 };
 
-const routeRegistrationRange = (source, line) => {
-  const lines = String(source ?? '').split('\n');
-  const start = Math.max(1, Number(line ?? 1));
-  const routeRegistration = /^\s*(?:router|[A-Za-z_$][\w$]*Router)(?:\.\w+|\[['"][^'"]+['"]\])\s*\(/;
-  let end = lines.length + 1;
-  for (let index = start; index < lines.length; index += 1) {
-    if (routeRegistration.test(lines[index])) {
-      end = index + 1;
-      break;
-    }
-  }
-  return { lines, start, end };
-};
-
-const helperGuardNameContainingLine = (source, line) => {
-  const lines = String(source ?? '').split('\n');
-  const target = Math.max(0, Number(line ?? 1) - 1);
-  const declaration = /^\s*(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\b/;
-
-  for (let start = target; start >= 0; start -= 1) {
-    const match = declaration.exec(lines[start]);
-    if (!match) continue;
-
-    let depth = 0;
-    let opened = false;
-    let containsTarget = false;
-    for (let index = start; index < lines.length; index += 1) {
-      for (const character of lines[index]) {
-        if (character === '{') {
-          depth += 1;
-          opened = true;
-        } else if (character === '}' && opened) {
-          depth -= 1;
-        }
-      }
-      if (index === target) containsTarget = true;
-      if (opened && depth === 0) {
-        const helperSource = lines.slice(start, index + 1).join('\n');
-        if (containsTarget && /\bres\.status\(\s*403\s*\)/.test(helperSource)) return match[1];
-        break;
-      }
-    }
-  }
-
-  return undefined;
-};
-
-const roleEvidenceBelongsToRouteDefinitions = (entry, definitions, source) => {
-  if (!entry.role || !Number.isInteger(entry.line)) return true;
-  return definitions.some((definition) => {
-    if (definitionFile(definition.site) !== entry.file) return false;
-    const { lines, start, end } = routeRegistrationRange(source, definitionLine(definition));
-    if (entry.line >= start && entry.line < end) return true;
-
-    const helperName = helperGuardNameContainingLine(source, entry.line);
-    if (!helperName) return false;
-    const registration = lines.slice(start - 1, end - 1).join('\n');
-    const escapedName = helperName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return new RegExp(`\\b${escapedName}\\s*\\(`).test(registration);
-  });
-};
-
 const localRoleAliasEvidenceForDefinitions = (definitions, source, filePath) => {
   const evidence = [];
-  const lines = String(source ?? '').split('\n');
-  for (const definition of definitions) {
-    const { start, end } = routeRegistrationRange(source, definitionLine(definition));
-    const registration = lines.slice(start - 1, end - 1).join('\n');
+  const registrationLines = definitions.map(definitionLine).filter(Boolean);
+  const ranges = routeRegistrationRanges(source, { registrationLines });
+  for (const [charStart, charEnd] of ranges) {
+    const registration = source.slice(charStart, charEnd);
     const aliases = new Set(
       [...registration.matchAll(/\b(require[A-Z][\w$]*)\b/g)].map((match) => match[1])
     );
@@ -522,14 +467,16 @@ const localRoleAliasEvidenceForDefinitions = (definitions, source, filePath) => 
 
 const teamFundScopeEvidenceForDefinitions = (definitions, source, filePath) => {
   const evidence = [];
-  for (const definition of definitions) {
-    const { lines, start, end } = routeRegistrationRange(source, definitionLine(definition));
-    const scopedLines = lines.slice(start - 1, end - 1);
-    const firstMatch = (pattern) => {
-      const index = scopedLines.findIndex((line) => pattern.test(line));
-      return index === -1 ? undefined : start + index;
+  const registrationLines = definitions.map(definitionLine).filter(Boolean);
+  const ranges = routeRegistrationRanges(source, { registrationLines });
+  for (const [charStart, charEnd] of ranges) {
+    const registrationText = source.slice(charStart, charEnd);
+    const searchInRegistration = (pattern) => {
+      const match = pattern.exec(registrationText);
+      if (!match) return undefined;
+      return source.slice(0, charStart + match.index).split('\n').length;
     };
-    const providedFundScopeLine = firstMatch(/\benforceProvidedFundScope\s*\(/);
+    const providedFundScopeLine = searchInRegistration(/\benforceProvidedFundScope\s*\(/);
     if (providedFundScopeLine) {
       evidence.push({
         kind: 'policy-boundary',
@@ -539,7 +486,7 @@ const teamFundScopeEvidenceForDefinitions = (definitions, source, filePath) => {
         evidence: `${filePath}:${providedFundScopeLine} enforces provided fund scope`,
       });
     }
-    const teamFundScopeLine = firstMatch(/\bcanManageFund\s*\(/);
+    const teamFundScopeLine = searchInRegistration(/\bcanManageFund\s*\(/);
     if (teamFundScopeLine) {
       evidence.push({
         kind: 'policy-boundary',
@@ -670,9 +617,7 @@ const authEvidenceForDefinitions = (definitions, manifest, policy, { includePoli
       registrationLines: fileDefinitions.map(definitionLine).filter(Boolean),
     });
     evidence.push(
-      ...routeEvidence.filter((entry) =>
-        roleEvidenceBelongsToRouteDefinitions(entry, fileDefinitions, source)
-      ),
+      ...routeEvidence,
       ...localRoleAliasEvidenceForDefinitions(fileDefinitions, source, filePath),
       ...fileDefinitions.flatMap(localGuardEvidenceForDefinition),
       ...teamFundScopeEvidenceForDefinitions(fileDefinitions, source, filePath)
@@ -750,11 +695,7 @@ const authSuggestionFor = ({
   const hasExplicitOrUnresolvedRoleGuard =
     roles.includes(AUTH_UNRESOLVED_ROLE) ||
     authBoundaryRoles(boundary).some((role) => role !== 'public') ||
-    evidence.some(
-      (entry) =>
-        entry.role &&
-        (entry.kind === 'guard' || entry.kind === 'handler' || entry.role === AUTH_UNRESOLVED_ROLE)
-    );
+    evidence.some((entry) => entry.role && entry.kind === 'guard');
   const isPublic = roles.includes('public') || evidence.some((entry) => entry.boundary === 'public');
   if (hasGlobalAuthentication && scopeEvidence.length > 0 && !hasExplicitOrUnresolvedRoleGuard && !isPublic) {
     const scope = scopeEvidence[0];
@@ -765,8 +706,8 @@ const authSuggestionFor = ({
         role,
         boundary: 'team_fund_scope',
         file: 'shared/auth/effective-roles.ts',
-        line: 58,
-        evidence: `shared/auth/effective-roles.ts:58 isTeamRole includes ${role}; ${scope.file}:${scope.line} proves route team/fund scope`,
+        line: IS_TEAM_ROLE_LINE,
+        evidence: `shared/auth/effective-roles.ts:${IS_TEAM_ROLE_LINE} isTeamRole includes ${role}; ${scope.file}:${scope.line} proves route team/fund scope`,
       }))
     );
   }
