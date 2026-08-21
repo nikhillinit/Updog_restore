@@ -70,6 +70,10 @@ export function assertBranchProtectionReadable(protection) {
   if (!protection || protection.status === 403 || protection.status === 404 || protection.error) {
     fail('branch protection could not be read');
   }
+  return protection;
+}
+
+function requiredStatusCheckRequirements(protection) {
   const statusChecks = protection.required_status_checks;
   const contexts = Array.isArray(statusChecks?.contexts) ? statusChecks.contexts : [];
   const checks = Array.isArray(statusChecks?.checks) ? statusChecks.checks : [];
@@ -87,7 +91,6 @@ export function assertBranchProtectionReadable(protection) {
     requirements.delete(`${context}:unbound`);
     requirements.set(`${context}:app:${appId}`, { context, appId });
   }
-  if (requirements.size === 0) fail('branch protection does not contain required contexts');
   return [...requirements.values()];
 }
 
@@ -110,7 +113,8 @@ export async function collectPaginated(fetchPage, initialPage = undefined) {
 
 export function aggregateExactShaEvidence({ candidateSha, protection, checkRuns, statuses }) {
   const exactSha = requireSha(candidateSha, 'candidate SHA');
-  const requirements = assertBranchProtectionReadable(protection);
+  assertBranchProtectionReadable(protection);
+  const requirements = requiredStatusCheckRequirements(protection);
   for (const context of LOCKED_G3_CONTEXTS) {
     if (!requirements.some((requirement) => requirement.context === context)) requirements.push({ context });
   }

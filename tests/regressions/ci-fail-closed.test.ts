@@ -4917,6 +4917,7 @@ describe('required CI fails closed', () => {
       expect(proofScripts).toContain('hasAlias && hasAliases');
       expect(proofWorkflow.jobs?.['g3-exact-sha-verdict']?.name).toBe('G3 Exact-SHA Verdict');
       expect(proofScripts).toMatch(/branch protection/i);
+      expect(proofScripts).toContain('repos/${REPO}/rules/branches/main');
       expect(proofScripts).not.toContain('private endpoint proof');
       expect(proofScripts).toContain('npx playwright install --with-deps chromium');
       expect(proofScripts).toContain('Project-Access-Token: ${RAILWAY_TOKEN}');
