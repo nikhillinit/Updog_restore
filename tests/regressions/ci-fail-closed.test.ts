@@ -33,7 +33,7 @@ type WorkflowJob = {
     };
   };
   env?: Record<string, unknown>;
-  environment?: string;
+  environment?: string | { deployment?: boolean; name?: string };
   if?: string;
   needs?: string | string[];
   outputs?: Record<string, unknown>;
@@ -4739,9 +4739,13 @@ describe('required CI fails closed', () => {
       expect(proofWorkflow.jobs?.['provider-identity']?.if).toContain(
         'inputs.require_provider_identity == true'
       );
-      expect(proofWorkflow.jobs?.['g3-exact-sha-verdict']?.if).toBe('${{ always() }}');
+      expect(proofWorkflow.jobs?.['g3-exact-sha-verdict']?.if).toContain(
+        "needs.proof-contract.outputs.proof_mode == 'certifying'"
+      );
       expect(normalizeNeeds(proofWorkflow.jobs?.['g3-exact-sha-verdict']?.needs)).toEqual([
+        'proof-contract',
         'full-release-proof',
+        'protected-boot-proof',
         'provider-identity',
         'canary-residue-characterization',
       ]);
@@ -4916,7 +4920,7 @@ describe('required CI fails closed', () => {
       expect(proofScripts).toContain('aliasCount(deployment) === 0');
       expect(proofScripts).toContain('hasAlias && hasAliases');
       expect(proofWorkflow.jobs?.['g3-exact-sha-verdict']?.name).toBe('G3 Exact-SHA Verdict');
-      expect(proofScripts).toMatch(/branch protection/i);
+      expect(proofScripts).toContain('branches/main/protection');
       expect(proofScripts).not.toContain('private endpoint proof');
       expect(proofScripts).toContain('npx playwright install --with-deps chromium');
       expect(proofScripts).toContain('Project-Access-Token: ${RAILWAY_TOKEN}');
@@ -4927,17 +4931,15 @@ describe('required CI fails closed', () => {
       expect(proofScripts).toContain('hasNextPage');
       expect(proofScripts).not.toContain('backboard.railway.app');
       expect(proofScripts).not.toContain('me {');
-      expect(proofWorkflow.jobs?.['full-release-proof']?.environment).toBe(
-        "${{ github.event_name == 'workflow_dispatch' && 'Production' || '' }}"
-      );
-      const strictBootStep = proofWorkflow.jobs?.['full-release-proof']?.steps?.find(
+      expect(proofWorkflow.jobs?.['full-release-proof']?.environment).toBeUndefined();
+      const strictBootStep = proofWorkflow.jobs?.['protected-boot-proof']?.steps?.find(
         (step) => step.name === 'Run strict Vercel boot proof'
       );
       expect(strictBootStep?.env?.VERCEL_TOKEN).toBe('${{ secrets.VERCEL_TOKEN }}');
       expect(strictBootStep?.env?.VERCEL_ORG_ID).toBe('${{ vars.VERCEL_ORG_ID }}');
       expect(strictBootStep?.env?.VERCEL_PROJECT_ID).toBe('${{ vars.VERCEL_PROJECT_ID }}');
       expect(strictBootStep?.run).toContain(
-        'VERCEL_TOKEN is required for strict Vercel build proof'
+        'VERCEL_TOKEN:?VERCEL_TOKEN required strict Vercel build proof'
       );
       const localEvidenceStep = proofWorkflow.jobs?.['full-release-proof']?.steps?.find(
         (step) => step.name === 'Run exact local and matrix evidence'
@@ -4945,7 +4947,7 @@ describe('required CI fails closed', () => {
       expect(localEvidenceStep?.env).not.toHaveProperty('VERCEL_TOKEN');
       expect(localEvidenceStep?.env).not.toHaveProperty('VERCEL_ORG_ID');
       expect(localEvidenceStep?.env).not.toHaveProperty('VERCEL_PROJECT_ID');
-      const verifyBootStep = proofWorkflow.jobs?.['full-release-proof']?.steps?.find(
+      const verifyBootStep = proofWorkflow.jobs?.['protected-boot-proof']?.steps?.find(
         (step) => step.name === 'Verify strict boot proof'
       );
       expect(verifyBootStep?.env).not.toHaveProperty('VERCEL_TOKEN');
@@ -4968,7 +4970,7 @@ describe('required CI fails closed', () => {
       // Source/local proof must finish before the candidate exists. Provider
       // identity is proved only after stage-production creates its exact URL.
       expect(releaseProof?.with?.require_provider_identity).toBe(false);
-      expect(releaseProof?.secrets).toBe('inherit');
+      expect(releaseProof?.secrets).toBeUndefined();
       expect(normalizeNeeds(releaseWorkflow.jobs?.promote?.needs)).toContain('staged-smoke');
       expect(normalizeNeeds(releaseWorkflow.jobs?.promote?.needs)).toContain(
         'staged-provider-identity'
@@ -6370,12 +6372,9 @@ describe('required CI fails closed', () => {
   it('pins the reusable release-proof certification finalizer and its outputs', async () => {
     const proofWorkflow = await readWorkflow('release-proof.yml');
     const finalizer = proofWorkflow.jobs?.['release-proof-finalizer'];
-    expect(finalizer?.if).toBe('${{ always() }}');
+    expect(finalizer?.if).toContain("needs.proof-contract.outputs.proof_mode == 'certifying'");
     expect(normalizeNeeds(finalizer?.needs)).toEqual([
-      'full-release-proof',
-      'provider-identity',
-      'canary-residue-characterization',
-      'g3-exact-sha-verdict',
+      'proof-contract', 'full-release-proof', 'protected-boot-proof', 'provider-identity', 'canary-residue-characterization', 'g3-exact-sha-verdict',
     ]);
     const finalizerScripts = allRunScripts({ jobs: { finalizer } } as never).join('\n');
     // Split evidence: certification is built pre-upload, then the lineage
@@ -7295,5 +7294,64 @@ describe('required CI fails closed', () => {
     expect(telemetry).toContain('billableMinutes');
     expect(telemetry).toContain('queueWaitMinutes');
     expect(telemetry).not.toContain('function billedMinutesForRun');
+  });
+
+  it('keeps diagnostic release proof credential-free and certifying terminals Production-protected', async () => {
+    const workflow = await readWorkflow('release-proof.yml');
+    const jobs = workflow.jobs ?? {};
+    const full = jobs['full-release-proof'];
+    const diagnostic = jobs['diagnostic-evidence-only'];
+    const certifyingTerminal = jobs['certifying-terminal'];
+
+    expect(allRunScripts({ jobs: { full, diagnostic } }).join('\n')).not.toMatch(
+      /secrets\.|Run strict Vercel boot proof|Verify strict boot proof|Obsolete in-job|Deprecated in-job/
+    );
+    expect(diagnostic?.if).toContain("needs.proof-contract.outputs.proof_mode == 'diagnostic'");
+    expect(normalizeNeeds(diagnostic?.needs)).toEqual([
+      'proof-contract', 'full-release-proof', 'canary-residue-characterization',
+    ]);
+    expect(certifyingTerminal?.if).toContain("needs.proof-contract.outputs.proof_mode == 'certifying'");
+    expect(normalizeNeeds(certifyingTerminal?.needs)).toEqual([
+      'proof-contract', 'release-proof-finalizer',
+    ]);
+    for (const jobName of [
+      'protected-boot-proof', 'provider-identity', 'g3-exact-sha-verdict',
+    ]) {
+      expect(jobs[jobName]?.environment).toBe('Production');
+    }
+    expect(allRunScripts({ jobs: { protected: jobs['protected-boot-proof'] } })).toContain(
+      'npx playwright install --with-deps chromium'
+    );
+  });
+
+  it('keeps certifying exact-SHA identity checks without artifact churn', async () => {
+    const workflow = await readWorkflow('release-proof.yml');
+    const jobs = workflow.jobs ?? {};
+    const g3 = jobs['g3-exact-sha-verdict'];
+    const finalizer = jobs['release-proof-finalizer'];
+    const g3Scripts = allRunScripts({ jobs: { g3 } }).join('\n');
+    const finalizerScripts = allRunScripts({ jobs: { finalizer } }).join('\n');
+
+    expect(g3Scripts).toContain('actions/workflows');
+    expect(g3Scripts).toContain('actions/runs');
+    expect(g3Scripts).toContain('actions/jobs/${jobId}');
+    expect(g3Scripts).not.toContain('actions/runs/${runId}/jobs');
+    expect(g3Scripts).toContain('workflowRuns');
+    expect(g3Scripts).toContain('workflowJobs');
+    expect(g3Scripts).not.toContain('/statuses');
+    expect(g3Scripts).toContain('PRODUCTION_RELEASE_PROOF_GITHUB_TOKEN');
+    expect(g3Scripts).not.toContain('DEFAULT_GITHUB_TOKEN');
+    expect(finalizer?.outputs?.exact_sha_evidence_artifact_id).toBeUndefined();
+    expect(finalizerScripts).not.toContain('--exact-sha-evidence');
+
+    const certifyingTerminal = jobs['certifying-terminal'];
+    const terminalStep = certifyingTerminal?.steps?.find(
+      (step) => step.name === 'Require successful nonempty certification artifacts'
+    );
+    expect(terminalStep?.env?.PROOF_CONCLUSION).toBe(
+      '${{ needs.release-proof-finalizer.outputs.proof_conclusion }}'
+    );
+    expect(terminalStep?.run).toContain('[[ "$PROOF_CONCLUSION" == success ]]');
+    expect(jobs['credential-provenance']).toBeUndefined();
   });
 });

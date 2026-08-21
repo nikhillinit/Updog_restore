@@ -335,7 +335,7 @@ jobs:
       # its exact unaliased production-target deployment. This first gate proves
       # source/local evidence; staged-provider-identity owns provider proof.
       require_provider_identity: false
-    secrets: inherit
+      proof_mode: certifying
 
   schema-audit:
     name: Clean Production Schema Audit

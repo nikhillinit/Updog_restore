@@ -10822,3 +10822,49 @@ missing, stale, or mismatched evidence still blocks promotion. The operator
 must retain custody of the local Railway SSH session and provide the resulting
 bundle at dispatch time; the workflow retains only temporary files and the
 sanitized verification result for the job run.
+
+## ADR-083: Proportional Release Governance
+
+**Date:** 2026-08-21 **Status:** Accepted **Tags:** #release #governance
+
+### Decision
+
+Release Proof has two explicit modes. `diagnostic` produces local, SHA-bound
+candidate evidence without production secrets, environments, provider access,
+or a certification claim. `certifying` is the only mode permitted to run the
+protected boot, provider-identity, and G3 exact-SHA steps; those jobs execute
+in the `Production` environment and require their production-scoped inputs.
+
+Certification is immutable evidence for its exact candidate SHA. It is not
+production-dispatch authority. Before a production action, the canonical
+production procedure must refresh the source identity and validate every
+applicable action-time prerequisite. A changed current head therefore blocks
+that action until refreshed; it does not revoke historical certification.
+
+One bounded retry may refresh a transient prerequisite. A second failure, any
+mismatch, or an unknown prerequisite is `BLOCKED`; no fallback token, inferred
+authority, or diagnostic artifact can bypass it.
+
+### Alternatives
+
+- Keep all Release Proof runs production-scoped: rejected because routine
+  diagnostics would unnecessarily access production authority surfaces.
+- Treat certification as dispatch approval: rejected because certification
+  cannot establish target scope or current action-time conditions.
+
+### Consequences
+
+Routine merge and scheduled diagnostics remain evidence-only. Production-bound
+certification is narrower and auditable, while production dispatch remains a
+separate, owner-issued, action-scoped decision.
+
+### Rollback
+
+Revert this change only through current-head CI. Never use a workflow retry,
+artifact reuse, token fallback, or provider mutation to bypass the current
+production procedure.
+
+### No authority boundary
+
+This ADR authorizes no merge, deployment, provider action, environment access,
+schema change, data mutation, or production dispatch.

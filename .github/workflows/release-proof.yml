@@ -1,4 +1,5 @@
 name: Full Release Proof
+run-name: Release proof (${{ inputs.proof_mode || 'diagnostic' }})
 
 on:
   workflow_call:
@@ -11,6 +12,10 @@ on:
         description: Require protected provider-control-plane proof
         type: boolean
         default: false
+      proof_mode:
+        description: Diagnostic evidence or certifying proof
+        type: string
+        required: true
     outputs:
       certification_artifact_id:
         description: Exact artifact ID of the release-proof certification payload
@@ -69,15 +74,6 @@ on:
       characterization_source_sha:
         description: Source SHA the characterization was measured at
         value: ${{ jobs.canary-residue-characterization.outputs.characterization_source_sha }}
-    secrets:
-      RELEASE_PROOF_GITHUB_TOKEN:
-        required: false
-      VERCEL_TOKEN:
-        required: false
-      RAILWAY_TOKEN:
-        required: false
-      VERCEL_AUTOMATION_BYPASS_SECRET:
-        required: false
   workflow_dispatch:
     inputs:
       expected_sha:
@@ -88,6 +84,14 @@ on:
         description: Require protected provider-control-plane proof
         type: boolean
         default: false
+        required: true
+      proof_mode:
+        description: Proof mode
+        type: choice
+        options:
+          - diagnostic
+          - certifying
+        default: diagnostic
         required: true
   merge_group:
   schedule:
@@ -104,11 +108,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  proof-contract:
+    name: Validate Release Proof Mode Contract
+    runs-on: ubuntu-latest
+    outputs:
+      proof_mode: ${{ steps.mode.outputs.proof_mode }}
+    steps:
+      - id: mode
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_MODE: ${{ inputs.proof_mode }}
+          REQUIRE_PROVIDER_IDENTITY: ${{ inputs.require_provider_identity }}
+        run: |
+          set -euo pipefail
+          mode="$INPUT_MODE"
+          if [[ "$EVENT_NAME" == "schedule" || "$EVENT_NAME" == "merge_group" ]]; then mode=diagnostic; fi
+          [[ "$mode" == diagnostic || "$mode" == certifying ]]
+          if [[ "$mode" == diagnostic && "$REQUIRE_PROVIDER_IDENTITY" == true ]]; then
+            echo "diagnostic mode cannot require provider identity" >&2
+            exit 1
+          fi
+          echo "proof_mode=$mode" >> "$GITHUB_OUTPUT"
+
   full-release-proof:
     name: Full DB-backed Release Proof
+    needs: proof-contract
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    environment: ${{ github.event_name == 'workflow_dispatch' && 'Production' || '' }}
     outputs:
       candidate_sha: ${{ steps.candidate.outputs.candidate_sha }}
       matrix_summary_sha256: ${{ steps.summaries.outputs.matrix_summary_sha256 }}
@@ -191,30 +217,43 @@ jobs:
             echo "release_check_summary_sha256=$(sha256sum "$RUNNER_TEMP/release-check-summary.txt" | cut -d' ' -f1)"
           } >> "$GITHUB_OUTPUT"
 
+  protected-boot-proof:
+    name: Protected Boot Proof
+    needs: [proof-contract, full-release-proof]
+    if: ${{ needs.proof-contract.outputs.proof_mode == 'certifying' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: Production
+    steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ needs.full-release-proof.outputs.candidate_sha }}
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
       - name: Run strict Vercel boot proof
         env:
-          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          CANDIDATE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
         run: |
           set -euo pipefail
-          : "${VERCEL_TOKEN:?VERCEL_TOKEN is required for strict Vercel build proof}"
-          : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required for strict Vercel build proof}"
-          : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required for strict Vercel build proof}"
+          : "${VERCEL_TOKEN:?VERCEL_TOKEN required strict Vercel build proof}"
+          : "${VERCEL_ORG_ID:?VERCEL_ORG_ID required strict Vercel build proof}"
+          : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID required strict Vercel build proof}"
           node audit/surface-contract-matrix/scripts/boot-proof.mjs --require-g3 --output "$RUNNER_TEMP/g3-boot-proofs.json"
-
       - name: Verify strict boot proof
         env:
-          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
-        run: |
-          set -euo pipefail
-          node scripts/release/verify-g3-boot-proofs.mjs --input "$RUNNER_TEMP/g3-boot-proofs.json" --expected-sha "$CANDIDATE_SHA"
+          CANDIDATE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}
+        run: node scripts/release/verify-g3-boot-proofs.mjs --input "$RUNNER_TEMP/g3-boot-proofs.json" --expected-sha "$CANDIDATE_SHA"
 
   provider-identity:
     name: Provider Identity Proof
-    needs: full-release-proof
-    if: ${{ inputs.require_provider_identity == true }}
+    needs: [proof-contract, full-release-proof, protected-boot-proof]
+    if: ${{ needs.proof-contract.outputs.proof_mode == 'certifying' && inputs.require_provider_identity == true }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: Production
@@ -450,10 +489,11 @@ jobs:
 
   g3-exact-sha-verdict:
     name: G3 Exact-SHA Verdict
-    needs: [full-release-proof, provider-identity, canary-residue-characterization]
-    if: ${{ always() }}
+    needs: [proof-contract, full-release-proof, protected-boot-proof, provider-identity, canary-residue-characterization]
+    if: ${{ always() && needs.proof-contract.outputs.proof_mode == 'certifying' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    environment: Production
     steps:
       - name: Checkout verifier
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -463,12 +503,14 @@ jobs:
       - name: Reject non-success prerequisite states
         env:
           FULL_RESULT: ${{ needs.full-release-proof.result }}
+          BOOT_RESULT: ${{ needs.protected-boot-proof.result }}
           PROVIDER_RESULT: ${{ needs.provider-identity.result }}
           CHARACTERIZATION_RESULT: ${{ needs.canary-residue-characterization.result }}
           REQUIRE_PROVIDER_IDENTITY: ${{ inputs.require_provider_identity }}
         run: |
           set -euo pipefail
           [[ "$FULL_RESULT" == success ]]
+          [[ "$BOOT_RESULT" == success ]]
           [[ "$CHARACTERIZATION_RESULT" == success ]]
           if [[ "$REQUIRE_PROVIDER_IDENTITY" == true ]]; then
             [[ "$PROVIDER_RESULT" == success ]]
@@ -479,33 +521,79 @@ jobs:
       - name: Aggregate exact SHA checks after full proof success
         env:
           CANDIDATE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}
-          DEFAULT_GITHUB_TOKEN: ${{ github.token }}
-          RELEASE_PROOF_GITHUB_TOKEN: ${{ secrets.RELEASE_PROOF_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PRODUCTION_RELEASE_PROOF_GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
-          if ! GH_TOKEN="$DEFAULT_GITHUB_TOKEN" gh api "repos/${REPO}/branches/main/protection" > "$RUNNER_TEMP/branch-protection.json"; then
-            : "${RELEASE_PROOF_GITHUB_TOKEN:?RELEASE_PROOF_GITHUB_TOKEN with Administration, Actions, Checks, Contents, Metadata, and Commit statuses read is required when GITHUB_TOKEN cannot read branch protection}"
-            if ! GH_TOKEN="$RELEASE_PROOF_GITHUB_TOKEN" gh api "repos/${REPO}/branches/main/protection" > "$RUNNER_TEMP/branch-protection.json"; then
-              echo "Branch protection is unreadable; 403 and 404 are fatal evidence failures."
-              exit 1
-            fi
-          fi
-          export GH_TOKEN="${RELEASE_PROOF_GITHUB_TOKEN:-$DEFAULT_GITHUB_TOKEN}"
+          : "${GH_TOKEN:?PRODUCTION_RELEASE_PROOF_GITHUB_TOKEN required}"
+          gh api "repos/${REPO}/branches/main/protection" > "$RUNNER_TEMP/branch-protection.json"
           gh api "repos/${REPO}/commits/${CANDIDATE_SHA}/check-runs" --paginate --jq '.check_runs[]' > "$RUNNER_TEMP/check-runs.jsonl"
-          gh api "repos/${REPO}/commits/${CANDIDATE_SHA}/statuses" --paginate --jq '.[]' > "$RUNNER_TEMP/statuses.jsonl"
+          gh api "repos/${REPO}/actions/workflows" --paginate --jq '.workflows[] | {id,name,path,state}' > "$RUNNER_TEMP/workflows.jsonl"
           node <<'NODE'
           const fs = require('node:fs');
+          const { execFileSync } = require('node:child_process');
           const temp = process.env.RUNNER_TEMP;
           const readJsonl = (name) => fs.readFileSync(`${temp}/${name}.jsonl`, 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);
+          const checks = readJsonl('check-runs');
+          const allowed = new Set(['CI Gate Status', 'Build Production', 'Dependency Validation (Linux)', 'Security Integration Tests', 'Neon Transaction Lane', 'Testcontainers', 'analyze', 'security-scan']);
+          const identities = new Map();
+          for (const check of checks) {
+            if (!allowed.has(check.name)) continue;
+            const match = String(check.details_url || '').match(/^https:\/\/github\.com\/[^/]+\/[^/]+\/actions\/runs\/([1-9][0-9]*)\/job\/([1-9][0-9]*)/);
+            if (!match) throw new Error('locked check details_url is not an Actions run/job identity');
+            identities.set(`${match[1]}:${match[2]}`, { runId: match[1], jobId: match[2] });
+          }
+          const workflowRuns = [];
+          const workflowJobs = [];
+          for (const runId of [...new Set([...identities.values()].map((identity) => identity.runId))].sort((a, b) => Number(a) - Number(b))) {
+            workflowRuns.push(JSON.parse(execFileSync('gh', ['api', `repos/${process.env.REPO}/actions/runs/${runId}`], { encoding: 'utf8' })));
+          }
+          for (const { jobId } of [...identities.values()].sort((left, right) => Number(left.jobId) - Number(right.jobId))) workflowJobs.push(JSON.parse(execFileSync('gh', ['api', `repos/${process.env.REPO}/actions/jobs/${jobId}`], { encoding: 'utf8' })));
           fs.writeFileSync(`${temp}/exact-sha-evidence.json`, JSON.stringify({
+            repository: process.env.REPO,
             candidateSha: process.env.CANDIDATE_SHA,
+            evaluatedAt: new Date().toISOString(),
+            maxAgeSeconds: 86400,
             protection: JSON.parse(fs.readFileSync(`${temp}/branch-protection.json`, 'utf8')),
-            checkRuns: readJsonl('check-runs'), statuses: readJsonl('statuses'),
+            checkRuns: checks,
+            workflows: readJsonl('workflows'),
+            workflowRuns,
+            workflowJobs,
           }));
           NODE
-          node scripts/release/verify-exact-sha-checks.mjs "$RUNNER_TEMP/exact-sha-evidence.json"
+          node scripts/release/verify-exact-sha-checks.mjs "$RUNNER_TEMP/exact-sha-evidence.json" --output "$RUNNER_TEMP/release-exact-sha-evidence-v1.json"
+      - name: Name and hash exact-SHA evidence
+        id: exact_sha_evidence_meta
+        env:
+          CANDIDATE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          echo "artifact_name=release-exact-sha-evidence-v1-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "file_sha256=$(sha256sum "$RUNNER_TEMP/release-exact-sha-evidence-v1.json" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - name: Upload immutable exact-SHA evidence
+        id: upload_exact_sha_evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.exact_sha_evidence_meta.outputs.artifact_name }}
+          path: ${{ runner.temp }}/release-exact-sha-evidence-v1.json
+          retention-days: 30
+          if-no-files-found: error
+
+  diagnostic-evidence-only:
+    name: Diagnostic Evidence Only - Not Certification
+    needs: [proof-contract, full-release-proof, canary-residue-characterization]
+    if: ${{ always() && needs.proof-contract.outputs.proof_mode == 'diagnostic' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require diagnostic evidence success
+        env:
+          FULL_RESULT: ${{ needs.full-release-proof.result }}
+          CANARY_RESULT: ${{ needs.canary-residue-characterization.result }}
+        run: |
+          set -euo pipefail
+          [[ "$FULL_RESULT" == success ]]
+          [[ "$CANARY_RESULT" == success ]]
 
   release-proof-finalizer:
     name: Release Proof Certification Finalizer
@@ -515,9 +603,8 @@ jobs:
     # Prerequisites expose only normalized summary hashes and allowlisted
     # conclusions as job outputs; this job never reads another job's
     # filesystem or logs.
-    needs:
-      [full-release-proof, provider-identity, canary-residue-characterization, g3-exact-sha-verdict]
-    if: ${{ always() }}
+    needs: [proof-contract, full-release-proof, protected-boot-proof, provider-identity, canary-residue-characterization, g3-exact-sha-verdict]
+    if: ${{ always() && needs.proof-contract.outputs.proof_mode == 'certifying' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -641,3 +728,20 @@ jobs:
       - name: Remove local certification evidence
         if: always()
         run: rm -f -- "$RUNNER_TEMP/release-proof-certification-v1.json" "$RUNNER_TEMP/release-proof-lineage-v1.json"
+  certifying-terminal:
+    name: Certifying Release Proof Terminal Gate
+    needs: [proof-contract, release-proof-finalizer]
+    if: ${{ always() && needs.proof-contract.outputs.proof_mode == 'certifying' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require successful nonempty certification artifacts
+        env:
+          FINALIZER: ${{ needs.release-proof-finalizer.result }}
+          PROOF_CONCLUSION: ${{ needs.release-proof-finalizer.outputs.proof_conclusion }}
+          CERTIFICATION_ID: ${{ needs.release-proof-finalizer.outputs.certification_artifact_id }}
+          LINEAGE_ID: ${{ needs.release-proof-finalizer.outputs.lineage_artifact_id }}
+        run: |
+          set -euo pipefail
+          [[ "$FINALIZER" == success ]]
+          [[ "$PROOF_CONCLUSION" == success ]]
+          [[ -n "$CERTIFICATION_ID" && -n "$LINEAGE_ID" ]]
