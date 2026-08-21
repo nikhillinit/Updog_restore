@@ -494,19 +494,19 @@ jobs:
             else
               GH_TOKEN="$DEFAULT_GITHUB_TOKEN" gh api "repos/${REPO}/rules/branches/main" > "$RUNNER_TEMP/branch-rules.json"
               node <<'NODE'
-              const fs = require('node:fs');
-              const temp = process.env.RUNNER_TEMP;
-              const rules = JSON.parse(fs.readFileSync(`${temp}/branch-rules.json`, 'utf8'));
-              const requiredChecks = (Array.isArray(rules) ? rules : [])
-                .filter((rule) => rule?.type === 'required_status_checks')
-                .flatMap((rule) => Array.isArray(rule?.parameters?.required_checks) ? rule.parameters.required_checks : []);
-              fs.writeFileSync(`${temp}/branch-protection.json`, JSON.stringify({
-                required_status_checks: {
-                  contexts: [],
-                  checks: requiredChecks,
-                },
-              }));
-              NODE
+          const fs = require('node:fs');
+          const temp = process.env.RUNNER_TEMP;
+          const rules = JSON.parse(fs.readFileSync(`${temp}/branch-rules.json`, 'utf8'));
+          const requiredChecks = (Array.isArray(rules) ? rules : [])
+            .filter((rule) => rule?.type === 'required_status_checks')
+            .flatMap((rule) => Array.isArray(rule?.parameters?.required_checks) ? rule.parameters.required_checks : []);
+          fs.writeFileSync(`${temp}/branch-protection.json`, JSON.stringify({
+            required_status_checks: {
+              contexts: [],
+              checks: requiredChecks,
+            },
+          }));
+          NODE
             fi
           fi
           export GH_TOKEN="${RELEASE_PROOF_GITHUB_TOKEN:-$DEFAULT_GITHUB_TOKEN}"
