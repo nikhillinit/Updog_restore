@@ -700,14 +700,15 @@ const authSuggestionFor = ({
   if (hasGlobalAuthentication && scopeEvidence.length > 0 && !hasExplicitOrUnresolvedRoleGuard && !isPublic) {
     const scopeCitations = scopeEvidence.map((s) => `${s.file}:${s.line}`).join(', ');
     roles = sortedUnique([...roles, ...TEAM_FUND_FALLBACK_ROLES]);
+    const derivedBoundary = scopeEvidence[0].boundary;
     evidence.push(
       ...TEAM_FUND_FALLBACK_ROLES.map((role) => ({
         kind: 'identity',
         role,
-        boundary: 'team_fund_scope',
+        boundary: derivedBoundary,
         file: 'shared/auth/effective-roles.ts',
         line: IS_TEAM_ROLE_LINE,
-        evidence: `shared/auth/effective-roles.ts:${IS_TEAM_ROLE_LINE} isTeamRole includes ${role}; ${scopeCitations} proves route team/fund scope`,
+        evidence: `shared/auth/effective-roles.ts:${IS_TEAM_ROLE_LINE} isTeamRole includes ${role}; ${scopeCitations} proves route ${derivedBoundary} scope`,
       }))
     );
   }

@@ -848,17 +848,23 @@ describe('surface contract matrix seed semantic regressions', () => {
           }),
           expect.objectContaining({ boundary: scopeBoundary, file: site.split(':')[0] }),
           expect.objectContaining({
+            kind: 'identity',
             role: 'admin',
+            boundary: scopeBoundary,
             file: 'shared/auth/effective-roles.ts',
             line: 58,
           }),
           expect.objectContaining({
+            kind: 'identity',
             role: 'partner',
+            boundary: scopeBoundary,
             file: 'shared/auth/effective-roles.ts',
             line: 58,
           }),
           expect.objectContaining({
+            kind: 'identity',
             role: 'analyst',
+            boundary: scopeBoundary,
             file: 'shared/auth/effective-roles.ts',
             line: 58,
           }),

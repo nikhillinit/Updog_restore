@@ -1103,6 +1103,8 @@ export async function approveMatrix(argv = process.argv.slice(2), options = {}) 
       && row.contract_fingerprint !== preApprovalFingerprints.get(row.id)
     ) {
       row.decision_status = 'proposed';
+      delete row.decision_evidence;
+      row.approved_source_hashes = [];
     }
   });
   bindCoverageFingerprints(candidateState, coverageKeys);

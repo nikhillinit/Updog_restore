@@ -1,3 +1,12 @@
+---
+status: ACTIVE
+audience: agents
+last_updated: 2026-08-20
+owner: 'Platform Team'
+categories: [audit, closeout, post-merge]
+keywords: [pr-1385, surface-contract-matrix, post-merge-closeout]
+---
+
 # PR #1385 Post-Merge Closeout Implementation Plan
 
 ## Status
