@@ -384,10 +384,16 @@ const governanceByPath = new Map(ROUTE_GOVERNANCE_REGISTRY.map((entry) => [entry
 const authRoleInventory = discoverAuthRoleEvidence({ rootDir: repoRoot });
 assertAuthRoleMappingExhaustive(authRoleInventory.roles);
 const TEAM_FUND_FALLBACK_ROLES = Object.freeze([...TEAM_WRITE_ROLES]);
+const FUND_SCOPE_FALLBACK_ROLES = Object.freeze([...TEAM_WRITE_ROLES, 'service']);
 const IS_TEAM_ROLE_LINE = (() => {
   const source = fs.readFileSync(path.join(repoRoot, 'shared/auth/effective-roles.ts'), 'utf8');
   const match = source.split('\n').findIndex((l) => /^export function isTeamRole\b/.test(l));
   return match === -1 ? 58 : match + 1;
+})();
+const RESOLVE_FUND_SCOPE_LINE = (() => {
+  const source = fs.readFileSync(path.join(repoRoot, 'server/lib/auth/fund-scope.ts'), 'utf8');
+  const match = source.split('\n').findIndex((l) => /^export function resolveFundScope\b/.test(l));
+  return match === -1 ? 15 : match + 1;
 })();
 
 const definitionFile = (site) => String(site ?? '').replace(/:\d+$/, '');
@@ -735,8 +741,12 @@ const authSuggestionFor = ({
   const isPublic = roles.includes('public') || evidence.some((entry) => entry.boundary === 'public');
   if (hasGlobalAuthentication && scopeEvidence.length > 0 && !hasExplicitOrUnresolvedRoleGuard && !isPublic) {
     const scopeCitations = scopeEvidence.map((s) => `${s.file}:${s.line}`).join(', ');
-    roles = sortedUnique([...roles, ...TEAM_FUND_FALLBACK_ROLES]);
     const derivedBoundary = scopeEvidence[0].boundary;
+    // fund_scope allows service principal and scoped user principals (via resolveFundScope);
+    // team_fund_scope restricts to team member roles only (via isTeamMemberUser).
+    const hasFundScope = scopeEvidence.some((s) => s.boundary === 'fund_scope');
+    const fallbackRoles = hasFundScope ? FUND_SCOPE_FALLBACK_ROLES : TEAM_FUND_FALLBACK_ROLES;
+    roles = sortedUnique([...roles, ...fallbackRoles]);
     evidence.push(
       ...TEAM_FUND_FALLBACK_ROLES.map((role) => ({
         kind: 'identity',
@@ -747,6 +757,16 @@ const authSuggestionFor = ({
         evidence: `shared/auth/effective-roles.ts:${IS_TEAM_ROLE_LINE} isTeamRole includes ${role}; ${scopeCitations} proves route ${derivedBoundary} scope`,
       }))
     );
+    if (hasFundScope) {
+      evidence.push({
+        kind: 'identity',
+        role: 'service',
+        boundary: derivedBoundary,
+        file: 'server/lib/auth/fund-scope.ts',
+        line: RESOLVE_FUND_SCOPE_LINE,
+        evidence: `server/lib/auth/fund-scope.ts:${RESOLVE_FUND_SCOPE_LINE} resolveFundScope allows service principal; ${scopeCitations} proves route ${derivedBoundary} scope`,
+      });
+    }
   }
   const mappedRoles = roles.filter((role) => role !== AUTH_UNRESOLVED_ROLE);
   const personas = suggestedPersonasForAuthRoles(mappedRoles);

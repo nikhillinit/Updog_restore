@@ -902,39 +902,58 @@ describe('surface contract matrix seed semantic regressions', () => {
 
     for (const [method, routePath, site, scopeBoundary] of expectedRoutes) {
       const suggestion = suggest(method, routePath, site);
-      expect(suggestion.auth_roles, routePath).toEqual(['admin', 'analyst', 'partner']);
-      expect(suggestion.personas, routePath).toEqual(['admin', 'analyst', 'gp']);
-      expect(suggestion.auth_evidence, routePath).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            boundary: 'global_authenticated',
-            file: 'server/server.ts',
-            line: 215,
-          }),
-          expect.objectContaining({ boundary: scopeBoundary, file: site.split(':')[0] }),
+      // fund_scope allows service principal (via resolveFundScope); team_fund_scope does not
+      const expectedRoles =
+        scopeBoundary === 'fund_scope'
+          ? ['admin', 'analyst', 'partner', 'service']
+          : ['admin', 'analyst', 'partner'];
+      const expectedPersonas =
+        scopeBoundary === 'fund_scope'
+          ? ['admin', 'analyst', 'gp', 'service']
+          : ['admin', 'analyst', 'gp'];
+      expect(suggestion.auth_roles, routePath).toEqual(expectedRoles);
+      expect(suggestion.personas, routePath).toEqual(expectedPersonas);
+      const baseEvidence = [
+        expect.objectContaining({
+          boundary: 'global_authenticated',
+          file: 'server/server.ts',
+          line: 215,
+        }),
+        expect.objectContaining({ boundary: scopeBoundary, file: site.split(':')[0] }),
+        expect.objectContaining({
+          kind: 'identity',
+          role: 'admin',
+          boundary: scopeBoundary,
+          file: 'shared/auth/effective-roles.ts',
+          line: 58,
+        }),
+        expect.objectContaining({
+          kind: 'identity',
+          role: 'partner',
+          boundary: scopeBoundary,
+          file: 'shared/auth/effective-roles.ts',
+          line: 58,
+        }),
+        expect.objectContaining({
+          kind: 'identity',
+          role: 'analyst',
+          boundary: scopeBoundary,
+          file: 'shared/auth/effective-roles.ts',
+          line: 58,
+        }),
+      ];
+      if (scopeBoundary === 'fund_scope') {
+        baseEvidence.push(
           expect.objectContaining({
             kind: 'identity',
-            role: 'admin',
+            role: 'service',
             boundary: scopeBoundary,
-            file: 'shared/auth/effective-roles.ts',
-            line: 58,
-          }),
-          expect.objectContaining({
-            kind: 'identity',
-            role: 'partner',
-            boundary: scopeBoundary,
-            file: 'shared/auth/effective-roles.ts',
-            line: 58,
-          }),
-          expect.objectContaining({
-            kind: 'identity',
-            role: 'analyst',
-            boundary: scopeBoundary,
-            file: 'shared/auth/effective-roles.ts',
-            line: 58,
-          }),
-        ])
-      );
+            file: 'server/lib/auth/fund-scope.ts',
+            line: 15,
+          })
+        );
+      }
+      expect(suggestion.auth_evidence, routePath).toEqual(expect.arrayContaining(baseEvidence));
       for (const evidence of suggestion.auth_evidence) {
         expect(() => matrixSchema.AuthEvidenceSchema.parse(evidence), routePath).not.toThrow();
       }
