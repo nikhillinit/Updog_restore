@@ -121,7 +121,7 @@ describe('exact SHA release evidence', () => {
 
   it('fails closed for unreadable/missing/foreign/self-referential checks and deterministic latest ties', async () => {
     expect(() => assertBranchProtectionReadable({ status: 404 })).toThrow(/branch protection/i);
-    expect(() => assertBranchProtectionReadable({ required_status_checks: {} })).toThrow(/required contexts/i);
+    expect(() => assertBranchProtectionReadable({ required_status_checks: {} })).not.toThrow();
     const foreign = exactChecks();
     foreign.checkRuns[0].head_sha = 'b'.repeat(40);
     expect(() => aggregateExactShaEvidence(foreign)).toThrow(/CI Gate Status/);
@@ -133,6 +133,12 @@ describe('exact SHA release evidence', () => {
     expect(() => aggregateExactShaEvidence(latest)).toThrow(/latest/i);
     const pages = [{ items: [{ id: 1 }], next: 'two' }, { items: [{ id: 2 }], next: null }];
     await expect(collectPaginated(async () => pages.shift())).resolves.toEqual([{ id: 1 }, { id: 2 }]);
+  });
+
+  it('falls back to locked contexts when branch protection has no required status checks', () => {
+    const evidence = exactChecks();
+    evidence.protection = { required_status_checks: null };
+    expect(aggregateExactShaEvidence(evidence).contexts).toEqual([...LOCKED_G3_CONTEXTS].sort());
   });
 
   it('orders overlapping retries by attempt start, never completion time', () => {
