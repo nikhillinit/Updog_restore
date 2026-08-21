@@ -698,7 +698,7 @@ const authSuggestionFor = ({
     evidence.some((entry) => entry.role && entry.kind === 'guard');
   const isPublic = roles.includes('public') || evidence.some((entry) => entry.boundary === 'public');
   if (hasGlobalAuthentication && scopeEvidence.length > 0 && !hasExplicitOrUnresolvedRoleGuard && !isPublic) {
-    const scope = scopeEvidence[0];
+    const scopeCitations = scopeEvidence.map((s) => `${s.file}:${s.line}`).join(', ');
     roles = sortedUnique([...roles, ...TEAM_FUND_FALLBACK_ROLES]);
     evidence.push(
       ...TEAM_FUND_FALLBACK_ROLES.map((role) => ({
@@ -707,7 +707,7 @@ const authSuggestionFor = ({
         boundary: 'team_fund_scope',
         file: 'shared/auth/effective-roles.ts',
         line: IS_TEAM_ROLE_LINE,
-        evidence: `shared/auth/effective-roles.ts:${IS_TEAM_ROLE_LINE} isTeamRole includes ${role}; ${scope.file}:${scope.line} proves route team/fund scope`,
+        evidence: `shared/auth/effective-roles.ts:${IS_TEAM_ROLE_LINE} isTeamRole includes ${role}; ${scopeCitations} proves route team/fund scope`,
       }))
     );
   }
