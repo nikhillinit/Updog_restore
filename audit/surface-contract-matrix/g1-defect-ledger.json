@@ -1,0 +1,633 @@
+{
+  "schema": "g1-defect-ledger-v1",
+  "derived_from": {
+    "path": "/Users/nikhil/updog-task11-forensics/g1-review.rejected.json",
+    "sha256": "2fc090a230db4c2ecfa417076f9bc79e44e41080521b16b599a26efff6d0c1bf"
+  },
+  "cashflow_corrections": [
+    {
+      "row_id": "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
+      "rejected": {
+        "persistence": "reads-only",
+        "destructive": "none",
+        "environment": "prod-safe"
+      },
+      "corrected": {
+        "persistence": "writes",
+        "destructive": "destructive",
+        "environment": "staged-only"
+      },
+      "basis": "handler removes a stored transaction record (server/routes/cashflow.ts:297, in-memory Map store :93-96); mutation misread as read; destructive/environment coupling applied"
+    },
+    {
+      "row_id": "api:POST:/api/cashflow/:fundId/capital-calls",
+      "rejected": {
+        "persistence": "reads-only",
+        "destructive": "none",
+        "environment": "prod-safe"
+      },
+      "corrected": {
+        "persistence": "writes",
+        "destructive": "soft",
+        "environment": "staged-only"
+      },
+      "basis": "handler stores a new capital call record; mutation misread as read"
+    },
+    {
+      "row_id": "api:POST:/api/cashflow/:fundId/recurring-expenses",
+      "rejected": {
+        "persistence": "reads-only",
+        "destructive": "none",
+        "environment": "prod-safe"
+      },
+      "corrected": {
+        "persistence": "writes",
+        "destructive": "soft",
+        "environment": "staged-only"
+      },
+      "basis": "handler stores a new recurring-expense record; mutation misread as read"
+    },
+    {
+      "row_id": "api:POST:/api/cashflow/:fundId/transactions",
+      "rejected": {
+        "persistence": "reads-only",
+        "destructive": "none",
+        "environment": "prod-safe"
+      },
+      "corrected": {
+        "persistence": "writes",
+        "destructive": "soft",
+        "environment": "staged-only"
+      },
+      "basis": "handler stores a new transaction record; mutation misread as read"
+    },
+    {
+      "row_id": "api:PUT:/api/cashflow/:fundId/transactions/:transactionId",
+      "rejected": {
+        "persistence": "reads-only",
+        "destructive": "none",
+        "environment": "prod-safe"
+      },
+      "corrected": {
+        "persistence": "writes",
+        "destructive": "soft",
+        "environment": "staged-only"
+      },
+      "basis": "handler overwrites an existing transaction record; mutation misread as read"
+    }
+  ],
+  "persona_corrections": [
+    {
+      "row_id": "api:POST:/api/funds/:fundId/allocations",
+      "rejected_personas": [
+        "admin",
+        "analyst",
+        "gp"
+      ],
+      "corrected_personas": [
+        "admin",
+        "gp"
+      ],
+      "guard": "server/routes/allocations.ts:1056 (alias def :61)",
+      "basis": "requireWriteRole(PARTNER_WRITE_ROLES) via module-level alias requirePartnerWrite; analyst receives 403; prior reviewer failed to resolve the alias binding"
+    },
+    {
+      "row_id": "api:POST:/api/funds/:fundId/cash-flow-events/:eventId/approve",
+      "rejected_personas": [
+        "admin",
+        "analyst",
+        "gp"
+      ],
+      "corrected_personas": [
+        "admin",
+        "gp"
+      ],
+      "guard": "server/routes/cash-flow-events.ts:292 (alias def :29)",
+      "basis": "requireWriteRole(PARTNER_WRITE_ROLES) via module-level alias requirePartnerWrite; analyst receives 403; prior reviewer failed to resolve the alias binding"
+    },
+    {
+      "row_id": "api:POST:/api/funds/:fundId/cash-flow-events/:eventId/lock",
+      "rejected_personas": [
+        "admin",
+        "analyst",
+        "gp"
+      ],
+      "corrected_personas": [
+        "admin",
+        "gp"
+      ],
+      "guard": "server/routes/cash-flow-events.ts:308 (alias def :29)",
+      "basis": "requireWriteRole(PARTNER_WRITE_ROLES) via module-level alias requirePartnerWrite; analyst receives 403; prior reviewer failed to resolve the alias binding"
+    },
+    {
+      "row_id": "api:POST:/api/funds",
+      "rejected_personas": [
+        "admin",
+        "analyst",
+        "gp"
+      ],
+      "corrected_personas": [
+        "admin",
+        "gp"
+      ],
+      "guard": "server/routes/funds.ts:221 (alias def :37)",
+      "basis": "requireWriteRole(PARTNER_WRITE_ROLES) via module-level alias requirePartnerWrite; analyst receives 403; prior reviewer failed to resolve the alias binding"
+    },
+    {
+      "row_id": "api:POST:/api/funds/:fundId/reallocation/commit",
+      "rejected_personas": [
+        "admin",
+        "analyst",
+        "gp"
+      ],
+      "corrected_personas": [
+        "admin",
+        "gp"
+      ],
+      "guard": "server/routes/reallocation.ts:416 (alias def :26)",
+      "basis": "requireWriteRole(PARTNER_WRITE_ROLES) via module-level alias requirePartnerWrite; analyst receives 403; prior reviewer failed to resolve the alias binding"
+    },
+    {
+      "row_id": "api:POST:/api/funds/:id/baselines/:baselineId/set-default",
+      "rejected_personas": [
+        "admin",
+        "analyst",
+        "gp"
+      ],
+      "corrected_personas": [
+        "admin",
+        "gp"
+      ],
+      "guard": "server/routes/variance.ts:258 (alias def :43)",
+      "basis": "requireWriteRole(PARTNER_WRITE_ROLES) via module-level alias requirePartnerWrite; analyst receives 403; prior reviewer failed to resolve the alias binding"
+    },
+    {
+      "row_id": "api:POST:/api/funds/:fundId/metric-runs/:metricRunId/approve",
+      "rejected_personas": [
+        "admin",
+        "analyst",
+        "gp"
+      ],
+      "corrected_personas": [
+        "admin",
+        "gp"
+      ],
+      "guard": "server/routes/lp-reporting/metric-runs.ts:408 (alias def :143)",
+      "basis": "requireWriteRole(PARTNER_WRITE_ROLES) via module-level alias requirePartnerWrite; analyst receives 403; prior reviewer failed to resolve the alias binding"
+    },
+    {
+      "row_id": "api:POST:/api/funds/:fundId/metric-runs/:metricRunId/lock",
+      "rejected_personas": [
+        "admin",
+        "analyst",
+        "gp"
+      ],
+      "corrected_personas": [
+        "admin",
+        "gp"
+      ],
+      "guard": "server/routes/lp-reporting/metric-runs.ts:450 (alias def :143)",
+      "basis": "requireWriteRole(PARTNER_WRITE_ROLES) via module-level alias requirePartnerWrite; analyst receives 403; prior reviewer failed to resolve the alias binding"
+    }
+  ],
+  "environment_policy": {
+    "rule": "classifier semantics: persistence=writes -> environment=staged-only; reads-only -> prod-safe; unknown -> unknown; exceptions only on explicit evidence",
+    "writes_prod_safe_rows_at_rejection": 182,
+    "note": "7 writes rows retain stricter-than-staged-only environments (development-only/local-only); each is an explicit evidence-backed exception enumerated above, source-verified by the row-verification fan-out."
+  },
+  "environment_exceptions": {
+    "api:GET:/api/dev-dashboard/health": {
+      "environment": "development-only",
+      "basis": "dev-dashboard mounted only when NODE_ENV=development (server/routes.ts:134); handler runs tsc via getTypeScriptErrors (dev-dashboard.ts:313-346)"
+    },
+    "api:POST:/api/admin/engine/guard": {
+      "environment": "development-only",
+      "basis": "handler rejects 403 when NODE_ENV=production (server/routes/admin/engine.ts:28-33)"
+    },
+    "api:POST:/api/dev-dashboard/fix/build": {
+      "environment": "development-only",
+      "basis": "dev-only mount (routes.ts:134); executes npm run build:fast (dev-dashboard.ts:373-383)"
+    },
+    "api:POST:/api/dev-dashboard/fix/tests": {
+      "environment": "development-only",
+      "basis": "dev-only mount (routes.ts:134); executes npm run test:quick (dev-dashboard.ts:361-371)"
+    },
+    "api:POST:/api/dev-dashboard/fix/typescript": {
+      "environment": "development-only",
+      "basis": "dev-only mount (routes.ts:134); executes npm run check && npm run lint:fix (dev-dashboard.ts:349-359)"
+    },
+    "listener:ml-reserve:POST:/train": {
+      "environment": "local-only",
+      "basis": "ml-service local-only deployment; persists model via joblib.dump (ml-service/app.py)"
+    },
+    "ws:dev-dashboard": {
+      "environment": "development-only",
+      "basis": "DevDashboardWebSocket constructed only when NODE_ENV=development (server/websocket/index.ts:18-21)"
+    }
+  },
+  "prose_defects": {
+    "row_evidence_boilerplate_count": 471,
+    "off_row_fresh_context_count": 68,
+    "closure_acceptance": "contains 'Fresh-context independent G1 review' claim and 'reviewer found no material' language; both prohibited"
+  },
+  "fanout_corrections": [
+    {
+      "row_id": "client:/admin/ui-catalog",
+      "action": "adopted",
+      "before": {
+        "environment": "prod-safe"
+      },
+      "after": {
+        "environment": "development-only"
+      },
+      "basis": [
+        "client/src/app/app-router.tsx:153 passes devOnly; client/src/components/AdminRoute.tsx:70-76 hard-blocks the route outside DEV builds; shared/generated/flag-defaults.ts:487-491 keeps ui_catalog false everywhere with over"
+      ]
+    },
+    {
+      "row_id": "worker:economics-calc",
+      "action": "adopted",
+      "before": {
+        "persistence": "reads-only",
+        "destructive": "none",
+        "environment": "prod-safe"
+      },
+      "after": {
+        "persistence": "writes",
+        "destructive": "soft",
+        "environment": "staged-only"
+      },
+      "basis": [
+        "server/services/economics-calculation-service.ts:57-60 db.insert(fundSnapshots) inside runEconomicsCalculation, the execution body mapped to the economics engine at server/services/fund-persistence-service.ts:207",
+        "server/services/economics-calculation-service.ts:57-60 additive snapshot insert (reversible write, no deletion)",
+        "classifier semantics map writes to staged-only; the write is at server/services/economics-calculation-service.ts:57-60"
+      ]
+    },
+    {
+      "row_id": "api:POST:/api/funds/calculate",
+      "action": "adopted",
+      "before": {
+        "persistence": "reads-only",
+        "destructive": "none",
+        "environment": "prod-safe"
+      },
+      "after": {
+        "persistence": "writes",
+        "destructive": "soft",
+        "environment": "staged-only"
+      },
+      "basis": [
+        "server/routes/funds.ts:312 getOrStart(idem, key, ...) registers the calculation result in the shared in-memory idempotency store; that state is observable by subsequent requests (joined results at :335-338, operation pol",
+        "server/routes/funds.ts:312 same in-memory store mutation; classifier semantics map writes to staged-only.",
+        "destructive none->soft: the getOrStart registration (server/routes/funds.ts:312) stores a reversible, expirable operation record in the shared idempotency store; classified soft for consistency with the writes convention applied to worker:monte-carlo-simulations"
+      ]
+    },
+    {
+      "row_id": "worker:monte-carlo-simulations",
+      "action": "adopted",
+      "before": {
+        "destructive": "none"
+      },
+      "after": {
+        "destructive": "soft"
+      },
+      "basis": [
+        "server/queues/simulation-queue.ts:179, 212, 229-236 \u2014 the job handler performs reversible writes (progress updates and result payloads in Redis-held BullMQ job state); under the classifier semantics 'none' pairs with rea"
+      ]
+    },
+    {
+      "row_id": "api:PUT:/api/lp/settings",
+      "action": "adopted",
+      "before": {
+        "persistence": "writes",
+        "destructive": "soft",
+        "environment": "staged-only"
+      },
+      "after": {
+        "persistence": "reads-only",
+        "destructive": "none",
+        "environment": "prod-safe"
+      },
+      "basis": [
+        "server/routes/lp-api.ts:1323-1332 - handler returns 501 without any db/queue/audit write; no mutation code exists in the handler",
+        "server/routes/lp-api.ts:1323-1332 - no state is modified, so no reversible write occurs",
+        "server/routes/lp-api.ts:1323-1332 - handler is side-effect free (501 stub), so the reads-only default applies"
+      ]
+    },
+    {
+      "row_id": "api:GET:/api/timeline/:fundId/state",
+      "action": "reconciled-current-source-authority",
+      "basis": [
+        "server/routes/timeline.ts:154-161 route middleware has no role guard; the route sits behind the global make_app requireApiAuth boundary (server/app.ts:189-200) plus fund-scope enforcement (timeline.ts:167), which is team",
+        "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
+      ],
+      "kept": {
+        "personas": [
+          "admin",
+          "analyst",
+          "gp"
+        ]
+      },
+      "observed_code_reach": {
+        "personas": [
+          "admin",
+          "analyst",
+          "gp"
+        ]
+      }
+    },
+    {
+      "row_id": "api:DELETE:/api/shares/:shareId",
+      "action": "reconciled-current-source-authority",
+      "basis": [
+        "server/routes/shares.ts:157-168 lines 160-165 grant access on fundId match with no role restriction; server/lib/auth/jwt.ts:240 populates fundIds from JWT claims for any role",
+        "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
+      ],
+      "kept": {
+        "personas": [
+          "admin",
+          "analyst",
+          "gp"
+        ]
+      },
+      "observed_code_reach": {
+        "personas": [
+          "admin",
+          "analyst",
+          "gp"
+        ]
+      }
+    },
+    {
+      "row_id": "api:GET:/api/shares",
+      "action": "reconciled-current-source-authority",
+      "basis": [
+        "server/routes/shares.ts:158 grants GET access to any team-member user; shared/auth/effective-roles.ts:58-62 defines team roles as admin/partner/analyst",
+        "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
+      ],
+      "kept": {
+        "personas": [
+          "admin",
+          "analyst",
+          "gp"
+        ]
+      },
+      "observed_code_reach": {
+        "personas": [
+          "admin",
+          "analyst",
+          "gp"
+        ]
+      }
+    },
+    {
+      "row_id": "api:GET:/api/shares/:shareId/analytics",
+      "action": "reconciled-current-source-authority",
+      "basis": [
+        "server/routes/shares.ts:158 grants GET access to any team-member user; shared/auth/effective-roles.ts:58-62 defines team roles as admin/partner/analyst",
+        "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
+      ],
+      "kept": {
+        "personas": [
+          "admin",
+          "analyst",
+          "gp"
+        ]
+      },
+      "observed_code_reach": {
+        "personas": [
+          "admin",
+          "analyst",
+          "gp"
+        ]
+      }
+    },
+    {
+      "row_id": "api:PATCH:/api/shares/:shareId",
+      "action": "reconciled-current-source-authority",
+      "basis": [
+        "server/routes/shares.ts:160-165 grant access on fundId match with no role restriction; server/lib/auth/jwt.ts:240 populates fundIds from JWT claims for any role",
+        "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
+      ],
+      "kept": {
+        "personas": [
+          "admin",
+          "analyst",
+          "gp"
+        ]
+      },
+      "observed_code_reach": {
+        "personas": [
+          "admin",
+          "analyst",
+          "gp"
+        ]
+      }
+    },
+    {
+      "row_id": "api:POST:/api/shares",
+      "action": "reconciled-current-source-authority",
+      "basis": [
+        "server/routes/shares.ts:160-165 grant access on fundId match with no role restriction; server/lib/auth/jwt.ts:240 populates fundIds from JWT claims for any role",
+        "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
+      ],
+      "kept": {
+        "personas": [
+          "admin",
+          "analyst",
+          "gp"
+        ]
+      },
+      "observed_code_reach": {
+        "personas": [
+          "admin",
+          "analyst",
+          "gp"
+        ]
+      }
+    },
+    {
+      "row_id": "api:GET:/api/performance/alerts",
+      "action": "adopted",
+      "before": {
+        "environment": "development-only"
+      },
+      "after": {
+        "environment": "prod-safe"
+      },
+      "basis": [
+        "server/routes.ts:73 unconditional mount (contrast the NODE_ENV=development gate used for dev-dashboard at routes.ts:134); reads-only handler with no dev gate defaults to prod-safe"
+      ]
+    },
+    {
+      "row_id": "api:GET:/api/performance/monte-carlo",
+      "action": "adopted",
+      "before": {
+        "environment": "development-only"
+      },
+      "after": {
+        "environment": "prod-safe"
+      },
+      "basis": [
+        "server/routes.ts:73 unconditional mount vs the explicit NODE_ENV=development gate at routes.ts:134 used for dev-dashboard; reads-only handler with no dev gate defaults to prod-safe"
+      ]
+    },
+    {
+      "row_id": "api:GET:/api/performance/operations",
+      "action": "adopted",
+      "before": {
+        "environment": "development-only"
+      },
+      "after": {
+        "environment": "prod-safe"
+      },
+      "basis": [
+        "server/routes.ts:73 unconditional mount vs the explicit NODE_ENV=development gate at routes.ts:134; reads-only handler with no dev gate defaults to prod-safe"
+      ]
+    },
+    {
+      "row_id": "api:GET:/api/performance/realtime",
+      "action": "adopted",
+      "before": {
+        "environment": "development-only"
+      },
+      "after": {
+        "environment": "prod-safe"
+      },
+      "basis": [
+        "server/routes.ts:73 unconditional mount vs the explicit NODE_ENV=development gate at routes.ts:134; reads-only handler with no dev gate defaults to prod-safe"
+      ]
+    },
+    {
+      "row_id": "api:GET:/api/performance/summary",
+      "action": "adopted",
+      "before": {
+        "environment": "development-only"
+      },
+      "after": {
+        "environment": "prod-safe"
+      },
+      "basis": [
+        "server/routes.ts:73 unconditional mount vs the explicit NODE_ENV=development gate at routes.ts:134; reads-only handler with no dev gate defaults to prod-safe"
+      ]
+    },
+    {
+      "row_id": "api:POST:/api/performance/simulate",
+      "action": "adopted",
+      "before": {
+        "environment": "development-only"
+      },
+      "after": {
+        "environment": "prod-safe"
+      },
+      "basis": [
+        "server/routes.ts:73 unconditional mount vs the explicit NODE_ENV=development gate at routes.ts:134; handler mutates no persisted state, so the reads-only default applies"
+      ]
+    },
+    {
+      "row_id": "api:POST:/api/flags/admin/kill-switch",
+      "action": "retained-conservative",
+      "kept": {
+        "destructive": "destructive"
+      },
+      "observed": {
+        "destructive": "soft"
+      }
+    },
+    {
+      "row_id": "api:PUT:/api/admin/funds/:fundId/calculation-modes/fund-moic-rankings",
+      "action": "retained-conservative",
+      "kept": {
+        "destructive": "destructive"
+      },
+      "observed": {
+        "destructive": "soft"
+      }
+    },
+    {
+      "row_id": "listener:worker-health:GET:/health",
+      "action": "adopted",
+      "before": {
+        "personas": [
+          "system"
+        ]
+      },
+      "after": {
+        "personas": [
+          "public"
+        ]
+      },
+      "basis": [
+        "workers/health-server.ts:184-267 no authentication middleware on any handler; unauthenticated HTTP listener, so vocabulary maps unauthenticated to public"
+      ]
+    },
+    {
+      "row_id": "listener:worker-health:GET:/live",
+      "action": "adopted",
+      "before": {
+        "personas": [
+          "system"
+        ]
+      },
+      "after": {
+        "personas": [
+          "public"
+        ]
+      },
+      "basis": [
+        "workers/health-server.ts:184-267 no authentication middleware on any handler; unauthenticated HTTP listener, so vocabulary maps unauthenticated to public"
+      ]
+    },
+    {
+      "row_id": "listener:worker-health:GET:/metrics",
+      "action": "adopted",
+      "before": {
+        "personas": [
+          "system"
+        ]
+      },
+      "after": {
+        "personas": [
+          "public"
+        ]
+      },
+      "basis": [
+        "workers/health-server.ts:184-267 no authentication middleware on any handler; unauthenticated HTTP listener, so vocabulary maps unauthenticated to public"
+      ]
+    },
+    {
+      "row_id": "listener:worker-health:GET:/ready",
+      "action": "adopted",
+      "before": {
+        "personas": [
+          "system"
+        ]
+      },
+      "after": {
+        "personas": [
+          "public"
+        ]
+      },
+      "basis": [
+        "workers/health-server.ts:184-267 no authentication middleware on any handler; unauthenticated HTTP listener, so vocabulary maps unauthenticated to public"
+      ]
+    },
+    {
+      "row_id": "listener:worker-health:GET:/stats",
+      "action": "adopted",
+      "before": {
+        "personas": [
+          "system"
+        ]
+      },
+      "after": {
+        "personas": [
+          "public"
+        ]
+      },
+      "basis": [
+        "workers/health-server.ts:184-267 no authentication middleware on any handler; unauthenticated HTTP listener, so vocabulary maps unauthenticated to public"
+      ]
+    }
+  ]
+}

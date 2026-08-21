@@ -15,6 +15,7 @@ import { QUEUE_CATALOG } from '../../../server/queues/registry.ts';
 import { COMMON_API_ROUTE_MANIFEST } from '../../../shared/routes/api-route-manifest.ts';
 import { API_RUNTIME_SPECIFIC_MANIFEST } from '../../../shared/routes/api-runtime-specific-manifest.ts';
 import { ROUTE_GOVERNANCE_REGISTRY } from '../../../shared/routes/route-governance-registry.ts';
+import { TEAM_WRITE_ROLES } from '../../../shared/auth/effective-roles.ts';
 import {
   canonicalRowId,
   AUTH_UNRESOLVED_ROLE,
@@ -25,6 +26,7 @@ import {
   discoverDormantCandidates,
   discoverHttpListenerCandidates,
   extractAuthRoleEvidenceForRoute,
+  routeRegistrationRanges,
   extractProductRoutes,
   ListenerDispositionSchema,
   listenerDispositionFingerprint,
@@ -380,6 +382,12 @@ const governanceByPath = new Map(ROUTE_GOVERNANCE_REGISTRY.map((entry) => [entry
 
 const authRoleInventory = discoverAuthRoleEvidence({ rootDir: repoRoot });
 assertAuthRoleMappingExhaustive(authRoleInventory.roles);
+const TEAM_FUND_FALLBACK_ROLES = Object.freeze([...TEAM_WRITE_ROLES]);
+const IS_TEAM_ROLE_LINE = (() => {
+  const source = fs.readFileSync(path.join(repoRoot, 'shared/auth/effective-roles.ts'), 'utf8');
+  const match = source.split('\n').findIndex((l) => /^export function isTeamRole\b/.test(l));
+  return match === -1 ? 58 : match + 1;
+})();
 
 const definitionFile = (site) => String(site ?? '').replace(/:\d+$/, '');
 const definitionLine = (definition) => definition.line ?? Number(String(definition.site ?? '').match(/:(\d+)$/)?.[1] ?? 0);
@@ -428,6 +436,68 @@ const sourceWindowAtLine = (source, line, radius = 80) => {
   const lines = String(source ?? '').split('\n');
   const start = Math.max(0, Number(line ?? 1) - 1);
   return lines.slice(start, start + radius).join('\n');
+};
+
+const localRoleAliasEvidenceForDefinitions = (definitions, source, filePath) => {
+  const evidence = [];
+  const registrationLines = definitions.map(definitionLine).filter(Boolean);
+  const ranges = routeRegistrationRanges(source, { registrationLines });
+  for (const [charStart, charEnd] of ranges) {
+    const registration = source.slice(charStart, charEnd);
+    const aliases = new Set(
+      [...registration.matchAll(/\b(require[A-Z][\w$]*)\b/g)].map((match) => match[1])
+    );
+    for (const alias of aliases) {
+      const declaration = new RegExp(
+        `^\\s*const\\s+${alias}\\s*=\\s*require(?:Write|Any)Role\\s*\\(\\s*[A-Za-z_$][\\w$]*\\s*\\)`,
+        'm'
+      ).exec(source);
+      if (!declaration) continue;
+      const declarationLine = source.slice(0, declaration.index).split('\n').length;
+      evidence.push(
+        ...authRoleInventory.evidence.filter(
+          (entry) =>
+            entry.kind === 'guard' && entry.file === filePath && entry.line === declarationLine
+        )
+      );
+    }
+  }
+  return evidence;
+};
+
+const teamFundScopeEvidenceForDefinitions = (definitions, source, filePath) => {
+  const evidence = [];
+  const registrationLines = definitions.map(definitionLine).filter(Boolean);
+  const ranges = routeRegistrationRanges(source, { registrationLines });
+  for (const [charStart, charEnd] of ranges) {
+    const registrationText = source.slice(charStart, charEnd);
+    const searchInRegistration = (pattern) => {
+      const match = pattern.exec(registrationText);
+      if (!match) return undefined;
+      return source.slice(0, charStart + match.index).split('\n').length;
+    };
+    const providedFundScopeLine = searchInRegistration(/\benforceProvidedFundScope\s*\(/);
+    if (providedFundScopeLine) {
+      evidence.push({
+        kind: 'policy-boundary',
+        boundary: 'fund_scope',
+        file: filePath,
+        line: providedFundScopeLine,
+        evidence: `${filePath}:${providedFundScopeLine} enforces provided fund scope`,
+      });
+    }
+    const teamFundScopeLine = searchInRegistration(/\bcanManageFund\s*\(/);
+    if (teamFundScopeLine) {
+      evidence.push({
+        kind: 'policy-boundary',
+        boundary: 'team_fund_scope',
+        file: filePath,
+        line: teamFundScopeLine,
+        evidence: `${filePath}:${teamFundScopeLine} checks team/fund management scope`,
+      });
+    }
+  }
+  return evidence;
 };
 
 const localGuardEvidenceForDefinition = (definition) => {
@@ -546,7 +616,12 @@ const authEvidenceForDefinitions = (definitions, manifest, policy, { includePoli
       path: fileDefinitions[0]?.path,
       registrationLines: fileDefinitions.map(definitionLine).filter(Boolean),
     });
-    evidence.push(...routeEvidence, ...fileDefinitions.flatMap(localGuardEvidenceForDefinition));
+    evidence.push(
+      ...routeEvidence,
+      ...localRoleAliasEvidenceForDefinitions(fileDefinitions, source, filePath),
+      ...fileDefinitions.flatMap(localGuardEvidenceForDefinition),
+      ...teamFundScopeEvidenceForDefinitions(fileDefinitions, source, filePath)
+    );
   }
   const boundary = policyAuthBoundary(manifest, policy);
   if (boundary && includePolicyBoundary) {
@@ -610,6 +685,32 @@ const authSuggestionFor = ({
   const guardRoles = evidenceRoles.filter((role) => role !== AUTH_UNRESOLVED_ROLE);
   if (!evidenceRoles.includes(AUTH_UNRESOLVED_ROLE) && guardRoles.length > 0) {
     roles = roles.filter((role) => role !== AUTH_UNRESOLVED_ROLE);
+  }
+  const hasGlobalAuthentication = evidence.some(
+    (entry) => entry.boundary === 'global_authenticated'
+  );
+  const scopeEvidence = evidence.filter(
+    (entry) => entry.boundary === 'fund_scope' || entry.boundary === 'team_fund_scope'
+  );
+  const hasExplicitOrUnresolvedRoleGuard =
+    roles.includes(AUTH_UNRESOLVED_ROLE) ||
+    authBoundaryRoles(boundary).some((role) => role !== 'public') ||
+    evidence.some((entry) => entry.role && entry.kind === 'guard');
+  const isPublic = roles.includes('public') || evidence.some((entry) => entry.boundary === 'public');
+  if (hasGlobalAuthentication && scopeEvidence.length > 0 && !hasExplicitOrUnresolvedRoleGuard && !isPublic) {
+    const scopeCitations = scopeEvidence.map((s) => `${s.file}:${s.line}`).join(', ');
+    roles = sortedUnique([...roles, ...TEAM_FUND_FALLBACK_ROLES]);
+    const derivedBoundary = scopeEvidence[0].boundary;
+    evidence.push(
+      ...TEAM_FUND_FALLBACK_ROLES.map((role) => ({
+        kind: 'identity',
+        role,
+        boundary: derivedBoundary,
+        file: 'shared/auth/effective-roles.ts',
+        line: IS_TEAM_ROLE_LINE,
+        evidence: `shared/auth/effective-roles.ts:${IS_TEAM_ROLE_LINE} isTeamRole includes ${role}; ${scopeCitations} proves route ${derivedBoundary} scope`,
+      }))
+    );
   }
   const mappedRoles = roles.filter((role) => role !== AUTH_UNRESOLVED_ROLE);
   const personas = suggestedPersonasForAuthRoles(mappedRoles);
@@ -1711,7 +1812,18 @@ const fileMatches = (filePath, pattern) => {
 
 const isExcludedSource = (filePath) => TEST_OR_FIXTURE_SEGMENT.test(filePath) || TEST_OR_FIXTURE_SUFFIX.test(filePath);
 
-const sourceHashes = ({ nodes, snapshotId }) => {
+// The inventory cannot record a hash of itself: seeding rewrites
+// source-inventory.json after the projection hashed its pre-seed bytes, so a
+// merged self-entry is stale by construction and fails every rehash audit.
+export const INVENTORY_SELF_PATH = 'audit/surface-contract-matrix/source-inventory.json';
+
+export const mergeManifestSourceHashes = (inventorySourceHashes = {}, manifestSourceHashes = {}) => {
+  const merged = { ...inventorySourceHashes, ...manifestSourceHashes };
+  delete merged[INVENTORY_SELF_PATH];
+  return merged;
+};
+
+const sourceHashes = ({ nodes, snapshotId, manifestSourceHashes = {} }) => {
   const membership = new Map();
   const include = (filePath, category, allowUntracked = false) => {
     if (!filePath || (!allowUntracked && !trackedSet.has(filePath)) || isExcludedSource(filePath)) return;
@@ -1783,7 +1895,10 @@ const sourceHashes = ({ nodes, snapshotId }) => {
     ];
   }
   sourceMembership['kg-snapshot'] = [snapshotId];
-  return { sourceHashesMap, sourceMembership };
+  return {
+    sourceHashesMap: mergeManifestSourceHashes(sourceHashesMap, manifestSourceHashes),
+    sourceMembership,
+  };
 };
 
 const definingSourceHashesForRow = (row, sourceHashesMap, rowToSources = {}) => {
@@ -2088,7 +2203,11 @@ const seed = async () => {
   });
   applyInternalOnlyDefaults(rows);
   applyBootProofs(rows, bootProofDocument);
-  const hashes = sourceHashes({ nodes: kg.nodes, snapshotId: kg.manifest.snapshot_id });
+  const hashes = sourceHashes({
+    nodes: kg.nodes,
+    snapshotId: kg.manifest.snapshot_id,
+    manifestSourceHashes: kg.manifest.source_hashes,
+  });
   const definingMappings = sourceMappings({
     rows,
     commonManifest: COMMON_API_ROUTE_MANIFEST,
@@ -2162,7 +2281,7 @@ const seed = async () => {
   process.stderr.write(`${JSON.stringify({
     snapshot_id: kg.manifest.snapshot_id,
     row_counts: counts,
-    kg_expected: { APIEndpoint: 390, ClientRoute: 43, WorkerJob: 9 },
+    kg_expected: kg.manifest.node_type_counts,
     listener_candidates: candidates.length,
     listener_dispositions: listenerDispositions.length,
     listener_product_routes: [...rows.values()].filter((row) => row.seam === 'worker-health' || row.seam === 'ml-reserve').length,

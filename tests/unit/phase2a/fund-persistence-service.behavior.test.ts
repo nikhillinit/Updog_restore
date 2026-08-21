@@ -45,6 +45,8 @@ vi.mock('../../../server/services/economics-calculation-service', () => ({
 import {
   FundPersistenceService,
   ModelInputsAsOfDateRequiredError,
+  ReleaseCanaryExecutionIdentityForbiddenError,
+  ReleaseCanaryExecutionIdentityInvalidError,
 } from '../../../server/services/fund-persistence-service';
 
 function whereResolved(value: unknown) {
@@ -143,10 +145,15 @@ describe('FundPersistenceService creator grant transaction', () => {
       'RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE',
       'RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE',
       'RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE',
-      'RELEASE_CANARY_MAX_TOTAL_RESIDUE',
+      'RELEASE_CANARY_MAX_GRANT_RESIDUE',
+      'RELEASE_CANARY_MAX_CALCULATION_RESIDUE',
+      'RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE',
+      'RELEASE_CANARY_MAX_SCENARIO_RESIDUE',
+      'RELEASE_CANARY_MAX_REPORTING_RESIDUE',
     ]) {
-      vi.stubEnv(name, '100');
+      vi.stubEnv(name, '15');
     }
+    vi.stubEnv('RELEASE_CANARY_MAX_TOTAL_RESIDUE', '150');
     vi.stubEnv('RELEASE_CANARY_TTL_HOURS', '24');
 
     try {
@@ -172,12 +179,39 @@ describe('FundPersistenceService creator grant transaction', () => {
           .fn()
           .mockResolvedValueOnce({ rows: [], rowCount: 1 })
           .mockResolvedValueOnce({ rows: [{ count: 0 }], rowCount: 1 })
+          .mockResolvedValueOnce({ rows: [], rowCount: 0 })
           .mockResolvedValueOnce({
-            rows: [{ portfolioCompany: 0, fund: 0, fundConfig: 0, fundEvent: 0, notification: 0 }],
+            rows: [
+              {
+                portfolioCompany: 0,
+                fund: 0,
+                fundConfig: 0,
+                fundEvent: 0,
+                notification: 0,
+                grant: 0,
+                calculation: 0,
+                mutationReceipt: 0,
+                scenario: 0,
+                reporting: 0,
+              },
+            ],
             rowCount: 1,
           })
           .mockResolvedValueOnce({
-            rows: [{ portfolioCompany: 0, fund: 1, fundConfig: 1, fundEvent: 1, notification: 0 }],
+            rows: [
+              {
+                portfolioCompany: 0,
+                fund: 1,
+                fundConfig: 1,
+                fundEvent: 1,
+                notification: 0,
+                grant: 1,
+                calculation: 0,
+                mutationReceipt: 0,
+                scenario: 0,
+                reporting: 0,
+              },
+            ],
             rowCount: 1,
           })
           .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
@@ -188,7 +222,7 @@ describe('FundPersistenceService creator grant transaction', () => {
         },
         insert: vi
           .fn()
-          .mockReturnValueOnce(valuesReturning([{ id: 'canary-run-id' }]))
+      .mockReturnValueOnce(valuesReturning([{ id: 'canary-run-id', version: 1 }]))
           .mockReturnValueOnce(valuesReturning([fund]))
           .mockReturnValueOnce(valuesResolved(undefined))
           .mockReturnValueOnce(valuesReturning([draft]))
@@ -217,15 +251,206 @@ describe('FundPersistenceService creator grant transaction', () => {
           releaseVersion: expect.any(String),
           releaseSha: expect.any(String),
           expiresAt: expect.any(Date),
+          workflowRunId: null,
+          workflowRunAttempt: null,
         })
       );
       expect(tx.insert.mock.results[1]?.value.values).toHaveBeenCalledWith(
         expect.objectContaining({ dataOrigin: 'release_canary', canaryRunId: 'canary-run-id' })
       );
-      expect(tx.execute).toHaveBeenCalledTimes(5);
+    expect(tx.execute).toHaveBeenCalledTimes(5);
     } finally {
       vi.unstubAllEnvs();
     }
+  });
+});
+
+describe('FundPersistenceService canary workflow execution identity', () => {
+  const CANARY_POLICY_ENV: Record<string, string> = {
+    RELEASE_CANARY_MAX_PORTFOLIO_COMPANY_RESIDUE: '15',
+    RELEASE_CANARY_MAX_FUND_RESIDUE: '15',
+    RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE: '15',
+    RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE: '15',
+    RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE: '15',
+    RELEASE_CANARY_MAX_GRANT_RESIDUE: '15',
+    RELEASE_CANARY_MAX_CALCULATION_RESIDUE: '15',
+    RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE: '15',
+    RELEASE_CANARY_MAX_SCENARIO_RESIDUE: '15',
+    RELEASE_CANARY_MAX_REPORTING_RESIDUE: '15',
+    RELEASE_CANARY_MAX_TOTAL_RESIDUE: '150',
+    RELEASE_CANARY_TTL_HOURS: '24',
+  };
+
+  function stubCanaryPolicyEnv(): void {
+    for (const [name, value] of Object.entries(CANARY_POLICY_ENV)) {
+      vi.stubEnv(name, value);
+    }
+  }
+
+  const emptyResidueRow = {
+    portfolioCompany: 0,
+    fund: 0,
+    fundConfig: 0,
+    fundEvent: 0,
+    notification: 0,
+    grant: 0,
+    calculation: 0,
+    mutationReceipt: 0,
+    scenario: 0,
+    reporting: 0,
+  };
+
+  function canaryTx(isReleaseCanaryPrincipal: boolean) {
+    return {
+      execute: vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ count: 0 }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [emptyResidueRow], rowCount: 1 })
+        .mockResolvedValueOnce({
+          rows: [{ ...emptyResidueRow, fund: 1, fundConfig: 1, fundEvent: 1, grant: 1 }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
+      query: {
+        users: {
+          findFirst: vi.fn().mockResolvedValue({ isReleaseCanaryPrincipal }),
+        },
+      },
+      insert: vi
+        .fn()
+        .mockReturnValueOnce(valuesReturning([{ id: 'canary-run-id', version: 1 }]))
+        .mockReturnValueOnce(
+          valuesReturning([
+            {
+              id: 88,
+              name: 'Canary Fund',
+              size: '1000000',
+              managementFee: '0.02',
+              carryPercentage: '0.2',
+              vintageYear: 2026,
+            },
+          ])
+        )
+        .mockReturnValueOnce(valuesResolved(undefined))
+        .mockReturnValueOnce(
+          valuesReturning([
+            { id: 89, fundId: 88, version: 1, config: {}, isDraft: true, isPublished: false },
+          ])
+        )
+        .mockReturnValueOnce(valuesResolved(undefined)),
+    };
+  }
+
+  function createWithIdentity(
+    tx: ReturnType<typeof canaryTx>,
+    canaryExecutionIdentity?: { workflowRunId?: string; workflowRunAttempt?: string }
+  ) {
+    mockDb.transaction.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) =>
+      callback(tx)
+    );
+    const service = new FundPersistenceService();
+    return service.createFundWithInitialDraft({
+      name: 'Canary Fund',
+      size: '1000000',
+      managementFee: '0.02',
+      carryPercentage: '0.2',
+      vintageYear: 2026,
+      creatorUserId: 19,
+      ...(canaryExecutionIdentity !== undefined && { canaryExecutionIdentity }),
+    });
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    stubCanaryPolicyEnv();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('rejects either identity header from an ordinary principal before any write', async () => {
+    for (const identity of [
+      { workflowRunId: '123456' },
+      { workflowRunAttempt: '1' },
+      { workflowRunId: '123456', workflowRunAttempt: '1' },
+      // 403 precedence holds even for a fully malformed pair.
+      { workflowRunId: 'abc', workflowRunAttempt: '0' },
+    ]) {
+      const tx = canaryTx(false);
+      await expect(createWithIdentity(tx, identity)).rejects.toBeInstanceOf(
+        ReleaseCanaryExecutionIdentityForbiddenError
+      );
+      expect(tx.insert).not.toHaveBeenCalled();
+      expect(tx.execute).not.toHaveBeenCalled();
+    }
+  });
+
+  it('rejects a half-provided or malformed identity pair before any write', async () => {
+    for (const identity of [
+      { workflowRunId: '123456' },
+      { workflowRunAttempt: '1' },
+      { workflowRunId: '0123', workflowRunAttempt: '1' },
+      { workflowRunId: 'abc', workflowRunAttempt: '1' },
+      { workflowRunId: '123456', workflowRunAttempt: '0' },
+      { workflowRunId: '123456', workflowRunAttempt: '-1' },
+      { workflowRunId: '123456', workflowRunAttempt: '1.5' },
+      { workflowRunId: '', workflowRunAttempt: '1' },
+    ]) {
+      const tx = canaryTx(true);
+      await expect(createWithIdentity(tx, identity)).rejects.toBeInstanceOf(
+        ReleaseCanaryExecutionIdentityInvalidError
+      );
+      expect(tx.insert).not.toHaveBeenCalled();
+      expect(tx.execute).not.toHaveBeenCalled();
+    }
+  });
+
+  it('requires the exact pair for canary creation in production', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const tx = canaryTx(true);
+    await expect(createWithIdentity(tx)).rejects.toBeInstanceOf(
+      ReleaseCanaryExecutionIdentityInvalidError
+    );
+    expect(tx.insert).not.toHaveBeenCalled();
+    expect(tx.execute).not.toHaveBeenCalled();
+  });
+
+  it('persists the exact workflow execution pair on the canary run insert', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const tx = canaryTx(true);
+    const result = await createWithIdentity(tx, {
+      workflowRunId: '17178572726',
+      workflowRunAttempt: '3',
+    });
+
+    expect(result.fund.id).toBe(88);
+    expect(tx.insert.mock.results[0]?.value.values).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workflowRunId: '17178572726',
+        workflowRunAttempt: 3,
+        principalUserId: 19,
+        status: 'created',
+      })
+    );
+  });
+
+  it('accepts an omitted pair outside production and stores a null identity', async () => {
+    const tx = canaryTx(true);
+    await createWithIdentity(tx);
+    expect(tx.insert.mock.results[0]?.value.values).toHaveBeenCalledWith(
+      expect.objectContaining({ workflowRunId: null, workflowRunAttempt: null })
+    );
+  });
+
+  it('persists a valid pair supplied outside production', async () => {
+    const tx = canaryTx(true);
+    await createWithIdentity(tx, { workflowRunId: '424242', workflowRunAttempt: '2' });
+    expect(tx.insert.mock.results[0]?.value.values).toHaveBeenCalledWith(
+      expect.objectContaining({ workflowRunId: '424242', workflowRunAttempt: 2 })
+    );
   });
 });
 

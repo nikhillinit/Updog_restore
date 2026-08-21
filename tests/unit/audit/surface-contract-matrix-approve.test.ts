@@ -588,7 +588,7 @@ describe.sequential('surface contract matrix approval closure safety', () => {
     trackedPaths.forEach((file, index) => {
       const snapshot = before[index];
       if (snapshot === undefined) expect(fs.existsSync(file)).toBe(false);
-      else expect(fs.readFileSync(file)).toEqual(snapshot);
+      else expect(fs.readFileSync(file).equals(snapshot)).toBe(true);
     });
     expect(fs.readdirSync(workspace.matrixDir).filter((entry) => (
       entry.startsWith('.g1-stage-') || entry.startsWith('.g1-backup-')

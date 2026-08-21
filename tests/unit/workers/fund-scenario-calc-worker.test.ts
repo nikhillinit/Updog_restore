@@ -161,7 +161,7 @@ describe('fund scenario calc worker handler', () => {
         actor: { userId: 17, label: 'analyst@example.com' },
         jobId: 'job-1',
         runId: 'run-1',
-        isFinalAttempt: false,
+        attempt: { number: 1, limit: 2 },
         signal: expect.any(AbortSignal),
         abortController: expect.any(AbortController),
       })
@@ -277,6 +277,80 @@ describe('fund scenario calc worker handler', () => {
     expect(workerConstructorMock).not.toHaveBeenCalled();
     expect(registerWorkerMock).not.toHaveBeenCalled();
     expect(createHealthServerMock).not.toHaveBeenCalled();
+  });
+
+  it('derives the attempt pair from the delivery and passes it through', async () => {
+    const { handleFundScenarioCalcJob } =
+      await import('../../../workers/fund-scenario-calc-handler');
+    runReserveScenarioCalculationMock.mockResolvedValue({ snapshotId: 7 });
+
+    await handleFundScenarioCalcJob({
+      id: 'job-final',
+      attemptsMade: 1,
+      opts: { attempts: 2 },
+      data: {
+        fundId: 1,
+        scenarioSetId: '00000000-0000-0000-0000-000000000111',
+        correlationId: '00000000-0000-0000-0000-000000000123',
+        calculationMode: 'async_reserve_allocation',
+        runId: 'run-final',
+        actor: null,
+      },
+    });
+
+    expect(runReserveScenarioCalculationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ attempt: { number: 2, limit: 2 } })
+    );
+  });
+
+  it('rejects an invalid delivery attempt identity before any execution', async () => {
+    const { handleFundScenarioCalcJob } =
+      await import('../../../workers/fund-scenario-calc-handler');
+
+    await expect(
+      handleFundScenarioCalcJob({
+        id: 'job-bad-attempt',
+        attemptsMade: 2,
+        opts: { attempts: 2 },
+        data: {
+          fundId: 1,
+          scenarioSetId: '00000000-0000-0000-0000-000000000111',
+          correlationId: '00000000-0000-0000-0000-000000000123',
+          calculationMode: 'async_reserve_allocation',
+          runId: 'run-bad-attempt',
+          actor: null,
+        },
+      })
+    ).rejects.toThrow(/attempt identity is invalid: 3\/2/);
+    expect(runReserveScenarioCalculationMock).not.toHaveBeenCalled();
+  });
+
+  it('createFundScenarioCalcJobHandler injects a runner without touching the production export', async () => {
+    const { createFundScenarioCalcJobHandler } =
+      await import('../../../workers/fund-scenario-calc-handler');
+    const injectedRunner = vi.fn().mockResolvedValue({ snapshotId: 99 });
+    const handler = createFundScenarioCalcJobHandler({ runCalculation: injectedRunner });
+
+    expect(handler.length).toBe(3);
+    const result = await handler({
+      id: 'job-injected',
+      attemptsMade: 0,
+      opts: { attempts: 2 },
+      data: {
+        fundId: 1,
+        scenarioSetId: '00000000-0000-0000-0000-000000000111',
+        correlationId: '00000000-0000-0000-0000-000000000123',
+        calculationMode: 'async_reserve_allocation',
+        runId: 'run-injected',
+        actor: null,
+      },
+    });
+
+    expect(result).toEqual({ snapshotId: 99 });
+    expect(injectedRunner).toHaveBeenCalledWith(
+      expect.objectContaining({ attempt: { number: 1, limit: 2 } })
+    );
+    expect(runReserveScenarioCalculationMock).not.toHaveBeenCalled();
   });
 });
 
@@ -544,6 +618,96 @@ describe('fund scenario calc worker startup', () => {
     expect(workerConstructorMock).not.toHaveBeenCalled();
     expect(registerWorkerMock).not.toHaveBeenCalled();
     expect(createHealthServerMock).not.toHaveBeenCalled();
+  });
+
+  it('routes deadline-sweep jobs to the real sweep, bypassing an injected calculation handler', async () => {
+    const injectedHandler = vi.fn().mockResolvedValue(undefined);
+    const { startFundScenarioCalcWorker } =
+      await import('../../../workers/fund-scenario-calc-worker');
+
+    const runtime = startFundScenarioCalcWorker({
+      healthPort: null,
+      calculationHandler: injectedHandler,
+    });
+    await runtime.ready;
+
+    const processor = workerConstructorMock.mock.calls[0]?.[1] as (
+      job: Record<string, unknown>,
+      token?: string,
+      signal?: AbortSignal
+    ) => Promise<unknown>;
+    expect(processor).toBeTypeOf('function');
+
+    await processor({
+      name: 'fund-scenario-deadline-sweep',
+      data: { kind: 'fund-scenario-deadline-sweep' },
+    });
+    expect(sweepDeadlineMock).toHaveBeenCalledTimes(1);
+    expect(injectedHandler).not.toHaveBeenCalled();
+
+    await processor(
+      {
+        name: 'async_reserve_allocation',
+        id: 'job-injection',
+        attemptsMade: 0,
+        opts: { attempts: 2 },
+        data: {
+          fundId: 1,
+          scenarioSetId: '00000000-0000-0000-0000-000000000111',
+          correlationId: '00000000-0000-0000-0000-000000000123',
+          calculationMode: 'async_reserve_allocation',
+          runId: 'run-injection',
+          actor: null,
+        },
+      },
+      'bullmq-token'
+    );
+    expect(injectedHandler).toHaveBeenCalledTimes(1);
+    expect(runReserveScenarioCalculationMock).not.toHaveBeenCalled();
+
+    await runtime.close();
+  });
+
+  it('production worker construction defaults to the real calculation handler and clock', async () => {
+    const { startFundScenarioCalcWorker } =
+      await import('../../../workers/fund-scenario-calc-worker');
+    runReserveScenarioCalculationMock.mockResolvedValue({ snapshotId: 55 });
+
+    const runtime = startFundScenarioCalcWorker({ healthPort: null });
+    await runtime.ready;
+
+    const processor = workerConstructorMock.mock.calls[0]?.[1] as (
+      job: Record<string, unknown>,
+      token?: string,
+      signal?: AbortSignal
+    ) => Promise<unknown>;
+    const result = await processor(
+      {
+        name: 'async_reserve_allocation',
+        id: 'job-default',
+        attemptsMade: 0,
+        opts: { attempts: 2 },
+        data: {
+          fundId: 1,
+          scenarioSetId: '00000000-0000-0000-0000-000000000111',
+          correlationId: '00000000-0000-0000-0000-000000000123',
+          calculationMode: 'async_reserve_allocation',
+          runId: 'run-default',
+          actor: null,
+        },
+      },
+      'bullmq-token'
+    );
+
+    expect(result).toEqual({ snapshotId: 55 });
+    expect(runReserveScenarioCalculationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jobId: 'job-default',
+        attempt: { number: 1, limit: 2 },
+      })
+    );
+
+    await runtime.close();
   });
 
   it('rejects an invalid deployment identity before queue, worker, health, or registration side effects', async () => {

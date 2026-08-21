@@ -15,7 +15,12 @@ import { EnhancedFundModel } from '../core/enhanced-fund-model';
 import { calcDurationMs } from '../metrics';
 import { storage } from '../storage';
 
-import { fundPersistenceService } from '../services/fund-persistence-service';
+import {
+  fundPersistenceService,
+  ReleaseCanaryExecutionIdentityForbiddenError,
+  ReleaseCanaryExecutionIdentityInvalidError,
+  type CanaryExecutionIdentityHeaders,
+} from '../services/fund-persistence-service';
 import { sendApiError } from '../lib/apiError';
 import { FundCreateV1Schema } from '@shared/contracts/fund-create-v1.contract';
 import { logger } from '../lib/logger.js';
@@ -233,6 +238,17 @@ router['post']('/funds', requirePartnerWrite, idempotency, async (req: Request, 
       });
     }
 
+    // The paired headers name the exact GitHub workflow execution creating a
+    // release-canary run; the persistence service enforces who may send them.
+    const workflowRunIdHeader = req.header('Release-Canary-Workflow-Run-Id');
+    const workflowRunAttemptHeader = req.header('Release-Canary-Workflow-Run-Attempt');
+    const canaryExecutionIdentity: CanaryExecutionIdentityHeaders = {
+      ...(workflowRunIdHeader !== undefined && { workflowRunId: workflowRunIdHeader }),
+      ...(workflowRunAttemptHeader !== undefined && {
+        workflowRunAttempt: workflowRunAttemptHeader,
+      }),
+    };
+
     const fundInput = {
       name: data.name,
       size: String(data.size),
@@ -240,6 +256,7 @@ router['post']('/funds', requirePartnerWrite, idempotency, async (req: Request, 
       carryPercentage: String(data.carryPercentage),
       vintageYear: data.vintageYear,
       creatorUserId,
+      canaryExecutionIdentity,
       ...(data.engineResults != null && { engineResults: data.engineResults }),
     };
 
@@ -255,9 +272,26 @@ router['post']('/funds', requirePartnerWrite, idempotency, async (req: Request, 
       ...credentialRenewal,
     };
 
+    if (fund.canaryRunId != null) {
+      res.setHeader('Release-Canary-Run-Id', fund.canaryRunId);
+    }
     res.status(201);
     return res.json(response);
   } catch (error) {
+    if (error instanceof ReleaseCanaryExecutionIdentityForbiddenError) {
+      logger.warn({ code: error.code }, 'fund.create.canary_identity_forbidden');
+      return sendApiError(res, 403, {
+        error: 'Release canary execution identity is forbidden',
+        code: error.code,
+      });
+    }
+    if (error instanceof ReleaseCanaryExecutionIdentityInvalidError) {
+      logger.warn({ code: error.code }, 'fund.create.canary_identity_invalid');
+      return sendApiError(res, 400, {
+        error: 'Release canary execution identity is invalid',
+        code: error.code,
+      });
+    }
     logger.error({ err: error }, 'fund.create.failed');
     res.status(500);
     return res.json({

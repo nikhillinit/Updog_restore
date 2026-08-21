@@ -54,6 +54,7 @@ describe('useLogin', () => {
         ok: false,
         status: 401,
         statusText: 'Unauthorized',
+        headers: new Headers(),
         json: async () => ({ error: 'invalid_credentials' }),
         text: async () => '{"error":"invalid_credentials"}',
       } as Response)

@@ -209,6 +209,42 @@ describe('GET /api/funds/:id/results', () => {
     expect(res.body.sections.reserve).toHaveProperty('legacyEvidence');
     expect(typeof res.body.sections.reserve.legacyEvidence).toBe('boolean');
   });
+
+  // Release canary 3 strict-parses the production response with this same
+  // schema; these assertions pin the contract-level guarantees it relies on.
+  it('guarantees the canary-required authoritative evidence fields at the contract level', async () => {
+    const res = await request(app).get('/api/funds/1/results');
+
+    expect(res.status).toBe(200);
+    const { FundResultsReadV1Schema } = await import('@shared/contracts/fund-results-v1.contract');
+    const parsed = FundResultsReadV1Schema.parse(res.body);
+
+    expect(parsed.lifecycle.calculationState.dispatchState).toBe('dispatched');
+    expect(parsed.lifecycle.calculationState.correlationId).toBe('test-corr-id');
+    expect(parsed.lifecycle.calculationState.availableSnapshotTypes).toEqual([
+      'RESERVE',
+      'PACING',
+    ]);
+    expect(parsed.lifecycle.calculationState.expectedSnapshotTypes).toEqual([
+      'RESERVE',
+      'PACING',
+    ]);
+    expect(parsed.lifecycle.calculationState.legacyEvidence).toBe(false);
+    for (const sectionName of ['reserve', 'pacing'] as const) {
+      const section = parsed.sections[sectionName];
+      expect(section.status).toBe('available');
+      if (section.status === 'available') {
+        expect(section.source).toBe('fund_snapshots');
+        expect(section.legacyEvidence).toBe(false);
+      }
+    }
+
+    // The schema is strict: unknown keys are rejected, so an SPA rewrite or a
+    // drifted route shape fails the canary parse instead of passing silently.
+    expect(
+      FundResultsReadV1Schema.safeParse({ ...validReadyResponse(), unexpected: true }).success
+    ).toBe(false);
+  });
 });
 
 // ── Fixtures ──

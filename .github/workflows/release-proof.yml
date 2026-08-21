@@ -11,6 +11,64 @@ on:
         description: Require protected provider-control-plane proof
         type: boolean
         default: false
+    outputs:
+      certification_artifact_id:
+        description: Exact artifact ID of the release-proof certification payload
+        value: ${{ jobs.release-proof-finalizer.outputs.certification_artifact_id }}
+      certification_artifact_name:
+        description: Exact attempt-qualified certification artifact name
+        value: ${{ jobs.release-proof-finalizer.outputs.certification_artifact_name }}
+      certification_artifact_digest:
+        description: Upload-reported archive digest of the certification artifact
+        value: ${{ jobs.release-proof-finalizer.outputs.certification_artifact_digest }}
+      certification_file_sha256:
+        description: Recomputed SHA-256 of the certification payload file
+        value: ${{ jobs.release-proof-finalizer.outputs.certification_file_sha256 }}
+      lineage_artifact_id:
+        description: Exact artifact ID of the release-proof lineage record
+        value: ${{ jobs.release-proof-finalizer.outputs.lineage_artifact_id }}
+      lineage_artifact_name:
+        description: Exact attempt-qualified lineage artifact name
+        value: ${{ jobs.release-proof-finalizer.outputs.lineage_artifact_name }}
+      lineage_artifact_digest:
+        description: Upload-reported archive digest of the lineage artifact
+        value: ${{ jobs.release-proof-finalizer.outputs.lineage_artifact_digest }}
+      lineage_file_sha256:
+        description: Recomputed SHA-256 of the lineage record file
+        value: ${{ jobs.release-proof-finalizer.outputs.lineage_file_sha256 }}
+      proof_run_id:
+        description: Reusable proof workflow run ID (caller run ID)
+        value: ${{ jobs.release-proof-finalizer.outputs.proof_run_id }}
+      proof_run_attempt:
+        description: Reusable proof workflow run attempt
+        value: ${{ jobs.release-proof-finalizer.outputs.proof_run_attempt }}
+      proof_source_sha:
+        description: Exact source SHA the proof executed against
+        value: ${{ jobs.release-proof-finalizer.outputs.proof_source_sha }}
+      caller_workflow_ref:
+        description: Caller workflow ref observed by the reusable proof
+        value: ${{ jobs.release-proof-finalizer.outputs.caller_workflow_ref }}
+      proof_workflow_ref:
+        description: Literal reusable proof workflow ref bound to the source SHA
+        value: ${{ jobs.release-proof-finalizer.outputs.proof_workflow_ref }}
+      proof_conclusion:
+        description: Allowlisted overall proof conclusion
+        value: ${{ jobs.release-proof-finalizer.outputs.proof_conclusion }}
+      characterization_artifact_id:
+        description: Exact artifact ID of the residue characterization record
+        value: ${{ jobs.canary-residue-characterization.outputs.characterization_artifact_id }}
+      characterization_artifact_name:
+        description: Exact attempt-qualified characterization artifact name
+        value: ${{ jobs.canary-residue-characterization.outputs.characterization_artifact_name }}
+      characterization_artifact_digest:
+        description: Upload-reported archive digest of the characterization artifact
+        value: ${{ jobs.canary-residue-characterization.outputs.characterization_artifact_digest }}
+      characterization_file_sha256:
+        description: Recomputed SHA-256 of the characterization record file
+        value: ${{ jobs.canary-residue-characterization.outputs.characterization_file_sha256 }}
+      characterization_source_sha:
+        description: Source SHA the characterization was measured at
+        value: ${{ jobs.canary-residue-characterization.outputs.characterization_source_sha }}
     secrets:
       RELEASE_PROOF_GITHUB_TOKEN:
         required: false
@@ -50,8 +108,11 @@ jobs:
     name: Full DB-backed Release Proof
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    environment: ${{ github.event_name == 'workflow_dispatch' && 'Production' || '' }}
     outputs:
       candidate_sha: ${{ steps.candidate.outputs.candidate_sha }}
+      matrix_summary_sha256: ${{ steps.summaries.outputs.matrix_summary_sha256 }}
+      release_check_summary_sha256: ${{ steps.summaries.outputs.release_check_summary_sha256 }}
     steps:
       - name: Checkout exact release commit
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -88,6 +149,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run exact local and matrix evidence
+        id: evidence
         env:
           CI: 'true'
           NODE_OPTIONS: --max-old-space-size=4096
@@ -95,10 +157,39 @@ jobs:
           CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
         run: |
           set -euo pipefail
+          # Pre-create both certification-bound summaries so the always-run
+          # hash-capture step below can certify a failed proof (failure
+          # manifests need real hashes even when a producer dies early).
+          : > "$RUNNER_TEMP/matrix-summary.txt"
+          : > "$RUNNER_TEMP/release-check-summary.txt"
           npm run verify:node-parity
           npm run phoenix:truth
-          npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs
-          npm run release:check
+          cleanup_kg() {
+            rm -rf audit/knowledge-graph/out
+          }
+          trap cleanup_kg EXIT HUP INT TERM
+          npx tsx audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs \
+            --mode release \
+            --expected-sha "$CANDIDATE_SHA"
+          node -e 'const m=require("./audit/knowledge-graph/out/manifest.json"); if (!m.fresh_for_checkout || !m.valid_for_release_proof || m.repo_head !== process.env.CANDIDATE_SHA) process.exit(1)'
+          # Certification binds hashes of these captured summaries; pipefail
+          # keeps a failed producer fatal despite the tee.
+          npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs --no-write-metadata \
+            | tee "$RUNNER_TEMP/matrix-summary.txt"
+          npm run release:check | tee "$RUNNER_TEMP/release-check-summary.txt"
+
+      - name: Capture evidence summary hashes
+        id: summaries
+        if: always()
+        run: |
+          set -euo pipefail
+          for summary in matrix-summary.txt release-check-summary.txt; do
+            [ -f "$RUNNER_TEMP/$summary" ] || : > "$RUNNER_TEMP/$summary"
+          done
+          {
+            echo "matrix_summary_sha256=$(sha256sum "$RUNNER_TEMP/matrix-summary.txt" | cut -d' ' -f1)"
+            echo "release_check_summary_sha256=$(sha256sum "$RUNNER_TEMP/release-check-summary.txt" | cut -d' ' -f1)"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Run strict Vercel boot proof
         env:
@@ -156,6 +247,10 @@ jobs:
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+          RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID: ${{ vars.RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID }}
+          RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID: ${{ vars.RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID }}
         run: |
           set -euo pipefail
           # Provider responses remain in RUNNER_TEMP. Never print tokens or variable payloads.
@@ -165,9 +260,19 @@ jobs:
           node <<'NODE'
           const fs = require('node:fs');
           const deployments = JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/vercel-deployments.json`, 'utf8')).deployments ?? [];
+          const aliasCount = (deployment) => {
+            const hasAlias = Object.prototype.hasOwnProperty.call(deployment, 'alias');
+            const hasAliases = Object.prototype.hasOwnProperty.call(deployment, 'aliases');
+            if (hasAlias && hasAliases &&
+                JSON.stringify(deployment.alias) !== JSON.stringify(deployment.aliases)) {
+              return Number.POSITIVE_INFINITY;
+            }
+            const aliases = hasAliases ? deployment.aliases : deployment.alias;
+            return Array.isArray(aliases) ? aliases.length : aliases === undefined ? 0 : Number.POSITIVE_INFINITY;
+          };
           const candidates = deployments.filter((deployment) =>
             deployment.readyState === 'READY' && deployment.projectId === process.env.VERCEL_PROJECT_ID &&
-            deployment.target === 'production' && (deployment.alias ?? []).length === 0 &&
+            deployment.target === 'production' && aliasCount(deployment) === 0 &&
             deployment.meta?.githubCommitRef === 'main' && deployment.meta?.githubCommitSha === process.env.CANDIDATE_SHA
           );
           if (candidates.length !== 1 || !candidates[0]?.url || !candidates[0]?.id) process.exit(1);
@@ -203,14 +308,149 @@ jobs:
           const deployment = deployments.find((candidate) => candidate.url === host);
           const token = JSON.parse(fs.readFileSync(`${temp}/railway-token-context.json`, 'utf8')).data.projectToken;
           const control = JSON.parse(fs.readFileSync(`${temp}/railway-control-plane.json`, 'utf8'));
-          fs.writeFileSync(`${temp}/vercel-evidence.json`, JSON.stringify({ expectedProjectId: process.env.VERCEL_PROJECT_ID, deployment: { ...deployment, aliases: deployment.alias ?? [] }, version: JSON.parse(fs.readFileSync(`${temp}/vercel-version.json`, 'utf8')) }));
+          // Pass alias fields through untouched: the shared contract verifies
+          // both, rejects conflicts, and must never see a pre-normalized view.
+          fs.writeFileSync(`${temp}/vercel-evidence.json`, JSON.stringify({ expectedProjectId: process.env.VERCEL_PROJECT_ID, deployment, version: JSON.parse(fs.readFileSync(`${temp}/vercel-version.json`, 'utf8')) }));
           fs.writeFileSync(`${temp}/railway-evidence.json`, JSON.stringify({ data: { projectId: token.project.id, environmentId: token.environment.id, environment: control.data?.environment }, errors: control.errors }));
           NODE
-          node scripts/release/verify-provider-identity.mjs --mode workflow --expected-sha "$CANDIDATE_SHA" --vercel "$RUNNER_TEMP/vercel-evidence.json" --railway "$RUNNER_TEMP/railway-evidence.json"
+          node scripts/release/verify-provider-identity.mjs --mode workflow --expected-sha "$CANDIDATE_SHA" \
+            --vercel "$RUNNER_TEMP/vercel-evidence.json" --railway "$RUNNER_TEMP/railway-evidence.json" \
+            --expected-vercel-project-id "$VERCEL_PROJECT_ID" \
+            --expected-railway-project-id "$RAILWAY_PROJECT_ID" \
+            --expected-railway-environment-id "$RAILWAY_ENVIRONMENT_ID" \
+            --expected-fund-scenario-service-id "$RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID" \
+            --expected-capital-call-service-id "$RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID"
+
+  canary-residue-characterization:
+    name: Canary Residue Characterization
+    needs: full-release-proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      characterization_artifact_id: ${{ steps.upload_characterization.outputs.artifact-id }}
+      characterization_artifact_name: ${{ steps.artifact_meta.outputs.artifact_name }}
+      characterization_artifact_digest: ${{ steps.upload_characterization.outputs.artifact-digest }}
+      characterization_file_sha256: ${{ steps.validate_characterization.outputs.file_sha256 }}
+      characterization_source_sha: ${{ needs.full-release-proof.outputs.candidate_sha }}
+    steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.full-release-proof.outputs.candidate_sha }}
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+
+      - name: Run Testcontainers residue characterization
+        timeout-minutes: 22
+        env:
+          CI: 'true'
+          TZ: UTC
+          NODE_OPTIONS: --max-old-space-size=4096
+          RELEASE_CANARY_CHARACTERIZATION_RESULT_PATH: ${{ runner.temp }}/release-canary-residue-characterization-v1.json
+          RELEASE_CANARY_CHARACTERIZATION_SOURCE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          rm -f "$RELEASE_CANARY_CHARACTERIZATION_RESULT_PATH"
+          npx vitest run tests/integration/release-canary-residue-characterization.test.ts \
+            -c vitest.config.int.ts --configLoader native
+
+      - name: Validate characterization record and recompute file hash
+        id: validate_characterization
+        env:
+          RESULT_PATH: ${{ runner.temp }}/release-canary-residue-characterization-v1.json
+          CANDIDATE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          test -f "$RESULT_PATH"
+          # Workspace-resident helper: relative contract imports must resolve
+          # against the checkout, never RUNNER_TEMP.
+          cat > ./validate-characterization.tmp.mts <<'VALIDATE'
+          import { readFile } from 'node:fs/promises';
+          import { parseReleaseCanaryResidueCharacterization } from './shared/contracts/release-canary-residue-characterization-v1.contract';
+
+          const raw: unknown = JSON.parse(
+            await readFile(process.env['RESULT_PATH'] as string, 'utf8')
+          );
+          const parsed = parseReleaseCanaryResidueCharacterization(raw);
+          if (parsed.provenance.storedRun.releaseSha !== process.env['CANDIDATE_SHA']) {
+            throw new Error('Characterization stored run SHA does not match candidate SHA');
+          }
+          if (parsed.sourceSha !== process.env['CANDIDATE_SHA']) {
+            throw new Error('Characterization source SHA does not match the candidate SHA');
+          }
+          if (parsed.result !== 'passed') {
+            throw new Error('Characterization result must be passed');
+          }
+          if (parsed.finalResidue.calculation !== 12 || parsed.finalResidue.total !== 40) {
+            throw new Error('Characterization residue vector does not match the frozen contract');
+          }
+          if (
+            parsed.provenance.executionPath !== 'FundPersistenceService.createFundWithInitialDraft' ||
+            parsed.provenance.databaseTimeZone !== 'Etc/UTC' ||
+            parsed.provenance.storedRun.status !== 'completed' ||
+            parsed.provenance.storedRun.version !== 2 ||
+            parsed.provenance.fundDataOrigins.length !== 1 ||
+            parsed.provenance.fundDataOrigins[0] !== 'release_canary' ||
+            parsed.provenance.flagState.enableGpEconomicsEngine !== false ||
+            parsed.provenance.flagState.cohortCalculationInvoked !== false ||
+            parsed.provenance.directFundForeignKeys.length === 0
+          ) {
+            throw new Error('Characterization provenance does not match the strict contract');
+          }
+          const expectedSnapshotTypeCounts = [
+            { type: 'COHORT', count: 0 },
+            { type: 'ECONOMICS', count: 0 },
+            { type: 'PACING', count: 1 },
+            { type: 'RESERVE', count: 1 },
+            { type: 'SCENARIOS', count: 1 },
+          ];
+          if (
+            JSON.stringify(parsed.provenance.snapshotTypeCounts) !==
+            JSON.stringify(expectedSnapshotTypeCounts)
+          ) {
+            throw new Error('Characterization snapshot structure does not match observed deployed path');
+          }
+          const directFundForeignKeyPairs = parsed.provenance.directFundForeignKeys.map(
+            (foreignKey) => `${foreignKey.table}.${foreignKey.column}`
+          );
+          if (
+            directFundForeignKeyPairs.some(
+              (pair, index) => index > 0 && pair < directFundForeignKeyPairs[index - 1]
+            )
+          ) {
+            throw new Error('Characterization direct fund FK identities are not sorted');
+          }
+          VALIDATE
+          npx tsx ./validate-characterization.tmp.mts
+          rm -f ./validate-characterization.tmp.mts
+          FILE_SHA256="$(sha256sum "$RESULT_PATH" | cut -d' ' -f1)"
+          echo "file_sha256=$FILE_SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Name attempt-qualified characterization artifact
+        id: artifact_meta
+        env:
+          CANDIDATE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          echo "artifact_name=release-canary-residue-characterization-v1-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload immutable characterization artifact
+        id: upload_characterization
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.artifact_meta.outputs.artifact_name }}
+          path: ${{ runner.temp }}/release-canary-residue-characterization-v1.json
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Remove local characterization record
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release-canary-residue-characterization-v1.json"
 
   g3-exact-sha-verdict:
     name: G3 Exact-SHA Verdict
-    needs: [full-release-proof, provider-identity]
+    needs: [full-release-proof, provider-identity, canary-residue-characterization]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -224,10 +464,12 @@ jobs:
         env:
           FULL_RESULT: ${{ needs.full-release-proof.result }}
           PROVIDER_RESULT: ${{ needs.provider-identity.result }}
+          CHARACTERIZATION_RESULT: ${{ needs.canary-residue-characterization.result }}
           REQUIRE_PROVIDER_IDENTITY: ${{ inputs.require_provider_identity }}
         run: |
           set -euo pipefail
           [[ "$FULL_RESULT" == success ]]
+          [[ "$CHARACTERIZATION_RESULT" == success ]]
           if [[ "$REQUIRE_PROVIDER_IDENTITY" == true ]]; then
             [[ "$PROVIDER_RESULT" == success ]]
           else
@@ -264,3 +506,138 @@ jobs:
           }));
           NODE
           node scripts/release/verify-exact-sha-checks.mjs "$RUNNER_TEMP/exact-sha-evidence.json"
+
+  release-proof-finalizer:
+    name: Release Proof Certification Finalizer
+    # Split-evidence finalizer: emits the pre-upload certification payload,
+    # uploads it, then binds the returned artifact identity into a separate
+    # lineage record so no artifact ever claims its own not-yet-created ID.
+    # Prerequisites expose only normalized summary hashes and allowlisted
+    # conclusions as job outputs; this job never reads another job's
+    # filesystem or logs.
+    needs:
+      [full-release-proof, provider-identity, canary-residue-characterization, g3-exact-sha-verdict]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      certification_artifact_id: ${{ steps.upload_certification.outputs.artifact-id }}
+      certification_artifact_name: ${{ steps.artifact_names.outputs.certification_artifact_name }}
+      certification_artifact_digest: ${{ steps.upload_certification.outputs.artifact-digest }}
+      certification_file_sha256: ${{ steps.build_certification.outputs.certification_file_sha256 }}
+      lineage_artifact_id: ${{ steps.upload_lineage.outputs.artifact-id }}
+      lineage_artifact_name: ${{ steps.artifact_names.outputs.lineage_artifact_name }}
+      lineage_artifact_digest: ${{ steps.upload_lineage.outputs.artifact-digest }}
+      lineage_file_sha256: ${{ steps.build_lineage.outputs.lineage_file_sha256 }}
+      proof_run_id: ${{ github.run_id }}
+      proof_run_attempt: ${{ github.run_attempt }}
+      proof_source_sha: ${{ inputs.expected_sha || github.sha }}
+      caller_workflow_ref: ${{ github.workflow_ref }}
+      proof_workflow_ref: ${{ steps.artifact_names.outputs.proof_workflow_ref }}
+      proof_conclusion: ${{ steps.build_certification.outputs.proof_conclusion }}
+    steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.expected_sha || github.sha }}
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+
+      - name: Name attempt-qualified certification artifacts
+        id: artifact_names
+        env:
+          SOURCE_SHA: ${{ inputs.expected_sha || github.sha }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Certification requires an exact lowercase source SHA."
+            exit 1
+          fi
+          {
+            echo "certification_artifact_name=release-proof-certification-v1-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${SOURCE_SHA}"
+            echo "lineage_artifact_name=release-proof-lineage-v1-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${SOURCE_SHA}"
+            echo "proof_workflow_ref=${REPOSITORY}/.github/workflows/release-proof.yml@${SOURCE_SHA}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build pre-upload certification payload
+        id: build_certification
+        env:
+          CERT_SOURCE_SHA: ${{ inputs.expected_sha || github.sha }}
+          CALLER_WORKFLOW_REF: ${{ github.workflow_ref }}
+          PROOF_WORKFLOW_REF: ${{ steps.artifact_names.outputs.proof_workflow_ref }}
+          FULL_RELEASE_PROOF_RESULT: ${{ needs.full-release-proof.result }}
+          PROVIDER_IDENTITY_RESULT: ${{ needs.provider-identity.result }}
+          CHARACTERIZATION_RESULT: ${{ needs.canary-residue-characterization.result }}
+          G3_EXACT_SHA_VERDICT_RESULT: ${{ needs.g3-exact-sha-verdict.result }}
+          MATRIX_SUMMARY_SHA256: ${{ needs.full-release-proof.outputs.matrix_summary_sha256 }}
+          RELEASE_CHECK_SUMMARY_SHA256: ${{ needs.full-release-proof.outputs.release_check_summary_sha256 }}
+          CHARACTERIZATION_ARTIFACT_ID: ${{ needs.canary-residue-characterization.outputs.characterization_artifact_id }}
+          CHARACTERIZATION_ARTIFACT_NAME: ${{ needs.canary-residue-characterization.outputs.characterization_artifact_name }}
+          CHARACTERIZATION_ARTIFACT_DIGEST: ${{ needs.canary-residue-characterization.outputs.characterization_artifact_digest }}
+          CHARACTERIZATION_FILE_SHA256: ${{ needs.canary-residue-characterization.outputs.characterization_file_sha256 }}
+          CHARACTERIZATION_SOURCE_SHA: ${{ needs.canary-residue-characterization.outputs.characterization_source_sha }}
+        run: |
+          set -euo pipefail
+          BUILD_OUTPUT="$(npx tsx scripts/release/build-release-proof-certification.ts \
+            --output "$RUNNER_TEMP/release-proof-certification-v1.json")"
+          node -e '
+            const parsed = JSON.parse(process.argv[1]);
+            const hex = /^[a-f0-9]{64}$/;
+            const conclusions = new Set(["success", "failure"]);
+            if (!hex.test(parsed.certificationFileSha256) || !conclusions.has(parsed.overallConclusion)) {
+              console.error("Certification builder emitted an invalid result.");
+              process.exit(1);
+            }
+            const fs = require("node:fs");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, "certification_file_sha256=" + parsed.certificationFileSha256 + "\n");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, "proof_conclusion=" + parsed.overallConclusion + "\n");
+          ' "$BUILD_OUTPUT"
+
+      - name: Upload immutable certification artifact
+        id: upload_certification
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.artifact_names.outputs.certification_artifact_name }}
+          path: ${{ runner.temp }}/release-proof-certification-v1.json
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Build lineage record binding the uploaded certification
+        id: build_lineage
+        env:
+          CERT_SOURCE_SHA: ${{ inputs.expected_sha || github.sha }}
+          CALLER_WORKFLOW_REF: ${{ github.workflow_ref }}
+          PROOF_WORKFLOW_REF: ${{ steps.artifact_names.outputs.proof_workflow_ref }}
+          PROOF_CONCLUSION: ${{ steps.build_certification.outputs.proof_conclusion }}
+          CERTIFICATION_ARTIFACT_ID: ${{ steps.upload_certification.outputs.artifact-id }}
+          CERTIFICATION_ARTIFACT_NAME: ${{ steps.artifact_names.outputs.certification_artifact_name }}
+          CERTIFICATION_ARTIFACT_DIGEST: ${{ steps.upload_certification.outputs.artifact-digest }}
+          CERTIFICATION_FILE_SHA256: ${{ steps.build_certification.outputs.certification_file_sha256 }}
+        run: |
+          set -euo pipefail
+          BUILD_OUTPUT="$(npx tsx scripts/release/build-release-proof-lineage.ts \
+            --output "$RUNNER_TEMP/release-proof-lineage-v1.json")"
+          node -e '
+            const parsed = JSON.parse(process.argv[1]);
+            if (!/^[a-f0-9]{64}$/.test(parsed.lineageFileSha256)) {
+              console.error("Lineage builder emitted an invalid result.");
+              process.exit(1);
+            }
+            const fs = require("node:fs");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, "lineage_file_sha256=" + parsed.lineageFileSha256 + "\n");
+          ' "$BUILD_OUTPUT"
+
+      - name: Upload immutable lineage artifact
+        id: upload_lineage
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.artifact_names.outputs.lineage_artifact_name }}
+          path: ${{ runner.temp }}/release-proof-lineage-v1.json
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Remove local certification evidence
+        if: always()
+        run: rm -f -- "$RUNNER_TEMP/release-proof-certification-v1.json" "$RUNNER_TEMP/release-proof-lineage-v1.json"

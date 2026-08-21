@@ -3,6 +3,9 @@ import { sql, type SQL } from 'drizzle-orm';
 import { db } from '../db';
 import { productionFundPredicate } from '../lib/canary-exclusion';
 import { funds } from '@shared/schema/fund';
+import { RELEASE_CANARY_RESERVED_RESIDUE } from '@shared/contracts/release-canary-residue-characterization-v1.contract';
+
+export { RELEASE_CANARY_RESERVED_RESIDUE };
 
 const RELEASE_CANARY_TTL_HOURS_ENV = 'RELEASE_CANARY_TTL_HOURS';
 
@@ -12,6 +15,11 @@ const RESIDUE_CAP_ENV = {
   fundConfig: 'RELEASE_CANARY_MAX_FUND_CONFIG_RESIDUE',
   fundEvent: 'RELEASE_CANARY_MAX_FUND_EVENT_RESIDUE',
   notification: 'RELEASE_CANARY_MAX_NOTIFICATION_RESIDUE',
+  grant: 'RELEASE_CANARY_MAX_GRANT_RESIDUE',
+  calculation: 'RELEASE_CANARY_MAX_CALCULATION_RESIDUE',
+  mutationReceipt: 'RELEASE_CANARY_MAX_MUTATION_RECEIPT_RESIDUE',
+  scenario: 'RELEASE_CANARY_MAX_SCENARIO_RESIDUE',
+  reporting: 'RELEASE_CANARY_MAX_REPORTING_RESIDUE',
   total: 'RELEASE_CANARY_MAX_TOTAL_RESIDUE',
 } as const;
 
@@ -21,8 +29,76 @@ export type CanaryResidueCounts = {
   fundConfig: number;
   fundEvent: number;
   notification: number;
+  grant: number;
+  calculation: number;
+  mutationReceipt: number;
+  scenario: number;
+  reporting: number;
   total: number;
 };
+
+export type CanaryResidueGroup = Exclude<keyof CanaryResidueCounts, 'total'>;
+
+/**
+ * Authoritative group-to-table mapping shared by the counting service, the
+ * residue assertion script, and the purge script. Fund scoping:
+ * - 'id': the funds row itself;
+ * - 'fund_id': direct fund_id column;
+ * - { via, on }: one join hop to a direct fund_id parent.
+ */
+export const CANARY_RESIDUE_GROUP_TABLES: Readonly<
+  Record<
+    CanaryResidueGroup,
+    ReadonlyArray<{
+      table: string;
+      scope: 'id' | 'fund_id' | { via: string; on: string };
+    }>
+  >
+> = Object.freeze({
+  portfolioCompany: [{ table: 'portfoliocompanies', scope: 'fund_id' }],
+  fund: [{ table: 'funds', scope: 'id' }],
+  fundConfig: [{ table: 'fundconfigs', scope: 'fund_id' }],
+  fundEvent: [{ table: 'fund_events', scope: 'fund_id' }],
+  notification: [
+    {
+      table: 'capital_call_notification_outbox',
+      scope: { via: 'lp_capital_calls', on: 'capital_call_id' },
+    },
+  ],
+  grant: [{ table: 'user_fund_grants', scope: 'fund_id' }],
+  calculation: [
+    { table: 'calc_runs', scope: 'fund_id' },
+    { table: 'fund_snapshots', scope: 'fund_id' },
+    { table: 'pacing_history', scope: 'fund_id' },
+  ],
+  mutationReceipt: [
+    { table: 'portfolio_company_update_receipts', scope: 'fund_id' },
+    { table: 'fund_scenario_calculation_commands', scope: 'fund_id' },
+  ],
+  scenario: [
+    { table: 'fund_scenario_sets', scope: 'fund_id' },
+    {
+      table: 'fund_scenario_variants',
+      scope: { via: 'fund_scenario_sets', on: 'scenario_set_id' },
+    },
+    { table: 'fund_scenario_set_events', scope: 'fund_id' },
+    { table: 'fund_scenario_calculation_runs', scope: 'fund_id' },
+  ],
+  reporting: [
+    { table: 'planning_fmv_override_requests', scope: 'fund_id' },
+    { table: 'valuation_marks', scope: 'fund_id' },
+    { table: 'reconciliation_runs', scope: 'fund_id' },
+    { table: 'lp_metric_runs', scope: 'fund_id' },
+    { table: 'evidence_records', scope: 'fund_id' },
+    { table: 'narrative_runs', scope: 'fund_id' },
+    { table: 'lp_report_packages', scope: 'fund_id' },
+    { table: 'lp_report_package_exports', scope: 'fund_id' },
+  ],
+});
+
+export const CANARY_RESIDUE_GROUPS = Object.freeze(
+  Object.keys(CANARY_RESIDUE_GROUP_TABLES)
+) as readonly CanaryResidueGroup[];
 
 export type CanaryRuntimePolicy = CanaryResidueCounts & {
   ttlHours: number;
@@ -56,6 +132,24 @@ export class CanaryResidueCapExceededError extends CanaryResiduePreflightError {
   }
 }
 
+export class CanaryActiveRunError extends CanaryResiduePreflightError {
+  readonly runId: string;
+  readonly runStatus: string;
+  readonly expired: boolean;
+
+  constructor(runId: string, runStatus: string, expired: boolean) {
+    super(
+      expired
+        ? 'Release canary run is nonterminal past its TTL and requires reconciliation'
+        : 'Another release canary run is still active'
+    );
+    this.name = 'CanaryActiveRunError';
+    this.runId = runId;
+    this.runStatus = runStatus;
+    this.expired = expired;
+  }
+}
+
 export class CanaryRunTransitionConflictError extends Error {
   readonly code = 'CANARY_RUN_TRANSITION_CONFLICT';
 
@@ -67,7 +161,7 @@ export class CanaryRunTransitionConflictError extends Error {
 
 function requiredNonNegativeInteger(name: string): number {
   const raw = process.env[name]?.trim();
-  const value = raw === undefined ? Number.NaN : Number(raw);
+  const value = raw === undefined || raw === '' ? Number.NaN : Number(raw);
   if (!Number.isSafeInteger(value) || value < 0) {
     throw new CanaryResiduePreflightError(`${name} is required and must be a non-negative integer`);
   }
@@ -76,7 +170,7 @@ function requiredNonNegativeInteger(name: string): number {
 
 function requiredPositiveNumber(name: string): number {
   const raw = process.env[name]?.trim();
-  const value = raw === undefined ? Number.NaN : Number(raw);
+  const value = raw === undefined || raw === '' ? Number.NaN : Number(raw);
   if (!Number.isFinite(value) || value <= 0) {
     throw new CanaryResiduePreflightError(`${name} is required and must be positive`);
   }
@@ -84,13 +178,20 @@ function requiredPositiveNumber(name: string): number {
 }
 
 export function readCanaryRuntimePolicy(): CanaryRuntimePolicy {
+  const groupCaps = Object.fromEntries(
+    CANARY_RESIDUE_GROUPS.map((group) => [group, requiredNonNegativeInteger(RESIDUE_CAP_ENV[group])])
+  ) as Record<CanaryResidueGroup, number>;
+  const total = requiredNonNegativeInteger(RESIDUE_CAP_ENV.total);
+  const groupCapSum = CANARY_RESIDUE_GROUPS.reduce((sum, group) => sum + groupCaps[group], 0);
+  if (total !== groupCapSum) {
+    throw new CanaryResiduePreflightError(
+      `${RESIDUE_CAP_ENV.total} must equal the sum of the ten group caps ` +
+        `(configured total ${total}, group sum ${groupCapSum})`
+    );
+  }
   return {
-    portfolioCompany: requiredNonNegativeInteger(RESIDUE_CAP_ENV.portfolioCompany),
-    fund: requiredNonNegativeInteger(RESIDUE_CAP_ENV.fund),
-    fundConfig: requiredNonNegativeInteger(RESIDUE_CAP_ENV.fundConfig),
-    fundEvent: requiredNonNegativeInteger(RESIDUE_CAP_ENV.fundEvent),
-    notification: requiredNonNegativeInteger(RESIDUE_CAP_ENV.notification),
-    total: requiredNonNegativeInteger(RESIDUE_CAP_ENV.total),
+    ...groupCaps,
+    total,
     ttlHours: requiredPositiveNumber(RELEASE_CANARY_TTL_HOURS_ENV),
   };
 }
@@ -101,8 +202,36 @@ type ResidueRow = Record<keyof CanaryResidueCounts, unknown>;
 
 const canaryFundPredicate = sql`data_origin = 'release_canary'`;
 
+function tableCountSql(entry: {
+  table: string;
+  scope: 'id' | 'fund_id' | { via: string; on: string };
+}): SQL {
+  const table = sql.raw(entry.table);
+  if (entry.scope === 'id') {
+    return sql`(SELECT count(*)::int FROM ${table} AS t
+       WHERE t.id IN (SELECT id FROM canary_funds))`;
+  }
+  if (entry.scope === 'fund_id') {
+    return sql`(SELECT count(*)::int FROM ${table} AS t
+       WHERE t.fund_id IN (SELECT id FROM canary_funds))`;
+  }
+  const parent = sql.raw(entry.scope.via);
+  const joinColumn = sql.raw(entry.scope.on);
+  return sql`(SELECT count(*)::int FROM ${table} AS t
+       JOIN ${parent} AS p ON p.id = t.${joinColumn}
+       WHERE p.fund_id IN (SELECT id FROM canary_funds))`;
+}
+
+function groupCountSql(group: CanaryResidueGroup): SQL {
+  const parts = CANARY_RESIDUE_GROUP_TABLES[group].map((entry) => tableCountSql(entry));
+  return sql.join(parts, sql` + `);
+}
+
 function countQuery(runId?: string): SQL {
   const runFilter = runId === undefined ? sql`` : sql` AND f.canary_run_id = ${runId}`;
+  const selections = CANARY_RESIDUE_GROUPS.map(
+    (group) => sql`${groupCountSql(group)} AS ${sql.raw(`"${group}"`)}`
+  );
   return sql`
     WITH canary_funds AS (
       SELECT f.id
@@ -110,18 +239,66 @@ function countQuery(runId?: string): SQL {
       WHERE ${canaryFundPredicate}${runFilter}
     )
     SELECT
-      (SELECT count(*)::int FROM portfoliocompanies AS pc
-       WHERE pc.fund_id IN (SELECT id FROM canary_funds)) AS "portfolioCompany",
-      (SELECT count(*)::int FROM funds AS f
-       WHERE f.id IN (SELECT id FROM canary_funds)) AS "fund",
-      (SELECT count(*)::int FROM fundconfigs AS fc
-       WHERE fc.fund_id IN (SELECT id FROM canary_funds)) AS "fundConfig",
-      (SELECT count(*)::int FROM fund_events AS fe
-       WHERE fe.fund_id IN (SELECT id FROM canary_funds)) AS "fundEvent",
-      (SELECT count(*)::int
-       FROM capital_call_notification_outbox AS outbox
-       JOIN lp_capital_calls AS calls ON calls.id = outbox.capital_call_id
-       WHERE calls.fund_id IN (SELECT id FROM canary_funds)) AS "notification"
+      ${sql.join(selections, sql`,
+      `)}
+  `;
+}
+
+function reconcileQuery(runId: string, expectedVersion: number): SQL {
+  const selections = CANARY_RESIDUE_GROUPS.map(
+    (group) => sql`${groupCountSql(group)} AS ${sql.raw(`"${group}"`)}`
+  );
+  const groupTotal = sql.join(
+    CANARY_RESIDUE_GROUPS.map(
+      (group) => sql`residue_group_counts.${sql.raw(`"${group}"`)}`
+    ),
+    sql` + `
+  );
+  const assignments = CANARY_RESIDUE_GROUPS.map(
+    (group) =>
+      sql`${sql.raw(RESIDUE_COLUMN_BY_GROUP[group])} = residue_counts.${sql.raw(`"${group}"`)}`
+  );
+  const returnedCounts = CANARY_RESIDUE_GROUPS.map(
+    (group) => sql`residue_counts.${sql.raw(`"${group}"`)} AS ${sql.raw(`"${group}"`)}`
+  );
+
+  return sql`
+    WITH locked_run AS MATERIALIZED (
+      SELECT id
+      FROM release_canary_runs
+      WHERE id = ${runId}
+      FOR UPDATE
+    ),
+    canary_funds AS MATERIALIZED (
+      SELECT f.id
+      FROM funds AS f
+      CROSS JOIN locked_run
+      WHERE ${canaryFundPredicate}
+        AND f.canary_run_id = ${runId}
+      ORDER BY f.id
+      FOR UPDATE OF f
+    ),
+    residue_group_counts AS MATERIALIZED (
+      SELECT
+        ${sql.join(selections, sql`,
+        `)}
+    ),
+    residue_counts AS MATERIALIZED (
+      SELECT residue_group_counts.*, ${groupTotal} AS total
+      FROM residue_group_counts
+    )
+    UPDATE release_canary_runs AS run
+    SET ${sql.join(assignments, sql`,
+        `)},
+        total_residue_count = residue_counts.total,
+        updated_at = clock_timestamp()
+    FROM locked_run, residue_counts
+    WHERE run.id = locked_run.id
+      AND run.version = ${expectedVersion}
+    RETURNING
+      ${sql.join(returnedCounts, sql`,
+      `)},
+      residue_counts.total AS total
   `;
 }
 
@@ -141,14 +318,11 @@ function numberFromValue(value: unknown, key: string): number {
 
 function countsFromRow(row: Record<string, unknown> | undefined): CanaryResidueCounts {
   if (!row) throw new CanaryResiduePreflightError('Residue count query returned no row');
-  const counts = {
-    portfolioCompany: numberFromRow(row, 'portfolioCompany'),
-    fund: numberFromRow(row, 'fund'),
-    fundConfig: numberFromRow(row, 'fundConfig'),
-    fundEvent: numberFromRow(row, 'fundEvent'),
-    notification: numberFromRow(row, 'notification'),
-  };
-  return { ...counts, total: Object.values(counts).reduce((sum, value) => sum + value, 0) };
+  const counts = Object.fromEntries(
+    CANARY_RESIDUE_GROUPS.map((group) => [group, numberFromRow(row, group)])
+  ) as Record<CanaryResidueGroup, number>;
+  const total = CANARY_RESIDUE_GROUPS.reduce((sum, group) => sum + counts[group], 0);
+  return { ...counts, total };
 }
 
 async function readResidueCounts(
@@ -159,6 +333,32 @@ async function readResidueCounts(
   return countsFromRow(result.rows[0] as ResidueRow | undefined);
 }
 
+async function rejectActiveCanaryRun(database: SqlExecutor): Promise<void> {
+  const result = await database.execute(sql`
+    SELECT id, status, expires_at <= clock_timestamp() AS expired
+    FROM release_canary_runs
+    WHERE status IN ('created', 'running')
+    ORDER BY created_at ASC
+    LIMIT 1
+  `);
+  const row = result.rows[0] as
+    | { id: string; status: string; expired: boolean | 't' | 'f' }
+    | undefined;
+  if (row) {
+    throw new CanaryActiveRunError(
+      String(row.id),
+      String(row.status),
+      row.expired === true || row.expired === 't'
+    );
+  }
+}
+
+/**
+ * Reserve the full successful-run residue vector before any canary row is
+ * written. The one-active-run rule (enforced here under the caller's
+ * release_canary_creation advisory lock) is what makes this in-memory
+ * reservation safe across the run's later writes.
+ */
 export async function preflightCanaryCreation(
   database: SqlExecutor,
   policy: CanaryRuntimePolicy = readCanaryRuntimePolicy()
@@ -170,14 +370,14 @@ export async function preflightCanaryCreation(
     await database.execute(
       sql`SELECT count(*)::int AS count FROM ${funds} WHERE ${productionFundPredicate()}`
     );
+    await rejectActiveCanaryRun(database);
     const current = await readResidueCounts(database);
-    const projected: CanaryResidueCounts = {
-      ...current,
-      fund: current.fund + 1,
-      fundConfig: current.fundConfig + 1,
-      fundEvent: current.fundEvent + 1,
-      total: current.total + 3,
-    };
+    const projected = Object.fromEntries(
+      (Object.keys(current) as Array<keyof CanaryResidueCounts>).map((field) => [
+        field,
+        current[field] + RELEASE_CANARY_RESERVED_RESIDUE[field],
+      ])
+    ) as CanaryResidueCounts;
 
     for (const field of Object.keys(current) as Array<keyof CanaryResidueCounts>) {
       if (projected[field] > policy[field]) {
@@ -196,29 +396,40 @@ export async function preflightCanaryCreation(
   }
 }
 
+const RESIDUE_COLUMN_BY_GROUP: Record<CanaryResidueGroup, string> = {
+  portfolioCompany: 'portfolio_company_residue_count',
+  fund: 'fund_residue_count',
+  fundConfig: 'fund_config_residue_count',
+  fundEvent: 'fund_event_residue_count',
+  notification: 'notification_residue_count',
+  grant: 'grant_residue_count',
+  calculation: 'calculation_residue_count',
+  mutationReceipt: 'mutation_receipt_residue_count',
+  scenario: 'scenario_residue_count',
+  reporting: 'reporting_residue_count',
+};
+
 export async function reconcileReleaseCanaryRun(
   runId: string,
+  expectedVersion: number,
   database: SqlExecutor = db
 ): Promise<CanaryResidueCounts> {
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
+    throw new CanaryRunTransitionConflictError('Expected release canary run version is invalid');
+  }
   try {
-    const counts = await readResidueCounts(database, runId);
-    const result = await database.execute(sql`
-      UPDATE release_canary_runs
-      SET portfolio_company_residue_count = ${counts.portfolioCompany},
-          fund_residue_count = ${counts.fund},
-          fund_config_residue_count = ${counts.fundConfig},
-          fund_event_residue_count = ${counts.fundEvent},
-          notification_residue_count = ${counts.notification},
-          total_residue_count = ${counts.total},
-          updated_at = clock_timestamp()
-      WHERE id = ${runId}
-    `);
+    const result = await database.execute(reconcileQuery(runId, expectedVersion));
     if (result.rowCount !== 1) {
-      throw new CanaryResiduePreflightError('Release canary run reconciliation target not found');
+      throw new CanaryRunTransitionConflictError('Release canary run reconciliation lost its fence');
     }
-    return counts;
+    return countsFromRow(result.rows[0] as ResidueRow | undefined);
   } catch (error) {
-    if (error instanceof CanaryResiduePreflightError) throw error;
+    if (
+      error instanceof CanaryResiduePreflightError ||
+      error instanceof CanaryRunTransitionConflictError
+    ) {
+      throw error;
+    }
     throw new CanaryResiduePreflightError('Release canary residue reconciliation unavailable');
   }
 }
@@ -226,13 +437,7 @@ export async function reconcileReleaseCanaryRun(
 type CanaryRunTerminalRow = {
   status: string;
   version: unknown;
-  portfolio_company_residue_count: unknown;
-  fund_residue_count: unknown;
-  fund_config_residue_count: unknown;
-  fund_event_residue_count: unknown;
-  notification_residue_count: unknown;
-  total_residue_count: unknown;
-};
+} & Record<string, unknown>;
 
 function versionFromRow(row: CanaryRunTerminalRow): number {
   const version = Number(row.version);
@@ -243,16 +448,15 @@ function versionFromRow(row: CanaryRunTerminalRow): number {
 }
 
 function countsFromTerminalRow(row: CanaryRunTerminalRow): CanaryResidueCounts {
+  const counts = Object.fromEntries(
+    CANARY_RESIDUE_GROUPS.map((group) => [
+      group,
+      numberFromValue(row[RESIDUE_COLUMN_BY_GROUP[group]], RESIDUE_COLUMN_BY_GROUP[group]),
+    ])
+  ) as Record<CanaryResidueGroup, number>;
   return {
-    portfolioCompany: numberFromValue(
-      row.portfolio_company_residue_count,
-      'portfolio_company_residue_count'
-    ),
-    fund: numberFromValue(row.fund_residue_count, 'fund_residue_count'),
-    fundConfig: numberFromValue(row.fund_config_residue_count, 'fund_config_residue_count'),
-    fundEvent: numberFromValue(row.fund_event_residue_count, 'fund_event_residue_count'),
-    notification: numberFromValue(row.notification_residue_count, 'notification_residue_count'),
-    total: numberFromValue(row.total_residue_count, 'total_residue_count'),
+    ...counts,
+    total: numberFromValue(row['total_residue_count'], 'total_residue_count'),
   };
 }
 
@@ -272,14 +476,14 @@ export async function transitionReleaseCanaryRun(
       throw new CanaryRunTransitionConflictError('No release canary source statuses were allowed');
     }
 
+    const residueColumns = CANARY_RESIDUE_GROUPS.map((group) =>
+      sql.raw(RESIDUE_COLUMN_BY_GROUP[group])
+    );
     const currentResult = await tx.execute(sql`
       SELECT status,
              version,
-             portfolio_company_residue_count,
-             fund_residue_count,
-             fund_config_residue_count,
-             fund_event_residue_count,
-             notification_residue_count,
+             ${sql.join(residueColumns, sql`,
+             `)},
              total_residue_count
       FROM release_canary_runs
       WHERE id = ${runId}
@@ -313,7 +517,7 @@ export async function transitionReleaseCanaryRun(
       );
     }
 
-    const counts = await reconcileReleaseCanaryRun(runId, tx);
+    const counts = await reconcileReleaseCanaryRun(runId, expectedVersion, tx);
     const terminalTimestamp =
       status === 'completed'
         ? sql`completed_at = clock_timestamp(),`

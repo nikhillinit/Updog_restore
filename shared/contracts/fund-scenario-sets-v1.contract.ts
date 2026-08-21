@@ -526,6 +526,7 @@ export const FundScenarioCalculationStatusV1Schema = z
     jobId: z.string().nullable(),
     correlationId: z.string().uuid().nullable(),
     snapshotId: z.number().int().positive().nullable(),
+    calculationStartedAt: DateTimeStringSchema.optional(),
     failureCode: z.literal('HARD_TIMEOUT').nullable().default(null),
     lastEventAt: DateTimeStringSchema.nullable(),
     lastError: z.string().nullable(),

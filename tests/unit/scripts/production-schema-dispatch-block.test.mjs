@@ -91,19 +91,49 @@ describe('production schema dispatch block', () => {
     }
   });
 
-  it('admits only schema workflow apply mode through exact 0053 capability command', async () => {
+  it('admits only schema workflow apply modes through exact capability commands', async () => {
     const workflow = YAML.parse(
       await readFile(
         path.join(process.cwd(), '.github', 'workflows', 'prod-schema-reconcile.yml'),
         'utf8'
       )
     );
+    expect(workflow.on.workflow_dispatch.inputs.mode.options).toEqual([
+      'audit',
+      'apply',
+      'apply-catchup-0050-0053',
+    ]);
     const steps = Object.values(workflow.jobs).flatMap((job) => job.steps ?? []);
     const applyStep = steps.find((step) => step.name === 'Apply additive-safe reconciliation');
-    expect(applyStep?.if).toContain("inputs.mode == 'apply'");
+    expect(applyStep?.if).toContain("startsWith(inputs.mode, 'apply')");
     expect(applyStep?.run).toContain(
       'node scripts/reconcile-prod-schema.mjs --apply --yes --apply-0053-g3-release-gate-hardening'
     );
+    expect(applyStep?.run).toContain(
+      'node scripts/reconcile-prod-schema.mjs --apply --yes --apply-g3-catchup-0050-0053'
+    );
+    const applyGates = [
+      'Require first apply attempt',
+      'Verify artifact retention before apply',
+      'Require additive-safe apply decision',
+      'Run post-apply audit',
+      'Require clean post-apply audit',
+    ];
+    for (const gateName of applyGates) {
+      const gate = steps.find((step) => step.name === gateName);
+      expect(gate?.if, gateName).toContain("startsWith(inputs.mode, 'apply')");
+    }
+  });
+
+  it('rejects reconcile apply when both capability flags are combined', () => {
+    expect(() =>
+      assertApplyConfirmation({
+        apply: true,
+        yes: true,
+        apply0053G3ReleaseGateHardening: true,
+        applyG3Catchup0050To0053: true,
+      })
+    ).toThrow(/production schema mutation is mechanically blocked/i);
   });
 
   it('fails apply-mode workflows explicitly before any mutation step', async () => {

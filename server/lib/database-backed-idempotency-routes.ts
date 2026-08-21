@@ -6,6 +6,10 @@ const TASK_EVIDENCE_LINK_CREATION_PATH =
 // both write paths bypass the generic in-memory idempotency middleware.
 const KPI_OBSERVATION_CREATION_PATH = /^\/api\/funds\/[^/?#]+\/kpi-observations\/?$/i;
 const KPI_OBSERVATION_IMPORT_PATH = /^\/api\/funds\/[^/?#]+\/kpi-observations\/imports\/?$/i;
+// Reserve calculation commands persist key, request hash, lease, and the
+// canonical queued response in fund_scenario_calculation_commands.
+const SCENARIO_CALCULATE_RESERVE_PATH =
+  /^\/api\/funds\/[^/?#]+\/scenario-sets\/[^/?#]+\/calculate-reserve\/?$/i;
 
 export function isDatabaseBackedIdempotencyRoute(method: string, path: string): boolean {
   const pathnameEnd = path.search(/[?#]/);
@@ -15,6 +19,7 @@ export function isDatabaseBackedIdempotencyRoute(method: string, path: string): 
     (INTERNAL_ECONOMICS_RUN_CREATION_PATH.test(pathname) ||
       TASK_EVIDENCE_LINK_CREATION_PATH.test(pathname) ||
       KPI_OBSERVATION_CREATION_PATH.test(pathname) ||
-      KPI_OBSERVATION_IMPORT_PATH.test(pathname))
+      KPI_OBSERVATION_IMPORT_PATH.test(pathname) ||
+      SCENARIO_CALCULATE_RESERVE_PATH.test(pathname))
   );
 }

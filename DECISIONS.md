@@ -10771,3 +10771,54 @@ claims.
 
 This ADR and adoption authorize no GitHub, environment, branch, provider,
 schema, data, deployment, or production action.
+
+## ADR-082: Attested Operator Evidence Completes G4 Operator Verification (F_1.2.7 / G4 Readiness)
+
+**Date:** 2026-08-10 **Status:** Accepted **Tags:** #release #operator-evidence
+#railway #vercel #g4
+
+**Related:** ADR-075 (provider topology and G4 hard-stop consequence),
+F_1.2.0 WS6 (Child F definition,
+`docs/1-plans/F_1.2.0_v1.4-release-proof-activation.plan.md`), F_1.2.6 Step 6
+(successor contract)
+
+### Context
+
+ADR-075 made promotion stop at G4 until trusted attested operator `/health`
+and `/ready` evidence could be ingested and verified. The hard-stop job proved
+only that this evidence had not yet been integrated; it could never authorize a
+promotion. This ADR supersedes that hard-stop consequence while preserving the
+fail-closed G4 gate. Railway worker probes are available through the operator's local
+`railway ssh` data-plane session, while the release workflow can independently
+retrieve staged Vercel evidence and live Railway control-plane topology.
+
+### Decision
+
+1. **In-workflow evidence ingestion** — `release-production.yml` requires the
+   `workflow_dispatch` input `operator_evidence_b64`, containing exactly the
+   redacted `fundHealth`, `fundReady`, `capitalHealth`, and `capitalReady` JSON
+   objects captured by the operator. The workflow decodes the bundle only into
+   runner-temporary files, fails closed on empty, invalid, or malformed input,
+   and never stores the operator's SSH credentials in GitHub Actions.
+2. **Operator-mode verification** — after `staged-provider-identity`, the
+   `g4-operator-evidence` job fetches staged Vercel evidence and live Railway
+   control-plane evidence, then invokes
+   `verify-provider-identity.mjs --mode operator` with all four probe files and
+   the exact expected SHA. Promotion depends on this job and the job has no
+   conditional bypass or `continue-on-error` path. The emitted result includes
+   the verifier's SHA-bound `privateProof.reference` and is written to the job
+   log and step summary.
+3. **Hybrid control/data plane** — the MCP/API control plane uses the Railway
+   GraphQL API and Vercel API as its control-plane evidence sources. The
+   operator's local `railway ssh` session remains the data-plane source for
+   private worker probe evidence. No Actions-stored SSH credentials or provider
+   mutation are added.
+
+### Consequences
+
+G4 can complete when an operator supplies attested, redacted worker evidence
+for the exact release SHA and the independent provider checks pass. Invalid,
+missing, stale, or mismatched evidence still blocks promotion. The operator
+must retain custody of the local Railway SSH session and provide the resulting
+bundle at dispatch time; the workflow retains only temporary files and the
+sanitized verification result for the job run.

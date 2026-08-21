@@ -21,6 +21,30 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-08-20)
+
+- **Infrastructure-only interim release hardening.** Governed release evidence now records exact-execution canary results and refreshed surface-contract-matrix proof. This does not designate an activation candidate or create a release freeze.
+- **Task 11 G1 closure (F_1.2.9).** Owner-approved G1 successor review closed the surface-contract matrix: rejected candidate superseded via deterministic transplant with a 13-row defect ledger (5 cashflow mutation rows, 8 partner-only persona rows) plus 24 source-verified fan-out corrections; contaminated fresh-review prose removed; four residual risks accepted and enumerated in the review manifest. Funds endpoint 404 investigated to a bounded no-repro dossier.
+
+### Changed (2026-08-18)
+
+- **Governance singular-policy consolidation (F_1.2.7, PR A).** The
+  solo-internal policy gains a "Document roles and precedence" section
+  (fails-closed conflict rule, amendment clause, catch-all for unranked
+  artifacts, named production-dispatch issuer, provider-coupling statement,
+  surface-matrix component roles) and absorbs Documentation Governance, the
+  Archive Gate, and Phoenix protected paths from the entry docs. `CLAUDE.md` and
+  `AGENTS.md` are reduced to short entry loaders that route to the policy and
+  keep only always-loaded mandates and pre-action checks; moved operational
+  content now lives in `README.md`. Hierarchy compliance is pinned by a new
+  describe block in `tests/unit/docs/production-governance-routing.test.ts`
+  (loader pointers and parity, loader size ceiling, constitution sections,
+  matrix-plan scope notes, capture-workflow lifecycle contract, and a governance
+  pointer required in all post-adoption plan docs). The PR #1385
+  capture-release-baseline workflow is annotated as a one-time program-scoped
+  artifact (comments only). Plan:
+  `docs/1-plans/F_1.2.7_governance-singular-policy-consolidation.plan.md`.
+
 ### Added (2026-08-07)
 
 - **Governed journaled production recovery and post-promotion driver-log gate
