@@ -108,7 +108,7 @@ jobs:
     name: Full DB-backed Release Proof
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    environment: Production
+    environment: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && 'Production' || '' }}
     outputs:
       candidate_sha: ${{ steps.candidate.outputs.candidate_sha }}
       matrix_summary_sha256: ${{ steps.summaries.outputs.matrix_summary_sha256 }}
@@ -515,7 +515,8 @@ jobs:
     # Prerequisites expose only normalized summary hashes and allowlisted
     # conclusions as job outputs; this job never reads another job's
     # filesystem or logs.
-    needs: [full-release-proof, provider-identity, canary-residue-characterization, g3-exact-sha-verdict]
+    needs:
+      [full-release-proof, provider-identity, canary-residue-characterization, g3-exact-sha-verdict]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10

@@ -1082,6 +1082,11 @@ export async function approveMatrix(argv = process.argv.slice(2), options = {}) 
   const manifest = G1ReviewManifestSchema.parse(readJson(args.reviewFile, undefined, fsApi));
   const { reviewedRowIds } = verifyManifestKeys(manifest, state, args);
   const candidateState = clone(state);
+  const preApprovalFingerprints = new Map(
+    candidateState.matrix.rows
+      .filter((row) => row.decision_status === 'approved')
+      .map((row) => [row.id, contractFingerprint(row)]),
+  );
   applyPersonaMappings(candidateState.matrix.rows, manifest);
   const { reviewedRowIds: selectedRows, coverageKeys } = applyRowReviews(candidateState, manifest, args);
   const selectedOffRows = applyOffRowReviews(candidateState, manifest);
@@ -1089,6 +1094,16 @@ export async function approveMatrix(argv = process.argv.slice(2), options = {}) 
   candidateState.matrix.rows.forEach((row) => {
     row.contract_fingerprint = contractFingerprint(row);
     if (row.decision_status === 'approved') row.approved_source_hashes = sourceFingerprintsForRow(row, candidateState.inventory);
+  });
+  candidateState.matrix.rows.forEach((row) => {
+    if (
+      row.decision_status === 'approved'
+      && !reviewedRowIds.has(row.id)
+      && preApprovalFingerprints.has(row.id)
+      && row.contract_fingerprint !== preApprovalFingerprints.get(row.id)
+    ) {
+      row.decision_status = 'proposed';
+    }
   });
   bindCoverageFingerprints(candidateState, coverageKeys);
 
