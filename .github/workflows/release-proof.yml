@@ -101,7 +101,6 @@ permissions:
   actions: read
   checks: read
   contents: read
-  statuses: read
 
 concurrency:
   group: full-release-proof-${{ github.ref }}
@@ -150,21 +149,12 @@ jobs:
         id: candidate
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha || github.sha }}
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           CANDIDATE_SHA="$(git rev-parse HEAD)"
           if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ || "$CANDIDATE_SHA" != "$EXPECTED_SHA" ]]; then
             echo "Exact checked-out candidate SHA is required."
             exit 1
-          fi
-          if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
-            LIVE_MAIN="$(gh api "repos/${REPO}/commits/main" --jq '.sha')"
-            if [[ ! "$LIVE_MAIN" =~ ^[0-9a-f]{40}$ || "$LIVE_MAIN" != "$CANDIDATE_SHA" ]]; then
-              echo "Live main does not equal the frozen candidate SHA."
-              exit 1
-            fi
           fi
           echo "candidate_sha=$CANDIDATE_SHA" >> "$GITHUB_OUTPUT"
 
@@ -553,8 +543,6 @@ jobs:
           fs.writeFileSync(`${temp}/exact-sha-evidence.json`, JSON.stringify({
             repository: process.env.REPO,
             candidateSha: process.env.CANDIDATE_SHA,
-            evaluatedAt: new Date().toISOString(),
-            maxAgeSeconds: 86400,
             protection: JSON.parse(fs.readFileSync(`${temp}/branch-protection.json`, 'utf8')),
             checkRuns: checks,
             workflows: readJsonl('workflows'),
@@ -562,23 +550,7 @@ jobs:
             workflowJobs,
           }));
           NODE
-          node scripts/release/verify-exact-sha-checks.mjs "$RUNNER_TEMP/exact-sha-evidence.json" --output "$RUNNER_TEMP/release-exact-sha-evidence-v1.json"
-      - name: Name and hash exact-SHA evidence
-        id: exact_sha_evidence_meta
-        env:
-          CANDIDATE_SHA: ${{ needs.full-release-proof.outputs.candidate_sha }}
-        run: |
-          set -euo pipefail
-          echo "artifact_name=release-exact-sha-evidence-v1-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
-          echo "file_sha256=$(sha256sum "$RUNNER_TEMP/release-exact-sha-evidence-v1.json" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-      - name: Upload immutable exact-SHA evidence
-        id: upload_exact_sha_evidence
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ steps.exact_sha_evidence_meta.outputs.artifact_name }}
-          path: ${{ runner.temp }}/release-exact-sha-evidence-v1.json
-          retention-days: 30
-          if-no-files-found: error
+          node scripts/release/verify-exact-sha-checks.mjs "$RUNNER_TEMP/exact-sha-evidence.json"
 
   diagnostic-evidence-only:
     name: Diagnostic Evidence Only - Not Certification

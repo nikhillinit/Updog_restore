@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-08-14
+last_updated: 2026-08-21
 ---
 
 # Canonical Production-Action Procedure

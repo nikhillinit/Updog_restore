@@ -4729,11 +4729,10 @@ describe('required CI fails closed', () => {
     { retry: 0, timeout: 120_000 },
     async () => {
       const proofWorkflow = await readWorkflow('release-proof.yml');
-      expect(proofWorkflow.permissions).toEqual({
-        actions: 'read',
-        checks: 'read',
-        contents: 'read',
-        statuses: 'read',
+    expect(proofWorkflow.permissions).toEqual({
+      actions: 'read',
+      checks: 'read',
+      contents: 'read',
       });
       expect(proofWorkflow.jobs?.['provider-identity']?.environment).toBe('Production');
       expect(proofWorkflow.jobs?.['provider-identity']?.if).toContain(
@@ -5346,10 +5345,9 @@ describe('required CI fails closed', () => {
           'pull-requests': 'read',
         },
         'release-proof': {
-          actions: 'read',
-          checks: 'read',
-          contents: 'read',
-          statuses: 'read',
+      actions: 'read',
+      checks: 'read',
+      contents: 'read',
         },
         'schema-audit': { contents: 'read', actions: 'read' },
         'policy-ratification': { contents: 'read', actions: 'read' },
@@ -7302,10 +7300,16 @@ describe('required CI fails closed', () => {
     const full = jobs['full-release-proof'];
     const diagnostic = jobs['diagnostic-evidence-only'];
     const certifyingTerminal = jobs['certifying-terminal'];
+    const caller = (await readWorkflow('release-production.yml')).jobs?.['release-proof'];
+    const fullScripts = allRunScripts({ jobs: { full } }).join('\n');
 
     expect(allRunScripts({ jobs: { full, diagnostic } }).join('\n')).not.toMatch(
       /secrets\.|Run strict Vercel boot proof|Verify strict boot proof|Obsolete in-job|Deprecated in-job/
     );
+    expect(fullScripts).not.toContain('LIVE_MAIN');
+    expect(fullScripts).not.toContain('repos/${REPO}/commits/main');
+    expect(workflow.permissions?.statuses).toBeUndefined();
+    expect(caller?.permissions?.statuses).toBeUndefined();
     expect(diagnostic?.if).toContain("needs.proof-contract.outputs.proof_mode == 'diagnostic'");
     expect(normalizeNeeds(diagnostic?.needs)).toEqual([
       'proof-contract', 'full-release-proof', 'canary-residue-characterization',
@@ -7341,6 +7345,9 @@ describe('required CI fails closed', () => {
     expect(g3Scripts).not.toContain('/statuses');
     expect(g3Scripts).toContain('PRODUCTION_RELEASE_PROOF_GITHUB_TOKEN');
     expect(g3Scripts).not.toContain('DEFAULT_GITHUB_TOKEN');
+    expect(g3Scripts).not.toContain('release-exact-sha-evidence-v1');
+    expect(g3Scripts).not.toContain('--output');
+    expect(g3?.steps?.some((step) => step.uses?.startsWith('actions/upload-artifact@'))).toBe(false);
     expect(finalizer?.outputs?.exact_sha_evidence_artifact_id).toBeUndefined();
     expect(finalizerScripts).not.toContain('--exact-sha-evidence');
 

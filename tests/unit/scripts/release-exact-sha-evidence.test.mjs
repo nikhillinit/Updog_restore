@@ -35,12 +35,11 @@ function exactChecks() {
   const workflowIds = { '.github/workflows/ci-unified.yml': 184359796, '.github/workflows/testcontainers-ci.yml': 218922065, '.github/workflows/codeql.yml': 182132907, '.github/workflows/security-scan.yml': 181986606 };
   return {
     candidateSha: SHA,
-    repository: 'presson/updog', evaluatedAt: '2026-08-21T12:00:00.000Z', maxAgeSeconds: 86400,
+    repository: 'presson/updog',
     protection: { required_status_checks: { contexts, checks: [{ context: 'CI Gate Status', app_id: 15368 }] } },
     checkRuns: contexts.map((name, id) => ({
       name, id: 7000 + id, app: { id: 15368 }, head_sha: SHA, status: 'completed', conclusion: 'success', started_at: '2026-08-21T11:00:00.000Z', completed_at: '2026-08-21T11:30:00.000Z', details_url: `https://github.com/presson/updog/actions/runs/${5000 + id}/job/${6000 + id}`,
     })),
-    statuses: [],
     workflows: Object.entries(workflowIds).map(([path, id]) => ({ id, path, state: 'active' })),
     workflowRuns: contexts.map((context, id) => ({ id: 5000 + id, workflow_id: workflowIds[workflowPathFor(context)], run_attempt: 1, path: workflowPathFor(context), event: context === 'Testcontainers' ? 'workflow_dispatch' : 'push', head_sha: SHA, status: 'completed', conclusion: 'success', created_at: '2026-08-21T11:00:00.000Z', repository: { full_name: 'presson/updog' } })),
     workflowJobs: contexts.map((context, id) => ({ id: 6000 + id, run_id: 5000 + id, run_attempt: 1, name: context, head_sha: SHA, status: 'completed', conclusion: 'success', started_at: '2026-08-21T11:00:00.000Z', completed_at: '2026-08-21T11:30:00.000Z' })),
@@ -116,6 +115,24 @@ describe('exact SHA release evidence', () => {
     expect(aggregateExactShaEvidence(exactChecks()).workflows).toHaveLength(LOCKED_G3_CONTEXTS.length);
   });
 
+  it('accepts exactly one verifier evidence input path', async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'exact-sha-evidence-'));
+    const evidencePath = path.join(directory, 'evidence.json');
+    await writeFile(evidencePath, JSON.stringify(exactChecks()));
+
+    const result = await execFileAsync(process.execPath, [
+      'scripts/release/verify-exact-sha-checks.mjs',
+      evidencePath,
+    ], { cwd: process.cwd() });
+    expect(result.stdout).toContain(`Exact-SHA contexts passed: ${LOCKED_G3_CONTEXTS.length}`);
+
+    await expect(execFileAsync(process.execPath, [
+      'scripts/release/verify-exact-sha-checks.mjs',
+      evidencePath,
+      'unexpected-argument',
+    ], { cwd: process.cwd() })).rejects.toThrow(/expected one JSON evidence file path/i);
+  });
+
   it.each(['queued', 'in_progress', 'pending', 'skipped', 'cancelled', 'timed_out', 'action_required', 'failure'])(
     'rejects non-success check state %s',
     (state) => {
@@ -131,6 +148,9 @@ describe('exact SHA release evidence', () => {
     const foreign = exactChecks();
     foreign.checkRuns[0].head_sha = 'b'.repeat(40);
     expect(() => aggregateExactShaEvidence(foreign)).toThrow(/CI Gate Status/);
+    const legacy = exactChecks();
+    legacy.statuses = [{ context: 'CI Gate Status', state: 'success' }];
+    expect(() => aggregateExactShaEvidence(legacy)).toThrow(/legacy commit statuses/i);
     const self = exactChecks();
     self.protection.required_status_checks.contexts.push('G3 Exact-SHA Verdict');
     expect(() => aggregateExactShaEvidence(self)).toThrow(/self-reference/i);
@@ -167,8 +187,7 @@ describe('exact SHA release evidence', () => {
     expect(() => aggregateExactShaEvidence(evidence)).toThrow(/GitHub Actions App/i);
   });
 
-  it('requires GitHub Actions workflow, job, run, repository, and lease provenance for every locked context', () => {
-    const evaluatedAt = '2026-08-21T12:00:00.000Z';
+  it('requires GitHub Actions workflow, job, run, and repository provenance for every locked context', () => {
     const workflowIds = {
       '.github/workflows/ci-unified.yml': 184359796,
       '.github/workflows/testcontainers-ci.yml': 218922065,
@@ -183,8 +202,6 @@ describe('exact SHA release evidence', () => {
     };
     const evidence = {
       candidateSha: SHA,
-      evaluatedAt,
-      maxAgeSeconds: 86400,
       protection: {
         required_status_checks: {
           contexts: [...LOCKED_G3_CONTEXTS],
@@ -227,7 +244,7 @@ describe('exact SHA release evidence', () => {
     };
 
     const result = aggregateExactShaEvidence(evidence);
-    expect(result.schemaVersion).toBe('release-exact-sha-evidence-v1');
+    expect(result).toMatchObject({ repository: 'presson/updog', candidateSha: SHA });
     expect(result.workflows.map((entry) => entry.context)).toEqual([...LOCKED_G3_CONTEXTS].sort());
 
     evidence.workflowRuns[0].path = '.github/workflows/security-scan.yml';
@@ -257,7 +274,43 @@ describe('exact SHA release evidence', () => {
 
     const result = aggregateExactShaEvidence(evidence);
     expect(result).not.toHaveProperty('expiresAt');
-    expect(result).not.toHaveProperty('maxAgeSeconds');
+  });
+
+  it('ignores stale jobs from an earlier rerun attempt but rejects current failures and future attempts', () => {
+    const rerunEvidence = () => {
+      const evidence = exactChecks();
+      const run = evidence.workflowRuns[0];
+      run.run_attempt = 2;
+      run.created_at = '2026-08-21T11:40:00.000Z';
+      const currentCheck = {
+        ...evidence.checkRuns[0],
+        id: 9000,
+        started_at: '2026-08-21T11:40:00.000Z',
+        details_url: 'https://github.com/presson/updog/actions/runs/5000/job/9002',
+      };
+      const currentJob = {
+        ...evidence.workflowJobs[0],
+        id: 9002,
+        run_id: 5000,
+        run_attempt: 2,
+        started_at: '2026-08-21T11:40:00.000Z',
+      };
+      evidence.checkRuns.push(currentCheck);
+      evidence.workflowJobs.push(currentJob);
+      return evidence;
+    };
+
+    const stale = rerunEvidence();
+    expect(aggregateExactShaEvidence(stale).workflows.find((entry) => entry.context === 'CI Gate Status')?.checkRunId).toBe(9000);
+
+    const currentFailure = rerunEvidence();
+    currentFailure.checkRuns.at(-1).conclusion = 'failure';
+    currentFailure.workflowJobs.at(-1).conclusion = 'failure';
+    expect(() => aggregateExactShaEvidence(currentFailure)).toThrow(/not terminal success/i);
+
+    const futureAttempt = rerunEvidence();
+    futureAttempt.workflowJobs.at(-1).run_attempt = 3;
+    expect(() => aggregateExactShaEvidence(futureAttempt)).toThrow(/attempt exceeds/i);
   });
 
   it('chooses the newest trusted Actions attempt and rejects newer failures, collisions, and foreign-only checks', () => {

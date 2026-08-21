@@ -1,5 +1,4 @@
-import { chmod, readFile, writeFile } from 'node:fs/promises';
-import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 import console from 'node:console';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -79,9 +78,6 @@ function requirementContexts(protection) {
     if (requirement.context === SELF_REFERENCE) fail('branch protection has a self-reference to G3 Exact-SHA Verdict');
     if (!Object.hasOwn(LOCKED_CONTEXT_WORKFLOW_ALLOWLIST, requirement.context)) {
       fail(`unknown required context ${requirement.context}`);
-    }
-    if (requirement.appId === undefined && !Object.hasOwn(LOCKED_CONTEXT_WORKFLOW_ALLOWLIST, requirement.context)) {
-      fail(`unbound required context ${requirement.context}`);
     }
   }
   return { contexts: [...LOCKED_G3_CONTEXTS].sort(), githubActionsAppId: ciAppRequirements[0].appId };
@@ -170,22 +166,20 @@ function workflowEvidenceForContext({ context, check, candidateSha, repository, 
   const workflow = workflowDefinitionForPath(workflows, expectedPath);
   if (run.workflow_id !== workflow.id) fail(`workflow ID does not match definition for ${context}`);
   if (!ALLOWED_EVENTS_BY_WORKFLOW[expectedPath]?.has(run.event)) fail(`workflow event is not allowed for ${context}`);
-  if (job.run_attempt !== run.run_attempt || !Number.isSafeInteger(run.run_attempt) || run.run_attempt < 1) {
-    fail(`workflow run attempt does not match job for ${context}`);
-  }
-  const completedAt = check.completed_at ?? job.completed_at ?? run.updated_at;
-  const completedTimestamp = parseUtc(completedAt, `completed timestamp for ${context}`);
+  const jobAttempt = exactPositiveInteger(job.run_attempt, `workflow job run attempt for ${context}`);
+  const runAttempt = exactPositiveInteger(run.run_attempt, `workflow run attempt for ${context}`);
+  if (jobAttempt > runAttempt) fail(`workflow job attempt exceeds workflow run attempt for ${context}`);
+  if (jobAttempt < runAttempt) return null;
   const attemptStartedAt = parseUtc(check.started_at ?? job.started_at ?? run.created_at ?? run.updated_at, `attempt start timestamp for ${context}`);
   return {
     context,
     checkRunId: exactPositiveInteger(check.id, `check run ID for ${context}`),
     workflowJobId: details.jobId,
     workflowRunId: details.runId,
-    runAttempt: run.run_attempt,
+    runAttempt,
     workflowId: exactPositiveInteger(workflow.id, `workflow ID for ${context}`),
     workflowPath: expectedPath,
     event: run.event,
-    completedAt: new Date(completedTimestamp).toISOString(),
     attemptStartedAt,
     trustedSuccess: terminalSuccess(check) && terminalSuccess(job) && terminalSuccess(run),
   };
@@ -206,7 +200,10 @@ export function aggregateExactShaEvidence({ candidateSha, protection, checkRuns,
   const workflowEvidence = contexts.map((context) => {
     const matching = checks.filter((check) => check?.name === context && check?.head_sha === exactSha);
     if (matching.length === 0) fail(`missing required context ${context} on candidate SHA`);
-    const candidates = matching.map((check) => workflowEvidenceForContext({ context, check, candidateSha: exactSha, repository, githubActionsAppId, workflows, runsById, jobsById }));
+    const candidates = matching
+      .map((check) => workflowEvidenceForContext({ context, check, candidateSha: exactSha, repository, githubActionsAppId, workflows, runsById, jobsById }))
+      .filter((candidate) => candidate !== null);
+    if (candidates.length === 0) fail(`missing current workflow attempt for ${context}`);
     candidates.sort((left, right) => left.attemptStartedAt - right.attemptStartedAt || left.checkRunId - right.checkRunId || left.workflowJobId - right.workflowJobId || left.workflowRunId - right.workflowRunId);
     const chosen = candidates.at(-1);
     if (!chosen?.trustedSuccess) fail(`latest trusted check result for ${context} is not terminal success`);
@@ -214,7 +211,6 @@ export function aggregateExactShaEvidence({ candidateSha, protection, checkRuns,
     return identity;
   }).sort((left, right) => (left.context < right.context ? -1 : left.context > right.context ? 1 : 0));
   return {
-    schemaVersion: 'release-exact-sha-evidence-v1',
     repository,
     githubActionsAppId,
     candidateSha: exactSha,
@@ -237,17 +233,9 @@ export function redactSecretShapedValues(value, key = '') {
 async function main() {
   const args = process.argv.slice(2);
   const inputPath = args[0];
-  if (!inputPath) fail('expected one JSON evidence file path');
-  let outputPath;
-  if (args.length === 3 && args[1] === '--output') outputPath = args[2];
-  else if (args.length !== 1) fail('expected optional --output <path>');
+  if (!inputPath || args.length !== 1) fail('expected one JSON evidence file path');
   const evidence = JSON.parse(await readFile(inputPath, 'utf8'));
   const result = aggregateExactShaEvidence(evidence);
-  if (outputPath) {
-    const absoluteOutput = path.resolve(outputPath);
-    await writeFile(absoluteOutput, `${JSON.stringify(result, null, 2)}\n`, { encoding: 'utf8', mode: 0o600, flag: 'wx' });
-    await chmod(absoluteOutput, 0o600);
-  }
   console.log(`Exact-SHA contexts passed: ${result.workflows.length}`);
 }
 
