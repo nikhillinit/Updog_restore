@@ -804,6 +804,8 @@ describe('surface contract matrix seed semantic regressions', () => {
         action?: string;
         before?: { auth_roles?: string[] };
         after?: { auth_roles?: string[] };
+        kept?: { personas?: string[] };
+        observed_code_reach?: { personas?: string[] };
       }>;
     };
     const corrections = new Map(
@@ -820,12 +822,24 @@ describe('surface contract matrix seed semantic regressions', () => {
       ['api:GET:/api/timeline/:fundId/state', ['admin']],
       ['api:POST:/api/timeline/:fundId/snapshot', []],
     ]);
+    const expectedAfterRoles = [
+      'admin',
+      'analyst',
+      'lp',
+      'operator',
+      'partner',
+      'service',
+      'viewer',
+    ];
+    const expectedPersonas = ['admin', 'analyst', 'gp', 'lp', 'service'];
 
     for (const [rowId, beforeRoles] of expectedBeforeRoles) {
       expect(corrections.get(rowId), rowId).toMatchObject({
         action: 'reconciled-current-source-authority',
         before: { auth_roles: beforeRoles },
-        after: { auth_roles: ['admin', 'analyst', 'partner'] },
+        after: { auth_roles: expectedAfterRoles },
+        kept: { personas: expectedPersonas },
+        observed_code_reach: { personas: expectedPersonas },
       });
     }
   });

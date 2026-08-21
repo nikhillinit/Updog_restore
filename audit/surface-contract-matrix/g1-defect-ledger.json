@@ -324,25 +324,33 @@
         "auth_roles": [
           "admin",
           "analyst",
-          "partner"
+          "lp",
+          "operator",
+          "partner",
+          "service",
+          "viewer"
         ]
       },
       "basis": [
-        "server/routes/timeline.ts:112-127 has no role guard and enforces provided fund scope at line 125; shared/auth/effective-roles.ts:58-62 defines team roles as admin, partner, analyst",
-        "Current source extraction records auth_roles admin, analyst, partner; locked persona mapping retains admin, analyst, gp. This records the prior empty machine auth-role under-count."
+        "server/routes/timeline.ts:125 invokes enforceProvidedFundScope; server/lib/auth/fund-scope.ts:15-21 admits admin/service principals for any fund and every scoped user identity whose fundIds contains the requested fund",
+        "Current exact-source extraction records roles admin, analyst, lp, operator, partner, service, viewer; locked persona mapping produces admin, analyst, gp, lp, service."
       ],
       "kept": {
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ]
       },
       "observed_code_reach": {
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ]
       }
     },
@@ -356,25 +364,33 @@
         "auth_roles": [
           "admin",
           "analyst",
-          "partner"
+          "lp",
+          "operator",
+          "partner",
+          "service",
+          "viewer"
         ]
       },
       "basis": [
-        "server/routes/timeline.ts:256-276 has no role guard and enforces provided fund scope at line 275; shared/auth/effective-roles.ts:58-62 defines team roles as admin, partner, analyst",
-        "Current source extraction records auth_roles admin, analyst, partner; locked persona mapping retains admin, analyst, gp. This records the prior empty machine auth-role under-count."
+        "server/routes/timeline.ts:275 invokes enforceProvidedFundScope; server/lib/auth/fund-scope.ts:15-21 admits admin/service principals for any fund and every scoped user identity whose fundIds contains the requested fund",
+        "Current exact-source extraction records roles admin, analyst, lp, operator, partner, service, viewer; locked persona mapping produces admin, analyst, gp, lp, service."
       ],
       "kept": {
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ]
       },
       "observed_code_reach": {
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ]
       }
     },
@@ -390,25 +406,33 @@
         "auth_roles": [
           "admin",
           "analyst",
-          "partner"
+          "lp",
+          "operator",
+          "partner",
+          "service",
+          "viewer"
         ]
       },
       "basis": [
-        "server/routes/timeline.ts:154-161 route middleware has no role guard; the route sits behind the global make_app requireApiAuth boundary (server/app.ts:189-200) plus fund-scope enforcement (timeline.ts:167), which is team",
-        "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
+        "server/routes/timeline.ts:167 invokes enforceProvidedFundScope; server/lib/auth/fund-scope.ts:15-21 admits admin/service principals for any fund and every scoped user identity whose fundIds contains the requested fund",
+        "Current exact-source extraction records roles admin, analyst, lp, operator, partner, service, viewer; locked persona mapping produces admin, analyst, gp, lp, service."
       ],
       "kept": {
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ]
       },
       "observed_code_reach": {
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ]
       }
     },
@@ -422,25 +446,33 @@
         "auth_roles": [
           "admin",
           "analyst",
-          "partner"
+          "lp",
+          "operator",
+          "partner",
+          "service",
+          "viewer"
         ]
       },
       "basis": [
-        "server/routes/timeline.ts:198-213 has no role guard and enforces provided fund scope at line 211; shared/auth/effective-roles.ts:58-62 defines team roles as admin, partner, analyst",
-        "Current source extraction records auth_roles admin, analyst, partner; locked persona mapping retains admin, analyst, gp. This records the prior empty machine auth-role under-count."
+        "server/routes/timeline.ts:211 invokes enforceProvidedFundScope; server/lib/auth/fund-scope.ts:15-21 admits admin/service principals for any fund and every scoped user identity whose fundIds contains the requested fund",
+        "Current exact-source extraction records roles admin, analyst, lp, operator, partner, service, viewer; locked persona mapping produces admin, analyst, gp, lp, service."
       ],
       "kept": {
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ]
       },
       "observed_code_reach": {
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ]
       }
     },
@@ -456,25 +488,33 @@
         "auth_roles": [
           "admin",
           "analyst",
-          "partner"
+          "lp",
+          "operator",
+          "partner",
+          "service",
+          "viewer"
         ]
       },
       "basis": [
-        "server/routes/shares.ts:157-168 lines 160-165 grant access on fundId match with no role restriction; server/lib/auth/jwt.ts:240 populates fundIds from JWT claims for any role",
-        "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
+        "server/routes/shares.ts:159 admits admin globally and line 163 admits any scoped identity whose fundIds contains the requested fund; mutation reach does not rely on the safe-read branch at line 158",
+        "Current exact-source extraction records roles admin, analyst, lp, operator, partner, service, viewer; locked persona mapping produces admin, analyst, gp, lp, service."
       ],
       "kept": {
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ]
       },
       "observed_code_reach": {
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ]
       }
     },
@@ -490,25 +530,33 @@
         "auth_roles": [
           "admin",
           "analyst",
-          "partner"
+          "lp",
+          "operator",
+          "partner",
+          "service",
+          "viewer"
         ]
       },
       "basis": [
-        "server/routes/shares.ts:158 grants GET access to any team-member user; shared/auth/effective-roles.ts:58-62 defines team roles as admin/partner/analyst",
-        "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
+        "server/routes/shares.ts:158 grants safe reads to team identities; lines 159 and 163 also admit admin globally and any scoped identity whose fundIds contains the requested fund",
+        "Current exact-source extraction records roles admin, analyst, lp, operator, partner, service, viewer; locked persona mapping produces admin, analyst, gp, lp, service."
       ],
       "kept": {
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ]
       },
       "observed_code_reach": {
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ]
       }
     },
@@ -524,25 +572,33 @@
         "auth_roles": [
           "admin",
           "analyst",
-          "partner"
+          "lp",
+          "operator",
+          "partner",
+          "service",
+          "viewer"
         ]
       },
       "basis": [
-        "server/routes/shares.ts:158 grants GET access to any team-member user; shared/auth/effective-roles.ts:58-62 defines team roles as admin/partner/analyst",
-        "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
+        "server/routes/shares.ts:158 grants safe reads to team identities; lines 159 and 163 also admit admin globally and any scoped identity whose fundIds contains the requested fund",
+        "Current exact-source extraction records roles admin, analyst, lp, operator, partner, service, viewer; locked persona mapping produces admin, analyst, gp, lp, service."
       ],
       "kept": {
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ]
       },
       "observed_code_reach": {
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ]
       }
     },
@@ -558,25 +614,33 @@
         "auth_roles": [
           "admin",
           "analyst",
-          "partner"
+          "lp",
+          "operator",
+          "partner",
+          "service",
+          "viewer"
         ]
       },
       "basis": [
-        "server/routes/shares.ts:160-165 grant access on fundId match with no role restriction; server/lib/auth/jwt.ts:240 populates fundIds from JWT claims for any role",
-        "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
+        "server/routes/shares.ts:159 admits admin globally and line 163 admits any scoped identity whose fundIds contains the requested fund; mutation reach does not rely on the safe-read branch at line 158",
+        "Current exact-source extraction records roles admin, analyst, lp, operator, partner, service, viewer; locked persona mapping produces admin, analyst, gp, lp, service."
       ],
       "kept": {
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ]
       },
       "observed_code_reach": {
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ]
       }
     },
@@ -592,25 +656,33 @@
         "auth_roles": [
           "admin",
           "analyst",
-          "partner"
+          "lp",
+          "operator",
+          "partner",
+          "service",
+          "viewer"
         ]
       },
       "basis": [
-        "server/routes/shares.ts:160-165 grant access on fundId match with no role restriction; server/lib/auth/jwt.ts:240 populates fundIds from JWT claims for any role",
-        "Current Task 3 source extraction records roles admin, analyst, partner; locked persona mapping produces admin, analyst, gp. This replaces the stale machine under-count."
+        "server/routes/shares.ts:159 admits admin globally and line 163 admits any scoped identity whose fundIds contains the requested fund; mutation reach does not rely on the safe-read branch at line 158",
+        "Current exact-source extraction records roles admin, analyst, lp, operator, partner, service, viewer; locked persona mapping produces admin, analyst, gp, lp, service."
       ],
       "kept": {
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ]
       },
       "observed_code_reach": {
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ]
       }
     },
