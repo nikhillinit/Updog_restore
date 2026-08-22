@@ -57,6 +57,12 @@ for an unreviewed target, provider, or mutation.
 
 ## Consequence-specific proof
 
+Financial-change enforcement is classifier-driven.
+`scripts/ci/classify-change-paths.mjs` sets financial relevance; a true result
+or manual full-suite request requires `financial-truth`
+(`npm run phoenix:truth`) as a `CI Gate Status` feeder. Missing or malformed
+classification fails the aggregate instead of skipping truth validation.
+
 | Material-risk domain                            | Minimum direct proof                                                                                                                                                                                                                                                   |
 | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Financial calculation or fund output            | Current `phoenix:truth` requirement plus a named expected-output/truth assertion affected by the change; `calc-gate` only when deliberately adopted or already appropriate to the touched path.                                                                        |
@@ -119,6 +125,10 @@ but this policy prevails on any conflict. Roles, without ordinal authority:
 | `docs/workflows/PRODUCTION_SCRIPTS.md` + production workflows      | Only action-specific production procedure and enforcement.                                                           |
 | Surface matrix artifacts, G1 records, reviews, receipts, plans     | Evidence and diagnostics; they satisfy only explicitly named predicates and never grant approval or merge authority. |
 | ADRs and architecture reviews                                      | Durable rationale only; never live workflow authority.                                                               |
+
+For classifier roles, `.github/path-filters.yml` supplies general path groups;
+`scripts/ci/classify-change-paths.mjs` supplies financial and CI relevance. Both
+are enforcement inputs, never authority.
 
 Precedence rules:
 

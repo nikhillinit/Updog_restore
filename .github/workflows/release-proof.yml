@@ -218,9 +218,13 @@ jobs:
       - name: Validate required credentials configured
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
         run: |
           set -euo pipefail
           : "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
+          : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
+          : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required}"
 
       - name: Checkout exact release commit
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -257,23 +261,15 @@ jobs:
     steps:
       - name: Validate required credentials configured
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: |
-          set -euo pipefail
-          : "${RAILWAY_TOKEN:?RAILWAY_TOKEN is required}"
-
-      - name: Checkout exact release commit
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ needs.full-release-proof.outputs.candidate_sha }}
-
-      - name: Require provider proof credentials
-        env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+          RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID: ${{ vars.RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID }}
+          RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID: ${{ vars.RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID }}
         run: |
           set -euo pipefail
           : "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
@@ -281,6 +277,15 @@ jobs:
           : "${VERCEL_AUTOMATION_BYPASS_SECRET:?VERCEL_AUTOMATION_BYPASS_SECRET is required}"
           : "${VERCEL_ORG_ID:?VERCEL_ORG_ID is required}"
           : "${VERCEL_PROJECT_ID:?VERCEL_PROJECT_ID is required}"
+          : "${RAILWAY_PROJECT_ID:?RAILWAY_PROJECT_ID is required}"
+          : "${RAILWAY_ENVIRONMENT_ID:?RAILWAY_ENVIRONMENT_ID is required}"
+          : "${RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID:?RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID is required}"
+          : "${RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID:?RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID is required}"
+
+      - name: Checkout exact release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.full-release-proof.outputs.candidate_sha }}
 
       - name: Collect Vercel and Railway control-plane evidence
         env:

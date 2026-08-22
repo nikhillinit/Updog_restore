@@ -110,6 +110,10 @@ describe('production governance documentation routing', () => {
     );
     expect(policy).not.toContain('## Observed provider facts and limits');
     expect(policy).toContain('## Consequence-specific proof');
+    expect(policy).toContain('scripts/ci/classify-change-paths.mjs');
+    expect(policy).toContain('financial-truth');
+    expect(policy).toContain('npm run phoenix:truth');
+    expect(policy).toMatch(/missing or malformed\s+classification\s+fails the aggregate/i);
     expect(policy).toContain('named expected-output/truth assertion');
     expect(policy).toContain('Denial test plus zero mutation/zero leak assertion');
     expect(policy).toContain('Retry/duplicate-harm control, concurrency control');

@@ -2804,6 +2804,8 @@ const GATE_FEEDING_JOBS = [
 ];
 
 type GateEvaluatorScenario = {
+  financialCalcRelevant?: boolean;
+  financialTruthResult?: string;
   labelPresent: boolean;
   planApprovalResult: string;
   // Optional: isolate the surface-projection-audit require_result pairing
@@ -2829,7 +2831,12 @@ function interpolateGateExpression(expression: string, scenario: GateEvaluatorSc
   if (normalized === 'github.ref') return 'refs/heads/feature';
   if (normalized === 'needs.changes.result') return 'success';
   if (normalized === 'needs.changes.outputs.change_classification_valid') return 'true';
-  if (normalized === 'needs.changes.outputs.financial_calc_relevant') return 'false';
+  if (normalized === 'needs.changes.outputs.financial_calc_relevant') {
+    return scenario.financialCalcRelevant ? 'true' : 'false';
+  }
+  if (normalized === 'needs.financial-truth.result') {
+    return scenario.financialTruthResult ?? 'skipped';
+  }
   // Default scenario models a docs-only run so the classification
   // contradiction check (auto_docs_only == heavy_ci_relevant fails the
   // gate) holds while every `.result` fallback stays `skipped`.
@@ -7037,6 +7044,27 @@ describe('required CI fails closed', () => {
     }
   );
 
+  it.each([
+    [false, 'skipped', 'passed'],
+    [false, 'success', 'failed'],
+    [true, 'success', 'passed'],
+    [true, 'skipped', 'failed'],
+    [true, 'failure', 'failed'],
+    [true, 'cancelled', 'failed'],
+  ] as const)(
+    'gates financial truth behavior (relevant=%s, result=%s)',
+    async (financialCalcRelevant, financialTruthResult, expected) => {
+      await expect(
+        evaluateCiGateStatus({
+          financialCalcRelevant,
+          financialTruthResult,
+          labelPresent: false,
+          planApprovalResult: 'skipped',
+        })
+      ).resolves.toBe(expected);
+    }
+  );
+
   it('wires financial truth into conditional CI and the required gate', async () => {
     const workflow = await readWorkflow('ci-unified.yml');
     const financialTruth = workflow.jobs?.['financial-truth'];
@@ -7361,19 +7389,49 @@ describe('required CI fails closed', () => {
   it('preflights Production credentials and re-fences certifying proof to live main', async () => {
     const workflow = await readWorkflow('release-proof.yml');
     const productionCredentials = [
-      ['protected-boot-proof', 'VERCEL_TOKEN'],
-      ['provider-identity', 'RAILWAY_TOKEN'],
-      ['g3-exact-sha-verdict', 'PRODUCTION_RELEASE_PROOF_GITHUB_TOKEN'],
+      [
+        'protected-boot-proof',
+        {
+          VERCEL_TOKEN: '${{ secrets.VERCEL_TOKEN }}',
+          VERCEL_ORG_ID: '${{ vars.VERCEL_ORG_ID }}',
+          VERCEL_PROJECT_ID: '${{ vars.VERCEL_PROJECT_ID }}',
+        },
+      ],
+      [
+        'provider-identity',
+        {
+          VERCEL_TOKEN: '${{ secrets.VERCEL_TOKEN }}',
+          RAILWAY_TOKEN: '${{ secrets.RAILWAY_TOKEN }}',
+          VERCEL_AUTOMATION_BYPASS_SECRET: '${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}',
+          VERCEL_ORG_ID: '${{ vars.VERCEL_ORG_ID }}',
+          VERCEL_PROJECT_ID: '${{ vars.VERCEL_PROJECT_ID }}',
+          RAILWAY_PROJECT_ID: '${{ vars.RAILWAY_PROJECT_ID }}',
+          RAILWAY_ENVIRONMENT_ID: '${{ vars.RAILWAY_ENVIRONMENT_ID }}',
+          RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID:
+            '${{ vars.RAILWAY_FUND_SCENARIO_CALC_SERVICE_ID }}',
+          RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID:
+            '${{ vars.RAILWAY_CAPITAL_CALL_STATUS_SERVICE_ID }}',
+        },
+      ],
+      [
+        'g3-exact-sha-verdict',
+        {
+          PRODUCTION_RELEASE_PROOF_GITHUB_TOKEN:
+            '${{ secrets.PRODUCTION_RELEASE_PROOF_GITHUB_TOKEN }}',
+        },
+      ],
     ] as const;
 
-    for (const [jobName, credentialName] of productionCredentials) {
+    for (const [jobName, requiredEnvironment] of productionCredentials) {
       const job = workflow.jobs?.[jobName];
       const firstStep = job?.steps?.[0];
 
       expect(job?.environment).toBe('Production');
       expect(firstStep?.name).toBe('Validate required credentials configured');
-      expect(firstStep?.env?.[credentialName]).toBe(`\${{ secrets.${credentialName} }}`);
-      expect(firstStep?.run).toContain(`${credentialName} is required`);
+      expect(firstStep?.env).toMatchObject(requiredEnvironment);
+      for (const credentialName of Object.keys(requiredEnvironment)) {
+        expect(firstStep?.run).toContain(`${credentialName} is required`);
+      }
     }
 
     const g3Steps = workflow.jobs?.['g3-exact-sha-verdict']?.steps ?? [];
