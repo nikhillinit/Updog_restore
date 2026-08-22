@@ -1,9 +1,9 @@
 # Lifecycle contract (2026-08-18): one-time workflow for the PR #1385 release
-# program only. Owner: repository owner. Terminal condition: PR #1385 merged,
-# closed, or abandoned. Execution confers no authorization; outputs are
-# evidence under docs/governance/solo-internal-change-and-production-policy.md.
-# After the terminal condition, archive this workflow via the Archive Gate
-# (evidence-cited PR); do not generalize it without a second proven use case.
+# program only. Owner: repository owner. TERMINAL: PR #1385 merged 2026-08-20
+# (c0a3cd08b). Execution confers no authorization; outputs are evidence under
+# docs/governance/solo-internal-change-and-production-policy.md.
+# Archive this workflow via the Archive Gate (evidence-cited PR).
+# Post-#1385 releases use pr_number dispatch input on release-production.yml.
 name: Capture Release Baseline
 
 on:

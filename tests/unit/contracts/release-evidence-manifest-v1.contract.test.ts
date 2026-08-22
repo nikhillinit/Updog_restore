@@ -54,11 +54,7 @@ const railwayIdentity = (sourceSha: string) => ({
   ],
 });
 
-const fragmentLineageEntry = (
-  kind: string,
-  producerJob: string,
-  payloadSha256: string
-) => ({
+const fragmentLineageEntry = (kind: string, producerJob: string, payloadSha256: string) => ({
   kind,
   runId: RUN_ID,
   runAttempt: ATTEMPT,
@@ -118,8 +114,7 @@ function validSuccessManifest() {
     },
     certification: {
       schemaVersion: 'release-proof-lineage-v1',
-      callerWorkflowRef:
-        'press-on/updog/.github/workflows/release-production.yml@refs/heads/main',
+      callerWorkflowRef: 'press-on/updog/.github/workflows/release-production.yml@refs/heads/main',
       proofWorkflowRef: `press-on/updog/.github/workflows/release-proof.yml@${SOURCE_SHA}`,
       runId: RUN_ID,
       runAttempt: ATTEMPT,
@@ -183,19 +178,7 @@ function validSuccessManifest() {
         fileSha256: CHAR_FILE_SHA256,
         sourceSha: SOURCE_SHA,
       },
-      ratification: {
-        environmentId: '99',
-        environmentName: 'Production Policy Ratification',
-        reviewerLogin: 'repo-owner',
-        reviewerPermission: 'admin',
-        approvalState: 'approved',
-        commentSha256: '1'.repeat(64),
-        policyConfigPayloadSha256: POLICY_CONFIG_PAYLOAD_SHA256,
-        policyMeasurementPayloadSha256: POLICY_MEASUREMENT_PAYLOAD_SHA256,
-        characterizationFileSha256: CHAR_FILE_SHA256,
-        canaryResultPayloadSha256: CANARY_RESULT_PAYLOAD_SHA256,
-        verifiedAt: '2026-08-19T10:45:00.000Z',
-      },
+      ratification: null,
     },
     prechange: {
       baseline: {
@@ -253,11 +236,7 @@ function validSuccessManifest() {
         'staged-smoke',
         POLICY_MEASUREMENT_PAYLOAD_SHA256
       ),
-      policyRatification: fragmentLineageEntry(
-        'policy-ratification',
-        'policy-ratification',
-        '9'.repeat(64)
-      ),
+      policyRatification: null,
       operatorEvidence: fragmentLineageEntry(
         'operator-evidence',
         'g4-operator-evidence',
@@ -303,7 +282,6 @@ function validFailureManifest() {
     for (const key of [
       'schema',
       'policyMeasurement',
-      'policyRatification',
       'operatorEvidence',
       'releaseProvider',
       'canaryResult',
@@ -337,12 +315,9 @@ describe('release-evidence-manifest-v1 contract', { retry: 0 }, () => {
     );
   });
 
-  it('rejects success manifests with null schema, canary, ratification, or lineage entries', () => {
+  it('rejects success manifests with null schema, canary, or lineage entries', () => {
     rejects(withMutation((m) => void ((m as Record<string, unknown>)['schema'] = null)));
     rejects(withMutation((m) => void ((m as Record<string, unknown>)['canary'] = null)));
-    rejects(
-      withMutation((m) => void ((m.policy as Record<string, unknown>)['ratification'] = null))
-    );
     rejects(
       withMutation(
         (m) => void ((m.fragmentLineage as Record<string, unknown>)['canaryResult'] = null)
@@ -350,9 +325,7 @@ describe('release-evidence-manifest-v1 contract', { retry: 0 }, () => {
     );
     rejects(withMutation((m) => void ((m as Record<string, unknown>)['h9Artifact'] = null)));
     rejects(withMutation((m) => void ((m as Record<string, unknown>)['release'] = null)));
-    rejects(
-      withMutation((m) => void ((m as Record<string, unknown>)['operatorEvidence'] = null))
-    );
+    rejects(withMutation((m) => void ((m as Record<string, unknown>)['operatorEvidence'] = null)));
   });
 
   it('rejects success manifests whose certification concluded failure', () => {
@@ -371,8 +344,7 @@ describe('release-evidence-manifest-v1 contract', { retry: 0 }, () => {
     rejects(failure);
     rejects(
       withMutation(
-        (m) =>
-          void ((m.workflow as { failureStage: string | null }).failureStage = 'promote')
+        (m) => void ((m.workflow as { failureStage: string | null }).failureStage = 'promote')
       )
     );
   });
@@ -416,9 +388,7 @@ describe('release-evidence-manifest-v1 contract', { retry: 0 }, () => {
   it('rejects approval and plan ancestry field mismatches', () => {
     rejects(withMutation((m) => void (m.approval.planSha256 = '0'.repeat(64))));
     rejects(
-      withMutation(
-        (m) => void (m.approval.planPath = 'docs/superpowers/plans/other-plan.md')
-      )
+      withMutation((m) => void (m.approval.planPath = 'docs/superpowers/plans/other-plan.md'))
     );
     rejects(withMutation((m) => void (m.approval.pullRequest = 1384)));
     rejects(withMutation((m) => void (m.approval.repository = 'press-on/other')));
@@ -477,9 +447,7 @@ describe('release-evidence-manifest-v1 contract', { retry: 0 }, () => {
 
   it('rejects characterization evidence for another SHA or attempt', () => {
     rejects(
-      withMutation(
-        (m) => void (m.policy.characterizationEvidence!.sourceSha = PRECURSOR_SHA)
-      )
+      withMutation((m) => void (m.policy.characterizationEvidence!.sourceSha = PRECURSOR_SHA))
     );
     rejects(
       withMutation(
@@ -489,39 +457,9 @@ describe('release-evidence-manifest-v1 contract', { retry: 0 }, () => {
     );
   });
 
-  it('rejects ratification hashes that do not bind the recorded fragment lineage', () => {
-    rejects(
-      withMutation(
-        (m) => void (m.policy.ratification!.policyConfigPayloadSha256 = '0'.repeat(64))
-      )
-    );
-    rejects(
-      withMutation(
-        (m) => void (m.policy.ratification!.policyMeasurementPayloadSha256 = '0'.repeat(64))
-      )
-    );
-    rejects(
-      withMutation(
-        (m) => void (m.policy.ratification!.canaryResultPayloadSha256 = '0'.repeat(64))
-      )
-    );
-    rejects(
-      withMutation(
-        (m) => void (m.policy.ratification!.characterizationFileSha256 = '0'.repeat(64))
-      )
-    );
-    rejects(
-      withMutation(
-        (m) => void (m.policy.ratification!.verifiedAt = '2026-08-19T09:00:00.000Z')
-      )
-    );
-  });
-
   it('rejects release provider and canary identities disagreeing with source SHA', () => {
     rejects(withMutation((m) => void (m.release!.vercel.sourceSha = PRECURSOR_SHA)));
-    rejects(
-      withMutation((m) => void (m.release!.railway.services[0]!.sourceSha = PRECURSOR_SHA))
-    );
+    rejects(withMutation((m) => void (m.release!.railway.services[0]!.sourceSha = PRECURSOR_SHA)));
     rejects(withMutation((m) => void (m.canary!.execution.releaseSha = PRECURSOR_SHA)));
     rejects(withMutation((m) => void (m.canary!.execution.githubRunId = '999')));
     rejects(withMutation((m) => void (m.canary!.execution.githubRunAttempt = 2)));
@@ -535,16 +473,14 @@ describe('release-evidence-manifest-v1 contract', { retry: 0 }, () => {
     rejects({ ...validSuccessManifest(), extra: true });
     rejects(withMutation((m) => void ((m.approval as Record<string, unknown>)['note'] = 'x')));
     rejects(
-      withMutation(
-        (m) => void ((m.fragmentLineage as Record<string, unknown>)['bonus'] = null)
-      )
+      withMutation((m) => void ((m.fragmentLineage as Record<string, unknown>)['bonus'] = null))
     );
   });
 
   it('scan reports secret-shaped values, keys, paths, and oversized content with paths', () => {
-    expect(
-      scanForSecretShapedContent({ a: 'postgresql://user:pw@host/db' })
-    ).toEqual(['$.a: secret-shaped string value']);
+    expect(scanForSecretShapedContent({ a: 'postgresql://user:pw@host/db' })).toEqual([
+      '$.a: secret-shaped string value',
+    ]);
     expect(scanForSecretShapedContent({ a: 'ghp_abcdef' })).toHaveLength(1);
     expect(scanForSecretShapedContent({ a: 'Bearer abc' })).toHaveLength(1);
     expect(scanForSecretShapedContent({ a: '/Users/someone/evidence.json' })).toHaveLength(1);
@@ -559,16 +495,13 @@ describe('release-evidence-manifest-v1 contract', { retry: 0 }, () => {
       '$.a: base64 blob exceeds 512 characters',
     ]);
     expect(scanForSecretShapedContent({ a: Number.MAX_SAFE_INTEGER + 2 })).toHaveLength(1);
-    expect(scanForSecretShapedContent({ a: Array.from({ length: 65 }, () => 1) })).toHaveLength(
-      1
-    );
+    expect(scanForSecretShapedContent({ a: Array.from({ length: 65 }, () => 1) })).toHaveLength(1);
     expect(scanForSecretShapedContent(validSuccessManifest())).toEqual([]);
   });
 
   it('parse refuses secret-shaped content before Zod validation', () => {
     const manifest = withMutation(
-      (m) =>
-        void (m.prechange.baseline.artifactName = 'postgres://canary:pw@db.internal/updog')
+      (m) => void (m.prechange.baseline.artifactName = 'postgres://canary:pw@db.internal/updog')
     );
     expect(() => parseReleaseEvidenceManifest(manifest)).toThrow(/Secret-shaped/);
     const withToken = withMutation(

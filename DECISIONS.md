@@ -56,6 +56,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-041: Global Internal Fund Visibility with Role-Gated Consequences](#adr-041-global-internal-fund-visibility-with-role-gated-consequences)
 - [ADR-042: Tranche 1 Calculation Substrate Contracts (Demo Scope)](#adr-042-tranche-1-calculation-substrate-contracts-demo-scope)
 - [ADR-043: Tranche 2 Substrate Adoption Starts with Pacing (Demo Scope)](#adr-043-tranche-2-substrate-adoption-starts-with-pacing-demo-scope)
+- [ADR-084: Ceremony Retirement and Dispatch-Based Source Provenance (F_1.3.1 PR2)](#adr-084-ceremony-retirement-and-dispatch-based-source-provenance-f_131-pr2)
 
 ---
 
@@ -10873,6 +10874,50 @@ accepts extra truth-case runs to avoid path-list false negatives.
 Revert this change only through current-head CI. Never use a workflow retry,
 artifact reuse, token fallback, or provider mutation to bypass the current
 production procedure.
+
+### No authority boundary
+
+This ADR authorizes no merge, deployment, provider action, environment access,
+schema change, data mutation, or production dispatch.
+
+## ADR-084: Ceremony Retirement and Dispatch-Based Source Provenance (F_1.3.1 PR2)
+
+**Date:** 2026-08-22 **Status:** Accepted **Tags:** #release #governance
+#ceremony
+
+### Decision
+
+Plan-approval and policy-ratification ceremonies are retired from the release
+pipeline. Their manifest fields become nullable (backward-compatible schema),
+their CI jobs and workflow steps are deleted, and their verifier scripts are
+removed.
+
+Source provenance shifts from approval-derived PR identity to an explicit
+`pr_number` dispatch input on `release-production.yml`. The
+`verifyBaselineConsumption` function accepts `prNumber` as a parameter instead
+of reading a hardcoded constant.
+
+The evidence manifest contract's `superRefine` no longer requires non-null
+`policy.ratification` or `fragmentLineage.policyRatification` on success
+manifests. The backward-compatible cross-validation block (if ratification is
+non-null, validate its hashes) remains.
+
+### Alternatives
+
+- Keep ceremonies but make them no-ops: rejected because dead code with
+  protected-environment gates wastes CI minutes and confuses future readers.
+- Remove the schema fields entirely: rejected because existing archived
+  manifests reference them; nullable preserves backward compatibility.
+
+### Consequences
+
+Release pipeline is simpler: fewer jobs, fewer environment gates, fewer failure
+modes. Dispatch-based provenance is explicit and auditable without relying on
+approval event payloads.
+
+The `pr_number` input brings `release-production.yml` to 11 dispatch inputs
+(GitHub Actions UI shows at most 10, but API dispatch handles all 11; the
+operator script `deploy-production.ps1` uses API dispatch exclusively).
 
 ### No authority boundary
 

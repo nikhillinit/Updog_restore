@@ -595,6 +595,7 @@ describe('baseline evidence decoding and exact consumption', () => {
       releaseSha: overrides.releaseSha ?? RELEASE_SHA,
       contextPath: '/virtual/release-recovery-context-v1.json',
       emitNormalizedPath: overrides.emitNormalizedPath,
+      prNumber: overrides.prNumber ?? '1385',
       environment: baselineEnvironment(),
       fetchImpl: makeFetch({ ...pullRoutes(overrides.pulls ?? {}) }),
       execFileImpl: makeExecFile(overrides.git ?? {}),
@@ -684,7 +685,6 @@ describe('baseline evidence decoding and exact consumption', () => {
     ['edited context file', { wrongFileSha: true }],
     ['capture run mismatch', { contents: undefined, binding: { baselineRunId: '999999999' } }],
     ['non-ancestor baseline', { git: { ancestor: false } }],
-    ['edited plan at release SHA', { git: { plan: 'tampered plan\n' } }],
     [
       'runtime PR head mismatch',
       { pulls: { primary: { head: { sha: '9'.repeat(40) }, merged: true, base: { ref: 'main' }, merge_commit_sha: RELEASE_SHA } } },

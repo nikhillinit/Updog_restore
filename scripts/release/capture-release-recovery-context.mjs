@@ -574,7 +574,6 @@ export async function verifyBaselineBinding({
 const RELEASE_MODES = Object.freeze(['primary', 'rollback']);
 const ARTIFACT_DIGEST = /^sha256:[a-f0-9]{64}$/;
 const BASELINE_WORKFLOW_PATH = '.github/workflows/capture-release-baseline.yml';
-const RUNTIME_PR_NUMBER = 1385;
 
 /**
  * Rollback releases must restore the application tree exactly; only release
@@ -786,6 +785,7 @@ export async function verifyBaselineConsumption({
   releaseSha,
   contextPath,
   emitNormalizedPath,
+  prNumber,
   environment = process.env,
   fetchImpl = globalThis.fetch,
   execFileImpl = execFileAsync,
@@ -828,7 +828,6 @@ export async function verifyBaselineConsumption({
   }
   const baselineMainSha = sha(parsed.baselineMainSha, 'baseline main SHA');
   const plannedPrHeadSha = sha(parsed.plannedPrHeadSha, 'planned PR head SHA');
-  const planDigest = sha256(parsed.planSha256, 'baseline plan SHA-256');
   if (runId(parsed.githubRunId) !== binding.baselineRunId) {
     fail('baseline context run ID does not match the exact capture run');
   }
@@ -842,16 +841,17 @@ export async function verifyBaselineConsumption({
   if (!(await isAncestor(execFileImpl, baselineMainSha, release))) {
     fail('baseline main is not an ancestor of the release SHA');
   }
-  const plan = await gitContents(execFileImpl, ['show', `${release}:${PLAN_PATH}`]);
-  if (createHash('sha256').update(plan).digest('hex') !== planDigest) {
-    fail('approved plan digest does not match at the release SHA');
+
+  const runtimePrNumber = prNumber ?? parsed.runtimePrNumber;
+  if (!runtimePrNumber || !/^[1-9][0-9]{0,8}$/.test(String(runtimePrNumber))) {
+    fail('pr-number is required for baseline consumption verification');
   }
 
   if (binding.releaseMode === 'primary') {
     const pullRequest = await githubJson(
       fetchImpl,
       repository,
-      `/pulls/${RUNTIME_PR_NUMBER}`,
+      `/pulls/${runtimePrNumber}`,
       token
     );
     if (sha(pullRequest?.head?.sha, 'runtime PR head SHA') !== plannedPrHeadSha) {
@@ -954,9 +954,8 @@ async function main() {
       '--release-mode',
       '--expected-sha',
       '--context-file',
+      '--pr-number',
     ];
-    // --emit-normalized is the only optional flag; its presence extends the
-    // exact-pair contract, never relaxes it.
     if (args.includes('--emit-normalized')) expectedKeys.push('--emit-normalized');
     const options = parseArguments(args, expectedKeys);
     await verifyBaselineConsumption({
@@ -965,6 +964,7 @@ async function main() {
       releaseSha: options['--expected-sha'],
       contextPath: options['--context-file'],
       emitNormalizedPath: options['--emit-normalized'],
+      prNumber: options['--pr-number'],
     });
     console.log('Release baseline consumption verified.');
     return;

@@ -118,33 +118,6 @@ jobs:
       - name: Run financial truth cases
         run: npm run phoenix:truth
 
-  plan-approval:
-    name: Plan Approval
-    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'requires-plan-approval')
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      actions: read
-      contents: read
-      checks: read
-      issues: read
-      pull-requests: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          fetch-depth: 0
-
-      - name: Verify release plan approval
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          node scripts/release/verify-plan-approval.mjs \
-            --repo "$GITHUB_REPOSITORY" \
-            --pr "${{ github.event.pull_request.number }}" \
-            --plan-path docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md \
-            --approver-login nikhillinit
-
   docs-link-check:
     name: Documentation Links
     needs: changes
@@ -866,7 +839,6 @@ jobs:
     needs:
       - changes
       - financial-truth
-      - plan-approval
       - docs-link-check
       - check
       - test-affected
@@ -892,8 +864,6 @@ jobs:
           changes_result="${{ needs.changes.result }}"
           financial_calc_relevant="${{ needs.changes.outputs.financial_calc_relevant }}"
           financial_truth_result="${{ needs.financial-truth.result }}"
-          plan_approval_result="${{ needs.plan-approval.result }}"
-          plan_approval_required="${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'requires-plan-approval') }}"
           change_classification_valid="${{ needs.changes.outputs.change_classification_valid }}"
           auto_docs_only="${{ needs.changes.outputs.auto_docs_only }}"
           heavy_ci_relevant="${{ needs.changes.outputs.heavy_ci_relevant }}"
@@ -1007,7 +977,6 @@ jobs:
 
           require_result "Documentation links" "$docs_link_result" "$docs_link_expected"
           require_result "Financial truth" "$financial_truth_result" "$financial_truth_expected"
-          require_result "Plan approval" "$plan_approval_result" "$plan_approval_required"
           require_result "Check" "$check_result" "$check_expected"
           require_result "Test" "$test_result" "$test_expected"
           if [[ "$is_pr" == "true" && "$run_full_suite" != "true" ]]; then
@@ -1031,7 +1000,6 @@ jobs:
             echo "| --- | --- | --- |"
             echo "| documentation-links | $docs_link_result | $docs_link_expected |"
             echo "| financial-truth | $financial_truth_result | $financial_truth_expected |"
-            echo "| plan-approval | $plan_approval_result | $plan_approval_required |"
             echo "| check | $check_result | $check_expected |"
             echo "| tests | $test_result | $test_expected |"
             echo "| tests-full (schema gate) | ${{ needs.test-full.result }} | $schema_changed |"
@@ -1072,7 +1040,6 @@ jobs:
             | --- | --- |
             | Documentation links | ${{ needs.docs-link-check.result }} |
             | Financial truth | ${{ needs.financial-truth.result }} |
-            | Plan approval | ${{ needs.plan-approval.result }} |
             | Check | ${{ needs.check.result }} |
             | Affected tests | ${{ needs.test-affected.result }} |
             | Full tests | ${{ needs.test-full.result }} |
