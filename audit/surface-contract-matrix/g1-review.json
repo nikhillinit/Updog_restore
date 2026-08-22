@@ -1,22 +1,22 @@
 {
   "schema_version": "1.0.0",
   "review_id": "g1",
-  "snapshot_id": "snapshot:f856af5413af58b2e5f3b9531940f2b60ae1b7f946016943e01b59eb1fff7d59",
+  "snapshot_id": "snapshot:ef1f761ba8e20c7fd242ff69db482fc64f8b07b282027941272e29731a8fe718",
   "source_fingerprints": {
     ".dockerignore": "8ec65ea77679b32af3a99b8d7a68d946705e61cb556a6f30a5f2adcbfe16287e",
     ".vercelignore": "8a3106b850d215f506c9ba9082fdb8439268dfb8165cb9958d08fbab04608ae4",
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "055e2fb386041bc22fea7ce410e4b27f536a4cfab204da13804ca6c270cf901d",
-    "audit/surface-contract-matrix/boot-proofs.json": "b63d070a7110c067c2aab4681ef3dab2dc40d52221aec955ce04faa0bb473d24",
-    "audit/surface-contract-matrix/matrix-schema.mjs": "d84bf9f8361ba2d9546fe5acd297c9efd7419a73c79df5d1e0951d7c32397fd5",
-    "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "4a8cd325603a5eff35aa545c4feed9ec941fc24acb3830d4441589de26a1833c",
+    "audit/surface-contract-matrix/boot-proofs.json": "4ed60542f644fbe1ddf0f52a1fc593607c4f4fa156b8d9d79dabe7d503db1df1",
+    "audit/surface-contract-matrix/matrix-schema.mjs": "269f2c4ac14f0b17d3f2918995742e872262f9e00fe8ddafa0de613a7197f126",
+    "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "19fce85616bb750537fbbdde61bb58a63582d305b3f1b286229b277583512f83",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "9e2036e0b142710fee1c25c9647ac4550595c42a8034165097ad0b770b4fe935",
     "audit/surface-contract-matrix/scripts/classify-pass.mjs": "a2bd0a16e774af2283c7eaab5780adc755144cd53d474eafe037d75810c5ac41",
     "audit/surface-contract-matrix/scripts/inspect-runtime.mjs": "fa5ff8da3dca79d44de6c1985a6bb4c6839b8ca26cdee28c61be0c04d9eaf9d5",
     "audit/surface-contract-matrix/scripts/render-matrix.mjs": "8eb22f884914ba8acd4a45d0da8a36c0dd46adff610fa582e0df42029dc90a7c",
-    "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "7a511e7f417be4ef9a5f40715d3f3249b84ce189e304e2cfc5c5c3c08ccfa4a0",
-    "audit/surface-contract-matrix/scripts/validate-matrix.mjs": "2c8f7db41a6d63d8dd480136ee49b0e25352e0d4bb372a1c4d472efff6bd8c09",
+    "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "df9b13de4671618d3115104c6e240eb65d55e42fa391104db994d788713f0e36",
+    "audit/surface-contract-matrix/scripts/validate-matrix.mjs": "3fa70c6f62f11f0084c058c1a7930406d2d32731c723f6d04b462bd5e6601ccb",
     "client/index.html": "0df45382b3b9f6728fa9ed66b432cac741eae938f4c360c9a9036f1ab3c922df",
     "client/src/App.tsx": "f20dc82c2e4ee45e7886f72b02ed4ed2d80953e21869e1dbba4b4223322a911b",
     "client/src/app/app-router.tsx": "365f5db9d9c824a7531351047ace1c56c70656b97e635498c90ea67c880dcf11",
@@ -462,7 +462,7 @@
     },
     "api:DELETE:/api/shares/:shareId": {
       "row_id": "api:DELETE:/api/shares/:shareId",
-      "contract_fingerprint": "eaaf63a5ab7c304373745cfb148263557442a433753a3ba5a2c1060b4690494a",
+      "contract_fingerprint": "ea8e2335e013957526c9d2ed3f48f6a661bb3684611222a5a4277a258a69b982",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -476,7 +476,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -488,16 +490,17 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "eaaf63a5ab7c304373745cfb148263557442a433753a3ba5a2c1060b4690494a"
+          "contract_fingerprint": "ea8e2335e013957526c9d2ed3f48f6a661bb3684611222a5a4277a258a69b982"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "eaaf63a5ab7c304373745cfb148263557442a433753a3ba5a2c1060b4690494a"
+          "contract_fingerprint": "ea8e2335e013957526c9d2ed3f48f6a661bb3684611222a5a4277a258a69b982"
         }
       },
       "evidence": [
         "Current-source re-review at server/routes/shares.ts:580-625: authenticated fund-scoped optimistic-lock soft revocation and snapshot revocation; writes, soft, staged-only remain appropriate.",
-        "Fresh exact-source auth evidence yields roles admin, analyst, partner; locked mapping yields admin, analyst, gp."
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/routes/shares.ts:159 admits admin globally and line 163 admits any matching-fund identity; no line-158 safe-read identity applies to DELETE. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:DELETE:/api/shares/:shareId; persistence=writes, destructive=soft, environment=staged-only, owner=lp-reporting, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/": {
@@ -588,7 +591,7 @@
     },
     "api:GET:/api/activities": {
       "row_id": "api:GET:/api/activities",
-      "contract_fingerprint": "fec15333612624ba6ddf99787469a20e79a69564657cdafe14f5001181ef78bb",
+      "contract_fingerprint": "4610eeb15fccc071dc611ccfd8b2acf65fba690a61984d4863cc43a510d0c730",
       "source_fingerprints": [
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
@@ -601,7 +604,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -613,13 +618,14 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "fec15333612624ba6ddf99787469a20e79a69564657cdafe14f5001181ef78bb"
+          "contract_fingerprint": "4610eeb15fccc071dc611ccfd8b2acf65fba690a61984d4863cc43a510d0c730"
         }
       },
       "evidence": [
-        "server/routes/activities.ts:20-73 GET has no route-level role guard (rate limit + fund-scope checks only); team personas admin/analyst/gp behind the surface auth boundary",
         "Handler reads via storage.getActivities and sorts in memory; no mutation",
-        "Current-source revalidation: all source dependencies for api:GET:/api/activities match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/activities match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/activities; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/admin/engine/guard": {
@@ -1392,7 +1398,7 @@
     },
     "api:GET:/api/dashboard-summary/:fundId": {
       "row_id": "api:GET:/api/dashboard-summary/:fundId",
-      "contract_fingerprint": "14179cd8926c3b777433a32b82f16f8a0c147b61e9a3a00fa22f4546f7b0d417",
+      "contract_fingerprint": "351ea14fcfc71a405d4997d5449f79e3dcec5344e7852ddeb6ffa258f7030987",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -1406,7 +1412,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -1418,16 +1426,17 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "14179cd8926c3b777433a32b82f16f8a0c147b61e9a3a00fa22f4546f7b0d417"
+          "contract_fingerprint": "351ea14fcfc71a405d4997d5449f79e3dcec5344e7852ddeb6ffa258f7030987"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "14179cd8926c3b777433a32b82f16f8a0c147b61e9a3a00fa22f4546f7b0d417"
+          "contract_fingerprint": "351ea14fcfc71a405d4997d5449f79e3dcec5344e7852ddeb6ffa258f7030987"
         }
       },
       "evidence": [
-        "server/routes/dashboard-summary.ts:23-53 GET handler enforces fund scope (enforceProvidedFundScope at :40) then calls getDashboardSummaryReadModel and returns it; no mutation, no role-restricted middleware — admin/analyst/gp.",
-        "Current-source revalidation: all source dependencies for api:GET:/api/dashboard-summary/:fundId match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/dashboard-summary/:fundId match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/dashboard-summary/:fundId; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/deals/:id/diligence": {
@@ -1472,7 +1481,7 @@
     },
     "api:GET:/api/deals/opportunities": {
       "row_id": "api:GET:/api/deals/opportunities",
-      "contract_fingerprint": "58e4fd2dd1fda7faa2aa6413d48f56fa57de4ddfe02920e4529327e058ea81a8",
+      "contract_fingerprint": "77580af57ba00d1fa015e49c0b176758809faad67c6c0101dda5f185d59b3ef4",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -1486,7 +1495,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -1498,17 +1509,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "58e4fd2dd1fda7faa2aa6413d48f56fa57de4ddfe02920e4529327e058ea81a8"
+          "contract_fingerprint": "77580af57ba00d1fa015e49c0b176758809faad67c6c0101dda5f185d59b3ef4"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "58e4fd2dd1fda7faa2aa6413d48f56fa57de4ddfe02920e4529327e058ea81a8"
+          "contract_fingerprint": "77580af57ba00d1fa015e49c0b176758809faad67c6c0101dda5f185d59b3ef4"
         }
       },
       "evidence": [
         "server/routes/deal-pipeline.ts:198-257 lists deals via dealPipelineService.listDeals with cursor pagination; cursor is validated at :217-224 and only reads occur.",
         "No route-level role guard; global requireApiAuth (server/app.ts:175) makes it team-accessible (partner/admin/analyst).",
-        "Current-source revalidation: all source dependencies for api:GET:/api/deals/opportunities match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/deals/opportunities match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/deals/opportunities; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/deals/opportunities/:id": {
@@ -1553,7 +1566,7 @@
     },
     "api:GET:/api/deals/pipeline": {
       "row_id": "api:GET:/api/deals/pipeline",
-      "contract_fingerprint": "bbb4f3d808f253d957f126518f057bd22d6b9dd324a83303cacf6088129ce447",
+      "contract_fingerprint": "eedad4c339f218e7ec9d7b1a0b055cfd53ac6120017f5f1cfc9cc26cc75e7f3c",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -1567,7 +1580,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -1579,17 +1594,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "bbb4f3d808f253d957f126518f057bd22d6b9dd324a83303cacf6088129ce447"
+          "contract_fingerprint": "eedad4c339f218e7ec9d7b1a0b055cfd53ac6120017f5f1cfc9cc26cc75e7f3c"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "bbb4f3d808f253d957f126518f057bd22d6b9dd324a83303cacf6088129ce447"
+          "contract_fingerprint": "eedad4c339f218e7ec9d7b1a0b055cfd53ac6120017f5f1cfc9cc26cc75e7f3c"
         }
       },
       "evidence": [
         "server/routes/deal-pipeline.ts:442-470 validates the query, enforces provided fund scope for reads at :453, and calls dealPipelineService.getPipeline; no mutation.",
         "No route-level role guard; global requireApiAuth (server/app.ts:175) governs access for partner/admin/analyst.",
-        "Current-source revalidation: all source dependencies for api:GET:/api/deals/pipeline match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/deals/pipeline match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/deals/pipeline; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/deals/stages": {
@@ -2136,7 +2153,7 @@
     },
     "api:GET:/api/funds/:fundId/allocation-scenarios": {
       "row_id": "api:GET:/api/funds/:fundId/allocation-scenarios",
-      "contract_fingerprint": "a013a779e43efb4c99484a6028430506c535e8ce5413236df64142c3bee1dd2a",
+      "contract_fingerprint": "a4ee11a48afbd6ff3cff99ce36647d5969028732458c12db7af331b89db61ad7",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -2150,7 +2167,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -2162,22 +2181,23 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "a013a779e43efb4c99484a6028430506c535e8ce5413236df64142c3bee1dd2a"
+          "contract_fingerprint": "a4ee11a48afbd6ff3cff99ce36647d5969028732458c12db7af331b89db61ad7"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "a013a779e43efb4c99484a6028430506c535e8ce5413236df64142c3bee1dd2a"
+          "contract_fingerprint": "a4ee11a48afbd6ff3cff99ce36647d5969028732458c12db7af331b89db61ad7"
         }
       },
       "evidence": [
         "Handler calls listAllocationScenarios and returns the list; no writes (server/routes/allocation-scenarios.ts:407-417)",
-        "router.param fund guard enforces fund scope via enforceProvidedFundScope (server/routes/allocation-scenarios.ts:68-85); no requireWriteRole on GETs, so team personas admin/analyst/gp",
-        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/allocation-scenarios match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/allocation-scenarios match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/funds/:fundId/allocation-scenarios; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId": {
       "row_id": "api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId",
-      "contract_fingerprint": "bbd02a93d92eefe17fba3233a704622679ae3e670823a5a14e3db31571ead02e",
+      "contract_fingerprint": "96a3709b1567c5a3e320056ef5ec6ebedeef9545612aec03c055b20e44bbdb2b",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -2191,7 +2211,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -2203,22 +2225,23 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "bbd02a93d92eefe17fba3233a704622679ae3e670823a5a14e3db31571ead02e"
+          "contract_fingerprint": "96a3709b1567c5a3e320056ef5ec6ebedeef9545612aec03c055b20e44bbdb2b"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "bbd02a93d92eefe17fba3233a704622679ae3e670823a5a14e3db31571ead02e"
+          "contract_fingerprint": "96a3709b1567c5a3e320056ef5ec6ebedeef9545612aec03c055b20e44bbdb2b"
         }
       },
       "evidence": [
         "Handler calls getAllocationScenario and returns it; no writes (server/routes/allocation-scenarios.ts:420-430)",
-        "Fund scope at router.param (server/routes/allocation-scenarios.ts:68); no role guard, team personas",
-        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId/apply-preview": {
       "row_id": "api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId/apply-preview",
-      "contract_fingerprint": "00553c2b2848e87251545eb17a61c60c5e78a4f2b225e41bde14098045e0612e",
+      "contract_fingerprint": "5582d0c45d3982433a279b4d78b173c2ea3234cd5207b00bd7d024e068ca7ff5",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -2232,7 +2255,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -2244,22 +2269,23 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "00553c2b2848e87251545eb17a61c60c5e78a4f2b225e41bde14098045e0612e"
+          "contract_fingerprint": "5582d0c45d3982433a279b4d78b173c2ea3234cd5207b00bd7d024e068ca7ff5"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "00553c2b2848e87251545eb17a61c60c5e78a4f2b225e41bde14098045e0612e"
+          "contract_fingerprint": "5582d0c45d3982433a279b4d78b173c2ea3234cd5207b00bd7d024e068ca7ff5"
         }
       },
       "evidence": [
         "Handler calls getAllocationScenarioApplyPreview, a computed drift preview; no writes (server/routes/allocation-scenarios.ts:446-456)",
-        "Fund scope at router.param (server/routes/allocation-scenarios.ts:68); no role guard, team personas",
-        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId/apply-preview match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId/apply-preview match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId/apply-preview; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId/decisions": {
       "row_id": "api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId/decisions",
-      "contract_fingerprint": "06003d1cc93a6a2ed93696d0823dc2eb5a531a9dab318f86afc3ad70955ff706",
+      "contract_fingerprint": "da35b57071f57b42f9d4aa2d77678e021710fdae975644454e381de7ce686dd4",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -2273,7 +2299,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -2285,22 +2313,23 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "06003d1cc93a6a2ed93696d0823dc2eb5a531a9dab318f86afc3ad70955ff706"
+          "contract_fingerprint": "da35b57071f57b42f9d4aa2d77678e021710fdae975644454e381de7ce686dd4"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "06003d1cc93a6a2ed93696d0823dc2eb5a531a9dab318f86afc3ad70955ff706"
+          "contract_fingerprint": "da35b57071f57b42f9d4aa2d77678e021710fdae975644454e381de7ce686dd4"
         }
       },
       "evidence": [
         "Handler calls listReserveIcDecisions and returns the list; no writes (server/routes/allocation-scenarios.ts:433-443)",
-        "Fund scope at router.param (server/routes/allocation-scenarios.ts:68); no role guard, team personas",
-        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId/decisions match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId/decisions match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId/decisions; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/funds/:fundId/allocations/latest": {
       "row_id": "api:GET:/api/funds/:fundId/allocations/latest",
-      "contract_fingerprint": "f0034cb20b9b66662b6eade29b7558bd2648127736ba8e4ab32f9fe9961e2682",
+      "contract_fingerprint": "d55fa864f54e7ca47ae9a8084abe27ea58e3464af1cc67e16bb467936195fb4b",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -2314,7 +2343,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -2326,22 +2357,24 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "f0034cb20b9b66662b6eade29b7558bd2648127736ba8e4ab32f9fe9961e2682"
+          "contract_fingerprint": "d55fa864f54e7ca47ae9a8084abe27ea58e3464af1cc67e16bb467936195fb4b"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "f0034cb20b9b66662b6eade29b7558bd2648127736ba8e4ab32f9fe9961e2682"
+          "contract_fingerprint": "d55fa864f54e7ca47ae9a8084abe27ea58e3464af1cc67e16bb467936195fb4b"
         }
       },
       "evidence": [
         "server/routes/allocations.ts:879-881 registers the GET with no route-local role guard (requirePartnerWrite is applied only to the POST at line 1056), leaving the route behind the global auth boundary, so admin/analyst/partner all pass.",
         "Handler validates fundId and retrieves the latest allocation state; the file's only transactional write is inside the POST handler (transaction at line 1087).",
-        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/allocations/latest match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/allocations/latest match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/funds/:fundId/allocations/latest; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/funds/:fundId/cash-flow-events": {
       "row_id": "api:GET:/api/funds/:fundId/cash-flow-events",
-      "contract_fingerprint": "9e5acdf3c1622461b3c269477cf04a12430a24fee14cb5b982088e61be909666",
+      "contract_fingerprint": "5ab3bfe36eea772c2409d013115749b72f57c8f83e442d89737468a2cac94877",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -2355,7 +2388,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -2367,22 +2402,24 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "9e5acdf3c1622461b3c269477cf04a12430a24fee14cb5b982088e61be909666"
+          "contract_fingerprint": "5ab3bfe36eea772c2409d013115749b72f57c8f83e442d89737468a2cac94877"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "9e5acdf3c1622461b3c269477cf04a12430a24fee14cb5b982088e61be909666"
+          "contract_fingerprint": "5ab3bfe36eea772c2409d013115749b72f57c8f83e442d89737468a2cac94877"
         }
       },
       "evidence": [
         "server/routes/cash-flow-events.ts:186-202 enforces read fund scope at :192 and calls listCashFlowEventsForFund, mapping rows through the strict response schema; read-only.",
         "No route-level role guard; global requireApiAuth (server/app.ts:175) governs access for partner/admin/analyst.",
-        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/cash-flow-events match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/cash-flow-events match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/funds/:fundId/cash-flow-events; persistence=reads-only, destructive=none, environment=prod-safe, owner=lp-reporting, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/funds/:fundId/companies": {
       "row_id": "api:GET:/api/funds/:fundId/companies",
-      "contract_fingerprint": "17d7ef7307f2bad508d4ef55f9ece218352ace6745506a3d02549604a07d109b",
+      "contract_fingerprint": "68487932c90e61861b884ac067f71b75cb83bdd2f49d43a4f18b43f569c621be",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -2396,7 +2433,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -2408,17 +2447,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "17d7ef7307f2bad508d4ef55f9ece218352ace6745506a3d02549604a07d109b"
+          "contract_fingerprint": "68487932c90e61861b884ac067f71b75cb83bdd2f49d43a4f18b43f569c621be"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "17d7ef7307f2bad508d4ef55f9ece218352ace6745506a3d02549604a07d109b"
+          "contract_fingerprint": "68487932c90e61861b884ac067f71b75cb83bdd2f49d43a4f18b43f569c621be"
         }
       },
       "evidence": [
         "server/routes/allocations.ts:605-607 registers the GET with no route-local role guard; it is a paginated company listing with q/status/sector filters.",
         "Read-only handler; no insert/update/delete occurs outside the POST /allocations transaction at line 1087.",
-        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/companies match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/companies match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/funds/:fundId/companies; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/funds/:fundId/current-plan-versions": {
@@ -3063,7 +3104,7 @@
     },
     "api:GET:/api/funds/:fundId/kpi-observations": {
       "row_id": "api:GET:/api/funds/:fundId/kpi-observations",
-      "contract_fingerprint": "cd809a2c3253375fb6c44ca6b108024f2ae6cfcb8d50bd82df57784b9036bbff",
+      "contract_fingerprint": "b59e2c13e3cd482d189a2461fe0517156e7e8081cd9f9377539f22de709c2a26",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -3077,7 +3118,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -3089,22 +3132,23 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "cd809a2c3253375fb6c44ca6b108024f2ae6cfcb8d50bd82df57784b9036bbff"
+          "contract_fingerprint": "b59e2c13e3cd482d189a2461fe0517156e7e8081cd9f9377539f22de709c2a26"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "cd809a2c3253375fb6c44ca6b108024f2ae6cfcb8d50bd82df57784b9036bbff"
+          "contract_fingerprint": "b59e2c13e3cd482d189a2461fe0517156e7e8081cd9f9377539f22de709c2a26"
         }
       },
       "evidence": [
-        "server/routes/kpi-observations.ts:153-179 GET has no route-level role guard (readLimiter + enforceProvidedFundScope only); behind global auth boundary the team personas admin/analyst/gp apply",
         "Handler calls listKpiObservations and returns parsed list; read-only path",
-        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/kpi-observations match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/kpi-observations match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/funds/:fundId/kpi-observations; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/funds/:fundId/kpi-observations/:observationId": {
       "row_id": "api:GET:/api/funds/:fundId/kpi-observations/:observationId",
-      "contract_fingerprint": "75ba97241511cb67772740ee6ef8080d4f644e30d372d3bb28f225dfd73a1009",
+      "contract_fingerprint": "c6ff41d1bdc306ed9d453796543b864ba240060b93466ae3df7c860813c6ff4b",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -3118,7 +3162,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -3130,17 +3176,18 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "75ba97241511cb67772740ee6ef8080d4f644e30d372d3bb28f225dfd73a1009"
+          "contract_fingerprint": "c6ff41d1bdc306ed9d453796543b864ba240060b93466ae3df7c860813c6ff4b"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "75ba97241511cb67772740ee6ef8080d4f644e30d372d3bb28f225dfd73a1009"
+          "contract_fingerprint": "c6ff41d1bdc306ed9d453796543b864ba240060b93466ae3df7c860813c6ff4b"
         }
       },
       "evidence": [
-        "server/routes/kpi-observations.ts:181-207 GET has no route-level role guard; team personas",
         "Handler calls loadKpiObservation and sets an ETag header; no persisted mutation",
-        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/kpi-observations/:observationId match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/kpi-observations/:observationId match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/funds/:fundId/kpi-observations/:observationId; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/funds/:fundId/metric-runs/:metricRunId": {
@@ -4059,7 +4106,7 @@
     },
     "api:GET:/api/funds/:fundId/portfolio/lots": {
       "row_id": "api:GET:/api/funds/:fundId/portfolio/lots",
-      "contract_fingerprint": "ca1692142327e8e9de5f2d27ef6e825da7e982e378ed74f873bd881a5f8854f3",
+      "contract_fingerprint": "35873bc1d2958345d1bbfa7cdd04139cdb60c235ed9c80c684d80c5ae3726f7e",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -4073,7 +4120,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -4085,17 +4134,18 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "ca1692142327e8e9de5f2d27ef6e825da7e982e378ed74f873bd881a5f8854f3"
+          "contract_fingerprint": "35873bc1d2958345d1bbfa7cdd04139cdb60c235ed9c80c684d80c5ae3726f7e"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "ca1692142327e8e9de5f2d27ef6e825da7e982e378ed74f873bd881a5f8854f3"
+          "contract_fingerprint": "35873bc1d2958345d1bbfa7cdd04139cdb60c235ed9c80c684d80c5ae3726f7e"
         }
       },
       "evidence": [
-        "server/routes/portfolio/lots.ts:123-147 GET has no route-level role guard (enforceProvidedFundScope only); team personas",
         "Handler calls lotService.list with cursor/limit/filters and returns rows; read-only path",
-        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/portfolio/lots match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/portfolio/lots match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/funds/:fundId/portfolio/lots; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/funds/:fundId/reconciliation/cases": {
@@ -4371,7 +4421,7 @@
     },
     "api:GET:/api/funds/:fundId/tasks": {
       "row_id": "api:GET:/api/funds/:fundId/tasks",
-      "contract_fingerprint": "953853dbe167cc2dd3e36ce0afc6ec107dacc763cac5629081ef65db5c43d842",
+      "contract_fingerprint": "2fcfe720c7204e87127a39eb968b1516d8f51a5cb555319d0b6ae92e99e185a8",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -4385,7 +4435,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -4397,22 +4449,24 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "953853dbe167cc2dd3e36ce0afc6ec107dacc763cac5629081ef65db5c43d842"
+          "contract_fingerprint": "2fcfe720c7204e87127a39eb968b1516d8f51a5cb555319d0b6ae92e99e185a8"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "953853dbe167cc2dd3e36ce0afc6ec107dacc763cac5629081ef65db5c43d842"
+          "contract_fingerprint": "2fcfe720c7204e87127a39eb968b1516d8f51a5cb555319d0b6ae92e99e185a8"
         }
       },
       "evidence": [
         "server/routes/operating-object-tasks.ts:95-111 handler validates fundId, enforces enforceProvidedFundScope, and returns listTasksForFund rows; read-only",
         "Router mounts behind the global /api requireApiAuth gate (server/app.ts:194-199; mount-common-routes.ts:97), and provided-fund-scope grants team-member reads on safe methods (server/lib/auth/provided-fund-scope.ts:36,57)",
-        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/tasks match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/tasks match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/funds/:fundId/tasks; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/funds/:fundId/tasks/:taskId/evidence-links": {
       "row_id": "api:GET:/api/funds/:fundId/tasks/:taskId/evidence-links",
-      "contract_fingerprint": "322dd443ebd2d9dac17e9424d9d51e883ac8cbf54a81f30335ec2b0571d7a6a9",
+      "contract_fingerprint": "99808f684c0146e20a57ab4a22a39e45fc755766f270992d4ceedf0ea1487700",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -4426,7 +4480,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -4438,22 +4494,24 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "322dd443ebd2d9dac17e9424d9d51e883ac8cbf54a81f30335ec2b0571d7a6a9"
+          "contract_fingerprint": "99808f684c0146e20a57ab4a22a39e45fc755766f270992d4ceedf0ea1487700"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "322dd443ebd2d9dac17e9424d9d51e883ac8cbf54a81f30335ec2b0571d7a6a9"
+          "contract_fingerprint": "99808f684c0146e20a57ab4a22a39e45fc755766f270992d4ceedf0ea1487700"
         }
       },
       "evidence": [
         "server/routes/operating-object-tasks.ts:113-147 handler validates params/query, enforces enforceProvidedFundScope, and returns listTaskEvidenceLinks; read-only",
         "Behind the global /api requireApiAuth gate with team-member safe-method reads (server/app.ts:194-199; server/lib/auth/provided-fund-scope.ts:36,57)",
-        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/tasks/:taskId/evidence-links match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:fundId/tasks/:taskId/evidence-links match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/funds/:fundId/tasks/:taskId/evidence-links; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/funds/:id": {
       "row_id": "api:GET:/api/funds/:id",
-      "contract_fingerprint": "58fd33884c748f44a213d40c412f8767572af933fd00d150cf7ca92c55b9048e",
+      "contract_fingerprint": "14af8822282649e292da8d3a973207186db67664ca2d848f22722a44cec1bbf1",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -4467,7 +4525,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -4479,17 +4539,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "58fd33884c748f44a213d40c412f8767572af933fd00d150cf7ca92c55b9048e"
+          "contract_fingerprint": "14af8822282649e292da8d3a973207186db67664ca2d848f22722a44cec1bbf1"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "58fd33884c748f44a213d40c412f8767572af933fd00d150cf7ca92c55b9048e"
+          "contract_fingerprint": "14af8822282649e292da8d3a973207186db67664ca2d848f22722a44cec1bbf1"
         }
       },
       "evidence": [
         "server/routes/funds.ts:181-219 validates the id, enforces provided fund scope for reads at :194, and returns getCanonicalFundById (db select with storage fallback, :152-160); read-only.",
         "No route-level role guard; global requireApiAuth (server/app.ts:175) governs access for partner/admin/analyst.",
-        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:id match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:id match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/funds/:id; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/funds/:id/alerts": {
@@ -4534,7 +4596,7 @@
     },
     "api:GET:/api/funds/:id/baselines": {
       "row_id": "api:GET:/api/funds/:id/baselines",
-      "contract_fingerprint": "2168df6eefa7966a3017820aa6f424e1e5a55bcbc484bf3c9f0b1eb2e28491cf",
+      "contract_fingerprint": "3fa7e7678d3d9e9f58e72031190f6f4eae17a262efc3531816ba7fb68a89ec24",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -4548,7 +4610,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -4560,17 +4624,18 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "2168df6eefa7966a3017820aa6f424e1e5a55bcbc484bf3c9f0b1eb2e28491cf"
+          "contract_fingerprint": "3fa7e7678d3d9e9f58e72031190f6f4eae17a262efc3531816ba7fb68a89ec24"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "2168df6eefa7966a3017820aa6f424e1e5a55bcbc484bf3c9f0b1eb2e28491cf"
+          "contract_fingerprint": "3fa7e7678d3d9e9f58e72031190f6f4eae17a262efc3531816ba7fb68a89ec24"
         }
       },
       "evidence": [
-        "Handler at server/routes/variance.ts:198-250 has no route-level role guard (global auth boundary at server/app.ts:195-200), matching personas admin/analyst/gp.",
         "Calls baselines.getBaselines (variance.ts:231-235) and returns the list — reads-only, none, prod-safe.",
-        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:id/baselines match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:id/baselines match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/funds/:id/baselines; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/funds/:id/draft": {
@@ -4770,7 +4835,7 @@
     },
     "api:GET:/api/funds/:id/sensitivity/runs": {
       "row_id": "api:GET:/api/funds/:id/sensitivity/runs",
-      "contract_fingerprint": "c21b863afcd7482103bf3d2c8848fc6610a135b85d0626ec2810b5d71eef1c4d",
+      "contract_fingerprint": "f57f5aa473adb21e53ce9e68696679ef3efbda6a021409237f1df4064f4907a5",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -4784,7 +4849,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -4796,22 +4863,23 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "c21b863afcd7482103bf3d2c8848fc6610a135b85d0626ec2810b5d71eef1c4d"
+          "contract_fingerprint": "f57f5aa473adb21e53ce9e68696679ef3efbda6a021409237f1df4064f4907a5"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "c21b863afcd7482103bf3d2c8848fc6610a135b85d0626ec2810b5d71eef1c4d"
+          "contract_fingerprint": "f57f5aa473adb21e53ce9e68696679ef3efbda6a021409237f1df4064f4907a5"
         }
       },
       "evidence": [
-        "server/routes/sensitivity.ts:214-257 router.get with enforceProvidedFundScope and no route-level role guard (global requireApiAuth boundary: server/app.ts:189-200 applies requireAuth() to all /api paths not listed in isPublicApiPath, and server/routes/mount-common-routes.ts mounts this router via the make_app post_runtime group at server/app.ts:224, after that gate) -> personas admin, analyst, gp",
         "server/routes/sensitivity.ts:255-256 handler calls sensitivityRunService.getHistoryByFund with validated cursor/limit and returns JSON; no mutation",
-        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:id/sensitivity/runs match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:id/sensitivity/runs match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/funds/:id/sensitivity/runs; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/funds/:id/sensitivity/runs/:runId": {
       "row_id": "api:GET:/api/funds/:id/sensitivity/runs/:runId",
-      "contract_fingerprint": "5a4823a1ff22f1349eb449d5d81c38a6efcd17825748544441b8c2528da97e71",
+      "contract_fingerprint": "60ff2023c26da8986549adbec255fcb4b1ba55199417950fa9b2298d88d39fd4",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -4825,7 +4893,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -4837,17 +4907,18 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "5a4823a1ff22f1349eb449d5d81c38a6efcd17825748544441b8c2528da97e71"
+          "contract_fingerprint": "60ff2023c26da8986549adbec255fcb4b1ba55199417950fa9b2298d88d39fd4"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "5a4823a1ff22f1349eb449d5d81c38a6efcd17825748544441b8c2528da97e71"
+          "contract_fingerprint": "60ff2023c26da8986549adbec255fcb4b1ba55199417950fa9b2298d88d39fd4"
         }
       },
       "evidence": [
-        "server/routes/sensitivity.ts:259-278 router.get with enforceProvidedFundScope and no route-level role guard (access is the requireApiAuth gate at server/app.ts:189-200, mounted before this router per server/app.ts:224) -> personas admin, analyst, gp",
         "server/routes/sensitivity.ts:272-277 handler calls sensitivityRunService.getById and returns the run or 404; no mutation",
-        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:id/sensitivity/runs/:runId match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:id/sensitivity/runs/:runId match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/funds/:id/sensitivity/runs/:runId; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/funds/:id/state": {
@@ -4931,7 +5002,7 @@
     },
     "api:GET:/api/funds/:id/variance-reports": {
       "row_id": "api:GET:/api/funds/:id/variance-reports",
-      "contract_fingerprint": "833844a14deb80a561b5d8378e63ab695c7a40f324224236d8097718cbdb8b4d",
+      "contract_fingerprint": "32f5abab32c7640953fdf0a6d4639ddbf4d50da590fa113d1ba2037cc4d8b2a8",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -4945,7 +5016,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -4957,17 +5030,18 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "833844a14deb80a561b5d8378e63ab695c7a40f324224236d8097718cbdb8b4d"
+          "contract_fingerprint": "32f5abab32c7640953fdf0a6d4639ddbf4d50da590fa113d1ba2037cc4d8b2a8"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "833844a14deb80a561b5d8378e63ab695c7a40f324224236d8097718cbdb8b4d"
+          "contract_fingerprint": "32f5abab32c7640953fdf0a6d4639ddbf4d50da590fa113d1ba2037cc4d8b2a8"
         }
       },
       "evidence": [
-        "Handler at server/routes/variance.ts:477-508 has no route-level role guard (global auth boundary at server/app.ts:195-200), matching personas admin/analyst/gp.",
         "Calls calculations.getVarianceReports (variance.ts:493) and maps to client responses — reads-only, none, prod-safe.",
-        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:id/variance-reports match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/funds/:id/variance-reports match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/funds/:id/variance-reports; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/funds/:id/variance-reports/:reportId": {
@@ -5472,7 +5546,7 @@
     },
     "api:GET:/api/investments": {
       "row_id": "api:GET:/api/investments",
-      "contract_fingerprint": "155912cdaea68bdd6f8b40f662f57c5f597184b74a0a08c8662d7fe3564b5bff",
+      "contract_fingerprint": "ceb7287e3fb04741681da2c5971fa0a3e321a8b2da124978b8436e8c0cef2698",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -5486,7 +5560,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -5498,22 +5574,24 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "155912cdaea68bdd6f8b40f662f57c5f597184b74a0a08c8662d7fe3564b5bff"
+          "contract_fingerprint": "ceb7287e3fb04741681da2c5971fa0a3e321a8b2da124978b8436e8c0cef2698"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "155912cdaea68bdd6f8b40f662f57c5f597184b74a0a08c8662d7fe3564b5bff"
+          "contract_fingerprint": "ceb7287e3fb04741681da2c5971fa0a3e321a8b2da124978b8436e8c0cef2698"
         }
       },
       "evidence": [
         "Handler requires an explicit fundId query, enforces fund scope via enforceProvidedFundScope, and returns storage.getInvestments(fundId); no writes (server/routes/investments.ts:35-67)",
         "Global requireApiAuth only, no role guard (server/app.ts:175)",
-        "Current-source revalidation: all source dependencies for api:GET:/api/investments match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/investments match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/investments; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/investments/:id": {
       "row_id": "api:GET:/api/investments/:id",
-      "contract_fingerprint": "76cf54acda4ae837ee2e7db4b49e94ce52b7c42bdad9c242b482545cf15e36d4",
+      "contract_fingerprint": "f70e5d6b55ffff323895c0afe0e9e1fa52ace51b760da3eca85c3e9fdf0f12dc",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -5527,7 +5605,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -5539,17 +5619,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "76cf54acda4ae837ee2e7db4b49e94ce52b7c42bdad9c242b482545cf15e36d4"
+          "contract_fingerprint": "f70e5d6b55ffff323895c0afe0e9e1fa52ace51b760da3eca85c3e9fdf0f12dc"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "76cf54acda4ae837ee2e7db4b49e94ce52b7c42bdad9c242b482545cf15e36d4"
+          "contract_fingerprint": "f70e5d6b55ffff323895c0afe0e9e1fa52ace51b760da3eca85c3e9fdf0f12dc"
         }
       },
       "evidence": [
         "Handler loads the investment, rejects NULL-fund rows, enforces fund scope on the row's fundId, and returns it; no writes (server/routes/investments.ts:81-117)",
         "Global requireApiAuth only, no role guard (server/app.ts:175)",
-        "Current-source revalidation: all source dependencies for api:GET:/api/investments/:id match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/investments/:id match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/investments/:id; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/investments/:id/rounds": {
@@ -6746,7 +6828,7 @@
     },
     "api:GET:/api/monte-carlo/funds/:fundId/simulate": {
       "row_id": "api:GET:/api/monte-carlo/funds/:fundId/simulate",
-      "contract_fingerprint": "b20ee35c93b1501d02a2fb666de4307c7ba0c3ea965ca9dd26711a6a66c86fb8",
+      "contract_fingerprint": "14a625a8dcba3bccf8af8e5da9b6714e5e25b34ff51a0acdc69a6f1cd39fb8a1",
       "source_fingerprints": [
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
@@ -6759,7 +6841,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -6771,14 +6855,15 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "b20ee35c93b1501d02a2fb666de4307c7ba0c3ea965ca9dd26711a6a66c86fb8"
+          "contract_fingerprint": "14a625a8dcba3bccf8af8e5da9b6714e5e25b34ff51a0acdc69a6f1cd39fb8a1"
         }
       },
       "evidence": [
         "server/routes/monte-carlo.ts:781-830 runs unifiedMonteCarloService.runSimulation with enforceProvidedFundScope(..., { forWrite: true }) at line 788",
         "Simulation engines persist result rows: server/services/streaming-monte-carlo-engine.ts:1193 db.insert(schema.monteCarloSimulations) and server/services/monte-carlo-engine.ts:1113 dataSource.insert(monteCarloSimulations); inserts are additive, not deletions",
-        "No route-level role guard (monte-carlo.ts:781-784 chain is limiter only); global boundary at server/server.ts:240 leaves it team-accessible (admin/analyst/gp)",
-        "Current-source revalidation: all source dependencies for api:GET:/api/monte-carlo/funds/:fundId/simulate match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/monte-carlo/funds/:fundId/simulate match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/monte-carlo/funds/:fundId/simulate; persistence=writes, destructive=soft, environment=staged-only, owner=analytics, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/monte-carlo/health": {
@@ -7168,7 +7253,7 @@
     },
     "api:GET:/api/portfolio-companies": {
       "row_id": "api:GET:/api/portfolio-companies",
-      "contract_fingerprint": "3276d745f9e55a113b0b129a2d822e61563954626fb239da0f4aae77b09b7428",
+      "contract_fingerprint": "97e8a5096af5df46c9e4c59d796421c31b92bc485edf237860258075797353c2",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -7182,7 +7267,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -7194,22 +7281,24 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "3276d745f9e55a113b0b129a2d822e61563954626fb239da0f4aae77b09b7428"
+          "contract_fingerprint": "97e8a5096af5df46c9e4c59d796421c31b92bc485edf237860258075797353c2"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "3276d745f9e55a113b0b129a2d822e61563954626fb239da0f4aae77b09b7428"
+          "contract_fingerprint": "97e8a5096af5df46c9e4c59d796421c31b92bc485edf237860258075797353c2"
         }
       },
       "evidence": [
         "server/routes/portfolio-companies.ts:86-146 handler requires a fundId query, enforces enforceProvidedFundScope, and returns portfolioTimeMachineReadService.listCompanies; read-only",
         "Mounted at /api behind the global requireApiAuth gate (mount-common-routes.ts:78; server/app.ts:194-199)",
-        "Current-source revalidation: all source dependencies for api:GET:/api/portfolio-companies match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/portfolio-companies match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/portfolio-companies; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/portfolio-companies/:id": {
       "row_id": "api:GET:/api/portfolio-companies/:id",
-      "contract_fingerprint": "2b94c807def1b5ff2ba06475684abe6ceadb3f2fe140769af01f0960ba4efd35",
+      "contract_fingerprint": "71b51f77a463b25eed9e01ef93c24b181f17df2ea6963a558de96fff52aecf5f",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -7223,7 +7312,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -7235,22 +7326,24 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "2b94c807def1b5ff2ba06475684abe6ceadb3f2fe140769af01f0960ba4efd35"
+          "contract_fingerprint": "71b51f77a463b25eed9e01ef93c24b181f17df2ea6963a558de96fff52aecf5f"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "2b94c807def1b5ff2ba06475684abe6ceadb3f2fe140769af01f0960ba4efd35"
+          "contract_fingerprint": "71b51f77a463b25eed9e01ef93c24b181f17df2ea6963a558de96fff52aecf5f"
         }
       },
       "evidence": [
         "server/routes/portfolio-companies.ts:218-285 handler validates ids, enforces enforceProvidedFundScope, and reads storage.getPortfolioCompany with a fundId ownership check; read-only",
         "Mounted at /api behind the global requireApiAuth gate (mount-common-routes.ts:78; server/app.ts:194-199)",
-        "Current-source revalidation: all source dependencies for api:GET:/api/portfolio-companies/:id match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/portfolio-companies/:id match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/portfolio-companies/:id; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/portfolio-overview": {
       "row_id": "api:GET:/api/portfolio-overview",
-      "contract_fingerprint": "f55802885ba8403c86683ac5da01ec8da954aecdad085934b7752a6fa6875236",
+      "contract_fingerprint": "fbb3c5750ebe82fd69a34d0ee75632a457eb5ea0fd864e08c1e74ed086f6fd68",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -7264,7 +7357,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -7276,17 +7371,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "f55802885ba8403c86683ac5da01ec8da954aecdad085934b7752a6fa6875236"
+          "contract_fingerprint": "fbb3c5750ebe82fd69a34d0ee75632a457eb5ea0fd864e08c1e74ed086f6fd68"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "f55802885ba8403c86683ac5da01ec8da954aecdad085934b7752a6fa6875236"
+          "contract_fingerprint": "fbb3c5750ebe82fd69a34d0ee75632a457eb5ea0fd864e08c1e74ed086f6fd68"
         }
       },
       "evidence": [
         "server/routes/portfolio-overview.ts:44-115 handler requires a fundId query, enforces enforceProvidedFundScope (line 77), and returns getPortfolioOverview; read-only compute",
         "Mounted at /api behind the global requireApiAuth gate (mount-common-routes.ts:79; server/app.ts:194-199)",
-        "Current-source revalidation: all source dependencies for api:GET:/api/portfolio-overview match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/portfolio-overview match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/portfolio-overview; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/portfolio/forecasts/:scenarioId": {
@@ -7570,7 +7667,7 @@
     },
     "api:GET:/api/shares": {
       "row_id": "api:GET:/api/shares",
-      "contract_fingerprint": "156699772cfebdac1d015081b9f54f2eda215eecc8446e2692d542ad7f88300e",
+      "contract_fingerprint": "97eb8db2ec54ef5a05b3430b00b12f530cbe746d4ec5d5179112c28a674f689a",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -7584,7 +7681,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -7596,21 +7695,22 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "156699772cfebdac1d015081b9f54f2eda215eecc8446e2692d542ad7f88300e"
+          "contract_fingerprint": "97eb8db2ec54ef5a05b3430b00b12f530cbe746d4ec5d5179112c28a674f689a"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "156699772cfebdac1d015081b9f54f2eda215eecc8446e2692d542ad7f88300e"
+          "contract_fingerprint": "97eb8db2ec54ef5a05b3430b00b12f530cbe746d4ec5d5179112c28a674f689a"
         }
       },
       "evidence": [
         "Current-source re-review at server/routes/shares.ts:460-486: authenticated fund-scoped SELECT-only listing; reads-only, none, prod-safe remain appropriate.",
-        "server/routes/shares.ts:157-168 and shared/auth/effective-roles.ts:58-62 support current roles admin, analyst, partner; locked mapping yields admin, analyst, gp."
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/routes/shares.ts:158 grants safe-read team access; lines 159 and 163 admit admin globally and any matching-fund identity. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/shares; persistence=reads-only, destructive=none, environment=prod-safe, owner=lp-reporting, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/shares/:shareId/analytics": {
       "row_id": "api:GET:/api/shares/:shareId/analytics",
-      "contract_fingerprint": "871ea6f2a6e0cf341224d96cba99020028c00a9b8003a7adb65c732bf50222a7",
+      "contract_fingerprint": "b2ba77fb8ec1f004bb6e85f275839addd8d253493d42a20266c4ce45fabe27b1",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -7624,7 +7724,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -7636,21 +7738,22 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "871ea6f2a6e0cf341224d96cba99020028c00a9b8003a7adb65c732bf50222a7"
+          "contract_fingerprint": "b2ba77fb8ec1f004bb6e85f275839addd8d253493d42a20266c4ce45fabe27b1"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "871ea6f2a6e0cf341224d96cba99020028c00a9b8003a7adb65c732bf50222a7"
+          "contract_fingerprint": "b2ba77fb8ec1f004bb6e85f275839addd8d253493d42a20266c4ce45fabe27b1"
         }
       },
       "evidence": [
         "Current-source re-review at server/routes/shares.ts:630-669: authenticated fund-scoped analytics SELECT; reads-only, none, prod-safe remain appropriate.",
-        "server/routes/shares.ts:157-168 and shared/auth/effective-roles.ts:58-62 support current roles admin, analyst, partner; locked mapping yields admin, analyst, gp."
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/routes/shares.ts:158 grants safe-read team access; lines 159 and 163 admit admin globally and any matching-fund identity. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/shares/:shareId/analytics; persistence=reads-only, destructive=none, environment=prod-safe, owner=lp-reporting, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/timeline/:fundId": {
       "row_id": "api:GET:/api/timeline/:fundId",
-      "contract_fingerprint": "d4f2162fb6b43e07f90c747c43c1f41637266ff710c576a5a238cf4602c23f88",
+      "contract_fingerprint": "17781530ccab8cbfb6824e0a2809a7e053b339b4c10be1748d779b03e0946be9",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -7664,7 +7767,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -7676,22 +7781,23 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "d4f2162fb6b43e07f90c747c43c1f41637266ff710c576a5a238cf4602c23f88"
+          "contract_fingerprint": "17781530ccab8cbfb6824e0a2809a7e053b339b4c10be1748d779b03e0946be9"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "d4f2162fb6b43e07f90c747c43c1f41637266ff710c576a5a238cf4602c23f88"
+          "contract_fingerprint": "17781530ccab8cbfb6824e0a2809a7e053b339b4c10be1748d779b03e0946be9"
         }
       },
       "evidence": [
         "server/routes/timeline.ts:112-148 chain is timelineReadLimiter, validateRequest, then enforceProvidedFundScope (line 125); handler calls service.getTimelineEvents and returns JSON with no mutation",
-        "Mounted at /api/timeline via mount-common-routes (server/routes/mount-common-routes.ts:89) behind the make_app requireApiAuth boundary (server/app.ts:189-200); no route-level role guard, so team roles admin/analyst/gp",
-        "Current-source revalidation: all source dependencies for api:GET:/api/timeline/:fundId match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/timeline/:fundId match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/timeline/:fundId; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/timeline/:fundId/compare": {
       "row_id": "api:GET:/api/timeline/:fundId/compare",
-      "contract_fingerprint": "3dd2a2552d0ade37062a60a9471fc6de1e18051606bddbd8eabb9736ef5bf932",
+      "contract_fingerprint": "3b6b342c5bbc4f67e87529244ec778d1abde4783342b6e1a79adb17d57c6ca97",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -7705,7 +7811,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -7717,21 +7825,22 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "3dd2a2552d0ade37062a60a9471fc6de1e18051606bddbd8eabb9736ef5bf932"
+          "contract_fingerprint": "3b6b342c5bbc4f67e87529244ec778d1abde4783342b6e1a79adb17d57c6ca97"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "3dd2a2552d0ade37062a60a9471fc6de1e18051606bddbd8eabb9736ef5bf932"
+          "contract_fingerprint": "3b6b342c5bbc4f67e87529244ec778d1abde4783342b6e1a79adb17d57c6ca97"
         }
       },
       "evidence": [
-        "server/routes/timeline.ts:256-297 chain is read limiter, validateRequest, enforceProvidedFundScope (line 275); handler calls service.compareStates over two timestamps and returns JSON with no mutation; no route-level role guard, so team roles admin/analyst/gp",
-        "Current-source revalidation: all source dependencies for api:GET:/api/timeline/:fundId/compare match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:GET:/api/timeline/:fundId/compare match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/timeline/:fundId/compare; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/timeline/:fundId/state": {
       "row_id": "api:GET:/api/timeline/:fundId/state",
-      "contract_fingerprint": "a99b54cf3bf4cc8e974aa6735af90708e605c1ec03d61fbc26526fd0ac233235",
+      "contract_fingerprint": "270c3d323307ded2e0e6756fa31006bc6bdb6b7754eeabea89538b4d884239ef",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -7745,7 +7854,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -7757,16 +7868,17 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "a99b54cf3bf4cc8e974aa6735af90708e605c1ec03d61fbc26526fd0ac233235"
+          "contract_fingerprint": "270c3d323307ded2e0e6756fa31006bc6bdb6b7754eeabea89538b4d884239ef"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "a99b54cf3bf4cc8e974aa6735af90708e605c1ec03d61fbc26526fd0ac233235"
+          "contract_fingerprint": "270c3d323307ded2e0e6756fa31006bc6bdb6b7754eeabea89538b4d884239ef"
         }
       },
       "evidence": [
         "Current-source re-review at server/routes/timeline.ts:154-191: state endpoint returns getStateAtTime JSON without a domain-state mutation; reads-only, none, prod-safe remain appropriate.",
-        "Fresh exact-source auth evidence now yields roles admin, analyst, partner. Locked persona mapping yields admin, analyst, gp; this replaces the prior under-count finding."
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:GET:/api/timeline/:fundId/state; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:GET:/api/timeline/events/latest": {
@@ -8307,7 +8419,7 @@
     },
     "api:PATCH:/api/funds/:fundId/allocation-scenarios/:scenarioId": {
       "row_id": "api:PATCH:/api/funds/:fundId/allocation-scenarios/:scenarioId",
-      "contract_fingerprint": "acb2996ff230cbba213efdaa6598f6529cd7e0f9f80f7d5c97e5f91b72b6a0d1",
+      "contract_fingerprint": "ddf30df8baea2b8976cc0162668bddcb9238d50d1ca91b7277336a3b0e38b7bc",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -8333,11 +8445,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "acb2996ff230cbba213efdaa6598f6529cd7e0f9f80f7d5c97e5f91b72b6a0d1"
+          "contract_fingerprint": "ddf30df8baea2b8976cc0162668bddcb9238d50d1ca91b7277336a3b0e38b7bc"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "acb2996ff230cbba213efdaa6598f6529cd7e0f9f80f7d5c97e5f91b72b6a0d1"
+          "contract_fingerprint": "ddf30df8baea2b8976cc0162668bddcb9238d50d1ca91b7277336a3b0e38b7bc"
         }
       },
       "evidence": [
@@ -8348,7 +8460,7 @@
     },
     "api:PATCH:/api/funds/:fundId/allocation-scenarios/:scenarioId/decisions/:decisionId": {
       "row_id": "api:PATCH:/api/funds/:fundId/allocation-scenarios/:scenarioId/decisions/:decisionId",
-      "contract_fingerprint": "ad4f15750678fa8c98007927d4234f3350ea35f43551026ab05140da4c1f73ff",
+      "contract_fingerprint": "51957a3c9dc0d9ddbcc6fc5bc2ec0c6e65ab9de5863cc885647c3fda7d2cf30c",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -8373,11 +8485,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "ad4f15750678fa8c98007927d4234f3350ea35f43551026ab05140da4c1f73ff"
+          "contract_fingerprint": "51957a3c9dc0d9ddbcc6fc5bc2ec0c6e65ab9de5863cc885647c3fda7d2cf30c"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "ad4f15750678fa8c98007927d4234f3350ea35f43551026ab05140da4c1f73ff"
+          "contract_fingerprint": "51957a3c9dc0d9ddbcc6fc5bc2ec0c6e65ab9de5863cc885647c3fda7d2cf30c"
         }
       },
       "evidence": [
@@ -8509,7 +8621,7 @@
     },
     "api:PATCH:/api/funds/:fundId/kpi-observations/:observationId/review": {
       "row_id": "api:PATCH:/api/funds/:fundId/kpi-observations/:observationId/review",
-      "contract_fingerprint": "b61ff484d353774b2c0bb63dc77f8a607e304715ebbd6f90c0cafdda5964103a",
+      "contract_fingerprint": "f00c81037b0dec59bd345953c64ffbb1dd5a47a0f0583f40dbe05c2b5a0a2f11",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -8523,7 +8635,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -8535,17 +8649,18 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "b61ff484d353774b2c0bb63dc77f8a607e304715ebbd6f90c0cafdda5964103a"
+          "contract_fingerprint": "f00c81037b0dec59bd345953c64ffbb1dd5a47a0f0583f40dbe05c2b5a0a2f11"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "b61ff484d353774b2c0bb63dc77f8a607e304715ebbd6f90c0cafdda5964103a"
+          "contract_fingerprint": "f00c81037b0dec59bd345953c64ffbb1dd5a47a0f0583f40dbe05c2b5a0a2f11"
         }
       },
       "evidence": [
-        "server/routes/kpi-observations.ts:330-406 PATCH has no route-level role guard (enforceProvidedFundScope forWrite + If-Match); team personas",
         "reviewKpiObservation performs a compare-and-set update of the observation's review fields under optimistic concurrency (kpi-observations.ts:376-383); reversible update",
-        "Current-source revalidation: all source dependencies for api:PATCH:/api/funds/:fundId/kpi-observations/:observationId/review match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:PATCH:/api/funds/:fundId/kpi-observations/:observationId/review match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:PATCH:/api/funds/:fundId/kpi-observations/:observationId/review; persistence=writes, destructive=soft, environment=staged-only, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:PATCH:/api/funds/:fundId/metric-runs/:metricRunId/narrative-runs/:narrativeRunId": {
@@ -8590,7 +8705,7 @@
     },
     "api:PATCH:/api/funds/:fundId/tasks/:taskId": {
       "row_id": "api:PATCH:/api/funds/:fundId/tasks/:taskId",
-      "contract_fingerprint": "9c6d97a49a23097ca83dfa3f6ac8632c11d063c332cff127f6665ab07025bde2",
+      "contract_fingerprint": "6c63e5fbfadbd1531268cc000f0ffbd6c6740b80e6d7dcbd209a9e7c42a0e3d9",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -8604,7 +8719,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -8616,22 +8733,24 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "9c6d97a49a23097ca83dfa3f6ac8632c11d063c332cff127f6665ab07025bde2"
+          "contract_fingerprint": "6c63e5fbfadbd1531268cc000f0ffbd6c6740b80e6d7dcbd209a9e7c42a0e3d9"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "9c6d97a49a23097ca83dfa3f6ac8632c11d063c332cff127f6665ab07025bde2"
+          "contract_fingerprint": "6c63e5fbfadbd1531268cc000f0ffbd6c6740b80e6d7dcbd209a9e7c42a0e3d9"
         }
       },
       "evidence": [
         "server/routes/operating-object-tasks.ts:214-283 handler updates task fields/status via updateTask under If-Match xmin optimistic concurrency; reversible update, no deletion",
         "Guarded by the global /api requireApiAuth gate plus enforceProvidedFundScope (operating-object-tasks.ts:225); team roles admin/partner/analyst map to admin/gp/analyst",
-        "Current-source revalidation: all source dependencies for api:PATCH:/api/funds/:fundId/tasks/:taskId match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:PATCH:/api/funds/:fundId/tasks/:taskId match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:PATCH:/api/funds/:fundId/tasks/:taskId; persistence=writes, destructive=soft, environment=staged-only, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:PATCH:/api/portfolio-companies/:id": {
       "row_id": "api:PATCH:/api/portfolio-companies/:id",
-      "contract_fingerprint": "a5c35d4b0fbb8487946e081dc78e9d3cbaaf5c550c607396741537ef099e16a5",
+      "contract_fingerprint": "53eb05815afd370f00e027cc4032e0bf29f18824f00f308337ef314217e2443d",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -8645,7 +8764,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -8657,22 +8778,24 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "a5c35d4b0fbb8487946e081dc78e9d3cbaaf5c550c607396741537ef099e16a5"
+          "contract_fingerprint": "53eb05815afd370f00e027cc4032e0bf29f18824f00f308337ef314217e2443d"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "a5c35d4b0fbb8487946e081dc78e9d3cbaaf5c550c607396741537ef099e16a5"
+          "contract_fingerprint": "53eb05815afd370f00e027cc4032e0bf29f18824f00f308337ef314217e2443d"
         }
       },
       "evidence": [
         "server/routes/portfolio-companies.ts:148-216 handler is guarded by requireWriteRole(TEAM_WRITE_ROLES) (portfolio-companies.ts:32,151) and enforceProvidedFundScope forWrite; TEAM_WRITE_ROLES = partner/admin/analyst (shared/auth/effective-roles.ts:19)",
         "Updates company metadata via updatePortfolioCompanyMetadata with a required Idempotency-Key and version-conflict handling; reversible update",
-        "Current-source revalidation: all source dependencies for api:PATCH:/api/portfolio-companies/:id match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:PATCH:/api/portfolio-companies/:id match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:PATCH:/api/portfolio-companies/:id; persistence=writes, destructive=soft, environment=staged-only, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:PATCH:/api/shares/:shareId": {
       "row_id": "api:PATCH:/api/shares/:shareId",
-      "contract_fingerprint": "c04e0b827e58b0335803c7b4d009a7fa9e50be1a3082b8f0128bb57201d0e5b3",
+      "contract_fingerprint": "57bf97e210027ce6b10651210fbcb944477855d5978d234c0a8415e16aade8b6",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -8686,7 +8809,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -8698,16 +8823,17 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "c04e0b827e58b0335803c7b4d009a7fa9e50be1a3082b8f0128bb57201d0e5b3"
+          "contract_fingerprint": "57bf97e210027ce6b10651210fbcb944477855d5978d234c0a8415e16aade8b6"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "c04e0b827e58b0335803c7b4d009a7fa9e50be1a3082b8f0128bb57201d0e5b3"
+          "contract_fingerprint": "57bf97e210027ce6b10651210fbcb944477855d5978d234c0a8415e16aade8b6"
         }
       },
       "evidence": [
         "Current-source re-review at server/routes/shares.ts:491-575: authenticated fund-scoped optimistic-lock update and snapshot state change; writes, soft, staged-only remain appropriate.",
-        "Fresh exact-source auth evidence yields roles admin, analyst, partner; locked mapping yields admin, analyst, gp."
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/routes/shares.ts:159 admits admin globally and line 163 admits any matching-fund identity; no line-158 safe-read identity applies to PATCH. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:PATCH:/api/shares/:shareId; persistence=writes, destructive=soft, environment=staged-only, owner=lp-reporting, and classification=classified remain source-consistent."
       ]
     },
     "api:POST:/api/activities": {
@@ -10248,7 +10374,7 @@
     },
     "api:POST:/api/deals/opportunities/import/preview": {
       "row_id": "api:POST:/api/deals/opportunities/import/preview",
-      "contract_fingerprint": "d1a85ca89e203e72dbb98165564698d2d7ebb5ee44dd2653a8216822213e43cc",
+      "contract_fingerprint": "b40e6f73b3f26f5a19794ec9f1dbe1e70f1fc20675149a166c55727933be387a",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -10262,7 +10388,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -10274,17 +10402,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "d1a85ca89e203e72dbb98165564698d2d7ebb5ee44dd2653a8216822213e43cc"
+          "contract_fingerprint": "b40e6f73b3f26f5a19794ec9f1dbe1e70f1fc20675149a166c55727933be387a"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "d1a85ca89e203e72dbb98165564698d2d7ebb5ee44dd2653a8216822213e43cc"
+          "contract_fingerprint": "b40e6f73b3f26f5a19794ec9f1dbe1e70f1fc20675149a166c55727933be387a"
         }
       },
       "evidence": [
         "server/routes/deal-pipeline.ts:579-627 validates rows and calls dealPipelineService.previewImport; server/services/deal-pipeline-service.ts:559-598 performs only a db.select duplicate check and returns a summary without inserting.",
         "No route-level role guard; global requireApiAuth (server/app.ts:175) governs access for partner/admin/analyst.",
-        "Current-source revalidation: all source dependencies for api:POST:/api/deals/opportunities/import/preview match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:POST:/api/deals/opportunities/import/preview match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:POST:/api/deals/opportunities/import/preview; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:POST:/api/dev-dashboard/fix/build": {
@@ -10509,7 +10639,7 @@
     },
     "api:POST:/api/funds/:fundId/allocation-scenarios": {
       "row_id": "api:POST:/api/funds/:fundId/allocation-scenarios",
-      "contract_fingerprint": "e78703a49cd2ab60dbeae6f19c8317c2b4357042bfcf04415d6d754130ffe844",
+      "contract_fingerprint": "cfccddab53954539ad59fe1b5b0642039f5b9892158794562c9a8b352f524ffa",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -10535,11 +10665,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "e78703a49cd2ab60dbeae6f19c8317c2b4357042bfcf04415d6d754130ffe844"
+          "contract_fingerprint": "cfccddab53954539ad59fe1b5b0642039f5b9892158794562c9a8b352f524ffa"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "e78703a49cd2ab60dbeae6f19c8317c2b4357042bfcf04415d6d754130ffe844"
+          "contract_fingerprint": "cfccddab53954539ad59fe1b5b0642039f5b9892158794562c9a8b352f524ffa"
         }
       },
       "evidence": [
@@ -10550,7 +10680,7 @@
     },
     "api:POST:/api/funds/:fundId/allocation-scenarios/:scenarioId/apply": {
       "row_id": "api:POST:/api/funds/:fundId/allocation-scenarios/:scenarioId/apply",
-      "contract_fingerprint": "bce72efe91be3f59365957b5c7347484dd72239b744552675fb38dfa2232f225",
+      "contract_fingerprint": "a66264ecc279b77179bf66172a42edce1df68f25269ea818066d8c5bdf9dd29b",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -10575,11 +10705,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "bce72efe91be3f59365957b5c7347484dd72239b744552675fb38dfa2232f225"
+          "contract_fingerprint": "a66264ecc279b77179bf66172a42edce1df68f25269ea818066d8c5bdf9dd29b"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "bce72efe91be3f59365957b5c7347484dd72239b744552675fb38dfa2232f225"
+          "contract_fingerprint": "a66264ecc279b77179bf66172a42edce1df68f25269ea818066d8c5bdf9dd29b"
         }
       },
       "evidence": [
@@ -10590,7 +10720,7 @@
     },
     "api:POST:/api/funds/:fundId/allocation-scenarios/:scenarioId/decisions": {
       "row_id": "api:POST:/api/funds/:fundId/allocation-scenarios/:scenarioId/decisions",
-      "contract_fingerprint": "ee4c7fa05004fef14f23ca2e3d8f998ad7f2e98c4c2ac1399b661e9b987cedf4",
+      "contract_fingerprint": "aa75a2fe10c4961da1945d0dc9d665312fa77a1fd81c3604e6933427160db6cd",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -10615,11 +10745,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "ee4c7fa05004fef14f23ca2e3d8f998ad7f2e98c4c2ac1399b661e9b987cedf4"
+          "contract_fingerprint": "aa75a2fe10c4961da1945d0dc9d665312fa77a1fd81c3604e6933427160db6cd"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "ee4c7fa05004fef14f23ca2e3d8f998ad7f2e98c4c2ac1399b661e9b987cedf4"
+          "contract_fingerprint": "aa75a2fe10c4961da1945d0dc9d665312fa77a1fd81c3604e6933427160db6cd"
         }
       },
       "evidence": [
@@ -10630,7 +10760,7 @@
     },
     "api:POST:/api/funds/:fundId/allocation-scenarios/:scenarioId/sync": {
       "row_id": "api:POST:/api/funds/:fundId/allocation-scenarios/:scenarioId/sync",
-      "contract_fingerprint": "8b8a89598eb0c8b2fe4e5cf2ac5d2c7575fbb6c80ad101721805780d7b2cdf5a",
+      "contract_fingerprint": "5fa08f9dc559cd28f2459a656f92218b02424fb279973e99114e2f481054f392",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -10656,11 +10786,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "8b8a89598eb0c8b2fe4e5cf2ac5d2c7575fbb6c80ad101721805780d7b2cdf5a"
+          "contract_fingerprint": "5fa08f9dc559cd28f2459a656f92218b02424fb279973e99114e2f481054f392"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "8b8a89598eb0c8b2fe4e5cf2ac5d2c7575fbb6c80ad101721805780d7b2cdf5a"
+          "contract_fingerprint": "5fa08f9dc559cd28f2459a656f92218b02424fb279973e99114e2f481054f392"
         }
       },
       "evidence": [
@@ -11998,7 +12128,7 @@
     },
     "api:POST:/api/funds/:fundId/kpi-observations": {
       "row_id": "api:POST:/api/funds/:fundId/kpi-observations",
-      "contract_fingerprint": "9405f152d0927e5561173da0384e119a9c7e8baaca24d6f885abaa942e00ae19",
+      "contract_fingerprint": "a8e516f73fa6b98e294dcbc4ad51be1657f1550a4093352102a395c616552dd7",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -12012,7 +12142,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -12024,22 +12156,23 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "9405f152d0927e5561173da0384e119a9c7e8baaca24d6f885abaa942e00ae19"
+          "contract_fingerprint": "a8e516f73fa6b98e294dcbc4ad51be1657f1550a4093352102a395c616552dd7"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "9405f152d0927e5561173da0384e119a9c7e8baaca24d6f885abaa942e00ae19"
+          "contract_fingerprint": "a8e516f73fa6b98e294dcbc4ad51be1657f1550a4093352102a395c616552dd7"
         }
       },
       "evidence": [
-        "server/routes/kpi-observations.ts:209-246 POST has no route-level role guard; team personas; Idempotency-Key required (:217)",
         "createKpiObservation inserts into kpiObservations via idempotent command (kpi-observation-service.ts:286-290); additive write",
-        "Current-source revalidation: all source dependencies for api:POST:/api/funds/:fundId/kpi-observations match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:POST:/api/funds/:fundId/kpi-observations match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:POST:/api/funds/:fundId/kpi-observations; persistence=writes, destructive=soft, environment=staged-only, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:POST:/api/funds/:fundId/kpi-observations/imports": {
       "row_id": "api:POST:/api/funds/:fundId/kpi-observations/imports",
-      "contract_fingerprint": "0203bceebc13c3035caa91798fc14077a152ceac956b80fcdaf40dbaf3538537",
+      "contract_fingerprint": "479c20281a559933c9a2dba7000589317f6b21c22a5953b446fd8925fd0f23e8",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -12053,7 +12186,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -12065,17 +12200,18 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "0203bceebc13c3035caa91798fc14077a152ceac956b80fcdaf40dbaf3538537"
+          "contract_fingerprint": "479c20281a559933c9a2dba7000589317f6b21c22a5953b446fd8925fd0f23e8"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "0203bceebc13c3035caa91798fc14077a152ceac956b80fcdaf40dbaf3538537"
+          "contract_fingerprint": "479c20281a559933c9a2dba7000589317f6b21c22a5953b446fd8925fd0f23e8"
         }
       },
       "evidence": [
-        "server/routes/kpi-observations.ts:254-320 POST has no route-level role guard; team personas; per-row idempotent creates keyed <batch>:row:<n> (:291)",
         "Each accepted CSV row calls createKpiObservation which inserts into kpiObservations (kpi-observation-service.ts:286-290); additive writes",
-        "Current-source revalidation: all source dependencies for api:POST:/api/funds/:fundId/kpi-observations/imports match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:POST:/api/funds/:fundId/kpi-observations/imports match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:POST:/api/funds/:fundId/kpi-observations/imports; persistence=writes, destructive=soft, environment=staged-only, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:POST:/api/funds/:fundId/metric-runs/:metricRunId/approve": {
@@ -12636,7 +12772,7 @@
     },
     "api:POST:/api/funds/:fundId/portfolio/lots": {
       "row_id": "api:POST:/api/funds/:fundId/portfolio/lots",
-      "contract_fingerprint": "71f91c337388c5b74ede224ed7f1a6c26bda45530611c1e3da0fc21e32f3fae4",
+      "contract_fingerprint": "f087f9937bd8e16ce7be9bcdda4e20c88da4136f60bad1b1b818b45db6b62617",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -12650,7 +12786,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -12662,17 +12800,18 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "71f91c337388c5b74ede224ed7f1a6c26bda45530611c1e3da0fc21e32f3fae4"
+          "contract_fingerprint": "f087f9937bd8e16ce7be9bcdda4e20c88da4136f60bad1b1b818b45db6b62617"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "71f91c337388c5b74ede224ed7f1a6c26bda45530611c1e3da0fc21e32f3fae4"
+          "contract_fingerprint": "f087f9937bd8e16ce7be9bcdda4e20c88da4136f60bad1b1b818b45db6b62617"
         }
       },
       "evidence": [
-        "server/routes/portfolio/lots.ts:38-117 POST has no route-level role guard; team personas; idempotencyKey accepted (:59,71)",
         "lotService.create persists a new investment lot after assertLegacyInvestmentMutable (:64-72); additive write, returns 201",
-        "Current-source revalidation: all source dependencies for api:POST:/api/funds/:fundId/portfolio/lots match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:POST:/api/funds/:fundId/portfolio/lots match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:POST:/api/funds/:fundId/portfolio/lots; persistence=writes, destructive=soft, environment=staged-only, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:POST:/api/funds/:fundId/reallocation/commit": {
@@ -12717,7 +12856,7 @@
     },
     "api:POST:/api/funds/:fundId/reallocation/preview": {
       "row_id": "api:POST:/api/funds/:fundId/reallocation/preview",
-      "contract_fingerprint": "630ceb7a310c4b4e735b44a2a2ed4623ab2ab17bffc8352fe54de6f75506de52",
+      "contract_fingerprint": "f48e6deaad1c343e4f27b3903a8bc7d111f38defbb8d01b36e4a3ea9715305fa",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -12731,7 +12870,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -12743,17 +12884,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "630ceb7a310c4b4e735b44a2a2ed4623ab2ab17bffc8352fe54de6f75506de52"
+          "contract_fingerprint": "f48e6deaad1c343e4f27b3903a8bc7d111f38defbb8d01b36e4a3ea9715305fa"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "630ceb7a310c4b4e735b44a2a2ed4623ab2ab17bffc8352fe54de6f75506de52"
+          "contract_fingerprint": "f48e6deaad1c343e4f27b3903a8bc7d111f38defbb8d01b36e4a3ea9715305fa"
         }
       },
       "evidence": [
         "server/routes/reallocation.ts:312 registers the POST with no role guard (only the global auth boundary plus enforceProvidedFundScope at line 318), so admin/analyst/partner all pass.",
         "Comment at lines 300-303 and the handler body confirm the preview computes deltas/warnings without committing to the database; the file's only transaction is in the commit handler at line 447.",
-        "Current-source revalidation: all source dependencies for api:POST:/api/funds/:fundId/reallocation/preview match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:POST:/api/funds/:fundId/reallocation/preview match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:POST:/api/funds/:fundId/reallocation/preview; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:POST:/api/funds/:fundId/reconciliation/cases/:caseId/resolve": {
@@ -13069,7 +13212,7 @@
     },
     "api:POST:/api/funds/:fundId/tasks": {
       "row_id": "api:POST:/api/funds/:fundId/tasks",
-      "contract_fingerprint": "0cb4d185e8c288649f83466a8574d0e5670e19fafff562530eb59622d124959d",
+      "contract_fingerprint": "e00b2a8624565c0d3377934948ff6c0a67452fde4ad85fe156d20e586bb34e70",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -13083,7 +13226,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -13095,22 +13240,24 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "0cb4d185e8c288649f83466a8574d0e5670e19fafff562530eb59622d124959d"
+          "contract_fingerprint": "e00b2a8624565c0d3377934948ff6c0a67452fde4ad85fe156d20e586bb34e70"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "0cb4d185e8c288649f83466a8574d0e5670e19fafff562530eb59622d124959d"
+          "contract_fingerprint": "e00b2a8624565c0d3377934948ff6c0a67452fde4ad85fe156d20e586bb34e70"
         }
       },
       "evidence": [
         "server/routes/operating-object-tasks.ts:65-93 handler validates TaskCreateSchema and inserts a task via createTask with resolved actor id; additive database write",
         "Guarded by the global /api requireApiAuth gate plus enforceProvidedFundScope (operating-object-tasks.ts:71)",
-        "Current-source revalidation: all source dependencies for api:POST:/api/funds/:fundId/tasks match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:POST:/api/funds/:fundId/tasks match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:POST:/api/funds/:fundId/tasks; persistence=writes, destructive=soft, environment=staged-only, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:POST:/api/funds/:fundId/tasks/:taskId/evidence-links": {
       "row_id": "api:POST:/api/funds/:fundId/tasks/:taskId/evidence-links",
-      "contract_fingerprint": "ee4e75c93260aac4f5dfb5dbd55a2c97d0f0ad3aa1ab2fbe4be128b2e5327a9d",
+      "contract_fingerprint": "ca92a36ee5cb43ac459940bf98f32951c4da8059809dc6d4d6a996ee37d52f50",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -13124,7 +13271,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -13136,17 +13285,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "ee4e75c93260aac4f5dfb5dbd55a2c97d0f0ad3aa1ab2fbe4be128b2e5327a9d"
+          "contract_fingerprint": "ca92a36ee5cb43ac459940bf98f32951c4da8059809dc6d4d6a996ee37d52f50"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "ee4e75c93260aac4f5dfb5dbd55a2c97d0f0ad3aa1ab2fbe4be128b2e5327a9d"
+          "contract_fingerprint": "ca92a36ee5cb43ac459940bf98f32951c4da8059809dc6d4d6a996ee37d52f50"
         }
       },
       "evidence": [
         "server/routes/operating-object-tasks.ts:149-206 handler requires an Idempotency-Key, validates the body, and inserts an evidence link via createTaskEvidenceLink; additive database write with replay",
         "Guarded by the global /api requireApiAuth gate plus enforceProvidedFundScope with forWrite: true (operating-object-tasks.ts:161)",
-        "Current-source revalidation: all source dependencies for api:POST:/api/funds/:fundId/tasks/:taskId/evidence-links match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:POST:/api/funds/:fundId/tasks/:taskId/evidence-links match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:POST:/api/funds/:fundId/tasks/:taskId/evidence-links; persistence=writes, destructive=soft, environment=staged-only, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:POST:/api/funds/:id/alert-rules": {
@@ -13233,7 +13384,7 @@
     },
     "api:POST:/api/funds/:id/baselines": {
       "row_id": "api:POST:/api/funds/:id/baselines",
-      "contract_fingerprint": "418cc8d4974b2b0a7d309b97bb67a8ce23dabde87ddfbea978fbbc9e987327a5",
+      "contract_fingerprint": "117fccfdf1f292f011b80cbc87109136b54a76d0831d95a1e0a0aa95c73b8cba",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -13247,7 +13398,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -13259,17 +13412,18 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "418cc8d4974b2b0a7d309b97bb67a8ce23dabde87ddfbea978fbbc9e987327a5"
+          "contract_fingerprint": "117fccfdf1f292f011b80cbc87109136b54a76d0831d95a1e0a0aa95c73b8cba"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "418cc8d4974b2b0a7d309b97bb67a8ce23dabde87ddfbea978fbbc9e987327a5"
+          "contract_fingerprint": "117fccfdf1f292f011b80cbc87109136b54a76d0831d95a1e0a0aa95c73b8cba"
         }
       },
       "evidence": [
-        "Handler at server/routes/variance.ts:128-192 has idempotency middleware but no route-level role guard; global auth boundary (server/app.ts:195-200) applies, matching personas admin/analyst/gp.",
         "Calls baselines.createBaseline (variance.ts:168-177) creating a new baseline record — additive reversible write, matching writes/soft/staged-only.",
-        "Current-source revalidation: all source dependencies for api:POST:/api/funds/:id/baselines match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:POST:/api/funds/:id/baselines match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:POST:/api/funds/:id/baselines; persistence=writes, destructive=soft, environment=staged-only, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:POST:/api/funds/:id/baselines/:baselineId/set-default": {
@@ -13556,7 +13710,7 @@
     },
     "api:POST:/api/funds/:id/variance-reports": {
       "row_id": "api:POST:/api/funds/:id/variance-reports",
-      "contract_fingerprint": "9766027c8b163aecb6e7d9fa561850a22a580adaa6c3bc77b567dd2ba74398ac",
+      "contract_fingerprint": "67adf81e19b6457d521bdd2aea48131382a7e2461b0e696ce66381c8597f3fa6",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -13570,7 +13724,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -13582,17 +13738,18 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "9766027c8b163aecb6e7d9fa561850a22a580adaa6c3bc77b567dd2ba74398ac"
+          "contract_fingerprint": "67adf81e19b6457d521bdd2aea48131382a7e2461b0e696ce66381c8597f3fa6"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "9766027c8b163aecb6e7d9fa561850a22a580adaa6c3bc77b567dd2ba74398ac"
+          "contract_fingerprint": "67adf81e19b6457d521bdd2aea48131382a7e2461b0e696ce66381c8597f3fa6"
         }
       },
       "evidence": [
-        "Handler at server/routes/variance.ts:382-471 has idempotency middleware but no route-level role guard; global auth boundary (server/app.ts:195-200) applies, matching personas admin/analyst/gp.",
         "Calls calculations.generateVarianceReport (variance.ts:447-455) creating a report record — additive reversible write, matching writes/soft/staged-only.",
-        "Current-source revalidation: all source dependencies for api:POST:/api/funds/:id/variance-reports match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:POST:/api/funds/:id/variance-reports match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:POST:/api/funds/:id/variance-reports; persistence=writes, destructive=soft, environment=staged-only, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:POST:/api/funds/calculate": {
@@ -13717,7 +13874,7 @@
     },
     "api:POST:/api/investments": {
       "row_id": "api:POST:/api/investments",
-      "contract_fingerprint": "8bfe15462b616ef28a40074f8a61344ff271307dcf09c7a4f53f6065f663536d",
+      "contract_fingerprint": "6ec73a273cde6bd4251ee73b2ff1d96c520b5b86fb740b99764857c9d5297dfa",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -13731,7 +13888,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -13743,17 +13902,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "8bfe15462b616ef28a40074f8a61344ff271307dcf09c7a4f53f6065f663536d"
+          "contract_fingerprint": "6ec73a273cde6bd4251ee73b2ff1d96c520b5b86fb740b99764857c9d5297dfa"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "8bfe15462b616ef28a40074f8a61344ff271307dcf09c7a4f53f6065f663536d"
+          "contract_fingerprint": "6ec73a273cde6bd4251ee73b2ff1d96c520b5b86fb740b99764857c9d5297dfa"
         }
       },
       "evidence": [
         "Handler enforces fund scope then persists via createLegacyInvestmentWithLedgerGuard and invalidates H9 artifacts (server/routes/investments.ts:131-161); reversible add, no deletes",
         "Global requireApiAuth only, no role guard (server/app.ts:175)",
-        "Current-source revalidation: all source dependencies for api:POST:/api/investments match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:POST:/api/investments match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:POST:/api/investments; persistence=writes, destructive=soft, environment=staged-only, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:POST:/api/investments/:id/cases": {
@@ -14187,7 +14348,7 @@
     },
     "api:POST:/api/monte-carlo/batch": {
       "row_id": "api:POST:/api/monte-carlo/batch",
-      "contract_fingerprint": "fbb3922b02903a5c8799f6922e677fb837b05bfff0d252f88f41632f98d6428a",
+      "contract_fingerprint": "5f0cc6849cb685f1ec420b717b890d7fc92d951fce322c11a428c51d6ece931a",
       "source_fingerprints": [
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
@@ -14200,7 +14361,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -14212,18 +14375,20 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "fbb3922b02903a5c8799f6922e677fb837b05bfff0d252f88f41632f98d6428a"
+          "contract_fingerprint": "5f0cc6849cb685f1ec420b717b890d7fc92d951fce322c11a428c51d6ece931a"
         }
       },
       "evidence": [
         "server/routes/monte-carlo.ts:572-645 runs runBatchSimulations over validated configs with per-config enforceProvidedFundScope (line 594)",
         "runBatchSimulations delegates to runSimulation (server/services/monte-carlo-service-unified.ts:164,173), and the engines insert simulation rows (streaming-monte-carlo-engine.ts:1193, monte-carlo-engine.ts:1113) — additive writes, no deletions",
-        "Current-source revalidation: all source dependencies for api:POST:/api/monte-carlo/batch match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:POST:/api/monte-carlo/batch match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:POST:/api/monte-carlo/batch; persistence=writes, destructive=soft, environment=staged-only, owner=analytics, and classification=classified remain source-consistent."
       ]
     },
     "api:POST:/api/monte-carlo/multi-environment": {
       "row_id": "api:POST:/api/monte-carlo/multi-environment",
-      "contract_fingerprint": "16a1e28633231431d27f0e5304de6b99445da1d3c2fd91b56f4b0294810ee194",
+      "contract_fingerprint": "99b256c5bde26c19b1749b6cff2cbd2d104c724ff5b527f7875c760e6607b4dd",
       "source_fingerprints": [
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
@@ -14236,7 +14401,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -14248,18 +14415,20 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "16a1e28633231431d27f0e5304de6b99445da1d3c2fd91b56f4b0294810ee194"
+          "contract_fingerprint": "99b256c5bde26c19b1749b6cff2cbd2d104c724ff5b527f7875c760e6607b4dd"
         }
       },
       "evidence": [
         "server/routes/monte-carlo.ts:651-725 runs runMultiEnvironmentSimulation after fund-scope enforcement (line 671)",
         "runMultiEnvironmentSimulation calls runSimulation per environment (server/services/monte-carlo-service-unified.ts:204), which persists simulation rows via engine inserts (streaming-monte-carlo-engine.ts:1193, monte-carlo-engine.ts:1113)",
-        "Current-source revalidation: all source dependencies for api:POST:/api/monte-carlo/multi-environment match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:POST:/api/monte-carlo/multi-environment match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:POST:/api/monte-carlo/multi-environment; persistence=writes, destructive=soft, environment=staged-only, owner=analytics, and classification=classified remain source-consistent."
       ]
     },
     "api:POST:/api/monte-carlo/simulate": {
       "row_id": "api:POST:/api/monte-carlo/simulate",
-      "contract_fingerprint": "303cfb565ec361bc1169fd4b17533075f683639c83ab1a1d3988d8b19122e0a0",
+      "contract_fingerprint": "20797b4af262e545b3bf7ec39052f8301122aafbab87eec69ff7a14b32dc8621",
       "source_fingerprints": [
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
@@ -14272,7 +14441,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -14284,18 +14455,20 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "303cfb565ec361bc1169fd4b17533075f683639c83ab1a1d3988d8b19122e0a0"
+          "contract_fingerprint": "20797b4af262e545b3bf7ec39052f8301122aafbab87eec69ff7a14b32dc8621"
         }
       },
       "evidence": [
         "server/routes/monte-carlo.ts:297-360 validates the config, enforces fund scope (line 318), and calls unifiedMonteCarloService.runSimulation",
         "runSimulation persists results: engines insert into monteCarloSimulations (server/services/streaming-monte-carlo-engine.ts:1193, server/services/monte-carlo-engine.ts:1113) — additive writes, no deletions",
-        "Current-source revalidation: all source dependencies for api:POST:/api/monte-carlo/simulate match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:POST:/api/monte-carlo/simulate match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:POST:/api/monte-carlo/simulate; persistence=writes, destructive=soft, environment=staged-only, owner=analytics, and classification=classified remain source-consistent."
       ]
     },
     "api:POST:/api/monte-carlo/simulate/async": {
       "row_id": "api:POST:/api/monte-carlo/simulate/async",
-      "contract_fingerprint": "84cc0fb6a7482e63ec4cad267f4aba45f6d4db86d81ea6f0af085fa5a655d077",
+      "contract_fingerprint": "7e87ff1645b8356bb3c722ded3c0a69ed9be75693ea64da04b7e4cb7ea7d92f2",
       "source_fingerprints": [
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
@@ -14308,7 +14481,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -14320,13 +14495,15 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "84cc0fb6a7482e63ec4cad267f4aba45f6d4db86d81ea6f0af085fa5a655d077"
+          "contract_fingerprint": "7e87ff1645b8356bb3c722ded3c0a69ed9be75693ea64da04b7e4cb7ea7d92f2"
         }
       },
       "evidence": [
         "server/routes/monte-carlo.ts:367-463 enqueues a BullMQ simulation job via enqueueSimulation (line 433) and returns 202 with a jobId; when the queue is unavailable it falls back to synchronous runSimulation (lines 394-413), which persists simulation rows",
         "Queue enqueue and simulation-row inserts are additive writes; no deletion path exists in the handler",
-        "Current-source revalidation: all source dependencies for api:POST:/api/monte-carlo/simulate/async match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:POST:/api/monte-carlo/simulate/async match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:POST:/api/monte-carlo/simulate/async; persistence=writes, destructive=soft, environment=staged-only, owner=analytics, and classification=classified remain source-consistent."
       ]
     },
     "api:POST:/api/performance/simulate": {
@@ -14366,7 +14543,7 @@
     },
     "api:POST:/api/portfolio-companies": {
       "row_id": "api:POST:/api/portfolio-companies",
-      "contract_fingerprint": "da3e6f14d06e7322405f842a6d6e0849bb5b4e6caa5088fcf082bf730e20cd83",
+      "contract_fingerprint": "070d9bd5409b1a2fd5cc9310b22a42fc9cd57577835be35bea19438a851df131",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -14380,7 +14557,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -14392,17 +14571,19 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "da3e6f14d06e7322405f842a6d6e0849bb5b4e6caa5088fcf082bf730e20cd83"
+          "contract_fingerprint": "070d9bd5409b1a2fd5cc9310b22a42fc9cd57577835be35bea19438a851df131"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "da3e6f14d06e7322405f842a6d6e0849bb5b4e6caa5088fcf082bf730e20cd83"
+          "contract_fingerprint": "070d9bd5409b1a2fd5cc9310b22a42fc9cd57577835be35bea19438a851df131"
         }
       },
       "evidence": [
         "server/routes/portfolio-companies.ts:287-353 handler is guarded by requireWriteRole(TEAM_WRITE_ROLES) (portfolio-companies.ts:32,290) and enforceProvidedFundScope forWrite (line 339)",
         "Validates schema and taxonomy then inserts via storage.createPortfolioCompany; additive database write",
-        "Current-source revalidation: all source dependencies for api:POST:/api/portfolio-companies match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:POST:/api/portfolio-companies match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:POST:/api/portfolio-companies; persistence=writes, destructive=soft, environment=staged-only, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:POST:/api/portfolio/forecasts": {
@@ -14756,7 +14937,7 @@
     },
     "api:POST:/api/shares": {
       "row_id": "api:POST:/api/shares",
-      "contract_fingerprint": "16c33aa0902ca582a2e347f11e4d856bc529e3c2f2a4ae6c78f49bd6846ed785",
+      "contract_fingerprint": "fb7506e03b1826ff0f839ebf890857ee2d015f36c6367419c6befad76bd2bdaf",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -14770,7 +14951,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "writes",
         "destructive": "soft",
@@ -14782,21 +14965,22 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "16c33aa0902ca582a2e347f11e4d856bc529e3c2f2a4ae6c78f49bd6846ed785"
+          "contract_fingerprint": "fb7506e03b1826ff0f839ebf890857ee2d015f36c6367419c6befad76bd2bdaf"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "16c33aa0902ca582a2e347f11e4d856bc529e3c2f2a4ae6c78f49bd6846ed785"
+          "contract_fingerprint": "fb7506e03b1826ff0f839ebf890857ee2d015f36c6367419c6befad76bd2bdaf"
         }
       },
       "evidence": [
         "Current-source re-review at server/routes/shares.ts:406-455: authenticated fund-scoped idempotent share-plus-snapshot create; writes, soft, staged-only remain appropriate.",
-        "Fresh exact-source auth evidence yields roles admin, analyst, partner; locked mapping yields admin, analyst, gp."
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/routes/shares.ts:159 admits admin globally and line 163 admits any matching-fund identity; no line-158 safe-read identity applies to POST. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:POST:/api/shares; persistence=writes, destructive=soft, environment=staged-only, owner=lp-reporting, and classification=classified remain source-consistent."
       ]
     },
     "api:POST:/api/timeline/:fundId/snapshot": {
       "row_id": "api:POST:/api/timeline/:fundId/snapshot",
-      "contract_fingerprint": "4159a0f03a08d8d0c3849b29e6709ccb34cf9ca053b1b03f918e11fd71f75a85",
+      "contract_fingerprint": "95eb32857930a0ca4d941162d3100224e51798bbca07e91bfdd8202a0b41a558",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -14810,7 +14994,9 @@
         "personas": [
           "admin",
           "analyst",
-          "gp"
+          "gp",
+          "lp",
+          "service"
         ],
         "persistence": "reads-only",
         "destructive": "none",
@@ -14822,17 +15008,18 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "4159a0f03a08d8d0c3849b29e6709ccb34cf9ca053b1b03f918e11fd71f75a85"
+          "contract_fingerprint": "95eb32857930a0ca4d941162d3100224e51798bbca07e91bfdd8202a0b41a558"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "4159a0f03a08d8d0c3849b29e6709ccb34cf9ca053b1b03f918e11fd71f75a85"
+          "contract_fingerprint": "95eb32857930a0ca4d941162d3100224e51798bbca07e91bfdd8202a0b41a558"
         }
       },
       "evidence": [
         "server/routes/timeline.ts:198-250: after a fund-existence db read, the handler returns 503 QUEUE_UNAVAILABLE when NODE_ENV is staging/production (lines 225-233) and otherwise returns a mock response with executed:false (lines 243-248) — no snapshot is created and no state is written on any path",
-        "No route-level role guard (lines 198-204), so team roles admin/analyst/gp behind the global boundary and fund-scope check (line 211)",
-        "Current-source revalidation: all source dependencies for api:POST:/api/timeline/:fundId/snapshot match the fresh 187b102d792e275cf06de92345f3e98692c38dd5 candidate fingerprint set; reviewed semantic fields retained after source inspection."
+        "Current-source revalidation: all source dependencies for api:POST:/api/timeline/:fundId/snapshot match the fresh 89c1fae46c53115aa6e12e73722164df3a5db24d candidate fingerprint set; reviewed semantic fields retained after source inspection.",
+        "Fresh exact-source auth review at 89c1fae46c53115aa6e12e73722164df3a5db24d: server/lib/auth/fund-scope.ts:15-21 admits admin/service for any fund and user principals whose fundIds contains the requested fund. Current evidence yields roles admin, analyst, lp, operator, partner, service, viewer and personas admin, analyst, gp, lp, service.",
+        "Field-by-field review against 19c00ef07d7723445cc3bd31806eec973d20486b found no non-auth semantic or exposure delta for api:POST:/api/timeline/:fundId/snapshot; persistence=reads-only, destructive=none, environment=prod-safe, owner=gp-team, and classification=classified remain source-consistent."
       ]
     },
     "api:POST:/api/v1/reserves/calculate": {
@@ -18342,5 +18529,5 @@
     }
   },
   "approver_id": "nikhillinit",
-  "evidence_ref": "https://github.com/nikhillinit/Updog_restore/pull/1385#issuecomment-5359387046"
+  "evidence_ref": "https://github.com/nikhillinit/Updog_restore/pull/1410#issuecomment-5368476566"
 }

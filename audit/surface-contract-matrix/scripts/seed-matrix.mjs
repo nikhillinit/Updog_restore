@@ -30,6 +30,7 @@ import {
   extractProductRoutes,
   ListenerDispositionSchema,
   listenerDispositionFingerprint,
+  matchingDelimiter,
   mergeDormantCandidates,
   orphanResolutionFingerprint,
   resolveListenerModuleGraph,
@@ -382,11 +383,43 @@ const governanceByPath = new Map(ROUTE_GOVERNANCE_REGISTRY.map((entry) => [entry
 
 const authRoleInventory = discoverAuthRoleEvidence({ rootDir: repoRoot });
 assertAuthRoleMappingExhaustive(authRoleInventory.roles);
-const TEAM_FUND_FALLBACK_ROLES = Object.freeze([...TEAM_WRITE_ROLES]);
+// Both scope helpers admit the canonical user roles plus LP identities. The shares
+// helper's matching-fund branch is role-independent, so scoped service tokens count too.
+const FUND_SCOPE_FALLBACK_ROLES = Object.freeze([
+  ...TEAM_WRITE_ROLES,
+  'service',
+  'lp',
+  'operator',
+  'viewer',
+].sort());
+const TEAM_FUND_FALLBACK_ROLES = FUND_SCOPE_FALLBACK_ROLES;
+const TEAM_SAFE_READ_ROLES = Object.freeze([
+  ...TEAM_WRITE_ROLES,
+  'operator',
+  'viewer',
+].sort());
+const CAN_MANAGE_FUND_LINES = (() => {
+  const source = fs.readFileSync(path.join(repoRoot, 'server/routes/shares.ts'), 'utf8');
+  const lines = source.split('\n');
+  const lineFor = (pattern, fallback) => {
+    const index = lines.findIndex((line) => pattern.test(line));
+    return index === -1 ? fallback : index + 1;
+  };
+  return Object.freeze({
+    teamRead: lineFor(/isSafeReadMethod\(req\.method\).*isTeamMemberUser/, 158),
+    admin: lineFor(/req\.context\?\.role === 'admin'.*req\.user\?\.isAdmin/, 159),
+    scoped: lineFor(/fundIds\?\.includes\(numericFundId\)/, 163),
+  });
+})();
 const IS_TEAM_ROLE_LINE = (() => {
   const source = fs.readFileSync(path.join(repoRoot, 'shared/auth/effective-roles.ts'), 'utf8');
   const match = source.split('\n').findIndex((l) => /^export function isTeamRole\b/.test(l));
   return match === -1 ? 58 : match + 1;
+})();
+const RESOLVE_FUND_SCOPE_LINE = (() => {
+  const source = fs.readFileSync(path.join(repoRoot, 'server/lib/auth/fund-scope.ts'), 'utf8');
+  const match = source.split('\n').findIndex((l) => /^export function resolveFundScope\b/.test(l));
+  return match === -1 ? 15 : match + 1;
 })();
 
 const definitionFile = (site) => String(site ?? '').replace(/:\d+$/, '');
@@ -465,8 +498,43 @@ const localRoleAliasEvidenceForDefinitions = (definitions, source, filePath) => 
   return evidence;
 };
 
-const teamFundScopeEvidenceForDefinitions = (definitions, source, filePath) => {
+const routerFundParamScopeEvidenceForDefinitions = (definitions, source, filePath) => {
+  const routeUsesFundId = definitions.some((definition) =>
+    /(?:^|\/):fundId(?:\/|$)/.test(String(definition?.path ?? ''))
+  );
+  if (!routeUsesFundId) return [];
+
   const evidence = [];
+  const pattern = /\.\s*param\s*\(\s*(['"])fundId\1/g;
+  for (const match of source.matchAll(pattern)) {
+    const matchIndex = match.index ?? 0;
+    const openIndex = matchIndex + match[0].lastIndexOf('(');
+    const endIndex = matchingDelimiter(source, openIndex) + 1;
+    const registrationText = source.slice(matchIndex, endIndex);
+    const addScopeEvidence = (scopePattern, boundary, description) => {
+      const scopeMatch = scopePattern.exec(registrationText);
+      if (!scopeMatch) return;
+      const line = source.slice(0, matchIndex + (scopeMatch.index ?? 0)).split('\n').length;
+      evidence.push({
+        kind: 'policy-boundary',
+        boundary,
+        file: filePath,
+        line,
+        evidence: `${filePath}:${line} ${description} in router.param('fundId')`,
+      });
+    };
+    addScopeEvidence(
+      /\benforceProvidedFundScope\s*\(/,
+      'fund_scope',
+      'enforces provided fund scope'
+    );
+    addScopeEvidence(/\bcanManageFund\s*\(/, 'team_fund_scope', 'checks team/fund management scope');
+  }
+  return evidence;
+};
+
+const teamFundScopeEvidenceForDefinitions = (definitions, source, filePath) => {
+  const evidence = routerFundParamScopeEvidenceForDefinitions(definitions, source, filePath);
   const registrationLines = definitions.map(definitionLine).filter(Boolean);
   const ranges = routeRegistrationRanges(source, { registrationLines });
   for (const [charStart, charEnd] of ranges) {
@@ -699,18 +767,49 @@ const authSuggestionFor = ({
   const isPublic = roles.includes('public') || evidence.some((entry) => entry.boundary === 'public');
   if (hasGlobalAuthentication && scopeEvidence.length > 0 && !hasExplicitOrUnresolvedRoleGuard && !isPublic) {
     const scopeCitations = scopeEvidence.map((s) => `${s.file}:${s.line}`).join(', ');
-    roles = sortedUnique([...roles, ...TEAM_FUND_FALLBACK_ROLES]);
     const derivedBoundary = scopeEvidence[0].boundary;
-    evidence.push(
-      ...TEAM_FUND_FALLBACK_ROLES.map((role) => ({
+    // Both helpers admit the same known identities. Evidence remains helper-specific:
+    // resolveFundScope owns fund_scope; canManageFund owns team_fund_scope.
+    const hasFundScope = scopeEvidence.some((s) => s.boundary === 'fund_scope');
+    const fallbackRoles = hasFundScope ? FUND_SCOPE_FALLBACK_ROLES : TEAM_FUND_FALLBACK_ROLES;
+    roles = sortedUnique([...roles, ...fallbackRoles]);
+    if (hasFundScope) {
+      evidence.push(...fallbackRoles.map((role) => ({
         kind: 'identity',
         role,
         boundary: derivedBoundary,
-        file: 'shared/auth/effective-roles.ts',
-        line: IS_TEAM_ROLE_LINE,
-        evidence: `shared/auth/effective-roles.ts:${IS_TEAM_ROLE_LINE} isTeamRole includes ${role}; ${scopeCitations} proves route ${derivedBoundary} scope`,
-      }))
-    );
+        file: 'server/lib/auth/fund-scope.ts',
+        line: RESOLVE_FUND_SCOPE_LINE,
+        evidence: `server/lib/auth/fund-scope.ts:${RESOLVE_FUND_SCOPE_LINE} resolveFundScope admits ${role} through its principal/fundIds branches; ${scopeCitations} proves route fund_scope`,
+      })));
+    } else {
+      evidence.push({
+        kind: 'identity',
+        role: 'admin',
+        boundary: derivedBoundary,
+        file: 'server/routes/shares.ts',
+        line: CAN_MANAGE_FUND_LINES.admin,
+        evidence: `server/routes/shares.ts:${CAN_MANAGE_FUND_LINES.admin} canManageFund admits admin globally; ${scopeCitations} proves route team_fund_scope`,
+      });
+      evidence.push(...fallbackRoles.filter((role) => role !== 'admin').map((role) => ({
+        kind: 'identity',
+        role,
+        boundary: derivedBoundary,
+        file: 'server/routes/shares.ts',
+        line: CAN_MANAGE_FUND_LINES.scoped,
+        evidence: `server/routes/shares.ts:${CAN_MANAGE_FUND_LINES.scoped} canManageFund admits scoped ${role} when fundIds includes the requested fund; ${scopeCitations} proves route team_fund_scope`,
+      })));
+      if (['GET', 'HEAD'].includes(String(method).toUpperCase())) {
+        evidence.push(...TEAM_SAFE_READ_ROLES.map((role) => ({
+          kind: 'identity',
+          role,
+          boundary: derivedBoundary,
+          file: 'server/routes/shares.ts',
+          line: CAN_MANAGE_FUND_LINES.teamRead,
+          evidence: `server/routes/shares.ts:${CAN_MANAGE_FUND_LINES.teamRead} canManageFund grants safe-read access to team role ${role} via isTeamMemberUser (shared/auth/effective-roles.ts:${IS_TEAM_ROLE_LINE}); ${scopeCitations} proves route team_fund_scope`,
+        })));
+      }
+    }
   }
   const mappedRoles = roles.filter((role) => role !== AUTH_UNRESOLVED_ROLE);
   const personas = suggestedPersonasForAuthRoles(mappedRoles);
