@@ -204,6 +204,8 @@ describe('Financial calculation change classification', () => {
     'shared/contracts/kpi/kpi-observation-v1.contract.ts',
     'shared/utils/scenario-math.ts',
     'scripts/golden/phoenix-truth.mjs',
+    'server/lib/moic-mapper.ts',
+    'client/src/adapters/reserves-adapter.ts',
   ])('flags %s as financial-calculation relevant', (changedPath) => {
     const classified = classifyRawDiff(rawChange('M', [changedPath]));
     expect(classified.status, classified.stderr).toBe(0);
@@ -217,6 +219,7 @@ describe('Financial calculation change classification', () => {
     'server/routes.ts',
     'shared/contracts/portfolio-meta.contract.ts',
     'shared/lib/canonical-hash.ts',
+    'client/src/components/CapitalFirstCalculator.tsx',
   ])('does not flag %s as financial-calculation relevant', (changedPath) => {
     const classified = classifyRawDiff(rawChange('M', [changedPath]));
     expect(classified.status, classified.stderr).toBe(0);

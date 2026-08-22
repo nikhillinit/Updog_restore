@@ -70,11 +70,13 @@ describe('production governance documentation routing', () => {
     const canonicalGuide = await readRepositoryFile(canonicalGuidePath);
     const decisions = await readRepositoryFile('DECISIONS.md');
 
-    expect(policy).toMatch(/conditional and non-cumulative/i);
+    expect(policy).toMatch(/conditional and independently applicable/i);
     expect(policy).toMatch(/immutable evidence.*historically valid/i);
     expect(policy).toMatch(/current-action eligibility/i);
     expect(policy).toMatch(/production-coupled merge/i);
-    expect(canonicalGuide).toMatch(/one final.*currentness.*immediately before.*first production mutation/i);
+    expect(canonicalGuide).toMatch(
+      /one final.*currentness.*immediately before.*first production mutation/i
+    );
     expect(canonicalGuide).toMatch(/retry once.*BLOCKED/i);
     expect(canonicalGuide).toMatch(/historical receipts/i);
     expect(decisions).toContain('## ADR-083: Proportional Release Governance');

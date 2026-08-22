@@ -73,9 +73,19 @@ rollback evidence.
 
 ## Proportional release-governance applicability
 
-Release governance separates source admission, immutable candidate certification, and production action. `CI Gate Status` remains the sole aggregate merge gate; Release Proof is never generic merge authority. Controls are conditional and non-cumulative: provider, schema, recovery, canary, and residue controls apply only when an action enters their material-risk domain.
+Release governance separates source admission, immutable candidate
+certification, and production action. `CI Gate Status` remains the sole
+aggregate merge gate; Release Proof is never generic merge authority. Controls
+are conditional and independently applicable; every entered risk domain applies:
+provider, schema, recovery, canary, and residue controls activate when an action
+enters their material-risk domain.
 
-Immutable evidence remains historically valid for its exact SHA. A later `main` advance expires current-action eligibility only; it does not invalidate a prior receipt or certification. A production-coupled merge must take the canonical production-action route before the coupled action, even when the merge itself has completed source admission.
+Immutable evidence remains historically valid for its exact SHA. A later `main`
+advance expires current-action eligibility only; it does not invalidate a prior
+receipt or certification. A production-coupled merge must take the canonical
+production-action route before the coupled action, even when the merge itself
+has completed source admission.
+
 ## Production-action rule
 
 The canonical operator route is

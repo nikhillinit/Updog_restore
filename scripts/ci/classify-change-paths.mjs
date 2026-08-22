@@ -55,6 +55,8 @@ const FINANCIAL_PATHS = {
     'shared/contracts/sensitivity-variables-v1.ts',
     'shared/utils/scenario-math.ts',
     'scripts/golden/',
+    'server/lib/moic-mapper.ts',
+    'client/src/adapters/reserves-adapter.ts',
   ],
 };
 
