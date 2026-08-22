@@ -65,6 +65,24 @@ async function repositoryFileExists(relativePath: string): Promise<boolean> {
 }
 
 describe('production governance documentation routing', () => {
+  it('separates source admission, immutable certification, and production authority', async () => {
+    const policy = await readRepositoryFile(policyPath);
+    const canonicalGuide = await readRepositoryFile(canonicalGuidePath);
+    const decisions = await readRepositoryFile('DECISIONS.md');
+
+    expect(policy).toMatch(/conditional and independently applicable/i);
+    expect(policy).toMatch(/immutable evidence.*historically valid/i);
+    expect(policy).toMatch(/current-action eligibility/i);
+    expect(policy).toMatch(/production-coupled merge/i);
+    expect(canonicalGuide).toMatch(
+      /one final.*currentness.*immediately before.*first production mutation/i
+    );
+    expect(canonicalGuide).toMatch(/retry once.*BLOCKED/i);
+    expect(canonicalGuide).toMatch(/historical receipts/i);
+    expect(decisions).toContain('## ADR-083: Proportional Release Governance');
+    expect(decisions).toMatch(/no authority/i);
+  });
+
   it('ratifies policy and ADR for repository governance without production authority', async () => {
     const policy = await readRepositoryFile(policyPath);
     const decisions = await readRepositoryFile('DECISIONS.md');
@@ -92,6 +110,10 @@ describe('production governance documentation routing', () => {
     );
     expect(policy).not.toContain('## Observed provider facts and limits');
     expect(policy).toContain('## Consequence-specific proof');
+    expect(policy).toContain('scripts/ci/classify-change-paths.mjs');
+    expect(policy).toContain('financial-truth');
+    expect(policy).toContain('npm run phoenix:truth');
+    expect(policy).toMatch(/missing or malformed\s+classification\s+fails the aggregate/i);
     expect(policy).toContain('named expected-output/truth assertion');
     expect(policy).toContain('Denial test plus zero mutation/zero leak assertion');
     expect(policy).toContain('Retry/duplicate-harm control, concurrency control');

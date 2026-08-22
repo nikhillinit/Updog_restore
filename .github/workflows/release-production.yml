@@ -320,14 +320,13 @@ jobs:
   release-proof:
     name: Full Release Proof
     needs: validate-target
-    # Exactly these four read permissions so the reusable proof cannot be
+    # Exactly these three read permissions so the reusable proof cannot be
     # permission-downgraded below its exact-SHA checks; no write or global
     # permission broadening is allowed.
     permissions:
       actions: read
       checks: read
       contents: read
-      statuses: read
     uses: ./.github/workflows/release-proof.yml
     with:
       expected_sha: ${{ inputs.expected_sha }}
@@ -335,7 +334,7 @@ jobs:
       # its exact unaliased production-target deployment. This first gate proves
       # source/local evidence; staged-provider-identity owns provider proof.
       require_provider_identity: false
-    secrets: inherit
+      proof_mode: certifying
 
   schema-audit:
     name: Clean Production Schema Audit

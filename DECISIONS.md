@@ -10777,20 +10777,21 @@ schema, data, deployment, or production action.
 **Date:** 2026-08-10 **Status:** Accepted **Tags:** #release #operator-evidence
 #railway #vercel #g4
 
-**Related:** ADR-075 (provider topology and G4 hard-stop consequence),
-F_1.2.0 WS6 (Child F definition,
+**Related:** ADR-075 (provider topology and G4 hard-stop consequence), F_1.2.0
+WS6 (Child F definition,
 `docs/1-plans/F_1.2.0_v1.4-release-proof-activation.plan.md`), F_1.2.6 Step 6
 (successor contract)
 
 ### Context
 
-ADR-075 made promotion stop at G4 until trusted attested operator `/health`
-and `/ready` evidence could be ingested and verified. The hard-stop job proved
-only that this evidence had not yet been integrated; it could never authorize a
+ADR-075 made promotion stop at G4 until trusted attested operator `/health` and
+`/ready` evidence could be ingested and verified. The hard-stop job proved only
+that this evidence had not yet been integrated; it could never authorize a
 promotion. This ADR supersedes that hard-stop consequence while preserving the
-fail-closed G4 gate. Railway worker probes are available through the operator's local
-`railway ssh` data-plane session, while the release workflow can independently
-retrieve staged Vercel evidence and live Railway control-plane topology.
+fail-closed G4 gate. Railway worker probes are available through the operator's
+local `railway ssh` data-plane session, while the release workflow can
+independently retrieve staged Vercel evidence and live Railway control-plane
+topology.
 
 ### Decision
 
@@ -10816,9 +10817,64 @@ retrieve staged Vercel evidence and live Railway control-plane topology.
 
 ### Consequences
 
-G4 can complete when an operator supplies attested, redacted worker evidence
-for the exact release SHA and the independent provider checks pass. Invalid,
-missing, stale, or mismatched evidence still blocks promotion. The operator
-must retain custody of the local Railway SSH session and provide the resulting
-bundle at dispatch time; the workflow retains only temporary files and the
-sanitized verification result for the job run.
+G4 can complete when an operator supplies attested, redacted worker evidence for
+the exact release SHA and the independent provider checks pass. Invalid,
+missing, stale, or mismatched evidence still blocks promotion. The operator must
+retain custody of the local Railway SSH session and provide the resulting bundle
+at dispatch time; the workflow retains only temporary files and the sanitized
+verification result for the job run.
+
+## ADR-083: Proportional Release Governance
+
+**Date:** 2026-08-21 **Status:** Accepted **Tags:** #release #governance
+
+### Decision
+
+Release Proof has two explicit modes. `diagnostic` produces local, SHA-bound
+candidate evidence without production secrets, environments, provider access, or
+a certification claim. `certifying` is the only mode permitted to run the
+protected boot, provider-identity, and G3 exact-SHA steps; those jobs execute in
+the `Production` environment and require their production-scoped inputs.
+
+Certification is immutable evidence for its exact candidate SHA. It is not
+production-dispatch authority. Before a production action, the canonical
+production procedure must refresh the source identity and validate every
+applicable action-time prerequisite. A changed current head therefore blocks
+that action until refreshed; it does not revoke historical certification.
+
+One bounded retry may refresh a transient prerequisite. A second failure, any
+mismatch, or an unknown prerequisite is `BLOCKED`; no fallback token, inferred
+authority, or diagnostic artifact can bypass it.
+
+CI separately classifies financial-calculation paths through
+`scripts/ci/classify-change-paths.mjs`. Relevant changes require the
+`financial-truth` job (`npm run phoenix:truth`) as an input to `CI Gate Status`;
+missing or malformed classification fails the aggregate instead of skipping
+truth validation.
+
+### Alternatives
+
+- Keep all Release Proof runs production-scoped: rejected because routine
+  diagnostics would unnecessarily access production authority surfaces.
+- Treat certification as dispatch approval: rejected because certification
+  cannot establish target scope or current action-time conditions.
+
+### Consequences
+
+Routine merge and scheduled diagnostics remain evidence-only. Production-bound
+certification is narrower and auditable, while production dispatch remains a
+separate, owner-issued, action-scoped decision.
+
+Shared financial library and contract roots are classified wholesale. This
+accepts extra truth-case runs to avoid path-list false negatives.
+
+### Rollback
+
+Revert this change only through current-head CI. Never use a workflow retry,
+artifact reuse, token fallback, or provider mutation to bypass the current
+production procedure.
+
+### No authority boundary
+
+This ADR authorizes no merge, deployment, provider action, environment access,
+schema change, data mutation, or production dispatch.

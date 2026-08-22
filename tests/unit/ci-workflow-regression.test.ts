@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import fs from 'fs/promises';
 import path from 'path';
 import YAML from 'yaml';
@@ -9,6 +9,7 @@ const CHANGE_CLASSIFIER = path.join(process.cwd(), 'scripts', 'ci', 'classify-ch
 type ChangeClassification = {
   autoDocsOnly: boolean;
   changeCount: number;
+  financialCalcRelevant: boolean;
   heavyCiRelevant: boolean;
   valid: boolean;
 };
@@ -16,6 +17,15 @@ type ChangeClassification = {
 const OLD_OBJECT = '1'.repeat(40);
 const NEW_OBJECT = '2'.repeat(40);
 const ZERO_OBJECT = '0'.repeat(40);
+const MIXED_FINANCIAL_ROOTS = [
+  'server/services',
+  'shared/lib',
+  'client/src/lib',
+  'shared/schemas',
+  'shared/contracts',
+] as const;
+const FINANCIAL_KEYWORDS =
+  /(calc|fee|nav|xirr|moic|irr|waterfall|reserve|forecast|economic|payout|distribution|carry|scenario|sensitivity|metrics-engine)/i;
 
 function rawChange(
   status: string,
@@ -26,6 +36,14 @@ function rawChange(
   const oldObject = oldMode === '000000' ? ZERO_OBJECT : OLD_OBJECT;
   const newObject = newMode === '000000' ? ZERO_OBJECT : NEW_OBJECT;
   return [`:${oldMode} ${newMode} ${oldObject} ${newObject} ${status}`, ...paths];
+}
+
+function sourceFilesUnder(root: string, actualFs: typeof import('node:fs')): string[] {
+  return actualFs.readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = path.join(root, entry.name);
+    if (entry.isDirectory()) return sourceFilesUnder(entryPath, actualFs);
+    return /\.(?:js|mjs|cjs|ts|tsx)$/.test(entry.name) ? [entryPath] : [];
+  });
 }
 
 function classifyRawDiff(tokens: readonly string[]): {
@@ -72,6 +90,7 @@ describe('CI fail-closed change classification', () => {
       expect(classified.result).toEqual({
         autoDocsOnly: true,
         changeCount: 1,
+        financialCalcRelevant: false,
         heavyCiRelevant: false,
         valid: true,
       });
@@ -84,6 +103,7 @@ describe('CI fail-closed change classification', () => {
     expect(classified.result).toEqual({
       autoDocsOnly: true,
       changeCount: 5,
+      financialCalcRelevant: false,
       heavyCiRelevant: false,
       valid: true,
     });
@@ -154,6 +174,75 @@ describe('CI fail-closed change classification', () => {
     expect(classified.status).not.toBe(0);
     expect(classified.result).toBeNull();
     expect(classified.stderr).toMatch(/change classification failed/i);
+  });
+});
+
+describe('Financial calculation change classification', () => {
+  it.each([
+    'server/engine/fee-calculator.ts',
+    'server/core/nav.ts',
+    'shared/core/fund-math.ts',
+    'client/src/engines/pacing.ts',
+    'client/src/core/reserves.ts',
+    'server/services/new-calculator.ts',
+    'client/src/lib/new-finance.ts',
+    'shared/schemas/new-financial-contract.ts',
+    'shared/lib/finance/xirr.ts',
+    'shared/lib/economics/fee-drag.ts',
+    'shared/lib/internal-economics/carry.ts',
+    'shared/lib/waterfall/american-ledger.ts',
+    'shared/lib/fund-math.ts',
+    'shared/lib/decimal-config.ts',
+    'shared/lib/excelRound.ts',
+    'shared/lib/fund-calc.ts',
+    'shared/lib/decimal-utils.ts',
+    'shared/lib/canonical-hash.ts',
+    'shared/lib/reserves-v11.ts',
+    'shared/contracts/current-forecast-v2.contract.ts',
+    'shared/contracts/portfolio-meta.contract.ts',
+    'shared/contracts/fund-actuals/fund-company-actuals-fact.contract.ts',
+    'shared/contracts/dual-forecast/dual-forecast-response.contract.ts',
+    'shared/contracts/allocations/allocation-actuals-drift-v1.contract.ts',
+    'shared/contracts/scenarios/scenario-case-seed-v1.contract.ts',
+    'shared/contracts/kpi/kpi-observation-v1.contract.ts',
+    'shared/utils/scenario-math.ts',
+    'scripts/golden/phoenix-truth.mjs',
+    'server/lib/moic-mapper.ts',
+    'client/src/adapters/reserves-adapter.ts',
+  ])('flags %s as financial-calculation relevant', (changedPath) => {
+    const classified = classifyRawDiff(rawChange('M', [changedPath]));
+    expect(classified.status, classified.stderr).toBe(0);
+    expect(classified.result).toMatchObject({ financialCalcRelevant: true });
+  });
+
+  it.each([
+    'docs/governance/policy.md',
+    'client/src/pages/dashboard.tsx',
+    'client/src/components/chart.tsx',
+    'server/routes.ts',
+    'client/src/components/CapitalFirstCalculator.tsx',
+  ])('does not flag %s as financial-calculation relevant', (changedPath) => {
+    const classified = classifyRawDiff(rawChange('M', [changedPath]));
+    expect(classified.status, classified.stderr).toBe(0);
+    expect(classified.result).toMatchObject({ financialCalcRelevant: false });
+  });
+
+  it('keeps keyword-bearing mixed-root source files covered by the financial predicate', async () => {
+    const actualFs = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const unflagged: string[] = [];
+    const keywordFiles = MIXED_FINANCIAL_ROOTS.flatMap((root) =>
+      sourceFilesUnder(root, actualFs)
+    ).filter((file) => FINANCIAL_KEYWORDS.test(actualFs.readFileSync(file, 'utf8')));
+
+    expect(keywordFiles.length).toBeGreaterThan(0);
+
+    for (const file of keywordFiles) {
+      const classified = classifyRawDiff(rawChange('M', [file]));
+      expect(classified.status, classified.stderr).toBe(0);
+      if (!classified.result?.financialCalcRelevant) unflagged.push(file);
+    }
+
+    expect(unflagged).toEqual([]);
   });
 });
 

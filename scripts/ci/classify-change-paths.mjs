@@ -11,6 +11,51 @@ const EXACT_LIGHT_ALLOWLIST = [
   'docs/skills/WIZARD_INDEX.md',
 ];
 
+const FINANCIAL_PATHS = {
+  inclusionRoots: [
+    'server/engine/',
+    'server/core/',
+    'shared/core/',
+    'client/src/engines/',
+    'client/src/core/',
+  ],
+  exclusionBasedRoots: [
+    { root: 'server/services/', exclusions: [] },
+    { root: 'client/src/lib/', exclusions: [] },
+    { root: 'shared/schemas/', exclusions: [] },
+    { root: 'shared/lib/', exclusions: [] },
+    { root: 'shared/contracts/', exclusions: [] },
+  ],
+  namedPaths: [
+    'shared/utils/scenario-math.ts',
+    'scripts/golden/',
+    'server/lib/moic-mapper.ts',
+    'client/src/adapters/reserves-adapter.ts',
+  ],
+};
+
+function matchesPath(changedPath, candidate) {
+  return changedPath === candidate ||
+    changedPath.startsWith(candidate.endsWith('/') ? candidate : `${candidate}/`);
+}
+
+function isFinancialPath(changedPath) {
+  if (FINANCIAL_PATHS.inclusionRoots.some((root) => matchesPath(changedPath, root))) {
+    return true;
+  }
+
+  if (
+    FINANCIAL_PATHS.exclusionBasedRoots.some(({ root, exclusions }) =>
+      matchesPath(changedPath, root) &&
+      !exclusions.some((exclusion) => matchesPath(changedPath, exclusion))
+    )
+  ) {
+    return true;
+  }
+
+  return FINANCIAL_PATHS.namedPaths.some((candidate) => matchesPath(changedPath, candidate));
+}
+
 function parseAutoDocsFromYaml(content) {
   const sectionMatch = content.match(/^auto_docs:\s*\n((?:[ \t]+-[ \t]+[^\n]*\n?)*)/m);
   if (!sectionMatch) return null;
@@ -107,10 +152,14 @@ function classify(raw, lightAllowlist) {
       change.paths.every((changedPath) => lightAllowlist.has(changedPath))
     );
   });
+  const financialCalcRelevant = changes.some((change) =>
+    change.paths.some((changedPath) => isFinancialPath(changedPath))
+  );
 
   return {
     autoDocsOnly,
     changeCount: changes.length,
+    financialCalcRelevant,
     heavyCiRelevant: !autoDocsOnly,
     valid: true,
   };
@@ -180,6 +229,7 @@ function writeGitHubOutputs(outputPath, classification) {
     [
       `valid=${String(classification.valid)}`,
       `auto_docs_only=${String(classification.autoDocsOnly)}`,
+      `financial_calc_relevant=${String(classification.financialCalcRelevant)}`,
       `heavy_ci_relevant=${String(classification.heavyCiRelevant)}`,
       `change_count=${String(classification.changeCount)}`,
       '',
