@@ -271,80 +271,6 @@ function decodeBaselineBinding(b64: unknown, releaseMode: 'primary' | 'rollback'
   };
 }
 
-// Mapping from verify-plan-approval.mjs result JSON (the SOLE approval source)
-// to the manifest approval block:
-//   repository            <- `${result.repository.owner}/${result.repository.name}`
-//   pullRequest           <- result.pullRequestNumber
-//   verifiedPrHeadSha     <- result.liveHeadSha
-//   commentId/commentUrl/authorLogin/createdAt/bodySha256
-//                         <- result.approval.{commentId,url,author,createdAt,bodySha256}
-//   authorPermission      <- result.permission
-//   planPath/planSha256   <- result.plan.{path,sha256}
-//   approvedBaseHeadSha   <- result.approvedBaseHeadSha
-//   reviewCommentId/reviewCommentUrl/reviewAuthorLogin/reviewCreatedAt/reviewBodySha256
-//                         <- result.review.{commentId,url,author,createdAt,bodySha256}
-//   ciGateCheckRunId      <- result.checkRun.id
-//   ciGateWorkflowRunId   <- result.checkRun.workflowRunId
-//   ciGateRunAttempt      <- result.checkRun.runAttempt
-//   finalHeadCiGate       <- result.finalHeadCiGate (4-field pass-through)
-//   separationModel       <- result.separationModel
-function mapApproval(value: unknown): {
-  approval: Record<string, unknown>;
-  planSha256: string;
-  liveHeadSha: string;
-} {
-  const verifier = asRecord(value, 'plan approval verifier output');
-  if (verifier['decision'] !== 'approved') {
-    fail('plan approval verifier output does not record an approved decision');
-  }
-  const repositoryRecord = asRecord(verifier['repository'], 'verifier repository');
-  const plan = asRecord(verifier['plan'], 'verifier plan');
-  const approvalRecord = asRecord(verifier['approval'], 'verifier approval comment');
-  const reviewRecord = asRecord(verifier['review'], 'verifier review comment');
-  const checkRun = asRecord(verifier['checkRun'], 'verifier CI gate identity');
-  // Freshness: the final-head gate identity (run id/attempt) must be present.
-  const finalHeadCiGate = asRecord(verifier['finalHeadCiGate'], 'verifier final-head CI gate');
-  const planSha256 = asString(plan['sha256'], 'verifier plan SHA-256');
-  const liveHeadSha = asString(verifier['liveHeadSha'], 'verifier live PR head SHA');
-  const approval = {
-    schemaVersion: 'plan-approval-v2',
-    repository: `${asString(repositoryRecord['owner'], 'verifier repository owner')}/${asString(
-      repositoryRecord['name'],
-      'verifier repository name'
-    )}`,
-    pullRequest: asPositiveInteger(verifier['pullRequestNumber'], 'verifier pull request number'),
-    verifiedPrHeadSha: liveHeadSha,
-    commentId: asPositiveInteger(approvalRecord['commentId'], 'approval comment id'),
-    commentUrl: asString(approvalRecord['url'], 'approval comment URL'),
-    authorLogin: asString(approvalRecord['author'], 'approval author'),
-    authorPermission: asString(verifier['permission'], 'approver permission'),
-    createdAt: asString(approvalRecord['createdAt'], 'approval created at'),
-    bodySha256: asString(approvalRecord['bodySha256'], 'approval body SHA-256'),
-    planPath: asString(plan['path'], 'verifier plan path'),
-    planSha256,
-    approvedBaseHeadSha: asString(verifier['approvedBaseHeadSha'], 'approved base head SHA'),
-    reviewCommentId: asPositiveInteger(reviewRecord['commentId'], 'review comment id'),
-    reviewCommentUrl: asString(reviewRecord['url'], 'review comment URL'),
-    reviewAuthorLogin: asString(reviewRecord['author'], 'review author'),
-    reviewCreatedAt: asString(reviewRecord['createdAt'], 'review created at'),
-    reviewBodySha256: asString(reviewRecord['bodySha256'], 'review body SHA-256'),
-    ciGateCheckRunId: asPositiveInteger(checkRun['id'], 'CI gate check-run id'),
-    ciGateWorkflowRunId: asPositiveInteger(checkRun['workflowRunId'], 'CI gate workflow run id'),
-    ciGateRunAttempt: asPositiveInteger(checkRun['runAttempt'], 'CI gate run attempt'),
-    finalHeadCiGate: {
-      checkRunId: asPositiveInteger(finalHeadCiGate['checkRunId'], 'final-head check-run id'),
-      workflowRunId: asPositiveInteger(
-        finalHeadCiGate['workflowRunId'],
-        'final-head workflow run id'
-      ),
-      runAttempt: asPositiveInteger(finalHeadCiGate['runAttempt'], 'final-head run attempt'),
-      headSha: asString(finalHeadCiGate['headSha'], 'final-head head SHA'),
-    },
-    separationModel: asString(verifier['separationModel'], 'separation model'),
-  };
-  return { approval, planSha256, liveHeadSha };
-}
-
 async function readJsonFile(filePath: string, label: string): Promise<unknown> {
   let bytes: Buffer;
   try {
@@ -378,7 +304,10 @@ export async function main(
   const args = parseArgs(argv);
   const inputsPath = env['RELEASE_EVIDENCE_INPUTS_PATH'];
   if (!inputsPath) fail('RELEASE_EVIDENCE_INPUTS_PATH is required');
-  const inputs = asRecord(await readJsonFile(inputsPath, 'evidence inputs file'), 'evidence inputs');
+  const inputs = asRecord(
+    await readJsonFile(inputsPath, 'evidence inputs file'),
+    'evidence inputs'
+  );
 
   const sourceInput = asRecord(inputs['source'], 'inputs.source');
   const repository = asString(sourceInput['repository'], 'source.repository');
@@ -388,11 +317,11 @@ export async function main(
     fail('source.releaseMode must be primary or rollback');
   }
   const releaseMode: 'primary' | 'rollback' = releaseModeRaw;
-  const planApprovalPullRequest = asPositiveInteger(
-    sourceInput['planApprovalPullRequest'],
-    'source.planApprovalPullRequest'
+  const pullRequest = asPositiveInteger(sourceInput['pullRequest'], 'source.pullRequest');
+  const pullRequestHeadSha = asString(
+    sourceInput['pullRequestHeadSha'],
+    'source.pullRequestHeadSha'
   );
-  const planPath = asString(sourceInput['planPath'], 'source.planPath');
 
   const workflowInput = asRecord(inputs['workflow'], 'inputs.workflow');
   const runId = asString(workflowInput['runId'], 'workflow.runId');
@@ -601,23 +530,14 @@ export async function main(
     schemaSection = schemaPayload;
   }
 
-  // Approval block comes exclusively from the plan-approval verifier output.
-  const verifierOutputPath = asString(
-    inputs['planApprovalVerifierOutputPath'],
-    'planApprovalVerifierOutputPath'
-  );
-  const { approval, planSha256, liveHeadSha } = mapApproval(
-    await readJsonFile(verifierOutputPath, 'plan approval verifier output')
-  );
-
   const sourcePullRequest =
     releaseMode === 'rollback' && binding.rollbackPrNumber !== null
       ? binding.rollbackPrNumber
-      : planApprovalPullRequest;
+      : pullRequest;
   const sourcePullRequestHeadSha =
     releaseMode === 'rollback' && binding.rollbackPrHeadSha !== null
       ? binding.rollbackPrHeadSha
-      : liveHeadSha;
+      : pullRequestHeadSha;
 
   const policyMeasurement = verified.get('policyMeasurement') ?? null;
   const policyRatification = verified.get('policyRatification') ?? null;
@@ -666,11 +586,11 @@ export async function main(
       releaseMode,
       pullRequest: sourcePullRequest,
       pullRequestHeadSha: sourcePullRequestHeadSha,
-      planApprovalPullRequest,
-      planPath,
-      planSha256,
+      planApprovalPullRequest: null,
+      planPath: null,
+      planSha256: null,
     },
-    approval,
+    approval: null,
     certification: {
       schemaVersion: 'release-proof-lineage-v1',
       callerWorkflowRef,

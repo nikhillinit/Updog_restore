@@ -42,6 +42,10 @@ param(
     [string] $SchemaPrecursorSha,
 
     [Parameter(Mandatory = $true)]
+    [ValidatePattern('^[1-9][0-9]{0,8}$')]
+    [string] $PrNumber,
+
+    [Parameter(Mandatory = $true)]
     [ValidateSet('primary', 'rollback')]
     [string] $ReleaseMode,
 
@@ -137,7 +141,7 @@ if ([string]::IsNullOrWhiteSpace($operatorEvidenceB64) -or $operatorEvidenceB64.
     exit 1
 }
 
-# The workflow_dispatch surface allows at most ten inputs, so the exact
+# The workflow_dispatch UI shows at most ten inputs, so the exact
 # baseline identity travels as one compact base64 JSON input; the
 # baseline-policy-preflight job decodes and validates every field.
 $baselineBinding = [ordered]@{
@@ -167,6 +171,7 @@ $inputs = [ordered]@{
     schema_apply_artifact_digest = $SchemaApplyArtifactDigest
     schema_apply_receipt_file_sha256 = $SchemaApplyReceiptFileSha256
     schema_precursor_sha = $SchemaPrecursorSha
+    pr_number = $PrNumber
 }
 $inputsJson = $inputs | ConvertTo-Json -Compress
 if ($inputsJson.Length -gt 65535) {

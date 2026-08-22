@@ -362,15 +362,21 @@ describe('governance document hierarchy', () => {
     expect(workflow).toContain('one-time');
     expect(workflow).toContain('PR #1385');
     expect(workflow).toContain('Owner: repository owner');
-    expect(workflow).toContain('Terminal condition');
+    expect(workflow).toContain('TERMINAL');
     expect(workflow).toContain('confers no authorization');
   });
 
   it('requires new plan documents to route to the governing policy', async () => {
-    const actualFs = await vi.importActual<typeof import('node:fs')>('node:fs');
-    const planDir = join(repositoryRoot, 'docs/1-plans');
-    const planDocs = actualFs
-      .readdirSync(planDir)
+    const { execFileSync } =
+      await vi.importActual<typeof import('node:child_process')>('node:child_process');
+    const tracked = execFileSync('git', ['ls-files', 'docs/1-plans/'], {
+      cwd: repositoryRoot,
+      encoding: 'utf8',
+    });
+    const planDocs = tracked
+      .trim()
+      .split('\n')
+      .map((p) => p.replace('docs/1-plans/', ''))
       .filter((name) => name.endsWith('.plan.md'))
       .sort();
 
