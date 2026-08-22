@@ -24,6 +24,7 @@ export const RELEASE_EVIDENCE_FAILURE_STAGES = [
   'staged-smoke',
   'staged-provider-identity',
   'g4-operator-evidence',
+  'policy-ratification',
   'promote',
   'post-promotion-smoke',
 ] as const;
@@ -370,6 +371,15 @@ export const ReleaseEvidenceManifestV1Schema = z
       ctx.addIssue({ code: z.ZodIssueCode.custom, path, message });
     };
     const { source, approval, certification, workflow, policy } = manifest;
+    const sourcePlanFields = [source.planApprovalPullRequest, source.planPath, source.planSha256];
+    const hasAllSourcePlanFields = sourcePlanFields.every((value) => value !== null);
+    const hasNoSourcePlanFields = sourcePlanFields.every((value) => value === null);
+    if (!hasAllSourcePlanFields && !hasNoSourcePlanFields) {
+      issue(['source'], 'source plan provenance fields must be all-null or all-non-null');
+    }
+    if ((approval !== null) !== hasAllSourcePlanFields) {
+      issue(['approval'], 'approval must be non-null iff source plan provenance is complete');
+    }
 
     if (manifest.candidate !== (manifest.designation === 'activation_candidate')) {
       issue(['candidate'], 'candidate must be true iff designation is activation_candidate');

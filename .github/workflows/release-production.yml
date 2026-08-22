@@ -49,9 +49,9 @@ on:
         type: string
         required: true
       pr_number:
-        description: Pull request number whose merge produced expected_sha
+        description: Pull request number whose merge produced expected_sha (required for primary)
         type: string
-        required: true
+        required: false
 
 permissions:
   contents: read
@@ -81,6 +81,8 @@ jobs:
         id: target
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RELEASE_MODE: ${{ inputs.release_mode }}
+          PR_NUMBER: ${{ inputs.pr_number }}
         run: |
           # GitHub reruns are intentionally unsupported: failed-jobs reruns can
           # retain prior-attempt artifacts and all-jobs reruns share run-scoped
@@ -95,6 +97,10 @@ jobs:
           fi
           if [[ ! "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ || "$GITHUB_SHA" != "$EXPECTED_SHA" ]]; then
             echo "expected_sha must equal the exact current main SHA."
+            exit 1
+          fi
+          if [[ "$RELEASE_MODE" == "primary" && ! "$PR_NUMBER" =~ ^[1-9][0-9]{0,8}$ ]]; then
+            echo "pr_number is required and must be valid for primary release mode."
             exit 1
           fi
           echo "log_window_start=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
@@ -167,14 +173,19 @@ jobs:
         run: |
           set -euo pipefail
           : "${EXPECTED_SHA:?EXPECTED_SHA is required}"
-          : "${PR_NUMBER:?PR_NUMBER is required}"
+          args=(
+            --baseline-evidence-b64 "$BASELINE_EVIDENCE_B64"
+            --release-mode "$RELEASE_MODE"
+            --expected-sha "$EXPECTED_SHA"
+            --context-file "$RUNNER_TEMP/release-baseline/release-recovery-context-v1.json"
+            --emit-normalized "$RUNNER_TEMP/baseline-fragment-payload.json"
+          )
+          if [[ "$RELEASE_MODE" == "primary" ]]; then
+            : "${PR_NUMBER:?PR_NUMBER is required for primary mode}"
+            args+=(--pr-number "$PR_NUMBER")
+          fi
           node scripts/release/capture-release-recovery-context.mjs verify-baseline-consumption \
-            --baseline-evidence-b64 "$BASELINE_EVIDENCE_B64" \
-            --release-mode "$RELEASE_MODE" \
-            --expected-sha "$EXPECTED_SHA" \
-            --context-file "$RUNNER_TEMP/release-baseline/release-recovery-context-v1.json" \
-            --emit-normalized "$RUNNER_TEMP/baseline-fragment-payload.json" \
-            --pr-number "$PR_NUMBER"
+            "${args[@]}"
 
       - name: Name attempt-qualified preflight fragment artifacts
         id: fragment_meta
@@ -1911,15 +1922,24 @@ jobs:
           fetch_fragment operator-evidence "$G4_OPERATOR_EVIDENCE_RESULT" "$OPERATOR_EVIDENCE_ARTIFACT_ID" "$OPERATOR_EVIDENCE_ARTIFACT_NAME" "$OPERATOR_EVIDENCE_ARTIFACT_DIGEST" "$OPERATOR_EVIDENCE_FILE_SHA256"
           fetch_fragment release-provider "$PROMOTE_RESULT" "$RELEASE_PROVIDER_ARTIFACT_ID" "$RELEASE_PROVIDER_ARTIFACT_NAME" "$RELEASE_PROVIDER_ARTIFACT_DIGEST" "$RELEASE_PROVIDER_FILE_SHA256"
 
-      - name: Resolve PR head SHA
+      - name: Independently verify primary PR provenance
         id: resolve_pr_head
+        if: inputs.release_mode == 'primary'
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ inputs.pr_number }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
         run: |
           set -euo pipefail
-          PR_HEAD="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}" --jq '.head.sha')"
+          EXPECTED_SHA="${{ inputs.expected_sha }}"
+          : "${PR_NUMBER:?PR_NUMBER is required for primary mode}"
+          pr_json="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}")"
+          PR_JSON="$pr_json" EXPECTED_SHA="$EXPECTED_SHA" node -e '
+            const pr = JSON.parse(process.env.PR_JSON ?? "");
+            if (!/^[0-9a-f]{40}$/.test(String(pr?.head?.sha ?? "")) || pr?.merged !== true || pr?.base?.ref !== "main" || pr?.merge_commit_sha !== process.env.EXPECTED_SHA) process.exit(1);
+          '
+          PR_HEAD="$(PR_JSON="$pr_json" node -e 'process.stdout.write(String(JSON.parse(process.env.PR_JSON ?? "").head?.sha ?? ""))')"
           if [[ ! "$PR_HEAD" =~ ^[0-9a-f]{40}$ ]]; then
             echo "::error::PR head SHA is unresolvable for PR #${PR_NUMBER}."
             exit 1

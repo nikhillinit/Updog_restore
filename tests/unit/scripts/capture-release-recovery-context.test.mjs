@@ -19,6 +19,8 @@ import {
 
 const BASELINE_MAIN_SHA = 'a'.repeat(40);
 const PLANNED_PR_HEAD_SHA = 'b'.repeat(40);
+const PLANNED_PR_NUMBER = 1414;
+const PLAN_PATH = 'docs/1-plans/release-hardening.plan.md';
 const PLAN_SHA256 = 'c'.repeat(64);
 const VERCEL_SOURCE_SHA = 'd'.repeat(40);
 const RAILWAY_SOURCE_SHA = 'e'.repeat(40);
@@ -27,6 +29,8 @@ function captureInput(overrides = {}) {
   return {
     baselineMainSha: BASELINE_MAIN_SHA,
     plannedPrHeadSha: PLANNED_PR_HEAD_SHA,
+    plannedPrNumber: PLANNED_PR_NUMBER,
+    planPath: PLAN_PATH,
     planSha256: PLAN_SHA256,
     githubRunId: '123456789',
     githubRunAttempt: 2,
@@ -160,6 +164,8 @@ describe('capture-release-recovery-context', () => {
       schemaVersion: 'release-recovery-context-v1',
       baselineMainSha: BASELINE_MAIN_SHA,
       plannedPrHeadSha: PLANNED_PR_HEAD_SHA,
+      plannedPrNumber: PLANNED_PR_NUMBER,
+      planPath: PLAN_PATH,
       planSha256: PLAN_SHA256,
       githubRunId: '123456789',
       githubRunAttempt: 2,
@@ -196,9 +202,11 @@ describe('capture-release-recovery-context', () => {
     { retry: 0 },
     async () => {
       const context = await captureProviderBaseline({
-        baselineMainSha: BASELINE_MAIN_SHA,
-        plannedPrHeadSha: PLANNED_PR_HEAD_SHA,
-        planSha256: PLAN_SHA256,
+      baselineMainSha: BASELINE_MAIN_SHA,
+      plannedPrHeadSha: PLANNED_PR_HEAD_SHA,
+      plannedPrNumber: PLANNED_PR_NUMBER,
+      planPath: PLAN_PATH,
+      planSha256: PLAN_SHA256,
         environment: providerEnvironment(),
         fetchImpl: providerFetch(),
         now: () => '2026-08-14T00:00:00.000Z',
@@ -256,16 +264,16 @@ describe('capture-release-recovery-context', () => {
       const fetchImpl = async (url) => {
         if (url.endsWith('/commits/main'))
           return { ok: true, json: async () => ({ sha: BASELINE_MAIN_SHA }) };
-        if (url.endsWith('/pulls/1385'))
+        if (url.endsWith(`/pulls/${PLANNED_PR_NUMBER}`))
           return { ok: true, json: async () => ({ head: { sha: PLANNED_PR_HEAD_SHA } }) };
         throw new Error('unexpected URL');
       };
       const execFileImpl = async (_command, args) => {
         const key = args.join(' ');
         if (key === 'rev-parse HEAD') return { stdout: `${BASELINE_MAIN_SHA}\n` };
-        if (key === 'fetch --no-tags origin pull/1385/head:refs/remotes/origin/pr-1385')
+        if (key === `fetch --no-tags origin pull/${PLANNED_PR_NUMBER}/head:refs/remotes/origin/pr-${PLANNED_PR_NUMBER}`)
           return { stdout: '' };
-        if (key === 'rev-parse origin/pr-1385') return { stdout: `${PLANNED_PR_HEAD_SHA}\n` };
+        if (key === `rev-parse origin/pr-${PLANNED_PR_NUMBER}`) return { stdout: `${PLANNED_PR_HEAD_SHA}\n` };
         if (key.startsWith('show ')) return { stdout: plan };
         throw new Error('unexpected git command');
       };
@@ -274,6 +282,8 @@ describe('capture-release-recovery-context', () => {
         verifyBaselineBinding({
           baselineMainSha: BASELINE_MAIN_SHA,
           plannedPrHeadSha: PLANNED_PR_HEAD_SHA,
+          plannedPrNumber: PLANNED_PR_NUMBER,
+          planPath: PLAN_PATH,
           planSha256: digest,
           environment,
           fetchImpl,
@@ -304,6 +314,8 @@ describe('capture-release-recovery-context', () => {
         verifyBaselineBinding({
           baselineMainSha: BASELINE_MAIN_SHA,
           plannedPrHeadSha: PLANNED_PR_HEAD_SHA,
+          plannedPrNumber: PLANNED_PR_NUMBER,
+          planPath: PLAN_PATH,
           planSha256: PLAN_SHA256,
           environment,
           fetchImpl,
@@ -332,6 +344,8 @@ describe('capture-release-recovery-context', () => {
         verifyBaselineBinding({
           baselineMainSha: BASELINE_MAIN_SHA,
           plannedPrHeadSha: PLANNED_PR_HEAD_SHA,
+          plannedPrNumber: PLANNED_PR_NUMBER,
+          planPath: PLAN_PATH,
           planSha256: PLAN_SHA256,
           environment,
           fetchImpl,
@@ -352,7 +366,7 @@ describe('capture-release-recovery-context', () => {
     const fetchImpl = async (url) => {
       if (url.endsWith('/commits/main'))
         return { ok: true, json: async () => ({ sha: 'f'.repeat(40) }) };
-      if (url.endsWith('/pulls/1385')) plannedPrWasRead = true;
+      if (url.endsWith(`/pulls/${PLANNED_PR_NUMBER}`)) plannedPrWasRead = true;
       throw new Error('planned PR must not be read after main drift');
     };
     const execFileImpl = async (_command, args) => {
@@ -364,6 +378,8 @@ describe('capture-release-recovery-context', () => {
       verifyBaselineBinding({
         baselineMainSha: BASELINE_MAIN_SHA,
         plannedPrHeadSha: PLANNED_PR_HEAD_SHA,
+        plannedPrNumber: PLANNED_PR_NUMBER,
+        planPath: PLAN_PATH,
         planSha256: PLAN_SHA256,
         environment,
         fetchImpl,
@@ -449,11 +465,13 @@ describe('capture-release-recovery-context', () => {
         expect(mode).toBe(0o600);
         expect(context).not.toHaveProperty('expectedIdentity');
         expect(JSON.stringify(context)).not.toContain('responseBody');
-        expect(Object.keys(context)).toEqual([
-          'schemaVersion',
-          'baselineMainSha',
-          'plannedPrHeadSha',
-          'planSha256',
+    expect(Object.keys(context)).toEqual([
+      'schemaVersion',
+      'baselineMainSha',
+      'plannedPrHeadSha',
+      'plannedPrNumber',
+      'planPath',
+      'planSha256',
           'githubRunId',
           'githubRunAttempt',
           'capturedAt',
@@ -497,12 +515,8 @@ describe('baseline evidence decoding and exact consumption', () => {
 
   function contextContents(overrides = {}) {
     return `${JSON.stringify({
-      schemaVersion: 'release-recovery-context-v1',
-      baselineMainSha: BASELINE_MAIN_SHA,
-      plannedPrHeadSha: PLANNED_PR_HEAD_SHA,
+      ...buildReleaseRecoveryContext(captureInput()),
       planSha256: PLAN_DIGEST,
-      githubRunId: '123456789',
-      githubRunAttempt: 2,
       ...overrides,
     })}\n`;
   }
@@ -567,7 +581,7 @@ describe('baseline evidence decoding and exact consumption', () => {
 
   function pullRoutes({ primary, rollback } = {}) {
     return {
-      '/pulls/1385': primary ?? {
+      [`/pulls/${PLANNED_PR_NUMBER}`]: primary ?? {
         head: { sha: PLANNED_PR_HEAD_SHA },
         merged: true,
         base: { ref: 'main' },
@@ -595,9 +609,10 @@ describe('baseline evidence decoding and exact consumption', () => {
       releaseSha: overrides.releaseSha ?? RELEASE_SHA,
       contextPath: '/virtual/release-recovery-context-v1.json',
       emitNormalizedPath: overrides.emitNormalizedPath,
-      prNumber: overrides.prNumber ?? '1385',
+    prNumber: overrides.prNumber ?? String(PLANNED_PR_NUMBER),
       environment: baselineEnvironment(),
-      fetchImpl: makeFetch({ ...pullRoutes(overrides.pulls ?? {}) }),
+      fetchImpl:
+        overrides.fetchImpl ?? makeFetch({ ...pullRoutes(overrides.pulls ?? {}) }),
       execFileImpl: makeExecFile(overrides.git ?? {}),
       readFileImpl: async () => contents,
     });
@@ -701,6 +716,12 @@ describe('baseline evidence decoding and exact consumption', () => {
     await expect(consume('primary', overrides)).rejects.toThrow();
   });
 
+  it('fails closed when the approved plan differs at the exact release SHA', async () => {
+    await expect(consume('primary', { git: { plan: 'tampered release plan\n' } })).rejects.toThrow(
+      /release plan digest/i
+    );
+  });
+
   it('accepts a clean rollback revert bounded by the control-plane allowlist', async () => {
     await expect(
       consume('rollback', {
@@ -721,21 +742,97 @@ describe('baseline evidence decoding and exact consumption', () => {
     );
   });
 
+  it('consumes a historical rollback context with only the bound rollback PR fetch', async () => {
+    const historical = JSON.parse(contextContents());
+    delete historical.plannedPrNumber;
+    delete historical.planPath;
+    const fetchedPullRequests = [];
+    const fetchImpl = async (url) => {
+      const target = String(url);
+      if (target.includes(`/pulls/${PLANNED_PR_NUMBER}`)) {
+        throw new Error('rollback must not fetch the primary/runtime pull request');
+      }
+      if (target.includes('/pulls/4321')) {
+        fetchedPullRequests.push('/pulls/4321');
+        return {
+          ok: true,
+          json: async () => ({
+            head: { sha: ROLLBACK_HEAD_SHA },
+            merged: true,
+            base: { ref: 'main' },
+            merge_commit_sha: RELEASE_SHA,
+          }),
+        };
+      }
+      throw new Error(`unexpected fetch ${target}`);
+    };
+    await expect(
+      consume('rollback', {
+        contents: `${JSON.stringify(historical)}\n`,
+        fetchImpl,
+        prNumber: undefined,
+        git: { diff: '' },
+      })
+    ).resolves.toMatchObject({ mode: 'rollback' });
+    expect(fetchedPullRequests).toEqual(['/pulls/4321']);
+  });
+
   it.each([
     [
       'rollback PR head mismatch',
-      { rollback: { head: { sha: 'a'.repeat(40) }, merged: true, base: { ref: 'main' }, merge_commit_sha: RELEASE_SHA } },
+      {
+        head: { sha: '8'.repeat(40) },
+        merged: true,
+        base: { ref: 'main' },
+        merge_commit_sha: RELEASE_SHA,
+      },
     ],
     [
       'unmerged rollback PR',
-      { rollback: { head: { sha: ROLLBACK_HEAD_SHA }, merged: false, base: { ref: 'main' }, merge_commit_sha: RELEASE_SHA } },
+      {
+        head: { sha: ROLLBACK_HEAD_SHA },
+        merged: false,
+        base: { ref: 'main' },
+        merge_commit_sha: RELEASE_SHA,
+      },
     ],
     [
-      'rollback merge commit mismatch',
-      { rollback: { head: { sha: ROLLBACK_HEAD_SHA }, merged: true, base: { ref: 'main' }, merge_commit_sha: 'a'.repeat(40) } },
+      'rollback PR base mismatch',
+      {
+        head: { sha: ROLLBACK_HEAD_SHA },
+        merged: true,
+        base: { ref: 'release' },
+        merge_commit_sha: RELEASE_SHA,
+      },
     ],
-  ])('fails closed for %s', async (_label, rollback) => {
-    await expect(consume('rollback', { pulls: { rollback } })).rejects.toThrow();
+    [
+      'rollback PR merge commit mismatch',
+      {
+        head: { sha: ROLLBACK_HEAD_SHA },
+        merged: true,
+        base: { ref: 'main' },
+        merge_commit_sha: '8'.repeat(40),
+      },
+    ],
+  ])('fails closed consuming rollback release with %s', async (_label, rollback) => {
+    await expect(
+      consume('rollback', {
+        prNumber: undefined,
+        pulls: { rollback },
+        git: { diff: '' },
+      })
+    ).rejects.toThrow();
+  });
+
+  it.each([
+    ['only planned PR number', { planPath: undefined }],
+    ['only plan path', { plannedPrNumber: undefined }],
+  ])('rejects hybrid baseline context provenance with %s', async (_label, mutation) => {
+    const context = JSON.parse(contextContents());
+    Object.assign(context, mutation);
+    await expect(
+      consume('rollback', { contents: `${JSON.stringify(context)}\n`, git: { diff: '' } })
+    ).rejects.toThrow(/hybrid provenance/i);
   });
 
   it('pins the rollback allowlist to release control-plane paths only', () => {

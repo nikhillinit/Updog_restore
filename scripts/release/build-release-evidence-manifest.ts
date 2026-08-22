@@ -290,7 +290,6 @@ const FRAGMENT_KEYS: ReadonlyArray<readonly [string, ReleaseEvidenceFragmentKind
   ['schema', 'schema'],
   ['policyConfig', 'policy-config'],
   ['policyMeasurement', 'policy-measurement'],
-  ['policyRatification', 'policy-ratification'],
   ['operatorEvidence', 'operator-evidence'],
   ['releaseProvider', 'release-provider'],
   ['canaryResult', 'canary-result'],
@@ -317,11 +316,14 @@ export async function main(
     fail('source.releaseMode must be primary or rollback');
   }
   const releaseMode: 'primary' | 'rollback' = releaseModeRaw;
-  const pullRequest = asPositiveInteger(sourceInput['pullRequest'], 'source.pullRequest');
-  const pullRequestHeadSha = asString(
-    sourceInput['pullRequestHeadSha'],
-    'source.pullRequestHeadSha'
-  );
+  const pullRequest =
+    releaseMode === 'primary'
+      ? asPositiveInteger(sourceInput['pullRequest'], 'source.pullRequest')
+      : 1;
+  const pullRequestHeadSha =
+    releaseMode === 'primary'
+      ? asString(sourceInput['pullRequestHeadSha'], 'source.pullRequestHeadSha')
+      : '0'.repeat(40);
 
   const workflowInput = asRecord(inputs['workflow'], 'inputs.workflow');
   const runId = asString(workflowInput['runId'], 'workflow.runId');
@@ -540,7 +542,6 @@ export async function main(
       : pullRequestHeadSha;
 
   const policyMeasurement = verified.get('policyMeasurement') ?? null;
-  const policyRatification = verified.get('policyRatification') ?? null;
   const operatorEvidence = verified.get('operatorEvidence') ?? null;
   const releaseProvider = verified.get('releaseProvider') ?? null;
   const canaryResult = verified.get('canaryResult') ?? null;
@@ -551,12 +552,6 @@ export async function main(
       : policyMeasurement.envelope.kind === 'policy-measurement'
         ? policyMeasurement.envelope.payload
         : fail('policy-measurement fragment kind mismatch');
-  const ratificationPayload =
-    policyRatification === null
-      ? null
-      : policyRatification.envelope.kind === 'policy-ratification'
-        ? policyRatification.envelope.payload
-        : fail('policy-ratification fragment kind mismatch');
   const operatorEvidencePayload =
     operatorEvidence === null
       ? null
@@ -632,7 +627,7 @@ export async function main(
       retainedRunBudget: policyConfigPayload.retainedRunBudget,
       ttlHours: policyConfigPayload.ttlHours,
       characterizationEvidence,
-      ratification: ratificationPayload,
+      ratification: null,
     },
     prechange: {
       baseline: baselinePayload.baselineArtifact,
@@ -655,7 +650,7 @@ export async function main(
       schema: schemaFragment === null ? null : schemaFragment.lineage,
       policyConfig: policyConfigFragment.lineage,
       policyMeasurement: policyMeasurement === null ? null : policyMeasurement.lineage,
-      policyRatification: policyRatification === null ? null : policyRatification.lineage,
+      policyRatification: null,
       operatorEvidence: operatorEvidence === null ? null : operatorEvidence.lineage,
       releaseProvider: releaseProvider === null ? null : releaseProvider.lineage,
       canaryResult: canaryResult === null ? null : canaryResult.lineage,

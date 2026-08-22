@@ -1,4 +1,4 @@
-# Code Review: Ceremony Retirement and Dispatch-Based Source Provenance (F_1.3.1 PR2)
+# Code Review: Ceremony-Retirement + Canary-Hardening Slice
 
 **Review Date**: 2026-08-22 **Version**: 1.5.1 **Files Reviewed**:
 
@@ -7,6 +7,8 @@
 - `.github/workflows/ci-unified.yml` (-33 lines: plan-approval job + gate
   references)
 - `.github/workflows/capture-release-baseline.yml` (generic pr_number wiring)
+- `.github/workflows/release-canary-recovery.yml` (exact historical-attempt
+  recovery receipt)
 - `scripts/release/build-release-evidence-manifest.ts` (-101 lines:
   approval/ratification consumption)
 - `scripts/release/capture-release-recovery-context.mjs` (prNumber parameter)
@@ -34,9 +36,10 @@
 Subagent code-reviewer (63 tool calls, full diff inspection). Codex dispatch
 infrastructure not available in this session.
 
-## Verdict: APPROVED
+## Review status: Pending fresh post-revision review
 
-No critical or important issues found.
+This record does not approve the current revision. Fresh post-revision review is
+required.
 
 ## Findings
 
@@ -61,18 +64,22 @@ Tests updated consistently: fixture factories emit null, assertions check
 Fragment-count assertion updated (8 to 7). CI-fail-closed input count updated
 (10 to 11).
 
-### Minor Observation (non-blocking)
-
-`capture-release-recovery-context.mjs:845` — fallback
-`prNumber ?? parsed.runtimePrNumber` references a field the context schema never
-writes. Dead code since `--pr-number` is always passed; won't cause runtime
-failure.
-
 ## Testing Gate
 
 ```
-lint: clean
-typecheck: clean (0 new errors; 39 pre-existing in v2/scenarios.tsx quarantine)
-tests: 320 passed (14 builder + 21 contract + 50 recovery + 235 ci-fail-closed)
-pre-existing: 1 KG local-state failure (unrelated)
+lint clean
+TypeScript 0 errors
+targeted release suite: `339 passed (14 builder + 23 contract + 55 recovery + 236 fail-closed + 11 governance)`
+matrix suite: `5 passed`
+total: `344 passed across 6 files`
+actionlint only known constant-false warnings.
 ```
+
+## Scope correction (August 22, 2026)
+
+This bounded slice toward F_1.3.1 is limited to ceremony retirement and canary
+recovery hardening. It does not claim PR2 completion or schema-apply route
+retirement. That retirement remains gated on separately owner-authorized
+current-main audit evidence; production authority remains none. Review evidence
+remains limited to single repository owner/operator internal Press On Ventures
+tooling; it creates no delegated, multi-tenant, or external-customer authority.

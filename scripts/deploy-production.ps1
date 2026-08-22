@@ -41,9 +41,8 @@ param(
     [ValidatePattern('^[a-f0-9]{40}$')]
     [string] $SchemaPrecursorSha,
 
-    [Parameter(Mandatory = $true)]
-    [ValidatePattern('^[1-9][0-9]{0,8}$')]
-    [string] $PrNumber,
+  [Parameter(Mandatory = $false)]
+  [string] $PrNumber,
 
     [Parameter(Mandatory = $true)]
     [ValidateSet('primary', 'rollback')]
@@ -77,6 +76,16 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($ReleaseMode -eq 'primary') {
+  if ($PrNumber -notmatch '^[1-9][0-9]{0,8}$') {
+    Write-Error 'PrNumber is required and must be a positive integer in primary mode.'
+    exit 1
+  }
+} elseif (-not [string]::IsNullOrEmpty($PrNumber) -and $PrNumber -notmatch '^[1-9][0-9]{0,8}$') {
+  Write-Error 'PrNumber must be a positive integer when supplied for rollback mode.'
+  exit 1
+}
 
 # Cross-mode fence: rollback identity is forbidden in primary mode and both
 # values are required in rollback mode.

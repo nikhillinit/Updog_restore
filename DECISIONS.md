@@ -56,7 +56,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-041: Global Internal Fund Visibility with Role-Gated Consequences](#adr-041-global-internal-fund-visibility-with-role-gated-consequences)
 - [ADR-042: Tranche 1 Calculation Substrate Contracts (Demo Scope)](#adr-042-tranche-1-calculation-substrate-contracts-demo-scope)
 - [ADR-043: Tranche 2 Substrate Adoption Starts with Pacing (Demo Scope)](#adr-043-tranche-2-substrate-adoption-starts-with-pacing-demo-scope)
-- [ADR-084: Ceremony Retirement and Dispatch-Based Source Provenance (F_1.3.1 PR2)](#adr-084-ceremony-retirement-and-dispatch-based-source-provenance-f_131-pr2)
+- [ADR-084: Ceremony Retirement and Canary-Hardening Slice](#adr-084-ceremony-retirement-and-canary-hardening-slice)
 
 ---
 
@@ -10880,7 +10880,7 @@ production procedure.
 This ADR authorizes no merge, deployment, provider action, environment access,
 schema change, data mutation, or production dispatch.
 
-## ADR-084: Ceremony Retirement and Dispatch-Based Source Provenance (F_1.3.1 PR2)
+## ADR-084: Ceremony Retirement and Canary-Hardening Slice
 
 **Date:** 2026-08-22 **Status:** Accepted **Tags:** #release #governance
 #ceremony
@@ -10902,6 +10902,13 @@ The evidence manifest contract's `superRefine` no longer requires non-null
 manifests. The backward-compatible cross-validation block (if ratification is
 non-null, validate its hashes) remains.
 
+Schema-route retirement is not implemented by this slice. It remains gated on
+separately owner-authorized clean current-main audit evidence; production
+authority remains none.
+
+This remains single repository owner/operator internal Press On Ventures
+tooling; it creates no delegated, multi-tenant, or external-customer authority.
+
 ### Alternatives
 
 - Keep ceremonies but make them no-ops: rejected because dead code with
@@ -10915,9 +10922,9 @@ Release pipeline is simpler: fewer jobs, fewer environment gates, fewer failure
 modes. Dispatch-based provenance is explicit and auditable without relying on
 approval event payloads.
 
-The `pr_number` input brings `release-production.yml` to 11 dispatch inputs
-(GitHub Actions UI shows at most 10, but API dispatch handles all 11; the
-operator script `deploy-production.ps1` uses API dispatch exclusively).
+`pr_number` is an explicit dispatch provenance input. The compact baseline
+binding remains the existing interface; this ADR makes no GitHub platform
+input-cap assertion.
 
 ### No authority boundary
 

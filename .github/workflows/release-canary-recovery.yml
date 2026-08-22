@@ -31,6 +31,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 # Shared with release-production.yml: recovery queues behind an in-progress
 # release and can never cancel one mid-provider-mutation, and vice versa.
@@ -81,6 +82,32 @@ jobs:
                 process.exit(1);
               }
             }
+          '
+
+      - name: Validate historical release workflow identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RECOVERY_RUN_ID: ${{ inputs.github_run_id }}
+          RECOVERY_RUN_ATTEMPT: ${{ inputs.github_run_attempt }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          run_json="$(gh api "repos/${REPO}/actions/runs/${RECOVERY_RUN_ID}/attempts/${RECOVERY_RUN_ATTEMPT}")"
+          RUN_JSON="$run_json" node -e '
+            const run = JSON.parse(process.env.RUN_JSON ?? "");
+            const attempt = Number(process.env.RECOVERY_RUN_ATTEMPT);
+            const expected = process.env.EXPECTED_SHA;
+            if (
+              run?.repository?.full_name !== process.env.REPO ||
+              run?.path !== ".github/workflows/release-production.yml" ||
+              run?.name !== "Release Production" ||
+              run?.event !== "workflow_dispatch" ||
+              run?.status !== "completed" ||
+              !["cancelled", "failure", "timed_out"].includes(run?.conclusion) ||
+              run?.run_attempt !== attempt ||
+              run?.head_sha !== expected
+            ) process.exit(1);
           '
 
       - name: Resolve exact workflow execution
@@ -164,18 +191,66 @@ jobs:
             exit "$residue_exit"
           fi
 
+      - name: Build sanitized recovery receipt
+        if: always()
+        env:
+          RECOVERY_RUN_ID: ${{ inputs.github_run_id }}
+          RECOVERY_RUN_ATTEMPT: ${{ inputs.github_run_attempt }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RECOVERY_FUND_ID: ${{ inputs.fund_id }}
+          RECOVERY_CANARY_RUN_ID: ${{ inputs.canary_run_id }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const temp = process.env.RUNNER_TEMP;
+          const read = (name) => JSON.parse(fs.readFileSync(`${temp}/${name}`, 'utf8'));
+          const resolve = read('recovery-resolve.json');
+          const mark = read('recovery-mark-failed.json');
+          const residue = read('recovery-residue.json');
+          const positive = (value) => /^[1-9][0-9]*$/.test(String(value));
+          const sha = (value) => /^[a-f0-9]{40}$/.test(String(value));
+          const uuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value));
+          const verdict = (value) => typeof value === 'string' && /^[a-z][a-z0-9-]{0,63}$/.test(value);
+          const requested = {
+            githubRunId: process.env.RECOVERY_RUN_ID,
+            githubRunAttempt: Number(process.env.RECOVERY_RUN_ATTEMPT),
+            expectedSha: process.env.EXPECTED_SHA,
+            fundId: Number(process.env.RECOVERY_FUND_ID),
+            canaryRunId: process.env.RECOVERY_CANARY_RUN_ID.toLowerCase(),
+          };
+          const matchesRequestedHandle = (value) =>
+            positive(value?.githubRunId) && String(value.githubRunId) === requested.githubRunId &&
+            positive(value?.githubRunAttempt) && Number(value.githubRunAttempt) === requested.githubRunAttempt &&
+            positive(value?.fundId) && Number(value.fundId) === requested.fundId &&
+            uuid(value?.canaryRunId) && value.canaryRunId.toLowerCase() === requested.canaryRunId;
+          if (!matchesRequestedHandle(resolve) || !sha(resolve.releaseSha) || resolve.releaseSha !== requested.expectedSha) process.exit(1);
+          if (!matchesRequestedHandle(mark) || !verdict(mark.outcome)) process.exit(1);
+          if (!sha(residue.expectedSha) || residue.expectedSha !== requested.expectedSha || ![0, 3].includes(residue.exitCode) || !verdict(residue.verdict)) process.exit(1);
+          const receipt = {
+            schemaVersion: 'release-canary-recovery-receipt-v1',
+            recovery: {
+              githubRunId: process.env.RECOVERY_RUN_ID,
+              githubRunAttempt: Number(process.env.RECOVERY_RUN_ATTEMPT),
+              expectedSha: requested.expectedSha,
+              fundId: requested.fundId,
+              canaryRunId: requested.canaryRunId,
+            },
+            transition: { outcome: mark.outcome, canaryRunId: mark.canaryRunId },
+            residue: { verdict: residue.verdict, exitCode: residue.exitCode },
+          };
+          fs.writeFileSync(`${temp}/release-canary-recovery-receipt.json`, `${JSON.stringify(receipt)}\n`, { mode: 0o600 });
+          NODE
+
       - name: Upload sanitized recovery outcome
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: release-canary-recovery-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ${{ runner.temp }}/recovery-resolve.json
-            ${{ runner.temp }}/recovery-mark-failed.json
-            ${{ runner.temp }}/recovery-residue.json
-          if-no-files-found: ignore
+          path: ${{ runner.temp }}/release-canary-recovery-receipt.json
+          if-no-files-found: error
           retention-days: 30
 
       - name: Remove local recovery evidence
         if: always()
-        run: rm -f -- "$RUNNER_TEMP/recovery-resolve.json" "$RUNNER_TEMP/recovery-mark-failed.json" "$RUNNER_TEMP/recovery-residue.json"
+        run: rm -f -- "$RUNNER_TEMP/recovery-resolve.json" "$RUNNER_TEMP/recovery-mark-failed.json" "$RUNNER_TEMP/recovery-residue.json" "$RUNNER_TEMP/release-canary-recovery-receipt.json"

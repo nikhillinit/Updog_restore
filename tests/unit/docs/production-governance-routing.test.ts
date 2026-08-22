@@ -356,14 +356,15 @@ describe('governance document hierarchy', () => {
     }
   });
 
-  it('keeps the capture-release-baseline workflow program-scoped', async () => {
+  it('keeps the capture-release-baseline workflow generic and non-authorizing', async () => {
     const workflow = await readRepositoryFile('.github/workflows/capture-release-baseline.yml');
 
-    expect(workflow).toContain('one-time');
-    expect(workflow).toContain('PR #1385');
-    expect(workflow).toContain('Owner: repository owner');
-    expect(workflow).toContain('TERMINAL');
-    expect(workflow).toContain('confers no authorization');
+    expect(workflow).toContain('bounded pre-merge provider baseline');
+    expect(workflow).toContain('pr_number');
+    expect(workflow).toContain('plan_path');
+    expect(workflow).toContain('Execution confers no');
+    expect(workflow).toContain('authorization; output remains evidence');
+    expect(workflow).not.toContain('PR #1385');
   });
 
   it('requires new plan documents to route to the governing policy', async () => {

@@ -338,6 +338,12 @@ describe('release-evidence-manifest-v1 contract', { retry: 0 }, () => {
     rejects(manifest);
   });
 
+  it('accepts historical policy-ratification failure stage', () => {
+    const manifest = validFailureManifest();
+    (manifest.workflow as { failureStage: string | null }).failureStage = 'policy-ratification';
+    expect(parseReleaseEvidenceManifest(manifest)).toEqual(manifest);
+  });
+
   it('rejects failure outcomes without a failure stage and success outcomes with one', () => {
     const failure = validFailureManifest();
     (failure.workflow as { failureStage: string | null }).failureStage = null;
@@ -395,6 +401,26 @@ describe('release-evidence-manifest-v1 contract', { retry: 0 }, () => {
     rejects(withMutation((m) => void (m.approval.verifiedPrHeadSha = APPROVED_BASE_SHA)));
     rejects(withMutation((m) => void (m.approval.finalHeadCiGate.headSha = APPROVED_BASE_SHA)));
     rejects(withMutation((m) => void (m.source.pullRequest = 1400)));
+  });
+
+  it('requires approval and source-plan provenance as coherent all-null or all-present groups', () => {
+    rejects(withMutation((m) => void (m.source.planPath = null)));
+    rejects(withMutation((m) => void (m.source.planApprovalPullRequest = null)));
+    rejects(withMutation((m) => void (m.source.planSha256 = null)));
+    rejects(
+      withMutation((m) => {
+        m.source.planApprovalPullRequest = null;
+        m.source.planPath = null;
+        m.source.planSha256 = null;
+      })
+    );
+    const historical = withMutation((m) => {
+      m.source.planApprovalPullRequest = null;
+      m.source.planPath = null;
+      m.source.planSha256 = null;
+      m.approval = null;
+    });
+    expect(parseReleaseEvidenceManifest(historical)).toEqual(historical);
   });
 
   it('rejects certification bound to another run, attempt, source SHA, or proof ref', () => {

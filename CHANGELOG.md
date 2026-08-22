@@ -23,10 +23,11 @@ and this project adheres to
 
 ### Changed (2026-08-22)
 
-- **Ceremony retirement (F_1.3.1 PR2).** Plan-approval and policy-ratification
-  ceremonies deleted from the release pipeline. Source provenance now uses
-  explicit `pr_number` dispatch input. Manifest schema fields nullable
-  (backward-compatible). ADR-084.
+- **Ceremony retirement and canary recovery hardening (narrow F_1.3.1 PR2
+  scope).** Source provenance now binds generic baseline PR/plan evidence and
+  rollback remains historical-context compatible. Schema-route retirement
+  remains gated on separately owner-authorized current-main audit evidence.
+  Production authority remains none. ADR-084.
 
 ### Changed (2026-08-20)
 

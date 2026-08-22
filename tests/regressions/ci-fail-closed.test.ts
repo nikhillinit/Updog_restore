@@ -4622,6 +4622,8 @@ describe('required CI fails closed', () => {
     expect(Object.keys(inputs ?? {})).toEqual([
       'baseline_main_sha',
       'planned_pr_head_sha',
+      'pr_number',
+      'plan_path',
       'plan_sha256',
     ]);
     for (const input of Object.values(inputs ?? {})) {
@@ -5076,7 +5078,7 @@ describe('required CI fails closed', () => {
     );
     expect(scripts).toContain('s#postgres(ql)?://[^[:space:]]+#[REDACTED_DATABASE_URL]#g');
     expect(scripts).toContain('rm reports/recovery.raw');
-    expect(scripts).not.toContain('release-production.yml');
+    expect(scripts).not.toContain('.github/workflows/release-production.yml');
     expect(scripts).not.toContain('vercel promote');
 
     const checkout = workflow.jobs?.recover?.steps?.find((step) =>
@@ -5785,6 +5787,11 @@ describe('required CI fails closed', () => {
           if: 'always()',
           'continue-on-error': undefined,
         },
+        {
+          name: 'Independently verify primary PR provenance',
+          if: "inputs.release_mode == 'primary'",
+          'continue-on-error': undefined,
+        },
         { name: 'Remove local manifest evidence', if: 'always()', 'continue-on-error': undefined },
       ]);
 
@@ -6203,6 +6210,10 @@ describe('required CI fails closed', () => {
       'post-promotion-smoke',
     ]);
     const finalizerScripts = allRunScripts({ jobs: { finalizer } } as never).join('\n');
+    expect(finalizerScripts).toContain('/^[0-9a-f]{40}$/.test(String(pr?.head?.sha ?? ""))');
+    expect(finalizerScripts).toContain('pr?.merged !== true');
+    expect(finalizerScripts).toContain('pr?.base?.ref !== "main"');
+    expect(finalizerScripts).toContain('pr?.merge_commit_sha !== process.env.EXPECTED_SHA');
     expect(finalizerScripts).toContain(
       'npx tsx scripts/release/build-release-evidence-manifest.ts \\\n  --designation infrastructure_only \\\n  --candidate false \\\n  --output "$RUNNER_TEMP/release-evidence-manifest-v1.json"'
     );
@@ -6770,7 +6781,7 @@ describe('required CI fails closed', () => {
 
     // Least privilege and release-shared serialization: recovery queues
     // behind a running release and can never cancel one mid-mutation.
-    expect(workflow.permissions).toEqual({ contents: 'read' });
+    expect(workflow.permissions).toEqual({ contents: 'read', actions: 'read' });
     expect(workflow.concurrency).toEqual({
       group: 'release-production',
       'cancel-in-progress': false,
@@ -6798,6 +6809,18 @@ describe('required CI fails closed', () => {
     for (const step of databaseSteps) {
       expect(step.env?.DATABASE_URL).toBe('${{ secrets.PRODUCTION_DATABASE_URL }}');
     }
+    const historicalRun = job?.steps?.find(
+      (step) => step.name === 'Validate historical release workflow identity'
+    );
+    expect(historicalRun?.env).toMatchObject({
+      RECOVERY_RUN_ID: '${{ inputs.github_run_id }}',
+      RECOVERY_RUN_ATTEMPT: '${{ inputs.github_run_attempt }}',
+      EXPECTED_SHA: '${{ inputs.expected_sha }}',
+    });
+    expect(historicalRun?.env?.DATABASE_URL).toBeUndefined();
+    expect((job?.steps ?? []).indexOf(historicalRun!)).toBeLessThan(
+      (job?.steps ?? []).findIndex((step) => step.name === 'Resolve exact workflow execution')
+    );
 
     // Command allowlist: only the fixed resolve, mark-failed, and residue
     // assertion invocations run, and no typed input is interpolated into
@@ -6812,6 +6835,33 @@ describe('required CI fails closed', () => {
     expect(scripts).toContain('--fund-id "$RECOVERY_FUND_ID"');
     expect(scripts).toContain('--canary-run-id "$RECOVERY_CANARY_RUN_ID"');
     expect(scripts).toContain('--expected-sha "$EXPECTED_SHA"');
+    expect(scripts).toContain('".github/workflows/release-production.yml"');
+    expect(scripts).toContain(
+      '"repos/${REPO}/actions/runs/${RECOVERY_RUN_ID}/attempts/${RECOVERY_RUN_ATTEMPT}"'
+    );
+    expect(scripts).toContain('run?.repository?.full_name !== process.env.REPO');
+    expect(scripts).toContain('run?.path !== ".github/workflows/release-production.yml"');
+    expect(scripts).toContain('run?.name !== "Release Production"');
+    expect(scripts).toContain('run?.event !== "workflow_dispatch"');
+    expect(scripts).toContain('run?.status !== "completed"');
+    expect(scripts).toContain('!["cancelled", "failure", "timed_out"].includes(run?.conclusion)');
+    expect(scripts).toContain('run?.run_attempt !== attempt');
+    expect(scripts).toContain('run?.head_sha !== expected');
+    expect(scripts).toContain('"workflow_dispatch"');
+    expect(scripts).toContain('["cancelled", "failure", "timed_out"]');
+    expect(scripts).toContain('run?.head_sha !== expected');
+    expect(scripts).toContain('release-canary-recovery-receipt-v1');
+    expect(scripts).toContain('mark.canaryRunId');
+    expect(scripts).not.toContain('mark.runId');
+    expect(scripts).toContain('matchesRequestedHandle(resolve)');
+    expect(scripts).toContain('matchesRequestedHandle(mark)');
+    expect(scripts).toContain('value.canaryRunId.toLowerCase() === requested.canaryRunId');
+    expect(scripts).toContain('resolve.releaseSha !== requested.expectedSha');
+    expect(scripts).toContain('residue.expectedSha !== requested.expectedSha');
+    expect(scripts).toContain('![0, 3].includes(residue.exitCode)');
+    expect(scripts).toContain('residue: { verdict: residue.verdict, exitCode: residue.exitCode }');
+    expect(scripts).not.toContain("result: typeof residue === 'object'");
+    expect(scripts).not.toContain('path: |\n            ${{ runner.temp }}/recovery-resolve.json');
     for (const step of job?.steps ?? []) {
       expect(step.run ?? '').not.toContain('${{');
     }
@@ -6825,7 +6875,7 @@ describe('required CI fails closed', () => {
     expect(scripts).not.toMatch(/vercel|railway/i);
     expect(scripts).not.toContain('purge');
     expect(scripts).not.toContain('gh workflow run');
-    expect(scripts).not.toContain('release-production.yml');
+    expect(scripts).toContain('.github/workflows/release-production.yml');
 
     // The post-recovery residue assertion is required in the same job and
     // tolerates only the expected-SHA completion failure (exit 3).
@@ -6841,6 +6891,7 @@ describe('required CI fails closed', () => {
       (step) => step.if !== undefined || step['continue-on-error'] !== undefined
     );
     expect(conditionals.map((step) => ({ name: step.name, if: step.if }))).toEqual([
+      { name: 'Build sanitized recovery receipt', if: 'always()' },
       { name: 'Upload sanitized recovery outcome', if: 'always()' },
       { name: 'Remove local recovery evidence', if: 'always()' },
     ]);
