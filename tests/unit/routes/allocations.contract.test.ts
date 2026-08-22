@@ -428,6 +428,10 @@ describe('allocations route contracts', () => {
   it('keeps the allocation read on the facts seam and strict response parser', async () => {
     const { readFileSync } = await vi.importActual<typeof import('node:fs')>('node:fs');
     const routeSource = readFileSync(join(process.cwd(), 'server/routes/allocations.ts'), 'utf8');
+    const readServiceSource = readFileSync(
+      join(process.cwd(), 'server/services/allocations/allocation-read-service.ts'),
+      'utf8'
+    );
     const driftSource = readFileSync(
       join(process.cwd(), 'server/services/allocations/allocation-actuals-drift-service.ts'),
       'utf8'
@@ -435,9 +439,11 @@ describe('allocations route contracts', () => {
     const forbiddenFactsTables =
       /investmentRounds|valuationMarks|investment_rounds|valuation_marks/;
 
-    expect(routeSource).toContain('buildFundCompanyActualsFacts');
-    expect(routeSource).toContain('LatestAllocationResponseSchema.parse');
+    expect(routeSource).toContain('allocationReadService.getLatest');
+    expect(readServiceSource).toContain('buildFundCompanyActualsFacts');
+    expect(readServiceSource).toContain('LatestAllocationResponseSchema.parse');
     expect(routeSource).not.toMatch(forbiddenFactsTables);
+    expect(readServiceSource).not.toMatch(forbiddenFactsTables);
     expect(driftSource).not.toMatch(forbiddenFactsTables);
   });
 
