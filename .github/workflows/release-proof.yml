@@ -215,6 +215,13 @@ jobs:
     timeout-minutes: 15
     environment: Production
     steps:
+      - name: Validate required credentials configured
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          set -euo pipefail
+          : "${VERCEL_TOKEN:?VERCEL_TOKEN is required}"
+
       - name: Checkout exact release commit
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
@@ -248,6 +255,13 @@ jobs:
     timeout-minutes: 15
     environment: Production
     steps:
+      - name: Validate required credentials configured
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          set -euo pipefail
+          : "${RAILWAY_TOKEN:?RAILWAY_TOKEN is required}"
+
       - name: Checkout exact release commit
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -479,12 +493,26 @@ jobs:
 
   g3-exact-sha-verdict:
     name: G3 Exact-SHA Verdict
-    needs: [proof-contract, full-release-proof, protected-boot-proof, provider-identity, canary-residue-characterization]
+    needs:
+      [
+        proof-contract,
+        full-release-proof,
+        protected-boot-proof,
+        provider-identity,
+        canary-residue-characterization,
+      ]
     if: ${{ always() && needs.proof-contract.outputs.proof_mode == 'certifying' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: Production
     steps:
+      - name: Validate required credentials configured
+        env:
+          PRODUCTION_RELEASE_PROOF_GITHUB_TOKEN: ${{ secrets.PRODUCTION_RELEASE_PROOF_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          : "${PRODUCTION_RELEASE_PROOF_GITHUB_TOKEN:?PRODUCTION_RELEASE_PROOF_GITHUB_TOKEN is required}"
+
       - name: Checkout verifier
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -506,6 +534,21 @@ jobs:
             [[ "$PROVIDER_RESULT" == success ]]
           else
             [[ "$PROVIDER_RESULT" == skipped ]]
+          fi
+
+      - name: Verify live main matches expected SHA
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          GH_TOKEN: ${{ secrets.PRODUCTION_RELEASE_PROOF_GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          : "${EXPECTED_SHA:?expected_sha input is required}"
+          : "${GH_TOKEN:?PRODUCTION_RELEASE_PROOF_GITHUB_TOKEN is required}"
+          LIVE_MAIN="$(gh api "repos/${REPO}/commits/main" --jq '.sha')"
+          if [[ "$LIVE_MAIN" != "$EXPECTED_SHA" ]]; then
+            echo "Live main SHA drift: expected $EXPECTED_SHA, found $LIVE_MAIN." >&2
+            exit 1
           fi
 
       - name: Aggregate exact SHA checks after full proof success
@@ -575,7 +618,15 @@ jobs:
     # Prerequisites expose only normalized summary hashes and allowlisted
     # conclusions as job outputs; this job never reads another job's
     # filesystem or logs.
-    needs: [proof-contract, full-release-proof, protected-boot-proof, provider-identity, canary-residue-characterization, g3-exact-sha-verdict]
+    needs:
+      [
+        proof-contract,
+        full-release-proof,
+        protected-boot-proof,
+        provider-identity,
+        canary-residue-characterization,
+        g3-exact-sha-verdict,
+      ]
     if: ${{ always() && needs.proof-contract.outputs.proof_mode == 'certifying' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10

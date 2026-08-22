@@ -11,6 +11,75 @@ const EXACT_LIGHT_ALLOWLIST = [
   'docs/skills/WIZARD_INDEX.md',
 ];
 
+const FINANCIAL_PATHS = {
+  inclusionRoots: [
+    'server/engine/',
+    'server/core/',
+    'shared/core/',
+    'client/src/engines/',
+    'client/src/core/',
+  ],
+  exclusionBasedRoots: [
+    { root: 'server/services/', exclusions: [] },
+    { root: 'client/src/lib/', exclusions: [] },
+    { root: 'shared/schemas/', exclusions: [] },
+  ],
+  namedPaths: [
+    'shared/lib/finance/',
+    'shared/lib/economics/',
+    'shared/lib/internal-economics/',
+    'shared/lib/waterfall/',
+    'shared/lib/current-plan/',
+    'shared/lib/fund-math.ts',
+    'shared/lib/decimal-config.ts',
+    'shared/lib/decimal-money.ts',
+    'shared/lib/decimal-string.ts',
+    'shared/lib/data-boundaries.ts',
+    'shared/lib/excelRound.ts',
+    'shared/lib/fund-calc.ts',
+    'shared/lib/jcurve.ts',
+    'shared/lib/money.ts',
+    'shared/lib/reserves-v11.ts',
+    'shared/contracts/fund-actuals/',
+    'shared/contracts/dual-forecast/',
+    'shared/contracts/allocations/',
+    'shared/contracts/scenarios/',
+    'shared/contracts/kpi/',
+    'shared/contracts/internal-economics/',
+    'shared/contracts/current-plan-version-v1.contract.ts',
+    'shared/contracts/fund-finalize-v1.contract.ts',
+    'shared/contracts/investment-ledger/position.contract.ts',
+    'shared/contracts/marginal-reserve-moic-v2.contract.ts',
+    'shared/contracts/reserve-input-provenance.contract.ts',
+    'shared/contracts/sensitivity-run-v1.contract.ts',
+    'shared/contracts/sensitivity-variables-v1.ts',
+    'shared/utils/scenario-math.ts',
+    'scripts/golden/',
+  ],
+};
+
+function matchesPath(changedPath, candidate) {
+  return changedPath === candidate ||
+    changedPath.startsWith(candidate.endsWith('/') ? candidate : `${candidate}/`);
+}
+
+function isFinancialPath(changedPath) {
+  if (FINANCIAL_PATHS.inclusionRoots.some((root) => matchesPath(changedPath, root))) {
+    return true;
+  }
+
+  if (
+    FINANCIAL_PATHS.exclusionBasedRoots.some(({ root, exclusions }) =>
+      matchesPath(changedPath, root) &&
+      !exclusions.some((exclusion) => matchesPath(changedPath, exclusion))
+    )
+  ) {
+    return true;
+  }
+
+  return FINANCIAL_PATHS.namedPaths.some((candidate) => matchesPath(changedPath, candidate));
+}
+
 function parseAutoDocsFromYaml(content) {
   const sectionMatch = content.match(/^auto_docs:\s*\n((?:[ \t]+-[ \t]+[^\n]*\n?)*)/m);
   if (!sectionMatch) return null;
@@ -107,10 +176,14 @@ function classify(raw, lightAllowlist) {
       change.paths.every((changedPath) => lightAllowlist.has(changedPath))
     );
   });
+  const financialCalcRelevant = changes.some((change) =>
+    change.paths.some((changedPath) => isFinancialPath(changedPath))
+  );
 
   return {
     autoDocsOnly,
     changeCount: changes.length,
+    financialCalcRelevant,
     heavyCiRelevant: !autoDocsOnly,
     valid: true,
   };
@@ -180,6 +253,7 @@ function writeGitHubOutputs(outputPath, classification) {
     [
       `valid=${String(classification.valid)}`,
       `auto_docs_only=${String(classification.autoDocsOnly)}`,
+      `financial_calc_relevant=${String(classification.financialCalcRelevant)}`,
       `heavy_ci_relevant=${String(classification.heavyCiRelevant)}`,
       `change_count=${String(classification.changeCount)}`,
       '',

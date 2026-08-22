@@ -10,8 +10,11 @@ import { describe, expect, it } from 'vitest';
 
 import { main } from '../../../scripts/release/build-release-evidence-manifest';
 import {
-  RELEASE_CANARY_RESERVED_RESIDUE,
-} from '../../../shared/contracts/release-canary-residue-characterization-v1.contract';
+  buildSchemaReconcileCatchupReceipt,
+  targetsFromLockTimeVector,
+} from '../../../scripts/release/build-schema-reconcile-receipt';
+
+import { RELEASE_CANARY_RESERVED_RESIDUE } from '../../../shared/contracts/release-canary-residue-characterization-v1.contract';
 import {
   sha256CanonicalJsonOfPayload,
   type ReleaseEvidenceFragmentKind,
@@ -32,11 +35,15 @@ const PLAN_PATH = 'docs/superpowers/plans/2026-08-11-pr-1385-release-gate-harden
 const STARTED_AT = '2026-08-19T00:00:00Z';
 const CALLER_REF = `${REPOSITORY}/.github/workflows/release-production.yml@refs/heads/main`;
 const PROOF_REF = `${REPOSITORY}/.github/workflows/release-proof.yml@${SOURCE_SHA}`;
+const CATCHUP_RUN_ID = '32196991205';
+const CATCHUP_ARTIFACT_ID = '9346200295';
+const CATCHUP_ARCHIVE_SHA256 = 'dba91d1c6e00848c2d9249073e9df6f73729e2fc627f9edffbd6abc025a346e9';
+const CATCHUP_ARCHIVE_DIGEST = `sha256:${CATCHUP_ARCHIVE_SHA256}`;
+const CATCHUP_RECEIPT_SHA256 = 'af35a0385b5835a6119e5797a34af7f4505cd4c2412602d2d9d5f621e845bc9b';
+const CATCHUP_SOURCE_SHA = 'de932a2af2a876320003293dd6ae5bbbc6400397';
 
 const RESERVED = RELEASE_CANARY_RESERVED_RESIDUE;
-const CAPS = Object.fromEntries(
-  Object.entries(RESERVED).map(([key, value]) => [key, value * 3])
-);
+const CAPS = Object.fromEntries(Object.entries(RESERVED).map(([key, value]) => [key, value * 3]));
 
 function hex(seed: string): string {
   return createHash('sha256').update(seed).digest('hex');
@@ -55,8 +62,18 @@ function railwayIdentity(sha: string): Record<string, unknown> {
     projectId: 'rail-proj',
     environmentId: 'rail-env',
     services: [
-      { serviceName: 'fund-scenario-calc', serviceId: 'svc-1', deploymentId: 'dep-1', sourceSha: sha },
-      { serviceName: 'capital-call-status', serviceId: 'svc-2', deploymentId: 'dep-2', sourceSha: sha },
+      {
+        serviceName: 'fund-scenario-calc',
+        serviceId: 'svc-1',
+        deploymentId: 'dep-1',
+        sourceSha: sha,
+      },
+      {
+        serviceName: 'capital-call-status',
+        serviceId: 'svc-2',
+        deploymentId: 'dep-2',
+        sourceSha: sha,
+      },
     ],
   };
 }
@@ -249,7 +266,12 @@ async function buildFixture(proof: 'success' | 'failure' = 'success'): Promise<F
 
   const success = proof === 'success';
   const fragments: Record<string, FragmentEntry | null> = {
-    baseline: await writeFragmentFile(dir, 'baseline', baselinePayload, 'baseline-policy-preflight'),
+    baseline: await writeFragmentFile(
+      dir,
+      'baseline',
+      baselinePayload,
+      'baseline-policy-preflight'
+    ),
     schema: success ? await writeFragmentFile(dir, 'schema', schemaPayload, 'schema-audit') : null,
     policyConfig: await writeFragmentFile(
       dir,
@@ -441,7 +463,14 @@ async function runBuilderSubprocess(
   const inputsPath = path.join(fixture.dir, `inputs-${randomUUID()}.json`);
   await writeFile(inputsPath, JSON.stringify(fixture.inputs));
   const outputPath = path.join(fixture.dir, `manifest-${randomUUID()}.json`);
-  const args = ['--designation', 'infrastructure_only', '--candidate', 'false', '--output', outputPath];
+  const args = [
+    '--designation',
+    'infrastructure_only',
+    '--candidate',
+    'false',
+    '--output',
+    outputPath,
+  ];
   try {
     const { stdout, stderr } = await execFileAsync(TSX, [SCRIPT, ...args], {
       cwd: ROOT,
@@ -522,6 +551,90 @@ describe('build-release-evidence-manifest', () => {
     expect(lines).toHaveLength(2);
     expect(lines[0]).toBe(outputPath);
     expect(JSON.parse(lines[1] as string)).toEqual({ manifestSha256: sha256Of(bytes) });
+  });
+
+  it('accepts catch-up schema receipt pinned to historical run 32196991205', async () => {
+    const catchupReceipt = buildSchemaReconcileCatchupReceipt({
+      repository: REPOSITORY,
+      workflowPath: '.github/workflows/prod-schema-reconcile.yml',
+      runId: CATCHUP_RUN_ID,
+      runAttempt: 1,
+      sourceSha: CATCHUP_SOURCE_SHA,
+      targets: targetsFromLockTimeVector({
+        decisions: [
+          { manifest: 'g3-portfolio-and-calculation', action: 'APPLY-MISSING-DDL' },
+          { manifest: 'g3-canary', action: 'SKIP' },
+          { manifest: 'g3-capital-call-notification-outbox', action: 'SKIP' },
+          { manifest: 'g3-release-gate-hardening', action: 'SKIP' },
+        ],
+      }),
+      startedAtMs: Date.parse('2026-08-18T00:00:00Z'),
+      completedAtMs: Date.parse('2026-08-18T00:05:00Z'),
+    });
+
+    expect(catchupReceipt).toMatchObject({
+      runId: CATCHUP_RUN_ID,
+      runAttempt: 1,
+      mode: 'apply-catchup-0050-0053',
+      sourceSha: CATCHUP_SOURCE_SHA,
+      result: 'applied_and_clean',
+    });
+
+    const fixture = await buildFixture();
+    const schemaPayload = fixture.payloads.schema as {
+      migration: string;
+      precursorSha: string;
+      apply: Record<string, unknown>;
+      audit: Record<string, unknown>;
+    };
+    const catchupSchemaPayload = {
+      ...schemaPayload,
+      precursorSha: CATCHUP_SOURCE_SHA,
+      apply: {
+        ...schemaPayload.apply,
+        runId: CATCHUP_RUN_ID,
+        sourceSha: CATCHUP_SOURCE_SHA,
+        runUrl: `https://github.com/${REPOSITORY}/actions/runs/${CATCHUP_RUN_ID}`,
+        artifactId: CATCHUP_ARTIFACT_ID,
+        artifactName: `prod-schema-reconcile-${CATCHUP_RUN_ID}-1-apply-${CATCHUP_SOURCE_SHA}`,
+        artifactArchiveSha256: CATCHUP_ARCHIVE_SHA256,
+        receiptFileSha256: CATCHUP_RECEIPT_SHA256,
+      },
+    };
+    const fragments = fixture.inputs['fragments'] as Record<string, unknown>;
+    fragments.schema = await writeFragmentFile(
+      fixture.dir,
+      'schema',
+      catchupSchemaPayload,
+      'schema-audit'
+    );
+    Object.assign(fixture.inputs['schemaInputs'] as Record<string, unknown>, {
+      runId: CATCHUP_RUN_ID,
+      runAttempt: '1',
+      artifactId: CATCHUP_ARTIFACT_ID,
+      artifactDigest: CATCHUP_ARCHIVE_DIGEST,
+      receiptFileSha256: CATCHUP_RECEIPT_SHA256,
+      precursorSha: CATCHUP_SOURCE_SHA,
+    });
+
+    const { outputPath } = await runBuilder(fixture);
+    const manifest = parseReleaseEvidenceManifest(
+      JSON.parse((await readFile(outputPath)).toString('utf8'))
+    );
+
+    expect(manifest.schema).toMatchObject({
+      migration: '0053',
+      precursorSha: CATCHUP_SOURCE_SHA,
+      apply: {
+        runId: CATCHUP_RUN_ID,
+        runAttempt: 1,
+        sourceSha: CATCHUP_SOURCE_SHA,
+        artifactId: CATCHUP_ARTIFACT_ID,
+        artifactArchiveSha256: CATCHUP_ARCHIVE_SHA256,
+        receiptFileSha256: CATCHUP_RECEIPT_SHA256,
+      },
+      audit: { sourceSha: SOURCE_SHA },
+    });
   });
 
   it('builds a failure manifest with schema null and failureStage release-proof', async () => {

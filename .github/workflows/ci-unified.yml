@@ -57,6 +57,7 @@ jobs:
       change_classification_valid: ${{ steps.classify.outputs.valid }}
       auto_docs_only: ${{ steps.classify.outputs.auto_docs_only }}
       heavy_ci_relevant: ${{ steps.classify.outputs.heavy_ci_relevant }}
+      financial_calc_relevant: ${{ steps.classify.outputs.financial_calc_relevant }}
       change_count: ${{ steps.classify.outputs.change_count }}
     steps:
       - name: Checkout repository
@@ -85,6 +86,7 @@ jobs:
               echo "valid=true"
               echo "auto_docs_only=false"
               echo "heavy_ci_relevant=true"
+              echo "financial_calc_relevant=${{ github.event.inputs.run_full_suite == 'true' }}"
               echo "change_count=manual"
             } >> "$GITHUB_OUTPUT"
             exit 0
@@ -95,6 +97,26 @@ jobs:
             --head "$HEAD_SHA" \
             --filters .github/path-filters.yml \
             --github-output "$GITHUB_OUTPUT"
+
+  financial-truth:
+    name: Financial Truth
+    needs: changes
+    if: |
+      needs.changes.outputs.financial_calc_relevant == 'true' ||
+      github.event.inputs.run_full_suite == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TZ: UTC
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Node environment
+        uses: ./.github/actions/setup-node-env
+
+      - name: Run financial truth cases
+        run: npm run phoenix:truth
 
   plan-approval:
     name: Plan Approval
@@ -843,6 +865,7 @@ jobs:
     name: CI Gate Status
     needs:
       - changes
+      - financial-truth
       - plan-approval
       - docs-link-check
       - check
@@ -867,6 +890,8 @@ jobs:
           fail=0
 
           changes_result="${{ needs.changes.result }}"
+          financial_calc_relevant="${{ needs.changes.outputs.financial_calc_relevant }}"
+          financial_truth_result="${{ needs.financial-truth.result }}"
           plan_approval_result="${{ needs.plan-approval.result }}"
           plan_approval_required="${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'requires-plan-approval') }}"
           change_classification_valid="${{ needs.changes.outputs.change_classification_valid }}"
@@ -902,6 +927,7 @@ jobs:
           validate_boolean "change-classification-valid" "$change_classification_valid"
           validate_boolean "auto-docs-only" "$auto_docs_only"
           validate_boolean "heavy-ci-relevant" "$heavy_ci_relevant"
+          validate_boolean "financial-calc-relevant" "$financial_calc_relevant"
 
           if [[ "$change_classification_valid" != "true" ]]; then
             echo "Change classification is invalid"
@@ -915,6 +941,11 @@ jobs:
           heavy_expected=false
           if [[ "$heavy_ci_relevant" == "true" || "$run_full_suite" == "true" || "$enable_security" == "true" || "$enable_memory_mode" == "true" ]]; then
             heavy_expected=true
+          fi
+
+          financial_truth_expected=false
+          if [[ "$financial_calc_relevant" == "true" || "$run_full_suite" == "true" ]]; then
+            financial_truth_expected=true
           fi
 
           check_expected="$heavy_expected"
@@ -975,6 +1006,7 @@ jobs:
           }
 
           require_result "Documentation links" "$docs_link_result" "$docs_link_expected"
+          require_result "Financial truth" "$financial_truth_result" "$financial_truth_expected"
           require_result "Plan approval" "$plan_approval_result" "$plan_approval_required"
           require_result "Check" "$check_result" "$check_expected"
           require_result "Test" "$test_result" "$test_expected"
@@ -998,6 +1030,7 @@ jobs:
             echo "| Job | Result | Expected |"
             echo "| --- | --- | --- |"
             echo "| documentation-links | $docs_link_result | $docs_link_expected |"
+            echo "| financial-truth | $financial_truth_result | $financial_truth_expected |"
             echo "| plan-approval | $plan_approval_result | $plan_approval_required |"
             echo "| check | $check_result | $check_expected |"
             echo "| tests | $test_result | $test_expected |"
@@ -1038,6 +1071,7 @@ jobs:
             | Job | Result |
             | --- | --- |
             | Documentation links | ${{ needs.docs-link-check.result }} |
+            | Financial truth | ${{ needs.financial-truth.result }} |
             | Plan approval | ${{ needs.plan-approval.result }} |
             | Check | ${{ needs.check.result }} |
             | Affected tests | ${{ needs.test-affected.result }} |
