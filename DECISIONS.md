@@ -11050,7 +11050,9 @@ for V2 validation. Engine-generated expected values are prohibited. Owner
 ratification of this internal methodology is the explicit substitute for
 unavailable LPA terms (the fund's legal documents are not in the repository).
 The corpus and this ADR together constitute the methodology baseline; the corpus
-SHA is recorded at Phase 0 commit time.
+Corpus SHA-256:
+`39793b3b40e63acbf7892fcf40af978fb3191b3337aca670c185b531af00360d`. Source HEAD
+at Phase 0 commit: `317d93538`.
 
 ### Alternatives
 
