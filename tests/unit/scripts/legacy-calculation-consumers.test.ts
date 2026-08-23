@@ -42,6 +42,18 @@ describe('legacy-calculation-consumers guard', () => {
       source: "import { metricsAggregator } from '../services/metrics-aggregator';",
       entryClass: 'legacy_backed_facades',
     },
+    {
+      name: 'fee-drag compiler import',
+      filePath: 'server/services/new-fee-compiler.ts',
+      source: "import { calculateRecyclableFees } from '@shared/schemas/fee-profile';",
+      entryClass: 'fee_drag_compiler',
+    },
+    {
+      name: 'fee-drag compiler import through schemas barrel',
+      filePath: 'client/src/lib/new-fee-preview.ts',
+      source: "import { calculateRecyclableFees } from '@shared/schemas';",
+      entryClass: 'fee_drag_compiler',
+    },
   ])('flags a new $name', ({ filePath, source, entryClass }) => {
     const result = analyze([{ filePath, source }], manifest);
 
@@ -66,6 +78,11 @@ describe('legacy-calculation-consumers guard', () => {
       name: 'the analysis-cohort subtree',
       filePath: 'server/routes/cohort-analysis.ts',
       source: "import { analyzeCohorts } from '@shared/core/cohorts/analysis/advanced-engine';",
+    },
+    {
+      name: 'an unrelated fee schema symbol through the schemas barrel',
+      filePath: 'server/services/fee-schema-reader.ts',
+      source: "import { FeeProfileSchema } from '@shared/schemas';",
     },
   ])('does not flag $name', ({ filePath, source }) => {
     const result = analyze([{ filePath, source }], manifest);

@@ -21,6 +21,18 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-08-23)
+
+- **V2 Core Financial Model (F_2.0.0).** Pure internal-economics derivation core
+  under `shared/lib/internal-economics/v2/`: versioned input contract,
+  refusal-first validation, event-stream engine with lot provenance and callable
+  tracking, deal-by-deal and whole-fund waterfall engines, reserve funding
+  classifier, receipt builder with canonical-json-sha256 hashing. V1 byte-frozen
+  (15-file SHA-256 certification). No routes, persistence, jobs, migrations, or
+  activation. 129 V2 tests, property tests (fast-check), benchmark under 5s at
+  admission limits. ADR-085. Plan:
+  `docs/1-plans/F_2.0.0_v2-core-financial-model.plan.md`.
+
 ### Changed (2026-08-22)
 
 - **Ceremony retirement and canary recovery hardening (narrow F_1.3.1 PR2

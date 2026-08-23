@@ -70,6 +70,56 @@
         }
       ]
     },
+    "fee_drag_compiler": {
+      "defect": "F_2.0.0",
+      "protectedSymbols": ["calculateRecyclableFees"],
+      "protectedModules": ["shared/schemas/fee-profile.ts"],
+      "reExportingBarrels": ["shared/schemas/index.ts"],
+      "allowedConsumers": [
+        {
+          "file": "client/src/lib/retroactive-fee-catch-up-preview.ts",
+          "consumer": "retroactive_fee_catch_up_preview",
+          "disposition": "legacy_type_consumer",
+          "note": "Existing FeeProfile and FeeCalculationContext type consumer; migration is outside the F_2.0.0 pure-core scope."
+        },
+        {
+          "file": "server/services/construction-forecast-calculator.ts",
+          "consumer": "construction_forecast_calculator",
+          "disposition": "legacy_type_consumer",
+          "note": "Existing FeeProfile type consumer; migration is outside the F_2.0.0 pure-core scope."
+        },
+        {
+          "file": "shared/lib/economics/economics-engine.ts",
+          "consumer": "economics_engine",
+          "disposition": "migrate_to_v2",
+          "note": "Existing fee-basis helper consumer retained until the later serving-path migration."
+        },
+        {
+          "file": "shared/lib/fund-math.ts",
+          "consumer": "fund_math_fee_compiler",
+          "disposition": "migrate_to_v2",
+          "note": "Existing fee compiler retained until the later serving-path migration."
+        },
+        {
+          "file": "shared/schemas/extended-fund-model.ts",
+          "consumer": "extended_fund_model_schema",
+          "disposition": "schema_composition",
+          "note": "Existing FeeProfileSchema composition boundary; not a new fee calculation consumer."
+        },
+        {
+          "file": "shared/schemas/index.ts",
+          "consumer": "shared_schemas_barrel",
+          "disposition": "schema_barrel",
+          "note": "Existing re-export boundary; protected-symbol imports through this barrel remain guarded."
+        },
+        {
+          "file": "shared/lib/internal-economics/v2/fee-recycling-enforcer-v2.ts",
+          "consumer": "fee_recycling_enforcer_v2",
+          "disposition": "v2_consumer",
+          "note": "V2 fee-recycling enforcer consumes the recyclable-fees calculation with cumulative bases only."
+        }
+      ]
+    },
     "legacy_backed_facades": {
       "defect": "D18",
       "protectedSymbols": ["MetricsAggregator", "metricsAggregator"],
