@@ -70,6 +70,20 @@
         }
       ]
     },
+    "fee_drag_compiler": {
+      "defect": "F_2.0.0",
+      "protectedSymbols": ["calculateRecyclableFees"],
+      "protectedModules": ["shared/schemas/fee-profile.ts"],
+      "reExportingBarrels": [],
+      "allowedConsumers": [
+        {
+          "file": "shared/lib/internal-economics/v2/fee-recycling-enforcer-v2.ts",
+          "consumer": "fee_recycling_enforcer_v2",
+          "disposition": "v2_consumer",
+          "note": "V2 fee-recycling enforcer consumes the recyclable-fees calculation with cumulative bases only."
+        }
+      ]
+    },
     "legacy_backed_facades": {
       "defect": "D18",
       "protectedSymbols": ["MetricsAggregator", "metricsAggregator"],
