@@ -575,6 +575,16 @@ areas must not conflict with this DAG:
 Three human-in-the-loop gates sit on this critical path: `#1284` prototype
 review, `#1287` target naming, `#1299` activation flip.
 
+6. **V2 Core Financial Model** (F_2.0.0) — pure internal-economics derivation
+   core under `shared/lib/internal-economics/v2/`. Stateless, side-effect-free
+   computation: versioned input contract (`internal-economics-composite/2.0.0`),
+   refusal-first validation, event-stream engine (lot provenance, callable
+   tracking), deal-by-deal and whole-fund waterfall engines, reserve funding
+   classifier, and receipt builder with canonical-json-sha256 hashing. V1
+   byte-frozen (15-file SHA-256 certification). No routes, persistence, jobs,
+   migrations, or activation. ADR-085 in `DECISIONS.md`. Plan:
+   `docs/1-plans/F_2.0.0_v2-core-financial-model.plan.md`.
+
 ## 9. Guidance for New Work (patterns confirmed above, not aspirational)
 
 **New API endpoint**: add to `shared/routes/api-route-manifest.ts` → impl entry

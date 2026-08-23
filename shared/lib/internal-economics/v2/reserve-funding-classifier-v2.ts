@@ -10,7 +10,7 @@ const ZERO = new Decimal(0);
 const FIX6 = 6;
 
 function refuse(code: V2ReserveRefusal['code'], message: string): V2ReserveRefusal {
-  return { ok: false, code, stage: 'reserve', message };
+  return { ok: false, code, stage: 'receipt', message };
 }
 
 export function classifyReserveFundingSources(

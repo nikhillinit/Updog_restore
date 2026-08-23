@@ -35,7 +35,13 @@ export function buildFundCashEquation(
     const amount = new Decimal(event.amountUsd);
     switch (event.kind) {
       case 'settled_contribution':
-        contributions = contributions.plus(amount);
+        if ('purpose' in event && event.purpose === 'management_fee') {
+          fees = fees.plus(amount);
+        } else if ('purpose' in event && event.purpose === 'fund_expense') {
+          expenses = expenses.plus(amount);
+        } else {
+          contributions = contributions.plus(amount);
+        }
         break;
       case 'deployment':
         deployments = deployments.plus(amount);
@@ -43,10 +49,7 @@ export function buildFundCashEquation(
       case 'realization':
         realizations = realizations.plus(amount);
         break;
-      case 'management_fee':
-        fees = fees.plus(amount);
-        break;
-      case 'fund_expense':
+      case 'fund_expense_payment':
         expenses = expenses.plus(amount);
         break;
     }

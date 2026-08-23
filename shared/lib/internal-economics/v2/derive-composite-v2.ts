@@ -37,24 +37,21 @@ function processEvents(
   for (const entry of chronology) {
     if (!entry.event) continue;
     const event = entry.event;
-    let error: V2CoreRefusal | null = null;
 
     switch (event.kind) {
       case 'settled_contribution':
-        error = processSettledContribution(event, state);
+        processSettledContribution(event, state);
         break;
       case 'deployment':
-        error = processDeployment(event, state);
+        processDeployment(event, state);
         break;
       case 'realization':
-        error = processRealization(event, state);
+        processRealization(event, state);
         break;
       case 'fund_expense_payment':
-        error = processFundExpense(event, state);
+        processFundExpense(event, state);
         break;
     }
-
-    if (error) return error;
   }
 
   return null;
