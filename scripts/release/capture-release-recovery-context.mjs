@@ -122,11 +122,7 @@ function pullRequestNumber(value, label) {
 
 function planPath(value) {
   const text = safeText(value, 'plan path');
-  if (
-    text.length > 512 ||
-    !/^[A-Za-z0-9._][A-Za-z0-9._/-]{0,511}$/.test(text) ||
-    text.split('/').includes('..')
-  ) {
+  if (!/^[A-Za-z0-9._][A-Za-z0-9._/-]{0,511}$/.test(text) || text.split('/').includes('..')) {
     fail('plan path is invalid');
   }
   return text;

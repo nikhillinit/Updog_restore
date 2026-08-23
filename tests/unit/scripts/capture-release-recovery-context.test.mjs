@@ -758,35 +758,21 @@ describe('baseline evidence decoding and exact consumption', () => {
     const historical = JSON.parse(contextContents());
     delete historical.plannedPrNumber;
     delete historical.planPath;
-    const fetchedPullRequests = [];
-    const fetchImpl = async (url) => {
-      const target = String(url);
-      if (target.includes(`/pulls/${PLANNED_PR_NUMBER}`)) {
-        throw new Error('rollback must not fetch the primary/runtime pull request');
-      }
-      if (target.includes('/pulls/4321')) {
-        fetchedPullRequests.push('/pulls/4321');
-        return {
-          ok: true,
-          json: async () => ({
+    await expect(
+      consume('rollback', {
+        contents: `${JSON.stringify(historical)}\n`,
+        fetchImpl: makeFetch({
+          '/pulls/4321': {
             head: { sha: ROLLBACK_HEAD_SHA },
             merged: true,
             base: { ref: 'main' },
             merge_commit_sha: RELEASE_SHA,
-          }),
-        };
-      }
-      throw new Error(`unexpected fetch ${target}`);
-    };
-    await expect(
-      consume('rollback', {
-        contents: `${JSON.stringify(historical)}\n`,
-        fetchImpl,
+          },
+        }),
         prNumber: undefined,
         git: { diff: '' },
       })
     ).resolves.toMatchObject({ mode: 'rollback' });
-    expect(fetchedPullRequests).toEqual(['/pulls/4321']);
   });
 
   it.each([

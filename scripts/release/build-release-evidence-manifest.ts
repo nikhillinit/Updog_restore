@@ -316,14 +316,14 @@ export async function main(
     fail('source.releaseMode must be primary or rollback');
   }
   const releaseMode: 'primary' | 'rollback' = releaseModeRaw;
-  const pullRequest =
+  const primaryPullRequest =
     releaseMode === 'primary'
       ? asPositiveInteger(sourceInput['pullRequest'], 'source.pullRequest')
-      : 1; // ponytail: rollback placeholder -- rollback evidence uses a different path
-  const pullRequestHeadSha =
+      : null;
+  const primaryPullRequestHeadSha =
     releaseMode === 'primary'
       ? asString(sourceInput['pullRequestHeadSha'], 'source.pullRequestHeadSha')
-      : '0'.repeat(40); // ponytail: rollback placeholder -- rollback evidence uses a different path
+      : null;
 
   const workflowInput = asRecord(inputs['workflow'], 'inputs.workflow');
   const runId = asString(workflowInput['runId'], 'workflow.runId');
@@ -533,13 +533,11 @@ export async function main(
   }
 
   const sourcePullRequest =
-    releaseMode === 'rollback' && binding.rollbackPrNumber !== null
-      ? binding.rollbackPrNumber
-      : pullRequest;
+    (releaseMode === 'rollback' ? binding.rollbackPrNumber : null) ?? primaryPullRequest ?? 1;
   const sourcePullRequestHeadSha =
-    releaseMode === 'rollback' && binding.rollbackPrHeadSha !== null
-      ? binding.rollbackPrHeadSha
-      : pullRequestHeadSha;
+    (releaseMode === 'rollback' ? binding.rollbackPrHeadSha : null) ??
+    primaryPullRequestHeadSha ??
+    '0'.repeat(40);
 
   const policyMeasurement = verified.get('policyMeasurement') ?? null;
   const operatorEvidence = verified.get('operatorEvidence') ?? null;
