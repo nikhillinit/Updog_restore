@@ -319,11 +319,11 @@ export async function main(
   const pullRequest =
     releaseMode === 'primary'
       ? asPositiveInteger(sourceInput['pullRequest'], 'source.pullRequest')
-      : 1;
+      : 1; // ponytail: rollback placeholder -- rollback evidence uses a different path
   const pullRequestHeadSha =
     releaseMode === 'primary'
       ? asString(sourceInput['pullRequestHeadSha'], 'source.pullRequestHeadSha')
-      : '0'.repeat(40);
+      : '0'.repeat(40); // ponytail: rollback placeholder -- rollback evidence uses a different path
 
   const workflowInput = asRecord(inputs['workflow'], 'inputs.workflow');
   const runId = asString(workflowInput['runId'], 'workflow.runId');

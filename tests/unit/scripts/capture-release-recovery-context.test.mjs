@@ -609,7 +609,7 @@ describe('baseline evidence decoding and exact consumption', () => {
       releaseSha: overrides.releaseSha ?? RELEASE_SHA,
       contextPath: '/virtual/release-recovery-context-v1.json',
       emitNormalizedPath: overrides.emitNormalizedPath,
-    prNumber: overrides.prNumber ?? String(PLANNED_PR_NUMBER),
+    prNumber: 'prNumber' in overrides ? overrides.prNumber : String(PLANNED_PR_NUMBER),
       environment: baselineEnvironment(),
       fetchImpl:
         overrides.fetchImpl ?? makeFetch({ ...pullRoutes(overrides.pulls ?? {}) }),
@@ -720,6 +720,18 @@ describe('baseline evidence decoding and exact consumption', () => {
     await expect(consume('primary', { git: { plan: 'tampered release plan\n' } })).rejects.toThrow(
       /release plan digest/i
     );
+  });
+
+  it('fails closed when primary-mode prNumber is omitted', async () => {
+    await expect(
+      consume('primary', { prNumber: undefined })
+    ).rejects.toThrow(/pr-number/i);
+  });
+
+  it('fails closed when primary-mode prNumber mismatches captured value', async () => {
+    await expect(
+      consume('primary', { prNumber: '99999' })
+    ).rejects.toThrow(/pr number/i);
   });
 
   it('accepts a clean rollback revert bounded by the control-plane allowlist', async () => {

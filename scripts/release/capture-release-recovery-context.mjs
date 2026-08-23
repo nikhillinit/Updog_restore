@@ -16,6 +16,7 @@ import {
 const SHA = /^[a-f0-9]{40}$/;
 const SHA256 = /^[a-f0-9]{64}$/;
 const POSITIVE_DECIMAL = /^[1-9][0-9]*$/;
+const PR_NUMBER = /^[1-9][0-9]{0,8}$/;
 const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
 const SECRET_KEY = /(?:api[_-]?key|authorization|cookie|credential|password|private[_-]?key|secret|token)/i;
 const SECRET_VALUE = /(?:github_pat_|gh[pousr]_|sk-|rk-|pk-|(?:bearer|basic)\s+|(?:postgres|postgresql|mysql|mongodb|redis):\/\/|[?&](?:api[_-]?key|password|secret|token)=)/i;
@@ -115,7 +116,7 @@ function runId(value) {
 
 function pullRequestNumber(value, label) {
   const text = safeText(String(value), label);
-  if (!/^[1-9][0-9]{0,8}$/.test(text)) fail(`${label} is invalid`);
+  if (!PR_NUMBER.test(text)) fail(`${label} is invalid`);
   return Number(text);
 }
 
@@ -935,6 +936,8 @@ export async function verifyBaselineConsumption({
     return { binding, baselineMainSha, plannedPrHeadSha, mode: 'primary' };
   }
 
+  // Rollback mode omits plan-digest verification -- plan-approval ceremony
+  // retired per ADR-084; rollback provenance verified via diff-allowlist only.
   // PR lineage alone does not prove revert semantics; require machine-verified
   // application-tree restoration bounded by the control-plane allowlist.
   const rollbackPullRequest = await githubJson(

@@ -1932,18 +1932,14 @@ jobs:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
         run: |
           set -euo pipefail
-          EXPECTED_SHA="${{ inputs.expected_sha }}"
           : "${PR_NUMBER:?PR_NUMBER is required for primary mode}"
           pr_json="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}")"
-          PR_JSON="$pr_json" EXPECTED_SHA="$EXPECTED_SHA" node -e '
+          PR_HEAD="$(PR_JSON="$pr_json" EXPECTED_SHA="$EXPECTED_SHA" node -e '
             const pr = JSON.parse(process.env.PR_JSON ?? "");
-            if (!/^[0-9a-f]{40}$/.test(String(pr?.head?.sha ?? "")) || pr?.merged !== true || pr?.base?.ref !== "main" || pr?.merge_commit_sha !== process.env.EXPECTED_SHA) process.exit(1);
-          '
-          PR_HEAD="$(PR_JSON="$pr_json" node -e 'process.stdout.write(String(JSON.parse(process.env.PR_JSON ?? "").head?.sha ?? ""))')"
-          if [[ ! "$PR_HEAD" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::PR head SHA is unresolvable for PR #${PR_NUMBER}."
-            exit 1
-          fi
+            const head = String(pr?.head?.sha ?? "");
+            if (!/^[0-9a-f]{40}$/.test(head) || pr?.merged !== true || pr?.base?.ref !== "main" || pr?.merge_commit_sha !== process.env.EXPECTED_SHA) process.exit(1);
+            process.stdout.write(head);
+          ')"
           echo "pr_head_sha=${PR_HEAD}" >> "$GITHUB_OUTPUT"
 
       - name: Build and validate release evidence manifest
@@ -2100,7 +2096,6 @@ jobs:
               schema: fragmentLineage('schema', 'SCHEMA', 'schema-audit'),
               policyConfig: fragmentLineage('policy-config', 'POLICY_CONFIG', 'baseline-policy-preflight'),
               policyMeasurement: fragmentLineage('policy-measurement', 'POLICY_MEASUREMENT', 'staged-smoke'),
-              policyRatification: null,
               operatorEvidence: fragmentLineage('operator-evidence', 'OPERATOR_EVIDENCE', 'g4-operator-evidence'),
               releaseProvider: fragmentLineage('release-provider', 'RELEASE_PROVIDER', 'promote'),
               canaryResult: fragmentLineage('canary-result', 'CANARY_RESULT', 'staged-smoke'),

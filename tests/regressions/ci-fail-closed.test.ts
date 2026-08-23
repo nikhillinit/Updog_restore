@@ -5078,7 +5078,7 @@ describe('required CI fails closed', () => {
     );
     expect(scripts).toContain('s#postgres(ql)?://[^[:space:]]+#[REDACTED_DATABASE_URL]#g');
     expect(scripts).toContain('rm reports/recovery.raw');
-    expect(scripts).not.toContain('.github/workflows/release-production.yml');
+    expect(scripts).not.toContain('release-production.yml');
     expect(scripts).not.toContain('vercel promote');
 
     const checkout = workflow.jobs?.recover?.steps?.find((step) =>
@@ -6210,7 +6210,7 @@ describe('required CI fails closed', () => {
       'post-promotion-smoke',
     ]);
     const finalizerScripts = allRunScripts({ jobs: { finalizer } } as never).join('\n');
-    expect(finalizerScripts).toContain('/^[0-9a-f]{40}$/.test(String(pr?.head?.sha ?? ""))');
+    expect(finalizerScripts).toContain('/^[0-9a-f]{40}$/.test(head)');
     expect(finalizerScripts).toContain('pr?.merged !== true');
     expect(finalizerScripts).toContain('pr?.base?.ref !== "main"');
     expect(finalizerScripts).toContain('pr?.merge_commit_sha !== process.env.EXPECTED_SHA');
@@ -6851,7 +6851,7 @@ describe('required CI fails closed', () => {
     expect(scripts).toContain('["cancelled", "failure", "timed_out"]');
     expect(scripts).toContain('run?.head_sha !== expected');
     expect(scripts).toContain('release-canary-recovery-receipt-v1');
-    expect(scripts).toContain('mark.canaryRunId');
+    expect(scripts).toContain('requested.canaryRunId');
     expect(scripts).not.toContain('mark.runId');
     expect(scripts).toContain('matchesRequestedHandle(resolve)');
     expect(scripts).toContain('matchesRequestedHandle(mark)');
@@ -6859,7 +6859,9 @@ describe('required CI fails closed', () => {
     expect(scripts).toContain('resolve.releaseSha !== requested.expectedSha');
     expect(scripts).toContain('residue.expectedSha !== requested.expectedSha');
     expect(scripts).toContain('![0, 3].includes(residue.exitCode)');
-    expect(scripts).toContain('residue: { verdict: residue.verdict, exitCode: residue.exitCode }');
+    expect(scripts).toContain(
+      'residue: residue ? { verdict: residue.verdict, exitCode: residue.exitCode } : null'
+    );
     expect(scripts).not.toContain("result: typeof residue === 'object'");
     expect(scripts).not.toContain('path: |\n            ${{ runner.temp }}/recovery-resolve.json');
     for (const step of job?.steps ?? []) {

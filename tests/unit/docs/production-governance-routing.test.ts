@@ -301,7 +301,11 @@ const legacyPlanDocs = new Set([
   'F_1.2.0_v1.4-release-proof-activation.plan.md',
   'F_1.2.4_ws2-transaction-audit-repair.plan.md',
   'F_1.2.5_g3-foundations-landing.plan.md',
+  'F_1.2.5_g3-closeout-reconciled.plan.md',
+  'F_1.2.6_g3-critical-merge-unblock.plan.md',
+  'F_1.2.8_pr1385-unblock.plan.md',
   'F_1.3.0_fee-economics-convergence.plan.md',
+  'F_1.3.1_governance-right-sizing.plan.md',
   'F_1.4.0_post-activation-epics.plan.md',
 ]);
 

@@ -491,6 +491,25 @@ describe('release-evidence-manifest-v1 contract', { retry: 0 }, () => {
     rejects(withMutation((m) => void (m.canary!.execution.githubRunAttempt = 2)));
   });
 
+  it('accepts a manifest with non-null historical ratification data', () => {
+    const manifest = withMutation((m) => {
+      (m.policy as Record<string, unknown>)['ratification'] = {
+        environmentId: '10001',
+        environmentName: 'Production Policy Ratification',
+        reviewerLogin: 'repo-owner',
+        reviewerPermission: 'admin',
+        approvalState: 'approved',
+        commentSha256: 'c'.repeat(64),
+        policyConfigPayloadSha256: POLICY_CONFIG_PAYLOAD_SHA256,
+        policyMeasurementPayloadSha256: POLICY_MEASUREMENT_PAYLOAD_SHA256,
+        characterizationFileSha256: CHAR_FILE_SHA256,
+        canaryResultPayloadSha256: CANARY_RESULT_PAYLOAD_SHA256,
+        verifiedAt: '2026-08-19T10:30:00.000Z',
+      };
+    });
+    expect(parseReleaseEvidenceManifest(manifest)).toEqual(manifest);
+  });
+
   it('rejects manifests built before the workflow started', () => {
     rejects(withMutation((m) => void (m.workflow.manifestBuiltAt = '2026-08-19T09:59:59.000Z')));
   });

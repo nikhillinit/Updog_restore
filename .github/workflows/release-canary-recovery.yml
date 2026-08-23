@@ -191,6 +191,7 @@ jobs:
             exit "$residue_exit"
           fi
 
+      # ponytail: inline heredoc receipt builder -- factor to standalone Node script when recovery grows a second consumer
       - name: Build sanitized recovery receipt
         if: always()
         env:
@@ -204,7 +205,7 @@ jobs:
           node <<'NODE'
           const fs = require('node:fs');
           const temp = process.env.RUNNER_TEMP;
-          const read = (name) => JSON.parse(fs.readFileSync(`${temp}/${name}`, 'utf8'));
+          const read = (name) => { try { return JSON.parse(fs.readFileSync(`${temp}/${name}`, 'utf8')); } catch { return null; } };
           const resolve = read('recovery-resolve.json');
           const mark = read('recovery-mark-failed.json');
           const residue = read('recovery-residue.json');
@@ -224,9 +225,9 @@ jobs:
             positive(value?.githubRunAttempt) && Number(value.githubRunAttempt) === requested.githubRunAttempt &&
             positive(value?.fundId) && Number(value.fundId) === requested.fundId &&
             uuid(value?.canaryRunId) && value.canaryRunId.toLowerCase() === requested.canaryRunId;
-          if (!matchesRequestedHandle(resolve) || !sha(resolve.releaseSha) || resolve.releaseSha !== requested.expectedSha) process.exit(1);
-          if (!matchesRequestedHandle(mark) || !verdict(mark.outcome)) process.exit(1);
-          if (!sha(residue.expectedSha) || residue.expectedSha !== requested.expectedSha || ![0, 3].includes(residue.exitCode) || !verdict(residue.verdict)) process.exit(1);
+          if (!resolve || !matchesRequestedHandle(resolve) || !sha(resolve.releaseSha) || resolve.releaseSha !== requested.expectedSha) process.exit(1);
+          if (mark && (!matchesRequestedHandle(mark) || !verdict(mark.outcome))) process.exit(1);
+          if (residue && (!sha(residue.expectedSha) || residue.expectedSha !== requested.expectedSha || ![0, 3].includes(residue.exitCode) || !verdict(residue.verdict))) process.exit(1);
           const receipt = {
             schemaVersion: 'release-canary-recovery-receipt-v1',
             recovery: {
@@ -236,8 +237,8 @@ jobs:
               fundId: requested.fundId,
               canaryRunId: requested.canaryRunId,
             },
-            transition: { outcome: mark.outcome, canaryRunId: mark.canaryRunId },
-            residue: { verdict: residue.verdict, exitCode: residue.exitCode },
+            transition: mark ? { outcome: mark.outcome, canaryRunId: requested.canaryRunId } : null,
+            residue: residue ? { verdict: residue.verdict, exitCode: residue.exitCode } : null,
           };
           fs.writeFileSync(`${temp}/release-canary-recovery-receipt.json`, `${JSON.stringify(receipt)}\n`, { mode: 0o600 });
           NODE
