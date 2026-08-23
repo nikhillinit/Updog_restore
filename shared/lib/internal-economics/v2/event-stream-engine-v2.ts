@@ -28,6 +28,7 @@ export interface CashSourceLot {
   readonly lotId: string;
   readonly sourceEventId: string;
   readonly partnerId: string;
+  readonly dealId?: string;
   readonly originalAmount: Decimal;
   remainingBalance: Decimal;
 }
@@ -329,6 +330,7 @@ export function processRealization(
     lotId,
     sourceEventId: event.eventId,
     partnerId: '',
+    dealId: event.dealId,
     originalAmount: amount,
     remainingBalance: amount,
   });
