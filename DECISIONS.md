@@ -10930,3 +10930,164 @@ input-cap assertion.
 
 This ADR authorizes no merge, deployment, provider action, environment access,
 schema change, data mutation, or production dispatch.
+
+## ADR-085: V2 Internal Economics Core Methodology Lock
+
+**Date:** 2026-08-23 **Status:** Accepted **Tags:** #internal-economics #v2
+#methodology #waterfall #preferred-return #fee-recycling
+
+### Decision
+
+This ADR is the single superseding methodology lock for the V2
+internal-economics derivation core (F_2.0.0). It reconciles ADR-066
+(deal-by-deal-only activation, `:9587-9594`), ADR-068 (whole-fund vocabulary
+restored; live whole-fund calculator removed in PR #339 for zero usage,
+`:9690-9693`), ADR-069 (monthly canonical grain, no day-count proration,
+`:9979-9986`), and ADR-070 (GP cashless commitments and fee waivers,
+`docs/adr/ADR-070-cashless-gp-commitments-and-fee-waivers.md`).
+
+The following 11 items are locked for V2.0.0 implementation. Engine code,
+contracts, and tests downstream are governed by these decisions. Modification
+requires a new ADR; silent deviation is a governance violation.
+
+1. **Single rounding authority.** `ROUND_HALF_UP` everywhere, via the
+   repo-global Decimal config (`shared/lib/decimal-config.ts:4-14`). No
+   `HALF_EVEN` exists in `shared/` today; introducing it would either break the
+   V1 freeze (global flip) or split the numeric authority (per-operation
+   override). The global config is never mutated at runtime.
+
+2. **Selected-lane-only ordinary runtime.** Ordinary derivation
+   (`deriveInternalEconomicsCompositeV2`) executes only the caller-selected
+   waterfall lane (`deal_by_deal` or `whole_fund`) and returns no data from the
+   unselected lane. Dual-lane execution is available only through the explicit
+   certification entry point (`certifyInternalEconomicsDualLaneV2`), consumed by
+   CI and the truth harness. This respects ADR-066/068: whole-fund vocabulary is
+   restored without becoming shadow accounting through an always-on runtime
+   field.
+
+3. **Strict V2 tier grammar.** Four tier kinds only: `return_of_capital`,
+   `preferred_return`, `gp_catch_up`, `carry`. Priorities are one-indexed,
+   unique, contiguous; each kind appears at most once; `carry` appears exactly
+   once and last; `gp_catch_up` requires `preferred_return`, sits immediately
+   before `carry`, targets the terminal carry share, and its GP allocation rate
+   exceeds the terminal carry share and is at most 1.0. Clawback, escrow, hybrid
+   scope, and alternative preferred-return bases (anything other than
+   `unreturned_settled_cash_capital`) refuse.
+
+4. **LP-class-to-FeeProfile binding model and GP account taxonomy.** Every LP
+   partner belongs to exactly one LP class; each class binds exactly one fee
+   profile supplied as `FeeProfileV2WireSchema`. GP accounts follow the ADR-070
+   taxonomy: contractual GP commitment, settled GP cash, GP deemed contribution,
+   remaining callable commitment tracked separately. GP deemed contribution
+   never enters cash, fee, ROC, preferred-return, paid-in, or IRR bases.
+
+5. **Settled-contribution-only cash basis.** Only settled contributions enter
+   fund cash, paid-in capital, ROC-eligible capital, preference base, and XIRR
+   flows. Call notices, schedules, receivables, and unsettled contributions are
+   out of scope for F_2.0.0. Authenticity of settlement evidence is deferred to
+   F_2.1.0; F_2.0.0 validates internal consistency only. The contract shape
+   carries `settlementSourceRef` presence-validated.
+
+6. **Explicit cash-source-lot and investment-lot relief provenance.** Cash uses
+   carry explicit allocations whose amounts exactly equal the use. No FIFO or
+   inferred attribution; missing, ambiguous, or over-consumed allocations
+   refuse. The contract shape is fully specified; existence proofs of referenced
+   lots are deferred to F_2.1.0.
+
+7. **Monthly preferred-return accrual semantics.**
+   - Posting rule: accrues monthly on unreturned settled cash capital.
+   - `simple` mode: `annualRate * months / 12`; accrued preference excluded from
+     base.
+   - `effective_annual_compounded` mode: monthly rate
+     `(1 + annualRate)^(1/12) - 1`; unpaid preference joins the following
+     month's base.
+   - Mid-month distribution treatment: posts when
+     `periodEnd <= distributionDate`; month-end distributions see that month's
+     posting; mid-month distributions see only the prior month-end posting.
+     Daily piecewise accrual is rejected for V2.0.0 as unanchored to any
+     verified LPA term and contrary to ADR-069.
+   - Stub months: the establishment month accrues from `fundEstablishmentDate`
+     to end-of-month as a full first period. The final month (term expiry month
+     or last calculation month) accrues through end-of-month as a full final
+     period. Partial-month proration is rejected.
+   - `currentMonth` epoch: months elapsed since the `fundEstablishmentDate`
+     month (zero-indexed: establishment month is month 0).
+   - Post-term wind-down: `calculationDate` may exceed `fundTermDate`; accrual
+     continues through the terminal stub per this rule.
+
+8. **Equalization: refused by default.** Any equalization event
+   (`equalization_principal`, `equalization_interest`) refuses
+   `UNSUPPORTED_V2_EQUALIZATION`. The reserved mechanics (`canonical_lrm_v1`:
+   principal balanced payer contribution vs recipient ROC, net-zero to fund
+   cash; interest as direct LP-to-LP non-capital flow) may be enabled only with
+   a new ADR plus truth cases that exercise the enabled semantics.
+
+9. **Cross-period negative deployment-call corrections.** A correction that
+   would drive a period fee basis negative refuses `NEGATIVE_PERIOD_BASIS`. No
+   silent floor-at-zero clamp. Refuse-don't-clamp is the V2 doctrine for
+   negative intermediate values in recycling and fee paths:
+   `Decimal.max(0, ...)` is prohibited; `RECYCLING_CAPACITY_EXCEEDED` is the
+   appropriate refusal when lifetime capacity goes negative.
+
+10. **Reserved raw-byte sealing specification for F_2.1.0.** The preimage format
+    is: strict UTF-8 encoding, SHA-256 over exact raw bytes, lowercase
+    64-character hexadecimal digest, versioned `hashAlgorithm` field
+    (`canonical-json-sha256/1`). F_2.0.0 code ships no raw-byte (`Uint8Array`)
+    sealed fields; JSON-safe canonical hashing (`shared/lib/decimal-string.ts`
+    `canonicalizeDecimalLeaves`) with the versioned algorithm label is the
+    F_2.0.0 implementation. This pins the specification without committing to
+    the persistence-boundary implementation until F_2.1.0.
+
+11. **Whole-fund sunset criterion.** If no committed consumer of whole-fund
+    calculation results exists by F_2.2.0 completion, whole-fund is demoted to
+    test-only/unsupported. The implementation is built and tested in F_2.0.0
+    (per ADR-068), but its production activation is conditional on demonstrated
+    demand.
+
+**Truth corpus.** The hand-computed truth corpus
+(`docs/internal-economics-v2.truth-cases.json`) is the external golden anchor
+for V2 validation. Engine-generated expected values are prohibited. Owner
+ratification of this internal methodology is the explicit substitute for
+unavailable LPA terms (the fund's legal documents are not in the repository).
+The corpus and this ADR together constitute the methodology baseline; the corpus
+SHA is recorded at Phase 0 commit time.
+
+### Alternatives
+
+- Lock items across multiple smaller ADRs (one per topic): rejected because the
+  11 items are interdependent (tier grammar governs pref-return accrual governs
+  recycling governs whole-fund sunset) and splitting creates fragmented,
+  hard-to-audit methodology authority.
+- Defer methodology lock until LPA terms are digitized: rejected because F_2.0.0
+  is an internal modeling tool; owner ratification plus a hand-computed truth
+  corpus provides sufficient methodology authority for internal use, and
+  deferral blocks all V2 progress indefinitely.
+- Allow `HALF_EVEN` alongside `HALF_UP` on a per-operation basis: rejected
+  because dual rounding authority creates a class of bugs invisible to any
+  single test case and the repo has zero `HALF_EVEN` usage today.
+- Enable equalization by default: rejected because the equalization semantics
+  require truth cases that exercise the full principal/interest/ROC interaction,
+  and no such cases can be hand-computed without verified LPA equalization
+  terms.
+
+### Consequences
+
+All V2 engine code, contracts, and tests are governed by these 11 locked items.
+The truth corpus validates the methodology end-to-end. Any semantic change to
+these items requires a new ADR; code reviews must verify consistency against
+this lock.
+
+The refused-by-default stance for equalization and the whole-fund sunset
+criterion create clear future decision points (new ADR + truth cases to enable
+equalization; F_2.2.0 demand assessment for whole-fund) rather than silent
+accumulation of untested code paths.
+
+Fee recycling is constrained to cumulative bases only; per-period and dynamic
+(FMV/unrealized) bases are explicitly out of scope, closing the
+dimensional-mismatch bug class identified in the plan review.
+
+### No authority boundary
+
+This ADR authorizes no merge, deployment, provider action, environment access,
+schema change, data mutation, or production dispatch. Plans are evidence only;
+they grant no merge, deployment, provider, schema, or production authority.

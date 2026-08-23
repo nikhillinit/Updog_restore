@@ -1,0 +1,1396 @@
+{
+  "header": "V2 INTERNAL ECONOMICS CORE PRODUCT TRUTH",
+  "classification": "internal_economics_v2_product_truth",
+  "productTruth": true,
+  "oracle": "hand-computed/1.0.0",
+  "methodologyVersion": "adr-085/1.0.0",
+  "decimal": {
+    "precision": 28,
+    "boundaryPrecision": 28,
+    "rounding": "ROUND_HALF_UP",
+    "moneyScale": 6,
+    "ratioScale": 12
+  },
+  "cases": [
+    {
+      "id": "V2-TC-001",
+      "description": "ROC + carry only, two LPs, GP excluded, single deal",
+      "tierComposition": ["return_of_capital", "carry"],
+      "calculationNotes": "Proceeds $120K on $80K deployed. ROC=$80K. Profit=$40K. Carry 20/80 split. LP shares pro-rata 60/40 commitment.",
+      "input": {
+        "contractVersion": "internal-economics-composite/2.0.0",
+        "currency": "USD",
+        "fundEstablishmentDate": "2024-01-01",
+        "investmentPeriodEndDate": "2029-01-01",
+        "fundTermDate": "2034-01-01",
+        "calculationDate": "2024-12-31",
+        "cutoverInstant": "2024-01-01T00:00:00.000Z",
+        "roundingMode": "half_up",
+        "selectedLane": "deal_by_deal",
+        "gpCashPreferredReturnTreatment": "excluded",
+        "partners": [
+          {
+            "id": "lp-a",
+            "type": "lp",
+            "lpClassId": "class-1",
+            "committedCapital": "60000.000000"
+          },
+          {
+            "id": "lp-b",
+            "type": "lp",
+            "lpClassId": "class-1",
+            "committedCapital": "40000.000000"
+          },
+          {
+            "id": "gp-1",
+            "type": "gp",
+            "gpCommitment": "0.000000",
+            "gpDeemedContribution": "0.000000"
+          }
+        ],
+        "waterfallPolicy": [
+          { "kind": "return_of_capital", "priority": 1 },
+          { "kind": "carry", "priority": 2, "gpShare": "0.200000000000" }
+        ],
+        "events": [
+          {
+            "eventId": "contrib-1",
+            "instant": "2024-02-01T00:00:00.000Z",
+            "kind": "settled_contribution",
+            "amountUsd": "60000.000000",
+            "partnerId": "lp-a",
+            "purpose": "deployment"
+          },
+          {
+            "eventId": "contrib-2",
+            "instant": "2024-02-01T00:00:00.000Z",
+            "kind": "settled_contribution",
+            "amountUsd": "40000.000000",
+            "partnerId": "lp-b",
+            "purpose": "deployment"
+          },
+          {
+            "eventId": "deploy-1",
+            "instant": "2024-03-01T00:00:00.000Z",
+            "kind": "deployment",
+            "amountUsd": "80000.000000",
+            "dealId": "deal-1",
+            "securityId": "sec-1"
+          },
+          {
+            "eventId": "real-1",
+            "instant": "2024-09-01T00:00:00.000Z",
+            "kind": "realization",
+            "amountUsd": "120000.000000",
+            "dealId": "deal-1",
+            "recyclingTag": "none"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "dealByDeal": {
+          "tierAllocations": {
+            "return_of_capital": "80000.000000",
+            "carry": {
+              "total": "40000.000000",
+              "gpShare": "8000.000000",
+              "lpShare": "32000.000000"
+            }
+          },
+          "distributions": {
+            "lp-a": {
+              "roc": "48000.000000",
+              "carry": "19200.000000",
+              "total": "67200.000000"
+            },
+            "lp-b": {
+              "roc": "32000.000000",
+              "carry": "12800.000000",
+              "total": "44800.000000"
+            },
+            "gp-1": { "carry": "8000.000000", "total": "8000.000000" }
+          },
+          "cashEquation": {
+            "openingCash": "0.000000",
+            "contributions": "100000.000000",
+            "deployments": "80000.000000",
+            "realizations": "120000.000000",
+            "distributions": "120000.000000",
+            "endingCash": "20000.000000"
+          }
+        },
+        "wholeFund": {
+          "tierAllocations": {
+            "return_of_capital": "80000.000000",
+            "carry": {
+              "total": "40000.000000",
+              "gpShare": "8000.000000",
+              "lpShare": "32000.000000"
+            }
+          },
+          "distributions": {
+            "lp-a": {
+              "roc": "48000.000000",
+              "carry": "19200.000000",
+              "total": "67200.000000"
+            },
+            "lp-b": {
+              "roc": "32000.000000",
+              "carry": "12800.000000",
+              "total": "44800.000000"
+            },
+            "gp-1": { "carry": "8000.000000", "total": "8000.000000" }
+          },
+          "cashEquation": {
+            "openingCash": "0.000000",
+            "contributions": "100000.000000",
+            "deployments": "80000.000000",
+            "realizations": "120000.000000",
+            "distributions": "120000.000000",
+            "endingCash": "20000.000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "V2-TC-002",
+      "description": "Full waterfall (ROC+pref-simple+catch-up+carry), two LPs, GP excluded pref, 11 months simple accrual",
+      "tierComposition": [
+        "return_of_capital",
+        "preferred_return",
+        "gp_catch_up",
+        "carry"
+      ],
+      "calculationNotes": "Pref: 0.08*11/12*100000=7333.333333. ROC=$80K. Catch-up target: 7333.333333*0.20/0.80=1833.333333 (100% to GP). Carry: remaining 110833.333333 split 20/80.",
+      "input": {
+        "contractVersion": "internal-economics-composite/2.0.0",
+        "currency": "USD",
+        "fundEstablishmentDate": "2024-01-01",
+        "investmentPeriodEndDate": "2029-01-01",
+        "fundTermDate": "2034-01-01",
+        "calculationDate": "2024-12-31",
+        "cutoverInstant": "2024-01-01T00:00:00.000Z",
+        "roundingMode": "half_up",
+        "selectedLane": "deal_by_deal",
+        "gpCashPreferredReturnTreatment": "excluded",
+        "partners": [
+          {
+            "id": "lp-a",
+            "type": "lp",
+            "lpClassId": "class-1",
+            "committedCapital": "60000.000000"
+          },
+          {
+            "id": "lp-b",
+            "type": "lp",
+            "lpClassId": "class-1",
+            "committedCapital": "40000.000000"
+          },
+          {
+            "id": "gp-1",
+            "type": "gp",
+            "gpCommitment": "0.000000",
+            "gpDeemedContribution": "0.000000"
+          }
+        ],
+        "waterfallPolicy": [
+          { "kind": "return_of_capital", "priority": 1 },
+          {
+            "kind": "preferred_return",
+            "priority": 2,
+            "basis": "unreturned_settled_cash_capital",
+            "annualRate": "0.080000000000",
+            "rateMode": "simple"
+          },
+          {
+            "kind": "gp_catch_up",
+            "priority": 3,
+            "gpAllocationRate": "1.000000000000"
+          },
+          { "kind": "carry", "priority": 4, "gpShare": "0.200000000000" }
+        ],
+        "events": [
+          {
+            "eventId": "contrib-1",
+            "instant": "2024-02-01T00:00:00.000Z",
+            "kind": "settled_contribution",
+            "amountUsd": "60000.000000",
+            "partnerId": "lp-a",
+            "purpose": "deployment"
+          },
+          {
+            "eventId": "contrib-2",
+            "instant": "2024-02-01T00:00:00.000Z",
+            "kind": "settled_contribution",
+            "amountUsd": "40000.000000",
+            "partnerId": "lp-b",
+            "purpose": "deployment"
+          },
+          {
+            "eventId": "deploy-1",
+            "instant": "2024-03-01T00:00:00.000Z",
+            "kind": "deployment",
+            "amountUsd": "80000.000000",
+            "dealId": "deal-1",
+            "securityId": "sec-1"
+          },
+          {
+            "eventId": "real-1",
+            "instant": "2024-12-31T00:00:00.000Z",
+            "kind": "realization",
+            "amountUsd": "200000.000000",
+            "dealId": "deal-1",
+            "recyclingTag": "none"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "dealByDeal": {
+          "tierAllocations": {
+            "return_of_capital": "80000.000000",
+            "preferred_return": "7333.333333",
+            "gp_catch_up": "1833.333333",
+            "carry": {
+              "total": "110833.333333",
+              "gpShare": "22166.666667",
+              "lpShare": "88666.666667"
+            }
+          },
+          "distributions": {
+            "lp-a": {
+              "roc": "48000.000000",
+              "preferredReturn": "4400.000000",
+              "carry": "53200.000000",
+              "total": "105600.000000"
+            },
+            "lp-b": {
+              "roc": "32000.000000",
+              "preferredReturn": "2933.333333",
+              "carry": "35466.666667",
+              "total": "70400.000000"
+            },
+            "gp-1": {
+              "catchUp": "1833.333333",
+              "carry": "22166.666667",
+              "total": "24000.000000"
+            }
+          },
+          "cashEquation": {
+            "openingCash": "0.000000",
+            "contributions": "100000.000000",
+            "deployments": "80000.000000",
+            "realizations": "200000.000000",
+            "distributions": "200000.000000",
+            "endingCash": "20000.000000"
+          }
+        },
+        "wholeFund": {
+          "tierAllocations": {
+            "return_of_capital": "80000.000000",
+            "preferred_return": "7333.333333",
+            "gp_catch_up": "1833.333333",
+            "carry": {
+              "total": "110833.333333",
+              "gpShare": "22166.666667",
+              "lpShare": "88666.666667"
+            }
+          },
+          "distributions": {
+            "lp-a": {
+              "roc": "48000.000000",
+              "preferredReturn": "4400.000000",
+              "carry": "53200.000000",
+              "total": "105600.000000"
+            },
+            "lp-b": {
+              "roc": "32000.000000",
+              "preferredReturn": "2933.333333",
+              "carry": "35466.666667",
+              "total": "70400.000000"
+            },
+            "gp-1": {
+              "catchUp": "1833.333333",
+              "carry": "22166.666667",
+              "total": "24000.000000"
+            }
+          },
+          "cashEquation": {
+            "openingCash": "0.000000",
+            "contributions": "100000.000000",
+            "deployments": "80000.000000",
+            "realizations": "200000.000000",
+            "distributions": "200000.000000",
+            "endingCash": "20000.000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "V2-TC-003",
+      "description": "Full waterfall with effective_annual_compounded pref, 11 months",
+      "tierComposition": [
+        "return_of_capital",
+        "preferred_return",
+        "gp_catch_up",
+        "carry"
+      ],
+      "calculationNotes": "Monthly rate=(1.08)^(1/12)-1=0.006434030110003455. 11 months compounding on $100K base (unpaid pref joins base each month). Total pref=7309.567015. Catch-up=7309.567015*0.20/0.80=1827.391754. Carry on remaining 110863.041232.",
+      "input": {
+        "contractVersion": "internal-economics-composite/2.0.0",
+        "currency": "USD",
+        "fundEstablishmentDate": "2024-01-01",
+        "investmentPeriodEndDate": "2029-01-01",
+        "fundTermDate": "2034-01-01",
+        "calculationDate": "2024-12-31",
+        "cutoverInstant": "2024-01-01T00:00:00.000Z",
+        "roundingMode": "half_up",
+        "selectedLane": "deal_by_deal",
+        "gpCashPreferredReturnTreatment": "excluded",
+        "partners": [
+          {
+            "id": "lp-a",
+            "type": "lp",
+            "lpClassId": "class-1",
+            "committedCapital": "60000.000000"
+          },
+          {
+            "id": "lp-b",
+            "type": "lp",
+            "lpClassId": "class-1",
+            "committedCapital": "40000.000000"
+          },
+          {
+            "id": "gp-1",
+            "type": "gp",
+            "gpCommitment": "0.000000",
+            "gpDeemedContribution": "0.000000"
+          }
+        ],
+        "waterfallPolicy": [
+          { "kind": "return_of_capital", "priority": 1 },
+          {
+            "kind": "preferred_return",
+            "priority": 2,
+            "basis": "unreturned_settled_cash_capital",
+            "annualRate": "0.080000000000",
+            "rateMode": "effective_annual_compounded"
+          },
+          {
+            "kind": "gp_catch_up",
+            "priority": 3,
+            "gpAllocationRate": "1.000000000000"
+          },
+          { "kind": "carry", "priority": 4, "gpShare": "0.200000000000" }
+        ],
+        "events": [
+          {
+            "eventId": "contrib-1",
+            "instant": "2024-02-01T00:00:00.000Z",
+            "kind": "settled_contribution",
+            "amountUsd": "60000.000000",
+            "partnerId": "lp-a",
+            "purpose": "deployment"
+          },
+          {
+            "eventId": "contrib-2",
+            "instant": "2024-02-01T00:00:00.000Z",
+            "kind": "settled_contribution",
+            "amountUsd": "40000.000000",
+            "partnerId": "lp-b",
+            "purpose": "deployment"
+          },
+          {
+            "eventId": "deploy-1",
+            "instant": "2024-03-01T00:00:00.000Z",
+            "kind": "deployment",
+            "amountUsd": "80000.000000",
+            "dealId": "deal-1",
+            "securityId": "sec-1"
+          },
+          {
+            "eventId": "real-1",
+            "instant": "2024-12-31T00:00:00.000Z",
+            "kind": "realization",
+            "amountUsd": "200000.000000",
+            "dealId": "deal-1",
+            "recyclingTag": "none"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "dealByDeal": {
+          "tierAllocations": {
+            "return_of_capital": "80000.000000",
+            "preferred_return": "7309.567015",
+            "gp_catch_up": "1827.391754",
+            "carry": {
+              "total": "110863.041232",
+              "gpShare": "22172.608246",
+              "lpShare": "88690.432985"
+            }
+          },
+          "distributions": {
+            "lp-a": {
+              "roc": "48000.000000",
+              "preferredReturn": "4385.740209",
+              "carry": "53214.259791",
+              "total": "105600.000000"
+            },
+            "lp-b": {
+              "roc": "32000.000000",
+              "preferredReturn": "2923.826806",
+              "carry": "35476.173194",
+              "total": "70400.000000"
+            },
+            "gp-1": {
+              "catchUp": "1827.391754",
+              "carry": "22172.608246",
+              "total": "24000.000000"
+            }
+          },
+          "cashEquation": {
+            "openingCash": "0.000000",
+            "contributions": "100000.000000",
+            "deployments": "80000.000000",
+            "realizations": "200000.000000",
+            "distributions": "200000.000000",
+            "endingCash": "20000.000000"
+          }
+        },
+        "wholeFund": {
+          "tierAllocations": {
+            "return_of_capital": "80000.000000",
+            "preferred_return": "7309.567015",
+            "gp_catch_up": "1827.391754",
+            "carry": {
+              "total": "110863.041232",
+              "gpShare": "22172.608246",
+              "lpShare": "88690.432985"
+            }
+          },
+          "distributions": {
+            "lp-a": {
+              "roc": "48000.000000",
+              "preferredReturn": "4385.740209",
+              "carry": "53214.259791",
+              "total": "105600.000000"
+            },
+            "lp-b": {
+              "roc": "32000.000000",
+              "preferredReturn": "2923.826806",
+              "carry": "35476.173194",
+              "total": "70400.000000"
+            },
+            "gp-1": {
+              "catchUp": "1827.391754",
+              "carry": "22172.608246",
+              "total": "24000.000000"
+            }
+          },
+          "cashEquation": {
+            "openingCash": "0.000000",
+            "contributions": "100000.000000",
+            "deployments": "80000.000000",
+            "realizations": "200000.000000",
+            "distributions": "200000.000000",
+            "endingCash": "20000.000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "V2-TC-004",
+      "description": "Mid-month distribution: realization on Jul 15 sees only Jun-end pref posting (5 months, not 6)",
+      "tierComposition": [
+        "return_of_capital",
+        "preferred_return",
+        "gp_catch_up",
+        "carry"
+      ],
+      "calculationNotes": "Contribution Feb 1. Realization Jul 15. Pref posts at month-end; mid-month sees prior month-end only. Feb-end through Jun-end = 5 postings. Pref=0.08*5/12*100000=3333.333333. Catch-up=3333.333333*0.20/0.80=833.333333.",
+      "input": {
+        "contractVersion": "internal-economics-composite/2.0.0",
+        "currency": "USD",
+        "fundEstablishmentDate": "2024-01-01",
+        "investmentPeriodEndDate": "2029-01-01",
+        "fundTermDate": "2034-01-01",
+        "calculationDate": "2024-07-31",
+        "cutoverInstant": "2024-01-01T00:00:00.000Z",
+        "roundingMode": "half_up",
+        "selectedLane": "deal_by_deal",
+        "gpCashPreferredReturnTreatment": "excluded",
+        "partners": [
+          {
+            "id": "lp-a",
+            "type": "lp",
+            "lpClassId": "class-1",
+            "committedCapital": "60000.000000"
+          },
+          {
+            "id": "lp-b",
+            "type": "lp",
+            "lpClassId": "class-1",
+            "committedCapital": "40000.000000"
+          },
+          {
+            "id": "gp-1",
+            "type": "gp",
+            "gpCommitment": "0.000000",
+            "gpDeemedContribution": "0.000000"
+          }
+        ],
+        "waterfallPolicy": [
+          { "kind": "return_of_capital", "priority": 1 },
+          {
+            "kind": "preferred_return",
+            "priority": 2,
+            "basis": "unreturned_settled_cash_capital",
+            "annualRate": "0.080000000000",
+            "rateMode": "simple"
+          },
+          {
+            "kind": "gp_catch_up",
+            "priority": 3,
+            "gpAllocationRate": "1.000000000000"
+          },
+          { "kind": "carry", "priority": 4, "gpShare": "0.200000000000" }
+        ],
+        "events": [
+          {
+            "eventId": "contrib-1",
+            "instant": "2024-02-01T00:00:00.000Z",
+            "kind": "settled_contribution",
+            "amountUsd": "60000.000000",
+            "partnerId": "lp-a",
+            "purpose": "deployment"
+          },
+          {
+            "eventId": "contrib-2",
+            "instant": "2024-02-01T00:00:00.000Z",
+            "kind": "settled_contribution",
+            "amountUsd": "40000.000000",
+            "partnerId": "lp-b",
+            "purpose": "deployment"
+          },
+          {
+            "eventId": "deploy-1",
+            "instant": "2024-03-01T00:00:00.000Z",
+            "kind": "deployment",
+            "amountUsd": "80000.000000",
+            "dealId": "deal-1",
+            "securityId": "sec-1"
+          },
+          {
+            "eventId": "real-1",
+            "instant": "2024-07-15T00:00:00.000Z",
+            "kind": "realization",
+            "amountUsd": "150000.000000",
+            "dealId": "deal-1",
+            "recyclingTag": "none"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "dealByDeal": {
+          "tierAllocations": {
+            "return_of_capital": "80000.000000",
+            "preferred_return": "3333.333333",
+            "gp_catch_up": "833.333333",
+            "carry": {
+              "total": "65833.333333",
+              "gpShare": "13166.666667",
+              "lpShare": "52666.666667"
+            }
+          },
+          "distributions": {
+            "lp-a": {
+              "roc": "48000.000000",
+              "preferredReturn": "2000.000000",
+              "carry": "31600.000000",
+              "total": "81600.000000"
+            },
+            "lp-b": {
+              "roc": "32000.000000",
+              "preferredReturn": "1333.333333",
+              "carry": "21066.666667",
+              "total": "54400.000000"
+            },
+            "gp-1": {
+              "catchUp": "833.333333",
+              "carry": "13166.666667",
+              "total": "14000.000000"
+            }
+          },
+          "cashEquation": {
+            "openingCash": "0.000000",
+            "contributions": "100000.000000",
+            "deployments": "80000.000000",
+            "realizations": "150000.000000",
+            "distributions": "150000.000000",
+            "endingCash": "20000.000000"
+          }
+        },
+        "wholeFund": {
+          "tierAllocations": {
+            "return_of_capital": "80000.000000",
+            "preferred_return": "3333.333333",
+            "gp_catch_up": "833.333333",
+            "carry": {
+              "total": "65833.333333",
+              "gpShare": "13166.666667",
+              "lpShare": "52666.666667"
+            }
+          },
+          "distributions": {
+            "lp-a": {
+              "roc": "48000.000000",
+              "preferredReturn": "2000.000000",
+              "carry": "31600.000000",
+              "total": "81600.000000"
+            },
+            "lp-b": {
+              "roc": "32000.000000",
+              "preferredReturn": "1333.333333",
+              "carry": "21066.666667",
+              "total": "54400.000000"
+            },
+            "gp-1": {
+              "catchUp": "833.333333",
+              "carry": "13166.666667",
+              "total": "14000.000000"
+            }
+          },
+          "cashEquation": {
+            "openingCash": "0.000000",
+            "contributions": "100000.000000",
+            "deployments": "80000.000000",
+            "realizations": "150000.000000",
+            "distributions": "150000.000000",
+            "endingCash": "20000.000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "V2-TC-005",
+      "description": "Stub months: fund established mid-month (Mar 15), calc date post-term (Sep 15 > Sep 1 term). Establishment stub is full month. 6 month-end postings.",
+      "tierComposition": ["return_of_capital", "preferred_return", "carry"],
+      "calculationNotes": "Fund est Mar 15 2024. Term Sep 1 2024. Calc Sep 15 2024 (post-term). Contribution Mar 15 $100K. Deploy $80K Apr 1. Realization $140K Aug 31. Pref posts: Mar-end through Aug-end = 6 months. Sep-end (Sep 30 > calc Sep 15) does NOT post. Pref=0.08*6/12*100000=4000. No catch-up tier.",
+      "input": {
+        "contractVersion": "internal-economics-composite/2.0.0",
+        "currency": "USD",
+        "fundEstablishmentDate": "2024-03-15",
+        "investmentPeriodEndDate": "2025-03-15",
+        "fundTermDate": "2024-09-01",
+        "calculationDate": "2024-09-15",
+        "cutoverInstant": "2024-03-15T00:00:00.000Z",
+        "roundingMode": "half_up",
+        "selectedLane": "deal_by_deal",
+        "gpCashPreferredReturnTreatment": "excluded",
+        "partners": [
+          {
+            "id": "lp-a",
+            "type": "lp",
+            "lpClassId": "class-1",
+            "committedCapital": "60000.000000"
+          },
+          {
+            "id": "lp-b",
+            "type": "lp",
+            "lpClassId": "class-1",
+            "committedCapital": "40000.000000"
+          },
+          {
+            "id": "gp-1",
+            "type": "gp",
+            "gpCommitment": "0.000000",
+            "gpDeemedContribution": "0.000000"
+          }
+        ],
+        "waterfallPolicy": [
+          { "kind": "return_of_capital", "priority": 1 },
+          {
+            "kind": "preferred_return",
+            "priority": 2,
+            "basis": "unreturned_settled_cash_capital",
+            "annualRate": "0.080000000000",
+            "rateMode": "simple"
+          },
+          { "kind": "carry", "priority": 3, "gpShare": "0.200000000000" }
+        ],
+        "events": [
+          {
+            "eventId": "contrib-1",
+            "instant": "2024-03-15T12:00:00.000Z",
+            "kind": "settled_contribution",
+            "amountUsd": "60000.000000",
+            "partnerId": "lp-a",
+            "purpose": "deployment"
+          },
+          {
+            "eventId": "contrib-2",
+            "instant": "2024-03-15T12:00:00.000Z",
+            "kind": "settled_contribution",
+            "amountUsd": "40000.000000",
+            "partnerId": "lp-b",
+            "purpose": "deployment"
+          },
+          {
+            "eventId": "deploy-1",
+            "instant": "2024-04-01T00:00:00.000Z",
+            "kind": "deployment",
+            "amountUsd": "80000.000000",
+            "dealId": "deal-1",
+            "securityId": "sec-1"
+          },
+          {
+            "eventId": "real-1",
+            "instant": "2024-08-31T00:00:00.000Z",
+            "kind": "realization",
+            "amountUsd": "140000.000000",
+            "dealId": "deal-1",
+            "recyclingTag": "none"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "dealByDeal": {
+          "tierAllocations": {
+            "return_of_capital": "80000.000000",
+            "preferred_return": "4000.000000",
+            "carry": {
+              "total": "56000.000000",
+              "gpShare": "11200.000000",
+              "lpShare": "44800.000000"
+            }
+          },
+          "distributions": {
+            "lp-a": {
+              "roc": "48000.000000",
+              "preferredReturn": "2400.000000",
+              "carry": "26880.000000",
+              "total": "77280.000000"
+            },
+            "lp-b": {
+              "roc": "32000.000000",
+              "preferredReturn": "1600.000000",
+              "carry": "17920.000000",
+              "total": "51520.000000"
+            },
+            "gp-1": { "carry": "11200.000000", "total": "11200.000000" }
+          },
+          "cashEquation": {
+            "openingCash": "0.000000",
+            "contributions": "100000.000000",
+            "deployments": "80000.000000",
+            "realizations": "140000.000000",
+            "distributions": "140000.000000",
+            "endingCash": "20000.000000"
+          }
+        },
+        "wholeFund": {
+          "tierAllocations": {
+            "return_of_capital": "80000.000000",
+            "preferred_return": "4000.000000",
+            "carry": {
+              "total": "56000.000000",
+              "gpShare": "11200.000000",
+              "lpShare": "44800.000000"
+            }
+          },
+          "distributions": {
+            "lp-a": {
+              "roc": "48000.000000",
+              "preferredReturn": "2400.000000",
+              "carry": "26880.000000",
+              "total": "77280.000000"
+            },
+            "lp-b": {
+              "roc": "32000.000000",
+              "preferredReturn": "1600.000000",
+              "carry": "17920.000000",
+              "total": "51520.000000"
+            },
+            "gp-1": { "carry": "11200.000000", "total": "11200.000000" }
+          },
+          "cashEquation": {
+            "openingCash": "0.000000",
+            "contributions": "100000.000000",
+            "deployments": "80000.000000",
+            "realizations": "140000.000000",
+            "distributions": "140000.000000",
+            "endingCash": "20000.000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "V2-TC-006",
+      "description": "GP pari_passu pref treatment: GP settled cash ($10K) participates in preferred return alongside LPs",
+      "tierComposition": ["return_of_capital", "preferred_return", "carry"],
+      "calculationNotes": "LP-A $60K, LP-B $30K, GP $10K settled. Total pref base $100K (GP included, pari_passu). 6 months simple pref=0.08*6/12*100K=4000. GP pref share=10%=$400. LP-A pref=60%=$2400. LP-B pref=30%=$1200.",
+      "input": {
+        "contractVersion": "internal-economics-composite/2.0.0",
+        "currency": "USD",
+        "fundEstablishmentDate": "2024-01-01",
+        "investmentPeriodEndDate": "2029-01-01",
+        "fundTermDate": "2034-01-01",
+        "calculationDate": "2024-07-31",
+        "cutoverInstant": "2024-01-01T00:00:00.000Z",
+        "roundingMode": "half_up",
+        "selectedLane": "deal_by_deal",
+        "gpCashPreferredReturnTreatment": "pari_passu",
+        "partners": [
+          {
+            "id": "lp-a",
+            "type": "lp",
+            "lpClassId": "class-1",
+            "committedCapital": "60000.000000"
+          },
+          {
+            "id": "lp-b",
+            "type": "lp",
+            "lpClassId": "class-1",
+            "committedCapital": "30000.000000"
+          },
+          {
+            "id": "gp-1",
+            "type": "gp",
+            "gpCommitment": "10000.000000",
+            "gpSettledCash": "10000.000000",
+            "gpDeemedContribution": "0.000000"
+          }
+        ],
+        "waterfallPolicy": [
+          { "kind": "return_of_capital", "priority": 1 },
+          {
+            "kind": "preferred_return",
+            "priority": 2,
+            "basis": "unreturned_settled_cash_capital",
+            "annualRate": "0.080000000000",
+            "rateMode": "simple"
+          },
+          { "kind": "carry", "priority": 3, "gpShare": "0.200000000000" }
+        ],
+        "events": [
+          {
+            "eventId": "contrib-1",
+            "instant": "2024-02-01T00:00:00.000Z",
+            "kind": "settled_contribution",
+            "amountUsd": "60000.000000",
+            "partnerId": "lp-a",
+            "purpose": "deployment"
+          },
+          {
+            "eventId": "contrib-2",
+            "instant": "2024-02-01T00:00:00.000Z",
+            "kind": "settled_contribution",
+            "amountUsd": "30000.000000",
+            "partnerId": "lp-b",
+            "purpose": "deployment"
+          },
+          {
+            "eventId": "contrib-gp",
+            "instant": "2024-02-01T00:00:00.000Z",
+            "kind": "settled_contribution",
+            "amountUsd": "10000.000000",
+            "partnerId": "gp-1",
+            "purpose": "deployment"
+          },
+          {
+            "eventId": "deploy-1",
+            "instant": "2024-03-01T00:00:00.000Z",
+            "kind": "deployment",
+            "amountUsd": "80000.000000",
+            "dealId": "deal-1",
+            "securityId": "sec-1"
+          },
+          {
+            "eventId": "real-1",
+            "instant": "2024-07-31T00:00:00.000Z",
+            "kind": "realization",
+            "amountUsd": "150000.000000",
+            "dealId": "deal-1",
+            "recyclingTag": "none"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "dealByDeal": {
+          "tierAllocations": {
+            "return_of_capital": "80000.000000",
+            "preferred_return": "4000.000000",
+            "carry": {
+              "total": "66000.000000",
+              "gpShare": "13200.000000",
+              "lpShare": "52800.000000"
+            }
+          },
+          "distributions": {
+            "lp-a": {
+              "roc": "48000.000000",
+              "preferredReturn": "2400.000000",
+              "carry": "31680.000000",
+              "total": "82080.000000"
+            },
+            "lp-b": {
+              "roc": "24000.000000",
+              "preferredReturn": "1200.000000",
+              "carry": "15840.000000",
+              "total": "41040.000000"
+            },
+            "gp-1": {
+              "roc": "8000.000000",
+              "preferredReturn": "400.000000",
+              "carry": "18480.000000",
+              "total": "26880.000000"
+            }
+          },
+          "cashEquation": {
+            "openingCash": "0.000000",
+            "contributions": "100000.000000",
+            "deployments": "80000.000000",
+            "realizations": "150000.000000",
+            "distributions": "150000.000000",
+            "endingCash": "20000.000000"
+          }
+        },
+        "wholeFund": {
+          "tierAllocations": {
+            "return_of_capital": "80000.000000",
+            "preferred_return": "4000.000000",
+            "carry": {
+              "total": "66000.000000",
+              "gpShare": "13200.000000",
+              "lpShare": "52800.000000"
+            }
+          },
+          "distributions": {
+            "lp-a": {
+              "roc": "48000.000000",
+              "preferredReturn": "2400.000000",
+              "carry": "31680.000000",
+              "total": "82080.000000"
+            },
+            "lp-b": {
+              "roc": "24000.000000",
+              "preferredReturn": "1200.000000",
+              "carry": "15840.000000",
+              "total": "41040.000000"
+            },
+            "gp-1": {
+              "roc": "8000.000000",
+              "preferredReturn": "400.000000",
+              "carry": "18480.000000",
+              "total": "26880.000000"
+            }
+          },
+          "cashEquation": {
+            "openingCash": "0.000000",
+            "contributions": "100000.000000",
+            "deployments": "80000.000000",
+            "realizations": "150000.000000",
+            "distributions": "150000.000000",
+            "endingCash": "20000.000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "V2-TC-007",
+      "description": "Carry only (minimal tier composition). No ROC, no pref. All proceeds split 80/20 through carry.",
+      "tierComposition": ["carry"],
+      "calculationNotes": "No ROC tier so no capital return priority. All $150K proceeds through carry: GP 20%=$30K, LP 80%=$120K. LP-A 60%=$72K, LP-B 40%=$48K.",
+      "input": {
+        "contractVersion": "internal-economics-composite/2.0.0",
+        "currency": "USD",
+        "fundEstablishmentDate": "2024-01-01",
+        "investmentPeriodEndDate": "2029-01-01",
+        "fundTermDate": "2034-01-01",
+        "calculationDate": "2024-12-31",
+        "cutoverInstant": "2024-01-01T00:00:00.000Z",
+        "roundingMode": "half_up",
+        "selectedLane": "deal_by_deal",
+        "gpCashPreferredReturnTreatment": "excluded",
+        "partners": [
+          {
+            "id": "lp-a",
+            "type": "lp",
+            "lpClassId": "class-1",
+            "committedCapital": "60000.000000"
+          },
+          {
+            "id": "lp-b",
+            "type": "lp",
+            "lpClassId": "class-1",
+            "committedCapital": "40000.000000"
+          },
+          {
+            "id": "gp-1",
+            "type": "gp",
+            "gpCommitment": "0.000000",
+            "gpDeemedContribution": "0.000000"
+          }
+        ],
+        "waterfallPolicy": [
+          { "kind": "carry", "priority": 1, "gpShare": "0.200000000000" }
+        ],
+        "events": [
+          {
+            "eventId": "contrib-1",
+            "instant": "2024-02-01T00:00:00.000Z",
+            "kind": "settled_contribution",
+            "amountUsd": "60000.000000",
+            "partnerId": "lp-a",
+            "purpose": "deployment"
+          },
+          {
+            "eventId": "contrib-2",
+            "instant": "2024-02-01T00:00:00.000Z",
+            "kind": "settled_contribution",
+            "amountUsd": "40000.000000",
+            "partnerId": "lp-b",
+            "purpose": "deployment"
+          },
+          {
+            "eventId": "deploy-1",
+            "instant": "2024-03-01T00:00:00.000Z",
+            "kind": "deployment",
+            "amountUsd": "80000.000000",
+            "dealId": "deal-1",
+            "securityId": "sec-1"
+          },
+          {
+            "eventId": "real-1",
+            "instant": "2024-09-01T00:00:00.000Z",
+            "kind": "realization",
+            "amountUsd": "150000.000000",
+            "dealId": "deal-1",
+            "recyclingTag": "none"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "dealByDeal": {
+          "tierAllocations": {
+            "carry": {
+              "total": "150000.000000",
+              "gpShare": "30000.000000",
+              "lpShare": "120000.000000"
+            }
+          },
+          "distributions": {
+            "lp-a": { "carry": "72000.000000", "total": "72000.000000" },
+            "lp-b": { "carry": "48000.000000", "total": "48000.000000" },
+            "gp-1": { "carry": "30000.000000", "total": "30000.000000" }
+          },
+          "cashEquation": {
+            "openingCash": "0.000000",
+            "contributions": "100000.000000",
+            "deployments": "80000.000000",
+            "realizations": "150000.000000",
+            "distributions": "150000.000000",
+            "endingCash": "20000.000000"
+          }
+        },
+        "wholeFund": {
+          "tierAllocations": {
+            "carry": {
+              "total": "150000.000000",
+              "gpShare": "30000.000000",
+              "lpShare": "120000.000000"
+            }
+          },
+          "distributions": {
+            "lp-a": { "carry": "72000.000000", "total": "72000.000000" },
+            "lp-b": { "carry": "48000.000000", "total": "48000.000000" },
+            "gp-1": { "carry": "30000.000000", "total": "30000.000000" }
+          },
+          "cashEquation": {
+            "openingCash": "0.000000",
+            "contributions": "100000.000000",
+            "deployments": "80000.000000",
+            "realizations": "150000.000000",
+            "distributions": "150000.000000",
+            "endingCash": "20000.000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "V2-TC-008",
+      "description": "Pref before ROC (reversed priority order). Pref at p:1, ROC at p:2, carry at p:3.",
+      "tierComposition": ["preferred_return", "return_of_capital", "carry"],
+      "calculationNotes": "Pref first from $150K proceeds. 6 months simple 8% on $100K = $4000. Then ROC=$80K. Carry on $66K remainder: GP 20%=$13200, LP 80%=$52800.",
+      "input": {
+        "contractVersion": "internal-economics-composite/2.0.0",
+        "currency": "USD",
+        "fundEstablishmentDate": "2024-01-01",
+        "investmentPeriodEndDate": "2029-01-01",
+        "fundTermDate": "2034-01-01",
+        "calculationDate": "2024-07-31",
+        "cutoverInstant": "2024-01-01T00:00:00.000Z",
+        "roundingMode": "half_up",
+        "selectedLane": "deal_by_deal",
+        "gpCashPreferredReturnTreatment": "excluded",
+        "partners": [
+          {
+            "id": "lp-a",
+            "type": "lp",
+            "lpClassId": "class-1",
+            "committedCapital": "60000.000000"
+          },
+          {
+            "id": "lp-b",
+            "type": "lp",
+            "lpClassId": "class-1",
+            "committedCapital": "40000.000000"
+          },
+          {
+            "id": "gp-1",
+            "type": "gp",
+            "gpCommitment": "0.000000",
+            "gpDeemedContribution": "0.000000"
+          }
+        ],
+        "waterfallPolicy": [
+          {
+            "kind": "preferred_return",
+            "priority": 1,
+            "basis": "unreturned_settled_cash_capital",
+            "annualRate": "0.080000000000",
+            "rateMode": "simple"
+          },
+          { "kind": "return_of_capital", "priority": 2 },
+          { "kind": "carry", "priority": 3, "gpShare": "0.200000000000" }
+        ],
+        "events": [
+          {
+            "eventId": "contrib-1",
+            "instant": "2024-02-01T00:00:00.000Z",
+            "kind": "settled_contribution",
+            "amountUsd": "60000.000000",
+            "partnerId": "lp-a",
+            "purpose": "deployment"
+          },
+          {
+            "eventId": "contrib-2",
+            "instant": "2024-02-01T00:00:00.000Z",
+            "kind": "settled_contribution",
+            "amountUsd": "40000.000000",
+            "partnerId": "lp-b",
+            "purpose": "deployment"
+          },
+          {
+            "eventId": "deploy-1",
+            "instant": "2024-03-01T00:00:00.000Z",
+            "kind": "deployment",
+            "amountUsd": "80000.000000",
+            "dealId": "deal-1",
+            "securityId": "sec-1"
+          },
+          {
+            "eventId": "real-1",
+            "instant": "2024-07-31T00:00:00.000Z",
+            "kind": "realization",
+            "amountUsd": "150000.000000",
+            "dealId": "deal-1",
+            "recyclingTag": "none"
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "dealByDeal": {
+          "tierAllocations": {
+            "preferred_return": "4000.000000",
+            "return_of_capital": "80000.000000",
+            "carry": {
+              "total": "66000.000000",
+              "gpShare": "13200.000000",
+              "lpShare": "52800.000000"
+            }
+          },
+          "distributions": {
+            "lp-a": {
+              "preferredReturn": "2400.000000",
+              "roc": "48000.000000",
+              "carry": "31680.000000",
+              "total": "82080.000000"
+            },
+            "lp-b": {
+              "preferredReturn": "1600.000000",
+              "roc": "32000.000000",
+              "carry": "21120.000000",
+              "total": "54720.000000"
+            },
+            "gp-1": { "carry": "13200.000000", "total": "13200.000000" }
+          },
+          "cashEquation": {
+            "openingCash": "0.000000",
+            "contributions": "100000.000000",
+            "deployments": "80000.000000",
+            "realizations": "150000.000000",
+            "distributions": "150000.000000",
+            "endingCash": "20000.000000"
+          }
+        },
+        "wholeFund": {
+          "tierAllocations": {
+            "preferred_return": "4000.000000",
+            "return_of_capital": "80000.000000",
+            "carry": {
+              "total": "66000.000000",
+              "gpShare": "13200.000000",
+              "lpShare": "52800.000000"
+            }
+          },
+          "distributions": {
+            "lp-a": {
+              "preferredReturn": "2400.000000",
+              "roc": "48000.000000",
+              "carry": "31680.000000",
+              "total": "82080.000000"
+            },
+            "lp-b": {
+              "preferredReturn": "1600.000000",
+              "roc": "32000.000000",
+              "carry": "21120.000000",
+              "total": "54720.000000"
+            },
+            "gp-1": { "carry": "13200.000000", "total": "13200.000000" }
+          },
+          "cashEquation": {
+            "openingCash": "0.000000",
+            "contributions": "100000.000000",
+            "deployments": "80000.000000",
+            "realizations": "150000.000000",
+            "distributions": "150000.000000",
+            "endingCash": "20000.000000"
+          }
+        }
+      }
+    },
+    {
+      "id": "V2-TC-R01",
+      "description": "Refusal: equalization event refused with UNSUPPORTED_V2_EQUALIZATION",
+      "tierComposition": ["return_of_capital", "carry"],
+      "calculationNotes": "Input contains equalization_principal event. Engine must refuse before any calculation.",
+      "input": {
+        "contractVersion": "internal-economics-composite/2.0.0",
+        "currency": "USD",
+        "fundEstablishmentDate": "2024-01-01",
+        "investmentPeriodEndDate": "2029-01-01",
+        "fundTermDate": "2034-01-01",
+        "calculationDate": "2024-12-31",
+        "cutoverInstant": "2024-01-01T00:00:00.000Z",
+        "roundingMode": "half_up",
+        "selectedLane": "deal_by_deal",
+        "gpCashPreferredReturnTreatment": "excluded",
+        "partners": [
+          {
+            "id": "lp-a",
+            "type": "lp",
+            "lpClassId": "class-1",
+            "committedCapital": "60000.000000"
+          },
+          {
+            "id": "gp-1",
+            "type": "gp",
+            "gpCommitment": "0.000000",
+            "gpDeemedContribution": "0.000000"
+          }
+        ],
+        "waterfallPolicy": [
+          { "kind": "return_of_capital", "priority": 1 },
+          { "kind": "carry", "priority": 2, "gpShare": "0.200000000000" }
+        ],
+        "events": [
+          {
+            "eventId": "eq-1",
+            "instant": "2024-06-01T00:00:00.000Z",
+            "kind": "equalization_principal",
+            "amountUsd": "5000.000000"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusalCode": "UNSUPPORTED_V2_EQUALIZATION"
+      }
+    },
+    {
+      "id": "V2-TC-R02",
+      "description": "Refusal: invalid tier policy — non-contiguous priorities (1, 3 with no 2)",
+      "tierComposition": ["return_of_capital", "carry"],
+      "calculationNotes": "Priorities 1 and 3 skip 2. Normalization must refuse INVALID_TIER_POLICY.",
+      "input": {
+        "contractVersion": "internal-economics-composite/2.0.0",
+        "currency": "USD",
+        "fundEstablishmentDate": "2024-01-01",
+        "investmentPeriodEndDate": "2029-01-01",
+        "fundTermDate": "2034-01-01",
+        "calculationDate": "2024-12-31",
+        "cutoverInstant": "2024-01-01T00:00:00.000Z",
+        "roundingMode": "half_up",
+        "selectedLane": "deal_by_deal",
+        "gpCashPreferredReturnTreatment": "excluded",
+        "partners": [
+          {
+            "id": "lp-a",
+            "type": "lp",
+            "lpClassId": "class-1",
+            "committedCapital": "60000.000000"
+          },
+          {
+            "id": "gp-1",
+            "type": "gp",
+            "gpCommitment": "0.000000",
+            "gpDeemedContribution": "0.000000"
+          }
+        ],
+        "waterfallPolicy": [
+          { "kind": "return_of_capital", "priority": 1 },
+          { "kind": "carry", "priority": 3, "gpShare": "0.200000000000" }
+        ],
+        "events": []
+      },
+      "expected": {
+        "ok": false,
+        "refusalCode": "INVALID_TIER_POLICY"
+      }
+    },
+    {
+      "id": "V2-TC-R03",
+      "description": "Refusal: unsupported contract version",
+      "tierComposition": [],
+      "calculationNotes": "contractVersion is 'internal-economics-composite/1.0.0' (not 2.0.0). Normalization refuses UNSUPPORTED_INTERNAL_ECONOMICS_CONTRACT_VERSION.",
+      "input": {
+        "contractVersion": "internal-economics-composite/1.0.0",
+        "currency": "USD",
+        "fundEstablishmentDate": "2024-01-01",
+        "investmentPeriodEndDate": "2029-01-01",
+        "fundTermDate": "2034-01-01",
+        "calculationDate": "2024-12-31",
+        "cutoverInstant": "2024-01-01T00:00:00.000Z",
+        "roundingMode": "half_up",
+        "selectedLane": "deal_by_deal",
+        "gpCashPreferredReturnTreatment": "excluded",
+        "partners": [],
+        "waterfallPolicy": [],
+        "events": []
+      },
+      "expected": {
+        "ok": false,
+        "refusalCode": "UNSUPPORTED_INTERNAL_ECONOMICS_CONTRACT_VERSION"
+      }
+    }
+  ]
+}
