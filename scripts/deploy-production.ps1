@@ -41,8 +41,8 @@ param(
     [ValidatePattern('^[a-f0-9]{40}$')]
     [string] $SchemaPrecursorSha,
 
-  [Parameter(Mandatory = $false)]
-  [string] $PrNumber,
+    [Parameter(Mandatory = $false)]
+    [string] $PrNumber,
 
     [Parameter(Mandatory = $true)]
     [ValidateSet('primary', 'rollback')]
