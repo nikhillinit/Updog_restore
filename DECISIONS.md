@@ -56,6 +56,7 @@ development of the Press On Ventures fund modeling platform.
 - [ADR-041: Global Internal Fund Visibility with Role-Gated Consequences](#adr-041-global-internal-fund-visibility-with-role-gated-consequences)
 - [ADR-042: Tranche 1 Calculation Substrate Contracts (Demo Scope)](#adr-042-tranche-1-calculation-substrate-contracts-demo-scope)
 - [ADR-043: Tranche 2 Substrate Adoption Starts with Pacing (Demo Scope)](#adr-043-tranche-2-substrate-adoption-starts-with-pacing-demo-scope)
+- [ADR-084: Ceremony Retirement and Canary-Hardening Slice](#adr-084-ceremony-retirement-and-canary-hardening-slice)
 
 ---
 
@@ -10873,6 +10874,57 @@ accepts extra truth-case runs to avoid path-list false negatives.
 Revert this change only through current-head CI. Never use a workflow retry,
 artifact reuse, token fallback, or provider mutation to bypass the current
 production procedure.
+
+### No authority boundary
+
+This ADR authorizes no merge, deployment, provider action, environment access,
+schema change, data mutation, or production dispatch.
+
+## ADR-084: Ceremony Retirement and Canary-Hardening Slice
+
+**Date:** 2026-08-22 **Status:** Accepted **Tags:** #release #governance
+#ceremony
+
+### Decision
+
+Plan-approval and policy-ratification ceremonies are retired from the release
+pipeline. Their manifest fields become nullable (backward-compatible schema),
+their CI jobs and workflow steps are deleted, and their verifier scripts are
+removed.
+
+Source provenance shifts from approval-derived PR identity to an explicit
+`pr_number` dispatch input on `release-production.yml`. The
+`verifyBaselineConsumption` function accepts `prNumber` as a parameter instead
+of reading a hardcoded constant.
+
+The evidence manifest contract's `superRefine` no longer requires non-null
+`policy.ratification` or `fragmentLineage.policyRatification` on success
+manifests. The backward-compatible cross-validation block (if ratification is
+non-null, validate its hashes) remains.
+
+Schema-route retirement is not implemented by this slice. It remains gated on
+separately owner-authorized clean current-main audit evidence; production
+authority remains none.
+
+This remains single repository owner/operator internal Press On Ventures
+tooling; it creates no delegated, multi-tenant, or external-customer authority.
+
+### Alternatives
+
+- Keep ceremonies but make them no-ops: rejected because dead code with
+  protected-environment gates wastes CI minutes and confuses future readers.
+- Remove the schema fields entirely: rejected because existing archived
+  manifests reference them; nullable preserves backward compatibility.
+
+### Consequences
+
+Release pipeline is simpler: fewer jobs, fewer environment gates, fewer failure
+modes. Dispatch-based provenance is explicit and auditable without relying on
+approval event payloads.
+
+`pr_number` is an explicit dispatch provenance input. The compact baseline
+binding remains the existing interface; this ADR makes no GitHub platform
+input-cap assertion.
 
 ### No authority boundary
 

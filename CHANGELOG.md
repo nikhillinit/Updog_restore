@@ -21,10 +21,27 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Changed (2026-08-22)
+
+- **Ceremony retirement and canary recovery hardening (narrow F_1.3.1 PR2
+  scope).** Source provenance now binds generic baseline PR/plan evidence and
+  rollback remains historical-context compatible. Schema-route retirement
+  remains gated on separately owner-authorized current-main audit evidence.
+  Production authority remains none. ADR-084.
+
 ### Changed (2026-08-20)
 
-- **Infrastructure-only interim release hardening.** Governed release evidence now records exact-execution canary results and refreshed surface-contract-matrix proof. This does not designate an activation candidate or create a release freeze.
-- **Task 11 G1 closure (F_1.2.9).** Owner-approved G1 successor review closed the surface-contract matrix: rejected candidate superseded via deterministic transplant with a 13-row defect ledger (5 cashflow mutation rows, 8 partner-only persona rows) plus 24 source-verified fan-out corrections; contaminated fresh-review prose removed; four residual risks accepted and enumerated in the review manifest. Funds endpoint 404 investigated to a bounded no-repro dossier.
+- **Infrastructure-only interim release hardening.** Governed release evidence
+  now records exact-execution canary results and refreshed
+  surface-contract-matrix proof. This does not designate an activation candidate
+  or create a release freeze.
+- **Task 11 G1 closure (F_1.2.9).** Owner-approved G1 successor review closed
+  the surface-contract matrix: rejected candidate superseded via deterministic
+  transplant with a 13-row defect ledger (5 cashflow mutation rows, 8
+  partner-only persona rows) plus 24 source-verified fan-out corrections;
+  contaminated fresh-review prose removed; four residual risks accepted and
+  enumerated in the review manifest. Funds endpoint 404 investigated to a
+  bounded no-repro dossier.
 
 ### Changed (2026-08-18)
 

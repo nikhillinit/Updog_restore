@@ -48,6 +48,10 @@ on:
         description: Schema-only precursor commit SHA
         type: string
         required: true
+      pr_number:
+        description: Pull request number whose merge produced expected_sha (required for primary)
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -77,6 +81,8 @@ jobs:
         id: target
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RELEASE_MODE: ${{ inputs.release_mode }}
+          PR_NUMBER: ${{ inputs.pr_number }}
         run: |
           # GitHub reruns are intentionally unsupported: failed-jobs reruns can
           # retain prior-attempt artifacts and all-jobs reruns share run-scoped
@@ -91,6 +97,10 @@ jobs:
           fi
           if [[ ! "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ || "$GITHUB_SHA" != "$EXPECTED_SHA" ]]; then
             echo "expected_sha must equal the exact current main SHA."
+            exit 1
+          fi
+          if [[ "$RELEASE_MODE" == "primary" && ! "$PR_NUMBER" =~ ^[1-9][0-9]{0,8}$ ]]; then
+            echo "pr_number is required and must be valid for primary release mode."
             exit 1
           fi
           echo "log_window_start=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
@@ -158,16 +168,24 @@ jobs:
           BASELINE_EVIDENCE_B64: ${{ inputs.baseline_evidence_b64 }}
           RELEASE_MODE: ${{ inputs.release_mode }}
           EXPECTED_SHA: ${{ inputs.expected_sha }}
+          PR_NUMBER: ${{ inputs.pr_number }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           : "${EXPECTED_SHA:?EXPECTED_SHA is required}"
-          node scripts/release/capture-release-recovery-context.mjs verify-baseline-consumption \
-            --baseline-evidence-b64 "$BASELINE_EVIDENCE_B64" \
-            --release-mode "$RELEASE_MODE" \
-            --expected-sha "$EXPECTED_SHA" \
-            --context-file "$RUNNER_TEMP/release-baseline/release-recovery-context-v1.json" \
+          args=(
+            --baseline-evidence-b64 "$BASELINE_EVIDENCE_B64"
+            --release-mode "$RELEASE_MODE"
+            --expected-sha "$EXPECTED_SHA"
+            --context-file "$RUNNER_TEMP/release-baseline/release-recovery-context-v1.json"
             --emit-normalized "$RUNNER_TEMP/baseline-fragment-payload.json"
+          )
+          if [[ "$RELEASE_MODE" == "primary" ]]; then
+            : "${PR_NUMBER:?PR_NUMBER is required for primary mode}"
+            args+=(--pr-number "$PR_NUMBER")
+          fi
+          node scripts/release/capture-release-recovery-context.mjs verify-baseline-consumption \
+            "${args[@]}"
 
       - name: Name attempt-qualified preflight fragment artifacts
         id: fragment_meta
@@ -1038,37 +1056,6 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
-      - name: Publish policy ratification approval template
-        env:
-          EXPECTED_SHA: ${{ inputs.expected_sha }}
-          POLICY_CONFIG_PAYLOAD_SHA256: ${{ needs.baseline-policy-preflight.outputs.policy_config_payload_sha256 }}
-          POLICY_MEASUREMENT_PAYLOAD_SHA256: ${{ steps.build_policy_measurement_fragment.outputs.payload_sha256 }}
-          CHARACTERIZATION_FILE_SHA256: ${{ needs.release-proof.outputs.characterization_file_sha256 }}
-          CANARY_RESULT_PAYLOAD_SHA256: ${{ steps.build_canary_result_fragment.outputs.payload_sha256 }}
-        run: |
-          set -euo pipefail
-          : "${POLICY_CONFIG_PAYLOAD_SHA256:?POLICY_CONFIG_PAYLOAD_SHA256 is required}"
-          : "${POLICY_MEASUREMENT_PAYLOAD_SHA256:?POLICY_MEASUREMENT_PAYLOAD_SHA256 is required}"
-          : "${CHARACTERIZATION_FILE_SHA256:?CHARACTERIZATION_FILE_SHA256 is required}"
-          : "${CANARY_RESULT_PAYLOAD_SHA256:?CANARY_RESULT_PAYLOAD_SHA256 is required}"
-          {
-            echo '### Production Policy Ratification approval template'
-            echo ''
-            echo 'Inspect the staged measurement, then paste this exact block as the environment approval comment:'
-            echo ''
-            echo '```text'
-            echo 'RELEASE-POLICY-RATIFICATION-V1'
-            echo "run_id: ${GITHUB_RUN_ID}"
-            echo "run_attempt: ${GITHUB_RUN_ATTEMPT}"
-            echo "source_sha: ${EXPECTED_SHA}"
-            echo "policy_config_payload_sha256: ${POLICY_CONFIG_PAYLOAD_SHA256}"
-            echo "policy_measurement_payload_sha256: ${POLICY_MEASUREMENT_PAYLOAD_SHA256}"
-            echo "characterization_file_sha256: ${CHARACTERIZATION_FILE_SHA256}"
-            echo "canary_result_payload_sha256: ${CANARY_RESULT_PAYLOAD_SHA256}"
-            echo 'decision: approved'
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
       - name: Remove staged-smoke fragment evidence
         if: always()
         run: rm -f -- "$RUNNER_TEMP/release-canary-residue-result.json" "$RUNNER_TEMP/release-canary-h9-metadata-v1.json" "$RUNNER_TEMP/policy-measurement-fragment-payload.json" "$RUNNER_TEMP/release-evidence-fragment-policy-measurement.json" "$RUNNER_TEMP/canary-result-fragment-payload.json" "$RUNNER_TEMP/release-evidence-fragment-canary-result.json"
@@ -1312,308 +1299,10 @@ jobs:
         if: always()
         run: rm -rf -- "$RUNNER_TEMP/provider-evidence-g4-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
-  policy-ratification:
-    name: Production Policy Ratification
-    # The protected environment gate: staged-smoke has already published the
-    # sanitized approval template to its job summary; the release owner
-    # inspects the staged measurement and approves this environment with that
-    # exact block as the comment. This job then proves the approval via the
-    # GitHub API before building the policy-ratification fragment.
-    needs: [release-proof, baseline-policy-preflight, staged-smoke]
-    if: ${{ needs.release-proof.result == 'success' && needs.baseline-policy-preflight.result == 'success' && needs.staged-smoke.result == 'success' && github.run_attempt == 1 }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    environment: Production Policy Ratification
-    permissions:
-      contents: read
-      actions: read
-    outputs:
-      policy_ratification_artifact_id: ${{ steps.upload_policy_ratification_fragment.outputs.artifact-id }}
-      policy_ratification_artifact_name: ${{ steps.ratification_fragment_meta.outputs.artifact_name }}
-      policy_ratification_artifact_digest: ${{ steps.upload_policy_ratification_fragment.outputs.artifact-digest }}
-      policy_ratification_file_sha256: ${{ steps.build_policy_ratification_fragment.outputs.file_sha256 }}
-      policy_ratification_payload_sha256: ${{ steps.build_policy_ratification_fragment.outputs.payload_sha256 }}
-    steps:
-      - name: Require attempt 1 before ratification proof
-        run: |
-          set -euo pipefail
-          if [[ "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
-            echo "::error::Policy ratification is only permitted on workflow attempt 1; reruns are unsupported."
-            exit 1
-          fi
-
-      - name: Checkout exact release verifier
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ inputs.expected_sha }}
-
-      - name: Setup Node environment
-        uses: ./.github/actions/setup-node-env
-
-      - name: Download and verify staged policy evidence by exact artifact IDs
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          EXPECTED_SHA: ${{ inputs.expected_sha }}
-          POLICY_CONFIG_ARTIFACT_ID: ${{ needs.baseline-policy-preflight.outputs.policy_config_artifact_id }}
-          POLICY_CONFIG_ARTIFACT_NAME: ${{ needs.baseline-policy-preflight.outputs.policy_config_artifact_name }}
-          POLICY_CONFIG_ARTIFACT_DIGEST: ${{ needs.baseline-policy-preflight.outputs.policy_config_artifact_digest }}
-          POLICY_CONFIG_FILE_SHA256: ${{ needs.baseline-policy-preflight.outputs.policy_config_file_sha256 }}
-          POLICY_MEASUREMENT_ARTIFACT_ID: ${{ needs.staged-smoke.outputs.policy_measurement_artifact_id }}
-          POLICY_MEASUREMENT_ARTIFACT_NAME: ${{ needs.staged-smoke.outputs.policy_measurement_artifact_name }}
-          POLICY_MEASUREMENT_ARTIFACT_DIGEST: ${{ needs.staged-smoke.outputs.policy_measurement_artifact_digest }}
-          POLICY_MEASUREMENT_FILE_SHA256: ${{ needs.staged-smoke.outputs.policy_measurement_file_sha256 }}
-          CANARY_RESULT_ARTIFACT_ID: ${{ needs.staged-smoke.outputs.canary_result_artifact_id }}
-          CANARY_RESULT_ARTIFACT_NAME: ${{ needs.staged-smoke.outputs.canary_result_artifact_name }}
-          CANARY_RESULT_ARTIFACT_DIGEST: ${{ needs.staged-smoke.outputs.canary_result_artifact_digest }}
-          CANARY_RESULT_FILE_SHA256: ${{ needs.staged-smoke.outputs.canary_result_file_sha256 }}
-          CHARACTERIZATION_ARTIFACT_ID: ${{ needs.release-proof.outputs.characterization_artifact_id }}
-          CHARACTERIZATION_ARTIFACT_NAME: ${{ needs.release-proof.outputs.characterization_artifact_name }}
-          CHARACTERIZATION_ARTIFACT_DIGEST: ${{ needs.release-proof.outputs.characterization_artifact_digest }}
-          CHARACTERIZATION_FILE_SHA256: ${{ needs.release-proof.outputs.characterization_file_sha256 }}
-        run: |
-          set -euo pipefail
-          EVIDENCE_DIR="$RUNNER_TEMP/ratification-evidence"
-          rm -rf -- "$EVIDENCE_DIR"
-          mkdir -m 0700 -- "$EVIDENCE_DIR"
-          verify_and_extract() {
-            local label="$1" artifact_id="$2" artifact_name="$3" artifact_digest="$4" file_sha256="$5" expected_name="$6"
-            : "${artifact_id:?${label} artifact ID is required}"
-            : "${artifact_name:?${label} artifact name is required}"
-            : "${artifact_digest:?${label} artifact digest is required}"
-            : "${file_sha256:?${label} file hash is required}"
-            if [ "$artifact_name" != "$expected_name" ]; then
-              echo "::error::${label} artifact name does not match the recomputed attempt-qualified template."
-              exit 1
-            fi
-            gh api "repos/${REPO}/actions/artifacts/${artifact_id}" > "$EVIDENCE_DIR/${label}-record.json"
-            ARTIFACT_LABEL="$label" ARTIFACT_ID="$artifact_id" ARTIFACT_NAME="$artifact_name" ARTIFACT_DIGEST="$artifact_digest" \
-              node -e '
-                const fs = require("node:fs");
-                const record = JSON.parse(
-                  fs.readFileSync(process.env.RUNNER_TEMP + "/ratification-evidence/" + process.env.ARTIFACT_LABEL + "-record.json", "utf8")
-                );
-                const valid =
-                  String(record.id) === process.env.ARTIFACT_ID &&
-                  String(record.workflow_run?.id) === process.env.GITHUB_RUN_ID &&
-                  record.expired === false &&
-                  record.name === process.env.ARTIFACT_NAME &&
-                  record.digest === process.env.ARTIFACT_DIGEST;
-                if (!valid) {
-                  console.error(process.env.ARTIFACT_LABEL + " artifact record does not match this exact execution.");
-                  process.exit(1);
-                }
-              '
-            gh api "repos/${REPO}/actions/artifacts/${artifact_id}/zip" > "$EVIDENCE_DIR/${label}.zip"
-            mkdir -m 0700 -- "$EVIDENCE_DIR/${label}"
-            unzip -o "$EVIDENCE_DIR/${label}.zip" -d "$EVIDENCE_DIR/${label}"
-            if find "$EVIDENCE_DIR/${label}" -type l | grep -q .; then
-              echo "::error::${label} artifact contains symlinks."
-              exit 1
-            fi
-            if [ "$(find "$EVIDENCE_DIR/${label}" -type f | wc -l)" -ne 1 ]; then
-              echo "::error::${label} artifact must contain exactly one file."
-              exit 1
-            fi
-            local extracted
-            extracted="$(find "$EVIDENCE_DIR/${label}" -type f)"
-            local recomputed
-            recomputed="$(sha256sum "$extracted" | cut -d' ' -f1)"
-            if [ "$recomputed" != "$file_sha256" ]; then
-              echo "::error::${label} recomputed file hash does not equal the producer output."
-              exit 1
-            fi
-            mv -- "$extracted" "$EVIDENCE_DIR/${label}.json"
-          }
-          verify_and_extract policy-config "$POLICY_CONFIG_ARTIFACT_ID" "$POLICY_CONFIG_ARTIFACT_NAME" "$POLICY_CONFIG_ARTIFACT_DIGEST" "$POLICY_CONFIG_FILE_SHA256" \
-            "release-evidence-fragment-v1-policy-config-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${EXPECTED_SHA}"
-          verify_and_extract policy-measurement "$POLICY_MEASUREMENT_ARTIFACT_ID" "$POLICY_MEASUREMENT_ARTIFACT_NAME" "$POLICY_MEASUREMENT_ARTIFACT_DIGEST" "$POLICY_MEASUREMENT_FILE_SHA256" \
-            "release-evidence-fragment-v1-policy-measurement-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${EXPECTED_SHA}"
-          verify_and_extract canary-result "$CANARY_RESULT_ARTIFACT_ID" "$CANARY_RESULT_ARTIFACT_NAME" "$CANARY_RESULT_ARTIFACT_DIGEST" "$CANARY_RESULT_FILE_SHA256" \
-            "release-evidence-fragment-v1-canary-result-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${EXPECTED_SHA}"
-          verify_and_extract characterization "$CHARACTERIZATION_ARTIFACT_ID" "$CHARACTERIZATION_ARTIFACT_NAME" "$CHARACTERIZATION_ARTIFACT_DIGEST" "$CHARACTERIZATION_FILE_SHA256" \
-            "release-canary-residue-characterization-v1-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${EXPECTED_SHA}"
-          # Workspace-resident helper: relative contract imports must resolve
-          # against the checkout, never RUNNER_TEMP.
-          cat > ./validate-ratification-evidence.tmp.mts <<'VALIDATE'
-          import { readFileSync } from 'node:fs';
-          import {
-            parseReleaseEvidenceFragment,
-            sha256CanonicalJsonOfPayload,
-          } from './shared/contracts/release-evidence-fragment-v1.contract';
-          import {
-            RELEASE_CANARY_RESERVED_RESIDUE,
-            parseReleaseCanaryResidueCharacterization,
-          } from './shared/contracts/release-canary-residue-characterization-v1.contract';
-
-          const dir = `${process.env['RUNNER_TEMP']}/ratification-evidence`;
-          const readJson = (name: string): unknown =>
-            JSON.parse(readFileSync(`${dir}/${name}.json`, 'utf8'));
-          const expectVector = (label: string, vector: Record<string, number>): void => {
-            for (const [group, reserved] of Object.entries(RELEASE_CANARY_RESERVED_RESIDUE)) {
-              if (vector[group] !== reserved) {
-                throw new Error(`${label} residue vector does not equal the reserved vector`);
-              }
-            }
-          };
-          const requireCurrentRun = (fragment: {
-            runId: string;
-            runAttempt: number;
-            sourceSha: string;
-            kind: string;
-            producerJob: string;
-          }): void => {
-            if (
-              fragment.runId !== process.env['GITHUB_RUN_ID'] ||
-              String(fragment.runAttempt) !== process.env['GITHUB_RUN_ATTEMPT'] ||
-              fragment.sourceSha !== process.env['EXPECTED_SHA']
-            ) {
-              throw new Error(`${fragment.kind} fragment does not bind this exact execution`);
-            }
-          };
-          const config = parseReleaseEvidenceFragment(readJson('policy-config'));
-          if (config.kind !== 'policy-config' || config.producerJob !== 'baseline-policy-preflight') {
-            throw new Error('policy-config fragment has the wrong kind or producer');
-          }
-          requireCurrentRun(config);
-          const measurement = parseReleaseEvidenceFragment(readJson('policy-measurement'));
-          if (measurement.kind !== 'policy-measurement' || measurement.producerJob !== 'staged-smoke') {
-            throw new Error('policy-measurement fragment has the wrong kind or producer');
-          }
-          requireCurrentRun(measurement);
-          expectVector('policy-measurement', measurement.payload.residue);
-          const canaryResult = parseReleaseEvidenceFragment(readJson('canary-result'));
-          if (canaryResult.kind !== 'canary-result' || canaryResult.producerJob !== 'staged-smoke') {
-            throw new Error('canary-result fragment has the wrong kind or producer');
-          }
-          requireCurrentRun(canaryResult);
-          expectVector('canary-result', canaryResult.payload.residue);
-          const characterization = parseReleaseCanaryResidueCharacterization(
-            readJson('characterization')
-          );
-          if (characterization.sourceSha !== process.env['EXPECTED_SHA']) {
-            throw new Error('characterization does not bind the release source SHA');
-          }
-          const hashes = {
-            policyConfigPayloadSha256: sha256CanonicalJsonOfPayload(config.payload),
-            policyMeasurementPayloadSha256: sha256CanonicalJsonOfPayload(measurement.payload),
-            canaryResultPayloadSha256: sha256CanonicalJsonOfPayload(canaryResult.payload),
-          };
-          if (
-            hashes.policyConfigPayloadSha256 !== config.payloadSha256 ||
-            hashes.policyMeasurementPayloadSha256 !== measurement.payloadSha256 ||
-            hashes.canaryResultPayloadSha256 !== canaryResult.payloadSha256
-          ) {
-            throw new Error('fragment payload hash does not match its recomputed canonical hash');
-          }
-          process.stdout.write(`${JSON.stringify(hashes)}\n`);
-          VALIDATE
-          npx tsx ./validate-ratification-evidence.tmp.mts > "$EVIDENCE_DIR/recomputed-hashes.json"
-          rm -f ./validate-ratification-evidence.tmp.mts
-
-      - name: Verify environment approval against exact template
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EXPECTED_SHA: ${{ inputs.expected_sha }}
-          CHARACTERIZATION_FILE_SHA256: ${{ needs.release-proof.outputs.characterization_file_sha256 }}
-        run: |
-          set -euo pipefail
-          EVIDENCE_DIR="$RUNNER_TEMP/ratification-evidence"
-          node -e '
-            const fs = require("node:fs");
-            const hashes = JSON.parse(
-              fs.readFileSync(process.env.RUNNER_TEMP + "/ratification-evidence/recomputed-hashes.json", "utf8")
-            );
-            const template = [
-              "RELEASE-POLICY-RATIFICATION-V1",
-              "run_id: " + process.env.GITHUB_RUN_ID,
-              "run_attempt: " + process.env.GITHUB_RUN_ATTEMPT,
-              "source_sha: " + process.env.EXPECTED_SHA,
-              "policy_config_payload_sha256: " + hashes.policyConfigPayloadSha256,
-              "policy_measurement_payload_sha256: " + hashes.policyMeasurementPayloadSha256,
-              "characterization_file_sha256: " + process.env.CHARACTERIZATION_FILE_SHA256,
-              "canary_result_payload_sha256: " + hashes.canaryResultPayloadSha256,
-              "decision: approved",
-            ].join("\n");
-            fs.writeFileSync(process.env.RUNNER_TEMP + "/ratification-evidence/expected-approval-comment.txt", template, { mode: 0o600 });
-          '
-          node scripts/release/verify-policy-ratification.mjs \
-            --environment-name "Production Policy Ratification" \
-            --run-id "$GITHUB_RUN_ID" \
-            --run-attempt "$GITHUB_RUN_ATTEMPT" \
-            --expected-comment-file "$EVIDENCE_DIR/expected-approval-comment.txt" \
-            --output "$EVIDENCE_DIR/ratification-verification.json"
-
-      - name: Name attempt-qualified policy-ratification fragment artifact
-        id: ratification_fragment_meta
-        env:
-          EXPECTED_SHA: ${{ inputs.expected_sha }}
-        run: |
-          set -euo pipefail
-          echo "artifact_name=release-evidence-fragment-v1-policy-ratification-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${EXPECTED_SHA}" >> "$GITHUB_OUTPUT"
-
-      - name: Build policy-ratification evidence fragment
-        id: build_policy_ratification_fragment
-        env:
-          FRAGMENT_SOURCE_SHA: ${{ inputs.expected_sha }}
-          CHARACTERIZATION_FILE_SHA256: ${{ needs.release-proof.outputs.characterization_file_sha256 }}
-        run: |
-          set -euo pipefail
-          node <<'NODE'
-          const fs = require('node:fs');
-          const dir = `${process.env.RUNNER_TEMP}/ratification-evidence`;
-          const verification = JSON.parse(fs.readFileSync(`${dir}/ratification-verification.json`, 'utf8'));
-          const hashes = JSON.parse(fs.readFileSync(`${dir}/recomputed-hashes.json`, 'utf8'));
-          const payload = {
-            environmentId: verification.environmentId,
-            environmentName: verification.environmentName,
-            reviewerLogin: verification.reviewerLogin,
-            reviewerPermission: verification.reviewerPermission,
-            approvalState: verification.approvalState,
-            commentSha256: verification.commentSha256,
-            policyConfigPayloadSha256: hashes.policyConfigPayloadSha256,
-            policyMeasurementPayloadSha256: hashes.policyMeasurementPayloadSha256,
-            characterizationFileSha256: process.env.CHARACTERIZATION_FILE_SHA256,
-            canaryResultPayloadSha256: hashes.canaryResultPayloadSha256,
-            verifiedAt: verification.verifiedAt,
-          };
-          fs.writeFileSync(`${process.env.RUNNER_TEMP}/policy-ratification-fragment-payload.json`, JSON.stringify(payload), { mode: 0o600 });
-          NODE
-          BUILD_OUTPUT="$(npx tsx scripts/release/build-release-evidence-fragment.ts \
-            --kind policy-ratification \
-            --payload-file "$RUNNER_TEMP/policy-ratification-fragment-payload.json" \
-            --producer-job policy-ratification \
-            --output "$RUNNER_TEMP/release-evidence-fragment-policy-ratification.json")"
-          node -e '
-            const parsed = JSON.parse(process.argv[1]);
-            const hex = /^[a-f0-9]{64}$/;
-            if (!hex.test(parsed.payloadSha256) || !hex.test(parsed.fileSha256)) {
-              console.error("Policy-ratification fragment builder emitted an invalid result.");
-              process.exit(1);
-            }
-            const fs = require("node:fs");
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, "payload_sha256=" + parsed.payloadSha256 + "\n");
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, "file_sha256=" + parsed.fileSha256 + "\n");
-          ' "$BUILD_OUTPUT"
-
-      - name: Upload immutable policy-ratification evidence fragment
-        id: upload_policy_ratification_fragment
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ steps.ratification_fragment_meta.outputs.artifact_name }}
-          path: ${{ runner.temp }}/release-evidence-fragment-policy-ratification.json
-          retention-days: 30
-          if-no-files-found: error
-
-      - name: Remove ratification evidence
-        if: always()
-        run: rm -rf -- "$RUNNER_TEMP/ratification-evidence" ./validate-ratification-evidence.tmp.mts "$RUNNER_TEMP/policy-ratification-fragment-payload.json" "$RUNNER_TEMP/release-evidence-fragment-policy-ratification.json"
-
   promote:
     name: Promote Staged Vercel Deployment
     if: ${{ false }}
-    needs:
-      [staged-smoke, validate-deployment, staged-provider-identity, g4-operator-evidence, policy-ratification]
+    needs: [staged-smoke, validate-deployment, staged-provider-identity, g4-operator-evidence]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: Production
@@ -1632,15 +1321,14 @@ jobs:
           VALIDATE_DEPLOYMENT_RESULT: ${{ needs.validate-deployment.result }}
           STAGED_PROVIDER_IDENTITY_RESULT: ${{ needs.staged-provider-identity.result }}
           G4_OPERATOR_EVIDENCE_RESULT: ${{ needs.g4-operator-evidence.result }}
-          POLICY_RATIFICATION_RESULT: ${{ needs.policy-ratification.result }}
         run: |
           set -euo pipefail
           if [[ "$GITHUB_RUN_ATTEMPT" != "1" ]]; then
             echo "::error::Promotion is only permitted on workflow attempt 1; reruns are unsupported."
             exit 1
           fi
-          if [[ "$STAGED_SMOKE_RESULT" != "success" || "$VALIDATE_DEPLOYMENT_RESULT" != "success" || "$STAGED_PROVIDER_IDENTITY_RESULT" != "success" || "$G4_OPERATOR_EVIDENCE_RESULT" != "success" || "$POLICY_RATIFICATION_RESULT" != "success" ]]; then
-            echo "::error::Promotion requires staged-smoke, validate-deployment, staged-provider-identity, g4-operator-evidence, and policy-ratification to all succeed."
+          if [[ "$STAGED_SMOKE_RESULT" != "success" || "$VALIDATE_DEPLOYMENT_RESULT" != "success" || "$STAGED_PROVIDER_IDENTITY_RESULT" != "success" || "$G4_OPERATOR_EVIDENCE_RESULT" != "success" ]]; then
+            echo "::error::Promotion requires staged-smoke, validate-deployment, staged-provider-identity, and g4-operator-evidence to all succeed."
             exit 1
           fi
 
@@ -1982,27 +1670,15 @@ jobs:
       - staged-smoke
       - staged-provider-identity
       - g4-operator-evidence
-      - policy-ratification
       - promote
       - post-promotion-smoke
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # checks, issues, and pull-requests read exist solely for the fresh
-    # verify-plan-approval.mjs call inside this finalizer; actions read is for
-    # exact-ID artifact fetches. No write permission is ever granted here.
     permissions:
       contents: read
       actions: read
-      checks: read
-      issues: read
       pull-requests: read
-    env:
-      # Plan-approval binding is workflow configuration, not contract schema:
-      # a later activation candidate rebinds its own approved plan PR here.
-      PLAN_APPROVAL_PR: '1385'
-      PLAN_PATH: docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md
-      PLAN_APPROVER_LOGIN: nikhillinit
     steps:
       - name: Require attempt 1 before evidence finalization
         run: |
@@ -2035,7 +1711,6 @@ jobs:
           STAGED_SMOKE_RESULT: ${{ needs.staged-smoke.result }}
           STAGED_PROVIDER_IDENTITY_RESULT: ${{ needs.staged-provider-identity.result }}
           G4_OPERATOR_EVIDENCE_RESULT: ${{ needs.g4-operator-evidence.result }}
-          POLICY_RATIFICATION_RESULT: ${{ needs.policy-ratification.result }}
           PROMOTE_RESULT: ${{ needs.promote.result }}
           POST_PROMOTION_SMOKE_RESULT: ${{ needs.post-promotion-smoke.result }}
         run: |
@@ -2055,7 +1730,6 @@ jobs:
             ['staged-smoke', process.env.STAGED_SMOKE_RESULT],
             ['staged-provider-identity', process.env.STAGED_PROVIDER_IDENTITY_RESULT],
             ['g4-operator-evidence', process.env.G4_OPERATOR_EVIDENCE_RESULT],
-            ['policy-ratification', process.env.POLICY_RATIFICATION_RESULT],
             ['promote', process.env.PROMOTE_RESULT],
             ['post-promotion-smoke', process.env.POST_PROMOTION_SMOKE_RESULT],
           ];
@@ -2174,11 +1848,7 @@ jobs:
           CANARY_RESULT_ARTIFACT_NAME: ${{ needs.staged-smoke.outputs.canary_result_artifact_name }}
           CANARY_RESULT_ARTIFACT_DIGEST: ${{ needs.staged-smoke.outputs.canary_result_artifact_digest }}
           CANARY_RESULT_FILE_SHA256: ${{ needs.staged-smoke.outputs.canary_result_file_sha256 }}
-          POLICY_RATIFICATION_ARTIFACT_ID: ${{ needs.policy-ratification.outputs.policy_ratification_artifact_id }}
-          POLICY_RATIFICATION_ARTIFACT_NAME: ${{ needs.policy-ratification.outputs.policy_ratification_artifact_name }}
-          POLICY_RATIFICATION_ARTIFACT_DIGEST: ${{ needs.policy-ratification.outputs.policy_ratification_artifact_digest }}
-          POLICY_RATIFICATION_FILE_SHA256: ${{ needs.policy-ratification.outputs.policy_ratification_file_sha256 }}
-          POLICY_RATIFICATION_RESULT: ${{ needs.policy-ratification.result }}
+
           OPERATOR_EVIDENCE_ARTIFACT_ID: ${{ needs.g4-operator-evidence.outputs.operator_evidence_artifact_id }}
           OPERATOR_EVIDENCE_ARTIFACT_NAME: ${{ needs.g4-operator-evidence.outputs.operator_evidence_artifact_name }}
           OPERATOR_EVIDENCE_ARTIFACT_DIGEST: ${{ needs.g4-operator-evidence.outputs.operator_evidence_artifact_digest }}
@@ -2249,50 +1919,28 @@ jobs:
           fetch_fragment schema "$SCHEMA_RESULT" "$SCHEMA_ARTIFACT_ID" "$SCHEMA_ARTIFACT_NAME" "$SCHEMA_ARTIFACT_DIGEST" "$SCHEMA_FILE_SHA256"
           fetch_fragment policy-measurement "$STAGED_SMOKE_RESULT" "$POLICY_MEASUREMENT_ARTIFACT_ID" "$POLICY_MEASUREMENT_ARTIFACT_NAME" "$POLICY_MEASUREMENT_ARTIFACT_DIGEST" "$POLICY_MEASUREMENT_FILE_SHA256"
           fetch_fragment canary-result "$STAGED_SMOKE_RESULT" "$CANARY_RESULT_ARTIFACT_ID" "$CANARY_RESULT_ARTIFACT_NAME" "$CANARY_RESULT_ARTIFACT_DIGEST" "$CANARY_RESULT_FILE_SHA256"
-          fetch_fragment policy-ratification "$POLICY_RATIFICATION_RESULT" "$POLICY_RATIFICATION_ARTIFACT_ID" "$POLICY_RATIFICATION_ARTIFACT_NAME" "$POLICY_RATIFICATION_ARTIFACT_DIGEST" "$POLICY_RATIFICATION_FILE_SHA256"
           fetch_fragment operator-evidence "$G4_OPERATOR_EVIDENCE_RESULT" "$OPERATOR_EVIDENCE_ARTIFACT_ID" "$OPERATOR_EVIDENCE_ARTIFACT_NAME" "$OPERATOR_EVIDENCE_ARTIFACT_DIGEST" "$OPERATOR_EVIDENCE_FILE_SHA256"
           fetch_fragment release-provider "$PROMOTE_RESULT" "$RELEASE_PROVIDER_ARTIFACT_ID" "$RELEASE_PROVIDER_ARTIFACT_NAME" "$RELEASE_PROVIDER_ARTIFACT_DIGEST" "$RELEASE_PROVIDER_FILE_SHA256"
 
-      - name: Verify plan approval from isolated live PR head checkout
-        id: plan_approval
+      - name: Independently verify primary PR provenance
+        id: resolve_pr_head
+        if: inputs.release_mode == 'primary'
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
         run: |
           set -euo pipefail
-          LIVE_HEAD="$(gh api "repos/${REPO}/pulls/${PLAN_APPROVAL_PR}" --jq '.head.sha')"
-          if [[ ! "$LIVE_HEAD" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::Plan-approval PR live head is unresolvable."
-            exit 1
-          fi
-          # The squash release commit descends from no PR-branch commit, so the
-          # verifier NEVER runs from the release-SHA working directory: fetch
-          # refs/pull/<pr>/head (survives head-branch deletion) with full
-          # history into an isolated directory checked out at the live head.
-          APPROVAL_DIR="$RUNNER_TEMP/plan-approval-head"
-          rm -rf -- "$APPROVAL_DIR"
-          mkdir -m 0700 -- "$APPROVAL_DIR"
-          git -C "$APPROVAL_DIR" init --quiet
-          git -C "$APPROVAL_DIR" remote add origin "${GITHUB_SERVER_URL}/${REPO}.git"
-          # Token travels via GIT_CONFIG_* environment, never process argv.
-          GIT_CONFIG_COUNT=1 \
-            GIT_CONFIG_KEY_0=http.extraheader \
-            GIT_CONFIG_VALUE_0="Authorization: Basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)" \
-            git -C "$APPROVAL_DIR" fetch --quiet origin "refs/pull/${PLAN_APPROVAL_PR}/head"
-          git -C "$APPROVAL_DIR" checkout --quiet "$LIVE_HEAD"
-          if [ "$(git -C "$APPROVAL_DIR" rev-parse HEAD)" != "$LIVE_HEAD" ]; then
-            echo "::error::Isolated checkout is not at the live plan-approval PR head."
-            exit 1
-          fi
-          (
-            cd "$APPROVAL_DIR"
-            node "$GITHUB_WORKSPACE/scripts/release/verify-plan-approval.mjs" \
-              --repo "$REPO" \
-              --pr "$PLAN_APPROVAL_PR" \
-              --plan-path "$PLAN_PATH" \
-              --approver-login "$PLAN_APPROVER_LOGIN" \
-              --require-final-head-ci
-          ) > "$RUNNER_TEMP/finalizer-evidence/plan-approval-verifier.json"
+          : "${PR_NUMBER:?PR_NUMBER is required for primary mode}"
+          pr_json="$(gh api "repos/${REPO}/pulls/${PR_NUMBER}")"
+          PR_HEAD="$(PR_JSON="$pr_json" EXPECTED_SHA="$EXPECTED_SHA" node -e '
+            const pr = JSON.parse(process.env.PR_JSON ?? "");
+            const head = String(pr?.head?.sha ?? "");
+            if (!/^[0-9a-f]{40}$/.test(head) || pr?.merged !== true || pr?.base?.ref !== "main" || pr?.merge_commit_sha !== process.env.EXPECTED_SHA) process.exit(1);
+            process.stdout.write(head);
+          ')"
+          echo "pr_head_sha=${PR_HEAD}" >> "$GITHUB_OUTPUT"
 
       - name: Build and validate release evidence manifest
         id: build_manifest
@@ -2300,6 +1948,8 @@ jobs:
           RELEASE_EVIDENCE_INPUTS_PATH: ${{ runner.temp }}/finalizer-evidence/manifest-inputs.json
           EXPECTED_SHA: ${{ inputs.expected_sha }}
           RELEASE_MODE: ${{ inputs.release_mode }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          PR_HEAD_SHA: ${{ steps.resolve_pr_head.outputs.pr_head_sha }}
           BASELINE_EVIDENCE_B64: ${{ inputs.baseline_evidence_b64 }}
           SCHEMA_APPLY_RUN_ID: ${{ inputs.schema_apply_run_id }}
           SCHEMA_APPLY_RUN_ATTEMPT: ${{ inputs.schema_apply_run_attempt }}
@@ -2354,11 +2004,6 @@ jobs:
           CANARY_RESULT_ARTIFACT_DIGEST: ${{ needs.staged-smoke.outputs.canary_result_artifact_digest }}
           CANARY_RESULT_FILE_SHA256: ${{ needs.staged-smoke.outputs.canary_result_file_sha256 }}
           CANARY_RESULT_PAYLOAD_SHA256: ${{ needs.staged-smoke.outputs.canary_result_payload_sha256 }}
-          POLICY_RATIFICATION_ARTIFACT_ID: ${{ needs.policy-ratification.outputs.policy_ratification_artifact_id }}
-          POLICY_RATIFICATION_ARTIFACT_NAME: ${{ needs.policy-ratification.outputs.policy_ratification_artifact_name }}
-          POLICY_RATIFICATION_ARTIFACT_DIGEST: ${{ needs.policy-ratification.outputs.policy_ratification_artifact_digest }}
-          POLICY_RATIFICATION_FILE_SHA256: ${{ needs.policy-ratification.outputs.policy_ratification_file_sha256 }}
-          POLICY_RATIFICATION_PAYLOAD_SHA256: ${{ needs.policy-ratification.outputs.policy_ratification_payload_sha256 }}
           OPERATOR_EVIDENCE_ARTIFACT_ID: ${{ needs.g4-operator-evidence.outputs.operator_evidence_artifact_id }}
           OPERATOR_EVIDENCE_ARTIFACT_NAME: ${{ needs.g4-operator-evidence.outputs.operator_evidence_artifact_name }}
           OPERATOR_EVIDENCE_ARTIFACT_DIGEST: ${{ needs.g4-operator-evidence.outputs.operator_evidence_artifact_digest }}
@@ -2396,11 +2041,10 @@ jobs:
               repository: process.env.GITHUB_REPOSITORY,
               sha: process.env.EXPECTED_SHA,
               releaseMode: process.env.RELEASE_MODE,
-              planApprovalPullRequest: Number(process.env.PLAN_APPROVAL_PR),
-              planPath: process.env.PLAN_PATH,
+              pullRequest: Number(process.env.PR_NUMBER),
+              pullRequestHeadSha: process.env.PR_HEAD_SHA,
             },
             baselineEvidenceB64: process.env.BASELINE_EVIDENCE_B64,
-            planApprovalVerifierOutputPath: `${evidenceDir}/plan-approval-verifier.json`,
             certificationFilePath: `${evidenceDir}/certification.json`,
             lineageFilePath: `${evidenceDir}/lineage.json`,
             certificationOutputs: {
@@ -2452,7 +2096,6 @@ jobs:
               schema: fragmentLineage('schema', 'SCHEMA', 'schema-audit'),
               policyConfig: fragmentLineage('policy-config', 'POLICY_CONFIG', 'baseline-policy-preflight'),
               policyMeasurement: fragmentLineage('policy-measurement', 'POLICY_MEASUREMENT', 'staged-smoke'),
-              policyRatification: fragmentLineage('policy-ratification', 'POLICY_RATIFICATION', 'policy-ratification'),
               operatorEvidence: fragmentLineage('operator-evidence', 'OPERATOR_EVIDENCE', 'g4-operator-evidence'),
               releaseProvider: fragmentLineage('release-provider', 'RELEASE_PROVIDER', 'promote'),
               canaryResult: fragmentLineage('canary-result', 'CANARY_RESULT', 'staged-smoke'),
@@ -2483,4 +2126,4 @@ jobs:
 
       - name: Remove local manifest evidence
         if: always()
-        run: rm -rf -- "$RUNNER_TEMP/release-evidence-manifest-v1.json" "$RUNNER_TEMP/finalizer-evidence" "$RUNNER_TEMP/plan-approval-head" "$RUNNER_TEMP/finalizer-stage-results.json"
+        run: rm -rf -- "$RUNNER_TEMP/release-evidence-manifest-v1.json" "$RUNNER_TEMP/finalizer-evidence" "$RUNNER_TEMP/finalizer-stage-results.json"

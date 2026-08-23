@@ -301,7 +301,11 @@ const legacyPlanDocs = new Set([
   'F_1.2.0_v1.4-release-proof-activation.plan.md',
   'F_1.2.4_ws2-transaction-audit-repair.plan.md',
   'F_1.2.5_g3-foundations-landing.plan.md',
+  'F_1.2.5_g3-closeout-reconciled.plan.md',
+  'F_1.2.6_g3-critical-merge-unblock.plan.md',
+  'F_1.2.8_pr1385-unblock.plan.md',
   'F_1.3.0_fee-economics-convergence.plan.md',
+  'F_1.3.1_governance-right-sizing.plan.md',
   'F_1.4.0_post-activation-epics.plan.md',
 ]);
 
@@ -356,21 +360,28 @@ describe('governance document hierarchy', () => {
     }
   });
 
-  it('keeps the capture-release-baseline workflow program-scoped', async () => {
+  it('keeps the capture-release-baseline workflow generic and non-authorizing', async () => {
     const workflow = await readRepositoryFile('.github/workflows/capture-release-baseline.yml');
 
-    expect(workflow).toContain('one-time');
-    expect(workflow).toContain('PR #1385');
-    expect(workflow).toContain('Owner: repository owner');
-    expect(workflow).toContain('Terminal condition');
-    expect(workflow).toContain('confers no authorization');
+    expect(workflow).toContain('bounded pre-merge provider baseline');
+    expect(workflow).toContain('pr_number');
+    expect(workflow).toContain('plan_path');
+    expect(workflow).toContain('Execution confers no');
+    expect(workflow).toContain('authorization; output remains evidence');
+    expect(workflow).not.toContain('PR #1385');
   });
 
   it('requires new plan documents to route to the governing policy', async () => {
-    const actualFs = await vi.importActual<typeof import('node:fs')>('node:fs');
-    const planDir = join(repositoryRoot, 'docs/1-plans');
-    const planDocs = actualFs
-      .readdirSync(planDir)
+    const { execFileSync } =
+      await vi.importActual<typeof import('node:child_process')>('node:child_process');
+    const tracked = execFileSync('git', ['ls-files', 'docs/1-plans/'], {
+      cwd: repositoryRoot,
+      encoding: 'utf8',
+    });
+    const planDocs = tracked
+      .trim()
+      .split('\n')
+      .map((p) => p.replace('docs/1-plans/', ''))
       .filter((name) => name.endsWith('.plan.md'))
       .sort();
 

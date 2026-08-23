@@ -2786,7 +2786,6 @@ async function executeRequireResult(
 const GATE_FEEDING_JOBS = [
   'changes',
   'financial-truth',
-  'plan-approval',
   'docs-link-check',
   'check',
   'test-affected',
@@ -2806,8 +2805,6 @@ const GATE_FEEDING_JOBS = [
 type GateEvaluatorScenario = {
   financialCalcRelevant?: boolean;
   financialTruthResult?: string;
-  labelPresent: boolean;
-  planApprovalResult: string;
   // Optional: isolate the surface-projection-audit require_result pairing
   // from every other gate feeder. Defaults reproduce the pre-existing
   // interpolation fallbacks (not expected, skipped) so scenarios that omit
@@ -2819,13 +2816,6 @@ type GateEvaluatorScenario = {
 function interpolateGateExpression(expression: string, scenario: GateEvaluatorScenario): string {
   const normalized = expression.trim();
 
-  if (normalized === 'needs.plan-approval.result') return scenario.planApprovalResult;
-  if (
-    normalized ===
-    "github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'requires-plan-approval')"
-  ) {
-    return scenario.labelPresent ? 'true' : 'false';
-  }
   if (normalized === "github.event_name == 'pull_request'") return 'true';
   if (normalized === 'github.event_name') return 'pull_request';
   if (normalized === 'github.ref') return 'refs/heads/feature';
@@ -4619,36 +4609,6 @@ describe('required CI fails closed', () => {
     }
   });
 
-  it('keeps the plan-approval verifier CLI fail-closed before required-CI wiring', async () => {
-    const verifierPath = path.join(process.cwd(), 'scripts', 'release', 'verify-plan-approval.mjs');
-    await expect(access(verifierPath)).resolves.toBeUndefined();
-
-    await expect(
-      execFileAsync(
-        process.execPath,
-        [
-          verifierPath,
-          '--repo',
-          'nikhillinit/Updog_restore',
-          '--pr',
-          '1385',
-          '--plan-path',
-          'docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md',
-          '--approver-login',
-          'nikhillinit',
-          '--require-exact-head',
-        ],
-        {
-          cwd: process.cwd(),
-          env: { ...process.env, GH_TOKEN: '', GITHUB_TOKEN: '' },
-        }
-      )
-    ).rejects.toMatchObject({
-      code: 1,
-      stderr: expect.stringContaining('GH_TOKEN or GITHUB_TOKEN is required'),
-    });
-  });
-
   it('captures an immutable read-only pre-merge provider baseline', async () => {
     const workflow = await readWorkflow('capture-release-baseline.yml');
     const dispatch = workflow.on?.workflow_dispatch as
@@ -4662,6 +4622,8 @@ describe('required CI fails closed', () => {
     expect(Object.keys(inputs ?? {})).toEqual([
       'baseline_main_sha',
       'planned_pr_head_sha',
+      'pr_number',
+      'plan_path',
       'plan_sha256',
     ]);
     for (const input of Object.values(inputs ?? {})) {
@@ -5259,7 +5221,6 @@ describe('required CI fails closed', () => {
         'staged-smoke',
         'staged-provider-identity',
         'g4-operator-evidence',
-        'policy-ratification',
         'promote',
         'post-promotion-smoke',
         'evidence-finalizer',
@@ -5296,10 +5257,10 @@ describe('required CI fails closed', () => {
           | undefined
       )?.inputs;
       expect(dispatchInputs?.expected_sha?.required).toBe(true);
-      // The legacy deployment_url input was retired to stay inside GitHub's
-      // ten-input workflow_dispatch cap when baseline_evidence_b64 landed.
+      // The legacy deployment_url input was retired; pr_number added for
+      // dispatch-based source provenance after ceremony retirement.
       expect(dispatchInputs?.deployment_url).toBeUndefined();
-      expect(Object.keys(dispatchInputs ?? {})).toHaveLength(10);
+      expect(Object.keys(dispatchInputs ?? {})).toHaveLength(11);
       expect(dispatchInputs?.operator_evidence_b64?.required).toBe(true);
       expect(dispatchInputs?.operator_evidence_b64?.type).toBe('string');
       expect(dispatchInputs?.baseline_evidence_b64?.required).toBe(true);
@@ -5346,7 +5307,7 @@ describe('required CI fails closed', () => {
       // being permission-downgraded below its exact-SHA checks; schema-audit
       // actions read exists solely for the exact-ID historical apply artifact
       // fetch; evidence-finalizer's checks/issues/pull-requests reads exist
-      // solely for the fresh verify-plan-approval.mjs call.
+      // for the baseline consumption verification.
       const expectedJobPermissions: Record<string, Record<string, string>> = {
         'baseline-policy-preflight': {
           contents: 'read',
@@ -5359,12 +5320,9 @@ describe('required CI fails closed', () => {
           contents: 'read',
         },
         'schema-audit': { contents: 'read', actions: 'read' },
-        'policy-ratification': { contents: 'read', actions: 'read' },
         'evidence-finalizer': {
           contents: 'read',
           actions: 'read',
-          checks: 'read',
-          issues: 'read',
           'pull-requests': 'read',
         },
       };
@@ -5615,7 +5573,6 @@ describe('required CI fails closed', () => {
         'Upload immutable policy-measurement evidence fragment',
         'Build canary-result evidence fragment',
         'Upload immutable canary-result evidence fragment',
-        'Publish policy ratification approval template',
         'Remove staged-smoke fragment evidence',
       ]);
       // Both composers read the exact residue-result emit path, and the
@@ -5820,7 +5777,6 @@ describe('required CI fails closed', () => {
           'continue-on-error': undefined,
         },
         { name: 'Remove G4 provider evidence', if: 'always()', 'continue-on-error': undefined },
-        { name: 'Remove ratification evidence', if: 'always()', 'continue-on-error': undefined },
         {
           name: 'Remove revalidated operator evidence',
           if: 'always()',
@@ -5831,6 +5787,11 @@ describe('required CI fails closed', () => {
           if: 'always()',
           'continue-on-error': undefined,
         },
+        {
+          name: 'Independently verify primary PR provenance',
+          if: "inputs.release_mode == 'primary'",
+          'continue-on-error': undefined,
+        },
         { name: 'Remove local manifest evidence', if: 'always()', 'continue-on-error': undefined },
       ]);
 
@@ -5839,7 +5800,6 @@ describe('required CI fails closed', () => {
         'validate-deployment',
         'staged-provider-identity',
         'g4-operator-evidence',
-        'policy-ratification',
       ]);
       const promote = releaseWorkflow.jobs?.promote;
       expect(promote?.['timeout-minutes']).toBe(20);
@@ -6196,8 +6156,6 @@ describe('required CI fails closed', () => {
       'post-promotion-smoke': '${{ success() && github.run_attempt == 1 }}',
       'staged-smoke':
         "${{ needs.baseline-policy-preflight.result == 'success' && needs.release-proof.result == 'success' && needs.validate-deployment.result == 'success' && needs.railway-workers-verify.result == 'success' && github.run_attempt == 1 }}",
-      'policy-ratification':
-        "${{ needs.release-proof.result == 'success' && needs.baseline-policy-preflight.result == 'success' && needs.staged-smoke.result == 'success' && github.run_attempt == 1 }}",
     };
     for (const [jobName, expectedIf] of Object.entries(attemptGuardedJobs)) {
       expect(releaseWorkflow.jobs?.[jobName]?.if, `job ${jobName} attempt guard`).toBe(expectedIf);
@@ -6206,7 +6164,6 @@ describe('required CI fails closed', () => {
       ['stage-production', 'Require attempt 1 and successful proof prerequisites before mutation'],
       ['staged-smoke', 'Require attempt 1 before staged mutation'],
       ['promote', 'Require attempt 1 and successful prerequisites before promotion'],
-      ['policy-ratification', 'Require attempt 1 before ratification proof'],
       ['evidence-finalizer', 'Require attempt 1 before evidence finalization'],
     ];
     for (const [jobName, stepName] of firstStepGuards) {
@@ -6228,46 +6185,8 @@ describe('required CI fails closed', () => {
       'VALIDATE_DEPLOYMENT_RESULT',
       'STAGED_PROVIDER_IDENTITY_RESULT',
       'G4_OPERATOR_EVIDENCE_RESULT',
-      'POLICY_RATIFICATION_RESULT',
     ]) {
       expect(promoteGuardRun).toContain(`"$${resultEnv}" != "success"`);
-    }
-
-    // The ratification gate runs under the dedicated protected environment
-    // with read-only scopes, and proves the environment approval against the
-    // exact template rebuilt from recomputed evidence hashes.
-    const ratification = releaseWorkflow.jobs?.['policy-ratification'];
-    expect(ratification?.environment).toBe('Production Policy Ratification');
-    expect(normalizeNeeds(ratification?.needs)).toEqual([
-      'release-proof',
-      'baseline-policy-preflight',
-      'staged-smoke',
-    ]);
-    const ratificationScripts = allRunScripts({ jobs: { ratification } } as never).join('\n');
-    expect(ratificationScripts).toContain('verify-policy-ratification.mjs');
-    expect(ratificationScripts).toContain('--environment-name "Production Policy Ratification"');
-    expect(ratificationScripts).toContain('--run-id "$GITHUB_RUN_ID"');
-    expect(ratificationScripts).toContain('--run-attempt "$GITHUB_RUN_ATTEMPT"');
-    expect(ratificationScripts).toContain('--expected-comment-file');
-    expect(ratificationScripts).toContain('RELEASE-POLICY-RATIFICATION-V1');
-    expect(ratificationScripts).toContain('repos/${REPO}/actions/artifacts/${artifact_id}');
-    expect(ratificationScripts).not.toContain('artifacts?name');
-    // The staged-smoke summary publishes the same byte-frozen template block.
-    const templateStep = releaseWorkflow.jobs?.['staged-smoke']?.steps?.find(
-      (step) => step.name === 'Publish policy ratification approval template'
-    );
-    for (const templateLine of [
-      'RELEASE-POLICY-RATIFICATION-V1',
-      'run_id: ${GITHUB_RUN_ID}',
-      'run_attempt: ${GITHUB_RUN_ATTEMPT}',
-      'source_sha: ${EXPECTED_SHA}',
-      'policy_config_payload_sha256: ${POLICY_CONFIG_PAYLOAD_SHA256}',
-      'policy_measurement_payload_sha256: ${POLICY_MEASUREMENT_PAYLOAD_SHA256}',
-      'characterization_file_sha256: ${CHARACTERIZATION_FILE_SHA256}',
-      'canary_result_payload_sha256: ${CANARY_RESULT_PAYLOAD_SHA256}',
-      'decision: approved',
-    ]) {
-      expect(templateStep?.run).toContain(templateLine);
     }
 
     // The evidence finalizer owns the exact 13-entry needs list, always runs,
@@ -6287,11 +6206,14 @@ describe('required CI fails closed', () => {
       'staged-smoke',
       'staged-provider-identity',
       'g4-operator-evidence',
-      'policy-ratification',
       'promote',
       'post-promotion-smoke',
     ]);
     const finalizerScripts = allRunScripts({ jobs: { finalizer } } as never).join('\n');
+    expect(finalizerScripts).toContain('/^[0-9a-f]{40}$/.test(head)');
+    expect(finalizerScripts).toContain('pr?.merged !== true');
+    expect(finalizerScripts).toContain('pr?.base?.ref !== "main"');
+    expect(finalizerScripts).toContain('pr?.merge_commit_sha !== process.env.EXPECTED_SHA');
     expect(finalizerScripts).toContain(
       'npx tsx scripts/release/build-release-evidence-manifest.ts \\\n  --designation infrastructure_only \\\n  --candidate false \\\n  --output "$RUNNER_TEMP/release-evidence-manifest-v1.json"'
     );
@@ -6314,27 +6236,6 @@ describe('required CI fails closed', () => {
       "const firstFailure = stages.find(([, result]) => result !== 'success')"
     );
 
-    // Plan approval is re-verified from an isolated live-PR-head checkout —
-    // never from the release-SHA working directory (the squash release commit
-    // descends from no PR-branch commit).
-    const approvalStep = finalizer?.steps?.find(
-      (step) => step.name === 'Verify plan approval from isolated live PR head checkout'
-    );
-    expect(approvalStep?.run).toContain('refs/pull/${PLAN_APPROVAL_PR}/head');
-    expect(approvalStep?.run).toContain('fetch --quiet origin');
-    expect(approvalStep?.run).toContain('cd "$APPROVAL_DIR"');
-    expect(approvalStep?.run).toContain('--require-final-head-ci');
-    expect(approvalStep?.run).toContain('rev-parse HEAD)" != "$LIVE_HEAD"');
-    expect(finalizer?.env?.PLAN_APPROVAL_PR).toBe('1385');
-    expect(finalizer?.env?.PLAN_PATH).toBe(
-      'docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md'
-    );
-    // The verifier binary runs from the workspace checkout but with the
-    // isolated PR-head directory as its working directory.
-    expect(approvalStep?.run).toContain(
-      'node "$GITHUB_WORKSPACE/scripts/release/verify-plan-approval.mjs"'
-    );
-
     // Every fragment producer exposes the five disjoint identity outputs per
     // kind; no output name is overloaded across kinds.
     // schema-audit is a reusable-workflow caller: its schema_* outputs are
@@ -6343,7 +6244,6 @@ describe('required CI fails closed', () => {
     const producerOutputs: Array<[string, string[]]> = [
       ['baseline-policy-preflight', ['baseline', 'policy_config']],
       ['staged-smoke', ['policy_measurement', 'canary_result']],
-      ['policy-ratification', ['policy_ratification']],
       ['g4-operator-evidence', ['operator_evidence']],
       ['promote', ['release_provider']],
     ];
@@ -6881,7 +6781,7 @@ describe('required CI fails closed', () => {
 
     // Least privilege and release-shared serialization: recovery queues
     // behind a running release and can never cancel one mid-mutation.
-    expect(workflow.permissions).toEqual({ contents: 'read' });
+    expect(workflow.permissions).toEqual({ contents: 'read', actions: 'read' });
     expect(workflow.concurrency).toEqual({
       group: 'release-production',
       'cancel-in-progress': false,
@@ -6909,6 +6809,18 @@ describe('required CI fails closed', () => {
     for (const step of databaseSteps) {
       expect(step.env?.DATABASE_URL).toBe('${{ secrets.PRODUCTION_DATABASE_URL }}');
     }
+    const historicalRun = job?.steps?.find(
+      (step) => step.name === 'Validate historical release workflow identity'
+    );
+    expect(historicalRun?.env).toMatchObject({
+      RECOVERY_RUN_ID: '${{ inputs.github_run_id }}',
+      RECOVERY_RUN_ATTEMPT: '${{ inputs.github_run_attempt }}',
+      EXPECTED_SHA: '${{ inputs.expected_sha }}',
+    });
+    expect(historicalRun?.env?.DATABASE_URL).toBeUndefined();
+    expect((job?.steps ?? []).indexOf(historicalRun!)).toBeLessThan(
+      (job?.steps ?? []).findIndex((step) => step.name === 'Resolve exact workflow execution')
+    );
 
     // Command allowlist: only the fixed resolve, mark-failed, and residue
     // assertion invocations run, and no typed input is interpolated into
@@ -6923,6 +6835,35 @@ describe('required CI fails closed', () => {
     expect(scripts).toContain('--fund-id "$RECOVERY_FUND_ID"');
     expect(scripts).toContain('--canary-run-id "$RECOVERY_CANARY_RUN_ID"');
     expect(scripts).toContain('--expected-sha "$EXPECTED_SHA"');
+    expect(scripts).toContain('".github/workflows/release-production.yml"');
+    expect(scripts).toContain(
+      '"repos/${REPO}/actions/runs/${RECOVERY_RUN_ID}/attempts/${RECOVERY_RUN_ATTEMPT}"'
+    );
+    expect(scripts).toContain('run?.repository?.full_name !== process.env.REPO');
+    expect(scripts).toContain('run?.path !== ".github/workflows/release-production.yml"');
+    expect(scripts).toContain('run?.name !== "Release Production"');
+    expect(scripts).toContain('run?.event !== "workflow_dispatch"');
+    expect(scripts).toContain('run?.status !== "completed"');
+    expect(scripts).toContain('!["cancelled", "failure", "timed_out"].includes(run?.conclusion)');
+    expect(scripts).toContain('run?.run_attempt !== attempt');
+    expect(scripts).toContain('run?.head_sha !== expected');
+    expect(scripts).toContain('"workflow_dispatch"');
+    expect(scripts).toContain('["cancelled", "failure", "timed_out"]');
+    expect(scripts).toContain('run?.head_sha !== expected');
+    expect(scripts).toContain('release-canary-recovery-receipt-v1');
+    expect(scripts).toContain('requested.canaryRunId');
+    expect(scripts).not.toContain('mark.runId');
+    expect(scripts).toContain('matchesRequestedHandle(resolve)');
+    expect(scripts).toContain('matchesRequestedHandle(mark)');
+    expect(scripts).toContain('value.canaryRunId.toLowerCase() === requested.canaryRunId');
+    expect(scripts).toContain('resolve.releaseSha !== requested.expectedSha');
+    expect(scripts).toContain('residue.expectedSha !== requested.expectedSha');
+    expect(scripts).toContain('![0, 3].includes(residue.exitCode)');
+    expect(scripts).toContain(
+      'residue: residue ? { verdict: residue.verdict, exitCode: residue.exitCode } : null'
+    );
+    expect(scripts).not.toContain("result: typeof residue === 'object'");
+    expect(scripts).not.toContain('path: |\n            ${{ runner.temp }}/recovery-resolve.json');
     for (const step of job?.steps ?? []) {
       expect(step.run ?? '').not.toContain('${{');
     }
@@ -6936,7 +6877,7 @@ describe('required CI fails closed', () => {
     expect(scripts).not.toMatch(/vercel|railway/i);
     expect(scripts).not.toContain('purge');
     expect(scripts).not.toContain('gh workflow run');
-    expect(scripts).not.toContain('release-production.yml');
+    expect(scripts).toContain('.github/workflows/release-production.yml');
 
     // The post-recovery residue assertion is required in the same job and
     // tolerates only the expected-SHA completion failure (exit 3).
@@ -6952,6 +6893,7 @@ describe('required CI fails closed', () => {
       (step) => step.if !== undefined || step['continue-on-error'] !== undefined
     );
     expect(conditionals.map((step) => ({ name: step.name, if: step.if }))).toEqual([
+      { name: 'Build sanitized recovery receipt', if: 'always()' },
       { name: 'Upload sanitized recovery outcome', if: 'always()' },
       { name: 'Remove local recovery evidence', if: 'always()' },
     ]);
@@ -6976,74 +6918,6 @@ describe('required CI fails closed', () => {
     ]);
   });
 
-  it('defines plan approval as a fail-closed, label-gated verifier job', async () => {
-    const workflow = await readWorkflow('ci-unified.yml');
-    const planApproval = workflow.jobs?.['plan-approval'];
-    expect(planApproval).toBeDefined();
-    expect(planApproval?.if).toBe(
-      "github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'requires-plan-approval')"
-    );
-    expect(planApproval?.permissions).toEqual({
-      actions: 'read',
-      checks: 'read',
-      contents: 'read',
-      issues: 'read',
-      'pull-requests': 'read',
-    });
-
-    const checkout = (planApproval?.steps ?? []).find((step) =>
-      step.uses?.startsWith('actions/checkout@')
-    );
-    expect(checkout?.with?.['fetch-depth']).toBe(0);
-
-    const verifier = (planApproval?.steps ?? []).find((step) =>
-      step.run?.includes('scripts/release/verify-plan-approval.mjs')
-    );
-    expect(verifier?.run?.trim()).toBe(
-      [
-        'node scripts/release/verify-plan-approval.mjs \\',
-        '  --repo "$GITHUB_REPOSITORY" \\',
-        '  --pr "${{ github.event.pull_request.number }}" \\',
-        '  --plan-path docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md \\',
-        '  --approver-login nikhillinit',
-      ].join('\n')
-    );
-    expect(verifier?.env).toEqual({ GH_TOKEN: '${{ github.token }}' });
-    expect(planApproval?.steps ?? []).not.toEqual(
-      expect.arrayContaining([expect.objectContaining({ 'continue-on-error': true })])
-    );
-    expect(verifier?.run).not.toMatch(/grep|cut|awk|sed/);
-  });
-
-  it.each([
-    ['failed approval', 'failure'],
-    ['missing approval', 'failure'],
-    ['edited approval', 'failure'],
-    ['descendant-invalid approval', 'failure'],
-  ])('fails required gate for %s', async (_caseName, planApprovalResult) => {
-    await expect(evaluateCiGateStatus({ labelPresent: true, planApprovalResult })).resolves.toBe(
-      'failed'
-    );
-  });
-
-  it.each([
-    [true, 'success', 'passed'],
-    [true, 'failure', 'failed'],
-    [true, 'cancelled', 'failed'],
-    [true, 'skipped', 'failed'],
-    [false, 'skipped', 'passed'],
-    [false, 'success', 'failed'],
-    [false, 'failure', 'failed'],
-    [false, 'cancelled', 'failed'],
-  ] as const)(
-    'accepts only the label-aware plan approval result (%s, %s)',
-    async (labelPresent, planApprovalResult, expected) => {
-      await expect(evaluateCiGateStatus({ labelPresent, planApprovalResult })).resolves.toBe(
-        expected
-      );
-    }
-  );
-
   it.each([
     [false, 'skipped', 'passed'],
     [false, 'success', 'failed'],
@@ -7058,8 +6932,6 @@ describe('required CI fails closed', () => {
         evaluateCiGateStatus({
           financialCalcRelevant,
           financialTruthResult,
-          labelPresent: false,
-          planApprovalResult: 'skipped',
         })
       ).resolves.toBe(expected);
     }
@@ -7219,8 +7091,6 @@ describe('required CI fails closed', () => {
     async (auditExpected, auditResult, expected) => {
       await expect(
         evaluateCiGateStatus({
-          labelPresent: false,
-          planApprovalResult: 'skipped',
           auditExpected,
           auditResult,
         })

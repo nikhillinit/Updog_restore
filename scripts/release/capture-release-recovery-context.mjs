@@ -16,13 +16,13 @@ import {
 const SHA = /^[a-f0-9]{40}$/;
 const SHA256 = /^[a-f0-9]{64}$/;
 const POSITIVE_DECIMAL = /^[1-9][0-9]*$/;
+const PR_NUMBER = /^[1-9][0-9]{0,8}$/;
 const IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
 const SECRET_KEY = /(?:api[_-]?key|authorization|cookie|credential|password|private[_-]?key|secret|token)/i;
 const SECRET_VALUE = /(?:github_pat_|gh[pousr]_|sk-|rk-|pk-|(?:bearer|basic)\s+|(?:postgres|postgresql|mysql|mongodb|redis):\/\/|[?&](?:api[_-]?key|password|secret|token)=)/i;
 const WORKER_NAMES = Object.freeze(['fund-scenario-calc', 'capital-call-status']);
 const VERCEL_HOST = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.vercel\.app$/;
 const GITHUB_REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
-const PLAN_PATH = 'docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md';
 const RAILWAY_API_URL = 'https://backboard.railway.com/graphql/v2';
 const PROVIDER_TIMEOUT_MS = 15_000;
 const execFileAsync = promisify(execFile);
@@ -111,6 +111,24 @@ function runAttempt(value) {
 function runId(value) {
   const text = safeText(value, 'GitHub run ID');
   if (!POSITIVE_DECIMAL.test(text)) fail('GitHub run ID is invalid');
+  return text;
+}
+
+function pullRequestNumber(value, label) {
+  const text = safeText(String(value), label);
+  if (!PR_NUMBER.test(text)) fail(`${label} is invalid`);
+  return Number(text);
+}
+
+function planPath(value) {
+  const text = safeText(value, 'plan path');
+  if (
+    text.length > 512 ||
+    !/^[A-Za-z0-9._][A-Za-z0-9._/-]{0,511}$/.test(text) ||
+    text.split('/').includes('..')
+  ) {
+    fail('plan path is invalid');
+  }
   return text;
 }
 
@@ -220,6 +238,8 @@ export function buildReleaseRecoveryContext(value) {
     [
       'baselineMainSha',
       'plannedPrHeadSha',
+      'plannedPrNumber',
+      'planPath',
       'planSha256',
       'githubRunId',
       'githubRunAttempt',
@@ -236,6 +256,8 @@ export function buildReleaseRecoveryContext(value) {
     schemaVersion: 'release-recovery-context-v1',
     baselineMainSha: sha(input.baselineMainSha, 'baseline main SHA'),
     plannedPrHeadSha: sha(input.plannedPrHeadSha, 'planned PR head SHA'),
+    plannedPrNumber: pullRequestNumber(input.plannedPrNumber, 'planned PR number'),
+    planPath: planPath(input.planPath),
     planSha256: sha256(input.planSha256, 'plan SHA-256'),
     githubRunId: runId(input.githubRunId),
     githubRunAttempt: runAttempt(input.githubRunAttempt),
@@ -353,6 +375,8 @@ async function responseJson(fetchImpl, url, options, label) {
 function providerCaptureInput({
   baselineMainSha,
   plannedPrHeadSha,
+  plannedPrNumber,
+  planPath: capturedPlanPath,
   planSha256,
   environment,
   expectedIdentity: expected,
@@ -362,6 +386,8 @@ function providerCaptureInput({
   return {
     baselineMainSha,
     plannedPrHeadSha,
+    plannedPrNumber,
+    planPath: capturedPlanPath,
     planSha256,
     githubRunId: requiredEnvironment(environment, 'GITHUB_RUN_ID'),
     githubRunAttempt: Number(requiredEnvironment(environment, 'GITHUB_RUN_ATTEMPT')),
@@ -374,6 +400,8 @@ function providerCaptureInput({
 export async function captureProviderBaseline({
   baselineMainSha,
   plannedPrHeadSha,
+  plannedPrNumber,
+  planPath: capturedPlanPath,
   planSha256,
   environment = process.env,
   fetchImpl = globalThis.fetch,
@@ -382,6 +410,8 @@ export async function captureProviderBaseline({
   if (typeof fetchImpl !== 'function') fail('provider fetch is unavailable');
   sha(baselineMainSha, 'baseline main SHA');
   sha(plannedPrHeadSha, 'planned PR head SHA');
+  pullRequestNumber(plannedPrNumber, 'planned PR number');
+  planPath(capturedPlanPath);
   sha256(planSha256, 'plan SHA-256');
   const expected = providerExpectedIdentity(environment);
   const vercelToken = requiredSecretEnvironment(environment, 'VERCEL_TOKEN');
@@ -467,6 +497,8 @@ export async function captureProviderBaseline({
     providerCaptureInput({
       baselineMainSha,
       plannedPrHeadSha,
+      plannedPrNumber,
+      planPath: capturedPlanPath,
       planSha256,
       environment,
       expectedIdentity: expected,
@@ -534,6 +566,8 @@ async function githubJson(fetchImpl, repository, path, token) {
 export async function verifyBaselineBinding({
   baselineMainSha,
   plannedPrHeadSha,
+  plannedPrNumber,
+  planPath: capturedPlanPath,
   planSha256,
   environment = process.env,
   fetchImpl = globalThis.fetch,
@@ -544,6 +578,8 @@ export async function verifyBaselineBinding({
   }
   const baseline = sha(baselineMainSha, 'baseline main SHA');
   const planned = sha(plannedPrHeadSha, 'planned PR head SHA');
+  const plannedNumber = pullRequestNumber(plannedPrNumber, 'planned PR number');
+  const path = planPath(capturedPlanPath);
   const digest = sha256(planSha256, 'plan SHA-256');
   const repository = requiredEnvironment(environment, 'GITHUB_REPOSITORY');
   const token = requiredSecretEnvironment(environment, 'GH_TOKEN');
@@ -557,15 +593,16 @@ export async function verifyBaselineBinding({
   const liveMain = sha((await githubJson(fetchImpl, repository, '/commits/main', token))?.sha, 'live main SHA');
   if (liveMain !== baseline) fail('live main SHA does not match baseline main SHA');
   const prHead = sha(
-    (await githubJson(fetchImpl, repository, '/pulls/1385', token))?.head?.sha,
+    (await githubJson(fetchImpl, repository, `/pulls/${plannedNumber}`, token))?.head?.sha,
     'planned PR head SHA'
   );
   if (prHead !== planned) fail('live PR head does not match planned PR head SHA');
-  await gitOutput(execFileImpl, ['fetch', '--no-tags', 'origin', 'pull/1385/head:refs/remotes/origin/pr-1385']);
-  if ((await gitOutput(execFileImpl, ['rev-parse', 'origin/pr-1385'])) !== planned) {
+  const remoteRef = `origin/pr-${plannedNumber}`;
+  await gitOutput(execFileImpl, ['fetch', '--no-tags', 'origin', `pull/${plannedNumber}/head:refs/remotes/origin/pr-${plannedNumber}`]);
+  if ((await gitOutput(execFileImpl, ['rev-parse', remoteRef])) !== planned) {
     fail('fetched PR head does not match planned PR head SHA');
   }
-  const plan = await gitContents(execFileImpl, ['show', `${planned}:${PLAN_PATH}`]);
+  const plan = await gitContents(execFileImpl, ['show', `${planned}:${path}`]);
   if (createHash('sha256').update(plan).digest('hex') !== digest) {
     fail('approved plan digest does not match');
   }
@@ -574,7 +611,6 @@ export async function verifyBaselineBinding({
 const RELEASE_MODES = Object.freeze(['primary', 'rollback']);
 const ARTIFACT_DIGEST = /^sha256:[a-f0-9]{64}$/;
 const BASELINE_WORKFLOW_PATH = '.github/workflows/capture-release-baseline.yml';
-const RUNTIME_PR_NUMBER = 1385;
 
 /**
  * Rollback releases must restore the application tree exactly; only release
@@ -786,6 +822,7 @@ export async function verifyBaselineConsumption({
   releaseSha,
   contextPath,
   emitNormalizedPath,
+  prNumber,
   environment = process.env,
   fetchImpl = globalThis.fetch,
   execFileImpl = execFileAsync,
@@ -826,9 +863,25 @@ export async function verifyBaselineConsumption({
   if (parsed.schemaVersion !== 'release-recovery-context-v1') {
     fail('baseline context schema version is invalid');
   }
+  const historicalContextKeys = [
+    'schemaVersion',
+    'baselineMainSha',
+    'plannedPrHeadSha',
+    'planSha256',
+    'githubRunId',
+    'githubRunAttempt',
+    'capturedAt',
+    'vercel',
+    'railway',
+  ].sort();
+  const capturedContextKeys = [...historicalContextKeys, 'plannedPrNumber', 'planPath'].sort();
+  const actualContextKeys = Object.keys(parsed).sort();
+  const isHistoricalContext = JSON.stringify(actualContextKeys) === JSON.stringify(historicalContextKeys);
+  if (!isHistoricalContext && JSON.stringify(actualContextKeys) !== JSON.stringify(capturedContextKeys)) {
+    fail('baseline context has unknown, missing, or hybrid provenance fields');
+  }
   const baselineMainSha = sha(parsed.baselineMainSha, 'baseline main SHA');
   const plannedPrHeadSha = sha(parsed.plannedPrHeadSha, 'planned PR head SHA');
-  const planDigest = sha256(parsed.planSha256, 'baseline plan SHA-256');
   if (runId(parsed.githubRunId) !== binding.baselineRunId) {
     fail('baseline context run ID does not match the exact capture run');
   }
@@ -842,16 +895,21 @@ export async function verifyBaselineConsumption({
   if (!(await isAncestor(execFileImpl, baselineMainSha, release))) {
     fail('baseline main is not an ancestor of the release SHA');
   }
-  const plan = await gitContents(execFileImpl, ['show', `${release}:${PLAN_PATH}`]);
-  if (createHash('sha256').update(plan).digest('hex') !== planDigest) {
-    fail('approved plan digest does not match at the release SHA');
-  }
 
   if (binding.releaseMode === 'primary') {
+    if (isHistoricalContext) {
+      fail('primary baseline consumption requires captured PR and plan provenance');
+    }
+    const capturedPrNumber = pullRequestNumber(parsed.plannedPrNumber, 'captured planned PR number');
+    const capturedPlanPath = planPath(parsed.planPath);
+    const runtimePrNumber = pullRequestNumber(prNumber, 'pr-number');
+    if (runtimePrNumber !== capturedPrNumber) {
+      fail('runtime PR number does not equal captured planned PR number');
+    }
     const pullRequest = await githubJson(
       fetchImpl,
       repository,
-      `/pulls/${RUNTIME_PR_NUMBER}`,
+      `/pulls/${runtimePrNumber}`,
       token
     );
     if (sha(pullRequest?.head?.sha, 'runtime PR head SHA') !== plannedPrHeadSha) {
@@ -862,6 +920,10 @@ export async function verifyBaselineConsumption({
     }
     if (sha(pullRequest?.merge_commit_sha, 'runtime PR merge SHA') !== release) {
       fail('runtime PR merge commit is not the release SHA');
+    }
+    const releasePlan = await gitContents(execFileImpl, ['show', `${release}:${capturedPlanPath}`]);
+    if (createHash('sha256').update(releasePlan).digest('hex') !== sha256(parsed.planSha256, 'plan SHA-256')) {
+      fail('release plan digest does not match captured plan digest');
     }
     if (emitNormalizedPath !== undefined) {
       await emitNormalizedBaselinePayload(emitNormalizedPath, {
@@ -874,23 +936,34 @@ export async function verifyBaselineConsumption({
     return { binding, baselineMainSha, plannedPrHeadSha, mode: 'primary' };
   }
 
-  const pullRequest = await githubJson(
+  // Rollback mode omits plan-digest verification -- plan-approval ceremony
+  // retired per ADR-084; rollback provenance verified via diff-allowlist only.
+  // PR lineage alone does not prove revert semantics; require machine-verified
+  // application-tree restoration bounded by the control-plane allowlist.
+  const rollbackPullRequest = await githubJson(
     fetchImpl,
     repository,
     `/pulls/${binding.rollbackPrNumber}`,
     token
   );
-  if (sha(pullRequest?.head?.sha, 'rollback PR head SHA') !== binding.rollbackPrHeadSha) {
-    fail('rollback PR head does not equal the supplied head');
+  if (
+    sha(rollbackPullRequest?.head?.sha, 'rollback PR head SHA') !==
+    binding.rollbackPrHeadSha
+  ) {
+    fail('rollback PR head does not equal bound rollback PR head');
   }
-  if (pullRequest?.merged !== true || pullRequest?.base?.ref !== 'main') {
-    fail('rollback PR is not merged into main');
+  if (
+    rollbackPullRequest?.merged !== true ||
+    rollbackPullRequest?.base?.ref !== 'main'
+  ) {
+    fail('rollback PR not merged into main');
   }
-  if (sha(pullRequest?.merge_commit_sha, 'rollback PR merge SHA') !== release) {
-    fail('rollback PR merge commit is not the release SHA');
+  if (
+    sha(rollbackPullRequest?.merge_commit_sha, 'rollback PR merge SHA') !==
+    release
+  ) {
+    fail('rollback PR merge commit not release SHA');
   }
-  // PR lineage alone does not prove revert semantics; require machine-verified
-  // application-tree restoration bounded by the control-plane allowlist.
   const diffOutput = await gitContents(execFileImpl, [
     'diff',
     '--name-only',
@@ -929,11 +1002,15 @@ async function main() {
     const options = parseArguments(args, [
       '--baseline-main-sha',
       '--planned-pr-head-sha',
+      '--pr-number',
+      '--plan-path',
       '--plan-sha256',
     ]);
     await verifyBaselineBinding({
       baselineMainSha: options['--baseline-main-sha'],
       plannedPrHeadSha: options['--planned-pr-head-sha'],
+      plannedPrNumber: options['--pr-number'],
+      planPath: options['--plan-path'],
       planSha256: options['--plan-sha256'],
     });
     console.log('Release baseline binding verified.');
@@ -955,8 +1032,7 @@ async function main() {
       '--expected-sha',
       '--context-file',
     ];
-    // --emit-normalized is the only optional flag; its presence extends the
-    // exact-pair contract, never relaxes it.
+    if (args.includes('--pr-number')) expectedKeys.push('--pr-number');
     if (args.includes('--emit-normalized')) expectedKeys.push('--emit-normalized');
     const options = parseArguments(args, expectedKeys);
     await verifyBaselineConsumption({
@@ -965,6 +1041,7 @@ async function main() {
       releaseSha: options['--expected-sha'],
       contextPath: options['--context-file'],
       emitNormalizedPath: options['--emit-normalized'],
+      prNumber: options['--pr-number'],
     });
     console.log('Release baseline consumption verified.');
     return;
@@ -973,12 +1050,16 @@ async function main() {
     const options = parseArguments(args, [
       '--baseline-main-sha',
       '--planned-pr-head-sha',
+      '--pr-number',
+      '--plan-path',
       '--plan-sha256',
       '--output',
     ]);
     await captureProviderBaselineToFile({
       baselineMainSha: options['--baseline-main-sha'],
       plannedPrHeadSha: options['--planned-pr-head-sha'],
+      plannedPrNumber: options['--pr-number'],
+      planPath: options['--plan-path'],
       planSha256: options['--plan-sha256'],
       outputPath: options['--output'],
     });

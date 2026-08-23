@@ -27,11 +27,9 @@ const PRECURSOR_SHA = 'c'.repeat(40);
 const BASELINE_MAIN_SHA = 'd'.repeat(40);
 const PLANNED_PR_HEAD_SHA = 'e'.repeat(40);
 const LIVE_HEAD_SHA = 'f'.repeat(40);
-const APPROVED_BASE_SHA = '0'.repeat(40);
 const RUN_ID = '987654321';
 const RUN_ATTEMPT = 1;
 const REPOSITORY = 'octo-owner/updog';
-const PLAN_PATH = 'docs/superpowers/plans/2026-08-11-pr-1385-release-gate-hardening.md';
 const STARTED_AT = '2026-08-19T00:00:00Z';
 const CALLER_REF = `${REPOSITORY}/.github/workflows/release-production.yml@refs/heads/main`;
 const PROOF_REF = `${REPOSITORY}/.github/workflows/release-proof.yml@${SOURCE_SHA}`;
@@ -128,47 +126,6 @@ interface Fixture {
   dir: string;
   inputs: Record<string, unknown>;
   payloads: Record<string, unknown>;
-  verifierOutput: Record<string, unknown>;
-  verifierPath: string;
-}
-
-function verifierOutputFixture(): Record<string, unknown> {
-  return {
-    decision: 'approved',
-    separationModel: 'single-maintainer-owner-attestation',
-    repository: { owner: 'octo-owner', name: 'updog' },
-    pullRequestNumber: 1385,
-    plan: { path: PLAN_PATH, sha256: hex('plan') },
-    approvedBaseHeadSha: APPROVED_BASE_SHA,
-    liveHeadSha: LIVE_HEAD_SHA,
-    permission: 'admin',
-    review: {
-      commentId: 101,
-      url: 'https://github.com/octo-owner/updog/pull/1385/comment-101',
-      author: 'octo-owner',
-      createdAt: '2026-08-11T12:00:00Z',
-      updatedAt: '2026-08-11T12:00:00Z',
-      bodySha256: hex('review-body'),
-    },
-    approval: {
-      commentId: 202,
-      url: 'https://github.com/octo-owner/updog/pull/1385/comment-202',
-      author: 'octo-owner',
-      createdAt: '2026-08-11T12:05:00Z',
-      updatedAt: '2026-08-11T12:05:00Z',
-      bodySha256: hex('approval-body'),
-    },
-    checkRun: {
-      conclusion: 'success',
-      id: 303,
-      name: 'CI Gate Status',
-      workflowRunId: 505,
-      runAttempt: 2,
-      event: 'pull_request',
-      workflowId: 404,
-    },
-    finalHeadCiGate: { checkRunId: 606, workflowRunId: 707, runAttempt: 3, headSha: LIVE_HEAD_SHA },
-  };
 }
 
 async function buildFixture(proof: 'success' | 'failure' = 'success'): Promise<Fixture> {
@@ -250,20 +207,6 @@ async function buildFixture(proof: 'success' | 'failure' = 'success'): Promise<F
     },
   };
   const characterizationFileSha256 = hex('characterization-file');
-  const ratificationPayload = {
-    environmentId: '4242',
-    environmentName: 'Production Policy Ratification',
-    reviewerLogin: 'octo-owner',
-    reviewerPermission: 'admin',
-    approvalState: 'approved',
-    commentSha256: hex('ratification-comment'),
-    policyConfigPayloadSha256: sha256CanonicalJsonOfPayload(policyConfigPayload),
-    policyMeasurementPayloadSha256: sha256CanonicalJsonOfPayload(measurementPayload),
-    characterizationFileSha256,
-    canaryResultPayloadSha256: sha256CanonicalJsonOfPayload(canaryPayload),
-    verifiedAt: '2026-08-19T01:00:00Z',
-  };
-
   const success = proof === 'success';
   const fragments: Record<string, FragmentEntry | null> = {
     baseline: await writeFragmentFile(
@@ -282,14 +225,7 @@ async function buildFixture(proof: 'success' | 'failure' = 'success'): Promise<F
     policyMeasurement: success
       ? await writeFragmentFile(dir, 'policy-measurement', measurementPayload, 'staged-smoke')
       : null,
-    policyRatification: success
-      ? await writeFragmentFile(
-          dir,
-          'policy-ratification',
-          ratificationPayload,
-          'policy-ratification'
-        )
-      : null,
+    policyRatification: null,
     operatorEvidence: success
       ? await writeFragmentFile(dir, 'operator-evidence', operatorPayload, 'g4-operator-evidence')
       : null,
@@ -362,10 +298,6 @@ async function buildFixture(proof: 'success' | 'failure' = 'success'): Promise<F
   const lineageFilePath = path.join(dir, 'lineage.json');
   await writeFile(lineageFilePath, lineageBytes);
 
-  const verifierOutput = verifierOutputFixture();
-  const verifierPath = path.join(dir, 'plan-approval-verifier.json');
-  await writeFile(verifierPath, JSON.stringify(verifierOutput));
-
   const binding = {
     schemaVersion: 'release-baseline-binding-v1',
     baselineRunId: '1111',
@@ -380,11 +312,10 @@ async function buildFixture(proof: 'success' | 'failure' = 'success'): Promise<F
       repository: REPOSITORY,
       sha: SOURCE_SHA,
       releaseMode: 'primary',
-      planApprovalPullRequest: 1385,
-      planPath: PLAN_PATH,
+      pullRequest: 1385,
+      pullRequestHeadSha: LIVE_HEAD_SHA,
     },
     baselineEvidenceB64: Buffer.from(JSON.stringify(binding), 'utf8').toString('base64'),
-    planApprovalVerifierOutputPath: verifierPath,
     certificationFilePath,
     lineageFilePath,
     certificationOutputs: {
@@ -440,13 +371,10 @@ async function buildFixture(proof: 'success' | 'failure' = 'success'): Promise<F
       schema: schemaPayload,
       policyConfig: policyConfigPayload,
       policyMeasurement: measurementPayload,
-      policyRatification: ratificationPayload,
       operatorEvidence: operatorPayload,
       releaseProvider: providerPayload,
       canaryResult: canaryPayload,
     },
-    verifierOutput,
-    verifierPath,
   };
 }
 
@@ -517,25 +445,16 @@ describe('build-release-evidence-manifest', () => {
     expect(manifest.candidate).toBe(false);
     expect(manifest.source.pullRequest).toBe(1385);
     expect(manifest.source.pullRequestHeadSha).toBe(LIVE_HEAD_SHA);
-    expect(manifest.source.planSha256).toBe(hex('plan'));
-    expect(manifest.approval.pullRequest).toBe(1385);
-    expect(manifest.approval.verifiedPrHeadSha).toBe(LIVE_HEAD_SHA);
-    expect(manifest.approval.authorPermission).toBe('admin');
-    expect(manifest.approval.ciGateCheckRunId).toBe(303);
-    expect(manifest.approval.ciGateWorkflowRunId).toBe(505);
-    expect(manifest.approval.ciGateRunAttempt).toBe(2);
-    expect(manifest.approval.finalHeadCiGate).toEqual({
-      checkRunId: 606,
-      workflowRunId: 707,
-      runAttempt: 3,
-      headSha: LIVE_HEAD_SHA,
-    });
+    expect(manifest.source.planApprovalPullRequest).toBeNull();
+    expect(manifest.source.planPath).toBeNull();
+    expect(manifest.source.planSha256).toBeNull();
+    expect(manifest.approval).toBeNull();
     expect(manifest.certification.conclusion).toBe('success');
     expect(manifest.certification.lineageArtifact.artifactArchiveSha256).toBe(
       hex('lineage-archive')
     );
     expect(manifest.policy.stagedMeasuredResidue).toEqual(RESERVED);
-    expect(manifest.policy.ratification).not.toBeNull();
+    expect(manifest.policy.ratification).toBeNull();
     expect(manifest.schema).not.toBeNull();
     expect(manifest.h9Artifact).not.toBeNull();
     expect(manifest.canary?.status).toBe('completed');
@@ -656,13 +575,12 @@ describe('build-release-evidence-manifest', () => {
     expect(manifest.fragmentLineage.baseline.kind).toBe('baseline');
   });
 
-  it('fails on the success path when any one of the eight fragments is missing', async () => {
+  it('fails on the success path when any one of the seven fragments is missing', async () => {
     const keys = [
       'baseline',
       'schema',
       'policyConfig',
       'policyMeasurement',
-      'policyRatification',
       'operatorEvidence',
       'releaseProvider',
       'canaryResult',
@@ -768,19 +686,10 @@ describe('build-release-evidence-manifest', () => {
     expect(manifest.candidate).toBe(true);
   });
 
-  it('rejects a non-approved plan verifier decision', async () => {
-    const fixture = await buildFixture();
-    fixture.verifierOutput['decision'] = 'rejected';
-    await writeFile(fixture.verifierPath, JSON.stringify(fixture.verifierOutput));
-    await expect(runBuilder(fixture)).rejects.toThrow(/approved/);
-  });
-
   it('rejects secret-shaped content flowing into the manifest', async () => {
     const fixture = await buildFixture();
-    const secretPath = '/Users/nikhil/plan.md';
-    (fixture.verifierOutput['plan'] as Record<string, unknown>)['path'] = secretPath;
-    await writeFile(fixture.verifierPath, JSON.stringify(fixture.verifierOutput));
-    (fixture.inputs['source'] as Record<string, unknown>)['planPath'] = secretPath;
+    const secret = 'ghp_AbCdEfGhIjKlMnOpQrStUvWxYz0123456789';
+    (fixture.inputs['source'] as Record<string, unknown>)['pullRequestHeadSha'] = secret;
     await expect(runBuilder(fixture)).rejects.toThrow(/secret-shaped/i);
   });
 
