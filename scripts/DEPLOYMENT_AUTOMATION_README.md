@@ -4,12 +4,10 @@
 
 Repository path: `docs/workflows/PRODUCTION_SCRIPTS.md`.
 
-This guide routes production-action authority to the canonical route and confers
-no authority by itself to mutate source, branch, environment, provider,
-production, schema, data, deployment, promotion, or rollback. The canonical
-route is active for repository governance only; it confers no production
-readiness or authorization, and action-specific UNKNOWN prerequisites remain
-blocking.
+<!-- prettier-ignore-start -->
+This guide routes production-action authority to the canonical route and confers no authority by itself to mutate source, branch, environment, provider, production, schema, data, deployment, promotion, or rollback.
+The canonical route is active for repository governance only; it confers no production readiness or authorization, and action-specific UNKNOWN prerequisites remain blocking.
+<!-- prettier-ignore-end -->
 
 Complete automation for deploying CODEX fixes to staging and production with
 comprehensive smoke tests and security monitoring.
