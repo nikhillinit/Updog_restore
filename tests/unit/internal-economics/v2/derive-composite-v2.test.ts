@@ -13,6 +13,27 @@ function derive(input: InternalEconomicsInputV2Wire = buildMinimalV2Input()) {
   return deriveInternalEconomicsV2(input);
 }
 
+function buildV2S0101Input(): InternalEconomicsInputV2Wire {
+  const input = buildMinimalV2Input({
+    selectedLane: 'deal_by_deal',
+    events: [],
+    waterfallPolicy: [{ kind: 'carry', priority: 1, gpShare: '0.200000000000' }],
+    gpCashPreferredReturnTreatment: 'pari_passu',
+  });
+
+  for (const lpClass of input.lpClasses) {
+    lpClass.feeProfile.managementFeeSchedule = [];
+    lpClass.feeProfile.feeRecyclingEnabled = false;
+    delete lpClass.feeProfile.feeRecyclingCapUsd;
+    lpClass.feeProfile.exitRecyclingEnabled = false;
+    delete lpClass.feeProfile.exitRecyclingCapUsd;
+  }
+  delete input.sourceRefs;
+  delete input.upstreamReceiptIds;
+
+  return input;
+}
+
 const explicitEventRefusals: ReadonlyArray<readonly [V2Event, string]> = [
   [
     {
@@ -208,6 +229,288 @@ describe('deriveInternalEconomicsV2', () => {
     }
   });
 
+  it('keeps a non-empty all-zero schedule outside the F2 envelope', () => {
+    const input = buildV2S0101Input();
+    input.lpClasses[0]!.feeProfile.managementFeeSchedule = [
+      {
+        periodStartDate: '2027-01-01T00:00:00Z',
+        periodEndDate: '2028-01-01T00:00:00Z',
+        rate: { rate: '0.000000000000', basis: 'committed_capital' },
+      },
+    ];
+
+    const result = derive(input);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.refusal).toMatchObject({
+      code: 'UNSUPPORTED_V2_BASE_EVENT',
+      stage: 'admission',
+    });
+  });
+
+  it('keeps a nonzero schedule at management-fee refusal beside the F2 envelope', () => {
+    const input = buildV2S0101Input();
+    input.lpClasses[0]!.feeProfile.managementFeeSchedule = [
+      {
+        periodStartDate: '2027-01-01T00:00:00Z',
+        periodEndDate: '2028-01-01T00:00:00Z',
+        rate: { rate: '0.020000000000', basis: 'committed_capital' },
+      },
+    ];
+
+    const result = derive(input);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.refusal).toMatchObject({
+      code: 'UNSUPPORTED_V2_MANAGEMENT_FEE',
+      stage: 'accrual',
+    });
+  });
+
+  it.each([
+    {
+      name: 'settled-contribution event',
+      mutate(input: InternalEconomicsInputV2Wire) {
+        input.events = [baseEvent];
+      },
+    },
+    {
+      name: 'ordinary whole-fund lane',
+      mutate(input: InternalEconomicsInputV2Wire) {
+        input.selectedLane = 'whole_fund';
+      },
+    },
+    {
+      name: 'fee recycling',
+      mutate(input: InternalEconomicsInputV2Wire) {
+        input.lpClasses[0]!.feeProfile.feeRecyclingEnabled = true;
+      },
+    },
+    {
+      name: 'exit recycling',
+      mutate(input: InternalEconomicsInputV2Wire) {
+        input.lpClasses[0]!.feeProfile.exitRecyclingEnabled = true;
+      },
+    },
+    {
+      name: 'fee recycling cap',
+      mutate(input: InternalEconomicsInputV2Wire) {
+        input.lpClasses[0]!.feeProfile.feeRecyclingCapUsd = '0.000000';
+      },
+    },
+    {
+      name: 'exit recycling cap',
+      mutate(input: InternalEconomicsInputV2Wire) {
+        input.lpClasses[0]!.feeProfile.exitRecyclingCapUsd = '0.000000';
+      },
+    },
+    {
+      name: 'inactive GP preferred-return policy knob',
+      mutate(input: InternalEconomicsInputV2Wire) {
+        input.gpCashPreferredReturnTreatment = 'excluded';
+      },
+    },
+    {
+      name: 'preferred-return policy',
+      mutate(input: InternalEconomicsInputV2Wire) {
+        input.waterfallPolicy = [
+          { kind: 'return_of_capital', priority: 1 },
+          {
+            kind: 'preferred_return',
+            priority: 2,
+            basis: 'unreturned_settled_cash_capital',
+            annualRate: '0.080000000000',
+            rateMode: 'simple',
+          },
+          { kind: 'carry', priority: 3, gpShare: '0.200000000000' },
+        ];
+      },
+    },
+    {
+      name: 'return-of-capital policy',
+      mutate(input: InternalEconomicsInputV2Wire) {
+        input.waterfallPolicy = [
+          { kind: 'return_of_capital', priority: 1 },
+          { kind: 'carry', priority: 2, gpShare: '0.200000000000' },
+        ];
+      },
+    },
+    {
+      name: 'opening recycling cash',
+      mutate(input: InternalEconomicsInputV2Wire) {
+        input.openingState.openingCashClassification.paidIn = '549999.000000';
+        input.openingState.openingCashClassification.recycling = '1.000000';
+        input.openingState.investorLedgers[0]!.unreturnedSettledCashCapital = '499999.000000';
+        input.openingState.openingProvenance.cashLots[1]!.originalAmount = '499999.000000';
+        input.openingState.openingProvenance.cashLots[1]!.remainingBalance = '499999.000000';
+        input.openingState.openingProvenance.entitlementPools.push({
+          entitlementPoolId: 'pool-1',
+          sourceRef: 'pool-source:1',
+          dealId: 'deal-1',
+          securityId: 'security-1',
+        });
+        input.openingState.openingProvenance.cashLots.push({
+          lotId: 'opening-recycling:1',
+          sourceRef: 'opening-recycling-source:1',
+          owner: { kind: 'entitlement_pool', entitlementPoolId: 'pool-1' },
+          classification: 'recycling',
+          originalAmount: '1.000000',
+          remainingBalance: '1.000000',
+        });
+      },
+    },
+    {
+      name: 'zero-balance opening recycling lot',
+      mutate(input: InternalEconomicsInputV2Wire) {
+        input.openingState.openingProvenance.entitlementPools.push({
+          entitlementPoolId: 'pool-1',
+          sourceRef: 'pool-source:1',
+          dealId: 'deal-1',
+          securityId: 'security-1',
+        });
+        input.openingState.openingProvenance.cashLots.push({
+          lotId: 'opening-recycling:zero',
+          sourceRef: 'opening-recycling-source:zero',
+          owner: { kind: 'entitlement_pool', entitlementPoolId: 'pool-1' },
+          classification: 'recycling',
+          originalAmount: '0.000000',
+          remainingBalance: '0.000000',
+        });
+      },
+    },
+    {
+      name: 'opening investment provenance',
+      mutate(input: InternalEconomicsInputV2Wire) {
+        input.openingState.openingCash = '549999.000000';
+        input.openingState.openingCashClassification.paidIn = '549999.000000';
+        input.openingState.openingProvenance.cashLots[1]!.originalAmount = '499999.000000';
+        input.openingState.openingProvenance.cashLots[1]!.remainingBalance = '499999.000000';
+        input.openingState.openingProvenance.entitlementPools.push({
+          entitlementPoolId: 'pool-1',
+          sourceRef: 'pool-source:1',
+          dealId: 'deal-1',
+          securityId: 'security-1',
+        });
+        input.openingState.openingProvenance.investmentLots.push({
+          investmentLotId: 'investment-1',
+          sourceRef: 'investment-source:1',
+          entitlementPoolId: 'pool-1',
+          dealId: 'deal-1',
+          securityId: 'security-1',
+          owner: { kind: 'lp', partnerId: 'lp-1', lpClassId: 'class-a' },
+          costBasis: '1.000000',
+          relievedAmount: '0.000000',
+          entitlementAmount: '1.000000',
+        });
+      },
+    },
+    {
+      name: 'opening unclassified cash',
+      mutate(input: InternalEconomicsInputV2Wire) {
+        input.openingState.openingCashClassification.paidIn = '549999.000000';
+        input.openingState.openingCashClassification.unclassified = '1.000000';
+        input.openingState.openingProvenance.cashLots[1]!.originalAmount = '499999.000000';
+        input.openingState.openingProvenance.cashLots[1]!.remainingBalance = '499999.000000';
+        input.openingState.openingProvenance.cashLots.push({
+          lotId: 'opening-unclassified:1',
+          sourceRef: 'opening-unclassified-source:1',
+          owner: { kind: 'fund' },
+          classification: 'unclassified',
+          originalAmount: '1.000000',
+          remainingBalance: '1.000000',
+        });
+        input.openingState.investorLedgers[0]!.calledCapital = '499999.000000';
+        input.openingState.investorLedgers[0]!.settledCapital = '499999.000000';
+        input.openingState.investorLedgers[0]!.paidInCapital = '499999.000000';
+        input.openingState.investorLedgers[0]!.unreturnedSettledCashCapital = '499999.000000';
+        input.partners[0]!.settledCash = '499999.000000';
+        input.partners[0]!.remainingCallableCommitment = '500001.000000';
+      },
+    },
+    {
+      name: 'zero-balance opening unclassified lot',
+      mutate(input: InternalEconomicsInputV2Wire) {
+        input.openingState.openingProvenance.cashLots.push({
+          lotId: 'opening-unclassified:zero',
+          sourceRef: 'opening-unclassified-source:zero',
+          owner: { kind: 'fund' },
+          classification: 'unclassified',
+          originalAmount: '0.000000',
+          remainingBalance: '0.000000',
+        });
+      },
+    },
+    {
+      name: 'source references',
+      mutate(input: InternalEconomicsInputV2Wire) {
+        input.sourceRefs = ['source-1'];
+      },
+    },
+    {
+      name: 'upstream receipt references',
+      mutate(input: InternalEconomicsInputV2Wire) {
+        input.upstreamReceiptIds = ['receipt-1'];
+      },
+    },
+  ])('keeps $name outside the F2 success envelope', ({ mutate }) => {
+    const input = buildV2S0101Input();
+    mutate(input);
+
+    const result = derive(input);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.refusal).toMatchObject({
+      code: 'UNSUPPORTED_V2_BASE_EVENT',
+      stage: 'admission',
+    });
+  });
+
+  it('keeps explicit event refusal ahead of the adjacent F2 envelope', () => {
+    const input = buildV2S0101Input();
+    input.events = [explicitEventRefusals[0]![0]];
+
+    const result = derive(input);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.refusal).toMatchObject({
+      code: 'UNSUPPORTED_V2_CONTRIBUTION_CORRECTION',
+      stage: 'admission',
+    });
+  });
+
+  it('keeps out-of-range F2 tier ratios at normalization before admission', () => {
+    const input = buildV2S0101Input();
+    input.waterfallPolicy = [{ kind: 'carry', priority: 1, gpShare: '2.000000000000' }];
+
+    const result = derive(input);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.refusal).toMatchObject({
+      code: 'INVALID_TIER_POLICY',
+      stage: 'normalization',
+    });
+  });
+
+  it('keeps unknown F2 tier fields at schema normalization before admission', () => {
+    const input = buildV2S0101Input();
+    (input.waterfallPolicy[0] as unknown as Record<string, unknown>).unexpectedPolicyNote =
+      'unsupported';
+
+    const result = derive(input);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.refusal).toMatchObject({
+      code: 'SCHEMA_VALIDATION_FAILED',
+      stage: 'normalization',
+    });
+  });
+
   it('refuses invalid input and wrong contract versions during normalization', () => {
     const invalid = deriveInternalEconomicsV2({ not: 'valid' });
     expect(invalid.ok).toBe(false);
@@ -297,7 +600,7 @@ describe('deriveInternalEconomicsV2', () => {
 
 describe('certifyInternalEconomicsDualLaneV2', () => {
   it('keeps the exact whole-fund certification refusal without partial output', () => {
-    const result = certifyInternalEconomicsDualLaneV2(buildMinimalV2Input());
+    const result = certifyInternalEconomicsDualLaneV2(buildV2S0101Input());
 
     expect(result.ok).toBe(false);
     if (result.ok) return;

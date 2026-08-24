@@ -8,6 +8,7 @@ import {
   V2_EVENT_KINDS,
   V2_DERIVED_EVENT_KINDS,
   V2_STAGES,
+  type WaterfallTierV2,
 } from '../../../../shared/contracts/internal-economics/internal-economics-input-v2.contract';
 
 function zeroInvestorLedger(partnerId: string) {
@@ -868,6 +869,222 @@ describe('verifyAndNormalizeInternalEconomicsInputV2', () => {
   });
 
   describe('tier policy validation', () => {
+    it.each([
+      {
+        name: 'return_of_capital',
+        waterfallPolicy: [
+          { kind: 'return_of_capital', priority: 1 },
+          { kind: 'carry', priority: 2, gpShare: '0.200000000000' },
+        ] as WaterfallTierV2[],
+        tierIndex: 0,
+      },
+      {
+        name: 'preferred_return',
+        waterfallPolicy: [
+          {
+            kind: 'preferred_return',
+            priority: 1,
+            basis: 'unreturned_settled_cash_capital',
+            annualRate: '0.080000000000',
+            rateMode: 'simple',
+          },
+          { kind: 'carry', priority: 2, gpShare: '0.200000000000' },
+        ] as WaterfallTierV2[],
+        tierIndex: 0,
+      },
+      {
+        name: 'gp_catch_up',
+        waterfallPolicy: [
+          { kind: 'return_of_capital', priority: 1 },
+          {
+            kind: 'preferred_return',
+            priority: 2,
+            basis: 'unreturned_settled_cash_capital',
+            annualRate: '0.080000000000',
+            rateMode: 'simple',
+          },
+          { kind: 'gp_catch_up', priority: 3, gpAllocationRate: '0.500000000000' },
+          { kind: 'carry', priority: 4, gpShare: '0.200000000000' },
+        ] as WaterfallTierV2[],
+        tierIndex: 2,
+      },
+      {
+        name: 'carry',
+        waterfallPolicy: [
+          { kind: 'carry', priority: 1, gpShare: '0.200000000000' },
+        ] as WaterfallTierV2[],
+        tierIndex: 0,
+      },
+    ])('rejects unknown fields on $name tiers', ({ waterfallPolicy, tierIndex }) => {
+      const input = buildMinimalV2Input({ waterfallPolicy });
+      (input.waterfallPolicy[tierIndex] as unknown as Record<string, unknown>).unexpectedPolicyNote =
+        'unsupported';
+
+      const result = verifyAndNormalizeInternalEconomicsInputV2(input);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.refusal.code).toBe('SCHEMA_VALIDATION_FAILED');
+        expect(result.refusal.stage).toBe('normalization');
+      }
+    });
+
+    it.each([
+      {
+        name: 'gpShare below zero',
+        waterfallPolicy: [
+          { kind: 'carry', priority: 1, gpShare: '-1.000000000000' },
+        ] as WaterfallTierV2[],
+      },
+      {
+        name: 'gpShare above one',
+        waterfallPolicy: [
+          { kind: 'carry', priority: 1, gpShare: '2.000000000000' },
+        ] as WaterfallTierV2[],
+      },
+      {
+        name: 'gpAllocationRate below zero',
+        waterfallPolicy: [
+          { kind: 'return_of_capital', priority: 1 },
+          {
+            kind: 'preferred_return',
+            priority: 2,
+            basis: 'unreturned_settled_cash_capital',
+            annualRate: '0.080000000000',
+            rateMode: 'simple',
+          },
+          { kind: 'gp_catch_up', priority: 3, gpAllocationRate: '-1.000000000000' },
+          { kind: 'carry', priority: 4, gpShare: '0.200000000000' },
+        ] as WaterfallTierV2[],
+      },
+      {
+        name: 'gpAllocationRate above one',
+        waterfallPolicy: [
+          { kind: 'return_of_capital', priority: 1 },
+          {
+            kind: 'preferred_return',
+            priority: 2,
+            basis: 'unreturned_settled_cash_capital',
+            annualRate: '0.080000000000',
+            rateMode: 'simple',
+          },
+          { kind: 'gp_catch_up', priority: 3, gpAllocationRate: '2.000000000000' },
+          { kind: 'carry', priority: 4, gpShare: '0.200000000000' },
+        ] as WaterfallTierV2[],
+      },
+      {
+        name: 'annualRate below zero',
+        waterfallPolicy: [
+          {
+            kind: 'preferred_return',
+            priority: 1,
+            basis: 'unreturned_settled_cash_capital',
+            annualRate: '-1.000000000000',
+            rateMode: 'simple',
+          },
+          { kind: 'carry', priority: 2, gpShare: '0.200000000000' },
+        ] as WaterfallTierV2[],
+      },
+      {
+        name: 'annualRate above one',
+        waterfallPolicy: [
+          {
+            kind: 'preferred_return',
+            priority: 1,
+            basis: 'unreturned_settled_cash_capital',
+            annualRate: '2.000000000000',
+            rateMode: 'simple',
+          },
+          { kind: 'carry', priority: 2, gpShare: '0.200000000000' },
+        ] as WaterfallTierV2[],
+      },
+    ])('rejects $name outside the inclusive ratio bounds', ({ waterfallPolicy }) => {
+      const result = verifyAndNormalizeInternalEconomicsInputV2(
+        buildMinimalV2Input({ waterfallPolicy })
+      );
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.refusal.code).toBe('INVALID_TIER_POLICY');
+        expect(result.refusal.stage).toBe('normalization');
+      }
+    });
+
+    it.each([
+      {
+        name: 'carry gpShare at zero',
+        waterfallPolicy: [{ kind: 'carry', priority: 1, gpShare: '0.000000000000' }],
+      },
+      {
+        name: 'carry gpShare at negative zero',
+        waterfallPolicy: [{ kind: 'carry', priority: 1, gpShare: '-0.000000000000' }],
+      },
+      {
+        name: 'carry gpShare at one',
+        waterfallPolicy: [{ kind: 'carry', priority: 1, gpShare: '1.000000000000' }],
+      },
+      {
+        name: 'preferred annualRate at zero',
+        waterfallPolicy: [
+          {
+            kind: 'preferred_return',
+            priority: 1,
+            basis: 'unreturned_settled_cash_capital',
+            annualRate: '0.000000000000',
+            rateMode: 'simple',
+          },
+          { kind: 'carry', priority: 2, gpShare: '0.200000000000' },
+        ],
+      },
+      {
+        name: 'preferred annualRate at negative zero',
+        waterfallPolicy: [
+          {
+            kind: 'preferred_return',
+            priority: 1,
+            basis: 'unreturned_settled_cash_capital',
+            annualRate: '-0.000000000000',
+            rateMode: 'simple',
+          },
+          { kind: 'carry', priority: 2, gpShare: '0.200000000000' },
+        ],
+      },
+      {
+        name: 'preferred annualRate at one',
+        waterfallPolicy: [
+          {
+            kind: 'preferred_return',
+            priority: 1,
+            basis: 'unreturned_settled_cash_capital',
+            annualRate: '1.000000000000',
+            rateMode: 'simple',
+          },
+          { kind: 'carry', priority: 2, gpShare: '0.200000000000' },
+        ],
+      },
+      {
+        name: 'gpAllocationRate at one',
+        waterfallPolicy: [
+          { kind: 'return_of_capital', priority: 1 },
+          {
+            kind: 'preferred_return',
+            priority: 2,
+            basis: 'unreturned_settled_cash_capital',
+            annualRate: '0.080000000000',
+            rateMode: 'simple',
+          },
+          { kind: 'gp_catch_up', priority: 3, gpAllocationRate: '1.000000000000' },
+          { kind: 'carry', priority: 4, gpShare: '0.200000000000' },
+        ],
+      },
+    ] as const)('accepts $name', ({ waterfallPolicy }) => {
+      const result = verifyAndNormalizeInternalEconomicsInputV2(
+        buildMinimalV2Input({ waterfallPolicy: [...waterfallPolicy] as WaterfallTierV2[] })
+      );
+
+      expect(result.ok).toBe(true);
+    });
+
     it('refuses non-contiguous priorities', () => {
       const input = buildMinimalV2Input({
         waterfallPolicy: [

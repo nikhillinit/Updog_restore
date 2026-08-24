@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { Decimal } from '../../../../shared/lib/decimal-config';
+import { deriveInternalEconomicsV2 } from '../../../../shared/lib/internal-economics/v2/derive-composite-v2';
 import { classifyReserveFundingSources } from '../../../../shared/lib/internal-economics/v2/reserve-funding-classifier-v2';
 import {
   initializeEventStreamState,
@@ -14,6 +16,25 @@ function buildState() {
   const result = verifyAndNormalizeInternalEconomicsInputV2(wire);
   if (!result.ok) throw new Error('normalization failed');
   return initializeEventStreamState(result.input);
+}
+
+function buildV2S0101Input() {
+  const input = buildMinimalV2Input({
+    selectedLane: 'deal_by_deal',
+    events: [],
+    waterfallPolicy: [{ kind: 'carry', priority: 1, gpShare: '0.200000000000' }],
+    gpCashPreferredReturnTreatment: 'pari_passu',
+  });
+
+  for (const lpClass of input.lpClasses) {
+    lpClass.feeProfile.managementFeeSchedule = [];
+    lpClass.feeProfile.feeRecyclingEnabled = false;
+    delete lpClass.feeProfile.feeRecyclingCapUsd;
+    lpClass.feeProfile.exitRecyclingEnabled = false;
+    delete lpClass.feeProfile.exitRecyclingCapUsd;
+  }
+
+  return input;
 }
 
 describe('classifyReserveFundingSources', () => {
@@ -103,5 +124,26 @@ describe('classifyReserveFundingSources', () => {
     if (!result.ok) return;
     expect(result.sources.eligiblePaidInCashUsd).toBe('0.000000');
     expect(result.sources.eligibleRecyclingCashUsd).toBe('150000.000000');
+  });
+
+  it('keeps reserve refusal independent from a valid economics receipt', () => {
+    const economics = deriveInternalEconomicsV2(buildV2S0101Input());
+    expect(economics.ok).toBe(true);
+    if (!economics.ok) return;
+    const receiptBefore = structuredClone(economics.receipt);
+
+    const state = buildState();
+    state.callableTrackers.get('lp-1')!.remainingCallable = new Decimal(-1_000_000);
+    const reserve = classifyReserveFundingSources(state);
+
+    expect(reserve.ok).toBe(false);
+    if (reserve.ok) return;
+    expect(reserve.refusal).toMatchObject({
+      code: 'RESERVE_CONSERVATION_VIOLATION',
+      stage: 'receipt',
+    });
+    expect(economics.receipt).toEqual(receiptBefore);
+    expect(economics.receipt).not.toHaveProperty('reserveFundingSources');
+    expect(economics.receipt).not.toHaveProperty('reserveRefusal');
   });
 });

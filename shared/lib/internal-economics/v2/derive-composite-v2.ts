@@ -81,15 +81,49 @@ function checkManagementFeeRefusal(
   return null;
 }
 
-function checkAdmissionGuard(input: NormalizedInternalEconomicsInputV2): V2CoreRefusal | null {
+function isExactF2AdmissionEnvelope(input: NormalizedInternalEconomicsInputV2): boolean {
+  const firstTier = input.waterfallPolicy[0];
+
   return (
-    checkManagementFeeRefusal(input) ??
-    checkEventCapabilityRefusal(input) ??
-    admissionRefusal(
-      'UNSUPPORTED_V2_BASE_EVENT',
-      'admission',
-      'Public derivation is not yet enabled for strict 2.0.1 inputs.'
-    )
+    input.selectedLane === 'deal_by_deal' &&
+    input.events.length === 0 &&
+    input.gpCashPreferredReturnTreatment === 'pari_passu' &&
+    input.lpClasses.every(
+      ({ feeProfile }) =>
+        feeProfile.managementFeeSchedule.length === 0 &&
+        feeProfile.feeRecyclingEnabled === false &&
+        feeProfile.feeRecyclingCapUsd === undefined &&
+        feeProfile.exitRecyclingEnabled === false &&
+        feeProfile.exitRecyclingCapUsd === undefined
+    ) &&
+    input.waterfallPolicy.length === 1 &&
+    firstTier?.kind === 'carry' &&
+    firstTier.priority === 1 &&
+    new Decimal(input.openingState.openingCashClassification.recycling).isZero() &&
+    new Decimal(input.openingState.openingCashClassification.unclassified).isZero() &&
+    input.openingState.openingProvenance.investmentLots.length === 0 &&
+    input.openingState.openingProvenance.entitlementPools.length === 0 &&
+    input.openingState.openingProvenance.cashLots.every(
+      (lot) => lot.classification === 'paid_in'
+    ) &&
+    (input.sourceRefs?.length ?? 0) === 0 &&
+    (input.upstreamReceiptIds?.length ?? 0) === 0
+  );
+}
+
+function checkAdmissionGuard(input: NormalizedInternalEconomicsInputV2): V2CoreRefusal | null {
+  const managementFeeRefusal = checkManagementFeeRefusal(input);
+  if (managementFeeRefusal) return managementFeeRefusal;
+
+  const eventCapabilityRefusal = checkEventCapabilityRefusal(input);
+  if (eventCapabilityRefusal) return eventCapabilityRefusal;
+
+  if (isExactF2AdmissionEnvelope(input)) return null;
+
+  return admissionRefusal(
+    'UNSUPPORTED_V2_BASE_EVENT',
+    'admission',
+    'Public derivation is not yet enabled for strict 2.0.1 inputs.'
   );
 }
 
