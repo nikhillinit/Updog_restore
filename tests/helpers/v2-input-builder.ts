@@ -1,6 +1,6 @@
 import { Decimal } from '../../shared/lib/decimal-config';
 import type { InternalEconomicsInputV2Wire } from '../../shared/contracts/internal-economics/internal-economics-input-v2.contract';
-import { INTERNAL_ECONOMICS_COMPOSITE_V2_VERSION } from '../../shared/contracts/internal-economics/internal-economics-input-v2.contract';
+import { INTERNAL_ECONOMICS_COMPOSITE_V2_1_VERSION } from '../../shared/contracts/internal-economics/internal-economics-input-v2.contract';
 
 function money(n: number | string): string {
   return new Decimal(n).toFixed(6);
@@ -14,7 +14,7 @@ export function buildMinimalV2Input(
   overrides?: Partial<InternalEconomicsInputV2Wire>
 ): InternalEconomicsInputV2Wire {
   const base: InternalEconomicsInputV2Wire = {
-    contractVersion: INTERNAL_ECONOMICS_COMPOSITE_V2_VERSION,
+    contractVersion: INTERNAL_ECONOMICS_COMPOSITE_V2_1_VERSION,
     componentVersions: {},
     currency: 'USD',
     calculationDate: '2025-06-30T00:00:00Z',

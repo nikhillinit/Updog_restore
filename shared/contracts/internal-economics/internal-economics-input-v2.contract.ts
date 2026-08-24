@@ -4,6 +4,9 @@ import { MoneyDecimalStringSchema, RatioDecimalStringSchema } from '../../lib/de
 export const INTERNAL_ECONOMICS_COMPOSITE_V2_VERSION =
   'internal-economics-composite/2.0.0' as const;
 
+export const INTERNAL_ECONOMICS_COMPOSITE_V2_1_VERSION =
+  'internal-economics-composite/2.0.1' as const;
+
 // ---------------------------------------------------------------------------
 // Refusal codes
 // ---------------------------------------------------------------------------
@@ -32,6 +35,20 @@ export const V2_REFUSAL_CODES = [
   'FEE_RECYCLING_DISABLED',
   'RECEIPT_CONSERVATION_VIOLATION',
   'FEE_ALLOCATION_MISMATCH',
+  'OPENING_PROVENANCE_REQUIRED',
+  'UNSUPPORTED_V2_BASE_EVENT',
+  'UNSUPPORTED_V2_CONTRIBUTION_CORRECTION',
+  'UNSUPPORTED_V2_WRITE_OFF',
+  'UNSUPPORTED_V2_CONVERSION',
+  'UNSUPPORTED_V2_FEE_BASIS',
+  'UNSUPPORTED_V2_FEE_PROFILE_FEATURE',
+  'INVALID_V2_FEE_PERIOD_MONTHS',
+  'UNSUPPORTED_V2_RETROACTIVE_PERIOD_FLOW_FEE',
+  'UNSUPPORTED_V2_PREFERRED_RETURN',
+  'UNSUPPORTED_V2_FEE_RECYCLING',
+  'UNSUPPORTED_V2_DEAL_BY_DEAL_DISTRIBUTION',
+  'UNSUPPORTED_V2_EXIT_RECYCLING_DISTRIBUTION',
+  'UNSUPPORTED_V2_WHOLE_FUND_CERTIFICATION',
 ] as const;
 
 export type V2RefusalCode = (typeof V2_REFUSAL_CODES)[number];
@@ -511,7 +528,7 @@ export const V2_ADMISSION_LIMITS = {
 
 export const InternalEconomicsInputV2WireSchema = z
   .object({
-    contractVersion: z.literal(INTERNAL_ECONOMICS_COMPOSITE_V2_VERSION),
+    contractVersion: z.literal(INTERNAL_ECONOMICS_COMPOSITE_V2_1_VERSION),
     componentVersions: z.record(z.string(), z.string()),
     currency: z.literal('USD'),
     calculationDate: z.string().datetime({ offset: true }),

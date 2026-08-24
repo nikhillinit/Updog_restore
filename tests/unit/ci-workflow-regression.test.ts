@@ -209,6 +209,9 @@ describe('Financial calculation change classification', () => {
     'scripts/golden/phoenix-truth.mjs',
     'server/lib/moic-mapper.ts',
     'client/src/adapters/reserves-adapter.ts',
+    'docs/internal-economics-v2.truth-cases.json',
+    'tests/unit/internal-economics/v2/support/legacy-corpus-adapter.ts',
+    'tests/unit/internal-economics/v2/support/canonical-receipt-oracle-v1.ts',
   ])('flags %s as financial-calculation relevant', (changedPath) => {
     const classified = classifyRawDiff(rawChange('M', [changedPath]));
     expect(classified.status, classified.stderr).toBe(0);
