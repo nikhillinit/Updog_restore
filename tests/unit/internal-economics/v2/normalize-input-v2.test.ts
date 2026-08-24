@@ -27,7 +27,7 @@ describe('verifyAndNormalizeInternalEconomicsInputV2', () => {
       const result = verifyAndNormalizeInternalEconomicsInputV2(input);
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.refusal.code).toBe('SCHEMA_VALIDATION_FAILED');
+        expect(result.refusal.code).toBe('UNSUPPORTED_INTERNAL_ECONOMICS_CONTRACT_VERSION');
       }
     });
 
@@ -399,8 +399,8 @@ describe('verifyAndNormalizeInternalEconomicsInputV2', () => {
   });
 
   describe('contract completeness', () => {
-    it('has exactly 23 refusal codes', () => {
-      expect(V2_REFUSAL_CODES).toHaveLength(23);
+    it('has exactly 37 refusal codes', () => {
+      expect(V2_REFUSAL_CODES).toHaveLength(37);
     });
 
     it('has exactly 9 event kinds', () => {

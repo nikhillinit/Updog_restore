@@ -118,6 +118,9 @@ jobs:
       - name: Run financial truth cases
         run: npm run phoenix:truth
 
+      - name: Run V2 internal economics tests
+        run: npm run test:internal-economics-v2
+
   docs-link-check:
     name: Documentation Links
     needs: changes

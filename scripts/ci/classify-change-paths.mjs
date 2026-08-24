@@ -31,6 +31,8 @@ const FINANCIAL_PATHS = {
     'scripts/golden/',
     'server/lib/moic-mapper.ts',
     'client/src/adapters/reserves-adapter.ts',
+    'docs/internal-economics-v2.truth-cases.json',
+    'tests/unit/internal-economics/v2/support/',
   ],
 };
 

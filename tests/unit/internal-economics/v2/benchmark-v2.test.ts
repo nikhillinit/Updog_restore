@@ -4,7 +4,7 @@ import {
   deriveInternalEconomicsV2,
   certifyInternalEconomicsDualLaneV2,
 } from '../../../../shared/lib/internal-economics/v2/derive-composite-v2';
-import { INTERNAL_ECONOMICS_COMPOSITE_V2_VERSION } from '../../../../shared/contracts/internal-economics/internal-economics-input-v2.contract';
+import { INTERNAL_ECONOMICS_COMPOSITE_V2_1_VERSION } from '../../../../shared/contracts/internal-economics/internal-economics-input-v2.contract';
 
 function money(n: number): string {
   return new Decimal(n).toFixed(6);
@@ -93,7 +93,7 @@ function buildWorstCaseInput(partnerCount: number, dealsPerPartner: number) {
   const totalSettled = partners.reduce((sum, p) => sum + parseFloat(p.settledCash), 0);
 
   return {
-    contractVersion: INTERNAL_ECONOMICS_COMPOSITE_V2_VERSION,
+    contractVersion: INTERNAL_ECONOMICS_COMPOSITE_V2_1_VERSION,
     componentVersions: {},
     currency: 'USD',
     calculationDate: '2025-06-30T00:00:00Z',
@@ -157,21 +157,21 @@ function buildWorstCaseInput(partnerCount: number, dealsPerPartner: number) {
 }
 
 describe('V2 benchmark at admission limits', () => {
-  it('selected-lane derivation completes under 5s with 100 partners, 500 deals (1500 events)', () => {
+  it('selected-lane derivation refuses with UNSUPPORTED_V2_BASE_EVENT', () => {
     const input = buildWorstCaseInput(100, 500);
-    const start = performance.now();
     const result = deriveInternalEconomicsV2(input);
-    const elapsed = performance.now() - start;
-    expect(result.ok).toBe(true);
-    expect(elapsed).toBeLessThan(5000);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.refusal.code).toBe('UNSUPPORTED_V2_BASE_EVENT');
+    expect(result.refusal.stage).toBe('admission');
   });
 
-  it('dual-lane certification completes under 5s with 100 partners, 500 deals (1500 events)', () => {
+  it('dual-lane certification refuses with UNSUPPORTED_V2_WHOLE_FUND_CERTIFICATION', () => {
     const input = buildWorstCaseInput(100, 500);
-    const start = performance.now();
     const result = certifyInternalEconomicsDualLaneV2(input);
-    const elapsed = performance.now() - start;
-    expect(result.ok).toBe(true);
-    expect(elapsed).toBeLessThan(5000);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.refusal.code).toBe('UNSUPPORTED_V2_WHOLE_FUND_CERTIFICATION');
+    expect(result.refusal.stage).toBe('waterfall');
   });
 });

@@ -8,6 +8,11 @@
   "outputDirectory": "dist/public",
   "installCommand": "npm ci --include=dev",
   "framework": "vite",
+  "functions": {
+    "api/[...slug].ts": {
+      "excludeFiles": "tests/**"
+    }
+  },
 
   "rewrites": [
     {

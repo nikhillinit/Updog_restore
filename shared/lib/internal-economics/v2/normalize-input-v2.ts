@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import {
   InternalEconomicsInputV2WireSchema,
+  INTERNAL_ECONOMICS_COMPOSITE_V2_1_VERSION,
   V2_ADMISSION_LIMITS,
   type V2CoreRefusal,
   type NormalizedInternalEconomicsInputV2,
@@ -374,6 +375,18 @@ export function verifyAndNormalizeInternalEconomicsInputV2(input: unknown): Norm
   const serialized = JSON.stringify(input);
   const serializedBytes = Buffer.byteLength(serialized, 'utf-8');
 
+  if (typeof input === 'object' && input !== null) {
+    const rec = input as Record<string, unknown>;
+    const cv = rec['contractVersion'];
+    if (typeof cv === 'string' && cv !== INTERNAL_ECONOMICS_COMPOSITE_V2_1_VERSION) {
+      return refuse(
+        'UNSUPPORTED_INTERNAL_ECONOMICS_CONTRACT_VERSION',
+        'normalization',
+        `Contract version "${cv}" is not supported; expected "${INTERNAL_ECONOMICS_COMPOSITE_V2_1_VERSION}".`
+      );
+    }
+  }
+
   const parseResult = InternalEconomicsInputV2WireSchema.safeParse(input);
   if (!parseResult.success) {
     return refuse(
@@ -406,12 +419,24 @@ export function verifyAndNormalizeInternalEconomicsInputV2(input: unknown): Norm
   const reconRefusal = validateOpeningReconciliation(parsed);
   if (reconRefusal) return { ok: false, refusal: reconRefusal };
 
+  const partnerIds = new Set(parsed.partners.map((p) => p.partnerId));
+  const ledgerPartnerIds = new Set(parsed.openingState.investorLedgers.map((l) => l.partnerId));
+  for (const pid of partnerIds) {
+    if (!ledgerPartnerIds.has(pid)) {
+      return refuse(
+        'OPENING_PROVENANCE_REQUIRED',
+        'normalization',
+        `Partner "${pid}" has no investor ledger entry in openingState.`
+      );
+    }
+  }
+
   for (const event of parsed.events) {
     if (event.kind === 'equalization_principal' || event.kind === 'equalization_interest') {
       return refuse(
         'UNSUPPORTED_V2_EQUALIZATION',
         'equalization',
-        `Equalization event ${event.eventId} is not supported in V2.0.0.`
+        `Equalization event ${event.eventId} is not supported.`
       );
     }
   }

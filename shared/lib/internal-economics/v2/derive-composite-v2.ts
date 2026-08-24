@@ -2,6 +2,8 @@ import type {
   V2CoreRefusal,
   NormalizedInternalEconomicsInputV2,
   V2WaterfallLane,
+  V2RefusalCode,
+  V2Stage,
 } from '../../../contracts/internal-economics/internal-economics-input-v2.contract';
 import type {
   InternalEconomicsReceiptV2Result,
@@ -27,6 +29,39 @@ import {
   toTierAllocationsV2 as wholeToTier,
 } from './waterfall-whole-fund-v2';
 import { buildReceipt } from './liquidity-receipt-builder-v2';
+
+function admissionRefusal(code: V2RefusalCode, stage: V2Stage, message: string): V2CoreRefusal {
+  return { ok: false, code, stage, message };
+}
+
+function checkAdmissionGuard(input: NormalizedInternalEconomicsInputV2): V2CoreRefusal | null {
+  for (const event of input.events) {
+    if (event.kind === 'contribution_correction')
+      return admissionRefusal(
+        'UNSUPPORTED_V2_CONTRIBUTION_CORRECTION',
+        'admission',
+        `Event ${event.eventId}: contribution correction is not yet supported.`
+      );
+    if (event.kind === 'write_off')
+      return admissionRefusal(
+        'UNSUPPORTED_V2_WRITE_OFF',
+        'admission',
+        `Event ${event.eventId}: write-off is not yet supported.`
+      );
+    if (event.kind === 'conversion')
+      return admissionRefusal(
+        'UNSUPPORTED_V2_CONVERSION',
+        'admission',
+        `Event ${event.eventId}: conversion is not yet supported.`
+      );
+  }
+
+  return admissionRefusal(
+    'UNSUPPORTED_V2_BASE_EVENT',
+    'admission',
+    'Public derivation is not yet enabled for strict 2.0.1 inputs.'
+  );
+}
 
 function processEvents(
   input: NormalizedInternalEconomicsInputV2,
@@ -86,6 +121,10 @@ export function deriveInternalEconomicsV2(rawInput: unknown): InternalEconomicsR
   if (!normalizeResult.ok) return { ok: false, refusal: normalizeResult.refusal };
 
   const input = normalizeResult.input;
+
+  const guard = checkAdmissionGuard(input);
+  if (guard) return { ok: false, refusal: guard };
+
   return runLane(input, input.selectedLane);
 }
 
@@ -95,19 +134,12 @@ export function certifyInternalEconomicsDualLaneV2(
   const normalizeResult = verifyAndNormalizeInternalEconomicsInputV2(rawInput);
   if (!normalizeResult.ok) return { ok: false, refusal: normalizeResult.refusal };
 
-  const input = normalizeResult.input;
-
-  const dealResult = runLane(input, 'deal_by_deal');
-  if (!dealResult.ok) return dealResult;
-
-  const wholeResult = runLane(input, 'whole_fund');
-  if (!wholeResult.ok) return wholeResult;
-
   return {
-    ok: true,
-    certification: {
-      dealByDeal: dealResult.receipt,
-      wholeFund: wholeResult.receipt,
-    },
+    ok: false,
+    refusal: admissionRefusal(
+      'UNSUPPORTED_V2_WHOLE_FUND_CERTIFICATION',
+      'waterfall',
+      'Dual-lane certification is not yet enabled.'
+    ),
   };
 }
