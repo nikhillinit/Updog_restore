@@ -193,6 +193,28 @@ function validateTierPolicy(tiers: readonly WaterfallTierV2[]): V2CoreRefusal | 
     }
   }
 
+  for (const tier of tiers) {
+    const ratio =
+      tier.kind === 'preferred_return'
+        ? tier.annualRate
+        : tier.kind === 'gp_catch_up'
+          ? tier.gpAllocationRate
+          : tier.kind === 'carry'
+            ? tier.gpShare
+            : null;
+    if (ratio !== null) {
+      const value = new Decimal(ratio);
+      if (value.lt(0) || value.gt(1)) {
+        return {
+          ok: false,
+          code: 'INVALID_TIER_POLICY',
+          stage: 'normalization',
+          message: `Tier ${tier.kind} ratio must be within [0, 1].`,
+        };
+      }
+    }
+  }
+
   const catchUpIndex = tiers.findIndex((t) => t.kind === 'gp_catch_up');
   const prefIndex = tiers.findIndex((t) => t.kind === 'preferred_return');
   const carryIndex = tiers.findIndex((t) => t.kind === 'carry');
