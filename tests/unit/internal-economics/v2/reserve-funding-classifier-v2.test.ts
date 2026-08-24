@@ -18,7 +18,7 @@ function buildState() {
   return initializeEventStreamState(result.input);
 }
 
-function buildV2S0100Input() {
+function buildV2S0101Input() {
   const input = buildMinimalV2Input({
     selectedLane: 'deal_by_deal',
     events: [],
@@ -127,7 +127,7 @@ describe('classifyReserveFundingSources', () => {
   });
 
   it('keeps reserve refusal independent from a valid economics receipt', () => {
-    const economics = deriveInternalEconomicsV2(buildV2S0100Input());
+    const economics = deriveInternalEconomicsV2(buildV2S0101Input());
     expect(economics.ok).toBe(true);
     if (!economics.ok) return;
     const receiptBefore = structuredClone(economics.receipt);

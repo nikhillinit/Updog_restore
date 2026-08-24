@@ -6,7 +6,7 @@ import {
   oracleHash,
 } from '../internal-economics/v2/support/canonical-receipt-oracle-v1';
 
-function buildV2S0100Input() {
+function buildV2S0101Input() {
   const input = buildMinimalV2Input({
     selectedLane: 'deal_by_deal',
     events: [],
@@ -32,9 +32,9 @@ function micros(value: string): bigint {
   return BigInt(whole!) * 1_000_000n + BigInt(fraction.padEnd(6, '0').slice(0, 6));
 }
 
-describe('V2-S-0100 first public selected-lane success', () => {
+describe('V2-S-0101 paid-in cash-only selected-lane success', () => {
   it('returns the exact detached opening-state receipt with independent hashes', () => {
-    const input = buildV2S0100Input();
+    const input = buildV2S0101Input();
     const inputBefore = structuredClone(input);
     const normalizedInputHash = oracleHash(inputBefore);
     const expectedResultPayload = {
@@ -127,7 +127,7 @@ describe('V2-S-0100 first public selected-lane success', () => {
     input.partners[0]!.committedCapital = '1.000000';
     input.openingState.investorLedgers[0]!.settledCapital = '1.000000';
     expect(result.receipt).toEqual(receiptSnapshot);
-    expect(deriveInternalEconomicsV2(buildV2S0100Input())).toEqual({
+    expect(deriveInternalEconomicsV2(buildV2S0101Input())).toEqual({
       ok: true,
       receipt: expectedReceipt,
     });

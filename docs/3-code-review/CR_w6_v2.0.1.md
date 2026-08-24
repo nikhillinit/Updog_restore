@@ -4,9 +4,9 @@
 **Version**: 2.0.1 (plan F_2.0.1 + Addendum A; uncommitted change — package version remains 1.6.0)
 **Files Reviewed** (nine; first five are the original F2 scope, next three the Addendum A extension per plan section 9.2, last two are evidence documents):
 
-- `shared/lib/internal-economics/v2/derive-composite-v2.ts` (+39/-8)
-- `tests/unit/internal-economics/v2/derive-composite-v2.test.ts` (+243/-1; includes 2 admission-ordering tests)
-- `tests/unit/internal-economics/v2/reserve-funding-classifier-v2.test.ts` (+41/-0)
+- `shared/lib/internal-economics/v2/derive-composite-v2.ts` (+42/-8)
+- `tests/unit/internal-economics/v2/derive-composite-v2.test.ts` (+304/-1; includes 2 admission-ordering tests and 3 provenance-refusal regressions)
+- `tests/unit/internal-economics/v2/reserve-funding-classifier-v2.test.ts` (+42/-0)
 - `tests/unit/truth-cases/internal-economics-v2-first-success.test.ts` (new, +157)
 - `shared/contracts/internal-economics/internal-economics-input-v2.contract.ts` (+4/-4; `.strict()` on the four tier schemas)
 - `shared/lib/internal-economics/v2/normalize-input-v2.ts` (+22; ratio bounds in `validateTierPolicy`)
@@ -22,13 +22,13 @@
 
 ## Executive Summary
 
-F2 retires the F1 base admission refusal for exactly one opening-state-only, fee-free, deal-by-deal envelope and returns the existing detached V2 receipt for it. Independent red-team review exposed two contract-level validation gaps the F2 envelope made success-reachable — silent unknown-field stripping in the four tier schemas and an unbounded `gpShare` ratio. Task 6.4 (plan section 9, Addendum A) repaired both: tier schemas are now uniformly `.strict()`, and `validateTierPolicy` enforces inclusive `[0, 1]` Decimal bounds on `gpShare`, `gpAllocationRate`, and `annualRate`. Both defects were re-reproduced after repair and now refuse at normalization; the valid-envelope receipt and all pre-existing hashes are byte-stable. APPROVED with observations.
+F2 retires the F1 base admission refusal for exactly one F2-entry paid-in cash-only, fee-free, deal-by-deal seam and returns the existing detached V2 receipt. Independent reviews exposed three decision-quality defects the F2 success path made reachable: silent unknown-field stripping in four tier schemas, an unbounded `gpShare` ratio, and accepted opening investment provenance omitted from the receipt. Task 6.4 repaired the contract defects with strict tier schemas and inclusive `[0, 1]` Decimal bounds. Council remediation excludes unclassified cash and unhydrated opening provenance from the seam. The valid-envelope receipt and pre-existing hashes remain byte-stable. APPROVED with observations.
 
 ---
 
 ## Changes Overview
 
-Two commits-worth of uncommitted work, one logical change. The F2 batch adds `isExactF2AdmissionEnvelope` (derive-composite-v2.ts:84) admitting only the plan section 4 envelope, with guard order preserved (management-fee refusal, event-capability refusal, envelope success, otherwise `UNSUPPORTED_V2_BASE_EVENT/admission`), plus the hand-authored `V2-S-0100` truth case with independent oracle hashes, 16 boundary/precedence tests, and a reserve-classifier isolation test. The Task 6.4 batch hardens the contract the envelope depends on: `.strict()` on all four tier schemas (unknown tier fields now refuse `SCHEMA_VALIDATION_FAILED/normalization`) and a ratio-bounds pass in `validateTierPolicy` (out-of-range rates refuse `INVALID_TIER_POLICY/normalization`), with 19 new tests including boundary acceptance at `0`, `-0`, and `1`. No receipt builder, event engine, waterfall, reserve classifier, corpus adapter, or shared decimal-string change.
+Two commits-worth of uncommitted work, one logical change. The F2 batch adds `isExactF2AdmissionEnvelope` (derive-composite-v2.ts:84) admitting only the plan section 4 envelope, with guard order preserved (management-fee refusal, event-capability refusal, envelope success, otherwise `UNSUPPORTED_V2_BASE_EVENT/admission`), plus the hand-authored `V2-S-0101` truth case with independent oracle hashes, 19 boundary/precedence tests, a reserve-classifier isolation test, and fail-closed guards for unclassified cash and unhydrated opening provenance. The Task 6.4 batch hardens the contract the envelope depends on: `.strict()` on all four tier schemas (unknown tier fields now refuse `SCHEMA_VALIDATION_FAILED/normalization`) and a ratio-bounds pass in `validateTierPolicy` (out-of-range rates refuse `INVALID_TIER_POLICY/normalization`), with 19 new tests including boundary acceptance at `0`, `-0`, and `1`. No receipt builder, event engine, waterfall, reserve classifier, corpus adapter, or shared decimal-string change.
 
 ---
 
@@ -42,6 +42,7 @@ None. Neither original Major finding reached production data: the change is unme
 
 1. **Tier schemas silently strip unknown fields; distinct wire inputs collide to one normalized hash** — `shared/contracts/internal-economics/internal-economics-input-v2.contract.ts:207-237`. Original evidence: extra tier field returned `ok: true` with baseline-identical `normalizedInputHash` (`8542190f…0f70ab`); the four tier schemas were the only non-strict objects among 32 in the contract. Disposition: **addressed** in Task 6.4 — all four tier schemas now `.strict()`; reviewer repro case D refuses `SCHEMA_VALIDATION_FAILED/normalization`; per-kind unknown-field refusal tests added (4 cases in `normalize-input-v2.test.ts`); admission-ordering test proves an F2 fixture with an unknown tier field refuses at normalization before admission.
 2. **`gpShare` ratio format-validated only; `-1` and `2` derive to success** — `internal-economics-input-v2.contract.ts:226-229` via `shared/lib/decimal-string.ts:5-10`. Original evidence: `gpShare = -1` and `2` both returned `ok: true` with receipts byte-identical to the `0.20` baseline. Disposition: **addressed** in Task 6.4 — `validateTierPolicy` (normalize-input-v2.ts:196-215) enforces inclusive `[0, 1]` Decimal bounds on `gpShare`, `gpAllocationRate`, and `annualRate`; reviewer repro cases A and B refuse `INVALID_TIER_POLICY/normalization`; six out-of-range refusal tests and seven boundary-acceptance tests (`0`, `-0`, `1`) added; admission-ordering test proves an out-of-range F2 fixture refuses at normalization, never reaching admission. The shared `RatioDecimalStringSchema` was deliberately not touched (V1 freeze, other contracts depend on it); bounds live in the V2 normalizer.
+3. **Accepted opening economics could disappear from the success receipt** — a normalized input with a `$1` opening investment lot and matching entitlement pool returned `ok: true`, while event-state initialization started with empty investment lots and the detached receipt omitted the accepted lot. Disposition: **addressed** by narrowing the F2-entry seam to zero recycling and unclassified cash, paid-in-only cash lots, and empty `investmentLots` and `entitlementPools`. Three refusal regressions cover opening investment provenance, nonzero unclassified cash, and a zero-balance unclassified lot. Existing refusal precedence remains unchanged. Empty `investmentLots` is retained explicitly with empty `entitlementPools` as defense-in-depth even though strict provenance normalization makes the predicates partially redundant.
 
 ### Minor Issues
 
@@ -51,13 +52,13 @@ None. Neither original Major finding reached production data: the change is unme
 
 ### Suggestions
 
-1. Test-helper (`buildV2S0100Input`) deduplication across three files — **declined by reviewer: YAGNI**.
+1. Test-helper (`buildV2S0101Input`) deduplication across three files — **declined by reviewer: YAGNI**.
 2. Optional provenance comment on `isExactF2AdmissionEnvelope` — **declined by reviewer: YAGNI**.
 3. When citing classifier evidence in handoffs, name the exact suite and count. Correct evidence on record: `tests/unit/ci-workflow-regression.test.ts` 77/77 + `tests/unit/docs/production-governance-routing.test.ts` 11/11 + rule inspection of `scripts/ci/classify-change-paths.mjs`. Accepted; recorded for future handoffs.
 
 ### Observations (non-blocking)
 
-- Opening investment provenance (`openingProvenance.investmentLots`) is hash-bound and inert under a zero-event envelope — observation, not a blocker; the plan's "complete opening-state" phrasing overstates hydration since event-state initialization does not hydrate opening provenance lots. The envelope's recycling-lot exclusion already mitigates the cash-lot side.
+- F2-entry guard requires empty opening investmentLots and entitlementPools, zero recycling/unclassified opening cash, and paid_in-only cash lots; opening provenance remains excluded from the seam rather than inferred by event-state initialization.
 - Internal/admin scope remains intact: no route, auth, persistence, provider, or production surface changed.
 - Node patch delta between this host (22.23.1/10.9.8) and pinned evidence (22.23.2/10.9.2) is nonblocking; pinned toolchain unavailable on this host.
 
@@ -78,14 +79,14 @@ None. Neither original Major finding reached production data: the change is unme
 
 | Gate | Result |
 | --- | --- |
-| Focused files (normalize + derive + reserve + truth) | 128/128 pass |
-| `npm run test:internal-economics-v2` | 272/272 pass |
-| `npm run phoenix:truth` | 351/351 pass, 18 files — includes `V2-S-0100` |
+| Focused files (normalize + derive + reserve + truth) | 131/131 pass |
+| `npm run test:internal-economics-v2` | 275/275 pass |
+| `npm run phoenix:truth` | 351/351 pass, 18 files — includes `V2-S-0101` |
 | `npm run guard:decimal-string-laundering:check` | pass (146 files, no findings) |
 | `npm run check` (typecheck, 3 projects) | pass, no new errors |
 | `npm run lint` (eslint + guardrails) | pass |
 | `TZ=UTC npm run calc-gate` | pass |
-| `TZ=UTC npm test` (full unit, solo run) | 13505/13505 pass (+19 new), EXIT=0 |
+| `NODE_OPTIONS=--no-experimental-webstorage TZ=UTC npm test` (full unit, solo run) | 13508/13508 executed pass, 81 skipped, EXIT=0 |
 | `git diff --check` | clean |
 | `git status --short` | nine entries, all named in plan section 5 Task 6.3 plus section 9.2; nothing else |
 | Red-team repro (`tsx /tmp/f2-repro.ts`) | A `gpShare=-1` and B `gpShare=2` refuse `INVALID_TIER_POLICY/normalization`; D extra tier field refuses `SCHEMA_VALIDATION_FAILED/normalization`; C baseline succeeds with byte-identical pre-repair hashes (`8542190f…` / `e0263b99…`) — valid-input stability proven |
@@ -93,6 +94,7 @@ None. Neither original Major finding reached production data: the change is unme
 RED discipline: the implementer reported 10 expected RED failures captured before the production change; the mechanism was independently verified by this review via the repro script's refusal inversion and baseline-hash stability.
 
 Earlier full-suite flake note (first F2 review run): `tests/unit/routes/auth-login.test.ts` failed once under concurrent verification load, passes 11/11 isolated, and the post-repair full suite was run solo and is fully green. Environmental, not a finding.
+Current environment note: default `TZ=UTC npm test` hit a Node experimental-webstorage cascade (`localStorage` unavailable without `--localstorage-file`). A representative client test and the full suite pass with `NODE_OPTIONS=--no-experimental-webstorage`; no client/runtime code changed for this financial patch.
 
 Environment note: all reviewer reproduction under Node `v22.23.1` / npm `10.9.8`; pinned `22.23.2` / `10.9.2` unavailable on this host. Nonblocking patch delta. Stale `.node-version` (20) and README Node guidance remain a separate maintenance item outside F2 scope.
 
@@ -104,7 +106,7 @@ Checked against `docs/governance/solo-internal-change-and-production-policy.md` 
 
 - **Roles**: this review and the plan are evidence/diagnostics only. Under the policy's authority table a review is a defect-finding observation — not independent approval, not authority, and no override of any machine failure. Verdict vocabulary above is the TRIP-review template's; it grants nothing. The plan's "authorizes" wording (Minor finding 1) is read under the policy catch-all as procedure only; plan section 9.6 records this.
 - **Solo/internal scope**: no third party, external, or regulated use is entered; no provider coupling is triggered because nothing is merged or dispatched.
-- **Material-risk domains entered**: financial calculation only. Required direct proof is present and now sufficient: current `phoenix:truth` (351/351, includes the change), named truth assertion `V2-S-0100`, plan-adopted `calc-gate`, and the two contract-validation defects repaired with refusal tests and reproduction inversion. Financial relevance is classifier-driven: the production files sit under the `shared/lib/` and `shared/contracts/` financial roots in `scripts/ci/classify-change-paths.mjs`, so a future exact-SHA CI run classifies financial and `financial-truth` feeds `CI Gate Status`.
+- **Material-risk domains entered**: financial calculation only. Local direct proof is present for the current dirty diff; exact-SHA proof remains unavailable pending commit and CI: current `phoenix:truth` (351/351, includes the change), named truth assertion `V2-S-0101`, plan-adopted `calc-gate`, and the two contract-validation defects and the opening-provenance omission repaired with refusal tests and reproduction inversion. Financial relevance is classifier-driven: the production files sit under the `shared/lib/` and `shared/contracts/` financial roots in `scripts/ci/classify-change-paths.mjs`, so a future exact-SHA CI run classifies financial and `financial-truth` feeds `CI Gate Status`.
 - **Domains not entered**: auth/permission/confidential data, durable write/schema, queue/worker/retry, release/provider/governance enforcement. Idempotency and optimistic-locking mandates are not engaged by a pure derivation guard with no mutation path.
 - **Scope governance**: the original five-file whitelist (plan Task 6.3) was extended exactly once, by owner-directed Addendum A (plan section 9.2), adding the contract file, the normalizer, its test file, and this review record. Current worktree contents match the extended whitelist precisely; no other surface was touched at any point (verified by `git status` at each review pass).
 - **Merge/production authority**: `CI Gate Status` remains the sole aggregate merge gate; no live exact-SHA CI exists. Production dispatch would require the canonical route in `docs/workflows/PRODUCTION_SCRIPTS.md` with the repository owner as sole issuer; nothing here approaches it.
@@ -116,4 +118,8 @@ Checked against `docs/governance/solo-internal-change-and-production-policy.md` 
 
 **APPROVED with observations**
 
-The F2 diff plus Task 6.4 repairs implement exactly the approved plan including Addendum A, and nothing more. Both red-team Major findings are repaired at the mechanism level and verified by reproduction inversion: unknown tier fields refuse `SCHEMA_VALIDATION_FAILED/normalization`; out-of-range `gpShare`, `gpAllocationRate`, and `annualRate` refuse `INVALID_TIER_POLICY/normalization`; boundary values `0`/`-0`/`1` remain valid; the valid-envelope `V2-S-0100` receipt and all pre-existing F1 corpus hashes are byte-stable. Every gate the plan names passes under reviewer reproduction. Open observations are non-blocking: Minor finding 1 (plan wording, policy-voided), the three Suggestions (two declined YAGNI, one process note), and the pinned-Node patch delta. Authority states, changed only where the repair earned it: review verdict `APPROVED with observations`; local merge eligibility `UNKNOWN` (cleared from `BLOCKED` — blockers repaired) pending exact-SHA CI; exact-SHA CI status `UNKNOWN`; commit authority `ABSENT`; merge authority `ABSENT` (owner action plus live `CI Gate Status` required); deployment readiness `NOT READY` (no deployment validation performed or claimed); production authority `ABSENT`. This review remains a defect-finding observation and grants no authority.
+The F2 diff plus Task 6.4 repairs implement exactly the approved plan including Addendum A, and nothing more. Both red-team Major findings and the Council provenance-loss finding are repaired at the mechanism level and verified by reproduction inversion: unknown tier fields refuse `SCHEMA_VALIDATION_FAILED/normalization`; out-of-range `gpShare`, `gpAllocationRate`, and `annualRate` refuse `INVALID_TIER_POLICY/normalization`; boundary values `0`/`-0`/`1` remain valid; unsupported unclassified cash and opening investment provenance refuse at admission; the valid-envelope `V2-S-0101` receipt and all pre-existing F1 corpus hashes are byte-stable. Every runnable local gate the plan names passes under reviewer reproduction; source-SHA regeneration and exact-head CI remain unavailable until commit and push authority. Open observations are non-blocking: Minor finding 1 (plan wording, policy-voided), the three Suggestions (two declined YAGNI, one process note), and the pinned-Node patch delta. Authority states, changed only where the repair earned it: review verdict `APPROVED with observations`; local merge eligibility `UNKNOWN` (cleared from `BLOCKED` — blockers repaired) pending exact-SHA CI; exact-SHA CI status `UNKNOWN`; commit authority `ABSENT`; merge authority `ABSENT` (owner action plus live `CI Gate Status` required); deployment readiness `NOT READY` (no deployment validation performed or claimed); production authority `ABSENT`. This review remains a defect-finding observation and grants no authority.
+
+## Council remediation erratum — frozen V2-S-0100 proposition (2026-08-24)
+
+The implemented F2-entry case is `V2-S-0101`, the paid-in cash-only first-success seam. `V2-S-0100` remains reserved for the frozen full-state proposition and its complete state, journal, receipt, and hash proposition; this remediation does not redefine, recompute, or invalidate it.
