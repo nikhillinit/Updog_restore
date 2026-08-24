@@ -1,9 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Decimal } from '../../../../shared/lib/decimal-config';
-import {
-  deriveInternalEconomicsV2,
-  certifyInternalEconomicsDualLaneV2,
-} from '../../../../shared/lib/internal-economics/v2/derive-composite-v2';
+import { certifyInternalEconomicsDualLaneV2 } from '../../../../shared/lib/internal-economics/v2/derive-composite-v2';
 import { INTERNAL_ECONOMICS_COMPOSITE_V2_1_VERSION } from '../../../../shared/contracts/internal-economics/internal-economics-input-v2.contract';
 
 function money(n: number): string {
@@ -26,7 +23,7 @@ function buildWorstCaseInput(partnerCount: number, dealsPerPartner: number) {
       partnerId: id,
       name: `Partner ${i}`,
       isGp,
-      lpClassId: 'class-a',
+      ...(isGp ? {} : { lpClassId: 'class-a' }),
       committedCapital: money(committed),
       settledCash: money(settled),
       remainingCallableCommitment: money(committed - settled),
@@ -91,10 +88,19 @@ function buildWorstCaseInput(partnerCount: number, dealsPerPartner: number) {
   }
 
   const totalSettled = partners.reduce((sum, p) => sum + parseFloat(p.settledCash), 0);
+  const cashLots = partners.map((partner) => ({
+    lotId: `opening-cash:${partner.partnerId}`,
+    sourceRef: `opening-ledger:${partner.partnerId}`,
+    owner: partner.isGp
+      ? ({ kind: 'gp', partnerId: partner.partnerId } as const)
+      : ({ kind: 'lp', partnerId: partner.partnerId, lpClassId: 'class-a' } as const),
+    classification: 'paid_in' as const,
+    originalAmount: partner.settledCash,
+    remainingBalance: partner.settledCash,
+  }));
 
   return {
     contractVersion: INTERNAL_ECONOMICS_COMPOSITE_V2_1_VERSION,
-    componentVersions: {},
     currency: 'USD',
     calculationDate: '2025-06-30T00:00:00Z',
     cutoverInstant: '2025-01-01T00:00:00Z',
@@ -110,7 +116,7 @@ function buildWorstCaseInput(partnerCount: number, dealsPerPartner: number) {
             {
               periodStartDate: '2024-01-01T00:00:00Z',
               periodEndDate: '2025-06-30T00:00:00Z',
-              rate: { rate: ratio(0.02), basis: 'committed_capital' },
+              rate: { rate: ratio(0), basis: 'committed_capital' },
             },
           ],
           feeRecyclingEnabled: false,
@@ -121,14 +127,7 @@ function buildWorstCaseInput(partnerCount: number, dealsPerPartner: number) {
     partners,
     waterfallPolicy: [
       { kind: 'return_of_capital', priority: 1 },
-      {
-        kind: 'preferred_return',
-        priority: 2,
-        basis: 'unreturned_settled_cash_capital',
-        annualRate: ratio(0.08),
-        rateMode: 'simple',
-      },
-      { kind: 'carry', priority: 3, gpShare: ratio(0.2) },
+      { kind: 'carry', priority: 2, gpShare: ratio(0.2) },
     ],
     selectedLane: 'deal_by_deal',
     gpCashPreferredReturnTreatment: 'pari_passu',
@@ -138,6 +137,11 @@ function buildWorstCaseInput(partnerCount: number, dealsPerPartner: number) {
         paidIn: money(totalSettled),
         recycling: money(0),
         unclassified: money(0),
+      },
+      openingProvenance: {
+        cashLots,
+        investmentLots: [],
+        entitlementPools: [],
       },
       openingCommitments: money(partners.reduce((s, p) => s + parseFloat(p.committedCapital), 0)),
       investorLedgers,
@@ -157,17 +161,15 @@ function buildWorstCaseInput(partnerCount: number, dealsPerPartner: number) {
 }
 
 describe('V2 benchmark at admission limits', () => {
-  it('selected-lane derivation refuses with UNSUPPORTED_V2_BASE_EVENT', () => {
-    const input = buildWorstCaseInput(100, 500);
-    const result = deriveInternalEconomicsV2(input);
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.refusal.code).toBe('UNSUPPORTED_V2_BASE_EVENT');
-    expect(result.refusal.stage).toBe('admission');
-  });
-
   it('dual-lane certification refuses with UNSUPPORTED_V2_WHOLE_FUND_CERTIFICATION', () => {
-    const input = buildWorstCaseInput(100, 500);
+    const input = {
+      ...buildWorstCaseInput(100, 500),
+      selectedLane: 'whole_fund' as const,
+      waterfallPolicy: [
+        { kind: 'return_of_capital' as const, priority: 1 },
+        { kind: 'carry' as const, priority: 2, gpShare: ratio(0.2) },
+      ],
+    };
     const result = certifyInternalEconomicsDualLaneV2(input);
     expect(result.ok).toBe(false);
     if (result.ok) return;

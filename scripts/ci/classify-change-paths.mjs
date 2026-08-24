@@ -33,6 +33,7 @@ const FINANCIAL_PATHS = {
     'client/src/adapters/reserves-adapter.ts',
     'docs/internal-economics-v2.truth-cases.json',
     'tests/unit/internal-economics/v2/support/',
+    'tests/unit/truth-cases/internal-economics-v2-engine.test.ts',
   ],
 };
 

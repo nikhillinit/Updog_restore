@@ -15,7 +15,6 @@ export function buildMinimalV2Input(
 ): InternalEconomicsInputV2Wire {
   const base: InternalEconomicsInputV2Wire = {
     contractVersion: INTERNAL_ECONOMICS_COMPOSITE_V2_1_VERSION,
-    componentVersions: {},
     currency: 'USD',
     calculationDate: '2025-06-30T00:00:00Z',
     cutoverInstant: '2025-01-01T00:00:00Z',
@@ -32,7 +31,7 @@ export function buildMinimalV2Input(
               periodStartDate: '2024-01-01T00:00:00Z',
               periodEndDate: '2025-06-30T00:00:00Z',
               rate: {
-                rate: ratio('0.02'),
+                rate: ratio('0'),
                 basis: 'committed_capital',
               },
             },
@@ -56,7 +55,6 @@ export function buildMinimalV2Input(
         partnerId: 'gp-1',
         name: 'GP One',
         isGp: true,
-        lpClassId: 'class-a',
         committedCapital: money(100_000),
         settledCash: money(50_000),
         remainingCallableCommitment: money(50_000),
@@ -81,6 +79,28 @@ export function buildMinimalV2Input(
         paidIn: money(550_000),
         recycling: money(0),
         unclassified: money(0),
+      },
+      openingProvenance: {
+        cashLots: [
+          {
+            lotId: 'opening-cash:gp-1',
+            sourceRef: 'opening-ledger:gp-1',
+            owner: { kind: 'gp', partnerId: 'gp-1' },
+            classification: 'paid_in',
+            originalAmount: money(50_000),
+            remainingBalance: money(50_000),
+          },
+          {
+            lotId: 'opening-cash:lp-1',
+            sourceRef: 'opening-ledger:lp-1',
+            owner: { kind: 'lp', partnerId: 'lp-1', lpClassId: 'class-a' },
+            classification: 'paid_in',
+            originalAmount: money(500_000),
+            remainingBalance: money(500_000),
+          },
+        ],
+        investmentLots: [],
+        entitlementPools: [],
       },
       openingCommitments: money(1_100_000),
       investorLedgers: [
