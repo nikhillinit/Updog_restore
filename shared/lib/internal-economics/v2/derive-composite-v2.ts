@@ -29,12 +29,15 @@ import {
   toTierAllocationsV2 as wholeToTier,
 } from './waterfall-whole-fund-v2';
 import { buildReceipt } from './liquidity-receipt-builder-v2';
+import { Decimal } from '../../decimal-config';
 
 function admissionRefusal(code: V2RefusalCode, stage: V2Stage, message: string): V2CoreRefusal {
   return { ok: false, code, stage, message };
 }
 
-function checkAdmissionGuard(input: NormalizedInternalEconomicsInputV2): V2CoreRefusal | null {
+function checkEventCapabilityRefusal(
+  input: NormalizedInternalEconomicsInputV2
+): V2CoreRefusal | null {
   for (const event of input.events) {
     if (event.kind === 'contribution_correction')
       return admissionRefusal(
@@ -56,10 +59,37 @@ function checkAdmissionGuard(input: NormalizedInternalEconomicsInputV2): V2CoreR
       );
   }
 
-  return admissionRefusal(
-    'UNSUPPORTED_V2_BASE_EVENT',
-    'admission',
-    'Public derivation is not yet enabled for strict 2.0.1 inputs.'
+  return null;
+}
+
+function checkManagementFeeRefusal(
+  input: NormalizedInternalEconomicsInputV2
+): V2CoreRefusal | null {
+  if (
+    input.lpClasses.some((lpClass) =>
+      lpClass.feeProfile.managementFeeSchedule.some(
+        (entry) => !new Decimal(entry.rate.rate).isZero()
+      )
+    )
+  )
+    return admissionRefusal(
+      'UNSUPPORTED_V2_MANAGEMENT_FEE',
+      'accrual',
+      'Management fee accrual is not yet supported.'
+    );
+
+  return null;
+}
+
+function checkAdmissionGuard(input: NormalizedInternalEconomicsInputV2): V2CoreRefusal | null {
+  return (
+    checkManagementFeeRefusal(input) ??
+    checkEventCapabilityRefusal(input) ??
+    admissionRefusal(
+      'UNSUPPORTED_V2_BASE_EVENT',
+      'admission',
+      'Public derivation is not yet enabled for strict 2.0.1 inputs.'
+    )
   );
 }
 
@@ -133,6 +163,9 @@ export function certifyInternalEconomicsDualLaneV2(
 ): V2DualLaneCertificationResult {
   const normalizeResult = verifyAndNormalizeInternalEconomicsInputV2(rawInput);
   if (!normalizeResult.ok) return { ok: false, refusal: normalizeResult.refusal };
+
+  const guard = checkManagementFeeRefusal(normalizeResult.input);
+  if (guard) return { ok: false, refusal: guard };
 
   return {
     ok: false,

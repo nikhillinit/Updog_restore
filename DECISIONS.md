@@ -11093,3 +11093,40 @@ dimensional-mismatch bug class identified in the plan review.
 This ADR authorizes no merge, deployment, provider action, environment access,
 schema change, data mutation, or production dispatch. Plans are evidence only;
 they grant no merge, deployment, provider, schema, or production authority.
+
+## ADR-086: F1 Strict Wire and Refusal-Only Boundary
+
+**Date:** 2026-08-24 **Status:** Accepted **Tags:** #internal-economics #v2
+#conformance #refusal #proof
+
+### Decision
+
+F1 accepts only strict `internal-economics-composite/2.0.1`. Legacy `2.0.0`
+truth inputs enter only through a deterministic test-only adapter that completes
+the strict wire. The adapter is byte-migration evidence, not an economic
+proposition or public compatibility promise. V1 and ADR-085 remain unchanged.
+
+F1 is an opening trust boundary: normalized public input refuses without a
+receipt, result, certification, or input mutation. Public success is outside
+this ADR.
+
+Any nonzero management-fee schedule entry refuses with
+`UNSUPPORTED_V2_MANAGEMENT_FEE` at `accrual`, including a future entry. Empty or
+all-zero schedules continue to the F1 public refusal boundary.
+
+`V2-TC-001` through `V2-TC-008` normalize then refuse with
+`UNSUPPORTED_V2_BASE_EVENT` at `admission`. `V2-TC-R01` refuses with
+`UNSUPPORTED_V2_EQUALIZATION` at `equalization`; `V2-TC-R02` with
+`INVALID_TIER_POLICY` at `normalization`; `V2-TC-R03` with
+`UNSUPPORTED_INTERNAL_ECONOMICS_CONTRACT_VERSION` at `normalization`.
+
+The proof authority is the raw corpus SHA-256
+`39793b3b40e63acbf7892fcf40af978fb3191b3337aca670c185b531af00360d` and strict
+adapted-input digest
+`f1ea691d5e7e59fa1c7259e50c2f898ae3a9283d3daaf24123adda7c728282f7`.
+
+### No authority boundary
+
+This ADR authorizes no merge, deployment, provider action, environment access,
+schema change, data mutation, production dispatch, or production activation.
+Tests and ADRs are evidence only.

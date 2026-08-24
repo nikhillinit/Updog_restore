@@ -42,6 +42,7 @@ export const V2_REFUSAL_CODES = [
   'UNSUPPORTED_V2_CONVERSION',
   'UNSUPPORTED_V2_FEE_BASIS',
   'UNSUPPORTED_V2_FEE_PROFILE_FEATURE',
+  'UNSUPPORTED_V2_MANAGEMENT_FEE',
   'INVALID_V2_FEE_PERIOD_MONTHS',
   'UNSUPPORTED_V2_RETROACTIVE_PERIOD_FLOW_FEE',
   'UNSUPPORTED_V2_PREFERRED_RETURN',
@@ -307,9 +308,11 @@ export type ReliefRow = z.infer<typeof ReliefRowSchema>;
 // Event wire schema (caller input)
 // ---------------------------------------------------------------------------
 
+const UtcInstantSchema = z.string().datetime({ offset: false });
+
 const BaseEventSchema = z.object({
   eventId: z.string().min(1),
-  instant: z.string().datetime({ offset: true }),
+  instant: UtcInstantSchema,
   amountUsd: MoneyDecimalStringSchema,
 });
 
@@ -405,8 +408,8 @@ export const FeeRateV2Schema = z
 
 export const FeeScheduleEntryV2Schema = z
   .object({
-    periodStartDate: z.string().datetime({ offset: true }),
-    periodEndDate: z.string().datetime({ offset: true }),
+    periodStartDate: UtcInstantSchema,
+    periodEndDate: UtcInstantSchema,
     rate: FeeRateV2Schema,
   })
   .strict();
@@ -475,6 +478,81 @@ export const InvestorLedgerV2Schema = z
 
 export type InvestorLedgerV2 = z.infer<typeof InvestorLedgerV2Schema>;
 
+export const OpeningPartnerOwnerV2Schema = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('lp'),
+      partnerId: z.string().min(1),
+      lpClassId: z.string().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('gp'),
+      partnerId: z.string().min(1),
+    })
+    .strict(),
+]);
+
+export type OpeningPartnerOwnerV2 = z.infer<typeof OpeningPartnerOwnerV2Schema>;
+
+export const OpeningCashOwnerV2Schema = z.union([
+  OpeningPartnerOwnerV2Schema,
+  z
+    .object({
+      kind: z.literal('entitlement_pool'),
+      entitlementPoolId: z.string().min(1),
+    })
+    .strict(),
+  z.object({ kind: z.literal('fund') }).strict(),
+]);
+
+export type OpeningCashOwnerV2 = z.infer<typeof OpeningCashOwnerV2Schema>;
+
+export const OpeningCashLotV2Schema = z
+  .object({
+    lotId: z.string().min(1),
+    sourceRef: z.string().min(1),
+    owner: OpeningCashOwnerV2Schema,
+    classification: z.enum(['paid_in', 'recycling', 'unclassified']),
+    originalAmount: MoneyDecimalStringSchema,
+    remainingBalance: MoneyDecimalStringSchema,
+  })
+  .strict();
+
+export const OpeningInvestmentLotOwnerSliceV2Schema = z
+  .object({
+    investmentLotId: z.string().min(1),
+    sourceRef: z.string().min(1),
+    entitlementPoolId: z.string().min(1),
+    dealId: z.string().min(1),
+    securityId: z.string().min(1),
+    owner: OpeningPartnerOwnerV2Schema,
+    costBasis: MoneyDecimalStringSchema,
+    relievedAmount: MoneyDecimalStringSchema,
+    entitlementAmount: MoneyDecimalStringSchema,
+  })
+  .strict();
+
+export const OpeningEntitlementPoolV2Schema = z
+  .object({
+    entitlementPoolId: z.string().min(1),
+    sourceRef: z.string().min(1),
+    dealId: z.string().min(1),
+    securityId: z.string().min(1),
+  })
+  .strict();
+
+export const OpeningProvenanceV2Schema = z
+  .object({
+    cashLots: z.array(OpeningCashLotV2Schema),
+    investmentLots: z.array(OpeningInvestmentLotOwnerSliceV2Schema),
+    entitlementPools: z.array(OpeningEntitlementPoolV2Schema),
+  })
+  .strict();
+
+export type OpeningProvenanceV2 = z.infer<typeof OpeningProvenanceV2Schema>;
+
 export const OpeningCashClassificationV2Schema = z
   .object({
     paidIn: MoneyDecimalStringSchema,
@@ -495,6 +573,11 @@ export const OpeningStateV2Schema = z
   .object({
     openingCash: MoneyDecimalStringSchema,
     openingCashClassification: OpeningCashClassificationV2Schema,
+    openingProvenance: OpeningProvenanceV2Schema.default({
+      cashLots: [],
+      investmentLots: [],
+      entitlementPools: [],
+    }),
     openingCommitments: MoneyDecimalStringSchema,
     investorLedgers: z.array(InvestorLedgerV2Schema).min(1),
     accruedPreferenceTotal: MoneyDecimalStringSchema,
@@ -529,14 +612,13 @@ export const V2_ADMISSION_LIMITS = {
 export const InternalEconomicsInputV2WireSchema = z
   .object({
     contractVersion: z.literal(INTERNAL_ECONOMICS_COMPOSITE_V2_1_VERSION),
-    componentVersions: z.record(z.string(), z.string()),
     currency: z.literal('USD'),
-    calculationDate: z.string().datetime({ offset: true }),
-    cutoverInstant: z.string().datetime({ offset: true }),
+    calculationDate: UtcInstantSchema,
+    cutoverInstant: UtcInstantSchema,
     roundingMode: z.literal('half_up'),
-    fundEstablishmentDate: z.string().datetime({ offset: true }),
-    investmentPeriodEndDate: z.string().datetime({ offset: true }),
-    fundTermDate: z.string().datetime({ offset: true }),
+    fundEstablishmentDate: UtcInstantSchema,
+    investmentPeriodEndDate: UtcInstantSchema,
+    fundTermDate: UtcInstantSchema,
     lpClasses: z.array(LpClassV2Schema).min(1),
     partners: z.array(PartnerV2Schema).min(1),
     waterfallPolicy: z.array(WaterfallTierV2Schema).min(1),

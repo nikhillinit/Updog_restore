@@ -5,8 +5,6 @@ import {
 } from '../../../../../shared/contracts/internal-economics/internal-economics-input-v2.contract';
 import { createHash } from 'node:crypto';
 
-export const LEGACY_CORPUS_ADAPTER_VERSION = 'internal-economics-legacy-corpus-adapter/1.0.0';
-
 interface LegacyPartner {
   id: string;
   type: 'lp' | 'gp';
@@ -48,10 +46,6 @@ function money(n: number | string | Decimal): string {
   return new Decimal(n).toFixed(6);
 }
 
-function ratio(n: number | string): string {
-  return new Decimal(n).toFixed(12);
-}
-
 function ensureDatetime(d: string): string {
   if (d.includes('T')) return d;
   return `${d}T00:00:00.000Z`;
@@ -75,30 +69,37 @@ function adaptPartner(p: LegacyPartner) {
   return result;
 }
 
-function adaptEvent(e: LegacyEvent) {
+function adaptEvent(event: LegacyEvent, events: LegacyEvent[]) {
   const base: Record<string, unknown> = {
-    eventId: e.eventId,
-    instant: ensureDatetime(e.instant),
-    amountUsd: e.amountUsd,
-    kind: e.kind,
+    eventId: event.eventId,
+    instant: ensureDatetime(event.instant),
+    amountUsd: event.amountUsd,
+    kind: event.kind,
   };
 
-  if (e.kind === 'settled_contribution') {
-    base.partnerId = e.partnerId;
-    base.purpose = e.purpose ?? 'deployment';
-    base.settlementSourceRef = `legacy:${e.eventId}`;
-  } else if (e.kind === 'deployment') {
-    base.dealId = e.dealId;
-    base.securityId = e.securityId ?? `sec:${e.dealId}`;
-    base.cashSourceAllocations = [{ lotId: `csl:legacy:${e.eventId}`, amount: e.amountUsd }];
-  } else if (e.kind === 'realization') {
-    base.dealId = e.dealId;
-    base.recyclingTag = e.recyclingTag ?? 'none';
+  if (event.kind === 'settled_contribution') {
+    base.partnerId = event.partnerId;
+    base.purpose = event.purpose ?? 'deployment';
+    base.settlementSourceRef = `legacy:${event.eventId}`;
+  } else if (event.kind === 'deployment') {
+    const contribution = events.find((candidate) => candidate.kind === 'settled_contribution');
+    base.dealId = event.dealId;
+    base.securityId = event.securityId ?? `sec:${event.dealId}`;
+    base.cashSourceAllocations = [
+      { lotId: `csl:${contribution?.eventId ?? event.eventId}`, amount: event.amountUsd },
+    ];
+  } else if (event.kind === 'realization') {
+    const deployment = events.find(
+      (candidate) => candidate.kind === 'deployment' && candidate.dealId === event.dealId
+    );
+    const securityId = deployment?.securityId ?? `sec:${event.dealId}`;
+    base.dealId = event.dealId;
+    base.recyclingTag = event.recyclingTag ?? 'none';
     base.reliefRows = [
       {
-        investmentLotId: `inv:legacy:${e.dealId}:${e.eventId}`,
-        relievedCostBasis: e.amountUsd,
-        allocatedProceeds: e.amountUsd,
+        investmentLotId: `inv:${event.dealId}:${securityId}:${deployment?.eventId ?? event.eventId}`,
+        relievedCostBasis: deployment?.amountUsd ?? event.amountUsd,
+        allocatedProceeds: event.amountUsd,
       },
     ];
   }
@@ -106,7 +107,7 @@ function adaptEvent(e: LegacyEvent) {
   return base;
 }
 
-function synthesizeLpClasses(partners: LegacyPartner[], fundEstDate: string, calcDate: string) {
+function synthesizeLpClasses(partners: LegacyPartner[]) {
   const classIds = new Set<string>();
   for (const p of partners) {
     if (p.type === 'lp' && p.lpClassId) classIds.add(p.lpClassId);
@@ -115,13 +116,7 @@ function synthesizeLpClasses(partners: LegacyPartner[], fundEstDate: string, cal
   return Array.from(classIds).map((id) => ({
     lpClassId: id,
     feeProfile: {
-      managementFeeSchedule: [
-        {
-          periodStartDate: ensureDatetime(fundEstDate),
-          periodEndDate: ensureDatetime(calcDate),
-          rate: { rate: ratio(0.02), basis: 'committed_capital' },
-        },
-      ],
+      managementFeeSchedule: [],
       feeRecyclingEnabled: false,
       exitRecyclingEnabled: false,
     },
@@ -153,6 +148,11 @@ function synthesizeOpeningState(adaptedPartners: Record<string, unknown>[]) {
       recycling: money(0),
       unclassified: money(0),
     },
+    openingProvenance: {
+      cashLots: [],
+      investmentLots: [],
+      entitlementPools: [],
+    },
     openingCommitments: money(totalCommitments),
     investorLedgers: investorLedgers.length > 0 ? investorLedgers : undefined,
     accruedPreferenceTotal: money(0),
@@ -176,7 +176,6 @@ export function adaptLegacyCase(legacy: LegacyInput): Record<string, unknown> {
     contractVersion: shouldUpgradeVersion
       ? INTERNAL_ECONOMICS_COMPOSITE_V2_1_VERSION
       : legacy.contractVersion,
-    componentVersions: {},
     currency: legacy.currency,
     calculationDate: ensureDatetime(legacy.calculationDate),
     cutoverInstant: ensureDatetime(legacy.cutoverInstant),
@@ -187,17 +186,13 @@ export function adaptLegacyCase(legacy: LegacyInput): Record<string, unknown> {
       ensureDatetime(legacy.investmentPeriodEndDate) > ensureDatetime(legacy.fundTermDate)
         ? ensureDatetime(legacy.investmentPeriodEndDate)
         : ensureDatetime(legacy.fundTermDate),
-    lpClasses: synthesizeLpClasses(
-      legacy.partners,
-      legacy.fundEstablishmentDate,
-      legacy.calculationDate
-    ),
+    lpClasses: synthesizeLpClasses(legacy.partners),
     partners: adaptedPartners,
     waterfallPolicy: legacy.waterfallPolicy,
     selectedLane: legacy.selectedLane,
     gpCashPreferredReturnTreatment: legacy.gpCashPreferredReturnTreatment,
     openingState: synthesizeOpeningState(adaptedPartners),
-    events: legacy.events.map(adaptEvent),
+    events: legacy.events.map((event) => adaptEvent(event, legacy.events)),
   };
 }
 

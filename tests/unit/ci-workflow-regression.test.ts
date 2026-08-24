@@ -211,7 +211,7 @@ describe('Financial calculation change classification', () => {
     'client/src/adapters/reserves-adapter.ts',
     'docs/internal-economics-v2.truth-cases.json',
     'tests/unit/internal-economics/v2/support/legacy-corpus-adapter.ts',
-    'tests/unit/internal-economics/v2/support/canonical-receipt-oracle-v1.ts',
+    'tests/unit/truth-cases/internal-economics-v2-engine.test.ts',
   ])('flags %s as financial-calculation relevant', (changedPath) => {
     const classified = classifyRawDiff(rawChange('M', [changedPath]));
     expect(classified.status, classified.stderr).toBe(0);
@@ -246,6 +246,14 @@ describe('Financial calculation change classification', () => {
     }
 
     expect(unflagged).toEqual([]);
+  });
+
+  it('runs the exact V2 proof command in Financial Truth', async () => {
+    const workflowPath = path.join(process.cwd(), '.github/workflows/ci-unified.yml');
+    const workflow = YAML.parse(await fs.readFile(workflowPath, 'utf-8'));
+    const steps = workflow.jobs['financial-truth'].steps as Array<{ run?: string }>;
+
+    expect(steps.some((step) => step.run === 'npm run test:internal-economics-v2')).toBe(true);
   });
 });
 
