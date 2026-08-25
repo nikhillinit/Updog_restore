@@ -1,21 +1,21 @@
 {
   "schema_version": "1.0.0",
   "review_id": "g1",
-  "snapshot_id": "snapshot:f856af5413af58b2e5f3b9531940f2b60ae1b7f946016943e01b59eb1fff7d59",
+  "snapshot_id": "snapshot:2397543e18fd68e1b688149830977419289c67a01db86c7a62fa1e6bf58e1ca8",
   "source_fingerprints": {
     ".dockerignore": "8ec65ea77679b32af3a99b8d7a68d946705e61cb556a6f30a5f2adcbfe16287e",
     ".vercelignore": "8a3106b850d215f506c9ba9082fdb8439268dfb8165cb9958d08fbab04608ae4",
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "055e2fb386041bc22fea7ce410e4b27f536a4cfab204da13804ca6c270cf901d",
-    "audit/surface-contract-matrix/boot-proofs.json": "b63d070a7110c067c2aab4681ef3dab2dc40d52221aec955ce04faa0bb473d24",
-    "audit/surface-contract-matrix/matrix-schema.mjs": "d84bf9f8361ba2d9546fe5acd297c9efd7419a73c79df5d1e0951d7c32397fd5",
-    "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "4a8cd325603a5eff35aa545c4feed9ec941fc24acb3830d4441589de26a1833c",
+    "audit/surface-contract-matrix/boot-proofs.json": "cfdbdce0d6faf07ffa5119fa69dd6f6ff28447247fe93236bbfe663e8a930860",
+    "audit/surface-contract-matrix/matrix-schema.mjs": "269f2c4ac14f0b17d3f2918995742e872262f9e00fe8ddafa0de613a7197f126",
+    "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "19fce85616bb750537fbbdde61bb58a63582d305b3f1b286229b277583512f83",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "9e2036e0b142710fee1c25c9647ac4550595c42a8034165097ad0b770b4fe935",
     "audit/surface-contract-matrix/scripts/classify-pass.mjs": "a2bd0a16e774af2283c7eaab5780adc755144cd53d474eafe037d75810c5ac41",
     "audit/surface-contract-matrix/scripts/inspect-runtime.mjs": "fa5ff8da3dca79d44de6c1985a6bb4c6839b8ca26cdee28c61be0c04d9eaf9d5",
     "audit/surface-contract-matrix/scripts/render-matrix.mjs": "8eb22f884914ba8acd4a45d0da8a36c0dd46adff610fa582e0df42029dc90a7c",
-    "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "7a511e7f417be4ef9a5f40715d3f3249b84ce189e304e2cfc5c5c3c08ccfa4a0",
+    "audit/surface-contract-matrix/scripts/seed-matrix.mjs": "e4d52648354bf59bf397c3dc8201d8b71e700a7a5e34410367aeba86336fc2c6",
     "audit/surface-contract-matrix/scripts/validate-matrix.mjs": "2c8f7db41a6d63d8dd480136ee49b0e25352e0d4bb372a1c4d472efff6bd8c09",
     "client/index.html": "0df45382b3b9f6728fa9ed66b432cac741eae938f4c360c9a9036f1ab3c922df",
     "client/src/App.tsx": "f20dc82c2e4ee45e7886f72b02ed4ed2d80953e21869e1dbba4b4223322a911b",
@@ -37,8 +37,8 @@
     "ml-service/docker-compose.yml": "f86c0f9f6726f46e35be6bf30516b4eb08915856ee4ea84f8859b99cfacef98b",
     "ml-service/Dockerfile": "fe44ab77691bf9f28f3cea9c0cbc96a6837ed707e2298bb14e542f81153703fe",
     "ml-service/requirements.txt": "8cc8a0022e19c962e54ebcb4c3efac585660527ac05738ab9084b9bbe4914525",
-    "package-lock.json": "918e4ec07b6dd368d73365a14c20f5e6df4377eb28aff6f24a4959bae917cfdf",
-    "package.json": "b3c3f96a8bbe577a87a18e48e92b53364b34a62b624b132137a4acec05e7a409",
+    "package-lock.json": "59395db91ee723b4456410bcd68f5fd235ec6a4ac064eb8635646558a02da1d5",
+    "package.json": "5dcc363a7bb756eb7d4f5dc13c2925fdfc63e32780afc1cb9580e0db51c211a8",
     "railway.capital-call-status.worker.toml": "b575e4be85767167660b4c00a4e3f2f64fb0a7756c49da8e1991fd91948bb42d",
     "railway.worker.toml": "0551e8d079e0c9b8ba7b726f54c3d70904984f7bc397f5b4f5a60ad672994c98",
     "scripts/build-server.mjs": "ddaeee93c3375b254afad2cf1df8d083a62d3af41f7d58f5943f7deb9f802140",
@@ -149,7 +149,7 @@
     "shared/routes/api-runtime-specific-manifest.ts": "0daa50b7d7d569e6068a8e6998e57b3a6b3c76effa5a3834d53302c60b566805",
     "shared/routes/app-route-definitions.ts": "72ac7651f290aea940432af3ffde06746f8ce7b3b7a198e6ad718d336c673a0b",
     "shared/routes/route-governance-registry.ts": "07c1e15b2f1c343320125eac20ff75e55c6c7f63fa2b1d578aba9eadd8c76928",
-    "vercel.json": "241cee864babe1bcf678a50db4d8bbd1ec3829535185f8ba4c3075c1d7548430",
+    "vercel.json": "e0da5b38adaf26eeee21800486df68bf9b488e58d621f45651c4b8a6df3808b9",
     "vite.config.ts": "44f0745da9cf4aa73c55447b22dc8c5e9dd34bbd06b760899e00908ba08b18ad",
     "workers/capital-call-status-worker.ts": "031c2227168dd95f4226bd8367f1e20c31832422a7d4220eb9f2b8d9fac3680a",
     "workers/cohort-worker.ts": "aa05a747b0a8605eb23264cd2149b0cf737b0f0f4a8d092fa57e0e32c416e187",
@@ -163,7 +163,7 @@
     "workers/queue-error-logging.ts": "bed9f895c4c0a6effea3aeffc59fb7a25e635c0c16d486be3fc4e72dba780595",
     "workers/reserve-worker.ts": "2ca51a73020b0e34e166389f7779dcbe9d0d66af429d4e78bb9ccb96c846518a",
     "workers/worker-deployment-identity.ts": "369efd8ded2e6e2c432ad404b74bac54c49b6b51c2ea2c1e794bc6a66c13566b",
-    "package.json#scripts": "841a66df28ea6a3ad01220edbfb9da60ad39f75171f893969faddb16a71bb78a",
+    "package.json#scripts": "b5bb3ca77a11463c699d8cdc550e9c6ecb5dc49bd1a410aea22bb5fb09d1402c",
     "shared/routes/api-route-manifest.ts#normalized-runtime-export": "eba14203d83dff52e5c820a9ab8219319db86e895c54f720d41b8227ee02160e",
     "shared/routes/api-runtime-specific-manifest.ts#normalized-runtime-export": "f7ec3dfc046d32b5e3622f1d6ae98b1c7b6479bedf7b20296f1b920fd0a19c15",
     "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "9dc556cc80687ec08919874cc10a059a85cd6b0d0d5d2dfcb7efbeb74ef23885",
@@ -462,7 +462,7 @@
     },
     "api:DELETE:/api/shares/:shareId": {
       "row_id": "api:DELETE:/api/shares/:shareId",
-      "contract_fingerprint": "eaaf63a5ab7c304373745cfb148263557442a433753a3ba5a2c1060b4690494a",
+      "contract_fingerprint": "9bc1020f1ed48c5e497c4528e7df5176ec3f130454b45477af93d63a0337b31b",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -488,11 +488,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "eaaf63a5ab7c304373745cfb148263557442a433753a3ba5a2c1060b4690494a"
+          "contract_fingerprint": "9bc1020f1ed48c5e497c4528e7df5176ec3f130454b45477af93d63a0337b31b"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "eaaf63a5ab7c304373745cfb148263557442a433753a3ba5a2c1060b4690494a"
+          "contract_fingerprint": "9bc1020f1ed48c5e497c4528e7df5176ec3f130454b45477af93d63a0337b31b"
         }
       },
       "evidence": [
@@ -588,7 +588,7 @@
     },
     "api:GET:/api/activities": {
       "row_id": "api:GET:/api/activities",
-      "contract_fingerprint": "fec15333612624ba6ddf99787469a20e79a69564657cdafe14f5001181ef78bb",
+      "contract_fingerprint": "d090ec1465a735c83698287ae93cc34d356d6a4fe2613ae0df1cdc291c80f840",
       "source_fingerprints": [
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
@@ -613,7 +613,7 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "fec15333612624ba6ddf99787469a20e79a69564657cdafe14f5001181ef78bb"
+          "contract_fingerprint": "d090ec1465a735c83698287ae93cc34d356d6a4fe2613ae0df1cdc291c80f840"
         }
       },
       "evidence": [
@@ -1392,7 +1392,7 @@
     },
     "api:GET:/api/dashboard-summary/:fundId": {
       "row_id": "api:GET:/api/dashboard-summary/:fundId",
-      "contract_fingerprint": "14179cd8926c3b777433a32b82f16f8a0c147b61e9a3a00fa22f4546f7b0d417",
+      "contract_fingerprint": "d72afa64c87bff1639a65f2ef16cec7cf7c0d2ded214436854b7000369ea3d18",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -1418,11 +1418,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "14179cd8926c3b777433a32b82f16f8a0c147b61e9a3a00fa22f4546f7b0d417"
+          "contract_fingerprint": "d72afa64c87bff1639a65f2ef16cec7cf7c0d2ded214436854b7000369ea3d18"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "14179cd8926c3b777433a32b82f16f8a0c147b61e9a3a00fa22f4546f7b0d417"
+          "contract_fingerprint": "d72afa64c87bff1639a65f2ef16cec7cf7c0d2ded214436854b7000369ea3d18"
         }
       },
       "evidence": [
@@ -1472,7 +1472,7 @@
     },
     "api:GET:/api/deals/opportunities": {
       "row_id": "api:GET:/api/deals/opportunities",
-      "contract_fingerprint": "58e4fd2dd1fda7faa2aa6413d48f56fa57de4ddfe02920e4529327e058ea81a8",
+      "contract_fingerprint": "18e4945802354be95119cd5c049fd8885b5ce86486ea6e430bdbbba380671947",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -1498,11 +1498,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "58e4fd2dd1fda7faa2aa6413d48f56fa57de4ddfe02920e4529327e058ea81a8"
+          "contract_fingerprint": "18e4945802354be95119cd5c049fd8885b5ce86486ea6e430bdbbba380671947"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "58e4fd2dd1fda7faa2aa6413d48f56fa57de4ddfe02920e4529327e058ea81a8"
+          "contract_fingerprint": "18e4945802354be95119cd5c049fd8885b5ce86486ea6e430bdbbba380671947"
         }
       },
       "evidence": [
@@ -1553,7 +1553,7 @@
     },
     "api:GET:/api/deals/pipeline": {
       "row_id": "api:GET:/api/deals/pipeline",
-      "contract_fingerprint": "bbb4f3d808f253d957f126518f057bd22d6b9dd324a83303cacf6088129ce447",
+      "contract_fingerprint": "efc410acc1cfef55d0d6e6f82703719589e63a261ca502cd69213fea3fc286c4",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -1579,11 +1579,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "bbb4f3d808f253d957f126518f057bd22d6b9dd324a83303cacf6088129ce447"
+          "contract_fingerprint": "efc410acc1cfef55d0d6e6f82703719589e63a261ca502cd69213fea3fc286c4"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "bbb4f3d808f253d957f126518f057bd22d6b9dd324a83303cacf6088129ce447"
+          "contract_fingerprint": "efc410acc1cfef55d0d6e6f82703719589e63a261ca502cd69213fea3fc286c4"
         }
       },
       "evidence": [
@@ -2136,7 +2136,7 @@
     },
     "api:GET:/api/funds/:fundId/allocation-scenarios": {
       "row_id": "api:GET:/api/funds/:fundId/allocation-scenarios",
-      "contract_fingerprint": "a013a779e43efb4c99484a6028430506c535e8ce5413236df64142c3bee1dd2a",
+      "contract_fingerprint": "3af2e2a04bedf070cfc035e8da729b8ff6e1cf752a766aec34ccea9621fb0ae4",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -2162,11 +2162,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "a013a779e43efb4c99484a6028430506c535e8ce5413236df64142c3bee1dd2a"
+          "contract_fingerprint": "3af2e2a04bedf070cfc035e8da729b8ff6e1cf752a766aec34ccea9621fb0ae4"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "a013a779e43efb4c99484a6028430506c535e8ce5413236df64142c3bee1dd2a"
+          "contract_fingerprint": "3af2e2a04bedf070cfc035e8da729b8ff6e1cf752a766aec34ccea9621fb0ae4"
         }
       },
       "evidence": [
@@ -2177,7 +2177,7 @@
     },
     "api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId": {
       "row_id": "api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId",
-      "contract_fingerprint": "bbd02a93d92eefe17fba3233a704622679ae3e670823a5a14e3db31571ead02e",
+      "contract_fingerprint": "1a4e4373afdff1f9adc0da1647dd2cc9efd1291908cd623cc91094137307bfe7",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -2203,11 +2203,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "bbd02a93d92eefe17fba3233a704622679ae3e670823a5a14e3db31571ead02e"
+          "contract_fingerprint": "1a4e4373afdff1f9adc0da1647dd2cc9efd1291908cd623cc91094137307bfe7"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "bbd02a93d92eefe17fba3233a704622679ae3e670823a5a14e3db31571ead02e"
+          "contract_fingerprint": "1a4e4373afdff1f9adc0da1647dd2cc9efd1291908cd623cc91094137307bfe7"
         }
       },
       "evidence": [
@@ -2218,7 +2218,7 @@
     },
     "api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId/apply-preview": {
       "row_id": "api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId/apply-preview",
-      "contract_fingerprint": "00553c2b2848e87251545eb17a61c60c5e78a4f2b225e41bde14098045e0612e",
+      "contract_fingerprint": "2d0c9f209e9a5791aebe6fe7607093704a4ba65ec3afe43a20daae5472160974",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -2244,11 +2244,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "00553c2b2848e87251545eb17a61c60c5e78a4f2b225e41bde14098045e0612e"
+          "contract_fingerprint": "2d0c9f209e9a5791aebe6fe7607093704a4ba65ec3afe43a20daae5472160974"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "00553c2b2848e87251545eb17a61c60c5e78a4f2b225e41bde14098045e0612e"
+          "contract_fingerprint": "2d0c9f209e9a5791aebe6fe7607093704a4ba65ec3afe43a20daae5472160974"
         }
       },
       "evidence": [
@@ -2259,7 +2259,7 @@
     },
     "api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId/decisions": {
       "row_id": "api:GET:/api/funds/:fundId/allocation-scenarios/:scenarioId/decisions",
-      "contract_fingerprint": "06003d1cc93a6a2ed93696d0823dc2eb5a531a9dab318f86afc3ad70955ff706",
+      "contract_fingerprint": "74a477db8afa567d72fce0986b75f9e4c8bebb9b109ed07f548410cf069d8bbc",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -2285,11 +2285,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "06003d1cc93a6a2ed93696d0823dc2eb5a531a9dab318f86afc3ad70955ff706"
+          "contract_fingerprint": "74a477db8afa567d72fce0986b75f9e4c8bebb9b109ed07f548410cf069d8bbc"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "06003d1cc93a6a2ed93696d0823dc2eb5a531a9dab318f86afc3ad70955ff706"
+          "contract_fingerprint": "74a477db8afa567d72fce0986b75f9e4c8bebb9b109ed07f548410cf069d8bbc"
         }
       },
       "evidence": [
@@ -2300,7 +2300,7 @@
     },
     "api:GET:/api/funds/:fundId/allocations/latest": {
       "row_id": "api:GET:/api/funds/:fundId/allocations/latest",
-      "contract_fingerprint": "f0034cb20b9b66662b6eade29b7558bd2648127736ba8e4ab32f9fe9961e2682",
+      "contract_fingerprint": "f5ed9a9a5166d59bdb80e1166d5edc2c2b51ffec3ca3358ed2356e308528cff6",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -2326,11 +2326,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "f0034cb20b9b66662b6eade29b7558bd2648127736ba8e4ab32f9fe9961e2682"
+          "contract_fingerprint": "f5ed9a9a5166d59bdb80e1166d5edc2c2b51ffec3ca3358ed2356e308528cff6"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "f0034cb20b9b66662b6eade29b7558bd2648127736ba8e4ab32f9fe9961e2682"
+          "contract_fingerprint": "f5ed9a9a5166d59bdb80e1166d5edc2c2b51ffec3ca3358ed2356e308528cff6"
         }
       },
       "evidence": [
@@ -2341,7 +2341,7 @@
     },
     "api:GET:/api/funds/:fundId/cash-flow-events": {
       "row_id": "api:GET:/api/funds/:fundId/cash-flow-events",
-      "contract_fingerprint": "9e5acdf3c1622461b3c269477cf04a12430a24fee14cb5b982088e61be909666",
+      "contract_fingerprint": "eb020cff5e9058a86fadbbe426a0757199e2da0710114fa44b978c82b87f7378",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -2367,11 +2367,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "9e5acdf3c1622461b3c269477cf04a12430a24fee14cb5b982088e61be909666"
+          "contract_fingerprint": "eb020cff5e9058a86fadbbe426a0757199e2da0710114fa44b978c82b87f7378"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "9e5acdf3c1622461b3c269477cf04a12430a24fee14cb5b982088e61be909666"
+          "contract_fingerprint": "eb020cff5e9058a86fadbbe426a0757199e2da0710114fa44b978c82b87f7378"
         }
       },
       "evidence": [
@@ -2382,7 +2382,7 @@
     },
     "api:GET:/api/funds/:fundId/companies": {
       "row_id": "api:GET:/api/funds/:fundId/companies",
-      "contract_fingerprint": "17d7ef7307f2bad508d4ef55f9ece218352ace6745506a3d02549604a07d109b",
+      "contract_fingerprint": "7a9a16053ca517d841629526fc67285d0f296e03abf805db4415b94b18aee515",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -2408,11 +2408,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "17d7ef7307f2bad508d4ef55f9ece218352ace6745506a3d02549604a07d109b"
+          "contract_fingerprint": "7a9a16053ca517d841629526fc67285d0f296e03abf805db4415b94b18aee515"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "17d7ef7307f2bad508d4ef55f9ece218352ace6745506a3d02549604a07d109b"
+          "contract_fingerprint": "7a9a16053ca517d841629526fc67285d0f296e03abf805db4415b94b18aee515"
         }
       },
       "evidence": [
@@ -3063,7 +3063,7 @@
     },
     "api:GET:/api/funds/:fundId/kpi-observations": {
       "row_id": "api:GET:/api/funds/:fundId/kpi-observations",
-      "contract_fingerprint": "cd809a2c3253375fb6c44ca6b108024f2ae6cfcb8d50bd82df57784b9036bbff",
+      "contract_fingerprint": "0c3347f5e7f39558d184dc9a2f329c3eb9419a29a5771cfa0cf26eef90a015f7",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -3089,11 +3089,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "cd809a2c3253375fb6c44ca6b108024f2ae6cfcb8d50bd82df57784b9036bbff"
+          "contract_fingerprint": "0c3347f5e7f39558d184dc9a2f329c3eb9419a29a5771cfa0cf26eef90a015f7"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "cd809a2c3253375fb6c44ca6b108024f2ae6cfcb8d50bd82df57784b9036bbff"
+          "contract_fingerprint": "0c3347f5e7f39558d184dc9a2f329c3eb9419a29a5771cfa0cf26eef90a015f7"
         }
       },
       "evidence": [
@@ -3104,7 +3104,7 @@
     },
     "api:GET:/api/funds/:fundId/kpi-observations/:observationId": {
       "row_id": "api:GET:/api/funds/:fundId/kpi-observations/:observationId",
-      "contract_fingerprint": "75ba97241511cb67772740ee6ef8080d4f644e30d372d3bb28f225dfd73a1009",
+      "contract_fingerprint": "8aad336699b55104ef2b5dd774cd3c4a5f3f8605a72e29830014628665a30c49",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -3130,11 +3130,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "75ba97241511cb67772740ee6ef8080d4f644e30d372d3bb28f225dfd73a1009"
+          "contract_fingerprint": "8aad336699b55104ef2b5dd774cd3c4a5f3f8605a72e29830014628665a30c49"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "75ba97241511cb67772740ee6ef8080d4f644e30d372d3bb28f225dfd73a1009"
+          "contract_fingerprint": "8aad336699b55104ef2b5dd774cd3c4a5f3f8605a72e29830014628665a30c49"
         }
       },
       "evidence": [
@@ -4059,7 +4059,7 @@
     },
     "api:GET:/api/funds/:fundId/portfolio/lots": {
       "row_id": "api:GET:/api/funds/:fundId/portfolio/lots",
-      "contract_fingerprint": "ca1692142327e8e9de5f2d27ef6e825da7e982e378ed74f873bd881a5f8854f3",
+      "contract_fingerprint": "16fda14fbd463aee27a088e4ee9d317caf0295ff482370217bb1385f3f75fba8",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -4085,11 +4085,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "ca1692142327e8e9de5f2d27ef6e825da7e982e378ed74f873bd881a5f8854f3"
+          "contract_fingerprint": "16fda14fbd463aee27a088e4ee9d317caf0295ff482370217bb1385f3f75fba8"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "ca1692142327e8e9de5f2d27ef6e825da7e982e378ed74f873bd881a5f8854f3"
+          "contract_fingerprint": "16fda14fbd463aee27a088e4ee9d317caf0295ff482370217bb1385f3f75fba8"
         }
       },
       "evidence": [
@@ -4371,7 +4371,7 @@
     },
     "api:GET:/api/funds/:fundId/tasks": {
       "row_id": "api:GET:/api/funds/:fundId/tasks",
-      "contract_fingerprint": "953853dbe167cc2dd3e36ce0afc6ec107dacc763cac5629081ef65db5c43d842",
+      "contract_fingerprint": "89a36cf3aa554217139c5ef27e0638e4ce237c464b09ddad2828501b5190bca8",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -4397,11 +4397,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "953853dbe167cc2dd3e36ce0afc6ec107dacc763cac5629081ef65db5c43d842"
+          "contract_fingerprint": "89a36cf3aa554217139c5ef27e0638e4ce237c464b09ddad2828501b5190bca8"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "953853dbe167cc2dd3e36ce0afc6ec107dacc763cac5629081ef65db5c43d842"
+          "contract_fingerprint": "89a36cf3aa554217139c5ef27e0638e4ce237c464b09ddad2828501b5190bca8"
         }
       },
       "evidence": [
@@ -4412,7 +4412,7 @@
     },
     "api:GET:/api/funds/:fundId/tasks/:taskId/evidence-links": {
       "row_id": "api:GET:/api/funds/:fundId/tasks/:taskId/evidence-links",
-      "contract_fingerprint": "322dd443ebd2d9dac17e9424d9d51e883ac8cbf54a81f30335ec2b0571d7a6a9",
+      "contract_fingerprint": "091515f7a4e7dd1bb5a8e20f411e9ab41351f59e0e17df3c7d0d87ea7f065828",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -4438,11 +4438,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "322dd443ebd2d9dac17e9424d9d51e883ac8cbf54a81f30335ec2b0571d7a6a9"
+          "contract_fingerprint": "091515f7a4e7dd1bb5a8e20f411e9ab41351f59e0e17df3c7d0d87ea7f065828"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "322dd443ebd2d9dac17e9424d9d51e883ac8cbf54a81f30335ec2b0571d7a6a9"
+          "contract_fingerprint": "091515f7a4e7dd1bb5a8e20f411e9ab41351f59e0e17df3c7d0d87ea7f065828"
         }
       },
       "evidence": [
@@ -4453,7 +4453,7 @@
     },
     "api:GET:/api/funds/:id": {
       "row_id": "api:GET:/api/funds/:id",
-      "contract_fingerprint": "58fd33884c748f44a213d40c412f8767572af933fd00d150cf7ca92c55b9048e",
+      "contract_fingerprint": "a66e7f8834a1a4cac2cd04d7e8b6b585b950a7f31ee29af628dc93cb69961423",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -4479,11 +4479,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "58fd33884c748f44a213d40c412f8767572af933fd00d150cf7ca92c55b9048e"
+          "contract_fingerprint": "a66e7f8834a1a4cac2cd04d7e8b6b585b950a7f31ee29af628dc93cb69961423"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "58fd33884c748f44a213d40c412f8767572af933fd00d150cf7ca92c55b9048e"
+          "contract_fingerprint": "a66e7f8834a1a4cac2cd04d7e8b6b585b950a7f31ee29af628dc93cb69961423"
         }
       },
       "evidence": [
@@ -4534,7 +4534,7 @@
     },
     "api:GET:/api/funds/:id/baselines": {
       "row_id": "api:GET:/api/funds/:id/baselines",
-      "contract_fingerprint": "2168df6eefa7966a3017820aa6f424e1e5a55bcbc484bf3c9f0b1eb2e28491cf",
+      "contract_fingerprint": "f030045cbe8e757ba69ed196f2f9722a1184315fd6820d17cf1bf4860fd6ca65",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -4560,11 +4560,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "2168df6eefa7966a3017820aa6f424e1e5a55bcbc484bf3c9f0b1eb2e28491cf"
+          "contract_fingerprint": "f030045cbe8e757ba69ed196f2f9722a1184315fd6820d17cf1bf4860fd6ca65"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "2168df6eefa7966a3017820aa6f424e1e5a55bcbc484bf3c9f0b1eb2e28491cf"
+          "contract_fingerprint": "f030045cbe8e757ba69ed196f2f9722a1184315fd6820d17cf1bf4860fd6ca65"
         }
       },
       "evidence": [
@@ -4770,7 +4770,7 @@
     },
     "api:GET:/api/funds/:id/sensitivity/runs": {
       "row_id": "api:GET:/api/funds/:id/sensitivity/runs",
-      "contract_fingerprint": "c21b863afcd7482103bf3d2c8848fc6610a135b85d0626ec2810b5d71eef1c4d",
+      "contract_fingerprint": "1323780b04859d90af2d13c5b253d3f1a7670eb0f0a86e34795d2618b7e8d4a1",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -4796,11 +4796,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "c21b863afcd7482103bf3d2c8848fc6610a135b85d0626ec2810b5d71eef1c4d"
+          "contract_fingerprint": "1323780b04859d90af2d13c5b253d3f1a7670eb0f0a86e34795d2618b7e8d4a1"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "c21b863afcd7482103bf3d2c8848fc6610a135b85d0626ec2810b5d71eef1c4d"
+          "contract_fingerprint": "1323780b04859d90af2d13c5b253d3f1a7670eb0f0a86e34795d2618b7e8d4a1"
         }
       },
       "evidence": [
@@ -4811,7 +4811,7 @@
     },
     "api:GET:/api/funds/:id/sensitivity/runs/:runId": {
       "row_id": "api:GET:/api/funds/:id/sensitivity/runs/:runId",
-      "contract_fingerprint": "5a4823a1ff22f1349eb449d5d81c38a6efcd17825748544441b8c2528da97e71",
+      "contract_fingerprint": "1159ec7e8d0f3ab76e32001870cb85a8f749ccba2097f5f5a592fc70eaa1473b",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -4837,11 +4837,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "5a4823a1ff22f1349eb449d5d81c38a6efcd17825748544441b8c2528da97e71"
+          "contract_fingerprint": "1159ec7e8d0f3ab76e32001870cb85a8f749ccba2097f5f5a592fc70eaa1473b"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "5a4823a1ff22f1349eb449d5d81c38a6efcd17825748544441b8c2528da97e71"
+          "contract_fingerprint": "1159ec7e8d0f3ab76e32001870cb85a8f749ccba2097f5f5a592fc70eaa1473b"
         }
       },
       "evidence": [
@@ -4931,7 +4931,7 @@
     },
     "api:GET:/api/funds/:id/variance-reports": {
       "row_id": "api:GET:/api/funds/:id/variance-reports",
-      "contract_fingerprint": "833844a14deb80a561b5d8378e63ab695c7a40f324224236d8097718cbdb8b4d",
+      "contract_fingerprint": "ba45291e811b3e4d2c227c1766fc82d7eeac3c86044ea333b17f2f10f4a4a6ff",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -4957,11 +4957,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "833844a14deb80a561b5d8378e63ab695c7a40f324224236d8097718cbdb8b4d"
+          "contract_fingerprint": "ba45291e811b3e4d2c227c1766fc82d7eeac3c86044ea333b17f2f10f4a4a6ff"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "833844a14deb80a561b5d8378e63ab695c7a40f324224236d8097718cbdb8b4d"
+          "contract_fingerprint": "ba45291e811b3e4d2c227c1766fc82d7eeac3c86044ea333b17f2f10f4a4a6ff"
         }
       },
       "evidence": [
@@ -5472,7 +5472,7 @@
     },
     "api:GET:/api/investments": {
       "row_id": "api:GET:/api/investments",
-      "contract_fingerprint": "155912cdaea68bdd6f8b40f662f57c5f597184b74a0a08c8662d7fe3564b5bff",
+      "contract_fingerprint": "fad2618fa8df275ec95b2586fe7d1a46f6debe2b74f59566cf9b8705e3a2893d",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -5498,11 +5498,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "155912cdaea68bdd6f8b40f662f57c5f597184b74a0a08c8662d7fe3564b5bff"
+          "contract_fingerprint": "fad2618fa8df275ec95b2586fe7d1a46f6debe2b74f59566cf9b8705e3a2893d"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "155912cdaea68bdd6f8b40f662f57c5f597184b74a0a08c8662d7fe3564b5bff"
+          "contract_fingerprint": "fad2618fa8df275ec95b2586fe7d1a46f6debe2b74f59566cf9b8705e3a2893d"
         }
       },
       "evidence": [
@@ -5513,7 +5513,7 @@
     },
     "api:GET:/api/investments/:id": {
       "row_id": "api:GET:/api/investments/:id",
-      "contract_fingerprint": "76cf54acda4ae837ee2e7db4b49e94ce52b7c42bdad9c242b482545cf15e36d4",
+      "contract_fingerprint": "2e23a92e6ba1fe01511c3707d2e8ce5ad4b8e0aaaeb55575f5ae26689ae4f7e6",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -5539,11 +5539,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "76cf54acda4ae837ee2e7db4b49e94ce52b7c42bdad9c242b482545cf15e36d4"
+          "contract_fingerprint": "2e23a92e6ba1fe01511c3707d2e8ce5ad4b8e0aaaeb55575f5ae26689ae4f7e6"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "76cf54acda4ae837ee2e7db4b49e94ce52b7c42bdad9c242b482545cf15e36d4"
+          "contract_fingerprint": "2e23a92e6ba1fe01511c3707d2e8ce5ad4b8e0aaaeb55575f5ae26689ae4f7e6"
         }
       },
       "evidence": [
@@ -6746,7 +6746,7 @@
     },
     "api:GET:/api/monte-carlo/funds/:fundId/simulate": {
       "row_id": "api:GET:/api/monte-carlo/funds/:fundId/simulate",
-      "contract_fingerprint": "b20ee35c93b1501d02a2fb666de4307c7ba0c3ea965ca9dd26711a6a66c86fb8",
+      "contract_fingerprint": "3f5d687ab8b6eccb1d2bad60aae3ec605b4fc4c3feeb3920f3d0a41e14155948",
       "source_fingerprints": [
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
@@ -6771,7 +6771,7 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "b20ee35c93b1501d02a2fb666de4307c7ba0c3ea965ca9dd26711a6a66c86fb8"
+          "contract_fingerprint": "3f5d687ab8b6eccb1d2bad60aae3ec605b4fc4c3feeb3920f3d0a41e14155948"
         }
       },
       "evidence": [
@@ -7168,7 +7168,7 @@
     },
     "api:GET:/api/portfolio-companies": {
       "row_id": "api:GET:/api/portfolio-companies",
-      "contract_fingerprint": "3276d745f9e55a113b0b129a2d822e61563954626fb239da0f4aae77b09b7428",
+      "contract_fingerprint": "f5554c4af0ea2f4fc172461fa260acafda13ec0f67abb6056470582f4da33544",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -7194,11 +7194,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "3276d745f9e55a113b0b129a2d822e61563954626fb239da0f4aae77b09b7428"
+          "contract_fingerprint": "f5554c4af0ea2f4fc172461fa260acafda13ec0f67abb6056470582f4da33544"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "3276d745f9e55a113b0b129a2d822e61563954626fb239da0f4aae77b09b7428"
+          "contract_fingerprint": "f5554c4af0ea2f4fc172461fa260acafda13ec0f67abb6056470582f4da33544"
         }
       },
       "evidence": [
@@ -7209,7 +7209,7 @@
     },
     "api:GET:/api/portfolio-companies/:id": {
       "row_id": "api:GET:/api/portfolio-companies/:id",
-      "contract_fingerprint": "2b94c807def1b5ff2ba06475684abe6ceadb3f2fe140769af01f0960ba4efd35",
+      "contract_fingerprint": "1ef54c18d5fdefe35c240ffb5c50c53226f83807c53cf3f4a2e9866ba777e772",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -7235,11 +7235,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "2b94c807def1b5ff2ba06475684abe6ceadb3f2fe140769af01f0960ba4efd35"
+          "contract_fingerprint": "1ef54c18d5fdefe35c240ffb5c50c53226f83807c53cf3f4a2e9866ba777e772"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "2b94c807def1b5ff2ba06475684abe6ceadb3f2fe140769af01f0960ba4efd35"
+          "contract_fingerprint": "1ef54c18d5fdefe35c240ffb5c50c53226f83807c53cf3f4a2e9866ba777e772"
         }
       },
       "evidence": [
@@ -7250,7 +7250,7 @@
     },
     "api:GET:/api/portfolio-overview": {
       "row_id": "api:GET:/api/portfolio-overview",
-      "contract_fingerprint": "f55802885ba8403c86683ac5da01ec8da954aecdad085934b7752a6fa6875236",
+      "contract_fingerprint": "41ff3749f4a1f97f65aea53d874721344c09f09f5517b7eda31daf9bb99f4325",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -7276,11 +7276,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "f55802885ba8403c86683ac5da01ec8da954aecdad085934b7752a6fa6875236"
+          "contract_fingerprint": "41ff3749f4a1f97f65aea53d874721344c09f09f5517b7eda31daf9bb99f4325"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "f55802885ba8403c86683ac5da01ec8da954aecdad085934b7752a6fa6875236"
+          "contract_fingerprint": "41ff3749f4a1f97f65aea53d874721344c09f09f5517b7eda31daf9bb99f4325"
         }
       },
       "evidence": [
@@ -7570,7 +7570,7 @@
     },
     "api:GET:/api/shares": {
       "row_id": "api:GET:/api/shares",
-      "contract_fingerprint": "156699772cfebdac1d015081b9f54f2eda215eecc8446e2692d542ad7f88300e",
+      "contract_fingerprint": "b7dc93b75403b923d93db5b4b3fce92fc727778e42eae57a37a6fa5671ca6a18",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -7596,11 +7596,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "156699772cfebdac1d015081b9f54f2eda215eecc8446e2692d542ad7f88300e"
+          "contract_fingerprint": "b7dc93b75403b923d93db5b4b3fce92fc727778e42eae57a37a6fa5671ca6a18"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "156699772cfebdac1d015081b9f54f2eda215eecc8446e2692d542ad7f88300e"
+          "contract_fingerprint": "b7dc93b75403b923d93db5b4b3fce92fc727778e42eae57a37a6fa5671ca6a18"
         }
       },
       "evidence": [
@@ -7610,7 +7610,7 @@
     },
     "api:GET:/api/shares/:shareId/analytics": {
       "row_id": "api:GET:/api/shares/:shareId/analytics",
-      "contract_fingerprint": "871ea6f2a6e0cf341224d96cba99020028c00a9b8003a7adb65c732bf50222a7",
+      "contract_fingerprint": "bb458afef526d492851df0456b30beebce48b4e04592f88593b8f3278df9fd32",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -7636,11 +7636,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "871ea6f2a6e0cf341224d96cba99020028c00a9b8003a7adb65c732bf50222a7"
+          "contract_fingerprint": "bb458afef526d492851df0456b30beebce48b4e04592f88593b8f3278df9fd32"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "871ea6f2a6e0cf341224d96cba99020028c00a9b8003a7adb65c732bf50222a7"
+          "contract_fingerprint": "bb458afef526d492851df0456b30beebce48b4e04592f88593b8f3278df9fd32"
         }
       },
       "evidence": [
@@ -7650,7 +7650,7 @@
     },
     "api:GET:/api/timeline/:fundId": {
       "row_id": "api:GET:/api/timeline/:fundId",
-      "contract_fingerprint": "d4f2162fb6b43e07f90c747c43c1f41637266ff710c576a5a238cf4602c23f88",
+      "contract_fingerprint": "427f00b98f7e6da1044d2672bcb54c8950f132a4abdeebf1a0b85a04da2260bb",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -7676,11 +7676,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "d4f2162fb6b43e07f90c747c43c1f41637266ff710c576a5a238cf4602c23f88"
+          "contract_fingerprint": "427f00b98f7e6da1044d2672bcb54c8950f132a4abdeebf1a0b85a04da2260bb"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "d4f2162fb6b43e07f90c747c43c1f41637266ff710c576a5a238cf4602c23f88"
+          "contract_fingerprint": "427f00b98f7e6da1044d2672bcb54c8950f132a4abdeebf1a0b85a04da2260bb"
         }
       },
       "evidence": [
@@ -7691,7 +7691,7 @@
     },
     "api:GET:/api/timeline/:fundId/compare": {
       "row_id": "api:GET:/api/timeline/:fundId/compare",
-      "contract_fingerprint": "3dd2a2552d0ade37062a60a9471fc6de1e18051606bddbd8eabb9736ef5bf932",
+      "contract_fingerprint": "cfa0231dbeb74f6a2ef6696f85eff6f89a351f51faeca92e00c4437392d3d28f",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -7717,11 +7717,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "3dd2a2552d0ade37062a60a9471fc6de1e18051606bddbd8eabb9736ef5bf932"
+          "contract_fingerprint": "cfa0231dbeb74f6a2ef6696f85eff6f89a351f51faeca92e00c4437392d3d28f"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "3dd2a2552d0ade37062a60a9471fc6de1e18051606bddbd8eabb9736ef5bf932"
+          "contract_fingerprint": "cfa0231dbeb74f6a2ef6696f85eff6f89a351f51faeca92e00c4437392d3d28f"
         }
       },
       "evidence": [
@@ -7731,7 +7731,7 @@
     },
     "api:GET:/api/timeline/:fundId/state": {
       "row_id": "api:GET:/api/timeline/:fundId/state",
-      "contract_fingerprint": "a99b54cf3bf4cc8e974aa6735af90708e605c1ec03d61fbc26526fd0ac233235",
+      "contract_fingerprint": "c0d9d29cd4d38fc9ef8857b25502f9e33f79f3b4ba68efc246ed64cb85be6a90",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -7757,11 +7757,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "a99b54cf3bf4cc8e974aa6735af90708e605c1ec03d61fbc26526fd0ac233235"
+          "contract_fingerprint": "c0d9d29cd4d38fc9ef8857b25502f9e33f79f3b4ba68efc246ed64cb85be6a90"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "a99b54cf3bf4cc8e974aa6735af90708e605c1ec03d61fbc26526fd0ac233235"
+          "contract_fingerprint": "c0d9d29cd4d38fc9ef8857b25502f9e33f79f3b4ba68efc246ed64cb85be6a90"
         }
       },
       "evidence": [
@@ -8307,7 +8307,7 @@
     },
     "api:PATCH:/api/funds/:fundId/allocation-scenarios/:scenarioId": {
       "row_id": "api:PATCH:/api/funds/:fundId/allocation-scenarios/:scenarioId",
-      "contract_fingerprint": "acb2996ff230cbba213efdaa6598f6529cd7e0f9f80f7d5c97e5f91b72b6a0d1",
+      "contract_fingerprint": "a831f6cf65bee4667f17682a8a7a19327708d99caf84e8cc8eccb4b01f518b7d",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -8333,11 +8333,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "acb2996ff230cbba213efdaa6598f6529cd7e0f9f80f7d5c97e5f91b72b6a0d1"
+          "contract_fingerprint": "a831f6cf65bee4667f17682a8a7a19327708d99caf84e8cc8eccb4b01f518b7d"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "acb2996ff230cbba213efdaa6598f6529cd7e0f9f80f7d5c97e5f91b72b6a0d1"
+          "contract_fingerprint": "a831f6cf65bee4667f17682a8a7a19327708d99caf84e8cc8eccb4b01f518b7d"
         }
       },
       "evidence": [
@@ -8348,7 +8348,7 @@
     },
     "api:PATCH:/api/funds/:fundId/allocation-scenarios/:scenarioId/decisions/:decisionId": {
       "row_id": "api:PATCH:/api/funds/:fundId/allocation-scenarios/:scenarioId/decisions/:decisionId",
-      "contract_fingerprint": "ad4f15750678fa8c98007927d4234f3350ea35f43551026ab05140da4c1f73ff",
+      "contract_fingerprint": "000c1229e17591681676560d64be8859bddd51efd3daceebac688828a9a23301",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -8373,11 +8373,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "ad4f15750678fa8c98007927d4234f3350ea35f43551026ab05140da4c1f73ff"
+          "contract_fingerprint": "000c1229e17591681676560d64be8859bddd51efd3daceebac688828a9a23301"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "ad4f15750678fa8c98007927d4234f3350ea35f43551026ab05140da4c1f73ff"
+          "contract_fingerprint": "000c1229e17591681676560d64be8859bddd51efd3daceebac688828a9a23301"
         }
       },
       "evidence": [
@@ -8509,7 +8509,7 @@
     },
     "api:PATCH:/api/funds/:fundId/kpi-observations/:observationId/review": {
       "row_id": "api:PATCH:/api/funds/:fundId/kpi-observations/:observationId/review",
-      "contract_fingerprint": "b61ff484d353774b2c0bb63dc77f8a607e304715ebbd6f90c0cafdda5964103a",
+      "contract_fingerprint": "2d68706fac5734dbfa24f1c922e10f7d0f970252a39534c1551801e1a0e311c1",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -8535,11 +8535,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "b61ff484d353774b2c0bb63dc77f8a607e304715ebbd6f90c0cafdda5964103a"
+          "contract_fingerprint": "2d68706fac5734dbfa24f1c922e10f7d0f970252a39534c1551801e1a0e311c1"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "b61ff484d353774b2c0bb63dc77f8a607e304715ebbd6f90c0cafdda5964103a"
+          "contract_fingerprint": "2d68706fac5734dbfa24f1c922e10f7d0f970252a39534c1551801e1a0e311c1"
         }
       },
       "evidence": [
@@ -8590,7 +8590,7 @@
     },
     "api:PATCH:/api/funds/:fundId/tasks/:taskId": {
       "row_id": "api:PATCH:/api/funds/:fundId/tasks/:taskId",
-      "contract_fingerprint": "9c6d97a49a23097ca83dfa3f6ac8632c11d063c332cff127f6665ab07025bde2",
+      "contract_fingerprint": "47eb05d6b82d21500707e41f148ad3c47a067a133f4205f9b40a59ac952d0fa7",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -8616,11 +8616,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "9c6d97a49a23097ca83dfa3f6ac8632c11d063c332cff127f6665ab07025bde2"
+          "contract_fingerprint": "47eb05d6b82d21500707e41f148ad3c47a067a133f4205f9b40a59ac952d0fa7"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "9c6d97a49a23097ca83dfa3f6ac8632c11d063c332cff127f6665ab07025bde2"
+          "contract_fingerprint": "47eb05d6b82d21500707e41f148ad3c47a067a133f4205f9b40a59ac952d0fa7"
         }
       },
       "evidence": [
@@ -8631,7 +8631,7 @@
     },
     "api:PATCH:/api/portfolio-companies/:id": {
       "row_id": "api:PATCH:/api/portfolio-companies/:id",
-      "contract_fingerprint": "a5c35d4b0fbb8487946e081dc78e9d3cbaaf5c550c607396741537ef099e16a5",
+      "contract_fingerprint": "6c439a6755e6fdd7e8892f5d465573b01669e8c4a0c7c4ee3b9065291d938553",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -8657,11 +8657,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "a5c35d4b0fbb8487946e081dc78e9d3cbaaf5c550c607396741537ef099e16a5"
+          "contract_fingerprint": "6c439a6755e6fdd7e8892f5d465573b01669e8c4a0c7c4ee3b9065291d938553"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "a5c35d4b0fbb8487946e081dc78e9d3cbaaf5c550c607396741537ef099e16a5"
+          "contract_fingerprint": "6c439a6755e6fdd7e8892f5d465573b01669e8c4a0c7c4ee3b9065291d938553"
         }
       },
       "evidence": [
@@ -8672,7 +8672,7 @@
     },
     "api:PATCH:/api/shares/:shareId": {
       "row_id": "api:PATCH:/api/shares/:shareId",
-      "contract_fingerprint": "c04e0b827e58b0335803c7b4d009a7fa9e50be1a3082b8f0128bb57201d0e5b3",
+      "contract_fingerprint": "fa083871adfe19ff8716f9c55f96aed389bf6c1fd3b628630121636ee973dae3",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -8698,11 +8698,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "c04e0b827e58b0335803c7b4d009a7fa9e50be1a3082b8f0128bb57201d0e5b3"
+          "contract_fingerprint": "fa083871adfe19ff8716f9c55f96aed389bf6c1fd3b628630121636ee973dae3"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "c04e0b827e58b0335803c7b4d009a7fa9e50be1a3082b8f0128bb57201d0e5b3"
+          "contract_fingerprint": "fa083871adfe19ff8716f9c55f96aed389bf6c1fd3b628630121636ee973dae3"
         }
       },
       "evidence": [
@@ -10248,7 +10248,7 @@
     },
     "api:POST:/api/deals/opportunities/import/preview": {
       "row_id": "api:POST:/api/deals/opportunities/import/preview",
-      "contract_fingerprint": "d1a85ca89e203e72dbb98165564698d2d7ebb5ee44dd2653a8216822213e43cc",
+      "contract_fingerprint": "6c573941e972b18200e9e5d27f515d4b225078cd052f746852303001e35d42ba",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -10274,11 +10274,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "d1a85ca89e203e72dbb98165564698d2d7ebb5ee44dd2653a8216822213e43cc"
+          "contract_fingerprint": "6c573941e972b18200e9e5d27f515d4b225078cd052f746852303001e35d42ba"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "d1a85ca89e203e72dbb98165564698d2d7ebb5ee44dd2653a8216822213e43cc"
+          "contract_fingerprint": "6c573941e972b18200e9e5d27f515d4b225078cd052f746852303001e35d42ba"
         }
       },
       "evidence": [
@@ -10509,7 +10509,7 @@
     },
     "api:POST:/api/funds/:fundId/allocation-scenarios": {
       "row_id": "api:POST:/api/funds/:fundId/allocation-scenarios",
-      "contract_fingerprint": "e78703a49cd2ab60dbeae6f19c8317c2b4357042bfcf04415d6d754130ffe844",
+      "contract_fingerprint": "8a5aee918d86cac58d239539cd2686679fb1d9cd7415d0d3e42667479bfd7f63",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -10535,11 +10535,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "e78703a49cd2ab60dbeae6f19c8317c2b4357042bfcf04415d6d754130ffe844"
+          "contract_fingerprint": "8a5aee918d86cac58d239539cd2686679fb1d9cd7415d0d3e42667479bfd7f63"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "e78703a49cd2ab60dbeae6f19c8317c2b4357042bfcf04415d6d754130ffe844"
+          "contract_fingerprint": "8a5aee918d86cac58d239539cd2686679fb1d9cd7415d0d3e42667479bfd7f63"
         }
       },
       "evidence": [
@@ -10550,7 +10550,7 @@
     },
     "api:POST:/api/funds/:fundId/allocation-scenarios/:scenarioId/apply": {
       "row_id": "api:POST:/api/funds/:fundId/allocation-scenarios/:scenarioId/apply",
-      "contract_fingerprint": "bce72efe91be3f59365957b5c7347484dd72239b744552675fb38dfa2232f225",
+      "contract_fingerprint": "f762416ce199094cfc8016cb3e7171432075540b5262ade85e21fb26737b4111",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -10575,11 +10575,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "bce72efe91be3f59365957b5c7347484dd72239b744552675fb38dfa2232f225"
+          "contract_fingerprint": "f762416ce199094cfc8016cb3e7171432075540b5262ade85e21fb26737b4111"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "bce72efe91be3f59365957b5c7347484dd72239b744552675fb38dfa2232f225"
+          "contract_fingerprint": "f762416ce199094cfc8016cb3e7171432075540b5262ade85e21fb26737b4111"
         }
       },
       "evidence": [
@@ -10590,7 +10590,7 @@
     },
     "api:POST:/api/funds/:fundId/allocation-scenarios/:scenarioId/decisions": {
       "row_id": "api:POST:/api/funds/:fundId/allocation-scenarios/:scenarioId/decisions",
-      "contract_fingerprint": "ee4c7fa05004fef14f23ca2e3d8f998ad7f2e98c4c2ac1399b661e9b987cedf4",
+      "contract_fingerprint": "1d7e63f3ff90065e6aa588e9f42a9db78c6f94a6a08287f8ee0ca65067171d35",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -10615,11 +10615,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "ee4c7fa05004fef14f23ca2e3d8f998ad7f2e98c4c2ac1399b661e9b987cedf4"
+          "contract_fingerprint": "1d7e63f3ff90065e6aa588e9f42a9db78c6f94a6a08287f8ee0ca65067171d35"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "ee4c7fa05004fef14f23ca2e3d8f998ad7f2e98c4c2ac1399b661e9b987cedf4"
+          "contract_fingerprint": "1d7e63f3ff90065e6aa588e9f42a9db78c6f94a6a08287f8ee0ca65067171d35"
         }
       },
       "evidence": [
@@ -10630,7 +10630,7 @@
     },
     "api:POST:/api/funds/:fundId/allocation-scenarios/:scenarioId/sync": {
       "row_id": "api:POST:/api/funds/:fundId/allocation-scenarios/:scenarioId/sync",
-      "contract_fingerprint": "8b8a89598eb0c8b2fe4e5cf2ac5d2c7575fbb6c80ad101721805780d7b2cdf5a",
+      "contract_fingerprint": "a3cd16f9889d7e9ff560c48629594f0e743efa0442f36314b7380781c551a5c0",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -10656,11 +10656,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "8b8a89598eb0c8b2fe4e5cf2ac5d2c7575fbb6c80ad101721805780d7b2cdf5a"
+          "contract_fingerprint": "a3cd16f9889d7e9ff560c48629594f0e743efa0442f36314b7380781c551a5c0"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "8b8a89598eb0c8b2fe4e5cf2ac5d2c7575fbb6c80ad101721805780d7b2cdf5a"
+          "contract_fingerprint": "a3cd16f9889d7e9ff560c48629594f0e743efa0442f36314b7380781c551a5c0"
         }
       },
       "evidence": [
@@ -11998,7 +11998,7 @@
     },
     "api:POST:/api/funds/:fundId/kpi-observations": {
       "row_id": "api:POST:/api/funds/:fundId/kpi-observations",
-      "contract_fingerprint": "9405f152d0927e5561173da0384e119a9c7e8baaca24d6f885abaa942e00ae19",
+      "contract_fingerprint": "c1ee4b334e0afd76a422d51a87b00bee96942e370d13d590faa6d1db614a8188",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -12024,11 +12024,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "9405f152d0927e5561173da0384e119a9c7e8baaca24d6f885abaa942e00ae19"
+          "contract_fingerprint": "c1ee4b334e0afd76a422d51a87b00bee96942e370d13d590faa6d1db614a8188"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "9405f152d0927e5561173da0384e119a9c7e8baaca24d6f885abaa942e00ae19"
+          "contract_fingerprint": "c1ee4b334e0afd76a422d51a87b00bee96942e370d13d590faa6d1db614a8188"
         }
       },
       "evidence": [
@@ -12039,7 +12039,7 @@
     },
     "api:POST:/api/funds/:fundId/kpi-observations/imports": {
       "row_id": "api:POST:/api/funds/:fundId/kpi-observations/imports",
-      "contract_fingerprint": "0203bceebc13c3035caa91798fc14077a152ceac956b80fcdaf40dbaf3538537",
+      "contract_fingerprint": "542e41335cf35370fe91b9e1cc2905a631b5a237255e369d788ccaaccb77b156",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -12065,11 +12065,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "0203bceebc13c3035caa91798fc14077a152ceac956b80fcdaf40dbaf3538537"
+          "contract_fingerprint": "542e41335cf35370fe91b9e1cc2905a631b5a237255e369d788ccaaccb77b156"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "0203bceebc13c3035caa91798fc14077a152ceac956b80fcdaf40dbaf3538537"
+          "contract_fingerprint": "542e41335cf35370fe91b9e1cc2905a631b5a237255e369d788ccaaccb77b156"
         }
       },
       "evidence": [
@@ -12636,7 +12636,7 @@
     },
     "api:POST:/api/funds/:fundId/portfolio/lots": {
       "row_id": "api:POST:/api/funds/:fundId/portfolio/lots",
-      "contract_fingerprint": "71f91c337388c5b74ede224ed7f1a6c26bda45530611c1e3da0fc21e32f3fae4",
+      "contract_fingerprint": "7d99356ce0453821dc272a1c6a593f0628196c2c22c0a4e496f7065f93a74992",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -12662,11 +12662,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "71f91c337388c5b74ede224ed7f1a6c26bda45530611c1e3da0fc21e32f3fae4"
+          "contract_fingerprint": "7d99356ce0453821dc272a1c6a593f0628196c2c22c0a4e496f7065f93a74992"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "71f91c337388c5b74ede224ed7f1a6c26bda45530611c1e3da0fc21e32f3fae4"
+          "contract_fingerprint": "7d99356ce0453821dc272a1c6a593f0628196c2c22c0a4e496f7065f93a74992"
         }
       },
       "evidence": [
@@ -12717,7 +12717,7 @@
     },
     "api:POST:/api/funds/:fundId/reallocation/preview": {
       "row_id": "api:POST:/api/funds/:fundId/reallocation/preview",
-      "contract_fingerprint": "630ceb7a310c4b4e735b44a2a2ed4623ab2ab17bffc8352fe54de6f75506de52",
+      "contract_fingerprint": "3001e552775a25083c6d25dc28d7692723e77bf525a0d9819a136d6ae4f50319",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -12743,11 +12743,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "630ceb7a310c4b4e735b44a2a2ed4623ab2ab17bffc8352fe54de6f75506de52"
+          "contract_fingerprint": "3001e552775a25083c6d25dc28d7692723e77bf525a0d9819a136d6ae4f50319"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "630ceb7a310c4b4e735b44a2a2ed4623ab2ab17bffc8352fe54de6f75506de52"
+          "contract_fingerprint": "3001e552775a25083c6d25dc28d7692723e77bf525a0d9819a136d6ae4f50319"
         }
       },
       "evidence": [
@@ -13069,7 +13069,7 @@
     },
     "api:POST:/api/funds/:fundId/tasks": {
       "row_id": "api:POST:/api/funds/:fundId/tasks",
-      "contract_fingerprint": "0cb4d185e8c288649f83466a8574d0e5670e19fafff562530eb59622d124959d",
+      "contract_fingerprint": "c26db7184c93401a645af2a10113d814a2fd77ab31b7f8e50bcaae1bccc0bb1d",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -13095,11 +13095,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "0cb4d185e8c288649f83466a8574d0e5670e19fafff562530eb59622d124959d"
+          "contract_fingerprint": "c26db7184c93401a645af2a10113d814a2fd77ab31b7f8e50bcaae1bccc0bb1d"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "0cb4d185e8c288649f83466a8574d0e5670e19fafff562530eb59622d124959d"
+          "contract_fingerprint": "c26db7184c93401a645af2a10113d814a2fd77ab31b7f8e50bcaae1bccc0bb1d"
         }
       },
       "evidence": [
@@ -13110,7 +13110,7 @@
     },
     "api:POST:/api/funds/:fundId/tasks/:taskId/evidence-links": {
       "row_id": "api:POST:/api/funds/:fundId/tasks/:taskId/evidence-links",
-      "contract_fingerprint": "ee4e75c93260aac4f5dfb5dbd55a2c97d0f0ad3aa1ab2fbe4be128b2e5327a9d",
+      "contract_fingerprint": "6dfc81340a2836adf0d7926f7334a4ff78200319cc978ed0129598f775f07855",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -13136,11 +13136,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "ee4e75c93260aac4f5dfb5dbd55a2c97d0f0ad3aa1ab2fbe4be128b2e5327a9d"
+          "contract_fingerprint": "6dfc81340a2836adf0d7926f7334a4ff78200319cc978ed0129598f775f07855"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "ee4e75c93260aac4f5dfb5dbd55a2c97d0f0ad3aa1ab2fbe4be128b2e5327a9d"
+          "contract_fingerprint": "6dfc81340a2836adf0d7926f7334a4ff78200319cc978ed0129598f775f07855"
         }
       },
       "evidence": [
@@ -13233,7 +13233,7 @@
     },
     "api:POST:/api/funds/:id/baselines": {
       "row_id": "api:POST:/api/funds/:id/baselines",
-      "contract_fingerprint": "418cc8d4974b2b0a7d309b97bb67a8ce23dabde87ddfbea978fbbc9e987327a5",
+      "contract_fingerprint": "b50b7f57d61ee364be2117842fefdf3dc619938610a903fdcf4fabe917b8596e",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -13259,11 +13259,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "418cc8d4974b2b0a7d309b97bb67a8ce23dabde87ddfbea978fbbc9e987327a5"
+          "contract_fingerprint": "b50b7f57d61ee364be2117842fefdf3dc619938610a903fdcf4fabe917b8596e"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "418cc8d4974b2b0a7d309b97bb67a8ce23dabde87ddfbea978fbbc9e987327a5"
+          "contract_fingerprint": "b50b7f57d61ee364be2117842fefdf3dc619938610a903fdcf4fabe917b8596e"
         }
       },
       "evidence": [
@@ -13556,7 +13556,7 @@
     },
     "api:POST:/api/funds/:id/variance-reports": {
       "row_id": "api:POST:/api/funds/:id/variance-reports",
-      "contract_fingerprint": "9766027c8b163aecb6e7d9fa561850a22a580adaa6c3bc77b567dd2ba74398ac",
+      "contract_fingerprint": "fcbd98eae3be305684fdf0eca3f1e26ce13934b5c552886f89b0558767bda20c",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -13582,11 +13582,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "9766027c8b163aecb6e7d9fa561850a22a580adaa6c3bc77b567dd2ba74398ac"
+          "contract_fingerprint": "fcbd98eae3be305684fdf0eca3f1e26ce13934b5c552886f89b0558767bda20c"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "9766027c8b163aecb6e7d9fa561850a22a580adaa6c3bc77b567dd2ba74398ac"
+          "contract_fingerprint": "fcbd98eae3be305684fdf0eca3f1e26ce13934b5c552886f89b0558767bda20c"
         }
       },
       "evidence": [
@@ -13717,7 +13717,7 @@
     },
     "api:POST:/api/investments": {
       "row_id": "api:POST:/api/investments",
-      "contract_fingerprint": "8bfe15462b616ef28a40074f8a61344ff271307dcf09c7a4f53f6065f663536d",
+      "contract_fingerprint": "1b2092b25dad78ef2f27d5be91c0df9cc0103f1a72a30039addc63e8febcee1f",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -13743,11 +13743,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "8bfe15462b616ef28a40074f8a61344ff271307dcf09c7a4f53f6065f663536d"
+          "contract_fingerprint": "1b2092b25dad78ef2f27d5be91c0df9cc0103f1a72a30039addc63e8febcee1f"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "8bfe15462b616ef28a40074f8a61344ff271307dcf09c7a4f53f6065f663536d"
+          "contract_fingerprint": "1b2092b25dad78ef2f27d5be91c0df9cc0103f1a72a30039addc63e8febcee1f"
         }
       },
       "evidence": [
@@ -14187,7 +14187,7 @@
     },
     "api:POST:/api/monte-carlo/batch": {
       "row_id": "api:POST:/api/monte-carlo/batch",
-      "contract_fingerprint": "fbb3922b02903a5c8799f6922e677fb837b05bfff0d252f88f41632f98d6428a",
+      "contract_fingerprint": "30da3d5030da047329c66ad4e92edba8ed4e4cdbdc761b739ee930c8527d5a31",
       "source_fingerprints": [
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
@@ -14212,7 +14212,7 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "fbb3922b02903a5c8799f6922e677fb837b05bfff0d252f88f41632f98d6428a"
+          "contract_fingerprint": "30da3d5030da047329c66ad4e92edba8ed4e4cdbdc761b739ee930c8527d5a31"
         }
       },
       "evidence": [
@@ -14223,7 +14223,7 @@
     },
     "api:POST:/api/monte-carlo/multi-environment": {
       "row_id": "api:POST:/api/monte-carlo/multi-environment",
-      "contract_fingerprint": "16a1e28633231431d27f0e5304de6b99445da1d3c2fd91b56f4b0294810ee194",
+      "contract_fingerprint": "c4e6bdeccb878aab81740eed3b178de57d34b8c3f92c148fe2a110243c1d3e58",
       "source_fingerprints": [
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
@@ -14248,7 +14248,7 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "16a1e28633231431d27f0e5304de6b99445da1d3c2fd91b56f4b0294810ee194"
+          "contract_fingerprint": "c4e6bdeccb878aab81740eed3b178de57d34b8c3f92c148fe2a110243c1d3e58"
         }
       },
       "evidence": [
@@ -14259,7 +14259,7 @@
     },
     "api:POST:/api/monte-carlo/simulate": {
       "row_id": "api:POST:/api/monte-carlo/simulate",
-      "contract_fingerprint": "303cfb565ec361bc1169fd4b17533075f683639c83ab1a1d3988d8b19122e0a0",
+      "contract_fingerprint": "d0aa88fbaef38bc1997a9c2045f4325623013bee43e71eaf69a3b9d8ab557117",
       "source_fingerprints": [
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
@@ -14284,7 +14284,7 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "303cfb565ec361bc1169fd4b17533075f683639c83ab1a1d3988d8b19122e0a0"
+          "contract_fingerprint": "d0aa88fbaef38bc1997a9c2045f4325623013bee43e71eaf69a3b9d8ab557117"
         }
       },
       "evidence": [
@@ -14295,7 +14295,7 @@
     },
     "api:POST:/api/monte-carlo/simulate/async": {
       "row_id": "api:POST:/api/monte-carlo/simulate/async",
-      "contract_fingerprint": "84cc0fb6a7482e63ec4cad267f4aba45f6d4db86d81ea6f0af085fa5a655d077",
+      "contract_fingerprint": "6d0341ffd3a13851704af8de6fbdeacb8e5a6ae1c4fee1ef91643604bdea978c",
       "source_fingerprints": [
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
         "server/lib/auth/revocation.ts=7cb7db00855775d8fc09d642b9cce532cb13f846ea4ab0a6c267790ce6e86a55",
@@ -14320,7 +14320,7 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "84cc0fb6a7482e63ec4cad267f4aba45f6d4db86d81ea6f0af085fa5a655d077"
+          "contract_fingerprint": "6d0341ffd3a13851704af8de6fbdeacb8e5a6ae1c4fee1ef91643604bdea978c"
         }
       },
       "evidence": [
@@ -14366,7 +14366,7 @@
     },
     "api:POST:/api/portfolio-companies": {
       "row_id": "api:POST:/api/portfolio-companies",
-      "contract_fingerprint": "da3e6f14d06e7322405f842a6d6e0849bb5b4e6caa5088fcf082bf730e20cd83",
+      "contract_fingerprint": "7ec3adcd6d4bf1ad160e0f83cd72dfadb256276591d1cc70ab1b40ef45a012eb",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -14392,11 +14392,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "da3e6f14d06e7322405f842a6d6e0849bb5b4e6caa5088fcf082bf730e20cd83"
+          "contract_fingerprint": "7ec3adcd6d4bf1ad160e0f83cd72dfadb256276591d1cc70ab1b40ef45a012eb"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "da3e6f14d06e7322405f842a6d6e0849bb5b4e6caa5088fcf082bf730e20cd83"
+          "contract_fingerprint": "7ec3adcd6d4bf1ad160e0f83cd72dfadb256276591d1cc70ab1b40ef45a012eb"
         }
       },
       "evidence": [
@@ -14756,7 +14756,7 @@
     },
     "api:POST:/api/shares": {
       "row_id": "api:POST:/api/shares",
-      "contract_fingerprint": "16c33aa0902ca582a2e347f11e4d856bc529e3c2f2a4ae6c78f49bd6846ed785",
+      "contract_fingerprint": "ee98f15fa043229ae6b4f36ae19f395857e167e719870045d76058a6ba86c10a",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -14782,11 +14782,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "16c33aa0902ca582a2e347f11e4d856bc529e3c2f2a4ae6c78f49bd6846ed785"
+          "contract_fingerprint": "ee98f15fa043229ae6b4f36ae19f395857e167e719870045d76058a6ba86c10a"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "16c33aa0902ca582a2e347f11e4d856bc529e3c2f2a4ae6c78f49bd6846ed785"
+          "contract_fingerprint": "ee98f15fa043229ae6b4f36ae19f395857e167e719870045d76058a6ba86c10a"
         }
       },
       "evidence": [
@@ -14796,7 +14796,7 @@
     },
     "api:POST:/api/timeline/:fundId/snapshot": {
       "row_id": "api:POST:/api/timeline/:fundId/snapshot",
-      "contract_fingerprint": "4159a0f03a08d8d0c3849b29e6709ccb34cf9ca053b1b03f918e11fd71f75a85",
+      "contract_fingerprint": "da3c96fe00bb0a7bd52dbaaf64935693c1ec2e096a61aa64d34579b88a5cc651",
       "source_fingerprints": [
         "server/app.ts=e95ae06c40961291126b6f0c97adac492d1768e41535ddc86a379112e62f2530",
         "server/lib/auth/jwt.ts=d76404fb6ddb6ffa7cdd4b6795168d4ac30c5154155770eb9f9f7a57901554b1",
@@ -14822,11 +14822,11 @@
       "exposure_attestations": {
         "local-process|create_server": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "4159a0f03a08d8d0c3849b29e6709ccb34cf9ca053b1b03f918e11fd71f75a85"
+          "contract_fingerprint": "da3c96fe00bb0a7bd52dbaaf64935693c1ec2e096a61aa64d34579b88a5cc651"
         },
         "vercel-api|make_app": {
           "test_coverage": "none-reviewed",
-          "contract_fingerprint": "4159a0f03a08d8d0c3849b29e6709ccb34cf9ca053b1b03f918e11fd71f75a85"
+          "contract_fingerprint": "da3c96fe00bb0a7bd52dbaaf64935693c1ec2e096a61aa64d34579b88a5cc651"
         }
       },
       "evidence": [
