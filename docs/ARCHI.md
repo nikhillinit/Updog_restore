@@ -599,11 +599,20 @@ review, `#1287` target naming, `#1299` activation flip.
    (16 MiB) limits. V2-S-0100 is a frozen literal input+receipt fixture;
    V2-S-0101 is regenerated under 2.1.0 with a consumed changed-case manifest.
    `processEvents` semantics, event-stream atomicity, and `sourceCashLotId`
-   lineage remain F3 scope. No routes, persistence, jobs, migrations, or
-   activation. ADR-085, ADR-086, and ADR-087 in `DECISIONS.md`. Plans:
+   lineage remain F3 scope. F3a (F_2.0.3) lands the `processEvents`
+   refusal-propagation portion: the chronology loop is exported as
+   `processEventsV2ForTest` and returns the first refusal-capable processor
+   refusal, and the engine now enforces cumulative per-lot allocation/relief
+   aggregates, row-level negative-amount rejection, and exact event-total
+   (`amountUsd`) equality with the existing refusal families at the provenance
+   stage. Remaining F3 scope narrows to `sourceCashLotId` lineage, eventful
+   receipt, and event-stream atomicity. No routes, persistence, jobs,
+   migrations, or activation. ADR-085, ADR-086, ADR-087, and ADR-088 in
+   `DECISIONS.md`. Plans:
    `docs/1-plans/F_2.0.0_v2-core-financial-model.plan.md`,
    `.omx/plans/updog-v2-conformance-right-sized-synthesis.md`,
-   `docs/1-plans/F_2.0.2_v2-f2-completion-state-journal-receipt-spine.plan.md`.
+   `docs/1-plans/F_2.0.2_v2-f2-completion-state-journal-receipt-spine.plan.md`,
+   `docs/1-plans/F_2.0.3_v2-f3a-cumulative-allocation-validation.plan.md`.
 
 ## 9. Guidance for New Work (patterns confirmed above, not aspirational)
 
