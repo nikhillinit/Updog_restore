@@ -2142,14 +2142,14 @@
       "docType": "skill",
       "exists": true,
       "frontmatter": {
-        "last_updated": "2026-05-21"
+        "last_updated": "2026-08-25"
       },
       "hasExecutionClaims": false,
       "isStale": false,
-      "lastUpdated": "2026-05-21",
+      "lastUpdated": "2026-08-25",
       "owner": null,
       "path": ".claude/skills/INDEX.md",
-      "staleDays": 96,
+      "staleDays": 0,
       "status": "UNKNOWN"
     },
     {
@@ -2826,6 +2826,134 @@
       "path": ".claude/skills/ui-design-system/SKILL.md",
       "staleDays": 144,
       "status": "UNKNOWN"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "allowed-tools": "Read, Grep, Glob, WebSearch, WebFetch",
+        "argument-hint": "[screen|deck-review|market|ic-memo|ic-red-team]",
+        "description": "Explicit-only VC review; no fund math, legal advice, execution.",
+        "disable-model-invocation": true,
+        "last_updated": "2026-08-25",
+        "name": "vc-deal-evaluation",
+        "status": "ACTIVE",
+        "version": "0.1.0"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-08-25",
+      "owner": null,
+      "path": ".claude/skills/vc-deal-evaluation/SKILL.md",
+      "staleDays": 0,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-08-25",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-08-25",
+      "owner": null,
+      "path": ".claude/skills/vc-deal-evaluation/references/deal-screening.md",
+      "staleDays": 0,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-08-25",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-08-25",
+      "owner": null,
+      "path": ".claude/skills/vc-deal-evaluation/references/evidence-contract.md",
+      "staleDays": 0,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-08-25",
+        "pass-role": "writer",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-08-25",
+      "owner": null,
+      "path": ".claude/skills/vc-deal-evaluation/references/ic-memo.md",
+      "staleDays": 0,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-08-25",
+        "pass-role": "reviewer",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-08-25",
+      "owner": null,
+      "path": ".claude/skills/vc-deal-evaluation/references/ic-red-team.md",
+      "staleDays": 0,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-08-25",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-08-25",
+      "owner": null,
+      "path": ".claude/skills/vc-deal-evaluation/references/market-diligence.md",
+      "staleDays": 0,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-08-25",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-08-25",
+      "owner": null,
+      "path": ".claude/skills/vc-deal-evaluation/references/pitch-deck-review.md",
+      "staleDays": 0,
+      "status": "ACTIVE"
+    },
+    {
+      "docType": "skill",
+      "exists": true,
+      "frontmatter": {
+        "last_updated": "2026-08-25",
+        "status": "ACTIVE"
+      },
+      "hasExecutionClaims": false,
+      "isStale": false,
+      "lastUpdated": "2026-08-25",
+      "owner": null,
+      "path": ".claude/skills/vc-deal-evaluation/references/provenance.md",
+      "staleDays": 0,
+      "status": "ACTIVE"
     },
     {
       "docType": "skill",
@@ -4305,6 +4433,18 @@
       "lastUpdated": null,
       "owner": null,
       "path": "docs/3-code-review/CR_w6_v2.0.3.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/3-code-review/CR_w6_v2.0.3_independent-review.md",
       "staleDays": 999,
       "status": "UNKNOWN"
     },
@@ -14321,7 +14461,7 @@
   "stats": {
     "by_status": {
       "ACCEPTED (amended 2026-06-21)": 1,
-      "ACTIVE": 453,
+      "ACTIVE": 461,
       "ARCHIVED": 1,
       "BACKLOG": 1,
       "COMPLETE": 3,
@@ -14336,14 +14476,14 @@
       "REFERENCE": 9,
       "STALE-VALIDATION": 1,
       "TRACKED (not scheduled)": 1,
-      "UNKNOWN": 177,
+      "UNKNOWN": 178,
       "VERIFIED": 13,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 83,
-    "stale_docs": 474,
-    "total_docs": 736
+    "missing_frontmatter": 84,
+    "stale_docs": 475,
+    "total_docs": 745
   },
   "version": "2.0"
 }

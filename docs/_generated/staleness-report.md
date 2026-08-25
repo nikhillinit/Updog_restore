@@ -11,16 +11,16 @@ last_updated: 2026-08-25
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 736 |
-| Stale Documents | 474 |
-| Missing Frontmatter | 83 |
+| Total Documents | 745 |
+| Stale Documents | 475 |
+| Missing Frontmatter | 84 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
-| ACTIVE | 453 |
-| UNKNOWN | 177 |
+| ACTIVE | 461 |
+| UNKNOWN | 178 |
 | DRAFT | 34 |
 | HISTORICAL | 26 |
 | VERIFIED | 13 |
@@ -76,6 +76,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/3-code-review/CR_w6_v2.0.1.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w6_v2.0.2.md` | Never | 999 | YES - verify! | Unassigned |
 | `docs/3-code-review/CR_w6_v2.0.3.md` | Never | 999 | No | Unassigned |
+| `docs/3-code-review/CR_w6_v2.0.3_independent-review.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/canary-exclusion-worklist.md` | Never | 999 | No | Unassigned |
 | `docs/ARCHI.md` | Never | 999 | No | Unassigned |
 | `docs/CA-PACING-ORACLE.md` | Never | 999 | No | Unassigned |
@@ -95,9 +96,8 @@ Documents that need review (older than their cadence threshold):
 | `docs/runbooks/current-forecast-shadow-soak.md` | Never | 999 | No | Unassigned |
 | `docs/runbooks/marginal-moic-nonproduction-shadow-soak.md` | Never | 999 | No | Unassigned |
 | `docs/skills/REFL-002-post-merge-jobs-not-validated-by-pr-ci.md` | Never | 999 | No | Unassigned |
-| `docs/skills/REFL-003-cross-platform-file-enumeration-fragility.md` | Never | 999 | YES - verify! | Unassigned |
 
-*...and 424 more stale documents.*
+*...and 425 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -227,6 +227,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/3-code-review/CR_w6_v2.0.1.md`
 - [ ] `docs/3-code-review/CR_w6_v2.0.2.md`
 - [ ] `docs/3-code-review/CR_w6_v2.0.3.md`
+- [ ] `docs/3-code-review/CR_w6_v2.0.3_independent-review.md`
 - [ ] `docs/3-code-review/canary-exclusion-worklist.md`
 - [ ] `docs/ARCHI.md`
 - [ ] `docs/CA-PACING-ORACLE.md`
