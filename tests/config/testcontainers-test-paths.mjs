@@ -1,4 +1,5 @@
 export const TESTCONTAINERS_TEST_PATHS = Object.freeze([
+  'tests/integration/fund-scenario-reserve-worker.test.ts',
   'tests/integration/migration-runner.test.ts',
   'tests/integration/fund-lifecycle-db.test.ts',
   'tests/integration/migration-drift.test.ts',
