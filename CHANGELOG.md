@@ -21,6 +21,24 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-08-25)
+
+- **V2 F2 completion — opening state, balance-forward journal, receipt 2.1.0
+  (F_2.0.2).** The V2 core admits a zero-event, deal-by-deal opening state with
+  explicit investment provenance. Normalized input is recursively sealed after
+  hashing; hydration builds explicit runtime opening cash-lot, investment-slice,
+  and entitlement-pool types plus a balance-forward journal over three closed
+  accounts (`cash`, `invested_basis`, `opening_unreturned_capital`) beside the
+  untouched event-lane state. The receipt is the closed
+  `internal-economics-receipt/2.1.0` field set with a five-component manifest,
+  one typed result-hash preimage (the receipt without `resultHash`), and
+  enforced output-row (100,000) and serialized-output-byte (16 MiB) limits.
+  V2-S-0100 lands as a frozen literal input+receipt truth fixture; V2-S-0101 is
+  regenerated under 2.1.0 with a consumed changed-case manifest.
+  `processEvents` semantics, event-stream atomicity, and `sourceCashLotId`
+  lineage remain F3 scope. ADR-087. Plan:
+  `docs/1-plans/F_2.0.2_v2-f2-completion-state-journal-receipt-spine.plan.md`.
+
 ### Added (2026-08-23)
 
 - **V2 Core Financial Model (F_2.0.0).** Pure internal-economics derivation core

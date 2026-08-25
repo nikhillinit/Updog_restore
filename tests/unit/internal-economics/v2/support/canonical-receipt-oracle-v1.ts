@@ -3,12 +3,18 @@ import { createHash } from 'node:crypto';
 export const INTERNAL_ECONOMICS_TEST_ORACLE_VERSION = 'internal-economics-test-oracle/1.0.0';
 
 function canonicalizeSorted(value: unknown): unknown {
+  if (value === undefined) {
+    throw new TypeError('Cannot canonicalize undefined values.');
+  }
   if (value === null || typeof value !== 'object') return value;
   if (Array.isArray(value)) return value.map(canonicalizeSorted);
   const result: Record<string, unknown> = {};
   for (const key of Object.keys(value as Record<string, unknown>).sort()) {
     const child = (value as Record<string, unknown>)[key];
-    if (child !== undefined) result[key] = canonicalizeSorted(child);
+    if (child === undefined) {
+      throw new TypeError(`Cannot canonicalize undefined field "${key}".`);
+    }
+    result[key] = canonicalizeSorted(child);
   }
   return result;
 }

@@ -12,6 +12,9 @@ import {
   centsToDecimalString,
 } from './decimal-cents-v2';
 
+export const INTERNAL_ECONOMICS_WATERFALL_DEAL_BY_DEAL_V2_VERSION =
+  'internal-economics-waterfall-deal-by-deal/2.0.1' as const;
+
 const ZERO = new Decimal(0);
 
 function refuse(

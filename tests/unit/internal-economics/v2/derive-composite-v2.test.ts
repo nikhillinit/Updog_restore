@@ -34,6 +34,32 @@ function buildV2S0101Input(): InternalEconomicsInputV2Wire {
   return input;
 }
 
+function buildOpeningInvestmentInput(): InternalEconomicsInputV2Wire {
+  const input = buildV2S0101Input();
+  input.openingState.openingCash = '549999.000000';
+  input.openingState.openingCashClassification.paidIn = '549999.000000';
+  input.openingState.openingProvenance.cashLots[1]!.originalAmount = '499999.000000';
+  input.openingState.openingProvenance.cashLots[1]!.remainingBalance = '499999.000000';
+  input.openingState.openingProvenance.entitlementPools.push({
+    entitlementPoolId: 'pool-1',
+    sourceRef: 'pool-source:1',
+    dealId: 'deal-1',
+    securityId: 'security-1',
+  });
+  input.openingState.openingProvenance.investmentLots.push({
+    investmentLotId: 'investment-1',
+    sourceRef: 'investment-source:1',
+    entitlementPoolId: 'pool-1',
+    dealId: 'deal-1',
+    securityId: 'security-1',
+    owner: { kind: 'lp', partnerId: 'lp-1', lpClassId: 'class-a' },
+    costBasis: '1.000000',
+    relievedAmount: '0.000000',
+    entitlementAmount: '1.000000',
+  });
+  return input;
+}
+
 const explicitEventRefusals: ReadonlyArray<readonly [V2Event, string]> = [
   [
     {
@@ -131,6 +157,66 @@ describe('deriveInternalEconomicsV2', () => {
     if (result.ok) return;
     expect(result.refusal.code).toBe(code);
     expect(result.refusal.stage).toBe('admission');
+  });
+
+  it('admits opening investment provenance and emits one investment journal entry', () => {
+    const result = derive(buildOpeningInvestmentInput());
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.receipt.receiptVersion).toBe('internal-economics-receipt/2.1.0');
+    expect(result.receipt.journal.filter((entry) => entry.kind === 'opening_investment_slice')).toHaveLength(1);
+    expect(result.receipt.openingPositions.investmentSlices).toMatchObject([
+      {
+        investmentLotId: 'investment-1',
+        entitlementPoolId: 'pool-1',
+        remainingBasis: '1.000000',
+      },
+    ]);
+  });
+
+  it('keeps the widened envelope exact around opening investment provenance', () => {
+    const secondTier = buildOpeningInvestmentInput();
+    secondTier.waterfallPolicy = [
+      { kind: 'return_of_capital', priority: 1 },
+      { kind: 'carry', priority: 2, gpShare: '0.200000000000' },
+    ];
+    const secondTierResult = derive(secondTier);
+    expect(secondTierResult.ok).toBe(false);
+    if (!secondTierResult.ok) {
+      expect(secondTierResult.refusal).toMatchObject({
+        code: 'UNSUPPORTED_V2_BASE_EVENT',
+        stage: 'admission',
+      });
+    }
+
+    const withEvent = buildOpeningInvestmentInput();
+    withEvent.events = [baseEvent];
+    const eventResult = derive(withEvent);
+    expect(eventResult.ok).toBe(false);
+    if (!eventResult.ok) {
+      expect(eventResult.refusal).toMatchObject({
+        code: 'UNSUPPORTED_V2_BASE_EVENT',
+        stage: 'admission',
+      });
+    }
+
+    const withFee = buildOpeningInvestmentInput();
+    withFee.lpClasses[0]!.feeProfile.managementFeeSchedule = [
+      {
+        periodStartDate: '2027-01-01T00:00:00Z',
+        periodEndDate: '2028-01-01T00:00:00Z',
+        rate: { rate: '0.020000000000', basis: 'committed_capital' },
+      },
+    ];
+    const feeResult = derive(withFee);
+    expect(feeResult.ok).toBe(false);
+    if (!feeResult.ok) {
+      expect(feeResult.refusal).toMatchObject({
+        code: 'UNSUPPORTED_V2_MANAGEMENT_FEE',
+        stage: 'accrual',
+      });
+    }
   });
 
   it('lets exit-tagged realization reach base admission', () => {
@@ -377,32 +463,6 @@ describe('deriveInternalEconomicsV2', () => {
           classification: 'recycling',
           originalAmount: '0.000000',
           remainingBalance: '0.000000',
-        });
-      },
-    },
-    {
-      name: 'opening investment provenance',
-      mutate(input: InternalEconomicsInputV2Wire) {
-        input.openingState.openingCash = '549999.000000';
-        input.openingState.openingCashClassification.paidIn = '549999.000000';
-        input.openingState.openingProvenance.cashLots[1]!.originalAmount = '499999.000000';
-        input.openingState.openingProvenance.cashLots[1]!.remainingBalance = '499999.000000';
-        input.openingState.openingProvenance.entitlementPools.push({
-          entitlementPoolId: 'pool-1',
-          sourceRef: 'pool-source:1',
-          dealId: 'deal-1',
-          securityId: 'security-1',
-        });
-        input.openingState.openingProvenance.investmentLots.push({
-          investmentLotId: 'investment-1',
-          sourceRef: 'investment-source:1',
-          entitlementPoolId: 'pool-1',
-          dealId: 'deal-1',
-          securityId: 'security-1',
-          owner: { kind: 'lp', partnerId: 'lp-1', lpClassId: 'class-a' },
-          costBasis: '1.000000',
-          relievedAmount: '0.000000',
-          entitlementAmount: '1.000000',
         });
       },
     },

@@ -31,6 +31,9 @@ import {
 import { buildReceipt } from './liquidity-receipt-builder-v2';
 import { Decimal } from '../../decimal-config';
 
+export const INTERNAL_ECONOMICS_COMPOSITE_IMPLEMENTATION_VERSION =
+  'internal-economics-composite/2.0.1' as const;
+
 function admissionRefusal(code: V2RefusalCode, stage: V2Stage, message: string): V2CoreRefusal {
   return { ok: false, code, stage, message };
 }
@@ -101,8 +104,6 @@ function isExactF2AdmissionEnvelope(input: NormalizedInternalEconomicsInputV2): 
     firstTier.priority === 1 &&
     new Decimal(input.openingState.openingCashClassification.recycling).isZero() &&
     new Decimal(input.openingState.openingCashClassification.unclassified).isZero() &&
-    input.openingState.openingProvenance.investmentLots.length === 0 &&
-    input.openingState.openingProvenance.entitlementPools.length === 0 &&
     input.openingState.openingProvenance.cashLots.every(
       (lot) => lot.classification === 'paid_in'
     ) &&
@@ -177,7 +178,7 @@ function runLane(
   }
 
   const receipt = buildReceipt(input, state, lane, tierAllocations);
-  return { ok: true, receipt };
+  return receipt;
 }
 
 export function deriveInternalEconomicsV2(rawInput: unknown): InternalEconomicsReceiptV2Result {

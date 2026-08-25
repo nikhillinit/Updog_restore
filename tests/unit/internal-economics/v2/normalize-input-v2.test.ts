@@ -1404,7 +1404,56 @@ describe('verifyAndNormalizeInternalEconomicsInputV2', () => {
     });
   });
 
-  describe('contract completeness', () => {
+describe('deep sealing', () => {
+  function everyNodeFrozen(value: unknown, seen = new WeakSet<object>()): boolean {
+    if (value === null || typeof value !== 'object') return true;
+    if (seen.has(value)) return true;
+    seen.add(value);
+    return Object.isFrozen(value) &&
+      Object.values(value as Record<string, unknown>).every((child) => everyNodeFrozen(child, seen));
+  }
+
+  it('freezes root and every nested normalized object, array, and owner', () => {
+    const input = buildMinimalV2Input();
+    const result = verifyAndNormalizeInternalEconomicsInputV2(input);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(everyNodeFrozen(result.input)).toBe(true);
+    expect(Object.isFrozen(result.input.openingState)).toBe(true);
+    expect(Object.isFrozen(result.input.openingState.openingProvenance)).toBe(true);
+    expect(Object.isFrozen(result.input.openingState.openingProvenance.cashLots[0])).toBe(true);
+    expect(Object.isFrozen(result.input.openingState.openingProvenance.cashLots[0]!.owner)).toBe(true);
+    expect(Object.isFrozen(result.input.partners)).toBe(true);
+    expect(Object.isFrozen(result.input.lpClasses[0]!.feeProfile)).toBe(true);
+    expect(Object.isFrozen(result.input.waterfallPolicy)).toBe(true);
+    expect(Object.isFrozen(result.input.events)).toBe(true);
+  });
+
+  it('rejects nested mutation or leaves it unchanged without changing normalized hash', () => {
+    const input = buildMinimalV2Input();
+    const first = verifyAndNormalizeInternalEconomicsInputV2(input);
+
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const originalHash = first.input._normalizedInputHash;
+    const attemptMutation = () => {
+      (first.input.partners[0] as unknown as { name: string }).name = 'mutated';
+    };
+
+    try {
+      attemptMutation();
+    } catch {
+      // Strict-mode frozen writes throw; no-op writes are also acceptable here.
+    }
+    expect(first.input.partners[0]!.name).toBe('LP One');
+    const second = verifyAndNormalizeInternalEconomicsInputV2(input);
+    expect(second.ok).toBe(true);
+    if (second.ok) expect(second.input._normalizedInputHash).toBe(originalHash);
+  });
+});
+
+describe('contract completeness', () => {
     it('has exactly 38 refusal codes', () => {
       expect(V2_REFUSAL_CODES).toHaveLength(38);
     });

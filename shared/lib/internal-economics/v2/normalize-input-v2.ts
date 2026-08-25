@@ -15,6 +15,8 @@ import {
 import type { NormalizeInputV2Result } from '../../../contracts/internal-economics/internal-economics-receipt-v2.contract';
 import { Decimal } from '../../../lib/decimal-config';
 
+export const INTERNAL_ECONOMICS_NORMALIZER_V2_VERSION = 'internal-economics-normalizer/2.0.1' as const;
+
 function refuse(code: V2RefusalCode, stage: V2Stage, message: string): NormalizeInputV2Result {
   return { ok: false, refusal: { ok: false, code, stage, message } };
 }
@@ -783,6 +785,16 @@ function computeInputHash(input: InternalEconomicsInputV2Wire): string {
   return createHash('sha256').update(json, 'utf-8').digest('hex');
 }
 
+function deepFreeze<T>(value: T): T {
+  if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return value;
+
+  for (const child of Object.values(value as Record<string, unknown>)) {
+    deepFreeze(child);
+  }
+
+  return Object.freeze(value);
+}
+
 export function verifyAndNormalizeInternalEconomicsInputV2(input: unknown): NormalizeInputV2Result {
   try {
     if (typeof input === 'object' && input !== null) {
@@ -862,11 +874,13 @@ export function verifyAndNormalizeInternalEconomicsInputV2(input: unknown): Norm
   sortOpeningProvenance(parsed);
   const inputHash = computeInputHash(parsed);
 
-  const normalized = Object.freeze({
+  const normalized = {
     ...parsed,
     _normalizedInputHash: inputHash,
     _hashAlgorithm: 'canonical-json-sha256/1' as const,
-  }) as NormalizedInternalEconomicsInputV2;
+  } as NormalizedInternalEconomicsInputV2;
+  deepFreeze(parsed);
+  Object.freeze(normalized);
 
   return { ok: true, input: normalized };
 }

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Decimal } from '../../../../shared/lib/decimal-config';
+import { canonicalJson } from '../../../../shared/lib/canonical-json';
 import {
   sortEventsIntoChronology,
   validateCashSourceAllocations,
@@ -273,6 +274,92 @@ describe('initializeEventStreamState', () => {
     expect(state.callableTrackers.size).toBe(2);
     expect(state.partnerLedgers.size).toBe(2);
     expect(state.endingCash.toFixed(6)).toBe('550000.000000');
+  });
+
+  it('hydrates opening maps and balance-forward journal without mutating normalized input', () => {
+    const wire = buildMinimalV2Input();
+    wire.openingState.openingCash = '549900.000000';
+    wire.openingState.openingCashClassification.paidIn = '549900.000000';
+    wire.openingState.openingProvenance.cashLots[1]!.originalAmount = '499900.000000';
+    wire.openingState.openingProvenance.cashLots[1]!.remainingBalance = '499900.000000';
+    wire.openingState.openingProvenance.entitlementPools = [
+      {
+        entitlementPoolId: 'pool-1',
+        sourceRef: 'pool-source:1',
+        dealId: 'deal-1',
+        securityId: 'security-1',
+      },
+    ];
+    wire.openingState.openingProvenance.investmentLots = [
+      {
+        investmentLotId: 'opening-investment:1',
+        sourceRef: 'investment-source:1',
+        entitlementPoolId: 'pool-1',
+        dealId: 'deal-1',
+        securityId: 'security-1',
+        owner: { kind: 'lp', partnerId: 'lp-1', lpClassId: 'class-a' },
+        costBasis: '100.000000',
+        relievedAmount: '0.000000',
+        entitlementAmount: '99.000000',
+      },
+    ];
+    const normalizeResult = verifyAndNormalizeInternalEconomicsInputV2(wire);
+    expect(normalizeResult.ok).toBe(true);
+    if (!normalizeResult.ok) return;
+
+    const before = canonicalJson(normalizeResult.input);
+    const state = initializeEventStreamState(normalizeResult.input);
+
+    expect(canonicalJson(normalizeResult.input)).toBe(before);
+    expect(state.openingCashLots.size).toBe(2);
+    expect(state.openingInvestmentSlices.size).toBe(1);
+    expect(state.openingEntitlementPools.size).toBe(1);
+    expect(state.openingCashLots.get('opening-cash:lp-1')!.originalAmount).toBeInstanceOf(Decimal);
+    expect(state.openingInvestmentSlices.get('opening-investment:1')!.remainingBasis.toFixed(6)).toBe(
+      '100.000000'
+    );
+    expect(state.openingEntitlementPools.get('pool-1')!.entitlementTotal.toFixed(6)).toBe(
+      '99.000000'
+    );
+
+    const entryIds = state.openingJournal.map((entry) => entry.entryId);
+    expect(entryIds).toEqual([...entryIds].sort());
+    expect(entryIds.filter((entryId) => entryId.startsWith('opening/cash_lot/'))).toHaveLength(2);
+    expect(entryIds.filter((entryId) => entryId.startsWith('opening/investment_slice/'))).toHaveLength(1);
+    expect(entryIds[0]!.startsWith('opening/cash_lot/')).toBe(true);
+    expect(entryIds[2]!.startsWith('opening/investment_slice/')).toBe(true);
+
+    const allowedAccounts = new Set(['cash', 'invested_basis', 'opening_unreturned_capital']);
+    for (const entry of state.openingJournal) {
+      expect(entry.instant).toBe('2025-01-01T00:00:00Z');
+      expect(entry.postings).toHaveLength(2);
+      expect(entry.postings.every((posting) => allowedAccounts.has(posting.account))).toBe(true);
+      expect(
+        entry.postings.reduce((sum, posting) => sum.plus(posting.amountUsd), new Decimal(0)).toFixed(6)
+      ).toBe('0.000000');
+      for (const posting of entry.postings) {
+        expect(posting.rowRef).toBe(
+          entry.kind === 'opening_cash_lot'
+            ? entry.entryId.replace('opening/cash_lot/', '')
+            : entry.entryId.replace('opening/investment_slice/', '')
+        );
+        expect(posting.owner).toEqual(
+          entry.kind === 'opening_cash_lot'
+            ? state.openingCashLots.get(posting.rowRef)!.owner
+            : state.openingInvestmentSlices.get(posting.rowRef)!.owner
+        );
+      }
+    }
+    expect(state.openingJournal.find((entry) => entry.kind === 'opening_cash_lot')!.sourceRef).toBe(
+      'opening-ledger:gp-1'
+    );
+    expect(
+      state.openingJournal.find((entry) => entry.kind === 'opening_investment_slice')!.sourceRef
+    ).toBe('investment-source:1');
+    expect(state.cashSourceLots.size).toBe(0);
+    expect(state.investmentLots.size).toBe(0);
+    expect(state.cashSourceLots.has('opening-cash:lp-1')).toBe(false);
+    expect(state.investmentLots.has('opening-investment:1')).toBe(false);
   });
 });
 

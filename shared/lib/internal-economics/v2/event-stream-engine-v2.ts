@@ -2,6 +2,8 @@ import { Decimal } from '../../../lib/decimal-config';
 import type {
   V2Event,
   NormalizedInternalEconomicsInputV2,
+  OpeningCashOwnerV2,
+  OpeningPartnerOwnerV2,
   V2CoreRefusal,
   V2RefusalCode,
   V2Stage,
@@ -14,6 +16,9 @@ import {
   type MonthlyPeriod,
   type PreferredReturnConfig,
 } from './preferred-return-accrual-v2';
+
+export const INTERNAL_ECONOMICS_EVENT_ENGINE_V2_VERSION =
+  'internal-economics-event-engine/2.0.1' as const;
 
 function refuse(
   code: V2RefusalCode,
@@ -57,6 +62,68 @@ export interface PartnerLedgerState {
   accruedPreference: Decimal;
   calledCapitalPeriodDeployment: Decimal;
 }
+
+export interface HydratedOpeningCashLot {
+  readonly lotId: string;
+  readonly sourceRef: string;
+  readonly owner: OpeningCashOwnerV2;
+  readonly classification: 'paid_in' | 'recycling' | 'unclassified';
+  readonly originalAmount: Decimal;
+  remainingBalance: Decimal;
+}
+
+export interface HydratedOpeningInvestmentSlice {
+  readonly investmentLotId: string;
+  readonly sourceRef: string;
+  readonly entitlementPoolId: string;
+  readonly dealId: string;
+  readonly securityId: string;
+  readonly owner: OpeningPartnerOwnerV2;
+  readonly costBasis: Decimal;
+  readonly relievedAmount: Decimal;
+  readonly remainingBasis: Decimal;
+  readonly entitlementAmount: Decimal;
+}
+
+export interface HydratedOpeningEntitlementPool {
+  readonly entitlementPoolId: string;
+  readonly sourceRef: string;
+  readonly dealId: string;
+  readonly securityId: string;
+  readonly entitlementTotal: Decimal;
+}
+
+export interface OpeningJournalPosting {
+  readonly account: 'cash' | 'invested_basis' | 'opening_unreturned_capital';
+  readonly rowRef: string;
+  readonly owner: OpeningCashOwnerV2;
+  readonly amountUsd: Decimal;
+}
+
+export interface OpeningInvestmentSliceJournalPosting {
+  readonly account: 'cash' | 'invested_basis' | 'opening_unreturned_capital';
+  readonly rowRef: string;
+  readonly owner: OpeningPartnerOwnerV2;
+  readonly amountUsd: Decimal;
+}
+
+export interface OpeningCashLotJournalEntry {
+  readonly entryId: string;
+  readonly instant: string;
+  readonly kind: 'opening_cash_lot';
+  readonly sourceRef: string;
+  readonly postings: [OpeningJournalPosting, OpeningJournalPosting];
+}
+
+export interface OpeningInvestmentSliceJournalEntry {
+  readonly entryId: string;
+  readonly instant: string;
+  readonly kind: 'opening_investment_slice';
+  readonly sourceRef: string;
+  readonly postings: [OpeningInvestmentSliceJournalPosting, OpeningInvestmentSliceJournalPosting];
+}
+
+export type OpeningJournalEntry = OpeningCashLotJournalEntry | OpeningInvestmentSliceJournalEntry;
 
 export interface DerivedEvent {
   readonly derivedEventId: string;
@@ -241,6 +308,10 @@ export interface EventStreamState {
   readonly partnerLedgers: Map<string, PartnerLedgerState>;
   readonly derivedEvents: DerivedEvent[];
   endingCash: Decimal;
+  readonly openingCashLots: Map<string, HydratedOpeningCashLot>;
+  readonly openingInvestmentSlices: Map<string, HydratedOpeningInvestmentSlice>;
+  readonly openingEntitlementPools: Map<string, HydratedOpeningEntitlementPool>;
+  readonly openingJournal: OpeningJournalEntry[];
 }
 
 export function initializeEventStreamState(
@@ -275,6 +346,106 @@ export function initializeEventStreamState(
     });
   }
 
+  const openingCashLots = new Map<string, HydratedOpeningCashLot>();
+  for (const lot of input.openingState.openingProvenance.cashLots) {
+    openingCashLots.set(lot.lotId, {
+      lotId: lot.lotId,
+      sourceRef: lot.sourceRef,
+      owner: lot.owner,
+      classification: lot.classification,
+      originalAmount: new Decimal(lot.originalAmount),
+      remainingBalance: new Decimal(lot.remainingBalance),
+    });
+  }
+
+  const openingInvestmentSlices = new Map<string, HydratedOpeningInvestmentSlice>();
+  const entitlementTotals = new Map<string, Decimal>();
+  for (const lot of input.openingState.openingProvenance.investmentLots) {
+    const costBasis = new Decimal(lot.costBasis);
+    const relievedAmount = new Decimal(lot.relievedAmount);
+    const entitlementAmount = new Decimal(lot.entitlementAmount);
+    openingInvestmentSlices.set(lot.investmentLotId, {
+      investmentLotId: lot.investmentLotId,
+      sourceRef: lot.sourceRef,
+      entitlementPoolId: lot.entitlementPoolId,
+      dealId: lot.dealId,
+      securityId: lot.securityId,
+      owner: lot.owner,
+      costBasis,
+      relievedAmount,
+      remainingBasis: costBasis.minus(relievedAmount),
+      entitlementAmount,
+    });
+    entitlementTotals.set(
+      lot.entitlementPoolId,
+      (entitlementTotals.get(lot.entitlementPoolId) ?? new Decimal(0)).plus(
+        entitlementAmount,
+      ),
+    );
+  }
+
+  const openingEntitlementPools = new Map<string, HydratedOpeningEntitlementPool>();
+  for (const pool of input.openingState.openingProvenance.entitlementPools) {
+    openingEntitlementPools.set(pool.entitlementPoolId, {
+      entitlementPoolId: pool.entitlementPoolId,
+      sourceRef: pool.sourceRef,
+      dealId: pool.dealId,
+      securityId: pool.securityId,
+      entitlementTotal: entitlementTotals.get(pool.entitlementPoolId) ?? new Decimal(0),
+    });
+  }
+
+  const openingJournal: OpeningJournalEntry[] = [];
+  for (const lot of openingCashLots.values()) {
+    openingJournal.push({
+      entryId: `opening/cash_lot/${lot.lotId}`,
+      instant: input.cutoverInstant,
+      kind: 'opening_cash_lot',
+      sourceRef: lot.sourceRef,
+      postings: [
+        {
+          account: 'cash',
+          rowRef: lot.lotId,
+          owner: lot.owner,
+          amountUsd: new Decimal(lot.remainingBalance),
+        },
+        {
+          account: 'opening_unreturned_capital',
+          rowRef: lot.lotId,
+          owner: lot.owner,
+          amountUsd: new Decimal(lot.remainingBalance).negated(),
+        },
+      ],
+    });
+  }
+  for (const slice of openingInvestmentSlices.values()) {
+    openingJournal.push({
+      entryId: `opening/investment_slice/${slice.investmentLotId}`,
+      instant: input.cutoverInstant,
+      kind: 'opening_investment_slice',
+      sourceRef: slice.sourceRef,
+      postings: [
+        {
+          account: 'invested_basis',
+          rowRef: slice.investmentLotId,
+          owner: slice.owner,
+          amountUsd: new Decimal(slice.remainingBasis),
+        },
+        {
+          account: 'opening_unreturned_capital',
+          rowRef: slice.investmentLotId,
+          owner: slice.owner,
+          amountUsd: new Decimal(slice.remainingBasis).negated(),
+        },
+      ],
+    });
+  }
+  openingJournal.sort((a, b) => {
+    if (a.entryId < b.entryId) return -1;
+    if (a.entryId > b.entryId) return 1;
+    return 0;
+  });
+
   return {
     cashSourceLots,
     investmentLots,
@@ -282,6 +453,10 @@ export function initializeEventStreamState(
     partnerLedgers,
     derivedEvents: [],
     endingCash: new Decimal(input.openingState.openingCash),
+    openingCashLots,
+    openingInvestmentSlices,
+    openingEntitlementPools,
+    openingJournal,
   };
 }
 

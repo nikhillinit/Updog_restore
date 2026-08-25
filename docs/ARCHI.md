@@ -575,9 +575,9 @@ areas must not conflict with this DAG:
 Three human-in-the-loop gates sit on this critical path: `#1284` prototype
 review, `#1287` target naming, `#1299` activation flip.
 
-6. **V2 Core Financial Model** (F_2.0.0 + F_2.0.1 F1) — pure internal-economics
-   derivation core under `shared/lib/internal-economics/v2/`. Stateless,
-   side-effect-free computation: strict versioned input contract
+6. **V2 Core Financial Model** (F_2.0.0 + F_2.0.1 F1 + F_2.0.2 F2) — pure
+   internal-economics derivation core under `shared/lib/internal-economics/v2/`.
+   Stateless, side-effect-free computation: strict versioned input contract
    (`internal-economics-composite/2.0.1`), refusal-first validation with 6-level
    precedence, event-stream engine (lot provenance, callable tracking),
    deal-by-deal and whole-fund waterfall engines, reserve funding classifier,
@@ -587,10 +587,23 @@ review, `#1287` target naming, `#1299` activation flip.
    `deriveInternalEconomicsV2` and `certifyInternalEconomicsDualLaneV2`), legacy
    corpus adapter (`tests/unit/internal-economics/v2/support/`), independent
    test oracle, engine truth-case replay (11 cases, 205 tests total), and CI
-   classifier/workflow wiring. No routes, persistence, jobs, migrations, or
-   activation. ADR-085 in `DECISIONS.md`. Plans:
+   classifier/workflow wiring. F2 completion (F_2.0.2) admits the zero-event
+   deal-by-deal opening state with explicit investment provenance: normalized
+   input is deeply sealed after hashing; hydration builds explicit runtime
+   opening cash-lot, investment-slice, and entitlement-pool types plus a closed
+   balance-forward journal (accounts `cash` / `invested_basis` /
+   `opening_unreturned_capital`) beside the untouched event-lane state; the
+   receipt is the closed `internal-economics-receipt/2.1.0` field set with a
+   five-component manifest, one typed result-hash preimage (the receipt without
+   `resultHash`), and enforced output-row (100,000) and serialized-output-byte
+   (16 MiB) limits. V2-S-0100 is a frozen literal input+receipt fixture;
+   V2-S-0101 is regenerated under 2.1.0 with a consumed changed-case manifest.
+   `processEvents` semantics, event-stream atomicity, and `sourceCashLotId`
+   lineage remain F3 scope. No routes, persistence, jobs, migrations, or
+   activation. ADR-085, ADR-086, and ADR-087 in `DECISIONS.md`. Plans:
    `docs/1-plans/F_2.0.0_v2-core-financial-model.plan.md`,
-   `.omx/plans/updog-v2-conformance-right-sized-synthesis.md`.
+   `.omx/plans/updog-v2-conformance-right-sized-synthesis.md`,
+   `docs/1-plans/F_2.0.2_v2-f2-completion-state-journal-receipt-spine.plan.md`.
 
 ## 9. Guidance for New Work (patterns confirmed above, not aspirational)
 
