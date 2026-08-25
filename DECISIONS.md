@@ -11179,3 +11179,39 @@ F2 remains zero-event and makes no `processEvents` change. `processEvents`, whol
 ### No authority boundary
 
 This ADR authorizes no merge, deployment, provider action, environment access, schema change, data mutation, production dispatch. Plans and tests are evidence only; they grant no merge, deployment, provider, schema, or production authority.
+
+## ADR-088: F3a Validation-First Repair Before Source Lineage (Cumulative Allocation Validation)
+
+**Date:** 2026-08-25 **Status:** Proposed **Tags:** #internal-economics #v2 #event-stream #refusal
+
+### Decision
+
+F3a repairs validation order, repeated-row aggregation, exact totals, and refusal propagation through the existing chronology switch before source lineage, receipts, persistence, or queues. Concretely, in `shared/lib/internal-economics/v2/event-stream-engine-v2.ts` and `derive-composite-v2.ts` only:
+
+- `validateCashSourceAllocations` and `validateReliefRows` validate all references first, reject negative allocation/relief/proceeds rows at row level, then aggregate per lot and compare each aggregate against remaining balance / remaining cost basis. Deterministic precedence: missing reference, then negative row, then cumulative overdraw, then total mismatch, then mutation.
+- `processDeployment` and `processFundExpense` compare the cash-source allocation sum against event `amountUsd`; `processRealization` compares the allocated-proceeds sum. Mismatches refuse after validation and before any apply with literal six-place messages and byte-exact `contextDetails` JSON. The refusal families (`CASH_SOURCE_ALLOCATION_VIOLATION`, `INVESTMENT_LOT_RELIEF_VIOLATION`) and the provenance stage are reused; no new family, code, or diagnostic contract field is introduced.
+- The chronology loop is exposed as `processEventsV2ForTest` and returns the first refusal-capable processor refusal; `runLane` calls it. No dispatcher or generic transition framework is introduced.
+
+F2 public event admission remains refused. Contract stays `internal-economics-composite/2.0.1`; receipt stays `internal-economics-receipt/2.1.0`; no `sourceCashLotId`; zero-event opening input keeps the unchanged F2 receipt/hash.
+
+### Drivers
+
+Financial safety (silently overdrawing repeated rows and silently dropped refusals are balance-corruption paths); smallest root-cause patch (repair shared validators and the existing chronology loop, not callers); exact-SHA isolation (implementation in a fresh linked worktree from `origin/main`); independent consumer/evidence seams (capability admission only with versioned consumer-backed proof; evidence never grants merge or production authority).
+
+### Alternatives considered
+
+- A new dispatcher/transition framework: duplicates the existing switch and broadens scope.
+- Landing `sourceCashLotId`/eventful receipt/persistence/queue now: needs a named consumer and durable-state decisions; deferred to later gates.
+- Per-caller guards: miss shared behavior.
+
+### Consequences
+
+No public event result changes; only inputs that were silently corrupting state (negative rows, cumulative overdraw, total mismatch) or silently ignored (dropped refusals) change outcome, and they become refusals. Future execution remains isolated from dirty main via the linked-worktree discipline. A post-write refusal need would require new design.
+
+### Follow-ups
+
+Reopen source-lineage work (`sourceCashLotId`, eventful receipt) only after F3a exact-SHA green plus a named consumer and approved versioned semantics; source lineage is explicit and never inferred from `sourceRef`, `investmentLotId`, owner, deal, or security. Evaluate correction/write-off/conversion and persistence/BullMQ independently, each with its own consumer-backed and durable-state proof.
+
+### No authority boundary
+
+This ADR authorizes no merge, deployment, provider action, environment access, schema change, data mutation, production dispatch. Plans and tests are evidence only; they grant no merge, deployment, provider, schema, or production authority.

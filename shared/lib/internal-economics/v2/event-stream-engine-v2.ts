@@ -189,8 +189,7 @@ export function validateCashSourceAllocations(
   eventId: string
 ): V2CoreRefusal | null {
   for (const alloc of allocations) {
-    const lot = lots.get(alloc.lotId);
-    if (!lot) {
+    if (!lots.has(alloc.lotId)) {
       return refuse(
         'CASH_SOURCE_ALLOCATION_VIOLATION',
         'provenance',
@@ -198,16 +197,38 @@ export function validateCashSourceAllocations(
         { eventId }
       );
     }
+  }
+
+  for (const alloc of allocations) {
     const allocAmount = new Decimal(alloc.amount);
-    if (allocAmount.gt(lot.remainingBalance)) {
+    if (allocAmount.lt(0)) {
       return refuse(
         'CASH_SOURCE_ALLOCATION_VIOLATION',
         'provenance',
-        `Event ${eventId}: allocation ${allocAmount.toFixed(6)} exceeds lot '${alloc.lotId}' remaining balance ${lot.remainingBalance.toFixed(6)}.`,
+        `Event ${eventId}: cash source allocation ${allocAmount.toFixed(6)} is negative.`,
         { eventId }
       );
     }
   }
+
+  const totals = new Map<string, Decimal>();
+  for (const alloc of allocations) {
+    const total = totals.get(alloc.lotId) ?? new Decimal(0);
+    totals.set(alloc.lotId, total.plus(new Decimal(alloc.amount)));
+  }
+
+  for (const [lotId, total] of totals) {
+    const lot = lots.get(lotId)!;
+    if (total.gt(lot.remainingBalance)) {
+      return refuse(
+        'CASH_SOURCE_ALLOCATION_VIOLATION',
+        'provenance',
+        `Event ${eventId}: allocation ${total.toFixed(6)} exceeds lot '${lotId}' remaining balance ${lot.remainingBalance.toFixed(6)}.`,
+        { eventId }
+      );
+    }
+  }
+
   return null;
 }
 
@@ -231,8 +252,7 @@ export function validateReliefRows(
   eventId: string
 ): V2CoreRefusal | null {
   for (const row of reliefRows) {
-    const lot = investmentLots.get(row.investmentLotId);
-    if (!lot) {
+    if (!investmentLots.has(row.investmentLotId)) {
       return refuse(
         'INVESTMENT_LOT_RELIEF_VIOLATION',
         'provenance',
@@ -240,17 +260,40 @@ export function validateReliefRows(
         { eventId }
       );
     }
+  }
+
+  for (const row of reliefRows) {
     const relieved = new Decimal(row.relievedCostBasis);
-    const remaining = lot.costBasis.minus(lot.relievedAmount);
-    if (relieved.gt(remaining)) {
+    const proceeds = new Decimal(row.allocatedProceeds);
+    if (relieved.lt(0) || proceeds.lt(0)) {
       return refuse(
         'INVESTMENT_LOT_RELIEF_VIOLATION',
         'provenance',
-        `Event ${eventId}: relief ${relieved.toFixed(6)} exceeds lot '${row.investmentLotId}' remaining basis ${remaining.toFixed(6)}.`,
+        `Event ${eventId}: relief row for investment lot '${row.investmentLotId}' contains a negative amount.`,
         { eventId }
       );
     }
   }
+
+  const totals = new Map<string, Decimal>();
+  for (const row of reliefRows) {
+    const total = totals.get(row.investmentLotId) ?? new Decimal(0);
+    totals.set(row.investmentLotId, total.plus(new Decimal(row.relievedCostBasis)));
+  }
+
+  for (const [lotId, total] of totals) {
+    const lot = investmentLots.get(lotId)!;
+    const remaining = lot.costBasis.minus(lot.relievedAmount);
+    if (total.gt(remaining)) {
+      return refuse(
+        'INVESTMENT_LOT_RELIEF_VIOLATION',
+        'provenance',
+        `Event ${eventId}: relief ${total.toFixed(6)} exceeds lot '${lotId}' remaining basis ${remaining.toFixed(6)}.`,
+        { eventId }
+      );
+    }
+  }
+
   return null;
 }
 
@@ -378,9 +421,7 @@ export function initializeEventStreamState(
     });
     entitlementTotals.set(
       lot.entitlementPoolId,
-      (entitlementTotals.get(lot.entitlementPoolId) ?? new Decimal(0)).plus(
-        entitlementAmount,
-      ),
+      (entitlementTotals.get(lot.entitlementPoolId) ?? new Decimal(0)).plus(entitlementAmount)
     );
   }
 
@@ -498,6 +539,24 @@ export function processRealization(
   const reliefError = validateReliefRows(event.reliefRows, state.investmentLots, event.eventId);
   if (reliefError) return reliefError;
 
+  const allocatedProceedsTotal = event.reliefRows.reduce(
+    (total, row) => total.plus(new Decimal(row.allocatedProceeds)),
+    new Decimal(0)
+  );
+  if (!allocatedProceedsTotal.eq(amount)) {
+    const amountUsd = amount.toFixed(6);
+    const total = allocatedProceedsTotal.toFixed(6);
+    return refuse(
+      'INVESTMENT_LOT_RELIEF_VIOLATION',
+      'provenance',
+      `Event ${event.eventId}: event amount ${amountUsd} must equal allocated proceeds total ${total}.`,
+      {
+        eventId: event.eventId,
+        contextDetails: `{"expectedEventAmountUsd":"${amountUsd}","actualAllocatedProceedsTotalUsd":"${total}"}`,
+      }
+    );
+  }
+
   applyReliefRows(event.reliefRows, state.investmentLots);
 
   const lotId = `proceeds:${event.eventId}`;
@@ -527,6 +586,24 @@ export function processDeployment(
   );
   if (allocError) return allocError;
 
+  const cashSourceAllocationTotal = event.cashSourceAllocations.reduce(
+    (total, allocation) => total.plus(new Decimal(allocation.amount)),
+    new Decimal(0)
+  );
+  if (!cashSourceAllocationTotal.eq(amount)) {
+    const amountUsd = amount.toFixed(6);
+    const total = cashSourceAllocationTotal.toFixed(6);
+    return refuse(
+      'CASH_SOURCE_ALLOCATION_VIOLATION',
+      'provenance',
+      `Event ${event.eventId}: event amount ${amountUsd} must equal cash source allocation total ${total}.`,
+      {
+        eventId: event.eventId,
+        contextDetails: `{"expectedEventAmountUsd":"${amountUsd}","actualCashSourceAllocationTotalUsd":"${total}"}`,
+      }
+    );
+  }
+
   applyCashSourceAllocations(event.cashSourceAllocations, state.cashSourceLots);
 
   const lotId = `inv:${event.dealId}:${event.securityId}:${event.eventId}`;
@@ -554,6 +631,24 @@ export function processFundExpense(
     event.eventId
   );
   if (allocError) return allocError;
+
+  const cashSourceAllocationTotal = event.cashSourceAllocations.reduce(
+    (total, allocation) => total.plus(new Decimal(allocation.amount)),
+    new Decimal(0)
+  );
+  if (!cashSourceAllocationTotal.eq(amount)) {
+    const amountUsd = amount.toFixed(6);
+    const total = cashSourceAllocationTotal.toFixed(6);
+    return refuse(
+      'CASH_SOURCE_ALLOCATION_VIOLATION',
+      'provenance',
+      `Event ${event.eventId}: event amount ${amountUsd} must equal cash source allocation total ${total}.`,
+      {
+        eventId: event.eventId,
+        contextDetails: `{"expectedEventAmountUsd":"${amountUsd}","actualCashSourceAllocationTotalUsd":"${total}"}`,
+      }
+    );
+  }
 
   applyCashSourceAllocations(event.cashSourceAllocations, state.cashSourceLots);
   state.endingCash = state.endingCash.minus(amount);

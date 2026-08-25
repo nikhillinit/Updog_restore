@@ -128,7 +128,7 @@ function checkAdmissionGuard(input: NormalizedInternalEconomicsInputV2): V2CoreR
   );
 }
 
-function processEvents(
+export function processEventsV2ForTest(
   input: NormalizedInternalEconomicsInputV2,
   state: EventStreamState
 ): V2CoreRefusal | null {
@@ -143,13 +143,22 @@ function processEvents(
         processSettledContribution(event, state);
         break;
       case 'deployment':
-        processDeployment(event, state);
+        {
+          const refusal = processDeployment(event, state);
+          if (refusal) return refusal;
+        }
         break;
       case 'realization':
-        processRealization(event, state);
+        {
+          const refusal = processRealization(event, state);
+          if (refusal) return refusal;
+        }
         break;
       case 'fund_expense_payment':
-        processFundExpense(event, state);
+        {
+          const refusal = processFundExpense(event, state);
+          if (refusal) return refusal;
+        }
         break;
     }
   }
@@ -162,7 +171,7 @@ function runLane(
   lane: V2WaterfallLane
 ): InternalEconomicsReceiptV2Result {
   const state = initializeEventStreamState(input);
-  const eventError = processEvents(input, state);
+  const eventError = processEventsV2ForTest(input, state);
   if (eventError) return { ok: false, refusal: eventError };
 
   let tierAllocations: TierAllocationV2[];
