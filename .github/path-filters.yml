@@ -330,6 +330,8 @@ schema_tests:
   - 'tests/integration/investment-scenario-capability.test.ts'
   - 'tests/integration/vehicle-financing-participations-real-pg.test.ts'
   - 'tests/integration/fund-scenario-hard-timeout.test.ts'
+  - 'tests/integration/fund-scenario-reserve-worker.test.ts'
+  - 'server/services/fund-scenario-calc-queue-service.ts'
   - 'tests/integration/portfolio-company-update.test.ts'
   - 'tests/integration/capital-call-status-outbox.test.ts'
   - 'tests/integration/canary-exclusion-differential.test.ts'
