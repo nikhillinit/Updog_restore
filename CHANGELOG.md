@@ -21,6 +21,23 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Fixed (2026-08-26)
+
+- **V2 catch-up allocation parity (F_2.0.4).** Both V2 waterfall engines now
+  compute GP catch-up through one pure leaf
+  (`shared/lib/internal-economics/v2/catch-up-allocation-v2.ts`) implementing
+  the locked F_2.0.0 stopping rule `(c(G+L)-G)/(g-c)` — replacing the divergent
+  `(c(openingPrefPaid+remaining)-G)/g` both engines executed. Each catch-up and
+  carry tier allocation is quantized exactly once and split GP/LP with a single
+  joint largest-remainder pass (no micro-unit over-distribution); cumulative
+  GP/LP profit accumulators (fund-level in whole-fund, per-entitlement-pool in
+  deal-by-deal) let later tiers see profit granted by earlier tiers, replacing
+  per-pool re-grants from unchanged opening scalars. Positive catch-up/carry
+  buckets with an empty eligible cohort now raise internal defensive errors.
+  Engine-internal conformance only: the catch-up tier remains unreachable on the
+  public derivation path; frozen V2-S-0100/0101 hashes and receipt bytes
+  unchanged.
+
 ### Added (2026-08-25)
 
 - **V2 F2 completion — opening state, balance-forward journal, receipt 2.1.0
@@ -34,9 +51,9 @@ and this project adheres to
   one typed result-hash preimage (the receipt without `resultHash`), and
   enforced output-row (100,000) and serialized-output-byte (16 MiB) limits.
   V2-S-0100 lands as a frozen literal input+receipt truth fixture; V2-S-0101 is
-  regenerated under 2.1.0 with a consumed changed-case manifest.
-  `processEvents` semantics, event-stream atomicity, and `sourceCashLotId`
-  lineage remain F3 scope. ADR-087. Plan:
+  regenerated under 2.1.0 with a consumed changed-case manifest. `processEvents`
+  semantics, event-stream atomicity, and `sourceCashLotId` lineage remain F3
+  scope. ADR-087. Plan:
   `docs/1-plans/F_2.0.2_v2-f2-completion-state-journal-receipt-spine.plan.md`.
 
 ### Added (2026-08-23)
