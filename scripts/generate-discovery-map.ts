@@ -453,7 +453,11 @@ function validateGlobSentinels(): void {
 
 function getTrackedFileSet(): Set<string> {
   try {
-    const output = execFileSync('git', ['ls-files', '-z'], { encoding: 'buffer' });
+    const output = execFileSync('git', ['ls-files', '-z'], {
+      encoding: 'buffer',
+      // repo tracked-file listing exceeds the 1 MiB execFileSync default
+      maxBuffer: 64 * 1024 * 1024,
+    });
     const files = output.toString('utf8').split('\0').map(normalizePath).filter(Boolean);
 
     if (files.length === 0) {
@@ -1262,15 +1266,11 @@ Documents without proper YAML frontmatter:
     }
 
     if (docInventoryFailure && allowDocInventoryDrift) {
-      console.warn(
-        'WARNING: Documentation inventory changed, but routing behavior is in sync.'
-      );
+      console.warn('WARNING: Documentation inventory changed, but routing behavior is in sync.');
       console.warn(
         'Run npm run docs:routing:generate to refresh router-index.json and staleness-report.md.'
       );
-      console.warn(
-        'CI will generate and upload current discovery-routing-artifacts for review.'
-      );
+      console.warn('CI will generate and upload current discovery-routing-artifacts for review.');
       if (!docsInventoryMatch) {
         console.warn('  - router-index.json doc inventory differs from deterministic scan');
       }
