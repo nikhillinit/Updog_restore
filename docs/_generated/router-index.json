@@ -4252,6 +4252,18 @@
       "docType": "doc",
       "exists": true,
       "frontmatter": {},
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/2-changelog/w6_v2.0.4.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
       "hasExecutionClaims": false,
       "isStale": true,
       "lastUpdated": null,
@@ -4329,6 +4341,18 @@
       "lastUpdated": null,
       "owner": null,
       "path": "docs/3-code-review/CR_w6_v2.0.3_independent-review.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": true,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
+      "path": "docs/3-code-review/CR_w6_v2.0.4.md",
       "staleDays": 999,
       "status": "UNKNOWN"
     },
@@ -14360,14 +14384,14 @@
       "REFERENCE": 9,
       "STALE-VALIDATION": 1,
       "TRACKED (not scheduled)": 1,
-      "UNKNOWN": 179,
+      "UNKNOWN": 181,
       "VERIFIED": 13,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 85,
-    "stale_docs": 476,
-    "total_docs": 738
+    "missing_frontmatter": 87,
+    "stale_docs": 478,
+    "total_docs": 740
   },
   "version": "2.0"
 }

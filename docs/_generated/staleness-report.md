@@ -11,16 +11,16 @@ last_updated: 2026-08-26
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 738 |
-| Stale Documents | 476 |
-| Missing Frontmatter | 85 |
+| Total Documents | 740 |
+| Stale Documents | 478 |
+| Missing Frontmatter | 87 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 453 |
-| UNKNOWN | 179 |
+| UNKNOWN | 181 |
 | DRAFT | 34 |
 | HISTORICAL | 26 |
 | VERIFIED | 13 |
@@ -71,6 +71,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/2-changelog/w5_v1.6.0.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w6_v2.0.2.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w6_v2.0.3.md` | Never | 999 | No | Unassigned |
+| `docs/2-changelog/w6_v2.0.4.md` | Never | 999 | YES - verify! | Unassigned |
 | `docs/3-code-review/CR_w3_v1.6.0.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w4_v1.5.0.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w5_v1.6.0.md` | Never | 999 | YES - verify! | Unassigned |
@@ -78,6 +79,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/3-code-review/CR_w6_v2.0.2.md` | Never | 999 | YES - verify! | Unassigned |
 | `docs/3-code-review/CR_w6_v2.0.3.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w6_v2.0.3_independent-review.md` | Never | 999 | No | Unassigned |
+| `docs/3-code-review/CR_w6_v2.0.4.md` | Never | 999 | YES - verify! | Unassigned |
 | `docs/3-code-review/canary-exclusion-worklist.md` | Never | 999 | No | Unassigned |
 | `docs/ARCHI.md` | Never | 999 | No | Unassigned |
 | `docs/CA-PACING-ORACLE.md` | Never | 999 | No | Unassigned |
@@ -94,10 +96,8 @@ Documents that need review (older than their cadence threshold):
 | `docs/phase2-calibration-benchmarks.md` | Never | 999 | No | Unassigned |
 | `docs/quarantine/2026-05-28-stabilization-triage.md` | Never | 999 | No | Unassigned |
 | `docs/runbooks/capital-call-outbox-redelivery.md` | Never | 999 | No | Unassigned |
-| `docs/runbooks/current-forecast-shadow-soak.md` | Never | 999 | No | Unassigned |
-| `docs/runbooks/marginal-moic-nonproduction-shadow-soak.md` | Never | 999 | No | Unassigned |
 
-*...and 426 more stale documents.*
+*...and 428 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -138,8 +138,10 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 - [ ] **cheatsheets/pr-merge-verification.md** (142 days old)
 - [ ] **cheatsheets/schema-alignment.md** (219 days old)
 - [ ] **docs/1-plans/F_2.0.4_v2-catch-up-allocation-parity.plan.md** (999 days old)
+- [ ] **docs/2-changelog/w6_v2.0.4.md** (999 days old)
 - [ ] **docs/3-code-review/CR_w5_v1.6.0.md** (999 days old)
 - [ ] **docs/3-code-review/CR_w6_v2.0.2.md** (999 days old)
+- [ ] **docs/3-code-review/CR_w6_v2.0.4.md** (999 days old)
 - [ ] **docs/CA-IMPLEMENTATION-PLAN.md** (219 days old)
 - [ ] **docs/CA-SEMANTIC-LOCK.md** (219 days old)
 - [ ] **docs/DECISIONS.md** (219 days old)
@@ -223,6 +225,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/2-changelog/w5_v1.6.0.md`
 - [ ] `docs/2-changelog/w6_v2.0.2.md`
 - [ ] `docs/2-changelog/w6_v2.0.3.md`
+- [ ] `docs/2-changelog/w6_v2.0.4.md`
 - [ ] `docs/3-code-review/CR_w3_v1.6.0.md`
 - [ ] `docs/3-code-review/CR_w4_v1.5.0.md`
 - [ ] `docs/3-code-review/CR_w5_v1.6.0.md`
@@ -230,6 +233,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/3-code-review/CR_w6_v2.0.2.md`
 - [ ] `docs/3-code-review/CR_w6_v2.0.3.md`
 - [ ] `docs/3-code-review/CR_w6_v2.0.3_independent-review.md`
+- [ ] `docs/3-code-review/CR_w6_v2.0.4.md`
 - [ ] `docs/3-code-review/canary-exclusion-worklist.md`
 - [ ] `docs/ARCHI.md`
 - [ ] `docs/CA-PACING-ORACLE.md`
