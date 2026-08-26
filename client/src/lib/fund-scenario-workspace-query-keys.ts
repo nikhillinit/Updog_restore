@@ -14,6 +14,10 @@ export function scenarioSetListQueryKey(fundId: string) {
   return [...workspaceQueryKey(fundId), 'scenario-sets'] as const;
 }
 
+export function scenarioSourceConfigQueryKey(fundId: string) {
+  return [...workspaceQueryKey(fundId), 'scenario-sets', 'source-config'] as const;
+}
+
 export function scenarioSetDetailQueryKey(fundId: string, scenarioSetId: string) {
   return [...workspaceQueryKey(fundId), 'scenario-sets', scenarioSetId, 'detail'] as const;
 }

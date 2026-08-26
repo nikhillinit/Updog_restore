@@ -21,6 +21,22 @@ and this project adheres to
 
 ## [Unreleased]
 
+### Added (2026-08-26)
+
+- **Source-pinned allocation scenario templates (F_1.7.0 S1).** A narrowed
+  `GET /api/funds/:fundId/scenario-sets/source-config` read plus a V2 create
+  contract (`fund-scenario-set-create/2.0.0`) carrying an expected source-config
+  ID/version pair. The server — not the UI — is the pinning authority: it
+  rejects stale pins (409 `scenario_source_config_stale`) and variant
+  row-identity drift (422 `scenario_variant_row_identity_drift`) before any
+  write, with typed `{arrayKind, id}` row identity, order-sensitive per-array
+  id-sequence checks, frozen non-numeric fields on Upside/Downside, and deep
+  structural equality for Base. V2 requires exactly three positional variants
+  (Base/Upside/Downside), each with exactly one allocation override; V1 create
+  semantics are unchanged. New `CreateAllocationScenarioModal` in
+  `client/src/components/scenarios/` always submits V2. Plan:
+  `docs/1-plans/F_1.7.0_daily-decision-workspace.plan.md`.
+
 ### Fixed (2026-08-26)
 
 - **V2 catch-up allocation parity (F_2.0.4).** Both V2 waterfall engines now
