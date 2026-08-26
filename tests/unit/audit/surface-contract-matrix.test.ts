@@ -49,7 +49,7 @@ const stableValue = (value: unknown): unknown => {
 };
 const stableJson = (value: unknown) => JSON.stringify(stableValue(value));
 const trackedFiles = () =>
-  execFileSync('git', ['ls-files', '-z'], { cwd: root })
+  execFileSync('git', ['ls-files', '-z'], { cwd: root, maxBuffer: 64 * 1024 * 1024 })
     .toString()
     .split('\0')
     .filter(Boolean)
@@ -674,11 +674,19 @@ describe('surface contract matrix CI gate', () => {
     }
   });
 
-  it('accepts absolute --graph-dir and rejects relative, duplicate, missing, unknown', { retry: 0 }, () => {
-    expect(parseValidateMatrixArgs(['--graph-dir', '/tmp/g'])).toMatchObject({ graphDir: '/tmp/g' });
-    expect(() => parseValidateMatrixArgs(['--graph-dir', 'rel/g'])).toThrow(/absolute/);
-    expect(() => parseValidateMatrixArgs(['--graph-dir', '/a', '--graph-dir', '/b'])).toThrow(/duplicate/);
-    expect(() => parseValidateMatrixArgs(['--graph-dir'])).toThrow(/value/);
-    expect(() => parseValidateMatrixArgs(['--bogus'])).toThrow(/unknown/i);
-  });
+  it(
+    'accepts absolute --graph-dir and rejects relative, duplicate, missing, unknown',
+    { retry: 0 },
+    () => {
+      expect(parseValidateMatrixArgs(['--graph-dir', '/tmp/g'])).toMatchObject({
+        graphDir: '/tmp/g',
+      });
+      expect(() => parseValidateMatrixArgs(['--graph-dir', 'rel/g'])).toThrow(/absolute/);
+      expect(() => parseValidateMatrixArgs(['--graph-dir', '/a', '--graph-dir', '/b'])).toThrow(
+        /duplicate/
+      );
+      expect(() => parseValidateMatrixArgs(['--graph-dir'])).toThrow(/value/);
+      expect(() => parseValidateMatrixArgs(['--bogus'])).toThrow(/unknown/i);
+    }
+  );
 });

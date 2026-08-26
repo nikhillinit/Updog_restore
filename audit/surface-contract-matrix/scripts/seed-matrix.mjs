@@ -162,7 +162,8 @@ const writeJson = (filePath, value) => {
 
 const repoPath = (filePath) => filePath.split(path.sep).join('/');
 
-const trackedFiles = () => execFileSync('git', ['ls-files', '-z'], { cwd: repoRoot })
+const trackedFiles = () =>
+  execFileSync('git', ['ls-files', '-z'], { cwd: repoRoot, maxBuffer: 64 * 1024 * 1024 })
   .toString()
   .split('\0')
   .filter(Boolean)
