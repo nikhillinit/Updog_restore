@@ -7,6 +7,7 @@ import type {
 import type { TierAllocationV2 } from '../../../contracts/internal-economics/internal-economics-receipt-v2.contract';
 import type { PartnerLedgerState, EventStreamState } from './event-stream-engine-v2';
 import {
+  apportionQuantizedGpLpSplitBySettledCapitalV2,
   computeGpCatchUpAllocationV2,
   computeQuantizedGpLpSplitV2,
 } from './catch-up-allocation-v2';
@@ -214,25 +215,11 @@ export function runWholeFundWaterfall(
         const catchUpAllocated = new Decimal(catchUp.allocatedTotal);
         const gpAmount = new Decimal(catchUp.gpAmount);
         const lpAmount = new Decimal(catchUp.lpAmount);
-
-        const gpPartners = allPartners.filter((p) => p.isGp);
-        const lpPartners = allPartners.filter((p) => !p.isGp);
-        const perPartner = new Map<string, Decimal>();
-
-        if (gpAmount.gt(0)) {
-          if (gpPartners.length === 0) {
-            throw new Error('Catch-up GP bucket invariant violated: no eligible GP partners.');
-          }
-          const gpAlloc = apportionBySettledCapital(gpAmount, gpPartners);
-          for (const [id, amt] of gpAlloc) perPartner.set(id, amt);
-        }
-        if (lpAmount.gt(0)) {
-          if (lpPartners.length === 0) {
-            throw new Error('Catch-up LP bucket invariant violated: no eligible LP partners.');
-          }
-          const lpAlloc = apportionBySettledCapital(lpAmount, lpPartners);
-          for (const [id, amt] of lpAlloc) perPartner.set(id, amt);
-        }
+        const perPartner = apportionQuantizedGpLpSplitBySettledCapitalV2(
+          catchUp,
+          allPartners,
+          'Catch-up'
+        );
 
         remaining = remaining.minus(catchUpAllocated);
         result = {
@@ -263,25 +250,11 @@ export function runWholeFundWaterfall(
         const allocated = new Decimal(carry.allocatedTotal);
         const gpAmount = new Decimal(carry.gpAmount);
         const lpAmount = new Decimal(carry.lpAmount);
-
-        const gpPartners = allPartners.filter((p) => p.isGp);
-        const lpPartners = allPartners.filter((p) => !p.isGp);
-        const perPartner = new Map<string, Decimal>();
-
-        if (gpAmount.gt(0)) {
-          if (gpPartners.length === 0) {
-            throw new Error('Carry GP bucket invariant violated: no eligible GP partners.');
-          }
-          const gpAlloc = apportionBySettledCapital(gpAmount, gpPartners);
-          for (const [id, amt] of gpAlloc) perPartner.set(id, amt);
-        }
-        if (lpAmount.gt(0)) {
-          if (lpPartners.length === 0) {
-            throw new Error('Carry LP bucket invariant violated: no eligible LP partners.');
-          }
-          const lpAlloc = apportionBySettledCapital(lpAmount, lpPartners);
-          for (const [id, amt] of lpAlloc) perPartner.set(id, amt);
-        }
+        const perPartner = apportionQuantizedGpLpSplitBySettledCapitalV2(
+          carry,
+          allPartners,
+          'Carry'
+        );
 
         remaining = remaining.minus(allocated);
         result = {

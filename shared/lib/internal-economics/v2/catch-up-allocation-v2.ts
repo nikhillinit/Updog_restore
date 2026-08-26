@@ -1,6 +1,8 @@
 import { Decimal } from '../../../lib/decimal-config';
+import type { PartnerLedgerState } from './event-stream-engine-v2';
 import {
   apportionCentsLrm,
+  apportionCentsLrmFromShares,
   centsToDecimalString,
   decimalToCappedCents,
   decimalToCents,
@@ -14,7 +16,7 @@ export interface GpCatchUpAllocationV2Input {
   readonly catchUpGpAllocationRate: Decimal;
 }
 
-export interface GpCatchUpAllocationV2Result {
+export interface QuantizedGpLpSplitV2Result {
   readonly allocatedTotal: string;
   readonly gpAmount: string;
   readonly lpAmount: string;
@@ -23,7 +25,7 @@ export interface GpCatchUpAllocationV2Result {
 export function computeQuantizedGpLpSplitV2(
   allocated: Decimal,
   gpShare: Decimal
-): GpCatchUpAllocationV2Result {
+): QuantizedGpLpSplitV2Result {
   if (allocated.lt(0) || gpShare.lt(0) || gpShare.gt(1)) {
     throw new Error('GP/LP split invariant violated.');
   }
@@ -44,9 +46,45 @@ export function computeQuantizedGpLpSplitV2(
   };
 }
 
+export function apportionQuantizedGpLpSplitBySettledCapitalV2(
+  allocation: QuantizedGpLpSplitV2Result,
+  partners: readonly PartnerLedgerState[],
+  tierLabel: 'Catch-up' | 'Carry'
+): Map<string, Decimal> {
+  const perPartner = new Map<string, Decimal>();
+
+  for (const [bucket, amount] of [
+    ['GP', allocation.gpAmount],
+    ['LP', allocation.lpAmount],
+  ] as const) {
+    const bucketAmount = new Decimal(amount);
+    if (bucketAmount.lte(0)) continue;
+
+    const eligiblePartners = partners.filter((partner) => partner.isGp === (bucket === 'GP'));
+    if (eligiblePartners.length === 0) {
+      throw new Error(
+        `${tierLabel} ${bucket} bucket invariant violated: no eligible ${bucket} partners.`
+      );
+    }
+
+    const allocatedCents = apportionCentsLrmFromShares(
+      decimalToCents(bucketAmount),
+      eligiblePartners.map((partner) => partner.settledCapital)
+    );
+    for (let i = 0; i < eligiblePartners.length; i++) {
+      perPartner.set(
+        eligiblePartners[i]!.partnerId,
+        new Decimal(centsToDecimalString(allocatedCents[i]!))
+      );
+    }
+  }
+
+  return perPartner;
+}
+
 export function computeGpCatchUpAllocationV2(
   input: GpCatchUpAllocationV2Input
-): GpCatchUpAllocationV2Result {
+): QuantizedGpLpSplitV2Result {
   const {
     available,
     cumulativeGpProfit,

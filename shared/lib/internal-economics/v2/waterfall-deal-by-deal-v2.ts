@@ -7,13 +7,14 @@ import type {
 import type { TierAllocationV2 } from '../../../contracts/internal-economics/internal-economics-receipt-v2.contract';
 import type { PartnerLedgerState, EventStreamState } from './event-stream-engine-v2';
 import {
+  apportionQuantizedGpLpSplitBySettledCapitalV2,
   computeGpCatchUpAllocationV2,
   computeQuantizedGpLpSplitV2,
 } from './catch-up-allocation-v2';
+import type { QuantizedGpLpSplitV2Result } from './catch-up-allocation-v2';
 import {
   apportionCentsLrmFromShares,
   decimalToCappedCents,
-  decimalToCents,
   centsToDecimalString,
 } from './decimal-cents-v2';
 
@@ -64,12 +65,9 @@ export interface DealByDealWaterfallResult {
 export type DealByDealResult =
   DealByDealWaterfallResult | { readonly ok: false; readonly refusal: V2CoreRefusal };
 
-type QuantizedTierAllocation = {
-  readonly allocatedTotal: string;
-  readonly gpAmount: string;
-  readonly lpAmount: string;
+interface QuantizedTierAllocation extends QuantizedGpLpSplitV2Result {
   readonly perPartner: Map<string, Decimal>;
-};
+}
 
 function buildEntitlementPools(state: EventStreamState): EntitlementPool[] {
   const poolMap = new Map<string, EntitlementPool>();
@@ -191,34 +189,11 @@ function allocateGpCatchUp(
     terminalGpShare: gpShare,
     catchUpGpAllocationRate: gpAllocationRate,
   });
-  const gpAmount = new Decimal(allocation.gpAmount);
-  const lpAmount = new Decimal(allocation.lpAmount);
-
-  const gpPartners = Array.from(ledgers.values()).filter((p) => p.isGp);
-  const lpPartners = Array.from(ledgers.values()).filter((p) => !p.isGp);
-  const perPartner = new Map<string, Decimal>();
-
-  if (gpAmount.gt(0)) {
-    if (gpPartners.length === 0) {
-      throw new Error('Catch-up GP bucket invariant violated: no eligible GP partners.');
-    }
-    const gpShares = gpPartners.map((p) => p.settledCapital);
-    const gpCents = apportionCentsLrmFromShares(decimalToCents(gpAmount), gpShares);
-    for (let i = 0; i < gpPartners.length; i++) {
-      perPartner.set(gpPartners[i]!.partnerId, new Decimal(centsToDecimalString(gpCents[i]!)));
-    }
-  }
-
-  if (lpAmount.gt(0)) {
-    if (lpPartners.length === 0) {
-      throw new Error('Catch-up LP bucket invariant violated: no eligible LP partners.');
-    }
-    const lpShares = lpPartners.map((p) => p.settledCapital);
-    const lpCents = apportionCentsLrmFromShares(decimalToCents(lpAmount), lpShares);
-    for (let i = 0; i < lpPartners.length; i++) {
-      perPartner.set(lpPartners[i]!.partnerId, new Decimal(centsToDecimalString(lpCents[i]!)));
-    }
-  }
+  const perPartner = apportionQuantizedGpLpSplitBySettledCapitalV2(
+    allocation,
+    Array.from(ledgers.values()),
+    'Catch-up'
+  );
 
   return { ...allocation, perPartner };
 }
@@ -229,34 +204,11 @@ function allocateCarry(
   ledgers: Map<string, PartnerLedgerState>
 ): QuantizedTierAllocation {
   const allocation = computeQuantizedGpLpSplitV2(available, gpShareRate);
-  const gpAmount = new Decimal(allocation.gpAmount);
-  const lpAmount = new Decimal(allocation.lpAmount);
-  const perPartner = new Map<string, Decimal>();
-
-  const gpPartners = Array.from(ledgers.values()).filter((p) => p.isGp);
-  const lpPartners = Array.from(ledgers.values()).filter((p) => !p.isGp);
-
-  if (gpAmount.gt(0)) {
-    if (gpPartners.length === 0) {
-      throw new Error('Carry GP bucket invariant violated: no eligible GP partners.');
-    }
-    const gpShares = gpPartners.map((p) => p.settledCapital);
-    const gpCents = apportionCentsLrmFromShares(decimalToCents(gpAmount), gpShares);
-    for (let i = 0; i < gpPartners.length; i++) {
-      perPartner.set(gpPartners[i]!.partnerId, new Decimal(centsToDecimalString(gpCents[i]!)));
-    }
-  }
-
-  if (lpAmount.gt(0)) {
-    if (lpPartners.length === 0) {
-      throw new Error('Carry LP bucket invariant violated: no eligible LP partners.');
-    }
-    const lpShares = lpPartners.map((p) => p.settledCapital);
-    const lpCents = apportionCentsLrmFromShares(decimalToCents(lpAmount), lpShares);
-    for (let i = 0; i < lpPartners.length; i++) {
-      perPartner.set(lpPartners[i]!.partnerId, new Decimal(centsToDecimalString(lpCents[i]!)));
-    }
-  }
+  const perPartner = apportionQuantizedGpLpSplitBySettledCapitalV2(
+    allocation,
+    Array.from(ledgers.values()),
+    'Carry'
+  );
 
   return { ...allocation, perPartner };
 }

@@ -157,28 +157,28 @@ describe('computeGpCatchUpAllocationV2', () => {
     expect(result.lpAmount).toBe('0.000000');
   });
 
-  it('distinguishing fixture: leaf implements the locked equation, not the current-engine equation', () => {
+  it('distinguishing fixture: leaf implements the locked equation, not the legacy pre-F_2.0.4 equation', () => {
     const G = d('0');
     const L = d('100');
     const c = d('0.2');
     const g = d('0.5');
     const available = d('1000');
 
-    // Current-engine equation (both waterfall engines today):
+    // Legacy pre-F_2.0.4 equation:
     //   targetGpProfit = (openingPrefPaid + remaining) * c
     //   gross = (targetGpProfit - G) / g
     const openingPrefPaid = d('100');
     const remaining = available;
-    const currentEngineGross = openingPrefPaid.plus(remaining).mul(c).minus(G).div(g);
-    const currentEngineAllocated = Decimal.min(available, currentEngineGross);
+    const legacyGross = openingPrefPaid.plus(remaining).mul(c).minus(G).div(g);
+    const legacyAllocated = Decimal.min(available, legacyGross);
 
     // Locked F_2.0.0 equation.
     const lockedGross = Decimal.max(d('0'), c.mul(G.plus(L)).minus(G).div(g.minus(c)));
     const lockedAllocated = Decimal.min(available, lockedGross);
 
     // The two equations diverge on this nonzero input.
-    expect(currentEngineAllocated.toFixed(6)).not.toBe(lockedAllocated.toFixed(6));
-    expect(currentEngineAllocated.toFixed(6)).toBe('440.000000');
+    expect(legacyAllocated.toFixed(6)).not.toBe(lockedAllocated.toFixed(6));
+    expect(legacyAllocated.toFixed(6)).toBe('440.000000');
     expect(lockedAllocated.toFixed(6)).toBe('66.666667');
 
     // The leaf matches the locked value.
@@ -190,7 +190,7 @@ describe('computeGpCatchUpAllocationV2', () => {
       catchUpGpAllocationRate: g,
     });
     expect(result.allocatedTotal).toBe(lockedAllocated.toFixed(6));
-    expect(result.allocatedTotal).not.toBe(currentEngineAllocated.toFixed(6));
+    expect(result.allocatedTotal).not.toBe(legacyAllocated.toFixed(6));
   });
 
   it('equal remainders deterministically favor GP (bucket index zero)', () => {
