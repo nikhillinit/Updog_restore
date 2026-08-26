@@ -1,5 +1,10 @@
 import { Decimal } from '../../../lib/decimal-config';
-import { apportionCentsLrm, centsToDecimalString, decimalToCents } from './decimal-cents-v2';
+import {
+  apportionCentsLrm,
+  centsToDecimalString,
+  decimalToCappedCents,
+  decimalToCents,
+} from './decimal-cents-v2';
 
 export interface GpCatchUpAllocationV2Input {
   readonly available: Decimal;
@@ -58,7 +63,8 @@ export function computeGpCatchUpAllocationV2(
     new Decimal(0),
     c.mul(cumulativeGpProfit.plus(cumulativeLpProfit)).minus(cumulativeGpProfit).div(g.minus(c))
   );
-  const allocated = Decimal.min(available, grossCatchUpDue);
+  const allocatedCents = decimalToCappedCents(grossCatchUpDue, available);
+  const allocated = new Decimal(centsToDecimalString(allocatedCents));
 
   return computeQuantizedGpLpSplitV2(allocated, g);
 }

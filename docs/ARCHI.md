@@ -608,10 +608,11 @@ review, `#1287` target naming, `#1299` activation flip.
    stage. Remaining F3 scope narrows to `sourceCashLotId` lineage, eventful
    receipt, and event-stream atomicity. F_2.0.4 conforms both waterfall engines
    to the locked F_2.0.0 catch-up methodology via one shared pure Decimal leaf
-   (`catch-up-allocation-v2.ts`): joint quantize-then-split for catch-up and
-   carry tiers, cumulative G/L profit accumulators (fund-level in whole-fund,
-   per-entitlement-pool in deal-by-deal), and a defensive empty-cohort invariant
-   — engine-internal conformance only, no component version or frozen-surface
+   (`catch-up-allocation-v2.ts`): capped integer-unit budgets across every tier,
+   joint quantize-then-split for catch-up and carry, cumulative G/L profit
+   accumulators (fund-level in whole-fund, per-entitlement-pool in
+   deal-by-deal), and defensive empty-cohort / unsupported-resume invariants —
+   engine-internal conformance only, no component version or frozen-surface
    movement. No routes, persistence, jobs, migrations, or activation. ADR-085,
    ADR-086, ADR-087, and ADR-088 in `DECISIONS.md`. Plans:
    `docs/1-plans/F_2.0.0_v2-core-financial-model.plan.md`,

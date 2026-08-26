@@ -12,6 +12,7 @@ import {
 } from './catch-up-allocation-v2';
 import {
   apportionCentsLrmFromShares,
+  decimalToCappedCents,
   decimalToCents,
   centsToDecimalString,
 } from './decimal-cents-v2';
@@ -105,6 +106,16 @@ export function runWholeFundWaterfall(
     return { ok: false, refusal: refuse('INVALID_TIER_POLICY', 'Carry tier is required.') };
   }
   const gpShareRate = new Decimal(carryTier.gpShare);
+  const openingPreferredPaid = new Decimal(
+    input.openingState.profitDecomposition.openingCumulativePreferredPaid
+  );
+  if (
+    policy.some((tier) => tier.kind === 'gp_catch_up') &&
+    input.gpCashPreferredReturnTreatment === 'pari_passu' &&
+    !openingPreferredPaid.isZero()
+  ) {
+    throw new Error('Whole-fund pari-passu opening preferred history invariant violated.');
+  }
 
   const totalDistributable = computeTotalDistributable(state);
   const totalCostBasis = computeTotalCostBasis(state);
@@ -114,9 +125,9 @@ export function runWholeFundWaterfall(
   let cumulativeGpProfit = new Decimal(
     input.openingState.profitDecomposition.openingCumulativeGpProfitDistributions
   );
-  let cumulativeLpProfit = new Decimal(
-    input.openingState.profitDecomposition.openingCumulativePreferredPaid
-  ).plus(input.openingState.profitDecomposition.openingCumulativeLpProfitDistributions);
+  let cumulativeLpProfit = openingPreferredPaid.plus(
+    input.openingState.profitDecomposition.openingCumulativeLpProfitDistributions
+  );
   const tierResults: WholeFundTierResult[] = [];
   const partnerDistributions = new Map<string, Decimal>();
   for (const p of allPartners) {
@@ -130,7 +141,9 @@ export function runWholeFundWaterfall(
 
     switch (tier.kind) {
       case 'return_of_capital': {
-        const rocTarget = Decimal.min(remaining, totalCostBasis);
+        const requestedRoc = Decimal.min(remaining, totalCostBasis);
+        const rocCents = decimalToCappedCents(requestedRoc, remaining);
+        const rocTarget = new Decimal(centsToDecimalString(rocCents));
         const perPartner = apportionBySettledCapital(rocTarget, allPartners);
         const split = gpLpSplit(perPartner, state.partnerLedgers);
         remaining = remaining.minus(rocTarget);
@@ -150,9 +163,9 @@ export function runWholeFundWaterfall(
           (p) => !(p.isGp && input.gpCashPreferredReturnTreatment === 'excluded')
         );
         const totalAccrued = eligiblePartners.reduce((s, p) => s.plus(p.accruedPreference), ZERO);
-        const prefTarget = Decimal.min(remaining, totalAccrued);
+        const requestedPref = Decimal.min(remaining, totalAccrued);
 
-        if (prefTarget.lte(0)) {
+        if (requestedPref.lte(0)) {
           result = {
             kind: 'preferred_return',
             priority: tier.priority,
@@ -164,8 +177,9 @@ export function runWholeFundWaterfall(
           break;
         }
 
+        const targetCents = decimalToCappedCents(requestedPref, remaining);
+        const prefTarget = new Decimal(centsToDecimalString(targetCents));
         const shares = eligiblePartners.map((p) => p.accruedPreference);
-        const targetCents = decimalToCents(prefTarget);
         const allocCents = apportionCentsLrmFromShares(targetCents, shares);
         const perPartner = new Map<string, Decimal>();
         for (let i = 0; i < eligiblePartners.length; i++) {

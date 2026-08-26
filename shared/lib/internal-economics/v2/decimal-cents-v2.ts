@@ -9,6 +9,17 @@ export function decimalToCents(value: Decimal): bigint {
   return BigInt(scaled.toFixed(0));
 }
 
+export function decimalToFloorCents(value: Decimal): bigint {
+  const scaled = value.mul(new Decimal(10).pow(MONEY_SCALE));
+  return BigInt(scaled.toDecimalPlaces(0, Decimal.ROUND_FLOOR).toFixed(0));
+}
+
+export function decimalToCappedCents(requested: Decimal, available: Decimal): bigint {
+  const requestedCents = decimalToCents(requested);
+  const availableCents = decimalToFloorCents(available);
+  return requestedCents < availableCents ? requestedCents : availableCents;
+}
+
 export function centsToDecimalString(cents: bigint): string {
   const negative = cents < 0n;
   const abs = negative ? -cents : cents;

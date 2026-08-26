@@ -67,7 +67,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/1-plans/F_2.0.0_v2-core-financial-model.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_2.0.1_v2-post-merge-repair-and-f2-entry.plan.md` | Never | 999 | No | Unassigned |
 | `docs/1-plans/F_2.0.3_v2-f3a-cumulative-allocation-validation.plan.md` | Never | 999 | No | Unassigned |
-| `docs/1-plans/F_2.0.4_v2-catch-up-allocation-parity.plan.md` | Never | 999 | No | Unassigned |
+| `docs/1-plans/F_2.0.4_v2-catch-up-allocation-parity.plan.md` | Never | 999 | YES - verify! | Unassigned |
 | `docs/2-changelog/w5_v1.6.0.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w6_v2.0.2.md` | Never | 999 | No | Unassigned |
 | `docs/2-changelog/w6_v2.0.3.md` | Never | 999 | No | Unassigned |
@@ -137,6 +137,7 @@ These documents contain phrases like "tests pass", "PR merged", etc. and should 
 - [ ] **cheatsheets/emoji-free-documentation.md** (219 days old)
 - [ ] **cheatsheets/pr-merge-verification.md** (142 days old)
 - [ ] **cheatsheets/schema-alignment.md** (219 days old)
+- [ ] **docs/1-plans/F_2.0.4_v2-catch-up-allocation-parity.plan.md** (999 days old)
 - [ ] **docs/3-code-review/CR_w5_v1.6.0.md** (999 days old)
 - [ ] **docs/3-code-review/CR_w6_v2.0.2.md** (999 days old)
 - [ ] **docs/CA-IMPLEMENTATION-PLAN.md** (219 days old)

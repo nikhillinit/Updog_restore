@@ -444,6 +444,43 @@ describe('runDealByDealWaterfall gp_catch_up tier (F_2.0.4)', () => {
     expect(result.totalDistributed.toFixed(6)).toBe('450000.000000');
   });
 
+  it('conserves pool proceeds when preferred return rounds at a half-micro boundary', () => {
+    const { input, state } = setupCatchUpState({
+      waterfallPolicy: [
+        {
+          kind: 'preferred_return',
+          priority: 1,
+          basis: 'unreturned_settled_cash_capital',
+          annualRate: '0.080000000000',
+          rateMode: 'simple',
+        },
+        { kind: 'carry', priority: 2, gpShare: '0.200000000000' },
+      ],
+    });
+    processDealLifecycle(state, {
+      partnerId: 'lp-1',
+      contribution: '0.100000',
+      dealId: 'd-1',
+      securityId: 's-1',
+      proceeds: '1.000000',
+    });
+    seedAccruedPreference(state, { 'lp-1': '0.0000005' });
+
+    const result = runDealByDealWaterfall(input, state);
+    if (!result.ok) throw new Error('expected ok');
+
+    const preferred = result.tierAllocations.find((t) => t.kind === 'preferred_return')!;
+    const carry = result.tierAllocations.find((t) => t.kind === 'carry')!;
+    const partnerTotal = Array.from(result.partnerDistributions.values()).reduce(
+      (sum, amount) => sum.plus(amount),
+      new Decimal(0)
+    );
+    expect(preferred.totalAllocated.toFixed(6)).toBe('0.000001');
+    expect(carry.totalAllocated.toFixed(6)).toBe('0.999999');
+    expect(result.totalDistributed.toFixed(6)).toBe('1.000000');
+    expect(partnerTotal.toFixed(6)).toBe('1.000000');
+  });
+
   it('throws the defensive error on a positive GP bucket with no GP cohort', () => {
     const wire = buildMinimalV2Input({ waterfallPolicy: CATCH_UP_POLICY });
     const lpOnly = {

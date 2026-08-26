@@ -12,6 +12,7 @@ import {
 } from './catch-up-allocation-v2';
 import {
   apportionCentsLrmFromShares,
+  decimalToCappedCents,
   decimalToCents,
   centsToDecimalString,
 } from './decimal-cents-v2';
@@ -110,14 +111,15 @@ function allocateReturnOfCapital(
   costBasis: Decimal,
   ledgers: Map<string, PartnerLedgerState>
 ): { allocated: Decimal; gpShare: Decimal; lpShare: Decimal; perPartner: Map<string, Decimal> } {
-  const rocTarget = Decimal.min(available, costBasis);
-  if (rocTarget.lte(0)) {
+  const requestedRoc = Decimal.min(available, costBasis);
+  if (requestedRoc.lte(0)) {
     return { allocated: ZERO, gpShare: ZERO, lpShare: ZERO, perPartner: new Map() };
   }
 
   const partners = Array.from(ledgers.values());
   const shares = partners.map((p) => p.settledCapital);
-  const targetCents = decimalToCents(rocTarget);
+  const targetCents = decimalToCappedCents(requestedRoc, available);
+  const rocTarget = new Decimal(centsToDecimalString(targetCents));
   const allocCents = apportionCentsLrmFromShares(targetCents, shares);
 
   const perPartner = new Map<string, Decimal>();
@@ -147,13 +149,14 @@ function allocatePreferredReturn(
   );
 
   const totalAccrued = eligiblePartners.reduce((s, p) => s.plus(p.accruedPreference), ZERO);
-  const prefTarget = Decimal.min(available, totalAccrued);
-  if (prefTarget.lte(0)) {
+  const requestedPref = Decimal.min(available, totalAccrued);
+  if (requestedPref.lte(0)) {
     return { allocated: ZERO, gpShare: ZERO, lpShare: ZERO, perPartner: new Map() };
   }
 
   const shares = eligiblePartners.map((p) => p.accruedPreference);
-  const targetCents = decimalToCents(prefTarget);
+  const targetCents = decimalToCappedCents(requestedPref, available);
+  const prefTarget = new Decimal(centsToDecimalString(targetCents));
   const allocCents = apportionCentsLrmFromShares(targetCents, shares);
 
   const perPartner = new Map<string, Decimal>();

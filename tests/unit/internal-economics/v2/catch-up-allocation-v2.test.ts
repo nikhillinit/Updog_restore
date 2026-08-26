@@ -126,9 +126,9 @@ describe('computeGpCatchUpAllocationV2', () => {
     expect(result.lpAmount).toBe('66.666666');
   });
 
-  it('reconstructs the allocated total from integer units, not the raw decimal', () => {
-    // available carries sub-micro precision; the returned total must be the
-    // quantized reconstruction (HALF_UP at 6dp), never the raw input.
+  it('does not round a binding availability cap above available proceeds', () => {
+    // available carries sub-micro precision and is the binding cap. The leaf
+    // must floor that cap to payable units rather than round it upward.
     const result = leaf({
       available: d('10.1234567'),
       cumulativeGpProfit: d('0'),
@@ -136,9 +136,10 @@ describe('computeGpCatchUpAllocationV2', () => {
       terminalGpShare: d('0.2'),
       catchUpGpAllocationRate: d('0.5'),
     });
-    expect(result.allocatedTotal).toBe('10.123457');
-    expect(result.gpAmount).toBe('5.061729');
+    expect(result.allocatedTotal).toBe('10.123456');
+    expect(result.gpAmount).toBe('5.061728');
     expect(result.lpAmount).toBe('5.061728');
+    expect(d(result.allocatedTotal).lte(d('10.1234567'))).toBe(true);
     expect(d(result.gpAmount).plus(result.lpAmount).toFixed(6)).toBe(result.allocatedTotal);
   });
 
