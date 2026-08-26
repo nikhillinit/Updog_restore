@@ -7,6 +7,10 @@ import type {
 import type { TierAllocationV2 } from '../../../contracts/internal-economics/internal-economics-receipt-v2.contract';
 import type { PartnerLedgerState, EventStreamState } from './event-stream-engine-v2';
 import {
+  computeGpCatchUpAllocationV2,
+  computeQuantizedGpLpSplitV2,
+} from './catch-up-allocation-v2';
+import {
   apportionCentsLrmFromShares,
   decimalToCents,
   centsToDecimalString,
@@ -58,6 +62,13 @@ export interface DealByDealWaterfallResult {
 
 export type DealByDealResult =
   DealByDealWaterfallResult | { readonly ok: false; readonly refusal: V2CoreRefusal };
+
+type QuantizedTierAllocation = {
+  readonly allocatedTotal: string;
+  readonly gpAmount: string;
+  readonly lpAmount: string;
+  readonly perPartner: Map<string, Decimal>;
+};
 
 function buildEntitlementPools(state: EventStreamState): EntitlementPool[] {
   const poolMap = new Map<string, EntitlementPool>();
@@ -166,37 +177,28 @@ function allocateGpCatchUp(
   available: Decimal,
   gpAllocationRate: Decimal,
   gpShare: Decimal,
-  cumulativePreferredPaid: Decimal,
   cumulativeGpProfit: Decimal,
+  cumulativeLpProfit: Decimal,
   ledgers: Map<string, PartnerLedgerState>
-): {
-  allocated: Decimal;
-  gpShareAmount: Decimal;
-  lpShareAmount: Decimal;
-  perPartner: Map<string, Decimal>;
-} {
-  const targetGpProfit = cumulativePreferredPaid.plus(available).mul(gpShare);
-  const gpDeficit = targetGpProfit.minus(cumulativeGpProfit);
-
-  if (gpDeficit.lte(0)) {
-    return { allocated: ZERO, gpShareAmount: ZERO, lpShareAmount: ZERO, perPartner: new Map() };
-  }
-
-  const grossCatchUp = gpDeficit.div(gpAllocationRate);
-  const catchUpAllocated = Decimal.min(available, grossCatchUp);
-
-  if (catchUpAllocated.lte(0)) {
-    return { allocated: ZERO, gpShareAmount: ZERO, lpShareAmount: ZERO, perPartner: new Map() };
-  }
-
-  const gpAmount = catchUpAllocated.mul(gpAllocationRate);
-  const lpAmount = catchUpAllocated.minus(gpAmount);
+): QuantizedTierAllocation {
+  const allocation = computeGpCatchUpAllocationV2({
+    available,
+    cumulativeGpProfit,
+    cumulativeLpProfit,
+    terminalGpShare: gpShare,
+    catchUpGpAllocationRate: gpAllocationRate,
+  });
+  const gpAmount = new Decimal(allocation.gpAmount);
+  const lpAmount = new Decimal(allocation.lpAmount);
 
   const gpPartners = Array.from(ledgers.values()).filter((p) => p.isGp);
   const lpPartners = Array.from(ledgers.values()).filter((p) => !p.isGp);
   const perPartner = new Map<string, Decimal>();
 
-  if (gpPartners.length > 0) {
+  if (gpAmount.gt(0)) {
+    if (gpPartners.length === 0) {
+      throw new Error('Catch-up GP bucket invariant violated: no eligible GP partners.');
+    }
     const gpShares = gpPartners.map((p) => p.settledCapital);
     const gpCents = apportionCentsLrmFromShares(decimalToCents(gpAmount), gpShares);
     for (let i = 0; i < gpPartners.length; i++) {
@@ -204,7 +206,10 @@ function allocateGpCatchUp(
     }
   }
 
-  if (lpPartners.length > 0 && lpAmount.gt(0)) {
+  if (lpAmount.gt(0)) {
+    if (lpPartners.length === 0) {
+      throw new Error('Catch-up LP bucket invariant violated: no eligible LP partners.');
+    }
     const lpShares = lpPartners.map((p) => p.settledCapital);
     const lpCents = apportionCentsLrmFromShares(decimalToCents(lpAmount), lpShares);
     for (let i = 0; i < lpPartners.length; i++) {
@@ -212,36 +217,26 @@ function allocateGpCatchUp(
     }
   }
 
-  return {
-    allocated: catchUpAllocated,
-    gpShareAmount: gpAmount,
-    lpShareAmount: lpAmount,
-    perPartner,
-  };
+  return { ...allocation, perPartner };
 }
 
 function allocateCarry(
   available: Decimal,
   gpShareRate: Decimal,
   ledgers: Map<string, PartnerLedgerState>
-): {
-  allocated: Decimal;
-  gpShareAmount: Decimal;
-  lpShareAmount: Decimal;
-  perPartner: Map<string, Decimal>;
-} {
-  if (available.lte(0)) {
-    return { allocated: ZERO, gpShareAmount: ZERO, lpShareAmount: ZERO, perPartner: new Map() };
-  }
-
-  const gpAmount = available.mul(gpShareRate);
-  const lpAmount = available.minus(gpAmount);
+): QuantizedTierAllocation {
+  const allocation = computeQuantizedGpLpSplitV2(available, gpShareRate);
+  const gpAmount = new Decimal(allocation.gpAmount);
+  const lpAmount = new Decimal(allocation.lpAmount);
   const perPartner = new Map<string, Decimal>();
 
   const gpPartners = Array.from(ledgers.values()).filter((p) => p.isGp);
   const lpPartners = Array.from(ledgers.values()).filter((p) => !p.isGp);
 
-  if (gpPartners.length > 0) {
+  if (gpAmount.gt(0)) {
+    if (gpPartners.length === 0) {
+      throw new Error('Carry GP bucket invariant violated: no eligible GP partners.');
+    }
     const gpShares = gpPartners.map((p) => p.settledCapital);
     const gpCents = apportionCentsLrmFromShares(decimalToCents(gpAmount), gpShares);
     for (let i = 0; i < gpPartners.length; i++) {
@@ -249,7 +244,10 @@ function allocateCarry(
     }
   }
 
-  if (lpPartners.length > 0 && lpAmount.gt(0)) {
+  if (lpAmount.gt(0)) {
+    if (lpPartners.length === 0) {
+      throw new Error('Carry LP bucket invariant violated: no eligible LP partners.');
+    }
     const lpShares = lpPartners.map((p) => p.settledCapital);
     const lpCents = apportionCentsLrmFromShares(decimalToCents(lpAmount), lpShares);
     for (let i = 0; i < lpPartners.length; i++) {
@@ -257,7 +255,7 @@ function allocateCarry(
     }
   }
 
-  return { allocated: available, gpShareAmount: gpAmount, lpShareAmount: lpAmount, perPartner };
+  return { ...allocation, perPartner };
 }
 
 export function runDealByDealWaterfall(
@@ -273,6 +271,14 @@ export function runDealByDealWaterfall(
     return { ok: false, refusal: refuse('INVALID_TIER_POLICY', 'Carry tier is required.') };
   }
   const gpShareRate = new Decimal(carryTier.gpShare);
+  const openingProfit = input.openingState.profitDecomposition;
+  if (
+    !new Decimal(openingProfit.openingCumulativePreferredPaid).isZero() ||
+    !new Decimal(openingProfit.openingCumulativeGpProfitDistributions).isZero() ||
+    !new Decimal(openingProfit.openingCumulativeLpProfitDistributions).isZero()
+  ) {
+    throw new Error('Deal-by-deal opening profit history invariant violated.');
+  }
 
   const tierResults: DealByDealTierResult[] = [];
   const partnerDistributions = new Map<string, Decimal>();
@@ -286,6 +292,8 @@ export function runDealByDealWaterfall(
     if (pool.proceedsAvailable.lte(0)) continue;
 
     let remaining = pool.proceedsAvailable;
+    let cumulativeGpProfit = ZERO;
+    let cumulativeLpProfit = ZERO;
 
     for (const tier of policy) {
       if (remaining.lte(0)) break;
@@ -330,28 +338,21 @@ export function runDealByDealWaterfall(
         }
 
         case 'gp_catch_up': {
-          const cumulativePrefPaid = new Decimal(
-            input.openingState.profitDecomposition.openingCumulativePreferredPaid
-          );
-          const cumulativeGpProfit = new Decimal(
-            input.openingState.profitDecomposition.openingCumulativeGpProfitDistributions
-          );
-
           const catchUp = allocateGpCatchUp(
             remaining,
             new Decimal(tier.gpAllocationRate),
             gpShareRate,
-            cumulativePrefPaid,
             cumulativeGpProfit,
+            cumulativeLpProfit,
             state.partnerLedgers
           );
-          remaining = remaining.minus(catchUp.allocated);
+          remaining = remaining.minus(new Decimal(catchUp.allocatedTotal));
           result = {
             kind: 'gp_catch_up',
             priority: tier.priority,
-            totalAllocated: catchUp.allocated,
-            gpShare: catchUp.gpShareAmount,
-            lpShare: catchUp.lpShareAmount,
+            totalAllocated: new Decimal(catchUp.allocatedTotal),
+            gpShare: new Decimal(catchUp.gpAmount),
+            lpShare: new Decimal(catchUp.lpAmount),
             perPartner: catchUp.perPartner,
           };
           break;
@@ -359,17 +360,22 @@ export function runDealByDealWaterfall(
 
         case 'carry': {
           const carry = allocateCarry(remaining, gpShareRate, state.partnerLedgers);
-          remaining = remaining.minus(carry.allocated);
+          remaining = remaining.minus(new Decimal(carry.allocatedTotal));
           result = {
             kind: 'carry',
             priority: tier.priority,
-            totalAllocated: carry.allocated,
-            gpShare: carry.gpShareAmount,
-            lpShare: carry.lpShareAmount,
+            totalAllocated: new Decimal(carry.allocatedTotal),
+            gpShare: new Decimal(carry.gpAmount),
+            lpShare: new Decimal(carry.lpAmount),
             perPartner: carry.perPartner,
           };
           break;
         }
+      }
+
+      if (tier.kind !== 'return_of_capital') {
+        cumulativeGpProfit = cumulativeGpProfit.plus(result.gpShare);
+        cumulativeLpProfit = cumulativeLpProfit.plus(result.lpShare);
       }
 
       for (const [partnerId, amount] of result.perPartner) {

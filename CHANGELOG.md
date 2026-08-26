@@ -34,10 +34,28 @@ and this project adheres to
   one typed result-hash preimage (the receipt without `resultHash`), and
   enforced output-row (100,000) and serialized-output-byte (16 MiB) limits.
   V2-S-0100 lands as a frozen literal input+receipt truth fixture; V2-S-0101 is
-  regenerated under 2.1.0 with a consumed changed-case manifest.
-  `processEvents` semantics, event-stream atomicity, and `sourceCashLotId`
-  lineage remain F3 scope. ADR-087. Plan:
+  regenerated under 2.1.0 with a consumed changed-case manifest. `processEvents`
+  semantics, event-stream atomicity, and `sourceCashLotId` lineage remain F3
+  scope. ADR-087. Plan:
   `docs/1-plans/F_2.0.2_v2-f2-completion-state-journal-receipt-spine.plan.md`.
+
+### Fixed (2026-08-25)
+
+- **V2 catch-up allocation parity (F_2.0.4).** Both V2 waterfall engines now
+  compute the GP catch-up tier through one pure Decimal leaf implementing the
+  locked F_2.0.0 stopping rule `max(0, (c*(G+L) - G) / (g - c))`, replacing the
+  divergent `(c*(openingPrefPaid + remaining) - G)/g` arithmetic that was
+  duplicated line-for-line in both engines. Catch-up and carry tiers quantize
+  once and split with a single joint largest-remainder pass, so GP/LP buckets
+  always conserve the subtracted total; cumulative GP/LP profit accumulators
+  (fund-level in whole-fund, per-entitlement-pool in deal-by-deal) let later
+  tiers see profit granted by earlier tiers. A positive catch-up or carry bucket
+  with an empty eligible partner cohort now raises an internal defensive error
+  instead of silently subtracting from remaining proceeds. No public capability
+  change: the catch-up tier remains unreachable on the admitted derivation path,
+  the frozen V2-S-0100/0101 hashes and receipt byte pins are unchanged, and no
+  component version moved. Plan:
+  `docs/1-plans/F_2.0.4_v2-catch-up-allocation-parity.plan.md`.
 
 ### Added (2026-08-23)
 

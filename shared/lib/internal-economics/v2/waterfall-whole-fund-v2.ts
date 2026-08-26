@@ -7,6 +7,10 @@ import type {
 import type { TierAllocationV2 } from '../../../contracts/internal-economics/internal-economics-receipt-v2.contract';
 import type { PartnerLedgerState, EventStreamState } from './event-stream-engine-v2';
 import {
+  computeGpCatchUpAllocationV2,
+  computeQuantizedGpLpSplitV2,
+} from './catch-up-allocation-v2';
+import {
   apportionCentsLrmFromShares,
   decimalToCents,
   centsToDecimalString,
@@ -107,6 +111,12 @@ export function runWholeFundWaterfall(
   const allPartners = Array.from(state.partnerLedgers.values());
 
   let remaining = totalDistributable;
+  let cumulativeGpProfit = new Decimal(
+    input.openingState.profitDecomposition.openingCumulativeGpProfitDistributions
+  );
+  let cumulativeLpProfit = new Decimal(
+    input.openingState.profitDecomposition.openingCumulativePreferredPaid
+  ).plus(input.openingState.profitDecomposition.openingCumulativeLpProfitDistributions);
   const tierResults: WholeFundTierResult[] = [];
   const partnerDistributions = new Map<string, Decimal>();
   for (const p of allPartners) {
@@ -179,43 +189,33 @@ export function runWholeFundWaterfall(
       }
 
       case 'gp_catch_up': {
-        const cumulativePrefPaid = new Decimal(
-          input.openingState.profitDecomposition.openingCumulativePreferredPaid
-        );
-        const cumulativeGpProfit = new Decimal(
-          input.openingState.profitDecomposition.openingCumulativeGpProfitDistributions
-        );
-
         const gpAllocationRate = new Decimal(tier.gpAllocationRate);
-        const targetGpProfit = cumulativePrefPaid.plus(remaining).mul(gpShareRate);
-        const gpDeficit = targetGpProfit.minus(cumulativeGpProfit);
-
-        if (gpDeficit.lte(0)) {
-          result = {
-            kind: 'gp_catch_up',
-            priority: tier.priority,
-            totalAllocated: ZERO,
-            gpShare: ZERO,
-            lpShare: ZERO,
-            perPartner: new Map(),
-          };
-          break;
-        }
-
-        const grossCatchUp = gpDeficit.div(gpAllocationRate);
-        const catchUpAllocated = Decimal.min(remaining, grossCatchUp);
-        const gpAmount = catchUpAllocated.mul(gpAllocationRate);
-        const lpAmount = catchUpAllocated.minus(gpAmount);
+        const catchUp = computeGpCatchUpAllocationV2({
+          available: remaining,
+          cumulativeGpProfit,
+          cumulativeLpProfit,
+          terminalGpShare: gpShareRate,
+          catchUpGpAllocationRate: gpAllocationRate,
+        });
+        const catchUpAllocated = new Decimal(catchUp.allocatedTotal);
+        const gpAmount = new Decimal(catchUp.gpAmount);
+        const lpAmount = new Decimal(catchUp.lpAmount);
 
         const gpPartners = allPartners.filter((p) => p.isGp);
         const lpPartners = allPartners.filter((p) => !p.isGp);
         const perPartner = new Map<string, Decimal>();
 
-        if (gpPartners.length > 0) {
+        if (gpAmount.gt(0)) {
+          if (gpPartners.length === 0) {
+            throw new Error('Catch-up GP bucket invariant violated: no eligible GP partners.');
+          }
           const gpAlloc = apportionBySettledCapital(gpAmount, gpPartners);
           for (const [id, amt] of gpAlloc) perPartner.set(id, amt);
         }
-        if (lpPartners.length > 0 && lpAmount.gt(0)) {
+        if (lpAmount.gt(0)) {
+          if (lpPartners.length === 0) {
+            throw new Error('Catch-up LP bucket invariant violated: no eligible LP partners.');
+          }
           const lpAlloc = apportionBySettledCapital(lpAmount, lpPartners);
           for (const [id, amt] of lpAlloc) perPartner.set(id, amt);
         }
@@ -245,24 +245,31 @@ export function runWholeFundWaterfall(
           break;
         }
 
-        const gpAmount = remaining.mul(gpShareRate);
-        const lpAmount = remaining.minus(gpAmount);
+        const carry = computeQuantizedGpLpSplitV2(remaining, gpShareRate);
+        const allocated = new Decimal(carry.allocatedTotal);
+        const gpAmount = new Decimal(carry.gpAmount);
+        const lpAmount = new Decimal(carry.lpAmount);
 
         const gpPartners = allPartners.filter((p) => p.isGp);
         const lpPartners = allPartners.filter((p) => !p.isGp);
         const perPartner = new Map<string, Decimal>();
 
-        if (gpPartners.length > 0) {
+        if (gpAmount.gt(0)) {
+          if (gpPartners.length === 0) {
+            throw new Error('Carry GP bucket invariant violated: no eligible GP partners.');
+          }
           const gpAlloc = apportionBySettledCapital(gpAmount, gpPartners);
           for (const [id, amt] of gpAlloc) perPartner.set(id, amt);
         }
-        if (lpPartners.length > 0 && lpAmount.gt(0)) {
+        if (lpAmount.gt(0)) {
+          if (lpPartners.length === 0) {
+            throw new Error('Carry LP bucket invariant violated: no eligible LP partners.');
+          }
           const lpAlloc = apportionBySettledCapital(lpAmount, lpPartners);
           for (const [id, amt] of lpAlloc) perPartner.set(id, amt);
         }
 
-        const allocated = remaining;
-        remaining = ZERO;
+        remaining = remaining.minus(allocated);
         result = {
           kind: 'carry',
           priority: tier.priority,
@@ -273,6 +280,11 @@ export function runWholeFundWaterfall(
         };
         break;
       }
+    }
+
+    if (tier.kind !== 'return_of_capital') {
+      cumulativeGpProfit = cumulativeGpProfit.plus(result.gpShare);
+      cumulativeLpProfit = cumulativeLpProfit.plus(result.lpShare);
     }
 
     for (const [partnerId, amount] of result.perPartner) {

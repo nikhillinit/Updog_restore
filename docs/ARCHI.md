@@ -606,13 +606,19 @@ review, `#1287` target naming, `#1299` activation flip.
    aggregates, row-level negative-amount rejection, and exact event-total
    (`amountUsd`) equality with the existing refusal families at the provenance
    stage. Remaining F3 scope narrows to `sourceCashLotId` lineage, eventful
-   receipt, and event-stream atomicity. No routes, persistence, jobs,
-   migrations, or activation. ADR-085, ADR-086, ADR-087, and ADR-088 in
-   `DECISIONS.md`. Plans:
+   receipt, and event-stream atomicity. F_2.0.4 conforms both waterfall engines
+   to the locked F_2.0.0 catch-up methodology via one shared pure Decimal leaf
+   (`catch-up-allocation-v2.ts`): joint quantize-then-split for catch-up and
+   carry tiers, cumulative G/L profit accumulators (fund-level in whole-fund,
+   per-entitlement-pool in deal-by-deal), and a defensive empty-cohort invariant
+   — engine-internal conformance only, no component version or frozen-surface
+   movement. No routes, persistence, jobs, migrations, or activation. ADR-085,
+   ADR-086, ADR-087, and ADR-088 in `DECISIONS.md`. Plans:
    `docs/1-plans/F_2.0.0_v2-core-financial-model.plan.md`,
    `.omx/plans/updog-v2-conformance-right-sized-synthesis.md`,
    `docs/1-plans/F_2.0.2_v2-f2-completion-state-journal-receipt-spine.plan.md`,
-   `docs/1-plans/F_2.0.3_v2-f3a-cumulative-allocation-validation.plan.md`.
+   `docs/1-plans/F_2.0.3_v2-f3a-cumulative-allocation-validation.plan.md`,
+   `docs/1-plans/F_2.0.4_v2-catch-up-allocation-parity.plan.md`.
 
 ## 9. Guidance for New Work (patterns confirmed above, not aspirational)
 
