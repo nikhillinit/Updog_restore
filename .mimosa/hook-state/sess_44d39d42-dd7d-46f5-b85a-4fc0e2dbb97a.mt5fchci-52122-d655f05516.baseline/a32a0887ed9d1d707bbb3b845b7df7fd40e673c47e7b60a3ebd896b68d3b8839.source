@@ -1,0 +1,540 @@
+import js from '@eslint/js';
+import tsParser from '@typescript-eslint/parser';
+import ts from '@typescript-eslint/eslint-plugin';
+import react from 'eslint-plugin-react';
+import reactHooks from 'eslint-plugin-react-hooks';
+import unusedImports from 'eslint-plugin-unused-imports';
+import securityConfig from './eslint.security.config.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Import custom rules
+const noHardcodedFundMetrics = require('./eslint-rules/no-hardcoded-fund-metrics.cjs');
+const noDbImportInSkippedTests = require('./eslint-rules/no-db-import-in-skipped-tests.cjs');
+const noGenericQuarantineReason = require('./eslint-rules/no-generic-quarantine-reason.cjs');
+const warnStaleSkips = require('./eslint-rules/warn-stale-skips.cjs');
+const povcSecurityPlugin = require('./tools/eslint-plugin-povc-security/index.cjs');
+
+// Boundary enforcement rules for server/client/shared separation
+const boundaryRules = {
+  server: {
+    'no-restricted-imports': [
+      'error',
+      {
+        patterns: ['client/src/*', '../client/*', '../../client/*'],
+      },
+    ],
+  },
+  client: {
+    'no-restricted-imports': [
+      'error',
+      {
+        patterns: ['server/*', '../server/*', '../../server/*'],
+      },
+    ],
+  },
+};
+
+export default [
+  // Security rules - flat config format (ESLint 9.x compatible)
+  ...securityConfig,
+  // Global ignores should be first
+  {
+    ignores: [
+      'dist/**',
+      'coverage/**',
+      '.vite/**',
+      '.cache/**', // Vite dep-optimizer output; flat config does not read .gitignore
+      '.vercel/**',
+      '.claude/**',
+      '.codex/**', // local Codex CLI workspace; untracked tool scripts
+      '.hermes/**',
+      '.tmp/**',
+      '.omx/**',
+      '.remember/**',
+      '.worktrees/**',
+      'node_modules/**',
+      'build/**',
+      // Keep tests linted - removed "tests/**"
+      'scripts/**',
+      'workers/**',
+      'types/**',
+      'tools/**',
+      'ai-utils/**', // Experimental AI development tools
+      'packages/**', // Local agent packages are outside app validation.
+      'server/examples/**', // Server example code
+      'server/security/integration-guide.ts', // Reference integration guide, not runtime code
+      'server/routes/simulations-guarded.example.ts', // Example-only route wiring
+      'server/engine/fault-injector.ts', // Test-only chaos helper used by tests
+      'docs/**', // Documentation files
+      'msw/**', // Mock Service Worker test fixtures
+      'eslint-rules/**', // ESLint rule definitions (CommonJS)
+      '*.cjs', // Root-level CommonJS utility scripts
+      'src/**', // Legacy source directory (pre-refactor)
+      'k6/**', // k6 load testing scenarios (different runtime)
+      'tests/k6/**', // k6 test scenarios (different runtime)
+      'tests/performance/**/*.js', // k6 load tests (different runtime)
+      'tests/perf/**', // Performance benchmarks (Node.js scripts)
+      'playwright.config.simple.ts', // Simplified Playwright config
+      'server/lib/wasm-worker.js', // WASM worker (special case)
+      '**/*.gen.ts',
+      '**/*.d.ts',
+      '.next/**',
+      'umd/**',
+      'lib/**',
+      'es6/**',
+      '.tscache',
+      '.tsbuildinfo*',
+      '.migration-backup/**',
+      '.backup/**',
+      '_archive/**', // Archived obsolete code
+      'ml-service/dist/**',
+      'check-db.js',
+      'test-*.mjs', // Manual test scripts
+      'test-*.js', // Manual test scripts
+      'client/rum/**',
+      'vitest.config.*.ts',
+      'vitest.config.ts',
+      // Migrated from .eslintignore (ESLint 9.x compatibility)
+      'drizzle.config.ts',
+      '*.config.ts',
+      '*.config.js',
+      'tools/eslint-plugin-rls/dist/**',
+      // External and legacy directories
+      'Default Parameters/**',
+      'anthropic-cookbook/**',
+      'api/**',
+      '.venv/**',
+      'archive/**',
+      'artifacts/**',
+      '.artifacts/**', // ESLint wave execution tooling scripts
+      '.a5c/**',
+      'ai-logs/**',
+      'triage-output/**',
+      'performance-results/**',
+      'reports/**',
+      'output/**',
+      'test-results/**',
+      'playwright-report/**',
+      'repo/**',
+    ],
+  },
+  js.configs.recommended,
+  {
+    files: ['**/*.ts', '**/*.tsx'],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        // Use dedicated ESLint tsconfig to avoid parsing issues
+        project: './tsconfig.eslint.json',
+        tsconfigRootDir: __dirname,
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+        ecmaFeatures: { jsx: true },
+      },
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        window: 'readonly',
+        document: 'readonly',
+        localStorage: 'readonly',
+        sessionStorage: 'readonly',
+        navigator: 'readonly',
+        crypto: 'readonly',
+        __dirname: 'readonly',
+        require: 'readonly',
+        performance: 'readonly',
+        Event: 'readonly',
+        // Browser/runtime globals
+        fetch: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        // Node.js globals
+        global: 'readonly',
+      },
+    },
+    plugins: {
+      '@typescript-eslint': ts,
+      react: react,
+      'react-hooks': reactHooks,
+      'unused-imports': unusedImports,
+      custom: {
+        rules: {
+          'no-hardcoded-fund-metrics': noHardcodedFundMetrics,
+          'no-db-import-in-skipped-tests': noDbImportInSkippedTests,
+          'no-generic-quarantine-reason': noGenericQuarantineReason,
+          'warn-stale-skips': warnStaleSkips,
+        },
+      },
+      'povc-security': povcSecurityPlugin,
+    },
+    rules: {
+      // Type safety rules - WARN to baseline existing 'any' types (400+ pre-existing)
+      // TODO: Fix pre-existing errors and restore to 'error'
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unsafe-assignment': 'warn',
+      '@typescript-eslint/no-unsafe-member-access': 'warn',
+      '@typescript-eslint/no-unsafe-call': 'warn',
+      '@typescript-eslint/no-unsafe-return': 'warn',
+      '@typescript-eslint/no-unsafe-argument': 'warn',
+
+      // Consistent type imports (TS1361 auto-fix)
+      '@typescript-eslint/consistent-type-imports': [
+        'error',
+        {
+          prefer: 'type-imports',
+          fixStyle: 'separate-type-imports',
+          disallowTypeAnnotations: false,
+        },
+      ],
+
+      // Unused imports and variables
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      // NOTE: eslint-plugin-unused-imports does not implement its own "unused"
+      // detection -- both rules below borrow @typescript-eslint/no-unused-vars'
+      // rule object directly (see getBaseRule() in the plugin source) and run
+      // it with whatever options are passed to *this* rule entry. Options are
+      // NOT inherited from the sibling 'unused-imports/no-unused-vars' config.
+      // Without an explicit options object here, the auto-fixing rule ignores
+      // the repo's '^_' intentionally-unused convention and deletes those
+      // imports on --fix. Mirror the sibling rule's options so both agree.
+      'unused-imports/no-unused-imports': [
+        'error',
+        {
+          vars: 'all',
+          varsIgnorePattern: '^_',
+          args: 'after-used',
+          argsIgnorePattern: '^_',
+        },
+      ],
+      'unused-imports/no-unused-vars': [
+        'warn',
+        {
+          vars: 'all',
+          varsIgnorePattern: '^_',
+          args: 'after-used',
+          argsIgnorePattern: '^_',
+        },
+      ],
+
+      // Custom rules - Unified Metrics Layer enforcement
+      'custom/no-hardcoded-fund-metrics': 'error',
+
+      // Existing rules
+      'no-undef': 'off',
+      'no-console': ['warn', { allow: ['warn', 'error'] }], // Gate 0: Baselined - 475+ violations to fix incrementally
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '../state/useFundStore',
+              message: "Use '@/stores/useFundStore' only. The state/ version is deprecated.",
+            },
+            {
+              name: '@/lib/feature-flags',
+              message:
+                "Use '@/core/flags/unifiedClientFlags' or '@/core/flags/flagAdapter' instead. '@/lib/feature-flags' is deprecated.",
+            },
+            {
+              name: '@/lib/map-fund-store-to-payload',
+              message:
+                "Use '@/adapters/fund-store-adapters' (fundStoreToCreateV1 / fundStoreToDraftWriteV1) instead.",
+            },
+          ],
+        },
+      ],
+
+      // Prefer modern JavaScript features
+      'prefer-const': 'warn',
+      'prefer-template': 'warn',
+      'prefer-nullish-coalescing': 'off', // Will enable once codebase is ready
+
+      // Baselined rules - pre-existing issues to fix incrementally
+      'require-atomic-updates': 'warn', // Many false positives for singletons
+      'no-misleading-character-class': 'warn', // Pre-existing regex issues
+      'no-case-declarations': 'warn', // Pre-existing switch case issues
+      'no-useless-escape': 'warn', // Pre-existing escape issues
+      'no-unreachable': 'warn', // Pre-existing unreachable code
+      'no-redeclare': 'warn', // TypeScript type re-declarations (DTO patterns)
+      'no-unexpected-multiline': 'warn', // Pre-existing array access patterns
+      'no-empty-pattern': 'warn', // Pre-existing destructuring patterns
+      'no-empty': 'warn', // Pre-existing empty catch blocks
+
+      // Prevent object-return selectors without equality functions (prevents infinite loops)
+      'no-restricted-syntax': [
+        'error',
+        {
+          // Direct useFundStore usage without equality function - encourage useFundSelector
+          selector: "CallExpression[callee.name='useFundStore'][arguments.length=1]",
+          message: 'Pass an equality function or use useFundSelector (defaults to shallow).',
+        },
+        {
+          // Direct object literal return without equality
+          selector:
+            "CallExpression[callee.name='useFundStore'][arguments.0.type='ArrowFunctionExpression'][arguments.0.body.type='ObjectExpression'][arguments.length=1]",
+          message:
+            'Object-return selectors must pass an equality function (use useFundSelector or provide shallow/Object.is as second argument)',
+        },
+        {
+          // Object return from block statement without equality
+          selector:
+            "CallExpression[callee.name='useFundStore'][arguments.length=1] > ArrowFunctionExpression > BlockStatement ReturnStatement > ObjectExpression",
+          message:
+            'Object-return selectors must pass an equality function (use useFundSelector or provide shallow/Object.is as second argument)',
+        },
+        {
+          // Array literal return without equality (also causes identity churn)
+          selector:
+            "CallExpression[callee.name='useFundStore'][arguments.0.type='ArrowFunctionExpression'][arguments.0.body.type='ArrayExpression'][arguments.length=1]",
+          message:
+            'Array-return selectors must pass an equality function (use useFundSelector or provide shallow as second argument)',
+        },
+      ],
+    },
+    settings: {
+      react: { version: 'detect' },
+    },
+  },
+  // Server boundary enforcement
+  {
+    files: ['server/**/*.ts', 'server/**/*.js'],
+    rules: {
+      ...boundaryRules.server,
+    },
+  },
+  // Client boundary enforcement
+  {
+    files: ['client/**/*.ts', 'client/**/*.tsx', 'client/**/*.js', 'client/**/*.jsx'],
+    rules: {
+      ...boundaryRules.client,
+    },
+  },
+  // Root-level JavaScript files (orchestrate.js, etc.)
+  {
+    files: ['*.js', '*.mjs'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        require: 'readonly',
+        global: 'readonly',
+        fetch: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        // Browser globals for test scripts
+        document: 'readonly',
+        window: 'readonly',
+        Event: 'readonly',
+      },
+    },
+  },
+  // Chaos/WASM test files (Node.js scripts)
+  {
+    files: ['tests/chaos/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        require: 'readonly',
+        module: 'readonly',
+        exports: 'readonly',
+        global: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+      },
+    },
+  },
+  // API and server files with proper tsconfig
+  {
+    files: ['api/**/*.ts', 'api/**/*.js', 'server/**/*.ts', 'server/**/*.js'],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: './tsconfig.eslint.json',
+        tsconfigRootDir: __dirname,
+      },
+    },
+  },
+  // Test files with Vitest globals
+  {
+    files: [
+      'tests/**/*.ts',
+      'tests/**/*.tsx',
+      '**/*.test.ts',
+      '**/*.test.tsx',
+      '**/*.spec.ts',
+      '**/*.spec.tsx',
+    ],
+    languageOptions: {
+      globals: {
+        // Vitest test globals
+        describe: 'readonly',
+        it: 'readonly',
+        test: 'readonly',
+        expect: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        vi: 'readonly',
+        // Node.js test environment
+        global: 'readonly',
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      // Prevent pool creation at import time in skipped tests (Phase 5 regression gate)
+      'custom/no-db-import-in-skipped-tests': 'error',
+      // Surface stale .skip() annotations -- add "// SKIP: reason" to suppress
+      'custom/warn-stale-skips': 'warn',
+    },
+  },
+  {
+    files: ['tests/**/*.{ts,tsx}'],
+    ignores: [
+      // Existing quarantine debt is triaged in docs/quarantine/2026-05-28-stabilization-triage.md.
+      'tests/ui-conditionals.test.tsx',
+      'tests/evergreen-validation.test.ts',
+      'tests/unit/reallocation-api.test.ts',
+      'tests/unit/general-info-step.test.tsx',
+      'tests/perf/validator.microbench.test.ts',
+      'tests/integration/ScenarioMatrixCache.integration.test.ts',
+      'tests/integration/scenarioGeneratorWorker.test.ts',
+      'tests/integration/rls-middleware.test.ts',
+      'tests/integration/migration-runner.test.ts',
+      'tests/integration/circuit-breaker-db.test.ts',
+      'tests/integration/cache-monitoring.integration.test.ts',
+      'tests/api/portfolio-route.template.test.ts',
+      'tests/api/deal-pipeline.test.ts',
+      'tests/unit/services/snapshot-service.test.ts',
+      'tests/unit/database/time-travel-simple.test.ts',
+    ],
+    rules: {
+      'custom/no-generic-quarantine-reason': 'error',
+    },
+  },
+  // Security test files - allow testing dangerous patterns
+  {
+    files: ['tests/unit/security/**/*.ts'],
+    rules: {
+      'no-script-url': 'off', // Testing XSS scenarios requires javascript: URLs
+    },
+  },
+  // NaN equality test - intentionally testing NaN comparison
+  {
+    files: ['tests/unit/nan-equality.test.ts'],
+    rules: {
+      'use-isnan': 'off', // Testing NaN equality edge cases
+    },
+  },
+  // Decimal.js import restriction -- runtime code must use the configured wrapper
+  {
+    files: [
+      'shared/**/*.ts',
+      'server/**/*.ts',
+      'client/**/*.ts',
+      'client/**/*.tsx',
+      'workers/**/*.ts',
+    ],
+    ignores: [
+      'shared/lib/decimal-config.ts',
+      '**/*.test.ts',
+      '**/*.test.tsx',
+      '**/*.spec.ts',
+      '**/*.spec.tsx',
+      '**/__tests__/**',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'decimal.js',
+              message: "Import Decimal from '@shared/lib/decimal-config' in runtime code.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // Core reserves - deterministic math enforcement
+  {
+    files: [
+      'shared/core/**/*.ts',
+      'shared/core/**/*.tsx',
+      'shared/lib/**/*.ts',
+      'server/services/investment-ledger/**/*.ts',
+      'server/services/internal-economics/**/*.ts',
+      'server/services/current-forecast-v2-service.ts',
+      'server/services/reserves/**/*.ts',
+    ],
+    rules: {
+      'povc-security/no-floating-point-in-core': 'error',
+    },
+  },
+  // P0 Calculation paths - parseFloat warning (Phase 1A.6 triage)
+  {
+    files: [
+      'client/src/lib/**/*.ts',
+      'client/src/core/**/*.ts',
+      'server/analytics/**/*.ts',
+      'workers/reserve-worker.ts',
+      'workers/pacing-worker.ts',
+      'shared/core/**/*.ts',
+      'shared/lib/**/*.ts',
+      'server/services/investment-ledger/**/*.ts',
+      'server/services/internal-economics/**/*.ts',
+      'server/services/current-forecast-v2-service.ts',
+      'server/services/reserves/**/*.ts',
+    ],
+    rules: {
+      'povc-security/no-parsefloat-in-calculations': 'warn',
+    },
+  },
+  // Worker/Queue files - BullMQ anti-pattern prevention (AP-QUEUE-01, AP-QUEUE-02)
+  {
+    files: ['server/workers/**/*.ts', 'server/queues/**/*.ts'],
+    rules: {
+      'povc-security/require-bullmq-config': 'warn',
+    },
+  },
+  // Route files - SQL injection prevention (AP-CURSOR-06)
+  {
+    files: ['server/routes/**/*.ts'],
+    rules: {
+      'povc-security/no-sql-raw-in-routes': 'error',
+    },
+  },
+];

@@ -1,0 +1,289 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { canonicalSha256 } from '../../../shared/lib/canonical-hash';
+
+const { buildRoundsToModelEvidence, getFundMoicRankingSources } = vi.hoisted(() => ({
+  buildRoundsToModelEvidence: vi.fn(),
+  getFundMoicRankingSources: vi.fn(),
+}));
+
+vi.mock('../../../server/services/fund-moic-ranking-service', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../../server/services/fund-moic-ranking-service')>();
+
+  return {
+    ...actual,
+    getFundMoicRankingSources,
+  };
+});
+
+vi.mock('../../../server/services/rounds-to-model-evidence-service', () => ({
+  buildRoundsToModelEvidence,
+}));
+
+import {
+  createMoicActionabilityResolver,
+  resolveFundCalculationMode,
+} from '../../../server/services/fund-calculation-mode-service';
+
+type ReconciliationRow = {
+  id: number;
+  requestedAt: Date;
+  requested_at: Date;
+  status: 'completed';
+  candidateInputHash: string;
+  candidate_input_hash: string;
+  evidenceInputHash: string;
+  evidence_input_hash: string;
+  assumptionsHash: string;
+  assumptions_hash: string;
+};
+
+type MoicActionabilityResult = {
+  sourceFingerprintMatches?: unknown;
+  actionability?: unknown;
+  actionabilityStatus?: unknown;
+  status?: unknown;
+  sourceFingerprint?: {
+    roundEvidenceAssumptionsHash?: unknown;
+    fingerprintHash?: unknown;
+  };
+};
+
+type ResolveByParams = (input: { fundId: number }) => Promise<MoicActionabilityResult>;
+type ResolveById = (fundId: number) => Promise<MoicActionabilityResult>;
+
+const now = new Date('2026-06-25T09:01:17.440Z');
+const moicSourceInputHash = 'current-moic-source-input-hash';
+const coverage = {
+  activeRoundCount: 2,
+  activeOverrideCount: 1,
+  warningsByCode: {},
+};
+const evidenceInputHash = canonicalSha256(coverage);
+const assumptionsHash = canonicalSha256({
+  policyVersion: 'h9-policy-v1',
+  generatedAt: now.toISOString(),
+});
+
+const sourceBundle = {
+  moicSourceInputHash,
+  factsSource: {
+    status: 'available' as const,
+    response: {
+      fundId: 7,
+      asOfDate: '2026-07-13',
+      facts: [],
+      inputHash: 'f'.repeat(64),
+      generatedAt: '2026-07-13T00:00:00.000Z',
+    },
+  },
+  moicInputSummary: {
+    sourceVersion: 'moic-round-fmv-facts-v2',
+    explicitExitProbabilityCount: 1,
+    defaultedExitProbabilityCount: 0,
+    activationBlockingDefaultedExitProbabilityCount: 0,
+    explicitReserveExitMultipleCount: 1,
+    defaultedReserveExitMultipleCount: 0,
+    activationBlockingDefaultedReserveExitMultipleCount: 0,
+  },
+  legacy: { rankings: [] },
+  candidate: { rankings: [] },
+};
+
+function reconciliationRow(overrides: Partial<ReconciliationRow> = {}): ReconciliationRow {
+  const candidateInputHash = overrides.candidateInputHash ?? moicSourceInputHash;
+  const rowEvidenceInputHash = overrides.evidenceInputHash ?? evidenceInputHash;
+  const rowAssumptionsHash = overrides.assumptionsHash ?? assumptionsHash;
+
+  return {
+    id: 17,
+    requestedAt: now,
+    requested_at: now,
+    status: 'completed',
+    candidateInputHash,
+    candidate_input_hash: candidateInputHash,
+    evidenceInputHash: rowEvidenceInputHash,
+    evidence_input_hash: rowEvidenceInputHash,
+    assumptionsHash: rowAssumptionsHash,
+    assumptions_hash: rowAssumptionsHash,
+    ...overrides,
+  };
+}
+
+function makeDatabase(rows: ReconciliationRow[]) {
+  const findFirst = vi.fn(async () => rows[0] ?? null);
+  const limit = vi.fn(async () => rows);
+  const orderBy = vi.fn(() => ({ limit }));
+  const where = vi.fn(() => ({ limit, orderBy }));
+  const from = vi.fn(() => ({ limit, orderBy, where }));
+  const select = vi.fn(() => ({ from }));
+  const execute = vi.fn(async () => ({ rows }));
+
+  return {
+    execute,
+    query: {
+      reconciliationRuns: {
+        findFirst,
+      },
+    },
+    select,
+  };
+}
+
+function makeModeDatabase() {
+  return {
+    execute: vi.fn(async () => ({ rows: [] })),
+  };
+}
+
+function hasResolve(value: unknown): value is { resolve: ResolveByParams } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'resolve' in value &&
+    typeof value.resolve === 'function'
+  );
+}
+
+function hasResolveForFund(value: unknown): value is { resolveForFund: ResolveById } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'resolveForFund' in value &&
+    typeof value.resolveForFund === 'function'
+  );
+}
+
+async function resolveForFund(resolver: unknown, fundId: number): Promise<MoicActionabilityResult> {
+  if (typeof resolver === 'function') {
+    return (resolver as ResolveByParams)({ fundId });
+  }
+  if (hasResolveForFund(resolver)) {
+    return resolver.resolveForFund(fundId);
+  }
+  if (hasResolve(resolver)) {
+    return resolver.resolve({ fundId });
+  }
+  throw new Error('MOIC actionability resolver does not expose a fund resolver');
+}
+
+function actionabilityStatus(result: MoicActionabilityResult): unknown {
+  return result.actionability ?? result.actionabilityStatus ?? result.status;
+}
+
+describe('fund MOIC actionability resolver', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getFundMoicRankingSources.mockResolvedValue(sourceBundle);
+    buildRoundsToModelEvidence.mockResolvedValue({ coverage });
+  });
+
+  it('requires a database for the critical gate', () => {
+    expect(() => createMoicActionabilityResolver({ now })).toThrow();
+  });
+
+  it('reaches actionable when a facts-backed v2 reconciliation round-trips the current hash', async () => {
+    const database = makeDatabase([reconciliationRow()]);
+    const resolver = createMoicActionabilityResolver({ database, now });
+
+    const result = await resolveForFund(resolver, 7);
+
+    expect(result.sourceFingerprintMatches).toBe(true);
+    expect(actionabilityStatus(result)).toBe('actionable');
+    expect(getFundMoicRankingSources).toHaveBeenCalledWith(7, database, undefined, now);
+  });
+
+  it('keeps an absent-facts fingerprint non-actionable even when an accepted row matches it', async () => {
+    const unavailableSources = {
+      ...sourceBundle,
+      factsSource: { status: 'absent' as const },
+    };
+    getFundMoicRankingSources.mockResolvedValue(unavailableSources);
+    const database = makeDatabase([reconciliationRow()]);
+    const resolver = createMoicActionabilityResolver({ database, now });
+
+    const result = await resolveForFund(resolver, 7);
+
+    expect(result.sourceFingerprintMatches).toBe(false);
+    expect(actionabilityStatus(result)).toBe('non_actionable');
+  });
+
+  it('reuses one facts snapshot when a resolver intentionally rechecks source drift', async () => {
+    const database = makeDatabase([reconciliationRow()]);
+    const resolverOptions = { database, now, reuseFactsSource: true };
+    const resolver = createMoicActionabilityResolver(resolverOptions);
+
+    await resolveForFund(resolver, 7);
+    await resolveForFund(resolver, 7);
+
+    expect(getFundMoicRankingSources).toHaveBeenNthCalledWith(1, 7, database, undefined, now);
+    expect(getFundMoicRankingSources).toHaveBeenNthCalledWith(
+      2,
+      7,
+      database,
+      sourceBundle.factsSource,
+      now
+    );
+  });
+
+  it('reports stale when candidate hash matches but evidence hash differs', async () => {
+    const database = makeDatabase([
+      reconciliationRow({ evidenceInputHash: 'stale-round-evidence-input-hash' }),
+    ]);
+    const resolver = createMoicActionabilityResolver({ database, now });
+
+    const result = await resolveForFund(resolver, 7);
+
+    expect(result.sourceFingerprintMatches).toBe(false);
+  });
+
+  it('does not throw when no accepted reconciliation row exists', async () => {
+    const database = makeDatabase([]);
+    const resolver = createMoicActionabilityResolver({ database, now });
+
+    const result = await resolveForFund(resolver, 7);
+
+    expect(result.sourceFingerprintMatches).toBe(false);
+    expect(actionabilityStatus(result)).toBe('non_actionable');
+  });
+
+  it('produces a now-independent fingerprint so cache keys and snapshot stamps stay stable', async () => {
+    const database = makeDatabase([reconciliationRow()]);
+    const early = await resolveForFund(
+      createMoicActionabilityResolver({ database, now: new Date('2020-01-01T00:00:00.000Z') }),
+      7
+    );
+    const late = await resolveForFund(
+      createMoicActionabilityResolver({ database, now: new Date('2023-06-15T12:00:00.000Z') }),
+      7
+    );
+
+    expect(early.sourceFingerprint?.roundEvidenceAssumptionsHash).toBe(
+      late.sourceFingerprint?.roundEvidenceAssumptionsHash
+    );
+    expect(early.sourceFingerprint?.fingerprintHash).toBe(late.sourceFingerprint?.fingerprintHash);
+  });
+
+  it('keeps defaulted exit probability and reserve multiple blockers visible', async () => {
+    const sources = {
+      ...sourceBundle,
+      moicInputSummary: {
+        ...sourceBundle.moicInputSummary,
+        defaultedExitProbabilityCount: 1,
+        activationBlockingDefaultedExitProbabilityCount: 1,
+        defaultedReserveExitMultipleCount: 1,
+        activationBlockingDefaultedReserveExitMultipleCount: 1,
+      },
+    };
+    const preview = await resolveFundCalculationMode({
+      fundId: 7,
+      database: makeModeDatabase() as never,
+      now,
+      sources: sources as never,
+    });
+
+    expect(preview.blockers).toContain('exit_probability_source_incomplete');
+    expect(preview.blockers).toContain('reserve_exit_multiple_source_incomplete');
+  });
+});

@@ -1,0 +1,636 @@
+/**
+ * PerformanceDashboard Component
+ *
+ * Mounted portfolio performance dashboard with:
+ * - Time-series charts (IRR, TVPI, DPI over time)
+ * - Current-state breakdown by sector/stage/company
+ *
+ * @module client/components/performance/PerformanceDashboard
+ */
+
+import { useState, useMemo } from 'react';
+import { LineChart } from 'recharts/es6/chart/LineChart';
+import { Line } from 'recharts/es6/cartesian/Line';
+import { BarChart } from 'recharts/es6/chart/BarChart';
+import { Bar } from 'recharts/es6/cartesian/Bar';
+import { XAxis } from 'recharts/es6/cartesian/XAxis';
+import { YAxis } from 'recharts/es6/cartesian/YAxis';
+import { CartesianGrid } from 'recharts/es6/cartesian/CartesianGrid';
+import { Tooltip } from 'recharts/es6/component/Tooltip';
+import { Legend } from 'recharts/es6/component/Legend';
+import { Cell } from 'recharts/es6/component/Cell';
+import { LazyResponsiveContainer as ResponsiveContainer } from '@/components/charts/LazyResponsiveContainer';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { TrendingUp, RefreshCw, Calendar } from 'lucide-react';
+import { usePerformanceTimeseries, usePerformanceBreakdown } from '@/hooks/usePerformanceDashboard';
+import { colors as brandColors } from '@/lib/brand-tokens';
+import { presson } from '@/theme/presson.tokens';
+import type { DataSource, Granularity, GroupByDimension } from '@shared/types/performance-api';
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+function formatPercent(value: number | null | undefined): string {
+  if (value === null || value === undefined) return 'N/A';
+  return `${(value * 100).toFixed(2)}%`;
+}
+
+function formatMultiple(value: number | null | undefined): string {
+  if (value === null || value === undefined) return 'N/A';
+  return `${value.toFixed(2)}x`;
+}
+
+function formatCurrency(value: number): string {
+  if (value >= 1_000_000_000) {
+    return `$${(value / 1_000_000_000).toFixed(1)}B`;
+  }
+  if (value >= 1_000_000) {
+    return `$${(value / 1_000_000).toFixed(1)}M`;
+  }
+  if (value >= 1_000) {
+    return `$${(value / 1_000).toFixed(0)}K`;
+  }
+  return `$${value.toLocaleString()}`;
+}
+
+function hasFiniteMetric(points: Array<Record<string, unknown>>, keys: string[]): boolean {
+  return points.some((point) =>
+    keys.some((key) => typeof point[key] === 'number' && Number.isFinite(point[key]))
+  );
+}
+
+function EmptyChartState({ title, description }: { title: string; description: string }) {
+  return (
+    <div
+      className="flex min-h-80 flex-col items-center justify-center rounded-lg border border-dashed border-beige-200 bg-pov-gray px-6 text-center"
+      data-testid="performance-chart-empty-state"
+    >
+      <p className="font-inter text-base font-semibold text-pov-charcoal">{title}</p>
+      <p className="mt-2 max-w-md font-poppins text-sm text-pov-charcoal/70">{description}</p>
+    </div>
+  );
+}
+
+function getDateRange(timeframe: string): { startDate: string; endDate: string } {
+  const now = new Date();
+  const endDate = now.toISOString().split('T')[0];
+
+  let startDate: Date;
+  switch (timeframe) {
+    case '3m':
+      startDate = new Date(now.setMonth(now.getMonth() - 3));
+      break;
+    case '6m':
+      startDate = new Date(now.setMonth(now.getMonth() - 6));
+      break;
+    case '1y':
+      startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+      break;
+    case '2y':
+      startDate = new Date(now.setFullYear(now.getFullYear() - 2));
+      break;
+    case 'ytd':
+      startDate = new Date(now.getFullYear(), 0, 1);
+      break;
+    case 'all':
+    default:
+      startDate = new Date(now.setFullYear(now.getFullYear() - 5));
+  }
+
+  return {
+    startDate: startDate.toISOString().split('T')[0] ?? '',
+    endDate: endDate ?? '',
+  };
+}
+
+// ============================================================================
+// CHART COLORS
+// ============================================================================
+
+const CHART_COLORS = {
+  irr: presson.color.text,
+  tvpi: presson.color.positive,
+  dpi: presson.color.info,
+  totalValue: brandColors.success,
+};
+
+// TODO(design): performance breakdown can exceed six categorical hues; define an extended Press On palette before assigning unique colors beyond this fixed order.
+const BREAKDOWN_COLORS = [
+  presson.color.text,
+  presson.color.positive,
+  presson.color.info,
+  brandColors.success,
+  presson.color.warning,
+  presson.color.negative,
+];
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
+interface PerformanceDashboardProps {
+  className?: string;
+}
+
+export default function PerformanceDashboard({ className }: PerformanceDashboardProps) {
+  // State
+  const [timeframe, setTimeframe] = useState('1y');
+  const [granularity, setGranularity] = useState<Granularity>('monthly');
+  const [groupBy, setGroupBy] = useState<GroupByDimension>('sector');
+  const [activeTab, setActiveTab] = useState('timeseries');
+
+  // Calculate date range
+  const dateRange = useMemo(() => getDateRange(timeframe), [timeframe]);
+
+  // Fetch data
+  const {
+    data: timeseriesData,
+    isLoading: timeseriesLoading,
+    refetch: refetchTimeseries,
+  } = usePerformanceTimeseries({
+    startDate: dateRange.startDate,
+    endDate: dateRange.endDate,
+    granularity,
+  });
+
+  const {
+    data: breakdownData,
+    isLoading: breakdownLoading,
+    refetch: refetchBreakdown,
+  } = usePerformanceBreakdown({
+    groupBy,
+  });
+
+  const isLoading = timeseriesLoading || breakdownLoading;
+
+  // Transform timeseries data for charts
+  const chartData = useMemo(() => {
+    if (!timeseriesData?.timeseries) return [];
+
+    return timeseriesData.timeseries.map((point) => ({
+      date: point.date,
+      irr: point.actual.irr != null ? point.actual.irr * 100 : null,
+      tvpi: point.actual.tvpi ?? null,
+      dpi: point.actual.dpi ?? null,
+      totalValue: point.actual.totalValue ?? null,
+      source: point._source,
+    }));
+  }, [timeseriesData]);
+
+  const sourceSummary = useMemo(() => {
+    const counts: Record<DataSource, number> = {
+      database: 0,
+      interpolated: 0,
+      unavailable: 0,
+    };
+
+    for (const point of chartData) {
+      counts[point.source] += 1;
+    }
+
+    return counts;
+  }, [chartData]);
+
+  const hasDerivedPoints = sourceSummary.interpolated > 0 || sourceSummary.unavailable > 0;
+  const hasIrrValues = hasFiniteMetric(chartData, ['irr']);
+  const hasMultipleValues = hasFiniteMetric(chartData, ['tvpi', 'dpi']);
+  const hasBreakdownRows = Boolean(breakdownData?.breakdown.length);
+
+  // Handle refresh
+  const handleRefresh = async () => {
+    await Promise.all([refetchTimeseries(), refetchBreakdown()]);
+  };
+
+  // Loading state
+  if (isLoading && !timeseriesData && !breakdownData) {
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
+          <CardContent className="pt-6">
+            <div className="animate-pulse space-y-4">
+              <div className="h-8 bg-pov-gray rounded w-1/3" />
+              <div className="h-64 bg-pov-gray rounded" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`space-y-6 ${className}`}>
+      {/* Header Controls */}
+      <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
+        <CardHeader>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <CardTitle className="flex items-center space-x-2 font-inter text-pov-charcoal">
+                <TrendingUp className="h-5 w-5 text-presson-info" />
+                <span>Portfolio Performance</span>
+              </CardTitle>
+              <CardDescription className="font-poppins text-pov-charcoal/70">
+                Track persisted IRR, TVPI, and DPI metrics over time
+              </CardDescription>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {/* Timeframe selector */}
+              <Select value={timeframe} onValueChange={setTimeframe}>
+                <SelectTrigger className="w-[120px]">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="3m">3 Months</SelectItem>
+                  <SelectItem value="6m">6 Months</SelectItem>
+                  <SelectItem value="ytd">YTD</SelectItem>
+                  <SelectItem value="1y">1 Year</SelectItem>
+                  <SelectItem value="2y">2 Years</SelectItem>
+                  <SelectItem value="all">All Time</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Granularity selector */}
+              <Select value={granularity} onValueChange={(v) => setGranularity(v as Granularity)}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="quarterly">Quarterly</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Refresh button */}
+              <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isLoading}>
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Main Content Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="bg-pov-white border border-beige-200">
+          <TabsTrigger value="timeseries">Time Series</TabsTrigger>
+          <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
+        </TabsList>
+
+        {/* Time Series Tab */}
+        <TabsContent value="timeseries" className="space-y-6">
+          {hasDerivedPoints && (
+            <Card
+              className="bg-warning/10 border border-warning/50 shadow-sm"
+              data-testid="timeseries-source-note"
+            >
+              <CardContent className="pt-4">
+                <div className="flex flex-wrap items-center gap-2 text-sm text-warning-dark">
+                  <Badge variant="secondary">Data quality note</Badge>
+                  {sourceSummary.interpolated > 0 && (
+                    <span>
+                      {sourceSummary.interpolated} point
+                      {sourceSummary.interpolated === 1 ? '' : 's'}{' '}
+                      {sourceSummary.interpolated === 1 ? 'is' : 'are'} interpolated between
+                      persisted metric snapshots.
+                    </span>
+                  )}
+                  {sourceSummary.unavailable > 0 && (
+                    <span>
+                      {sourceSummary.unavailable} date
+                      {sourceSummary.unavailable === 1 ? '' : 's'}{' '}
+                      {sourceSummary.unavailable === 1 ? 'has' : 'have'} no persisted metric
+                      snapshot yet and are shown as unavailable rather than inferred from mutable
+                      current state.
+                    </span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* IRR Chart */}
+          <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
+            <CardHeader>
+              <CardTitle className="font-inter text-lg text-pov-charcoal">
+                Internal Rate of Return (IRR)
+              </CardTitle>
+              <CardDescription className="font-poppins text-sm text-pov-charcoal/70">
+                Annualized return over persisted metric snapshots
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {hasIrrValues ? (
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={chartData}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                      <YAxis
+                        tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <Tooltip
+                        formatter={(value) => [
+                          value !== undefined ? `${Number(value).toFixed(2)}%` : '',
+                          'IRR',
+                        ]}
+                        labelFormatter={(label) => `Date: ${label}`}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="irr"
+                        stroke={CHART_COLORS.irr}
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 6 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <EmptyChartState
+                  title="IRR history pending"
+                  description="Persisted dated cash flows are required before the app can draw an IRR trend."
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* TVPI & DPI Chart */}
+          <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
+            <CardHeader>
+              <CardTitle className="font-inter text-lg text-pov-charcoal">
+                Fund Multiples (TVPI & DPI)
+              </CardTitle>
+              <CardDescription className="font-poppins text-sm text-pov-charcoal/70">
+                Total Value and Distributions to Paid-In Capital over persisted metric snapshots
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {hasMultipleValues ? (
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={chartData}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                      <YAxis
+                        tickFormatter={(v) => `${Number(v).toFixed(1)}x`}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <Tooltip
+                        formatter={(value, name) => [
+                          value !== undefined ? `${Number(value).toFixed(2)}x` : '',
+                          String(name ?? '').toUpperCase(),
+                        ]}
+                        labelFormatter={(label) => `Date: ${label}`}
+                      />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="tvpi"
+                        stroke={CHART_COLORS.tvpi}
+                        strokeWidth={2}
+                        dot={false}
+                        name="TVPI"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="dpi"
+                        stroke={CHART_COLORS.dpi}
+                        strokeWidth={2}
+                        dot={false}
+                        name="DPI"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <EmptyChartState
+                  title="Multiple history pending"
+                  description="Persisted TVPI or DPI snapshots are required before the app can draw fund multiple trends."
+                />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Breakdown Tab */}
+        <TabsContent value="breakdown" className="space-y-6">
+          {/* Group By Selector */}
+          <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="font-inter text-lg text-pov-charcoal">
+                    Performance Breakdown
+                  </CardTitle>
+                  <CardDescription className="font-poppins text-sm text-pov-charcoal/70">
+                    Analyze current-state returns by portfolio dimension
+                  </CardDescription>
+                </div>
+                <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupByDimension)}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sector">By Sector</SelectItem>
+                    <SelectItem value="stage">By Stage</SelectItem>
+                    <SelectItem value="company">By Company</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {breakdownData && hasBreakdownRows && (
+                <>
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div className="text-center p-4 bg-pov-gray rounded-lg">
+                      <div className="text-2xl font-bold font-inter text-pov-charcoal">
+                        {breakdownData.totals.companyCount}
+                      </div>
+                      <div className="text-sm font-poppins text-pov-charcoal/70">Companies</div>
+                    </div>
+                    <div className="text-center p-4 bg-pov-gray rounded-lg">
+                      <div className="text-2xl font-bold font-inter text-pov-charcoal">
+                        {formatCurrency(breakdownData.totals.totalDeployed)}
+                      </div>
+                      <div className="text-sm font-poppins text-pov-charcoal/70">Deployed</div>
+                    </div>
+                    <div className="text-center p-4 bg-pov-gray rounded-lg">
+                      <div className="text-2xl font-bold font-inter text-pov-charcoal">
+                        {formatMultiple(breakdownData.totals.averageMOIC)}
+                      </div>
+                      <div className="text-sm font-poppins text-pov-charcoal/70">Avg MOIC</div>
+                    </div>
+                    <div className="text-center p-4 bg-pov-gray rounded-lg">
+                      <div className="text-2xl font-bold font-inter text-pov-charcoal">
+                        {formatPercent(breakdownData.totals.portfolioIRR)}
+                      </div>
+                      <div className="text-sm font-poppins text-pov-charcoal/70">Portfolio IRR</div>
+                    </div>
+                  </div>
+
+                  {/* Breakdown Bar Chart */}
+                  <div className="h-80 mb-6">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={breakdownData.breakdown.slice(0, 10)}
+                        layout="vertical"
+                        margin={{ top: 20, right: 30, left: 100, bottom: 20 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" tickFormatter={(v) => `${Number(v).toFixed(1)}x`} />
+                        <YAxis dataKey="group" type="category" tick={{ fontSize: 12 }} width={90} />
+                        <Tooltip
+                          formatter={(value) => [
+                            value !== undefined ? `${Number(value).toFixed(2)}x` : '',
+                            'MOIC',
+                          ]}
+                        />
+                        <Bar dataKey="moic" radius={[0, 4, 4, 0]}>
+                          {breakdownData.breakdown.slice(0, 10).map((_, index) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={
+                                BREAKDOWN_COLORS[index % BREAKDOWN_COLORS.length] ??
+                                presson.color.text
+                              }
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Breakdown Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="border-b border-beige-200">
+                          <th className="text-left p-3 font-inter font-bold text-pov-charcoal">
+                            {groupBy === 'sector'
+                              ? 'Sector'
+                              : groupBy === 'stage'
+                                ? 'Stage'
+                                : 'Company'}
+                          </th>
+                          <th className="text-right p-3 font-inter font-bold text-pov-charcoal">
+                            Companies
+                          </th>
+                          <th className="text-right p-3 font-inter font-bold text-pov-charcoal">
+                            Deployed
+                          </th>
+                          <th className="text-right p-3 font-inter font-bold text-pov-charcoal">
+                            Current Value
+                          </th>
+                          <th className="text-right p-3 font-inter font-bold text-pov-charcoal">
+                            MOIC
+                          </th>
+                          <th className="text-right p-3 font-inter font-bold text-pov-charcoal">
+                            IRR
+                          </th>
+                          <th className="text-right p-3 font-inter font-bold text-pov-charcoal">
+                            % of Portfolio
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {breakdownData.breakdown.map((row, index) => (
+                          <tr
+                            key={row.group}
+                            className="border-b border-beige-200 hover:bg-beige/20 transition-colors"
+                          >
+                            <td className="p-3 font-poppins font-medium text-pov-charcoal">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="w-3 h-3 rounded-full"
+                                  style={{
+                                    backgroundColor:
+                                      BREAKDOWN_COLORS[index % BREAKDOWN_COLORS.length],
+                                  }}
+                                />
+                                {row.group}
+                              </div>
+                            </td>
+                            <td className="p-3 text-right font-mono text-pov-charcoal">
+                              {row.companyCount}
+                            </td>
+                            <td className="p-3 text-right font-mono text-pov-charcoal">
+                              {formatCurrency(row.totalDeployed)}
+                            </td>
+                            <td className="p-3 text-right font-mono text-pov-charcoal">
+                              {formatCurrency(row.currentValue)}
+                            </td>
+                            <td className="p-3 text-right">
+                              <Badge
+                                variant={
+                                  row.moic >= 2
+                                    ? 'default'
+                                    : row.moic >= 1
+                                      ? 'secondary'
+                                      : 'outline'
+                                }
+                              >
+                                {formatMultiple(row.moic)}
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-right font-mono text-pov-charcoal">
+                              {formatPercent(row.irr)}
+                            </td>
+                            <td className="p-3 text-right font-mono text-pov-charcoal">
+                              {row.percentOfPortfolio.toFixed(1)}%
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+              {breakdownData && !hasBreakdownRows && (
+                <EmptyChartState
+                  title="Breakdown pending"
+                  description="Add portfolio companies or import a demo profile to show sector, stage, and company performance."
+                />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Metadata */}
+      {timeseriesData?.meta && (
+        <div className="text-xs text-pov-charcoal/50 font-poppins flex justify-between">
+          <span>
+            Data range: {timeseriesData.meta.startDate} to {timeseriesData.meta.endDate}
+          </span>
+          <span>
+            {timeseriesData.meta.dataPoints} data points | Computed in{' '}
+            {timeseriesData.meta.computeTimeMs}ms
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}

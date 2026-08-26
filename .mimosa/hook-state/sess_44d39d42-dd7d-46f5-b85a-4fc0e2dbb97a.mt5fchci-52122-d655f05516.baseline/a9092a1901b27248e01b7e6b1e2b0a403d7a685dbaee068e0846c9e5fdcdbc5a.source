@@ -1,0 +1,2212 @@
+#!/usr/bin/env node
+
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { dirname, isAbsolute, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const ROOT = dirname(__filename);
+const LEGACY_COMMANDS = new Set(['bootstrap', 'smoke', 'enable-algorithms', 'doctor']);
+const DOCTOR_PROVIDERS = ['claude', 'codex', 'kimi-cli', 'gemini', 'agy', 'ollama'];
+const WORKFLOW_MODES = new Set(['auto', 'solo', 'pair', 'chain', 'debate', 'review']);
+const MODEL_OVERRIDES = new Set([
+  'claude',
+  'codex',
+  'kimi',
+  'gemini',
+  'agy',
+  'sol',
+  'luna',
+  'terra',
+  'qwen',
+]);
+const TIER_NAMES = ['T0', 'T1', 'T2', 'T3'];
+const WORKFLOW_DEFERRED_BEHAVIOR = [
+  'model execution',
+  'artifact handoff',
+  'review platform automation',
+];
+
+const DEFAULT_DEBATE = {
+  comparators: ['claude', 'codex', 'kimi'],
+  synthesis: 'claude',
+};
+
+const currentModelChildren = new Set();
+
+function normalizeEntrypointPath(value) {
+  return String(value || '')
+    .replace(/^file:\/\//, '')
+    .replace(/\\/g, '/')
+    .replace(/^\/([A-Za-z]:\/)/, '$1')
+    .toLowerCase();
+}
+
+function isCliEntryPoint(metaUrl, argv = process.argv) {
+  if (!argv[1]) return false;
+
+  let modulePath = metaUrl;
+  try {
+    modulePath = fileURLToPath(metaUrl);
+  } catch {
+    modulePath = metaUrl;
+  }
+
+  return normalizeEntrypointPath(modulePath) === normalizeEntrypointPath(argv[1]);
+}
+
+function parseArgs(argv = []) {
+  const options = {
+    phase: 'research',
+    task: '',
+    dryRun: false,
+    json: false,
+    help: false,
+    skipPreflightGate: false,
+    gateSkipReason: null,
+    workflow: 'auto',
+    workflowProvided: false,
+    live: false,
+    manualModel: null,
+    legacyCommand: null,
+    tier: null,
+    batchesFile: null,
+  };
+
+  if (argv[0] && LEGACY_COMMANDS.has(argv[0])) {
+    options.legacyCommand = argv[0];
+    return options;
+  }
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+
+    if (arg === '--help' || arg === '-h') {
+      options.help = true;
+    } else if (arg === '--dry-run') {
+      options.dryRun = true;
+    } else if (arg === '--json') {
+      options.json = true;
+    } else if (arg === '--live') {
+      options.live = true;
+    } else if (arg === '--skip-gates') {
+      throw new Error('Use --skip-preflight-gate with --skip-reason instead of --skip-gates.');
+    } else if (arg === '--skip-preflight-gate') {
+      options.skipPreflightGate = true;
+    } else if (arg === '--skip-reason') {
+      options.gateSkipReason = argv[index + 1] || '';
+      index += 1;
+    } else if (arg === '--workflow') {
+      const workflow = argv[index + 1] || '';
+      if (!WORKFLOW_MODES.has(workflow)) {
+        throw new Error(
+          `Unknown workflow "${workflow}". Expected one of: ${[...WORKFLOW_MODES].join(', ')}.`
+        );
+      }
+      options.workflow = workflow;
+      options.workflowProvided = true;
+      index += 1;
+    } else if (arg === '--model') {
+      const model = argv[index + 1] || '';
+      if (!MODEL_OVERRIDES.has(model)) {
+        throw new Error(
+          `Unknown model "${model}". Expected one of: ${[...MODEL_OVERRIDES].join(', ')}.`
+        );
+      }
+      options.manualModel = model;
+      index += 1;
+    } else if (arg === '--phase') {
+      options.phase = argv[index + 1] || options.phase;
+      index += 1;
+    } else if (arg === '--tier') {
+      const tier = argv[index + 1] || '';
+      if (!TIER_NAMES.includes(tier)) {
+        throw new Error(`Unknown tier "${tier}". Expected one of: ${TIER_NAMES.join(', ')}.`);
+      }
+      options.tier = tier;
+      index += 1;
+    } else if (arg === '--task') {
+      options.task = argv[index + 1] || '';
+      index += 1;
+    } else if (arg === '--batches-file') {
+      options.batchesFile = argv[index + 1] || null;
+      index += 1;
+    } else if (arg === '--claude') {
+      options.manualModel = 'claude';
+    } else if (arg === '--codex') {
+      options.manualModel = 'codex';
+    } else if (arg === '--kimi') {
+      options.manualModel = 'kimi';
+    } else if (arg === '--gemini') {
+      options.manualModel = 'gemini';
+    } else if (arg === '--agy') {
+      options.manualModel = 'agy';
+    } else if (arg === '--sol') {
+      options.manualModel = 'sol';
+    } else if (arg === '--luna') {
+      options.manualModel = 'luna';
+    } else if (arg === '--terra') {
+      options.manualModel = 'terra';
+    } else if (arg === '--qwen') {
+      options.manualModel = 'qwen';
+    }
+  }
+
+  options.task = options.task.trim();
+  options.gateSkipReason = options.gateSkipReason?.trim() || null;
+
+  if (options.skipPreflightGate && !options.gateSkipReason) {
+    throw new Error('--skip-preflight-gate requires --skip-reason <reason>.');
+  }
+
+  return options;
+}
+
+function loadJSON(filePath) {
+  if (!existsSync(filePath)) {
+    throw new Error(`Missing JSON file: ${filePath}`);
+  }
+  return JSON.parse(readFileSync(filePath, 'utf8'));
+}
+
+function loadText(filePath, { optional = false } = {}) {
+  if (!existsSync(filePath)) {
+    if (optional) return '';
+    throw new Error(`Missing text file: ${filePath}`);
+  }
+  return readFileSync(filePath, 'utf8');
+}
+
+function scoreSpecialist(task, specialists = {}, scoring = {}) {
+  const input = task.toLowerCase();
+  const minScore = scoring.minScoreToAssign ?? 3;
+  const riskOrder = scoring.riskOrder ?? ['financial', 'operational', 'quality'];
+  const candidates = [];
+
+  for (const [name, config] of Object.entries(specialists)) {
+    let score = 0;
+    let maxScore = 0;
+    const matched = [];
+
+    for (const keyword of config.keywords || []) {
+      const phrase = String(
+        typeof keyword === 'string' ? keyword : keyword.phrase || ''
+      ).toLowerCase();
+      const weight = typeof keyword === 'string' ? 1 : keyword.weight || 1;
+
+      maxScore += weight;
+      if (phrase && input.includes(phrase)) {
+        score += weight;
+        matched.push(phrase);
+      }
+    }
+
+    if (score >= minScore) {
+      candidates.push({
+        name,
+        score,
+        maxScore,
+        confidence: maxScore > 0 ? Math.round((score / maxScore) * 100) / 100 : 0,
+        matched,
+        risk: config.risk || 'quality',
+      });
+    }
+  }
+
+  if (candidates.length === 0) return null;
+
+  candidates.sort((left, right) => {
+    if (right.score !== left.score) return right.score - left.score;
+
+    const leftRisk = riskOrder.indexOf(left.risk);
+    const rightRisk = riskOrder.indexOf(right.risk);
+    return (leftRisk === -1 ? 99 : leftRisk) - (rightRisk === -1 ? 99 : rightRisk);
+  });
+
+  const [selected] = candidates;
+  return { ...selected, candidates };
+}
+
+// Sophistication tier classification. Explicit flag wins; otherwise weighted
+// keyword scoring per tier (same idiom as scoreSpecialist); highest matching
+// tier wins; absent config or no match falls back to T1 (status quo behavior).
+function classifyTier(task, routing, explicitTier = null) {
+  if (explicitTier) {
+    if (!TIER_NAMES.includes(explicitTier)) {
+      throw new Error(`Unknown tier "${explicitTier}". Expected one of: ${TIER_NAMES.join(', ')}.`);
+    }
+    return { tier: explicitTier, source: 'flag', matched: [] };
+  }
+
+  const tiers = routing.tiers || {};
+  const input = String(task || '').toLowerCase();
+  let best = null;
+
+  for (const name of TIER_NAMES) {
+    const config = tiers[name];
+    if (!config || !Array.isArray(config.keywords)) continue;
+
+    const minScore = config.minScore ?? 3;
+    let score = 0;
+    const matched = [];
+    for (const keyword of config.keywords) {
+      const phrase = String(keyword.phrase || '').toLowerCase();
+      const weight = keyword.weight || 1;
+      if (phrase && input.includes(phrase)) {
+        score += weight;
+        matched.push(phrase);
+      }
+    }
+    if (score >= minScore) {
+      best = { tier: name, source: 'keyword', matched };
+    }
+  }
+
+  return best || { tier: 'T1', source: 'default', matched: [] };
+}
+
+function chooseModel(task, phase, routing, manualModel = null, tierConfig = null) {
+  if (manualModel) return manualModel;
+
+  const input = task.toLowerCase();
+  for (const trigger of routing.longContextTriggers || []) {
+    if (input.includes(String(trigger).toLowerCase())) {
+      return routing.longContextModel || 'kimi';
+    }
+  }
+
+  if (tierConfig?.modelByPhase?.[phase]) {
+    return tierConfig.modelByPhase[phase];
+  }
+
+  return routing.defaults?.[phase] || 'claude';
+}
+
+function resolveGate(phase, specialist, gates = {}) {
+  if (specialist?.risk === 'financial' && phase === 'production') {
+    return gates['production-financial'] || gates.production || null;
+  }
+  return gates[phase] || null;
+}
+
+function resolveEffectivePhase(phase, specialist) {
+  if (phase === 'production' && specialist?.risk === 'financial') {
+    return 'production-financial';
+  }
+  return phase;
+}
+
+function resolveOwnership(phase, specialist, ownership = {}) {
+  const effective = resolveEffectivePhase(phase, specialist);
+  const entry = ownership[effective] || ownership[phase];
+  if (!entry) return null;
+  return { effectivePhase: effective, ...entry };
+}
+
+function recommendWorkflow({ phase, risk = 'standard' }) {
+  if (risk === 'financial') return 'pair';
+  if (phase === 'distribution') return 'review';
+  if (phase === 'research') return 'chain';
+  return 'solo';
+}
+
+function createWorkflowPlan({
+  requestedWorkflow = 'auto',
+  phase,
+  model,
+  specialist,
+  gate,
+  ownership = null,
+  risk = 'standard',
+  debate = null,
+  review = 'standard',
+  moaConfig = null,
+}) {
+  if (!WORKFLOW_MODES.has(requestedWorkflow)) {
+    throw new Error(
+      `Unknown workflow "${requestedWorkflow}". Expected one of: ${[...WORKFLOW_MODES].join(', ')}.`
+    );
+  }
+
+  const selected =
+    requestedWorkflow === 'auto' ? recommendWorkflow({ phase, risk }) : requestedWorkflow;
+  const effectivePhase = ownership?.effectivePhase || phase;
+  const ownerModel = model || ownership?.owner;
+  const artifact = ownership?.artifact || 'artifact';
+  const steps = [];
+
+  // 'review' mode reviews an existing artifact, so it never re-runs the owner lane;
+  // because distribution ownership has no reviewer, distribution 'review' is
+  // gate-only by design (the lint gate is the review). 'debate' replaces the single
+  // owner lane with N comparators plus a synthesis step (added below).
+  if (selected !== 'review' && selected !== 'debate' && ownerModel) {
+    const role = ownership?.role ? ` ${ownership.role}` : '';
+    steps.push({
+      role: 'owner',
+      model: ownerModel,
+      action: `execute ${effectivePhase}${role} lane`,
+    });
+  }
+
+  if ((selected === 'chain' || (selected === 'pair' && risk === 'financial')) && specialist) {
+    steps.push({
+      role: 'specialist',
+      model: specialist.name || specialist,
+      action: 'review financial risk before completion',
+    });
+  }
+
+  if (
+    (review === 'moa' || review === 'moa-strict') &&
+    selected !== 'review' &&
+    selected !== 'debate' &&
+    ownerModel
+  ) {
+    steps.push({
+      role: 'moa-review',
+      model: moaConfig?.aggregator || 'sol',
+      action: 'multi-model lens review of artifact',
+      mode: review,
+    });
+  }
+
+  if (
+    (selected === 'pair' || selected === 'chain' || selected === 'review') &&
+    ownership?.reviewer &&
+    review !== 'none'
+  ) {
+    steps.push({
+      role: 'reviewer',
+      model: ownership.reviewer,
+      action: `review ${artifact}`,
+    });
+  }
+
+  // Debate carries no audit step by design; synthesis is the accountable artifact.
+  if ((selected === 'chain' || selected === 'pair') && ownership?.audit) {
+    steps.push({
+      role: 'audit',
+      model: ownership.audit,
+      action:
+        risk === 'financial' ? 'audit financial readiness evidence' : 'audit workflow evidence',
+    });
+  }
+
+  if (selected === 'debate') {
+    const debateConfig = debate || DEFAULT_DEBATE;
+    const comparatorModels =
+      Array.isArray(debateConfig.comparators) && debateConfig.comparators.length > 0
+        ? debateConfig.comparators
+        : DEFAULT_DEBATE.comparators;
+    const synthesisModel = debateConfig.synthesis || DEFAULT_DEBATE.synthesis;
+
+    for (const comparatorModel of comparatorModels) {
+      steps.push({
+        role: 'comparator',
+        model: comparatorModel,
+        action: `compare ${effectivePhase} options`,
+      });
+    }
+
+    steps.push({
+      role: 'synthesis',
+      model: synthesisModel,
+      action: `synthesize ${effectivePhase} options into ${artifact}`,
+    });
+  }
+
+  if (gate) {
+    steps.push({
+      role: 'gate',
+      model: null,
+      action: `run ${gate}`,
+    });
+  }
+
+  return {
+    requested: requestedWorkflow,
+    selected,
+    planningOnly: true,
+    gate,
+    deferred: WORKFLOW_DEFERRED_BEHAVIOR,
+    steps,
+  };
+}
+
+function createRoutingPlan({
+  phase,
+  task,
+  routing,
+  manualModel = null,
+  explicitTier = null,
+  requestedWorkflow = null,
+  skipPreflightGate = false,
+  gateSkipReason = null,
+  batches = null,
+}) {
+  const specialist = scoreSpecialist(task, routing.specialists || {}, routing.scoring || {});
+  let tierResult = classifyTier(task, routing, explicitTier);
+  if (specialist?.risk === 'financial' && tierResult.tier !== 'T3') {
+    tierResult = { tier: 'T3', source: 'financial-promotion', matched: [] };
+  }
+  const tierConfig = routing.tiers?.[tierResult.tier] || null;
+  const model = chooseModel(task, phase, routing, manualModel, tierConfig);
+  const gate = resolveGate(phase, specialist, routing.gates || {});
+  let ownership = resolveOwnership(phase, specialist, routing.ownership || {});
+  if (ownership && tierConfig?.modelByPhase?.[phase] && model === tierConfig.modelByPhase[phase]) {
+    ownership = { ...ownership, owner: model };
+  }
+  const risk = specialist?.risk || 'standard';
+
+  const plan = {
+    phase,
+    task,
+    model,
+    tier: { name: tierResult.tier, source: tierResult.source, matched: tierResult.matched },
+    review: tierConfig?.review || 'standard',
+    specialist: specialist?.name || null,
+    risk,
+    score: specialist?.score || 0,
+    confidence: specialist?.confidence ?? 0,
+    candidates: specialist?.candidates || [],
+    gate,
+  };
+
+  if (requestedWorkflow) {
+    plan.workflow = createWorkflowPlan({
+      requestedWorkflow,
+      phase,
+      model,
+      specialist,
+      gate,
+      ownership,
+      risk,
+      debate: routing.debate || null,
+      review: tierConfig?.review || 'standard',
+      moaConfig: routing.moaReview || null,
+    });
+  }
+
+  if (ownership) {
+    plan.ownership = ownership;
+  }
+
+  if (skipPreflightGate) {
+    plan.gateSkip = {
+      preflight: true,
+      reason: gateSkipReason || 'unspecified',
+    };
+  }
+
+  if (Array.isArray(batches) && batches.length > 0) {
+    plan.batches = batches;
+  }
+
+  return plan;
+}
+
+function buildPrompt({ plan, brain, soul = '', runId = null, workspace = ROOT }) {
+  const lines = [
+    'You are operating inside Updog_restore.',
+    '',
+    `PHASE: ${plan.phase}`,
+    `MODEL ROLE: ${plan.model}`,
+    `WORKSPACE: ${workspace}`,
+  ];
+
+  if (plan.ownership) {
+    const own = plan.ownership;
+    const ownerLine = [
+      `OWNER: ${own.owner}`,
+      own.reviewer ? `reviewer: ${own.reviewer}` : null,
+      own.role ? `role: ${own.role}` : null,
+      own.artifact ? `artifact: ${own.artifact}` : null,
+      own.humanApproval ? 'human approval required' : null,
+    ]
+      .filter(Boolean)
+      .join('; ');
+    lines.push(ownerLine);
+  }
+
+  if (plan.specialist) {
+    const confidencePct = Math.round((plan.confidence ?? 0) * 100);
+    lines.push(
+      `SPECIALIST: ${plan.specialist} (risk: ${plan.risk}; confidence: ${confidencePct}%)`
+    );
+  }
+
+  if (plan.gate) {
+    lines.push(`REQUIRED GATE: ${plan.gate}`);
+  }
+
+  if (runId) {
+    lines.push(`RUN ID: ${runId}`);
+  }
+
+  lines.push('', '--- DEV_BRAIN ---', brain.trim(), '--- END DEV_BRAIN ---');
+
+  if (soul.trim()) {
+    lines.push('', '--- HERMES_SOUL ---', soul.trim(), '--- END HERMES_SOUL ---');
+  }
+
+  lines.push(
+    '',
+    `TASK: ${plan.task}`,
+    '',
+    'Instructions:',
+    '1. Read your governance file first when filesystem access is available.',
+    `2. Set command-tool Cwd to ${workspace}; never run repository commands from a tool scratch directory.`,
+    '3. Search for existing implementations before proposing new code.',
+    '4. Use .claude/DISCOVERY-MAP.md and .claude/AGENT-DIRECTORY.md for routing.',
+    '5. Prefer existing specialists before inventing new abstractions.',
+    '6. Produce the smallest safe diff.',
+    '7. If financial logic is touched, confirm calc-gate coverage.',
+    '8. Return: Summary, Affected Files, Changes or Plan, Verification, Risks.',
+    '9. End with a compact Handoff block listing:',
+    '   Run ID, Phase, Owner, Reviewer, Task, Protected areas, Files touched,',
+    '   Commands run, Gate status, Decision needed, Next action.',
+    '10. If writing a persisted handoff or checkpoint artifact, conform to',
+    '   .claude/schemas/handoff.schema.json.'
+  );
+
+  return lines.join('\n');
+}
+
+function commandExists(bin) {
+  if (!bin) return false;
+  // Absolute or relative path: check the filesystem directly. where.exe/which
+  // only resolve bare names from PATH and error on absolute paths.
+  if (/[\\/]/.test(bin)) {
+    if (existsSync(bin)) return true;
+    if (process.platform === 'win32' && !/\.[a-zA-Z0-9]+$/.test(bin)) {
+      return ['.exe', '.cmd', '.bat'].some((ext) => existsSync(bin + ext));
+    }
+    return false;
+  }
+  const checker = process.platform === 'win32' ? 'where.exe' : 'which';
+  const result = spawnSync(checker, [bin], { stdio: 'ignore' });
+  return result.status === 0;
+}
+
+function findDoctorCommandConfig(routing, provider) {
+  const commands = routing.commands || {};
+  if (commands[provider]) return commands[provider];
+  return Object.values(commands).find((config) => config?.defaultBin === provider) || null;
+}
+
+function buildDoctorReport({
+  routing,
+  env = process.env,
+  providers = DOCTOR_PROVIDERS,
+  commandExists: checkCommandExists = commandExists,
+}) {
+  return providers.map((provider) => {
+    const commandConfig = findDoctorCommandConfig(routing, provider);
+    const envName = commandConfig?.binEnv;
+    const envBin = envName ? env[envName] : null;
+    const bin = envBin || commandConfig?.defaultBin || provider;
+    const source = envBin ? `env:${envName}` : 'default';
+
+    return {
+      provider,
+      bin,
+      source,
+      found: checkCommandExists(bin),
+    };
+  });
+}
+
+function resolveCommandInput(commandConfig, prompt) {
+  const args = [...(commandConfig.args || [])];
+  const promptDelivery = commandConfig.promptDelivery || 'stdin';
+
+  if (promptDelivery === 'argument') {
+    args.push(prompt);
+    return { args, stdin: null };
+  }
+  if (promptDelivery === 'stdin') {
+    return { args, stdin: prompt };
+  }
+
+  throw new Error(`Unknown prompt delivery mode: ${promptDelivery}`);
+}
+
+function shouldUseShell(platform, commandConfig) {
+  return platform === 'win32' && commandConfig.promptDelivery !== 'argument';
+}
+
+function resolveCommandEnv(commandConfig, env) {
+  const commandEnv = { ...env };
+  for (const name of commandConfig.unsetEnv || []) {
+    delete commandEnv[name];
+  }
+  return commandEnv;
+}
+
+function formatDoctorReport(report) {
+  const rows = [
+    ['Provider', 'Binary', 'Source', 'Status'],
+    ...report.map(({ provider, bin, source, found }) => [
+      provider,
+      bin,
+      source,
+      found ? 'found' : 'missing',
+    ]),
+  ];
+  const widths = rows[0].map((_, index) =>
+    Math.max(...rows.map((row) => String(row[index]).length))
+  );
+  const formatRow = (row) =>
+    row.map((value, index) => String(value).padEnd(widths[index])).join('  ');
+  const divider = widths.map((width) => '-'.repeat(width)).join('  ');
+
+  return [formatRow(rows[0]), divider, ...rows.slice(1).map(formatRow)].join('\n');
+}
+
+function printDoctorReport(report, stdout = process.stdout) {
+  stdout.write('Hermes CLI doctor\n');
+  stdout.write(`${formatDoctorReport(report)}\n`);
+}
+
+// Kills a spawned model-CLI process AND its children. executeModel/
+// executeModelCapture always spawn with `detached: true` on POSIX (own
+// process group, pgid === child.pid), so `-pid` reaches the whole tree, not
+// just the immediate child (e.g. a shell wrapping the real CLI). Windows has
+// no negative-pid group signal, so it shells out to taskkill /T (tree) /F.
+function killProcessTree(
+  child,
+  { platform = process.platform, kill = process.kill, spawnSyncImpl = spawnSync } = {}
+) {
+  if (!child || !child.pid) return;
+  if (platform === 'win32') {
+    spawnSyncImpl('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+    return;
+  }
+  try {
+    kill(-child.pid, 'SIGKILL');
+  } catch {
+    // Process group already gone, or this child was never its own group
+    // leader (e.g. a fake/injected child in tests) — fall back to a direct kill.
+    try {
+      child.kill?.('SIGKILL');
+    } catch {
+      // Nothing left to kill.
+    }
+  }
+}
+
+function forwardTerminationSignal(
+  signal,
+  { killTree = killProcessTree, exit = process.exit } = {}
+) {
+  for (const child of currentModelChildren) {
+    killTree(child);
+  }
+  exit(signal === 'SIGINT' ? 130 : 143);
+}
+
+// Shared spawn core for executeModel/executeModelCapture. Optionally
+// pipes+aggregates stdout for the capture variant.
+function runModelProcessOnce(bin, input, spawnOpts, { spawnImpl, capture }) {
+  return new Promise((resolvePromise, reject) => {
+    const child = spawnImpl(bin, input.args, spawnOpts);
+    currentModelChildren.add(child);
+    let settled = false;
+    let output = '';
+
+    const clearCurrentChild = () => {
+      currentModelChildren.delete(child);
+    };
+
+    if (capture) {
+      child.stdout.on('data', (chunk) => {
+        output += chunk.toString();
+      });
+    }
+    if (input.stdin !== null) child.stdin.write(input.stdin);
+    child.stdin.end();
+    child.on('error', (error) => {
+      if (settled) return;
+      settled = true;
+      clearCurrentChild();
+      reject(error);
+    });
+    child.on('close', (code) => {
+      if (settled) return;
+      settled = true;
+      clearCurrentChild();
+      resolvePromise(capture ? { code: code || 0, output } : code || 0);
+    });
+  });
+}
+
+function prepareModelDispatch(model, prompt, routing, env) {
+  const commandConfig = routing.commands?.[model];
+  if (!commandConfig) {
+    throw new Error(`No command config for model: ${model}`);
+  }
+
+  const bin = env[commandConfig.binEnv] || commandConfig.defaultBin;
+  if (!commandExists(bin)) {
+    throw new Error(
+      `Command not found for model "${model}": ${bin}. Set ${commandConfig.binEnv} or install the CLI.`
+    );
+  }
+
+  return {
+    bin,
+    input: resolveCommandInput(commandConfig, prompt),
+    commandEnv: resolveCommandEnv(commandConfig, env),
+    useShell: shouldUseShell(process.platform, commandConfig),
+  };
+}
+
+function executeModel(
+  model,
+  prompt,
+  routing,
+  env = process.env,
+  { spawn: spawnImpl = spawn, workspace = ROOT } = {}
+) {
+  const { bin, input, commandEnv, useShell } = prepareModelDispatch(model, prompt, routing, env);
+  const spawnOpts = {
+    stdio: ['pipe', 'inherit', 'inherit'],
+    shell: useShell,
+    env: commandEnv,
+    cwd: workspace,
+    detached: process.platform !== 'win32',
+  };
+  return runModelProcessOnce(bin, input, spawnOpts, {
+    spawnImpl,
+    capture: false,
+  });
+}
+
+// Sibling of executeModel that PIPES stdout so a step's output can be captured
+// and fed back into executeWorkflow. The non-workflow executeModel path keeps
+// inheriting stdout.
+function executeModelCapture(
+  model,
+  prompt,
+  routing,
+  env = process.env,
+  { spawn: spawnImpl = spawn, workspace = ROOT } = {}
+) {
+  const { bin, input, commandEnv, useShell } = prepareModelDispatch(model, prompt, routing, env);
+  const spawnOpts = {
+    stdio: ['pipe', 'pipe', 'inherit'],
+    shell: useShell,
+    env: commandEnv,
+    cwd: workspace,
+    detached: process.platform !== 'win32',
+  };
+  return runModelProcessOnce(bin, input, spawnOpts, {
+    spawnImpl,
+    capture: true,
+  });
+}
+
+const APPROVAL_SENTINEL = 'APPROVED';
+const REJECTION_SENTINEL = 'CHANGES REQUESTED';
+
+// Fail-closed, line-anchored. Approval requires a line that is EXACTLY the
+// approval sentinel; any line beginning with the rejection sentinel wins, and an
+// absent or ambiguous response is treated as not approved.
+function parseApprovalSignal(output) {
+  const lines = String(output || '')
+    .split('\n')
+    .map((line) => line.trim());
+  if (lines.some((line) => line.startsWith(REJECTION_SENTINEL))) {
+    return false;
+  }
+  return lines.some((line) => line === APPROVAL_SENTINEL);
+}
+
+const FINDING_SEVERITIES = new Set(['high', 'medium', 'low']);
+const REPORT_VERDICTS = new Set(['approve', 'changes']);
+
+// Node contract for MOA reviewer output. Hand-rolled (orchestrate.js is
+// dependency-free). Lenient on extra properties, strict on required shape.
+function validateFindingsReport(value) {
+  const fail = (error) => ({ ok: false, error });
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return fail('report must be an object');
+  }
+  if (!REPORT_VERDICTS.has(value.verdict)) {
+    return fail(`verdict must be one of: ${[...REPORT_VERDICTS].join(', ')}`);
+  }
+  if (typeof value.summary !== 'string') {
+    return fail('summary must be a string');
+  }
+  if (!Array.isArray(value.findings)) {
+    return fail('findings must be an array');
+  }
+  for (const [index, finding] of value.findings.entries()) {
+    if (!finding || typeof finding !== 'object')
+      return fail(`findings[${index}] must be an object`);
+    if (typeof finding.file !== 'string' || !finding.file)
+      return fail(`findings[${index}].file required`);
+    if (!Number.isInteger(finding.line) || finding.line < 1)
+      return fail(`findings[${index}].line must be a positive integer`);
+    if (!FINDING_SEVERITIES.has(finding.severity))
+      return fail(`findings[${index}].severity must be high|medium|low`);
+    if (typeof finding.lens !== 'string' || !finding.lens)
+      return fail(`findings[${index}].lens required`);
+    if (typeof finding.claim !== 'string' || !finding.claim)
+      return fail(`findings[${index}].claim required`);
+    if (finding.evidence !== undefined && typeof finding.evidence !== 'string')
+      return fail(`findings[${index}].evidence must be a string when present`);
+  }
+  if (value.verdict === 'approve' && value.findings.length > 0) {
+    return fail('verdict approve requires an empty findings array');
+  }
+  if (value.verdict === 'changes' && value.findings.length === 0) {
+    return fail('verdict changes requires at least one finding');
+  }
+  return { ok: true, error: null };
+}
+
+// Pulls the last fenced ```json block (or, failing that, the whole output) and
+// validates it against the findings contract.
+function extractFindingsReport(output) {
+  const text = String(output || '');
+  const fenced = [...text.matchAll(/```json\s*\n([\s\S]*?)\n```/g)];
+  const candidates = fenced.length > 0 ? [fenced[fenced.length - 1][1]] : [text.trim()];
+
+  for (const candidate of candidates) {
+    let parsed;
+    try {
+      parsed = JSON.parse(candidate);
+    } catch {
+      return {
+        ok: false,
+        error: 'no parseable JSON report found in reviewer output',
+      };
+    }
+    const valid = validateFindingsReport(parsed);
+    if (!valid.ok) {
+      return { ok: false, error: valid.error };
+    }
+    return { ok: true, report: parsed };
+  }
+  return {
+    ok: false,
+    error: 'no parseable JSON report found in reviewer output',
+  };
+}
+
+// Opaque JSON-encoded tuple key, not display text or the original colon-delimited sketch.
+function findingKey(finding) {
+  const claim = String(finding.claim || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+  return JSON.stringify([finding.file, finding.line, claim]);
+}
+
+function buildMoaReviewerPrompt({ task, artifact, lens }) {
+  return [
+    'You are one reviewer in a multi-model code review panel.',
+    `Your assigned lens: ${lens}. Review ONLY through this lens; other lenses are covered by other reviewers.`,
+    'Adversarial stance: actively try to find problems. Approve only if you find none through your lens.',
+    '',
+    `TASK UNDER REVIEW: ${task}`,
+    '',
+    '--- ARTIFACT (diff / implementation output) ---',
+    artifact,
+    '--- END ARTIFACT ---',
+    '',
+    'Respond with ONLY a fenced json block of this exact shape:',
+    '```json',
+    '{"verdict": "approve" | "changes", "summary": "<one sentence>", "findings": [{"file": "<path>", "line": <int>, "severity": "high" | "medium" | "low", "lens": "<your lens>", "claim": "<the defect>", "evidence": "<why>"}]}',
+    '```',
+    'verdict "approve" requires an empty findings array. No prose outside the block.',
+  ].join('\n');
+}
+
+function isMoaReviewerConfig(value) {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    typeof value.model === 'string' &&
+    value.model.trim().length > 0 &&
+    typeof value.lens === 'string' &&
+    value.lens.trim().length > 0
+  );
+}
+
+// The MOA coding-review diamond: parallel lens reviewers, deterministic merge
+// and vote in code, optional aggregator narration. Approval is decided HERE,
+// never by a model: moa = all successful reviewers approve (degraded tolerated
+// loudly if at least one survives); moa-strict = >=2 approvals AND zero
+// degradation. Findings are unioned and deduped by findingKey.
+async function runMoaReview({
+  artifact,
+  task,
+  mode,
+  moaConfig,
+  routing,
+  env = process.env,
+  executor = executeModelCapture,
+}) {
+  const reviewerConfigKey = mode === 'moa-strict' ? 'strictReviewers' : 'reviewers';
+  const reviewers = moaConfig?.[reviewerConfigKey];
+  const minimumReviewers = mode === 'moa-strict' ? 3 : 2;
+  if (!Array.isArray(reviewers) || reviewers.length < minimumReviewers) {
+    throw new Error(
+      mode === 'moa-strict'
+        ? 'runMoaReview: moa-strict mode requires at least 3 configured reviewers in moaConfig.strictReviewers'
+        : 'runMoaReview: moa mode requires at least 2 configured reviewers'
+    );
+  }
+  if (!reviewers.every(isMoaReviewerConfig)) {
+    throw new Error(
+      `runMoaReview: moaConfig.${reviewerConfigKey} entries require non-empty string model and lens`
+    );
+  }
+
+  const votes = await Promise.all(
+    reviewers.map(async ({ model, lens }) => {
+      try {
+        const { code, output } = await executor(
+          model,
+          buildMoaReviewerPrompt({ task, artifact, lens }),
+          routing,
+          env
+        );
+        if (code !== 0) {
+          return {
+            model,
+            lens,
+            verdict: 'error',
+            error: `exit code ${code}`,
+            findings: [],
+          };
+        }
+        const extracted = extractFindingsReport(output);
+        if (!extracted.ok) {
+          return {
+            model,
+            lens,
+            verdict: 'error',
+            error: extracted.error,
+            findings: [],
+          };
+        }
+        return {
+          model,
+          lens,
+          verdict: extracted.report.verdict,
+          error: null,
+          findings: extracted.report.findings,
+        };
+      } catch (error) {
+        let errorMessage;
+        try {
+          errorMessage = error instanceof Error ? error.message : String(error);
+        } catch {
+          errorMessage = 'unknown error';
+        }
+        return {
+          model,
+          lens,
+          verdict: 'error',
+          error: errorMessage,
+          findings: [],
+        };
+      }
+    })
+  );
+
+  const succeeded = votes.filter((vote) => vote.verdict !== 'error');
+  const approvals = succeeded.filter((vote) => vote.verdict === 'approve').length;
+  const degraded = succeeded.length < reviewers.length;
+
+  const SEVERITY_RANK = { high: 3, medium: 2, low: 1 };
+  const byKey = new Map();
+  for (const vote of votes) {
+    for (const finding of vote.findings) {
+      const key = findingKey(finding);
+      const existing = byKey.get(key);
+      if (!existing || SEVERITY_RANK[finding.severity] > SEVERITY_RANK[existing.severity]) {
+        byKey.set(key, finding);
+      }
+    }
+  }
+  const findings = [...byKey.values()];
+
+  let approved;
+  if (mode === 'moa-strict') {
+    approved = !degraded && approvals >= 2;
+  } else {
+    approved = succeeded.length > 0 && approvals === succeeded.length;
+  }
+
+  let aggregatorSummary = null;
+  if (!approved && findings.length > 0 && moaConfig.aggregator) {
+    try {
+      const aggregatorPrompt = [
+        'You aggregate a multi-model code review. The verdict is already decided by vote; do not change it.',
+        `Merged findings (${findings.length}):`,
+        JSON.stringify(findings, null, 2),
+        '',
+        'Write a concise reviewer-facing narrative: group related findings, order by severity, one paragraph max per finding.',
+      ].join('\n');
+      const { code, output } = await executor(moaConfig.aggregator, aggregatorPrompt, routing, env);
+      if (code === 0) aggregatorSummary = output.trim();
+    } catch {
+      // narration is best-effort; the vote already decided the outcome
+    }
+  }
+
+  return {
+    approved,
+    degraded,
+    findings,
+    votes: votes.map(({ model, lens, verdict, error }) => ({
+      model,
+      lens,
+      verdict,
+      error,
+    })),
+    aggregatorSummary,
+  };
+}
+
+function formatStepInput(input) {
+  if (Array.isArray(input)) {
+    return input.map((entry, index) => `--- INPUT ${index + 1} ---\n${entry ?? ''}`).join('\n\n');
+  }
+  return input == null ? '' : String(input);
+}
+
+// Live step runner injected into executeWorkflow. Composes a per-step prompt from
+// the base task prompt plus role/action context, prior output, and specialist
+// notes, runs the step's model with stdout captured, and (for reviewer steps)
+// derives a fail-closed approval verdict. Prompt composition is intentionally a
+// minimal v1; refine as real-model output patterns are observed.
+function createLiveRunStep({
+  routing,
+  basePrompt = '',
+  env = process.env,
+  executor = executeModelCapture,
+} = {}) {
+  return async function liveRunStep({ step, input, notes }) {
+    const sections = [
+      basePrompt,
+      '',
+      '--- WORKFLOW STEP ---',
+      `ROLE: ${step.role}`,
+      `ACTION: ${step.action}`,
+    ];
+    if (notes) {
+      sections.push('', 'SPECIALIST NOTES:', String(notes));
+    }
+    const formattedInput = formatStepInput(input);
+    if (formattedInput) {
+      sections.push('', 'PRIOR OUTPUT:', formattedInput);
+    }
+    if (step.role === 'reviewer') {
+      sections.push(
+        '',
+        `Reply with exactly "${APPROVAL_SENTINEL}" on its own line if the artifact is ready to ship.`,
+        `Otherwise emit a line beginning "${REJECTION_SENTINEL}" followed by the required changes.`,
+        'An absent or ambiguous response is treated as changes requested.'
+      );
+    }
+
+    const { code, output } = await executor(step.model, sections.join('\n'), routing, env);
+    const result = { code, output };
+    if (step.role === 'reviewer') {
+      result.approved = parseApprovalSignal(output);
+    }
+    return result;
+  };
+}
+
+function runGate(
+  gate,
+  {
+    runner = spawnSync,
+    env = process.env,
+    stdio = 'inherit',
+    throwOnFailure = true,
+    workspace = ROOT,
+  } = {}
+) {
+  const command = String(gate || '').trim();
+  if (!command) {
+    return { command: null, skipped: true, status: 0 };
+  }
+
+  const [bin, ...args] = command.split(/\s+/);
+  const result = runner(bin, args, {
+    env,
+    shell: process.platform === 'win32',
+    stdio,
+    cwd: workspace,
+  });
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  const status = result.status ?? 0;
+  if (status !== 0 && throwOnFailure) {
+    throw new Error(`Gate failed (${command}) with exit code ${status}`);
+  }
+
+  return { command, skipped: false, status };
+}
+
+function generateRunId(now = new Date()) {
+  const iso = now.toISOString().replace(/[:.]/g, '-');
+  return `hermes-${iso}`;
+}
+
+const SECRET_TEXT_PATTERNS = [
+  // OpenAI/Anthropic-style API keys (sk-..., sk-ant-..., sk-proj-...).
+  /\bsk-[A-Za-z0-9-_]{10,}\b/g,
+  // GitHub tokens (ghp_, gho_, ghu_, ghs_, ghr_).
+  /\bgh[pousr]_[A-Za-z0-9]{20,}\b/g,
+  // AWS access key IDs.
+  /\bAKIA[0-9A-Z]{16}\b/g,
+  // Bearer auth headers.
+  /\b(Bearer\s+)[A-Za-z0-9\-._~+/]+=*/gi,
+  // JSON-quoted key:value assignments for common secret-ish names.
+  /("(?:api[_-]?key|secret|token|password|passwd)"\s*:\s*")((?:\\.|[^"\\])+)(?=")/gi,
+  // key=value / key: value assignments for common secret-ish names.
+  /\b((?:api[_-]?key|secret|token|password|passwd)\s*[:=]\s*)(\S+)/gi,
+];
+
+// The Hermes run ledger (ai-logs/hermes/runs/*.json) stores the raw --task
+// string verbatim. ai-logs/ is gitignored so this isn't a git-history leak,
+// but nothing stopped a credential pasted into a task string from landing on
+// disk in plaintext. Recursively redacts obvious secret shapes from every
+// string field before a record is written.
+function scrubSecrets(value) {
+  if (typeof value === 'string') {
+    return SECRET_TEXT_PATTERNS.reduce((text, pattern) => {
+      if (pattern.source.includes('(')) {
+        // Patterns with a capture group keep the non-secret prefix (e.g. "Bearer ", "api_key=").
+        return text.replace(pattern, (...args) => `${args[1]}[REDACTED]`);
+      }
+      return text.replace(pattern, '[REDACTED]');
+    }, value);
+  }
+  if (Array.isArray(value)) {
+    return value.map(scrubSecrets);
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, val]) => [key, scrubSecrets(val)]));
+  }
+  return value;
+}
+
+function writeRunLedger(record, { root = ROOT, fs = { mkdirSync, writeFileSync } } = {}) {
+  const dir = join(root, 'ai-logs', 'hermes', 'runs');
+  fs.mkdirSync(dir, { recursive: true });
+  const file = join(dir, `${record.runId}.json`);
+  fs.writeFileSync(file, `${JSON.stringify(scrubSecrets(record), null, 2)}\n`);
+  return file;
+}
+
+function isProcessAlive(pid, kill = process.kill) {
+  try {
+    kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === 'EPERM';
+  }
+}
+
+function prepareRelaunchCleanup({
+  root = ROOT,
+  fs = { existsSync, mkdirSync, readFileSync, writeFileSync },
+  isProcessAlive: checkProcessAlive = isProcessAlive,
+  platform = process.platform,
+  killTree = killProcessTree,
+  signalProcess = process.kill,
+  currentPid = process.pid,
+} = {}) {
+  const dir = join(root, 'ai-logs', 'hermes');
+  const pidFile = join(dir, 'orchestrate.pid');
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch {
+    return null;
+  }
+
+  let previousPid = null;
+  try {
+    if (fs.existsSync(pidFile)) {
+      previousPid = Number(fs.readFileSync(pidFile, 'utf8').trim());
+    }
+  } catch {
+    previousPid = null;
+  }
+
+  if (
+    Number.isInteger(previousPid) &&
+    previousPid > 0 &&
+    previousPid !== currentPid &&
+    checkProcessAlive(previousPid)
+  ) {
+    try {
+      if (platform === 'win32') {
+        killTree({ pid: previousPid });
+      } else {
+        // SIGTERM lets the prior orchestrator forward termination to every
+        // detached model process group before it exits.
+        signalProcess(previousPid, 'SIGTERM');
+      }
+    } catch {
+      // Prior process exited after the liveness check.
+    }
+  }
+
+  try {
+    fs.writeFileSync(pidFile, `${currentPid}\n`);
+  } catch {
+    return null;
+  }
+  return pidFile;
+}
+
+function getGateRunPlan(plan, { skipPreflightGate = false } = {}) {
+  const hasGate = Boolean(plan.gate);
+  return {
+    preflight: hasGate && !skipPreflightGate,
+    postflight: hasGate,
+  };
+}
+
+function isProductionFinancial(plan) {
+  return plan.phase === 'production' && plan.risk === 'financial';
+}
+
+function assertFinancialGate(plan) {
+  if (!isProductionFinancial(plan)) {
+    return;
+  }
+  if (plan.gate !== 'npm run calc-gate') {
+    throw new Error(
+      `Financial gate proof failed: production-financial plan must resolve gate to "npm run calc-gate", got "${plan.gate}".`
+    );
+  }
+}
+
+// Structured readiness boundary. assertFinancialGate stays the throwing core; this
+// wraps it so a CLI or report surface can present a not-ready outcome without
+// crashing. When an execution result is supplied, a nonzero exit or an unapproved
+// artifact also blocks readiness.
+function evaluateReadiness(plan, result = null) {
+  if (!plan || typeof plan !== 'object') {
+    return { ready: false, reason: 'evaluateReadiness requires a plan object.' };
+  }
+
+  try {
+    assertFinancialGate(plan);
+  } catch (error) {
+    return { ready: false, reason: error.message };
+  }
+
+  if (result) {
+    if (Number.isInteger(result.exitCode) && result.exitCode !== 0) {
+      return { ready: false, reason: `workflow exited with code ${result.exitCode}` };
+    }
+    if (result.approved === false) {
+      return { ready: false, reason: 'reviewer did not approve the artifact' };
+    }
+  }
+
+  return { ready: true, reason: null };
+}
+
+function shouldRunPostflightGate(plan, code, gates) {
+  return gates.postflight && (code === 0 || isProductionFinancial(plan));
+}
+
+function defaultRunStep() {
+  throw new Error(
+    'executeWorkflow requires deps.runStep until live model wiring lands; pass an injected step runner.'
+  );
+}
+
+async function runOwnerReviewRepairRound({
+  ownerStep,
+  moaStep,
+  reviewerStep,
+  runRecorded,
+  records,
+  moaRunner,
+  initialArtifact = null,
+  initialOwnerInput = null,
+  task,
+  routing,
+  env,
+  moaConfig,
+  maxRepairs,
+}) {
+  let artifact = initialArtifact;
+  let moaResult = null;
+  let approved = true;
+  let repairs = 0;
+
+  if (artifact === null && ownerStep) {
+    const owner = await runRecorded(ownerStep, initialOwnerInput, 0);
+    // eslint-disable-next-line require-atomic-updates -- owner production is awaited and serialized.
+    artifact = owner.output ?? '';
+  }
+
+  if (!moaStep && !reviewerStep) {
+    return { artifact, approved, repairs, moaResult };
+  }
+
+  let previousFindingKeys = new Set();
+
+  const runReviewRound = async (attempt) => {
+    let roundApproved = true;
+    let repairInput = '';
+
+    if (moaStep) {
+      moaResult = await moaRunner({
+        artifact: artifact ?? '',
+        task: task ?? '',
+        mode: moaStep.mode,
+        moaConfig,
+        routing,
+        env,
+      });
+      records.push({
+        role: 'moa-review',
+        model: moaStep.model,
+        attempt,
+        code: moaResult.degraded && moaStep.mode === 'moa-strict' ? 1 : 0,
+        approved: moaResult.approved,
+        output: JSON.stringify({
+          votes: moaResult.votes,
+          findings: moaResult.findings,
+        }),
+      });
+      if (moaResult.degraded) {
+        process.stderr.write(
+          `[hermes] WARNING: MOA review degraded (mode ${moaStep.mode}): ${JSON.stringify(moaResult.votes)}\n`
+        );
+      }
+      if (!moaResult.approved) {
+        roundApproved = false;
+        repairInput += `MOA REVIEW FINDINGS:\n${JSON.stringify(moaResult.findings, null, 2)}\n`;
+      }
+    }
+
+    let reviewerApproved = null;
+    if (reviewerStep) {
+      const review = await runRecorded(reviewerStep, artifact, attempt);
+      reviewerApproved = Boolean(review.approved);
+      if (!review.approved) {
+        roundApproved = false;
+        repairInput += `REVIEWER OUTPUT:\n${review.output ?? ''}`;
+      }
+    }
+
+    return { roundApproved, repairInput, reviewerApproved };
+  };
+
+  let round = await runReviewRound(0);
+  approved = round.roundApproved;
+
+  while (!approved && repairs < maxRepairs && ownerStep) {
+    if (
+      moaResult?.degraded &&
+      (moaStep?.mode === 'moa-strict' ||
+        (!moaResult.approved && (moaResult.findings?.length ?? 0) === 0))
+    ) {
+      break; // transport failure: repairing code cannot fix a crashed reviewer lane
+    }
+    const currentFindingKeys = new Set((moaResult?.findings || []).map(findingKey));
+    const newKeys = [...currentFindingKeys].filter((key) => !previousFindingKeys.has(key));
+    const moaIsSoleRejector =
+      moaStep && moaResult && !moaResult.approved && round.reviewerApproved !== false;
+    if (moaIsSoleRejector && !moaResult.degraded && newKeys.length === 0 && repairs > 0) {
+      break; // dry loop: MOA repeats known findings and nothing else rejects
+    }
+    previousFindingKeys = currentFindingKeys;
+
+    repairs += 1;
+    const repair = await runRecorded(ownerStep, round.repairInput, repairs);
+    // eslint-disable-next-line require-atomic-updates -- repair rounds own artifact state and run serially.
+    artifact = repair.output ?? artifact;
+    round = await runReviewRound(repairs);
+    approved = round.roundApproved;
+  }
+
+  return { artifact, approved, repairs, moaResult };
+}
+
+async function executeBatchedWorkflow(plan, deps = {}) {
+  const workflow = plan.workflow;
+  if (plan.phase !== 'production') {
+    throw new Error('Batched workflows require the production phase.');
+  }
+  const maxRepairs = Number.isInteger(deps.maxRepairs) ? deps.maxRepairs : 2;
+  const runStep = deps.runStep || defaultRunStep;
+  const gateRunner = deps.gateRunner || spawnSync;
+  const assertGate = deps.assertFinancialGate || assertFinancialGate;
+  const ledgerWriter = deps.writeRunLedger === undefined ? null : deps.writeRunLedger;
+  const clock = deps.clock || (() => new Date());
+  const runId = deps.runId || generateRunId(clock());
+
+  const stepByRole = (role) => workflow.steps.find((step) => step.role === role) || null;
+  const ownerStep = stepByRole('owner');
+  const specialistStep = stepByRole('specialist');
+  const moaStep = stepByRole('moa-review');
+  const reviewerStep = stepByRole('reviewer');
+  const auditStep = stepByRole('audit');
+  const moaRunner = deps.moaRunner || runMoaReview;
+  const routing = deps.routing || null;
+  const env = deps.env || process.env;
+
+  if (!ownerStep) {
+    throw new Error('Batched workflows require an owner step.');
+  }
+
+  let specialistNotes = null;
+  const records = [];
+  let stepFailureCode = 0;
+  const runRecorded = async (step, input, attempt) => {
+    const result = await runStep({ step, input, notes: specialistNotes, plan, attempt, runId });
+    const code = result.code ?? 0;
+    if (stepFailureCode === 0 && code !== 0) {
+      stepFailureCode = code;
+    }
+    records.push({
+      role: step.role,
+      model: step.model,
+      attempt,
+      code,
+      approved: result.approved ?? null,
+      output: result.output ?? '',
+    });
+    return result;
+  };
+
+  let accumulatedArtifact = '';
+  const batchResults = [];
+  let haltedAt = null;
+  let totalRepairs = 0;
+
+  for (let index = 0; index < plan.batches.length; index += 1) {
+    const batchDescription = plan.batches[index];
+    const round = await runOwnerReviewRepairRound({
+      ownerStep,
+      moaStep,
+      reviewerStep,
+      runRecorded,
+      records,
+      moaRunner,
+      initialArtifact: null,
+      initialOwnerInput: [accumulatedArtifact, batchDescription],
+      task: plan.task,
+      routing,
+      env,
+      moaConfig: deps.moaConfig || routing?.moaReview || {},
+      maxRepairs,
+    });
+    batchResults.push({
+      index,
+      description: batchDescription,
+      approved: round.approved,
+      repairs: round.repairs,
+    });
+    totalRepairs += round.repairs;
+    accumulatedArtifact = round.artifact;
+    if (!round.approved) {
+      haltedAt = index;
+      break;
+    }
+  }
+
+  let finalPass = null;
+  let gate = { command: plan.gate || null, skipped: true, status: 0 };
+  let exitCode = 0;
+
+  if (haltedAt !== null) {
+    exitCode = 1;
+  } else {
+    if (specialistStep) {
+      const specialist = await runRecorded(specialistStep, accumulatedArtifact, 0);
+      specialistNotes = specialist.output ?? null;
+    }
+
+    finalPass = await runOwnerReviewRepairRound({
+      ownerStep,
+      moaStep,
+      reviewerStep,
+      runRecorded,
+      records,
+      moaRunner,
+      initialArtifact: accumulatedArtifact,
+      task: plan.task,
+      routing,
+      env,
+      moaConfig: deps.moaConfig || routing?.moaReview || {},
+      maxRepairs,
+    });
+    accumulatedArtifact = finalPass.artifact;
+    totalRepairs += finalPass.repairs;
+
+    if (auditStep) {
+      await runRecorded(auditStep, accumulatedArtifact, totalRepairs);
+    }
+
+    // Batched workflows gate only after final full-artifact approval.
+    if (finalPass.approved && plan.gate) {
+      if (isProductionFinancial(plan)) {
+        assertGate(plan);
+      }
+      gate = runGate(plan.gate, { runner: gateRunner, throwOnFailure: false });
+    }
+
+    if (gate.status && gate.status !== 0) {
+      exitCode = gate.status;
+    } else if (stepFailureCode !== 0) {
+      exitCode = stepFailureCode;
+    } else if (!finalPass.approved) {
+      exitCode = 1;
+    }
+  }
+
+  const record = {
+    runId,
+    workflow: workflow.selected,
+    phase: plan.phase,
+    risk: plan.risk,
+    approved: haltedAt === null && Boolean(finalPass?.approved),
+    moa: finalPass ? finalPass.moaResult : null,
+    repairs: totalRepairs,
+    steps: records,
+    batches: { total: plan.batches.length, results: batchResults, haltedAt },
+    gate: {
+      command: gate.command ?? null,
+      status: gate.status ?? 0,
+      skipped: gate.skipped ?? false,
+    },
+    exitCode,
+  };
+
+  if (ledgerWriter) {
+    try {
+      ledgerWriter(record);
+    } catch {
+      // ledger persistence is best-effort; the execution result is still returned
+    }
+  }
+
+  return record;
+}
+
+async function executeWorkflow(plan, deps = {}) {
+  const workflow = plan.workflow;
+  if (!workflow || !Array.isArray(workflow.steps)) {
+    throw new Error('executeWorkflow requires a plan with a workflow.steps array.');
+  }
+  if (Array.isArray(plan.batches) && plan.batches.length > 0) {
+    return executeBatchedWorkflow(plan, deps);
+  }
+
+  const maxRepairs = Number.isInteger(deps.maxRepairs) ? deps.maxRepairs : 2;
+  const runStep = deps.runStep || defaultRunStep;
+  const gateRunner = deps.gateRunner || spawnSync;
+  const assertGate = deps.assertFinancialGate || assertFinancialGate;
+  const ledgerWriter = deps.writeRunLedger === undefined ? null : deps.writeRunLedger;
+  const clock = deps.clock || (() => new Date());
+  const runId = deps.runId || generateRunId(clock());
+
+  const stepByRole = (role) => workflow.steps.find((step) => step.role === role) || null;
+  const ownerStep = stepByRole('owner');
+  const specialistStep = stepByRole('specialist');
+  const moaStep = stepByRole('moa-review');
+  const reviewerStep = stepByRole('reviewer');
+  const auditStep = stepByRole('audit');
+  const comparatorSteps = workflow.steps.filter((step) => step.role === 'comparator');
+  const synthesisStep = stepByRole('synthesis');
+  const moaRunner = deps.moaRunner || runMoaReview;
+  const routing = deps.routing || null;
+  const env = deps.env || process.env;
+
+  let specialistNotes = null;
+  const records = [];
+  // First nonzero exit from ANY model step (owner, specialist, reviewer, audit,
+  // comparator, synthesis). A crashed CLI must not be reported as success just
+  // because the postflight gate passes.
+  let stepFailureCode = 0;
+  const runRecorded = async (step, input, attempt) => {
+    const result = await runStep({ step, input, notes: specialistNotes, plan, attempt, runId });
+    const code = result.code ?? 0;
+    if (stepFailureCode === 0 && code !== 0) {
+      stepFailureCode = code;
+    }
+    records.push({
+      role: step.role,
+      model: step.model,
+      attempt,
+      code,
+      approved: result.approved ?? null,
+      output: result.output ?? '',
+    });
+    return result;
+  };
+
+  let artifact = null;
+  let moaResult = null;
+  let approved = true;
+  let repairs = 0;
+
+  if (comparatorSteps.length > 0) {
+    const comparatorOutputs = [];
+    for (const comparatorStep of comparatorSteps) {
+      const comparator = await runRecorded(comparatorStep, null, 0);
+      comparatorOutputs.push(comparator.output ?? '');
+    }
+    if (synthesisStep) {
+      const synthesis = await runRecorded(synthesisStep, comparatorOutputs, 0);
+      artifact = synthesis.output ?? '';
+    }
+  } else {
+    if (ownerStep) {
+      const owner = await runRecorded(ownerStep, null, 0);
+      artifact = owner.output ?? '';
+    }
+
+    if (specialistStep) {
+      const specialist = await runRecorded(specialistStep, artifact, 0);
+      specialistNotes = specialist.output ?? null;
+    }
+
+    if (moaStep || reviewerStep) {
+      const round = await runOwnerReviewRepairRound({
+        ownerStep,
+        moaStep,
+        reviewerStep,
+        runRecorded,
+        records,
+        moaRunner,
+        initialArtifact: artifact,
+        task: plan.task,
+        routing,
+        env,
+        moaConfig: deps.moaConfig || routing?.moaReview || {},
+        maxRepairs,
+      });
+      artifact = round.artifact;
+      approved = round.approved;
+      repairs = round.repairs;
+      moaResult = round.moaResult;
+    }
+
+    if (auditStep) {
+      await runRecorded(auditStep, artifact, repairs);
+    }
+  }
+
+  let gate = { command: plan.gate || null, skipped: !plan.gate, status: 0 };
+  if (plan.gate) {
+    if (isProductionFinancial(plan)) {
+      assertGate(plan);
+    }
+    gate = runGate(plan.gate, { runner: gateRunner, throwOnFailure: false });
+  }
+
+  let exitCode = 0;
+  if (gate.status && gate.status !== 0) {
+    exitCode = gate.status;
+  } else if (stepFailureCode !== 0) {
+    exitCode = stepFailureCode;
+  } else if (reviewerStep && !approved) {
+    exitCode = 1;
+  } else if (moaStep && moaResult && !moaResult.approved) {
+    exitCode = 1;
+  }
+
+  const record = {
+    runId,
+    workflow: workflow.selected,
+    phase: plan.phase,
+    risk: plan.risk,
+    approved,
+    moa: moaResult,
+    repairs,
+    steps: records,
+    gate: {
+      command: gate.command ?? null,
+      status: gate.status ?? 0,
+      skipped: gate.skipped ?? false,
+    },
+    exitCode,
+  };
+
+  if (ledgerWriter) {
+    try {
+      ledgerWriter(record);
+    } catch {
+      // ledger persistence is best-effort; the execution result is still returned
+    }
+  }
+
+  return record;
+}
+
+function printHelp(stdout = process.stdout) {
+  stdout.write(`Usage:
+  node orchestrate.js --phase <research|production|distribution> --task "<description>"
+  node orchestrate.js --json --phase production --task "fix xirr calculation"
+  node orchestrate.js --dry-run --phase research --task "trace reserve engine flow"
+  node orchestrate.js --dry-run --workflow pair --model codex --phase production --task "implement feature"
+  node orchestrate.js --phase production --task "repair calc gate" --skip-preflight-gate --skip-reason "<reason>"
+
+Phases:
+  research      Default Claude planning lane; gate: npm run doctor:quick.
+  production    Default Codex implementation lane; gate: npm run check.
+  distribution  Default Claude handoff lane; gate: npm run lint.
+  Financial production tasks are promoted internally to production-financial; gate: npm run calc-gate.
+
+Model overrides:
+  --claude | --codex | --kimi | --gemini | --agy | --sol | --luna | --terra | --qwen
+  --model <claude|codex|kimi|gemini|agy|sol|luna|terra|qwen>
+
+Tier overrides:
+  --tier <T0|T1|T2|T3>
+                 Force the sophistication tier. Default: keyword-scored, T1 fallback.
+                 T0 trivial (qwen research/distribution, sol production, no review)
+                 T1 standard (phase defaults)
+                 T2 complex (sol production, MOA review) | T3 critical (MOA-strict review).
+                 Financial production tasks always promote to T3 and carry the calc-gate;
+                 financial tasks in other phases still promote to T3 but keep their ordinary phase gate.
+
+Output:
+  --dry-run       Print the routing plan and prompt without model execution.
+  --json          Print routing plan JSON only.
+  --help, -h      Show this help.
+
+Workflow planning:
+  --workflow <auto|solo|pair|chain|debate|review>
+                 Add a planning-only workflow recommendation to dry-run output.
+  --batches-file <path>
+                 Load ordered implementation batches from a JSON array of non-empty strings.
+                 Requires production phase and an owner-based auto, solo, pair, or chain workflow.
+  --live         Execute the planned workflow live (spawns real model CLIs).
+                 Without --live, --workflow stays planning-only.
+                 T2/T3 production dispatches auto-upgrade to a live workflow (no --live needed).
+
+Gate controls:
+  --skip-preflight-gate --skip-reason "<reason>"
+                 Skip only the preflight gate; postflight gates still run.
+                 Legacy --skip-gates is rejected.
+
+Legacy commands:
+  bootstrap | smoke | enable-algorithms | doctor
+`);
+}
+
+class Orchestrator {
+  constructor({ root = ROOT, routing = null, brain = '', soul = '' } = {}) {
+    this.root = root;
+    this.routing = routing;
+    this.brain = brain;
+    this.soul = soul;
+  }
+
+  plan({
+    phase = 'research',
+    task,
+    manualModel = null,
+    explicitTier = null,
+    requestedWorkflow = 'auto',
+    routing = this.routing,
+  }) {
+    if (!routing) throw new Error('Routing config is required to build a Hermes plan');
+    return createRoutingPlan({
+      phase,
+      task,
+      routing,
+      manualModel,
+      explicitTier,
+      requestedWorkflow,
+    });
+  }
+
+  execute({
+    phase = 'research',
+    task,
+    manualModel = null,
+    explicitTier = null,
+    routing = this.routing,
+    env = process.env,
+  }) {
+    const plan = this.plan({ phase, task, manualModel, explicitTier, routing });
+    const prompt = buildPrompt({ plan, brain: this.brain, soul: this.soul });
+    return executeModel(plan.model, prompt, routing, env);
+  }
+
+  async bootstrap() {
+    const dirs = ['client/src/core/reserves', 'client/src/core/pacing', 'tests/fixtures'];
+
+    for (const dir of dirs) {
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+        console.log(`[legacy] Created ${dir}`);
+      }
+    }
+
+    console.log('[legacy] Bootstrap sequence completed');
+  }
+
+  async runSmokeTests(fetchImpl = globalThis.fetch) {
+    const tests = [
+      {
+        name: 'ReserveEngine API',
+        url: 'http://localhost:5000/api/reserves/1',
+        validator: (data) =>
+          Array.isArray(data) &&
+          data.length > 0 &&
+          data[0].allocation !== undefined &&
+          data[0].confidence !== undefined,
+      },
+      {
+        name: 'PacingEngine API',
+        url: 'http://localhost:5000/api/pacing/summary',
+        validator: (data) =>
+          Array.isArray(data) &&
+          data.length > 0 &&
+          data[0].quarter !== undefined &&
+          data[0].deployment !== undefined,
+      },
+    ];
+
+    for (const test of tests) {
+      try {
+        const response = await fetchImpl(test.url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+        const status = test.validator(data) ? 'PASS' : 'FAIL invalid response structure';
+        console.log(`[legacy] ${test.name}: ${status}`);
+      } catch (error) {
+        console.log(`[legacy] ${test.name}: FAIL ${error.message}`);
+      }
+    }
+  }
+
+  enableAlgorithms() {
+    process.env.ALG_RESERVE = 'true';
+    process.env.ALG_PACING = 'true';
+    console.log('[legacy] ALG_RESERVE=true');
+    console.log('[legacy] ALG_PACING=true');
+  }
+}
+
+async function main(argv = process.argv.slice(2), env = process.env, io = process, deps = {}) {
+  const options = parseArgs(argv);
+  const runModel = deps.executeModel || executeModel;
+  const gateRunner = deps.gateRunner || spawnSync;
+  const ledgerWriter = deps.writeRunLedger === undefined ? writeRunLedger : deps.writeRunLedger;
+  const clock = deps.clock || (() => new Date());
+
+  if (options.help) {
+    printHelp(io.stdout);
+    return 0;
+  }
+
+  if (options.legacyCommand) {
+    if (options.legacyCommand === 'doctor') {
+      const routingPath =
+        env.HERMES_MODEL_ROUTING_FILE || join(ROOT, '.claude', 'hermes', 'model-routing.json');
+      const routing = deps.routing || loadJSON(routingPath);
+      const report = buildDoctorReport({
+        routing,
+        env,
+        providers: DOCTOR_PROVIDERS,
+        commandExists: deps.commandExists || commandExists,
+      });
+      printDoctorReport(report, io.stdout);
+      return 0;
+    }
+
+    const orchestrator = new Orchestrator();
+    if (options.legacyCommand === 'bootstrap') await orchestrator.bootstrap();
+    if (options.legacyCommand === 'smoke') await orchestrator.runSmokeTests();
+    if (options.legacyCommand === 'enable-algorithms') orchestrator.enableAlgorithms();
+    return 0;
+  }
+
+  if (!options.task) {
+    throw new Error('--task is required. Use --help for usage.');
+  }
+
+  if (options.batchesFile) {
+    if (options.phase !== 'production') {
+      throw new Error('--batches-file requires --phase production.');
+    }
+    if (!options.workflowProvided) {
+      throw new Error('--batches-file requires --workflow <auto|solo|pair|chain>.');
+    }
+    if (options.workflow === 'debate' || options.workflow === 'review') {
+      throw new Error(
+        '--batches-file supports only owner-based auto, solo, pair, or chain workflows.'
+      );
+    }
+  }
+
+  const liveExecutionEarly = options.live || env.HERMES_LIVE === '1' || env.HERMES_LIVE === 'true';
+  if (options.workflowProvided && !options.dryRun && !options.json && !liveExecutionEarly) {
+    throw new Error('--workflow is planning-only; use --dry-run or --json. Add --live to execute.');
+  }
+
+  const routingPath =
+    env.HERMES_MODEL_ROUTING_FILE || join(ROOT, '.claude', 'hermes', 'model-routing.json');
+  const brainPath = env.HERMES_DEV_BRAIN_FILE || join(ROOT, 'DEV_BRAIN.md');
+  const soulPath = env.HERMES_SOUL_FILE || join(ROOT, '.claude', 'hermes', 'SOUL.md');
+  const routing = deps.routing || loadJSON(routingPath);
+  const brain = deps.brain ?? loadText(brainPath);
+  const soul = deps.soul ?? loadText(soulPath, { optional: true });
+  let batches = null;
+  if (options.batchesFile) {
+    const batchesPath = isAbsolute(options.batchesFile)
+      ? options.batchesFile
+      : join(ROOT, options.batchesFile);
+    const parsed = (deps.loadJSON || loadJSON)(batchesPath);
+    const isValid =
+      Array.isArray(parsed) &&
+      parsed.length > 0 &&
+      parsed.every((entry) => typeof entry === 'string' && entry.trim().length > 0);
+    if (!isValid) {
+      throw new Error(
+        `--batches-file must point to a JSON array of one or more non-empty strings (got: ${batchesPath}).`
+      );
+    }
+    batches = parsed;
+  }
+  const runId = generateRunId(clock());
+  let plan = createRoutingPlan({
+    phase: options.phase,
+    task: options.task,
+    routing,
+    manualModel: options.manualModel,
+    requestedWorkflow: options.workflowProvided ? options.workflow : null,
+    skipPreflightGate: options.skipPreflightGate,
+    gateSkipReason: options.gateSkipReason,
+    explicitTier: options.tier,
+    batches,
+  });
+  let autoWorkflow = false;
+  if (
+    (plan.review === 'moa' || plan.review === 'moa-strict') &&
+    plan.phase === 'production' &&
+    !options.workflowProvided &&
+    !options.dryRun &&
+    !options.json
+  ) {
+    plan = createRoutingPlan({
+      phase: options.phase,
+      task: options.task,
+      routing,
+      manualModel: options.manualModel,
+      requestedWorkflow: 'pair',
+      skipPreflightGate: options.skipPreflightGate,
+      gateSkipReason: options.gateSkipReason,
+      explicitTier: options.tier,
+      batches,
+    });
+    autoWorkflow = true;
+  }
+  const liveExecution =
+    options.live || autoWorkflow || env.HERMES_LIVE === '1' || env.HERMES_LIVE === 'true';
+
+  const prompt = buildPrompt({ plan, brain, soul, runId });
+
+  if (options.json) {
+    io.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+    return 0;
+  }
+
+  if (options.dryRun) {
+    io.stdout.write('=== ROUTING PLAN ===\n');
+    io.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+    io.stdout.write('\n=== PROMPT ===\n');
+    io.stdout.write(`${prompt}\n`);
+    return 0;
+  }
+
+  const willExecuteWorkflow =
+    (options.workflowProvided || autoWorkflow) && liveExecution && plan.workflow;
+  const relaunchCleanup = deps.prepareRelaunchCleanup || prepareRelaunchCleanup;
+  relaunchCleanup({
+    root: deps.root,
+    fs: deps.pidFs,
+    isProcessAlive: deps.isProcessAlive,
+    signalProcess: deps.signalProcess,
+    currentPid: deps.currentPid,
+  });
+
+  if (willExecuteWorkflow) {
+    // Preflight gate parity with the non-workflow path: a failing gate (e.g.
+    // npm run check) must abort BEFORE spawning the owner/reviewer CLIs, unless
+    // explicitly skipped. executeWorkflow only runs the gate postflight.
+    const gates = getGateRunPlan(plan, options);
+    if (gates.preflight) {
+      const preflight = runGate(plan.gate, {
+        env,
+        runner: gateRunner,
+        throwOnFailure: false,
+      });
+      if (preflight.status !== 0) {
+        io.stderr.write(
+          `[hermes] preflight gate "${plan.gate}" failed with exit code ${preflight.status}; aborting live workflow before model execution.\n`
+        );
+        return preflight.status;
+      }
+    } else if (plan.gate && options.skipPreflightGate) {
+      io.stderr.write(
+        `[hermes] WARNING: skipping preflight gate "${plan.gate}"; reason: ${options.gateSkipReason}\n`
+      );
+    }
+
+    const runStep = deps.runStep || createLiveRunStep({ routing, basePrompt: prompt, env });
+    const record = await executeWorkflow(plan, {
+      runStep,
+      gateRunner,
+      writeRunLedger: ledgerWriter,
+      clock,
+      runId,
+      routing,
+      env,
+      moaRunner: deps.moaRunner,
+    });
+    return record.exitCode;
+  }
+
+  const ledger = {
+    runId,
+    startedAt: clock().toISOString(),
+    plan,
+    preflight: null,
+    model: null,
+    postflight: null,
+    exitCode: null,
+  };
+
+  const finalizeLedger = (exitCode) => {
+    ledger.exitCode = exitCode;
+    ledger.completedAt = clock().toISOString();
+    if (!ledgerWriter) return;
+    try {
+      ledgerWriter(ledger);
+    } catch (error) {
+      io.stderr.write(`[hermes] WARNING: failed to write run ledger: ${error.message}\n`);
+    }
+  };
+
+  const gates = getGateRunPlan(plan, options);
+
+  if (gates.preflight) {
+    const preflight = runGate(plan.gate, {
+      env,
+      runner: gateRunner,
+      throwOnFailure: false,
+    });
+    ledger.preflight = { command: plan.gate, status: preflight.status, skipped: false };
+    if (preflight.status !== 0) {
+      finalizeLedger(preflight.status);
+      return preflight.status;
+    }
+  } else if (plan.gate && options.skipPreflightGate) {
+    ledger.preflight = {
+      command: plan.gate,
+      status: null,
+      skipped: true,
+      reason: options.gateSkipReason,
+    };
+    io.stderr.write(
+      `[hermes] WARNING: skipping preflight gate "${plan.gate}"; reason: ${options.gateSkipReason}\n`
+    );
+  }
+
+  const code = await runModel(plan.model, prompt, routing, env);
+  ledger.model = { name: plan.model, exitCode: code };
+
+  if (shouldRunPostflightGate(plan, code, gates)) {
+    const postflight = runGate(plan.gate, {
+      env,
+      runner: gateRunner,
+      throwOnFailure: false,
+    });
+    ledger.postflight = { command: plan.gate, status: postflight.status };
+    if (postflight.status !== 0) {
+      if (code !== 0) {
+        io.stderr.write(
+          `[hermes] WARNING: model exited ${code} and postflight gate exited ${postflight.status}\n`
+        );
+      }
+      finalizeLedger(postflight.status);
+      return postflight.status;
+    }
+  }
+
+  finalizeLedger(code);
+  return code;
+}
+
+if (isCliEntryPoint(import.meta.url, process.argv)) {
+  process.on('SIGINT', () => forwardTerminationSignal('SIGINT'));
+  process.on('SIGTERM', () => forwardTerminationSignal('SIGTERM'));
+  main(process.argv.slice(2))
+    .then((code) => {
+      process.exitCode = code;
+    })
+    .catch((error) => {
+      process.stderr.write(`[hermes] ${error.message}\n`);
+      process.exitCode = 1;
+    });
+}
+
+export {
+  Orchestrator,
+  assertFinancialGate,
+  buildDoctorReport,
+  buildPrompt,
+  chooseModel,
+  classifyTier,
+  createLiveRunStep,
+  createWorkflowPlan,
+  createRoutingPlan,
+  evaluateReadiness,
+  executeModel,
+  executeModelCapture,
+  executeWorkflow,
+  extractFindingsReport,
+  findingKey,
+  forwardTerminationSignal,
+  generateRunId,
+  getGateRunPlan,
+  isCliEntryPoint,
+  isProductionFinancial,
+  killProcessTree,
+  main,
+  parseApprovalSignal,
+  parseArgs,
+  prepareRelaunchCleanup,
+  recommendWorkflow,
+  resolveEffectivePhase,
+  resolveGate,
+  resolveOwnership,
+  runGate,
+  runMoaReview,
+  scrubSecrets,
+  shouldRunPostflightGate,
+  scoreSpecialist,
+  validateFindingsReport,
+  writeRunLedger,
+};

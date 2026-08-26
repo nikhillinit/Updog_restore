@@ -1,0 +1,171 @@
+/**
+ * Documents Widget
+ *
+ * Dashboard widget showing recent documents with quick access.
+ *
+ * @module client/components/lp/DocumentsWidget
+ */
+
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useLPRecentDocuments, type LPDocument, type DocumentType } from '@/hooks/useLPDocuments';
+import { FileText, Download, ArrowRight, Sparkles } from 'lucide-react';
+import { useLocation } from 'wouter';
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+const getDocumentTypeLabel = (type: DocumentType): string => {
+  const labels: Record<DocumentType, string> = {
+    quarterly_report: 'Quarterly Report',
+    annual_report: 'Annual Report',
+    k1: 'K-1',
+    lpa: 'LPA',
+    side_letter: 'Side Letter',
+    fund_overview: 'Fund Overview',
+    other: 'Other',
+  };
+  return labels[type] || type;
+};
+
+const getDocumentTypeColor = (type: DocumentType): string => {
+  // TODO(design): document types exceed six categorical colors; define an extended token palette before assigning unique hues to every type.
+  const colors: Record<DocumentType, string> = {
+    quarterly_report: 'bg-presson-info',
+    annual_report: 'bg-success',
+    k1: 'bg-pov-charcoal',
+    lpa: 'bg-presson-positive',
+    side_letter: 'bg-presson-negative',
+    fund_overview: 'bg-presson-warning',
+    other: 'bg-charcoal-500',
+  };
+  return colors[type] || 'bg-charcoal-500';
+};
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
+  if (bytes >= 1_024) return `${(bytes / 1_024).toFixed(0)} KB`;
+  return `${bytes} B`;
+};
+
+const isNewDocument = (createdAt: string): boolean => {
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  return new Date(createdAt) > oneWeekAgo;
+};
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
+
+export function DocumentsWidget() {
+  const { data, isLoading } = useLPRecentDocuments({ limit: 4 });
+  const [, navigate] = useLocation();
+
+  const handleDownload = (doc: LPDocument, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (doc.downloadUrl) {
+      window.open(doc.downloadUrl, '_blank');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
+        <CardHeader>
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-4 w-60" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-14" />
+          ))}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="bg-pov-white rounded-xl border border-beige-200 shadow-md">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 font-inter text-pov-charcoal">
+          <FileText className="h-5 w-5 text-presson-info" />
+          Documents
+          {data?.hasNewDocuments && <Sparkles className="h-4 w-4 text-presson-info" />}
+        </CardTitle>
+        <CardDescription className="font-poppins text-pov-charcoal/70">
+          {data?.totalDocuments
+            ? `${data.totalDocuments} document${data.totalDocuments !== 1 ? 's' : ''} available`
+            : 'Fund documents and reports'}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {data?.recentDocuments && data.recentDocuments.length > 0 ? (
+          <div className="space-y-3">
+            {data.recentDocuments.map((doc) => (
+              <div
+                key={doc.id}
+                className="flex items-center justify-between p-3 border border-beige-200 rounded-lg hover:bg-pov-gray cursor-pointer group"
+                onClick={() => navigate(`/lp/documents/${doc.id}`)}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={`w-10 h-10 rounded-lg ${getDocumentTypeColor(doc.documentType)} flex items-center justify-center`}
+                  >
+                    <FileText className="h-5 w-5 text-pov-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium font-inter text-sm truncate">{doc.title}</span>
+                      {isNewDocument(doc.createdAt) && (
+                        <Badge variant="default" className="bg-presson-info text-pov-white text-xs">
+                          New
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-pov-charcoal/60 font-poppins">
+                      <Badge variant="outline" className="text-xs">
+                        {getDocumentTypeLabel(doc.documentType)}
+                      </Badge>
+                      <span>{formatFileSize(doc.fileSizeBytes)}</span>
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => handleDownload(doc, e)}
+                  disabled={!doc.downloadUrl}
+                  title={doc.downloadUrl ? 'Download document' : 'Open document details to download'}
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-6 text-pov-charcoal/60 font-poppins">
+            <FileText className="h-10 w-10 mx-auto mb-2 text-pov-charcoal/30" />
+            <p>No documents available</p>
+          </div>
+        )}
+
+        {/* View All Button */}
+        <Button
+          variant="ghost"
+          className="w-full mt-4 font-poppins"
+          onClick={() => navigate('/lp/documents')}
+        >
+          View All Documents
+          <ArrowRight className="h-4 w-4 ml-2" />
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default DocumentsWidget;

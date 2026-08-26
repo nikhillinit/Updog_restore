@@ -1,0 +1,1041 @@
+/**
+ * Modeling Wizard State Machine - Persistence-Before-Navigation Tests
+ *
+ * These tests verify proper ordering of persistence and navigation actions.
+ *
+ * Locked behavior:
+ * - Transitions to 'persisting' state
+ * - Invokes persistDataService
+ * - onDone: navigates to next step
+ * - onError: stays on current step, shows error
+ *
+ * See: ADR-016 in DECISIONS.md for architectural decision rationale
+ */
+
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { createActor, waitFor } from 'xstate';
+import { modelingWizardMachine } from '@/machines/modeling-wizard.machine';
+
+describe('Modeling Wizard - Persistence Before Navigation', () => {
+  let localStorageMock: {
+    getItem: ReturnType<typeof vi.fn>;
+    setItem: ReturnType<typeof vi.fn>;
+    removeItem: ReturnType<typeof vi.fn>;
+    clear: ReturnType<typeof vi.fn>;
+  };
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    // Create fresh localStorage mock for each test
+    localStorageMock = {
+      getItem: vi.fn(),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+      clear: vi.fn(),
+    };
+
+    // Replace global localStorage
+    Object.defineProperty(global, 'localStorage', {
+      value: localStorageMock,
+      writable: true,
+      configurable: true,
+    });
+
+    vi.clearAllMocks();
+
+    // These tests intentionally exercise storage failures; silence expected
+    // error-path logging so the suite only reports assertion failures.
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * Test 1: Successful NEXT transition
+   *
+   * - User triggers NEXT with valid step data
+   * - Machine transitions to 'persisting' state
+   * - persistDataService succeeds
+   * - onDone: navigates to next step
+   */
+  it('persists data before navigating to next step', async () => {
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
+    });
+
+    actor.start();
+
+    // Move to active state
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
+
+    // Save valid step data
+    actor.send({
+      type: 'SAVE_STEP',
+      step: 'generalInfo',
+      data: {
+        fundName: 'Test Fund',
+        vintageYear: 2024,
+        fundSize: 100000000,
+        currency: 'USD' as const,
+        establishmentDate: '2024-01-01',
+        isEvergreen: false,
+        fundLife: 10,
+        investmentPeriod: 5,
+      },
+    });
+
+    // Get initial step before NEXT
+    const stepBeforeNext = actor.getSnapshot().context.currentStep;
+    expect(stepBeforeNext).toBe('generalInfo');
+
+    // Trigger NEXT event
+    actor.send({ type: 'NEXT' });
+
+    // Give state machine time to process
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const snapshot = actor.getSnapshot();
+
+    expect(snapshot.context.currentStep).toBe('sectorProfiles');
+    expect(snapshot.context.persistenceError).toBeNull();
+
+    // Verify localStorage was called (check spy call count)
+    expect(localStorageMock.setItem).toHaveBeenCalled();
+
+    actor.stop();
+  });
+
+  /**
+   * Test 2: Failed NEXT with localStorage error
+   *
+   * - localStorage.setItem() throws QuotaExceededError
+   * - Machine transitions to 'delaying' state (retry logic)
+   * - After retries exhausted → 'editing.persistFailed'
+   * - currentStep stays on 'generalInfo'
+   * - persistenceError is set in context
+   */
+  it('does not navigate when persistence fails with QuotaExceededError', async () => {
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
+    });
+
+    actor.start();
+
+    // Move to active state
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
+
+    // Save valid step data
+    actor.send({
+      type: 'SAVE_STEP',
+      step: 'generalInfo',
+      data: {
+        fundName: 'Test Fund',
+        vintageYear: 2024,
+        fundSize: 100000000,
+        currency: 'USD' as const,
+        establishmentDate: '2024-01-01',
+        isEvergreen: false,
+      },
+    });
+
+    // Mock localStorage.setItem to throw QuotaExceededError
+    const quotaError = new Error('QuotaExceededError');
+    quotaError.name = 'QuotaExceededError';
+    localStorageMock.setItem.mockImplementation(() => {
+      throw quotaError;
+    });
+
+    // Trigger NEXT event
+    actor.send({ type: 'NEXT' });
+
+    // Give state machine time to process
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const snapshot = actor.getSnapshot();
+
+    expect(snapshot.context.currentStep).toBe('generalInfo');
+    expect(snapshot.context.persistenceError).toBe('Storage limit exceeded');
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[ModelingWizard] Storage quota exceeded:',
+      quotaError
+    );
+
+    actor.stop();
+  });
+
+  /**
+   * Test 3: Retry after persistence failure
+   *
+   * - Initial persistence fails
+   * - Machine enters 'delaying' state with exponential backoff
+   * - After delay → retries persistence (max 3 attempts: 1s, 2s, 4s)
+   * - If still fails → 'editing.persistFailed'
+   * - User can trigger RETRY event manually
+   */
+  it('supports retry after persistence failure', async () => {
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
+    });
+
+    actor.start();
+
+    // Move to active state and save data
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
+
+    actor.send({
+      type: 'SAVE_STEP',
+      step: 'generalInfo',
+      data: {
+        fundName: 'Test Fund',
+        vintageYear: 2024,
+        fundSize: 100000000,
+        currency: 'USD' as const,
+        establishmentDate: '2024-01-01',
+        isEvergreen: false,
+      },
+    });
+
+    // First attempt fails
+    let callCount = 0;
+    localStorageMock.setItem.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        throw new Error('Network error');
+      }
+      // Second attempt succeeds
+      return undefined;
+    });
+
+    // Trigger NEXT (will fail first time)
+    actor.send({ type: 'NEXT' });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const snapshotAfterFailure = actor.getSnapshot();
+
+    const hasRetryState =
+      snapshotAfterFailure.matches({ active: 'delaying' }) ||
+      snapshotAfterFailure.matches({ active: { editing: 'persistFailed' } });
+
+    expect(hasRetryState).toBe(true);
+
+    actor.stop();
+  });
+
+  /**
+   * Test 4: Auto-save doesn't block navigation
+   *
+   * - Auto-save timer triggers with intent='auto-save'
+   * - If persistence fails, error is logged but user can still navigate
+   * - Different from manual NEXT (intent='navigate') which blocks
+   */
+  it('allows navigation even if auto-save persistence fails', async () => {
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: false, autoSaveInterval: 500 }, // Short interval for test
+    });
+
+    actor.start();
+
+    // Move to active state
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
+
+    // Save valid step data
+    actor.send({
+      type: 'SAVE_STEP',
+      step: 'generalInfo',
+      data: {
+        fundName: 'Test Fund',
+        vintageYear: 2024,
+        fundSize: 100000000,
+        currency: 'USD' as const,
+        establishmentDate: '2024-01-01',
+        isEvergreen: false,
+      },
+    });
+
+    // Mock persistence to fail on auto-save, then succeed for manual NEXT
+    localStorageMock.setItem
+      .mockImplementationOnce(() => {
+        throw new Error('Auto-save failed');
+      })
+      .mockImplementation(() => undefined);
+
+    // Wait for auto-save timer to trigger
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    // Now try manual NEXT - should still work despite auto-save failure
+    actor.send({ type: 'NEXT' });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const snapshot = actor.getSnapshot();
+
+    expect('navigationIntent' in snapshot.context).toBe(true);
+    expect(snapshot.context.navigationIntent).toBeNull();
+
+    actor.stop();
+  });
+
+  /**
+   * Test 5: BACK transition with persistence failure
+   *
+   * - User triggers BACK
+   * - Persistence fails
+   * - Stays on current step (doesn't navigate backward)
+   * - Shows error notification
+   */
+  it('does not navigate backward when persistence fails', async () => {
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
+    });
+
+    actor.start();
+
+    // Navigate to second step
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
+
+    // Mark generalInfo as valid so we can navigate
+    actor.send({
+      type: 'SAVE_STEP',
+      step: 'generalInfo',
+      data: {
+        fundName: 'Test Fund',
+        vintageYear: 2024,
+        fundSize: 100000000,
+        currency: 'USD' as const,
+        establishmentDate: '2024-01-01',
+        isEvergreen: false,
+      },
+    });
+
+    // Move to sectorProfiles
+    actor.send({ type: 'NEXT' });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Verify we're on second step
+    expect(actor.getSnapshot().context.currentStep).toBe('sectorProfiles');
+
+    // Save data on second step
+    actor.send({
+      type: 'SAVE_STEP',
+      step: 'sectorProfiles',
+      data: {
+        sectorProfiles: [{ id: 'tech', name: 'Technology', allocation: 100 }],
+        stageAllocations: [{ stage: 'seed', allocation: 100 }],
+      },
+    });
+
+    // Mock persistence to fail
+    localStorageMock.setItem.mockImplementation(() => {
+      throw new Error('Persistence failed');
+    });
+
+    // Try to go back
+    actor.send({ type: 'BACK' });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const snapshot = actor.getSnapshot();
+
+    expect(snapshot.context.currentStep).toBe('sectorProfiles');
+    expect(snapshot.context.persistenceError).toBeTruthy();
+
+    actor.stop();
+  });
+
+  /**
+   * Test 6: Component unmount during persistence
+   *
+   * - Persistence in progress (invoke actor running)
+   * - Component unmounts → actor.stop()
+   * - XState cleans up invoke actor
+   * - No memory leaks, no orphaned promises
+   * - No "setState after unmount" warnings
+   */
+  it('cleans up gracefully when component unmounts during persistence', async () => {
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
+    });
+
+    actor.start();
+
+    // Move to active state
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
+
+    // Save valid step data
+    actor.send({
+      type: 'SAVE_STEP',
+      step: 'generalInfo',
+      data: {
+        fundName: 'Test Fund',
+        vintageYear: 2024,
+        fundSize: 100000000,
+        currency: 'USD' as const,
+        establishmentDate: '2024-01-01',
+        isEvergreen: false,
+      },
+    });
+
+    // Mock slow persistence
+    localStorageMock.setItem.mockImplementation(() => {
+      return new Promise((resolve) => setTimeout(resolve, 1000));
+    });
+
+    // Trigger NEXT (starts async persistence)
+    actor.send({ type: 'NEXT' });
+
+    // Immediately stop actor (simulates component unmount)
+    actor.stop();
+
+    // Wait to ensure no errors thrown
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const snapshot = actor.getSnapshot();
+    expect(snapshot.status).toBe('stopped');
+  });
+
+  /**
+   * Test 7: Exponential backoff timing
+   *
+   * - Retry 1: Wait 1 second (2^0 * 1000ms)
+   * - Retry 2: Wait 2 seconds (2^1 * 1000ms)
+   * - Retry 3: Wait 4 seconds (2^2 * 1000ms)
+   * - After 3 failures → 'editing.persistFailed'
+   */
+  it('implements exponential backoff for retries', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
+    });
+
+    try {
+      actor.start();
+      actor.send({ type: 'NEXT' });
+      await waitFor(actor, (state) => state.matches('active'));
+
+      actor.send({
+        type: 'SAVE_STEP',
+        step: 'generalInfo',
+        data: {
+          fundName: 'Test Fund',
+          vintageYear: 2024,
+          fundSize: 100000000,
+          currency: 'USD' as const,
+          establishmentDate: '2024-01-01',
+          isEvergreen: false,
+        },
+      });
+
+      // Track retry timing
+      const retryTimestamps: number[] = [];
+      localStorageMock.setItem.mockImplementation(() => {
+        retryTimestamps.push(Date.now());
+        throw new Error('Persistence failed');
+      });
+
+      // Trigger NEXT
+      actor.send({ type: 'NEXT' });
+
+      // Advance through the 1s + 2s + 4s retry schedule without relying on wall-clock time.
+      await vi.advanceTimersByTimeAsync(8000);
+
+      expect(retryTimestamps.length).toBeGreaterThanOrEqual(3);
+
+      // Verify exponential spacing
+      const delay1 = retryTimestamps[1] - retryTimestamps[0];
+      const delay2 = retryTimestamps[2] - retryTimestamps[1];
+
+      expect(delay1).toBeGreaterThanOrEqual(900); // ~1s
+      expect(delay1).toBeLessThan(1500);
+      expect(delay2).toBeGreaterThanOrEqual(1900); // ~2s
+      expect(delay2).toBeLessThan(2500);
+    } finally {
+      actor.stop();
+      vi.useRealTimers();
+    }
+  }, 10000); // Extend timeout for retry test
+
+  /**
+   * Test 8: Context fields for persistence tracking
+   *
+   * - persistenceError: string | null
+   * - retryCount: number
+   * - lastPersistAttempt: number | null
+   * - intent: 'navigate' | 'auto-save' | null
+   */
+  it('has context fields for persistence tracking', async () => {
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: false },
+    });
+
+    actor.start();
+
+    const snapshot = actor.getSnapshot();
+    const context = snapshot.context;
+
+    const requiredFields = [
+      'persistenceError',
+      'retryCount',
+      'lastPersistAttempt',
+      'navigationIntent',
+      'targetStep',
+    ];
+
+    const missingFields = requiredFields.filter((field) => !(field in context));
+    expect(missingFields).toEqual([]);
+
+    actor.stop();
+  });
+});
+
+/**
+ * PR #1: Context Fields & Service Integration Tests
+ *
+ * These tests verify the foundation for ADR-016 implementation:
+ * - Context fields are properly initialized
+ * - persistDataService actor is registered
+ * - Service handles success and error cases
+ *
+ * These tests should PASS immediately (foundation layer only).
+ */
+describe('PR #1: Context Fields & Service Integration', () => {
+  let localStorageMock: {
+    getItem: ReturnType<typeof vi.fn>;
+    setItem: ReturnType<typeof vi.fn>;
+    removeItem: ReturnType<typeof vi.fn>;
+    clear: ReturnType<typeof vi.fn>;
+  };
+
+  beforeEach(() => {
+    // Create fresh localStorage mock for each test
+    localStorageMock = {
+      getItem: vi.fn(),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+      clear: vi.fn(),
+    };
+
+    // Replace global localStorage
+    Object.defineProperty(global, 'localStorage', {
+      value: localStorageMock,
+      writable: true,
+      configurable: true,
+    });
+
+    vi.clearAllMocks();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * Test 1: Context Initialization
+   * Verify all 5 persistence tracking fields are initialized with correct defaults
+   */
+  it('should initialize persistence tracking fields to null/0', () => {
+    const actor = createActor(modelingWizardMachine);
+    actor.start();
+
+    const context = actor.getSnapshot().context;
+
+    // Verify all 5 new fields exist with correct initial values
+    expect(context.persistenceError).toBeNull();
+    expect(context.retryCount).toBe(0);
+    expect(context.lastPersistAttempt).toBeNull();
+    expect(context.navigationIntent).toBeNull();
+    expect(context.targetStep).toBeNull();
+
+    actor.stop();
+  });
+
+  /**
+   * Test 2: persistDataService Success Path
+   * Verify service saves to localStorage and returns correct data
+   */
+  it('persistDataService should save to localStorage successfully', async () => {
+    // Create minimal context for testing
+    const actor = createActor(modelingWizardMachine);
+    actor.start();
+
+    const mockContext = actor.getSnapshot().context;
+
+    // Import the service directly to test it
+    const { persistDataService } = await import('@/machines/modeling-wizard.machine');
+
+    // Create an actor from the fromPromise service
+    const serviceActor = createActor(persistDataService, { input: mockContext });
+    serviceActor.start();
+
+    // Wait for the actor to complete
+    const snapshot = await waitFor(serviceActor, (state) => state.status === 'done');
+
+    // Verify localStorage was called
+    expect(localStorageMock.setItem).toHaveBeenCalledWith(
+      'modeling-wizard-progress',
+      expect.any(String)
+    );
+
+    // Verify result structure
+    expect(snapshot.output.lastSaved).toBeGreaterThan(0);
+    expect(snapshot.output.currentStep).toBe('generalInfo');
+
+    // Verify stored data
+    const storedData = JSON.parse(localStorageMock.setItem.mock.calls[0][1]);
+    expect(storedData.currentStep).toBe('generalInfo');
+    expect(storedData.lastSaved).toBeGreaterThan(0);
+
+    serviceActor.stop();
+    actor.stop();
+  });
+
+  /**
+   * Test 3: persistDataService QuotaExceededError Handling
+   * Verify service throws appropriate error when storage quota exceeded
+   */
+  it('persistDataService should surface QuotaExceededError through machine persistence', async () => {
+    // Mock setItem to throw QuotaExceededError
+    localStorageMock.setItem.mockImplementation(() => {
+      const err = new Error('Quota exceeded');
+      err.name = 'QuotaExceededError';
+      throw err;
+    });
+
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
+    });
+    actor.start();
+
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
+
+    actor.send({
+      type: 'SAVE_STEP',
+      step: 'generalInfo',
+      data: {
+        fundName: 'Test Fund',
+        vintageYear: 2024,
+        fundSize: 100000000,
+        currency: 'USD' as const,
+        establishmentDate: '2024-01-01',
+        isEvergreen: false,
+        fundLife: 10,
+        investmentPeriod: 5,
+      },
+    });
+    actor.send({ type: 'NEXT' });
+
+    const snapshot = await waitFor(actor, (state) => state.matches({ active: 'delaying' }));
+
+    expect(snapshot.context.currentStep).toBe('generalInfo');
+    expect(snapshot.context.persistenceError).toBe('Storage limit exceeded');
+    actor.stop();
+  });
+
+  /**
+   * Test 4: persistDataService SecurityError Handling
+   * Verify service throws appropriate error when storage access denied (privacy mode)
+   */
+  it('persistDataService should surface SecurityError through machine persistence', async () => {
+    // Mock setItem to throw SecurityError
+    localStorageMock.setItem.mockImplementation(() => {
+      const err = new Error('Access denied');
+      err.name = 'SecurityError';
+      throw err;
+    });
+
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: false, autoSaveInterval: 999999 },
+    });
+    actor.start();
+
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
+
+    actor.send({
+      type: 'SAVE_STEP',
+      step: 'generalInfo',
+      data: {
+        fundName: 'Test Fund',
+        vintageYear: 2024,
+        fundSize: 100000000,
+        currency: 'USD' as const,
+        establishmentDate: '2024-01-01',
+        isEvergreen: false,
+        fundLife: 10,
+        investmentPeriod: 5,
+      },
+    });
+    actor.send({ type: 'NEXT' });
+
+    const snapshot = await waitFor(actor, (state) => state.matches({ active: 'delaying' }));
+
+    expect(snapshot.context.currentStep).toBe('generalInfo');
+    expect(snapshot.context.persistenceError).toBe('Storage unavailable (privacy mode)');
+    actor.stop();
+  });
+});
+
+/**
+ * FeesExpensesStep - Wizard Integration Tests (Issue #235)
+ *
+ * These tests verify FeesExpensesStep behavior in full wizard context:
+ * - Data preservation through wizard navigation
+ * - Reset behavior
+ * - Step jumping
+ * - Error recovery
+ * - Concurrent operations
+ * - Multiple instances
+ * - Rapid navigation
+ *
+ * Related: PR #227 (infinite save loop fix), Issue #235 (integration QA)
+ */
+describe('FeesExpensesStep - Wizard Integration (Issue #235)', () => {
+  let localStorageMock: {
+    getItem: ReturnType<typeof vi.fn>;
+    setItem: ReturnType<typeof vi.fn>;
+    removeItem: ReturnType<typeof vi.fn>;
+    clear: ReturnType<typeof vi.fn>;
+  };
+
+  // Valid test data for each step to enable navigation
+  const validGeneralInfo = {
+    fundName: 'Test Fund',
+    vintageYear: 2024,
+    fundSize: 100000000,
+    currency: 'USD' as const,
+    establishmentDate: '2024-01-01',
+    isEvergreen: false,
+    fundLife: 10,
+    investmentPeriod: 5,
+  };
+
+  const validSectorProfiles = {
+    sectorProfiles: [{ id: '1', name: 'Tech', allocation: 100 }],
+    stageAllocations: [{ stage: 'Seed', allocation: 100 }],
+  };
+
+  const validCapitalAllocation = {
+    initialCheckSize: 500000,
+    followOnStrategy: {
+      reserveRatio: 0.5,
+      followOnChecks: { A: 1000000, B: 2000000, C: 3000000 },
+    },
+    pacingModel: {
+      investmentsPerYear: 10,
+      deploymentCurve: 'linear' as const,
+    },
+  };
+
+  const validFeesExpenses = {
+    managementFee: {
+      rate: 2.0,
+      basis: 'committed' as const,
+      stepDown: { enabled: false },
+    },
+    adminExpenses: {
+      annualAmount: 50000,
+      growthRate: 3,
+    },
+  };
+
+  beforeEach(() => {
+    localStorageMock = {
+      getItem: vi.fn(),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+      clear: vi.fn(),
+    };
+
+    Object.defineProperty(global, 'localStorage', {
+      value: localStorageMock,
+      writable: true,
+      configurable: true,
+    });
+
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * Test: Wizard Completion Flow
+   * Verifies feesExpenses data is preserved when completing the entire wizard
+   */
+  it('preserves feesExpenses data through wizard completion flow', async () => {
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: true, autoSaveInterval: 999999 },
+    });
+
+    actor.start();
+
+    // Move to active state
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
+
+    // Step 1: General Info
+    actor.send({ type: 'SAVE_STEP', step: 'generalInfo', data: validGeneralInfo });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Step 2: Sector Profiles
+    actor.send({ type: 'SAVE_STEP', step: 'sectorProfiles', data: validSectorProfiles });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Step 3: Capital Allocation
+    actor.send({ type: 'SAVE_STEP', step: 'capitalAllocation', data: validCapitalAllocation });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Step 4: Fees & Expenses (the step we're testing)
+    actor.send({ type: 'SAVE_STEP', step: 'feesExpenses', data: validFeesExpenses });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    const snapshot = actor.getSnapshot();
+
+    // Verify feesExpenses data is preserved in context
+    expect(snapshot.context.steps.feesExpenses).toEqual(validFeesExpenses);
+    expect(snapshot.context.completedSteps.has('feesExpenses')).toBe(true);
+
+    actor.stop();
+  });
+
+  /**
+   * Test: Wizard-level Reset
+   * Verifies feesExpenses data is cleared on RESET event
+   */
+  it('clears feesExpenses data on wizard-level reset', async () => {
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: true, autoSaveInterval: 999999 },
+    });
+
+    actor.start();
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
+
+    // Navigate to feesExpenses and save data
+    actor.send({ type: 'SAVE_STEP', step: 'generalInfo', data: validGeneralInfo });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    actor.send({ type: 'SAVE_STEP', step: 'sectorProfiles', data: validSectorProfiles });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    actor.send({ type: 'SAVE_STEP', step: 'capitalAllocation', data: validCapitalAllocation });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    actor.send({ type: 'SAVE_STEP', step: 'feesExpenses', data: validFeesExpenses });
+
+    // Verify data was saved
+    let snapshot = actor.getSnapshot();
+    expect(snapshot.context.steps.feesExpenses).toEqual(validFeesExpenses);
+
+    // Reset the wizard
+    actor.send({ type: 'RESET' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    snapshot = actor.getSnapshot();
+
+    // Verify feesExpenses data is cleared
+    expect(snapshot.context.steps.feesExpenses).toBeUndefined();
+    expect(snapshot.context.currentStep).toBe('generalInfo');
+
+    actor.stop();
+  });
+
+  /**
+   * Test: Step Jump Scenarios
+   * Verifies feesExpenses data is preserved when jumping between steps
+   */
+  it('preserves feesExpenses data when jumping between steps', async () => {
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: true, autoSaveInterval: 999999 },
+    });
+
+    actor.start();
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
+
+    // Complete steps to enable jumping
+    actor.send({ type: 'SAVE_STEP', step: 'generalInfo', data: validGeneralInfo });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    actor.send({ type: 'SAVE_STEP', step: 'sectorProfiles', data: validSectorProfiles });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    actor.send({ type: 'SAVE_STEP', step: 'capitalAllocation', data: validCapitalAllocation });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Save feesExpenses
+    actor.send({ type: 'SAVE_STEP', step: 'feesExpenses', data: validFeesExpenses });
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Jump back to generalInfo
+    actor.send({ type: 'GOTO', step: 'generalInfo' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    let snapshot = actor.getSnapshot();
+    expect(snapshot.context.currentStep).toBe('generalInfo');
+
+    // Jump forward to feesExpenses
+    actor.send({ type: 'GOTO', step: 'feesExpenses' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    snapshot = actor.getSnapshot();
+    expect(snapshot.context.currentStep).toBe('feesExpenses');
+    // Data should be preserved after jumping
+    expect(snapshot.context.steps.feesExpenses).toEqual(validFeesExpenses);
+
+    actor.stop();
+  });
+
+  /**
+   * Test: Concurrent SAVE_STEP Events
+   * Verifies no data loss when multiple saves happen rapidly
+   */
+  it('handles concurrent SAVE_STEP events without data loss', async () => {
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: true, autoSaveInterval: 999999 },
+    });
+
+    actor.start();
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
+
+    // Navigate to feesExpenses
+    actor.send({ type: 'SAVE_STEP', step: 'generalInfo', data: validGeneralInfo });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    actor.send({ type: 'SAVE_STEP', step: 'sectorProfiles', data: validSectorProfiles });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    actor.send({ type: 'SAVE_STEP', step: 'capitalAllocation', data: validCapitalAllocation });
+    actor.send({ type: 'NEXT' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Fire multiple SAVE_STEP events concurrently
+    const updates = [
+      { ...validFeesExpenses, managementFee: { ...validFeesExpenses.managementFee, rate: 1.5 } },
+      { ...validFeesExpenses, managementFee: { ...validFeesExpenses.managementFee, rate: 1.75 } },
+      { ...validFeesExpenses, managementFee: { ...validFeesExpenses.managementFee, rate: 2.0 } },
+    ];
+
+    // Send all updates without waiting
+    for (const data of updates) {
+      actor.send({ type: 'SAVE_STEP', step: 'feesExpenses', data });
+    }
+
+    await new Promise((r) => setTimeout(r, 100));
+
+    const snapshot = actor.getSnapshot();
+    // Last update should win
+    expect(snapshot.context.steps.feesExpenses?.managementFee.rate).toBe(2.0);
+
+    actor.stop();
+  });
+
+  /**
+   * Test: Multiple Wizard Instances
+   * Verifies data isolation between separate wizard instances
+   */
+  it('isolates feesExpenses data between multiple wizard instances', async () => {
+    const actor1 = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: true, autoSaveInterval: 999999 },
+    });
+    const actor2 = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: true, autoSaveInterval: 999999 },
+    });
+
+    actor1.start();
+    actor2.start();
+
+    // Both move to active
+    actor1.send({ type: 'NEXT' });
+    actor2.send({ type: 'NEXT' });
+    await Promise.all([
+      waitFor(actor1, (state) => state.matches('active')),
+      waitFor(actor2, (state) => state.matches('active')),
+    ]);
+
+    // Actor 1: Save feesExpenses with rate 2.0
+    actor1.send({ type: 'SAVE_STEP', step: 'feesExpenses', data: validFeesExpenses });
+
+    // Actor 2: Save feesExpenses with rate 3.0
+    const fees2 = {
+      ...validFeesExpenses,
+      managementFee: { ...validFeesExpenses.managementFee, rate: 3.0 },
+    };
+    actor2.send({ type: 'SAVE_STEP', step: 'feesExpenses', data: fees2 });
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Verify isolation
+    expect(actor1.getSnapshot().context.steps.feesExpenses?.managementFee.rate).toBe(2.0);
+    expect(actor2.getSnapshot().context.steps.feesExpenses?.managementFee.rate).toBe(3.0);
+
+    actor1.stop();
+    actor2.stop();
+  });
+
+  /**
+   * Test: Rapid Step Navigation
+   * Verifies no race conditions during rapid NEXT/BACK events
+   */
+  it('handles rapid NEXT/BACK navigation without race conditions', async () => {
+    const actor = createActor(modelingWizardMachine, {
+      input: { skipOptionalSteps: true, autoSaveInterval: 999999 },
+    });
+
+    actor.start();
+    actor.send({ type: 'NEXT' });
+    await waitFor(actor, (state) => state.matches('active'));
+
+    // Save all steps quickly
+    actor.send({ type: 'SAVE_STEP', step: 'generalInfo', data: validGeneralInfo });
+    actor.send({ type: 'SAVE_STEP', step: 'sectorProfiles', data: validSectorProfiles });
+    actor.send({ type: 'SAVE_STEP', step: 'capitalAllocation', data: validCapitalAllocation });
+    actor.send({ type: 'SAVE_STEP', step: 'feesExpenses', data: validFeesExpenses });
+
+    // Rapid navigation
+    actor.send({ type: 'NEXT' }); // generalInfo -> sectorProfiles
+    actor.send({ type: 'NEXT' }); // sectorProfiles -> capitalAllocation
+    actor.send({ type: 'NEXT' }); // capitalAllocation -> feesExpenses
+    actor.send({ type: 'BACK' }); // feesExpenses -> capitalAllocation
+    actor.send({ type: 'NEXT' }); // capitalAllocation -> feesExpenses
+    actor.send({ type: 'NEXT' }); // feesExpenses -> waterfall (skipped if skipOptional)
+
+    await new Promise((r) => setTimeout(r, 150));
+
+    const snapshot = actor.getSnapshot();
+
+    // All data should still be preserved
+    expect(snapshot.context.steps.generalInfo).toEqual(validGeneralInfo);
+    expect(snapshot.context.steps.sectorProfiles).toEqual(validSectorProfiles);
+    expect(snapshot.context.steps.capitalAllocation).toEqual(validCapitalAllocation);
+    expect(snapshot.context.steps.feesExpenses).toEqual(validFeesExpenses);
+
+    // No persistence errors
+    expect(snapshot.context.persistenceError).toBeNull();
+
+    actor.stop();
+  });
+});

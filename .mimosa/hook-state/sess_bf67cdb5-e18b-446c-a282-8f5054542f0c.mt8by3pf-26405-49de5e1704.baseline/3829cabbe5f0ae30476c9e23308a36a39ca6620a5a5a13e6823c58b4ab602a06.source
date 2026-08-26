@@ -1,0 +1,286 @@
+import { useState } from 'react';
+import { cn } from '@/lib/utils';
+import { Link, useLocation } from 'wouter';
+import { useFundContext } from '@/contexts/FundContext';
+import { POVIcon } from '@/components/ui/POVLogo';
+import { BRANDING } from '@/config/branding';
+import {
+  getNavigationItems,
+  getFooterNavigationItems,
+  isNavigationItemEnabled,
+  resolveNavigationHref,
+  type NavigationContext,
+  type NavigationItem,
+} from './navigation-config';
+import { Plus } from 'lucide-react';
+
+interface SidebarProps {
+  activeModule: string;
+  className?: string;
+}
+
+function baseNavClassName(isHovered: boolean, isActive: boolean, isDisabled: boolean): string {
+  return cn(
+    'w-full flex items-center rounded-md transition-colors font-poppins relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal/40 focus-visible:ring-offset-2',
+    isHovered ? 'space-x-3 px-3 py-2.5' : 'justify-center p-2.5',
+    isDisabled
+      ? 'text-charcoal-300 cursor-not-allowed bg-pov-gray'
+      : isActive
+        ? 'bg-pov-charcoal text-pov-white font-medium'
+        : 'text-pov-charcoal hover:bg-pov-gray'
+  );
+}
+
+function NavItemContent({
+  item,
+  isHovered,
+  isActive,
+}: {
+  item: NavigationItem;
+  isHovered: boolean;
+  isActive: boolean;
+}) {
+  const Icon = item.icon;
+
+  return (
+    <>
+      <Icon className="h-5 w-5 flex-shrink-0 pointer-events-none" />
+      {isHovered && (
+        <span className={cn('text-sm whitespace-nowrap', isActive && 'font-medium')}>
+          {item.label}
+        </span>
+      )}
+
+      {!isHovered && (
+        <div className="absolute left-full ml-2 px-2 py-1 bg-pov-charcoal text-pov-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+          {item.label}
+        </div>
+      )}
+    </>
+  );
+}
+
+function FooterNavItemContent({
+  item,
+  isHovered,
+  isActive,
+}: {
+  item: NavigationItem;
+  isHovered: boolean;
+  isActive: boolean;
+}) {
+  const Icon = item.icon;
+
+  return (
+    <>
+      <Icon className="h-4 w-4 flex-shrink-0 pointer-events-none" />
+      {isHovered && (
+        <span className={cn('text-sm whitespace-nowrap', isActive && 'font-medium')}>
+          {item.label}
+        </span>
+      )}
+
+      {!isHovered && (
+        <div className="absolute left-full ml-2 px-2 py-1 bg-pov-charcoal text-pov-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+          {item.label}
+        </div>
+      )}
+    </>
+  );
+}
+
+function NavigationButton({
+  item,
+  href,
+  isActive,
+  isDisabled,
+  isHovered,
+  compact = false,
+}: {
+  item: NavigationItem;
+  href: string | null;
+  isActive: boolean;
+  isDisabled: boolean;
+  isHovered: boolean;
+  compact?: boolean;
+}) {
+  const title = !isHovered ? item.label : undefined;
+  const ariaLabel = !isHovered ? item.label : undefined;
+  const disabledReason = isDisabled ? 'Complete fund setup to access this route.' : undefined;
+  const disabledReasonId = disabledReason ? `sidebar-disabled-reason-${item.id}` : undefined;
+  const className = compact
+    ? cn(
+        'w-full flex items-center rounded-md transition-colors font-poppins relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal/40 focus-visible:ring-offset-2',
+        isHovered ? 'space-x-3 px-3 py-2' : 'justify-center p-2',
+        isActive
+          ? 'bg-pov-charcoal text-pov-white font-medium'
+          : isDisabled
+            ? 'text-charcoal-300 cursor-not-allowed bg-pov-gray'
+            : 'text-pov-charcoal hover:bg-pov-gray hover:text-charcoal-700'
+      )
+    : baseNavClassName(isHovered, isActive, isDisabled);
+
+  if (href && !isDisabled) {
+    return (
+      <Link
+        href={href}
+        title={title}
+        aria-label={ariaLabel}
+        className={className}
+        aria-current={isActive ? 'page' : undefined}
+        data-active={isActive ? 'true' : 'false'}
+      >
+        {compact ? (
+          <FooterNavItemContent item={item} isHovered={isHovered} isActive={isActive} />
+        ) : (
+          <NavItemContent item={item} isHovered={isHovered} isActive={isActive} />
+        )}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      disabled
+      title={title}
+      aria-label={ariaLabel}
+      aria-disabled="true"
+      aria-describedby={disabledReasonId}
+      data-active={isActive ? 'true' : 'false'}
+      className={className}
+    >
+      {disabledReason && (
+        <span id={disabledReasonId} className="sr-only">
+          {disabledReason}
+        </span>
+      )}
+      {compact ? (
+        <FooterNavItemContent item={item} isHovered={isHovered} isActive={isActive} />
+      ) : (
+        <NavItemContent item={item} isHovered={isHovered} isActive={isActive} />
+      )}
+    </button>
+  );
+}
+
+export default function Sidebar({ activeModule, className }: SidebarProps) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [location] = useLocation();
+  const { needsSetup, currentFund } = useFundContext();
+
+  const navigationItems = getNavigationItems();
+  const footerItems = getFooterNavigationItems();
+  const navigationContext: NavigationContext = {
+    location,
+    currentFundId: currentFund?.id ?? null,
+    needsSetup,
+  };
+
+  return (
+    <aside
+      className={cn(
+        'bg-white shadow-card border-r border-beige-200 flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out',
+        isHovered ? 'w-64' : 'w-16',
+        className
+      )}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className="p-3 border-b border-charcoal/7 bg-pov-charcoal">
+        <div className="flex items-center mb-4">
+          <div className="flex items-center justify-center w-10 h-10">
+            <POVIcon variant="white" size="md" />
+          </div>
+          <div
+            className={`ml-3 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'} overflow-hidden`}
+          >
+            <h1 className="font-inter font-bold text-lg text-pov-white whitespace-nowrap">
+              {BRANDING.app.nameStyled}
+            </h1>
+            <p className="font-poppins text-xs text-charcoal-300 whitespace-nowrap">
+              Fund Management
+            </p>
+          </div>
+        </div>
+        {currentFund && isHovered && (
+          <div className="bg-white/10 rounded-lg p-3 border border-white/10 transition-all duration-300">
+            <p className="font-poppins font-medium text-sm text-pov-white truncate">
+              {currentFund.name}
+            </p>
+            <p className="font-mono text-xs text-charcoal-300 mt-1">
+              ${(currentFund.size / 1000000).toFixed(0)}M Fund
+            </p>
+          </div>
+        )}
+      </div>
+
+      <nav className="flex-1 p-2 overflow-y-auto custom-scrollbar bg-white">
+        {needsSetup && isHovered && (
+          <div className="bg-warning/10 border border-warning/50 rounded-lg p-3 mb-4 transition-all duration-300">
+            <div className="flex items-center space-x-2 mb-2">
+              <Plus className="h-4 w-4 text-warning-dark" />
+              <span className="font-poppins text-sm font-medium text-warning-dark">
+                Setup Required
+              </span>
+            </div>
+            <p className="font-poppins text-xs text-warning-dark mb-3">
+              Configure your fund to access all features
+            </p>
+            <Link
+              href="/fund-setup"
+              className="block w-full bg-pov-charcoal text-pov-white px-3 py-2 rounded-md text-sm font-medium hover:bg-charcoal-700 transition-all duration-200 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal/40 focus-visible:ring-offset-2"
+            >
+              Start Fund Setup
+            </Link>
+          </div>
+        )}
+
+        <ul className="space-y-1">
+          {navigationItems.map((item) => {
+            const href = resolveNavigationHref(item, navigationContext);
+            const isActive = activeModule === item.id;
+            const isDisabled = !isNavigationItemEnabled(item, navigationContext);
+
+            return (
+              <li key={item.id}>
+                <NavigationButton
+                  item={item}
+                  href={href}
+                  isActive={isActive}
+                  isDisabled={isDisabled}
+                  isHovered={isHovered}
+                />
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      {footerItems.length > 0 && (
+        <div className="border-t border-beige-200 p-2 bg-pov-gray">
+          <ul className="space-y-1">
+            {footerItems.map((item) => {
+              const href = resolveNavigationHref(item, navigationContext);
+              const isActive = activeModule === item.id;
+              const isDisabled = !isNavigationItemEnabled(item, navigationContext);
+
+              return (
+                <li key={item.id}>
+                  <NavigationButton
+                    item={item}
+                    href={href}
+                    isActive={isActive}
+                    isDisabled={isDisabled}
+                    isHovered={isHovered}
+                    compact
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </aside>
+  );
+}

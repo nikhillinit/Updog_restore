@@ -1,0 +1,18 @@
+export const CANONICAL_RECEIPT_CHANGED_CASE_MANIFEST_V1 = [
+  {
+    caseId: 'V2-TC-001',
+    beforeHash: null,
+    afterHash: '190b9f8cfc9caba699f43a7067fd5b7c6886f02e7d9e192748072e5ef9a89770',
+    reason: 'F1 pins the canonical receipt preimage before public receipt activation.',
+    selectedLane: 'deal_by_deal',
+    receiptPayload: {
+      receiptVersion: 'internal-economics-receipt/2.0.0',
+      caseId: 'V2-TC-001',
+      status: 'prepared_not_publicly_activated',
+    },
+    componentVersions: {
+      adapter: 'internal-economics-legacy-corpus-adapter/1.0.0',
+      oracle: 'internal-economics-test-oracle/1.0.0',
+    },
+  },
+] as const;

@@ -1,0 +1,280 @@
+/**
+ * Sensitivity routes -- Phase 1A
+ *
+ * Fund-scoped endpoints that drive the one-way sensitivity workflow:
+ *   POST /api/funds/:id/sensitivity/one-way   -- run a sweep
+ *   POST /api/funds/:id/sensitivity/two-way   -- run a grid sweep
+ *   POST /api/funds/:id/sensitivity/stress    -- run a named stress test
+ *   GET  /api/funds/:id/sensitivity/runs      -- paginated history
+ *   GET  /api/funds/:id/sensitivity/runs/:runId -- single run by id
+ *
+ * Service and engine modules are loaded via dynamic import inside each
+ * handler so unit tests can substitute them with `vi.mock(...)` against
+ * the resolved specifier and so the router has no top-level side effects.
+ *
+ * @module server/routes/sensitivity
+ */
+
+import { Router, type Request, type Response } from 'express';
+import { TEAM_WRITE_ROLES } from '@shared/auth/effective-roles';
+import { parseFundIdParam } from '@shared/number';
+import {
+  OneWayAnalysisRequestV1Schema,
+  TwoWayAnalysisRequestV1Schema,
+  StressAnalysisRequestV1Schema,
+  SensitivityRunKindSchema,
+} from '@shared/contracts/sensitivity-run-v1.contract';
+import { enforceProvidedFundScope } from '../lib/auth/provided-fund-scope';
+import { requireWriteRole } from '../lib/auth/jwt';
+import { firstString, getUserId } from '../lib/request-values';
+
+/**
+ * Maps SensitivityEngineError codes to HTTP status codes.
+ * Unknown codes (including ENGINE_FAILURE catch-all) fall back to 500.
+ *
+ * When adding a new SensitivityEngineError code, add an entry HERE
+ * AND a row to tests/unit/routes/sensitivity-routes-error-mapping.test.ts.
+ * Codes without an entry silently fall through to 500.
+ */
+const STATUS_BY_CODE: Readonly<Record<string, number>> = {
+  NO_PUBLISHED_CONFIG: 409, // resource not in publishable form
+  INVALID_PUBLISHED_CONFIG: 422, // resource exists but unprocessable
+  UNSUPPORTED_VARIABLE_PATH: 400, // client requested unmappable path
+  METRIC_PATH_NOT_FOUND: 500, // engine output mismatch (server bug)
+  METRIC_NOT_NUMBER: 500, // engine output mismatch (server bug)
+  ENGINE_FAILURE: 500, // catch-all
+};
+
+const router = Router();
+const requireTeamWrite = requireWriteRole(TEAM_WRITE_ROLES);
+
+function parseRouteFundId(req: Request, res: Response): number | null {
+  const fundId = parseFundIdParam(firstString(req.params['id']));
+  if (fundId === null) {
+    res.status(400).json({
+      code: 'INVALID_FUND_ID',
+      message: 'fund id must be a positive integer',
+    });
+    return null;
+  }
+  return fundId;
+}
+
+router.post(
+  '/funds/:id/sensitivity/one-way',
+  requireTeamWrite,
+  async (req: Request, res: Response) => {
+    const fundId = parseRouteFundId(req, res);
+    if (fundId === null) {
+      return;
+    }
+
+    if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+      return;
+    }
+
+    const parsed = OneWayAnalysisRequestV1Schema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        code: 'INVALID_PARAMS',
+        message: 'request body failed validation',
+        issues: parsed.error.issues,
+      });
+    }
+
+    const { sensitivityRunService } = await import('../services/sensitivity-run-service');
+    const { oneWaySensitivityEngine, SensitivityEngineError } =
+      await import('../services/one-way-sensitivity-engine');
+
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({
+        code: 'AUTHENTICATION_REQUIRED',
+        message: 'User must be authenticated to create a sensitivity run',
+      });
+    }
+    const startedAt = Date.now();
+
+    const run = await sensitivityRunService.createPending(fundId, 'one_way', parsed.data, userId);
+
+    try {
+      const result = await oneWaySensitivityEngine.runOneWaySensitivity(fundId, parsed.data);
+      const durationMs = Date.now() - startedAt;
+      const completedRun = await sensitivityRunService.markCompleted(run.id, result, durationMs);
+      return res.status(200).json({ run: completedRun, result });
+    } catch (err) {
+      const durationMs = Date.now() - startedAt;
+      const code = err instanceof SensitivityEngineError ? err.code : 'ENGINE_FAILURE';
+      const message = err instanceof Error ? err.message : 'Unknown engine failure';
+      await sensitivityRunService.markFailed(run.id, code, message, durationMs);
+      const status = STATUS_BY_CODE[code] ?? 500;
+      return res.status(status).json({ code, message });
+    }
+  }
+);
+
+router.post('/funds/:id/sensitivity/two-way', requireTeamWrite, async (req: Request, res: Response) => {
+  const fundId = parseRouteFundId(req, res);
+  if (fundId === null) {
+    return;
+  }
+
+  if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+    return;
+  }
+
+  const parsed = TwoWayAnalysisRequestV1Schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      code: 'INVALID_PARAMS',
+      message: 'request body failed validation',
+      issues: parsed.error.issues,
+    });
+  }
+
+  const { sensitivityRunService } = await import('../services/sensitivity-run-service');
+  const { twoWaySensitivityEngine, SensitivityEngineError } =
+    await import('../services/two-way-sensitivity-engine');
+
+  const userId = getUserId(req);
+  if (!userId) {
+    return res.status(401).json({
+      code: 'AUTHENTICATION_REQUIRED',
+      message: 'User must be authenticated to create a sensitivity run',
+    });
+  }
+  const startedAt = Date.now();
+
+  const run = await sensitivityRunService.createPending(fundId, 'two_way', parsed.data, userId);
+
+  try {
+    const result = await twoWaySensitivityEngine.runTwoWaySensitivity(fundId, parsed.data);
+    const durationMs = Date.now() - startedAt;
+    const completedRun = await sensitivityRunService.markCompleted(run.id, result, durationMs);
+    return res.status(200).json({ run: completedRun, result });
+  } catch (err) {
+    const durationMs = Date.now() - startedAt;
+    const code = err instanceof SensitivityEngineError ? err.code : 'ENGINE_FAILURE';
+    const message = err instanceof Error ? err.message : 'Unknown engine failure';
+    await sensitivityRunService.markFailed(run.id, code, message, durationMs);
+    const status = STATUS_BY_CODE[code] ?? 500;
+    return res.status(status).json({ code, message });
+  }
+});
+
+router.post('/funds/:id/sensitivity/stress', requireTeamWrite, async (req: Request, res: Response) => {
+  const fundId = parseRouteFundId(req, res);
+  if (fundId === null) {
+    return;
+  }
+
+  if (!(await enforceProvidedFundScope(req, res, fundId, { forWrite: true }))) {
+    return;
+  }
+
+  const parsed = StressAnalysisRequestV1Schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      code: 'INVALID_PARAMS',
+      message: 'request body failed validation',
+      issues: parsed.error.issues,
+    });
+  }
+
+  const { sensitivityRunService } = await import('../services/sensitivity-run-service');
+  const { stressTestEngine, SensitivityEngineError } =
+    await import('../services/stress-test-engine');
+
+  const userId = getUserId(req);
+  if (!userId) {
+    return res.status(401).json({
+      code: 'AUTHENTICATION_REQUIRED',
+      message: 'User must be authenticated to create a sensitivity run',
+    });
+  }
+  const startedAt = Date.now();
+
+  const run = await sensitivityRunService.createPending(fundId, 'stress', parsed.data, userId);
+
+  try {
+    const result = await stressTestEngine.runStressTest(fundId, parsed.data);
+    const durationMs = Date.now() - startedAt;
+    const completedRun = await sensitivityRunService.markCompleted(run.id, result, durationMs);
+    return res.status(200).json({ run: completedRun, result });
+  } catch (err) {
+    const durationMs = Date.now() - startedAt;
+    const code = err instanceof SensitivityEngineError ? err.code : 'ENGINE_FAILURE';
+    const message = err instanceof Error ? err.message : 'Unknown engine failure';
+    await sensitivityRunService.markFailed(run.id, code, message, durationMs);
+    const status = STATUS_BY_CODE[code] ?? 500;
+    return res.status(status).json({ code, message });
+  }
+});
+
+router.get('/funds/:id/sensitivity/runs', async (req: Request, res: Response) => {
+  const fundId = parseRouteFundId(req, res);
+  if (fundId === null) {
+    return;
+  }
+
+  if (!(await enforceProvidedFundScope(req, res, fundId))) {
+    return;
+  }
+
+  const kindParam = req.query['kind'];
+  const kindParse = kindParam ? SensitivityRunKindSchema.safeParse(kindParam) : null;
+  if (kindParse && !kindParse.success) {
+    return res.status(400).json({
+      code: 'INVALID_KIND',
+      message: 'kind must be one_way, two_way, or stress',
+    });
+  }
+
+  const limitRaw = parseInt(String(req.query['limit'] ?? '20'), 10);
+  const limit = Number.isInteger(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 20;
+
+  let cursor: { createdAt: string; id: number } | undefined;
+  if (req.query['cursorCreatedAt'] && req.query['cursorId']) {
+    const cursorId = parseInt(String(req.query['cursorId']), 10);
+    if (Number.isInteger(cursorId)) {
+      cursor = { createdAt: String(req.query['cursorCreatedAt']), id: cursorId };
+    }
+  }
+
+  const { sensitivityRunService } = await import('../services/sensitivity-run-service');
+
+  // Build the options object explicitly so exactOptionalPropertyTypes is happy.
+  const opts: {
+    kind?: 'one_way' | 'two_way' | 'stress';
+    limit: number;
+    cursor?: { createdAt: string; id: number };
+  } = { limit };
+  if (kindParse?.success) opts.kind = kindParse.data;
+  if (cursor) opts.cursor = cursor;
+
+  const runs = await sensitivityRunService.getHistoryByFund(fundId, opts);
+  return res.status(200).json({ runs });
+});
+
+router.get('/funds/:id/sensitivity/runs/:runId', async (req: Request, res: Response) => {
+  const runId = parseInt(String(req.params['runId'] ?? ''), 10);
+  const fundId = parseRouteFundId(req, res);
+  if (fundId === null) {
+    return;
+  }
+  if (!(await enforceProvidedFundScope(req, res, fundId))) {
+    return;
+  }
+  if (!Number.isInteger(runId) || runId <= 0) {
+    return res.status(400).json({ code: 'INVALID_RUN_ID' });
+  }
+
+  const { sensitivityRunService } = await import('../services/sensitivity-run-service');
+  const run = await sensitivityRunService.getById(fundId, runId);
+  if (!run) {
+    return res.status(404).json({ code: 'RUN_NOT_FOUND' });
+  }
+  return res.status(200).json({ run });
+});
+
+export default router;

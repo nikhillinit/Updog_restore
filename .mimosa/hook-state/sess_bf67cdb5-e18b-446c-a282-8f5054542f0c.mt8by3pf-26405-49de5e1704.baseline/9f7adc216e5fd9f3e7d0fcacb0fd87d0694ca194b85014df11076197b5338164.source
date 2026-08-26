@@ -1,0 +1,1210 @@
+/**
+ * Portfolio Intelligence API Routes
+ *
+ * RESTful endpoints for portfolio construction modeling, scenario planning,
+ * reserve optimization, and performance forecasting. Built for internal VC tools
+ * with comprehensive simulation and analysis capabilities.
+ */
+
+import { Router } from 'express';
+import type { Request, Response } from 'express';
+import { z } from 'zod';
+import idempotency from '../middleware/idempotency';
+import { securityMiddlewareStack } from '../middleware/security';
+import { positiveInt, bounded01, nonNegative } from '@shared/schema-helpers';
+import { toNumber } from '@shared/number';
+import type { ApiError } from '@shared/types';
+import { portfolioIntelligenceService } from '../services/portfolio-intelligence-service';
+import { createRouteLogger } from '../lib/route-logger.js';
+
+const routeLog = createRouteLogger('portfolio-intelligence');
+// Stage normalization and validation
+import { parseStageDistribution, CANONICAL_STAGES } from '@shared/schemas/parse-stage-distribution';
+import { getStageValidationMode } from '../lib/stage-validation-mode';
+import {
+  recordValidationDuration,
+  recordValidationSuccess,
+  recordUnknownStage,
+} from '../observability/stage-metrics';
+import { setStageWarningHeaders } from '../middleware/deprecation-headers';
+import { firstString, getUserId } from '../lib/request-values';
+import { getRouteErrorMessage as getErrorMessage } from '../lib/errorHandling';
+import { handleNumberParseError } from '../lib/number-parse-error';
+import {
+  buildPrototypeFinancialBlockedError,
+  makeStaticTemplateProvenance,
+  type PortfolioPrototypeRouteId,
+} from '../lib/portfolio-prototype-block';
+
+const router = Router();
+router.use(securityMiddlewareStack);
+
+const verifiedReplacementRoutes: Partial<Record<PortfolioPrototypeRouteId, string>> = {
+  'portfolio.scenario.simulate': '/api/monte-carlo/simulate',
+  'portfolio.metrics.read': '/api/events/fund/:fundId',
+};
+
+const sendPrototypeBlocked = (
+  res: Response,
+  input: {
+    routeId: PortfolioPrototypeRouteId;
+    sourceRoute: string;
+  }
+) => {
+  const replacement = verifiedReplacementRoutes[input.routeId];
+  const blockedError = buildPrototypeFinancialBlockedError({
+    ...input,
+    ...(replacement ? { replacement } : {}),
+  });
+
+  return res.status(501).json({
+    success: false,
+    ...blockedError,
+    ...(blockedError.replacement ? { replacementRoute: blockedError.replacement } : {}),
+    warnings: blockedError.provenance.warnings,
+  });
+};
+
+// ============================================================================
+// VALIDATION SCHEMAS
+// ============================================================================
+
+// Fund Strategy Model Schemas
+const CreateStrategySchema = z.object({
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).optional(),
+  modelType: z.enum(['strategic', 'tactical', 'opportunistic', 'defensive', 'balanced']),
+  targetPortfolioSize: positiveInt().default(25),
+  maxPortfolioSize: positiveInt().default(30),
+  targetDeploymentPeriodMonths: positiveInt().default(36),
+  checkSizeRange: z.object({
+    min: nonNegative(),
+    max: nonNegative(),
+    target: nonNegative(),
+  }),
+  sectorAllocation: z.record(z.string(), bounded01()),
+  stageAllocation: z.record(z.string(), bounded01()),
+  geographicAllocation: z.record(z.string(), bounded01()).optional(),
+  initialReservePercentage: bounded01().default(0.5),
+  followOnStrategy: z.record(z.any()),
+  concentrationLimits: z.record(z.any()),
+  riskTolerance: z.enum(['conservative', 'moderate', 'aggressive']).default('moderate'),
+  targetIrr: bounded01().optional(),
+  targetMultiple: nonNegative().optional(),
+  targetDpi: nonNegative().optional(),
+  tags: z.array(z.string().max(50)).max(10).default([]),
+});
+
+const UpdateStrategySchema = CreateStrategySchema.partial();
+
+// Portfolio Scenario Schemas
+const CreateScenarioSchema = z.object({
+  strategyModelId: z.string().uuid(),
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).optional(),
+  scenarioType: z.enum(['base_case', 'optimistic', 'pessimistic', 'stress_test', 'custom']),
+  marketEnvironment: z.enum(['bull', 'normal', 'bear', 'recession']).default('normal'),
+  dealFlowAssumption: nonNegative().default(1.0),
+  valuationEnvironment: nonNegative().default(1.0),
+  exitEnvironment: nonNegative().default(1.0),
+  plannedInvestments: z.array(z.record(z.any())),
+  deploymentSchedule: z.record(z.any()),
+});
+
+// Scenario Comparison Schema
+const CompareScenarioSchema = z.object({
+  baseScenarioId: z.string().uuid(),
+  comparisonScenarioIds: z.array(z.string().uuid()).min(1).max(5),
+  comparisonType: z.enum([
+    'strategy_comparison',
+    'scenario_analysis',
+    'sensitivity_test',
+    'optimization_study',
+  ]),
+  comparisonMetrics: z.array(z.string()).min(1),
+  weightScheme: z.record(z.string(), nonNegative()).optional(),
+});
+
+// Monte Carlo Simulation Schema
+const RunSimulationSchema = z.object({
+  simulationType: z.enum([
+    'portfolio_construction',
+    'performance_forecast',
+    'risk_analysis',
+    'optimization',
+  ]),
+  numberOfRuns: positiveInt().min(100, 'Minimum 100 simulation runs required').default(10000),
+  inputDistributions: z.record(z.any()),
+  correlationMatrix: z.record(z.any()).optional(),
+  constraints: z.record(z.any()).optional(),
+});
+
+// Reserve Optimization Schemas
+const OptimizeReservesSchema = z.object({
+  strategyType: z.enum([
+    'proportional',
+    'milestone_based',
+    'performance_based',
+    'opportunistic',
+    'hybrid',
+  ]),
+  totalReserveAmount: nonNegative(),
+  maxPerCompanyPct: bounded01().default(0.2),
+  allocationRules: z.record(z.any()),
+  optimizationObjective: z
+    .enum(['irr_maximization', 'risk_minimization', 'risk_adjusted_return', 'portfolio_balance'])
+    .default('risk_adjusted_return'),
+  monteCarloIterations: positiveInt().default(5000),
+});
+
+const BacktestReserveSchema = z.object({
+  strategyId: z.string().uuid(),
+  backtestPeriodStart: z.string().datetime(),
+  backtestPeriodEnd: z.string().datetime(),
+  benchmarkStrategy: z.enum(['equal_weight', 'market_cap', 'custom']),
+});
+
+// Performance Forecast Schemas
+const CreateForecastSchema = z.object({
+  scenarioId: z.string().uuid().optional(),
+  baselineId: z.string().uuid().optional(),
+  forecastName: z.string().min(1).max(100),
+  forecastType: z.enum(['fund_level', 'portfolio_level', 'company_level', 'sector_level']),
+  forecastHorizonYears: positiveInt()
+    .min(1)
+    .max(20, 'Forecast horizon must be between 1 and 20 years'),
+  methodology: z.enum([
+    'historical_extrapolation',
+    'monte_carlo',
+    'machine_learning',
+    'hybrid',
+    'expert_judgment',
+  ]),
+  assumptions: z.record(z.any()).optional(),
+});
+
+const ValidateForecastSchema = z.object({
+  forecastId: z.string().uuid(),
+  actualMetrics: z.record(z.any()),
+  validationPeriod: z.string().datetime(),
+});
+
+// Quick Action Schemas
+const QuickScenarioSchema = z.object({
+  strategyModelId: z.string().uuid(),
+  marketCondition: z.enum(['bull', 'normal', 'bear']).default('normal'),
+  riskProfile: z.enum(['conservative', 'moderate', 'aggressive']).default('moderate'),
+  timeHorizon: positiveInt().default(10),
+});
+
+// ============================================================================
+// STRATEGY MANAGEMENT ROUTES
+// ============================================================================
+
+/**
+ * Create a new fund strategy model
+ * POST /api/portfolio/strategies
+ */
+router['post']('/api/portfolio/strategies', idempotency, async (req: Request, res: Response) => {
+  try {
+    // Get fund ID from query parameter
+    const fundId = req.query['fundId'];
+    if (!fundId) {
+      const error: ApiError = {
+        error: 'Missing fund ID',
+        message: 'Fund ID is required in query parameters',
+      };
+      return res.status(400).json(error);
+    }
+
+    let parsedFundId: number;
+    try {
+      parsedFundId = toNumber(fundId as string, 'fund ID', { integer: true, min: 1 });
+    } catch (err) {
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
+      }
+      throw err;
+    }
+
+    // Validate request body
+    const validation = CreateStrategySchema.safeParse(req.body);
+    if (!validation.success) {
+      const error: ApiError = {
+        error: 'Validation failed',
+        message: 'Invalid strategy data',
+        details: validation.error.flatten(),
+      };
+      return res.status(400).json(error);
+    }
+
+    const validatedData = validation.data;
+
+    // Validate stage allocation using stage normalization
+    let normalizedStageAllocation = validatedData.stageAllocation;
+    if (validatedData.stageAllocation && Object.keys(validatedData.stageAllocation).length > 0) {
+      const validationStart = performance.now();
+      // Convert stageAllocation to percentage format for parseStageDistribution
+      const stagePercentages: Record<string, number> = {};
+      for (const [stage, weight] of Object.entries(validatedData.stageAllocation)) {
+        stagePercentages[stage] = (weight as number) * 100; // Convert 0-1 to 0-100
+      }
+      const { normalized, invalidInputs, suggestions } = parseStageDistribution(stagePercentages);
+      const duration = (performance.now() - validationStart) / 1000;
+      recordValidationDuration('POST /api/portfolio/strategies', duration);
+
+      if (invalidInputs.length > 0) {
+        const mode = await getStageValidationMode();
+        recordUnknownStage('POST /api/portfolio/strategies', mode);
+        setStageWarningHeaders(res, invalidInputs);
+
+        if (mode === 'enforce') {
+          const error: ApiError = {
+            error: 'Invalid stage allocation',
+            message: 'Unknown investment stage(s) in stageAllocation.',
+            details: {
+              code: 'INVALID_STAGE',
+              invalid: invalidInputs,
+              suggestions,
+              validStages: [...CANONICAL_STAGES],
+            },
+          };
+          return res.status(400).json(error);
+        }
+      } else {
+        // Use normalized stage allocation if validation passed
+        normalizedStageAllocation = normalized;
+        recordValidationSuccess('POST /api/portfolio/strategies');
+      }
+    }
+
+    const userId = getUserId(req);
+
+    if (!userId) {
+      const error: ApiError = {
+        error: 'Authentication required',
+        message: 'User must be authenticated to create strategies',
+      };
+      return res.status(401).json(error);
+    }
+
+    // Persist strategy to database
+    const strategy = await portfolioIntelligenceService.strategies.create({
+      fundId: parsedFundId,
+      name: validatedData.name,
+      description: validatedData.description,
+      modelType: validatedData.modelType,
+      targetPortfolioSize: validatedData.targetPortfolioSize,
+      maxPortfolioSize: validatedData.maxPortfolioSize,
+      targetDeploymentPeriodMonths: validatedData.targetDeploymentPeriodMonths,
+      checkSizeRange: validatedData.checkSizeRange,
+      sectorAllocation: validatedData.sectorAllocation,
+      stageAllocation: normalizedStageAllocation,
+      geographicAllocation: validatedData.geographicAllocation,
+      initialReservePercentage: String(validatedData.initialReservePercentage),
+      followOnStrategy: validatedData.followOnStrategy,
+      concentrationLimits: validatedData.concentrationLimits,
+      riskTolerance: validatedData.riskTolerance,
+      targetIrr: validatedData.targetIrr ? String(validatedData.targetIrr) : undefined,
+      targetMultiple: validatedData.targetMultiple
+        ? String(validatedData.targetMultiple)
+        : undefined,
+      targetDpi: validatedData.targetDpi ? String(validatedData.targetDpi) : undefined,
+      tags: validatedData.tags,
+      createdBy: userId,
+      isActive: true,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: strategy,
+      message: 'Strategy model created successfully',
+    });
+  } catch (error: unknown) {
+    routeLog.error('Strategy creation error:', error);
+    const apiError: ApiError = {
+      error: 'Failed to create strategy',
+      message: getErrorMessage(error),
+    };
+    res.status(500).json(apiError);
+  }
+});
+
+/**
+ * Get strategies for a fund
+ * GET /api/portfolio/strategies/:fundId
+ */
+router['get']('/api/portfolio/strategies/:fundId', async (req: Request, res: Response) => {
+  try {
+    let fundId: number;
+    try {
+      fundId = toNumber(req.params['fundId'], 'fund ID', { integer: true, min: 1 });
+    } catch (err) {
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
+      }
+      throw err;
+    }
+
+    // Parse query parameters
+    const isActive =
+      req.query['isActive'] === 'true'
+        ? true
+        : req.query['isActive'] === 'false'
+          ? false
+          : undefined;
+    const modelType = req.query['modelType'] as string | undefined;
+    const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
+
+    // Fetch strategies from database
+    const strategies = await portfolioIntelligenceService.strategies.getByFund(fundId, {
+      ...(isActive !== undefined && { isActive }),
+      ...(modelType && { modelType }),
+      ...(limit && { limit }),
+    });
+
+    res.json({
+      success: true,
+      data: strategies,
+      count: strategies.length,
+    });
+  } catch (error: unknown) {
+    routeLog.error('Strategies fetch error:', error);
+    const apiError: ApiError = {
+      error: 'Failed to fetch strategies',
+      message: getErrorMessage(error),
+    };
+    res.status(500).json(apiError);
+  }
+});
+
+/**
+ * Update a strategy
+ * PUT /api/portfolio/strategies/:id
+ */
+router['put']('/api/portfolio/strategies/:id', async (req: Request, res: Response) => {
+  try {
+    const strategyId = firstString(req.params['id']);
+    if (!strategyId) {
+      const error: ApiError = {
+        error: 'Invalid strategy ID',
+        message: 'Strategy ID is required',
+      };
+      return res.status(400).json(error);
+    }
+
+    const validation = UpdateStrategySchema.safeParse(req.body);
+    if (!validation.success) {
+      const error: ApiError = {
+        error: 'Validation failed',
+        message: 'Invalid strategy update data',
+        details: validation.error.flatten(),
+      };
+      return res.status(400).json(error);
+    }
+
+    const userId = getUserId(req);
+    if (!userId) {
+      const error: ApiError = {
+        error: 'Authentication required',
+        message: 'User must be authenticated to update strategies',
+      };
+      return res.status(401).json(error);
+    }
+
+    // Update strategy via service
+    const validatedUpdate = validation.data;
+    const updatedStrategy = await portfolioIntelligenceService.strategies.update(strategyId, {
+      ...(validatedUpdate.name && { name: validatedUpdate.name }),
+      ...(validatedUpdate.description && { description: validatedUpdate.description }),
+      ...(validatedUpdate.modelType && { modelType: validatedUpdate.modelType }),
+      ...(validatedUpdate.targetPortfolioSize && {
+        targetPortfolioSize: validatedUpdate.targetPortfolioSize,
+      }),
+      ...(validatedUpdate.maxPortfolioSize && {
+        maxPortfolioSize: validatedUpdate.maxPortfolioSize,
+      }),
+      ...(validatedUpdate.targetDeploymentPeriodMonths && {
+        targetDeploymentPeriodMonths: validatedUpdate.targetDeploymentPeriodMonths,
+      }),
+      ...(validatedUpdate.checkSizeRange && { checkSizeRange: validatedUpdate.checkSizeRange }),
+      ...(validatedUpdate.sectorAllocation && {
+        sectorAllocation: validatedUpdate.sectorAllocation,
+      }),
+      ...(validatedUpdate.stageAllocation && { stageAllocation: validatedUpdate.stageAllocation }),
+      ...(validatedUpdate.geographicAllocation && {
+        geographicAllocation: validatedUpdate.geographicAllocation,
+      }),
+      ...(validatedUpdate.initialReservePercentage !== undefined && {
+        initialReservePercentage: String(validatedUpdate.initialReservePercentage),
+      }),
+      ...(validatedUpdate.followOnStrategy && {
+        followOnStrategy: validatedUpdate.followOnStrategy,
+      }),
+      ...(validatedUpdate.concentrationLimits && {
+        concentrationLimits: validatedUpdate.concentrationLimits,
+      }),
+      ...(validatedUpdate.riskTolerance && { riskTolerance: validatedUpdate.riskTolerance }),
+      ...(validatedUpdate.targetIrr !== undefined && {
+        targetIrr: String(validatedUpdate.targetIrr),
+      }),
+      ...(validatedUpdate.targetMultiple !== undefined && {
+        targetMultiple: String(validatedUpdate.targetMultiple),
+      }),
+      ...(validatedUpdate.targetDpi !== undefined && {
+        targetDpi: String(validatedUpdate.targetDpi),
+      }),
+      ...(validatedUpdate.tags && { tags: validatedUpdate.tags }),
+    });
+
+    if (!updatedStrategy) {
+      const error: ApiError = {
+        error: 'Strategy not found',
+        message: `Strategy ${strategyId} does not exist`,
+      };
+      return res.status(404).json(error);
+    }
+
+    res.json({
+      success: true,
+      data: updatedStrategy,
+      message: 'Strategy updated successfully',
+    });
+  } catch (error: unknown) {
+    routeLog.error('Strategy update error:', error);
+    const apiError: ApiError = {
+      error: 'Failed to update strategy',
+      message: getErrorMessage(error),
+    };
+    res.status(500).json(apiError);
+  }
+});
+
+/**
+ * Delete a strategy
+ * DELETE /api/portfolio/strategies/:id
+ */
+router['delete']('/api/portfolio/strategies/:id', async (req: Request, res: Response) => {
+  try {
+    const strategyId = firstString(req.params['id']);
+    if (!strategyId) {
+      const error: ApiError = {
+        error: 'Invalid strategy ID',
+        message: 'Strategy ID is required',
+      };
+      return res.status(400).json(error);
+    }
+
+    const userId = getUserId(req);
+    if (!userId) {
+      const error: ApiError = {
+        error: 'Authentication required',
+        message: 'User must be authenticated to delete strategies',
+      };
+      return res.status(401).json(error);
+    }
+
+    // Soft delete (set isActive: false) via service
+    const deactivated = await portfolioIntelligenceService.strategies.deactivate(strategyId);
+
+    if (!deactivated) {
+      const error: ApiError = {
+        error: 'Strategy not found',
+        message: `Strategy ${strategyId} does not exist`,
+      };
+      return res.status(404).json(error);
+    }
+
+    res.json({
+      success: true,
+      message: 'Strategy deactivated successfully',
+    });
+  } catch (error: unknown) {
+    routeLog.error('Strategy deletion error:', error);
+    const apiError: ApiError = {
+      error: 'Failed to delete strategy',
+      message: getErrorMessage(error),
+    };
+    res.status(500).json(apiError);
+  }
+});
+
+// ============================================================================
+// SCENARIO OPERATIONS ROUTES
+// ============================================================================
+
+/**
+ * Create a portfolio scenario
+ * POST /api/portfolio/scenarios
+ */
+router['post']('/api/portfolio/scenarios', idempotency, async (req: Request, res: Response) => {
+  try {
+    const fundId = req.query['fundId'];
+    if (!fundId) {
+      const error: ApiError = {
+        error: 'Missing fund ID',
+        message: 'Fund ID is required in query parameters',
+      };
+      return res.status(400).json(error);
+    }
+
+    let parsedFundId: number;
+    try {
+      parsedFundId = toNumber(fundId as string, 'fund ID', { integer: true, min: 1 });
+    } catch (err) {
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
+      }
+      throw err;
+    }
+
+    const validation = CreateScenarioSchema.safeParse(req.body);
+    if (!validation.success) {
+      const error: ApiError = {
+        error: 'Validation failed',
+        message: 'Invalid scenario data',
+        details: validation.error.flatten(),
+      };
+      return res.status(400).json(error);
+    }
+
+    const validatedData = validation.data;
+
+    const userId = getUserId(req);
+    if (!userId) {
+      const error: ApiError = {
+        error: 'Authentication required',
+        message: 'User must be authenticated to create scenarios',
+      };
+      return res.status(401).json(error);
+    }
+
+    // Persist scenario to database
+    const scenario = await portfolioIntelligenceService.scenarios.create({
+      fundId: parsedFundId,
+      strategyModelId: validatedData.strategyModelId,
+      name: validatedData.name,
+      description: validatedData.description,
+      scenarioType: validatedData.scenarioType,
+      marketEnvironment: validatedData.marketEnvironment,
+      dealFlowAssumption: String(validatedData.dealFlowAssumption),
+      valuationEnvironment: String(validatedData.valuationEnvironment),
+      exitEnvironment: String(validatedData.exitEnvironment),
+      plannedInvestments: validatedData.plannedInvestments,
+      deploymentSchedule: validatedData.deploymentSchedule,
+      projectedFundMetrics: {}, // Will be populated by simulation
+      status: 'draft',
+      createdBy: userId,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: scenario,
+      message: 'Portfolio scenario created successfully',
+    });
+  } catch (error: unknown) {
+    routeLog.error('Scenario creation error:', error);
+    const apiError: ApiError = {
+      error: 'Failed to create scenario',
+      message: getErrorMessage(error),
+    };
+    res.status(500).json(apiError);
+  }
+});
+
+/**
+ * Get scenarios for a fund
+ * GET /api/portfolio/scenarios/:fundId
+ */
+router['get']('/api/portfolio/scenarios/:fundId', async (req: Request, res: Response) => {
+  try {
+    let fundId: number;
+    try {
+      fundId = toNumber(req.params['fundId'], 'fund ID', { integer: true, min: 1 });
+    } catch (err) {
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
+      }
+      throw err;
+    }
+
+    const scenarioType = req.query['scenarioType'] as string | undefined;
+    const status = req.query['status'] as string | undefined;
+    const limit = req.query['limit'] ? parseInt(req.query['limit'] as string) : undefined;
+
+    // Fetch scenarios from database
+    const scenarios = await portfolioIntelligenceService.scenarios.getByFund(fundId, {
+      ...(scenarioType && { scenarioType }),
+      ...(status && { status }),
+      ...(limit && { limit }),
+    });
+
+    res.json({
+      success: true,
+      data: scenarios,
+      count: scenarios.length,
+    });
+  } catch (error: unknown) {
+    routeLog.error('Scenarios fetch error:', error);
+    const apiError: ApiError = {
+      error: 'Failed to fetch scenarios',
+      message: getErrorMessage(error),
+    };
+    res.status(500).json(apiError);
+  }
+});
+
+/**
+ * Compare multiple scenarios
+ * POST /api/portfolio/scenarios/compare
+ */
+router['post'](
+  '/api/portfolio/scenarios/compare',
+  idempotency,
+  async (req: Request, res: Response) => {
+    try {
+      const validation = CompareScenarioSchema.safeParse(req.body);
+      if (!validation.success) {
+        const error: ApiError = {
+          error: 'Validation failed',
+          message: 'Invalid scenario comparison data',
+          details: validation.error.flatten(),
+        };
+        return res.status(400).json(error);
+      }
+
+      const userId = getUserId(req);
+      if (!userId) {
+        const error: ApiError = {
+          error: 'Authentication required',
+          message: 'User must be authenticated to compare scenarios',
+        };
+        return res.status(401).json(error);
+      }
+
+      return sendPrototypeBlocked(res, {
+        routeId: 'portfolio.scenarios.compare',
+        sourceRoute: 'POST /api/portfolio/scenarios/compare',
+      });
+    } catch (error: unknown) {
+      routeLog.error('Scenario comparison error:', error);
+      const apiError: ApiError = {
+        error: 'Failed to compare scenarios',
+        message: getErrorMessage(error),
+      };
+      res.status(500).json(apiError);
+    }
+  }
+);
+
+/**
+ * Run Monte Carlo simulation on a scenario
+ * POST /api/portfolio/scenarios/:id/simulate
+ */
+router['post'](
+  '/api/portfolio/scenarios/:id/simulate',
+  idempotency,
+  async (req: Request, res: Response) => {
+    try {
+      const scenarioId = firstString(req.params['id']);
+      if (!scenarioId) {
+        const error: ApiError = {
+          error: 'Invalid scenario ID',
+          message: 'Scenario ID is required',
+        };
+        return res.status(400).json(error);
+      }
+
+      const validation = RunSimulationSchema.safeParse(req.body);
+      if (!validation.success) {
+        const error: ApiError = {
+          error: 'Validation failed',
+          message: 'Invalid simulation parameters',
+          details: validation.error.flatten(),
+        };
+        return res.status(400).json(error);
+      }
+
+      const userId = getUserId(req);
+      if (!userId) {
+        const error: ApiError = {
+          error: 'Authentication required',
+          message: 'User must be authenticated to run simulations',
+        };
+        return res.status(401).json(error);
+      }
+
+      // Verify scenario exists
+      const scenario = await portfolioIntelligenceService.scenarios.getById(scenarioId);
+      if (!scenario) {
+        const error: ApiError = {
+          error: 'Scenario not found',
+          message: `Scenario ${scenarioId} does not exist`,
+        };
+        return res.status(404).json(error);
+      }
+
+      return sendPrototypeBlocked(res, {
+        routeId: 'portfolio.scenario.simulate',
+        sourceRoute: 'POST /api/portfolio/scenarios/:id/simulate',
+      });
+    } catch (error: unknown) {
+      routeLog.error('Simulation error:', error);
+      const apiError: ApiError = {
+        error: 'Failed to run simulation',
+        message: getErrorMessage(error),
+      };
+      res.status(500).json(apiError);
+    }
+  }
+);
+
+// ============================================================================
+// RESERVE OPTIMIZATION ROUTES
+// ============================================================================
+
+/**
+ * Optimize reserve allocation
+ * POST /api/portfolio/reserves/optimize
+ */
+router['post'](
+  '/api/portfolio/reserves/optimize',
+  idempotency,
+  async (req: Request, res: Response) => {
+    try {
+      const fundId = req.query['fundId'];
+      if (!fundId) {
+        const error: ApiError = {
+          error: 'Missing fund ID',
+          message: 'Fund ID is required in query parameters',
+        };
+        return res.status(400).json(error);
+      }
+
+      try {
+        toNumber(fundId as string, 'fund ID', { integer: true, min: 1 });
+      } catch (err) {
+        if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+          return;
+        }
+        throw err;
+      }
+
+      const validation = OptimizeReservesSchema.safeParse(req.body);
+      if (!validation.success) {
+        const error: ApiError = {
+          error: 'Validation failed',
+          message: 'Invalid reserve optimization parameters',
+          details: validation.error.flatten(),
+        };
+        return res.status(400).json(error);
+      }
+
+      const userId = getUserId(req);
+      if (!userId) {
+        const error: ApiError = {
+          error: 'Authentication required',
+          message: 'User must be authenticated to optimize reserves',
+        };
+        return res.status(401).json(error);
+      }
+
+      return sendPrototypeBlocked(res, {
+        routeId: 'portfolio.reserves.optimize',
+        sourceRoute: 'POST /api/portfolio/reserves/optimize',
+      });
+    } catch (error: unknown) {
+      routeLog.error('Reserve optimization error:', error);
+      const apiError: ApiError = {
+        error: 'Failed to optimize reserves',
+        message: getErrorMessage(error),
+      };
+      res.status(500).json(apiError);
+    }
+  }
+);
+
+/**
+ * Get reserve strategies for a fund
+ * GET /api/portfolio/reserves/strategies/:fundId
+ */
+router['get']('/api/portfolio/reserves/strategies/:fundId', async (req: Request, res: Response) => {
+  try {
+    let fundId: number;
+    try {
+      fundId = toNumber(req.params['fundId'], 'fund ID', { integer: true, min: 1 });
+    } catch (err) {
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
+      }
+      throw err;
+    }
+
+    const strategyType = req.query['strategyType'] as string | undefined;
+    const isActive =
+      req.query['isActive'] === 'true'
+        ? true
+        : req.query['isActive'] === 'false'
+          ? false
+          : undefined;
+
+    // Fetch reserve strategies from database
+    const strategies = await portfolioIntelligenceService.reserves.getByFund(fundId, {
+      ...(strategyType && { strategyType }),
+      ...(isActive !== undefined && { isActive }),
+    });
+
+    res.json({
+      success: true,
+      data: strategies,
+      count: strategies.length,
+    });
+  } catch (error: unknown) {
+    routeLog.error('Reserve strategies fetch error:', error);
+    const apiError: ApiError = {
+      error: 'Failed to fetch reserve strategies',
+      message: getErrorMessage(error),
+    };
+    res.status(500).json(apiError);
+  }
+});
+
+/**
+ * Backtest reserve strategy
+ * POST /api/portfolio/reserves/backtest
+ */
+router['post'](
+  '/api/portfolio/reserves/backtest',
+  idempotency,
+  async (req: Request, res: Response) => {
+    try {
+      const validation = BacktestReserveSchema.safeParse(req.body);
+      if (!validation.success) {
+        const error: ApiError = {
+          error: 'Validation failed',
+          message: 'Invalid backtest parameters',
+          details: validation.error.flatten(),
+        };
+        return res.status(400).json(error);
+      }
+
+      const userId = getUserId(req);
+      if (!userId) {
+        const error: ApiError = {
+          error: 'Authentication required',
+          message: 'User must be authenticated to run backtests',
+        };
+        return res.status(401).json(error);
+      }
+
+      return sendPrototypeBlocked(res, {
+        routeId: 'portfolio.reserves.backtest',
+        sourceRoute: 'POST /api/portfolio/reserves/backtest',
+      });
+    } catch (error: unknown) {
+      routeLog.error('Backtest error:', error);
+      const apiError: ApiError = {
+        error: 'Failed to run backtest',
+        message: getErrorMessage(error),
+      };
+      res.status(500).json(apiError);
+    }
+  }
+);
+
+// ============================================================================
+// PERFORMANCE FORECASTING ROUTES
+// ============================================================================
+
+/**
+ * Generate performance forecast
+ * POST /api/portfolio/forecasts
+ */
+router['post']('/api/portfolio/forecasts', idempotency, async (req: Request, res: Response) => {
+  try {
+    const fundId = req.query['fundId'];
+    if (!fundId) {
+      const error: ApiError = {
+        error: 'Missing fund ID',
+        message: 'Fund ID is required in query parameters',
+      };
+      return res.status(400).json(error);
+    }
+
+    try {
+      toNumber(fundId as string, 'fund ID', { integer: true, min: 1 });
+    } catch (err) {
+      if (handleNumberParseError(err, res, 'Invalid fund ID')) {
+        return;
+      }
+      throw err;
+    }
+
+    const validation = CreateForecastSchema.safeParse(req.body);
+    if (!validation.success) {
+      const error: ApiError = {
+        error: 'Validation failed',
+        message: 'Invalid forecast parameters',
+        details: validation.error.flatten(),
+      };
+      return res.status(400).json(error);
+    }
+
+    const userId = getUserId(req);
+    if (!userId) {
+      const error: ApiError = {
+        error: 'Authentication required',
+        message: 'User must be authenticated to create forecasts',
+      };
+      return res.status(401).json(error);
+    }
+
+    return sendPrototypeBlocked(res, {
+      routeId: 'portfolio.forecasts.create',
+      sourceRoute: 'POST /api/portfolio/forecasts',
+    });
+  } catch (error: unknown) {
+    routeLog.error('Forecast generation error:', error);
+    const apiError: ApiError = {
+      error: 'Failed to generate forecast',
+      message: getErrorMessage(error),
+    };
+    res.status(500).json(apiError);
+  }
+});
+
+/**
+ * Get forecasts for a scenario
+ * GET /api/portfolio/forecasts/:scenarioId
+ */
+router['get']('/api/portfolio/forecasts/:scenarioId', async (req: Request, res: Response) => {
+  try {
+    const scenarioId = firstString(req.params['scenarioId']);
+    if (!scenarioId) {
+      const error: ApiError = {
+        error: 'Invalid scenario ID',
+        message: 'Scenario ID is required',
+      };
+      return res.status(400).json(error);
+    }
+
+    const forecastType = firstString(req.query['forecastType']);
+    const status = firstString(req.query['status']);
+
+    // Fetch forecasts from database
+    const forecasts = await portfolioIntelligenceService.forecasts.getByScenario(scenarioId, {
+      ...(forecastType && { forecastType }),
+      ...(status && { status }),
+    });
+
+    res.json({
+      success: true,
+      data: forecasts,
+      count: forecasts.length,
+    });
+  } catch (error: unknown) {
+    routeLog.error('Forecasts fetch error:', error);
+    const apiError: ApiError = {
+      error: 'Failed to fetch forecasts',
+      message: getErrorMessage(error),
+    };
+    res.status(500).json(apiError);
+  }
+});
+
+/**
+ * Validate forecast against actuals
+ * POST /api/portfolio/forecasts/validate
+ */
+router['post']('/api/portfolio/forecasts/validate', async (req: Request, res: Response) => {
+  try {
+    const validation = ValidateForecastSchema.safeParse(req.body);
+    if (!validation.success) {
+      const error: ApiError = {
+        error: 'Validation failed',
+        message: 'Invalid forecast validation data',
+        details: validation.error.flatten(),
+      };
+      return res.status(400).json(error);
+    }
+
+    const validatedData = validation.data;
+
+    const userId = getUserId(req);
+    if (!userId) {
+      const error: ApiError = {
+        error: 'Authentication required',
+        message: 'User must be authenticated to validate forecasts',
+      };
+      return res.status(401).json(error);
+    }
+
+    // Verify forecast exists
+    const forecast = await portfolioIntelligenceService.forecasts.getById(validatedData.forecastId);
+    if (!forecast) {
+      const error: ApiError = {
+        error: 'Forecast not found',
+        message: `Forecast ${validatedData.forecastId} does not exist`,
+      };
+      return res.status(404).json(error);
+    }
+
+    return sendPrototypeBlocked(res, {
+      routeId: 'portfolio.forecasts.validate',
+      sourceRoute: 'POST /api/portfolio/forecasts/validate',
+    });
+  } catch (error: unknown) {
+    routeLog.error('Forecast validation error:', error);
+    const apiError: ApiError = {
+      error: 'Failed to validate forecast',
+      message: getErrorMessage(error),
+    };
+    res.status(500).json(apiError);
+  }
+});
+
+// ============================================================================
+// QUICK ACTIONS ROUTES (FOR UI)
+// ============================================================================
+
+/**
+ * Get strategy templates
+ * GET /api/portfolio/templates
+ */
+router['get']('/api/portfolio/templates', async (req: Request, res: Response) => {
+  try {
+    const category = firstString(req.query['category']);
+    const riskProfile = firstString(req.query['riskProfile']);
+
+    // Static, hardcoded strategy templates (not DB-backed). This flag-off prototype route
+    // returns the literal array below.
+    const templates = [
+      {
+        id: 'template_1',
+        name: 'Balanced Growth Strategy',
+        category: 'balanced',
+        riskProfile: 'moderate',
+        description: 'Diversified portfolio with balanced risk-return profile',
+        targetPortfolioSize: 25,
+        sectorAllocation: {
+          fintech: 0.3,
+          healthtech: 0.25,
+          enterprise: 0.2,
+          consumer: 0.15,
+          deeptech: 0.1,
+        },
+        stageAllocation: {
+          seed: 0.4,
+          seriesA: 0.6,
+        },
+      },
+      {
+        id: 'template_2',
+        name: 'High Growth Aggressive',
+        category: 'growth',
+        riskProfile: 'aggressive',
+        description: 'Concentrated portfolio targeting high-growth companies',
+        targetPortfolioSize: 20,
+        sectorAllocation: {
+          fintech: 0.4,
+          healthtech: 0.3,
+          deeptech: 0.3,
+        },
+        stageAllocation: {
+          seed: 0.7,
+          seriesA: 0.3,
+        },
+      },
+    ];
+
+    const provenance = makeStaticTemplateProvenance('GET /api/portfolio/templates');
+    const filteredTemplates = templates.filter((t) => {
+      if (category && t.category !== category) return false;
+      if (riskProfile && t.riskProfile !== riskProfile) return false;
+      return true;
+    }).map((template) => ({ ...template, provenance }));
+
+    res.json({
+      success: true,
+      data: filteredTemplates,
+      count: filteredTemplates.length,
+    });
+  } catch (error: unknown) {
+    routeLog.error('Templates fetch error:', error);
+    const apiError: ApiError = {
+      error: 'Failed to fetch templates',
+      message: getErrorMessage(error),
+    };
+    res.status(500).json(apiError);
+  }
+});
+
+/**
+ * Generate quick scenario from parameters
+ * POST /api/portfolio/quick-scenario
+ */
+router['post']('/api/portfolio/quick-scenario', async (req: Request, res: Response) => {
+  try {
+    const validation = QuickScenarioSchema.safeParse(req.body);
+    if (!validation.success) {
+      const error: ApiError = {
+        error: 'Validation failed',
+        message: 'Invalid quick scenario parameters',
+        details: validation.error.flatten(),
+      };
+      return res.status(400).json(error);
+    }
+
+    const userId = getUserId(req);
+    if (!userId) {
+      const error: ApiError = {
+        error: 'Authentication required',
+        message: 'User must be authenticated to generate scenarios',
+      };
+      return res.status(401).json(error);
+    }
+
+    return sendPrototypeBlocked(res, {
+      routeId: 'portfolio.quickScenario.create',
+      sourceRoute: 'POST /api/portfolio/quick-scenario',
+    });
+  } catch (error: unknown) {
+    routeLog.error('Quick scenario error:', error);
+    const apiError: ApiError = {
+      error: 'Failed to generate quick scenario',
+      message: getErrorMessage(error),
+    };
+    res.status(500).json(apiError);
+  }
+});
+
+/**
+ * Get real-time metrics for a scenario
+ * GET /api/portfolio/metrics/:scenarioId
+ */
+router['get']('/api/portfolio/metrics/:scenarioId', async (req: Request, res: Response) => {
+  try {
+    const scenarioId = firstString(req.params['scenarioId']);
+    if (!scenarioId) {
+      const error: ApiError = {
+        error: 'Invalid scenario ID',
+        message: 'Scenario ID is required',
+      };
+      return res.status(400).json(error);
+    }
+
+    return sendPrototypeBlocked(res, {
+      routeId: 'portfolio.metrics.read',
+      sourceRoute: 'GET /api/portfolio/metrics/:scenarioId',
+    });
+  } catch (error: unknown) {
+    routeLog.error('Metrics fetch error:', error);
+    const apiError: ApiError = {
+      error: 'Failed to fetch metrics',
+      message: getErrorMessage(error),
+    };
+    res.status(500).json(apiError);
+  }
+});
+
+export default router;

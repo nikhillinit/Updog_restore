@@ -1,0 +1,2718 @@
+import { sql } from 'drizzle-orm';
+import {
+  type AnyPgColumn,
+  bigint,
+  boolean,
+  check,
+  customType,
+  date,
+  decimal,
+  doublePrecision,
+  index,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  serial,
+  text,
+  timestamp,
+  unique,
+  uniqueIndex,
+  uuid,
+  varchar,
+} from 'drizzle-orm/pg-core';
+import { createInsertSchema } from 'drizzle-zod';
+import {
+  FinancialActionabilitySchema,
+  type FinancialActionability,
+} from './contracts/financial-provenance.contract';
+
+// ============================================================================
+// DOMAIN MODULE RE-EXPORTS (barrel pattern for backward compatibility)
+// ============================================================================
+export * from './schema/fund';
+export * from './schema/portfolio';
+export * from './schema/scenario';
+export * from './schema/scenario-case-seed-provenance';
+export * from './schema/company-scenario-create-requests';
+export * from './schema/shares';
+export * from './schema/allocation-scenarios';
+export * from './schema/user';
+export * from './schema/lp-reporting-evidence';
+export * from './schema/operating-objects';
+export * from './schema/reconciliation-runs';
+export * from './schema/substrate-shadow-reconciliations';
+export * from './schema/financial-facts-snapshots';
+export * from './schema/current-plans';
+export * from './schema/fund-calculation-modes';
+export * from './schema/fund-moic-input-update-requests';
+export * from './schema/portfolio-update-receipts';
+export * from './schema/release-canary';
+export * from './schema/capital-call-notification-outbox';
+export * from './schema/investment-rounds';
+export * from './schema/investment-round-model-overrides';
+export * from './schema/current-forecast-references';
+export * from './schema/financial-observations';
+export * from './schema/investment-ledger';
+export * from './schema/investment-positions';
+export * from './schema/vehicle-financing-participations';
+export * from './schema/internal-analysis';
+export * from './schema/internal-economics';
+export * from './schema/kpi-observations';
+export * from './schemas/flags';
+export * from './schemas/reserve-approvals';
+
+// Import tables for FK references and schema definitions
+import { funds, fundConfigs, fundSnapshots, calcRuns } from './schema/fund';
+import { portfolioCompanies, investments } from './schema/portfolio';
+import type { scenarios, scenarioCases, scenarioAuditLogs } from './schema/scenario';
+import { users } from './schema/user';
+
+const h9FinancialActionabilityValuesSql = sql.raw(
+  FinancialActionabilitySchema.options.map((value) => `'${value}'`).join(', ')
+);
+
+// Fund events for audit trail
+export const fundEvents = pgTable(
+  'fund_events',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id')
+      .references(() => funds.id)
+      .notNull(),
+    eventType: varchar('event_type', { length: 50 }).notNull(), // 'DRAFT_SAVED', 'PUBLISHED', 'CALC_TRIGGERED'
+    payload: jsonb('payload'), // Event data
+    userId: integer('user_id').references(() => users.id),
+    correlationId: varchar('correlation_id', { length: 36 }),
+    eventTime: timestamp('event_time').notNull(),
+    operation: varchar('operation', { length: 50 }),
+    entityType: varchar('entity_type', { length: 50 }),
+    metadata: jsonb('metadata'), // Additional event metadata
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (table) => ({
+    fundEventIdx: index('fund_events_fund_idx')['on'](table.fundId, table.createdAt.desc()),
+  })
+);
+
+export const demoProfileTargetPkTypeEnum = pgEnum('demo_profile_target_pk_type', [
+  'integer',
+  'uuid',
+]);
+
+export const demoProfileImportRows = pgTable(
+  'demo_profile_import_rows',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    datasetId: text('dataset_id').notNull(),
+    targetTable: text('target_table').notNull(),
+    sourceKey: text('source_key').notNull(),
+    sourceHash: text('source_hash').notNull(),
+    targetIdText: text('target_id_text').notNull(),
+    targetPkType: demoProfileTargetPkTypeEnum('target_pk_type').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    scopeUnique: uniqueIndex('demo_profile_import_rows_scope_unique').on(
+      table.fundId,
+      table.datasetId,
+      table.targetTable,
+      table.sourceKey
+    ),
+    fundDatasetIdx: index('demo_profile_import_rows_fund_dataset_idx').on(
+      table.fundId,
+      table.datasetId,
+      table.createdAt.desc()
+    ),
+    targetLookupIdx: index('demo_profile_import_rows_target_lookup_idx').on(
+      table.targetTable,
+      table.targetIdText
+    ),
+    targetTableCheck: check(
+      'demo_profile_import_rows_target_table_check',
+      sql`${table.targetTable} IN (
+        'portfoliocompanies',
+        'investments',
+        'investment_lots',
+        'deal_opportunities',
+        'fund_metrics',
+        'pacing_history',
+        'fund_baselines',
+        'variance_reports',
+        'backtest_results'
+      )`
+    ),
+    sourceHashCheck: check(
+      'demo_profile_import_rows_source_hash_check',
+      sql`${table.sourceHash} ~ '^[a-f0-9]{64}$'`
+    ),
+    targetIdTypeCheck: check(
+      'demo_profile_import_rows_target_id_type_check',
+      sql`(
+        ${table.targetPkType} = 'integer'
+        AND ${table.targetIdText} ~ '^[1-9][0-9]*$'
+      ) OR (
+        ${table.targetPkType} = 'uuid'
+        AND ${table.targetIdText} ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      )`
+    ),
+  })
+);
+
+export type DemoProfileImportRowRecord = typeof demoProfileImportRows.$inferSelect;
+export type InsertDemoProfileImportRowRecord = typeof demoProfileImportRows.$inferInsert;
+
+// ============================================================================
+// SENSITIVITY RUNS - Persists one-way / two-way / stress sensitivity analyses.
+// kind/status enums mirror the CHECK constraints in the migration and the Zod
+// contract at shared/contracts/sensitivity-run-v1.contract.ts. Update all three
+// in lockstep when adding new variants.
+// ============================================================================
+export const sensitivityRuns = pgTable(
+  'sensitivity_runs',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id),
+    kind: text('kind').notNull(), // 'one_way' | 'two_way' | 'stress'
+    status: text('status').notNull(), // 'pending' | 'running' | 'completed' | 'failed'
+    params: jsonb('params').notNull(),
+    results: jsonb('results'),
+    createdBy: integer('created_by').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    durationMs: integer('duration_ms'),
+    errorCode: text('error_code'),
+    errorMessage: text('error_message'),
+  },
+  (table) => ({
+    fundCreatedIdx: index('sensitivity_runs_fund_created_idx').on(table.fundId, table.createdAt),
+    fundKindCreatedIdx: index('sensitivity_runs_fund_kind_created_idx').on(
+      table.fundId,
+      table.kind,
+      table.createdAt
+    ),
+  })
+);
+
+export type SensitivityRun = typeof sensitivityRuns.$inferSelect;
+export type InsertSensitivityRun = typeof sensitivityRuns.$inferInsert;
+
+// ============================================================================
+// FORECAST SNAPSHOTS - Point-in-time snapshots with async calculation
+// ============================================================================
+export const forecastSnapshots = pgTable(
+  'forecast_snapshots',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+
+    name: text('name').notNull(),
+    status: text('status').notNull().default('pending'),
+    sourceHash: text('source_hash'),
+    calculatedMetrics: jsonb('calculated_metrics'),
+
+    fundState: jsonb('fund_state'),
+    portfolioState: jsonb('portfolio_state'),
+    metricsState: jsonb('metrics_state'),
+
+    snapshotTime: timestamp('snapshot_time', { withTimezone: true }).notNull(),
+    version: bigint('version', { mode: 'bigint' })
+      .notNull()
+      .default(sql`0`),
+    idempotencyKey: text('idempotency_key'),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    fundTimeIdx: index('forecast_snapshots_fund_time_idx').on(
+      table.fundId,
+      table.snapshotTime.desc()
+    ),
+    sourceHashIdx: index('forecast_snapshots_source_hash_idx').on(table.sourceHash),
+    idempotencyUniqueIdx: uniqueIndex('forecast_snapshots_fund_idem_key_idx')
+      .on(table.fundId, table.idempotencyKey)
+      .where(sql`${table.idempotencyKey} IS NOT NULL`),
+    cursorIdx: index('forecast_snapshots_fund_cursor_idx').on(
+      table.fundId,
+      table.snapshotTime.desc(),
+      table.id.desc()
+    ),
+    sourceHashUniqueIdx: uniqueIndex('forecast_snapshots_source_hash_unique_idx')
+      .on(table.sourceHash, table.fundId)
+      .where(sql`${table.sourceHash} IS NOT NULL`),
+    statusCheck: check(
+      'forecast_snapshots_status_check',
+      sql`${table.status} IN ('pending', 'calculating', 'complete', 'error')`
+    ),
+    idempotencyKeyLenCheck: check(
+      'forecast_snapshots_idem_key_len_check',
+      sql`${table.idempotencyKey} IS NULL OR (length(${table.idempotencyKey}) >= 1 AND length(${table.idempotencyKey}) <= 128)`
+    ),
+  })
+);
+
+export type ForecastSnapshot = typeof forecastSnapshots.$inferSelect;
+export type InsertForecastSnapshot = typeof forecastSnapshots.$inferInsert;
+
+// ============================================================================
+// SNAPSHOT VERSIONS - Version history with auto-pruning support
+// ============================================================================
+export const snapshotVersions = pgTable(
+  'snapshot_versions',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    snapshotId: uuid('snapshot_id')
+      .notNull()
+      .references(() => forecastSnapshots.id, { onDelete: 'cascade' }),
+
+    // Version tracking (simple sequential)
+    versionNumber: integer('version_number').notNull(),
+    parentVersionId: uuid('parent_version_id').references((): AnyPgColumn => snapshotVersions.id),
+
+    // Named versions for what-if scenarios
+    versionName: varchar('version_name', { length: 100 }),
+    isCurrent: boolean('is_current').default(false).notNull(),
+
+    // Immutable state capture
+    stateSnapshot: jsonb('state_snapshot').notNull(),
+    calculatedMetrics: jsonb('calculated_metrics'),
+    sourceHash: varchar('source_hash', { length: 64 }).notNull(),
+
+    // Metadata
+    description: text('description'),
+    createdBy: uuid('created_by'),
+    tags: text('tags').array(),
+
+    // Retention policy (90 days default)
+    expiresAt: timestamp('expires_at', { withTimezone: true }).default(
+      sql`NOW() + INTERVAL '90 days'`
+    ),
+    isPinned: boolean('is_pinned').default(false).notNull(),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    uniqueVersion: unique().on(table.snapshotId, table.versionNumber),
+    snapshotVersionIdx: index('idx_snapshot_versions_snapshot_id').on(
+      table.snapshotId,
+      table.versionNumber.desc()
+    ),
+    currentIdx: index('idx_snapshot_versions_current')
+      .on(table.snapshotId)
+      .where(sql`${table.isCurrent} = true`),
+    parentIdx: index('idx_snapshot_versions_parent').on(table.parentVersionId),
+    sourceHashIdx: index('idx_snapshot_versions_source_hash').on(table.sourceHash),
+    expiresIdx: index('idx_snapshot_versions_expires')
+      .on(table.expiresAt)
+      .where(sql`${table.isPinned} = false`),
+  })
+);
+
+export type SnapshotVersion = typeof snapshotVersions.$inferSelect;
+export type InsertSnapshotVersion = typeof snapshotVersions.$inferInsert;
+
+// ============================================================================
+// RESERVE ALLOCATIONS - Links reserve decisions to snapshots
+// ============================================================================
+export const reserveAllocations = pgTable(
+  'reserve_allocations',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    snapshotId: uuid('snapshot_id')
+      .notNull()
+      .references(() => forecastSnapshots.id, { onDelete: 'cascade' }),
+    companyId: integer('company_id')
+      .notNull()
+      .references(() => portfolioCompanies.id, { onDelete: 'cascade' }),
+
+    plannedReserveCents: bigint('planned_reserve_cents', { mode: 'bigint' }).notNull(),
+    allocationScore: decimal('allocation_score', { precision: 10, scale: 6 }),
+    priority: integer('priority'),
+    rationale: text('rationale'),
+
+    version: bigint('version', { mode: 'bigint' })
+      .notNull()
+      .default(sql`0`),
+    idempotencyKey: text('idempotency_key'),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    snapshotCompanyIdx: index('reserve_allocations_snapshot_company_idx').on(
+      table.snapshotId,
+      table.companyId
+    ),
+    companyIdx: index('reserve_allocations_company_idx').on(table.companyId),
+    priorityIdx: index('reserve_allocations_priority_idx').on(table.snapshotId, table.priority),
+    idempotencyUniqueIdx: uniqueIndex('reserve_allocations_snapshot_idem_key_idx')
+      .on(table.snapshotId, table.idempotencyKey)
+      .where(sql`${table.idempotencyKey} IS NOT NULL`),
+    cursorIdx: index('reserve_allocations_snapshot_cursor_idx').on(
+      table.snapshotId,
+      table.createdAt.desc(),
+      table.id.desc()
+    ),
+    idempotencyKeyLenCheck: check(
+      'reserve_allocations_idem_key_len_check',
+      sql`${table.idempotencyKey} IS NULL OR (length(${table.idempotencyKey}) >= 1 AND length(${table.idempotencyKey}) <= 128)`
+    ),
+  })
+);
+
+export type ReserveAllocation = typeof reserveAllocations.$inferSelect;
+export type InsertReserveAllocation = typeof reserveAllocations.$inferInsert;
+
+export const fundMetrics = pgTable(
+  'fund_metrics',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id').references(() => funds.id),
+    metricDate: timestamp('metric_date').notNull(),
+    asOfDate: timestamp('as_of_date').notNull(),
+    totalValue: decimal('totalvalue', { precision: 15, scale: 2 }).notNull(),
+    irr: decimal('irr', { precision: 5, scale: 4 }),
+    multiple: decimal('multiple', { precision: 5, scale: 2 }),
+    dpi: decimal('dpi', { precision: 5, scale: 2 }),
+    tvpi: decimal('tvpi', { precision: 5, scale: 2 }),
+    runId: integer('run_id').references(() => calcRuns.id),
+    configId: integer('config_id').references(() => fundConfigs.id),
+    configVersion: integer('config_version'),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (table) => ({
+    fundMetricDateIdx: index('fund_metrics_fund_metric_date_idx').on(
+      table.fundId,
+      table.metricDate.desc()
+    ),
+    runLookupIdx: index('fund_metrics_run_lookup_idx').on(
+      table.fundId,
+      table.runId,
+      table.metricDate.desc()
+    ),
+    runUniqueIdx: uniqueIndex('fund_metrics_run_unique')
+      .on(table.fundId, table.runId)
+      .where(sql`${table.runId} IS NOT NULL`),
+  })
+);
+
+// Fund Distributions - Cash distributions to LPs for IRR/DPI calculations
+export const fundDistributions = pgTable('fund_distributions', {
+  id: serial('id').primaryKey(),
+  fundId: integer('fund_id')
+    .references(() => funds.id)
+    .notNull(),
+  companyId: integer('company_id').references(() => portfolioCompanies.id),
+  distributionDate: timestamp('distribution_date').notNull(),
+  amount: decimal('amount', { precision: 15, scale: 2 }).notNull(),
+  distributionType: text('distribution_type').notNull().default('exit'), // 'exit', 'dividend', 'partial_sale', 'recapitalization'
+  description: text('description'),
+  isRecycled: boolean('is_recycled').default(false), // Whether proceeds were recycled into new investments
+  createdAt: timestamp('created_at').defaultNow(),
+  createdBy: integer('created_by').references(() => users.id),
+});
+
+export const activities = pgTable('activities', {
+  id: serial('id').primaryKey(),
+  fundId: integer('fund_id').references(() => funds.id),
+  companyId: integer('company_id').references(() => portfolioCompanies.id),
+  type: text('type').notNull(), // 'investment', 'exit', 'update', 'milestone'
+  title: text('title').notNull(),
+  description: text('description'),
+  amount: decimal('amount', { precision: 15, scale: 2 }),
+  activityDate: timestamp('activity_date').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Deal Pipeline Tables
+export const dealOpportunities = pgTable('deal_opportunities', {
+  id: serial('id').primaryKey(),
+  fundId: integer('fund_id').references(() => funds.id),
+  companyName: text('company_name').notNull(),
+  sector: text('sector').notNull(),
+  stage: text('stage').notNull(), // 'Pre-seed', 'Seed', 'Series A', etc.
+  sourceType: text('source_type').notNull(), // 'Referral', 'Cold outreach', 'Inbound', 'Event'
+  dealSize: decimal('deal_size', { precision: 15, scale: 2 }),
+  valuation: decimal('valuation', { precision: 15, scale: 2 }),
+  status: text('status').notNull().default('lead'), // 'lead', 'qualified', 'pitch', 'dd', 'committee', 'term_sheet', 'closed', 'passed'
+  priority: text('priority').notNull().default('medium'), // 'high', 'medium', 'low'
+  foundedYear: integer('founded_year'),
+  employeeCount: integer('employee_count'),
+  revenue: decimal('revenue', { precision: 15, scale: 2 }),
+  description: text('description'),
+  website: text('website'),
+  contactName: text('contact_name'),
+  contactEmail: text('contact_email'),
+  contactPhone: text('contact_phone'),
+  sourceNotes: text('source_notes'),
+  nextAction: text('next_action'),
+  nextActionDate: timestamp('next_action_date'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const pipelineStages = pgTable('pipeline_stages', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description'),
+  orderIndex: integer('order_index').notNull(),
+  color: text('color').default('#6b7280'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const dueDiligenceItems = pgTable('due_diligence_items', {
+  id: serial('id').primaryKey(),
+  opportunityId: integer('opportunity_id').references(() => dealOpportunities.id),
+  category: text('category').notNull(), // 'Financial', 'Legal', 'Technical', 'Market', 'Team'
+  item: text('item').notNull(),
+  description: text('description'),
+  status: text('status').notNull().default('pending'), // 'pending', 'in_progress', 'completed', 'not_applicable'
+  priority: text('priority').notNull().default('medium'),
+  assignedTo: text('assigned_to'),
+  dueDate: timestamp('due_date'),
+  completedDate: timestamp('completed_date'),
+  notes: text('notes'),
+  documents: jsonb('documents'), // Array of document references
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const scoringModels = pgTable('scoring_models', {
+  id: serial('id').primaryKey(),
+  opportunityId: integer('opportunity_id').references(() => dealOpportunities.id),
+  criteriaName: text('criteria_name').notNull(), // 'Team', 'Market', 'Product', 'Traction', 'Financials'
+  score: integer('score').notNull(), // 1-10 scale
+  weight: decimal('weight', { precision: 3, scale: 2 }).notNull(), // 0.1-1.0
+  notes: text('notes'),
+  scoredBy: text('scored_by'),
+  scoredAt: timestamp('scored_at').defaultNow(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const pipelineActivities = pgTable('pipeline_activities', {
+  id: serial('id').primaryKey(),
+  opportunityId: integer('opportunity_id').references(() => dealOpportunities.id),
+  type: text('type').notNull(), // 'meeting', 'email', 'call', 'document_review', 'stage_change'
+  title: text('title').notNull(),
+  description: text('description'),
+  outcome: text('outcome'),
+  participants: jsonb('participants'), // Array of participant details
+  scheduledDate: timestamp('scheduled_date'),
+  completedDate: timestamp('completed_date'),
+  followUpRequired: boolean('follow_up_required').default(false),
+  followUpDate: timestamp('follow_up_date'),
+  createdBy: text('created_by'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const marketResearch = pgTable('market_research', {
+  id: serial('id').primaryKey(),
+  opportunityId: integer('opportunity_id').references(() => dealOpportunities.id),
+  sector: text('sector').notNull(),
+  marketSize: decimal('market_size', { precision: 15, scale: 2 }),
+  growthRate: decimal('growth_rate', { precision: 5, scale: 2 }),
+  competitorAnalysis: jsonb('competitor_analysis'),
+  marketTrends: text('market_trends'),
+  riskFactors: text('risk_factors'),
+  opportunities: text('opportunities'),
+  researchDate: timestamp('research_date').defaultNow(),
+  researchedBy: text('researched_by'),
+  sources: jsonb('sources'), // Array of research sources
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const financialProjections = pgTable('financial_projections', {
+  id: serial('id').primaryKey(),
+  opportunityId: integer('opportunity_id').references(() => dealOpportunities.id),
+  year: integer('year').notNull(),
+  revenue: decimal('revenue', { precision: 15, scale: 2 }),
+  revenueGrowth: decimal('revenue_growth', { precision: 5, scale: 2 }),
+  grossMargin: decimal('gross_margin', { precision: 5, scale: 2 }),
+  burnRate: decimal('burn_rate', { precision: 15, scale: 2 }),
+  runwayMonths: integer('runway_months'),
+  customerCount: integer('customer_count'),
+  arr: decimal('arr', { precision: 15, scale: 2 }),
+  ltv: decimal('ltv', { precision: 15, scale: 2 }),
+  cac: decimal('cac', { precision: 15, scale: 2 }),
+  projectionType: text('projection_type').notNull().default('management'), // 'management', 'adjusted', 'conservative'
+  assumptions: text('assumptions'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Insert schemas
+export const insertFundSchema = createInsertSchema(funds).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPortfolioCompanySchema = createInsertSchema(portfolioCompanies).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertInvestmentSchema = createInsertSchema(investments).omit({
+  id: true,
+  createdAt: true,
+  importedFrom: true,
+  vehicleParticipationId: true,
+});
+
+export const insertFundMetricsSchema = createInsertSchema(fundMetrics).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertActivitySchema = createInsertSchema(activities).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Pipeline Insert Schemas
+export const insertDealOpportunitySchema = createInsertSchema(dealOpportunities).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPipelineStageSchema = createInsertSchema(pipelineStages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDueDiligenceItemSchema = createInsertSchema(dueDiligenceItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertScoringModelSchema = createInsertSchema(scoringModels).omit({
+  id: true,
+  createdAt: true,
+  scoredAt: true,
+});
+
+export const insertPipelineActivitySchema = createInsertSchema(pipelineActivities).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertMarketResearchSchema = createInsertSchema(marketResearch).omit({
+  id: true,
+  createdAt: true,
+  researchDate: true,
+});
+export const insertFinancialProjectionSchema = createInsertSchema(financialProjections).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Custom fields schema
+export const customFields = pgTable('custom_fields', {
+  id: serial('id').primaryKey(),
+  fundId: integer('fund_id').references(() => funds.id),
+  name: text('name').notNull(),
+  type: text('type').notNull(), // 'number', 'tags', 'text', 'color', 'date'
+  required: boolean('required').default(false),
+  options: text('options').array(), // For tags and color options
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const customFieldValues = pgTable('custom_fieldvalues', {
+  id: serial('id').primaryKey(),
+  fieldId: integer('field_id').references(() => customFields.id),
+  investmentId: integer('investment_id').references(() => portfolioCompanies.id),
+  value: text('value'), // JSON string for complex values
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const insertCustomFieldSchema = createInsertSchema(customFields).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertCustomFieldValueSchema = createInsertSchema(customFieldValues).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertFundConfigSchema = createInsertSchema(fundConfigs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertFundSnapshotSchema = createInsertSchema(fundSnapshots).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertFundEventSchema = createInsertSchema(fundEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Core Type Exports
+export type Fund = typeof funds.$inferSelect;
+export type InsertFund = typeof funds.$inferInsert;
+export type PortfolioCompany = typeof portfolioCompanies.$inferSelect;
+export type InsertPortfolioCompany = typeof portfolioCompanies.$inferInsert;
+export type Investment = typeof investments.$inferSelect;
+export type InsertInvestment = typeof investments.$inferInsert;
+export type FundMetrics = typeof fundMetrics.$inferSelect;
+export type InsertFundMetrics = typeof fundMetrics.$inferInsert;
+export type Activity = typeof activities.$inferSelect;
+export type InsertActivity = typeof activities.$inferInsert;
+export type CustomField = typeof customFields.$inferSelect;
+export type InsertCustomField = typeof customFields.$inferInsert;
+export type CustomFieldValue = typeof customFieldValues.$inferSelect;
+export type InsertCustomFieldValue = typeof customFieldValues.$inferInsert;
+export type FundConfig = typeof fundConfigs.$inferSelect;
+export type InsertFundConfig = typeof fundConfigs.$inferInsert;
+export type FundSnapshot = typeof fundSnapshots.$inferSelect;
+export type InsertFundSnapshot = typeof fundSnapshots.$inferInsert;
+export type FundEvent = typeof fundEvents.$inferSelect;
+export type InsertFundEvent = typeof fundEvents.$inferInsert;
+
+// Pipeline Type Exports
+export type DealOpportunity = typeof dealOpportunities.$inferSelect;
+export type InsertDealOpportunity = typeof dealOpportunities.$inferInsert;
+export type PipelineStage = typeof pipelineStages.$inferSelect;
+export type InsertPipelineStage = typeof pipelineStages.$inferInsert;
+export type DueDiligenceItem = typeof dueDiligenceItems.$inferSelect;
+export type InsertDueDiligenceItem = typeof dueDiligenceItems.$inferInsert;
+export type ScoringModel = typeof scoringModels.$inferSelect;
+export type InsertScoringModel = typeof scoringModels.$inferInsert;
+export type PipelineActivity = typeof pipelineActivities.$inferSelect;
+export type InsertPipelineActivity = typeof pipelineActivities.$inferInsert;
+export type MarketResearch = typeof marketResearch.$inferSelect;
+export type InsertMarketResearch = typeof marketResearch.$inferInsert;
+export type FinancialProjection = typeof financialProjections.$inferSelect;
+export type InsertFinancialProjection = typeof financialProjections.$inferInsert;
+
+// Time-Travel Analytics Type Exports
+export type FundStateSnapshot = typeof fundStateSnapshots.$inferSelect;
+export type InsertFundStateSnapshot = typeof fundStateSnapshots.$inferInsert;
+export type SnapshotMetadata = typeof snapshotMetadata.$inferSelect;
+export type InsertSnapshotMetadata = typeof snapshotMetadata.$inferInsert;
+export type RestorationHistory = typeof restorationHistory.$inferSelect;
+export type InsertRestorationHistory = typeof restorationHistory.$inferInsert;
+export type SnapshotComparison = typeof snapshotComparisons.$inferSelect;
+export type InsertSnapshotComparison = typeof snapshotComparisons.$inferInsert;
+
+export const reserveStrategies = pgTable(
+  'reserve_strategies',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id),
+    companyId: integer('company_id')
+      .notNull()
+      .references(() => portfolioCompanies.id),
+    allocation: decimal('allocation', { precision: 15, scale: 2 }).notNull(),
+    confidence: decimal('confidence', { precision: 3, scale: 2 }),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (table) => ({
+    fundCompanyIdx: index('idx_reserve_strategies_fund_company')['on'](
+      table.fundId,
+      table.companyId
+    ),
+  })
+);
+
+export const pacingHistory = pgTable(
+  'pacing_history',
+  {
+    id: serial('id').primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id),
+    quarter: varchar('quarter', { length: 8 }).notNull(),
+    deploymentAmount: decimal('deployment_amount', { precision: 15, scale: 2 }).notNull(),
+    marketCondition: varchar('market_condition', { length: 16 }),
+    h9MoicSourceInputHash: text('h9_moic_source_input_hash'),
+    h9RoundEvidenceInputHash: text('h9_round_evidence_input_hash'),
+    h9RoundEvidenceAssumptionsHash: text('h9_round_evidence_assumptions_hash'),
+    h9FingerprintHash: text('h9_fingerprint_hash'),
+    h9PolicyVersion: text('h9_policy_version'),
+    h9ActionabilityStatus: varchar('h9_actionability_status', {
+      length: 24,
+    }).$type<FinancialActionability>(),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (table) => ({
+    fundQuarterUnique: unique('unique_fund_quarter')['on'](table.fundId, table.quarter),
+    h9ActionabilityStatusCheck: check(
+      'pacing_history_h9_actionability_status_check',
+      sql`${table.h9ActionabilityStatus} IS NULL OR ${table.h9ActionabilityStatus} IN (${h9FinancialActionabilityValuesSql})`
+    ),
+    h9ActionableFingerprintCheck: check(
+      'pacing_history_h9_actionable_fingerprint_check',
+      sql`
+        ${table.h9ActionabilityStatus} IS NULL
+        OR ${table.h9ActionabilityStatus} <> 'actionable'
+        OR (
+          ${table.h9MoicSourceInputHash} IS NOT NULL
+          AND ${table.h9RoundEvidenceInputHash} IS NOT NULL
+          AND ${table.h9RoundEvidenceAssumptionsHash} IS NOT NULL
+          AND ${table.h9FingerprintHash} IS NOT NULL
+          AND ${table.h9PolicyVersion} IS NOT NULL
+        )
+      `
+    ),
+  })
+);
+
+// Timeline-specific types for better TypeScript inference
+export interface TimelineRecord {
+  id: number;
+  fundId: number;
+  eventTime: Date;
+  snapshotTime?: Date;
+  operation?: string;
+  entityType?: string;
+  eventType?: string;
+  type?: string;
+  metadata?: Record<string, unknown>;
+  payload?: Record<string, unknown>;
+  state?: Record<string, unknown>;
+  eventCount?: number;
+  stateHash?: string;
+  createdAt: Date;
+}
+
+export interface TimelineEvent extends FundEvent {
+  eventTime: Date;
+  operation: string | null;
+  entityType: string | null;
+}
+
+export interface TimelineSnapshot extends FundSnapshot {
+  snapshotTime: Date;
+  state: Record<string, unknown>;
+  eventCount: number | null;
+  stateHash: string | null;
+}
+
+// Audit log table for comprehensive activity tracking with 7-year retention
+export const auditLog = pgTable(
+  'audit_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: integer('user_id').references(() => users.id),
+    action: varchar('action', { length: 50 }).notNull(),
+    entityType: varchar('entity_type', { length: 50 }),
+    entityId: uuid('entity_id'),
+    changes: jsonb('changes'),
+    ipAddress: text('ip_address'), // INET type handled as text in TypeScript
+    userAgent: text('user_agent'),
+    correlationId: varchar('correlation_id', { length: 36 }),
+    sessionId: varchar('session_id', { length: 64 }),
+    requestPath: text('request_path'),
+    httpMethod: varchar('http_method', { length: 10 }),
+    statusCode: integer('status_code'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    // retention_until is a generated column, not managed by Drizzle directly
+  },
+  (table) => ({
+    retentionIdx: index('idx_audit_retention')['on'](table.createdAt), // Index on created_at for retention queries
+    correlationIdx: index('idx_audit_correlation')['on'](table.correlationId),
+    userActionIdx: index('idx_audit_user_action')['on'](
+      table.userId,
+      table.action,
+      table.createdAt.desc()
+    ),
+  })
+);
+
+// Insert schema for audit log
+export const insertAuditLogSchema = createInsertSchema(auditLog).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Types
+export type AuditLog = typeof auditLog.$inferSelect;
+export type InsertAuditLog = typeof auditLog.$inferInsert;
+
+// Reserve Decision Tables
+export const reserveEngineType = pgEnum('reserve_engine_type', ['rules', 'ml', 'hybrid']);
+
+export const reserveDecisions = pgTable(
+  'reserve_decisions',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id),
+    companyId: integer('company_id')
+      .notNull()
+      .references(() => portfolioCompanies.id),
+    decisionTs: timestamp('decision_ts', { withTimezone: true }).notNull(),
+    periodStart: date('period_start').notNull(),
+    periodEnd: date('period_end').notNull(),
+    engineType: reserveEngineType('engine_type').notNull(),
+    engineVersion: text('engine_version').notNull(),
+    requestId: text('request_id'),
+    featureFlags: jsonb('feature_flags').notNull().default({}),
+    inputs: jsonb('inputs').notNull(),
+    prediction: jsonb('prediction').notNull(),
+    explanation: jsonb('explanation'),
+    latencyMs: integer('latency_ms'),
+    userId: uuid('user_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    uniqueDecision: uniqueIndex('ux_reserve_unique')['on'](
+      table.companyId,
+      table.periodStart,
+      table.periodEnd,
+      table.engineType,
+      table.engineVersion
+    ),
+    fundCompanyIdx: index('idx_reserve_fund_company')['on'](table.fundId, table.companyId),
+    periodIdx: index('idx_reserve_period')['on'](table.periodStart, table.periodEnd),
+    engineIdx: index('idx_reserve_engine')['on'](table.engineType, table.engineVersion),
+    inputsGinIdx: index('idx_reserve_inputs_gin').using('gin', table.inputs),
+    predictionGinIdx: index('idx_reserve_prediction_gin').using('gin', table.prediction),
+  })
+);
+
+export type ReserveDecision = typeof reserveDecisions.$inferSelect;
+export type NewReserveDecision = typeof reserveDecisions.$inferInsert;
+
+// Time-Travel Analytics Schema Extensions
+// Fund State Snapshots - Comprehensive state storage for time-travel analytics
+export const fundStateSnapshots = pgTable(
+  'fund_state_snapshots',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .references(() => funds.id)
+      .notNull(),
+    snapshotName: text('snapshot_name').notNull(),
+    description: text('description'),
+    snapshotTime: timestamp('snapshot_time', { withTimezone: true }).notNull(),
+
+    // Complete fund state as JSON
+    fundState: jsonb('fund_state').notNull(), // Full fund configuration and data
+    portfolioState: jsonb('portfolio_state').notNull(), // All portfolio companies and investments
+    metricsState: jsonb('metrics_state'), // Fund metrics and calculations
+    reserveState: jsonb('reserve_state'), // Reserve strategies and decisions
+    pacingState: jsonb('pacing_state'), // Pacing history and projections
+
+    // State metadata
+    stateVersion: text('state_version').notNull().default('1.0.0'),
+    stateHash: text('state_hash').notNull(), // SHA-256 hash for integrity
+    dataSize: bigint('data_size', { mode: 'number' }), // Size in bytes
+    compressionType: text('compression_type').default('gzip'), // Future compression support
+
+    // Snapshot metadata
+    isAutomatic: boolean('is_automatic').default(false), // User-created vs automatic
+    tags: text('tags').array().default([]), // User-defined tags for organization
+    isBookmarked: boolean('is_bookmarked').default(false),
+    expiresAt: timestamp('expires_at', { withTimezone: true }), // Optional expiration
+
+    // Creation context
+    createdBy: integer('created_by').references(() => users.id),
+    triggerEvent: text('trigger_event'), // What triggered this snapshot
+    correlationId: uuid('correlation_id'), // Link to related events
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    fundTimeIdx: index('fund_state_snapshots_fund_time_idx')['on'](
+      table.fundId,
+      table.snapshotTime.desc()
+    ),
+    nameIdx: index('fund_state_snapshots_name_idx')['on'](table.fundId, table.snapshotName),
+    hashIdx: index('fund_state_snapshots_hash_idx')['on'](table.stateHash),
+    tagsGinIdx: index('fund_state_snapshots_tags_gin_idx').using('gin', table.tags),
+    bookmarkedIdx: index('fund_state_snapshots_bookmarked_idx')['on'](
+      table.fundId,
+      table.isBookmarked
+    ),
+    expirationIdx: index('fund_state_snapshots_expiration_idx')['on'](table.expiresAt),
+  })
+);
+
+// Snapshot Metadata for versioning and comparison
+export const snapshotMetadata = pgTable(
+  'snapshot_metadata',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    snapshotId: uuid('snapshot_id')
+      .references(() => fundStateSnapshots.id, { onDelete: 'cascade' })
+      .notNull(),
+
+    // Version information
+    schemaVersion: text('schema_version').notNull().default('1.0.0'),
+    apiVersion: text('api_version').notNull(),
+    migrationVersion: text('migration_version'),
+
+    // Data lineage
+    parentSnapshotId: uuid('parent_snapshot_id').references(() => fundStateSnapshots.id),
+    derivedFrom: text('derived_from'), // Source of data transformation
+
+    // Performance metrics
+    snapshotDurationMs: integer('snapshot_duration_ms'), // Time to create snapshot
+    verificationDurationMs: integer('verification_duration_ms'), // Time to verify integrity
+
+    // Quality metrics
+    recordCount: integer('record_count'), // Total records in snapshot
+    entityCounts: jsonb('entity_counts'), // Count per entity type
+    validationResults: jsonb('validation_results'), // Data quality checks
+
+    // Comparison metadata
+    diffFromParent: jsonb('diff_from_parent'), // Changes from parent snapshot
+    changesSummary: text('changes_summary'), // Human-readable summary
+    significantChanges: boolean('significant_changes').default(false),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    snapshotIdx: index('snapshot_metadata_snapshot_idx')['on'](table.snapshotId),
+    parentIdx: index('snapshot_metadata_parent_idx')['on'](table.parentSnapshotId),
+    schemaVersionIdx: index('snapshot_metadata_schema_version_idx')['on'](table.schemaVersion),
+  })
+);
+
+// Restoration History for audit trail and rollback tracking
+export const restorationHistory = pgTable(
+  'restoration_history',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .references(() => funds.id)
+      .notNull(),
+    sourceSnapshotId: uuid('source_snapshot_id')
+      .references(() => fundStateSnapshots.id)
+      .notNull(),
+    targetSnapshotId: uuid('target_snapshot_id').references(() => fundStateSnapshots.id), // If restoring to new snapshot
+
+    // Restoration details
+    restorationType: text('restoration_type').notNull(), // 'full', 'partial', 'preview', 'comparison'
+    restoredEntities: text('restored_entities').array(), // Which entities were restored
+    exclusions: text('exclusions').array(), // What was excluded from restoration
+
+    // Operation metadata
+    operationId: uuid('operation_id').notNull(), // Unique ID for this restoration operation
+    batchId: uuid('batch_id'), // If part of larger batch operation
+
+    // State changes
+    preRestoreState: jsonb('pre_restore_state'), // State before restoration
+    postRestoreState: jsonb('post_restore_state'), // State after restoration
+    stateChanges: jsonb('state_changes'), // Detailed changes made
+
+    // Validation and verification
+    validationPassed: boolean('validation_passed').default(false),
+    validationErrors: jsonb('validation_errors'),
+    verificationHash: text('verification_hash'), // Hash to verify restoration integrity
+
+    // Performance tracking
+    startTime: timestamp('start_time', { withTimezone: true }).notNull(),
+    endTime: timestamp('end_time', { withTimezone: true }),
+    durationMs: integer('duration_ms'),
+    recordsProcessed: integer('records_processed'),
+
+    // User context
+    restoredBy: integer('restored_by')
+      .references(() => users.id)
+      .notNull(),
+    reason: text('reason'), // User-provided reason for restoration
+    approvedBy: integer('approved_by').references(() => users.id), // For approval workflows
+
+    // Status tracking
+    status: text('status').notNull().default('initiated'), // 'initiated', 'in_progress', 'completed', 'failed', 'rolled_back'
+    errorMessage: text('error_message'),
+    rollbackSnapshotId: uuid('rollback_snapshot_id').references(() => fundStateSnapshots.id), // If rolled back
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    fundOperationIdx: index('restoration_history_fund_operation_idx')['on'](
+      table.fundId,
+      table.operationId
+    ),
+    sourceSnapshotIdx: index('restoration_history_source_idx')['on'](table.sourceSnapshotId),
+    timeRangeIdx: index('restoration_history_time_range_idx')['on'](table.startTime, table.endTime),
+    statusIdx: index('restoration_history_status_idx')['on'](table.status, table.createdAt.desc()),
+    userIdx: index('restoration_history_user_idx')['on'](table.restoredBy, table.createdAt.desc()),
+  })
+);
+
+// Snapshot Comparisons - For tracking and caching comparison operations
+export const snapshotComparisons = pgTable(
+  'snapshot_comparisons',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .references(() => funds.id)
+      .notNull(),
+
+    // Snapshots being compared
+    baseSnapshotId: uuid('base_snapshot_id')
+      .references(() => fundStateSnapshots.id)
+      .notNull(),
+    compareSnapshotId: uuid('compare_snapshot_id')
+      .references(() => fundStateSnapshots.id)
+      .notNull(),
+
+    // Comparison configuration
+    comparisonType: text('comparison_type').notNull(), // 'full', 'metrics_only', 'portfolio_only', 'custom'
+    includeFields: text('include_fields').array(), // Specific fields to compare
+    excludeFields: text('exclude_fields').array(), // Fields to exclude from comparison
+
+    // Comparison results (cached for performance)
+    differences: jsonb('differences').notNull(), // Detailed differences
+    summary: jsonb('summary').notNull(), // High-level summary of changes
+    metricsComparison: jsonb('metrics_comparison'), // Performance metrics comparison
+    portfolioChanges: jsonb('portfolio_changes'), // Portfolio-specific changes
+
+    // Comparison metadata
+    totalChanges: integer('total_changes').notNull(),
+    significantChanges: integer('significant_changes').notNull(),
+    changeCategories: text('change_categories').array(), // Categories of changes
+
+    // Performance tracking
+    comparisonDurationMs: integer('comparison_duration_ms'),
+    cacheStatus: text('cache_status').default('fresh'), // 'fresh', 'stale', 'expired'
+    lastUsed: timestamp('last_used', { withTimezone: true }).defaultNow(),
+
+    // User context
+    requestedBy: integer('requested_by').references(() => users.id),
+    shared: boolean('shared').default(false), // Can other users see this comparison
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    fundComparisonIdx: index('snapshot_comparisons_fund_idx')['on'](
+      table.fundId,
+      table.createdAt.desc()
+    ),
+    snapshotsIdx: index('snapshot_comparisons_snapshots_idx')['on'](
+      table.baseSnapshotId,
+      table.compareSnapshotId
+    ),
+    uniqueComparison: unique('snapshot_comparisons_unique')['on'](
+      table.baseSnapshotId,
+      table.compareSnapshotId,
+      table.comparisonType
+    ),
+    cacheIdx: index('snapshot_comparisons_cache_idx')['on'](table.cacheStatus, table.lastUsed),
+    userIdx: index('snapshot_comparisons_user_idx')['on'](
+      table.requestedBy,
+      table.createdAt.desc()
+    ),
+  })
+);
+
+// Variance Tracking Schema
+// Fund Baselines - Store baseline performance metrics for comparison
+export const fundBaselines = pgTable(
+  'fund_baselines',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .references(() => funds.id)
+      .notNull(),
+
+    // Baseline identification
+    name: text('name').notNull(), // User-defined baseline name
+    description: text('description'),
+    baselineType: text('baseline_type').notNull(), // 'initial', 'quarterly', 'annual', 'milestone', 'custom'
+
+    // Baseline period
+    periodStart: timestamp('period_start', { withTimezone: true }).notNull(),
+    periodEnd: timestamp('period_end', { withTimezone: true }).notNull(),
+    snapshotDate: timestamp('snapshot_date', { withTimezone: true }).notNull(),
+
+    // Core baseline metrics
+    totalValue: decimal('total_value', { precision: 15, scale: 2 }).notNull(),
+    deployedCapital: decimal('deployed_capital', { precision: 15, scale: 2 }).notNull(),
+    irr: decimal('irr', { precision: 5, scale: 4 }),
+    multiple: decimal('multiple', { precision: 5, scale: 2 }),
+    dpi: decimal('dpi', { precision: 5, scale: 2 }),
+    tvpi: decimal('tvpi', { precision: 5, scale: 2 }),
+
+    // Portfolio composition baseline
+    portfolioCount: integer('portfolio_count').notNull().default(0),
+    averageInvestment: decimal('average_investment', { precision: 15, scale: 2 }),
+    topPerformers: jsonb('top_performers'), // Array of top performing companies
+    companySnapshots: jsonb('company_snapshots'), // Full company snapshot for variance comparison
+    sectorDistribution: jsonb('sector_distribution'), // Sector allocation breakdown
+    stageDistribution: jsonb('stage_distribution'), // Stage allocation breakdown
+
+    // Reserve and pacing baselines
+    reserveAllocation: jsonb('reserve_allocation'), // Reserve strategy snapshot
+    pacingMetrics: jsonb('pacing_metrics'), // Pacing performance metrics
+
+    // Baseline status and metadata
+    isActive: boolean('is_active').default(true),
+    isDefault: boolean('is_default').default(false), // Default baseline for comparisons
+    confidence: decimal('confidence', { precision: 3, scale: 2 }).default('1.00'), // 0.00-1.00
+
+    // Version and lineage
+    version: text('version').notNull().default('1.0.0'),
+    parentBaselineId: uuid('parent_baseline_id'),
+    sourceSnapshotId: uuid('source_snapshot_id').references(() => fundStateSnapshots.id),
+    sourceRunId: integer('source_run_id').references(() => calcRuns.id),
+
+    // User context
+    createdBy: integer('created_by')
+      .references(() => users.id)
+      .notNull(),
+    approvedBy: integer('approved_by').references(() => users.id),
+    tags: text('tags').array().default([]),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    fundBaselineIdx: index('fund_baselines_fund_idx').on(table.fundId, table.createdAt.desc()),
+    periodIdx: index('fund_baselines_period_idx').on(table.periodStart, table.periodEnd),
+    typeIdx: index('fund_baselines_type_idx').on(table.baselineType, table.isActive),
+    defaultIdx: index('fund_baselines_default_idx').on(
+      table.fundId,
+      table.isDefault,
+      table.isActive
+    ),
+    defaultUniqueIdx: uniqueIndex('fund_baselines_default_unique')
+      .on(table.fundId)
+      .where(sql`${table.isDefault} = true AND ${table.isActive} = true`),
+    sourceRunUniqueIdx: uniqueIndex('fund_baselines_source_run_unique')
+      .on(table.fundId, table.sourceRunId)
+      .where(sql`${table.sourceRunId} IS NOT NULL`),
+    snapshotIdx: index('fund_baselines_snapshot_idx').on(table.sourceSnapshotId),
+    tagsGinIdx: index('fund_baselines_tags_gin_idx').using('gin', table.tags),
+  })
+);
+
+// Variance Reports - Track performance variance from baselines
+export const varianceReports = pgTable(
+  'variance_reports',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .references(() => funds.id)
+      .notNull(),
+    baselineId: uuid('baseline_id').notNull(),
+
+    // Report identification
+    reportName: text('report_name').notNull(),
+    reportType: text('report_type').notNull(), // 'periodic', 'milestone', 'ad_hoc', 'alert_triggered'
+    reportPeriod: text('report_period'), // 'monthly', 'quarterly', 'annual'
+
+    // Analysis period
+    analysisStart: timestamp('analysis_start', { withTimezone: true }).notNull(),
+    analysisEnd: timestamp('analysis_end', { withTimezone: true }).notNull(),
+    asOfDate: timestamp('as_of_date', { withTimezone: true }).notNull(),
+
+    // Current metrics (for comparison)
+    currentMetrics: jsonb('current_metrics').notNull(), // Current fund metrics
+    baselineMetrics: jsonb('baseline_metrics').notNull(), // Baseline metrics for reference
+
+    // Variance calculations
+    totalValueVariance: decimal('total_value_variance', { precision: 15, scale: 2 }),
+    totalValueVariancePct: decimal('total_value_variance_pct', { precision: 5, scale: 4 }),
+    irrVariance: decimal('irr_variance', { precision: 5, scale: 4 }),
+    multipleVariance: decimal('multiple_variance', { precision: 5, scale: 2 }),
+    dpiVariance: decimal('dpi_variance', { precision: 5, scale: 2 }),
+    tvpiVariance: decimal('tvpi_variance', { precision: 5, scale: 2 }),
+
+    // Portfolio variance analysis
+    portfolioVariances: jsonb('portfolio_variances'), // Company-level variance details
+    sectorVariances: jsonb('sector_variances'), // Sector-level performance variance
+    stageVariances: jsonb('stage_variances'), // Stage-level performance variance
+
+    // Reserve and pacing variance
+    reserveVariances: jsonb('reserve_variances'), // Reserve allocation variance
+    pacingVariances: jsonb('pacing_variances'), // Pacing performance variance
+
+    // Variance summary and insights
+    overallVarianceScore: decimal('overall_variance_score', { precision: 5, scale: 2 }), // Composite score
+    significantVariances: jsonb('significant_variances'), // Key variance drivers
+    varianceFactors: jsonb('variance_factors'), // Contributing factors analysis
+
+    // Alert and threshold information
+    alertsTriggered: jsonb('alerts_triggered'), // Which alerts were triggered
+    thresholdBreaches: jsonb('threshold_breaches'), // Threshold violations
+    riskLevel: text('risk_level').default('low'), // 'low', 'medium', 'high', 'critical'
+
+    // Report metadata
+    calculationEngine: text('calculation_engine').notNull().default('variance-v1'),
+    calculationDurationMs: integer('calculation_duration_ms'),
+    dataQualityScore: decimal('data_quality_score', { precision: 3, scale: 2 }),
+
+    // User context and workflow
+    generatedBy: integer('generated_by').references(() => users.id),
+    reviewedBy: integer('reviewed_by').references(() => users.id),
+    approvedBy: integer('approved_by').references(() => users.id),
+    status: text('status').notNull().default('draft'), // 'draft', 'pending_review', 'approved', 'archived'
+
+    // Sharing and access
+    isPublic: boolean('is_public').default(false),
+    sharedWith: text('shared_with').array().default([]), // User IDs or groups
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    fundReportIdx: index('variance_reports_fund_idx')['on'](table.fundId, table.createdAt.desc()),
+    baselineIdx: index('variance_reports_baseline_idx')['on'](
+      table.baselineId,
+      table.asOfDate.desc()
+    ),
+    periodIdx: index('variance_reports_period_idx')['on'](table.analysisStart, table.analysisEnd),
+    typeIdx: index('variance_reports_type_idx')['on'](table.reportType, table.status),
+    riskIdx: index('variance_reports_risk_idx')['on'](table.riskLevel, table.createdAt.desc()),
+    statusIdx: index('variance_reports_status_idx')['on'](table.status, table.updatedAt.desc()),
+  })
+);
+
+// Performance Alerts - Track and manage variance-based alerts
+export const performanceAlerts = pgTable(
+  'performance_alerts',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .references(() => funds.id)
+      .notNull(),
+    baselineId: uuid('baseline_id').references(() => fundBaselines.id),
+    varianceReportId: uuid('variance_report_id').references(() => varianceReports.id),
+
+    // Alert identification and classification
+    alertType: text('alert_type').notNull(), // 'variance_threshold', 'performance_decline', 'sector_risk', 'company_risk'
+    severity: text('severity').notNull(), // 'info', 'warning', 'critical', 'urgent'
+    category: text('category').notNull(), // 'performance', 'risk', 'operational', 'compliance'
+
+    // Alert content
+    title: text('title').notNull(),
+    description: text('description').notNull(),
+    recommendations: jsonb('recommendations'), // Suggested actions
+
+    // Threshold and trigger information
+    metricName: text('metric_name').notNull(), // Which metric triggered the alert
+    thresholdValue: decimal('threshold_value', { precision: 15, scale: 4 }),
+    actualValue: decimal('actual_value', { precision: 15, scale: 4 }),
+    varianceAmount: decimal('variance_amount', { precision: 15, scale: 4 }),
+    variancePercentage: decimal('variance_percentage', { precision: 5, scale: 4 }),
+
+    // Alert timing and frequency
+    triggeredAt: timestamp('triggered_at', { withTimezone: true }).notNull(),
+    firstOccurrence: timestamp('first_occurrence', { withTimezone: true }),
+    lastOccurrence: timestamp('last_occurrence', { withTimezone: true }),
+    occurrenceCount: integer('occurrence_count').default(1),
+
+    // Alert lifecycle management
+    status: text('status').notNull().default('active'), // 'active', 'acknowledged', 'investigating', 'resolved', 'dismissed'
+    acknowledgedBy: integer('acknowledged_by').references(() => users.id),
+    acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
+    resolvedBy: integer('resolved_by').references(() => users.id),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    resolutionNotes: text('resolution_notes'),
+
+    // Related entities and context
+    affectedEntities: jsonb('affected_entities'), // Companies, sectors, or metrics affected
+    contextData: jsonb('context_data'), // Additional context for the alert
+
+    // Notification and escalation
+    notificationsSent: jsonb('notifications_sent'), // Record of notifications sent
+    escalationLevel: integer('escalation_level').default(0), // 0=initial, 1=first escalation, etc.
+    escalatedAt: timestamp('escalated_at', { withTimezone: true }),
+    escalatedTo: text('escalated_to').array(), // User IDs or groups
+
+    // Alert configuration reference
+    ruleId: uuid('rule_id'), // Reference to the alert rule that triggered this
+    ruleVersion: text('rule_version'),
+
+    // Performance and metadata
+    detectionLatency: integer('detection_latency_ms'), // Time from data to alert
+    processingTime: integer('processing_time_ms'), // Alert processing time
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    fundAlertIdx: index('performance_alerts_fund_idx')['on'](
+      table.fundId,
+      table.triggeredAt.desc()
+    ),
+    severityIdx: index('performance_alerts_severity_idx')['on'](
+      table.severity,
+      table.status,
+      table.triggeredAt.desc()
+    ),
+    statusIdx: index('performance_alerts_status_idx')['on'](table.status, table.triggeredAt.desc()),
+    metricIdx: index('performance_alerts_metric_idx')['on'](
+      table.metricName,
+      table.triggeredAt.desc()
+    ),
+    baselineIdx: index('performance_alerts_baseline_idx')['on'](
+      table.baselineId,
+      table.triggeredAt.desc()
+    ),
+    openIncidentUniqueIdx: uniqueIndex('performance_alerts_open_incident_unique')
+      .on(table.fundId, table.baselineId, table.ruleId)
+      .where(
+        sql`${table.ruleId} IS NOT NULL AND ${table.baselineId} IS NOT NULL AND ${table.status} IN ('active', 'acknowledged', 'investigating')`
+      ),
+    reportIdx: index('performance_alerts_report_idx')['on'](table.varianceReportId),
+    escalationIdx: index('performance_alerts_escalation_idx')['on'](
+      table.escalationLevel,
+      table.escalatedAt.desc()
+    ),
+  })
+);
+
+// Alert Rules - Configuration for automated alert generation
+export const alertRules = pgTable(
+  'alert_rules',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id').references(() => funds.id),
+
+    // Rule identification
+    name: text('name').notNull(),
+    description: text('description'),
+    ruleType: text('rule_type').notNull(), // 'threshold', 'trend', 'deviation', 'pattern'
+
+    // Rule configuration
+    metricName: text('metric_name').notNull(), // Which metric to monitor
+    operator: text('operator').notNull(), // 'gt', 'lt', 'eq', 'gte', 'lte', 'between'
+    thresholdValue: decimal('threshold_value', { precision: 15, scale: 4 }),
+    secondaryThreshold: decimal('secondary_threshold', { precision: 15, scale: 4 }), // For 'between' operator
+
+    // Alert settings
+    severity: text('severity').notNull().default('warning'),
+    category: text('category').notNull().default('performance'),
+    isEnabled: boolean('is_enabled').default(true),
+
+    // Frequency and timing
+    checkFrequency: text('check_frequency').notNull().default('daily'), // 'realtime', 'hourly', 'daily', 'weekly'
+    suppressionPeriod: integer('suppression_period_minutes').default(60), // Prevent alert spam
+
+    // Escalation configuration
+    escalationRules: jsonb('escalation_rules'), // Complex escalation logic
+    notificationChannels: text('notification_channels').array().default(['email']), // 'email', 'slack', 'webhook'
+
+    // Rule conditions and filters
+    conditions: jsonb('conditions'), // Complex conditions logic
+    filters: jsonb('filters'), // Data filtering criteria
+
+    // User management
+    createdBy: integer('created_by')
+      .references(() => users.id)
+      .notNull(),
+    lastModifiedBy: integer('last_modified_by').references(() => users.id),
+
+    // Audit and versioning
+    version: text('version').notNull().default('1.0.0'),
+    lastTriggered: timestamp('last_triggered', { withTimezone: true }),
+    triggerCount: integer('trigger_count').default(0),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    fundRuleIdx: index('alert_rules_fund_idx')['on'](table.fundId, table.isEnabled),
+    metricIdx: index('alert_rules_metric_idx')['on'](table.metricName, table.isEnabled),
+    enabledIdx: index('alert_rules_enabled_idx')['on'](table.isEnabled, table.checkFrequency),
+    lastTriggeredIdx: index('alert_rules_last_triggered_idx')['on'](table.lastTriggered.desc()),
+  })
+);
+
+export const alertEvaluationExecutions = pgTable(
+  'alert_evaluation_executions',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    executionKey: text('execution_key').notNull(),
+    source: text('source').notNull(), // 'calc_run_completion' | 'scheduler'
+    fundId: integer('fund_id')
+      .references(() => funds.id)
+      .notNull(),
+    baselineId: uuid('baseline_id')
+      .references(() => fundBaselines.id)
+      .notNull(),
+    ruleId: uuid('rule_id')
+      .references(() => alertRules.id)
+      .notNull(),
+    runId: integer('run_id').references(() => calcRuns.id),
+    frequency: text('frequency'), // 'realtime' | 'hourly' | 'daily' | 'weekly'
+    windowStart: timestamp('window_start', { withTimezone: true }),
+    appliedAlertId: uuid('applied_alert_id').references(() => performanceAlerts.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    executionKeyUniqueIdx: uniqueIndex('alert_evaluation_executions_execution_key_unique').on(
+      table.executionKey
+    ),
+    fundRuleIdx: index('alert_evaluation_executions_fund_rule_idx').on(
+      table.fundId,
+      table.ruleId,
+      table.createdAt.desc()
+    ),
+  })
+);
+
+// Time-Travel Analytics Insert Schemas
+export const insertFundStateSnapshotSchema = createInsertSchema(fundStateSnapshots).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSnapshotMetadataSchema = createInsertSchema(snapshotMetadata).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertRestorationHistorySchema = createInsertSchema(restorationHistory).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSnapshotComparisonSchema = createInsertSchema(snapshotComparisons).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastUsed: true,
+});
+
+// Variance Tracking Insert Schemas
+export const insertFundBaselineSchema = createInsertSchema(fundBaselines).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertVarianceReportSchema = createInsertSchema(varianceReports).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPerformanceAlertSchema = createInsertSchema(performanceAlerts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAlertEvaluationExecutionSchema = createInsertSchema(
+  alertEvaluationExecutions
+).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertAlertRuleSchema = createInsertSchema(alertRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Variance Tracking Type Exports
+export type FundBaseline = typeof fundBaselines.$inferSelect;
+export type InsertFundBaseline = typeof fundBaselines.$inferInsert;
+export type VarianceReport = typeof varianceReports.$inferSelect;
+export type InsertVarianceReport = typeof varianceReports.$inferInsert;
+export type PerformanceAlert = typeof performanceAlerts.$inferSelect;
+export type InsertPerformanceAlert = typeof performanceAlerts.$inferInsert;
+export type AlertRule = typeof alertRules.$inferSelect;
+export type InsertAlertRule = typeof alertRules.$inferInsert;
+
+// ============================================================================
+// PORTFOLIO CONSTRUCTION MODELING SCHEMA EXTENSIONS
+// Comprehensive portfolio construction modeling for scenario planning
+// ============================================================================
+
+// Fund Strategy Models - Forward-looking fund construction with allocation strategies
+export const fundStrategyModels = pgTable(
+  'fund_strategy_models',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id),
+
+    // Model identification
+    name: text('name').notNull(),
+    description: text('description'),
+    modelType: text('model_type').notNull(), // 'strategic', 'tactical', 'opportunistic', 'defensive', 'balanced'
+
+    // Strategy parameters
+    targetPortfolioSize: integer('target_portfolio_size').notNull().default(25),
+    maxPortfolioSize: integer('max_portfolio_size').notNull().default(30),
+    targetDeploymentPeriodMonths: integer('target_deployment_period_months').notNull().default(36),
+
+    // Investment allocation strategy
+    checkSizeRange: jsonb('check_size_range').notNull(), // {min: 500000, max: 2000000, target: 1000000}
+    sectorAllocation: jsonb('sector_allocation').notNull(), // {fintech: 0.3, healthtech: 0.2, ...}
+    stageAllocation: jsonb('stage_allocation').notNull(), // {seed: 0.4, seriesA: 0.6}
+    geographicAllocation: jsonb('geographic_allocation'), // {us: 0.8, europe: 0.2}
+
+    // Reserve strategy
+    initialReservePercentage: decimal('initial_reserve_percentage', { precision: 5, scale: 4 })
+      .notNull()
+      .default('0.50'),
+    followOnStrategy: jsonb('follow_on_strategy').notNull(), // Complex follow-on rules
+    reserveDeploymentTimeline: jsonb('reserve_deployment_timeline'), // Planned reserve deployment over time
+
+    // Risk parameters
+    concentrationLimits: jsonb('concentration_limits').notNull(), // Max % per company, sector, etc.
+    diversificationRules: jsonb('diversification_rules'), // Minimum diversification requirements
+    riskTolerance: text('risk_tolerance').notNull().default('moderate'), // 'conservative', 'moderate', 'aggressive'
+
+    // Performance targets
+    targetIrr: decimal('target_irr', { precision: 5, scale: 4 }), // Target IRR %
+    targetMultiple: decimal('target_multiple', { precision: 5, scale: 2 }), // Target multiple of invested capital
+    targetDpi: decimal('target_dpi', { precision: 5, scale: 2 }), // Target DPI
+    targetPortfolioBeta: decimal('target_portfolio_beta', { precision: 5, scale: 2 }), // Portfolio risk relative to market
+
+    // Model metadata
+    modelVersion: text('model_version').notNull().default('1.0.0'),
+    isActive: boolean('is_active').default(true),
+    isTemplate: boolean('is_template').default(false), // Can be used as template for other funds
+    confidenceLevel: decimal('confidence_level', { precision: 3, scale: 2 }).default('0.75'), // 0.00-1.00
+
+    // Scenario planning
+    marketAssumptions: jsonb('market_assumptions'), // Economic/market assumptions
+    validationCriteria: jsonb('validation_criteria'), // Criteria for model validation
+    stressTestScenarios: jsonb('stress_test_scenarios'), // Stress testing parameters
+
+    // User context
+    createdBy: integer('created_by')
+      .notNull()
+      .references(() => users.id),
+    approvedBy: integer('approved_by').references(() => users.id),
+    tags: text('tags').array().default([]),
+
+    // Timestamps
+    effectiveDate: timestamp('effective_date', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    fundIdx: index('fund_strategy_models_fund_idx')['on'](table.fundId, table.createdAt.desc()),
+    typeIdx: index('fund_strategy_models_type_idx')['on'](table.modelType, table.isActive),
+    activeIdx: index('fund_strategy_models_active_idx')['on'](
+      table.isActive,
+      table.effectiveDate.desc()
+    ),
+    templateIdx: index('fund_strategy_models_template_idx')['on'](table.isTemplate, table.isActive),
+    tagsGinIdx: index('fund_strategy_models_tags_gin_idx').using('gin', table.tags),
+    activeUnique: unique('fund_strategy_models_active_unique')['on'](table.fundId),
+  })
+);
+
+// Portfolio Construction Scenarios - Multiple "what-if" scenarios for fund building
+export const portfolioScenarios = pgTable(
+  'portfolio_scenarios',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id),
+    strategyModelId: uuid('strategy_model_id')
+      .notNull()
+      .references(() => fundStrategyModels.id),
+
+    // Scenario identification
+    name: text('name').notNull(),
+    description: text('description'),
+    scenarioType: text('scenario_type').notNull(), // 'base_case', 'optimistic', 'pessimistic', 'stress_test', 'custom'
+
+    // Scenario parameters
+    marketEnvironment: text('market_environment').notNull().default('normal'), // 'bull', 'normal', 'bear', 'recession'
+    dealFlowAssumption: decimal('deal_flow_assumption', { precision: 5, scale: 2 })
+      .notNull()
+      .default('1.00'), // Multiplier vs normal deal flow
+    valuationEnvironment: decimal('valuation_environment', { precision: 5, scale: 2 })
+      .notNull()
+      .default('1.00'), // Valuation multiplier vs normal
+    exitEnvironment: decimal('exit_environment', { precision: 5, scale: 2 })
+      .notNull()
+      .default('1.00'), // Exit opportunity multiplier
+
+    // Portfolio construction parameters
+    plannedInvestments: jsonb('planned_investments').notNull(), // Array of planned investment details
+    deploymentSchedule: jsonb('deployment_schedule').notNull(), // Timeline of when investments are made
+    followOnAssumptions: jsonb('follow_on_assumptions'), // Follow-on investment assumptions
+
+    // Performance projections
+    projectedFundMetrics: jsonb('projected_fund_metrics').notNull(), // Expected fund-level metrics
+    projectedPortfolioOutcomes: jsonb('projected_portfolio_outcomes'), // Company-level outcome projections
+    monteCarloResults: jsonb('monte_carlo_results'), // Statistical simulation results
+
+    // Risk analysis
+    riskFactors: jsonb('risk_factors'), // Identified risk factors and mitigations
+    sensitivityAnalysis: jsonb('sensitivity_analysis'), // Sensitivity to key variables
+    correlationAssumptions: jsonb('correlation_assumptions'), // Cross-portfolio correlations
+
+    // Comparison and benchmarking
+    baselineScenarioId: uuid('baseline_scenario_id'), // What this is compared against
+    varianceFromBaseline: jsonb('variance_from_baseline'), // Key differences from baseline
+    benchmarkComparison: jsonb('benchmark_comparison'), // Comparison to industry benchmarks
+
+    // Simulation metadata
+    simulationEngine: text('simulation_engine').notNull().default('monte-carlo-v1'),
+    simulationRuns: integer('simulation_runs').default(10000),
+    simulationDurationMs: integer('simulation_duration_ms'),
+    lastSimulationAt: timestamp('last_simulation_at', { withTimezone: true }),
+
+    // Status and workflow
+    status: text('status').notNull().default('draft'), // 'draft', 'modeling', 'complete', 'approved', 'archived'
+    confidenceScore: decimal('confidence_score', { precision: 5, scale: 2 }), // Overall confidence in scenario
+    validationResults: jsonb('validation_results'), // Validation check results
+
+    // User context
+    createdBy: integer('created_by')
+      .notNull()
+      .references(() => users.id),
+    reviewedBy: integer('reviewed_by').references(() => users.id),
+    approvedBy: integer('approved_by').references(() => users.id),
+
+    // Sharing and collaboration
+    isShared: boolean('is_shared').default(false),
+    sharedWith: text('shared_with').array().default([]), // User IDs with access
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    fundIdx: index('portfolio_scenarios_fund_idx')['on'](table.fundId, table.createdAt.desc()),
+    strategyIdx: index('portfolio_scenarios_strategy_idx')['on'](
+      table.strategyModelId,
+      table.status
+    ),
+    typeIdx: index('portfolio_scenarios_type_idx')['on'](table.scenarioType, table.status),
+    statusIdx: index('portfolio_scenarios_status_idx')['on'](table.status, table.updatedAt.desc()),
+    sharedIdx: index('portfolio_scenarios_shared_idx')['on'](
+      table.isShared,
+      table.createdAt.desc()
+    ),
+    baselineIdx: index('portfolio_scenarios_baseline_idx')['on'](table.baselineScenarioId),
+  })
+);
+
+// Reserve Allocation Strategies - Dynamic reserve deployment strategies with optimization data
+export const reserveAllocationStrategies = pgTable(
+  'reserve_allocation_strategies',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id),
+    scenarioId: uuid('scenario_id').references(() => portfolioScenarios.id),
+
+    // Strategy identification
+    name: text('name').notNull(),
+    description: text('description'),
+    strategyType: text('strategy_type').notNull(), // 'proportional', 'milestone_based', 'performance_based', 'opportunistic', 'hybrid'
+
+    // Allocation rules
+    allocationRules: jsonb('allocation_rules').notNull(), // Complex rules for reserve allocation
+    triggerConditions: jsonb('trigger_conditions').notNull(), // When to deploy reserves
+    companyScoringCriteria: jsonb('company_scoring_criteria'), // How to score companies for reserves
+
+    // Reserve pools and tranches
+    totalReserveAmount: decimal('total_reserve_amount', { precision: 15, scale: 2 }).notNull(),
+    reserveTranches: jsonb('reserve_tranches').notNull(), // {tranche1: {amount: 5000000, criteria: {...}}}
+    emergencyReservePct: decimal('emergency_reserve_pct', { precision: 5, scale: 4 }).default(
+      '0.10'
+    ), // Emergency reserve %
+
+    // Deployment parameters
+    maxPerCompanyPct: decimal('max_per_company_pct', { precision: 5, scale: 4 })
+      .notNull()
+      .default('0.20'), // Max % of reserves per company
+    minDeploymentAmount: decimal('min_deployment_amount', { precision: 15, scale: 2 }).default(
+      '100000'
+    ),
+    maxDeploymentAmount: decimal('max_deployment_amount', { precision: 15, scale: 2 }),
+
+    // Performance tracking
+    performanceThresholds: jsonb('performance_thresholds'), // Performance gates for reserve deployment
+    milestoneTracking: jsonb('milestone_tracking'), // Milestone-based deployment tracking
+    riskAdjustedScoring: jsonb('risk_adjusted_scoring'), // Risk-adjusted allocation criteria
+
+    // Optimization parameters
+    optimizationObjective: text('optimization_objective').notNull().default('risk_adjusted_return'), // 'irr_maximization', 'risk_minimization', 'risk_adjusted_return', 'portfolio_balance'
+    optimizationConstraints: jsonb('optimization_constraints'), // Mathematical constraints for optimization
+    rebalancingFrequency: text('rebalancing_frequency').default('quarterly'), // 'monthly', 'quarterly', 'semi_annual', 'annual'
+
+    // Simulation and modeling
+    monteCarloIterations: integer('monte_carlo_iterations').default(5000),
+    scenarioWeights: jsonb('scenario_weights'), // Probability weights for different scenarios
+    sensitivityParameters: jsonb('sensitivity_parameters'), // Variables for sensitivity analysis
+
+    // Strategy effectiveness
+    backtestResults: jsonb('backtest_results'), // Historical backtesting results
+    performanceAttribution: jsonb('performance_attribution'), // Performance attribution analysis
+    benchmarkComparison: jsonb('benchmark_comparison'), // Comparison to benchmark strategies
+
+    // Decision support
+    recommendationEngine: jsonb('recommendation_engine'), // AI/ML recommendations
+    decisionHistory: jsonb('decision_history'), // History of reserve allocation decisions
+    overrideReasons: jsonb('override_reasons'), // Reasons for manual overrides
+
+    // Status and metadata
+    isActive: boolean('is_active').default(true),
+    lastOptimizedAt: timestamp('last_optimized_at', { withTimezone: true }),
+    optimizationFrequencyDays: integer('optimization_frequency_days').default(30),
+
+    // User context
+    createdBy: integer('created_by')
+      .notNull()
+      .references(() => users.id),
+    lastModifiedBy: integer('last_modified_by').references(() => users.id),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    fundIdx: index('reserve_allocation_strategies_fund_idx')['on'](
+      table.fundId,
+      table.createdAt.desc()
+    ),
+    scenarioIdx: index('reserve_allocation_strategies_scenario_idx')['on'](
+      table.scenarioId,
+      table.isActive
+    ),
+    typeIdx: index('reserve_allocation_strategies_type_idx')['on'](
+      table.strategyType,
+      table.isActive
+    ),
+    activeIdx: index('reserve_allocation_strategies_active_idx')['on'](
+      table.isActive,
+      table.lastOptimizedAt.desc()
+    ),
+    optimizationIdx: index('reserve_allocation_strategies_optimization_idx')['on'](
+      table.optimizationObjective,
+      table.isActive
+    ),
+  })
+);
+
+// Performance Forecasts - Predictive models linking to variance tracking
+export const performanceForecasts = pgTable(
+  'performance_forecasts',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id),
+    scenarioId: uuid('scenario_id').references(() => portfolioScenarios.id),
+    baselineId: uuid('baseline_id').references(() => fundBaselines.id), // Link to variance tracking
+
+    // Forecast identification
+    forecastName: text('forecast_name').notNull(),
+    forecastType: text('forecast_type').notNull(), // 'fund_level', 'portfolio_level', 'company_level', 'sector_level'
+    forecastHorizonYears: integer('forecast_horizon_years').notNull().default(10),
+
+    // Time series forecasting
+    forecastPeriods: jsonb('forecast_periods').notNull(), // Quarterly/annual forecast data
+    confidenceIntervals: jsonb('confidence_intervals'), // Statistical confidence intervals
+    predictionVariance: jsonb('prediction_variance'), // Variance estimates for predictions
+
+    // Fund-level forecasts
+    irrForecast: jsonb('irr_forecast'), // IRR projections over time
+    multipleForecast: jsonb('multiple_forecast'), // Multiple projections
+    tvpiForecast: jsonb('tvpi_forecast'), // TVPI progression
+    dpiForecast: jsonb('dpi_forecast'), // DPI progression
+    navForecast: jsonb('nav_forecast'), // NAV evolution
+
+    // Portfolio forecasts
+    companyLevelForecasts: jsonb('company_level_forecasts'), // Individual company projections
+    sectorPerformanceForecasts: jsonb('sector_performance_forecasts'), // Sector-level performance
+    stagePerformanceForecasts: jsonb('stage_performance_forecasts'), // Stage-level performance
+    correlationMatrix: jsonb('correlation_matrix'), // Portfolio correlation assumptions
+
+    // Economic scenario modeling
+    baseCaseForecast: jsonb('base_case_forecast'), // Base case economic scenario
+    stressScenarios: jsonb('stress_scenarios'), // Economic stress test scenarios
+    macroSensitivity: jsonb('macro_sensitivity'), // Sensitivity to macro factors
+
+    // Forecast methodology
+    methodology: text('methodology').notNull(), // 'historical_extrapolation', 'monte_carlo', 'machine_learning', 'hybrid', 'expert_judgment'
+    modelParameters: jsonb('model_parameters'), // Parameters used in forecasting model
+    dataSources: jsonb('data_sources'), // Sources of data for forecasting
+    assumptions: jsonb('assumptions'), // Key assumptions underlying forecast
+
+    // Model performance
+    accuracyMetrics: jsonb('accuracy_metrics'), // Historical accuracy of model
+    calibrationResults: jsonb('calibration_results'), // Model calibration statistics
+    validationResults: jsonb('validation_results'), // Out-of-sample validation
+    modelVersion: text('model_version').notNull().default('1.0.0'),
+
+    // Comparison to actuals (for learning)
+    actualVsForecast: jsonb('actual_vs_forecast'), // Comparison when actuals become available
+    forecastErrors: jsonb('forecast_errors'), // Systematic forecast errors
+    modelDriftMetrics: jsonb('model_drift_metrics'), // Model performance drift over time
+
+    // Risk and uncertainty
+    uncertaintyQuantification: jsonb('uncertainty_quantification'), // Model uncertainty estimates
+    riskFactors: jsonb('risk_factors'), // Key risk factors affecting forecast
+    scenarioProbabilities: jsonb('scenario_probabilities'), // Probability weights for scenarios
+
+    // Forecast updates and versioning
+    parentForecastId: uuid('parent_forecast_id'),
+    updateReason: text('update_reason'), // Why forecast was updated
+    updateFrequencyDays: integer('update_frequency_days').default(90),
+    lastUpdatedAt: timestamp('last_updated_at', { withTimezone: true }),
+
+    // User context and workflow
+    createdBy: integer('created_by')
+      .notNull()
+      .references(() => users.id),
+    reviewedBy: integer('reviewed_by').references(() => users.id),
+    approvedBy: integer('approved_by').references(() => users.id),
+    status: text('status').notNull().default('draft'), // 'draft', 'modeling', 'review', 'approved', 'archived'
+
+    // Quality and governance
+    qualityScore: decimal('quality_score', { precision: 3, scale: 2 }), // Overall forecast quality score
+    peerReviewScores: jsonb('peer_review_scores'), // Peer review feedback
+    governanceNotes: text('governance_notes'),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    fundIdx: index('performance_forecasts_fund_idx')['on'](table.fundId, table.createdAt.desc()),
+    scenarioIdx: index('performance_forecasts_scenario_idx')['on'](table.scenarioId, table.status),
+    baselineIdx: index('performance_forecasts_baseline_idx')['on'](
+      table.baselineId,
+      table.createdAt.desc()
+    ),
+    typeIdx: index('performance_forecasts_type_idx')['on'](table.forecastType, table.status),
+    methodologyIdx: index('performance_forecasts_methodology_idx')['on'](
+      table.methodology,
+      table.modelVersion
+    ),
+    horizonIdx: index('performance_forecasts_horizon_idx')['on'](
+      table.forecastHorizonYears,
+      table.status
+    ),
+  })
+);
+
+// Monte Carlo Simulation Results - Detailed simulation results for scenario modeling
+export const monteCarloSimulations = pgTable(
+  'monte_carlo_simulations',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id),
+    scenarioId: uuid('scenario_id').references(() => portfolioScenarios.id),
+    forecastId: uuid('forecast_id').references(() => performanceForecasts.id),
+
+    // Simulation identification
+    simulationName: text('simulation_name').notNull(),
+    simulationType: text('simulation_type').notNull(), // 'portfolio_construction', 'performance_forecast', 'risk_analysis', 'optimization'
+
+    // Simulation parameters
+    numberOfRuns: integer('number_of_runs').notNull().default(10000),
+    randomSeed: integer('random_seed'), // For reproducibility
+    simulationEngine: text('simulation_engine').notNull().default('monte-carlo-v2'),
+
+    // Input parameters
+    inputDistributions: jsonb('input_distributions').notNull(), // Probability distributions for inputs
+    correlationMatrix: jsonb('correlation_matrix'), // Input correlations
+    scenarioWeights: jsonb('scenario_weights'), // Probability weights for scenarios
+    constraints: jsonb('constraints'), // Simulation constraints
+
+    // Output results
+    summaryStatistics: jsonb('summary_statistics').notNull(), // Mean, std, percentiles, etc.
+    percentileResults: jsonb('percentile_results').notNull(), // Key percentiles (5th, 25th, 50th, 75th, 95th)
+    distributionData: jsonb('distribution_data'), // Full distribution data (if stored)
+    confidenceIntervals: jsonb('confidence_intervals'), // Confidence intervals for key metrics
+
+    // Risk metrics
+    varCalculations: jsonb('var_calculations'), // Value at Risk calculations
+    cvarCalculations: jsonb('cvar_calculations'), // Conditional VaR calculations
+    downsideRisk: jsonb('downside_risk'), // Downside risk metrics
+    tailRiskAnalysis: jsonb('tail_risk_analysis'), // Tail risk analysis
+
+    // Convergence and quality
+    convergenceMetrics: jsonb('convergence_metrics'), // Simulation convergence statistics
+    qualityMetrics: jsonb('quality_metrics'), // Quality of simulation results
+    stabilityAnalysis: jsonb('stability_analysis'), // Result stability across runs
+
+    // Performance attribution
+    factorContributions: jsonb('factor_contributions'), // Contribution of different factors
+    sensitivityIndices: jsonb('sensitivity_indices'), // Sobol indices or similar
+    interactionEffects: jsonb('interaction_effects'), // Factor interaction effects
+
+    // Simulation metadata
+    computationTimeMs: integer('computation_time_ms'),
+    memoryUsageMb: integer('memory_usage_mb'),
+    cpuCoresUsed: integer('cpu_cores_used'),
+    simulationDate: timestamp('simulation_date', { withTimezone: true }).notNull().defaultNow(),
+
+    // Results storage
+    detailedResultsPath: text('detailed_results_path'), // Path to detailed results file
+    resultsCompressed: boolean('results_compressed').default(false),
+    resultsFormat: text('results_format').default('json'), // 'json', 'parquet', 'csv'
+
+    // Validation
+    validationTests: jsonb('validation_tests'), // Statistical validation tests
+    benchmarkComparison: jsonb('benchmark_comparison'), // Comparison to benchmark results
+    historicalValidation: jsonb('historical_validation'), // Validation against historical data
+
+    // User context
+    createdBy: integer('created_by')
+      .notNull()
+      .references(() => users.id),
+    tags: text('tags').array().default([]),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }), // When to cleanup detailed results
+  },
+  (table) => ({
+    fundIdx: index('monte_carlo_simulations_fund_idx')['on'](
+      table.fundId,
+      table.simulationDate.desc()
+    ),
+    scenarioIdx: index('monte_carlo_simulations_scenario_idx')['on'](
+      table.scenarioId,
+      table.simulationDate.desc()
+    ),
+    forecastIdx: index('monte_carlo_simulations_forecast_idx')['on'](
+      table.forecastId,
+      table.simulationDate.desc()
+    ),
+    typeIdx: index('monte_carlo_simulations_type_idx')['on'](
+      table.simulationType,
+      table.simulationDate.desc()
+    ),
+    expiryIdx: index('monte_carlo_simulations_expiry_idx')['on'](table.expiresAt),
+    tagsGinIdx: index('monte_carlo_simulations_tags_gin_idx').using('gin', table.tags),
+  })
+);
+
+// ============================================================================
+// INSERT SCHEMAS FOR PORTFOLIO CONSTRUCTION MODELING
+// ============================================================================
+
+export const insertFundStrategyModelSchema = createInsertSchema(fundStrategyModels).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPortfolioScenarioSchema = createInsertSchema(portfolioScenarios).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertReserveAllocationStrategySchema = createInsertSchema(
+  reserveAllocationStrategies
+).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertPerformanceForecastSchema = createInsertSchema(performanceForecasts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMonteCarloSimulationSchema = createInsertSchema(monteCarloSimulations).omit({
+  id: true,
+  createdAt: true,
+});
+
+// ============================================================================
+// TYPE EXPORTS FOR PORTFOLIO CONSTRUCTION MODELING
+// ============================================================================
+
+export type FundStrategyModel = typeof fundStrategyModels.$inferSelect;
+export type InsertFundStrategyModel = typeof fundStrategyModels.$inferInsert;
+export type PortfolioScenario = typeof portfolioScenarios.$inferSelect;
+export type InsertPortfolioScenario = typeof portfolioScenarios.$inferInsert;
+export type ReserveAllocationStrategy = typeof reserveAllocationStrategies.$inferSelect;
+export type InsertReserveAllocationStrategy = typeof reserveAllocationStrategies.$inferInsert;
+export type PerformanceForecast = typeof performanceForecasts.$inferSelect;
+export type InsertPerformanceForecast = typeof performanceForecasts.$inferInsert;
+export type MonteCarloSimulation = typeof monteCarloSimulations.$inferSelect;
+export type InsertMonteCarloSimulation = typeof monteCarloSimulations.$inferInsert;
+
+// ============================================================================
+// TYPE EXPORTS FOR SCENARIO ANALYSIS
+// ============================================================================
+
+export type Scenario = typeof scenarios.$inferSelect;
+export type InsertScenario = typeof scenarios.$inferInsert;
+export type ScenarioCase = typeof scenarioCases.$inferSelect;
+export type InsertScenarioCase = typeof scenarioCases.$inferInsert;
+export type ScenarioAuditLog = typeof scenarioAuditLogs.$inferSelect;
+export type InsertScenarioAuditLog = typeof scenarioAuditLogs.$inferInsert;
+
+// ============================================================================
+// FUND ALLOCATION MANAGEMENT (Phase 1b)
+// ============================================================================
+
+// Reallocation audit trail for tracking allocation changes
+export const reallocationAudit = pgTable(
+  'reallocation_audit',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    userId: integer('user_id').references(() => users.id),
+    baselineVersion: integer('baseline_version').notNull(),
+    newVersion: integer('new_version').notNull(),
+    changesJson: jsonb('changes_json').notNull(),
+    reason: text('reason'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    fundIdx: index('idx_reallocation_audit_fund')['on'](table.fundId, table.createdAt.desc()),
+    userIdx: index('idx_reallocation_audit_user')['on'](table.userId, table.createdAt.desc()),
+    versionsIdx: index('idx_reallocation_audit_versions')['on'](
+      table.fundId,
+      table.baselineVersion,
+      table.newVersion
+    ),
+    changesGinIdx: index('idx_reallocation_audit_changes_gin').using('gin', table.changesJson),
+  })
+);
+
+export const insertReallocationAuditSchema = createInsertSchema(reallocationAudit).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ReallocationAudit = typeof reallocationAudit.$inferSelect;
+export type InsertReallocationAudit = typeof reallocationAudit.$inferInsert;
+
+// ============================================================================
+// NOTION INTEGRATION TABLES
+// ============================================================================
+
+// ============================================================================
+// BACKTEST RESULTS TABLE
+// ============================================================================
+
+// Backtest Results - Store Monte Carlo simulation backtesting results for validation
+export const backtestResults = pgTable(
+  'backtest_results',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+
+    // Backtest configuration (stored as JSON for flexibility)
+    config: jsonb('config').notNull().$type<{
+      fundId: number;
+      startDate: string;
+      endDate: string;
+      simulationRuns: number;
+      comparisonMetrics: string[];
+      includeHistoricalScenarios?: boolean;
+      historicalScenarios?: string[];
+      baselineId?: string;
+      snapshotId?: string;
+      randomSeed?: number;
+    }>(),
+
+    // Simulation results
+    simulationSummary: jsonb('simulation_summary').notNull().$type<{
+      runs: number;
+      metrics: Record<string, unknown>;
+      engineUsed: 'streaming' | 'traditional';
+      executionTimeMs: number;
+    }>(),
+
+    // Actual performance data used for comparison
+    actualPerformance: jsonb('actual_performance').notNull().$type<{
+      asOfDate: string;
+      irr: number | null;
+      tvpi: number | null;
+      dpi: number | null;
+      multiple: number | null;
+      deployedCapital: number;
+      distributedCapital: number;
+      residualValue: number;
+      dataSource: 'baseline' | 'variance_report' | 'snapshot';
+      dataFreshness: 'fresh' | 'stale' | 'unknown';
+    }>(),
+
+    // Validation metrics (how well simulation matched reality)
+    validationMetrics: jsonb('validation_metrics').notNull().$type<{
+      meanAbsoluteError: Record<string, number | null>;
+      rootMeanSquareError: Record<string, number | null>;
+      percentileHitRates: {
+        p50: Record<string, boolean | null>;
+        p90: Record<string, boolean | null>;
+        p100: Record<string, boolean | null>;
+      };
+      modelQualityScore: number;
+      calibrationStatus:
+        'well-calibrated' | 'under-predicting' | 'over-predicting' | 'insufficient-data';
+      incalculableMetrics: string[];
+    }>(),
+
+    // Data quality assessment
+    dataQuality: jsonb('data_quality').notNull().$type<{
+      hasBaseline: boolean;
+      baselineAgeInDays: number | null;
+      varianceHistoryCount: number;
+      snapshotAvailable: boolean;
+      isStale: boolean;
+      warnings: string[];
+      overallQuality: 'good' | 'acceptable' | 'poor';
+    }>(),
+
+    // Historical scenario comparisons (optional)
+    scenarioComparisons: jsonb('scenario_comparisons').$type<
+      Array<{
+        scenario: string;
+        simulatedPerformance: Record<string, unknown>;
+        description: string;
+        keyInsights: string[];
+        marketParameters: Record<string, unknown>;
+      }>
+    >(),
+
+    scenarioComparisonSummary: jsonb('scenario_comparison_summary').$type<{
+      requestedScenarios: number;
+      scenariosCompared: number;
+      failedScenarios: string[];
+    }>(),
+
+    // Recommendations generated from analysis
+    recommendations: text('recommendations').array().notNull().default([]),
+
+    // Execution metadata
+    executionTimeMs: integer('execution_time_ms').notNull(),
+    status: text('status').notNull().default('completed'), // 'pending', 'running', 'completed', 'failed'
+    errorMessage: text('error_message'),
+
+    // References to source data
+    baselineId: uuid('baseline_id').references(() => fundBaselines.id),
+    snapshotId: uuid('snapshot_id').references(() => fundStateSnapshots.id),
+
+    // User context
+    createdBy: integer('created_by').references(() => users.id),
+    tags: text('tags').array().default([]),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }), // For cleanup of old results
+  },
+  (table) => ({
+    // Primary lookups
+    fundIdx: index('backtest_results_fund_idx')['on'](table.fundId, table.createdAt.desc()),
+    statusIdx: index('backtest_results_status_idx')['on'](table.status, table.createdAt.desc()),
+
+    // Source data lookups
+    baselineIdx: index('backtest_results_baseline_idx')['on'](table.baselineId),
+    snapshotIdx: index('backtest_results_snapshot_idx')['on'](table.snapshotId),
+
+    // Cleanup query support
+    expiryIdx: index('backtest_results_expiry_idx')['on'](table.expiresAt),
+
+    // User-based queries
+    userIdx: index('backtest_results_user_idx')['on'](table.createdBy, table.createdAt.desc()),
+
+    // Tag-based filtering
+    tagsGinIdx: index('backtest_results_tags_gin_idx').using('gin', table.tags),
+  })
+);
+
+// Insert schema for backtest results
+export const insertBacktestResultSchema = createInsertSchema(backtestResults).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Type exports for backtest results
+export type BacktestResultRecord = typeof backtestResults.$inferSelect;
+export type InsertBacktestResultRecord = typeof backtestResults.$inferInsert;
+
+// ============================================================================
+// ADVANCED COHORT ANALYSIS - Normalization Layer
+// ============================================================================
+
+// Enums for cohort analysis
+export const vintageGranularityEnum = pgEnum('vintage_granularity', ['year', 'quarter']);
+export const cohortUnitEnum = pgEnum('cohort_unit', ['company', 'investment']);
+export const mappingSourceEnum = pgEnum('mapping_source', [
+  'seed_identity',
+  'manual',
+  'suggested',
+  'imported',
+]);
+
+// Sector Taxonomy - Canonical sectors (scoped + versioned)
+export const sectorTaxonomy = pgTable(
+  'sector_taxonomy',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    taxonomyVersion: varchar('taxonomy_version', { length: 20 }).notNull().default('v1'),
+    name: varchar('name', { length: 100 }).notNull(),
+    slug: varchar('slug', { length: 100 }).notNull(),
+    parentSectorId: uuid('parent_sector_id').references((): AnyPgColumn => sectorTaxonomy.id),
+    sortOrder: integer('sort_order').default(0),
+    isSystem: boolean('is_system').default(false).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdByUserId: integer('created_by_user_id').references(() => users.id),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedByUserId: integer('updated_by_user_id').references(() => users.id),
+  },
+  (table) => ({
+    uniqueSlug: unique('sector_taxonomy_fund_version_slug_unique').on(
+      table.fundId,
+      table.taxonomyVersion,
+      table.slug
+    ),
+    fundVersionIdx: index('sector_taxonomy_fund_version_idx').on(
+      table.fundId,
+      table.taxonomyVersion
+    ),
+    parentIdx: index('sector_taxonomy_parent_idx').on(table.parentSectorId),
+  })
+);
+
+// Sector Mappings - Raw → Canonical (confidence-scored)
+export const sectorMappings = pgTable(
+  'sector_mappings',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    taxonomyVersion: varchar('taxonomy_version', { length: 20 }).notNull().default('v1'),
+    rawValue: varchar('raw_value', { length: 255 }).notNull(),
+    rawValueNormalized: varchar('raw_value_normalized', { length: 255 }).notNull(),
+    canonicalSectorId: uuid('canonical_sector_id')
+      .notNull()
+      .references(() => sectorTaxonomy.id, { onDelete: 'cascade' }),
+    confidenceScore: decimal('confidence_score', { precision: 3, scale: 2 })
+      .notNull()
+      .default('1.00'),
+    source: mappingSourceEnum('source').notNull().default('manual'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdByUserId: integer('created_by_user_id').references(() => users.id),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedByUserId: integer('updated_by_user_id').references(() => users.id),
+  },
+  (table) => ({
+    uniqueMapping: unique('sector_mappings_fund_version_normalized_unique').on(
+      table.fundId,
+      table.taxonomyVersion,
+      table.rawValueNormalized
+    ),
+    fundVersionIdx: index('sector_mappings_fund_version_idx').on(
+      table.fundId,
+      table.taxonomyVersion
+    ),
+    canonicalSectorIdx: index('sector_mappings_canonical_sector_idx').on(
+      table.fundId,
+      table.taxonomyVersion,
+      table.canonicalSectorId
+    ),
+  })
+);
+
+// Company Overrides - Per-company sector override + exclusion
+export const companyOverrides = pgTable(
+  'company_overrides',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    taxonomyVersion: varchar('taxonomy_version', { length: 20 }).notNull().default('v1'),
+    companyId: integer('company_id')
+      .notNull()
+      .references(() => portfolioCompanies.id, { onDelete: 'cascade' }),
+    canonicalSectorId: uuid('canonical_sector_id').references(() => sectorTaxonomy.id),
+    excludeFromCohorts: boolean('exclude_from_cohorts').default(false).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdByUserId: integer('created_by_user_id').references(() => users.id),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedByUserId: integer('updated_by_user_id').references(() => users.id),
+  },
+  (table) => ({
+    uniqueOverride: unique('company_overrides_fund_version_company_unique').on(
+      table.fundId,
+      table.taxonomyVersion,
+      table.companyId
+    ),
+    fundVersionIdx: index('company_overrides_fund_version_idx').on(
+      table.fundId,
+      table.taxonomyVersion
+    ),
+    companyIdx: index('company_overrides_company_idx').on(table.companyId),
+  })
+);
+
+// Investment Overrides - Vintage override + exclusion
+export const investmentOverrides = pgTable(
+  'investment_overrides',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    investmentId: integer('investment_id')
+      .notNull()
+      .references(() => investments.id, { onDelete: 'cascade' }),
+    excludeFromCohorts: boolean('exclude_from_cohorts').default(false).notNull(),
+    vintageYear: integer('vintage_year'),
+    vintageQuarter: integer('vintage_quarter'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdByUserId: integer('created_by_user_id').references(() => users.id),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedByUserId: integer('updated_by_user_id').references(() => users.id),
+  },
+  (table) => ({
+    uniqueOverride: unique('investment_overrides_fund_investment_unique').on(
+      table.fundId,
+      table.investmentId
+    ),
+    fundIdx: index('investment_overrides_fund_idx').on(table.fundId),
+    investmentIdx: index('investment_overrides_investment_idx').on(table.investmentId),
+    vintageQuarterCheck: check(
+      'investment_overrides_vintage_quarter_check',
+      sql`${table.vintageQuarter} IS NULL OR (${table.vintageQuarter} >= 1 AND ${table.vintageQuarter} <= 4)`
+    ),
+    vintageYearCheck: check(
+      'investment_overrides_vintage_year_check',
+      sql`${table.vintageYear} IS NULL OR (${table.vintageYear} >= 1990 AND ${table.vintageYear} <= 2100)`
+    ),
+  })
+);
+
+// Cohort Definitions - Reproducible cohort configurations
+export const cohortDefinitions = pgTable(
+  'cohort_definitions',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    fundId: integer('fund_id')
+      .notNull()
+      .references(() => funds.id, { onDelete: 'cascade' }),
+    name: varchar('name', { length: 100 }).notNull(),
+    vintageGranularity: vintageGranularityEnum('vintage_granularity').notNull().default('year'),
+    sectorTaxonomyVersion: varchar('sector_taxonomy_version', { length: 20 })
+      .notNull()
+      .default('v1'),
+    unit: cohortUnitEnum('unit').notNull().default('company'),
+    isDefault: boolean('is_default').default(false).notNull(),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    createdByUserId: integer('created_by_user_id').references(() => users.id),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedByUserId: integer('updated_by_user_id').references(() => users.id),
+  },
+  (table) => ({
+    uniqueName: unique('cohort_definitions_fund_name_unique').on(table.fundId, table.name),
+    fundIdx: index('cohort_definitions_fund_idx').on(table.fundId),
+    defaultIdx: index('cohort_definitions_default_idx')
+      .on(table.fundId, table.isDefault)
+      .where(sql`${table.isDefault} = true AND ${table.archivedAt} IS NULL`),
+  })
+);
+
+// Insert schemas for cohort normalization tables
+export const insertSectorTaxonomySchema = createInsertSchema(sectorTaxonomy).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSectorMappingSchema = createInsertSchema(sectorMappings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCompanyOverrideSchema = createInsertSchema(companyOverrides).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInvestmentOverrideSchema = createInsertSchema(investmentOverrides).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCohortDefinitionSchema = createInsertSchema(cohortDefinitions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Type exports for cohort normalization tables
+export type SectorTaxonomy = typeof sectorTaxonomy.$inferSelect;
+export type InsertSectorTaxonomy = typeof sectorTaxonomy.$inferInsert;
+export type SectorMapping = typeof sectorMappings.$inferSelect;
+export type InsertSectorMapping = typeof sectorMappings.$inferInsert;
+export type CompanyOverride = typeof companyOverrides.$inferSelect;
+export type InsertCompanyOverride = typeof companyOverrides.$inferInsert;
+export type InvestmentOverride = typeof investmentOverrides.$inferSelect;
+export type InsertInvestmentOverride = typeof investmentOverrides.$inferInsert;
+export type CohortDefinition = typeof cohortDefinitions.$inferSelect;
+export type InsertCohortDefinition = typeof cohortDefinitions.$inferInsert;
+// =============================================================================
+// PORTFOLIO OPTIMIZATION SCHEMAS
+// =============================================================================
+// Added: 2026-01-04
+// Phase 1 Database Schema for Portfolio Construction & Optimization
+// See: docs/plans/2026-01-04-phase1-implementation-plan.md
+// See: docs/plans/2026-01-04-critical-corrections.md
+
+// BYTEA custom type for binary matrix storage (Correction #2)
+const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
+  dataType() {
+    return 'bytea';
+  },
+  toDriver(value: unknown): Buffer {
+    return value as Buffer;
+  },
+  fromDriver(value: unknown): Buffer {
+    return value as Buffer;
+  },
+});
+
+// Job Outbox Table - Transactional outbox pattern for exactly-once job semantics
+export const jobOutbox = pgTable(
+  'job_outbox',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    jobType: varchar('job_type', { length: 255 }).notNull(),
+    dedupeKey: text('dedupe_key'),
+    payload: jsonb('payload').notNull(),
+    status: varchar('status', { length: 50 })
+      .notNull()
+      .default('pending')
+      .$type<'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'>(),
+    priority: integer('priority').notNull().default(0),
+    attemptCount: integer('attempt_count').notNull().default(0),
+    maxAttempts: integer('max_attempts').notNull().default(3),
+    scheduledFor: timestamp('scheduled_for', { withTimezone: true }),
+    processingAt: timestamp('processing_at', { withTimezone: true }),
+    nextRunAt: timestamp('next_run_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    errorMessage: text('error_message'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    // Correction #6: ORDER BY matches index, DESC ordering, WHERE clause
+    claimIdx: index('idx_job_outbox_claim')
+      .on(table.nextRunAt.asc(), table.createdAt.asc())
+      .where(sql`${table.status} = 'pending'`),
+    pendingPriorityIdx: index('idx_job_outbox_pending_priority')
+      .on(table.status, table.priority.desc(), table.createdAt.asc())
+      .where(sql`${table.status} = 'pending'`),
+    // Correction #7: No NOW() in partial index predicates
+    processingIdx: index('idx_job_outbox_processing')
+      .on(table.processingAt.asc())
+      .where(sql`${table.status} = 'processing'`),
+    jobTypeIdx: index('idx_job_outbox_job_type').on(table.jobType),
+    dedupeKeyIdx: uniqueIndex('idx_job_outbox_job_type_dedupe').on(table.jobType, table.dedupeKey),
+    // Restored 2026-07-02 (ADR-023, D1 lane B): journal 0005 and prod both carry
+    // this CHECK; the shape had only the TS $type. Predicate matches 0005 verbatim.
+    statusCheck: check(
+      'job_outbox_status_check',
+      sql`${table.status} IN ('pending', 'processing', 'completed', 'failed', 'cancelled')`
+    ),
+  })
+);
+
+// Variance Planner Leader Table - Single-row heartbeat lease for planner loop
+// leader election. See .planning/phases/01-variance-automation-1c3-followons/01-CONTEXT.md
+// D-01 (heartbeat table chosen over advisory locks and Redis).
+export const variancePlannerLeader = pgTable(
+  'variance_planner_leader',
+  {
+    id: varchar('id', { length: 64 }).primaryKey(),
+    instanceId: varchar('instance_id', { length: 255 }).notNull(),
+    acquiredAt: timestamp('acquired_at', { withTimezone: true }).defaultNow().notNull(),
+    leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }).notNull(),
+    lastRenewedAt: timestamp('last_renewed_at', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    leaseExpiresIdx: index('idx_variance_planner_leader_lease_expires').on(table.leaseExpiresAt),
+  })
+);
+
+// Scenario Matrices Table - Stores Monte Carlo MOIC matrices with metadata
+export const scenarioMatrices = pgTable(
+  'scenario_matrices',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    // Canonical cache key for scenario matrix (replaces scenarioId FK)
+    matrixKey: text('matrix_key').notNull().unique(),
+    fundId: text('fund_id').notNull(),
+    taxonomyVersion: text('taxonomy_version').notNull(),
+    matrixType: varchar('matrix_type', { length: 50 })
+      .notNull()
+      .$type<'moic' | 'tvpi' | 'dpi' | 'irr'>(),
+    // Correction #2: BYTEA for binary matrix storage (not text/base64)
+    moicMatrix: bytea('moic_matrix'),
+    // Correction #1: All payload fields required when status='complete'
+    scenarioStates: jsonb('scenario_states').$type<{
+      scenarios: Array<{ id: number; params: Record<string, unknown> }>;
+    }>(),
+    bucketParams: jsonb('bucket_params').$type<{
+      min: number;
+      max: number;
+      count: number;
+      distribution: string;
+      buckets?: Array<{
+        name: string;
+        median: number;
+        p90: number;
+      }>;
+    }>(),
+    compressionCodec: varchar('compression_codec', { length: 50 }).$type<'zstd' | 'lz4' | 'none'>(),
+    matrixLayout: varchar('matrix_layout', { length: 50 }).$type<'row-major' | 'column-major'>(),
+    bucketCount: integer('bucket_count'),
+    sOpt: jsonb('s_opt').$type<{
+      algorithm: string;
+      params: Record<string, unknown>;
+      convergence: Record<string, unknown>;
+    }>(),
+    status: varchar('status', { length: 50 })
+      .notNull()
+      .default('pending')
+      .$type<'pending' | 'processing' | 'complete' | 'failed' | 'invalidated'>(),
+    errorMessage: text('error_message'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    fundTaxIdx: index('idx_scenario_matrices_fund_tax_status').on(
+      table.fundId,
+      table.taxonomyVersion,
+      table.status
+    ),
+    matrixKeyIdx: index('idx_scenario_matrices_matrix_key').on(table.matrixKey),
+    statusIdx: index('idx_scenario_matrices_status').on(table.status),
+    // Correction #1: CHECK constraint enforces payload completeness when status='complete'
+    completePayloadCheck: check(
+      'scenario_matrices_complete_payload',
+      sql`
+        (${table.status} != 'complete') OR
+        (
+          ${table.moicMatrix} IS NOT NULL AND
+          ${table.scenarioStates} IS NOT NULL AND
+          ${table.bucketParams} IS NOT NULL AND
+          ${table.compressionCodec} IS NOT NULL AND
+          ${table.matrixLayout} IS NOT NULL AND
+          ${table.bucketCount} IS NOT NULL AND
+          ${table.sOpt} IS NOT NULL
+        )
+      `
+    ),
+  })
+);
+
+// Optimization Sessions Table - Tracks MILP optimization runs
+export const optimizationSessions = pgTable(
+  'optimization_sessions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    matrixId: uuid('matrix_id')
+      .notNull()
+      .references(() => scenarioMatrices.id, { onDelete: 'cascade' }),
+    optimizationConfig: jsonb('optimization_config').notNull().$type<{
+      objective: 'maximize_return' | 'minimize_risk' | 'risk_adjusted';
+      constraints: Record<string, unknown>;
+      algorithm: string;
+      maxIterations?: number;
+      convergenceTolerance?: number;
+    }>(),
+    // Correction #9: Two-pass lexicographic MILP for deterministic tie-break
+    pass1EStar: doublePrecision('pass1_e_star'),
+    primaryLockEpsilon: doublePrecision('primary_lock_epsilon'),
+    resultWeights: jsonb('result_weights').$type<Record<string, number>>(),
+    resultMetrics: jsonb('result_metrics').$type<{
+      expectedReturn: number;
+      risk: number;
+      sharpeRatio?: number;
+      cvar?: number;
+    }>(),
+    status: varchar('status', { length: 50 })
+      .notNull()
+      .default('pending')
+      .$type<'pending' | 'running' | 'completed' | 'failed' | 'cancelled'>(),
+    errorMessage: text('error_message'),
+    currentIteration: integer('current_iteration').default(0),
+    totalIterations: integer('total_iterations'),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => ({
+    matrixIdx: index('idx_optimization_sessions_matrix').on(table.matrixId),
+    statusIdx: index('idx_optimization_sessions_status').on(table.status),
+    createdIdx: index('idx_optimization_sessions_created').on(table.createdAt.desc()),
+  })
+);
+
+// Insert schemas using createInsertSchema
+export const insertJobOutboxSchema = createInsertSchema(jobOutbox).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertVariancePlannerLeaderSchema = createInsertSchema(variancePlannerLeader).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertScenarioMatrixSchema = createInsertSchema(scenarioMatrices).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOptimizationSessionSchema = createInsertSchema(optimizationSessions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Type exports
+export type JobOutbox = typeof jobOutbox.$inferSelect;
+export type InsertJobOutbox = typeof jobOutbox.$inferInsert;
+export type VariancePlannerLeader = typeof variancePlannerLeader.$inferSelect;
+export type InsertVariancePlannerLeader = typeof variancePlannerLeader.$inferInsert;
+export type AlertEvaluationExecution = typeof alertEvaluationExecutions.$inferSelect;
+export type InsertAlertEvaluationExecution = typeof alertEvaluationExecutions.$inferInsert;
+export type ScenarioMatrix = typeof scenarioMatrices.$inferSelect;
+export type InsertScenarioMatrix = typeof scenarioMatrices.$inferInsert;
+export type OptimizationSession = typeof optimizationSessions.$inferSelect;
+export type InsertOptimizationSession = typeof optimizationSessions.$inferInsert;
