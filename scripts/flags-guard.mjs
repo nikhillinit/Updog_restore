@@ -417,13 +417,29 @@ function propertyName(node) {
   return undefined;
 }
 
+function unwrapJavaScriptExpression(node) {
+  let expression = node;
+  while (
+    ts.isParenthesizedExpression(expression) ||
+    ts.isSatisfiesExpression(expression) ||
+    ts.isAsExpression(expression) ||
+    ts.isTypeAssertionExpression(expression) ||
+    ts.isNonNullExpression(expression)
+  ) {
+    expression = expression.expression;
+  }
+  return expression;
+}
+
 function booleanLiteral(flagName, path, node, file) {
+  node = unwrapJavaScriptExpression(node);
   if (node.kind === ts.SyntaxKind.TrueKeyword) return true;
   if (node.kind === ts.SyntaxKind.FalseKeyword) return false;
   throw new Error(`Malformed JavaScript flag '${flagName}' in ${file}: ${path} must be boolean`);
 }
 
 function numericLiteral(flagName, path, node, file) {
+  node = unwrapJavaScriptExpression(node);
   if (!ts.isNumericLiteral(node)) {
     throw new Error(`Malformed JavaScript flag '${flagName}' in ${file}: ${path} must be numeric`);
   }
@@ -431,6 +447,7 @@ function numericLiteral(flagName, path, node, file) {
 }
 
 function stringLiteral(flagName, path, node, file) {
+  node = unwrapJavaScriptExpression(node);
   if (!ts.isStringLiteral(node) && !ts.isNoSubstitutionTemplateLiteral(node)) {
     throw new Error(`Malformed JavaScript flag '${flagName}' in ${file}: ${path} must be a string`);
   }
@@ -438,6 +455,7 @@ function stringLiteral(flagName, path, node, file) {
 }
 
 function collectJavaScriptAudience(flagName, node, path, audience, file) {
+  node = unwrapJavaScriptExpression(node);
   if (ts.isArrayLiteralExpression(node)) {
     node.elements.forEach((entry, index) =>
       collectJavaScriptAudience(flagName, entry, `${path}.${index}`, audience, file)
@@ -481,12 +499,13 @@ function collectJavaScriptFlagSemantics(flagName, object, file) {
       }
       semantics.risk = risk;
     } else if (field === 'targeting') {
-      if (!ts.isObjectLiteralExpression(property.initializer)) {
+      const targeting = unwrapJavaScriptExpression(property.initializer);
+      if (!ts.isObjectLiteralExpression(targeting)) {
         throw new Error(
           `Malformed JavaScript flag '${flagName}' in ${file}: targeting must be an object literal`
         );
       }
-      for (const targetingProperty of property.initializer.properties) {
+      for (const targetingProperty of targeting.properties) {
         if (!ts.isPropertyAssignment(targetingProperty)) continue;
         if (propertyName(targetingProperty.name) === 'enabled') {
           semantics.activation.set(
@@ -497,7 +516,7 @@ function collectJavaScriptFlagSemantics(flagName, object, file) {
       }
       collectJavaScriptAudience(
         flagName,
-        property.initializer,
+        targeting,
         'targeting',
         semantics.audience,
         file
@@ -508,8 +527,23 @@ function collectJavaScriptFlagSemantics(flagName, object, file) {
 }
 
 function isJavaScriptFlagRegistry(object) {
-  const parent = object.parent;
-  if (ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name)) {
+  let expression = object;
+  while (
+    ts.isParenthesizedExpression(expression.parent) ||
+    ts.isSatisfiesExpression(expression.parent) ||
+    ts.isAsExpression(expression.parent) ||
+    ts.isTypeAssertionExpression(expression.parent) ||
+    ts.isNonNullExpression(expression.parent)
+  ) {
+    if (expression.parent.expression !== expression) return false;
+    expression = expression.parent;
+  }
+  const parent = expression.parent;
+  if (
+    ts.isVariableDeclaration(parent) &&
+    parent.initializer === expression &&
+    ts.isIdentifier(parent.name)
+  ) {
     return isJavaScriptFlagRegistryName(parent.name.text);
   }
   return isNestedExportDefaultFlagsProperty(parent);
@@ -520,12 +554,41 @@ function isJavaScriptFlagRegistryName(name) {
   return ['flags', 'featureflags', 'flagdefinitions'].includes(registryName);
 }
 
+function isStaticFlagsPropertyName(name) {
+  if (propertyName(name) === 'flags') return true;
+  return (
+    ts.isComputedPropertyName(name) &&
+    (ts.isStringLiteral(name.expression) ||
+      ts.isNoSubstitutionTemplateLiteral(name.expression)) &&
+    name.expression.text === 'flags'
+  );
+}
+
+function isExportDefaultExpression(node) {
+  let expression = node;
+  while (
+    ts.isParenthesizedExpression(expression.parent) ||
+    ts.isSatisfiesExpression(expression.parent) ||
+    ts.isAsExpression(expression.parent) ||
+    ts.isTypeAssertionExpression(expression.parent) ||
+    ts.isNonNullExpression(expression.parent)
+  ) {
+    if (expression.parent.expression !== expression) return false;
+    expression = expression.parent;
+  }
+  return (
+    ts.isExportAssignment(expression.parent) &&
+    expression.parent.expression === expression &&
+    !expression.parent.isExportEquals
+  );
+}
+
 function isNestedExportDefaultFlagsProperty(node) {
   return (
     ts.isPropertyAssignment(node) &&
-    propertyName(node.name) === 'flags' &&
+    isStaticFlagsPropertyName(node.name) &&
     ts.isObjectLiteralExpression(node.parent) &&
-    ts.isExportAssignment(node.parent.parent)
+    isExportDefaultExpression(node.parent)
   );
 }
 
@@ -536,8 +599,10 @@ function unsupportedJavaScriptConfigurationMember(object) {
     if ('name' in property && property.name && ts.isComputedPropertyName(property.name)) {
       return 'computed';
     }
-    if (ts.isPropertyAssignment(property) && ts.isObjectLiteralExpression(property.initializer)) {
-      const nested = unsupportedJavaScriptConfigurationMember(property.initializer);
+    if (ts.isPropertyAssignment(property)) {
+      const initializer = unwrapJavaScriptExpression(property.initializer);
+      if (!ts.isObjectLiteralExpression(initializer)) continue;
+      const nested = unsupportedJavaScriptConfigurationMember(initializer);
       if (nested) return nested;
     }
   }
@@ -546,7 +611,13 @@ function unsupportedJavaScriptConfigurationMember(object) {
 
 function parseJavaScriptFlags(contents, file) {
   if (contents === null) return new Map();
-  const scriptKind = /\.[cm]?tsx$/i.test(file) ? ts.ScriptKind.TSX : ts.ScriptKind.JS;
+  const scriptKind = /\.[cm]?tsx$/i.test(file)
+    ? ts.ScriptKind.TSX
+    : /\.[cm]?ts$/i.test(file)
+      ? ts.ScriptKind.TS
+      : /\.[cm]?jsx$/i.test(file)
+        ? ts.ScriptKind.JSX
+        : ts.ScriptKind.JS;
   const sourceFile = ts.createSourceFile(file, contents, ts.ScriptTarget.Latest, true, scriptKind);
   if (sourceFile.parseDiagnostics.length > 0) {
     const diagnostic = sourceFile.parseDiagnostics[0];
@@ -561,7 +632,7 @@ function parseJavaScriptFlags(contents, file) {
       ts.isVariableDeclaration(node) &&
       ts.isIdentifier(node.name) &&
       isJavaScriptFlagRegistryName(node.name.text) &&
-      !ts.isObjectLiteralExpression(node.initializer)
+      !ts.isObjectLiteralExpression(unwrapJavaScriptExpression(node.initializer))
     ) {
       throw new Error(
         `Malformed JavaScript flag file ${file}: indirect registry initializer is unsupported and failed closed`
@@ -569,7 +640,15 @@ function parseJavaScriptFlags(contents, file) {
     }
     if (
       isNestedExportDefaultFlagsProperty(node) &&
-      !ts.isObjectLiteralExpression(node.initializer)
+      ts.isComputedPropertyName(node.name)
+    ) {
+      throw new Error(
+        `Malformed JavaScript flag file ${file}: computed flags registry root is unsupported and failed closed`
+      );
+    }
+    if (
+      isNestedExportDefaultFlagsProperty(node) &&
+      !ts.isObjectLiteralExpression(unwrapJavaScriptExpression(node.initializer))
     ) {
       throw new Error(
         `Malformed JavaScript flag file ${file}: indirect registry initializer is unsupported and failed closed`
@@ -588,12 +667,13 @@ function parseJavaScriptFlags(contents, file) {
       ts.isObjectLiteralExpression(node.parent) &&
       isJavaScriptFlagRegistry(node.parent)
     ) {
-      if (!ts.isObjectLiteralExpression(node.initializer)) {
+      const initializer = unwrapJavaScriptExpression(node.initializer);
+      if (!ts.isObjectLiteralExpression(initializer)) {
         throw new Error(
           `Malformed JavaScript flag file ${file}: indirect flag entry initializer is unsupported and failed closed`
         );
       }
-      const unsupportedMember = unsupportedJavaScriptConfigurationMember(node.initializer);
+      const unsupportedMember = unsupportedJavaScriptConfigurationMember(initializer);
       if (unsupportedMember) {
         throw new Error(
           `Malformed JavaScript flag file ${file}: ${unsupportedMember} flag configuration is unsupported and failed closed`
@@ -606,7 +686,7 @@ function parseJavaScriptFlags(contents, file) {
         );
       }
       const existing = declarations.get(flagName) ?? [];
-      existing.push(collectJavaScriptFlagSemantics(flagName, node.initializer, file));
+      existing.push(collectJavaScriptFlagSemantics(flagName, initializer, file));
       declarations.set(flagName, existing);
       return;
     }

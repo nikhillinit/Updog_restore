@@ -1080,6 +1080,174 @@ describe('feature flags approval guard', () => {
     expect(`${result.stdout}\n${result.stderr}`).toMatch(/indirect|literal|failed closed/i);
   });
 
+  it.each([
+    [
+      'a parenthesized wrapper',
+      'src/feature-flags.js',
+      ['export default ({ flags: {} });', ''].join('\n'),
+      [
+        'export default ({ flags: {',
+        "  'auth.new': { enabled: true },",
+        '} });',
+        '',
+      ].join('\n'),
+    ],
+    [
+      'a satisfies wrapper',
+      'src/feature-flags.ts',
+      ['type Registry = unknown;', 'export default ({ flags: {} } satisfies Registry);', ''].join(
+        '\n'
+      ),
+      [
+        'type Registry = unknown;',
+        'export default ({ flags: {',
+        "  'auth.new': { enabled: true },",
+        '} } satisfies Registry);',
+        '',
+      ].join('\n'),
+    ],
+  ])('analyzes a nested export-default flags registry through %s', async (_shape, file, base, head) => {
+    const repository = await makeRepository(base, head, file);
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+    const withoutApprovals = runGuard(repository.directory, args);
+    const approved = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['product-signoff', 'approved:flags-change']),
+    });
+
+    expect(withoutApprovals.status).toBe(1);
+    expect(`${withoutApprovals.stdout}\n${withoutApprovals.stderr}`).toContain('product-signoff');
+    expect(`${withoutApprovals.stdout}\n${withoutApprovals.stderr}`).toContain(
+      'approved:flags-change'
+    );
+    expect(approved.status).toBe(0);
+  });
+
+  it('fails closed on a computed nested export-default flags root', async () => {
+    const repository = await makeRepository(
+      ['export default ({ flags: {} });', ''].join('\n'),
+      [
+        'export default ({',
+        "  ['flags']: { 'auth.new': { enabled: true } },",
+        '});',
+        '',
+      ].join('\n'),
+      'src/feature-flags.js'
+    );
+    const result = runGuard(repository.directory, [
+      '--base',
+      repository.baseSha,
+      '--head',
+      repository.headSha,
+    ]);
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toMatch(/computed|failed closed/i);
+  });
+
+  it.each([
+    [
+      'parentheses',
+      'src/feature-flags.js',
+      ['export const flags = ({});', ''].join('\n'),
+      [
+        'export const flags = ({',
+        "  'auth.new': { enabled: true },",
+        '});',
+        '',
+      ].join('\n'),
+    ],
+    [
+      'satisfies',
+      'src/feature-flags.ts',
+      ['type Registry = unknown;', 'export const flags = ({} satisfies Registry);', ''].join('\n'),
+      [
+        'type Registry = unknown;',
+        'export const flags = ({',
+        "  'auth.new': { enabled: true },",
+        '} satisfies Registry);',
+        '',
+      ].join('\n'),
+    ],
+    [
+      'as',
+      'src/feature-flags.ts',
+      ['type Registry = unknown;', 'export const flags = ({} as Registry);', ''].join('\n'),
+      [
+        'type Registry = unknown;',
+        'export const flags = ({',
+        "  'auth.new': { enabled: true },",
+        '} as Registry);',
+        '',
+      ].join('\n'),
+    ],
+    [
+      'a type assertion',
+      'src/feature-flags.ts',
+      ['type Registry = unknown;', 'export const flags = (<Registry>{});', ''].join('\n'),
+      [
+        'type Registry = unknown;',
+        'export const flags = (<Registry>{',
+        "  'auth.new': { enabled: true },",
+        '});',
+        '',
+      ].join('\n'),
+    ],
+    [
+      'a non-null assertion',
+      'src/feature-flags.ts',
+      ['export const flags = (({})!);', ''].join('\n'),
+      [
+        'export const flags = (({',
+        "  'auth.new': { enabled: true },",
+        '})!);',
+        '',
+      ].join('\n'),
+    ],
+  ])('analyzes a named JavaScript flag registry through %s', async (_shape, file, base, head) => {
+    const repository = await makeRepository(base, head, file);
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+    const withoutApprovals = runGuard(repository.directory, args);
+    const approved = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['product-signoff', 'approved:flags-change']),
+    });
+
+    expect(withoutApprovals.status).toBe(1);
+    expect(`${withoutApprovals.stdout}\n${withoutApprovals.stderr}`).toContain('product-signoff');
+    expect(`${withoutApprovals.stdout}\n${withoutApprovals.stderr}`).toContain(
+      'approved:flags-change'
+    );
+    expect(approved.status).toBe(0);
+  });
+
+  it('analyzes a flag-entry object literal through a satisfies wrapper', async () => {
+    const repository = await makeRepository(
+      [
+        'type Flag = unknown;',
+        'export const flags = {',
+        "  'auth.new': ({ enabled: false } satisfies Flag),",
+        '};',
+        '',
+      ].join('\n'),
+      [
+        'type Flag = unknown;',
+        'export const flags = {',
+        "  'auth.new': ({ enabled: true } satisfies Flag),",
+        '};',
+        '',
+      ].join('\n'),
+      'src/feature-flags.ts'
+    );
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+    const withoutApproval = runGuard(repository.directory, args);
+    const approved = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['product-signoff', 'approved:flags-change']),
+    });
+
+    expect(withoutApproval.status).toBe(1);
+    expect(`${withoutApproval.stdout}\n${withoutApproval.stderr}`).toContain('product-signoff');
+    expect(approved.status).toBe(0);
+  });
+
   it('allows unrelated spread syntax outside candidate JavaScript flag registries', async () => {
     const repository = await makeRepository(
       [
