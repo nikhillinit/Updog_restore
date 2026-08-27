@@ -2,10 +2,12 @@
 
 import { Buffer } from 'node:buffer';
 import console from 'node:console';
-import { createHash } from 'node:crypto';
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { createHash, randomBytes } from 'node:crypto';
+import { constants as fsConstants } from 'node:fs';
+import { lstat, open, readdir, realpath, rename, rm } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { TextDecoder } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 export const HASH_CONTRACT = 'sha256-folder-framed-v2';
@@ -14,6 +16,11 @@ const VENDORED_ROOT = '.agents/skills';
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const SKILL_NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const U64_MAX = (1n << 64n) - 1n;
+const NO_FOLLOW = fsConstants.O_NOFOLLOW ?? 0;
+const READ_NO_FOLLOW = fsConstants.O_RDONLY | NO_FOLLOW;
+const WRITE_EXCLUSIVE_NO_FOLLOW =
+  fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | NO_FOLLOW;
+const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
 
 function encodeLength(value) {
   const length = BigInt(value);
@@ -25,8 +32,16 @@ function encodeLength(value) {
   return bytes;
 }
 
-function compareUtf8(left, right) {
-  return Buffer.compare(Buffer.from(left, 'utf8'), Buffer.from(right, 'utf8'));
+function compareBytes(left, right) {
+  return Buffer.compare(left, right);
+}
+
+export function decodeFilenameBytes(value) {
+  try {
+    return utf8Decoder.decode(value);
+  } catch {
+    throw new Error(`filename is not valid UTF-8: ${Buffer.from(value).toString('hex')}`);
+  }
 }
 
 function normalizedRelativePath(value) {
@@ -36,15 +51,110 @@ function normalizedRelativePath(value) {
   return value;
 }
 
-async function collectFiles(directory, relativeDirectory = '') {
+function ensureInsideRoot(root, candidate, label) {
+  const relative = path.relative(root, candidate);
+  if (relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))) return;
+  throw new Error(`${label} resolves outside repository root`);
+}
+
+function statFingerprint(stat) {
+  return [
+    stat.dev,
+    stat.ino,
+    stat.mode,
+    stat.nlink,
+    stat.size,
+    stat.mtimeNs,
+    stat.ctimeNs,
+  ].map(String).join(':');
+}
+
+function sameIdentity(left, right) {
+  return left.dev === right.dev && left.ino === right.ino;
+}
+
+async function canonicalDirectory(directory, label) {
+  const stat = await lstat(directory, { bigint: true });
+  if (stat.isSymbolicLink()) throw new Error(`${label} is a symlink`);
+  if (!stat.isDirectory()) throw new Error(`${label} is not a directory`);
+  return realpath(directory);
+}
+
+async function assertSafeDirectoryChain(root, relativeDirectory) {
+  const normalized = normalizedRelativePath(relativeDirectory);
+  if (!normalized) throw new Error(`path is not normalized POSIX: ${relativeDirectory}`);
+
+  let current = root;
+  for (const component of normalized.split('/')) {
+    current = path.join(current, component);
+    const stat = await lstat(current, { bigint: true });
+    if (stat.isSymbolicLink()) throw new Error(`directory is a symlink: ${relativeDirectory}`);
+    if (!stat.isDirectory()) throw new Error(`path component is not a directory: ${relativeDirectory}`);
+    ensureInsideRoot(root, await realpath(current), relativeDirectory);
+  }
+}
+
+async function readRegularFileNoFollow(root, relativePath) {
+  const normalized = normalizedRelativePath(relativePath);
+  if (!normalized) throw new Error(`path is not normalized POSIX: ${relativePath}`);
+
+  const parent = path.posix.dirname(normalized);
+  if (parent !== '.') await assertSafeDirectoryChain(root, parent);
+
+  const absolutePath = path.join(root, ...normalized.split('/'));
+  const before = await lstat(absolutePath, { bigint: true });
+  if (before.isSymbolicLink()) throw new Error(`symlink is not allowed: ${normalized}`);
+  if (!before.isFile()) throw new Error(`non-regular file is not allowed: ${normalized}`);
+  ensureInsideRoot(root, await realpath(absolutePath), normalized);
+
+  let handle;
+  try {
+    handle = await open(absolutePath, READ_NO_FOLLOW);
+    const opened = await handle.stat({ bigint: true });
+    if (!opened.isFile() || !sameIdentity(before, opened)) {
+      throw new Error(`file changed while opening: ${normalized}`);
+    }
+
+    const bytes = await handle.readFile();
+    const afterRead = await handle.stat({ bigint: true });
+    if (statFingerprint(opened) !== statFingerprint(afterRead)) {
+      throw new Error(`file changed while reading: ${normalized}`);
+    }
+
+    const afterPath = await lstat(absolutePath, { bigint: true });
+    if (
+      afterPath.isSymbolicLink() ||
+      !afterPath.isFile() ||
+      !sameIdentity(afterRead, afterPath) ||
+      statFingerprint(afterRead) !== statFingerprint(afterPath)
+    ) {
+      throw new Error(`file path changed while reading: ${normalized}`);
+    }
+    ensureInsideRoot(root, await realpath(absolutePath), normalized);
+
+    return {
+      bytes,
+      fingerprint: statFingerprint(afterRead),
+      mode: Number(afterRead.mode & 0o777n),
+    };
+  } finally {
+    await handle?.close();
+  }
+}
+
+async function collectFiles(root, relativeDirectory = '') {
+  if (relativeDirectory) await assertSafeDirectoryChain(root, relativeDirectory);
   const currentDirectory = relativeDirectory
-    ? path.join(directory, ...relativeDirectory.split('/'))
-    : directory;
-  const entries = await readdir(currentDirectory, { withFileTypes: true });
+    ? path.join(root, ...relativeDirectory.split('/'))
+    : root;
+  const entries = await readdir(currentDirectory, { encoding: 'buffer', withFileTypes: true });
+  entries.sort((left, right) => compareBytes(left.name, right.name));
   const files = [];
 
   for (const entry of entries) {
-    const relativePath = relativeDirectory ? `${relativeDirectory}/${entry.name}` : entry.name;
+    const nameBytes = Buffer.from(entry.name);
+    const name = decodeFilenameBytes(nameBytes);
+    const relativePath = relativeDirectory ? `${relativeDirectory}/${name}` : name;
     if (!normalizedRelativePath(relativePath)) {
       throw new Error(`path is not normalized POSIX: ${relativePath}`);
     }
@@ -52,49 +162,82 @@ async function collectFiles(directory, relativeDirectory = '') {
       throw new Error(`symlink is not allowed: ${relativePath}`);
     }
     if (entry.isDirectory()) {
-      files.push(...(await collectFiles(directory, relativePath)));
+      files.push(...(await collectFiles(root, relativePath)));
       continue;
     }
     if (!entry.isFile()) {
       throw new Error(`non-regular file is not allowed: ${relativePath}`);
     }
-    files.push(relativePath);
+    files.push({ pathBytes: Buffer.from(relativePath, 'utf8'), relativePath });
   }
 
-  return files.sort(compareUtf8);
+  return files.sort((left, right) => compareBytes(left.pathBytes, right.pathBytes));
 }
 
-export async function hashVendoredSkill(directory) {
-  const files = await collectFiles(directory);
+async function hashVendoredSkillOnce(root, options = {}) {
+  const files = await collectFiles(root);
+  await options.afterCollect?.();
+
   const hash = createHash('sha256');
   hash.update('updog/vendored-skill-folder/sha256-folder-framed-v2\0');
   hash.update(encodeLength(files.length));
+  const fingerprints = [];
 
-  for (const relativePath of files) {
-    const bytes = await readFile(path.join(directory, ...relativePath.split('/')));
-    const pathBytes = Buffer.from(relativePath, 'utf8');
-    hash.update(encodeLength(pathBytes.length));
-    hash.update(pathBytes);
+  for (const file of files) {
+    const { bytes, fingerprint } = await readRegularFileNoFollow(root, file.relativePath);
+    hash.update(encodeLength(file.pathBytes.length));
+    hash.update(file.pathBytes);
     hash.update(encodeLength(bytes.length));
     hash.update(bytes);
+    fingerprints.push(`${file.relativePath}\0${fingerprint}`);
   }
 
-  return { files, hash: hash.digest('hex') };
+  return {
+    files: files.map((file) => file.relativePath),
+    fingerprints,
+    hash: hash.digest('hex'),
+  };
+}
+
+export async function hashVendoredSkill(directory, options = {}) {
+  const root = await canonicalDirectory(directory, 'vendored skill directory');
+  const first = await hashVendoredSkillOnce(root, options);
+  const second = await hashVendoredSkillOnce(root);
+  if (
+    first.hash !== second.hash ||
+    JSON.stringify(first.files) !== JSON.stringify(second.files) ||
+    JSON.stringify(first.fingerprints) !== JSON.stringify(second.fingerprints)
+  ) {
+    throw new Error('vendored skill tree changed while hashing');
+  }
+  return { files: first.files, hash: first.hash };
 }
 
 async function readLock(repoRoot) {
-  const lockPath = path.join(repoRoot, LOCK_FILE);
-  let contents;
+  let file;
   try {
-    contents = await readFile(lockPath, 'utf8');
+    file = await readRegularFileNoFollow(repoRoot, LOCK_FILE);
   } catch (error) {
     throw new Error(`cannot read ${LOCK_FILE}: ${error.message}`);
+  }
+
+  let contents;
+  try {
+    contents = utf8Decoder.decode(file.bytes);
+  } catch {
+    throw new Error(`${LOCK_FILE} is not valid UTF-8`);
   }
 
   try {
     assertNoDuplicateJsonKeys(contents);
     const lock = JSON.parse(contents);
-    return { lock, lockPath };
+    return {
+      contents: file.bytes,
+      fingerprint: file.fingerprint,
+      lock,
+      mode: file.mode,
+      lockPath: path.join(repoRoot, LOCK_FILE),
+    };
   } catch (error) {
     throw new Error(`${LOCK_FILE} is not valid JSON: ${error.message}`);
   }
@@ -137,8 +280,8 @@ function assertNoDuplicateJsonKeys(contents) {
     if (char === '{') {
       index += 1;
       const top = stack.at(-1);
-      const path = top.type === 'object' ? `${top.path}.${top.currentKey}` : top.path;
-      stack.push({ type: 'object', keys: new Set(), awaitingKey: true, path });
+      const objectPath = top.type === 'object' ? `${top.path}.${top.currentKey}` : top.path;
+      stack.push({ type: 'object', keys: new Set(), awaitingKey: true, path: objectPath });
       parseObjectValue();
       return;
     }
@@ -170,8 +313,7 @@ function assertNoDuplicateJsonKeys(contents) {
       index += 4;
       return;
     }
-    const rest = contents.slice(index);
-    const match = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/.exec(rest);
+    const match = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/.exec(contents.slice(index));
     if (!match) throw new Error(`invalid JSON at offset ${index}`);
     index += match[0].length;
   };
@@ -232,22 +374,42 @@ function assertNoDuplicateJsonKeys(contents) {
 }
 
 async function inspectVendoredDirectories(repoRoot, errors) {
-  const root = path.join(repoRoot, VENDORED_ROOT);
-  let entries;
   try {
-    entries = await readdir(root, { withFileTypes: true });
+    await assertSafeDirectoryChain(repoRoot, VENDORED_ROOT);
   } catch (error) {
     errors.push(`cannot read ${VENDORED_ROOT}: ${error.message}`);
     return [];
   }
 
+  const root = path.join(repoRoot, ...VENDORED_ROOT.split('/'));
+  let entries;
+  try {
+    entries = await readdir(root, { encoding: 'buffer', withFileTypes: true });
+  } catch (error) {
+    errors.push(`cannot read ${VENDORED_ROOT}: ${error.message}`);
+    return [];
+  }
+
+  entries.sort((left, right) => compareBytes(left.name, right.name));
   const directories = [];
-  for (const entry of entries.sort((left, right) => compareUtf8(left.name, right.name))) {
-    const localPath = `${VENDORED_ROOT}/${entry.name}`;
+  for (const entry of entries) {
+    let name;
+    try {
+      name = decodeFilenameBytes(entry.name);
+    } catch (error) {
+      errors.push(`${VENDORED_ROOT}: ${error.message}`);
+      continue;
+    }
+    const localPath = `${VENDORED_ROOT}/${name}`;
     if (entry.isSymbolicLink()) {
       errors.push(`vendored skill path is a symlink: ${localPath}`);
     } else if (entry.isDirectory()) {
-      directories.push(localPath);
+      try {
+        await assertSafeDirectoryChain(repoRoot, localPath);
+        directories.push(localPath);
+      } catch (error) {
+        errors.push(`${localPath}: ${error.message}`);
+      }
     } else {
       errors.push(`unexpected non-directory entry under ${VENDORED_ROOT}: ${localPath}`);
     }
@@ -306,16 +468,93 @@ function validateEntry(name, entry, seenLocalPaths, errors) {
   return localPath;
 }
 
-export async function verifyVendoredSkills({ repoRoot, write = false }) {
+async function assertInputsUnchanged({ computed, lockSnapshot, repoRoot, skillNames }) {
+  let currentLock;
+  try {
+    currentLock = await readLock(repoRoot);
+  } catch {
+    return [`${LOCK_FILE} changed while the update was running`];
+  }
+  if (
+    !currentLock.contents.equals(lockSnapshot.contents) ||
+    currentLock.fingerprint !== lockSnapshot.fingerprint
+  ) {
+    return [`${LOCK_FILE} changed while the update was running`];
+  }
+
   const errors = [];
-  const { lock, lockPath } = await readLock(repoRoot);
+  const directories = await inspectVendoredDirectories(repoRoot, errors);
+  const expectedDirectories = skillNames.map((name) => `${VENDORED_ROOT}/${name}`).sort();
+  if (JSON.stringify(directories) !== JSON.stringify(expectedDirectories)) {
+    errors.push('vendored skill tree changed while the update was running');
+    return errors;
+  }
+
+  for (const name of skillNames) {
+    const expected = computed.get(name);
+    try {
+      const result = await hashVendoredSkill(path.join(repoRoot, VENDORED_ROOT, name));
+      if (!expected || expected.hash !== result.hash || expected.filesJson !== JSON.stringify(result.files)) {
+        errors.push('vendored skill tree changed while the update was running');
+        break;
+      }
+    } catch {
+      errors.push('vendored skill tree changed while the update was running');
+      break;
+    }
+  }
+  return errors;
+}
+
+async function writeLockAtomically({ contents, lockPath, mode, options, verifyUnchanged }) {
+  const directory = path.dirname(lockPath);
+  const temporaryPath = path.join(
+    directory,
+    `.${path.basename(lockPath)}.${process.pid}.${randomBytes(8).toString('hex')}.tmp`
+  );
+  let handle;
+  try {
+    handle = await open(temporaryPath, WRITE_EXCLUSIVE_NO_FOLLOW, 0o600);
+    await handle.chmod(mode);
+    await handle.writeFile(contents, 'utf8');
+    await handle.sync();
+    await handle.close();
+    handle = undefined;
+
+    await options.beforeAtomicReplace?.();
+    const errors = await verifyUnchanged();
+    if (errors.length > 0) return errors;
+
+    await rename(temporaryPath, lockPath);
+    let directoryHandle;
+    try {
+      directoryHandle = await open(directory, fsConstants.O_RDONLY | (fsConstants.O_DIRECTORY ?? 0));
+      await directoryHandle.sync();
+    } finally {
+      await directoryHandle?.close();
+    }
+    return [];
+  } finally {
+    await handle?.close();
+    await rm(temporaryPath, { force: true });
+  }
+}
+
+export async function verifyVendoredSkills(options) {
+  const write = options.write ?? false;
+  const repoRoot = await canonicalDirectory(options.repoRoot, 'repository root');
+  const errors = [];
+  const lockSnapshot = await readLock(repoRoot);
+  const { lock } = lockSnapshot;
   const hasValidShape = validateLockShape(lock, errors);
   const vendoredDirectories = await inspectVendoredDirectories(repoRoot, errors);
   if (!hasValidShape) return { errors, updated: 0, verified: 0 };
 
   const seenLocalPaths = new Set();
   const computed = new Map();
-  const skillNames = Object.keys(lock.skills).sort(compareUtf8);
+  const skillNames = Object.keys(lock.skills).sort((left, right) =>
+    compareBytes(Buffer.from(left, 'utf8'), Buffer.from(right, 'utf8'))
+  );
 
   for (const name of skillNames) {
     const entry = lock.skills[name];
@@ -328,7 +567,7 @@ export async function verifyVendoredSkills({ repoRoot, write = false }) {
         errors.push(`${name}: vendored skill directory is empty: ${localPath}`);
         continue;
       }
-      computed.set(name, result.hash);
+      computed.set(name, { filesJson: JSON.stringify(result.files), hash: result.hash });
       if (!write && entry.computedHash !== result.hash) {
         errors.push(
           `${name}: hash mismatch; expected ${entry.computedHash}, actual ${result.hash}`
@@ -345,22 +584,39 @@ export async function verifyVendoredSkills({ repoRoot, write = false }) {
     }
   }
 
-  if (write) {
-    if (errors.length > 0) return { errors, updated: 0, verified: computed.size };
+  if (!write) return { errors, updated: 0, verified: computed.size };
+  if (errors.length > 0) return { errors, updated: 0, verified: computed.size };
 
-    let updated = 0;
-    for (const name of skillNames) {
-      const nextHash = computed.get(name);
-      if (nextHash && lock.skills[name].computedHash !== nextHash) {
-        lock.skills[name].computedHash = nextHash;
-        updated += 1;
-      }
+  const nextLock = structuredClone(lock);
+  let updated = 0;
+  for (const name of skillNames) {
+    const nextHash = computed.get(name)?.hash;
+    if (nextHash && nextLock.skills[name].computedHash !== nextHash) {
+      nextLock.skills[name].computedHash = nextHash;
+      updated += 1;
     }
-    await writeFile(lockPath, `${JSON.stringify(lock, null, 2)}\n`, 'utf8');
-    return { errors: [], updated, verified: computed.size };
+  }
+  if (updated === 0) return { errors: [], updated, verified: computed.size };
+
+  await options.beforeCommit?.();
+  const verifyUnchanged = () =>
+    assertInputsUnchanged({ computed, lockSnapshot, repoRoot, skillNames });
+  const stabilityErrors = await verifyUnchanged();
+  if (stabilityErrors.length > 0) {
+    return { errors: stabilityErrors, updated: 0, verified: computed.size };
   }
 
-  return { errors, updated: 0, verified: computed.size };
+  const writeErrors = await writeLockAtomically({
+    contents: `${JSON.stringify(nextLock, null, 2)}\n`,
+    lockPath: lockSnapshot.lockPath,
+    mode: lockSnapshot.mode,
+    options,
+    verifyUnchanged,
+  });
+  if (writeErrors.length > 0) {
+    return { errors: writeErrors, updated: 0, verified: computed.size };
+  }
+  return { errors: [], updated, verified: computed.size };
 }
 
 function parseArgs(argv) {

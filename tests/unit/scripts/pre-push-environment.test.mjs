@@ -189,6 +189,30 @@ describe('pre-push hook child environment', () => {
     expect(result.stderr + result.stdout).toContain('skills:lock:check');
   });
 
+  it('runs vendored skill lock check for a renamed skill path containing a newline', async () => {
+    const fixture = await createFixture();
+    const primary = fixture.primary;
+    const hostileSource = '.agents/skills/neon/line\nbreak.md';
+    const hostileTarget = 'vendor/neon/line\nbreak.md';
+    await write(primary, hostileSource, 'hostile path\n');
+    git(primary, ['add', '.']);
+    git(primary, ['commit', '-m', 'add hostile skill path']);
+    git(primary, ['update-ref', 'refs/remotes/origin/main', 'HEAD']);
+    await mkdir(path.join(primary, 'vendor/neon'), { recursive: true });
+    git(primary, ['mv', hostileSource, hostileTarget]);
+    git(primary, ['add', '.']);
+    git(primary, ['commit', '-m', 'rename hostile skill path out']);
+
+    const result = spawnSync(process.execPath, [prePushScript], {
+      cwd: primary,
+      env: hostileHookEnvironment(primary, fixture.environmentLog, 'targeted'),
+      encoding: 'utf8',
+    });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr + result.stdout).toContain('skills:lock:check');
+  });
+
   it.each([
     ['primary worktree full-run', 'primary', 'full-run', 'full-test'],
     ['primary worktree targeted', 'primary', 'targeted', 'targeted-test'],

@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -98,37 +98,162 @@ describe('vendored skill lock verification', () => {
     expect(await readFile(lockPath, 'utf8')).toBe(contents);
   });
 
-  it('rejects symlinked lock path in check and update modes', async () => {
+  it('rejects a symlinked lock file without modifying its external target', async () => {
     const { root } = await createFixture();
     const outside = await mkdtemp(path.join(os.tmpdir(), 'updog-vendored-outside-'));
     tempRoots.push(outside);
-    await write(outside, 'SKILL.md', 'outside\n');
-    await rm(path.join(root, 'skills-lock.json'));
-    await symlink(outside, path.join(root, 'skills-lock.json'));
+    const lockPath = path.join(root, 'skills-lock.json');
+    const externalLockPath = path.join(outside, 'skills-lock.json');
+    const original = await readFile(lockPath, 'utf8');
+    await writeFile(externalLockPath, original, 'utf8');
+    await rm(lockPath);
+    await symlink(externalLockPath, lockPath);
+
     const check = verify(root);
     const update = verify(root, '--write');
+
     expect(check.status).not.toBe(0);
     expect(update.status).not.toBe(0);
+    expect(await readFile(externalLockPath, 'utf8')).toBe(original);
   });
 
-  it('rejects symlinked vendor root and skill directory in check and update modes', async () => {
-    for (const target of ['root', 'skill']) {
+  it('rejects symlinked vendored ancestors and skill directories in check and update modes', async () => {
+    for (const target of ['agents', 'root', 'skill']) {
       const { root } = await createFixture();
       const outside = await mkdtemp(path.join(os.tmpdir(), 'updog-vendored-outside-'));
       tempRoots.push(outside);
-      await write(outside, 'SKILL.md', 'outside\n');
-      if (target === 'root') {
+
+      if (target === 'agents') {
+        await write(outside, 'skills/neon/SKILL.md', '# Neon fixture\n');
+        await write(outside, 'skills/neon/references/a.md', 'first\n');
+        await write(outside, 'skills/neon/references/z.md', 'last\n');
+        await rm(path.join(root, '.agents'), { recursive: true });
+        await symlink(outside, path.join(root, '.agents'));
+      } else if (target === 'root') {
+        await write(outside, 'neon/SKILL.md', '# Neon fixture\n');
+        await write(outside, 'neon/references/a.md', 'first\n');
+        await write(outside, 'neon/references/z.md', 'last\n');
         await rm(path.join(root, '.agents/skills'), { recursive: true });
         await symlink(outside, path.join(root, '.agents/skills'));
       } else {
+        await write(outside, 'SKILL.md', '# Neon fixture\n');
+        await write(outside, 'references/a.md', 'first\n');
+        await write(outside, 'references/z.md', 'last\n');
         await rm(path.join(root, '.agents/skills/neon'), { recursive: true });
         await symlink(outside, path.join(root, '.agents/skills/neon'));
       }
+
       const check = verify(root);
       const update = verify(root, '--write');
       expect(check.status).not.toBe(0);
       expect(update.status).not.toBe(0);
     }
+  });
+
+  it('strictly rejects invalid UTF-8 filename bytes', async () => {
+    const module = await import(verifier);
+    expect(() => module.decodeFilenameBytes(Buffer.from([0xff]))).toThrow(/UTF-8/);
+    expect(module.decodeFilenameBytes(Buffer.from('\ufffd', 'utf8'))).toBe('\ufffd');
+  });
+
+  it('rejects a file swapped to a symlink after traversal', async () => {
+    const { root } = await createFixture();
+    const outside = await mkdtemp(path.join(os.tmpdir(), 'updog-vendored-outside-'));
+    tempRoots.push(outside);
+    const victim = path.join(root, '.agents/skills/neon/references/a.md');
+    const external = path.join(outside, 'outside.md');
+    await writeFile(external, 'first\n');
+
+    const { hashVendoredSkill } = await import(verifier);
+    await expect(
+      hashVendoredSkill(path.join(root, '.agents/skills/neon'), {
+        async afterCollect() {
+          await rm(victim);
+          await symlink(external, victim);
+        },
+      })
+    ).rejects.toThrow(/symlink|changed/i);
+  });
+
+  it('fails an update if the lock changes after it was read', async () => {
+    const { root } = await createFixture({
+      lockTransform(lock) {
+        lock.skills.neon.computedHash = 'f'.repeat(64);
+      },
+    });
+    const lockPath = path.join(root, 'skills-lock.json');
+    const replacement = `${await readFile(lockPath, 'utf8')}\n`;
+    const { verifyVendoredSkills } = await import(verifier);
+
+    const result = await verifyVendoredSkills({
+      repoRoot: root,
+      write: true,
+      async beforeCommit() {
+        await writeFile(lockPath, replacement, 'utf8');
+      },
+    });
+
+    expect(result.errors).toContain('skills-lock.json changed while the update was running');
+    expect(await readFile(lockPath, 'utf8')).toBe(replacement);
+  });
+
+  it('keeps the original lock intact when atomic replacement fails', async () => {
+    const { root } = await createFixture({
+      lockTransform(lock) {
+        lock.skills.neon.computedHash = 'f'.repeat(64);
+      },
+    });
+    const lockPath = path.join(root, 'skills-lock.json');
+    const before = await readFile(lockPath, 'utf8');
+    const { verifyVendoredSkills } = await import(verifier);
+
+    await expect(
+      verifyVendoredSkills({
+        repoRoot: root,
+        write: true,
+        async beforeAtomicReplace() {
+          throw new Error('injected replace failure');
+        },
+      })
+    ).rejects.toThrow('injected replace failure');
+    expect(await readFile(lockPath, 'utf8')).toBe(before);
+  });
+
+  it('preserves lock file permissions across atomic replacement', async () => {
+    const { root } = await createFixture({
+      lockTransform(lock) {
+        lock.skills.neon.computedHash = 'f'.repeat(64);
+      },
+    });
+    const lockPath = path.join(root, 'skills-lock.json');
+    await chmod(lockPath, 0o640);
+
+    const update = verify(root, '--write');
+
+    expect(update.status, update.stderr).toBe(0);
+    expect((await stat(lockPath)).mode & 0o777).toBe(0o640);
+  });
+
+  it('fails an update if a skill tree changes after hashing', async () => {
+    const { root } = await createFixture({
+      lockTransform(lock) {
+        lock.skills.neon.computedHash = 'f'.repeat(64);
+      },
+    });
+    const lockPath = path.join(root, 'skills-lock.json');
+    const before = await readFile(lockPath, 'utf8');
+    const { verifyVendoredSkills } = await import(verifier);
+
+    const result = await verifyVendoredSkills({
+      repoRoot: root,
+      write: true,
+      async beforeCommit() {
+        await writeFile(path.join(root, '.agents/skills/neon/SKILL.md'), '# changed after hash\n');
+      },
+    });
+
+    expect(result.errors).toContain('vendored skill tree changed while the update was running');
+    expect(await readFile(lockPath, 'utf8')).toBe(before);
   });
 
   it('rejects malformed computedHash forms in update mode without rewriting the lock', async () => {
