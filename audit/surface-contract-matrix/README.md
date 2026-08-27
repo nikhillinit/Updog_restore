@@ -81,35 +81,41 @@ it is never a mechanical reset-and-carry operation.
 
 ```sh
 (
-set -eu
+copy_seed_snapshot() {
+  for artifact in matrix.json source-inventory.json listener-dispositions.json dormant-candidates.json dormant-inventory.json runtime-exclusions.json condition-overrides.json definition-overrides.json orphans.json; do
+    cp "audit/surface-contract-matrix/$artifact" "$SEED_SNAPSHOT/$artifact" || return 1
+  done
+}
 
-: "${COMMITTED_SOURCE_SHA:?COMMITTED_SOURCE_SHA is required}"
-npm install
-npm ls
-npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --fresh --review-file audit/surface-contract-matrix/g1-review.json
-npx tsx audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs --mode seed --expected-sha "$COMMITTED_SOURCE_SHA"
-npx tsx audit/surface-contract-matrix/scripts/boot-proof.mjs
-SEED_SNAPSHOT="$(mktemp -d)"
-trap 'rm -rf "$SEED_SNAPSHOT"' EXIT HUP INT TERM
-npx tsx audit/surface-contract-matrix/scripts/seed-matrix.mjs
-for artifact in matrix.json source-inventory.json listener-dispositions.json dormant-candidates.json dormant-inventory.json runtime-exclusions.json condition-overrides.json definition-overrides.json orphans.json; do
-  cp "audit/surface-contract-matrix/$artifact" "$SEED_SNAPSHOT/$artifact"
-done
-npx tsx audit/surface-contract-matrix/scripts/seed-matrix.mjs
-for artifact in matrix.json source-inventory.json listener-dispositions.json dormant-candidates.json dormant-inventory.json runtime-exclusions.json condition-overrides.json definition-overrides.json orphans.json; do
-  cmp "$SEED_SNAPSHOT/$artifact" "audit/surface-contract-matrix/$artifact" || {
-    echo "seed output mismatch: $artifact" >&2
-    exit 1
-  }
-done
-npx tsx audit/surface-contract-matrix/scripts/classify-pass.mjs
-npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs
+compare_seed_snapshot() {
+  for artifact in matrix.json source-inventory.json listener-dispositions.json dormant-candidates.json dormant-inventory.json runtime-exclusions.json condition-overrides.json definition-overrides.json orphans.json; do
+    cmp "$SEED_SNAPSHOT/$artifact" "audit/surface-contract-matrix/$artifact" || {
+      echo "seed output mismatch: $artifact" >&2
+      return 1
+    }
+  done
+}
+
+: "${COMMITTED_SOURCE_SHA:?COMMITTED_SOURCE_SHA is required}" &&
+npm install &&
+npm ls &&
+npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --fresh --review-file audit/surface-contract-matrix/g1-review.json &&
+npx tsx audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs --mode seed --expected-sha "$COMMITTED_SOURCE_SHA" &&
+npx tsx audit/surface-contract-matrix/scripts/boot-proof.mjs &&
+SEED_SNAPSHOT="$(mktemp -d)" &&
+trap 'rm -rf "$SEED_SNAPSHOT"' EXIT HUP INT TERM &&
+npx tsx audit/surface-contract-matrix/scripts/seed-matrix.mjs &&
+copy_seed_snapshot &&
+npx tsx audit/surface-contract-matrix/scripts/seed-matrix.mjs &&
+compare_seed_snapshot &&
+npx tsx audit/surface-contract-matrix/scripts/classify-pass.mjs &&
+npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs &&
 npx tsx audit/surface-contract-matrix/scripts/render-matrix.mjs
 )
 ```
 
-Release proof rebuilds the ignored route projection in strict `release` mode
-at the exact candidate SHA immediately before matrix validation. Strict mode
+Release proof rebuilds the ignored route projection in strict `release` mode at
+the exact candidate SHA immediately before matrix validation. Strict mode
 rejects dirty projection inputs, SHA drift, source-inspection failures, and
 count drift; it does not reuse a carried-forward snapshot.
 
@@ -122,11 +128,11 @@ this file; approval is the only consumer of human decisions:
 
 ```sh
 (
-: "${APPROVER_ID:?APPROVER_ID is required}"
-: "${EVIDENCE_REF:?EVIDENCE_REF is required}"
-npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs init-review --review-file audit/surface-contract-matrix/g1-review.json
-npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver "$APPROVER_ID" --evidence "$EVIDENCE_REF" --dry-run
-npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver "$APPROVER_ID" --evidence "$EVIDENCE_REF"
+: "${APPROVER_ID:?APPROVER_ID is required}" &&
+: "${EVIDENCE_REF:?EVIDENCE_REF is required}" &&
+npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs init-review --review-file audit/surface-contract-matrix/g1-review.json &&
+npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver "$APPROVER_ID" --evidence "$EVIDENCE_REF" --dry-run &&
+npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver "$APPROVER_ID" --evidence "$EVIDENCE_REF" &&
 npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver "$APPROVER_ID" --evidence "$EVIDENCE_REF" --close-g1
 )
 ```
