@@ -81,61 +81,100 @@ it is never a mechanical reset-and-carry operation.
 
 ```sh
 (
-: "${COMMITTED_SOURCE_SHA:?COMMITTED_SOURCE_SHA is required}" &&
-npm install &&
-npm ls &&
-npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --fresh --review-file audit/surface-contract-matrix/g1-review.json &&
-npx tsx audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs --mode seed --expected-sha "$COMMITTED_SOURCE_SHA" &&
-npx tsx audit/surface-contract-matrix/scripts/boot-proof.mjs &&
-SEED_SNAPSHOT="$(mktemp -d)" &&
-/bin/sh -s -- "$SEED_SNAPSHOT" <<'SEED_REGENERATION'
-SEED_SNAPSHOT=$1
+exec /bin/sh <<'SEED_REGENERATION'
+set -m
+
+SEED_SNAPSHOT=
+SEED_CHILD_PID=
+SEED_SIGNAL_STATUS=
 
 cleanup_seed_snapshot() {
-  rm -rf "$SEED_SNAPSHOT"
+  if [ -n "$SEED_SNAPSHOT" ]; then
+    rm -rf "$SEED_SNAPSHOT"
+  fi
 }
 
-forward_seed_signal() {
-  seed_signal=$1
+cancel_seed_child() {
+  if [ -n "$SEED_CHILD_PID" ]; then
+    kill -TERM -- "-$SEED_CHILD_PID" 2>/dev/null ||
+      kill -TERM "$SEED_CHILD_PID" 2>/dev/null || :
+    wait "$SEED_CHILD_PID" 2>/dev/null || :
+    SEED_CHILD_PID=
+  fi
+}
+
+handle_seed_signal() {
+  SEED_SIGNAL_STATUS=$1
+  cancel_seed_child
   cleanup_seed_snapshot
-  trap - EXIT HUP INT TERM
-  kill -s "$seed_signal" "$$"
+}
+
+run_seed_command() {
+  if [ -n "$SEED_SIGNAL_STATUS" ]; then
+    return "$SEED_SIGNAL_STATUS"
+  fi
+
+  "$@" </dev/null &
+  SEED_CHILD_PID=$!
+  wait "$SEED_CHILD_PID"
+  seed_status=$?
+  SEED_CHILD_PID=
+
+  if [ -n "$SEED_SIGNAL_STATUS" ]; then
+    return "$SEED_SIGNAL_STATUS"
+  fi
+  return "$seed_status"
 }
 
 copy_seed_snapshot() {
   for artifact in matrix.json source-inventory.json listener-dispositions.json dormant-candidates.json dormant-inventory.json runtime-exclusions.json condition-overrides.json definition-overrides.json orphans.json; do
-    cp "audit/surface-contract-matrix/$artifact" "$SEED_SNAPSHOT/$artifact" || return 1
+    run_seed_command cp "audit/surface-contract-matrix/$artifact" "$SEED_SNAPSHOT/$artifact" || return $?
   done
 }
 
 compare_seed_snapshot() {
   for artifact in matrix.json source-inventory.json listener-dispositions.json dormant-candidates.json dormant-inventory.json runtime-exclusions.json condition-overrides.json definition-overrides.json orphans.json; do
-    cmp "$SEED_SNAPSHOT/$artifact" "audit/surface-contract-matrix/$artifact" || {
+    run_seed_command cmp "$SEED_SNAPSHOT/$artifact" "audit/surface-contract-matrix/$artifact" || {
+      seed_status=$?
       echo "seed output mismatch: $artifact" >&2
-      return 1
+      return "$seed_status"
     }
   done
 }
 
 run_seed_regeneration() {
   trap 'cleanup_seed_snapshot' EXIT
-  trap 'forward_seed_signal HUP' HUP
-  trap 'forward_seed_signal INT' INT
-  trap 'forward_seed_signal TERM' TERM
+  trap 'handle_seed_signal 129' HUP
+  trap 'handle_seed_signal 130' INT
+  trap 'handle_seed_signal 143' TERM
 
-  if npx tsx audit/surface-contract-matrix/scripts/seed-matrix.mjs &&
-    copy_seed_snapshot &&
-    npx tsx audit/surface-contract-matrix/scripts/seed-matrix.mjs &&
-    compare_seed_snapshot &&
-    npx tsx audit/surface-contract-matrix/scripts/classify-pass.mjs &&
-    npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs &&
-    npx tsx audit/surface-contract-matrix/scripts/render-matrix.mjs; then
-    cleanup_seed_snapshot
-    trap - EXIT HUP INT TERM
-    return 0
+  if [ -z "${COMMITTED_SOURCE_SHA:-}" ]; then
+    printf '%s\n' 'COMMITTED_SOURCE_SHA is required' >&2
+    return 2
   fi
 
-  return 1
+  run_seed_command npm install || return $?
+  run_seed_command npm ls || return $?
+  run_seed_command npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --fresh --review-file audit/surface-contract-matrix/g1-review.json || return $?
+  run_seed_command npx tsx audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs --mode seed --expected-sha "$COMMITTED_SOURCE_SHA" || return $?
+  run_seed_command npx tsx audit/surface-contract-matrix/scripts/boot-proof.mjs || return $?
+
+  SEED_SNAPSHOT="$(mktemp -d)" || return 1
+  if [ -n "$SEED_SIGNAL_STATUS" ]; then
+    return "$SEED_SIGNAL_STATUS"
+  fi
+
+  run_seed_command npx tsx audit/surface-contract-matrix/scripts/seed-matrix.mjs || return $?
+  copy_seed_snapshot || return $?
+  run_seed_command npx tsx audit/surface-contract-matrix/scripts/seed-matrix.mjs || return $?
+  compare_seed_snapshot || return $?
+  run_seed_command npx tsx audit/surface-contract-matrix/scripts/classify-pass.mjs || return $?
+  run_seed_command npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs || return $?
+  run_seed_command npx tsx audit/surface-contract-matrix/scripts/render-matrix.mjs || return $?
+
+  cleanup_seed_snapshot
+  trap - EXIT HUP INT TERM
+  return 0
 }
 
 run_seed_regeneration
