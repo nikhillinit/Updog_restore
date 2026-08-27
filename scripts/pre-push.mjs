@@ -112,7 +112,7 @@ if (changedSkillFiles.length > 0) {
 
 if (requiresVendoredSkillLockCheck(changedFiles)) {
   console.log('Vendored skills or lock changed; verifying vendored skill lock...');
-  run('npm', ['run', 'skills:lock:check']);
+  run('node', ['scripts/verify-vendored-skills.mjs']);
 }
 
 const classification = output('node', ['scripts/pre-push-classification.mjs'], {

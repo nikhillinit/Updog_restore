@@ -93,9 +93,18 @@ appendFileSync(
 );
 process.stdout.write(process.env.PRE_PUSH_FIXTURE_CLASSIFICATION);
 
-export function requiresVendoredSkillLockCheck() {
-  return false;
+export function requiresVendoredSkillLockCheck(changedFiles) {
+  return changedFiles.some(
+    (file) => file.startsWith('.agents/skills/') || file === 'skills-lock.json'
+  );
 }
+`
+  );
+  await write(
+    primary,
+    'scripts/verify-vendored-skills.mjs',
+    `process.stderr.write('simulated vendored skill lock failure\\n');
+process.exitCode = 81;
 `
   );
   await write(
@@ -185,8 +194,8 @@ describe('pre-push hook child environment', () => {
       env: hostileHookEnvironment(primary, fixture.environmentLog, 'targeted'),
       encoding: 'utf8',
     });
-    expect(result.status).not.toBe(0);
-    expect(result.stderr + result.stdout).toContain('skills:lock:check');
+    expect(result.status).toBe(81);
+    expect(result.stderr + result.stdout).toContain('simulated vendored skill lock failure');
   });
 
   it('runs vendored skill lock check for a renamed skill path containing a newline', async () => {
@@ -209,8 +218,8 @@ describe('pre-push hook child environment', () => {
       encoding: 'utf8',
     });
 
-    expect(result.status).not.toBe(0);
-    expect(result.stderr + result.stdout).toContain('skills:lock:check');
+    expect(result.status).toBe(81);
+    expect(result.stderr + result.stdout).toContain('simulated vendored skill lock failure');
   });
 
   it.each([

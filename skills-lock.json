@@ -7,7 +7,7 @@
       "sourceType": "github",
       "skillPath": "skills/neon",
       "localPath": ".agents/skills/neon",
-      "computedHash": "53a1a8b4f5e1a1484b5f4aff22bd37d387dfe2c36b4a877790948e9a658cd2b7"
+      "computedHash": "0f6bc5873fa81912dbccc63e3367391aa648150d67b83c9615ed7e688c73ad20"
     },
     "neon-postgres": {
       "source": "neondatabase/agent-skills",

@@ -95,6 +95,13 @@ afterEach(async () => {
 });
 
 describe('vendored skill lock verification', () => {
+  it('verifies the checked-in vendored lock during the unit suite', () => {
+    const result = verify(process.cwd());
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('PASS: 2 vendored skill lock entries verified');
+  });
+
   it('rejects duplicate JSON keys at every object depth without update writes', async () => {
     const { root } = await createFixture();
     const lockPath = path.join(root, 'skills-lock.json');

@@ -44,16 +44,18 @@ describe('pre-push changed-file classification', () => {
     expect(requiresVendoredSkillLockCheck(files)).toBe(expected);
   });
 
-  it('keeps package checks and pre-push wired to vendored skill verification', async () => {
+  it('keeps vendored skill verification package-neutral and directly wired to pre-push', async () => {
     const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
     const source = await readFile('scripts/pre-push.mjs', 'utf8');
+    const skill = await readFile('.agents/skills/neon/SKILL.md', 'utf8');
 
-    expect(packageJson.scripts['skills:lock:check']).toBe(
-      'node scripts/verify-vendored-skills.mjs'
-    );
-    expect(packageJson.scripts.check).toContain('npm run skills:lock:check');
+    expect(packageJson.scripts['skills:lock:check']).toBeUndefined();
+    expect(packageJson.scripts['skills:lock:update']).toBeUndefined();
+    expect(packageJson.scripts.check).toBe('npm run baseline:check');
     expect(source).toContain('requiresVendoredSkillLockCheck(changedFiles)');
-    expect(source).toContain("run('npm', ['run', 'skills:lock:check']);");
+    expect(source).toContain("run('node', ['scripts/verify-vendored-skills.mjs']);");
+    expect(skill).toContain('node scripts/verify-vendored-skills.mjs --write');
+    expect(skill).toContain('node scripts/verify-vendored-skills.mjs');
   });
 
   it('keeps the pre-push hook wired to the classifier and Vitest related mode', async () => {

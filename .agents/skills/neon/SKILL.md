@@ -177,9 +177,9 @@ skills and fetch them manually.
 Do NOT auto-update these skills per session. This repository pins every folder
 under `.agents/skills/` in `skills-lock.json`; update vendored content only
 through an explicit, source-reviewed dependency change. After editing or
-replacing a complete skill folder, run `npm run skills:lock:update`, inspect the
-vendored-content and lockfile diff together, then run
-`npm run skills:lock:check`.
+replacing a complete skill folder, run
+`node scripts/verify-vendored-skills.mjs --write`, inspect the vendored-content
+and lockfile diff together, then run `node scripts/verify-vendored-skills.mjs`.
 
 The lock uses the local-folder `sha256-folder-framed-v2` contract. For each
 skill, relative POSIX file paths are normalized and sorted by their UTF-8 bytes.
