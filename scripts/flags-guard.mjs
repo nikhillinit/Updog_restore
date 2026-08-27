@@ -657,18 +657,15 @@ function analyzeSensitivity(flagName, changes) {
     });
   }
 
-  const audienceChange = changes.audienceChanges
+  const combinedAudienceControlIncrease = changes.audienceChanges
     .filter((change) => change.flag === flagName)
-    .reduce(
-      (strongest, change) => (strongest === undefined || change.amount > strongest.amount ? change : strongest),
-      undefined
-    );
-  if (audienceChange?.amount > 10) {
+    .reduce((sum, change) => sum + change.amount, 0);
+  if (combinedAudienceControlIncrease > 10) {
     issues.push({
       type: 'audience_change',
       flag: flagName,
       severity: 'medium',
-      message: `Flag '${flagName}' audience changed by ${audienceChange.amount}%`,
+      message: `Flag '${flagName}' combined audience-control increases total ${combinedAudienceControlIncrease} percentage points`,
     });
   }
 

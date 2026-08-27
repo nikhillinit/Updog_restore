@@ -1177,6 +1177,69 @@ describe('feature flags approval guard', () => {
     expect(both.status).toBe(0);
   });
 
+  it('requires product signoff when combined same-flag audience-control increases exceed 10', async () => {
+    const repository = await makeRepository(
+      [
+        'key: beta.combined-audience',
+        'default: true',
+        'rolloutPercentage: 0',
+        'targeting:',
+        '  rules:',
+        '    - percentage: 0',
+        '',
+      ].join('\n'),
+      [
+        'key: beta.combined-audience',
+        'default: true',
+        'rolloutPercentage: 6',
+        'targeting:',
+        '  rules:',
+        '    - percentage: 6',
+        '',
+      ].join('\n')
+    );
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+    const withoutSignoff = runGuard(repository.directory, args);
+    const withSignoff = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['product-signoff']),
+    });
+
+    expect(withoutSignoff.status).toBe(1);
+    expect(`${withoutSignoff.stdout}\n${withoutSignoff.stderr}`).toContain('product-signoff');
+    expect(withSignoff.status).toBe(0);
+  });
+
+  it('preserves the strict greater-than boundary for combined audience-control increases', async () => {
+    const repository = await makeRepository(
+      [
+        'key: beta.audience-boundary',
+        'default: true',
+        'rolloutPercentage: 0',
+        'targeting:',
+        '  rules:',
+        '    - percentage: 0',
+        '',
+      ].join('\n'),
+      [
+        'key: beta.audience-boundary',
+        'default: true',
+        'rolloutPercentage: 5',
+        'targeting:',
+        '  rules:',
+        '    - percentage: 5',
+        '',
+      ].join('\n')
+    );
+    const result = runGuard(repository.directory, [
+      '--base',
+      repository.baseSha,
+      '--head',
+      repository.headSha,
+    ]);
+
+    expect(result.status).toBe(0);
+  });
+
   it('requires flags approval for new active and inactive high-risk flags', async () => {
     for (const targetingEnabled of [true, false]) {
       const repository = await makeRepository(
