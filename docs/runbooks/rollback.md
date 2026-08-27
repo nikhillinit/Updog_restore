@@ -123,13 +123,18 @@ unavailable, the recovery workflow's `resolve` mode reconstructs the handle
 from the exact run ID and attempt alone.
 
 ```bash
+: "${CANCELLED_RUN_ID:?CANCELLED_RUN_ID is required}"
+: "${CANCELLED_RUN_ATTEMPT:?CANCELLED_RUN_ATTEMPT is required}"
+: "${EXPECTED_SHA:?EXPECTED_SHA is required}"
+: "${CANARY_FUND_ID:?CANARY_FUND_ID is required}"
+: "${CANARY_RUN_UUID:?CANARY_RUN_UUID is required}"
 gh workflow run release-canary-recovery.yml \
   --ref main \
-  --field github_run_id=<cancelled-run-id> \
-  --field github_run_attempt=<cancelled-run-attempt> \
-  --field expected_sha=<40-lowercase-hex> \
-  --field fund_id=<canary-fund-id> \
-  --field canary_run_id=<canary-run-uuid>
+  --field github_run_id="$CANCELLED_RUN_ID" \
+  --field github_run_attempt="$CANCELLED_RUN_ATTEMPT" \
+  --field expected_sha="$EXPECTED_SHA" \
+  --field fund_id="$CANARY_FUND_ID" \
+  --field canary_run_id="$CANARY_RUN_UUID"
 ```
 
 The workflow resolves the exact workflow execution, performs the version-fenced

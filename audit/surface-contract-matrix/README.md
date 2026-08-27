@@ -82,10 +82,11 @@ it is never a mechanical reset-and-carry operation.
 ```sh
 set -eu
 
+: "${COMMITTED_SOURCE_SHA:?COMMITTED_SOURCE_SHA is required}"
 npm install
 npm ls
 npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --fresh --review-file audit/surface-contract-matrix/g1-review.json
-npx tsx audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs --mode seed --expected-sha <committed-source-sha>
+npx tsx audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs --mode seed --expected-sha "$COMMITTED_SOURCE_SHA"
 npx tsx audit/surface-contract-matrix/scripts/boot-proof.mjs
 SEED_SNAPSHOT="$(mktemp -d)"
 cleanup() {
@@ -121,10 +122,12 @@ After regeneration, initialize and edit the tracked manifest. Seed never reads
 this file; approval is the only consumer of human decisions:
 
 ```sh
+: "${APPROVER_ID:?APPROVER_ID is required}"
+: "${EVIDENCE_REF:?EVIDENCE_REF is required}"
 npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs init-review --review-file audit/surface-contract-matrix/g1-review.json
-npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver <id> --evidence <reference> --dry-run
-npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver <id> --evidence <reference>
-npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver <id> --evidence <reference> --close-g1
+npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver "$APPROVER_ID" --evidence "$EVIDENCE_REF" --dry-run
+npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver "$APPROVER_ID" --evidence "$EVIDENCE_REF"
+npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver "$APPROVER_ID" --evidence "$EVIDENCE_REF" --close-g1
 ```
 
 `--approver` must equal manifest `approver_id`; `--evidence` must equal manifest
