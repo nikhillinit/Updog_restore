@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-07-28
+last_updated: 2026-08-26
 ---
 
 # DEV_BRAIN.md
@@ -11,6 +11,8 @@ Phase-routed AI development for Updog_restore.
 
 - Claude sessions: `CLAUDE.md`
 - Codex sessions: `AGENTS.md`
+- All model/harness sessions: `AGENT-SAFETY.md` before branch, Git-state, CI,
+  security, or financial-allocation work
 - Human docs: `docs/INDEX.md`
 - Agent routing: `.claude/DISCOVERY-MAP.md`
 - Agent directory: `.claude/AGENT-DIRECTORY.md`
