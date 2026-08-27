@@ -9,12 +9,12 @@ last_updated: 2026-07-30
 
 Repository path: `docs/workflows/PRODUCTION_SCRIPTS.md`.
 
-This guide routes production-action authority to the canonical route and confers
-no authority by itself to mutate source, branch, environment, provider,
-production, schema, data, deployment, promotion, or rollback. The canonical
-route is active for repository governance only; it confers no production
-readiness or authorization, and action-specific UNKNOWN prerequisites remain
-blocking.
+This guide confers no authority. It only routes production-action authority to
+the canonical route; it cannot authorize mutation of source, branch,
+environment, provider, production, schema, data, deployment, promotion, or
+rollback. The canonical route is active for repository governance only; it
+confers no production readiness or authorization, and action-specific UNKNOWN
+prerequisites remain blocking.
 
 Production rollback uses a new revert commit on `main`, then the existing
 `Release Production` workflow. It never deploys a detached historical commit,
