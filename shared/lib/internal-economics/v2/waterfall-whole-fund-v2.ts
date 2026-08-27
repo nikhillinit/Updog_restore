@@ -10,6 +10,7 @@ import { computeGpCatchUpAllocationV2, splitQuantizedGpLp } from './catch-up-all
 import {
   apportionCentsLrmFromShares,
   decimalToCents,
+  decimalToCentsFloor,
   centsToDecimalString,
 } from './decimal-cents-v2';
 
@@ -189,10 +190,15 @@ export function runWholeFundWaterfall(
         const eligiblePartners = allPartners.filter(
           (p) => !(p.isGp && input.gpCashPreferredReturnTreatment === 'excluded')
         );
-        const totalAccrued = eligiblePartners.reduce((s, p) => s.plus(p.accruedPreference), ZERO);
-        const prefTarget = Decimal.min(remaining, totalAccrued);
+        // Same quantize-once discipline as deal-by-deal: floored balances bound
+        // the ledger claim, floored availability bounds proceeds, and the
+        // emitted total is reconstructed from integer units.
+        const balanceCents = eligiblePartners.map((p) => decimalToCentsFloor(p.accruedPreference));
+        const totalAccruedCents = balanceCents.reduce((s, c) => s + c, 0n);
+        const availableCents = decimalToCentsFloor(remaining);
+        const targetCents = totalAccruedCents < availableCents ? totalAccruedCents : availableCents;
 
-        if (prefTarget.lte(0)) {
+        if (targetCents <= 0n) {
           result = {
             kind: 'preferred_return',
             priority: tier.priority,
@@ -204,23 +210,25 @@ export function runWholeFundWaterfall(
           break;
         }
 
-        const shares = eligiblePartners.map((p) => p.accruedPreference);
-        const targetCents = decimalToCents(prefTarget);
+        const shares = balanceCents.map((c) => new Decimal(centsToDecimalString(c)));
         const allocCents = apportionCentsLrmFromShares(targetCents, shares);
         const perPartner = new Map<string, Decimal>();
+        let allocatedCents = 0n;
         for (let i = 0; i < eligiblePartners.length; i++) {
           perPartner.set(
             eligiblePartners[i]!.partnerId,
             new Decimal(centsToDecimalString(allocCents[i]!))
           );
+          allocatedCents += allocCents[i]!;
         }
 
+        const allocated = new Decimal(centsToDecimalString(allocatedCents));
         const split = gpLpSplit(perPartner, state.partnerLedgers);
-        remaining = remaining.minus(prefTarget);
+        remaining = remaining.minus(allocated);
         result = {
           kind: 'preferred_return',
           priority: tier.priority,
-          totalAllocated: prefTarget,
+          totalAllocated: allocated,
           gpShare: split.gpShare,
           lpShare: split.lpShare,
           perPartner,

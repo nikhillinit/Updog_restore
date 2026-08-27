@@ -334,7 +334,8 @@ describe('runDealByDealWaterfall gp_catch_up tier (F_2.0.4)', () => {
       for (const deal of reverse ? [...deals].reverse() : deals) {
         processDealLifecycle(state, deal);
       }
-      seedAccruedPreference(state, { 'lp-1': '40000.000000', 'gp-1': '4000.000000' });
+      // Zero accrued preference: a positive fund-level preference balance with
+      // multiple pools fails closed (no per-pool provenance) — covered below.
 
       const result = runDealByDealWaterfall(input, state);
       if (!result.ok) throw new Error('expected deal-by-deal waterfall to succeed');
@@ -379,6 +380,64 @@ describe('runDealByDealWaterfall gp_catch_up tier (F_2.0.4)', () => {
         poolTierSignatures(reverse, reverseIndex, CATCH_UP_POLICY.length)
       );
     }
+  });
+
+  it('fails closed when a positive accrued-preference balance meets multiple pools', () => {
+    const { input, state } = setupCatchUpState();
+    for (const deal of [
+      {
+        partnerId: 'lp-1',
+        contribution: '200000.000000',
+        dealId: 'deal-a',
+        securityId: 'security-a',
+        proceeds: '300000.000000',
+      },
+      {
+        partnerId: 'lp-1',
+        contribution: '150000.000000',
+        dealId: 'deal-b',
+        securityId: 'security-b',
+        proceeds: '260000.000000',
+      },
+    ]) {
+      processDealLifecycle(state, deal);
+    }
+    seedAccruedPreference(state, { 'lp-1': '40000.000000', 'gp-1': '4000.000000' });
+
+    expect(() => runDealByDealWaterfall(input, state)).toThrow(
+      /accrued-preference balance across multiple entitlement pools/
+    );
+  });
+
+  it('bounds single-pool preferred return by the ledger balance with weights independent of settled capital', () => {
+    const { input, state } = setupCatchUpState();
+    processDealLifecycle(state, {
+      partnerId: 'lp-1',
+      contribution: '200000.000000',
+      dealId: 'deal-a',
+      securityId: 'security-a',
+      proceeds: '300000.000000',
+    });
+    // Preference weights (10k/34k) deliberately differ from settled-capital
+    // weights (lp-1 holds all settled capital), so a settled-capital-weighted
+    // allocation would misallocate and fail the per-partner assertions.
+    seedAccruedPreference(state, { 'lp-1': '10000.000000', 'gp-1': '34000.000000' });
+
+    const result = runDealByDealWaterfall(input, state);
+    if (!result.ok) throw new Error('expected deal-by-deal waterfall to succeed');
+
+    const pref = result.tierAllocations.find((tier) => tier.kind === 'preferred_return');
+    if (!pref) throw new Error('expected preferred_return tier');
+
+    expect(pref.totalAllocated.toFixed(6)).toBe('44000.000000');
+    const perPartnerTotal = Array.from(pref.perPartner.values()).reduce(
+      (total, amount) => total.plus(amount),
+      new Decimal(0)
+    );
+    expect(perPartnerTotal.toFixed(6)).toBe(pref.totalAllocated.toFixed(6));
+    expect(pref.perPartner.get('lp-1')!.toFixed(6)).toBe('10000.000000');
+    expect(pref.perPartner.get('gp-1')!.toFixed(6)).toBe('34000.000000');
+    expect(pref.totalAllocated.lte(new Decimal('44000.000000'))).toBe(true);
   });
 
   it('matches whole-fund output for a clean-opening single pool', () => {

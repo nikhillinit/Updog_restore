@@ -10,6 +10,7 @@ import { computeGpCatchUpAllocationV2, splitQuantizedGpLp } from './catch-up-all
 import {
   apportionCentsLrmFromShares,
   decimalToCents,
+  decimalToCentsFloor,
   centsToDecimalString,
 } from './decimal-cents-v2';
 
@@ -136,23 +137,29 @@ function allocatePreferredReturn(
     (p) => !(p.isGp && gpTreatment === 'excluded')
   );
 
-  const totalAccrued = eligiblePartners.reduce((s, p) => s.plus(p.accruedPreference), ZERO);
-  const prefTarget = Decimal.min(available, totalAccrued);
-  if (prefTarget.lte(0)) {
+  // Quantize once in integer units: floored balances bound the ledger claim,
+  // floored availability bounds proceeds, and the allocated total is
+  // reconstructed from the emitted units so it always equals the partner sum.
+  const balanceCents = eligiblePartners.map((p) => decimalToCentsFloor(p.accruedPreference));
+  const totalAccruedCents = balanceCents.reduce((s, c) => s + c, 0n);
+  const availableCents = decimalToCentsFloor(available);
+  const targetCents = totalAccruedCents < availableCents ? totalAccruedCents : availableCents;
+  if (targetCents <= 0n) {
     return { allocated: ZERO, gpShare: ZERO, lpShare: ZERO, perPartner: new Map() };
   }
 
-  const shares = eligiblePartners.map((p) => p.accruedPreference);
-  const targetCents = decimalToCents(prefTarget);
+  const shares = balanceCents.map((c) => new Decimal(centsToDecimalString(c)));
   const allocCents = apportionCentsLrmFromShares(targetCents, shares);
 
   const perPartner = new Map<string, Decimal>();
   let gpTotal = ZERO;
   let lpTotal = ZERO;
+  let allocatedCents = 0n;
 
   for (let i = 0; i < eligiblePartners.length; i++) {
     const amount = new Decimal(centsToDecimalString(allocCents[i]!));
     perPartner.set(eligiblePartners[i]!.partnerId, amount);
+    allocatedCents += allocCents[i]!;
     if (eligiblePartners[i]!.isGp) {
       gpTotal = gpTotal.plus(amount);
     } else {
@@ -160,7 +167,12 @@ function allocatePreferredReturn(
     }
   }
 
-  return { allocated: prefTarget, gpShare: gpTotal, lpShare: lpTotal, perPartner };
+  return {
+    allocated: new Decimal(centsToDecimalString(allocatedCents)),
+    gpShare: gpTotal,
+    lpShare: lpTotal,
+    perPartner,
+  };
 }
 
 function apportionBySettledCapital(
@@ -294,6 +306,24 @@ export function runDealByDealWaterfall(
     if (hasOpeningProfitHistory) {
       throw new Error(
         'Deal-by-deal waterfall cannot consume nonzero scalar opening profit-decomposition history with gp_catch_up.'
+      );
+    }
+  }
+
+  // Accrued preference is a fund-level per-partner balance with no per-pool
+  // provenance. Allocating it in more than one pool either double-pays the
+  // ledger (current defect) or imposes a cross-pool consumption priority that
+  // contradicts pool independence, so multi-pool runs with a positive
+  // preference entitlement fail closed. Unreachable on admitted public input.
+  if (policy.some((tier) => tier.kind === 'preferred_return')) {
+    const eligibleAccrued = Array.from(state.partnerLedgers.values())
+      .filter((p) => !(p.isGp && input.gpCashPreferredReturnTreatment === 'excluded'))
+      .reduce((s, p) => s.plus(p.accruedPreference), ZERO);
+    const positiveProceedsPools = pools.filter((pool) => pool.proceedsAvailable.gt(0)).length;
+
+    if (eligibleAccrued.gt(0) && positiveProceedsPools > 1) {
+      throw new Error(
+        'Deal-by-deal waterfall cannot allocate a fund-level accrued-preference balance across multiple entitlement pools without per-pool preference provenance.'
       );
     }
   }

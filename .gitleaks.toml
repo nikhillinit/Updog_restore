@@ -72,11 +72,12 @@ paths = [
 ]
 
 [[allowlists]]
-description = "Allow historical .mimosa hook-state baselines: content-addressed snapshots of tracked test sources (supertest/vitest fixtures with synthetic keys) accidentally committed in c20bbbd69; directory is gitignored and untracked since, so this covers repo-history scans only"
+description = "Allow historical .mimosa hook-state baselines: content-addressed snapshots of tracked test sources (supertest/vitest fixtures with synthetic keys) accidentally committed in c20bbbd69; directory is gitignored and untracked since. Pinned to that exact commit AND the sha256-named baseline blob shape, so any later force-added file under .mimosa (a new commit) is NOT suppressed"
 targetRules = ["generic-api-key"]
 condition = "AND"
+commits = ["c20bbbd69b6fb7c5409b3e72d59264ea55a418f7"]
 paths = [
-  '''^\.mimosa/hook-state/'''
+  '''^\.mimosa/hook-state/sess_[0-9a-f-]+\.[A-Za-z0-9.-]+\.baseline/[0-9a-f]{64}\.source$'''
 ]
 
 [[allowlists]]
