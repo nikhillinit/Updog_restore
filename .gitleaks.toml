@@ -70,3 +70,34 @@ regexes = [
 paths = [
   '''^tests/fixtures/security/secret-scan-negative-control\.txt\.template$'''
 ]
+
+[[allowlists]]
+description = "Allow historical .mimosa hook-state baselines: content-addressed snapshots of tracked test sources (supertest/vitest fixtures with synthetic keys) accidentally committed in c20bbbd69; directory is gitignored and untracked since, so this covers repo-history scans only"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = [
+  '''^\.mimosa/hook-state/'''
+]
+
+[[allowlists]]
+description = "Allow historical fund-scenario-sets synthetic JWT fixture (stale branch commit 3002f458e; file absent at HEAD)"
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''process\.env\.JWT_SECRET\s*=\s*'route-surface-test-secret-32-chars-min';'''
+]
+paths = [
+  '''^tests/unit/routes/fund-scenario-sets-source-config\.test\.ts$'''
+]
+
+[[allowlists]]
+description = "Allow historical fund-scenario-sets deterministic idempotency fixture (stale branch commit 3002f458e; file absent at HEAD)"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''\.set\('Idempotency-Key',\s*'route-v2-happy'\)'''
+]
+paths = [
+  '''^tests/unit/routes/fund-scenario-sets-source-config\.test\.ts$'''
+]
