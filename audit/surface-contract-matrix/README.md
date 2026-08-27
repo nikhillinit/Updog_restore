@@ -81,6 +81,27 @@ it is never a mechanical reset-and-carry operation.
 
 ```sh
 (
+: "${COMMITTED_SOURCE_SHA:?COMMITTED_SOURCE_SHA is required}" &&
+npm install &&
+npm ls &&
+npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --fresh --review-file audit/surface-contract-matrix/g1-review.json &&
+npx tsx audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs --mode seed --expected-sha "$COMMITTED_SOURCE_SHA" &&
+npx tsx audit/surface-contract-matrix/scripts/boot-proof.mjs &&
+SEED_SNAPSHOT="$(mktemp -d)" &&
+/bin/sh -s -- "$SEED_SNAPSHOT" <<'SEED_REGENERATION'
+SEED_SNAPSHOT=$1
+
+cleanup_seed_snapshot() {
+  rm -rf "$SEED_SNAPSHOT"
+}
+
+forward_seed_signal() {
+  seed_signal=$1
+  cleanup_seed_snapshot
+  trap - EXIT HUP INT TERM
+  kill -s "$seed_signal" "$$"
+}
+
 copy_seed_snapshot() {
   for artifact in matrix.json source-inventory.json listener-dispositions.json dormant-candidates.json dormant-inventory.json runtime-exclusions.json condition-overrides.json definition-overrides.json orphans.json; do
     cp "audit/surface-contract-matrix/$artifact" "$SEED_SNAPSHOT/$artifact" || return 1
@@ -96,33 +117,29 @@ compare_seed_snapshot() {
   done
 }
 
-cleanup_seed_snapshot() {
-  rm -rf "$SEED_SNAPSHOT"
-}
-
 run_seed_regeneration() {
-  trap 'cleanup_seed_snapshot; return 129' HUP
-  trap 'cleanup_seed_snapshot; return 130' INT
-  trap 'cleanup_seed_snapshot; return 143' TERM
+  trap 'cleanup_seed_snapshot' EXIT
+  trap 'forward_seed_signal HUP' HUP
+  trap 'forward_seed_signal INT' INT
+  trap 'forward_seed_signal TERM' TERM
 
-  npx tsx audit/surface-contract-matrix/scripts/seed-matrix.mjs &&
-  copy_seed_snapshot &&
-  npx tsx audit/surface-contract-matrix/scripts/seed-matrix.mjs &&
-  compare_seed_snapshot &&
-  npx tsx audit/surface-contract-matrix/scripts/classify-pass.mjs &&
-  npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs &&
-  npx tsx audit/surface-contract-matrix/scripts/render-matrix.mjs
+  if npx tsx audit/surface-contract-matrix/scripts/seed-matrix.mjs &&
+    copy_seed_snapshot &&
+    npx tsx audit/surface-contract-matrix/scripts/seed-matrix.mjs &&
+    compare_seed_snapshot &&
+    npx tsx audit/surface-contract-matrix/scripts/classify-pass.mjs &&
+    npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs &&
+    npx tsx audit/surface-contract-matrix/scripts/render-matrix.mjs; then
+    cleanup_seed_snapshot
+    trap - EXIT HUP INT TERM
+    return 0
+  fi
+
+  return 1
 }
 
-: "${COMMITTED_SOURCE_SHA:?COMMITTED_SOURCE_SHA is required}" &&
-npm install &&
-npm ls &&
-npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --fresh --review-file audit/surface-contract-matrix/g1-review.json &&
-npx tsx audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs --mode seed --expected-sha "$COMMITTED_SOURCE_SHA" &&
-npx tsx audit/surface-contract-matrix/scripts/boot-proof.mjs &&
-SEED_SNAPSHOT="$(mktemp -d)" &&
-trap 'cleanup_seed_snapshot' EXIT &&
 run_seed_regeneration
+SEED_REGENERATION
 )
 ```
 
