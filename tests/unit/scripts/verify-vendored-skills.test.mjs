@@ -1,6 +1,16 @@
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
-import { chmod, mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import {
+  access,
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -195,6 +205,68 @@ describe('vendored skill lock verification', () => {
 
     expect(result.errors).toContain('skills-lock.json changed while the update was running');
     expect(await readFile(lockPath, 'utf8')).toBe(replacement);
+  });
+
+  it('serializes canonical writers across final verification and replacement', async () => {
+    const { root } = await createFixture({
+      lockTransform(lock) {
+        lock.skills.neon.computedHash = 'f'.repeat(64);
+      },
+    });
+    const { verifyVendoredSkills } = await import(verifier);
+    let announceFinalVerification;
+    const finalVerificationReached = new Promise((resolve) => {
+      announceFinalVerification = resolve;
+    });
+    let resumeFirstWriter;
+    const firstWriterMayResume = new Promise((resolve) => {
+      resumeFirstWriter = resolve;
+    });
+
+    const firstWriter = verifyVendoredSkills({
+      repoRoot: root,
+      write: true,
+      async afterFinalVerification() {
+        announceFinalVerification();
+        await firstWriterMayResume;
+      },
+    });
+    const firstPhase = await Promise.race([
+      finalVerificationReached.then(() => 'final-verification'),
+      firstWriter.then(() => 'completed'),
+    ]);
+
+    expect(firstPhase).toBe('final-verification');
+    const secondWriter = await verifyVendoredSkills({ repoRoot: root, write: true });
+    expect(secondWriter.errors).toContain('skills-lock.json update already in progress');
+
+    resumeFirstWriter();
+    expect((await firstWriter).errors).toEqual([]);
+    await expect(access(path.join(root, '.skills-lock.json.update.lock'))).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+  });
+
+  it('fails closed if the skill tree changes after final verification', async () => {
+    const { root } = await createFixture({
+      lockTransform(lock) {
+        lock.skills.neon.computedHash = 'f'.repeat(64);
+      },
+    });
+    const { verifyVendoredSkills } = await import(verifier);
+
+    const result = await verifyVendoredSkills({
+      repoRoot: root,
+      write: true,
+      async afterFinalVerification() {
+        await writeFile(path.join(root, '.agents/skills/neon/SKILL.md'), '# changed before rename\n');
+      },
+    });
+
+    expect(result.errors).toContain('vendored skill tree changed while publishing the lock');
+    await expect(access(path.join(root, '.skills-lock.json.update.lock'))).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
   });
 
   it('keeps the original lock intact when atomic replacement fails', async () => {

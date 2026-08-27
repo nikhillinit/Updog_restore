@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 export const HASH_CONTRACT = 'sha256-folder-framed-v2';
 const LOCK_FILE = 'skills-lock.json';
+const UPDATE_LEASE_FILE = '.skills-lock.json.update.lock';
 const VENDORED_ROOT = '.agents/skills';
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const SKILL_NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
@@ -525,6 +526,16 @@ async function writeLockAtomically({ contents, lockPath, mode, options, verifyUn
     const errors = await verifyUnchanged();
     if (errors.length > 0) return errors;
 
+    await options.afterFinalVerification?.();
+    const publishErrors = await verifyUnchanged();
+    if (publishErrors.length > 0) {
+      return publishErrors.map((error) =>
+        error.includes('vendored skill tree changed')
+          ? 'vendored skill tree changed while publishing the lock'
+          : error
+      );
+    }
+
     await rename(temporaryPath, lockPath);
     let directoryHandle;
     try {
@@ -540,9 +551,26 @@ async function writeLockAtomically({ contents, lockPath, mode, options, verifyUn
   }
 }
 
-export async function verifyVendoredSkills(options) {
-  const write = options.write ?? false;
-  const repoRoot = await canonicalDirectory(options.repoRoot, 'repository root');
+async function acquireUpdateLease(repoRoot) {
+  const leasePath = path.join(repoRoot, UPDATE_LEASE_FILE);
+  let handle;
+  try {
+    handle = await open(leasePath, WRITE_EXCLUSIVE_NO_FOLLOW, 0o600);
+    await handle.writeFile(`${process.pid}\n`, 'utf8');
+    await handle.sync();
+  } catch (error) {
+    await handle?.close();
+    if (error.code === 'EEXIST' || error.code === 'ELOOP') return null;
+    throw error;
+  }
+
+  return async () => {
+    await handle.close();
+    await rm(leasePath, { force: true });
+  };
+}
+
+async function verifyVendoredSkillsWithRoot(options, repoRoot, write) {
   const errors = [];
   const lockSnapshot = await readLock(repoRoot);
   const { lock } = lockSnapshot;
@@ -617,6 +645,27 @@ export async function verifyVendoredSkills(options) {
     return { errors: writeErrors, updated: 0, verified: computed.size };
   }
   return { errors: [], updated, verified: computed.size };
+}
+
+export async function verifyVendoredSkills(options) {
+  const write = options.write ?? false;
+  const repoRoot = await canonicalDirectory(options.repoRoot, 'repository root');
+  if (!write) return verifyVendoredSkillsWithRoot(options, repoRoot, false);
+
+  const releaseLease = await acquireUpdateLease(repoRoot);
+  if (!releaseLease) {
+    return {
+      errors: [`${LOCK_FILE} update already in progress`],
+      updated: 0,
+      verified: 0,
+    };
+  }
+
+  try {
+    return await verifyVendoredSkillsWithRoot(options, repoRoot, true);
+  } finally {
+    await releaseLease();
+  }
 }
 
 function parseArgs(argv) {
