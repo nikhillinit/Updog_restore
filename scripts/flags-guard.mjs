@@ -7,13 +7,13 @@
 
 import fs from 'fs/promises';
 import process from 'node:process';
+import ts from 'typescript';
 import YAML from 'yaml';
 import {
   assertGitCommit,
   assertValidGitRef,
   safeGitDiffFile,
   safeGitDiffFiles,
-  safeGitMergeBase,
   safeGitReadFileAtCommit,
 } from './lib/git-security.mjs';
 
@@ -129,9 +129,8 @@ function getFileChanges(file, base, head) {
 }
 
 function getFileSnapshots(file, base, head) {
-  const mergeBase = safeGitMergeBase(base, head);
   return {
-    before: safeGitReadFileAtCommit(mergeBase, file, { allowMissing: true }),
+    before: safeGitReadFileAtCommit(base, file, { allowMissing: true }),
     after: safeGitReadFileAtCommit(head, file, { allowMissing: true }),
   };
 }
@@ -147,90 +146,6 @@ function isFlagFile(file) {
   );
 }
 
-function parseFlagChanges(diff) {
-  const changes = {
-    added: [],
-    removed: [],
-    modified: [],
-    exposureChanges: [],
-    audienceChanges: [],
-    killSwitchChanges: [],
-  };
-
-  const lines = diff.split('\n');
-  let currentFlag = null;
-  const keyPattern = /^[-+ ]?\s*key:\s*["']?([^"'\s]+)["']?\s*$/;
-  const objectFlagPattern = /["']([^"']+)["']\s*:\s*\{/;
-  const removedEnabledFlags = new Map();
-
-  for (const line of lines) {
-    if (line.startsWith('@@')) {
-      currentFlag = null;
-      removedEnabledFlags.clear();
-      continue;
-    }
-
-    const keyMatch = line.match(keyPattern);
-    const objectFlagMatch = line.match(objectFlagPattern);
-    if (keyMatch) currentFlag = keyMatch[1];
-    if (objectFlagMatch) currentFlag = objectFlagMatch[1];
-
-    const isAddition = line.startsWith('+') && !line.startsWith('+++');
-    const isRemoval = line.startsWith('-') && !line.startsWith('---');
-    if (!isAddition && !isRemoval) continue;
-
-    if (isAddition && objectFlagMatch) changes.added.push(currentFlag);
-    if (isRemoval && objectFlagMatch) changes.removed.push(currentFlag);
-
-    const activationMatch = line.match(/\b(?:enabled|exposure)\s*:\s*(true|false)\b/);
-    if (currentFlag && isRemoval && activationMatch?.[1] === 'false') {
-      removedEnabledFlags.set(currentFlag, (removedEnabledFlags.get(currentFlag) ?? 0) + 1);
-    }
-    if (currentFlag && isAddition && activationMatch?.[1] === 'true') {
-      const removedCount = removedEnabledFlags.get(currentFlag) ?? 0;
-      if (removedCount > 0) {
-        if (removedCount === 1) removedEnabledFlags.delete(currentFlag);
-        else if (removedCount > 1) removedEnabledFlags.set(currentFlag, removedCount - 1);
-        changes.exposureChanges.push({
-          flag: currentFlag,
-          change: 'enabled',
-          from: false,
-          to: true,
-        });
-      }
-    }
-
-    if (currentFlag && (line.includes('percentage:') || line.includes('audience:'))) {
-      const percentMatch = line.match(/percentage:\s*(\d+)/);
-      if (percentMatch) {
-        const percent = Number.parseInt(percentMatch[1], 10);
-        if (Math.abs(percent) > 10) {
-          changes.audienceChanges.push({
-            flag: currentFlag,
-            change: isAddition ? 'increase' : 'decrease',
-            amount: percent,
-          });
-        }
-      }
-    }
-
-    if (
-      currentFlag &&
-      isRemoval &&
-      (line.includes('killSwitch:') || line.includes('emergency:')) &&
-      line.includes('true')
-    ) {
-      changes.killSwitchChanges.push({
-        flag: currentFlag,
-        change: 'removed',
-        critical: true,
-      });
-    }
-  }
-
-  return changes;
-}
-
 function emptyFlagChanges() {
   return {
     added: [],
@@ -239,6 +154,7 @@ function emptyFlagChanges() {
     exposureChanges: [],
     audienceChanges: [],
     killSwitchChanges: [],
+    riskChanges: [],
   };
 }
 
@@ -246,38 +162,108 @@ function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function collectActivationFields(flagName, config) {
+const RISK_LEVELS = new Map([
+  ['low', 0],
+  ['medium', 1],
+  ['high', 2],
+]);
+
+function makeFlagSemantics() {
+  return {
+    activation: new Map(),
+    audience: new Map(),
+    emergency: undefined,
+    exposeToClient: undefined,
+    killSwitch: undefined,
+    risk: undefined,
+  };
+}
+
+function validatePercentage(flagName, path, value, format) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100) {
+    throw new Error(
+      `Malformed ${format} flag '${flagName}': ${path} must be a finite number from 0 to 100`
+    );
+  }
+  return value;
+}
+
+function collectYamlAudience(flagName, value, path, audience) {
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) =>
+      collectYamlAudience(flagName, entry, `${path}.${index}`, audience)
+    );
+    return;
+  }
+  if (!isObject(value)) return;
+  for (const [field, child] of Object.entries(value)) {
+    const childPath = `${path}.${field}`;
+    if (field === 'percentage') {
+      audience.set(childPath, validatePercentage(flagName, childPath, child, 'YAML'));
+    } else if (field === 'audience' && typeof child === 'number') {
+      audience.set(childPath, validatePercentage(flagName, childPath, child, 'YAML'));
+    } else {
+      collectYamlAudience(flagName, child, childPath, audience);
+    }
+  }
+}
+
+function collectYamlFlagSemantics(flagName, config) {
   if (!isObject(config)) {
     throw new Error(`Malformed YAML flag '${flagName}': definition must be a mapping`);
   }
 
-  const activation = new Map();
-  const addBoolean = (path, value) => {
+  const semantics = makeFlagSemantics();
+  const addBoolean = (collection, path, value) => {
     if (typeof value !== 'boolean') {
       throw new Error(`Malformed YAML flag '${flagName}': ${path} must be boolean`);
     }
-    activation.set(path, value);
+    collection.set(path, value);
   };
 
-  if (Object.hasOwn(config, 'default')) addBoolean('default', config.default);
+  if (Object.hasOwn(config, 'default')) {
+    addBoolean(semantics.activation, 'default', config.default);
+  }
   if (Object.hasOwn(config, 'targeting')) {
     if (!isObject(config.targeting)) {
       throw new Error(`Malformed YAML flag '${flagName}': targeting must be a mapping`);
     }
     if (Object.hasOwn(config.targeting, 'enabled')) {
-      addBoolean('targeting.enabled', config.targeting.enabled);
+      addBoolean(semantics.activation, 'targeting.enabled', config.targeting.enabled);
     }
+    collectYamlAudience(flagName, config.targeting, 'targeting', semantics.audience);
   }
   if (Object.hasOwn(config, 'environments')) {
     if (!isObject(config.environments)) {
       throw new Error(`Malformed YAML flag '${flagName}': environments must be a mapping`);
     }
     for (const [environment, value] of Object.entries(config.environments)) {
-      addBoolean(`environments.${environment}`, value);
+      addBoolean(semantics.activation, `environments.${environment}`, value);
     }
   }
+  if (Object.hasOwn(config, 'rolloutPercentage')) {
+    semantics.audience.set(
+      'rolloutPercentage',
+      validatePercentage(flagName, 'rolloutPercentage', config.rolloutPercentage, 'YAML')
+    );
+  }
+  for (const field of ['exposeToClient', 'killSwitch', 'emergency']) {
+    if (!Object.hasOwn(config, field)) continue;
+    if (typeof config[field] !== 'boolean') {
+      throw new Error(`Malformed YAML flag '${flagName}': ${field} must be boolean`);
+    }
+    semantics[field] = config[field];
+  }
+  if (Object.hasOwn(config, 'risk')) {
+    if (typeof config.risk !== 'string' || !RISK_LEVELS.has(config.risk)) {
+      throw new Error(
+        `Malformed YAML flag '${flagName}': risk must be one of ${[...RISK_LEVELS.keys()].join(', ')}`
+      );
+    }
+    semantics.risk = config.risk;
+  }
 
-  return activation;
+  return semantics;
 }
 
 function parseYamlFlags(contents, file) {
@@ -296,72 +282,301 @@ function parseYamlFlags(contents, file) {
     throw new Error(`Malformed YAML flag file ${file}: root must be a mapping`);
   }
 
+  const hasCanonicalRoot = Object.hasOwn(document, 'flags');
+  const hasFlatRoot = Object.hasOwn(document, 'key');
+  if (hasCanonicalRoot === hasFlatRoot) {
+    throw new Error(
+      `Malformed YAML flag file ${file}: expected exactly one flags or key root; ambiguous roots are forbidden`
+    );
+  }
+
   const flags = new Map();
-  if (Object.hasOwn(document, 'flags')) {
+  if (hasCanonicalRoot) {
     if (!isObject(document.flags)) {
       throw new Error(`Malformed YAML flag file ${file}: flags must be a mapping`);
     }
     for (const [flagName, config] of Object.entries(document.flags)) {
-      flags.set(flagName, collectActivationFields(flagName, config));
+      flags.set(flagName, collectYamlFlagSemantics(flagName, config));
     }
     return flags;
   }
 
-  if (Object.hasOwn(document, 'key')) {
-    if (typeof document.key !== 'string' || document.key.trim().length === 0) {
-      throw new Error(`Malformed YAML flag file ${file}: key must be a non-empty string`);
-    }
-    flags.set(document.key, collectActivationFields(document.key, document));
+  if (typeof document.key !== 'string' || document.key.trim().length === 0) {
+    throw new Error(`Malformed YAML flag file ${file}: key must be a non-empty string`);
   }
+  flags.set(document.key, collectYamlFlagSemantics(document.key, document));
   return flags;
 }
 
-function parseYamlFlagChanges(beforeContents, afterContents, file) {
-  const before = parseYamlFlags(beforeContents, file);
-  const after = parseYamlFlags(afterContents, file);
-  const changes = emptyFlagChanges();
+function addExposureChange(changes, flagName) {
+  if (!changes.exposureChanges.some((change) => change.flag === flagName)) {
+    changes.exposureChanges.push({ flag: flagName, change: 'enabled', from: false, to: true });
+  }
+}
 
-  for (const [flagName, activation] of after) {
-    const previousActivation = before.get(flagName);
-    if (!previousActivation) {
-      changes.added.push(flagName);
-      if ([...activation.values()].some((value) => value === true)) {
-        changes.exposureChanges.push({
-          flag: flagName,
-          change: 'enabled',
-          from: false,
-          to: true,
-        });
-      }
-      continue;
-    }
+function compareFlagSemantics(flagName, previous, current, changes) {
+  const activationPaths = new Set([...previous.activation.keys(), ...current.activation.keys()]);
+  if (
+    [...activationPaths].some(
+      (path) => previous.activation.get(path) !== true && current.activation.get(path) === true
+    ) ||
+    (previous.exposeToClient !== true && current.exposeToClient === true)
+  ) {
+    addExposureChange(changes, flagName);
+  }
 
-    const activationPaths = new Set([...previousActivation.keys(), ...activation.keys()]);
-    if (
-      [...activationPaths].some(
-        (path) => previousActivation.get(path) === false && activation.get(path) === true
-      )
-    ) {
-      changes.exposureChanges.push({
+  const audiencePaths = new Set([...previous.audience.keys(), ...current.audience.keys()]);
+  for (const path of audiencePaths) {
+    const from = previous.audience.get(path) ?? 0;
+    const to = current.audience.get(path) ?? 0;
+    if (to > from) {
+      changes.audienceChanges.push({
         flag: flagName,
-        change: 'enabled',
-        from: false,
-        to: true,
+        change: 'increase',
+        amount: to - from,
+        from,
+        to,
       });
     }
   }
 
-  for (const flagName of before.keys()) {
-    if (!after.has(flagName)) changes.removed.push(flagName);
+  if (
+    (previous.killSwitch === true && current.killSwitch !== true) ||
+    (previous.emergency === true && current.emergency !== true)
+  ) {
+    changes.killSwitchChanges.push({ flag: flagName, change: 'removed', critical: true });
   }
 
+  const previousRisk = previous.risk === undefined ? undefined : RISK_LEVELS.get(previous.risk);
+  const currentRisk = current.risk === undefined ? undefined : RISK_LEVELS.get(current.risk);
+  if (previousRisk !== undefined && currentRisk !== undefined && currentRisk > previousRisk) {
+    changes.riskChanges.push({ flag: flagName, from: previous.risk, to: current.risk });
+  }
+}
+
+function addNewFlagChanges(flagName, semantics, changes) {
+  changes.added.push(flagName);
+  if (
+    [...semantics.activation.values()].some((value) => value === true) ||
+    semantics.exposeToClient === true
+  ) {
+    addExposureChange(changes, flagName);
+  }
+  for (const [path, to] of semantics.audience) {
+    if (to > 0) {
+      changes.audienceChanges.push({
+        flag: flagName,
+        change: 'increase',
+        amount: to,
+        from: 0,
+        path,
+        to,
+      });
+    }
+  }
+}
+
+function compareFlagMaps(before, after) {
+  const changes = emptyFlagChanges();
+  for (const [flagName, semantics] of after) {
+    const previousSemantics = before.get(flagName);
+    if (!previousSemantics) {
+      addNewFlagChanges(flagName, semantics, changes);
+      continue;
+    }
+    compareFlagSemantics(flagName, previousSemantics, semantics, changes);
+  }
+  for (const [flagName, semantics] of before) {
+    if (after.has(flagName)) continue;
+    changes.removed.push(flagName);
+    if (semantics.killSwitch === true || semantics.emergency === true) {
+      changes.killSwitchChanges.push({ flag: flagName, change: 'removed', critical: true });
+    }
+  }
   return changes;
 }
 
-function parseChangesForFile(file, diff, base, head) {
-  if (!/\.ya?ml$/i.test(file)) return parseFlagChanges(diff);
+function parseYamlFlagChanges(beforeContents, afterContents, file) {
+  return compareFlagMaps(parseYamlFlags(beforeContents, file), parseYamlFlags(afterContents, file));
+}
+
+function propertyName(node) {
+  if (
+    ts.isIdentifier(node) ||
+    ts.isStringLiteral(node) ||
+    ts.isNoSubstitutionTemplateLiteral(node)
+  ) {
+    return node.text;
+  }
+  return undefined;
+}
+
+function booleanLiteral(flagName, path, node, file) {
+  if (node.kind === ts.SyntaxKind.TrueKeyword) return true;
+  if (node.kind === ts.SyntaxKind.FalseKeyword) return false;
+  throw new Error(`Malformed JavaScript flag '${flagName}' in ${file}: ${path} must be boolean`);
+}
+
+function numericLiteral(flagName, path, node, file) {
+  if (!ts.isNumericLiteral(node)) {
+    throw new Error(`Malformed JavaScript flag '${flagName}' in ${file}: ${path} must be numeric`);
+  }
+  return validatePercentage(flagName, path, Number(node.text), 'JavaScript');
+}
+
+function stringLiteral(flagName, path, node, file) {
+  if (!ts.isStringLiteral(node) && !ts.isNoSubstitutionTemplateLiteral(node)) {
+    throw new Error(`Malformed JavaScript flag '${flagName}' in ${file}: ${path} must be a string`);
+  }
+  return node.text;
+}
+
+function collectJavaScriptAudience(flagName, node, path, audience, file) {
+  if (ts.isArrayLiteralExpression(node)) {
+    node.elements.forEach((entry, index) =>
+      collectJavaScriptAudience(flagName, entry, `${path}.${index}`, audience, file)
+    );
+    return;
+  }
+  if (!ts.isObjectLiteralExpression(node)) return;
+  for (const property of node.properties) {
+    if (!ts.isPropertyAssignment(property)) continue;
+    const field = propertyName(property.name);
+    if (field === undefined) continue;
+    const childPath = `${path}.${field}`;
+    if (field === 'percentage') {
+      audience.set(childPath, numericLiteral(flagName, childPath, property.initializer, file));
+    } else if (field === 'audience' && ts.isNumericLiteral(property.initializer)) {
+      audience.set(childPath, numericLiteral(flagName, childPath, property.initializer, file));
+    } else {
+      collectJavaScriptAudience(flagName, property.initializer, childPath, audience, file);
+    }
+  }
+}
+
+function collectJavaScriptFlagSemantics(flagName, object, file) {
+  const semantics = makeFlagSemantics();
+  for (const property of object.properties) {
+    if (!ts.isPropertyAssignment(property)) continue;
+    const field = propertyName(property.name);
+    if (field === undefined) continue;
+    if (field === 'enabled' || field === 'exposure') {
+      semantics.activation.set(field, booleanLiteral(flagName, field, property.initializer, file));
+    } else if (field === 'exposeToClient' || field === 'killSwitch' || field === 'emergency') {
+      semantics[field] = booleanLiteral(flagName, field, property.initializer, file);
+    } else if (field === 'rolloutPercentage' || field === 'percentage') {
+      semantics.audience.set(field, numericLiteral(flagName, field, property.initializer, file));
+    } else if (field === 'risk') {
+      const risk = stringLiteral(flagName, field, property.initializer, file);
+      if (!RISK_LEVELS.has(risk)) {
+        throw new Error(
+          `Malformed JavaScript flag '${flagName}' in ${file}: risk must be one of ${[...RISK_LEVELS.keys()].join(', ')}`
+        );
+      }
+      semantics.risk = risk;
+    } else if (field === 'targeting') {
+      if (!ts.isObjectLiteralExpression(property.initializer)) {
+        throw new Error(
+          `Malformed JavaScript flag '${flagName}' in ${file}: targeting must be an object literal`
+        );
+      }
+      for (const targetingProperty of property.initializer.properties) {
+        if (!ts.isPropertyAssignment(targetingProperty)) continue;
+        if (propertyName(targetingProperty.name) === 'enabled') {
+          semantics.activation.set(
+            'targeting.enabled',
+            booleanLiteral(flagName, 'targeting.enabled', targetingProperty.initializer, file)
+          );
+        }
+      }
+      collectJavaScriptAudience(
+        flagName,
+        property.initializer,
+        'targeting',
+        semantics.audience,
+        file
+      );
+    }
+  }
+  return semantics;
+}
+
+function parseJavaScriptFlags(contents, file) {
+  if (contents === null) return new Map();
+  const scriptKind = /\.[cm]?tsx$/i.test(file) ? ts.ScriptKind.TSX : ts.ScriptKind.JS;
+  const sourceFile = ts.createSourceFile(file, contents, ts.ScriptTarget.Latest, true, scriptKind);
+  if (sourceFile.parseDiagnostics.length > 0) {
+    const diagnostic = sourceFile.parseDiagnostics[0];
+    throw new Error(
+      `Malformed JavaScript flag file ${file}: ${ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n')}`
+    );
+  }
+
+  const declarations = new Map();
+  const governedFields = new Set([
+    'enabled',
+    'exposure',
+    'exposeToClient',
+    'rolloutPercentage',
+    'percentage',
+    'risk',
+    'killSwitch',
+    'emergency',
+    'targeting',
+  ]);
+  const visit = (node) => {
+    if (ts.isPropertyAssignment(node) && ts.isObjectLiteralExpression(node.initializer)) {
+      const directFields = new Set(
+        node.initializer.properties
+          .filter(ts.isPropertyAssignment)
+          .map((property) => propertyName(property.name))
+          .filter((field) => field !== undefined)
+      );
+      if ([...directFields].some((field) => governedFields.has(field))) {
+        const flagName = propertyName(node.name);
+        if (flagName === undefined) {
+          throw new Error(
+            `Malformed JavaScript flag file ${file}: governed declaration could not be uniquely bound`
+          );
+        }
+        const existing = declarations.get(flagName) ?? [];
+        existing.push(collectJavaScriptFlagSemantics(flagName, node.initializer, file));
+        declarations.set(flagName, existing);
+        return;
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+
+  const flags = new Map();
+  for (const [flagName, candidates] of declarations) {
+    if (candidates.length !== 1) {
+      throw new Error(
+        `Malformed JavaScript flag file ${file}: '${flagName}' declaration is not unique`
+      );
+    }
+    flags.set(flagName, candidates[0]);
+  }
+  return flags;
+}
+
+function parseJavaScriptFlagChanges(beforeContents, afterContents, file) {
+  return compareFlagMaps(
+    parseJavaScriptFlags(beforeContents, file),
+    parseJavaScriptFlags(afterContents, file)
+  );
+}
+
+function parseChangesForFile(file, base, head) {
   const snapshots = getFileSnapshots(file, base, head);
-  return parseYamlFlagChanges(snapshots.before, snapshots.after, file);
+  if (/\.ya?ml$/i.test(file)) {
+    return parseYamlFlagChanges(snapshots.before, snapshots.after, file);
+  }
+  if (/\.[cm]?[jt]sx?$/i.test(file)) {
+    return parseJavaScriptFlagChanges(snapshots.before, snapshots.after, file);
+  }
+  throw new Error(`Unsupported feature flag file format: ${file}`);
 }
 
 function analyzeSensitivity(flagName, changes) {
@@ -406,6 +621,16 @@ function analyzeSensitivity(flagName, changes) {
     });
   }
 
+  const riskChange = changes.riskChanges.find((change) => change.flag === flagName);
+  if (riskChange) {
+    issues.push({
+      type: 'risk_escalation',
+      flag: flagName,
+      severity: 'high',
+      message: `Flag '${flagName}' risk escalated from ${riskChange.from} to ${riskChange.to}`,
+    });
+  }
+
   return issues;
 }
 
@@ -439,6 +664,7 @@ function generateReport(changes, issues, labels) {
       exposureChanges: changes.exposureChanges.length,
       audienceChanges: changes.audienceChanges.length,
       killSwitchChanges: changes.killSwitchChanges.length,
+      riskChanges: changes.riskChanges.length,
     },
     issues,
     labels,
@@ -492,8 +718,8 @@ async function guardFlags() {
 
   for (const file of flagFiles) {
     console.log(`\nAnalyzing ${file}...`);
-    const diff = getFileChanges(file, base, head);
-    const changes = parseChangesForFile(file, diff, base, head);
+    getFileChanges(file, base, head);
+    const changes = parseChangesForFile(file, base, head);
     for (const key of Object.keys(changes)) {
       allChanges[key].push(...changes[key]);
     }
@@ -501,10 +727,12 @@ async function guardFlags() {
     const flagsToAnalyze = [
       ...new Set([
         ...changes.added,
+        ...changes.removed,
         ...changes.modified,
         ...changes.exposureChanges.map((change) => change.flag),
         ...changes.audienceChanges.map((change) => change.flag),
         ...changes.killSwitchChanges.map((change) => change.flag),
+        ...changes.riskChanges.map((change) => change.flag),
       ]),
     ];
     for (const flag of flagsToAnalyze) {

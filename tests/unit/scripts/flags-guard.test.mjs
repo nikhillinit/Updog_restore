@@ -544,4 +544,427 @@ describe('feature flags approval guard', () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('No flag files changed');
   });
+
+  it('requires product signoff for canonical YAML rollout and client-exposure increases', async () => {
+    const base = [
+      'flags:',
+      '  beta_rollout:',
+      '    default: false',
+      '    rolloutPercentage: 0',
+      '    exposeToClient: false',
+      '',
+    ].join('\n');
+    const head = [
+      'flags:',
+      '  beta_rollout:',
+      '    default: false',
+      '    rolloutPercentage: 100',
+      '    exposeToClient: true',
+      '',
+    ].join('\n');
+    const repository = await makeRepository(base, head, 'flags/registry.yaml');
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+
+    const result = runGuard(repository.directory, args);
+    const productOnly = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['product-signoff']),
+    });
+    const approved = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['product-signoff', 'approved:flags-change']),
+    });
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toMatch(/rollout|audience|exposed/i);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('product-signoff');
+    expect(productOnly.status).toBe(1);
+    expect(`${productOnly.stdout}\n${productOnly.stderr}`).toContain('approved:flags-change');
+    expect(approved.status).toBe(0);
+  });
+
+  it('fails closed on invalid YAML rollout percentages and unknown risks', async () => {
+    for (const invalidField of [
+      'rolloutPercentage: 101',
+      'rolloutPercentage: nope',
+      'risk: extreme',
+    ]) {
+      const repository = await makeRepository(
+        ['key: beta.invalid', 'default: false', 'rolloutPercentage: 0', 'risk: low', ''].join('\n'),
+        ['key: beta.invalid', 'default: false', invalidField, ''].join('\n')
+      );
+
+      const result = runGuard(repository.directory, [
+        '--base',
+        repository.baseSha,
+        '--head',
+        repository.headSha,
+      ]);
+
+      expect(result.status).toBe(1);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/malformed|rollout|risk|failed closed/i);
+    }
+  });
+
+  it('requires flags approval for a YAML risk escalation', async () => {
+    const repository = await makeRepository(
+      ['key: beta.risky', 'default: false', 'risk: low', ''].join('\n'),
+      ['key: beta.risky', 'default: false', 'risk: high', ''].join('\n')
+    );
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+
+    const result = runGuard(repository.directory, args);
+    const approved = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['approved:flags-change']),
+    });
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toMatch(/risk|approved:flags-change/i);
+    expect(approved.status).toBe(0);
+  });
+
+  it('requires emergency override when YAML killSwitch or emergency protection is weakened', async () => {
+    for (const [baseField, headField] of [
+      ['killSwitch: true', 'killSwitch: false'],
+      ['killSwitch: true', null],
+      ['emergency: true', 'emergency: false'],
+      ['emergency: true', null],
+    ]) {
+      const repository = await makeRepository(
+        ['key: beta.protected', 'default: false', baseField, ''].join('\n'),
+        ['key: beta.protected', 'default: false', headField, ''].filter(Boolean).join('\n')
+      );
+      const args = ['--base', repository.baseSha, '--head', repository.headSha];
+      const result = runGuard(repository.directory, args);
+      const approved = runGuard(repository.directory, args, {
+        PR_LABELS: JSON.stringify(['emergency-override']),
+      });
+
+      expect(result.status).toBe(1);
+      expect(`${result.stdout}\n${result.stderr}`).toContain('emergency-override');
+      expect(approved.status).toBe(0);
+    }
+  });
+
+  it('treats absent activation and client-exposure fields as inactive in both YAML shapes', async () => {
+    for (const [base, head, relativePath] of [
+      [
+        ['key: beta.flat', ''].join('\n'),
+        [
+          'key: beta.flat',
+          'targeting:',
+          '  enabled: true',
+          'exposeToClient: true',
+          'environments:',
+          '  production: true',
+          '',
+        ].join('\n'),
+        'flags/beta.flat.yaml',
+      ],
+      [
+        ['flags:', '  beta_canonical:', '    default: false', ''].join('\n'),
+        [
+          'flags:',
+          '  beta_canonical:',
+          '    default: false',
+          '    targeting:',
+          '      enabled: true',
+          '    exposeToClient: true',
+          '    environments:',
+          '      production: true',
+          '',
+        ].join('\n'),
+        'flags/registry.yaml',
+      ],
+    ]) {
+      const repository = await makeRepository(base, head, relativePath);
+      const args = ['--base', repository.baseSha, '--head', repository.headSha];
+      const result = runGuard(repository.directory, args);
+      const approved = runGuard(repository.directory, args, {
+        PR_LABELS: JSON.stringify(['product-signoff']),
+      });
+
+      expect(result.status).toBe(1);
+      expect(`${result.stdout}\n${result.stderr}`).toContain('product-signoff');
+      expect(approved.status).toBe(0);
+    }
+  });
+
+  it('fails closed for ambiguous YAML roots regardless of key order', async () => {
+    for (const head of [
+      [
+        'key: beta.real',
+        'targeting:',
+        '  enabled: true',
+        'flags:',
+        '  decoy:',
+        '    default: false',
+        '',
+      ].join('\n'),
+      [
+        'flags:',
+        '  decoy:',
+        '    default: false',
+        'key: beta.real',
+        'targeting:',
+        '  enabled: true',
+        '',
+      ].join('\n'),
+    ]) {
+      const repository = await makeRepository(
+        ['key: beta.real', 'targeting:', '  enabled: false', ''].join('\n'),
+        head
+      );
+      const result = runGuard(repository.directory, [
+        '--base',
+        repository.baseSha,
+        '--head',
+        repository.headSha,
+      ]);
+
+      expect(result.status).toBe(1);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/ambiguous|failed closed/i);
+    }
+  });
+
+  it('requires flags approval when a sensitive YAML flag is deleted', async () => {
+    const repository = await makeRepository(
+      ['flags:', '  require_auth:', '    default: false', ''].join('\n'),
+      ['flags:', '  benign_flag:', '    default: false', ''].join('\n'),
+      'flags/registry.yaml'
+    );
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+
+    const result = runGuard(repository.directory, args);
+    const approved = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['approved:flags-change']),
+    });
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain("Flag 'require_auth'");
+    expect(`${result.stdout}\n${result.stderr}`).toContain('approved:flags-change');
+    expect(approved.status).toBe(0);
+  });
+
+  it('defines YAML rename behavior without weakening activation or sensitive-name approvals', async () => {
+    const preservingRepository = await makeRepository(
+      ['flags:', '  beta_old:', '    default: false', ''].join('\n'),
+      ['flags:', '  beta_new:', '    default: false', ''].join('\n'),
+      'flags/registry.yaml'
+    );
+    const preserving = runGuard(preservingRepository.directory, [
+      '--base',
+      preservingRepository.baseSha,
+      '--head',
+      preservingRepository.headSha,
+    ]);
+    expect(preserving.status).toBe(0);
+
+    const activeRepository = await makeRepository(
+      ['flags:', '  auth_old:', '    default: false', ''].join('\n'),
+      ['flags:', '  beta_new:', '    default: true', ''].join('\n'),
+      'flags/registry.yaml'
+    );
+    const args = ['--base', activeRepository.baseSha, '--head', activeRepository.headSha];
+    const flagsOnly = runGuard(activeRepository.directory, args, {
+      PR_LABELS: JSON.stringify(['approved:flags-change']),
+    });
+    const both = runGuard(activeRepository.directory, args, {
+      PR_LABELS: JSON.stringify(['approved:flags-change', 'product-signoff']),
+    });
+
+    expect(flagsOnly.status).toBe(1);
+    expect(`${flagsOnly.stdout}\n${flagsOnly.stderr}`).toContain('product-signoff');
+    expect(both.status).toBe(0);
+  });
+
+  it('requires product signoff for new compact and multiline active JavaScript flags', async () => {
+    for (const head of [
+      [
+        'export const flags = {',
+        "  'beta.compact': { enabled: true },",
+        "  'beta.inactive': { enabled: false },",
+        '};',
+        '',
+      ].join('\n'),
+      [
+        'export const flags = {',
+        "  'beta.multiline': {",
+        "    description: 'new active flag',",
+        '    enabled: true,',
+        '  },',
+        '};',
+        '',
+      ].join('\n'),
+    ]) {
+      const repository = await makeRepository(
+        ['export const flags = {};', ''].join('\n'),
+        head,
+        'src/feature-flags.js'
+      );
+      const args = ['--base', repository.baseSha, '--head', repository.headSha];
+      const result = runGuard(repository.directory, args);
+      const approved = runGuard(repository.directory, args, {
+        PR_LABELS: JSON.stringify(['product-signoff']),
+      });
+
+      expect(result.status).toBe(1);
+      expect(`${result.stdout}\n${result.stderr}`).toContain('product-signoff');
+      expect(approved.status).toBe(0);
+    }
+  });
+
+  it('composes product and flags approvals for a new active sensitive JavaScript flag', async () => {
+    const repository = await makeRepository(
+      ['export const flags = {};', ''].join('\n'),
+      [
+        'export const flags = {',
+        "  'auth.new': { enabled: true },",
+        "  'beta.other': { enabled: false },",
+        '};',
+        '',
+      ].join('\n'),
+      'src/feature-flags.ts'
+    );
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+    const flagsOnly = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['approved:flags-change']),
+    });
+    const productOnly = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['product-signoff']),
+    });
+    const both = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['approved:flags-change', 'product-signoff']),
+    });
+
+    expect(flagsOnly.status).toBe(1);
+    expect(`${flagsOnly.stdout}\n${flagsOnly.stderr}`).toContain('product-signoff');
+    expect(productOnly.status).toBe(1);
+    expect(`${productOnly.stdout}\n${productOnly.stderr}`).toContain('approved:flags-change');
+    expect(both.status).toBe(0);
+  });
+
+  it('binds JavaScript activation to its declaration beyond the old 1000-line diff context', async () => {
+    const padding = Array.from({ length: 1005 }, (_, index) => `    // metadata ${index}`);
+    const makeContents = (enabled) =>
+      [
+        'export const flags = {',
+        "  'beta.long': {",
+        ...padding,
+        `    enabled: ${enabled},`,
+        '  },',
+        '};',
+        '',
+      ].join('\n');
+    const repository = await makeRepository(
+      makeContents(false),
+      makeContents(true),
+      'src/feature-flags.js'
+    );
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+
+    const result = runGuard(repository.directory, args);
+    const approved = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['product-signoff']),
+    });
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain("Flag 'beta.long'");
+    expect(approved.status).toBe(0);
+  });
+
+  it('keeps cross-hunk JavaScript ownership and multiple-flag pairing isolated', async () => {
+    const padding = Array.from({ length: 20 }, (_, index) => `  // separator ${index}`);
+    const base = [
+      'export const flags = {',
+      "  'flag.one': { enabled: false },",
+      ...padding,
+      "  'flag.two': { enabled: true },",
+      '};',
+      '',
+    ].join('\n');
+    const head = [
+      'export const flags = {',
+      "  'flag.one': { enabled: true },",
+      ...padding.map((line, index) => (index === 10 ? `${line} changed` : line)),
+      "  'flag.two': { enabled: true, description: 'metadata only' },",
+      '};',
+      '',
+    ].join('\n');
+    const repository = await makeRepository(base, head, 'src/feature-flags.js');
+    const result = runGuard(repository.directory, [
+      '--base',
+      repository.baseSha,
+      '--head',
+      repository.headSha,
+    ]);
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain("Flag 'flag.one'");
+    expect(`${result.stdout}\n${result.stderr}`).not.toContain(
+      "Flag 'flag.two' is being enabled/exposed"
+    );
+  });
+
+  it('fails closed when JavaScript declarations cannot be bound uniquely', async () => {
+    const repository = await makeRepository(
+      [
+        "const first = { 'beta.duplicate': { enabled: false } };",
+        "const second = { 'beta.duplicate': { enabled: false } };",
+        '',
+      ].join('\n'),
+      [
+        "const first = { 'beta.duplicate': { enabled: true } };",
+        "const second = { 'beta.duplicate': { enabled: false } };",
+        '',
+      ].join('\n'),
+      'src/feature-flags.js'
+    );
+    const result = runGuard(repository.directory, [
+      '--base',
+      repository.baseSha,
+      '--head',
+      repository.headSha,
+    ]);
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toMatch(/ambiguous|unique|failed closed/i);
+  });
+
+  it('defines JavaScript rename behavior and keeps comments immune', async () => {
+    const preservingRepository = await makeRepository(
+      ['export const flags = {', "  'beta.old': { enabled: false },", '};', ''].join('\n'),
+      [
+        '// auth.comment: { enabled: true }',
+        'export const flags = {',
+        "  'beta.new': { enabled: false },",
+        '};',
+        '',
+      ].join('\n'),
+      'src/feature-flags.js'
+    );
+    const preserving = runGuard(preservingRepository.directory, [
+      '--base',
+      preservingRepository.baseSha,
+      '--head',
+      preservingRepository.headSha,
+    ]);
+    expect(preserving.status).toBe(0);
+    expect(`${preserving.stdout}\n${preserving.stderr}`).not.toContain('auth.comment');
+
+    const activeRepository = await makeRepository(
+      ['export const flags = {', "  'auth.old': { enabled: false },", '};', ''].join('\n'),
+      ['export const flags = {', "  'beta.new': { enabled: true },", '};', ''].join('\n'),
+      'src/feature-flags.js'
+    );
+    const args = ['--base', activeRepository.baseSha, '--head', activeRepository.headSha];
+    const both = runGuard(activeRepository.directory, args, {
+      PR_LABELS: JSON.stringify(['approved:flags-change', 'product-signoff']),
+    });
+    const productOnly = runGuard(activeRepository.directory, args, {
+      PR_LABELS: JSON.stringify(['product-signoff']),
+    });
+
+    expect(productOnly.status).toBe(1);
+    expect(`${productOnly.stdout}\n${productOnly.stderr}`).toContain('approved:flags-change');
+    expect(both.status).toBe(0);
+  });
 });
