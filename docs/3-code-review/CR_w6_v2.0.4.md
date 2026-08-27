@@ -112,3 +112,58 @@ Phoenix truth cases with frozen surfaces unchanged, passing calculation gate,
 clean diff check, and zero full-suite failures attributable to this change.
 Test-only diagnostic access and absent repository-local checklist remain
 recorded as explicitly accepted non-blocking observations.
+
+## Post-merge governance addendum (2026-08-27)
+
+An independent post-merge governance review of squash commit `60af02ff6` (PR
+#1433) accepted the financial implementation and failed the aggregate governance
+gate. Dispositions, validated through an adversarial Codex pass:
+
+- **Scope of the "clean diff check" claim (RESULTS-006)**: the claim above is
+  scoped to the F_2.0.4-owned calculation and release-document surfaces, which
+  had no whitespace defect. The full squash diff additionally reported seven
+  `git diff --check` hits that are intentional CommonMark two-space hard line
+  breaks inside imported historical plan documents; they are preserved, not
+  "fixed", because stripping them changes Markdown rendering.
+- **Aggregate is not CLEAN under F_2.0.4 governance (GOV-001)**: the merged
+  delta carried ride-along surfaces beyond the plan's scope — CI-gate repairs
+  (git ls-files maxBuffer, secret-scan allowlists), Dockerfile CVE mitigation,
+  vendored skills, and historical plan documents imported by the branch's base
+  commits. The financial evidence above approves only the F_2.0.4 surfaces; the
+  ride-alongs are dispositioned individually here and in the follow-up change
+  that adds this addendum.
+- **Railway identifiers in an imported historical plan (SECURITY-005)**:
+  remediated at HEAD — literal project/environment/service/deployment UUIDs in
+  `F_1.2.5_g3-closeout-reconciled.plan.md` are replaced with semantic
+  placeholders. Identifiers are not credentials (provider access still requires
+  authenticated Railway account/token), and git history retains the original
+  bytes; complete historical removal would require ref rewriting plus GitHub
+  support and is disproportionate for non-credential identifiers — owner-gated
+  if ever desired.
+- **Vendored Neon skill auto-update instruction (SECURITY-004)**: remediated at
+  HEAD — the instruction now requires explicit, source-reviewed dependency
+  changes with a lock refresh instead of per-session auto-updates. Note: no
+  repository consumer currently enforces `skills-lock.json` hashes, and the
+  recorded hashes do not match the vendored file bytes (hashing scheme of the
+  upstream installer is not reproduced here); lock tooling is an open owner
+  item.
+- **Dockerfile targeted `apk upgrade` (GOV-003)**: recorded as a time-bounded,
+  accepted reproducibility exception. Verified at review time that no patched
+  `node:22.23.2-alpine` digest exists (fresh pull resolves the same digest
+  shipping libssl3/libcrypto3 3.5.7-r0) and exact APK pins break builds when
+  Alpine rotates packages out of the v3.24 repository. Replace with a patched
+  pinned base digest when upstream publishes one.
+- **PR-history residue assessment (SECURITY-002)**: intermediate branch commit
+  `c20bbbd69b6fb7c5409b3e72d59264ea55a418f7` tracked 10,008 `.mimosa/`
+  hook-state files (~92 MB) plus Codex session state in
+  `076eaa2320805af4b25d394704cf4c4b932b89e4`. Neither commit is an ancestor of
+  `main`; the remote feature branch is deleted, so the commits remain reachable
+  only through GitHub PR refs (`refs/pull/1433/*`) and by direct SHA. Content
+  classification: every gitleaks-flagged blob (92) is a content-addressed
+  snapshot of tracked repository test sources containing synthetic fixtures; the
+  range-wide redacted scan found no leaks. No credential rotation is indicated.
+  History rewriting of PR refs would require GitHub support and is owner-gated.
+- **Missing engine regression (finding 7)**: added — the whole-fund pari-passu
+  nonzero-opening-preferred-paid defensive throw now has a direct engine test.
+- **Promotion (PROMOTION-007)**: no operational-completion claim is made here;
+  merge remains source admission only under the governing policy.

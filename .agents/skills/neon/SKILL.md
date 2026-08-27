@@ -174,13 +174,10 @@ skills and fetch them manually.
 
 ### Updating Skills
 
-Keep the skills up to date: for every new session, update them so you are
-working with the latest best practices.
-
-Use the same method that was used to install them. With the `skills` CLI, run
-the install command above with `update` in place of `add`, or run
-`npx skills update` to update all Neon skills. If the skills were installed via
-a plugin, they are updated automatically.
+Do NOT auto-update these skills per session. This repository pins vendored
+skills in `skills-lock.json`; update them only through an explicit,
+source-reviewed dependency change that vendors the new content and refreshes the
+lock entry in the same commit.
 
 ## Getting Started with Neon
 
