@@ -126,12 +126,24 @@ gate. Dispositions, validated through an adversarial Codex pass:
   breaks inside imported historical plan documents; they are preserved, not
   "fixed", because stripping them changes Markdown rendering.
 - **Aggregate is not CLEAN under F_2.0.4 governance (GOV-001)**: the merged
-  delta carried ride-along surfaces beyond the plan's scope — CI-gate repairs
-  (git ls-files maxBuffer, secret-scan allowlists), Dockerfile CVE mitigation,
-  vendored skills, and historical plan documents imported by the branch's base
-  commits. The financial evidence above approves only the F_2.0.4 surfaces; the
-  ride-alongs are dispositioned individually here and in the follow-up change
-  that adds this addendum.
+  delta carried ride-along surfaces beyond the plan's scope — CI-gate repairs,
+  Dockerfile CVE mitigation, vendored skills, and historical plan documents
+  imported by the branch's base commits. The financial evidence above approves
+  only the F_2.0.4 surfaces; each ride-along receives its own decision below.
+- **`git ls-files` buffer increase (GOV-001A) — Decision: ACCEPT**: each
+  affected enumerator still invokes NUL-delimited `git ls-files -z`; the change
+  only sets a bounded 64 MiB `maxBuffer`. This prevents the observed
+  default-buffer `ENOBUFS` failure without broadening the tracked-file universe,
+  changing its delimiter, or suppressing Git failures. The knowledge-graph and
+  surface-contract-matrix suites exercise the affected enumeration paths.
+- **Secret-scan allowlist additions (SECURITY-002) — Decision: ACCEPT for the
+  exact historical blobs described below**: the `.mimosa` entry is conjunctively
+  scoped to the exact historical commit and content-addressed source-snapshot
+  path shape. The stale-branch route-fixture entries additionally require exact
+  commits, exact paths, and content-specific line regexes. Redacted history-scan
+  evidence classified all 92 `.mimosa` blobs as synthetic tracked-test
+  snapshots, while `verify-secret-scanner-negative-control.mjs` retains the
+  negative control that requires a generated known secret to be detected.
 - **Railway identifiers in an imported historical plan (SECURITY-005)**:
   remediated at HEAD — literal project/environment/service/deployment UUIDs in
   `F_1.2.5_g3-closeout-reconciled.plan.md` are replaced with semantic
@@ -147,12 +159,13 @@ gate. Dispositions, validated through an adversarial Codex pass:
   recorded hashes do not match the vendored file bytes (hashing scheme of the
   upstream installer is not reproduced here); lock tooling is an open owner
   item.
-- **Dockerfile targeted `apk upgrade` (GOV-003)**: recorded as a time-bounded,
-  accepted reproducibility exception. Verified at review time that no patched
+- **Dockerfile targeted `apk upgrade` (GOV-003)**: recorded as a trigger-bound
+  reproducibility exception. Verified at review time that no patched
   `node:22.23.2-alpine` digest exists (fresh pull resolves the same digest
   shipping libssl3/libcrypto3 3.5.7-r0) and exact APK pins break builds when
-  Alpine rotates packages out of the v3.24 repository. Replace with a patched
-  pinned base digest when upstream publishes one.
+  Alpine rotates packages out of the v3.24 repository. The expiry action is
+  replacement with a patched pinned base digest when upstream publishes one;
+  that upstream publication is the review trigger.
 - **PR-history residue assessment (SECURITY-002)**: intermediate branch commit
   `c20bbbd69b6fb7c5409b3e72d59264ea55a418f7` tracked 10,008 `.mimosa/`
   hook-state files (~92 MB) plus Codex session state in
