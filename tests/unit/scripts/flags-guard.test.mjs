@@ -1089,6 +1089,60 @@ describe('feature flags approval guard', () => {
     }
   });
 
+  it('analyzes canonical JavaScript registries in legacy candidate paths', async () => {
+    for (const file of [
+      'packages/app/flags/registry.js',
+      'src/feature-control.js',
+      'src/registry.js',
+    ]) {
+      const repository = await makeRepository(
+        ['export const flags = {', "  'beta.routed': { enabled: false },", '};', ''].join(
+          '\n'
+        ),
+        ['export const flags = {', "  'beta.routed': { enabled: true },", '};', ''].join(
+          '\n'
+        ),
+        file
+      );
+      const args = ['--base', repository.baseSha, '--head', repository.headSha];
+      const result = runGuard(repository.directory, args);
+      const approved = runGuard(repository.directory, args, {
+        PR_LABELS: JSON.stringify(['product-signoff']),
+      });
+
+      expect(result.status).toBe(1);
+      expect(`${result.stdout}\n${result.stderr}`).toContain('product-signoff');
+      expect(approved.status).toBe(0);
+    }
+  });
+
+  it('ignores unrelated TypeScript modules routed for registry discovery', async () => {
+    const repository = await makeRepository(
+      [
+        'interface Metadata { enabled: boolean }',
+        'const metadata: Metadata = { enabled: false };',
+        'void metadata;',
+        '',
+      ].join('\n'),
+      [
+        'interface Metadata { enabled: boolean }',
+        'const metadata: Metadata = { enabled: true };',
+        'void metadata;',
+        '',
+      ].join('\n'),
+      'src/registry.ts'
+    );
+    const result = runGuard(repository.directory, [
+      '--base',
+      repository.baseSha,
+      '--head',
+      repository.headSha,
+    ]);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('No flag files changed');
+  });
+
   it('evaluates every audience increase for cumulative approval requirements', async () => {
     const repository = await makeRepository(
       [

@@ -138,11 +138,10 @@ function getFileSnapshots(file, base, head) {
 function isFlagFile(file) {
   const fileName = file.split('/').at(-1) ?? '';
   return (
+    /\.[cm]?[jt]sx?$/i.test(file) ||
     file.startsWith('flags/') ||
     /(^|[.-])(feature-?flags?|flags?)([.-]|$)/i.test(fileName) ||
-    file.endsWith('.flags.json') ||
-    file.endsWith('.flags.ts') ||
-    file.endsWith('.flags.js')
+    file.endsWith('.flags.json')
   );
 }
 
@@ -614,16 +613,21 @@ function parseJavaScriptFlags(contents, file) {
 }
 
 function parseJavaScriptFlagChanges(beforeContents, afterContents, file) {
-  return compareFlagMaps(
-    parseJavaScriptFlags(beforeContents, file),
-    parseJavaScriptFlags(afterContents, file)
-  );
+  const before = parseJavaScriptFlags(beforeContents, file);
+  const after = parseJavaScriptFlags(afterContents, file);
+  return {
+    changes: compareFlagMaps(before, after),
+    hasRegistry: before.size > 0 || after.size > 0,
+  };
 }
 
 function parseChangesForFile(file, base, head) {
   const snapshots = getFileSnapshots(file, base, head);
   if (/\.ya?ml$/i.test(file)) {
-    return parseYamlFlagChanges(snapshots.before, snapshots.after, file);
+    return {
+      changes: parseYamlFlagChanges(snapshots.before, snapshots.after, file),
+      hasRegistry: true,
+    };
   }
   if (/\.[cm]?[jt]sx?$/i.test(file)) {
     return parseJavaScriptFlagChanges(snapshots.before, snapshots.after, file);
@@ -760,7 +764,12 @@ async function guardFlags() {
   const options = parseOptions();
   const { base, head } = resolveDiffRefs(options);
   const changedFiles = getDiff(base, head);
-  const flagFiles = changedFiles.filter(isFlagFile);
+  const candidateFiles = changedFiles.filter(isFlagFile);
+  const analyzedFiles = candidateFiles.map((file) => {
+    getFileChanges(file, base, head);
+    return { file, ...parseChangesForFile(file, base, head) };
+  });
+  const flagFiles = analyzedFiles.filter((analysis) => analysis.hasRegistry);
 
   if (flagFiles.length === 0) {
     console.log('No flag files changed');
@@ -768,15 +777,13 @@ async function guardFlags() {
   }
 
   console.log(`\nFlag files changed: ${flagFiles.length}`);
-  flagFiles.forEach((file) => console.log(`  - ${file}`));
+  flagFiles.forEach(({ file }) => console.log(`  - ${file}`));
 
   const allChanges = emptyFlagChanges();
   const allIssues = [];
 
-  for (const file of flagFiles) {
+  for (const { file, changes } of flagFiles) {
     console.log(`\nAnalyzing ${file}...`);
-    getFileChanges(file, base, head);
-    const changes = parseChangesForFile(file, base, head);
     for (const key of Object.keys(changes)) {
       allChanges[key].push(...changes[key]);
     }
