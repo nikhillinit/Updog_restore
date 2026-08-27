@@ -4300,7 +4300,10 @@ describe('required CI fails closed', () => {
       'scripts/normalize-stages.ts',
       'scripts/normalize-stages-batched.ts',
     ];
-    const { stdout } = await execFileAsync('git', ['ls-files', 'docs']);
+    const { stdout } = await execFileAsync('git', ['ls-files', 'docs'], {
+      cwd: process.cwd(),
+      maxBuffer: 64 * 1024 * 1024,
+    });
     const markdownPaths = stdout.split(/\r?\n/).filter((filePath) => filePath.endsWith('.md'));
     const violations: string[] = [];
 
