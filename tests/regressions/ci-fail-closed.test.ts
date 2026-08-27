@@ -4436,6 +4436,12 @@ describe('required CI fails closed', () => {
 
     expect(flagsGuard).toBeDefined();
     expect(flagsGuard).not.toHaveProperty('continue-on-error', true);
+    expect(flagsGuard?.env).toBeUndefined();
+    expect(flagsGuard?.run).toContain('set -euo pipefail');
+    expect(flagsGuard?.run).toContain('node scripts/flags-guard.mjs');
+    expect(flagsGuard?.run).not.toMatch(/PR_BASE_SHA|PR_HEAD_SHA|PR_LABELS|PR_NUMBER/);
+    expect(flagsGuard?.run).not.toMatch(/--base|--head/);
+    expect(flagsGuard?.run).not.toMatch(/\bHEAD\b|\bmain\b|gh\s+pr\s+list/);
   });
 
   it('does not let advisory PR comments override the validated gate result', async () => {
