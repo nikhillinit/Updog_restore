@@ -510,20 +510,29 @@ function collectJavaScriptFlagSemantics(flagName, object, file) {
 function isJavaScriptFlagRegistry(object) {
   const parent = object.parent;
   if (ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name)) {
-    const registryName = parent.name.text.replaceAll('_', '').toLowerCase();
-    return ['flags', 'featureflags', 'flagdefinitions'].includes(registryName);
+    return isJavaScriptFlagRegistryName(parent.name.text);
   }
+  return isNestedExportDefaultFlagsProperty(parent);
+}
+
+function isJavaScriptFlagRegistryName(name) {
+  const registryName = name.replaceAll('_', '').toLowerCase();
+  return ['flags', 'featureflags', 'flagdefinitions'].includes(registryName);
+}
+
+function isNestedExportDefaultFlagsProperty(node) {
   return (
-    ts.isPropertyAssignment(parent) &&
-    propertyName(parent.name) === 'flags' &&
-    ts.isObjectLiteralExpression(parent.parent) &&
-    ts.isExportAssignment(parent.parent.parent)
+    ts.isPropertyAssignment(node) &&
+    propertyName(node.name) === 'flags' &&
+    ts.isObjectLiteralExpression(node.parent) &&
+    ts.isExportAssignment(node.parent.parent)
   );
 }
 
 function unsupportedJavaScriptConfigurationMember(object) {
   for (const property of object.properties) {
     if (ts.isSpreadAssignment(property)) return 'spread';
+    if (!ts.isPropertyAssignment(property)) return 'indirect';
     if ('name' in property && property.name && ts.isComputedPropertyName(property.name)) {
       return 'computed';
     }
@@ -547,18 +556,25 @@ function parseJavaScriptFlags(contents, file) {
   }
 
   const declarations = new Map();
-  const governedFields = new Set([
-    'enabled',
-    'exposure',
-    'exposeToClient',
-    'rolloutPercentage',
-    'percentage',
-    'risk',
-    'killSwitch',
-    'emergency',
-    'targeting',
-  ]);
   const visit = (node) => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      isJavaScriptFlagRegistryName(node.name.text) &&
+      !ts.isObjectLiteralExpression(node.initializer)
+    ) {
+      throw new Error(
+        `Malformed JavaScript flag file ${file}: indirect registry initializer is unsupported and failed closed`
+      );
+    }
+    if (
+      isNestedExportDefaultFlagsProperty(node) &&
+      !ts.isObjectLiteralExpression(node.initializer)
+    ) {
+      throw new Error(
+        `Malformed JavaScript flag file ${file}: indirect registry initializer is unsupported and failed closed`
+      );
+    }
     if (ts.isObjectLiteralExpression(node) && isJavaScriptFlagRegistry(node)) {
       const unsupportedMember = unsupportedJavaScriptConfigurationMember(node);
       if (unsupportedMember) {
@@ -567,34 +583,32 @@ function parseJavaScriptFlags(contents, file) {
         );
       }
     }
-    if (ts.isPropertyAssignment(node) && ts.isObjectLiteralExpression(node.initializer)) {
-      const directFields = new Set(
-        node.initializer.properties
-          .filter(ts.isPropertyAssignment)
-          .map((property) => propertyName(property.name))
-          .filter((field) => field !== undefined)
-      );
-      const hasGovernedField = [...directFields].some((field) => governedFields.has(field));
+    if (
+      ts.isPropertyAssignment(node) &&
+      ts.isObjectLiteralExpression(node.parent) &&
+      isJavaScriptFlagRegistry(node.parent)
+    ) {
+      if (!ts.isObjectLiteralExpression(node.initializer)) {
+        throw new Error(
+          `Malformed JavaScript flag file ${file}: indirect flag entry initializer is unsupported and failed closed`
+        );
+      }
       const unsupportedMember = unsupportedJavaScriptConfigurationMember(node.initializer);
-      const isRegistryEntry =
-        ts.isObjectLiteralExpression(node.parent) && isJavaScriptFlagRegistry(node.parent);
-      if (unsupportedMember && isRegistryEntry) {
+      if (unsupportedMember) {
         throw new Error(
           `Malformed JavaScript flag file ${file}: ${unsupportedMember} flag configuration is unsupported and failed closed`
         );
       }
-      if (isRegistryEntry && hasGovernedField) {
-        const flagName = propertyName(node.name);
-        if (flagName === undefined) {
-          throw new Error(
-            `Malformed JavaScript flag file ${file}: governed declaration could not be uniquely bound`
-          );
-        }
-        const existing = declarations.get(flagName) ?? [];
-        existing.push(collectJavaScriptFlagSemantics(flagName, node.initializer, file));
-        declarations.set(flagName, existing);
-        return;
+      const flagName = propertyName(node.name);
+      if (flagName === undefined) {
+        throw new Error(
+          `Malformed JavaScript flag file ${file}: governed declaration could not be uniquely bound`
+        );
       }
+      const existing = declarations.get(flagName) ?? [];
+      existing.push(collectJavaScriptFlagSemantics(flagName, node.initializer, file));
+      declarations.set(flagName, existing);
+      return;
     }
     ts.forEachChild(node, visit);
   };

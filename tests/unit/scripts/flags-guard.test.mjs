@@ -1013,6 +1013,73 @@ describe('feature flags approval guard', () => {
     }
   });
 
+  it.each([
+    [
+      'an opaque registry initializer',
+      [
+        "const ACTIVE_FLAGS = { 'auth.bypass': { enabled: true } };",
+        'export const flags = ACTIVE_FLAGS;',
+        '',
+      ].join('\n'),
+    ],
+    [
+      'an opaque flag-entry initializer',
+      [
+        'const ACTIVE = { enabled: true };',
+        'export const flags = {',
+        "  'auth.bypass': ACTIVE,",
+        '};',
+        '',
+      ].join('\n'),
+    ],
+    [
+      'a shorthand governed field',
+      [
+        'const enabled = true;',
+        'export const flags = {',
+        "  'auth.bypass': { enabled },",
+        '};',
+        '',
+      ].join('\n'),
+    ],
+  ])('fails closed on %s inside a canonical JavaScript flag registry', async (_shape, head) => {
+      const repository = await makeRepository(
+        ['export const flags = {};', ''].join('\n'),
+        head,
+        'src/feature-flags.js'
+      );
+      const result = runGuard(repository.directory, [
+        '--base',
+        repository.baseSha,
+        '--head',
+        repository.headSha,
+      ]);
+
+      expect(result.status).toBe(1);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/indirect|literal|failed closed/i);
+  });
+
+  it('fails closed on an opaque nested export-default flags registry', async () => {
+    const repository = await makeRepository(
+      ['export default { flags: {} };', ''].join('\n'),
+      [
+        "const ACTIVE_FLAGS = { 'auth.bypass': { enabled: true } };",
+        'export default { flags: ACTIVE_FLAGS };',
+        '',
+      ].join('\n'),
+      'src/feature-flags.js'
+    );
+    const result = runGuard(repository.directory, [
+      '--base',
+      repository.baseSha,
+      '--head',
+      repository.headSha,
+    ]);
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toMatch(/indirect|literal|failed closed/i);
+  });
+
   it('allows unrelated spread syntax outside candidate JavaScript flag registries', async () => {
     const repository = await makeRepository(
       [
