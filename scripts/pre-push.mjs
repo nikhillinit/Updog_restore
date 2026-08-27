@@ -96,7 +96,7 @@ if (!process.env.CLAUDE_HOOKS_DISABLE) {
   }
 }
 
-const changed = output('git', ['diff', '--name-only', `${baseBranch}...HEAD`], {
+const changed = output('git', ['diff', '--no-renames', '--name-only', `${baseBranch}...HEAD`], {
   allowFailure: true,
 });
 

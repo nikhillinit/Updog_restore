@@ -109,6 +109,12 @@ export function requiresVendoredSkillLockCheck() {
     "import './capture-child-environment.mjs';\n"
   );
   await write(primary, 'server/changed.ts', 'export const changed = false;\n');
+  await write(primary, '.agents/skills/neon/SKILL.md', '# Locked fixture\n');
+  await write(
+    primary,
+    'skills-lock.json',
+    `${JSON.stringify({ version: 1, hashContract: 'sha256-folder-framed-v2', skills: {} }, null, 2)}\n`
+  );
   await write(
     primary,
     'node_modules/.bin/vitest',
@@ -167,6 +173,22 @@ afterEach(async () => {
 });
 
 describe('pre-push hook child environment', () => {
+  it('runs vendored skill lock check when a locked skill file is renamed out', async () => {
+    const fixture = await createFixture();
+    const primary = fixture.primary;
+    await mkdir(path.join(primary, 'vendor/neon'), { recursive: true });
+    git(primary, ['mv', '.agents/skills/neon/SKILL.md', 'vendor/neon/SKILL.md']);
+    git(primary, ['add', '.']);
+    git(primary, ['commit', '-m', 'rename locked skill out']);
+    const result = spawnSync(process.execPath, [prePushScript], {
+      cwd: primary,
+      env: hostileHookEnvironment(primary, fixture.environmentLog, 'targeted'),
+      encoding: 'utf8',
+    });
+    expect(result.status).not.toBe(0);
+    expect(result.stderr + result.stdout).toContain('skills:lock:check');
+  });
+
   it.each([
     ['primary worktree full-run', 'primary', 'full-run', 'full-test'],
     ['primary worktree targeted', 'primary', 'targeted', 'targeted-test'],

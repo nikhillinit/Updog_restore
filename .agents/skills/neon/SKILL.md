@@ -181,11 +181,14 @@ replacing a complete skill folder, run `npm run skills:lock:update`, inspect the
 vendored-content and lockfile diff together, then run
 `npm run skills:lock:check`.
 
-The lock uses the local-folder `sha256-folder-v1` contract. For each skill,
-relative POSIX file paths are normalized and sorted by their UTF-8 bytes. The
-SHA-256 input is each sorted file's relative path bytes followed by its raw file
-bytes. Symlinks are rejected. Validation is offline and fails for missing,
-extra, or changed files, unlocked skill folders, and malformed lock data.
+The lock uses the local-folder `sha256-folder-framed-v2` contract. For each
+skill, relative POSIX file paths are normalized and sorted by their UTF-8 bytes.
+The SHA-256 input is a domain-separation label, an unsigned 64-bit file count,
+and one record per file; each record length-prefixes its relative path bytes and
+raw file bytes. Symlinks, escaping paths, non-regular files, duplicate JSON
+keys, malformed lock/hash state, and outside-root targets are rejected.
+Validation is offline and fails for missing, extra, or changed files, unlocked
+skill folders, and malformed lock data.
 
 ## Getting Started with Neon
 

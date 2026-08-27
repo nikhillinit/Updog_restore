@@ -8,11 +8,22 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-export const HASH_CONTRACT = 'sha256-folder-v1';
+export const HASH_CONTRACT = 'sha256-folder-framed-v2';
 const LOCK_FILE = 'skills-lock.json';
 const VENDORED_ROOT = '.agents/skills';
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const SKILL_NAME_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+const U64_MAX = (1n << 64n) - 1n;
+
+function encodeLength(value) {
+  const length = BigInt(value);
+  if (length < 0n || length > U64_MAX) {
+    throw new Error(`length is outside unsigned 64-bit range: ${value}`);
+  }
+  const bytes = Buffer.alloc(8);
+  bytes.writeBigUInt64BE(length);
+  return bytes;
+}
 
 function compareUtf8(left, right) {
   return Buffer.compare(Buffer.from(left, 'utf8'), Buffer.from(right, 'utf8'));
@@ -56,10 +67,15 @@ async function collectFiles(directory, relativeDirectory = '') {
 export async function hashVendoredSkill(directory) {
   const files = await collectFiles(directory);
   const hash = createHash('sha256');
+  hash.update('updog/vendored-skill-folder/sha256-folder-framed-v2\0');
+  hash.update(encodeLength(files.length));
 
   for (const relativePath of files) {
     const bytes = await readFile(path.join(directory, ...relativePath.split('/')));
-    hash.update(Buffer.from(relativePath, 'utf8'));
+    const pathBytes = Buffer.from(relativePath, 'utf8');
+    hash.update(encodeLength(pathBytes.length));
+    hash.update(pathBytes);
+    hash.update(encodeLength(bytes.length));
     hash.update(bytes);
   }
 
@@ -76,9 +92,142 @@ async function readLock(repoRoot) {
   }
 
   try {
-    return { lock: JSON.parse(contents), lockPath };
+    assertNoDuplicateJsonKeys(contents);
+    const lock = JSON.parse(contents);
+    return { lock, lockPath };
   } catch (error) {
     throw new Error(`${LOCK_FILE} is not valid JSON: ${error.message}`);
+  }
+}
+
+function assertNoDuplicateJsonKeys(contents) {
+  const stack = [{ type: 'root', keys: new Set(), awaitingKey: false, path: '<root>' }];
+  let index = 0;
+
+  const parseString = () => {
+    const start = index;
+    index += 1;
+    while (index < contents.length) {
+      const char = contents[index];
+      if (char === '\\') {
+        index += 2;
+      } else if (char === '"') {
+        index += 1;
+        return contents.slice(start, index);
+      } else {
+        index += 1;
+      }
+    }
+    throw new Error('unterminated JSON string');
+  };
+
+  const skipWhitespace = () => {
+    while (/[\t\n\r ]/.test(contents[index] ?? '')) index += 1;
+  };
+
+  const expect = (char) => {
+    skipWhitespace();
+    if (contents[index] !== char) throw new Error(`expected ${char} at JSON offset ${index}`);
+    index += 1;
+  };
+
+  const parseValue = () => {
+    skipWhitespace();
+    const char = contents[index];
+    if (char === '{') {
+      index += 1;
+      const top = stack.at(-1);
+      const path = top.type === 'object' ? `${top.path}.${top.currentKey}` : top.path;
+      stack.push({ type: 'object', keys: new Set(), awaitingKey: true, path });
+      parseObjectValue();
+      return;
+    }
+    if (char === '[') {
+      index += 1;
+      stack.push({ type: 'array' });
+      parseArrayValue();
+      return;
+    }
+    if (char === '"') {
+      parseString();
+      return;
+    }
+    if (char === 't') {
+      if (contents.slice(index, index + 4) !== 'true')
+        throw new Error(`invalid JSON at offset ${index}`);
+      index += 4;
+      return;
+    }
+    if (char === 'f') {
+      if (contents.slice(index, index + 5) !== 'false')
+        throw new Error(`invalid JSON at offset ${index}`);
+      index += 5;
+      return;
+    }
+    if (char === 'n') {
+      if (contents.slice(index, index + 4) !== 'null')
+        throw new Error(`invalid JSON at offset ${index}`);
+      index += 4;
+      return;
+    }
+    const rest = contents.slice(index);
+    const match = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/.exec(rest);
+    if (!match) throw new Error(`invalid JSON at offset ${index}`);
+    index += match[0].length;
+  };
+
+  const parseObjectValue = () => {
+    const object = stack.at(-1);
+    skipWhitespace();
+    if (contents[index] === '}') {
+      index += 1;
+      stack.pop();
+      return;
+    }
+    for (;;) {
+      skipWhitespace();
+      if (contents[index] !== '"') throw new Error(`expected object key at JSON offset ${index}`);
+      const key = JSON.parse(parseString());
+      if (object.keys.has(key)) {
+        throw new Error(`${LOCK_FILE} contains duplicate JSON key '${key}' at ${object.path}`);
+      }
+      object.keys.add(key);
+      object.currentKey = key;
+      expect(':');
+      parseValue();
+      skipWhitespace();
+      if (contents[index] === '}') {
+        index += 1;
+        stack.pop();
+        return;
+      }
+      expect(',');
+    }
+  };
+
+  const parseArrayValue = () => {
+    skipWhitespace();
+    if (contents[index] === ']') {
+      index += 1;
+      stack.pop();
+      return;
+    }
+    for (;;) {
+      parseValue();
+      skipWhitespace();
+      if (contents[index] === ']') {
+        index += 1;
+        stack.pop();
+        return;
+      }
+      expect(',');
+    }
+  };
+
+  parseValue();
+  skipWhitespace();
+  if (index !== contents.length || stack.length !== 1) {
+    throw new Error(`${LOCK_FILE} contains trailing or malformed JSON`);
   }
 }
 
@@ -197,8 +346,7 @@ export async function verifyVendoredSkills({ repoRoot, write = false }) {
   }
 
   if (write) {
-    const structuralErrors = errors.filter((error) => !error.includes('computedHash must be'));
-    if (structuralErrors.length > 0) return { errors, updated: 0, verified: computed.size };
+    if (errors.length > 0) return { errors, updated: 0, verified: computed.size };
 
     let updated = 0;
     for (const name of skillNames) {
