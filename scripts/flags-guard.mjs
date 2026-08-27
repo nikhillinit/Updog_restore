@@ -5,7 +5,8 @@
  * Requires approval labels for sensitive changes.
  */
 
-import fs from 'fs/promises';
+import { readFileSync } from 'node:fs';
+import fs from 'node:fs/promises';
 import process from 'node:process';
 import ts from 'typescript';
 import YAML from 'yaml';
@@ -58,6 +59,52 @@ function parseOptions(args = process.argv.slice(2)) {
   return options;
 }
 
+function readPullRequestEvent(env) {
+  if (!env.GITHUB_EVENT_PATH) {
+    throw new Error('Feature flags guard requires GITHUB_EVENT_PATH in CI');
+  }
+
+  let event;
+  try {
+    event = JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8'));
+  } catch (error) {
+    throw new Error(`Feature flags guard could not read the pull_request event payload: ${error.message}`);
+  }
+
+  const pullRequest = event?.pull_request;
+  const base = pullRequest?.base?.sha;
+  const head = pullRequest?.head?.sha;
+  const headRepository = pullRequest?.head?.repo?.full_name;
+  const number = event?.number;
+  const labelEntries = pullRequest?.labels;
+  if (!SHA_PATTERN.test(base ?? '')) {
+    throw new Error('Feature flags guard requires the exact event PR base SHA in CI');
+  }
+  if (!SHA_PATTERN.test(head ?? '')) {
+    throw new Error('Feature flags guard requires the exact event PR head SHA in CI');
+  }
+  if (!/^[^/\s]+\/[^/\s]+$/.test(headRepository ?? '')) {
+    throw new Error('Feature flags guard requires the exact event PR head repository in CI');
+  }
+  if (!Number.isSafeInteger(number) || number <= 0) {
+    throw new Error('Feature flags guard requires the exact positive event PR number in CI');
+  }
+  if (
+    !Array.isArray(labelEntries) ||
+    labelEntries.some((label) => label === null || typeof label !== 'object' || typeof label.name !== 'string')
+  ) {
+    throw new Error('Feature flags guard requires event PR labels in CI');
+  }
+
+  return {
+    base,
+    head,
+    headRepository,
+    labels: labelEntries.map((label) => label.name),
+    number: String(number),
+  };
+}
+
 function requireExactCiProvenance(options, env = process.env) {
   const runningInGitHubActions = env.GITHUB_ACTIONS === 'true';
   if (!runningInGitHubActions) {
@@ -73,32 +120,14 @@ function requireExactCiProvenance(options, env = process.env) {
       `Feature flags guard requires pull_request provenance in CI, got: ${eventName || '<missing>'}`
     );
   }
-  if (!options.base || !SHA_PATTERN.test(options.base)) {
-    throw new Error('Feature flags guard requires an exact 40-character PR base SHA in CI');
-  }
-  if (!options.head || !SHA_PATTERN.test(options.head)) {
-    throw new Error('Feature flags guard requires an exact 40-character PR head SHA in CI');
-  }
-  if (!env.PR_BASE_SHA || !SHA_PATTERN.test(env.PR_BASE_SHA)) {
-    throw new Error('Feature flags guard requires the event PR base SHA in CI');
-  }
-  if (!env.PR_HEAD_SHA || !SHA_PATTERN.test(env.PR_HEAD_SHA)) {
-    throw new Error('Feature flags guard requires the event PR head SHA in CI');
-  }
-  if (options.base.toLowerCase() !== env.PR_BASE_SHA.toLowerCase()) {
+  const event = readPullRequestEvent(env);
+  if (options.base && options.base.toLowerCase() !== event.base.toLowerCase()) {
     throw new Error('Feature flags guard base SHA does not match event PR provenance');
   }
-  if (options.head.toLowerCase() !== env.PR_HEAD_SHA.toLowerCase()) {
+  if (options.head && options.head.toLowerCase() !== event.head.toLowerCase()) {
     throw new Error('Feature flags guard head SHA does not match event PR provenance');
   }
-  if (!env.PR_NUMBER || !/^[1-9]\d*$/.test(env.PR_NUMBER)) {
-    throw new Error('Feature flags guard requires the exact positive PR number in CI');
-  }
-  if (!env.PR_HEAD_REPOSITORY || !/^[^/\s]+\/[^/\s]+$/.test(env.PR_HEAD_REPOSITORY)) {
-    throw new Error('Feature flags guard requires the exact PR head repository in CI');
-  }
-
-  return options;
+  return event;
 }
 
 function resolveDiffRefs(options, env = process.env) {
@@ -109,15 +138,15 @@ function resolveDiffRefs(options, env = process.env) {
   const headSha = assertGitCommit(head);
 
   if (env.GITHUB_ACTIONS === 'true') {
-    if (baseSha.toLowerCase() !== env.PR_BASE_SHA.toLowerCase()) {
+    if (baseSha.toLowerCase() !== refs.base.toLowerCase()) {
       throw new Error('Resolved base commit does not match event PR provenance');
     }
-    if (headSha.toLowerCase() !== env.PR_HEAD_SHA.toLowerCase()) {
+    if (headSha.toLowerCase() !== refs.head.toLowerCase()) {
       throw new Error('Resolved head commit does not match event PR provenance');
     }
   }
 
-  return { base: baseSha, head: headSha };
+  return { base: baseSha, head: headSha, labels: refs.labels };
 }
 
 function getDiff(base, head) {
@@ -470,7 +499,10 @@ function collectJavaScriptAudience(flagName, node, path, audience, file) {
     const childPath = `${path}.${field}`;
     if (field === 'percentage') {
       audience.set(childPath, numericLiteral(flagName, childPath, property.initializer, file));
-    } else if (field === 'audience' && ts.isNumericLiteral(property.initializer)) {
+    } else if (
+      field === 'audience' &&
+      ts.isNumericLiteral(unwrapJavaScriptExpression(property.initializer))
+    ) {
       audience.set(childPath, numericLiteral(flagName, childPath, property.initializer, file));
     } else {
       collectJavaScriptAudience(flagName, property.initializer, childPath, audience, file);
@@ -786,9 +818,9 @@ function analyzeSensitivity(flagName, changes) {
   return issues;
 }
 
-function checkPRLabels() {
+function checkPRLabels(eventLabels) {
   try {
-    const labels = JSON.parse(process.env.PR_LABELS || '[]');
+    const labels = eventLabels ?? JSON.parse(process.env.PR_LABELS || '[]');
     if (!Array.isArray(labels) || labels.some((label) => typeof label !== 'string')) {
       throw new Error('PR_LABELS must be an array of strings');
     }
@@ -853,7 +885,7 @@ async function guardFlags() {
   console.log('='.repeat(50));
 
   const options = parseOptions();
-  const { base, head } = resolveDiffRefs(options);
+  const { base, head, labels: eventLabels } = resolveDiffRefs(options);
   const changedFiles = getDiff(base, head);
   const candidateFiles = changedFiles.filter(isFlagFile);
   const analyzedFiles = candidateFiles.map((file) => {
@@ -895,7 +927,7 @@ async function guardFlags() {
     }
   }
 
-  const labels = checkPRLabels();
+  const labels = checkPRLabels(eventLabels);
   const report = generateReport(allChanges, allIssues, labels);
 
   console.log('\n' + '='.repeat(50));

@@ -4436,15 +4436,11 @@ describe('required CI fails closed', () => {
 
     expect(flagsGuard).toBeDefined();
     expect(flagsGuard).not.toHaveProperty('continue-on-error', true);
-    expect(flagsGuard?.env).toMatchObject({
-      PR_BASE_SHA: '${{ github.event.pull_request.base.sha }}',
-      PR_HEAD_SHA: '${{ github.event.pull_request.head.sha }}',
-      PR_HEAD_REPOSITORY: '${{ github.event.pull_request.head.repo.full_name }}',
-      PR_NUMBER: '${{ github.event.pull_request.number }}',
-    });
+    expect(flagsGuard?.env).toBeUndefined();
     expect(flagsGuard?.run).toContain('set -euo pipefail');
-    expect(flagsGuard?.run).toContain('--base "$PR_BASE_SHA"');
-    expect(flagsGuard?.run).toContain('--head "$PR_HEAD_SHA"');
+    expect(flagsGuard?.run).toContain('node scripts/flags-guard.mjs');
+    expect(flagsGuard?.run).not.toMatch(/PR_BASE_SHA|PR_HEAD_SHA|PR_LABELS|PR_NUMBER/);
+    expect(flagsGuard?.run).not.toMatch(/--base|--head/);
     expect(flagsGuard?.run).not.toMatch(/\bHEAD\b|\bmain\b|gh\s+pr\s+list/);
   });
 

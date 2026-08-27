@@ -97,6 +97,7 @@ function runGuard(cwd, args = [], env = {}) {
       CI: '',
       GITHUB_ACTIONS: '',
       GITHUB_EVENT_NAME: '',
+      GITHUB_EVENT_PATH: '',
       PR_BASE_SHA: '',
       PR_HEAD_REPOSITORY: '',
       PR_HEAD_SHA: '',
@@ -104,6 +105,23 @@ function runGuard(cwd, args = [], env = {}) {
       ...env,
     },
   });
+}
+
+async function writePullRequestEvent(directory, repository, labels = []) {
+  const eventPath = path.join(directory, 'pull-request-event.json');
+  const event = {
+    number: 1434,
+    pull_request: {
+      base: { sha: repository.baseSha },
+      head: {
+        repo: { full_name: 'fork-owner/updog' },
+        sha: repository.headSha,
+      },
+      labels: labels.map((name) => ({ name })),
+    },
+  };
+  await writeFile(eventPath, `${JSON.stringify(event)}\n`, 'utf8');
+  return eventPath;
 }
 
 afterEach(async () => {
@@ -500,12 +518,40 @@ describe('feature flags approval guard', () => {
     );
 
     expect(result.status).not.toBe(0);
-    expect(`${result.stdout}\n${result.stderr}`).toMatch(/exact PR|PR number|head repository/i);
+    expect(`${result.stdout}\n${result.stderr}`).toMatch(/GITHUB_EVENT_PATH|event payload/i);
   });
 
-  it('fails closed in CI when event head provenance does not match the requested head', async () => {
-    const repository = await makeRepository('key: test.flag\n', 'key: test.flag\n');
+  it('rejects self-consistent forged CI refs that disagree with the event payload', async () => {
+    const repository = await makeRepository(
+      'key: auth.event-bound\ntargeting:\n  enabled: false\n',
+      'key: auth.event-bound\ntargeting:\n  enabled: true\n'
+    );
+    const eventPath = await writePullRequestEvent(repository.directory, repository);
+    const result = runGuard(
+      repository.directory,
+      ['--base', repository.baseSha, '--head', repository.baseSha],
+      {
+        CI: 'true',
+        GITHUB_ACTIONS: 'true',
+        GITHUB_EVENT_NAME: 'pull_request',
+        GITHUB_EVENT_PATH: eventPath,
+        PR_BASE_SHA: repository.baseSha,
+        PR_HEAD_REPOSITORY: 'fork-owner/updog',
+        PR_HEAD_SHA: repository.baseSha,
+        PR_NUMBER: '1434',
+      }
+    );
 
+    expect(result.status).not.toBe(0);
+    expect(`${result.stdout}\n${result.stderr}`).toMatch(/event.*head|head.*event|provenance/i);
+  });
+
+  it('uses pull-request event labels instead of forged workflow approval labels', async () => {
+    const repository = await makeRepository(
+      'key: auth.event-labels\ntargeting:\n  enabled: false\n',
+      'key: auth.event-labels\ntargeting:\n  enabled: true\n'
+    );
+    const eventPath = await writePullRequestEvent(repository.directory, repository);
     const result = runGuard(
       repository.directory,
       ['--base', repository.baseSha, '--head', repository.headSha],
@@ -513,10 +559,49 @@ describe('feature flags approval guard', () => {
         CI: 'true',
         GITHUB_ACTIONS: 'true',
         GITHUB_EVENT_NAME: 'pull_request',
+        GITHUB_EVENT_PATH: eventPath,
         PR_BASE_SHA: repository.baseSha,
         PR_HEAD_REPOSITORY: 'fork-owner/updog',
-        PR_HEAD_SHA: 'e'.repeat(40),
+        PR_HEAD_SHA: repository.headSha,
+        PR_LABELS: JSON.stringify(['product-signoff', 'approved:flags-change']),
         PR_NUMBER: '1434',
+      }
+    );
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('product-signoff');
+    expect(`${result.stdout}\n${result.stderr}`).toContain('approved:flags-change');
+
+    const approvedEventPath = await writePullRequestEvent(repository.directory, repository, [
+      'product-signoff',
+      'approved:flags-change',
+    ]);
+    const approved = runGuard(
+      repository.directory,
+      ['--base', repository.baseSha, '--head', repository.headSha],
+      {
+        CI: 'true',
+        GITHUB_ACTIONS: 'true',
+        GITHUB_EVENT_NAME: 'pull_request',
+        GITHUB_EVENT_PATH: approvedEventPath,
+        PR_LABELS: '[]',
+      }
+    );
+    expect(approved.status).toBe(0);
+  });
+
+  it('fails closed in CI when event head provenance does not match the requested head', async () => {
+    const repository = await makeRepository('key: test.flag\n', 'key: test.flag\n');
+    const eventPath = await writePullRequestEvent(repository.directory, repository);
+
+    const result = runGuard(
+      repository.directory,
+      ['--base', repository.baseSha, '--head', 'e'.repeat(40)],
+      {
+        CI: 'true',
+        GITHUB_ACTIONS: 'true',
+        GITHUB_EVENT_NAME: 'pull_request',
+        GITHUB_EVENT_PATH: eventPath,
       }
     );
 
@@ -526,18 +611,16 @@ describe('feature flags approval guard', () => {
 
   it('uses exact event provenance without branch-name or PR-search inputs', async () => {
     const repository = await makeRepository('key: test.flag\n', 'key: test.flag\n');
+    const eventPath = await writePullRequestEvent(repository.directory, repository);
 
     const result = runGuard(
       repository.directory,
-      ['--base', repository.baseSha, '--head', repository.headSha],
+      [],
       {
         CI: 'true',
         GITHUB_ACTIONS: 'true',
         GITHUB_EVENT_NAME: 'pull_request',
-        PR_BASE_SHA: repository.baseSha,
-        PR_HEAD_REPOSITORY: 'fork-owner/updog',
-        PR_HEAD_SHA: repository.headSha,
-        PR_NUMBER: '1434',
+        GITHUB_EVENT_PATH: eventPath,
       }
     );
 
@@ -1473,6 +1556,41 @@ describe('feature flags approval guard', () => {
     ]);
 
     expect(result.status).toBe(0);
+  });
+
+  it('counts wrapped nested audience values in combined approval controls', async () => {
+    const repository = await makeRepository(
+      [
+        'type Percentage = number;',
+        'export const flags = {',
+        "  'beta.wrapped-audience': {",
+        '    enabled: true,',
+        '    targeting: { rules: [{ audience: (0 as Percentage), percentage: 0 }] },',
+        '  },',
+        '};',
+        '',
+      ].join('\n'),
+      [
+        'type Percentage = number;',
+        'export const flags = {',
+        "  'beta.wrapped-audience': {",
+        '    enabled: true,',
+        '    targeting: { rules: [{ audience: (6 as Percentage), percentage: 6 }] },',
+        '  },',
+        '};',
+        '',
+      ].join('\n'),
+      'src/feature-flags.ts'
+    );
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+    const withoutSignoff = runGuard(repository.directory, args);
+    const approved = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['product-signoff']),
+    });
+
+    expect(withoutSignoff.status).toBe(1);
+    expect(`${withoutSignoff.stdout}\n${withoutSignoff.stderr}`).toContain('product-signoff');
+    expect(approved.status).toBe(0);
   });
 
   it('requires flags approval for new active and inactive high-risk flags', async () => {
