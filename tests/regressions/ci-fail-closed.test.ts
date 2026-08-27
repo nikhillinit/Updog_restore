@@ -4436,6 +4436,16 @@ describe('required CI fails closed', () => {
 
     expect(flagsGuard).toBeDefined();
     expect(flagsGuard).not.toHaveProperty('continue-on-error', true);
+    expect(flagsGuard?.env).toMatchObject({
+      PR_BASE_SHA: '${{ github.event.pull_request.base.sha }}',
+      PR_HEAD_SHA: '${{ github.event.pull_request.head.sha }}',
+      PR_HEAD_REPOSITORY: '${{ github.event.pull_request.head.repo.full_name }}',
+      PR_NUMBER: '${{ github.event.pull_request.number }}',
+    });
+    expect(flagsGuard?.run).toContain('set -euo pipefail');
+    expect(flagsGuard?.run).toContain('--base "$PR_BASE_SHA"');
+    expect(flagsGuard?.run).toContain('--head "$PR_HEAD_SHA"');
+    expect(flagsGuard?.run).not.toMatch(/\bHEAD\b|\bmain\b|gh\s+pr\s+list/);
   });
 
   it('does not let advisory PR comments override the validated gate result', async () => {

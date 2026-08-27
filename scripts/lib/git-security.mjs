@@ -13,13 +13,12 @@ import { execFileSync, spawnSync } from 'child_process';
  * @param {string} ref - The Git ref to validate
  * @param {object} options - Validation options
  * @param {boolean} options.allowBranch - Allow branch refs (default: true)
- * @param {boolean} options.allowTag - Allow tag refs (default: true)
  * @param {boolean} options.normalize - Normalize the ref (default: false)
  * @throws {Error} if ref is invalid
  * @returns {string} The validated (and optionally normalized) ref
  */
 export function assertValidGitRef(ref, options = {}) {
-  const { allowBranch = true, allowTag = true, normalize = false } = options;
+  const { allowBranch = true, normalize = false } = options;
 
   if (!ref || typeof ref !== 'string') {
     throw new Error('Git ref must be a non-empty string');
@@ -41,12 +40,13 @@ export function assertValidGitRef(ref, options = {}) {
   // Use Git's check-ref-format for validation
   const result = spawnSync(
     'git',
-    allowBranch
-      ? ['check-ref-format', '--branch', trimmed]
-      : ['check-ref-format', trimmed],
+    allowBranch ? ['check-ref-format', '--branch', trimmed] : ['check-ref-format', trimmed],
     { stdio: 'pipe' }
   );
 
+  if (result.error) {
+    throw new Error(`Git ref validation failed: ${result.error.message}`);
+  }
   if (result.status !== 0) {
     throw new Error(
       `Invalid Git ref: ${trimmed}\n${result.stderr?.toString() || result.stdout?.toString()}`
@@ -56,11 +56,9 @@ export function assertValidGitRef(ref, options = {}) {
   // Optionally normalize the ref
   if (normalize) {
     try {
-      const normalized = execFileSync(
-        'git',
-        ['rev-parse', '--abbrev-ref', trimmed],
-        { encoding: 'utf8' }
-      ).trim();
+      const normalized = execFileSync('git', ['rev-parse', '--abbrev-ref', trimmed], {
+        encoding: 'utf8',
+      }).trim();
       return normalized;
     } catch (error) {
       // If normalize fails, return original validated ref
@@ -69,6 +67,24 @@ export function assertValidGitRef(ref, options = {}) {
   }
 
   return trimmed;
+}
+
+/**
+ * Verifies that a validated ref resolves to an existing commit object.
+ *
+ * @param {string} ref - Git ref to resolve
+ * @returns {string} Exact resolved commit SHA
+ */
+export function assertGitCommit(ref) {
+  const validRef = assertValidGitRef(ref);
+
+  try {
+    return execFileSync('git', ['rev-parse', '--verify', `${validRef}^{commit}`], {
+      encoding: 'utf8',
+    }).trim();
+  } catch (error) {
+    throw new Error(`Git ref does not resolve to a commit: ${validRef}\n${error.message}`);
+  }
 }
 
 /**
@@ -131,7 +147,7 @@ export function safeGitDiffFiles(baseRef, headRef = 'HEAD') {
   const output = safeGitDiff(baseRef, headRef, ['--name-only']);
   return output
     .split('\n')
-    .map(f => f.trim())
+    .map((f) => f.trim())
     .filter(Boolean);
 }
 
@@ -152,7 +168,10 @@ export function safeGitDiffFile(baseRef, headRef, filePath) {
     throw new Error(`File path contains dangerous characters: ${filePath}`);
   }
 
-  const args = ['diff', `${validBase}...${validHead}`, '--', filePath];
+  // Flag metadata (for example a YAML `key:`) can sit more than Git's default
+  // three context lines above a changed exposure field. Keep enough context for
+  // callers to bind each changed field to its owning flag deterministically.
+  const args = ['diff', '--unified=1000', `${validBase}...${validHead}`, '--', filePath];
 
   try {
     return execFileSync('git', args, {
@@ -160,7 +179,7 @@ export function safeGitDiffFile(baseRef, headRef, filePath) {
       maxBuffer: 10 * 1024 * 1024,
     });
   } catch (error) {
-    return ''; // File might not exist or have changes
+    throw new Error(`Git diff failed for ${filePath}: ${error.message}`);
   }
 }
 

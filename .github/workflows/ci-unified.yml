@@ -664,9 +664,17 @@ jobs:
 
       - name: Feature flags guard
         id: flags-guard
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          PR_LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}' \
-          node scripts/flags-guard.mjs
+          set -euo pipefail
+          node scripts/flags-guard.mjs \
+            --base "$PR_BASE_SHA" \
+            --head "$PR_HEAD_SHA"
 
       - name: Check for perf budget changes
         id: perf-files
