@@ -1593,6 +1593,65 @@ describe('feature flags approval guard', () => {
     expect(approved.status).toBe(0);
   });
 
+  it.each([
+    [
+      'YAML',
+      'flags/test.yaml',
+      [
+        'key: beta.opaque-audience',
+        'default: true',
+        'targeting:',
+        '  rules:',
+        '    - audience: 0',
+        '      percentage: 0',
+        '',
+      ].join('\n'),
+      [
+        'key: beta.opaque-audience',
+        'default: true',
+        'targeting:',
+        '  rules:',
+        '    - audience: all',
+        '      percentage: 6',
+        '',
+      ].join('\n'),
+    ],
+    [
+      'JavaScript',
+      'src/feature-flags.js',
+      [
+        'export const flags = {',
+        "  'beta.opaque-audience': {",
+        '    enabled: true,',
+        '    targeting: { rules: [{ audience: 0, percentage: 0 }] },',
+        '  },',
+        '};',
+        '',
+      ].join('\n'),
+      [
+        'const someAudience = 6;',
+        'export const flags = {',
+        "  'beta.opaque-audience': {",
+        '    enabled: true,',
+        '    targeting: { rules: [{ audience: someAudience, percentage: 6 }] },',
+        '  },',
+        '};',
+        '',
+      ].join('\n'),
+    ],
+  ])('fails closed on an opaque nested audience value in %s', async (_format, file, base, head) => {
+    const repository = await makeRepository(base, head, file);
+    const result = runGuard(repository.directory, [
+      '--base',
+      repository.baseSha,
+      '--head',
+      repository.headSha,
+    ]);
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toMatch(/audience.*number|audience.*numeric|failed closed/i);
+  });
+
   it('requires flags approval for new active and inactive high-risk flags', async () => {
     for (const targetingEnabled of [true, false]) {
       const repository = await makeRepository(

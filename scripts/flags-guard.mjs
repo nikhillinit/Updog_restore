@@ -228,7 +228,7 @@ function collectYamlAudience(flagName, value, path, audience) {
     const childPath = `${path}.${field}`;
     if (field === 'percentage') {
       audience.set(childPath, validatePercentage(flagName, childPath, child, 'YAML'));
-    } else if (field === 'audience' && typeof child === 'number') {
+    } else if (field === 'audience') {
       audience.set(childPath, validatePercentage(flagName, childPath, child, 'YAML'));
     } else {
       collectYamlAudience(flagName, child, childPath, audience);
@@ -499,10 +499,7 @@ function collectJavaScriptAudience(flagName, node, path, audience, file) {
     const childPath = `${path}.${field}`;
     if (field === 'percentage') {
       audience.set(childPath, numericLiteral(flagName, childPath, property.initializer, file));
-    } else if (
-      field === 'audience' &&
-      ts.isNumericLiteral(unwrapJavaScriptExpression(property.initializer))
-    ) {
+    } else if (field === 'audience') {
       audience.set(childPath, numericLiteral(flagName, childPath, property.initializer, file));
     } else {
       collectJavaScriptAudience(flagName, property.initializer, childPath, audience, file);
