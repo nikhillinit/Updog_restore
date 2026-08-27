@@ -8,19 +8,23 @@ last_updated: 2026-01-19
 ## Quick checks
 
 ```bash
+(
 : "${PR_NUMBER:?PR_NUMBER is required}"
 : "${RUN_ID:?RUN_ID is required}"
 gh pr checks "$PR_NUMBER" --json name,state,link
 gh run view "$RUN_ID" --log-failed
 gh api "/repos/nikhillinit/Updog_restore/actions/runs/${RUN_ID}/jobs?per_page=100"
+)
 ```
 
 ## Job-specific logs
 
 ```bash
+(
 : "${RUN_ID:?RUN_ID is required}"
 : "${JOB_ID:?JOB_ID is required}"
 gh run view "$RUN_ID" --job "$JOB_ID" --log-failed
+)
 ```
 
 ## Notes

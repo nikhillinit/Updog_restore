@@ -123,6 +123,7 @@ unavailable, the recovery workflow's `resolve` mode reconstructs the handle
 from the exact run ID and attempt alone.
 
 ```bash
+(
 : "${CANCELLED_RUN_ID:?CANCELLED_RUN_ID is required}"
 : "${CANCELLED_RUN_ATTEMPT:?CANCELLED_RUN_ATTEMPT is required}"
 : "${EXPECTED_SHA:?EXPECTED_SHA is required}"
@@ -135,6 +136,7 @@ gh workflow run release-canary-recovery.yml \
   --field expected_sha="$EXPECTED_SHA" \
   --field fund_id="$CANARY_FUND_ID" \
   --field canary_run_id="$CANARY_RUN_UUID"
+)
 ```
 
 The workflow resolves the exact workflow execution, performs the version-fenced

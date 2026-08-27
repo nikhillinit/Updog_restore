@@ -7,8 +7,10 @@ Capital-call status transitions commit durable notification outbox rows. The wor
 Run dry-run mode with explicit row IDs:
 
 ```bash
+(
 : "${OUTBOX_UUID:?OUTBOX_UUID is required}"
 node scripts/release/redeliver-capital-call-outbox.mjs --ids="$OUTBOX_UUID"
+)
 ```
 
 Use `--all` to inspect every exhausted row. Dry-run performs no writes.
@@ -18,8 +20,10 @@ Use `--all` to inspect every exhausted row. Dry-run performs no writes.
 Review dry-run output, then reset only approved rows:
 
 ```bash
+(
 : "${OUTBOX_UUID:?OUTBOX_UUID is required}"
 node scripts/release/redeliver-capital-call-outbox.mjs --ids="$OUTBOX_UUID" --apply
+)
 ```
 
 For a deliberate full reset:

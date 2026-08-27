@@ -80,6 +80,7 @@ regeneration chain uses `--fresh` before rebuilding source-derived artifacts.
 it is never a mechanical reset-and-carry operation.
 
 ```sh
+(
 set -eu
 
 : "${COMMITTED_SOURCE_SHA:?COMMITTED_SOURCE_SHA is required}"
@@ -89,10 +90,7 @@ npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --fresh --revie
 npx tsx audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs --mode seed --expected-sha "$COMMITTED_SOURCE_SHA"
 npx tsx audit/surface-contract-matrix/scripts/boot-proof.mjs
 SEED_SNAPSHOT="$(mktemp -d)"
-cleanup() {
-  rm -rf "$SEED_SNAPSHOT"
-}
-trap cleanup EXIT HUP INT TERM
+trap 'rm -rf "$SEED_SNAPSHOT"' EXIT HUP INT TERM
 npx tsx audit/surface-contract-matrix/scripts/seed-matrix.mjs
 for artifact in matrix.json source-inventory.json listener-dispositions.json dormant-candidates.json dormant-inventory.json runtime-exclusions.json condition-overrides.json definition-overrides.json orphans.json; do
   cp "audit/surface-contract-matrix/$artifact" "$SEED_SNAPSHOT/$artifact"
@@ -107,6 +105,7 @@ done
 npx tsx audit/surface-contract-matrix/scripts/classify-pass.mjs
 npx tsx audit/surface-contract-matrix/scripts/validate-matrix.mjs
 npx tsx audit/surface-contract-matrix/scripts/render-matrix.mjs
+)
 ```
 
 Release proof rebuilds the ignored route projection in strict `release` mode
@@ -122,12 +121,14 @@ After regeneration, initialize and edit the tracked manifest. Seed never reads
 this file; approval is the only consumer of human decisions:
 
 ```sh
+(
 : "${APPROVER_ID:?APPROVER_ID is required}"
 : "${EVIDENCE_REF:?EVIDENCE_REF is required}"
 npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs init-review --review-file audit/surface-contract-matrix/g1-review.json
 npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver "$APPROVER_ID" --evidence "$EVIDENCE_REF" --dry-run
 npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver "$APPROVER_ID" --evidence "$EVIDENCE_REF"
 npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver "$APPROVER_ID" --evidence "$EVIDENCE_REF" --close-g1
+)
 ```
 
 `--approver` must equal manifest `approver_id`; `--evidence` must equal manifest
