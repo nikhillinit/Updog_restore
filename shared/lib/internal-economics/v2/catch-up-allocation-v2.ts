@@ -28,6 +28,9 @@ export function splitQuantizedGpLp(
   if (allocated.lt(0) || gpShare.lt(0) || gpShare.gt(1)) {
     throw new Error('GP/LP split invariant violated.');
   }
+  if (availableCap !== undefined && availableCap.lt(0)) {
+    throw new Error('GP/LP split invariant violated: negative available cap.');
+  }
 
   // HALF_UP quantization of a value that binds at `availableCap` may exceed the
   // cap by half a unit; clamp to the floored cap so we never distribute more

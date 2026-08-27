@@ -185,6 +185,12 @@ describe('computeGpCatchUpAllocationV2', () => {
     expect(uncapped.allocatedTotal).toBe('100.000003');
   });
 
+  it('splitQuantizedGpLp rejects a negative available cap', () => {
+    expect(() => splitQuantizedGpLp(d('10'), d('0.2'), d('-0.000001'))).toThrow(
+      /negative available cap/
+    );
+  });
+
   it('enforces 0 <= c < g <= 1', () => {
     const valid = {
       available: d('1000'),
