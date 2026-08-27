@@ -35,9 +35,11 @@ FROM node:22.23.2-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e
 WORKDIR /app
 
 # Security hardening
-# hadolint ignore=DL3018
+# hadolint ignore=DL3018,DL3017
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001 && \
+    # CVE-2026-14456: pinned base digest ships libcrypto3/libssl3 3.5.7-r0
+    apk upgrade --no-cache libcrypto3 libssl3 && \
     apk add --no-cache dumb-init && \
     rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
