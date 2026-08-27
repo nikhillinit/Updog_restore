@@ -92,6 +92,10 @@ appendFileSync(
   JSON.stringify({ label: 'classification', gitEnvironment }) + '\\n'
 );
 process.stdout.write(process.env.PRE_PUSH_FIXTURE_CLASSIFICATION);
+
+export function requiresVendoredSkillLockCheck() {
+  return false;
+}
 `
   );
   await write(
@@ -168,29 +172,36 @@ describe('pre-push hook child environment', () => {
     ['primary worktree targeted', 'primary', 'targeted', 'targeted-test'],
     ['linked worktree full-run', 'linked', 'full-run', 'full-test'],
     ['linked worktree targeted', 'linked', 'targeted', 'targeted-test'],
-  ])('removes hook-local Git variables for %s validation', async (_name, worktreeType, classification, targetLabel) => {
-    const fixture = await createFixture();
-    const worktree = fixture[worktreeType];
-    const result = spawnSync(process.execPath, [prePushScript], {
-      cwd: worktree,
-      env: hostileHookEnvironment(worktree, fixture.environmentLog, classification),
-      encoding: 'utf8',
-    });
+  ])(
+    'removes hook-local Git variables for %s validation',
+    async (_name, worktreeType, classification, targetLabel) => {
+      const fixture = await createFixture();
+      const worktree = fixture[worktreeType];
+      const result = spawnSync(process.execPath, [prePushScript], {
+        cwd: worktree,
+        env: hostileHookEnvironment(worktree, fixture.environmentLog, classification),
+        encoding: 'utf8',
+      });
 
-    expect(result.error).toBeUndefined();
+      expect(result.error).toBeUndefined();
 
-    const childEnvironments = await capturedEnvironments(fixture.environmentLog);
-    const target = childEnvironments.find((entry) => entry.label === targetLabel);
-    expect(target).toMatchObject({
-      gitEnvironment: {
-        GIT_DIR: null,
-        GIT_WORK_TREE: null,
-        GIT_INDEX_FILE: null,
-      },
-    });
-    expect(childEnvironments).not.toHaveLength(0);
-    expect(childEnvironments.every((entry) => Object.values(entry.gitEnvironment).every((value) => value === null))).toBe(true);
-    expect(result.status).toBe(0);
-    expect(git(fixture.primary, ['config', '--bool', 'core.bare'])).toBe('false');
-  });
+      const childEnvironments = await capturedEnvironments(fixture.environmentLog);
+      const target = childEnvironments.find((entry) => entry.label === targetLabel);
+      expect(target).toMatchObject({
+        gitEnvironment: {
+          GIT_DIR: null,
+          GIT_WORK_TREE: null,
+          GIT_INDEX_FILE: null,
+        },
+      });
+      expect(childEnvironments).not.toHaveLength(0);
+      expect(
+        childEnvironments.every((entry) =>
+          Object.values(entry.gitEnvironment).every((value) => value === null)
+        )
+      ).toBe(true);
+      expect(result.status).toBe(0);
+      expect(git(fixture.primary, ['config', '--bool', 'core.bare'])).toBe('false');
+    }
+  );
 });

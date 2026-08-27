@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer';
+import process from 'node:process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -6,11 +8,7 @@ export const FULL_RUN_CLASSIFICATION = 'full-run';
 export const NO_CHANGES_CLASSIFICATION = 'no-changes';
 export const TARGETED_CLASSIFICATION = 'targeted';
 
-export const DOCS_ONLY_PATTERNS = [
-  /^docs\//,
-  /\.mdx?$/i,
-  /^\.gitignore$/,
-];
+export const DOCS_ONLY_PATTERNS = [/^docs\//, /\.mdx?$/i, /^\.gitignore$/];
 export const FULL_RUN_PATTERNS = [
   /^package(?:-lock)?\.json$/,
   /^tsconfig(?:\.[^/]+)?\.json$/,
@@ -21,6 +19,7 @@ export const FULL_RUN_PATTERNS = [
   /^docker-compose(?:\.[^/]+)?\.ya?ml$/,
   /^scripts\/(?:test-smart|pre-push|pre-push-classification|typescript-baseline)\.(?:mjs|cjs)$/,
 ];
+export const VENDORED_SKILL_LOCK_PATTERNS = [/^\.agents\/skills\//, /^skills-lock\.json$/];
 
 function matchesAny(file, patterns) {
   return patterns.some((pattern) => pattern.test(file));
@@ -46,6 +45,12 @@ export function classifyChangedFiles(changedFiles) {
   }
 
   return TARGETED_CLASSIFICATION;
+}
+
+export function requiresVendoredSkillLockCheck(changedFiles) {
+  return normalizeChangedFiles(changedFiles).some((file) =>
+    matchesAny(file, VENDORED_SKILL_LOCK_PATTERNS)
+  );
 }
 
 export function parseChangedFiles(input) {

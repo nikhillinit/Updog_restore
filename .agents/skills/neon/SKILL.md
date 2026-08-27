@@ -174,10 +174,18 @@ skills and fetch them manually.
 
 ### Updating Skills
 
-Do NOT auto-update these skills per session. This repository pins vendored
-skills in `skills-lock.json`; update them only through an explicit,
-source-reviewed dependency change that vendors the new content and refreshes the
-lock entry in the same commit.
+Do NOT auto-update these skills per session. This repository pins every folder
+under `.agents/skills/` in `skills-lock.json`; update vendored content only
+through an explicit, source-reviewed dependency change. After editing or
+replacing a complete skill folder, run `npm run skills:lock:update`, inspect the
+vendored-content and lockfile diff together, then run
+`npm run skills:lock:check`.
+
+The lock uses the local-folder `sha256-folder-v1` contract. For each skill,
+relative POSIX file paths are normalized and sorted by their UTF-8 bytes. The
+SHA-256 input is each sorted file's relative path bytes followed by its raw file
+bytes. Symlinks are rejected. Validation is offline and fails for missing,
+extra, or changed files, unlocked skill folders, and malformed lock data.
 
 ## Getting Started with Neon
 

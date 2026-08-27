@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
+import console from 'node:console';
 import path from 'node:path';
 import process from 'node:process';
+
+import { requiresVendoredSkillLockCheck } from './pre-push-classification.mjs';
 
 let childEnvironment = process.env;
 
@@ -108,6 +111,12 @@ if (changedSkillFiles.length > 0) {
   run('npm', ['run', 'skills:check']);
 }
 
+const changedFiles = splitLines(changed);
+if (requiresVendoredSkillLockCheck(changedFiles)) {
+  console.log('Vendored skills or lock changed; verifying vendored skill lock...');
+  run('npm', ['run', 'skills:lock:check']);
+}
+
 const classification = output('node', ['scripts/pre-push-classification.mjs'], {
   input: `${changed}\n`,
 });
@@ -161,7 +170,6 @@ if (classification === 'full-run') {
 }
 
 console.log('Running targeted tests for changed files...');
-const changedFiles = splitLines(changed);
 // Local optimization only. Vitest related follows statically discoverable
 // imports; required CI remains authoritative and fails closed through the
 // affected-test planner when direct ownership is not proven.
