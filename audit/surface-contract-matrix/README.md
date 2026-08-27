@@ -138,6 +138,33 @@ run_seed_command() {
   return "$seed_status"
 }
 
+verify_seed_source() {
+  if [ -z "${COMMITTED_SOURCE_SHA:-}" ]; then
+    printf '%s\n' 'COMMITTED_SOURCE_SHA is required' >&2
+    return 2
+  fi
+
+  seed_actual_sha="$(git rev-parse HEAD)" || {
+    seed_status=$?
+    printf '%s\n' 'failed to resolve current HEAD' >&2
+    return "$seed_status"
+  }
+  if [ "$seed_actual_sha" != "$COMMITTED_SOURCE_SHA" ]; then
+    printf '%s\n' 'HEAD does not match COMMITTED_SOURCE_SHA' >&2
+    return 1
+  fi
+
+  seed_tracked_status="$(git status --short --untracked-files=no)" || {
+    seed_status=$?
+    printf '%s\n' 'failed to inspect tracked worktree state' >&2
+    return "$seed_status"
+  }
+  if [ -n "$seed_tracked_status" ]; then
+    printf '%s\n' 'tracked worktree must be clean before regeneration' >&2
+    return 1
+  fi
+}
+
 copy_seed_snapshot() {
   for artifact in matrix.json source-inventory.json listener-dispositions.json dormant-candidates.json dormant-inventory.json runtime-exclusions.json condition-overrides.json definition-overrides.json orphans.json; do
     run_seed_command cp "audit/surface-contract-matrix/$artifact" "$SEED_SNAPSHOT/$artifact" || return $?
@@ -160,13 +187,10 @@ run_seed_regeneration() {
   trap 'handle_seed_signal 130' INT
   trap 'handle_seed_signal 143' TERM
 
-  if [ -z "${COMMITTED_SOURCE_SHA:-}" ]; then
-    printf '%s\n' 'COMMITTED_SOURCE_SHA is required' >&2
-    return 2
-  fi
-
+  verify_seed_source || return $?
   run_seed_command npm install || return $?
   run_seed_command npm ls || return $?
+  verify_seed_source || return $?
   run_seed_command npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --fresh --review-file audit/surface-contract-matrix/g1-review.json || return $?
   run_seed_command npx tsx audit/knowledge-graph/scripts/rebuild-knowledge-graph.mjs --mode seed --expected-sha "$COMMITTED_SOURCE_SHA" || return $?
   run_seed_command npx tsx audit/surface-contract-matrix/scripts/boot-proof.mjs || return $?

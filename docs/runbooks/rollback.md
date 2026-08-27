@@ -9,8 +9,8 @@ last_updated: 2026-07-30
 
 Repository path: `docs/workflows/PRODUCTION_SCRIPTS.md`.
 
-This guide routes production-action authority to the canonical route and
-confers no authority by itself to mutate source, branch, environment, provider,
+This guide routes production-action authority to the canonical route and confers
+no authority by itself to mutate source, branch, environment, provider,
 production, schema, data, deployment, promotion, or rollback. The canonical
 route is active for repository governance only; it confers no production
 readiness or authorization, and action-specific UNKNOWN prerequisites remain
@@ -67,8 +67,8 @@ script.
 5. Dispatch `Release Production` from `main` through
    `scripts/deploy-production.ps1`, supplying the four redacted operator
    evidence files, schema-apply evidence, and the immutable pre-merge baseline
-   identity for the exact live `main` SHA. In rollback mode the revert PR
-   number and its final head SHA are mandatory; the workflow's
+   identity for the exact live `main` SHA. In rollback mode the revert PR number
+   and its final head SHA are mandatory; the workflow's
    `baseline-policy-preflight` job verifies the revert restores the baseline
    application tree. Do not use Vercel CLI, raw workflow dispatch, or another
    production mutation path. Use the exact PowerShell invocation in
@@ -114,13 +114,15 @@ script.
 
 If a `Release Production` run is hard-cancelled after canary fund creation but
 before its finalizer bound the run to a terminal state, recover on exactly one
-authorized production surface: the `Release Canary Recovery` workflow. Never
-run a local CLI against production, and never search for a "latest" run — the
+authorized production surface: the `Release Canary Recovery` workflow. Never run
+a local CLI against production, and never search for a "latest" run — the
 recovery inputs come from the cancelled run's `RELEASE_CANARY_RECOVERY_V1` log
 line (the recovery handle is written only to the runner's temp path and that
-log line), and every input names the exact execution. If the log line is
-unavailable, the recovery workflow's `resolve` mode reconstructs the handle
-from the exact run ID and attempt alone.
+line), and every input names the exact execution. Dispatch requires the exact
+fund ID and canary run UUID from that recovery handle in addition to the run ID,
+attempt, and expected SHA. If the handle is unavailable, do not dispatch this
+workflow and do not guess or search for identifiers; preserve the incident
+evidence and escalate through the governed recovery process.
 
 ```bash
 (
