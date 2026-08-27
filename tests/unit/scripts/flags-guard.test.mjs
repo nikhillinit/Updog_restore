@@ -158,7 +158,30 @@ describe('feature flags approval guard', () => {
     expect(`${result.stdout}\n${result.stderr}`).toMatch(/Git diff failed for flags\/test.yaml/i);
   });
 
-  it('requires product signoff for a separate-line enabled false-to-true change', async () => {
+  it('requires both approvals for a new active sensitive flat YAML flag', async () => {
+    const repository = await makeRepository(
+      '# flags\n',
+      ['key: auth.new', 'targeting:', '  enabled: true', ''].join('\n')
+    );
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+
+    const noLabels = runGuard(repository.directory, args);
+    const productOnly = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['product-signoff']),
+    });
+    const allRequiredApprovals = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['product-signoff', 'approved:flags-change']),
+    });
+
+    expect(noLabels.status).toBe(1);
+    expect(`${noLabels.stdout}\n${noLabels.stderr}`).toContain("Flag 'auth.new'");
+    expect(productOnly.status).toBe(1);
+    expect(`${productOnly.stdout}\n${productOnly.stderr}`).toContain('approved:flags-change');
+    expect(allRequiredApprovals.status).toBe(0);
+    expect(allRequiredApprovals.stdout).toContain('FLAG CHANGES APPROVED');
+  });
+
+  it('requires product signoff for an existing flat YAML enabled false-to-true change', async () => {
     const repository = await makeRepository(
       [
         'key: test.flag',
@@ -187,6 +210,58 @@ describe('feature flags approval guard', () => {
         '',
       ].join('\n')
     );
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+
+    const result = runGuard(repository.directory, args);
+    const approved = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['product-signoff']),
+    });
+    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(result.status).toBe(1);
+    expect(output).toContain("Flag 'test.flag' is being enabled/exposed");
+    expect(output).toContain('product-signoff');
+    expect(approved.status).toBe(0);
+  });
+
+  it('requires product signoff for a same-line JavaScript false-to-true change', async () => {
+    const repository = await makeRepository(
+      ['export const flags = {', "  'wizard.v1': { enabled: false },", '};', ''].join('\n'),
+      ['export const flags = {', "  'wizard.v1': { enabled: true },", '};', ''].join('\n'),
+      'src/feature-flags.js'
+    );
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+
+    const result = runGuard(repository.directory, args);
+    const approved = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['product-signoff']),
+    });
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain(
+      "Flag 'wizard.v1' is being enabled/exposed"
+    );
+    expect(approved.status).toBe(0);
+  });
+
+  it('does not pair a removed false from one compact flag with true from another', async () => {
+    const repository = await makeRepository(
+      [
+        'export const flags = {',
+        "  'flag.one': { enabled: false },",
+        "  'flag.two': { enabled: true },",
+        '};',
+        '',
+      ].join('\n'),
+      [
+        'export const flags = {',
+        "  'flag.one': {},",
+        "  'flag.two': { enabled: true, description: 'metadata only' },",
+        '};',
+        '',
+      ].join('\n'),
+      'src/feature-flags.js'
+    );
 
     const result = runGuard(repository.directory, [
       '--base',
@@ -194,11 +269,133 @@ describe('feature flags approval guard', () => {
       '--head',
       repository.headSha,
     ]);
-    const output = `${result.stdout}\n${result.stderr}`;
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('FLAG CHANGES APPROVED');
+    expect(result.stdout).not.toContain('is being enabled/exposed');
+  });
+
+  it('requires product signoff for canonical registry default activation', async () => {
+    const repository = await makeRepository(
+      [
+        "schema_version: '1.0'",
+        'flags:',
+        '  test_flag:',
+        '    default: false',
+        '    environments:',
+        '      development: false',
+        '      staging: false',
+        '      production: false',
+        '',
+      ].join('\n'),
+      [
+        "schema_version: '1.0'",
+        'flags:',
+        '  test_flag:',
+        '    default: true',
+        '    environments:',
+        '      development: false',
+        '      staging: false',
+        '      production: false',
+        '',
+      ].join('\n'),
+      'flags/registry.yaml'
+    );
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+
+    const result = runGuard(repository.directory, args);
+    const approved = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['product-signoff']),
+    });
 
     expect(result.status).toBe(1);
-    expect(output).toContain("Flag 'test.flag' is being enabled/exposed");
-    expect(output).toContain('product-signoff');
+    expect(`${result.stdout}\n${result.stderr}`).toContain(
+      "Flag 'test_flag' is being enabled/exposed"
+    );
+    expect(approved.status).toBe(0);
+  });
+
+  it('requires product signoff for canonical registry environment activation', async () => {
+    const repository = await makeRepository(
+      [
+        "schema_version: '1.0'",
+        'flags:',
+        '  test_flag:',
+        '    default: false',
+        '    environments:',
+        '      development: false',
+        '      staging: false',
+        '      production: false',
+        '',
+      ].join('\n'),
+      [
+        "schema_version: '1.0'",
+        'flags:',
+        '  test_flag:',
+        '    default: false',
+        '    environments:',
+        '      development: false',
+        '      staging: false',
+        '      production: true',
+        '',
+      ].join('\n'),
+      'flags/registry.yaml'
+    );
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+
+    const result = runGuard(repository.directory, args);
+    const approved = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['product-signoff']),
+    });
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain(
+      "Flag 'test_flag' is being enabled/exposed"
+    );
+    expect(approved.status).toBe(0);
+  });
+
+  it('fails closed on a malformed activation value in a supported YAML flag', async () => {
+    const repository = await makeRepository(
+      ['key: test.flag', 'targeting:', '  enabled: false', ''].join('\n'),
+      ['key: test.flag', 'targeting:', '  enabled: definitely', ''].join('\n')
+    );
+
+    const result = runGuard(repository.directory, [
+      '--base',
+      repository.baseSha,
+      '--head',
+      repository.headSha,
+    ]);
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toMatch(/malformed|boolean|failed closed/i);
+  });
+
+  it('ignores feature-like text in YAML comments', async () => {
+    const repository = await makeRepository(
+      ['key: test.flag', 'targeting:', '  enabled: false', ''].join('\n'),
+      [
+        'key: test.flag',
+        'targeting:',
+        '  enabled: false',
+        '# key: auth.comment',
+        '# targeting:',
+        '#   enabled: true',
+        '',
+      ].join('\n')
+    );
+
+    const result = runGuard(repository.directory, [
+      '--base',
+      repository.baseSha,
+      '--head',
+      repository.headSha,
+    ]);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('FLAG CHANGES APPROVED');
+    expect(result.stdout).not.toContain('auth.comment');
   });
 
   it('does not let high-severity approval override missing critical approval', async () => {
@@ -220,7 +417,8 @@ describe('feature flags approval guard', () => {
         '  },',
         '};',
         '',
-      ].join('\n')
+      ].join('\n'),
+      'src/feature-flags.js'
     );
 
     const result = runGuard(

@@ -7,11 +7,14 @@
 
 import fs from 'fs/promises';
 import process from 'node:process';
+import YAML from 'yaml';
 import {
   assertGitCommit,
   assertValidGitRef,
   safeGitDiffFile,
   safeGitDiffFiles,
+  safeGitMergeBase,
+  safeGitReadFileAtCommit,
 } from './lib/git-security.mjs';
 
 const SENSITIVE_FLAGS = [
@@ -125,6 +128,14 @@ function getFileChanges(file, base, head) {
   return safeGitDiffFile(base, head, file);
 }
 
+function getFileSnapshots(file, base, head) {
+  const mergeBase = safeGitMergeBase(base, head);
+  return {
+    before: safeGitReadFileAtCommit(mergeBase, file, { allowMissing: true }),
+    after: safeGitReadFileAtCommit(head, file, { allowMissing: true }),
+  };
+}
+
 function isFlagFile(file) {
   const fileName = file.split('/').at(-1) ?? '';
   return (
@@ -150,9 +161,15 @@ function parseFlagChanges(diff) {
   let currentFlag = null;
   const keyPattern = /^[-+ ]?\s*key:\s*["']?([^"'\s]+)["']?\s*$/;
   const objectFlagPattern = /["']([^"']+)["']\s*:\s*\{/;
-  const removedEnabledFlags = [];
+  const removedEnabledFlags = new Map();
 
   for (const line of lines) {
+    if (line.startsWith('@@')) {
+      currentFlag = null;
+      removedEnabledFlags.clear();
+      continue;
+    }
+
     const keyMatch = line.match(keyPattern);
     const objectFlagMatch = line.match(objectFlagPattern);
     if (keyMatch) currentFlag = keyMatch[1];
@@ -165,13 +182,15 @@ function parseFlagChanges(diff) {
     if (isAddition && objectFlagMatch) changes.added.push(currentFlag);
     if (isRemoval && objectFlagMatch) changes.removed.push(currentFlag);
 
-    if (currentFlag && isRemoval && /^-\s*(?:enabled|exposure):\s*false\b/.test(line)) {
-      removedEnabledFlags.push(currentFlag);
+    const activationMatch = line.match(/\b(?:enabled|exposure)\s*:\s*(true|false)\b/);
+    if (currentFlag && isRemoval && activationMatch?.[1] === 'false') {
+      removedEnabledFlags.set(currentFlag, (removedEnabledFlags.get(currentFlag) ?? 0) + 1);
     }
-    if (currentFlag && isAddition && /^\+\s*(?:enabled|exposure):\s*true\b/.test(line)) {
-      const removedIndex = removedEnabledFlags.lastIndexOf(currentFlag);
-      if (removedIndex !== -1) {
-        removedEnabledFlags.splice(removedIndex, 1);
+    if (currentFlag && isAddition && activationMatch?.[1] === 'true') {
+      const removedCount = removedEnabledFlags.get(currentFlag) ?? 0;
+      if (removedCount > 0) {
+        if (removedCount === 1) removedEnabledFlags.delete(currentFlag);
+        else if (removedCount > 1) removedEnabledFlags.set(currentFlag, removedCount - 1);
         changes.exposureChanges.push({
           flag: currentFlag,
           change: 'enabled',
@@ -210,6 +229,139 @@ function parseFlagChanges(diff) {
   }
 
   return changes;
+}
+
+function emptyFlagChanges() {
+  return {
+    added: [],
+    removed: [],
+    modified: [],
+    exposureChanges: [],
+    audienceChanges: [],
+    killSwitchChanges: [],
+  };
+}
+
+function isObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function collectActivationFields(flagName, config) {
+  if (!isObject(config)) {
+    throw new Error(`Malformed YAML flag '${flagName}': definition must be a mapping`);
+  }
+
+  const activation = new Map();
+  const addBoolean = (path, value) => {
+    if (typeof value !== 'boolean') {
+      throw new Error(`Malformed YAML flag '${flagName}': ${path} must be boolean`);
+    }
+    activation.set(path, value);
+  };
+
+  if (Object.hasOwn(config, 'default')) addBoolean('default', config.default);
+  if (Object.hasOwn(config, 'targeting')) {
+    if (!isObject(config.targeting)) {
+      throw new Error(`Malformed YAML flag '${flagName}': targeting must be a mapping`);
+    }
+    if (Object.hasOwn(config.targeting, 'enabled')) {
+      addBoolean('targeting.enabled', config.targeting.enabled);
+    }
+  }
+  if (Object.hasOwn(config, 'environments')) {
+    if (!isObject(config.environments)) {
+      throw new Error(`Malformed YAML flag '${flagName}': environments must be a mapping`);
+    }
+    for (const [environment, value] of Object.entries(config.environments)) {
+      addBoolean(`environments.${environment}`, value);
+    }
+  }
+
+  return activation;
+}
+
+function parseYamlFlags(contents, file) {
+  if (contents === null) return new Map();
+
+  let document;
+  try {
+    document = YAML.parse(contents);
+  } catch (error) {
+    throw new Error(
+      `Malformed YAML flag file ${file}: ${error instanceof Error ? error.message : error}`
+    );
+  }
+  if (document === null || document === undefined) return new Map();
+  if (!isObject(document)) {
+    throw new Error(`Malformed YAML flag file ${file}: root must be a mapping`);
+  }
+
+  const flags = new Map();
+  if (Object.hasOwn(document, 'flags')) {
+    if (!isObject(document.flags)) {
+      throw new Error(`Malformed YAML flag file ${file}: flags must be a mapping`);
+    }
+    for (const [flagName, config] of Object.entries(document.flags)) {
+      flags.set(flagName, collectActivationFields(flagName, config));
+    }
+    return flags;
+  }
+
+  if (Object.hasOwn(document, 'key')) {
+    if (typeof document.key !== 'string' || document.key.trim().length === 0) {
+      throw new Error(`Malformed YAML flag file ${file}: key must be a non-empty string`);
+    }
+    flags.set(document.key, collectActivationFields(document.key, document));
+  }
+  return flags;
+}
+
+function parseYamlFlagChanges(beforeContents, afterContents, file) {
+  const before = parseYamlFlags(beforeContents, file);
+  const after = parseYamlFlags(afterContents, file);
+  const changes = emptyFlagChanges();
+
+  for (const [flagName, activation] of after) {
+    const previousActivation = before.get(flagName);
+    if (!previousActivation) {
+      changes.added.push(flagName);
+      if ([...activation.values()].some((value) => value === true)) {
+        changes.exposureChanges.push({
+          flag: flagName,
+          change: 'enabled',
+          from: false,
+          to: true,
+        });
+      }
+      continue;
+    }
+
+    const activationPaths = new Set([...previousActivation.keys(), ...activation.keys()]);
+    if (
+      [...activationPaths].some(
+        (path) => previousActivation.get(path) === false && activation.get(path) === true
+      )
+    ) {
+      changes.exposureChanges.push({
+        flag: flagName,
+        change: 'enabled',
+        from: false,
+        to: true,
+      });
+    }
+  }
+
+  for (const flagName of before.keys()) {
+    if (!after.has(flagName)) changes.removed.push(flagName);
+  }
+
+  return changes;
+}
+
+function parseChangesForFile(file, diff, base, head) {
+  if (!/\.ya?ml$/i.test(file)) return parseFlagChanges(diff);
+  const snapshots = getFileSnapshots(file, base, head);
+  return parseYamlFlagChanges(snapshots.before, snapshots.after, file);
 }
 
 function analyzeSensitivity(flagName, changes) {
@@ -335,19 +487,13 @@ async function guardFlags() {
   console.log(`\nFlag files changed: ${flagFiles.length}`);
   flagFiles.forEach((file) => console.log(`  - ${file}`));
 
-  const allChanges = {
-    added: [],
-    removed: [],
-    modified: [],
-    exposureChanges: [],
-    audienceChanges: [],
-    killSwitchChanges: [],
-  };
+  const allChanges = emptyFlagChanges();
   const allIssues = [];
 
   for (const file of flagFiles) {
     console.log(`\nAnalyzing ${file}...`);
-    const changes = parseFlagChanges(getFileChanges(file, base, head));
+    const diff = getFileChanges(file, base, head);
+    const changes = parseChangesForFile(file, diff, base, head);
     for (const key of Object.keys(changes)) {
       allChanges[key].push(...changes[key]);
     }

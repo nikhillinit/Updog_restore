@@ -163,10 +163,7 @@ export function safeGitDiffFile(baseRef, headRef, filePath) {
   const validBase = assertValidGitRef(baseRef);
   const validHead = assertValidGitRef(headRef);
 
-  // Validate file path doesn't contain dangerous characters
-  if (/[;&|`$(){}[\]<>\\]/.test(filePath)) {
-    throw new Error(`File path contains dangerous characters: ${filePath}`);
-  }
+  assertSafeGitPath(filePath);
 
   // Flag metadata (for example a YAML `key:`) can sit more than Git's default
   // three context lines above a changed exposure field. Keep enough context for
@@ -180,6 +177,80 @@ export function safeGitDiffFile(baseRef, headRef, filePath) {
     });
   } catch (error) {
     throw new Error(`Git diff failed for ${filePath}: ${error.message}`);
+  }
+}
+
+function assertSafeGitPath(filePath) {
+  if (!filePath || typeof filePath !== 'string') {
+    throw new Error('File path must be a non-empty string');
+  }
+  if (/[;&|`$(){}[\]<>\\:\n\r]/.test(filePath)) {
+    throw new Error(`File path contains dangerous characters: ${filePath}`);
+  }
+  return filePath;
+}
+
+/**
+ * Resolve the merge base used by a three-dot diff.
+ *
+ * @param {string} baseRef - Exact base commit
+ * @param {string} headRef - Exact head commit
+ * @returns {string} Exact merge-base commit SHA
+ */
+export function safeGitMergeBase(baseRef, headRef) {
+  const validBase = assertValidGitRef(baseRef);
+  const validHead = assertValidGitRef(headRef);
+
+  try {
+    const mergeBase = execFileSync('git', ['merge-base', validBase, validHead], {
+      encoding: 'utf8',
+    }).trim();
+    if (!/^[0-9a-f]{40}$/i.test(mergeBase)) {
+      throw new Error(`Git returned a malformed merge-base SHA: ${mergeBase || '<empty>'}`);
+    }
+    return mergeBase;
+  } catch (error) {
+    throw new Error(`Git merge-base failed: ${error.message}`);
+  }
+}
+
+/**
+ * Read one tracked file from an already-resolved commit without a working-tree fallback.
+ *
+ * @param {string} commitRef - Exact commit containing the file
+ * @param {string} filePath - Repository-relative file path
+ * @returns {string} File contents at the exact commit
+ */
+export function safeGitReadFileAtCommit(commitRef, filePath, options = {}) {
+  const { allowMissing = false } = options;
+  const commit = assertGitCommit(commitRef);
+  const safePath = assertSafeGitPath(filePath);
+  const objectSpec = `${commit}:${safePath}`;
+
+  if (allowMissing) {
+    try {
+      const entries = execFileSync(
+        'git',
+        ['ls-tree', '-z', '--name-only', commit, '--', safePath],
+        {
+          encoding: 'utf8',
+        }
+      )
+        .split('\0')
+        .filter(Boolean);
+      if (!entries.includes(safePath)) return null;
+    } catch (error) {
+      throw new Error(`Git file existence check failed for ${safePath}: ${error.message}`);
+    }
+  }
+
+  try {
+    return execFileSync('git', ['show', objectSpec], {
+      encoding: 'utf8',
+      maxBuffer: 10 * 1024 * 1024,
+    });
+  } catch (error) {
+    throw new Error(`Git file read failed for ${safePath} at ${commit}: ${error.message}`);
   }
 }
 
