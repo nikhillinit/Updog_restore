@@ -79,9 +79,21 @@ regeneration chain uses `--fresh` before rebuilding source-derived artifacts.
 `--fresh` requires the full independent G1 review plus owner closure in Step 9;
 it is never a mechanical reset-and-carry operation.
 
+Require a clean tracked worktree and bind regeneration to its exact committed
+source SHA before running the chain:
+
+```sh
+test -z "$(git status --short --untracked-files=no)" &&
+export COMMITTED_SOURCE_SHA="$(git rev-parse HEAD)"
+```
+
+The supervisor below requires Bash. Its per-command process groups let signal
+cleanup terminate both the active command and descendants; non-interactive POSIX
+shells such as Dash do not provide this job-control guarantee.
+
 ```sh
 (
-exec /bin/sh <<'SEED_REGENERATION'
+exec /bin/bash --noprofile --norc <<'SEED_REGENERATION'
 set -m
 
 SEED_SNAPSHOT=
@@ -191,15 +203,28 @@ The two seed runs must produce byte-identical artifacts. Preserve the first
 run's output files in a temporary directory and compare them with the second run
 before classification; do not approve or close G1 while that comparison differs.
 
-After regeneration, initialize and edit the tracked manifest. Seed never reads
-this file; approval is the only consumer of human decisions:
+After regeneration, initialize the tracked manifest skeleton. This command
+replaces any existing review manifest and removes retired auth overrides, so run
+it before—not after—human review edits:
+
+```sh
+npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs init-review --review-file audit/surface-contract-matrix/g1-review.json
+```
+
+Pause after initialization. Independent reviewer edits `g1-review.json`, sets
+`approver_id` and `evidence_ref`, reviews every row and off-row obligation, and
+fills closure evidence. Seed never reads this file; approval is the only
+consumer of human decisions.
+
+After review edits are complete, set matching identity/evidence values. Run both
+dry runs successfully before either mutating approval command:
 
 ```sh
 (
 : "${APPROVER_ID:?APPROVER_ID is required}" &&
 : "${EVIDENCE_REF:?EVIDENCE_REF is required}" &&
-npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs init-review --review-file audit/surface-contract-matrix/g1-review.json &&
 npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver "$APPROVER_ID" --evidence "$EVIDENCE_REF" --dry-run &&
+npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver "$APPROVER_ID" --evidence "$EVIDENCE_REF" --dry-run --close-g1 &&
 npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver "$APPROVER_ID" --evidence "$EVIDENCE_REF" &&
 npx tsx audit/surface-contract-matrix/scripts/approve-matrix.mjs --review-file audit/surface-contract-matrix/g1-review.json --approver "$APPROVER_ID" --evidence "$EVIDENCE_REF" --close-g1
 )
