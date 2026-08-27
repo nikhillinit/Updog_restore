@@ -347,3 +347,7 @@ api/_app.generated.mjs
 .zcode/
 .zcode
 CLAUDE.local.md
+
+# Codex review-skill session state (thread ids, event streams, raw answers)
+.claude/skills/codex-ask/state/
+.claude/skills/codex-plan-review/state/
