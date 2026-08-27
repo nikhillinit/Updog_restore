@@ -967,4 +967,148 @@ describe('feature flags approval guard', () => {
     expect(`${productOnly.stdout}\n${productOnly.stderr}`).toContain('approved:flags-change');
     expect(both.status).toBe(0);
   });
+
+  it('fails closed on computed or spread JavaScript flag configuration', async () => {
+    for (const head of [
+      [
+        'const ACTIVE = { enabled: true };',
+        'export const flags = {',
+        "  'auth.bypass': { ...ACTIVE },",
+        '};',
+        '',
+      ].join('\n'),
+      [
+        'export const flags = {',
+        "  'auth.bypass': { ['enabled']: true },",
+        '};',
+        '',
+      ].join('\n'),
+      [
+        "const ACTIVE_FLAGS = { 'auth.bypass': { enabled: true } };",
+        'export const flags = { ...ACTIVE_FLAGS };',
+        '',
+      ].join('\n'),
+      [
+        'const ACTIVE_TARGETING = { enabled: true };',
+        'export const flags = {',
+        "  'auth.bypass': { targeting: { ...ACTIVE_TARGETING } },",
+        '};',
+        '',
+      ].join('\n'),
+    ]) {
+      const repository = await makeRepository(
+        ['export const flags = {};', ''].join('\n'),
+        head,
+        'src/feature-flags.js'
+      );
+      const result = runGuard(repository.directory, [
+        '--base',
+        repository.baseSha,
+        '--head',
+        repository.headSha,
+      ]);
+
+      expect(result.status).toBe(1);
+      expect(`${result.stdout}\n${result.stderr}`).toMatch(/computed|spread|failed closed/i);
+    }
+  });
+
+  it('allows unrelated spread syntax outside candidate JavaScript flag registries', async () => {
+    const repository = await makeRepository(
+      [
+        'const defaults = { description: \'metadata\' };',
+        'const flagMetadata = { ...defaults };',
+        'export const flags = {',
+        "  'beta.safe': { enabled: false },",
+        '};',
+        'void flagMetadata;',
+        '',
+      ].join('\n'),
+      [
+        'const defaults = { description: \'metadata\' };',
+        "const flagMetadata = { ...defaults, owner: 'team' };",
+        'export const flags = {',
+        "  'beta.safe': { enabled: false },",
+        '};',
+        'void flagMetadata;',
+        '',
+      ].join('\n'),
+      'src/feature-flags.js'
+    );
+    const result = runGuard(repository.directory, [
+      '--base',
+      repository.baseSha,
+      '--head',
+      repository.headSha,
+    ]);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('FLAG CHANGES APPROVED');
+  });
+
+  it('evaluates every audience increase for cumulative approval requirements', async () => {
+    const repository = await makeRepository(
+      [
+        'key: beta.cumulative',
+        'default: false',
+        'rolloutPercentage: 0',
+        'targeting:',
+        '  rules:',
+        '    - percentage: 0',
+        '',
+      ].join('\n'),
+      [
+        'key: beta.cumulative',
+        'default: false',
+        'rolloutPercentage: 100',
+        'targeting:',
+        '  rules:',
+        '    - percentage: 1',
+        '',
+      ].join('\n')
+    );
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+    const flagsOnly = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['approved:flags-change']),
+    });
+    const both = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['approved:flags-change', 'product-signoff']),
+    });
+
+    expect(flagsOnly.status).toBe(1);
+    expect(`${flagsOnly.stdout}\n${flagsOnly.stderr}`).toContain('product-signoff');
+    expect(both.status).toBe(0);
+  });
+
+  it('requires flags approval for new active and inactive high-risk flags', async () => {
+    for (const targetingEnabled of [true, false]) {
+      const repository = await makeRepository(
+        '# flags\n',
+        [
+          'key: beta.high-risk',
+          'risk: high',
+          'targeting:',
+          `  enabled: ${targetingEnabled}`,
+          '',
+        ].join('\n')
+      );
+      const args = ['--base', repository.baseSha, '--head', repository.headSha];
+      const insufficient = runGuard(repository.directory, args, {
+        PR_LABELS: JSON.stringify(targetingEnabled ? ['product-signoff'] : []),
+      });
+      const approved = runGuard(repository.directory, args, {
+        PR_LABELS: JSON.stringify(
+          targetingEnabled
+            ? ['product-signoff', 'approved:flags-change']
+            : ['approved:flags-change']
+        ),
+      });
+
+      expect(insufficient.status).toBe(1);
+      expect(`${insufficient.stdout}\n${insufficient.stderr}`).toContain(
+        'approved:flags-change'
+      );
+      expect(approved.status).toBe(0);
+    }
+  });
 });

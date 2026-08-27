@@ -374,6 +374,9 @@ function addNewFlagChanges(flagName, semantics, changes) {
       });
     }
   }
+  if (semantics.risk === 'high') {
+    changes.riskChanges.push({ flag: flagName, from: 'absent', to: semantics.risk });
+  }
 }
 
 function compareFlagMaps(before, after) {
@@ -501,6 +504,32 @@ function collectJavaScriptFlagSemantics(flagName, object, file) {
   return semantics;
 }
 
+function isJavaScriptFlagRegistry(object) {
+  const parent = object.parent;
+  if (ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name)) {
+    const registryName = parent.name.text.replaceAll('_', '').toLowerCase();
+    return ['flags', 'featureflags', 'flagdefinitions'].includes(registryName);
+  }
+  if (ts.isPropertyAssignment(parent)) {
+    return propertyName(parent.name) === 'flags';
+  }
+  return ts.isExportAssignment(parent);
+}
+
+function unsupportedJavaScriptConfigurationMember(object) {
+  for (const property of object.properties) {
+    if (ts.isSpreadAssignment(property)) return 'spread';
+    if ('name' in property && property.name && ts.isComputedPropertyName(property.name)) {
+      return 'computed';
+    }
+    if (ts.isPropertyAssignment(property) && ts.isObjectLiteralExpression(property.initializer)) {
+      const nested = unsupportedJavaScriptConfigurationMember(property.initializer);
+      if (nested) return nested;
+    }
+  }
+  return undefined;
+}
+
 function parseJavaScriptFlags(contents, file) {
   if (contents === null) return new Map();
   const scriptKind = /\.[cm]?tsx$/i.test(file) ? ts.ScriptKind.TSX : ts.ScriptKind.JS;
@@ -525,6 +554,14 @@ function parseJavaScriptFlags(contents, file) {
     'targeting',
   ]);
   const visit = (node) => {
+    if (ts.isObjectLiteralExpression(node) && isJavaScriptFlagRegistry(node)) {
+      const unsupportedMember = unsupportedJavaScriptConfigurationMember(node);
+      if (unsupportedMember) {
+        throw new Error(
+          `Malformed JavaScript flag file ${file}: ${unsupportedMember} flag configuration is unsupported and failed closed`
+        );
+      }
+    }
     if (ts.isPropertyAssignment(node) && ts.isObjectLiteralExpression(node.initializer)) {
       const directFields = new Set(
         node.initializer.properties
@@ -532,7 +569,16 @@ function parseJavaScriptFlags(contents, file) {
           .map((property) => propertyName(property.name))
           .filter((field) => field !== undefined)
       );
-      if ([...directFields].some((field) => governedFields.has(field))) {
+      const hasGovernedField = [...directFields].some((field) => governedFields.has(field));
+      const unsupportedMember = unsupportedJavaScriptConfigurationMember(node.initializer);
+      const isRegistryEntry =
+        ts.isObjectLiteralExpression(node.parent) && isJavaScriptFlagRegistry(node.parent);
+      if (unsupportedMember && (hasGovernedField || isRegistryEntry)) {
+        throw new Error(
+          `Malformed JavaScript flag file ${file}: ${unsupportedMember} flag configuration is unsupported and failed closed`
+        );
+      }
+      if (hasGovernedField) {
         const flagName = propertyName(node.name);
         if (flagName === undefined) {
           throw new Error(
@@ -601,7 +647,12 @@ function analyzeSensitivity(flagName, changes) {
     });
   }
 
-  const audienceChange = changes.audienceChanges.find((change) => change.flag === flagName);
+  const audienceChange = changes.audienceChanges
+    .filter((change) => change.flag === flagName)
+    .reduce(
+      (strongest, change) => (strongest === undefined || change.amount > strongest.amount ? change : strongest),
+      undefined
+    );
   if (audienceChange?.amount > 10) {
     issues.push({
       type: 'audience_change',
