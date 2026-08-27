@@ -1,7 +1,14 @@
 #!/usr/bin/env node
+import { Buffer } from 'node:buffer';
 import { spawnSync } from 'node:child_process';
+import console from 'node:console';
 import path from 'node:path';
 import process from 'node:process';
+
+import {
+  parseChangedFiles,
+  requiresVendoredSkillLockCheck,
+} from './pre-push-classification.mjs';
 
 let childEnvironment = process.env;
 
@@ -42,27 +49,20 @@ function output(command, args, options = {}) {
     input: options.input,
     shell: needsShell(command),
     stdio: ['pipe', 'pipe', options.quietErrors ? 'pipe' : 'inherit'],
-    encoding: 'utf8',
+    encoding: options.raw ? null : 'utf8',
   });
 
   if (result.error) {
-    if (options.allowFailure) return '';
+    if (options.allowFailure) return options.raw ? Buffer.alloc(0) : '';
     throw result.error;
   }
 
   if (result.status !== 0) {
-    if (options.allowFailure) return '';
+    if (options.allowFailure) return options.raw ? Buffer.alloc(0) : '';
     process.exit(result.status ?? 1);
   }
 
-  return result.stdout.trim();
-}
-
-function splitLines(value) {
-  return value
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  return options.raw ? result.stdout : result.stdout.trim();
 }
 
 const repoRoot = output('git', ['rev-parse', '--show-toplevel']);
@@ -93,23 +93,30 @@ if (!process.env.CLAUDE_HOOKS_DISABLE) {
   }
 }
 
-const changed = output('git', ['diff', '--name-only', `${baseBranch}...HEAD`], {
+const changed = output('git', ['diff', '--no-renames', '--name-only', '-z', `${baseBranch}...HEAD`], {
   allowFailure: true,
+  raw: true,
 });
 
-if (!changed) {
+if (changed.length === 0) {
   console.log('No changes detected, skipping tests');
   process.exit(0);
 }
 
-const changedSkillFiles = splitLines(changed).filter((file) => file.startsWith('.claude/skills/'));
+const changedFiles = parseChangedFiles(changed);
+const changedSkillFiles = changedFiles.filter((file) => file.startsWith('.claude/skills/'));
 if (changedSkillFiles.length > 0) {
   console.log('Skill files changed; verifying skill index freshness...');
   run('npm', ['run', 'skills:check']);
 }
 
+if (requiresVendoredSkillLockCheck(changedFiles)) {
+  console.log('Vendored skills or lock changed; verifying vendored skill lock...');
+  run('node', ['scripts/verify-vendored-skills.mjs']);
+}
+
 const classification = output('node', ['scripts/pre-push-classification.mjs'], {
-  input: `${changed}\n`,
+  input: changed,
 });
 
 switch (classification) {
@@ -138,11 +145,11 @@ console.log('Checking TypeScript baseline...');
 run('npm', ['run', 'baseline:check']);
 
 console.log('Checking for orphan tests in __tests__ directories...');
-const orphanCheckFiles = splitLines(
+const orphanCheckFiles = parseChangedFiles(
   output(
     'git',
-    ['diff', '--no-renames', '--name-only', '--diff-filter=ACM', `${baseBranch}...HEAD`],
-    { allowFailure: true }
+    ['diff', '--no-renames', '--name-only', '--diff-filter=ACM', '-z', `${baseBranch}...HEAD`],
+    { allowFailure: true, raw: true }
   )
 );
 
@@ -161,7 +168,6 @@ if (classification === 'full-run') {
 }
 
 console.log('Running targeted tests for changed files...');
-const changedFiles = splitLines(changed);
 // Local optimization only. Vitest related follows statically discoverable
 // imports; required CI remains authoritative and fails closed through the
 // affected-test planner when direct ownership is not proven.
