@@ -349,7 +349,11 @@ function compareFlagSemantics(flagName, previous, current, changes) {
 
   const previousRisk = previous.risk === undefined ? undefined : RISK_LEVELS.get(previous.risk);
   const currentRisk = current.risk === undefined ? undefined : RISK_LEVELS.get(current.risk);
-  if (previousRisk !== undefined && currentRisk !== undefined && currentRisk > previousRisk) {
+  if (
+    currentRisk !== undefined &&
+    ((previousRisk !== undefined && currentRisk > previousRisk) ||
+      (previousRisk === undefined && current.risk === 'high'))
+  ) {
     changes.riskChanges.push({ flag: flagName, from: previous.risk, to: current.risk });
   }
 }
@@ -510,10 +514,12 @@ function isJavaScriptFlagRegistry(object) {
     const registryName = parent.name.text.replaceAll('_', '').toLowerCase();
     return ['flags', 'featureflags', 'flagdefinitions'].includes(registryName);
   }
-  if (ts.isPropertyAssignment(parent)) {
-    return propertyName(parent.name) === 'flags';
-  }
-  return ts.isExportAssignment(parent);
+  return (
+    ts.isPropertyAssignment(parent) &&
+    propertyName(parent.name) === 'flags' &&
+    ts.isObjectLiteralExpression(parent.parent) &&
+    ts.isExportAssignment(parent.parent.parent)
+  );
 }
 
 function unsupportedJavaScriptConfigurationMember(object) {
@@ -573,12 +579,12 @@ function parseJavaScriptFlags(contents, file) {
       const unsupportedMember = unsupportedJavaScriptConfigurationMember(node.initializer);
       const isRegistryEntry =
         ts.isObjectLiteralExpression(node.parent) && isJavaScriptFlagRegistry(node.parent);
-      if (unsupportedMember && (hasGovernedField || isRegistryEntry)) {
+      if (unsupportedMember && isRegistryEntry) {
         throw new Error(
           `Malformed JavaScript flag file ${file}: ${unsupportedMember} flag configuration is unsupported and failed closed`
         );
       }
-      if (hasGovernedField) {
+      if (isRegistryEntry && hasGovernedField) {
         const flagName = propertyName(node.name);
         if (flagName === undefined) {
           throw new Error(

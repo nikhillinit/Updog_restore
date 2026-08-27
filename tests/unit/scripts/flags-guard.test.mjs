@@ -907,13 +907,13 @@ describe('feature flags approval guard', () => {
   it('fails closed when JavaScript declarations cannot be bound uniquely', async () => {
     const repository = await makeRepository(
       [
-        "const first = { 'beta.duplicate': { enabled: false } };",
-        "const second = { 'beta.duplicate': { enabled: false } };",
+        "const flags = { 'beta.duplicate': { enabled: false } };",
+        "const featureFlags = { 'beta.duplicate': { enabled: false } };",
         '',
       ].join('\n'),
       [
-        "const first = { 'beta.duplicate': { enabled: true } };",
-        "const second = { 'beta.duplicate': { enabled: false } };",
+        "const flags = { 'beta.duplicate': { enabled: true } };",
+        "const featureFlags = { 'beta.duplicate': { enabled: false } };",
         '',
       ].join('\n'),
       'src/feature-flags.js'
@@ -1046,6 +1046,49 @@ describe('feature flags approval guard', () => {
     expect(result.stdout).toContain('FLAG CHANGES APPROVED');
   });
 
+  it('ignores unrelated governed-looking objects and nested flags properties', async () => {
+    for (const head of [
+      [
+        "const defaults = { enabled: true };",
+        'const metadata = { flags: { preview: { ...defaults } } };',
+        'export const flags = {',
+        "  'beta.safe': { enabled: false },",
+        '};',
+        'void metadata;',
+        '',
+      ].join('\n'),
+      [
+        'const metadata = { preview: { enabled: true } };',
+        'export const flags = {',
+        "  'beta.safe': { enabled: false },",
+        '};',
+        'void metadata;',
+        '',
+      ].join('\n'),
+    ]) {
+      const repository = await makeRepository(
+        [
+          'export const flags = {',
+          "  'beta.safe': { enabled: false },",
+          '};',
+          '',
+        ].join('\n'),
+        head,
+        'src/feature-flags.js'
+      );
+      const result = runGuard(repository.directory, [
+        '--base',
+        repository.baseSha,
+        '--head',
+        repository.headSha,
+      ]);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('FLAG CHANGES APPROVED');
+      expect(`${result.stdout}\n${result.stderr}`).not.toContain("Flag 'preview'");
+    }
+  });
+
   it('evaluates every audience increase for cumulative approval requirements', async () => {
     const repository = await makeRepository(
       [
@@ -1110,5 +1153,21 @@ describe('feature flags approval guard', () => {
       );
       expect(approved.status).toBe(0);
     }
+  });
+
+  it('requires flags approval when an existing flag gains high risk from no risk', async () => {
+    const repository = await makeRepository(
+      ['key: beta.safe', 'default: false', ''].join('\n'),
+      ['key: beta.safe', 'default: false', 'risk: high', ''].join('\n')
+    );
+    const args = ['--base', repository.baseSha, '--head', repository.headSha];
+    const result = runGuard(repository.directory, args);
+    const approved = runGuard(repository.directory, args, {
+      PR_LABELS: JSON.stringify(['approved:flags-change']),
+    });
+
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}\n${result.stderr}`).toContain('approved:flags-change');
+    expect(approved.status).toBe(0);
   });
 });
