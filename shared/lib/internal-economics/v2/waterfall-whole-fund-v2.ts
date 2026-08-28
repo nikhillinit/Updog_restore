@@ -172,13 +172,25 @@ export function runWholeFundWaterfall(
     switch (tier.kind) {
       case 'return_of_capital': {
         const rocTarget = Decimal.min(remaining, totalCostBasis);
-        const perPartner = apportionBySettledCapital(rocTarget, allPartners);
+        const shares = allPartners.map((p) => p.settledCapital);
+        const targetCents = decimalToCents(rocTarget);
+        const allocCents = apportionCentsLrmFromShares(targetCents, shares);
+        const perPartner = new Map<string, Decimal>();
+        let allocatedCents = 0n;
+        for (let i = 0; i < allPartners.length; i++) {
+          perPartner.set(
+            allPartners[i]!.partnerId,
+            new Decimal(centsToDecimalString(allocCents[i]!))
+          );
+          allocatedCents += allocCents[i]!;
+        }
+        const allocated = new Decimal(centsToDecimalString(allocatedCents));
         const split = gpLpSplit(perPartner, state.partnerLedgers);
-        remaining = remaining.minus(rocTarget);
+        remaining = remaining.minus(allocated);
         result = {
           kind: 'return_of_capital',
           priority: tier.priority,
-          totalAllocated: rocTarget,
+          totalAllocated: allocated,
           gpShare: split.gpShare,
           lpShare: split.lpShare,
           perPartner,

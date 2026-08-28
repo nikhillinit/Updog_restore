@@ -665,7 +665,7 @@ jobs:
       - name: Feature flags guard
         id: flags-guard
         run: |
-          PR_LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}' \
+          set -euo pipefail
           node scripts/flags-guard.mjs
 
       - name: Check for perf budget changes
