@@ -13,6 +13,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRoute, useSearch } from 'wouter';
 import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CreateAllocationScenarioModal } from '@/components/scenarios/CreateAllocationScenarioModal';
 import { CreateMethodologyScenarioModal } from '@/components/scenarios/CreateMethodologyScenarioModal';
 import { ScenarioFactsSeedPicker } from '@/components/scenarios/ScenarioFactsSeedPicker';
 import { WorkspaceBasisIndicator, WorkspaceNav } from '@/pages/fund-model-results/workspace-nav';
@@ -584,6 +585,7 @@ function FundScenarioWorkspacePage() {
   const reserveIntentsRef = useRef(new Map<string, ReserveCalculationIntent>());
   const reserveInFlightRef = useRef(new Set<string>());
   const [isCreateMethodologyOpen, setIsCreateMethodologyOpen] = useState(false);
+  const [isCreateAllocationOpen, setIsCreateAllocationOpen] = useState(false);
   const [isSeedPickerOpen, setIsSeedPickerOpen] = useState(false);
   const [highlightedScenarioSetId, setHighlightedScenarioSetId] = useState<string | null>(null);
   const seedPickerEnabled = useFeatureFlag('enable_scenario_seed_picker');
@@ -802,6 +804,14 @@ function FundScenarioWorkspacePage() {
               New methodology scenario
             </Button>
             <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsCreateAllocationOpen(true)}
+              className="border-presson-borderSubtle text-presson-text hover:bg-presson-surfaceSubtle"
+            >
+              New allocation scenarios
+            </Button>
+            <Button
               type="button"
               variant="outline"
               size="sm"
@@ -887,6 +897,12 @@ function FundScenarioWorkspacePage() {
         fundId={fundId}
         open={isCreateMethodologyOpen}
         onOpenChange={setIsCreateMethodologyOpen}
+        onSuccess={(created) => setHighlightedScenarioSetId(created.id)}
+      />
+      <CreateAllocationScenarioModal
+        fundId={fundId}
+        open={isCreateAllocationOpen}
+        onOpenChange={setIsCreateAllocationOpen}
         onSuccess={(created) => setHighlightedScenarioSetId(created.id)}
       />
       {seedPickerEnabled && (

@@ -1,5 +1,9 @@
 import { apiRequest } from '@/lib/queryClient';
-import { FundScenarioSetListResponseV1Schema } from '@shared/contracts/fund-scenario-sets-v1.contract';
+import {
+  FundScenarioSetListResponseV1Schema,
+  FundScenarioSourceConfigResponseV1Schema,
+  type FundScenarioSourceConfigResponseV1,
+} from '@shared/contracts/fund-scenario-sets-v1.contract';
 import { z } from 'zod';
 
 const FUND_ID_PATTERN = /^\d+$/;
@@ -36,11 +40,7 @@ export function assertFundId(fundId: string): void {
 
 export function assertCompanyId(companyId: string): void {
   const parsed = Number(companyId);
-  if (
-    !COMPANY_ID_PATTERN.test(companyId) ||
-    !Number.isSafeInteger(parsed) ||
-    parsed <= 0
-  ) {
+  if (!COMPANY_ID_PATTERN.test(companyId) || !Number.isSafeInteger(parsed) || parsed <= 0) {
     throw new Error(`Invalid company ID: ${companyId}`);
   }
 }
@@ -75,9 +75,14 @@ export async function createCompanyScenario(
   companyId: string,
   idempotencyKey: string
 ): Promise<z.infer<typeof CompanyScenarioCreateResponseSchema>> {
-  const raw = await apiRequest('POST', companyScenariosApiPath(companyId), {}, {
-    headers: { 'Idempotency-Key': idempotencyKey },
-  });
+  const raw = await apiRequest(
+    'POST',
+    companyScenariosApiPath(companyId),
+    {},
+    {
+      headers: { 'Idempotency-Key': idempotencyKey },
+    }
+  );
   return CompanyScenarioCreateResponseSchema.parse(raw);
 }
 
@@ -89,4 +94,11 @@ export async function createCompanyScenario(
 export async function fetchScenarioSetList(fundId: string) {
   const raw = await apiRequest('GET', scenarioApiPath(fundId, '/scenario-sets'));
   return FundScenarioSetListResponseV1Schema.parse(raw).scenarioSets;
+}
+
+export async function fetchScenarioSourceConfig(
+  fundId: string
+): Promise<FundScenarioSourceConfigResponseV1> {
+  const raw = await apiRequest('GET', scenarioApiPath(fundId, '/scenario-sets/source-config'));
+  return FundScenarioSourceConfigResponseV1Schema.parse(raw);
 }

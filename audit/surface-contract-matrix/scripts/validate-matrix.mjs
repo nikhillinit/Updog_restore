@@ -49,8 +49,9 @@ const stableValue = (value) => {
 const stableJson = (value) => JSON.stringify(stableValue(value));
 const repoPath = (value) => value.split(path.sep).join('/');
 const readJson = (filePath) => JSON.parse(fs.readFileSync(filePath, 'utf8'));
-const trackedFiles = () => execFileSync('git', ['ls-files', '-z'], { cwd: repoRoot })
-  .toString().split('\0').filter(Boolean).map(repoPath).sort((left, right) => left.localeCompare(right));
+const trackedFiles = () =>
+  execFileSync('git', ['ls-files', '-z'], { cwd: repoRoot, maxBuffer: 64 * 1024 * 1024 })
+    .toString().split('\0').filter(Boolean).map(repoPath).sort((left, right) => left.localeCompare(right));
 
 const fail = (messages) => {
   if (messages.length > 0) throw new Error(messages.join('\n'));

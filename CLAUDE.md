@@ -1,6 +1,6 @@
 ---
 status: ACTIVE
-last_updated: 2026-08-18
+last_updated: 2026-08-26
 ---
 
 # CLAUDE.md
@@ -14,6 +14,10 @@ roles and precedence are defined there.
 This file is an entry loader for Claude Code (claude.ai/code): it routes by
 action and keeps only the rules that must reach every session before routing.
 Operational detail lives in the routed documents below.
+
+**Cross-harness safety (mandatory):** Before branch, Git-state, CI, security, or
+financial-allocation work, read and obey [AGENT-SAFETY.md](AGENT-SAFETY.md).
+This applies to every model and harness; stricter governing controls win.
 
 ## Project Overview
 

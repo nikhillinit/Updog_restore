@@ -442,12 +442,15 @@ plain `ls` will show more if untracked files are present) includes:
   `context-rail-view-model.ts`; `F_1.0.0` plan item `#1284`/`#1288` build on
   this), `wizard/`, `modeling-wizard/`, `reserves/`, `moic/`, `monte-carlo/`,
   `lp/`, `lp-reporting/`, `internal-analysis/`, `presson-v2/`, `ui/` (shadcn),
-  `admin/`. **Correction**: waterfall UI is NOT under `investment/` — that dir
-  contains only one file (`fund-liquidation-warnings.tsx`, no waterfall code).
-  Real location: `modeling-wizard/steps/waterfall/` (`WaterfallConfig.tsx`,
-  `WaterfallSummaryCard.tsx`) + `modeling-wizard/steps/WaterfallStep.tsx` +
-  `lps/WaterfallEditor.tsx`; also `client/src/pages/WaterfallStep.tsx` and calc
-  code in `client/src/lib/waterfall.ts` + `lib/waterfall/american-ledger.ts`.
+  `admin/`, `scenarios/` (incl. `CreateAllocationScenarioModal.tsx` — the
+  F_1.7.0 S1 source-pinned Base/Upside/Downside flow; always submits the V2
+  create contract). **Correction**: waterfall UI is NOT under `investment/` —
+  that dir contains only one file (`fund-liquidation-warnings.tsx`, no waterfall
+  code). Real location: `modeling-wizard/steps/waterfall/`
+  (`WaterfallConfig.tsx`, `WaterfallSummaryCard.tsx`) +
+  `modeling-wizard/steps/WaterfallStep.tsx` + `lps/WaterfallEditor.tsx`; also
+  `client/src/pages/WaterfallStep.tsx` and calc code in
+  `client/src/lib/waterfall.ts` + `lib/waterfall/american-ledger.ts`.
 - **Hooks** (`client/src/hooks/`, 69 entries, `git ls-tree HEAD`): domain hooks
   (`use-fund-data.ts`, `use-capital-allocation.ts`, `use-engine-data.ts`,
   `use-graduation.ts`, `use-liquidity.ts`, `use-moic.ts`,
@@ -599,11 +602,37 @@ review, `#1287` target naming, `#1299` activation flip.
    (16 MiB) limits. V2-S-0100 is a frozen literal input+receipt fixture;
    V2-S-0101 is regenerated under 2.1.0 with a consumed changed-case manifest.
    `processEvents` semantics, event-stream atomicity, and `sourceCashLotId`
-   lineage remain F3 scope. No routes, persistence, jobs, migrations, or
-   activation. ADR-085, ADR-086, and ADR-087 in `DECISIONS.md`. Plans:
+   lineage remain F3 scope. F3a (F_2.0.3) lands the `processEvents`
+   refusal-propagation portion: the chronology loop is exported as
+   `processEventsV2ForTest` and returns the first refusal-capable processor
+   refusal, and the engine now enforces cumulative per-lot allocation/relief
+   aggregates, row-level negative-amount rejection, and exact event-total
+   (`amountUsd`) equality with the existing refusal families at the provenance
+   stage. Remaining F3 scope narrows to `sourceCashLotId` lineage, eventful
+   receipt, and event-stream atomicity. F_2.0.4 (catch-up allocation parity)
+   unifies both waterfall engines' GP catch-up arithmetic behind one pure leaf
+   (`catch-up-allocation-v2.ts`) implementing the locked `(c(G+L)-G)/(g-c)`
+   stopping rule with a single jointly-quantized GP/LP split, cumulative profit
+   accumulators (fund-level in whole-fund, per-pool in deal-by-deal), and
+   defensive empty-cohort/opening-history errors — engine-internal conformance
+   only; public-path behavior byte-identical. No routes, persistence, jobs,
+   migrations, or activation. ADR-085, ADR-086, ADR-087, and ADR-088 in
+   `DECISIONS.md`. Plans:
    `docs/1-plans/F_2.0.0_v2-core-financial-model.plan.md`,
    `.omx/plans/updog-v2-conformance-right-sized-synthesis.md`,
-   `docs/1-plans/F_2.0.2_v2-f2-completion-state-journal-receipt-spine.plan.md`.
+   `docs/1-plans/F_2.0.2_v2-f2-completion-state-journal-receipt-spine.plan.md`,
+   `docs/1-plans/F_2.0.3_v2-f3a-cumulative-allocation-validation.plan.md`,
+   `docs/1-plans/F_2.0.4_v2-catch-up-allocation-parity.plan.md`.
+
+7. **Daily Decision Workspace** (F_1.7.0) — S1 lands the source-pinned
+   Base/Upside/Downside allocation-scenario flow: a narrowed
+   `GET /api/funds/:fundId/scenario-sets/source-config` read plus a V2 create
+   contract (`fund-scenario-set-create/2.0.0`) whose server-enforced pinning
+   rejects stale expected-config pairs (409) and variant row-identity drift
+   (422) before any write; UI modal lives beside the methodology modal in
+   `client/src/components/scenarios/`. C1A (persisted deployable-capital
+   reconciliation into `fund_snapshots`) follows as a separate PR. Plan:
+   `docs/1-plans/F_1.7.0_daily-decision-workspace.plan.md`.
 
 ## 9. Guidance for New Work (patterns confirmed above, not aspirational)
 

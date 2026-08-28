@@ -1200,6 +1200,30 @@ export const EXPLICIT_API_ROUTE_POLICY_ENTRIES: RoutePolicyEntry[] = [
     notes: 'Fund-scoped read lists immutable accepted current-plan versions.',
   },
   {
+    id: 'api:get:/api/funds/:fundId/scenario-sets/source-config',
+    method: 'GET',
+    path: '/api/funds/:fundId/scenario-sets/source-config',
+    lifecycle: 'durable_crud',
+    governanceRef: '/fund-model-results/:fundId/scenarios',
+    surface: 'fund-scenario-source-config-api',
+    owner: ownerForFinancialSurface('fund_modeling'),
+    telemetryKey: telemetryKeyForRoute(
+      'api.route',
+      '/api/funds/:fundId/scenario-sets/source-config'
+    ),
+    financialSurface: 'fund_modeling',
+    apiAuthBoundary: 'require_auth_and_fund_access',
+    fundScopeMode: 'route_param_fund_id',
+    workflowRequirement: 'fund_scope_verified',
+    exportPolicy: 'not_exportable',
+    provenanceRequired: true,
+    staleBlocksExport: false,
+    humanReviewRequired: true,
+    performanceBudgetMs: null,
+    notes:
+      'Fund-scoped read returns the current published scenario source config without mutation.',
+  },
+  {
     id: 'api:post:/api/funds/:fundId/current-plan-versions',
     method: 'POST',
     path: '/api/funds/:fundId/current-plan-versions',

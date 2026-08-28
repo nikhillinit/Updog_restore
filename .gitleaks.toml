@@ -31,6 +31,19 @@ paths = [
 ]
 
 [[allowlists]]
+description = "Allow F_1.7.0 S1 source-config route-surface test fixtures: synthetic JWT secret and deterministic idempotency keys"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''process\.env\.JWT_SECRET\s*=\s*'route-surface-test-secret-32-chars-min';''',
+  '''\.set\('Idempotency-Key',\s*'route-v2-(?:happy|stale)'\)''',
+]
+paths = [
+  '''^tests/unit/routes/fund-scenario-sets-source-config\.test\.ts$'''
+]
+
+[[allowlists]]
 description = "Allow deterministic current-forecast shadow idempotency fixture"
 targetRules = ["generic-api-key"]
 condition = "AND"
@@ -69,4 +82,38 @@ regexes = [
 ]
 paths = [
   '''^tests/fixtures/security/secret-scan-negative-control\.txt\.template$'''
+]
+
+[[allowlists]]
+description = "Allow historical .mimosa hook-state baselines: content-addressed snapshots of tracked test sources (supertest/vitest fixtures with synthetic keys) accidentally committed in c20bbbd69; directory is gitignored and untracked since. Pinned to that exact commit AND the sha256-named baseline blob shape, so any later force-added file under .mimosa (a new commit) is NOT suppressed"
+targetRules = ["generic-api-key"]
+condition = "AND"
+commits = ["c20bbbd69b6fb7c5409b3e72d59264ea55a418f7"]
+paths = [
+  '''^\.mimosa/hook-state/sess_[0-9a-f-]+\.[A-Za-z0-9.-]+\.baseline/[0-9a-f]{64}\.source$'''
+]
+
+[[allowlists]]
+description = "Allow historical fund-scenario-sets synthetic JWT fixture (stale branch commit 3002f458e; file absent at HEAD)"
+condition = "AND"
+commits = ["3002f458e7ea0c7a4e91ff6c88595da30a49e5c6"]
+regexTarget = "line"
+regexes = [
+  '''process\.env\.JWT_SECRET\s*=\s*'route-surface-test-secret-32-chars-min';'''
+]
+paths = [
+  '''^tests/unit/routes/fund-scenario-sets-source-config\.test\.ts$'''
+]
+
+[[allowlists]]
+description = "Allow historical fund-scenario-sets deterministic idempotency fixture (stale branch commit 3002f458e; file absent at HEAD)"
+targetRules = ["generic-api-key"]
+condition = "AND"
+commits = ["3002f458e7ea0c7a4e91ff6c88595da30a49e5c6"]
+regexTarget = "line"
+regexes = [
+  '''\.set\('Idempotency-Key',\s*'route-v2-happy'\)'''
+]
+paths = [
+  '''^tests/unit/routes/fund-scenario-sets-source-config\.test\.ts$'''
 ]

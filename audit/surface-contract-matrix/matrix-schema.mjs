@@ -1014,6 +1014,7 @@ const trackedRepositoryFiles = (rootDir, suppliedFiles) => {
   const output = execFileSync('git', ['ls-files', '-z'], {
     cwd: rootDir,
     encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
   });
   return output
     .split('\0')

@@ -7,6 +7,7 @@ const root = process.cwd();
 const tracked = execFileSync('git', ['ls-files', 'client/src'], {
   cwd: root,
   encoding: 'utf8',
+  maxBuffer: 64 * 1024 * 1024,
 })
   .split('\n')
   .filter(Boolean);
