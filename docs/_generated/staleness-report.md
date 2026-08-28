@@ -11,16 +11,16 @@ last_updated: 2026-08-28
 
 | Metric | Value |
 |--------|-------|
-| Total Documents | 757 |
-| Stale Documents | 478 |
-| Missing Frontmatter | 87 |
+| Total Documents | 758 |
+| Stale Documents | 479 |
+| Missing Frontmatter | 88 |
 
 ### By Status
 
 | Status | Count |
 |--------|-------|
 | ACTIVE | 462 |
-| UNKNOWN | 181 |
+| UNKNOWN | 182 |
 | DRAFT | 35 |
 | HISTORICAL | 33 |
 | VERIFIED | 13 |
@@ -75,6 +75,7 @@ Documents that need review (older than their cadence threshold):
 | `docs/3-code-review/CR_w3_v1.6.0.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w4_v1.5.0.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w5_v1.6.0.md` | Never | 999 | YES - verify! | Unassigned |
+| `docs/3-code-review/CR_w6_F_1.7.0-C1A.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w6_v2.0.1.md` | Never | 999 | No | Unassigned |
 | `docs/3-code-review/CR_w6_v2.0.2.md` | Never | 999 | YES - verify! | Unassigned |
 | `docs/3-code-review/CR_w6_v2.0.3.md` | Never | 999 | No | Unassigned |
@@ -95,9 +96,8 @@ Documents that need review (older than their cadence threshold):
 | `docs/design/updog-design-philosophy-v3.1.1-implementation-notes.md` | Never | 999 | No | Unassigned |
 | `docs/phase2-calibration-benchmarks.md` | Never | 999 | No | Unassigned |
 | `docs/quarantine/2026-05-28-stabilization-triage.md` | Never | 999 | No | Unassigned |
-| `docs/runbooks/capital-call-outbox-redelivery.md` | Never | 999 | No | Unassigned |
 
-*...and 428 more stale documents.*
+*...and 429 more stale documents.*
 
 ## Documents with Execution Claims (Need Verification)
 
@@ -228,6 +228,7 @@ Documents without proper YAML frontmatter:
 - [ ] `docs/3-code-review/CR_w3_v1.6.0.md`
 - [ ] `docs/3-code-review/CR_w4_v1.5.0.md`
 - [ ] `docs/3-code-review/CR_w5_v1.6.0.md`
+- [ ] `docs/3-code-review/CR_w6_F_1.7.0-C1A.md`
 - [ ] `docs/3-code-review/CR_w6_v2.0.1.md`
 - [ ] `docs/3-code-review/CR_w6_v2.0.2.md`
 - [ ] `docs/3-code-review/CR_w6_v2.0.3.md`

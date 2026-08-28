@@ -133,6 +133,7 @@ describe('canonical common API route manifest', () => {
         "allocation-scenarios:/api",
         "planning-fmv-overrides:/api",
         "fund-scenario-sets:/api",
+        "construction-reconciliation:/api",
         "fund-moic:/api",
         "timeline:/api/timeline",
         "shares:/api/shares",

@@ -4567,6 +4567,18 @@
       "isStale": true,
       "lastUpdated": null,
       "owner": null,
+      "path": "docs/3-code-review/CR_w6_F_1.7.0-C1A.md",
+      "staleDays": 999,
+      "status": "UNKNOWN"
+    },
+    {
+      "docType": "doc",
+      "exists": true,
+      "frontmatter": {},
+      "hasExecutionClaims": false,
+      "isStale": true,
+      "lastUpdated": null,
+      "owner": null,
       "path": "docs/3-code-review/CR_w6_v2.0.1.md",
       "staleDays": 999,
       "status": "UNKNOWN"
@@ -14647,14 +14659,14 @@
       "REFERENCE": 9,
       "STALE-VALIDATION": 1,
       "TRACKED (not scheduled)": 1,
-      "UNKNOWN": 181,
+      "UNKNOWN": 182,
       "VERIFIED": 13,
       "active": 2,
       "ready": 3
     },
-    "missing_frontmatter": 87,
-    "stale_docs": 478,
-    "total_docs": 757
+    "missing_frontmatter": 88,
+    "stale_docs": 479,
+    "total_docs": 758
   },
   "version": "2.0"
 }

@@ -72,6 +72,14 @@ function createMutation(
 }
 
 vi.mock('@/hooks/useVarianceData', () => ({
+  useConstructionReconciliation: () => ({
+    latest: {
+      data: { state: 'no_persisted_reconciliation' },
+      isLoading: false,
+      error: null,
+    },
+    run: createMutation(),
+  }),
   useVarianceDashboard: () => ({
     data: {
       success: true,
@@ -115,6 +123,15 @@ vi.mock('@/hooks/useVarianceData', () => ({
       mutateAsync: mocks.performAnalysisMutateAsync as () => Promise<unknown>,
     }),
   useGenerateVarianceReport: () => createMutation(),
+}));
+
+vi.mock('@/hooks/useCurrentPlanVersions', () => ({
+  useCurrentPlanVersions: () => ({
+    headVersion: { id: '11', sourceFactsSnapshotId: '31' },
+    isLoading: false,
+    error: null,
+    mint: createMutation(),
+  }),
 }));
 
 describe('VarianceTrackingPage', () => {

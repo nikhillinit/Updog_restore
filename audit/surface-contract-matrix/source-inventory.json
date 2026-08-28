@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "snapshot_id": "snapshot:121c1b2916df969371c7d23d840555566dbc9ffa3c893103df737dbdfe31ee73",
+  "snapshot_id": "snapshot:85a44a6e91715ba278416b2ba00d4e26fd9824b1348661c2f76823143a05bef1",
   "row_ids": [
     "api-fn:ANY:/api/telemetry/wizard",
     "api:DELETE:/api/cashflow/:fundId/transactions/:transactionId",
@@ -63,6 +63,7 @@
     "api:GET:/api/funds/:fundId/allocations/latest",
     "api:GET:/api/funds/:fundId/cash-flow-events",
     "api:GET:/api/funds/:fundId/companies",
+    "api:GET:/api/funds/:fundId/construction-reconciliation/latest",
     "api:GET:/api/funds/:fundId/current-plan-versions",
     "api:GET:/api/funds/:fundId/dual-forecast",
     "api:GET:/api/funds/:fundId/financial-facts/latest",
@@ -283,6 +284,7 @@
     "api:POST:/api/funds/:fundId/cash-flow-events",
     "api:POST:/api/funds/:fundId/cash-flow-events/:eventId/approve",
     "api:POST:/api/funds/:fundId/cash-flow-events/:eventId/lock",
+    "api:POST:/api/funds/:fundId/construction-reconciliation/runs",
     "api:POST:/api/funds/:fundId/current-forecast/runs",
     "api:POST:/api/funds/:fundId/current-plan-versions",
     "api:POST:/api/funds/:fundId/imports/artifacts",
@@ -481,7 +483,7 @@
     "api/_types.ts": "a987351f31d859cc233189163fc1ac24eb7ebd05c8dac0b46772c55295dbd2d6",
     "api/[...slug].ts": "7672947630aaedb829c34f3150d16aa129bc97947c38f8758ed3a8a7ad0f0098",
     "api/telemetry/wizard.ts": "055e2fb386041bc22fea7ce410e4b27f536a4cfab204da13804ca6c270cf901d",
-    "audit/surface-contract-matrix/boot-proofs.json": "84e492c70fa2aba00f43375eacb1289fa1671dd2a08557128a90a5d5207e9a56",
+    "audit/surface-contract-matrix/boot-proofs.json": "9d5b11e45a161eab92e3e35f4ac22706a00b16e728351abc59917b4f194e5890",
     "audit/surface-contract-matrix/matrix-schema.mjs": "085cb36bb625a27b3c2be78d91b6884a770fcc6bfb0038683701b65b36c5ac1c",
     "audit/surface-contract-matrix/scripts/approve-matrix.mjs": "19fce85616bb750537fbbdde61bb58a63582d305b3f1b286229b277583512f83",
     "audit/surface-contract-matrix/scripts/boot-proof.mjs": "9e2036e0b142710fee1c25c9647ac4550595c42a8034165097ad0b770b4fe935",
@@ -526,7 +528,7 @@
     "server/queues/fund-scenario-calc-worker-init.ts": "cc2a9812607a1d86eead73ba22f20ee764f10bbd7f3915cee4343c91bfa309ad",
     "server/queues/report-generation-queue.ts": "0e48ee156db7373d86cb3c9d612ddda1e51c6561fc1dd83e10f82f9502be668c",
     "server/queues/simulation-queue.ts": "251caa4c7519ff63e073656b72340437bde5c0553a95626e777f19beed5f7689",
-    "server/route-policy/api-route-policy-registry.ts": "a20acaf9e489aa77fde5f56674cf2c1f644bb7b924253865d497ec9410b3b496",
+    "server/route-policy/api-route-policy-registry.ts": "e7b9dd3d2ebdeb9ad0ae1e69f7b009711347df9006ad139fccf4ef93fd894c20",
     "server/routes.ts": "141adc2a75568479dea21649ec234f84f291527858d1a161e26832a49698ab2a",
     "server/routes/_ops-stage-validation.ts": "291e31b27be1d285743260d2489308da9018c7e1269d73cd20c9c476c3ed072c",
     "server/routes/activities.ts": "a8c0f14313678e755b363d65f4d1bb69bb657ef3097b472de2793d2f9cdf0c59",
@@ -543,6 +545,7 @@
     "server/routes/cash-flow-events.ts": "839157bba7ff8b0096ea2a96449ce36e85ec69ee74cf46bb41435bc1a35d9dbe",
     "server/routes/cashflow.ts": "a838a81886716def7a5bded8615b84e4263978ec16bb5785c669008e10a57810",
     "server/routes/cohort-analysis.ts": "57e40f569ed602eade24ae876923d59f06778a1d09689420295f0776907d3a59",
+    "server/routes/construction-reconciliation.ts": "c9ce98b027b478d95493ca557831ce455e1eb6849560fd7f391b3e08faeebc0f",
     "server/routes/current-forecast.ts": "de1fe6b868c90b8c41b08ac7ea2d0e2eb9d38c81c29b113c39c619eedfb5ccef",
     "server/routes/dashboard-summary.ts": "7b592fb19016ed178538f656fe374a65221c2c0616fd4e8dec66b2305b2013ae",
     "server/routes/deal-pipeline.ts": "f6495b1fc70dfe88d0d85c4da58a6da224b7b233869df0b1c15dfde079857a51",
@@ -583,7 +586,7 @@
     "server/routes/metrics-rum.ts": "c00b18bf4726972719fd24c37fe863d9624688eac62cfe0ec50b53399ad03743",
     "server/routes/metrics.ts": "ddd8b571ed4b38776b0d0488d80f07daaaf81448c0327e9fa906a07b8f56a900",
     "server/routes/monte-carlo.ts": "d4d9e87636ad1577f1a3ad3abff79e0c8816db6a9648515f58863b983ec59185",
-    "server/routes/mount-common-routes.ts": "e222b71ef6a965ef19a7d00f2b6bd81dde3c02c9d3139ee60e6a3c4a19ebc691",
+    "server/routes/mount-common-routes.ts": "52e997e4ceabcfaa461582bb990333bbafea11823fc66847c67458d522061373",
     "server/routes/operating-object-tasks.ts": "600250c3cc2e22b22bc284bed8ce611758e9ce65d598a4e29ac050ea0daece09",
     "server/routes/operations.ts": "d7e06588c8f92ad21b8d08905dc443649e70fe3659f42910810ccf924c02c5cf",
     "server/routes/performance-api.schemas.ts": "f9d7aadf38c7805badc9d34fba259163a249490256c385cb6e7f28121990af17",
@@ -618,7 +621,7 @@
     "server/workers/lp-materialized-view-refresh.ts": "39ee6b698475c1168769c5c23afef4cf5778dc2c23d4b706a94a49fbf9d5da0c",
     "server/workers/scenarioGeneratorWorker.ts": "a7abb61e7806d17a787babc89f03c1e054ed1e793ec196b1fee4c8d7821749d6",
     "shared/auth/effective-roles.ts": "137a8a017292f24bf759a50583a2ba507c4e010c0a71e7c770de1b51af3a4aa6",
-    "shared/routes/api-route-manifest.ts": "306d02abbd576f98b958b3cadc3b3add0f1653c89ca329317c67fd604530659e",
+    "shared/routes/api-route-manifest.ts": "e82393fcdf12c444dc9feb9d4ef412b3665c8d57e5f4064342a106ca2a121a10",
     "shared/routes/api-runtime-specific-manifest.ts": "0daa50b7d7d569e6068a8e6998e57b3a6b3c76effa5a3834d53302c60b566805",
     "shared/routes/app-route-definitions.ts": "72ac7651f290aea940432af3ffde06746f8ce7b3b7a198e6ad718d336c673a0b",
     "shared/routes/route-governance-registry.ts": "07c1e15b2f1c343320125eac20ff75e55c6c7f63fa2b1d578aba9eadd8c76928",
@@ -637,9 +640,9 @@
     "workers/reserve-worker.ts": "2ca51a73020b0e34e166389f7779dcbe9d0d66af429d4e78bb9ccb96c846518a",
     "workers/worker-deployment-identity.ts": "369efd8ded2e6e2c432ad404b74bac54c49b6b51c2ea2c1e794bc6a66c13566b",
     "package.json#scripts": "b5bb3ca77a11463c699d8cdc550e9c6ecb5dc49bd1a410aea22bb5fb09d1402c",
-    "shared/routes/api-route-manifest.ts#normalized-runtime-export": "eba14203d83dff52e5c820a9ab8219319db86e895c54f720d41b8227ee02160e",
+    "shared/routes/api-route-manifest.ts#normalized-runtime-export": "9fc246626bbbe7b851f6980885c0706a91fcb87c59075684022811f87fee9cb5",
     "shared/routes/api-runtime-specific-manifest.ts#normalized-runtime-export": "f7ec3dfc046d32b5e3622f1d6ae98b1c7b6479bedf7b20296f1b920fd0a19c15",
-    "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "c6fa39f082099fee320fe77804f49942e355080e5d9927ea932ddea63c0f690f",
+    "server/route-policy/api-route-policy-registry.ts#normalized-runtime-export": "a61da04c9db4e67334ece71d79309a827d7435cc410b2935eab1ca72d71fcbb3",
     "shared/routes/route-governance-registry.ts#normalized-runtime-export": "2cf271d9243d70a053d3f5bd020bf01d8d26373ae281a70307337b68f01ddd8b",
     "client/src/app/app-routes.tsx": "d89f82ec32b5530508c0685ac38e2cb0c586900aa3b9bb6ae0b162314424e4d3",
     "server/queues/registry.ts": "1c62fc2dfb7bce4ec7101c0f66039f40953d2d9a477fae5c3bcf222e2fa01bf4"
@@ -705,6 +708,7 @@
       "api:GET:/api/funds/:fundId/allocations/latest",
       "api:GET:/api/funds/:fundId/cash-flow-events",
       "api:GET:/api/funds/:fundId/companies",
+      "api:GET:/api/funds/:fundId/construction-reconciliation/latest",
       "api:GET:/api/funds/:fundId/current-plan-versions",
       "api:GET:/api/funds/:fundId/dual-forecast",
       "api:GET:/api/funds/:fundId/financial-facts/latest",
@@ -875,6 +879,7 @@
       "api:POST:/api/funds/:fundId/cash-flow-events",
       "api:POST:/api/funds/:fundId/cash-flow-events/:eventId/approve",
       "api:POST:/api/funds/:fundId/cash-flow-events/:eventId/lock",
+      "api:POST:/api/funds/:fundId/construction-reconciliation/runs",
       "api:POST:/api/funds/:fundId/current-forecast/runs",
       "api:POST:/api/funds/:fundId/current-plan-versions",
       "api:POST:/api/funds/:fundId/imports/artifacts",
@@ -1027,6 +1032,7 @@
       "api:GET:/api/funds/:fundId/allocations/latest",
       "api:GET:/api/funds/:fundId/cash-flow-events",
       "api:GET:/api/funds/:fundId/companies",
+      "api:GET:/api/funds/:fundId/construction-reconciliation/latest",
       "api:GET:/api/funds/:fundId/current-plan-versions",
       "api:GET:/api/funds/:fundId/dual-forecast",
       "api:GET:/api/funds/:fundId/financial-facts/latest",
@@ -1233,6 +1239,7 @@
       "api:POST:/api/funds/:fundId/cash-flow-events",
       "api:POST:/api/funds/:fundId/cash-flow-events/:eventId/approve",
       "api:POST:/api/funds/:fundId/cash-flow-events/:eventId/lock",
+      "api:POST:/api/funds/:fundId/construction-reconciliation/runs",
       "api:POST:/api/funds/:fundId/current-forecast/runs",
       "api:POST:/api/funds/:fundId/current-plan-versions",
       "api:POST:/api/funds/:fundId/imports/artifacts",
@@ -1400,6 +1407,7 @@
       "api:GET:/api/funds/:fundId/allocations/latest",
       "api:GET:/api/funds/:fundId/cash-flow-events",
       "api:GET:/api/funds/:fundId/companies",
+      "api:GET:/api/funds/:fundId/construction-reconciliation/latest",
       "api:GET:/api/funds/:fundId/current-plan-versions",
       "api:GET:/api/funds/:fundId/dual-forecast",
       "api:GET:/api/funds/:fundId/financial-facts/latest",
@@ -1606,6 +1614,7 @@
       "api:POST:/api/funds/:fundId/cash-flow-events",
       "api:POST:/api/funds/:fundId/cash-flow-events/:eventId/approve",
       "api:POST:/api/funds/:fundId/cash-flow-events/:eventId/lock",
+      "api:POST:/api/funds/:fundId/construction-reconciliation/runs",
       "api:POST:/api/funds/:fundId/current-forecast/runs",
       "api:POST:/api/funds/:fundId/current-plan-versions",
       "api:POST:/api/funds/:fundId/imports/artifacts",
@@ -1773,6 +1782,7 @@
       "api:GET:/api/funds/:fundId/allocations/latest",
       "api:GET:/api/funds/:fundId/cash-flow-events",
       "api:GET:/api/funds/:fundId/companies",
+      "api:GET:/api/funds/:fundId/construction-reconciliation/latest",
       "api:GET:/api/funds/:fundId/current-plan-versions",
       "api:GET:/api/funds/:fundId/dual-forecast",
       "api:GET:/api/funds/:fundId/financial-facts/latest",
@@ -1979,6 +1989,7 @@
       "api:POST:/api/funds/:fundId/cash-flow-events",
       "api:POST:/api/funds/:fundId/cash-flow-events/:eventId/approve",
       "api:POST:/api/funds/:fundId/cash-flow-events/:eventId/lock",
+      "api:POST:/api/funds/:fundId/construction-reconciliation/runs",
       "api:POST:/api/funds/:fundId/current-forecast/runs",
       "api:POST:/api/funds/:fundId/current-plan-versions",
       "api:POST:/api/funds/:fundId/imports/artifacts",
@@ -2151,6 +2162,7 @@
       "api:GET:/api/funds/:fundId/allocations/latest",
       "api:GET:/api/funds/:fundId/cash-flow-events",
       "api:GET:/api/funds/:fundId/companies",
+      "api:GET:/api/funds/:fundId/construction-reconciliation/latest",
       "api:GET:/api/funds/:fundId/current-plan-versions",
       "api:GET:/api/funds/:fundId/dual-forecast",
       "api:GET:/api/funds/:fundId/financial-facts/latest",
@@ -2365,6 +2377,7 @@
       "api:POST:/api/funds/:fundId/cash-flow-events",
       "api:POST:/api/funds/:fundId/cash-flow-events/:eventId/approve",
       "api:POST:/api/funds/:fundId/cash-flow-events/:eventId/lock",
+      "api:POST:/api/funds/:fundId/construction-reconciliation/runs",
       "api:POST:/api/funds/:fundId/current-forecast/runs",
       "api:POST:/api/funds/:fundId/current-plan-versions",
       "api:POST:/api/funds/:fundId/imports/artifacts",
@@ -2556,6 +2569,7 @@
       "api:GET:/api/funds/:fundId/allocations/latest",
       "api:GET:/api/funds/:fundId/cash-flow-events",
       "api:GET:/api/funds/:fundId/companies",
+      "api:GET:/api/funds/:fundId/construction-reconciliation/latest",
       "api:GET:/api/funds/:fundId/current-plan-versions",
       "api:GET:/api/funds/:fundId/dual-forecast",
       "api:GET:/api/funds/:fundId/financial-facts/latest",
@@ -2743,6 +2757,7 @@
       "api:POST:/api/funds/:fundId/cash-flow-events",
       "api:POST:/api/funds/:fundId/cash-flow-events/:eventId/approve",
       "api:POST:/api/funds/:fundId/cash-flow-events/:eventId/lock",
+      "api:POST:/api/funds/:fundId/construction-reconciliation/runs",
       "api:POST:/api/funds/:fundId/current-forecast/runs",
       "api:POST:/api/funds/:fundId/current-plan-versions",
       "api:POST:/api/funds/:fundId/imports/artifacts",
@@ -3191,6 +3206,13 @@
     ],
     "api:GET:/api/funds/:fundId/companies": [
       "api:GET:/api/funds/:fundId/companies"
+    ],
+    "server/routes/construction-reconciliation.ts": [
+      "api:GET:/api/funds/:fundId/construction-reconciliation/latest",
+      "api:POST:/api/funds/:fundId/construction-reconciliation/runs"
+    ],
+    "api:GET:/api/funds/:fundId/construction-reconciliation/latest": [
+      "api:GET:/api/funds/:fundId/construction-reconciliation/latest"
     ],
     "server/routes/current-forecast.ts": [
       "api:GET:/api/funds/:fundId/current-plan-versions",
@@ -4165,6 +4187,9 @@
     "api:POST:/api/funds/:fundId/cash-flow-events/:eventId/lock": [
       "api:POST:/api/funds/:fundId/cash-flow-events/:eventId/lock"
     ],
+    "api:POST:/api/funds/:fundId/construction-reconciliation/runs": [
+      "api:POST:/api/funds/:fundId/construction-reconciliation/runs"
+    ],
     "api:POST:/api/funds/:fundId/current-forecast/runs": [
       "api:POST:/api/funds/:fundId/current-forecast/runs"
     ],
@@ -5013,6 +5038,13 @@
     "manifest-source:server/routes/fund-scenario-sets.ts": [
       "api:GET:/api/funds/:fundId/scenario-sets"
     ],
+    "manifest:construction-reconciliation": [
+      "api:GET:/api/funds/:fundId/construction-reconciliation/latest",
+      "api:POST:/api/funds/:fundId/construction-reconciliation/runs"
+    ],
+    "manifest-source:server/routes/construction-reconciliation.ts": [
+      "api:GET:/api/funds/:fundId/construction-reconciliation/latest"
+    ],
     "manifest:fund-moic": [
       "api:GET:/api/funds/:fundId/moic/marginal-rankings",
       "api:GET:/api/funds/:fundId/moic/rankings",
@@ -5658,6 +5690,12 @@
     ],
     "policy:api:post:/api/funds/:fundId/scenario-analysis/scenarios/:scenarioId/cases/from-seed": [
       "api:POST:/api/funds/:fundId/scenario-analysis/scenarios/:scenarioId/cases/from-seed"
+    ],
+    "policy:api:post:/api/funds/:fundId/construction-reconciliation/runs": [
+      "api:POST:/api/funds/:fundId/construction-reconciliation/runs"
+    ],
+    "policy:api:get:/api/funds/:fundId/construction-reconciliation/latest": [
+      "api:GET:/api/funds/:fundId/construction-reconciliation/latest"
     ],
     "policy:api:post:/api/funds/:fundId/metric-runs/dry-run": [
       "api:POST:/api/funds/:fundId/metric-runs/dry-run"
@@ -6678,6 +6716,19 @@
       "server/lib/auth/revocation.ts",
       "server/lib/public-api-boundary.ts",
       "server/routes/allocations.ts",
+      "server/server.ts",
+      "shared/auth/effective-roles.ts"
+    ],
+    "api:GET:/api/funds/:fundId/construction-reconciliation/latest": [
+      "api:GET:/api/funds/:fundId/construction-reconciliation/latest",
+      "manifest-source:server/routes/construction-reconciliation.ts",
+      "manifest:construction-reconciliation",
+      "policy:api:get:/api/funds/:fundId/construction-reconciliation/latest",
+      "server/app.ts",
+      "server/lib/auth/jwt.ts",
+      "server/lib/auth/revocation.ts",
+      "server/lib/public-api-boundary.ts",
+      "server/routes/construction-reconciliation.ts",
       "server/server.ts",
       "shared/auth/effective-roles.ts"
     ],
@@ -9009,6 +9060,18 @@
       "server/server.ts",
       "shared/auth/effective-roles.ts"
     ],
+    "api:POST:/api/funds/:fundId/construction-reconciliation/runs": [
+      "api:POST:/api/funds/:fundId/construction-reconciliation/runs",
+      "manifest:construction-reconciliation",
+      "policy:api:post:/api/funds/:fundId/construction-reconciliation/runs",
+      "server/app.ts",
+      "server/lib/auth/jwt.ts",
+      "server/lib/auth/revocation.ts",
+      "server/lib/public-api-boundary.ts",
+      "server/routes/construction-reconciliation.ts",
+      "server/server.ts",
+      "shared/auth/effective-roles.ts"
+    ],
     "api:POST:/api/funds/:fundId/current-forecast/runs": [
       "api:POST:/api/funds/:fundId/current-forecast/runs",
       "manifest:current-forecast",
@@ -10719,6 +10782,7 @@
       "server/routes/cash-flow-events.ts",
       "server/routes/cashflow.ts",
       "server/routes/cohort-analysis.ts",
+      "server/routes/construction-reconciliation.ts",
       "server/routes/current-forecast.ts",
       "server/routes/dashboard-summary.ts",
       "server/routes/deal-pipeline.ts",
@@ -10837,6 +10901,7 @@
       "server/routes/cash-flow-events.ts",
       "server/routes/cashflow.ts",
       "server/routes/cohort-analysis.ts",
+      "server/routes/construction-reconciliation.ts",
       "server/routes/current-forecast.ts",
       "server/routes/dashboard-summary.ts",
       "server/routes/deal-pipeline.ts",
@@ -10932,11 +10997,11 @@
       "shared/routes/route-governance-registry.ts#normalized-runtime-export"
     ],
     "kg-snapshot": [
-      "snapshot:121c1b2916df969371c7d23d840555566dbc9ffa3c893103df737dbdfe31ee73"
+      "snapshot:85a44a6e91715ba278416b2ba00d4e26fd9824b1348661c2f76823143a05bef1"
     ]
   },
   "kg_counts": {
-    "APIEndpoint": 392,
+    "APIEndpoint": 394,
     "ClientRoute": 43,
     "WorkerJob": 10
   },

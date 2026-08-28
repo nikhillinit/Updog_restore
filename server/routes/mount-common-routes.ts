@@ -11,6 +11,7 @@ import backtestingRouter from './backtesting.js';
 import cashFlowEventsRouter from './cash-flow-events.js';
 import capitalAllocationRouter from './capital-allocation.js';
 import cohortAnalysisRouter from './cohort-analysis.js';
+import constructionReconciliationRouter from './construction-reconciliation.js';
 import currentForecastRouter from './current-forecast.js';
 import dashboardSummaryRouter from './dashboard-summary.js';
 import { dealPipelineRouter } from './deal-pipeline.js';
@@ -85,6 +86,7 @@ export const COMMON_ROUTE_IMPLEMENTATIONS: Record<CommonApiRouteId, RouteMountIm
   'allocation-scenarios': at('/api', allocationScenariosRouter),
   'planning-fmv-overrides': at('/api', planningFmvOverridesRouter),
   'fund-scenario-sets': at('/api', fundScenarioSetsRouter),
+  'construction-reconciliation': at('/api', constructionReconciliationRouter),
   'fund-moic': at('/api', fundMoicRouter),
   timeline: at('/api/timeline', timelineRouter),
   shares: at('/api/shares', sharesRouter),
@@ -128,6 +130,7 @@ export const COMMON_ROUTE_SURFACE_ORDER = {
     'allocation-scenarios',
     'planning-fmv-overrides',
     'fund-scenario-sets',
+    'construction-reconciliation',
     'fund-actuals',
     'financial-facts',
     'current-forecast',

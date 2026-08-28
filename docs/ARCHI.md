@@ -434,6 +434,8 @@ plain `ls` will show more if untracked files are present) includes:
   `DistributionsStep`, `ExitRecyclingStep`, `WaterfallStep`, `ReviewStep`),
   results (`fund-model-results*.tsx`, several variants),
   `dashboard(-modern).tsx`, `kpi-manager/`, `kpi-submission.tsx`, `lp/`,
+  `variance-tracking.tsx` (hosts the C1A persisted deployable-capital
+  reconciliation card — GET-latest on load, explicit POST refresh),
   `lp-reporting/`, `portal/`, `v2/` (quarantined — see memory: `v2-quarantine`),
   `login.tsx`, `not-found.tsx`.
 - **Components** (`client/src/components/`, 55 entries, `git ls-tree HEAD`,
@@ -630,9 +632,16 @@ review, `#1287` target naming, `#1299` activation flip.
    contract (`fund-scenario-set-create/2.0.0`) whose server-enforced pinning
    rejects stale expected-config pairs (409) and variant row-identity drift
    (422) before any write; UI modal lives beside the methodology modal in
-   `client/src/components/scenarios/`. C1A (persisted deployable-capital
-   reconciliation into `fund_snapshots`) follows as a separate PR. Plan:
-   `docs/1-plans/F_1.7.0_daily-decision-workspace.plan.md`.
+   `client/src/components/scenarios/`. C1A adds the
+   `construction-reconciliation` router module (POST compute-and-persist + GET
+   latest): one deterministic current-plan/current-facts deployable-capital
+   reconciliation persisted to `fund_snapshots` as non-timeline type
+   `CONSTRUCTION_RECONCILIATION` (calc-substrate `CalcResult`, fund-scoped
+   advisory lock, key-first idempotent replay, optional request facts-id with
+   server head-resolution, provenance warnings persisted in metadata); the
+   "Deployable Capital vs Plan" card on `client/src/pages/variance-tracking.tsx`
+   loads via GET only and refreshes via explicit POST with an awaited labeled
+   readback. Plan: `docs/1-plans/F_1.7.0_daily-decision-workspace.plan.md`.
 
 ## 9. Guidance for New Work (patterns confirmed above, not aspirational)
 
