@@ -335,15 +335,23 @@ export const ChartLegend = React.forwardRef<HTMLDivElement, ChartLegendProps>(
       Object.entries(props).filter(([_, value]) => value !== undefined)
     );
 
-    if (nameKey) {
-      filteredProps['nameKey'] = nameKey;
-    }
+    // recharts 3.10 dropped Legend's className prop and unknown-prop
+    // forwarding to content, so styling and nameKey go through the content
+    // function instead of the Legend element.
+    const renderContent = (contentProps: object) => (
+      <ChartLegendContent
+        {...(contentProps as React.ComponentProps<typeof ChartLegendContent>)}
+        {...(nameKey ? { nameKey } : {})}
+        className={cn('flex flex-wrap items-center justify-center gap-4 text-xs', className)}
+      />
+    );
 
     return (
       <Legend
-        className={cn('flex flex-wrap items-center justify-center gap-4 text-xs', className)}
-        content={ChartLegendContent as never}
-        {...(filteredProps as Omit<React.ComponentProps<typeof Legend>, 'className' | 'content'>)}
+        content={
+          renderContent as unknown as NonNullable<React.ComponentProps<typeof Legend>['content']>
+        }
+        {...(filteredProps as Record<string, never>)}
       />
     );
   }
